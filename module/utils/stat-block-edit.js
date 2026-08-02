@@ -2,15 +2,23 @@
 // the same play-mode portrait popout and the same whitelisted field/move updates. `sheet` is the
 // AppV1 sheet instance (uses sheet.actor / sheet._editMode); the whitelist is passed per sheet.
 import { isDefaultImg } from "./strings.js";
+import { fullPortraitSrc } from "../book2-art/people-portraits.js";
 
 // Wire the play-mode portrait click → ImagePopout. Edit mode leaves Foundry's own file picker,
 // and the decorative default/creature-type icon is never enlarged. `root` is the sheet root el.
+//
+// Opens the WHOLE illustration when `img` is a People-of-Stonetop square, for the same reason the
+// header renders one (StonetopNpcSheet.getData) and the hover preview swaps one in
+// (utils/avatar-preview.js): the square is a ~200px face cut from a standing figure, so popping it
+// out would answer "show me this bigger" with a picture smaller than the one just clicked.
+// Anything else resolves to null and is enlarged as itself.
 export function wirePortraitPopout(sheet, root) {
 	root.querySelector(".stonetop-portrait")?.addEventListener("click", ev => {
 		if (sheet._editMode || isDefaultImg(sheet.actor.img)) return;
 		ev.preventDefault();
 		ev.stopPropagation();
-		new ImagePopout(sheet.actor.img, { title: sheet.actor.name }).render(true);
+		const src = fullPortraitSrc(sheet.actor.img) ?? sheet.actor.img;
+		new ImagePopout(src, { title: sheet.actor.name }).render(true);
 	});
 }
 

@@ -49,7 +49,11 @@
 		      per-facet decoder. That is why an untagged portrait writes "unspecified" here
 		      rather than "": it is a selectable bucket, not a gap. --}}
 		{{#each people}}
-		<button type="button" class="stonetop-people-pick{{#if selected}} is-selected{{/if}}{{#if usedBy}} is-used{{/if}}" data-src="{{src}}" data-presenting="{{#if presenting}}{{presenting}}{{else}}unspecified{{/if}}" data-kid="{{#if kid}}kids{{else}}adults{{/if}}" data-used="{{#if usedBy}}used{{else}}unused{{/if}}" data-used-by="{{usedBy}}" title="{{name}}{{#if usedBy}} (already assigned to {{usedBy}}){{/if}}">
+		{{!-- `data-src` is what Accept commits and what the tile shows: the square face when one
+		      has been cut, otherwise the whole illustration exactly as before. `data-full` is
+		      always the illustration, for the hover preview and for deciding whether two paths
+		      mean the same person. --}}
+		<button type="button" class="stonetop-people-pick{{#if isSquare}} is-square{{/if}}{{#if selected}} is-selected{{/if}}{{#if usedBy}} is-used{{/if}}" data-src="{{src}}" data-full="{{full}}" data-presenting="{{#if presenting}}{{presenting}}{{else}}unspecified{{/if}}" data-kid="{{#if kid}}kids{{else}}adults{{/if}}" data-used="{{#if usedBy}}used{{else}}unused{{/if}}" data-used-by="{{usedBy}}" title="{{name}}{{#if usedBy}} (already assigned to {{usedBy}}){{/if}}">
 			<img src="{{src}}" alt="{{name}}" loading="lazy">
 			<span class="stonetop-people-label">{{name}}</span>
 		</button>

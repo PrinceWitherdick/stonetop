@@ -6,11 +6,10 @@ import { runWorldSetup, pendingSetupWork } from "./WorldSetup.js";
 import { reapplyBook2Art, hasImportedBook2Art } from "../book2-art/reapply.js";
 import { clearArtBrowseCache } from "../book2-art/browse.js";
 import { BOOK2_ART_MACRO_NAME, findBook2ArtWorldMacro, loadBook2ArtMacroSource, runImportBookArtMacro } from "../book2-art/macro.js";
-import { browsePeopleArt, plannedCropRebuilds } from "../book2-art/rebuild-crops.js";
-import { book2ArtRoot } from "../book2-art/art-root.js";
 import { offerDurableArtOnce } from "../book2-art/offer-once.js";
+import { openProgressNotification } from "../utils/progress-notification.js";
 import { stonetopChatCard } from "../utils/chat.js";
-import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyHideRollableIcon, applyReduceMotion, getSetting, setSetting } from "../settings.js";
+import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyHideRollableIcon, applyReduceMotion, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
 import { SpringBurstDialog } from "../dialogs/SpringBurstDialog.js";
@@ -100,6 +99,9 @@ export async function onReady() {
 	applyEditPencilRevealDelay(getSetting("editPencilRevealDelay"));
 	applyHideRollableIcon(getSetting("hideRollableIcon"));
 	applyReduceMotion(getSetting("reduceMotion"));
+	// Fold the pre-world-keying Setting Overview gate under this world, so every OTHER
+	// world stops reading it as already-shown (see settings.js).
+	await migrateFlatSettingOverviewShown();
 	await _migrateArmourToArmor();
 	await _migrateGmPrepPagesToSingleJournal();
 	// Convert each steading's legacy plain-text Residents/Neighbors rows into linked
@@ -173,6 +175,37 @@ export async function onReady() {
 	game.stonetop.openCharacterCreation = (actor = game.user.character) =>
 		actor ? new CharacterCreationDialog(actor).render(true)
 		      : ui.notifications.warn("No character to start creation for.");
+	// Cut every portrait this world could have out of the book art already on disk — the detail
+	// portraits, and the square faces the small round pictures use — then point NPCs already
+	// holding a whole illustration at their close-up. GM-only (it writes files).
+	//
+	// The same work the one-time chat card offers, reachable on demand because that card latches
+	// the moment it is posted: scrolled past, deleted, or landed on the other GM and it is gone
+	// for good. Safe to run any number of times — every stage re-plans from what is on disk.
+	game.stonetop.rebuildPortraits = async () => {
+		if (!game.user.isGM) return ui.notifications.warn("Only a GM can rebuild portrait art.");
+		const { runPeopleArtRebuild, countPeopleArtRebuilds, describeRebuild } =
+			await import("../book2-art/run-rebuild.js");
+		const todo = await countPeopleArtRebuilds();
+		if (!todo) return ui.notifications.info("Every portrait this world can build is already on disk.");
+		// The other two entry points are buttons, which count down in their own label. This one
+		// has no button, and a toast that fades after five seconds while a 140-image job runs on
+		// is the exact thing the notification bar exists for. No delay: the caller just asked.
+		const bar = openProgressNotification(
+			`Stonetop: rebuilding ${todo} portrait${todo === 1 ? "" : "s"}`, { delayMs: 0 });
+		let res;
+		try {
+			res = await runPeopleArtRebuild({
+				onProgress: (done, total) => bar.update({ fraction: done / total, detail: `${done} of ${total}` }),
+			});
+		} catch (err) {
+			bar.abandon();   // a died-part-way run must not sign off with a full bar
+			throw err;
+		}
+		bar.close();
+		ui.notifications[res.failed ? "warn" : "info"](describeRebuild(res));
+		return res;
+	};
 	game.stonetop.rollDieOfFate     = rollDieOfFate;
 	// Open the love-letter authoring dialog (GM-only; Book I p.568). Wired to the
 	// "Write a Love Letter" hotbar macro and callable from the console.
@@ -270,7 +303,7 @@ export async function onReady() {
 		// the plan is empty so a later import still gets the nudge — so for a GM who never
 		// imports, an awaited call stalls the ready sequence on a server round-trip whose
 		// answer is always "nothing", on every single load. Nothing below waits on it.
-		_offerPeopleCropRebuildOnce()
+		_offerPeopleArtRebuildOnce()
 			.catch(err => console.error("Stonetop | portrait rebuild offer failed:", err));
 		await remindDestinedOmenRoll();
 	}
@@ -559,10 +592,10 @@ async function _openSettingOverview() {
 	if (!overview) return; // not seeded yet (or not visible to this user) — try again next load
 
 	const needsOrientation = !game.user.isGM && !game.user.character;
-	if (!needsOrientation && getSetting("settingOverviewShown")) return;
+	if (!needsOrientation && getSettingOverviewShown()) return;
 
 	overview.sheet.render(true);
-	if (!getSetting("settingOverviewShown")) await setSetting("settingOverviewShown", true);
+	if (!getSettingOverviewShown()) await markSettingOverviewShown();
 }
 
 // Is a hotbar slot empty? The hotbar is a sparse map of slot → macro id, so an
@@ -891,18 +924,21 @@ function _buildBook2ArtReminderContent() {
 // The once-per-world rules — including "found nothing, so do not latch, and ask again next
 // load" — belong to offerDurableArtOnce; what is local here is what counts as rebuildable and
 // how the offer is presented.
-function _offerPeopleCropRebuildOnce() {
+function _offerPeopleArtRebuildOnce() {
 	return offerDurableArtOnce({
-		setting: "peopleCropRebuildOffered",
+		setting: "peopleArtRebuildOffered",
 		findWork: async () => {
-			const root = book2ArtRoot();
-			const plan = plannedCropRebuilds(await browsePeopleArt(root), root);
-			return plan.length ? plan : null;
+			// Both kinds of cuttable art: the detail portraits, and the square faces the small
+			// surfaces use. One offer covers both — they are the same work from the GM's side
+			// (cut from pictures already on disk) and asking twice would just be nagging.
+			// Counted through run-rebuild.js, the same façade the three run paths use.
+			const { countPeopleArtRebuilds } = await import("../book2-art/run-rebuild.js");
+			return await countPeopleArtRebuilds() || null;
 		},
-		offer: async plan => {
+		offer: async count => {
 			if (!globalThis.ChatMessage?.create) return false; // chat isn't ready — retry next load
 			await ChatMessage.create({
-				content: _buildPeopleCropRebuildContent(plan.length),
+				content: _buildPeopleArtRebuildContent(count),
 				whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id),
 				speaker: { alias: "Stonetop" },
 			});
@@ -910,14 +946,16 @@ function _offerPeopleCropRebuildOnce() {
 	});
 }
 
-function _buildPeopleCropRebuildContent(count) {
+function _buildPeopleArtRebuildContent(count) {
 	return stonetopChatCard(
-		"Rebuild Portrait Details",
+		"Rebuild Portraits",
 		`<div class="stonetop-roll-card-description">
 			<p>The <strong>People of Stonetop</strong> gallery now offers individual portraits cut from the
-			group illustrations &mdash; one face per person, instead of a whole crowd scene. You already have
-			the source pictures, so <strong>${count}</strong> of these can be made right here from the art
-			you imported before. <strong>You do not need your PDFs, and you do not need to re-import.</strong></p>
+			group illustrations &mdash; one face per person, instead of a whole crowd scene &mdash; and a
+			square close-up of each face, for the small round portraits on the character and steading sheets.
+			You already have the source pictures, so <strong>${count}</strong> of these can be made right here
+			from the art you imported before.
+			<strong>You do not need your PDFs, and you do not need to re-import.</strong></p>
 			<p>They are cut from pictures already on your disk, so they come out a little smaller than a fresh
 			import would give. If you would rather have them at full size, re-run the
 			<strong>Import Book Art</strong> macro instead &mdash; either way, nothing already on disk is deleted.</p>

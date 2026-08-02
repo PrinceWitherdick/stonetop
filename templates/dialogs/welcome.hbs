@@ -78,6 +78,16 @@
         <button type="button" class="stonetop-welcome-action" data-action="import-book-art">
           <i class="fas fa-images"></i> {{#if bookArtImported}}Import Book Art Again{{else}}Import Book Art{{/if}}
         </button>
+        {{!-- Shown only when there is something to build. A newer version of Stonetop can add
+              pictures that are derivable from art already on disk — individual faces cut out of
+              a group scene, and the square close-ups the small round portraits use — so these
+              need no PDFs and no re-import. Normally offered once by a chat card; here as well,
+              because that card is easy to miss and never comes back. --}}
+        {{#if rebuildableArt}}
+        <button type="button" class="stonetop-welcome-action" data-action="rebuild-portraits">
+          <i class="fas fa-crop-simple"></i> Build {{rebuildableArt}} more portraits from art you already have
+        </button>
+        {{/if}}
         <div class="stonetop-welcome-notice stonetop-welcome-notice--info">
           <i class="fas fa-circle-info"></i>
           <div class="stonetop-welcome-notice-body">

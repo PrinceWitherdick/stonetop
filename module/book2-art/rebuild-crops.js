@@ -1,6 +1,7 @@
 import { BOOK2_ART_APPLY_MANIFEST } from "./manifest.js";
 import { book2ArtRoot, book2ArtSrcWith } from "./art-root.js";
 import { browseArtDirs, clearArtBrowseCache } from "./browse.js";
+import { isValidRect, RECT_SUFFIX_GROUPS } from "./people-portraits.js";
 
 /**
  * Rebuild missing "People of Stonetop" detail portraits from art the GM has ALREADY imported,
@@ -27,20 +28,23 @@ import { browseArtDirs, clearArtBrowseCache } from "./browse.js";
  */
 
 // The slug suffix merge-art-picker.py appends for a crop: per-mille of each fractional
-// coordinate, zero-padded. 1000 is four digits, so the groups are 3 OR 4 long — a `\d{3}`
-// pattern silently misses every rect touching an edge, which is most of them.
-const CROP_SUFFIX_RX = /-c\d{3,4}(?:-\d{3,4}){3}$/;
+// coordinate, zero-padded. The digit groups come from RECT_SUFFIX_GROUPS so the 3-OR-4 rule
+// (1000 is four digits) is stated once for both suffixes — writing it out a second time here is
+// what let a `\d{3}` pattern miss every rect touching an edge. End-anchored, unlike the square's:
+// this one runs against SLUGS, which have no extension.
+const CROP_SUFFIX_RX = new RegExp(`-c${RECT_SUFFIX_GROUPS}$`);
 
 export const isCropSlug = (slug) => CROP_SUFFIX_RX.test(String(slug ?? ""));
 export const parentSlugOf = (slug) => String(slug ?? "").replace(CROP_SUFFIX_RX, "");
 
-/** Four fractions in [0,1] describing a positive-area rect. Mirrors merge-art-picker.py. */
-export function isValidCrop(crop) {
-	if (!Array.isArray(crop) || crop.length !== 4) return false;
-	const [x0, y0, x1, y1] = crop.map(Number);
-	if (![x0, y0, x1, y1].every((n) => Number.isFinite(n) && n >= 0 && n <= 1)) return false;
-	return x1 > x0 && y1 > y0;
-}
+/**
+ * Four fractions in [0,1] describing a positive-area rect. Mirrors merge-art-picker.py.
+ *
+ * Same contract as a square's rect, and stated once in people-portraits.js — a crop and a square
+ * are the same kind of thing, and two copies of this predicate would be two things to keep in
+ * step with the Python.
+ */
+export const isValidCrop = isValidRect;
 
 /**
  * Which detail portraits could be rebuilt right now, given what is on disk.
@@ -62,6 +66,33 @@ export function plannedCropRebuilds(present, root, people = BOOK2_ART_APPLY_MANI
 		const parentSrc = srcOf(parentOut);
 		if (!present.has(parentSrc)) continue;         // nothing to cut it from
 		plan.push({ slug: p.slug, name: p.name, out: p.out, crop: p.crop, dest, parentSrc });
+	}
+	return plan;
+}
+
+/**
+ * Which SQUARE faces could be cut right now, given what is on disk.
+ *
+ * Same shape and same runner as a crop rebuild, because it is the same operation: cut a
+ * fractional rect out of an image already on disk. What differs is only where the rect is
+ * measured — a square is measured against the PERSON image, so the source is that image
+ * directly (`p.out`), with no slug arithmetic to recover a parent.
+ *
+ * This is the whole upgrade path for squares. A GM who already imported holds every person
+ * image; the squares are new files cut from those, so nobody has to find their PDFs again. The
+ * cost is resolution only, and a square is the smallest thing this pipeline produces.
+ */
+export function plannedPortraitRebuilds(present, root, people = BOOK2_ART_APPLY_MANIFEST.people ?? []) {
+	const srcOf = (out) => book2ArtSrcWith(root, out);
+	const plan = [];
+	for (const p of people) {
+		if (!p?.portrait || !p.portraitOut || !p.out) continue;
+		if (!isValidRect(p.portrait)) continue;
+		const dest = srcOf(p.portraitOut);
+		if (present.has(dest)) continue;               // already have this square
+		const parentSrc = srcOf(p.out);
+		if (!present.has(parentSrc)) continue;         // nothing to cut it from
+		plan.push({ slug: p.slug, name: p.name, out: p.portraitOut, crop: p.portrait, dest, parentSrc });
 	}
 	return plan;
 }
@@ -145,7 +176,9 @@ export async function rebuildPeopleCrops({ plan = null, onProgress = null } = {}
 			result.written++;
 		} catch (err) {
 			result.failed++;
-			result.skipped.push({ slug: item.slug, reason: String(err?.message ?? err) });
+			// `dest` as well as the slug: a later pass cuts squares out of the very files this one
+			// writes, and it can only skip the ones that never arrived if it is told their paths.
+			result.skipped.push({ slug: item.slug, dest: item.dest, reason: String(err?.message ?? err) });
 			console.warn(`Stonetop | could not rebuild portrait ${item.slug}:`, err);
 		}
 		onProgress?.(++done, work.length);
@@ -157,3 +190,84 @@ export async function rebuildPeopleCrops({ plan = null, onProgress = null } = {}
 
 /** The people art on disk. Narrower than reapply's browse: this pass only cares about portraits. */
 export const browsePeopleArt = (root = book2ArtRoot()) => browseArtDirs(root, ["assets/people"]);
+
+/**
+ * Everything cuttable from the people art on disk, as two ordered passes.
+ *
+ * Two passes, in that order, and NOT one merged plan — because a square is cut from the person
+ * image, and for 143 of the 155 people that image is itself a detail this very run is about to
+ * create. Merging them would let the runner's parent-grouping sort interleave the two and ask
+ * for a square before its source exists.
+ *
+ * The square plan is still worked out UP FRONT, against what disk WILL hold once the details
+ * land, so a caller gets an honest total to count against rather than a progress bar that grows
+ * halfway through. That makes it OPTIMISTIC by construction: it assumes every detail cuts. The
+ * runner is where the assumption is settled — rebuildPeopleArt drops the squares whose source
+ * never arrived, rather than asking for a file nothing wrote.
+ *
+ * Stated once, here, because the counter and the runner have to agree about that total: two
+ * copies of this ordering rule could drift into offering a number the run then disproves.
+ */
+async function planPeopleArt(root = book2ArtRoot()) {
+	const present = await browsePeopleArt(root);
+	const crops = plannedCropRebuilds(present, root);
+	const afterCrops = new Set([...present, ...crops.map((c) => c.dest)]);
+	return { crops, squares: plannedPortraitRebuilds(afterCrops, root) };
+}
+
+/**
+ * Split the square plan by whether its source actually made it onto disk.
+ *
+ * The plan was drawn against what disk WOULD hold once the details landed (see planPeopleArt),
+ * which makes it optimistic: a detail that could not be cut never arrives, and the square cut
+ * from it then has no source. Attempting it anyway fails a SECOND time over the same single bad
+ * file — the GM is told "2 could not be read" about one, and the console names a path no browse
+ * ever reported as present.
+ *
+ * So the orphans come out separately rather than being dropped: they are still counted as done
+ * and still listed as skipped, because a run that quietly produces fewer files than it announced
+ * is the other half of the same dishonesty. They are simply not a second failure.
+ *
+ * Pure, and given the crop pass's own skip list rather than reading it, so the arithmetic that
+ * decides all of the above is testable without a canvas.
+ */
+export function splitSquaresBySource(squares, cropSkips) {
+	const unwritten = new Set((cropSkips ?? []).map((s) => s?.dest).filter(Boolean));
+	const cuttable = [], orphaned = [];
+	for (const s of squares ?? []) (unwritten.has(s.parentSrc) ? orphaned : cuttable).push(s);
+	return { cuttable, orphaned };
+}
+
+/** Cut everything cuttable: the detail portraits, then the square faces. */
+export async function rebuildPeopleArt({ onProgress = null } = {}) {
+	const { crops, squares } = await planPeopleArt();
+	const total = crops.length + squares.length;
+	let done = 0;
+	const step = () => onProgress?.(++done, total);
+	const a = await rebuildPeopleCrops({ plan: crops, onProgress: step });
+
+	const { cuttable, orphaned } = splitSquaresBySource(squares, a.skipped);
+	for (const _ of orphaned) step();   // counted as done, so the bar reaches the announced total
+
+	const b = await rebuildPeopleCrops({ plan: cuttable, onProgress: step });
+	return {
+		written: a.written + b.written,
+		failed: a.failed + b.failed,
+		skipped: [
+			...a.skipped,
+			...b.skipped,
+			...orphaned.map((s) => ({
+				slug: s.slug,
+				dest: s.dest,
+				reason: `source ${s.parentSrc} could not be rebuilt`,
+			})),
+		],
+		total,
+	};
+}
+
+/** How much `rebuildPeopleArt` would do, without doing any of it. Used to decide whether to ask. */
+export async function plannedPeopleArtRebuilds(root = book2ArtRoot()) {
+	const { crops, squares } = await planPeopleArt(root);
+	return [...crops, ...squares];
+}

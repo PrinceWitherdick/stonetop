@@ -225,11 +225,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
   {
    "slug": "horned-drake-young",
    "name": "Horned Drake (Young)",
-   "out": "assets/bestiary/horned-drake-young.webp",
+   "out": "assets/bestiary/horned-drake.webp",
    "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "MmkSpS99xDX01jeC",
    "journalEntryId": "VJDP2ETcmA8GeHdT",
-   "journalPageId": "5mYNP79ZxnvKJ8pB"
+   "journalPageId": "5mYNP79ZxnvKJ8pB",
+   "retired": [
+    "assets/bestiary/horned-drake-young.webp"
+   ]
   },
   {
    "slug": "horned-drake",
@@ -297,11 +300,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
   {
    "slug": "stone-sentinel",
    "name": "Stone Sentinel",
-   "out": "assets/bestiary/stone-sentinel.webp",
+   "out": "assets/bestiary/lithic-servant.webp",
    "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "mRpMqY81O24lXlPG",
    "journalEntryId": "hNTwQMEAue41DzAx",
-   "journalPageId": "5hvH8z9U9TifqPZ0"
+   "journalPageId": "5hvH8z9U9TifqPZ0",
+   "retired": [
+    "assets/bestiary/stone-sentinel.webp"
+   ]
   },
   {
    "slug": "fire-vortex",
@@ -378,11 +384,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
   {
    "slug": "swarm-of-silvery-vermin",
    "name": "Swarm of Silvery Vermin",
-   "out": "assets/bestiary/swarm-of-silvery-vermin.webp",
+   "out": "assets/bestiary/yaarowslow-the-many.webp",
    "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "fnzABVPboAe4m9Y8",
    "journalEntryId": "5tvhzovmN18QlxGa",
-   "journalPageId": "TGra87VIxIOJstZX"
+   "journalPageId": "TGra87VIxIOJstZX",
+   "retired": [
+    "assets/bestiary/swarm-of-silvery-vermin.webp"
+   ]
   },
   {
    "slug": "yaarowslow-the-many",
@@ -405,11 +414,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
   {
    "slug": "tcaventes",
    "name": "Tcaventes, Shackle and Key",
-   "out": "assets/bestiary/tcaventes.webp",
+   "out": "assets/bestiary/soithech.webp",
    "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "GdZQKCMmPANEuFyb",
    "journalEntryId": "muAijyov4VTFfqBL",
-   "journalPageId": "FNyaslzj06Ri4wHm"
+   "journalPageId": "FNyaslzj06Ri4wHm",
+   "retired": [
+    "assets/bestiary/tcaventes.webp"
+   ]
   },
   {
    "slug": "soithech",
@@ -477,11 +489,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
   {
    "slug": "grochslon",
    "name": "Grochslon",
-   "out": "assets/bestiary/grochslon.webp",
+   "out": "assets/bestiary/gouzadn.webp",
    "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "uP9zE6MDiS3TwIWF",
    "journalEntryId": "BUMZ5O0VT9SDjfwE",
-   "journalPageId": "zvAUMz9DzP5e9Aec"
+   "journalPageId": "zvAUMz9DzP5e9Aec",
+   "retired": [
+    "assets/bestiary/grochslon.webp"
+   ]
   },
   {
    "slug": "corrupted-glasbren",
@@ -657,11 +672,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
   {
    "slug": "assassin",
    "name": "Assassin",
-   "out": "assets/bestiary/assassin.webp",
+   "out": "assets/bestiary/adventurer.webp",
    "actorPack": "stonetop-pwd.stonetop-bestiary",
    "actorId": "x6X63ArQe1zZ3tBE",
    "journalEntryId": "ew3px3xfQiIpxEtg",
-   "journalPageId": "CdxgzGw6aBI3GYEw"
+   "journalPageId": "CdxgzGw6aBI3GYEw",
+   "retired": [
+    "assets/bestiary/assassin.webp"
+   ]
   }
  ],
  "locations": [
@@ -745,8 +763,11 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "sectionIndex": 0,
    "images": [
     {
-     "out": "assets/locations/lygos-and-the-south-1.webp"
+     "out": "assets/bestiary/antiquarian.webp"
     }
+   ],
+   "retired": [
+    "assets/locations/lygos-and-the-south-1.webp"
    ]
   },
   {
@@ -769,8 +790,11 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "sectionIndex": 0,
    "images": [
     {
-     "out": "assets/locations/south-manmarch-1.webp"
+     "out": "assets/bestiary/horned-drake.webp"
     }
+   ],
+   "retired": [
+    "assets/locations/south-manmarch-1.webp"
    ]
   },
   {
@@ -817,8 +841,11 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "sectionIndex": 0,
    "images": [
     {
-     "out": "assets/locations/the-frozen-wastes-1.webp"
+     "out": "assets/bestiary/mammoth.webp"
     }
+   ],
+   "retired": [
+    "assets/locations/the-frozen-wastes-1.webp"
    ]
   },
   {
@@ -937,8 +964,11 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "sectionIndex": 0,
    "images": [
     {
-     "out": "assets/locations/the-crombil-1.webp"
+     "out": "assets/bestiary/the-crombil.webp"
     }
+   ],
+   "retired": [
+    "assets/locations/the-crombil-1.webp"
    ]
   },
   {
@@ -1360,8 +1390,11 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "sectionIndex": 5,
    "images": [
     {
-     "out": "assets/locations/blackwater-lake-4.webp"
+     "out": "assets/bestiary/servants-of-daagon.webp"
     }
+   ],
+   "retired": [
+    "assets/locations/blackwater-lake-4.webp"
    ]
   },
   {
@@ -1408,8 +1441,11 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "sectionIndex": 8,
    "images": [
     {
-     "out": "assets/locations/ferriers-fen-2.webp"
+     "out": "assets/bestiary/willow-witches.webp"
     }
+   ],
+   "retired": [
+    "assets/locations/ferriers-fen-2.webp"
    ]
   },
   {
@@ -1432,8 +1468,11 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "sectionIndex": 9,
    "images": [
     {
-     "out": "assets/locations/the-flats-3.webp"
+     "out": "assets/bestiary/aurochs.webp"
     }
+   ],
+   "retired": [
+    "assets/locations/the-flats-3.webp"
    ]
   },
   {
@@ -1444,8 +1483,11 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "sectionIndex": 5,
    "images": [
     {
-     "out": "assets/locations/the-flats-4.webp"
+     "out": "assets/bestiary/frythanc.webp"
     }
+   ],
+   "retired": [
+    "assets/locations/the-flats-4.webp"
    ]
   },
   {
@@ -1576,8 +1618,11 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "sectionIndex": 6,
    "images": [
     {
-     "out": "assets/locations/the-labyrinth-3.webp"
+     "out": "assets/bestiary/soithech.webp"
     }
+   ],
+   "retired": [
+    "assets/locations/the-labyrinth-3.webp"
    ]
   },
   {
@@ -1588,8 +1633,11 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "sectionIndex": 3,
    "images": [
     {
-     "out": "assets/locations/lygos-and-the-south-2.webp"
+     "out": "assets/bestiary/caravan-guard.webp"
     }
+   ],
+   "retired": [
+    "assets/locations/lygos-and-the-south-2.webp"
    ]
   },
   {
@@ -1600,8 +1648,11 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "sectionIndex": 5,
    "images": [
     {
-     "out": "assets/locations/lygos-and-the-south-3.webp"
+     "out": "assets/bestiary/adventurer.webp"
     }
+   ],
+   "retired": [
+    "assets/locations/lygos-and-the-south-3.webp"
    ]
   },
   {
@@ -1624,8 +1675,11 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "sectionIndex": 2,
    "images": [
     {
-     "out": "assets/locations/lygos-and-the-south-5.webp"
+     "out": "assets/bestiary/infantry.webp"
     }
+   ],
+   "retired": [
+    "assets/locations/lygos-and-the-south-5.webp"
    ]
   },
   {
@@ -1708,8 +1762,11 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "sectionIndex": 6,
    "images": [
     {
-     "out": "assets/locations/the-ruined-tower-3.webp"
+     "out": "assets/bestiary/star-mole.webp"
     }
+   ],
+   "retired": [
+    "assets/locations/the-ruined-tower-3.webp"
    ]
   },
   {
@@ -1720,8 +1777,11 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "sectionIndex": 7,
    "images": [
     {
-     "out": "assets/locations/the-ruined-tower-4.webp"
+     "out": "assets/bestiary/skittering-horror.webp"
     }
+   ],
+   "retired": [
+    "assets/locations/the-ruined-tower-4.webp"
    ]
   },
   {
@@ -1780,8 +1840,11 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "sectionIndex": 6,
    "images": [
     {
-     "out": "assets/locations/vor-svetelik-4.webp"
+     "out": "assets/bestiary/plasmic-horror.webp"
     }
+   ],
+   "retired": [
+    "assets/locations/vor-svetelik-4.webp"
    ]
   },
   {
@@ -1792,8 +1855,11 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "sectionIndex": 14,
    "images": [
     {
-     "out": "assets/locations/the-whitefang-mountains-2.webp"
+     "out": "assets/bestiary/kyakaara.webp"
     }
+   ],
+   "retired": [
+    "assets/locations/the-whitefang-mountains-2.webp"
    ]
   },
   {
@@ -2035,7 +2101,7 @@ export const BOOK2_ART_APPLY_MANIFEST = {
   {
    "slug": "forge-lords-2d4-lumps-of-anthracite",
    "name": "2d4 lumps of anthracite",
-   "out": "assets/treasures/forge-lords-2d4-lumps-of-anthracite.webp"
+   "out": "assets/locations/forge-lords-4.webp"
   },
   {
    "slug": "primordial-powers-a-sealed-amphora",
@@ -2045,75 +2111,134 @@ export const BOOK2_ART_APPLY_MANIFEST = {
   {
    "slug": "the-things-below-a-chunk-of-red-crystal-shaped-to-look-like-a-lee",
    "name": "A chunk of red crystal, shaped to look like a leering skull",
-   "out": "assets/treasures/the-things-below-a-chunk-of-red-crystal-shaped-to-look-like-a-lee.webp"
+   "out": "assets/locations/the-things-below-5.webp"
   }
  ],
  "people": [
   {
    "slug": "b1-p135-x526",
    "name": "Book I p.268",
-   "out": "assets/people/b1-p135-x526.webp"
+   "out": "assets/people/b1-p135-x526.webp",
+   "portrait": [
+    0.425,
+    0,
+    0.765,
+    0.245
+   ],
+   "portraitOut": "assets/people/b1-p135-x526-q425-000-765-245.webp"
   },
   {
    "slug": "b1-p156-x594",
    "name": "Book I p.311",
    "out": "assets/people/b1-p156-x594.webp",
+   "portrait": [
+    0.1,
+    0.005,
+    0.503,
+    0.298
+   ],
+   "portraitOut": "assets/people/b1-p156-x594-q100-005-503-298.webp",
    "presenting": "feminine"
   },
   {
    "slug": "b1-p166-x630",
    "name": "Book I p.331",
-   "out": "assets/people/b1-p166-x630.webp"
+   "out": "assets/people/b1-p166-x630.webp",
+   "portrait": [
+    0.316,
+    0.265,
+    0.613,
+    0.482
+   ],
+   "portraitOut": "assets/people/b1-p166-x630-q316-265-613-482.webp"
   },
   {
    "slug": "b1-p267-x987",
    "name": "Book I p.533",
    "out": "assets/people/b1-p267-x987.webp",
+   "portrait": [
+    0.061,
+    0,
+    0.568,
+    0.312
+   ],
+   "portraitOut": "assets/people/b1-p267-x987-q061-000-568-312.webp",
    "presenting": "feminine"
   },
   {
    "slug": "b1-p239-x892",
    "name": "Book I p.477",
-   "out": "assets/people/b1-p239-x892.webp"
+   "out": "assets/people/b1-p239-x892.webp",
+   "portrait": [
+    0.212,
+    0,
+    0.633,
+    0.261
+   ],
+   "portraitOut": "assets/people/b1-p239-x892-q212-000-633-261.webp"
   },
   {
    "slug": "b1-p270-x998",
    "name": "Book I p.539",
    "out": "assets/people/b1-p270-x998.webp",
+   "portrait": [
+    0.324,
+    0,
+    0.885,
+    0.45
+   ],
+   "portraitOut": "assets/people/b1-p270-x998-q324-000-885-450.webp",
    "presenting": "feminine"
   },
   {
    "slug": "b2-p031-x121",
    "name": "Book II p.61",
-   "out": "assets/people/b2-p031-x121.webp"
+   "out": "assets/people/b2-p031-x121.webp",
+   "portrait": [
+    0.593,
+    0.412,
+    0.876,
+    0.639
+   ],
+   "portraitOut": "assets/people/b2-p031-x121-q593-412-876-639.webp"
   },
   {
    "slug": "b1-p123-x486",
    "name": "Book I p.244",
    "out": "assets/people/b1-p123-x486.webp",
-   "presenting": "feminine"
-  },
-  {
-   "slug": "b1-p119-x472",
-   "name": "Book I p.237",
-   "out": "assets/people/b1-p119-x472.webp",
+   "portrait": [
+    0.137,
+    0,
+    0.581,
+    0.271
+   ],
+   "portraitOut": "assets/people/b1-p123-x486-q137-000-581-271.webp",
    "presenting": "feminine"
   },
   {
    "slug": "b1-p103-x420",
    "name": "Book I p.204",
    "out": "assets/people/b1-p103-x420.webp",
+   "portrait": [
+    0.371,
+    0.126,
+    0.9,
+    0.346
+   ],
+   "portraitOut": "assets/people/b1-p103-x420-q371-126-900-346.webp",
    "presenting": "feminine"
   },
   {
    "slug": "b1-p039-x161",
    "name": "Book I p.76",
-   "out": "assets/people/b1-p039-x161.webp"
-  },
-  {
-   "slug": "b1-p047-x193",
-   "name": "Book I p.92",
-   "out": "assets/people/b1-p047-x193.webp"
+   "out": "assets/people/b1-p039-x161.webp",
+   "portrait": [
+    0.514,
+    0,
+    0.811,
+    0.34
+   ],
+   "portraitOut": "assets/people/b1-p039-x161-q514-000-811-340.webp"
   },
   {
    "slug": "b1-p007-x32-c750-387-1000-1000",
@@ -2124,7 +2249,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.387,
     1,
     1
-   ]
+   ],
+   "portrait": [
+    0.325,
+    0.031,
+    0.788,
+    0.376
+   ],
+   "portraitOut": "assets/people/b1-p007-x32-c750-387-1000-1000-q325-031-788-376.webp"
   },
   {
    "slug": "b1-p007-x32-c712-116-869-697",
@@ -2136,6 +2268,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.869,
     0.697
    ],
+   "portrait": [
+    0.135,
+    0.025,
+    0.803,
+    0.355
+   ],
+   "portraitOut": "assets/people/b1-p007-x32-c712-116-869-697-q135-025-803-355.webp",
    "presenting": "masculine"
   },
   {
@@ -2148,6 +2287,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.719,
     0.49
    ],
+   "portrait": [
+    0.326,
+    0.015,
+    0.806,
+    0.323
+   ],
+   "portraitOut": "assets/people/b1-p007-x32-c548-002-719-490-q326-015-806-323.webp",
    "presenting": "feminine"
   },
   {
@@ -2160,6 +2306,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.492,
     0.452
    ],
+   "portrait": [
+    0.292,
+    0.024,
+    0.72,
+    0.328
+   ],
+   "portraitOut": "assets/people/b1-p007-x32-c335-048-492-452-q292-024-720-328.webp",
    "presenting": "feminine"
   },
   {
@@ -2172,6 +2325,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.329,
     0.532
    ],
+   "portrait": [
+    0.306,
+    0,
+    0.767,
+    0.238
+   ],
+   "portraitOut": "assets/people/b1-p007-x32-c179-000-329-532-q306-000-767-238.webp",
    "presenting": "masculine"
   },
   {
@@ -2184,6 +2344,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.171,
     0.552
    ],
+   "portrait": [
+    0.121,
+    0.035,
+    0.653,
+    0.368
+   ],
+   "portraitOut": "assets/people/b1-p007-x32-c000-052-171-552-q121-035-653-368.webp",
    "presenting": "masculine"
   },
   {
@@ -2195,7 +2362,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.318,
     0.21,
     0.997
-   ]
+   ],
+   "portrait": [
+    0.243,
+    0.003,
+    0.789,
+    0.297
+   ],
+   "portraitOut": "assets/people/b1-p007-x32-c010-318-210-997-q243-003-789-297.webp"
   },
   {
    "slug": "b1-p007-x32-c169-470-423-1000",
@@ -2207,6 +2381,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.423,
     1
    ],
+   "portrait": [
+    0.146,
+    0.051,
+    0.63,
+    0.476
+   ],
+   "portraitOut": "assets/people/b1-p007-x32-c169-470-423-1000-q146-051-630-476.webp",
    "presenting": "masculine"
   },
   {
@@ -2219,6 +2400,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.775,
     1
    ],
+   "portrait": [
+    0.363,
+    0,
+    0.801,
+    0.572
+   ],
+   "portraitOut": "assets/people/b1-p007-x32-c392-463-775-1000-q363-000-801-572.webp",
    "presenting": "masculine"
   },
   {
@@ -2231,6 +2419,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.348,
     1
    ],
+   "portrait": [
+    0.266,
+    0.008,
+    0.738,
+    0.409
+   ],
+   "portraitOut": "assets/people/b1-p019-x88-c000-337-348-1000-q266-008-738-409.webp",
    "presenting": "masculine",
    "kid": true
   },
@@ -2244,6 +2439,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.45,
     0.663
    ],
+   "portrait": [
+    0.114,
+    0.031,
+    0.68,
+    0.43
+   ],
+   "portraitOut": "assets/people/b1-p019-x88-c165-010-450-663-q114-031-680-430.webp",
    "presenting": "feminine",
    "kid": true
   },
@@ -2257,6 +2459,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.69,
     0.515
    ],
+   "portrait": [
+    0.243,
+    0.012,
+    0.785,
+    0.437
+   ],
+   "portraitOut": "assets/people/b1-p019-x88-c442-003-690-515-q243-012-785-437.webp",
    "presenting": "feminine",
    "kid": true
   },
@@ -2270,6 +2479,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.94,
     0.633
    ],
+   "portrait": [
+    0.119,
+    0,
+    0.625,
+    0.399
+   ],
+   "portraitOut": "assets/people/b1-p019-x88-c631-000-940-633-q119-000-625-399.webp",
    "kid": true
   },
   {
@@ -2282,6 +2498,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     1,
     1
    ],
+   "portrait": [
+    0.118,
+    0.056,
+    0.444,
+    0.534
+   ],
+   "portraitOut": "assets/people/b1-p019-x88-c502-451-1000-1000-q118-056-444-534.webp",
    "presenting": "masculine",
    "kid": true
   },
@@ -2295,6 +2518,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.489,
     1
    ],
+   "portrait": [
+    0.165,
+    0.031,
+    0.781,
+    0.431
+   ],
+   "portraitOut": "assets/people/b1-p029-x124-c000-035-489-1000-q165-031-781-431.webp",
    "presenting": "feminine"
   },
   {
@@ -2307,6 +2537,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     1,
     0.997
    ],
+   "portrait": [
+    0.19,
+    0,
+    0.733,
+    0.434
+   ],
+   "portraitOut": "assets/people/b1-p029-x124-c379-000-1000-997-q190-000-733-434.webp",
    "presenting": "masculine"
   },
   {
@@ -2319,6 +2556,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.645,
     1
    ],
+   "portrait": [
+    0.124,
+    0,
+    0.59,
+    0.48
+   ],
+   "portraitOut": "assets/people/b1-p032-x134-c052-470-645-1000-q124-000-590-480.webp",
    "presenting": "feminine"
   },
   {
@@ -2331,6 +2575,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.509,
     0.499
    ],
+   "portrait": [
+    0.094,
+    0.025,
+    0.747,
+    0.698
+   ],
+   "portraitOut": "assets/people/b1-p032-x134-c143-172-509-499-q094-025-747-698.webp",
    "presenting": "masculine"
   },
   {
@@ -2343,6 +2594,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.929,
     0.95
    ],
+   "portrait": [
+    0.311,
+    0.034,
+    0.744,
+    0.478
+   ],
+   "portraitOut": "assets/people/b1-p035-x145-c689-458-929-950-q311-034-744-478.webp",
    "presenting": "masculine"
   },
   {
@@ -2354,7 +2612,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.362,
     0.321,
     0.976
-   ]
+   ],
+   "portrait": [
+    0.221,
+    0.034,
+    0.74,
+    0.397
+   ],
+   "portraitOut": "assets/people/b1-p035-x145-c117-362-321-976-q221-034-740-397.webp"
   },
   {
    "slug": "b1-p036-x150-c093-000-368-1000",
@@ -2365,7 +2630,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0,
     0.368,
     1
-   ]
+   ],
+   "portrait": [
+    0.319,
+    0.142,
+    0.588,
+    0.382
+   ],
+   "portraitOut": "assets/people/b1-p036-x150-c093-000-368-1000-q319-142-588-382.webp"
   },
   {
    "slug": "b1-p036-x150-c362-091-533-875",
@@ -2376,7 +2648,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.091,
     0.533,
     0.875
-   ]
+   ],
+   "portrait": [
+    0.42,
+    0.07,
+    0.762,
+    0.313
+   ],
+   "portraitOut": "assets/people/b1-p036-x150-c362-091-533-875-q420-070-762-313.webp"
   },
   {
    "slug": "b1-p036-x150-c570-057-806-1000",
@@ -2387,7 +2666,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.057,
     0.806,
     1
-   ]
+   ],
+   "portrait": [
+    0.266,
+    0.103,
+    0.616,
+    0.388
+   ],
+   "portraitOut": "assets/people/b1-p036-x150-c570-057-806-1000-q266-103-616-388.webp"
   },
   {
    "slug": "b1-p036-x150-c787-024-997-990",
@@ -2399,6 +2685,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.997,
     0.99
    ],
+   "portrait": [
+    0.212,
+    0.111,
+    0.613,
+    0.394
+   ],
+   "portraitOut": "assets/people/b1-p036-x150-c787-024-997-990-q212-111-613-394.webp",
    "presenting": "masculine"
   },
   {
@@ -2410,7 +2703,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.096,
     0.651,
     0.88
-   ]
+   ],
+   "portrait": [
+    0.374,
+    0.019,
+    0.903,
+    0.328
+   ],
+   "portraitOut": "assets/people/b1-p036-x150-c510-096-651-880-q374-019-903-328.webp"
   },
   {
    "slug": "b1-p040-x165-c523-143-910-1000",
@@ -2421,7 +2721,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.143,
     0.91,
     1
-   ]
+   ],
+   "portrait": [
+    0.296,
+    0.032,
+    0.659,
+    0.346
+   ],
+   "portraitOut": "assets/people/b1-p040-x165-c523-143-910-1000-q296-032-659-346.webp"
   },
   {
    "slug": "b1-p040-x165-c166-223-441-908",
@@ -2432,7 +2739,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.223,
     0.441,
     0.908
-   ]
+   ],
+   "portrait": [
+    0.185,
+    0.048,
+    0.617,
+    0.381
+   ],
+   "portraitOut": "assets/people/b1-p040-x165-c166-223-441-908-q185-048-617-381.webp"
   },
   {
    "slug": "b1-p040-x165-c298-028-473-717",
@@ -2444,6 +2758,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.473,
     0.717
    ],
+   "portrait": [
+    0.178,
+    0.017,
+    0.736,
+    0.288
+   ],
+   "portraitOut": "assets/people/b1-p040-x165-c298-028-473-717-q178-017-736-288.webp",
    "kid": true
   },
   {
@@ -2455,7 +2776,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.396,
     0.941,
     0.957
-   ]
+   ],
+   "portrait": [
+    0.206,
+    0.059,
+    0.581,
+    0.441
+   ],
+   "portraitOut": "assets/people/b1-p041-x169-c593-396-941-957-q206-059-581-441.webp"
   },
   {
    "slug": "b1-p041-x169-c483-139-629-721",
@@ -2466,7 +2794,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.139,
     0.629,
     0.721
-   ]
+   ],
+   "portrait": [
+    0.029,
+    0.14,
+    0.58,
+    0.368
+   ],
+   "portraitOut": "assets/people/b1-p041-x169-c483-139-629-721-q029-140-580-368.webp"
   },
   {
    "slug": "b1-p041-x169-c246-461-510-1000",
@@ -2477,7 +2812,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.461,
     0.51,
     1
-   ]
+   ],
+   "portrait": [
+    0.338,
+    0.046,
+    0.759,
+    0.386
+   ],
+   "portraitOut": "assets/people/b1-p041-x169-c246-461-510-1000-q338-046-759-386.webp"
   },
   {
    "slug": "b1-p041-x169-c027-420-214-916",
@@ -2489,6 +2831,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.214,
     0.916
    ],
+   "portrait": [
+    0.22,
+    0.077,
+    0.705,
+    0.378
+   ],
+   "portraitOut": "assets/people/b1-p041-x169-c027-420-214-916-q220-077-705-378.webp",
    "presenting": "feminine"
   },
   {
@@ -2501,6 +2850,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.506,
     0.639
    ],
+   "portrait": [
+    0.264,
+    0.036,
+    0.647,
+    0.491
+   ],
+   "portraitOut": "assets/people/b1-p041-x169-c268-310-506-639-q264-036-647-491.webp",
    "presenting": "masculine"
   },
   {
@@ -2512,7 +2868,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0,
     0.502,
     1
-   ]
+   ],
+   "portrait": [
+    0.252,
+    0,
+    0.703,
+    0.271
+   ],
+   "portraitOut": "assets/people/b1-p042-x173-c309-000-502-1000-q252-000-703-271.webp"
   },
   {
    "slug": "b1-p042-x173-c000-129-102-839",
@@ -2523,7 +2886,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.129,
     0.102,
     0.839
-   ]
+   ],
+   "portrait": [
+    0.251,
+    0.052,
+    0.767,
+    0.283
+   ],
+   "portraitOut": "assets/people/b1-p042-x173-c000-129-102-839-q251-052-767-283.webp"
   },
   {
    "slug": "b1-p042-x173-c086-187-180-826",
@@ -2535,6 +2905,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.18,
     0.826
    ],
+   "portrait": [
+    0.193,
+    0.042,
+    0.762,
+    0.302
+   ],
+   "portraitOut": "assets/people/b1-p042-x173-c086-187-180-826-q193-042-762-302.webp",
    "presenting": "masculine"
   },
   {
@@ -2547,6 +2924,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.263,
     0.819
    ],
+   "portrait": [
+    0.194,
+    0.057,
+    0.685,
+    0.316
+   ],
+   "portraitOut": "assets/people/b1-p042-x173-c161-219-263-819-q194-057-685-316.webp",
    "presenting": "masculine"
   },
   {
@@ -2558,7 +2942,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.143,
     0.346,
     0.827
-   ]
+   ],
+   "portrait": [
+    0.198,
+    0.091,
+    0.767,
+    0.348
+   ],
+   "portraitOut": "assets/people/b1-p042-x173-c246-143-346-827-q198-091-767-348.webp"
   },
   {
    "slug": "b1-p042-x173-c448-143-598-834",
@@ -2570,6 +2961,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.598,
     0.834
    ],
+   "portrait": [
+    0.227,
+    0.052,
+    0.592,
+    0.298
+   ],
+   "portraitOut": "assets/people/b1-p042-x173-c448-143-598-834-q227-052-592-298.webp",
    "presenting": "masculine"
   },
   {
@@ -2582,6 +2980,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.682,
     0.846
    ],
+   "portrait": [
+    0.328,
+    0.057,
+    0.77,
+    0.359
+   ],
+   "portraitOut": "assets/people/b1-p042-x173-c546-227-682-846-q328-057-770-359.webp",
    "presenting": "feminine"
   },
   {
@@ -2594,6 +2999,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.757,
     0.84
    ],
+   "portrait": [
+    0.144,
+    0.046,
+    0.863,
+    0.323
+   ],
+   "portraitOut": "assets/people/b1-p042-x173-c665-098-757-840-q144-046-863-323.webp",
    "presenting": "masculine"
   },
   {
@@ -2606,6 +3018,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.857,
     0.827
    ],
+   "portrait": [
+    0.2,
+    0.049,
+    0.684,
+    0.302
+   ],
+   "portraitOut": "assets/people/b1-p042-x173-c742-143-857-827-q200-049-684-302.webp",
    "presenting": "feminine"
   },
   {
@@ -2617,7 +3036,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.143,
     0.942,
     0.846
-   ]
+   ],
+   "portrait": [
+    0.268,
+    0.069,
+    0.801,
+    0.314
+   ],
+   "portraitOut": "assets/people/b1-p042-x173-c838-143-942-846-q268-069-801-314.webp"
   },
   {
    "slug": "b1-p042-x173-c932-208-1000-846",
@@ -2629,6 +3055,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     1,
     0.846
    ],
+   "portrait": [
+    0.229,
+    0.045,
+    0.877,
+    0.259
+   ],
+   "portraitOut": "assets/people/b1-p042-x173-c932-208-1000-846-q229-045-877-259.webp",
    "presenting": "masculine"
   },
   {
@@ -2641,6 +3074,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.71,
     0.796
    ],
+   "portrait": [
+    0.361,
+    0.03,
+    0.782,
+    0.298
+   ],
+   "portraitOut": "assets/people/b1-p043-x179-c531-196-710-796-q361-030-782-298.webp",
    "presenting": "masculine"
   },
   {
@@ -2653,6 +3093,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.839,
     0.569
    ],
+   "portrait": [
+    0.305,
+    0.117,
+    0.735,
+    0.515
+   ],
+   "portraitOut": "assets/people/b1-p043-x179-c687-218-839-569-q305-117-735-515.webp",
    "presenting": "feminine"
   },
   {
@@ -2664,7 +3111,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.391,
     0.302,
     0.902
-   ]
+   ],
+   "portrait": [
+    0.321,
+    0.096,
+    0.762,
+    0.419
+   ],
+   "portraitOut": "assets/people/b1-p043-x179-c127-391-302-902-q321-096-762-419.webp"
   },
   {
    "slug": "b1-p043-x179-c264-542-469-1000",
@@ -2675,7 +3129,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.542,
     0.469,
     1
-   ]
+   ],
+   "portrait": [
+    0.278,
+    0.027,
+    0.682,
+    0.413
+   ],
+   "portraitOut": "assets/people/b1-p043-x179-c264-542-469-1000-q278-027-682-413.webp"
   },
   {
    "slug": "b1-p043-x179-c314-240-450-716",
@@ -2686,7 +3147,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.24,
     0.45,
     0.716
-   ]
+   ],
+   "portrait": [
+    0.352,
+    0.063,
+    0.834,
+    0.357
+   ],
+   "portraitOut": "assets/people/b1-p043-x179-c314-240-450-716-q352-063-834-357.webp"
   },
   {
    "slug": "b1-p043-x179-c427-290-523-654",
@@ -2697,7 +3165,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.29,
     0.523,
     0.654
-   ]
+   ],
+   "portrait": [
+    0.317,
+    0.029,
+    0.737,
+    0.265
+   ],
+   "portraitOut": "assets/people/b1-p043-x179-c427-290-523-654-q317-029-737-265.webp"
   },
   {
    "slug": "b1-p047-x193-c076-003-465-1000",
@@ -2709,6 +3184,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.465,
     1
    ],
+   "portrait": [
+    0.253,
+    0,
+    0.706,
+    0.509
+   ],
+   "portraitOut": "assets/people/b1-p047-x193-c076-003-465-1000-q253-000-706-509.webp",
    "presenting": "masculine"
   },
   {
@@ -2721,6 +3203,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.508,
     0.965
    ],
+   "portrait": [
+    0.066,
+    0.058,
+    0.632,
+    0.385
+   ],
+   "portraitOut": "assets/people/b1-p088-x364-c193-285-508-965-q066-058-632-385.webp",
    "presenting": "masculine"
   },
   {
@@ -2733,6 +3222,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.408,
     1
    ],
+   "portrait": [
+    0.261,
+    0.027,
+    0.775,
+    0.431
+   ],
+   "portraitOut": "assets/people/b1-p089-x368-c221-247-408-1000-q261-027-775-431.webp",
    "presenting": "feminine"
   },
   {
@@ -2745,6 +3241,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.221,
     1
    ],
+   "portrait": [
+    0.449,
+    0.083,
+    0.846,
+    0.475
+   ],
+   "portraitOut": "assets/people/b1-p089-x368-c000-293-221-1000-q449-083-846-475.webp",
    "presenting": "masculine"
   },
   {
@@ -2756,7 +3259,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.039,
     0.66,
     1
-   ]
+   ],
+   "portrait": [
+    0.158,
+    0.018,
+    0.82,
+    0.415
+   ],
+   "portraitOut": "assets/people/b1-p090-x372-c235-039-660-1000-q158-018-820-415.webp"
   },
   {
    "slug": "b1-p090-x372-c618-161-993-1000",
@@ -2768,6 +3278,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.993,
     1
    ],
+   "portrait": [
+    0.239,
+    0.019,
+    0.768,
+    0.338
+   ],
+   "portraitOut": "assets/people/b1-p090-x372-c618-161-993-1000-q239-019-768-338.webp",
    "presenting": "masculine"
   },
   {
@@ -2780,6 +3297,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.208,
     0.997
    ],
+   "portrait": [
+    0.177,
+    0.04,
+    0.875,
+    0.276
+   ],
+   "portraitOut": "assets/people/b1-p090-x372-c000-163-208-997-q177-040-875-276.webp",
    "presenting": "masculine"
   },
   {
@@ -2791,7 +3315,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.245,
     0.333,
     0.977
-   ]
+   ],
+   "portrait": [
+    0.151,
+    0,
+    0.784,
+    0.236
+   ],
+   "portraitOut": "assets/people/b1-p090-x372-c131-245-333-977-q151-000-784-236.webp"
   },
   {
    "slug": "b1-p092-x380-c002-002-520-1000",
@@ -2802,7 +3333,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.002,
     0.52,
     1
-   ]
+   ],
+   "portrait": [
+    0.437,
+    0.021,
+    0.815,
+    0.41
+   ],
+   "portraitOut": "assets/people/b1-p092-x380-c002-002-520-1000-q437-021-815-410.webp"
   },
   {
    "slug": "b1-p095-x391-c141-290-631-974",
@@ -2814,6 +3352,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.631,
     0.974
    ],
+   "portrait": [
+    0.186,
+    0.035,
+    0.48,
+    0.328
+   ],
+   "portraitOut": "assets/people/b1-p095-x391-c141-290-631-974-q186-035-480-328.webp",
    "presenting": "masculine"
   },
   {
@@ -2826,6 +3371,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.837,
     0.868
    ],
+   "portrait": [
+    0.326,
+    0.015,
+    0.745,
+    0.287
+   ],
+   "portraitOut": "assets/people/b1-p100-x411-c523-141-837-868-q326-015-745-287.webp",
    "presenting": "masculine"
   },
   {
@@ -2838,6 +3390,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.223,
     0.881
    ],
+   "portrait": [
+    0.088,
+    0.021,
+    0.838,
+    0.297
+   ],
+   "portraitOut": "assets/people/b1-p100-x411-c060-213-223-881-q088-021-838-297.webp",
    "kid": true
   },
   {
@@ -2850,6 +3409,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.362,
     0.887
    ],
+   "portrait": [
+    0.089,
+    0.01,
+    0.899,
+    0.41
+   ],
+   "portraitOut": "assets/people/b1-p100-x411-c206-411-362-887-q089-010-899-410.webp",
    "kid": true
   },
   {
@@ -2862,6 +3428,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.383,
     0.458
    ],
+   "portrait": [
+    0.153,
+    0.076,
+    0.842,
+    0.711
+   ],
+   "portraitOut": "assets/people/b1-p100-x411-c241-226-383-458-q153-076-842-711.webp",
    "kid": true
   },
   {
@@ -2874,6 +3447,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.89,
     0.853
    ],
+   "portrait": [
+    0.443,
+    0.041,
+    0.759,
+    0.273
+   ],
+   "portraitOut": "assets/people/b1-p107-x435-c504-007-890-853-q443-041-759-273.webp",
    "presenting": "masculine"
   },
   {
@@ -2886,6 +3466,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.96,
     1
    ],
+   "portrait": [
+    0.234,
+    0.007,
+    0.882,
+    0.384
+   ],
+   "portraitOut": "assets/people/b1-p114-x454-c646-207-960-1000-q234-007-882-384.webp",
    "presenting": "masculine"
   },
   {
@@ -2898,6 +3485,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.621,
     1
    ],
+   "portrait": [
+    0.184,
+    0.024,
+    0.722,
+    0.45
+   ],
+   "portraitOut": "assets/people/b1-p114-x454-c204-225-621-1000-q184-024-722-450.webp",
    "presenting": "feminine"
   },
   {
@@ -2910,6 +3504,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.262,
     1
    ],
+   "portrait": [
+    0.106,
+    0.018,
+    0.89,
+    0.358
+   ],
+   "portraitOut": "assets/people/b1-p114-x454-c000-112-262-1000-q106-018-890-358.webp",
    "presenting": "feminine"
   },
   {
@@ -2921,7 +3522,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.215,
     0.496,
     0.944
-   ]
+   ],
+   "portrait": [
+    0.172,
+    0.011,
+    0.712,
+    0.375
+   ],
+   "portraitOut": "assets/people/b1-p120-x475-c023-215-496-944-q172-011-712-375.webp"
   },
   {
    "slug": "b1-p124-x490-c050-297-609-859",
@@ -2933,6 +3541,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.609,
     0.859
    ],
+   "portrait": [
+    0.269,
+    0.045,
+    0.82,
+    0.472
+   ],
+   "portraitOut": "assets/people/b1-p124-x490-c050-297-609-859-q269-045-820-472.webp",
    "presenting": "feminine"
   },
   {
@@ -2944,7 +3559,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0,
     0.855,
     0.436
-   ]
+   ],
+   "portrait": [
+    0.22,
+    0.009,
+    0.668,
+    0.414
+   ],
+   "portraitOut": "assets/people/b1-p124-x490-c350-000-855-436-q220-009-668-414.webp"
   },
   {
    "slug": "b1-p124-x490-c395-334-1000-1000",
@@ -2956,6 +3578,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     1,
     1
    ],
+   "portrait": [
+    0.428,
+    0.016,
+    1,
+    0.421
+   ],
+   "portraitOut": "assets/people/b1-p124-x490-c395-334-1000-1000-q428-016-1000-421.webp",
    "presenting": "masculine"
   },
   {
@@ -2968,6 +3597,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.776,
     0.651
    ],
+   "portrait": [
+    0.251,
+    0.006,
+    0.699,
+    0.378
+   ],
+   "portraitOut": "assets/people/b1-p134-x521-c125-064-776-651-q251-006-699-378.webp",
    "presenting": "feminine"
   },
   {
@@ -2979,7 +3615,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.368,
     1,
     1
-   ]
+   ],
+   "portrait": [
+    0.416,
+    0.024,
+    1,
+    0.403
+   ],
+   "portraitOut": "assets/people/b1-p134-x521-c451-368-1000-1000-q416-024-1000-403.webp"
   },
   {
    "slug": "b1-p137-x533-c000-012-229-1000",
@@ -2990,7 +3633,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.012,
     0.229,
     1
-   ]
+   ],
+   "portrait": [
+    0.06,
+    0.008,
+    0.798,
+    0.331
+   ],
+   "portraitOut": "assets/people/b1-p137-x533-c000-012-229-1000-q060-008-798-331.webp"
   },
   {
    "slug": "b1-p137-x533-c187-035-393-1000",
@@ -3001,7 +3651,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.035,
     0.393,
     1
-   ]
+   ],
+   "portrait": [
+    0.075,
+    0.015,
+    0.856,
+    0.328
+   ],
+   "portraitOut": "assets/people/b1-p137-x533-c187-035-393-1000-q075-015-856-328.webp"
   },
   {
    "slug": "b1-p137-x533-c352-016-581-1000",
@@ -3013,6 +3670,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.581,
     1
    ],
+   "portrait": [
+    0.07,
+    0.022,
+    0.865,
+    0.37
+   ],
+   "portraitOut": "assets/people/b1-p137-x533-c352-016-581-1000-q070-022-865-370.webp",
    "presenting": "masculine"
   },
   {
@@ -3024,7 +3688,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.004,
     0.81,
     1
-   ]
+   ],
+   "portrait": [
+    0.063,
+    0.012,
+    0.629,
+    0.3
+   ],
+   "portraitOut": "assets/people/b1-p137-x533-c541-004-810-1000-q063-012-629-300.webp"
   },
   {
    "slug": "b1-p137-x533-c754-024-999-1000",
@@ -3035,7 +3706,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.024,
     0.999,
     1
-   ]
+   ],
+   "portrait": [
+    0.087,
+    0.006,
+    0.803,
+    0.345
+   ],
+   "portraitOut": "assets/people/b1-p137-x533-c754-024-999-1000-q087-006-803-345.webp"
   },
   {
    "slug": "b1-p150-x573-c442-213-810-1000",
@@ -3047,6 +3725,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.81,
     1
    ],
+   "portrait": [
+    0.128,
+    0.041,
+    0.617,
+    0.537
+   ],
+   "portraitOut": "assets/people/b1-p150-x573-c442-213-810-1000-q128-041-617-537.webp",
    "presenting": "feminine"
   },
   {
@@ -3059,6 +3744,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.369,
     1
    ],
+   "portrait": [
+    0.232,
+    0.019,
+    0.82,
+    0.419
+   ],
+   "portraitOut": "assets/people/b1-p150-x573-c129-235-369-1000-q232-019-820-419.webp",
    "presenting": "feminine"
   },
   {
@@ -3071,6 +3763,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.196,
     1
    ],
+   "portrait": [
+    0.058,
+    0.029,
+    0.89,
+    0.397
+   ],
+   "portraitOut": "assets/people/b1-p150-x573-c000-036-196-1000-q058-029-890-397.webp",
    "presenting": "masculine"
   },
   {
@@ -3083,6 +3782,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.496,
     1
    ],
+   "portrait": [
+    0.198,
+    0.004,
+    0.812,
+    0.348
+   ],
+   "portraitOut": "assets/people/b1-p154-x587-c029-001-496-1000-q198-004-812-348.webp",
    "presenting": "feminine"
   },
   {
@@ -3095,6 +3801,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.996,
     0.996
    ],
+   "portrait": [
+    0.324,
+    0,
+    0.862,
+    0.348
+   ],
+   "portraitOut": "assets/people/b1-p154-x587-c459-000-996-996-q324-000-862-348.webp",
    "presenting": "masculine"
   },
   {
@@ -3106,7 +3819,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.113,
     0.982,
     0.983
-   ]
+   ],
+   "portrait": [
+    0.676,
+    0.014,
+    0.864,
+    0.378
+   ],
+   "portraitOut": "assets/people/b1-p169-x640-c252-113-982-983-q676-014-864-378.webp"
   },
   {
    "slug": "b1-p169-x640-c094-103-346-661",
@@ -3117,7 +3837,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.103,
     0.346,
     0.661
-   ]
+   ],
+   "portrait": [
+    0.298,
+    0.027,
+    0.625,
+    0.369
+   ],
+   "portraitOut": "assets/people/b1-p169-x640-c094-103-346-661-q298-027-625-369.webp"
   },
   {
    "slug": "b1-p174-x658-c558-074-741-615",
@@ -3129,6 +3856,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.741,
     0.615
    ],
+   "portrait": [
+    0.246,
+    0.013,
+    0.678,
+    0.329
+   ],
+   "portraitOut": "assets/people/b1-p174-x658-c558-074-741-615-q246-013-678-329.webp",
    "presenting": "masculine"
   },
   {
@@ -3141,6 +3875,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.889,
     0.592
    ],
+   "portrait": [
+    0.139,
+    0.007,
+    0.56,
+    0.292
+   ],
+   "portraitOut": "assets/people/b1-p174-x658-c718-047-889-592-q139-007-560-292.webp",
    "presenting": "masculine"
   },
   {
@@ -3152,7 +3893,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.124,
     0.508,
     0.58
-   ]
+   ],
+   "portrait": [
+    0.259,
+    0.028,
+    0.797,
+    0.281
+   ],
+   "portraitOut": "assets/people/b1-p192-x723-c114-124-508-580-q259-028-797-281.webp"
   },
   {
    "slug": "b1-p195-x731-c350-272-566-1000",
@@ -3164,6 +3912,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.566,
     1
    ],
+   "portrait": [
+    0.22,
+    0.082,
+    0.645,
+    0.362
+   ],
+   "portraitOut": "assets/people/b1-p195-x731-c350-272-566-1000-q220-082-645-362.webp",
    "presenting": "masculine"
   },
   {
@@ -3176,6 +3931,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.408,
     1
    ],
+   "portrait": [
+    0.177,
+    0,
+    0.719,
+    0.336
+   ],
+   "portraitOut": "assets/people/b1-p195-x731-c193-230-408-1000-q177-000-719-336.webp",
    "presenting": "feminine"
   },
   {
@@ -3187,7 +3949,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.323,
     0.156,
     1
-   ]
+   ],
+   "portrait": [
+    0.191,
+    0.018,
+    0.786,
+    0.314
+   ],
+   "portraitOut": "assets/people/b1-p195-x731-c004-323-156-1000-q191-018-786-314.webp"
   },
   {
    "slug": "b1-p195-x731-c108-327-237-982",
@@ -3199,6 +3968,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.237,
     0.982
    ],
+   "portrait": [
+    0.197,
+    0.024,
+    0.802,
+    0.289
+   ],
+   "portraitOut": "assets/people/b1-p195-x731-c108-327-237-982-q197-024-802-289.webp",
    "presenting": "feminine"
   },
   {
@@ -3211,6 +3987,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.706,
     1
    ],
+   "portrait": [
+    0.331,
+    0.002,
+    0.732,
+    0.284
+   ],
+   "portraitOut": "assets/people/b1-p204-x772-c450-000-706-1000-q331-002-732-284.webp",
    "presenting": "feminine"
   },
   {
@@ -3223,6 +4006,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.944,
     1
    ],
+   "portrait": [
+    0.21,
+    0,
+    0.67,
+    0.332
+   ],
+   "portraitOut": "assets/people/b1-p204-x772-c683-006-944-1000-q210-000-670-332.webp",
    "presenting": "masculine"
   },
   {
@@ -3235,6 +4025,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.874,
     0.916
    ],
+   "portrait": [
+    0.221,
+    0.202,
+    0.843,
+    0.558
+   ],
+   "portraitOut": "assets/people/b1-p208-x784-c674-037-874-916-q221-202-843-558.webp",
    "presenting": "masculine"
   },
   {
@@ -3246,7 +4043,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.23,
     0.694,
     0.785
-   ]
+   ],
+   "portrait": [
+    0.414,
+    0.073,
+    0.723,
+    0.391
+   ],
+   "portraitOut": "assets/people/b1-p208-x784-c467-230-694-785-q414-073-723-391.webp"
   },
   {
    "slug": "b1-p208-x784-c167-178-376-942",
@@ -3258,6 +4062,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.376,
     0.942
    ],
+   "portrait": [
+    0.484,
+    0.049,
+    0.913,
+    0.344
+   ],
+   "portraitOut": "assets/people/b1-p208-x784-c167-178-376-942-q484-049-913-344.webp",
    "presenting": "feminine"
   },
   {
@@ -3270,6 +4081,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.497,
     1
    ],
+   "portrait": [
+    0.367,
+    0,
+    0.917,
+    0.221
+   ],
+   "portraitOut": "assets/people/b1-p209-x792-c086-000-497-1000-q367-000-917-221.webp",
    "presenting": "feminine"
   },
   {
@@ -3281,7 +4099,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.005,
     0.881,
     0.805
-   ]
+   ],
+   "portrait": [
+    0.142,
+    0.123,
+    0.571,
+    0.361
+   ],
+   "portraitOut": "assets/people/b1-p209-x792-c427-005-881-805-q142-123-571-361.webp"
   },
   {
    "slug": "b1-p209-x792-c680-241-1000-745",
@@ -3292,7 +4117,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.241,
     1,
     0.745
-   ]
+   ],
+   "portrait": [
+    0.464,
+    0.024,
+    0.837,
+    0.256
+   ],
+   "portraitOut": "assets/people/b1-p209-x792-c680-241-1000-745-q464-024-837-256.webp"
   },
   {
    "slug": "b1-p211-x800-c000-007-443-1000",
@@ -3304,6 +4136,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.443,
     1
    ],
+   "portrait": [
+    0.076,
+    0.01,
+    0.892,
+    0.41
+   ],
+   "portraitOut": "assets/people/b1-p211-x800-c000-007-443-1000-q076-010-892-410.webp",
    "presenting": "feminine"
   },
   {
@@ -3316,6 +4155,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     1,
     0.995
    ],
+   "portrait": [
+    0.331,
+    0,
+    0.925,
+    0.385
+   ],
+   "portraitOut": "assets/people/b1-p211-x800-c412-000-1000-995-q331-000-925-385.webp",
    "presenting": "masculine"
   },
   {
@@ -3327,7 +4173,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.267,
     0.954,
     1
-   ]
+   ],
+   "portrait": [
+    0.23,
+    0.026,
+    0.702,
+    0.425
+   ],
+   "portraitOut": "assets/people/b1-p212-x803-c508-267-954-1000-q230-026-702-425.webp"
   },
   {
    "slug": "b1-p212-x803-c223-316-408-725",
@@ -3338,7 +4191,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.316,
     0.408,
     0.725
-   ]
+   ],
+   "portrait": [
+    0.103,
+    0.024,
+    0.534,
+    0.295
+   ],
+   "portraitOut": "assets/people/b1-p212-x803-c223-316-408-725-q103-024-534-295.webp"
   },
   {
    "slug": "b1-p216-x816-c033-006-475-990",
@@ -3350,6 +4210,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.475,
     0.99
    ],
+   "portrait": [
+    0.498,
+    0.008,
+    0.966,
+    0.407
+   ],
+   "portraitOut": "assets/people/b1-p216-x816-c033-006-475-990-q498-008-966-407.webp",
    "presenting": "feminine"
   },
   {
@@ -3362,6 +4229,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.942,
     0.978
    ],
+   "portrait": [
+    0.235,
+    0,
+    0.655,
+    0.4
+   ],
+   "portraitOut": "assets/people/b1-p216-x816-c452-000-942-978-q235-000-655-400.webp",
    "presenting": "masculine"
   },
   {
@@ -3373,7 +4247,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.005,
     0.967,
     1
-   ]
+   ],
+   "portrait": [
+    0.181,
+    0,
+    0.608,
+    0.559
+   ],
+   "portraitOut": "assets/people/b1-p217-x820-c448-005-967-1000-q181-000-608-559.webp"
   },
   {
    "slug": "b1-p217-x820-c079-105-411-1000",
@@ -3384,7 +4265,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.105,
     0.411,
     1
-   ]
+   ],
+   "portrait": [
+    0.248,
+    0.046,
+    0.78,
+    0.541
+   ],
+   "portraitOut": "assets/people/b1-p217-x820-c079-105-411-1000-q248-046-780-541.webp"
   },
   {
    "slug": "b1-p230-x864-c075-032-496-1000",
@@ -3396,6 +4284,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.496,
     1
    ],
+   "portrait": [
+    0.323,
+    0,
+    0.929,
+    0.285
+   ],
+   "portraitOut": "assets/people/b1-p230-x864-c075-032-496-1000-q323-000-929-285.webp",
    "presenting": "feminine"
   },
   {
@@ -3408,6 +4303,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.894,
     0.998
    ],
+   "portrait": [
+    0.115,
+    0,
+    0.72,
+    0.287
+   ],
+   "portraitOut": "assets/people/b1-p230-x864-c458-000-894-998-q115-000-720-287.webp",
    "presenting": "masculine"
   },
   {
@@ -3419,7 +4321,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.023,
     0.252,
     1
-   ]
+   ],
+   "portrait": [
+    0.216,
+    0.01,
+    0.698,
+    0.256
+   ],
+   "portraitOut": "assets/people/b1-p241-x899-c000-023-252-1000-q216-010-698-256.webp"
   },
   {
    "slug": "b1-p241-x899-c742-089-877-688",
@@ -3430,7 +4339,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.089,
     0.877,
     0.688
-   ]
+   ],
+   "portrait": [
+    0.334,
+    0.034,
+    0.805,
+    0.244
+   ],
+   "portraitOut": "assets/people/b1-p241-x899-c742-089-877-688-q334-034-805-244.webp"
   },
   {
    "slug": "b1-p246-x915-c693-402-820-991",
@@ -3442,6 +4358,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.82,
     0.991
    ],
+   "portrait": [
+    0.26,
+    0.043,
+    0.823,
+    0.39
+   ],
+   "portraitOut": "assets/people/b1-p246-x915-c693-402-820-991-q260-043-823-390.webp",
    "kid": true
   },
   {
@@ -3454,6 +4377,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.724,
     1
    ],
+   "portrait": [
+    0.105,
+    0.011,
+    0.564,
+    0.308
+   ],
+   "portraitOut": "assets/people/b1-p246-x915-c566-301-724-1000-q105-011-564-308.webp",
    "kid": true
   },
   {
@@ -3466,6 +4396,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.605,
     0.932
    ],
+   "portrait": [
+    0.168,
+    0.047,
+    0.791,
+    0.343
+   ],
+   "portraitOut": "assets/people/b1-p246-x915-c501-307-605-932-q168-047-791-343.webp",
    "kid": true
   },
   {
@@ -3478,6 +4415,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.537,
     0.985
    ],
+   "portrait": [
+    0.472,
+    0.026,
+    0.869,
+    0.293
+   ],
+   "portraitOut": "assets/people/b1-p246-x915-c324-080-537-985-q472-026-869-293.webp",
    "presenting": "feminine"
   },
   {
@@ -3490,6 +4434,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.201,
     1
    ],
+   "portrait": [
+    0.436,
+    0.066,
+    0.805,
+    0.342
+   ],
+   "portraitOut": "assets/people/b1-p246-x915-c000-233-201-1000-q436-066-805-342.webp",
    "kid": true
   },
   {
@@ -3502,6 +4453,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.345,
     1
    ],
+   "portrait": [
+    0.454,
+    0,
+    0.928,
+    0.263
+   ],
+   "portraitOut": "assets/people/b1-p246-x915-c151-001-345-1000-q454-000-928-263.webp",
    "presenting": "masculine"
   },
   {
@@ -3514,6 +4472,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.506,
     1
    ],
+   "portrait": [
+    0.005,
+    0.055,
+    0.597,
+    0.632
+   ],
+   "portraitOut": "assets/people/b1-p257-x953-c000-000-506-1000-q005-055-597-632.webp",
    "presenting": "masculine"
   },
   {
@@ -3525,7 +4490,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.349,
     0.433,
     0.944
-   ]
+   ],
+   "portrait": [
+    0.051,
+    0.06,
+    0.775,
+    0.46
+   ],
+   "portraitOut": "assets/people/b1-p257-x953-c262-349-433-944-q051-060-775-460.webp"
   },
   {
    "slug": "b1-p261-x969-c529-452-856-1000",
@@ -3536,7 +4508,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.452,
     0.856,
     1
-   ]
+   ],
+   "portrait": [
+    0.374,
+    0.02,
+    0.752,
+    0.356
+   ],
+   "portraitOut": "assets/people/b1-p261-x969-c529-452-856-1000-q374-020-752-356.webp"
   },
   {
    "slug": "b1-p261-x969-c027-533-196-983",
@@ -3547,7 +4526,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.533,
     0.196,
     0.983
-   ]
+   ],
+   "portrait": [
+    0.198,
+    0.045,
+    0.733,
+    0.345
+   ],
+   "portraitOut": "assets/people/b1-p261-x969-c027-533-196-983-q198-045-733-345.webp"
   },
   {
    "slug": "b1-p261-x969-c254-570-504-986",
@@ -3558,7 +4544,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.57,
     0.504,
     0.986
-   ]
+   ],
+   "portrait": [
+    0.588,
+    0.077,
+    0.857,
+    0.319
+   ],
+   "portraitOut": "assets/people/b1-p261-x969-c254-570-504-986-q588-077-857-319.webp"
   },
   {
    "slug": "b1-p268-x990-c393-103-1000-1000",
@@ -3570,6 +4563,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     1,
     1
    ],
+   "portrait": [
+    0.203,
+    0.011,
+    0.824,
+    0.267
+   ],
+   "portraitOut": "assets/people/b1-p268-x990-c393-103-1000-1000-q203-011-824-267.webp",
    "presenting": "feminine"
   },
   {
@@ -3582,6 +4582,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.499,
     1
    ],
+   "portrait": [
+    0.053,
+    0.098,
+    0.774,
+    0.318
+   ],
+   "portraitOut": "assets/people/b1-p268-x990-c000-001-499-1000-q053-098-774-318.webp",
    "presenting": "masculine"
   },
   {
@@ -3594,6 +4601,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.625,
     0.992
    ],
+   "portrait": [
+    0.161,
+    0.075,
+    0.595,
+    0.305
+   ],
+   "portraitOut": "assets/people/b1-p270-x996-c281-002-625-992-q161-075-595-305.webp",
    "presenting": "masculine"
   },
   {
@@ -3605,7 +4619,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.122,
     0.842,
     0.929
-   ]
+   ],
+   "portrait": [
+    0.312,
+    0.003,
+    0.91,
+    0.269
+   ],
+   "portraitOut": "assets/people/b1-p270-x996-c606-122-842-929-q312-003-910-269.webp"
   },
   {
    "slug": "b1-p270-x996-c773-074-998-907",
@@ -3617,6 +4638,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.998,
     0.907
    ],
+   "portrait": [
+    0.166,
+    0.016,
+    0.726,
+    0.246
+   ],
+   "portraitOut": "assets/people/b1-p270-x996-c773-074-998-907-q166-016-726-246.webp",
    "presenting": "masculine"
   },
   {
@@ -3628,7 +4656,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.239,
     0.501,
     1
-   ]
+   ],
+   "portrait": [
+    0.189,
+    0.016,
+    0.833,
+    0.44
+   ],
+   "portraitOut": "assets/people/b1-p275-x1013-c000-239-501-1000-q189-016-833-440.webp"
   },
   {
    "slug": "b1-p275-x1013-c439-111-1000-1000",
@@ -3639,7 +4674,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.111,
     1,
     1
-   ]
+   ],
+   "portrait": [
+    0.27,
+    0.017,
+    0.947,
+    0.444
+   ],
+   "portraitOut": "assets/people/b1-p275-x1013-c439-111-1000-1000-q270-017-947-444.webp"
   },
   {
    "slug": "b1-p287-x1051-c129-782-318-1000",
@@ -3651,6 +4693,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.318,
     1
    ],
+   "portrait": [
+    0.511,
+    0.023,
+    0.834,
+    0.466
+   ],
+   "portraitOut": "assets/people/b1-p287-x1051-c129-782-318-1000-q511-023-834-466.webp",
    "kid": true
   },
   {
@@ -3663,6 +4712,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.429,
     1
    ],
+   "portrait": [
+    0.313,
+    0.044,
+    0.791,
+    0.609
+   ],
+   "portraitOut": "assets/people/b1-p287-x1051-c289-812-429-1000-q313-044-791-609.webp",
    "kid": true
   },
   {
@@ -3675,6 +4731,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.606,
     1
    ],
+   "portrait": [
+    0.161,
+    0.027,
+    0.648,
+    0.484
+   ],
+   "portraitOut": "assets/people/b1-p294-x1074-c000-186-606-1000-q161-027-648-484.webp",
    "presenting": "feminine"
   },
   {
@@ -3687,6 +4750,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     1,
     0.996
    ],
+   "portrait": [
+    0.255,
+    0.013,
+    0.885,
+    0.461
+   ],
+   "portraitOut": "assets/people/b1-p294-x1074-c514-133-1000-996-q255-013-885-461.webp",
    "presenting": "masculine"
   },
   {
@@ -3698,7 +4768,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.046,
     0.546,
     1
-   ]
+   ],
+   "portrait": [
+    0.2,
+    0.022,
+    1,
+    0.371
+   ],
+   "portraitOut": "assets/people/b1-p297-x1085-c242-046-546-1000-q200-022-1000-371.webp"
   },
   {
    "slug": "b1-p297-x1085-c421-219-775-1000",
@@ -3710,6 +4787,13 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.775,
     1
    ],
+   "portrait": [
+    0.078,
+    0,
+    0.696,
+    0.383
+   ],
+   "portraitOut": "assets/people/b1-p297-x1085-c421-219-775-1000-q078-000-696-383.webp",
    "presenting": "masculine"
   },
   {
@@ -3721,7 +4805,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.192,
     0.695,
     0.981
-   ]
+   ],
+   "portrait": [
+    0.246,
+    0,
+    0.821,
+    0.34
+   ],
+   "portraitOut": "assets/people/b2-p020-x76-c235-192-695-981-q246-000-821-340.webp"
   },
   {
    "slug": "b2-p020-x76-c583-237-868-736",
@@ -3732,7 +4823,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.237,
     0.868,
     0.736
-   ]
+   ],
+   "portrait": [
+    0.108,
+    0.045,
+    0.752,
+    0.418
+   ],
+   "portraitOut": "assets/people/b2-p020-x76-c583-237-868-736-q108-045-752-418.webp"
   },
   {
    "slug": "b2-p092-x361-c046-000-402-1000",
@@ -3743,7 +4841,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0,
     0.402,
     1
-   ]
+   ],
+   "portrait": [
+    0.349,
+    0,
+    0.765,
+    0.651
+   ],
+   "portraitOut": "assets/people/b2-p092-x361-c046-000-402-1000-q349-000-765-651.webp"
   },
   {
    "slug": "b2-p135-x539-c200-263-596-1000",
@@ -3754,7 +4859,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.263,
     0.596,
     1
-   ]
+   ],
+   "portrait": [
+    0.275,
+    0.06,
+    0.669,
+    0.402
+   ],
+   "portraitOut": "assets/people/b2-p135-x539-c200-263-596-1000-q275-060-669-402.webp"
   },
   {
    "slug": "b2-p154-x619-c502-236-646-658",
@@ -3765,7 +4877,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.236,
     0.646,
     0.658
-   ]
+   ],
+   "portrait": [
+    0.385,
+    0.114,
+    0.814,
+    0.389
+   ],
+   "portraitOut": "assets/people/b2-p154-x619-c502-236-646-658-q385-114-814-389.webp"
   },
   {
    "slug": "b2-p154-x619-c025-533-365-1000",
@@ -3776,7 +4895,14 @@ export const BOOK2_ART_APPLY_MANIFEST = {
     0.533,
     0.365,
     1
-   ]
+   ],
+   "portrait": [
+    0.292,
+    0.057,
+    0.592,
+    0.466
+   ],
+   "portraitOut": "assets/people/b2-p154-x619-c025-533-365-1000-q292-057-592-466.webp"
   }
  ],
  "codex": [

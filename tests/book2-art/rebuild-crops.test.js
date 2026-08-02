@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isCropSlug, parentSlugOf, isValidCrop, plannedCropRebuilds } from "../../module/book2-art/rebuild-crops.js";
+import { isCropSlug, parentSlugOf, isValidCrop, plannedCropRebuilds, splitSquaresBySource } from "../../module/book2-art/rebuild-crops.js";
 import { BOOK2_ART_APPLY_MANIFEST } from "../../module/book2-art/manifest.js";
 
 // Rebuilding a missing detail portrait out of the parent illustration already on disk, so a GM
@@ -104,6 +104,46 @@ describe("plannedCropRebuilds", () => {
 		const present = new Set(["my-art/assets/people/p1.webp"]);
 		const plan = plannedCropRebuilds(present, "my-art", people);
 		expect(plan[0].dest).toBe("my-art/assets/people/p1-c100-100-900-900.webp");
+	});
+});
+
+// The square pass is planned against files the crop pass is only ASSUMED to have written, which
+// is what keeps the announced total from growing halfway through the run. This is where that
+// assumption gets settled.
+describe("splitSquaresBySource", () => {
+	const square = (slug, parentSrc) => ({ slug, parentSrc, dest: durable(`assets/people/${slug}-q0.webp`) });
+	const detail = durable("assets/people/p1-c100-100-900-900.webp");
+	const whole  = durable("assets/people/p2.webp");
+
+	it("keeps every square when the crop pass wrote everything", () => {
+		const squares = [square("a", detail), square("b", whole)];
+		const { cuttable, orphaned } = splitSquaresBySource(squares, []);
+		expect(cuttable).toHaveLength(2);
+		expect(orphaned).toHaveLength(0);
+	});
+
+	it("holds back only the square whose source never arrived", () => {
+		// One bad parent must cost one failure, not two: the square cut from a detail that could
+		// not be written would fail again over the same file, and the console would name a path
+		// no browse ever reported as present.
+		const squares = [square("a", detail), square("b", whole)];
+		const skips = [{ slug: "p1-c100-100-900-900", dest: detail, reason: "could not load" }];
+		const { cuttable, orphaned } = splitSquaresBySource(squares, skips);
+		expect(cuttable.map((s) => s.slug)).toEqual(["b"]);
+		expect(orphaned.map((s) => s.slug)).toEqual(["a"]);
+	});
+
+	it("ignores a skip that carries no dest, rather than holding back everything", () => {
+		// A skip record from an older shape, or one raised before the item was identified.
+		const squares = [square("a", detail)];
+		const { cuttable, orphaned } = splitSquaresBySource(squares, [{ slug: "?", reason: "boom" }]);
+		expect(cuttable).toHaveLength(1);
+		expect(orphaned).toHaveLength(0);
+	});
+
+	it("handles empty and missing inputs", () => {
+		expect(splitSquaresBySource([], [])).toEqual({ cuttable: [], orphaned: [] });
+		expect(splitSquaresBySource(null, null)).toEqual({ cuttable: [], orphaned: [] });
 	});
 });
 

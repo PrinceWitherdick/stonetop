@@ -1,6 +1,8 @@
 import { StonetopDialog } from "../../utils/stonetop-dialog.js";
 import { book2ArtRoot } from "../../book2-art/art-root.js";
 import { BOOK2_ART_APPLY_MANIFEST } from "../../book2-art/manifest.js";
+import { fullPortraitSrc } from "../../book2-art/people-portraits.js";
+import { getObjectSetting } from "../../settings.js";
 
 // How long the grid takes to travel to a rolled portrait, however far away it landed. The
 // browser's own `scrollIntoView({behavior:"smooth"})` picks its own duration and scales it
@@ -22,12 +24,26 @@ export function rolledScrollTop({ scrollTop, viewTop, viewHeight, tileTop, tileH
 }
 
 /**
+ * The identity of a portrait, whichever way it is being held.
+ *
+ * A face is stored as the SQUARE once one has been cut, but a portrait chosen before squares
+ * existed is still the whole illustration, and the two paths are different strings for the same
+ * person. Everything that asks "is this the same portrait?" — selected, used-by, and the roll's
+ * "give me a different one" — has to ask it on one of the two, and the whole illustration is the
+ * one that always exists. Anything that is not gallery art (a browsed file) is its own identity.
+ */
+export const asFullPortrait = (src) => (src ? fullPortraitSrc(src) ?? src : "");
+
+/**
  * Choose one portrait at random out of `srcs` — which the caller has already narrowed to the
  * tiles the filters leave on screen, so "feminine, not a child, surprise me" works.
  *
  * Prefers a portrait other than `current`, so rolling again on a member who already has one
  * always lands somewhere new; falls back to the whole pool when the current portrait is the
  * only thing showing. `rng` is injectable so the tests can pin the roll.
+ *
+ * Compares raw strings, so the caller owes it paths that are already comparable — see
+ * `asFullPortrait`, and the roll handler that runs both sides through it.
  */
 export function pickRandomPortrait(srcs, { current = "", rng = Math.random } = {}) {
 	const pool = (srcs ?? []).filter(Boolean);
@@ -79,12 +95,17 @@ export class PeopleGalleryDialog extends StonetopDialog {
 
 	/** The broadcast { out -> name } index, tolerant of an unregistered/legacy setting. */
 	_peopleIndex() {
-		try {
-			const idx = game.settings.get("stonetop-pwd", "peopleArt");
-			return idx && typeof idx === "object" && !Array.isArray(idx) ? idx : {};
-		} catch (_) {
-			return {};
-		}
+		return getObjectSetting("peopleArt");
+	}
+
+	/**
+	 * The broadcast { illustration out -> square out } index: which portraits have their
+	 * hand-authored square face on disk. Empty in a world whose GM has not run the rebuild (or
+	 * whose build predates squares), which is exactly right — every such portrait then offers
+	 * and commits the whole illustration, as it always did.
+	 */
+	_squareIndex() {
+		return getObjectSetting("peoplePortraitArt");
 	}
 
 	/**
@@ -104,17 +125,32 @@ export class PeopleGalleryDialog extends StonetopDialog {
 
 	getData() {
 		const idx = this._peopleIndex();
+		const squares = this._squareIndex();
 		const root = book2ArtRoot();
 		const traits = PeopleGalleryDialog._traitsByOut();
+		// Everything about "is this the same person" is decided on the WHOLE illustration's path
+		// — see asFullPortrait — because a portrait can be held either way: an actor picked
+		// before squares existed carries the illustration, one picked after carries the square.
+		const currentFull = asFullPortrait(this._current);
+		const usedByFull = {};
+		for (const [src, who] of Object.entries(this._used ?? {})) usedByFull[asFullPortrait(src)] = who;
 		const people = Object.entries(idx).map(([out, name]) => {
-			const src = `${root}/${out}`;
+			const full = `${root}/${out}`;
+			// The square is what gets committed and what the tile shows, so the grid is a
+			// preview of the sheet rather than of the book page. The whole illustration is one
+			// hover away, which is where a standing figure actually reads.
+			const square = squares[out] ? `${root}/${squares[out]}` : "";
+			const src = square || full;
 			// A portrait with no manifest entry (an older import, or a file dropped in by hand)
 			// is untagged, which is the same bucket as one deliberately left unspecified.
 			const t = traits[out] ?? { presenting: "", kid: false };
 			// "Used" always means used by somebody ELSE: the caller leaves the row being edited
 			// out of the map, so this member's own portrait reads as selected, not as taken.
-			const usedBy = this._used[src] ?? "";
-			return { out, name, src, selected: src === this._current, presenting: t.presenting, kid: t.kid, usedBy };
+			const usedBy = usedByFull[full] ?? "";
+			return {
+				out, name, src, full, isSquare: !!square,
+				selected: full === currentFull, presenting: t.presenting, kid: t.kid, usedBy,
+			};
 		});
 		people.sort((a, b) => (a.name || "").localeCompare(b.name || "") || a.out.localeCompare(b.out));
 		// Counts ride on the chips so it's clear what narrowing will cost before you click.
@@ -320,10 +356,14 @@ export class PeopleGalleryDialog extends StonetopDialog {
 
 	_showPortraitPreview(btn) {
 		this._removePortraitPreview();
-		const src = btn.dataset.src;
+		// The WHOLE illustration, never the square: the tile already shows the square, so a
+		// preview of the same thing bigger would say nothing. This is where a standing figure
+		// gets to be a standing figure, and where you check the square framed the right face.
+		const src = btn.dataset.full || btn.dataset.src;
 		if (!src) return;
 		const popup = document.createElement("div");
-		popup.className = "stonetop-people-preview";
+		// `stonetop-hover-popup` is the shared marker Reduce Motion suppresses (styles/stonetop.css).
+		popup.className = "stonetop-hover-popup stonetop-people-preview";
 		const img = document.createElement("img");
 		img.src = src;
 		img.alt = "";
@@ -443,11 +483,17 @@ export class PeopleGalleryDialog extends StonetopDialog {
 		// Rolls from the tiles the filters left showing, and shows the result rather than
 		// taking it. Avoid whatever is already on offer — the standing proposal if there is
 		// one, else the member's current portrait — so rolling again always moves.
+		//
+		// Rolled over `data-full`, not `data-src`, for the reason getData spells out: a portrait
+		// chosen before squares existed is held as the WHOLE illustration while its tile now
+		// shows the square, so comparing the two raw paths never matches and "avoid the current
+		// one" silently stops avoiding anything. The winning tile still contributes its own
+		// `data-src` — the square is what Accept commits.
 		this._randomBtn?.addEventListener("click", () => {
 			const visible = this._visiblePicks();
-			const current = this._proposed?.dataset.src || this._current;
-			const src = pickRandomPortrait(visible.map(p => p.dataset.src), { current });
-			if (src) this._propose(visible.find(p => p.dataset.src === src), { scroll: true });
+			const held = this._proposed?.dataset.src || this._current;
+			const full = pickRandomPortrait(visible.map(p => p.dataset.full), { current: asFullPortrait(held) });
+			if (full) this._propose(visible.find(p => p.dataset.full === full), { scroll: true });
 		});
 
 		// The one door a portrait actually goes through, however it was landed on.

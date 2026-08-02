@@ -9,6 +9,7 @@
 import { rollDamage } from "../../utils/roll-engine.js";
 import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle } from "../../utils/sheet-chrome.js";
 import { isDefaultImg } from "../../utils/strings.js";
+import { fullPortraitSrc } from "../../book2-art/people-portraits.js";
 import { wirePortraitPopout, updateRichTextField, updateMoveField } from "../../utils/stat-block-edit.js";
 import { getOpenSheetsInEditMode } from "../../settings.js";
 import { enrichHTML } from "../../utils/foundry-compat.js";
@@ -115,8 +116,13 @@ export function createStonetopNpcSheetClass(Base) {
 
 			// Portrait: the actor's art if it has any, else a person-icon placeholder
 			// (rendered by the template) rather than a fabricated portrait.
+			//
+			// `img` is the SQUARE face when the art came from the People of Stonetop gallery,
+			// because that is what every small round portrait elsewhere needs. This header is
+			// the one place with room for the whole standing figure, so it asks for the
+			// illustration the square was cut from. Anything else previews as itself.
 			const realImg = isDefaultImg(this.actor.img) ? null : this.actor.img;
-			st.displayImg  = realImg;
+			st.displayImg  = realImg && (fullPortraitSrc(realImg) ?? realImg);
 			st.hasPortrait = !!realImg;
 
 			// Up to 3 impression slots (p.454). Edit mode shows the filled slots plus a

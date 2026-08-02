@@ -14,7 +14,12 @@
  * `placement` and `variant` options carry.
  */
 
+import { fullPortraitSrc } from "../book2-art/people-portraits.js";
+
 const PREVIEW_CLASS = "stonetop-avatar-preview";
+// The marker every body-portaled hover popup carries, so Reduce Motion can suppress the lot of
+// them with one rule instead of a hand-kept list of class names (see styles/stonetop.css).
+const HOVER_POPUP_CLASS = "stonetop-hover-popup";
 /** Clearance from the thumbnail, and from the viewport edge. */
 const GAP  = 8;
 const EDGE = 8;
@@ -127,17 +132,33 @@ export function showAvatarPreview(anchor, { placement = "below", variant = "" } 
 	removeAvatarPreview();
 	if (!anchor?.src) return null;
 
+	// A People-of-Stonetop thumbnail is a SQUARE face cut from a standing figure, so previewing
+	// its own src would just show the same crop bigger — and "let me see the whole picture" is
+	// the entire point of the hover. Swap in the illustration it came from. Every surface wired
+	// here gets that for free, with no template or data-producer change: the src is all it takes
+	// to know. Anything else (a browsed file, a monster portrait) resolves to null and is
+	// previewed as before.
+	//
+	// Read off the ATTRIBUTE rather than `.src`, which the DOM resolves to an absolute URL that
+	// a query string or hash could hide the filename behind.
+	const whole = fullPortraitSrc(anchor.getAttribute?.("src") ?? "");
 	const popup = document.createElement("div");
-	popup.className = variant ? `${PREVIEW_CLASS} ${variant}` : PREVIEW_CLASS;
+	popup.className = variant
+		? `${HOVER_POPUP_CLASS} ${PREVIEW_CLASS} ${variant}`
+		: `${HOVER_POPUP_CLASS} ${PREVIEW_CLASS}`;
 	const img = document.createElement("img");
-	img.src = anchor.src;
+	img.src = whole || anchor.src;
 	img.alt = "";
 	// The anchor is already painted on screen, so its intrinsic size is known long before
 	// this second copy of the same src has decoded — read the shape off the thumbnail and
 	// the popup opens at the right size on the first frame. The listener is the fallback
 	// for the case that isn't true (a thumbnail still loading under the pointer); it fires
 	// at most once and only re-measures a preview that is still up.
-	if (!fitPreviewImage(popup, img, anchor.naturalWidth, anchor.naturalHeight)) {
+	//
+	// Not available when we swapped the image: the thumbnail is square and the illustration is
+	// not, so borrowing its ratio would open the popup as a square and letterbox the figure
+	// into the very slice this swap exists to escape. Wait for the real decode instead.
+	if (whole || !fitPreviewImage(popup, img, anchor.naturalWidth, anchor.naturalHeight)) {
 		img.addEventListener("load", () => {
 			if (!popup.isConnected) return;
 			if (fitPreviewImage(popup, img, img.naturalWidth, img.naturalHeight)) {

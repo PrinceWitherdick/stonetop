@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { pickRandomPortrait, rolledScrollTop } from "../../../module/actors/steading/PeopleGalleryDialog.js";
+import { pickRandomPortrait, rolledScrollTop, asFullPortrait } from "../../../module/actors/steading/PeopleGalleryDialog.js";
+import { BOOK2_ART_APPLY_MANIFEST } from "../../../module/book2-art/manifest.js";
+
+// asFullPortrait joins against the SHIPPED manifest, so the square/illustration pair has to be a
+// real one. Any row with a square authored will do; the projection's own tests guard the shape.
+const ROOT = "stonetop-book-art";
+const squaredPerson = (BOOK2_ART_APPLY_MANIFEST.people ?? []).find((p) => p.out && p.portraitOut);
 
 // The dialog hands this only the tiles the filters left showing, so "respects the filters"
 // is the caller's job; what is tested here is the choice made out of that pool.
@@ -31,6 +37,36 @@ describe("pickRandomPortrait", () => {
 		expect(pickRandomPortrait([], { rng: () => 0.5 })).toBeNull();
 		expect(pickRandomPortrait(undefined, { rng: () => 0.5 })).toBeNull();
 		expect(pickRandomPortrait(["", null], { rng: () => 0.5 })).toBeNull();
+	});
+
+	it("avoids a current portrait that is held as the whole illustration", () => {
+		// The regression the roll's asFullPortrait call exists for. Tiles carry the SQUARE, but a
+		// member whose portrait was chosen before squares existed holds the illustration — so
+		// comparing the two raw paths matches nothing and every roll can hand back what they
+		// already wear. Both sides are normalised to the illustration before they meet.
+		const { portraitOut, out } = squaredPerson;
+		const pool = [`${ROOT}/${out}`, `${ROOT}/other-person.webp`];
+		for (const held of [`${ROOT}/${portraitOut}`, `${ROOT}/${out}`]) {
+			for (const r of [0, 0.5, 0.99]) {
+				expect(pickRandomPortrait(pool, { current: asFullPortrait(held), rng: () => r }))
+					.toBe(`${ROOT}/other-person.webp`);
+			}
+		}
+	});
+});
+
+describe("asFullPortrait", () => {
+	it("resolves a square back to the illustration it was cut from", () => {
+		expect(asFullPortrait(`${ROOT}/${squaredPerson.portraitOut}`)).toBe(`${ROOT}/${squaredPerson.out}`);
+	});
+
+	it("leaves an illustration, and anything that is not gallery art, as itself", () => {
+		expect(asFullPortrait(`${ROOT}/${squaredPerson.out}`)).toBe(`${ROOT}/${squaredPerson.out}`);
+		expect(asFullPortrait("worlds/mine/art/my-own-villager.webp")).toBe("worlds/mine/art/my-own-villager.webp");
+	});
+
+	it("reads an absent portrait as the empty string, so nothing matches it", () => {
+		for (const empty of ["", null, undefined]) expect(asFullPortrait(empty)).toBe("");
 	});
 });
 
