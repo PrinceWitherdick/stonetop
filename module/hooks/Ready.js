@@ -36,6 +36,8 @@ import { STONETOP_SCOPE, resolvedFlagProperty } from "../actors/character/Stonet
 import { deletionEntry } from "../utils/foundry-compat.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
 import { migrateAllSteadingPeople, ensurePeopleFolders, backfillAllResidentHomes } from "../actors/steading/steading-people.js";
+import { PERSON_DEFAULT_IMG } from "../utils/person-portrait.js";
+import { isDefaultImg } from "../utils/strings.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
 const _EOS_MACRO_IMG    = "systems/stonetop-pwd/assets/icons/macros/truce.svg";
@@ -105,11 +107,13 @@ export async function onReady() {
 	await migrateFlatSettingOverviewShown();
 	await _migrateArmourToArmor();
 	await _migrateGmPrepPagesToSingleJournal();
-	// Convert each steading's legacy plain-text Residents/Neighbors rows into linked
-	// NPC actors (idempotent; primary-GM only so two connected GMs can't double-create).
+	// Convert each steading's plain-text Residents/Neighbors rows into linked NPC actors
+	// (idempotent; primary-GM only so two connected GMs can't double-create). Swept every
+	// load, not once per world: players can't create actors, so a background that seeds
+	// neighbors during onboarding leaves text rows for the GM to pick up here.
 	if (isPrimaryGM()) {
 		try { await migrateAllSteadingPeople(); }
-		catch (err) { console.error("Stonetop | Residents/Neighbors → NPC migration failed", err); }
+		catch (err) { console.error("Stonetop | Residents/Neighbors → NPC conversion failed", err); }
 		// Give already-linked Residents of Stonetop a "Stonetop" Home if theirs is blank
 		// (new residents get this at creation). One-time, idempotent, GM-only.
 		try { await backfillAllResidentHomes(); }
@@ -120,6 +124,8 @@ export async function onReady() {
 		catch (err) { console.error("Stonetop | ensurePeopleFolders failed", err); }
 		try { await _migrateNpcTokenNameplates(); }
 		catch (err) { console.error("Stonetop | NPC token-nameplate migration failed", err); }
+		try { await _migrateNpcPlaceholderPortraits(); }
+		catch (err) { console.error("Stonetop | NPC placeholder-portrait migration failed", err); }
 	}
 	await runStartupMigrations();
 	// If the renamed system has been installed alongside this one, offer to move this
@@ -772,6 +778,23 @@ async function _migrateNpcTokenNameplates() {
 	) ?? [];
 	for (const actor of stale) {
 		await actor.update({ "prototypeToken.displayName": HOVER });
+	}
+}
+
+// Give the NPCs already in the world the people silhouette new ones now get at creation
+// (StonetopActor#_preCreate), so a neighbor with no portrait stops showing Foundry's
+// mystery-man in the sidebar, on a drag preview and in chat — the steading roster was
+// already drawing the placeholder, but only there. Only touches actors still wearing a
+// stock Foundry default (or the placeholder under a pre-rename system id), so a portrait
+// anyone chose is never overwritten. Idempotent: once stamped, the actor no longer matches,
+// so re-running every load is a cheap no-op needing no version flag. Primary-GM only (the
+// caller gates it) so two connected GMs can't both write the same actors.
+async function _migrateNpcPlaceholderPortraits() {
+	const stale = game.actors?.filter(
+		a => a.type === "npc" && a.img !== PERSON_DEFAULT_IMG && isDefaultImg(a.img)
+	) ?? [];
+	for (const actor of stale) {
+		await actor.update({ img: PERSON_DEFAULT_IMG });
 	}
 }
 

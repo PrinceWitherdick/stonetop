@@ -3,6 +3,7 @@ import { loadImage } from "../book2-art/rebuild-crops.js";
 import { removeAvatarPreview } from "./avatar-preview.js";
 import { canSendToTokenizer, sendPortraitToTokenizer } from "./portrait-tokenizer.js";
 import { localize, format } from "./i18n.js";
+import { hasVideoExtension } from "./foundry-compat.js";
 import {
 	SQ_MIN, normalizeRect, normalizeFrame, isValidFrame, rectEq, sameSrc,
 	frameSourceFor, frameStyle, suggestSquare, stageFor,
@@ -238,8 +239,14 @@ export class PortraitFrameDialog extends StonetopDialog {
 		}
 	}
 
+	// Where the pointer is, in stage pixels.
+	//
+	// The stage's own rect is cached for the duration of a drag rather than re-read per sample.
+	// Pointer capture means the stage cannot move while one is live, and the previous sample has
+	// already written three preview styles and rebuilt the overlay — so an uncached read here is a
+	// forced synchronous layout on every pointermove, at pointer poll rate rather than frame rate.
 	_at(ev) {
-		const r = this._stageEl.getBoundingClientRect();
+		const r = this._drag?.rect ?? this._stageEl.getBoundingClientRect();
 		const { w, h } = this._stage;
 		// Clamped, so a drag that leaves the dialog tracks the edge instead of freezing.
 		return {
@@ -255,9 +262,10 @@ export class PortraitFrameDialog extends StonetopDialog {
 		// buys touch and pen for free.
 		stage.addEventListener("pointerdown", (ev) => {
 			if (!this._stage || ev.button !== 0) return;
+			const rect = this._stageEl.getBoundingClientRect();
 			const { x, y } = this._at(ev);
 			const start = this._box();
-			this._drag = { x0: x, y0: y, start, box: null, ...hitTestBox(x, y, start) };
+			this._drag = { x0: x, y0: y, start, box: null, rect, ...hitTestBox(x, y, start) };
 			stage.setPointerCapture(ev.pointerId);
 			ev.preventDefault();
 		});
@@ -270,9 +278,12 @@ export class PortraitFrameDialog extends StonetopDialog {
 				// The whole discoverability story: there is no legend, the cursor says what a press
 				// here would do.
 				const mode = hitTestBox(x, y, this._box());
-				stage.style.cursor = mode.mode === "move" ? "move"
+				const cursor = mode.mode === "move" ? "move"
 					: mode.mode === "resize" ? (mode.corner === "nw" || mode.corner === "se" ? "nwse-resize" : "nesw-resize")
 						: "crosshair";
+				// Only on a change: the cursor is the same for most of a stage, and a style write
+				// per pointer sample dirties layout for a value the browser already has.
+				if (cursor !== this._cursor) { this._cursor = cursor; stage.style.cursor = cursor; }
 				return;
 			}
 			const d = this._drag;
@@ -398,7 +409,7 @@ export function openPortraitFrameEditor({ handle, img, title, onSaved } = {}) {
 		ui.notifications?.warn(localize("stonetop.portraitFrame.noImage"));
 		return null;
 	}
-	if (/\.(webm|mp4|m4v|ogv)(\?|#|$)/i.test(src)) {
+	if (hasVideoExtension(src)) {
 		ui.notifications?.warn(localize("stonetop.portraitFrame.video"));
 		return null;
 	}

@@ -16,7 +16,10 @@
       input inside an actor sheet's form is submitted into _updateObject and lands in
       expandObject(formData) as a stray top-level key, and radios are only mutually exclusive
       when they share a name. Same reason the show/hide checkbox is unnamed. --}}
-<div class="stonetop-rel-viewbar{{#if inHeading}} stonetop-rel-viewbar--heading{{/if}}">
+{{!-- In a heading it also wears stonetop-section-heading-control, which is what makes folding
+      the section fold the toggle with it (see _wireSectionCollapse). In the NPC sheet's
+      headingless tab there is nothing to fold, so it does not. --}}
+<div class="stonetop-rel-viewbar{{#if inHeading}} stonetop-rel-viewbar--heading stonetop-section-heading-control{{/if}}">
 	<div class="stonetop-segmented-picker stonetop-rel-viewpicker" role="group"
 	     aria-label='{{localize "stonetop.relationships.view.label"}}'>
 		<button type="button"

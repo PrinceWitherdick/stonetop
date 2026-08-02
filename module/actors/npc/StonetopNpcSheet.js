@@ -9,8 +9,7 @@
 import { rollDamage } from "../../utils/roll-engine.js";
 import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle } from "../../utils/sheet-chrome.js";
 import { isDefaultImg } from "../../utils/strings.js";
-import { resolvePortrait } from "../../utils/portrait-frame.js";
-import { SYSTEM_ID } from "../../system-id.js";
+import { resolvePortrait, documentPortraitFrame } from "../../utils/portrait-frame.js";
 import { wirePortraitPopout, updateRichTextField, updateMoveField } from "../../utils/stat-block-edit.js";
 import { getOpenSheetsInEditMode } from "../../settings.js";
 import { enrichHTML } from "../../utils/foundry-compat.js";
@@ -138,13 +137,14 @@ export function createStonetopNpcSheetClass(Base) {
 			// The whole illustration is still one click away: the portrait pops out, and the
 			// popout resolves back to it (utils/stat-block-edit.js wirePortraitPopout).
 			const realImg  = isDefaultImg(this.actor.img) ? null : this.actor.img;
-			const portrait = resolvePortrait(realImg ?? "", this.actor.flags?.[SYSTEM_ID]?.portraitFrame);
+			const portrait = resolvePortrait(realImg ?? "", documentPortraitFrame(this.actor));
 			st.displayImg      = realImg && portrait.src;
 			st.displayImgStyle = realImg ? portrait.style : "";
 			st.hasPortrait     = !!realImg;
 			// Edit mode keeps a clickable slot even with no art chosen yet, because the slot IS
 			// the file picker there. Play mode renders the person-icon placeholder instead, so
-			// only this path ever falls back to Foundry's own default image.
+			// only this path falls back to whatever the actor is actually wearing — which for
+			// an art-less NPC is the people silhouette (utils/person-portrait.js).
 			st.editImg         = st.displayImg || this.actor.img;
 
 			// Up to 3 impression slots (p.454). Edit mode shows the filled slots plus a
@@ -269,9 +269,18 @@ export function createStonetopNpcSheetClass(Base) {
 			// anything that changes the section's height without a re-render has to hand the
 			// window back a refit: the board is taller than the table, and an opened card note
 			// is taller again.
+			// One pending refit at a time. A note field asks for one on every keystroke, and
+			// `_fitHeight` is not cheap — it walks the sheet to hold its scrollports still around
+			// a `setPosition({height: "auto"})` that re-measures the whole window. Typing a line
+			// would otherwise queue sixty of them to settle on the one height the last would have
+			// produced anyway.
+			let refitFrame = 0;
 			wireRelationshipBoard(root, this.actor, {
 				editable: this.isEditable,
-				onResize: () => requestAnimationFrame(() => this._fitHeight()),
+				onResize: () => {
+					if (refitFrame) return;
+					refitFrame = requestAnimationFrame(() => { refitFrame = 0; this._fitHeight(); });
+				},
 			});
 			// Names open their PC's sheet, portraits preview on hover. Ungated for the same
 			// reason the columns are: neither is an edit.

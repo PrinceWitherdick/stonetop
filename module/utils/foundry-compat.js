@@ -23,7 +23,18 @@ export function getDragEventData(ev) {
 export function hasVideoExtension(path) {
 	const helper = globalThis.foundry?.helpers?.media?.VideoHelper ?? globalThis.VideoHelper;
 	if (typeof helper?.hasVideoExtension === "function") return !!helper.hasVideoExtension(path);
-	return /\.(webm|mp4|m4v|ogv)(\?|$)/i.test(String(path));
+	return /\.(webm|mp4|m4v|ogv)(\?|#|$)/i.test(String(path));
+}
+
+/**
+ * The configured FilePicker class. V13 moved it under `foundry.applications.apps` and routes
+ * subclassing through `.implementation`; older cores expose the bare global. Returns undefined
+ * in a headless test with no Foundry globals, so callers can guard.
+ * @returns {typeof FilePicker|undefined}
+ */
+export function filePicker() {
+	const moved = globalThis.foundry?.applications?.apps?.FilePicker;
+	return moved?.implementation ?? moved ?? globalThis.FilePicker;
 }
 
 /**

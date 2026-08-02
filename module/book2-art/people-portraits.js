@@ -118,7 +118,7 @@ const swapBasename = (src, file) => String(src).slice(0, String(src).lastIndexOf
  * lookup below misses, the hover preview silently stops swapping in the whole illustration, and
  * the on-disk square resolver stops matching. Nothing throws, so nothing announces it.
  */
-const basenameOf = (p) => {
+export const basenameOf = (p) => {
 	const s = String(p);
 	return s.slice(s.lastIndexOf("/") + 1).split("#")[0].split("?")[0];
 };
@@ -136,6 +136,18 @@ export function fullPortraitSrc(src, people) {
 	// The swap drops any query string with the basename, which is correct: the caller wants the
 	// illustration's real path, and a cache-buster minted for a different file means nothing here.
 	return full ? swapBasename(s.split("#")[0].split("?")[0], full) : null;
+}
+
+/**
+ * The picture to SHOW when this path is enlarged: the whole illustration behind a shipped
+ * square, or the path itself when it is not one (a GM's own browsed file is its own identity).
+ *
+ * `fullPortraitSrc` must keep returning null for "not gallery art" — `avatar-preview.js` and
+ * `resolvePortrait` both branch on that — so this is the ` ?? src` half of the pair, named once
+ * rather than re-derived at every popout and hover. Empty in, empty out.
+ */
+export function displayPortraitSrc(src, people) {
+	return src ? (fullPortraitSrc(src, people) ?? src) : "";
 }
 
 /** The square cut from this illustration, or null. The inverse of `fullPortraitSrc`. */

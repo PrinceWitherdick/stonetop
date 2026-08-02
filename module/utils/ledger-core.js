@@ -27,6 +27,34 @@ export function isLedgerPath(path) {
 	return path === LEDGER_FLAG_PATH || String(path ?? "").startsWith(`${LEDGER_FLAG_PATH}.`);
 }
 
+/**
+ * An incoming update path, restated in the CURRENT flag scope. A world written under the legacy
+ * `flags.stonetop.` scope still sends paths in it, and every label table here is keyed by the
+ * current one — an un-normalized path simply finds no label and the change is dropped, silently.
+ *
+ * The boundary every ledger funnels through, and therefore where the legacy scope is named. It
+ * lives beside the tables it has to agree with rather than once per ledger: two identical copies
+ * of a rename rule are two chances to rename only one.
+ */
+export function normalizeFlagPath(path) {
+	return String(path ?? "").replace(/^flags\.stonetop\./, `flags.${LEDGER_SCOPE}.`);
+}
+
+/**
+ * Read `path` off an actor, falling back to the legacy scope. The mirror of `normalizeFlagPath`
+ * on the read side: a world that has not been migrated stores the value under `flags.stonetop.`,
+ * so asking only the current scope returns undefined and the diff reports every field as newly
+ * set. `undefined` (not null) is the miss, because a stored null is a real value.
+ */
+export function getActorProperty(actor, path) {
+	const value = foundry.utils.getProperty(actor, path);
+	if (value !== undefined) return value;
+	if (String(path).startsWith(`flags.${LEDGER_SCOPE}.`)) {
+		return foundry.utils.getProperty(actor, path.replace(`flags.${LEDGER_SCOPE}.`, "flags.stonetop."));
+	}
+	return undefined;
+}
+
 // ── Value formatting ────────────────────────────────────────────────────────
 
 export function isBlank(v) {
@@ -121,9 +149,47 @@ export function listMerge(label, key, items) {
 	return { kind: "list", key, label, items: [...items] };
 }
 
+/** A real number, as opposed to a boolean, a string, or a blank. */
+const isNumericValue = (v) => typeof v === "number" && Number.isFinite(v);
+
+/**
+ * One changed scalar field, as a ledger entry — with run-merging attached when the field holds a
+ * NUMBER, so nudging HP 6 → 5 → 4 lands as one line rather than three.
+ *
+ * Whether a field merges is asked of its VALUE rather than looked up in a per-ledger allowlist.
+ * The two allowlists this replaces were, on inspection, exactly the numeric-valued subset of each
+ * ledger's label map (their omissions were the string `name` fields and the boolean debilities) —
+ * so they were restating in a hand-kept list something the value already knows, once per ledger,
+ * and the third ledger simply never got a list, which is why an NPC's HP walked down 6 → 5 → 4
+ * still logged three lines.
+ *
+ * `old OR new` numeric, not both: first setting a blank HP to 5 is as mergeable as changing it,
+ * and that is the behaviour the allowlists had (they keyed on the path, so the value's type at
+ * the time never came into it).
+ *
+ * @param {string} label   the field's display name
+ * @param {string} key     the path, which is what makes two entries part of the same run
+ */
+export function scalarEntry(label, oldValue, newValue, key) {
+	const entry = { action: actionForField(label, oldValue, newValue) };
+	if (isNumericValue(oldValue) || isNumericValue(newValue)) {
+		entry.merge = numericMerge(label, key, oldValue, newValue);
+	}
+	return entry;
+}
+
+/**
+ * "These two cancel out — drop the pair." Returned in place of an entry rather than stamped ONTO
+ * one: every sibling key of a ledger entry is persisted to `flags.stonetop-pwd.ledger`, so a
+ * marker field on a copy of a real entry is one missed `pop()` away from being written into world
+ * data permanently, with nothing in the storage layer to object. A Symbol cannot survive that.
+ */
+const DROP_PAIR = Symbol("drop-pair");
+
 /**
  * Fold `entry` into `previous` when the two form a run, returning the rewritten previous entry
- * (with a refreshed action string and timestamp), or null when they don't merge.
+ * (with a refreshed action string and timestamp), `DROP_PAIR` when they annihilate, or null when
+ * they don't merge.
  */
 function mergeInto(previous, entry) {
 	const a = previous?.merge, b = entry?.merge;
@@ -139,7 +205,7 @@ function mergeInto(previous, entry) {
 		// A round trip (3 → 4 → 3) leaves the field where it started; drop the pair entirely
 		// rather than logging a no-op "changed from 3 to 3".
 		const merge = { ...a, to: b.to };
-		if (formatValue(merge.from) === formatValue(merge.to)) return { ...previous, _drop: true };
+		if (formatValue(merge.from) === formatValue(merge.to)) return DROP_PAIR;
 		return { ...previous, timestamp: entry.timestamp, merge, action: actionForField(a.label, merge.from, merge.to) };
 	}
 
@@ -173,7 +239,7 @@ export function mergeRuns(newestFirst) {
 		const previous = out[out.length - 1];
 		const merged = previous ? mergeInto(previous, entry) : null;
 		if (!merged) { out.push(entry); continue; }
-		if (merged._drop) out.pop();
+		if (merged === DROP_PAIR) out.pop();
 		else out[out.length - 1] = merged;
 	}
 	return out.reverse();

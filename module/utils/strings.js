@@ -1,3 +1,5 @@
+import { isPersonPlaceholderImg } from "./person-portrait.js";
+
 /** Capitalize the first character of a string. */
 export function capitalizeFirst(str) {
 	return str ? str.charAt(0).toUpperCase() + str.slice(1) : str;
@@ -120,16 +122,19 @@ export function filterStatOptionLines(html, statKey) {
 }
 
 /**
- * Returns true when `img` is absent or one of Foundry's stock default images — the actor/
- * token portrait (mystery-man) or the default Item icon (item-bag). Used to decide whether
- * a document has real, author-chosen art; a placeholder counts as "no art".
+ * Returns true when `img` is absent or a placeholder rather than real, author-chosen art:
+ * one of Foundry's stock defaults (the mystery-man portrait, the item-bag Item icon) or
+ * this system's own people silhouette, which art-less NPCs now wear in mystery-man's place
+ * (see utils/person-portrait.js). Swapping one placeholder for another must not turn a
+ * person with no picture into a person with one, so both answer the same here.
  */
 export function isDefaultImg(img) {
 	const defaultToken = globalThis.CONST?.DEFAULT_TOKEN ?? "icons/svg/mystery-man.svg";
 	return !img
 		|| img === "icons/svg/mystery-man.svg"
 		|| img === "icons/svg/item-bag.svg"
-		|| img === defaultToken;
+		|| img === defaultToken
+		|| isPersonPlaceholderImg(img);
 }
 
 // Mis-decoded UTF-8 sequences seen in the transcribed playbook text → their real

@@ -1,5 +1,6 @@
-import { loadImage } from "../book2-art/rebuild-crops.js";
+import { loadImage, cropToCanvas } from "../book2-art/rebuild-crops.js";
 import { normalizeRect } from "./portrait-frame.js";
+import { filePicker } from "./foundry-compat.js";
 
 /**
  * Hand a chosen portrait frame to the Tokenizer module (`vtta-tokenizer`), which turns it into a
@@ -50,7 +51,7 @@ function bakeDir() {
 	return `worlds/${game.world?.id ?? "world"}/stonetop-portrait-frames`;
 }
 
-const FP = () => foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
+const FP = filePicker;
 
 /**
  * ONE baked file per person, overwritten on every send. Deliberately carries no rect in its name.
@@ -88,20 +89,9 @@ export async function bakeFrameToFile(src, rect, { name = "portrait", id = "" } 
 	if (!src || !r) return null;
 	const path = String(src).split("#")[0].split("?")[0].replace(/^\/+/, "");
 	const img = await loadImage(encodeURI(foundry.utils.getRoute(path)));
-	const iw = img.naturalWidth;
-	const ih = img.naturalHeight;
-	if (!(iw > 0) || !(ih > 0)) return null;
+	if (!(img.naturalWidth > 0) || !(img.naturalHeight > 0)) return null;
 
-	const sx = Math.round(r[0] * iw);
-	const sy = Math.round(r[1] * ih);
-	// Never floor a span to zero: toBlob throws on a zero-dimension canvas.
-	const sw = Math.max(1, Math.round((r[2] - r[0]) * iw));
-	const sh = Math.max(1, Math.round((r[3] - r[1]) * ih));
-
-	const canvas = document.createElement("canvas");
-	canvas.width = sw;
-	canvas.height = sh;
-	canvas.getContext("2d").drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+	const canvas = cropToCanvas(img, r);
 	const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", WEBP_QUALITY));
 	if (!blob) return null;
 

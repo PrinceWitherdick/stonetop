@@ -2,10 +2,11 @@
 //
 // Its own leaf module because two passes ask the question and neither should own it: the
 // art re-apply sweeps all six durable directories (reapply.js), while the portrait-crop
-// rebuild only cares about `assets/people` (rebuild-crops.js). Sharing the walk keeps the
-// FilePicker compatibility shim in ONE place — that expression is exactly the kind of
-// thing that has to be revisited on a Foundry version bump, and a second copy is a second
-// thing to remember.
+// rebuild only cares about `assets/people` (rebuild-crops.js). Sharing the walk means one
+// browse and one cache rather than two of each. Which FilePicker class to walk WITH is a
+// version question, so it lives with the other version shims (`filePicker`, foundry-compat.js).
+
+import { filePicker } from "../utils/foundry-compat.js";
 
 /** Every directory the importer writes durable art into. */
 export const DURABLE_ART_DIRS = [
@@ -50,7 +51,7 @@ function browseDir(root, dir) {
 	const key = `${root}|${dir}`;
 	let pending = _browseCache.get(key);
 	if (!pending) {
-		const FP = foundry?.applications?.apps?.FilePicker ?? FilePicker;
+		const FP = filePicker();
 		// A rejected browse means the directory does not exist yet (the GM hasn't imported)
 		// -> nothing on disk from there. Cached like any other answer: an absent directory
 		// stays absent until something creates it, and that clears the cache.

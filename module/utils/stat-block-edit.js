@@ -2,11 +2,10 @@
 // the same play-mode portrait popout and the same whitelisted field/move updates. `sheet` is the
 // AppV1 sheet instance (uses sheet.actor / sheet._editMode); the whitelist is passed per sheet.
 import { isDefaultImg } from "./strings.js";
-import { fullPortraitSrc } from "../book2-art/people-portraits.js";
-import { addPopoutHeaderControl } from "./popout-header-control.js";
+import { displayPortraitSrc } from "../book2-art/people-portraits.js";
+import { addPortraitFrameControl } from "./popout-header-control.js";
 import { actorFrameHandle } from "./portrait-frame-handles.js";
 import { openPortraitFrameEditor } from "./PortraitFrameDialog.js";
-import { localize } from "./i18n.js";
 
 // Wire the play-mode portrait click → ImagePopout. Edit mode leaves Foundry's own file picker,
 // and the decorative default/creature-type icon is never enlarged. `root` is the sheet root el.
@@ -37,25 +36,17 @@ export function wirePortraitPopout(sheet, root) {
 		if (sheet._editMode || isDefaultImg(sheet.actor.img)) return;
 		ev.preventDefault();
 		ev.stopPropagation();
-		const src = fullPortraitSrc(sheet.actor.img) ?? sheet.actor.img;
+		const src = displayPortraitSrc(sheet.actor.img);
 		const popout = new ImagePopout(src, { title: sheet.actor.name });
 		popout.render(true);
 
 		// Choose which square of this portrait the small round surfaces show: the relationship
 		// hearts on every sheet that lists this person, and the steading roster. The frame lives
 		// on the actor, so setting it here shows up everywhere at once.
-		const handle = actorFrameHandle(sheet.actor, { editable: sheet.isEditable });
-		if (!handle?.canWrite) return;
-		addPopoutHeaderControl(popout, {
-			key: "stonetop-frame-portrait",
-			icon: "fa-crop-simple",
-			label: localize("stonetop.portraitFrame.control"),
-			onClick: () => openPortraitFrameEditor({
-				handle,
-				img: sheet.actor.img,
-				title: `Frame ${sheet.actor.name}`,
-				onSaved: () => sheet.render(false),
-			}),
+		addPortraitFrameControl(popout, actorFrameHandle(sheet.actor, { editable: sheet.isEditable }), {
+			name: sheet.actor.name,
+			img: sheet.actor.img,
+			onSaved: () => sheet.render(false),
 		});
 	});
 }

@@ -1,4 +1,5 @@
 import { isValidRect, fullPortraitSrc } from "../book2-art/people-portraits.js";
+import { SYSTEM_ID } from "../system-id.js";
 
 /**
  * The square FRAME a user chooses over a person's portrait, and the inline style that paints it.
@@ -41,7 +42,19 @@ import { isValidRect, fullPortraitSrc } from "../book2-art/people-portraits.js";
  * template context can call it without dragging settings or documents in.
  */
 
-export { isValidRect };
+/**
+ * The frame a document carries, or null.
+ *
+ * ⚠ Bracketed and built from SYSTEM_ID, never written out: the package id is hyphenated, so a
+ * dotted `flags.stonetop-pwd.portraitFrame` parses as a subtraction and throws "pwd is not
+ * defined". Every display surface goes through here rather than spelling the read out, so a
+ * scope rename moves one literal instead of six — and six that silently resolve to `undefined`
+ * would revert every hand-chosen crop to the blind top slice with no error to notice.
+ *
+ * Takes any object with a `flags` bag, so a real Document, a plain index row and a test fixture
+ * all work — nothing here touches a Foundry global.
+ */
+export const documentPortraitFrame = (doc) => doc?.flags?.[SYSTEM_ID]?.portraitFrame ?? null;
 
 /**
  * Display floor for a rect's span. Below this the percentages explode: a span of 0.001 asks for

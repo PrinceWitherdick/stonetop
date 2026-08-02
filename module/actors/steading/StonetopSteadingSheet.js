@@ -7,7 +7,8 @@ import {escHtml} from "../../utils/strings.js";
 import {CUSTOM_ASSET_VALUE, wireCustomAssetSelect} from "../../utils/requisition-asset.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {AddSteadingMemberDialog} from "../../dialogs/AddSteadingMemberDialog.js";
-import {addPersonToSteading, personFieldPath, isActorRow, usedPersonPortraits} from "./steading-people.js";
+import {addPersonToSteading, personFieldPath, isActorRow, personRowActor, usedPersonPortraits} from "./steading-people.js";
+import {PERSON_DEFAULT_IMG} from "../../utils/person-portrait.js";
 import {openNpcNotesDialog} from "./npc-notes-dialog.js";
 import {openPeoplePortraitPicker} from "./PeopleGalleryDialog.js";
 import {STONETOP_SCOPE, StonetopFlags} from "../character/StonetopFlags.js";
@@ -43,8 +44,8 @@ import {relationshipRow, wireRelationshipTable} from "../../utils/relationship-h
 import {wireAvatarPreview, removeAvatarPreview} from "../../utils/avatar-preview.js";
 import {ACTOR_LINK_MISSING, openLinkedActorSheet, withLinkedActor} from "../../utils/actor-link.js";
 import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relationship-board.js";
-import {fullPortraitSrc} from "../../book2-art/people-portraits.js";
-import {addPopoutHeaderControl} from "../../utils/popout-header-control.js";
+import {displayPortraitSrc} from "../../book2-art/people-portraits.js";
+import {addPopoutHeaderControl, addPortraitFrameControl} from "../../utils/popout-header-control.js";
 import {personFrameHandle} from "../../utils/portrait-frame-handles.js";
 import {openPortraitFrameEditor} from "../../utils/PortraitFrameDialog.js";
 import {localize} from "../../utils/i18n.js";
@@ -61,9 +62,7 @@ import {localize} from "../../utils/i18n.js";
  * Display only: the STORED path is what `_stonetopMemberImageEdit.current` keeps and what the
  * gallery is handed back, so re-opening Edit Photo still highlights the portrait the member wears.
  */
-function memberPhotoDisplaySrc(src) {
-	return fullPortraitSrc(src) ?? src;
-}
+const memberPhotoDisplaySrc = displayPortraitSrc;
 
 function _normalizeSheetRollMode(rollMode) {
 	return ["adv", "dis"].includes(rollMode) ? rollMode : "normal";
@@ -1341,8 +1340,10 @@ export function createStonetopSteadingSheetClass(Base) {
 		_bindMemberImagePopoutToActor(popout, list, index) {
 			const f = this._stonetopSteading._flags;
 			const row = (f[list] ?? STEADING_DEFAULTS[list])?.[index];
-			if (!row || !isActorRow(row)) return;
-			const actorId = row.id ?? (row.uuid ? game.actors?.find(a => a.uuid === row.uuid)?.id : null);
+			if (!row) return;
+			// Resolved through the roster's own lookup, so this watches the same document the row
+			// renders. Taking `row.id` on trust would keep watching an id whose actor is gone.
+			const actorId = personRowActor(row)?.id;
 			if (!actorId) return;
 
 			const hookId = Hooks.on("updateActor", (actor, changes) => {
@@ -1380,21 +1381,19 @@ export function createStonetopSteadingSheetClass(Base) {
 			// are seeded at OBSERVER, so a player who may edit the steading would otherwise be
 			// offered a control whose save the server refuses. personFrameHandle answers that for
 			// both row kinds, and returns null when there is nothing writable behind the row.
-			const handle = personFrameHandle(this._stonetopSteading, edit.list, edit.index, { editable: this.isEditable });
-			if (!handle?.canWrite) return;
-			addPopoutHeaderControl(popout, {
-				key: "stonetop-frame-member-photo",
-				icon: "fa-crop-simple",
-				label: localize("stonetop.portraitFrame.control"),
-				onClick: () => openPortraitFrameEditor({
-					handle,
-					img: handle.img,
-					title: `Frame ${popout.options?.title ?? "Face"}`,
+			// Named from the POPOUT's title, not from a document: a legacy roster row is plain
+			// text and has no actor to ask.
+			addPortraitFrameControl(
+				popout,
+				personFrameHandle(this._stonetopSteading, edit.list, edit.index, { editable: this.isEditable }),
+				{
+					key: "stonetop-frame-member-photo",
+					name: popout.options?.title ?? "Face",
 					// A frame write touches neither `img` nor `options.src`, so the popout's own
 					// updateActor binding will not fire and nothing re-renders on its own.
 					onSaved: () => this.render(false),
-				}),
-			});
+				},
+			);
 		}
 
 		_onMemberAvatarPickImage({ list, index, current, popout }) {
@@ -1476,7 +1475,10 @@ export function createStonetopSteadingSheetClass(Base) {
 			if (row && isActorRow(row)) {
 				const actor = (row.id ? game.actors?.get(row.id) : null)
 					|| (row.uuid ? await fromUuid(row.uuid).catch(() => null) : null);
-				if (actor) await actor.update({ img: value || "icons/svg/mystery-man.svg" });
+				// Clearing a portrait returns the person to the people silhouette, which is what
+				// the roster draws for an un-portraited member anyway — so the cleared row looks
+				// the same here as one that never had art, rather than reverting to mystery-man.
+				if (actor) await actor.update({ img: value || PERSON_DEFAULT_IMG });
 				return;
 			}
 			const arr = foundry.utils.deepClone(rows);

@@ -10,7 +10,7 @@
 import {
 	isLedgerPath,
 	appendLedgerEntries, deleteLedgerEntries, getLedgerEntries,
-	isBlank, valuesEqual, actionForField, coalesceEntries,
+	isBlank, valuesEqual, actionForField, coalesceEntries, scalarEntry,
 } from "../../utils/ledger-core.js";
 import { stripHtmlToText as stripHtml } from "../../utils/strings.js";
 import { heartsLabel } from "../../utils/heart-words.js";
@@ -137,9 +137,12 @@ function actorUpdateEntries(actor, changed) {
 		if (!label) continue;
 		const oldValue = foundry.utils.getProperty(actor, path);
 		if (valuesEqual(oldValue, newValue)) continue;
+		// Through scalarEntry, so an NPC's numbers collapse their runs the way a PC's and a
+		// steading's always have: walking a monster's HP 6 → 5 → 4 through a fight is one line,
+		// not three. This ledger had no run-merging at all until the shared engine grew one.
 		entries.push({
 			category: STAT_PATHS.has(path) ? "stats" : "character",
-			action: actionForField(label, oldValue, newValue),
+			...scalarEntry(label, oldValue, newValue, path),
 		});
 	}
 	return coalesceEntries(entries);

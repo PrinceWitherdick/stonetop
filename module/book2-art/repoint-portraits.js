@@ -1,4 +1,4 @@
-import { squarePortraitSrc } from "./people-portraits.js";
+import { squarePortraitSrc, basenameOf as basename } from "./people-portraits.js";
 import { SYSTEM_ID } from "../system-id.js";
 import { getObjectSetting } from "../settings.js";
 
@@ -118,8 +118,6 @@ export function planPortraitRepoints(actors, squareFor = squarePortraitSrc) {
 	}
 	return plan;
 }
-
-const basename = (p) => String(p).slice(String(p).lastIndexOf("/") + 1);
 
 /**
  * A `squareFor` that only ever names a square THAT IS ON DISK.

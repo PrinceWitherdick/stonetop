@@ -123,10 +123,15 @@ export function withSectionEditing(Base) {
 			const apply = (caret, collapsed) => {
 				const { heading, content } = this._sectionFoldTargets(caret, headingSel);
 				for (const el of content) el.classList.toggle("stonetop-section-folded", collapsed);
-				// Controls that act on the folded content live inside the heading, so
-				// the run above misses them — a search box or a Table/Board switch over
-				// nothing is a dead end. They come back with the section.
-				for (const el of heading?.querySelectorAll(".stonetop-tab-search, .stonetop-rel-viewbar--heading") ?? []) {
+				// Controls that act on the folded content live inside the heading, so the run
+				// above misses them — a search box or a Table/Board switch over nothing is a
+				// dead end. They come back with the section.
+				//
+				// Found by ONE class the templates opt into, not by a list of the specific
+				// controls that happen to exist today: this is shared infrastructure, and every
+				// heading-resident control added since has had to remember to name itself here
+				// or be silently left behind.
+				for (const el of heading?.querySelectorAll(".stonetop-section-heading-control") ?? []) {
 					el.classList.toggle("stonetop-section-folded", collapsed);
 				}
 				caret.classList.toggle("stonetop-section-collapsed", collapsed);

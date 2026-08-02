@@ -193,11 +193,14 @@ describe("section collapse", () => {
 		expect(caret.folded).toBe(false); // the corner controls stay put
 	});
 
-	it("folds a search box that lives inside the heading, since it acts on what went away", () => {
+	// A control inside the HEADING is not inside the content, so the fold misses it unless it
+	// says so. It says so with one marker class rather than by being named in the mixin, which
+	// is what lets a new heading-resident control opt in without editing shared infrastructure.
+	it("folds a heading control that marks itself, since it acts on what went away", () => {
 		const sheet = new Sheet("actor1");
 		const { html, carets } = buildSheetDom(["followers"]);
 		const title = carets.followers.parentElement.children[0];
-		const search = new FakeEl("stonetop-tab-search", title);
+		const search = new FakeEl("stonetop-tab-search stonetop-section-heading-control", title);
 
 		sheet._wireSectionCollapse(html, HEADINGS);
 		html[0].fire("click", click(carets.followers));
@@ -205,5 +208,16 @@ describe("section collapse", () => {
 
 		html[0].fire("click", click(carets.followers));
 		expect(search.folded).toBe(false);
+	});
+
+	it("leaves an unmarked heading control alone, so the caret and title stay put", () => {
+		const sheet = new Sheet("actor1");
+		const { html, carets } = buildSheetDom(["followers"]);
+		const title = carets.followers.parentElement.children[0];
+		const decoration = new FakeEl("stonetop-section-badge", title);
+
+		sheet._wireSectionCollapse(html, HEADINGS);
+		html[0].fire("click", click(carets.followers));
+		expect(decoration.folded).toBe(false);
 	});
 });

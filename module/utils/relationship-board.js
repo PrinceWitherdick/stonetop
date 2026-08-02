@@ -4,8 +4,11 @@
 // same rating. Toggle back to the table and the data is identical.
 //
 // Pairs with relationship-hearts.js (the storage layer) and templates/actor/partials/
-// relationships-board.hbs (the markup). Wired from wireRelationshipTable, so all three
-// host sheets get it without a call-site change.
+// relationships-board.hbs (the markup).
+//
+// Each host sheet calls `wireRelationshipBoard` itself, beside `wireRelationshipTable` and
+// (usually) `wireRelationshipLinks` — the steading omits the last on purpose, see its call site.
+// Not folded into one façade for that reason: the three are genuinely separately chosen.
 import { clampHearts, readOrder, updateRelationships } from "./relationship-hearts.js";
 import { readStoredColumnState, writeStoredColumnState } from "./steading-column-util.js";
 import { scrollParent } from "./scroll-parent.js";
@@ -1068,7 +1071,7 @@ export function wireRelationshipBoard(root, actor, { editable = true, onResize }
  */
 function wireLaneDrag(wrapper, moveTo, reorderTo) {
 	let drag = null;
-	let scrollFrame = 0;
+	let dragFrameId = 0;
 	// Resolved on the first press and kept, because scrollableAncestor walks the whole
 	// ancestor chain calling getComputedStyle (a style flush) and reading scrollHeight (a
 	// layout flush) — and a card is pressed far more often than it is dragged. Only a FOUND
@@ -1148,22 +1151,39 @@ function wireLaneDrag(wrapper, moveTo, reorderTo) {
 		return { zone: null, lane: null, index: null };
 	};
 
-	const stopScrolling = () => {
-		if (scrollFrame) cancelAnimationFrame(scrollFrame);
-		scrollFrame = 0;
+	const stopDragFrames = () => {
+		if (dragFrameId) cancelAnimationFrame(dragFrameId);
+		dragFrameId = 0;
 	};
 
-	// Scroll the host when the pointer nears its edge, at a speed proportional to how deep
-	// into the margin it is. Re-arms itself each frame while the drag stays in the margin.
-	const autoScroll = () => {
-		scrollFrame = 0;
-		if (!drag?.started || !drag.scroller) return;
-		const box = drag.scroller.getBoundingClientRect();
-		const delta = autoScrollDelta(drag.y, box.top, box.bottom);
-		if (!delta) return;
-		drag.scroller.scrollTop += delta;
+	// One frame of a live drag: scroll the host if the pointer is near its edge, then move the
+	// card and re-resolve what it is over. Armed by pointermove, and while auto-scrolling by
+	// itself — that is the one case where what the card is over keeps changing with the pointer
+	// held perfectly still, and nothing else would ask again.
+	//
+	// EVERYTHING the drag does per sample happens HERE rather than in the pointermove handler,
+	// because none of it is cheap and none of it can show up more than once per painted frame:
+	// `follow` writes a transform and then hit-tests the whole document (`elementsFromPoint`
+	// walks a stack that includes the canvas and every open window), and over the card's own
+	// lane it also measures every card in that lane. A 125Hz mouse samples twice per frame, and
+	// coalesced pointer events can deliver several at once, so the uncoalesced version did that
+	// entire pass 2-8x for each frame the user actually sees.
+	const dragFrame = () => {
+		dragFrameId = 0;
+		if (!drag?.started) return;
+		let delta = 0;
+		if (drag.scroller) {
+			const box = drag.scroller.getBoundingClientRect();
+			delta = autoScrollDelta(drag.y, box.top, box.bottom);
+			// The card is a DESCENDANT of the scroller, so this changes where it sits as well as
+			// what is under the pointer — follow() below reads the new scrollTop and corrects for it.
+			if (delta) drag.scroller.scrollTop += delta;
+		}
 		follow();
-		scrollFrame = requestAnimationFrame(autoScroll);
+		// Only the auto-scroll keeps going on its own. A card held still anywhere else has
+		// nothing to recompute, and re-arming there would run the whole hit-test pass — canvas
+		// and every open window — 60 times a second for as long as the user pauses to think.
+		if (delta) dragFrameId = requestAnimationFrame(dragFrame);
 	};
 
 	// Keep the card under the cursor. transform, not left/top: it composites instead of
@@ -1209,7 +1229,7 @@ function wireLaneDrag(wrapper, moveTo, reorderTo) {
 		if (!active) return;
 		drag = null;
 		activeDragCancel = null;
-		stopScrolling();
+		stopDragFrames();
 		clearHighlight();
 		showZones(false);
 		active.card.classList.remove("is-dragging");
@@ -1269,16 +1289,23 @@ function wireLaneDrag(wrapper, moveTo, reorderTo) {
 		// Only once the drag is real: otherwise this would suppress text selection and
 		// ordinary presses inside the card.
 		ev.preventDefault();
-		follow();
-		if (!scrollFrame) scrollFrame = requestAnimationFrame(autoScroll);
+		// Record and arm, nothing more. The frame loop reads drag.x/drag.y and does the work.
+		if (!dragFrameId) dragFrameId = requestAnimationFrame(dragFrame);
 	});
 
 	wrapper.addEventListener("pointerup", ev => {
 		if (!drag || ev.pointerId !== drag.pointerId) return;
-		const { card, lane, zone, index, started } = drag;
 		// Never crossed the threshold: this was a click. Tear down without consuming it, so
 		// the click handlers still see it.
-		if (!started) { end(); return; }
+		if (!drag.started) { end(); return; }
+		// Resolve the target from the RELEASE position, synchronously. The moves this drag was
+		// made of are coalesced to one frame each, so the last one or two before the release may
+		// never have been resolved — and the drop must honour where the card was let go, not
+		// where it was up to a frame earlier.
+		drag.x = ev.clientX;
+		drag.y = ev.clientY;
+		follow();
+		const { card, lane, zone, index } = drag;
 		ev.preventDefault();
 		// Lifted, but barely moved. Treat it as a nudge rather than a drop: see
 		// DROP_COMMIT_DISTANCE — the overlay arrives already under the pointer, so honouring a

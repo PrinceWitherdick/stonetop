@@ -2,6 +2,7 @@ import { BOOK2_ART_APPLY_MANIFEST } from "./manifest.js";
 import { book2ArtRoot, book2ArtSrcWith } from "./art-root.js";
 import { browseArtDirs, clearArtBrowseCache } from "./browse.js";
 import { isValidRect, RECT_SUFFIX_GROUPS } from "./people-portraits.js";
+import { filePicker } from "../utils/foundry-compat.js";
 
 /**
  * Rebuild missing "People of Stonetop" detail portraits from art the GM has ALREADY imported,
@@ -97,8 +98,13 @@ export function plannedPortraitRebuilds(present, root, people = BOOK2_ART_APPLY_
 	return plan;
 }
 
-/** Cut a fractional sub-rect out of a loaded image, at the parent's own resolution. */
-function cropToCanvas(img, [x0, y0, x1, y1]) {
+/**
+ * Cut a fractional sub-rect out of a loaded image, at the parent's own resolution. Shared with
+ * the Tokenizer bridge (utils/portrait-tokenizer.js), which bakes a chosen frame the same way —
+ * the never-floor-a-span-to-zero rule below has to hold for both, and one copy of it is one
+ * place to fix.
+ */
+export function cropToCanvas(img, [x0, y0, x1, y1]) {
 	const iw = img.naturalWidth ?? img.width;
 	const ih = img.naturalHeight ?? img.height;
 	// Round to whole pixels, but never to nothing: a sliver rect on a small parent could
@@ -150,7 +156,7 @@ export async function rebuildPeopleCrops({ plan = null, onProgress = null } = {}
 	const result = { written: 0, failed: 0, skipped: [], total: work.length };
 	if (!work.length) return result;
 
-	const FP = foundry?.applications?.apps?.FilePicker ?? FilePicker;
+	const FP = filePicker();
 	const dir = `${root}/assets/people`;
 	let done = 0;
 	// One fetch + decode per PARENT, not per crop: the shipped manifest cuts ~143 details out

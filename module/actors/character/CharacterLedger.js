@@ -1,10 +1,11 @@
 import { BEAST_CATALOG } from "../../data/beasts.js";
 import { stripHtmlToText } from "../../utils/strings.js";
+import { categoryForCharacterPath } from "../../utils/ledger-categories.js";
 import {
-	LEDGER_SCOPE, isLedgerPath,
+	LEDGER_SCOPE, isLedgerPath, normalizeFlagPath, getActorProperty,
 	appendLedgerEntries, deleteLedgerEntries, getLedgerEntries,
 	isBlank, truncateValue, formatValue, valuesEqual, actionForField, coalesceEntries,
-	prettifySlug, numericMerge, listMerge,
+	prettifySlug, listMerge, scalarEntry,
 } from "../../utils/ledger-core.js";
 
 const SYSTEM_PATH_LABELS = {
@@ -30,67 +31,81 @@ const SYSTEM_PATH_LABELS = {
 	"system.attributes.debilities.options.miserable.value": "Miserable",
 };
 
-const FLAG_PATH_LABELS = {
-	"flags.stonetop-pwd.background.selected": "Background",
-	"flags.stonetop-pwd.instinct.selected": "Instinct",
-	"flags.stonetop-pwd.origin.selected": "Origin",
-	"flags.stonetop-pwd.inventory.regularPool": "Item slots ◇",
-	"flags.stonetop-pwd.inventory.smallPool": "Small item slots □",
-	"flags.stonetop-pwd.postDeathInsert.slug": "Post-death insert",
-	"flags.stonetop-pwd.rollMode": "Roll mode",
-	"flags.stonetop-pwd.steadingId": "Linked steading",
-};
+/**
+ * Key a label table by flag path, given the paths WITHOUT the `flags.<scope>.` head.
+ *
+ * The head is stated once here instead of on every row. These tables are matched against paths
+ * that `normalizeFlagPath` has already rewritten into LEDGER_SCOPE, so a row written in any other
+ * scope simply never matches — `labelForPath` returns null and the change is dropped from the
+ * ledger with nothing raised. Two of these tables were spelled out in the literal scope while the
+ * prefix constants below them were built from LEDGER_SCOPE, so a rename would have moved half of
+ * the file and quietly muted the other half.
+ */
+const byFlagPath = (rows) => Object.fromEntries(
+	Object.entries(rows).map(([suffix, label]) => [`flags.${LEDGER_SCOPE}.${suffix}`, label]),
+);
 
-const FLAG_NAMESPACE_LABELS = {
-	"flags.stonetop-pwd.animalCompanion": "Animal companion",
-	"flags.stonetop-pwd.appearance": "Appearance",
-	"flags.stonetop-pwd.arcana": "Arcana",
-	"flags.stonetop-pwd.background.choices": "Background choices",
-	"flags.stonetop-pwd.crew": "Crew",
-	"flags.stonetop-pwd.initiatesLoyalty": "Initiates loyalty",
-	"flags.stonetop-pwd.initiateDetails": "Initiate details",
-	"flags.stonetop-pwd.inventory.checked": "Inventory",
-	"flags.stonetop-pwd.inventory.custom": "Custom inventory",
-	"flags.stonetop-pwd.inventory.resources": "Inventory resource",
-	"flags.stonetop-pwd.invocations": "Invocations",
-	"flags.stonetop-pwd.lore": "Lore",
-	"flags.stonetop-pwd.moves": "Move resource",
-	"flags.stonetop-pwd.possessions": "Possessions",
-	"flags.stonetop-pwd.postDeathInstinct": "Post-death instinct",
-	"flags.stonetop-pwd.postDeathLore": "Post-death lore",
-};
+const FLAG_PATH_LABELS = byFlagPath({
+	"background.selected": "Background",
+	"instinct.selected": "Instinct",
+	"origin.selected": "Origin",
+	"inventory.regularPool": "Item slots ◇",
+	"inventory.smallPool": "Small item slots □",
+	"postDeathInsert.slug": "Post-death insert",
+	"rollMode": "Roll mode",
+	"steadingId": "Linked steading",
+});
+
+const FLAG_NAMESPACE_LABELS = byFlagPath({
+	"animalCompanion": "Animal companion",
+	"appearance": "Appearance",
+	"arcana": "Arcana",
+	"background.choices": "Background choices",
+	"crew": "Crew",
+	"initiatesLoyalty": "Initiates loyalty",
+	"initiateDetails": "Initiate details",
+	"inventory.checked": "Inventory",
+	"inventory.custom": "Custom inventory",
+	"inventory.resources": "Inventory resource",
+	"invocations": "Invocations",
+	"lore": "Lore",
+	"moves": "Move resource",
+	"possessions": "Possessions",
+	"postDeathInstinct": "Post-death instinct",
+	"postDeathLore": "Post-death lore",
+});
 
 const SORTED_NAMESPACE_PREFIXES = Object.keys(FLAG_NAMESPACE_LABELS).sort((a, b) => b.length - a.length);
-const INVENTORY_CHECKED_PREFIX = "flags.stonetop-pwd.inventory.checked.";
-const INVENTORY_RESOURCE_PREFIX = "flags.stonetop-pwd.inventory.resources.";
+const INVENTORY_CHECKED_PREFIX = `flags.${LEDGER_SCOPE}.inventory.checked.`;
+const INVENTORY_RESOURCE_PREFIX = `flags.${LEDGER_SCOPE}.inventory.resources.`;
 // Move resource tracks (e.g. the Blessed's "Rites of the Land" Favor) live under the
 // misnamed "backgroundChoices" sub-flag (see MoveResources), keyed by move name for
 // shipped moves and by stable item id for player-authored custom moves.
-const MOVE_RESOURCE_PREFIX = "flags.stonetop-pwd.moves.backgroundChoices.";
+const MOVE_RESOURCE_PREFIX = `flags.${LEDGER_SCOPE}.moves.backgroundChoices.`;
 // Per-option advancement marks (e.g. Potential for Greatness): keyed
 // "<moveName>.<optionSlug>", each an array of { stat, level } entries.
-const MOVE_MARKS_PREFIX = "flags.stonetop-pwd.moves.moveMarks.";
-const BACKGROUND_CHOICES_PREFIX = "flags.stonetop-pwd.background.choices.";
-const INITIATES_LOYALTY_PREFIX = "flags.stonetop-pwd.initiatesLoyalty.";
-const INITIATES_HP_PREFIX = "flags.stonetop-pwd.initiatesHp.";
-const INITIATES_READINESS_PREFIX = "flags.stonetop-pwd.initiatesReadiness.";
-const ANIMAL_COMPANION_PREFIX = "flags.stonetop-pwd.animalCompanion.";
-const CREW_PREFIX = "flags.stonetop-pwd.crew.";
+const MOVE_MARKS_PREFIX = `flags.${LEDGER_SCOPE}.moves.moveMarks.`;
+const BACKGROUND_CHOICES_PREFIX = `flags.${LEDGER_SCOPE}.background.choices.`;
+const INITIATES_LOYALTY_PREFIX = `flags.${LEDGER_SCOPE}.initiatesLoyalty.`;
+const INITIATES_HP_PREFIX = `flags.${LEDGER_SCOPE}.initiatesHp.`;
+const INITIATES_READINESS_PREFIX = `flags.${LEDGER_SCOPE}.initiatesReadiness.`;
+const ANIMAL_COMPANION_PREFIX = `flags.${LEDGER_SCOPE}.animalCompanion.`;
+const CREW_PREFIX = `flags.${LEDGER_SCOPE}.crew.`;
 // Custom followers (walkthrough / monster conversion / arcana summon) keep their
 // Loyalty, current HP and Readiness inside one per-id record; beast/livestock
 // followers track theirs per catalog slug. Neither had ledger coverage, so a
 // Strengthen Your Bond or an HP change on them went unrecorded — these prefixes
 // (and the entry builders below) close that gap.
-const CUSTOM_FOLLOWERS_PREFIX = "flags.stonetop-pwd.customFollowers.";
-const BEAST_LOYALTY_PREFIX = "flags.stonetop-pwd.beastLoyalty.";
-const BEAST_HP_PREFIX = "flags.stonetop-pwd.beastHp.";
-const BEAST_READINESS_PREFIX = "flags.stonetop-pwd.beastReadiness.";
-const POSSESSION_USES_PREFIX = "flags.stonetop-pwd.possessions.uses.";
-const POSSESSION_SUBCHOICES_PREFIX = "flags.stonetop-pwd.possessions.subChoices.";
-const POSSESSION_CHOICE_USES_PREFIX = "flags.stonetop-pwd.possessions.choiceUses.";
+const CUSTOM_FOLLOWERS_PREFIX = `flags.${LEDGER_SCOPE}.customFollowers.`;
+const BEAST_LOYALTY_PREFIX = `flags.${LEDGER_SCOPE}.beastLoyalty.`;
+const BEAST_HP_PREFIX = `flags.${LEDGER_SCOPE}.beastHp.`;
+const BEAST_READINESS_PREFIX = `flags.${LEDGER_SCOPE}.beastReadiness.`;
+const POSSESSION_USES_PREFIX = `flags.${LEDGER_SCOPE}.possessions.uses.`;
+const POSSESSION_SUBCHOICES_PREFIX = `flags.${LEDGER_SCOPE}.possessions.subChoices.`;
+const POSSESSION_CHOICE_USES_PREFIX = `flags.${LEDGER_SCOPE}.possessions.choiceUses.`;
 // The ◇ load mark on a gear bundle's chosen option (a Heavy's Weapons of war), which is
 // separate from choosing it — same "selected / deselected" reading as an inventory mark.
-const POSSESSION_CHOICE_CARRIED_PREFIX = "flags.stonetop-pwd.possessions.choiceCarried.";
+const POSSESSION_CHOICE_CARRIED_PREFIX = `flags.${LEDGER_SCOPE}.possessions.choiceCarried.`;
 const POSSESSION_SELECTED_PATH = `flags.${LEDGER_SCOPE}.possessions.selected`;
 const POSSESSION_CUSTOM_PATH = `flags.${LEDGER_SCOPE}.possessions.custom`;
 
@@ -138,16 +153,6 @@ const BACKGROUND_SELECTED_PATH = `flags.${LEDGER_SCOPE}.background.selected`;
 
 // Numeric/scalar sheet fields whose repeated nudges collapse into one entry (see mergeRuns):
 // clicking XP up three times, or walking a new character from level 1 to level 34.
-const MERGEABLE_SYSTEM_PATHS = new Set([
-	"system.attributes.hp.value", "system.attributes.hp.max",
-	"system.attributes.xp.value", "system.attributes.xp.max",
-	"system.attributes.level.value", "system.attributes.armor.value",
-	"system.attributes.forward.value", "system.attributes.ongoing.value",
-	"system.attributes.damage.value",
-	"system.stats.str.value", "system.stats.dex.value", "system.stats.int.value",
-	"system.stats.wis.value", "system.stats.con.value", "system.stats.cha.value",
-]);
-
 // Debilities are booleans; "Dazed changed from off to on" reads as a data dump rather than
 // something that happened at the table. Labels come from SYSTEM_PATH_LABELS, which already
 // names all three.
@@ -156,19 +161,6 @@ const DEBILITY_PATHS = new Set([
 	"system.attributes.debilities.options.dazed.value",
 	"system.attributes.debilities.options.miserable.value",
 ]);
-
-function normalizeFlagPath(path) {
-	return String(path ?? "").replace(/^flags\.stonetop\./, `flags.${LEDGER_SCOPE}.`);
-}
-
-function getActorProperty(actor, path) {
-	const value = foundry.utils.getProperty(actor, path);
-	if (value !== undefined) return value;
-	if (String(path).startsWith(`flags.${LEDGER_SCOPE}.`)) {
-		return foundry.utils.getProperty(actor, path.replace(`flags.${LEDGER_SCOPE}.`, "flags.stonetop."));
-	}
-	return undefined;
-}
 
 function labelForPath(path) {
 	if (SYSTEM_PATH_LABELS[path]) return SYSTEM_PATH_LABELS[path];
@@ -823,53 +815,15 @@ function granularEntriesForPath(path, oldValue, newValue, names) {
 	}
 	if (handler) return (handler(path, oldValue, newValue, names) ?? []).filter(Boolean);
 
-	// Two sets rather than table rows: both read their label from SYSTEM_PATH_LABELS, so a
-	// row here would just repeat what that map already says.
+	// A set rather than table rows: it reads its label from SYSTEM_PATH_LABELS, so a row here
+	// would just repeat what that map already says.
 	if (DEBILITY_PATHS.has(path)) return [debilityEntry(SYSTEM_PATH_LABELS[path], oldValue, newValue)].filter(Boolean);
-	if (MERGEABLE_SYSTEM_PATHS.has(path)) {
-		const label = SYSTEM_PATH_LABELS[path];
-		if (label) return [{ action: actionForField(label, oldValue, newValue), merge: numericMerge(label, path, oldValue, newValue) }];
-	}
+	const label = SYSTEM_PATH_LABELS[path];
+	// scalarEntry decides for itself whether this field's runs collapse, by asking the value
+	// whether it is a number — which is what the allowlist that used to sit here spelled out by
+	// hand, for exactly the numeric subset of the map above.
+	if (label) return [scalarEntry(label, oldValue, newValue, path)];
 	return null;
-}
-
-// Flag/system path → filter category, longest prefix first. Stamping the category here (rather
-// than inferring it later from the action string) is exact: the path that produced an entry
-// always knows which part of the sheet it belongs to. Entries written before this existed are
-// classified from their text instead — see ledger-categories.js.
-const PATH_CATEGORIES = [
-	[`flags.${LEDGER_SCOPE}.arcana.`,           "arcana"],
-	[`flags.${LEDGER_SCOPE}.invocations`,       "moves"],
-	[`flags.${LEDGER_SCOPE}.moves.`,            "moves"],
-	[`flags.${LEDGER_SCOPE}.animalCompanion.`,  "followers"],
-	[`flags.${LEDGER_SCOPE}.crew.`,             "followers"],
-	[`flags.${LEDGER_SCOPE}.customFollowers.`,  "followers"],
-	[`flags.${LEDGER_SCOPE}.initiate`,          "followers"],
-	[`flags.${LEDGER_SCOPE}.beast`,             "followers"],
-	[`flags.${LEDGER_SCOPE}.inventory.`,        "inventory"],
-	[`flags.${LEDGER_SCOPE}.possessions.`,      "inventory"],
-	[`flags.${LEDGER_SCOPE}.lore.`,             "character"],
-	[`flags.${LEDGER_SCOPE}.appearance.`,       "character"],
-	[`flags.${LEDGER_SCOPE}.background.`,       "character"],
-	[`flags.${LEDGER_SCOPE}.instinct.`,         "character"],
-	[`flags.${LEDGER_SCOPE}.origin.`,           "character"],
-	[`flags.${LEDGER_SCOPE}.postDeath`,         "character"],
-	[`flags.${LEDGER_SCOPE}.steadingId`,        "character"],
-	["system.attributes.level",                 "leveling"],
-	["system.attributes.xp",                    "leveling"],
-	["system.playbook",                         "character"],
-	["system.attributes.",                      "stats"],
-	["system.stats.",                           "stats"],
-	["name",                                    "character"],
-];
-
-/** Filter category for the flag/system path that produced an entry. */
-export function categoryForCharacterPath(path) {
-	const text = String(path ?? "");
-	for (const [prefix, category] of PATH_CATEGORIES) {
-		if (text === prefix || text.startsWith(prefix)) return category;
-	}
-	return "other";
 }
 
 /** Tag every entry from one path with that path's category, leaving any explicit one alone. */
@@ -913,7 +867,10 @@ async function actorUpdateEntries(actor, changed) {
 		const label = labelForPath(normalizedPath);
 		if (!label) continue;
 
-		entries.push(...withCategory([{ action: actionForField(label, oldValue, newValue) }], normalizedPath));
+		entries.push({
+			category: categoryForCharacterPath(normalizedPath),
+			action: actionForField(label, oldValue, newValue),
+		});
 	}
 	return coalesceEntries(entries);
 }

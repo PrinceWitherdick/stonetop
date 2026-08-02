@@ -19,6 +19,7 @@
 
 import { FOLLOWER_DRAG_TYPE, FOLLOWER_FOLDER, followerNpcActorData } from "../data/follower-actor.js";
 import { SYSTEM_ID } from "../system-id.js";
+import { ensureNamedActorFolder } from "../actors/steading/steading-people.js";
 
 // dropCanvasData hook: claim only our follower payload and leave every other drop
 // (tokens, tiles, journal pins, other systems') to core by returning nothing.
@@ -33,17 +34,7 @@ export function onDropFollower(canvas, data, event) {
  * can't create folders, so they just land at the sidebar root — an unfiled actor beats a
  * failed drop.
  */
-export async function ensureFollowerFolder() {
-	const existing = game.folders?.find(f => f.type === "Actor" && f.name === FOLLOWER_FOLDER.name);
-	if (existing) return existing;
-	if (!Folder.canUserCreate(game.user)) return null;
-	try {
-		return await Folder.create({ name: FOLLOWER_FOLDER.name, type: "Actor", color: FOLLOWER_FOLDER.color });
-	} catch (err) {
-		console.warn(`Stonetop | Could not create the "${FOLLOWER_FOLDER.name}" folder; the follower will land at root.`, err);
-		return null;
-	}
-}
+export const ensureFollowerFolder = () => ensureNamedActorFolder(FOLLOWER_FOLDER);
 
 /** The Actor a uuid points at, or null for a blank/stale/non-Actor uuid. */
 async function _actorFromUuid(uuid) {

@@ -1,8 +1,8 @@
 import {
-	LEDGER_SCOPE, isLedgerPath,
+	LEDGER_SCOPE, isLedgerPath, normalizeFlagPath, getActorProperty,
 	appendLedgerEntries, deleteLedgerEntries, getLedgerEntries,
 	isBlank, formatValue, valuesEqual, actionForField, coalesceEntries, prettifySlug,
-	truncateValue, numericMerge,
+	truncateValue, scalarEntry,
 } from "../../utils/ledger-core.js";
 import { IMPROVEMENT_DEFINITIONS } from "./StonetopSteading.js";
 import { stripHtmlToText as stripHtml } from "../../utils/strings.js";
@@ -21,9 +21,21 @@ const SYSTEM_PATH_LABELS = {
 	"system.attributes.debilities.options.malcontent.value":  "Malcontent debility",
 };
 
-const FLAG_PATH_LABELS = {
-	"flags.stonetop-pwd.steading.size":  "Size",
-};
+/**
+ * Key a table by steading flag path, given the paths WITHOUT the `flags.<scope>.steading.` head.
+ *
+ * Every path this ledger cares about shares that head, so it is stated once here rather than on
+ * all twenty-three rows. Built from LEDGER_SCOPE for the same reason `NOTES_PATH` below always
+ * was: these tables are matched against paths `normalizeFlagPath` has already rewritten into that
+ * scope, so a row in a stale scope matches nothing and drops its change silently.
+ */
+const bySteadingPath = (rows) => Object.fromEntries(
+	Object.entries(rows).map(([suffix, value]) => [`flags.${LEDGER_SCOPE}.steading.${suffix}`, value]),
+);
+
+const FLAG_PATH_LABELS = bySteadingPath({
+	"size": "Size",
+});
 
 // The Notes tab is a rich-text field. Running it through the generic scalar formatter pasted the
 // entire HTML document — headings, tables, newlines and all — into one action string, which was
@@ -40,36 +52,17 @@ function notesEntry(oldValue, newValue) {
 
 // Steading counters (Population, Surplus, Fortunes…) get nudged one click at a time; collapse a
 // run of those into a single "Surplus changed from 1 to 4" rather than three consecutive lines.
-const MERGEABLE_STAT_PATHS = new Set([
-	"system.stats.fortunes.value", "system.stats.defenses.value",
-	"system.attributes.population.value", "system.attributes.prosperity.value",
-	"system.attributes.surplus.value",
-]);
-
-const FLAG_NAMESPACE_LABELS = {
-	"flags.stonetop-pwd.steading.resources":      "Resources",
-	"flags.stonetop-pwd.steading.fortifications": "Fortifications",
-	"flags.stonetop-pwd.steading.assets":         "Assets",
-	"flags.stonetop-pwd.steading.neighbors":      "Neighbors",
-	"flags.stonetop-pwd.steading.players":        "Players",
-	"flags.stonetop-pwd.steading.improvements":   "Improvements",
-	"flags.stonetop-pwd.steading.places":         "Places of interest",
-};
+const FLAG_NAMESPACE_LABELS = bySteadingPath({
+	"resources":      "Resources",
+	"fortifications": "Fortifications",
+	"assets":         "Assets",
+	"neighbors":      "Neighbors",
+	"players":        "Players",
+	"improvements":   "Improvements",
+	"places":         "Places of interest",
+});
 
 const SORTED_NAMESPACE_PREFIXES = Object.keys(FLAG_NAMESPACE_LABELS).sort((a, b) => b.length - a.length);
-
-function normalizeFlagPath(path) {
-	return String(path ?? "").replace(/^flags\.stonetop\./, `flags.${LEDGER_SCOPE}.`);
-}
-
-function getActorProperty(actor, path) {
-	const value = foundry.utils.getProperty(actor, path);
-	if (value !== undefined) return value;
-	if (String(path).startsWith(`flags.${LEDGER_SCOPE}.`)) {
-		return foundry.utils.getProperty(actor, path.replace(`flags.${LEDGER_SCOPE}.`, "flags.stonetop."));
-	}
-	return undefined;
-}
 
 function isSteadingActor(actor) {
 	return actor?.type === "stonetop" || actor?.system?.customType === "stonetop";
@@ -273,23 +266,23 @@ const _currencyEntry = (label, o, n) =>
 const _herdTierEntry = (label, o, n) =>
 	(valuesEqual(o, n) || (isBlank(o) && Number(n) === 0)) ? [] : [{ action: actionForField(label, o, n) }];
 
-const PATH_HANDLERS = {
-	"flags.stonetop-pwd.steading.resources":            (o, n) => listEntries("Resource",      o, n),
-	"flags.stonetop-pwd.steading.fortifications":       (o, n) => listEntries("Fortification", o, n),
-	"flags.stonetop-pwd.steading.assets":               (o, n) => listEntries("Asset",         o, n),
-	"flags.stonetop-pwd.steading.neighbors":            neighborEntries,
-	"flags.stonetop-pwd.steading.players":              (o, n) => listEntries("Player",        o, n),
-	"flags.stonetop-pwd.steading.places":               placeEntries,
-	"flags.stonetop-pwd.steading.silver.purses":        (o, n) => _currencyEntry("Silver purses",    o, n),
-	"flags.stonetop-pwd.steading.silver.handfuls":      (o, n) => _currencyEntry("Silver handfuls",  o, n),
-	"flags.stonetop-pwd.steading.silver.coins":         (o, n) => _currencyEntry("Silver coins",     o, n),
-	"flags.stonetop-pwd.steading.gold.purses":          (o, n) => _currencyEntry("Gold purses",      o, n),
-	"flags.stonetop-pwd.steading.gold.handfuls":        (o, n) => _currencyEntry("Gold handfuls",    o, n),
-	"flags.stonetop-pwd.steading.gold.coins":           (o, n) => _currencyEntry("Gold coins",       o, n),
-	"flags.stonetop-pwd.steading.herd.grown":           (o, n) => _herdTierEntry("Herd — grown horses", o, n),
-	"flags.stonetop-pwd.steading.herd.yearlings":       (o, n) => _herdTierEntry("Herd — yearlings",     o, n),
-	"flags.stonetop-pwd.steading.herd.foals":           (o, n) => _herdTierEntry("Herd — foals",         o, n),
-};
+const PATH_HANDLERS = bySteadingPath({
+	"resources":       (o, n) => listEntries("Resource",      o, n),
+	"fortifications":  (o, n) => listEntries("Fortification", o, n),
+	"assets":          (o, n) => listEntries("Asset",         o, n),
+	"neighbors":       neighborEntries,
+	"players":         (o, n) => listEntries("Player",        o, n),
+	"places":          placeEntries,
+	"silver.purses":   (o, n) => _currencyEntry("Silver purses",    o, n),
+	"silver.handfuls": (o, n) => _currencyEntry("Silver handfuls",  o, n),
+	"silver.coins":    (o, n) => _currencyEntry("Silver coins",     o, n),
+	"gold.purses":     (o, n) => _currencyEntry("Gold purses",      o, n),
+	"gold.handfuls":   (o, n) => _currencyEntry("Gold handfuls",    o, n),
+	"gold.coins":      (o, n) => _currencyEntry("Gold coins",       o, n),
+	"herd.grown":      (o, n) => _herdTierEntry("Herd — grown horses", o, n),
+	"herd.yearlings":  (o, n) => _herdTierEntry("Herd — yearlings",     o, n),
+	"herd.foals":      (o, n) => _herdTierEntry("Herd — foals",         o, n),
+});
 
 function actorUpdateEntries(actor, changed) {
 	const flat = foundry.utils.flattenObject(changed);
@@ -331,13 +324,9 @@ function actorUpdateEntries(actor, changed) {
 		if (valuesEqual(oldValue, newValue)) continue;
 		const label = labelForPath(normalizedPath);
 		if (!label) continue;
-		entries.push({
-			action: actionForField(label, oldValue, newValue),
-			// The counters gain a run descriptor; everything else is a one-off edit.
-			...(MERGEABLE_STAT_PATHS.has(normalizedPath)
-				? { merge: numericMerge(label, normalizedPath, oldValue, newValue) }
-				: {}),
-		});
+		// The counters gain a run descriptor; the debilities, being booleans, do not — which
+		// scalarEntry works out from the value rather than from a hand-kept path list.
+		entries.push(scalarEntry(label, oldValue, newValue, normalizedPath));
 	}
 	return coalesceEntries(entries);
 }

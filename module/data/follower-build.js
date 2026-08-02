@@ -6,6 +6,7 @@
 
 import { creatureTypeFaIcon } from "../bestiary/creature-types.js";
 import { isDefaultImg } from "../utils/strings.js";
+import { documentPortraitFrame } from "../utils/portrait-frame.js";
 
 // ── Step 3: hit points (p.476–477) ───────────────────────────────────────────
 // "How resilient are they? (pick 1)" then "What else applies? (pick all)".
@@ -320,7 +321,7 @@ export function followerFromMonster(monster = {}, opts = {}) {
 		// …and its art, when the monster has any. The glyph above still backs it up for a
 		// monster that never got a portrait.
 		img:          sourceActorImg(monster.img),
-		portraitFrame: monster.flags?.["stonetop-pwd"]?.portraitFrame ?? null,
+		portraitFrame: documentPortraitFrame(monster),
 		tags,
 		hp:           hpMax,
 		// Carry current HP as-is (buildCustomFollower clamps/normalizes); `?? hpMax`
@@ -377,7 +378,7 @@ export function followerFromNpc(npc = {}, opts = {}) {
 		img:          sourceActorImg(npc.img),
 		// …and the square of it the roster was already showing, so a recruited NPC arrives on
 		// the card wearing the face someone chose rather than a fresh blind top crop.
-		portraitFrame: npc.flags?.["stonetop-pwd"]?.portraitFrame ?? null,
+		portraitFrame: documentPortraitFrame(npc),
 		tags:         [...keptTags, ...normalizeTags(opts.tags)],
 		hp:           hpMax,
 		hpCurrent:    opts.hpCurrent ?? (hasStats ? (attrs.hp?.value ?? hpMax) : hpMax),

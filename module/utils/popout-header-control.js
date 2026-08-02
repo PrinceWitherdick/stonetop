@@ -11,6 +11,9 @@
  * about the control being added, not about the header.
  */
 
+import { localize } from "./i18n.js";
+import { openPortraitFrameEditor } from "./PortraitFrameDialog.js";
+
 /** Marks a control as ours, so several can be added without reversing their order. */
 const OWN = "stonetop-popout-control";
 
@@ -66,4 +69,40 @@ export function addPopoutHeaderControl(popout, { key, icon, label, onClick } = {
 		else header.appendChild(btn);
 	};
 	schedule(inject);
+}
+
+/**
+ * The "Frame …" control, for the three popouts that offer it: a PC's portrait, a monster's
+ * stat-block portrait, and a steading roster member's photo.
+ *
+ * One helper rather than three copies of the same key/icon/label/title quartet, because they only
+ * work if they agree — the key is the dedupe guard, and the label is a shared i18n string. The
+ * three differed already: two titled the editor from `actor.name` and the third from the popout's
+ * own title, with nothing to say whether that was deliberate. It is: a legacy roster row has no
+ * document to take a name from, which is why `name` is passed in rather than read off the handle.
+ *
+ * A null or read-only handle is the no-op, so every caller can hand over whatever its lookup
+ * returned without gating first.
+ *
+ * @param {Application} popout
+ * @param {object|null} handle       a portrait-frame handle (see utils/portrait-frame-handles.js)
+ * @param {object}      opts
+ * @param {string}      opts.name    whose face this is, for the editor's title
+ * @param {string}      [opts.img]   the image to frame; defaults to the handle's own
+ * @param {string}      [opts.key]   dedupe key, when a popout needs its own
+ * @param {Function}    opts.onSaved
+ */
+export function addPortraitFrameControl(popout, handle, { name, img, key = "stonetop-frame-portrait", onSaved } = {}) {
+	if (!handle?.canWrite) return;
+	addPopoutHeaderControl(popout, {
+		key,
+		icon: "fa-crop-simple",
+		label: localize("stonetop.portraitFrame.control"),
+		onClick: () => openPortraitFrameEditor({
+			handle,
+			img: img ?? handle.img,
+			title: `Frame ${name}`,
+			onSaved,
+		}),
+	});
 }

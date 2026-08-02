@@ -11,8 +11,8 @@
 // first, since both of those evaluate top-level consts. The hosts wire them together,
 // which keeps the dependency one-way.
 import { isDefaultImg } from "./strings.js";
-import { resolvePortrait } from "./portrait-frame.js";
-import { fullPortraitSrc } from "../book2-art/people-portraits.js";
+import { resolvePortrait, documentPortraitFrame } from "./portrait-frame.js";
+import { displayPortraitSrc } from "../book2-art/people-portraits.js";
 import { makeColumnsResizable } from "./resizable-columns.js";
 import { makeColumnsSortable } from "./sortable-columns.js";
 // Leaf module with no imports of its own, so it cannot participate in the cycle above.
@@ -121,11 +121,10 @@ export function relationshipRow(actor, other, { defaultShown = true } = {}) {
 	const { hearts, notes, shown, order } = readRelationship(stored);
 	// Resolve the rendered src and its frame together, so a frame can never be measured against
 	// a picture this row does not render. `other` may be a bare {id, name, img} object (a
-	// steading passes its settlements that way), so the flag read is fully optional — and it is
-	// bracketed because the package id is hyphenated and a dotted path parses as subtraction.
+	// steading passes its settlements that way), which documentPortraitFrame reads as null.
 	const portrait = resolvePortrait(
 		isDefaultImg(other.img) ? null : other.img,
-		other?.flags?.["stonetop-pwd"]?.portraitFrame
+		documentPortraitFrame(other)
 	);
 	return {
 		id:   other.id,
@@ -410,7 +409,7 @@ function wireRelationshipLinksIn(root) {
 		removeAvatarPreview();
 		// The whole illustration behind a People-of-Stonetop square: enlarging a face should not
 		// answer with a picture smaller than the thumbnail just tapped.
-		new ImagePopout(fullPortraitSrc(stored) ?? stored, { title: img.dataset.name || "" }).render(true);
+		new ImagePopout(displayPortraitSrc(stored), { title: img.dataset.name || "" }).render(true);
 	});
 
 	const open = async link => {

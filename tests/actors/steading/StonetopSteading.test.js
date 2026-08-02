@@ -181,16 +181,23 @@ describe("StonetopSteading", () => {
 
 			// Actor-backed row → the linked NPC's real art.
 			expect(snapshot.residents[0].profileImg).toBe("wren.webp");
-			// Legacy text row with no linked actor → the shared default avatar.
-			expect(snapshot.neighbors[0].profileImg).toBe("systems/stonetop-pwd/assets/icons/people/default_profile.svg");
+			// Legacy text row with no linked actor → the roster's empty-slot face (not the
+			// mark an art-less NPC actor wears, which is people/default_profile.svg).
+			expect(snapshot.neighbors[0].profileImg).toBe("systems/stonetop-pwd/assets/icons/people/empty_profile.svg");
 		} finally {
 			game.actors = prevActors;
 		}
 	});
 
-	it("falls back to the default avatar when the linked NPC has only a placeholder image", async () => {
+	// Both placeholders an un-portraited NPC can be carrying: Foundry's mystery-man (an actor
+	// created before the system stamped its own) and the Book I mark it stamps now. Either way
+	// the roster draws its own empty-slot face rather than passing the stored one through.
+	it.each([
+		["Foundry's default", "icons/svg/mystery-man.svg"],
+		["the mark the system stamps", "systems/stonetop-pwd/assets/icons/people/default_profile.svg"],
+	])("falls back to the roster's empty face when the linked NPC wears %s", async (_label, img) => {
 		const bala = {
-			id: "bala", uuid: "Actor.bala", type: "npc", name: "Bala", img: "icons/svg/mystery-man.svg",
+			id: "bala", uuid: "Actor.bala", type: "npc", name: "Bala", img,
 			system: { home: "Marshedge" },
 		};
 		const prevActors = game.actors;
@@ -205,7 +212,7 @@ describe("StonetopSteading", () => {
 			});
 			const snapshot = await new StonetopSteading(actor).buildSnapshot();
 
-			expect(snapshot.neighbors[0].profileImg).toBe("systems/stonetop-pwd/assets/icons/people/default_profile.svg");
+			expect(snapshot.neighbors[0].profileImg).toBe("systems/stonetop-pwd/assets/icons/people/empty_profile.svg");
 		} finally {
 			game.actors = prevActors;
 		}

@@ -3,9 +3,9 @@ import {
 	LEDGER_CATEGORIES,
 	classifyAction,
 	categoryForEntry,
+	categoryForCharacterPath,
 	ledgerCategoryGroups,
 } from "../../module/utils/ledger-categories.js";
-import { categoryForCharacterPath } from "../../module/actors/character/CharacterLedger.js";
 
 describe("categoryForCharacterPath", () => {
 	it("maps each part of the sheet to its category", () => {

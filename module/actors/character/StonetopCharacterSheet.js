@@ -38,7 +38,7 @@ import {getStonetopSteadingActor} from "../../utils/world.js";
 import {openChroniclePageForActor} from "../../utils/chronicle.js";
 import {getDragEventData, deletionEntry} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
-import {peopleNames, steadingPeopleActors, usedPersonPortraits} from "../steading/steading-people.js";
+import {peopleNames, steadingPeopleActors, usedPersonPortraits, createPersonNpc, isActorRow, personRowActor, personRowKey, personRowIdentity, rebasePersonRows} from "../steading/steading-people.js";
 import {openPeoplePortraitPicker} from "../steading/PeopleGalleryDialog.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getSidebarCollapsed, setSidebarCollapsed, getPromptRollModifierSetting, getOpenSheetsInEditMode, getHideRollableIconSetting} from "../../settings.js";
 import {bringDialogToFront} from "../../utils/front-on-open.js";
@@ -62,10 +62,10 @@ import {FOLLOWER_MOVES} from "../../data/follower-moves.js";
 import {FOLLOWER_DRAG_TYPE} from "../../data/follower-actor.js";
 import {CREW_INDIVIDUAL_NAMES, CREW_INDIVIDUAL_TAGS, CREW_INDIVIDUAL_TRAITS} from "../../data/steading-members.js";
 import {resolvePortrait} from "../../utils/portrait-frame.js";
-import {fullPortraitSrc} from "../../book2-art/people-portraits.js";
+import {displayPortraitSrc} from "../../book2-art/people-portraits.js";
 import {followerFrameHandle, actorFrameHandle} from "../../utils/portrait-frame-handles.js";
 import {openPortraitFrameEditor} from "../../utils/PortraitFrameDialog.js";
-import {addPopoutHeaderControl} from "../../utils/popout-header-control.js";
+import {addPortraitFrameControl} from "../../utils/popout-header-control.js";
 import {localize} from "../../utils/i18n.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "con", "int", "wis", "cha"]);
@@ -2346,18 +2346,10 @@ export function createStonetopCharacterSheetClass(Base) {
 				// rows, so it wants framing for the same reason an NPC's does. This is the entry
 				// point a non-GM routinely uses on their own document, which is the check that
 				// this feature never needs isGM anywhere.
-				const handle = actorFrameHandle(this.actor, { editable: this.isEditable });
-				if (!handle?.canWrite) return;
-				addPopoutHeaderControl(popout, {
-					key: "stonetop-frame-portrait",
-					icon: "fa-crop-simple",
-					label: localize("stonetop.portraitFrame.control"),
-					onClick: () => openPortraitFrameEditor({
-						handle,
-						img: this.actor.img,
-						title: `Frame ${this.actor.name}`,
-						onSaved: () => this.render(false),
-					}),
+				addPortraitFrameControl(popout, actorFrameHandle(this.actor, { editable: this.isEditable }), {
+					name: this.actor.name,
+					img: this.actor.img,
+					onSaved: () => this.render(false),
 				});
 			});
 
@@ -5481,7 +5473,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// The popup is portaled to <body> and would otherwise hang over the popout.
 			removeAvatarPreview();
 			const name = imgEl.dataset.name || "Follower";
-			new ImagePopout(fullPortraitSrc(stored) ?? stored, { title: name }).render(true);
+			new ImagePopout(displayPortraitSrc(stored), { title: name }).render(true);
 		}
 
 		_onFollowerPortraitFrame(portrait) {
@@ -6521,6 +6513,78 @@ export function createStonetopCharacterSheetClass(Base) {
 			return out;
 		}
 
+		/**
+		 * Where a neighbor this background names already sits on the roster, or -1.
+		 *
+		 * An exact name-and-Home match first; failing that, someone of the same name with no
+		 * Home recorded at all — a hand-added "Ennis" with an empty Home is the Ennis of
+		 * Marshedge the background means, and the fill below is what finally writes his
+		 * origin down. Two Ennises with two different Homes stay two people.
+		 *
+		 * A pointer row whose NPC has since been deleted is passed over, and that is not an
+		 * oversight: it keys off its cached name with no Home ("ennis|"), so it would win the
+		 * name-only match — but there is nothing left to fill in. Its Home and Traits live on
+		 * an actor that is gone, and the roster renders it as unresolved either way, so
+		 * matching it would quietly swallow the neighbor. Better to list a live one beside it.
+		 */
+		_findBackgroundNeighbor(neighbors, addition) {
+			const fillable = neighbor => !isActorRow(neighbor) || !!personRowActor(neighbor);
+			const key = personRowKey(addition);
+			const exact = neighbors.findIndex(n => fillable(n) && personRowKey(n) === key);
+			if (exact >= 0) return exact;
+			const nameOnly = `${addition.name.trim().toLowerCase()}|`;
+			return neighbors.findIndex(n => fillable(n) && personRowKey(n) === nameOnly);
+		}
+
+		/**
+		 * A neighbor this background names is already on the roster: don't add them twice,
+		 * just fill in whatever the roster left blank and tick them as known. Actor-backed
+		 * rows keep Home and Traits on the NPC, so the fill has to go there — writing them
+		 * onto the pointer row would store fields nothing ever reads back. Skipped without
+		 * complaint when the current user can't update that NPC (a player has OBSERVER on
+		 * roster NPCs, not OWNER): the person is already listed, which is the part that
+		 * matters.
+		 *
+		 * Mutates `neighbors[idx]` in place — the caller rebases the whole array once.
+		 */
+		async _fillExistingBackgroundNeighbor(neighbors, idx, addition) {
+			const row = neighbors[idx];
+			const actor = personRowActor(row);
+			if (!actor) {
+				// Legacy plain-text row: its own fields are what the roster renders. Only ever a
+				// row with no actor pointer at all — _findBackgroundNeighbor refuses to match a
+				// pointer row whose NPC was deleted, which would land here and write fields the
+				// unresolved branch of resolvePersonRow never reads back.
+				neighbors[idx] = {
+					...row,
+					home: addition.home || row.home || "",
+					traits: addition.traits || row.traits || "",
+					checked: true,
+				};
+				return;
+			}
+			const update = {};
+			if (addition.home   && !String(actor.system?.home   ?? "").trim()) update["system.home"]   = addition.home;
+			if (addition.traits && !String(actor.system?.traits ?? "").trim()) update["system.traits"] = addition.traits;
+			if (Object.keys(update).length && actor.isOwner) {
+				try { await actor.update(update); }
+				catch (err) { console.warn("Stonetop | Could not fill in background details for", actor.name, err); }
+			}
+			neighbors[idx] = { ...row, checked: true };
+		}
+
+		/**
+		 * File the neighbors a background names (the Ranger's Wide Wanderer names five) on the
+		 * steading's roster, as the NPC actors every other roster row is backed by.
+		 *
+		 * Gated on the ACTOR_CREATE permission rather than on isGM: this system grants that to
+		 * players once per world (Ready.js#_ensurePlayerActorCreationGrant) precisely so the
+		 * actor-backed roster works for them, so whoever is at the keyboard normally creates
+		 * the NPCs right here. The plain-text fallback is for a world whose GM has since
+		 * revoked the permission — the row still renders (resolvePersonRow has a legacy branch)
+		 * and a GM's client converts it, live on the next steading write or at their next load.
+		 * See steading-people.js#onSteadingPeopleUpdate / #migrateSteadingPeople.
+		 */
 		async _applyBackgroundNeighbors(backgroundSetup, selections) {
 			const additions = this._backgroundSetupNeighbors(backgroundSetup, selections);
 			if (!additions.length) return;
@@ -6530,26 +6594,46 @@ export function createStonetopCharacterSheetClass(Base) {
 				return;
 			}
 			const stonetopSteading = steadingActor.typedActor ?? new StonetopSteading(steadingActor);
-			const flags = resolvedFlagProperty(steadingActor, "steading") ?? {};
-			const neighbors = foundry.utils.deepClone(flags.neighbors ?? STEADING_DEFAULTS.neighbors);
-			const keyFor = neighbor => `${String(neighbor.name ?? "").trim().toLowerCase()}|${String(neighbor.home ?? "").trim().toLowerCase()}`;
+			const liveNeighbors = () => {
+				const rows = (resolvedFlagProperty(steadingActor, "steading") ?? {}).neighbors;
+				return Array.isArray(rows) ? rows : STEADING_DEFAULTS.neighbors;
+			};
+			const neighbors = foundry.utils.deepClone(liveNeighbors());
+			const canCreateActors = Actor.canUserCreate?.(game.user) ?? !!game.user?.isGM;
+			// What this pass changed, addressed by WHO each row is rather than by where it sat:
+			// see rebasePersonRows. Every branch below awaits, and onboarding is exactly when a
+			// second player is likely to be doing the same thing to the same roster.
+			const filled = new Map();
+			const added = [];
 
 			for (const addition of additions) {
-				const key = keyFor(addition);
-				if (!addition.name?.trim() || key === "|") continue;
-				const idx = neighbors.findIndex(neighbor => keyFor(neighbor) === key);
+				if (!addition.name?.trim()) continue;
+				const idx = this._findBackgroundNeighbor(neighbors, addition);
 				if (idx >= 0) {
-					neighbors[idx] = {
-						...neighbors[idx],
-						home: addition.home || neighbors[idx].home || "",
-						traits: addition.traits || neighbors[idx].traits || "",
-						checked: true,
-					};
-				} else {
-					neighbors.push(addition);
+					const identity = personRowIdentity(neighbors[idx]);
+					await this._fillExistingBackgroundNeighbor(neighbors, idx, addition);
+					// A one-entry queue (see rebasePersonRows), overwritten rather than appended:
+					// two additions naming the same person both resolve to that one roster row, so
+					// the later fill is the whole of what that row becomes.
+					filled.set(identity, [neighbors[idx]]);
+					continue;
 				}
+				if (!canCreateActors) { neighbors.push(addition); added.push(addition); continue; }
+				const actor = await createPersonNpc("neighbors", addition).catch(err => {
+					console.error("Stonetop | Could not create the NPC for background neighbor", addition.name, err);
+					return null;
+				});
+				// Creation failed: fall back to the text row so the neighbor still reaches the
+				// roster, and let the load-time sweep retry the conversion.
+				const row = actor
+					? { uuid: actor.uuid, id: actor.id, name: actor.name, checked: true }
+					: addition;
+				// Kept on the working copy too, so a later addition of the same name matches this
+				// one instead of making a second NPC for them.
+				neighbors.push(row);
+				added.push(row);
 			}
-			await stonetopSteading.setFlags({ neighbors });
+			await stonetopSteading.setFlags({ neighbors: rebasePersonRows(liveNeighbors(), filled, added) });
 		}
 
 		async _applyPlaybookSelections(playbookDoc, selections) {

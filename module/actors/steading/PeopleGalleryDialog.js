@@ -1,8 +1,9 @@
 import { StonetopDialog } from "../../utils/stonetop-dialog.js";
 import { book2ArtRoot } from "../../book2-art/art-root.js";
 import { BOOK2_ART_APPLY_MANIFEST } from "../../book2-art/manifest.js";
-import { fullPortraitSrc } from "../../book2-art/people-portraits.js";
+import { displayPortraitSrc } from "../../book2-art/people-portraits.js";
 import { getObjectSetting } from "../../settings.js";
+import { filePicker } from "../../utils/foundry-compat.js";
 
 // How long the grid takes to travel to a rolled portrait, however far away it landed. The
 // browser's own `scrollIntoView({behavior:"smooth"})` picks its own duration and scales it
@@ -32,7 +33,7 @@ export function rolledScrollTop({ scrollTop, viewTop, viewHeight, tileTop, tileH
  * "give me a different one" — has to ask it on one of the two, and the whole illustration is the
  * one that always exists. Anything that is not gallery art (a browsed file) is its own identity.
  */
-export const asFullPortrait = (src) => (src ? fullPortraitSrc(src) ?? src : "");
+export const asFullPortrait = displayPortraitSrc;
 
 /**
  * Choose one portrait at random out of `srcs` — which the caller has already narrowed to the
@@ -443,11 +444,20 @@ export class PeopleGalleryDialog extends StonetopDialog {
 		// dismissing races with any scroll that accompanies the hover itself (a scrolled-into-view
 		// tile fires `scroll` a frame after `mouseenter`, which would kill the preview the moment
 		// it appeared). Only drop it once the pointer has actually left the tile.
+		//
+		// Coalesced to one frame: `scroll` fires far faster than the screen paints, and the
+		// reposition reads the anchor's rect and the popup's size — a forced layout flush each
+		// time — to move something that can only visibly move once per frame.
+		let repositionFrame = 0;
 		this._bodyEl?.addEventListener("scroll", () => {
-			const anchor = this._portraitAnchor;
-			if (!this._portraitPreview || !anchor?.isConnected) return;
-			if (anchor.matches(":hover")) this._positionPortraitPreview(this._portraitPreview, anchor);
-			else this._removePortraitPreview();
+			if (repositionFrame) return;
+			repositionFrame = requestAnimationFrame(() => {
+				repositionFrame = 0;
+				const anchor = this._portraitAnchor;
+				if (!this._portraitPreview || !anchor?.isConnected) return;
+				if (anchor.matches(":hover")) this._positionPortraitPreview(this._portraitPreview, anchor);
+				else this._removePortraitPreview();
+			});
 		}, { passive: true });
 	}
 
@@ -537,7 +547,7 @@ export class PeopleGalleryDialog extends StonetopDialog {
 export function openPeoplePortraitPicker({ current = "", used = {}, onPick, onClear, onFrame } = {}) {
 	const canBrowse = !!(game.user?.isGM || game.user?.can?.("FILES_BROWSE"));
 	const onBrowse = () => {
-		const FilePickerClass = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
+		const FilePickerClass = filePicker();
 		if (FilePickerClass) new FilePickerClass({ type: "image", current, callback: async path => {
 			// Awaited: the framer reads the NEW image off the document, so the write has to land
 			// before it opens.

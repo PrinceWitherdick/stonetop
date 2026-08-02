@@ -186,7 +186,7 @@ export class WoundDialog extends StonetopDialog {
 	}
 
 	_syncSummary(form) {
-		const text = form.querySelector('[name="text"]')?.value ?? "";
+		const text = StonetopDialog.readValue(form, '[name="text"]');
 		const s = this._summary(text, this._readStatus(form));
 		const name = form.querySelector(".wd-summary-name");
 		if (name) name.textContent = s.name;
@@ -239,7 +239,7 @@ export class WoundDialog extends StonetopDialog {
 
 	/** Read the whole form — every panel, not just the visible one — into a wound record. */
 	_read(form) {
-		const val = name => (form.querySelector(`[name="${name}"]`)?.value ?? "");
+		const val = name => StonetopDialog.readValue(form, `[name="${name}"]`);
 		return {
 			text:            val("text").trim(),
 			status:          this._readStatus(form),

@@ -29,3 +29,9 @@ as one set. Its recipe is in the file's own comment.
 `note-caret.svg` is the project's own work too, and owes nothing to any source: it is three
 line coordinates and a round-capped stroke, drawn wide and shallow for the expand control
 under a relationship card's note. Its geometry is in the file's own comment.
+
+`people/default_profile.svg` is not a separate icon at all: it is a byte copy of
+`bestiary/human-individual.svg`, the Book I p.392 "human, individual" creature-type mark,
+artwork unchanged. It lives at its own path so an un-portraited person stays distinguishable
+from a human-type monster wearing that same mark as its art; the file's own comment has the
+reasoning.

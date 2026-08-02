@@ -10,7 +10,7 @@
 // over the action string. The fallback is why the legacy phrasings ("Items undefined ◇",
 // "Arcana changed from …", "Lore set to 1") still appear in the tables below: those strings are
 // sitting in live ledgers and should land in the right group.
-import { ledgerNoun } from "./ledger-core.js";
+import { ledgerNoun, LEDGER_SCOPE } from "./ledger-core.js";
 
 /** Display order of the dropdown's groups. Only groups with entries are rendered. */
 export const LEDGER_CATEGORIES = [
@@ -40,6 +40,50 @@ export function isLedgerCategory(id) {
 /** Human label for a category id, or the id itself if unknown. */
 export function ledgerCategoryLabel(id) {
 	return CATEGORY_LABELS.get(id) ?? id;
+}
+
+// Flag/system path → category, longest prefix first. Stamping the category from the PATH (rather
+// than inferring it later from the action string) is exact: the path that produced an entry always
+// knows which part of the sheet it belongs to. classifyAction below is the fallback for entries
+// written before this existed.
+//
+// Lives here, beside the vocabulary it draws from, rather than inside the character ledger that
+// happens to be its only caller — the ids on the right must all appear in LEDGER_CATEGORIES above
+// or `categoryForEntry` silently discards them and re-guesses from the text, and a table that has
+// to agree with that list is easier to keep honest next to it.
+const PATH_CATEGORIES = [
+	[`flags.${LEDGER_SCOPE}.arcana.`,           "arcana"],
+	[`flags.${LEDGER_SCOPE}.invocations`,       "moves"],
+	[`flags.${LEDGER_SCOPE}.moves.`,            "moves"],
+	[`flags.${LEDGER_SCOPE}.animalCompanion.`,  "followers"],
+	[`flags.${LEDGER_SCOPE}.crew.`,             "followers"],
+	[`flags.${LEDGER_SCOPE}.customFollowers.`,  "followers"],
+	[`flags.${LEDGER_SCOPE}.initiate`,          "followers"],
+	[`flags.${LEDGER_SCOPE}.beast`,             "followers"],
+	[`flags.${LEDGER_SCOPE}.inventory.`,        "inventory"],
+	[`flags.${LEDGER_SCOPE}.possessions.`,      "inventory"],
+	[`flags.${LEDGER_SCOPE}.lore.`,             "character"],
+	[`flags.${LEDGER_SCOPE}.appearance.`,       "character"],
+	[`flags.${LEDGER_SCOPE}.background.`,       "character"],
+	[`flags.${LEDGER_SCOPE}.instinct.`,         "character"],
+	[`flags.${LEDGER_SCOPE}.origin.`,           "character"],
+	[`flags.${LEDGER_SCOPE}.postDeath`,         "character"],
+	[`flags.${LEDGER_SCOPE}.steadingId`,        "character"],
+	["system.attributes.level",                 "leveling"],
+	["system.attributes.xp",                    "leveling"],
+	["system.playbook",                         "character"],
+	["system.attributes.",                      "stats"],
+	["system.stats.",                           "stats"],
+	["name",                                    "character"],
+];
+
+/** Filter category for the flag/system path that produced an entry. */
+export function categoryForCharacterPath(path) {
+	const text = String(path ?? "");
+	for (const [prefix, category] of PATH_CATEGORIES) {
+		if (text === prefix || text.startsWith(prefix)) return category;
+	}
+	return LEDGER_CATEGORY_FALLBACK;
 }
 
 // Exact subject → category. Covers the fixed label vocabulary of all three ledgers (character,

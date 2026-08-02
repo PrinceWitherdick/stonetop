@@ -42,14 +42,19 @@ import { posterMapScenePlan, createPosterMapScenes } from "../book2-art/poster-m
 // One row of the setup window, and the three strings that row can show. Everything a lane
 // varies by lives here, so adding a fourth library is a row plus its work function rather
 // than another copy of the report/try/catch shape below.
-const STEP_DEFS = {
+//
+// `key` is stamped on from the id below rather than restated inside each row: the two must
+// agree — `runLane` narrates under the inner one while `steps`/`pendingSetupWork` select by the
+// outer one — and a typo between them is silent in both directions, producing a row that simply
+// never reports rather than an error.
+const STEP_DEFS = Object.fromEntries(Object.entries({
 	art: {
-		key: "art", label: "Book art you have already imported",
+		label: "Book art you have already imported",
 		starting: "Looking for book art on your disk",
 		failed:   "Could not apply your book art — it will retry next load",
 	},
 	journals: {
-		key: "journals", label: "Journals, gazetteer and bestiary codex",
+		label: "Journals, gazetteer and bestiary codex",
 		starting: "Reading the Stonetop compendium",
 		failed:   "Could not finish importing the journals — it will retry next load",
 	},
@@ -58,26 +63,26 @@ const STEP_DEFS = {
 	// forever, and on such a world it is the only thing happening. Sharing the import's row
 	// would have told a GM three releases in that their world was still importing journals.
 	journalSync: {
-		key: "journalSync", label: "Journal updates from this release",
+		label: "Journal updates from this release",
 		starting: "Comparing your journals with the new version",
 		failed:   "Could not finish updating the journals. It will retry next load.",
 	},
 	monsters: {
-		key: "monsters", label: "Monster sheets",
+		label: "Monster sheets",
 		starting: "Reading the Monsters compendium",
 		failed:   "Could not finish importing the monsters — it will retry next load",
 	},
 	treasures: {
-		key: "treasures", label: "Treasures & Wonders",
+		label: "Treasures & Wonders",
 		starting: "Reading the Treasures & Wonders compendium",
 		failed:   "Could not finish importing the treasures — it will retry next load",
 	},
 	finish: {
-		key: "finish", label: "Finishing touches",
+		label: "Finishing touches",
 		starting: "Applying your book art to the new content",
 		failed:   "Could not finish applying your book art — it will retry next load",
 	},
-};
+}).map(([key, def]) => [key, { key, ...def }]));
 
 /**
  * Which one-time content imports this world still owes, so the window can list only the work

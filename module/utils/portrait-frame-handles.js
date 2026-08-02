@@ -1,8 +1,8 @@
 import { SYSTEM_ID } from "../system-id.js";
 import { resolvedFlags } from "../actors/character/StonetopFlags.js";
-import { isActorRow } from "../actors/steading/steading-people.js";
+import { isActorRow, personRowActor } from "../actors/steading/steading-people.js";
 import { STEADING_DEFAULTS } from "../actors/steading/StonetopSteading.js";
-import { normalizeFrame } from "./portrait-frame.js";
+import { normalizeFrame, documentPortraitFrame } from "./portrait-frame.js";
 
 /**
  * Where a chosen portrait frame is stored, per kind of "person".
@@ -43,7 +43,7 @@ export function actorFrameHandle(actor, { editable = null } = {}) {
 		// why this is a property of the actor handle rather than of every handle.
 		actor,
 		get img() { return actor.img ?? ""; },
-		read: () => actor.flags?.[SYSTEM_ID]?.portraitFrame ?? null,
+		read: () => documentPortraitFrame(actor),
 		// A fresh object fully replaces the old one despite the merge, because the shape is
 		// exactly { src: primitive, rect: Array } and mergeObject treats an Array as an atomic
 		// value. IF A THIRD KEY IS EVER ADDED, that stops being true and this needs an unset first.
@@ -128,8 +128,8 @@ export function legacyRowFrameHandle(steading, list, index, { editable = false }
  * The steading roster's one handle: an actor row writes to its NPC, a legacy row to the array.
  *
  * Deliberately synchronous, so it can be called from a click handler that also builds UI. The
- * actor is resolved by the same id-then-uuid chain the roster's popout binding uses, so the two
- * can never disagree about which document backs a row.
+ * actor comes from `personRowActor` — literally the function the roster's own resolve uses — so
+ * the two cannot disagree about which document backs a row.
  */
 export function personFrameHandle(steading, list, index, { editable = false } = {}) {
 	const stored = steading?._flags?.[list];
@@ -137,8 +137,7 @@ export function personFrameHandle(steading, list, index, { editable = false } = 
 	const row = rows[index];
 	if (!row) return null;
 	if (!isActorRow(row)) return legacyRowFrameHandle(steading, list, index, { editable });
-	const npc = (row.id ? game.actors?.get(row.id) : null)
-		|| (row.uuid ? game.actors?.find((a) => a.uuid === row.uuid) : null);
+	const npc = personRowActor(row);
 	// actorFrameHandle gates on the NPC's own ownership, which is stricter than the steading's
 	// editability on purpose: roster NPCs are seeded at OBSERVER, so a player who may edit the
 	// steading would otherwise be offered a control whose save the server refuses.

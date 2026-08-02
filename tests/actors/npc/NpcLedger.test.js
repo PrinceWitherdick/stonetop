@@ -122,6 +122,40 @@ describe("NpcLedger", () => {
 		}
 	});
 
+	// Run-merging reached this ledger only when the shared engine grew `scalarEntry`; before
+	// that an NPC's HP walked down through a fight logged one line per point. The descriptor is
+	// what mergeRuns folds on, so what matters here is that numbers carry one and that prose
+	// and booleans do not — a run of name edits must stay a run of separate lines.
+	it("attaches a merge descriptor to numeric fields and to nothing else", () => {
+		const actor = makeActor({
+			instinct: "to endure",
+			attributes: { hp: { value: 8, max: 8 }, armor: { value: 1 } },
+		});
+		const entries = NpcLedger.entriesForActorUpdate(actor, {
+			name: "Blodwen",
+			system: { instinct: "to flee", attributes: { hp: { value: 5 } } },
+		});
+		const byAction = Object.fromEntries(entries.map(e => [e.action, e.merge]));
+
+		expect(byAction["HP changed from 8 to 5"]).toEqual({
+			kind: "numeric", key: "system.attributes.hp.value", label: "HP", from: 8, to: 5,
+		});
+		expect(byAction["Name set to Blodwen"]).toBeUndefined();
+		expect(byAction["Instinct changed from to endure to to flee"]).toBeUndefined();
+	});
+
+	it("merges a numeric field that starts blank, and never a boolean one", () => {
+		const actor = makeActor({ hasStats: false, attributes: { armor: { value: 2 } } });
+		const entries = NpcLedger.entriesForActorUpdate(actor, {
+			system: { hasStats: true, attributes: { armor: { value: 3 } } },
+		});
+		const byAction = Object.fromEntries(entries.map(e => [e.action, e.merge]));
+
+		expect(byAction["Armor changed from 2 to 3"]?.kind).toBe("numeric");
+		// `false` is not a number, so "Game stats" stays one line per toggle.
+		expect(byAction["Game stats changed from off to on"]).toBeUndefined();
+	});
+
 	it("ignores writes to the ledger flag itself", () => {
 		const actor = makeActor({ instinct: "to wait" });
 		const entries = NpcLedger.entriesForActorUpdate(actor, {

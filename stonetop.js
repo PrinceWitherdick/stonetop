@@ -58,6 +58,7 @@ import { bindSteadingImprovementDrag } from "./module/journal/steading-improveme
 import { bindThreatSeedDrag } from "./module/threats/threat-seed-cards.js";
 import { maybeAnnounceBecameHero } from "./module/actors/character/WouldBeHeroAsterisk.js";
 import { StonetopSteading } from "./module/actors/steading/StonetopSteading.js";
+import { onSteadingPeopleUpdate } from "./module/actors/steading/steading-people.js";
 import { makeDialogsResizable, enableAutoHeightVerticalResize } from "./module/utils/resizable-dialogs.js";
 import { registerStonetopWindowTheme } from "./module/utils/window-theme.js";
 import { installWindowRestore } from "./module/utils/window-restore.js";
@@ -551,6 +552,12 @@ Hooks.on("updateActor", (actor) => {
 		for (const app of openApps) app?.render?.(false);
 	}
 });
+
+// A roster row written by someone who can't create Actors — a player finishing onboarding
+// with a background that names neighbors — arrives as plain text. This broadcast reaches the
+// GM's client, which turns it into a real NPC on the spot, so it never matters who made the
+// character. See steading-people.js#onSteadingPeopleUpdate.
+Hooks.on("updateActor", onSteadingPeopleUpdate);
 
 // -- RECOVER LOCK ----------------------------------------------
 // The Recover special move can't be used again until the character takes more
