@@ -20,7 +20,7 @@ export const DEFAULT_ROOT = "stonetop-book-art";
 export function book2ArtRoot() {
 	let configured = null;
 	try {
-		configured = globalThis.game?.settings?.get?.("stonetop-pwd", "book2ArtRoot");
+		configured = globalThis.game?.settings?.get?.("stonetop_pwd", "book2ArtRoot");
 	} catch (_) { /* setting not registered in this world */ }
 	return String(configured || DEFAULT_ROOT).replace(/\/+$/, "");
 }

@@ -35,8 +35,8 @@
       },
       "src": null,
       "system": {
-        "concept": "A great scaly wurm, hundreds of feet long, that sleeps beneath the <strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{Great Wood}</strong> and wakes to burn.",
-        "description": "<p>A great scaly wurm, hundreds of feet long. It sleeps somewhere beneath the <strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{Great Wood}</strong>, waking every few decades to chew and burn a swath of destruction before sinking back into slumber. What it is — a primordial titan, a Green Lord weapon, the first and oldest draventao, or a manifestation of the <strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{Things Below}</strong> — is for you to decide. Dormant, it is little more than a warm, smoking, tree-covered hill; woken, it is doom.</p>",
+        "concept": "A great scaly wurm, hundreds of feet long, that sleeps beneath the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{Great Wood}</strong> and wakes to burn.",
+        "description": "<p>A great scaly wurm, hundreds of feet long. It sleeps somewhere beneath the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6kt1b8ozEREDCi4k]{Great Wood}</strong>, waking every few decades to chew and burn a swath of destruction before sinking back into slumber. What it is — a primordial titan, a Green Lord weapon, the first and oldest draventao, or a manifestation of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5Kym1qDHTmM8XUQ6]{Things Below}</strong> — is for you to decide. Dormant, it is little more than a warm, smoking, tree-covered hill; woken, it is doom.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",
@@ -48,7 +48,7 @@
         "dangers": [],
         "notes": "",
         "statBlocks": [
-          "Compendium.stonetop-pwd.stonetop-bestiary.Actor.i2U1Qxscwoqw6eR0"
+          "Compendium.stonetop_pwd.stonetop-bestiary.Actor.i2U1Qxscwoqw6eR0"
         ]
       },
       "sort": 100000,

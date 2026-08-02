@@ -110,7 +110,7 @@ export async function recordSeasonsChange({ seasonId, year = 1, gainNames = [], 
 	const yearName = `${ordinalWord(yr)} Year`;
 	const block    = _seasonBlock(seasonId, gainNames, fortunes, surplusChange, notes);
 
-	const page = (journal.pages ?? []).find(p => Number(p.getFlag?.("stonetop-pwd", "chronicleYear")) === yr) ?? null;
+	const page = (journal.pages ?? []).find(p => Number(p.getFlag?.("stonetop_pwd", "chronicleYear")) === yr) ?? null;
 	if (page) {
 		await page.update({ "text.content": mergeSeasonBlock(page.text?.content ?? "", seasonId, block) });
 	} else {
@@ -120,7 +120,7 @@ export async function recordSeasonsChange({ seasonId, year = 1, gainNames = [], 
 			type:  "text",
 			sort:  maxSort + 10,
 			text:  { content: block, format: CONST.JOURNAL_ENTRY_PAGE_FORMATS.HTML },
-			flags: { "stonetop-pwd": { chronicleYear: yr } },
+			flags: { "stonetop_pwd": { chronicleYear: yr } },
 		}]);
 	}
 

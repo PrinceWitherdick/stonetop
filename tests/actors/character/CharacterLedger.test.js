@@ -70,7 +70,7 @@ describe("CharacterLedger", () => {
 		};
 
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.inventory.checked.bow-arrows": true,
+			"flags.stonetop_pwd.inventory.checked.bow-arrows": true,
 		});
 		expect(entries.map(e => e.action)).toEqual(["Bow & arrows selected"]);
 	});
@@ -88,7 +88,7 @@ describe("CharacterLedger", () => {
 		};
 
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.possessions.selected": [],
+			"flags.stonetop_pwd.possessions.selected": [],
 		});
 		expect(entries.map(e => e.action)).toEqual(["Sacred pouch deselected"]);
 	});
@@ -113,7 +113,7 @@ describe("CharacterLedger", () => {
 			};
 			return actor;
 		};
-		const path = "flags.stonetop-pwd.possessions.choiceCarried.weapons-of-war:sword";
+		const path = "flags.stonetop_pwd.possessions.choiceCarried.weapons-of-war:sword";
 
 		const carried = await CharacterLedger.entriesForActorUpdate(weaponsActor({}), { [path]: true });
 		expect(carried.map(e => e.action)).toEqual(["Weapons of war: ◇ Sword, iron carried"]);
@@ -126,7 +126,7 @@ describe("CharacterLedger", () => {
 	it("records a write-in possession being added by its label", async () => {
 		const actor = makeActor({}, { stonetop: { possessions: { custom: [] } } });
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.possessions.custom": [{ slug: "custom-1", label: "A locket" }],
+			"flags.stonetop_pwd.possessions.custom": [{ slug: "custom-1", label: "A locket" }],
 		});
 		expect(entries.map(e => e.action)).toEqual(["A locket added (write-in possession)"]);
 	});
@@ -134,7 +134,7 @@ describe("CharacterLedger", () => {
 	it("records a write-in possession being removed by its label", async () => {
 		const actor = makeActor({}, { stonetop: { possessions: { custom: [{ slug: "custom-1", label: "A locket" }] } } });
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.possessions.custom": [],
+			"flags.stonetop_pwd.possessions.custom": [],
 		});
 		expect(entries.map(e => e.action)).toEqual(["A locket removed (write-in possession)"]);
 	});
@@ -148,7 +148,7 @@ describe("CharacterLedger", () => {
 		};
 
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.moves.backgroundChoices": { "Rites of the Land": 3 },
+			"flags.stonetop_pwd.moves.backgroundChoices": { "Rites of the Land": 3 },
 		});
 		expect(entries.map(e => e.action)).toEqual(["Rites of the Land - Favor changed from 1 to 3"]);
 	});
@@ -162,7 +162,7 @@ describe("CharacterLedger", () => {
 		};
 
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.moves.backgroundChoices": { "Untitled Track": 2 },
+			"flags.stonetop_pwd.moves.backgroundChoices": { "Untitled Track": 2 },
 		});
 		expect(entries.map(e => e.action)).toEqual(["Untitled Track resource set to 2"]);
 	});
@@ -178,7 +178,7 @@ describe("CharacterLedger", () => {
 		};
 
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.inventory.resources.shell-game-of-souls": 2,
+			"flags.stonetop_pwd.inventory.resources.shell-game-of-souls": 2,
 		});
 		expect(entries.map(e => e.action)).toEqual(["Shell Game of Souls - Souls changed from 0 to 2"]);
 	});
@@ -192,7 +192,7 @@ describe("CharacterLedger", () => {
 		};
 
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.inventory.resources.bow-arrows": 1,
+			"flags.stonetop_pwd.inventory.resources.bow-arrows": 1,
 		});
 		expect(entries.map(e => e.action)).toEqual(["Bow & arrows resource set to 1"]);
 	});
@@ -206,7 +206,7 @@ describe("CharacterLedger", () => {
 		};
 
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.moves.moveMarks": { "Heroes to the Last": { "crew-hp": [{ stat: "", level: 6 }] } },
+			"flags.stonetop_pwd.moves.moveMarks": { "Heroes to the Last": { "crew-hp": [{ stat: "", level: 6 }] } },
 		});
 		expect(entries.map(e => e.action)).toEqual(["Heroes to the Last - Increase their max HP by 4 each marked"]);
 	});
@@ -220,7 +220,7 @@ describe("CharacterLedger", () => {
 		};
 
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.moves.moveMarks": { "Potential for Greatness": { stat: [{ stat: "str", level: 2 }] } },
+			"flags.stonetop_pwd.moves.moveMarks": { "Potential for Greatness": { stat: [{ stat: "str", level: 2 }] } },
 		});
 		expect(entries.map(e => e.action)).toEqual(["Potential for Greatness - Increase the stat you rolled by 1, to a max of +2: STR marked"]);
 	});
@@ -243,7 +243,7 @@ describe("CharacterLedger", () => {
 		};
 
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.arcana.unlock.the-key:master-fear": 1,
+			"flags.stonetop_pwd.arcana.unlock.the-key:master-fear": 1,
 		});
 		expect(entries.map(e => e.action)).toEqual([
 			"Minor Arcana The Key: … master your fear and force yourself to touch it. marked",
@@ -267,7 +267,7 @@ describe("CharacterLedger", () => {
 		};
 
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.arcana.unlock.sunken-tablet:calm": 0,
+			"flags.stonetop_pwd.arcana.unlock.sunken-tablet:calm": 0,
 		});
 		expect(entries.map(e => e.action)).toEqual([
 			"Minor Arcana Sunken Tablet: … calm your mind, gaze upon the sigil, and roll +WIS: on a 10+,… unmarked",
@@ -290,7 +290,7 @@ describe("CharacterLedger", () => {
 		};
 
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.arcana.boxes.blood-quenched-sword:unlock:2": true,
+			"flags.stonetop_pwd.arcana.boxes.blood-quenched-sword:unlock:2": true,
 		});
 		expect(entries.map(e => e.action)).toEqual([
 			"Major Arcana Blood-quenched Sword: unlock 3 marked",
@@ -302,7 +302,7 @@ describe("CharacterLedger", () => {
 		actor.typedActor = { buildSnapshot: async () => ({ arcana: { minor: { items: [] }, major: { items: [] } } }) };
 
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.arcana.boxes.lost-card:frontDiamond:0": false,
+			"flags.stonetop_pwd.arcana.boxes.lost-card:frontDiamond:0": false,
 		});
 		expect(entries.map(e => e.action)).toEqual([
 			"Arcana Lost Card: front diamond 1 unmarked",
@@ -326,7 +326,7 @@ describe("CharacterLedger", () => {
 		}];
 
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.background.choices.enfys": true,
+			"flags.stonetop_pwd.background.choices.enfys": true,
 		});
 		expect(entries.map(e => e.action)).toEqual(["Enfys, your acolyte, beloved by birds selected"]);
 	});
@@ -348,7 +348,7 @@ describe("CharacterLedger", () => {
 		}];
 
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.initiatesLoyalty.enfys": 2,
+			"flags.stonetop_pwd.initiatesLoyalty.enfys": 2,
 		});
 		expect(entries.map(e => e.action)).toEqual(["Enfys loyalty changed from 1 to 2"]);
 	});
@@ -366,9 +366,9 @@ describe("CharacterLedger", () => {
 		});
 
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.animalCompanion.instinct": "to guard the camp",
-			"flags.stonetop-pwd.crew.loyalty": 2,
-			"flags.stonetop-pwd.crew.individuals.0.tag": "cautious",
+			"flags.stonetop_pwd.animalCompanion.instinct": "to guard the camp",
+			"flags.stonetop_pwd.crew.loyalty": 2,
+			"flags.stonetop_pwd.crew.individuals.0.tag": "cautious",
 		});
 		expect(entries.map(e => e.action)).toEqual([
 			"Bramble instinct changed from to chase rabbits to to guard the camp",
@@ -388,7 +388,7 @@ describe("CharacterLedger", () => {
 		// pre-update name map, so none of those field writes should become ledger lines.
 		const actor = makeActor({}, {});
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.customFollowers.new1": {
+			"flags.stonetop_pwd.customFollowers.new1": {
 				name: "Bran", loyalty: 0, hpCurrent: 6, instinct: "flee", cost: "coin", tags: ["brave"],
 			},
 		});
@@ -396,15 +396,15 @@ describe("CharacterLedger", () => {
 	});
 
 	it("records a play-track change to an existing custom follower, but not a detail edit", async () => {
-		const actor = makeActor({}, { "stonetop-pwd": { customFollowers: { f1: { name: "Bran", loyalty: 2 } } } });
+		const actor = makeActor({}, { "stonetop_pwd": { customFollowers: { f1: { name: "Bran", loyalty: 2 } } } });
 		// Loyalty (a play track) logs, named by the follower…
 		const play = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.customFollowers.f1.loyalty": 1,
+			"flags.stonetop_pwd.customFollowers.f1.loyalty": 1,
 		});
 		expect(play.map(e => e.action)).toEqual(["Bran loyalty changed from 2 to 1"]);
 		// …but a detail edit (name / cost / instinct / tags) stays quiet.
 		const detail = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.customFollowers.f1.name": "Brandon",
+			"flags.stonetop_pwd.customFollowers.f1.name": "Brandon",
 		});
 		expect(detail).toEqual([]);
 	});
@@ -457,7 +457,7 @@ describe("ledgerNoun", () => {
 
 function withSnapshot(actor, snapshot, playbookFlags) {
 	actor.typedActor = { buildSnapshot: async () => snapshot };
-	if (playbookFlags) actor.items = [{ type: "playbook", name: "PB", flags: { "stonetop-pwd": playbookFlags } }];
+	if (playbookFlags) actor.items = [{ type: "playbook", name: "PB", flags: { "stonetop_pwd": playbookFlags } }];
 	return actor;
 }
 
@@ -468,7 +468,7 @@ describe("CharacterLedger arcana flags", () => {
 			{ arcana: { minor: { items: [{ slug: "the-key", front: { title: "The Key" } }] } } },
 		);
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.arcana.owned": ["azure-hand", "the-key"],
+			"flags.stonetop_pwd.arcana.owned": ["azure-hand", "the-key"],
 		});
 		expect(entries.map(e => e.action)).toEqual(["Arcanum gained: Minor Arcana The Key"]);
 	});
@@ -483,7 +483,7 @@ describe("CharacterLedger arcana flags", () => {
 			{ arcana: { minor: { items: [{ slug: "the-key", front: { title: "The Key" } }] } } },
 		);
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.arcana.identified": ["the-key"],
+			"flags.stonetop_pwd.arcana.identified": ["the-key"],
 		});
 		expect(entries.map(e => e.action)).toEqual(["Arcanum identified: Minor Arcana The Key"]);
 	});
@@ -497,7 +497,7 @@ describe("CharacterLedger arcana flags", () => {
 		);
 		for (const cleared of [null, ""]) {
 			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-				"flags.stonetop-pwd.arcana.minorRoles.lead": cleared,
+				"flags.stonetop_pwd.arcana.minorRoles.lead": cleared,
 			});
 			expect(entries.map(e => e.action)).toEqual(["Minor arcanum (lead) cleared"]);
 		}
@@ -506,8 +506,8 @@ describe("CharacterLedger arcana flags", () => {
 	it("stays silent for bookkeeping sub-flags", async () => {
 		const actor = makeActor({}, { stonetop: { arcana: { leadBackfilled: false, minorDraw: [] } } });
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.arcana.leadBackfilled": true,
-			"flags.stonetop-pwd.arcana.minorDraw": ["a", "b", "c"],
+			"flags.stonetop_pwd.arcana.leadBackfilled": true,
+			"flags.stonetop_pwd.arcana.minorDraw": ["a", "b", "c"],
 		});
 		expect(entries).toEqual([]);
 	});
@@ -521,7 +521,7 @@ describe("CharacterLedger lore", () => {
 			{ lore: [{ slug: "earth-mother", title: "The Earth Mother", options: [{ slug: "shrine-loved", description: "<p>Loved and well-used.</p>" }] }] },
 		);
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.lore.counts.earth-mother:shrine-loved": 1,
+			"flags.stonetop_pwd.lore.counts.earth-mother:shrine-loved": 1,
 		});
 		// Was: "Lore set to 1".
 		expect(entries.map(e => e.action)).toEqual(["Lore — The Earth Mother: Loved and well-used. marked"]);
@@ -535,7 +535,7 @@ describe("CharacterLedger lore", () => {
 			{ lore: [{ slug: "relic", title: "Your Relic" }] },
 		);
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.lore.texts.relic:where": "<p>" + long + "</p>",
+			"flags.stonetop_pwd.lore.texts.relic:where": "<p>" + long + "</p>",
 		});
 		expect(entries).toHaveLength(1);
 		expect(entries[0].action).toMatch(/^Lore — Your Relic answered: /);
@@ -572,7 +572,7 @@ describe("CharacterLedger possession choices", () => {
 			}] } } },
 		);
 		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
-			"flags.stonetop-pwd.possessions.subChoices.sacred-pouch": ["origin-heirloom"],
+			"flags.stonetop_pwd.possessions.subChoices.sacred-pouch": ["origin-heirloom"],
 		});
 		expect(entries.map(e => e.action)).toEqual([
 			"Sacred pouch: an heirloom made just for you selected",

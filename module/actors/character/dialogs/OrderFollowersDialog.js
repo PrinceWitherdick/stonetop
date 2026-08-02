@@ -57,7 +57,7 @@ export class OrderFollowersDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-order-followers",
 			title:     "Order Followers",
-			template:  "systems/stonetop-pwd/templates/dialogs/order-followers.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/order-followers.hbs",
 			width:     460,
 			height:    "auto",
 			resizable: true,

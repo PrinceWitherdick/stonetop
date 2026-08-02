@@ -19,7 +19,7 @@ const SUMMARY_DATA_KEY = "stonetopSummary";
 
 // Packs that carry hover summaries. The locations, lore, and bestiary-codex
 // generators all stamp `flags.stonetop.summary`; they now ship in one merged pack.
-const SUMMARY_PACKS = ["stonetop-pwd.stonetop-journal"];
+const SUMMARY_PACKS = ["stonetop_pwd.stonetop-journal"];
 
 let _indexPromise = null;
 

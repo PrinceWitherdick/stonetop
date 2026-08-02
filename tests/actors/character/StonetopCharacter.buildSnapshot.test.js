@@ -34,7 +34,7 @@ afterEach(() => {
 const HEAVY_PLAYBOOK = {
 	slug: "the-heavy",
 	name: "The Heavy",
-	img: "systems/stonetop-pwd/assets/playbooks/the-heavy.svg",
+	img: "systems/stonetop_pwd/assets/playbooks/the-heavy.svg",
 	description: "<p>You are the muscle.</p>",
 	statsNote: "Put your highest stat in STR or CON.",
 	hp: 20,
@@ -138,7 +138,7 @@ describe("buildSnapshot — playbook section", () => {
 		const snap = await buildSnap();
 		expect(snap.playbook.slug).toBe("the-heavy");
 		expect(snap.playbook.name).toBe("The Heavy");
-		expect(snap.playbook.img).toBe("systems/stonetop-pwd/assets/playbooks/the-heavy.svg");
+		expect(snap.playbook.img).toBe("systems/stonetop_pwd/assets/playbooks/the-heavy.svg");
 		expect(snap.playbook.description).toBe("<p>You are the muscle.</p>");
 		expect(snap.playbook.statsNote).toBe("Put your highest stat in STR or CON.");
 	});
@@ -678,7 +678,7 @@ describe("buildSnapshot — moves", () => {
 			.addItem({
 				_id: "fm1", type: "move", name: "Smash",
 				system: { moveType: "playbook", playbook: "The Heavy", description: "Smash desc", rollType: "str" },
-				flags: { "stonetop-pwd": { grantedBy: { move: "Versatile", instanceId: "v1" } } },
+				flags: { "stonetop_pwd": { grantedBy: { move: "Versatile", instanceId: "v1" } } },
 			})
 			.build();
 		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
@@ -1274,7 +1274,7 @@ describe("buildSnapshot — inventory: possession-derived special items", () => 
 			get: () => null,
 			find: () => ({
 				type: "stonetop",
-				flags: { "stonetop-pwd": { steading: { improvements: { weaponsOfWar: { completed: true } } } } },
+				flags: { "stonetop_pwd": { steading: { improvements: { weaponsOfWar: { completed: true } } } } },
 			}),
 		};
 
@@ -1298,7 +1298,7 @@ describe("buildSnapshot — inventory: possession-derived special items", () => 
 			get: () => null,
 			find: () => ({
 				type: "stonetop",
-				flags: { "stonetop-pwd": { steading: { improvements: { weaponsOfWar: { completed: false } } } } },
+				flags: { "stonetop_pwd": { steading: { improvements: { weaponsOfWar: { completed: false } } } } },
 			}),
 		};
 
@@ -1315,7 +1315,7 @@ describe("buildSnapshot — inventory: possession-derived special items", () => 
 			get: () => null,
 			find: () => ({
 				type: "stonetop",
-				flags: { "stonetop-pwd": { steading: { improvements: { weaponsOfWar: { completed: true } } } } },
+				flags: { "stonetop_pwd": { steading: { improvements: { weaponsOfWar: { completed: true } } } } },
 			}),
 		};
 

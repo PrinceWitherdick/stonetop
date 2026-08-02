@@ -1,7 +1,7 @@
 {
   "name": "The Bloody Boots",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/fae.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/fae.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -24,9 +24,9 @@
     "organization": "group",
     "size": "small",
     "tags": "group, small, fae, ugly, violent",
-    "qualities": "<p><strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae nature}</strong>; tolerates iron; can't start violence. Armor 2 vs. iron.</p>",
+    "qualities": "<p><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae nature}</strong>; tolerates iron; can't start violence. Armor 2 vs. iron.</p>",
     "count": 3,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.qWNA7gHJH7z3K0bg",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.qWNA7gHJH7z3K0bg",
     "notes": "",
     "creatureType": "fae"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/fae.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/fae.svg"
     }
   },
   "items": [

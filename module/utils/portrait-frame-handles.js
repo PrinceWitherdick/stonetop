@@ -12,8 +12,8 @@ import { normalizeFrame, documentPortraitFrame } from "./portrait-frame.js";
  * one dialog serve an NPC document, a follower card living in a flag, a legacy steading text row
  * living in a flag ARRAY, and a PC, without any of them leaking into the editor.
  *
- * ⚠ Every property read uses BRACKETS: `flags?.["stonetop-pwd"]?.x`. The package id is hyphenated,
- * so a dotted `flags.stonetop-pwd.x` parses as a subtraction and fails at runtime with
+ * ⚠ Every property read uses BRACKETS: `flags?.["stonetop_pwd"]?.x`. The package id is hyphenated,
+ * so a dotted `flags.stonetop_pwd.x` parses as a subtraction and fails at runtime with
  * "pwd is not defined". Nothing lints it. Dotted paths are fine inside string literals, which is
  * why every one of those is built from SYSTEM_ID rather than written out.
  *
@@ -31,7 +31,7 @@ import { normalizeFrame, documentPortraitFrame } from "./portrait-frame.js";
 /**
  * An Actor's own portrait: NPCs, PCs, monsters, and every actor-backed steading roster row.
  *
- * Stored at `flags["stonetop-pwd"].portraitFrame`. A flag rather than a data-model field, so
+ * Stored at `flags["stonetop_pwd"].portraitFrame`. A flag rather than a data-model field, so
  * there is nothing to migrate and every actor type gets it for free.
  */
 export function actorFrameHandle(actor, { editable = null } = {}) {
@@ -59,7 +59,7 @@ export function actorFrameHandle(actor, { editable = null } = {}) {
 /**
  * A follower card: animal companion, crew, initiate, beast or custom.
  *
- * Stored at `flags["stonetop-pwd"].<detailBase>.portraitFrame`, beside the `img` the card already
+ * Stored at `flags["stonetop_pwd"].<detailBase>.portraitFrame`, beside the `img` the card already
  * keeps there. A follower is not a document, which is exactly why the frame had to be storable
  * against a flag as well as an actor.
  *

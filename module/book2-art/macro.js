@@ -4,7 +4,7 @@
 // and legacy names live in exactly one place and can never drift between them.
 // The shipped compendium doc is the single source of truth for the macro's
 // command/img.
-export const BOOK2_ART_MACRO_PACK = "stonetop-pwd.stonetop-macros";
+export const BOOK2_ART_MACRO_PACK = "stonetop_pwd.stonetop-macros";
 export const BOOK2_ART_MACRO_ID   = "stMacroBook2Art1";
 export const BOOK2_ART_MACRO_NAME = "Import Book Art";
 // Worlds seeded before the rename carry the old name; callers rename in place.

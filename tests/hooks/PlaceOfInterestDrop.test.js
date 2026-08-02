@@ -57,7 +57,7 @@ describe("PlaceOfInterestDrop", () => {
 			y: 240,
 			text: "The Cistern",
 			texture: expect.objectContaining({
-				src: "systems/stonetop-pwd/assets/icons/landmarks/landmark-c.svg",
+				src: "systems/stonetop_pwd/assets/icons/landmarks/landmark-c.svg",
 			}),
 		})]);
 		expect(globalThis.ui.controls.activate).toHaveBeenCalledWith({ control: "notes", tool: "select" });

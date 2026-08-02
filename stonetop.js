@@ -220,28 +220,28 @@ Hooks.once("init", () => {
 	}
 
 	const StonetopCharacterSheet = createStonetopCharacterSheetClass(ActorSheet);
-	Actors.registerSheet("stonetop-pwd", StonetopCharacterSheet, {
+	Actors.registerSheet("stonetop_pwd", StonetopCharacterSheet, {
 		types:       ["character"],
 		makeDefault: true,
 		label:       "Stonetop Character Sheet",
 	});
 
 	const StonetopSteadingSheet = createStonetopSteadingSheetClass(ActorSheet);
-	Actors.registerSheet("stonetop-pwd", StonetopSteadingSheet, {
+	Actors.registerSheet("stonetop_pwd", StonetopSteadingSheet, {
 		types:       ["stonetop"],
 		makeDefault: true,
 		label:       "Stonetop Steading Sheet",
 	});
 
 	const StonetopMonsterSheet = createStonetopMonsterSheetClass(ActorSheet);
-	Actors.registerSheet("stonetop-pwd", StonetopMonsterSheet, {
+	Actors.registerSheet("stonetop_pwd", StonetopMonsterSheet, {
 		types:       ["monster"],
 		makeDefault: true,
 		label:       "Stonetop Monster Sheet",
 	});
 
 	const StonetopNpcSheet = createStonetopNpcSheetClass(ActorSheet);
-	Actors.registerSheet("stonetop-pwd", StonetopNpcSheet, {
+	Actors.registerSheet("stonetop_pwd", StonetopNpcSheet, {
 		types:       ["npc"],
 		makeDefault: true,
 		label:       "Stonetop NPC Sheet",
@@ -252,7 +252,7 @@ Hooks.once("init", () => {
 	CONFIG.JournalEntryPage.dataModels["bestiary"] = BestiaryPageModel;
 	const JournalPageSheetV1 = foundry.appv1?.sheets?.JournalPageSheet ?? globalThis.JournalPageSheet;
 	const StonetopBestiaryPageSheet = createStonetopBestiaryPageSheetClass(JournalPageSheetV1);
-	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop-pwd", StonetopBestiaryPageSheet, {
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop_pwd", StonetopBestiaryPageSheet, {
 		types:       ["bestiary"],
 		makeDefault: true,
 		label:       "Stonetop Bestiary Page",
@@ -262,7 +262,7 @@ Hooks.once("init", () => {
 	// per-section inline editing) — mirrors the bestiary page above.
 	CONFIG.JournalEntryPage.dataModels["location"] = LocationPageModel;
 	const StonetopLocationPageSheet = createStonetopLocationPageSheetClass(JournalPageSheetV1);
-	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop-pwd", StonetopLocationPageSheet, {
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop_pwd", StonetopLocationPageSheet, {
 		types:       ["location"],
 		makeDefault: true,
 		label:       "Stonetop Location Page",
@@ -273,7 +273,7 @@ Hooks.once("init", () => {
 	// Play" questions. Chronicle pages set every section's group to "glance", so no act
 	// banners render. See utils/chronicle.js.
 	CONFIG.JournalEntryPage.dataModels["chronicle"] = LocationPageModel;
-	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop-pwd", StonetopLocationPageSheet, {
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop_pwd", StonetopLocationPageSheet, {
 		types:       ["chronicle"],
 		makeDefault: true,
 		label:       "Stonetop Chronicle Page",
@@ -284,7 +284,7 @@ Hooks.once("init", () => {
 	// (live doom track), dropped onto scenes as a linked Note. See module/threats/.
 	CONFIG.JournalEntryPage.dataModels["threat"] = ThreatPageModel;
 	const StonetopThreatPageSheet = createStonetopThreatPageSheetClass(JournalPageSheetV1);
-	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop-pwd", StonetopThreatPageSheet, {
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop_pwd", StonetopThreatPageSheet, {
 		types:       ["threat"],
 		makeDefault: true,
 		label:       "Stonetop Threat Page",
@@ -295,14 +295,14 @@ Hooks.once("init", () => {
 	// architecture; authored via the Make-a-Hazard walkthrough. See module/hazards/.
 	CONFIG.JournalEntryPage.dataModels["hazard"] = HazardPageModel;
 	const StonetopHazardPageSheet = createStonetopHazardPageSheetClass(JournalPageSheetV1);
-	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop-pwd", StonetopHazardPageSheet, {
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop_pwd", StonetopHazardPageSheet, {
 		types:       ["hazard"],
 		makeDefault: true,
 		label:       "Stonetop Hazard Page",
 	});
 
 	const StonetopArcanumSheet = createStonetopArcanumSheetClass(ItemSheet);
-	Items.registerSheet("stonetop-pwd", StonetopArcanumSheet, {
+	Items.registerSheet("stonetop_pwd", StonetopArcanumSheet, {
 		types:       ["move"],
 		makeDefault: false,
 		label:       "Stonetop Arcanum",
@@ -315,67 +315,67 @@ Hooks.once("init", () => {
 	// not be found" race would actually bite.
 	game.stonetop ??= {};
 	game.stonetop.templatesReady = loadTemplates({
-		"stonetop.arcanum-sheet":      "systems/stonetop-pwd/templates/item/arcanum-sheet.hbs",
-		"stonetop.arcanum-sheet-edit": "systems/stonetop-pwd/templates/item/arcanum-sheet-edit.hbs",
-		"stonetop.actor-header":     "systems/stonetop-pwd/templates/actor/partials/actor-header.hbs",
-		"stonetop.actor-stats":      "systems/stonetop-pwd/templates/actor/partials/actor-stats.hbs",
-		"stonetop.actor-vitals":     "systems/stonetop-pwd/templates/actor/partials/actor-vitals.hbs",
-		"stonetop.tab-details":      "systems/stonetop-pwd/templates/actor/partials/tab-details.hbs",
-		"stonetop.tab-moves":        "systems/stonetop-pwd/templates/actor/partials/tab-moves.hbs",
-		"stonetop.tab-equipment":    "systems/stonetop-pwd/templates/actor/partials/tab-equipment.hbs",
-		"stonetop.tab-invocations":  "systems/stonetop-pwd/templates/actor/partials/tab-invocations.hbs",
-		"stonetop.tab-followers":    "systems/stonetop-pwd/templates/actor/partials/tab-followers.hbs",
-		"stonetop.tab-arcana":       "systems/stonetop-pwd/templates/actor/partials/tab-arcana.hbs",
-		"stonetop.tab-post-death":      "systems/stonetop-pwd/templates/actor/partials/tab-post-death.hbs",
-		"stonetop.tab-special-moves":   "systems/stonetop-pwd/templates/actor/partials/tab-special-moves.hbs",
-		"stonetop.tab-notes":           "systems/stonetop-pwd/templates/actor/partials/tab-notes.hbs",
-		"stonetop.move-group":           "systems/stonetop-pwd/templates/actor/partials/move-group.hbs",
-		"stonetop.tab-search-control":   "systems/stonetop-pwd/templates/actor/partials/tab-search-control.hbs",
-		"stonetop.move-mark-level":      "systems/stonetop-pwd/templates/actor/partials/move-mark-level.hbs",
-		"stonetop.sidebar-move-list":    "systems/stonetop-pwd/templates/actor/partials/sidebar-move-list.hbs",
-		"stonetop.lore-section":          "systems/stonetop-pwd/templates/actor/partials/lore-section.hbs",
-		"stonetop.lore-options-edit":     "systems/stonetop-pwd/templates/actor/partials/lore-options-edit.hbs",
-		"stonetop.lore-options-readonly": "systems/stonetop-pwd/templates/actor/partials/lore-options-readonly.hbs",
-		"stonetop.lore-arcana-image":     "systems/stonetop-pwd/templates/actor/partials/lore-arcana-image.hbs",
-		"stonetop.relationships-table":  "systems/stonetop-pwd/templates/actor/partials/relationships-table.hbs",
-		"stonetop.relationships-board": "systems/stonetop-pwd/templates/actor/partials/relationships-board.hbs",
-		"stonetop.relationships-view":  "systems/stonetop-pwd/templates/actor/partials/relationships-view.hbs",
-		"stonetop.relationships-viewbar": "systems/stonetop-pwd/templates/actor/partials/relationships-viewbar.hbs",
-		"stonetop.section-heading":  "systems/stonetop-pwd/templates/actor/partials/section-heading.hbs",
-		"stonetop.section-collapse": "systems/stonetop-pwd/templates/actor/partials/section-collapse.hbs",
-		"stonetop.section-edit-toggle": "systems/stonetop-pwd/templates/actor/partials/section-edit-toggle.hbs",
-		"stonetop.details-section-edit-toggle": "systems/stonetop-pwd/templates/actor/partials/details-section-edit-toggle.hbs",
-		"stonetop.follower-section-edit": "systems/stonetop-pwd/templates/actor/partials/follower-section-edit.hbs",
-		"stonetop.resource-track":   "systems/stonetop-pwd/templates/actor/partials/resource-track.hbs",
-		"stonetop.inv-note":         "systems/stonetop-pwd/templates/actor/partials/inv-note.hbs",
-		"stonetop.inv-item-regular": "systems/stonetop-pwd/templates/actor/partials/inv-item-regular.hbs",
-		"stonetop.inv-item-small":   "systems/stonetop-pwd/templates/actor/partials/inv-item-small.hbs",
-		"stonetop.choice-gear-row":  "systems/stonetop-pwd/templates/actor/partials/choice-gear-row.hbs",
-		"stonetop.steading-section-toggle":   "systems/stonetop-pwd/templates/actor/partials/steading-section-toggle.hbs",
-		"stonetop.steading-tab-overview":     "systems/stonetop-pwd/templates/actor/partials/steading-tab-overview.hbs",
-		"stonetop.steading-tab-neighbors":    "systems/stonetop-pwd/templates/actor/partials/steading-tab-neighbors.hbs",
-		"stonetop.steading-tab-improvements": "systems/stonetop-pwd/templates/actor/partials/steading-tab-improvements.hbs",
-		"stonetop.steading-tab-moves":        "systems/stonetop-pwd/templates/actor/partials/steading-tab-moves.hbs",
-		"stonetop.steading-tab-notes":        "systems/stonetop-pwd/templates/actor/partials/steading-tab-notes.hbs",
-		"stonetop.monster-sheet":             "systems/stonetop-pwd/templates/actor/monster.hbs",
-		"stonetop.npc-sheet":                 "systems/stonetop-pwd/templates/actor/npc.hbs",
-		"stonetop.bestiary-line-list":        "systems/stonetop-pwd/templates/actor/partials/bestiary-line-list.hbs",
-		"stonetop.bestiary-page":             "systems/stonetop-pwd/templates/journal/bestiary.hbs",
-		"stonetop.location-page":             "systems/stonetop-pwd/templates/journal/location.hbs",
-		"stonetop.threat-page":               "systems/stonetop-pwd/templates/journal/threat-page.hbs",
-		"stonetop.threat-card":               "systems/stonetop-pwd/templates/journal/partials/threat-card.hbs",
-		"stonetop.hazard-page":               "systems/stonetop-pwd/templates/journal/hazard-page.hbs",
-		"stonetop.hazard-card":               "systems/stonetop-pwd/templates/journal/partials/hazard-card.hbs",
-		"stonetop.steading-tab-threats":      "systems/stonetop-pwd/templates/actor/partials/steading-tab-threats.hbs",
-		"stonetop.bestiary-section-head":     "systems/stonetop-pwd/templates/journal/partials/bestiary-section-head.hbs",
-		"stonetop.bestiary-group-section":    "systems/stonetop-pwd/templates/journal/partials/bestiary-group-section.hbs",
-		"stonetop.introductions-dialog":      "systems/stonetop-pwd/templates/dialogs/introductions.hbs",
-		"stonetop.guide-toc":                 "systems/stonetop-pwd/templates/dialogs/partials/guide-toc.hbs",
-		"stonetop.intros-capture-head":       "systems/stonetop-pwd/templates/dialogs/partials/intros-capture-head.hbs",
-		"stonetop.threat-string-list":        "systems/stonetop-pwd/templates/dialogs/partials/threat-string-list.hbs",
-		"stonetop.card-doom-track":           "systems/stonetop-pwd/templates/journal/partials/card-doom-track.hbs",
-		"stonetop.card-gm-moves":             "systems/stonetop-pwd/templates/journal/partials/card-gm-moves.hbs",
-		"stonetop.card-player-moves":         "systems/stonetop-pwd/templates/journal/partials/card-player-moves.hbs",
+		"stonetop.arcanum-sheet":      "systems/stonetop_pwd/templates/item/arcanum-sheet.hbs",
+		"stonetop.arcanum-sheet-edit": "systems/stonetop_pwd/templates/item/arcanum-sheet-edit.hbs",
+		"stonetop.actor-header":     "systems/stonetop_pwd/templates/actor/partials/actor-header.hbs",
+		"stonetop.actor-stats":      "systems/stonetop_pwd/templates/actor/partials/actor-stats.hbs",
+		"stonetop.actor-vitals":     "systems/stonetop_pwd/templates/actor/partials/actor-vitals.hbs",
+		"stonetop.tab-details":      "systems/stonetop_pwd/templates/actor/partials/tab-details.hbs",
+		"stonetop.tab-moves":        "systems/stonetop_pwd/templates/actor/partials/tab-moves.hbs",
+		"stonetop.tab-equipment":    "systems/stonetop_pwd/templates/actor/partials/tab-equipment.hbs",
+		"stonetop.tab-invocations":  "systems/stonetop_pwd/templates/actor/partials/tab-invocations.hbs",
+		"stonetop.tab-followers":    "systems/stonetop_pwd/templates/actor/partials/tab-followers.hbs",
+		"stonetop.tab-arcana":       "systems/stonetop_pwd/templates/actor/partials/tab-arcana.hbs",
+		"stonetop.tab-post-death":      "systems/stonetop_pwd/templates/actor/partials/tab-post-death.hbs",
+		"stonetop.tab-special-moves":   "systems/stonetop_pwd/templates/actor/partials/tab-special-moves.hbs",
+		"stonetop.tab-notes":           "systems/stonetop_pwd/templates/actor/partials/tab-notes.hbs",
+		"stonetop.move-group":           "systems/stonetop_pwd/templates/actor/partials/move-group.hbs",
+		"stonetop.tab-search-control":   "systems/stonetop_pwd/templates/actor/partials/tab-search-control.hbs",
+		"stonetop.move-mark-level":      "systems/stonetop_pwd/templates/actor/partials/move-mark-level.hbs",
+		"stonetop.sidebar-move-list":    "systems/stonetop_pwd/templates/actor/partials/sidebar-move-list.hbs",
+		"stonetop.lore-section":          "systems/stonetop_pwd/templates/actor/partials/lore-section.hbs",
+		"stonetop.lore-options-edit":     "systems/stonetop_pwd/templates/actor/partials/lore-options-edit.hbs",
+		"stonetop.lore-options-readonly": "systems/stonetop_pwd/templates/actor/partials/lore-options-readonly.hbs",
+		"stonetop.lore-arcana-image":     "systems/stonetop_pwd/templates/actor/partials/lore-arcana-image.hbs",
+		"stonetop.relationships-table":  "systems/stonetop_pwd/templates/actor/partials/relationships-table.hbs",
+		"stonetop.relationships-board": "systems/stonetop_pwd/templates/actor/partials/relationships-board.hbs",
+		"stonetop.relationships-view":  "systems/stonetop_pwd/templates/actor/partials/relationships-view.hbs",
+		"stonetop.relationships-viewbar": "systems/stonetop_pwd/templates/actor/partials/relationships-viewbar.hbs",
+		"stonetop.section-heading":  "systems/stonetop_pwd/templates/actor/partials/section-heading.hbs",
+		"stonetop.section-collapse": "systems/stonetop_pwd/templates/actor/partials/section-collapse.hbs",
+		"stonetop.section-edit-toggle": "systems/stonetop_pwd/templates/actor/partials/section-edit-toggle.hbs",
+		"stonetop.details-section-edit-toggle": "systems/stonetop_pwd/templates/actor/partials/details-section-edit-toggle.hbs",
+		"stonetop.follower-section-edit": "systems/stonetop_pwd/templates/actor/partials/follower-section-edit.hbs",
+		"stonetop.resource-track":   "systems/stonetop_pwd/templates/actor/partials/resource-track.hbs",
+		"stonetop.inv-note":         "systems/stonetop_pwd/templates/actor/partials/inv-note.hbs",
+		"stonetop.inv-item-regular": "systems/stonetop_pwd/templates/actor/partials/inv-item-regular.hbs",
+		"stonetop.inv-item-small":   "systems/stonetop_pwd/templates/actor/partials/inv-item-small.hbs",
+		"stonetop.choice-gear-row":  "systems/stonetop_pwd/templates/actor/partials/choice-gear-row.hbs",
+		"stonetop.steading-section-toggle":   "systems/stonetop_pwd/templates/actor/partials/steading-section-toggle.hbs",
+		"stonetop.steading-tab-overview":     "systems/stonetop_pwd/templates/actor/partials/steading-tab-overview.hbs",
+		"stonetop.steading-tab-neighbors":    "systems/stonetop_pwd/templates/actor/partials/steading-tab-neighbors.hbs",
+		"stonetop.steading-tab-improvements": "systems/stonetop_pwd/templates/actor/partials/steading-tab-improvements.hbs",
+		"stonetop.steading-tab-moves":        "systems/stonetop_pwd/templates/actor/partials/steading-tab-moves.hbs",
+		"stonetop.steading-tab-notes":        "systems/stonetop_pwd/templates/actor/partials/steading-tab-notes.hbs",
+		"stonetop.monster-sheet":             "systems/stonetop_pwd/templates/actor/monster.hbs",
+		"stonetop.npc-sheet":                 "systems/stonetop_pwd/templates/actor/npc.hbs",
+		"stonetop.bestiary-line-list":        "systems/stonetop_pwd/templates/actor/partials/bestiary-line-list.hbs",
+		"stonetop.bestiary-page":             "systems/stonetop_pwd/templates/journal/bestiary.hbs",
+		"stonetop.location-page":             "systems/stonetop_pwd/templates/journal/location.hbs",
+		"stonetop.threat-page":               "systems/stonetop_pwd/templates/journal/threat-page.hbs",
+		"stonetop.threat-card":               "systems/stonetop_pwd/templates/journal/partials/threat-card.hbs",
+		"stonetop.hazard-page":               "systems/stonetop_pwd/templates/journal/hazard-page.hbs",
+		"stonetop.hazard-card":               "systems/stonetop_pwd/templates/journal/partials/hazard-card.hbs",
+		"stonetop.steading-tab-threats":      "systems/stonetop_pwd/templates/actor/partials/steading-tab-threats.hbs",
+		"stonetop.bestiary-section-head":     "systems/stonetop_pwd/templates/journal/partials/bestiary-section-head.hbs",
+		"stonetop.bestiary-group-section":    "systems/stonetop_pwd/templates/journal/partials/bestiary-group-section.hbs",
+		"stonetop.introductions-dialog":      "systems/stonetop_pwd/templates/dialogs/introductions.hbs",
+		"stonetop.guide-toc":                 "systems/stonetop_pwd/templates/dialogs/partials/guide-toc.hbs",
+		"stonetop.intros-capture-head":       "systems/stonetop_pwd/templates/dialogs/partials/intros-capture-head.hbs",
+		"stonetop.threat-string-list":        "systems/stonetop_pwd/templates/dialogs/partials/threat-string-list.hbs",
+		"stonetop.card-doom-track":           "systems/stonetop_pwd/templates/journal/partials/card-doom-track.hbs",
+		"stonetop.card-gm-moves":             "systems/stonetop_pwd/templates/journal/partials/card-gm-moves.hbs",
+		"stonetop.card-player-moves":         "systems/stonetop_pwd/templates/journal/partials/card-player-moves.hbs",
 	});
 });
 
@@ -546,7 +546,7 @@ Hooks.on("updateActor", (actor) => {
 	for (const steading of game.actors?.filter(a => a.type === "stonetop") ?? []) {
 		const openApps = Object.values(steading.apps ?? {});
 		if (!openApps.length) continue;
-		const people = steading.flags?.["stonetop-pwd"]?.steading ?? {};
+		const people = steading.flags?.["stonetop_pwd"]?.steading ?? {};
 		const rows = [...(people.residents ?? []), ...(people.neighbors ?? [])];
 		if (!rows.some(r => (r?.uuid && r.uuid === uuid) || (r?.id && r.id === id))) continue;
 		for (const app of openApps) app?.render?.(false);
@@ -567,8 +567,8 @@ Hooks.on("preUpdateActor", (actor, changes) => {
 	const newHp = foundry.utils.getProperty(changes, "system.attributes.hp.value");
 	if (newHp === undefined) return;
 	const oldHp = actor.system?.attributes?.hp?.value ?? 0;
-	if (newHp < oldHp && actor.getFlag("stonetop-pwd", "recover.spent")) {
-		foundry.utils.setProperty(changes, "flags.stonetop-pwd.recover.spent", false);
+	if (newHp < oldHp && actor.getFlag("stonetop_pwd", "recover.spent")) {
+		foundry.utils.setProperty(changes, "flags.stonetop_pwd.recover.spent", false);
 	}
 });
 
@@ -721,7 +721,7 @@ function _chatWireBurnBrightly(message, html) {
 
 	if (!actor || actor.type !== "character" || !actor.isOwner) return;
 
-	const alreadyBurned = message.getFlag("stonetop-pwd", "burnBrightly") ?? false;
+	const alreadyBurned = message.getFlag("stonetop_pwd", "burnBrightly") ?? false;
 	const xp    = actor.system?.attributes?.xp?.value    ?? 0;
 	const level = actor.system?.attributes?.level?.value ?? 1;
 	const canAfford = xp >= xpToLevelUp(level);
@@ -771,7 +771,7 @@ function _chatWireBurnBrightly(message, html) {
 				// Regenerate the card so the readout, result label and per-tier outcome reflect the +1.
 				flavor:  _shiftRollCardFlavor(message.flavor, roll.total, roll.formula),
 				speaker: { ...message.speaker, ...speakerUpdate },
-				flags:   { "stonetop-pwd": { burnBrightly: true } },
+				flags:   { "stonetop_pwd": { burnBrightly: true } },
 			});
 		} catch (err) {
 			console.error("Stonetop | Error burning brightly:", err);
@@ -791,7 +791,7 @@ function _chatWireRequisitionMissCost(message, html) {
 	const btn = html.querySelector(".stonetop-requisition-miss-cost");
 	if (!btn) return;
 
-	if (message.getFlag("stonetop-pwd", "requisitionMissCostApplied")) {
+	if (message.getFlag("stonetop_pwd", "requisitionMissCostApplied")) {
 		btn.disabled = true;
 		btn.textContent = "Miss cost applied";
 		return;
@@ -815,7 +815,7 @@ function _chatWireRequisitionMissCost(message, html) {
 			const fortunes = steading.getStatValue("fortunes");
 			const newFortunes = Math.max(fortunes - 1, -1);
 			await steading.setSystemValue("stats.fortunes.value", newFortunes, { stonetopMove: "Requisition" });
-			await message.setFlag("stonetop-pwd", "requisitionMissCostApplied", true);
+			await message.setFlag("stonetop_pwd", "requisitionMissCostApplied", true);
 			for (const sheet of Object.values(actor.apps ?? {})) sheet.render(false);
 			ui.notifications.info(`Fortunes reduced to ${sign(newFortunes)}.`);
 		} catch (err) {
@@ -835,7 +835,7 @@ function _chatWireLoveLetterPicks(message, html) {
 	const boxes = html.querySelectorAll(".stonetop-picklist-check");
 	if (!boxes.length) return;
 
-	const saved   = message.getFlag("stonetop-pwd", "pickChecked") ?? [];
+	const saved   = message.getFlag("stonetop_pwd", "pickChecked") ?? [];
 	const canSave = message.canUserModify?.(game.user, "update") ?? game.user.isGM;
 
 	for (const box of boxes) {
@@ -850,7 +850,7 @@ function _chatWireLoveLetterPicks(message, html) {
 			if (!canSave) return;
 			const arr = Array.from(boxes).map((b) => !!b.checked);
 			try {
-				await message.setFlag("stonetop-pwd", "pickChecked", arr);
+				await message.setFlag("stonetop_pwd", "pickChecked", arr);
 			} catch (err) {
 				console.error("Stonetop | Error saving love-letter picks:", err);
 			}

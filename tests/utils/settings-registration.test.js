@@ -28,10 +28,10 @@ const I18N = (() => {
 	return flat;
 })();
 
-/** Every `game.settings.register("stonetop-pwd", "<key>", { … })` block. */
+/** Every `game.settings.register("stonetop_pwd", "<key>", { … })` block. */
 function registrations() {
 	const out = [];
-	const re = /game\.settings\.register\("stonetop-pwd",\s*"([A-Za-z0-9_]+)",\s*\{/g;
+	const re = /game\.settings\.register\("stonetop_pwd",\s*"([A-Za-z0-9_]+)",\s*\{/g;
 	for (const m of SETTINGS_SRC.matchAll(re)) {
 		// Slice to the end of the options object (the first line that closes it at
 		// the register call's indentation).

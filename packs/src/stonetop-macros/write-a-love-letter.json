@@ -1,7 +1,7 @@
 {
   "name": "Write a Love Letter",
   "type": "script",
-  "img": "systems/stonetop-pwd/assets/icons/macros/love-letter.svg",
+  "img": "systems/stonetop_pwd/assets/icons/macros/love-letter.svg",
   "scope": "global",
   "command": "game.stonetop?.openLoveLetter?.()",
   "folder": null,

@@ -13,7 +13,7 @@ import { SYSTEM_ID } from "../system-id.js";
  *
  * So a frame chosen in-world is stored as DATA rather than cut to a file:
  *
- *     flags["stonetop-pwd"].portraitFrame = { src, rect: [x0, y0, x1, y1] }
+ *     flags["stonetop_pwd"].portraitFrame = { src, rect: [x0, y0, x1, y1] }
  *
  * Fractions of the image named by `src`. Storing the rect rather than baking a file is what lets
  * a PLAYER frame their own follower's portrait — cutting a file needs FILES_UPLOAD, which most
@@ -22,7 +22,7 @@ import { SYSTEM_ID } from "../system-id.js";
  * reversible: clearing the flag restores the blind crop, and no orphan file is left behind.
  *
  * ⚠ THE STAMP KEY IS `src`, NEVER `img`. module/book2-art/repoint-portraits.js walks every object
- * under `flags["stonetop-pwd"]` to depth 6 and rewrites any key literally named `img` from an
+ * under `flags["stonetop_pwd"]` to depth 6 and rewrites any key literally named `img` from an
  * illustration path to its square. A frame stored as `{ img, rect }` would be silently repointed
  * at the square, permanently detaching every authored rect from the picture it was measured on —
  * with no error and no way to tell afterwards. `isValidFrame` rejects that alias on purpose.
@@ -46,7 +46,7 @@ import { SYSTEM_ID } from "../system-id.js";
  * The frame a document carries, or null.
  *
  * ⚠ Bracketed and built from SYSTEM_ID, never written out: the package id is hyphenated, so a
- * dotted `flags.stonetop-pwd.portraitFrame` parses as a subtraction and throws "pwd is not
+ * dotted `flags.stonetop_pwd.portraitFrame` parses as a subtraction and throws "pwd is not
  * defined". Every display surface goes through here rather than spelling the read out, so a
  * scope rename moves one literal instead of six — and six that silently resolve to `undefined`
  * would revert every hand-chosen crop to the blind top slice with no error to notice.
