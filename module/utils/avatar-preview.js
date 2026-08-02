@@ -74,6 +74,40 @@ export function removeAvatarPreview() {
 }
 
 /**
+ * Take the preview down as soon as its thumbnail leaves the document.
+ *
+ * `mouseleave` is the ordinary teardown and it is enough while the thumbnail stays put. It is
+ * not enough when the thumbnail is REMOVED from under the pointer, and this codebase now does
+ * that constantly: closing a sheet with Escape, a re-render replacing the row, switching tabs,
+ * folding a section shut, flipping a relationships section between table and board. None of
+ * those move the pointer, so whether a `mouseleave` arrives at all comes down to whether the
+ * browser synthesises a boundary event into a subtree it is already detaching — not something
+ * to rest a popup's lifetime on. When it doesn't, the preview is portaled to <body> with
+ * nothing left in the document to fire the listener, so it simply hangs there until the next
+ * hover happens to clear it on its way in.
+ *
+ * Watching the anchor rather than hooking `closeApplication` because closing a window is only
+ * one of those paths — the re-render and tab cases have no close to hook, and a detached
+ * anchor is the one condition all of them share.
+ *
+ * One `isConnected` read per frame, for exactly as long as a preview is on screen: the loop
+ * stops itself the moment the popup goes, whichever teardown got there first.
+ *
+ * Exported so the stop conditions are testable without a browser — it reads four properties
+ * and calls one method, so a plain object stands in for either node.
+ */
+export function watchAnchor(popup, anchor) {
+	if (typeof requestAnimationFrame !== "function") return;
+	const tick = () => {
+		// Already taken down (mouseleave, a fresh preview, an explicit remove) — stop watching.
+		if (!popup.isConnected) return;
+		if (!anchor.isConnected) { popup.remove(); return; }
+		requestAnimationFrame(tick);
+	};
+	requestAnimationFrame(tick);
+}
+
+/**
  * Where the popup sits relative to its anchor. Both flip to the opposite side when the
  * preferred one would run off the viewport, then clamp on both axes — a thumbnail near a
  * window edge is the common case, not the exception.
@@ -197,6 +231,9 @@ export function showAvatarPreview(anchor, { placement = "below", variant = "" } 
 	// must not lose to anything the theme sets on body-level children.
 	const z = Number.parseInt(anchor.closest(".app, .application")?.style?.zIndex) || 0;
 	popup.style.setProperty("z-index", String(Math.max(10000, z + 2)), "important");
+
+	// Last, so the watchdog only ever runs for a preview that actually made it onto the screen.
+	watchAnchor(popup, anchor);
 	return popup;
 }
 
