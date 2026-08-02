@@ -20,13 +20,23 @@
 
 import { SYSTEM_ID } from "../system-id.js";
 import { PRIOR_SYSTEM_IDS } from "./compat.js";
-import { finishDocuments, residualCount, rewriteSheetClasses, rewriteCompendiumConfiguration } from "./finish.js";
+import { finishDocuments, residualCount, rewriteSheetClasses, rewriteCompendiumConfiguration, walkTargets } from "./finish.js";
 import { allTargets } from "./run.js";
 import { getSetting, setSetting } from "../settings.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
+import { progressSlice } from "../utils/progress-slice.js";
+import { openProgressNotification } from "../utils/progress-notification.js";
 
 /** Records which system id the sweep last completed for, so a later rename re-runs it. */
 export const FINISH_SETTING = "idMigrationFinishedFor";
+
+// Where the sweep's two passes sit on one bar. Both walk every document in the world, so they
+// cost roughly the same to plan; the rewrite pass also writes, which is what buys it the
+// larger share. Boundaries rather than widths so the pair visibly tiles 0..1 (progressSlice).
+const FINISH_PHASES = {
+	rewrite: [0, 0.8],
+	verify:  [0.8, 1],
+};
 
 /**
  * Rewrite the two core settings that key on the package id.
@@ -56,19 +66,24 @@ export async function rewriteCoreSettings(game, options = {}) {
 /**
  * Count what still names an older id after the sweep, so a partial run is visible rather
  * than silent. Reports the worst offenders instead of just a total.
+ *
+ * Async only so it can breathe. This is a second full walk of every document in the world
+ * with no writes in it, which is to say no awaits of its own: left alone it is the single
+ * longest uninterrupted block of main thread in the whole run, and it lands right where the
+ * bar is supposed to be finishing.
  */
-export function scanResiduals(targets, options = {}) {
+export async function scanResiduals(targets, options = {}) {
 	let total = 0;
 	const worst = [];
-	for (const target of targets ?? []) {
+	await walkTargets(targets, options.onProgress, (target) => {
 		let count = 0;
 		for (const doc of target.docs) {
 			count += residualCount(typeof doc.toObject === "function" ? doc.toObject() : doc, options);
 		}
-		if (!count) continue;
+		if (!count) return;
 		total += count;
 		worst.push({ label: target.label, count });
-	}
+	});
 	worst.sort((a, b) => b.count - a.count);
 	return { total, worst: worst.slice(0, 5) };
 }
@@ -98,8 +113,12 @@ export async function runFinishOnce(game, options = {}) {
 
 	const targets = await allTargets(game);
 	const settings = await rewriteCoreSettings(game, { systemId, priorIds });
-	const documents = await finishDocuments(targets, { systemId, priorIds, onProgress });
-	const residual = scanResiduals(targets, { systemId });
+	const documents = await finishDocuments(targets, {
+		systemId, priorIds, onProgress: progressSlice(onProgress, FINISH_PHASES.rewrite)
+	});
+	const residual = await scanResiduals(targets, {
+		systemId, onProgress: progressSlice(onProgress, FINISH_PHASES.verify)
+	});
 
 	await write?.(systemId);
 
@@ -116,15 +135,34 @@ export async function runFinishOnce(game, options = {}) {
 /**
  * The Ready-hook entry point. Wires runFinishOnce to this world's settings and the
  * primary-GM gate, and tells the GM when a reload is needed to settle sheet defaults.
+ *
+ * Narrated, because this is the one wait in the system nobody chose: it is awaited on the
+ * ready path before any sheet renders, and on a world that actually carries a rename it is
+ * seconds of a world that looks finished loading and is not. A notification rather than a
+ * window because the setup window is about to want the screen, and because most worlds settle
+ * inside the bar's own delay and should never see one at all.
  */
 export async function finishSystemIdMigration(game = globalThis.game) {
-	const result = await runFinishOnce(game, {
-		read:   () => getSetting(FINISH_SETTING),
-		write:  (value) => setSetting(FINISH_SETTING, value),
-		// isPrimaryGM() alone is true when NO GM is connected, so a lone player would run
-		// the whole sweep on the awaited ready path and then fail on the world-setting write.
-		canRun: () => Boolean(game?.user?.isGM) && isPrimaryGM()
-	});
+	const bar = openProgressNotification("Stonetop: moving this world to its new system ID");
+	let result;
+	try {
+		result = await runFinishOnce(game, {
+			read:   () => getSetting(FINISH_SETTING),
+			write:  (value) => setSetting(FINISH_SETTING, value),
+			// isPrimaryGM() alone is true when NO GM is connected, so a lone player would run
+			// the whole sweep on the awaited ready path and then fail on the world-setting write.
+			canRun: () => Boolean(game?.user?.isGM) && isPrimaryGM(),
+			onProgress: p => bar.update(p)
+		});
+	} catch (err) {
+		// Take the bar away rather than completing it. A sweep that died part-way leaves the
+		// world half-rewritten and the completion stamp unwritten, so the next load retries it;
+		// signing off with a full bar would tell the GM the opposite. Either way the bar goes,
+		// because core never times a progress notification out on its own.
+		bar.abandon();
+		throw err;
+	}
+	bar.close();
 
 	if (!result.ran) return result;
 

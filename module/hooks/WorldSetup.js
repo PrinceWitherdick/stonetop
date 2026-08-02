@@ -4,9 +4,10 @@ import { isPrimaryGM } from "../utils/primary-gm.js";
 import { WorldSetupDialog } from "../dialogs/WorldSetupDialog.js";
 import { PosterMapScenesDialog } from "../dialogs/PosterMapScenesDialog.js";
 import {
-	needsJournalSeed, seedCompendiumJournalsOnce, restampSeededJournalSources,
+	needsJournalSeed, needsJournalSync, seedCompendiumJournalsOnce, restampSeededJournalSources,
 	updateSeededJournalsOnVersionChange, syncSeededFolderColors, unnestSeededWorldRootOnce,
 } from "./SeedCompendiums.js";
+import { openProgressNotification } from "../utils/progress-notification.js";
 import { needsBestiaryActorSeed, seedBestiaryActorsOnce, collapseBestiaryActorSubfoldersOnce } from "./SeedActors.js";
 import { needsTreasureItemSeed, seedTreasureItemsOnce } from "./SeedItems.js";
 import { reapplyBook2ArtOnVersionChange, reapplyBook2Art } from "../book2-art/reapply.js";
@@ -51,6 +52,15 @@ const STEP_DEFS = {
 		key: "journals", label: "Journals, gazetteer and bestiary codex",
 		starting: "Reading the Stonetop compendium",
 		failed:   "Could not finish importing the journals — it will retry next load",
+	},
+	// Not the same row as `journals`, and never shown alongside it. That one is the one-time
+	// import a new world owes; this is the per-version update channel an ESTABLISHED world runs
+	// forever, and on such a world it is the only thing happening. Sharing the import's row
+	// would have told a GM three releases in that their world was still importing journals.
+	journalSync: {
+		key: "journalSync", label: "Journal updates from this release",
+		starting: "Comparing your journals with the new version",
+		failed:   "Could not finish updating the journals. It will retry next load.",
 	},
 	monsters: {
 		key: "monsters", label: "Monster sheets",
@@ -120,25 +130,33 @@ async function runLane(dialog, { key, starting, failed }, work) {
  */
 export function runWorldSetup() {
 	const pending = pendingSetupWork();
-	const anyImports = pending.journals || pending.monsters || pending.treasures;
+	// The version sync is the established world's equivalent of an import: it walks every
+	// seeded journal on the first load after each release, which is a real wait on a world
+	// that will never have a `pending` anything again. Gated separately from pendingSetupWork
+	// because it answers a different question (see needsJournalSync), and suppressed while the
+	// seed is pending because the seed stamps the sync's version on its way out, so the two
+	// can never both have work in the same run.
+	const syncingJournals = !pending.journals && needsJournalSync();
+	const anyWork = pending.journals || pending.monsters || pending.treasures || syncingJournals;
 
 	// The window only opens when there is genuinely a wait to explain. On a settled world
 	// this whole module is a couple of guarded no-ops and a self-heal, and popping a
 	// progress window for that would be noise.
 	const steps = [
 		STEP_DEFS.art,
-		...(pending.journals  ? [STEP_DEFS.journals]  : []),
-		...(pending.monsters  ? [STEP_DEFS.monsters]  : []),
-		...(pending.treasures ? [STEP_DEFS.treasures] : []),
+		...(pending.journals  ? [STEP_DEFS.journals]    : []),
+		...(syncingJournals   ? [STEP_DEFS.journalSync] : []),
+		...(pending.monsters  ? [STEP_DEFS.monsters]    : []),
+		...(pending.treasures ? [STEP_DEFS.treasures]   : []),
 		STEP_DEFS.finish,
 	];
-	const dialog = anyImports ? WorldSetupDialog.open(steps) : null;
+	const dialog = anyWork ? WorldSetupDialog.open(steps) : null;
 
 	// Every lane runs on every GM load, exactly as before. `pending` decides only whether the
 	// lane is NARRATED — each of these chains carries one-time repairs and per-version syncs
 	// (the journal update channel, the retired-folder un-nest, the Bestiary tree collapse)
 	// that an already-seeded world still needs, and every call self-guards.
-	const journals = runArtAndJournals(dialog, pending.journals);
+	const journals = runArtAndJournals(dialog, { narrateSeed: pending.journals, narrateSync: syncingJournals });
 	const monsters = runLane(pending.monsters ? dialog : null, STEP_DEFS.monsters, async report => {
 		// The seed is once-per-world; the collapse is a one-time repair for worlds seeded
 		// under the old deep folder tree, so it has to keep running on already-seeded worlds
@@ -170,7 +188,13 @@ export function runWorldSetup() {
 // The chain after the seed is NOT part of the seed: restamp / version-sync / un-nest /
 // recolour are per-load and per-version maintenance an already-seeded world still needs,
 // so they run whether or not there is anything to import.
-async function runArtAndJournals(dialog, narrate) {
+//
+// Split across two lanes rather than one because the two halves belong to different worlds: a
+// fresh world does the seed and finds the sync already stamped, an established one does the
+// reverse. They stay in one function, and in this order, because the order is load-bearing.
+// The restamp has to precede the sync (it puts back the compendiumSource stamps the sync keys
+// on), and the un-nest has to precede the recolour (which matches folders by top-level name).
+async function runArtAndJournals(dialog, { narrateSeed, narrateSync } = {}) {
 	await runLane(dialog, STEP_DEFS.art, async () => {
 		const result = await reapplyBook2ArtOnVersionChange();
 		if (!result) return { skip: "No imported book art found — you can import it later" };
@@ -179,13 +203,24 @@ async function runArtAndJournals(dialog, narrate) {
 			: "Your imported book art is already in place";
 	});
 
-	await runLane(narrate ? dialog : null, STEP_DEFS.journals, async report => {
+	await runLane(narrateSeed ? dialog : null, STEP_DEFS.journals, async report => {
 		await seedCompendiumJournalsOnce({ onProgress: report });
 		await restampSeededJournalSources();
-		await updateSeededJournalsOnVersionChange();
+		return `${game.journal?.size ?? 0} journal entries are in your sidebar`;
+	});
+
+	// A seed that failed leaves `seedingComplete` unset, which is the sync's own guard, so
+	// this lane no-ops rather than working against a half-imported sidebar.
+	await runLane(narrateSync ? dialog : null, STEP_DEFS.journalSync, async report => {
+		const sync = await updateSeededJournalsOnVersionChange({ onProgress: report });
+		// These two are per-load repairs rather than part of the sync, so they run either way.
 		await unnestSeededWorldRootOnce();
 		await syncSeededFolderColors();
-		return `${game.journal?.size ?? 0} journal entries are in your sidebar`;
+		// The sync reports a failed baseline write by leaving this version unrecorded, on
+		// purpose, so the next load retries it. That is a failed step, not a finished one, and
+		// the row has to say so or the GM is told a write landed that did not.
+		if (!sync?.stamped) throw new Error("journal baselines were not stamped; the next load will retry");
+		return "Your journals are up to date with this release";
 	});
 }
 
@@ -248,11 +283,29 @@ export async function offerPosterMapScenesOnce({ artOnDisk = null } = {}) {
 	});
 	if (!chosen.length) return;
 
-	// Each map is a probe, a Scene write and a thumbnail render, so a few of them take a
-	// noticeable moment with nothing on screen. The setup window has already closed itself
-	// by now, so say so here rather than reopening it for a five-item job.
-	ui.notifications?.info(`Stonetop: building ${chosen.length} map scene${chosen.length === 1 ? "" : "s"}…`);
-	const result = await createPosterMapScenes(chosen);
+	// Each map is a probe, a Scene write and a thumbnail render of an image up to ~28 megapixels,
+	// so five of them is ten seconds or so. The setup window has already closed itself by now
+	// and reopening it for a five-item job would be more furniture than the wait deserves, so
+	// this rides the notification bar instead. No delay before it appears: the GM just pressed
+	// the button and is watching for something to happen.
+	//
+	// createPosterMapScenes has always reported per map; until now nothing was listening, so
+	// the only feedback was a toast that faded after five seconds while the work ran on.
+	const bar = openProgressNotification(
+		`Stonetop: building ${chosen.length} map scene${chosen.length === 1 ? "" : "s"}`,
+		{ delayMs: 0 }
+	);
+	let result;
+	try {
+		result = await createPosterMapScenes(chosen, { onProgress: p => bar.update(p) });
+	} catch (err) {
+		// Take the bar away rather than completing it — close() drives it to 100% first, which
+		// would sign a died-part-way run off as finished. Same contract as the id sweep's bar
+		// (see migration/finish-run.js).
+		bar.abandon();
+		throw err;
+	}
+	bar.close();
 	const built = result.created + result.updated;
 	if (built) {
 		ui.notifications?.info(`Stonetop: ${result.created} map scene${result.created === 1 ? "" : "s"} created`

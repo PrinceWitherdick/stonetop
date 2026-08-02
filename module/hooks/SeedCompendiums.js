@@ -4,6 +4,7 @@ import { invalidateLocationSummaryIndex } from "../locations/location-tooltips.j
 import { makeRewriter, remapPageData, managedHash, carryOverPageState, planSourceRestamp } from "./journal-sync-core.js";
 import { compendiumSourceOf } from "../utils/foundry-compat.js";
 import { progressSlice, progressSubSlice } from "../utils/progress-slice.js";
+import { makePaintYielder } from "../utils/paint-yield.js";
 import { SEEDED_FOLDER_COLORS, rawFolderColor, planSeededFolderColorUpdates, seededFolderColorSignature } from "./seeded-folder-colors.js";
 import { isOurCompendiumRef, seededSourceKeys, compendiumRefTail } from "../migration/compat.js";
 
@@ -361,6 +362,51 @@ function buildWorldLinkMap() {
 	return map;
 }
 
+/**
+ * Whether the journal update channel has anything to do this load. The sync's own guard,
+ * lifted out for the same reason needsJournalSeed is: the first-load setup window
+ * (hooks/WorldSetup.js) decides whether to open on it, and a second copy of these conditions
+ * would be a second thing to keep in step.
+ *
+ * Deliberately NOT folded into pendingSetupWork(): that reports the one-time content IMPORTS
+ * a world still owes, and this is per-version maintenance an already-seeded world does
+ * forever. They answer different questions and are gated separately.
+ */
+export function needsJournalSync() {
+	return !!game.user?.isGM
+		&& !!getSetting("seedingComplete")
+		&& getSetting("journalSyncVersion") !== game.system?.version;
+}
+
+// Every entry the journal pack ships, keyed by its package-id-free identity so a world seeded
+// under an older system id still matches its source (see compendiumRefTail).
+//
+// One bulk read in place of a `fromUuid` per world entry. The sync walks ~240 seeded entries
+// on the GM's first load after EVERY version bump, including the majority of releases that
+// change no journal content at all, and it does it on the awaited ready path. Returning an
+// empty map on failure is not a silent loss: the caller falls back to resolving that entry's
+// source on its own, which is what this replaced.
+async function shippedJournalsByTail() {
+	const pack = game.packs.get(JOURNAL_PACK_ID);
+	if (!pack) return new Map();
+	try {
+		const docs = await pack.getDocuments();
+		return new Map(docs.map(doc => [compendiumRefTail(doc.uuid), doc]).filter(([tail]) => tail));
+	} catch (err) {
+		error("Failed to read the journal pack for the version sync:", err);
+		return new Map();
+	}
+}
+
+// One entry's baseline stamp as update data, so a few hundred of them can go in a single
+// call. A DOTTED key, which is what makes this equivalent to setFlag: it merges into the
+// entry's existing flags rather than replacing the whole `flags` object and taking the
+// reader's checkbox state (`flags.stonetop.checks`) with it. The hyphen in the scope is safe
+// here because this is a string key, not a property access.
+function stampUpdate(entry, hash, version) {
+	return { _id: entry.id, "flags.stonetop-pwd.journalSync": { hash, version } };
+}
+
 // On a system-version bump, roll newly-shipped journal content into the world — but
 // only for entries the GM hasn't touched. An entry is "pristine" when its current
 // content fingerprint still equals the baseline we stamped when we last wrote it; a
@@ -370,19 +416,44 @@ function buildWorldLinkMap() {
 //
 // Runs GM-only, once per version (guarded by the `journalSyncVersion` setting). Does
 // nothing until the world has been seeded — fresh installs go through the seed path.
-export async function updateSeededJournalsOnVersionChange() {
-	if (!game.user?.isGM) return;
-	if (!getSetting("seedingComplete")) return;
+//
+// Reports `{ fraction, detail }` per entry so the setup window can show a row for it. Worth a
+// row on its own: on a settled world this is the ONLY thing running, and it used to be a
+// silent multi-second stall on the first load after every update.
+//
+// Returns `{ stamped }`. False means the pass deliberately left this version unrecorded so the
+// next load retries it, which the caller has to know about: a row that ticks itself off green
+// after a write that did not land is worse than no row.
+//
+// @returns {Promise<{stamped: boolean}>}
+export async function updateSeededJournalsOnVersionChange({ onProgress } = {}) {
+	if (!needsJournalSync()) return { stamped: true };
 	const version = game.system.version;
-	if (getSetting("journalSyncVersion") === version) return;
 
 	const rewrite = makeRewriter(buildWorldLinkMap());
+	const shipped = await shippedJournalsByTail();
+	const entries = (game.journal ?? []).filter(e => isOurCompendiumRef(compendiumSourceOf(e)));
 	const updated = [], skipped = [];
+	// Entries whose content is already right and only need their version stamp moved on. This
+	// is the overwhelming majority on a release that changed no journals, and it is the whole
+	// reason the pass was slow: one awaited setFlag each, which is one server round trip and
+	// one sidebar re-render broadcast per entry.
+	const stamps = [];
+	// Batching the stamps and prefetching the pack took every await out of the common path,
+	// which is the point of both, but it also means this loop would hold the main thread from
+	// the first entry to the last and the row above could never draw a frame. The yield goes at
+	// the TOP of the body because four of the branches below `continue`, and those are exactly
+	// the cheap-and-common ones a bottom-of-body yield would skip. See paint-yield.js.
+	const yieldToPaint = makePaintYielder();
 
-	for (const entry of game.journal ?? []) {
+	for (const [index, entry] of entries.entries()) {
+		onProgress?.({
+			fraction: (index + 1) / entries.length,
+			detail: `Checking ${index + 1} of ${entries.length}`,
+		});
+		await yieldToPaint();
 		const src = compendiumSourceOf(entry);
-		if (!isOurCompendiumRef(src)) continue;
-		const source = await fromUuid(src);
+		const source = shipped.get(compendiumRefTail(src)) ?? await fromUuid(src);
 		if (!source) continue; // entry dropped from the pack this version — leave the world copy
 
 		const worldHash = managedHash(entry.toObject());
@@ -399,17 +470,22 @@ export async function updateSeededJournalsOnVersionChange() {
 		// world copy still matches the shipped content — otherwise we can't tell an edit
 		// from version drift, so we never risk clobbering it.
 		if (!baseline?.hash) {
-			if (worldHash === newHash) await entry.setFlag("stonetop-pwd", "journalSync", { hash: newHash, version });
+			if (worldHash === newHash) stamps.push(stampUpdate(entry, newHash, version));
 			else skipped.push(entry.name);
 			continue;
 		}
 
 		// Pristine. If the shipped content is unchanged, just bump the version stamp.
-		if (newHash === worldHash) { await entry.setFlag("stonetop-pwd", "journalSync", { hash: newHash, version }); continue; }
+		if (newHash === worldHash) { stamps.push(stampUpdate(entry, newHash, version)); continue; }
 
 		// Pristine and the shipped version differs → refresh the entry's pages in place,
 		// carrying over reader state (checkbox ticks) the content hash doesn't track so
 		// updating the content doesn't wipe a player's progress.
+		//
+		// This branch keeps its own inline stamp rather than joining the batch: it has just
+		// rewritten the entry's pages, and a baseline that lands separately from the content
+		// it describes would read as a GM edit on the next load and freeze the entry out of
+		// the update channel for good.
 		try {
 			const oldPageIds = entry.pages.map(p => p.id);
 			const pagesToCreate = carryOverPageState(newPages, entry.toObject().pages)
@@ -425,8 +501,11 @@ export async function updateSeededJournalsOnVersionChange() {
 		}
 	}
 
-	await setSetting("journalSyncVersion", version);
-
+	// Report and invalidate BEFORE the stamp write, because these describe work the loop above
+	// has already done and committed: pages recreated, links remapped, edits kept. The stamps are
+	// only baselines for the NEXT run, so whether they land says nothing about any of it — and
+	// failing to invalidate would leave the cached summaries pointing at page data that no longer
+	// exists for the rest of the session, which is a wrong tooltip rather than a retryable one.
 	if (updated.length || skipped.length) {
 		invalidateLocationSummaryIndex(); // links/summaries may have moved
 		const parts = [];
@@ -435,4 +514,19 @@ export async function updateSeededJournalsOnVersionChange() {
 		ui.notifications?.info(`Stonetop: ${parts.join("; ")}.`);
 		info(`Journal sync → v${version}. Updated: [${updated.join(", ")}]. Skipped (edited): [${skipped.join(", ")}].`);
 	}
+
+	if (stamps.length) {
+		try {
+			await JournalEntry.updateDocuments(stamps);
+		} catch (err) {
+			// Leave journalSyncVersion unstamped so the next load retries the whole pass, the
+			// same contract every other seed here keeps. Re-running is free: the entries that
+			// did land re-hash to the same value and simply get stamped again.
+			error("Failed to stamp seeded journal baselines:", err);
+			return { stamped: false };
+		}
+	}
+
+	await setSetting("journalSyncVersion", version);
+	return { stamped: true };
 }

@@ -49,7 +49,21 @@ function harness({ isGM = true, activeGmId = "gm-1", settings = {}, packs = ["st
 		packs: { get: (id) => (packs.includes(id) ? { collection: id } : undefined) },
 		system: { id: "stonetop-pwd", version: "9.9.9" },
 	};
-	global.ui = { notifications: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } };
+	global.ui = {
+		notifications: {
+			// Core hands back a live handle when asked for a progress notification, and only
+			// then. That is what utils/progress-notification.js drives, so the fake has to make
+			// the same distinction or a bar test passes against nothing.
+			info: vi.fn((_message, { progress } = {}) => (progress ? { update: vi.fn(), remove: vi.fn() } : undefined)),
+			warn: vi.fn(),
+			error: vi.fn(),
+		},
+	};
+}
+
+/** The handle handed to the most recent progress notification, or undefined if none was opened. */
+function progressBar() {
+	return globalThis.ui.notifications.info.mock.results.map(r => r.value).findLast(v => v?.update);
 }
 
 beforeEach(() => {
@@ -98,8 +112,47 @@ describe("offerPosterMapScenesOnce", () => {
 		await offerPosterMapScenesOnce();
 
 		expect(ask).toHaveBeenCalledWith(rows);
-		expect(createPosterMapScenes).toHaveBeenCalledWith([rows[0]]);
+		expect(createPosterMapScenes).toHaveBeenCalledWith([rows[0]], { onProgress: expect.any(Function) });
 		expect(store.posterMapScenesOffered).toBe(true);
+	});
+
+	// The builder has always reported per map; for a long time nothing was listening, so the
+	// only feedback was a toast that faded after five seconds while the work carried on.
+	it("drives a progress bar off the builder's per-map reports", async () => {
+		const rows = [MAP("vicinity"), MAP("marshedge")];
+		posterMapScenePlan.mockResolvedValue(rows);
+		ask.mockResolvedValue(rows);
+		createPosterMapScenes.mockImplementation(async (built, { onProgress } = {}) => {
+			built.forEach((_row, i) => onProgress?.({ fraction: (i + 1) / built.length, detail: `${i + 1} of ${built.length} maps` }));
+			return { created: 2, updated: 0, pins: 0, failures: [] };
+		});
+
+		await offerPosterMapScenesOnce();
+
+		const bar = progressBar();
+		// Core takes pct on 0..1, not a percentage, and escapes the note via `format`.
+		expect(bar.update).toHaveBeenCalledWith(expect.objectContaining({
+			pct: 0.5,
+			format: expect.objectContaining({ detail: "1 of 2 maps" }),
+		}));
+		expect(bar.update).toHaveBeenCalledWith(expect.objectContaining({ pct: 1 }));
+	});
+
+	// A bar that stops at 99% stays on screen for the rest of the session: core exempts progress
+	// notifications from the usual timeout and dismisses one only at exactly 1. So a run that dies
+	// part-way must still take its bar away — but by REMOVING it, not by completing it. close()
+	// would drive it to 100% first, telling the GM the scenes were built when they were not.
+	it("takes the bar away, without completing it, when a map fails to build", async () => {
+		const rows = [MAP("vicinity")];
+		posterMapScenePlan.mockResolvedValue(rows);
+		ask.mockResolvedValue(rows);
+		createPosterMapScenes.mockRejectedValue(new Error("unreadable image"));
+
+		await expect(offerPosterMapScenesOnce()).rejects.toThrow("unreadable image");
+
+		const bar = progressBar();
+		expect(bar.remove).toHaveBeenCalled();
+		expect(bar.update).not.toHaveBeenCalledWith(expect.objectContaining({ pct: 1 }));
 	});
 
 	it("records the offer even when the GM declines, so it never nags", async () => {
