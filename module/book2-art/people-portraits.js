@@ -110,6 +110,20 @@ function index(people) {
 const swapBasename = (src, file) => String(src).slice(0, String(src).lastIndexOf("/") + 1) + file;
 
 /**
+ * The filename part of a path, with any `?query` or `#hash` removed.
+ *
+ * The strip is load-bearing, not tidiness. The Tokenizer module (vtta-tokenizer) rewrites
+ * `actor.img` to `<path>?<timestamp>` on every run, as a deliberate cache-buster. Without this,
+ * the very first tokenize of an NPC wearing a shipped square detaches it from the manifest: the
+ * lookup below misses, the hover preview silently stops swapping in the whole illustration, and
+ * the on-disk square resolver stops matching. Nothing throws, so nothing announces it.
+ */
+const basenameOf = (p) => {
+	const s = String(p);
+	return s.slice(s.lastIndexOf("/") + 1).split("#")[0].split("?")[0];
+};
+
+/**
  * The whole illustration behind a square portrait path, or null if this is not one.
  *
  * Checked against the manifest rather than merely stripping the suffix, so a GM's own file that
@@ -118,18 +132,18 @@ const swapBasename = (src, file) => String(src).slice(0, String(src).lastIndexOf
 export function fullPortraitSrc(src, people) {
 	if (!src) return null;
 	const s = String(src);
-	const file = s.slice(s.lastIndexOf("/") + 1);
-	const full = index(people).toFull.get(file);
-	return full ? swapBasename(s, full) : null;
+	const full = index(people).toFull.get(basenameOf(s));
+	// The swap drops any query string with the basename, which is correct: the caller wants the
+	// illustration's real path, and a cache-buster minted for a different file means nothing here.
+	return full ? swapBasename(s.split("#")[0].split("?")[0], full) : null;
 }
 
 /** The square cut from this illustration, or null. The inverse of `fullPortraitSrc`. */
 export function squarePortraitSrc(src, people) {
 	if (!src) return null;
 	const s = String(src);
-	const file = s.slice(s.lastIndexOf("/") + 1);
-	const square = index(people).toSquare.get(file);
-	return square ? swapBasename(s, square) : null;
+	const square = index(people).toSquare.get(basenameOf(s));
+	return square ? swapBasename(s.split("#")[0].split("?")[0], square) : null;
 }
 
 /** Shape-only test, for callers with no manifest to hand (the manifest's own parity checks). */

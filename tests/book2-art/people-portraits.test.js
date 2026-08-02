@@ -116,3 +116,27 @@ describe("square <-> whole illustration lookup", () => {
 		expect(squarePortraitSrc(fullSrc, [person("b1-p135-x526")])).toBe(null);
 	});
 });
+
+describe("cache-busted paths", () => {
+	// vtta-tokenizer rewrites actor.img to `<path>?<timestamp>` on every run. Before this, the
+	// first tokenize of an NPC wearing a shipped square silently detached it from the manifest:
+	// the hover preview stopped swapping in the whole illustration and the on-disk square
+	// resolver stopped matching, with nothing thrown and nothing to notice.
+	const people = [withSquare("kel", [0.25, 0, 0.75, 0.25])];
+	const squareOut = people[0].portraitOut;
+
+	it("resolves a square to its illustration through a query string", () => {
+		expect(fullPortraitSrc(`${ROOT}/${squareOut}?1754099`, people))
+			.toBe(`${ROOT}/assets/people/kel.webp`);
+	});
+
+	it("resolves it through a hash too, and drops the suffix from the answer", () => {
+		expect(fullPortraitSrc(`${ROOT}/${squareOut}#x`, people))
+			.toBe(`${ROOT}/assets/people/kel.webp`);
+	});
+
+	it("finds the square from a cache-busted illustration path", () => {
+		expect(squarePortraitSrc(`${ROOT}/assets/people/kel.webp?9`, people))
+			.toBe(`${ROOT}/${squareOut}`);
+	});
+});

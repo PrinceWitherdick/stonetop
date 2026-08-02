@@ -120,13 +120,17 @@ function cropToCanvas(img, [x0, y0, x1, y1]) {
  * a path that browse reported but the browser cannot read (a truncated upload, say) fails its
  * own item rather than the whole batch. Shared with the poster-map scene builder.
  */
-export function loadImage(src) {
+export function loadImage(src, { crossOrigin = "anonymous" } = {}) {
 	return new Promise((resolve, reject) => {
 		const img = new Image();
 		// The art folder is same-origin (it is served out of the user's own data path), but ask
 		// for anonymous CORS anyway so the canvas is never tainted — a tainted canvas throws only
 		// at toBlob, i.e. after all the work.
-		img.crossOrigin = "anonymous";
+		//
+		// A caller that never touches a canvas passes null instead, because this default makes the
+		// load FAIL outright against any host sending no CORS headers — which is most of the web,
+		// and exactly the external art the portrait framer is expected to open.
+		if (crossOrigin !== null) img.crossOrigin = crossOrigin;
 		img.onload = () => resolve(img);
 		img.onerror = () => reject(new Error(`could not load ${src}`));
 		img.src = src;
