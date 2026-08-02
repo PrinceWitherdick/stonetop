@@ -105,7 +105,9 @@
 						{{!-- draggable="false" so a press on the face drags the CARD, not the image.
 						      data-name is the hover preview's caption and its selector hook — see
 						      wireRelationshipLinks. --}}
-						<img class="stonetop-rel-portrait" src="{{img}}" alt="" draggable="false" data-name="{{name}}">
+						{{!-- .stonetop-rel-portrait is the CLIPPING BOX and appears exactly once
+						      per card: the glyph span below already IS the box. --}}
+						<span class="stonetop-rel-portrait stonetop-portrait-box"><img class="stonetop-rel-portrait-img" src="{{img}}" alt="" draggable="false" data-name="{{name}}"{{#if imgStyle}} style="{{imgStyle}}"{{/if}}></span>
 						{{else}}
 						{{!-- A settlement wears its own icon; only a person gets the silhouette.
 						      No image, so no hover preview. --}}
@@ -213,10 +215,29 @@
 						<textarea class="stonetop-rel-note-input stonetop-rel-card-note" data-rel-id="{{id}}"
 						          rows="1" placeholder='{{localize "stonetop.relationships.notePlaceholder"}}'
 						          {{#unless board.canRate}}disabled{{/unless}}>{{notes}}</textarea>
-						{{!-- Rendered on every card but SHOWN only on one whose note actually
-						      overflows, or one already open — wireNoteExpanders measures that per
-						      render and CSS hides the rest with `display: none`, which also keeps
-						      them out of the tab order. Emitted regardless of canRate: reading
+						{{!-- The collapsed note's visible text, and the ONLY reason it exists is the
+						      ellipsis: `text-overflow` is inert on a <textarea> in both Chromium and
+						      Gecko, so a clipped note ends mid-word with nothing to say it was cut.
+						      A span is a plain text box, so the browser ellipsises it — and it does so
+						      by its own layout, which is the whole point: the `is-overflowing` class
+						      this replaces needed a JS measure per render plus a ResizeObserver, and
+						      read 0 for everything on a board rendered inside an inactive tab. Nothing
+						      is measured here, so nothing can be measured wrong.
+
+						      Laid exactly over the field and pointer-transparent, with the textarea's
+						      own text turned transparent underneath while collapsed — so a click still
+						      lands on the field, focuses it, and opens the note, at which point this
+						      hides and the real text comes back. The placeholder is unaffected (it
+						      carries its own colour), so an empty note reads as it always did.
+
+						      aria-hidden: the textarea below still holds the same string and is what a
+						      screen reader announces. Without this the note would be read twice. --}}
+						<span class="stonetop-rel-note-clip" aria-hidden="true">{{notes}}</span>
+						{{!-- On every card, and shown on every card — including one whose note is
+						      short enough to fit its line, or empty. A control that appeared only
+						      where there was something hidden had to be re-found on each card, and
+						      it depended on a per-render measurement that read 0 on a board rendered
+						      inside an inactive tab. Emitted regardless of canRate: reading
 						      someone's note is not an edit, and a viewer who cannot type in the
 						      field is exactly the one who has no other way to see the end of it.
 						      aria-expanded and the label are kept in step by the same handler. Labelled

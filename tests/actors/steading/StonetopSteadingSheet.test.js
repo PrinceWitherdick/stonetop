@@ -62,6 +62,16 @@ class FakeEl {
 		}
 		return null;
 	}
+	// Depth-first, document order — which is what addPopoutHeaderControl relies on to insert a
+	// new control ahead of core's own rather than after them.
+	querySelectorAll(selector) {
+		const out = [];
+		for (const child of this.children) {
+			if (child._matches?.(selector)) out.push(child);
+			out.push(...(child.querySelectorAll?.(selector) ?? []));
+		}
+		return out;
+	}
 }
 
 function makeSheet({ players = [], residents = [], neighbors = [], improvements = {}, improvementDef, addResult, removeResult } = {}) {
@@ -167,7 +177,11 @@ describe("StonetopSteadingSheet", () => {
 		});
 	});
 
-	it("injects a visible edit-photo header control into editable resident image popouts", () => {
+	// The injection now lives in the shared addPopoutHeaderControl helper, which schedules itself
+	// on a rAF plus two timeouts (core builds the header after render and can rebuild it), so the
+	// assertions wait a macrotask. Calling it twice is the point: the guard is per KEY, because a
+	// per-window guard silently caps a header at one control and this popout now carries two.
+	it("injects a visible edit-photo header control into editable resident image popouts", async () => {
 		const { sheet } = makeSheet();
 		globalThis.document = { createElement: tag => new FakeEl(tag) };
 		class MockImagePopout {
@@ -191,8 +205,9 @@ describe("StonetopSteadingSheet", () => {
 		sheet._onMemberAvatarPickImage = vi.fn();
 
 		const popout = sheet._createEditableMemberImagePopout(anchor);
-		sheet._injectMemberImageHeaderControl(popout);
-		sheet._injectMemberImageHeaderControl(popout);
+		sheet._scheduleMemberImageHeaderControl(popout);
+		sheet._scheduleMemberImageHeaderControl(popout);
+		await new Promise(resolve => setTimeout(resolve, 150));
 		const header = popout.element.querySelector(".window-header");
 		const button = header.querySelector(".stonetop-edit-member-photo");
 

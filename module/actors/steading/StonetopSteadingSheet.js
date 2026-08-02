@@ -44,6 +44,10 @@ import {wireAvatarPreview, removeAvatarPreview} from "../../utils/avatar-preview
 import {ACTOR_LINK_MISSING, openLinkedActorSheet, withLinkedActor} from "../../utils/actor-link.js";
 import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relationship-board.js";
 import {fullPortraitSrc} from "../../book2-art/people-portraits.js";
+import {addPopoutHeaderControl} from "../../utils/popout-header-control.js";
+import {personFrameHandle} from "../../utils/portrait-frame-handles.js";
+import {openPortraitFrameEditor} from "../../utils/PortraitFrameDialog.js";
+import {localize} from "../../utils/i18n.js";
 
 /**
  * What the member-photo WINDOW shows, given the path a member actually wears.
@@ -1017,11 +1021,13 @@ export function createStonetopSteadingSheetClass(Base) {
 
 			// Residents / Neighbors faces, through the same shared preview the relationships
 			// component uses — a face previews identically wherever it appears.
-			wireAvatarPreview(html[0], ".steading-member-avatar");
+			// The inner image, not the box: the surface class now sits on a clipping span that
+			// the art-less placeholder wears too, so only the `-img` class identifies an element
+			// that actually has a picture to enlarge.
+			wireAvatarPreview(html[0], ".steading-member-avatar-img");
 			// Player Characters sit in the same tab, directly above the residents, so their
-			// portraits enlarge the same way. `img.` deliberately: an art-less PC renders a
-			// <span> placeholder under the same class, and only an <img> has anything to show.
-			wireAvatarPreview(html[0], "img.steading-player-portrait");
+			// portraits enlarge the same way.
+			wireAvatarPreview(html[0], ".steading-player-portrait-img");
 			html[0].addEventListener("click", ev => {
 				const avatar = ev.target.closest(".steading-member-avatar");
 				if (!avatar) return;
@@ -1277,17 +1283,31 @@ export function createStonetopSteadingSheetClass(Base) {
 			html.find(".steading-improvement-add-btn").on("click", () => this._onCreateImprovementOpen());
 		}
 
-		_openMemberAvatarImage(anchor) {
+		// `box` is the clipping span: it carries the row's data-list / data-index / data-name,
+		// while the src lives on the image inside it.
+		_openMemberAvatarImage(box) {
 			removeAvatarPreview();
-			if (!anchor?.src) return;
-			const popout = this._createEditableMemberImagePopout(anchor);
+			// With this list's pencil open, a tap is a request to CHANGE the portrait, so it goes
+			// straight to the gallery rather than making the user open the picture and then find
+			// "Edit Photo" in its title bar. Reading the roster, the same tap enlarges the face.
+			// Same split the follower cards and every sheet portrait use.
+			const list = box?.dataset?.list;
+			const index = Number.parseInt(box?.dataset?.index ?? "", 10);
+			if (this.isEditable && Number.isInteger(index) && this.isSectionEditable(list)) {
+				const imgEl = box.querySelector(".steading-member-avatar-img");
+				this._onMemberAvatarPickImage({ list, index, current: imgEl?.getAttribute("src") ?? "" });
+				return;
+			}
+			if (!box?.querySelector?.(".steading-member-avatar-img")?.getAttribute("src")) return;
+			const popout = this._createEditableMemberImagePopout(box);
 			popout.render(true);
 			this._scheduleMemberImageHeaderControl(popout);
 		}
 
-		_createEditableMemberImagePopout(anchor) {
-			const list = anchor?.dataset?.list;
-			const index = Number.parseInt(anchor?.dataset?.index ?? "", 10);
+		_createEditableMemberImagePopout(box) {
+			const anchor = box?.querySelector?.(".steading-member-avatar-img") ?? box;
+			const list = box?.dataset?.list;
+			const index = Number.parseInt(box?.dataset?.index ?? "", 10);
 			const canEdit = this.isEditable && ["residents", "neighbors"].includes(list) && Number.isInteger(index);
 			const sheet = this;
 			const BaseImagePopout = globalThis.ImagePopout;
@@ -1337,35 +1357,13 @@ export function createStonetopSteadingSheetClass(Base) {
 		}
 
 		_scheduleMemberImageHeaderControl(popout) {
-			if (!popout?._stonetopMemberImageEdit) return;
-			const inject = () => this._injectMemberImageHeaderControl(popout);
-			if (typeof requestAnimationFrame === "function") requestAnimationFrame(inject);
-			setTimeout(inject, 0);
-			setTimeout(inject, 100);
-		}
-
-		_injectMemberImageHeaderControl(popout) {
 			const edit = popout?._stonetopMemberImageEdit;
-			const root = popout?.element?.jquery ? popout.element[0] : popout?.element;
-			const header = root?.querySelector?.(".window-header");
-			if (!edit || !header) return;
-			if (header.querySelector(".stonetop-edit-member-photo")) return;
-
-			const isAppV1 = !!header.querySelector("a.header-button");
-			const btn = document.createElement(isAppV1 ? "a" : "button");
-			if (!isAppV1) {
-				btn.type = "button";
-				btn.className = "header-control icon stonetop-edit-member-photo fa-solid fa-camera";
-			} else {
-				btn.className = "header-button control stonetop-edit-member-photo";
-				btn.innerHTML = `<i class="fas fa-camera"></i> Edit Photo`;
-			}
-			btn.setAttribute("data-tooltip", "Edit Photo");
-			btn.setAttribute("aria-label", "Edit Photo");
-			btn.addEventListener("click", ev => {
-				ev.preventDefault();
-				ev.stopPropagation();
-				this._onMemberAvatarPickImage({
+			if (!edit) return;
+			addPopoutHeaderControl(popout, {
+				key: "stonetop-edit-member-photo",
+				icon: "fa-camera",
+				label: "Edit Photo",
+				onClick: () => this._onMemberAvatarPickImage({
 					list: edit.list,
 					index: edit.index,
 					// `current` is the STORED path — what the member actually wears — and is kept
@@ -1375,12 +1373,28 @@ export function createStonetopSteadingSheetClass(Base) {
 					// document; the gallery normalises either, but the stored one is the truth.
 					current: edit.current ?? popout.options?.src,
 					popout,
-				});
+				}),
 			});
 
-			const firstControl = header.querySelector(isAppV1 ? "a.header-button" : "button.header-control");
-			if (firstControl) header.insertBefore(btn, firstControl);
-			else header.appendChild(btn);
+			// Framing is gated on the ROW's document, not the steading's editability: roster NPCs
+			// are seeded at OBSERVER, so a player who may edit the steading would otherwise be
+			// offered a control whose save the server refuses. personFrameHandle answers that for
+			// both row kinds, and returns null when there is nothing writable behind the row.
+			const handle = personFrameHandle(this._stonetopSteading, edit.list, edit.index, { editable: this.isEditable });
+			if (!handle?.canWrite) return;
+			addPopoutHeaderControl(popout, {
+				key: "stonetop-frame-member-photo",
+				icon: "fa-crop-simple",
+				label: localize("stonetop.portraitFrame.control"),
+				onClick: () => openPortraitFrameEditor({
+					handle,
+					img: handle.img,
+					title: `Frame ${popout.options?.title ?? "Face"}`,
+					// A frame write touches neither `img` nor `options.src`, so the popout's own
+					// updateActor binding will not fire and nothing re-renders on its own.
+					onSaved: () => this.render(false),
+				}),
+			});
 		}
 
 		_onMemberAvatarPickImage({ list, index, current, popout }) {
@@ -1411,6 +1425,14 @@ export function createStonetopSteadingSheetClass(Base) {
 				used: usedPersonPortraits(this.actor, { list, index }),
 				onPick: applyPath,
 				onClear: clearToDefault,
+				// A browsed file is the one case with no hand-cut square behind it, so offer the
+				// framer straight away rather than making the user find it afterwards. Gallery
+				// picks are deliberately not chained: that art is already framed.
+				onFrame: () => {
+					const handle = personFrameHandle(this._stonetopSteading, list, index, { editable: this.isEditable });
+					if (!handle?.canWrite) return;
+					openPortraitFrameEditor({ handle, img: handle.img, onSaved: () => this.render(false) });
+				},
 			});
 		}
 

@@ -115,7 +115,11 @@ describe("StonetopSteading", () => {
 
 		expect(snapshot.players).toEqual([
 			{ uuid: "Actor.hero", name: "Wren", img: "wren.webp", checked: true,
-			  traits: "", relations: "", notes: "", resolvedOccupation: "", playbookName: "" },
+			  traits: "", relations: "", notes: "", resolvedOccupation: "", playbookName: "",
+			  // No live actor resolves here, so the stored snapshot path stands in and there is
+			  // no frame to apply. imgStyle is present-and-empty rather than absent, so the
+			  // template's {{#if imgStyle}} has something definite to test.
+			  imgStyle: "" },
 		]);
 	});
 

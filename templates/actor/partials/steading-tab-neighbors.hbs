@@ -32,8 +32,10 @@
 							{{!-- No data-tooltip here: this portrait raises the shared hover preview
 							      (module/utils/avatar-preview.js), and a tooltip would open a second
 							      popup over it. The playbook rides along as the preview's subtitle. --}}
-							<img class="steading-player-portrait" src="{{img}}" alt=""
-							     data-name="{{name}}" {{#if playbookName}}data-subtitle="{{playbookName}}"{{/if}}>
+							{{!-- The span is the clipping box a chosen frame paints inside; the
+							      --empty branch below already IS one, so only this branch wraps. --}}
+							<span class="steading-player-portrait stonetop-portrait-box"><img class="steading-player-portrait-img" src="{{img}}" alt=""
+							     data-name="{{name}}" {{#if playbookName}}data-subtitle="{{playbookName}}"{{/if}}{{#if imgStyle}} style="{{imgStyle}}"{{/if}}></span>
 							{{else}}
 							<span class="steading-player-portrait steading-player-portrait--empty"
 							      {{#if playbookName}}data-tooltip="{{playbookName}}" data-tooltip-direction="UP"{{/if}}>
@@ -103,9 +105,13 @@
 					{{#if name}}
 					<li class="steading-residents-row">
 						<div class="steading-residents-col steading-residents-col-name steading-member-name-cell{{#if unresolved}} steading-member-unresolved{{/if}}" data-tooltip="{{name}}">
-							<img class="steading-member-avatar" src="{{profileImg}}" data-name="{{name}}"
-							     data-list="residents" data-index="{{@index}}" alt=""
-							     {{#if uuid}}draggable="true" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}"{{/if}}>
+							{{!-- Behaviour attributes stay on the WRAPPER (it is what the click and
+							      drag handlers resolve with closest), and the inner image is
+							      explicitly undraggable so Gecko cannot hand over an image payload
+							      in place of the Actor uuid. --}}
+							<span class="steading-member-avatar stonetop-portrait-box" data-name="{{name}}"
+							     data-list="residents" data-index="{{@index}}"
+							     {{#if uuid}}draggable="true" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}"{{/if}}><img class="steading-member-avatar-img" src="{{profileImg}}" alt="" draggable="false" data-name="{{name}}"{{#if imgStyle}} style="{{imgStyle}}"{{/if}}></span>
 							{{#if @root.stonetop.edit.residents}}
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="name"
@@ -236,9 +242,11 @@
 					{{#if name}}
 					<li class="steading-residents-row">
 						<div class="steading-residents-col steading-residents-col-name steading-member-name-cell{{#if unresolved}} steading-member-unresolved{{/if}}" data-tooltip="{{name}}">
-							<img class="steading-member-avatar" src="{{profileImg}}" data-name="{{name}}"
-							     data-list="neighbors" data-index="{{@index}}" alt=""
-							     {{#if uuid}}draggable="true" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}"{{/if}}>
+							{{!-- See the residents table above: attributes on the wrapper, image
+							      explicitly undraggable. --}}
+							<span class="steading-member-avatar stonetop-portrait-box" data-name="{{name}}"
+							     data-list="neighbors" data-index="{{@index}}"
+							     {{#if uuid}}draggable="true" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}"{{/if}}><img class="steading-member-avatar-img" src="{{profileImg}}" alt="" draggable="false" data-name="{{name}}"{{#if imgStyle}} style="{{imgStyle}}"{{/if}}></span>
 							{{#if @root.stonetop.edit.neighbors}}
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="name" data-list="neighbors"

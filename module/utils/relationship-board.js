@@ -701,11 +701,6 @@ function fitNote(note) {
 	note.style.height = `${note.scrollHeight + chrome}px`;
 }
 
-/** Whether a CLOSED note's text runs past the single line it is clipped to. */
-function noteOverflows(note) {
-	return note.scrollWidth > note.clientWidth;
-}
-
 /**
  * Open or close one note, and put its chevron in step.
  *
@@ -722,9 +717,6 @@ function setNoteOpen(wrap, open, onResize) {
 		// Hand the height back to CSS rather than pinning the collapsed value here, so the
 		// one-line size stays stated in exactly one place.
 		note.style.height = "";
-		// Re-measure on the way down: the user may have just typed into this note, so whether
-		// it still has anything left to show is only knowable now that it is clipped again.
-		wrap.classList.toggle("is-overflowing", noteOverflows(note));
 	}
 	const btn = wrap.querySelector(".stonetop-rel-note-toggle");
 	if (btn) {
@@ -745,46 +737,14 @@ function setNoteOpen(wrap, open, onResize) {
  * the end of it. The field itself stays `disabled` from the template.
  */
 function wireNoteExpanders(wrapper, onResize) {
-	const wraps = [...wrapper.querySelectorAll(".stonetop-rel-card-note-wrap")];
-	if (!wraps.length) return;
+	if (!wrapper.querySelector(".stonetop-rel-card-note-wrap")) return;
 
-	// Resolved once, here: measure() runs on every ResizeObserver tick — i.e. per frame while
-	// the window is being dragged — and the wrap→field mapping cannot change between renders,
-	// since a re-render rebuilds the markup and re-runs this whole function.
-	const pairs = wraps
-		.map(wrap => [wrap, wrap.querySelector(".stonetop-rel-note-input")])
-		.filter(([, note]) => note);
-
-	// Mark the closed notes that still have something to show. Every measurement happens
-	// BEFORE any class is written: interleaved, each write would invalidate layout for the
-	// next read and the pass would cost one forced reflow per card instead of one for the
-	// board. Open notes are skipped — they wrap, so they never report overflow, and the
-	// chevron is already showing on their own account.
-	const measure = () => {
-		const closed = pairs.filter(([wrap]) => !wrap.classList.contains("is-open"));
-		const overflowing = closed.map(([, note]) => noteOverflows(note));
-		closed.forEach(([wrap], i) => wrap.classList.toggle("is-overflowing", overflowing[i]));
-	};
-
-	// Measured rather than derived from the text: whether a note has more to show depends on
-	// how wide the lane happens to be, which nothing in the data knows.
-	//
-	// Through a ResizeObserver instead of once at wire time, and that part is load-bearing. A
-	// sheet renders its INACTIVE tabs too, and a `display: none` subtree measures 0 for
-	// everything — so a board on a tab that is not the landing tab (the character sheet's
-	// Details, most of the time) would wire itself with every chevron missing, and switching
-	// to the tab does not re-render. The observer fires when the section first gets a box,
-	// and again whenever the window is dragged narrower, which is the other thing that
-	// changes whether a given note still fits its line.
-	//
-	// Observes the BOARD, one target rather than one per card. Marking a note only changes
-	// its own padding inside a fixed-height field, so the callback cannot resize the thing it
-	// is watching and feed itself. Nothing keeps a reference: an observer whose only target
-	// has left the document is collectible, so the next render's replacement takes this one
-	// with it.
-	const board = wrapper.querySelector(".stonetop-rel-board");
-	if (board && typeof ResizeObserver !== "undefined") new ResizeObserver(measure).observe(board);
-	else measure();
+	// No overflow measurement, and none is wanted. The chevron used to be shown only on a note
+	// that ran past its one line, which meant measuring every closed field per render and again
+	// on every ResizeObserver tick — and getting it wrong on a board that rendered inside an
+	// inactive tab, where a `display: none` subtree measures 0 for everything. CSS now shows the
+	// control on every card unconditionally, so the whole pass, its observer, and the
+	// `is-overflowing` class are gone.
 
 	wrapper.addEventListener("click", ev => {
 		const btn = ev.target.closest(".stonetop-rel-note-toggle");

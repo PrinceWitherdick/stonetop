@@ -2,6 +2,7 @@ import {resolvedFlagProperty, STONETOP_SCOPE} from "../character/StonetopFlags.j
 import {slugify} from "../../utils/strings.js";
 import {OCCUPATIONS, TRAITS, HOMES} from "../../data/steading-members.js";
 import {resolvePersonRow} from "./steading-people.js";
+import {resolvePortrait} from "../../utils/portrait-frame.js";
 
 /**
  * The three lenses the Improvements tab filters by — the toggle chips beside its
@@ -1175,7 +1176,14 @@ export class StonetopSteading {
 			// character, on the placeholder's tooltip — see the neighbors tab).
 			const playbookName = actor?.system?.playbook?.name ?? "";
 			const resolvedOccupation = p.occupation || "";
-			return { traits: "", relations: "", ...p, notes: p.notes ?? p.etc ?? "", resolvedOccupation, playbookName };
+			// The LIVE portrait, not the stored one. `p.img` is a snapshot taken when the player
+			// was dropped onto the roster, while a frame is authored against the character's own
+			// actor.img — so the two stamps would disagree by construction and this would be the
+			// one surface where framing silently never worked. The snapshot stays as the fallback
+			// for a row whose actor has gone. `img` sits after the spread so it wins.
+			const portrait = resolvePortrait(actor?.img || p.img, actor?.flags?.["stonetop-pwd"]?.portraitFrame);
+			return { traits: "", relations: "", ...p, notes: p.notes ?? p.etc ?? "", resolvedOccupation, playbookName,
+				img: portrait.src, imgStyle: portrait.style };
 		});
 
 		const mapImprovement = (def, custom) => {

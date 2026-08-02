@@ -5,6 +5,7 @@
 // live in, the create + resolve helpers the sheet uses, and the one-time migration
 // that converts legacy plain-text rows into NPC actors.
 import { isDefaultImg, stripHtmlToText } from "../../utils/strings.js";
+import { resolvePortrait } from "../../utils/portrait-frame.js";
 import { enrichHTML } from "../../utils/foundry-compat.js";
 import { npcStatusMeta } from "../../data-models/npc-status.js";
 import { getStonetopSteadingActor } from "../../utils/world.js";
@@ -15,7 +16,7 @@ const DEFAULT_MEMBER_AVATAR = "systems/stonetop-pwd/assets/icons/people/default_
 // pull from — spread into the no-row and deleted-actor fallbacks so the blank
 // template shape lives in one place. `notes` is the plain (stripped) preview text and
 // `notesHtml` the enriched rich version the roster cell renders.
-const BLANK_PERSON_FIELDS = { occupation: "", traits: "", relations: "", home: "", notes: "", notesHtml: "", resolvedOccupation: "", profileImg: DEFAULT_MEMBER_AVATAR, status: "", statusLabel: "", statusInactive: false };
+const BLANK_PERSON_FIELDS = { occupation: "", traits: "", relations: "", home: "", notes: "", notesHtml: "", resolvedOccupation: "", profileImg: DEFAULT_MEMBER_AVATAR, imgStyle: "", status: "", statusLabel: "", statusInactive: false };
 
 // The two Actor folders the people live in. Colours echo the warm parchment palette.
 const PEOPLE_FOLDERS = {
@@ -165,6 +166,10 @@ export async function resolvePersonRow(row) {
 		const occupation = s.occupation ?? "";
 		// Lifecycle status → an at-a-glance badge + dim/strike in the roster name cell.
 		const status = npcStatusMeta(s.status);
+		const actorPortrait = resolvePortrait(
+			isDefaultImg(actor.img) ? DEFAULT_MEMBER_AVATAR : actor.img,
+			actor.flags?.["stonetop-pwd"]?.portraitFrame
+		);
 		return {
 			uuid:       actor.uuid,
 			id:         actor.id,
@@ -176,7 +181,10 @@ export async function resolvePersonRow(row) {
 			notes:      stripHtmlToText(s.notes),
 			notesHtml:  await enrichHTML(s.notes ?? ""),
 			resolvedOccupation: occupation,
-			profileImg: isDefaultImg(actor.img) ? DEFAULT_MEMBER_AVATAR : actor.img,
+			// Resolved against what the roster actually RENDERS: an art-less NPC shows the
+			// placeholder, and a frame stamped against actor.img must not be applied to that.
+			profileImg: actorPortrait.src,
+			imgStyle:   actorPortrait.style,
 			checked:    !!row.checked,
 			unresolved: false,
 			status:         status.value,
@@ -186,6 +194,12 @@ export async function resolvePersonRow(row) {
 	}
 	// Legacy plain-text row: pass through, filling the shape the template reads.
 	const legacyNotes = row.notes ?? row.etc ?? "";
+	// Computed here rather than left to the `...row` spread, which would otherwise leak the raw
+	// rect object into the template context under `portraitFrame`.
+	const rowPortrait = resolvePortrait(
+		!isDefaultImg(row.img ?? "") ? row.img : DEFAULT_MEMBER_AVATAR,
+		row?.portraitFrame
+	);
 	return {
 		...row,
 		occupation: row.occupation ?? "",
@@ -195,7 +209,8 @@ export async function resolvePersonRow(row) {
 		notes:      legacyNotes,
 		notesHtml:  await enrichHTML(legacyNotes),
 		resolvedOccupation: row.occupation ?? "",
-		profileImg: !isDefaultImg(row.img ?? "") ? row.img : DEFAULT_MEMBER_AVATAR,
+		profileImg: rowPortrait.src,
+		imgStyle:   rowPortrait.style,
 		legacy:     true,
 		status:     "", statusLabel: "", statusInactive: false,
 	};
@@ -274,7 +289,15 @@ export async function createPersonNpc(list, data = {}, { folder = null } = {}) {
 	// players should be able to see them — unlike GM-prep monsters/threats. Default
 	// OBSERVER keeps the steading rows rendering for players as they did pre-migration.
 	if (list) createData.ownership = { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER };
-	if (data.img && !isDefaultImg(data.img)) createData.img = data.img;
+	if (data.img && !isDefaultImg(data.img)) {
+		createData.img = data.img;
+		// Carry a legacy row's chosen frame onto the NPC it becomes. Without this,
+		// migrateSteadingPeople would drop it: that runs GM-only and one-shot behind a flag, so
+		// the loss would happen silently on the GM's next load with nothing to notice. Only
+		// written when there IS one — an explicit null would be a key every read then has to
+		// special-case.
+		if (data.portraitFrame) createData.flags = { "stonetop-pwd": { portraitFrame: data.portraitFrame } };
+	}
 	return Actor.create(createData);
 }
 

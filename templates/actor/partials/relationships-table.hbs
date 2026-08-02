@@ -31,8 +31,13 @@
 				{{#if img}}
 				{{!-- data-name is both the preview's caption and the hook wireRelationshipLinks
 				      selects on, so a portrait that can be enlarged is exactly the one that
-				      announces a name for the card. --}}
-				<img class="stonetop-rel-portrait" src="{{img}}" alt="" data-name="{{name}}">
+				      announces a name for the card.
+
+				      .stonetop-rel-portrait is the CLIPPING BOX and appears exactly once per
+				      row, on the outermost element of whichever branch renders — the glyph span
+				      below already IS the box. Wrapping that one too would give two concentric
+				      bordered circles and a glyph centred in the wrong one. --}}
+				<span class="stonetop-rel-portrait stonetop-portrait-box"><img class="stonetop-rel-portrait-img" src="{{img}}" alt="" data-name="{{name}}"{{#if imgStyle}} style="{{imgStyle}}"{{/if}}></span>
 				{{else}}
 				{{!-- No portrait: a person icon for people, or the row's own icon for a
 				      place (a town shouldn't wear a silhouette). No hover preview either —

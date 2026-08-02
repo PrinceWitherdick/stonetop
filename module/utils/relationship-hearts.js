@@ -11,6 +11,8 @@
 // first, since both of those evaluate top-level consts. The hosts wire them together,
 // which keeps the dependency one-way.
 import { isDefaultImg } from "./strings.js";
+import { resolvePortrait } from "./portrait-frame.js";
+import { fullPortraitSrc } from "../book2-art/people-portraits.js";
 import { makeColumnsResizable } from "./resizable-columns.js";
 import { makeColumnsSortable } from "./sortable-columns.js";
 // Leaf module with no imports of its own, so it cannot participate in the cycle above.
@@ -117,6 +119,14 @@ export function readRelationship(raw) {
 export function relationshipRow(actor, other, { defaultShown = true } = {}) {
 	const stored = actor.system?.relationships?.[other.id];
 	const { hearts, notes, shown, order } = readRelationship(stored);
+	// Resolve the rendered src and its frame together, so a frame can never be measured against
+	// a picture this row does not render. `other` may be a bare {id, name, img} object (a
+	// steading passes its settlements that way), so the flag read is fully optional — and it is
+	// bracketed because the package id is hyphenated and a dotted path parses as subtraction.
+	const portrait = resolvePortrait(
+		isDefaultImg(other.img) ? null : other.img,
+		other?.flags?.["stonetop-pwd"]?.portraitFrame
+	);
 	return {
 		id:   other.id,
 		name: other.name,
@@ -126,7 +136,8 @@ export function relationshipRow(actor, other, { defaultShown = true } = {}) {
 		// this answers both. Kept beside `id`, which is the fallback lookup when a uuid stops
 		// resolving (a compendium re-import, say).
 		uuid: other.uuid ?? null,
-		img:  isDefaultImg(other.img) ? null : other.img,
+		img:      portrait.src,
+		imgStyle: portrait.style,
 		hearts,
 		notes,
 		rated:      hasStoredRating(stored),
@@ -377,7 +388,30 @@ function wireRelationshipLinksIn(root) {
 
 	// Only the <img> portrait carries data-name; the fallback is a glyph in a <span> with
 	// nothing to enlarge, and the selector is what keeps it from raising an empty card.
-	wireAvatarPreview(root, ".stonetop-rel-portrait[data-name]");
+	// The inner image, not the box: .stonetop-rel-portrait is now the clipping SPAN that both
+	// branches wear, so the class alone no longer distinguishes a portrait from a glyph, and the
+	// preview needs the element that actually carries a src.
+	wireAvatarPreview(root, ".stonetop-rel-portrait-img[data-name]");
+
+	// Tapping a face enlarges it, the same as every other portrait in the system. Hover already
+	// previews it, but a preview vanishes the moment you move the pointer, so it cannot be read
+	// at leisure or shown to someone else.
+	//
+	// Bound on click rather than pointerdown so it never competes with the board's lane drag: a
+	// press that turns into a drag produces no click, so dragging a card still just moves it.
+	root.addEventListener("click", ev => {
+		const img = ev.target.closest?.(".stonetop-rel-portrait-img[data-name]");
+		if (!img) return;
+		const stored = img.getAttribute("src");
+		if (!stored) return;
+		ev.preventDefault();
+		ev.stopPropagation();
+		// The preview is portaled to <body> and would otherwise sit over the popout.
+		removeAvatarPreview();
+		// The whole illustration behind a People-of-Stonetop square: enlarging a face should not
+		// answer with a picture smaller than the thumbnail just tapped.
+		new ImagePopout(fullPortraitSrc(stored) ?? stored, { title: img.dataset.name || "" }).render(true);
+	});
 
 	const open = async link => {
 		// The pointer is by definition over the row, and rendering a sheet does not move it,
