@@ -2,26 +2,33 @@
 // steading's `residents`/`neighbors` flag arrays is a {uuid, id, name} pointer to
 // an NPC actor, and the row's Occupation / Traits / Relations / Home / Notes cells
 // read and write that actor's fields live. This module owns the folders the actors
-// live in, the create + resolve helpers the sheet uses, and the one-time migration
-// that converts legacy plain-text rows into NPC actors.
+// live in, the create + resolve helpers the sheet uses, and the load-time sweep that
+// converts any plain-text row into an NPC actor.
 import { isDefaultImg, stripHtmlToText } from "../../utils/strings.js";
+import { resolvePortrait, documentPortraitFrame } from "../../utils/portrait-frame.js";
 import { enrichHTML } from "../../utils/foundry-compat.js";
 import { npcStatusMeta } from "../../data-models/npc-status.js";
 import { getStonetopSteadingActor } from "../../utils/world.js";
-
-const DEFAULT_MEMBER_AVATAR = "systems/stonetop_pwd/assets/icons/people/default_profile.svg";
+import { isPrimaryGM } from "../../utils/primary-gm.js";
+// The roster's OWN empty-slot face, not the mark the actor wears. These tables are grids of
+// 22px avatars, where a column of the actor's dark disc reads as clutter rather than as
+// blanks — see utils/person-portrait.js, which owns both and counts either as "no art".
+import { PERSON_ROSTER_IMG as EMPTY_MEMBER_AVATAR } from "../../utils/person-portrait.js";
 
 // The empty field shape resolvePersonRow returns when a row has no live actor to
 // pull from — spread into the no-row and deleted-actor fallbacks so the blank
 // template shape lives in one place. `notes` is the plain (stripped) preview text and
 // `notesHtml` the enriched rich version the roster cell renders.
-const BLANK_PERSON_FIELDS = { occupation: "", traits: "", relations: "", home: "", notes: "", notesHtml: "", resolvedOccupation: "", profileImg: DEFAULT_MEMBER_AVATAR, status: "", statusLabel: "", statusInactive: false };
+const BLANK_PERSON_FIELDS = { occupation: "", traits: "", relations: "", home: "", notes: "", notesHtml: "", resolvedOccupation: "", profileImg: EMPTY_MEMBER_AVATAR, imgStyle: "", status: "", statusLabel: "", statusInactive: false };
 
 // The two Actor folders the people live in. Colours echo the warm parchment palette.
 const PEOPLE_FOLDERS = {
 	residents: { name: "Residents of Stonetop", color: "#7a5c3e" },
 	neighbors: { name: "Neighbors of Stonetop", color: "#5c6b7a" },
 };
+
+// Both rosters, in sheet order (residents first) — the order the load-time sweep walks them.
+const PEOPLE_LISTS = Object.keys(PEOPLE_FOLDERS);
 
 // Which NPC field each editable column writes to. "name" is the document name; the
 // rest are system fields. Home is neighbors-only. "notes" maps to the NPC's rich-text
@@ -55,6 +62,97 @@ export function isActorRow(row) {
 }
 
 /**
+ * The live Actor behind a roster row, or null. Id first — a direct collection hit — with the
+ * uuid as the fallback for a row written before ids were stored.
+ *
+ * One copy of the precedence, because five callers depended on it agreeing (the roster resolve,
+ * the people list, the used-portrait scan, the home backfill, and the framing handle, whose doc
+ * comment promises "the same id-then-uuid chain the roster's popout binding uses"). Preferring
+ * uuid instead — so a compendium-moved NPC resolves — is then one edit rather than five.
+ *
+ * `fromUuidSync` is tried before the scan because `game.actors.find(a => a.uuid === …)` builds a
+ * uuid string for every actor in the world on every miss, and a seeded world holds ~200 bestiary
+ * actors before the roster starts. It is guarded on the result being a real world Actor: given a
+ * pack uuid it hands back an index row, which is not a document and must not be treated as one.
+ * Absent (headless tests), the scan still answers.
+ */
+export function personRowActor(row) {
+	if (!isActorRow(row)) return null;
+	if (row.id) {
+		const byId = game.actors?.get(row.id);
+		if (byId) return byId;
+	}
+	if (!row.uuid) return null;
+	const direct = globalThis.fromUuidSync?.(row.uuid);
+	if (direct?.documentName === "Actor" && !direct.pack) return direct;
+	return game.actors?.find(a => a.uuid === row.uuid) ?? null;
+}
+
+/**
+ * Identity key for matching an incoming person against the rows already on a roster:
+ * lowercased `name|home`. Actor-backed rows keep Home on the NPC and only cache the name on
+ * the row, so each is read the way it stores it — key an actor row off the row alone and
+ * every linked neighbor reads as home-less, so a background that names someone already
+ * listed would add them a second time.
+ *
+ * A plain `{name, home}` addition (a background's neighbor, an Add-Member worksheet's
+ * fields) keys through the same function via the legacy branch, so both sides of a
+ * comparison are built the same way.
+ */
+export function personRowKey(row) {
+	const actor = personRowActor(row);
+	const name = String((actor ? actor.name : row?.name) ?? "").trim().toLowerCase();
+	const home = String((actor ? actor.system?.home : row?.home) ?? "").trim().toLowerCase();
+	return `${name}|${home}`;
+}
+
+/**
+ * What a roster row IS, stable across a write: the actor it points at, or — for a legacy text
+ * row — its name. Deliberately not personRowKey, which reads Home off the live NPC: filling a
+ * neighbor's origin in changes their key, so a replacement worked out before that write would
+ * no longer find the row it was made for. This one survives both that and the text→pointer
+ * conversion of the row NEXT to it.
+ */
+export function personRowIdentity(row) {
+	return String(row?.uuid || row?.id || row?.name || "").trim().toLowerCase();
+}
+
+/**
+ * Re-apply a batch of row replacements and additions to a roster as it stands NOW.
+ *
+ * Both the load-time sweep and a background's neighbor list have to create Actors before they
+ * can write their rows, and every one of those creates is an await. A steading write landing in
+ * that window — a second player finishing onboarding, a GM ticking someone off — is on the
+ * document by the time the batch is ready, and writing the array it read BEFORE the first await
+ * would silently revert it. So the work is decided against the old rows and applied against the
+ * new ones: rows nobody touched are kept exactly as they now stand, and an addition somebody
+ * else already made in the meantime is not made twice.
+ *
+ * Each entry in `replacements` is a QUEUE, taken from in row order, because two people on the
+ * roster can share an identity: a steading with two text rows both reading "Ennis" gets two
+ * NPCs, and each row must be pointed at its own. A single-element queue is the ordinary case.
+ *
+ * @param {object[]} live      the rows currently on the steading
+ * @param {Map<string, object[]>} replacements  personRowIdentity -> what to put there, in order
+ * @param {object[]} [additions]  rows to append, skipped if that person is already listed
+ * @returns {object[]} the rows to write
+ */
+export function rebasePersonRows(live, replacements, additions = []) {
+	// shift(), so the queue is consumed: a second row of the same name takes the next entry, and
+	// a row with none left is passed through untouched.
+	const queued = new Map([...replacements].map(([identity, rows]) => [identity, [...rows]]));
+	const out = live.map(row => queued.get(personRowIdentity(row))?.shift() ?? row);
+	const seen = new Set(out.map(personRowIdentity));
+	for (const row of additions) {
+		const identity = personRowIdentity(row);
+		if (seen.has(identity)) continue;
+		seen.add(identity);
+		out.push(row);
+	}
+	return out;
+}
+
+/**
  * Distinct, non-empty names of a steading's Residents + Neighbors, for name-suggestion
  * datalists (e.g. Create-a-Follower). Reads the nested `stonetop_pwd.steading` flag where
  * the people rows actually live — the flat `getFlag(…, "residents")` path is never written.
@@ -82,9 +180,7 @@ export function steadingPeopleActors(steading) {
 		const people = [];
 		for (const list of Object.keys(PEOPLE_FOLDERS)) {
 			for (const row of Array.isArray(flags[list]) ? flags[list] : []) {
-				if (!isActorRow(row)) continue;
-				const actor = (row.id ? game.actors?.get(row.id) : null)
-					|| (row.uuid ? game.actors?.find(a => a.uuid === row.uuid) : null);
+				const actor = personRowActor(row);
 				if (!actor || seen.has(actor.id)) continue;
 				seen.add(actor.id);
 				people.push(actor);
@@ -92,6 +188,45 @@ export function steadingPeopleActors(steading) {
 		}
 		return people;
 	} catch { return []; }
+}
+
+/**
+ * Which portraits the steading's people already wear, as `{ src -> the name wearing it }`.
+ * Backs the People gallery's "already assigned" marking and its unused-only filter, so a GM
+ * outfitting a whole village doesn't hand the same face to three residents without noticing.
+ *
+ * Actor-backed rows keep their portrait on the NPC actor, legacy text rows on the row itself,
+ * so both are read the way each stores it. Default avatars never count: every unportraited
+ * member shares one, which is the opposite of taken. `exclude` drops the row being edited, so
+ * the member's own portrait is reported as theirs (the gallery's selected state) rather than
+ * as taken by somebody else.
+ * Best-effort: a missing/unlinked steading (or any read error) just yields {}.
+ *
+ * @param {Actor} steading
+ * @param {{list?: string, index?: number}} [exclude]  the row currently being edited, if any
+ * @returns {Record<string, string>}
+ */
+export function usedPersonPortraits(steading, exclude = {}) {
+	try {
+		const flags = steading?.getFlag?.("stonetop_pwd", "steading") ?? {};
+		const used = {};
+		for (const list of Object.keys(PEOPLE_FOLDERS)) {
+			const rows = Array.isArray(flags[list]) ? flags[list] : [];
+			rows.forEach((row, index) => {
+				if (list === exclude.list && index === exclude.index) return;
+				const actor = personRowActor(row);
+				const img = (actor ? actor.img : row?.img) ?? "";
+				// isDefaultImg covers the people placeholder as well as Foundry's own defaults,
+				// so an art-less member never marks a gallery face as taken.
+				if (!img || isDefaultImg(img)) return;
+				const name = String((actor ? actor.name : row?.name) ?? "").trim();
+				// First row in wins the label: when two people share a portrait the gallery only
+				// needs to say it is spoken for, and naming one of them is enough to find it.
+				used[img] ??= name || "another member";
+			});
+		}
+		return used;
+	} catch { return {}; }
 }
 
 /**
@@ -112,9 +247,7 @@ export function steadingPeopleActors(steading) {
 export async function resolvePersonRow(row) {
 	if (!row) return { ...BLANK_PERSON_FIELDS, name: "" };
 	if (isActorRow(row)) {
-		const actor = (row.id ? game.actors?.get(row.id) : null)
-			|| (row.uuid ? game.actors?.find(a => a.uuid === row.uuid) : null)
-			|| null;
+		const actor = personRowActor(row);
 		if (!actor) {
 			// Actor deleted out from under the row: show the cached name so the GM can
 			// notice and re-link/remove it, rather than an empty row.
@@ -125,6 +258,10 @@ export async function resolvePersonRow(row) {
 		const occupation = s.occupation ?? "";
 		// Lifecycle status → an at-a-glance badge + dim/strike in the roster name cell.
 		const status = npcStatusMeta(s.status);
+		const actorPortrait = resolvePortrait(
+			isDefaultImg(actor.img) ? EMPTY_MEMBER_AVATAR : actor.img,
+			documentPortraitFrame(actor)
+		);
 		return {
 			uuid:       actor.uuid,
 			id:         actor.id,
@@ -136,7 +273,10 @@ export async function resolvePersonRow(row) {
 			notes:      stripHtmlToText(s.notes),
 			notesHtml:  await enrichHTML(s.notes ?? ""),
 			resolvedOccupation: occupation,
-			profileImg: isDefaultImg(actor.img) ? DEFAULT_MEMBER_AVATAR : actor.img,
+			// Resolved against what the roster actually RENDERS: an art-less NPC shows the
+			// placeholder, and a frame stamped against actor.img must not be applied to that.
+			profileImg: actorPortrait.src,
+			imgStyle:   actorPortrait.style,
 			checked:    !!row.checked,
 			unresolved: false,
 			status:         status.value,
@@ -146,6 +286,12 @@ export async function resolvePersonRow(row) {
 	}
 	// Legacy plain-text row: pass through, filling the shape the template reads.
 	const legacyNotes = row.notes ?? row.etc ?? "";
+	// Computed here rather than left to the `...row` spread, which would otherwise leak the raw
+	// rect object into the template context under `portraitFrame`.
+	const rowPortrait = resolvePortrait(
+		!isDefaultImg(row.img ?? "") ? row.img : EMPTY_MEMBER_AVATAR,
+		row?.portraitFrame
+	);
 	return {
 		...row,
 		occupation: row.occupation ?? "",
@@ -155,7 +301,8 @@ export async function resolvePersonRow(row) {
 		notes:      legacyNotes,
 		notesHtml:  await enrichHTML(legacyNotes),
 		resolvedOccupation: row.occupation ?? "",
-		profileImg: !isDefaultImg(row.img ?? "") ? row.img : DEFAULT_MEMBER_AVATAR,
+		profileImg: rowPortrait.src,
+		imgStyle:   rowPortrait.style,
 		legacy:     true,
 		status:     "", statusLabel: "", statusInactive: false,
 	};
@@ -170,14 +317,30 @@ export async function resolvePersonRow(row) {
  */
 export async function ensurePeopleFolder(list) {
 	const spec = PEOPLE_FOLDERS[list];
-	if (!spec) return null;
-	const existing = game.folders?.find(f => f.type === "Actor" && f.name === spec.name);
+	return spec ? ensureNamedActorFolder(spec) : null;
+}
+
+/**
+ * Find-or-create one named Actor folder, returning null rather than throwing when it cannot
+ * be made. Shared with the follower drop (hooks/FollowerDrop.js), which files its own folder
+ * the same way.
+ *
+ * The permission gate is the point: a PLAYER has no folder-create right, and the callers here
+ * are all things a player does (adding a roster member, dropping a follower on the canvas). An
+ * actor that lands unfiled at the sidebar root is a far better outcome than a failed drop, so
+ * this never propagates — one copy of that rule, since a fix to it has to reach both callers.
+ *
+ * @param {{name: string, color?: string}} spec
+ * @returns {Promise<Folder|null>}
+ */
+export async function ensureNamedActorFolder({ name, color }) {
+	const existing = game.folders?.find(f => f.type === "Actor" && f.name === name);
 	if (existing) return existing;
 	if (!Folder.canUserCreate(game.user)) return null; // player: no folder-create right
 	try {
-		return await Folder.create({ name: spec.name, type: "Actor", color: spec.color });
+		return await Folder.create({ name, type: "Actor", color });
 	} catch (err) {
-		console.warn(`Stonetop | Could not create the "${spec.name}" folder; NPC will land at root.`, err);
+		console.warn(`Stonetop | Could not create the "${name}" folder; the actor will land at root.`, err);
 		return null;
 	}
 }
@@ -234,7 +397,15 @@ export async function createPersonNpc(list, data = {}, { folder = null } = {}) {
 	// players should be able to see them — unlike GM-prep monsters/threats. Default
 	// OBSERVER keeps the steading rows rendering for players as they did pre-migration.
 	if (list) createData.ownership = { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER };
-	if (data.img && !isDefaultImg(data.img)) createData.img = data.img;
+	if (data.img && !isDefaultImg(data.img)) {
+		createData.img = data.img;
+		// Carry a legacy row's chosen frame onto the NPC it becomes. Without this,
+		// migrateSteadingPeople would drop it: that runs GM-only and one-shot behind a flag, so
+		// the loss would happen silently on the GM's next load with nothing to notice. Only
+		// written when there IS one — an explicit null would be a key every read then has to
+		// special-case.
+		if (data.portraitFrame) createData.flags = { "stonetop_pwd": { portraitFrame: data.portraitFrame } };
+	}
 	return Actor.create(createData);
 }
 
@@ -262,56 +433,83 @@ export async function addPersonToSteading(list, data = {}, steading = null) {
 }
 
 /**
- * One-time, idempotent migration: convert a steading's legacy plain-text Residents/
- * Neighbors rows into NPC actors and rewrite each row as a {uuid, id, name} pointer.
- * Rows that already point at an actor are left alone (so re-running is a no-op), and
- * blank rows are dropped. GM-only — it creates actors and writes the steading flags.
+ * Convert a steading's plain-text Residents/Neighbors rows into NPC actors, rewriting each
+ * row as a {uuid, id, name} pointer. Rows that already point at an actor are left alone (so
+ * re-running is a no-op) and blank rows are dropped. GM-only — it creates actors and writes
+ * the steading flags.
+ *
+ * Runs on EVERY load, not once. It began as a one-shot schema migration, but plain-text rows
+ * can still be written after it by a client that cannot create an Actor — a world whose GM
+ * revoked the ACTOR_CREATE permission this system grants players
+ * (Ready.js#_ensurePlayerActorCreationGrant) leaves a background's neighbors as text, and
+ * they wait here. The old `peopleMigrated` one-shot flag stranded exactly those rows forever
+ * — it was set by the first conversion, after which nothing ever converted again — so it is
+ * no longer read or written. Worlds still carrying it are unaffected; nothing else reads it.
  *
  * @param {Actor} steading  an Actor of type "stonetop"
  * @returns {Promise<number>} how many rows were converted
  */
 export async function migrateSteadingPeople(steading) {
 	if (!game.user?.isGM || steading?.type !== "stonetop") return 0;
-	// Converted on a prior load — skip the deep-clone + per-row rescan each startup.
-	if (steading.flags?.stonetop_pwd?.steading?.peopleMigrated) return 0;
 	// The steading stores its lists nested under flags.stonetop_pwd.steading (see
-	// StonetopSteading#_flags / setFlags), so read and rewrite that sub-object — not
-	// the top-level scope — and merge it back the same way the sheet does.
-	const steadingFlags = foundry.utils.deepClone(steading.flags?.stonetop_pwd?.steading ?? {});
-	let converted = 0;
-	let changed = false;
+	// StonetopSteading#_flags / setFlags), so read and rewrite that sub-object rather than the
+	// top-level scope. Read through a function, not into a variable: everything below the scan
+	// awaits, and the rows have to be re-read once those awaits are done.
+	const readRows = list => {
+		const rows = steading.flags?.["stonetop_pwd"]?.steading?.[list];
+		return Array.isArray(rows) ? rows : [];
+	};
+	// Cheap scan before anything else: the steady state is "every row already points at an
+	// actor", and paying for that answer on every steading write must not cost more than two
+	// array walks. A blank slot has no uuid either, so it lands here too and gets pruned below.
+	if (!PEOPLE_LISTS.some(list => readRows(list).some(row => !isActorRow(row)))) return 0;
 
-	for (const list of ["residents", "neighbors"]) {
-		const rows = Array.isArray(steadingFlags[list]) ? steadingFlags[list] : [];
-		if (!rows.length) continue;
-		// Nothing to convert if every row is already an actor pointer.
-		if (rows.every(r => isActorRow(r) || !(r?.name ?? "").trim())) {
-			// Still prune blank legacy slots so the list is clean.
-			const pruned = rows.filter(r => isActorRow(r) || (r?.name ?? "").trim());
-			if (pruned.length !== rows.length) { steadingFlags[list] = pruned; changed = true; }
-			continue;
-		}
-		const newRows = [];
-		for (const row of rows) {
-			if (isActorRow(row)) { newRows.push(row); continue; }
+	// Every await lives in this first pass: make the NPCs, remembering which row each was made
+	// for. Nothing is written to the steading yet, so there is no snapshot in flight to go stale.
+	const conversions = new Map(PEOPLE_LISTS.map(list => [list, new Map()]));
+	let converted = 0;
+	for (const list of PEOPLE_LISTS) {
+		for (const row of readRows(list)) {
+			if (isActorRow(row)) continue;
 			const name = (row?.name ?? "").trim();
-			if (!name) continue; // drop blank slots
-			const actor = await createPersonNpc(list, row);
-			newRows.push({ uuid: actor.uuid, id: actor.id, name: actor.name, checked: !!row.checked });
+			if (!name) continue; // blank slot: nobody to make, and pruned below
+			const actor = await createPersonNpc(list, row).catch(err => {
+				console.error("Stonetop | Could not create the NPC for roster row", name, err);
+				return null;
+			});
+			// Creation failed (a full disk, a world going down mid-load): leave the text row
+			// alone rather than dropping the person, and let the next sweep try again — which it
+			// now will, since this is no longer one-shot.
+			if (!actor) continue;
+			// Queued, not set: two text rows can carry the same name, and each is owed the NPC
+			// made for it rather than both landing on the last one.
+			const queue = conversions.get(list);
+			const identity = personRowIdentity(row);
+			if (!queue.has(identity)) queue.set(identity, []);
+			queue.get(identity).push({ uuid: actor.uuid, id: actor.id, name: actor.name, checked: !!row.checked });
 			converted++;
 		}
-		steadingFlags[list] = newRows;
-		changed = true;
 	}
 
-	if (changed) {
-		steadingFlags.peopleMigrated = true;
-		await steading.setFlag("stonetop_pwd", "steading", steadingFlags);
+	// Second pass, no awaits until the write: rebase onto the rows as they stand now. This runs
+	// live on the primary GM's client (onSteadingPeopleUpdate) as well as at load, so a Surplus
+	// click or a Notes save landing during those creates is a real possibility — writing back a
+	// whole pre-await copy of the steading flags would undo it. Only the two people lists are
+	// written, and each is built from what is on the document at this moment.
+	const update = {};
+	for (const list of PEOPLE_LISTS) {
+		const live = readRows(list);
+		const rows = rebasePersonRows(live, conversions.get(list))
+			.filter(row => isActorRow(row) || (row?.name ?? "").trim());
+		// Nothing converted and nothing blank to prune: leave the list out entirely rather than
+		// re-writing an identical array, which would broadcast an update for no reason.
+		if (rows.length !== live.length || rows.some((row, i) => row !== live[i])) update[list] = rows;
 	}
+	if (Object.keys(update).length) await steading.setFlag("stonetop_pwd", "steading", update);
 	return converted;
 }
 
-/** Migrate every steading in the world (GM ready hook). */
+/** Sweep every steading in the world (GM ready hook). */
 export async function migrateAllSteadingPeople() {
 	if (!game.user?.isGM) return;
 	const steadings = (game.actors?.contents ?? []).filter(a => a.type === "stonetop");
@@ -319,6 +517,40 @@ export async function migrateAllSteadingPeople() {
 		try { await migrateSteadingPeople(s); }
 		catch (err) { console.error("Stonetop | migrateSteadingPeople failed for", s?.name, err); }
 	}
+}
+
+// Steadings a sweep is mid-flight on. Two updates landing while the first pass is still
+// awaiting its Actor.create calls would both see the same text rows and both convert them,
+// leaving the roster with two of everybody — so a second pass stands down and lets the one
+// already running finish the job.
+const _sweepsInFlight = new Set();
+
+/**
+ * Convert a steading's text rows the moment they appear, on the primary GM's client.
+ *
+ * Normally there is nothing to do: players hold the ACTOR_CREATE permission this system
+ * grants them, so whoever fills in a roster row creates its NPC themselves. This is the
+ * backstop for a world whose GM revoked that permission, where a background's neighbors (the
+ * Ranger's Wide Wanderer names five) land as plain text instead. `updateActor` broadcasts to
+ * every connected client, so the GM's sees that write and converts them within a moment — no
+ * socket and no reload. The ready-hook sweep is the further catch-up, for rows written while
+ * no GM was connected at all.
+ *
+ * Deliberately unfiltered on WHICH part of the steading changed: the payload's shape depends
+ * on how the write was made, and migrateSteadingPeople already opens with a scan of two small
+ * arrays and returns without writing when there is nothing to do. Guessing at the diff would
+ * buy nothing and could miss a write.
+ *
+ * Terminates: the conversion's own flag write re-fires this hook, and that pass finds every
+ * row already pointing at an actor, so it returns without writing again.
+ */
+export async function onSteadingPeopleUpdate(actor) {
+	if (actor?.type !== "stonetop" || !game.user?.isGM || !isPrimaryGM()) return;
+	if (_sweepsInFlight.has(actor.id)) return;
+	_sweepsInFlight.add(actor.id);
+	try { await migrateSteadingPeople(actor); }
+	catch (err) { console.error("Stonetop | Live Residents/Neighbors → NPC conversion failed for", actor?.name, err); }
+	finally { _sweepsInFlight.delete(actor.id); }
 }
 
 /**
@@ -334,13 +566,11 @@ export async function migrateAllSteadingPeople() {
  */
 export async function backfillResidentHomes(steading) {
 	if (!game.user?.isGM || steading?.type !== "stonetop") return 0;
-	if (steading.flags?.stonetop_pwd?.steading?.residentHomesBackfilled) return 0;
-	const rows = steading.flags?.stonetop_pwd?.steading?.residents;
+	if (steading.flags?.["stonetop_pwd"]?.steading?.residentHomesBackfilled) return 0;
+	const rows = steading.flags?.["stonetop_pwd"]?.steading?.residents;
 	let updated = 0;
 	for (const row of (Array.isArray(rows) ? rows : [])) {
-		if (!isActorRow(row)) continue;
-		const actor = (row.id ? game.actors?.get(row.id) : null)
-			|| (row.uuid ? game.actors?.find(a => a.uuid === row.uuid) : null);
+		const actor = personRowActor(row);
 		if (!actor || actor.type !== "npc") continue;
 		if (String(actor.system?.home ?? "").trim()) continue;
 		try { await actor.update({ "system.home": "Stonetop" }); updated++; }

@@ -69,8 +69,8 @@ export class StepperDialog extends Application {
 	}
 
 	// Per-render navigation context: the active step plus its position labels. The
-	// `steps` list lets a template render a jump-to-step table of contents (only the
-	// Expedition dialog does today); it's harmless extra data for the others.
+	// `steps` list lets a template render a jump-to-step table of contents (the longer
+	// steppers opt in via the shared guide-toc partial); harmless extra data for the rest.
 	_stepNav() {
 		const steps = this._steps;
 		const step  = steps[this._step];

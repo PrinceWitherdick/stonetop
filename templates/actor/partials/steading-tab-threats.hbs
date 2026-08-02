@@ -13,7 +13,10 @@
 		      "write up" button that pre-seeds that proximity. This whole tab is GM-only. --}}
 		{{#each stonetop.threatGroups}}
 		<div class="steading-threats-section">
-			<h3 class="steading-residents-heading">{{label}} Threats</h3>
+			{{!-- Folded under the proximity's stable id ("homefront" / "nearby" / "distant"),
+			      not its label: a label is display text, so a copy edit would silently drop
+			      the fold and a blank one would leave a caret that does nothing. --}}
+			<h3 class="steading-residents-heading">{{label}} Threats{{> "stonetop.section-collapse" collapse=id}}</h3>
 			{{#if threats.length}}
 			<div class="steading-threats-grid">
 				{{#each threats}}
@@ -43,7 +46,7 @@
 		      reopens the Make-a-Hazard walkthrough pre-filled. --}}
 		{{#if stonetop.showHazards}}
 		<div class="steading-threats-section steading-hazards-section">
-			<h3 class="steading-residents-heading">Hazards</h3>
+			<h3 class="steading-residents-heading">Hazards{{> "stonetop.section-collapse" collapse="hazards"}}</h3>
 			{{#if stonetop.isGM}}
 			<p class="steading-threats-intro">
 				Environmental dangers: traps, treacherous terrain, weather (Book I, <em>Dangers</em>). They can't be fought, only avoided, endured, thwarted, or overcome.

@@ -25,7 +25,7 @@
     "slug": "battleaxe",
     "column": "regular",
     "weight": 1,
-    "tags": "<em>iron</em>, <em>close</em>, +1 damage"
+    "tags": "<em>iron</em>, <em>close</em>, <em>messy</em>"
   },
   {
     "name": "Bedroll",
@@ -173,7 +173,7 @@
     "slug": "composite-bow",
     "column": "regular",
     "weight": 1,
-    "tags": "+1 damage, x piercing",
+    "tags": "<em>far</em>, +1 damage, x piercing",
     "resource": {
       "max": 2,
       "labels": [

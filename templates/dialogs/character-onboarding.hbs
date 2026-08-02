@@ -132,7 +132,10 @@
 								       data-choice-count="{{../count}}"
 								       {{#if selected}}checked{{/if}}>
 								<span>
-									<strong>{{name}}</strong>{{#if origin}} <em>from {{origin}}</em>{{/if}}
+									{{!-- One inline child: the wrapper is a flex box (.stonetop-onboarding-bg-option > span),
+									      which would eat the space between a bare <strong> and <em> ("Isaldefrom the
+									      Manmarch"). Kept as one text flow so the space survives and it wraps normally. --}}
+									<span><strong>{{name}}</strong>{{#if origin}} <em>from {{origin}}</em>{{/if}}</span>
 								</span>
 							</span>
 							{{/each}}

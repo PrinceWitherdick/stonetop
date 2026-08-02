@@ -1,23 +1,85 @@
+{{!-- ONE top-level element, deliberately: AppV1 hands activateListeners a jQuery of the
+      template's root nodes, so `html[0]` is only the FIRST of them. With filters, body and
+      footer as siblings, every querySelector off that root missed the grid and the footer.
+      Keep everything inside this wrapper. --}}
+<div class="stonetop-people-root">
+<div class="stonetop-people-header">
+{{#if showFilters}}
+<div class="stonetop-people-filters">
+	<div class="stonetop-people-filtergroup" role="group" aria-label="Filter by presentation">
+		<button type="button" class="stonetop-people-chip is-on" data-filter="presenting" data-value="any">All <span class="stonetop-people-count">{{counts.all}}</span></button>
+		<button type="button" class="stonetop-people-chip" data-filter="presenting" data-value="masculine">Masculine <span class="stonetop-people-count">{{counts.masculine}}</span></button>
+		<button type="button" class="stonetop-people-chip" data-filter="presenting" data-value="feminine">Feminine <span class="stonetop-people-count">{{counts.feminine}}</span></button>
+		<button type="button" class="stonetop-people-chip" data-filter="presenting" data-value="unspecified" title="Portraits left untagged: a bucket of their own, not a gap">Unspecified <span class="stonetop-people-count">{{counts.unspecified}}</span></button>
+	</div>
+	{{#if hasKids}}
+	<div class="stonetop-people-filtergroup" role="group" aria-label="Filter by age">
+		<button type="button" class="stonetop-people-chip is-on" data-filter="kid" data-value="any">All ages</button>
+		<button type="button" class="stonetop-people-chip" data-filter="kid" data-value="kids">Children <span class="stonetop-people-count">{{counts.kid}}</span></button>
+		<button type="button" class="stonetop-people-chip" data-filter="kid" data-value="adults">Not children <span class="stonetop-people-count">{{counts.notKid}}</span></button>
+	</div>
+	{{/if}}
+	{{#if hasUsed}}
+	<div class="stonetop-people-filtergroup" role="group" aria-label="Filter by whether the portrait is already assigned">
+		<button type="button" class="stonetop-people-chip is-on" data-filter="used" data-value="any" title="Show every portrait, assigned or not">Any use</button>
+		<button type="button" class="stonetop-people-chip" data-filter="used" data-value="unused" title="Hide the portraits other people already wear">Unused <span class="stonetop-people-count">{{counts.unused}}</span></button>
+		<button type="button" class="stonetop-people-chip" data-filter="used" data-value="used" title="Only the portraits someone already wears">Assigned <span class="stonetop-people-count">{{counts.used}}</span></button>
+	</div>
+	{{/if}}
+</div>
+{{/if}}
+{{!-- The two ways past the gallery's own art — bring your own file, or wear none — stacked
+      in a column of one width. They live up here beside the filters rather than in the footer
+      so the footer holds only the roll-and-take pair, and so neither of them sits in the
+      bottom-right corner every other Stonetop dialog uses for a way to back out. --}}
+<div class="stonetop-people-actions">
+	{{#if canBrowse}}<button type="button" class="stonetop-people-browse"><i class="fas fa-folder-open"></i> Browse files&hellip;</button>{{/if}}
+	<button type="button" class="stonetop-people-clear"><i class="fas fa-rotate-left"></i> Use default</button>
+</div>
+</div>
 <div class="stonetop-people-gallery-body">
 	{{#if people}}
-	<p class="stonetop-people-hint">Pick a portrait for this person.</p>
+	{{!-- Announced: clicking a tile no longer does anything visible beyond highlighting it,
+	      so this line carries the whole outcome ("Picked X. Accept to use it") for anyone
+	      who can't see the highlight. --}}
+	<p class="stonetop-people-hint" aria-live="polite">Pick a portrait for this person, then Accept.</p>
 	<div class="stonetop-people-grid">
+		{{!-- Each facet dataset carries the SAME vocabulary as its filter chips' data-value, so
+		      the filter pass is one generic `dataset[facet] === want` comparison rather than a
+		      per-facet decoder. That is why an untagged portrait writes "unspecified" here
+		      rather than "": it is a selectable bucket, not a gap. --}}
 		{{#each people}}
-		<button type="button" class="stonetop-people-pick{{#if selected}} is-selected{{/if}}" data-src="{{src}}" title="{{name}}">
+		{{!-- `data-src` is what Accept commits and what the tile shows: the square face when one
+		      has been cut, otherwise the whole illustration exactly as before. `data-full` is
+		      always the illustration, for the hover preview and for deciding whether two paths
+		      mean the same person. --}}
+		<button type="button" class="stonetop-people-pick{{#if isSquare}} is-square{{/if}}{{#if selected}} is-selected{{/if}}{{#if usedBy}} is-used{{/if}}" data-src="{{src}}" data-full="{{full}}" data-presenting="{{#if presenting}}{{presenting}}{{else}}unspecified{{/if}}" data-kid="{{#if kid}}kids{{else}}adults{{/if}}" data-used="{{#if usedBy}}used{{else}}unused{{/if}}" data-used-by="{{usedBy}}" title="{{name}}{{#if usedBy}} (already assigned to {{usedBy}}){{/if}}">
 			<img src="{{src}}" alt="{{name}}" loading="lazy">
 			<span class="stonetop-people-label">{{name}}</span>
 		</button>
 		{{/each}}
 	</div>
+	<p class="stonetop-people-nomatch" hidden="hidden">No portraits match this filter.</p>
 	{{else}}
 	<p class="stonetop-people-empty">
 		No <strong>People of Stonetop</strong> portraits are available yet.
-		{{#if canBrowse}}You can choose any image with <strong>Browse files&hellip;</strong> below.{{/if}}
+		{{#if canBrowse}}You can choose any image with <strong>Browse files&hellip;</strong> above.{{/if}}
 	</p>
 	{{/if}}
 </div>
+{{#if people}}
+{{!-- Nothing here commits a portrait but Accept. Clicking a tile and rolling both only
+      propose: they highlight a portrait and arm Accept, so a misclick or an unwanted roll
+      costs one more click rather than a portrait you must come back to fix.
+
+      Accept is FIRST in the DOM, which the footer's flex-end grouping makes the left of the
+      pair: the affirmative — the only button here that commits a portrait — goes on the left,
+      matching every other Stonetop modal and Foundry's own dialogs. This is not a wizard, so
+      the Next-on-the-right exception does not apply; Randomize is a repeatable action rather
+      than a step forward, and it sits beside the thing it arms. --}}
 <footer class="stonetop-people-footer">
-	{{#if canBrowse}}<button type="button" class="stonetop-people-browse"><i class="fas fa-folder-open"></i> Browse files&hellip;</button>{{/if}}
-	<button type="button" class="stonetop-people-clear"><i class="fas fa-rotate-left"></i> Use default</button>
-	<button type="button" class="stonetop-people-cancel">Cancel</button>
+	<button type="button" class="stonetop-people-accept" disabled="disabled" title="Use the portrait on offer — click one, or roll for it"><i class="fas fa-check"></i> Accept</button>
+	<button type="button" class="stonetop-people-random" title="Roll a portrait at random from the ones shown (the filters above apply)"><i class="fas fa-dice-d6"></i> Randomize</button>
 </footer>
+{{/if}}
+</div>

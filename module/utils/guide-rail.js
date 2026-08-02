@@ -1,10 +1,11 @@
 // Shared DOM sync for the left-rail "stepped sheet" chrome used by the welcome guide
-// (WelcomeDialog), the Make-a-Monster worksheet (CreateMonsterDialog), and the arcanum
-// editor (StonetopArcanumSheet). These panels switch WITHOUT re-rendering so unsaved
-// form state and live prose-mirror editors survive the switch, which means each sheet
-// hand-syncs the rail in the DOM. The parts that are byte-identical across all three
-// live here so the shared `.stonetop-guide-*` conventions can't drift; callers keep
-// their own banner title/count and Back/Next logic, which legitimately differs.
+// (WelcomeDialog), the Make-a-Monster worksheet (CreateMonsterDialog), the arcanum
+// editor (StonetopArcanumSheet), the wound editor (WoundDialog) and the custom-move
+// author (CustomMoveDialog). These panels switch WITHOUT re-rendering so unsaved form
+// state and live prose-mirror editors survive the switch, which means each sheet
+// hand-syncs the rail in the DOM. Everything that behaves the same across those sheets
+// lives here so the shared `.stonetop-guide-*` conventions can't drift; a caller opts
+// into each part by passing its selector, and omitting one leaves that part alone.
 //
 // @param {HTMLElement} root  the sheet's root element (a raw node, not jQuery).
 // @param {object} opts
@@ -16,8 +17,16 @@
 // @param {string} [opts.icon]          FA glyph class for the active section (e.g. "fa-book").
 // @param {string} [opts.iconExtraClass] the sheet's own banner-icon class, kept beside the shared one.
 // @param {string} [opts.mainSelector]  selector for the scroll column to reset to its top.
+// @param {string} [opts.titleSelector] selector for the banner's title line.
+// @param {string} [opts.title]         the active section's title, written into that line.
+// @param {string} [opts.countSelector] selector for the banner's "N / M" readout.
+// @param {number} [opts.index]         zero-based position of the active section in the rail.
+// @param {number} [opts.total]         how many sections the rail holds.
+// @param {string} [opts.backSelector]  selector for the Back button, disabled at the first section.
+// @param {string} [opts.nextSelector]  selector for the Next button, disabled at the last.
 export function applyGuideRail(root, {
 	key, dataKey, tabSelector, sectionSelector, iconSelector, icon, iconExtraClass, mainSelector,
+	titleSelector, title, countSelector, index, total, backSelector, nextSelector,
 } = {}) {
 	if (!root) return;
 
@@ -37,4 +46,41 @@ export function applyGuideRail(root, {
 		const main = root.querySelector(mainSelector);
 		if (main) main.scrollTop = 0;
 	}
+
+	if (titleSelector && title !== undefined) {
+		const titleEl = root.querySelector(titleSelector);
+		if (titleEl) titleEl.textContent = title;
+	}
+	if (countSelector && Number.isFinite(index) && Number.isFinite(total)) {
+		const countEl = root.querySelector(countSelector);
+		if (countEl) countEl.textContent = `${index + 1} / ${total}`;
+	}
+	// Back/Next go dead at the ends of the rail.
+	if (backSelector && Number.isFinite(index)) {
+		const back = root.querySelector(backSelector);
+		if (back) back.disabled = index <= 0;
+	}
+	if (nextSelector && Number.isFinite(index) && Number.isFinite(total)) {
+		const next = root.querySelector(nextSelector);
+		if (next) next.disabled = index >= total - 1;
+	}
+}
+
+/**
+ * The section one step along the rail, or undefined at either end.
+ *
+ * Every rail dialog walks its own SECTIONS array by index for Back/Next; sharing the
+ * arithmetic is what keeps the buttons, the rail and the banner counting the same way.
+ *
+ * @param {Array<{key: string}>} sections the rail's sections, in rendered order.
+ * @param {string} activeKey  the section currently showing.
+ * @param {number} delta      -1 for Back, +1 for Next.
+ */
+export function guideRailStep(sections, activeKey, delta) {
+	const from = sections.findIndex(s => s.key === activeKey);
+	// Bail on an unknown key rather than letting the arithmetic answer for it: findIndex gives
+	// -1, so a bare `sections[-1 + delta]` would send Next to the FIRST section — a wrong
+	// answer that looks like a working button, where undefined leaves the rail where it is.
+	if (from < 0) return undefined;
+	return sections[from + delta];
 }

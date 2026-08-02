@@ -334,7 +334,7 @@ export function createStonetopMonsterSheetClass(Base) {
 			// so a read-only view (e.g. a compendium preview) shows nothing to click.
 			const editable     = this.isEditable;
 			const monsterMoves = this.actor.items.filter(i => i.type === "monsterMove");
-			const boostFlag    = this.actor.flags?.stonetop_pwd?.armorBoost ?? null;
+			const boostFlag    = this.actor.flags?.["stonetop_pwd"]?.armorBoost ?? null;
 			const activeMove   = boostFlag?.moveId
 				? monsterMoves.find(m => m.id === boostFlag.moveId) : null;
 			const boost = activeMove && editable ? boostFlag : null;
@@ -434,7 +434,7 @@ export function createStonetopMonsterSheetClass(Base) {
 					// boost move also toggles even if its name was since edited to drop
 					// the parenthetical, so the boost can always be reverted from its row.
 					const boost    = parseArmorBoost(item.name);
-					const isActive = this.actor.flags?.stonetop_pwd?.armorBoost?.moveId === item.id;
+					const isActive = this.actor.flags?.["stonetop_pwd"]?.armorBoost?.moveId === item.id;
 					if (this.isEditable && (boost != null || isActive)) {
 						await this._toggleArmorBoost(item, boost);
 					} else {
@@ -475,7 +475,7 @@ export function createStonetopMonsterSheetClass(Base) {
 					if (!confirmed) return;
 					// If the move being deleted is the live armor boost, revert it first
 					// so its Armor value isn't stranded on the stat block once it's gone.
-					if (this.actor.flags?.stonetop_pwd?.armorBoost?.moveId === item.id) {
+					if (this.actor.flags?.["stonetop_pwd"]?.armorBoost?.moveId === item.id) {
 						await this._toggleArmorBoost(item, parseArmorBoost(item.name));
 					}
 					await item.delete();
@@ -533,7 +533,7 @@ export function createStonetopMonsterSheetClass(Base) {
 		 * @param {number} value  the Armor value its name grants
 		 */
 		async _toggleArmorBoost(item, value) {
-			const current   = this.actor.flags?.stonetop_pwd?.armorBoost ?? null;
+			const current   = this.actor.flags?.["stonetop_pwd"]?.armorBoost ?? null;
 			const baseArmor = this.actor.system?.attributes?.armor?.value ?? 0;
 			const label     = armorBoostLabel(item.name);
 

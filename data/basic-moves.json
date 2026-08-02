@@ -101,7 +101,7 @@
   },
   {
     "name": "Let Fly",
-    "description": "<p>When you <strong><em>calmly take an easy shot with a ranged weapon</em></strong>, deal your damage. If <strong><em>the shot is tricky or you’re under pressure</em></strong>, first roll +DEX: <strong>on a 10+</strong>, you have a clear shot, deal your damage; <strong>on a 7-9</strong>, pick 1:</p><ul><li>Deal your damage, but deplete your ammo (mark the next status by your weapon; don’t pick this if your weapon lacks such statuses)</li><li>Hold steady and wait for a clear shot; when the moment arrives (GM’s call), deal your damage</li><li>Move to get a clear shot - exposing yourself to danger or giving up some advantage (GM says how) - then deal your damage</li><li>Rush the shot and deal your damage, leading to a cost or complication of the GM’s choice</li></ul>",
+    "description": "<p>When you <strong><em>take an easy shot with a ranged weapon</em></strong>, deal your damage. If <strong><em>the shot is tricky or you’re under pressure</em></strong>, first roll +DEX: <strong>on a 10+</strong>, you have a clear shot, deal your damage; <strong>on a 7-9</strong>, pick 1:</p><ul><li>Deal your damage, but deplete your ammo (mark the next status by your weapon; don’t pick this if your weapon lacks such statuses)</li><li>Hold steady and wait for a clear shot; when the moment arrives (GM’s call), deal your damage</li><li>Move to get a clear shot - exposing yourself to danger or giving up some advantage (GM says how) - then deal your damage</li><li>Rush the shot and deal your damage, leading to a cost or complication of the GM’s choice</li></ul>",
     "rollType": "dex",
     "results": {
       "success": {
@@ -158,7 +158,7 @@
   },
   {
     "name": "Seek Insight",
-    "description": "<p>When you <strong><em>study a situation or person, looking to the GM for insight</em></strong>, roll +WIS: <strong>on a 10+</strong>, ask the GM 3 questions from the list below; <strong>on a 7-9</strong>, ask 1; <strong><em>either way</em></strong>, gain advantage on your next move that acts on the answers.</p><ul><li>What happened here?</li><li>What is about to happen?</li><li>What should I be on the lookout for?</li><li>What here is useful or valuable to me?</li><li>Who or what is really in control here?</li><li>What here is not what it appears to be?</li></ul>",
+    "description": "<p>When you <strong><em>study a situation or person, looking to the GM for insight</em></strong>, roll +WIS: <strong>on a 10+</strong>, ask the GM 3 questions from the list below; <strong>on a 7-9</strong>, ask 1; <strong><em>either way</em></strong>, gain advantage on your next move that acts on the answers.</p><ul><li>What happened here recently?</li><li>What is about to happen?</li><li>What should I be on the lookout for?</li><li>What here is useful or valuable to me?</li><li>Who or what is really in control here?</li><li>What here is not what it appears to be?</li></ul>",
     "rollType": "wis",
     "results": {
       "success": {

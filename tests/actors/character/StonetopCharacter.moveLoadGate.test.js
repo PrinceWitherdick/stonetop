@@ -45,7 +45,7 @@ describe("buildSnapshot — move load-gate metadata", () => {
 			.addItem({
 				_id: "gm1", type: "move", name: "Catlike",
 				system: { moveType: "playbook", playbook: "The Fox", maxLoad: "light" },
-				flags: { stonetop_pwd: { grantedBy: { move: "Versatile" } } },
+				flags: { "stonetop_pwd": { grantedBy: { move: "Versatile" } } },
 			})
 			.build();
 		const snap = await new TestCharacterBuilder(actor)

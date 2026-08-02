@@ -64,7 +64,7 @@ describe("collectTargets", () => {
 		const token = {
 			id: "t1",
 			name: "Wolf",
-			delta: { _id: "t1", flags: { stonetop_pwd: { hp: 3 } } },
+			delta: { _id: "t1", flags: { "stonetop_pwd": { hp: 3 } } },
 			update: vi.fn().mockResolvedValue({})
 		};
 		const scene = { id: "s1", name: "Wild", tokens: [token], updateEmbeddedDocuments: vi.fn() };
@@ -82,7 +82,7 @@ describe("collectTargets", () => {
 		const token = {
 			id: "t1",
 			name: "Wolf",
-			delta: { _id: "t1", flags: { stonetop_pwd: { hp: 3 } } },
+			delta: { _id: "t1", flags: { "stonetop_pwd": { hp: 3 } } },
 			update: vi.fn().mockResolvedValue({})
 		};
 		const scene = { id: "s1", name: "Wild", tokens: [token], updateEmbeddedDocuments: vi.fn() };

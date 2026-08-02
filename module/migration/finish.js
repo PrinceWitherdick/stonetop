@@ -22,6 +22,7 @@
 
 import { SYSTEM_ID } from "../system-id.js";
 import { PRIOR_SYSTEM_IDS, ALL_SYSTEM_IDS } from "./compat.js";
+import { makePaintYielder } from "../utils/paint-yield.js";
 
 /** Build the string replacer for one rename. */
 export function makeStringRewriter({ systemId = SYSTEM_ID, priorIds = PRIOR_SYSTEM_IDS } = {}) {
@@ -166,6 +167,40 @@ export function rewriteCompendiumConfiguration(config, { systemId = SYSTEM_ID, p
 }
 
 /**
+ * Walk every target, reporting and breathing between them. The shared spine of both passes
+ * over `targets` — the rewrite below and finish-run.js's residual scan.
+ *
+ * Reports `{ fraction, detail }` per target, the shape progress-slice.js and
+ * WorldSetupDialog.step already speak, so a caller can hand the reporter straight to a bar
+ * without an adapter.
+ *
+ * Two things here are load-bearing, which is why they are stated once rather than at each
+ * call site:
+ *
+ *  • Progress is reported for EVERY target, including the ones that turn out to need no
+ *    writes. That is the whole difference between a bar and a lie: planning a target is the
+ *    expensive half (a deep clone and a string scan of every document in it) and a world with
+ *    nothing stale does only that, so a bar driven off the writes alone would sit at zero
+ *    through the entire run and then jump to done.
+ *
+ *  • It reports AFTER the work and then yields. Neither pass awaits while planning, so left
+ *    alone each is one unbroken block of main thread and nothing can draw. See paint-yield.js.
+ *
+ * @param {Array}    targets   From world-scan's collectTargets().
+ * @param {Function} onProgress  Called `{ fraction, detail }` once per target.
+ * @param {Function} visit     Called with each target; may await.
+ */
+export async function walkTargets(targets, onProgress, visit) {
+	const list = targets ?? [];
+	const yieldToPaint = makePaintYielder();
+	for (const [index, target] of list.entries()) {
+		await visit(target);
+		onProgress?.({ fraction: (index + 1) / list.length, detail: target.label });
+		await yieldToPaint();
+	}
+}
+
+/**
  * Walk every target and apply the rewrites.
  *
  * @param {Array} targets  From world-scan's collectTargets().
@@ -174,18 +209,18 @@ export async function finishDocuments(targets, options = {}) {
 	const rewrite = options.rewrite ?? makeStringRewriter(options);
 	let updated = 0;
 
-	for (const target of targets ?? []) {
+	await walkTargets(targets, options.onProgress, async (target) => {
 		const updates = [];
 		for (const doc of target.docs) {
 			const data = typeof doc.toObject === "function" ? doc.toObject() : doc;
 			const update = planDocumentRewrite(data, { ...options, rewrite });
 			if (update) updates.push(update);
 		}
-		if (!updates.length) continue;
+		if (!updates.length) return;
 		await target.apply(updates);
 		updated += updates.length;
-		options.onProgress?.({ label: target.label, updated });
-	}
+	});
+
 	return { updated };
 }
 

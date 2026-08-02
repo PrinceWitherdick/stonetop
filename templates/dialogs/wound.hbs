@@ -1,0 +1,169 @@
+{{!-- Wound ledger editor (Book I, "Harm & Healing"), laid out as a left-rail guided
+      sheet like the Welcome guide and Make a Monster: the rail (shared
+      .stonetop-guide-toc) switches which group of fields is shown, client-side, so the
+      single <form> keeps every value and the banner's live readout as you move around.
+      See actors/character/dialogs/WoundDialog.js. --}}
+<form class="stonetop wound-dialog" autocomplete="off">
+
+	<div class="stonetop-guide-split">
+
+		{{!-- Panel rail (jump between the wound's parts; shared journal-style page list). --}}
+		<nav class="stonetop-guide-toc" aria-label="Wound sections">
+			<ol class="stonetop-guide-toc-list">
+				{{#each sections}}
+				<li class="stonetop-guide-toc-item{{#if selected}} is-active{{/if}}">
+					<button type="button" class="stonetop-guide-toc-btn wd-tab" data-tab="{{key}}"{{#if selected}} aria-current="true"{{/if}}>
+						<i class="fas {{icon}} stonetop-guide-toc-icon"></i>
+						<span class="stonetop-guide-toc-text">{{title}}</span>
+					</button>
+				</li>
+				{{/each}}
+			</ol>
+		</nav>
+
+		<div class="stonetop-guide-main wd-main">
+
+			{{!-- Banner: active panel + a live name/status readout, so the two fields that
+			      identify the wound stay visible from the panels that don't hold them
+			      (updated in JS; no re-render, so fields keep focus). --}}
+			<div class="stonetop-guide-banner wd-banner">
+				<i class="fas {{active.icon}} stonetop-guide-banner-icon wd-banner-icon"></i>
+				<div class="stonetop-guide-banner-info">
+					<div class="stonetop-guide-banner-title wd-banner-title">{{active.title}}</div>
+					<div class="wd-statline">
+						<i class="fas {{summary.glyph}} wd-summary-glyph"></i>
+						<span class="wd-summary-name">{{summary.name}}</span>
+						<span class="wd-summary-status">{{summary.status}}</span>
+					</div>
+				</div>
+				<div class="stonetop-guide-count wd-banner-count">{{active.index}} / {{sectionCount}}</div>
+			</div>
+
+			{{!-- The wound: what it is, how bad, where it came from --}}
+			<section class="wd-section" data-tab="wound">
+				<p class="wd-section-hint">Name it in the fiction, then say what state it's in.</p>
+
+				<label class="wd-field">
+					<span class="wd-label">Wound</span>
+					<input type="text" name="text" value="{{text}}" placeholder="e.g. Twisted ankle &mdash; can't bear weight">
+				</label>
+
+				<div class="wd-field">
+					<span class="wd-label">Status</span>
+					<div class="wd-tile-grid">
+						{{#each statusOptions}}
+						<label class="wd-tile">
+							<input type="radio" name="status" value="{{value}}"{{#if selected}} checked{{/if}}>
+							<span class="wd-tile-name">{{label}}</span>
+							<span class="wd-tile-hint">{{hint}}</span>
+						</label>
+						{{/each}}
+					</div>
+				</div>
+
+				<label class="wd-field">
+					<span class="wd-label">Origin</span>
+					<select name="origin">
+						{{#each originOptions}}
+						<option value="{{value}}"{{#if selected}} selected{{/if}}>{{label}}</option>
+						{{/each}}
+					</select>
+				</label>
+
+				{{#if isNew}}
+				<div class="wd-notice">
+					<i class="fas fa-circle-info"></i>
+					<span>A problematic wound always involves taking damage, and often a marked debility &mdash; apply those on the sheet as the fiction warrants.</span>
+				</div>
+				{{/if}}
+			</section>
+
+			{{!-- Treatment: what's still required, and the manual heal --}}
+			<section class="wd-section" data-tab="treatment" hidden>
+				<p class="wd-section-hint">Regaining HP and clearing debilities never touches a wound. <strong>Recover</strong> stabilizes it; only <strong>Convalesce</strong> &mdash; weeks under a healer &mdash; heals it.</p>
+
+				<label class="wd-field">
+					<span class="wd-label">Note / requirement</span>
+					<input type="text" name="requirementNote" value="{{requirementNote}}" placeholder="What's needed to treat it (optional)">
+					<span class="wd-hint">If the GM says tending it isn't enough yet, write down what else it takes.</span>
+				</label>
+
+				<div class="wd-field">
+					<span class="wd-label">Resolution</span>
+					<label class="wd-check">
+						<input type="checkbox" class="stonetop-check" name="healed"{{#if healed}} checked{{/if}}>
+						<span>Healed, move to Scars</span>
+					</label>
+					<span class="wd-hint">Keeps the wound's fiction as a healed scar instead of deleting it.</span>
+				</div>
+			</section>
+
+			{{!-- Lasting effects: the interim penalty and where to echo it --}}
+			<section class="wd-section" data-tab="lasting" hidden>
+				<p class="wd-section-hint">A wound that lingers hinders you in play. Nothing here changes a roll on its own &mdash; it echoes a reminder onto the rolls it touches.</p>
+
+				<label class="wd-field">
+					<span class="wd-label">Lasting tag</span>
+					<input type="text" name="mechanicalTag" value="{{mechanicalTag}}" placeholder="e.g. Let Fly at disadvantage until practiced">
+				</label>
+
+				<label class="wd-field">
+					<span class="wd-label">Remind on</span>
+					<select name="reminderMove">
+						{{#each reminderOptions}}
+						<option value="{{value}}"{{#if selected}} selected{{/if}}>{{label}}</option>
+						{{/each}}
+					</select>
+					<span class="wd-hint">The tag rides along on this move's roll card as a reminder.</span>
+				</label>
+			</section>
+
+			{{!-- Make a Plan: adaptation goal + tick boxes --}}
+			<section class="wd-section" data-tab="plan" hidden>
+				<p class="wd-section-hint">For an injury that can't heal: either retire, or Make a Plan to adapt to it &mdash; write the requirements down as tick boxes and tick them off as you go.</p>
+
+				<label class="wd-field">
+					<span class="wd-label">Make-a-Plan goal</span>
+					<input type="text" name="planNote" value="{{planNote}}" placeholder="e.g. Learn to shoot left-handed">
+				</label>
+
+				<div class="wd-field">
+					<span class="wd-label">Plan requirements <em>(tick off as you adapt)</em></span>
+					<ul class="wd-req-list" data-empty="No requirements yet. Add what it takes to adapt.">
+						{{#each planRequirements}}
+						<li class="wd-req">
+							<label class="checkbox"><input type="checkbox" class="stonetop-check wd-req-done"{{#if done}} checked{{/if}}></label>
+							<input type="text" class="wd-req-text" value="{{text}}" placeholder="e.g. months of practice">
+							<button type="button" class="wd-req-remove" data-tooltip="Remove" aria-label="Remove this requirement"><i class="fas fa-xmark"></i></button>
+						</li>
+						{{/each}}
+					</ul>
+					<button type="button" class="wd-req-add"><i class="fas fa-plus"></i> Add requirement</button>
+				</div>
+
+				{{!-- Cloned per row by the dialog; kept here so the markup lives with the rest. --}}
+				<template class="wd-req-tpl">
+					<li class="wd-req">
+						<label class="checkbox"><input type="checkbox" class="stonetop-check wd-req-done"></label>
+						<input type="text" class="wd-req-text" placeholder="e.g. months of practice">
+						<button type="button" class="wd-req-remove" data-tooltip="Remove" aria-label="Remove this requirement"><i class="fas fa-xmark"></i></button>
+					</li>
+				</template>
+			</section>
+
+		</div>
+
+	</div>
+
+	<div class="stonetop-guide-nav wd-footer">
+		<span class="wd-footer-actions">
+			<button type="button" class="wd-save stonetop-guide-btn--primary"><i class="fas fa-droplet"></i> {{saveLabel}}</button>
+			<button type="button" class="wd-cancel">Cancel</button>
+		</span>
+		<span class="wd-footer-nav">
+			<button type="button" class="wd-back" disabled><span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>Back</button>
+			<button type="button" class="wd-next">Next<span class="stonetop-nav-arrow"></span></button>
+		</span>
+	</div>
+
+</form>

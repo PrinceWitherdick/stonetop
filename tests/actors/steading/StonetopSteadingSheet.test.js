@@ -17,6 +17,11 @@ class FakeEl {
 	}
 	set className(value) { this.classList.set = new Set(String(value).split(/\s+/).filter(Boolean)); }
 	get className() { return [...this.classList.set].join(" "); }
+	// `src` is a reflected attribute on a real element: assigning the property updates the
+	// attribute and vice versa. Reflect it here too, so production code doesn't need to
+	// write both to keep this fake happy.
+	set src(value) { this.attrs.src = String(value); }
+	get src() { return this.attrs.src ?? null; }
 	set innerHTML(value) { this._innerHTML = value; }
 	setAttribute(key, value) { this.attrs[key] = String(value); }
 	getAttribute(key) { return this.attrs[key] ?? null; }
@@ -56,6 +61,16 @@ class FakeEl {
 			if (descendant) return descendant;
 		}
 		return null;
+	}
+	// Depth-first, document order — which is what addPopoutHeaderControl relies on to insert a
+	// new control ahead of core's own rather than after them.
+	querySelectorAll(selector) {
+		const out = [];
+		for (const child of this.children) {
+			if (child._matches?.(selector)) out.push(child);
+			out.push(...(child.querySelectorAll?.(selector) ?? []));
+		}
+		return out;
 	}
 }
 
@@ -162,7 +177,11 @@ describe("StonetopSteadingSheet", () => {
 		});
 	});
 
-	it("injects a visible edit-photo header control into editable resident image popouts", () => {
+	// The injection now lives in the shared addPopoutHeaderControl helper, which schedules itself
+	// on a rAF plus two timeouts (core builds the header after render and can rebuild it), so the
+	// assertions wait a macrotask. Calling it twice is the point: the guard is per KEY, because a
+	// per-window guard silently caps a header at one control and this popout now carries two.
+	it("injects a visible edit-photo header control into editable resident image popouts", async () => {
 		const { sheet } = makeSheet();
 		globalThis.document = { createElement: tag => new FakeEl(tag) };
 		class MockImagePopout {
@@ -186,8 +205,9 @@ describe("StonetopSteadingSheet", () => {
 		sheet._onMemberAvatarPickImage = vi.fn();
 
 		const popout = sheet._createEditableMemberImagePopout(anchor);
-		sheet._injectMemberImageHeaderControl(popout);
-		sheet._injectMemberImageHeaderControl(popout);
+		sheet._scheduleMemberImageHeaderControl(popout);
+		sheet._scheduleMemberImageHeaderControl(popout);
+		await new Promise(resolve => setTimeout(resolve, 150));
 		const header = popout.element.querySelector(".window-header");
 		const button = header.querySelector(".stonetop-edit-member-photo");
 
@@ -209,30 +229,67 @@ describe("StonetopSteadingSheet", () => {
 		delete globalThis.ImagePopout;
 	});
 
-	it("refreshes the already-open member image popout after choosing a new photo", () => {
-		const { sheet } = makeSheet();
+	// An open photo window showing `src`, as either shape of Application: v13's ImagePopout is
+	// ApplicationV2 and freezes its options object, older windows keep a mutable one.
+	function makeImagePopout(src, { frozen = false } = {}) {
 		const root = new FakeEl("div");
 		const img = new FakeEl("img");
-		img.src = "old.webp";
+		img.src = src;
 		root.appendChild(img);
-		const popout = {
-			src: "old.webp",
-			options: {},
-			object: {},
-			element: root,
-			render: vi.fn(),
-			_stonetopMemberImageEdit: { current: "old.webp" },
+		const options = { src, window: { title: "Wren" } };
+		return {
+			img,
+			popout: {
+				options: frozen ? Object.freeze(options) : options,
+				element: root,
+				render: vi.fn(),
+				_stonetopMemberImageEdit: { current: src },
+			},
 		};
+	}
+
+	it("refreshes the already-open member image popout after choosing a new photo", () => {
+		const { sheet } = makeSheet();
+		const { popout, img } = makeImagePopout("old.webp");
 
 		sheet._refreshMemberImagePopout(popout, "new.webp");
 
-		expect(popout.src).toBe("new.webp");
 		expect(popout.options.src).toBe("new.webp");
-		expect(popout.object.src).toBe("new.webp");
 		expect(popout._stonetopMemberImageEdit.current).toBe("new.webp");
 		expect(img.src).toBe("new.webp");
 		expect(img.getAttribute("src")).toBe("new.webp");
 		expect(popout.render).not.toHaveBeenCalled();
+	});
+
+	// ApplicationV2 hands out a frozen options object, so writing `options.src` through it
+	// throws under strict mode. That used to happen before the <img> was patched, which left
+	// the open photo window showing the default portrait while the sheet row updated.
+	it("refreshes a member image popout whose options are frozen (ApplicationV2)", () => {
+		const { sheet } = makeSheet();
+		const { popout, img } = makeImagePopout("systems/stonetop_pwd/assets/icons/people/default_profile.svg", { frozen: true });
+
+		sheet._refreshMemberImagePopout(popout, "new.webp");
+
+		expect(img.src).toBe("new.webp");
+		expect(img.getAttribute("src")).toBe("new.webp");
+		expect(popout.options.src).toBe("new.webp");
+		// The swapped-in copy keeps the rest of the window's configuration.
+		expect(popout.options.window.title).toBe("Wren");
+		expect(popout._stonetopMemberImageEdit.current).toBe("new.webp");
+		expect(popout.render).not.toHaveBeenCalled();
+	});
+
+	// An animated portrait needs core's <video>, so the <img> is left alone and the window
+	// re-renders off the src stored on the way past.
+	it("re-renders rather than patching when the portrait changes kind", () => {
+		const { sheet } = makeSheet();
+		const { popout, img } = makeImagePopout("wren.webp", { frozen: true });
+
+		sheet._refreshMemberImagePopout(popout, "wren.webm");
+
+		expect(img.src).toBe("wren.webp");
+		expect(popout.options.src).toBe("wren.webm");
+		expect(popout.render).toHaveBeenCalledWith(false);
 	});
 
 	it("adds a dropped steading-improvement card as a tracked improvement", async () => {
@@ -341,6 +398,39 @@ describe("StonetopSteadingSheet", () => {
 
 			expect(globalThis.ui.notifications.info)
 				.toHaveBeenCalledWith("Applied Palisade: Fortunes +1; Fortifications +Palisade.");
+		});
+	});
+
+	describe("improvement category chips", () => {
+		it("lights one category at a time, so a second pick drops the first", () => {
+			const { sheet } = makeSheet();
+			expect(sheet._improvementCategory).toBe("");
+
+			expect(sheet._toggleImprovementCategory("hearth")).toBe("hearth");
+			expect(sheet._toggleImprovementCategory("wall")).toBe("wall");
+			expect(sheet._improvementCategory).toBe("wall");
+		});
+
+		it("clears back to unfiltered when the lit chip is picked again", () => {
+			const { sheet } = makeSheet();
+			sheet._toggleImprovementCategory("renown");
+
+			expect(sheet._toggleImprovementCategory("renown")).toBe("");
+			expect(sheet._improvementCategory).toBe("");
+		});
+
+		it("hides only the other categories, and never an uncategorised improvement", () => {
+			const { sheet } = makeSheet();
+			// Nothing lit: everything shows.
+			expect(sheet._isImprovementFiltered("hearth")).toBe(false);
+			expect(sheet._isImprovementFiltered("")).toBe(false);
+
+			sheet._toggleImprovementCategory("wall");
+			expect(sheet._isImprovementFiltered("wall")).toBe(false);
+			expect(sheet._isImprovementFiltered("hearth")).toBe(true);
+			expect(sheet._isImprovementFiltered("renown")).toBe(true);
+			// A dropped journal card carries no category and stays put under any chip.
+			expect(sheet._isImprovementFiltered("")).toBe(false);
 		});
 	});
 });

@@ -4,6 +4,25 @@
 // tab. The steading-bound quick-add (StonetopSteadingSheet._onCreateImprovementOpen)
 // stays for adding straight to the open steading; this one is the reusable path.
 import { createImprovementCard } from "../journal/steading-improvement-cards.js";
+import { IMPROVEMENT_CATEGORIES } from "../actors/steading/StonetopSteading.js";
+
+/**
+ * The Category picker both improvement forms carry — this dialog's, and the steading sheet's
+ * quick-add (StonetopSteadingSheet._onCreateImprovementOpen).
+ *
+ * Shared because it renders IMPROVEMENT_CATEGORIES: a fourth category, or a change to the
+ * "None" wording, is otherwise a two-file edit with no test over the sheet's copy. The rest of
+ * the two forms is still duplicated by prior design — that predates this and is left alone.
+ */
+export function improvementCategoryFieldHtml() {
+	return `<label class="stonetop-homestead-field">
+						<span>Category</span>
+						<select name="category">
+							<option value="">None (always shown)</option>
+							${IMPROVEMENT_CATEGORIES.map(c => `<option value="${c.key}">${c.label}</option>`).join("")}
+						</select>
+					</label>`;
+}
 
 /** Open the create-improvement dialog. Resolves after the card is authored (or cancel). */
 export function openCreateImprovementDialog() {
@@ -16,6 +35,7 @@ export function openCreateImprovementDialog() {
 					<span>Name</span>
 					<input type="text" name="name" placeholder="e.g. Roadbuilding" autofocus>
 				</label>
+				${improvementCategoryFieldHtml()}
 				<label class="stonetop-homestead-field">
 					<span>Flavor</span>
 					<textarea name="flavor" rows="2" placeholder="A short description shown under the title (optional)."></textarea>
@@ -45,6 +65,9 @@ export function openCreateImprovementDialog() {
 					const items = val("requirements").split("\n").map(s => s.trim()).filter(Boolean);
 					const def = {
 						name,
+						// Rides along in the card's payload so a dropped card lands under the
+						// right chip; validated on the receiving end by addCustomImprovement.
+						category: val("category"),
 						flavor: val("flavor"),
 						effect: val("effect"),
 						sections: items.length ? [{ heading: "Requires all of the following:", items }] : [],

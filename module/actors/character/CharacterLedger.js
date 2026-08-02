@@ -1,9 +1,12 @@
 import { BEAST_CATALOG } from "../../data/beasts.js";
 import { stripHtmlToText } from "../../utils/strings.js";
-
-const LEDGER_SCOPE = "stonetop_pwd";
-const LEDGER_KEY = "ledger";
-const LEDGER_MAX_ENTRIES = 300;
+import { categoryForCharacterPath } from "../../utils/ledger-categories.js";
+import {
+	LEDGER_SCOPE, isLedgerPath, normalizeFlagPath, getActorProperty,
+	appendLedgerEntries, deleteLedgerEntries, getLedgerEntries,
+	isBlank, truncateValue, formatValue, valuesEqual, actionForField, coalesceEntries,
+	prettifySlug, listMerge, scalarEntry,
+} from "../../utils/ledger-core.js";
 
 const SYSTEM_PATH_LABELS = {
 	"name": "Name",
@@ -28,67 +31,81 @@ const SYSTEM_PATH_LABELS = {
 	"system.attributes.debilities.options.miserable.value": "Miserable",
 };
 
-const FLAG_PATH_LABELS = {
-	"flags.stonetop_pwd.background.selected": "Background",
-	"flags.stonetop_pwd.instinct.selected": "Instinct",
-	"flags.stonetop_pwd.origin.selected": "Origin",
-	"flags.stonetop_pwd.inventory.regularPool": "Items undefined ◇",
-	"flags.stonetop_pwd.inventory.smallPool": "Small Items undefined □",
-	"flags.stonetop_pwd.postDeathInsert.slug": "Post-death insert",
-	"flags.stonetop_pwd.rollMode": "Roll mode",
-	"flags.stonetop_pwd.steadingId": "Linked steading",
-};
+/**
+ * Key a label table by flag path, given the paths WITHOUT the `flags.<scope>.` head.
+ *
+ * The head is stated once here instead of on every row. These tables are matched against paths
+ * that `normalizeFlagPath` has already rewritten into LEDGER_SCOPE, so a row written in any other
+ * scope simply never matches — `labelForPath` returns null and the change is dropped from the
+ * ledger with nothing raised. Two of these tables were spelled out in the literal scope while the
+ * prefix constants below them were built from LEDGER_SCOPE, so a rename would have moved half of
+ * the file and quietly muted the other half.
+ */
+const byFlagPath = (rows) => Object.fromEntries(
+	Object.entries(rows).map(([suffix, label]) => [`flags.${LEDGER_SCOPE}.${suffix}`, label]),
+);
 
-const FLAG_NAMESPACE_LABELS = {
-	"flags.stonetop_pwd.animalCompanion": "Animal companion",
-	"flags.stonetop_pwd.appearance": "Appearance",
-	"flags.stonetop_pwd.arcana": "Arcana",
-	"flags.stonetop_pwd.background.choices": "Background choices",
-	"flags.stonetop_pwd.crew": "Crew",
-	"flags.stonetop_pwd.initiatesLoyalty": "Initiates loyalty",
-	"flags.stonetop_pwd.initiateDetails": "Initiate details",
-	"flags.stonetop_pwd.inventory.checked": "Inventory",
-	"flags.stonetop_pwd.inventory.custom": "Custom inventory",
-	"flags.stonetop_pwd.inventory.resources": "Inventory resource",
-	"flags.stonetop_pwd.invocations": "Invocations",
-	"flags.stonetop_pwd.lore": "Lore",
-	"flags.stonetop_pwd.moves": "Move resource",
-	"flags.stonetop_pwd.possessions": "Possessions",
-	"flags.stonetop_pwd.postDeathInstinct": "Post-death instinct",
-	"flags.stonetop_pwd.postDeathLore": "Post-death lore",
-};
+const FLAG_PATH_LABELS = byFlagPath({
+	"background.selected": "Background",
+	"instinct.selected": "Instinct",
+	"origin.selected": "Origin",
+	"inventory.regularPool": "Item slots ◇",
+	"inventory.smallPool": "Small item slots □",
+	"postDeathInsert.slug": "Post-death insert",
+	"rollMode": "Roll mode",
+	"steadingId": "Linked steading",
+});
+
+const FLAG_NAMESPACE_LABELS = byFlagPath({
+	"animalCompanion": "Animal companion",
+	"appearance": "Appearance",
+	"arcana": "Arcana",
+	"background.choices": "Background choices",
+	"crew": "Crew",
+	"initiatesLoyalty": "Initiates loyalty",
+	"initiateDetails": "Initiate details",
+	"inventory.checked": "Inventory",
+	"inventory.custom": "Custom inventory",
+	"inventory.resources": "Inventory resource",
+	"invocations": "Invocations",
+	"lore": "Lore",
+	"moves": "Move resource",
+	"possessions": "Possessions",
+	"postDeathInstinct": "Post-death instinct",
+	"postDeathLore": "Post-death lore",
+});
 
 const SORTED_NAMESPACE_PREFIXES = Object.keys(FLAG_NAMESPACE_LABELS).sort((a, b) => b.length - a.length);
-const INVENTORY_CHECKED_PREFIX = "flags.stonetop_pwd.inventory.checked.";
-const INVENTORY_RESOURCE_PREFIX = "flags.stonetop_pwd.inventory.resources.";
+const INVENTORY_CHECKED_PREFIX = `flags.${LEDGER_SCOPE}.inventory.checked.`;
+const INVENTORY_RESOURCE_PREFIX = `flags.${LEDGER_SCOPE}.inventory.resources.`;
 // Move resource tracks (e.g. the Blessed's "Rites of the Land" Favor) live under the
 // misnamed "backgroundChoices" sub-flag (see MoveResources), keyed by move name for
 // shipped moves and by stable item id for player-authored custom moves.
-const MOVE_RESOURCE_PREFIX = "flags.stonetop_pwd.moves.backgroundChoices.";
+const MOVE_RESOURCE_PREFIX = `flags.${LEDGER_SCOPE}.moves.backgroundChoices.`;
 // Per-option advancement marks (e.g. Potential for Greatness): keyed
 // "<moveName>.<optionSlug>", each an array of { stat, level } entries.
-const MOVE_MARKS_PREFIX = "flags.stonetop_pwd.moves.moveMarks.";
-const BACKGROUND_CHOICES_PREFIX = "flags.stonetop_pwd.background.choices.";
-const INITIATES_LOYALTY_PREFIX = "flags.stonetop_pwd.initiatesLoyalty.";
-const INITIATES_HP_PREFIX = "flags.stonetop_pwd.initiatesHp.";
-const INITIATES_READINESS_PREFIX = "flags.stonetop_pwd.initiatesReadiness.";
-const ANIMAL_COMPANION_PREFIX = "flags.stonetop_pwd.animalCompanion.";
-const CREW_PREFIX = "flags.stonetop_pwd.crew.";
+const MOVE_MARKS_PREFIX = `flags.${LEDGER_SCOPE}.moves.moveMarks.`;
+const BACKGROUND_CHOICES_PREFIX = `flags.${LEDGER_SCOPE}.background.choices.`;
+const INITIATES_LOYALTY_PREFIX = `flags.${LEDGER_SCOPE}.initiatesLoyalty.`;
+const INITIATES_HP_PREFIX = `flags.${LEDGER_SCOPE}.initiatesHp.`;
+const INITIATES_READINESS_PREFIX = `flags.${LEDGER_SCOPE}.initiatesReadiness.`;
+const ANIMAL_COMPANION_PREFIX = `flags.${LEDGER_SCOPE}.animalCompanion.`;
+const CREW_PREFIX = `flags.${LEDGER_SCOPE}.crew.`;
 // Custom followers (walkthrough / monster conversion / arcana summon) keep their
 // Loyalty, current HP and Readiness inside one per-id record; beast/livestock
 // followers track theirs per catalog slug. Neither had ledger coverage, so a
 // Strengthen Your Bond or an HP change on them went unrecorded — these prefixes
 // (and the entry builders below) close that gap.
-const CUSTOM_FOLLOWERS_PREFIX = "flags.stonetop_pwd.customFollowers.";
-const BEAST_LOYALTY_PREFIX = "flags.stonetop_pwd.beastLoyalty.";
-const BEAST_HP_PREFIX = "flags.stonetop_pwd.beastHp.";
-const BEAST_READINESS_PREFIX = "flags.stonetop_pwd.beastReadiness.";
-const POSSESSION_USES_PREFIX = "flags.stonetop_pwd.possessions.uses.";
-const POSSESSION_SUBCHOICES_PREFIX = "flags.stonetop_pwd.possessions.subChoices.";
-const POSSESSION_CHOICE_USES_PREFIX = "flags.stonetop_pwd.possessions.choiceUses.";
+const CUSTOM_FOLLOWERS_PREFIX = `flags.${LEDGER_SCOPE}.customFollowers.`;
+const BEAST_LOYALTY_PREFIX = `flags.${LEDGER_SCOPE}.beastLoyalty.`;
+const BEAST_HP_PREFIX = `flags.${LEDGER_SCOPE}.beastHp.`;
+const BEAST_READINESS_PREFIX = `flags.${LEDGER_SCOPE}.beastReadiness.`;
+const POSSESSION_USES_PREFIX = `flags.${LEDGER_SCOPE}.possessions.uses.`;
+const POSSESSION_SUBCHOICES_PREFIX = `flags.${LEDGER_SCOPE}.possessions.subChoices.`;
+const POSSESSION_CHOICE_USES_PREFIX = `flags.${LEDGER_SCOPE}.possessions.choiceUses.`;
 // The ◇ load mark on a gear bundle's chosen option (a Heavy's Weapons of war), which is
 // separate from choosing it — same "selected / deselected" reading as an inventory mark.
-const POSSESSION_CHOICE_CARRIED_PREFIX = "flags.stonetop_pwd.possessions.choiceCarried.";
+const POSSESSION_CHOICE_CARRIED_PREFIX = `flags.${LEDGER_SCOPE}.possessions.choiceCarried.`;
 const POSSESSION_SELECTED_PATH = `flags.${LEDGER_SCOPE}.possessions.selected`;
 const POSSESSION_CUSTOM_PATH = `flags.${LEDGER_SCOPE}.possessions.custom`;
 
@@ -102,101 +119,48 @@ const WOUNDS_PATH = "system.attributes.wounds";
 const ARCANA_BOXES_PREFIX = `flags.${LEDGER_SCOPE}.arcana.boxes.`;
 const ARCANA_UNLOCK_PREFIX = `flags.${LEDGER_SCOPE}.arcana.unlock.`;
 const ARCANA_BACK_OPTIONS_PREFIX = `flags.${LEDGER_SCOPE}.arcana.backOptions.`;
+// The remaining arcana sub-flags are slug arrays / slug scalars. They all used to fall through
+// to the "Arcana" namespace label and render as raw slug lists — and because `owned` and
+// `identified` hold the same slugs, adding one card produced two byte-identical "Arcana changed
+// from a, b to a, b, c" entries from two separate updates, which read as a duplicate bug.
+const ARCANA_PREFIX = `flags.${LEDGER_SCOPE}.arcana.`;
+const ARCANA_SLUG_LISTS = {
+	owned:      { added: "Arcanum gained",     removed: "Arcanum lost",              merge: "Arcana gained" },
+	identified: { added: "Arcanum identified", removed: "Arcanum un-identified",     merge: "Arcana identified" },
+	leads:      { added: "Arcanum lead found", removed: "Arcanum lead resolved",     merge: "Arcana leads" },
+	revealed:   { added: "Arcanum revealed",   removed: "Arcanum hidden again",      merge: "Arcana revealed" },
+};
+// Bookkeeping sub-flags with no play meaning of their own — a backfill guard, the onboarding
+// draw, per-card display state. They were logging lines like "Arcana set to on".
+const ARCANA_SILENT_KEYS = new Set(["leadBackfilled", "minorDraw", "majorMarksFor", "flipped", "seeBothSides"]);
 
-function normalizeFlagPath(path) {
-	return String(path ?? "").replace(/^flags\.stonetop\./, `flags.${LEDGER_SCOPE}.`);
-}
+// Lore: `lore.counts.<loreSlug>:<optionSlug>` (a tick count) and `lore.texts.<loreSlug>:<optionSlug>`
+// (the written answer). Both were falling through to the "Lore" namespace label, so a ticked box
+// read "Lore set to 1" and a written answer dumped its whole paragraph into the action string.
+const LORE_COUNTS_PREFIX = `flags.${LEDGER_SCOPE}.lore.counts.`;
+const LORE_TEXTS_PREFIX  = `flags.${LEDGER_SCOPE}.lore.texts.`;
+// Appearance lines are stored by index (`appearance.selected.<n>`) and the playbook data gives
+// them no category names, so entries name the chosen trait and merge into one line per burst.
+const APPEARANCE_PREFIX  = `flags.${LEDGER_SCOPE}.appearance.selected.`;
+const INITIATE_DETAILS_PREFIX = `flags.${LEDGER_SCOPE}.initiateDetails.`;
+const INVOCATIONS_PATH = `flags.${LEDGER_SCOPE}.invocations.selected`;
+// Written fill-in answers on a background's moves ("Well Versed in ___, the Things Below").
+// These were reading as "Move resource set to …" — the `moves` namespace fallback label.
+const BACKGROUND_ANSWERS_PREFIX = `flags.${LEDGER_SCOPE}.moves.backgroundAnswers.`;
+// Pure sheet state: which level-overage warning the player dismissed. Never a ledger event.
+const MOVES_SILENT_PATH = `flags.${LEDGER_SCOPE}.moves.dismissedLevelOverage`;
+const BACKGROUND_SELECTED_PATH = `flags.${LEDGER_SCOPE}.background.selected`;
 
-function getActorProperty(actor, path) {
-	const value = foundry.utils.getProperty(actor, path);
-	if (value !== undefined) return value;
-	if (String(path).startsWith(`flags.${LEDGER_SCOPE}.`)) {
-		return foundry.utils.getProperty(actor, path.replace(`flags.${LEDGER_SCOPE}.`, "flags.stonetop."));
-	}
-	return undefined;
-}
-
-export function isBlank(v) {
-	return v === undefined || v === null || v === "";
-}
-
-export function formatValue(value) {
-	if (isBlank(value)) return "blank";
-	if (typeof value === "boolean") return value ? "on" : "off";
-	if (Array.isArray(value)) return value.length ? value.join(", ") : "none";
-	if (typeof value === "object") return "changed";
-	return String(value);
-}
-
-export function valuesEqual(a, b) {
-	if (a === b) return true;
-	if (Array.isArray(a) || Array.isArray(b)) return JSON.stringify(a) === JSON.stringify(b);
-	return false;
-}
-
-export function actionForField(label, oldValue, newValue) {
-	if (isBlank(oldValue)) return `${label} set to ${formatValue(newValue)}`;
-	if (isBlank(newValue)) return `${label} cleared`;
-	return `${label} changed from ${formatValue(oldValue)} to ${formatValue(newValue)}`;
-}
-
-export function coalesceEntries(entries) {
-	const seen = new Set();
-	return entries.filter(entry => {
-		if (seen.has(entry.action)) return false;
-		seen.add(entry.action);
-		return true;
-	});
-}
-
-// Verb phrases that separate a change's subject (noun) from its detail. Ordered
-// longest/most-specific first isn't required — we take the earliest match.
-const LEDGER_VERB_MARKERS = [
-	" changed from ",
-	" renamed from ",
-	" set to ",
-	" cleared",
-	" selected",
-	" deselected",
-	" marked",
-	" unmarked",
-	" completed",
-	" learned",
-	" removed",
-	" added",
-];
-
-/**
- * Derive the "noun" (subject) of a ledger action string — the phrase before its
- * verb — so entries can be grouped and filtered. e.g. "HP changed from 5 to 3"
- * → "HP", "Longsword selected" → "Longsword", "Asset added: Wagon" → "Asset".
- * Falls back to the whole (trimmed) action when no known verb is present.
- */
-export function ledgerNoun(action) {
-	const text = String(action ?? "").trim();
-	if (!text) return "";
-	let cut = text.length;
-	for (const marker of LEDGER_VERB_MARKERS) {
-		const idx = text.indexOf(marker);
-		if (idx >= 0 && idx < cut) cut = idx;
-	}
-	return text.slice(0, cut).trim() || text;
-}
-
-/**
- * Distinct nouns present across ledger entries, with counts, sorted alphabetically.
- * @returns {{noun: string, count: number}[]}
- */
-export function ledgerNounCounts(entries) {
-	const counts = new Map();
-	for (const entry of entries ?? []) {
-		const noun = ledgerNoun(entry?.action);
-		if (noun) counts.set(noun, (counts.get(noun) ?? 0) + 1);
-	}
-	return [...counts.entries()]
-		.map(([noun, count]) => ({ noun, count }))
-		.sort((a, b) => a.noun.localeCompare(b.noun));
-}
+// Numeric/scalar sheet fields whose repeated nudges collapse into one entry (see mergeRuns):
+// clicking XP up three times, or walking a new character from level 1 to level 34.
+// Debilities are booleans; "Dazed changed from off to on" reads as a data dump rather than
+// something that happened at the table. Labels come from SYSTEM_PATH_LABELS, which already
+// names all three.
+const DEBILITY_PATHS = new Set([
+	"system.attributes.debilities.options.weakened.value",
+	"system.attributes.debilities.options.dazed.value",
+	"system.attributes.debilities.options.miserable.value",
+]);
 
 function labelForPath(path) {
 	if (SYSTEM_PATH_LABELS[path]) return SYSTEM_PATH_LABELS[path];
@@ -206,13 +170,6 @@ function labelForPath(path) {
 	return null;
 }
 
-export function prettifySlug(slug) {
-	return String(slug ?? "")
-		.split(/[-_:]/)
-		.filter(Boolean)
-		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
-		.join(" ") || "Unknown";
-}
 
 // The ledger wants null (not "") for an empty value so a rich-text clear reads as a removal;
 // otherwise it's the shared strip-HTML helper.
@@ -226,12 +183,9 @@ function firstLabelPart(value) {
 
 // Cap a long detail phrase (e.g. an arcanum's unlock-requirement sentence, which can run
 // 250+ chars) to a readable ledger length, cutting on a word boundary when one is near.
-function truncateDetail(text, max = 64) {
-	const t = String(text ?? "").trim();
-	if (t.length <= max) return t;
-	const slice = t.slice(0, max);
-	const lastSpace = slice.lastIndexOf(" ");
-	return `${(lastSpace > max * 0.6 ? slice.slice(0, lastSpace) : slice).trimEnd()}…`;
+// Shorter than VALUE_MAX_CHARS: a detail is one clause inside a longer action string.
+function truncateDetail(text) {
+	return truncateValue(text, 64);
 }
 
 function getPlaybookFlags(actor, snapshot) {
@@ -243,12 +197,19 @@ function getPlaybookFlags(actor, snapshot) {
 }
 
 function addPossessionChoiceNames(names, possession) {
-	for (const choice of possession.choices?.options ?? []) {
+	const add = choice => {
+		if (!choice?.slug) return;
 		names.possessionChoices.set(`${possession.slug}:${choice.slug}`, stripHtml(choice.label) ?? prettifySlug(choice.slug));
-	}
+	};
+	for (const choice of possession.choices?.options ?? []) add(choice);
 	for (const group of possession.choiceGroups ?? []) {
-		for (const choice of group.options ?? []) {
-			names.possessionChoices.set(`${possession.slug}:${choice.slug}`, stripHtml(choice.label) ?? prettifySlug(choice.slug));
+		// A choice group either lists its options directly or splits them across `subgroups`
+		// (the Sacred pouch's "choose 1 on each line"). Only the direct form was being read, so
+		// every subgroup-shaped choice missed the lookup and fell back to its prettified slug —
+		// "Sacred pouch: Sacred Pouch Origin Heirloom selected".
+		for (const choice of group.options ?? []) add(choice);
+		for (const subgroup of group.subgroups ?? []) {
+			for (const choice of subgroup.options ?? []) add(choice);
 		}
 	}
 }
@@ -261,6 +222,10 @@ async function buildNameLookup(actor) {
 		possessions: new Map(),
 		possessionChoices: new Map(),
 		backgroundChoices: new Map(),
+		backgrounds: new Map(),
+		lore: new Map(),
+		loreOptions: new Map(),
+		invocations: new Map(),
 		moveResourceTitles: new Map(),
 		moveResourceNames: new Map(),
 		moveMarkOptions: new Map(),
@@ -295,7 +260,7 @@ async function buildNameLookup(actor) {
 		if (item?._id && item.name) names.inventory.set(item._id, item.name);
 		// Custom moves persist their resource track by item id; map that id back to the
 		// move's name/title so a ledger tick reads "<Move> - <Title>", not a raw id.
-		if (item?.type === "move" && item.flags?.stonetop_pwd?.custom && item._id) {
+		if (item?.type === "move" && item.flags?.["stonetop_pwd"]?.custom && item._id) {
 			names.moveResourceNames.set(item._id, stripHtml(item.name) ?? item.name);
 			if (item.system?.resource?.title) names.moveResourceTitles.set(item._id, stripHtml(item.system.resource.title));
 		}
@@ -348,10 +313,26 @@ async function buildNameLookup(actor) {
 			addPossessionChoiceNames(names, possession);
 		}
 		for (const background of playbookFlags?.backgrounds ?? []) {
+			if (background.slug) names.backgrounds.set(background.slug, stripHtml(background.label) ?? prettifySlug(background.slug));
 			for (const choice of background.choices?.options ?? []) {
 				addBackgroundChoice(choice);
 				if (background.slug === "initiate") addFollower(`initiate:${choice.slug}`, choice.label);
 			}
+		}
+		// Lore questions ("The Earth Mother") and their answer options, so a ticked box names the
+		// question it belongs to instead of reading "Lore set to 1".
+		for (const lore of playbookFlags?.lore ?? []) {
+			if (!lore?.slug) continue;
+			names.lore.set(lore.slug, stripHtml(lore.title) ?? prettifySlug(lore.slug));
+			for (const option of lore.options ?? []) {
+				if (option?.slug) names.loreOptions.set(`${lore.slug}:${option.slug}`, truncateDetail(stripHtml(option.description) ?? prettifySlug(option.slug)));
+			}
+		}
+		// Invocations are stored as a slug array; the playbook holds their authored names.
+		// The field is an array on some playbooks and {options:[…]} on others.
+		const invocations = playbookFlags?.invocations;
+		for (const option of (Array.isArray(invocations) ? invocations : invocations?.options) ?? []) {
+			if (option?.slug) names.invocations.set(option.slug, stripHtml(option.label) ?? prettifySlug(option.slug));
 		}
 		for (const category of snapshot?.moves ?? []) {
 			for (const move of category?.moves ?? []) {
@@ -646,32 +627,209 @@ function arcanaOptionEntry(path, prefix, optionField, oldValue, newValue, names)
 	return { action: `${arcanaSubject(names, slug)}: ${label} ${marked ? "marked" : "unmarked"}` };
 }
 
+// Which slugs joined / left a slug-array flag. Both arcana lists and the invocation list grow
+// one entry at a time, so the interesting fact is the delta, not the whole array.
+function slugListDelta(oldValue, newValue) {
+	const before = new Set(Array.isArray(oldValue) ? oldValue : []);
+	const after  = new Set(Array.isArray(newValue) ? newValue : []);
+	return {
+		added:   [...after].filter(s => !before.has(s)),
+		removed: [...before].filter(s => !after.has(s)),
+	};
+}
+
+/**
+ * Entries for a slug array that gained and lost members: one line per slug, with the added
+ * ones carrying a run descriptor so a burst of picks collapses into a single entry.
+ *
+ * @param {object} list   `{ added, removed, merge }` phrasings for this list
+ * @param {string} runKey merge key that scopes the run to this list alone
+ * @param {Function} nameFor  slug → display name
+ */
+function slugListEntries(oldValue, newValue, list, runKey, nameFor) {
+	const { added, removed } = slugListDelta(oldValue, newValue);
+	return [
+		...added.map(slug => ({
+			action: `${list.added}: ${nameFor(slug)}`,
+			merge: listMerge(list.merge, runKey, [nameFor(slug)]),
+		})),
+		...removed.map(slug => ({ action: `${list.removed}: ${nameFor(slug)}` })),
+	];
+}
+
+/**
+ * Arcana sub-flags other than the mark tracks. `owned` / `identified` / `leads` / `revealed`
+ * are slug arrays; `major` and the `minorRoles` picks are single slugs. Everything here
+ * resolves the slug to the card's tier-prefixed name, and the pure-bookkeeping keys stay silent.
+ */
+function arcanaFlagEntries(path, oldValue, newValue, names) {
+	const key = path.slice(ARCANA_PREFIX.length).split(".")[0];
+	if (ARCANA_SILENT_KEYS.has(key)) return [];
+
+	const list = ARCANA_SLUG_LISTS[key];
+	if (list) return slugListEntries(oldValue, newValue, list, `arcana:${key}`, slug => arcanaSubject(names, slug));
+
+	if (key === "major") {
+		if (isBlank(newValue)) return [{ action: "Major arcanum cleared" }];
+		return [{ action: `Major arcanum chosen: ${arcanaSubject(names, newValue)}` }];
+	}
+
+	// minorRoles: { mastered, found, lead } — the Seeker's three onboarding picks. Written both
+	// as the whole object and as individual sub-paths, so name the role when we have one.
+	if (key === "minorRoles") {
+		const role = path.slice(ARCANA_PREFIX.length).split(".")[1];
+		if (!role) return [];
+		// isBlank BEFORE the object check: a cleared role can arrive as null, and `typeof null`
+		// is "object", so testing the shape first swallowed the clear that `""` reported.
+		if (isBlank(newValue)) return [{ action: `Minor arcanum (${role}) cleared` }];
+		if (typeof newValue === "object") return [];
+		return [{ action: `Minor arcanum (${role}): ${arcanaSubject(names, newValue)}` }];
+	}
+
+	return [];
+}
+
+const INVOCATIONS_LIST = { added: "Invocation learned", removed: "Invocation lost", merge: "Invocations learned" };
+
+function invocationEntries(oldValue, newValue, names) {
+	return slugListEntries(oldValue, newValue, INVOCATIONS_LIST, "invocations", slug => nameFrom(names.invocations, slug));
+}
+
+// A lore tick: `lore.counts.<loreSlug>:<optionSlug>`. Names the question and the answer picked,
+// instead of reporting the raw counter as "Lore set to 1".
+function loreCountEntry(path, oldValue, newValue, names) {
+	const key = path.slice(LORE_COUNTS_PREFIX.length);
+	const [loreSlug = ""] = key.split(":");
+	const question = nameFrom(names.lore, loreSlug);
+	const answer = names.loreOptions.get(key) ?? prettifySlug(key.split(":")[1] ?? "");
+	const before = Number(oldValue ?? 0);
+	const after  = Number(newValue ?? 0);
+	if (after === before) return null;
+	return { action: `Lore — ${question}: ${answer} ${after > before ? "marked" : "unmarked"}` };
+}
+
+// A written lore answer. The prose can run several hundred characters, so the entry records the
+// question and a short preview rather than the whole paragraph.
+function loreTextEntry(path, newValue, names) {
+	const key = path.slice(LORE_TEXTS_PREFIX.length);
+	const [loreSlug = ""] = key.split(":");
+	const question = nameFrom(names.lore, loreSlug);
+	const text = stripHtml(newValue);
+	if (!text) return { action: `Lore — ${question}: answer cleared` };
+	return { action: `Lore — ${question} answered: “${truncateValue(text)}”` };
+}
+
+// Appearance lines carry no category names in the playbook data (they are just four ordered
+// lists), so the entry names the chosen trait and merges the burst into a single line.
+function appearanceEntry(newValue) {
+	const value = stripHtml(newValue);
+	if (!value) return null;
+	return { action: `Appearance set to ${value}`, merge: listMerge("Appearance", "appearance", [value]) };
+}
+
+function initiateDetailEntry(newValue) {
+	const value = stripHtml(newValue);
+	if (!value) return null;
+	return { action: `Initiate details set to ${value}`, merge: listMerge("Initiate details", "initiateDetails", [value]) };
+}
+
+function debilityEntry(label, oldValue, newValue) {
+	if (!!oldValue === !!newValue) return null;
+	return { action: newValue ? `${label} marked` : `${label} cleared` };
+}
+
+// ── Path → entry dispatch ───────────────────────────────────────────────────
+// Every handler takes (path, oldValue, newValue, names) and returns the entries for that
+// change. Returning [] means "this path is deliberately silent"; nulls inside the array are
+// dropped centrally, so a handler that decides there is nothing to say can just return one.
+//
+// Two tables rather than a chain of ifs. An exact path is more specific than any prefix, so
+// EXACT wins; among prefixes the LONGEST match wins, which is what keeps `arcana.boxes.`
+// ahead of `arcana.` without anyone having to remember to write it first. Adding a nested
+// namespace under an existing one is therefore just a new row.
+
+const EXACT_PATH_ENTRIES = {
+	[POSSESSION_SELECTED_PATH]: (p, o, n, names) => possessionSelectionEntries(o, n, names),
+	[POSSESSION_CUSTOM_PATH]:   (p, o, n) => possessionCustomEntries(o, n),
+	[WOUNDS_PATH]:              (p, o, n) => woundLedgerEntries(o, n),
+	[INVOCATIONS_PATH]:         (p, o, n, names) => invocationEntries(o, n, names),
+	// Pure sheet state: which level-overage warning the player dismissed.
+	[MOVES_SILENT_PATH]:        () => [],
+	[BACKGROUND_SELECTED_PATH]: (p, o, n, names) => [{
+		action: isBlank(n) ? "Background cleared" : `Background set to ${nameFrom(names.backgrounds, n)}`,
+	}],
+};
+
+const PREFIX_ENTRIES = {
+	[INVENTORY_CHECKED_PREFIX]:  (p, o, n, names) => [inventorySelectionEntry(p, o, n, names)],
+	[INVENTORY_RESOURCE_PREFIX]: (p, o, n, names) => [inventoryResourceEntry(p, o, n, names)],
+	[MOVE_RESOURCE_PREFIX]:      (p, o, n, names) => [moveResourceEntry(p, o, n, names)],
+	[MOVE_MARKS_PREFIX]:         (p, o, n, names) => moveMarkEntries(p, o, n, names),
+	[BACKGROUND_CHOICES_PREFIX]: (p, o, n, names) => [backgroundChoiceEntry(p, o, n, names)],
+
+	[INITIATES_LOYALTY_PREFIX]:   (p, o, n, names) => [perSlugFollowerEntry(p, INITIATES_LOYALTY_PREFIX, "initiate", "loyalty", o, n, names)],
+	[INITIATES_HP_PREFIX]:        (p, o, n, names) => [perSlugFollowerEntry(p, INITIATES_HP_PREFIX, "initiate", "HP", o, n, names)],
+	[INITIATES_READINESS_PREFIX]: (p, o, n, names) => [perSlugFollowerEntry(p, INITIATES_READINESS_PREFIX, "initiate", "Readiness", o, n, names)],
+	[BEAST_LOYALTY_PREFIX]:       (p, o, n, names) => [perSlugFollowerEntry(p, BEAST_LOYALTY_PREFIX, "beast", "loyalty", o, n, names)],
+	[BEAST_HP_PREFIX]:            (p, o, n, names) => [perSlugFollowerEntry(p, BEAST_HP_PREFIX, "beast", "HP", o, n, names)],
+	[BEAST_READINESS_PREFIX]:     (p, o, n, names) => [perSlugFollowerEntry(p, BEAST_READINESS_PREFIX, "beast", "Readiness", o, n, names)],
+	[ANIMAL_COMPANION_PREFIX]:    (p, o, n, names) => [animalCompanionEntry(p, o, n, names)],
+	[CREW_PREFIX]:                (p, o, n, names) => [crewEntry(p, o, n, names)],
+	[CUSTOM_FOLLOWERS_PREFIX]:    (p, o, n, names) => [customFollowerEntry(p, o, n, names)],
+	[INITIATE_DETAILS_PREFIX]:    (p, o, n) => [initiateDetailEntry(n)],
+
+	[POSSESSION_USES_PREFIX]:           (p, o, n, names) => [possessionUsesEntry(p, o, n, names)],
+	[POSSESSION_SUBCHOICES_PREFIX]:     (p, o, n, names) => possessionSubchoiceEntries(p, o, n, names),
+	[POSSESSION_CHOICE_USES_PREFIX]:    (p, o, n, names) => [possessionChoiceUsesEntry(p, o, n, names)],
+	[POSSESSION_CHOICE_CARRIED_PREFIX]: (p, o, n, names) => [possessionChoiceCarriedEntry(p, o, n, names)],
+
+	[ARCANA_BOXES_PREFIX]:        (p, o, n, names) => [arcanaBoxEntry(p, o, n, names)],
+	[ARCANA_UNLOCK_PREFIX]:       (p, o, n, names) => [arcanaOptionEntry(p, ARCANA_UNLOCK_PREFIX, "unlockOptions", o, n, names)],
+	[ARCANA_BACK_OPTIONS_PREFIX]: (p, o, n, names) => [arcanaOptionEntry(p, ARCANA_BACK_OPTIONS_PREFIX, "backOptions", o, n, names)],
+	// Shorter than the three mark-track prefixes above, so longest-match keeps it last.
+	[ARCANA_PREFIX]:              (p, o, n, names) => arcanaFlagEntries(p, o, n, names),
+
+	[LORE_COUNTS_PREFIX]: (p, o, n, names) => [loreCountEntry(p, o, n, names)],
+	[LORE_TEXTS_PREFIX]:  (p, o, n, names) => [loreTextEntry(p, n, names)],
+	[APPEARANCE_PREFIX]:  (p, o, n) => [appearanceEntry(n)],
+
+	[BACKGROUND_ANSWERS_PREFIX]: (p, o, n) => {
+		const question = prettifySlug(p.slice(BACKGROUND_ANSWERS_PREFIX.length));
+		const text = stripHtml(n);
+		return [{ action: text ? `${question} answered: “${truncateValue(text)}”` : `${question} answer cleared` }];
+	},
+};
+
+const SORTED_ENTRY_PREFIXES = Object.keys(PREFIX_ENTRIES).sort((a, b) => b.length - a.length);
+
 function granularEntriesForPath(path, oldValue, newValue, names) {
-	if (path.startsWith(INVENTORY_CHECKED_PREFIX)) return [inventorySelectionEntry(path, oldValue, newValue, names)].filter(Boolean);
-	if (path.startsWith(INVENTORY_RESOURCE_PREFIX)) return [inventoryResourceEntry(path, oldValue, newValue, names)];
-	if (path.startsWith(MOVE_RESOURCE_PREFIX)) return [moveResourceEntry(path, oldValue, newValue, names)];
-	if (path.startsWith(MOVE_MARKS_PREFIX)) return moveMarkEntries(path, oldValue, newValue, names);
-	if (path.startsWith(BACKGROUND_CHOICES_PREFIX)) return [backgroundChoiceEntry(path, oldValue, newValue, names)].filter(Boolean);
-	if (path.startsWith(INITIATES_LOYALTY_PREFIX)) return [perSlugFollowerEntry(path, INITIATES_LOYALTY_PREFIX, "initiate", "loyalty", oldValue, newValue, names)];
-	if (path.startsWith(INITIATES_HP_PREFIX)) return [perSlugFollowerEntry(path, INITIATES_HP_PREFIX, "initiate", "HP", oldValue, newValue, names)];
-	if (path.startsWith(INITIATES_READINESS_PREFIX)) return [perSlugFollowerEntry(path, INITIATES_READINESS_PREFIX, "initiate", "Readiness", oldValue, newValue, names)];
-	if (path.startsWith(ANIMAL_COMPANION_PREFIX)) return [animalCompanionEntry(path, oldValue, newValue, names)];
-	if (path.startsWith(CREW_PREFIX)) return [crewEntry(path, oldValue, newValue, names)];
-	if (path.startsWith(CUSTOM_FOLLOWERS_PREFIX)) return [customFollowerEntry(path, oldValue, newValue, names)].filter(Boolean);
-	if (path.startsWith(BEAST_LOYALTY_PREFIX)) return [perSlugFollowerEntry(path, BEAST_LOYALTY_PREFIX, "beast", "loyalty", oldValue, newValue, names)];
-	if (path.startsWith(BEAST_HP_PREFIX)) return [perSlugFollowerEntry(path, BEAST_HP_PREFIX, "beast", "HP", oldValue, newValue, names)];
-	if (path.startsWith(BEAST_READINESS_PREFIX)) return [perSlugFollowerEntry(path, BEAST_READINESS_PREFIX, "beast", "Readiness", oldValue, newValue, names)];
-	if (path === POSSESSION_SELECTED_PATH) return possessionSelectionEntries(oldValue, newValue, names);
-	if (path === POSSESSION_CUSTOM_PATH) return possessionCustomEntries(oldValue, newValue);
-	if (path === WOUNDS_PATH) return woundLedgerEntries(oldValue, newValue);
-	if (path.startsWith(POSSESSION_USES_PREFIX)) return [possessionUsesEntry(path, oldValue, newValue, names)];
-	if (path.startsWith(POSSESSION_SUBCHOICES_PREFIX)) return possessionSubchoiceEntries(path, oldValue, newValue, names);
-	if (path.startsWith(POSSESSION_CHOICE_USES_PREFIX)) return [possessionChoiceUsesEntry(path, oldValue, newValue, names)];
-	if (path.startsWith(POSSESSION_CHOICE_CARRIED_PREFIX)) return [possessionChoiceCarriedEntry(path, oldValue, newValue, names)].filter(Boolean);
-	if (path.startsWith(ARCANA_BOXES_PREFIX)) return [arcanaBoxEntry(path, oldValue, newValue, names)].filter(Boolean);
-	if (path.startsWith(ARCANA_UNLOCK_PREFIX)) return [arcanaOptionEntry(path, ARCANA_UNLOCK_PREFIX, "unlockOptions", oldValue, newValue, names)];
-	if (path.startsWith(ARCANA_BACK_OPTIONS_PREFIX)) return [arcanaOptionEntry(path, ARCANA_BACK_OPTIONS_PREFIX, "backOptions", oldValue, newValue, names)];
+	// Object.hasOwn, not a bare lookup: `path` is attacker-adjacent data off an actor update,
+	// and a plain `EXACT_PATH_ENTRIES[path]` would happily hand back Object.prototype members
+	// for a path named "constructor" or "toString" — which this then tries to call.
+	// The prefix scan only runs when no exact row claimed the path, so the common exact hits
+	// don't pay for a walk of every prefix.
+	let handler = Object.hasOwn(EXACT_PATH_ENTRIES, path) ? EXACT_PATH_ENTRIES[path] : null;
+	if (!handler) {
+		const prefix = SORTED_ENTRY_PREFIXES.find(p => path.startsWith(p));
+		handler = prefix ? PREFIX_ENTRIES[prefix] : null;
+	}
+	if (handler) return (handler(path, oldValue, newValue, names) ?? []).filter(Boolean);
+
+	// A set rather than table rows: it reads its label from SYSTEM_PATH_LABELS, so a row here
+	// would just repeat what that map already says.
+	if (DEBILITY_PATHS.has(path)) return [debilityEntry(SYSTEM_PATH_LABELS[path], oldValue, newValue)].filter(Boolean);
+	const label = SYSTEM_PATH_LABELS[path];
+	// scalarEntry decides for itself whether this field's runs collapse, by asking the value
+	// whether it is a number — which is what the allowlist that used to sit here spelled out by
+	// hand, for exactly the numeric subset of the map above.
+	if (label) return [scalarEntry(label, oldValue, newValue, path)];
 	return null;
+}
+
+/** Tag every entry from one path with that path's category, leaving any explicit one alone. */
+function withCategory(entries, path) {
+	const category = categoryForCharacterPath(path);
+	return entries.map(entry => ({ category, ...entry }));
 }
 
 async function actorUpdateEntries(actor, changed) {
@@ -679,7 +837,7 @@ async function actorUpdateEntries(actor, changed) {
 	const entries = [];
 	for (const [path, newValue] of Object.entries(foundry.utils.flattenObject(changed))) {
 		const normalizedPath = normalizeFlagPath(path);
-		if (!normalizedPath || normalizedPath === `flags.${LEDGER_SCOPE}.${LEDGER_KEY}` || normalizedPath.startsWith(`flags.${LEDGER_SCOPE}.${LEDGER_KEY}.`)) continue;
+		if (!normalizedPath || isLedgerPath(normalizedPath)) continue;
 
 		if (normalizedPath === "system.playbook" || normalizedPath.startsWith("system.playbook.")) {
 			const oldName = actor.system?.playbook?.name;
@@ -690,6 +848,7 @@ async function actorUpdateEntries(actor, changed) {
 					: foundry.utils.getProperty(changed, "system.playbook.name");
 			if (newName && oldName !== newName) {
 				entries.push({
+					category: "character",
 					action: oldName ? `Playbook changed from ${oldName} to ${newName}` : `Playbook added: ${newName}`,
 				});
 			}
@@ -701,14 +860,17 @@ async function actorUpdateEntries(actor, changed) {
 
 		const granularEntries = granularEntriesForPath(normalizedPath, oldValue, newValue, names);
 		if (granularEntries) {
-			entries.push(...granularEntries);
+			entries.push(...withCategory(granularEntries, normalizedPath));
 			continue;
 		}
 
 		const label = labelForPath(normalizedPath);
 		if (!label) continue;
 
-		entries.push({ action: actionForField(label, oldValue, newValue) });
+		entries.push({
+			category: categoryForCharacterPath(normalizedPath),
+			action: actionForField(label, oldValue, newValue),
+		});
 	}
 	return coalesceEntries(entries);
 }
@@ -737,29 +899,76 @@ function deletedItemAction(item) {
 	return `${label} removed: ${item.name}`;
 }
 
-export class CharacterLedger {
-	static getEntries(actor) {
-		return actor.getFlag?.(LEDGER_SCOPE, LEDGER_KEY) ?? [];
+// Picking a playbook grants every basic and starting move in one create call — 21 items for a
+// Blessed, which used to land as 21 near-identical "X learned" lines at a single timestamp.
+// Above this many items of the same kind in one batch, name the first few and count the rest.
+const ITEM_BATCH_SUMMARY_THRESHOLD = 5;
+const ITEM_BATCH_NAMES_SHOWN = 3;
+
+// How a summarised batch of one item type reads, keyed by the label itemTypeLabel derives:
+// the plural subject, the verb a grant of them takes, and the filter category they file under.
+// "learned" belongs to moves alone — the singular createdItemAction already draws that line,
+// and the batch path ignoring it is what produced "Arcanums learned (5)". `s` is likewise not
+// a pluraliser: "Arcana" is the plural of "Arcanum".
+const ITEM_BATCH_LABELS = {
+	"Playbook":        { plural: "Playbooks",        gained: "added",   category: "character" },
+	"Arcanum":         { plural: "Arcana",           gained: "added",   category: "arcana" },
+	"Inventory item":  { plural: "Inventory items",  gained: "added",   category: "inventory" },
+	"Move":            { plural: "Moves",            gained: "learned", category: "moves" },
+	"Post-death move": { plural: "Post-death moves", gained: "learned", category: "moves" },
+};
+
+// itemTypeLabel falls back to the raw item type for anything else, which has no authored
+// wording — so the fallback keeps the naive plural rather than inventing one.
+const itemBatchLabel = label =>
+	ITEM_BATCH_LABELS[label] ?? { plural: `${label}s`, gained: "added", category: "inventory" };
+
+/**
+ * One entry per created/deleted item, unless a batch is large enough to be a bulk grant — then
+ * one summary entry per item-type ("Moves learned (21): Aid, Clash, Defend, and 18 more").
+ * Batches stay split by item type so a playbook grant doesn't swallow the arcanum added with it.
+ *
+ * The count sits in parentheses after the verb rather than leading the phrase, so ledgerNoun
+ * still derives a clean subject ("Moves") instead of one that varies with the batch size.
+ *
+ * @param {object}  [options]
+ * @param {boolean} [options.removed]  phrase the summary as a loss rather than a grant
+ */
+function summariseItemBatch(items, actionFor, { removed = false } = {}) {
+	const byLabel = new Map();
+	for (const item of items) {
+		const label = itemTypeLabel(item);
+		if (!byLabel.has(label)) byLabel.set(label, []);
+		byLabel.get(label).push(item);
 	}
 
-	static async append(actor, entries, { userId = globalThis.game?.user?.id } = {}) {
-		if (!actor || actor.type !== "character" || !entries?.length) return;
-		const current = this.getEntries(actor);
-		const user = userId ? globalThis.game?.users?.get?.(userId) : null;
-		const stamped = entries.map(entry => ({
-			id: globalThis.foundry?.utils?.randomID?.() ?? `${Date.now()}-${Math.random()}`,
-			timestamp: Date.now(),
-			userId: userId ?? null,
-			userName: user?.name ?? globalThis.game?.user?.name ?? "Unknown",
-			action: entry.action,
-			// Name of the move that caused this change, when the change was a move's
-			// automated effect (e.g. "+1 XP on a miss" → the rolled move). null for
-			// plain sheet edits.
-			move: entry.move ?? null,
-		}));
-		await actor.update({
-			[`flags.${LEDGER_SCOPE}.${LEDGER_KEY}`]: stamped.concat(current.slice(0, LEDGER_MAX_ENTRIES - stamped.length)),
-		}, { stonetopLedger: true, render: false });
+	const entries = [];
+	for (const [label, group] of byLabel) {
+		const { plural, gained, category } = itemBatchLabel(label);
+		if (group.length < ITEM_BATCH_SUMMARY_THRESHOLD) {
+			entries.push(...group.map(item => ({ category, action: actionFor(item) })));
+			continue;
+		}
+		const names = group.map(item => item.name).filter(Boolean);
+		const shown = names.slice(0, ITEM_BATCH_NAMES_SHOWN).join(", ");
+		const rest  = names.length - ITEM_BATCH_NAMES_SHOWN;
+		entries.push({
+			category,
+			// Losing something is "removed" whatever it is — only the gaining verb varies.
+			action: `${plural} ${removed ? "removed" : gained} (${group.length}): ${shown}${rest > 0 ? `, and ${rest} more` : ""}`,
+		});
+	}
+	return entries;
+}
+
+export class CharacterLedger {
+	static getEntries(actor) {
+		return getLedgerEntries(actor);
+	}
+
+	static async append(actor, entries, options = {}) {
+		if (actor?.type !== "character") return;
+		await appendLedgerEntries(actor, entries, options);
 	}
 
 	static entriesForActorUpdate(actor, changed) {
@@ -767,18 +976,15 @@ export class CharacterLedger {
 	}
 
 	static async deleteEntries(actor, ids) {
-		if (!actor || actor.type !== "character" || !ids?.size) return;
-		const current = this.getEntries(actor);
-		await actor.update({
-			[`flags.${LEDGER_SCOPE}.${LEDGER_KEY}`]: current.filter(e => !ids.has(e.id)),
-		}, { stonetopLedger: true });
+		if (actor?.type !== "character") return;
+		await deleteLedgerEntries(actor, ids);
 	}
 
 	static entriesForCreatedItems(items) {
-		return items.map(item => ({ action: createdItemAction(item) }));
+		return summariseItemBatch(items, createdItemAction);
 	}
 
 	static entriesForDeletedItems(items) {
-		return items.map(item => ({ action: deletedItemAction(item) }));
+		return summariseItemBatch(items, deletedItemAction, { removed: true });
 	}
 }

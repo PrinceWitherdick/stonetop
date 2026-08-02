@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { deletionEntry, getDragEventData } from "../../module/utils/foundry-compat.js";
+import { deletionEntry, getDragEventData, hasVideoExtension, setAppOption } from "../../module/utils/foundry-compat.js";
 
 describe("deletionEntry", () => {
 	afterEach(() => {
@@ -61,5 +61,50 @@ describe("getDragEventData", () => {
 		globalThis.TextEditor = { getDragEventData: vi.fn(() => ({ type: "global" })) };
 
 		expect(getDragEventData({})).toEqual({ type: "global" });
+	});
+});
+
+describe("hasVideoExtension", () => {
+	afterEach(() => { delete globalThis.VideoHelper; });
+
+	it("asks core's VideoHelper when one is reachable", () => {
+		globalThis.VideoHelper = { hasVideoExtension: vi.fn(() => true) };
+		expect(hasVideoExtension("wren.webp")).toBe(true);
+		expect(globalThis.VideoHelper.hasVideoExtension).toHaveBeenCalledWith("wren.webp");
+	});
+
+	it("falls back to core's own extension list with no helper in reach", () => {
+		expect(hasVideoExtension("wren.webm")).toBe(true);
+		expect(hasVideoExtension("wren.mp4?v=2")).toBe(true);
+		expect(hasVideoExtension("wren.webp")).toBe(false);
+		expect(hasVideoExtension(null)).toBe(false);
+	});
+});
+
+describe("setAppOption", () => {
+	it("swaps in a fresh frozen copy for an ApplicationV2's frozen options", () => {
+		const app = { options: Object.freeze({ src: "old.webp", window: { title: "Wren" } }) };
+
+		setAppOption(app, "src", "new.webp");
+
+		expect(app.options.src).toBe("new.webp");
+		// The rest of the configuration survives the swap, and the copy stays frozen.
+		expect(app.options.window.title).toBe("Wren");
+		expect(Object.isFrozen(app.options)).toBe(true);
+	});
+
+	it("writes an AppV1 window's mutable options in place", () => {
+		const options = { src: "old.webp" };
+		const app = { options };
+
+		setAppOption(app, "src", "new.webp");
+
+		expect(app.options).toBe(options);
+		expect(options.src).toBe("new.webp");
+	});
+
+	it("no-ops on an app with no options yet", () => {
+		expect(() => setAppOption({}, "src", "new.webp")).not.toThrow();
+		expect(() => setAppOption(null, "src", "new.webp")).not.toThrow();
 	});
 });

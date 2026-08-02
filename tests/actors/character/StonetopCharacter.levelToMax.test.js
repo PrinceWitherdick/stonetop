@@ -83,7 +83,7 @@ async function levelUpOnce(char, actor) {
 		expect(after).toBe(statChoicesBefore + 1);
 	}
 	if (pick.crossPlaybook && choices.foreignMoveId) {
-		const tagged = actor.items.some(i => i.flags?.stonetop_pwd?.grantedBy?.move === pick.name);
+		const tagged = actor.items.some(i => i.flags?.["stonetop_pwd"]?.grantedBy?.move === pick.name);
 		expect(tagged).toBe(true);
 	}
 	if (invocation) {
@@ -232,7 +232,7 @@ describe("StonetopCharacter level-up climb — per-rule guarantees", () => {
 		});
 		const spiritTongue = actor.items.find(i => i.name === "Spirit Tongue");
 		expect(spiritTongue).toBeTruthy();
-		expect(spiritTongue.flags.stonetop_pwd.grantedBy).toMatchObject({ move: "Worldly" });
+		expect(spiritTongue.flags["stonetop_pwd"].grantedBy).toMatchObject({ move: "Worldly" });
 
 		// Alpha is now learnable.
 		const after = await char.getLevelUpData();
@@ -288,6 +288,6 @@ describe("StonetopCharacter level-up climb — per-rule guarantees", () => {
 
 		expect(grantSpy).toHaveBeenCalledWith("sacred-pouch");
 		const learned = actor.items.find(i => i.name === foreign[0].name);
-		expect(learned.flags.stonetop_pwd.grantedBy).toMatchObject({ move: "Initiate of the Secret Arts" });
+		expect(learned.flags["stonetop_pwd"].grantedBy).toMatchObject({ move: "Initiate of the Secret Arts" });
 	});
 });
