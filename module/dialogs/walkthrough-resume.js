@@ -1,4 +1,4 @@
-import { getSetting, setSetting } from "../settings.js";
+import { getSetting, setSetting, setWorldSetting, worldKey } from "../settings.js";
 
 // ── Walkthrough reload-resume ──────────────────────────────────────────────────
 // The session-zero walkthroughs (Character Introductions, Let Spring Burst Forth)
@@ -18,13 +18,11 @@ const DONE_SETTING = "sessionZeroDone";
 // The walkthrough keys stored per world (used by the flat-shape migration below).
 const WALKTHROUGH_KEYS = ["introductions", "springBurst"];
 
-// Every record is stored under the current world's id. The setting is client-scoped, so
-// it survives per-browser across every world opened here; nesting by world means a record
-// left `open: true` in one world can never reopen its dialog in an unrelated (even brand-
-// new) world that never started session zero. A world with no entry simply starts fresh.
-function worldKey() {
-	return game.world?.id ?? "";
-}
+// Every record is stored under the current world's id (see settings.js's worldKey, shared with
+// the Setting Overview gate, which nests for the same reason). The setting is client-scoped, so
+// it survives per-browser across every world opened here; nesting by world means a record left
+// `open: true` in one world can never reopen its dialog in an unrelated (even brand-new) world
+// that never started session zero. A world with no entry simply starts fresh.
 
 // One walkthrough's record ({ open, … }) for THIS world, or null if nothing's stored yet.
 export function getWalkthroughResume(key) {
@@ -49,15 +47,16 @@ export function patchWalkthroughResume(key, patch) {
 // fresh rather than resuming a finished run; and the completion itself is flagged in the
 // world-scoped `sessionZeroDone` setting, which is what stops the first-session Welcome
 // guide once both walkthroughs are complete (see sessionZeroComplete / hooks/Ready.js).
-// Only the GM ever finishes a walkthrough (and only the GM can write world settings), so
-// guard the world write against a stray player-side call.
+// Only the GM ever finishes a walkthrough (and only the GM can write world settings); that
+// guard now lives in setWorldSetting, shared with every other world write in the system.
 export function markWalkthroughDone(key, positionKeys = []) {
 	const patch = { open: false };
 	for (const k of positionKeys) patch[k] = null;
 	const resumeWrite = patchWalkthroughResume(key, patch);
-	if (!game.user?.isGM) return resumeWrite;
 	const done = { ...(getSetting(DONE_SETTING) ?? {}), [key]: true };
-	return Promise.all([resumeWrite, setSetting(DONE_SETTING, done)]);
+	// setWorldSetting no-ops for a non-GM rather than throwing: the resume half above is
+	// client-scoped and must still land for them (see settings.js).
+	return Promise.all([resumeWrite, setWorldSetting(DONE_SETTING, done)]);
 }
 
 // True once both session-zero walkthroughs — Character Introductions and Let Spring

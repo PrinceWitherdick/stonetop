@@ -2,6 +2,7 @@ import { getSetting, setSetting } from "../settings.js";
 import { info, error } from "../utils/logger.js";
 import { compendiumRefTail, seededSourceKeys } from "../migration/compat.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
+import { progressSlice, SEED_FOLDER_PHASE, SEED_BULK_CREATE_FRACTION } from "../utils/progress-slice.js";
 import { ITEMS_PACK } from "../actors/character/StonetopFlags.js";
 
 // On load, import the Book II treasures — the "Treasures & Wonders" folder of the
@@ -27,19 +28,29 @@ const TREASURE_FOLDER_NAME = "Treasures & Wonders";
 const ROOT_COLOR = "#c9a227";
 const SECTION_COLOR = "#c9a227";
 
-export async function seedTreasureItemsOnce() {
-	// Primary GM only: the import isn't atomic with the `treasureItemsSeeded` flag (set
-	// only after it finishes) and idempotency rests on an alreadySeeded set read before
-	// createDocuments — so two GMs both entering ready on a fresh world would each seed the
-	// full set and double it. Matches seedBestiaryActorsOnce's guard.
-	if (!game.user?.isGM || !isPrimaryGM()) return;
-	if (getSetting("treasureItemsSeeded")) return;
+/**
+ * Whether this world still owes the treasure import. The seed's own guard, lifted out so the
+ * first-load setup window (hooks/WorldSetup.js) can list only the work that is really coming
+ * without restating the conditions.
+ *
+ * Primary GM only: the import isn't atomic with the `treasureItemsSeeded` flag (set only
+ * after it finishes) and idempotency rests on an alreadySeeded set read before
+ * createDocuments — so two GMs both entering ready on a fresh world would each seed the full
+ * set and double it. Matches needsBestiaryActorSeed's guard. A missing pack (a dev build
+ * without it) means there is nothing to seed either.
+ */
+export function needsTreasureItemSeed() {
+	if (!game.user?.isGM || !isPrimaryGM()) return false;
+	if (getSetting("treasureItemsSeeded")) return false;
+	return !!game.packs.get(ITEMS_PACK_ID);
+}
 
+export async function seedTreasureItemsOnce({ onProgress } = {}) {
+	if (!needsTreasureItemSeed()) return;
 	const pack = game.packs.get(ITEMS_PACK_ID);
-	if (!pack) return; // pack absent (a dev build without it) — nothing to seed
 
 	try {
-		const created = await importTreasureItems(pack);
+		const created = await importTreasureItems(pack, { onProgress });
 		// Set the flag regardless of how many landed: the import skips items already present,
 		// so a re-run would only ever add genuinely-missing ones — but a latched flag also
 		// means a GM who deletes some treasures won't have them re-seeded.
@@ -60,7 +71,8 @@ export async function seedTreasureItemsOnce() {
 // folders (match on name+parent) and skips items already imported (matched on
 // compendiumSource), so a partial run — or a reload mid-import — recovers on the next load
 // without duplicating. Returns the created items.
-async function importTreasureItems(pack) {
+async function importTreasureItems(pack, { onProgress } = {}) {
+	onProgress?.({ fraction: 0, detail: "Reading the Treasures & Wonders compendium" });
 	const docs = await pack.getDocuments();
 	// The treasures share the "inventory" moveType with ordinary gear; the isTreasure flag
 	// is what sets them apart (and what keeps them out of the outfit picker — see
@@ -78,8 +90,12 @@ async function importTreasureItems(pack) {
 		const sections = Array.from(pack.folders ?? [])
 			.filter(f => (f.folder?.id ?? null) === packRoot.id)
 			.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
-		for (const sec of sections) {
+		const reportFolder = progressSlice(onProgress, SEED_FOLDER_PHASE);
+		for (const [i, sec] of sections.entries()) {
 			worldFolderId.set(sec.id, await ensureItemFolder(sec.name, rootId, SECTION_COLOR));
+			// One folder per Book II section, created serially — the only part of this import
+			// with per-item motion, so it owns the head of the step's bar (see SEED_FOLDER_PHASE).
+			reportFolder?.({ fraction: (i + 1) / sections.length, detail: "Building the treasure folders" });
 		}
 	}
 
@@ -101,7 +117,9 @@ async function importTreasureItems(pack) {
 		obj.ownership = { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE };
 		data.push(obj);
 	}
-	return data.length ? Item.createDocuments(data) : [];
+	if (!data.length) return [];
+	onProgress?.({ fraction: SEED_BULK_CREATE_FRACTION, detail: `Creating ${data.length} treasures` });
+	return Item.createDocuments(data);
 }
 
 // Find-or-create a world Item folder by name+parent, tinting it. Reuses an existing match

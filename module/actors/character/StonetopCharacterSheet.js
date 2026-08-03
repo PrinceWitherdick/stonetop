@@ -10,6 +10,8 @@ import {LoveLetterReadDialog} from "../../dialogs/LoveLetterReadDialog.js";
 import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
 import {PossessionChoicesDialog} from "./dialogs/PossessionChoicesDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
+import {WoundDialog} from "./dialogs/WoundDialog.js";
+import {WOUND_STATUS_GLYPH, WOUND_STATUS_LABEL} from "./wound-display.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
 import {ANIMAL_COMPANION_TRAIT_GLOSSARY, CharacterOnboardingDialog} from "./dialogs/CharacterOnboardingDialog.js";
 import {CreateFollowerDialog} from "./dialogs/CreateFollowerDialog.js";
@@ -36,7 +38,8 @@ import {getStonetopSteadingActor} from "../../utils/world.js";
 import {openChroniclePageForActor} from "../../utils/chronicle.js";
 import {getDragEventData, deletionEntry} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
-import {peopleNames, steadingPeopleActors} from "../steading/steading-people.js";
+import {peopleNames, steadingPeopleActors, usedPersonPortraits, createPersonNpc, isActorRow, personRowActor, personRowKey, personRowIdentity, rebasePersonRows} from "../steading/steading-people.js";
+import {openPeoplePortraitPicker} from "../steading/PeopleGalleryDialog.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getSidebarCollapsed, setSidebarCollapsed, getPromptRollModifierSetting, getOpenSheetsInEditMode, getHideRollableIconSetting} from "../../settings.js";
 import {bringDialogToFront} from "../../utils/front-on-open.js";
 import {openLedgerDialog} from "../../utils/ledger-dialog.js";
@@ -48,14 +51,22 @@ import {wrapGlyphTextContainers} from "../../utils/glyphs.js";
 import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {canAuthorCustomMoves, canCreateArcana} from "../../utils/authoring-gates.js";
 import {enrichMoveRefsInEl, fetchMoveRef} from "../../utils/move-refs.js";
-import {keepScrollAcrossTab} from "../../utils/tab-scroll.js";
-import {buildRelationshipRows, wireRelationshipTable, relationshipDropResult, relationshipDropNotice, wireRelationshipDropHighlight} from "../../utils/relationship-hearts.js";
+import {buildRelationshipRows, wireRelationshipTable, wireRelationshipLinks, relationshipDropResult, relationshipDropNotice, wireRelationshipDropHighlight} from "../../utils/relationship-hearts.js";
+import {wireAvatarPreview, removeAvatarPreview} from "../../utils/avatar-preview.js";
+import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relationship-board.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
 import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, outnumberBonus, nextFollowerOrder} from "../../data/follower-build.js";
 import {arcanaSummonFollowers, joinNames} from "../../data/arcana-summons.js";
 import {availablePossessionFollowers} from "../../data/possession-followers.js";
 import {FOLLOWER_MOVES} from "../../data/follower-moves.js";
+import {FOLLOWER_DRAG_TYPE} from "../../data/follower-actor.js";
 import {CREW_INDIVIDUAL_NAMES, CREW_INDIVIDUAL_TAGS, CREW_INDIVIDUAL_TRAITS} from "../../data/steading-members.js";
+import {resolvePortrait} from "../../utils/portrait-frame.js";
+import {displayPortraitSrc} from "../../book2-art/people-portraits.js";
+import {followerFrameHandle, actorFrameHandle} from "../../utils/portrait-frame-handles.js";
+import {openPortraitFrameEditor} from "../../utils/PortraitFrameDialog.js";
+import {addPortraitFrameControl} from "../../utils/popout-header-control.js";
+import {localize} from "../../utils/i18n.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "con", "int", "wis", "cha"]);
 const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
@@ -301,24 +312,6 @@ const EXPEDITION_MOVE_HANDLERS = {
 // them. Mirrors _PROSPERITY_RESOURCE_SLUGS in StonetopCharacter.js.
 const RECOVER_SUPPLY_SLUGS = ["supplies", "more-supplies", "even-more-supplies"];
 
-// Wound status → sheet presentation. Untreated wounds glow the bestiary red, treated
-// ones fade to a bandage, permanent ones lock. Labels feed the row tooltip.
-const _WOUND_STATUS_GLYPH = { problematic: "fa-droplet", stabilized: "fa-bandage", permanent: "fa-lock" };
-const _WOUND_STATUS_LABEL = {
-	problematic: "Problematic — untreated, still hindering",
-	stabilized:  "Stabilized — treated, but not yet healed",
-	permanent:   "Permanent — this one can't heal",
-};
-const _WOUND_STATUS_OPTIONS = [
-	{ value: "problematic", label: "Problematic (untreated)" },
-	{ value: "stabilized",  label: "Stabilized (treated, not healed)" },
-	{ value: "permanent",   label: "Permanent (can't heal)" },
-];
-const _WOUND_ORIGIN_OPTIONS = [
-	{ value: "wound",       label: "Wound" },
-	{ value: "deaths-door", label: "Death's-Door mark" },
-];
-
 function _addToLeadingNumber(value, delta) {
 	const match = String(value ?? "").match(/^(-?\d+)(.*)$/);
 	if (!match) return value;
@@ -429,12 +422,37 @@ const FOLLOWER_FTYPE_DEFAULTS = {
 function _followerExtras(d = {}) {
 	const moves   = String(d?.moves ?? "");
 	const gearArr = Array.isArray(d?.gear) ? d.gear : [];
+	const storedImg = String(d?.img ?? "").trim();
+	const portrait  = resolvePortrait(storedImg, d?.portraitFrame);
 	return {
 		exceptional: !!d?.exceptional,
 		moves,
 		movesLines:  moves.split("\n").map(s => s.trim()).filter(Boolean),
 		gear:        gearArr.map((g, i) => ({ index: i, label: g?.label ?? "", checked: !!g?.checked })),
 		notes:       String(d?.notes ?? ""),
+		// The card's portrait, chosen from the People of Stonetop gallery (or carried over
+		// from the actor a follower was recruited from — see buildCustomFollower). It rides
+		// with the other hand-edited extras because it is stored and written exactly like
+		// them: read out of this same `.details` object, written back through
+		// _followerDetailBase, so every follower type gains a portrait in one place.
+		// Empty means "no portrait" and the card falls back to the type's glyph.
+		//
+		// `img` is what the card RENDERS, which differs from the stored path in exactly one
+		// case: a shipped square framed against its higher-resolution illustration, which is the
+		// picture the rect was measured on and therefore the one it must be applied to.
+		img:         portrait.src,
+		imgStyle:    portrait.style,
+		// The path on the flag, for anything that must hand a PATH on rather than paint it —
+		// the drag snapshot, which seeds a token.
+		storedImg,
+		// The raw rect, so a follower dragged onto the map carries its frame across.
+		portraitFrame: d?.portraitFrame ?? null,
+		// The Actor this follower has already been placed on the map as, if any (written by
+		// the canvas-drop hook the first time the card is dragged onto a scene — see
+		// module/hooks/FollowerDrop.js). Stored beside the portrait because it is stored
+		// exactly like it: one value on the follower's own `.details` object, so every
+		// follower type gains the link in one place. Empty is the normal state.
+		actorUuid:   String(d?.actorUuid ?? "").trim(),
 	};
 }
 
@@ -477,6 +495,69 @@ function _followerDetailBase(ftype, slug) { return _fillSlug(_FOLLOWER_FLAGS[fty
 // Type-root path for a structurally-stored field (name / pronoun / instinct / cost), or null.
 function _followerStructuralPath(ftype, field) { return _FOLLOWER_FLAGS[ftype]?.structural?.[field] ?? null; }
 
+/**
+ * What a follower card carries with it when it's dragged onto the canvas: everything the
+ * drop hook needs to find — or build — the Actor it becomes (module/hooks/FollowerDrop.js).
+ *
+ * Read off the FINISHED card, after the override / exceptional / order passes, so the token
+ * gets the numbers the player is looking at rather than the raw stored ones. `detailBase`
+ * rides along so the hook can write the new actor's uuid back onto this same follower
+ * without having to know this file's flag layout.
+ *
+ * @param {object} card    a finalized follower card
+ * @param {Actor} actor    the character whose follower it is
+ */
+function _followerDragSnapshot(card, actor) {
+	if (!card?.ftype) return null;
+	// The crew and a custom group both fight as one combatant with a pooled HP track
+	// (p.470), so that pool — not one member's HP — is what their token carries.
+	const isGroup = !!card.isGroup || card.groupHpMax != null;
+	const hp = isGroup
+		? { value: card.groupHpCurrent, max: card.groupHpMax }
+		: { value: card.hpCurrent, max: card.hpMax ?? (Number(card.hpStaticValue) || 0) };
+	return {
+		type:          FOLLOWER_DRAG_TYPE,
+		characterUuid: actor?.uuid ?? null,
+		characterName: actor?.name ?? null,
+		ftype:         card.ftype,
+		slug:          card.slug ?? "",
+		detailBase:    _followerDetailBase(card.ftype, card.slug),
+		follower: {
+			// withOrderData already settled the display name (an initiate carries theirs as
+			// an epithet, an unnamed card falls back to its type), so reuse it rather than
+			// restating that fallback.
+			name:        card.orderName,
+			// `storedImg`, not `img`: the card RENDERS the illustration when a shipped square has
+			// been framed against it, and a token wants the path on the flag rather than the one
+			// being painted. The frame rides along so the NPC this becomes keeps the same face.
+			img:           card.storedImg ?? card.img ?? "",
+			portraitFrame: card.portraitFrame ?? null,
+			// The glyph the card falls back to when it has no portrait (a paw, a sprout, a
+			// crowd). Carried so the Actor can wear the matching mark instead of Foundry's
+			// mystery-man — see followerMarkerImg.
+			portraitIcon: card.portraitIcon ?? "",
+			pronoun:     card.pronoun ?? "",
+			typeLabel:   card.typeLabel ?? "",
+			tags:        (card.tags ?? []).map(t => (typeof t === "string" ? t : t?.label)).filter(Boolean),
+			hp,
+			armor:       card.armor,
+			armorSource: card.armorSource ?? "",
+			damage:      card.damage ?? "",
+			damageRoll:  card.damageRoll ?? "",
+			instinct:    card.instinct ?? "",
+			moves:       card.movesLines ?? [],
+			notes:       card.notes ?? "",
+			cost:        card.cost ?? "",
+			gear:        card.gear ?? [],
+			isGroup,
+			// Where this follower came from, and where they've already been placed: an
+			// actorUuid means the card has been dropped before and that actor IS them.
+			sourceUuid:  card.sourceUuid ?? null,
+			actorUuid:   card.actorUuid ?? "",
+		},
+	};
+}
+
 // Effective crew headcount: the stored size, else the rulebook's default
 // half-dozen (Crew insert, p.144), but never fewer than the named individuals.
 // Only a genuinely unset (null/undefined/non-numeric) size defaults to 6 — an
@@ -497,8 +578,8 @@ const _CREW_SIZE_MAX = 99;
 function _followerLoyaltyPath(ftype, slug) { return _fillSlug(_FOLLOWER_FLAGS[ftype]?.loyalty, slug); }
 
 // Flag path where a follower type holds Readiness (held when it Defends, p.469).
-// Crew uses its own group-fight Readiness control; the card-body stepper is for
-// the non-crew followers, which have no group-fight section.
+// One card-body row drives every type: the crew's entry is the group's common
+// pool (p.473) rather than one member's, but it reads and writes the same way.
 function _followerReadinessPath(ftype, slug) { return _fillSlug(_FOLLOWER_FLAGS[ftype]?.readiness, slug); }
 
 // Flag path for a follower's ammo track (0 = full, 1 = low ammo, 2 = all out) — the
@@ -639,12 +720,22 @@ export function createStonetopCharacterSheetClass(Base) {
 				minWidth: 800,
 				height: 1050,
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "moves" }],
-				dragDrop: [{ dragSelector: ".items-list .item" }],
-				// The sheet scrolls as one inside .window-content; the moves sidebar has its
-				// own scroll. Register both so Foundry saves/restores scrollTop across
-				// re-renders — otherwise adding an item / arcanum / follower (which re-renders
-				// the sheet) snaps the user back to the top of the sheet.
-				scrollY: [".window-content", ".stonetop-sidebar-body"],
+				// `:not(.move-unlearned)` because an un-learned custom move must not leave the
+				// sheet: core's DragDrop#bind runs this selector through querySelectorAll and only
+				// the matches get `draggable="true"`, so an inactive move simply never starts a
+				// drag — rather than starting one that a listener elsewhere has to cancel. The row
+				// keeps its `.item` class, and so its card styling and its click handlers.
+				dragDrop: [{ dragSelector: ".items-list .item:not(.move-unlearned)" }],
+				// Each tab is its own scrollport and the moves sidebar has another. Register
+				// both so Foundry saves/restores scrollTop across re-renders — otherwise
+				// adding an item / arcanum / follower (which re-renders the sheet) snaps the
+				// user back to the top.
+				//
+				// These selectors must resolve from INSIDE the form: on a re-render Foundry
+				// hands _restoreScrollPositions the freshly rendered inner form, not the outer
+				// frame, so a `.window-content` entry (which lives above the form) saves fine
+				// and then silently restores nothing.
+				scrollY: [".sheet-body > .tab.active", ".stonetop-sidebar-body"],
 			});
 		}
 
@@ -667,7 +758,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// The art hover preview is a document.body singleton, so a re-render while the
 			// cursor is over a card's art tears out the anchor without firing mouseleave —
 			// clear it up front so no orphaned floating preview is left stuck on screen.
-			this._removeArcanumThumbPreview();
+			removeAvatarPreview();
 			await super._render(force, options);
 			const newImg = this.element?.[0]?.querySelector("img.stonetop-portrait");
 			if (oldImg && newImg
@@ -687,14 +778,6 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 		}
 
-		// The whole sheet scrolls as one inside .window-content. Keep the reader's scroll
-		// position across tab switches instead of letting the browser clamp it up to the
-		// top when the incoming tab is shorter (which reads as a jump/bounce). See
-		// keepScrollAcrossTab.
-		_onChangeTab(event, tabs, active) {
-			keepScrollAcrossTab(this.element, () => super._onChangeTab(event, tabs, active));
-		}
-
 		async close(options) {
 			this._arcanaMasonryObserver?.disconnect();
 			this._persistSheetWidth();
@@ -703,49 +786,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			// The art hover preview lives on document.body, so it survives the sheet's DOM
 			// being torn down — clear it or it orphans if the sheet closes (e.g. Escape) while
 			// the cursor is still over a card's art and no mouseleave ever fires.
-			this._removeArcanumThumbPreview();
+			removeAvatarPreview();
 			return super.close(options);
-		}
-
-		_removeArcanumThumbPreview() {
-			document.querySelector(".stonetop-arcanum-thumb-preview")?.remove();
-		}
-
-		// Hover preview for an arcanum's header art: a larger copy of the thumbnail in a
-		// fixed-position popup appended to <body>, so it escapes the arcana tab's overflow
-		// clipping. Placed to the right of the art (it sits at the card's left edge, so
-		// there's room), flipping left if it would run off the right of the viewport, and
-		// vertically centred on the thumb. Mirrors the steading avatar preview.
-		_showArcanumThumbPreview(anchor) {
-			this._removeArcanumThumbPreview();
-			if (!anchor?.src) return;
-			const popup = document.createElement("div");
-			popup.className = "stonetop-arcanum-thumb-preview";
-			const img = document.createElement("img");
-			img.src = anchor.src;
-			img.alt = "";
-			popup.appendChild(img);
-			const name = anchor.dataset.name?.trim();
-			if (name) {
-				const caption = document.createElement("strong");
-				caption.textContent = name;
-				popup.appendChild(caption);
-			}
-			document.body.appendChild(popup);
-
-			const ar = anchor.getBoundingClientRect();
-			const gap = 8;
-			const pw = popup.offsetWidth;
-			const ph = popup.offsetHeight;
-			let left = ar.right + gap;
-			if (left + pw > window.innerWidth - 8) left = ar.left - pw - gap;
-			left = Math.max(8, left);
-			let top = ar.top + ar.height / 2 - ph / 2;
-			top = Math.max(8, Math.min(top, window.innerHeight - ph - 8));
-			popup.style.top = `${top}px`;
-			popup.style.left = `${left}px`;
-			const z = parseInt(this.element?.[0]?.style?.zIndex || 0);
-			popup.style.setProperty("z-index", String(Math.max(10000, z + 2)), "important");
 		}
 
 		// Remember the width so the sheet reopens at the size the user left it.
@@ -915,6 +957,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Everyone is unticked: say so, and point at the pencil — otherwise a section
 			// with candidates reads identically to a world with nobody in it.
 			context.stonetop.relationshipsAllHidden = !context.stonetop.hasRelationships && relRows.length > 0;
+			// Table or standings board, remembered per table in localStorage beside the
+			// column widths — a reading preference, not world data.
+			context.stonetop.rel = relationshipViewContext("characterRelationships", context.stonetop.relationships);
 			context.stonetop.statsEdit       = sectionEdit("stats");
 			context.stonetop.movesEdit       = sectionEdit("moves");
 			context.stonetop.possessionsEdit = sectionEdit("possessions");
@@ -1103,7 +1148,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 			}
 			context.stonetop.invocations          = this._buildInvocationsData(playbookDoc);
-			context.stonetop.showOtherMovesSection = this._editMode || !!(context.stonetop.movelist?.otherMoves?.length);
+			// Only when there's something in it — an empty group renders as a bare heading over
+			// an empty list, which no other move group does (they all hide themselves when
+			// empty). Creating a move doesn't need the section standing by: the "Create a move"
+			// button sits outside it, and saving re-renders the sheet with the section present.
+			context.stonetop.showOtherMovesSection = !!(context.stonetop.movelist?.otherMoves?.length);
 			// Authoring custom moves can be restricted to the GM (world setting). When
 			// restricted, players still see/roll existing custom moves but get no "+"
 			// button or edit pencils. Existing moves always render regardless.
@@ -1199,8 +1248,8 @@ export function createStonetopCharacterSheetClass(Base) {
 					text: w.text,
 					status: w.status,
 					isDeathsDoor: w.origin === "deaths-door",
-					statusLabel: _WOUND_STATUS_LABEL[w.status] ?? _WOUND_STATUS_LABEL.problematic,
-					glyph: _WOUND_STATUS_GLYPH[w.status] ?? _WOUND_STATUS_GLYPH.problematic,
+					statusLabel: WOUND_STATUS_LABEL[w.status] ?? WOUND_STATUS_LABEL.problematic,
+					glyph: WOUND_STATUS_GLYPH[w.status] ?? WOUND_STATUS_GLYPH.problematic,
 					tooltip: tip.join(" • ") || w.text || "",
 				};
 			};
@@ -1276,6 +1325,21 @@ export function createStonetopCharacterSheetClass(Base) {
 					// Roster: governed by its own pencil (or the whole-tab edit), not the card button.
 					individuals: followersEditing || this._editingSections.has(`follower-individuals:${ftype}:${slug}`),
 				};
+				// The portrait does two different things depending on the card's pencil, the
+				// same split every other portrait in the system uses (PC header, NPC and
+				// monster sheets): reading the sheet, a tap ENLARGES the picture; editing it,
+				// a tap opens the gallery to change it.
+				//
+				// It used to open the gallery in both modes, on the reasoning that a portrait
+				// is picked rather than typed and so needs no protection from a stray
+				// keystroke. That missed the more common intent: most taps on a face are
+				// someone wanting to see it, not replace it.
+				card.portraitEditable = this.isEditable && cardOn;
+				card.portraitViewable = !!card.img && !card.portraitEditable;
+				// One class drives the cursor and the hover ring for both jobs; the handler
+				// decides which by mode. A card with no portrait and no pencil does nothing,
+				// so it gets neither.
+				card.portraitInteractive = card.portraitEditable || card.portraitViewable;
 				return card;
 			};
 			// The stat-block editor lets the player override Damage / Instinct / Cost with
@@ -1880,6 +1944,14 @@ export function createStonetopCharacterSheetClass(Base) {
 					.filter(Boolean);
 				card.orderTagsCsv = tags.join("|");
 				card.orderName    = card.name || card.label || card.namePlaceholder || card.typeLabel || "Follower";
+				// One string for the portrait button's tooltip AND its aria-label, so a copy edit
+				// cannot leave the sighted and the screen-reader name disagreeing.
+				card.portraitLabel = !card.portraitEditable
+					? `View ${card.orderName}'s portrait`
+					: card.img
+						? `Change ${card.orderName}'s portrait`
+						: `Choose a portrait for ${card.orderName}`;
+				card.portraitFrameLabel = `Frame ${card.orderName}'s face`;
 				if (Array.isArray(card.loyalty) && card.loyalty.length) {
 					card.loyaltyValue = card.loyalty.filter(p => p.filled).length;
 					// A Loyalty track marks a true follower (every orderable type has one;
@@ -1890,12 +1962,19 @@ export function createStonetopCharacterSheetClass(Base) {
 					// fly. Non-crew followers carry a free-text gear checklist to append to;
 					// the crew Outfits/restocks from its Supplies section instead.
 					card.canHaveNeed = card.ftype !== "crew";
-					// Readiness circles for non-crew followers (the crew has its own in
-					// the Group Fight section). Only true followers — which is exactly
-					// the set that has a Loyalty track — so livestock is excluded. A
-					// borne shield raises the cap from 3 to 4 (+1 Readiness on a 7+
-					// Defend, p.216).
-					if (card.ftype && card.ftype !== "crew") {
+					// Readiness circles. Only true followers — which is exactly the set
+					// that has a Loyalty track — so livestock is excluded. A borne shield
+					// raises the cap from 3 to 4 (+1 Readiness on a 7+ Defend, p.216).
+					// The crew's Readiness is a COMMON POOL for the whole group (p.473)
+					// rather than a per-follower track, and its pips/cap (shields, Shield
+					// Wall) are built in the crew block above — so here it only gets wired
+					// to the same row, with readinessIsPool switching the wording.
+					if (card.ftype === "crew") {
+						card.showReadiness     = true;
+						card.readinessFollower = "crew";
+						card.readinessSlug     = "";
+						card.readinessIsPool   = true;
+					} else if (card.ftype) {
 						// Readiness lives on the follower's OWN id (card.slug), never the (possibly
 						// shared) loyaltySlug — a Servant of Daagon shares the Ring's Loyalty but
 						// holds its own Readiness. For every other type card.slug === loyaltySlug, so
@@ -1908,6 +1987,12 @@ export function createStonetopCharacterSheetClass(Base) {
 						card.readinessHasShield = _followerBearsShield(card.gear);
 						card.readinessPips      = _makeReadinessPips(card.readinessValue, readinessCap(card.readinessHasShield));
 					}
+					// The two pip tracks reserve the same number of slots so their Spend
+					// buttons start at the same x, however many circles each row draws (a
+					// borne shield gives Readiness a 4th, and an over-held pool more still,
+					// while Loyalty is always 3). The card's widest count wins; the CSS
+					// turns it into a fixed grid column. See --st-follower-pip-slots.
+					card.pipSlots = Math.max(card.loyalty.length, card.readinessPips?.length ?? 0);
 					// Ammo track (◇ low ammo, ◇ all out) — opt-in per follower via the
 					// "uses ammo" toggle in the Damage section (a ranged weapon: bow,
 					// sling, thrown — Moves & Gear). canUseAmmo shows that toggle (every
@@ -1956,14 +2041,31 @@ export function createStonetopCharacterSheetClass(Base) {
 			const presentSources = new Set(Object.values(customMap).map(f => f?.sourceUuid).filter(Boolean));
 			const possessionFollowerOffers = availablePossessionFollowers(ownedPossessions, presentSources)
 				.map(f => ({ slug: f.slug, name: f.name, isGroup: !!f.isGroup }));
-			return {
+			const groups = {
 				animalCompanion: finalize(animalCompanion),
 				crew:            finalize(crew),
 				initiates:       initiates?.map(finalize) ?? null,
 				beasts:          beasts.map(finalize),
 				custom:          customFollowers.map(finalize),
-				possessionFollowerOffers,
 			};
+			// Flat index of the faces this character's own followers wear, for the People
+			// gallery's "already assigned" marking (_followerPortraitsInUse). Stamped here
+			// because this is where a card's portrait and its display name are both settled;
+			// deriving it later would mean re-walking five flag stores and restating
+			// withOrderData's name fallback.
+			this._followerPortraits = Object.values(groups).flat()
+				.filter(card => card?.img)
+				// storedImg: this index answers "is this portrait already taken", which is a
+				// question about the stored path, not about what is currently painted.
+				.map(card => ({ ftype: card.ftype, slug: card.slug ?? "", img: card.storedImg ?? card.img, name: card.orderName }));
+			// The payload each card hands to the canvas when it's dragged there, keyed by the
+			// (ftype, slug) pair the card wrapper carries in its dataset. Built here for the
+			// same reason the portrait index is: this is where a card is finished, and the
+			// dragstart handler must be able to answer synchronously.
+			this._followerDragData = new Map(Object.values(groups).flat()
+				.filter(card => card?.ftype)
+				.map(card => [`${card.ftype}:${card.slug ?? ""}`, _followerDragSnapshot(card, this.actor)]));
+			return { ...groups, possessionFollowerOffers };
 		}
 
 		_buildInvocationsData(playbookDoc) {
@@ -2238,7 +2340,17 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (this._editMode) return;
 				ev.preventDefault();
 				ev.stopPropagation();
-				new ImagePopout(this.actor.img, { title: this.actor.name }).render(true);
+				const popout = new ImagePopout(this.actor.img, { title: this.actor.name });
+				popout.render(true);
+				// A PC's face appears in the steading roster and in everyone else's relationship
+				// rows, so it wants framing for the same reason an NPC's does. This is the entry
+				// point a non-GM routinely uses on their own document, which is the check that
+				// this feature never needs isGM anywhere.
+				addPortraitFrameControl(popout, actorFrameHandle(this.actor, { editable: this.isEditable }), {
+					name: this.actor.name,
+					img: this.actor.img,
+					onSaved: () => this.render(false),
+				});
 			});
 
 			html[0].addEventListener("click", ev => {
@@ -2253,13 +2365,19 @@ export function createStonetopCharacterSheetClass(Base) {
 				// Read & Resolve / Roll button, never a name-click that would post it to chat
 				// without removing it. Its edit/delete pencils have their own handlers.
 				if (nameEl.closest(".stonetop-love-letter")) return;
-				// An un-learned custom move is inactive (no dice icon, bonuses off); a name-click
-				// must not post its card to chat either — treat it as non-interactive.
-				if (nameEl.closest("li")?.classList.contains("move-unlearned")) return;
+				// An un-learned custom move is inactive — no dice icon, bonuses off — but its TEXT
+				// is still readable, so a name-click posts it to chat like any other move. That
+				// matches an un-owned playbook move, which posts to chat without being owned;
+				// the roll is what's gated, not the reading.
 				ev.preventDefault();
 				const li = nameEl.closest("li");
 				const name = nameEl.textContent.trim();
-				const guide = GUIDED_CHARACTER_MOVES[name];
+				// A player-authored move (moveType "other") that happens to share a guided
+				// move's name acts as itself, never the built-in dialog — the same rule the
+				// dice path applies in _guidedMoveForRollable.
+				const isOtherMove = li?.dataset.itemId
+					&& this.actor.items.get(li.dataset.itemId)?.system?.moveType === "other";
+				const guide = isOtherMove ? null : GUIDED_CHARACTER_MOVES[name];
 				const rollable = li?.querySelector(".rollable");
 				if (guide && _guidedCharacterMoveHasAction(guide, rollable)) {
 					this._openGuidedCharacterMove({ name, guide }, rollable);
@@ -2757,6 +2875,88 @@ export function createStonetopCharacterSheetClass(Base) {
 			// still gets them, exactly as they do on the NPC and steading sheets. The
 			// `editable` flag is what gates the writes.
 			wireRelationshipTable(html[0], this.actor, { editable: this.isEditable });
+			// Same split for the board: the Table/Board toggle is a view feature and wires
+			// for everyone; only the lane controls are gated on `editable`.
+			wireRelationshipBoard(html[0], this.actor, { editable: this.isEditable });
+			// Click a name to open that actor's sheet, hover a portrait for a full-size
+			// preview. Ungated: neither writes anything, and both serve a player reading a
+			// sheet they can't edit. Covers whichever of the two views is rendered.
+			wireRelationshipLinks(html[0]);
+
+			// Followers tab, a follower card's face: hovering a real portrait pops the
+			// enlarged copy, and clicking opens the People of Stonetop gallery to (re)assign
+			// one. Wired here, ABOVE the editability gate below, because the preview belongs
+			// to every viewer for the same reason the relationship portraits' does — looking
+			// at a face is not an edit, and a player reading a sheet they can't edit is
+			// exactly who most wants a better look at it.
+			//
+			// The picker is nonetheless reached only through the --editable class, which the
+			// template renders behind the same sheet-level editability that put the tabindex
+			// on the element. So the pointer path and the keyboard path are gated by one fact,
+			// in one place, and this call site needs no second check.
+			wireAvatarPreview(html[0], ".stonetop-follower-portrait-img");
+			const pickFollowerPortrait = ev => {
+				// Cheap test first: this is bound in capture phase on the whole sheet, so every
+				// keystroke into every field on it lands here. Deciding on `ev.key` before
+				// walking ancestors keeps typing free.
+				if (ev.type === "keydown" && ev.key !== "Enter" && ev.key !== " ") return;
+				const portrait = ev.target.closest?.(".stonetop-follower-portrait--editable");
+				if (!portrait) return;
+				// preventDefault covers the keydown too: Space would otherwise scroll the tab
+				// out from under the card while the gallery opens over it.
+				ev.preventDefault();
+				ev.stopPropagation();
+				// The crop pip sits inside the portrait and opens the framer instead of the
+				// gallery. Checked after the portrait lookup so it inherits the same guards, and
+				// the pip carries tabindex="-1" so it never takes the card's tab stop.
+				if (ev.target.closest?.(".stonetop-follower-portrait-frame")) {
+					this._onFollowerPortraitFrame(portrait);
+					return;
+				}
+				// Reading the sheet, a tap enlarges the face; editing the card, it opens the
+				// gallery. Stated as an attribute rather than inferred from what else is on the
+				// card: an editable follower with no portrait yet has no crop pip either, and
+				// inferring the mode from the pip would send exactly that case to the viewer,
+				// which has nothing to show.
+				if (portrait.dataset.portraitMode === "pick") this._onFollowerPortraitPick(portrait);
+				else this._onFollowerPortraitView(portrait);
+			};
+			html[0].addEventListener("click", pickFollowerPortrait, true);
+			html[0].addEventListener("keydown", pickFollowerPortrait, true);
+
+			// Followers tab: drag a card onto the canvas to put that follower on the map as a
+			// token (module/hooks/FollowerDrop.js turns the payload below into an Actor).
+			// Ungated, like the steading's NPC-row drag: dragging writes nothing here, and what
+			// a drop is allowed to do is gated at the far end by the core token/actor
+			// permissions — not by whether this viewer may edit the sheet.
+			html[0].addEventListener("dragstart", (ev) => {
+				const card = ev.target.closest?.(".stonetop-follower-card[data-ftype]");
+				if (!card || !ev.dataTransfer) return;
+				// A drag that begins inside a control is that control's own: dragging a value out
+				// of a number field, or selected text out of a textarea, must not be hijacked into
+				// dropping a token. The grip and the rest of the card body still start the drag.
+				if (ev.target.closest?.("input, textarea, select, button, a, [contenteditable]")) return;
+				const payload = this._followerDragData?.get(`${card.dataset.ftype}:${card.dataset.slug ?? ""}`);
+				if (!payload) { ev.preventDefault(); return; }
+				ev.stopPropagation();
+				ev.dataTransfer.setData("text/plain", JSON.stringify(payload));
+				ev.dataTransfer.effectAllowed = "copy";
+			});
+
+			// The fold caret on every section heading. Two shapes count as a heading
+			// here: the row that pairs a title with its edit pencil, and a bare title
+			// (Inventory's columns, the Moves tab's groups) where the caret sits inside
+			// the title itself. Listing both lets one wiring serve them — `closest`
+			// resolves nearest-first, so a caret beside a pencil finds its row while one
+			// inside a title finds the title. Above the isEditable guard on purpose:
+			// folding is a reading preference, and a player reading another PC's sheet
+			// (or their own in play mode) wants it just as much.
+			// `.stonetop-moves-collapsible` is in the list as a STOP, not an anchor: a
+			// sidebar move group has no caret of its own (clicking its title already
+			// folds it), but the sidebar lays Roll Modifier and those groups out as one
+			// flat run, so without it the Roll Modifier fold would swallow them all.
+			this._wireSectionCollapse(html,
+				".stonetop-details-heading-row, .stonetop-move-group-title, .stonetop-moves-collapsible");
 
 			if (!this.isEditable) return;
 
@@ -3424,6 +3624,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				ev.currentTarget.setAttribute("aria-label", collapsed ? "Expand moves sidebar" : "Collapse moves sidebar");
 				setSidebarCollapsed(this.actor?.id, collapsed);
 			});
+
 			// Name an (anonymous) crew member: promote them to a named individual,
 			// carrying their current HP across. Opened from each member's "Name them"
 			// button in edit mode, which targets that specific roster slot.
@@ -3808,19 +4009,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			}, true);
 
 			// Hovering a card's art pops a larger preview beside it (click still opens the
-			// full ImagePopout, above). It's a fixed-position popup on <body> — not a CSS
-			// ::after — because the thumb sits at the far left of each card and the arcana
-			// tab is overflow-x:hidden, which would clip a pseudo-element. Delegated in the
-			// capture phase so it fires for the thumbs even though mouseenter/leave don't bubble.
-			html[0].addEventListener("mouseenter", ev => {
-				const thumb = ev.target.closest?.(".stonetop-arcanum-thumb, .stonetop-lore-arcana-img");
-				if (!thumb) return;
-				this._showArcanumThumbPreview(thumb);
-			}, true);
-			html[0].addEventListener("mouseleave", ev => {
-				if (!ev.target.closest?.(".stonetop-arcanum-thumb, .stonetop-lore-arcana-img")) return;
-				this._removeArcanumThumbPreview();
-			}, true);
+			// full ImagePopout, above), through the same shared util the relationship and
+			// steading portraits use — placed to the RIGHT because the thumb sits at the far
+			// left of each card, where there is room beside it.
+			wireAvatarPreview(html[0], ".stonetop-arcanum-thumb, .stonetop-lore-arcana-img",
+				{ placement: "right", variant: "stonetop-avatar-preview--art" });
 
 			// "Show both sides" ⇄ "show front only" toggle (available in and out of edit
 			// mode). Persists a PER-USER display preference so the card renders as a front|back
@@ -5013,7 +5206,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				// summoned again and again, so they're never deduped by sourceUuid.
 				if (!input.repeatable && present.has(input.sourceUuid)) continue;
 				const id = foundry.utils.randomID(16);
-				update[`flags["stonetop-pwd"].customFollowers.${id}`] = { ...buildCustomFollower(input), order: order++ };
+				update[`flags.stonetop-pwd.customFollowers.${id}`] = { ...buildCustomFollower(input), order: order++ };
 			}
 			if (Object.keys(update).length) await this.actor.update(update);
 			this.render(false);
@@ -5049,11 +5242,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			const ring   = this._ringFollowerEntry();
 			const id     = foundry.utils.randomID(16);
 			const update = {
-				[`flags["stonetop-pwd"].customFollowers.${id}`]: { ...buildServantFollower(input), order: this._nextFollowerOrder() },
+				[`flags.stonetop-pwd.customFollowers.${id}`]: { ...buildServantFollower(input), order: this._nextFollowerOrder() },
 			};
 			let costLine;
 			if (cost?.kind === "loyalty" && ring.id && ring.loyalty > 0) {
-				update[`flags["stonetop-pwd"].customFollowers.${ring.id}.loyalty`] = ring.loyalty - 1;
+				update[`flags.stonetop-pwd.customFollowers.${ring.id}.loyalty`] = ring.loyalty - 1;
 				costLine = `<p>You spend <strong>1 Loyalty</strong> from ${escHtml(ring.name)} (now ${ring.loyalty - 1}).</p>`;
 			} else if (cost?.kind === "loyalty") {
 				costLine = `<p>${escHtml(ring.name)} holds no Loyalty, so you <strong>mark a consequence</strong> to call them up.</p>`;
@@ -5187,7 +5380,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (Object.values(existing).some(f => f?.sourceUuid === input.sourceUuid)) return;
 			const id = foundry.utils.randomID(16);
 			await this.actor.update({
-				[`flags["stonetop-pwd"].customFollowers.${id}`]: { ...buildCustomFollower(input), order: this._nextFollowerOrder() },
+				[`flags.stonetop-pwd.customFollowers.${id}`]: { ...buildCustomFollower(input), order: this._nextFollowerOrder() },
 			});
 			this.render(false);
 		}
@@ -5216,6 +5409,131 @@ export function createStonetopCharacterSheetClass(Base) {
 			return createArcanumItem({ name, major, front, onSave: attach });
 		}
 
+		/**
+		 * Portraits already spoken for, as `{ src -> who wears it }`, for the People gallery's
+		 * "already assigned" marking and its unused-only filter.
+		 *
+		 * Two rosters feed it. The steading's residents and neighbors are the bigger pool by
+		 * far and the more useful answer — a follower is usually somebody the village already
+		 * knows — and the other follower cards on this very sheet cover the near miss of
+		 * handing two of a character's own people the same face.
+		 *
+		 * Reads the index `_buildFollowersData` stamps as it finalizes the cards, so the answer
+		 * comes from the same place the cards themselves do — including `orderName`, whose
+		 * fallback chain (name → label → placeholder → type) lives there and is not worth
+		 * restating. Not scraped back off the rendered markup: a collapsed section, a renamed
+		 * class or a lazily-drawn tab would silently empty the map and the "Unused" filter
+		 * would quietly lie.
+		 *
+		 * `exclude` is the card being edited (`{ftype, slug}`, straight off its dataset): its
+		 * own portrait is this follower's, not somebody else's.
+		 *
+		 * The steading is merged last so a face a named resident wears reads as theirs.
+		 */
+		_followerPortraitsInUse({ ftype, slug } = {}) {
+			const used = {};
+			for (const p of this._followerPortraits ?? []) {
+				if (p.ftype === ftype && p.slug === (slug ?? "")) continue;
+				used[p.img] ??= p.name || "another follower";
+			}
+			return { ...used, ...usedPersonPortraits(getStonetopSteadingActor()) };
+		}
+
+		/**
+		 * Give a follower a face: open the People of Stonetop gallery on their card's portrait
+		 * and store the pick. `portrait` is the card's .stonetop-follower-portrait element,
+		 * whose data-ftype / data-slug resolve the same per-follower flag namespace the card's
+		 * other hand-edited fields write to — so a portrait is saved exactly like a note is,
+		 * and every follower type works through this one path.
+		 *
+		 * "Use default" writes "" rather than deleting the key: an empty string is already the
+		 * card's "no portrait" state (see _followerExtras), so clearing needs no `-=` dance and
+		 * cannot leave a half-removed flag behind.
+		 */
+		/**
+		 * Choose which square of a follower's portrait the 75px card circle shows.
+		 *
+		 * Stored beside the portrait as a rect rather than cut to a file, which is what lets a
+		 * PLAYER do this on their own follower: cutting a file needs FILES_UPLOAD, and most
+		 * worlds do not grant it. See module/utils/portrait-frame.js.
+		 */
+		/**
+		 * Enlarge a follower's portrait, the way tapping any other face in the system does.
+		 *
+		 * Opens the WHOLE illustration when the stored path is a People-of-Stonetop square, for
+		 * the same reason the NPC header and the hover preview do: the square is a small face cut
+		 * out of a standing figure, so popping it out would answer "show me this bigger" with a
+		 * picture smaller than the one just tapped.
+		 */
+		_onFollowerPortraitView(portrait) {
+			if (!portrait) return;
+			const imgEl = portrait.querySelector(".stonetop-follower-portrait-img");
+			const stored = imgEl?.getAttribute("src");
+			if (!stored) return;
+			// The popup is portaled to <body> and would otherwise hang over the popout.
+			removeAvatarPreview();
+			const name = imgEl.dataset.name || "Follower";
+			new ImagePopout(displayPortraitSrc(stored), { title: name }).render(true);
+		}
+
+		_onFollowerPortraitFrame(portrait) {
+			if (!this.isEditable || !portrait) return;
+			const base = _followerDetailBase(portrait.dataset.ftype, portrait.dataset.slug);
+			if (!base) {
+				console.warn("stonetop | no follower flag namespace for", portrait.dataset.ftype, portrait.dataset.slug);
+				return;
+			}
+			// No early return on a null handle: openPortraitFrameEditor reports why it cannot
+			// open, which is the difference between a diagnosable message and a dead button.
+			const handle = followerFrameHandle(this.actor, base, { editable: this.isEditable });
+			openPortraitFrameEditor({
+				handle,
+				img: handle?.img,
+				title: portrait.dataset.frameTitle || "Frame Face",
+				// A frame write touches neither `img` nor anything the sheet watches, so nothing
+				// re-renders on its own.
+				onSaved: () => this.render(false)
+			});
+		}
+
+		_onFollowerPortraitPick(portrait) {
+			if (!this.isEditable || !portrait) return;
+			const base = _followerDetailBase(portrait.dataset.ftype, portrait.dataset.slug);
+			if (!base) return;
+			const path = `${base}.img`;
+			// getAttribute, not `.src`: the DOM resolves that to an absolute URL, which would
+			// match none of the gallery's relative tile paths, so the portrait already in use
+			// would not read as selected.
+			const current = portrait.querySelector(".stonetop-follower-portrait-img")?.getAttribute("src") ?? "";
+
+			// The gallery opens over the sheet; a preview raised by the hover that led to the
+			// click would be left floating on top of it with nothing to anchor to.
+			removeAvatarPreview();
+			const apply = async src => {
+				await this.actor.setFlag("stonetop-pwd", path, src ?? "");
+				this.render(false);
+			};
+			openPeoplePortraitPicker({
+				current,
+				used: this._followerPortraitsInUse(portrait.dataset),
+				onPick: apply,
+				// One atomic update: clearing the portrait must also drop any frame authored
+				// against it, or the follower keeps an orphan rect that would silently apply to
+				// whatever picture is chosen next (it would not — the src stamp neutralises it —
+				// but the dead data would accumulate forever).
+				onClear: async () => {
+					await this.actor.update({
+						[`flags.stonetop-pwd.${path}`]: "",
+						[`flags.stonetop-pwd.${base}.-=portraitFrame`]: null,
+					});
+					this.render(false);
+				},
+				// A browsed file is exactly the case with no sensible default framing, so offer
+				// the framer the moment one is chosen.
+				onFrame: () => this._onFollowerPortraitFrame(portrait),
+			});
+		}
+
 		// Persist a built custom follower under a fresh id and re-render. `data` is
 		// the buildCustomFollower() shape; we stamp a creation-order key for stable
 		// ordering on the Followers tab.
@@ -5223,7 +5541,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (!data) return;
 			const id = foundry.utils.randomID(16);
 			await this.actor.update({
-				[`flags["stonetop-pwd"].customFollowers.${id}`]: { ...data, order: this._nextFollowerOrder() },
+				[`flags.stonetop-pwd.customFollowers.${id}`]: { ...data, order: this._nextFollowerOrder() },
 			});
 			this.render(false);
 		}
@@ -5271,7 +5589,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				// built-in followers (animal companion / initiate / beast) aren't removable and
 				// have no per-record store, so they keep the chat-card record only.
 				if (follower === "custom" && slug) {
-					await this.actor.update({ [`flags["stonetop-pwd"].customFollowers.${slug}.dead`]: true });
+					await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.dead`]: true });
 				}
 			} else {
 				return;
@@ -5287,9 +5605,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (follower === "animal-companion") {
 				await this.actor.setFlag("stonetop-pwd", "animalCompanion.hpCurrent", val);
 			} else if (follower === "initiate") {
-				await this.actor.update({ [`flags["stonetop-pwd"].initiatesHp.${slug}`]: val });
+				await this.actor.update({ [`flags.stonetop-pwd.initiatesHp.${slug}`]: val });
 			} else if (follower === "crew-individual") {
-				await this.actor.update({ [`flags["stonetop-pwd"].crew.individualsHp.${Number(index)}`]: val });
+				await this.actor.update({ [`flags.stonetop-pwd.crew.individualsHp.${Number(index)}`]: val });
 			} else if (follower === "crew-member") {
 				const arr = [...(this.actor.getFlag("stonetop-pwd", "crew.memberHp") ?? [])];
 				arr[Number(index)] = val;
@@ -5297,15 +5615,15 @@ export function createStonetopCharacterSheetClass(Base) {
 			} else if (follower === "crew-group") {
 				await this.actor.setFlag("stonetop-pwd", "crew.groupHp", val);
 			} else if (follower === "beast") {
-				await this.actor.update({ [`flags["stonetop-pwd"].beastHp.${slug}`]: val });
+				await this.actor.update({ [`flags.stonetop-pwd.beastHp.${slug}`]: val });
 			} else if (follower === "custom") {
-				await this.actor.update({ [`flags["stonetop-pwd"].customFollowers.${slug}.hpCurrent`]: val });
+				await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.hpCurrent`]: val });
 			} else if (follower === "custom-group") {
-				await this.actor.update({ [`flags["stonetop-pwd"].customFollowers.${slug}.groupHp`]: val });
+				await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.groupHp`]: val });
 			} else if (follower === "custom-member") {
 				const arr = [...(this.actor.getFlag("stonetop-pwd", `customFollowers.${slug}.memberHp`) ?? [])];
 				arr[Number(index)] = val;
-				await this.actor.update({ [`flags["stonetop-pwd"].customFollowers.${slug}.memberHp`]: arr });
+				await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.memberHp`]: arr });
 			}
 		}
 
@@ -5403,7 +5721,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		// one <label> per reason, the first pre-checked, keyed by the given input name.
 		_spendRadioOptions(name, reasons) {
 			return reasons.map((r, i) =>
-				`<label class="stonetop-spend-choice"><input type="radio" name="${name}" value="${r.key}"${i === 0 ? " checked" : ""}> <span>${escHtml(r.label)}</span></label>`
+				`<label class="stonetop-spend-choice"><input type="radio" class="stonetop-spend-radio" name="${name}" value="${r.key}"${i === 0 ? " checked" : ""}> <span>${escHtml(r.label)}</span></label>`
 			).join("");
 		}
 
@@ -5743,35 +6061,15 @@ export function createStonetopCharacterSheetClass(Base) {
 			return [...names].sort((a, b) => a.localeCompare(b));
 		}
 
-		// Options for the "remind on" picker: none, all move rolls, then the moves by name.
-		// ("All move rolls" not "All rolls" — the echo only rides 2d6+stat move rolls, not
-		// damage/formula/Death's-Door rolls, so the label shouldn't overpromise.)
-		_woundReminderMoveOptions(selected = "", moveNames = []) {
-			const opts = [
-				{ value: "",  label: "— no reminder —" },
-				{ value: "*", label: "All move rolls" },
-				...moveNames.map(name => ({ value: name, label: name })),
-			];
-			// If the stored reminder targets a move that's since been renamed or unlearned,
-			// keep it as an explicit option so re-saving the wound doesn't silently drop the
-			// (drifted) binding — the dropdown would otherwise have no matching value.
-			if (selected && selected !== "*" && !moveNames.includes(selected)) {
-				opts.push({ value: selected, label: `${selected} (not a current move)` });
-			}
-			return opts.map(o =>
-				`<option value="${_esc(o.value)}"${o.value === selected ? " selected" : ""}>${_esc(o.label)}</option>`,
-			).join("");
-		}
-
 		async _onWoundAdd() {
 			const snapshot = await this._stonetopCharacter.buildSnapshot();
-			this._openWoundDialog({ isNew: true, moveNames: this._woundReminderMoveNames(snapshot) });
+			return this._openWoundDialog({ isNew: true, moveNames: this._woundReminderMoveNames(snapshot) });
 		}
 
 		async _onWoundEdit(id) {
 			if (!id) return;
 			const snapshot = await this._stonetopCharacter.buildSnapshot();
-			this._openWoundDialog({ isNew: false, wound: this._woundRecord(id), moveNames: this._woundReminderMoveNames(snapshot) });
+			return this._openWoundDialog({ isNew: false, wound: this._woundRecord(id), moveNames: this._woundReminderMoveNames(snapshot) });
 		}
 
 		// Recover, applied to one wound: "say how you tend to it," then stabilize it —
@@ -5826,103 +6124,18 @@ export function createStonetopCharacterSheetClass(Base) {
 			this.render(false);
 		}
 
-		// Shared add/edit form. Status/healed are settable here as a manual override; the
-		// normal path is move-gated (Recover stabilizes, Convalesce heals → scar). The
-		// "Healed — move to Scars" toggle is the manual heal path (the Remove dialog points
-		// here to keep a wound's fiction as a scar). planNote is editable here too, so a
-		// permanent injury's adaptation plan and its interim lasting tag/reminder can be
-		// captured in one place.
-		_openWoundDialog({ isNew, wound = null, moveNames = [] }) {
-			const w    = wound ?? {};
-			const statusOptions = _WOUND_STATUS_OPTIONS.map(o =>
-				`<option value="${o.value}"${(w.status ?? "problematic") === o.value ? " selected" : ""}>${_esc(o.label)}</option>`,
-			).join("");
-			const originOptions = _WOUND_ORIGIN_OPTIONS.map(o =>
-				`<option value="${o.value}"${(w.origin ?? "wound") === o.value ? " selected" : ""}>${_esc(o.label)}</option>`,
-			).join("");
-			// One Make-a-Plan tick-box row (Book I p.530: "write the requirements down with
-			// tick boxes… tick the boxes off"): a done checkbox + the requirement text + remove.
-			const reqRow = (text = "", done = false) => `<li class="stonetop-wound-req">
-				<label class="checkbox"><input type="checkbox" class="stonetop-check req-done"${done ? " checked" : ""}></label>
-				<input type="text" class="req-text" value="${_esc(text)}" placeholder="e.g. months of practice">
-				<button type="button" class="req-remove" data-tooltip="Remove"><i class="fas fa-xmark"></i></button>
-			</li>`;
-			const content = `<form class="stonetop-custom-move-form stonetop-wound-dialog-form" autocomplete="off">
-				${isNew ? `<p class="stonetop-homestead-note">A problematic wound always involves taking damage, and often a marked debility — apply those on the sheet as the fiction warrants.</p>` : ""}
-				<div class="stonetop-custom-move-field">
-					<label>Wound</label>
-					<input type="text" name="text" value="${_esc(w.text ?? "")}" placeholder="e.g. Twisted ankle — can't bear weight">
-				</div>
-				<div class="stonetop-custom-move-field">
-					<label>Status</label>
-					<select name="status">${statusOptions}</select>
-				</div>
-				<div class="stonetop-custom-move-field">
-					<label>Origin</label>
-					<select name="origin">${originOptions}</select>
-				</div>
-				<div class="stonetop-custom-move-field">
-					<label>Note / requirement</label>
-					<input type="text" name="requirementNote" value="${_esc(w.requirementNote ?? "")}" placeholder="What's needed to treat it (optional)">
-				</div>
-				<div class="stonetop-custom-move-field">
-					<label>Lasting tag</label>
-					<input type="text" name="mechanicalTag" value="${_esc(w.mechanicalTag ?? "")}" placeholder="e.g. Let Fly at disadvantage until practiced">
-				</div>
-				<div class="stonetop-custom-move-field">
-					<label>Remind on</label>
-					<select name="reminderMove">${this._woundReminderMoveOptions(w.reminderMove ?? "", moveNames)}</select>
-				</div>
-				<div class="stonetop-custom-move-field">
-					<label>Make-a-Plan goal</label>
-					<input type="text" name="planNote" value="${_esc(w.planNote ?? "")}" placeholder="Adaptation goal for a permanent injury (optional)">
-				</div>
-				<div class="stonetop-custom-move-field stonetop-wound-plan-reqs">
-					<label>Plan requirements <span class="stonetop-wound-plan-hint">tick off as you adapt</span></label>
-					<ul class="stonetop-wound-req-list">${(w.planRequirements ?? []).map(r => reqRow(r.text, r.done)).join("")}</ul>
-					<button type="button" class="stonetop-wound-req-add"><i class="fas fa-plus"></i> Add requirement</button>
-				</div>
-				<div class="stonetop-custom-move-check">
-					<label><input type="checkbox" class="stonetop-check" name="healed"${w.healed ? " checked" : ""}> Healed, move to Scars</label>
-				</div>
-			</form>`;
-
-			const apply = async (html) => {
-				const val = (name) => html.find(`[name="${name}"]`).val();
-				const data = {
-					text:            (val("text") ?? "").trim(),
-					status:          val("status"),
-					origin:          val("origin"),
-					requirementNote: (val("requirementNote") ?? "").trim(),
-					mechanicalTag:   (val("mechanicalTag") ?? "").trim(),
-					reminderMove:    val("reminderMove") ?? "",
-					planNote:        (val("planNote") ?? "").trim(),
-					planRequirements: html.find(".stonetop-wound-req").toArray().map(li => ({
-						text: (li.querySelector(".req-text")?.value ?? "").trim(),
-						done: !!li.querySelector(".req-done")?.checked,
-					})).filter(r => r.text),
-					healed:          html.find('[name="healed"]').is(":checked"),
-				};
-				if (isNew) await this._stonetopCharacter.addWound(data);
-				else if (w.id) await this._stonetopCharacter.updateWound(w.id, data);
-				this.render(false);
-			};
-
-			new Dialog({
-				title: isNew ? "Add Wound" : "Edit Wound",
-				content,
-				buttons: {
-					save:   { label: isNew ? "Add" : "Save", callback: apply },
-					cancel: { label: "Cancel" },
-				},
-				default: "save",
-				render: (html) => {
-					bringDialogToFront(html);
-					// Dynamic add/remove of plan-requirement rows; collected from the live DOM on save.
-					html.find(".stonetop-wound-req-add").on("click", () => html.find(".stonetop-wound-req-list").append(reqRow()));
-					html.on("click", ".req-remove", (ev) => ev.currentTarget.closest(".stonetop-wound-req")?.remove());
-				},
-			}, { width: 460, classes: ["dialog", "stonetop", "stonetop-wound-dialog"] }).render(true);
+		// Shared add/edit form — the left-rail wound editor (WoundDialog), which groups the
+		// record's eight fields into four panels: the wound, its treatment, its lasting
+		// effects, and the Make-a-Plan tick boxes. Status/healed are settable there as a
+		// manual override; the normal path is move-gated (Recover stabilizes, Convalesce
+		// heals → scar). The "Healed, move to Scars" toggle is the manual heal path (the
+		// Remove dialog points here to keep a wound's fiction as a scar).
+		async _openWoundDialog({ isNew, wound = null, moveNames = [] }) {
+			const data = await new WoundDialog({ isNew, wound, moveNames }).promise();
+			if (!data) return;
+			if (isNew) await this._stonetopCharacter.addWound(data);
+			else if (wound?.id) await this._stonetopCharacter.updateWound(wound.id, data);
+			this.render(false);
 		}
 
 		// Stamp the character with where the player is in creation, so the GM's
@@ -6300,6 +6513,78 @@ export function createStonetopCharacterSheetClass(Base) {
 			return out;
 		}
 
+		/**
+		 * Where a neighbor this background names already sits on the roster, or -1.
+		 *
+		 * An exact name-and-Home match first; failing that, someone of the same name with no
+		 * Home recorded at all — a hand-added "Ennis" with an empty Home is the Ennis of
+		 * Marshedge the background means, and the fill below is what finally writes his
+		 * origin down. Two Ennises with two different Homes stay two people.
+		 *
+		 * A pointer row whose NPC has since been deleted is passed over, and that is not an
+		 * oversight: it keys off its cached name with no Home ("ennis|"), so it would win the
+		 * name-only match — but there is nothing left to fill in. Its Home and Traits live on
+		 * an actor that is gone, and the roster renders it as unresolved either way, so
+		 * matching it would quietly swallow the neighbor. Better to list a live one beside it.
+		 */
+		_findBackgroundNeighbor(neighbors, addition) {
+			const fillable = neighbor => !isActorRow(neighbor) || !!personRowActor(neighbor);
+			const key = personRowKey(addition);
+			const exact = neighbors.findIndex(n => fillable(n) && personRowKey(n) === key);
+			if (exact >= 0) return exact;
+			const nameOnly = `${addition.name.trim().toLowerCase()}|`;
+			return neighbors.findIndex(n => fillable(n) && personRowKey(n) === nameOnly);
+		}
+
+		/**
+		 * A neighbor this background names is already on the roster: don't add them twice,
+		 * just fill in whatever the roster left blank and tick them as known. Actor-backed
+		 * rows keep Home and Traits on the NPC, so the fill has to go there — writing them
+		 * onto the pointer row would store fields nothing ever reads back. Skipped without
+		 * complaint when the current user can't update that NPC (a player has OBSERVER on
+		 * roster NPCs, not OWNER): the person is already listed, which is the part that
+		 * matters.
+		 *
+		 * Mutates `neighbors[idx]` in place — the caller rebases the whole array once.
+		 */
+		async _fillExistingBackgroundNeighbor(neighbors, idx, addition) {
+			const row = neighbors[idx];
+			const actor = personRowActor(row);
+			if (!actor) {
+				// Legacy plain-text row: its own fields are what the roster renders. Only ever a
+				// row with no actor pointer at all — _findBackgroundNeighbor refuses to match a
+				// pointer row whose NPC was deleted, which would land here and write fields the
+				// unresolved branch of resolvePersonRow never reads back.
+				neighbors[idx] = {
+					...row,
+					home: addition.home || row.home || "",
+					traits: addition.traits || row.traits || "",
+					checked: true,
+				};
+				return;
+			}
+			const update = {};
+			if (addition.home   && !String(actor.system?.home   ?? "").trim()) update["system.home"]   = addition.home;
+			if (addition.traits && !String(actor.system?.traits ?? "").trim()) update["system.traits"] = addition.traits;
+			if (Object.keys(update).length && actor.isOwner) {
+				try { await actor.update(update); }
+				catch (err) { console.warn("Stonetop | Could not fill in background details for", actor.name, err); }
+			}
+			neighbors[idx] = { ...row, checked: true };
+		}
+
+		/**
+		 * File the neighbors a background names (the Ranger's Wide Wanderer names five) on the
+		 * steading's roster, as the NPC actors every other roster row is backed by.
+		 *
+		 * Gated on the ACTOR_CREATE permission rather than on isGM: this system grants that to
+		 * players once per world (Ready.js#_ensurePlayerActorCreationGrant) precisely so the
+		 * actor-backed roster works for them, so whoever is at the keyboard normally creates
+		 * the NPCs right here. The plain-text fallback is for a world whose GM has since
+		 * revoked the permission — the row still renders (resolvePersonRow has a legacy branch)
+		 * and a GM's client converts it, live on the next steading write or at their next load.
+		 * See steading-people.js#onSteadingPeopleUpdate / #migrateSteadingPeople.
+		 */
 		async _applyBackgroundNeighbors(backgroundSetup, selections) {
 			const additions = this._backgroundSetupNeighbors(backgroundSetup, selections);
 			if (!additions.length) return;
@@ -6309,26 +6594,46 @@ export function createStonetopCharacterSheetClass(Base) {
 				return;
 			}
 			const stonetopSteading = steadingActor.typedActor ?? new StonetopSteading(steadingActor);
-			const flags = resolvedFlagProperty(steadingActor, "steading") ?? {};
-			const neighbors = foundry.utils.deepClone(flags.neighbors ?? STEADING_DEFAULTS.neighbors);
-			const keyFor = neighbor => `${String(neighbor.name ?? "").trim().toLowerCase()}|${String(neighbor.home ?? "").trim().toLowerCase()}`;
+			const liveNeighbors = () => {
+				const rows = (resolvedFlagProperty(steadingActor, "steading") ?? {}).neighbors;
+				return Array.isArray(rows) ? rows : STEADING_DEFAULTS.neighbors;
+			};
+			const neighbors = foundry.utils.deepClone(liveNeighbors());
+			const canCreateActors = Actor.canUserCreate?.(game.user) ?? !!game.user?.isGM;
+			// What this pass changed, addressed by WHO each row is rather than by where it sat:
+			// see rebasePersonRows. Every branch below awaits, and onboarding is exactly when a
+			// second player is likely to be doing the same thing to the same roster.
+			const filled = new Map();
+			const added = [];
 
 			for (const addition of additions) {
-				const key = keyFor(addition);
-				if (!addition.name?.trim() || key === "|") continue;
-				const idx = neighbors.findIndex(neighbor => keyFor(neighbor) === key);
+				if (!addition.name?.trim()) continue;
+				const idx = this._findBackgroundNeighbor(neighbors, addition);
 				if (idx >= 0) {
-					neighbors[idx] = {
-						...neighbors[idx],
-						home: addition.home || neighbors[idx].home || "",
-						traits: addition.traits || neighbors[idx].traits || "",
-						checked: true,
-					};
-				} else {
-					neighbors.push(addition);
+					const identity = personRowIdentity(neighbors[idx]);
+					await this._fillExistingBackgroundNeighbor(neighbors, idx, addition);
+					// A one-entry queue (see rebasePersonRows), overwritten rather than appended:
+					// two additions naming the same person both resolve to that one roster row, so
+					// the later fill is the whole of what that row becomes.
+					filled.set(identity, [neighbors[idx]]);
+					continue;
 				}
+				if (!canCreateActors) { neighbors.push(addition); added.push(addition); continue; }
+				const actor = await createPersonNpc("neighbors", addition).catch(err => {
+					console.error("Stonetop | Could not create the NPC for background neighbor", addition.name, err);
+					return null;
+				});
+				// Creation failed: fall back to the text row so the neighbor still reaches the
+				// roster, and let the load-time sweep retry the conversion.
+				const row = actor
+					? { uuid: actor.uuid, id: actor.id, name: actor.name, checked: true }
+					: addition;
+				// Kept on the working copy too, so a later addition of the same name matches this
+				// one instead of making a second NPC for them.
+				neighbors.push(row);
+				added.push(row);
 			}
-			await stonetopSteading.setFlags({ neighbors });
+			await stonetopSteading.setFlags({ neighbors: rebasePersonRows(liveNeighbors(), filled, added) });
 		}
 
 		async _applyPlaybookSelections(playbookDoc, selections) {

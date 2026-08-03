@@ -1,0 +1,29 @@
+<!-- The EMPTY SLOT on the steading's Residents / Neighbors roster: what that table draws in
+     the avatar cell of a member with no portrait of their own.
+
+     Not the same picture as the one the actor wears. An art-less NPC's stored `img` is
+     `default_profile.svg`, the Book I p.392 "human, individual" mark, which is what the
+     sidebar and every other surface that renders `actor.img` shows. The roster is a dense
+     grid of 22px avatars where a column of those dark discs reads as clutter rather than as
+     blanks, so it renders this lighter figure instead — an empty slot should look empty.
+     Both paths answer isPersonPlaceholderImg, so either one still counts as "no art".
+
+     The figure is drawn INSIDE the inscribed circle, not out to the edges of the square.
+     Every surface that shows this is a round clipping box (.steading-member-avatar, and the
+     same treatment on the relationships component), so art that runs to the square's edges,
+     as the game-icons original did, gets sliced by the mask into black wedges hugging the
+     rim on the left, right and bottom. Nothing here reaches past radius 196 of a 256 circle,
+     which leaves about 2.5px of plate showing all the way round at the 22px the rosters use.
+
+     The plate is the parchment well rather than white, and opaque rather than transparent:
+     the avatar also opens in a core ImagePopout, whose surface is dark, and a bare
+     silhouette would vanish there. Black and undimmed for the same reason the empty branch
+     of .stonetop_rel_portrait is: this is the only face such a row has, and a dimmed grey
+     washes out against the plate. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+	<path d="M0 0h512v512H0z" fill="#f0ece3"/>
+	<g fill="#000000">
+		<ellipse cx="256" cy="186" rx="70" ry="78"/>
+		<path d="M110 402c0-74 66-114 146-114s146 40 146 114c0 18-52 28-146 28s-146-10-146-28z"/>
+	</g>
+</svg>

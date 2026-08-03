@@ -3,13 +3,14 @@ import { maybeOfferMigration } from "../migration/announce.js";
 import { finishSystemIdMigration } from "../migration/finish-run.js";
 import { maybeRescueStrandedWorld } from "../migration/rescue.js";
 import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingleton.js";
-import { seedCompendiumJournalsOnce, restampSeededJournalSources, updateSeededJournalsOnVersionChange, syncSeededFolderColors, unnestSeededWorldRootOnce } from "./SeedCompendiums.js";
-import { seedBestiaryActorsOnce, collapseBestiaryActorSubfoldersOnce } from "./SeedActors.js";
-import { seedTreasureItemsOnce } from "./SeedItems.js";
-import { reapplyBook2ArtOnVersionChange, reapplyBook2Art, hasImportedBook2Art } from "../book2-art/reapply.js";
+import { runWorldSetup, pendingSetupWork } from "./WorldSetup.js";
+import { reapplyBook2Art, hasImportedBook2Art } from "../book2-art/reapply.js";
+import { clearArtBrowseCache } from "../book2-art/browse.js";
 import { BOOK2_ART_MACRO_NAME, findBook2ArtWorldMacro, loadBook2ArtMacroSource, runImportBookArtMacro } from "../book2-art/macro.js";
+import { offerDurableArtOnce } from "../book2-art/offer-once.js";
+import { openProgressNotification } from "../utils/progress-notification.js";
 import { stonetopChatCard } from "../utils/chat.js";
-import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyHideRollableIcon, applyReduceMotion, getSetting, setSetting } from "../settings.js";
+import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyHideRollableIcon, applyReduceMotion, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
 import { SpringBurstDialog } from "../dialogs/SpringBurstDialog.js";
@@ -35,6 +36,8 @@ import { STONETOP_SCOPE, resolvedFlagProperty } from "../actors/character/Stonet
 import { deletionEntry } from "../utils/foundry-compat.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
 import { migrateAllSteadingPeople, ensurePeopleFolders, backfillAllResidentHomes } from "../actors/steading/steading-people.js";
+import { PERSON_DEFAULT_IMG } from "../utils/person-portrait.js";
+import { isDefaultImg } from "../utils/strings.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
 const _EOS_MACRO_IMG    = "systems/stonetop-pwd/assets/icons/macros/truce.svg";
@@ -53,9 +56,10 @@ const _CHRONICLE_MACRO_SCRIPT = "game.stonetop?.saveChronicle?.()";
 const _CHRONICLE_HOTBAR_SLOT  = 9;
 
 // The "(TEST ONLY) Populate World" dev macro, added to the Macro Directory but never
-// the hotbar. Its body is the create-test-characters dev script — that gitignored file
-// is the single source of truth, fetched at runtime (see _ensureTestPopulateMacro), so
-// builds that omit it simply skip seeding the macro.
+// the hotbar. Its body is the create-test-characters dev script — that file is the single
+// source of truth, fetched at runtime (see _ensureTestPopulateMacro). It SHIPS: it is
+// un-ignored in .gitignore and named explicitly in the release zip step, so released
+// worlds get the macro too. A build that omits it still skips seeding, silently.
 const _TEST_MACRO_NAME   = "(TEST ONLY) Populate World";
 const _TEST_MACRO_SRC    = "systems/stonetop-pwd/scripts/local/create-test-characters.js";
 const _TEST_MACRO_IMG    = "systems/stonetop-pwd/assets/icons/macros/hazard-sign.svg";
@@ -98,13 +102,18 @@ export async function onReady() {
 	applyEditPencilRevealDelay(getSetting("editPencilRevealDelay"));
 	applyHideRollableIcon(getSetting("hideRollableIcon"));
 	applyReduceMotion(getSetting("reduceMotion"));
+	// Fold the pre-world-keying Setting Overview gate under this world, so every OTHER
+	// world stops reading it as already-shown (see settings.js).
+	await migrateFlatSettingOverviewShown();
 	await _migrateArmourToArmor();
 	await _migrateGmPrepPagesToSingleJournal();
-	// Convert each steading's legacy plain-text Residents/Neighbors rows into linked
-	// NPC actors (idempotent; primary-GM only so two connected GMs can't double-create).
+	// Convert each steading's plain-text Residents/Neighbors rows into linked NPC actors
+	// (idempotent; primary-GM only so two connected GMs can't double-create). Swept every
+	// load, not once per world: players can't create actors, so a background that seeds
+	// neighbors during onboarding leaves text rows for the GM to pick up here.
 	if (isPrimaryGM()) {
 		try { await migrateAllSteadingPeople(); }
-		catch (err) { console.error("Stonetop | Residents/Neighbors → NPC migration failed", err); }
+		catch (err) { console.error("Stonetop | Residents/Neighbors → NPC conversion failed", err); }
 		// Give already-linked Residents of Stonetop a "Stonetop" Home if theirs is blank
 		// (new residents get this at creation). One-time, idempotent, GM-only.
 		try { await backfillAllResidentHomes(); }
@@ -115,6 +124,8 @@ export async function onReady() {
 		catch (err) { console.error("Stonetop | ensurePeopleFolders failed", err); }
 		try { await _migrateNpcTokenNameplates(); }
 		catch (err) { console.error("Stonetop | NPC token-nameplate migration failed", err); }
+		try { await _migrateNpcPlaceholderPortraits(); }
+		catch (err) { console.error("Stonetop | NPC placeholder-portrait migration failed", err); }
 	}
 	await runStartupMigrations();
 	// If the renamed system has been installed alongside this one, offer to move this
@@ -178,6 +189,37 @@ export async function onReady() {
 	game.stonetop.openCharacterCreation = (actor = game.user.character) =>
 		actor ? new CharacterCreationDialog(actor).render(true)
 		      : ui.notifications.warn("No character to start creation for.");
+	// Cut every portrait this world could have out of the book art already on disk — the detail
+	// portraits, and the square faces the small round pictures use — then point NPCs already
+	// holding a whole illustration at their close-up. GM-only (it writes files).
+	//
+	// The same work the one-time chat card offers, reachable on demand because that card latches
+	// the moment it is posted: scrolled past, deleted, or landed on the other GM and it is gone
+	// for good. Safe to run any number of times — every stage re-plans from what is on disk.
+	game.stonetop.rebuildPortraits = async () => {
+		if (!game.user.isGM) return ui.notifications.warn("Only a GM can rebuild portrait art.");
+		const { runPeopleArtRebuild, countPeopleArtRebuilds, describeRebuild } =
+			await import("../book2-art/run-rebuild.js");
+		const todo = await countPeopleArtRebuilds();
+		if (!todo) return ui.notifications.info("Every portrait this world can build is already on disk.");
+		// The other two entry points are buttons, which count down in their own label. This one
+		// has no button, and a toast that fades after five seconds while a 140-image job runs on
+		// is the exact thing the notification bar exists for. No delay: the caller just asked.
+		const bar = openProgressNotification(
+			`Stonetop: rebuilding ${todo} portrait${todo === 1 ? "" : "s"}`, { delayMs: 0 });
+		let res;
+		try {
+			res = await runPeopleArtRebuild({
+				onProgress: (done, total) => bar.update({ fraction: done / total, detail: `${done} of ${total}` }),
+			});
+		} catch (err) {
+			bar.abandon();   // a died-part-way run must not sign off with a full bar
+			throw err;
+		}
+		bar.close();
+		ui.notifications[res.failed ? "warn" : "info"](describeRebuild(res));
+		return res;
+	};
 	game.stonetop.rollDieOfFate     = rollDieOfFate;
 	// Open the love-letter authoring dialog (GM-only; Book I p.568). Wired to the
 	// "Write a Love Letter" hotbar macro and callable from the console.
@@ -201,7 +243,13 @@ export async function onReady() {
 	// the new manifest.js; this then re-flows it without waiting for a version bump). Pass
 	// { worldOnly: true } to only touch world journals. Returns the pass's stats.
 	//   game.stonetop.reapplyBook2Art()
-	game.stonetop.reapplyBook2Art   = (opts = {}) => reapplyBook2Art(opts);
+	//
+	// Drops the directory-listing cache first (see book2-art/browse.js). This is the one entry
+	// point whose whole purpose is "I have just changed what is on disk, go and look again" —
+	// and it is reached by hand, from a console, typically right after dropping files in a way
+	// nothing in the system can hook. A warm listing from earlier in the session would answer
+	// with the state that prompted the call.
+	game.stonetop.reapplyBook2Art   = (opts = {}) => { clearArtBrowseCache(); return reapplyBook2Art(opts); };
 	// Launch the interactive bring-your-own-book "Import Book Art" extractor macro (NOT the
 	// silent re-point pass above). The entry point the post-startup art-reminder chat button
 	// and the Welcome guide's "Import Book Art" button both call. Callable from the console:
@@ -214,68 +262,31 @@ export async function onReady() {
 	if (game.user.isGM) await _ensurePlayerActorCreationGrant();
 	if (game.user.isGM) await _assignSteadingToUnassignedGm();
 
-	// Seeding the gazetteer into a brand-new world imports ~160 journal entries — a
-	// visible pause. On an established world the seed is a no-op that returns instantly,
-	// so await it inline as before. On a fresh world, kick it off in the BACKGROUND so it
-	// doesn't hold up the ready sequence (and, crucially, the Welcome guide): we pop the
-	// guide right away and surface the seeded orientation material once the import lands
-	// (see the `wasFreshWorld` handling further down).
-	const wasFreshWorld = game.user.isGM && !getSetting("seedingComplete");
+	// Set this world up: the durable-art re-apply, the gazetteer seed, the bestiary and the
+	// treasure library — narrated by the setup progress window when there is actually a wait
+	// to explain (see hooks/WorldSetup.js). Everything runs in the BACKGROUND so it never
+	// holds up the ready sequence or the Welcome guide.
+	//
+	// `runWorldSetup()` settles when the art re-apply and the whole journal chain are done.
+	// An established world's chain is a handful of guarded no-ops that return in a tick, so
+	// it is awaited inline as before, which is what keeps the Setting Overview / walkthrough
+	// ordering below reading off journals that are already there. A FRESH world imports ~160
+	// entries, so it isn't: we pop the Welcome guide right away and surface the seeded
+	// orientation material once the import lands (see the `wasFreshWorld` handling below).
+	//
+	// One thing an established world no longer waits for: the every-load world-only art
+	// self-heal, which used to be awaited right here and now runs in runWorldSetup's finishing
+	// pass. It has to browse all six durable art directories before it can find out there is
+	// nothing to do, and that round trip is exactly what should not sit in front of the first
+	// window the GM sees. So the Setting Overview can open a beat before art lands on it —
+	// which is fine, since a document update re-renders an open sheet — but nothing below may
+	// assume the journals have their final artwork.
+	const isGM = game.user.isGM;
+	const wasFreshWorld = isGM && pendingSetupWork().journals;
 	let seeding = Promise.resolve();
-	if (wasFreshWorld) {
-		// Re-apply Book II art (only if its durable folder is already populated, e.g. a
-		// GM who ran the import in another world) BEFORE the seed, so a brand-new world
-		// imports art-bearing journals; then seed, then the journal version sync.
-		seeding = reapplyBook2ArtOnVersionChange()
-			.catch((err) => console.error("Stonetop | Book II art re-apply failed:", err))
-			.then(() => seedCompendiumJournalsOnce())
-			.then(() => restampSeededJournalSources())
-			.then(() => updateSeededJournalsOnVersionChange())
-			.then(() => unnestSeededWorldRootOnce())
-			.then(() => syncSeededFolderColors());
-	} else if (game.user.isGM) {
-		// Re-apply Book II art BEFORE the journal sync so freshly re-applied compendium
-		// art propagates into pristine (un-edited) world journal copies for free
-		// (updateSeededJournalsOnVersionChange reads the live compendium). See
-		// book2-art/reapply.js.
-		try { await reapplyBook2ArtOnVersionChange(); }
-		catch (err) { console.error("Stonetop | Book II art re-apply failed:", err); }
-		await seedCompendiumJournalsOnce();
-		await restampSeededJournalSources();
-		await updateSeededJournalsOnVersionChange();
-		await unnestSeededWorldRootOnce();
-		await syncSeededFolderColors();
-		// Every-load self-heal: add any durable Book II art still MISSING from world
-		// journals (e.g. art that only landed on disk after a journal was imported, or a
-		// journal imported before the durable folder existed). Cheap — it reads a world
-		// entry's own pages first and only touches the compendium for a row whose art is
-		// actually absent, so it does no compendium reads once everything is applied.
-		try { await reapplyBook2Art({ worldOnly: true, cheapWorldSkip: true }); }
-		catch (err) { console.error("Stonetop | Book II art self-heal failed:", err); }
-	}
-
-	// Import the monster sheets into the world's Actors sidebar under a red "Bestiary"
-	// folder tree mirroring the Monsters compendium. GM-only, once per world, and run in
-	// the BACKGROUND — it creates ~200 actors, so it must not hold up the ready sequence or
-	// the Welcome guide. Guarded + idempotent (skips already-imported, reuses folders), so a
-	// reload while it's still running just resumes. Players never see these (ownership NONE).
-	// Independent of the journal seed above, so an established world still gets the monsters.
-	if (game.user.isGM) {
-		// Seed the monsters, then collapse the world Bestiary's actor subfolders (a fresh
-		// world seeds an already-flat tree, so the collapse is a no-op there; an established
-		// world flattens its deep seeded tree). Both are background + guarded.
-		seedBestiaryActorsOnce()
-			.then(() => collapseBestiaryActorSubfoldersOnce())
-			.catch(err => console.error("Stonetop | Bestiary actor seed/collapse failed:", err));
-
-		// Import the Book II "Treasures & Wonders" items into the world's Items sidebar,
-		// recreating the compendium's tree (a root folder with one subfolder per Book II
-		// section). GM-only, once per world, background (168 items), guarded +
-		// idempotent (skips already-imported, reuses folders). Independent of the seeds
-		// above, so an established world still gets the treasure library. Players never see
-		// these (ownership NONE) — they get a treasure when the GM drags one onto their sheet.
-		seedTreasureItemsOnce()
-			.catch(err => console.error("Stonetop | Treasure item seed failed:", err));
+	if (isGM) {
+		seeding = runWorldSetup();
+		if (!wasFreshWorld) await seeding;
 
 		await _retireIntroductionsMacro();
 		// Place any missing system macros at their default slots (existing placements
@@ -301,6 +312,13 @@ export async function onReady() {
 	if (game.user.isGM) {
 		await _postStartupWelcomeMessageOnce();
 		await _postBook2ArtReminderOnce();
+		// Background, like the seeds above. This one has to BROWSE the art folder before it
+		// can tell there is nothing to offer, and it deliberately leaves its flag unset when
+		// the plan is empty so a later import still gets the nudge — so for a GM who never
+		// imports, an awaited call stalls the ready sequence on a server round-trip whose
+		// answer is always "nothing", on every single load. Nothing below waits on it.
+		_offerPeopleArtRebuildOnce()
+			.catch(err => console.error("Stonetop | portrait rebuild offer failed:", err));
 		await remindDestinedOmenRoll();
 	}
 
@@ -588,10 +606,10 @@ async function _openSettingOverview() {
 	if (!overview) return; // not seeded yet (or not visible to this user) — try again next load
 
 	const needsOrientation = !game.user.isGM && !game.user.character;
-	if (!needsOrientation && getSetting("settingOverviewShown")) return;
+	if (!needsOrientation && getSettingOverviewShown()) return;
 
 	overview.sheet.render(true);
-	if (!getSetting("settingOverviewShown")) await setSetting("settingOverviewShown", true);
+	if (!getSettingOverviewShown()) await markSettingOverviewShown();
 }
 
 // Is a hotbar slot empty? The hotbar is a sparse map of slot → macro id, so an
@@ -670,11 +688,16 @@ async function _reorderSystemMacros() {
 // Add the "(TEST ONLY) Populate World" script macro to the world's Macro Directory,
 // inside a "For Testing Purposes" folder — but never to the hotbar (creating a Macro
 // document doesn't slot it; only assignHotbarMacro does, which we deliberately skip).
-// Its body is the
-// create-test-characters dev script, fetched so that gitignored file stays the single
-// source of truth: a missing file (a build that omits scripts/) skips silently, leaving
-// real worlds untouched. Seeded once — a GM who deletes it keeps it gone — but while it
-// exists its command is re-synced so edits to the script propagate. GM-only.
+// Its body is the create-test-characters dev script, fetched at runtime so that one file
+// stays the single source of truth: a missing file (a build that omits scripts/) skips
+// silently, leaving those worlds untouched. It ships in the release zip, so released
+// worlds seed it as well. Seeded once — a GM who deletes it keeps it gone — but while it
+// exists its command is re-synced so edits to the script propagate.
+//
+// GM-only twice over: the call site sits inside a game.user.isGM block, and the macro is
+// created with default ownership NONE so it stays out of a player's Macro Directory even
+// though Foundry lets players hold macros. Both matter now that it reaches real tables —
+// running it seeds (and, on a re-run, DELETES) a roster of [TEST] fixtures.
 async function _ensureTestPopulateMacro() {
 	let command;
 	try {
@@ -699,7 +722,11 @@ async function _ensureTestPopulateMacro() {
 	}
 	if (getSetting("testPopulateMacroSeeded")) return; // deleted on purpose — leave it gone
 
-	await Macro.create({ name: _TEST_MACRO_NAME, type: "script", img: _TEST_MACRO_IMG, command, scope: "global", folder: folder?.id ?? null });
+	await Macro.create({
+		name: _TEST_MACRO_NAME, type: "script", img: _TEST_MACRO_IMG, command,
+		scope: "global", folder: folder?.id ?? null,
+		ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE },
+	});
 	await setSetting("testPopulateMacroSeeded", true);
 }
 
@@ -751,6 +778,23 @@ async function _migrateNpcTokenNameplates() {
 	) ?? [];
 	for (const actor of stale) {
 		await actor.update({ "prototypeToken.displayName": HOVER });
+	}
+}
+
+// Give the NPCs already in the world the people silhouette new ones now get at creation
+// (StonetopActor#_preCreate), so a neighbor with no portrait stops showing Foundry's
+// mystery-man in the sidebar, on a drag preview and in chat — the steading roster was
+// already drawing the placeholder, but only there. Only touches actors still wearing a
+// stock Foundry default (or the placeholder under a pre-rename system id), so a portrait
+// anyone chose is never overwritten. Idempotent: once stamped, the actor no longer matches,
+// so re-running every load is a cheap no-op needing no version flag. Primary-GM only (the
+// caller gates it) so two connected GMs can't both write the same actors.
+async function _migrateNpcPlaceholderPortraits() {
+	const stale = game.actors?.filter(
+		a => a.type === "npc" && a.img !== PERSON_DEFAULT_IMG && isDefaultImg(a.img)
+	) ?? [];
+	for (const actor of stale) {
+		await actor.update({ img: PERSON_DEFAULT_IMG });
 	}
 }
 
@@ -897,6 +941,59 @@ function _buildBook2ArtReminderContent() {
 		<div class="row stonetop-art-reminder__actions">
 			<button type="button" class="stonetop-import-art-open">
 				<i class="fas fa-images"></i> Import Book Art
+			</button>
+		</div>`,
+		"stonetop-art-reminder-card");
+}
+
+// -- REBUILD DETAIL PORTRAITS FROM ART ALREADY IMPORTED --------
+// Detail portraits (crops of a multi-figure illustration) arrived after the first release that
+// shipped whole-illustration People art, so a GM who already imported holds every PARENT on disk
+// and none of the details. Those can be cut from the parents locally — no PDF, no re-import — so
+// offer it once rather than making them hunt for their books again. See book2-art/rebuild-crops.js.
+//
+// The once-per-world rules — including "found nothing, so do not latch, and ask again next
+// load" — belong to offerDurableArtOnce; what is local here is what counts as rebuildable and
+// how the offer is presented.
+function _offerPeopleArtRebuildOnce() {
+	return offerDurableArtOnce({
+		setting: "peopleArtRebuildOffered",
+		findWork: async () => {
+			// Both kinds of cuttable art: the detail portraits, and the square faces the small
+			// surfaces use. One offer covers both — they are the same work from the GM's side
+			// (cut from pictures already on disk) and asking twice would just be nagging.
+			// Counted through run-rebuild.js, the same façade the three run paths use.
+			const { countPeopleArtRebuilds } = await import("../book2-art/run-rebuild.js");
+			return await countPeopleArtRebuilds() || null;
+		},
+		offer: async count => {
+			if (!globalThis.ChatMessage?.create) return false; // chat isn't ready — retry next load
+			await ChatMessage.create({
+				content: _buildPeopleArtRebuildContent(count),
+				whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id),
+				speaker: { alias: "Stonetop" },
+			});
+		},
+	});
+}
+
+function _buildPeopleArtRebuildContent(count) {
+	return stonetopChatCard(
+		"Rebuild Portraits",
+		`<div class="stonetop-roll-card-description">
+			<p>The <strong>People of Stonetop</strong> gallery now offers individual portraits cut from the
+			group illustrations &mdash; one face per person, instead of a whole crowd scene &mdash; and a
+			square close-up of each face, for the small round portraits on the character and steading sheets.
+			You already have the source pictures, so <strong>${count}</strong> of these can be made right here
+			from the art you imported before.
+			<strong>You do not need your PDFs, and you do not need to re-import.</strong></p>
+			<p>They are cut from pictures already on your disk, so they come out a little smaller than a fresh
+			import would give. If you would rather have them at full size, re-run the
+			<strong>Import Book Art</strong> macro instead &mdash; either way, nothing already on disk is deleted.</p>
+		</div>
+		<div class="row stonetop-art-reminder__actions">
+			<button type="button" class="stonetop-rebuild-crops-run">
+				<i class="fas fa-crop-simple"></i> Rebuild ${count} portraits
 			</button>
 		</div>`,
 		"stonetop-art-reminder-card");

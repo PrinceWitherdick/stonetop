@@ -17,7 +17,7 @@
 		<section class="sheet-top flexcol">
 			<div class="stonetop-details-heading-row">
 				{{> "stonetop.section-heading" title=(localize "stonetop.character.stats.sectionTitle") note=stonetop.statsNoteDisplay}}
-				{{> "stonetop.details-section-edit-toggle" section="stats" editing=stonetop.statsEdit}}
+				{{> "stonetop.details-section-edit-toggle" section="stats" editing=stonetop.statsEdit collapse="stats"}}
 			</div>
 
 			<section class="sheet-attributes flexrow">
@@ -140,7 +140,7 @@
 						<i class="fas fa-chevron-right"></i>
 					</button>
 					<div class="stonetop-sidebar-body">
-					{{> "stonetop.section-heading" title="Roll Modifier"}}
+					{{> "stonetop.section-heading" title="Roll Modifier" collapse="rollModifier"}}
 					<div class="stonetop-roll-mode-control" role="group" aria-label="Roll mode">
 						<label class="stonetop-roll-mode-option{{#if (eq stonetop.rollMode "adv")}} is-checked{{/if}}">
 							<input type="radio" class="stonetop-roll-mode-input" name="stonetop-roll-mode" value="adv"

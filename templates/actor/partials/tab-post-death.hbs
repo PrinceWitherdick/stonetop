@@ -26,6 +26,7 @@
 		<div class="details-section">
 			{{> "stonetop.section-heading"
 			    title=(localize "stonetop.postDeath.instinct")
+			    collapse="postDeathInstinct"
 			    note=(localize "stonetop.character.selection.chooseOne")}}
 			<div class="stonetop-instinct-options">
 				{{#each stonetop.postDeathInsert.activeInsert.instinct.options}}
@@ -48,7 +49,7 @@
 
 		{{! No active insert — choose one }}
 		<div class="details-section">
-			{{> "stonetop.section-heading" title=(localize "stonetop.postDeath.chooseFate")}}
+			{{> "stonetop.section-heading" title=(localize "stonetop.postDeath.chooseFate") collapse="postDeathFate"}}
 			<div class="stonetop-pdi-available">
 				{{#each stonetop.postDeathInsert.availableInserts}}
 				<button type="button" class="stonetop-pdi-activate" data-slug="{{slug}}">

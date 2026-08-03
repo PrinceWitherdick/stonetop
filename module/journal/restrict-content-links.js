@@ -20,8 +20,11 @@
 //   • The bestiary codex IS a secret. We flatten it to plain text, dropping the
 //     tooltip too, so nothing — not even a hover — hints at the hidden entry.
 //
-// GMs keep every link intact. Runs after applyLocationTooltips (which stamps the
-// `data-tooltip` summary we carry across) — see the journal render hook.
+// GMs keep every link intact. Runs after applyLocationTooltips, which records the
+// summary on each link (`data-stonetop-summary`) and stamps the hover itself
+// (`data-tooltip`) only when the reader wants cross-link hovers — see the journal
+// render hook. We classify on the former and carry across the latter, so switching
+// hover descriptions off costs a reader their tooltips and nothing else.
 
 import { isInJournalEditor } from "../utils/journal-editor-guard.js";
 
@@ -57,14 +60,18 @@ export function restrictContentLinks(root) {
 		// only the anchor leaves the wrapping <strong> in place and the word stays
 		// bold — exactly what the GM sees, just no longer clickable.
 		const label = (a.textContent ?? "").trim() || a.dataset.uuid;
-		const summary = a.dataset.tooltip;
+		// Classify on the summary applyLocationTooltips RECORDS, not on the tooltip it
+		// stamps: the two diverge when the reader has cross-link hovers switched off, and
+		// what a player is allowed to read must not depend on their hover preference.
+		// Falls back to `data-tooltip` for links summarized by anything else.
+		const summary = a.dataset.stonetopSummary ?? a.dataset.tooltip;
 		if (summary && !isSpoilerTarget(a.dataset.uuid, resolve)) {
-			// Safe to summarize (a Location or Lore entry): keep the hover
-			// description on a non-clickable span. No link affordance, no click —
-			// just the same one-liner the GM gets on hover.
+			// Safe to summarize (a Location or Lore entry): keep the text as a
+			// non-clickable span. No link affordance, no click — and the same one-liner
+			// the GM gets on hover, if this reader wants hovers at all.
 			const span = document.createElement("span");
 			span.className = "content-summary";
-			span.dataset.tooltip = summary;
+			if (a.dataset.tooltip) span.dataset.tooltip = a.dataset.tooltip;
 			span.textContent = label;
 			a.replaceWith(span);
 		} else {

@@ -10,11 +10,15 @@ import {
 
 // ── CreateFollowerDialog ─────────────────────────────────────────────────────
 // A walkthrough for "Creating followers" (Book I, NPCs & Followers, pp.474–479).
-// It follows the chapter's own nine steps as a linear stepper — create them as an
-// NPC, give tags, calculate HP / armor / damage, write an instinct, (optional)
-// moves, a cost, and equip them — then hands the built follower back to the
-// caller to store on the character (see StonetopCharacterSheet._applyCustomFollower).
-// Mirrors the Expedition/Death's-Door dialogs (shared `.stonetop-spring-*` styles).
+// It follows the chapter's own nine steps — create them as an NPC, give tags,
+// calculate HP / armor / damage, write an instinct, (optional) moves, a cost, and
+// equip them — then hands the built follower back to the caller to store on the
+// character (see StonetopCharacterSheet._applyCustomFollower).
+// Mirrors the Expedition/Death's-Door dialogs (shared `.stonetop-spring-*` styles),
+// including Expedition's jump-to-step rail: nine steps is too many to reach only via
+// Back/Next, so `_STEPS` doubles as the rail's table of contents (each entry's title and
+// icon label its row). The template opts in by wrapping its content in
+// `.stonetop-guide-split` and rendering the shared `stonetop.guide-toc` partial.
 
 const _STEPS = [
 	{
@@ -111,7 +115,10 @@ export class CreateFollowerDialog extends StepperDialog {
 			id:        "stonetop-create-follower",
 			title:     "Create a Follower",
 			template:  "systems/stonetop-pwd/templates/dialogs/create-follower.hbs",
-			width:     560,
+			// Wide enough that the 168px jump-to-step rail sits BESIDE the old content
+			// width rather than eating into it — the tag steps lay out ~50 chips, which
+			// reflow badly in a narrower column.
+			width:     728,
 			height:    "auto",
 			resizable: true,
 			classes:   ["stonetop", "stonetop-spring-dialog", "stonetop-create-follower-dialog"],

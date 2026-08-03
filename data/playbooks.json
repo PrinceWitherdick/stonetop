@@ -252,7 +252,7 @@
         "moves": [
           "Danu's Grasp"
         ],
-        "description": "<p>A seed of Danu's power has taken root in your soul. Perhaps it has always been there and only recently sprouted. Or maybe it was planted in you during some portentous event.</p><p>Take the <strong>Danu's Grasp</strong> move. When you <strong><em>would spend 1 Stock from your sacred pouch</em></strong>, you may choose to lose 2d4 HP instead.</p>"
+        "description": "<p>A seed of Danu's power has taken root in your soul. Perhaps it has always been there and only recently sprouted. Or maybe it was planted in you during some portentous event.</p><p>Regardless, your dreams have been haunted by strange markings and symbols. You feel the mystic power in plants, stones, and soil. And you've felt the growing wrath of the Earth Mother as foul things begin to move about.</p><p>Take the <strong>Danu's Grasp</strong> move (go mark it now).</p><p>Danu's power flows through you, but at great cost. When you <strong><em>would spend 1 Stock from your sacred pouch</em></strong>, you may choose to lose 2d4 HP instead.</p>"
       }
     ],
     "instincts": [
@@ -329,7 +329,7 @@
         ]
       },
       {
-        "region": "The Steplands",
+        "region": "The Steplands (Hillfolk)",
         "names": [
           "Bejn",
           "Decla",
@@ -368,6 +368,7 @@
           "Owl",
           "Pale",
           "Pup",
+          "Quick",
           "Quiet",
           "Rain",
           "Red",
@@ -418,7 +419,11 @@
                   "options": [
                     {
                       "slug": "origin-heirloom",
-                      "label": "an heirloom made just for you"
+                      "label": "an heirloom"
+                    },
+                    {
+                      "slug": "origin-made-for-you",
+                      "label": "made just for you"
                     },
                     {
                       "slug": "origin-own-work",
@@ -860,7 +865,7 @@
           "Greagir",
           "Maired",
           "Nainsi",
-          "Naíclas",
+          "Naiclas",
           "Saraid"
         ]
       },
@@ -929,7 +934,7 @@
         {
           "slug": "carpenters-tools",
           "label": "Carpenter's tools",
-          "description": "chisels, files, nails, pitch, ◇ prybars, ◇ saws, ○○ firkins, barrels, etc.",
+          "description": "chisels, files, nails, pitch, ◇ prybars, ◇ saws, ◇◇ firkins, barrels, etc.",
           "grantsItems": [
             {
               "name": "Chisels",
@@ -949,7 +954,8 @@
             },
             {
               "name": "Firkins",
-              "column": "small"
+              "column": "regular",
+              "weight": 2
             },
             {
               "name": "Barrels",
@@ -970,7 +976,7 @@
         {
           "slug": "distillery",
           "label": "Distillery",
-          "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+          "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇◇ firkins, stills, barrels, etc.",
           "grantsItems": [
             {
               "name": "Skins of fine whisky",
@@ -1006,7 +1012,7 @@
             {
               "name": "Firkins",
               "column": "regular",
-              "weight": 1
+              "weight": 2
             }
           ]
         },
@@ -1239,7 +1245,7 @@
         "options": [
           {
             "slug": "running",
-            "description": "… running for your life from something.",
+            "description": "… running for your life from ___.",
             "max": 2
           },
           {
@@ -1264,7 +1270,7 @@
           },
           {
             "slug": "someone-fight",
-            "description": "… getting someone to fight them for you.",
+            "description": "… getting ___ to fight them for you.",
             "max": 2
           },
           {
@@ -1313,6 +1319,19 @@
             "slug": "mystery-key",
             "description": "… this key that opens who-knows-what.",
             "max": 1
+          }
+        ]
+      },
+      {
+        "slug": "tall-tales-write",
+        "title": "Tell Your Tale",
+        "description": "<p>Now weave the pieces you chose into a couple of your more memorable adventures.</p>",
+        "contextFromGroup": true,
+        "options": [
+          {
+            "slug": "tale",
+            "type": "text",
+            "description": ""
           }
         ]
       }
@@ -1423,7 +1442,7 @@
       ],
       [
         "distinctive scars",
-        "off-broken nose",
+        "oft-broken nose",
         "missing bits"
       ]
     ],
@@ -1462,7 +1481,7 @@
         "region": "The Steplands (Hillfolk)",
         "names": [
           "Andr",
-          "Gabel",
+          "Gabrl",
           "Kaetl",
           "Mael",
           "Maela",
@@ -1506,7 +1525,7 @@
         {
           "slug": "distillery",
           "label": "Distillery",
-          "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+          "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇◇ firkins, stills, barrels, etc.",
           "grantsItems": [
             {
               "name": "Skins of fine whisky",
@@ -1542,7 +1561,7 @@
             {
               "name": "Firkins",
               "column": "regular",
-              "weight": 1
+              "weight": 2
             }
           ]
         },
@@ -1690,6 +1709,7 @@
             "pickNote": "Choose up to 3 (now or later)",
             "pickCount": 3,
             "optional": true,
+            "gear": true,
             "options": [
               {
                 "slug": "sword",
@@ -1709,7 +1729,7 @@
               },
               {
                 "slug": "crossbow",
-                "label": "◇ <strong>Crossbow</strong> (<em>far</em>, +1 damage, <em>reload</em>, x <em>piercing</em>)",
+                "label": "◇ <strong>Crossbow</strong> (<em>far</em>, +1 damage, <em>reload</em>, x <em>piercing</em>, ○ low ammo, ○ all out)",
                 "resource": {
                   "max": 2,
                   "title": null,
@@ -2049,14 +2069,15 @@
           "description": "",
           "choices": {
             "pickCount": 1,
+            "gear": true,
             "options": [
               {
                 "slug": "black-iron-maul",
-                "label": "◇ <strong>Black iron maul</strong>, utterly immune to all magic (<em>close, forceful, awkward</em>, +1 damage)"
+                "label": "◇◇ <strong>Black iron maul</strong>, utterly immune to all magic (<em>close, forceful, awkward</em>, +1 damage)"
               },
               {
                 "slug": "makerglass-shield",
-                "label": "◇ <strong>Makerglass shield</strong>, etched with Aratis's symbol (<em>indestructible</em>, +1 armor, +1 Readiness on a Defend 7+)"
+                "label": "◇◇ <strong>Makerglass shield</strong>, etched with Aratis's symbol (<em>indestructible</em>, +1 armor, +1 Readiness on a Defend 7+)"
               },
               {
                 "slug": "helm",
@@ -2067,7 +2088,7 @@
         },
         {
           "slug": "scribes-kit",
-          "label": "Scribe's kit",
+          "label": "Scribe's tools",
           "description": "parchment, ink, pigments, vials, quills, ◇ a notebook, etc.",
           "grantsItems": [
             {
@@ -2133,7 +2154,7 @@
         {
           "slug": "carpenters-tools",
           "label": "Carpenter's tools",
-          "description": "chisels, files, nails, pitch, ◇ prybars, ◇ saws, ○○ firkins, barrels, etc.",
+          "description": "chisels, files, nails, pitch, ◇ prybars, ◇ saws, ◇◇ firkins, barrels, etc.",
           "grantsItems": [
             {
               "name": "Chisels",
@@ -2153,7 +2174,8 @@
             },
             {
               "name": "Firkins",
-              "column": "small"
+              "column": "regular",
+              "weight": 2
             },
             {
               "name": "Barrels",
@@ -2460,7 +2482,7 @@
         "old & merry"
       ],
       [
-        "a lifting voice",
+        "a lilting voice",
         "a melodious voice",
         "a soft voice"
       ],
@@ -2563,7 +2585,7 @@
               "weight": 1
             },
             {
-              "name": "Hat & veils",
+              "name": "hats & veils",
               "column": "regular",
               "weight": 1
             }
@@ -2617,7 +2639,7 @@
         {
           "slug": "distillery",
           "label": "Distillery",
-          "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+          "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇◇ firkins, stills, barrels, etc.",
           "grantsItems": [
             {
               "name": "Skins of fine whisky",
@@ -2653,7 +2675,7 @@
             {
               "name": "Firkins",
               "column": "regular",
-              "weight": 1
+              "weight": 2
             }
           ]
         },
@@ -3195,7 +3217,7 @@
         {
           "slug": "distillery",
           "label": "Distillery",
-          "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+          "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇◇ firkins, stills, barrels, etc.",
           "grantsItems": [
             {
               "name": "Skins of fine whisky",
@@ -3231,7 +3253,7 @@
             {
               "name": "Firkins",
               "column": "regular",
-              "weight": 1
+              "weight": 2
             }
           ]
         },
@@ -3317,6 +3339,7 @@
             "pickNote": "Choose up to 3 (now or later)",
             "pickCount": 3,
             "optional": true,
+            "gear": true,
             "options": [
               {
                 "slug": "sword",
@@ -3324,7 +3347,7 @@
               },
               {
                 "slug": "long-spear",
-                "label": "◇ <strong>Long spear</strong>, fine steel (<em>reach</em>, 2 piercing)"
+                "label": "◇◇ <strong>Long spear</strong>, fine steel (<em>reach</em>, 2 piercing)"
               },
               {
                 "slug": "battleaxe",
@@ -3332,7 +3355,7 @@
               },
               {
                 "slug": "composite-bow",
-                "label": "◇ <strong>Composite bow</strong> (<em>far</em>, +1 damage, x <em>piercing</em>)",
+                "label": "◇ <strong>Composite bow</strong> (<em>far</em>, +1 damage, x <em>piercing</em>, ○ low ammo, ○ all out)",
                 "resource": {
                   "max": 2,
                   "title": null,
@@ -3488,7 +3511,7 @@
         },
         {
           "slug": "spear",
-          "label": "<strong>Spear</strong>, iron (<em>close</em>, x <em>piercing</em>)",
+          "label": "<strong>Spear</strong>, iron (<em>close, thrown</em>, x <em>piercing</em>)",
           "weight": 1
         },
         {
@@ -3510,12 +3533,17 @@
           "slug": "cloak",
           "label": "<strong>Cloak</strong> (<em>warm</em>)",
           "weight": 1
+        },
+        {
+          "slug": "supplies",
+          "label": "<strong>Supplies</strong> (4+Prosperity uses per crew member)",
+          "weight": 1
         }
       ],
       "individualOptions": {
         "names": [
           "Aled",
-          "Culhwch",
+          "Culhwich",
           "Eira",
           "Gerat",
           "Glaw",
@@ -3535,9 +3563,10 @@
           "greedy",
           "grumpy",
           "gullible",
-          "hearthrob",
+          "heartthrob",
           "honest",
           "kind",
+          "lewd",
           "little",
           "naive",
           "old",
@@ -3556,7 +3585,7 @@
           "grudge against __",
           "hates __",
           "idolizes __",
-          "jokes a lot",
+          "jokes",
           "messy",
           "missing eye/finger/hand/__",
           "misses their kids",
@@ -3570,7 +3599,8 @@
           "snores",
           "tells tall tales",
           "too serious",
-          "whistler",
+          "troubles at home",
+          "whistles",
           "whittler"
         ]
       }
@@ -3818,7 +3848,7 @@
         {
           "slug": "distillery",
           "label": "Distillery",
-          "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+          "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇◇ firkins, stills, barrels, etc.",
           "grantsItems": [
             {
               "name": "Skins of fine whisky",
@@ -3854,7 +3884,7 @@
             {
               "name": "Firkins",
               "column": "regular",
-              "weight": 1
+              "weight": 2
             }
           ]
         },
@@ -4036,6 +4066,7 @@
           "armor": "1 (size)",
           "damage": "d4 (hand)",
           "pickCount": 4,
+          "mandatoryTrait": "tiny",
           "traits": [
             "+4 HP",
             "+1 armor (agility)",
@@ -4056,9 +4087,10 @@
           "label": "Critter",
           "examples": "cat, fox, possum, raccoon, weasel…",
           "hp": 5,
-          "armor": "1",
+          "armor": "1 (size)",
           "damage": "d4 (hand)",
           "pickCount": 5,
+          "mandatoryTrait": "tiny",
           "traits": [
             "+4 HP",
             "+1 armor (agility)",
@@ -4088,6 +4120,7 @@
           "armor": "0",
           "damage": "d6 (hand)",
           "pickCount": 3,
+          "mandatoryTrait": "tough",
           "traits": [
             "+1 armor (hide, scales, etc.)",
             "Damage +2, forceful",
@@ -4111,6 +4144,7 @@
           "armor": "0",
           "damage": "d8 (hand, grabby)",
           "pickCount": 3,
+          "mandatoryTrait": "fierce",
           "traits": [
             "+4 HP",
             "+1 armor (hide)",
@@ -4139,6 +4173,7 @@
           "armor": "0",
           "damage": "d6+1 (hand, close)",
           "pickCount": 4,
+          "mandatoryTrait": "large",
           "traits": [
             "+4 HP",
             "+1 armor (hide)",
@@ -4306,7 +4341,7 @@
           "Alis",
           "Dylan",
           "Eilwen",
-          "Gelt",
+          "Gerlt",
           "Gwenda",
           "Macsen",
           "Mirgan",
@@ -4435,7 +4470,7 @@
         {
           "slug": "distillery",
           "label": "Distillery",
-          "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇ firkins, stills, barrels, etc.",
+          "description": "skins of fine whisky (○○ uses, grants advantage to Persuade), copper tubes, malt, ◇◇ firkins, stills, barrels, etc.",
           "grantsItems": [
             {
               "name": "Skins of fine whisky",
@@ -4471,7 +4506,7 @@
             {
               "name": "Firkins",
               "column": "regular",
-              "weight": 1
+              "weight": 2
             }
           ]
         },
@@ -4548,7 +4583,7 @@
         {
           "slug": "paraphernalia",
           "label": "Paraphernalia",
-          "description": "crystals, incense, talismans, blood, bone, horn, eye of newt, ◇ braziers, ◇ a cauldron, etc.",
+          "description": "crystals, incense, talismans, blood, bone, horn, eye of newt, ◇ braziers, ◇◇ a cauldron, etc.",
           "grantsItems": [
             {
               "name": "Crystals",
@@ -4586,7 +4621,7 @@
             {
               "name": "Cauldron",
               "column": "regular",
-              "weight": 1
+              "weight": 2
             }
           ]
         },
@@ -4722,7 +4757,7 @@
       {
         "slug": "destined",
         "label": "Destined",
-        "description": "<p>Fate has laid her hand upon you. Choose 3-4 items to describe your destiny.</p><p>At the <em>start of a session</em>, roll +Omens: <strong>on a 7+</strong>, lose all Omens and the GM will share a vision or portent that points toward your fate; also, <strong>on a 10+</strong>, ask the GM a follow-up question and get a clear, helpful answer; <strong>on a 6-</strong>, don't mark XP, hold +1 Omen, and tell us of your recent nightmares or a troubling vision.</p><p><em>Until your destiny is fulfilled</em>, treat a 6- on Death's Door as a 7-9, and a 7-9 as a 10+.</p>"
+        "description": "<p>Fate has laid her hand upon you. Choose 3-4 of the following to describe your destiny: anointed, marked at birth, your coming foretold, destroy, discover, free, protect, restore, unify, blood, civilization, darkness, earth &amp; stone, fire, ice, light, life, storms, war, water, the Fae, the gods, the Makers, the Stone, or the Things Below.</p><p>At the <em>start of a session</em>, roll +Omens: <strong>on a 7+</strong>, lose all Omens and the GM will share a vision or portent that points toward your fate; also, <strong>on a 10+</strong>, ask the GM a follow-up question and get a clear, helpful answer; <strong>on a 6-</strong>, don't mark XP, hold +1 Omen, and tell us of your recent nightmares or a troubling vision.</p><p><em>Until your destiny is fulfilled</em>, treat a 6- on Death's Door as a 7-9, and a 7-9 as a 10+.</p>"
       }
     ],
     "instincts": [
@@ -4754,9 +4789,9 @@
         "all grown up"
       ],
       [
-        "quiet voice",
+        "confident voice",
         "earnest voice",
-        "soft voice"
+        "quiet voice"
       ],
       [
         "big",
@@ -4801,7 +4836,7 @@
       {
         "region": "The Steplands (Hillfolk)",
         "names": [
-          "Annie",
+          "Annic",
           "Cosette",
           "Denl",
           "Hugenne",
@@ -4850,7 +4885,20 @@
         {
           "slug": "a-good-dog",
           "label": "A good dog",
-          "description": "follower (◇ <em>retriever</em> or ◇ <em>herder, keen-nosed, clever</em>); HP 6; Damage d6 (<em>hand, grabby</em>); Instinct to play; Cost: affection."
+          "description": "follower (<em>keen-nosed, clever</em>); HP 6; Damage d6 (<em>hand, grabby</em>); Instinct to play; Cost: affection.",
+          "choices": {
+            "pickCount": 1,
+            "options": [
+              {
+                "slug": "retriever",
+                "label": "<em>retriever</em>"
+              },
+              {
+                "slug": "herder",
+                "label": "<em>herder</em>"
+              }
+            ]
+          }
         },
         {
           "slug": "heap-of-expectations",
@@ -4896,6 +4944,7 @@
           "description": "",
           "choices": {
             "pickCount": 1,
+            "gear": true,
             "options": [
               {
                 "slug": "shield",

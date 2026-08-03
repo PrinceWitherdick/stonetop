@@ -1,6 +1,6 @@
 // Descriptions for animal companion trait tags — checked before compendium lookup.
 import { isMajorArcana } from "../../../arcana-icons.js";
-import { parseMovePickCount, allowedMarkableActions } from "../StonetopCharacter.js";
+import { parseMovePickCount, allowedMarkableActions, backgroundMoveNames, startingMoveChoiceNames } from "../StonetopCharacter.js";
 import { ITEMS_PACK, ARCANA_PACK } from "../StonetopFlags.js";
 import { markQuestionBullets } from "../../../utils/question-bullets.js";
 import { openJournalSheetAsChild } from "../../../utils/front-on-open.js";
@@ -18,6 +18,7 @@ import { applyGearTermTooltips } from "../../../utils/gear-term-tooltips.js";
 import { StonetopAutocomplete } from "../../../utils/autocomplete.js";
 import { wellVersedTopicSummary } from "./well-versed-topics.js";
 import { LORE_TERM_TOOLTIPS } from "../../../utils/lore-terms.js";
+import { getHoverDescriptionSetting } from "../../../settings.js";
 import { moveGroupsForPlaybook, moveGroupKeys } from "./onboarding-move-groups.js";
 import { effectiveSubgroupMax } from "./possession-choice-cap.js";
 import { playbookIconPath } from "../../../utils/playbook-actors.js";
@@ -135,9 +136,14 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		// show that they stepped away mid-creation.
 		this._onExit             = onExit ?? null;
 		// Pre-seed cache with glossaries so getData() and _lookupWord share one lookup path.
+		// The lore terms (god names and their aliases) are the one glossary the "On Hover
+		// Info" menu governs — drop them when that toggle is off and the word simply has no
+		// entry, so no tooltip binds. The trait glossary and move lookups are unaffected.
 		this._wordCache = new Map([
 			...Object.entries(ANIMAL_COMPANION_TRAIT_GLOSSARY),
-			...Object.entries(LORE_TERM_TOOLTIPS),
+			...(getHoverDescriptionSetting("hoverDescriptionsLoreTerms")
+				? Object.entries(LORE_TERM_TOOLTIPS)
+				: []),
 		]);
 		this._hoveredAnchor = null;
 
@@ -1813,7 +1819,12 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			// whose move was unselected or whose stat sits at the cap after a stats edit.
 			this._reconcileMoveStatChoices();
 			const selectedBg  = this._backgrounds.find(b => b.slug === this._selections.backgroundSlug);
-			const bgMoveNames = new Set(selectedBg?.moves ?? []);
+			// The moves the background hands over, setup-choice picks included (the background
+			// step runs before this one, so the pick is already made). Keeping them out of the
+			// free-pick pool matters twice over: the player must not spend their one free pick
+			// on a move they're being given anyway (the grant then no-ops and the pick is
+			// silently lost), and the sheet must not count the gift against the level's budget.
+			const bgMoveNames = backgroundMoveNames(selectedBg, this._selections.backgroundSetup?.choices);
 			const chosenIds   = new Set(this._selections.moves);
 			const atLimit     = chosenIds.size >= this._movePickCount;
 			const n           = this._movePickCount;
@@ -1823,7 +1834,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			// "Either X OR Y" choice groups (e.g. the Heavy's Armored OR Uncanny
 			// Reflexes). The chosen move is granted separately, so its options are
 			// kept out of the free-pick list below.
-			const choiceMoveNames = new Set(this._rawMoveChoices.flatMap(g => g.options ?? []));
+			const choiceMoveNames = startingMoveChoiceNames(this._rawMoveChoices);
 			moveChoiceGroups = this._rawMoveChoices.map((group, groupIndex) => ({
 				groupIndex,
 				label: this._normalizeOnboardingText(group.label ?? "Choose one"),
@@ -1840,8 +1851,14 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				}),
 			}));
 
+			// What a free pick's `requirement.moves` may lean on: the moves the character
+			// is guaranteed to end up with. An either/or option is NOT guaranteed — only
+			// one per group is taken — so they're excluded, or a Fox who picked Ambush
+			// would be offered Parry & Riposte, which needs Skill at Arms.
 			const grantedNames = new Set([
-				...this._movesCache.filter(d => d.system?.isStartingMove).map(d => d.name),
+				...this._movesCache
+					.filter(d => d.system?.isStartingMove && !choiceMoveNames.has(d.name))
+					.map(d => d.name),
 				...bgMoveNames,
 			]);
 			moveOptions = this._movesCache
@@ -3365,7 +3382,8 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		const source = anchor.querySelector(".stonetop-onboarding-arcana-preview");
 		if (!source?.children.length) return;
 		const popup = document.createElement("div");
-		popup.className = "stonetop-arcana-preview-popup";
+		// `stonetop-hover-popup` is the shared marker Reduce Motion suppresses (styles/stonetop.css).
+		popup.className = "stonetop-hover-popup stonetop-arcana-preview-popup";
 		popup.innerHTML = source.innerHTML;
 		// Drop the preview just below the hovered card (these grids sit near the top of
 		// their step); flips above only if it would run off the bottom of the viewport.

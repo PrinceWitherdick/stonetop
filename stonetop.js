@@ -24,10 +24,12 @@ import { HazardPageModel } from "./module/journal/HazardPageModel.js";
 import { createStonetopHazardPageSheetClass } from "./module/journal/StonetopHazardPageSheet.js";
 import { ThreatBoard } from "./module/threats/threat-board.js";
 import { onReady } from "./module/hooks/Ready.js";
-import { handleImportedJournalArt } from "./module/book2-art/reapply.js";
+import { handleImportedJournalArt, ART_INDEX_SETTINGS } from "./module/book2-art/reapply.js";
+import { clearArtBrowseCache } from "./module/book2-art/browse.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { onHotbarDrop } from "./module/hooks/HotbarDrop.js";
 import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
+import { onDropFollower } from "./module/hooks/FollowerDrop.js";
 import { onPreCreateThreatNote } from "./module/hooks/ThreatNotePins.js";
 import { onDrawStonetopNote } from "./module/hooks/StonetopNoteLabels.js";
 import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
@@ -37,6 +39,7 @@ import { hideBrokenJournalArt } from "./module/journal/hide-broken-art.js";
 import { addJournalShareButton } from "./module/journal/share-journal.js";
 import { patchJournalImagePopoutTitles } from "./module/journal/journal-image-titles.js";
 import { onRenderPause } from "./module/hooks/RenderPause.js";
+import { onRenderCompendiumItemIcons } from "./module/hooks/CompendiumItemIcons.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
@@ -55,6 +58,7 @@ import { bindSteadingImprovementDrag } from "./module/journal/steading-improveme
 import { bindThreatSeedDrag } from "./module/threats/threat-seed-cards.js";
 import { maybeAnnounceBecameHero } from "./module/actors/character/WouldBeHeroAsterisk.js";
 import { StonetopSteading } from "./module/actors/steading/StonetopSteading.js";
+import { onSteadingPeopleUpdate } from "./module/actors/steading/steading-people.js";
 import { makeDialogsResizable, enableAutoHeightVerticalResize } from "./module/utils/resizable-dialogs.js";
 import { registerStonetopWindowTheme } from "./module/utils/window-theme.js";
 import { installWindowRestore } from "./module/utils/window-restore.js";
@@ -107,6 +111,10 @@ Hooks.once("init", () => {
 	Handlebars.registerHelper("or", (...args) => args.slice(0, -1).some(Boolean));
 	Handlebars.registerHelper("and", (...args) => args.slice(0, -1).every(Boolean));
 	Handlebars.registerHelper("not", value => !value);
+	// No `concat` here on purpose: core already registers one (its own doc example is
+	// exactly our use, building an id out of a loop variable), and Handlebars helpers are
+	// global to the Foundry runtime — re-registering it would shadow core's for every
+	// other package, including the `join=` hash ours wouldn't honour.
 
 	const _STAT_LABEL_KEYS = {
 		str: "stonetop.character.stats.strength",
@@ -200,6 +208,16 @@ Hooks.once("init", () => {
 	CONFIG.Item.dataModels.playbook    = PlaybookModel;
 	CONFIG.Item.dataModels.npcMove     = NpcMoveModel;
 	CONFIG.Item.dataModels.monsterMove = MonsterMoveModel;
+
+	// Compendium rows are built from the pack INDEX, not from Item documents, so they never see
+	// StonetopItem#thumbnail. Core indexes _id/name/img/type/sort/folder — enough to know an item
+	// is a `move`, but not which KIND, and `move` is the catch-all sub-type that covers gear and
+	// arcana too. Index moveType so onRenderCompendiumItemIcons can pick the same marker the
+	// sidebar does. See module/utils/item-icon.js.
+	CONFIG.Item.compendiumIndexFields ??= [];
+	if (!CONFIG.Item.compendiumIndexFields.includes("system.moveType")) {
+		CONFIG.Item.compendiumIndexFields.push("system.moveType");
+	}
 
 	const StonetopCharacterSheet = createStonetopCharacterSheetClass(ActorSheet);
 	Actors.registerSheet("stonetop-pwd", StonetopCharacterSheet, {
@@ -320,7 +338,11 @@ Hooks.once("init", () => {
 		"stonetop.lore-options-readonly": "systems/stonetop-pwd/templates/actor/partials/lore-options-readonly.hbs",
 		"stonetop.lore-arcana-image":     "systems/stonetop-pwd/templates/actor/partials/lore-arcana-image.hbs",
 		"stonetop.relationships-table":  "systems/stonetop-pwd/templates/actor/partials/relationships-table.hbs",
+		"stonetop.relationships-board": "systems/stonetop-pwd/templates/actor/partials/relationships-board.hbs",
+		"stonetop.relationships-view":  "systems/stonetop-pwd/templates/actor/partials/relationships-view.hbs",
+		"stonetop.relationships-viewbar": "systems/stonetop-pwd/templates/actor/partials/relationships-viewbar.hbs",
 		"stonetop.section-heading":  "systems/stonetop-pwd/templates/actor/partials/section-heading.hbs",
+		"stonetop.section-collapse": "systems/stonetop-pwd/templates/actor/partials/section-collapse.hbs",
 		"stonetop.section-edit-toggle": "systems/stonetop-pwd/templates/actor/partials/section-edit-toggle.hbs",
 		"stonetop.details-section-edit-toggle": "systems/stonetop-pwd/templates/actor/partials/details-section-edit-toggle.hbs",
 		"stonetop.follower-section-edit": "systems/stonetop-pwd/templates/actor/partials/follower-section-edit.hbs",
@@ -364,6 +386,12 @@ Hooks.on("renderPause", onRenderPause);
 Hooks.on("renderPauseBanner", onRenderPause);
 Hooks.on("pauseGame", (paused) => paused && onRenderPause());
 
+// -- COMPENDIUM ITEM ICONS -------------------------------------
+// Art-less rows in an Item compendium get the same fallback markers the world sidebar gets.
+// The sidebar goes through StonetopItem#thumbnail; compendium rows render off the pack index
+// and never build a document, so they need this. See module/hooks/CompendiumItemIcons.js.
+Hooks.on("renderDocumentDirectory", onRenderCompendiumItemIcons);
+
 // -- READY -----------------------------------------------------
 Hooks.once("ready", onReady);
 Hooks.once("ready", () => applyMoveDescriptionBodyClass(getSetting("showMoveDescriptionsInChat")));
@@ -389,12 +417,37 @@ Hooks.on("hotbarDrop", onHotbarDrop);
 // drop a lettered map note whose label (the place name) shows on hover.
 Hooks.on("dropCanvasData", onDropPlaceOfInterest);
 
+// -- FOLLOWER → SCENE TOKEN ------------------------------------
+// Drag a follower card off a character's Followers tab onto the canvas to put that
+// follower on the map: the card becomes (or re-uses) an `npc` Actor, and core places
+// its token.
+Hooks.on("dropCanvasData", onDropFollower);
+
 // -- BOOK II ART ON JOURNAL IMPORT -----------------------------
 // A GM dragging one of our journals in from the compendium mid-version would get an
 // art-less world copy (the once-per-version re-apply won't fire again). Embed its Book II
 // art right away from the durable folder. Debounced + idempotent (see book2-art/reapply.js),
 // so a folder-import burst — and the fresh-world seed's own create storm — collapse to one pass.
 Hooks.on("createJournalEntry", handleImportedJournalArt);
+
+// The durable art folder just gained files, so drop the cached listings of it (see
+// book2-art/browse.js). Publishing these two indices is the LAST thing the Import Book Art
+// macro does, which makes it the one reliable signal that an import finished — the macro is
+// a macro, not a module, so nothing here can hook it directly. reapply.js writes the same
+// settings, but only when the contents genuinely changed, so a settled world never fires this.
+//
+// BOTH hooks, deliberately: a world setting has no Setting document until it is first
+// written, so the very first import in a fresh world — the case that matters most — is a
+// create, not an update.
+// Driven off reapply.js's own list rather than naming the indexes again here: a fourth index
+// added there and forgotten here would simply never invalidate, and its files would stay unseen
+// for the rest of the session.
+const _onArtIndexPublished = (setting) => {
+	const key = setting?.key ?? "";
+	if (ART_INDEX_SETTINGS.some((s) => key.endsWith(`.${s}`))) clearArtBrowseCache();
+};
+Hooks.on("createSetting", _onArtIndexPublished);
+Hooks.on("updateSetting", _onArtIndexPublished);
 
 // -- THREAT SCENE PINS -----------------------------------------
 // A threat card dragged onto a scene drops a native page-linked Note; give that
@@ -500,6 +553,12 @@ Hooks.on("updateActor", (actor) => {
 	}
 });
 
+// A roster row written by someone who can't create Actors — a player finishing onboarding
+// with a background that names neighbors — arrives as plain text. This broadcast reaches the
+// GM's client, which turns it into a real NPC on the spot, so it never matters who made the
+// character. See steading-people.js#onSteadingPeopleUpdate.
+Hooks.on("updateActor", onSteadingPeopleUpdate);
+
 // -- RECOVER LOCK ----------------------------------------------
 // The Recover special move can't be used again until the character takes more
 // damage; clear its lock flag the moment HP drops.
@@ -563,6 +622,35 @@ function _chatWireBook2ArtReminder(message, html) {
 	if (!btn) return;
 	if (!game.user.isGM) { btn.style.display = "none"; return; }
 	btn.addEventListener("click", () => game.stonetop?.importBookArt?.());
+}
+
+// -- REBUILD DETAIL PORTRAITS CARD -----------------------------
+// The one-time offer to cut the new People detail portraits out of art the GM already imported
+// (hooks/Ready.js _offerPeopleArtRebuildOnce). Runs in the browser off files already on disk,
+// so it needs no PDF — but it does write files, hence GM-only. Disable the button while it runs
+// so an impatient second click can't start a duplicate pass over the same 140-odd images.
+function _chatWireRebuildCrops(message, html) {
+	const btn = html.querySelector(".stonetop-rebuild-crops-run");
+	if (!btn) return;
+	if (!game.user.isGM) { btn.style.display = "none"; return; }
+	btn.addEventListener("click", async () => {
+		if (btn.disabled) return;
+		const { runPeopleArtRebuildFromButton } = await import("./module/book2-art/run-rebuild.js");
+		// Owns the disable, the counting spinner, the notification and the restore-on-error;
+		// what is left here is only what this card says once the run is over.
+		const res = await runPeopleArtRebuildFromButton(btn);
+		if (!res) return;   // threw — the label is already back
+		if (res.failed) {
+			// A partial run leaves work undone, so the card has to stay usable: pressing it
+			// again re-plans from disk, which now skips everything just written and retries
+			// only the parents that failed. Latching it closed on "Rebuilt N" would make a
+			// reload the only way back to the remainder.
+			btn.disabled = false;
+			btn.innerHTML = `<i class="fas fa-rotate-right"></i> Retry ${res.failed}`;
+		} else {
+			btn.innerHTML = `<i class="fas fa-check"></i> Rebuilt ${res.written}`;
+		}
+	});
 }
 
 // -- MOVE DESCRIPTION TOGGLE -----------------------------------
@@ -786,6 +874,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatProseTreatment(message, html);
 	_chatWireStartupWelcome(message, html);
 	_chatWireBook2ArtReminder(message, html);
+	_chatWireRebuildCrops(message, html);
 	_chatWireDescToggle(message, html);
 	_chatAnnotateDebility(message, html);
 	_chatWireRollShifting(message, html);

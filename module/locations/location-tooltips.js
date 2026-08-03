@@ -7,6 +7,15 @@
 // (registered in stonetop.js) call applyLocationTooltips() on the rendered HTML.
 
 import { isInJournalEditor } from "../utils/journal-editor-guard.js";
+import { getHoverDescriptionSetting } from "../settings.js";
+
+// Where the resolved summary is recorded regardless of the hover setting. The hover
+// itself is `data-tooltip`, which we only stamp when the user wants hovers; but
+// restrict-content-links.js needs to know a link HAS a player-safe summary to decide
+// whether a de-linked cross-link keeps its text as a hoverable span or flattens to
+// plain text. Keying that decision off `data-tooltip` alone would have meant switching
+// hover descriptions off silently changed what players can read.
+const SUMMARY_DATA_KEY = "stonetopSummary";
 
 // Packs that carry hover summaries. The locations, lore, and bestiary-codex
 // generators all stamp `flags.stonetop.summary`; they now ship in one merged pack.
@@ -54,8 +63,13 @@ async function _indexPackSummaries(map, packId) {
 }
 
 /**
- * Set data-tooltip = the entry summary on every content-link in `root` that
- * points at a summarized Stonetop journal. Safe to call repeatedly.
+ * Record the entry summary on every content-link in `root` that points at a summarized
+ * Stonetop journal, and stamp it as `data-tooltip` (the hover itself) unless the user has
+ * switched cross-link hovers off. Safe to call repeatedly.
+ *
+ * Always resolves — the summary bookkeeping runs whether or not hovers are wanted, so the
+ * caller's `.then(() => restrictContentLinks(...))` chains still fire and still classify
+ * links correctly with hovers off (see SUMMARY_DATA_KEY).
  * @param {HTMLElement|jQuery} root
  */
 export async function applyLocationTooltips(root) {
@@ -64,12 +78,18 @@ export async function applyLocationTooltips(root) {
 	const links = el.querySelectorAll("a.content-link[data-uuid]");
 	if (!links.length) return;
 
+	const showHover = getHoverDescriptionSetting("hoverDescriptionsJournalLinks");
 	const map = await ensureLocationSummaryIndex();
 	for (const a of links) {
 		// Skip links inside a live editor so the stamped tooltip can't ride into the
 		// saved source on the next save (see journal-editor-guard.js).
 		if (isInJournalEditor(a)) continue;
 		const summary = map.get(a.dataset.uuid);
-		if (summary) a.dataset.tooltip = summary;
+		if (!summary) continue;
+		a.dataset[SUMMARY_DATA_KEY] = summary;
+		if (showHover) a.dataset.tooltip = summary;
+		// Re-runs are idempotent, and the setting can flip between them (the menu
+		// re-renders sheets), so clear a tooltip left by an earlier pass.
+		else delete a.dataset.tooltip;
 	}
 }

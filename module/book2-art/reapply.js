@@ -5,6 +5,7 @@ import { bestiaryDescriptionWithArt, codexFieldWithArt, locationSectionsWithArt,
 import { managedHash } from "../hooks/journal-sync-core.js";
 import { compendiumSourceOf } from "../utils/foundry-compat.js";
 import { book2ArtRoot, book2ArtSrcWith } from "./art-root.js";
+import { browseArtDirs } from "./browse.js";
 import { STEADING_ACTOR_TYPE, isSteadingPlaceholderImg } from "../actors/steading/steading-portrait.js";
 import { isBestiaryPlaceholderImg } from "../bestiary/monster-portrait.js";
 import { isOurCompendiumRef } from "../migration/compat.js";
@@ -53,26 +54,10 @@ const JRN_SOURCE_PREFIX = `Compendium.${JRN_PACK}.`;
 
 const jrnSource = (entryId) => `${JRN_SOURCE_PREFIX}JournalEntry.${entryId}`;
 
-// Fully-qualified paths of the durable art currently on disk. A missing directory
-// just means nothing to apply from there (the GM hasn't imported yet).
-async function browseDurableArt(root) {
-	const FP = foundry?.applications?.apps?.FilePicker ?? FilePicker;
-	const present = new Set();
-	// The dirs are independent; browse them in parallel. A rejected browse means the
-	// directory doesn't exist yet (the GM hasn't imported) -> nothing on disk from there.
-	const results = await Promise.all(["assets/bestiary", "assets/locations", "assets/maps", "assets/treasures", "assets/people", "assets/steading"]
-		.map(dir => FP.browse("data", `${root}/${dir}`).catch(() => null)));
-	for (const res of results) {
-		if (!res) continue;
-		// A malformed %-escape in a stray filename must not reject the whole art pass — keep
-		// the raw name on decode failure so the version still gets stamped this load.
-		for (const f of res.files) {
-			try { present.add(decodeURIComponent(f)); }
-			catch { present.add(f); }
-		}
-	}
-	return present;
-}
+// Fully-qualified paths of the durable art currently on disk, across every directory the
+// importer writes. A missing directory just means nothing to apply from there (the GM
+// hasn't imported yet). The walk itself lives in browse.js, shared with the crop rebuild.
+const browseDurableArt = (root) => browseArtDirs(root);
 
 // Whether the GM has already imported book art: any durable illustration present on disk
 // in the art folder. This is the very signal reapplyBook2Art uses to decide there is
@@ -99,10 +84,14 @@ export async function hasImportedBook2Art() {
 // No `!rows.length` fast path: an empty manifest list is a real state that must still clear a
 // previously-published index, and the changed-only check already makes the steady-state call a
 // single setting read.
-async function refreshArtIndex(setting, rows, present, srcOf, entryOf, label) {
+//
+// `pathOf(row)` is the file whose presence decides whether the row is indexed at all. It is the
+// row's own `out` for every index but one: the square-portrait index is keyed by the
+// illustration but gated on the SQUARE being present, since that is the file it hands out.
+async function refreshArtIndex(setting, rows, present, srcOf, entryOf, label, pathOf = (r) => r.out) {
 	try {
 		const have = {};
-		for (const row of rows.filter((r) => present.has(srcOf(r.out)))) {
+		for (const row of rows.filter((r) => present.has(srcOf(pathOf(r))))) {
 			const [key, value] = entryOf(row);
 			have[key] = value;
 		}
@@ -115,6 +104,44 @@ async function refreshArtIndex(setting, rows, present, srcOf, entryOf, label) {
 	} catch (e) {
 		error(`Book II art: could not update the ${label} art index`, e);
 	}
+}
+
+// Every document-less art index this module publishes. Exported because a writer of one of these
+// has to bust the browse cache (see browse.js, and the `updateSetting` hook in stonetop.js) — that
+// hook used to name them in a regex of its own, so a fourth index could be added here and silently
+// never invalidate. One list, one place.
+export const ART_INDEX_SETTINGS = ["treasureArt", "peopleArt", "peoplePortraitArt"];
+
+// The two People-of-Stonetop indexes, published together because they are read together: a
+// consumer joins them by the illustration `out`, and a square index describing files whose
+// illustration index is stale would hand out a face for a portrait nothing offers.
+//
+// `peopleArt` is guarded on a populated manifest but `peoplePortraitArt` is not — see the callers'
+// note above: the macro co-publishes the former, nobody else publishes the latter.
+async function refreshPeopleArtIndexes(people, present, srcOf) {
+	if (people.length) await refreshArtIndex("peopleArt", people, present, srcOf, (p) => [p.out, p.name], "people");
+	// Gated on the SQUARE being on disk (that is what it hands out), which is why it needs
+	// `pathOf`. A world with no squares yet is correctly represented by `{}` — every consumer
+	// falls back to the whole illustration.
+	await refreshArtIndex("peoplePortraitArt", people.filter((p) => p.portraitOut), present, srcOf,
+		(p) => [p.out, p.portraitOut], "people square", (p) => p.portraitOut);
+}
+
+/**
+ * Republish just the People indexes, from just the people folder.
+ *
+ * What the portrait rebuild needs after it cuts files: the two settings that say which portraits
+ * and squares are on disk. It used to reach for the whole `reapplyBook2Art()` pass to get them,
+ * which re-browses all six art directories and then walks ~170 manifest rows doing two awaited
+ * compendium document reads apiece — several hundred round trips to publish two settings, none of
+ * whose documents reference the files the rebuild just wrote (portraits reach documents through
+ * repoint-portraits.js, not through here).
+ */
+export async function publishPeopleArtIndexes() {
+	if (!game.user?.isGM) return;
+	const root = book2ArtRoot();
+	const present = await browseArtDirs(root, ["assets/people"]);
+	await refreshPeopleArtIndexes(BOOK2_ART_APPLY_MANIFEST.people ?? [], present, (out) => book2ArtSrcWith(root, out));
 }
 
 // Embed missing art into every world copy of a compendium journal page. `buildNext(wp)`
@@ -147,8 +174,9 @@ function artUpdate(doc, src) {
 
 // Update for a WORLD bestiary actor, which survives a system update (so a GM's choices must
 // be preserved). Two safe cases, per field:
-//   • re-point a stale pointer that is ALREADY one of ours (ends with this monster's art path,
-//     i.e. a path the root change broke) — never a custom portrait/token; OR
+//   • re-point a stale pointer that is ALREADY one of ours (ends with any of this monster's art
+//     paths — its current one, which the root change can break, or one it RETIRED when it turned
+//     out to share a picture with a peer) — never a custom portrait/token; OR
 //   • ADOPT the durable art over a shipped creature-type placeholder the seeded actor still
 //     carries. SeedActors copies the compendium's placeholder icon into the world, and nothing
 //     ELSE ever replaces it — the runtime self-heal is otherwise conservative — so a monster
@@ -157,14 +185,15 @@ function artUpdate(doc, src) {
 // A portrait/token the group chose is left untouched. The token `fit` is forced ONLY when
 // adopting over a placeholder token, so a GM's "contain" on art that was already ours is never
 // reverted to "cover" on every load. Null when nothing to change.
-function worldMonsterArtUpdate(actor, src, tail) {
+function worldMonsterArtUpdate(actor, src, tails) {
 	const upd = {};
+	const ours = (path) => tails.some((t) => String(path ?? "").endsWith(t));
 	const imgPlaceholder = isBestiaryPlaceholderImg(actor.img);
-	if ((String(actor.img ?? "").endsWith(tail) || imgPlaceholder) && actor.img !== src) upd.img = src;
+	if ((ours(actor.img) || imgPlaceholder) && actor.img !== src) upd.img = src;
 	const tex = actor.prototypeToken?.texture;
 	if (tex) {
 		const tokPlaceholder = isBestiaryPlaceholderImg(tex.src);
-		if ((String(tex.src ?? "").endsWith(tail) || tokPlaceholder) && tex.src !== src) upd["prototypeToken.texture.src"] = src;
+		if ((ours(tex.src) || tokPlaceholder) && tex.src !== src) upd["prototypeToken.texture.src"] = src;
 		if (tokPlaceholder && tex.fit !== TOKEN_FIT) upd["prototypeToken.texture.fit"] = TOKEN_FIT;
 	}
 	return Object.keys(upd).length ? upd : null;
@@ -282,7 +311,7 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	// must NOT run the authoritative refresh (it would compute `{}` and wipe the macro's index on
 	// every load, emptying the steading gallery). Once `people` is populated it matches the macro,
 	// and the refresh becomes authoritative again — dropping a portrait whose file is gone.
-	if (people.length) await refreshArtIndex("peopleArt", people, present, srcOf, (p) => [p.out, p.name], "people");
+	await refreshPeopleArtIndexes(people, present, srcOf);
 
 	if (!present.size) return null; // nothing imported yet -> no document art to wire
 
@@ -378,6 +407,11 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 		for (const m of monsters) {
 			if (!available.has(m.out)) continue;
 			const src = srcOf(m.out);
+			// Retired art: a src a PRIOR manifest embedded for this creature and this system no
+			// longer names — two entries the book draws in ONE picture now share the one file, so
+			// the loser's embed has to come off the page. Resolved regardless of disk presence,
+			// like the locations pass: it keys on the embed, not on a file.
+			const retired = (m.retired ?? []).map(srcOf);
 			if (!onlyWorld) {
 				try {
 					const actor = await besPack.getDocument(m.actorId);
@@ -392,17 +426,18 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 				const worldEntries = worldBySource.get(jrnSource(m.journalEntryId)) ?? [];
 				// Skip the compendium read when this is a world-only pass with no world work:
 				// no matching world entries, or (in cheap mode) every one already has the art.
-				const worldNeedsArt = worldEntries.length && (!cheapWorldSkip || worldEntries.some((e) => !entryHasSrc(e, src)));
+				const worldNeedsArt = worldEntries.length && (!cheapWorldSkip || worldEntries.some(
+					(e) => !entryHasSrc(e, src) || retired.some((r) => entryHasSrc(e, r))));
 				if (onlyWorld && !worldNeedsArt) continue;
 				try {
 					const page = (await jrnPack.getDocument(m.journalEntryId))?.pages?.get(m.journalPageId);
 					if (page) {
 						if (!onlyWorld) {
-							const nd = bestiaryDescriptionWithArt(page.system?.description, src, m.name);
+							const nd = bestiaryDescriptionWithArt(page.system?.description, src, m.name, retired);
 							if (nd != null) { await page.update({ "system.description": nd }); besPages++; }
 						}
 						worldJournalPages += await applyWorldPages(worldEntries, page, "system.description",
-							(wp) => bestiaryDescriptionWithArt(wp.system?.description, src, m.name), noteEntry);
+							(wp) => bestiaryDescriptionWithArt(wp.system?.description, src, m.name, retired), noteEntry);
 					}
 				} catch (e) { errors++; error(`Book II art re-apply: bestiary journal "${m.slug}"`, e); }
 			}
@@ -464,11 +499,18 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 			try {
 				const srcs = l.images.filter((im) => available.has(im.out)).map((im) => srcOf(im.out));
 				// Retired art: a src a PRIOR manifest embedded that this system no longer names
-				// (e.g. a duplicate extraction we removed). Resolved regardless of disk presence
-				// — it keys on the embed, not a file — so it clears even after the file is gone,
-				// which is why the skip below also lets a retired-only row through: a location
-				// whose kept image is off disk still needs its stranded duplicate stripped.
-				const retired = (l.retired ?? []).map(srcOf);
+				// (a duplicate extraction we removed, or a plate that turned out to be the same
+				// picture as a creature's portrait and now shares that ONE file). Keyed on the
+				// embed, not a file, so it clears even after the file is gone.
+				//
+				// Stripped ONLY when every image this row wants is on disk. A retired path is
+				// nearly always the old NAME of a picture the row still places, so stripping it
+				// while its replacement is missing would take art off the page and put nothing
+				// back — and a GM who imported an older manifest and never re-ran the import has
+				// exactly that shape. Nothing is lost by waiting: the leftover embed is cleared
+				// the moment they import the art it was renamed to. (The monster pass gets this
+				// for free — it already skips any creature whose art is not on disk.)
+				const retired = srcs.length === l.images.length ? (l.retired ?? []).map(srcOf) : [];
 				if (!srcs.length && !retired.length) continue; // nothing to place and nothing to retire
 				const worldEntries = worldBySource.get(jrnSource(l.journalEntryId)) ?? [];
 				const worldNeedsArt = worldEntries.length && (!cheapWorldSkip || worldEntries.some(
@@ -539,10 +581,10 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 				if (!available.has(m.out)) continue;
 				const src = srcOf(m.out);
 				const uuid = `Compendium.${m.actorPack ?? BES_PACK}.Actor.${m.actorId}`;
-				const tail = `/${m.out}`;
+				const tails = [`/${m.out}`, ...(m.retired ?? []).map((r) => `/${r}`)];
 				for (const a of actorsBySource.get(uuid) ?? []) {
 					try {
-						const upd = worldMonsterArtUpdate(a, src, tail);
+						const upd = worldMonsterArtUpdate(a, src, tails);
 						if (upd) { await a.update(upd); worldActors++; }
 					} catch (e) { errors++; error(`Book II art re-apply: world actor "${a.name ?? a.id}"`, e); }
 				}
@@ -609,18 +651,23 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 // come before any disk work. A pass that couldn't run (nothing on disk yet) or that hit a
 // per-item error leaves the version UNSTAMPED so the next load retries (every write is
 // idempotent) instead of poisoning the version with a partial apply.
+//
+// Returns the pass's stats, or null when it didn't run — which is how the first-load setup
+// window (hooks/WorldSetup.js) tells "we found the art you already imported and wired it in"
+// from "you have no book art on disk yet" without browsing the folder a second time.
 export async function reapplyBook2ArtOnVersionChange() {
-	if (!game.user?.isGM) return;
+	if (!game.user?.isGM) return null;
 	const version = game.system.version;
-	if (getSetting("book2ArtSyncVersion") === version) return;
+	if (getSetting("book2ArtSyncVersion") === version) return null;
 
 	const result = await reapplyBook2Art();
-	if (!result) return; // nothing on disk yet -> retry next load, version left unstamped
+	if (!result) return null; // nothing on disk yet -> retry next load, version left unstamped
 	if (result.errors) {
 		error(`Book II art re-apply: ${result.errors} item(s) failed; leaving the version unstamped to retry next load.`);
-		return;
+		return result;
 	}
 	await setSetting("book2ArtSyncVersion", version);
+	return result;
 }
 
 // --- Manual-import trigger (a debounced createJournalEntry hook) -----------------------

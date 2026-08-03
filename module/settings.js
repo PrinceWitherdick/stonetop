@@ -3,15 +3,10 @@ import { DEFAULT_ROOT as DEFAULT_BOOK2_ART_ROOT } from "./book2-art/art-root.js"
 export function registerSettings() {
 	// -- WORLD SETTINGS ------------------------------------------
 
-	// Tracks the last loaded module version.
-	// Used to detect when migrations need to run.
-	game.settings.register("stonetop-pwd", "moduleVersion", {
-		name: "Module Version",
-		scope: "world",
-		config: false,
-		type: String,
-		default: ""
-	});
+	// NB: there is no general "moduleVersion" stamp. Each versioned pass owns the version
+	// it last ran for — `journalSyncVersion` (seeded journal refresh), `book2ArtSyncVersion`
+	// (durable art re-apply), `idMigrationFinishedFor` (the id sweep) — so one pass shipping
+	// a new version can't silently mark the others as already done for it.
 
 	// Whether the one-time import of the JournalEntry compendiums into the world
 	// has run (see hooks/SeedCompendiums.js). Set true after the first GM load so
@@ -239,8 +234,13 @@ export function registerSettings() {
 		onChange: () => game.stonetop?.threatBoard?.refresh?.(),
 	});
 
+	// Whether the one-time "Welcome to Stonetop" fresh-start CHAT card has been posted in
+	// this world (hooks/Ready.js _postStartupWelcomeMessageOnce). Distinct from
+	// `gmWelcomeShown` above despite the similar name: that one records that the GM
+	// dismissed the Welcome GUIDE's auto-pop-up, this one that the orientation card has
+	// been posted to chat. World-scoped — the card is public, and only the GM posts it.
 	game.settings.register("stonetop-pwd", "startupWelcomeShown", {
-		name: "Startup Welcome Shown",
+		name: "Startup Welcome Chat Card Posted",
 		scope: "world",
 		config: false,
 		type: Boolean,
@@ -278,6 +278,46 @@ export function registerSettings() {
 	// GM posts/acts on it.
 	game.settings.register("stonetop-pwd", "book2ArtReminderShown", {
 		name: "Book Art Import Reminder Shown",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
+	// RETIRED KEY: "peopleCropRebuildOffered". Superseded by peopleArtRebuildOffered below and
+	// no longer registered — nothing reads it, and Foundry simply ignores a stored value whose
+	// key it does not know, so leaving it registered bought nothing. Named here so the key is
+	// not reused: a world upgraded from an older build still HOLDS a `true` under it, and a new
+	// setting reusing the name would silently start out latched shut in exactly those worlds.
+
+	// Whether the one-time "this portrait art can be rebuilt from pictures you already have"
+	// offer has been made (hooks/Ready.js _offerPeopleArtRebuildOnce). World-scoped: it is a
+	// property of this world's art folder, not of whoever happens to be logged in.
+	//
+	// A NEW key rather than reusing the one above, deliberately. That flag was set the moment a
+	// world was offered the DETAIL-portrait rebuild, months before square faces existed — so
+	// every world that already said yes to crops would have been latched shut against an offer
+	// that did not exist yet, and the squares would silently never be cut. Re-asking costs one
+	// card in the worlds that have new work; staying latched costs the feature entirely.
+	//
+	// Safe to re-ask: findWork returns falsy when there is nothing left to cut, so a world that
+	// is already complete stays silent and never sets this at all.
+	game.settings.register("stonetop-pwd", "peopleArtRebuildOffered", {
+		name: "People Portrait Rebuild Offered",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
+	// Whether the one-time "you already have these poster maps — want them as Scenes?" offer
+	// has been made in this world (hooks/WorldSetup.js offerPosterMapScenesOnce). The map
+	// images live in the durable art folder, which outlives the world they were imported in,
+	// so a brand-new world can find them waiting and rebuild the Scenes without a second PDF
+	// import. World-scoped, and only set once the offer has ACTUALLY been made, so a GM who
+	// supplies maps later still gets asked.
+	game.settings.register("stonetop-pwd", "posterMapScenesOffered", {
+		name: "Poster Map Scenes Offered",
 		scope: "world",
 		config: false,
 		type: Boolean,
@@ -323,6 +363,20 @@ export function registerSettings() {
 	// World-scoped so it reaches every client like any setting.
 	game.settings.register("stonetop-pwd", "peopleArt", {
 		name: "People Art On Disk",
+		scope: "world",
+		config: false,
+		type: Object,
+		default: {}
+	});
+
+	// Which of those portraits also have their hand-authored SQUARE face on disk, as a
+	// { illustration out path -> square out path } map. A SECOND index rather than richer values
+	// in `peopleArt`, deliberately: that setting's shape is `{ out -> name }` in every world that
+	// already has one, and consumers join the two by `out`, so nothing needs migrating and a
+	// world whose GM has not re-run the rebuild simply has no entries here and keeps offering the
+	// whole illustration. Same publishers as `peopleArt`.
+	game.settings.register("stonetop-pwd", "peoplePortraitArt", {
+		name: "People Square Portraits On Disk",
 		scope: "world",
 		config: false,
 		type: Object,
@@ -482,15 +536,22 @@ export function registerSettings() {
 
 	// -- CLIENT SPECIFIC SETTINGS --------------------------------
 
-	// Whether this user has had the Setting Overview journal auto-opened once (see
-	// hooks/Ready.js). Per-client so each player gets the fresh-start orientation
-	// the first time they connect, GM included, without re-popping every load.
+	// Which worlds this user has had the Setting Overview journal auto-opened in (see
+	// hooks/Ready.js). Per-client so each player gets the fresh-start orientation the first
+	// time they connect, GM included, without re-popping every load.
+	//
+	// Keyed by world id, NOT a bare boolean. Client settings live in browser localStorage
+	// under namespace.key alone, so a flat `true` leaked across worlds: open a second world
+	// in the same browser and the gate read already-set, and nobody who had seen the
+	// Overview once ever got their new world's orientation. Same fix, and same reason, as
+	// the world-keyed `walkthroughResume` below. Shape: { "<worldId>": true }.
+	// A legacy flat `true` is folded under the current world by migrateFlatSettingOverviewShown.
 	game.settings.register("stonetop-pwd", "settingOverviewShown", {
 		name: "Setting Overview Shown",
 		scope: "client",
 		config: false,
-		type: Boolean,
-		default: false
+		type: Object,
+		default: {}
 	});
 
 	// NB: the GM-steading auto-assignment once-gate is NOT a setting — it's a per-user
@@ -510,7 +571,9 @@ export function registerSettings() {
 			"im-fell-english": "stonetop.settings.sheetFont.imFellEnglish",
 			"signika":         "stonetop.settings.sheetFont.signika",
 		},
-		default: "signika",
+		// Shared with applySheetFont's fallback (see _DEFAULT_FONT) so "the default font"
+		// means one thing.
+		default: _DEFAULT_FONT,
 		onChange: value => applySheetFont(value),
 	});
 
@@ -570,9 +633,10 @@ export function registerSettings() {
 		default: false,
 	});
 
-	// Open actor sheets (character / steading / monster) in Edit mode instead of
+	// Open actor sheets (character / steading / monster / NPC) in Edit mode instead of
 	// Play mode. Read once when the sheet is constructed; the header wrench still
-	// toggles modes per-sheet afterward.
+	// toggles modes per-sheet afterward. The NPC sheet additionally requires ownership
+	// (a non-owner has nothing to edit), so it opens in Play mode for everyone else.
 	game.settings.register("stonetop-pwd", "openSheetsInEditMode", {
 		name: "stonetop.settings.openSheetsInEditMode.name",
 		hint: "stonetop.settings.openSheetsInEditMode.hint",
@@ -582,7 +646,7 @@ export function registerSettings() {
 		default: false,
 	});
 
-	// Reopen the document sheets (characters, steadings, monsters, items, journals)
+	// Reopen the document sheets (characters, steadings, monsters, NPCs, items, journals)
 	// this user had open when they reload, at the same position and size. Per-client
 	// because window layout is personal, not shared world state. Defaults on. The
 	// live tracking + restore lives in utils/window-restore.js.
@@ -687,6 +751,19 @@ export function registerSettings() {
 		default: {},
 	});
 
+	// Remembers which sheet sections each actor's viewer folded shut with the heading
+	// caret (the one beside the section edit pencil) — character AND steading, keyed by
+	// the caret's own collapse id rather than the edit-section id, since two groups can
+	// share one edit section. Sections default to expanded, so we store the *collapsed*
+	// ids (absence = open). Per-user (client) and per-actor: a map of actor id -> array
+	// of collapsed section ids. Internal (not shown in the settings menu).
+	game.settings.register("stonetop-pwd", "sheetSectionsCollapsed", {
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {},
+	});
+
 	// Remembers whether each character left the whole moves sidebar (Roll Modifier
 	// + Basic / Expedition move lists) collapsed, so the sheet reopens the same way.
 	// The sidebar defaults to expanded. Per-user (client) and per-actor: a map of
@@ -761,6 +838,11 @@ export const HOVER_DESCRIPTION_SETTING_KEYS = [
 	"hoverDescriptionsSteadingStats",
 	"hoverDescriptionsValues",
 	"hoverDescriptionsDebilities",
+	// The two below are what make `hoverDescriptionsEnabled` a true master switch. Both
+	// were previously ungated, so turning every listed toggle off still left cross-link
+	// summaries hovering in journals, on sheets and in the session-zero dialogs.
+	"hoverDescriptionsJournalLinks",
+	"hoverDescriptionsLoreTerms",
 ];
 
 function _createHoverDescriptionSettingsApp() {
@@ -806,8 +888,13 @@ const _FONT_MAP = {
 	"signika":         "Signika, sans-serif",
 };
 
+// The registered default for `sheetFont`. Shared with the fallback below so an
+// unreadable/unrecognized value lands on the same font a fresh client gets, rather
+// than a second, different "default" only the fallback path can produce.
+const _DEFAULT_FONT = "signika";
+
 export function applySheetFont(value) {
-	const font = _FONT_MAP[value] ?? _FONT_MAP["libre-caslon"];
+	const font = _FONT_MAP[value] ?? _FONT_MAP[_DEFAULT_FONT];
 	document.documentElement.style.setProperty("--font-stonetop", font);
 }
 
@@ -849,6 +936,91 @@ export function getHideRollableIconSetting() {
 
 export function getSetting(key) {
 	return game.settings.get("stonetop-pwd", key);
+}
+
+/**
+ * A plain-object setting, read tolerantly: `{}` rather than a throw when the key is not
+ * registered in this world (an older build, or a unit test that never called registerSettings),
+ * and `{}` rather than a surprise when the stored value is a scalar or an array.
+ *
+ * The broadcast art indexes (`treasureArt`, `peopleArt`, `peoplePortraitArt`) are all read this
+ * way, from several unrelated consumers — the People gallery, the portrait re-point pass — each
+ * of which had grown its own copy of this try/catch and its own shape guard.
+ */
+export function getObjectSetting(key) {
+	try {
+		const value = globalThis.game?.settings?.get?.("stonetop-pwd", key);
+		return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+	} catch (_) {
+		return {};
+	}
+}
+
+/**
+ * The key a world-keyed setting stores its records under.
+ *
+ * Client settings live in browser localStorage under `namespace.key` alone, with no world in
+ * the path — so any client-scoped "have they seen this yet?" flag leaks across every world
+ * opened in the same browser unless it nests its records by world itself. Two settings do
+ * exactly that (`walkthroughResume`, `settingOverviewShown`), and they have to agree on what
+ * the key IS, so it is defined once here.
+ */
+export function worldKey() {
+	return globalThis.game?.world?.id ?? "";
+}
+
+// ── Setting Overview once-gate (per client, per world) ─────────────────────────
+// Stored world-keyed so seeing the Overview in one world can't suppress it in the
+// next (see the registration above).
+
+function _settingOverviewStore() {
+	return globalThis.game?.settings?.get?.("stonetop-pwd", "settingOverviewShown");
+}
+
+/** The stored world map, or null when the value is absent or still the legacy shape. */
+function _settingOverviewMap(stored) {
+	return stored?.constructor === Object ? stored : null;
+}
+
+/**
+ * Is `stored` the pre-world-keying value — a bare `true` that applied to every world?
+ *
+ * Not simply `stored === true`. The setting is now declared `type: Object`, and Foundry
+ * casts a stored value to its declared type by CONSTRUCTING it (Setting#_castType falls
+ * through to `new Object(value)` for any non-primitive type), so a legacy boolean comes
+ * back as a Boolean WRAPPER object, not a boolean. It answers to valueOf() either way.
+ */
+function _settingOverviewLegacyShown(stored) {
+	if (stored === null || stored === undefined) return false;
+	if (_settingOverviewMap(stored)) return false;
+	return !!stored.valueOf?.();
+}
+
+/** Has this client already been shown the Overview in THIS world? */
+export function getSettingOverviewShown() {
+	const stored = _settingOverviewStore();
+	// A legacy value still answers for every world until the migration below has run, so
+	// an upgrade mid-session can't re-pop the Overview on the very next load.
+	if (_settingOverviewLegacyShown(stored)) return true;
+	return !!_settingOverviewMap(stored)?.[worldKey()];
+}
+
+export function markSettingOverviewShown() {
+	const map = { ..._settingOverviewMap(_settingOverviewStore()) };
+	map[worldKey()] = true;
+	return setSetting("settingOverviewShown", map);
+}
+
+/**
+ * One-time migration of the pre-world-keying flat shape. It carried no world attribution,
+ * so — as with migrateFlatWalkthroughResume — attribute it to the world this browser is in
+ * now, which is where it was most likely written. Every OTHER world then correctly
+ * re-offers the Overview once, which is the whole point of the fix. Idempotent: after it
+ * runs the value is a world map and this is a no-op.
+ */
+export function migrateFlatSettingOverviewShown() {
+	if (!_settingOverviewLegacyShown(_settingOverviewStore())) return;
+	return markSettingOverviewShown();
 }
 
 // Last-used width for a given character sheet, or null if none stored yet.
@@ -937,6 +1109,17 @@ export function setArcanaCardsCollapsed(actorId, slugs) {
 	return setSectionList("arcanaCardsCollapsed", actorId, slugs);
 }
 
+// The sheet sections (character and steading alike) this user folded shut with the
+// heading caret. They default to expanded, so an id present here means that section
+// should reopen collapsed.
+export function getSheetSectionsCollapsed(actorId) {
+	return getSectionList("sheetSectionsCollapsed", actorId);
+}
+
+export function setSheetSectionsCollapsed(actorId, sections) {
+	return setSectionList("sheetSectionsCollapsed", actorId, sections);
+}
+
 // Whether a character left the whole moves sidebar collapsed (defaults to false /
 // expanded). Per-actor, per-user.
 export function getSidebarCollapsed(actorId) {
@@ -970,6 +1153,29 @@ export function applyMoveDescriptionBodyClass(show) {
 
 export function setSetting(key, value) {
 	return game.settings.set("stonetop-pwd", key, value);
+}
+
+/**
+ * Write a setting that MAY be world-scoped, from a place a non-GM could reach.
+ *
+ * Only a GM may write a world setting: core rejects a player-side call outright rather than
+ * quietly no-opping, so every dialog that persists GM-prep answers had grown its own
+ * `if (!game.user?.isGM) return` beside its own `setSetting`. Four copies of one rule is four
+ * places for the fifth caller not to look — and forgetting it does not degrade, it throws.
+ *
+ * The scope is read off the registration rather than assumed, so this is safe to use for any
+ * key: a client-scoped one is written normally whoever is asking.
+ *
+ * Silent by design. These are autosave paths on prep tools a player has no business writing;
+ * the console line is for whoever is debugging why a write did not land.
+ */
+export function setWorldSetting(key, value) {
+	const scope = globalThis.game?.settings?.settings?.get?.(`stonetop-pwd.${key}`)?.scope;
+	if (scope === "world" && !globalThis.game?.user?.isGM) {
+		console.debug(`Stonetop | skipped world-setting write to "${key}" — not a GM.`);
+		return Promise.resolve();
+	}
+	return setSetting(key, value);
 }
 
 function _rerenderActorSheets() {

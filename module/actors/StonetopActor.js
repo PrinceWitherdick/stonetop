@@ -4,6 +4,8 @@ import {CharacterLedger} from "./character/CharacterLedger.js";
 import {SteadingLedger} from "./steading/SteadingLedger.js";
 import {NpcLedger} from "./npc/NpcLedger.js";
 import {STAT_CHAT_LABELS, STEADING_STAT_CHAT_LABELS, postStatChangesToChat} from "../utils/chat.js";
+import {isDefaultImg} from "../utils/strings.js";
+import {PERSON_DEFAULT_IMG, isPersonPlaceholderImg} from "../utils/person-portrait.js";
 
 export function createStonetopActorClass(BaseActor) {
 	return class StonetopActor extends BaseActor {
@@ -57,20 +59,34 @@ export function createStonetopActorClass(BaseActor) {
 		}
 
 		/**
-		 * Default a new NPC's token to reveal its name on hover to anyone. NPCs are the
-		 * townsfolk and neighbors the PCs talk to (not hidden threats), so their name
-		 * should be legible to every player on hover — matching how the Residents/Neighbors
-		 * rows already name them openly. Only applied when the creation data didn't specify
-		 * a display mode, so a deliberate choice, a duplicate, or a compendium import that
-		 * carries its own `prototypeToken.displayName` is preserved.
+		 * Two defaults for a new NPC.
+		 *
+		 * The token reveals its name on hover to anyone. NPCs are the townsfolk and neighbors
+		 * the PCs talk to (not hidden threats), so their name should be legible to every
+		 * player on hover — matching how the Residents/Neighbors rows already name them
+		 * openly. Only applied when the creation data didn't specify a display mode, so a
+		 * deliberate choice, a duplicate, or a compendium import that carries its own
+		 * `prototypeToken.displayName` is preserved.
+		 *
+		 * An NPC with no portrait wears the system's people silhouette instead of Foundry's
+		 * mystery-man. The steading roster already drew that placeholder for un-portraited
+		 * members, but only there: everywhere else the same person showed up — the sidebar
+		 * directory, a drag preview, a chat portrait — Foundry's default leaked through.
+		 * Storing it on the actor makes every surface agree without each having to know the
+		 * rule. It stays a placeholder, not art: isDefaultImg reports it as "no art" (see
+		 * utils/person-portrait.js), so nothing starts treating this person as portraited.
+		 * Only ever applied over a stock default, so chosen art is never touched.
 		 * @override
 		 */
 		async _preCreate(data, options, user) {
 			const allowed = await super._preCreate(data, options, user);
 			if (allowed === false) return false;
-			if (this.type === "npc"
-				&& foundry.utils.getProperty(data, "prototypeToken.displayName") === undefined) {
+			if (this.type !== "npc") return;
+			if (foundry.utils.getProperty(data, "prototypeToken.displayName") === undefined) {
 				this.updateSource({ "prototypeToken.displayName": CONST.TOKEN_DISPLAY_MODES.HOVER });
+			}
+			if (isDefaultImg(this.img) && !isPersonPlaceholderImg(this.img)) {
+				this.updateSource({ img: PERSON_DEFAULT_IMG });
 			}
 		}
 

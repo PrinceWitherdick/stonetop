@@ -39,11 +39,62 @@ describe("bestiaryDescriptionWithArt", () => {
 		expect(bestiaryDescriptionWithArt(once, SRC, "Crinwin")).toBeNull();
 	});
 
+	// "Already on the page" has to mean the same thing in both halves of this function. A page
+	// can NAME the path without carrying the picture — a GM's note, a link href, an HTML comment
+	// — and reading that as "already embedded" would block the art from ever being added, while
+	// the retired half of the same call would correctly see no image there.
+	it("adds the art to a page that only mentions the path in prose", () => {
+		const mentions = `<p>art lives at ${SRC} if you want it</p>`;
+		expect(bestiaryDescriptionWithArt(mentions, SRC, "Crinwin"))
+			.toBe(`<p><img class="stonetop-journal-art" src="${SRC}" alt="Crinwin"></p>${mentions}`);
+	});
+
+	it("adds the art to a page that links the path without showing it", () => {
+		const linked = `<p><a href="${SRC}">the picture</a></p>`;
+		expect(bestiaryDescriptionWithArt(linked, SRC, "Crinwin")).toContain("<img");
+	});
+
 	it("treats a null/undefined description as empty", () => {
 		expect(bestiaryDescriptionWithArt(null, SRC, "Crinwin")).toBe(
 			`<p><img class="stonetop-journal-art" src="${SRC}" alt="Crinwin"></p>`
 		);
 		expect(bestiaryDescriptionWithArt(undefined, SRC, "Crinwin")).toContain(SRC);
+	});
+
+	// Retired art. Two creatures the book draws in ONE picture now share the one file, so the
+	// page a prior manifest gave the other filename has to lose that embed — otherwise the
+	// same illustration ends up on it twice, which is the bug this whole pass exists to undo.
+	describe("retired art", () => {
+		it("strips the retired embed and places the shared one", () => {
+			const stale = bestiaryDescriptionWithArt("<p>prose</p>", SRC2, "Assassin");
+			const out = bestiaryDescriptionWithArt(stale, SRC, "Assassin", [SRC2]);
+			expect(out).toBe(`<p><img class="stonetop-journal-art" src="${SRC}" alt="Assassin"></p><p>prose</p>`);
+		});
+
+		it("strips the retired embed even when the shared art is already there", () => {
+			const both = `<p><img class="stonetop-journal-art" src="${SRC}" alt="A"></p>`
+				+ `<p><img class="stonetop-journal-art" src="${SRC2}" alt="A"></p><p>prose</p>`;
+			expect(bestiaryDescriptionWithArt(both, SRC, "A", [SRC2]))
+				.toBe(`<p><img class="stonetop-journal-art" src="${SRC}" alt="A"></p><p>prose</p>`);
+		});
+
+		it("stays null once there is nothing left to retire", () => {
+			// The every-load self-heal runs this on every page; a non-null return is a write.
+			const done = bestiaryDescriptionWithArt("<p>prose</p>", SRC, "A");
+			expect(bestiaryDescriptionWithArt(done, SRC, "A", [SRC2])).toBeNull();
+		});
+
+		it("never retires the src it is placing", () => {
+			// The shared file IS both rows' art; retiring it would strip the picture each load.
+			const done = bestiaryDescriptionWithArt("<p>prose</p>", SRC, "A");
+			expect(bestiaryDescriptionWithArt(done, SRC, "A", [SRC])).toBeNull();
+		});
+
+		it("matches on the quoted src, so one path is never a prefix of another", () => {
+			const longer = `${SRC}`.replace(".webp", "-young.webp");
+			const kept = bestiaryDescriptionWithArt("<p>prose</p>", longer, "Young");
+			expect(bestiaryDescriptionWithArt(kept, longer, "Young", [SRC])).toBeNull();
+		});
 	});
 });
 

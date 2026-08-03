@@ -257,7 +257,7 @@
       },
       "openSheetsInEditMode": {
         "name": "Open Sheets in Edit Mode",
-        "hint": "Open character, steading, and monster sheets in Edit mode instead of Play mode. The header wrench still switches modes per sheet."
+        "hint": "Open character, steading, monster, and NPC sheets in Edit mode instead of Play mode. The header wrench still switches modes per sheet. NPC sheets you don't own always open in Play mode."
       },
       "reduceMotion": {
         "name": "Reduce Motion",
@@ -265,7 +265,7 @@
       },
       "restoreWindowsOnReload": {
         "name": "Restore Open Windows on Reload",
-        "hint": "Reopen the character, steading, monster, item, and journal sheets you had open, at the same position and size, when you reload Foundry. Personal to this browser."
+        "hint": "Reopen the character, steading, monster, NPC, item, and journal sheets you had open, at the same position and size, when you reload Foundry. Personal to this browser."
       },
       "showRollStatChips": {
         "name": "Show Roll Stat Chips",
@@ -291,7 +291,7 @@
       },
       "hoverDescriptionsEnabled": {
         "name": "Show On Hover Info",
-        "hint": "Turn off all hover descriptions and hover info panels at once."
+        "hint": "Turn off every hover description and hover info panel below at once."
       },
       "hoverDescriptionsStats": {
         "name": "Hover Descriptions: Stats",
@@ -299,7 +299,7 @@
       },
       "hoverDescriptionsBasicMoves": {
         "name": "Hover Descriptions: Basic Moves",
-        "hint": "Show the Basic Move description panel when hovering over the Basic Moves list."
+        "hint": "Show the move description panel when hovering the Basic Moves list on a character sheet, or the moves list on Stonetop's own sheet."
       },
       "hoverDescriptionsPlaybookMoves": {
         "name": "Hover Descriptions: Playbook Moves",
@@ -319,7 +319,7 @@
       },
       "hoverDescriptionsInvocations": {
         "name": "Hover Descriptions: Invocation Effects",
-        "hint": "On the Lightbearer's Invocations tab, explain what an Invocation's Reduced and Empowered effects mean when hovering their labels."
+        "hint": "On the Lightbearer's Invocations tab and in the level-up picker, explain what an Invocation's Reduced and Empowered effects mean when hovering their labels."
       },
       "hoverDescriptionsVitals": {
         "name": "Hover Descriptions: Vitals",
@@ -331,7 +331,7 @@
       },
       "hoverDescriptionsSteadingStats": {
         "name": "Hover Descriptions: Steading Stats",
-        "hint": "On Stonetop's sheet, explain Surplus, Fortunes, Prosperity, Defenses, Population, and Size when hovering those labels."
+        "hint": "On Stonetop's sheet, explain Surplus, Fortunes, Prosperity, Defenses, Population, Size, and its Debilities when hovering those labels."
       },
       "hoverDescriptionsValues": {
         "name": "Hover Descriptions: Trade Values",
@@ -340,6 +340,14 @@
       "hoverDescriptionsDebilities": {
         "name": "Hover Descriptions: Debilities",
         "hint": "In move text and prose, embolden “debility” and explain the three character debilities (Weakened, Dazed, Miserable) when hovering it."
+      },
+      "hoverDescriptionsJournalLinks": {
+        "name": "Hover Descriptions: Journal Cross-links",
+        "hint": "Show an entry's one-line summary when hovering a link into the Stonetop journals — in journal prose, on stat blocks and NPC sheets, and in the Welcome and Setting Overview windows. Turning this off only removes the hover; links you can and can't open are unchanged."
+      },
+      "hoverDescriptionsLoreTerms": {
+        "name": "Hover Descriptions: Lore Terms",
+        "hint": "Explain Stonetop's four gods (Danu, Aratis, Helior, Tor) when hovering their names in the Character Introductions prompts and the character creation wizard."
       }
     },
     "newCharacter": {
@@ -406,6 +414,7 @@
       "relations": "Relations",
       "relationsPlaceholder": "Kin, allies, rivals (a quick line)",
       "impressions": "Impressions",
+      "detailsEmpty": "No impressions or motivations yet. Turn on edit mode to add a sensory hook or two, and what drives them.",
       "impressionPlaceholder": "A sensory hook (face, voice, scent...)",
       "addImpression": "Add Impression",
       "instinct": "Instinct",
@@ -485,10 +494,17 @@
         "notes": "Notes"
       }
     },
+    "actorLink": {
+      "gone": "That character no longer exists.",
+      "goneNpc": "That NPC no longer exists."
+    },
     "relationships": {
       "regard": "Feelings",
       "notes": "Notes",
       "notePlaceholder": "How they feel, why…",
+      "noteExpand": "Show the whole note",
+      "noteCollapse": "Shrink the note back to one line",
+      "open": "Open {name}'s sheet",
       "showTooltip": "Show this person on the sheet",
       "drop": {
         "added": "{name} added to Relationships.",
@@ -503,7 +519,38 @@
       "feels2": "{subject} dislikes {object}",
       "feels3": "{subject} feels neutral toward {object}",
       "feels4": "{subject} likes {object}",
-      "feels5": "{subject} loves {object}"
+      "feels5": "{subject} loves {object}",
+      "view": {
+        "label": "Layout",
+        "table": "Table",
+        "board": "Board",
+        "tableTooltip": "One sortable row per name",
+        "boardTooltip": "Standings board: Hostile, Neutral, Trusted"
+      },
+      "lane": {
+        "trusted": "Trusted",
+        "neutral": "Neutral",
+        "hostile": "Hostile",
+        "trustedHint": "likes & loves",
+        "neutralHint": "no strong feeling",
+        "hostileHint": "dislikes & hates",
+        "empty": "No one here yet.",
+        "pickerLabel": "Move one step, or back to Neutral",
+        "stepColder": "One step colder: {target}",
+        "stepWarmer": "One step warmer: {target}",
+        "stepFloor": "Already {target}, the coldest rating",
+        "stepCeiling": "Already {target}, the warmest rating",
+        "moved": "{name} moved to {lane}.",
+        "reordered": "{name} moved to place {position} of {count}.",
+        "moveFailed": "That change could not be saved."
+      },
+      "zone": {
+        "h1": "Hates",
+        "h2": "Dislikes",
+        "h3": "Neutral",
+        "h4": "Likes",
+        "h5": "Loves"
+      }
     },
     "character": {
       "relationships": {
@@ -566,6 +613,14 @@
         "custom": {
           "createTitle": "Create a Custom Move",
           "editTitle": "Edit Custom Move",
+          "bannerSub": "Custom move",
+          "sectionsLabel": "Custom move sections",
+          "sectionMoveTitle": "The move",
+          "sectionRollTitle": "Dice roll",
+          "sectionResourceTitle": "Resource track",
+          "sectionBonusesTitle": "Bonuses & XP",
+          "back": "Back",
+          "next": "Next",
           "addButton": "Create a move",
           "editMove": "Edit this move",
           "learnedTitle": "Learned — un-check to keep this move on the sheet but inactive (not rollable, bonuses off)",
@@ -584,16 +639,14 @@
           "partial": "On a 7–9",
           "failure": "On a 6-",
           "save": "Save Move",
-          "advanced": "Advanced options",
           "noXpOnMiss": "Don't mark XP on a miss",
-          "resourceTitle": "Resource track (optional)",
-          "resourceHint": "A row of boxes to hold/spend something (e.g. Favor). Set how many; leave at 0 for none.",
+          "resourceHint": "A row of circles to hold/spend something (e.g. Favor). Set how many; leave at 0 for none.",
           "resourceName": "Name",
           "resourceNamePlaceholder": "e.g. Favor",
-          "resourceMax": "Boxes",
-          "resourceLabels": "Box labels (optional, comma-separated)",
+          "resourceMax": "Circles",
+          "resourceLabels": "Circle labels (optional, comma-separated)",
           "resourceLabelsPlaceholder": "e.g. some left, last one, out",
-          "bonusesTitle": "Ongoing bonuses (optional)",
+          "bonusesHint": "Ongoing bonuses this move grants while it's learned. Leave at 0 for none.",
           "hpBonus": "+Max HP",
           "armorBonus": "+Armor",
           "loadBonus": "+Load"
@@ -639,6 +692,9 @@
           "resolveButton": "Read & Resolve"
         }
       },
+      "lore": {
+        "sectionTitle": "Lore"
+      },
       "selection": {
         "select": "Select",
         "cancel": "Cancel",
@@ -666,6 +722,20 @@
           "instruction": "Stonetop is your home, or close enough, but where are you (or your family) from originally? Pick 1 and a name to match (or make up something similar)."
         }
       }
+    },
+    "portraitFrame": {
+      "control": "Frame Face",
+      "adjust": "Adjust frame…",
+      "pip": "Frame face",
+      "title": "Frame {name}",
+      "video": "This portrait is a video. The small portrait surfaces show a still frame of it, so there is nothing here to choose.",
+      "loadFailed": "Could not load {src}, so there is nothing to frame.",
+      "tokenized": "Sent {name} to Tokenizer. The framed face is now their token.",
+      "tokenizeFailed": "Could not send this portrait to Tokenizer.",
+      "noTarget": "There is nothing to frame here.",
+      "readOnly": "You do not have permission to change this portrait.",
+      "noImage": "Choose a portrait first, then you can frame it.",
+      "openFailed": "The portrait framer could not open. See the console for details."
     }
   }
 }

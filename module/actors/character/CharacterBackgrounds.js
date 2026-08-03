@@ -15,6 +15,12 @@ export class CharacterBackgrounds {
 		return this._flags.getFlag("setupResources") ?? {};
 	}
 
+	// The option the player took in each of the background's `setup.choices` entries,
+	// keyed by choice key (A Life of Crime → { extraMove: "Burgle" }).
+	get setupChoices() {
+		return this._flags.getFlag("setupChoices") ?? {};
+	}
+
 	get setupTexts() {
 		return this._flags.getFlag("setupTexts") ?? {};
 	}

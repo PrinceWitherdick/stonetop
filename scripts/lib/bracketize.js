@@ -8,6 +8,18 @@
  * are deliberately left alone: Foundry splits those on ".", and a hyphen is a perfectly
  * good key. Telling the two apart is why this tracks string and comment context rather
  * than using a bare regex.
+ *
+ * ⚠ That context tracking is a hand-rolled scanner, and on the one run this has had it
+ * LOST SYNC: somewhere in StonetopCharacterSheet.js it came to believe it was inside a
+ * string, so a `//` comment holding backticks read as string boundaries, and from there
+ * twelve template-literal update paths were "bracketized" as if they were code. Foundry
+ * then split `flags["stonetop-pwd"].customFollowers.<id>` on "." and dropped the write on
+ * the floor — every arcana summon, follower creation and follower HP edit silently saved
+ * nothing, with a green test suite (the fakes don't expand dotted paths). Backticks in
+ * comments, nested template literals and `${...}` interpolation are all unhandled here.
+ *
+ * So: DO NOT trust a run of this. tests/scripts/flag-update-paths.test.js is the guard —
+ * it fails on a bracketed scope inside a path string. Check it, and read the diff.
  */
 
 const isIdentChar = (ch) => /[A-Za-z0-9_$]/.test(ch ?? "");

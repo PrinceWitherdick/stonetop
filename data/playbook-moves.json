@@ -21,6 +21,7 @@
           "Bulwark"
         ]
       },
+      "replaces": "Bulwark",
       "playbook": "The Judge"
     },
     {
@@ -100,7 +101,7 @@
       "description": "<p>When you <strong><em>write up detailed session notes and share them with the other players</em></strong>, hold +1 Diligence. You can spend 1 Diligence at any time to add +1 to a roll that you or a fellow player just made.</p>",
       "rollType": null,
       "resource": {
-        "max": 5,
+        "max": 3,
         "title": "Diligence"
       },
       "isStartingMove": true,
@@ -721,7 +722,7 @@
       "requirement": {
         "level": 2
       },
-      "repeatMax": 5,
+      "repeatMax": 4,
       "playbook": "The Would-Be Hero"
     },
     {
@@ -789,7 +790,7 @@
           "Magnificent Specimen"
         ]
       },
-      "repeatMax": 3,
+      "repeatMax": 2,
       "playbook": "The Ranger"
     },
     {
@@ -889,7 +890,7 @@
           "Animal Companion"
         ]
       },
-      "repeatMax": 3,
+      "repeatMax": 2,
       "playbook": "The Ranger"
     },
     {
@@ -997,7 +998,7 @@
       "requirement": {
         "level": 2
       },
-      "repeatMax": 5,
+      "repeatMax": 2,
       "playbook": "The Ranger"
     }
   ],
@@ -1033,6 +1034,7 @@
           "value": "The GM makes a move."
         }
       },
+      "isStartingMove": true,
       "playbook": "The Fox"
     },
     {
@@ -1093,7 +1095,7 @@
       "requirement": {
         "level": 2
       },
-      "repeatMax": 5,
+      "repeatMax": 3,
       "playbook": "The Fox"
     },
     {
@@ -1114,6 +1116,7 @@
           "value": "Don't mark XP; you know there's a trap or ambush, but nothing bad happens just yet."
         }
       },
+      "isStartingMove": true,
       "playbook": "The Fox"
     },
     {
@@ -1210,6 +1213,7 @@
       "name": "Perceptive",
       "description": "<p>When you <strong><em>Seek Insight</em></strong>, you may ask 1 additional question. Even on a 6-, you can ask 1 question (though you might not like how you learn the answer).</p>",
       "rollType": null,
+      "isStartingMove": true,
       "playbook": "The Fox"
     },
     {
@@ -1259,6 +1263,7 @@
       "name": "Skill at Arms",
       "description": "<p>When you <strong><em>wield a weapon with speed and grace</em></strong>, roll +DEX to Clash (instead of +STR).</p>",
       "rollType": null,
+      "isStartingMove": true,
       "playbook": "The Fox"
     },
     {
@@ -1564,7 +1569,7 @@
       "requirement": {
         "level": 2
       },
-      "repeatMax": 5,
+      "repeatMax": 2,
       "playbook": "The Blessed"
     }
   ],
@@ -1588,6 +1593,10 @@
       "name": "Conduit of Power",
       "description": "<p>When you <strong><em>would mark a Consequence from a major arcanum</em></strong>, you can mark 1 box here instead, with no negative effect. (These marks never clear.)</p>",
       "rollType": null,
+      "resource": {
+        "max": 3,
+        "title": "Marks"
+      },
       "playbook": "The Seeker"
     },
     {
@@ -1700,7 +1709,7 @@
       "requirement": {
         "level": 2
       },
-      "repeatMax": 5,
+      "repeatMax": 3,
       "playbook": "The Seeker"
     },
     {
@@ -1713,6 +1722,10 @@
       "name": "Logbook",
       "description": "<p>You have a logbook (2 uses, slow) that doesn't take up space in your inventory. When you <strong><em>(and only you) consult your logbook and expend a use</em></strong>, you can ignore a Know Things roll you just made and treat the result as a 10+. When <strong><em>the Seasons Change</em></strong>, reset your logbook to 2 uses.</p>",
       "rollType": null,
+      "resource": {
+        "max": 2,
+        "title": "Uses"
+      },
       "playbook": "The Seeker"
     },
     {
@@ -1803,7 +1816,7 @@
       "description": "<p>Mark 1 topic, in addition to the one noted in your Background. Each additional time you take this move, mark 2 more topics.</p><p>When you <strong><em>Know Things about one of your topics</em></strong>, you can ask the GM a follow-up question of your choice (even on a 6-).</p>",
       "rollType": null,
       "isStartingMove": true,
-      "repeatMax": 4,
+      "repeatMax": 3,
       "playbook": "The Seeker"
     },
     {
@@ -1931,10 +1944,6 @@
       "name": "Guardian",
       "description": "<p>When you <strong><em>Defend</em></strong>, hold 1 extra Readiness. Even on a 6-, hold 1 Readiness (plus whatever the GM says).</p>",
       "rollType": null,
-      "resource": {
-        "max": 1,
-        "title": "Readiness"
-      },
       "playbook": "The Heavy"
     },
     {
@@ -2026,7 +2035,7 @@
       "requirement": {
         "level": 2
       },
-      "repeatMax": 5,
+      "repeatMax": 3,
       "playbook": "The Heavy"
     },
     {
@@ -2095,7 +2104,7 @@
       "description": "<p>When you <strong><em>are reduced to 0 HP in battle</em></strong>, you can keep fighting. Each time you take damage while at 0 HP, mark 1. If you would regain HP while fighting, clear one mark instead.</p><p>When you <strong><em>stop fighting</em></strong>, roll for Death's Door with a -1 penalty for each circle marked. If you survive, clear all your circles.</p>",
       "rollType": null,
       "resource": {
-        "max": 6,
+        "max": 5,
         "title": "Marks"
       },
       "requirement": {
@@ -2120,7 +2129,7 @@
       "requirement": {
         "level": 2
       },
-      "repeatMax": 5,
+      "repeatMax": 2,
       "playbook": "The Marshal"
     },
     {
@@ -2174,7 +2183,7 @@
           "Veteran Crew"
         ]
       },
-      "repeatMax": 4,
+      "repeatMax": 2,
       "playbook": "The Marshal"
     },
     {
@@ -2339,7 +2348,7 @@
           "Crew"
         ]
       },
-      "repeatMax": 4,
+      "repeatMax": 2,
       "playbook": "The Marshal"
     },
     {

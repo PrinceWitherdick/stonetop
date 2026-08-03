@@ -3,6 +3,7 @@ import { info, error } from "../utils/logger.js";
 import { compendiumRefTail, seededSourceKeys } from "../migration/compat.js";
 import { BESTIARY_ROOT_NAME, BESTIARY_FOLDER_COLOR, planBestiaryFolderTree } from "./bestiary-seed-core.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
+import { progressSlice, SEED_FOLDER_PHASE, SEED_BULK_CREATE_FRACTION } from "../utils/progress-slice.js";
 
 // On load, import the system's "Monsters" (stonetop-bestiary) actor compendium into the
 // world's Actors sidebar under a single red "Bestiary" folder tree that mirrors the
@@ -18,19 +19,30 @@ import { isPrimaryGM } from "../utils/primary-gm.js";
 
 const BESTIARY_PACK_ID = "stonetop-pwd.stonetop-bestiary";
 
-export async function seedBestiaryActorsOnce() {
-	// Primary GM only: the ~200-actor import is not atomic with the `bestiaryActorsSeeded`
-	// flag (set only after it finishes), and idempotency rests on an alreadySeeded set read
-	// before createDocuments — so two GMs both entering ready on a fresh world would each
-	// seed the full bestiary and double it. Matches ensureStonetopSingleton's guard.
-	if (!game.user?.isGM || !isPrimaryGM()) return;
-	if (getSetting("bestiaryActorsSeeded")) return;
+/**
+ * Whether this world still owes the bestiary import. The seed's own guard, lifted out so the
+ * first-load setup window (hooks/WorldSetup.js) can list only the work that is really coming
+ * without restating the conditions — a row that instantly ticks itself off having done
+ * nothing is exactly what that window exists to avoid.
+ *
+ * Primary GM only: the ~200-actor import is not atomic with the `bestiaryActorsSeeded` flag
+ * (set only after it finishes), and idempotency rests on an alreadySeeded set read before
+ * createDocuments — so two GMs both entering ready on a fresh world would each seed the full
+ * bestiary and double it. Matches ensureStonetopSingleton's guard. A missing pack (a dev
+ * build without it) means there is nothing to seed either.
+ */
+export function needsBestiaryActorSeed() {
+	if (!game.user?.isGM || !isPrimaryGM()) return false;
+	if (getSetting("bestiaryActorsSeeded")) return false;
+	return !!game.packs.get(BESTIARY_PACK_ID);
+}
 
+export async function seedBestiaryActorsOnce({ onProgress } = {}) {
+	if (!needsBestiaryActorSeed()) return;
 	const pack = game.packs.get(BESTIARY_PACK_ID);
-	if (!pack) return; // pack absent (a dev build without it) — nothing to seed
 
 	try {
-		const created = await importBestiaryActors(pack);
+		const created = await importBestiaryActors(pack, { onProgress });
 		// Set the flag regardless of how many landed: the import skips actors already
 		// present, so a re-run would only ever add genuinely-missing ones — but a latched
 		// flag also means a GM who deletes some monsters won't have them re-seeded.
@@ -112,7 +124,8 @@ export async function collapseBestiaryActorSubfoldersOnce() {
 // tree (folder match on name+parent) and skips actors already imported (matched on
 // compendiumSource), so a partial run — or a reload mid-import — recovers on the next load
 // without duplicating. Returns the created actors.
-async function importBestiaryActors(pack) {
+async function importBestiaryActors(pack, { onProgress } = {}) {
+	onProgress?.({ fraction: 0, detail: "Reading the Monsters compendium" });
 	const docs = await pack.getDocuments();
 	if (!docs.length) return [];
 
@@ -125,9 +138,13 @@ async function importBestiaryActors(pack) {
 
 	const rootId = await ensureActorFolder(BESTIARY_ROOT_NAME, null, plan.root.color);
 	const worldFolderId = new Map(); // packFolderId -> worldFolderId
-	for (const f of plan.folders) {
+	const reportFolder = progressSlice(onProgress, SEED_FOLDER_PHASE);
+	for (const [i, f] of plan.folders.entries()) {
 		const parentId = f.parentPackId ? worldFolderId.get(f.parentPackId) : rootId;
 		worldFolderId.set(f.packId, await ensureActorFolder(f.name, parentId, f.color, f.sort));
+		// The folders are created one at a time, so this is the only part of the import with
+		// per-item motion to report; it owns the head of the step's bar (see FOLDER_PHASE).
+		reportFolder?.({ fraction: (i + 1) / plan.folders.length, detail: "Building the Bestiary folders" });
 	}
 	// A collapsed pack "Bestiary" wrapper (rebuilt compendium) maps onto the world root, so
 	// actors filed directly under it still resolve to the root rather than to nothing.
@@ -151,7 +168,9 @@ async function importBestiaryActors(pack) {
 		obj.ownership = { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE };
 		data.push(obj);
 	}
-	return data.length ? Actor.createDocuments(data) : [];
+	if (!data.length) return [];
+	onProgress?.({ fraction: SEED_BULK_CREATE_FRACTION, detail: `Creating ${data.length} monster sheets` });
+	return Actor.createDocuments(data);
 }
 
 // Find-or-create a world Actor folder by name+parent, tinting it. Reuses an existing match

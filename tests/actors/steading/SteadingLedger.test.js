@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { SteadingLedger } from "../../../module/actors/steading/SteadingLedger.js";
-import { ledgerNoun } from "../../../module/actors/character/CharacterLedger.js";
+import { ledgerNoun } from "../../../module/utils/ledger-core.js";
 
 function steadingUpdate(steading) {
 	return { flags: { stonetop: { steading } } };
@@ -142,14 +142,67 @@ describe("SteadingLedger", () => {
 			},
 		});
 
+		// Every line for one neighbour leads with that neighbour's bare name, so the ledger's
+		// subject filter groups their edits together instead of splitting "home" changes under
+		// a generic "Neighbor" subject and trait changes under "<Name> trait".
 		expect(entries.map(e => e.action)).toEqual([
-			"Ennis (from Marshedge) trait changed from generous to wary",
-			"Shahar (from Gordin's Delve) trait set to ambitious",
-			"Shahar (from Gordin's Delve) selected",
+			"Ennis traits changed from generous to wary",
+			"Shahar traits set to ambitious",
+			"Shahar selected",
 			"Neighbor added: Tovia (from Lygos)",
-			"Tovia (from Lygos) selected",
+			"Tovia selected",
 		]);
 		expect(entries.map(e => e.action).join(" ")).not.toContain("[object Object]");
+	});
+
+	it("names the neighbour and the field when a home is cleared", () => {
+		const actor = makeActor({
+			stonetop: {
+				steading: { neighbors: [{ name: "Tierney", home: "Marshedge", traits: "gets the best deals" }] },
+			},
+		});
+
+		const entries = SteadingLedger.entriesForActorUpdate(actor, {
+			flags: { stonetop: { steading: { neighbors: [{ name: "Tierney", home: "", traits: "" }] } } },
+		});
+
+		// Previously this pair read "Neighbor changed from Tierney (from Marshedge) to Tierney"
+		// and "Tierney trait cleared (…)" — the first of which never said what changed.
+		expect(entries.map(e => e.action)).toEqual([
+			"Tierney home cleared (was Marshedge)",
+			"Tierney traits cleared (was gets the best deals)",
+		]);
+	});
+
+	it("keeps the traits of a neighbour entered complete", () => {
+		// "Neighbor added: Ione (from Barrier Pass)" carries the name and the home and nothing
+		// else, so skipping every field on an add lost the trait the same form just captured.
+		const actor = makeActor({ stonetop: { steading: { neighbors: [] } } });
+
+		const entries = SteadingLedger.entriesForActorUpdate(actor, {
+			flags: { stonetop: { steading: { neighbors: [
+				{ name: "Ione", home: "Barrier Pass", traits: "owes you a favour" },
+			] } } },
+		});
+
+		expect(entries.map(e => e.action)).toEqual([
+			"Neighbor added: Ione (from Barrier Pass)",
+			"Ione traits set to owes you a favour",
+		]);
+	});
+
+	it("does not restate a removed neighbour's fields", () => {
+		// The removal line is the whole story; "Ione traits cleared" after it would read as an
+		// edit to somebody still on the list.
+		const actor = makeActor({
+			stonetop: { steading: { neighbors: [{ name: "Ione", home: "Barrier Pass", traits: "owes you a favour" }] } },
+		});
+
+		const entries = SteadingLedger.entriesForActorUpdate(actor, {
+			flags: { stonetop: { steading: { neighbors: [{ name: "", home: "", traits: "" }] } } },
+		});
+
+		expect(entries.map(e => e.action)).toEqual(["Neighbor removed: Ione (from Barrier Pass)"]);
 	});
 
 	it("records when a built-in improvement is completed", () => {

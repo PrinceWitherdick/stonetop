@@ -12,11 +12,26 @@
 				Hide un-earned improvements
 			</label>
 			{{> "stonetop.tab-search-control" title="Search improvements" placeholder="Filter improvements…"}}
+
+			{{!-- Category chips, sitting just right of the magnifying glass. Single-select:
+			      one lights at a time, and clicking the lit chip clears back to showing
+			      everything (which is why there's no fourth "All" chip). Wired in
+			      StonetopSteadingSheet._wireImprovementCategoryFilter. --}}
+			<div class="steading-improvement-filters" role="group" aria-label="Filter improvements by category">
+				{{#each stonetop.improvementCategories}}
+				<button type="button" class="steading-improvement-filter{{#if active}} is-active{{/if}}"
+				        data-category="{{key}}" aria-pressed="{{#if active}}true{{else}}false{{/if}}"
+				        data-tooltip="{{hint}}" data-tooltip-direction="UP">
+					<i class="{{icon}}" aria-hidden="true"></i>
+					<span>{{label}}</span>
+				</button>
+				{{/each}}
+			</div>
 		</div>
 
 		<div class="steading-improvements-grid">
 			{{#each stonetop.improvements}}
-			<div class="steading-improvement {{#if completed}}is-complete{{/if}}{{#if earned}} is-earned{{/if}}{{#if custom}} is-custom{{/if}}{{#if isOpen}} is-open{{/if}}" data-slug="{{slug}}">
+			<div class="steading-improvement {{#if completed}}is-complete{{/if}}{{#if earned}} is-earned{{/if}}{{#if custom}} is-custom{{/if}}{{#if isOpen}} is-open{{/if}}{{#if filtered}} steading-improvement-filtered{{/if}}" data-slug="{{slug}}" data-category="{{category}}">
 
 				<div class="steading-improvement-header">
 					<label class="steading-improvement-complete-label{{#if completeLocked}} is-locked{{/if}}"
@@ -36,7 +51,7 @@
 					</button>
 					{{/if}}
 					<span class="steading-improvement-chevron">
-						<i class="fas fa-chevron-down"></i>
+						<i class="fas fa-chevron-up"></i>
 					</span>
 				</div>
 

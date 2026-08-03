@@ -84,6 +84,78 @@ describe("NpcLedger", () => {
 		}
 	});
 
+	// An undefined → "" diff is not "equal", so a write that carries a blank note past a
+	// row which never had one would log a phantom "note set to blank" beside whatever else
+	// changed. updateRelationship no longer emits that shape for a first-time rating, but
+	// an explicit clear does, and so does any world written by an earlier build — the
+	// entry below is the shape those produce.
+	it("does not log a note change when the note was blank and stayed blank", () => {
+		const prev = global.game.actors;
+		global.game.actors = { get: (id) => (id === "pc1" ? { name: "Aerin" } : null) };
+		try {
+			// Nothing stored for pc1 at all — the sparse default, i.e. a first-time rating.
+			const actor = makeActor({ relationships: {} });
+			const entries = NpcLedger.entriesForActorUpdate(actor, {
+				system: { relationships: { pc1: { hearts: 4, notes: "" } } },
+			});
+			expect(entries.map(e => e.action)).toEqual([
+				"Relationship with Aerin set to Likes (4)",
+			]);
+		} finally {
+			global.game.actors = prev;
+		}
+	});
+
+	it("still logs a note being cleared, which is a real change", () => {
+		const prev = global.game.actors;
+		global.game.actors = { get: (id) => (id === "pc1" ? { name: "Aerin" } : null) };
+		try {
+			const actor = makeActor({ relationships: { pc1: { hearts: 4, notes: "owes a debt" } } });
+			const entries = NpcLedger.entriesForActorUpdate(actor, {
+				system: { relationships: { pc1: { hearts: 4, notes: "" } } },
+			});
+			expect(entries.map(e => e.action)).toEqual([
+				"Relationship note for Aerin cleared",
+			]);
+		} finally {
+			global.game.actors = prev;
+		}
+	});
+
+	// Run-merging reached this ledger only when the shared engine grew `scalarEntry`; before
+	// that an NPC's HP walked down through a fight logged one line per point. The descriptor is
+	// what mergeRuns folds on, so what matters here is that numbers carry one and that prose
+	// and booleans do not — a run of name edits must stay a run of separate lines.
+	it("attaches a merge descriptor to numeric fields and to nothing else", () => {
+		const actor = makeActor({
+			instinct: "to endure",
+			attributes: { hp: { value: 8, max: 8 }, armor: { value: 1 } },
+		});
+		const entries = NpcLedger.entriesForActorUpdate(actor, {
+			name: "Blodwen",
+			system: { instinct: "to flee", attributes: { hp: { value: 5 } } },
+		});
+		const byAction = Object.fromEntries(entries.map(e => [e.action, e.merge]));
+
+		expect(byAction["HP changed from 8 to 5"]).toEqual({
+			kind: "numeric", key: "system.attributes.hp.value", label: "HP", from: 8, to: 5,
+		});
+		expect(byAction["Name set to Blodwen"]).toBeUndefined();
+		expect(byAction["Instinct changed from to endure to to flee"]).toBeUndefined();
+	});
+
+	it("merges a numeric field that starts blank, and never a boolean one", () => {
+		const actor = makeActor({ hasStats: false, attributes: { armor: { value: 2 } } });
+		const entries = NpcLedger.entriesForActorUpdate(actor, {
+			system: { hasStats: true, attributes: { armor: { value: 3 } } },
+		});
+		const byAction = Object.fromEntries(entries.map(e => [e.action, e.merge]));
+
+		expect(byAction["Armor changed from 2 to 3"]?.kind).toBe("numeric");
+		// `false` is not a number, so "Game stats" stays one line per toggle.
+		expect(byAction["Game stats changed from off to on"]).toBeUndefined();
+	});
+
 	it("ignores writes to the ledger flag itself", () => {
 		const actor = makeActor({ instinct: "to wait" });
 		const entries = NpcLedger.entriesForActorUpdate(actor, {

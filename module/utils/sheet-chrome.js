@@ -15,11 +15,18 @@ import { isInCompendium, warnCompendiumImmutable } from "./compendium-edit-guard
  */
 export function hideBrokenPortrait(sheet, headerClass) {
 	if (sheet._editMode) return;
-	const img = sheet.element[0]?.querySelector(".stonetop-portrait");
+	// The slot is the element wearing .stonetop-portrait, and it is not always the image: the
+	// monster header puts the class on the <img>, while the NPC header puts it on a clipping
+	// <span> (so a hand-framed face can be positioned inside it) and the no-art placeholder is
+	// a <span> with no image at all. Remove the SLOT either way, so squaring the NPC header did
+	// not leave a bordered empty box where a broken portrait used to vanish cleanly.
+	const slot = sheet.element[0]?.querySelector(".stonetop-portrait");
+	if (!slot) return;
+	const img = slot.matches("img") ? slot : slot.querySelector("img");
 	if (!img) return;
-	const header = img.closest(`.${headerClass}`);
+	const header = slot.closest(`.${headerClass}`);
 	const drop = () => {
-		img.remove();
+		slot.remove();
 		header?.classList.add(`${headerClass}--no-portrait`);
 	};
 	if (img.complete && img.naturalWidth === 0) { drop(); return; }

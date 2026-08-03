@@ -3,7 +3,15 @@
       step-specific controls are .stonetop-cf-*. See dialogs/CreateFollowerDialog.js. --}}
 <div class="stonetop-spring">
 
-  <div class="stonetop-guide-main">
+  <div class="stonetop-guide-split">
+
+    {{!-- Jump-to-step table of contents (journal-style; shared guide-toc partial).
+          Nine steps is a long way to walk with Back/Next alone — especially to fix
+          something spotted on the final review card, or to skip the optional Moves
+          step — so the rail lets you jump straight to any of them. --}}
+    {{> "stonetop.guide-toc" ariaLabel="Follower steps"}}
+
+    <div class="stonetop-guide-main">
 
     <div class="stonetop-guide-banner">
       <i class="fas {{step.icon}} stonetop-guide-banner-icon"></i>
@@ -234,7 +242,9 @@
 
     </div>
 
-  </div>
+    </div>{{!-- /stonetop-guide-main --}}
+
+  </div>{{!-- /stonetop-guide-split --}}
 
   <div class="stonetop-guide-nav">
     <button class="stonetop-spring-back" {{#if isFirst}}disabled{{/if}}><span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>Back</button>

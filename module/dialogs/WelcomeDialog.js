@@ -9,6 +9,7 @@ import { charactersOwnedBy } from "../utils/playbook-actors.js";
 import { createCharacterForUser } from "../actors/character/create-character.js";
 import { stonetopSteadingHeaderButton } from "../utils/world.js";
 import { runImportBookArtMacro } from "../book2-art/macro.js";
+import { hasImportedBook2Art } from "../book2-art/reapply.js";
 
 // ── WelcomeDialog ───────────────────────────────────────────────────────────
 // A GM-only "first session" guide. Walks the GM through the Book I "Getting
@@ -97,6 +98,16 @@ export class WelcomeDialog extends Application {
 		// Which rail panel is showing; preserved across the roster's live re-renders
 		// (see _registerHooks) so refreshing the player list doesn't snap back to the top.
 		this._activeTab = SECTIONS[0].key;
+		// Whether the durable art folder already holds imported book art. Resolved once and
+		// cached for the life of the window: it takes a handful of file-browse round trips,
+		// and this guide re-renders every time the roster changes. Invalidated after the
+		// import macro runs, which is the only thing that can change the answer.
+		this._bookArtImported = null;
+		// NB: the rebuildable-portrait count is deliberately NOT cached here. It is reachable from
+		// three places (this button, the chat card, game.stonetop.rebuildPortraits) and this guide
+		// is a session singleton, so a memo invalidated beside only one of them would leave the
+		// step offering work the other two had already done. It is cheap to re-ask: the walk is
+		// browseArtDirs, which owns a session cache every writer already busts (see browse.js).
 	}
 
 	static open() {
@@ -161,9 +172,26 @@ export class WelcomeDialog extends Application {
 		const activeIndex = Math.max(0, SECTIONS.findIndex(s => s.key === this._activeTab));
 		const active = SECTIONS[activeIndex];
 
+		// A failed browse reads as "not imported" — the step then just offers the import,
+		// which is the harmless answer either way.
+		if (this._bookArtImported === null) {
+			this._bookArtImported = await hasImportedBook2Art().catch(() => false);
+		}
+
+		// How much could be cut from art already on disk without the PDFs — the detail portraits
+		// and the square faces. Shown here because the one-time chat card that normally offers
+		// this latches the moment it is posted, so a GM who missed it has no other way back.
+		// Zero (the steady state) renders nothing at all.
+		const { countPeopleArtRebuilds } = await import("../book2-art/run-rebuild.js");
+		const rebuildableArt = this._bookArtImported ? await countPeopleArtRebuilds() : 0;
+
 		return {
+			rebuildableArt,
 			players,
 			noPlayers:     players.length === 0,
+			// Drives the "you have already done this" state on the Book Art step, so a GM
+			// who imported in another world isn't told to go and find their PDFs again.
+			bookArtImported: this._bookArtImported,
 			dontShowAgain: !!getSetting("gmWelcomeShown"),
 			premiseHtml:   await enrichHTML(premiseSource()),
 			// Left rail + banner. Only the first-render active state comes from here;
@@ -207,6 +235,7 @@ export class WelcomeDialog extends Application {
 		html.find('[data-action="spring-burst"]').on("click", () => this._openSpringBurst());
 		html.find('[data-action="configure-players"]').on("click", () => this._openPlayerConfig());
 		html.find('[data-action="import-book-art"]').on("click", () => this._runImportBookArt());
+		html.find('[data-action="rebuild-portraits"]').on("click", ev => this._rebuildPortraits(ev.currentTarget));
 		html.find(".stonetop-welcome-create").on("click", ev =>
 			this._onCreateCharacter(ev.currentTarget.dataset.userId));
 		html.find(".stonetop-welcome-player-char").on("click", ev => {
@@ -294,7 +323,29 @@ export class WelcomeDialog extends Application {
 	// The launch path (world copy, else the shipped compendium copy) is shared with the
 	// post-startup art reminder; see runImportBookArtMacro.
 	async _runImportBookArt() {
-		return runImportBookArtMacro();
+		const result = await runImportBookArtMacro();
+		// The import is the one thing that can change "do I have book art on disk?", so drop
+		// the cached answer and redraw the step in its already-imported state.
+		this._bookArtImported = null;
+		if (this.rendered) await this.render(false);
+		return result;
+	}
+
+	/**
+	 * Cut the portraits that can be derived from art already on disk, without the PDFs.
+	 *
+	 * The same work the one-time chat card offers. It lives here as well because that card
+	 * latches when it is POSTED rather than when it is clicked, so scrolling past it once loses
+	 * the offer permanently — and on an upgrade that means the new art silently never appears.
+	 */
+	async _rebuildPortraits(btn) {
+		const { runPeopleArtRebuildFromButton } = await import("../book2-art/run-rebuild.js");
+		// The disable, the counting spinner, the notification and the restore-on-error are the
+		// chat card's too, so they live in run-rebuild.js beside the work itself.
+		if (!await runPeopleArtRebuildFromButton(btn)) return;   // threw — the label is already back
+		// Re-render, which re-counts from disk rather than assuming it is now zero: a partial run
+		// leaves the remainder, and the button has to keep offering it.
+		if (this.rendered) await this.render(false);
 	}
 
 	// Jump to Foundry's core "Configure Players" screen — the same full-page route
