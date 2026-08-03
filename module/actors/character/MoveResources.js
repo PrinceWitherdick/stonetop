@@ -24,6 +24,19 @@ export class MoveResources {
 		await this._flags.setFlag(key, {...current, [moveName]: newValue});
 	}
 
+	/**
+	 * Drop one move's stored track, for a move that is gone for good. Only meaningful for
+	 * a key that will never come back: a custom move's key is its item id, and ids aren't
+	 * reused, so the entry would sit in the flag forever. A shipped move keyed by NAME is
+	 * deliberately left alone — re-adding it should restore the count where it left off.
+	 * No-op when nothing is stored, so removing a track-less move costs no document write.
+	 * @param {string} moveKey
+	 */
+	async clear(moveKey) {
+		if (!moveKey || !(moveKey in this.getMoveResources())) return;
+		await this._flags.batch({ deletes: { [key]: [moveKey] } });
+	}
+
 	// Per-option marks for moves like "Potential for Greatness":
 	// { [moveName]: { [optionSlug]: value } }
 	getMarks() {

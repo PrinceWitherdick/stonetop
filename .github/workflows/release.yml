@@ -112,6 +112,12 @@ jobs:
           for d in assets/maps assets/bestiary assets/locations; do
             if [ -e "$d" ]; then echo "FAIL: $d present in the checkout"; exit 1; fi
           done
+          # The GM-only "(TEST ONLY) Populate World" macro fetches this file at runtime and
+          # skips SILENTLY when it 404s, so an absent one ships a build where the macro just
+          # never appears and nothing says why. It used to be gitignored; assert it survived.
+          if [ ! -s scripts/local/create-test-characters.js ]; then
+            echo "FAIL: scripts/local/create-test-characters.js missing or empty"; exit 1
+          fi
           node <<'VERIFY_MANIFEST'
           const fs = require('fs');
           const m = JSON.parse(fs.readFileSync('system.json', 'utf8'));
@@ -137,11 +143,15 @@ jobs:
           VERIFY_MANIFEST
 
       - name: Create zip
+        # scripts/ is a build/dev directory and does NOT ship wholesale — only the one file
+        # named explicitly below, which is macro BODY rather than tooling (see the verify
+        # step above). Adding scripts/ here would ship the pack/gen/rename node tooling too.
         run: |
           zip -r stonetop.zip \
             system.json stonetop.js LICENSE README.md \
             AI-TRAINING-NOTICE.md ai.txt robots.txt CITATION.cff .well-known/ \
             module/ styles/ languages/ assets/ templates/ packs/ \
+            scripts/local/create-test-characters.js \
             --exclude "packs/src/*"
 
       - name: Create release

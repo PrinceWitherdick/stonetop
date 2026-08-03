@@ -7,7 +7,13 @@ packs/*/
 
 /.claude
 scripts/release.ps1
-scripts/local/
+# Local dev scratch scripts stay out of the repo — except the test-fixture generator,
+# which is the body of the GM-only "(TEST ONLY) Populate World" macro and so has to
+# travel with a checkout and a release (see .github/workflows/release.yml). The pattern
+# has to be scripts/local/* rather than scripts/local/: git cannot re-include a file
+# inside an excluded DIRECTORY, so a trailing-slash rule makes the negation below a no-op.
+scripts/local/*
+!scripts/local/create-test-characters.js
 /free pdfs
 
 # Build artifacts and dev scratch files

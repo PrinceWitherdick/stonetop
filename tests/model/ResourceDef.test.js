@@ -37,4 +37,16 @@ describe("ResourceDef", () => {
 		expect(def.spendOptions).toEqual(["Slip away", "Hold steady"]);
 		expect(def.spendTooltip).toBe("Spend 1 to:<br>• Slip away<br>• Hold steady");
 	});
+
+	it("coerces a non-array labels/spendOptions rather than throwing", () => {
+		// `system.resource` is hand-authored and preserved verbatim across worlds, so a string
+		// here is a shape that really arrives. It has to degrade to "no tooltip": this runs
+		// inside buildSnapshot, and a throw takes the whole actor sheet down with it.
+		for (const bad of ["Slip away", 42, {}, true]) {
+			const def = new ResourceDef({ labels: bad, spendOptions: bad });
+			expect(def.labels).toEqual([]);
+			expect(def.spendOptions).toEqual([]);
+			expect(def.spendTooltip).toBeNull();
+		}
+	});
 });

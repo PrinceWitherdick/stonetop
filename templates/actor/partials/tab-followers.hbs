@@ -1,5 +1,8 @@
 <div class="tab followers" data-group="primary" data-tab="followers">
-<div class="stonetop-followers">
+{{!-- stonetop-gap-managed: this is a responsive grid whose row gap sets the spacing under the
+      heading row, so the generic heading-row sibling margin must not stack on top of it.
+      See the CSS. --}}
+<div class="stonetop-followers stonetop-gap-managed">
 
 	{{!-- The "exceptional" tag chip, shown in the tags row. A gated tag: rendered
 	      only for follower types whose playbook grants it (exceptionalAvailable —
@@ -22,7 +25,49 @@
 	{{> "stonetop.follower-section-edit" section="card" editing=edit.card editTitle="Edit follower"}}
 	<div class="stonetop-follower-header">
 		<div class="stonetop-follower-header-main">
-			<div class="stonetop-follower-portrait"><i class="{{portraitIcon}}"></i></div>
+			{{!-- The follower's face. A chosen portrait when they have one, else the type's
+			      glyph (a paw, a seedling, a crowd), which is the normal state — nothing
+			      here is required and nothing had to be migrated to add it.
+
+			      Clicking opens the People of Stonetop gallery, the same picker the
+			      steading's rosters use, so a follower recruited from the village can wear
+			      the village's face; hovering a real portrait pops the enlarged copy through
+			      the shared avatar preview. data-name is both that preview's caption and the
+			      selector hook wireAvatarPreview matches on, so a portrait that previews and
+			      one that is captioned are the same element.
+
+			      A tap does one of two things, and portraitInteractive is true for either:
+			      with the card's pencil open it opens the gallery to CHANGE the portrait,
+			      and otherwise it ENLARGES the one that is there. A viewer who can do
+			      neither (no portrait, no pencil) gets no tab stop and no pointer cursor,
+			      rather than one promising something that will not happen. The glyph stays
+			      clickable while editing, since picking a first portrait is the point. --}}
+			<div class="stonetop-follower-portrait stonetop-portrait-box{{#if img}} stonetop-follower-portrait--photo{{/if}}{{#if portraitInteractive}} stonetop-follower-portrait--editable{{/if}}"
+			     data-ftype="{{ftype}}" data-slug="{{slug}}"
+			     data-portrait-mode="{{#if portraitEditable}}pick{{else}}view{{/if}}"
+			     {{#if portraitInteractive}}role="button" tabindex="0"
+			     data-tooltip="{{portraitLabel}}"
+			     data-tooltip-direction="UP"
+			     aria-label="{{portraitLabel}}"{{/if}}>
+				{{#if img}}
+				{{!-- draggable="false": a press on the face is a click on the picker, not the
+				      start of an image drag. --}}
+				{{!-- The circular mask lives on this span rather than on the portrait box, so the
+				      box itself can stay unclipped and let the crop pip sit in the corner of the
+				      SQUARE around the circle. The glyph branch needs no clip: it is centred art,
+				      not a photo that has to be cut to a circle. --}}
+				<span class="stonetop-follower-portrait-clip"><img class="stonetop-follower-portrait-img" src="{{img}}" alt="" draggable="false" data-name="{{orderName}}"{{#if imgStyle}} style="{{imgStyle}}"{{/if}}></span>
+				{{else}}
+				<i class="{{portraitIcon}}" aria-hidden="true"></i>
+				{{/if}}
+				{{#if portraitEditable}}{{#if img}}
+				{{!-- tabindex="-1": the portrait itself already owns the tab stop and Enter/Space,
+				      and a second stop inside a 75px circle is noise. The keyboard route to
+				      framing is the portrait, then "Adjust frame…" in the gallery. --}}
+				<button type="button" class="stonetop-follower-portrait-frame" tabindex="-1"
+				        data-tooltip="{{portraitFrameLabel}}" aria-label="{{portraitFrameLabel}}"><i class="fas fa-crop-simple"></i></button>
+				{{/if}}{{/if}}
+			</div>
 			<div class="stonetop-follower-title">
 				<div class="stonetop-follower-name-row">
 					{{#if nameLines.length}}
@@ -136,7 +181,11 @@
 		</div>
 	</div>
 
-	<div class="stonetop-follower-body">
+	{{!-- --st-follower-pip-slots: how many pip circles the card's widest track draws
+	      (Loyalty is always 3; Readiness gains a 4th with a borne shield). Both the
+	      Loyalty and Readiness rows size their pip column from it, so their Spend
+	      buttons line up whatever each row's own count is. --}}
+	<div class="stonetop-follower-body"{{#if pipSlots}} style="--st-follower-pip-slots: {{pipSlots}};"{{/if}}>
 		{{!-- Stat block: Max HP through Cost/Loyalty, edited as one section. The
 		      exceptional tag lives up in the chips row, not here. --}}
 		<div class="stonetop-follower-stats-section">
@@ -262,9 +311,9 @@
 		      click-editable, even outside edit mode: a single click fills/clears up
 		      to the pip (handler keys off the data-loyalty ftype). --}}
 		{{#if loyalty}}
-		{{!-- Flat row (label, pips, Spend as siblings — like the crew Group-Fight
-		      Readiness row) so the pips stay glued to the label and only Spend peels
-		      off under extreme narrowness. --}}
+		{{!-- Flat row (label, pips, Spend as siblings — matching the Readiness row
+		      below) so the pips stay glued to the label and only Spend peels off
+		      under extreme narrowness. --}}
 		<div class="stonetop-follower-field-row stonetop-follower-loyalty-row">
 			<span class="stonetop-follower-field-label">Loyalty</span>
 			<div class="stonetop-loyalty-pips">
@@ -285,13 +334,14 @@
 		{{/if}}
 		</div>{{!-- /stonetop-follower-stats-section --}}
 
-		{{!-- Readiness (non-crew followers): held when they Defend; spend to suffer an
-		      attack for a ward or draw all attention (p.469). The crew tracks its own
-		      Readiness in the Group Fight section instead. --}}
+		{{!-- Readiness: held when they Defend; spend to suffer an attack for a ward or
+		      draw all attention (p.469). A group holds ONE common pool for the whole
+		      crew instead of a track per member (p.473) — same row, different wording
+		      and a cap that counts shields / Shield Wall. --}}
 		{{#if showReadiness}}{{#unless edit.stats}}
 		<div class="stonetop-follower-field-row stonetop-follower-readiness-row">
 			<span class="stonetop-follower-field-label">Readiness</span>
-			<div class="stonetop-readiness-pips" data-tooltip="Ordered to Defend, 7+ (p.469). 7–9: hold 1{{#if readinessHasShield}} (2 with their shield){{/if}}. 10+: hold 3{{#if readinessHasShield}} (4 with their shield){{/if}}. Click a circle to set how much they hold." data-tooltip-direction="UP">
+			<div class="stonetop-readiness-pips" data-tooltip="{{#if readinessIsPool}}Crew ordered to Defend, 7+ (p.473) — common pool. 7–9: hold 1{{#if readinessHasShield}} ({{#if readinessShieldWall}}3 with Shield Wall{{else}}2 with shields{{/if}}){{/if}}. 10+: hold 3{{#if readinessHasShield}} ({{#if readinessShieldWall}}5 with Shield Wall{{else}}4 with shields{{/if}}){{/if}}.{{else}}Ordered to Defend, 7+ (p.469). 7–9: hold 1{{#if readinessHasShield}} (2 with their shield){{/if}}. 10+: hold 3{{#if readinessHasShield}} (4 with their shield){{/if}}.{{/if}} Click a circle to set how much they hold." data-tooltip-direction="UP">
 				{{#each readinessPips}}
 				<button type="button" class="stonetop-readiness-pip{{#if filled}} is-filled{{/if}}" data-ftype="{{../readinessFollower}}" data-slug="{{../readinessSlug}}" data-index="{{index}}" title="Set Readiness"></button>
 				{{/each}}
@@ -302,7 +352,7 @@
 				<i class="fas fa-shield"></i> Spend
 			</button>
 		</div>
-		<div class="stonetop-follower-readiness-note">held when they Defend; spend to suffer an attack for a ward or draw all attention</div>
+		<div class="stonetop-follower-readiness-note">held when {{#if readinessIsPool}}the crew Defends{{else}}they Defend{{/if}}; spend to suffer an attack for a ward or draw all attention</div>
 		{{/unless}}{{/if}}
 
 		{{!-- Butcher (livestock) --}}
@@ -385,7 +435,7 @@
 		    searchControl=true
 		    searchTitle=(localize "stonetop.character.followers.searchLabel")
 		    searchPlaceholder=(localize "stonetop.character.followers.searchPlaceholder")}}
-		{{> "stonetop.details-section-edit-toggle" section="followers" editing=stonetop.followersEdit}}
+		{{> "stonetop.details-section-edit-toggle" section="followers" editing=stonetop.followersEdit collapse="followers"}}
 	</div>
 
 	{{!-- Follower cards and the shared reference cards ("Animal Companion Moves",
@@ -395,7 +445,7 @@
 	{{!-- ── Animal Companion (Ranger) ──────────────────────────── --}}
 	{{#if stonetop.followers.animalCompanion}}
 	{{#with stonetop.followers.animalCompanion}}
-	<div class="stonetop-follower-card">
+	<div class="stonetop-follower-card" draggable="true" data-ftype="{{ftype}}" data-slug="{{slug}}">
 		{{> stonetopFollowerCardBody}}
 	</div>
 	{{/with}}
@@ -404,10 +454,13 @@
 	{{!-- ── Crew (Marshal) ────────────────────────────────────── --}}
 	{{#if stonetop.followers.crew}}
 	{{#with stonetop.followers.crew}}
-	<div class="stonetop-follower-card stonetop-follower-card--crew">
+	<div class="stonetop-follower-card stonetop-follower-card--crew" draggable="true" data-ftype="{{ftype}}" data-slug="{{slug}}">
 		{{> stonetopFollowerCardBody}}
 
-		{{!-- Inventory --}}
+		{{!-- Inventory. The pips here (and the Supplies pips below) are deliberately NOT
+		      under the card's pencil: what the crew is carrying and how much of their
+		      Supplies is left changes constantly in play, so they stay live whenever the
+		      sheet is editable — same as a follower's own gear ticks. --}}
 		{{#if gear.length}}
 		<details class="stonetop-follower-section stonetop-crew-collapsible" data-section="inventory" {{#if sectionsOpen.inventory}}open{{/if}}>
 			<summary class="stonetop-follower-section-heading stonetop-follower-section-summary">Inventory <span class="stonetop-follower-section-subtitle">3 ✓ or fewer is a light load; 4–6 ✓ is a normal load; 7–9 ✓ is a heavy load.</span></summary>
@@ -418,7 +471,7 @@
 						{{#each pips}}<input type="checkbox"
 						       class="stonetop-crew-gear-check stonetop-crew-pip"
 						       data-slug="{{../slug}}" data-pip="{{index}}" data-weight="{{../weight}}"
-						       {{#if filled}}checked{{/if}} {{#unless ../../edit.gear}}disabled{{/unless}}>{{/each}}
+						       {{#if filled}}checked{{/if}}>{{/each}}
 					</span>
 					<span class="stonetop-crew-gear-label">{{{label}}}</span>
 				</label>
@@ -438,7 +491,7 @@
 						{{#each pips}}<input type="checkbox"
 						       class="stonetop-crew-supplies-pip stonetop-crew-pip"
 						       data-set="{{setIndex}}" data-pip="{{pipIndex}}"
-						       {{#if filled}}checked{{/if}} {{#unless ../../edit.gear}}disabled{{/unless}}>{{/each}}
+						       {{#if filled}}checked{{/if}}>{{/each}}
 					</div>
 					{{/each}}
 				</div>
@@ -580,20 +633,8 @@
 					<span class="stonetop-group-fight-dmg-label">{{damageRoll}}</span>
 				</span>
 			</div>
-			<div class="stonetop-group-fight-readiness-row">
-				<span class="stonetop-group-fight-readiness-label">Readiness</span>
-				<div class="stonetop-readiness-pips" data-tooltip="Crew ordered to Defend, 7+ (p.473) — common pool. 7–9: hold 1{{#if readinessHasShield}} ({{#if readinessShieldWall}}3 with Shield Wall{{else}}2 with shields{{/if}}){{/if}}. 10+: hold 3{{#if readinessHasShield}} ({{#if readinessShieldWall}}5 with Shield Wall{{else}}4 with shields{{/if}}){{/if}}. Click a circle to set how much they hold." data-tooltip-direction="UP">
-					{{#each readinessPips}}
-					<button type="button" class="stonetop-readiness-pip{{#if filled}} is-filled{{/if}}" data-ftype="crew" data-slug="" data-index="{{index}}" title="Set Readiness"></button>
-					{{/each}}
-				</div>
-				<button type="button" class="stonetop-spend-readiness stonetop-inline-btn"
-				        data-ftype="crew" data-slug="" data-follower-name="{{#if name}}{{name}}{{else}}Crew{{/if}}"
-				        {{#unless readinessValue}}disabled data-tooltip="No Readiness to spend." data-tooltip-direction="UP"{{else}}data-tooltip="Spend 1 Readiness (suffer an attack for a ward or draw all attention)." data-tooltip-direction="UP"{{/unless}}>
-					<i class="fas fa-shield"></i> Spend
-				</button>
-				<span class="stonetop-group-fight-readiness-note">held when the crew Defends; spend to suffer an attack for a ward or draw all attention</span>
-			</div>
+			{{!-- Readiness is NOT here: the crew's common pool sits under Loyalty in the
+			      card body, where every other follower keeps theirs. --}}
 			<div class="stonetop-group-fight-outnumber-row">
 				<span class="stonetop-group-fight-outnumber-label">Outnumber:</span>
 				<input class="stonetop-outnumber-yours" type="number" min="1"
@@ -620,7 +661,7 @@
 	{{!-- ── Initiates of Danu (Blessed) ───────────────────────── --}}
 	{{#if stonetop.followers.initiates.length}}
 	{{#each stonetop.followers.initiates}}
-	<div class="stonetop-follower-card stonetop-follower-card--initiate">
+	<div class="stonetop-follower-card stonetop-follower-card--initiate" draggable="true" data-ftype="{{ftype}}" data-slug="{{slug}}">
 		{{> stonetopFollowerCardBody}}
 	</div>
 	{{/each}}
@@ -628,7 +669,7 @@
 
 	{{!-- ── Livestock & Beasts (added via the inventory's special items) ── --}}
 	{{#each stonetop.followers.beasts}}
-	<div class="stonetop-follower-card stonetop-follower-card--beast{{#unless isFollower}} stonetop-follower-card--livestock{{/unless}}">
+	<div class="stonetop-follower-card stonetop-follower-card--beast{{#unless isFollower}} stonetop-follower-card--livestock{{/unless}}" draggable="true" data-ftype="{{ftype}}" data-slug="{{slug}}">
 		{{> stonetopFollowerCardBody}}
 	</div>
 	{{/each}}
@@ -637,7 +678,7 @@
 	      monster). Same card body as the others; a Remove button appears with the
 	      card's edit pencil since these are wholly player-made. ── --}}
 	{{#each stonetop.followers.custom}}
-	<div class="stonetop-follower-card stonetop-follower-card--custom{{#if isGroup}} stonetop-follower-card--crew{{/if}}{{#if dead}} is-dead{{/if}}">
+	<div class="stonetop-follower-card stonetop-follower-card--custom{{#if isGroup}} stonetop-follower-card--crew{{/if}}{{#if dead}} is-dead{{/if}}" draggable="true" data-ftype="{{ftype}}" data-slug="{{slug}}">
 		{{> stonetopFollowerCardBody}}
 
 		{{!-- ── Group follower: roster + group-fight tools (p.470). Only rendered
@@ -799,7 +840,7 @@
 		<div class="stonetop-follower-rules-header">
 			<h3 class="stonetop-follower-rules-title">Animal Companion Moves</h3>
 			<button type="button" class="stonetop-follower-rules-toggle" aria-expanded="false" title="Expand or collapse all moves">
-				<i class="fas fa-chevron-down"></i>
+				<i class="fas fa-chevron-up"></i>
 			</button>
 		</div>
 		<div class="stonetop-follower-section stonetop-follower-rules">
@@ -818,7 +859,7 @@
 		<div class="stonetop-follower-rules-header">
 			<h3 class="stonetop-follower-rules-title">Follower Special Moves</h3>
 			<button type="button" class="stonetop-follower-rules-toggle" aria-expanded="false" title="Expand or collapse all moves">
-				<i class="fas fa-chevron-down"></i>
+				<i class="fas fa-chevron-up"></i>
 			</button>
 		</div>
 		<div class="stonetop-follower-section stonetop-follower-rules">

@@ -21,7 +21,13 @@ function app() {
 	const a = Object.create(MigrationAssistant.prototype);
 	Object.assign(a, {
 		_migrationState: "ready", _gate: null, _preview: null, _targets: null,
-		_progress: null, _error: null, _prepared: null, _hosted: false, _progressRenderedAt: 0
+		_progress: null, _error: null, _prepared: null, _hosted: false,
+		// Object.create skips StonetopDialog's constructor, so the renderThrottled bookkeeping
+		// it would have installed has to be seeded here or the fixture stops modelling the
+		// class. Not `_progressRenderedAt`: the assistant's own throttle was dropped in favour
+		// of the base class's, and a fixture still carrying the dead field reads as coverage
+		// of a code path that no longer exists.
+		_throttledRenderAt: 0, _throttledRenderTimer: null
 	});
 	a.render = vi.fn().mockResolvedValue(undefined);
 	return a;

@@ -52,22 +52,39 @@ describe("rewriteCoreSettings", () => {
 });
 
 describe("scanResiduals", () => {
-	it("totals leftovers and names the worst offenders", () => {
+	it("totals leftovers and names the worst offenders", async () => {
 		const targets = [
 			target("Journals", [{ text: `systems/${OLD}/a.webp systems/${OLD}/b.webp` }]),
 			target("Actors", [{ img: `Compendium.${OLD}.stonetop-items.Item.x` }]),
 			target("Clean", [{ img: `systems/${SYSTEM}/a.webp` }])
 		];
-		const result = scanResiduals(targets, { systemIds: [SYSTEM, OLD], systemId: SYSTEM });
+		const result = await scanResiduals(targets, { systemIds: [SYSTEM, OLD], systemId: SYSTEM });
 
 		expect(result.total).toBe(3);
 		expect(result.worst[0]).toEqual({ label: "Journals", count: 2 });
 		expect(result.worst.map(w => w.label)).not.toContain("Clean");
 	});
 
-	it("is zero for a fully swept world", () => {
+	it("is zero for a fully swept world", async () => {
 		const targets = [target("Actors", [{ img: `systems/${SYSTEM}/a.webp` }])];
-		expect(scanResiduals(targets, { systemIds: [SYSTEM, OLD], systemId: SYSTEM })).toEqual({ total: 0, worst: [] });
+		await expect(scanResiduals(targets, { systemIds: [SYSTEM, OLD], systemId: SYSTEM }))
+			.resolves.toEqual({ total: 0, worst: [] });
+	});
+
+	// The bar has to cross every target, not just the ones that turn out to be dirty: a clean
+	// world does the same full walk and would otherwise show nothing at all.
+	it("reports a fraction for every target, clean ones included", async () => {
+		const targets = [
+			target("Journals", [{ text: `systems/${OLD}/a.webp` }]),
+			target("Clean", [{ img: `systems/${SYSTEM}/a.webp` }])
+		];
+		const seen = [];
+		await scanResiduals(targets, { systemIds: [SYSTEM, OLD], systemId: SYSTEM, onProgress: p => seen.push(p) });
+
+		expect(seen).toEqual([
+			{ fraction: 0.5, detail: "Journals" },
+			{ fraction: 1, detail: "Clean" }
+		]);
 	});
 });
 

@@ -1,0 +1,39 @@
+<div class="stonetop-world-setup">
+
+	<p class="stonetop-world-setup-lead">
+		{{#if complete}}
+			{{summary}}
+		{{else}}
+			Stonetop is filling your new world with its journals, monsters and treasures.
+			This only happens once. You can carry on while it finishes.
+		{{/if}}
+	</p>
+
+	<div class="stonetop-world-setup-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{percent}}">
+		<div class="stonetop-world-setup-fill" style="width: {{percent}}%"></div>
+		<span class="stonetop-world-setup-percent">{{percent}}%</span>
+	</div>
+
+	<ul class="stonetop-world-setup-steps">
+		{{#each steps}}
+			<li class="stonetop-world-setup-step is-{{this.state}}">
+				<i class="fas {{this.stateIcon}} stonetop-world-setup-step-icon"></i>
+				<span class="stonetop-world-setup-step-body">
+					<span class="stonetop-world-setup-step-label">{{this.label}}</span>
+					{{#if this.detail}}<span class="stonetop-world-setup-step-detail">{{this.detail}}</span>{{/if}}
+				</span>
+			</li>
+		{{/each}}
+	</ul>
+
+	<div class="stonetop-world-setup-actions">
+		<button type="button" data-action="hide">
+			{{#if complete}}
+				<i class="fas fa-check"></i> <span>Close</span>
+			{{else}}
+				<i class="fas fa-arrow-right-to-bracket"></i> <span>Continue in the background</span>
+			{{/if}}
+		</button>
+	</div>
+
+</div>

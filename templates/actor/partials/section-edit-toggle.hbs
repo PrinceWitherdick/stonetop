@@ -4,7 +4,13 @@
       section id) and `editing` (that section's effective edit state). Shown only
       when the sheet is editable and the global edit wrench is OFF (when it's on,
       every section is already editable). The `recentlyEdited` faded branch is a
-      no-op for callers that don't populate `stonetop.recentlyEdited`. --}}
+      no-op for callers that don't populate `stonetop.recentlyEdited`.
+
+      A caller that also wants the fold caret passes `collapse` — the id to
+      remember the fold under. It is deliberately its own id, not `section`: two
+      move groups share the edit section "moves" but fold independently. Opt-in,
+      so a section with nothing worth hiding (or its own collapse already, like
+      the Arcana headings) simply omits it. --}}
 {{#if stonetop.canEdit}}
 {{#unless stonetop.editMode}}
 {{#if editing}}
@@ -20,3 +26,10 @@
 {{/if}}
 {{/unless}}
 {{/if}}
+{{!-- The caret sits to the RIGHT of the pencil (both float in the section's
+      top-right corner) and reveals on the same hover. Outside the canEdit /
+      editMode gates above: folding a section is a reading preference, so it is
+      there for a player looking at someone else's sheet too. The open/shut
+      state and the `stonetop-section-collapsed` class on the wrapper are
+      applied by _wireSectionCollapse, not here. --}}
+{{#if collapse}}{{> "stonetop.section-collapse" collapse=collapse}}{{/if}}

@@ -251,6 +251,20 @@ describe("StonetopCharacter.buildSnapshot — playbook display fields", () => {
 		expect(data.movelist.otherMoves[0].name).toBe("Custom Move");
 	});
 
+	it("orders otherMoves learned-first, then by name", async () => {
+		const other = (id, name, learned = true) => ({
+			_id: id, type: "move", name,
+			system: { moveType: "other", rollType: null },
+			flags: { "stonetop_pwd": { custom: true, ...(learned ? {} : { learned: false }) } },
+		});
+		// Creation order deliberately fights both sort keys.
+		const actor = new FakeActorBuilder()
+			.withItems([other("m1", "Zeal"), other("m2", "Dirge", false), other("m3", "Anthem")])
+			.build();
+		const data = await new TestCharacterBuilder(actor).build().buildSnapshot();
+		expect(data.movelist.otherMoves.map(m => m.name)).toEqual(["Anthem", "Zeal", "Dirge"]);
+	});
+
 	it("returns playbook object when playbook present", async () => {
 		const actor = new FakeActorBuilder().withPlaybook("the-blessed", "The Blessed").build();
 		const char = new TestCharacterBuilder(actor).addPlaybook(BLESSED_PLAYBOOK).build();
@@ -867,7 +881,7 @@ describe("StonetopCharacter.getMoves otherMoves", () => {
 	});
 
 	it("marks player-authored moves (flags.stonetop_pwd.custom) with custom: true", async () => {
-		const move = { _id: "m6", type: "move", name: "Homebrew", system: { moveType: "other", rollType: null }, flags: { stonetop_pwd: { custom: true } } };
+		const move = { _id: "m6", type: "move", name: "Homebrew", system: { moveType: "other", rollType: null }, flags: { "stonetop_pwd": { custom: true } } };
 		const char = new TestCharacterBuilder(new FakeActorBuilder().withItems([move]).build()).build();
 		const result = await char.getMoves();
 		expect(result.otherMoves[0].custom).toBe(true);

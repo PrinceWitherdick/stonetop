@@ -29,11 +29,43 @@ const NOTE_TINT = "#ffffff";
 const NOTES_CONTROL = "notes";
 const SELECT_TOOL = "select";
 
-// Map a place letter to its lettered-disc icon; anything outside A–R (there are only
-// 18 places) falls back to a generic book icon rather than a broken image.
-function _iconFor(letter) {
+/**
+ * Map a place letter to its lettered-disc icon; anything outside A–R (there are only
+ * 18 places) falls back to a generic book icon rather than a broken image.
+ */
+export function landmarkIcon(letter) {
 	const l = String(letter ?? "").trim().toLowerCase();
 	return /^[a-r]$/.test(l) ? `${_ICON_DIR}/landmark-${l}.svg` : _FALLBACK_ICON;
+}
+
+/**
+ * The Note payload for one lettered landmark pin, at scene coordinates `x`/`y`.
+ *
+ * The single writer of this shape. Two things place these pins — a GM dragging a Place of
+ * Interest onto the canvas, and the poster-map Scene builder laying out the village map's
+ * lettered places — and a pin from one must be indistinguishable from a pin from the other,
+ * both to the eye and to StonetopNoteLabels, which recognises ours by the icon path. Callers
+ * merge in their own `flags`.
+ */
+export function landmarkNoteData({ x, y, letter, name }) {
+	return {
+		x, y,
+		entryId: null,
+		pageId: null,
+		texture: {
+			src: landmarkIcon(letter),
+			anchorX: 0.5,
+			anchorY: 0.5,
+			fit: "contain",
+			tint: NOTE_TINT,
+		},
+		iconSize: NOTE_ICON_SIZE,
+		text: String(name ?? "").trim(),
+		fontSize: NOTE_FONT_SIZE,
+		textAnchor: CONST.TEXT_ANCHOR_POINTS?.BOTTOM ?? 1,
+		textColor: NOTE_TEXT_COLOR,
+		global: false,
+	};
 }
 
 // dropCanvasData hook: claim only our place-of-interest payload and leave every other
@@ -68,25 +100,7 @@ async function _createPlaceNote(canvas, data) {
 	}
 
 	const name = String(data.name ?? "").trim();
-	const noteData = {
-		x: data.x,
-		y: data.y,
-		entryId: null,
-		pageId: null,
-		texture: {
-			src: _iconFor(data.letter),
-			anchorX: 0.5,
-			anchorY: 0.5,
-			fit: "contain",
-			tint: NOTE_TINT,
-		},
-		iconSize: NOTE_ICON_SIZE,
-		text: name,
-		fontSize: NOTE_FONT_SIZE,
-		textAnchor: CONST.TEXT_ANCHOR_POINTS?.BOTTOM ?? 1,
-		textColor: NOTE_TEXT_COLOR,
-		global: false,
-	};
+	const noteData = landmarkNoteData({ x: data.x, y: data.y, letter: data.letter, name });
 
 	try {
 		await scene.createEmbeddedDocuments("Note", [noteData]);

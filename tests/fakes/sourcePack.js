@@ -70,6 +70,14 @@ export function movesByPlaybook(docs = loadPlaybookMoveDocs()) {
 	return map;
 }
 
+// Playbook Item source docs from packs/src. Unlike data/playbooks.json (which the
+// export step strips down), these keep the full `flags.stonetop` block — including the
+// starting-moves note and the "either X OR Y" choice groups.
+export function loadPlaybookPackDocs() {
+	return walkJson(path.join(ROOT, "packs", "src", "stonetop-items", "playbooks"))
+		.filter(doc => doc?.type === "playbook");
+}
+
 // Cleaned playbook defs from data/playbooks.json (has backgrounds + invocations).
 export function loadPlaybookDefs() {
 	const arr = JSON.parse(fs.readFileSync(path.join(ROOT, "data", "playbooks.json"), "utf8"));

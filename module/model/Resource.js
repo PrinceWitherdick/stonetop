@@ -21,11 +21,18 @@ export class ResourceDef {
 		this.max     = data.max     ?? null;
 		this.maxStat = data.maxStat ?? null;
 		this.title   = data.title   ?? null;
-		this.labels  = data.labels  ?? [];
+		// The two LIST fields are coerced, not merely defaulted. Every construction site feeds
+		// this hand-authored `system.resource` data — a pack move, an arcanum, a foreign
+		// playbook move that landed in Other Moves and had its resource preserved verbatim —
+		// so a string where an array belongs is a shape this constructor genuinely receives.
+		// It matters more here than at the call sites because a throw inside it takes the whole
+		// sheet down with it: this runs during buildSnapshot, so `spendOptions.join` on a string
+		// is not a missing tooltip, it is an actor sheet that will not render at all.
+		this.labels       = Array.isArray(data.labels)       ? data.labels       : [];
 		// Optional "spend 1 to…" menu for hold tracks (e.g. Nerve, Command). Surfaced
 		// as a tooltip on the track's title so the spendable options are visible
 		// without re-reading the move's full description.
-		this.spendOptions = data.spendOptions ?? [];
+		this.spendOptions = Array.isArray(data.spendOptions) ? data.spendOptions : [];
 		this.spendTooltip = this.spendOptions.length
 			? "Spend 1 to:<br>• " + this.spendOptions.join("<br>• ")
 			: null;

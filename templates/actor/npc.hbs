@@ -3,12 +3,30 @@
 
 		<header class="sheet-header stonetop-sheet-header stonetop-npc-header{{#unless stonetop.editMode}}{{#unless stonetop.hasPortrait}} stonetop-npc-header--no-portrait{{/unless}}{{/unless}}{{#if stonetop.isInactive}} stonetop-npc-header--inactive{{/if}}">
 			{{#if stonetop.editMode}}
-			<img class="stonetop-portrait" src="{{actor.img}}" data-edit="img"
-			     title="{{actor.name}}" alt="{{actor.name}}">
+			{{!-- Edit mode is where a custom image gets chosen (data-edit hands off to Foundry's
+			      own file picker), so the framer has to be reachable from here too — otherwise
+			      the one moment you most want it is the one moment it is missing. In play mode
+			      it lives on the portrait's popout instead. --}}
+			<div class="stonetop-npc-portrait-edit">
+				{{!-- The clipping box wears .stonetop-portrait (the placeholder span already
+				      did), so the popout wiring and the broken-art guard still find it by that
+				      class. data-edit stays on the IMG: Foundry's file picker reads the path off
+				      the document, not off this src, so the framed view here is only a view. --}}
+				<span class="stonetop-portrait stonetop-npc-portrait stonetop-portrait-box" title="{{actor.name}}">
+					<img class="stonetop-npc-portrait-img" src="{{stonetop.editImg}}" data-edit="img"
+					     alt="{{actor.name}}"{{#if stonetop.displayImgStyle}} style="{{stonetop.displayImgStyle}}"{{/if}}>
+				</span>
+				{{#if stonetop.hasPortrait}}
+				<button type="button" class="stonetop-frame-portrait-btn"
+				        data-tooltip="Frame Face" aria-label="Frame Face"><i class="fas fa-crop-simple"></i> Frame Face</button>
+				{{/if}}
+			</div>
 			{{else}}
 			{{#if stonetop.hasPortrait}}
-			<img class="stonetop-portrait" src="{{stonetop.displayImg}}"
-			     title="{{actor.name}}" alt="{{actor.name}}">
+			<span class="stonetop-portrait stonetop-npc-portrait stonetop-portrait-box" title="{{actor.name}}">
+				<img class="stonetop-npc-portrait-img" src="{{stonetop.displayImg}}"
+				     alt="{{actor.name}}"{{#if stonetop.displayImgStyle}} style="{{stonetop.displayImgStyle}}"{{/if}}>
+			</span>
 			{{else}}
 			<span class="stonetop-portrait stonetop-npc-portrait-placeholder" title="{{actor.name}}">
 				<i class="fas fa-user"></i>
@@ -102,12 +120,15 @@
 			<div class="stonetop-npc-stat-block">
 
 				{{!-- Following — the PC(s) who've recruited this NPC as a follower (derived
-				     from the follower cards that link back here). Click to open their sheet. --}}
+				     from the follower cards that link back here). Click to open their sheet.
+				     Labelled rather than tooltipped: these carry no href, so the label is the
+				     only thing that says they lead anywhere, and they sit inline in a run of
+				     prose where a hover bubble would land on the names beside them. --}}
 				{{#if stonetop.isFollowing}}
 				<section class="stonetop-npc-field stonetop-npc-following">
 					<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.following"}}</strong>
 					<span class="stonetop-npc-prose stonetop-npc-following-list">
-						{{#each stonetop.following}}<a class="stonetop-npc-following-pc" data-pc-id="{{id}}" data-tooltip="Open {{name}}'s sheet"><i class="fas fa-user"></i> {{name}}</a>{{#unless @last}}, {{/unless}}{{/each}}
+						{{#each stonetop.following}}<a class="stonetop-npc-following-pc" data-pc-id="{{id}}" aria-label='{{localize "stonetop.relationships.open" name=name}}'><i class="fas fa-user"></i> {{name}}</a>{{#unless @last}}, {{/unless}}{{/each}}
 					</span>
 				</section>
 				{{/if}}
@@ -250,6 +271,13 @@
 			</section>
 			{{/if}}
 
+			{{!-- Both sections above are conditional, so in play mode this tab can render
+			      empty. Say so, rather than handing the reader a blank panel under the strip
+			      they just landed on. --}}
+			{{#if stonetop.detailsEmpty}}
+			<p class="stonetop-npc-empty stonetop-npc-details-empty">{{localize "stonetop.npc.detailsEmpty"}}</p>
+			{{/if}}
+
 			</div>{{!-- /details tab --}}
 
 			{{!-- STATS — optional combat overlay + GM moves; only when the NPC has stats. --}}
@@ -387,7 +415,8 @@
 			      show/hide box per row, and play mode lists only the ticked ones. --}}
 			<section class="stonetop-npc-field stonetop-npc-field--full stonetop-npc-relationships stonetop-rel-droppable">
 				{{#if stonetop.hasRelationships}}
-				{{> "stonetop.relationships-table" rows=stonetop.relationships resizeKey="npcRelationships"
+				{{> "stonetop.relationships-view" rows=stonetop.relationships lanes=stonetop.rel.lanes
+				    view=stonetop.rel.view resizeKey=stonetop.rel.resizeKey
 				    nameLabel=(localize "stonetop.npc.relPlayer") canRate=stonetop.canRate
 				    canToggle=stonetop.editMode}}
 				{{else}}

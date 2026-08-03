@@ -103,7 +103,7 @@ export class NpcToFollowerDialog extends ConvertToFollowerDialog {
 		}
 		this._captureCommonFields(root);
 		const data = followerFromNpc(
-			{ name: this._npc?.name, system: this._npc?.system, uuid: this._npc?.uuid },
+			{ name: this._npc?.name, system: this._npc?.system, uuid: this._npc?.uuid, img: this._npc?.img },
 			{
 				tags: this._addedTags, cost: this._cost, pronoun: this._pronoun,
 				moves: this._npcMoves(),
