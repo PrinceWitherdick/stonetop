@@ -1,0 +1,214 @@
+import { describe, it, expect } from "vitest";
+import {
+	followerNpcActorData, followerNotesHtml, splitFollowerName, followerMarkerImg,
+	SPROUT_MARKER, FOLLOWER_DRAG_TYPE,
+} from "../../module/data/follower-actor.js";
+
+// The follower → NPC Actor mapping behind dragging a follower card onto the canvas
+// (Book I, NPCs & Followers p.475: a follower is first an NPC).
+
+const CREW = {
+	name: "The Ragged Half-Dozen",
+	typeLabel: "group follower",
+	pronoun: "they",
+	tags: ["group", "loyal", "loyal"],
+	hp: { value: 14, max: 36 },
+	armor: 1,
+	armorSource: "leather",
+	damage: "d8 (close)",
+	damageRoll: "d8",
+	instinct: "To question leadership",
+	moves: ["Hold the line", "  ", "Scatter"],
+	notes: "Hired in Marshedge.",
+	cost: "Coin, payment, treasure",
+	gear: [{ label: "rations", checked: true }, { label: "", checked: false }],
+	isGroup: true,
+};
+
+describe("followerNpcActorData", () => {
+	it("builds an npc with the card's stats in the optional stat block", () => {
+		const data = followerNpcActorData(CREW);
+		expect(data.type).toBe("npc");
+		expect(data.name).toBe("The Ragged Half-Dozen");
+		expect(data.system.hasStats).toBe(true);
+		expect(data.system.attributes.hp).toEqual({ value: 14, max: 36 });
+		expect(data.system.attributes.armor).toEqual({ value: 1, source: "leather" });
+		expect(data.system.attributes.damage).toEqual({ value: "d8 (close)", rollFormula: "d8" });
+		expect(data.system.instinct).toBe("To question leadership");
+		expect(data.system.pronouns).toBe("they");
+		expect(data.system.occupation).toBe("group follower");
+	});
+
+	it("de-duplicates the tag list into the NPC's comma-separated tags", () => {
+		expect(followerNpcActorData(CREW).system.tags).toBe("group, loyal");
+	});
+
+	it("carries the follower's moves across as npcMove items, dropping blank lines", () => {
+		expect(followerNpcActorData(CREW).items).toEqual([
+			{ name: "Hold the line", type: "npcMove" },
+			{ name: "Scatter", type: "npcMove" },
+		]);
+	});
+
+	it("leaves a group follower's token unlinked so each member tracks its own HP", () => {
+		expect(followerNpcActorData(CREW).prototypeToken.actorLink).toBe(false);
+		expect(followerNpcActorData({ ...CREW, isGroup: false }).prototypeToken.actorLink).toBe(true);
+	});
+
+	it("marks the token friendly and names it on hover", () => {
+		const token = followerNpcActorData(CREW).prototypeToken;
+		expect(token.disposition).toBe(1);
+		expect(token.displayName).toBe(30);
+		expect(token.name).toBe("The Ragged Half-Dozen");
+	});
+
+	it("gives a portrait-less follower their card's own mark, not Foundry's mystery man", () => {
+		const data = followerNpcActorData({ ...CREW, img: "", portraitIcon: "fas fa-users" });
+		expect(data.img).toBe("systems/stonetop_pwd/assets/icons/bestiary/human-group.svg");
+		expect(data.prototypeToken.texture).toEqual({ src: data.img });
+	});
+
+	it("treats a stock Foundry placeholder as no portrait at all", () => {
+		const data = followerNpcActorData({ ...CREW, img: "icons/svg/mystery-man.svg", portraitIcon: "fas fa-paw" });
+		expect(data.img).toBe("systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg");
+	});
+
+	it("dresses the token in the follower's portrait when the card has one", () => {
+		const data = followerNpcActorData({ ...CREW, img: "worlds/art/hafr.webp" });
+		expect(data.img).toBe("worlds/art/hafr.webp");
+		expect(data.prototypeToken.texture).toEqual({ src: "worlds/art/hafr.webp" });
+	});
+
+	it("falls back to a generic name and full HP when the card gives neither", () => {
+		const data = followerNpcActorData({ hp: { max: 6 } });
+		expect(data.name).toBe("Follower");
+		expect(data.prototypeToken.name).toBe("Follower");
+		expect(data.system.attributes.hp).toEqual({ value: 6, max: 6 });
+	});
+
+	it("clamps current HP to the max and floors it at zero", () => {
+		expect(followerNpcActorData({ hp: { value: 99, max: 6 } }).system.attributes.hp.value).toBe(6);
+		expect(followerNpcActorData({ hp: { value: -4, max: 6 } }).system.attributes.hp.value).toBe(0);
+	});
+
+	it("reads a book-format armor string down to its number", () => {
+		expect(followerNpcActorData({ armor: "2 (0 vs. iron)" }).system.attributes.armor.value).toBe(2);
+		expect(followerNpcActorData({ armor: "—" }).system.attributes.armor.value).toBe(0);
+	});
+
+	it("records where it came from and files it in the given folder", () => {
+		const origin = { characterUuid: "Actor.abc", ftype: "crew", slug: "" };
+		const data = followerNpcActorData(CREW, { folder: "folder1", origin });
+		expect(data.folder).toBe("folder1");
+		expect(data.flags["stonetop_pwd"].followerOrigin).toEqual(origin);
+	});
+});
+
+describe("followerNotesHtml", () => {
+	it("keeps the cost, the gear and the card's own notes", () => {
+		const html = followerNotesHtml(CREW);
+		expect(html).toBe("<p><strong>Cost:</strong> Coin, payment, treasure</p>"
+			+ "<p><strong>Gear:</strong> rations</p>"
+			+ "<p>Hired in Marshedge.</p>");
+	});
+
+	it("lists only the gear they've actually ticked", () => {
+		const html = followerNotesHtml({ gear: [
+			{ label: "shield", checked: true },
+			{ label: "warhorse", checked: false },
+		] });
+		expect(html).toBe("<p><strong>Gear:</strong> shield</p>");
+	});
+
+	it("strips the rulebook's markup out of a crew's inventory labels", () => {
+		const html = followerNotesHtml({ gear: [
+			{ label: "<strong>Hatchet</strong>, iron (<em>hand, thrown</em>)", checked: true },
+		] });
+		expect(html).toBe("<p><strong>Gear:</strong> Hatchet, iron (hand, thrown)</p>");
+	});
+
+	it("is empty when the card carries none of the three", () => {
+		expect(followerNotesHtml({})).toBe("");
+	});
+
+	it("escapes what it writes", () => {
+		expect(followerNotesHtml({ notes: "<script>x</script>" }))
+			.toBe("<p>&lt;script&gt;x&lt;/script&gt;</p>");
+	});
+});
+
+describe("followerMarkerImg", () => {
+	const mark = t => `systems/stonetop_pwd/assets/icons/bestiary/${t}.svg`;
+
+	it("gives an initiate of Danu the sprout", () => {
+		expect(followerMarkerImg("fas fa-seedling")).toBe(SPROUT_MARKER);
+		expect(SPROUT_MARKER).toBe("systems/stonetop_pwd/assets/icons/followers/sprout.svg");
+	});
+
+	it("maps the taxonomy's own glyphs straight back to their marks", () => {
+		expect(followerMarkerImg("fas fa-paw")).toBe(mark("natural-beast"));
+		expect(followerMarkerImg("fas fa-users")).toBe(mark("human-group"));
+		expect(followerMarkerImg("fas fa-user")).toBe(mark("human-individual"));
+		expect(followerMarkerImg("fas fa-ghost")).toBe(mark("spirit"));
+	});
+
+	it("reads the animals the follower cards use but the taxonomy doesn't", () => {
+		expect(followerMarkerImg("fas fa-dog")).toBe(mark("natural-beast"));
+		expect(followerMarkerImg("fas fa-wheat-awn")).toBe(mark("natural-beast"));
+	});
+
+	it("sends the generic monster glyph to the unknown-origin mark", () => {
+		expect(followerMarkerImg("fas fa-dragon")).toBe(mark("unknown-origin"));
+	});
+
+	it("stands an unrecognised or missing glyph in as a person", () => {
+		expect(followerMarkerImg("fas fa-flux-capacitor")).toBe(mark("human-individual"));
+		expect(followerMarkerImg("")).toBe(mark("human-individual"));
+		expect(followerMarkerImg(undefined)).toBe(mark("human-individual"));
+	});
+
+	it("is not fooled by Font Awesome's style and utility classes", () => {
+		expect(followerMarkerImg("fa-solid fa-fw fa-paw")).toBe(mark("natural-beast"));
+	});
+});
+
+describe("splitFollowerName", () => {
+	it("lifts an initiate's epithet off their name", () => {
+		expect(splitFollowerName("Enfys, your acolyte, beloved by birds"))
+			.toEqual({ name: "Enfys", traits: "your acolyte, beloved by birds" });
+	});
+
+	it("leaves a plain name whole", () => {
+		expect(splitFollowerName("Bess the Verifier")).toEqual({ name: "Bess the Verifier", traits: "" });
+	});
+
+	it("keeps a name that opens with a comma rather than yielding an empty one", () => {
+		expect(splitFollowerName(", the nameless one"))
+			.toEqual({ name: ", the nameless one", traits: "" });
+	});
+
+	it("handles a blank name", () => {
+		expect(splitFollowerName(undefined)).toEqual({ name: "", traits: "" });
+	});
+});
+
+describe("the epithet an Actor gets built with", () => {
+	it("names the actor and its token for the person, not the whole heading", () => {
+		const data = followerNpcActorData({ ...CREW, name: "Enfys, your acolyte, beloved by birds" });
+		expect(data.name).toBe("Enfys");
+		expect(data.prototypeToken.name).toBe("Enfys");
+		expect(data.system.traits).toBe("your acolyte, beloved by birds");
+		// The type line still reads as their lot in life, untouched by the split.
+		expect(data.system.occupation).toBe("group follower");
+	});
+
+	it("leaves traits empty for a follower whose name carries no epithet", () => {
+		expect(followerNpcActorData(CREW).system.traits).toBe("");
+	});
+});
+
+describe("FOLLOWER_DRAG_TYPE", () => {
+	it("is the payload type the canvas drop hook claims", () => {
+		expect(FOLLOWER_DRAG_TYPE).toBe("StonetopFollower");
+	});
+});

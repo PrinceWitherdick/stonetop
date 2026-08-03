@@ -22,7 +22,7 @@ export const STEADING_IMPROVEMENT_DRAG_TYPE = "StonetopSteadingImprovement";
  * in-app, so a dropped homebrew card lands as an identical custom improvement. User
  * input is plain text, so it's HTML-escaped (the built-ins ship light markdown that
  * the generator processes; here there's none to process).
- * @param {{name:string, flavor?:string, effect?:string, sections?:Array<{heading?:string, items?:string[]}>}} def
+ * @param {{name:string, flavor?:string, effect?:string, category?:string, sections?:Array<{heading?:string, items?:string[]}>}} def
  */
 export function renderImprovementCardHtml(def) {
 	const name = escHtml(def?.name ?? "");
@@ -35,7 +35,10 @@ export function renderImprovementCardHtml(def) {
 
 	// Payload mirrors the built-in IMPROVEMENT_DEFINITIONS shape (items are HTML
 	// strings); double-escaped for the double-quoted attribute, decoded on read.
-	const payload = { name: def?.name ?? "", flavor, effect, sections };
+	// `category` rides along so a dropped card lands under the right filter chip on the
+	// steading sheet; the build-time gazetteer emits no category, and those cards stay
+	// uncategorised (and so unfiltered). Validated by StonetopSteading.addCustomImprovement.
+	const payload = { name: def?.name ?? "", category: def?.category ?? "", flavor, effect, sections };
 	const dataAttr = escHtml(JSON.stringify(payload));
 
 	const body = [];

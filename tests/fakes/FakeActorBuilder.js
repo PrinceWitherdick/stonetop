@@ -78,7 +78,7 @@ export class FakeActorBuilder {
 			_setProperty(scopedFlags, key, value);
 		}
 		if (this._pbtaRollMode !== null) scopedFlags.rollMode = this._pbtaRollMode;
-		const flagStore = {stonetop_pwd: scopedFlags, stonetop: scopedFlags};
+		const flagStore = {"stonetop_pwd": scopedFlags, stonetop: scopedFlags};
 
 		const actor = {
 			name: this._name,

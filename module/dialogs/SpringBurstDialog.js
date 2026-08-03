@@ -3,7 +3,7 @@ import { openOrFocus } from "../utils/open-or-focus.js";
 import { postSeasonsRollPrompt, SPRING_SEASONS_RESULT } from "../utils/roll-engine.js";
 import { escHtml } from "../utils/strings.js";
 import { getPlayerCharacters } from "../utils/playbook-actors.js";
-import { setSetting } from "../settings.js";
+import { setWorldSetting } from "../settings.js";
 import { postSeasonsChangeReminder } from "../seasons/seasons-change-reminders.js";
 import { recordSeasonsChange } from "../seasons/seasons-chronicle.js";
 import { getWalkthroughResume, patchWalkthroughResume, markWalkthroughDone } from "./walkthrough-resume.js";
@@ -246,13 +246,18 @@ export class SpringBurstDialog extends StepperDialog {
 
 	// Persist a ticked/unticked seasonal gain. Stored as a presence map under `gains`
 	// so an unchecked one is dropped rather than left as `false`.
+	//
+	// Written through setWorldSetting: `springBurstAnswers` is WORLD-scoped, and only a GM may
+	// write one. The walkthrough is GM prep (its macro is seeded inside a GM-only block), so
+	// that only ever catches a stray call — but it catches it in one place, for every world
+	// write in the system, rather than here and in _saveAnswer and in markWalkthroughDone.
 	async _saveGain(key, checked) {
 		if (!key) return;
 		const all   = { ...this._answers() };
 		const gains = { ...(all.gains ?? {}) };
 		if (checked) gains[key] = true; else delete gains[key];
 		all.gains = gains;
-		await setSetting(ANSWERS_SETTING, all);
+		await setWorldSetting(ANSWERS_SETTING, all);
 	}
 
 	// Build the current step's Q&A field(s) for the template. `single` is one
@@ -283,7 +288,7 @@ export class SpringBurstDialog extends StepperDialog {
 		} else {
 			all[key] = value;
 		}
-		await setSetting(ANSWERS_SETTING, all);
+		await setWorldSetting(ANSWERS_SETTING, all);
 	}
 
 	// Hand the roll to the table: post a chat card asking the most hopeful character's

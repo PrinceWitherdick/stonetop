@@ -44,6 +44,7 @@
 		{{!-- Regular items (left column) --}}
 		<div class="stonetop-inventory-regular">
 			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.regularItems")
+			    collapse="invRegular"
 			    searchControl=true
 			    searchTitle=(localize "stonetop.inventory.searchLabel")
 			    searchPlaceholder=(localize "stonetop.inventory.searchPlaceholder")}}
@@ -106,7 +107,7 @@
 			      column. Marking one counts toward load. --}}
 			{{#if stonetop.inventory.outfit.arcanaRegular.length}}
 			<hr class="stonetop-inv-separator">
-			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.arcanaItems")}}
+			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.arcanaItems") collapse="invArcanaRegular"}}
 			<hr class="stonetop-inv-separator">
 			{{#each stonetop.inventory.outfit.arcanaRegular}}
 			<div class="stonetop-inv-item{{#if checked}} is-checked{{/if}}">
@@ -131,7 +132,7 @@
 			      heading in the small column. Marking one still counts toward load. --}}
 			{{#if stonetop.inventory.outfit.treasureRegular.length}}
 			<hr class="stonetop-inv-separator">
-			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.treasureItems")}}
+			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.treasureItems") collapse="invTreasureRegular"}}
 			<hr class="stonetop-inv-separator">
 			{{#each stonetop.inventory.outfit.treasureRegular}}
 			{{> "stonetop.inv-item-regular" deletable=true treasure=true}}
@@ -142,6 +143,7 @@
 		{{!-- Small items (right column) --}}
 		<div class="stonetop-inventory-small" data-small-allotment="{{stonetop.inventory.outfit.smallItemLimit}}">
 			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.smallItems")
+			    collapse="invSmall"
 			    searchControl=true
 			    searchTitle=(localize "stonetop.inventory.searchSmallLabel")
 			    searchPlaceholder=(localize "stonetop.inventory.searchSmallPlaceholder")}}
@@ -194,7 +196,7 @@
 			      allowance. --}}
 			{{#if stonetop.inventory.outfit.arcanaSmall.length}}
 			<hr class="stonetop-inv-separator">
-			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.arcanaItems")}}
+			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.arcanaItems") collapse="invArcanaSmall"}}
 			<hr class="stonetop-inv-separator">
 			{{#each stonetop.inventory.outfit.arcanaSmall}}
 			<div class="stonetop-inv-item stonetop-inv-small stonetop-inv-static{{#if checked}} is-checked{{/if}}">
@@ -209,7 +211,7 @@
 			      allowance. --}}
 			{{#if stonetop.inventory.outfit.treasureSmall.length}}
 			<hr class="stonetop-inv-separator">
-			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.treasureItems")}}
+			{{> "stonetop.section-heading" title=(localize "stonetop.inventory.treasureItems") collapse="invTreasureSmall"}}
 			<hr class="stonetop-inv-separator">
 			{{#each stonetop.inventory.outfit.treasureSmall}}
 			{{> "stonetop.inv-item-small" deletable=true treasure=true}}
@@ -230,7 +232,7 @@
 			{{else}}
 			{{> "stonetop.section-heading" title=(localize "stonetop.character.gear.specialPossessions")}}
 			{{/if}}
-			{{> "stonetop.details-section-edit-toggle" section="possessions" editing=stonetop.possessionsEdit}}
+			{{> "stonetop.details-section-edit-toggle" section="possessions" editing=stonetop.possessionsEdit collapse="possessions"}}
 		</div>
 		<ol class="stonetop-possession-list">
 		{{!-- In play mode the list is what you own; the full playbook menu lives behind the

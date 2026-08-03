@@ -28,12 +28,27 @@ export function artEmbed(src, name) {
 }
 
 // New bestiary-page description with the art embed prepended, or null if this src is
-// already embedded. Idempotent on the src path (not the whole embed), so re-running
-// with a different alt never double-adds.
-export function bestiaryDescriptionWithArt(description, src, name) {
-	const desc = description ?? "";
-	if (desc.includes(src)) return null;
-	return artEmbed(src, name) + desc;
+// already embedded and there is nothing stale to clear. Idempotent on the src path (not
+// the whole embed), so re-running with a different alt never double-adds.
+//
+// `retired` names art a PRIOR manifest embedded on this page and this system no longer
+// names: where two creatures turned out to be drawn in one picture, they now share the one
+// FILE, and the loser's path has to come off the page or the same illustration sits on it
+// twice. Keyed on the embed, not on a file, so it still clears after the file is gone. A src
+// that is still wanted is never retired.
+export function bestiaryDescriptionWithArt(description, src, name, retired = []) {
+	const desc = String(description ?? "");
+	const dead = [];
+	for (const r of retired ?? []) if (r && r !== src && !dead.includes(r) && bodyHasSrc(desc, r)) dead.push(r);
+	// `bodyHasSrc`, not a raw substring: "on the page" has to mean the same thing in both halves
+	// of this function. A page can name the path without carrying the picture — a GM's note, an
+	// href, an HTML comment — and a substring check reads that as "already embedded" and blocks
+	// the art from ever being added, while the retired half above would correctly see no image.
+	const has = bodyHasSrc(desc, src);
+	if (has && !dead.length) return null;
+	let next = desc;
+	for (const r of dead) next = stripSrcEmbed(next, r);
+	return has ? next : artEmbed(src, name) + next;
 }
 
 // A minimal top-of-page prose section, used only as a last-resort home for art when a
@@ -57,8 +72,9 @@ const artEmbedRe = () => new RegExp(`<p><img class="${ART_CLASS}"[^>]*></p>`, "g
 // attributes, and can drop our class), so a wrapper-shaped regex would stop recognizing
 // art it had already placed and re-insert a duplicate on the next re-apply (while failing
 // to strip the old copy during relocation). Keying on `src="<path>"` (quote-delimited, so
-// one path is never a prefix of another) stays robust to that, matching how the bestiary
-// path stays idempotent (bestiaryDescriptionWithArt uses a plain src substring check too).
+// one path is never a prefix of another) stays robust to that. Every path through this module
+// asks the question this way — the bestiary page included — so "the page already has this art"
+// means one thing everywhere.
 const imgTagForSrc = (src) => new RegExp(`<img\\b[^>]*\\ssrc="${escapeRegExp(src)}"[^>]*>`, "gi");
 
 // True if `body` already carries an <img> for exactly this src.

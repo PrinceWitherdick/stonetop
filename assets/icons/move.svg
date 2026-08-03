@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="200" height="200" role="img" aria-label="Move">
+	<title>Move</title>
+	<!-- Dark octagon token, identical to assets/icons/treasures/vase.svg so the two fallback
+	     markers read as one set (#141210 / #f0ece3). -->
+	<path d="M158 20 L354 20 L492 158 L492 354 L354 492 L158 492 L20 354 L20 158 Z" fill="#141210"/>
+	<!-- The game-icons.net "move" glyph (four-way arrow), recoloured cream and scaled to 320 of
+	     512 so it clears the octagon's chamfered corners. The octagon's diagonal edges run along
+	     x + y = 178, which leaves a 334-unit centred square as the safe area; 320 sits inside it.
+	     Its own bounds are 34.47..477.53 (443.06 across, already centred on 256), so the scale is
+	     320 / 443.06 = 0.7222 and the offset 256 * (1 - 0.7222) = 71.14 re-centres it. -->
+	<g fill="#f0ece3" transform="translate(71.14 71.14) scale(0.7222)">
+		<path d="m256 34.47-90.51 90.51h67.883v108.393H124.98V165.49L34.47 256l90.51 90.51v-67.883h108.393V387.02H165.49L256 477.53l90.51-90.51h-67.883V278.627H387.02v67.883L477.53 256l-90.51-90.51v67.883H278.627V124.98h67.883L256 34.47z"/>
+	</g>
+</svg>

@@ -1,5 +1,10 @@
 import { FrontOnOpen } from "./front-on-open.js";
 
+// Minimum gap between progress re-renders. A long job reports once per document — a seeded
+// world has several hundred — and each render is a full getData + template + setPosition;
+// without this the job spends its wall clock on layout.
+const PROGRESS_RENDER_MS = 150;
+
 /**
  * Base class for Stonetop's authoring dialogs (custom move, love letter, add inventory
  * item, monster builder, love-letter reader). It centralises the two pieces of lifecycle
@@ -10,7 +15,8 @@ import { FrontOnOpen } from "./front-on-open.js";
  *  • the result-dialog protocol below, for a dialog whose caller awaits its answer.
  *
  * It also offers a tiny form-value reader so each dialog's `_save` stops re-declaring the
- * same `root.querySelector(sel)?.value ?? ""`.
+ * same `root.querySelector(sel)?.value ?? ""`, and the throttled re-render every
+ * long-running progress panel needs (see renderThrottled).
  *
  * Subclasses set their own fields AFTER `super(options)`. When a subclass overrides
  * activateListeners / close / _render to add its own behaviour, it MUST call the matching
@@ -24,6 +30,33 @@ export class StonetopDialog extends Application {
 		// Named _resultResolve, not _resolve: a subclass is free to have a _resolve() METHOD
 		// (CallUpDeepOnesDialog does), which a same-named field here would silently shadow.
 		this._resultResolve = null;
+		// renderThrottled bookkeeping; inert until a subclass calls it.
+		this._throttledRenderAt = 0;
+		this._throttledRenderTimer = null;
+	}
+
+	// Throttled re-render, for a dialog fed by a per-document progress stream. A trailing
+	// timer guarantees the last tick of a burst is drawn, so the panel never freezes one
+	// update short of the truth — the reason this lives here rather than being re-written
+	// per progress dialog, each with its own idea of whether that tick matters.
+
+	/** Re-render at most every PROGRESS_RENDER_MS, with the final tick of a burst guaranteed. */
+	renderThrottled() {
+		const wait = PROGRESS_RENDER_MS - (Date.now() - this._throttledRenderAt);
+		if (wait <= 0) { this.renderNow(); return; }
+		if (this._throttledRenderTimer) return;
+		this._throttledRenderTimer = setTimeout(() => { this._throttledRenderTimer = null; this.renderNow(); }, wait);
+	}
+
+	/** Re-render immediately, cancelling any pending throttled render. Subclasses may extend. */
+	renderNow() {
+		this._throttledRenderAt = Date.now();
+		this._cancelThrottledRender();
+		this.render(false);
+	}
+
+	_cancelThrottledRender() {
+		if (this._throttledRenderTimer) { clearTimeout(this._throttledRenderTimer); this._throttledRenderTimer = null; }
 	}
 
 	// Result-dialog protocol: a caller awaits promise(); the dialog collects input and calls
@@ -36,12 +69,25 @@ export class StonetopDialog extends Application {
 		return new Promise(resolve => { this._resultResolve = resolve; this.render(true); });
 	}
 
-	/** Settle promise() with a result and close. Cleared first so close() won't re-resolve. */
-	_resolveWith(result) {
+	/**
+	 * Settle promise() with a result and close. `_resultResolve` is cleared first so close()'s
+	 * own settle finds nothing and cannot re-resolve to null behind this.
+	 *
+	 * Settles AFTER the close, and in a `finally`, for exactly the reasons close() does: a
+	 * caller queueing a follow-up dialog behind this one gets the floor rather than talking
+	 * over the fade-out, and a close that throws still releases whoever was waiting. The two
+	 * exits from a result dialog then have the same timing — before, the affirmative path
+	 * resolved a beat earlier than Cancel did, which is the kind of difference nothing
+	 * notices until something does.
+	 *
+	 * Async, but no caller awaits it: every call site is an event handler that fires and
+	 * forgets, and the value it settles is delivered through promise().
+	 */
+	async _resolveWith(result) {
 		const resolve = this._resultResolve;
 		this._resultResolve = null;
-		this.close();
-		resolve?.(result);
+		try { await this.close(); }
+		finally { resolve?.(result); }
 	}
 
 	/** Override to true for a content-hugging window that re-fits its height each render. */
@@ -62,9 +108,16 @@ export class StonetopDialog extends Application {
 
 	async close(options = {}) {
 		this._frontOnOpen.stop();
-		// A close without finishing (Cancel, Escape, X) resolves an open promise() to null.
-		if (this._resultResolve) { const resolve = this._resultResolve; this._resultResolve = null; resolve(null); }
-		return super.close(options);
+		this._cancelThrottledRender();
+		try {
+			return await super.close(options);
+		} finally {
+			// A close without finishing (Cancel, Escape, X) resolves an open promise() to null.
+			// Settled in a finally, AFTER super.close() has run: a caller queueing a follow-up
+			// dialog behind this one gets the floor rather than talking over the fade-out, and a
+			// close that throws still releases whoever was waiting.
+			if (this._resultResolve) { const resolve = this._resultResolve; this._resultResolve = null; resolve(null); }
+		}
 	}
 
 	/** Read a form field's value by selector from a root element; "" when the field is absent. */

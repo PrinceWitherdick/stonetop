@@ -14,6 +14,47 @@ export function getDragEventData(ev) {
 }
 
 /**
+ * Does this path point at a video rather than a still image? V13 moved VideoHelper under
+ * `foundry.helpers.media`; fall back to the global, then to the extension list core itself
+ * uses (which also covers a headless test with no Foundry globals at all).
+ * @param {string} path
+ * @returns {boolean}
+ */
+export function hasVideoExtension(path) {
+	const helper = globalThis.foundry?.helpers?.media?.VideoHelper ?? globalThis.VideoHelper;
+	if (typeof helper?.hasVideoExtension === "function") return !!helper.hasVideoExtension(path);
+	return /\.(webm|mp4|m4v|ogv)(\?|#|$)/i.test(String(path));
+}
+
+/**
+ * The configured FilePicker class. V13 moved it under `foundry.applications.apps` and routes
+ * subclassing through `.implementation`; older cores expose the bare global. Returns undefined
+ * in a headless test with no Foundry globals, so callers can guard.
+ * @returns {typeof FilePicker|undefined}
+ */
+export function filePicker() {
+	const moved = globalThis.foundry?.applications?.apps?.FilePicker;
+	return moved?.implementation ?? moved ?? globalThis.FilePicker;
+}
+
+/**
+ * Repoint one key of a rendered Application's `options`. ApplicationV2 hands out a frozen
+ * options object (`this.options = Object.freeze(...)`), so assigning a key through it throws
+ * under strict mode — but the field holding it is a plain writable property, so swap in a
+ * fresh frozen copy. AppV1 windows keep a mutable object and are written in place. Needed
+ * because a re-render reads its state back off `options`, so a change that skips it is lost.
+ * @param {Application} app
+ * @param {string} key
+ * @param {*} value
+ */
+export function setAppOption(app, key, value) {
+	const options = app?.options;
+	if (!options) return;
+	if (Object.isFrozen(options)) app.options = Object.freeze({ ...options, [key]: value });
+	else options[key] = value;
+}
+
+/**
  * Enrich stored HTML for display (resolves `@UUID` links, inline rolls, etc.).
  * V13 moved TextEditor under `foundry.applications.ux`; on older cores (or before
  * it's ready) fall back to the raw value so callers always get a usable string.

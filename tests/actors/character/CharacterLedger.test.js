@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { CharacterLedger, ledgerNoun, ledgerNounCounts } from "../../../module/actors/character/CharacterLedger.js";
+import { CharacterLedger } from "../../../module/actors/character/CharacterLedger.js";
+import { ledgerNoun } from "../../../module/utils/ledger-core.js";
 
 function makeActor(system = {}, flags = {}) {
 	return {
@@ -395,7 +396,7 @@ describe("CharacterLedger", () => {
 	});
 
 	it("records a play-track change to an existing custom follower, but not a detail edit", async () => {
-		const actor = makeActor({}, { stonetop_pwd: { customFollowers: { f1: { name: "Bran", loyalty: 2 } } } });
+		const actor = makeActor({}, { "stonetop_pwd": { customFollowers: { f1: { name: "Bran", loyalty: 2 } } } });
 		// Loyalty (a play track) logs, named by the follower…
 		const play = await CharacterLedger.entriesForActorUpdate(actor, {
 			"flags.stonetop_pwd.customFollowers.f1.loyalty": 1,
@@ -451,23 +452,201 @@ describe("ledgerNoun", () => {
 	});
 });
 
-describe("ledgerNounCounts", () => {
-	it("counts distinct nouns and sorts them alphabetically", () => {
-		const entries = [
-			{ action: "HP changed from 5 to 3" },
-			{ action: "HP changed from 3 to 4" },
-			{ action: "STR set to +1" },
-			{ action: "Ambush learned" },
-		];
-		expect(ledgerNounCounts(entries)).toEqual([
-			{ noun: "Ambush", count: 1 },
-			{ noun: "HP", count: 2 },
-			{ noun: "STR", count: 1 },
+// ── Readability regressions ─────────────────────────────────────────────────
+// Every phrasing asserted below is one a real world's ledger actually produced.
+
+function withSnapshot(actor, snapshot, playbookFlags) {
+	actor.typedActor = { buildSnapshot: async () => snapshot };
+	if (playbookFlags) actor.items = [{ type: "playbook", name: "PB", flags: { "stonetop_pwd": playbookFlags } }];
+	return actor;
+}
+
+describe("CharacterLedger arcana flags", () => {
+	it("names the card gained instead of dumping the whole owned slug list", async () => {
+		const actor = withSnapshot(
+			makeActor({}, { stonetop: { arcana: { owned: ["azure-hand"] } } }),
+			{ arcana: { minor: { items: [{ slug: "the-key", front: { title: "The Key" } }] } } },
+		);
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.arcana.owned": ["azure-hand", "the-key"],
+		});
+		expect(entries.map(e => e.action)).toEqual(["Arcanum gained: Minor Arcana The Key"]);
+	});
+
+	it("distinguishes identifying a card from owning it", async () => {
+		// The owned and identified lists hold the same slugs, so under the old namespace label
+		// both rendered the byte-identical "Arcana changed from a to a, b". They arrive as two
+		// separate updates, so coalesceEntries could not collapse them and the pair read as a
+		// duplicate-write bug.
+		const actor = withSnapshot(
+			makeActor({}, { stonetop: { arcana: { identified: [] } } }),
+			{ arcana: { minor: { items: [{ slug: "the-key", front: { title: "The Key" } }] } } },
+		);
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.arcana.identified": ["the-key"],
+		});
+		expect(entries.map(e => e.action)).toEqual(["Arcanum identified: Minor Arcana The Key"]);
+	});
+
+	it("reports a minor role cleared to null, not just to an empty string", async () => {
+		// `typeof null` is "object", so the whole-object guard used to swallow the clear that
+		// the same field reported when it arrived as "".
+		const actor = withSnapshot(
+			makeActor({}, { stonetop: { arcana: { minorRoles: { lead: "the-key" } } } }),
+			{ arcana: { minor: { items: [{ slug: "the-key", front: { title: "The Key" } }] } } },
+		);
+		for (const cleared of [null, ""]) {
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.arcana.minorRoles.lead": cleared,
+			});
+			expect(entries.map(e => e.action)).toEqual(["Minor arcanum (lead) cleared"]);
+		}
+	});
+
+	it("stays silent for bookkeeping sub-flags", async () => {
+		const actor = makeActor({}, { stonetop: { arcana: { leadBackfilled: false, minorDraw: [] } } });
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.arcana.leadBackfilled": true,
+			"flags.stonetop_pwd.arcana.minorDraw": ["a", "b", "c"],
+		});
+		expect(entries).toEqual([]);
+	});
+});
+
+describe("CharacterLedger lore", () => {
+	it("names the question and answer rather than logging the raw counter", async () => {
+		const actor = withSnapshot(
+			makeActor({}, { stonetop: { lore: { counts: {} } } }),
+			{},
+			{ lore: [{ slug: "earth-mother", title: "The Earth Mother", options: [{ slug: "shrine-loved", description: "<p>Loved and well-used.</p>" }] }] },
+		);
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.lore.counts.earth-mother:shrine-loved": 1,
+		});
+		// Was: "Lore set to 1".
+		expect(entries.map(e => e.action)).toEqual(["Lore — The Earth Mother: Loved and well-used. marked"]);
+	});
+
+	it("previews a written answer instead of pasting the whole paragraph", async () => {
+		const long = "A mirror said to show the dead. ".repeat(20);
+		const actor = withSnapshot(
+			makeActor({}, { stonetop: { lore: { texts: {} } } }),
+			{},
+			{ lore: [{ slug: "relic", title: "Your Relic" }] },
+		);
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.lore.texts.relic:where": "<p>" + long + "</p>",
+		});
+		expect(entries).toHaveLength(1);
+		expect(entries[0].action).toMatch(/^Lore — Your Relic answered: /);
+		expect(entries[0].action).toContain("…");
+		expect(entries[0].action.length).toBeLessThan(120);
+		expect(entries[0].action).not.toContain("<p>");
+	});
+});
+
+describe("CharacterLedger debilities", () => {
+	it("reads as marked/cleared rather than on/off", async () => {
+		const actor = makeActor({ attributes: { debilities: { options: { dazed: { value: false } } } } });
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"system.attributes.debilities.options.dazed.value": true,
+		});
+		expect(entries.map(e => e.action)).toEqual(["Dazed marked"]);
+	});
+});
+
+describe("CharacterLedger possession choices", () => {
+	it("resolves choices nested in subgroups", async () => {
+		// The Sacred pouch's "choose 1 on each line" groups keep their options under
+		// subgroups[].options; only group.options was read, so every such choice missed the
+		// lookup and fell back to its prettified slug, giving the stuttering
+		// "Sacred pouch: Sacred Pouch Origin Heirloom selected".
+		const actor = withSnapshot(
+			makeActor({}, { stonetop: { possessions: { subChoices: { "sacred-pouch": [] } } } }),
+			{ inventory: { possessions: { items: [{
+				slug: "sacred-pouch",
+				label: "Sacred pouch",
+				choiceGroups: [{ heading: "Your sacred pouch is...", subgroups: [
+					{ options: [{ slug: "origin-heirloom", label: "an heirloom made just for you" }] },
+				] }],
+			}] } } },
+		);
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.possessions.subChoices.sacred-pouch": ["origin-heirloom"],
+		});
+		expect(entries.map(e => e.action)).toEqual([
+			"Sacred pouch: an heirloom made just for you selected",
+		]);
+	});
+});
+
+describe("CharacterLedger item batches", () => {
+	it("summarises a bulk move grant instead of one entry per move", () => {
+		// Picking a playbook grants every basic move in one create call — 21 for a Blessed.
+		const moves = ["Aid", "Clash", "Defend", "Defy Danger", "Interfere", "Know Things"]
+			.map(name => ({ type: "move", name, system: {} }));
+		expect(CharacterLedger.entriesForCreatedItems(moves).map(e => e.action)).toEqual([
+			"Moves learned (6): Aid, Clash, Defend, and 3 more",
 		]);
 	});
 
-	it("handles empty input", () => {
-		expect(ledgerNounCounts([])).toEqual([]);
-		expect(ledgerNounCounts(undefined)).toEqual([]);
+	it("keeps the summary's subject stable regardless of batch size", () => {
+		// The count sits after the verb, not at the front, so ledgerNoun derives "Moves" rather
+		// than a new subject ("6 moves", "21 moves") for every batch size the dropdown then lists.
+		const batch = n => CharacterLedger.entriesForCreatedItems(
+			Array.from({ length: n }, (_, i) => ({ type: "move", name: `Move ${i}`, system: {} })),
+		)[0].action;
+		expect(ledgerNoun(batch(6))).toBe("Moves");
+		expect(ledgerNoun(batch(21))).toBe("Moves");
+	});
+
+	it("keeps small batches itemised", () => {
+		const moves = [{ type: "move", name: "Aid", system: {} }, { type: "move", name: "Clash", system: {} }];
+		expect(CharacterLedger.entriesForCreatedItems(moves).map(e => e.action)).toEqual([
+			"Aid learned", "Clash learned",
+		]);
+	});
+
+	it("splits a mixed batch by type so a playbook grant does not swallow the rest", () => {
+		const docs = [
+			...["Aid", "Clash", "Defend", "Defy Danger", "Interfere"].map(name => ({ type: "move", name, system: {} })),
+			{ type: "playbook", name: "The Fox", system: {} },
+		];
+		expect(CharacterLedger.entriesForCreatedItems(docs).map(e => e.action)).toEqual([
+			"Moves learned (5): Aid, Clash, Defend, and 2 more",
+			"Playbook added: The Fox",
+		]);
+	});
+
+	it("files each summarised batch under its own category", () => {
+		const docs = [
+			...["Aid", "Clash", "Defend", "Defy Danger", "Interfere"].map(name => ({ type: "move", name, system: {} })),
+			{ type: "playbook", name: "The Fox", system: {} },
+		];
+		expect(CharacterLedger.entriesForCreatedItems(docs).map(e => e.category)).toEqual(["moves", "character"]);
+	});
+
+	it("only moves are 'learned', and Arcanum pluralises properly", () => {
+		// The batch path used to reuse one verb and bolt an `s` on the singular label, so a
+		// Seeker's opening draw read "Arcanums learned (5)" — neither word right.
+		const cards = Array.from({ length: 5 }, (_, i) =>
+			({ type: "move", name: `Card ${i}`, system: { moveType: "arcanum" } }));
+		expect(CharacterLedger.entriesForCreatedItems(cards)[0].action).toBe(
+			"Arcana added (5): Card 0, Card 1, Card 2, and 2 more",
+		);
+
+		const gear = Array.from({ length: 5 }, (_, i) =>
+			({ type: "move", name: `Thing ${i}`, system: { moveType: "inventory-custom" } }));
+		expect(CharacterLedger.entriesForCreatedItems(gear)[0].action).toBe(
+			"Inventory items added (5): Thing 0, Thing 1, Thing 2, and 2 more",
+		);
+	});
+
+	it("phrases a deleted batch as a loss whatever the type", () => {
+		const cards = Array.from({ length: 5 }, (_, i) =>
+			({ type: "move", name: `Card ${i}`, system: { moveType: "arcanum" } }));
+		expect(CharacterLedger.entriesForDeletedItems(cards)[0].action).toBe(
+			"Arcana removed (5): Card 0, Card 1, Card 2, and 2 more",
+		);
 	});
 });

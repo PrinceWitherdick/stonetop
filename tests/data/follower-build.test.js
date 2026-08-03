@@ -192,6 +192,13 @@ describe("buildCustomFollower", () => {
 		expect(buildCustomFollower({ name: "G", hp: 6, isGroup: true, size: 0 }).size).toBe(2);
 		expect(buildCustomFollower({ name: "G", hp: 6, isGroup: true }).size).toBe(2);
 	});
+
+	// The card shows `img` when set and falls back to portraitIcon when it isn't, so
+	// "no portrait" has to be the empty string rather than undefined.
+	it("stores a chosen portrait, and leaves it empty when there is none", () => {
+		expect(buildCustomFollower({ name: "X", img: " art/people/hark.webp " }).img).toBe("art/people/hark.webp");
+		expect(buildCustomFollower({ name: "X" }).img).toBe("");
+	});
 });
 
 describe("monsterFollowerTags", () => {
@@ -263,6 +270,22 @@ describe("followerFromMonster", () => {
 			{},
 		);
 		expect(f.portraitIcon).toBe("fas fa-dragon");
+	});
+
+	it("carries the monster's art onto the card, but not a stock placeholder", () => {
+		const withArt = followerFromMonster(
+			{ name: wolf.name, system: wolf.system, moves: [], img: "art/bestiary/wolf.webp" },
+			{},
+		);
+		expect(withArt.img).toBe("art/bestiary/wolf.webp");
+		// mystery-man would only replace the paw glyph with a silhouette, so it resolves to
+		// "" and the glyph keeps the slot.
+		const placeholder = followerFromMonster(
+			{ name: wolf.name, system: wolf.system, moves: [], img: "icons/svg/mystery-man.svg" },
+			{},
+		);
+		expect(placeholder.img).toBe("");
+		expect(followerFromMonster({ name: wolf.name, system: wolf.system, moves: [] }, {}).img).toBe("");
 	});
 
 	it("keeps flavor tags and appends the player's added tags", () => {
@@ -345,6 +368,14 @@ describe("followerFromNpc", () => {
 	it("appends the player's added tags after the NPC's own", () => {
 		const f = followerFromNpc(statted, { tags: ["eager"] });
 		expect(f.tags).toEqual(["ex-mercenary", "humorless", "eager"]);
+	});
+
+	// A villager recruited off the steading's roster usually already wears a People of
+	// Stonetop portrait, and the follower card should show the same face unasked.
+	it("carries the NPC's portrait, but not a stock placeholder", () => {
+		expect(followerFromNpc({ ...statted, img: "art/people/elios.webp" }, {}).img).toBe("art/people/elios.webp");
+		expect(followerFromNpc({ ...statted, img: "icons/svg/mystery-man.svg" }, {}).img).toBe("");
+		expect(followerFromNpc(statted, {}).img).toBe("");
 	});
 
 	it("falls back to the able-bodied baseline (6 HP, 0 armor, no tags) for an unstatted NPC", () => {

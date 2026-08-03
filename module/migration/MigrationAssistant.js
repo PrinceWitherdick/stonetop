@@ -37,11 +37,6 @@ import { allTargets, previewMigration, prepareWorld, flipAndShutDown } from "./r
 
 const STATE = { CHECKING: "checking", BLOCKED: "blocked", READY: "ready", CONFIRMING: "confirming", RUNNING: "running", PREPARED: "prepared", FAILED: "failed" };
 
-// Minimum gap between progress re-renders. The run reports once per target — a seeded
-// world has several hundred — and each render is a full getData + template + setPosition.
-// Throttling keeps the panel live without spending the migration's wall clock on layout.
-const PROGRESS_RENDER_MS = 150;
-
 export class MigrationAssistant extends StonetopDialog {
 	constructor(options = {}) {
 		super(options);
@@ -53,7 +48,6 @@ export class MigrationAssistant extends StonetopDialog {
 		this._error = null;
 		this._prepared = null;
 		this._hosted = false;
-		this._progressRenderedAt = 0;
 	}
 
 	static open() {
@@ -211,17 +205,13 @@ export class MigrationAssistant extends StonetopDialog {
 
 		this._migrationState = STATE.RUNNING;
 		this._progress = { label: "Starting", index: 0, total: 0 };
-		this._progressRenderedAt = 0;
 		await this.render(false);
 
-		// Throttled: the last tick of a phase is redrawn by the next phase's first tick,
-		// and the final state (failure, or the navigation away on success) always renders.
+		// Throttled by the base class, which also drains the trailing tick — so the panel
+		// cannot come to rest one update short of where the run actually got to.
 		return (p) => {
 			this._progress = p;
-			const now = performance.now();
-			if (now - this._progressRenderedAt < PROGRESS_RENDER_MS) return;
-			this._progressRenderedAt = now;
-			this.render(false);
+			this.renderThrottled();
 		};
 	}
 

@@ -2,8 +2,9 @@
 //
 // When you Defend (roll +CON), on a 10+ you hold 3 Readiness (4 if you bear a shield);
 // on a 7-9 you hold 1 (2 with a shield). A borne shield's "+1 Readiness on a 7+" only
-// applies to a hit, never a miss. The Would-Be Hero's Guardian move holds 1 extra at
-// every tier and — uniquely — holds 1 even on a 6-.
+// applies to a hit, never a miss. The Heavy's Guardian move holds 1 extra at every tier
+// and — uniquely — holds 1 even on a 6-. That extra circle lives on Defend's own track,
+// so Guardian itself carries no resource track.
 //
 // You spend Readiness to suffer an attack's damage/effects for a ward, halve it, draw
 // all attention to yourself, or strike back. You lose ALL held Readiness the moment you

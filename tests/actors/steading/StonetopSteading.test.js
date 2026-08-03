@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { StonetopSteading, improvementRequirementsMet, improvementRequirementCount, IMPROVEMENT_DEFINITIONS } from "../../../module/actors/steading/StonetopSteading.js";
+import { StonetopSteading, improvementRequirementsMet, improvementRequirementCount, IMPROVEMENT_DEFINITIONS, IMPROVEMENT_CATEGORIES, IMPROVEMENT_GRANTS } from "../../../module/actors/steading/StonetopSteading.js";
 
 function makeSteadingActor({ system = {}, steadingFlags = {} } = {}) {
 	return {
@@ -115,7 +115,11 @@ describe("StonetopSteading", () => {
 
 		expect(snapshot.players).toEqual([
 			{ uuid: "Actor.hero", name: "Wren", img: "wren.webp", checked: true,
-			  traits: "", relations: "", notes: "", resolvedOccupation: "", playbookName: "" },
+			  traits: "", relations: "", notes: "", resolvedOccupation: "", playbookName: "",
+			  // No live actor resolves here, so the stored snapshot path stands in and there is
+			  // no frame to apply. imgStyle is present-and-empty rather than absent, so the
+			  // template's {{#if imgStyle}} has something definite to test.
+			  imgStyle: "" },
 		]);
 	});
 
@@ -177,16 +181,23 @@ describe("StonetopSteading", () => {
 
 			// Actor-backed row → the linked NPC's real art.
 			expect(snapshot.residents[0].profileImg).toBe("wren.webp");
-			// Legacy text row with no linked actor → the shared default avatar.
-			expect(snapshot.neighbors[0].profileImg).toBe("systems/stonetop_pwd/assets/icons/people/default_profile.svg");
+			// Legacy text row with no linked actor → the roster's empty-slot face (not the
+			// mark an art-less NPC actor wears, which is people/default_profile.svg).
+			expect(snapshot.neighbors[0].profileImg).toBe("systems/stonetop_pwd/assets/icons/people/empty_profile.svg");
 		} finally {
 			game.actors = prevActors;
 		}
 	});
 
-	it("falls back to the default avatar when the linked NPC has only a placeholder image", async () => {
+	// Both placeholders an un-portraited NPC can be carrying: Foundry's mystery-man (an actor
+	// created before the system stamped its own) and the Book I mark it stamps now. Either way
+	// the roster draws its own empty-slot face rather than passing the stored one through.
+	it.each([
+		["Foundry's default", "icons/svg/mystery-man.svg"],
+		["the mark the system stamps", "systems/stonetop_pwd/assets/icons/people/default_profile.svg"],
+	])("falls back to the roster's empty face when the linked NPC wears %s", async (_label, img) => {
 		const bala = {
-			id: "bala", uuid: "Actor.bala", type: "npc", name: "Bala", img: "icons/svg/mystery-man.svg",
+			id: "bala", uuid: "Actor.bala", type: "npc", name: "Bala", img,
 			system: { home: "Marshedge" },
 		};
 		const prevActors = game.actors;
@@ -201,10 +212,50 @@ describe("StonetopSteading", () => {
 			});
 			const snapshot = await new StonetopSteading(actor).buildSnapshot();
 
-			expect(snapshot.neighbors[0].profileImg).toBe("systems/stonetop_pwd/assets/icons/people/default_profile.svg");
+			expect(snapshot.neighbors[0].profileImg).toBe("systems/stonetop_pwd/assets/icons/people/empty_profile.svg");
 		} finally {
 			game.actors = prevActors;
 		}
+	});
+
+	describe("improvement categories", () => {
+		it("files every built-in under exactly one of the three categories", () => {
+			const keys = new Set(IMPROVEMENT_CATEGORIES.map(c => c.key));
+			expect([...keys]).toEqual(["hearth", "renown", "wall"]);
+
+			const bucketed = {};
+			for (const def of IMPROVEMENT_DEFINITIONS) {
+				expect(keys.has(def.category), `${def.slug} has no valid category`).toBe(true);
+				(bucketed[def.category] ??= []).push(def.slug);
+			}
+			expect(bucketed.hearth).toEqual([
+				"additionalHousing", "aurochsHunting", "greaterHarvest", "harnessingStream",
+				"herdOfHorses", "mill", "raincatching",
+			]);
+			expect(bucketed.renown).toEqual(["expandedTrades", "heroicReputation", "inn", "market", "township"]);
+			expect(bucketed.wall).toEqual([
+				"palisade", "standingWatch", "stoneWall", "weaponsOfWar", "wellTrainedMilitia",
+			]);
+		});
+
+		it("puts every Fortifications-granting improvement in wall, and no other", () => {
+			// The wall bucket is meant to be exactly the Fortifications list, so a future
+			// improvement that adds one can't be quietly filed elsewhere.
+			const fortifying = Object.entries(IMPROVEMENT_GRANTS)
+				.filter(([, g]) => g.fortifications?.length)
+				.map(([slug]) => slug);
+			for (const slug of fortifying) {
+				expect(IMPROVEMENT_DEFINITIONS.find(d => d.slug === slug).category).toBe("wall");
+			}
+		});
+
+		it("carries the category through to the snapshot", async () => {
+			const snapshot = await new StonetopSteading(makeSteadingActor()).buildSnapshot();
+			const bySlug = Object.fromEntries(snapshot.improvements.map(i => [i.slug, i.category]));
+			expect(bySlug.raincatching).toBe("hearth");
+			expect(bySlug.market).toBe("renown");
+			expect(bySlug.stoneWall).toBe("wall");
+		});
 	});
 
 	describe("custom (journal-sourced) improvements", () => {
@@ -242,6 +293,19 @@ describe("StonetopSteading", () => {
 			expect(added.sections[0].items.map(i => i.label)).toEqual(["Unlock the runes", "Recruit a crew"]);
 			// Built-ins are still present and flagged non-custom.
 			expect(snapshot.improvements.find(i => i.slug === "palisade").custom).toBe(false);
+		});
+
+		it("keeps a valid category and blanks anything else, so a bad one can't hide the card", async () => {
+			const add = async (category) => {
+				const steading = new StonetopSteading(makeMutableSteadingActor());
+				await steading.addCustomImprovement({ ...roadbuilding, category });
+				const snapshot = await steading.buildSnapshot();
+				return snapshot.improvements.find(i => i.slug === "custom-roadbuilding").category;
+			};
+			expect(await add("wall")).toBe("wall");
+			expect(await add("nonsense")).toBe("");
+			// A card dropped from the book's journals carries no category at all.
+			expect(await add(undefined)).toBe("");
 		});
 
 		it("refuses a duplicate name (existing custom or built-in label) and an empty name", async () => {

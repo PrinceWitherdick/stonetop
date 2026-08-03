@@ -189,7 +189,7 @@ async function seedChroniclePages(entry, pages, { adoptLegacyKeys = null } = {})
 			type:   "chronicle",
 			sort,
 			system: { sections: page.sections },
-			flags:  { stonetop_pwd: { chronicleKey: page.key, [CHRONICLE_PROSE_FLAG]: proseManaged } },
+			flags:  { "stonetop_pwd": { chronicleKey: page.key, [CHRONICLE_PROSE_FLAG]: proseManaged } },
 		});
 	}
 	if (toCreate.length) await entry.createEmbeddedDocuments("JournalEntryPage", toCreate);

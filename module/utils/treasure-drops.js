@@ -16,6 +16,7 @@ import { wrapGearNoteTerms, buildUsesResource } from "./gear-note.js";
 import { slugify } from "./strings.js";
 import { book2ArtSrc } from "../book2-art/art-root.js";
 import { isInJournalEditor } from "./journal-editor-guard.js";
+import { STONETOP_ITEM_ICONS } from "./item-icon.js";
 
 const norm = s => String(s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
@@ -83,12 +84,6 @@ function treasureArtSrc(slug) {
 		return null;
 	}
 }
-
-// The generic marker that heads a cell with no imported illustration: the book's own
-// vase-in-octagon "treasure" map symbol, shipped as an SVG. It's a category marker (the role
-// the old drag-grip glyph played), not a fabricated picture of any one item, so it can stand in
-// for every un-illustrated treasure without inventing what that particular treasure looks like.
-const TREASURE_GRIP_ICON = "systems/stonetop_pwd/assets/icons/treasures/vase.svg";
 
 /**
  * Build the native Foundry drop data for one catalog entry: a `move`/`inventory` Item
@@ -393,11 +388,14 @@ function decorate(line, group, groups) {
 	// picture of the item. Both occupy the same 40px slot so every row's text lines up whether
 	// or not it has art. A compound cell heads with its first item's picture as the representative.
 	// A real illustration (`st-treasure-icon`) is cover-cropped behind a photo border like a
-	// stat-block portrait; the fallback marker (`st-treasure-grip`) is the shared vase symbol.
+	// stat-block portrait; the fallback marker (`st-treasure-grip`) is the same shared
+	// vase-in-octagon symbol the Items sidebar falls back to — a category marker (the role the
+	// old drag-grip glyph played), not a fabricated picture of any one item, so it stands in
+	// for every un-illustrated treasure without inventing what it looks like.
 	const iconSrc = treasureArtSrc(items[0].slug);
 	const grip = document.createElement("img");
 	grip.className = iconSrc ? "st-treasure-icon" : "st-treasure-grip";
-	grip.src = iconSrc ?? TREASURE_GRIP_ICON;
+	grip.src = iconSrc ?? STONETOP_ITEM_ICONS.object;
 	grip.alt = "";
 	// An <img> is draggable by default; leave it so and grabbing the thumbnail starts a native
 	// image-file drag that carries no Item payload. On a single-item cell the whole line handles

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { reapplyBook2ArtOnVersionChange, reapplyBook2Art, handleImportedJournalArt } from "../../module/book2-art/reapply.js";
 import { BOOK2_ART_APPLY_MANIFEST } from "../../module/book2-art/manifest.js";
+import { clearArtBrowseCache } from "../../module/book2-art/browse.js";
 import { managedHash } from "../../module/hooks/journal-sync-core.js";
 
 const JRN_SOURCE = (entryId) => `Compendium.stonetop_pwd.stonetop-journal.JournalEntry.${entryId}`;
@@ -61,8 +62,8 @@ function makeWorldJournal({ source, name = "World Entry", pages, stamp = false, 
 		toObject: () => ({ pages: pages.map((p) => ({ _id: p.id, name: p.name, type: p.type, system: p.system, text: p.text })) }),
 	};
 	entry._flags = flags;
-	if (stamp) flags.stonetop_pwd = { journalSync: { hash: managedHash(entry.toObject()), version } };
-	else if (syncHash) flags.stonetop_pwd = { journalSync: { hash: syncHash, version } };
+	if (stamp) flags["stonetop_pwd"] = { journalSync: { hash: managedHash(entry.toObject()), version } };
+	else if (syncHash) flags["stonetop_pwd"] = { journalSync: { hash: syncHash, version } };
 	return entry;
 }
 
@@ -136,6 +137,11 @@ function makeHarness({ isGM = true, syncVersion = "", present = "all", worldActo
 
 	const infoSpy = vi.fn();
 	global.FilePicker = { browse };
+	// Each harness stands up a different set of files under the same art root, and
+	// browseArtDirs caches its listings for the session — so from its point of view the disk
+	// just changed underneath it. Exactly what a production writer does, and it clears the
+	// cache for the same reason.
+	clearArtBrowseCache();
 	global.game = {
 		user: { isGM },
 		system: { version: VERSION },
@@ -358,8 +364,8 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		const foreignPage = makeWorldPage({ id: "foreign", name: "Foreign", type: "location", system: { sections: [{ kind: "prose", body: "<p>x</p>" }] } });
 		const foreign = makeWorldJournal({ source: "Compendium.other.pack.JournalEntry.zzz", pages: [foreignPage], stamp: true });
 
-		const preBesHash = worldBes._flags.stonetop_pwd.journalSync.hash;
-		const preLocHash = worldLoc._flags.stonetop_pwd.journalSync.hash;
+		const preBesHash = worldBes._flags["stonetop_pwd"].journalSync.hash;
+		const preLocHash = worldLoc._flags["stonetop_pwd"].journalSync.hash;
 
 		const h = makeHarness({ worldJournals: [worldBes, worldLoc, foreign] });
 		await reapplyBook2ArtOnVersionChange();
@@ -369,10 +375,10 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		expect(locPage.system.sections[secIdx].body).toContain(`src="${durableOf(loc0.images[0].out)}"`);
 
 		// pristine entries re-stamped to the NEW (art-bearing) fingerprint
-		expect(worldBes._flags.stonetop_pwd.journalSync.hash).toBe(managedHash(worldBes.toObject()));
-		expect(worldBes._flags.stonetop_pwd.journalSync.hash).not.toBe(preBesHash);
-		expect(worldLoc._flags.stonetop_pwd.journalSync.hash).toBe(managedHash(worldLoc.toObject()));
-		expect(worldLoc._flags.stonetop_pwd.journalSync.hash).not.toBe(preLocHash);
+		expect(worldBes._flags["stonetop_pwd"].journalSync.hash).toBe(managedHash(worldBes.toObject()));
+		expect(worldBes._flags["stonetop_pwd"].journalSync.hash).not.toBe(preBesHash);
+		expect(worldLoc._flags["stonetop_pwd"].journalSync.hash).toBe(managedHash(worldLoc.toObject()));
+		expect(worldLoc._flags["stonetop_pwd"].journalSync.hash).not.toBe(preLocHash);
 
 		// unrelated journal untouched
 		expect(foreignPage._writes).toBe(0);
@@ -380,29 +386,131 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		expect(h.store.book2ArtSyncVersion).toBe(VERSION);
 	});
 
-	it("self-heals a retired (de-duplicated) src out of an already-imported world location page", async () => {
-		// A location that had a duplicate extraction removed from the manifest (Forge Lords).
-		const locR = locations.find((l) => l.retired?.length);
-		expect(locR).toBeTruthy(); // the manifest must still carry a location with retired art
-		const secIdx = locR.sectionIndex ?? 0;
-		const wantedSrc = durableOf(locR.images[0].out);
-		const retiredSrc = durableOf(locR.retired[0]);
-		const emb = (src) => `<p><img class="stonetop-journal-art" src="${src}" alt="${locR.name}"></p>`;
+	it("self-heals EVERY retired (de-duplicated) src out of already-imported world location pages", async () => {
+		// The upgrade path for a world that imported an older manifest, over every location the
+		// manifest retires art on — not just a sample. Each page is seeded the way the old
+		// import left it: the retired name embedded in the target section.
+		const affected = locations.filter((l) => l.retired?.length);
+		expect(affected.length).toBeGreaterThan(0);
 
-		// A world copy imported under the OLD manifest: the target section carries BOTH the
-		// kept image and the retired duplicate (as the import used to embed them).
-		const sections = Array.from({ length: secIdx + 1 }, () => ({ kind: "prose", body: "<p>world loc prose</p>" }));
-		sections[secIdx] = { kind: "prose", body: `${emb(wantedSrc)}${emb(retiredSrc)}<p>prose</p>` };
-		const locPage = makeWorldPage({ id: locR.journalPageId, name: `cmp:${locR.journalPageId}`, type: "location", system: { sections } });
-		const worldLoc = makeWorldJournal({ source: JRN_SOURCE(locR.journalEntryId), name: locR.name, pages: [locPage], stamp: true });
+		const pages = affected.map((l) => {
+			const secIdx = l.sectionIndex ?? 0;
+			const emb = (src) => `<p><img class="stonetop-journal-art" src="${src}" alt="${l.name}"></p>`;
+			const sections = Array.from({ length: secIdx + 1 }, () => ({ kind: "prose", body: "<p>world loc prose</p>" }));
+			sections[secIdx] = { kind: "prose", body: `${l.retired.map((r) => emb(durableOf(r))).join("")}<p>prose</p>` };
+			const page = makeWorldPage({ id: l.journalPageId, name: `cmp:${l.journalPageId}`, type: "location", system: { sections } });
+			return { l, secIdx, page, journal: makeWorldJournal({ source: JRN_SOURCE(l.journalEntryId), name: l.name, pages: [page], stamp: true }) };
+		});
 
-		makeHarness({ worldJournals: [worldLoc] });
+		makeHarness({ worldJournals: pages.map((p) => p.journal) });
 		// The every-load self-heal path (no version bump), which is what clears existing worlds.
 		await reapplyBook2Art({ worldOnly: true, cheapWorldSkip: true });
 
-		const body = locPage.system.sections[secIdx].body;
-		expect(body).toContain(`src="${wantedSrc}"`);      // the kept illustration stays
-		expect(body).not.toContain(`src="${retiredSrc}"`); // the duplicate is gone
+		for (const { l, secIdx, page } of pages) {
+			const whole = page.system.sections.map((s) => s.body ?? "").join("");
+			for (const r of l.retired) expect(whole, `${l.slug} kept a retired src`).not.toContain(`src="${durableOf(r)}"`);
+			for (const im of l.images) expect(page.system.sections[secIdx].body, `${l.slug} lost ${im.out}`).toContain(`src="${durableOf(im.out)}"`);
+			// Exactly one embed per image: a strip that missed would show as a doubled picture.
+			for (const im of l.images) {
+				const hits = whole.split(`src="${durableOf(im.out)}"`).length - 1;
+				expect(hits, `${l.slug} embeds ${im.out} ${hits} times`).toBe(1);
+			}
+			expect(page.system.sections[secIdx].body).toContain("prose"); // the page's own text survives
+		}
+	});
+
+	it("strips a retired peer's src off the SHIPPED curated codex pages", async () => {
+		// The other half of the de-duplication: where the two creatures sharing a picture also
+		// share a curated codex page, the per-monster pass skips it and `managed` does the
+		// stripping — which is why the collapsed name has to stay in `managed` even though it
+		// is no longer any row's art. Drives the real shipped codex entries, not a synthetic one.
+		const entries = (BOOK2_ART_APPLY_MANIFEST.codex ?? []).map((c) => {
+			const shown = new Set((c.slots ?? []).flatMap((s) => (s.images ?? []).map((i) => i.out)));
+			return { c, shown: [...shown], hidden: c.managed.filter((out) => !shown.has(out)) };
+		}).filter((e) => e.hidden.length && e.shown.length);
+		expect(entries.length, "no shipped codex page has a hidden/retired managed path").toBeGreaterThan(0);
+
+		const pages = entries.map(({ c, shown, hidden }) => {
+			const emb = (out) => `<p><img class="stonetop-journal-art" src="${durableOf(out)}" alt="${c.name}"></p>`;
+			const page = makeWorldPage({ id: c.journalPageId, name: c.name, type: "bestiary", system: { description: `${hidden.map(emb).join("")}<p>codex prose</p>`, nests: "" } });
+			return { c, shown, hidden, page, journal: makeWorldJournal({ source: JRN_SOURCE(c.journalEntryId), name: c.name, pages: [page], stamp: true }) };
+		});
+
+		makeHarness({ worldJournals: pages.map((p) => p.journal) });
+		await reapplyBook2Art({ worldOnly: true, cheapWorldSkip: true });
+
+		for (const { c, shown, hidden, page } of pages) {
+			const whole = `${page.system.description ?? ""}${page.system.nests ?? ""}`;
+			for (const out of hidden) expect(whole, `codex "${c.name}" kept ${out}`).not.toContain(`src="${durableOf(out)}"`);
+			for (const out of shown) expect(whole, `codex "${c.name}" lost ${out}`).toContain(`src="${durableOf(out)}"`);
+			expect(whole).toContain("codex prose");
+		}
+	});
+
+	it("leaves a retired src alone while the art that replaced it is off disk", async () => {
+		// The dangerous shape: a world that imported an OLDER manifest, so it has the retired
+		// file but not the one the row now names. Stripping there would take the picture off the
+		// page and put nothing back — so the leftover embed stays until they import its
+		// replacement, which is strictly better than an art-less page.
+		const locR = locations.find((l) => l.retired?.length);
+		const secIdx = locR.sectionIndex ?? 0;
+		const retiredSrc = durableOf(locR.retired[0]);
+		const emb = (src) => `<p><img class="stonetop-journal-art" src="${src}" alt="${locR.name}"></p>`;
+
+		const sections = Array.from({ length: secIdx + 1 }, () => ({ kind: "prose", body: "<p>world loc prose</p>" }));
+		sections[secIdx] = { kind: "prose", body: `${emb(retiredSrc)}<p>prose</p>` };
+		const locPage = makeWorldPage({ id: locR.journalPageId, name: `cmp:${locR.journalPageId}`, type: "location", system: { sections } });
+		const worldLoc = makeWorldJournal({ source: JRN_SOURCE(locR.journalEntryId), name: locR.name, pages: [locPage], stamp: true });
+
+		// Only ONE unrelated file on disk, so this row's own images are all missing.
+		makeHarness({ worldJournals: [worldLoc], present: [monsters[0].out] });
+		await reapplyBook2Art({ worldOnly: true, cheapWorldSkip: true });
+
+		expect(locPage.system.sections[secIdx].body).toContain(`src="${retiredSrc}"`);
+		expect(locPage._writes).toBe(0);
+	});
+
+	it("self-heals EVERY retired (de-duplicated) src out of already-imported world bestiary pages", async () => {
+		// Two creatures the book draws in ONE picture (the Adventurer and the Assassin) now
+		// share the one FILE, so the loser's page has to lose the old path or the same
+		// illustration sits on it twice. A curated codex page is owned by the codex pass, which
+		// strips through `managed` instead — these are the ordinary per-monster pages.
+		const curated = new Set((BOOK2_ART_APPLY_MANIFEST.codex ?? []).map((c) => c.journalEntryId));
+		const affected = monsters.filter((m) => m.retired?.length && !curated.has(m.journalEntryId));
+		expect(affected.length).toBeGreaterThan(0);
+
+		const pages = affected.map((m) => {
+			const emb = (src) => `<p><img class="stonetop-journal-art" src="${src}" alt="${m.name}"></p>`;
+			// A world copy imported under the OLD manifest: the page carries only the old path.
+			const page = makeWorldPage({ id: m.journalPageId, name: `cmp:${m.journalPageId}`, type: "bestiary", system: { description: `${m.retired.map((r) => emb(durableOf(r))).join("")}<p>world bestiary prose</p>` } });
+			return { m, page, journal: makeWorldJournal({ source: JRN_SOURCE(m.journalEntryId), name: m.name, pages: [page], stamp: true }) };
+		});
+
+		makeHarness({ worldJournals: pages.map((p) => p.journal) });
+		await reapplyBook2Art({ worldOnly: true, cheapWorldSkip: true });
+
+		for (const { m, page } of pages) {
+			const desc = page.system.description;
+			expect(desc, `${m.slug} lost its art`).toContain(`src="${durableOf(m.out)}"`);
+			for (const r of m.retired) expect(desc, `${m.slug} kept a retired src`).not.toContain(`src="${durableOf(r)}"`);
+			expect(desc.split(`src="${durableOf(m.out)}"`).length - 1, `${m.slug} doubled`).toBe(1);
+			expect(desc, `${m.slug} lost its prose`).toContain("world bestiary prose");
+		}
+	});
+
+	it("does not rewrite a bestiary page that has the shared art and no stale duplicate", async () => {
+		// cheapWorldSkip has to keep seeing "nothing to do" for a de-duplicated monster, or the
+		// every-load self-heal rewrites the same page forever.
+		const curated = new Set((BOOK2_ART_APPLY_MANIFEST.codex ?? []).map((c) => c.journalEntryId));
+		const monR = monsters.find((m) => m.retired?.length && !curated.has(m.journalEntryId)) ?? monsters[0];
+		const besPage = makeWorldPage({ id: monR.journalPageId, name: `cmp:${monR.journalPageId}`, type: "bestiary", system: { description: `<p><img class="stonetop-journal-art" src="${durableOf(monR.out)}" alt="${monR.name}"></p><p>prose</p>` } });
+		const worldBes = makeWorldJournal({ source: JRN_SOURCE(monR.journalEntryId), name: monR.name, pages: [besPage], stamp: true });
+
+		const h = makeHarness({ worldJournals: [worldBes] });
+		await reapplyBook2Art({ worldOnly: true, cheapWorldSkip: true });
+
+		expect(besPage._writes).toBe(0);
+		expect(h.jrnPack.getDocument).not.toHaveBeenCalledWith(monR.journalEntryId);
 	});
 
 	it("drops art at the top when the GM deleted the target section (never silently skips)", async () => {
@@ -421,7 +529,7 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		expect(locPage.system.sections[0]).toMatchObject({ kind: "prose", heading: "", group: "glance", danger: false });
 		expect(locPage.system.sections[0].body).toContain(`src="${durableOf(loc0.images[0].out)}"`);
 		// pristine entry re-stamped to the new (art-bearing) fingerprint
-		expect(worldLoc._flags.stonetop_pwd.journalSync.hash).toBe(managedHash(worldLoc.toObject()));
+		expect(worldLoc._flags["stonetop_pwd"].journalSync.hash).toBe(managedHash(worldLoc.toObject()));
 
 		// idempotent: a second pass (as a version bump would trigger) adds no second copy
 		const writesAfterFirst = locPage._writes;
@@ -440,7 +548,7 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		const soPage = makeWorldPage({ id: so0.journalPageId, name: `cmp:${so0.journalPageId}`, type: "text", system: {} });
 		soPage.text = { content: "<p>world setting prose</p>" };
 		const worldSO = makeWorldJournal({ source: JRN_SOURCE(so0.journalEntryId), name: "Setting Overview", pages: [soPage], stamp: true });
-		const preHash = worldSO._flags.stonetop_pwd.journalSync.hash;
+		const preHash = worldSO._flags["stonetop_pwd"].journalSync.hash;
 
 		const h = makeHarness({ worldJournals: [worldSO] });
 		await reapplyBook2ArtOnVersionChange();
@@ -453,8 +561,8 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		expect(soPage.text.content).toContain(`<figure class="stonetop-map"><img src="${durable}"`);
 		expect(soPage.text.content).toContain("world setting prose");
 		// pristine entry re-stamped to the new (map-bearing) fingerprint
-		expect(worldSO._flags.stonetop_pwd.journalSync.hash).toBe(managedHash(worldSO.toObject()));
-		expect(worldSO._flags.stonetop_pwd.journalSync.hash).not.toBe(preHash);
+		expect(worldSO._flags["stonetop_pwd"].journalSync.hash).toBe(managedHash(worldSO.toObject()));
+		expect(worldSO._flags["stonetop_pwd"].journalSync.hash).not.toBe(preHash);
 		expect(h.store.book2ArtSyncVersion).toBe(VERSION);
 	});
 
@@ -471,7 +579,7 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		const soPage = makeWorldPage({ id: so0.journalPageId, name: `cmp:${so0.journalPageId}`, type: "text", system: {} });
 		soPage.text = { content: `<figure class="stonetop-map"><img src="${oldSrc}" alt="${so0.name}"></figure><p>world setting prose</p>` };
 		const worldSO = makeWorldJournal({ source: JRN_SOURCE(so0.journalEntryId), name: "Setting Overview", pages: [soPage], stamp: true });
-		const preHash = worldSO._flags.stonetop_pwd.journalSync.hash;
+		const preHash = worldSO._flags["stonetop_pwd"].journalSync.hash;
 
 		const h = makeHarness({ worldJournals: [worldSO] });
 		await reapplyBook2ArtOnVersionChange();
@@ -482,8 +590,8 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		expect(soPage.text.content).toContain("world setting prose"); // the prose is not
 		expect(soPage.text.content.match(/class="stonetop-map"/g)).toHaveLength(1);
 		// pristine entry re-stamped, so the managed channel keeps delivering prose updates
-		expect(worldSO._flags.stonetop_pwd.journalSync.hash).toBe(managedHash(worldSO.toObject()));
-		expect(worldSO._flags.stonetop_pwd.journalSync.hash).not.toBe(preHash);
+		expect(worldSO._flags["stonetop_pwd"].journalSync.hash).toBe(managedHash(worldSO.toObject()));
+		expect(worldSO._flags["stonetop_pwd"].journalSync.hash).not.toBe(preHash);
 
 		// the compendium copy upgrades the same way
 		const cmpPage = h.pageDocs.get(`${so0.journalEntryId}::${so0.journalPageId}`);
@@ -556,7 +664,7 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		expect(locPage.system.sections[secIdx].body).toContain(`src="${durableOf(loc0.images[0].out)}"`);
 		expect(locPage.system.sections[secIdx].body).toContain("GM edited prose");
 		// edited baseline left untouched: the managed channel keeps hands off future prose
-		expect(worldLoc._flags.stonetop_pwd.journalSync.hash).toBe("EDITED-HASH");
+		expect(worldLoc._flags["stonetop_pwd"].journalSync.hash).toBe("EDITED-HASH");
 		expect(worldLoc._flagWrites).toBe(0);
 	});
 
@@ -656,13 +764,13 @@ describe("reapplyBook2Art (scoped + self-heal modes)", () => {
 		const otherLoc = makeWorldJournal({ source: JRN_SOURCE(loc0.journalEntryId), name: loc0.name, pages: [otherPage], stamp: true });
 
 		const h = makeHarness({ worldJournals: [worldBes, otherLoc] });
-		const preHash = worldBes._flags.stonetop_pwd.journalSync.hash;
+		const preHash = worldBes._flags["stonetop_pwd"].journalSync.hash;
 
 		const result = await reapplyBook2Art({ entries: [worldBes] });
 
 		// the scoped entry got its art and a fresh baseline
 		expect(besPage.system.description).toContain(`src="${durableOf(mon0.out)}"`);
-		expect(worldBes._flags.stonetop_pwd.journalSync.hash).not.toBe(preHash);
+		expect(worldBes._flags["stonetop_pwd"].journalSync.hash).not.toBe(preHash);
 		// the unscoped-but-ours journal is untouched
 		expect(otherPage._writes).toBe(0);
 		expect(otherLoc._flagWrites).toBe(0);
@@ -830,6 +938,24 @@ describe("world bestiary actor portraits (adopt over the creature-type placehold
 
 		expect(actor.img).toBe("worlds/mine/my-crinwin.png");
 		expect(actor._writes).toBe(0);
+	});
+
+	it("re-points an actor still on a retired (de-duplicated) path", async () => {
+		// A path this creature's art gave up when it turned out to be the same picture as a
+		// peer's is still OURS, not a portrait the group chose — so it re-points, and the
+		// orphaned file stops being referenced by anything.
+		const monR = monsters.find((m) => m.retired?.length);
+		expect(monR).toBeTruthy();
+		const actor = makeWorldActor({ source: uuidOf(monR), img: durableOf(monR.retired[0]), fit: "contain" });
+		actor.prototypeToken.texture.src = durableOf(monR.retired[0]);
+		makeHarness({ worldActors: [actor] });
+
+		await reapplyBook2ArtOnVersionChange();
+
+		expect(actor.img).toBe(durableOf(monR.out));
+		expect(actor.prototypeToken.texture.src).toBe(durableOf(monR.out));
+		// Not a placeholder adoption, so the GM's token fit is still left alone.
+		expect(actor.prototypeToken.texture.fit).toBe("contain");
 	});
 
 	it("adopts onto the token only, keeping a custom portrait, when just the token is a placeholder", async () => {
@@ -1084,14 +1210,14 @@ describe("curated codex pages", () => {
 		curate([img(CRIN, "banner")]);
 		const page = stackedPage();
 		const world = makeWorldJournal({ source: JRN_SOURCE(ENTRY), pages: [page], stamp: true });
-		const preHash = world._flags.stonetop_pwd.journalSync.hash;
+		const preHash = world._flags["stonetop_pwd"].journalSync.hash;
 		makeHarness({ worldJournals: [world] });
 
 		await reapplyBook2Art();
 
-		expect(world._flags.stonetop_pwd.journalSync.hash).toBe(managedHash(world.toObject()));
-		expect(world._flags.stonetop_pwd.journalSync.hash).not.toBe(preHash);
-		expect(world._flags.stonetop_pwd.journalSync.version).toBe(VERSION);
+		expect(world._flags["stonetop_pwd"].journalSync.hash).toBe(managedHash(world.toObject()));
+		expect(world._flags["stonetop_pwd"].journalSync.hash).not.toBe(preHash);
+		expect(world._flags["stonetop_pwd"].journalSync.version).toBe(VERSION);
 	});
 
 	it("leaves a GM-edited entry's edited baseline alone", async () => {
@@ -1103,7 +1229,7 @@ describe("curated codex pages", () => {
 		await reapplyBook2Art();
 
 		expect(page.system.description).toBe(embed(CRIN) + PROSE);              // art still curated
-		expect(world._flags.stonetop_pwd.journalSync.hash).toBe("EDITED-HASH"); // but hands off
+		expect(world._flags["stonetop_pwd"].journalSync.hash).toBe("EDITED-HASH"); // but hands off
 	});
 
 	it("is a no-op on a page that already matches", async () => {

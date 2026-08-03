@@ -678,7 +678,7 @@ describe("buildSnapshot — moves", () => {
 			.addItem({
 				_id: "fm1", type: "move", name: "Smash",
 				system: { moveType: "playbook", playbook: "The Heavy", description: "Smash desc", rollType: "str" },
-				flags: { stonetop_pwd: { grantedBy: { move: "Versatile", instanceId: "v1" } } },
+				flags: { "stonetop_pwd": { grantedBy: { move: "Versatile", instanceId: "v1" } } },
 			})
 			.build();
 		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
@@ -1274,7 +1274,7 @@ describe("buildSnapshot — inventory: possession-derived special items", () => 
 			get: () => null,
 			find: () => ({
 				type: "stonetop",
-				flags: { stonetop_pwd: { steading: { improvements: { weaponsOfWar: { completed: true } } } } },
+				flags: { "stonetop_pwd": { steading: { improvements: { weaponsOfWar: { completed: true } } } } },
 			}),
 		};
 
@@ -1298,7 +1298,7 @@ describe("buildSnapshot — inventory: possession-derived special items", () => 
 			get: () => null,
 			find: () => ({
 				type: "stonetop",
-				flags: { stonetop_pwd: { steading: { improvements: { weaponsOfWar: { completed: false } } } } },
+				flags: { "stonetop_pwd": { steading: { improvements: { weaponsOfWar: { completed: false } } } } },
 			}),
 		};
 
@@ -1315,7 +1315,7 @@ describe("buildSnapshot — inventory: possession-derived special items", () => 
 			get: () => null,
 			find: () => ({
 				type: "stonetop",
-				flags: { stonetop_pwd: { steading: { improvements: { weaponsOfWar: { completed: true } } } } },
+				flags: { "stonetop_pwd": { steading: { improvements: { weaponsOfWar: { completed: true } } } } },
 			}),
 		};
 
@@ -2350,7 +2350,33 @@ describe("buildSnapshot — movelist / level move budget", () => {
 	function ownedMove(id, name) {
 		return { _id: id, type: "move", name, system: { moveType: "playbook" } };
 	}
-	async function buildMovelist({ level = 1, defs = [], items = [], flags = {} } = {}) {
+	// A background that hands over a move through a `setup.choices` pick rather than a
+	// flat `moves` list — the shape the Fox's A Life of Crime uses (Burgle OR Light
+	// Fingers).
+	const SETUP_CHOICE_PLAYBOOK = {
+		...BUDGET_PLAYBOOK,
+		backgrounds: [{
+			slug: "a-life-of-crime",
+			label: "A Life of Crime",
+			setup: {
+				choices: [{
+					key: "extraMove",
+					apply: "move",
+					options: [{ value: "Burgle" }, { value: "Light Fingers" }],
+				}],
+			},
+		}],
+	};
+	// A level-1 A Life of Crime character whose setup choice landed on Burgle, owning
+	// whichever moves the caller passes. Level 1 ⇒ 2 free picks.
+	const crimeMovelist = items => buildMovelist({
+		level:    1,
+		playbook: SETUP_CHOICE_PLAYBOOK,
+		defs:     [pbMove("a", "Alpha"), pbMove("b", "Bravo"), pbMove("bu", "Burgle"), pbMove("lf", "Light Fingers")],
+		flags:    { "background.selected": "a-life-of-crime", "background.setupChoices": { extraMove: "Burgle" } },
+		items,
+	});
+	async function buildMovelist({ level = 1, defs = [], items = [], flags = {}, playbook = BUDGET_PLAYBOOK } = {}) {
 		const actor = new FakeActorBuilder()
 			.withPlaybook("the-heavy", "The Heavy")
 			.withLevel(level)
@@ -2358,7 +2384,7 @@ describe("buildSnapshot — movelist / level move budget", () => {
 			.withFlags(flags)
 			.build();
 		let builder = new TestCharacterBuilder(actor)
-			.withPlaybookRepo(new FakePlaybookRepository(BUDGET_PLAYBOOK));
+			.withPlaybookRepo(new FakePlaybookRepository(playbook));
 		for (const def of defs) builder = builder.addPlaybookMove(def);
 		const snap = await builder.build().buildSnapshot();
 		return snap.movelist;
@@ -2444,6 +2470,28 @@ describe("buildSnapshot — movelist / level move budget", () => {
 		});
 		expect(ml.levelMovesIncomplete).toBe(true);
 		expect(ml.levelMovesShortfall).toBe(1);
+	});
+
+	it("never counts a background's setup-choice move toward the level budget", async () => {
+		// A Life of Crime grants Burgle through a setup choice, not a flat `moves` list.
+		// Alpha and Bravo spend the two picks and the granted Burgle rides on top, so the
+		// character is exactly on budget and the move reads as a background gift.
+		const ml = await crimeMovelist([ownedMove("a1", "Alpha"), ownedMove("b1", "Bravo"), ownedMove("bu1", "Burgle")]);
+		expect(ml.levelMovesOverLimit).toBe(false);
+		expect(ml.levelMovesOverage).toBe(0);
+		expect(ml.playbookMoves.find(m => m.name === "Burgle")?.sourceLabel).toBe("Background");
+	});
+
+	it("still counts the option a background's setup choice did NOT take", async () => {
+		// The grant was Burgle, so owning Light Fingers as well is a real advancement spend
+		// — and at level 1 that puts the character over budget.
+		const ml = await crimeMovelist([
+			ownedMove("a1", "Alpha"), ownedMove("b1", "Bravo"),
+			ownedMove("bu1", "Burgle"), ownedMove("lf1", "Light Fingers"),
+		]);
+		expect(ml.levelMovesOverLimit).toBe(true);
+		expect(ml.levelMovesOverage).toBe(1);
+		expect(ml.playbookMoves.find(m => m.name === "Light Fingers")?.sourceLabel).toBeNull();
 	});
 
 	it("never flags a character with no playbook", async () => {

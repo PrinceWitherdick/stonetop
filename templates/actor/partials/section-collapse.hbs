@@ -1,0 +1,8 @@
+{{!-- The fold caret on its own, for sections with no edit pencil to sit beside.
+      Rendered INSIDE the heading (which becomes its positioning context), unlike
+      the pencil-bearing sections where section-edit-toggle emits it into the
+      section's top-right corner — either way the sheet finds the heading from the
+      caret and folds the run of content below it. Caller passes `collapse`, the id
+      the fold is remembered under. --}}
+<a class="stonetop-section-collapse" data-section="{{collapse}}" role="button" tabindex="0"
+   aria-expanded="true" title="Collapse section"><i class="fas fa-caret-down"></i></a>
