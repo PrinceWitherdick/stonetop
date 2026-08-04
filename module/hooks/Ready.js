@@ -126,6 +126,8 @@ export async function onReady() {
 		catch (err) { console.error("Stonetop | NPC token-nameplate migration failed", err); }
 		try { await _migrateNpcPlaceholderPortraits(); }
 		catch (err) { console.error("Stonetop | NPC placeholder-portrait migration failed", err); }
+		try { await _migrateTokenImagesToPortraits(); }
+		catch (err) { console.error("Stonetop | token-image backfill failed", err); }
 	}
 	await runStartupMigrations();
 	// If the renamed system has been installed alongside this one, offer to move this
@@ -796,6 +798,32 @@ async function _migrateNpcPlaceholderPortraits() {
 	for (const actor of stale) {
 		await actor.update({ img: PERSON_DEFAULT_IMG });
 	}
+}
+
+// Point a stock prototype token at the portrait its actor is already wearing, so somebody who
+// gave a person a face BEFORE the token started following the portrait
+// (StonetopActor#_syncPrototypeTokenImage) does not have to go and re-pick it to stop the
+// mystery-man coming back the moment they drag that person onto a scene.
+//
+// Only a token still on a stock placeholder — Foundry's default or this system's people
+// silhouette — and only where the actor has real art to offer it, so a token anyone chose (or
+// Tokenizer cut) is never touched. The steading is skipped: its portrait is a picture of a place.
+// Idempotent: once pointed, the actor no longer matches, so re-running every load is a cheap
+// no-op needing no version flag. Primary-GM only (the caller gates it) so two connected GMs
+// can't both write the same actors.
+// One batched write rather than a round-trip each: unlike its two neighbours above, this matches
+// every character, NPC and monster with art and a stock token, which in an established world is
+// most of the actor list — and each separate update is its own socket round-trip, document diff
+// and sheet/directory repaint, all of it on the blocking startup path.
+async function _migrateTokenImagesToPortraits() {
+	const stale = game.actors?.filter(a =>
+		a.type !== "stonetop" && a.system?.customType !== "stonetop"
+		&& !isDefaultImg(a.img)
+		&& a.prototypeToken?.texture?.src !== undefined
+		&& isDefaultImg(a.prototypeToken.texture.src)
+	) ?? [];
+	const updates = stale.map(a => ({ _id: a.id, "prototypeToken.texture.src": a.img }));
+	if (updates.length) await Actor.updateDocuments(updates);
 }
 
 async function _migrateArmourToArmor() {

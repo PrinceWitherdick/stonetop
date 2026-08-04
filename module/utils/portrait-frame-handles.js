@@ -48,12 +48,28 @@ export function actorFrameHandle(actor, { editable = null } = {}) {
 		// A fresh object fully replaces the old one despite the merge, because the shape is
 		// exactly { src: primitive, rect: Array } and mergeObject treats an Array as an atomic
 		// value. IF A THIRD KEY IS EVER ADDED, that stops being true and this needs an unset first.
-		write: (frame) => actor.setFlag(SYSTEM_ID, "portraitFrame", normalizeFrame(frame)),
+		//
+		// The bake afterwards is what carries the crop onto the MAP, which a rect on a flag can
+		// never reach — see portrait-token-frame.js. Deliberately AFTER the flag, and deliberately
+		// unable to fail the write: the frame is the source of truth and every other surface is
+		// already correct once it lands, so a world with no upload rights simply gets an
+		// uncropped token rather than an unsaved frame.
+		write: async (frame) => {
+			const normalized = normalizeFrame(frame);
+			await actor.setFlag(SYSTEM_ID, "portraitFrame", normalized);
+			const { syncPrototypeTokenToFrame } = await import("./portrait-token-frame.js");
+			await syncPrototypeTokenToFrame(actor, normalized);
+		},
 		// Guarded, because unsetFlag on a missing parent inserts an empty object rather than
-		// doing nothing.
-		clear: () => (actor.flags?.[SYSTEM_ID]?.portraitFrame === undefined
-			? Promise.resolve()
-			: actor.unsetFlag(SYSTEM_ID, "portraitFrame"))
+		// doing nothing. The token reverts only if it was showing one of our bakes, so clearing
+		// a frame undoes what framing did and nothing else.
+		clear: async () => {
+			if (actor.flags?.[SYSTEM_ID]?.portraitFrame !== undefined) {
+				await actor.unsetFlag(SYSTEM_ID, "portraitFrame");
+			}
+			const { revertPrototypeTokenFrame } = await import("./portrait-token-frame.js");
+			await revertPrototypeTokenFrame(actor);
+		}
 	};
 }
 

@@ -1182,7 +1182,14 @@ export class StonetopSteading {
 			// one surface where framing silently never worked. The snapshot stays as the fallback
 			// for a row whose actor has gone. `img` sits after the spread so it wins.
 			const portrait = resolvePortrait(actor?.img || p.img, documentPortraitFrame(actor));
-			return { traits: "", relations: "", ...p, notes: p.notes ?? p.etc ?? "", resolvedOccupation, playbookName,
+			// The LIVE name too, for the same reason and on the same terms as the portrait:
+			// `p.name` is a snapshot from the drop, so a renamed character used to keep their
+			// old name on the roster forever — the name cell isn't editable, so the only way
+			// to correct it was to remove the row and re-add them. Residents/Neighbors have
+			// always shown the live name (resolvePersonRow); this brings Players in line. The
+			// snapshot stays as the fallback for a row whose actor has gone.
+			const name = actor?.name || p.name || "";
+			return { traits: "", relations: "", ...p, name, notes: p.notes ?? p.etc ?? "", resolvedOccupation, playbookName,
 				img: portrait.src, imgStyle: portrait.style };
 		});
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { deletionEntry, getDragEventData, hasVideoExtension, setAppOption } from "../../module/utils/foundry-compat.js";
+import { deletionEntry, getDragEventData, hasVideoExtension, imagePopout, imagePopoutTitle, setAppOption } from "../../module/utils/foundry-compat.js";
 
 describe("deletionEntry", () => {
 	afterEach(() => {
@@ -106,5 +106,63 @@ describe("setAppOption", () => {
 	it("no-ops on an app with no options yet", () => {
 		expect(() => setAppOption({}, "src", "new.webp")).not.toThrow();
 		expect(() => setAppOption(null, "src", "new.webp")).not.toThrow();
+	});
+});
+
+describe("imagePopout", () => {
+	afterEach(() => { delete globalThis.ImagePopout; });
+
+	/** Capture what the constructor was handed, the way core's own signature receives it. */
+	function stubPopout() {
+		const seen = [];
+		globalThis.ImagePopout = class { constructor(...args) { seen.push(args); } };
+		return seen;
+	}
+
+	it("passes the path as options.src, not as the first positional argument", () => {
+		// The positional form still opens the window; it just logs "An ImagePopout image path
+		// must be assigned to options.src." on every single open, and goes away in v15.
+		const seen = stubPopout();
+		imagePopout({ src: "worlds/mine/bryn.webp", title: "Bryn" });
+		expect(seen).toHaveLength(1);
+		expect(seen[0][0]).toEqual({ src: "worlds/mine/bryn.webp", window: { title: "Bryn" } });
+		// One argument: a second would land in core's `_options`, which is only read on the
+		// deprecated string path.
+		expect(seen[0]).toHaveLength(1);
+	});
+
+	it("nests the title under `window`, where v13 reads it", () => {
+		const seen = stubPopout();
+		imagePopout({ src: "a.webp", title: "Tobin" });
+		expect(seen[0][0].window).toEqual({ title: "Tobin" });
+		expect(seen[0][0].title, "a top-level title re-triggers the deprecation").toBeUndefined();
+	});
+
+	it("omits the window entirely when there is no title to give it", () => {
+		const seen = stubPopout();
+		imagePopout({ src: "a.webp" });
+		expect(seen[0][0]).toEqual({ src: "a.webp" });
+	});
+
+	it("never sends a size, which core overwrites from the image before first render", () => {
+		const seen = stubPopout();
+		imagePopout({ src: "a.webp", title: "T", width: 560, height: 620 });
+		expect(seen[0][0]).not.toHaveProperty("position");
+		expect(seen[0][0]).not.toHaveProperty("width");
+		expect(seen[0][0]).not.toHaveProperty("height");
+	});
+
+	it("returns null rather than throwing when the global is absent", () => {
+		expect(imagePopout({ src: "a.webp" })).toBeNull();
+		expect(imagePopout()).toBeNull();
+	});
+});
+
+describe("imagePopoutTitle", () => {
+	it("reads the v13 location, and still finds a legacy top-level title", () => {
+		expect(imagePopoutTitle({ options: { window: { title: "Wren" } } })).toBe("Wren");
+		expect(imagePopoutTitle({ options: { title: "Wren" } })).toBe("Wren");
+		expect(imagePopoutTitle({ options: {} })).toBe("");
+		expect(imagePopoutTitle(null)).toBe("");
 	});
 });

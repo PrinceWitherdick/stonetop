@@ -4,7 +4,8 @@ import { rollDamage } from "../../utils/roll-engine.js";
 import { DAMAGE_DIE_RE } from "../../utils/damage.js";
 import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle } from "../../utils/sheet-chrome.js";
 import { escHtml, isDefaultImg } from "../../utils/strings.js";
-import { wirePortraitPopout, updateRichTextField, updateMoveField } from "../../utils/stat-block-edit.js";
+import { headerPortraitContext, wirePortraitPopout } from "../../utils/actor-portrait-picker.js";
+import { updateRichTextField, updateMoveField } from "../../utils/stat-block-edit.js";
 import { findMonsterTag } from "../../data/monster-tags.js";
 import { getHoverDescriptionSetting, getOpenSheetsInEditMode } from "../../settings.js";
 import { parseArmorBoost, armorBoostLabel } from "../../utils/monster-armor-boost.js";
@@ -300,6 +301,21 @@ export function createStonetopMonsterSheetClass(Base) {
 			const typeIcon = creatureTypeIcon(system?.creatureType);
 			st.displayImg   = realImg ?? typeIcon ?? null;
 			st.hasPortrait  = !!st.displayImg;
+			// The header portrait and its two pips, answered once for all three sheets that draw
+			// them. Framed if this monster's face has been cropped — the same square every small
+			// round surface and the token show. Resolved off `realImg` only: a creature-type mark
+			// is decorative and can carry no frame, so it always takes the plain-<img> branch.
+			Object.assign(st, headerPortraitContext(this, realImg ?? ""));
+			// What the UNFRAMED branch of the header draws, and whether the slot is drawn at all.
+			// The framed branch is the same in both modes — a chosen face should not be re-cropped
+			// by the lock button — so only these two differ:
+			//
+			//   edit  the raw stored path, so you can see what is actually ON the actor, and the
+			//         slot always, because clicking it is how art gets CHOSEN.
+			//   play  the creature-type mark standing in for missing art, and no slot at all when
+			//         there is neither.
+			st.headerImg    = st.editMode ? this.actor.img : st.displayImg;
+			st.showPortrait = st.editMode || st.hasPortrait;
 
 			for (const field of MONSTER_RICH_TEXT_FIELDS) {
 				st[field.enrichedKey] = await enrichHTML(system?.[field.key]);
@@ -445,12 +461,11 @@ export function createStonetopMonsterSheetClass(Base) {
 				}
 			});
 
-			// Clicking the portrait in play mode enlarges it in a popout for easy
-			// viewing (in edit mode the same <img> carries data-edit="img", so Foundry's
-			// own handler opens the file picker instead; hence the edit-mode guard).
-			// Registered before the isEditable bail so it works from read-only views too
-			// (e.g. a monster opened out of a compendium). Skipped when there's no real
-			// portrait, so the decorative creature-type fallback icon isn't blown up.
+			// Clicking the portrait opens the People of Stonetop gallery in edit mode and
+			// enlarges the picture in play mode, plus the crop pip over it. Registered
+			// before the isEditable bail so the play-mode window still opens from a
+			// read-only view (e.g. a monster opened out of a compendium) — the controls
+			// inside it gate themselves on isEditable.
 			wirePortraitPopout(this, html[0]);
 
 			if (!this.isEditable) return;

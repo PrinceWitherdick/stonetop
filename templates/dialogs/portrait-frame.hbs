@@ -22,19 +22,27 @@
 			<p class="stonetop-frame-sizes">Follower card, relationships, roster</p>
 			<p class="stonetop-frame-readout" aria-live="polite"></p>
 			<p class="stonetop-frame-error" hidden></p>
+			{{!-- Only with Tokenizer installed and an ACTOR being framed (showTokenizerNote), because
+			      it is only then that both routes are on offer and telling them apart is a question
+			      anybody has. Without the module this paragraph would introduce a tool the reader
+			      cannot see and has no way to act on. --}}
+			{{#if showTokenizerNote}}
+			<p class="stonetop-frame-note">
+				<i class="fas fa-circle-info" aria-hidden="true"></i>
+				<span><strong>Not Tokenizer.</strong> This square is the face the sheets, the steading
+					roster and the relationship rows show. Tokenizer makes the map token, with its
+					border, mask and tints. Saving also updates the token if it is still just the
+					portrait. A token you made in Tokenizer is never changed.</span>
+			</p>
+			{{/if}}
 		</div>
 	</div>
 	<footer class="stonetop-frame-footer">
 		<button type="button" class="stonetop-frame-save"><i class="fas fa-check"></i> Save frame</button>
 		<button type="button" class="stonetop-frame-suggest"><i class="fas fa-wand-magic-sparkles"></i> Suggest</button>
-		{{#if canRemove}}
-		<button type="button" class="stonetop-frame-remove"><i class="fas fa-rotate-left"></i> Remove frame</button>
-		{{/if}}
-		{{#if canTokenize}}
-		{{!-- Only when the Tokenizer module is installed and this user may upload. It saves the
-		      frame first, then cuts it to a file and hands it over, because Tokenizer takes
-		      image paths and cannot see a rect on a flag. --}}
-		<button type="button" class="stonetop-frame-tokenize"><i class="fas fa-circle-user"></i> Save and send to Tokenizer</button>
-		{{/if}}
+		{{!-- No Tokenizer button here. It is a pip beside the crop pip on the sheet header instead
+		      (templates/actor/partials/portrait-frame-pip.hbs): the two jobs are siblings, not
+		      steps — this dialog crops the face for the sheet, Tokenizer makes the pog for the
+		      map — so neither belongs inside the other. --}}
 	</footer>
 </div>
