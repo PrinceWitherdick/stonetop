@@ -36,7 +36,7 @@ import {playbookIconPath, partyCharacters} from "../../utils/playbook-actors.js"
 import {postMoveToChat, moveChatCard} from "../../utils/chat.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {openChroniclePageForActor} from "../../utils/chronicle.js";
-import {getDragEventData, deletionEntry} from "../../utils/foundry-compat.js";
+import {getDragEventData, deletionEntry, imagePopout} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
 import {peopleNames, steadingPeopleActors, usedPersonPortraits, createPersonNpc, isActorRow, personRowActor, personRowKey, personRowIdentity, rebasePersonRows} from "../steading/steading-people.js";
 import {openPeoplePortraitPicker} from "../steading/PeopleGalleryDialog.js";
@@ -63,9 +63,9 @@ import {FOLLOWER_DRAG_TYPE} from "../../data/follower-actor.js";
 import {CREW_INDIVIDUAL_NAMES, CREW_INDIVIDUAL_TAGS, CREW_INDIVIDUAL_TRAITS} from "../../data/steading-members.js";
 import {resolvePortrait} from "../../utils/portrait-frame.js";
 import {displayPortraitSrc} from "../../book2-art/people-portraits.js";
-import {followerFrameHandle, actorFrameHandle} from "../../utils/portrait-frame-handles.js";
+import {followerFrameHandle} from "../../utils/portrait-frame-handles.js";
 import {openPortraitFrameEditor} from "../../utils/PortraitFrameDialog.js";
-import {addPortraitFrameControl} from "../../utils/popout-header-control.js";
+import {headerPortraitContext, usedActorPortraits, wirePortraitPopout} from "../../utils/actor-portrait-picker.js";
 import {localize} from "../../utils/i18n.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "con", "int", "wis", "cha"]);
@@ -748,22 +748,35 @@ export function createStonetopCharacterSheetClass(Base) {
 			// <img> portrait is built and the browser must re-fetch/decode it before
 			// it paints — a visible flicker on each data-only re-render (toggling
 			// supplies pips, rapport "hold" circles, etc.). Carry the already-decoded
-			// portrait element forward when nothing about it changed (same src, same
-			// edit state) so it never reloads. The live node keeps the click listener
-			// wired in activateListeners for that state, so reuse is only safe when
-			// neither changed.
-			const oldImg = this.element?.[0]?.querySelector("img.stonetop-portrait");
+			// portrait element forward when its src has not changed, so it never reloads.
+			//
+			// Reuse keeps the listener bound to the OLD node and discards the one this render
+			// just wired to the new one. That used to make an edit-mode flip unsafe, and the
+			// check guarded it by comparing `data-edit` — but the click handler now reads
+			// `this._editMode` when it fires rather than being wired per mode, and the attribute
+			// is gone (see actor-header.hbs).
+			//
+			// Found through the SLOT, not `img.stonetop-portrait`: a framed portrait moves that
+			// class onto the clipping span around the image, so the old selector matched nothing
+			// there and every re-render made a cropped face reload.
+			//
+			// The STYLE has to match as well as the src, and this is not belt-and-braces: a
+			// re-frame changes only the style — same picture, new rect — so comparing the src
+			// alone would carry the old node forward and pin the previous crop on screen until
+			// something else forced a full render.
+			const portraitOf = (root) => root?.querySelector(".stonetop-portrait-slot img");
+			const oldImg = portraitOf(this.element?.[0]);
 			const oldSrc = oldImg?.getAttribute("src");
-			const oldEditable = oldImg?.hasAttribute("data-edit");
+			const oldStyle = oldImg?.getAttribute("style") ?? "";
 			// The art hover preview is a document.body singleton, so a re-render while the
 			// cursor is over a card's art tears out the anchor without firing mouseleave —
 			// clear it up front so no orphaned floating preview is left stuck on screen.
 			removeAvatarPreview();
 			await super._render(force, options);
-			const newImg = this.element?.[0]?.querySelector("img.stonetop-portrait");
+			const newImg = portraitOf(this.element?.[0]);
 			if (oldImg && newImg
 				&& oldSrc === newImg.getAttribute("src")
-				&& oldEditable === newImg.hasAttribute("data-edit")) {
+				&& oldStyle === (newImg.getAttribute("style") ?? "")) {
 				oldImg.title = newImg.title;
 				oldImg.alt = newImg.alt;
 				newImg.replaceWith(oldImg);
@@ -928,6 +941,16 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.hideUnselected = this.actor.getFlag('stonetop-pwd', 'hideUnselected') ?? true;
 			context.stonetop.editMode = this._editMode;
 			context.stonetop.canEdit = this.isEditable;
+			// The header portrait and the two pips over it, answered once for all three sheets
+			// that draw them (utils/actor-portrait-picker.js). Framed if this character's face has
+			// been cropped — the same square the steading roster, the relationship rows and the
+			// token now show, just larger. Without this, framing your own PC changed every surface
+			// in the system EXCEPT the sheet you framed it on. `framed` picks the markup: an
+			// unframed portrait stays the bare <img> it has always been, so nothing about the
+			// common case moves. The whole picture is still one click away, in the portrait window.
+			// The stored img rather than a stripped one, so an art-less character still draws the
+			// placeholder it is wearing.
+			Object.assign(context.stonetop, headerPortraitContext(this, this.actor.img));
 			context.stonetop.detailsEdit = {
 				background: sectionEdit("background"),
 				instinct:   sectionEdit("instinct"),
@@ -2336,22 +2359,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this._stonetopCharacter.setRollMode(ev.currentTarget.value);
 			});
 
-			html[0].querySelector(".stonetop-portrait")?.addEventListener("click", ev => {
-				if (this._editMode) return;
-				ev.preventDefault();
-				ev.stopPropagation();
-				const popout = new ImagePopout(this.actor.img, { title: this.actor.name });
-				popout.render(true);
-				// A PC's face appears in the steading roster and in everyone else's relationship
-				// rows, so it wants framing for the same reason an NPC's does. This is the entry
-				// point a non-GM routinely uses on their own document, which is the check that
-				// this feature never needs isGM anywhere.
-				addPortraitFrameControl(popout, actorFrameHandle(this.actor, { editable: this.isEditable }), {
-					name: this.actor.name,
-					img: this.actor.img,
-					onSaved: () => this.render(false),
-				});
-			});
+			// The header portrait's own click and the two pips over it, wired the same way the
+			// stat-block sheets wire theirs — one header, one behaviour. A PC's face appears in
+			// the steading roster and in everyone else's relationship rows, so it wants framing
+			// for the same reason an NPC's does, and this is the entry point a non-GM routinely
+			// uses on their own document, which is the check that this feature never needs isGM.
+			wirePortraitPopout(this, html[0]);
 
 			html[0].addEventListener("click", ev => {
 				const nameEl = ev.target.closest(".stonetop-item-name");
@@ -4005,7 +4018,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const thumb = ev.target.closest(".stonetop-arcanum-thumb, .stonetop-lore-arcana-img");
 				if (!thumb) return;
 				ev.stopPropagation();
-				new ImagePopout(thumb.src, { title: thumb.dataset.name }).render(true);
+				imagePopout({ src: thumb.src, title: thumb.dataset.name })?.render(true);
 			}, true);
 
 			// Hovering a card's art pops a larger preview beside it (click still opens the
@@ -5436,7 +5449,13 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (p.ftype === ftype && p.slug === (slug ?? "")) continue;
 				used[p.img] ??= p.name || "another follower";
 			}
-			return { ...used, ...usedPersonPortraits(getStonetopSteadingActor()) };
+			// Three scans, nearest first: this character's other followers, then every actor in
+			// the world (which reaches player characters and any NPC, both of which can now pick
+			// from this gallery on their own sheet), then the steading's roster last so a named
+			// resident wins the label over the same person's bare actor entry. A follower
+			// recruited from an NPC shares that NPC's portrait on purpose, and the gallery does
+			// not read a person's own current face as taken from them.
+			return { ...used, ...usedActorPortraits(), ...usedPersonPortraits(getStonetopSteadingActor()) };
 		}
 
 		/**
@@ -5473,7 +5492,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// The popup is portaled to <body> and would otherwise hang over the popout.
 			removeAvatarPreview();
 			const name = imgEl.dataset.name || "Follower";
-			new ImagePopout(displayPortraitSrc(stored), { title: name }).render(true);
+			imagePopout({ src: displayPortraitSrc(stored), title: name })?.render(true);
 		}
 
 		_onFollowerPortraitFrame(portrait) {

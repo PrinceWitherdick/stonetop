@@ -26,7 +26,7 @@ import {STEADING_IMPROVEMENT_DRAG_TYPE} from "../../journal/steading-improvement
 import {improvementCategoryFieldHtml} from "../../dialogs/create-improvement-dialog.js";
 import {STONETOP_THREAT_SEED_DRAG_TYPE} from "../../threats/threat-seed-cards.js";
 import {PLACE_OF_INTEREST_DRAG_TYPE} from "../../hooks/PlaceOfInterestDrop.js";
-import {getDragEventData, hasVideoExtension, setAppOption} from "../../utils/foundry-compat.js";
+import {getDragEventData, imagePopout, imagePopoutTitle} from "../../utils/foundry-compat.js";
 import {postSeasonsChangeReminder, seasonIconSrc, seasonLabel, SEASON_IDS} from "../../seasons/seasons-change-reminders.js";
 import {recordSeasonsChange, ordinalWord} from "../../seasons/seasons-chronicle.js";
 import {SEASONAL_GAINS} from "../../dialogs/spring-burst-data.js";
@@ -45,8 +45,9 @@ import {wireAvatarPreview, removeAvatarPreview} from "../../utils/avatar-preview
 import {ACTOR_LINK_MISSING, openLinkedActorSheet, withLinkedActor} from "../../utils/actor-link.js";
 import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relationship-board.js";
 import {displayPortraitSrc} from "../../book2-art/people-portraits.js";
-import {addPopoutHeaderControl, addPortraitFrameControl} from "../../utils/popout-header-control.js";
+import {addPopoutHeaderControl, addPortraitFrameControl, addTokenizerControl} from "../../utils/popout-header-control.js";
 import {personFrameHandle} from "../../utils/portrait-frame-handles.js";
+import {bindImagePopoutToActor, pointImagePopoutAt, usedActorPortraits} from "../../utils/actor-portrait-picker.js";
 import {openPortraitFrameEditor} from "../../utils/PortraitFrameDialog.js";
 import {localize} from "../../utils/i18n.js";
 
@@ -856,16 +857,21 @@ export function createStonetopSteadingSheetClass(Base) {
 				ev.dataTransfer.effectAllowed = "copy";
 			});
 
-			// Drag a Resident/Neighbor avatar out of the sheet as a standard Actor drop:
-			// the rows are backed by NPC actors, so emitting the core {type:"Actor",uuid}
-			// payload lets them drop onto a scene (place a token), into the combat tracker,
-			// onto another sheet, etc. — exactly like dragging the NPC from the sidebar.
-			// Read-only viewers may drag too; what a drop is allowed to do is gated by the
-			// core permissions on the target (token/combatant creation), not by us.
+			// Drag a Player Character / Resident / Neighbor avatar out of the sheet as a
+			// standard Actor drop: the rows are backed by actors, so emitting the core
+			// {type:"Actor",uuid} payload lets them drop onto a scene (place a token), into
+			// the combat tracker, onto another sheet, etc. — exactly like dragging the actor
+			// from the sidebar. Read-only viewers may drag too; what a drop is allowed to do
+			// is gated by the core permissions on the target (token/combatant creation),
+			// not by us.
 			html[0].addEventListener("dragstart", (ev) => {
-				// Both the portrait and the name link carry the actor pointer, so an NPC
-				// row can be dragged by grabbing either one.
-				const handle = ev.target.closest?.(".steading-member-avatar[draggable='true'], .steading-member-name-text[draggable='true']");
+				// The contract is what the handle IS, not which of the row kinds it belongs to: a
+				// draggable element carrying an actor pointer. Both the portrait and the name link
+				// of every row kind are marked that way (the templates only add `draggable` where
+				// there is a uuid to add beside it), so a row can be dragged by grabbing either
+				// one, and a fifth kind of actor-backed row is draggable the day it is written
+				// rather than the day somebody remembers to extend a list here.
+				const handle = ev.target.closest?.("[draggable='true'][data-actor-uuid]");
 				if (!handle) return;
 				const uuid = handle.dataset.actorUuid;
 				if (!uuid) { ev.preventDefault(); return; }
@@ -1299,7 +1305,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			}
 			if (!box?.querySelector?.(".steading-member-avatar-img")?.getAttribute("src")) return;
 			const popout = this._createEditableMemberImagePopout(box);
-			popout.render(true);
+			popout?.render(true);
 			this._scheduleMemberImageHeaderControl(popout);
 		}
 
@@ -1308,27 +1314,29 @@ export function createStonetopSteadingSheetClass(Base) {
 			const list = box?.dataset?.list;
 			const index = Number.parseInt(box?.dataset?.index ?? "", 10);
 			const canEdit = this.isEditable && ["residents", "neighbors"].includes(list) && Number.isInteger(index);
-			const sheet = this;
-			const BaseImagePopout = globalThis.ImagePopout;
 			// Read the ATTRIBUTE, not `.src`: the DOM resolves the latter to an absolute URL, which
 			// a query string or hash could hide the filename the swap has to recognise.
 			const stored  = anchor.getAttribute?.("src") || anchor.src;
 			const display = memberPhotoDisplaySrc(stored);
-			if (!canEdit || !BaseImagePopout) {
-				return new ImagePopout(display, {
-					title:  anchor.dataset.name ?? "",
-					width:  560,
-					height: 620,
-				});
+			// No size: this used to ask for 560x620, which core has been discarding since v13 —
+			// ImagePopout measures the picture and sizes its own window (see foundry-compat.js).
+			const popout = imagePopout({ src: display, title: anchor.dataset.name ?? "" });
+			// The window is the same either way; only a row this user may edit gets the Edit Photo
+			// bookkeeping and the binding that keeps it in step with its NPC.
+			if (popout && canEdit) {
+				popout._stonetopMemberImageEdit = { sheet: this, list, index, current: stored };
+				this._bindMemberImagePopoutToActor(popout, list, index);
 			}
-			const popout = new BaseImagePopout(display, {
-				title:  anchor.dataset.name ?? "",
-				width:  560,
-				height: 620,
-			});
-			popout._stonetopMemberImageEdit = { sheet, list, index, current: stored };
-			this._bindMemberImagePopoutToActor(popout, list, index);
 			return popout;
+		}
+
+		// One Residents/Neighbors row as it is STORED, falling back to the defaults a world that
+		// has never written the list still shows. Reading only the flag looks right and is wrong
+		// for exactly that case — see legacyRowFrameHandle, which makes the same fallback.
+		_personRow(list, index) {
+			const stored = this._stonetopSteading?._flags?.[list];
+			const rows = Array.isArray(stored) ? stored : STEADING_DEFAULTS[list];
+			return Array.isArray(rows) ? rows[index] ?? null : null;
 		}
 
 		// Keep an open member-image window in sync with its backing NPC. The Edit Photo
@@ -1337,24 +1345,19 @@ export function createStonetopSteadingSheetClass(Base) {
 		// re-syncs no matter how the portrait changed — the popout's Edit Photo, the
 		// People gallery, or the GM editing the portrait on the NPC's own sheet while this
 		// window is open. The hook is torn down when the popout closes so it doesn't leak.
+		//
+		// The same binding the sheet headers' portrait window uses (utils/actor-portrait-picker.js
+		// bindImagePopoutToActor); the actor is resolved through the roster's own lookup, so this
+		// watches the document the row actually renders rather than trusting `row.id`. The roster
+		// hands it its own refresh, which additionally keeps the popout's `current` (the STORED
+		// path, which the next Edit Photo reads) in step and re-hangs the header controls if the
+		// window had to re-render.
 		_bindMemberImagePopoutToActor(popout, list, index) {
-			const f = this._stonetopSteading._flags;
-			const row = (f[list] ?? STEADING_DEFAULTS[list])?.[index];
+			const row = this._personRow(list, index);
 			if (!row) return;
-			// Resolved through the roster's own lookup, so this watches the same document the row
-			// renders. Taking `row.id` on trust would keep watching an id whose actor is gone.
-			const actorId = personRowActor(row)?.id;
-			if (!actorId) return;
-
-			const hookId = Hooks.on("updateActor", (actor, changes) => {
-				if (actor?.id !== actorId || !foundry.utils.hasProperty(changes, "img")) return;
-				this._refreshMemberImagePopout(popout, actor.img);
+			bindImagePopoutToActor(popout, personRowActor(row), {
+				onChange: (img) => this._refreshMemberImagePopout(popout, img),
 			});
-			const originalClose = popout.close.bind(popout);
-			popout.close = (...args) => {
-				Hooks.off("updateActor", hookId);
-				return originalClose(...args);
-			};
 		}
 
 		_scheduleMemberImageHeaderControl(popout) {
@@ -1363,7 +1366,9 @@ export function createStonetopSteadingSheetClass(Base) {
 			addPopoutHeaderControl(popout, {
 				key: "stonetop-edit-member-photo",
 				icon: "fa-camera",
-				label: "Edit Photo",
+				// The same string the sheet portraits' own Edit Photo uses, so the control that
+				// opens this gallery cannot come to read two ways depending on where it is met.
+				label: localize("stonetop.portraitPicker.popout"),
 				onClick: () => this._onMemberAvatarPickImage({
 					list: edit.list,
 					index: edit.index,
@@ -1383,12 +1388,19 @@ export function createStonetopSteadingSheetClass(Base) {
 			// both row kinds, and returns null when there is nothing writable behind the row.
 			// Named from the POPOUT's title, not from a document: a legacy roster row is plain
 			// text and has no actor to ask.
+			const memberHandle = personFrameHandle(this._stonetopSteading, edit.list, edit.index, { editable: this.isEditable });
+			// Before the framing control so it lands to its LEFT, matching the pips on a sheet
+			// header. Silently absent for a legacy text row, which has no actor to tokenize.
+			addTokenizerControl(popout, memberHandle, { key: "stonetop-tokenize-member-photo" });
 			addPortraitFrameControl(
 				popout,
-				personFrameHandle(this._stonetopSteading, edit.list, edit.index, { editable: this.isEditable }),
+				memberHandle,
 				{
 					key: "stonetop-frame-member-photo",
-					name: popout.options?.title ?? "Face",
+					// Through the compat reader: v13 moved the window title to
+					// `options.window.title`, so a bare `options.title` silently yields "Face"
+					// for every member instead of naming the one being framed.
+					name: imagePopoutTitle(popout) || "Face",
 					// A frame write touches neither `img` nor `options.src`, so the popout's own
 					// updateActor binding will not fire and nothing re-renders on its own.
 					onSaved: () => this.render(false),
@@ -1416,12 +1428,20 @@ export function createStonetopSteadingSheetClass(Base) {
 			};
 			// Primary path: the "People of Stonetop" gallery of imported book portraits. "Browse
 			// files…" falls back to the FilePicker for a custom image; "Use default" clears it.
-			// Portraits the rest of the steading already wears, so the gallery can mark them
-			// and offer to hide them. The row being edited is left out: its own portrait is
-			// this member's, not somebody else's.
+			// Portraits somebody already wears, so the gallery can mark them and offer to hide
+			// them. Two scans, because a face can be taken in two kinds of place: every actor in
+			// the world (which reaches a player character and an NPC nobody has put on this
+			// roster yet — both of which can now pick from this gallery on their own sheet), and
+			// this steading's own legacy text rows, which are not documents at all. The steading
+			// goes on top so a roster member's name wins the label. Each scan leaves out the row
+			// being edited — by index here, by document there — so this member's own portrait
+			// reads as selected rather than as taken.
 			openPeoplePortraitPicker({
 				current,
-				used: usedPersonPortraits(this.actor, { list, index }),
+				used: {
+					...usedActorPortraits(personRowActor(this._personRow(list, index))),
+					...usedPersonPortraits(this.actor, { list, index }),
+				},
 				onPick: applyPath,
 				onClear: clearToDefault,
 				// A browsed file is the one case with no hand-cut square behind it, so offer the
@@ -1441,29 +1461,17 @@ export function createStonetopSteadingSheetClass(Base) {
 			if (!popout || !path) return;
 
 			// `path` is what the member now WEARS; the window shows the illustration behind it.
-			const display = memberPhotoDisplaySrc(path);
+			// The patching itself is the shared one (utils/actor-portrait-picker.js), which also
+			// keeps `options.src` — what a re-render and the header's Share Image control both
+			// read — in step, and reports whether it had to fall back to a re-render.
+			const patched = pointImagePopoutAt(popout, memberPhotoDisplaySrc(path));
 
-			// Match the element to the kind of portrait coming in: core renders a still as an
-			// <img> and an animated one as a <video>, so a swap between the two finds no
-			// element of the new kind — and leaving `media` null routes it to the re-render
-			// below, which builds whichever element the new path needs.
-			const root = popout.element?.jquery ? popout.element[0] : popout.element;
-			const selector = hasVideoExtension(display) ? ".window-content video, video" : ".window-content img, img";
-			const media = root?.querySelector?.(selector);
-			if (media) media.src = display;
-
-			// Keep the popout's own state in step: a re-render reads `options.src`, and so does
-			// the header's Share Image control — both want what is on screen. The next Edit Photo
-			// pass reads `current` instead, which is why the stored path is kept alongside it.
-			setAppOption(popout, "src", display);
+			// The next Edit Photo pass reads `current` instead of `options.src`, because it wants
+			// the STORED path rather than the illustration on screen.
 			if (popout._stonetopMemberImageEdit) popout._stonetopMemberImageEdit.current = path;
 
-			// No usable element (the window is still rendering, or the portrait changed kind):
-			// fall back to a re-render, which picks up the src stored above.
-			if (!media) {
-				popout.render?.(false);
-				this._scheduleMemberImageHeaderControl(popout);
-			}
+			// A re-render builds a fresh window header, so the controls have to be hung again.
+			if (!patched) this._scheduleMemberImageHeaderControl(popout);
 		}
 
 		async _onMemberAvatarImageChange(list, index, value) {

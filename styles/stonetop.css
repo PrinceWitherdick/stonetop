@@ -383,16 +383,18 @@ body {
 	text-shadow: 3px 3px 4px var(--color-shadow-dark);
 }
 
-/* Actor sidebar thumbnails — show full portrait instead of cropping */
-#actors .directory-item img {
-	object-fit: contain;
-}
+/* Actor sidebar thumbnails, cropped top-anchored like every other portrait surface — see the
+   shared crop rule for why the top rather than the middle.
 
-/* ...except the wide Book II bestiary illustrations, which would otherwise
-   letterbox to a thin strip in the square cell. Crop them to fill like the
-   square portraits. Scoped by asset path so PC/steading art keeps "no crop". */
-#actors .directory-item img[src*="/assets/bestiary/"] {
+   The point is that a row shows the SAME FACE as the sheet it opens. hooks/ActorDirectoryPortraits.js
+   already brings that about for a framed actor (it wraps the row's image and paints the stored
+   rect on it, because core renders a bare <img> that knows nothing about frames); this is the
+   unframed half of the same promise. It was `contain` with a `[src*="/assets/bestiary/"]`
+   exception — so a Book II illustration was cropped here and a GM's own art letterboxed, which is
+   the split the header carried too. */
+#actors .directory-item img {
 	object-fit: cover;
+	object-position: center top;
 }
 
 .vtt .sidebar-tab,
@@ -6909,22 +6911,31 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 4px;
 }
 
+/* The sheet header's portrait. `object-fit` here is the UNFRAMED case only: a framed portrait is
+   a clipping box wearing this class (a span, where object-fit is inert) around an inner image the
+   stored rect positions inline.
+
+   Cropped top-anchored, the same fallback the shared rule further down gives every other portrait
+   surface in the system, for the reasons spelled out there: a person's head starts within a few
+   percent of the top edge, so the window lands on the face and the figure trails off below.
+
+   This used to be `contain` with a `[src*="/assets/bestiary/"]` exception cropping the Book II
+   illustrations, which letterboxed to a thin strip otherwise. That split by ASSET FOLDER: the
+   same tall figure cropped to its face if it shipped with the system and shrank into a letterbox
+   if a GM had browsed to it, and the NPC header (whose inner image has always been on the shared
+   rule) cropped both. One rule for all art, whoever supplied it, and the crop pip on the picture
+   is how anyone unhappy with the guess chooses a different square. */
 .stonetop-portrait {
 	width: 180px;
 	height: 180px;
-	object-fit: contain;
+	object-fit: cover;
+	object-position: center top;
 	border: 2px solid var(--color-border-dark, #888);
 	border-radius: var(--st-radius);
 	flex-shrink: 0;
 	align-self: flex-start;
 	cursor: pointer;
 	transition: border-color 0.15s, box-shadow 0.15s;
-}
-
-/* Wide Book II bestiary illustrations fill the square portrait frame rather than
-   letterboxing. Scoped by asset path so other actors keep the default "contain". */
-.stonetop-portrait[src*="/assets/bestiary/"] {
-	object-fit: cover;
 }
 
 .stonetop-portrait:hover,
@@ -10015,6 +10026,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-player-portrait-img,
 .stonetop-follower-portrait-img,
 .stonetop-npc-portrait-img,
+.stonetop-portrait-img,
 .stonetop-people-gallery .stonetop-people-pick img,
 .stonetop-rel-portrait-img {
 	object-fit: cover;
@@ -10052,6 +10064,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-member-avatar-img,
 .steading-player-portrait-img,
 .stonetop-npc-portrait-img,
+.stonetop-portrait-img,
 .stonetop-rel-portrait-img {
 	display: block;
 	width: 100%;
@@ -10246,6 +10259,20 @@ a.steading-player-open:hover {
 
 .steading-player-portrait--empty[data-tooltip] {
 	cursor: help;
+}
+
+/* Actor-backed PC portraits double as a drag handle, exactly like the resident avatars
+   above (drop onto a scene to place a token, into combat, etc.), so signal grab. The
+   inner image needs the rule repeated: it sits on top of the wrapper and carries its own
+   zoom-in above, so the wrapper's cursor never reaches the pointer on its own. Placed
+   after the two rules above so it also wins over the placeholder's `help`. */
+.steading-player-portrait[draggable="true"],
+.steading-player-portrait[draggable="true"] .steading-player-portrait-img {
+	cursor: grab;
+}
+.steading-player-portrait[draggable="true"]:active,
+.steading-player-portrait[draggable="true"]:active .steading-player-portrait-img {
+	cursor: grabbing;
 }
 
 .steading-player-empty {
@@ -23387,11 +23414,21 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	height: var(--st-npc-portrait-size);
 }
 
-/* The clipping box for a framed face. Deliberately NOT folded into the rule above, which also
-   catches .stonetop-npc-portrait-placeholder — that one is a flex centring box for its glyph,
-   and this `display` would beat it on specificity (0,2,0 against 0,1,0) and un-centre it.
-   `position` is load-bearing: a framed image is absolutely positioned at several hundred
-   percent, so without a positioned ancestor it lays itself out against the sheet window. */
+/* The clipping box for a framed face, on every sheet header that draws one: .stonetop-npc-portrait
+   on the NPC, .stonetop-portrait-clip on the character and monster.
+
+   Deliberately NOT folded into the rule above, which also catches
+   .stonetop-npc-portrait-placeholder — that one is a flex centring box for its glyph, and this
+   `display` would beat it on specificity (0,2,0 against 0,1,0) and un-centre it.
+
+   `position` is load-bearing: a framed image is absolutely positioned at several hundred percent,
+   so without a positioned ancestor it lays itself out against the sheet window and paints over
+   everything.
+
+   Only the FRAMED branch of those headers wears this. An unframed portrait is still the bare
+   <img> it has always been, taking .stonetop-portrait's own top-anchored crop — so nothing here
+   is in the way of the actors nobody has framed. */
+.stonetop-portrait-clip,
 .stonetop-npc-portrait {
 	display: block;
 	position: relative;
@@ -25600,7 +25637,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	background: rgb(85 107 139 / 20%);
 }
 
-/* Corner grips. VISUAL ONLY â€” the drag is bound to the stage and hit-tested geometrically, so
+/* Corner grips. VISUAL ONLY: the drag is bound to the stage and hit-tested geometrically, so
    these must never swallow the pointerdown that starts a resize. */
 .stonetop-portrait-frame-dialog .sq-grip {
 	position: absolute;
@@ -25631,8 +25668,35 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	color: var(--st-text-muted, rgba(0, 0, 0, 0.65));
 }
 
+/* The "this is not Tokenizer" note, rendered only when that module is installed and an actor is
+   being framed. Last in the rail and quieter than the hint above: the hint is needed to work the
+   editor, this is read once and then never again. The rule above it is what separates a standing
+   explanation from the live readout, which is the line directly before it.
+
+   `align-items: flex-start` so the icon sits on the first line rather than centring itself against
+   a four-line paragraph, and the text is a <span> flex item of its own so it wraps as a block
+   instead of flowing around the glyph. NO font-family on the icon: the FA glyph comes from its own
+   class and a family here would swap it for a box (see .stonetop-themed elsewhere). */
+.stonetop-portrait-frame-dialog .stonetop-frame-note {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	margin: 0;
+	padding-top: 8px;
+	border-top: 1px solid rgba(0, 0, 0, 0.12);
+	font-size: 0.8em;
+	line-height: 1.35;
+	color: var(--st-text-muted, rgba(0, 0, 0, 0.65));
+}
+
+.stonetop-portrait-frame-dialog .stonetop-frame-note i {
+	flex: 0 0 auto;
+	margin-top: 2px;
+	opacity: 0.7;
+}
+
 /* The three sizes this frame is actually used at, driven by the same function the sheets use.
-   Real clipping boxes, so a geometry bug shows up here first â€” at 75px, where it is visible. */
+   Real clipping boxes, so a geometry bug shows up here first, at 75px, where it is visible. */
 .stonetop-portrait-frame-dialog .stonetop-frame-previews {
 	display: flex;
 	align-items: center;
@@ -25667,7 +25731,6 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 .stonetop-portrait-frame-dialog .stonetop-frame-preview--26 { width: 26px; height: 26px; }
 .stonetop-portrait-frame-dialog .stonetop-frame-preview--22 { width: 22px; height: 22px; }
-
 .stonetop-portrait-frame-dialog .stonetop-frame-sizes,
 .stonetop-portrait-frame-dialog .stonetop-frame-readout {
 	margin: 0;
@@ -25685,7 +25748,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	color: var(--st-danger, #8b2f2f);
 }
 
-/* Affirmative FIRST in the DOM, which with flex-end puts it on the left of the group â€” the
+/* Affirmative FIRST in the DOM, which with flex-end puts it on the left of the group: the
    house modal order, matching the People gallery footer. Cancel is the window X. */
 .stonetop-portrait-frame-dialog .stonetop-frame-footer {
 	display: flex;
@@ -25716,8 +25779,17 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 
 /* The crop pip on a follower card's portrait: a second, smaller affordance inside a control
    that already opens the gallery on click. Hidden until the card is hovered or something in
-   it has focus, so a page of followers is not a page of pips. */
-.stonetop-follower-portrait-frame {
+   it has focus, so a page of followers is not a page of pips.
+
+   A sheet header's pips (.stonetop-header-pip, below) are the same affordance on a much larger
+   picture, so they share everything here but their size and which corner they sit in. That one
+   class is what both header pips are styled through: they are always styled together, and
+   threading two class names through every shared list here meant a third header pip would have
+   to be added to five separate selector lists. Each keeps its own class for the JS to bind to
+   and, for the Tokenizer pip, its one genuine difference — the `right` that puts it to the
+   left of its neighbour. */
+.stonetop-follower-portrait-frame,
+.stonetop-header-pip {
 	position: absolute;
 	/* Bottom-right corner, the usual place for a badge. Now that the portrait is square this
 	   corner is picture rather than dead space, so the pip sits ON the photo — which is why it
@@ -25753,38 +25825,86 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 
 .stonetop-follower-portrait:hover .stonetop-follower-portrait-frame,
-.stonetop-follower-portrait:focus-within .stonetop-follower-portrait-frame {
+.stonetop-follower-portrait:focus-within .stonetop-follower-portrait-frame,
+.stonetop-portrait-slot:hover .stonetop-header-pip,
+.stonetop-portrait-slot:focus-within .stonetop-header-pip {
 	display: grid;
 }
 
 /* The glyph carries no metrics of its own here: no margin, and a line-height of 1 so the
    grid centres the ink rather than a line box taller than it. */
-.stonetop-follower-portrait-frame > i {
+.stonetop-follower-portrait-frame > i,
+.stonetop-header-pip > i {
 	margin: 0;
 	line-height: 1;
 	display: block;
 }
 
-.stonetop-follower-portrait-frame:hover {
+.stonetop-follower-portrait-frame:hover,
+.stonetop-header-pip:hover {
 	background: var(--st-btn-primary-bg, #556b8b);
 	color: var(--st-btn-primary-text, #fff);
 }
 
-/* Edit mode puts the framer beside the portrait, because the portrait itself is the file
-   picker there. Column so the button sits under the image rather than shrinking it. */
-.stonetop-npc-portrait-edit {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 4px;
-	flex: none;
+/* The same pip on a sheet's header portrait, which is 150-180px rather than the card's 75px.
+
+   Bottom-RIGHT, matching the follower card's corner, so the crop affordance is in one place
+   wherever a face is shown. Inset a few pixels rather than hung off the corner as the card's is:
+   at this size a badge sitting flush with the border reads as window chrome attached to the
+   picture, while a few pixels in it reads as something ON the picture, which is what it is.
+
+   Larger than the card's 20px: a pip that is a fifth of a 75px circle is a ninth of a 180px one,
+   and stops being a target. */
+.stonetop-header-pip {
+	right: 6px;
+	bottom: 6px;
+	width: 26px;
+	height: 26px;
+	font-size: 13px;
 }
 
-.stonetop-frame-portrait-btn {
-	flex: 0 0 auto;
-	width: auto;
-	padding: 2px 8px;
-	font-size: 0.8em;
-	line-height: 1.4;
-	white-space: nowrap;
+/* The Tokenizer pip sits one slot to the LEFT of the crop pip: 6px inset + the crop pip's 26px
+   + a 4px gap. Both are absolutely positioned, so this — not DOM order — is what puts them side
+   by side, and the partial deliberately emits this one first so tabbing runs left to right.
+
+   Only ever rendered on a sheet header (the partial is used by actor-header, monster and npc), so
+   there is no follower-card variant to place: a follower card is a flag rather than an Actor and
+   Tokenizer has nothing to act on there. */
+.stonetop-portrait-tokenize-pip {
+	right: 36px;
+}
+
+/* The clipping box the Actors sidebar's framed rows get (hooks/ActorDirectoryPortraits.js).
+
+   Sized from core's own `--sidebar-item-height`, because it takes the place of the `<img>` in the
+   row's flex line and inherits none of that image's box. The image inside carries the frame's
+   inline style, which absolutely positions it at several hundred percent — so it needs a
+   positioned, clipping ancestor or it paints across the sidebar.
+
+   Unlayered, so it beats core's own `.directory .directory-item img` rules whatever their
+   specificity — but the frame's declarations are INLINE anyway and beat everything here. */
+.directory .directory-item .stonetop-dir-portrait {
+	position: relative;
+	overflow: hidden;
+	display: block;
+	flex: 0 0 var(--sidebar-item-height);
+	width: var(--sidebar-item-height);
+	height: var(--sidebar-item-height);
+}
+
+/* The positioning context the pip is placed against, wrapping whatever a header renders as its
+   portrait — a bare <img> on the character and monster sheets, a clipping <span> on the NPC's.
+
+   It has to sit OUTSIDE that clipping span: `.stonetop-npc-portrait` is `overflow: hidden` so a
+   framed face can be positioned inside it, which would cut the pip in half. `flex: none` and
+   `align-self: flex-start` because this is now the header's flex item in the portrait's place,
+   and it inherits none of the portrait's own layout. */
+.stonetop-portrait-slot {
+	position: relative;
+	display: block;
+	flex: none;
+	align-self: flex-start;
+	/* The portrait is the only in-flow child; without this the slot is a line box and leaves a
+	   baseline gap under the picture. */
+	line-height: 0;
 }

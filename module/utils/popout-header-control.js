@@ -11,8 +11,9 @@
  * about the control being added, not about the header.
  */
 
-import { localize } from "./i18n.js";
+import { format, localize } from "./i18n.js";
 import { openPortraitFrameEditor } from "./PortraitFrameDialog.js";
+import { canOpenTokenizer, openTokenizer } from "./portrait-tokenizer.js";
 
 /** Marks a control as ours, so several can be added without reversing their order. */
 const OWN = "stonetop-popout-control";
@@ -84,15 +85,24 @@ export function addPopoutHeaderControl(popout, { key, icon, label, onClick } = {
  * A null or read-only handle is the no-op, so every caller can hand over whatever its lookup
  * returned without gating first.
  *
+ * ⚠ THE PICTURE IS RESOLVED AT CLICK TIME, off the handle, and there is deliberately no way for a
+ * caller to pass one in. This control is registered once when the window opens and clicked at some
+ * later point, and the portrait can change in between — the window's own "Edit Photo" does exactly
+ * that. A caller that handed over `actor.img` froze the picture as it was when the window opened,
+ * so choosing a new face and then framing it opened the editor on the PREVIOUS one and would have
+ * stamped a rect measured on it. Every handle exposes `img` as a live getter for this reason.
+ *
+ * `name` is still a plain string, and so still a snapshot — but a rename mid-window costs a stale
+ * window title, which is cosmetic, where a stale image frames the wrong face.
+ *
  * @param {Application} popout
  * @param {object|null} handle       a portrait-frame handle (see utils/portrait-frame-handles.js)
  * @param {object}      opts
  * @param {string}      opts.name    whose face this is, for the editor's title
- * @param {string}      [opts.img]   the image to frame; defaults to the handle's own
  * @param {string}      [opts.key]   dedupe key, when a popout needs its own
  * @param {Function}    opts.onSaved
  */
-export function addPortraitFrameControl(popout, handle, { name, img, key = "stonetop-frame-portrait", onSaved } = {}) {
+export function addPortraitFrameControl(popout, handle, { name, key = "stonetop-frame-portrait", onSaved } = {}) {
 	if (!handle?.canWrite) return;
 	addPopoutHeaderControl(popout, {
 		key,
@@ -100,9 +110,37 @@ export function addPortraitFrameControl(popout, handle, { name, img, key = "ston
 		label: localize("stonetop.portraitFrame.control"),
 		onClick: () => openPortraitFrameEditor({
 			handle,
-			img: img ?? handle.img,
-			title: `Frame ${name}`,
+			img: handle.img,
+			title: format("stonetop.portraitFrame.title", { name }),
 			onSaved,
 		}),
+	});
+}
+
+/**
+ * The "Open Tokenizer" control, beside the framing one — the same pair the sheet headers carry as
+ * pips, in the same order, so the two ways of reaching them agree.
+ *
+ * Takes a HANDLE rather than an actor, for the same reason the framing control does: it is the
+ * handle that already answers both questions this needs. `canWrite` carries the ownership check
+ * (roster NPCs are seeded at OBSERVER, so a player who may edit the steading still must not be
+ * offered a control the server would refuse), and `actor` is present only for a real document —
+ * so a legacy steading row, which is plain text in a flag array, silently gets nothing. Tokenizer
+ * has no actor to work on there.
+ *
+ * Register this BEFORE the framing control so it lands to its left, matching the pips.
+ *
+ * @param {Application}  popout
+ * @param {object|null}  handle  a portrait-frame handle (see utils/portrait-frame-handles.js)
+ * @param {object}       [opts]
+ * @param {string}       [opts.key] dedupe key, when a popout needs its own
+ */
+export function addTokenizerControl(popout, handle, { key = "stonetop-tokenize-portrait" } = {}) {
+	if (!handle?.canWrite || !canOpenTokenizer(handle.actor)) return;
+	addPopoutHeaderControl(popout, {
+		key,
+		icon: "fa-circle-user",
+		label: localize("stonetop.portraitFrame.tokenizerPip"),
+		onClick: () => openTokenizer(handle.actor),
 	});
 }

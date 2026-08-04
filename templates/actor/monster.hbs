@@ -1,14 +1,37 @@
 <form class="{{cssClass}} stonetop-monster-sheet" autocomplete="off">
 	<div class="sheet-wrapper stonetop-monster-container">
 
-		<header class="sheet-header stonetop-sheet-header stonetop-monster-header{{#unless stonetop.editMode}}{{#unless stonetop.hasPortrait}} stonetop-monster-header--no-portrait{{/unless}}{{/unless}}">
-			{{#if stonetop.editMode}}
-			<img class="stonetop-portrait" src="{{actor.img}}" data-edit="img"
-			     title="{{actor.name}}" alt="{{actor.name}}">
-			{{else}}{{#if stonetop.hasPortrait}}
-			<img class="stonetop-portrait" src="{{stonetop.displayImg}}"
-			     title="{{actor.name}}" alt="{{actor.name}}">
-			{{/if}}{{/if}}
+		<header class="sheet-header stonetop-sheet-header stonetop-monster-header{{#unless stonetop.showPortrait}} stonetop-monster-header--no-portrait{{/unless}}">
+			{{!-- The slot is what the crop pip positions against; the portrait keeps its own
+			      sizing. Clicking it opens the People of Stonetop gallery in edit mode and the
+			      portrait window in play mode — plenty of a monster's art is a person (bandits,
+			      cultists, the Lodge), and the gallery carries "Browse files…" for the rest.
+
+			      ONE slot for both modes, as on the character and NPC headers. The lock button
+			      changes what a field DOES, not what a picture looks like, and while edit mode had
+			      a branch of its own it drew the raw illustration where play mode drew the framed
+			      face — so locking and unlocking re-cropped a face somebody had chosen. What the
+			      two modes still differ in is answered in getData (stonetop.headerImg /
+			      stonetop.showPortrait), not here.
+
+			      NO data-edit: see the note in actor-header.hbs. Foundry's own binding on that
+			      attribute runs first and cannot be called off, so while it was here the click
+			      could only ever reach the raw file browser. --}}
+			{{#if stonetop.showPortrait}}
+			<span class="stonetop-portrait-slot">
+				{{#if stonetop.portraitFramed}}
+				{{!-- Framed: a clipping box, for the reason spelled out in actor-header.hbs. Only
+				      real art can be framed, so the creature-type mark never takes this branch. --}}
+				<span class="stonetop-portrait stonetop-portrait-clip" title="{{actor.name}}">
+					<img class="stonetop-portrait-img" src="{{stonetop.portraitImg}}" style="{{stonetop.portraitImgStyle}}" alt="{{actor.name}}">
+				</span>
+				{{else}}
+				<img class="stonetop-portrait" src="{{stonetop.headerImg}}"
+				     title="{{actor.name}}" alt="{{actor.name}}">
+				{{/if}}
+				{{> "stonetop.portrait-frame-pip" canFrame=stonetop.canFramePortrait canTokenize=stonetop.canTokenizePortrait}}
+			</span>
+			{{/if}}
 			<div class="sheet-header__fields">
 				<div class="stonetop-monster-namewrap">
 					{{#if stonetop.editMode}}

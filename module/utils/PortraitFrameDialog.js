@@ -1,9 +1,9 @@
 import { StonetopDialog } from "./stonetop-dialog.js";
 import { loadImage } from "../book2-art/rebuild-crops.js";
 import { removeAvatarPreview } from "./avatar-preview.js";
-import { canSendToTokenizer, sendPortraitToTokenizer } from "./portrait-tokenizer.js";
 import { localize, format } from "./i18n.js";
 import { hasVideoExtension } from "./foundry-compat.js";
+import { canOpenTokenizer } from "./portrait-tokenizer.js";
 import {
 	SQ_MIN, normalizeRect, normalizeFrame, isValidFrame, rectEq, sameSrc,
 	frameSourceFor, frameStyle, suggestSquare, stageFor,
@@ -71,13 +71,15 @@ export class PortraitFrameDialog extends StonetopDialog {
 	}
 
 	getData() {
-		const stored = this._handle?.read?.();
 		return {
 			stageSrc: this._route(frameSourceFor(this._img)),
 			fallbackSrc: this._route(this._img),
-			canRemove: isValidFrame(stored),
-			// Only an ACTOR can be tokenized; a follower card is a flag, not a document.
-			canTokenize: canSendToTokenizer(this._handle?.actor)
+			// The rail's "this is not Tokenizer" note. Asked of canOpenTokenizer, the same gate the
+			// tokenize pip on the sheet header uses, so the note appears exactly when the button it
+			// is distinguishing this dialog FROM is on offer. It answers false for a follower card
+			// or a legacy roster row too (no `actor` on those handles), which is right: there is no
+			// token in that story at all, so drawing the contrast would only raise a question.
+			showTokenizerNote: canOpenTokenizer(this._handle?.actor)
 		};
 	}
 
@@ -102,8 +104,6 @@ export class PortraitFrameDialog extends StonetopDialog {
 
 		root.querySelector(".stonetop-frame-save")?.addEventListener("click", () => this._onSave());
 		root.querySelector(".stonetop-frame-suggest")?.addEventListener("click", () => this._onSuggest());
-		root.querySelector(".stonetop-frame-remove")?.addEventListener("click", () => this._onRemove());
-		root.querySelector(".stonetop-frame-tokenize")?.addEventListener("click", () => this._onTokenize());
 
 		this._bindPointer();
 		this._bindKeys();
@@ -349,44 +349,32 @@ export class PortraitFrameDialog extends StonetopDialog {
 		await this.close();
 	}
 
-	async _onRemove() {
-		await this._handle.clear();
-		this._onSaved?.();
-		await this.close();
-	}
+	// No "Remove frame" button. A crop is undone by re-cropping, or by clearing the portrait
+	// itself (the picker's own Remove, which drops the rect with it). The handles still expose
+	// `clear()` and portrait-token-frame.js still exposes revertPrototypeTokenFrame; nothing
+	// calls them at present.
 
-	/**
-	 * Save the frame, then cut it to a file and hand it to Tokenizer as the token source.
-	 *
-	 * Saved first and deliberately: the rect stays the source of truth, and a user who sends to
-	 * Tokenizer plainly meant to keep the framing they were looking at.
-	 */
-	async _onTokenize() {
-		const rect = normalizeRect(this._rect);
-		const actor = this._handle?.actor;
-		if (!rect || !this._src || !actor) return;
-		const btn = this._root?.querySelector(".stonetop-frame-tokenize");
-		btn?.setAttribute("disabled", "disabled");
-		try {
-			await this._handle.write(normalizeFrame({ src: this._src, rect }));
-			// The stage source IS the whole illustration when there is one, which is precisely
-			// the "big image" Tokenizer wants for the avatar.
-			const token = await sendPortraitToTokenizer(actor, { src: this._src, rect, avatarSrc: this._src });
-			if (token) ui.notifications?.info(format("stonetop.portraitFrame.tokenized", { name: actor.name }));
-			else ui.notifications?.warn(localize("stonetop.portraitFrame.tokenizeFailed"));
-		} catch (err) {
-			console.error("stonetop | sending a portrait frame to Tokenizer failed", err);
-			ui.notifications?.error(localize("stonetop.portraitFrame.tokenizeFailed"));
-		} finally {
-			btn?.removeAttribute("disabled");
-		}
-		this._onSaved?.();
-		await this.close();
-	}
+	// No Tokenizer entry point in this dialog. It is a pip beside the crop pip on the sheet header
+	// (templates/actor/partials/portrait-frame-pip.hbs), because the two are siblings rather than
+	// steps: this dialog crops the face for the sheet, Tokenizer makes the pog for the map, and
+	// reaching one THROUGH the other implied a sequence that does not exist.
 }
 
 /**
  * The one door onto the editor. Refuses rather than opening onto nothing.
+ *
+ * ⚠ THIS DOES NOT ROUTE TO TOKENIZER, and an earlier version that did was wrong. The two tools do
+ * DIFFERENT jobs, and only this one leaves the portrait alone:
+ *
+ *   this dialog  -> a rect on a flag. `actor.img` stays the WHOLE illustration, and the small
+ *                   surfaces (sheet header, follower cards, relationship rows, steading roster)
+ *                   crop it with CSS. Modules that read `actor.img` — Image Hover and friends —
+ *                   still get the full picture, which is the whole point of storing a rect
+ *                   instead of cutting a file.
+ *   Tokenizer    -> a token IMAGE, masked and framed. It never touches the rect, and its Avatar
+ *                   pane would REPLACE `actor.img` with a square, losing the full illustration.
+ *
+ * So the crop control belongs here, and Tokenizer gets its own button in the footer.
  *
  * A video is a legal Foundry portrait, and `new Image()` never fires `onload` for one — the stage
  * would sit blank forever. The round surfaces show a still frame of it anyway, so there is

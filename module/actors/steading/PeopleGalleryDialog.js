@@ -145,12 +145,17 @@ export class PeopleGalleryDialog extends StonetopDialog {
 			// A portrait with no manifest entry (an older import, or a file dropped in by hand)
 			// is untagged, which is the same bucket as one deliberately left unspecified.
 			const t = traits[out] ?? { presenting: "", kid: false };
-			// "Used" always means used by somebody ELSE: the caller leaves the row being edited
-			// out of the map, so this member's own portrait reads as selected, not as taken.
-			const usedBy = usedByFull[full] ?? "";
+			const selected = full === currentFull;
+			// "Used" always means used by somebody ELSE. Every caller leaves the person being
+			// edited out of the map it hands over, but the guarantee is made here too rather than
+			// resting on all of them getting it right: the scans now reach the whole world, and
+			// two people can legitimately share a face — so without this, the very portrait
+			// somebody is wearing could come back marked as taken from them, and the "Unused"
+			// filter would hide the tile that is currently selected.
+			const usedBy = selected ? "" : (usedByFull[full] ?? "");
 			return {
 				out, name, src, full, isSquare: !!square,
-				selected: full === currentFull, presenting: t.presenting, kid: t.kid, usedBy,
+				selected, presenting: t.presenting, kid: t.kid, usedBy,
 			};
 		});
 		people.sort((a, b) => (a.name || "").localeCompare(b.name || "") || a.out.localeCompare(b.out));
