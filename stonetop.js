@@ -61,7 +61,7 @@ import { maybeAnnounceBecameHero } from "./module/actors/character/WouldBeHeroAs
 import { StonetopSteading } from "./module/actors/steading/StonetopSteading.js";
 import { onSteadingPeopleUpdate, repaintOpenSteadingRosters } from "./module/actors/steading/steading-people.js";
 import { makeDialogsResizable, enableAutoHeightVerticalResize } from "./module/utils/resizable-dialogs.js";
-import { registerStonetopWindowTheme } from "./module/utils/window-theme.js";
+import { registerStonetopWindowTheme, registerStonetopLightTheme } from "./module/utils/window-theme.js";
 import { installWindowRestore } from "./module/utils/window-restore.js";
 import { registerUuidRedirects } from "./module/migration/compat.js";
 import { adoptLegacyClientSettings } from "./module/migration/copy-settings.js";
@@ -100,6 +100,11 @@ Hooks.once("init", () => {
 	// Skin a curated allowlist of core Foundry windows (e.g. User Configuration)
 	// to match our sheets/modals; scoped to a marker class so nothing else moves.
 	registerStonetopWindowTheme();
+
+	// Our parchment skin has no dark variant, so hold every Stonetop window to the
+	// light theme even in a dark-mode world. Core already does this for AppV1; this
+	// covers our ApplicationV2 windows. Native Foundry windows are left alone.
+	registerStonetopLightTheme();
 
 	// Track open document sheets + their geometry and reopen them at the same spot on
 	// the next reload (per-client; toggled by the "Restore Open Windows on Reload"
