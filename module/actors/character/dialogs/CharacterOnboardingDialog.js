@@ -2337,6 +2337,31 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			_syncBackgroundSelection(prevBackground, backgroundSlug);
 			_refreshNextButton();
 		});
+		// Roll-a-trait die beside each neighbor's field (the Ranger's Wide Wanderer names
+		// five neighbors, so typing five traits is a slog). It draws from the same pool the
+		// suggestion popup offers, minus the traits this background's other neighbors are
+		// already wearing and the one in the field — five clicks give five different people.
+		html.find(".onboard-background-neighbor-random").on("click", ev => {
+			ev.preventDefault();
+			const input = ev.currentTarget.parentElement
+				?.querySelector(".onboard-background-neighbor-trait");
+			if (!input) return;
+			const taken = new Set(
+				Array.from(ev.currentTarget.closest(".stonetop-onboarding-background-setup")
+					?.querySelectorAll(".onboard-background-neighbor-trait") ?? [])
+					.map(el => el.value.trim().toLowerCase())
+					.filter(Boolean)
+			);
+			// A steading with more neighbors than the ~90 listed traits would exhaust the
+			// pool; fall back to the whole list rather than doing nothing.
+			const pool = STEADING_NPC_TRAITS.filter(trait => !taken.has(trait.toLowerCase()));
+			const options = pool.length ? pool : STEADING_NPC_TRAITS;
+			input.value = options[Math.floor(Math.random() * options.length)];
+			// Let the field's own "input" handler record the pick, then dismiss the
+			// suggestion popup that handler's event just re-opened.
+			input.dispatchEvent(new Event("input", { bubbles: true }));
+			StonetopAutocomplete.close();
+		});
 		this._attachTraitAutocomplete(html);
 		html.find(".stonetop-onboarding-background-neighbor-option").on("click", ev => {
 			if (ev.target.type === "checkbox") return;

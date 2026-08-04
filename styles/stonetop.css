@@ -13026,7 +13026,8 @@ a.steading-player-open:hover {
 
 .stonetop-onboarding-background-neighbor {
 	display: grid;
-	grid-template-columns: minmax(160px, 0.9fr) minmax(180px, 1fr);
+	/* name | trait field | roll-a-trait button */
+	grid-template-columns: minmax(160px, 0.9fr) minmax(180px, 1fr) auto;
 	align-items: center;
 	gap: 8px;
 	margin: 0;
@@ -13055,9 +13056,44 @@ a.steading-player-open:hover {
 	font-size: var(--st-fs-sm);
 }
 
+/* Roll-a-trait die beside each neighbor's field. Core's `.app button { width: 100% }`
+   would stretch it across the column, so the box is pinned here. */
+.stonetop-onboarding-background-neighbor .onboard-background-neighbor-random {
+	flex: 0 0 auto;
+	width: 28px;
+	height: 28px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	border: 1.5px solid #e0e0e0;
+	border-radius: var(--st-radius);
+	background: rgba(255,255,255,0.86);
+	color: var(--color-text-dark-secondary);
+	font-size: var(--st-fs-sm);
+	line-height: 1;
+	cursor: pointer;
+	transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.stonetop-onboarding-background-neighbor .onboard-background-neighbor-random i {
+	margin: 0;
+}
+
+.stonetop-onboarding-background-neighbor .onboard-background-neighbor-random:hover {
+	background: var(--st-btn-primary-bg);
+	border-color: var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
+}
+
 @media (max-width: 560px) {
 	.stonetop-onboarding-background-neighbor {
-		grid-template-columns: 1fr;
+		grid-template-columns: 1fr auto;
+	}
+
+	/* Name takes the whole first row; the field and its die share the second. */
+	.stonetop-onboarding-background-neighbor-name {
+		grid-column: 1 / -1;
 	}
 }
 
