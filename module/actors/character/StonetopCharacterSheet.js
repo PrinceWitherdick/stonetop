@@ -24,6 +24,7 @@ import {RING_SOURCE_UUID, SERVANT_SOURCE_UUID, buildServantFollower} from "../..
 import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {wireTabSearch} from "../../utils/tab-search.js";
+import {withSheetSizeMemory} from "../../utils/sheet-size.js";
 import { crewExists } from "../../utils/crew.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
 import {createArcanumItem} from "../../item/createArcanum.js";
@@ -40,7 +41,7 @@ import {getDragEventData, deletionEntry, imagePopout} from "../../utils/foundry-
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
 import {peopleNames, steadingPeopleActors, usedPersonPortraits, createPersonNpc, isActorRow, personRowActor, personRowKey, personRowIdentity, rebasePersonRows} from "../steading/steading-people.js";
 import {openPeoplePortraitPicker} from "../steading/PeopleGalleryDialog.js";
-import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getSidebarCollapsed, setSidebarCollapsed, getPromptRollModifierSetting, getOpenSheetsInEditMode, getHideRollableIconSetting} from "../../settings.js";
+import {getHoverDescriptionSetting, getRollStatChipsSetting, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getSidebarCollapsed, setSidebarCollapsed, getPromptRollModifierSetting, getOpenSheetsInEditMode, getHideRollableIconSetting} from "../../settings.js";
 import {bringDialogToFront} from "../../utils/front-on-open.js";
 import {openLedgerDialog} from "../../utils/ledger-dialog.js";
 import {promptRollModifier} from "../../dialogs/RollModifierDialog.js";
@@ -620,7 +621,11 @@ export function createStonetopCharacterSheetClass(Base) {
 	// Details-tab sections (Background, Instinct, Appearance, Origin, Lore) each
 	// carry their own edit pencil via the shared section-editing mixin, tracked
 	// independently of the global header-wrench `_editMode`.
-	return class StonetopCharacterSheet extends withSectionEditing(Base) {
+	//
+	// withSheetSizeMemory: reopen at the size this user last left this character's sheet. Both
+	// dimensions are restored independently — a sheet carried over from when only width was
+	// remembered has no stored height, and keeps the default one.
+	return class StonetopCharacterSheet extends withSectionEditing(withSheetSizeMemory(Base)) {
 		_stonetopCharacter;
 		_editMode = false;
 
@@ -631,13 +636,6 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Honor the "Open Sheets in Edit Mode" client setting on first open; the
 			// header wrench still toggles modes per-sheet afterward.
 			this._editMode = getOpenSheetsInEditMode();
-
-			// Reopen at the width this user last left this character's sheet.
-			const storedWidth = getCharacterSheetWidth(this.actor?.id);
-			if (storedWidth) {
-				this.options.width  = storedWidth;
-				this.position.width = storedWidth;
-			}
 
 			// Reopen the collapsible crew sections (Inventory / Roster / Group Fight)
 			// in the state this user last left them — persisted per-actor, per-user.
@@ -719,6 +717,10 @@ export function createStonetopCharacterSheetClass(Base) {
 				width: 960,
 				minWidth: 800,
 				height: 1050,
+				// Mirrors the CSS floor in stonetop.css. Core clamps a resize against the
+				// COMPUTED min-height, never this option, so the CSS is what actually stops
+				// the drag - this copy exists for sheet-size.js's save guard, which reads it.
+				minHeight: 620,
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "moves" }],
 				// `:not(.move-unlearned)` because an un-learned custom move must not leave the
 				// sheet: core's DragDrop#bind runs this selector through querySelectorAll and only
@@ -793,7 +795,6 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		async close(options) {
 			this._arcanaMasonryObserver?.disconnect();
-			this._persistSheetWidth();
 			this._movePanel?.remove();
 			this._movePanel = null;
 			// The art hover preview lives on document.body, so it survives the sheet's DOM
@@ -801,24 +802,6 @@ export function createStonetopCharacterSheetClass(Base) {
 			// the cursor is still over a card's art and no mouseleave ever fires.
 			removeAvatarPreview();
 			return super.close(options);
-		}
-
-		// Remember the width so the sheet reopens at the size the user left it.
-		// setPosition fires on every resize frame, so debounce it; close() also
-		// saves immediately to cover a resize-then-close within the debounce window.
-		setPosition(options = {}) {
-			const position = super.setPosition(options);
-			clearTimeout(this._widthSaveTimer);
-			this._widthSaveTimer = setTimeout(() => this._persistSheetWidth(), 500);
-			return position;
-		}
-
-		_persistSheetWidth() {
-			if (this._minimized) return;
-			const width = this.position?.width;
-			if (Number.isFinite(width) && width >= (this.options.minWidth ?? 0)) {
-				setCharacterSheetWidth(this.actor?.id, width);
-			}
 		}
 
 		_injectHeaderToggle() {

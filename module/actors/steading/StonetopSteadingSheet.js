@@ -18,6 +18,7 @@ import {SPECIAL_ITEM_CATALOG} from "../../data/special-items.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting, getSidebarCollapsed, setSidebarCollapsed, getOpenSheetsInEditMode} from "../../settings.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
+import {withSheetSizeMemory} from "../../utils/sheet-size.js";
 import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {makeColumnsResizable} from "../../utils/resizable-columns.js";
 import {makeColumnsSortable} from "../../utils/sortable-columns.js";
@@ -433,7 +434,9 @@ export function createStonetopSteadingSheetClass(Base) {
 	// Sections with their own heading pencil (Residents, Neighbors) track edit
 	// state independently of the global header-wrench `_editMode` via the shared
 	// section-editing mixin.
-	return class StonetopSteadingSheet extends withSectionEditing(Base) {
+	//
+	// withSheetSizeMemory: reopen at the size this user last left this steading's sheet.
+	return class StonetopSteadingSheet extends withSectionEditing(withSheetSizeMemory(Base)) {
 		_stonetopSteading;
 		_editMode = false;
 		// Sections whose edit mode was just turned off: their "done" check lingers
@@ -471,6 +474,8 @@ export function createStonetopSteadingSheetClass(Base) {
 				width: 1080,
 				minWidth: 800,
 				height: 840,
+				// Mirrors the CSS floor in stonetop.css - see the character sheet's note.
+				minHeight: 620,
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "overview" }],
 			});
 		}

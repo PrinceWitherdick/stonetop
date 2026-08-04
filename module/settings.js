@@ -684,10 +684,22 @@ export function registerSettings() {
 		onChange: value => applyReduceMotion(value),
 	});
 
-	// Remembers each character (playbook) sheet's width so it reopens at the size
-	// the user last left it. Per-user (client) and per-actor: a map of actor id
-	// -> width. Internal (not shown in the settings menu).
+	// Superseded by "sheetSizes" below, which remembers height as well and covers every
+	// actor sheet rather than just the character. Still registered, and still READ as a
+	// fallback, so a user who had a width remembered here keeps it — the value moves over
+	// the first time they resize. Nothing writes to it any more.
 	game.settings.register("stonetop-pwd", "characterSheetWidths", {
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {},
+	});
+
+	// Remembers each actor sheet's SIZE so it reopens as the user last left it — character,
+	// steading, monster and NPC alike. Per-user (client) and per-actor: a map of actor id ->
+	// {width, height}. Actor ids are unique across types, so one map serves them all.
+	// Internal (not shown in the settings menu).
+	game.settings.register("stonetop-pwd", "sheetSizes", {
 		scope: "client",
 		config: false,
 		type: Object,
@@ -1023,21 +1035,49 @@ export function migrateFlatSettingOverviewShown() {
 	return markSettingOverviewShown();
 }
 
-// Last-used width for a given character sheet, or null if none stored yet.
-export function getCharacterSheetWidth(actorId) {
-	if (!actorId) return null;
-	const map = globalThis.game?.settings?.get?.("stonetop-pwd", "characterSheetWidths");
-	const w = map?.[actorId];
-	return Number.isFinite(w) && w > 0 ? w : null;
+/** A positive, whole pixel count, or null for anything that isn't one. */
+function _px(v) {
+	const n = Math.round(Number(v));
+	return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-export function setCharacterSheetWidth(actorId, width) {
+/**
+ * Last-used size for a given actor sheet as `{width, height}`, either of which may be null
+ * if nothing usable is stored. Never returns null itself, so callers can destructure.
+ *
+ * Falls back to the retired "characterSheetWidths" map for the width, so upgrading doesn't
+ * throw away a width the user had already established. Height has no legacy source — a
+ * sheet that only ever stored a width reopens at its default height, once. That map only
+ * ever held characters; other actor types simply never match it.
+ */
+export function getSheetSize(actorId) {
+	if (!actorId) return { width: null, height: null };
+	const size = globalThis.game?.settings?.get?.("stonetop-pwd", "sheetSizes")?.[actorId];
+	const legacy = globalThis.game?.settings?.get?.("stonetop-pwd", "characterSheetWidths")?.[actorId];
+	return {
+		width: _px(size?.width) ?? _px(legacy),
+		height: _px(size?.height),
+	};
+}
+
+/**
+ * Store an actor sheet's size. Each dimension is validated and kept independently, so a
+ * caller that only knows one of them (or whose window is mid-animation and reports a junk
+ * value for the other) can't wipe the good one.
+ */
+export function setSheetSize(actorId, { width, height } = {}) {
 	if (!actorId) return;
-	const w = Math.round(Number(width));
-	if (!Number.isFinite(w) || w <= 0) return;
-	if (w === getCharacterSheetWidth(actorId)) return; // avoid redundant writes
-	const map = globalThis.game?.settings?.get?.("stonetop-pwd", "characterSheetWidths") ?? {};
-	return game.settings.set("stonetop-pwd", "characterSheetWidths", { ...map, [actorId]: w });
+	const w = _px(width), h = _px(height);
+	if (w === null && h === null) return;
+
+	const current = getSheetSize(actorId);
+	const next = { width: w ?? current.width, height: h ?? current.height };
+	// Avoid redundant writes: settings.set round-trips through the server for the
+	// client store and this is called off a debounce on every resize frame.
+	if (next.width === current.width && next.height === current.height) return;
+
+	const map = globalThis.game?.settings?.get?.("stonetop-pwd", "sheetSizes") ?? {};
+	return game.settings.set("stonetop-pwd", "sheetSizes", { ...map, [actorId]: next });
 }
 
 // Per-actor, per-user list of collapsible section ids (sorted, de-duped), or []

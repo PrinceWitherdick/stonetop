@@ -21,6 +21,7 @@ import { NpcLedger } from "./NpcLedger.js";
 import { npcStatusMeta, NPC_STATUSES } from "../../data-models/npc-status.js";
 import { partyCharacters } from "../../utils/playbook-actors.js";
 import { preserveScroll } from "../../utils/scroll-parent.js";
+import { withSheetSizeMemory } from "../../utils/sheet-size.js";
 
 // Rich-text (HTMLField) fields edited inline via prose-mirror on the sheet.
 const NPC_RICH_TEXT_FIELDS = [
@@ -34,7 +35,13 @@ const NPC_RICH_TEXT_FIELDS = [
 const NPC_MOVE_EDITABLE_FIELDS = new Set(["name", "system.description", "system.rollFormula"]);
 
 export function createStonetopNpcSheetClass(Base) {
-	return class StonetopNpcSheet extends Base {
+	// withSheetSizeMemory: reopen at the size this user last left this NPC's sheet. This is the
+	// one sheet where restoring a HEIGHT means overriding `height: "auto"` — restoreSheetSize
+	// writes the pixel value into options.height and raises the same `_stonetopHeightLocked`
+	// flag a manual drag would, so the sheet's own `{height: "auto"}` refits stop being honoured
+	// and the size actually sticks. Without that flag core would blank the restored height on
+	// the first refit. With no stored height the sheet is auto as before, fitting its content.
+	return class StonetopNpcSheet extends withSheetSizeMemory(Base) {
 		_editMode = false;
 
 		constructor(...args) {
@@ -57,6 +64,9 @@ export function createStonetopNpcSheetClass(Base) {
 				// while a tall tab caps at the CSS max-height and scrolls (nav stays pinned).
 				// _fitHeight() re-measures after a tab switch, which Foundry's Tabs doesn't do.
 				height:    "auto",
+				// Mirrors the CSS floor in stonetop.css - see the character sheet's note.
+				// Like the monster, this frame has no `pbta` class, so it had no floor at all.
+				minHeight: 400,
 				resizable: true,
 				// Details is the always-present landing tab; the pinned quick-facts block
 				// (Instinct, etc.) sits above the strip. Relationships/Stats tabs render

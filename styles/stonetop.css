@@ -713,6 +713,42 @@ figure.stonetop-map figcaption {
 	box-shadow: 2px 4px 8px 2px rgba(0, 0, 0, 0.4);
 }
 
+/* ── Sheet minimum heights ─────────────────────────────────────────────────
+   Every actor sheet gets a floor, so it cannot be dragged down to a stub with its tab rail
+   pushed off the bottom edge.
+
+   It has to be CSS, not `minHeight` in defaultOptions: core's V1 setPosition clamps against
+   the COMPUTED STYLE, never the option —
+       const minH = parseInt(styles.minHeight) || (pop ? MIN_WINDOW_HEIGHT : 0);
+   so an option alone does nothing to the drag. (We set the option too, but only because our
+   own save guard in module/utils/sheet-size.js reads it.) Without a rule here the fallback is
+   core's MIN_WINDOW_HEIGHT, which is 50px.
+
+   pbta already floors two of them — `.pbta.sheet.actor { min-height: 620px }` reaches the
+   character and steading sheets, whose frames carry its classes. The monster and NPC frames
+   do NOT (they are `stonetop sheet actor …` with no `pbta`), so those two were sitting on
+   the 50px fallback. Stated for all four regardless, so the floor is ours and survives pbta
+   changing its mind.
+
+   The numbers are the window header plus the sheet's own header banner plus enough rail to
+   be usable: the rail hangs from `--st-rail-top` (banner bottom + 16px, measured at render)
+   and floors at 96px, so a sheet needs roughly railTop + 96 before the rail starts hanging
+   past the bottom. Character and steading carry the most tabs and the tallest banners; the
+   NPC is auto-height and modest, so its floor sits near its natural content height rather
+   than above it. The monster has no rail and just wants to stay legible. */
+.window-app.stonetop.sheet.actor.character,
+.window-app.stonetop.sheet.actor.steading {
+	min-height: 620px;
+}
+
+.window-app.stonetop.sheet.actor.monster {
+	min-height: 480px;
+}
+
+.window-app.stonetop.sheet.actor.npc {
+	min-height: 400px;
+}
+
 /* A window the user has dragged taller by its resize handle, marked by
    enableAutoHeightVerticalResize (module/utils/resizable-dialogs.js) on the first
    manual resize. Several of our auto-height windows cap the frame's max-height so a
