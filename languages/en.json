@@ -41,7 +41,8 @@
         "arcana": "Arcana",
         "postDeath": "Post-Death",
         "specialMoves": "Special Moves",
-        "notes": "Notes"
+        "notes": "Notes",
+        "railLabel": "Sheet sections"
       }
     },
     "specialMoves": {
@@ -243,6 +244,31 @@
         "larger": "Larger (125%)",
         "largest": "Largest (140%)"
       },
+      "worldSheetLayout": {
+        "name": "Sheet Layout (Whole Table)",
+        "hint": "Which sheet layout this world uses for everyone who has not chosen their own below. Modern puts the tabs on an icon strip down the outside of the window and moves the stats block onto a tab; Classic is the older look, with a row of tab names across the top of the sheet and the stats block always on screen above them. New worlds start on Modern; a world that already existed before the two layouts were added stays on Classic until you change it here. Monster sheets have no tabs and look the same either way.",
+        "modern": "Modern (icon tabs down the side)",
+        "classic": "Classic (tab names across the top)"
+      },
+      "sheetLayout": {
+        "name": "Sheet Layout (Just for Me)",
+        "hint": "Overrides the table-wide layout on this browser only, so you can read the sheets the way you prefer without changing anyone else's. Leave it on \"Use this world's setting\" to follow whichever layout the GM has chosen for this world. Picking Modern or Classic here sticks across every world you open in this browser, which is the point: it is your preference, not the campaign's.",
+        "world": "Use this world's setting",
+        "modern": "Modern (icon tabs down the side)",
+        "classic": "Classic (tab names across the top)"
+      },
+      "classicLayoutCharacter": {
+        "name": "Classic Layout: Character Sheets",
+        "hint": "Only applies while the sheets are set to Classic. Ticked, character sheets use the classic layout: tab names across the top, and the stats, debilities, damage, HP, armor, XP and level block pinned above them instead of heading the Moves tab. Untick to keep character sheets on the modern layout while other sheets go classic."
+      },
+      "classicLayoutSteading": {
+        "name": "Classic Layout: Steading Sheets",
+        "hint": "Only applies while the sheets are set to Classic. Ticked, steading sheets use the classic layout: tab names across the top, the Surplus, Fortunes, Size, Population, Prosperity, Defenses and Debilities band pinned above them, and the homefront moves in a sidebar beside every tab rather than on a tab of their own. Untick to keep steading sheets on the modern layout while other sheets go classic."
+      },
+      "classicLayoutNpc": {
+        "name": "Classic Layout: NPC Sheets",
+        "hint": "Only applies while the sheets are set to Classic. Ticked, NPC sheets use the classic layout: tab names across the top, with the quick facts pinned above them instead of inside the Details tab. Untick to keep NPC sheets on the modern layout while other sheets go classic."
+      },
       "editPencilRevealDelay": {
         "name": "Edit Pencil Reveal Delay",
         "hint": "How long to hover a section (in seconds) before its edit pencil fades in. The pencils stay clickable while still invisible, so you can click one without waiting. Set to 0 to show them instantly."
@@ -299,7 +325,7 @@
       },
       "hoverDescriptionsBasicMoves": {
         "name": "Hover Descriptions: Basic Moves",
-        "hint": "Show the move description panel when hovering the Basic Moves list on a character sheet, or the moves list on Stonetop's own sheet."
+        "hint": "Show the move description panel when hovering the Basic Moves list on a character sheet, or the Homefront Moves list on Stonetop's own sheet in the classic layout."
       },
       "hoverDescriptionsPlaybookMoves": {
         "name": "Hover Descriptions: Playbook Moves",
@@ -497,6 +523,15 @@
     "actorLink": {
       "gone": "That character no longer exists.",
       "goneNpc": "That NPC no longer exists."
+    },
+    "rollMode": {
+      "label": "Roll modifier",
+      "adv": "Advantage",
+      "advTooltip": "Roll 3d6 and keep the highest two",
+      "normal": "Normal",
+      "normalTooltip": "Roll 2d6",
+      "dis": "Disadvantage",
+      "disTooltip": "Roll 3d6 and keep the lowest two"
     },
     "relationships": {
       "regard": "Feelings",

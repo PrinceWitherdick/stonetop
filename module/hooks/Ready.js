@@ -10,6 +10,7 @@ import { BOOK2_ART_MACRO_NAME, findBook2ArtWorldMacro, loadBook2ArtMacroSource, 
 import { offerDurableArtOnce } from "../book2-art/offer-once.js";
 import { openProgressNotification } from "../utils/progress-notification.js";
 import { stonetopChatCard } from "../utils/chat.js";
+import { stampWorldLayoutBaseline } from "../utils/sheet-layout.js";
 import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyHideRollableIcon, applyReduceMotion, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
@@ -260,6 +261,9 @@ export async function onReady() {
 
 	_registerCharacterAutoOpen();
 
+	// Both of these read `seedingComplete` to tell a fresh world from an established one, so
+	// both MUST stay above runWorldSetup() (which is what sets it). See their own comments.
+	if (game.user.isGM) await stampWorldLayoutBaseline();
 	if (game.user.isGM) await _applyCoreSettingDefaultsForNewWorld();
 	if (game.user.isGM) await _ensurePlayerActorCreationGrant();
 	if (game.user.isGM) await _assignSteadingToUnassignedGm();

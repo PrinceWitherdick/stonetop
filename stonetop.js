@@ -327,6 +327,7 @@ Hooks.once("init", () => {
 		"stonetop.portrait-frame-pip": "systems/stonetop-pwd/templates/actor/partials/portrait-frame-pip.hbs",
 		"stonetop.actor-stats":      "systems/stonetop-pwd/templates/actor/partials/actor-stats.hbs",
 		"stonetop.actor-vitals":     "systems/stonetop-pwd/templates/actor/partials/actor-vitals.hbs",
+		"stonetop.stat-block":       "systems/stonetop-pwd/templates/actor/partials/stat-block.hbs",
 		"stonetop.tab-details":      "systems/stonetop-pwd/templates/actor/partials/tab-details.hbs",
 		"stonetop.tab-moves":        "systems/stonetop-pwd/templates/actor/partials/tab-moves.hbs",
 		"stonetop.tab-equipment":    "systems/stonetop-pwd/templates/actor/partials/tab-equipment.hbs",
@@ -336,6 +337,10 @@ Hooks.once("init", () => {
 		"stonetop.tab-post-death":      "systems/stonetop-pwd/templates/actor/partials/tab-post-death.hbs",
 		"stonetop.tab-special-moves":   "systems/stonetop-pwd/templates/actor/partials/tab-special-moves.hbs",
 		"stonetop.tab-notes":           "systems/stonetop-pwd/templates/actor/partials/tab-notes.hbs",
+		"stonetop.tab-rail-item":       "systems/stonetop-pwd/templates/actor/partials/tab-rail-item.hbs",
+		"stonetop.tab-nav-item":        "systems/stonetop-pwd/templates/actor/partials/tab-nav-item.hbs",
+		"stonetop.npc-quick-facts":     "systems/stonetop-pwd/templates/actor/partials/npc-quick-facts.hbs",
+		"stonetop.npc-tab-nav":         "systems/stonetop-pwd/templates/actor/partials/npc-tab-nav.hbs",
 		"stonetop.move-group":           "systems/stonetop-pwd/templates/actor/partials/move-group.hbs",
 		"stonetop.tab-search-control":   "systems/stonetop-pwd/templates/actor/partials/tab-search-control.hbs",
 		"stonetop.move-mark-level":      "systems/stonetop-pwd/templates/actor/partials/move-mark-level.hbs",
@@ -358,7 +363,13 @@ Hooks.once("init", () => {
 		"stonetop.inv-item-regular": "systems/stonetop-pwd/templates/actor/partials/inv-item-regular.hbs",
 		"stonetop.inv-item-small":   "systems/stonetop-pwd/templates/actor/partials/inv-item-small.hbs",
 		"stonetop.choice-gear-row":  "systems/stonetop-pwd/templates/actor/partials/choice-gear-row.hbs",
+		"stonetop.roll-mode-picker": "systems/stonetop-pwd/templates/actor/partials/roll-mode-picker.hbs",
+		"stonetop.roll-mode-radios": "systems/stonetop-pwd/templates/actor/partials/roll-mode-radios.hbs",
 		"stonetop.steading-section-toggle":   "systems/stonetop-pwd/templates/actor/partials/steading-section-toggle.hbs",
+		"stonetop.steading-stats-bar":        "systems/stonetop-pwd/templates/actor/partials/steading-stats-bar.hbs",
+		"stonetop.steading-settlements-card": "systems/stonetop-pwd/templates/actor/partials/steading-settlements-card.hbs",
+		"stonetop.steading-moves-sidebar":    "systems/stonetop-pwd/templates/actor/partials/steading-moves-sidebar.hbs",
+		"stonetop.steading-move-controls":    "systems/stonetop-pwd/templates/actor/partials/steading-move-controls.hbs",
 		"stonetop.steading-tab-overview":     "systems/stonetop-pwd/templates/actor/partials/steading-tab-overview.hbs",
 		"stonetop.steading-tab-neighbors":    "systems/stonetop-pwd/templates/actor/partials/steading-tab-neighbors.hbs",
 		"stonetop.steading-tab-improvements": "systems/stonetop-pwd/templates/actor/partials/steading-tab-improvements.hbs",
@@ -639,6 +650,34 @@ function _chatWireBook2ArtReminder(message, html) {
 	btn.addEventListener("click", () => game.stonetop?.importBookArt?.());
 }
 
+// -- SHEET LAYOUT OFFER CARD ----------------------------------
+// The card that tells an upgraded world its sheets stayed on the classic layout, and the
+// one offering the way back that pressing its button posts (utils/sheet-layout.js). One
+// handler for both: the target layout rides on the button's data-layout.
+//
+// The setting it writes is world-scoped, so this really is GM-only rather than defensively
+// so; the card is whispered to GMs, and the footer points everyone else at their own row in
+// Configure Settings.
+//
+// There is ONE such card per world and the flip EDITS it, so pressing the button rewrites the
+// very card it sits on — headline, prose and button all flip to the other direction. Which is
+// why nothing here has to report success: the update re-renders the message, this handler runs
+// again on the new markup, and the button the user is looking at is already the way back. Only
+// the failure path touches the DOM (re-enable), and the in-flight disable is there so a double
+// click cannot start a second write against a card that is about to be replaced.
+function _chatWireLayoutSwitch(message, html) {
+	const btn = html.querySelector(".stonetop-layout-switch");
+	if (!btn) return;
+	if (!game.user.isGM) { btn.style.display = "none"; return; }
+	btn.addEventListener("click", async () => {
+		if (btn.disabled) return;
+		btn.disabled = true;
+		const { setWorldSheetLayout } = await import("./module/utils/sheet-layout.js");
+		if (await setWorldSheetLayout(btn.dataset.layout)) return;
+		btn.disabled = false;   // refused (not a GM after all) - leave the card usable
+	});
+}
+
 // -- REBUILD DETAIL PORTRAITS CARD -----------------------------
 // The one-time offer to cut the new People detail portraits out of art the GM already imported
 // (hooks/Ready.js _offerPeopleArtRebuildOnce). Runs in the browser off files already on disk,
@@ -890,6 +929,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatWireStartupWelcome(message, html);
 	_chatWireBook2ArtReminder(message, html);
 	_chatWireRebuildCrops(message, html);
+	_chatWireLayoutSwitch(message, html);
 	_chatWireDescToggle(message, html);
 	_chatAnnotateDebility(message, html);
 	_chatWireRollShifting(message, html);

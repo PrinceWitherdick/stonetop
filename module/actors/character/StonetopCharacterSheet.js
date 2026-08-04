@@ -24,6 +24,8 @@ import {RING_SOURCE_UUID, SERVANT_SOURCE_UUID, buildServantFollower} from "../..
 import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {wireTabSearch} from "../../utils/tab-search.js";
+import {mountTabRail} from "../../utils/tab-rail.js";
+import {mountScrollFrost} from "../../utils/scroll-frost.js";
 import {withSheetSizeMemory} from "../../utils/sheet-size.js";
 import { crewExists } from "../../utils/crew.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
@@ -41,7 +43,7 @@ import {getDragEventData, deletionEntry, imagePopout} from "../../utils/foundry-
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
 import {peopleNames, steadingPeopleActors, usedPersonPortraits, createPersonNpc, isActorRow, personRowActor, personRowKey, personRowIdentity, rebasePersonRows} from "../steading/steading-people.js";
 import {openPeoplePortraitPicker} from "../steading/PeopleGalleryDialog.js";
-import {getHoverDescriptionSetting, getRollStatChipsSetting, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getSidebarCollapsed, setSidebarCollapsed, getPromptRollModifierSetting, getOpenSheetsInEditMode, getHideRollableIconSetting} from "../../settings.js";
+import {getHoverDescriptionSetting, getRollStatChipsSetting, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getSidebarCollapsed, setSidebarCollapsed, getPromptRollModifierSetting, getOpenSheetsInEditMode, getHideRollableIconSetting, isClassicLayout, layoutClasses, stampLayoutClass} from "../../settings.js";
 import {bringDialogToFront} from "../../utils/front-on-open.js";
 import {openLedgerDialog} from "../../utils/ledger-dialog.js";
 import {promptRollModifier} from "../../dialogs/RollModifierDialog.js";
@@ -713,13 +715,19 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		static get defaultOptions() {
 			return foundry.utils.mergeObject(super.defaultOptions, {
-				classes: ["pbta", "stonetop", "sheet", "actor", "character"],
+				// `stonetop-layout-classic` when this user reads character sheets in the
+				// classic layout. Set here so the FIRST paint already has it (defaultOptions is
+				// read at construction), and re-stamped in _render below — `_replaceHTML` only
+				// swaps `.window-content`, so a live flip would otherwise leave the old mode's
+				// class on the frame forever. Every classic rule COMPOUNDS this with the four
+				// classes beside it; none descends from it.
+				classes: ["pbta", "stonetop", "sheet", "actor", "character", ...layoutClasses("character")],
 				width: 960,
 				minWidth: 800,
 				height: 1050,
 				// Mirrors the CSS floor in stonetop.css. Core clamps a resize against the
 				// COMPUTED min-height, never this option, so the CSS is what actually stops
-				// the drag - this copy exists for sheet-size.js's save guard, which reads it.
+				// the drag — this copy exists for sheet-size.js's save guard, which reads it.
 				minHeight: 620,
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "moves" }],
 				// `:not(.move-unlearned)` because an un-learned custom move must not leave the
@@ -785,6 +793,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 			this._injectHeaderToggle();
 			this.element[0]?.classList.toggle("stonetop-edit-mode", this._editMode);
+			stampLayoutClass(this, "character");
 			// Deferred one-shot: switch to the Arcana tab after a dropped card's re-render (set
 			// in _onDropItemCreate). Instance-scoped so a sibling sheet's render can't consume it.
 			if (this._activateArcanaTabOnRender) {
@@ -921,6 +930,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Whether the whole moves sidebar is collapsed (defaults to expanded),
 			// persisted per-actor, per-user.
 			context.stonetop.sidebarCollapsed = getSidebarCollapsed(this.actor?.id);
+			// Which layout this user reads this sheet in: the pre-rail one (stat block pinned
+			// above a horizontal tab strip) or today's. Client-scoped and per sheet type — see
+			// isClassicLayout in module/settings.js. The nav-item partial reads this same key
+			// off whichever sheet's context it lands in, which is why all three sheets name it
+			// `stonetop.classicLayout` with no sheet suffix.
+			context.stonetop.classicLayout = isClassicLayout("character");
 			context.stonetop.hideUnselected = this.actor.getFlag('stonetop-pwd', 'hideUnselected') ?? true;
 			context.stonetop.editMode = this._editMode;
 			context.stonetop.canEdit = this.isEditable;
@@ -2131,6 +2146,15 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		activateListeners(html) {
 			super.activateListeners(html);
+
+			// Hang the tab rail off the window's right edge. Done first so everything below —
+			// notably _activateTabDragDrop — sees it in its final home rather than wiring the
+			// copy that is about to move. See module/utils/tab-rail.js.
+			mountTabRail(this, html);
+
+			// Frost the seam under the pinned header while the tab is scrolled. After the rail
+			// mount: the tab-change watcher binds to the rail in its final home on the frame.
+			mountScrollFrost(this, html);
 
 			// Notes tab: the core <prose-mirror> element fires a bubbling `change` on
 			// save/blur carrying the serialized HTML on ev.target.value. Persist it to
@@ -4259,7 +4283,10 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		_activateTabDragDrop(html) {
-			const root = html[0];
+			// Scope to the window FRAME rather than the form: mountTabRail has moved the rail
+			// out of the form and onto the frame, which still contains `.window-content` (and so
+			// `.sheet-body`), making it the one root that resolves BOTH halves of a reorder.
+			const root = this.element?.[0] ?? html[0];
 			const nav = root.querySelector(".sheet-tabs");
 			if (!nav) return;
 
@@ -4323,18 +4350,47 @@ export function createStonetopCharacterSheetClass(Base) {
 			const tabMap = new Map(tabs.map(t => [t.dataset.tab, t]));
 			const panels = body ? [...body.children].filter(el => el.matches?.(".tab[data-tab]")) : [];
 			const panelMap = new Map(panels.map(panel => [panel.dataset.tab, panel]));
-			for (const key of savedOrder) {
+			for (const key of this._mergeTabOrder(savedOrder, tabs.map(t => t.dataset.tab))) {
 				const tab = tabMap.get(key);
 				if (tab) nav.appendChild(tab);
 				const panel = panelMap.get(key);
 				if (panel) body.appendChild(panel);
 			}
-			for (const tab of tabs) {
-				if (!savedOrder.includes(tab.dataset.tab)) nav.appendChild(tab);
+		}
+
+		/**
+		 * Fold the tabs a player has never seen into the order they saved.
+		 *
+		 * A saved order is a snapshot of the rail as it stood the day it was dragged, so any
+		 * tab added since is missing from it. Appending those at the end (what this used to do)
+		 * quietly buries a new page at the bottom of the rail for exactly the players who use
+		 * it most — the ones who reorder. Instead each unknown tab keeps its TEMPLATE position
+		 * relative to the tabs around it: it lands just after the nearest tab above it in the
+		 * template that the player did place, or first if there is none. A page written first
+		 * in character.hbs therefore arrives first for everyone; drag it and that choice sticks
+		 * from then on.
+		 *
+		 * Conditional tabs (Arcana, Followers, Post-Death) drop in and out of the template
+		 * freely — a key in `savedOrder` with no tab rendered is simply skipped by the caller.
+		 *
+		 * @param {string[]} savedOrder   tab keys in the order the player last dragged them
+		 * @param {string[]} templateOrder tab keys as the template rendered them, in DOM order
+		 * @returns {string[]} the merged order
+		 */
+		_mergeTabOrder(savedOrder, templateOrder) {
+			const merged = savedOrder.filter(key => templateOrder.includes(key));
+			for (let i = 0; i < templateOrder.length; i++) {
+				const key = templateOrder[i];
+				if (merged.includes(key)) continue;
+				// Nearest template sibling ABOVE this one that already has a place.
+				let at = 0;
+				for (let j = i - 1; j >= 0; j--) {
+					const found = merged.indexOf(templateOrder[j]);
+					if (found >= 0) { at = found + 1; break; }
+				}
+				merged.splice(at, 0, key);
 			}
-			for (const panel of panels) {
-				if (!savedOrder.includes(panel.dataset.tab)) body.appendChild(panel);
-			}
+			return merged;
 		}
 
 		_getDragEventData(ev) {

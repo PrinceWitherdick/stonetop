@@ -1,0 +1,36 @@
+{{!-- Relationships - how Stonetop stands with the communities beyond it, on the same 1-5
+      hearts the NPC and character sheets use for their side of a tie. The roster is the
+      book's (module/data/settlements.js) and ships at neutral; clicking a heart sets the
+      rating, clicking the last filled one drops it. The pencil reveals a show/hide box per
+      row so a table can trim the list to the settlements it actually deals with.
+
+      One copy of the markup, mounted in two places. MODERN puts it at the bottom of the
+      Residents tab: the people tables above are Stonetop's own, and this is the same
+      question asked of the places beyond them, which also makes it the only carded block on
+      that page. CLASSIC puts it back on Overview, where it sat before the redesign. Both
+      mount sites are guarded by complementary {{#if}}/{{#unless}} on
+      `stonetop.classicLayout`.
+
+      No `../` lookups anywhere in here, so it resolves at whatever depth it is mounted, and
+      it carries `.steading-card` in both places, so no CSS follows the move. --}}
+<div class="steading-card steading-residents-section steading-residents-section--settlements steading-edit-section{{#unless stonetop.edit.settlements}} stonetop-readonly{{/unless}}">
+	{{> "stonetop.steading-section-toggle" section="settlements" editing=stonetop.edit.settlements collapse="settlements"}}
+	{{!-- Table/Board toggle INSIDE the heading, pushed to the far right by margin-left:
+	      auto. Inside rather than beside it because this card is the positioning
+	      context (the pencil anchors to the card's corner, not the heading's), so an
+	      absolutely-placed sibling would sit in the card padding above the heading
+	      text. The h3 stays a full-width block, so its underline still spans the card
+	      and the buttons sit above it. --}}
+	{{!-- Gated like the section body: with no rows, neither layout has anything to
+	      show and the toggle would switch between two identical empty states. --}}
+	<h3 class="steading-list-heading">Relationships{{#if stonetop.hasSettlements}}{{> "stonetop.relationships-viewbar" resizeKey=stonetop.settlementsRel.resizeKey view=stonetop.settlementsRel.view inHeading=true}}{{/if}}</h3>
+	{{#if stonetop.hasSettlements}}
+	{{> "stonetop.relationships-view" rows=stonetop.settlements lanes=stonetop.settlementsRel.lanes
+	    view=stonetop.settlementsRel.view resizeKey=stonetop.settlementsRel.resizeKey hideViewbar=true
+	    nameLabel=(localize "stonetop.steading.settlement") canRate=stonetop.canEdit
+	    canToggle=stonetop.edit.settlements
+	    showTooltip=(localize "stonetop.steading.settlementShowTooltip")}}
+	{{else}}
+	<p class="stonetop-rel-empty">{{localize "stonetop.steading.settlementsAllHidden"}}</p>
+	{{/if}}
+</div>

@@ -52,7 +52,6 @@ const FLAG_PATH_LABELS = byFlagPath({
 	"inventory.regularPool": "Item slots ◇",
 	"inventory.smallPool": "Small item slots □",
 	"postDeathInsert.slug": "Post-death insert",
-	"rollMode": "Roll mode",
 	"steadingId": "Linked steading",
 });
 
@@ -150,6 +149,11 @@ const BACKGROUND_ANSWERS_PREFIX = `flags.${LEDGER_SCOPE}.moves.backgroundAnswers
 // Pure sheet state: which level-overage warning the player dismissed. Never a ledger event.
 const MOVES_SILENT_PATH = `flags.${LEDGER_SCOPE}.moves.dismissedLevelOverage`;
 const BACKGROUND_SELECTED_PATH = `flags.${LEDGER_SCOPE}.background.selected`;
+// The roll-mode picker stores the slug the dice formula is built from, so the generic scalar
+// formatter wrote the slug itself: "Roll mode set to dis". Spell the mode out. An absent flag
+// is Normal (see _normalizeSheetRollMode), so a first pick is still a real change.
+const ROLL_MODE_PATH = `flags.${LEDGER_SCOPE}.rollMode`;
+const ROLL_MODE_NAMES = { adv: "Advantage", normal: "Normal", dis: "Disadvantage" };
 
 // Numeric/scalar sheet fields whose repeated nudges collapse into one entry (see mergeRuns):
 // clicking XP up three times, or walking a new character from level 1 to level 34.
@@ -733,6 +737,13 @@ function initiateDetailEntry(newValue) {
 	return { action: `Initiate details set to ${value}`, merge: listMerge("Initiate details", "initiateDetails", [value]) };
 }
 
+function rollModeEntry(oldValue, newValue) {
+	const before = ROLL_MODE_NAMES[oldValue] ?? ROLL_MODE_NAMES.normal;
+	const after  = ROLL_MODE_NAMES[newValue] ?? ROLL_MODE_NAMES.normal;
+	if (before === after) return null;
+	return { action: `Roll mode set to ${after}` };
+}
+
 function debilityEntry(label, oldValue, newValue) {
 	if (!!oldValue === !!newValue) return null;
 	return { action: newValue ? `${label} marked` : `${label} cleared` };
@@ -758,6 +769,7 @@ const EXACT_PATH_ENTRIES = {
 	[BACKGROUND_SELECTED_PATH]: (p, o, n, names) => [{
 		action: isBlank(n) ? "Background cleared" : `Background set to ${nameFrom(names.backgrounds, n)}`,
 	}],
+	[ROLL_MODE_PATH]:           (p, o, n) => [rollModeEntry(o, n)],
 };
 
 const PREFIX_ENTRIES = {

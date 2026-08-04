@@ -594,6 +594,137 @@ export function registerSettings() {
 		onChange: value => applySheetFontScale(value),
 	});
 
+	// CLASSIC vs MODERN sheet layout: the table's answer, one person's override of it, and
+	// one toggle per sheet.
+	//
+	// MODERN is what ships: the vertical icon tab rail hung off the window's edge, the
+	// character's stat block at the head of its Moves tab, the steading's stat band at the
+	// head of Overview with its homefront moves on a tab of their own, and the NPC's quick
+	// facts inside Details. CLASSIC is the layout before that: a horizontal text tab strip
+	// inside the sheet body, with each of those blocks pinned above it.
+	//
+	// `worldSheetLayout` is the table's answer, and the one the chat card's buttons flip. It
+	// defaults to MODERN, which is what a world created on this release gets. A world that
+	// already existed when the redesign landed is stamped CLASSIC on its first load instead,
+	// so nobody's sheets rearrange themselves under them mid-campaign — see
+	// utils/sheet-layout.js, which also whispers the GM the offer to try the new one.
+	//
+	// `sheetLayout` is one person's override of that, defaulting to "world" (follow the
+	// table). It has to be a tri-state rather than a checkbox, because a client setting lives
+	// in browser localStorage keyed only by namespace.key and so is SHARED by every world on
+	// this browser (the same trap settingOverviewShown documents above). A boolean here would
+	// mean a GM running an old campaign and a new one on one browser could not have classic
+	// in the first and modern in the second: whichever world they opened last would win. Only
+	// an explicit override lives per browser; the real answer lives per world.
+	//
+	// Effective classic for a sheet is then `<resolved master> && classicLayout<Sheet>` (see
+	// isClassicLayout below). A modern master is modern everywhere however the children are
+	// set; a classic master is classic on every sheet whose own box is still ticked. That is
+	// why the children default TRUE: one flip brings the whole old layout back, and nothing
+	// moves for anyone who never opens the settings window.
+	//
+	// The Monster sheet has no tabs and never took part in the redesign, so it gets no toggle.
+	game.settings.register("stonetop-pwd", "worldSheetLayout", {
+		name: "stonetop.settings.worldSheetLayout.name",
+		hint: "stonetop.settings.worldSheetLayout.hint",
+		scope: "world",
+		config: true,
+		type: String,
+		choices: {
+			"modern":  "stonetop.settings.worldSheetLayout.modern",
+			"classic": "stonetop.settings.worldSheetLayout.classic",
+		},
+		default: "modern",
+		onChange: () => _rerenderActorSheets(),
+	});
+
+	// Whether this world's layout has been answered once (see stampWorldLayoutBaseline).
+	// Stamped on the first GM load after the redesign shipped, fresh world or not, so the
+	// stamp never runs twice and can never overwrite a choice the GM has since made.
+	game.settings.register("stonetop-pwd", "worldSheetLayoutChosen", {
+		name: "World Sheet Layout Chosen",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
+	// Whether the "your sheets stayed classic, here is how to try the new ones" card has been
+	// whispered to this world's GMs. Its own flag rather than riding on the stamp above: chat
+	// is not always up that early in a load, and that card is the only notice an upgraded
+	// table ever gets that the modern layout exists, so a lost one has to be re-offered.
+	game.settings.register("stonetop-pwd", "classicLayoutNoticeShown", {
+		name: "Classic Layout Notice Shown",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
+	// The id of that card, so every later flip EDITS it instead of posting another one. There is
+	// exactly one layout card in a world's chat log at a time and it always shows the layout
+	// currently in force; flipping back and forth would otherwise leave a trail of cards, most
+	// of them describing a state the table left. Empty until the card is first posted, and
+	// re-filled if it is ever deleted. See utils/sheet-layout.js showLayoutCard.
+	game.settings.register("stonetop-pwd", "layoutCardId", {
+		name: "Sheet Layout Card Message Id",
+		scope: "world",
+		config: false,
+		type: String,
+		default: ""
+	});
+
+	// RETIRED KEY: "classicLayout". This is the same switch, re-registered as the tri-state
+	// described above rather than the boolean it started as. It never shipped, so no world is
+	// carrying a value that needs migrating, but a browser that ran a pre-release build still
+	// holds one in localStorage (client settings outlive their registration there) — so the
+	// name is named here rather than reused, and _classicMaster reads any unrecognized value
+	// as "follow the world".
+	game.settings.register("stonetop-pwd", "sheetLayout", {
+		name: "stonetop.settings.sheetLayout.name",
+		hint: "stonetop.settings.sheetLayout.hint",
+		scope: "client",
+		config: true,
+		type: String,
+		choices: {
+			"world":   "stonetop.settings.sheetLayout.world",
+			"modern":  "stonetop.settings.sheetLayout.modern",
+			"classic": "stonetop.settings.sheetLayout.classic",
+		},
+		default: "world",
+		onChange: () => _rerenderActorSheets(),
+	});
+
+	game.settings.register("stonetop-pwd", "classicLayoutCharacter", {
+		name: "stonetop.settings.classicLayoutCharacter.name",
+		hint: "stonetop.settings.classicLayoutCharacter.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: true,
+		onChange: () => _rerenderActorSheets(),
+	});
+
+	game.settings.register("stonetop-pwd", "classicLayoutSteading", {
+		name: "stonetop.settings.classicLayoutSteading.name",
+		hint: "stonetop.settings.classicLayoutSteading.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: true,
+		onChange: () => _rerenderActorSheets(),
+	});
+
+	game.settings.register("stonetop-pwd", "classicLayoutNpc", {
+		name: "stonetop.settings.classicLayoutNpc.name",
+		hint: "stonetop.settings.classicLayoutNpc.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: true,
+		onChange: () => _rerenderActorSheets(),
+	});
+
 	// How long you must hover a section before its edit pencil fades in (seconds).
 	// Drives the --st-edit-reveal-delay CSS variable. The pencils stay clickable
 	// while still invisible, so this only affects when they become visible.
@@ -938,6 +1069,102 @@ export function getPromptRollModifierSetting() {
 // Whether actor sheets should open in Edit mode rather than Play mode.
 export function getOpenSheetsInEditMode() {
 	return globalThis.game?.settings?.get?.("stonetop-pwd", "openSheetsInEditMode") ?? false;
+}
+
+/**
+ * Which sheets have a CLASSIC toggle, and what each one's setting is called.
+ *
+ * Spelled out rather than built from the argument: the settings suite proves every
+ * registered key is read by searching the source for the quoted key, so a key assembled
+ * at runtime is invisible to it and the setting fails the build as dead.
+ * See tests/utils/settings-registration.test.js.
+ */
+const CLASSIC_LAYOUT_KEYS = {
+	character: "classicLayoutCharacter",
+	steading:  "classicLayoutSteading",
+	npc:       "classicLayoutNpc",
+};
+
+/**
+ * The resolved master switch: is this client's sheet layout CLASSIC?
+ *
+ * The personal `sheetLayout` override wins whenever it names a layout; "world" (its default)
+ * defers to the table's `worldSheetLayout`, which is what makes a fresh world modern and an
+ * upgraded one classic on a browser that opens both. Any OTHER stored value is read as
+ * "follow the world" rather than guessed at, so a value left behind by a build that kept a
+ * boolean under this key resolves to the world's answer instead of pinning a layout nobody
+ * chose.
+ *
+ * Throws if either key is unregistered; its one caller owns the try/catch. See isClassicLayout.
+ */
+function _classicMaster(settings) {
+	const mine = settings.get("stonetop-pwd", "sheetLayout");
+	if (mine === "classic") return true;
+	if (mine === "modern")  return false;
+	return settings.get("stonetop-pwd", "worldSheetLayout") === "classic";
+}
+
+/**
+ * Should this sheet render the CLASSIC layout - a horizontal text tab strip with the stat
+ * block / stat band / quick facts pinned above it - rather than the MODERN one, where the
+ * tabs are an icon rail off the window's edge and those blocks live on a tab?
+ *
+ * Two switches, ANDed: the resolved master (above) and the sheet's own toggle. A modern
+ * master is modern everywhere, whatever the children say.
+ *
+ * Answers false for an unrecognized sheet and for a game whose settings are not registered:
+ * a sheet class is constructible in a unit test, and MODERN is what ships, so "modern" is
+ * the right answer when there is nothing to read.
+ *
+ * The try/catch is what actually delivers that second promise, and `??` cannot stand in for
+ * it: core's `ClientSettings#get` THROWS on a key it has no registration for rather than
+ * returning undefined. `layoutClasses` is called from the static `defaultOptions` getter of all
+ * three sheet classes — i.e. at construction — so any sheet built before `registerSettings()`
+ * has finished (a module erroring inside its own `init` hook, a partially failed system init)
+ * would otherwise throw on open instead of quietly rendering modern.
+ *
+ * @param {"character"|"steading"|"npc"} sheet
+ * @returns {boolean}
+ */
+export function isClassicLayout(sheet) {
+	const key = CLASSIC_LAYOUT_KEYS[sheet];
+	if (!key) return false;
+	const settings = globalThis.game?.settings;
+	if (typeof settings?.get !== "function") return false;
+	try {
+		if (!_classicMaster(settings)) return false;
+		return !!settings.get("stonetop-pwd", key);
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * The frame marker the conditional CSS hangs off, ready to spread into a sheet's
+ * `defaultOptions.classes`. Empty in the modern layout.
+ *
+ * Every classic CSS rule COMPOUNDS this with the sheet's own frame classes
+ * (`.stonetop-layout-classic.pbta.sheet.actor.character`), never descends from it - the
+ * marker lands on the same element as those classes, not on an ancestor.
+ */
+export function layoutClasses(sheet) {
+	return isClassicLayout(sheet) ? ["stonetop-layout-classic"] : [];
+}
+
+/**
+ * Re-stamp that same marker on a rendered sheet's frame. The other half of the pair, and the
+ * load-bearing one: `layoutClasses` seeds `defaultOptions` at construction, but `_replaceHTML`
+ * only replaces the contents of `.window-content` and never rebuilds the frame's class list —
+ * so without this, flipping the setting on an open sheet re-renders classic markup under modern
+ * CSS (or the reverse) until it is closed and reopened.
+ *
+ * Call from `_render`, after `super._render`.
+ *
+ * @param {Application} app
+ * @param {"character"|"steading"|"npc"} sheet
+ */
+export function stampLayoutClass(app, sheet) {
+	app?.element?.[0]?.classList.toggle("stonetop-layout-classic", isClassicLayout(sheet));
 }
 
 // Whether the rollable dice icon is hidden; when it is, rolls fire from the move

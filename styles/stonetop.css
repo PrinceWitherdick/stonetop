@@ -2176,6 +2176,19 @@ input.stonetop-name-field {
 
 .stonetop-sheet-layout .sheet-body {
 	flex: 1;
+	/* Containing block for the frosted seam below. Safe to add here rather than on the
+	   layout: the layout also holds the moves sidebar, whose collapse handle is pinned to
+	   its own top edge and never scrolls, so a band spanning the whole layout would sit a
+	   permanent blur over a static control. The seam belongs to the scrolling surface.
+
+	   It does carry the same hazard the comment further down flags for the layout element —
+	   this is an ancestor of every tab, so it re-parents any absolutely positioned descendant
+	   that had no positioned wrapper of its own. Audited when it went in: every such element
+	   inside a tab already resolves against a `position: relative` parent of its own (the
+	   arcanum card, the follower portrait, the currency field, the resizable column header,
+	   the relationship note wrap, the impression list item...). The rule below is what keeps
+	   that true without anyone having to remember it. */
+	position: relative;
 	/* Give the tab content a floor so it can't be squeezed to 0 width. The moves
 	   sidebar is flex-shrink:0 with min-width:max-content, so without a min-width
 	   here the body collapses to nothing on a narrow sheet and its content vanishes
@@ -2191,6 +2204,97 @@ input.stonetop-name-field {
 	   needs a scrollbar) and a short one doesn't pop the bar in/out and reflow
 	   the content sideways. */
 	scrollbar-gutter: stable;
+}
+
+/* Each tab panel is its own containing block, so nothing inside one can ever resolve its
+   offsets against an ancestor OUTSIDE it. The panels were `position: static`, which left every
+   absolutely positioned descendant without a positioned wrapper reaching past them — first to
+   `.window-app` (fixed), and then, once `.sheet-body` above took a `position: relative` for the
+   frosted seam, to that instead. Nothing was relying on either (see the audit above), and this
+   is what stops the next thing added to a tab from silently inheriting the question: the tab it
+   sits on is the right answer, it scrolls with the content, and it does not move when the seam,
+   the header or the window chrome does. */
+.stonetop-sheet-layout .sheet-body > .tab {
+	position: relative;
+}
+
+/* The frosted seam between the pinned header and the tab under it. Without it a line of
+   text is sliced off at a hard edge as it scrolls up behind the portrait block; with it,
+   the line softens and dissolves into the header.
+
+   The MASK is what makes it read as a seam rather than a smudge. `backdrop-filter` alone
+   paints a uniform blur strip with two hard edges of its own, so the mask fades the
+   filtered layer out downward: full strength against the header, gone 13px later.
+
+   Only while the tab is actually scrolled — `is-scrolled` comes from
+   module/utils/scroll-frost.js. Painted at rest, the band would leave the tab's first line
+   permanently fuzzy, which reads as a rendering fault rather than a depth cue. */
+.stonetop-sheet-layout .sheet-body::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 13px;
+	/* Over the tab's own decorations (the tallest inside a tab is the dragged relationship
+	   card at 10) — the band is the glass, so nothing scrolls in front of it. */
+	z-index: 12;
+	/* It lies over the tab's top rows: clicks, drags and the wheel must pass through. */
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 0.15s ease-out;
+	/* Deliberately light: the band only has to say "this is passing under something", and a
+	   heavier radius smears a whole line of text into an unreadable smudge before it reaches
+	   the header. */
+	backdrop-filter: blur(1.5px);
+	-webkit-backdrop-filter: blur(1.5px);
+	mask-image: linear-gradient(to bottom, rgb(0 0 0) 0%, rgb(0 0 0 / 0.55) 55%, transparent 100%);
+	-webkit-mask-image: linear-gradient(to bottom, rgb(0 0 0) 0%, rgb(0 0 0 / 0.55) 55%, transparent 100%);
+}
+
+/* A hard hairline at the seam itself, under the soft band: the blur says "there is more
+   above", the line says exactly WHERE the pinned header stops. It rides on the band rather
+   than on a second pseudo-element so it inherits the `is-scrolled` gate and the same fade —
+   one seam, one switch.
+
+   It rides on the LAYOUT rather than on the band, which is a deliberate split: the blur is
+   the scrolling surface's own business and belongs to `.sheet-body`, but the seam is the
+   whole sheet's, and the layout is a flex ROW — `.sheet-body` beside the moves sidebar. A
+   line drawn on the band stopped dead where the sidebar began and left the last third of the
+   sheet unruled. Drawn here it reaches the sidebar too, so the header is divided from the
+   content across the sheet's full width. (`.sheet-body` clips its own overflow, so widening
+   the band's pseudo-element instead was never an option — it would just be cut off again at
+   the same edge.)
+
+   A border rather than a pseudo-element: the layout has no `position: relative` and giving it
+   one would silently re-parent every absolutely positioned descendant inside the tabs.
+
+   Always present but transparent, coloured in only once the tab is off its top. Toggling the
+   border itself would move the whole layout a pixel each time the seam appeared.
+
+   NOT on the steading, hence the `:not()`. Something of its own already carries
+   `border-bottom: 2px solid slategrey` flush above this seam (measured: a 0px gap) — the
+   `.steading-header` in the modern layout, the tab strip in the classic one — so painting
+   both makes the rule visibly thicken and darken the moment the tab scrolls, a glitch rather
+   than a depth cue. The steading has its separator already; this gives one to the sheets whose
+   seam is bare, and a sheet added later on the plain layout gets it by default, which is the
+   way round we want.
+
+   The classic CHARACTER sheet is the same case for the same reason — its strip sits flush
+   above the seam too — but it cannot be excluded by this selector, so the overrides block
+   further down kills the COLOUR there instead of the border. (Killing the colour, not the
+   border: toggling the border itself moves the layout a pixel, per the note above.) */
+.stonetop-sheet-layout:not(.steading-sheet-layout) {
+	border-top: 1px solid transparent;
+	transition: border-top-color 0.15s ease-out;
+}
+
+.stonetop-sheet-layout:not(.steading-sheet-layout):has(> .sheet-body.is-scrolled) {
+	border-top-color: rgba(0, 0, 0, 0.25);
+}
+
+.stonetop-sheet-layout .sheet-body.is-scrolled::before {
+	opacity: 1;
 }
 
 /* The active tab owns the scroll rather than the shared body, so each tab keeps its
@@ -2270,11 +2374,15 @@ input.stonetop-name-field {
 	flex: 0 0 auto;
 }
 
-/* Pin the tab strip. Core's V13 `.app .flexcol > * { flex: 1 }` hands it flex-grow: 1 and
-   the shared `.pbta.sheet .sheet-tabs` rule pins only the SHRINK half, so the moment
-   .sheet-main has real free space to distribute the nav would stretch along with the tab
-   panel — the same trap documented on the NPC sheet's tab strip. */
-.pbta.sheet.actor.character .sheet-main > .sheet-tabs {
+/* Pin the tab strip against core's V13 `.app .flexcol > * { flex: 1 }`, which hands every
+   child of .sheet-main flex-grow: 1.
+
+   Classic only. In the MODERN layout the nav is the rail: it is absolutely positioned out on
+   the window frame and pins its own `flex: 0 0 auto` down with the rail block, so it never
+   sees this. In CLASSIC it is a direct child of .sheet-main again, and our own strip rule
+   (also down with the tab chrome) pins only the SHRINK half — so with real free space the nav
+   stretches, its items float vertically centred, and the underline drifts off them. */
+.stonetop-layout-classic.pbta.sheet.actor.character .sheet-main > .sheet-tabs:not(.stonetop-tab-rail) {
 	flex: 0 0 auto;
 }
 
@@ -2337,12 +2445,12 @@ input.stonetop-name-field {
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
-	/* Match the 12px inset the other character tabs get from the shared
+	/* Match the inset the other character tabs get from the shared
 	   `.pbta.sheet .tab.moves, …` padding rule — the Notes tab isn't in that list, so
-	   without this the editor sits flush to the edges. Top matches those tabs so the
-	   editor starts on the same line; keep the slightly deeper bottom the notes area
-	   already used. */
-	padding: 12px 12px 14px;
+	   without this the editor sits flush to the edges. Top matches those tabs (no inset,
+	   so the editor starts on the same line); keep the slightly deeper bottom the notes
+	   area already used. */
+	padding: 0 12px 14px;
 }
 
 .pbta.sheet.actor.character .character-notes prose-mirror.character-notes-editor {
@@ -3554,20 +3662,23 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	line-height: 1.35;
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-startup-card__footer {
+:is(#chat, #chat-notifications) .message .stonetop-startup-card__footer,
+:is(#chat, #chat-notifications) .message .stonetop-layout-offer__footer {
 	display: block;
 	color: var(--color-text-dark-secondary);
 	font-size: var(--font-size-12);
 }
 
 :is(#chat, #chat-notifications) .message .stonetop-startup-card__actions,
-:is(#chat, #chat-notifications) .message .stonetop-art-reminder__actions {
+:is(#chat, #chat-notifications) .message .stonetop-art-reminder__actions,
+:is(#chat, #chat-notifications) .message .stonetop-layout-offer__actions {
 	display: flex;
 	justify-content: center;
 	padding-top: 6px;
 }
 
 :is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome,
+:is(#chat, #chat-notifications) .message .stonetop-layout-switch,
 :is(#chat, #chat-notifications) .message .stonetop-import-art-open {
 	width: auto;
 	padding: 5px 14px;
@@ -3582,9 +3693,17 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 :is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome:hover,
+:is(#chat, #chat-notifications) .message .stonetop-layout-switch:hover,
 :is(#chat, #chat-notifications) .message .stonetop-import-art-open:hover { background: var(--st-btn-primary-bg-hover); }
 :is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome > i,
+:is(#chat, #chat-notifications) .message .stonetop-layout-switch > i,
 :is(#chat, #chat-notifications) .message .stonetop-import-art-open > i { margin-right: 4px; }
+/* Pressed: the world is now on the layout this card offered, and the card posted underneath
+   it is the live control. Keep it legible rather than greying it into the background. */
+:is(#chat, #chat-notifications) .message .stonetop-layout-switch:disabled {
+	opacity: 0.65;
+	cursor: default;
+}
 
 :is(#chat, #chat-notifications) .message:has(.stonetop-roll-card),
 :is(#chat, #chat-notifications) .message:has(.stonetop-startup-card),
@@ -5346,6 +5465,59 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	color: #fff;
 }
 
+/* ── Roll modifier pill (Advantage / Normal / Disadvantage) ─────────────────────────────
+   The steading's Moves heading wears one. Buttons, not the radios the strip above is built
+   around (see roll-mode-picker.hbs), so the fill hangs off a stamped `.is-active` rather than
+   `:has(input:checked)` — safe because the flip always re-renders.
+
+   Deliberately a near-copy of `.stonetop-rel-viewpicker .stonetop-rel-view-btn` rather than a
+   shared block with it: they are the same LOOK but not the same rule set (that one adds an
+   icon-only heading variant and a lane-picker sibling), and folding them together would mean
+   every future tweak to one silently moving the other. */
+.stonetop-roll-mode-bar {
+	/* Far right of the heading's own line. The heading is the flex row — see
+	   `.steading-moves-tab .stonetop-move-group-title`. */
+	margin-left: auto;
+	display: flex;
+	align-items: center;
+}
+
+/* The core-button reset this shares with the board's two strips is stated once, grouped with
+   them, further down the file — search `.stonetop-rel-viewpicker .stonetop-rel-view-btn,`.
+   Only what this strip genuinely differs on is here. */
+.stonetop-roll-mode-picker .stonetop-roll-mode-btn {
+	flex: 0 0 auto;
+	gap: 5px;
+	/* Tight box, like the view toggle's heading variant: a section heading is only ~23px tall
+	   and the default strip would hang past the underline and sit on top of it. */
+	padding: 0 8px;
+	background: transparent;
+	color: var(--st-text-body);
+	font-family: var(--font-stonetop);
+	/* Pinned to the ROOT base, not var(--st-fs-sm), for the reason the view toggle's block
+	   spells out: this renders inside an `h3`, whose em box is not the body's, so a relative
+	   step would resolve against the heading and size the pill by where it was mounted. The
+	   font-scale factor stays, so the sheet's own text-size setting still applies. */
+	font-size: calc(0.95rem * var(--stonetop-font-scale, 1));
+	line-height: 1.25;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+/* Repeated per strip rather than grouped, for the reason the shared reset spells out: it ties
+   on specificity with .stonetop-segmented-picker-option and needs the extra pseudo-class. */
+.stonetop-roll-mode-picker .stonetop-roll-mode-btn:last-child { border-right: 0; }
+
+.stonetop-roll-mode-picker .stonetop-roll-mode-btn.is-active {
+	background: var(--st-btn-primary-bg, slategrey);
+	color: #fff;
+}
+
+.stonetop-roll-mode-picker .stonetop-roll-mode-btn:hover:not(.is-active) {
+	background: rgba(100, 116, 139, 0.16);
+	color: var(--st-text-body);
+}
+
 /* Dialog: a rolled love letter is authored in ONE of two result styles, chosen by the
    segmented toggle in the results header. `data-result-style` on the results container
    governs which panel shows; only the visible style is saved. */
@@ -6770,15 +6942,35 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin: 12px 0 20px 0;
 }
 
-.pbta.sheet .tab.moves,
-.pbta.sheet .tab.equipment,
-.pbta.sheet .tab.arcana,
-.pbta.sheet .tab.details,
-.pbta.sheet .tab.followers,
-.pbta.sheet .tab.stonetop-invocations,
-.pbta.sheet .tab.post-death,
-.pbta.sheet .tab.stonetop-special-moves {
-	padding: 12px;
+/* Scoped to `.character`, not the bare `.pbta.sheet` this used to carry. Every tab in the
+   list is a character-sheet tab, but the STEADING window is `.pbta.sheet` too, and it now has
+   a `.tab.moves` of its own (Homefront Moves, since the moves sidebar was retired). That page
+   insets itself the way its sibling steading tabs do — an inner `.sheet-tab`, styled by
+   `.steading-sheet .sheet-tab` — so this rule reaching it only doubled the padding. */
+/* `:is()` so the eight tabs are named once. It takes the specificity of its heaviest argument
+   — all eight are one `.tab` plus one name class — so this weighs exactly what the eight
+   spelled-out selectors did, and the classic override below still settles on source order. */
+.pbta.sheet.actor.character :is(.tab.moves, .tab.equipment, .tab.arcana, .tab.details,
+	.tab.followers, .tab.stonetop-invocations, .tab.post-death, .tab.stonetop-special-moves) {
+	/* No top inset: in the modern layout the tab starts flush against the pinned header above
+	   it, so the first row of a page (the stat block on Moves, the first card elsewhere) reads
+	   as continuous with the header rather than floating a gap below it. Sides and bottom keep
+	   the gutter. The classic layout puts the inset back — see the overrides block, where the
+	   thing above is the nav strip and its 2px underline instead.
+
+	   The `.actor.character` half of the scope is NOT part of the layout difference and stays
+	   in both modes: the STEADING window is `.pbta.sheet` too and has a `.tab.moves` of its
+	   own in the modern layout, which insets itself via `.steading-sheet .sheet-tab` — so this
+	   rule reaching it only doubled the padding. Widening the scope again would break the
+	   mixed configuration (character classic + steading modern) the per-sheet settings allow. */
+	padding: 0 12px 12px;
+}
+
+/* The stat block heads the Moves tab. Give it the same gap the move groups keep between
+   themselves, so the vitals row reads as this page's header rather than as something
+   stuck to the first group of moves under it. */
+.pbta.sheet.actor.character .tab.moves > .sheet-tab > .sheet-top {
+	margin-bottom: var(--stonetop-section-gap, 12px);
 }
 
 .stonetop-move-group-title {
@@ -8848,9 +9040,21 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border: none;
 }
 
-/* -- Tabs — character sheet ------------------------------------ */
+/* -- Tabs — horizontal strip ------------------------------------ */
 
-.pbta.sheet .sheet-tabs {
+/* The horizontal strip of text tabs — what the character, steading and NPC sheets wear in
+   the CLASSIC layout, and what the bestiary / location arms below have always worn.
+
+   Every rule excludes `.stonetop-tab-rail` by class rather than by sheet, because the rail
+   IS a `nav.sheet-tabs` on sheets these selectors still match (`.pbta.sheet` for character
+   and steading, `.stonetop-npc-sheet` for the NPC). Without the exclusion the pill skin
+   would repaint the rail's buttons, which are `.item`s under a `.sheet-tabs` like any
+   other. That exclusion is also all the gating this block needs: a sheet in the modern
+   layout emits the rail class and a sheet in the classic layout does not, so these rules
+   self-gate and take no `.stonetop-layout-classic` prefix. The handful of classic rules that
+   CANNOT self-gate live in the "Classic layout overrides" block further down. */
+
+.pbta.sheet .sheet-tabs:not(.stonetop-tab-rail) {
 	display: flex;
 	flex-direction: row;
 	margin-top: 8px;
@@ -8859,9 +9063,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	flex-shrink: 0;
 }
 
-.pbta.sheet .sheet-tabs .item,
-.stonetop-bestiary-sheet .sheet-tabs .item,
-.stonetop-npc-sheet .sheet-tabs .item {
+.pbta.sheet .sheet-tabs:not(.stonetop-tab-rail) .item,
+.stonetop-bestiary-sheet .sheet-tabs:not(.stonetop-tab-rail) .item,
+.stonetop-npc-sheet .sheet-tabs:not(.stonetop-tab-rail) .item {
 	border-radius: 4px 4px 0 0;
 	background: #999;
 	color: #fff;
@@ -8871,43 +9075,42 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	text-transform: uppercase;
 	font-size: var(--font-size-16);
 	flex: 1;
-	/* Establish a size container so each tab's label can size its font to the
-	   tab's own width (see .stonetop-tab-label). A long label like "Special
-	   Moves" then shrinks to stay on one line at narrow widths instead of
-	   wrapping to two lines and inflating the whole tab strip's height. */
-	container-type: inline-size;
 	text-align: center;
 	cursor: pointer;
 	text-shadow: none;
+	/* A size container per tab, so the label below can scale itself down to stay on ONE
+	   line. Without it a nine-tab character strip at `minWidth: 800` wraps "Special Moves",
+	   and nothing on the strip is `overflow: hidden` — the second line OVERPRINTS the tab
+	   panel rather than being clipped by pbta's `height: 37px`. */
+	container-type: inline-size;
 }
 
-/* Tab label: never wrap — instead shrink the font to fit the tab's width, so a
-   long label ("Special Moves") stays on one line down to the sheet's minimum
-   width. 12.5cqi resolves to the full --font-size-16 once the tab is wide enough
-   (the common case), and scales down with the tab below that, floored so it
-   stays legible. Only tabs whose label is wrapped in this span opt in; other
-   sheets keep the plain .item font-size above. */
-.pbta.sheet .sheet-tabs .item .stonetop-tab-label,
-.stonetop-npc-sheet .sheet-tabs .item .stonetop-tab-label {
+/* Scale a long label ("Special Moves", "Relationships") down to fit its tab. `12.5cqi`
+   resolves to the full --font-size-16 once the tab is wide enough, which is the common case,
+   and shrinks below that; the clamp floor keeps it legible. Only tabs whose label is wrapped
+   in the span opt in — the bestiary arm is deliberately absent, its tabs emit no label span.
+   The rail's items carry this span too, hence the `:not()` here as everywhere in this block. */
+.pbta.sheet .sheet-tabs:not(.stonetop-tab-rail) .item .stonetop-tab-label,
+.stonetop-npc-sheet .sheet-tabs:not(.stonetop-tab-rail) .item .stonetop-tab-label {
 	display: block;
 	white-space: nowrap;
 	font-size: clamp(0.72rem, 12.5cqi, var(--font-size-16));
 }
 
-.pbta.sheet .sheet-tabs .item:hover,
-.pbta.sheet .sheet-tabs .item:focus,
-.stonetop-bestiary-sheet .sheet-tabs .item:hover,
-.stonetop-bestiary-sheet .sheet-tabs .item:focus,
-.stonetop-npc-sheet .sheet-tabs .item:hover,
-.stonetop-npc-sheet .sheet-tabs .item:focus {
+.pbta.sheet .sheet-tabs:not(.stonetop-tab-rail) .item:hover,
+.pbta.sheet .sheet-tabs:not(.stonetop-tab-rail) .item:focus,
+.stonetop-bestiary-sheet .sheet-tabs:not(.stonetop-tab-rail) .item:hover,
+.stonetop-bestiary-sheet .sheet-tabs:not(.stonetop-tab-rail) .item:focus,
+.stonetop-npc-sheet .sheet-tabs:not(.stonetop-tab-rail) .item:hover,
+.stonetop-npc-sheet .sheet-tabs:not(.stonetop-tab-rail) .item:focus {
 	background: #bbb;
 	color: #000;
 	text-shadow: none;
 }
 
-.pbta.sheet .sheet-tabs .item.active,
-.stonetop-bestiary-sheet .sheet-tabs .item.active,
-.stonetop-npc-sheet .sheet-tabs .item.active {
+.pbta.sheet .sheet-tabs:not(.stonetop-tab-rail) .item.active,
+.stonetop-bestiary-sheet .sheet-tabs:not(.stonetop-tab-rail) .item.active,
+.stonetop-npc-sheet .sheet-tabs:not(.stonetop-tab-rail) .item.active {
 	background: var(--st-btn-primary-bg);
 	color: var(--st-btn-primary-text);
 	text-shadow: none;
@@ -8930,6 +9133,227 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	outline-offset: -2px;
 }
 
+/* -- Tabs — the vertical icon rail ------------------------------ */
+
+/* The character, steading and NPC sheets carry their tabs as an icon-only rail that hangs
+   OFF the window's right edge, outside the sheet body — the shape dnd5e's character sheet
+   uses (`nav.tabs.tabs-right`). It is the same `nav.sheet-tabs` the horizontal strip used —
+   same `.item` anchors, same data-tab keys, so Foundry's Tabs controller, the scrollY
+   registrations and the drag-reorder all work untouched — turned on its side, given glyphs
+   instead of words, and lifted out onto the window frame by module/utils/tab-rail.js.
+
+   The rail is therefore a child of the APP element, a sibling of `.window-content`, not of
+   anything the template renders. That is what lets it escape the window: `.window-content`
+   is `overflow-y: auto` on these sheets (the last-resort scroller for a window dragged
+   shorter than the tab body's floor), so a rail left inside it is clipped at the window's
+   edge no matter how it is positioned. See tab-rail.js for why moving the node is safe.
+
+   Everything is scoped to `.stonetop` (the app-level class all three sheets carry) so none
+   of it can reach a Classic-theme window; see the horizontal strip above for why the two
+   skins have to exclude each other by class. */
+
+/* The frame has to stop clipping, or it clips the rail away with everything else. Foundry
+   leaves `.window-app` at `overflow: visible`, but say it here rather than rely on that —
+   this is the one element whose overflow the rail depends on. */
+.stonetop.stonetop-has-tab-rail {
+	overflow: visible;
+}
+
+.stonetop .sheet-tabs.stonetop-tab-rail {
+	position: absolute;
+	/* Hung below the sheet's own header banner — the portrait / name block — rather than off
+	   the title bar, which is where dnd5e puts its rail (`top: calc(sheet-header + 1rem)`).
+	   With the tab count these sheets carry that lands the rail's middle around a third of
+	   the way down the window. tab-rail.js measures the banner and stamps the value; the
+	   fallback below is only what shows for the frame before that lands. */
+	top: var(--st-rail-top, 150px);
+	/* Fully outside the frame's right edge — the whole point. `.window-app` is positioned
+	   (`position: fixed`), so it is the containing block and 100% is its own width. */
+	left: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 4px;
+	margin: 0;
+	padding: 5px;
+	/* A panel, not a strip: bordered and rounded away from the window on the right, open on
+	   the left where it meets the sheet's edge so the two read as one piece. */
+	border: 2px solid slategrey;
+	border-left: none;
+	border-radius: 0 8px 8px 0;
+	background: var(--stonetop-bg);
+	/* Cast right and down, away from the seam — a centred shadow would wash back over the
+	   window's own edge and make the join look like a gap. */
+	box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.3);
+	/* Never hang past the bottom of the window: a nine-tab rail is taller than a sheet
+	   dragged short, and a panel running off the frame's bottom edge reads as broken. Past
+	   that height it scrolls instead. Bar hidden, matching the tab scrollports and
+	   `.window-content`; wheel, keys and scrollIntoView all still work.
+
+	   `box-sizing` stated rather than inherited: this cap only lands on the right edge if the
+	   border and padding count inside it. Under content-box the panel resolves to the cap
+	   PLUS its own 14px of chrome and hangs that far past the window's bottom.
+
+	   The `max()` floor is what keeps the rail from vanishing entirely: now that it starts
+	   below the sheet's header banner, a window dragged shorter than that banner makes the
+	   subtraction negative, which clamps to zero height. Two tabs' worth is the last-resort
+	   minimum — it will hang past the bottom edge at that size, but a reachable rail hanging
+	   over is better than a sheet whose tabs are gone. */
+	box-sizing: border-box;
+	/* Load-bearing, and NOT redundant with the max-height below. pbta ships
+	       .pbta.sheet .tabs { border-bottom: 2px solid #000; height: 37px; padding: 0 20px }
+	   for its own HORIZONTAL tab strip, and our rail is a `nav.sheet-tabs.tabs` sitting on a
+	   frame that carries `.pbta.sheet` (the character and steading sheets both do). That
+	   selector is three classes, exactly the weight of this rule, so it is only source order
+	   that decides — and for every property we DON'T state, pbta's value simply stands.
+	   `height` was one of those: the rail rendered 37px tall against 330px of content, which
+	   showed one tab and scrolled the other eight out of sight behind a hidden scrollbar.
+	   Measured: 0 of 9 character tabs and 0 of 6 steading tabs reachable, at ANY window size —
+	   this had nothing to do with the window being short. The NPC escaped it only because its
+	   frame has no `pbta` class. Restate `height` and the rail sizes to its own content again. */
+	height: auto;
+	max-height: max(96px, calc(100% - var(--st-rail-top, 150px)));
+	overflow-y: auto;
+	overflow-x: hidden;
+	scrollbar-width: none;
+}
+
+/* The rail on the window's LEFT edge instead, mirrored. `stonetop-tab-rail-left` is stamped by
+   module/utils/tab-rail.js when the right side has no room left for it — a sheet dragged flush
+   against the viewport's right edge, or a 960px character sheet on a 1024px browser window.
+   Core clamps a window's left to `Math.max(innerWidth - width, 0)`, so "flush right" is a
+   position it will happily hand out, and a rail at `left: 100%` there is simply off-screen with
+   no horizontal tab strip to fall back to.
+
+   One class heavier than the base rule above, and written after it, so every property below
+   wins outright. Everything the base rule sets asymmetrically is restated here; nothing else
+   changes, so the two edges read as the same component. It sets no `display`, so the
+   `.minimized` hide further down still applies at either edge. */
+.stonetop.stonetop-tab-rail-left .sheet-tabs.stonetop-tab-rail {
+	left: auto;
+	right: 100%;
+	/* Open on the RIGHT now, where it meets the sheet's edge. */
+	border-left: 2px solid slategrey;
+	border-right: none;
+	border-radius: 8px 0 0 8px;
+	/* Cast away from the seam, as before — which on this side means leftward. */
+	box-shadow: -3px 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Collapsed to its title bar (double-click the header), the window shows nothing but the
+   header — and the rail has to go with it. It does not follow on its own: core collapses a
+   window by hiding `.window-content`, and the rail is a SIBLING of that element out on the
+   frame, so nothing above it is hidden and nothing clips it. What was left was a stub of
+   panel floating below the collapsed bar, cut to the `max-height` floor above rather than
+   away — the `max(96px, ...)` that keeps the rail reachable on a short window is exactly
+   what keeps a couple of tabs on screen here.
+
+   Five classes, so it clears both our own `display: flex` and pbta's `.pbta.sheet .tabs`
+   without needing `!important`. Core drops `.minimized` again on restore and the rail comes
+   back with its stamped `--st-rail-top` intact — only `.window-content` is ever replaced. */
+.stonetop.stonetop-has-tab-rail.minimized .sheet-tabs.stonetop-tab-rail {
+	display: none;
+}
+
+/* The buttons. Now that the rail is its own panel the pills are gone: a tab is its glyph,
+   resting on the panel, and only hover and the active tab take a fill — the same figure /
+   ground the dnd5e rail uses, in this sheet's colours rather than its own. */
+.stonetop .sheet-tabs.stonetop-tab-rail .item {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	width: 32px;
+	height: 32px;
+	margin: 0;
+	padding: 0;
+	border-radius: 5px;
+	background: transparent;
+	color: var(--st-btn-primary-bg);
+	cursor: pointer;
+	text-shadow: none;
+	transition: background-color 0.12s, color 0.12s;
+}
+
+.stonetop .sheet-tabs.stonetop-tab-rail .item:hover,
+.stonetop .sheet-tabs.stonetop-tab-rail .item:focus {
+	background: rgba(112, 128, 144, 0.22);
+	color: var(--st-btn-primary-bg);
+}
+
+.stonetop .sheet-tabs.stonetop-tab-rail .item.active {
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
+}
+
+/* Attention dot — "there is something waiting for you on this page". Today only the
+   Moves tab raises it, when the character has the XP to level up; that cue used to sit in
+   the vitals row, which was always on screen and now heads the Moves page.
+
+   Parked in the button's top-right corner and OUTSIDE the 20px glyph, so it reads as a badge
+   on the tab rather than part of the drawing. `position: relative` is set here rather than on
+   the shared `.item` rule so an ordinary tab keeps a static box. The colour is the level-up
+   accent, matching the cue it stands in for. */
+.stonetop .sheet-tabs.stonetop-tab-rail .item.stonetop-tab-attention {
+	position: relative;
+}
+
+.stonetop .sheet-tabs.stonetop-tab-rail .item.stonetop-tab-attention::after {
+	content: "";
+	position: absolute;
+	top: 3px;
+	right: 3px;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--st-levelup-accent);
+	/* Ringed in the rail panel's own parchment so the dot stays legible against the filled
+	   active-tab pill as well as the bare panel. */
+	box-shadow: 0 0 0 1.5px var(--stonetop-bg, #f0ece3);
+	pointer-events: none;
+}
+
+/* The glyph. An empty span wearing the icon as a MASK, not an `<img>`: core's
+   `body.game .app img` rule puts a 1px black border and a 2px radius on every image inside
+   a sheet, and masking also lets the one file take the button's rest / hover / active
+   colour straight from `currentColor`. Each tab's file is selected by data-tab below. */
+.stonetop .sheet-tabs.stonetop-tab-rail .stonetop-tab-icon {
+	flex: 0 0 auto;
+	width: 20px;
+	height: 20px;
+	background-color: currentColor;
+	-webkit-mask: var(--st-tab-icon) center / contain no-repeat;
+	mask: var(--st-tab-icon) center / contain no-repeat;
+}
+
+/* One glyph per data-tab key. Nearly all of the keys that repeat across the three sheets —
+   `notes`, `details`, `neighbors`/`followers` — want the same icon anyway, so this stays a
+   flat list rather than three sheet-scoped ones. Sourcing and licensing for every file:
+   assets/icons/tabs/ATTRIBUTION.md. */
+.stonetop-tab-rail .item[data-tab="moves"]         { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/move.svg'); }
+.stonetop-tab-rail .item[data-tab="invocations"]   { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/lightbearer-sun.svg'); }
+.stonetop-tab-rail .item[data-tab="followers"]     { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/three-friends.svg'); }
+.stonetop-tab-rail .item[data-tab="inventory"]     { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/school-bag.svg'); }
+.stonetop-tab-rail .item[data-tab="arcana"]        { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/arcanum.svg'); }
+.stonetop-tab-rail .item[data-tab="details"]       { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/info.svg'); }
+.stonetop-tab-rail .item[data-tab="post-death"]    { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/newspaper.svg'); }
+.stonetop-tab-rail .item[data-tab="special-moves"] { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/round-star.svg'); }
+.stonetop-tab-rail .item[data-tab="notes"]         { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/notebook.svg'); }
+.stonetop-tab-rail .item[data-tab="overview"]      { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/village.svg'); }
+.stonetop-tab-rail .item[data-tab="neighbors"]     { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/three-friends.svg'); }
+.stonetop-tab-rail .item[data-tab="improvements"]  { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/hammer-nails.svg'); }
+.stonetop-tab-rail .item[data-tab="threats"]       { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/hazard-sign.svg'); }
+.stonetop-tab-rail .item[data-tab="relationships"] { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/hearts.svg'); }
+.stonetop-tab-rail .item[data-tab="stats"]         { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/crossed-swords.svg'); }
+
+/* Drag-reorder feedback: the strip's dashed outline sat inside a wide pill, but a 34px
+   square has no room for a 2px inset dash — it swallows the glyph. Mark the drop target
+   with a bar on the edge the tab will land against instead. */
+.stonetop .sheet-tabs.stonetop-tab-rail .stonetop-tab-drag-over {
+	outline: none;
+	box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.85);
+}
+
 /* Kill the stray orange dotted focus outline browsers draw around generic
    layout containers (the tab strips, panels, etc.) when they receive focus.
    Scoped to non-interactive elements so real inputs/buttons keep their ring. */
@@ -8937,13 +9361,108 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	outline: none;
 }
 
+/* -- Classic layout overrides ----------------------------------
+   The rules the CLASSIC layout needs that cannot self-gate on a class only one layout's
+   markup emits. They hang off `stonetop-layout-classic`, which module/settings.js's
+   layoutClasses() puts in each sheet's `defaultOptions.classes` and each sheet's `_render`
+   re-stamps on the window frame (defaultOptions alone goes stale on a live flip, because
+   `_replaceHTML` never rebuilds the frame's class list).
+
+   ALWAYS COMPOUND, NEVER DESCEND. The marker lands on the SAME element as
+   `.pbta.sheet.actor.character` / `.stonetop.sheet.actor.npc` / `.stonetop.sheet.actor.steading`
+   — the `.window-app` frame — so `.stonetop-layout-classic .pbta.sheet.actor.character …`
+   (with a space) matches nothing at all. Same hazard as the `.vtt`/`.window-app` note near
+   the top of this file.
+
+   Placed after both skins so source order settles ties without `!important`.
+
+   NOT named `.stonetop-classic` — that class already means the Foundry *Classic theme*
+   further down this file. */
+
+/* Give every character tab its top inset back. In the modern layout the tab starts flush
+   under a pinned header and reads as continuous with it; in classic the thing above is the
+   nav strip and its 2px slategrey underline, and a page flush against a rule reads as
+   clipped. Notes insets its inner `.character-notes`, which is where its padding lives.
+
+   The tab list is the same eight as the modern rule and is written the same way — see the note
+   there on `:is()` and specificity. Notes is deliberately NOT folded into that `:is()`: it is
+   the one entry whose target is a DESCENDANT, and `:is()` takes the specificity of its heaviest
+   argument, so including it would quietly add a class's worth of weight to the other eight. */
+.stonetop-layout-classic.pbta.sheet.actor.character :is(.tab.moves, .tab.equipment, .tab.arcana,
+	.tab.details, .tab.followers, .tab.stonetop-invocations, .tab.post-death,
+	.tab.stonetop-special-moves),
+.stonetop-layout-classic.pbta.sheet.actor.character .tab.notes .character-notes {
+	padding-top: 12px;
+}
+
+/* The scroll seam already has a rule on it in classic: the tab strip's own 2px underline
+   sits flush above the layout. Two lines at one seam read as a thickening glitch when the
+   tab scrolls, not as depth — the same reason the steading is excluded from that rule
+   outright. Kill the COLOUR, not the border: toggling the border shifts the layout a pixel
+   each time the seam appears. The frosted band itself stays. */
+.stonetop-layout-classic .stonetop-sheet-layout:not(.steading-sheet-layout),
+.stonetop-layout-classic .stonetop-sheet-layout:not(.steading-sheet-layout):has(> .sheet-body.is-scrolled) {
+	border-top-color: transparent;
+}
+
+/* ...and on the classic CHARACTER sheet the frosted band goes with it. The band's job is to
+   soften a line of text being sliced off at a hard edge as it passes under a pinned header;
+   what is above the seam here is the tab strip and its own 2px rule, which is not an edge
+   anything appears to pass BEHIND — so the blur reads as the top line of the page having gone
+   out of focus. That is the rendering-fault look the `is-scrolled` gate exists to avoid, just
+   arrived at from the other direction.
+   `content: none` rather than `opacity: 0`: with no pseudo-element there is nothing to
+   composite, and no `backdrop-filter` layer promoting the body on every scroll frame.
+   Deliberately the character sheet alone. The classic NPC and steading keep theirs. */
+.stonetop-layout-classic.pbta.sheet.actor.character .stonetop-sheet-layout .sheet-body::before {
+	content: none;
+}
+
+/* The NPC quick-facts block is a direct `.flexcol` child of `.stonetop-npc-main` again in
+   classic (that container is display:flex, column), so core's V13 `.app .flexcol > * {
+   flex: 1 }` would pad it out with dead space on a taller window. Only `.sheet-body` should
+   grow. Inert in modern, where the block sits inside a `display: block` tab panel. */
+.stonetop-layout-classic.stonetop.sheet.actor.npc .stonetop-npc-stat-block {
+	flex: 0 0 auto;
+}
+
+/* Modern only: the tab strip that used to hold this gap open is gone from the flow. In
+   classic the strip is back and carries its own `margin: 4px 0 0` on top of
+   `.stonetop-npc-main`'s 12px gap, so the extra 4px is pure double-counting there. */
+.stonetop.sheet.actor.npc:not(.stonetop-layout-classic) .stonetop-npc-sheet .sheet-body {
+	margin-top: 4px;
+}
+
+/* -- Tabs — NPC sheet, classic strip ---------------------------
+   Self-gating: nothing carries `stonetop-npc-tabs` in the modern layout.
+
+   Not cosmetic. This frame carries no `pbta` class, so the shared strip box rule above
+   (`.pbta.sheet .sheet-tabs:not(...)`) never reaches it, and what shows instead is core's own
+   `nav.sheet-tabs` border — top AND bottom. The top rule visually severs the pinned
+   quick-facts block from the strip. `flex: 0 0 auto` rather than just `flex-shrink`, against
+   core's V13 `.app .flexcol > * { flex: 1 }` on every child of `.stonetop-npc-main`. */
+.stonetop-npc-tabs.sheet-tabs.tabs {
+	display: flex;
+	flex-direction: row;
+	margin: 4px 0 0;
+	padding: 0;
+	border-top: none;
+	border-bottom: 2px solid slategrey;
+	flex: 0 0 auto;
+}
+
 /* -- Tabs — steading sheet ------------------------------------- */
 
-/* .sheet-tabs.tabs (three classes) so this outranks the character sheet's
-   `.pbta.sheet .sheet-tabs` above — the steading window carries pbta+sheet
-   classes too, and that rule's 8px margin + 16px padding is what we're
-   tightening here. */
-.steading-sheet .sheet-tabs.tabs {
+/* The steading's tabs are the vertical rail in the modern layout, which needs no tweak of
+   its own. In the CLASSIC layout they are a horizontal strip, and this tightens it.
+
+   `.sheet-tabs.tabs` (three classes) so it outranks `.pbta.sheet .sheet-tabs:not(...)` above
+   — the steading window carries pbta+sheet too, and that rule's 8px margin + 16px padding is
+   what is being tightened. `:not(.stonetop-tab-rail)` for the house reason: the modern rail
+   is a `nav.sheet-tabs.tabs` on this same sheet. It is normally relocated onto the frame and
+   out of `.steading-sheet`, so it could not match anyway, but mountTabRail can bail early
+   and the guard costs nothing. */
+.stonetop-layout-classic.pbta.sheet.actor.steading .steading-sheet .sheet-tabs.tabs:not(.stonetop-tab-rail) {
 	display: flex;
 	flex-direction: row;
 	margin-top: 0;
@@ -8982,18 +9501,34 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	padding: 0;
 }
 
+/* -- The classic layout's Homefront Moves sidebar ---------------
+   Every rule here leads with `.steading-moves-sidebar`, a class only the classic markup
+   emits (steading-moves-sidebar.hbs), so they self-gate and take no layout prefix. The
+   shared sidebar chrome they sit on — `.stonetop-moves-sidebar`, `.stonetop-sidebar-toggle`,
+   `.stonetop-sidebar-body`, the `.is-collapsed` states — is unscoped and already live in
+   both layouts, because the CHARACTER sheet still renders a moves sidebar in either. */
+
 /* Breathing room on the right of the move rows. Lives on the body (not the outer
-   flex container) so it collapses away with the body, leaving a clean handle strip. */
+   flex container) so it collapses away with the body, leaving a clean handle strip.
+   The shared gutter already sets this; restated so the steading stays independent of a
+   future change to it. */
 .steading-moves-sidebar .stonetop-sidebar-body {
 	padding-right: 12px;
 }
 
+/* The rhythm the modern moves TAB gets from its move groups' 14px margins; the sidebar's
+   groups sit tighter, so it sets its own. */
+.steading-moves-sidebar .steading-moves-tab {
+	gap: 8px;
+}
+
 .steading-moves-sidebar .steading-moves-list {
 	display: block;
-	margin: 4px 0 0;
 	/* No left indent — rows sit flush with the "Homefront Moves" heading, matching the
-	   character sheet's Basic Moves sidebar. The rows are display:flex (rule above), so
-	   they're not list-items and the decimal markers never rendered anyway. */
+	   character sheet's Basic Moves sidebar. The rows ARE list items (nothing gives
+	   `.stonetop-move-item` a display of its own), so `list-style: none` and the `::marker`
+	   reset below are both load-bearing — do not drop them as redundant. */
+	margin: 4px 0 0;
 	padding-left: 0;
 	list-style: none;
 }
@@ -9018,6 +9553,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-moves-sidebar .steading-move-stat-tag {
 	margin: 0 3px;
 }
+
+/* No sidebar override for the roll-mode PILL. The classic sidebar carries the stacked radio
+   list instead (roll-mode-radios.hbs, styled by `.stonetop-roll-mode-control` above, shared
+   with the character sheet), so a stacked-pill variant here would be a second shape nothing
+   renders — and the drift that follows from keeping one. The pill lives only in the modern
+   moves heading. */
 
 .steading-sheet .sheet-tab {
 	padding: 12px;
@@ -9045,16 +9586,32 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-style: italic;
 }
 
-/* -- Stats bar (always visible, above tabs) -------------------- */
+/* -- Stats bar (first block of the Overview tab) --------------- */
 
+/* No padding or bottom rule in the base rule: inside the Overview tab (the modern layout's
+   mount) the tab's own 12px padding and the column's 12px gap already place it, and a
+   full-width rule there would read as a divider between two things that are both just
+   Overview. The classic mount puts both back — see the positional rule below the base. */
 .steading-stats-bar {
 	display: flex;
 	flex-direction: row;
 	align-items: stretch;
 	flex-wrap: wrap;
 	gap: 10px;
+}
+
+/* CLASSIC layout only: the band is a permanent strip above the tab strip again, and the
+   padding and the hairline are what separate it from `.steading-header` above and the tabs
+   below.
+
+   Selected by POSITION, not by the layout class: in the classic mount the band is a DIRECT
+   child of `.steading-sheet-wrapper`; inside the Overview tab it is a grandchild of
+   `.tab.overview`. The child combinator alone tells the two apart, so the two mounts cannot
+   reach each other and the base rule above stays clean (which is also what keeps
+   tests/actors/steading/steading-section-placement.test.js matching it). */
+.steading-sheet-wrapper > .steading-stats-bar {
 	padding: 8px 12px;
-	border-bottom: 1px solid rgba(0,0,0,0.12);
+	border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 }
 
 /* Six slim columns (Surplus, Fortunes, Population, Defenses, Prosperity,
@@ -10340,10 +10897,6 @@ a.steading-player-open:hover {
 	.steading-residents-table:not(.stonetop-rel-table) .steading-residents-col-notes {
 		display: none;
 	}
-
-	.steading-moves-list {
-		grid-template-columns: 1fr;
-	}
 }
 
 /* Treasury (Silver & Gold) */
@@ -10996,16 +11549,29 @@ a.steading-player-open:hover {
 
 /* -- Moves tab ------------------------------------------------- */
 
+/* No `gap`: the sections are `.stonetop-move-group`s, and the character Moves tab already
+   spaces stacked groups by 14px (`.tab.moves .sheet-tab > .stonetop-move-group`). A gap on top
+   of that margin would set this page to a rhythm of its own. */
 .steading-moves-tab {
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
 }
 
-.steading-moves-list {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 6px 16px;
+/* The moves heading becomes the roll modifier's row. Flex so `margin-left: auto` on the pill
+   can push it to the far right of the heading's own line, above the underline — the same move
+   `.steading-residents-section--settlements > .steading-list-heading` makes for the
+   table/board toggle. Scoped to this tab: the character sheet's move-group headings carry no
+   control and must stay plain blocks.
+
+   The 4px is that heading's too. A bare text heading can sit right on its own rule, but a
+   heading carrying a pill cannot: the pill is taller than the letterforms, so with no padding
+   it clears the underline by a single pixel and reads as resting on it. Padding rather than a
+   taller line-height, so the border still spans the full padding box. */
+.steading-moves-tab .stonetop-move-group-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding-bottom: 4px;
 }
 
 .steading-roll-btn,
@@ -11127,8 +11693,24 @@ a.steading-player-open:hover {
 	height: 28px;
 	object-fit: contain;
 	padding-top: 1px;
-	/* The icons render inside Foundry's dark tooltip; invert the black glyphs to
-	   white so they read against the dark background, matching the tooltip text. */
+	/* No `filter: invert(1)` here: in the modern layout Seasons Change is a move CARD —
+	   light background, dark text — so inverting these black glyphs would erase them. The
+	   classic layout reads the same description off a DARK hover panel and flips them back;
+	   see the rule below. `border: none` because core puts a 1px black border on every
+	   `.app img`, and the card is inside the sheet. */
+	border: none;
+}
+
+/* The classic layout reads a move's text off `.stonetop-basic-move-panel`, which is
+   `background: #1f1f1f` — four black glyphs on near-black, with no error and no layout shift
+   to give it away. Flip them white for that ground.
+
+   Selected by HOST rather than by layout, and this is the ONE deliberate exception to the
+   `.stonetop-layout-classic` frame-class rule: the panel is `document.body.appendChild`ed by
+   StonetopSteadingSheet#activateListeners, so it is not inside the window frame and no frame
+   class ever reaches it. A `.stonetop-layout-classic` prefix here would silently never
+   apply. Being outside `.app` is also why it needs no border reset. */
+.stonetop-basic-move-panel .stonetop-season-row-icon {
 	filter: invert(1);
 }
 
@@ -14223,6 +14805,13 @@ a.steading-player-open:hover {
 .stonetop-order-followers-dialog .stonetop-of-tag {
 	display: inline-flex;
 	align-items: center;
+	justify-content: center;
+	/* Core's compat layer forces width:100% (and margin: 0 1px) on every .app
+	   button, which turns these into one full-width chip per line. Size to the
+	   tag instead so the row packs several across and wraps. */
+	width: auto;
+	flex: 0 0 auto;
+	margin: 0;
 	gap: 4px;
 	padding: 2px 9px;
 	border: 1px solid var(--color-border-light, #ccc);
@@ -21246,12 +21835,20 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 
 /* Reset the window chrome so the rail + content fill the window and the content
    column scrolls while the footer stays pinned. Scoped with :has() so only the edit
-   template — not the read-only card view — resets its window. */
+   template — not the read-only card view — resets its window.
+
+   NO max-height here, deliberately. This used to carry `max-height: calc(100vh - 80px)`,
+   which was wrong twice over. It capped the CONTENT BOX rather than the frame, and
+   `.window-content` is `flex: 1 1 0%` — it always fills the frame — so a sheet dragged
+   taller than the cap showed a strip of bare window background under the parchment
+   (measured: a 30px band in an 880px frame, ~50px when dragged to full height). And it was
+   redundant anyway: this sheet is height:"auto" + resizable, and core's setPosition already
+   clamps the frame to `window.innerHeight`, so the frame bounds this element without help.
+   Same reasoning as the NPC frame rules — see the note there. */
 .stonetop-arcanum-sheet .window-content:has(.stonetop-arcanum-edit) {
 	padding: 0;
 	display: flex;
 	flex-direction: column;
-	max-height: calc(100vh - 80px);
 	overflow: hidden;
 }
 
@@ -22284,7 +22881,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	flex-direction: column;
 	gap: 0.55rem;
 }
-.stonetop .steading-threats-section + .steading-threats-section { margin-top: 1.4rem; }
+.stonetop .steading-threats-section + .steading-threats-section { margin-top: 12px; }
 .stonetop .steading-threats-section .steading-improvement-add-bar { margin-top: 0; }
 .stonetop .steading-threats-grid {
 	display: grid;
@@ -23292,28 +23889,35 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	min-width: 520px;
 }
 
-/* Cap the window FRAME, not the content box. The window is auto-height (see
-   defaultOptions), so the frame hugs the active tab's content — a short tab leaves no
-   void below. This cap keeps a tall tab (or a drag) from growing the frame without
-   bound; past it the active tab scrolls (nav stays pinned). The cap must live on the
-   frame — not on .window-content — because .window-content is flex:1 and always fills
-   the frame; capping it there instead lets a taller (dragged) frame show a dark band
-   below the content box. */
-.window-app.stonetop.sheet.actor.npc {
-	max-height: min(700px, calc(100vh - 60px));
-}
+/* NO max-height here, deliberately — don't reinstate one. This sheet used to cap the frame
+   at `min(700px, calc(100vh - 60px))` on the grounds that an auto-height window (see
+   defaultOptions) would otherwise grow without bound on a long tab. It doesn't: core clamps
+   it already, and the cap only cost a big monitor the use of its screen.
+
+   Core's v1 `Application#setPosition` clears the inline height for an auto-height window and
+   then re-measures:
+       const maxH = el.style.maxHeight || (window.innerHeight / scale);
+       currentPosition.height = height = Math.clamp(tarH, minH, maxH);
+   `el.style.maxHeight` is the INLINE style, which we never set — a cap in this stylesheet is
+   invisible to it — so `maxH` is the viewport either way. The frame cannot open or drag past
+   the screen with or without a rule here.
+
+   This was also the only actor sheet wearing a cap (character/monster/steading all take a
+   plain pixel height and resize freely), so it was the odd one out as well as the redundant
+   one. The remaining `max-height` rules in this file are all DIALOGS, which is a different
+   question — a long list opening full-screen — and they keep theirs. */
 
 /* The form fills the window content and lays out as a column so the header +
    quick-facts + tab strip stay pinned and only the active tab scrolls (chain below).
 
    `overflow-y: auto` is the LAST RESORT, not the normal scroll. Everything below has
    `min-height: 0`, so at any workable size the chain absorbs the space and this never
-   scrolls (verified: no scrollbar at auto height or at the 700px cap). It only engages
-   when the frame physically cannot hold the sheet's irreducible minimum — a viewport
-   under ~720px tall, where `max-height: calc(100vh - 60px)` caps the frame below the
-   content — and then a scrollbar beats silently hiding the bottom of the sheet, which
-   is what plain `overflow: hidden` did. See the `.sheet-body` floor below, which is
-   what lets the shortfall reach this element instead of being swallowed lower down. */
+   scrolls (verified: no scrollbar at auto height). It only engages when the frame
+   physically cannot hold the sheet's irreducible minimum — a short viewport, since core
+   clamps the frame to `window.innerHeight` (see the note above the NPC frame rules) — and
+   then a scrollbar beats silently hiding the bottom of the sheet, which is what plain
+   `overflow: hidden` did. See the `.sheet-body` floor below, which is what lets the
+   shortfall reach this element instead of being swallowed lower down. */
 .stonetop.sheet.actor.npc .window-content {
 	display: flex;
 	flex-direction: column;
@@ -23333,44 +23937,36 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	flex-direction: column;
 }
 
-/* — Tabs — sit below the pinned quick-facts block. The tab BUTTONS wear the shared
-   skin (`.pbta.sheet / .stonetop-bestiary-sheet / .stonetop-npc-sheet .sheet-tabs
-   .item`, up with the character-sheet tabs) — this sheet joins that selector list
-   the way the bestiary sheet does rather than restating the colours. Only the strip
-   itself differs from the character sheet's, so only that is stated here.
-   `flex: 0 0 auto` (not just flex-shrink) because core's V13 layer sets
-   `.app .flexcol > * { flex: 1 }` on every child of .stonetop-npc-main: with only
-   the shrink half pinned, the nav still GREW when the window was dragged taller,
-   the items stayed vertically centred, and this border floated away below them. */
-.stonetop-npc-tabs.sheet-tabs.tabs {
-	display: flex;
-	flex-direction: row;
-	margin: 4px 0 0;
-	padding: 0;
-	/* Core (`body.game .sheet.app nav.sheet-tabs`) borders the strip top AND bottom;
-	   we want only the underline the active tab sits on, so drop the top rule that
-	   would otherwise cut the quick-facts block off from the strip. */
-	border-top: none;
-	border-bottom: 2px solid slategrey;
-	flex: 0 0 auto;
-}
+/* — Tabs — the icon rail (shared skin, up with the character-sheet tabs) hangs off the
+   window's right edge, outside the sheet entirely, so nothing here lays it out: it is
+   rendered into the form and then lifted onto the frame by module/utils/tab-rail.js. The
+   horizontal strip that used to sit between the quick-facts block and the tab body is gone,
+   and with it the `flex: 0 0 auto` that had to fight core's V13
+   `.app .flexcol > * { flex: 1 }` for a nav that is no longer in the flow at all.
 
-/* Only the active tab scrolls, so each tab keeps its own scroll position and a tall
+   The quick-facts block still sits above the tab body, so Instinct (the anchor) stays
+   visible whichever tab is open. Only the strip that separated them has left, and the
+   `margin-top` below is the gap it used to hold open.
+
+   Only the active tab scrolls, so each tab keeps its own scroll position and a tall
    tab never pushes the pinned Instinct anchor off-screen. Show/hide is stated as a
    pair (unlayered) so core's V13 layered `.tab { display:none }` can't win over just
    the show half and leak an inactive tab. */
 .stonetop-npc-sheet .sheet-body {
 	flex: 1 1 auto;
 	/* A FLOOR, not `min-height: 0`. The window is auto-height, so it hugs the active tab —
-	   and a tab can legitimately be EMPTY: in play mode Details renders nothing at all until
-	   the NPC has impressions or motivations, which a freshly recruited follower has neither
-	   of. The window then closed up flush under the tab strip, so the tabs read as broken
-	   rather than as empty, and the sheet gave no hint that the strip led anywhere. This
-	   reserves a panel to land in. Small enough that a one-line tab still hugs.
+	   and a tab can legitimately be EMPTY. This used to bite on Details itself: in play mode
+	   it rendered nothing at all until the NPC had impressions or motivations, which a freshly
+	   recruited follower has neither of. The window then closed up flush under the tab strip,
+	   so the tabs read as broken rather than as empty, and the sheet gave no hint that the
+	   strip led anywhere. Details is no longer that case — the quick-facts block opens it now
+	   and its Instinct row is unconditional — but the floor still stands for the tabs that can
+	   still come up empty. This reserves a panel to land in. Small enough that a one-line tab
+	   still hugs.
 	   The chain below still shrinks freely (each tab scrolls internally); this only stops it
-	   reaching zero. Where it cannot be honoured — a viewport too short for the frame's cap —
-	   the shortfall travels up to .window-content, which scrolls, which is the whole reason
-	   that element is `overflow-y: auto`. */
+	   reaching zero. Where it cannot be honoured — a viewport too short to hold the frame,
+	   which core clamps to `window.innerHeight` — the shortfall travels up to .window-content,
+	   which scrolls, which is the whole reason that element is `overflow-y: auto`. */
 	min-height: 132px;
 	overflow: hidden;
 }
@@ -23409,8 +24005,14 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 /* Section rhythm within a tab — the old `.stonetop-npc-main` flex gap no longer reaches
    the sections now they live inside a tab panel. Mirror the character sheet's Details
    tab (.tab.details > .details-section + .details-section): the first section hugs the
-   top below the tab strip and each subsequent one gets the standard 14px gap. */
-.stonetop-npc-sheet .sheet-body > .tab > .stonetop-npc-field + .stonetop-npc-field {
+   top below the tab strip and each subsequent one gets the standard 14px gap.
+
+   The quick-facts block counts as one of those sections, not as a `.stonetop-npc-field`:
+   it opens the Details tab as a wrapper `div`, so without naming it here it would sit flush
+   against Impressions while every other pair kept its gap. Only DIRECT children are spaced,
+   which is what keeps its own rows on their tight 3px rhythm inside it. */
+.stonetop-npc-sheet .sheet-body > .tab > :is(.stonetop-npc-field, .stonetop-npc-stat-block)
++ :is(.stonetop-npc-field, .stonetop-npc-stat-block) {
 	margin-top: 14px;
 }
 /* Notes tab: the prose-mirror editor owns its own scroll and fills the tab height. */
@@ -23731,16 +24333,17 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-npc-field {
 	margin: 0;
 }
-/* Quick-fact stat block (pronouns, instinct, occupation, home, relations) —
+/* Quick-fact stat block (following, home, embodiment, instinct, occupation, relations) —
    tight line spacing like the monster stat block, vs. the roomier body sections.
-   `flex: 0 0 auto` for the same reason as the tab strip above: core's V13 layer
-   gives every .flexcol child `flex: 1`, which would otherwise pad this block out
-   with dead space when the window is dragged taller. Only .sheet-body grows. */
+
+   In the MODERN layout it opens the Details tab, and that panel is `display: block`, so flex
+   properties on the block itself do nothing there. In CLASSIC it is a direct `.flexcol` child
+   of `.stonetop-npc-main` again, where it needs the `flex: 0 0 auto` below (see that rule).
+   `display: flex` here earns its place in both: it lays out the block's OWN rows. */
 .stonetop-npc-stat-block {
 	display: flex;
 	flex-direction: column;
 	gap: 3px;
-	flex: 0 0 auto;
 }
 .stonetop-npc-prose {
 	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
@@ -24690,12 +25293,18 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	justify-content: flex-start;
 }
 
-/* Both segmented strips the board uses — this section-level Table/Board toggle and the
-   per-card lane control far below — begin by undoing the same core button styling. Stated
-   once, grouped, so the two cannot drift; each strip's own block then carries only what it
-   genuinely differs on (sizing, spacing, fill and type). */
+/* Every segmented strip in the system — the board's section-level Table/Board toggle, its
+   per-card lane control far below, and the steading's Roll Modifier pill (whose own block sits
+   much earlier in this file) — begins by undoing the same core button styling. Stated once,
+   grouped, so they cannot drift; each strip's own block then carries only what it genuinely
+   differs on (sizing, spacing, fill and type).
+
+   Order is safe despite the roll-mode block coming first: nothing below is re-declared there,
+   and the two places that DO overlap (`:last-child`, `.is-active`) carry an extra class or
+   pseudo-class each, so they outrank this rule wherever they sit. */
 .stonetop-rel-viewpicker .stonetop-rel-view-btn,
-.stonetop-rel-lane-picker .stonetop-rel-lane-btn {
+.stonetop-rel-lane-picker .stonetop-rel-lane-btn,
+.stonetop-roll-mode-picker .stonetop-roll-mode-btn {
 	/* inline-flex + width:auto, or core's block-level button rules (display:flex,
 	   width:100%) give each option its own row and the strip stacks vertically.
 	   min-height:0 for the same reason. Mirrors .stonetop-cf-tag. */
@@ -25319,7 +25928,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 /* Core Foundry gives every `button > i` a right margin, which off-centres an icon-only
    pill and double-counts against the view toggle's own `gap`. */
 .stonetop-rel-viewpicker .stonetop-rel-view-btn > i,
-.stonetop-rel-lane-picker .stonetop-rel-lane-btn > i {
+.stonetop-rel-lane-picker .stonetop-rel-lane-btn > i,
+.stonetop-roll-mode-picker .stonetop-roll-mode-btn > i {
 	margin-right: 0;
 }
 
@@ -25336,7 +25946,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    the primary way to move a card, not an optional extra. Inset so the ring stays inside
    the strip's own rounded border rather than straddling it. */
 .stonetop-rel-viewpicker .stonetop-rel-view-btn:focus-visible,
-.stonetop-rel-lane-picker .stonetop-rel-lane-btn:focus-visible {
+.stonetop-rel-lane-picker .stonetop-rel-lane-btn:focus-visible,
+.stonetop-roll-mode-picker .stonetop-roll-mode-btn:focus-visible {
 	outline: 2px solid var(--st-btn-primary-border, #4f5b66);
 	outline-offset: -2px;
 }

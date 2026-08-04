@@ -555,6 +555,32 @@ describe("CharacterLedger debilities", () => {
 	});
 });
 
+describe("CharacterLedger roll mode", () => {
+	// Was "Roll mode set to dis" — the dice-formula slug, straight out of the generic formatter.
+	it("spells the mode out instead of logging the slug", async () => {
+		const actor = makeActor({}, { stonetop: { rollMode: "normal" } });
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop-pwd.rollMode": "dis",
+		});
+		expect(entries.map(e => e.action)).toEqual(["Roll mode set to Disadvantage"]);
+	});
+
+	it("treats an unset flag as Normal, so a first pick still reads as a change", async () => {
+		const entries = await CharacterLedger.entriesForActorUpdate(makeActor(), {
+			"flags.stonetop-pwd.rollMode": "adv",
+		});
+		expect(entries.map(e => e.action)).toEqual(["Roll mode set to Advantage"]);
+	});
+
+	it("stays quiet when the mode does not actually change", async () => {
+		const actor = makeActor({}, { stonetop: { rollMode: "normal" } });
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop-pwd.rollMode": "",
+		});
+		expect(entries).toEqual([]);
+	});
+});
+
 describe("CharacterLedger possession choices", () => {
 	it("resolves choices nested in subgroups", async () => {
 		// The Sacred pouch's "choose 1 on each line" groups keep their options under

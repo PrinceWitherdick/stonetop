@@ -15,9 +15,11 @@ import {STONETOP_SCOPE, StonetopFlags} from "../character/StonetopFlags.js";
 import {SpecialItemPickerDialog} from "../character/dialogs/SpecialItemPickerDialog.js";
 import {CharacterInventory} from "../character/CharacterInventory.js";
 import {SPECIAL_ITEM_CATALOG} from "../../data/special-items.js";
-import {getHoverDescriptionSetting, getRollStatChipsSetting, getSidebarCollapsed, setSidebarCollapsed, getOpenSheetsInEditMode} from "../../settings.js";
+import {getRollStatChipsSetting, getOpenSheetsInEditMode, getHoverDescriptionSetting, getSidebarCollapsed, setSidebarCollapsed, isClassicLayout, layoutClasses, stampLayoutClass} from "../../settings.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
+import {mountTabRail} from "../../utils/tab-rail.js";
+import {mountScrollFrost} from "../../utils/scroll-frost.js";
 import {withSheetSizeMemory} from "../../utils/sheet-size.js";
 import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {makeColumnsResizable} from "../../utils/resizable-columns.js";
@@ -470,11 +472,14 @@ export function createStonetopSteadingSheetClass(Base) {
 
 		static get defaultOptions() {
 			return foundry.utils.mergeObject(super.defaultOptions, {
-				classes: ["pbta", "stonetop", "sheet", "actor", "steading"],
+				// `stonetop-layout-classic` when this user reads steading sheets in the classic
+				// layout — see the character sheet's note for why it is set both here and in
+				// _render.
+				classes: ["pbta", "stonetop", "sheet", "actor", "steading", ...layoutClasses("steading")],
 				width: 1080,
 				minWidth: 800,
 				height: 840,
-				// Mirrors the CSS floor in stonetop.css - see the character sheet's note.
+				// Mirrors the CSS floor in stonetop.css — see the character sheet's note.
 				minHeight: 620,
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "overview" }],
 			});
@@ -490,6 +495,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			// no orphaned floating preview is left stuck on screen.
 			removeAvatarPreview();
 			await super._render(force, options);
+			stampLayoutClass(this, "steading");
 			// Strip any PBTA-injected playbook controls and FoundryVTT chrome from the window header
 			const header = this.element[0]?.querySelector(".window-header");
 			if (header) {
@@ -596,6 +602,11 @@ export function createStonetopSteadingSheetClass(Base) {
 			// DOM being torn down — clear it here or it orphans if the sheet closes (e.g. Escape)
 			// while the cursor is still over an avatar and no mouseleave ever fires.
 			removeAvatarPreview();
+			// Same for the classic layout's move hover panel, which is also a document.body
+			// singleton. activateListeners clears it on each render, but a sheet that is closed
+			// rather than re-rendered never reaches that — so it has to be dropped here too.
+			this._movePanel?.remove();
+			this._movePanel = null;
 			return super.close(options);
 		}
 
@@ -608,12 +619,18 @@ export function createStonetopSteadingSheetClass(Base) {
 			}));
 			context.stonetop.rollMode = this._sheetRollMode();
 			context.stonetop.showRollStatChips = getRollStatChipsSetting();
-			// Whether the whole moves sidebar is collapsed (defaults to expanded),
-			// persisted per-actor, per-user.
-			context.stonetop.sidebarCollapsed = getSidebarCollapsed(this.actor?.id);
 			context.stonetop.enrichedNotes = await foundry.applications.ux.TextEditor.enrichHTML(context.stonetop.notes ?? "");
 			context.stonetop.editMode = this._editMode;
 			context.stonetop.canEdit = this.isEditable;
+			// Which layout this user reads this sheet in: the pre-rail one (stat band above the
+			// tabs, Homefront Moves as a right-hand sidebar) or today's. Client-scoped and per
+			// sheet type — see isClassicLayout in module/settings.js.
+			context.stonetop.classicLayout = isClassicLayout("steading");
+			// Whether the classic moves sidebar is collapsed (defaults to expanded), persisted
+			// per-actor, per-user. Unread by the modern layout, which has no sidebar. The
+			// backing setting is still called `characterSidebarCollapsed`: the name predates the
+			// steading sharing it, and renaming the key would drop everyone's stored state.
+			context.stonetop.sidebarCollapsed = getSidebarCollapsed(this.actor?.id);
 			// Per-section edit flags: a section is editable when the global header
 			// wrench is on OR its own pencil is toggled.
 			const sectionEdit = section => this.isSectionEditable(section);
@@ -813,6 +830,11 @@ export function createStonetopSteadingSheetClass(Base) {
 
 		activateListeners(html) {
 			super.activateListeners(html);
+			// Hang the tab rail off the window's right edge (module/utils/tab-rail.js).
+			mountTabRail(this, html);
+			// Frost the seam under the pinned header while the tab is scrolled — after the
+			// rail is on the frame, since that is where the tab-change watcher binds.
+			mountScrollFrost(this, html);
 			wrapStonetopGlyphsInEl(html[0]);
 			this._activateThreatsListeners(html[0]);
 
@@ -903,15 +925,40 @@ export function createStonetopSteadingSheetClass(Base) {
 				this._onSteadingRoll(btn.dataset.moveName, btn.dataset.stat);
 			}, true);
 
-			html.find(".stonetop-roll-mode-input").on("change", async (ev) => {
+			// Roll modifier, in BOTH its shapes — the modern layout's segmented pill on the
+			// Homefront Moves heading (buttons, see roll-mode-picker.hbs) and the classic
+			// sidebar's stacked radio list (roll-mode-radios.hbs). One layout renders at a time,
+			// so only one of these ever has anything to match, but both have to be bound: which
+			// one is live is a per-user setting read at render, not something known here. Binding
+			// only the pill's is the silent failure the classic layout hit — the radios render,
+			// highlight correctly off the server-stamped `checked`, and write nothing at all.
+			//
+			// Wired here, above the isEditable guard, for the same reason the roll buttons are: a
+			// player who can roll the moves has to be able to say how.
+			//
+			// Neither renders explicitly: setFlag is a document update, and `updateActor` already
+			// re-renders every sheet on this actor. A second one here is a whole extra rebuild of
+			// six tabs (re-enriched notes, three relationship tables, the rail and frost remounts)
+			// and it flickers the tab the user is reading.
+			html[0].addEventListener("click", async ev => {
+				const btn = ev.target.closest(".stonetop-roll-mode-btn");
+				if (!btn) return;
+				ev.stopPropagation();
+				const mode = _normalizeSheetRollMode(btn.dataset.rollMode);
+				if (mode === this._sheetRollMode()) return; // already on it — nothing to write
+				await this.actor.setFlag(STONETOP_SCOPE, "rollMode", mode);
+			}, true);
+
+			// A real radio group, so `change` rather than a delegated click: the browser owns the
+			// deselection, and change only fires on the one that became checked.
+			html.find(".stonetop-roll-mode-input").on("change", async ev => {
 				await this.actor.setFlag(STONETOP_SCOPE, "rollMode", _normalizeSheetRollMode(ev.currentTarget.value));
-				this.render(false);
 			});
 
-			// Collapse / expand the whole moves sidebar (Roll Modifier + Homefront Moves).
-			// Toggling a class (rather than re-rendering) lets the tab content reclaim
-			// the freed width without flicker; the state is persisted so the sidebar
-			// reopens the same way.
+			// Collapse / expand the whole moves sidebar (CLASSIC layout only; the modern layout
+			// has no sidebar, so this simply matches nothing). Toggling a class rather than
+			// re-rendering lets the tab content reclaim the freed width without flicker; the
+			// state is persisted so the sidebar reopens the same way.
 			html.find(".stonetop-sidebar-toggle").on("click", ev => {
 				const sidebar = ev.currentTarget.closest(".stonetop-moves-sidebar");
 				if (!sidebar) return;
@@ -941,8 +988,14 @@ export function createStonetopSteadingSheetClass(Base) {
 				else if (HOMESTEAD_MOVE_FLOWS[moveSlug]) this._onHomesteadMove(moveSlug);
 			}, true);
 
+			// Hover panel for the CLASSIC sidebar's one-line move rows: the row shows only a
+			// name, so its text has to come from somewhere. Gated on the ROWS EXISTING, not on
+			// the setting alone — the modern layout renders move cards that carry their own
+			// text, and building this on document.body for a layout that never shows it just
+			// leaks a div.
 			this._movePanel?.remove();
-			if (getHoverDescriptionSetting("hoverDescriptionsBasicMoves")) {
+			this._movePanel = null;
+			if (html[0].querySelector(".steading-move-row") && getHoverDescriptionSetting("hoverDescriptionsBasicMoves")) {
 				const panel = document.createElement("div");
 				this._movePanel = panel;
 				panel.className = "stonetop-basic-move-panel";

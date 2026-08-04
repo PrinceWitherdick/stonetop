@@ -1,0 +1,23 @@
+{{!-- One button on the vertical tab rail, shared by the character, steading and NPC sheets.
+
+      Takes `tab` (the data-tab key, which is also what selects the glyph in stonetop.css)
+      and `label` (already localized by the caller, so this partial stays free of any one
+      sheet's key namespace).
+
+      The rail is icon-only, so the name has to reach a screen reader some other way: it is
+      the aria-label here, and the tooltip for everyone else. The tooltip opens LEFT because
+      the rail is pinned to the sheet's right edge and an UP/DOWN tooltip would land on the
+      neighbouring tab. The glyph itself is an empty <span> wearing the icon as a CSS mask
+      (see .stonetop-tab-icon) rather than an <img>: core's `body.game .app img` rule puts a
+      1px black border and a 2px radius on every image inside a sheet, and a mask also lets
+      one file take the rest, hover and active colours.
+
+      `attention` is optional: pass a truthy value and the tab wears a small dot, for a page
+      holding something the player should act on while they are looking at another one. Pass
+      `attentionLabel` with it — the dot is decoration, so the reason has to reach the tooltip
+      and the aria-label or it says nothing to anyone who can't see it. --}}
+<a class="item stonetop-tab-rail-item{{#if attention}} stonetop-tab-attention{{/if}}" data-tab="{{tab}}"
+   aria-label="{{label}}{{#if attention}} — {{attentionLabel}}{{/if}}"
+   data-tooltip="{{label}}{{#if attention}} — {{attentionLabel}}{{/if}}" data-tooltip-direction="LEFT">
+	<span class="stonetop-tab-icon" aria-hidden="true"></span>
+</a>

@@ -71,8 +71,15 @@ function startDragProfiler(app, el) {
 	const longtasks = [];
 
 	// Time core's setPosition (the per-frame forced reflow + left/top write) by
-	// shadowing the instance method with an own property; delete on stop to
-	// fall back to the prototype/override again.
+	// shadowing the instance method with an own property, and put back exactly what
+	// was there on stop.
+	//
+	// `delete` is only the right restore when the method was INHERITED. A sheet with a
+	// tab rail already carries its own `setPosition` — utils/tab-rail.js wraps the
+	// instance so the rail can re-pick its edge while the window is dragged toward one —
+	// and deleting that would strip the wrapper for the rest of the session, on the one
+	// gesture it exists to watch.
+	const hadOwn = Object.prototype.hasOwnProperty.call(app, "setPosition");
 	const orig = typeof app.setPosition === "function" ? app.setPosition : null;
 	if (orig) {
 		app.setPosition = function (opts) {
@@ -103,7 +110,10 @@ function startDragProfiler(app, el) {
 		stop() {
 			cancelAnimationFrame(raf);
 			po?.disconnect();
-			if (orig) delete app.setPosition;
+			if (orig) {
+				if (hadOwn) app.setPosition = orig;
+				else delete app.setPosition;
+			}
 			const dur = Math.round(performance.now() - t0);
 			const avg = frames ? (spTotal / frames).toFixed(2) : "n/a";
 			console.info(
