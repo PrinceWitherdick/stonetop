@@ -40,6 +40,7 @@ import { addJournalShareButton } from "./module/journal/share-journal.js";
 import { patchJournalImagePopoutTitles } from "./module/journal/journal-image-titles.js";
 import { onRenderPause } from "./module/hooks/RenderPause.js";
 import { onRenderCompendiumItemIcons } from "./module/hooks/CompendiumItemIcons.js";
+import { onRenderActorDirectoryPortraits, onUpdateActorPortraitFrame } from "./module/hooks/ActorDirectoryPortraits.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
@@ -318,6 +319,7 @@ Hooks.once("init", () => {
 		"stonetop.arcanum-sheet":      "systems/stonetop-pwd/templates/item/arcanum-sheet.hbs",
 		"stonetop.arcanum-sheet-edit": "systems/stonetop-pwd/templates/item/arcanum-sheet-edit.hbs",
 		"stonetop.actor-header":     "systems/stonetop-pwd/templates/actor/partials/actor-header.hbs",
+		"stonetop.portrait-frame-pip": "systems/stonetop-pwd/templates/actor/partials/portrait-frame-pip.hbs",
 		"stonetop.actor-stats":      "systems/stonetop-pwd/templates/actor/partials/actor-stats.hbs",
 		"stonetop.actor-vitals":     "systems/stonetop-pwd/templates/actor/partials/actor-vitals.hbs",
 		"stonetop.tab-details":      "systems/stonetop-pwd/templates/actor/partials/tab-details.hbs",
@@ -391,6 +393,18 @@ Hooks.on("pauseGame", (paused) => paused && onRenderPause());
 // The sidebar goes through StonetopItem#thumbnail; compendium rows render off the pack index
 // and never build a document, so they need this. See module/hooks/CompendiumItemIcons.js.
 Hooks.on("renderDocumentDirectory", onRenderCompendiumItemIcons);
+
+// -- ACTORS SIDEBAR PORTRAIT FRAMES ----------------------------
+// A chosen crop is a rect on a flag, so core's bare `<img src>` rows show the uncropped picture.
+// Wrap each framed row's image in a clipping box and paint the same style the sheets do, so a
+// person's face is the same face in the sidebar as everywhere else.
+//
+// The updateActor half is not optional: core redraws the directory for name / img / sort / folder
+// and nothing else, so a frame — which lives in flags — would otherwise not show up until the
+// world was reloaded. It repaints the one row rather than re-rendering the directory, so cropping
+// a face costs nobody their scroll position. See module/hooks/ActorDirectoryPortraits.js.
+Hooks.on("renderDocumentDirectory", onRenderActorDirectoryPortraits);
+Hooks.on("updateActor", onUpdateActorPortraitFrame);
 
 // -- READY -----------------------------------------------------
 Hooks.once("ready", onReady);

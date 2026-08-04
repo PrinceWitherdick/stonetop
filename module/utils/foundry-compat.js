@@ -55,6 +55,36 @@ export function setAppOption(app, key, value) {
 }
 
 /**
+ * Build an ImagePopout, in the shape v13 wants.
+ *
+ * v13 made ImagePopout an ApplicationV2 and moved both of its inputs: the path from the first
+ * positional argument to `options.src`, and the window title to `options.window.title`. The old
+ * `new ImagePopout(src, {title})` still opens the window — it just logs two deprecation warnings
+ * every time it does, and the shim is scheduled for removal in v15. This system is v13+ only, so
+ * there is no older shape to keep.
+ *
+ * NO width/height, deliberately. ImagePopout's `_preFirstRender` assigns over `options.position`
+ * wholesale with dimensions measured from the image itself (falling back to 480x480), so a size
+ * passed in here is discarded before the window is ever drawn. Offering the parameter would only
+ * invite callers to keep setting one that does nothing — the old call sites all did.
+ *
+ * Returns null where the global is absent (a test env, a core that renamed it), so callers can
+ * hand the result on and let a missing window be a missing window rather than a throw.
+ *
+ * @param {{src: string, title?: string}} opts
+ */
+export function imagePopout({ src, title } = {}) {
+	const Popout = globalThis.ImagePopout;
+	if (!Popout) return null;
+	return new Popout(title == null ? { src } : { src, window: { title } });
+}
+
+/** An open ImagePopout's window title, across the same move. */
+export function imagePopoutTitle(popout) {
+	return popout?.options?.window?.title ?? popout?.options?.title ?? "";
+}
+
+/**
  * Enrich stored HTML for display (resolves `@UUID` links, inline rolls, etc.).
  * V13 moved TextEditor under `foundry.applications.ux`; on older cores (or before
  * it's ready) fall back to the raw value so callers always get a usable string.
