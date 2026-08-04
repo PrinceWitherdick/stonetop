@@ -110,8 +110,10 @@ export function onRenderActorDirectoryPortraits(app, element) {
  * Core redraws the directory for name / img / sort / folder and nothing else, so without this a
  * frame written from a sheet is invisible in the sidebar until the world is reloaded.
  *
- * ⚠ The flag bag is read with BRACKETS off SYSTEM_ID. The package id is hyphenated, so a dotted
- * `changed.flags.stonetop_pwd` parses as a subtraction and throws at runtime.
+ * ⚠ The flag bag is read with BRACKETS off SYSTEM_ID, never written out. This package's id
+ * happens to be `stonetop_pwd`, where a dotted read would parse, but the same source ships under
+ * the hyphenated `stonetop-pwd`, and there a dotted `changed.flags.stonetop-pwd` parses as a
+ * subtraction and throws "pwd is not defined".
  *
  * Both write shapes count: `setFlag` sends `portraitFrame`, and clearing sends Foundry's
  * `-=portraitFrame` deletion key — the row has to un-crop as readily as it crops.
