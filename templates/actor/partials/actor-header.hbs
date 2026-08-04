@@ -1,5 +1,27 @@
 <div class="sheet-header stonetop-sheet-header">
-	<img class="stonetop-portrait" src="{{actor.img}}" {{#if stonetop.editMode}}data-edit="img"{{/if}} title="{{actor.name}}" alt="{{actor.name}}">
+	{{!-- The slot is what the crop pip positions against; the portrait keeps its own sizing.
+
+	      NO data-edit: it is how ActorSheet binds Foundry's file picker to an image, and that
+	      binding is registered before ours and cannot be called off from a listener — so while it
+	      was here, clicking the portrait in edit mode could only ever reach the raw file browser.
+	      The People of Stonetop gallery carries "Browse files…" and "Use default" of its own, so
+	      it is a superset of what the attribute bought. --}}
+	<span class="stonetop-portrait-slot">
+		{{#if stonetop.portraitFramed}}
+		{{!-- A framed portrait needs a clipping box: the image is absolutely positioned at
+		      several hundred percent, so with nothing to clip it, it paints across the sheet. The
+		      box wears .stonetop-portrait — it is the portrait now, and that class carries the
+		      size, the border and the click that opens the window. Only this branch is new; an
+		      unframed portrait stays the bare <img> it has always been, which is what lets that
+		      class's own top-anchored crop go on serving everyone nobody has framed. --}}
+		<span class="stonetop-portrait stonetop-portrait-clip" title="{{actor.name}}">
+			<img class="stonetop-portrait-img" src="{{stonetop.portraitImg}}" style="{{stonetop.portraitImgStyle}}" alt="{{actor.name}}">
+		</span>
+		{{else}}
+		<img class="stonetop-portrait" src="{{actor.img}}" title="{{actor.name}}" alt="{{actor.name}}">
+		{{/if}}
+		{{> "stonetop.portrait-frame-pip" canFrame=stonetop.canFramePortrait canTokenize=stonetop.canTokenizePortrait}}
+	</span>
 	<div class="sheet-header__fields">
 		{{#if (and isCharacter (not limited))}}
 		<div class="stonetop-playbook-block">

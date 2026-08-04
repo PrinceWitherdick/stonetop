@@ -40,6 +40,7 @@ import { addJournalShareButton } from "./module/journal/share-journal.js";
 import { patchJournalImagePopoutTitles } from "./module/journal/journal-image-titles.js";
 import { onRenderPause } from "./module/hooks/RenderPause.js";
 import { onRenderCompendiumItemIcons } from "./module/hooks/CompendiumItemIcons.js";
+import { onRenderActorDirectoryPortraits, onUpdateActorPortraitFrame } from "./module/hooks/ActorDirectoryPortraits.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
@@ -58,7 +59,7 @@ import { bindSteadingImprovementDrag } from "./module/journal/steading-improveme
 import { bindThreatSeedDrag } from "./module/threats/threat-seed-cards.js";
 import { maybeAnnounceBecameHero } from "./module/actors/character/WouldBeHeroAsterisk.js";
 import { StonetopSteading } from "./module/actors/steading/StonetopSteading.js";
-import { onSteadingPeopleUpdate } from "./module/actors/steading/steading-people.js";
+import { onSteadingPeopleUpdate, repaintOpenSteadingRosters } from "./module/actors/steading/steading-people.js";
 import { makeDialogsResizable, enableAutoHeightVerticalResize } from "./module/utils/resizable-dialogs.js";
 import { registerStonetopWindowTheme } from "./module/utils/window-theme.js";
 import { installWindowRestore } from "./module/utils/window-restore.js";
@@ -318,6 +319,7 @@ Hooks.once("init", () => {
 		"stonetop.arcanum-sheet":      "systems/stonetop_pwd/templates/item/arcanum-sheet.hbs",
 		"stonetop.arcanum-sheet-edit": "systems/stonetop_pwd/templates/item/arcanum-sheet-edit.hbs",
 		"stonetop.actor-header":     "systems/stonetop_pwd/templates/actor/partials/actor-header.hbs",
+		"stonetop.portrait-frame-pip": "systems/stonetop_pwd/templates/actor/partials/portrait-frame-pip.hbs",
 		"stonetop.actor-stats":      "systems/stonetop_pwd/templates/actor/partials/actor-stats.hbs",
 		"stonetop.actor-vitals":     "systems/stonetop_pwd/templates/actor/partials/actor-vitals.hbs",
 		"stonetop.tab-details":      "systems/stonetop_pwd/templates/actor/partials/tab-details.hbs",
@@ -391,6 +393,18 @@ Hooks.on("pauseGame", (paused) => paused && onRenderPause());
 // The sidebar goes through StonetopItem#thumbnail; compendium rows render off the pack index
 // and never build a document, so they need this. See module/hooks/CompendiumItemIcons.js.
 Hooks.on("renderDocumentDirectory", onRenderCompendiumItemIcons);
+
+// -- ACTORS SIDEBAR PORTRAIT FRAMES ----------------------------
+// A chosen crop is a rect on a flag, so core's bare `<img src>` rows show the uncropped picture.
+// Wrap each framed row's image in a clipping box and paint the same style the sheets do, so a
+// person's face is the same face in the sidebar as everywhere else.
+//
+// The updateActor half is not optional: core redraws the directory for name / img / sort / folder
+// and nothing else, so a frame — which lives in flags — would otherwise not show up until the
+// world was reloaded. It repaints the one row rather than re-rendering the directory, so cropping
+// a face costs nobody their scroll position. See module/hooks/ActorDirectoryPortraits.js.
+Hooks.on("renderDocumentDirectory", onRenderActorDirectoryPortraits);
+Hooks.on("updateActor", onUpdateActorPortraitFrame);
 
 // -- READY -----------------------------------------------------
 Hooks.once("ready", onReady);
@@ -536,22 +550,18 @@ Hooks.on("updateActor", (actor, _changes, options, userId) => {
 
 // -- STEADING PEOPLE LIVE-LINK ---------------------------------
 // A steading's Residents/Neighbors rows render live off their linked "npc" actors (name,
-// occupation, traits, relations, and the rich-notes preview). Foundry only auto-re-renders
-// a sheet when ITS OWN document changes, so editing a linked NPC — on the NPC sheet or via
-// the roster's notes pop-up — would leave an open steading sheet's roster stale. Repaint any
-// open steading that actually lists this NPC so the two surfaces stay in sync both ways.
-Hooks.on("updateActor", (actor) => {
-	if (actor?.type !== "npc") return;
-	const { uuid, id } = actor;
-	for (const steading of game.actors?.filter(a => a.type === "stonetop") ?? []) {
-		const openApps = Object.values(steading.apps ?? {});
-		if (!openApps.length) continue;
-		const people = steading.flags?.["stonetop_pwd"]?.steading ?? {};
-		const rows = [...(people.residents ?? []), ...(people.neighbors ?? [])];
-		if (!rows.some(r => (r?.uuid && r.uuid === uuid) || (r?.id && r.id === id))) continue;
-		for (const app of openApps) app?.render?.(false);
-	}
-});
+// occupation, traits, relations, and the rich-notes preview), and its Players rows render
+// live off the character's own portrait and playbook. Foundry only auto-re-renders a sheet
+// when ITS OWN document changes, so editing a linked NPC — on the NPC sheet or via the
+// roster's notes pop-up — or changing a character's picture would leave an open steading
+// sheet's roster stale until a reload. Repaint any open steading that actually lists this
+// actor so the two surfaces stay in sync both ways.
+Hooks.on("updateActor", repaintOpenSteadingRosters);
+// Deletion is the same staleness by another route: the row still points at a document that
+// is now gone, and an open roster would keep showing the person until a reload. Repainting
+// drops the row to its cached-name "unresolved" state (or, for a player, to the stored
+// portrait snapshot) right away, so the GM can see there is something to re-link or remove.
+Hooks.on("deleteActor", repaintOpenSteadingRosters);
 
 // A roster row written by someone who can't create Actors — a player finishing onboarding
 // with a background that names neighbors — arrives as plain text. This broadcast reaches the

@@ -71,3 +71,98 @@ describe("StonetopActor#_preCreate", () => {
 		expect(actor.applied.some(change => "prototypeToken.displayName" in change)).toBe(false);
 	});
 });
+
+// `actor.img` and `prototypeToken.texture.src` are two separate pictures, and Foundry fills the
+// second only at creation, from the stock default. Choosing a face on the sheet therefore gave a
+// person a face everywhere EXCEPT the map, which is where they are actually looked at in play.
+describe("StonetopActor#_syncPrototypeTokenImage", () => {
+	const ART = "worlds/mine/art/bryn.webp";
+
+	/** An actor already in the world, with a portrait and a prototype token. */
+	function existing({ type = "npc", img = PERSON_DEFAULT_IMG, token = FOUNDRY_DEFAULT, customType } = {}) {
+		const actor = new StonetopActor({ type, img });
+		actor.prototypeToken = { texture: { src: token } };
+		if (customType) actor.system = { customType };
+		return actor;
+	}
+
+	/** What the update would carry by the time it reaches the server. */
+	const sync = (actor, changed) => { actor._syncPrototypeTokenImage(changed); return changed; };
+
+	it("points a stock token at the portrait being chosen", () => {
+		expect(sync(existing(), { img: ART })["prototypeToken.texture.src"]).toBe(ART);
+	});
+
+	it("counts this system's people silhouette as stock, not as a chosen token", () => {
+		const actor = existing({ token: PERSON_DEFAULT_IMG });
+		expect(sync(actor, { img: ART })["prototypeToken.texture.src"]).toBe(ART);
+	});
+
+	it("keeps a token that was already following the portrait in step", () => {
+		// It showed the OLD portrait, so it was following; it goes on following.
+		const actor = existing({ img: ART, token: ART });
+		expect(sync(actor, { img: "worlds/mine/art/other.webp" })["prototypeToken.texture.src"])
+			.toBe("worlds/mine/art/other.webp");
+	});
+
+	it("never overwrites a token somebody chose", () => {
+		// The whole point of the two-state rule: a hand-picked token (or one Tokenizer cut) is a
+		// deliberate choice that has nothing to do with the portrait.
+		const actor = existing({ img: ART, token: "worlds/mine/tokens/bryn-token.webp" });
+		expect(sync(actor, { img: "worlds/mine/art/other.webp" })).toEqual({ img: "worlds/mine/art/other.webp" });
+	});
+
+	it("defers to a token image the same update is setting explicitly, in either shape", () => {
+		const dotted = existing();
+		expect(sync(dotted, { img: ART, "prototypeToken.texture.src": "chosen.webp" })["prototypeToken.texture.src"])
+			.toBe("chosen.webp");
+		const nested = existing();
+		const out = sync(nested, { img: ART, prototypeToken: { texture: { src: "chosen.webp" } } });
+		expect(out["prototypeToken.texture.src"]).toBeUndefined();
+		expect(out.prototypeToken.texture.src).toBe("chosen.webp");
+	});
+
+	it("follows a cleared portrait back to the placeholder, so the two stay symmetric", () => {
+		const actor = existing({ img: ART, token: ART });
+		expect(sync(actor, { img: PERSON_DEFAULT_IMG })["prototypeToken.texture.src"]).toBe(PERSON_DEFAULT_IMG);
+	});
+
+	it("stays out of an update that is not about the portrait", () => {
+		expect(sync(existing(), { "system.notes": "hello" })).toEqual({ "system.notes": "hello" });
+	});
+
+	it("leaves the steading alone, whose portrait is a picture of a place", () => {
+		expect(sync(existing({ type: "stonetop" }), { img: ART })).toEqual({ img: ART });
+		expect(sync(existing({ type: "other", customType: "stonetop" }), { img: ART })).toEqual({ img: ART });
+	});
+
+	it("does nothing for an actor with no prototype token to speak of", () => {
+		const actor = new StonetopActor({ type: "npc", img: PERSON_DEFAULT_IMG });
+		expect(sync(actor, { img: ART })).toEqual({ img: ART });
+	});
+
+	// Tokenizer rewrites `actor.img` to `<path>?<timestamp>` after a send, and a baked crop is
+	// pointed at with a cache-buster of its own — so "is this token following the portrait?"
+	// cannot be a raw string compare, or a token that IS following reads as one somebody chose
+	// and gets stranded on the old picture.
+	describe("past a cache-buster", () => {
+		const NEXT = "worlds/mine/art/other.webp";
+
+		it("still recognises a token following a portrait Tokenizer has stamped", () => {
+			const actor = existing({ img: `${ART}?1699999999`, token: ART });
+			expect(sync(actor, { img: NEXT })["prototypeToken.texture.src"]).toBe(NEXT);
+		});
+
+		it("and the mirror case, where the TOKEN carries the stamp", () => {
+			const actor = existing({ img: ART, token: `${ART}?1699999999` });
+			expect(sync(actor, { img: NEXT })["prototypeToken.texture.src"]).toBe(NEXT);
+		});
+
+		it("moves a baked crop of the old portrait onto the new one", () => {
+			// A bake is a square of the picture being replaced. Left where it was, the sheet
+			// would show one face and the map another for ever.
+			const actor = existing({ img: ART, token: "worlds/mine/stonetop-portrait-frames/bryn-abc-frame.webp?123" });
+			expect(sync(actor, { img: NEXT })["prototypeToken.texture.src"]).toBe(NEXT);
+		});
+	});
+});
