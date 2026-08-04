@@ -1,5 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createStonetopMonsterSheetClass } from "../../../module/actors/monster/StonetopMonsterSheet.js";
+import { SYSTEM_ID } from "../../../module/system-id.js";
+
+// The People of Stonetop gallery is a real Application subclass, and this suite runs against a
+// stub `Application` with no render(). Standing in for it is also what lets the portrait-click
+// tests below assert WHICH of the two routes a click took, rather than only that no picture
+// window opened. vi.hoisted because the mock factory runs while actor-portrait-picker.js is imported,
+// which is before this file's own module body executes.
+const gallery = vi.hoisted(() => ({ open: vi.fn() }));
+vi.mock("../../../module/actors/steading/PeopleGalleryDialog.js", () => ({
+	openPeoplePortraitPicker: gallery.open,
+}));
 
 function makeItems(items) {
 	return {
@@ -262,6 +273,59 @@ describe("StonetopMonsterSheet", () => {
 		expect(data.stonetop.displayImg).toBeNull();
 	});
 
+	// The header used to have a branch of its own for edit mode, drawing the raw illustration where
+	// play mode drew the framed face — so the lock button re-cropped a face somebody had chosen.
+	it("keeps a framed face framed in edit mode, so the lock button cannot re-crop it", async () => {
+		const actor = {
+			img: "worlds/test/crinwin-art.webp",
+			flags: { [SYSTEM_ID]: { portraitFrame: { src: "worlds/test/crinwin-art.webp", rect: [0.2, 0, 0.6, 0.4] } } },
+			system: { creatureType: "natural-beast" },
+			items: makeItems([]),
+		};
+		const sheet = makeSheet(actor);
+		sheet._editMode = true;
+
+		const data = await sheet.getData();
+
+		expect(data.stonetop.portraitFramed).toBe(true);
+		expect(data.stonetop.portraitImg).toBe("worlds/test/crinwin-art.webp");
+		expect(data.stonetop.portraitImgStyle).not.toBe("");
+	});
+
+	// What the two modes still differ in, now that the framed branch is shared.
+	it("draws the slot in edit mode even with no art, off the raw stored path", async () => {
+		const actor = {
+			img: "icons/svg/mystery-man.svg",
+			system: {},                          // no creature type either
+			items: makeItems([]),
+		};
+		const sheet = makeSheet(actor);
+		sheet._editMode = true;
+
+		const data = await sheet.getData();
+
+		expect(data.stonetop.showPortrait).toBe(true);
+		expect(data.stonetop.headerImg).toBe("icons/svg/mystery-man.svg");
+	});
+
+	it("hides the slot in play mode when there is neither art nor a creature-type mark", async () => {
+		const withMark = await makeSheet({
+			img: "icons/svg/mystery-man.svg",
+			system: { creatureType: "natural-beast" },
+			items: makeItems([]),
+		}).getData();
+		const without = await makeSheet({
+			img: "icons/svg/mystery-man.svg",
+			system: {},
+			items: makeItems([]),
+		}).getData();
+
+		expect(withMark.stonetop.showPortrait).toBe(true);
+		expect(withMark.stonetop.headerImg).toBe(
+			"systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg");
+		expect(without.stonetop.showPortrait).toBe(false);
+	});
+
 	it("creates monsterMove items from the add move control", async () => {
 		const actor = {
 			system: {},
@@ -314,10 +378,11 @@ describe("StonetopMonsterSheet", () => {
 		expect(actor.createEmbeddedDocuments).not.toHaveBeenCalled();
 	});
 
-	// Portrait click in play mode → enlarge in an ImagePopout (edit mode leaves the
-	// click to Foundry's data-edit="img" file picker). A helper stands up the sheet
-	// with a portrait element the click handler can bind to, plus a mock ImagePopout.
+	// The portrait click has two destinations: the picture window in play mode, the People of
+	// Stonetop gallery in edit mode. A helper stands up the sheet with a portrait element the
+	// click handler can bind to, plus a mock ImagePopout, so each test can say which one opened.
 	function wirePortrait(actor, { editMode }) {
+		gallery.open.mockClear();
 		const sheet = makeSheet(actor);
 		sheet._editMode = editMode;
 		let portraitClick;
@@ -331,9 +396,11 @@ describe("StonetopMonsterSheet", () => {
 			querySelector: selector => selector === ".stonetop-portrait" ? portrait : null,
 		};
 		const rendered = [];
+		// v13's constructor signature: one options object, path at `src`, title under `window`
+		// (see utils/foundry-compat.js#imagePopout).
 		globalThis.ImagePopout = class {
-			constructor(src, opts) { this.src = src; this.opts = opts; }
-			render(force) { rendered.push({ src: this.src, opts: this.opts, force }); }
+			constructor(options) { this.options = options; }
+			render(force) { rendered.push({ src: this.options?.src, opts: this.options?.window, force }); }
 		};
 		sheet.activateListeners([root]);
 		return { rendered, click: () => portraitClick({ preventDefault: vi.fn(), stopPropagation: vi.fn() }) };
@@ -345,28 +412,42 @@ describe("StonetopMonsterSheet", () => {
 			const { rendered, click } = wirePortrait(actor, { editMode: false });
 			click();
 			expect(rendered).toEqual([{ src: "worlds/test/grulk.webp", opts: { title: "Grulk" }, force: true }]);
+			expect(gallery.open).not.toHaveBeenCalled();
 		} finally {
 			delete globalThis.ImagePopout;
 		}
 	});
 
-	it("does not enlarge the portrait in edit mode (leaves it to the file picker)", async () => {
+	it("goes straight to the People gallery in edit mode, rather than enlarging the picture", async () => {
+		// Edit mode is the mode you are in to change things, so the click that changes this one
+		// should not need a stop at a picture window to find "Edit Photo" in its title bar. This
+		// used to be Foundry's own file picker, bound to data-edit="img" on the image; the
+		// gallery reaches that too, through its "Browse files…" button.
 		const actor = { name: "Grulk", img: "worlds/test/grulk.webp", system: {}, items: makeItems([]) };
 		try {
 			const { rendered, click } = wirePortrait(actor, { editMode: true });
 			click();
 			expect(rendered).toEqual([]);
+			expect(gallery.open).toHaveBeenCalledTimes(1);
+			expect(gallery.open.mock.calls[0][0]).toMatchObject({ current: "worlds/test/grulk.webp" });
 		} finally {
 			delete globalThis.ImagePopout;
 		}
 	});
 
-	it("does not enlarge the fallback creature-type icon (no real portrait art)", async () => {
+	it("still opens the window with no portrait art, because that is the route to choosing one", async () => {
+		// This click used to be refused on the grounds that a decorative default is not worth
+		// enlarging. That was right while the window only showed a picture; it now carries
+		// "Edit Photo" (the People of Stonetop gallery) and "Frame Face" in its header, so an
+		// art-less monster is precisely the case that needs it — and refusing left the avatar
+		// doing nothing when clicked, which is not what the character sheet does with the same
+		// click. The window shows whatever the header is drawing, so a creature-type mark is
+		// still never swapped for a stock icon behind the reader's back.
 		const actor = { name: "Grulk", img: "icons/svg/mystery-man.svg", system: {}, items: makeItems([]) };
 		try {
 			const { rendered, click } = wirePortrait(actor, { editMode: false });
 			click();
-			expect(rendered).toEqual([]);
+			expect(rendered).toEqual([{ src: "icons/svg/mystery-man.svg", opts: { title: "Grulk" }, force: true }]);
 		} finally {
 			delete globalThis.ImagePopout;
 		}

@@ -25,8 +25,12 @@ export function hideBrokenPortrait(sheet, headerClass) {
 	const img = slot.matches("img") ? slot : slot.querySelector("img");
 	if (!img) return;
 	const header = slot.closest(`.${headerClass}`);
+	// Take the whole positioning wrapper when there is one: it is the header's flex item, and the
+	// crop pip lives inside it. Removing only the picture would leave a zero-sized box in the
+	// header holding a button nothing can reach.
+	const remove = slot.closest(".stonetop-portrait-slot") ?? slot;
 	const drop = () => {
-		slot.remove();
+		remove.remove();
 		header?.classList.add(`${headerClass}--no-portrait`);
 	};
 	if (img.complete && img.naturalWidth === 0) { drop(); return; }

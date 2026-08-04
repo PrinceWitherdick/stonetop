@@ -1,0 +1,35 @@
+{{!-- The crop pip on a sheet's header portrait: choose which square of this face the small round
+      surfaces show — the relationship rows on every sheet that lists this person, the steading
+      roster, a follower card built from them.
+
+      The same affordance the follower cards already carry, in the same visual language and the
+      same corner: a small round button sitting ON the bottom-right of the picture, hidden until
+      the portrait is hovered or something in it has focus, so a sheet at rest is a sheet at rest.
+
+      Drawn in BOTH modes. Framing is not an edit-mode act — it is a reading choice about a
+      picture that already exists, and the person adjusting it is usually looking at the sheet
+      rather than editing it.
+
+      Only where there is real art to frame, and only for someone who may write it — a stock icon
+      or a creature-type mark has no face in it to choose a square of.
+
+      Both pips carry .stonetop-header-pip as well as their own class: the shared one is what
+      they are STYLED through (they are always styled together), their own is what the sheet
+      binds its click to. --}}
+{{#if canTokenize}}
+{{!-- To the LEFT of the crop pip, where the vtta-tokenizer module is installed and on the same
+      there-is-real-art terms as its neighbour (see headerPortraitContext): a fresh character's
+      blank silhouette is not a picture to hang controls on. A SIBLING rather than something
+      inside the crop dialog, because the two do different jobs and neither is a step on the way
+      to the other: this one makes the pog for the map, the crop pip chooses the face for the
+      sheet. Placed first so tabbing runs left to right; the visual order comes from `right` in
+      the CSS, since both are absolutely positioned. --}}
+<button type="button" class="stonetop-header-pip stonetop-portrait-tokenize-pip"
+        data-tooltip="{{localize 'stonetop.portraitFrame.tokenizerPip'}}"
+        aria-label="{{localize 'stonetop.portraitFrame.tokenizerPip'}}"><i class="fas fa-circle-user"></i></button>
+{{/if}}
+{{#if canFrame}}
+<button type="button" class="stonetop-header-pip stonetop-portrait-frame-pip"
+        data-tooltip="{{localize 'stonetop.portraitFrame.pip'}}"
+        aria-label="{{localize 'stonetop.portraitFrame.pip'}}"><i class="fas fa-crop-simple"></i></button>
+{{/if}}

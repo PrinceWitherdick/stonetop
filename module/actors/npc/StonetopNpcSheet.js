@@ -9,8 +9,8 @@
 import { rollDamage } from "../../utils/roll-engine.js";
 import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle } from "../../utils/sheet-chrome.js";
 import { isDefaultImg } from "../../utils/strings.js";
-import { resolvePortrait, documentPortraitFrame } from "../../utils/portrait-frame.js";
-import { wirePortraitPopout, updateRichTextField, updateMoveField } from "../../utils/stat-block-edit.js";
+import { headerPortraitContext, wirePortraitPopout } from "../../utils/actor-portrait-picker.js";
+import { updateRichTextField, updateMoveField } from "../../utils/stat-block-edit.js";
 import { getOpenSheetsInEditMode } from "../../settings.js";
 import { enrichHTML } from "../../utils/foundry-compat.js";
 import { buildRelationshipRows, wireRelationshipTable, wireRelationshipLinks, relationshipDropResult, relationshipDropNotice, wireRelationshipDropHighlight } from "../../utils/relationship-hearts.js";
@@ -135,17 +135,21 @@ export function createStonetopNpcSheetClass(Base) {
 			// art arrived with black bars above and below it), and a sheet whose "Frame Face"
 			// button changed every picture of this person EXCEPT the one next to the button.
 			// The whole illustration is still one click away: the portrait pops out, and the
-			// popout resolves back to it (utils/stat-block-edit.js wirePortraitPopout).
-			const realImg  = isDefaultImg(this.actor.img) ? null : this.actor.img;
-			const portrait = resolvePortrait(realImg ?? "", documentPortraitFrame(this.actor));
-			st.displayImg      = realImg && portrait.src;
-			st.displayImgStyle = realImg ? portrait.style : "";
-			st.hasPortrait     = !!realImg;
+			// popout resolves back to it (utils/actor-portrait-picker.js wirePortraitPopout).
+			//
+			// The header portrait and its two pips, answered once for all three sheets that draw
+			// them, and published under the same keys so the shared partial has one contract
+			// rather than three. Resolved off `realImg` only: the people silhouette an art-less
+			// NPC wears carries no frame and takes the plain-<img> branch.
+			const realImg = isDefaultImg(this.actor.img) ? null : this.actor.img;
+			Object.assign(st, headerPortraitContext(this, realImg ?? ""));
+			if (!realImg) { st.portraitImg = null; st.portraitImgStyle = ""; }
+			st.hasPortrait = !!realImg;
 			// Edit mode keeps a clickable slot even with no art chosen yet, because the slot IS
 			// the file picker there. Play mode renders the person-icon placeholder instead, so
 			// only this path falls back to whatever the actor is actually wearing — which for
 			// an art-less NPC is the people silhouette (utils/person-portrait.js).
-			st.editImg         = st.displayImg || this.actor.img;
+			st.editImg = st.portraitImg || this.actor.img;
 
 			// Up to 3 impression slots (p.454). Edit mode shows the filled slots plus a
 			// single empty row to type into (min 1), trimming trailing blanks so a fresh
@@ -347,7 +351,8 @@ export function createStonetopNpcSheetClass(Base) {
 				});
 			});
 
-			// Enlarge a real portrait in play mode (edit mode leaves the file picker).
+			// The header portrait: the People of Stonetop gallery in edit mode, the picture
+			// window in play mode, plus the crop pip over it.
 			wirePortraitPopout(this, root);
 
 			if (!this.isEditable) return;
