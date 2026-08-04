@@ -554,6 +554,51 @@ export async function onSteadingPeopleUpdate(actor) {
 }
 
 /**
+ * Repaint any open steading sheet whose roster lists this actor.
+ *
+ * The roster renders LIVE off the linked actors, not off the snapshot stored in the row:
+ * an NPC's name, occupation, traits, relations and rich-notes preview on the Residents /
+ * Neighbors lists, and a character's name, portrait and playbook on the Players list.
+ * Foundry only auto-re-renders a sheet when ITS OWN document changes, so editing the NPC
+ * on its own sheet — or swapping a character's picture — would leave an open steading
+ * showing the old values until an F5. Serves both `updateActor` and `deleteActor`; on a
+ * deletion the row is still there to match on, and the repaint drops it to its cached
+ * fallback rather than leaving a person on the roster who no longer exists.
+ *
+ * Matching mirrors how each list resolves its actor when the sheet builds its rows:
+ * NPC rows strictly by uuid/id (see resolvePersonRow), Player rows by id with a name
+ * fallback, since a row added before the drag handler stamped an id carries only a name.
+ *
+ * Additive only — it never suppresses a render, so it can't fight any other sync path.
+ *
+ * @param {Actor} actor  the actor that just changed
+ */
+export function repaintOpenSteadingRosters(actor) {
+	if (actor?.type !== "npc" && actor?.type !== "character") return;
+	const { uuid, id } = actor;
+	const isPlayer = actor.type === "character";
+	const lists = isPlayer ? ["players"] : ["residents", "neighbors"];
+	const lowerName = isPlayer ? String(actor.name ?? "").toLowerCase().trim() : "";
+	// Skipped in the loop rather than filtered into a list of their own: this now serves
+	// `character` as well as `npc`, and a character update is the most frequent document write in
+	// play (harm, XP, hold, roll mode…), so every one of them would otherwise build a second copy
+	// of the actor list before finding the one steading in it.
+	for (const steading of (game.actors?.contents ?? [])) {
+		if (steading.type !== "stonetop") continue;
+		const openApps = Object.values(steading.apps ?? {});
+		if (!openApps.length) continue;
+		const people = steading.flags?.["stonetop_pwd"]?.steading ?? {};
+		const rows = lists.flatMap(list => people[list] ?? []);
+		const listed = rows.some(r =>
+			(r?.uuid && r.uuid === uuid) ||
+			(r?.id && r.id === id) ||
+			(lowerName && String(r?.name ?? "").toLowerCase().trim() === lowerName));
+		if (!listed) continue;
+		for (const app of openApps) app?.render?.(false);
+	}
+}
+
+/**
  * One-time, idempotent backfill: give every already-linked Resident-of-Stonetop NPC
  * whose Home is blank the value "Stonetop" (residents live there by definition). New
  * residents get this at creation via createPersonNpc; this catches those linked before

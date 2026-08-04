@@ -58,6 +58,36 @@ import { SYSTEM_ID } from "../system-id.js";
  */
 export const documentPortraitFrame = (doc) => doc?.flags?.[SYSTEM_ID]?.portraitFrame ?? null;
 
+
+/**
+ * The folder every baked square is written to, under the world's own data.
+ *
+ * A rect is invisible to anything that does not know about this feature — the canvas draws a token
+ * straight from `prototypeToken.texture.src`, and Foundry's token texture has no crop rect — so a
+ * frame that has to be seen on the MAP is cut to a real file. That bake is a one-way export; the
+ * rect stays the source of truth and re-framing simply overwrites the file.
+ *
+ * The name lives here, in the module that owns the frame concept and imports nothing heavy, so
+ * that `isPortraitFrameBake` can be asked by the Actor document class (which must not drag the
+ * canvas machinery in) as well as by the baker itself.
+ */
+export const PORTRAIT_FRAME_BAKE_DIR = "stonetop-portrait-frames";
+
+/**
+ * Is `path` one of our baked squares?
+ *
+ * What it buys: a token pointing at a bake is a token FOLLOWING the portrait, not one somebody
+ * chose. Without that, changing a framed person's portrait would leave the old baked crop on the
+ * map for ever, with the sheet showing one face and the token another.
+ *
+ * Tolerant of the cache-busting query string a bake is pointed at with (the file is overwritten
+ * under one name, so a re-frame would otherwise paint from the browser's cache).
+ */
+export function isPortraitFrameBake(path) {
+	if (!path) return false;
+	return String(path).split("?")[0].split("#")[0].includes(`/${PORTRAIT_FRAME_BAKE_DIR}/`);
+}
+
 /**
  * Display floor for a rect's span. Below this the percentages explode: a span of 0.001 asks for
  * `width: 100000%`, which is a browser's problem rather than a user's intent.

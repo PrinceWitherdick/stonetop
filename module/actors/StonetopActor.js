@@ -6,6 +6,7 @@ import {NpcLedger} from "./npc/NpcLedger.js";
 import {STAT_CHAT_LABELS, STEADING_STAT_CHAT_LABELS, postStatChangesToChat} from "../utils/chat.js";
 import {isDefaultImg} from "../utils/strings.js";
 import {PERSON_DEFAULT_IMG, isPersonPlaceholderImg} from "../utils/person-portrait.js";
+import {tokenFollowsPortrait} from "../utils/portrait-token-frame.js";
 
 export function createStonetopActorClass(BaseActor) {
 	return class StonetopActor extends BaseActor {
@@ -118,8 +119,43 @@ export function createStonetopActorClass(BaseActor) {
 			return super._getSheetClass();
 		}
 
+		/**
+		 * Keep the prototype token's picture in step with the portrait.
+		 *
+		 * `actor.img` and `prototypeToken.texture.src` are two separate images, and Foundry only
+		 * ever fills the second at creation, from the stock default. So choosing a face on the
+		 * sheet gave a person a face everywhere EXCEPT the map: drag them onto a scene and the
+		 * mystery-man was back.
+		 *
+		 * WHICH tokens follow is `tokenFollowsPortrait` (utils/portrait-token-frame.js): a stock
+		 * placeholder, the very portrait this update is replacing, or one of our own baked crops.
+		 * Anything else is a deliberate choice and is left exactly where it is. That rule is
+		 * written down once and shared with the framing side, so the sheet and the map cannot come
+		 * to disagree about whose token is ours to move.
+		 *
+		 * Folded into the SAME update rather than written after it, so the two pictures cannot be
+		 * seen apart and one write cannot land without the other.
+		 *
+		 * No `fit`: the default ("contain") never crops a face out of frame, and the common case
+		 * — a People of Stonetop square in a square token — looks identical either way. That is a
+		 * separate aesthetic call from "the token should be this person".
+		 */
+		_syncPrototypeTokenImage(changed) {
+			// The steading is a place, and nobody drags it onto a scene.
+			if (this.type === "stonetop" || this.system?.customType === "stonetop") return;
+			const next = changed?.img;
+			if (next === undefined) return;
+			// Never argue with a token image the same update is setting explicitly, in either
+			// shape an update can arrive in.
+			if (changed["prototypeToken.texture.src"] !== undefined) return;
+			if (foundry.utils.getProperty(changed, "prototypeToken.texture.src") !== undefined) return;
+			if (!tokenFollowsPortrait(this)) return;
+			changed["prototypeToken.texture.src"] = next;
+		}
+
 		async _preUpdate(changed, options, user) {
 			const result = await super._preUpdate(changed, options, user);
+			this._syncPrototypeTokenImage(changed);
 			if (!options?.stonetopLedger) {
 				if (this.type === "character") {
 					options.stonetopLedgerEntries = this._tagLedgerMove(await CharacterLedger.entriesForActorUpdate(this, changed), options);

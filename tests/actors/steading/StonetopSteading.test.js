@@ -144,6 +144,38 @@ describe("StonetopSteading", () => {
 		}
 	});
 
+	// The row's stored name is a snapshot from the drop. Renaming the character used to leave
+	// the roster showing the old one forever — the name cell isn't editable, so the only cure
+	// was to remove the row and re-add them. Residents/Neighbors have always shown the live
+	// name; Players now match, on the same terms as the live portrait.
+	it("shows a player's live name, not the name stored when they were dropped", async () => {
+		const hero = { id: "hero", type: "character", name: "Wren Fairweather", img: "new.webp", system: {} };
+		const prevActors = game.actors;
+		game.actors = { get: (id) => (id === "hero" ? hero : null), filter: (fn) => [hero].filter(fn) };
+		try {
+			const actor = makeSteadingActor({
+				steadingFlags: { players: [{ id: "hero", uuid: "Actor.hero", name: "Wren", img: "wren.webp", checked: true }] },
+			});
+			const snapshot = await new StonetopSteading(actor).buildSnapshot();
+			expect(snapshot.players[0].name).toBe("Wren Fairweather");
+		} finally {
+			game.actors = prevActors;
+		}
+	});
+
+	// ...and the snapshot is still the fallback when the actor is gone, so a row whose
+	// character was deleted shows a name the GM can recognise rather than an empty cell
+	// (the template drops a nameless row entirely).
+	it("falls back to the stored name for a player whose actor has gone", async () => {
+		const actor = makeSteadingActor({
+			steadingFlags: { players: [{ id: "hero", uuid: "Actor.hero", name: "Wren", img: "wren.webp", checked: true }] },
+		});
+
+		const snapshot = await new StonetopSteading(actor).buildSnapshot();
+
+		expect(snapshot.players[0].name).toBe("Wren");
+	});
+
 	it("uses a player's manual occupation override when one is set", async () => {
 		const actor = makeSteadingActor({
 			steadingFlags: {

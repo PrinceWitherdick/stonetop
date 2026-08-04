@@ -18,6 +18,7 @@ import { makeColumnsSortable } from "./sortable-columns.js";
 // Leaf module with no imports of its own, so it cannot participate in the cycle above.
 import { wireAvatarPreview, removeAvatarPreview } from "./avatar-preview.js";
 import { openLinkedActorSheet } from "./actor-link.js";
+import { imagePopout } from "./foundry-compat.js";
 
 // One to five, defaulting to three, clamped to 1-5 (a relationship always has at
 // least one heart — you can't drop it to zero).
@@ -409,7 +410,7 @@ function wireRelationshipLinksIn(root) {
 		removeAvatarPreview();
 		// The whole illustration behind a People-of-Stonetop square: enlarging a face should not
 		// answer with a picture smaller than the thumbnail just tapped.
-		new ImagePopout(displayPortraitSrc(stored), { title: img.dataset.name || "" }).render(true);
+		imagePopout({ src: displayPortraitSrc(stored), title: img.dataset.name || "" })?.render(true);
 	});
 
 	const open = async link => {

@@ -2,37 +2,34 @@
 	<div class="sheet-wrapper stonetop-npc-container">
 
 		<header class="sheet-header stonetop-sheet-header stonetop-npc-header{{#unless stonetop.editMode}}{{#unless stonetop.hasPortrait}} stonetop-npc-header--no-portrait{{/unless}}{{/unless}}{{#if stonetop.isInactive}} stonetop-npc-header--inactive{{/if}}">
-			{{#if stonetop.editMode}}
-			{{!-- Edit mode is where a custom image gets chosen (data-edit hands off to Foundry's
-			      own file picker), so the framer has to be reachable from here too — otherwise
-			      the one moment you most want it is the one moment it is missing. In play mode
-			      it lives on the portrait's popout instead. --}}
-			<div class="stonetop-npc-portrait-edit">
-				{{!-- The clipping box wears .stonetop-portrait (the placeholder span already
-				      did), so the popout wiring and the broken-art guard still find it by that
-				      class. data-edit stays on the IMG: Foundry's file picker reads the path off
-				      the document, not off this src, so the framed view here is only a view. --}}
+			{{!-- The slot is what the crop pip positions against — it has to sit OUTSIDE the
+			      clipping box below, whose `overflow: hidden` would cut the pip off. The clipping
+			      box wears .stonetop-portrait (the placeholder span already did), so the click
+			      wiring and the broken-art guard still find it by that class.
+
+			      NO data-edit: see the note in actor-header.hbs. Foundry's own binding on that
+			      attribute runs first and cannot be called off, so while it was here the click
+			      could only ever reach the raw file browser. --}}
+			<span class="stonetop-portrait-slot">
+				{{#if stonetop.editMode}}
 				<span class="stonetop-portrait stonetop-npc-portrait stonetop-portrait-box" title="{{actor.name}}">
-					<img class="stonetop-npc-portrait-img" src="{{stonetop.editImg}}" data-edit="img"
-					     alt="{{actor.name}}"{{#if stonetop.displayImgStyle}} style="{{stonetop.displayImgStyle}}"{{/if}}>
+					<img class="stonetop-npc-portrait-img" src="{{stonetop.editImg}}"
+					     alt="{{actor.name}}"{{#if stonetop.portraitImgStyle}} style="{{stonetop.portraitImgStyle}}"{{/if}}>
 				</span>
+				{{else}}
 				{{#if stonetop.hasPortrait}}
-				<button type="button" class="stonetop-frame-portrait-btn"
-				        data-tooltip="Frame Face" aria-label="Frame Face"><i class="fas fa-crop-simple"></i> Frame Face</button>
+				<span class="stonetop-portrait stonetop-npc-portrait stonetop-portrait-box" title="{{actor.name}}">
+					<img class="stonetop-npc-portrait-img" src="{{stonetop.portraitImg}}"
+					     alt="{{actor.name}}"{{#if stonetop.portraitImgStyle}} style="{{stonetop.portraitImgStyle}}"{{/if}}>
+				</span>
+				{{else}}
+				<span class="stonetop-portrait stonetop-npc-portrait-placeholder" title="{{actor.name}}">
+					<i class="fas fa-user"></i>
+				</span>
 				{{/if}}
-			</div>
-			{{else}}
-			{{#if stonetop.hasPortrait}}
-			<span class="stonetop-portrait stonetop-npc-portrait stonetop-portrait-box" title="{{actor.name}}">
-				<img class="stonetop-npc-portrait-img" src="{{stonetop.displayImg}}"
-				     alt="{{actor.name}}"{{#if stonetop.displayImgStyle}} style="{{stonetop.displayImgStyle}}"{{/if}}>
+				{{/if}}
+				{{> "stonetop.portrait-frame-pip" canFrame=stonetop.canFramePortrait canTokenize=stonetop.canTokenizePortrait}}
 			</span>
-			{{else}}
-			<span class="stonetop-portrait stonetop-npc-portrait-placeholder" title="{{actor.name}}">
-				<i class="fas fa-user"></i>
-			</span>
-			{{/if}}
-			{{/if}}
 
 			<div class="sheet-header__fields">
 				{{!-- Name + pronouns/traits share one column sized to the portrait, so the
