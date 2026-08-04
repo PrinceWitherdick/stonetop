@@ -184,9 +184,11 @@ describe("StonetopSteadingSheet", () => {
 	it("injects a visible edit-photo header control into editable resident image popouts", async () => {
 		const { sheet } = makeSheet();
 		globalThis.document = { createElement: tag => new FakeEl(tag) };
+		// v13's constructor signature: everything arrives in one options object, with the path at
+		// `src` and the window title under `window` (see utils/foundry-compat.js#imagePopout).
 		class MockImagePopout {
-			constructor(src, options) {
-				this.src = src;
+			constructor(options) {
+				this.src = options?.src;
 				this.options = options;
 				const header = new FakeEl("header");
 				header.className = "window-header";
