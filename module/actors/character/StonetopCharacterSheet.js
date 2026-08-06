@@ -45,7 +45,7 @@ import {getStonetopSteadingActor} from "../../utils/world.js";
 import {openChroniclePageForActor} from "../../utils/chronicle.js";
 import {getDragEventData, deletionEntry, imagePopout} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
-import {peopleNames, steadingPeopleActors, usedPersonPortraits, createPersonNpc, isActorRow, personRowActor, personRowKey, personRowIdentity, rebasePersonRows} from "../steading/steading-people.js";
+import {peopleNames, steadingPeopleActors, usedPersonPortraits, createPersonNpc, isActorRow, personRowActor, personRowKey, personRowIdentity, rebasePersonRows, addCharacterToSteadingPlayers} from "../steading/steading-people.js";
 import {openPeoplePortraitPicker} from "../steading/PeopleGalleryDialog.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getSidebarCollapsed, setSidebarCollapsed, getPromptRollModifierSetting, getOpenSheetsInEditMode, getHideRollableIconSetting, isClassicLayout, layoutClasses, stampLayoutClass} from "../../settings.js";
 import {bringDialogToFront} from "../../utils/front-on-open.js";
@@ -6577,6 +6577,14 @@ export function createStonetopCharacterSheetClass(Base) {
 					await this._applyPlaybookSelections(playbookDoc, selections);
 					await this._clearOnboardingProgress();
 					clearOnboardingResume(this.actor);
+					// A finished character belongs on the village roster, however they were
+					// made — the first-session guide, the sidebar picker, or this sheet's own
+					// "Create Character" button. Last, after the character is committed, so
+					// the row points at a sheet that is actually filled in. Only the
+					// completion callback files them: re-opening onboarding to EDIT a
+					// finished character runs a different path (_openEditCharacterOnboarding),
+					// so a GM who takes a departed player off the roster keeps them off.
+					await this._addToSteadingRoster();
 				},
 				{
 					initialSelections,
@@ -6608,6 +6616,18 @@ export function createStonetopCharacterSheetClass(Base) {
 					},
 				},
 			).render(true);
+		}
+
+		// File the freshly-finished character on the steading's Player Characters roster
+		// and say so, since the roster is on the steading sheet rather than in front of the
+		// player who just finished. Silent when there's nothing to report: already listed
+		// (a re-run of creation), no steading in the world yet, or a world where the player
+		// can't write it. Never throws — the helper reports its own failures to the console.
+		async _addToSteadingRoster() {
+			const added = await addCharacterToSteadingPlayers(this.actor);
+			if (!added) return;
+			const steading = getStonetopSteadingActor();
+			ui.notifications?.info?.(`${this.actor.name} joins the people of ${steading?.name || "Stonetop"}.`);
 		}
 
 		async _openEditCharacterOnboarding(options = {}) {

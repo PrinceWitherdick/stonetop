@@ -433,6 +433,39 @@ export async function addPersonToSteading(list, data = {}, steading = null) {
 }
 
 /**
+ * File a player character on the steading's Player Characters roster, if they aren't
+ * already listed.
+ *
+ * Called when a player finishes character creation (StonetopCharacterSheet#_launchOnboarding),
+ * whichever door they came in by — the GM's Welcome guide, the sidebar's Create Actor
+ * picker, or the sheet's own "Create Character" button. Before this, the only way onto the
+ * roster was for someone to drag the sheet onto the steading, so a character made outside
+ * the first-session flow quietly never appeared in the village.
+ *
+ * Runs on the finishing PLAYER's client, not the GM's: the steading is owned by everyone
+ * (hooks/StonetopSingleton.js#_ensureStartingValues), so they can write the row themselves
+ * and it lands whether or not a GM is connected. A world whose GM has narrowed that
+ * ownership fails the permission check and we simply don't file them — the drag stays
+ * available, and a failed write must never be what a player sees at the end of creation.
+ *
+ * @param {Actor} actor        the finished character
+ * @param {Actor} [steading]   the steading to file them on; defaults to the world's
+ * @returns {Promise<boolean>} whether a row was added (false if already listed, no
+ *                             steading, or not permitted)
+ */
+export async function addCharacterToSteadingPlayers(actor, steading = null) {
+	if (actor?.type !== "character") return false;
+	const target = steading ?? getStonetopSteadingActor();
+	if (!target?.canUserModify?.(game.user, "update")) return false;
+	try {
+		return await target.typedActor?.addPlayerRow?.(actor) ?? false;
+	} catch (err) {
+		console.warn("Stonetop | Could not add", actor?.name, "to the steading's Player Characters roster.", err);
+		return false;
+	}
+}
+
+/**
  * Convert a steading's plain-text Residents/Neighbors rows into NPC actors, rewriting each
  * row as a {uuid, id, name} pointer. Rows that already point at an actor are left alone (so
  * re-running is a no-op) and blank rows are dropped. GM-only — it creates actors and writes

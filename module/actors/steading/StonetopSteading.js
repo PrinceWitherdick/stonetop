@@ -634,6 +634,34 @@ function _systemValue(actor, flags, path, defaultValue) {
 	return actorValue !== undefined ? actorValue : defaultValue;
 }
 
+/**
+ * Where `actor` sits on a Players roster, or -1. Uuid/id only.
+ *
+ * Every player row has carried both since the roster was introduced: the drop handler is
+ * the list's only writer (there is no inline "+ Add" for Players the way there is for
+ * Residents and Neighbors, and the field-change handler refuses to create a row), and it
+ * has stamped id + uuid from its first commit. So the name fallback the resolve path keeps
+ * has nothing to catch here, and matching on a name is the worse trade for an IDENTITY
+ * check: two characters can share one, and a row left behind by a REPLACED character (the
+ * old actor is deleted, its row deliberately kept — see steading-people.js#repaintOpen-
+ * SteadingRosters) still carries the name its player is about to reuse. Either way the new
+ * character reads as "already listed" and is silently never filed. A duplicate row is
+ * visible and has a delete button; a missing one is neither.
+ *
+ * Blank keys never match, so an actor arriving without either (never a real document) can't
+ * be judged the same person as a row that also lacks one.
+ *
+ * Exported so the roster's two writers (the sheet's drop handler and the automatic filing
+ * at the end of character creation) can't drift on what a duplicate is.
+ */
+export function playerRowIndex(rows, actor) {
+	const uuid = actor?.uuid ?? "";
+	const id   = actor?.id ?? actor?._id ?? "";
+	return (rows ?? []).findIndex(row =>
+		(uuid && row?.uuid === uuid) ||
+		(id   && row?.id   === id));
+}
+
 export class StonetopSteading {
 	constructor(actor) {
 		this._actor = actor;
@@ -699,6 +727,39 @@ export class StonetopSteading {
 		const rows = foundry.utils.deepClone(this._flags[list] ?? STEADING_DEFAULTS[list]);
 		rows.push({ uuid: actor.uuid, id: actor.id, name: actor.name, checked: false });
 		await this.setFlags({ [list]: rows });
+		return true;
+	}
+
+	/**
+	 * Append `actor` to the Player Characters roster unless they are already on it.
+	 * Shared by the drag-drop onto the sheet's Players section and by the automatic
+	 * filing a character gets when its player finishes creation (see
+	 * steading-people.js#addCharacterToSteadingPlayers), so both write one row shape and
+	 * agree on what "already listed" means.
+	 *
+	 * `checked` starts true — a new character is in the village until someone says
+	 * otherwise — and the three editable columns start blank; everything the row
+	 * DISPLAYS (name, portrait, playbook) is read live off the character, so only the
+	 * GM's own annotations live on the row.
+	 *
+	 * @param {Actor} actor  a `character` actor
+	 * @returns {Promise<boolean>} whether a row was appended
+	 */
+	async addPlayerRow(actor) {
+		if (actor?.type !== "character") return false;
+		const rows = foundry.utils.deepClone(this._flags.players ?? STEADING_DEFAULTS.players);
+		if (playerRowIndex(rows, actor) >= 0) return false;
+		rows.push({
+			id:        actor.id ?? actor._id ?? "",
+			uuid:      actor.uuid ?? "",
+			name:      actor.name,
+			img:       actor.img ?? "",
+			checked:   true,
+			traits:    "",
+			relations: "",
+			notes:     "",
+		});
+		await this.setFlags({ players: rows });
 		return true;
 	}
 
@@ -1165,8 +1226,11 @@ export class StonetopSteading {
 
 		const rawPlayers = f.players ?? STEADING_DEFAULTS.players;
 		const players = rawPlayers.map(p => {
-			// Resolve the live character so we can surface their playbook — by stored
-			// id first, then name (drag-added players carry an id; older ones may not).
+			// Resolve the live character so we can surface their playbook — by stored id
+			// first, then name. Every row has carried an id since the roster shipped (see
+			// playerRowIndex), so the name lookup is belt-and-braces here: it costs one map
+			// hit and can only ever ADD a resolution, which is why this path keeps it while
+			// the duplicate check doesn't.
 			const actor = (p.id ? allActors.get(p.id) : null)
 				|| (p.name ? characterByName.get(p.name.toLowerCase()) : null)
 				|| null;

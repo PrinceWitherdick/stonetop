@@ -2613,38 +2613,16 @@ export function createStonetopSteadingSheetClass(Base) {
 			ui.notifications?.info?.(`Linked ${actor.name}.`);
 		}
 
+		// Link a dragged player character onto the Players roster. The row shape and the
+		// duplicate check live on the model (StonetopSteading#addPlayerRow), shared with the
+		// automatic filing a character gets at the end of creation, so a drag and a finished
+		// creation can't produce two different rows for the same person.
 		async _onDropPlayerCharacter(actor) {
-			const f = this._stonetopSteading._flags;
-			const players = foundry.utils.deepClone(f.players ?? STEADING_DEFAULTS.players);
-			const actorUuid = actor.uuid ?? "";
-			const actorId = actor.id ?? actor._id ?? "";
-
-			const existingIdx = players.findIndex(player =>
-				(actorUuid && player.uuid === actorUuid) ||
-				(actorId && player.id === actorId) ||
-				player.name?.toLowerCase().trim() === actor.name?.toLowerCase().trim()
-			);
-
-			if (existingIdx >= 0) {
-				ui.notifications?.info?.(`${actor.name} is already in the players list.`);
-				this.render(false);
-				return;
-			}
-
-			players.push({
-				id: actorId,
-				uuid: actorUuid,
-				name: actor.name,
-				img: actor.img ?? "",
-				checked: true,
-				traits: "",
-				relations: "",
-				notes: "",
-			});
-
-			await this._stonetopSteading.setFlags({ players });
+			const added = await this._stonetopSteading.addPlayerRow(actor);
 			this.render(false);
-			ui.notifications?.info?.(`Added ${actor.name} to players.`);
+			ui.notifications?.info?.(added
+				? `Added ${actor.name} to players.`
+				: `${actor.name} is already in the players list.`);
 		}
 
 		async _onNotesChange(value) {

@@ -3262,6 +3262,9 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	}
 
 	async _skip() {
+		// Already finishing: see _confirm's guard. The last step's Skip completes the flow
+		// exactly as Finish does, so it needs the same one.
+		if (this._completed) return;
 		this._clearPopups();
 		const next = this._step + 1;
 		if (next >= this._steps.length) {
@@ -3283,7 +3286,15 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		this.render(false);
 	}
 
+	// Finish. Re-entrant until the completion callback resolves — committing the character
+	// writes a long chain of awaits (items, portrait, actor fields, the steading roster) and
+	// the button stays live for every one of them, so a second click lands mid-commit and
+	// runs the whole thing again: duplicate starting gear, and a second roster row for a
+	// player whose first one hadn't been written yet. `_completed` is set-once and never
+	// reset (it already means "this flow has finished" to the close handler and the live-save
+	// timer), so reading it here is the whole guard.
 	async _confirm() {
+		if (this._completed) return;
 		if (!this._isStepComplete()) return;
 		this._completed = true;
 		if (this._onComplete) await this._onComplete(this._selections);
