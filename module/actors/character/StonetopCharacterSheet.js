@@ -24,6 +24,7 @@ import {RING_SOURCE_UUID, SERVANT_SOURCE_UUID, buildServantFollower} from "../..
 import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {wireTabSearch} from "../../utils/tab-search.js";
+import {createPacker, fitColumns, makeColumns, packShortest, wireMasonry} from "../../utils/masonry.js";
 import {mountTabRail} from "../../utils/tab-rail.js";
 import {mountScrollFrost} from "../../utils/scroll-frost.js";
 import {withSheetSizeMemory} from "../../utils/sheet-size.js";
@@ -802,8 +803,19 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 		}
 
+		/**
+		 * Pack every grid matching `selector` and keep it packed, registering the wiring so one
+		 * teardown covers every grid (a new grid can't leak an observer by being forgotten here).
+		 * Returns the on-demand repack for the callers that have to invalidate the width guard.
+		 */
+		_wireMasonry(pack, selector, html) {
+			const wiring = wireMasonry(pack, html[0].querySelectorAll(selector));
+			this._masonries.push(wiring);
+			return wiring.repack;
+		}
+
 		async close(options) {
-			this._arcanaMasonryObserver?.disconnect();
+			this._masonries?.forEach(m => m.disconnect());
 			this._movePanel?.remove();
 			this._movePanel = null;
 			// The art hover preview lives on document.body, so it survives the sheet's DOM
@@ -2322,6 +2334,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			wireTabSearch(html[0].querySelector(".tab.moves"), {
 				itemSel: ".stonetop-item",
 				textFor: li => li.textContent,
+				// Hiding / revealing cards changes the column balance, so re-pack the masonry
+				// for the new visible set (defined further down, with the packer itself).
+				onFilter: () => this._repackMoves?.(),
 			});
 			// Arcana tab: the Major and Minor sections each get their own filter, scoped to that
 			// section, so each search only hides its own cards. An active term flags the section
@@ -2711,153 +2726,157 @@ export function createStonetopCharacterSheetClass(Base) {
 				toggleArcanaFold(summary);
 			}, true);
 
-			// Masonry: lay arcana cards out by measured height, preserving authored order.
-			// A both-sides "spread" card (front | back) spans the full grid width; the
-			// narrower front-only cards pack two-up. The cards are walked into ordered
-			// segments — each spread its own full-width segment, and each run of consecutive
-			// narrow cards into a two-column block (each card placed in the currently-shortest
-			// of that block's two columns). Unlike CSS multi-column, cards stay whole — a tall
-			// card never splits — and a short card never leaves a big row-gap beside a tall one.
-			//
-			// A ResizeObserver on each grid drives it: it fires when the grid first becomes
-			// measurable (the Arcana tab is shown, 0 → width) and whenever the sheet is
-			// resized, so the columns re-balance for the new width. The original card order
-			// is captured once per grid; the width guard makes the re-pack idempotent — and
-			// also breaks the feedback loop, since re-packing changes the grid's own height,
-			// which would otherwise re-trigger the observer.
-			const packArcanaMasonry = grid => {
-				const cards = (grid._stonetopCards ??=
-					Array.from(grid.querySelectorAll(".stonetop-arcanum-card")));
-				const width = grid.clientWidth;
-				if (!cards.length || !width || grid._packedWidth === width) return;
+			// Three card grids, all packed by the shared masonry helper (utils/masonry.js): it
+			// owns the card capture, the per-width guard, the ResizeObserver and the teardown,
+			// so only the placement itself is written per grid.
+			(this._masonries ??= []).forEach(m => m.disconnect());
+			this._masonries = [];
 
+			// Arcana: lay cards out by measured height, preserving authored order. A both-sides
+			// "spread" card (front | back) spans the full grid width; the narrower front-only
+			// cards pack two-up. The cards are walked into ordered segments — each spread its own
+			// full-width segment, and each run of consecutive narrow cards into a two-column
+			// block. A short card never leaves a big row-gap beside a tall one.
+			//
+			// No layoutKey: the wide-promotion below judges each card against the width it
+			// actually rendered at, so this grid's layout varies continuously with width.
+			const packArcanaMasonry = createPacker({
+				cards: ".stonetop-arcanum-card",
 				// Reset to a flat grid (narrow cards fall back to one track) and clear any
 				// prior width-promotion, so every front-only card measures at its narrow,
 				// one-column width — the width the "too tall" test below judges it at.
-				for (const card of cards) card.classList.remove("stonetop-arcanum-card--wide");
-				grid.replaceChildren(...cards);
-				if (!cards[0].offsetHeight) return; // not measurable yet (tab still hidden)
+				reset: (grid, cards) => {
+					for (const card of cards) card.classList.remove("stonetop-arcanum-card--wide");
+					grid.replaceChildren(...cards);
+				},
+				place: (cards) => {
+					if (!cards[0].offsetHeight) return null; // not measurable yet (tab still hidden)
 
-				// Measure every card at its narrow width in one pass (reads before any style
-				// write, so no per-card reflow), then promote any front-only card that renders
-				// more than twice as tall as it is wide to span the full grid width: an
-				// over-long arcanum reads better as one short, wide card than a skinny
-				// sliver. Genuine both-sides spreads are already full-width and left alone.
-				// Skip the promotion when the normal masonry column is already comfortably
-				// wide; at that point the card should stay in the balanced column flow.
-				const WIDE_PROMOTION_MAX_COLUMN_PX = 460;
-				const measured = cards.map(card => ({ card, h: card.offsetHeight, w: card.offsetWidth }));
-				const heights = new Map();
-				for (const { card, h, w } of measured) {
-					heights.set(card, h);
-					if (card.classList.contains("stonetop-arcanum-card--spread")) continue;
-					if (h > w * 2 && w < WIDE_PROMOTION_MAX_COLUMN_PX) card.classList.add("stonetop-arcanum-card--wide");
-				}
-
-				// Walk cards into ordered segments: a full-width card (a spread, or one
-				// promoted wide above) stands alone; consecutive narrow cards accumulate into
-				// a two-column array to balance.
-				// A collapsed card is clamped to a header + lead, so it always packs as a
-				// narrow one-column card — even a spread, whose full-width span is dropped
-				// (both in CSS and here) while collapsed.
-				const isFullWidth = card =>
-					!card.classList.contains("is-collapsed") &&
-					(card.classList.contains("stonetop-arcanum-card--spread") ||
-					 card.classList.contains("stonetop-arcanum-card--wide"));
-				const segments = [];
-				let run = null;
-				for (const card of cards) {
-					if (isFullWidth(card)) {
-						run = null;
-						segments.push(card);
-					} else {
-						if (!run) segments.push(run = []);
-						run.push(card);
+					// Measure every card at its narrow width in one pass (reads before any style
+					// write, so no per-card reflow), then promote any front-only card that renders
+					// more than twice as tall as it is wide to span the full grid width: an
+					// over-long arcanum reads better as one short, wide card than a skinny
+					// sliver. Genuine both-sides spreads are already full-width and left alone.
+					// Skip the promotion when the normal masonry column is already comfortably
+					// wide; at that point the card should stay in the balanced column flow.
+					const WIDE_PROMOTION_MAX_COLUMN_PX = 460;
+					const measured = cards.map(card => ({ card, h: card.offsetHeight, w: card.offsetWidth }));
+					const heights = new Map();
+					for (const { card, h, w } of measured) {
+						heights.set(card, h);
+						if (card.classList.contains("stonetop-arcanum-card--spread")) continue;
+						if (h > w * 2 && w < WIDE_PROMOTION_MAX_COLUMN_PX) card.classList.add("stonetop-arcanum-card--wide");
 					}
-				}
 
-				const nodes = segments.map(seg => {
-					if (!Array.isArray(seg)) return seg; // a full-width card (spread or promoted)
-					const block = document.createElement("div");
-					block.className = "stonetop-arcana-masonry";
-					const cols = [0, 1].map(() => {
-						const c = document.createElement("div");
-						c.className = "stonetop-arcana-col";
-						return c;
+					// Walk cards into ordered segments: a full-width card (a spread, or one
+					// promoted wide above) stands alone; consecutive narrow cards accumulate into
+					// a two-column array to balance.
+					// A collapsed card is clamped to a header + lead, so it always packs as a
+					// narrow one-column card — even a spread, whose full-width span is dropped
+					// (both in CSS and here) while collapsed.
+					const isFullWidth = card =>
+						!card.classList.contains("is-collapsed") &&
+						(card.classList.contains("stonetop-arcanum-card--spread") ||
+						 card.classList.contains("stonetop-arcanum-card--wide"));
+					const segments = [];
+					let run = null;
+					for (const card of cards) {
+						if (isFullWidth(card)) {
+							run = null;
+							segments.push(card);
+						} else {
+							if (!run) segments.push(run = []);
+							run.push(card);
+						}
+					}
+
+					return segments.map(seg => {
+						if (!Array.isArray(seg)) return seg; // a full-width card (spread or promoted)
+						const block = document.createElement("div");
+						block.className = "stonetop-arcana-masonry";
+						const cols = makeColumns(2, "stonetop-arcana-col");
+						packShortest(seg, cols, card => heights.get(card) ?? card.offsetHeight);
+						block.append(...cols);
+						return block;
 					});
-					const colHeights = [0, 0];
-					for (const card of seg) {
-						const i = colHeights[0] <= colHeights[1] ? 0 : 1;
-						colHeights[i] += heights.get(card) ?? card.offsetHeight;
-						cols[i].appendChild(card);
-					}
-					block.append(...cols);
-					return block;
-				});
-				grid.replaceChildren(...nodes);
-				grid._packedWidth = width;
-			};
-			this._arcanaMasonryObserver?.disconnect();
-			this._arcanaMasonryObserver = new ResizeObserver(entries => {
-				for (const entry of entries) packArcanaMasonry(entry.target);
+				},
 			});
-			html[0].querySelectorAll(".stonetop-arcana-grid").forEach(grid => {
-				// Pack the visible grid now (it has width because super.activateListeners
-				// already activated the tab) so its final, shorter height is in place
-				// before Foundry restores scrollTop — otherwise the async observer repacks
-				// after the restore, shrinking the grid and clamping the scroll position.
-				packArcanaMasonry(grid);
-				this._arcanaMasonryObserver.observe(grid);
-			});
+			// Collapsing / expanding a card changes its height but not the grid width, so the
+			// width-guarded observer won't re-balance the two columns on its own.
+			this._repackArcana = this._wireMasonry(packArcanaMasonry, ".stonetop-arcana-grid", html);
 
-			// Re-pack every arcana grid on demand. Collapsing / expanding a card changes its
-			// height but not the grid width, so the width-guarded observer won't re-balance
-			// the two columns on its own — invalidate the per-width guard and re-run the packer.
-			this._repackArcana = () => {
-				html[0].querySelectorAll(".stonetop-arcana-grid").forEach(grid => {
-					grid._packedWidth = null;
-					packArcanaMasonry(grid);
-				});
-			};
-
-			// Special-moves masonry: distribute the few, variable-height special-move
-			// cards ROW-MAJOR into as many equal-width column tracks as the tab is wide
-			// enough to hold (card i → column i % N). Unlike CSS multi-column — which
-			// balances by height and, with only a handful of cards, can leave a right-hand
-			// column holding more rows than one to its left — this keeps the fill strictly
-			// left-weighted while each track stays a tight, natural-height stack. Driven by
-			// a ResizeObserver, exactly like the arcana grid above: it fires when the tab
-			// first gains width (0 → measurable) and on every sheet resize, and the
-			// per-width guard makes the re-pack idempotent (so re-packing, which shortens
-			// the grid, doesn't feed back into the observer).
-			const SPECIAL_MOVE_MIN_COL_PX = 280;
-			const SPECIAL_MOVE_COL_GAP_PX = 12;
-			const packSpecialMoves = grid => {
-				const cards = (grid._stonetopCards ??=
-					Array.from(grid.querySelectorAll(".stonetop-special-move-card")));
-				const width = grid.clientWidth;
-				if (!cards.length || !width || grid._packedWidth === width) return;
-
-				const colCount = Math.max(1, Math.min(cards.length,
-					Math.floor((width + SPECIAL_MOVE_COL_GAP_PX) /
-						(SPECIAL_MOVE_MIN_COL_PX + SPECIAL_MOVE_COL_GAP_PX))));
-				const cols = Array.from({ length: colCount }, () => {
-					const c = document.createElement("div");
-					c.className = "stonetop-special-move-col";
-					return c;
-				});
-				cards.forEach((card, i) => cols[i % colCount].appendChild(card));
-				grid.replaceChildren(...cols);
-				grid._packedWidth = width;
-			};
-			this._specialMoveMasonryObserver?.disconnect();
-			this._specialMoveMasonryObserver = new ResizeObserver(entries => {
-				for (const entry of entries) packSpecialMoves(entry.target);
+			// Special moves: distribute the few, variable-height cards ROW-MAJOR into as many
+			// equal-width column tracks as the tab is wide enough to hold (card i → column i % N).
+			// Unlike CSS multi-column — which balances by height and, with only a handful of
+			// cards, can leave a right-hand column holding more rows than one to its left — this
+			// keeps the fill strictly left-weighted while each track stays a tight,
+			// natural-height stack.
+			const SPECIAL_MOVE_COLS = { minPx: 280, gapPx: 12 };
+			const packSpecialMoves = createPacker({
+				cards: ".stonetop-special-move-card",
+				layoutKey: width => fitColumns(width, SPECIAL_MOVE_COLS),
+				place: (cards, width) => {
+					const cols = makeColumns(
+						Math.min(cards.length, fitColumns(width, SPECIAL_MOVE_COLS)),
+						"stonetop-special-move-col");
+					cards.forEach((card, i) => cols[i % cols.length].appendChild(card));
+					return cols;
+				},
 			});
-			html[0].querySelectorAll(".stonetop-special-move-grid").forEach(grid => {
-				packSpecialMoves(grid);
-				this._specialMoveMasonryObserver.observe(grid);
+			this._wireMasonry(packSpecialMoves, ".stonetop-special-move-grid", html);
+
+			// Moves: the same problem the arcana grid has, and the same answer. CSS multi-column
+			// never bin-packs, so a card taller than the balanced column height starts the next
+			// column and everything after it stacks BELOW it there — leaving the column to its
+			// left half empty (the Lightbearer's "Invoke the Sun God" starting column 2, so
+			// "Purifying Flames" lands under it while "Consecrated Flame" sits alone on the left).
+			// Width numbers match `column-width` / `column-gap` / `column-count` on
+			// .stonetop-move-group .items-list; keep them in step.
+			const MOVE_COLS = { minPx: 240, gapPx: 16, max: 4 };
+			const packMoveMasonry = createPacker({
+				cards: ".stonetop-item",
+				layoutKey: width => fitColumns(width, MOVE_COLS),
+				// Back to the flat CSS-column list first, so every card measures at one
+				// column's width — the width it will have in a packed track, so the heights
+				// we balance on are the heights it will actually render at.
+				reset: (list, cards) => {
+					list.classList.remove("is-packed");
+					list.replaceChildren(...cards);
+				},
+				place: (cards, width, list) => {
+					// A card hidden by "Hide un-learned moves" or by an active search measures 0.
+					// Those are kept OUT of the balance (they take no room) but stay in the tree,
+					// parked at the end, so the next pack still sees them — the search re-runs
+					// this whenever the visible set changes.
+					const heights = new Map(cards.map(card => [card, card.offsetHeight]));
+					const visible = cards.filter(card => heights.get(card) > 0);
+					if (!visible.length) return null; // nothing measurable yet (tab still hidden, or all filtered out)
+
+					const colCount = Math.min(visible.length, fitColumns(width, MOVE_COLS));
+					// One column is what the flat list already is; leave it in CSS's hands rather
+					// than wrapping a single track around it.
+					if (colCount < 2) return cards;
+
+					const tracks = makeColumns(colCount, "stonetop-move-col", "li").map(track => {
+						const inner = document.createElement("ul");
+						inner.className = "stonetop-move-col-list";
+						track.appendChild(inner);
+						return track;
+					});
+					packShortest(visible, tracks, card => heights.get(card),
+						(track, card) => track.firstChild.appendChild(card));
+					tracks.at(-1).firstChild.append(...cards.filter(card => !heights.get(card)));
+					list.classList.add("is-packed");
+					return tracks;
+				},
 			});
+			// Filtering the tab (typing in the Moves search, clearing it, Escape) changes which
+			// cards have height without changing any list's width, so the width guard would hold
+			// the stale packing; the search's onFilter calls this back. Wired here rather than at
+			// the wireTabSearch call above because that runs before this packer exists; the
+			// callback only ever fires on user input, long after both.
+			this._repackMoves = this._wireMasonry(
+				packMoveMasonry, ".tab.moves .stonetop-move-group .items-list", html);
 
 			if (showMoveRefHover) {
 				let _moveRefHovered = null;

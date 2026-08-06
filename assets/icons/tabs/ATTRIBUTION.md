@@ -44,9 +44,38 @@ move set, so the tab wears the Lightbearer's playbook mark. It is a trace of
 all — black ink on an opaque white square, and so a solid slab if used as a mask directly.
 `scripts/trace-icon-svg.js` vectorizes it (Chromium decodes, marching squares finds every
 boundary loop, Douglas-Peucker simplifies, one `fill-rule="evenodd"` path carves the sun's
-centre and the ring's interior as holes). Traced at source resolution and not redrawn, so
-the hand-inked roughness and the ink flecks are the book's own; re-run the script if the
-source art is ever replaced.
+centre and the ring's interior as holes). Traced at source resolution, so the hand-inked
+roughness and the ink flecks are the book's own; re-run the script if the source art is
+ever replaced.
+
+It carries TWO edits on top of the trace, and only two. Both are about the ring; nothing
+inside it is reshaped.
+
+The first is that the ring is drawn rather than traced. The printed mark's ring is an open
+brush stroke, which gives the tracer's version of it two faults the rail cannot carry. Its
+two ends leave a roughly 10 degree void at 9 o'clock, and the band tapers into them, running
+from 43 units wide at 4 o'clock down to 16 at 9. Scaled to the rail's 20px that is a 1.7px
+stroke thinning to 0.6px before it breaks, so the ring reads as a chipped, lopsided smear
+rather than as a circle. Both of the loops the tracer emitted for it are replaced by circles
+concentric on the viewBox centre, 254 outside and 220 inside, which are also the two nested
+closed loops `evenodd` wants for an annulus. Neither radius is eyeballed: 254 is the traced
+outer edge's mean radius, so the glyph keeps its footprint, and 220 gives the annulus the
+same area as the traced band, so the ring keeps its ink weight. The five loops the tracer
+found INSIDE the brush stroke go with it, being unfilled specks in the ink that two of the
+new edges cut through.
+
+The second is that the sun is centred in that ring. The trace puts it up and to the left,
+near enough that the gap closes to 24 units at 10 o'clock while it opens to 49 at 4, and
+once the ring itself is even it is that lopsided gap the eye reads as the ring being thin on
+one side. The smallest circle enclosing the rays is centred at 247.5,246.6 with radius
+183.8, so translating the traced interior by 8.5,9.4 lands that centre on the viewBox
+centre, which is by definition the placement that opens the tightest gap as far as it will
+go: 24 units becomes 36. It is a translation and only a translation. No ray is restyled or
+relengthened, and the flecks travel with the ink they belong to.
+
+Everything within the ring is otherwise the trace untouched, roughness and ink flecks alike:
+the rays, the sun's centre hole, and the two flecks floating in the gap. A re-run of the
+tracer undoes both edits, so redraw the ring and re-centre the sun if you re-run it.
 
 Also not from game-icons.net, and the project's own drawing rather than either:
 `arcanum.svg`, the Arcana tab's glyph. It is the triple spiral from

@@ -2880,6 +2880,35 @@ input.stonetop-name-field {
 	list-style: none;
 }
 
+/* …but multi-column only BALANCES, it never packs: it fills strictly in document
+   order and picks one height for every column, so a card taller than that height
+   starts the next column and every card after it stacks below it there, stranding
+   the column to its left half empty. packMoveMasonry (StonetopCharacterSheet) puts
+   each card in the currently-shortest column instead and marks the list `is-packed`,
+   which swaps it to a flex row of equal-width tracks. The multi-column declarations
+   above go inert on their own here (a flex container is not a multi-column container),
+   so the rule stays the layout this list has until — and if — the JS packs it, not a
+   broken half-state. Width numbers are duplicated in the packer; keep them in step. */
+.stonetop-move-group .items-list.is-packed {
+	display: flex;
+	align-items: flex-start;
+	gap: 16px;
+}
+
+.stonetop-move-col {
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+/* The track's own list (ol > li > ul > li, so the cards stay list items inside a
+   list). It only carries the cards; every card style is written against
+   `.stonetop-item` descendants, so nothing keys off the extra level. */
+.stonetop-move-col-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
 .stonetop-move-list--unowned {
 	margin-top: 12px;
 }
@@ -6939,7 +6968,22 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	font-size: calc(0.75rem * var(--stonetop-font-scale, 1));
 	color: var(--color-text-dark-secondary);
 	cursor: pointer;
-	margin: 12px 0 20px 0;
+	/* This label is the only thing standing between the Playbook Moves rule and that
+	   group's first card, so its margins ARE that group's heading gap. They have to
+	   match the gap every plain-headed group leaves (Other Moves, Learned Moves),
+	   or Playbook Moves reads looser than everything under it.
+
+	   Bottom 8px: a plain group heading is an <h3> carrying core's `margin: 0 0 0.5rem`
+	   (body.game .app h1-h4), and the list's own 4px top margin collapses into it, so
+	   8px is the real heading-to-card step there. This margin collapses with the same
+	   4px, so 8px reproduces it exactly.
+
+	   Top 4px: NOT a free choice. The heading above is a `.stonetop-details-heading-row`
+	   (Playbook Moves carries the edit pencil), whose h3 is zeroed and whose generic
+	   `+ :not(.stonetop-item)` sibling rule sets this label's margin-top to 4px at
+	   higher specificity. Stating 4px here just says out loud what actually applies,
+	   which the old 12px did not. */
+	margin: 4px 0 8px;
 }
 
 /* Scoped to `.character`, not the bare `.pbta.sheet` this used to carry. Every tab in the
@@ -11931,13 +11975,17 @@ a.steading-player-open:hover {
 	align-items: center;
 	gap: 6px;
 }
-.stonetop-homestead-field--check span { font-weight: normal; font-size: var(--st-fs-base); }
 
 .stonetop-homestead-field span {
 	font-weight: bold;
 	font-size: var(--st-fs-sm);
 	color: var(--st-text-body);
 }
+
+/* A checkbox's caption is a caption, not a field label, so it drops the bold and
+   takes the body size. MUST stay after `.stonetop-homestead-field span` above:
+   both are (0,1,1), so ordering it first left it silently overridden. */
+.stonetop-homestead-field--check span { font-weight: normal; font-size: var(--st-fs-base); }
 
 .stonetop-homestead-field input,
 .stonetop-homestead-field textarea {
@@ -14755,10 +14803,9 @@ a.steading-player-open:hover {
 	gap: 6px;
 	font-size: var(--st-fs-xs);
 }
-.stonetop-cf-input--num {
-	width: 3.5em;
-	text-align: center;
-}
+/* .stonetop-cf-input--num lives down beside .stonetop-cf-input, not here: it is a
+   single class like the base, so it only beats the base's width:100% by sitting
+   later in the file. */
 /* The Ring of Daagon buttons (.stonetop-daagon-btn, below) are a blue variant of this,
    so the shared chrome lives here and they override only the three colour declarations. */
 .stonetop-follower-order,
@@ -17606,19 +17653,6 @@ li.question-bullet {
 	flex: 0 0 auto;
 }
 
-/* Special Qualities reads as a stat line (label + value) rather than its own
-   section: keep the rich-text value inline after the "Special Qualities:" label,
-   and let the edit-mode editor take the full width on its own line. */
-.stonetop-monster-stat-line--qualities .stonetop-monster-rich-text,
-.stonetop-monster-stat-line--qualities .stonetop-monster-rich-text > * {
-	display: inline;
-	margin: 0;
-}
-
-.stonetop-monster-stat-line--qualities .stonetop-monster-qualities-editor {
-	flex: 1 1 100%;
-}
-
 /* HP & Armor reuse the character sheet's boxed vital cells, but sit compact and
    left-aligned rather than stretching across the full stat block. The NPC sheet's
    optional stat block borrows the same treatment. */
@@ -17732,14 +17766,39 @@ li.question-bullet {
 	gap: 3px;
 }
 
+/* Every stat line flows as TEXT: the label, then the value starting on the same
+   row and wrapping to the full width beneath it, the way the book sets a stat block.
+
+   Block flow is what makes that possible, and a flex row is what prevented it. A
+   flex item cannot be split across flex lines, so a value too long to fit beside
+   its label got measured at its max-content width, failed to fit, and was shunted
+   whole onto the next row — stranding "Special Qualities:" (and a long "Instinct:")
+   alone on a line with empty space beside it. The 4px the old `gap` contributed is
+   just the collapsed whitespace between the tags, so nothing replaces it. */
 .stonetop-monster-stat-line {
+	margin: 0;
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+}
+
+.stonetop-monster-stat-line > .stonetop-monster-prose {
+	overflow-wrap: break-word;
+}
+
+/* Two lines keep the flex row.
+
+   Edit mode, because the inputs fill the space left beside their label with
+   `flex: 1`, which block flow cannot express — as inline-blocks they would either
+   sit at their intrinsic width or, at width:100%, drop below the label entirely.
+
+   Traits, because it is a run of pills and separators rather than a label plus
+   prose, and it wants those wrapping against each other. */
+.stonetop-edit-mode .stonetop-monster-stat-line,
+.stonetop-monster-stat-line--traits {
 	display: flex;
 	flex-direction: row;
 	align-items: baseline;
 	flex-wrap: wrap;
 	gap: 4px;
-	margin: 0;
-	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
 }
 
 .stonetop-monster-stat-key {
@@ -17778,6 +17837,21 @@ li.question-bullet {
 .stonetop-monster-stat-line--traits .stonetop-monster-stat-key {
 	font-weight: normal;
 	font-style: italic;
+}
+
+/* Special Qualities reads as a stat line (label + value) rather than its own
+   section, so the enriched value's block-level <p> has to become inline text —
+   otherwise it breaks the line under the label no matter what the row does. The
+   line itself needs no display of its own: the base rule above is already block. */
+.stonetop-monster-stat-line--qualities .stonetop-monster-rich-text,
+.stonetop-monster-stat-line--qualities .stonetop-monster-rich-text > * {
+	display: inline;
+	margin: 0;
+}
+
+.stonetop-monster-stat-line--qualities .stonetop-monster-qualities-editor {
+	display: block;
+	width: 100%;
 }
 
 .stonetop-monster-damage-formula-input {
@@ -17819,10 +17893,21 @@ li.question-bullet {
 	min-width: 0;
 }
 
-/* 2+ modes: drop the whole list onto its own line below the "Damage:" header. */
+/* 2+ modes: drop the whole list onto its own line below the "Damage:" header. In
+   view mode the base rule's flex column is already a block-level box, so it breaks
+   the line on its own; `flex: 0 0 100%` still does the work in edit mode. */
 .stonetop-monster-damage-modes--stacked {
 	flex: 0 0 100%;
 	margin-top: 2px;
+}
+
+/* A single mode is one short phrase, so it flows inline after "Damage:" like every
+   other value instead of dropping below it as a block-level <ul> would. The gap the
+   flex row gave between the dice bullet and the text is the collapsed whitespace
+   between the tags. Two-class selectors, so they beat the base rules above. */
+.stonetop-monster-damage-modes:not(.stonetop-monster-damage-modes--stacked),
+.stonetop-monster-damage-modes:not(.stonetop-monster-damage-modes--stacked) > .stonetop-monster-damage-mode {
+	display: inline;
 }
 
 /* Full-width sections below the stat block (Moves, Notes), spaced apart and set
@@ -21506,6 +21591,15 @@ th:has(> .stonetop-roll-table-btn) {
 	background: var(--stonetop-bg, #f5f0e8);
 }
 .stonetop-cf-textarea { resize: vertical; line-height: 1.45; }
+
+/* Compact box for the number inputs (group size, HP, armor) that sit inline in a
+   sentence — "[ 6 ] members". MUST stay after .stonetop-cf-input above: same
+   specificity, so the base's width:100% wins on source order otherwise and these
+   stretch the full dialog width. */
+.stonetop-cf-input--num {
+	width: 3.5em;
+	text-align: center;
+}
 
 /* Stat pick lists (HP / armor / damage) */
 .stonetop-cf-pick { display: flex; flex-direction: column; gap: 5px; }

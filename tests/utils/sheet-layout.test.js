@@ -24,6 +24,9 @@ const DEFAULTS = {
 	classicLayoutNoticeShown: false,
 	seedingComplete: false,
 	sheetLayout: "world",
+	classicLayoutCharacter: true,
+	classicLayoutSteading: true,
+	classicLayoutNpc: true,
 	layoutCardId: "",
 };
 
@@ -245,6 +248,44 @@ describe("setWorldSheetLayout", () => {
 		withWorld({ worldSheetLayout: "classic", sheetLayout: "modern" });
 		await setWorldSheetLayout("modern");
 		expect(store.sheetLayout).toBe("modern");
+	});
+
+	// The same rule one level down, and the sharper failure of the two: effective classic is
+	// `<master> AND <this sheet's box>`, so a GM who unticked all three per-sheet boxes had a card
+	// on which BOTH buttons did nothing they could see - modern because their sheets were already
+	// modern, classic because their own boxes held them there - while the world setting flipped
+	// correctly under each press.
+	it("ticks per-sheet boxes back on when the change contradicts them", async () => {
+		withWorld({ worldSheetLayout: "modern", classicLayoutCharacter: false, classicLayoutNpc: false });
+		await setWorldSheetLayout("classic");
+		expect(store.classicLayoutCharacter).toBe(true);
+		expect(store.classicLayoutNpc).toBe(true);
+		expect(store.classicLayoutSteading).toBe(true);
+		// ...and says which ones it touched, or the sheets that moved are a mystery.
+		expect(infos.join(" ")).toContain("Character Sheets and NPC Sheets");
+	});
+
+	// A modern master is modern everywhere whatever the children say, so there is nothing for them
+	// to contradict on the way to modern - and a deliberate per-sheet preference outlives the trip.
+	it("leaves per-sheet boxes alone on the way to modern", async () => {
+		withWorld({ worldSheetLayout: "classic", classicLayoutCharacter: false });
+		await setWorldSheetLayout("modern");
+		expect(store.classicLayoutCharacter).toBe(false);
+		expect(infos.join(" ")).not.toContain("ticked back on");
+	});
+
+	// The end of it: after one press of each button the presser is actually looking at the layout
+	// the card says the table is on, whatever they had set before.
+	it("makes both directions reach the presser's own sheets", async () => {
+		withWorld({ worldSheetLayout: "classic", sheetLayout: "modern",
+		            classicLayoutCharacter: false, classicLayoutSteading: false, classicLayoutNpc: false });
+		await setWorldSheetLayout("classic");
+		const classicFor = sheet => store.sheetLayout !== "modern"
+			&& (store.sheetLayout === "classic" || store.worldSheetLayout === "classic")
+			&& store[{ character: "classicLayoutCharacter", steading: "classicLayoutSteading", npc: "classicLayoutNpc" }[sheet]];
+		for (const sheet of ["character", "steading", "npc"]) expect(classicFor(sheet), sheet).toBe(true);
+		await setWorldSheetLayout("modern");
+		for (const sheet of ["character", "steading", "npc"]) expect(classicFor(sheet), sheet).toBe(false);
 	});
 
 	// The signal that survives having nothing open and never scrolling chat.

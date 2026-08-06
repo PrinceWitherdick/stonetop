@@ -1,4 +1,4 @@
-import { getSetting, setSetting } from "../settings.js";
+import { CLASSIC_LAYOUT_KEYS, getSetting, setSetting } from "../settings.js";
 import { stonetopChatCard } from "./chat.js";
 
 // The two layouts, as stored in `worldSheetLayout` (and as the personal `sheetLayout`
@@ -137,10 +137,12 @@ async function _retireStrayCards(keepId) {
  * it is edited rather than left standing. That is also what keeps either direction from being a
  * one-way door: the single card in the log always offers the layout the table is not on.
  *
- * A personal override that contradicts the new mode is dropped back to "follow the world" for
- * the GM who pressed the button. Without that, a GM who had pinned themselves to one layout
- * would press a button labelled "switch the sheets" and watch nothing happen to their own,
- * which reads as a broken button rather than as a setting doing its job.
+ * BOTH of the presser's personal overrides that contradict the new mode are dropped back to
+ * their defaults: the `sheetLayout` master override to "follow the world", and any per-sheet
+ * Classic Layout box they had unticked back on (_reinstateClassicSheets). Without that, a GM who
+ * had pinned themselves to one layout would press a button labelled "switch the sheets" and
+ * watch nothing happen to their own, which reads as a broken button rather than as a setting
+ * doing its job.
  *
  * @param {"classic"|"modern"} mode
  * @returns {Promise<boolean>}  false if this user was not allowed to make the change.
@@ -153,10 +155,48 @@ export async function setWorldSheetLayout(mode) {
 	await setSetting("worldSheetLayout", mode);
 	const mine = getSetting("sheetLayout");
 	if (mine !== "world" && mine !== mode) await setSetting("sheetLayout", "world");
+	const reticked = mode === CLASSIC ? await _reinstateClassicSheets() : [];
 	globalThis.ui?.notifications?.info?.(
-		`Stonetop sheets are now using the ${mode} layout. Open a character, steading, or NPC sheet to see it.`);
+		`Stonetop sheets are now using the ${mode} layout. Open a character, steading, or NPC sheet to see it.`
+		+ (reticked.length ? ` Your own Classic Layout ${reticked.length > 1 ? "boxes" : "box"} for `
+			+ `${_and(reticked)} had been unticked, which would have kept `
+			+ `${reticked.length > 1 ? "those sheets" : "that sheet"} modern for you, so `
+			+ `${reticked.length > 1 ? "they have" : "it has"} been ticked back on.` : ""));
 	await showLayoutCard(mode);
 	return true;
+}
+
+/** The per-sheet boxes as Configure Settings names them, for the toast to read back. */
+const _SHEET_LABELS = { character: "Character Sheets", steading: "Steading Sheets", npc: "NPC Sheets" };
+
+/** "A", "A and B", "A, B and C". */
+const _and = xs => xs.length < 2 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`;
+
+/**
+ * Tick the presser's own per-sheet Classic Layout boxes back on.
+ *
+ * The same rule as the `sheetLayout` drop above, one level down, and a sharper failure. Effective
+ * classic is `<master> AND <this sheet's box>` (isClassicLayout), so a box left unticked pins that
+ * one sheet MODERN however the table's master is set - and with all three unticked, every button
+ * this card has ever shown does nothing the presser can see. "Try the modern layout" changes
+ * nothing because their sheets were already modern; "go back to the classic layout" changes
+ * nothing because their own boxes hold them there. The world setting really did flip both times,
+ * which is exactly what makes it read as a dead card rather than as a setting of their own.
+ *
+ * Only the CLASSIC direction needs this: a modern master is modern everywhere whatever the
+ * children say, so on the way to modern there is nothing for them to contradict, and leaving them
+ * alone keeps a deliberate per-sheet preference intact for as long as it can mean anything.
+ *
+ * @returns {Promise<string[]>}  The sheets whose box had to be re-ticked, for the toast to name.
+ */
+async function _reinstateClassicSheets() {
+	const fixed = [];
+	for (const [sheet, key] of Object.entries(CLASSIC_LAYOUT_KEYS)) {
+		if (getSetting(key)) continue;
+		await setSetting(key, true);
+		fixed.push(_SHEET_LABELS[sheet]);
+	}
+	return fixed;
 }
 
 /** The footer every one of these cards carries: where a player goes to disagree. */

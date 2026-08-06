@@ -1079,7 +1079,7 @@ export function getOpenSheetsInEditMode() {
  * at runtime is invisible to it and the setting fails the build as dead.
  * See tests/utils/settings-registration.test.js.
  */
-const CLASSIC_LAYOUT_KEYS = {
+export const CLASSIC_LAYOUT_KEYS = {
 	character: "classicLayoutCharacter",
 	steading:  "classicLayoutSteading",
 	npc:       "classicLayoutNpc",
