@@ -177,6 +177,72 @@ describe("StonetopCharacterSheet event handlers", () => {
 	});
 });
 
+describe("StonetopCharacterSheet damage die editing", () => {
+	function damageInput(value, base = "d6") {
+		return { currentTarget: { value, dataset: { damageBase: base } } };
+	}
+
+	function makeDamageSheet() {
+		const actor = makeActor();
+		actor.typedActor.setDamageDieOverride = vi.fn(async () => null);
+		return { actor, sheet: makeSheet(actor) };
+	}
+
+	it("saves a typed die as an override", async () => {
+		const { actor, sheet } = makeDamageSheet();
+		await sheet._onDamageDieEdit(damageInput("d8"));
+		// The derived die rides along, so the model never rebuilds the snapshot to find it.
+		expect(actor.typedActor.setDamageDieOverride).toHaveBeenCalledWith("d8", { base: "d6" });
+	});
+
+	it("normalizes loose spellings before saving", async () => {
+		const { actor, sheet } = makeDamageSheet();
+		await sheet._onDamageDieEdit(damageInput("1D8 "));
+		expect(actor.typedActor.setDamageDieOverride).toHaveBeenCalledWith("d8", { base: "d6" });
+	});
+
+	it("clears the override when the field is emptied", async () => {
+		const { actor, sheet } = makeDamageSheet();
+		await sheet._onDamageDieEdit(damageInput(""));
+		expect(actor.typedActor.setDamageDieOverride).toHaveBeenCalledWith("", { base: "d6" });
+	});
+
+	it("clears the override when the typed die is the playbook's own", async () => {
+		const { actor, sheet } = makeDamageSheet();
+		await sheet._onDamageDieEdit(damageInput("d6", "d6"));
+		expect(actor.typedActor.setDamageDieOverride).toHaveBeenCalledWith("", { base: "d6" });
+	});
+
+	it("refuses a value that isn't a single die and puts the old one back", async () => {
+		global.ui = { notifications: { warn: vi.fn() } };
+		const { actor, sheet } = makeDamageSheet();
+		actor.system.attributes.damage.value = "d6";
+		const ev = damageInput("2d6");
+
+		await sheet._onDamageDieEdit(ev);
+
+		expect(actor.typedActor.setDamageDieOverride).not.toHaveBeenCalled();
+		expect(ev.currentTarget.value).toBe("d6");
+		expect(global.ui.notifications.warn).toHaveBeenCalled();
+	});
+
+	it("getData mirrors the die in play onto the input, playbook or not", async () => {
+		installGetDataGlobals();
+		const actor = makeActor();
+		actor.typedActor.playbook = vi.fn(async () => null);
+		actor.typedActor.possessionTriggerMoves = vi.fn(() => ({}));
+		actor.typedActor.buildSnapshot = vi.fn(async () => {
+			const snap = minimalSheetSnapshot({});
+			snap.vitals.damage = "d8";
+			return snap;
+		});
+		const sheet = makeSheet(actor);
+
+		const context = await sheet.getData();
+		expect(context.system.attributes.damage.value).toBe("d8");
+	});
+});
+
 describe("StonetopCharacterSheet Details tab section visibility", () => {
 	const DETAILS_SECTIONS = ["lore", "background", "instinct", "appearance", "origin"];
 

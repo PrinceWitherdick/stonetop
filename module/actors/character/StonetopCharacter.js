@@ -67,7 +67,7 @@ import {buildCustomMoveData, clampInt} from "../../utils/custom-move-data.js";
 import {buildInventoryItemData} from "../../utils/inventory-item-data.js";
 import {isLoveLetter} from "./love-letters.js";
 import {deriveLoadLevel, loadLimitsFor} from "../../utils/load.js";
-import {maxDie, stepDie} from "../../utils/damage-die.js";
+import {maxDie, stepDie, normalizeDamageDie} from "../../utils/damage-die.js";
 
 const OTHER_MOVE_TYPES = ["background", "special", "follower", "homefront"];
 // Expedition moves that operate on the STEADING rather than the individual hero,
@@ -2104,6 +2104,34 @@ export class StonetopCharacter {
 		await this._actor.setFlag(STONETOP_SCOPE, "rollMode", _normalizeSheetRollMode(rollMode));
 	}
 
+	/** The hand-set damage die, or null when the die follows the playbook. */
+	get damageDieOverride() { return normalizeDamageDie(this._actor.system?.attributes?.damage?.override); }
+
+	/**
+	 * Set (or clear, with a blank/unparseable value) the hand-typed damage die.
+	 *
+	 * `damage.value` is written alongside it because that persisted field is what the damage
+	 * roller reads (see combat/attack-flow.js) and what the sheet's Damage input shows. Clearing
+	 * puts the derived die back in both places, so nothing keeps rolling the abandoned override —
+	 * and blanks them when there's no derived die to fall back on (no playbook), rather than
+	 * leaving the cleared override standing in the one field that decides the roll.
+	 * Returns the die now in play, or null if there is none (no playbook and nothing typed).
+	 *
+	 * `base` is the derived (playbook + marks) die when the caller already has it — the sheet
+	 * renders it into the field's own dataset — which saves rebuilding the whole snapshot just
+	 * to read one string back out of it.
+	 */
+	async setDamageDieOverride(input, { base: knownBase = null } = {}) {
+		const die = normalizeDamageDie(input);
+		const base = die ? null : (knownBase ?? (await this.buildSnapshot()).vitals?.damageBase ?? null);
+		const effective = die ?? base;
+		await this._actor.update({
+			"system.attributes.damage.override": die ?? "",
+			"system.attributes.damage.value": effective ?? "",
+		});
+		return effective;
+	}
+
 	// ── Problematic / permanent wounds (Book I, Harm & Healing) ────────────────
 	// Stored as an array on system.attributes.wounds. Arrays are replaced wholesale
 	// on update (unlike object flags, which merge), so every mutation reads the
@@ -2539,12 +2567,17 @@ function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, 
 	const attrs = actor.system?.attributes ?? {};
 	const level = attrs.level?.value ?? 1;
 	const hpBonus = moveBonuses.hp ?? 0;
-	const damage = playbookData
+	const damageBase = playbookData
 		? (moveBonuses.damageDie ? maxDie(playbookData.damage, moveBonuses.damageDie) : playbookData.damage)
 		: null;
+	// A die typed into the sheet's Damage field wins outright: it is the player saying "this
+	// character's die is X", which the playbook has no business overwriting on the next render.
+	// Clearing the field drops back to the derived die (see setDamageDieOverride).
+	const damage = normalizeDamageDie(attrs.damage?.override) ?? damageBase;
 	return new VitalsSnapshotBuilder()
 		.withHp(playbookData ? new ValueMax(attrs.hp?.value ?? 0, (playbookData.hp ?? 0) + hpBonus) : new ValueMax(0, 0))
 		.withDamage(damage)
+		.withDamageBase(damageBase)
 		.withArmor(armorValue)
 		.withWornArmor(wornArmorBase)
 		.withLevel(level)

@@ -3866,8 +3866,26 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background: var(--st-red-text);
 }
 .stonetop-damage-roll-card .stonetop-roll-result { border-left-color: var(--st-red-border); background: var(--st-red-bg); }
-.stonetop-damage-roll-card .stonetop-roll-result-number { color: var(--st-red-text); }
-:is(#chat, #chat-notifications) .message .stonetop-attack-damage-card .stonetop-damage-amount { color: var(--st-red-text); }
+
+/* A damage line on the per-target results card: the same result block as a move roll,
+   tinted red. Sits AFTER the tier rules on purpose — a `--modifier` ties with the base
+   class on specificity and only wins by coming later in the file. */
+.stonetop-roll-result--damage {
+	border-left-color: var(--st-red-border);
+	background: var(--st-red-bg);
+}
+/* The damage mark (chat.js damageMark): burst + total share one cell so they read as a
+   single "5 damage" figure, tighter than the block's 12px gap, and one colour declaration
+   paints both. Deliberately unscoped — every damage card wears it, the plain damage-roll
+   card and the attack flow's per-target rows alike. */
+.stonetop-damage-mark {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 0 0 auto;
+	color: var(--st-red-text);
+}
+.stonetop-damage-mark i { font-size: 1.4em; opacity: 0.85; }
 
 :is(#chat, #chat-notifications) .message .pbta-chat-card .chat-title {
 	align-items: center;
@@ -4117,25 +4135,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background: var(--st-btn-primary-bg-hover, var(--st-btn-primary-bg));
 }
 
-/* Per-target damage list on the results card. */
+/* Per-target damage list on the results card: one roll-result block per target (stacked,
+   not the old hairline-separated single-line rows), so each number carries the weight of
+   a move roll's total. The blocks own their own padding; the list only spaces them. */
 :is(#chat, #chat-notifications) .message .stonetop-damage-list {
 	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
 	margin: 6px 0;
 	padding: 0;
-}
-:is(#chat, #chat-notifications) .message .stonetop-damage-row {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	gap: 8px;
-	padding: 2px 4px;
-	border-bottom: 1px solid rgba(159, 146, 117, 0.25);
-}
-:is(#chat, #chat-notifications) .message .stonetop-damage-row:last-child { border-bottom: none; }
-:is(#chat, #chat-notifications) .message .stonetop-damage-amount {
-	font-family: var(--font-stonetop);
-	font-weight: bold;
-	font-size: var(--font-size-14);
 }
 :is(#chat, #chat-notifications) .message .stonetop-damage-target.is-friendly { color: #6b4400; }
 :is(#chat, #chat-notifications) .message .stonetop-damage-mitigated { opacity: 0.7; font-size: 0.85em; }

@@ -32,6 +32,7 @@ export class FakeActorBuilder {
 	_armor        = 0;
 	_xp           = {value: 0, max: 8};
 	_hp           = {value: 8, max: 8};
+	_damage       = {value: "d4", override: ""};
 	_statBuilder  = new FakeStatBuilder();
 	_debilities   = {
 		weakened:  {value: false, stat: ["str", "dex"]},
@@ -46,6 +47,7 @@ export class FakeActorBuilder {
 	withXp(current, max)      { this._xp = {value: current, max}; return this; }
 	withLevel(level)          { this._level = level; return this; }
 	withArmor(armor)          { this._armor  = armor;  return this; }
+	withDamage(value, override = "") { this._damage = {value, override}; return this; }
 	withItems(items)          { this._items = items; return this; }
 	withRollMode(rollMode)    { this._pbtaRollMode = rollMode; return this; }
 
@@ -91,7 +93,7 @@ export class FakeActorBuilder {
 					hp:      this._hp,
 					armor:   {value: this._armor},
 					xp:      this._xp,
-					damage:  {value: "d4"},
+					damage:  {...this._damage},
 					debilities: {options: {...this._debilities}},
 				},
 			},

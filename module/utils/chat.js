@@ -67,6 +67,16 @@ export function rollResultNumber(total, dieFaces = "") {
 }
 
 /**
+ * The rolled total of a DAMAGE roll: a red burst paired with the number in one cell, so
+ * the figure reads as damage without re-reading the card title. Shared by every damage
+ * surface — the plain damage-roll card ({@link rollDamage}) and the per-target results
+ * card of the attack flow — so the two never drift apart.
+ */
+export function damageMark(total, dieFaces = "") {
+	return `<span class="stonetop-damage-mark"><i class="fas fa-burst" aria-hidden="true"></i>${rollResultNumber(total, dieFaces)}</span>`;
+}
+
+/**
  * Body markup for a "Seasons Change"-style 2d6 result card: a formula chip plus the
  * shared roll-result block — the total (with its die-faces tooltip), the tier label,
  * and the result line — coloured down the left edge by tier, exactly like a move roll

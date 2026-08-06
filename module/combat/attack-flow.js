@@ -23,7 +23,7 @@
 import {STONETOP_SCOPE} from "../actors/character/StonetopFlags.js";
 import {weaponMeta, isClashWeapon, isLetFlyWeapon, weaponTraitText, weaponArmorBits, grantedWeaponForMove, MOVE_GRANTED_WEAPONS, UNARMED_META} from "../data/weapons.js";
 import {escHtml} from "../utils/strings.js";
-import {stonetopChatCard, rollFormulaChip, damageBadge} from "../utils/chat.js";
+import {stonetopChatCard, rollFormulaChip, damageMark, damageBadge} from "../utils/chat.js";
 import {rollDamage, multiDieFaces, sign} from "../utils/roll-engine.js";
 import {mitigateDamage, resolvePiercing, applyDamageToActor, dieFromDamage} from "../utils/damage.js";
 import {bringDialogToFront} from "../utils/front-on-open.js";
@@ -318,10 +318,24 @@ export async function maybeBeginAttack(actor, item, { stat = null } = {}) {
 
 // -- Damage rolling + the results card ----------------------------------------
 
+// The PC's damage die, as the sheet shows it: a die typed into the Damage field wins,
+// then the playbook's die raised by any marked move (Potential for Greatness' "increase
+// your damage die to a d8"). `system.attributes.damage.value` only records what was
+// written when the playbook was dropped or the field edited, so a mark-raised die would
+// otherwise keep rolling at its old size. Asked of the actor's OWN StonetopCharacter
+// (cached on the document, with its compendium repositories already warm) rather than a
+// throwaway one, so a damage roll doesn't re-index the items pack.
+async function pcDamageDie(actor) {
+	const stored = String(actor?.system?.attributes?.damage?.value ?? "").trim();
+	if (actor?.type !== "character") return stored;
+	const snapshot = await actor.typedActor?.buildSnapshot?.();
+	return snapshot?.vitals?.damage || stored;
+}
+
 // The damage formula for one attack: the PC die (or the weapon's own die), plus the
 // weapon's +N damage, plus any extra dice (Clash 10+ strike-hard's +1d6).
-function damageFormula(actor, weapon, extraDice) {
-	const die   = weapon?.damageDie || actor.system?.attributes?.damage?.value || "d6";
+async function damageFormula(actor, weapon, extraDice) {
+	const die   = weapon?.damageDie || await pcDamageDie(actor) || "d6";
 	const bonus = weapon?.damageBonus ? sign(weapon.damageBonus) : "";
 	const extra = extraDice ? `+${extraDice}` : "";
 	return `${die}${bonus}${extra}`;
@@ -378,7 +392,7 @@ function postTagReminders(actor, weapon) {
 // targets, fall back to a single plain damage roll (no Apply button). Tagged weapons
 // (messy / forceful) add follow-up reminder cards either way.
 async function rollAndPostDamage(actor, { move, weapon, targets, extraDice = "", counter = false }) {
-	const formula   = damageFormula(actor, weapon, extraDice);
+	const formula   = await damageFormula(actor, weapon, extraDice);
 	const applyable = (targets ?? []).filter(t => t.hasActor !== false && t.uuid);
 
 	if (applyable.length === 0) {
@@ -407,17 +421,39 @@ async function rollAndPostDamage(actor, { move, weapon, targets, extraDice = "",
 	await postTagReminders(actor, weapon);
 }
 
+// The fine print a bare number can't carry: which weapon rolled it, and whether armor
+// will bite when the GM applies it. Sits under the target name in each damage block. The
+// armor bits come from module/data/weapons.js, so the picker and the card can't drift.
+function damageRowDetail(weapon) {
+	if (!weapon) return "";
+	return [escHtml(weapon.name), ...weaponArmorBits(weapon)].join(" · ");
+}
+
 function postDamageResultsCard(actor, { move, weapon, results, counter }) {
 	const multiWarn = results.length > 1 && !weapon?.area
 		? `<p class="stonetop-attack-warn"><i class="fas fa-triangle-exclamation"></i> ${escHtml(move)} is a single-foe move — applying to multiple targets is a GM abstraction.</p>`
 		: "";
 
-	const rows = results.map(r => `<li class="stonetop-damage-row"${r.uuid ? ` data-uuid="${escHtml(r.uuid)}"` : ""}>
-		${r.uuid
-			? `<span class="stonetop-damage-target${isFriendly(r.disposition) ? " is-friendly" : ""}">${escHtml(r.name)}${isFriendly(r.disposition) ? " <em>(friendly)</em>" : ""}</span>`
-			: `<span class="stonetop-damage-target">Damage dealt</span>`}
-		<span class="stonetop-damage-amount">${r.raw}</span>
-	</li>`).join("");
+	// Each target gets the shared roll-result block (big total + label + fine print) rather
+	// than a one-line "name .......... 7" row, so the damage number reads at the same size
+	// as a move roll's total — it's the one thing the table actually needs to see. The red
+	// burst and red total say "damage" without re-reading the title. Each total carries its
+	// own die-faces tooltip: the targets are rolled independently, so the shared formula
+	// chip above can only speak for one of them.
+	const detail = damageRowDetail(weapon);
+	const rows = results.map(r => {
+		const friendly = Boolean(r.uuid) && isFriendly(r.disposition);
+		const label = r.uuid
+			? `${escHtml(r.name)}${friendly ? " <em>(friendly)</em>" : ""}`
+			: "Damage dealt";
+		return `<li class="stonetop-damage-row stonetop-roll-result stonetop-roll-result--damage"${r.uuid ? ` data-uuid="${escHtml(r.uuid)}"` : ""}>
+			${damageMark(r.raw, r.faces)}
+			<div class="stonetop-roll-result-body">
+				<span class="stonetop-roll-result-label stonetop-damage-target${friendly ? " is-friendly" : ""}">${label}</span>
+				<span class="stonetop-roll-result-details">${detail}</span>
+			</div>
+		</li>`;
+	}).join("");
 
 	// Each target is rolled independently, so a single shared die-faces tooltip is only
 	// meaningful when there's exactly one result; with several it would show the first

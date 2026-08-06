@@ -36,6 +36,7 @@ import {createArcanumItem} from "../../item/createArcanum.js";
 import {rollDamage, rollStat, sign, classifyResult} from "../../utils/roll-engine.js";
 import {defendReadinessHold} from "../../combat/defend-readiness.js";
 import {dieFromDamage} from "../../utils/damage.js";
+import {normalizeDamageDie} from "../../utils/damage-die.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
 import {escHtml, isDefaultImg, normalizePlaybookGlyphs, composeInstinct} from "../../utils/strings.js";
 import {playbookIconPath, partyCharacters} from "../../utils/playbook-actors.js";
@@ -997,16 +998,16 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.showRollStatChips = getRollStatChipsSetting();
 			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug;
 			// Mirror computed vitals back onto system attributes for the sheet's inputs.
-			// HP-max and damage are playbook-derived, so they only apply with a playbook —
-			// keeps onboarding-built characters from showing the stale template default.
+			// HP-max is playbook-derived, so it only applies with a playbook — keeps
+			// onboarding-built characters from showing the stale template default. Damage
+			// mirrors whenever there is a die to show, since a hand-set override stands
+			// without a playbook behind it.
 			const v = context.stonetop.vitals;
 			const vitalsToSystem = {
 				"attributes.armor.value": v.armor,
 				"attributes.xp.max":      v.xp.max,
-				...(context.stonetop.playbook ? {
-					"attributes.hp.max":       v.hp.max,
-					"attributes.damage.value": v.damage,
-				} : {}),
+				...(context.stonetop.playbook ? { "attributes.hp.max": v.hp.max } : {}),
+				...(v.damage ? { "attributes.damage.value": v.damage } : {}),
 			};
 			for (const [path, value] of Object.entries(vitalsToSystem)) {
 				foundry.utils.setProperty(context.system, path, value);
@@ -3147,6 +3148,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-wound-tend").on("click", ev => this._onWoundTend(this._woundIdFromEvent(ev)));
 			html.find(".stonetop-wound-edit").on("click", ev => this._onWoundEdit(this._woundIdFromEvent(ev)));
 			html.find(".stonetop-wound-remove").on("click", ev => this._onWoundRemove(this._woundIdFromEvent(ev)));
+
+			// Damage die, typed by hand in edit mode. Saved as an override rather than through
+			// the form, since the field's rendered value is the computed die (see actor-vitals.hbs).
+			html.find("[data-damage-die]").on("change", this._onDamageDieEdit.bind(this));
 
 			// -- Followers tab: shared follower-card fields ----------------
 			// Common, hand-editable fields on every follower card (name,
@@ -6117,6 +6122,31 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (!rows.length)        rows.push({ label: "Convalesce", value: "Rested in safety and comfort." });
 			postMoveToChat(this.actor, "Convalesce", rows);
 
+			this.render(false);
+		}
+
+		// ── Damage die ─────────────────────────────────────────────────────────────
+		// Hand-editing the Damage field. It has to end up as a "d#" the roller can use, so
+		// loose spellings are tidied ("8", "D8", "1d8" → "d8") and anything that isn't a
+		// single die is refused with the old value put back rather than half-saved. Typing
+		// the playbook's own die, or clearing the field, drops the override so the die
+		// follows the playbook (and its move bonuses) again.
+		async _onDamageDieEdit(ev) {
+			const el = ev.currentTarget;
+			if (!this.isEditable) return;
+			const typed = String(el.value ?? "").trim();
+			const base  = el.dataset.damageBase || null;
+			if (typed) {
+				const die = normalizeDamageDie(typed);
+				if (!die) {
+					ui.notifications?.warn(`"${typed}" isn't a damage die — write a single die, like d8.`);
+					el.value = this.actor.system?.attributes?.damage?.value ?? base ?? "";
+					return;
+				}
+				await this._stonetopCharacter.setDamageDieOverride(die === base ? "" : die, { base });
+			} else {
+				await this._stonetopCharacter.setDamageDieOverride("", { base });
+			}
 			this.render(false);
 		}
 
