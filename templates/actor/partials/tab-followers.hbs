@@ -37,11 +37,13 @@
 			      one that is captioned are the same element.
 
 			      A tap does one of two things, and portraitInteractive is true for either:
-			      with the card's pencil open it opens the gallery to CHANGE the portrait,
-			      and otherwise it ENLARGES the one that is there. A viewer who can do
-			      neither (no portrait, no pencil) gets no tab stop and no pointer cursor,
-			      rather than one promising something that will not happen. The glyph stays
-			      clickable while editing, since picking a first portrait is the point. --}}
+			      it opens the gallery to CHANGE the portrait (with the card's pencil open,
+			      or where there is no face yet to enlarge), and otherwise it ENLARGES the
+			      one that is there — and that window carries the same "Edit Photo" and
+			      "Frame Face" the sheet's own portrait window does, so a face can be
+			      changed without first opening the pencil. A viewer who can do neither (no
+			      portrait, and no permission to choose one) gets no tab stop and no pointer
+			      cursor, rather than one promising something that will not happen. --}}
 			<div class="stonetop-follower-portrait stonetop-portrait-box{{#if img}} stonetop-follower-portrait--photo{{/if}}{{#if portraitInteractive}} stonetop-follower-portrait--editable{{/if}}"
 			     data-ftype="{{ftype}}" data-slug="{{slug}}"
 			     data-portrait-mode="{{#if portraitEditable}}pick{{else}}view{{/if}}"
@@ -60,13 +62,30 @@
 				{{else}}
 				<i class="{{portraitIcon}}" aria-hidden="true"></i>
 				{{/if}}
-				{{#if portraitEditable}}{{#if img}}
-				{{!-- tabindex="-1": the portrait itself already owns the tab stop and Enter/Space,
+				{{!-- The same pair of pips a sheet header carries, in the same order and the same
+				      corner, shown in BOTH modes exactly as the header's are: neither is an
+				      edit-mode act. Framing is a reading choice about a picture that already
+				      exists, and Tokenizer makes a map token, not a sheet. Each has its own gate
+				      (see the sheet's withSectionEdits) rather than the card's pencil.
+
+				      Tokenizer sits to the LEFT of the crop pip and is emitted first so tabbing
+				      runs left to right; the visual order comes from `right` in the CSS, since
+				      both are absolutely positioned. It appears only for a follower who already
+				      exists as an Actor — dropped on a scene, or the NPC they were recruited
+				      from — because that Actor is the thing a token is made for.
+
+				      tabindex="-1": the portrait itself already owns the tab stop and Enter/Space,
 				      and a second stop inside a 75px circle is noise. The keyboard route to
-				      framing is the portrait, then "Adjust frame…" in the gallery. --}}
-				<button type="button" class="stonetop-follower-portrait-frame" tabindex="-1"
+				      framing is the portrait, then "Frame Face" in the window it opens. --}}
+				{{#if portraitTokenizable}}
+				<button type="button" class="stonetop-follower-portrait-pip stonetop-follower-portrait-tokenize" tabindex="-1"
+				        data-tooltip="{{localize 'stonetop.portraitFrame.tokenizerPip'}}"
+				        aria-label="{{localize 'stonetop.portraitFrame.tokenizerPip'}}"><i class="fas fa-circle-user"></i></button>
+				{{/if}}
+				{{#if portraitFrameable}}
+				<button type="button" class="stonetop-follower-portrait-pip stonetop-follower-portrait-frame" tabindex="-1"
 				        data-tooltip="{{portraitFrameLabel}}" aria-label="{{portraitFrameLabel}}"><i class="fas fa-crop-simple"></i></button>
-				{{/if}}{{/if}}
+				{{/if}}
 			</div>
 			<div class="stonetop-follower-title">
 				<div class="stonetop-follower-name-row">

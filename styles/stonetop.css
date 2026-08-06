@@ -15838,8 +15838,9 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	background: none;
 }
 
-/* Clicking opens the People of Stonetop gallery. Only rendered editable for a viewer who
-   can save the pick, so the cursor and the ring never promise a picker that would refuse. */
+/* Clicking does something: the People of Stonetop gallery where the face may be chosen, the
+   picture at full size where it may only be looked at. Rendered only when one of the two is
+   actually on offer, so the cursor and the ring never promise a window that never opens. */
 .stonetop-follower-portrait--editable {
 	cursor: pointer;
 }
@@ -26611,18 +26612,18 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	max-height: min(680px, calc(100vh - 80px));
 }
 
-/* The crop pip on a follower card's portrait: a second, smaller affordance inside a control
-   that already opens the gallery on click. Hidden until the card is hovered or something in
-   it has focus, so a page of followers is not a page of pips.
+/* The pips on a follower card's portrait — crop, and Tokenizer beside it: smaller affordances
+   inside a control that already opens on click. Hidden until the card is hovered or something
+   in it has focus, so a page of followers is not a page of pips.
 
-   A sheet header's pips (.stonetop-header-pip, below) are the same affordance on a much larger
-   picture, so they share everything here but their size and which corner they sit in. That one
-   class is what both header pips are styled through: they are always styled together, and
-   threading two class names through every shared list here meant a third header pip would have
-   to be added to five separate selector lists. Each keeps its own class for the JS to bind to
-   and, for the Tokenizer pip, its one genuine difference — the `right` that puts it to the
-   left of its neighbour. */
-.stonetop-follower-portrait-frame,
+   A sheet header's pips (.stonetop-header-pip, below) are the same affordances on a much larger
+   picture, so they share everything here but their size and which corner they sit in. Each
+   surface has ONE class its pips are styled through, because they are always styled together
+   and threading every pip's own class through every shared list here meant a third pip would
+   have to be added to five separate selector lists. Each pip keeps its own class for the JS to
+   bind to and, for the Tokenizer ones, their one genuine difference — the `right` that puts
+   them to the left of their neighbour. */
+.stonetop-follower-portrait-pip,
 .stonetop-header-pip {
 	position: absolute;
 	/* Bottom-right corner, the usual place for a badge. Now that the portrait is square this
@@ -26658,8 +26659,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	cursor: pointer;
 }
 
-.stonetop-follower-portrait:hover .stonetop-follower-portrait-frame,
-.stonetop-follower-portrait:focus-within .stonetop-follower-portrait-frame,
+.stonetop-follower-portrait:hover .stonetop-follower-portrait-pip,
+.stonetop-follower-portrait:focus-within .stonetop-follower-portrait-pip,
 .stonetop-portrait-slot:hover .stonetop-header-pip,
 .stonetop-portrait-slot:focus-within .stonetop-header-pip {
 	display: grid;
@@ -26667,14 +26668,14 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 
 /* The glyph carries no metrics of its own here: no margin, and a line-height of 1 so the
    grid centres the ink rather than a line box taller than it. */
-.stonetop-follower-portrait-frame > i,
+.stonetop-follower-portrait-pip > i,
 .stonetop-header-pip > i {
 	margin: 0;
 	line-height: 1;
 	display: block;
 }
 
-.stonetop-follower-portrait-frame:hover,
+.stonetop-follower-portrait-pip:hover,
 .stonetop-header-pip:hover {
 	background: var(--st-btn-primary-bg, #556b8b);
 	color: var(--st-btn-primary-text, #fff);
@@ -26699,13 +26700,20 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 
 /* The Tokenizer pip sits one slot to the LEFT of the crop pip: 6px inset + the crop pip's 26px
    + a 4px gap. Both are absolutely positioned, so this — not DOM order — is what puts them side
-   by side, and the partial deliberately emits this one first so tabbing runs left to right.
-
-   Only ever rendered on a sheet header (the partial is used by actor-header, monster and npc), so
-   there is no follower-card variant to place: a follower card is a flag rather than an Actor and
-   Tokenizer has nothing to act on there. */
+   by side, and the partial deliberately emits this one first so tabbing runs left to right. */
 .stonetop-portrait-tokenize-pip {
 	right: 36px;
+}
+
+/* The same slot on a follower card, off the card's own numbers: the crop pip hangs at -1px and
+   is 20px wide, plus the same 4px gap. A follower is an Actor once they have been placed on a
+   map (module/hooks/FollowerDrop.js), which is exactly when there is a token to make and exactly
+   when the sheet renders this pip.
+
+   Must sit AFTER the shared block above, which gives every pip `right: -1px`: one class each,
+   so the two tie on specificity and only source order separates them. */
+.stonetop-follower-portrait-tokenize {
+	right: 23px;
 }
 
 /* The clipping box the Actors sidebar's framed rows get (hooks/ActorDirectoryPortraits.js).

@@ -116,12 +116,33 @@ describe("placeFollowerToken", () => {
 		expect(layer._onDropActorData).toHaveBeenCalledWith({}, expect.objectContaining({ uuid: "Actor.new0" }));
 	});
 
-	it("ignores a stale actorUuid rather than failing the drop", async () => {
+	it("ignores a stale actorUuid rather than failing the drop, and re-links the card", async () => {
+		// Deleting a follower's NPC is a decision, so the sheet's own sweep leaves that card
+		// alone forever after (follower-actors.js#answeredFor). THIS is the way back: a drop is
+		// an explicit "put them on the map", so it makes a fresh actor and points the card at
+		// it — which restores the card's Tokenizer pip and stops the next drop making a third.
 		const data = { ...DROP, follower: { ...DROP.follower, actorUuid: "Actor.deleted" } };
 
 		await placeFollowerToken(makeCanvas(), data, {});
 
 		expect(globalThis.Actor.create).toHaveBeenCalledTimes(1);
+		expect(layer._onDropActorData).toHaveBeenCalledWith({}, expect.objectContaining({ uuid: "Actor.new0" }));
+		expect(character.update).toHaveBeenCalledWith({
+			"flags.stonetop-pwd.customFollowers.f1.actorUuid": "Actor.new0",
+		});
+	});
+
+	it("rebuilds a recruited NPC who has since been deleted, rather than refusing the drop", async () => {
+		// The person they were recruited from IS them, but only while they exist. Once that NPC
+		// is gone the follower is still on the sheet and still has to be placeable.
+		const data = { ...DROP, follower: { ...DROP.follower, sourceUuid: "Actor.elios" } };
+
+		await placeFollowerToken(makeCanvas(), data, {});
+
+		expect(globalThis.Actor.create).toHaveBeenCalledTimes(1);
+		expect(character.update).toHaveBeenCalledWith({
+			"flags.stonetop-pwd.customFollowers.f1.actorUuid": "Actor.new0",
+		});
 	});
 
 	it("warns instead of placing when the user can't create tokens here", async () => {

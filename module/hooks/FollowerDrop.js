@@ -17,9 +17,14 @@
 // dropCanvasData must answer synchronously, so — like the place-of-interest note hook —
 // the work is fired-and-forgotten and we return false to tell core we've claimed the drop.
 
-import { FOLLOWER_DRAG_TYPE, FOLLOWER_FOLDER, followerNpcActorData } from "../data/follower-actor.js";
+import { FOLLOWER_DRAG_TYPE } from "../data/follower-actor.js";
 import { SYSTEM_ID } from "../system-id.js";
-import { ensureNamedActorFolder } from "../actors/steading/steading-people.js";
+// The folder and what making a follower's actor MEANS (its provenance stamp and its ownership)
+// are shared with the sweep that now makes them at the moment a follower is added, so a follower
+// placed by a drop and one made on the sheet cannot come out as two different kinds of NPC.
+import { createFollowerActor, ensureFollowerFolder } from "../actors/character/follower-actors.js";
+
+export { ensureFollowerFolder };
 
 // dropCanvasData hook: claim only our follower payload and leave every other drop
 // (tokens, tiles, journal pins, other systems') to core by returning nothing.
@@ -28,13 +33,6 @@ export function onDropFollower(canvas, data, event) {
 	placeFollowerToken(canvas, data, event);
 	return false;
 }
-
-/**
- * The Actor folder followers-turned-actors are filed in, creating it on demand. A player
- * can't create folders, so they just land at the sidebar root — an unfiled actor beats a
- * failed drop.
- */
-export const ensureFollowerFolder = () => ensureNamedActorFolder(FOLLOWER_FOLDER);
 
 /** The Actor a uuid points at, or null for a blank/stale/non-Actor uuid. */
 async function _actorFromUuid(uuid) {
@@ -87,9 +85,18 @@ async function _resolveFollowerActor(data) {
 		ui.notifications.warn(`You don't have permission to create actors, so ${follower.name || "this follower"} can't be placed on the map. Ask your GM to place them.`);
 		return null;
 	}
-	const folder = (await ensureFollowerFolder())?.id ?? null;
-	const origin = { characterUuid: data.characterUuid ?? null, ftype: data.ftype ?? null, slug: data.slug ?? null };
-	const created = await Actor.create(followerNpcActorData(follower, { folder, origin }));
+	// Reaching this at all is now the exception rather than the rule: a follower normally gained
+	// their actor the moment they were added to the sheet. What still lands here is a card whose
+	// actor was deliberately deleted (the sweep leaves those alone — see answeredFor), and one
+	// belonging to a character nobody could write to when it was added.
+	//
+	// The character document, not just its uuid, because the new actor takes ITS ownership: a
+	// follower placed by the GM must still open for the player whose follower it is.
+	const character = await _actorFromUuid(data.characterUuid);
+	const created = await createFollowerActor(
+		{ ftype: data.ftype, slug: data.slug, follower },
+		character ?? { uuid: data.characterUuid ?? null, ownership: {} },
+	);
 	if (created) {
 		await _rememberFollowerActor(data, created);
 		ui.notifications.info(`Created the NPC “${created.name}” from ${data.characterName || "this character"}'s follower.`);

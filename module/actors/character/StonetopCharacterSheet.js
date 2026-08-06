@@ -72,8 +72,11 @@ import {resolvePortrait} from "../../utils/portrait-frame.js";
 import {displayPortraitSrc} from "../../book2-art/people-portraits.js";
 import {followerFrameHandle} from "../../utils/portrait-frame-handles.js";
 import {openPortraitFrameEditor} from "../../utils/PortraitFrameDialog.js";
-import {headerPortraitContext, usedActorPortraits, wirePortraitPopout} from "../../utils/actor-portrait-picker.js";
-import {localize} from "../../utils/i18n.js";
+import {headerPortraitContext, usedActorPortraits, wirePortraitPopout, pointImagePopoutAt} from "../../utils/actor-portrait-picker.js";
+import {addPopoutHeaderControl, addPortraitFrameControl, addTokenizerControl} from "../../utils/popout-header-control.js";
+import {canOpenTokenizer, openTokenizer} from "../../utils/portrait-tokenizer.js";
+import {ensureFollowerActors, followerActorFromLink} from "./follower-actors.js";
+import {localize, format} from "../../utils/i18n.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "con", "int", "wis", "cha"]);
 const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
@@ -485,6 +488,10 @@ const _fillSlug = (tpl, slug) => tpl == null ? null : tpl.replaceAll("{slug}", s
 
 // `.details` namespace for a follower's hand-edited extras + stat overrides, or null.
 function _followerDetailBase(ftype, slug) { return _fillSlug(_FOLLOWER_FLAGS[ftype]?.detailBase, slug); }
+
+// Who a follower already IS, and what making them an actor means, both live in
+// actors/character/follower-actors.js — one place, because the sweep that makes them and the
+// pips that act on them have to agree about it.
 
 // Type-root path for a structurally-stored field (name / pronoun / instinct / cost), or null.
 function _followerStructuralPath(ftype, field) { return _FOLLOWER_FLAGS[ftype]?.structural?.[field] ?? null; }
@@ -1348,20 +1355,38 @@ export function createStonetopCharacterSheetClass(Base) {
 					// Roster: governed by its own pencil (or the whole-tab edit), not the card button.
 					individuals: followersEditing || this._editingSections.has(`follower-individuals:${ftype}:${slug}`),
 				};
-				// The portrait does two different things depending on the card's pencil, the
-				// same split every other portrait in the system uses (PC header, NPC and
-				// monster sheets): reading the sheet, a tap ENLARGES the picture; editing it,
-				// a tap opens the gallery to change it.
+				// A face is never behind the card's pencil. It is chosen from a gallery rather
+				// than typed, so no stray keystroke can disturb it, and it stays as editable
+				// while READING the card as the sheet's own header portrait is while reading
+				// the sheet (utils/actor-portrait-picker.js, openActorPortraitFromSheet).
 				//
-				// It used to open the gallery in both modes, on the reasoning that a portrait
-				// is picked rather than typed and so needs no protection from a stray
-				// keystroke. That missed the more common intent: most taps on a face are
-				// someone wanting to see it, not replace it.
-				card.portraitEditable = this.isEditable && cardOn;
+				// What the pencil changes is only what a TAP means, the same split every other
+				// portrait in the system makes: with the pencil open — the mode you are in to
+				// change things — a tap goes straight to the gallery; reading the card, it
+				// ENLARGES the picture instead, because most taps on a face are someone wanting
+				// to see it. The window that opens carries "Edit Photo" and "Frame Face" of its
+				// own (see _onFollowerPortraitView), so nothing is out of reach either way.
+				//
+				// A follower with no face yet has nothing to enlarge, so their tap opens the
+				// gallery in both modes: an avatar that does nothing when clicked is exactly
+				// the state someone most needs it from.
+				const canWritePortrait = this.isEditable;
+				card.portraitEditable = canWritePortrait && (cardOn || !card.img);
 				card.portraitViewable = !!card.img && !card.portraitEditable;
+				// The crop pip, drawn in BOTH modes on the terms the header's pips use: real art
+				// to frame, and a viewer who may write it. Framing is not an edit-mode act — it
+				// is a reading choice about a picture that already exists.
+				card.portraitFrameable = canWritePortrait && !!card.img;
+				// Its neighbour, for the TOKEN — the same pair, in the same order, a sheet header
+				// carries. A follower has a token to make once they exist as an Actor, which is
+				// normally the moment they were added (ensureFollowerActors below). Never offered
+				// where clicking it would have to CREATE that actor: a card whose actor has been
+				// deliberately deleted keeps its stale link and is left alone, and a 20px pip is
+				// not the place to quietly overrule that.
+				card.portraitTokenizable = card.portraitFrameable && canOpenTokenizer(followerActorFromLink(card));
 				// One class drives the cursor and the hover ring for both jobs; the handler
-				// decides which by mode. A card with no portrait and no pencil does nothing,
-				// so it gets neither.
+				// decides which by mode. A card with no portrait that nobody may change does
+				// nothing, so it gets neither.
 				card.portraitInteractive = card.portraitEditable || card.portraitViewable;
 				return card;
 			};
@@ -2919,10 +2944,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			// at a face is not an edit, and a player reading a sheet they can't edit is
 			// exactly who most wants a better look at it.
 			//
-			// The picker is nonetheless reached only through the --editable class, which the
-			// template renders behind the same sheet-level editability that put the tabindex
-			// on the element. So the pointer path and the keyboard path are gated by one fact,
-			// in one place, and this call site needs no second check.
+			// The --editable class marks a portrait that DOES something on a tap, in either
+			// mode; which of the two it does is data-portrait-mode, and the writing routes
+			// (the gallery, the framer) carry their own isEditable check in getData, where the
+			// class and the tabindex are decided together. So the pointer path and the keyboard
+			// path are gated by one fact, in one place, and this call site needs no second check.
 			wireAvatarPreview(html[0], ".stonetop-follower-portrait-img");
 			const pickFollowerPortrait = ev => {
 				// Cheap test first: this is bound in capture phase on the whole sheet, so every
@@ -2935,23 +2961,39 @@ export function createStonetopCharacterSheetClass(Base) {
 				// out from under the card while the gallery opens over it.
 				ev.preventDefault();
 				ev.stopPropagation();
-				// The crop pip sits inside the portrait and opens the framer instead of the
-				// gallery. Checked after the portrait lookup so it inherits the same guards, and
-				// the pip carries tabindex="-1" so it never takes the card's tab stop.
+				// The two pips sit inside the portrait and do their own job instead of the
+				// gallery's. Checked after the portrait lookup so they inherit the same guards,
+				// and each carries tabindex="-1" so neither takes the card's tab stop.
 				if (ev.target.closest?.(".stonetop-follower-portrait-frame")) {
 					this._onFollowerPortraitFrame(portrait);
 					return;
 				}
-				// Reading the sheet, a tap enlarges the face; editing the card, it opens the
-				// gallery. Stated as an attribute rather than inferred from what else is on the
-				// card: an editable follower with no portrait yet has no crop pip either, and
-				// inferring the mode from the pip would send exactly that case to the viewer,
-				// which has nothing to show.
+				if (ev.target.closest?.(".stonetop-follower-portrait-tokenize")) {
+					this._onFollowerTokenize(portrait);
+					return;
+				}
+				// Reading the card, a tap enlarges the face; editing it — or with no face yet to
+				// enlarge — it opens the gallery. Stated as an attribute rather than inferred
+				// from what else is on the card: the crop pip is now drawn in both modes, so
+				// nothing in the DOM distinguishes them any more.
 				if (portrait.dataset.portraitMode === "pick") this._onFollowerPortraitPick(portrait);
 				else this._onFollowerPortraitView(portrait);
 			};
 			html[0].addEventListener("click", pickFollowerPortrait, true);
 			html[0].addEventListener("keydown", pickFollowerPortrait, true);
+
+			// Every follower on this sheet becomes an `npc` Actor, made here rather than at each of
+			// the dozen places a follower can arrive from (the walkthrough, a converted monster or
+			// NPC, a possession, an arcana summon, the onboarding dialog's animal companion, crew
+			// and initiates). All of them end in a render of this sheet, and this is the first
+			// point at which a card is finished enough to become an actor: its numbers come from
+			// the playbook and the override passes, not from the raw flags.
+			//
+			// Fired and forgotten. Nothing on screen waits for it — the cards are already drawn —
+			// and the write it makes at the end re-renders the sheet with the links in place. It
+			// does nothing at all once every follower has one, which is the state after the first
+			// pass; see ensureFollowerActors for the rest of the guards.
+			ensureFollowerActors(this.actor, [...(this._followerDragData?.values() ?? [])]);
 
 			// Followers tab: drag a card onto the canvas to put that follower on the map as a
 			// token (module/hooks/FollowerDrop.js turns the payload below into an Actor).
@@ -5369,7 +5411,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				moveResults: {
 					success: { value: "They go, now." },
 					partial: { value: "They go, but take their time and likely do some harm on the way out." },
-					failure: { value: "Spend their Loyalty or mark a consequence and they'll eventually go &mdash; otherwise, this batch breaks free of your control." },
+					failure: { value: "Spend their Loyalty or mark a consequence and they'll eventually go, otherwise this batch breaks free of your control." },
 				},
 			});
 			const total = Number(roll?.total) || 0;
@@ -5559,6 +5601,12 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * the same reason the NPC header and the hover preview do: the square is a small face cut
 		 * out of a standing figure, so popping it out would answer "show me this bigger" with a
 		 * picture smaller than the one just tapped.
+		 *
+		 * The window carries the same two controls a sheet's own portrait window does — "Edit
+		 * Photo", which opens the People of Stonetop gallery, and "Frame Face" — so a follower's
+		 * face can be changed or re-framed while READING the card, without first opening its
+		 * pencil. That is the whole reason a tap here enlarges rather than picks: the picker is
+		 * one control away, so making the common intent (see it) the default costs nothing.
 		 */
 		_onFollowerPortraitView(portrait) {
 			if (!portrait) return;
@@ -5568,7 +5616,117 @@ export function createStonetopCharacterSheetClass(Base) {
 			// The popup is portaled to <body> and would otherwise hang over the popout.
 			removeAvatarPreview();
 			const name = imgEl.dataset.name || "Follower";
-			imagePopout({ src: displayPortraitSrc(stored), title: name })?.render(true);
+			const popout = imagePopout({ src: displayPortraitSrc(stored), title: name });
+			if (!popout) return;
+			popout.render(true);
+
+			this._hangFollowerPortraitControls(popout, portrait, name);
+		}
+
+		/**
+		 * The two controls a follower's portrait window carries, hung as a unit so a window that
+		 * had to re-render — which builds a fresh header and drops what was on the old one — can
+		 * have them put back with one call.
+		 *
+		 * `card` is the .stonetop-follower-portrait element the window was opened from; it is only
+		 * read for the (ftype, slug) pair, since the live element is re-looked-up per click.
+		 */
+		_hangFollowerPortraitControls(popout, card, name) {
+			if (!popout || !card) return;
+			const { ftype, slug } = card.dataset;
+			// The element is re-looked-up per click rather than captured: picking a new face
+			// re-renders the sheet under this window, and the one in the closure is by then a
+			// detached copy still carrying the OLD portrait — so a second Edit Photo would open
+			// the gallery with the previous face marked as the one in use. The captured element
+			// remains the fallback for when the sheet itself has been closed behind the window;
+			// its ftype/slug are all the picker needs to write.
+			const liveCard = () => this._followerPortraitEl(ftype, slug) ?? card;
+
+			// The same "Edit Photo" the sheet headers and the steading roster put on a photo,
+			// opening the same gallery, so the control means one thing wherever it is met.
+			//
+			// A follower's face is a flag on this character rather than a document's own `img`, so
+			// there is no updateActor/img change for the window to follow (what
+			// bindImagePopoutToActor gives a sheet header's). It is pointed at the new picture from
+			// the pick itself, and re-hung when that patch had to fall back to a re-render. A
+			// CLEARED portrait leaves nothing to show, so the window closes rather than sit there
+			// displaying a face nobody wears any more.
+			if (this.isEditable) {
+				addPopoutHeaderControl(popout, {
+					key: "stonetop-edit-follower-photo",
+					icon: "fa-camera",
+					label: localize("stonetop.portraitPicker.popout"),
+					onClick: () => this._onFollowerPortraitPick(liveCard(), {
+						onPicked: (src) => {
+							if (!pointImagePopoutAt(popout, displayPortraitSrc(src))) {
+								this._hangFollowerPortraitControls(popout, card, name);
+							}
+						},
+						onCleared: () => popout.close(),
+					}),
+				});
+			}
+			// Tokenizer, for the TOKEN — the same control the sheet headers' window carries, on
+			// the same terms as this card's own Tokenizer pip. TWO handles rather than one,
+			// because a follower's two portraits are genuinely two things: the face on the card
+			// is a flag on this character (what the framer edits), while the token is made for
+			// the Actor they were placed on the map as. addTokenizerControl reads only these two
+			// fields and gates itself on both. Registered BEFORE the framing control so it lands
+			// to its left, matching the order of the pips.
+			addTokenizerControl(popout, {
+				canWrite: this.isEditable,
+				actor: this._followerLinkedActor(ftype, slug),
+			});
+			// Which square of this portrait the small round surfaces show. The handle answers both
+			// "is there anything to frame" and "may this viewer write it", so the control gates
+			// itself; a follower type with no flag namespace yields none and gets nothing.
+			const base = _followerDetailBase(ftype, slug);
+			const handle = base ? followerFrameHandle(this.actor, base, { editable: this.isEditable }) : null;
+			addPortraitFrameControl(popout, handle, {
+				name,
+				// A frame write touches neither `img` nor anything the sheet watches, so nothing
+				// re-renders on its own.
+				onSaved: () => this.render(false),
+			});
+		}
+
+		/**
+		 * The Actor a follower card has already become, if any — what its Tokenizer pip and the
+		 * matching control on its portrait window both act on. Reads the card's stored link out
+		 * of the flags rather than the DOM, so it is right after a re-render and after a drop
+		 * that wrote the link while the sheet was open.
+		 */
+		_followerLinkedActor(ftype, slug) {
+			const base = _followerDetailBase(ftype, slug);
+			if (!base) return null;
+			const detail = foundry.utils.getProperty(resolvedFlags(this.actor), base) ?? {};
+			return followerActorFromLink(detail);
+		}
+
+		/**
+		 * Open Tokenizer on the Actor this follower already is. Never creates one — the pip is
+		 * rendered only where that Actor exists (see withSectionEdits), so a missing one here is
+		 * a card whose link went stale (the actor deleted) rather than a case to make it up.
+		 */
+		_onFollowerTokenize(portrait) {
+			if (!this.isEditable || !portrait) return;
+			const actor = this._followerLinkedActor(portrait.dataset.ftype, portrait.dataset.slug);
+			if (!actor) {
+				ui.notifications?.warn?.(localize("stonetop.portraitFrame.noTokenizeTarget"));
+				return;
+			}
+			openTokenizer(actor);
+		}
+
+		/**
+		 * The live element for a follower card's portrait, by the same (ftype, slug) pair every
+		 * other follower handler resolves its flag paths through. Null once the sheet is closed.
+		 */
+		_followerPortraitEl(ftype, slug) {
+			const root = this.element?.[0] ?? this.element;
+			if (!root?.querySelector || !ftype) return null;
+			const esc = globalThis.CSS?.escape ?? (s => s);
+			return root.querySelector(`.stonetop-follower-portrait[data-ftype="${esc(ftype)}"][data-slug="${esc(slug ?? "")}"]`);
 		}
 
 		_onFollowerPortraitFrame(portrait) {
@@ -5581,17 +5739,26 @@ export function createStonetopCharacterSheetClass(Base) {
 			// No early return on a null handle: openPortraitFrameEditor reports why it cannot
 			// open, which is the difference between a diagnosable message and a dead button.
 			const handle = followerFrameHandle(this.actor, base, { editable: this.isEditable });
+			// The same title the framer carries everywhere else (addPortraitFrameControl builds
+			// it for the window control this card's portrait ALSO offers), so the two routes to
+			// framing one follower cannot come to disagree about what the window is called.
+			const name = portrait.querySelector(".stonetop-follower-portrait-img")?.dataset.name || "Follower";
 			openPortraitFrameEditor({
 				handle,
 				img: handle?.img,
-				title: portrait.dataset.frameTitle || "Frame Face",
+				title: format("stonetop.portraitFrame.title", { name }),
 				// A frame write touches neither `img` nor anything the sheet watches, so nothing
 				// re-renders on its own.
 				onSaved: () => this.render(false)
 			});
 		}
 
-		_onFollowerPortraitPick(portrait) {
+		/**
+		 * `onPicked` / `onCleared` are for a caller with something of its own to keep in step —
+		 * the portrait window this same face can be edited from, which sits open across the pick
+		 * and would otherwise go on showing the picture that has just been replaced.
+		 */
+		_onFollowerPortraitPick(portrait, { onPicked, onCleared } = {}) {
 			if (!this.isEditable || !portrait) return;
 			const base = _followerDetailBase(portrait.dataset.ftype, portrait.dataset.slug);
 			if (!base) return;
@@ -5607,6 +5774,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const apply = async src => {
 				await this.actor.setFlag("stonetop-pwd", path, src ?? "");
 				this.render(false);
+				onPicked?.(src ?? "");
 			};
 			openPeoplePortraitPicker({
 				current,
@@ -5622,6 +5790,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						[`flags.stonetop-pwd.${base}.-=portraitFrame`]: null,
 					});
 					this.render(false);
+					onCleared?.();
 				},
 				// A browsed file is exactly the case with no sensible default framing, so offer
 				// the framer the moment one is chosen.
@@ -5654,7 +5823,8 @@ export function createStonetopCharacterSheetClass(Base) {
 		// outcome. Every other follower's "action" just posts a note recording the GM's
 		// call.
 		async _resolveFollowerFate(action, { name, loyalty, follower, slug } = {}) {
-			const who = escHtml(name || "Your follower");
+			const plainWho = name || "Your follower";
+			const who = escHtml(plainWho);
 			if (action === "roll") {
 				await rollStat("", this.actor, {
 					statValue:   0,
@@ -5662,10 +5832,13 @@ export function createStonetopCharacterSheetClass(Base) {
 					rollMode:    loyalty > 0 ? "adv" : "normal",
 					noXpOnMiss:  true,
 					moveDescription: `<p>When your <strong><em>companion is at 0 HP</em></strong>, roll +0, with advantage if it holds Loyalty.</p>`,
+					// Plain text, and the unescaped name: the card escapes these itself (and
+					// persists them into a data-outcome-* attribute), so tags would print as
+					// literal markup and a pre-escaped "&" would come out as "&amp;".
 					moveResults: {
-						success: { label: "10+", value: `<strong>${who}</strong> will be fine once it regains any HP.` },
-						partial: { label: "7–9", value: `<strong>${who}</strong> survives but takes the <em>injured</em> tag.` },
-						failure: { label: "6–", value: `<strong>${who}</strong> is injured and will die soon unless someone saves it.` },
+						success: { label: "10+", value: `${plainWho} will be fine once it regains any HP.` },
+						partial: { label: "7–9", value: `${plainWho} survives but takes the "injured" tag.` },
+						failure: { label: "6–", value: `${plainWho} is injured and will die soon unless someone saves it.` },
 					},
 				});
 				this.render(false);

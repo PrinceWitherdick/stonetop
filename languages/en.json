@@ -773,7 +773,8 @@
       "readOnly": "You do not have permission to change this portrait.",
       "noImage": "Choose a portrait first, then you can frame it.",
       "openFailed": "The portrait framer could not open. See the console for details.",
-      "tokenizerPip": "Open Tokenizer"
+      "tokenizerPip": "Open Tokenizer",
+      "noTokenizeTarget": "Tokenizer works on the actor this follower was placed as, and that actor is gone. Drag the card onto a scene to place them again."
     }
   }
 }
