@@ -21,6 +21,8 @@ import {OrderFollowersDialog} from "./dialogs/OrderFollowersDialog.js";
 import {FollowerFateDialog} from "./dialogs/FollowerFateDialog.js";
 import {CallUpDeepOnesDialog} from "./dialogs/CallUpDeepOnesDialog.js";
 import {RING_SOURCE_UUID, SERVANT_SOURCE_UUID, buildServantFollower} from "../../data/servant-of-daagon.js";
+import {grantedWeaponForMove, weaponTraitText} from "../../data/weapons.js";
+import {ALT_STAT_GRANTS} from "../../data/alt-stat-grants.js";
 import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {wireTabSearch} from "../../utils/tab-search.js";
@@ -74,19 +76,6 @@ import {localize} from "../../utils/i18n.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "con", "int", "wis", "cha"]);
 const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
-
-// Playbook moves that let a character roll a different stat for a basic move. When
-// the actor owns `ownsMove`, the basic move named `whenMove` (or, for blanket
-// grants, any move whose default stat is `whenDefaultStat`) offers `altStat` as an
-// extra choice in the roll's stat picker. Mind Over Magic (arcanum rolls) is not
-// covered here — arcana roll through a separate path.
-const ALT_STAT_GRANTS = [
-	{ whenMove: "Clash",               ownsMove: "Skill at Arms",    altStat: "dex" },
-	{ whenMove: "Clash",               ownsMove: "Purifying Flames", altStat: "wis" },
-	{ whenMove: "Know Things",         ownsMove: "Well-Read",        altStat: "wis" },
-	{ whenMove: "Persuade (vs. NPCs)", ownsMove: "Wild Speech",      altStat: "wis" },
-	{ whenDefaultStat: "con",          ownsMove: "Laugh at Danger",  altStat: "cha" },
-];
 
 const STAT_TOOLTIPS = {
 	str: "Your physical power and ability to use it. Roll +STR to Clash, or to Defy Danger with raw might or power.",
@@ -2463,7 +2452,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 				const altChoice = this._altStatChoiceForRollable(rollable);
 				if (altChoice) {
-					this._promptStatChoice(altChoice.item, rollable, altChoice.stats, { shiftKey: ev.shiftKey });
+					this._promptStatChoice(altChoice.item, rollable, altChoice.stats, { shiftKey: ev.shiftKey, grants: altChoice.grants });
 					return;
 				}
 				// Optional pre-roll modifier prompt for 2d6 move/stat rolls (not damage).
@@ -4515,7 +4504,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (askItem) return this._promptStatChoice(askItem, rollable, undefined, { shiftKey });
 
 			const altChoice = this._altStatChoiceForRollable(rollable);
-			if (altChoice) return this._promptStatChoice(altChoice.item, rollable, altChoice.stats, { shiftKey });
+			if (altChoice) return this._promptStatChoice(altChoice.item, rollable, altChoice.stats, { shiftKey, grants: altChoice.grants });
 
 			const situational = await this._maybePromptRollModifier({ shiftKey, rollable });
 			if (situational === null) return;   // player cancelled the modifier prompt
@@ -4579,7 +4568,9 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		// A fixed-stat move (e.g. Clash +STR) becomes a stat choice when the actor owns a
 		// move that grants an alternate stat for it (e.g. Skill at Arms → +DEX). Returns
-		// { item, stats: [default, ...alts] } or null. See ALT_STAT_GRANTS.
+		// { item, stats: [default, ...alts], grants: [grantingMove, …] } or null — the
+		// granting moves come back so the picker can show the rule that earned the extra
+		// stat (their own text carries the fictional trigger). See ALT_STAT_GRANTS.
 		_altStatChoiceForRollable(rollable) {
 			const itemId = rollable.closest(".item")?.dataset.itemId;
 			if (!itemId) return null;
@@ -4587,17 +4578,19 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (!item || item.type !== "move") return null;
 			const defaultStat = normalizeRollType(item.system?.rollType);
 			if (!defaultStat || !_STAT_KEYS.has(defaultStat)) return null; // skip "ask"/formula moves
-			const owned = new Set(this.actor.items.filter(i => i.type === "move").map(i => i.name));
+			const owned = new Map(this.actor.items.filter(i => i.type === "move").map(i => [i.name, i]));
 			const alts = [];
+			const grants = [];
 			for (const g of ALT_STAT_GRANTS) {
 				const matches = (g.whenMove && g.whenMove === item.name)
 					|| (g.whenDefaultStat && g.whenDefaultStat === defaultStat);
 				if (matches && owned.has(g.ownsMove) && g.altStat !== defaultStat && !alts.includes(g.altStat)) {
 					alts.push(g.altStat);
+					grants.push(owned.get(g.ownsMove));
 				}
 			}
 			if (!alts.length) return null;
-			return { item, stats: [defaultStat, ...alts] };
+			return { item, stats: [defaultStat, ...alts], grants };
 		}
 
 		// Optional pre-roll modifier prompt, gated by the "Prompt for Roll Modifier"
@@ -4616,7 +4609,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			return promptRollModifier({ title: resolvedTitle });
 		}
 
-		_promptStatChoice(item, rollable, statKeys = _STAT_KEYS, { shiftKey = false } = {}) {
+		// `grants` are the moves that opened this choice up (empty for a move whose own
+		// rollType is "ask"). Their text is quoted under the question so the player can
+		// see the rule — and its fictional trigger, which we don't enforce — before picking.
+		_promptStatChoice(item, rollable, statKeys = _STAT_KEYS, { shiftKey = false, grants = [] } = {}) {
 			const stats = this.actor.system?.stats ?? {};
 			const buttons = {};
 			for (const key of statKeys) {
@@ -4633,9 +4629,26 @@ export function createStonetopCharacterSheetClass(Base) {
 					label: `${label} (${sign(value)})`,
 				};
 			}
+			const whyHtml = grants.filter(Boolean).map(grant => {
+				// A move that also turns something into a weapon (Purifying Flames' holy light)
+				// changes the damage, not just the stat — spell that out here, since the damage
+				// die is the part that's easy to miss in the move's prose.
+				const granted = grantedWeaponForMove(grant.name);
+				const weaponNote = granted
+					? `<p class="stonetop-stat-picker-weapon"><i class="fas fa-dice-d10"></i>
+						Choosing ${_esc(Handlebars.helpers.statLabel(granted.whenStat))} means the
+						<strong>${_esc(granted.meta.name)}</strong> is your weapon &mdash;
+						<strong>${_esc(weaponTraitText(granted.meta))}</strong>, in place of your own damage die.</p>`
+					: "";
+				return `<div class="stonetop-stat-picker-why">
+					<strong>${_esc(grant.name)}</strong>
+					${grant.system?.description ?? ""}
+					${weaponNote}
+				</div>`;
+			}).join("");
 			new Dialog({
 				title: `${item.name} — Choose a Stat`,
-				content: `<p>Which stat are you rolling with?</p>`,
+				content: `<p>Which stat are you rolling with?</p>${whyHtml}`,
 				buttons,
 				render: bringDialogToFront,
 			}, { width: 480, classes: ["dialog", "stonetop", "stonetop-stat-picker-dialog"] }).render(true);

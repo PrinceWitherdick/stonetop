@@ -17106,15 +17106,63 @@ li.question-bullet {
 }
 
 .stonetop-stat-picker-dialog .dialog-buttons {
-	display: grid;
-	grid-template-columns: repeat(3, 1fr);
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	align-items: center;
 	gap: 6px;
 	padding: 4px 10px 12px;
 }
 
+/* Three to a row, so the six-stat "ask" picker still falls into two tidy rows. Flex
+   rather than a fixed grid so a short row (the two or three stats an alternate-stat
+   move offers) centres itself instead of hugging the left with dead space at the
+   right. Grow stays 0 so those buttons keep the same width as the six-stat case.
+
+   The basis is that third of the row, floored at the width the longest label
+   ("Constitution (+1)") actually needs. Without the floor, a player running a larger
+   Foundry "Font Size" setting outgrows a third of the row and every button falls back
+   to its own text width, so the six stats come out ragged and unaligned instead of
+   wrapping to two even columns. The floor is in rem so it tracks that setting, and
+   the margin reset kills core's v1-compat `margin: 0 5px 0 0`, which would otherwise
+   put the gap on one side only. */
 .stonetop-stat-picker-dialog .dialog-buttons button {
-	width: 100%;
+	flex: 0 0 max(7.9rem, calc((100% - 12px) / 3));
+	width: auto;
+	margin: 0;
 	white-space: nowrap;
+}
+
+/* The move that earned this extra stat, quoted under the question — the book's own
+   wording, which carries the fictional trigger the system doesn't enforce. */
+.stonetop-stat-picker-dialog .stonetop-stat-picker-why {
+	border: 1px solid rgba(0,0,0,0.12);
+	border-radius: var(--st-radius);
+	background: rgba(0,0,0,0.03);
+	padding: 7px 10px;
+	margin-top: 8px;
+	font-size: var(--st-fs-sm);
+}
+
+.stonetop-stat-picker-dialog .stonetop-stat-picker-why p {
+	margin: 4px 0 0;
+}
+
+.stonetop-stat-picker-dialog .stonetop-stat-picker-why p:last-child {
+	margin-bottom: 0;
+}
+
+/* The damage the alternate stat brings with it — set off from the quoted move text,
+   because a d10 replacing your own damage die is the part players miss. */
+.stonetop-stat-picker-dialog .stonetop-stat-picker-weapon {
+	margin-top: 7px;
+	padding-top: 6px;
+	border-top: 1px solid rgba(0,0,0,0.12);
+}
+
+.stonetop-stat-picker-dialog .stonetop-stat-picker-weapon i {
+	margin-right: 4px;
+	opacity: 0.7;
 }
 
 .stonetop-foreign-move-dialog .stonetop-foreign-move-select {

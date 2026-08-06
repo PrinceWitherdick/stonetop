@@ -1906,7 +1906,7 @@ export class StonetopCharacter {
 		// Returns null for non-attack moves. See module/combat/attack-flow.js.
 		let attackExtra = null;
 		if (!descriptionOnly) {
-			const begun = await maybeBeginAttack(this._actor, item);
+			const begun = await maybeBeginAttack(this._actor, item, { stat });
 			if (begun === "cancel") return true;
 			// Going on the offense (Clash / Let Fly) sheds any held Defend Readiness (p.216) —
 			// but only once the attack is committed, not on a cancelled weapon/target prompt.

@@ -21,7 +21,7 @@
 //    stays a player action.
 
 import {STONETOP_SCOPE} from "../actors/character/StonetopFlags.js";
-import {weaponMeta, isClashWeapon, isLetFlyWeapon} from "../data/weapons.js";
+import {weaponMeta, isClashWeapon, isLetFlyWeapon, weaponTraitText, weaponArmorBits, grantedWeaponForMove, MOVE_GRANTED_WEAPONS, UNARMED_META} from "../data/weapons.js";
 import {escHtml} from "../utils/strings.js";
 import {stonetopChatCard, rollFormulaChip, damageBadge} from "../utils/chat.js";
 import {rollDamage, multiDieFaces, sign} from "../utils/roll-engine.js";
@@ -76,7 +76,11 @@ async function advanceWeaponAmmo(actor, slug) {
 
 // -- Weapon enumeration -------------------------------------------------------
 
-// The carried weapons (checked inventory slugs present in WEAPON_META) that fit `move`.
+// The carried weapons (checked inventory slugs present in WEAPON_META) that fit `move`,
+// plus any weapon an owned move grants (the Lightbearer's holy light). A granted weapon
+// isn't inventory, so it's appended rather than read off the checked flags; it's offered
+// whenever its move is owned, since whether the fiction supports it — wielding a holy
+// light against a creature of darkness — is the table's call, not ours.
 function carriedAttackWeapons(actor, move) {
 	const checked = actor.getFlag(SCOPE, "inventory.checked") ?? {};
 	const out = [];
@@ -85,7 +89,32 @@ function carriedAttackWeapons(actor, move) {
 		const meta = weaponMeta(slug);
 		if (meta && move.filter(meta)) out.push({ slug, meta, ammoLabel: meta.ammo ? weaponAmmoLabel(actor, slug) : null });
 	}
-	return out;
+	for (const moveName of Object.keys(MOVE_GRANTED_WEAPONS)) {
+		// Through the accessor, so the weapon carries the stat the move actually grants for
+		// the roll rather than a second recording of it.
+		const granted = grantedWeaponForMove(moveName);
+		if (!move.filter(granted.meta)) continue;
+		if (!actor.items.some(i => i.type === "move" && i.name === moveName)) continue;
+		out.push({ slug: granted.slug, meta: granted.meta, ammoLabel: null, grantedBy: moveName, whenStat: granted.whenStat });
+	}
+	return withUnarmedChoice(out);
+}
+
+/**
+ * OFFER a move-granted weapon; never impose it. A granted weapon is owned rather than picked
+ * up, so when it's the only thing that fits the move the single-candidate shortcut in
+ * promptWeaponChoice would put a holy light in the hands of a Lightbearer who owns Purifying
+ * Flames, has no melee weapon ticked, and meant to Clash with +STR — the d10 + 2 piercing +
+ * area arriving with no prompt and no way back. The unarmed row goes in FIRST so it is what a
+ * stat that doesn't imply the granted weapon defaults to; +WIS still pre-selects the light
+ * through `preferSlug`. Carried weapons are left alone: one ticked weapon IS the player's
+ * answer, and a prompt for it would only be in the way.
+ *
+ * Exported for the tests; the flow only reaches it through carriedAttackWeapons.
+ */
+export function withUnarmedChoice(candidates) {
+	if (!candidates.length || !candidates.every(c => c.grantedBy)) return candidates;
+	return [{ slug: "", meta: UNARMED_META, ammoLabel: null, unarmed: true }, ...candidates];
 }
 
 // The flattened, storable weapon record baked into the chat card (no functions).
@@ -97,30 +126,24 @@ function serializeWeapon({ slug, meta }) {
 	};
 }
 
-// A short readout of a weapon's mechanically-relevant traits for the picker.
-function weaponTraitText(meta) {
-	const bits = [meta.range.join(", ")];
-	if (meta.damageBonus) bits.push(`${sign(meta.damageBonus)} damage`);
-	if (meta.piercing === "prosperity") bits.push("x piercing");
-	else if (meta.piercing) bits.push(`${meta.piercing} piercing`);
-	if (meta.ignoresArmor) bits.push("ignores armor");
-	if (meta.area) bits.push("area");
-	if (meta.damageDie) bits.push(`${meta.damageDie} damage`);
-	if (meta.tags?.length) bits.push(meta.tags.join(", "));
-	return bits.filter(Boolean).join(" · ");
-}
-
 // -- Prompts ------------------------------------------------------------------
 
 // Ask which weapon is in hand. Returns { weapon } (possibly null — unarmed / no matching
-// weapon) or "cancel". Auto-resolves without a dialog for 0 or 1 candidate.
-function promptWeaponChoice(candidates, moveName) {
+// weapon) or "cancel". Auto-resolves without a dialog for 0 or 1 candidate. `preferSlug`
+// pre-checks a candidate instead of the first — the stat the player rolled can imply the
+// weapon (+WIS on Clash means the Lightbearer's holy light). The unarmed row (see
+// withUnarmedChoice) is a choice, not a weapon: picking it resolves to null, the same as
+// having nothing that fits the move.
+function promptWeaponChoice(candidates, moveName, { preferSlug = null } = {}) {
+	const chosen = (c) => ({ weapon: c?.unarmed ? null : (c ?? null) });
 	if (candidates.length === 0) return Promise.resolve({ weapon: null });
-	if (candidates.length === 1) return Promise.resolve({ weapon: candidates[0] });
+	if (candidates.length === 1) return Promise.resolve(chosen(candidates[0]));
 
+	const preferred = candidates.findIndex(c => c.slug === preferSlug);
+	const checkedIndex = preferred >= 0 ? preferred : 0;
 	const rows = candidates.map((c, i) => `<label class="stonetop-weapon-option">
-		<input type="radio" name="weapon" value="${escHtml(c.slug)}"${i === 0 ? " checked" : ""}>
-		<span class="stonetop-weapon-name">${escHtml(c.meta.name)}</span>
+		<input type="radio" name="weapon" value="${escHtml(c.slug)}"${i === checkedIndex ? " checked" : ""}>
+		<span class="stonetop-weapon-name">${escHtml(c.meta.name)}${c.grantedBy ? ` <em>(${escHtml(c.grantedBy)})</em>` : ""}</span>
 		<span class="stonetop-weapon-traits">${escHtml(weaponTraitText(c.meta))}${c.ammoLabel ? ` · <em>${escHtml(c.ammoLabel.toLowerCase())}</em>` : ""}</span>
 	</label>`).join("");
 
@@ -135,7 +158,7 @@ function promptWeaponChoice(candidates, moveName) {
 						const root = htmlEl?.[0] ?? htmlEl;
 						const slug = root.querySelector('input[name="weapon"]:checked')?.value;
 						const weapon = candidates.find(c => c.slug === slug) ?? candidates[0];
-						resolve({ weapon });
+						resolve(chosen(weapon));
 					},
 				},
 				cancel: { label: "Cancel", callback: () => resolve("cancel") },
@@ -258,7 +281,7 @@ function buildTierActions(move, weapon) {
  *   - "cancel"   → the player cancelled a prompt; abort
  *   - { … }      → merge into the roll options
  */
-export async function maybeBeginAttack(actor, item) {
+export async function maybeBeginAttack(actor, item, { stat = null } = {}) {
 	const move = attackMoveFor(item);
 	if (!move) return null;
 
@@ -269,7 +292,11 @@ export async function maybeBeginAttack(actor, item) {
 		easyShot = mode === "easy";
 	}
 
-	const picked = await promptWeaponChoice(carriedAttackWeapons(actor, move), item.name);
+	// Rolling the stat a granted weapon rides on (+WIS to Clash → Purifying Flames)
+	// pre-selects that weapon, so the d10 the move promises is what's in hand by default.
+	const candidates = carriedAttackWeapons(actor, move);
+	const preferSlug = candidates.find(c => c.whenStat && c.whenStat === stat)?.slug ?? null;
+	const picked = await promptWeaponChoice(candidates, item.name, { preferSlug });
 	if (picked === "cancel") return "cancel";
 	const weapon = picked.weapon ? serializeWeapon(picked.weapon) : null;
 
