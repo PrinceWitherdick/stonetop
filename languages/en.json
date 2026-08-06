@@ -53,8 +53,16 @@
       },
       "deathsDoor": {
         "title": "Death's Door",
-        "button": "Understand Death's Door",
-        "lockedHint": "Only available when the character is at 0 HP.",
+        "button": "Face Death's Door",
+        "clear": "No longer out of the action",
+        "chooseFate": "Choose your fate",
+        "fatePendingHint": "You rolled a 6-. Your time has come — choose how it ends.",
+        "supersededHint": "You've already died once. At 0 HP you trigger {move} instead — it's on your Moves tab.",
+        "outOfActionHint": "No longer dying, but out of the action until the GM says otherwise.",
+        "dispersedHint": "Your essence has dispersed. You reform near your tether at the next sunset with {hp} HP.",
+        "reform": "Reform at your tether",
+        "deadHint": "They stepped through the Last Door.",
+        "lockedHint": "Only available when the character is dying — at 0 HP, with the move still to face.",
         "summary": "When you <em><strong>are dying</strong></em>, you glimpse the Last Door and the Lady of Crows. Roll +nothing: on a 10+ return to 1 HP; on a 7-9 you're out of action; on a 6- choose a dark fate.",
         "description": "When you <em><strong>are dying</strong></em>, you glimpse the Last Door and the Lady of Crows (describe it). Then, roll +nothing: on a 10+, you wrest yourself back to the realm of the living&mdash;return to 1 HP but say how your brush with death has marked you; on a 7-9, the Lady waves you off&mdash;you're no longer dying but you're out of the action; on a 6-, your time has come&mdash;choose 1: make one last move as if you rolled a 12+, then step through the Last Door; refuse to go and gain the Revenant or Ghost insert; or call on one of the Things Below by name and beseech it to intercede, gaining the Thrall insert."
       },
@@ -122,7 +130,16 @@
     },
     "postDeath": {
       "chooseFate": "Choose Your Fate",
+      "chooseFateHint": "You take one of these only when it becomes relevant — you died, and refused to go. Death's Door grants it for you on a 6-; pick one here if your table resolved that away from the sheet.",
       "removeInsert": "Remove",
+      "tether": "Your Tether",
+      "tetherHint": "Tethered reforms you beside it. If it's ever destroyed, you mark the Final Consequence.",
+      "tetherPlaceholder": "Your mortal remains, the place where you died, an object of significance…",
+      "tetherMissing": "Name your tether — Tethered can't resolve without knowing where you reform.",
+      "crossedOff": "Crossed Off",
+      "crossedOffHint": "Dark Succor took these away. You can never gain them.",
+      "masterTask": "Your Master's Task",
+      "masterTaskHint": "Until it's done, your Favor stays at 0.",
       "instinct": "Instinct",
       "moves": "Granted Moves"
     },
@@ -304,6 +321,14 @@
       "startOfSessionReminders": {
         "name": "Start-of-Session Reminders",
         "hint": "Post the automatic start-of-session chat reminders, such as the Destined \"roll +Omens\" nudge. These are public cards the whole table sees. Turn this off to stop them."
+      },
+      "deathsDoorPrompt": {
+        "name": "Announce When a Character Is Dying",
+        "hint": "Post a chat card the moment a character is reduced to 0 HP, naming the move they trigger — Death's Door, or their post-death insert's own move. The card never forces the roll; the GM can hold it off until the scene wraps up. On by default."
+      },
+      "deathsDoorAutoOpen": {
+        "name": "Open the Dying Character's Move Automatically",
+        "hint": "Also open the walkthrough for the move on the dying player's own screen, rather than waiting for them to click the chat card. It opens for the player the character is assigned to and nobody else — not the GM applying the damage, and not the rest of the party. If that player isn't logged in, the GM gets it. Cancelling still leaves the card in chat, so the roll can wait. Requires the setting above."
       },
       "chatShiftButtons": {
         "name": "Shift Up/Down Buttons on Roll Cards",

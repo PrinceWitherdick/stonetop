@@ -1,85 +1,174 @@
 <div class="deaths-door-dialog-content">
 
-	{{#if isOverview}}
-	<div class="deaths-door-step deaths-door-step--overview">
-		<h2 class="deaths-door-move-name">Death's Door</h2>
-		<p class="deaths-door-intro deaths-door-move-trigger">
-			When you <strong><em>are dying</em></strong>, you glimpse the Last Door and the Lady of Crows (describe it).
+	{{! The move heads every step of its own walkthrough; "Refuse to Go" is a different move
+	    and brings its own heading. }}
+	{{#unless isFate}}
+	<h2 class="deaths-door-move-name">{{move.name}}</h2>
+	<p class="deaths-door-intro deaths-door-move-trigger">{{{move.trigger}}}</p>
+	{{/unless}}
+
+	{{#if isRoll}}
+	<div class="deaths-door-step deaths-door-step--roll">
+		{{! One <span> around the whole run: .deaths-door-note is a flex row, and bare inline
+		    text beside the icon would break into an anonymous item per run. }}
+		<p class="deaths-door-note">
+			<i class="fas fa-feather"></i>
+			<span>The Lady of Crows and the Last Door are yours and your table's to describe. They
+			might even appear differently for different characters.</span>
 		</p>
+
+		{{#if hasStatChoice}}
+		{{! The Heavy's Hard to Kill: "you can roll +CON or +nothing (your choice)". }}
+		<div class="deaths-door-roll-option">
+			<span class="deaths-door-roll-option-label">Hard to Kill &mdash; roll with:</span>
+			<div class="deaths-door-stat-choices">
+				{{#each statChoices}}
+				{{! The label wraps the radio so the text is a hit target too. No `is-checked`
+				    mirror class: the radio's own dot is the state, and the dialog doesn't
+				    re-render on change, so a stamped class would go stale on the first click. }}
+				<label class="deaths-door-stat-choice-label">
+					<input type="radio" class="deaths-door-stat-choice" name="deaths-door-stat"
+					       value="{{stat}}" {{#if selected}}checked{{/if}}>
+					<span>{{label}}</span>
+				</label>
+				{{/each}}
+			</div>
+		</div>
+		{{/if}}
+
+		{{#if unstoppableMarks}}
+		<p class="deaths-door-penalty-note">
+			<i class="fas fa-triangle-exclamation"></i>
+			<strong>Unstoppable</strong> &mdash; {{penalty}} for {{unstoppableMarks}} circle{{#unless (eq unstoppableMarks 1)}}s{{/unless}} marked.
+		</p>
+		{{/if}}
+
+		{{! Stakes first, then the roll: the button stays the last thing before the footer, where
+		    the eye lands after reading what it's for. }}
+		<div class="deaths-door-outcomes">
+			<p class="deaths-door-outcomes-label">However it lands:</p>
+			{{> "stonetop.deaths-door-outcomes" tiers=tiers}}
+		</div>
 
 		<p class="deaths-door-instruction">
 			Then, roll
-			<button type="button" class="deaths-door-roll-btn" title="Roll Death's Door (2d6, +nothing)">
-				<span class="deaths-door-roll-chip">+nothing</span>
+			<button type="button" class="deaths-door-roll-btn" title="Roll Death's Door">
+				<span class="deaths-door-roll-chip">{{#if hasStatChoice}}the dice{{else}}+nothing{{/if}}</span>
 				<i class="fas fa-dice-d6"></i>
 			</button>
 		</p>
+
+		<p class="deaths-door-note">
+			<i class="fas fa-hourglass-half"></i>
+			<span>No rush: the book lets you hold off until the scene wraps up or the other PCs
+			get a little spotlight. "Not yet" closes this and leaves you dying.</span>
+		</p>
 	</div>
 	{{/if}}
 
-	{{#if isMechanics}}
-	<div class="deaths-door-step deaths-door-step--mechanics">
-		<h2 class="deaths-door-move-name">The Roll</h2>
+	{{#if isResult}}
+	<div class="deaths-door-step deaths-door-step--result">
 		{{#if rolledTotal}}
 		<p class="deaths-door-result-banner">You rolled <strong>{{rolledTotal}}</strong>.</p>
 		{{/if}}
-		<p class="deaths-door-mechanic-intro deaths-door-move-trigger">
-			Resolve Death's Door by the result of the roll.
-		</p>
 
+		{{! The same ladder the roll step previewed, with the tier that landed picked out, so the
+		    result is read against what else was on the table. }}
 		<div class="deaths-door-outcomes">
-			<div class="deaths-door-outcome{{#if isStrong}} is-result{{/if}}">
-				<h3 class="deaths-door-outcome-label"><strong>10+</strong></h3>
-				<p class="deaths-door-outcome-text">
-					You wrest yourself back to the realm of the living&mdash;return to 1 HP but say how your brush with death has marked you.
-				</p>
-				{{#if isStrong}}
-				<div class="deaths-door-mark">
-					{{#if markSeeded}}
-					<p class="deaths-door-mark-done"><i class="fas fa-check"></i> Mark recorded on your sheet. Bring it up often.</p>
-					{{else}}
-					<p class="deaths-door-mark-label">Record how it marked you (mind, body, or soul):</p>
-					<div class="deaths-door-mark-chips">
-						{{#each markChips}}
-						<button type="button" class="deaths-door-mark-chip" data-mark="{{this}}">{{this}}</button>
-						{{/each}}
-					</div>
-					<div class="deaths-door-mark-row">
-						<input type="text" class="deaths-door-mark-input" placeholder="…or describe your own mark">
-						<button type="button" class="deaths-door-mark-add"><i class="fas fa-plus"></i> Record mark</button>
-					</div>
-					{{/if}}
+			{{> "stonetop.deaths-door-outcomes" tiers=tiers}}
+		</div>
+
+		{{#if isStrong}}
+		<div class="deaths-door-actions">
+			{{#if restored}}
+			<p class="deaths-door-applied"><i class="fas fa-check"></i> Back to <strong>1 HP</strong>, and no longer dying.</p>
+			{{/if}}
+
+			<div class="deaths-door-mark">
+				{{#if markSeeded}}
+				<p class="deaths-door-mark-done"><i class="fas fa-check"></i> Mark recorded on your sheet. Bring it up often.</p>
+				{{else}}
+				<p class="deaths-door-mark-label">Record how it marked you (mind, body, or soul):</p>
+				<div class="deaths-door-mark-chips">
+					{{#each markChips}}
+					<button type="button" class="deaths-door-mark-chip" data-mark="{{this}}">{{this}}</button>
+					{{/each}}
+				</div>
+				<div class="deaths-door-mark-row">
+					<input type="text" class="deaths-door-mark-input" placeholder="&hellip;or describe your own mark">
+					<button type="button" class="deaths-door-mark-add"><i class="fas fa-plus"></i> Record mark</button>
 				</div>
 				{{/if}}
 			</div>
-
-			<div class="deaths-door-outcome{{#if isWeak}} is-result{{/if}}">
-				<h3 class="deaths-door-outcome-label"><strong>7-9</strong></h3>
-				<p class="deaths-door-outcome-text">
-					The Lady waves you off&mdash;you&rsquo;re no longer dying but you&rsquo;re out of the action.
-				</p>
-			</div>
 		</div>
+		{{/if}}
+
+		{{#if isWeak}}
+		<div class="deaths-door-actions">
+			{{#if outOfAction}}
+			<p class="deaths-door-applied">
+				<i class="fas fa-check"></i> No longer dying. Unconscious, or close enough, until the GM says otherwise &mdash;
+				still at 0 HP.
+			</p>
+			{{/if}}
+
+			{{#if hardToKill}}
+			{{! Heavy only: the one route back to 1 HP on a weak hit. }}
+			<div class="deaths-door-debility-trade">
+				{{#if debilityTraded}}
+				<p class="deaths-door-applied"><i class="fas fa-check"></i> Debility marked &mdash; you regain <strong>1 HP</strong> and stay on your feet.</p>
+				{{else if debilityChoices.length}}
+				<p class="deaths-door-mark-label"><strong>Hard to Kill</strong> &mdash; mark a debility of your choice to regain 1 HP:</p>
+				<div class="deaths-door-debility-choices">
+					{{#each debilityChoices}}
+					<button type="button" class="deaths-door-debility-btn" data-debility="{{key}}" title="{{description}}">
+						{{name}}
+					</button>
+					{{/each}}
+				</div>
+				{{else}}
+				<p class="deaths-door-roll-option-hint">
+					<strong>Hard to Kill</strong> &mdash; all three debilities are already marked, so there's none left to trade.
+				</p>
+				{{/if}}
+			</div>
+			{{/if}}
+		</div>
+		{{/if}}
+
+		{{#if isMiss}}
+		<div class="deaths-door-actions">
+			{{#if fateApplied}}
+			<p class="deaths-door-applied"><i class="fas fa-check"></i> Your fate is recorded. The GM will take it from here.</p>
+			{{else}}
+			<div class="deaths-door-fates">
+				{{#each fates}}
+				<button type="button" class="deaths-door-fate-btn" data-fate="{{key}}">
+					<span class="deaths-door-fate-label">{{label}}</span>
+					<span class="deaths-door-fate-hint">{{hint}}</span>
+				</button>
+				{{/each}}
+			</div>
+			{{/if}}
+		</div>
+		{{/if}}
 	</div>
 	{{/if}}
 
-	{{#if isResults}}
-	<div class="deaths-door-step deaths-door-step--results">
-		<h2 class="deaths-door-move-name">On a Miss</h2>
-		{{#if rolledTotal}}
-		<p class="deaths-door-result-banner">You rolled <strong>{{rolledTotal}}</strong>.</p>
-		{{/if}}
-
-		<div class="deaths-door-outcome{{#if isMiss}} is-result{{/if}}">
-			<h3 class="deaths-door-outcome-label"><strong>6-</strong></h3>
-			<p class="deaths-door-outcome-text">
-				Your time has come&mdash;choose 1:
-			</p>
-			<ul class="deaths-door-outcome-choices">
-				<li>Make one last move as if you rolled a 12+, then step through the Last Door</li>
-				<li>Refuse to go; gain the Revenant or Ghost insert</li>
-				<li>Call on one of the Things Below by name and beseech it to intercede; gain the Thrall insert</li>
-			</ul>
+	{{#if isFate}}
+	<div class="deaths-door-step deaths-door-step--fate">
+		<h2 class="deaths-door-move-name">Refuse to Go</h2>
+		<p class="deaths-door-intro deaths-door-move-trigger">
+			The GM will ask why you refuse. Name the person, the task, or the reckoning you will not
+			leave behind &mdash; that's your Terrible Purpose. Then say which way you stay.
+		</p>
+		<div class="deaths-door-fates">
+			{{#each refusalInserts}}
+			<button type="button" class="deaths-door-insert-btn" data-slug="{{slug}}">
+				<span class="deaths-door-fate-label">{{name}}</span>
+				<span class="deaths-door-fate-hint">{{hint}}</span>
+			</button>
+			{{/each}}
 		</div>
 	</div>
 	{{/if}}
@@ -87,28 +176,17 @@
 </div>
 
 <div class="deaths-door-dialog-buttons">
-	{{#if isOverview}}
+	{{#if isRoll}}
+	<button class="deaths-door-cancel-btn" type="button">Not yet</button>
+	{{/if}}
+
+	{{#if isResult}}
+	<button class="deaths-door-close-btn is-primary" type="button">
+		<i class="fas fa-check"></i> Done
+	</button>
+	{{/if}}
+
+	{{#if isFate}}
 	<button class="deaths-door-cancel-btn" type="button">Cancel</button>
-	<button class="deaths-door-next-btn" type="button">
-		<i class="fas fa-arrow-right"></i> Continue
-	</button>
-	{{/if}}
-
-	{{#if isMechanics}}
-	<button class="deaths-door-back-btn" type="button">
-		<i class="fas fa-arrow-left"></i> Back
-	</button>
-	<button class="deaths-door-next-btn" type="button">
-		<i class="fas fa-arrow-right"></i> Continue
-	</button>
-	{{/if}}
-
-	{{#if isResults}}
-	<button class="deaths-door-back-btn" type="button">
-		<i class="fas fa-arrow-left"></i> Back
-	</button>
-	<button class="deaths-door-confirm-btn is-primary" type="button">
-		<i class="fas fa-check"></i> I Understand
-	</button>
 	{{/if}}
 </div>

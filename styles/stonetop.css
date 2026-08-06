@@ -3248,6 +3248,9 @@ input.stonetop-name-field {
 .stonetop-readonly .threat-portent,
 .stonetop-readonly .threat-portent__check,
 .stonetop-readonly .stonetop-deathsdoor-open-btn,
+/* Clearing "out of the action" is the GM saying otherwise mid-scene, not sheet editing —
+   same play-time affordance as the Death's Door button it replaces. */
+.stonetop-readonly .stonetop-deathsdoor-clear-btn,
 .stonetop-readonly .stonetop-levelup-open-btn,
 .stonetop-readonly .stonetop-recover-open-btn,
 /* Tab-search stays live outside edit mode: filtering a list is a view
@@ -8565,6 +8568,24 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* ── Death's Door dialog ────────────────────────────────────────── */
 
+/* The surfaces every control in Death's Door and Undeath is painted from. Named rather than
+   written out per rule because the window changes its mind about all of them at once: as the
+   roll goes worse the dark comes in, and a mood down in "the dark comes in from the edges"
+   repaints the whole dialog by redefining these seven values. Anything in either dialog that
+   hard-codes a paper colour instead is a surface a mood can't reach. */
+.stonetop-deathsdoor-dialog,
+.stonetop-undeath-dialog {
+	--dd-surface:       rgba(255, 255, 255, 0.8);   /* a raised control on the paper */
+	--dd-surface-hover: rgba(0, 0, 0, 0.05);
+	--dd-inset:         rgba(0, 0, 0, 0.02);        /* a recessed panel in the paper */
+	--dd-rule:          var(--color-border-light-primary, #ccc);
+	/* The tier that landed. Gold while there's still a way back; ember once there isn't. */
+	--dd-accent:        #c9a227;
+	--dd-accent-bg:     rgba(201, 162, 39, 0.12);
+	/* Washed over the whole window frame, edges inward. `none` = full daylight. */
+	--dd-veil:          none;
+}
+
 .stonetop-deathsdoor-dialog .window-content {
 	height: 100%;
 	/* Cap the auto-height window to the viewport so it can never grow past the
@@ -8590,15 +8611,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	gap: 10px;
 }
 
+/* Letterspaced a touch wider than the other dialog headings: this one is read slowly. */
 .deaths-door-move-name {
 	margin: 0;
 	font-size: var(--st-fs-xl);
 	font-family: var(--font-stonetop);
 	font-weight: bold;
+	letter-spacing: 0.045em;
 }
 
-.deaths-door-intro,
-.deaths-door-mechanic-intro {
+.deaths-door-intro {
 	margin: 0;
 	font-size: var(--st-fs-md);
 	color: var(--color-text-dark-secondary);
@@ -8629,9 +8651,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: auto;
 	margin: 0 2px;
 	padding: 2px 8px;
-	border: 1px solid var(--color-border-light-primary, #ccc);
+	border: 1px solid var(--dd-rule);
 	border-radius: var(--st-radius);
-	background: rgba(255, 255, 255, 0.8);
+	background: var(--dd-surface);
 	color: var(--color-text-dark-primary);
 	cursor: pointer;
 	line-height: 1.2;
@@ -8639,7 +8661,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 .deaths-door-roll-btn:hover {
-	background: rgba(0, 0, 0, 0.05);
+	background: var(--dd-surface-hover);
 	border-color: var(--color-text-dark-secondary);
 }
 
@@ -8667,23 +8689,98 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	color: var(--color-text-dark-secondary);
 }
 
+/* ── Death's Door: the outcome ladder ──────────────────────────────
+   All three tiers, printed before the roll so the player knows what they're rolling into and
+   again after it with the one that landed picked out. Same partial both times. */
+
 .deaths-door-outcomes {
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	gap: 6px;
+}
+
+.deaths-door-outcomes-label {
+	margin: 0;
+	font-size: var(--st-fs-sm);
+	font-weight: 600;
+	color: var(--color-text-dark-secondary);
 }
 
 .deaths-door-outcome {
 	padding: 6px 10px;
-	border: 1px solid var(--color-border-light-primary, #ccc);
+	border: 1px solid var(--dd-rule);
 	border-radius: var(--st-radius);
-	background: rgba(0, 0, 0, 0.02);
+	background: var(--dd-inset);
 }
 
 /* The tier that matches the roll just made */
 .deaths-door-outcome.is-result {
-	border-color: #c9a227;
-	background: rgba(201, 162, 39, 0.12);
+	border-color: var(--dd-accent);
+	background: var(--dd-accent-bg);
+}
+
+/* After the roll the other two are context, not competition: keep them readable but let the
+   gold tier take the eye. Before the roll all three are equally live, so this is scoped to
+   the result step. */
+.deaths-door-step--result .deaths-door-outcome:not(.is-result) {
+	opacity: 0.6;
+}
+
+/* The 6-'s three fates, listed in the preview. On the tier that actually landed they render
+   as buttons instead, so this list never doubles them up. */
+.deaths-door-outcome-options {
+	list-style: none;
+	margin: 5px 0 0;
+	padding: 0;
+	font-size: var(--st-fs-sm);
+	line-height: 1.4;
+	color: var(--color-text-dark-secondary);
+}
+
+.deaths-door-outcome-options li {
+	position: relative;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+
+.deaths-door-outcome-options li + li {
+	margin-top: 3px;
+}
+
+.deaths-door-outcome-options li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
+}
+
+/* The book's two asides on the move: the Lady and the Door are the table's to describe, and
+   the roll can wait for a better moment in the scene. */
+.deaths-door-note {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	margin: 0;
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	line-height: 1.4;
+	color: var(--color-text-dark-secondary);
+}
+
+.deaths-door-note i {
+	flex: 0 0 auto;
+	color: var(--color-text-dark-secondary);
+}
+
+/* What the tier that landed leaves the player to do: the 10+ mark, the Heavy's debility
+   trade, the three fates. Sits under the ladder rather than inside it. */
+.deaths-door-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
 }
 
 .deaths-door-outcome-label {
@@ -8728,22 +8825,33 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin-bottom: 7px;
 }
 
+/* !important throughout: core's layered `.app button` rules own width/padding/border/background
+   on any AppV1 dialog button, and a chip that inherits `width: 100%` stacks one per row. */
 .deaths-door-mark-chip {
 	width: auto !important;
 	flex: 0 0 auto;
 	padding: 2px 9px !important;
-	border: 1px solid #888 !important;
-	border-radius: 11px !important;
+	border: 1px solid var(--st-text-faint) !important;
+	border-radius: 999px !important;
 	background: transparent !important;
-	font-size: 0.8rem;
+	color: var(--color-text-dark-primary);
+	font-size: var(--st-fs-sm);
 	line-height: 1.3;
 	cursor: pointer;
 }
 
 .deaths-door-mark-chip:hover {
-	background: rgba(168, 84, 76, 0.12) !important;
-	border-color: #a8544c !important;
-	color: #a8544c;
+	background: var(--st-red-bg) !important;
+	border-color: var(--st-red-border) !important;
+	color: var(--st-red-text);
+}
+
+/* The mark input is the one place the player types on a dying character's sheet, so it keeps
+   its own well rather than inheriting core's — which a dark mood would leave near-invisible. */
+.deaths-door-mark-input {
+	border: 1px solid var(--dd-rule);
+	background: var(--dd-surface);
+	color: var(--color-text-dark-primary);
 }
 
 .deaths-door-mark-row {
@@ -8761,48 +8869,35 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	width: auto !important;
 	flex: 0 0 auto;
 	white-space: nowrap;
+	padding: 4px 12px;
+	border: 1px solid var(--dd-rule);
+	border-radius: var(--st-radius-sm);
+	background: var(--dd-surface);
+	color: var(--color-text-dark-primary);
+	cursor: pointer;
+}
+
+.deaths-door-mark-add:hover {
+	background: var(--dd-surface-hover);
+	border-color: var(--color-text-dark-secondary);
 }
 
 .deaths-door-mark-done {
 	margin: 0;
 	font-size: var(--st-fs-base);
-	color: #4a7a4a;
+	color: var(--st-green-text);
 }
 
 .deaths-door-mark-done .fa-check {
 	margin-right: 4px;
 }
 
-.deaths-door-outcome-choices {
-	list-style: none;
-	margin: 6px 0 0 0;
-	padding-left: 14px;
-	font-size: var(--st-fs-base);
-	line-height: 1.4;
-	color: var(--color-text-dark-secondary);
-}
-
-.deaths-door-outcome-choices li {
-	position: relative;
-	margin: 4px 0;
-	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
-}
-
-.deaths-door-outcome-choices li::before {
-	content: "";
-	position: absolute;
-	left: 0;
-	top: 0.2em;
-	width: var(--stonetop-bullet-size, 10px);
-	height: var(--stonetop-bullet-size, 10px);
-	background: var(--stonetop-spiral-icon) no-repeat center / contain;
-	opacity: 0.55;
-}
-
-.deaths-door-dialog-buttons {
+/* One footer for both windows (Undeath is Death's Door for a character who already died), so
+   the controls are skinned once here and only their layout differs. */
+.deaths-door-dialog-buttons,
+.undeath-dialog-buttons {
 	flex: 0 0 auto;
 	display: flex;
-	justify-content: space-between;
 	align-items: center;
 	gap: 8px;
 	margin-top: auto;
@@ -8810,46 +8905,873 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	border-top: 1px solid var(--color-border-light-primary, #ccc);
 }
 
-.deaths-door-next-btn,
-.deaths-door-confirm-btn {
-	margin-left: auto;
+/* Death's Door's lone Done fills its row; Undeath keeps Apply and Cancel together at the
+   right edge, Foundry's convention for a pair. */
+.deaths-door-dialog-buttons {
+	justify-content: space-between;
 }
 
-.deaths-door-next-btn,
-.deaths-door-back-btn,
-.deaths-door-confirm-btn,
-.deaths-door-cancel-btn {
+.undeath-dialog-buttons {
+	justify-content: flex-end;
+}
+
+/* No background here: every one of these states its own below, primary or transparent. */
+.deaths-door-close-btn,
+.deaths-door-cancel-btn,
+.undeath-apply-btn,
+.undeath-close-btn,
+.undeath-cancel-btn {
 	padding: 6px 14px;
-	border: 1px solid var(--color-border-light-primary, #ccc);
+	border: 1px solid var(--dd-rule);
 	border-radius: var(--st-radius-sm);
 	cursor: pointer;
 	font-size: var(--st-fs-base);
-	background: rgba(255, 255, 255, 0.8);
+}
+
+.deaths-door-close-btn,
+.deaths-door-cancel-btn {
 	transition: background 0.1s, border-color 0.1s;
 }
 
-.deaths-door-next-btn:hover,
-.deaths-door-back-btn:hover {
-	background: rgba(0, 0, 0, 0.05);
+/* Done stands alone in its row, so it fills the footer with a centred label rather than
+   hugging one edge of a 620px window. */
+.deaths-door-close-btn {
+	width: 100%;
+	justify-content: center;
 }
 
-.deaths-door-confirm-btn {
+.deaths-door-close-btn,
+.undeath-apply-btn,
+.undeath-close-btn {
 	background: var(--st-btn-primary-bg);
 	color: var(--st-btn-primary-text);
 	border-color: var(--st-btn-primary-border);
 }
 
-.deaths-door-confirm-btn:hover {
+/* "Not yet" / "Cancel" are dismissive, so they sit at the right edge (Foundry's convention)
+   rather than at the left, where space-between drops a lone button. */
+.deaths-door-cancel-btn {
+	width: auto;
+	margin-left: auto;
+}
+
+.deaths-door-close-btn:hover {
 	background: var(--st-btn-primary-bg-hover);
 }
 
-.deaths-door-cancel-btn {
+.deaths-door-cancel-btn,
+.undeath-cancel-btn {
 	background: transparent;
 	color: var(--color-text-dark-primary);
 }
 
 .deaths-door-cancel-btn:hover {
-	background: rgba(0, 0, 0, 0.05);
+	background: var(--dd-surface-hover);
+}
+
+/* ── Death's Door: the roll step's options ─────────────────────────
+   The Heavy's +CON/+nothing choice and Unstoppable's penalty both modify the same roll, so
+   they share one quiet inset block above the roll button rather than each inventing a
+   layout. */
+
+.deaths-door-roll-option {
+	margin: 8px 0 0;
+	padding: 8px 10px;
+	border: 1px solid var(--color-border-light-tertiary, #ddd);
+	border-radius: var(--st-radius-sm);
+	background: var(--dd-inset);
+}
+
+.deaths-door-roll-option-label {
+	display: block;
+	margin-bottom: 5px;
+	font-size: var(--st-fs-sm);
+	font-weight: 600;
+	color: var(--color-text-dark-secondary);
+}
+
+.deaths-door-roll-option-hint {
+	margin: 5px 0 0;
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+}
+
+/* Plain radios, deliberately: this is one setting with two values ("+CON or +nothing, your
+   choice"), not two actions. Dressing each one as a filled pill with a radio inside it read as a
+   button you were meant to press, and the fill was stamped at render — the dialog doesn't
+   re-render on change, so it stayed on the first option however you clicked. */
+.deaths-door-stat-choices {
+	display: flex;
+	gap: 16px;
+}
+
+.deaths-door-stat-choice-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	cursor: pointer;
+	font-size: var(--st-fs-base);
+}
+
+/* Core's `input { font: inherit }` leaves a native radio sized off the dialog's font — 13x16 here,
+   so it renders visibly oblong — and the UA still adds a 5px left margin that fights the gap
+   above. Square it and zero the margin so the spacing is the label's to set. */
+.deaths-door-stat-choice-label input[type="radio"] {
+	flex: 0 0 auto;
+	width: 15px;
+	height: 15px;
+	margin: 0;
+}
+
+.deaths-door-penalty-note {
+	margin: 8px 0 0;
+	font-size: var(--st-fs-sm);
+	color: var(--st-red-text);
+}
+
+/* What the roll already did to the sheet, so the player isn't left wondering whether to
+   go and do it by hand. Same green as the recorded-mark confirmation. */
+.deaths-door-applied {
+	margin: 6px 0 0;
+	font-size: var(--st-fs-base);
+	color: var(--st-green-text);
+}
+
+.deaths-door-applied .fa-check {
+	margin-right: 4px;
+}
+
+/* ── Death's Door: the 6- fates and the Revenant/Ghost fork ────────
+   Each fate is a full-width stacked button: the label is the book's own option text, which
+   is too long to sit on one line beside a hint. */
+
+.deaths-door-fates {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-top: 8px;
+}
+
+/* Undeath's 6- alternative ("give up this insert and gain the Ghost instead") is the same
+   kind of choice as a fate and wears the same skin; only its stacking differs. */
+.deaths-door-fate-btn,
+.deaths-door-insert-btn,
+.undeath-alternative-btn {
+	width: 100%;
+	padding: 8px 10px;
+	border: 1px solid var(--dd-rule);
+	border-radius: var(--st-radius-sm);
+	background: var(--dd-surface);
+	/* Core paints .app button text light. On a near-white card that reads as nothing at all,
+	   so every custom button in this dialog states its own colour. */
+	color: var(--color-text-dark-primary);
+	cursor: pointer;
+	text-align: left;
+	transition: background 0.18s, border-color 0.18s, box-shadow 0.18s;
+}
+
+/* A fate stacks its label over its hint; the alternative is a single line of text. */
+.deaths-door-fate-btn,
+.deaths-door-insert-btn {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 3px;
+}
+
+.deaths-door-fate-btn:hover,
+.deaths-door-insert-btn:hover,
+.undeath-alternative-btn:hover {
+	background: var(--dd-surface-hover);
+	border-color: var(--color-border-dark-tertiary, #999);
+}
+
+.deaths-door-fate-label {
+	font-size: var(--st-fs-base);
+	font-weight: 600;
+	line-height: 1.3;
+	white-space: normal;
+}
+
+.deaths-door-fate-hint {
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+	line-height: 1.35;
+	white-space: normal;
+}
+
+/* ── Death's Door: Hard to Kill's 7-9 debility trade ───────────────── */
+
+.deaths-door-debility-trade {
+	margin-top: 10px;
+	padding-top: 8px;
+	border-top: 1px dashed var(--color-border-light-tertiary, #ddd);
+}
+
+.deaths-door-debility-choices {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 5px;
+}
+
+/* `width` is not optional: core's layered `.app button { width: 100% }` otherwise makes each
+   of these a full-width flex item and the three stack instead of sharing a row. */
+.deaths-door-debility-btn {
+	width: auto;
+	flex: 0 0 auto;
+	padding: 4px 12px;
+	border: 1px solid var(--dd-rule);
+	border-radius: var(--st-radius-sm);
+	background: var(--dd-surface);
+	color: var(--color-text-dark-primary);
+	cursor: pointer;
+	font-size: var(--st-fs-base);
+}
+
+.deaths-door-debility-btn:hover {
+	background: var(--dd-surface-hover);
+}
+
+/* ── Undeath dialog (Undying / Tethered / Dark Succor) ─────────────
+   The three insert 0-HP moves share one walkthrough, so they share one skin: trigger, an
+   optional roll, then the move's "choose N" costs as a checklist with a picker per cost. */
+
+.undeath-dialog-content {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 12px;
+	overflow-y: auto;
+}
+
+.undeath-move-name {
+	margin: 0;
+	border: none;
+	font-family: var(--font-stonetop, inherit);
+	font-size: var(--st-fs-lg);
+	font-weight: bold;
+	letter-spacing: 0.045em;
+}
+
+.undeath-trigger {
+	margin: 0;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--color-border-light-tertiary, #ccc);
+	font-size: var(--st-fs-base);
+	line-height: 1.45;
+	color: var(--color-text-dark-secondary);
+}
+
+.undeath-step {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.undeath-instruction {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 0;
+	font-style: italic;
+	font-size: var(--st-fs-base);
+	color: var(--color-text-dark-secondary);
+}
+
+.undeath-roll-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	width: auto;
+	padding: 2px 8px;
+	border: 1px solid var(--dd-rule);
+	border-radius: var(--st-radius);
+	background: var(--dd-surface);
+	color: var(--color-text-dark-primary);
+	cursor: pointer;
+	line-height: 1.2;
+}
+
+.undeath-roll-btn:hover {
+	background: var(--dd-surface-hover);
+	border-color: var(--color-text-dark-secondary);
+}
+
+.undeath-favor-note,
+.undeath-hint {
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+}
+
+.undeath-hint {
+	margin: 2px 0 0;
+}
+
+.undeath-result-banner {
+	margin: 0;
+	font-size: var(--st-fs-md);
+	font-weight: bold;
+}
+
+.undeath-hp {
+	margin: 0;
+	font-size: var(--st-fs-base);
+	/* The shared green rather than a literal, so the dark mood's token flip reaches it. */
+	color: var(--st-green-text);
+}
+
+.undeath-toggle {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: var(--st-fs-base);
+	cursor: pointer;
+}
+
+.undeath-pick-label {
+	margin: 4px 0 0;
+	font-size: var(--st-fs-base);
+	font-weight: 600;
+}
+
+.undeath-pick-count {
+	font-weight: normal;
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+}
+
+.undeath-effects {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.undeath-effect {
+	padding: 7px 10px;
+	border: 1px solid var(--dd-rule);
+	border-radius: var(--st-radius-sm);
+	background: var(--dd-inset);
+}
+
+.undeath-effect.is-picked {
+	border-color: var(--dd-accent);
+	background: var(--dd-accent-bg);
+}
+
+.undeath-effect.is-exhausted {
+	opacity: 0.55;
+}
+
+.undeath-effect-label {
+	display: flex;
+	align-items: flex-start;
+	gap: 7px;
+	font-size: var(--st-fs-base);
+	line-height: 1.35;
+	cursor: pointer;
+}
+
+.undeath-effect-select,
+.undeath-task-input {
+	width: 100%;
+	margin-top: 6px;
+	font-size: var(--st-fs-base);
+}
+
+.undeath-alternative {
+	padding-top: 8px;
+	border-top: 1px dashed var(--color-border-light-tertiary, #ddd);
+}
+
+/* Skinned with the Death's Door fate buttons; only these are its own. */
+.undeath-alternative-btn {
+	margin-top: 4px;
+	font-size: var(--st-fs-base);
+	white-space: normal;
+}
+
+.undeath-summary,
+.stonetop-undeath-summary {
+	margin: 4px 0 0;
+	padding-left: 18px;
+	font-size: var(--st-fs-base);
+	line-height: 1.45;
+}
+
+/* The footer itself is skinned with Death's Door's, up in that section. */
+.undeath-apply-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* ── Death's Door / Undeath: the dark comes in from the edges ───────
+   The two windows where a character might not come back get a mood that answers to the dice
+   instead of one fixed skin. DeathsDoorDialog._paintMood stamps the mood class on the window
+   ROOT (not the content) so the frame and the title bar turn over with the body:
+
+     --dusk        the dice are still in hand: parchment holds, but the light is going
+     --returned    10+, wrested back: the warmth comes up from the top of the window
+     --waved-off   7-9, the Lady waves you off: colour drains, the veil thickens
+     --door        6- or Refuse to Go: the lamp is out, and only the fates are lit
+
+   Undeath (Undying / Tethered / Dark Succor) is always past the Door, so it opens straight
+   into --door and only moves its accent by tier. Everything below reads the --dd-* surfaces
+   declared at the top of the Death's Door section; a mood repaints by redefining those. */
+
+/* The veil itself: one wash over the whole window frame, chrome included, so the dark
+   arrives at the title bar too. It hangs off the ROOT rather than .window-content because
+   the content scrolls — an overlay inside it would slide away up the page on a long step.
+   pointer-events:none keeps every control underneath live. */
+.stonetop-deathsdoor-dialog::after,
+.stonetop-undeath-dialog::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	pointer-events: none;
+	border-radius: inherit;
+	background: var(--dd-veil);
+}
+
+.stonetop-deathsdoor-dialog.deaths-door-mood--dusk {
+	--dd-veil: radial-gradient(ellipse 118% 88% at 50% 36%, transparent 26%, rgba(14, 20, 36, 0.32) 100%);
+}
+
+/* Wrested back to the realm of the living: the same mechanism run warm, so the window that
+   was closing in opens back up. */
+.stonetop-deathsdoor-dialog.deaths-door-mood--returned {
+	--dd-veil: radial-gradient(ellipse 130% 100% at 50% 0%, rgba(255, 226, 158, 0.28), transparent 58%);
+}
+
+/* Waved off: no gold — nothing was won here. Colour drains out of the whole step and the
+   tier that landed is picked out in cold grey rather than the success gold. */
+.stonetop-deathsdoor-dialog.deaths-door-mood--waved-off {
+	--dd-veil: radial-gradient(ellipse 108% 82% at 50% 38%, transparent 18%, rgba(14, 20, 36, 0.42) 100%);
+	--dd-accent:    hsl(210 12% 58%);
+	--dd-accent-bg: hsla(210, 12%, 58%, 0.16);
+}
+
+.stonetop-deathsdoor-dialog.deaths-door-mood--waved-off .deaths-door-dialog-content {
+	filter: saturate(0.55);
+}
+
+/* ── The Last Door ────────────────────────────────────────────────── */
+
+.stonetop-deathsdoor-dialog.deaths-door-mood--door,
+.stonetop-undeath-dialog.deaths-door-mood--door {
+	--dd-surface:       rgba(206, 218, 236, 0.07);
+	--dd-surface-hover: rgba(206, 218, 236, 0.14);
+	--dd-inset:         rgba(0, 0, 0, 0.3);
+	--dd-rule:          hsl(212 14% 30%);
+	--dd-accent:        hsl(8 58% 48%);
+	--dd-accent-bg:     hsla(8, 58%, 42%, 0.18);
+	/* The window IS the veil now, so the overlay steps aside; the one exception is the
+	   snuff below, which borrows it for a moment. */
+	--dd-veil:          none;
+}
+
+/* An Undeath roll that went well still gets its gold back — the Thrall's master answered,
+   the Revenant held together. The window stays dark; only the accent warms. */
+.stonetop-undeath-dialog.deaths-door-mood--door.deaths-door-mood--spared {
+	--dd-accent:    #c9a227;
+	--dd-accent-bg: rgba(201, 162, 39, 0.14);
+}
+
+/* The repaint. Redefining core's own text/border tokens ON this one window's content turns
+   over every rule above that reads them, without restating a single selector — and the
+   redefinition can't escape the window it's scoped to. `color-scheme: dark` is what makes
+   the native controls (Undeath's selects and checkboxes, the scrollbars) come along.
+   Specificity: the four root classes plus `.vtt` reach (0,6,0), enough to beat the general
+   sheet parchment fill at `.vtt .stonetop:not(…) .window-content` (0,4,0). */
+.vtt .stonetop-deathsdoor-dialog.deaths-door-mood--door.stonetop.window-app .window-content,
+.vtt .stonetop-undeath-dialog.deaths-door-mood--door.stonetop.window-app .window-content {
+	color-scheme: dark;
+	--color-text-dark-primary:     hsl(38 22% 88%);
+	--color-text-dark-secondary:   hsl(38 12% 71%);
+	--color-border-light-primary:  hsl(212 14% 30%);
+	--color-border-light-tertiary: hsl(212 14% 26%);
+	--st-text-faint:               hsl(212 10% 46%);
+	--st-green-text:               hsl(140 32% 66%);
+	--st-red-text:                 hsl(6 62% 70%);
+	--st-red-bg:                   hsla(6, 45%, 32%, 0.35);
+	--st-red-border:               hsl(6 45% 46%);
+	--stonetop-red:                hsl(6 62% 68%);
+	/* The confirm buttons come down with the room, past slate to near-black: left at the
+	   standard slategrey they are the brightest thing in the window, which puts the eye on
+	   "Done" instead of on the three fates — the one decision this step is actually asking
+	   for. Sitting a shade DARKER than the footer behind them, they read as cut into the
+	   window rather than laid on it; the bone label and the rule around them carry the
+	   affordance, so they still say "press me" without lighting anything up. */
+	--st-btn-primary-bg:           hsl(214 24% 4%);
+	--st-btn-primary-bg-hover:     hsl(214 20% 11%);
+	/* Warm bone rather than the cool rule Cancel wears, so the affirmative still reads as the
+	   affirmative where the two sit side by side (Undeath's Cancel / Apply). The distinction is
+	   carried by the edge, not by a lit fill. */
+	--st-btn-primary-border:       hsl(40 13% 44%);
+	--st-btn-primary-text:         hsl(38 18% 84%);
+	color: hsl(38 20% 86%);
+	/* A last guttering warmth at the top edge, over cold black. */
+	background:
+		radial-gradient(ellipse 90% 55% at 50% 0%, hsla(28, 45%, 58%, 0.11), transparent 72%),
+		linear-gradient(180deg, hsl(214 18% 11%), hsl(214 20% 7%));
+}
+
+.vtt .stonetop-deathsdoor-dialog.deaths-door-mood--door.stonetop.window-app .window-header,
+.vtt .stonetop-undeath-dialog.deaths-door-mood--door.stonetop.window-app .window-header {
+	background: hsl(214 22% 9%);
+	border-bottom: 1px solid var(--dd-accent);
+}
+
+.vtt .stonetop-deathsdoor-dialog.deaths-door-mood--door.stonetop.window-app
+	.window-header :is(.window-title, .header-control, .window-icon, a, button),
+.vtt .stonetop-undeath-dialog.deaths-door-mood--door.stonetop.window-app
+	.window-header :is(.window-title, .header-control, .window-icon, a, button) {
+	color: hsl(38 20% 82%);
+}
+
+/* The move name carries the only bloom in the window. */
+.deaths-door-mood--door .deaths-door-move-name,
+.deaths-door-mood--door .undeath-move-name {
+	text-shadow: 0 0 16px hsla(8, 62%, 52%, 0.45);
+}
+
+/* The spiral bullets are a black SVG, not a mask, so they vanish on black — invert them
+   rather than leaving the 6-'s three fates as an unmarked list. */
+.deaths-door-mood--door .deaths-door-outcome-options li::before {
+	filter: invert(1);
+	opacity: 0.5;
+}
+
+/* The three fates, as doorways. On hover a warm crack opens down the leading edge — the
+   only warm thing left in the window, and it's on the way out. */
+.deaths-door-mood--door :is(.deaths-door-fate-btn, .deaths-door-insert-btn, .undeath-alternative-btn) {
+	padding: 11px 12px;
+	box-shadow: inset 2px 0 0 rgba(0, 0, 0, 0.55);
+}
+
+.deaths-door-mood--door :is(.deaths-door-fate-btn, .deaths-door-insert-btn, .undeath-alternative-btn):hover {
+	border-color: var(--dd-accent);
+	box-shadow: inset 3px 0 0 var(--dd-accent), 0 0 14px -4px var(--dd-accent);
+}
+
+/* ── The two pieces of motion ──────────────────────────────────────
+   Both are decoration, so both sit behind prefers-reduced-motion: with motion off the moods
+   still read entirely from colour. */
+@keyframes deaths-door-breathe {
+	0%, 100% { opacity: 0.62; }
+	50%      { opacity: 1; }
+}
+
+/* The lamp going out, then eyes adjusting to what's underneath. */
+@keyframes deaths-door-snuff {
+	0%   { opacity: 0; }
+	30%  { opacity: 0.94; }
+	100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	/* A slow breath while the veil is up — failing consciousness, not a pulse to look at. */
+	.stonetop-deathsdoor-dialog.deaths-door-mood--dusk::after,
+	.stonetop-deathsdoor-dialog.deaths-door-mood--waved-off::after {
+		animation: deaths-door-breathe 7.5s ease-in-out infinite;
+	}
+
+	/* One shot, on the render where the mood CHANGES to --door (the class is stamped only
+	   then), so the roll that lands the 6- snuffs the room and picking a fate afterwards
+	   doesn't replay it. */
+	.deaths-door-mood--door.deaths-door-mood-entering::after {
+		background: #000;
+		animation: deaths-door-snuff 0.85s ease-out both;
+	}
+}
+
+/* ── Post-Death tab: what Dark Succor took, and what it demands ───── */
+
+.stonetop-pdi-hint {
+	margin: 0 0 6px;
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-pdi-crossed-list {
+	margin: 0;
+	padding-left: 18px;
+	font-size: var(--st-fs-base);
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-pdi-task-text {
+	margin: 0;
+	font-size: var(--st-fs-base);
+	line-height: 1.45;
+}
+
+.stonetop-pdi-tether-input,
+.undeath-tether-input {
+	width: 100%;
+	font-size: var(--st-fs-base);
+}
+
+.undeath-tether {
+	padding: 8px 10px;
+	border: 1px solid var(--color-border-light-tertiary, #ddd);
+	border-radius: var(--st-radius-sm);
+	background: var(--dd-inset);
+}
+
+/* The same red note, wherever an insert's bad news is printed: the walkthrough's window and
+   the sheet's Post-Death tab. */
+.stonetop-pdi-warning,
+.undeath-warning {
+	color: var(--stonetop-red, #8a2b2b);
+	font-style: normal;
+}
+
+/* ── Choose Your Fate: the three inserts, as cards ────────────────── */
+
+/* One column rather than a row of three: the blurb is the book's trigger sentence, and three
+   of those side by side wrap to four lines each and read as a wall.
+   Grid rather than a flex column because the three cards have to be the same height, and the
+   blurbs are 2 or 3 lines depending on the fate. A flex column stretches its children across
+   the axis it is NOT laying out on, so it equalises their width and leaves the heights ragged;
+   `grid-auto-rows: 1fr` sizes every row to the tallest instead. */
+.stonetop-pdi-available {
+	display: grid;
+	grid-auto-rows: 1fr;
+	gap: 6px;
+}
+
+.stonetop-pdi-activate {
+	display: flex;
+	/* Centred, not top-aligned: with every card sized to the tallest, a 2-line blurb otherwise
+	   leaves its sigil stranded against the top edge with a band of empty card beneath it. */
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	margin: 0;
+	padding: 8px 10px;
+	height: auto;
+	line-height: normal;
+	text-align: left;
+	border: 1px solid var(--color-border-light-tertiary, #ddd);
+	border-radius: var(--st-radius);
+	/* Literal, not the dialogs' --dd-inset: that token is scoped to the Death's Door and
+	   Undeath windows so their moods can repaint it, and doesn't resolve out here on the sheet. */
+	background: rgba(0, 0, 0, 0.02);
+	cursor: pointer;
+}
+
+/* Explicit, because v14 hands an unstyled button an orange hover. */
+.stonetop-pdi-activate:hover {
+	border-color: var(--color-border-light, #ccc);
+	background: rgba(0, 0, 0, 0.06);
+	box-shadow: none;
+}
+
+/* Same 40px rounded tile the onboarding dialog gives a playbook icon, so a sigil reads the same
+   wherever it appears. `border: none` is not decoration: core puts a 1px black border on every
+   .app img, and these sigils are already black tiles, so it lands as a hard extra edge. */
+/* The sigils are black line art on transparency (assets/post-death-inserts/*.svg, punched to the
+   same form as assets/icons/tabs), so there is no tile here to round or to border. `border: none`
+   is still load-bearing: core draws a 1px black border on every .app img, which on a transparent
+   glyph reads as a box someone drew round it. The 40px square and `contain` match the tile the
+   onboarding dialog gives a playbook icon, and centre the drawing on both axes: the artwork's
+   own viewBox is square and its inner <svg> is inset evenly and set to xMidYMid. */
+.stonetop-pdi-activate-img {
+	flex: 0 0 auto;
+	width: 40px;
+	height: 40px;
+	border: none;
+	object-fit: contain;
+	object-position: center;
+}
+
+.stonetop-pdi-activate-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+/* Matches .stonetop-pdi-name / .stonetop-pdi-description, so the card a player picks and the
+   insert they end up with read as the same thing. */
+/* Colour stated, not inherited: the sheet keeps its parchment in a dark-mode world, but core
+   still hands a <button> its dark-theme text colour, which comes out white on white here. */
+.stonetop-pdi-activate-name {
+	font-family: var(--font-stonetop);
+	font-size: calc(1rem * var(--stonetop-font-scale, 1));
+	font-weight: bold;
+	color: var(--st-text);
+}
+
+.stonetop-pdi-activate-blurb {
+	font-family: var(--font-stonetop);
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	color: var(--color-text-dark-secondary);
+	line-height: 1.4;
+	white-space: normal;
+}
+
+/* The blurb is the description field's stored HTML, so it arrives wrapped in a <p>. */
+.stonetop-pdi-activate-blurb p {
+	margin: 0;
+}
+
+/* A crossed-off Mark is gone for good — struck through, and its box can't be ticked. */
+.stonetop-lore-option.is-crossed-off {
+	opacity: 0.55;
+}
+
+.stonetop-lore-option.is-crossed-off .stonetop-lore-option-desc {
+	text-decoration: line-through;
+}
+
+/* ── "Someone is dying" chat card ────────────────────────────────────
+   The one card in the log that isn't a result — it's an interruption. Given the same cold
+   ink and ember edge as the dialog it opens, so a PC going down doesn't scroll past looking
+   like another move roll. The parchment fill comes from the shared
+   `.message:has(.stonetop-roll-card)` rule above; this block is later in the file, so it
+   wins the tie on that selector's own specificity. */
+:is(#chat, #chat-notifications) .message:has(.stonetop-dying-card) {
+	background:
+		linear-gradient(180deg, hsla(8, 45%, 22%, 0.14), transparent 42%),
+		var(--stonetop-bg, #f0ece3) url(/systems/stonetop-pwd/assets/graphics/sheet-bg.webp) center / cover;
+	border-color: hsl(8 38% 46%);
+}
+
+/* Ember rule under the title, where other cards carry the tan one. */
+:is(#chat, #chat-notifications) .message .stonetop-dying-card .chat-title {
+	border-bottom-color: hsla(8, 45%, 38%, 0.55);
+	background: hsla(8, 45%, 38%, 0.09);
+}
+
+:is(#chat, #chat-notifications) .message .stonetop-dying-card .cell__title {
+	letter-spacing: 0.045em;
+}
+
+.stonetop-dying-trigger {
+	margin: 6px 0 0;
+	font-size: var(--st-fs-sm);
+	line-height: 1.4;
+	color: var(--color-text-dark-secondary);
+	font-style: italic;
+}
+
+/* The shared `.card-buttons` rule zeroes the margin at (1,3,0), so a bare class here never
+   landed and the button sat right under the trigger text. Match that rule's scope to win. */
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons.stonetop-dying-actions {
+	margin-top: 12px;
+}
+
+.stonetop-dying-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+/* The one live thing on the card. Only the edge and the glow are ours — the fill stays
+   whatever the shared card buttons use, so it still reads as a chat-card action. Matched
+   the same way `.stonetop-attack-btn` is above: the shared `.card-buttons button` rule sets
+   `border` wholesale at (0,4,0), so a bare class here loses and the ember edge never lands. */
+:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button.stonetop-dying-btn {
+	border-color: hsl(8 38% 46%);
+	transition: box-shadow 0.18s, border-color 0.18s;
+}
+
+:is(#chat, #chat-notifications) .message .pbta-chat-card
+	.card-buttons button.stonetop-dying-btn:hover:not(:disabled) {
+	border-color: hsl(8 52% 52%);
+	box-shadow: 0 0 12px -3px hsl(8 55% 48%);
+}
+
+/* ── The dead keep talking: the chat drip ────────────────────────────
+   Everything said by a PC who stepped through the Last Door — or who came back wearing one of
+   the three post-death inserts — hangs a dark fringe off the bottom edge of its message, so an
+   undead PC's line doesn't scroll past reading like anyone else's. The kind of death is stamped
+   on the message when it is created (hooks/DeathChatDrip.js), never re-read at render, so the
+   log stays a record of when they died rather than being rewritten the moment they do.
+
+   The fringe is one clipped strip, not art: `clip-path` cuts an irregular run of ink out of a
+   14px band. Tiled gradients were tried first and read as even scalloping — any repeat short
+   enough to fit a chat card is short enough to see. The points are x in PERCENT (so the run
+   spreads with the log's width instead of leaving a bare stretch on a wide sidebar) and y in
+   PIXELS (so the depth is fixed however tall the message is). The longest run reaches 13px, the
+   shortest 6px, off a 4px edge. Not animated, by request; nothing here is interactive either,
+   so pointer-events stay off. */
+:is(#chat, #chat-notifications) .message.stonetop-death-drip {
+	--st-drip-ink: hsl(216 22% 19%);
+	/* One pixel of headroom under the deepest valley in the clip path — shrink this and the long
+	   points get cut off flat instead of getting shorter. */
+	--st-drip-depth: 14px;
+	position: relative;
+	/* Core gives a message 4px of margin, which leaves the fringe nowhere to hang and would let
+	   it paint over the next message. Claim its depth back as space of its own. */
+	margin-bottom: calc(var(--st-drip-depth) + 6px);
+}
+
+:is(#chat, #chat-notifications) .message.stonetop-death-drip::after {
+	content: "";
+	position: absolute;
+	/* Below the border box, and held off both corners so the fringe's straight top edge doesn't
+	   jut out past the card's rounded bottom. */
+	top: 100%;
+	left: 7px;
+	right: 7px;
+	height: var(--st-drip-depth);
+	pointer-events: none;
+	/* The fringe starts as the message's own border and darkens into the death colour as it runs,
+	   which is what makes it legible over ANY scene. Core leaves the chat log transparent in the
+	   sidebar, so this hangs over the map, not over a background we control: a fringe in one flat
+	   near-black vanishes on a night map, and one flat pale vanishes on a snowfield. Carrying both
+	   ends of the range inside the shape means one of them always reads. It is also why the inks
+	   below sit mid-dark rather than at the black they'd be if this had a surface behind it. */
+	background: linear-gradient(to bottom,
+		var(--chat-message-border-color, #6f6c66) 0 2px,
+		var(--st-drip-ink) 100%);
+	/* A 4px unbroken edge with narrow runs hanging off it, right to left. Each run is three
+	   points — shoulder, tip, shoulder — and the flat between two runs is the straight segment
+	   from one shoulder to the next, so nothing has to be spelled out twice. Runs are ~1.2% wide
+	   against a depth of up to 13px, and that ratio is the whole effect: widen them and the same
+	   points stop reading as ink and start reading as a row of teeth. Lengths and gaps are
+	   deliberately uneven; a regular beat is what gives this away as a pattern. */
+	clip-path: polygon(
+		0 0, 100% 0,
+		100% 4px,
+		93.8% 4px, 93.2% 9px,  92.6% 4px,   86.0% 4px, 85.4% 12px, 84.8% 4px,
+		80.5% 4px, 79.9% 6px,  79.3% 4px,   72.0% 4px, 71.4% 11px, 70.8% 4px,
+		66.5% 4px, 65.9% 7px,  65.3% 4px,   59.0% 4px, 58.4% 13px, 57.8% 4px,
+		49.9% 4px, 49.3% 10px, 48.7% 4px,   44.5% 4px, 43.9% 6px,  43.3% 4px,
+		38.0% 4px, 37.4% 12px, 36.8% 4px,   29.5% 4px, 28.9% 7px,  28.3% 4px,
+		24.0% 4px, 23.4% 11px, 22.8% 4px,   15.9% 4px, 15.3% 6px,  14.7% 4px,
+		10.0% 4px, 9.4% 13px,   8.8% 4px,    3.8% 4px, 3.2% 9px,    2.6% 4px,
+		0 4px
+	);
+}
+
+/* Which death it was. Only the ink moves — the drip is the statement, the colour is the
+   footnote. Each modifier carries the base class too: on its own it would tie with the block
+   above on specificity and depend on file order alone to win. */
+:is(#chat, #chat-notifications) .message.stonetop-death-drip.stonetop-death-drip--revenant {
+	--st-drip-ink: hsl(10 34% 23%);
+}
+
+:is(#chat, #chat-notifications) .message.stonetop-death-drip.stonetop-death-drip--thrall {
+	--st-drip-ink: hsl(283 30% 24%);
+}
+
+/* A Ghost has no ichor to leave. Theirs runs cold and thin — the one kind that fades rather than
+   stains, so it stops short of the ink the others reach and carries some of the scene through. */
+:is(#chat, #chat-notifications) .message.stonetop-death-drip.stonetop-death-drip--ghost {
+	--st-drip-ink: hsl(200 20% 44%);
+}
+
+:is(#chat, #chat-notifications) .message.stonetop-death-drip.stonetop-death-drip--ghost::after {
+	opacity: 0.78;
 }
 
 /* ── End of Session dialog ──────────────────────────────────────── */
@@ -9389,7 +10311,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-tab-rail .item[data-tab="inventory"]     { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/school-bag.svg'); }
 .stonetop-tab-rail .item[data-tab="arcana"]        { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/arcanum.svg'); }
 .stonetop-tab-rail .item[data-tab="details"]       { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/info.svg'); }
-.stonetop-tab-rail .item[data-tab="post-death"]    { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/newspaper.svg'); }
+.stonetop-tab-rail .item[data-tab="post-death"]    { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/death-skull.svg'); }
 .stonetop-tab-rail .item[data-tab="special-moves"] { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/round-star.svg'); }
 .stonetop-tab-rail .item[data-tab="notes"]         { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/notebook.svg'); }
 .stonetop-tab-rail .item[data-tab="overview"]      { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/village.svg'); }

@@ -56,6 +56,7 @@ export function stripHtmlToText(value) {
 		.replace(/<\s*br\s*\/?>/gi, " ")
 		.replace(/<[^>]*>/g, "")
 		.replace(/&nbsp;/gi, " ")
+		.replace(/&mdash;/gi, "—")
 		.replace(/&amp;/gi, "&")
 		.replace(/&lt;/gi, "<")
 		.replace(/&gt;/gi, ">")

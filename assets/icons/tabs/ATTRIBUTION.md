@@ -13,7 +13,7 @@ Where our filename differs from the original, the game-icons.net source name is 
 | three-friends.svg | Followers, Residents | three-friends | Delapouite | https://delapouite.com |
 | school-bag.svg | Inventory | school-bag | Delapouite | https://delapouite.com |
 | info.svg | Details | info | Delapouite | https://delapouite.com |
-| newspaper.svg | Post-Death | newspaper | Delapouite | https://delapouite.com |
+| death-skull.svg | Post-Death | death-skull | sbed | http://opengameart.org/content/95-game-icons |
 | round-star.svg | Special Moves | round-star | Delapouite | https://delapouite.com |
 | notebook.svg | Notes | notebook | Delapouite | https://delapouite.com |
 | village.svg | Overview (steading) | village | Delapouite | https://delapouite.com |

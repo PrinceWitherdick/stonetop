@@ -30,6 +30,8 @@ import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { onHotbarDrop } from "./module/hooks/HotbarDrop.js";
 import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
 import { onDropFollower } from "./module/hooks/FollowerDrop.js";
+import { onPreUpdateActorDeathsDoor, onUpdateActorDeathsDoorAutoOpen, wireDyingPrompt } from "./module/hooks/DeathsDoorPrompt.js";
+import { deathDripStamp, markDeathDrip } from "./module/hooks/DeathChatDrip.js";
 import { onPreCreateThreatNote } from "./module/hooks/ThreatNotePins.js";
 import { onDrawStonetopNote } from "./module/hooks/StonetopNoteLabels.js";
 import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
@@ -391,6 +393,7 @@ Hooks.once("init", () => {
 		"stonetop.guide-toc":                 "systems/stonetop-pwd/templates/dialogs/partials/guide-toc.hbs",
 		"stonetop.intros-capture-head":       "systems/stonetop-pwd/templates/dialogs/partials/intros-capture-head.hbs",
 		"stonetop.threat-string-list":        "systems/stonetop-pwd/templates/dialogs/partials/threat-string-list.hbs",
+		"stonetop.deaths-door-outcomes":      "systems/stonetop-pwd/templates/dialogs/partials/deaths-door-outcomes.hbs",
 		"stonetop.card-doom-track":           "systems/stonetop-pwd/templates/journal/partials/card-doom-track.hbs",
 		"stonetop.card-gm-moves":             "systems/stonetop-pwd/templates/journal/partials/card-gm-moves.hbs",
 		"stonetop.card-player-moves":         "systems/stonetop-pwd/templates/journal/partials/card-player-moves.hbs",
@@ -598,13 +601,31 @@ Hooks.on("preUpdateActor", (actor, changes) => {
 	}
 });
 
-// -- CHAT SPEAKER ALIAS ----------------------------------------
+// -- DEATH AND DYING -------------------------------------------
+// A PC reduced to 0 HP is dying and must face their 0-HP move (Book I p.245). Record that
+// state on the same write and announce it, naming the move they actually trigger — Death's
+// Door only until they carry a post-death insert.
+Hooks.on("preUpdateActor", onPreUpdateActorDeathsDoor);
+// And, if the table wants it, open that move's walkthrough on the dying player's own screen.
+// A separate hook because it has to run somewhere the preUpdate can't: that fires only on the
+// client applying the damage, which is usually the GM's.
+Hooks.on("updateActor", onUpdateActorDeathsDoorAutoOpen);
+
+// -- CHAT SPEAKER: ALIAS AND DEATH -----------------------------
+// Two stamps a character's message carries from the moment it is created: the playbook in the
+// speaker's name, and — for a PC past the Last Door — the kind of death behind them, which the
+// render pass turns into the fringe under the card. Both are written in one updateSource so a
+// message costs one source edit, not two.
 Hooks.on("preCreateChatMessage", (message) => {
 	const actor = _speakerActor(message);
 	if (!actor || actor.type !== "character") return;
+
+	const changes = {};
 	const playbookName = actor.system?.playbook?.name ?? "";
-	if (!playbookName) return;
-	message.updateSource({ "speaker.alias": `${actor.name} ${playbookName}` });
+	if (playbookName) changes["speaker.alias"] = `${actor.name} ${playbookName}`;
+	Object.assign(changes, deathDripStamp(actor) ?? {});
+
+	if (Object.keys(changes).length) message.updateSource(changes);
 });
 
 // -- BLIND / PRIVATE ROLLS -------------------------------------
@@ -920,11 +941,13 @@ Hooks.on("createItem", (item, options, userId) => maybeAnnounceBecameHero(item, 
 
 // One render hook drives all of the above, in this order: the blind-roll strip
 // MUST run first (it removes our card so the button-wiring helpers below no-op
-// for viewers who can't see the result), then prose treatment, then the button
-// and annotation passes. A single dispatch beats nine separate hook registrations
-// each re-scanning the same message DOM on every chat render.
+// for viewers who can't see the result), then the message-root passes, then prose
+// treatment, then the button and annotation passes. A single dispatch beats nine
+// separate hook registrations each re-scanning the same message DOM on every chat
+// render.
 Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatStripBlindRoll(message, html);
+	markDeathDrip(message, html);
 	_chatProseTreatment(message, html);
 	_chatWireStartupWelcome(message, html);
 	_chatWireBook2ArtReminder(message, html);
@@ -937,6 +960,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatWireRequisitionMissCost(message, html);
 	_chatWireSeasonsRoll(message, html);
 	_chatWireLoveLetterPicks(message, html);
+	wireDyingPrompt(message, html);
 	wireAttackConfirm(message, html);
 	wireApplyDamage(message, html);
 	wireSufferAttack(message, html);

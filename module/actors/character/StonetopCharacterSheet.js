@@ -10,6 +10,8 @@ import {LoveLetterReadDialog} from "../../dialogs/LoveLetterReadDialog.js";
 import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
 import {PossessionChoicesDialog} from "./dialogs/PossessionChoicesDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
+import {UndeathDialog} from "./dialogs/UndeathDialog.js";
+import {DEATHS_DOOR_STATE, resolvedHp, zeroHpMove} from "./deaths-door.js";
 import {WoundDialog} from "./dialogs/WoundDialog.js";
 import {WOUND_STATUS_GLYPH, WOUND_STATUS_LABEL} from "./wound-display.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
@@ -94,7 +96,7 @@ const STAT_TOOLTIPS = {
 // label's data-vital attribute. Gated by hoverDescriptionsVitals.
 const VITAL_TOOLTIPS = {
 	damage: "Your damage die. Roll it when you deal damage; moves, gear, and tags can raise or lower it.",
-	hp:     "Hit points. Lose them when you take damage; at 0 HP you're dying and must roll Last Breath. Your max is set by your playbook and CON.",
+	hp:     "Hit points. Lose them when you take damage; at 0 HP you're dying and must face Death's Door. Your max is set by your playbook and CON.",
 	armor:  "Reduces the damage you take — subtract it from each hit. Computed from the gear you're wearing.",
 	xp:     "Experience. Mark 1 XP on a miss (roll 6-) and from some moves; when the track fills, spend it to level up.",
 	level:  "Your character level. Higher levels let you learn advanced moves and raise the XP needed to advance.",
@@ -1003,7 +1005,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			};
 			context.stonetop.followersEdit   = sectionEdit("followers");
 			context.stonetop.showRollStatChips = getRollStatChipsSetting();
-			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug;
+			// The tab carries the active insert — and, when there isn't one, the "Choose Your Fate"
+			// picker. Gating it purely on having an insert made that picker unreachable: the only
+			// way to a first insert was dragging one in from the compendium. Death's Door grants it
+			// properly now, so this is the manual route back — offered in edit mode, where the
+			// player or GM has already said they're changing the sheet, rather than hanging a
+			// Post-Death tab off every living character.
+			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug || context.stonetop.editMode;
 			// Mirror computed vitals back onto system attributes for the sheet's inputs.
 			// HP-max is playbook-derived, so it only applies with a playbook — keeps
 			// onboarding-built characters from showing the stale template default. Damage
@@ -1196,11 +1204,71 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.canCreateArcana = canCreateArcana();
 			const { xp } = context.stonetop.vitals;
 			context.stonetop.canLevelUp = xp.value >= xp.max;
-			context.stonetop.isDying = context.stonetop.vitals.hp.value <= 0;
+			context.stonetop.deathsDoor = this._buildDeathsDoorData(context.stonetop);
 			context.stonetop.recover = this._buildRecoverData(context.stonetop);
 			context.stonetop.convalesce = this._buildConvalesceData(context.stonetop);
 			context.stonetop.woundsView = this._buildWoundsView(context.stonetop.wounds, context.editable);
 			return context;
+		}
+
+		/**
+		 * The Death's Door card's state (Book I p.245). Being at 0 HP is not the whole story:
+		 * a 7-9 leaves the character at 0 HP and expressly no longer dying, and once they carry
+		 * a post-death insert the move they trigger at 0 HP is their insert's, not this one —
+		 * so the card names that move instead of offering a roll the rules don't allow.
+		 */
+		_buildDeathsDoorData(snapshot) {
+			const hp    = snapshot.vitals.hp.value;
+			const state = this._stonetopCharacter?.deathsDoorState ?? null;
+			// zeroHpMove()'s own fallback is Death's Door, which is also the right answer for a
+			// character model that predates these accessors.
+			const move  = this._stonetopCharacter?.zeroHpMove ?? zeroHpMove(null);
+			const isDeathsDoor = move.dialog;
+			const isOutOfAction = state === DEATHS_DOOR_STATE.OUT_OF_ACTION;
+			const isDead        = state === DEATHS_DOOR_STATE.DEAD;
+			const isFatePending = state === DEATHS_DOOR_STATE.FATE_PENDING;
+			const canFace       = isDeathsDoor && !!this._stonetopCharacter?.canFaceDeathsDoor;
+			// A dispersed Ghost doesn't merely wake up — they reform at their tether with half
+			// their max HP, so the "clear" control is really a reform and says so. The snapshot's
+			// max is the computed one (move bonuses, a Thrall's Marks); the persisted attribute is
+			// the level-1 number and would understate the reform.
+			const reform = isOutOfAction
+				? resolvedHp(this._stonetopCharacter?.zeroHpResolution?.disperses, snapshot.vitals.hp.max)
+				: null;
+
+			// What's true right now, in the order the card says it: the state they're in wins,
+			// and the "which move do I trigger" hint only matters while they're up. Built here
+			// rather than as a conditional ladder in the template, like every other special-move
+			// card's hint, so a new state is one row rather than two Handlebars chains.
+			const l = (key, data) => (data
+				? game.i18n.format(`stonetop.specialMoves.deathsDoor.${key}`, data)
+				: game.i18n.localize(`stonetop.specialMoves.deathsDoor.${key}`));
+			let hint = null;
+			if (isDead)             hint = { icon: "fa-door-closed",    text: l("deadHint"),        isState: true };
+			else if (isFatePending) hint = { icon: "fa-hourglass-half", text: l("fatePendingHint"), isState: true };
+			else if (isOutOfAction) hint = { icon: "fa-bed",            isState: true,
+				text: reform ? l("dispersedHint", { hp: reform }) : l("outOfActionHint") };
+			else if (!isDeathsDoor) hint = { icon: "fa-skull",          text: l("supersededHint", { move: move.name }) };
+			else if (!canFace)      hint = { icon: "fa-lock",           text: l("lockedHint") };
+
+			// The one control the card carries, in the same order. "Choose fate" reopens the
+			// dialog on the three fates (the roll is spent); clearing a lingering state is the
+			// reform for a Ghost; an insert's own 0-HP move is rolled from the sheet instead.
+			let action;
+			if (isFatePending)             action = { cls: "stonetop-deathsdoor-open-btn",  icon: "fa-scale-unbalanced", label: l("chooseFate") };
+			else if (isOutOfAction || isDead) action = { cls: "stonetop-deathsdoor-clear-btn", icon: "fa-rotate-left",   label: l(reform ? "reform" : "clear") };
+			else if (!isDeathsDoor)        action = { cls: "stonetop-deathsdoor-open-btn",  icon: "fa-skull",     label: move.name, disabled: hp > 0 };
+			else                           action = { cls: "stonetop-deathsdoor-open-btn",  icon: "fa-door-open", label: l("button"), disabled: !canFace };
+
+			return {
+				hint,
+				action,
+				// Only Death's Door opens the walkthrough, and only while it's actually theirs to
+				// face; a 6- awaiting its fate is the other way the card is live, since the roll
+				// is spent but the choice isn't made.
+				canFace,
+				isFatePending,
+			};
 		}
 
 		// Recover (special move): expend 1 use of supplies, regain HP equal to
@@ -3180,6 +3248,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-levelup-open-btn").on("click", this._onLevelUpOpen.bind(this));
 			html.find(".stonetop-levelup-icon").on("click", this._onLevelUpOpen.bind(this));
 			html.find(".stonetop-deathsdoor-open-btn").on("click", this._onDeathsDoorOpen.bind(this));
+			html.find(".stonetop-deathsdoor-clear-btn").on("click", this._onDeathsDoorClear.bind(this));
 			html.find(".stonetop-recover-open-btn").on("click", this._onRecoverOpen.bind(this));
 			html.find(".stonetop-convalesce-open-btn").on("click", this._onConvalesceOpen.bind(this));
 
@@ -4245,6 +4314,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._stonetopCharacter.setPostDeathInsert(btn.dataset.slug).then(() => this.render(false));
 			}, true);
 
+			// The Ghost's tether. Saved on blur (not per keystroke) so naming it doesn't re-render
+			// the sheet out from under the cursor.
+			html.find(".stonetop-pdi-tether-input").on("change", ev => {
+				this._stonetopCharacter.setTether(ev.currentTarget.value).then(() => this.render(false));
+			});
+
 			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".stonetop-pdi-remove");
 				if (!btn) return;
@@ -5214,12 +5289,76 @@ export function createStonetopCharacterSheetClass(Base) {
 			).render(true);
 		}
 
+		/**
+		 * Open the Death's Door walkthrough — but only when Death's Door is the move this
+		 * character actually triggers. A PC carrying a post-death insert has their own 0-HP
+		 * move (Undying / Tethered / Dark Succor), so they get pointed at it instead of a
+		 * dialog that would walk them through the wrong rules.
+		 */
 		async _onDeathsDoorOpen() {
-			if ((this.actor.system?.attributes?.hp?.value ?? 1) > 0) return;
+			const move = this._stonetopCharacter.zeroHpMove;
+			// A character with an insert faces their insert's 0-HP move, which has its own
+			// walkthrough — it marks consequences, gains and crosses off Marks, and resets Favor.
+			// Gated the same way the card's own button is (_buildDeathsDoorData): a dying chat
+			// card stays in the log forever and comes through here too, so without this an old
+			// one re-opens the move — and hands out half their max HP again — for a Revenant who
+			// is back on their feet, or a second time for a Ghost still dispersed.
+			if (!move.dialog) {
+				const state = this._stonetopCharacter.deathsDoorState;
+				const settled = state === DEATHS_DOOR_STATE.OUT_OF_ACTION || state === DEATHS_DOOR_STATE.DEAD;
+				if (this._stonetopCharacter.hp > 0 || settled) return;
+				return this._onUndeathOpen();
+			}
+			// A spent 6- still opens the dialog — not to roll again, but to choose the fate it
+			// left hanging; the dialog resumes on that step.
+			const pending = this._stonetopCharacter.deathsDoorState === DEATHS_DOOR_STATE.FATE_PENDING;
+			if (!pending && !this._stonetopCharacter.canFaceDeathsDoor) return;
 			new DeathsDoorDialog(
 				this._stonetopCharacter,
 				() => this.render(false),
 			).render(true);
+		}
+
+		/**
+		 * Open the walkthrough for an insert's 0-HP move (Undying / Tethered / Dark Succor).
+		 * Falls back to simply rolling the move for a homebrew insert we have no spec for, so an
+		 * unrecognised insert still gets its move rather than a dead button.
+		 */
+		async _onUndeathOpen() {
+			const move = this._stonetopCharacter.zeroHpMove;
+			if (!this._stonetopCharacter.zeroHpResolution) return this.rollMoveByName(move.name);
+			await UndeathDialog.open(this._stonetopCharacter, () => this.render(false));
+		}
+
+		/**
+		 * Roll (or post) one of the character's own moves by name — the entry point the dying
+		 * chat card uses to hand an undead PC their insert's 0-HP move. Falls back to a notice
+		 * rather than silence when the move isn't on the sheet, since that means the insert's
+		 * moves failed to embed.
+		 */
+		async rollMoveByName(name) {
+			const item = this.actor?.items?.find(i => i.type === "move" && i.name === name);
+			if (!item) return void ui.notifications.warn(`${name} isn't on this character's sheet.`);
+			return this.rollMoveById(item.id);
+		}
+
+		/**
+		 * Clear a lingering death state. The 7-9 leaves the character out of the action "until
+		 * you say otherwise" (p.245) — this is the GM (or the player) saying otherwise. Also
+		 * un-does a mistaken "stepped through the Last Door", which nothing else reverses.
+		 */
+		async _onDeathsDoorClear() {
+			if (!this.isEditable) return;
+			// A dispersed Ghost doesn't just wake up: "you reform near your tether with half your
+			// max HP". Clearing the state IS the reforming, so it brings the hit points with it,
+			// in the one write.
+			const disperses = this._stonetopCharacter.zeroHpResolution?.disperses;
+			const reformHp = disperses && this._stonetopCharacter.deathsDoorState === DEATHS_DOOR_STATE.OUT_OF_ACTION
+				? resolvedHp(disperses, await this._stonetopCharacter.computedMaxHp())
+				: null;
+			if (reformHp !== null) await this._stonetopCharacter.restoreHp(reformHp, "Tethered", { clearsDeathsDoor: true });
+			else await this._stonetopCharacter.setDeathsDoorState(null);
+			this.render(false);
 		}
 
 		// Open the Create-a-Follower walkthrough (Book I, NPCs & Followers, p.474).

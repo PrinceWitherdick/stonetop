@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { createStonetopCharacterSheetClass } from "../../../module/actors/character/StonetopCharacterSheet.js";
 import {FakeActorBuilder} from "../../fakes/FakeActorBuilder.js";
+import { DEATHS_DOOR_STATE, zeroHpMove, zeroHpResolution } from "../../../module/actors/character/deaths-door.js";
 
 // -- Helpers ------------------------------------------------------------------
 
@@ -509,5 +510,49 @@ describe("StonetopCharacterSheet._onDropItemCreate", () => {
 		const sheet = makeSheet(actor);
 		await sheet._onDropItemCreate(makeNonMove());
 		expect(sheet.render).not.toHaveBeenCalled();
+	});
+});
+
+// _onDeathsDoorOpen is the ONE way into a character's 0-HP move: the sheet's own button and the
+// dying chat card both come through it (hooks/DeathsDoorPrompt.js). The card outlives the moment
+// it was posted for, so the gate has to live here rather than only on the button the sheet draws.
+describe("StonetopCharacterSheet 0-HP move gate", () => {
+	function makeInsertSheet({ hp, state = null }) {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		sheet._stonetopCharacter = {
+			hp,
+			deathsDoorState: state,
+			zeroHpMove: zeroHpMove("revenant"),   // Undying — its own walkthrough, not Death's Door
+			zeroHpResolution: zeroHpResolution("revenant"),
+		};
+		sheet._onUndeathOpen = vi.fn(async () => {});
+		return sheet;
+	}
+
+	it("opens the insert's walkthrough for a character who is actually down", async () => {
+		const sheet = makeInsertSheet({ hp: 0, state: DEATHS_DOOR_STATE.DYING });
+		await sheet._onDeathsDoorOpen();
+		expect(sheet._onUndeathOpen).toHaveBeenCalled();
+	});
+
+	it("refuses an old dying card once the character is back on their feet", async () => {
+		// Without this, clicking a spent card's button re-rolls Undying and hands out half their
+		// max HP again — for a Revenant standing there at full health.
+		const sheet = makeInsertSheet({ hp: 6 });
+		await sheet._onDeathsDoorOpen();
+		expect(sheet._onUndeathOpen).not.toHaveBeenCalled();
+	});
+
+	it("refuses it again while they're out of the action — the move is spent, not pending", async () => {
+		const sheet = makeInsertSheet({ hp: 0, state: DEATHS_DOOR_STATE.OUT_OF_ACTION });
+		await sheet._onDeathsDoorOpen();
+		expect(sheet._onUndeathOpen).not.toHaveBeenCalled();
+	});
+
+	it("refuses it for one who stepped through the Last Door", async () => {
+		const sheet = makeInsertSheet({ hp: 0, state: DEATHS_DOOR_STATE.DEAD });
+		await sheet._onDeathsDoorOpen();
+		expect(sheet._onUndeathOpen).not.toHaveBeenCalled();
 	});
 });

@@ -41,6 +41,7 @@ import {statRequirementLabel, statRequirementsUnmet} from "./stat-requirement.js
 import {MoveResources} from "./MoveResources.js";
 import {moveMarkBudget} from "./move-mark-budget.js";
 import {StonetopFlags, STONETOP_SCOPE, ITEM_FLAG_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
+import {DEATHS_DOOR_FLAG, canFaceDeathsDoor, deathsDoorRollOptions, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
 import {heroDisplayName, WBH_HERO_FLAG, ownsAsteriskMove} from "./WouldBeHeroAsterisk.js";
 import {CharacterBackgrounds} from "./CharacterBackgrounds.js";
 import {CharacterInstincts} from "./CharacterInstincts.js";
@@ -54,7 +55,7 @@ import {defendReadinessHold, defendReadinessCap} from "../../combat/defend-readi
 import {classifyResult, xpToLevelUp} from "../../utils/roll-engine.js";
 import {CharacterArcana} from "./CharacterArcana.js";
 import {CharacterLore} from "./CharacterLore.js";
-import {CharacterPostDeath, buildLoreSection} from "./CharacterPostDeath.js";
+import {CharacterPostDeath, buildLoreSection, insertHpPenalty} from "./CharacterPostDeath.js";
 import {effectiveSubgroupMax, sumMoveBonus} from "./dialogs/possession-choice-cap.js";
 import {FoundryRepositoryFactory} from "./repositories/FoundryRepositoryFactory.js";
 import {capitalizeFirst, slugify, composeInstinct, escHtml} from "../../utils/strings.js";
@@ -430,7 +431,10 @@ export class StonetopCharacter {
 			.withDebilities(_buildDebilitiesSection(actor))
 			.withWounds(_buildWoundsSection(actor))
 			.withStats(_buildStatsSection(actor))
-			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses, wornArmorBase))
+			// A Thrall's Marks eat into their max HP ("Reduce your max HP by 2"), and they collect
+			// more as Dark Succor keeps saving them — so it's derived from the marked options
+			// every render, not written once.
+			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses, wornArmorBase, insertHpPenalty(postDeath.activeInsert?.lore)))
 			.withMoves(moves)
 			.withMovelist(_buildMovelist(moves, inventory.other, pdiLabel, actorLevel, inventory.loveLetters))
 			.withInventory(inventory)
@@ -2104,6 +2108,91 @@ export class StonetopCharacter {
 		await this._actor.setFlag(STONETOP_SCOPE, "rollMode", _normalizeSheetRollMode(rollMode));
 	}
 
+	// ── Death and dying (Book I, Harm & Healing p.245) ─────────────────────────
+	// HP alone can't say whether a character at 0 HP still has their 0-HP move ahead of
+	// them: a Death's Door 7-9 leaves them at 0 HP and expressly no longer dying. The
+	// state flag carries that; deaths-door.js owns what the transitions are.
+
+	/** DEATHS_DOOR_STATE value, or null for the ordinary living state. */
+	get deathsDoorState() {
+		return resolvedFlagProperty(this._actor, DEATHS_DOOR_FLAG) ?? null;
+	}
+
+	async setDeathsDoorState(state) {
+		if (state) await this._actor.setFlag(STONETOP_SCOPE, DEATHS_DOOR_FLAG, state);
+		else await this._actor.unsetFlag(STONETOP_SCOPE, DEATHS_DOOR_FLAG);
+	}
+
+	/**
+	 * Clearing the state as part of another write, for the moves where coming back and being
+	 * healed are one decision (see restoreHp / markDebility). Written as an explicit null
+	 * rather than an unset, which is how the preUpdate hook writes it too — the reader treats
+	 * both alike (see deathsDoorState).
+	 */
+	get _clearDeathsDoorUpdate() {
+		return { [`flags.${STONETOP_SCOPE}.${DEATHS_DOOR_FLAG}`]: null };
+	}
+
+	get hp() { return Number(this._actor.system?.attributes?.hp?.value) || 0; }
+
+	/** At 0 HP with their 0-HP move still to face. */
+	get canFaceDeathsDoor() {
+		return canFaceDeathsDoor({ hp: this.hp, state: this.deathsDoorState });
+	}
+
+	/** Which move this character triggers at 0 HP — Death's Door only until they take an insert. */
+	get zeroHpMove() {
+		return zeroHpMove(this._postDeath.activeSlug);
+	}
+
+	/**
+	 * The Heavy's Death's Door modifiers, read off the character's own moves: Hard to Kill's
+	 * "+CON or +nothing (your choice)" and Unstoppable's "-1 penalty for each circle marked".
+	 */
+	deathsDoorRollOptions() {
+		return deathsDoorRollOptions(
+			this._actor.items.filter(i => i.type === "move").map(i => i.name),
+			this._moveResources.getMoveResources(),
+		);
+	}
+
+	/**
+	 * Death's Door 10+: "return to 1 HP", and with it the end of dying. Written here rather than
+	 * left to the player, since the move gives them no choice about it. restoreHp only ever
+	 * raises hit points, which is exactly what this wants: a character who was somehow healed
+	 * above 1 while the dialog was open keeps the better number.
+	 */
+	async returnToOneHp() {
+		return this.restoreHp(1, "Death's Door", { clearsDeathsDoor: true });
+	}
+
+	// ── The inserts' own 0-HP moves (Undying / Tethered / Dark Succor) ─────────
+	// Their bookkeeping lives on the insert (consequences, Marks, Favor), so these are thin
+	// pass-throughs to CharacterPostDeath; the walkthrough calls them rather than reaching
+	// through `_postDeath` itself.
+
+	/** The resolution spec for this character's 0-HP move, or null without an insert. */
+	get zeroHpResolution() {
+		return zeroHpResolution(this._postDeath.activeSlug);
+	}
+
+	/**
+	 * The character's real max HP.
+	 *
+	 * NOT `system.attributes.hp.max`: that field is written once, when the playbook is dropped,
+	 * and never again — every later contribution (move bonuses, and a Thrall's max-HP Marks)
+	 * lives only in the computed snapshot, which the sheet mirrors into its inputs without
+	 * persisting. Anything doing arithmetic on "your max HP" has to ask for the computed value
+	 * or it will quietly use the character's level-1 number.
+	 */
+	async computedMaxHp() {
+		const snapshot = await this.buildSnapshot();
+		return snapshot.vitals?.hp?.max ?? this.storedMaxHp;
+	}
+
+	/** The persisted field — stale by design; see computedMaxHp. Only for a last-resort fallback. */
+	get storedMaxHp()       { return Number(this._actor.system?.attributes?.hp?.max) || 0; }
+
 	/** The hand-set damage die, or null when the die follows the playbook. */
 	get damageDieOverride() { return normalizeDamageDie(this._actor.system?.attributes?.damage?.override); }
 
@@ -2130,6 +2219,61 @@ export class StonetopCharacter {
 			"system.attributes.damage.value": effective ?? "",
 		});
 		return effective;
+	}
+	async setMasterTask(t)  { await this._postDeath.setMasterTask(t); }
+	get tether()            { return this._postDeath.tether; }
+	async setTether(t)      { await this._postDeath.setTether(t); }
+	async crossOffMark(s)   { return this._postDeath.crossOffMark(s); }
+	async sectionOptions(s) { return this._postDeath.sectionOptions(s); }
+	async markSectionOption(section, option) { return this._postDeath.markSectionOption(section, option); }
+	favor()                 { return this._postDeath.favor(); }
+	async setFavor(v)       { await this._postDeath.setFavor(v); }
+
+	/**
+	 * Set HP to an exact value, for the insert moves that restore a stated amount ("regain half
+	 * your max HP", "regain 1 HP"). The caller computes the amount against the real max (see
+	 * computedMaxHp), so it's taken as authoritative here — this only refuses to LOWER hit
+	 * points, since these moves restore rather than cap.
+	 *
+	 * `clearsDeathsDoor` rides the state change along in the same write: being restored IS the
+	 * end of the brush with death, so it should cost one ledger line and one re-render rather
+	 * than two. It still has to happen when the hit points DON'T move (a character healed above
+	 * the amount while the dialog was open), so that path writes the state on its own.
+	 */
+	async restoreHp(value, moveName, { clearsDeathsDoor = false } = {}) {
+		const target = Math.max(0, Math.trunc(Number(value) || 0));
+		if (target <= this.hp) {
+			if (clearsDeathsDoor) await this.setDeathsDoorState(null);
+			return false;
+		}
+		const update = { "system.attributes.hp.value": target };
+		if (clearsDeathsDoor) Object.assign(update, this._clearDeathsDoorUpdate);
+		await this._actor.update(update, moveName ? { stonetopMove: moveName } : {});
+		return true;
+	}
+
+	/** The three debilities and whether each is marked — for a move that offers a choice of one. */
+	get debilityChoices() {
+		const opts = this._actor.system?.attributes?.debilities?.options ?? {};
+		return _DEBILITY_DEFS.map(({ key, name, description }) => ({
+			key, name, description, marked: !!opts[key]?.value,
+		}));
+	}
+
+	/**
+	 * Mark one debility, optionally in the same write as an HP change and the end of a brush
+	 * with death — the Heavy's Hard to Kill trades exactly that on a 7-9 ("mark a debility of
+	 * your choice to regain 1 HP", which is also what takes them out of being out of the
+	 * action), and one write means one ledger line and one re-render for what is one decision.
+	 */
+	async markDebility(key, { hp = null, moveName, clearsDeathsDoor = false } = {}) {
+		if (!_DEBILITY_DEF_BY_KEY[key]) return false;
+		if (this.debilityChoices.find(d => d.key === key)?.marked) return false;
+		const update = { [`system.attributes.debilities.options.${key}.value`]: true };
+		if (hp !== null) update["system.attributes.hp.value"] = hp;
+		if (clearsDeathsDoor) Object.assign(update, this._clearDeathsDoorUpdate);
+		await this._actor.update(update, moveName ? { stonetopMove: moveName } : {});
+		return true;
 	}
 
 	// ── Problematic / permanent wounds (Book I, Harm & Healing) ────────────────
@@ -2563,10 +2707,12 @@ function _buildWoundsSection(actor) {
 }
 
 
-function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, wornArmorBase = 0) {
+function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, wornArmorBase = 0, insertHpPenalty = 0) {
 	const attrs = actor.system?.attributes ?? {};
 	const level = attrs.level?.value ?? 1;
-	const hpBonus = moveBonuses.hp ?? 0;
+	// Floored at 1: a Thrall who collects enough max-HP Marks would otherwise arrive at 0 max HP
+	// and be permanently dying, which is Unholy Vessel's job to end, not arithmetic's.
+	const hpMax = Math.max(1, (playbookData?.hp ?? 0) + (moveBonuses.hp ?? 0) - insertHpPenalty);
 	const damageBase = playbookData
 		? (moveBonuses.damageDie ? maxDie(playbookData.damage, moveBonuses.damageDie) : playbookData.damage)
 		: null;
@@ -2575,7 +2721,7 @@ function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, 
 	// Clearing the field drops back to the derived die (see setDamageDieOverride).
 	const damage = normalizeDamageDie(attrs.damage?.override) ?? damageBase;
 	return new VitalsSnapshotBuilder()
-		.withHp(playbookData ? new ValueMax(attrs.hp?.value ?? 0, (playbookData.hp ?? 0) + hpBonus) : new ValueMax(0, 0))
+		.withHp(playbookData ? new ValueMax(Math.min(attrs.hp?.value ?? 0, hpMax), hpMax) : new ValueMax(0, 0))
 		.withDamage(damage)
 		.withDamageBase(damageBase)
 		.withArmor(armorValue)

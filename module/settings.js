@@ -147,6 +147,36 @@ export function registerSettings() {
 		default: true,
 	});
 
+	// Posts a chat card the moment a PC is reduced to 0 HP, naming the 0-HP move they
+	// actually trigger (Death's Door, or their post-death insert's own move). On by default:
+	// the book has the whole table react to a PC going down, and without it the moment can
+	// pass unnoticed. The card never forces the roll — the book explicitly allows holding it
+	// off "until the scene wraps up" — so a GM who wants the moment kept quiet turns it off.
+	game.settings.register("stonetop-pwd", "deathsDoorPrompt", {
+		name: "stonetop.settings.deathsDoorPrompt.name",
+		hint: "stonetop.settings.deathsDoorPrompt.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: true,
+	});
+
+	// Opens the 0-HP walkthrough on the dying player's own screen as well as posting the card,
+	// so the moment doesn't wait on someone noticing a line of chat. Subordinate to the setting
+	// above: a table that has turned the announcement off doesn't want a window either.
+	//
+	// The dialog is still only an invitation — its Cancel closes it and the card stays in chat —
+	// so the book's "hold the roll off until the scene wraps up" is intact. Turn this off to
+	// leave the card as the only nudge.
+	game.settings.register("stonetop-pwd", "deathsDoorAutoOpen", {
+		name: "stonetop.settings.deathsDoorAutoOpen.name",
+		hint: "stonetop.settings.deathsDoorAutoOpen.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: true,
+	});
+
 	// Adds the "Shift Up" / "Shift Down" buttons to move roll cards in chat, letting the
 	// GM bump a roll's result to a higher or lower tier (see _chatWireRollShifting /
 	// _onRollShift in stonetop.js). Only the GM ever sees them. Off by default — it's a
