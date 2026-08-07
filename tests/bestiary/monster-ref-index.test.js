@@ -19,7 +19,7 @@ const COMPENDIUM = [
 function setGame(actors = []) {
 	globalThis.game = {
 		packs: {
-			get: (id) => id === "stonetop-pwd.stonetop-bestiary"
+			get: (id) => id === "stonetop_pwd.stonetop-bestiary"
 				? { collection: "x", getIndex: async () => COMPENDIUM }
 				: null,
 		},

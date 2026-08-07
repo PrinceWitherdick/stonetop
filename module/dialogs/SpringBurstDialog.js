@@ -194,7 +194,7 @@ export class SpringBurstDialog extends StepperDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-spring-burst",
 			title:     "Let Spring Burst Forth",
-			template:  "systems/stonetop-pwd/templates/dialogs/spring-burst.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/spring-burst.hbs",
 			width:     520,
 			height:    "auto",
 			resizable: true,

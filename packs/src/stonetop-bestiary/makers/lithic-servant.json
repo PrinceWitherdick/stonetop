@@ -1,7 +1,7 @@
 {
   "name": "Lithic Servant",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/construct.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/construct.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "horde, construct, implacable",
     "qualities": "<p>Externally powered; bug-like intellect; blind; tremorsense.</p>",
     "count": 6,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.91EWIGU7SaOUHbS9",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.91EWIGU7SaOUHbS9",
     "notes": "",
     "creatureType": "construct"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/construct.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/construct.svg"
     }
   },
   "items": [

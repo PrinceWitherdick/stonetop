@@ -85,7 +85,7 @@ function findIntroductionsJournal() {
 // The page in `journal` that belongs to the actor with `actorId` — matched by the
 // stable chronicleKey flag (the actor id), so it survives renames.
 function findActorChroniclePage(journal, actorId) {
-	return journal?.pages?.find(p => p.getFlag?.("stonetop-pwd", "chronicleKey") === actorId) ?? null;
+	return journal?.pages?.find(p => p.getFlag?.("stonetop_pwd", "chronicleKey") === actorId) ?? null;
 }
 
 /**

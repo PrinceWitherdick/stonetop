@@ -139,7 +139,7 @@ export function findPlacesJournal() {
 /** The page in `journal` for the place at `letter`, matched by its stable key. */
 export function findPlacePage(journal, letter) {
 	const key = placePageKey(letter);
-	return journal?.pages?.find(p => p.getFlag?.("stonetop-pwd", "chronicleKey") === key) ?? null;
+	return journal?.pages?.find(p => p.getFlag?.("stonetop_pwd", "chronicleKey") === key) ?? null;
 }
 
 /**

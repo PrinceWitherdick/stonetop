@@ -40,7 +40,7 @@ export class LoveLetterDialog extends StonetopDialog {
 
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
-			template: "systems/stonetop-pwd/templates/dialogs/love-letter.hbs",
+			template: "systems/stonetop_pwd/templates/dialogs/love-letter.hbs",
 			width: 520,
 			height: "auto",
 			resizable: true,

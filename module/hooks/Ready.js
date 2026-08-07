@@ -46,7 +46,7 @@ import { PERSON_DEFAULT_IMG } from "../utils/person-portrait.js";
 import { isDefaultImg } from "../utils/strings.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
-const _EOS_MACRO_IMG    = "systems/stonetop-pwd/assets/icons/macros/truce.svg";
+const _EOS_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/truce.svg";
 const _EOS_MACRO_SCRIPT = "game.stonetop?.openEndOfSession?.()";
 const _EOS_HOTBAR_SLOT  = 10;
 
@@ -57,7 +57,7 @@ const _EOS_HOTBAR_SLOT  = 10;
 // _SYSTEM_MACROS set and keyed on its command so it won't collide with a user macro of
 // the same name.
 const _CHRONICLE_MACRO_NAME   = "The Chronicle";
-const _CHRONICLE_MACRO_IMG    = "systems/stonetop-pwd/assets/icons/macros/bookmarklet.svg";
+const _CHRONICLE_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/bookmarklet.svg";
 const _CHRONICLE_MACRO_SCRIPT = "game.stonetop?.saveChronicle?.()";
 const _CHRONICLE_HOTBAR_SLOT  = 9;
 
@@ -67,8 +67,8 @@ const _CHRONICLE_HOTBAR_SLOT  = 9;
 // un-ignored in .gitignore and named explicitly in the release zip step, so released
 // worlds get the macro too. A build that omits it still skips seeding, silently.
 const _TEST_MACRO_NAME   = "(TEST ONLY) Populate World";
-const _TEST_MACRO_SRC    = "systems/stonetop-pwd/scripts/local/create-test-characters.js";
-const _TEST_MACRO_IMG    = "systems/stonetop-pwd/assets/icons/macros/hazard-sign.svg";
+const _TEST_MACRO_SRC    = "systems/stonetop_pwd/scripts/local/create-test-characters.js";
+const _TEST_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/hazard-sign.svg";
 const _TEST_MACRO_FOLDER = "For Testing Purposes";
 
 // Retired hotbar macro — the Introductions walkthrough now launches from the
@@ -94,19 +94,19 @@ game.stonetop?.openIntroductions?.();`;
 // on each player's own hotbar at `playerSlot` (see _ensurePlayerHotbarMacros). A player's
 // bar is otherwise empty of system macros, so it starts at slot 1 rather than the GM's 6.
 const _SYSTEM_MACROS = [
-	{ name: "Welcome to Stonetop", img: "systems/stonetop-pwd/assets/icons/macros/direction-signs.svg", command: "game.stonetop?.openWelcome?.()",        slot: 1 },
-	{ name: "Seasons Change",      img: "systems/stonetop-pwd/assets/icons/macros/spring.svg",           command: "game.stonetop?.openSeasonsChange?.()", slot: 2 },
-	{ name: "Run an Expedition",   img: "systems/stonetop-pwd/assets/icons/macros/treasure-map.svg",     command: "game.stonetop?.openExpedition?.()",     slot: 3 },
-	{ name: "Weather",             img: "systems/stonetop-pwd/assets/icons/macros/sun-cloud.svg",        command: "game.stonetop?.openWeather?.()",        slot: 4 },
-	{ name: "Write a Love Letter", img: "systems/stonetop-pwd/assets/icons/macros/love-letter.svg",      command: "game.stonetop?.openLoveLetter?.()",     slot: 5 },
-	{ name: "Die of Fate",         img: "systems/stonetop-pwd/assets/icons/macros/die-of-fate.svg",      command: "game.stonetop?.rollDieOfFate?.()",      slot: 6, shared: true, playerSlot: 1 },
+	{ name: "Welcome to Stonetop", img: "systems/stonetop_pwd/assets/icons/macros/direction-signs.svg", command: "game.stonetop?.openWelcome?.()",        slot: 1 },
+	{ name: "Seasons Change",      img: "systems/stonetop_pwd/assets/icons/macros/spring.svg",           command: "game.stonetop?.openSeasonsChange?.()", slot: 2 },
+	{ name: "Run an Expedition",   img: "systems/stonetop_pwd/assets/icons/macros/treasure-map.svg",     command: "game.stonetop?.openExpedition?.()",     slot: 3 },
+	{ name: "Weather",             img: "systems/stonetop_pwd/assets/icons/macros/sun-cloud.svg",        command: "game.stonetop?.openWeather?.()",        slot: 4 },
+	{ name: "Write a Love Letter", img: "systems/stonetop_pwd/assets/icons/macros/love-letter.svg",      command: "game.stonetop?.openLoveLetter?.()",     slot: 5 },
+	{ name: "Die of Fate",         img: "systems/stonetop_pwd/assets/icons/macros/die-of-fate.svg",      command: "game.stonetop?.rollDieOfFate?.()",      slot: 6, shared: true, playerSlot: 1 },
 	// The one macro whose icon is NOT from the macros/ game-icons.net set: the triple spiral
 	// the books stamp beside an arcanum (Book II p.545), the same mark every un-illustrated
 	// arcanum Item wears via STONETOP_ITEM_ICONS.arcanum. This macro opens the arcana, so it
 	// carries the arcana's own symbol — but the macros/ copy, whose mark is drawn larger to
 	// hold its own beside icons that fill their tile. See that file for why it's a copy.
-	{ name: "Browse the Arcana",   img: "systems/stonetop-pwd/assets/icons/macros/arcanum.svg",          command: "game.stonetop?.openArcanaBrowser?.()",  slot: 7 },
-	{ name: "Browse the Bestiary", img: "systems/stonetop-pwd/assets/icons/macros/animal-skull.svg",     command: "game.stonetop?.openBestiaryBrowser?.()", slot: 8 },
+	{ name: "Browse the Arcana",   img: "systems/stonetop_pwd/assets/icons/macros/arcanum.svg",          command: "game.stonetop?.openArcanaBrowser?.()",  slot: 7 },
+	{ name: "Browse the Bestiary", img: "systems/stonetop_pwd/assets/icons/macros/animal-skull.svg",     command: "game.stonetop?.openBestiaryBrowser?.()", slot: 8 },
 ];
 
 // Bump to re-snap the system macros into their canonical slots once, on every client

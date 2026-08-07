@@ -6,7 +6,7 @@ import { compendiumRefTail, systemLinkPattern } from "../migration/compat.js";
 // changed.
 //
 // The update model: each seeded world journal stores a fingerprint of the content
-// we last wrote to it (`flags.stonetop-pwd.journalSync.hash`). On a version bump we
+// we last wrote to it (`flags.stonetop_pwd.journalSync.hash`). On a version bump we
 // recompute that fingerprint; if it still matches, the GM hasn't touched the entry
 // and we may safely refresh it to the newly-shipped version. If it differs, the GM
 // has edited it — we leave it alone. The fingerprint is order-independent and id-

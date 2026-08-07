@@ -27,7 +27,7 @@ export class WeatherDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-weather",
 			title:     "Weather",
-			template:  "systems/stonetop-pwd/templates/dialogs/weather.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/weather.hbs",
 			width:     420,
 			height:    "auto",
 			resizable: true,

@@ -86,7 +86,7 @@ export class BestiaryBrowserDialog extends CatalogBrowserDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id: "stonetop-bestiary-browser",
 			title: "Bestiary & People",
-			template: "systems/stonetop-pwd/templates/dialogs/bestiary-browser.hbs",
+			template: "systems/stonetop_pwd/templates/dialogs/bestiary-browser.hbs",
 			// Wider than the Arcana browser: the monsters carry three chip groups and one of
 			// them is twelve pills long.
 			width: 820,

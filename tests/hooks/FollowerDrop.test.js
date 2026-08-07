@@ -70,7 +70,7 @@ describe("placeFollowerToken", () => {
 		expect(data.type).toBe("npc");
 		expect(data.name).toBe("Old Bess");
 		expect(data.folder).toBe("fold1");
-		expect(data.flags["stonetop-pwd"].followerOrigin)
+		expect(data.flags["stonetop_pwd"].followerOrigin)
 			.toEqual({ characterUuid: "Actor.pc1", ftype: "custom", slug: "f1" });
 		expect(layer._onDropActorData).toHaveBeenCalledWith(event, {
 			type: "Actor", uuid: "Actor.new0", x: 100, y: 200,
@@ -81,7 +81,7 @@ describe("placeFollowerToken", () => {
 		await placeFollowerToken(makeCanvas(), DROP, {});
 
 		expect(character.update).toHaveBeenCalledWith({
-			"flags.stonetop-pwd.customFollowers.f1.actorUuid": "Actor.new0",
+			"flags.stonetop_pwd.customFollowers.f1.actorUuid": "Actor.new0",
 		});
 	});
 
@@ -128,7 +128,7 @@ describe("placeFollowerToken", () => {
 		expect(globalThis.Actor.create).toHaveBeenCalledTimes(1);
 		expect(layer._onDropActorData).toHaveBeenCalledWith({}, expect.objectContaining({ uuid: "Actor.new0" }));
 		expect(character.update).toHaveBeenCalledWith({
-			"flags.stonetop-pwd.customFollowers.f1.actorUuid": "Actor.new0",
+			"flags.stonetop_pwd.customFollowers.f1.actorUuid": "Actor.new0",
 		});
 	});
 
@@ -141,7 +141,7 @@ describe("placeFollowerToken", () => {
 
 		expect(globalThis.Actor.create).toHaveBeenCalledTimes(1);
 		expect(character.update).toHaveBeenCalledWith({
-			"flags.stonetop-pwd.customFollowers.f1.actorUuid": "Actor.new0",
+			"flags.stonetop_pwd.customFollowers.f1.actorUuid": "Actor.new0",
 		});
 	});
 

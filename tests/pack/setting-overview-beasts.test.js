@@ -76,7 +76,7 @@ describe("setting overview livestock links", () => {
 		const missing = [];
 		for (const slug of BEAST_ORDER) {
 			const item = slugToItem.get(slug);
-			const link = `@UUID[Compendium.stonetop-pwd.stonetop-items.Item.${item._id}]{${BEAST_CATALOG[slug].name}}`;
+			const link = `@UUID[Compendium.stonetop_pwd.stonetop-items.Item.${item._id}]{${BEAST_CATALOG[slug].name}}`;
 			if (!livestockPage.includes(link)) missing.push(`${slug} → ${link}`);
 		}
 		expect(missing).toEqual([]);

@@ -77,6 +77,6 @@ export function charactersOwnedBy(userId) {
  */
 export function playbookIconPath(slug) {
 	return slug
-		? `systems/stonetop-pwd/assets/icons/playbooks/${slug.replace(/-/g, "_")}_icon.webp`
+		? `systems/stonetop_pwd/assets/icons/playbooks/${slug.replace(/-/g, "_")}_icon.webp`
 		: null;
 }

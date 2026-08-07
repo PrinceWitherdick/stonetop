@@ -1,7 +1,7 @@
 {
   "name": "Base Archon",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/spirit-construct.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "solitary, large, primordial, spirit, construct, magical, terrifying",
     "qualities": "<p>Ageless; immune to the elements; perceives thought and matter; omnilingual. Armor 1 vs. black iron. Adjust its stat block, manifestation move, and powers to its purpose.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.h8QoSAJnc3Z80m8F",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.h8QoSAJnc3Z80m8F",
     "notes": "",
     "creatureType": "spirit-construct"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/spirit-construct.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.svg"
     }
   },
   "items": [

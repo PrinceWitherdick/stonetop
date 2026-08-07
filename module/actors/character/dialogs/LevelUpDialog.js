@@ -54,7 +54,7 @@ export class LevelUpDialog extends StonetopDialog {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-levelup-dialog",
-			template:  "systems/stonetop-pwd/templates/dialogs/level-up.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/level-up.hbs",
 			title:     game.i18n.localize("stonetop.specialMoves.levelUp.title"),
 			width:     LEVELUP_BASE_WIDTH,
 			height:    "auto", // every step fits its content; CSS max-height caps tall lists

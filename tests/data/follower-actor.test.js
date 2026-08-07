@@ -64,13 +64,13 @@ describe("followerNpcActorData", () => {
 
 	it("gives a portrait-less follower their card's own mark, not Foundry's mystery man", () => {
 		const data = followerNpcActorData({ ...CREW, img: "", portraitIcon: "fas fa-users" });
-		expect(data.img).toBe("systems/stonetop-pwd/assets/icons/bestiary/human-group.svg");
+		expect(data.img).toBe("systems/stonetop_pwd/assets/icons/bestiary/human-group.svg");
 		expect(data.prototypeToken.texture).toEqual({ src: data.img });
 	});
 
 	it("treats a stock Foundry placeholder as no portrait at all", () => {
 		const data = followerNpcActorData({ ...CREW, img: "icons/svg/mystery-man.svg", portraitIcon: "fas fa-paw" });
-		expect(data.img).toBe("systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg");
+		expect(data.img).toBe("systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg");
 	});
 
 	it("dresses the token in the follower's portrait when the card has one", () => {
@@ -100,7 +100,7 @@ describe("followerNpcActorData", () => {
 		const origin = { characterUuid: "Actor.abc", ftype: "crew", slug: "" };
 		const data = followerNpcActorData(CREW, { folder: "folder1", origin });
 		expect(data.folder).toBe("folder1");
-		expect(data.flags["stonetop-pwd"].followerOrigin).toEqual(origin);
+		expect(data.flags["stonetop_pwd"].followerOrigin).toEqual(origin);
 	});
 });
 
@@ -138,11 +138,11 @@ describe("followerNotesHtml", () => {
 });
 
 describe("followerMarkerImg", () => {
-	const mark = t => `systems/stonetop-pwd/assets/icons/bestiary/${t}.svg`;
+	const mark = t => `systems/stonetop_pwd/assets/icons/bestiary/${t}.svg`;
 
 	it("gives an initiate of Danu the sprout", () => {
 		expect(followerMarkerImg("fas fa-seedling")).toBe(SPROUT_MARKER);
-		expect(SPROUT_MARKER).toBe("systems/stonetop-pwd/assets/icons/followers/sprout.svg");
+		expect(SPROUT_MARKER).toBe("systems/stonetop_pwd/assets/icons/followers/sprout.svg");
 	});
 
 	it("maps the taxonomy's own glyphs straight back to their marks", () => {

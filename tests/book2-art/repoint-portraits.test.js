@@ -36,17 +36,17 @@ describe("planning the re-point", () => {
 	});
 
 	it("finds follower portraits nested in flags, whatever the path", () => {
-		// A card's art lives at flags.stonetop-pwd.<shape>.img, and the shape differs per
+		// A card's art lives at flags.stonetop_pwd.<shape>.img, and the shape differs per
 		// follower type — walking for the key is what covers a type added later. On a PLAYER
 		// CHARACTER, which is where follower cards live: the flag walk is deliberately not
 		// gated by type even though the actor's own portrait is.
 		const pc = actor({
 			type: "character",
-			img: "systems/stonetop-pwd/assets/playbooks/blessed.webp",
-			flags: { "stonetop-pwd": { followers: { "npc:enfys": { img: full, name: "Enfys" } } } },
+			img: "systems/stonetop_pwd/assets/playbooks/blessed.webp",
+			flags: { "stonetop_pwd": { followers: { "npc:enfys": { img: full, name: "Enfys" } } } },
 		});
 		const plan = planPortraitRepoints([pc], squareFor);
-		expect(plan[0].updates).toEqual({ "flags.stonetop-pwd.followers.npc:enfys.img": square });
+		expect(plan[0].updates).toEqual({ "flags.stonetop_pwd.followers.npc:enfys.img": square });
 	});
 
 	it("leaves a player character's own portrait alone", () => {
@@ -57,10 +57,10 @@ describe("planning the re-point", () => {
 			type: "character",
 			img: full,
 			prototypeToken: { texture: { src: full } },
-			flags: { "stonetop-pwd": { customFollowers: { enfys: { img: other } } } },
+			flags: { "stonetop_pwd": { customFollowers: { enfys: { img: other } } } },
 		});
 		const plan = planPortraitRepoints([pc], squareFor);
-		expect(plan[0].updates).toEqual({ "flags.stonetop-pwd.customFollowers.enfys.img": otherSquare });
+		expect(plan[0].updates).toEqual({ "flags.stonetop_pwd.customFollowers.enfys.img": otherSquare });
 	});
 
 	it("leaves a monster and the steading actor alone", () => {
@@ -71,13 +71,13 @@ describe("planning the re-point", () => {
 	it("re-points several holdings on one actor at once", () => {
 		const npc = actor({
 			img: full,
-			flags: { "stonetop-pwd": { crew: { a: { img: other } }, hirelings: { b: { img: full } } } },
+			flags: { "stonetop_pwd": { crew: { a: { img: other } }, hirelings: { b: { img: full } } } },
 		});
 		const plan = planPortraitRepoints([npc], squareFor);
 		expect(plan[0].updates).toEqual({
 			img: square,
-			"flags.stonetop-pwd.crew.a.img": otherSquare,
-			"flags.stonetop-pwd.hirelings.b.img": square,
+			"flags.stonetop_pwd.crew.a.img": otherSquare,
+			"flags.stonetop_pwd.hirelings.b.img": square,
 		});
 		expect(plan[0].changes).toHaveLength(3);
 	});
@@ -118,17 +118,17 @@ describe("planning the re-point", () => {
 		cyclic.self = cyclic;
 		const deep = { a: { b: { c: { d: { e: { f: { g: { img: full } } } } } } } };
 		const pool = [
-			actor({ flags: { "stonetop-pwd": cyclic } }),
-			actor({ flags: { "stonetop-pwd": deep } }),
-			actor({ flags: { "stonetop-pwd": { list: [{ img: full }] } } }),
-			actor({ flags: { "stonetop-pwd": { thing: { img: 42 } } } }),
+			actor({ flags: { "stonetop_pwd": cyclic } }),
+			actor({ flags: { "stonetop_pwd": deep } }),
+			actor({ flags: { "stonetop_pwd": { list: [{ img: full }] } } }),
+			actor({ flags: { "stonetop_pwd": { thing: { img: 42 } } } }),
 			actor({ flags: null }),
 		];
 		expect(() => planPortraitRepoints(pool, squareFor)).not.toThrow();
 		// The cyclic one still finds its own img; the over-deep one is cut off by the limit.
 		const plan = planPortraitRepoints(pool, squareFor);
 		expect(plan).toHaveLength(1);
-		expect(plan[0].updates).toEqual({ "flags.stonetop-pwd.img": square });
+		expect(plan[0].updates).toEqual({ "flags.stonetop_pwd.img": square });
 	});
 
 	it("handles an empty pool", () => {

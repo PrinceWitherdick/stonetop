@@ -27,7 +27,7 @@ export class FoundryBasicsDialog extends Application {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-foundry-basics",
 			title:     "New to Foundry?",
-			template:  "systems/stonetop-pwd/templates/dialogs/foundry-basics.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/foundry-basics.hbs",
 			width:     560,
 			height:    640,
 			resizable: true,

@@ -26,7 +26,7 @@ function makeCharacter(links = {}, extra = {}) {
 		uuid: "Actor.pc1",
 		isOwner: true,
 		ownership: { default: 0, user1: 3 },
-		flags: { "stonetop-pwd": { customFollowers } },
+		flags: { "stonetop_pwd": { customFollowers } },
 		update: vi.fn(async () => {}),
 		testUserPermission: () => true,
 		...extra,
@@ -95,7 +95,7 @@ describe("createFollowerActor", () => {
 		await createFollowerActor(snapshot("f1"), character, { folder: "fold1" });
 
 		expect(created[0].ownership).toEqual({ default: 0, user1: 3 });
-		expect(created[0].flags["stonetop-pwd"].followerOrigin)
+		expect(created[0].flags["stonetop_pwd"].followerOrigin)
 			.toEqual({ characterUuid: "Actor.pc1", ftype: "custom", slug: "f1" });
 	});
 
@@ -126,8 +126,8 @@ describe("ensureFollowerActors", () => {
 		expect(globalThis.Actor.create).toHaveBeenCalledTimes(2);
 		expect(character.update).toHaveBeenCalledTimes(1);
 		expect(character.update).toHaveBeenCalledWith({
-			"flags.stonetop-pwd.customFollowers.f1.actorUuid": "Actor.new0",
-			"flags.stonetop-pwd.customFollowers.f2.actorUuid": "Actor.new1",
+			"flags.stonetop_pwd.customFollowers.f1.actorUuid": "Actor.new0",
+			"flags.stonetop_pwd.customFollowers.f2.actorUuid": "Actor.new1",
 		});
 	});
 
@@ -170,7 +170,7 @@ describe("ensureFollowerActors", () => {
 		character = makeCharacter();
 		globalThis.Actor.create = vi.fn(async (data) => {
 			// The other client's write lands while this one is mid-create.
-			character.flags["stonetop-pwd"].customFollowers.f2 = { actorUuid: "Actor.theirs" };
+			character.flags["stonetop_pwd"].customFollowers.f2 = { actorUuid: "Actor.theirs" };
 			const actor = { ...data, documentName: "Actor", uuid: `Actor.new${created.length}` };
 			created.push(actor);
 			return actor;
@@ -178,7 +178,7 @@ describe("ensureFollowerActors", () => {
 
 		expect(await ensureFollowerActors(character, [snapshot("f1"), snapshot("f2")])).toBe(1);
 		expect(character.update).toHaveBeenCalledWith({
-			"flags.stonetop-pwd.customFollowers.f1.actorUuid": "Actor.new0",
+			"flags.stonetop_pwd.customFollowers.f1.actorUuid": "Actor.new0",
 		});
 	});
 
@@ -195,14 +195,14 @@ describe("ensureFollowerActors", () => {
 			};
 			created.push(actor);
 			// Their write for THIS follower lands just after ours was made.
-			if (created.length === 1) character.flags["stonetop-pwd"].customFollowers.f1 = { actorUuid: "Actor.theirs" };
+			if (created.length === 1) character.flags["stonetop_pwd"].customFollowers.f1 = { actorUuid: "Actor.theirs" };
 			return actor;
 		});
 
 		expect(await ensureFollowerActors(character, [snapshot("f1"), snapshot("f2")])).toBe(1);
 		expect(deleted).toEqual(["Actor.new0"]);
 		expect(character.update).toHaveBeenCalledWith({
-			"flags.stonetop-pwd.customFollowers.f2.actorUuid": "Actor.new1",
+			"flags.stonetop_pwd.customFollowers.f2.actorUuid": "Actor.new1",
 		});
 	});
 

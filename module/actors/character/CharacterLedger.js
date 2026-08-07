@@ -266,7 +266,7 @@ async function buildNameLookup(actor) {
 		if (item?._id && item.name) names.inventory.set(item._id, item.name);
 		// Custom moves persist their resource track by item id; map that id back to the
 		// move's name/title so a ledger tick reads "<Move> - <Title>", not a raw id.
-		if (item?.type === "move" && item.flags?.["stonetop-pwd"]?.custom && item._id) {
+		if (item?.type === "move" && item.flags?.["stonetop_pwd"]?.custom && item._id) {
 			names.moveResourceNames.set(item._id, stripHtml(item.name) ?? item.name);
 			if (item.system?.resource?.title) names.moveResourceTitles.set(item._id, stripHtml(item.system.resource.title));
 		}
@@ -620,7 +620,7 @@ function crewEntries(path, oldValue, newValue, names, ctx = {}) {
 	// individualsHp guard below catches by way of ctx. Neither is anything to read out to a player:
 	// they rendered as "set to blank" and "changed to changed" respectively.
 	//
-	// Matched as a SEGMENT, not after a dot: `unsetFlag("stonetop-pwd", "crew.groupHp")` deletes at
+	// Matched as a SEGMENT, not after a dot: `unsetFlag("stonetop_pwd", "crew.groupHp")` deletes at
 	// the crew's own root, so the key is a bare `-=groupHp` with no dot in front of it. That is the
 	// crew's "Restore the group to full HP" button, and a dotted-only test let it through.
 	if (key.split(".").some(segment => segment.startsWith("-="))) return [];

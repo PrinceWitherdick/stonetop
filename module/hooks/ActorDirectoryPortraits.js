@@ -111,7 +111,7 @@ export function onRenderActorDirectoryPortraits(app, element) {
  * frame written from a sheet is invisible in the sidebar until the world is reloaded.
  *
  * ⚠ The flag bag is read with BRACKETS off SYSTEM_ID. The package id is hyphenated, so a dotted
- * `changed.flags.stonetop-pwd` parses as a subtraction and throws at runtime.
+ * `changed.flags.stonetop_pwd` parses as a subtraction and throws at runtime.
  *
  * Both write shapes count: `setFlag` sends `portraitFrame`, and clearing sends Foundry's
  * `-=portraitFrame` deletion key — the row has to un-crop as readily as it crops.

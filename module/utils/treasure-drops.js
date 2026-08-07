@@ -76,9 +76,9 @@ function treasureArtSrc(slug) {
 	const settings = globalThis.game?.settings;
 	// guarded: this module is unit-tested outside Foundry, and the setting is absent in a
 	// world running an older system version that hasn't registered it yet
-	if (!settings?.settings?.has?.("stonetop-pwd.treasureArt")) return null;
+	if (!settings?.settings?.has?.("stonetop_pwd.treasureArt")) return null;
 	try {
-		const out = settings.get("stonetop-pwd", "treasureArt")?.[slug];
+		const out = settings.get("stonetop_pwd", "treasureArt")?.[slug];
 		return out ? book2ArtSrc(out) : null;
 	} catch (_) {
 		return null;

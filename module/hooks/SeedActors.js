@@ -17,7 +17,7 @@ import { progressSlice, SEED_FOLDER_PHASE, SEED_BULK_CREATE_FRACTION } from "../
 // imported actors are stamped ownership NONE, so players never see them in their sidebar —
 // matching the GM-only Monsters compendium and the codex's player-spoiler protection.
 
-const BESTIARY_PACK_ID = "stonetop-pwd.stonetop-bestiary";
+const BESTIARY_PACK_ID = "stonetop_pwd.stonetop-bestiary";
 
 /**
  * Whether this world still owes the bestiary import. The seed's own guard, lifted out so the

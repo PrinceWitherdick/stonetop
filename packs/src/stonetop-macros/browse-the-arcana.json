@@ -1,7 +1,7 @@
 {
   "name": "Browse the Arcana",
   "type": "script",
-  "img": "systems/stonetop-pwd/assets/icons/macros/arcanum.svg",
+  "img": "systems/stonetop_pwd/assets/icons/macros/arcanum.svg",
   "scope": "global",
   "command": "game.stonetop?.openArcanaBrowser?.()",
   "folder": null,

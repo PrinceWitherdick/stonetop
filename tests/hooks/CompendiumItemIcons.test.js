@@ -87,7 +87,7 @@ describe("onRenderCompendiumItemIcons", () => {
 	});
 
 	it("leaves a row that has real art completely alone", async () => {
-		const art = "systems/stonetop-pwd/assets/icons/arcana/icon-arcana-mindgem.webp";
+		const art = "systems/stonetop_pwd/assets/icons/arcana/icon-arcana-mindgem.webp";
 		const entries = [{ _id: "a", name: "Mindgem", type: "move", system: { moveType: "arcanum" }, img: art }];
 		const root = render(entries);
 		await onRenderCompendiumItemIcons({ collection: pack(entries) }, root);

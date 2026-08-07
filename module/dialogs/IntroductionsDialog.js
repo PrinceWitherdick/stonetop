@@ -17,9 +17,9 @@ import { escHtml } from "../utils/strings.js";
 import { findOpenApp } from "../utils/open-windows.js";
 
 // The player-authored answer/ask step data lives on the PC actor flag
-// flags.stonetop-pwd.intro. Scope MUST be the system id "stonetop-pwd" (not "stonetop",
+// flags.stonetop_pwd.intro. Scope MUST be the system id "stonetop_pwd" (not "stonetop",
 // which points at read-only pack-baked flags and throws).
-const _FLAG_SCOPE = "stonetop-pwd";
+const _FLAG_SCOPE = "stonetop_pwd";
 const _INTRO_FLAG = "intro";
 
 // The world setting holding the answers recorded during the introductions, keyed
@@ -286,7 +286,7 @@ export class IntroductionsDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-introductions",
 			title:     "Character Introductions",
-			template:  "systems/stonetop-pwd/templates/dialogs/introductions.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/introductions.hbs",
 			// The PRIMARY GM gets a jump-to-step rail (see getData's `steps`), so seat it a
 			// little wider — matching the Expedition dialog's 640. Players and secondary GMs
 			// have no rail and keep the narrower single column.
@@ -426,7 +426,7 @@ export class IntroductionsDialog extends StonetopDialog {
 
 	// ── Answer/ask step data: the player's own actor flag ──────────────────────
 	// The looping answer/ask steps are authored on each PC's own actor flag
-	// flags.stonetop-pwd.intro (a write the owning player is always allowed to make —
+	// flags.stonetop_pwd.intro (a write the owning player is always allowed to make —
 	// see Phase 3), so it survives reload and a momentarily-absent GM. The GM harvests
 	// it into the world-scoped introductionsAnswers (the Chronicle source) below. Shape:
 	//   intro = { step4:{answers:[{q,a}],passed}, step6:{…}, live:{stepKey,q,a}|null }
@@ -551,7 +551,7 @@ export class IntroductionsDialog extends StonetopDialog {
 	}
 
 	// ── Narration rounds (1–3): a single plain-string answer, on the PC's own flag ──────
-	// Like the answer/ask steps, narration is authored on flags.stonetop-pwd.intro.narration
+	// Like the answer/ask steps, narration is authored on flags.stonetop_pwd.intro.narration
 	// so the active player writes their OWN introduction; the primary GM harvests it into the
 	// world setting for the Chronicle. Unlike a step there's no separate draft/commit — the
 	// value IS the answer, written near-live. Reads fall back to the legacy world-setting

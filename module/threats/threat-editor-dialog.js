@@ -32,7 +32,7 @@ export class ThreatEditorDialog extends StonetopDialog {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			classes: ["stonetop", "stonetop-threat-editor-dialog"],
-			template: "systems/stonetop-pwd/templates/dialogs/threat-editor.hbs",
+			template: "systems/stonetop_pwd/templates/dialogs/threat-editor.hbs",
 			width: 460,
 			height: "auto",
 			resizable: true,

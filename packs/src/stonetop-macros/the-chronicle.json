@@ -1,7 +1,7 @@
 {
   "name": "The Chronicle",
   "type": "script",
-  "img": "systems/stonetop-pwd/assets/icons/macros/bookmarklet.svg",
+  "img": "systems/stonetop_pwd/assets/icons/macros/bookmarklet.svg",
   "scope": "global",
   "command": "game.stonetop?.saveChronicle?.()",
   "folder": null,

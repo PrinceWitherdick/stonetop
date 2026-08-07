@@ -50,7 +50,7 @@ export class ArcanaBrowserDialog extends CatalogBrowserDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id: "stonetop-arcana-browser",
 			title: "Arcana",
-			template: "systems/stonetop-pwd/templates/dialogs/arcana-browser.hbs",
+			template: "systems/stonetop_pwd/templates/dialogs/arcana-browser.hbs",
 			// Wide enough for the three chip groups and their labels to sit on one line at the
 			// default UI font; the bar wraps rather than clipping when they don't.
 			width: 780,

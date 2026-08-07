@@ -1593,7 +1593,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-character-onboarding",
-			template:  "systems/stonetop-pwd/templates/dialogs/character-onboarding.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/character-onboarding.hbs",
 			width:     660,
 			height:    740,
 			resizable: true,
@@ -3471,7 +3471,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		const key = text.toLowerCase();
 		if (this._wordCache.has(key)) return this._wordCache.get(key);
 		const packs = game.packs.filter(
-			p => p.metadata.packageName === "stonetop-pwd" && p.metadata.type === "Item"
+			p => p.metadata.packageName === "stonetop_pwd" && p.metadata.type === "Item"
 		);
 		for (const pack of packs) {
 			await pack.getIndex();

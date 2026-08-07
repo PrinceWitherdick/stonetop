@@ -43,7 +43,7 @@ export function addJournalShareButton(app) {
 	if (!(journal instanceof JournalEntry)) return;
 	// The Threats / Hazards journals are pure GM prep, never shared with players — suppress
 	// the header "Share" eye on them so they can't be handed out by accident.
-	if (journal.getFlag?.("stonetop-pwd", "threat") || journal.getFlag?.("stonetop-pwd", "hazard")) return;
+	if (journal.getFlag?.("stonetop_pwd", "threat") || journal.getFlag?.("stonetop_pwd", "hazard")) return;
 
 	const root = app.element?.jquery ? app.element[0] : app.element;
 	const header = root?.querySelector?.(".window-header");
@@ -128,7 +128,7 @@ export class ShareJournalDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-share-journal-dialog",
 			title:     "Share With Players",
-			template:  "systems/stonetop-pwd/templates/dialogs/share-journal.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/share-journal.hbs",
 			width:     440,
 			height:    "auto",
 			resizable: true,

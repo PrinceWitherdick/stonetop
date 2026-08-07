@@ -129,7 +129,7 @@ function _schedulePersist() {
 	if (!getSetting(TOGGLE_SETTING)) return;
 	clearTimeout(_saveTimer);
 	_saveTimer = setTimeout(() => {
-		game.settings.set("stonetop-pwd", STATE_SETTING, _collectState()).catch(() => {});
+		game.settings.set("stonetop_pwd", STATE_SETTING, _collectState()).catch(() => {});
 	}, 500);
 }
 
@@ -138,7 +138,7 @@ function _schedulePersist() {
 function _flushNow() {
 	if (!getSetting(TOGGLE_SETTING)) return;
 	try {
-		game.settings.set("stonetop-pwd", STATE_SETTING, _collectState());
+		game.settings.set("stonetop_pwd", STATE_SETTING, _collectState());
 	} catch (_err) { /* nothing we can do mid-unload */ }
 }
 
