@@ -1,27 +1,25 @@
 import { StonetopDialog } from "../utils/stonetop-dialog.js";
 import { wireTabSearch } from "../utils/tab-search.js";
 import { buildFacetGroups, isRowHidden, toggleChip } from "../utils/catalog-filters.js";
-import { stripHtmlToText } from "../utils/strings.js";
-import { truncateValue } from "../utils/ledger-core.js";
+import { SYSTEM_ID } from "../system-id.js";
 
 /**
- * Shared shell for the "look through the whole list" browsers: the Arcana browser and the
- * Bestiary & People browser. One window, one skin (the `.stonetop-catalog-*` CSS), one set
- * of gestures — a search box and single-select chip groups that copy the steading
+ * A window for looking THROUGH lists — currently the one that holds all of Stonetop's,
+ * dialogs/StonetopBrowserDialog.js. One window, one skin (the `.stonetop-catalog-*` CSS), one
+ * set of gestures — a search box and single-select chip groups that copy the steading
  * improvements bar, click-the-lit-chip-to-clear and all.
  *
  * It exists because those gestures are the whole of a browser and none of its subject. A
- * subclass says WHAT is in the list and HOW each row reads; everything below — loading,
- * chip state, filtering in place, the live count, the empty state, opening a row's sheet —
- * is the same work whatever the list holds.
+ * CatalogSource says WHAT is in one list and HOW each of its rows reads; everything below —
+ * loading, chip state, filtering in place, the live count, the empty state, staying current
+ * with the world, opening a row's sheet — is the same work whatever the lists hold.
  *
- * A subclass provides:
- *   _catalogSources()          → [] for a single-list browser, else [{ key, label, icon }]
- *   async _loadRows(source)    → rows for a source (see the row shape below)
- *   _facetGroups(source, rows) → group defs for the filter bar (see utils/catalog-filters.js)
- *   _emptyMessage(source)      → the line shown when everything is filtered out
+ * So there is exactly ONE seam, and it is the source: a subclass provides `_buildSources()`
+ * and its own chrome, and everything that varies per list is asked of every source in turn
+ * (see dialogs/catalog/CatalogSource.js for the six things a source answers). Nothing here
+ * names a particular list, and nothing here is a hook a subclass has to forward.
  *
- * A ROW is the shape templates/dialogs/partials/catalog-row.hbs renders:
+ * A ROW is the shape templates/dialogs/partials/catalog-shell.hbs renders:
  *   { key, uuid, title, img, placeholderImg, marked, inactive, flags[], badges[], note,
  *     summary, search, facets{} }
  * `key` identifies the row within its source (a slug, an id — anything stable). `search` is
@@ -37,25 +35,82 @@ export class CatalogBrowserDialog extends StonetopDialog {
 		// source so switching to People and back doesn't quietly drop the monster filters.
 		this._active = {};
 		this._rowCache = new Map();
-		this._source = this._catalogSources()[0]?.key ?? "";
+		this._source = this._sourceList()[0]?.key ?? "";
+	}
+
+	static get defaultOptions() {
+		return foundry.utils.mergeObject(super.defaultOptions, {
+			// The shell markup IS the whole body of a browser, so it is this class's default
+			// rather than something each subclass re-points at: a wrapper template whose only
+			// line was `{{> "stonetop.catalog-shell"}}` was one indirection for no decision.
+			//
+			// It stays registered as the `stonetop.catalog-shell` partial (stonetop.js), which
+			// now earns its keep by PRELOADING it — Foundry compiles registered templates at
+			// startup and renderTemplate reads that same cache, so the first open costs no
+			// fetch. It also remains embeddable, should the shell ever want to sit in a page.
+			template: `systems/${SYSTEM_ID}/templates/dialogs/partials/catalog-shell.hbs`,
+		});
 	}
 
 	// ------------------------------------------------------------- subclass contract
 
-	/** Sources this browser can show. Empty for a browser with only one list. */
-	_catalogSources() { return []; }
+	/**
+	 * The lists this browser holds, in tab order — the ONE thing a subclass has to say.
+	 *
+	 * A method rather than a constructor argument or an assigned field because the constructor
+	 * above needs it to pick the opening tab: a field assigned after `super()` is still
+	 * undefined at that moment, and working around that took a `?? []` guard and a second
+	 * assignment. An overridden method is already callable there, so long as it reads no
+	 * instance state — which building a fresh set of sources doesn't.
+	 */
+	_buildSources() { return []; }
 
-	/** Rows for a source. Called once per source; the result is cached. */
-	async _loadRows(_source) { return []; }
+	// ------------------------------------------------------------- sources
 
-	/** Facet group defs for a source, given its already-loaded rows. */
-	_facetGroups(_source, _rows) { return []; }
+	/** The sources, built once on the first ask. */
+	_sourceList() { return this._sources ??= this._buildSources(); }
 
-	/** The line shown when the chips and search between them leave nothing. */
-	_emptyMessage(_source) { return "Nothing matches those filters."; }
+	/** A source by key, falling back to the first so an unknown key still reads sanely. */
+	_sourceFor(key) {
+		const list = this._sourceList();
+		return list.find(s => s.key === key) ?? list[0] ?? null;
+	}
 
-	/** Tooltip + placeholder for the search control. */
-	_searchLabels(_source) { return { title: "Search", placeholder: "Filter…" }; }
+	/** The source whose list is on screen. */
+	get _currentSource() { return this._sourceFor(this._source); }
+
+	/**
+	 * Switch to a source by key, reporting whether that changed anything. An unknown key is
+	 * ignored rather than stored: _sourceFor falls back to the first source, so a stored typo
+	 * would draw the first list under no lit tab at all.
+	 */
+	_selectSource(key) {
+		if (!key || key === this._source) return false;
+		if (!this._sourceList().some(s => s.key === key)) return false;
+		this._source = key;
+		return true;
+	}
+
+	/**
+	 * Point the window at what a caller asked for, re-rendering only when something actually
+	 * changed — reopening the macro on the tab you were already on must not throw away your
+	 * scroll position or your half-typed search term.
+	 *
+	 * Which source cares about which argument is the source's own business: the whole context
+	 * goes to every one of them and the ones that say it stales their rows are invalidated.
+	 * Same shape as the world hook below, and for the same reason.
+	 */
+	_retarget(context = {}) {
+		let dirty = this._selectSource(context.source);
+
+		for (const source of this._sourceList()) {
+			if (!source.retarget(context)) continue;
+			this.invalidateRows(source.key);
+			dirty ||= this._source === source.key;
+		}
+
+		if (dirty && this.rendered) this.render(false);
+	}
 
 	// ------------------------------------------------------------- state
 
@@ -65,7 +120,9 @@ export class CatalogBrowserDialog extends StonetopDialog {
 	}
 
 	async _rowsFor(source) {
-		if (!this._rowCache.has(source)) this._rowCache.set(source, await this._loadRows(source));
+		if (!this._rowCache.has(source)) {
+			this._rowCache.set(source, (await this._sourceFor(source)?.loadRows()) ?? []);
+		}
 		return this._rowCache.get(source);
 	}
 
@@ -84,26 +141,29 @@ export class CatalogBrowserDialog extends StonetopDialog {
 	async getData() {
 		const rows    = await this._rowsFor(this._source);
 		const active  = this._activeFilters;
-		const sources = this._catalogSources();
-		const search  = this._searchLabels(this._source);
+		const sources = this._sourceList();
+		const current = this._currentSource;
+		const search  = current?.search ?? { title: "Search", placeholder: "Filter…" };
 		// Counts on the source tabs come from whatever is already cached; a source nobody
 		// has opened yet shows none rather than being loaded just to be counted, which on
 		// the bestiary would mean pulling 212 documents to draw a number.
 		return {
-			sources: sources.map(s => {
-				const count = this._rowCache.get(s.key)?.length ?? null;
+			// Only what the tab strip renders. The rest of a source's copy is its own and has
+			// no business in the template context.
+			sources: sources.map(({ key, label, icon }) => {
+				const count = this._rowCache.get(key)?.length ?? null;
 				// `hasCount` rather than leaning on {{#if count}}: a source that has been
 				// opened and holds nothing must show "0", not look unvisited, and Handlebars
 				// counts 0 as falsy.
-				return { ...s, active: s.key === this._source, count, hasCount: count !== null };
+				return { key, label, icon, active: key === this._source, count, hasCount: count !== null };
 			}),
 			hasSources: sources.length > 1,
-			groups:  buildFacetGroups(this._facetGroups(this._source, rows), rows, active),
+			groups:  buildFacetGroups(current?.facetGroups(rows) ?? [], rows, active),
 			rows:    rows.map(row => ({ ...row, filtered: isRowHidden(row, active) })),
 			// Seeds the count line for the first paint; _updateCount rewrites it from the DOM
 			// from then on, which is the only place that knows about the search's hides too.
-			total:   `${rows.length} ${this._countNoun(rows.length)}`,
-			empty:   this._emptyMessage(this._source),
+			total:   `${rows.length} ${this._countNoun()}`,
+			empty:   current?.empty ?? "Nothing matches those filters.",
 			searchTitle:       search.title,
 			searchPlaceholder: search.placeholder,
 		};
@@ -111,6 +171,7 @@ export class CatalogBrowserDialog extends StonetopDialog {
 
 	activateListeners(html) {
 		super.activateListeners(html);
+		this._registerWorldHook();
 		// `.stonetop-catalog` IS the template's root element, so `html[0]` is already it and
 		// `html[0].querySelector(".stonetop-catalog")` finds nothing — querySelector looks at
 		// descendants, never at the element itself. That silently handed wireTabSearch a null
@@ -136,10 +197,10 @@ export class CatalogBrowserDialog extends StonetopDialog {
 			const tab = ev.target.closest(".stonetop-catalog-source");
 			if (tab) {
 				ev.preventDefault();
-				if (tab.dataset.source !== this._source) {
-					this._source = tab.dataset.source;
-					this.render(false);
-				}
+				// Through _selectSource, never by assigning `_source` here: it is the one writer
+				// that refuses a key no source answers to, and it already reports "nothing
+				// changed" for the tab we are on, which is the only guard this needed.
+				if (this._selectSource(tab.dataset.source)) this.render(false);
 				return;
 			}
 
@@ -229,21 +290,53 @@ export class CatalogBrowserDialog extends StonetopDialog {
 		if (empty) empty.classList.toggle("is-visible", shown === 0);
 	}
 
-	/** What the current source's entries are called in the count line. */
-	_countNoun(_shown) { return "entries"; }
+	/** What the current source's entries are called in the count line: "82 arcana". */
+	_countNoun() { return this._currentSource?.noun ?? "entries"; }
 
-	// ------------------------------------------------------------- row helpers
+	// ------------------------------------------------------------- staying current
 
 	/**
-	 * A one-line gist of some authored prose, clipped at a word boundary by the system's one
-	 * truncator so the ellipsis never lands mid-word.
+	 * Keep the lists current with the world under them. A browser is a session-long singleton —
+	 * a GM marks an NPC dead, renames a monster, drags a stat block out of a pack to edit — so
+	 * without this it would quietly go stale under exactly the person who was changing things.
+	 *
+	 * Each source decides for itself whether a change is its business (CatalogSource#staleFor),
+	 * and only the sources that say yes are invalidated: renaming an NPC must not throw away the
+	 * 212 monster rows. It re-renders only when the stale list is the one on screen — the others
+	 * refresh when next opened.
+	 *
+	 * Registered only where some list is actually built out of world actors, which is what
+	 * `worldActorType` declares. A browser over packs and journals alone hooks nothing, rather
+	 * than waking on every actor edit in the world to be told three times that it doesn't care.
+	 *
+	 * Throttled (StonetopDialog.renderThrottled) because a single edit can land as a burst of
+	 * updates.
+	 *
+	 * Its own method, called from activateListeners, rather than a second `activateListeners`
+	 * further down the class: two definitions of one method is not two handlers, it is the later
+	 * one REPLACING the earlier — which silently threw away every listener wired above.
 	 */
-	static summarize(html, max = 190) {
-		return truncateValue(stripHtmlToText(html), max);
+	_registerWorldHook() {
+		if (this._worldHook) return;
+		if (!this._sourceList().some(s => s.worldActorType)) return;
+		this._worldHook = (doc) => {
+			for (const source of this._sourceList()) {
+				if (!source.staleFor(doc)) continue;
+				this.invalidateRows(source.key);
+				if (this.rendered && this._source === source.key) this.renderThrottled();
+			}
+		};
+		for (const hook of _ACTOR_HOOKS) Hooks.on(hook, this._worldHook);
 	}
 
-	/** The lowercase search index for a row, from whatever text the caller thinks matters. */
-	static searchIndex(...parts) {
-		return parts.flat().filter(Boolean).join(" ").toLowerCase();
+	async close(options = {}) {
+		if (this._worldHook) {
+			for (const hook of _ACTOR_HOOKS) Hooks.off(hook, this._worldHook);
+			this._worldHook = null;
+		}
+		return super.close(options);
 	}
 }
+
+/** The world changes a list built from `game.actors` has to watch. */
+const _ACTOR_HOOKS = ["createActor", "updateActor", "deleteActor"];

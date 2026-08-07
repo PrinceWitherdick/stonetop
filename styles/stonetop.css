@@ -27875,8 +27875,9 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════════
    CATALOG BROWSER — the shared skin behind every "look through the whole list" window:
-   the Arcana browser (module/dialogs/ArcanaBrowserDialog.js) and the Bestiary & People
-   browser (module/dialogs/BestiaryBrowserDialog.js), which must look like one tool.
+   the shell (module/dialogs/CatalogBrowserDialog.js) and "Browse Stonetop"
+   (module/dialogs/StonetopBrowserDialog.js), whose tabs — arcana, monsters, people — must
+   read as one tool rather than as three windows sharing a frame.
 
    The filter chips are deliberately the steading improvements chips — same pill, same lit
    state, same "click the lit chip to clear" — because they are the same gesture on a
@@ -27974,8 +27975,30 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 6px 10px;
+	/* Symmetrical with the padding-bottom below. The bar's only neighbour above is the source
+	   tabs and their rule, and a filter bar hugging that rule reads as part of the tab strip. */
+	padding-top: 4px;
 	padding-bottom: 4px;
 	border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+/* The collapsible search is shared with the character and steading sheets, where it opens by
+   growing UPWARD into the empty space above a section heading — a negative top margin, so the
+   heading's own rule doesn't shift as the box grows (see .stonetop-tab-search.is-open).
+
+   This bar has no space above to grow into: it sits directly under the source tabs. Opening the
+   box slid it 8px up over their rule, which at the UI font sizes people actually run left it
+   with about 2px of air and reading as though it belonged to the tab strip.
+
+   So here it simply IS its open size at rest. The pill's white background and border still only
+   appear on open, so the resting look is unchanged — but nothing moves when it opens, and the
+   gap under the tabs is the same whether the box is open or shut.
+
+   Ties with `.stonetop-tab-search.is-open` on specificity (0,2,0 each), so this only wins by
+   sitting later in the file. It must stay below that rule. */
+.stonetop-catalog-controls > .stonetop-tab-search {
+	height: calc(26px * var(--stonetop-font-scale, 1));
+	margin-top: 0;
 }
 
 .stonetop-catalog-filters {

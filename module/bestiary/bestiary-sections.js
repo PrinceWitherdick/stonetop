@@ -5,7 +5,7 @@
  * can talk to, "Regions" is what lives in a particular place, "Primordial & Mythic Powers"
  * is what was here first, and "The Makers" is what built the ruins. It's how the book is
  * organised, so it's how someone looking for a monster thinks to look — which is why the
- * bestiary browser leads with it (see dialogs/BestiaryBrowserDialog.js).
+ * bestiary browser leads with it (see dialogs/catalog/MonsterSource.js).
  *
  * `folder` is the pack folder's NAME rather than its id: the ids are pack-build artefacts,
  * while the names are authored and are what a GM sees in the compendium. A monster in some

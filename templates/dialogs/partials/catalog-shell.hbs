@@ -1,9 +1,14 @@
-{{!-- The whole body of a catalogue browser (see module/dialogs/CatalogBrowserDialog.js).
+{{!-- The whole body of a catalogue browser (see module/dialogs/CatalogBrowserDialog.js),
+      which is why that class renders this file directly as its template rather than
+      through a wrapper. It stays registered as the `stonetop.catalog-shell` partial so
+      it is compiled at startup, and so the shell can still be embedded in a larger page.
 
-      Rendered by both the Arcana browser and the Bestiary & People browser, which must
-      read as one tool: source tabs (only when there's more than one list), the shared
-      collapsible search control, single-select chip groups, a live count, the rows, and
-      the empty state.
+      ONE top-level element, because an AppV1 activateListeners takes its `html` as the
+      root — see the note in CatalogBrowserDialog#activateListeners.
+
+      Its tabs must read as one tool rather than as separate windows sharing a frame:
+      source tabs (only when there's more than one list), the shared collapsible search
+      control, single-select chip groups, a live count, the rows, and the empty state.
 
       Rows are stamped `filtered` by getData so the first paint already honours the chip
       state; after that the dialog toggles the class in place rather than re-rendering, so
