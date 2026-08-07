@@ -15,6 +15,7 @@
 import { normalizeTags, parseFollowerArmor } from "./follower-build.js";
 import { creatureTypeIcon, creatureTypeForFaIcon } from "../bestiary/creature-types.js";
 import { escHtml, isDefaultImg } from "../utils/strings.js";
+import { systemAssetVariants } from "../migration/compat.js";
 import { SYSTEM_ID } from "../system-id.js";
 
 /** dataTransfer `type` for a follower card dragged off a character sheet. */
@@ -26,14 +27,27 @@ export const FOLLOWER_FOLDER = { name: "Followers", color: "#6b5a3e" };
 // Read defensively: this module is unit-tested outside Foundry, where CONST doesn't exist.
 const _const = (group, key, fallback) => globalThis.CONST?.[group]?.[key] ?? fallback;
 
-/** The sprout an initiate of Danu wears — the one follower glyph outside the taxonomy. */
-export const SPROUT_MARKER = `systems/${SYSTEM_ID}/assets/icons/followers/sprout.svg`;
+// Written once, spelled twice: NEW_SHOOT_MARKER is the file we WRITE, LEGACY_SHOOT_MARKERS is
+// every id the retired one could already have been written under.
+const SHOOT_SUFFIX = "assets/icons/followers/new-shoot.svg";
+
+/** The shoot an initiate of Danu wears: the one follower glyph outside the taxonomy. */
+export const NEW_SHOOT_MARKER = `systems/${SYSTEM_ID}/${SHOOT_SUFFIX}`;
+
+/**
+ * The path this marker used to live at, kept so hooks/Ready.js can lift an actor stamped
+ * before the art changed onto the current file. Nothing else may read it: it is a migration
+ * rung, not a fallback, and the file it names no longer exists.
+ */
+export const LEGACY_SHOOT_MARKERS = Object.freeze(
+	systemAssetVariants("assets/icons/followers/sprout.svg")
+);
 
 // Follower cards show a Font Awesome glyph where they have no portrait, and most of those
 // glyphs are the monster taxonomy's own (a converted monster literally carries its type's
 // glyph), so the marks in assets/icons/bestiary/ answer for nearly all of them. These are
 // the ones that aren't: two animals the taxonomy would call natural beasts, an initiate's
-// sprout, and the generic monster glyph creatureTypeFaIcon falls back to.
+// shoot, and the generic monster glyph creatureTypeFaIcon falls back to.
 const FOLLOWER_GLYPH_TYPES = Object.freeze({
 	"fa-dog":        "natural-beast",     // a beast follower (the dog, the Hounds)
 	"fa-wheat-awn":  "natural-beast",     // livestock
@@ -58,12 +72,17 @@ const FA_NON_ICON = /^fa-(solid|regular|light|thin|duotone|brands|sharp|fw|lg|sm
  * too). Nothing is invented: these are category marks that say what kind of thing this is,
  * never a picture of this particular follower.
  *
+ * The initiate is the one case where the marker is not merely the nearest mark but the SAME
+ * drawing the card wears, because Font Awesome ships that glyph as a Free CC BY 4.0 icon we
+ * can carry as a file. See assets/icons/followers/new-shoot.svg for why it is the Free copy
+ * and not the Pro one Foundry bundles.
+ *
  * @param {string} portraitIcon  the card's icon classes, e.g. "fas fa-paw"
  */
 export function followerMarkerImg(portraitIcon) {
 	const glyph = String(portraitIcon ?? "").split(/\s+/)
 		.find(c => c.startsWith("fa-") && !FA_NON_ICON.test(c));
-	if (glyph === "fa-seedling") return SPROUT_MARKER;
+	if (glyph === "fa-seedling") return NEW_SHOOT_MARKER;
 	const type = FOLLOWER_GLYPH_TYPES[glyph] ?? creatureTypeForFaIcon(glyph) ?? DEFAULT_MARKER_TYPE;
 	return creatureTypeIcon(type) ?? creatureTypeIcon(DEFAULT_MARKER_TYPE);
 }

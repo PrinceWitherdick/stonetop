@@ -43,6 +43,7 @@ import { linkLandmarkNotes, revealLandmarkNotesOnce } from "./PlaceOfInterestDro
 import { isPrimaryGM } from "../utils/primary-gm.js";
 import { migrateAllSteadingPeople, ensurePeopleFolders, backfillAllResidentHomes } from "../actors/steading/steading-people.js";
 import { PERSON_DEFAULT_IMG } from "../utils/person-portrait.js";
+import { NEW_SHOOT_MARKER, LEGACY_SHOOT_MARKERS } from "../data/follower-actor.js";
 import { isDefaultImg } from "../utils/strings.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
@@ -152,6 +153,8 @@ export async function onReady() {
 		catch (err) { console.error("Stonetop | NPC placeholder-portrait migration failed", err); }
 		try { await _migrateTokenImagesToPortraits(); }
 		catch (err) { console.error("Stonetop | token-image backfill failed", err); }
+		try { await _migrateShootMarker(); }
+		catch (err) { console.error("Stonetop | initiate shoot-marker backfill failed", err); }
 		// Open the lettered village pins already on this world's scenes up to the players
 		// they were always for (once per world; see revealLandmarkNotesOnce), then point any
 		// that still open nothing at their Chronicle page (every load; a no-op once linked).
@@ -937,6 +940,47 @@ async function _migrateTokenImagesToPortraits() {
 	) ?? [];
 	const updates = stale.map(a => ({ _id: a.id, "prototypeToken.texture.src": a.img }));
 	if (updates.length) await Actor.updateDocuments(updates);
+}
+
+// Lift an initiate of Danu off the marker's old file. The shoot an art-less initiate wears
+// moved from followers/sprout.svg to followers/new-shoot.svg, and the old file is gone, so an
+// actor stamped before the move points at nothing and draws a broken image. The old path is
+// matched under every id this package has shipped under (LEGACY_SHOOT_MARKERS), since an
+// actor stamped before a rename still names the old one.
+//
+// Both the portrait and the prototype token, because followerNpcActorData sets the two
+// together and a token left behind would put the break back on the next drag to a scene.
+// Only exact matches on a path we ourselves wrote, so art anyone chose is never touched.
+// Idempotent: once lifted, the actor stops matching, so re-running every load is a cheap
+// no-op needing no version flag. Primary-GM only (the caller gates it).
+//
+// AND the tokens already standing on scenes, which its two neighbours above have no need to
+// touch and this one does. They repoint paths that still resolve — a mystery-man silhouette is
+// ugly, not broken — while the file this one is lifting off is GONE from the package. A
+// TokenDocument carries its own `texture.src`, copied from the prototype when it was placed, so
+// an initiate already on a map would draw a broken image on every load forever; `prototypeToken`
+// only governs the NEXT one dragged out.
+async function _migrateShootMarker() {
+	const wasOurs = p => LEGACY_SHOOT_MARKERS.includes(String(p ?? "").replace(/^\//, ""));
+	const updates = [];
+	for (const actor of game.actors ?? []) {
+		const update = { _id: actor.id };
+		if (wasOurs(actor.img)) update.img = NEW_SHOOT_MARKER;
+		if (wasOurs(actor.prototypeToken?.texture?.src)) {
+			update["prototypeToken.texture.src"] = NEW_SHOOT_MARKER;
+		}
+		if (Object.keys(update).length > 1) updates.push(update);
+	}
+	if (updates.length) await Actor.updateDocuments(updates);
+
+	// One request per affected scene, and none at all for a scene with nothing to lift — which
+	// after the first load is every scene.
+	for (const scene of game.scenes ?? []) {
+		const tokens = [...(scene.tokens ?? [])]
+			.filter(t => wasOurs(t.texture?.src))
+			.map(t => ({ _id: t.id, "texture.src": NEW_SHOOT_MARKER }));
+		if (tokens.length) await scene.updateEmbeddedDocuments("Token", tokens);
+	}
 }
 
 async function _migrateArmourToArmor() {

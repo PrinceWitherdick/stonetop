@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
 	followerNpcActorData, followerNotesHtml, splitFollowerName, followerMarkerImg,
-	SPROUT_MARKER, FOLLOWER_DRAG_TYPE,
+	NEW_SHOOT_MARKER, LEGACY_SHOOT_MARKERS, FOLLOWER_DRAG_TYPE,
 } from "../../module/data/follower-actor.js";
 
 // The follower → NPC Actor mapping behind dragging a follower card onto the canvas
@@ -140,9 +140,18 @@ describe("followerNotesHtml", () => {
 describe("followerMarkerImg", () => {
 	const mark = t => `systems/stonetop-pwd/assets/icons/bestiary/${t}.svg`;
 
-	it("gives an initiate of Danu the sprout", () => {
-		expect(followerMarkerImg("fas fa-seedling")).toBe(SPROUT_MARKER);
-		expect(SPROUT_MARKER).toBe("systems/stonetop-pwd/assets/icons/followers/sprout.svg");
+	it("gives an initiate of Danu the new shoot", () => {
+		expect(followerMarkerImg("fas fa-seedling")).toBe(NEW_SHOOT_MARKER);
+		expect(NEW_SHOOT_MARKER).toBe("systems/stonetop-pwd/assets/icons/followers/new-shoot.svg");
+	});
+
+	// The art moved off sprout.svg, and that file is gone. An actor stamped before the move
+	// still names it, so the old path has to stay recognisable under every id this package
+	// has shipped under (hooks/Ready.js lifts them onto the current file).
+	it("still recognises the path the marker used to live at", () => {
+		expect(LEGACY_SHOOT_MARKERS).toContain("systems/stonetop-pwd/assets/icons/followers/sprout.svg");
+		expect(LEGACY_SHOOT_MARKERS).toContain("systems/stonetop_pwd/assets/icons/followers/sprout.svg");
+		expect(LEGACY_SHOOT_MARKERS).not.toContain(NEW_SHOOT_MARKER);
 	});
 
 	it("maps the taxonomy's own glyphs straight back to their marks", () => {
