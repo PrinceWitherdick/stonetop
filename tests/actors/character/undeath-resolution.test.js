@@ -81,7 +81,7 @@ describe("zeroHpResolution — the three insert moves", () => {
 	});
 
 	it("gives Tethered a single no-roll tier that reforms at half max HP", () => {
-		const r = ZERO_HP_RESOLUTIONS.ghost;
+		const r = zeroHpResolution("ghost");
 		expect(r.roll).toBeNull();
 		expect(resolutionTier(r, null).pick).toBe(1);
 		// The HP lands when they reform at the next sunset, not the moment they disperse.
@@ -90,7 +90,7 @@ describe("zeroHpResolution — the three insert moves", () => {
 	});
 
 	it("leaves Dark Succor's recovery to the GM and always resets Favor", () => {
-		const r = ZERO_HP_RESOLUTIONS.thrall;
+		const r = zeroHpResolution("thrall");
 		for (const tier of ["success", "partial", "failure"]) {
 			expect(resolvedHp(r.tiers[tier], 20), tier).toBeNull();
 		}

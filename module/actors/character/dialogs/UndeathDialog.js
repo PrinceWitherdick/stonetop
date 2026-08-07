@@ -138,7 +138,10 @@ export class UndeathDialog extends StonetopDialog {
 			canApply:    this._picked.size === pick && this._choicesComplete(),
 
 			hp,
-			hpNote:      hp === null ? _HP_LEFT_TO_GM[res?.move] ?? null : null,
+			// The note rides on the resolution spec, not on a table keyed by the move's display
+			// name — renaming the move must not silently leave the player a blank where the
+			// recovery should be.
+			hpNote:      hp === null ? res?.hpNote ?? null : null,
 			disperses:   res?.disperses ? resolvedHp(res.disperses, this._maxHp ?? 0) : null,
 
 			forcedMiss:      res?.forcedMiss ? { ...res.forcedMiss, on: this._forcedMiss } : null,
@@ -164,10 +167,13 @@ export class UndeathDialog extends StonetopDialog {
 		return [];
 	}
 
+	/**
+	 * Only the kinds that spend from a list can run out. A `task` is written, not picked from
+	 * anything, so it is never exhausted — and _optionsFor returns [] for it, which is why the
+	 * membership test has to come first rather than the emptiness check standing alone.
+	 */
 	_isExhausted(kind) {
-		if (kind === "task") return false;
-		if (["consequence", "mark-gain", "mark-crossoff"].includes(kind)) return this._optionsFor(kind).length === 0;
-		return false;
+		return _OPTION_KINDS.has(kind) && this._optionsFor(kind).length === 0;
 	}
 
 	/** Every picked effect that needs a choice has one. */
@@ -413,7 +419,5 @@ export class UndeathDialog extends StonetopDialog {
 
 const _TIER_LABELS = { success: "10+", partial: "7-9", failure: "6-" };
 
-// Moves whose recovery the book hands to the GM rather than stating.
-const _HP_LEFT_TO_GM = {
-	"Dark Succor": "Your master's succor has no number: you recover here and now, or at a time and place of the GM's choosing. Clear the state on your Special Moves tab when you're back.",
-};
+/** The effect kinds picked from a list of options, and so the only ones that can run out. */
+const _OPTION_KINDS = new Set(["consequence", "mark-gain", "mark-crossoff"]);

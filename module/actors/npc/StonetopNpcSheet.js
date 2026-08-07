@@ -7,7 +7,7 @@
 // Wears the same edit/lock header chrome as the monster/bestiary sheets (shared
 // sheet-chrome helpers) so it reads as one system.
 import { rollDamage } from "../../utils/roll-engine.js";
-import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle } from "../../utils/sheet-chrome.js";
+import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle, fitDisplayName } from "../../utils/sheet-chrome.js";
 import { isDefaultImg } from "../../utils/strings.js";
 import { headerPortraitContext, wirePortraitPopout } from "../../utils/actor-portrait-picker.js";
 import { updateRichTextField, updateMoveField } from "../../utils/stat-block-edit.js";
@@ -79,7 +79,7 @@ export function createStonetopNpcSheetClass(Base) {
 				// the sheet opens. In the CLASSIC layout that block is pinned above the tab
 				// strip and is visible from any tab, so `initial` matters less there — but the
 				// tab SET is identical in both layouts, so one value serves both.
-				// Relationships/Stats tabs render conditionally, so _render() falls back here
+				// Relationships/Stats tabs render conditionally, so getData() falls back here
 				// if the active one vanishes.
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "details" }],
 			});
@@ -96,6 +96,25 @@ export function createStonetopNpcSheetClass(Base) {
 			this.element[0]?.classList.toggle("stonetop-edit-mode", this._editMode);
 			stampLayoutClass(this, "npc");
 			hideBrokenPortrait(this, "stonetop-npc-header");
+			// Shrink a long name until its column fits the portrait's height again, so the
+			// pronouns and traits pinned to that column's bottom edge stay level with the bottom
+			// of the portrait instead of being pushed out under it. Floors at
+			// --st-npc-name-min-size. See fitDisplayName.
+			fitDisplayName(this, {
+				header:  ".stonetop-npc-header",
+				text:    ".stonetop-npc-name-text",
+				column:  ".stonetop-npc-header-text",
+				sizeVar: "--st-npc-name-size",
+				minVar:  "--st-npc-name-min-size",
+			});
+		}
+
+		// The name fitter watches the header for width changes; nothing else does, so it is the
+		// one thing here holding a live observer once the window is gone.
+		async close(options) {
+			this._stonetopNameFit?.disconnect();
+			this._stonetopNameFit = null;
+			return super.close(options);
 		}
 
 		// Re-measure the auto-height window to the active tab's content. Foundry's Tabs

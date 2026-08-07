@@ -13,7 +13,7 @@ import {
 } from "../../model/CharacterSnapshot.js";
 import { composeInstinct, stripHtmlToText } from "../../utils/strings.js";
 import { clampInt } from "../../utils/custom-move-data.js";
-import { zeroHpResolution } from "./deaths-door.js";
+import { zeroHpResolution, FAVOR_TRACK } from "./deaths-door.js";
 
 export class CharacterPostDeath {
 	constructor(insertFlags, instinct, lore, insertRepo, moveRepo) {
@@ -107,7 +107,7 @@ export class CharacterPostDeath {
 	 * deaths-door.js), not this file's to retype.
 	 */
 	_rollTrack() {
-		return zeroHpResolution(this.activeSlug)?.roll?.loreCount ?? { entry: "favor", option: "favor-track" };
+		return zeroHpResolution(this.activeSlug)?.roll?.loreCount ?? FAVOR_TRACK;
 	}
 
 	/** The Thrall's current Favor (0-3), read from its own track. */

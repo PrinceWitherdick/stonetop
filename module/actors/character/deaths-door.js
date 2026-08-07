@@ -59,6 +59,13 @@ export const UNSTOPPABLE   = "Unstoppable";
 export const POST_DEATH_INSERT_SLUGS = ["revenant", "ghost", "thrall"];
 
 /**
+ * Where the Thrall's Favor track lives in its insert's lore. Stated once because three things
+ * need the same coordinates: the +Favor roll reads it, "regardless, reset your Favor to 0"
+ * writes it, and CharacterPostDeath resolves the track through it.
+ */
+export const FAVOR_TRACK = { entry: "favor", option: "favor-track" };
+
+/**
  * The move a character triggers when reduced to 0 HP, keyed by their active post-death
  * insert slug ("null" = no insert). Trigger text is the book's, verbatim — players read it
  * on the prompt card, so it must read as the move reads.
@@ -91,7 +98,7 @@ export const ZERO_HP_MOVES = {
 	thrall: {
 		name:    "Dark Succor",
 		trigger: "When you are <strong><em>dying or killed outright</em></strong>, your master intercedes on your behalf. You will recover, here and now or at a time and place of the GM's choosing. Then, roll +Favor: on a 10+, choose 1; on a 7-9, choose 2; on a 6-, all 3 apply.",
-		roll:    { stat: null, label: "+Favor" },
+		roll:    { stat: null, label: "+Favor", loreCount: FAVOR_TRACK },
 		dialog:  false,
 	},
 };
@@ -110,8 +117,6 @@ export const ZERO_HP_MOVES = {
  */
 export const ZERO_HP_RESOLUTIONS = {
 	revenant: {
-		move:    "Undying",
-		roll:    { stat: "con", label: "+CON" },
 		effects: [
 			{ kind: "consequence",   label: "Mark a consequence" },
 			{ kind: "out-of-action", label: "You're out of the action until the next sunset" },
@@ -142,8 +147,6 @@ export const ZERO_HP_RESOLUTIONS = {
 	},
 
 	ghost: {
-		move:    "Tethered",
-		roll:    null,
 		effects: [
 			{ kind: "consequence", label: "Mark a consequence" },
 		],
@@ -160,10 +163,10 @@ export const ZERO_HP_RESOLUTIONS = {
 	},
 
 	thrall: {
-		move:    "Dark Succor",
-		// Favor is the Thrall insert's own 0-3 track, not a character stat — read from the
-		// insert's lore rather than actor.system.stats.
-		roll:    { stat: null, label: "+Favor", loreCount: { entry: "favor", option: "favor-track" } },
+		// "Your master's succor has no number" — Dark Succor is the one move that leaves the
+		// recovery to the GM, so the card says why rather than showing a blank where the HP goes.
+		hpNote: "Your master's succor has no number: you recover here and now, or at a time and "
+			+ "place of the GM's choosing. Clear the state on your Special Moves tab when you're back.",
 		effects: [
 			{ kind: "mark-gain",     label: "Gain a Mark of the GM's choice" },
 			{ kind: "mark-crossoff", label: "Cross off a Mark that you don't have — you can never gain it" },
@@ -175,7 +178,7 @@ export const ZERO_HP_RESOLUTIONS = {
 			failure: { pick: 3, hp: null },
 		},
 		// "Regardless, reset your Favor to 0."
-		alwaysResetFavor: { entry: "favor", option: "favor-track" },
+		alwaysResetFavor: FAVOR_TRACK,
 	},
 };
 
@@ -188,9 +191,18 @@ export function zeroHpMove(insertSlug) {
 	return ZERO_HP_MOVES[insertSlug ?? "null"] ?? ZERO_HP_MOVES.null;
 }
 
-/** The resolution spec for an insert's 0-HP move, or null for a character without one. */
+/**
+ * The resolution spec for an insert's 0-HP move, or null for a character without one.
+ *
+ * The move's `name` and `roll` come from ZERO_HP_MOVES rather than being restated here: the two
+ * tables are keyed by the same slugs, and a rename or a stat change that landed in only one of
+ * them would put the chat header and the roll out of step with the move the player is reading.
+ */
 export function zeroHpResolution(insertSlug) {
-	return ZERO_HP_RESOLUTIONS[insertSlug] ?? null;
+	const res = ZERO_HP_RESOLUTIONS[insertSlug];
+	if (!res) return null;
+	const move = ZERO_HP_MOVES[insertSlug];
+	return { ...res, move: move?.name ?? "", roll: move?.roll ?? null };
 }
 
 /**

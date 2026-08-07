@@ -7422,13 +7422,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin-left: var(--thumb-travel);
 }
 
+/* The ledger fills its window: the toolbar pins, the entry list scrolls inside it, so the window
+   content itself must not scroll or pad. Font scale is NOT set here — the window carries the
+   `.stonetop` class, so `.stonetop .window-content` supplies it (and the bullet size with it),
+   which is where every other window of ours gets it. */
 .stonetop-ledger-window .window-content {
 	overflow: hidden;
 	padding: 0;
-	/* The ledger is a bare Dialog (no `.stonetop` class), so it misses the
-	   `.stonetop .window-content` scale rule — anchor the font-size setting here so
-	   the whole ledger (incl. entry text with no explicit size) tracks it. */
-	font-size: calc(1em * var(--stonetop-font-scale, 1));
 }
 
 .stonetop-ledger-window .dialog-buttons {
@@ -7442,11 +7442,18 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	overflow: hidden;
 }
 
+/* The ledger's own root, and where the user's font scale has to be applied.
+   NOT on `.window-content` (where it was, and where it looked right): core sets
+   `.dialog .dialog-content { font-size: var(--font-size-14) }` on the element in between, so the
+   scale reached the window and was then thrown away one level down — the entry text never moved.
+   This container sits INSIDE `.dialog-content` and nothing else sizes it, so from here the whole
+   ledger tracks the setting, which is what the old rule was aiming at. */
 .stonetop-ledger-container {
 	display: flex;
 	flex-direction: column;
 	flex: 1;
 	min-height: 0;
+	font-size: calc(1em * var(--stonetop-font-scale, 1));
 }
 
 .stonetop-ledger-toolbar {
@@ -22234,6 +22241,37 @@ th:has(> .stonetop-roll-table-btn) {
 }
 .stonetop-guide-toc-item.is-active .stonetop-guide-toc-icon { color: var(--st-green-text); }
 
+/* Same rail, inside a `.stonetop-themed` ApplicationV2 (the Import Book Art macro's setup
+   window). That skin paints EVERY button in the window body as a slate primary pill —
+   `:is(.application, .window-app).stonetop-themed .window-content button:not([type=checkbox])`,
+   at the top of this file — which is right for an action button and wrong for a list of
+   pages: the rail came out as four solid slate blocks with centred white labels. The rail's
+   own rules above are one class each and lose 4-1.
+
+   So these restate them heavy enough to survive that context, and nothing else changes: a
+   rail's opt-in is still just carrying the classes. `justify-content` appears only here
+   because core's `button { display: flex }` centres its content, which the plain rail never
+   had to think about (its dialogs are AppV1, where core leaves buttons as inline blocks).
+   Ordered base → hover → active, so an active entry keeps its fill while hovered. */
+:is(.application, .window-app).stonetop-themed .window-content .stonetop-guide-toc .stonetop-guide-toc-btn {
+	justify-content: flex-start;
+	background: transparent;
+	border-color: transparent;
+	color: inherit;
+	font-weight: 400;
+}
+:is(.application, .window-app).stonetop-themed .window-content .stonetop-guide-toc .stonetop-guide-toc-btn:hover {
+	background: hsl(40 25% 85%);
+	border-color: transparent;
+	color: inherit;
+}
+:is(.application, .window-app).stonetop-themed .window-content .stonetop-guide-toc-item.is-active .stonetop-guide-toc-btn {
+	background: rgba(0, 0, 0, 0.06);
+	border-color: rgba(0, 0, 0, 0.15);
+	font-weight: 700;
+	color: var(--st-green-text);
+}
+
 .stonetop-spring-body {
 	font-size: var(--st-fs-md);
 	line-height: 1.6;
@@ -25279,6 +25317,21 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-npc-header {
 	/* Also the floor for the name/traits column beside it — see .stonetop-npc-header-text. */
 	--st-npc-portrait-size: 120px;
+	/* How small the display name may be shrunk before it is left to overflow instead. The name is
+	   set at --font-size-display (42px), and the column it sits in is only about 234px wide at
+	   the sheet's default width, so anything past roughly ten characters wraps — and a wrapped
+	   name grew the column past this portrait's height, which is what unpinned the pronouns and
+	   traits from its bottom edge. fitDisplayName (utils/sheet-chrome.js) shrinks the name only
+	   as far as it takes to fit that height back, writing the result to --st-npc-name-size, so
+	   most long names keep most of their size (a two-line name lands around 37px rather than at
+	   this floor).
+
+	   28px is where a two-line name plus BOTH the pronouns and traits rows still comes to the
+	   120px the column stands at. Below that the rows would be riding on the name rather than on
+	   the portrait's edge, which is the thing being preserved; past it — a name long enough to
+	   need three lines even at this size — the name stops shrinking and the header grows, on the
+	   grounds that a name is worth more than the alignment. */
+	--st-npc-name-min-size: 28px;
 	margin-bottom: 12px;
 }
 /* SQUARE, matching the character sheet's own avatar and the follower card. This was a 3/4 box
@@ -25354,12 +25407,18 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	   this column is already down on its 200px floor, which is exactly when the bar should
 	   stack. Growth is unchanged: it was the only grower before and still is. */
 	flex: 1 1 0;
-	/* Stand as tall as the portrait so traits land on its bottom edge (the point of
-	   space-between below) — and no taller, whatever the stat bar is doing. */
+	/* Stand as tall as the portrait, and no taller, whatever the stat bar is doing. */
 	min-height: var(--st-npc-portrait-size);
 	min-width: 200px;
 	display: flex;
 	flex-direction: column;
+	/* Pronouns and traits sit on the column's bottom edge, level with the bottom of the portrait
+	   beside them.
+	   This pin only holds while the text fits the column: the column GROWS past its min-height
+	   when it has to, and once it does there is no slack left to distribute, so the pair lands
+	   wherever the name leaves it — which used to be 35.7px below the portrait once a long name
+	   wrapped. Keeping it inside that height is the name fit's job, not this rule's: fitDisplayName
+	   shrinks the name until this column stops overflowing (see --st-npc-name-min-size). */
 	justify-content: space-between;
 	gap: 8px;
 }
@@ -25403,6 +25462,12 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-npc-header .stonetop-name-field {
 	font-family: var(--font-avara);
 	font-weight: bold;
+	/* The fitted size, when the name needed one. --st-npc-name-size is written onto the header
+	   by fitDisplayName and is absent until a name is too wide for its column, so the fallback
+	   is the display size every other sheet's name takes. `!important` only because the shared
+	   .stonetop-name-field rule (up with the header chrome) declares the same property that way
+	   and would otherwise win on the cascade despite being the less specific of the two. */
+	font-size: var(--st-npc-name-size, var(--font-size-display)) !important;
 	min-height: 0;
 	padding-top: 0;
 	/* Left-align the name with the occupation/traits rows below it (they sit flush
