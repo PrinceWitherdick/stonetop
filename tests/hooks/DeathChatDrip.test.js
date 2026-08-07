@@ -38,7 +38,9 @@ describe("deathDripStamp — what a message carries from the moment it's made", 
 
 	// The flags predate the system-id rename, so a world that never cut over still reads.
 	it("reads a legacy flag scope", () => {
-		const legacy = { type: "character", flags: { stonetop_pwd: { postDeathInsert: { slug: "ghost" } } } };
+		// This package's own prior scope (LEGACY_FLAG_SCOPES in module/system-id.js), so the
+		// fallback is genuinely exercised rather than the current scope wearing another name.
+		const legacy = { type: "character", flags: { stonetop: { postDeathInsert: { slug: "ghost" } } } };
 		expect(deathDripStamp(legacy)).toEqual({ [FLAG_PATH]: "ghost" });
 	});
 });

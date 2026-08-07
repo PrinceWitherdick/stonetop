@@ -104,7 +104,9 @@ describe("PlaceOfInterestDrop", () => {
 
 		it("claims one placed before the system-id rename", () => {
 			expect(isLandmarkNote({
-				texture: { src: "systems/stonetop_pwd/assets/icons/landmarks/landmark-f.svg" },
+				// This package's own prior id, so the case is a real one here rather than a
+				// spelling that never shipped. See ALL_SYSTEM_IDS in module/migration/compat.js.
+				texture: { src: "systems/stonetop/assets/icons/landmarks/landmark-f.svg" },
 			})).toBe(true);
 		});
 
@@ -217,7 +219,7 @@ describe("PlaceOfInterestDrop", () => {
 		// document that comes out keeps only the picture and the label.
 		it("reads the letter back out of the pin's icon", () => {
 			expect(landmarkLetterOf(landmarkNoteData({ x: 0, y: 0, letter: "D", name: "Cistern" }))).toBe("d");
-			expect(landmarkLetterOf({ texture: { src: "systems/stonetop_pwd/assets/icons/landmarks/landmark-f.svg" } })).toBe("f");
+			expect(landmarkLetterOf({ texture: { src: "systems/stonetop/assets/icons/landmarks/landmark-f.svg" } })).toBe("f");
 		});
 
 		it("is null for anything that is not one of ours", () => {
