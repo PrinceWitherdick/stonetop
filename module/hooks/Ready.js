@@ -28,12 +28,14 @@ import { rollDieOfFate } from "../utils/die-of-fate.js";
 import { createArcanumItem } from "../item/createArcanum.js";
 import { LoveLetterDialog } from "../dialogs/LoveLetterDialog.js";
 import { StonetopArcanaInspireDialog } from "../item/StonetopArcanaInspireDialog.js";
+import { ArcanaBrowserDialog } from "../dialogs/ArcanaBrowserDialog.js";
+import { BestiaryBrowserDialog } from "../dialogs/BestiaryBrowserDialog.js";
 import { findVisibleJournal, SETTING_OVERVIEW_JOURNAL } from "../utils/seeded-journals.js";
 import { getStonetopSteadingActor, getStonetopSteadingActorOrWarn } from "../utils/world.js";
 import { rollMoveFromUuid } from "./HotbarDrop.js";
 import { ensureThreatsEntry } from "../threats/threat-store.js";
 import { ensureHazardsEntry } from "../hazards/hazard-store.js";
-import { STONETOP_SCOPE, resolvedFlagProperty } from "../actors/character/StonetopFlags.js";
+import { STONETOP_SCOPE, resolvedFlagProperty, resolvedFlags } from "../actors/character/StonetopFlags.js";
 import { deletionEntry } from "../utils/foundry-compat.js";
 import { linkLandmarkNotes, revealLandmarkNotesOnce } from "./PlaceOfInterestDrop.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
@@ -76,26 +78,44 @@ const w = Object.values(ui.windows).find(w => w.id === "stonetop-introductions")
 if (w?.rendered) { w.bringToTop(); return; }
 game.stonetop?.openIntroductions?.();`;
 
-// The ordered system hotbar macros (slots 1–6), in their canonical order. The
+// The ordered system hotbar macros (slots 1–8), in their canonical order. The
 // single source of truth for both _ensureHotbarMacro (places any that are missing)
 // and _reorderSystemMacros (snaps them into this order). Chronicle (9) / End of Session
 // (10) are handled separately below because they also key on their command. Seasons
 // Change took the spring icon that Welcome used to carry; Welcome now uses the
-// direction-signs. "Write a Love Letter" (slot 5) is GM prep (Book I p.568) — a GM-only
-// block places these, so it never reaches a player's hotbar.
+// direction-signs. "Write a Love Letter" (slot 5) is GM prep (Book I p.568), and the two
+// browsers (slots 7-8) read GM-hidden compendia and the GM's own NPC notes — a GM-only
+// block places these, so they never reach a player's hotbar.
+//
+// `shared` marks the one macro the whole table uses: the Die of Fate is rolled by whoever
+// the fiction points at, not just the GM, so it is created readable by everyone and placed
+// on each player's own hotbar at `playerSlot` (see _ensurePlayerHotbarMacros). A player's
+// bar is otherwise empty of system macros, so it starts at slot 1 rather than the GM's 6.
 const _SYSTEM_MACROS = [
 	{ name: "Welcome to Stonetop", img: "systems/stonetop-pwd/assets/icons/macros/direction-signs.svg", command: "game.stonetop?.openWelcome?.()",        slot: 1 },
 	{ name: "Seasons Change",      img: "systems/stonetop-pwd/assets/icons/macros/spring.svg",           command: "game.stonetop?.openSeasonsChange?.()", slot: 2 },
 	{ name: "Run an Expedition",   img: "systems/stonetop-pwd/assets/icons/macros/treasure-map.svg",     command: "game.stonetop?.openExpedition?.()",     slot: 3 },
 	{ name: "Weather",             img: "systems/stonetop-pwd/assets/icons/macros/sun-cloud.svg",        command: "game.stonetop?.openWeather?.()",        slot: 4 },
 	{ name: "Write a Love Letter", img: "systems/stonetop-pwd/assets/icons/macros/love-letter.svg",      command: "game.stonetop?.openLoveLetter?.()",     slot: 5 },
-	{ name: "Die of Fate",         img: "systems/stonetop-pwd/assets/icons/macros/die-of-fate.svg",      command: "game.stonetop?.rollDieOfFate?.()",      slot: 6 },
+	{ name: "Die of Fate",         img: "systems/stonetop-pwd/assets/icons/macros/die-of-fate.svg",      command: "game.stonetop?.rollDieOfFate?.()",      slot: 6, shared: true, playerSlot: 1 },
+	// The one macro whose icon is NOT from the macros/ game-icons.net set: the triple spiral
+	// the books stamp beside an arcanum (Book II p.545), the same mark every un-illustrated
+	// arcanum Item wears via STONETOP_ITEM_ICONS.arcanum. This macro opens the arcana, so it
+	// carries the arcana's own symbol — but the macros/ copy, whose mark is drawn larger to
+	// hold its own beside icons that fill their tile. See that file for why it's a copy.
+	{ name: "Browse the Arcana",   img: "systems/stonetop-pwd/assets/icons/macros/arcanum.svg",          command: "game.stonetop?.openArcanaBrowser?.()",  slot: 7 },
+	{ name: "Browse the Bestiary", img: "systems/stonetop-pwd/assets/icons/macros/animal-skull.svg",     command: "game.stonetop?.openBestiaryBrowser?.()", slot: 8 },
 ];
 
 // Bump to re-snap the system macros into their canonical slots once, on every client
 // (the per-client `systemHotbarLayoutVersion` setting trails this until then). Bumped
 // to 2 when Seasons Change was inserted at slot 2 and the rest shifted right; to 3 when
 // Write a Love Letter took slot 5 and Die of Fate moved to slot 6.
+//
+// Deliberately NOT bumped for the two browsers: they were APPENDED at slots 7-8 rather than
+// inserted, so nothing else moved, and _ensureHotbarMacro places a missing macro whatever
+// the layout version. Re-snapping would lift all eight off the hotbar and put them back —
+// undoing any arrangement a GM had made — to fix an order that isn't wrong.
 const _HOTBAR_LAYOUT_VERSION = 3;
 
 export async function onReady() {
@@ -238,6 +258,22 @@ export async function onReady() {
 	// Roll a learned move from its uuid — the entry point the move hotbar macros call
 	// (drag a move off a character sheet onto the hotbar; see hooks/HotbarDrop.js).
 	game.stonetop.rollMoveMacro     = rollMoveFromUuid;
+	// Browse every arcanum in the world — the shipped compendium plus any homebrew cards —
+	// filtered by what each one does and by how badly its Consequences track punishes whoever
+	// carries it. GM prep: the arcana compendium is GM-hidden and half the point of the window
+	// is reading the curses on cards the players haven't found, so its macro is seeded inside
+	// the GM-only block below and there is no button for it on a character sheet.
+	//
+	// `ownedSlugs` only badges rows as "Held". Read off the caller's assigned character when
+	// they have one (a GM usually doesn't), so the badges are right without the browser having
+	// to be opened from a sheet.
+	game.stonetop.openArcanaBrowser = (actor = game.user.character) =>
+		ArcanaBrowserDialog.open({ ownedSlugs: actor ? resolvedFlags(actor).arcana?.owned ?? [] : [] });
+	// Browse the bestiary and the world's NPCs in one window — the same shell as the arcana
+	// browser, with a tab each. GM prep for the same two reasons: the bestiary pack is
+	// GM-owned, and an NPC's status and home are the GM's own notes. Pass a source to land on
+	// a particular tab:  game.stonetop.openBestiaryBrowser("people")
+	game.stonetop.openBestiaryBrowser = (source) => BestiaryBrowserDialog.open({ source });
 	// Create a blank homebrew arcanum world Item and open its editor. Minor by default;
 	// pass { major: true } for a major. Callable from a macro/console/hotbar:
 	//   game.stonetop.createArcanum({ name: "My Charm" })
@@ -322,6 +358,10 @@ export async function onReady() {
 		await _reorderSystemMacros();
 		await _ensureTestPopulateMacro();
 		await _ensureBook2ArtMacro();
+	} else {
+		// A player's share of the same pass: the Die of Fate belongs on everyone's bar.
+		try { await ensurePlayerHotbarMacros(); }
+		catch (err) { console.error("Stonetop | player hotbar macro placement failed", err); }
 	}
 	if (game.user.isGM) {
 		await _postStartupWelcomeMessageOnce();
@@ -650,12 +690,25 @@ function _firstFreeHotbarSlot(from = 1) {
 // avoid clashing with any user macro of the same name). Run these serially — each
 // assignHotbarMacro writes the same user.hotbar document, so concurrent calls would
 // clobber each other.
-async function _ensureHotbarMacro({ name, img, command, slot, match }) {
+//
+// GM-only (every call site sits inside a game.user.isGM block), which is what lets it
+// set ownership: a Macro is created at ownership.default NONE, and only a GM may change
+// that. A `shared` macro is raised to OBSERVER — on creation AND on an existing macro in
+// a world that predates the flag, so the fix reaches tables already playing.
+async function _ensureHotbarMacro({ name, img, command, slot, match, shared }) {
+	const OBSERVER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
 	let macro = game.macros.find(match ?? (m => m.name === name));
 	if (!macro) {
-		macro = await Macro.create({ name, type: "script", img, command, scope: "global" });
-	} else if (macro.img !== img) {
-		await macro.update({ img });
+		macro = await Macro.create({
+			name, type: "script", img, command, scope: "global",
+			...(shared ? { ownership: { default: OBSERVER } } : {}),
+		});
+	} else {
+		const update = {};
+		if (macro.img !== img) update.img = img;
+		// Dotted, so a per-user grant the GM added by hand survives.
+		if (shared && (macro.ownership?.default ?? 0) < OBSERVER) update["ownership.default"] = OBSERVER;
+		if (Object.keys(update).length) await macro.update(update);
 	}
 
 	const alreadySlotted = Object.values(game.user.hotbar).includes(macro.id);
@@ -663,6 +716,28 @@ async function _ensureHotbarMacro({ name, img, command, slot, match }) {
 
 	const target = _isHotbarSlotFree(slot) ? slot : _firstFreeHotbarSlot();
 	if (target) await game.user.assignHotbarMacro(macro, target);
+}
+
+// Place the shared system macros (currently just the Die of Fate) on a PLAYER's hotbar.
+// The player never creates the Macro — a player-created copy would be a second document
+// owned by them alone, one per player — so this only slots the world macro the GM's pass
+// already made, and only once it is actually theirs to run: a world whose GM has not
+// loaded since this shipped still has the macro at ownership NONE, and skipping it there
+// keeps a dead icon off the bar. Both cases fix themselves on the player's next reload.
+//
+// Same non-destructive placement as the GM's: never evicts whatever is in the target slot,
+// and never moves a macro that is already on the bar, so a player's own arrangement sticks.
+//
+// Exported for its test — onReady is the only caller.
+export async function ensurePlayerHotbarMacros() {
+	for (const { name, command, playerSlot } of _SYSTEM_MACROS.filter(m => m.shared)) {
+		const macro = game.macros.find(m => m.name === name && m.command === command);
+		if (!macro?.canExecute) continue;
+		if (Object.values(game.user.hotbar).includes(macro.id)) continue;
+
+		const target = _isHotbarSlotFree(playerSlot) ? playerSlot : _firstFreeHotbarSlot();
+		if (target) await game.user.assignHotbarMacro(macro, target);
+	}
 }
 
 // Snap the system macros into their canonical order (1 Welcome · 2 Seasons Change ·

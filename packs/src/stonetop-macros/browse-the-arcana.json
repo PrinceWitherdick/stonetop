@@ -1,0 +1,11 @@
+{
+  "name": "Browse the Arcana",
+  "type": "script",
+  "img": "systems/stonetop-pwd/assets/icons/macros/arcanum.svg",
+  "scope": "global",
+  "command": "game.stonetop?.openArcanaBrowser?.()",
+  "folder": null,
+  "sort": 550000,
+  "_id": "stMacroArcana001",
+  "_key": "!macros!stMacroArcana001"
+}

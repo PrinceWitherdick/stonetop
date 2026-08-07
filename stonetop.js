@@ -345,6 +345,7 @@ Hooks.once("init", () => {
 		"stonetop.npc-tab-nav":         "systems/stonetop-pwd/templates/actor/partials/npc-tab-nav.hbs",
 		"stonetop.move-group":           "systems/stonetop-pwd/templates/actor/partials/move-group.hbs",
 		"stonetop.tab-search-control":   "systems/stonetop-pwd/templates/actor/partials/tab-search-control.hbs",
+		"stonetop.catalog-shell":        "systems/stonetop-pwd/templates/dialogs/partials/catalog-shell.hbs",
 		"stonetop.move-mark-level":      "systems/stonetop-pwd/templates/actor/partials/move-mark-level.hbs",
 		"stonetop.sidebar-move-list":    "systems/stonetop-pwd/templates/actor/partials/sidebar-move-list.hbs",
 		"stonetop.lore-section":          "systems/stonetop-pwd/templates/actor/partials/lore-section.hbs",

@@ -1,0 +1,109 @@
+{{!-- The whole body of a catalogue browser (see module/dialogs/CatalogBrowserDialog.js).
+
+      Rendered by both the Arcana browser and the Bestiary & People browser, which must
+      read as one tool: source tabs (only when there's more than one list), the shared
+      collapsible search control, single-select chip groups, a live count, the rows, and
+      the empty state.
+
+      Rows are stamped `filtered` by getData so the first paint already honours the chip
+      state; after that the dialog toggles the class in place rather than re-rendering, so
+      the list keeps its scroll position and the search box keeps its term. --}}
+
+<div class="stonetop-catalog">
+
+	{{#if hasSources}}
+	<div class="stonetop-catalog-sources" role="tablist" aria-label="Choose a catalogue">
+		{{#each sources}}
+		<button type="button" class="stonetop-catalog-source{{#if active}} is-active{{/if}}"
+		        data-source="{{key}}" role="tab" aria-selected="{{#if active}}true{{else}}false{{/if}}">
+			<i class="{{icon}}" aria-hidden="true"></i>
+			<span>{{label}}</span>
+			{{#if hasCount}}<span class="stonetop-catalog-source-count">{{count}}</span>{{/if}}
+		</button>
+		{{/each}}
+	</div>
+	{{/if}}
+
+	<div class="stonetop-catalog-controls">
+		{{> "stonetop.tab-search-control" title=searchTitle placeholder=searchPlaceholder}}
+
+		{{#each groups}}
+		<div class="stonetop-catalog-filters" role="group" aria-label="Filter by {{label}}">
+			<span class="stonetop-catalog-filters-label">{{label}}</span>
+
+			{{#if isSelect}}
+			{{!-- A group with more values than a chip row can carry. The empty option is the
+			      unfiltered state, which is the same "" this group's filter state uses, so a
+			      select needs none of the click-the-lit-chip-to-clear business. --}}
+			<select class="stonetop-catalog-select{{#if anyActive}} is-active{{/if}}"
+			        data-group="{{key}}" aria-label="Filter by {{label}}">
+				<option value="">{{allLabel}}</option>
+				{{#each chips}}
+				<option value="{{key}}"{{#if active}} selected{{/if}}>{{label}} ({{count}})</option>
+				{{/each}}
+			</select>
+			{{else}}
+
+			{{!-- A chip is always labelled; its `icon` is optional (the Home chips are steading
+			      names and have none). Every chip's tooltip carries how many rows it would
+			      leave, so the count never has to compete with the label for room. --}}
+			{{#each chips}}
+			<button type="button"
+			        class="stonetop-catalog-filter{{#if mod}} stonetop-catalog-filter--{{mod}}{{/if}}{{#if active}} is-active{{/if}}"
+			        data-group="{{../key}}" data-key="{{key}}"
+			        aria-pressed="{{#if active}}true{{else}}false{{/if}}"
+			        data-tooltip="{{hint}} ({{count}})" data-tooltip-direction="UP">
+				{{#if icon}}<i class="{{icon}}" aria-hidden="true"></i>{{/if}}
+				<span>{{label}}</span>
+			</button>
+			{{/each}}
+			{{/if}}
+		</div>
+		{{/each}}
+	</div>
+
+	{{!-- Live count, rewritten by _updateCount on every chip click and keystroke. --}}
+	<p class="stonetop-catalog-count">{{total}}</p>
+
+	<div class="stonetop-catalog-list">
+		{{#each rows}}
+		<div class="stonetop-catalog-row{{#if filtered}} stonetop-catalog-filtered{{/if}}{{#if marked}} is-marked{{/if}}{{#if inactive}} is-inactive{{/if}}"
+		     data-key="{{key}}" data-uuid="{{uuid}}" data-search="{{search}}"
+		     role="button" tabindex="0" aria-label="Open {{title}}">
+
+			{{!-- Always an image: an entry with no art of its own gets a category marker,
+			      dimmed by `is-placeholder` so real art still stands out. --}}
+			<div class="stonetop-catalog-thumb">
+				<img src="{{img}}" alt="" loading="lazy"
+				     class="{{#if placeholderImg}}is-placeholder{{/if}}">
+			</div>
+
+			<div class="stonetop-catalog-main">
+				<div class="stonetop-catalog-titleline">
+					<span class="stonetop-catalog-title">{{title}}</span>
+					{{#each flags}}
+					<span class="stonetop-catalog-flag{{#if mod}} stonetop-catalog-flag--{{mod}}{{/if}}">{{label}}</span>
+					{{/each}}
+				</div>
+
+				{{#if summary}}<p class="stonetop-catalog-summary">{{summary}}</p>{{/if}}
+
+				{{#if (or badges.length note)}}
+				<div class="stonetop-catalog-badges">
+					{{#each badges}}
+					<span class="stonetop-catalog-badge{{#if mod}} stonetop-catalog-badge--{{mod}}{{/if}}"
+					      {{#if hint}}data-tooltip="{{hint}}" data-tooltip-direction="UP"{{/if}}>
+						{{#if img}}<img src="{{img}}" alt="">{{else}}{{#if icon}}<i class="{{icon}}" aria-hidden="true"></i>{{/if}}{{/if}}{{label}}
+					</span>
+					{{/each}}
+					{{#if note}}<span class="stonetop-catalog-note">{{note}}</span>{{/if}}
+				</div>
+				{{/if}}
+			</div>
+		</div>
+		{{/each}}
+	</div>
+
+	<p class="stonetop-catalog-empty">{{empty}}</p>
+
+</div>

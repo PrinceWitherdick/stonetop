@@ -50,6 +50,19 @@ const EDITABLE_COLUMNS = {
 	neighbors: ["name", "home", "occupation", "traits", "relations", "notes"],
 };
 
+/**
+ * Where someone lives when their Home says nothing: the village itself. Declared by the module
+ * that WRITES the field, so the writers and everything that reads or groups by it agree — a
+ * reader with its own copy of the literal is how a Home facet quietly splits into a ""
+ * bucket and a "Stonetop" bucket.
+ */
+export const HOME_STONETOP = "Stonetop";
+
+/** Someone's home for display and grouping — blank means the village itself. */
+export function npcHome(npc) {
+	return String(npc?.system?.home ?? "").trim() || HOME_STONETOP;
+}
+
 /** Update path for a Residents/Neighbors column, or null if the column isn't editable. */
 export function personFieldPath(list, field) {
 	if (!EDITABLE_COLUMNS[list]?.includes(field)) return null;
@@ -386,7 +399,7 @@ export async function createPersonNpc(list, data = {}, { folder = null } = {}) {
 	// Residents live in Stonetop by definition, so seed their Home with "Stonetop"
 	// (the NPC sheet shows it; a specific home can still be typed to override). A
 	// non-blank home carried in by migration is respected.
-	if (list === "residents") system.home = system.home.trim() || "Stonetop";
+	if (list === "residents") system.home = system.home.trim() || HOME_STONETOP;
 	const createData = {
 		name: data.name?.trim() || DEFAULT_PERSON_NAMES[list] || "New Person",
 		type: "npc",
@@ -651,7 +664,7 @@ export async function backfillResidentHomes(steading) {
 		const actor = personRowActor(row);
 		if (!actor || actor.type !== "npc") continue;
 		if (String(actor.system?.home ?? "").trim()) continue;
-		try { await actor.update({ "system.home": "Stonetop" }); updated++; }
+		try { await actor.update({ "system.home": HOME_STONETOP }); updated++; }
 		catch (err) { console.warn("Stonetop | Could not backfill Home for", actor?.name, err); }
 	}
 	await steading.setFlag("stonetop-pwd", "steading", { residentHomesBackfilled: true });

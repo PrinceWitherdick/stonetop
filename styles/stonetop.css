@@ -27672,3 +27672,523 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	   baseline gap under the picture. */
 	line-height: 0;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════
+   CATALOG BROWSER — the shared skin behind every "look through the whole list" window:
+   the Arcana browser (module/dialogs/ArcanaBrowserDialog.js) and the Bestiary & People
+   browser (module/dialogs/BestiaryBrowserDialog.js), which must look like one tool.
+
+   The filter chips are deliberately the steading improvements chips — same pill, same lit
+   state, same "click the lit chip to clear" — because they are the same gesture on a
+   different list, and a second look for it would just be a second thing to learn. The
+   improvements bar keeps its own copy: it lives inside a sheet tab with its own type
+   scale, and tying the two together would mean neither could move without the other.
+
+   Catalogue-specific colour (the arcana curse severities) is layered on AFTER this block
+   by its own section, so the shell here stays free of any one catalogue's vocabulary.
+   ═════════════════════════════════════════════════════════════════════════════════════ */
+
+.stonetop-catalog {
+	display: flex;
+	flex-direction: column;
+	/* The dialog body is the flex parent; without a min-height of 0 the list below refuses
+	   to shrink past its content and scrolls the whole window instead of itself. */
+	min-height: 0;
+	height: 100%;
+	gap: 6px;
+}
+
+/* ── Source tabs ─────────────────────────────────────────────────────────────────────
+   Only a browser with more than one catalogue in it renders these (Monsters / People).
+   A segmented control rather than Foundry's Tabs: switching source swaps the whole facet
+   bar as well as the list, which is a re-render, not a panel toggle. */
+
+.stonetop-catalog-sources {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: stretch;
+	gap: 2px;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+/* Undo core's block-level button rules (`body.game .app button` is display:flex,
+   width:100%, min-height:2em) or each tab claims its own full-width row. */
+.stonetop-catalog-source {
+	display: inline-flex;
+	width: auto;
+	min-height: 0;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: 6px;
+	margin: 0;
+	padding: 3px 14px;
+	border: none;
+	border-bottom: 2px solid transparent;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+	color: var(--st-text-muted);
+	font-family: var(--font-stonetop);
+	font-size: calc(0.82rem * var(--stonetop-font-scale, 1));
+	line-height: 1.6;
+	cursor: pointer;
+}
+
+.stonetop-catalog-source > i {
+	margin-right: 0;
+	opacity: 0.7;
+}
+
+.stonetop-catalog-source:hover:not(.is-active) {
+	background: rgba(100, 116, 139, 0.10);
+	color: var(--st-text-body);
+}
+
+.stonetop-catalog-source:focus-visible {
+	outline: 2px solid var(--st-btn-primary-border, #4f5b66);
+	outline-offset: -2px;
+}
+
+/* The lit tab. Must sit AFTER the hover rule above: one class each, so they tie on
+   specificity and only source order separates them. */
+.stonetop-catalog-source.is-active {
+	border-bottom-color: var(--st-btn-primary-bg, slategrey);
+	color: var(--st-text);
+	font-weight: 600;
+}
+
+.stonetop-catalog-source.is-active > i { opacity: 1; }
+
+/* The count riding in each tab, so you can see how big the other list is before you go
+   there. Not a badge — a badge here would compete with the row badges below. */
+.stonetop-catalog-source-count {
+	color: var(--st-text-faint);
+	font-size: 0.85em;
+}
+
+/* ── Filter bar ──────────────────────────────────────────────────────────────────── */
+
+.stonetop-catalog-controls {
+	display: flex;
+	flex: 0 0 auto;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 10px;
+	padding-bottom: 4px;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.stonetop-catalog-filters {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+/* The group's name ahead of its chips. Every group is labelled: once a bar carries three
+   groups, an unlabelled run of eight pills reads as one confusing set. */
+.stonetop-catalog-filters-label {
+	color: var(--st-text-muted);
+	font-family: var(--font-stonetop);
+	font-size: calc(0.72rem * var(--stonetop-font-scale, 1));
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+
+/* Same core-button undo as the source tabs. Same preamble as .steading-improvement-filter. */
+.stonetop-catalog-filter {
+	display: inline-flex;
+	width: auto;
+	min-height: 0;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: 4px;
+	margin: 0;
+	padding: 1px 8px;
+	border: 1px solid var(--st-btn-primary-border, #4f5b66);
+	border-radius: 999px;
+	background: transparent;
+	box-shadow: none;
+	color: var(--st-text-body);
+	font-family: var(--font-stonetop);
+	font-size: calc(0.72rem * var(--stonetop-font-scale, 1));
+	line-height: 1.6;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+/* Core gives every `button > i` a right margin, which double-counts against the gap above
+   and pushes the label off-centre in the pill. */
+.stonetop-catalog-filter > i {
+	margin-right: 0;
+	font-size: 0.9em;
+	opacity: 0.75;
+}
+
+/* A facet with more values than a chip row can carry (the 13 creature types) renders as a
+   dropdown instead. Sized and shaped to sit in the bar as one more pill, so the eye reads
+   the whole row as one set of controls rather than a bar with a form field bolted on.
+
+   The core-button undo above doesn't cover this: `.app select` carries its own width and
+   height, which would stretch it across the bar. */
+.stonetop-catalog-select {
+	width: auto;
+	max-width: 14em;
+	height: auto;
+	min-height: 0;
+	flex: 0 0 auto;
+	margin: 0;
+	padding: 1px 8px;
+	border: 1px solid var(--st-btn-primary-border, #4f5b66);
+	border-radius: 999px;
+	background: transparent;
+	box-shadow: none;
+	color: var(--st-text-body);
+	font-family: var(--font-stonetop);
+	font-size: calc(0.72rem * var(--stonetop-font-scale, 1));
+	line-height: 1.6;
+	cursor: pointer;
+}
+
+.stonetop-catalog-select:hover {
+	background: rgba(100, 116, 139, 0.16);
+}
+
+.stonetop-catalog-select:focus-visible {
+	outline: 2px solid var(--st-btn-primary-border, #4f5b66);
+	outline-offset: -2px;
+}
+
+/* Filtering. Deliberately NOT the lit chip's slate fill with white text: the popup list
+   inherits the closed control's colours in some engines, and white-on-white options are
+   unreadable. A doubled border and heavier text say "this one is doing something" without
+   touching anything the browser draws for us. */
+.stonetop-catalog-select.is-active {
+	border-color: var(--st-btn-primary-bg, slategrey);
+	box-shadow: inset 0 0 0 1px var(--st-btn-primary-bg, slategrey);
+	font-weight: 600;
+}
+
+.stonetop-catalog-filter:hover:not(.is-active) {
+	background: rgba(100, 116, 139, 0.16);
+	color: var(--st-text-body);
+}
+
+/* Core strips the default outline from buttons; without this a keyboard user has no idea
+   which chip they're on. Inset so the ring sits inside the pill's own border. */
+.stonetop-catalog-filter:focus-visible {
+	outline: 2px solid var(--st-btn-primary-border, #4f5b66);
+	outline-offset: -2px;
+}
+
+.stonetop-catalog-filter.is-active {
+	background: var(--st-btn-primary-bg, slategrey);
+	border-color: var(--st-btn-primary-bg, slategrey);
+	color: #fff;
+}
+
+.stonetop-catalog-filter.is-active > i { opacity: 1; }
+
+.stonetop-catalog-count {
+	flex: 0 0 auto;
+	margin: 0;
+	color: var(--st-text-muted);
+	font-size: var(--st-fs-xs);
+}
+
+/* ── The list ────────────────────────────────────────────────────────────────────── */
+
+/* The one scrollport. `min-height: 0` for the same reason the wrapper needs it. */
+.stonetop-catalog-list {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding-right: 2px;
+}
+
+/* Stamped by getData on first paint and toggled in place by the filter pass afterwards.
+   `!important` to beat the row's own `display: flex`, exactly as .stonetop-search-hidden
+   does; the two compose as an OR of hides, so a search runs WITHIN the lit chips. */
+.stonetop-catalog-filtered {
+	display: none !important;
+}
+
+.stonetop-catalog-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 6px 8px;
+	border: 1px solid rgba(0, 0, 0, 0.10);
+	border-radius: var(--st-radius);
+	background: rgba(0, 0, 0, 0.02);
+	cursor: pointer;
+}
+
+.stonetop-catalog-row:hover {
+	border-color: var(--st-btn-primary-border, #4f5b66);
+	background: rgba(100, 116, 139, 0.10);
+}
+
+.stonetop-catalog-row:focus-visible {
+	outline: 2px solid var(--st-btn-primary-border, #4f5b66);
+	outline-offset: -2px;
+}
+
+/* A row the caller marked as already-yours (an arcanum this character holds). A left edge
+   rather than a fill, so the badge in the title line stays the thing that says so. */
+.stonetop-catalog-row.is-marked {
+	border-left: 3px solid var(--st-green-border);
+}
+
+/* A row whose subject is gone — a retired or dead NPC. Dimmed and struck through the same
+   way the steading roster marks them, so the two readings of "no longer with us" match. */
+.stonetop-catalog-row.is-inactive {
+	opacity: 0.6;
+}
+
+.stonetop-catalog-row.is-inactive .stonetop-catalog-title {
+	text-decoration: line-through;
+}
+
+.stonetop-catalog-thumb {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: center;
+	width: 42px;
+	height: 42px;
+}
+
+/* Core puts a 1px black border on every `.app img`; these are cut-out art and wear it as a
+   box round nothing. */
+.stonetop-catalog-thumb img {
+	max-width: 100%;
+	max-height: 100%;
+	border: none;
+	object-fit: contain;
+}
+
+/* The stand-in mark worn by every entry with no art of its own — all 64 minor arcana, the
+   creature-type discs, any NPC without a portrait.
+
+   Drawn at FULL strength, deliberately. It was dimmed at first, on the theory that the few
+   entries with real art should lead the eye; but these marks are near-black on transparent,
+   and dimming turns the whole token a washed-out light grey rather than reading as "no
+   picture here". A black mark and a photograph are already plainly different things. */
+.stonetop-catalog-thumb img.is-placeholder {
+	opacity: 1;
+}
+
+.stonetop-catalog-main {
+	display: flex;
+	flex-direction: column;
+	/* Lets the summary below clamp instead of forcing the row wider than the list. */
+	min-width: 0;
+	flex: 1 1 auto;
+	gap: 2px;
+}
+
+.stonetop-catalog-titleline {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 6px;
+}
+
+.stonetop-catalog-title {
+	color: var(--st-text);
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-md);
+	font-weight: 600;
+}
+
+/* Uppercase micro-labels riding in the title line — the things you SCAN for (Major/Minor,
+   Held, Powers, Dead). Not below ~0.7rem, which is where the rest of the sheet floors. */
+.stonetop-catalog-flag {
+	padding: 0 5px;
+	border-radius: 999px;
+	background: rgba(0, 0, 0, 0.07);
+	color: var(--st-text-secondary);
+	font-size: calc(0.7rem * var(--stonetop-font-scale, 1));
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	white-space: nowrap;
+}
+
+/* Flag tints. Each is one class against the base's one, so they tie on specificity and
+   must sit LATER in the file to win. */
+.stonetop-catalog-flag--strong {
+	background: var(--st-blue-bg);
+	color: var(--st-blue-text);
+}
+
+.stonetop-catalog-flag--good {
+	background: var(--st-green-bg);
+	color: var(--st-green-text);
+}
+
+.stonetop-catalog-flag--bad {
+	background: var(--st-red-bg);
+	color: var(--st-red-text);
+}
+
+/* Two lines of the entry's own prose, clamped. -webkit-line-clamp is the only multi-line
+   clamp with real support; every engine Foundry runs on takes the prefixed form. */
+.stonetop-catalog-summary {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	overflow: hidden;
+	margin: 0;
+	color: var(--st-text-secondary);
+	font-size: var(--st-fs-sm);
+	line-height: 1.35;
+}
+
+.stonetop-catalog-badges {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+}
+
+.stonetop-catalog-badge,
+.stonetop-catalog-note {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	padding: 0 6px;
+	border: 1px solid rgba(0, 0, 0, 0.14);
+	border-radius: 999px;
+	color: var(--st-text-secondary);
+	font-size: calc(0.72rem * var(--stonetop-font-scale, 1));
+	line-height: 1.7;
+	white-space: nowrap;
+}
+
+.stonetop-catalog-badge > i {
+	opacity: 0.65;
+	font-size: 0.9em;
+}
+
+/* A badge whose icon is artwork (the creature-type discs), sized to the badge's line box
+   for the same reason the chip's is. */
+.stonetop-catalog-badge img {
+	width: 1.1em;
+	height: 1.1em;
+	border: none;
+	object-fit: contain;
+	/* Full strength, for the same reason as the chip's: a knocked-back near-black disc reads
+	   as grey and muddy, not as quiet. */
+	opacity: 1;
+}
+
+/* Free prose that is already prose on the source (an arcanum item's tags, an NPC's
+   traits) — no border, just quieter text beside the badges. */
+.stonetop-catalog-note {
+	border: none;
+	padding: 0 2px;
+	color: var(--st-text-muted);
+	font-style: italic;
+}
+
+/* Shown only when every row is hidden — by the chips, the search, or both. */
+.stonetop-catalog-empty {
+	display: none;
+	flex: 0 0 auto;
+	margin: 0;
+	padding: 12px 0;
+	color: var(--st-text-muted);
+	font-size: var(--st-fs-sm);
+	text-align: center;
+}
+
+.stonetop-catalog-empty.is-visible {
+	display: block;
+}
+
+/* The dialog window's own body: a flex column so the list inside owns the scroll. Scoped to
+   the app class so it can't reach another window's content. */
+.stonetop-catalog-app .window-content {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════
+   ARCANA CURSE SEVERITIES — the one catalogue-specific colour layered over the shell above.
+   The Ruinous / Grim / Mild ladder is the arcana browser's alone (see arcana-curses.js), so
+   it lives here rather than in the shared block, where it would be vocabulary no other
+   catalogue speaks.
+   ═════════════════════════════════════════════════════════════════════════════════════ */
+
+/* Unlit curse chips carry their severity in their border, so the ladder reads at a glance
+   rather than only once you light one. After the base `.stonetop-catalog-filter`, which
+   they tie with on specificity. */
+.stonetop-catalog-filter--ruinous { border-color: var(--st-red-border); }
+.stonetop-catalog-filter--grim    { border-color: hsl(28 45% 55%); }
+.stonetop-catalog-filter--mild    { border-color: var(--st-text-faint); }
+
+/* The fourth chip is the ABSENCE of a grade, not a fourth rung of the ladder, so it borrows the
+   dashed edge its badge wears (below) rather than a colour that would read as a severity. */
+.stonetop-catalog-filter--ungraded {
+	border-color: var(--st-text-faint);
+	border-style: dashed;
+}
+
+/* A lit curse chip fills with its own severity rather than the shared slate, which is the
+   whole point of the group. Two classes to `.is-active`'s one, so they'd win anyway — the
+   order just keeps the file readable as a ladder. */
+.stonetop-catalog-filter--ruinous.is-active {
+	background: var(--st-red-text);
+	border-color: var(--st-red-text);
+}
+
+.stonetop-catalog-filter--grim.is-active {
+	background: hsl(28 50% 32%);
+	border-color: hsl(28 50% 32%);
+}
+
+.stonetop-catalog-filter--mild.is-active {
+	background: var(--st-text-secondary);
+	border-color: var(--st-text-secondary);
+}
+
+/* Lit, it fills like the rest so the bar reads as one row of chips — but keeps the dashed edge,
+   which is the whole of what it has to say. */
+.stonetop-catalog-filter--ungraded.is-active {
+	background: var(--st-text-muted);
+	border-color: var(--st-text-muted);
+}
+
+/* Curse badges carry the same three severities, filled rather than outlined so the ladder
+   is legible down a list of 82 rows without reading the labels. */
+.stonetop-catalog-badge--ruinous {
+	border-color: var(--st-red-border);
+	background: var(--st-red-bg);
+	color: var(--st-red-text);
+}
+
+.stonetop-catalog-badge--grim {
+	border-color: hsl(28 45% 55%);
+	background: hsl(28 60% 91%);
+	color: hsl(28 50% 28%);
+}
+
+.stonetop-catalog-badge--mild {
+	border-color: rgba(0, 0, 0, 0.16);
+	background: rgba(0, 0, 0, 0.05);
+	color: var(--st-text-secondary);
+}
+
+/* A homebrew major whose back has a Consequences track that arcana-curses.js hasn't graded.
+   Shown, but plainly unranked rather than quietly filed under "mild". */
+.stonetop-catalog-badge--ungraded {
+	border-style: dashed;
+	color: var(--st-text-muted);
+}
+

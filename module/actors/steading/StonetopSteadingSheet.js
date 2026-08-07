@@ -7,7 +7,7 @@ import {escHtml} from "../../utils/strings.js";
 import {CUSTOM_ASSET_VALUE, wireCustomAssetSelect} from "../../utils/requisition-asset.js";
 import {postMoveToChat} from "../../utils/chat.js";
 import {AddSteadingMemberDialog} from "../../dialogs/AddSteadingMemberDialog.js";
-import {addPersonToSteading, personFieldPath, isActorRow, personRowActor, usedPersonPortraits} from "./steading-people.js";
+import {addPersonToSteading, personFieldPath, isActorRow, personRowActor, usedPersonPortraits, HOME_STONETOP} from "./steading-people.js";
 import {PERSON_DEFAULT_IMG} from "../../utils/person-portrait.js";
 import {openNpcNotesDialog} from "./npc-notes-dialog.js";
 import {openPeoplePortraitPicker} from "./PeopleGalleryDialog.js";
@@ -2606,7 +2606,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			// Residents live in Stonetop — seed a blank Home so the NPC sheet reflects it
 			// (a specific home already on the NPC is left untouched).
 			if (list === "residents" && !String(actor.system?.home ?? "").trim()) {
-				try { await actor.update({ "system.home": "Stonetop" }); }
+				try { await actor.update({ "system.home": HOME_STONETOP }); }
 				catch (err) { console.warn("Stonetop | Could not set resident Home for", actor?.name, err); }
 			}
 			this.render(false);

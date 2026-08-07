@@ -110,7 +110,17 @@ export class WelcomeDialog extends Application {
 		// browseArtDirs, which owns a session cache every writer already busts (see browse.js).
 	}
 
+	// GM-only, enforced HERE rather than at each caller. The guide mints characters for other
+	// players, drives this world's session-zero walkthroughs and launches the art importer —
+	// and it is reached through a world macro ("Welcome to Stonetop") that any player can see
+	// in the Macro Directory and drag onto their own hotbar, where slot 1 answers the `1` key.
+	// A player who did that got a GM console popping open under their hands. The auto-open at
+	// ready has its own GM check; this covers the macro, the startup chat card and the console.
 	static open() {
+		if (!game.user?.isGM) {
+			ui.notifications?.warn("The first-session guide is for the GM.");
+			return null;
+		}
 		return openOrFocus("stonetop-welcome", () => new WelcomeDialog().render(true));
 	}
 
