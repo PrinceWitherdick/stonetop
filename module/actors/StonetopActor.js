@@ -256,12 +256,19 @@ export function createStonetopActorClass(BaseActor) {
 			// playbook HP/damage/starting-moves init in the typed actor). Other clients
 			// would duplicate the ledger and hit a permission error on a foreign actor.
 			if (userId !== globalThis.game?.user?.id) return;
+			// The ledger's own kill switch, honoured here as well as in _preUpdate/_onUpdate: an
+			// automated write is a real change to the actor but it is not news anybody typed, and
+			// a caller that has said so about the fields must be believed about the items too —
+			// otherwise a follower card renamed on a character sheet still appends "Move added:"
+			// to its NPC. Scoped to the LEDGER alone: the playbook init below is the write itself
+			// and must run either way.
+			const silent = !!options?.stonetopLedger;
 			if (this.typedActor?.type === "character" && collection === "items") {
 				await Promise.all([
-					CharacterLedger.append(this, CharacterLedger.entriesForCreatedItems(documents), { userId }),
+					silent ? null : CharacterLedger.append(this, CharacterLedger.entriesForCreatedItems(documents), { userId }),
 					this.typedActor._onCreateDescendantDocuments(documents),
 				]);
-			} else if (this.type === "npc" && collection === "items") {
+			} else if (this.type === "npc" && collection === "items" && !silent) {
 				await NpcLedger.append(this, NpcLedger.entriesForCreatedItems(documents), { userId });
 			}
 		}
@@ -271,6 +278,9 @@ export function createStonetopActorClass(BaseActor) {
 			// Only the author appends to the ledger; other clients lack permission on a
 			// foreign actor and would duplicate the entry.
 			if (userId !== globalThis.game?.user?.id) return;
+			// An automated removal is not news anybody typed — see _onCreateDescendantDocuments.
+			// A plain return here, since appending is all this hook does.
+			if (options?.stonetopLedger) return;
 			if (this.type === "character" && collection === "items") {
 				await CharacterLedger.append(this, CharacterLedger.entriesForDeletedItems(documents), { userId });
 			} else if (this.type === "npc" && collection === "items") {

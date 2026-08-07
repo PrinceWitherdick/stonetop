@@ -80,7 +80,7 @@ import {openPortraitFrameEditor} from "../../utils/PortraitFrameDialog.js";
 import {headerPortraitContext, usedActorPortraits, wirePortraitPopout, pointImagePopoutAt} from "../../utils/actor-portrait-picker.js";
 import {addPopoutHeaderControl, addPortraitFrameControl, addTokenizerControl} from "../../utils/popout-header-control.js";
 import {canOpenTokenizer, openTokenizer} from "../../utils/portrait-tokenizer.js";
-import {ensureFollowerActors, followerActorFromLink} from "./follower-actors.js";
+import {ensureFollowerActors, followerActorFromLink, syncFollowerActors} from "./follower-actors.js";
 import {localize, format} from "../../utils/i18n.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "con", "int", "wis", "cha"]);
@@ -3095,7 +3095,21 @@ export function createStonetopCharacterSheetClass(Base) {
 			// and the write it makes at the end re-renders the sheet with the links in place. It
 			// does nothing at all once every follower has one, which is the state after the first
 			// pass; see ensureFollowerActors for the rest of the guards.
-			ensureFollowerActors(this.actor, [...(this._followerDragData?.values() ?? [])]);
+			//
+			// Its companion keeps that actor MATCHING the card afterwards. Making it once was not
+			// enough: a follower renamed or given a portrait later kept the name and the stand-in
+			// disc on their NPC and on the token dropped onto a scene. Same call site for the same
+			// reason — a card can be edited from a dozen places, and all of them end here.
+			//
+			// Both carry their own guards, and both get a `.catch` here as well: a fire-and-forget
+			// promise with nothing attached turns any throw they ever grow into an unhandled
+			// rejection on every render of this sheet, which is a console warning nobody connects
+			// to the sheet in front of them.
+			const followerSnapshots = [...(this._followerDragData?.values() ?? [])];
+			ensureFollowerActors(this.actor, followerSnapshots)
+				.catch(err => console.error("Stonetop | follower actor creation failed", err));
+			syncFollowerActors(this.actor, followerSnapshots)
+				.catch(err => console.error("Stonetop | follower actor sync failed", err));
 
 			// Followers tab: drag a card onto the canvas to put that follower on the map as a
 			// token (module/hooks/FollowerDrop.js turns the payload below into an Actor).
