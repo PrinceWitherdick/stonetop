@@ -2995,6 +2995,7 @@ input.stonetop-name-field {
 .stonetop-follower-party-check,
 .stonetop-follower-uses-ammo-input,
 .stonetop-of-adv,
+.stonetop-of-dis,
 .stonetop-attack-pick-check,
 .stonetop-cm-check,
 .ct-suggested-check,
@@ -3050,6 +3051,7 @@ input.stonetop-name-field {
 .stonetop-follower-party-check:checked,
 .stonetop-follower-uses-ammo-input:checked,
 .stonetop-of-adv:checked,
+.stonetop-of-dis:checked,
 .stonetop-attack-pick-check:checked,
 .stonetop-cm-check:checked,
 .ct-suggested-check:checked,
@@ -3088,7 +3090,6 @@ input.stonetop-name-field {
 .stonetop-move-mark-check:disabled,
 .stonetop-onboarding-check:disabled,
 .stonetop-bg-action-check:disabled,
-.stonetop-of-adv:disabled,
 .stonetop-arcanum-unlock-check:disabled {
 	opacity: 0.35;
 	cursor: default;
@@ -15812,12 +15813,34 @@ a.steading-player-open:hover {
 	background: var(--st-red-bg);
 	color: var(--st-red-text);
 }
+/* A move chip is the same pill as a tag chip, but two-state rather than tri-state
+   (a move can apply; only a tag can get in the way), so it's marked as a quieter
+   dashed outline to say "different control". Sits after the .is-help/.is-hinder
+   rules so the modifier can't lose the specificity tie on border-color. */
+.stonetop-order-followers-dialog .stonetop-of-move-chip {
+	border-style: dashed;
+}
+.stonetop-order-followers-dialog .stonetop-of-move-chip.is-help {
+	border-style: solid;
+}
+.stonetop-order-followers-dialog .stonetop-of-moves-label {
+	display: block;
+	margin-top: 8px;
+}
 .stonetop-order-followers-dialog .stonetop-of-exceptional {
 	font-size: var(--st-fs-xs);
 	color: var(--st-text-muted);
 	margin-top: 5px;
 }
 .stonetop-order-followers-dialog .stonetop-of-exceptional i { color: goldenrod; }
+/* The outside advantage/disadvantage pair. Side by side, since they're two halves
+   of one question and the note underneath explains what happens when both are on. */
+.stonetop-order-followers-dialog .stonetop-of-mode-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 18px;
+	margin-top: 5px;
+}
 .stonetop-order-followers-dialog .stonetop-of-adv-row {
 	display: flex;
 	align-items: center;
@@ -15825,9 +15848,11 @@ a.steading-player-open:hover {
 	font-size: var(--st-fs-sm);
 	cursor: pointer;
 }
-.stonetop-order-followers-dialog .stonetop-of-adv-row.is-disabled {
-	opacity: 0.5;
-	cursor: default;
+.stonetop-order-followers-dialog .stonetop-of-mode-note {
+	margin-top: 4px;
+	font-size: var(--st-fs-xs);
+	font-style: italic;
+	color: var(--st-text-muted);
 }
 .stonetop-order-followers-dialog .stonetop-of-readout {
 	padding: 6px 10px;
@@ -18138,30 +18163,13 @@ li.question-bullet {
 	font-weight: 600;
 }
 
+/* Both groups' Clash / Let Fly are .stonetop-follower-order buttons (they open the
+   same Order dialog as every other follower), so this row only has to lay them out
+   — the button chrome comes from the Order Followers block above. */
 .stonetop-group-fight-roll-row {
 	display: flex;
 	gap: 8px;
 	flex-wrap: wrap;
-}
-
-.stonetop-group-fight-roll {
-	display: inline-flex;
-	align-items: center;
-	gap: 5px;
-	padding: 4px 12px;
-	font-size: var(--st-fs-sm);
-	font-family: var(--font-stonetop);
-	border: 1.5px solid slategrey;
-	border-radius: var(--st-radius);
-	background: transparent;
-	color: slategrey;
-	cursor: pointer;
-	transition: background 0.12s;
-	white-space: nowrap;
-}
-
-.stonetop-group-fight-roll:hover {
-	background: hsl(210 13% 88%);
 }
 
 .stonetop-stat-picker-dialog .dialog-buttons {

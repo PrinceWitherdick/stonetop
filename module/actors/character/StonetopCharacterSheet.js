@@ -4047,34 +4047,24 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (dmgLabel) dmgLabel.textContent    = roll;
 			}, true);
 
-			// -- Followers: group fight Clash / Let Fly --
-			html[0].addEventListener("click", async ev => {
-				const btn = ev.target.closest(".stonetop-group-fight-roll");
-				if (!btn) return;
-				ev.stopPropagation();
-				const moveLabel = btn.dataset.moveLabel || "Clash";
-				// Order Followers (p.462): a group rolls its OWN bonus (the crew's
-				// rollMod, the "+1" the card shows), not the PC's +STAT. The crew's
-				// modifier already bakes in its relevant tag(s), so the group-fight
-				// shortcut skips the per-tag prompt and rolls it directly.
-				const bonus = Math.trunc(Number(btn.dataset.rollMod) || 0);
-				// Read the name off the group-fight damage button's data attribute, not
-				// the header's name text — that text node is replaced by an <input> in
-				// edit mode, which would drop the name to the "Crew" fallback.
-				const section  = btn.closest(".stonetop-group-fight-section");
-				const crewName = section?.querySelector(".stonetop-group-fight-dmg-roll")?.dataset.followerName?.trim() || "Crew";
-				await this._stonetopCharacter.onOrderFollowersRoll({ bonus, moveName: `${crewName}: ${moveLabel}` });
-			}, true);
-
 			// -- Followers: Order (direct any follower to make a move, p.462) --
+			// Every way in comes through here: the per-card Order button, a named crew
+			// member's own button, and both groups' Clash / Let Fly. The crew's
+			// group-fight buttons used to shortcut straight to a roll on the pre-baked
+			// `rollMod` the card shows, which meant a group could never come out with
+			// disadvantage even when a shared tag was plainly in the way — and that
+			// modifier is only ever "+1 if a tag applies, +2 if exceptional", which is
+			// exactly what the dialog derives anyway.
 			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".stonetop-follower-order");
 				if (!btn) return;
 				ev.stopPropagation();
-				const tags = (btn.dataset.tags || "").split("|").map(s => s.trim()).filter(Boolean);
+				const pipeList = (raw) => (raw || "").split("|").map(s => s.trim()).filter(Boolean);
 				const follower = {
 					name:        btn.dataset.followerName || "Follower",
-					tags,
+					tags:        pipeList(btn.dataset.tags),
+					// Their moves count toward the same bonus as their tags (p.462).
+					moves:       pipeList(btn.dataset.moves),
 					exceptional: btn.dataset.exceptional === "true",
 					// A group-fight Clash/Let Fly button pre-selects that move; the plain
 					// Order button leaves it at the default (Defy Danger).

@@ -475,13 +475,7 @@
 		      livestock — which can't be ordered — doesn't show it. --}}
 		{{#if canOrder}}{{#unless edit.stats}}
 		<div class="stonetop-follower-order-row">
-			<button type="button" class="stonetop-follower-order"
-			        data-ftype="{{ftype}}" data-slug="{{slug}}"
-			        data-follower-name="{{orderName}}"
-			        data-exceptional="{{#if exceptional}}true{{else}}false{{/if}}"
-			        data-tags="{{orderTagsCsv}}">
-				<i class="fas fa-hand-point-right"></i> Order
-			</button>
+			{{> stonetopOrderButton icon="fa-hand-point-right" caption="Order"}}
 			{{#if canHaveNeed}}
 			<button type="button" class="stonetop-follower-have-need stonetop-inline-btn"
 			        data-ftype="{{ftype}}" data-slug="{{slug}}" data-follower-name="{{orderName}}"
@@ -634,7 +628,7 @@
 					{{!-- Direct this member on their own (p.471): their unique tag + traits
 					      apply on top of the crew's shared tags. Opens the Order dialog. --}}
 					<div class="stonetop-crew-individual-order">
-						<button type="button" class="stonetop-follower-order stonetop-inline-btn" data-ftype="crew" data-slug="" data-follower-name="{{orderName}}" data-exceptional="{{#if exceptional}}true{{else}}false{{/if}}" data-tags="{{orderTagsCsv}}"><i class="fas fa-hand-point-right"></i> Order {{name}}</button>
+						{{> stonetopOrderButton ftype="crew" slug="" extraClass="stonetop-inline-btn" icon="fa-hand-point-right" caption=(concat "Order " name)}}
 					</div>
 					{{/if}}
 				</div>
@@ -715,15 +709,15 @@
 				<input class="stonetop-outnumber-theirs" type="number" min="1" value="1">
 				<span class="stonetop-outnumber-result"></span>
 			</div>
-			{{!-- Order Followers roll (p.462): a group rolls its own bonus (+{{rollMod}}),
-			      NOT the PC's +STAT. data-roll-mod carries the crew's modifier. --}}
+			{{!-- Order Followers roll (p.462): the crew rolls its OWN bonus, not the PC's
+			      +STAT. Opens the Order dialog with the crew's shared tags and moves, the
+			      same as a named member's button and the custom groups below — the
+			      "+{{rollMod}}" the stats row shows is just that dialog's answer when a
+			      tag applies, and going through it is what lets a shared tag in the way
+			      impose disadvantage. --}}
 			<div class="stonetop-group-fight-roll-row">
-				<button type="button" class="stonetop-group-fight-roll" data-move-label="Clash" data-roll-mod="{{rollMod}}">
-					<i class="fas fa-dice-d6"></i> Clash
-				</button>
-				<button type="button" class="stonetop-group-fight-roll" data-move-label="Let Fly" data-roll-mod="{{rollMod}}">
-					<i class="fas fa-dice-d6"></i> Let Fly
-				</button>
+				{{> stonetopOrderButton ftype="crew" slug="" moveKey="clash"   icon="fa-dice-d6" caption="Clash"}}
+				{{> stonetopOrderButton ftype="crew" slug="" moveKey="let-fly" icon="fa-dice-d6" caption="Let Fly"}}
 			</div>
 		</details>
 	</div>
@@ -830,12 +824,8 @@
 			      group's tags (p.471); the outnumber bonus above rewrites the group
 			      damage roll. --}}
 			<div class="stonetop-group-fight-roll-row">
-				<button type="button" class="stonetop-follower-order" data-ftype="custom" data-slug="{{slug}}" data-follower-name="{{orderName}}" data-exceptional="{{#if exceptional}}true{{else}}false{{/if}}" data-tags="{{orderTagsCsv}}" data-move-key="clash">
-					<i class="fas fa-dice-d6"></i> Clash
-				</button>
-				<button type="button" class="stonetop-follower-order" data-ftype="custom" data-slug="{{slug}}" data-follower-name="{{orderName}}" data-exceptional="{{#if exceptional}}true{{else}}false{{/if}}" data-tags="{{orderTagsCsv}}" data-move-key="let-fly">
-					<i class="fas fa-dice-d6"></i> Let Fly
-				</button>
+				{{> stonetopOrderButton ftype="custom" moveKey="clash"   icon="fa-dice-d6" caption="Clash"}}
+				{{> stonetopOrderButton ftype="custom" moveKey="let-fly" icon="fa-dice-d6" caption="Let Fly"}}
 			</div>
 		</details>
 		{{/if}}
