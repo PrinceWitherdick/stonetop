@@ -15708,6 +15708,14 @@ a.steading-player-open:hover {
 	width: calc(15px * var(--stonetop-font-scale, 1)) !important;
 	height: calc(15px * var(--stonetop-font-scale, 1)) !important;
 	flex: 0 0 calc(15px * var(--stonetop-font-scale, 1)) !important;
+	/* Foundry core nudges every AppV1 radio with `position: relative; top: 2px`
+	   (@layer compatibility), which drops the box 2px below the label's centre and
+	   undoes the align-items:center above. The sibling "wouldn't want to" checkbox
+	   gets no such nudge, so the two controls disagreed on the same form. Zero it
+	   here: an unlayered rule beats a layered one only for properties it actually
+	   declares, so we have to name `top` rather than rely on specificity. */
+	position: relative;
+	top: 0;
 	color: inherit !important;
 	border: 1.5px solid currentColor !important;
 	border-radius: 50% !important;
@@ -22811,7 +22819,17 @@ th:has(> .stonetop-roll-table-btn) {
    from the SVG checkboxes; currentColor lets the dot pick up the selected-state text
    colour like the rest of the row. Margin is left to each caller (below): the
    create-follower radios pin margin:0, while .stonetop-cm-radio inherits core's
-   checkbox/radio margin so it seats level with its sibling .stonetop-cm-check boxes. */
+   checkbox/radio margin so it seats level with its sibling .stonetop-cm-check boxes.
+
+   Core nudges every AppV1 radio down with `position: relative; top: 2px`
+   (@layer compatibility) and gives checkboxes no such nudge, so a radio always sat
+   2px lower than a checkbox in the same worksheet: below the label centre in the
+   create-follower rows (align-items:center), and below the first text line in the
+   create-monster lists (align-items:flex-start, where the shared `margin-top:.15rem`
+   is what does the pinning). Zeroing it here fixes both and leaves that .15rem
+   intact. Naming `top` is what wins: our stylesheet is unlayered, and unlayered only
+   outranks a layered rule for properties it actually declares, so no amount of
+   `!important` on the other lines was ever going to shift it. */
 .stonetop-cf-hp-base,
 .stonetop-cf-armor-base,
 .stonetop-cf-damage,
@@ -22824,6 +22842,8 @@ th:has(> .stonetop-roll-table-btn) {
 	border: 1.5px solid currentColor !important;
 	border-radius: 50% !important;
 	background: transparent !important;
+	position: relative;
+	top: 0;
 	cursor: pointer;
 }
 .stonetop-cf-hp-base,
@@ -23012,6 +23032,38 @@ th:has(> .stonetop-roll-table-btn) {
    (the added-tags row), not the dense xs of the create-follower review card. */
 .stonetop-mf-kept .stonetop-cf-preview-tag { font-size: var(--st-fs-sm); }
 .stonetop-mf-arrow { font-size: 0.8em; margin: 0 2px; color: var(--st-text-muted); }
+
+/* ── Create-a-Follower: slate accent instead of the shared green ───────────────
+   Every accent in this wizard — the selected option rows, the running total pill,
+   the tag pills in the pool and in the "Chosen:" row, and the shared guide chrome's
+   banner icon and active rail step — already paints from --st-green-border/-bg/
+   -text. So this wizard reads slate by RETINTING those three tokens on its own root
+   rather than by restating each rule that reads them: custom properties inherit, so
+   one block re-tints the whole subtree, an accent added to the wizard later comes
+   out slate without anybody remembering to add an override, and the sibling create
+   wizards (monster, hazard, Things Below, corrupted site) and every other guide
+   dialog keep their green untouched.
+
+   Sits in the --st-btn-primary-* slate hue, not --st-blue-*: "our blue" is the
+   slate, not a brighter saturated blue. Built to carry the same visual weight the
+   green did, so a picked row stays as obviously picked: the border is slategrey
+   itself (matching --st-green-border's lightness rather than the much darker
+   --st-btn-primary-border, which outlined the row heavier than its green sibling),
+   and the fill is a pale wash of that same hue mirroring --st-green-bg. A flat
+   colour, not a color-mix over the window: the 14% mix used for the wound dialog's
+   selected tile washes out to near-grey over this parchment and loses the blue.
+   Text darkens the slate far enough to clear WCAG AA on that fill (7.3:1). */
+.stonetop-create-follower-dialog {
+	--st-green-border: var(--st-btn-primary-bg, slategrey);  /* #708090 */
+	--st-green-bg:     hsl(210 30% 88%);
+	--st-green-text:   color-mix(in srgb, var(--st-btn-primary-border, #4f5b66) 75%, #000);
+	/* Nothing in this wizard reads the hover wash today (its pills hover to a flat
+	   grey of their own). Retinted anyway so the substitution is COMPLETE: the point
+	   of doing this with tokens is that the next accent added here is slate without
+	   anyone remembering, and a half-substituted palette would flash green instead.
+	   Half a step darker than the rest fill, as the green pair is. */
+	--st-green-bg-hover: hsl(210 30% 82%);
+}
 
 /* The Seasons Change chat card body reuses the shared .stonetop-roll-result block
    (see springRollCardBody in utils/chat.js) — no card-specific styling needed. */
