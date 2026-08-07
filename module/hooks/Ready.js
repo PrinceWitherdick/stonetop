@@ -22,6 +22,8 @@ import { WeatherDialog } from "../dialogs/WeatherDialog.js";
 import { WelcomeDialog } from "../dialogs/WelcomeDialog.js";
 import { FoundryBasicsDialog } from "../dialogs/FoundryBasicsDialog.js";
 import { CharacterCreationDialog } from "../actors/character/dialogs/CharacterCreationDialog.js";
+import { creationFlowOpen, registerCreationFlowCleanup } from "../actors/character/creation-flow.js";
+import { progressFor } from "../actors/character/onboarding-progress.js";
 import { readOnboardingResume, clearOnboardingResume } from "../actors/character/onboarding-resume.js";
 import { playbookSlug } from "../utils/playbook-actors.js";
 import { rollDieOfFate } from "../utils/die-of-fate.js";
@@ -218,7 +220,7 @@ export async function onReady() {
 	// it falls back to the current user's assigned character:
 	//   game.stonetop.openCharacterCreation()
 	game.stonetop.openCharacterCreation = (actor = game.user.character) =>
-		actor ? new CharacterCreationDialog(actor).render(true)
+		actor ? CharacterCreationDialog.open(actor)
 		      : ui.notifications.warn("No character to start creation for.");
 	// Cut every portrait this world could have out of the book art already on disk — the detail
 	// portraits, and the square faces the small round pictures use — then point NPCs already
@@ -304,6 +306,10 @@ export async function onReady() {
 	game.stonetop.importBookArt     = () => runImportBookArtMacro();
 
 	_registerCharacterAutoOpen();
+	// Close any half-finished creation whose character is deleted out from under it — the
+	// GM minting a replacement is a delete first. Every client, since the player who loses
+	// the character is rarely the one who pressed the button. See creation-flow.js.
+	registerCreationFlowCleanup();
 
 	// Both of these read `seedingComplete` to tell a fresh world from an established one, so
 	// both MUST stay above runWorldSetup() (which is what sets it). See their own comments.
@@ -590,7 +596,16 @@ function _maybeOpenCharacterCreation(actor) {
 	const mintedForMe  = actor.getFlag?.(STONETOP_SCOPE, "autoOpenFor") === game.user.id;
 	const isMyAssigned = !game.user.isGM && game.user.character?.id === actor.id;
 	if (!mintedForMe && !isMyAssigned) return;
-	// Owner-only flag; drop it first so the mint greeting only ever fires once.
+
+	// Someone on this screen is already mid-creation — the intro, the playbook picker or
+	// the onboarding walkthrough is up, for this character or another. Re-entering now
+	// would bury the flow they are in and, if they clicked through, restart them at the
+	// picker with their answers stranded behind it. Bail BEFORE clearing autoOpenFor: the
+	// mint's one-shot greeting is preserved rather than burnt on a prompt nobody saw, so
+	// it arrives on the next load instead.
+	if (creationFlowOpen()) return;
+
+	// Owner-only flag; drop it now so the mint greeting only ever fires once.
 	if (mintedForMe) actor.unsetFlag(STONETOP_SCOPE, "autoOpenFor").catch(() => {});
 
 	if (playbookSlug(actor)) {
@@ -613,8 +628,19 @@ function _maybeOpenCharacterCreation(actor) {
 	const snap = readOnboardingResume(actor);
 	if (snap?.playbookUuid && snap?.selections) {
 		actor.sheet._onNewCharacter({ openSheetWhenDone: true, resume: true });
+	} else if (!mintedForMe && progressFor(actor).status === "exited") {
+		// They have already been offered this and deliberately backed out, with nothing saved
+		// to resume. Re-modalling them on every load is nagging, and the modal is the thing
+		// they closed. Open the sheet instead: it carries its own "Create Character" button
+		// and the amber incomplete banner, so the way back in is right there whenever they
+		// want it — nobody is stranded, and nobody is pestered. A fresh mint always greets.
+		actor.sheet.render(true);
 	} else {
-		new CharacterCreationDialog(actor).render(true);
+		// Fire-and-forget from a sync hook callback, so catch here: open() awaits a stale
+		// dialog's close, and an unhandled rejection would surface as a bare console error
+		// with no hint that a player simply never got greeted.
+		CharacterCreationDialog.open(actor)
+			.catch(err => console.error("Stonetop | failed to open character creation", err));
 	}
 }
 

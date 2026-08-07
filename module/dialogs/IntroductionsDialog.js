@@ -11,9 +11,10 @@ import { saveChronicleFromButton, writeChronicle } from "../utils/chronicle.js";
 import { getSetting, setSetting } from "../settings.js";
 import { getWalkthroughResume, patchWalkthroughResume, markWalkthroughDone } from "./walkthrough-resume.js";
 // Pure round-robin/done logic for the looping answer/ask steps (unit-tested).
-import { stepPcDone, nextActiveIndex, firstActiveIndex, turnsUntilActive } from "./introductions-flow.js";
+import { stepPcDone, nextActiveIndex, firstActiveIndex, turnsUntilActive, cursorReaction, cursorPositionKey } from "./introductions-flow.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
 import { escHtml } from "../utils/strings.js";
+import { findOpenApp } from "../utils/open-windows.js";
 
 // The player-authored answer/ask step data lives on the PC actor flag
 // flags.stonetop-pwd.intro. Scope MUST be the system id "stonetop-pwd" (not "stonetop",
@@ -126,6 +127,10 @@ export class IntroductionsDialog extends StonetopDialog {
 		this._combatHooks = null;
 		this._introHook   = null;
 		this._liveDraftTimer = null;
+		// The cursor position this dialog is currently DRAWN at (see cursorPositionKey),
+		// recorded by _syncFromCursor. handleIntroCursor compares against it to tell a real
+		// move from one of the same-position writes a single turn attracts.
+		this._cursorKey   = null;
 	}
 
 	// Entry point used by the Welcome guide / macro: auto-populate the Combat Tracker
@@ -164,9 +169,11 @@ export class IntroductionsDialog extends StonetopDialog {
 		return dialog.render(true);
 	}
 
-	// The currently open dialog instance, if any.
+	// The currently open dialog instance, if any. Checks both app registries so this
+	// keeps working if the dialog is ever migrated to ApplicationV2 (see open-windows.js);
+	// silently answering null would stack a second copy on every cursor write.
 	static _current() {
-		return Object.values(ui.windows ?? {}).find(w => w instanceof IntroductionsDialog) ?? null;
+		return findOpenApp(w => w instanceof IntroductionsDialog);
 	}
 
 	// onChange handler for the world cursor (wired in Ready.js). Runs on every client.
@@ -175,44 +182,49 @@ export class IntroductionsDialog extends StonetopDialog {
 	// conflicting turn). A player opens/focuses the dialog when it becomes their turn on any
 	// round-robin round they author (narration or answer/ask step), follows read-only
 	// otherwise, and closes when the session ends.
+	//
+	// What to do is decided by cursorReaction (pure, unit-tested); this only carries out the
+	// verdict and keeps the bookkeeping it hands back. The two gates that matter to a player
+	// mid-sentence — repaint only when the screen is actually out of date, raise only on a
+	// real hand-off — live there with their reasoning.
 	static handleIntroCursor(cursor = {}) {
 		if (game.user?.isGM && isPrimaryGM()) return; // the author ignores its own writes
-		const dialog  = IntroductionsDialog._current();
-		const myTurn  = !!cursor.active && cursor.activeUserId === game.user?.id && _isRoundRobin(_PHASES[cursor.phase]);
-		// The GM's "Show players" button bumps showNonce to force-summon the dialog onto
-		// every client at the current spot — even a player who closed it, and even when it
-		// isn't their turn. Only a NEW nonce forces (so a normal turn write doesn't).
-		const forceShow = !!cursor.active && Number.isInteger(cursor.showNonce)
-			&& cursor.showNonce > (IntroductionsDialog._lastShowNonce ?? -1);
-		if (forceShow) IntroductionsDialog._lastShowNonce = cursor.showNonce;
+		const dialog = IntroductionsDialog._current();
+		const act = cursorReaction({
+			cursor,
+			prevKey:       dialog?._cursorKey ?? null,
+			userId:        game.user?.id ?? "",
+			isRoundRobin:  _isRoundRobin(_PHASES[cursor.phase]),
+			hasDialog:     !!dialog,
+			// The caret being inside this window is what makes a repaint destructive: it
+			// rebuilds the capture textarea from the stored value mid-word.
+			typing:        !!dialog?.element?.[0]?.contains(document.activeElement),
+			lastShowNonce: IntroductionsDialog._lastShowNonce,
+			lastTurnKey:   IntroductionsDialog._lastTurnKey,
+		});
+		IntroductionsDialog._lastShowNonce = act.showNonce;
+		IntroductionsDialog._lastTurnKey   = act.turnKey;
 
-		if (!cursor.active) { IntroductionsDialog._lastTurnKey = null; dialog?.close(); return; }
-
+		if (act.close) { dialog?.close(); return; }
 		// Toast the player the moment the turn lands on them, so they notice even when the
 		// dialog is already open behind another window or off-screen.
-		IntroductionsDialog._notifyMyTurn(cursor, myTurn);
+		if (act.toast) IntroductionsDialog._notifyMyTurn(cursor);
 
 		if (dialog) {
+			// Always sync the local phase/turn (and re-record _cursorKey) even when the
+			// repaint is deferred: the state must not lag the cursor, only the DOM may.
 			dialog._syncFromCursor();
-			dialog.render(false);
-			if (myTurn || forceShow) dialog.bringToTop();
+			if (act.render) dialog.render(false);
+			if (act.raise)  dialog.bringToTop();
 			return;
 		}
-		// No dialog open yet: pop it on this player's turn, or when the GM force-shows it.
-		if (myTurn || forceShow) IntroductionsDialog.open();
+		if (act.open) IntroductionsDialog.open();
 	}
 
-	// Show a one-shot "your turn" toast when the cursor newly hands the turn to this
-	// player. Keyed on phase+actor so the repeated cursor writes for a single turn (nonce
-	// bumps while the GM watches typing, a roster reshuffle) don't re-toast; cleared
-	// whenever it isn't this player's turn so the next hand-off notifies again — including
-	// a later turn on the SAME PC within a looping step (the turn passes through others
-	// first, resetting the key). Phrased to match the phase: narrate / answer / ask.
-	static _notifyMyTurn(cursor, myTurn) {
-		if (!myTurn) { IntroductionsDialog._lastTurnKey = null; return; }
-		const key = `${cursor.phase}:${cursor.activeActorId}`;
-		if (IntroductionsDialog._lastTurnKey === key) return;
-		IntroductionsDialog._lastTurnKey = key;
+	// The one-shot "your turn" toast, phrased to match the phase: narrate / answer / ask.
+	// Whether this is a NEW turn (rather than one of the repeated writes a single turn
+	// attracts) is cursorReaction's call; by here it has already been made.
+	static _notifyMyTurn(cursor) {
 		const kind = _PHASES[cursor.phase]?.kind;
 		const what = kind === "ask" ? "ask the others a question"
 			: kind === "answer" ? "answer a question"
@@ -288,10 +300,12 @@ export class IntroductionsDialog extends StonetopDialog {
 	async _render(force, options) {
 		// Persist whatever's typed in the editable capture field to its flag BEFORE the DOM is
 		// rebuilt. The narration rounds have no player commit button (only autosave), so a turn
-		// advance — the GM's Next writes the cursor, which re-renders this dialog with no focus
-		// guard — would otherwise drop the last, not-yet-debounced characters (a removed focused
-		// textarea doesn't reliably fire its blur `change`). Flushing here catches every
-		// re-render path, so a player's introduction survives the hand-off.
+		// advance — the GM's Next writes the cursor, which re-renders this dialog whether or not
+		// the player is mid-word, because their turn may just have ended — would otherwise drop
+		// the last, not-yet-debounced characters (a removed focused textarea doesn't reliably
+		// fire its blur `change`). Flushing here catches every re-render path, so a player's
+		// introduction survives the hand-off. Same-position cursor writes don't reach here at
+		// all while they type: cursorReaction defers those instead.
 		await this._flushCaptureFromDom();
 		await super._render(force, options);
 		// Record where we are + that we're open, so a reload can reopen here. Every
@@ -649,6 +663,9 @@ export class IntroductionsDialog extends StonetopDialog {
 	// to the local combat roster before the GM has written an order.
 	_syncFromCursor() {
 		const cur = this._cursor();
+		// Record what we are now drawn at, so the next cursor write can tell a real move from
+		// a same-position bump (see handleIntroCursor).
+		this._cursorKey = cursorPositionKey(cur);
 		const fromCursor = Array.isArray(cur.pcOrder)
 			? cur.pcOrder.map(id => this._actor(id)).filter(a => a && playbookSlug(a))
 			: [];

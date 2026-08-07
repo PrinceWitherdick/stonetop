@@ -26,6 +26,7 @@ import {RING_SOURCE_UUID, SERVANT_SOURCE_UUID, buildServantFollower} from "../..
 import {grantedWeaponForMove, weaponTraitText} from "../../data/weapons.js";
 import {ALT_STAT_GRANTS} from "../../data/alt-stat-grants.js";
 import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
+import {trackCreationFlow} from "./creation-flow.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {wireTabSearch} from "../../utils/tab-search.js";
 import {createPacker, fitColumns, makeColumns, packShortest, wireMasonry} from "../../utils/masonry.js";
@@ -6604,14 +6605,17 @@ export function createStonetopCharacterSheetClass(Base) {
 				// the player backed all the way out, so fall back to opening their sheet.
 				let picked = false;
 				this._setOnboardingState("picker");
-				new PlaybookPickerDialog(
+				// Tracked against the character being built: it isn't a document sheet, so
+				// nothing else would close it if that character were deleted out from under
+				// the player mid-creation. See creation-flow.js.
+				trackCreationFlow(new PlaybookPickerDialog(
 					async (playbookDoc) => {
 						picked = true;
 						this._launchOnboarding(playbookDoc, { openSheetOnce, openPicker });
 					},
 					// Closing the picker without picking is leaving creation entirely.
 					{ onClose: () => { if (!picked) { this._setOnboardingState("exited"); openSheetOnce(); } } },
-				).render(true);
+				), this.actor.id).render(true);
 			};
 
 			const existingPlaybook = this.actor.system?.playbook?.slug;
@@ -6710,7 +6714,8 @@ export function createStonetopCharacterSheetClass(Base) {
 				stepType:     info.stepType,
 				selections:   info.selections,
 			});
-			new CharacterOnboardingDialog(
+			// Tracked against the character being built (see openPicker, and creation-flow.js).
+			trackCreationFlow(new CharacterOnboardingDialog(
 				playbookDoc,
 				async (selections) => {
 					await this._applyPlaybookSelections(playbookDoc, selections);
@@ -6754,7 +6759,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						saveResume(info);
 					},
 				},
-			).render(true);
+			), this.actor.id).render(true);
 		}
 
 		// File the freshly-finished character on the steading's Player Characters roster
