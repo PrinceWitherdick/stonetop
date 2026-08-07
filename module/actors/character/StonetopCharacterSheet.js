@@ -66,7 +66,8 @@ import {wireAvatarPreview, removeAvatarPreview} from "../../utils/avatar-preview
 import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relationship-board.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
 import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, outnumberBonus, nextFollowerOrder} from "../../data/follower-build.js";
-import {arcanaSummonFollowers, joinNames} from "../../data/arcana-summons.js";
+import {arcanaSummonFollowers} from "../../data/arcana-summons.js";
+import {joinNames} from "../../utils/strings.js";
 import {availablePossessionFollowers} from "../../data/possession-followers.js";
 import {FOLLOWER_MOVES} from "../../data/follower-moves.js";
 import {FOLLOWER_DRAG_TYPE} from "../../data/follower-actor.js";
@@ -4621,12 +4622,44 @@ export function createStonetopCharacterSheetClass(Base) {
 			this.render(false);
 		}
 
+		/**
+		 * The character a drop should be written to, and the name to blame if that isn't the
+		 * one whose sheet is on screen.
+		 *
+		 * A sheet opened by double-clicking a token is backed by the TOKEN's actor. When the
+		 * token is unlinked that actor is a private copy living in the token's ActorDelta, so
+		 * everything dropped here saves to that one token and nowhere else — the player opens
+		 * their character from the sidebar and finds nothing. Characters created from now on
+		 * link their prototype token (StonetopActor._preCreate), but tokens already placed in
+		 * an existing world stay unlinked forever, so the drop has to resolve its own target.
+		 *
+		 * Redirect rather than refuse: a `character` actor is somebody's PC, and a GM dropping
+		 * gear on one always means "give this to that character", never "give this to this one
+		 * copy of them". The toast names where it landed, so nothing moves silently.
+		 *
+		 * `isToken` is true ONLY for the synthetic case — a linked token hands back the world
+		 * actor itself — so this costs nothing on the sheet opened from the sidebar.
+		 */
+		_dropTarget() {
+			const base = this.actor?.isToken ? this.actor.token?.baseActor : null;
+			const character = base?.typedActor;
+			if (!character || character === this._stonetopCharacter) {
+				return { character: this._stonetopCharacter, unlinkedFrom: null, redirectedTo: null };
+			}
+			// The Actor document as well as the character: the write lands on THAT one, so it is
+			// also the one with a sheet worth re-drawing afterwards.
+			return { character, unlinkedFrom: base.name, redirectedTo: base };
+		}
+
 		async _onDropItemCreate(itemData) {
 			const items     = Array.isArray(itemData) ? itemData : [itemData];
 			const arcana    = items.filter(i => i.type === "move" && i.system?.moveType === "arcanum");
 			const inventory = items.filter(i => i.type === "move" && i.system?.moveType === "inventory");
 			const moves     = items.filter(i => i.type === "move" && !["arcanum", "inventory"].includes(i.system?.moveType));
 			const others    = items.filter(i => i.type !== "move");
+			// Everything below writes through `target`, not `this._stonetopCharacter`, so a drop
+			// onto an unlinked token's sheet still reaches the character the player opens.
+			const { character: target, unlinkedFrom, redirectedTo } = this._dropTarget();
 			let anyAdded = false;
 			// A dropped arcanum is added UNIDENTIFIED — a face-down "mystery" card the player
 			// Identifies in play (drop is the only path that plants a mystery; onboarding,
@@ -4634,24 +4667,48 @@ export function createStonetopCharacterSheetClass(Base) {
 			// no name or art until identified, and can land on a tab you aren't looking at, a
 			// silent add reads as "nothing happened". So collect the freshly-added ones (skip
 			// arcana already owned — a re-drop is a no-op) to toast and reveal the Arcana tab.
-			const ownedArcana = this._stonetopCharacter.ownedArcanaSlugs;
+			const ownedArcana = target.ownedArcanaSlugs;
 			const addedArcana = [];
 			for (const item of arcana) {
 				const slug = item.flags?.stonetop?.slug;
 				if (slug && !ownedArcana.has(slug)) {
-					await this._stonetopCharacter.addArcanum(slug);
+					await target.addArcanum(slug);
 					addedArcana.push(item.name || item.flags?.stonetop?.front?.title || "an arcanum");
 					anyAdded = true;
 				}
 			}
 			for (const item of moves) {
-				if (await this._stonetopCharacter.onDropMove(item)) anyAdded = true;
+				if (await target.onDropMove(item)) anyAdded = true;
 			}
+			// Gear lands on a tab the GM usually isn't looking at (they drop from a journal or the
+			// Items sidebar, onto whichever tab happens to be open), and a treasure joins a
+			// "Treasures" heading partway down a long column. So a silent add reads as "nothing
+			// happened" — the same reason the arcana branch above toasts. Naming the character is
+			// what makes a drop onto the wrong actor, or onto a token copy, visible immediately.
+			const addedInventory = [];
 			for (const item of inventory) {
-				await this._stonetopCharacter.addDroppedInventoryItem(item);
+				await target.addDroppedInventoryItem(item);
+				addedInventory.push(item.name || "an item");
 				anyAdded = true;
 			}
+			// `others` (non-move documents) stays with the base handler, which writes to
+			// this.actor — so on an unlinked token it lands on the token copy. Nothing on a
+			// character sheet drops down that branch today; revisit it if something ever does.
 			if (others.length) await super._onDropItemCreate(others);
+			if (addedInventory.length) {
+				const names = joinNames(addedInventory.map(n => `"${n}"`));
+				ui.notifications?.info?.(unlinkedFrom
+					? format("stonetop.inventory.dropAddedUnlinked", { names, actor: unlinkedFrom })
+					: format("stonetop.inventory.dropAdded", { names, actor: this.actor?.name ?? "this character" }));
+			}
+			// Where the write actually LANDED, which on a redirect is NOT this sheet: this one is
+			// backed by the token's ActorDelta copy, which the drop deliberately did not touch. Both
+			// the re-render and the Arcana-tab reveal below belong to that sheet — re-drawing this
+			// one shows a sheet still visibly missing what the toast has just said was added, on the
+			// one path where the redirect most needs to read clearly. `render(false)` refreshes the
+			// base actor's sheet if it happens to be open and does nothing if it isn't, which is
+			// what "don't open windows nobody asked for" wants.
+			const landedOn = redirectedTo ? redirectedTo.sheet : this;
 			if (addedArcana.length) {
 				const one = addedArcana.length === 1;
 				ui.notifications?.info?.(
@@ -4665,9 +4722,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				// consumed by _render makes the switch deterministic regardless of which render
 				// wins — and, unlike a global Hooks.once(render…), can't be swallowed by another
 				// open character sheet that happens to re-render first.
-				this._activateArcanaTabOnRender = true;
+				if (landedOn) landedOn._activateArcanaTabOnRender = true;
 			}
-			if (anyAdded) this.render(false);
+			if (anyAdded) landedOn?.render(false);
 		}
 
 		// Roll one of this character's owned moves by its embedded item id, running the

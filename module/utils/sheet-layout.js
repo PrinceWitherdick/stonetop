@@ -1,5 +1,6 @@
 import { CLASSIC_LAYOUT_KEYS, getSetting, setSetting } from "../settings.js";
 import { stonetopChatCard } from "./chat.js";
+import { joinNames } from "./strings.js";
 
 // The two layouts, as stored in `worldSheetLayout` (and as the personal `sheetLayout`
 // override's two non-"world" values). See the registration block in settings.js.
@@ -159,7 +160,7 @@ export async function setWorldSheetLayout(mode) {
 	globalThis.ui?.notifications?.info?.(
 		`Stonetop sheets are now using the ${mode} layout. Open a character, steading, or NPC sheet to see it.`
 		+ (reticked.length ? ` Your own Classic Layout ${reticked.length > 1 ? "boxes" : "box"} for `
-			+ `${_and(reticked)} had been unticked, which would have kept `
+			+ `${joinNames(reticked)} had been unticked, which would have kept `
 			+ `${reticked.length > 1 ? "those sheets" : "that sheet"} modern for you, so `
 			+ `${reticked.length > 1 ? "they have" : "it has"} been ticked back on.` : ""));
 	await showLayoutCard(mode);
@@ -168,9 +169,6 @@ export async function setWorldSheetLayout(mode) {
 
 /** The per-sheet boxes as Configure Settings names them, for the toast to read back. */
 const _SHEET_LABELS = { character: "Character Sheets", steading: "Steading Sheets", npc: "NPC Sheets" };
-
-/** "A", "A and B", "A, B and C". */
-const _and = xs => xs.length < 2 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`;
 
 /**
  * Tick the presser's own per-sheet Classic Layout boxes back on.

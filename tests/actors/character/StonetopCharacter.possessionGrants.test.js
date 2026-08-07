@@ -40,6 +40,13 @@ const PLAYBOOK = {
 				],
 			},
 			{ slug: "mastiffs", label: "Mastiffs" },
+			// Grants firkins too — the book's own collision, and what makes "which possession does
+			// this untagged firkin belong to?" unanswerable while both are held.
+			{
+				slug: "carpenters-tools",
+				label: "Carpenter's tools",
+				grantsItems: [{ name: "Firkins", column: "regular", weight: 1 }, { name: "Nails", column: "small" }],
+			},
 		],
 	},
 };
@@ -130,6 +137,74 @@ describe("StonetopCharacter — special possession item grants", () => {
 		const [docType, ids] = actor.deleteEmbeddedDocuments.mock.calls[0];
 		expect(docType).toBe("Item");
 		expect(ids.sort()).toEqual(["a", "b"]);
+	});
+
+	// Every world older than the day MoveModel declared `sourcePossession` carries its granted
+	// gear untagged — the field was stripped on the way into the document — so a tag-only
+	// match would tear down nothing and strand the gear on the sheet for good.
+	it("deselecting also removes untagged legacy gear the possession's grants name", async () => {
+		const { actor, character } = makeCharacter([
+			grantedItem({ _id: "a", name: "Beeswax", untagged: true }),
+			grantedItem({ _id: "b", name: "Bee smokers", untagged: true, inventoryColumn: "regular" }),
+			{ _id: "d", type: "move", name: "A write-in", system: { moveType: "inventory-custom", inventoryColumn: "small" } },
+		]);
+		await character.deselectPossession("apiary");
+
+		const [, ids] = actor.deleteEmbeddedDocuments.mock.calls[0];
+		expect(ids.sort()).toEqual(["a", "b"]);
+	});
+
+	// The gear the possession names is claimed by COLUMN + name, not by name alone. A player's
+	// hand-written small "Bee smokers" is not the Apiary's ◇ regular one — and a name-only match
+	// deleted it out from under them the moment the Apiary was unticked. The grant names in the
+	// book make this ordinary rather than exotic: Nails, Wire, Ink, Herbs, Seeds, Barrels.
+	it("leaves a hand-written item alone when it sits in the other column", async () => {
+		const { actor, character } = makeCharacter([
+			// Same name as the Apiary's ◇ regular grant, written by hand into Small Items.
+			{ _id: "mine", type: "move", name: "Bee smokers", system: { moveType: "inventory-custom", inventoryColumn: "small" } },
+			grantedItem({ _id: "a", name: "Beeswax", untagged: true }),
+		]);
+		await character.deselectPossession("apiary");
+
+		const [, ids] = actor.deleteEmbeddedDocuments.mock.calls[0];
+		expect(ids).toEqual(["a"]);
+		expect(ids).not.toContain("mine");
+	});
+
+	// Two HELD possessions granting the same name make an untagged item ambiguous, so neither
+	// claims it: guessing a parent is how an item ends up rendered under one possession and
+	// deleted by the other. Carpenter's tools and the Distillery both grant firkins.
+	it("leaves untagged gear alone when two held possessions both grant that name", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-blessed", "The Blessed")
+			.withItems([
+				{ _id: "firkins", type: "move", name: "Firkins", system: { moveType: "inventory-custom", inventoryColumn: "regular" } },
+			])
+			.withFlag("possessions.selected", ["carpenters-tools", "distillery"])
+			.build();
+		const character = new TestCharacterBuilder(actor).addPlaybook(PLAYBOOK).build();
+		await character.deselectPossession("distillery");
+
+		const deleted = actor.deleteEmbeddedDocuments.mock.calls.flatMap(([, ids]) => ids);
+		expect(deleted).not.toContain("firkins");
+	});
+
+	// The other side of the same coin: once the rival is gone the name is unambiguous again, so
+	// the survivor DOES tear its own legacy gear down. Adopting on the way in and disowning on the
+	// way out have to be the same rule, or a sheet fills up with orphans.
+	it("claims that same gear once it is the only holder granting the name", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-blessed", "The Blessed")
+			.withItems([
+				{ _id: "firkins", type: "move", name: "Firkins", system: { moveType: "inventory-custom", inventoryColumn: "regular" } },
+			])
+			.withFlag("possessions.selected", ["distillery"])
+			.build();
+		const character = new TestCharacterBuilder(actor).addPlaybook(PLAYBOOK).build();
+		await character.deselectPossession("distillery");
+
+		const deleted = actor.deleteEmbeddedDocuments.mock.calls.flatMap(([, ids]) => ids);
+		expect(deleted).toContain("firkins");
 	});
 
 	it("deselecting a possession that granted nothing deletes nothing", async () => {
@@ -318,6 +393,43 @@ describe("StonetopCharacter — possession gear renders in the card, not the col
 		const bare    = await buildWithApiary().buildSnapshot();
 		const carried = await buildWithApiary({ checked: { smoker: true } }).buildSnapshot();
 		expect(carried.inventory.outfit.load.totalMarks).toBe(bare.inventory.outfit.load.totalMarks + 1);
+	});
+
+	// The write-in and possession buckets have to be a PARTITION of the character's custom
+	// items. Written as two independent predicates they left a gap: gear tagged to a
+	// possession that isn't drawing a card satisfied neither, so it rendered in no section at
+	// all — still on the actor, still costing nothing, simply invisible.
+	describe("gear with no possession card to live in falls back to the columns", () => {
+		function buildTagged(sourcePossession, selected = []) {
+			const actor = new FakeActorBuilder()
+				.withPlaybook("the-blessed", "The Blessed")
+				.withItems([grantedItem({ _id: "beeswax", name: "Beeswax", sourcePossession, inventoryColumn: "small" })])
+				.withFlag("possessions.selected", selected)
+				.build();
+			return new TestCharacterBuilder(actor).addPlaybook(PLAYBOOK).build().buildSnapshot();
+		}
+
+		it("when the possession has since been deselected", async () => {
+			const snap = await buildTagged("apiary", []);
+			expect(snap.inventory.possessions.items.find(p => p.slug === "apiary").grantedSmall).toEqual([]);
+			expect(snap.inventory.outfit.smallItems.some(i => i.name === "Beeswax")).toBe(true);
+		});
+
+		// A slug left behind by a playbook change: still "selected", but this playbook has no
+		// such option, so _buildPossessionsSnapshot never walks it and never drains its bucket.
+		it("when the slug isn't a possession this playbook has at all", async () => {
+			const snap = await buildTagged("scribes-tools", ["scribes-tools"]);
+			expect(snap.inventory.outfit.smallItems.some(i => i.name === "Beeswax")).toBe(true);
+		});
+
+		// Belt and braces on the other side: an ACTIVE possession still claims its own gear,
+		// so the fallback can't be swallowing everything.
+		it("but an active possession still keeps its gear on its card", async () => {
+			const snap = await buildTagged("apiary", ["apiary"]);
+			expect(snap.inventory.possessions.items.find(p => p.slug === "apiary").grantedSmall.map(i => i.name))
+				.toEqual(["Beeswax"]);
+			expect(snap.inventory.outfit.smallItems.some(i => i.name === "Beeswax")).toBe(false);
+		});
 	});
 
 	it("plain write-ins (no source possession) still render in the columns", async () => {

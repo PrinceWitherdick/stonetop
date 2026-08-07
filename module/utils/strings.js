@@ -44,6 +44,19 @@ export function escapeRegExp(v) {
 	return String(v ?? "").replace(/[.*+?^${}()|[\]\\-]/g, "\\$&");
 }
 
+// Join names for display: ["Astor","Halix"] → "Astor & Halix"; three or more use an
+// Oxford-free serial comma ("A, B & C"). Blanks are dropped, so a missing name can't leave a
+// stray separator behind.
+//
+// The one list-joiner: every "you got A, B & C" toast in the system reads the same way, which
+// it stops doing the moment a second one is written with a different conjunction.
+export function joinNames(names) {
+	const list = (names ?? []).filter(Boolean);
+	if (list.length <= 1) return list[0] ?? "";
+	if (list.length === 2) return `${list[0]} & ${list[1]}`;
+	return `${list.slice(0, -1).join(", ")} & ${list[list.length - 1]}`;
+}
+
 // Collapse rich text (an HTML / ProseMirror field) to a single plain-text line for a tooltip or
 // a ledger/preview: drop tags (turning <br> into a space so words don't glue), decode the handful
 // of named entities our authored prose uses, and squeeze whitespace. Returns "" for null/blank.

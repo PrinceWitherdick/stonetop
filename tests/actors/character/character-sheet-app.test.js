@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { createStonetopCharacterSheetClass } from "../../../module/actors/character/StonetopCharacterSheet.js";
 import {FakeActorBuilder} from "../../fakes/FakeActorBuilder.js";
 import { DEATHS_DOOR_STATE, zeroHpMove, zeroHpResolution } from "../../../module/actors/character/deaths-door.js";
@@ -510,6 +510,107 @@ describe("StonetopCharacterSheet._onDropItemCreate", () => {
 		const sheet = makeSheet(actor);
 		await sheet._onDropItemCreate(makeNonMove());
 		expect(sheet.render).not.toHaveBeenCalled();
+	});
+
+	// Gear lands on a tab the GM usually isn't looking at, so a silent add reads as "nothing
+	// happened" — and, worse, gives no clue when the drop went somewhere the player can't see.
+	describe("tells the GM where the gear went", () => {
+		let savedUi;
+		beforeEach(() => {
+			savedUi = global.ui;
+			global.ui = { notifications: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } };
+		});
+		afterEach(() => { global.ui = savedUi; });
+
+		it("names the character an item was added to", async () => {
+			const actor = makeActor();
+			actor.name = "Ordep";
+			await makeSheet(actor)._onDropItemCreate(makeInventoryItem());
+			expect(global.ui.notifications.info)
+				.toHaveBeenCalledWith('Added "Rope" to Ordep\'s Inventory tab.');
+		});
+
+		it("joins several items into one toast rather than one apiece", async () => {
+			const actor = makeActor();
+			actor.name = "Ordep";
+			const second = { ...makeInventoryItem(), name: "Brass sphere" };
+			await makeSheet(actor)._onDropItemCreate([makeInventoryItem(), second]);
+			expect(global.ui.notifications.info).toHaveBeenCalledTimes(1);
+			expect(global.ui.notifications.info)
+				.toHaveBeenCalledWith('Added "Rope" & "Brass sphere" to Ordep\'s Inventory tab.');
+		});
+
+		it("says nothing when the drop carried no inventory", async () => {
+			await makeSheet(makeActor())._onDropItemCreate(makeNonMove());
+			expect(global.ui.notifications.info).not.toHaveBeenCalled();
+		});
+	});
+
+	// A sheet opened by double-clicking an UNLINKED token is backed by the token's own copy of
+	// the character (its ActorDelta). Everything written there saves fine and reaches nobody:
+	// the player opens their character from the sidebar and finds nothing. This is the whole
+	// reason a GM reports "I gave them a treasure and they can't see it".
+	describe("on an unlinked token's sheet", () => {
+		let savedUi;
+		beforeEach(() => {
+			savedUi = global.ui;
+			global.ui = { notifications: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } };
+		});
+		afterEach(() => { global.ui = savedUi; });
+
+		/** The synthetic actor behind an unlinked token, and the world actor it was stamped from. */
+		function makeTokenActor() {
+			const world = makeActor();
+			world.name = "Ordep";
+			const synthetic = makeActor();
+			synthetic.name = "Ordep";
+			synthetic.isToken = true;
+			synthetic.token = { baseActor: world };
+			return { synthetic, world };
+		}
+
+		it("writes gear to the character, not to the token's private copy", async () => {
+			const { synthetic, world } = makeTokenActor();
+			const item = makeInventoryItem();
+			await makeSheet(synthetic)._onDropItemCreate(item);
+			expect(world.typedActor.addDroppedInventoryItem).toHaveBeenCalledWith(item);
+			expect(synthetic.typedActor.addDroppedInventoryItem).not.toHaveBeenCalled();
+		});
+
+		it("redirects arcana and moves the same way", async () => {
+			const { synthetic, world } = makeTokenActor();
+			await makeSheet(synthetic)._onDropItemCreate([makeArcanum("humble-broom"), makeMove()]);
+			expect(world.typedActor.addArcanum).toHaveBeenCalledWith("humble-broom");
+			expect(world.typedActor.onDropMove).toHaveBeenCalled();
+			expect(synthetic.typedActor.addArcanum).not.toHaveBeenCalled();
+			expect(synthetic.typedActor.onDropMove).not.toHaveBeenCalled();
+		});
+
+		it("says so, so the redirect is never silent", async () => {
+			const { synthetic } = makeTokenActor();
+			await makeSheet(synthetic)._onDropItemCreate(makeInventoryItem());
+			expect(global.ui.notifications.info)
+				.toHaveBeenCalledWith(expect.stringContaining("isn't linked to Ordep"));
+		});
+
+		// A linked token hands back the world actor itself, so isToken is false and there is
+		// nothing to resolve — the common case must not pay for the rare one.
+		it("leaves an ordinary sheet writing to its own character", async () => {
+			const actor = makeActor();
+			const item = makeInventoryItem();
+			await makeSheet(actor)._onDropItemCreate(item);
+			expect(actor.typedActor.addDroppedInventoryItem).toHaveBeenCalledWith(item);
+		});
+
+		// A token whose baseActor has gone (a deleted actor, a torn-down scene) must still take
+		// the drop rather than throwing on the way to resolving a target.
+		it("falls back to its own character when the base actor is gone", async () => {
+			const { synthetic } = makeTokenActor();
+			synthetic.token = { baseActor: null };
+			const item = makeInventoryItem();
+			await makeSheet(synthetic)._onDropItemCreate(item);
+			expect(synthetic.typedActor.addDroppedInventoryItem).toHaveBeenCalledWith(item);
+		});
 	});
 });
 

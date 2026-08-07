@@ -48,7 +48,7 @@ import {CharacterInstincts} from "./CharacterInstincts.js";
 import {CharacterAppearance} from "./CharacterAppearance.js";
 import {CharacterOrigin} from "./CharacterOrigin.js";
 import {CharacterPossessions} from "./CharacterPossessions.js";
-import {grantsToCreate} from "./possession-grants.js";
+import {grantsToCreate, grantSourceMap, grantAdoptionKeys, itemGrantKey} from "./possession-grants.js";
 import {CharacterInventory} from "./CharacterInventory.js";
 import {maybeBeginAttack, attackMoveFor} from "../../combat/attack-flow.js";
 import {defendReadinessHold, defendReadinessCap} from "../../combat/defend-readiness.js";
@@ -741,26 +741,26 @@ export class StonetopCharacter {
 			...this._possessions.selected,
 			...(playbookData?.specialPossessions?.preselected ?? []),
 		]);
+		const activePossessionOptions = (playbookData?.specialPossessions?.options ?? [])
+			.filter(opt => activePossessionSlugs.has(opt.slug));
+		// A TAGGED item names its own possession, so it is matched on slug + name alone — the tag
+		// already answers the question the column and the collision guard below exist to answer.
 		const grantByPossessionAndKey = new Map();
 		const grantKeyFor = (slug, key) => `${slug}:${key}`;
-		// De-dupe within a grant: a grant that repeats a name (e.g. sourceKey === aliases[0])
-		// must not look like the same name coming from two possessions, or the collision guard
-		// below would null its inference and drop an untagged legacy item into the columns.
-		const grantNames = grant => [...new Set([grant.name, grant.sourceKey, ...(grant.aliases ?? [])].filter(Boolean))];
-		const inferredGrantSources = new Map();
-		for (const opt of (playbookData?.specialPossessions?.options ?? [])) {
-			if (!activePossessionSlugs.has(opt.slug)) continue;
+		for (const opt of activePossessionOptions) {
 			for (const grant of (opt.grantsItems ?? [])) {
 				if (!grant?.name) continue;
-				for (const name of grantNames(grant)) {
+				for (const name of [...new Set([grant.name, grant.sourceKey, ...(grant.aliases ?? [])].filter(Boolean))]) {
 					grantByPossessionAndKey.set(grantKeyFor(opt.slug, name), grant);
-					const key = `${grant.column === "regular" ? "regular" : "small"}:${name}`;
-					// Exact duplicates across selected possessions are ambiguous unless the item is
-					// tagged, so leave those as normal write-ins instead of guessing the parent.
-					inferredGrantSources.set(key, inferredGrantSources.has(key) ? null : { slug: opt.slug, grant });
 				}
 			}
 		}
+		// UNTAGGED legacy gear is claimed by column + name, and only where exactly one grant
+		// answers to that key — the shared rule the select/deselect sync adopts and disowns by
+		// (possession-grants.js#grantSourceMap). Shared rather than restated, because a sheet that
+		// renders an item inside a possession's card while the teardown declines to claim it — or
+		// the reverse — is how a deselect comes to delete a player's hand-written gear.
+		const inferredGrantSources = grantSourceMap(activePossessionOptions);
 		const grantForTaggedItem = item => {
 			const slug = item.system?.sourcePossession;
 			if (!slug) return null;
@@ -768,19 +768,33 @@ export class StonetopCharacter {
 				?? grantByPossessionAndKey.get(grantKeyFor(slug, item.name))
 				?? null;
 		};
-		const inferredGrantFor = item => {
-			const column = item.system?.inventoryColumn === "regular" ? "regular" : "small";
-			return inferredGrantSources.get(`${column}:${item.name}`) ?? null;
-		};
+		const inferredGrantFor = item => inferredGrantSources.get(itemGrantKey(item)) ?? null;
+		// Which possessions will actually draw a card below. _buildPossessionsSnapshot walks
+		// `options` and reads grantedByPossession by slug, so gear tagged to a slug that isn't
+		// there has no card to live in — which covers a possession since deselected, a slug
+		// left behind by a playbook change, and every slug at all on a character whose
+		// playbook resolved to nothing.
+		const cardBearingSlugs = new Set(
+			(playbookData?.specialPossessions?.options ?? [])
+				.map(opt => opt.slug)
+				.filter(slug => activePossessionSlugs.has(slug)));
+		// Claim for the possession cards FIRST, then let everything else fall through. These
+		// two have to be a partition of customItems: written as two independent predicates they
+		// left a gap between them — an item tagged to a possession that wasn't active satisfied
+		// neither, so it rendered in no section at all while still sitting on the actor,
+		// costing no load and no small-item allowance. Deriving the write-ins as "whatever the
+		// cards didn't take" makes that unrepresentable rather than merely fixed.
+		const possessionItems = customItems.filter(i => {
+			const slug = i.system?.sourcePossession;
+			return slug ? cardBearingSlugs.has(slug) : !!inferredGrantFor(i);
+		});
+		const claimedByPossession = new Set(possessionItems);
 		// Book II treasures dragged in from a journal are write-ins too, but they get their
 		// own "Treasures" heading in each column rather than sitting among the hand-written
 		// items — so subtract them from the catch-all here, or they'd render in both places.
-		const isWriteIn       = i => !i.system?.sourcePossession && !inferredGrantFor(i);
+		const isWriteIn       = i => !claimedByPossession.has(i);
 		const writeInItems    = customItems.filter(i => isWriteIn(i) && !i.system?.isTreasure);
 		const treasureItems   = customItems.filter(i => isWriteIn(i) && !!i.system?.isTreasure);
-		const possessionItems = customItems.filter(i =>
-			(i.system?.sourcePossession && activePossessionSlugs.has(i.system.sourcePossession)) ||
-			(!i.system?.sourcePossession && !!inferredGrantFor(i)));
 		const grantedByPossession = new Map();
 		for (const i of possessionItems) {
 			const inferred = inferredGrantFor(i);
@@ -1521,26 +1535,63 @@ export class StonetopCharacter {
 
 	// Bundled-gear sync (see possession-grants.js). Materialize a possession's
 	// `grantsItems` as inventory items on select; tear them down on deselect.
-	_grantedItemsFor(slug) {
-		return this._actor.items.filter(i =>
-			i.type === "move" &&
-			i.system?.moveType === "inventory-custom" &&
-			i.system?.sourcePossession === slug,
-		);
+	//
+	// Matches the `sourcePossession` tag first, then falls back to adopting untagged gear by
+	// COLUMN + NAME (possession-grants.js#grantAdoptionKeys). That fallback carries the gear of
+	// every world older than the day MoveModel learned to declare the tag: until then it was
+	// stripped on the way into the document, so those items carry no tag at all and a tag-only
+	// match would tear down nothing, stranding the gear on the sheet for good.
+	//
+	// The adoption rule is SHARED with the gear tab, which renders those same items inside the
+	// possession's card (inferredGrantFor, in _buildInventorySection), and with
+	// _addPossessionGrants below, which counts an adoptable write-in as this grant already being
+	// present and declines to create it. All three have to agree — see that module for what each
+	// direction of disagreement costs.
+	async _grantedItemsFor(slug) {
+		const tagged = [], untagged = [];
+		for (const i of this._actor.items) {
+			if (i.type !== "move" || i.system?.moveType !== "inventory-custom") continue;
+			if (i.system?.sourcePossession === slug) tagged.push(i);
+			else if (!i.system?.sourcePossession) untagged.push(i);
+		}
+		// Nothing untagged to adopt: skip resolving the playbook (a pack lookup) entirely.
+		if (!untagged.length) return tagged;
+		const adopt = await this._grantAdoptionKeys(slug);
+		if (!adopt.size) return tagged;
+		return [...tagged, ...untagged.filter(i => adopt.has(itemGrantKey(i)))];
+	}
+
+	// Which untagged write-ins possession `slug` may claim, resolved against every possession the
+	// character actually holds. `slug` is added explicitly rather than relied on being selected:
+	// deselectPossession drops it from the selection BEFORE calling the teardown, and a possession
+	// missing from the active set would claim nothing at all.
+	async _grantAdoptionKeys(slug) {
+		const sp = (await this.playbook())?.specialPossessions;
+		const active = new Set([...this._possessions.selected, ...(sp?.preselected ?? []), slug]);
+		return grantAdoptionKeys(slug, (sp?.options ?? []).filter(opt => active.has(opt.slug)));
 	}
 
 	async _addPossessionGrants(slug) {
 		const playbook = await this.playbook();
 		const opt = (playbook?.specialPossessions?.options ?? []).find(o => o.slug === slug);
 		if (!opt?.grantsItems?.length) return;
-		// Dedupe against this possession's already-materialized grants AND any plain write-in
-		// gear of the same name — so a character who hand-added the bundled items before grants
-		// existed (untagged write-ins) isn't handed a duplicate by the ready-time back-fill.
-		const existing = new Set(this._grantedItemsFor(slug).map(i => i.system?.sourceKey ?? i.name));
+		// Dedupe against this possession's already-materialized grants AND any untagged write-in
+		// its own grants would ADOPT — so a character who hand-added the bundled items before
+		// grants existed isn't handed a duplicate by the ready-time back-fill.
+		//
+		// Keyed on the GRANT rather than on the item's own name, because an adopted legacy item may
+		// be spelled with one of the grant's aliases ("Fine whisky" for "Fine whisky (advantage to
+		// Persuade)") while grantsToCreate asks by `sourceKey`. And adoption is asked through the
+		// same helper the teardown uses: suppressing a create on a LOOSER rule than the one that
+		// later claims the item is what leaves a grant permanently unmaterialized.
+		const adopt = await this._grantAdoptionKeys(slug);
+		const existing = new Set();
 		for (const i of this._actor.items) {
-			if (i.type === "move" && i.system?.moveType === "inventory-custom" && !i.system?.sourcePossession) {
-				existing.add(i.name);
-			}
+			if (i.type !== "move" || i.system?.moveType !== "inventory-custom") continue;
+			if (i.system?.sourcePossession === slug) { existing.add(i.system?.sourceKey ?? i.name); continue; }
+			if (i.system?.sourcePossession) continue;
+			const grant = adopt.get(itemGrantKey(i));
+			if (grant) existing.add(grant.sourceKey ?? grant.name);
 		}
 		const sourceLabel = (opt.label ?? "").replace(/<[^>]*>/g, "").trim();
 		const toCreate    = grantsToCreate(opt.grantsItems, existing, { slug, sourceLabel });
@@ -1551,7 +1602,7 @@ export class StonetopCharacter {
 	}
 
 	async _removePossessionGrants(slug) {
-		const ids = this._grantedItemsFor(slug).map(i => i._id);
+		const ids = (await this._grantedItemsFor(slug)).map(i => i._id);
 		if (ids.length) await this._actor.deleteEmbeddedDocuments("Item", ids);
 		// Clear the mark so re-selecting the possession re-grants its gear afresh.
 		await this._clearPossessionGrantsApplied(slug);

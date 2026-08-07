@@ -183,6 +183,8 @@
       "addSmallItem": "Add small item",
       "createWorldItem": "Create Inventory Item",
       "worldCreated": "Created inventory item \"{name}\" — drag it onto a character's Inventory tab to add it.",
+      "dropAdded": "Added {names} to {actor}'s Inventory tab.",
+      "dropAddedUnlinked": "Added {names} to {actor}'s character sheet. This token isn't linked to {actor}, so anything dropped on it would otherwise have stayed on the token and never reached the player.",
       "addItemColumn": "Column",
       "addItemColumnRegular": "Items (◇, counts toward load)",
       "addItemColumnSmall": "Small items (pocket, pouch, or boot)",

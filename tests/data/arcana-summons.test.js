@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { ARCANA_SUMMONS, arcanaSummon, arcanaSummonFollowers, hasArcanaSummon, joinNames } from "../../module/data/arcana-summons.js";
+import { ARCANA_SUMMONS, arcanaSummon, arcanaSummonFollowers, hasArcanaSummon } from "../../module/data/arcana-summons.js";
+import { joinNames } from "../../module/utils/strings.js";
 import { buildCustomFollower } from "../../module/data/follower-build.js";
 
 describe("ARCANA_SUMMONS registry", () => {

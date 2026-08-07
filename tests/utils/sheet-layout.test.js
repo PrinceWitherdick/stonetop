@@ -261,8 +261,9 @@ describe("setWorldSheetLayout", () => {
 		expect(store.classicLayoutCharacter).toBe(true);
 		expect(store.classicLayoutNpc).toBe(true);
 		expect(store.classicLayoutSteading).toBe(true);
-		// ...and says which ones it touched, or the sheets that moved are a mystery.
-		expect(infos.join(" ")).toContain("Character Sheets and NPC Sheets");
+		// ...and says which ones it touched, or the sheets that moved are a mystery. Joined by the
+		// system's one list-joiner (joinNames), so this toast reads like every other one.
+		expect(infos.join(" ")).toContain("Character Sheets & NPC Sheets");
 	});
 
 	// A modern master is modern everywhere whatever the children say, so there is nothing for them
