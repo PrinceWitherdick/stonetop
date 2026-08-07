@@ -60,7 +60,21 @@ export function createStonetopActorClass(BaseActor) {
 		}
 
 		/**
-		 * Two defaults for a new NPC.
+		 * One default for a new character, two for a new NPC.
+		 *
+		 * A character's prototype token is LINKED. Foundry leaves `actorLink` false by
+		 * default, which for a PC means every token dropped on a scene carries a private
+		 * copy of the character in its ActorDelta — and the sheet a GM opens by
+		 * double-clicking that token edits the copy, not the character. Gear handed over
+		 * that way is real, and saves without complaint, but it exists only on that one
+		 * token: the player opening their character from the sidebar sees nothing, so the
+		 * whole thing reads as "the GM gave me a treasure and it never arrived". A PC is a
+		 * single person the whole table shares, so the link is the only correct default.
+		 * Only applied when the creation data didn't specify one, so a duplicate or an
+		 * import that carries its own `prototypeToken.actorLink` is preserved.
+		 *
+		 * The NPC defaults below deliberately keep their tokens unlinked — a scene's
+		 * townsfolk are placed many times over and each copy is its own creature.
 		 *
 		 * The token reveals its name on hover to anyone. NPCs are the townsfolk and neighbors
 		 * the PCs talk to (not hidden threats), so their name should be legible to every
@@ -82,6 +96,12 @@ export function createStonetopActorClass(BaseActor) {
 		async _preCreate(data, options, user) {
 			const allowed = await super._preCreate(data, options, user);
 			if (allowed === false) return false;
+			if (this.type === "character") {
+				if (foundry.utils.getProperty(data, "prototypeToken.actorLink") === undefined) {
+					this.updateSource({ "prototypeToken.actorLink": true });
+				}
+				return;
+			}
 			if (this.type !== "npc") return;
 			if (foundry.utils.getProperty(data, "prototypeToken.displayName") === undefined) {
 				this.updateSource({ "prototypeToken.displayName": CONST.TOKEN_DISPLAY_MODES.HOVER });

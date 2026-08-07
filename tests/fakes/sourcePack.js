@@ -78,6 +78,14 @@ export function loadPlaybookPackDocs() {
 		.filter(doc => doc?.type === "playbook");
 }
 
+// Every arcanum source doc from packs/src/stonetop-arcana (major/ and minor/). Filtered on
+// the moveType discriminator rather than the file name, which also drops the _folders docs
+// that walkJson picks up on its way through.
+export function loadArcanaPackDocs() {
+	return walkJson(path.join(ROOT, "packs", "src", "stonetop-arcana"))
+		.filter(doc => doc?.type === "move" && doc?.system?.moveType === "arcanum");
+}
+
 // Cleaned playbook defs from data/playbooks.json (has backgrounds + invocations).
 export function loadPlaybookDefs() {
 	const arr = JSON.parse(fs.readFileSync(path.join(ROOT, "data", "playbooks.json"), "utf8"));

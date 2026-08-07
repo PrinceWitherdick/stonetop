@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="200" height="200" role="img" aria-label="Arcanum">
+	<title>Arcanum</title>
+	<!-- MACRO VARIANT of assets/icons/arcanum.svg — same token, same mark, drawn larger.
+
+	     It exists as its own file rather than as an edit to the original because that one is a
+	     FALLBACK MARKER: it heads every un-illustrated arcanum Item alongside move.svg and
+	     vase.svg, and those three are deliberately sized to match (their glyphs all span about
+	     320 of 512, the safe square the octagon's chamfers leave). Growing one of the three
+	     would make it the odd one out down a sidebar list. A hotbar tile has no such
+	     neighbours — its neighbours are the game-icons.net macro icons, whose glyphs fill their
+	     square — so here the mark can take the room it has.
+
+	     Keep the two in step: if the spiral is ever redrawn, redraw it in BOTH, and change only
+	     the scale on the <g> below. -->
+	<path d="M158 20 L354 20 L492 158 L492 354 L354 492 L158 492 L20 354 L20 158 Z" fill="#141210"/>
+	<!-- The triple spiral the books print beside an arcanum (Book II p.545, "The Cloak"), redrawn
+	     clean: the printed mark is a distressed woodcut and nothing else in this set is.
+	     Each arm is an ARCHIMEDEAN spiral coiling 450 degrees COUNTER-CLOCKWISE around its own
+	     eye — the printed mark's handedness, and the one thing about a triskelion you cannot get
+	     away with mirroring. The three eyes sit 120 degrees apart, the set turned 12 degrees
+	     clockwise off upright to match how the mark sits on the page, and every arm starts dead
+	     centre so they merge into a solid hub. Even pitch matters: a logarithmic spiral crowds
+	     its inner turns, and at a band this thick the coils close into a blob instead of reading
+	     as a spiral.
+
+	     The 1.18 scale is UNIFORM and taken about the centre, which is the only kind of growth
+	     this mark tolerates: it multiplies the band width, the pitch and the cap radius alike, so
+	     the two clearances the original sets by hand — 22 units of dark between turns, 3.2 units
+	     of dark left in each eye — survive in proportion. Scaling the coordinates while leaving
+	     stroke-width at 31 would close both of them up.
+
+	     1.18 puts the mark's outer edge (radius 162 plus the 15.5 cap, so 177.5) at 209.5. The
+	     octagon's flat edges sit 236 from centre and its chamfers exactly 236 as well, so that
+	     leaves ~26 units of dark all the way round. Past about 1.3 the coils start to touch the
+	     chamfered corners. -->
+	<g fill="none" stroke="#f0ece3" stroke-width="31" stroke-linecap="round"
+	   transform="translate(256 256) scale(1.18) translate(-256 -256)">
+		<path d="M256 256C278.2 258.5 300.4 251.6 316.4 238.6C332.4 225.6 342.1 206.6 343.8 187.8C345.6 168.9 339.4 150.5 328.3 137.4C317.1 124.3 301.3 116.7 285.8 115.6C270.4 114.6 255.6 120.1 245.4 129.4C235.3 138.6 229.7 151.4 229.4 163.5C229.1 175.5 234 186.6 241.3 193.9C248.7 201.1 258.4 204.5 267 204.1C275.7 203.7 283.1 199.6 287.5 194.1C291.8 188.6 293.1 182 292 176.7"/>
+		<path d="M256 256C242.8 274 237.6 296.6 240.9 317C244.2 337.4 255.7 355.3 271.2 366.2C286.6 377.1 305.7 381 322.6 377.9C339.5 374.8 354 364.9 362.6 352C371.2 339.2 373.9 323.6 371 310.2C368 296.7 359.7 285.6 349.4 279.3C339.2 273 327.1 271.6 317.2 274.3C307.2 277.1 299.4 283.8 295.4 291.5C291.5 299.2 291.3 307.7 293.9 314.2C296.4 320.7 301.5 325.1 306.7 326.8"/>
+		<path d="M256 256C247 235.5 230 219.8 210.7 212.4C191.5 205.1 170.2 206.1 153 214C135.8 221.9 122.9 236.5 117.1 252.7C111.4 268.9 112.7 286.5 119.5 300.3C126.4 314.2 138.5 324.3 151.6 328.5C164.7 332.7 178.6 331 189.1 325.3C199.7 319.5 206.9 309.8 209.5 299.8C212.2 289.8 210.2 279.7 205.6 272.4C200.9 265.1 193.6 260.7 186.7 259.7C179.7 258.7 173.4 260.9 169.4 264.5"/>
+	</g>
+</svg>

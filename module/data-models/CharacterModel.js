@@ -25,6 +25,11 @@ export class CharacterModel extends foundry.abstract.TypeDataModel {
 				ongoing: valueField(),
 				damage:  new fields.SchemaField({
 					value: new fields.StringField({ required: true, blank: true, initial: "d4" }),
+					// A die set by hand on the sheet, which wins over the playbook-derived one.
+					// Blank means "no override": the die follows the playbook (plus move bonuses)
+					// as it always has. Kept apart from `value` so clearing it can revert, and so
+					// a later playbook/move change can't be mistaken for the player's own choice.
+					override: new fields.StringField({ required: true, blank: true, initial: "" }),
 				}),
 				debilities: new fields.SchemaField({
 					options: new fields.SchemaField({

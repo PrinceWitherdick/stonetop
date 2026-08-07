@@ -34,6 +34,21 @@ export class MoveModel extends foundry.abstract.TypeDataModel {
 			// the dragged item and carried through the drop's re-plant; false on everything
 			// else. Declared here because a TypeDataModel strips keys it doesn't know.
 			isTreasure:      new fields.BooleanField({ required: false, initial: false }),
+			// Ties a bundled-gear item back to the special possession that materialized it
+			// (possession-grants.js): the possession's slug, the grant's stable key within it,
+			// and the possession's plain-text name. Null on every hand-written item.
+			//
+			// Declared here for the same reason as `note` and `isTreasure` above, and this is
+			// what it cost to leave them out: the tags were written on create and stripped
+			// before they ever reached the document, so `_grantedItemsFor` matched nothing and
+			// deselecting a possession tore down none of its gear. The sync's own tests didn't
+			// catch it because the test actor stores whatever it's handed — only a real
+			// TypeDataModel strips.
+			sourcePossession: new fields.StringField({ required: false, blank: true, nullable: true, initial: null }),
+			sourceKey:        new fields.StringField({ required: false, blank: true, nullable: true, initial: null }),
+			// possession-grants.js writes this one explicitly as null when a possession has no
+			// label to name, so nullable is load-bearing rather than defensive.
+			sourceLabel:      new fields.StringField({ required: false, blank: true, nullable: true, initial: null }),
 			armorBonus:      new fields.NumberField({ required: true, integer: true, initial: 0 }),
 			hpBonus:         new fields.NumberField({ required: true, integer: true, initial: 0 }),
 			// Raises every load cap by this many ◇ while owned (the Ranger's Pack Horse → 1).

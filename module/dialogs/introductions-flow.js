@@ -37,6 +37,89 @@ export function firstActiveIndex(count, isDone) {
 	return -1;
 }
 
+// ── Follower reaction to a cursor write ────────────────────────────────────────
+// The GM authors the world cursor; every other client reacts to it. Deciding WHAT to
+// do — open, repaint, raise, announce — is pure, so it lives here with the rest of the
+// flow logic and IntroductionsDialog.handleIntroCursor is left as a thin adapter.
+
+// The part of a cursor that decides whether a repaint is worth interrupting someone
+// mid-sentence for. THREE fields, and the omissions are the point:
+//   • `nonce`/`showNonce` exist only to make an otherwise-identical write fire onChange
+//     at all, so they never mean the screen changed.
+//   • `pcOrder` is the ROSTER, not the turn. It churns on its own during session zero —
+//     _syncCursorFromLocal's no-op guard counts it, so every late PC joining the tracker
+//     rewrites the cursor — and none of that reaches the capture field the active player
+//     is writing in. Excluding it is what stops a roster reshuffle eating their sentence;
+//     their turn strip just refreshes on the next repaint instead.
+// `activeUserId` IS included: it decides who may edit, so a change there has to reach the
+// screen even mid-word (the field may need to go read-only).
+export function cursorPositionKey(cursor = {}) {
+	return [cursor.phase, cursor.activeActorId, cursor.activeUserId].join("|");
+}
+
+/**
+ * What a follower client should do about a cursor write.
+ *
+ * One turn attracts SEVERAL cursor writes — a roster reshuffle as another player commits
+ * a playbook, the active PC's owner going idle and back, the GM's "Show players" — and
+ * every one of them used to repaint and re-raise the dialog on the active player's screen.
+ * A repaint rebuilds the capture textarea from the last SAVED value, so a player typing
+ * mid-word watched their sentence snap back to where the autosave had got to. Hence the
+ * two gates below: repaint only when the screen is genuinely out of date, and raise only
+ * on a real hand-off.
+ *
+ * @param {object}       args.cursor         The cursor just written.
+ * @param {string|null}  args.prevKey        The position key this client last applied.
+ * @param {string}       args.userId         This client's user id.
+ * @param {boolean}      args.isRoundRobin   Is cursor.phase one the active PC authors?
+ * @param {boolean}      args.hasDialog      Is the dialog open on this client?
+ * @param {boolean}      args.typing         Is the caret inside that open dialog?
+ * @param {number|null}  args.lastShowNonce  Highest "Show players" nonce already honoured.
+ * @param {string|null}  args.lastTurnKey    Turn this client last announced.
+ * @returns {{close: boolean, open: boolean, render: boolean, raise: boolean, toast: boolean,
+ *           positionKey: string, turnKey: string|null, showNonce: number|null}}
+ *          `positionKey`/`turnKey`/`showNonce` are the caller's new bookkeeping values.
+ */
+export function cursorReaction({
+	cursor = {}, prevKey = null, userId = "", isRoundRobin = false,
+	hasDialog = false, typing = false, lastShowNonce = null, lastTurnKey = null,
+} = {}) {
+	const positionKey = cursorPositionKey(cursor);
+
+	// Session over: every follower's dialog closes and the turn bookkeeping resets.
+	if (!cursor.active) {
+		return { close: true, open: false, render: false, raise: false, toast: false,
+			positionKey, turnKey: null, showNonce: lastShowNonce };
+	}
+
+	const myTurn = !!userId && cursor.activeUserId === userId && isRoundRobin;
+	// "Show players" force-summons the dialog even for someone who closed it, and even
+	// off-turn. Only a NEW nonce forces, so an ordinary turn write never does.
+	const forceShow = Number.isInteger(cursor.showNonce)
+		&& cursor.showNonce > (Number.isInteger(lastShowNonce) ? lastShowNonce : -1);
+
+	// A turn lands once. Keyed on phase+PC so the repeated writes within a single turn
+	// don't re-announce it, and cleared whenever it isn't this player's turn so the next
+	// hand-off — including a later turn on the same PC in a looping step — announces again.
+	const turnKey = myTurn ? `${cursor.phase}:${cursor.activeActorId}` : null;
+	const newTurn = !!turnKey && turnKey !== lastTurnKey;
+
+	return {
+		close: false,
+		// Nothing on screen yet: pop it on this player's turn, or when the GM force-shows.
+		open:  !hasDialog && (myTurn || forceShow),
+		// A move HAS to repaint even mid-sentence — the turn may just have ended — and the
+		// dialog flushes the field to its flag before rebuilding, so nothing typed is lost.
+		// A same-position bump carries nothing new, so it defers to whoever is typing.
+		render: hasDialog && (positionKey !== prevKey || forceShow || !typing),
+		raise:  hasDialog && (newTurn || forceShow),
+		toast:  newTurn,
+		positionKey,
+		turnKey,
+		showNonce: forceShow ? cursor.showNonce : lastShowNonce,
+	};
+}
+
 // How many turns until the still-active PC at `targetIndex` comes up, cycling forward
 // from `fromIndex` (the current turn) and skipping any PC that `isDone`. Returns 0 when
 // the target IS the current turn, N when it's N active-turns away, or -1 when the target

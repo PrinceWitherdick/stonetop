@@ -7,11 +7,11 @@
 // Wears the same edit/lock header chrome as the monster/bestiary sheets (shared
 // sheet-chrome helpers) so it reads as one system.
 import { rollDamage } from "../../utils/roll-engine.js";
-import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle } from "../../utils/sheet-chrome.js";
+import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle, fitDisplayName } from "../../utils/sheet-chrome.js";
 import { isDefaultImg } from "../../utils/strings.js";
 import { headerPortraitContext, wirePortraitPopout } from "../../utils/actor-portrait-picker.js";
 import { updateRichTextField, updateMoveField } from "../../utils/stat-block-edit.js";
-import { getOpenSheetsInEditMode } from "../../settings.js";
+import { getOpenSheetsInEditMode, isClassicLayout, layoutClasses, stampLayoutClass } from "../../settings.js";
 import { enrichHTML } from "../../utils/foundry-compat.js";
 import { buildRelationshipRows, wireRelationshipTable, wireRelationshipLinks, relationshipDropResult, relationshipDropNotice, wireRelationshipDropHighlight } from "../../utils/relationship-hearts.js";
 import { relationshipViewContext, wireRelationshipBoard } from "../../utils/relationship-board.js";
@@ -21,6 +21,8 @@ import { NpcLedger } from "./NpcLedger.js";
 import { npcStatusMeta, NPC_STATUSES } from "../../data-models/npc-status.js";
 import { partyCharacters } from "../../utils/playbook-actors.js";
 import { preserveScroll } from "../../utils/scroll-parent.js";
+import { mountTabRail } from "../../utils/tab-rail.js";
+import { withSheetSizeMemory } from "../../utils/sheet-size.js";
 
 // Rich-text (HTMLField) fields edited inline via prose-mirror on the sheet.
 const NPC_RICH_TEXT_FIELDS = [
@@ -34,7 +36,13 @@ const NPC_RICH_TEXT_FIELDS = [
 const NPC_MOVE_EDITABLE_FIELDS = new Set(["name", "system.description", "system.rollFormula"]);
 
 export function createStonetopNpcSheetClass(Base) {
-	return class StonetopNpcSheet extends Base {
+	// withSheetSizeMemory: reopen at the size this user last left this NPC's sheet. This is the
+	// one sheet where restoring a HEIGHT means overriding `height: "auto"` — restoreSheetSize
+	// writes the pixel value into options.height and raises the same `_stonetopHeightLocked`
+	// flag a manual drag would, so the sheet's own `{height: "auto"}` refits stop being honoured
+	// and the size actually sticks. Without that flag core would blank the restored height on
+	// the first refit. With no stored height the sheet is auto as before, fitting its content.
+	return class StonetopNpcSheet extends withSheetSizeMemory(Base) {
 		_editMode = false;
 
 		constructor(...args) {
@@ -50,17 +58,29 @@ export function createStonetopNpcSheetClass(Base) {
 
 		static get defaultOptions() {
 			return foundry.utils.mergeObject(super.defaultOptions, {
-				classes:   ["stonetop", "sheet", "actor", "npc"],
+				// `stonetop-layout-classic` when this user reads NPC sheets in the classic
+				// layout — see the character sheet's note for why it is set both here and in
+				// _render.
+				classes:   ["stonetop", "sheet", "actor", "npc", ...layoutClasses("npc")],
 				width:     620,
-				// Auto-height so the window fits the ACTIVE tab's content — a short tab
-				// (Relationships/Notes) hugs its content instead of leaving a void below,
-				// while a tall tab caps at the CSS max-height and scrolls (nav stays pinned).
-				// _fitHeight() re-measures after a tab switch, which Foundry's Tabs doesn't do.
+				// Auto-height so the window OPENS fitted to its content rather than at some
+				// arbitrary default. It does not follow the content after that: tab switches
+				// no longer refit (see activateListeners), and once the user drags the window
+				// to a size of their own, enableAutoHeightVerticalResize freezes it there.
+				// A tab taller than the frame scrolls internally; there is no max-height.
 				height:    "auto",
+				// Mirrors the CSS floor in stonetop.css — see the character sheet's note.
+				// Like the monster, this frame has no `pbta` class, so it had no floor at all.
+				minHeight: 400,
 				resizable: true,
-				// Details is the always-present landing tab; the pinned quick-facts block
-				// (Instinct, etc.) sits above the strip. Relationships/Stats tabs render
-				// conditionally, so _render() falls back here if the active one vanishes.
+				// Details is the always-present landing tab, and in the MODERN layout it is also
+				// where the quick-facts block (Home, Embodiment, Instinct, Occupation,
+				// Relations) lives, so landing here is what keeps those facts on screen when
+				// the sheet opens. In the CLASSIC layout that block is pinned above the tab
+				// strip and is visible from any tab, so `initial` matters less there — but the
+				// tab SET is identical in both layouts, so one value serves both.
+				// Relationships/Stats tabs render conditionally, so getData() falls back here
+				// if the active one vanishes.
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "details" }],
 			});
 		}
@@ -74,7 +94,27 @@ export function createStonetopNpcSheetClass(Base) {
 			this._injectHeaderToggle();
 			stripHeaderChrome(this);
 			this.element[0]?.classList.toggle("stonetop-edit-mode", this._editMode);
+			stampLayoutClass(this, "npc");
 			hideBrokenPortrait(this, "stonetop-npc-header");
+			// Shrink a long name until its column fits the portrait's height again, so the
+			// pronouns and traits pinned to that column's bottom edge stay level with the bottom
+			// of the portrait instead of being pushed out under it. Floors at
+			// --st-npc-name-min-size. See fitDisplayName.
+			fitDisplayName(this, {
+				header:  ".stonetop-npc-header",
+				text:    ".stonetop-npc-name-text",
+				column:  ".stonetop-npc-header-text",
+				sizeVar: "--st-npc-name-size",
+				minVar:  "--st-npc-name-min-size",
+			});
+		}
+
+		// The name fitter watches the header for width changes; nothing else does, so it is the
+		// one thing here holding a live observer once the window is gone.
+		async close(options) {
+			this._stonetopNameFit?.disconnect();
+			this._stonetopNameFit = null;
+			return super.close(options);
 		}
 
 		// Re-measure the auto-height window to the active tab's content. Foundry's Tabs
@@ -123,6 +163,11 @@ export function createStonetopNpcSheetClass(Base) {
 			const st = context.stonetop;
 
 			st.editMode = this._editMode;
+			// Which layout this user reads this sheet in — see isClassicLayout in
+			// module/settings.js. Read live on every getData rather than cached in the
+			// constructor the way `_editMode` is: flipping the setting re-renders every open
+			// actor sheet, and a constructor-cached copy would not move until reopen.
+			st.classicLayout = isClassicLayout("npc");
 
 			// Portrait: the actor's art if it has any, else a person-icon placeholder
 			// (rendered by the template) rather than a fabricated portrait.
@@ -182,7 +227,11 @@ export function createStonetopNpcSheetClass(Base) {
 			// which, under an auto-height window, used to close the sheet up flush beneath the
 			// tab strip and read as broken tabs rather than as an empty tab. The strip's own
 			// floor is in CSS (.stonetop-npc-sheet .sheet-body); this is what fills it.
-			st.detailsEmpty = !st.editMode && !st.impressionsShown.length && !st.hasMotivations;
+			//
+			// CLASSIC only. In the modern layout the quick-facts block heads this tab (npc.hbs),
+			// and its Instinct row is unconditional, so the panel always has content and the
+			// empty-state would print "nothing here yet" directly under something.
+			st.detailsEmpty = st.classicLayout && !st.editMode && !st.impressionsShown.length && !st.hasMotivations;
 			st.statBlockLink = statBlockLink;
 			st.threatLink    = threatLink;
 
@@ -257,13 +306,29 @@ export function createStonetopNpcSheetClass(Base) {
 
 		activateListeners(html) {
 			super.activateListeners(html);
+			// Hang the tab rail off the window's right edge (module/utils/tab-rail.js).
+			mountTabRail(this, html);
 			const root = html[0];
 
-			// Auto-height: after Foundry's Tabs toggles the active panel, refit the window
-			// to the new tab's content (rAF so the .active class settles before we measure).
-			root.querySelectorAll(".sheet-tabs .item").forEach(item => {
-				item.addEventListener("click", () => requestAnimationFrame(() => this._fitHeight()));
-			});
+			// NOTE: switching tabs deliberately does NOT resize the window any more.
+			//
+			// This used to refit on every tab click, so the frame hugged whichever tab you
+			// landed on — which meant the window grew and shrank under the cursor as you
+			// browsed, and a size you had chosen was thrown away by the next click. Holding
+			// still is worth more than hugging: the height you are looking at is the height
+			// you keep, whichever tab you move to.
+			//
+			// Nothing is lost by not refitting. A tab taller than the frame scrolls
+			// internally (`.stonetop-npc-sheet .sheet-body > .tab.active:not(.notes)` is
+			// `overflow-y: auto`), and a shorter one just leaves parchment below it. The
+			// window still fits content on OPEN and on re-render, because `height: "auto"`
+			// is untouched — this only drops the extra refit that tab navigation triggered.
+			//
+			// A manual resize is honoured on top of that by enableAutoHeightVerticalResize
+			// (module/utils/resizable-dialogs.js): the first drag adopts the dragged pixel
+			// height into `options.height` and sets `_stonetopHeightLocked`, after which
+			// every later `setPosition({height: "auto"})` has its height stripped — so a
+			// window the user has sized stops refitting on re-render too.
 
 			// Relationships table: resizable/sortable columns always; the hearts and
 			// note field write only when the sheet is editable (shared with the

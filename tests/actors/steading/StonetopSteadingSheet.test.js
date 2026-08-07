@@ -74,12 +74,15 @@ class FakeEl {
 	}
 }
 
-function makeSheet({ players = [], residents = [], neighbors = [], improvements = {}, improvementDef, addResult, removeResult } = {}) {
+function makeSheet({ players = [], residents = [], neighbors = [], improvements = {}, improvementDef, addResult, removeResult, addPlayerResult = true } = {}) {
 	const typedActor = {
 		_flags: { players, residents, neighbors, improvements },
 		setFlags: vi.fn(async updates => {
 			typedActor._flags = { ...typedActor._flags, ...updates };
 		}),
+		// The row shape and the duplicate check live on the model and are covered there
+		// (StonetopSteading.test.js); the sheet's job is to delegate and report.
+		addPlayerRow: vi.fn(async () => addPlayerResult),
 		improvementDef: vi.fn(() => improvementDef ?? null),
 		setImprovementCompleted: vi.fn(async () => ({ label: improvementDef?.label ?? "X", summary: [], reverted: false })),
 		addCustomImprovement: vi.fn(async () => addResult ?? { ok: true, slug: "custom-x", label: "X" }),
@@ -111,34 +114,22 @@ describe("StonetopSteadingSheet", () => {
 		};
 	});
 
-	it("adds dropped character actors to the players list", async () => {
+	it("files a dropped character through the model's shared roster write", async () => {
 		const { sheet, typedActor } = makeSheet();
+		const hero = { id: "hero-id", uuid: "Actor.hero", name: "Wren", img: "wren.webp", type: "character" };
 
-		await sheet._onDropPlayerCharacter({
-			id: "hero-id",
-			uuid: "Actor.hero",
-			name: "Wren",
-			img: "wren.webp",
-			type: "character",
-		});
+		await sheet._onDropPlayerCharacter(hero);
 
-		expect(typedActor.setFlags).toHaveBeenCalledWith({
-			players: [{
-				id: "hero-id",
-				uuid: "Actor.hero",
-				name: "Wren",
-				img: "wren.webp",
-				checked: true,
-				traits: "",
-				relations: "",
-				notes: "",
-			}],
-		});
+		// Through addPlayerRow, not a hand-built row: a drag and a finished character
+		// creation must land the same shape on the roster.
+		expect(typedActor.addPlayerRow).toHaveBeenCalledWith(hero);
+		expect(globalThis.ui.notifications.info).toHaveBeenCalledWith("Added Wren to players.");
 	});
 
-	it("does not add the same dropped character twice", async () => {
-		const { sheet, typedActor } = makeSheet({
+	it("says so rather than duplicating when the dropped character is already listed", async () => {
+		const { sheet } = makeSheet({
 			players: [{ id: "hero-id", uuid: "Actor.hero", name: "Wren", img: "wren.webp", checked: true }],
+			addPlayerResult: false,
 		});
 
 		await sheet._onDropPlayerCharacter({
@@ -149,7 +140,6 @@ describe("StonetopSteadingSheet", () => {
 			type: "character",
 		});
 
-		expect(typedActor.setFlags).not.toHaveBeenCalled();
 		expect(globalThis.ui.notifications.info).toHaveBeenCalledWith("Wren is already in the players list.");
 	});
 

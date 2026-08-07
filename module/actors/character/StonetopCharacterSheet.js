@@ -10,6 +10,8 @@ import {LoveLetterReadDialog} from "../../dialogs/LoveLetterReadDialog.js";
 import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
 import {PossessionChoicesDialog} from "./dialogs/PossessionChoicesDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
+import {UndeathDialog} from "./dialogs/UndeathDialog.js";
+import {DEATHS_DOOR_STATE, resolvedHp, zeroHpMove} from "./deaths-door.js";
 import {WoundDialog} from "./dialogs/WoundDialog.js";
 import {WOUND_STATUS_GLYPH, WOUND_STATUS_LABEL} from "./wound-display.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
@@ -21,15 +23,23 @@ import {OrderFollowersDialog} from "./dialogs/OrderFollowersDialog.js";
 import {FollowerFateDialog} from "./dialogs/FollowerFateDialog.js";
 import {CallUpDeepOnesDialog} from "./dialogs/CallUpDeepOnesDialog.js";
 import {RING_SOURCE_UUID, SERVANT_SOURCE_UUID, buildServantFollower} from "../../data/servant-of-daagon.js";
+import {grantedWeaponForMove, weaponTraitText} from "../../data/weapons.js";
+import {ALT_STAT_GRANTS} from "../../data/alt-stat-grants.js";
 import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
+import {trackCreationFlow} from "./creation-flow.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {wireTabSearch} from "../../utils/tab-search.js";
-import { crewExists } from "../../utils/crew.js";
+import {createPacker, fitColumns, makeColumns, packShortest, wireMasonry} from "../../utils/masonry.js";
+import {mountTabRail} from "../../utils/tab-rail.js";
+import {mountScrollFrost} from "../../utils/scroll-frost.js";
+import {withSheetSizeMemory} from "../../utils/sheet-size.js";
+import { crewExists, effectiveCrewSize, customGroupSize, crewAnonMemberLabel, crewIndividualLabel, CREW_SIZE_MAX } from "../../utils/crew.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
 import {createArcanumItem} from "../../item/createArcanum.js";
 import {rollDamage, rollStat, sign, classifyResult} from "../../utils/roll-engine.js";
 import {defendReadinessHold} from "../../combat/defend-readiness.js";
 import {dieFromDamage} from "../../utils/damage.js";
+import {normalizeDamageDie} from "../../utils/damage-die.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
 import {escHtml, isDefaultImg, normalizePlaybookGlyphs, composeInstinct} from "../../utils/strings.js";
 import {playbookIconPath, partyCharacters} from "../../utils/playbook-actors.js";
@@ -38,9 +48,9 @@ import {getStonetopSteadingActor} from "../../utils/world.js";
 import {openChroniclePageForActor} from "../../utils/chronicle.js";
 import {getDragEventData, deletionEntry, imagePopout} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
-import {peopleNames, steadingPeopleActors, usedPersonPortraits, createPersonNpc, isActorRow, personRowActor, personRowKey, personRowIdentity, rebasePersonRows} from "../steading/steading-people.js";
+import {peopleNames, steadingPeopleActors, usedPersonPortraits, createPersonNpc, isActorRow, personRowActor, personRowKey, personRowIdentity, rebasePersonRows, addCharacterToSteadingPlayers} from "../steading/steading-people.js";
 import {openPeoplePortraitPicker} from "../steading/PeopleGalleryDialog.js";
-import {getHoverDescriptionSetting, getRollStatChipsSetting, getCharacterSheetWidth, setCharacterSheetWidth, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getSidebarCollapsed, setSidebarCollapsed, getPromptRollModifierSetting, getOpenSheetsInEditMode, getHideRollableIconSetting} from "../../settings.js";
+import {getHoverDescriptionSetting, getRollStatChipsSetting, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getSidebarCollapsed, setSidebarCollapsed, getPromptRollModifierSetting, getOpenSheetsInEditMode, getHideRollableIconSetting, isClassicLayout, layoutClasses, stampLayoutClass} from "../../settings.js";
 import {bringDialogToFront} from "../../utils/front-on-open.js";
 import {openLedgerDialog} from "../../utils/ledger-dialog.js";
 import {promptRollModifier} from "../../dialogs/RollModifierDialog.js";
@@ -56,33 +66,25 @@ import {wireAvatarPreview, removeAvatarPreview} from "../../utils/avatar-preview
 import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relationship-board.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
 import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, outnumberBonus, nextFollowerOrder} from "../../data/follower-build.js";
-import {arcanaSummonFollowers, joinNames} from "../../data/arcana-summons.js";
+import {arcanaSummonFollowers} from "../../data/arcana-summons.js";
+import {joinNames} from "../../utils/strings.js";
 import {availablePossessionFollowers} from "../../data/possession-followers.js";
 import {FOLLOWER_MOVES} from "../../data/follower-moves.js";
 import {FOLLOWER_DRAG_TYPE} from "../../data/follower-actor.js";
 import {CREW_INDIVIDUAL_NAMES, CREW_INDIVIDUAL_TAGS, CREW_INDIVIDUAL_TRAITS} from "../../data/steading-members.js";
-import {resolvePortrait} from "../../utils/portrait-frame.js";
+import {resolvePortrait, portraitActionLabel} from "../../utils/portrait-frame.js";
 import {displayPortraitSrc} from "../../book2-art/people-portraits.js";
-import {followerFrameHandle} from "../../utils/portrait-frame-handles.js";
+import {followerFrameHandle, rosterMemberFrameHandle} from "../../utils/portrait-frame-handles.js";
+import {clearRosterPortrait, readRosterPortrait, rosterAvatarContext, rosterPortraitList, rosterPortraitListPath, writeRosterPortrait} from "./roster-portraits.js";
 import {openPortraitFrameEditor} from "../../utils/PortraitFrameDialog.js";
-import {headerPortraitContext, usedActorPortraits, wirePortraitPopout} from "../../utils/actor-portrait-picker.js";
-import {localize} from "../../utils/i18n.js";
+import {headerPortraitContext, usedActorPortraits, wirePortraitPopout, pointImagePopoutAt} from "../../utils/actor-portrait-picker.js";
+import {addPopoutHeaderControl, addPortraitFrameControl, addTokenizerControl} from "../../utils/popout-header-control.js";
+import {canOpenTokenizer, openTokenizer} from "../../utils/portrait-tokenizer.js";
+import {ensureFollowerActors, followerActorFromLink} from "./follower-actors.js";
+import {localize, format} from "../../utils/i18n.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "con", "int", "wis", "cha"]);
 const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
-
-// Playbook moves that let a character roll a different stat for a basic move. When
-// the actor owns `ownsMove`, the basic move named `whenMove` (or, for blanket
-// grants, any move whose default stat is `whenDefaultStat`) offers `altStat` as an
-// extra choice in the roll's stat picker. Mind Over Magic (arcanum rolls) is not
-// covered here — arcana roll through a separate path.
-const ALT_STAT_GRANTS = [
-	{ whenMove: "Clash",               ownsMove: "Skill at Arms",    altStat: "dex" },
-	{ whenMove: "Clash",               ownsMove: "Purifying Flames", altStat: "wis" },
-	{ whenMove: "Know Things",         ownsMove: "Well-Read",        altStat: "wis" },
-	{ whenMove: "Persuade (vs. NPCs)", ownsMove: "Wild Speech",      altStat: "wis" },
-	{ whenDefaultStat: "con",          ownsMove: "Laugh at Danger",  altStat: "cha" },
-];
 
 const STAT_TOOLTIPS = {
 	str: "Your physical power and ability to use it. Roll +STR to Clash, or to Defy Danger with raw might or power.",
@@ -97,7 +99,7 @@ const STAT_TOOLTIPS = {
 // label's data-vital attribute. Gated by hoverDescriptionsVitals.
 const VITAL_TOOLTIPS = {
 	damage: "Your damage die. Roll it when you deal damage; moves, gear, and tags can raise or lower it.",
-	hp:     "Hit points. Lose them when you take damage; at 0 HP you're dying and must roll Last Breath. Your max is set by your playbook and CON.",
+	hp:     "Hit points. Lose them when you take damage; at 0 HP you're dying and must face Death's Door. Your max is set by your playbook and CON.",
 	armor:  "Reduces the damage you take — subtract it from each hit. Computed from the gear you're wearing.",
 	xp:     "Experience. Mark 1 XP on a miss (roll 6-) and from some moves; when the track fills, spend it to level up.",
 	level:  "Your character level. Higher levels let you learn advanced moves and raise the XP needed to advance.",
@@ -492,6 +494,10 @@ const _fillSlug = (tpl, slug) => tpl == null ? null : tpl.replaceAll("{slug}", s
 // `.details` namespace for a follower's hand-edited extras + stat overrides, or null.
 function _followerDetailBase(ftype, slug) { return _fillSlug(_FOLLOWER_FLAGS[ftype]?.detailBase, slug); }
 
+// Who a follower already IS, and what making them an actor means, both live in
+// actors/character/follower-actors.js — one place, because the sweep that makes them and the
+// pips that act on them have to agree about it.
+
 // Type-root path for a structurally-stored field (name / pronoun / instinct / cost), or null.
 function _followerStructuralPath(ftype, field) { return _FOLLOWER_FLAGS[ftype]?.structural?.[field] ?? null; }
 
@@ -563,15 +569,6 @@ function _followerDragSnapshot(card, actor) {
 // Only a genuinely unset (null/undefined/non-numeric) size defaults to 6 — an
 // explicit 0 is honoured, so emptying the roster doesn't spring back to six.
 // Shared by the read side (_buildFollowersData) and the resize/delete handlers.
-function _effectiveCrewSize(rawSize, namedCount) {
-	const n = Number(rawSize);
-	const base = Number.isFinite(n) ? Math.max(0, n) : 6;
-	return Math.max(namedCount, base);
-}
-
-// Hard cap on crew headcount, so a fat-fingered roster size can't build a
-// thousand-member anonymous list (and a thousand-die group HP pool).
-const _CREW_SIZE_MAX = 99;
 
 // Flag path where a follower type stores its Loyalty value, driving the single
 // shared loyalty-pip click handler (see _FOLLOWER_FLAGS).
@@ -620,7 +617,11 @@ export function createStonetopCharacterSheetClass(Base) {
 	// Details-tab sections (Background, Instinct, Appearance, Origin, Lore) each
 	// carry their own edit pencil via the shared section-editing mixin, tracked
 	// independently of the global header-wrench `_editMode`.
-	return class StonetopCharacterSheet extends withSectionEditing(Base) {
+	//
+	// withSheetSizeMemory: reopen at the size this user last left this character's sheet. Both
+	// dimensions are restored independently — a sheet carried over from when only width was
+	// remembered has no stored height, and keeps the default one.
+	return class StonetopCharacterSheet extends withSectionEditing(withSheetSizeMemory(Base)) {
 		_stonetopCharacter;
 		_editMode = false;
 
@@ -631,13 +632,6 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Honor the "Open Sheets in Edit Mode" client setting on first open; the
 			// header wrench still toggles modes per-sheet afterward.
 			this._editMode = getOpenSheetsInEditMode();
-
-			// Reopen at the width this user last left this character's sheet.
-			const storedWidth = getCharacterSheetWidth(this.actor?.id);
-			if (storedWidth) {
-				this.options.width  = storedWidth;
-				this.position.width = storedWidth;
-			}
 
 			// Reopen the collapsible crew sections (Inventory / Roster / Group Fight)
 			// in the state this user last left them — persisted per-actor, per-user.
@@ -715,10 +709,20 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		static get defaultOptions() {
 			return foundry.utils.mergeObject(super.defaultOptions, {
-				classes: ["pbta", "stonetop", "sheet", "actor", "character"],
+				// `stonetop-layout-classic` when this user reads character sheets in the
+				// classic layout. Set here so the FIRST paint already has it (defaultOptions is
+				// read at construction), and re-stamped in _render below — `_replaceHTML` only
+				// swaps `.window-content`, so a live flip would otherwise leave the old mode's
+				// class on the frame forever. Every classic rule COMPOUNDS this with the four
+				// classes beside it; none descends from it.
+				classes: ["pbta", "stonetop", "sheet", "actor", "character", ...layoutClasses("character")],
 				width: 960,
 				minWidth: 800,
 				height: 1050,
+				// Mirrors the CSS floor in stonetop.css. Core clamps a resize against the
+				// COMPUTED min-height, never this option, so the CSS is what actually stops
+				// the drag — this copy exists for sheet-size.js's save guard, which reads it.
+				minHeight: 620,
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "moves" }],
 				// `:not(.move-unlearned)` because an un-learned custom move must not leave the
 				// sheet: core's DragDrop#bind runs this selector through querySelectorAll and only
@@ -783,6 +787,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 			this._injectHeaderToggle();
 			this.element[0]?.classList.toggle("stonetop-edit-mode", this._editMode);
+			stampLayoutClass(this, "character");
 			// Deferred one-shot: switch to the Arcana tab after a dropped card's re-render (set
 			// in _onDropItemCreate). Instance-scoped so a sibling sheet's render can't consume it.
 			if (this._activateArcanaTabOnRender) {
@@ -791,9 +796,19 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 		}
 
+		/**
+		 * Pack every grid matching `selector` and keep it packed, registering the wiring so one
+		 * teardown covers every grid (a new grid can't leak an observer by being forgotten here).
+		 * Returns the on-demand repack for the callers that have to invalidate the width guard.
+		 */
+		_wireMasonry(pack, selector, html) {
+			const wiring = wireMasonry(pack, html[0].querySelectorAll(selector));
+			this._masonries.push(wiring);
+			return wiring.repack;
+		}
+
 		async close(options) {
-			this._arcanaMasonryObserver?.disconnect();
-			this._persistSheetWidth();
+			this._masonries?.forEach(m => m.disconnect());
 			this._movePanel?.remove();
 			this._movePanel = null;
 			// The art hover preview lives on document.body, so it survives the sheet's DOM
@@ -801,24 +816,6 @@ export function createStonetopCharacterSheetClass(Base) {
 			// the cursor is still over a card's art and no mouseleave ever fires.
 			removeAvatarPreview();
 			return super.close(options);
-		}
-
-		// Remember the width so the sheet reopens at the size the user left it.
-		// setPosition fires on every resize frame, so debounce it; close() also
-		// saves immediately to cover a resize-then-close within the debounce window.
-		setPosition(options = {}) {
-			const position = super.setPosition(options);
-			clearTimeout(this._widthSaveTimer);
-			this._widthSaveTimer = setTimeout(() => this._persistSheetWidth(), 500);
-			return position;
-		}
-
-		_persistSheetWidth() {
-			if (this._minimized) return;
-			const width = this.position?.width;
-			if (Number.isFinite(width) && width >= (this.options.minWidth ?? 0)) {
-				setCharacterSheetWidth(this.actor?.id, width);
-			}
 		}
 
 		_injectHeaderToggle() {
@@ -938,6 +935,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Whether the whole moves sidebar is collapsed (defaults to expanded),
 			// persisted per-actor, per-user.
 			context.stonetop.sidebarCollapsed = getSidebarCollapsed(this.actor?.id);
+			// Which layout this user reads this sheet in: the pre-rail one (stat block pinned
+			// above a horizontal tab strip) or today's. Client-scoped and per sheet type — see
+			// isClassicLayout in module/settings.js. The nav-item partial reads this same key
+			// off whichever sheet's context it lands in, which is why all three sheets name it
+			// `stonetop.classicLayout` with no sheet suffix.
+			context.stonetop.classicLayout = isClassicLayout("character");
 			context.stonetop.hideUnselected = this.actor.getFlag('stonetop_pwd', 'hideUnselected') ?? true;
 			context.stonetop.editMode = this._editMode;
 			context.stonetop.canEdit = this.isEditable;
@@ -996,18 +999,24 @@ export function createStonetopCharacterSheetClass(Base) {
 			};
 			context.stonetop.followersEdit   = sectionEdit("followers");
 			context.stonetop.showRollStatChips = getRollStatChipsSetting();
-			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug;
+			// The tab carries the active insert — and, when there isn't one, the "Choose Your Fate"
+			// picker. Gating it purely on having an insert made that picker unreachable: the only
+			// way to a first insert was dragging one in from the compendium. Death's Door grants it
+			// properly now, so this is the manual route back — offered in edit mode, where the
+			// player or GM has already said they're changing the sheet, rather than hanging a
+			// Post-Death tab off every living character.
+			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug || context.stonetop.editMode;
 			// Mirror computed vitals back onto system attributes for the sheet's inputs.
-			// HP-max and damage are playbook-derived, so they only apply with a playbook —
-			// keeps onboarding-built characters from showing the stale template default.
+			// HP-max is playbook-derived, so it only applies with a playbook — keeps
+			// onboarding-built characters from showing the stale template default. Damage
+			// mirrors whenever there is a die to show, since a hand-set override stands
+			// without a playbook behind it.
 			const v = context.stonetop.vitals;
 			const vitalsToSystem = {
 				"attributes.armor.value": v.armor,
 				"attributes.xp.max":      v.xp.max,
-				...(context.stonetop.playbook ? {
-					"attributes.hp.max":       v.hp.max,
-					"attributes.damage.value": v.damage,
-				} : {}),
+				...(context.stonetop.playbook ? { "attributes.hp.max": v.hp.max } : {}),
+				...(v.damage ? { "attributes.damage.value": v.damage } : {}),
 			};
 			for (const [path, value] of Object.entries(vitalsToSystem)) {
 				foundry.utils.setProperty(context.system, path, value);
@@ -1189,11 +1198,71 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.canCreateArcana = canCreateArcana();
 			const { xp } = context.stonetop.vitals;
 			context.stonetop.canLevelUp = xp.value >= xp.max;
-			context.stonetop.isDying = context.stonetop.vitals.hp.value <= 0;
+			context.stonetop.deathsDoor = this._buildDeathsDoorData(context.stonetop);
 			context.stonetop.recover = this._buildRecoverData(context.stonetop);
 			context.stonetop.convalesce = this._buildConvalesceData(context.stonetop);
 			context.stonetop.woundsView = this._buildWoundsView(context.stonetop.wounds, context.editable);
 			return context;
+		}
+
+		/**
+		 * The Death's Door card's state (Book I p.245). Being at 0 HP is not the whole story:
+		 * a 7-9 leaves the character at 0 HP and expressly no longer dying, and once they carry
+		 * a post-death insert the move they trigger at 0 HP is their insert's, not this one —
+		 * so the card names that move instead of offering a roll the rules don't allow.
+		 */
+		_buildDeathsDoorData(snapshot) {
+			const hp    = snapshot.vitals.hp.value;
+			const state = this._stonetopCharacter?.deathsDoorState ?? null;
+			// zeroHpMove()'s own fallback is Death's Door, which is also the right answer for a
+			// character model that predates these accessors.
+			const move  = this._stonetopCharacter?.zeroHpMove ?? zeroHpMove(null);
+			const isDeathsDoor = move.dialog;
+			const isOutOfAction = state === DEATHS_DOOR_STATE.OUT_OF_ACTION;
+			const isDead        = state === DEATHS_DOOR_STATE.DEAD;
+			const isFatePending = state === DEATHS_DOOR_STATE.FATE_PENDING;
+			const canFace       = isDeathsDoor && !!this._stonetopCharacter?.canFaceDeathsDoor;
+			// A dispersed Ghost doesn't merely wake up — they reform at their tether with half
+			// their max HP, so the "clear" control is really a reform and says so. The snapshot's
+			// max is the computed one (move bonuses, a Thrall's Marks); the persisted attribute is
+			// the level-1 number and would understate the reform.
+			const reform = isOutOfAction
+				? resolvedHp(this._stonetopCharacter?.zeroHpResolution?.disperses, snapshot.vitals.hp.max)
+				: null;
+
+			// What's true right now, in the order the card says it: the state they're in wins,
+			// and the "which move do I trigger" hint only matters while they're up. Built here
+			// rather than as a conditional ladder in the template, like every other special-move
+			// card's hint, so a new state is one row rather than two Handlebars chains.
+			const l = (key, data) => (data
+				? game.i18n.format(`stonetop.specialMoves.deathsDoor.${key}`, data)
+				: game.i18n.localize(`stonetop.specialMoves.deathsDoor.${key}`));
+			let hint = null;
+			if (isDead)             hint = { icon: "fa-door-closed",    text: l("deadHint"),        isState: true };
+			else if (isFatePending) hint = { icon: "fa-hourglass-half", text: l("fatePendingHint"), isState: true };
+			else if (isOutOfAction) hint = { icon: "fa-bed",            isState: true,
+				text: reform ? l("dispersedHint", { hp: reform }) : l("outOfActionHint") };
+			else if (!isDeathsDoor) hint = { icon: "fa-skull",          text: l("supersededHint", { move: move.name }) };
+			else if (!canFace)      hint = { icon: "fa-lock",           text: l("lockedHint") };
+
+			// The one control the card carries, in the same order. "Choose fate" reopens the
+			// dialog on the three fates (the roll is spent); clearing a lingering state is the
+			// reform for a Ghost; an insert's own 0-HP move is rolled from the sheet instead.
+			let action;
+			if (isFatePending)             action = { cls: "stonetop-deathsdoor-open-btn",  icon: "fa-scale-unbalanced", label: l("chooseFate") };
+			else if (isOutOfAction || isDead) action = { cls: "stonetop-deathsdoor-clear-btn", icon: "fa-rotate-left",   label: l(reform ? "reform" : "clear") };
+			else if (!isDeathsDoor)        action = { cls: "stonetop-deathsdoor-open-btn",  icon: "fa-skull",     label: move.name, disabled: hp > 0 };
+			else                           action = { cls: "stonetop-deathsdoor-open-btn",  icon: "fa-door-open", label: l("button"), disabled: !canFace };
+
+			return {
+				hint,
+				action,
+				// Only Death's Door opens the walkthrough, and only while it's actually theirs to
+				// face; a 6- awaiting its fate is the other way the card is live, since the roll
+				// is spent but the choice isn't made.
+				canFace,
+				isFatePending,
+			};
 		}
 
 		// Recover (special move): expend 1 use of supplies, regain HP equal to
@@ -1348,20 +1417,38 @@ export function createStonetopCharacterSheetClass(Base) {
 					// Roster: governed by its own pencil (or the whole-tab edit), not the card button.
 					individuals: followersEditing || this._editingSections.has(`follower-individuals:${ftype}:${slug}`),
 				};
-				// The portrait does two different things depending on the card's pencil, the
-				// same split every other portrait in the system uses (PC header, NPC and
-				// monster sheets): reading the sheet, a tap ENLARGES the picture; editing it,
-				// a tap opens the gallery to change it.
+				// A face is never behind the card's pencil. It is chosen from a gallery rather
+				// than typed, so no stray keystroke can disturb it, and it stays as editable
+				// while READING the card as the sheet's own header portrait is while reading
+				// the sheet (utils/actor-portrait-picker.js, openActorPortraitFromSheet).
 				//
-				// It used to open the gallery in both modes, on the reasoning that a portrait
-				// is picked rather than typed and so needs no protection from a stray
-				// keystroke. That missed the more common intent: most taps on a face are
-				// someone wanting to see it, not replace it.
-				card.portraitEditable = this.isEditable && cardOn;
+				// What the pencil changes is only what a TAP means, the same split every other
+				// portrait in the system makes: with the pencil open — the mode you are in to
+				// change things — a tap goes straight to the gallery; reading the card, it
+				// ENLARGES the picture instead, because most taps on a face are someone wanting
+				// to see it. The window that opens carries "Edit Photo" and "Frame Face" of its
+				// own (see _onFollowerPortraitView), so nothing is out of reach either way.
+				//
+				// A follower with no face yet has nothing to enlarge, so their tap opens the
+				// gallery in both modes: an avatar that does nothing when clicked is exactly
+				// the state someone most needs it from.
+				const canWritePortrait = this.isEditable;
+				card.portraitEditable = canWritePortrait && (cardOn || !card.img);
 				card.portraitViewable = !!card.img && !card.portraitEditable;
+				// The crop pip, drawn in BOTH modes on the terms the header's pips use: real art
+				// to frame, and a viewer who may write it. Framing is not an edit-mode act — it
+				// is a reading choice about a picture that already exists.
+				card.portraitFrameable = canWritePortrait && !!card.img;
+				// Its neighbour, for the TOKEN — the same pair, in the same order, a sheet header
+				// carries. A follower has a token to make once they exist as an Actor, which is
+				// normally the moment they were added (ensureFollowerActors below). Never offered
+				// where clicking it would have to CREATE that actor: a card whose actor has been
+				// deliberately deleted keeps its stale link and is left alone, and a 20px pip is
+				// not the place to quietly overrule that.
+				card.portraitTokenizable = card.portraitFrameable && canOpenTokenizer(followerActorFromLink(card));
 				// One class drives the cursor and the hover ring for both jobs; the handler
-				// decides which by mode. A card with no portrait and no pencil does nothing,
-				// so it gets neither.
+				// decides which by mode. A card with no portrait that nobody may change does
+				// nothing, so it gets neither.
 				card.portraitInteractive = card.portraitEditable || card.portraitViewable;
 				return card;
 			};
@@ -1540,26 +1627,35 @@ export function createStonetopCharacterSheetClass(Base) {
 					const val = Math.min(prosperity, 2);
 					return label.replace(token, html ? `${val} <em>piercing</em>` : `${val} piercing`);
 				};
+				// Whether the Roster's own pencil is open, computed here rather than read off
+				// card.edit.individuals: withSectionEdits runs on the finished card, and the rows
+				// inside it are built first. Same expression, one source — see withSectionEdits.
+				const crewRosterEditing = followersEditing || this._editingSections.has("follower-individuals:crew:");
 				const crewIndividuals = (sf.crew?.individuals ?? []).map((ind, idx) => {
 					const indHpRaw = (sf.crew?.individualsHp ?? {})[idx];
-					return { ...ind, index: idx, hpMax: crewMaxHp, hpCurrent: _clampHp(indHpRaw, crewMaxHp) };
+					return {
+						...ind, index: idx, hpMax: crewMaxHp, hpCurrent: _clampHp(indHpRaw, crewMaxHp),
+						// A named individual keeps their face on their own row, beside their name
+						// and traits (see roster-portraits.js), so it rides the splice when the
+						// crew shrinks instead of needing the index re-key individualsHp does.
+						...rosterAvatarContext(ind, { name: ind?.name, canWrite: this.isEditable, rosterEditing: crewRosterEditing }),
+					};
 				});
 				// Roster: the crew is "a half-dozen strong by default" (Crew insert,
 				// p.144). Named individuals are the members who've "stood out"; the
 				// rest are tracked as anonymous members. Every member has their own
 				// current HP against the one shared max (NPCs & Followers, p.470/472).
 				const crewNamedCount = crewIndividuals.length;
-				const crewSize       = _effectiveCrewSize(sf.crew?.size, crewNamedCount);
+				const crewSize       = effectiveCrewSize(sf.crew?.size, crewNamedCount);
 				const crewAnonCount  = Math.max(0, crewSize - crewNamedCount);
 				const crewMemberHp   = Array.isArray(sf.crew?.memberHp) ? sf.crew.memberHp : [];
-				const crewAnonMembers = Array.from({ length: crewAnonCount }, (_, i) => {
-					const raw = crewMemberHp[i];
-					return {
-						index:     i,
-						label:     `Crew member ${crewNamedCount + i + 1}`,
-						hpMax:     crewMaxHp,
-						hpCurrent: _clampHp(raw, crewMaxHp),
-					};
+				// An anonymous member has no row of their own to hang a face on, so their portrait
+				// is its own array slot, parallel to memberHp and moved with it.
+				const crewMemberImg  = Array.isArray(sf.crew?.memberPortrait) ? sf.crew.memberPortrait : [];
+				const crewAnonMembers = this._anonRosterMembers(crewAnonCount, {
+					hp: crewMemberHp, img: crewMemberImg, hpMax: crewMaxHp,
+					editing: crewRosterEditing,
+					labelFor: (i) => crewAnonMemberLabel(crewNamedCount, i),
 				});
 				const crewAliveCount = crewIndividuals.filter(m => m.hpCurrent > 0).length
 				                     + crewAnonMembers.filter(m => m.hpCurrent > 0).length;
@@ -1904,14 +2000,18 @@ export function createStonetopCharacterSheetClass(Base) {
 					// hired warband, an arcana-summoned group, or a converted group monster.
 					if (c?.isGroup) {
 						const memberHpMax = hpMax || 1;
-						const size = Math.max(2, Math.trunc(Number(c?.size) || 0) || 2);
-						const memberHpRaw = Array.isArray(c?.memberHp) ? c.memberHp : [];
-						const anonMembers = Array.from({ length: size }, (_, i) => ({
-							index:     i,
-							label:     `Member ${i + 1}`,
-							hpMax:     memberHpMax,
-							hpCurrent: _clampHp(memberHpRaw[i], memberHpMax),
-						}));
+						const size = customGroupSize(c);
+						const memberHpRaw  = Array.isArray(c?.memberHp) ? c.memberHp : [];
+						// Faces, on the crew roster's terms: an array parallel to memberHp, trimmed
+						// with it by the size stepper. This roster has no named individuals, so
+						// every row is an anonymous slot.
+						const memberImgRaw = Array.isArray(c?.memberPortrait) ? c.memberPortrait : [];
+						const groupEditing = cardEditing("custom", id);
+						const anonMembers = this._anonRosterMembers(size, {
+							hp: memberHpRaw, img: memberImgRaw, hpMax: memberHpMax,
+							editing: groupEditing,
+							labelFor: (i) => `Member ${i + 1}`,
+						});
 						const groupHpMax     = size * memberHpMax;
 						const groupHpCurrent = _clampHp(Number(c?.groupHp), groupHpMax);
 						card.isGroup        = true;
@@ -1966,14 +2066,17 @@ export function createStonetopCharacterSheetClass(Base) {
 					.map(t => (typeof t === "string" ? t : t?.label))
 					.filter(Boolean);
 				card.orderTagsCsv = tags.join("|");
+				// A follower's moves earn the same +1/+2 as a tag ("at least one
+				// appropriate tag or move", p.462), so the Order dialog chips them
+				// alongside the tags. Pipe-joined like the tags — a move line is free
+				// text, so strip any pipe rather than let it split into two chips.
+				const moves = (card.movesLines ?? []).map(m => String(m).replace(/\|/g, "/"));
+				card.orderMovesCsv = moves.join("|");
 				card.orderName    = card.name || card.label || card.namePlaceholder || card.typeLabel || "Follower";
-				// One string for the portrait button's tooltip AND its aria-label, so a copy edit
-				// cannot leave the sighted and the screen-reader name disagreeing.
-				card.portraitLabel = !card.portraitEditable
-					? `View ${card.orderName}'s portrait`
-					: card.img
-						? `Change ${card.orderName}'s portrait`
-						: `Choose a portrait for ${card.orderName}`;
+				// Worded by the shared labeller, so the card and the roster row cannot end up
+				// describing the same act two ways (see portraitActionLabel).
+				card.portraitLabel = portraitActionLabel(card.orderName,
+					{ editable: card.portraitEditable, hasPortrait: !!card.img });
 				card.portraitFrameLabel = `Frame ${card.orderName}'s face`;
 				if (Array.isArray(card.loyalty) && card.loyalty.length) {
 					card.loyaltyValue = card.loyalty.filter(p => p.filled).length;
@@ -2044,8 +2147,11 @@ export function createStonetopCharacterSheetClass(Base) {
 						const own = [ind.tag, ...(Array.isArray(ind.traits) ? ind.traits : [])].filter(Boolean);
 						return {
 							...ind,
-							orderName:    ind.name || `Crew member ${ind.index + 1}`,
+							orderName:    ind.name || crewIndividualLabel(ind.index),
 							orderTagsCsv: [...tags, ...own].join("|"),
+							// The crew's moves belong to every member of it, so a member
+							// ordered on their own can still lean on one.
+							orderMovesCsv: card.orderMovesCsv,
 							exceptional:  !!card.exceptional,
 						};
 					});
@@ -2148,6 +2254,15 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		activateListeners(html) {
 			super.activateListeners(html);
+
+			// Hang the tab rail off the window's right edge. Done first so everything below —
+			// notably _activateTabDragDrop — sees it in its final home rather than wiring the
+			// copy that is about to move. See module/utils/tab-rail.js.
+			mountTabRail(this, html);
+
+			// Frost the seam under the pinned header while the tab is scrolled. After the rail
+			// mount: the tab-change watcher binds to the rail in its final home on the frame.
+			mountScrollFrost(this, html);
 
 			// Notes tab: the core <prose-mirror> element fires a bubbling `change` on
 			// save/blur carrying the serialized HTML on ev.target.value. Persist it to
@@ -2315,6 +2430,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			wireTabSearch(html[0].querySelector(".tab.moves"), {
 				itemSel: ".stonetop-item",
 				textFor: li => li.textContent,
+				// Hiding / revealing cards changes the column balance, so re-pack the masonry
+				// for the new visible set (defined further down, with the packer itself).
+				onFilter: () => this._repackMoves?.(),
 			});
 			// Arcana tab: the Major and Minor sections each get their own filter, scoped to that
 			// section, so each search only hides its own cards. An active term flags the section
@@ -2441,7 +2559,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 				const altChoice = this._altStatChoiceForRollable(rollable);
 				if (altChoice) {
-					this._promptStatChoice(altChoice.item, rollable, altChoice.stats, { shiftKey: ev.shiftKey });
+					this._promptStatChoice(altChoice.item, rollable, altChoice.stats, { shiftKey: ev.shiftKey, grants: altChoice.grants });
 					return;
 				}
 				// Optional pre-roll modifier prompt for 2d6 move/stat rolls (not damage).
@@ -2704,153 +2822,157 @@ export function createStonetopCharacterSheetClass(Base) {
 				toggleArcanaFold(summary);
 			}, true);
 
-			// Masonry: lay arcana cards out by measured height, preserving authored order.
-			// A both-sides "spread" card (front | back) spans the full grid width; the
-			// narrower front-only cards pack two-up. The cards are walked into ordered
-			// segments — each spread its own full-width segment, and each run of consecutive
-			// narrow cards into a two-column block (each card placed in the currently-shortest
-			// of that block's two columns). Unlike CSS multi-column, cards stay whole — a tall
-			// card never splits — and a short card never leaves a big row-gap beside a tall one.
-			//
-			// A ResizeObserver on each grid drives it: it fires when the grid first becomes
-			// measurable (the Arcana tab is shown, 0 → width) and whenever the sheet is
-			// resized, so the columns re-balance for the new width. The original card order
-			// is captured once per grid; the width guard makes the re-pack idempotent — and
-			// also breaks the feedback loop, since re-packing changes the grid's own height,
-			// which would otherwise re-trigger the observer.
-			const packArcanaMasonry = grid => {
-				const cards = (grid._stonetopCards ??=
-					Array.from(grid.querySelectorAll(".stonetop-arcanum-card")));
-				const width = grid.clientWidth;
-				if (!cards.length || !width || grid._packedWidth === width) return;
+			// Three card grids, all packed by the shared masonry helper (utils/masonry.js): it
+			// owns the card capture, the per-width guard, the ResizeObserver and the teardown,
+			// so only the placement itself is written per grid.
+			(this._masonries ??= []).forEach(m => m.disconnect());
+			this._masonries = [];
 
+			// Arcana: lay cards out by measured height, preserving authored order. A both-sides
+			// "spread" card (front | back) spans the full grid width; the narrower front-only
+			// cards pack two-up. The cards are walked into ordered segments — each spread its own
+			// full-width segment, and each run of consecutive narrow cards into a two-column
+			// block. A short card never leaves a big row-gap beside a tall one.
+			//
+			// No layoutKey: the wide-promotion below judges each card against the width it
+			// actually rendered at, so this grid's layout varies continuously with width.
+			const packArcanaMasonry = createPacker({
+				cards: ".stonetop-arcanum-card",
 				// Reset to a flat grid (narrow cards fall back to one track) and clear any
 				// prior width-promotion, so every front-only card measures at its narrow,
 				// one-column width — the width the "too tall" test below judges it at.
-				for (const card of cards) card.classList.remove("stonetop-arcanum-card--wide");
-				grid.replaceChildren(...cards);
-				if (!cards[0].offsetHeight) return; // not measurable yet (tab still hidden)
+				reset: (grid, cards) => {
+					for (const card of cards) card.classList.remove("stonetop-arcanum-card--wide");
+					grid.replaceChildren(...cards);
+				},
+				place: (cards) => {
+					if (!cards[0].offsetHeight) return null; // not measurable yet (tab still hidden)
 
-				// Measure every card at its narrow width in one pass (reads before any style
-				// write, so no per-card reflow), then promote any front-only card that renders
-				// more than twice as tall as it is wide to span the full grid width: an
-				// over-long arcanum reads better as one short, wide card than a skinny
-				// sliver. Genuine both-sides spreads are already full-width and left alone.
-				// Skip the promotion when the normal masonry column is already comfortably
-				// wide; at that point the card should stay in the balanced column flow.
-				const WIDE_PROMOTION_MAX_COLUMN_PX = 460;
-				const measured = cards.map(card => ({ card, h: card.offsetHeight, w: card.offsetWidth }));
-				const heights = new Map();
-				for (const { card, h, w } of measured) {
-					heights.set(card, h);
-					if (card.classList.contains("stonetop-arcanum-card--spread")) continue;
-					if (h > w * 2 && w < WIDE_PROMOTION_MAX_COLUMN_PX) card.classList.add("stonetop-arcanum-card--wide");
-				}
-
-				// Walk cards into ordered segments: a full-width card (a spread, or one
-				// promoted wide above) stands alone; consecutive narrow cards accumulate into
-				// a two-column array to balance.
-				// A collapsed card is clamped to a header + lead, so it always packs as a
-				// narrow one-column card — even a spread, whose full-width span is dropped
-				// (both in CSS and here) while collapsed.
-				const isFullWidth = card =>
-					!card.classList.contains("is-collapsed") &&
-					(card.classList.contains("stonetop-arcanum-card--spread") ||
-					 card.classList.contains("stonetop-arcanum-card--wide"));
-				const segments = [];
-				let run = null;
-				for (const card of cards) {
-					if (isFullWidth(card)) {
-						run = null;
-						segments.push(card);
-					} else {
-						if (!run) segments.push(run = []);
-						run.push(card);
+					// Measure every card at its narrow width in one pass (reads before any style
+					// write, so no per-card reflow), then promote any front-only card that renders
+					// more than twice as tall as it is wide to span the full grid width: an
+					// over-long arcanum reads better as one short, wide card than a skinny
+					// sliver. Genuine both-sides spreads are already full-width and left alone.
+					// Skip the promotion when the normal masonry column is already comfortably
+					// wide; at that point the card should stay in the balanced column flow.
+					const WIDE_PROMOTION_MAX_COLUMN_PX = 460;
+					const measured = cards.map(card => ({ card, h: card.offsetHeight, w: card.offsetWidth }));
+					const heights = new Map();
+					for (const { card, h, w } of measured) {
+						heights.set(card, h);
+						if (card.classList.contains("stonetop-arcanum-card--spread")) continue;
+						if (h > w * 2 && w < WIDE_PROMOTION_MAX_COLUMN_PX) card.classList.add("stonetop-arcanum-card--wide");
 					}
-				}
 
-				const nodes = segments.map(seg => {
-					if (!Array.isArray(seg)) return seg; // a full-width card (spread or promoted)
-					const block = document.createElement("div");
-					block.className = "stonetop-arcana-masonry";
-					const cols = [0, 1].map(() => {
-						const c = document.createElement("div");
-						c.className = "stonetop-arcana-col";
-						return c;
+					// Walk cards into ordered segments: a full-width card (a spread, or one
+					// promoted wide above) stands alone; consecutive narrow cards accumulate into
+					// a two-column array to balance.
+					// A collapsed card is clamped to a header + lead, so it always packs as a
+					// narrow one-column card — even a spread, whose full-width span is dropped
+					// (both in CSS and here) while collapsed.
+					const isFullWidth = card =>
+						!card.classList.contains("is-collapsed") &&
+						(card.classList.contains("stonetop-arcanum-card--spread") ||
+						 card.classList.contains("stonetop-arcanum-card--wide"));
+					const segments = [];
+					let run = null;
+					for (const card of cards) {
+						if (isFullWidth(card)) {
+							run = null;
+							segments.push(card);
+						} else {
+							if (!run) segments.push(run = []);
+							run.push(card);
+						}
+					}
+
+					return segments.map(seg => {
+						if (!Array.isArray(seg)) return seg; // a full-width card (spread or promoted)
+						const block = document.createElement("div");
+						block.className = "stonetop-arcana-masonry";
+						const cols = makeColumns(2, "stonetop-arcana-col");
+						packShortest(seg, cols, card => heights.get(card) ?? card.offsetHeight);
+						block.append(...cols);
+						return block;
 					});
-					const colHeights = [0, 0];
-					for (const card of seg) {
-						const i = colHeights[0] <= colHeights[1] ? 0 : 1;
-						colHeights[i] += heights.get(card) ?? card.offsetHeight;
-						cols[i].appendChild(card);
-					}
-					block.append(...cols);
-					return block;
-				});
-				grid.replaceChildren(...nodes);
-				grid._packedWidth = width;
-			};
-			this._arcanaMasonryObserver?.disconnect();
-			this._arcanaMasonryObserver = new ResizeObserver(entries => {
-				for (const entry of entries) packArcanaMasonry(entry.target);
+				},
 			});
-			html[0].querySelectorAll(".stonetop-arcana-grid").forEach(grid => {
-				// Pack the visible grid now (it has width because super.activateListeners
-				// already activated the tab) so its final, shorter height is in place
-				// before Foundry restores scrollTop — otherwise the async observer repacks
-				// after the restore, shrinking the grid and clamping the scroll position.
-				packArcanaMasonry(grid);
-				this._arcanaMasonryObserver.observe(grid);
-			});
+			// Collapsing / expanding a card changes its height but not the grid width, so the
+			// width-guarded observer won't re-balance the two columns on its own.
+			this._repackArcana = this._wireMasonry(packArcanaMasonry, ".stonetop-arcana-grid", html);
 
-			// Re-pack every arcana grid on demand. Collapsing / expanding a card changes its
-			// height but not the grid width, so the width-guarded observer won't re-balance
-			// the two columns on its own — invalidate the per-width guard and re-run the packer.
-			this._repackArcana = () => {
-				html[0].querySelectorAll(".stonetop-arcana-grid").forEach(grid => {
-					grid._packedWidth = null;
-					packArcanaMasonry(grid);
-				});
-			};
-
-			// Special-moves masonry: distribute the few, variable-height special-move
-			// cards ROW-MAJOR into as many equal-width column tracks as the tab is wide
-			// enough to hold (card i → column i % N). Unlike CSS multi-column — which
-			// balances by height and, with only a handful of cards, can leave a right-hand
-			// column holding more rows than one to its left — this keeps the fill strictly
-			// left-weighted while each track stays a tight, natural-height stack. Driven by
-			// a ResizeObserver, exactly like the arcana grid above: it fires when the tab
-			// first gains width (0 → measurable) and on every sheet resize, and the
-			// per-width guard makes the re-pack idempotent (so re-packing, which shortens
-			// the grid, doesn't feed back into the observer).
-			const SPECIAL_MOVE_MIN_COL_PX = 280;
-			const SPECIAL_MOVE_COL_GAP_PX = 12;
-			const packSpecialMoves = grid => {
-				const cards = (grid._stonetopCards ??=
-					Array.from(grid.querySelectorAll(".stonetop-special-move-card")));
-				const width = grid.clientWidth;
-				if (!cards.length || !width || grid._packedWidth === width) return;
-
-				const colCount = Math.max(1, Math.min(cards.length,
-					Math.floor((width + SPECIAL_MOVE_COL_GAP_PX) /
-						(SPECIAL_MOVE_MIN_COL_PX + SPECIAL_MOVE_COL_GAP_PX))));
-				const cols = Array.from({ length: colCount }, () => {
-					const c = document.createElement("div");
-					c.className = "stonetop-special-move-col";
-					return c;
-				});
-				cards.forEach((card, i) => cols[i % colCount].appendChild(card));
-				grid.replaceChildren(...cols);
-				grid._packedWidth = width;
-			};
-			this._specialMoveMasonryObserver?.disconnect();
-			this._specialMoveMasonryObserver = new ResizeObserver(entries => {
-				for (const entry of entries) packSpecialMoves(entry.target);
+			// Special moves: distribute the few, variable-height cards ROW-MAJOR into as many
+			// equal-width column tracks as the tab is wide enough to hold (card i → column i % N).
+			// Unlike CSS multi-column — which balances by height and, with only a handful of
+			// cards, can leave a right-hand column holding more rows than one to its left — this
+			// keeps the fill strictly left-weighted while each track stays a tight,
+			// natural-height stack.
+			const SPECIAL_MOVE_COLS = { minPx: 280, gapPx: 12 };
+			const packSpecialMoves = createPacker({
+				cards: ".stonetop-special-move-card",
+				layoutKey: width => fitColumns(width, SPECIAL_MOVE_COLS),
+				place: (cards, width) => {
+					const cols = makeColumns(
+						Math.min(cards.length, fitColumns(width, SPECIAL_MOVE_COLS)),
+						"stonetop-special-move-col");
+					cards.forEach((card, i) => cols[i % cols.length].appendChild(card));
+					return cols;
+				},
 			});
-			html[0].querySelectorAll(".stonetop-special-move-grid").forEach(grid => {
-				packSpecialMoves(grid);
-				this._specialMoveMasonryObserver.observe(grid);
+			this._wireMasonry(packSpecialMoves, ".stonetop-special-move-grid", html);
+
+			// Moves: the same problem the arcana grid has, and the same answer. CSS multi-column
+			// never bin-packs, so a card taller than the balanced column height starts the next
+			// column and everything after it stacks BELOW it there — leaving the column to its
+			// left half empty (the Lightbearer's "Invoke the Sun God" starting column 2, so
+			// "Purifying Flames" lands under it while "Consecrated Flame" sits alone on the left).
+			// Width numbers match `column-width` / `column-gap` / `column-count` on
+			// .stonetop-move-group .items-list; keep them in step.
+			const MOVE_COLS = { minPx: 240, gapPx: 16, max: 4 };
+			const packMoveMasonry = createPacker({
+				cards: ".stonetop-item",
+				layoutKey: width => fitColumns(width, MOVE_COLS),
+				// Back to the flat CSS-column list first, so every card measures at one
+				// column's width — the width it will have in a packed track, so the heights
+				// we balance on are the heights it will actually render at.
+				reset: (list, cards) => {
+					list.classList.remove("is-packed");
+					list.replaceChildren(...cards);
+				},
+				place: (cards, width, list) => {
+					// A card hidden by "Hide un-learned moves" or by an active search measures 0.
+					// Those are kept OUT of the balance (they take no room) but stay in the tree,
+					// parked at the end, so the next pack still sees them — the search re-runs
+					// this whenever the visible set changes.
+					const heights = new Map(cards.map(card => [card, card.offsetHeight]));
+					const visible = cards.filter(card => heights.get(card) > 0);
+					if (!visible.length) return null; // nothing measurable yet (tab still hidden, or all filtered out)
+
+					const colCount = Math.min(visible.length, fitColumns(width, MOVE_COLS));
+					// One column is what the flat list already is; leave it in CSS's hands rather
+					// than wrapping a single track around it.
+					if (colCount < 2) return cards;
+
+					const tracks = makeColumns(colCount, "stonetop-move-col", "li").map(track => {
+						const inner = document.createElement("ul");
+						inner.className = "stonetop-move-col-list";
+						track.appendChild(inner);
+						return track;
+					});
+					packShortest(visible, tracks, card => heights.get(card),
+						(track, card) => track.firstChild.appendChild(card));
+					tracks.at(-1).firstChild.append(...cards.filter(card => !heights.get(card)));
+					list.classList.add("is-packed");
+					return tracks;
+				},
 			});
+			// Filtering the tab (typing in the Moves search, clearing it, Escape) changes which
+			// cards have height without changing any list's width, so the width guard would hold
+			// the stale packing; the search's onFilter calls this back. Wired here rather than at
+			// the wireTabSearch call above because that runs before this packer exists; the
+			// callback only ever fires on user input, long after both.
+			this._repackMoves = this._wireMasonry(
+				packMoveMasonry, ".tab.moves .stonetop-move-group .items-list", html);
 
 			if (showMoveRefHover) {
 				let _moveRefHovered = null;
@@ -2903,10 +3025,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			// at a face is not an edit, and a player reading a sheet they can't edit is
 			// exactly who most wants a better look at it.
 			//
-			// The picker is nonetheless reached only through the --editable class, which the
-			// template renders behind the same sheet-level editability that put the tabindex
-			// on the element. So the pointer path and the keyboard path are gated by one fact,
-			// in one place, and this call site needs no second check.
+			// The --editable class marks a portrait that DOES something on a tap, in either
+			// mode; which of the two it does is data-portrait-mode, and the writing routes
+			// (the gallery, the framer) carry their own isEditable check in getData, where the
+			// class and the tabindex are decided together. So the pointer path and the keyboard
+			// path are gated by one fact, in one place, and this call site needs no second check.
 			wireAvatarPreview(html[0], ".stonetop-follower-portrait-img");
 			const pickFollowerPortrait = ev => {
 				// Cheap test first: this is bound in capture phase on the whole sheet, so every
@@ -2919,23 +3042,60 @@ export function createStonetopCharacterSheetClass(Base) {
 				// out from under the card while the gallery opens over it.
 				ev.preventDefault();
 				ev.stopPropagation();
-				// The crop pip sits inside the portrait and opens the framer instead of the
-				// gallery. Checked after the portrait lookup so it inherits the same guards, and
-				// the pip carries tabindex="-1" so it never takes the card's tab stop.
+				// The two pips sit inside the portrait and do their own job instead of the
+				// gallery's. Checked after the portrait lookup so they inherit the same guards,
+				// and each carries tabindex="-1" so neither takes the card's tab stop.
 				if (ev.target.closest?.(".stonetop-follower-portrait-frame")) {
 					this._onFollowerPortraitFrame(portrait);
 					return;
 				}
-				// Reading the sheet, a tap enlarges the face; editing the card, it opens the
-				// gallery. Stated as an attribute rather than inferred from what else is on the
-				// card: an editable follower with no portrait yet has no crop pip either, and
-				// inferring the mode from the pip would send exactly that case to the viewer,
-				// which has nothing to show.
+				if (ev.target.closest?.(".stonetop-follower-portrait-tokenize")) {
+					this._onFollowerTokenize(portrait);
+					return;
+				}
+				// Reading the card, a tap enlarges the face; editing it — or with no face yet to
+				// enlarge — it opens the gallery. Stated as an attribute rather than inferred
+				// from what else is on the card: the crop pip is now drawn in both modes, so
+				// nothing in the DOM distinguishes them any more.
 				if (portrait.dataset.portraitMode === "pick") this._onFollowerPortraitPick(portrait);
 				else this._onFollowerPortraitView(portrait);
 			};
 			html[0].addEventListener("click", pickFollowerPortrait, true);
 			html[0].addEventListener("keydown", pickFollowerPortrait, true);
+
+			// The same two things, for the faces on a group follower's ROSTER — the crew's named
+			// individuals and anonymous members, and a custom group's members. A separate wiring
+			// rather than a widened selector because a roster row resolves its store from
+			// (roster kind, slug, index) where a card resolves its from (ftype, slug); pooling
+			// them would mean one handler branching on which dataset it found. The hover preview
+			// IS pooled, though — wireAvatarPreview joins selectors into one listener pair.
+			wireAvatarPreview(html[0], ".stonetop-roster-avatar-img");
+			const pickRosterAvatar = ev => {
+				if (ev.type === "keydown" && ev.key !== "Enter" && ev.key !== " ") return;
+				const avatar = ev.target.closest?.(".stonetop-roster-avatar--editable");
+				if (!avatar) return;
+				// Space would otherwise scroll the roster out from under the row while the
+				// gallery opens over it.
+				ev.preventDefault();
+				ev.stopPropagation();
+				if (avatar.dataset.portraitMode === "pick") this._onRosterAvatarPick(avatar);
+				else this._onRosterAvatarView(avatar);
+			};
+			html[0].addEventListener("click", pickRosterAvatar, true);
+			html[0].addEventListener("keydown", pickRosterAvatar, true);
+
+			// Every follower on this sheet becomes an `npc` Actor, made here rather than at each of
+			// the dozen places a follower can arrive from (the walkthrough, a converted monster or
+			// NPC, a possession, an arcana summon, the onboarding dialog's animal companion, crew
+			// and initiates). All of them end in a render of this sheet, and this is the first
+			// point at which a card is finished enough to become an actor: its numbers come from
+			// the playbook and the override passes, not from the raw flags.
+			//
+			// Fired and forgotten. Nothing on screen waits for it — the cards are already drawn —
+			// and the write it makes at the end re-renders the sheet with the links in place. It
+			// does nothing at all once every follower has one, which is the state after the first
+			// pass; see ensureFollowerActors for the rest of the guards.
+			ensureFollowerActors(this.actor, [...(this._followerDragData?.values() ?? [])]);
 
 			// Followers tab: drag a card onto the canvas to put that follower on the map as a
 			// token (module/hooks/FollowerDrop.js turns the payload below into an Actor).
@@ -3122,6 +3282,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-levelup-open-btn").on("click", this._onLevelUpOpen.bind(this));
 			html.find(".stonetop-levelup-icon").on("click", this._onLevelUpOpen.bind(this));
 			html.find(".stonetop-deathsdoor-open-btn").on("click", this._onDeathsDoorOpen.bind(this));
+			html.find(".stonetop-deathsdoor-clear-btn").on("click", this._onDeathsDoorClear.bind(this));
 			html.find(".stonetop-recover-open-btn").on("click", this._onRecoverOpen.bind(this));
 			html.find(".stonetop-convalesce-open-btn").on("click", this._onConvalesceOpen.bind(this));
 
@@ -3132,6 +3293,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-wound-tend").on("click", ev => this._onWoundTend(this._woundIdFromEvent(ev)));
 			html.find(".stonetop-wound-edit").on("click", ev => this._onWoundEdit(this._woundIdFromEvent(ev)));
 			html.find(".stonetop-wound-remove").on("click", ev => this._onWoundRemove(this._woundIdFromEvent(ev)));
+
+			// Damage die, typed by hand in edit mode. Saved as an override rather than through
+			// the form, since the field's rendered value is the computed die (see actor-vitals.hbs).
+			html.find("[data-damage-die]").on("change", this._onDamageDieEdit.bind(this));
 
 			// -- Followers tab: shared follower-card fields ----------------
 			// Common, hand-editable fields on every follower card (name,
@@ -3455,7 +3620,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				// Shrink the roster by one: "Remove" takes the member out of the crew
 				// entirely. Without this the freed slot reappears as a fresh full-HP
 				// anonymous member (`size` would still imply the old headcount).
-				const sizeBefore = _effectiveCrewSize(this.actor.getFlag("stonetop_pwd", "crew.size"), individuals.length + 1);
+				const sizeBefore = effectiveCrewSize(this.actor.getFlag("stonetop_pwd", "crew.size"), individuals.length + 1);
 				const newSize = Math.max(individuals.length, sizeBefore - 1);
 				update["flags.stonetop_pwd.crew.size"] = newSize;
 				clampStoredGroupHp(update, newSize);
@@ -3472,13 +3637,21 @@ export function createStonetopCharacterSheetClass(Base) {
 			// individuals. Trims trailing anonymous-member HP entries when shrinking.
 			const setCrewSize = async (size) => {
 				const namedCount = (this.actor.getFlag("stonetop_pwd", "crew.individuals") ?? []).length;
-				const clamped    = Math.min(_CREW_SIZE_MAX, Math.max(namedCount, Math.max(0, size)));
+				const clamped    = Math.min(CREW_SIZE_MAX, Math.max(namedCount, Math.max(0, size)));
 				const anonCount  = Math.max(0, clamped - namedCount);
 				const memberHp   = (this.actor.getFlag("stonetop_pwd", "crew.memberHp") ?? []).slice(0, anonCount);
 				const update = {
 					"flags.stonetop_pwd.crew.size":     clamped,
 					"flags.stonetop_pwd.crew.memberHp": memberHp,
 				};
+				// The anonymous members' faces are an array parallel to their HP, so they are trimmed
+				// by the same cut. Only written when there is something to trim: an untouched roster
+				// has no portrait store at all, and seeding an empty array here would leave one
+				// behind on every crew that never picked a face.
+				const memberPortrait = rosterPortraitList(this.actor, "crew-member");
+				if (memberPortrait.length > anonCount) {
+					update["flags.stonetop_pwd.crew.memberPortrait"] = memberPortrait.slice(0, anonCount);
+				}
 				clampStoredGroupHp(update, clamped);
 				await this.actor.update(update);
 				this.render(false);
@@ -3555,12 +3728,16 @@ export function createStonetopCharacterSheetClass(Base) {
 			const setCustomGroupSize = async (slug, next) => {
 				const c = this.actor.getFlag("stonetop_pwd", `customFollowers.${slug}`);
 				if (!c) return;
-				const size = Math.max(2, Math.min(_CREW_SIZE_MAX, Math.trunc(Number(next) || 0) || 2));
+				const size = customGroupSize({ size: next });
 				const memberHpMax = Math.max(1, Math.trunc(Number(c.hpMax) || 0) || 1);
 				const update = { [`flags.stonetop_pwd.customFollowers.${slug}.size`]: size };
 				// Trim per-member HP to the new roster length.
 				if (Array.isArray(c.memberHp) && c.memberHp.length > size) {
 					update[`flags.stonetop_pwd.customFollowers.${slug}.memberHp`] = c.memberHp.slice(0, size);
+				}
+				// And their faces, which are an array parallel to that HP (roster-portraits.js).
+				if (Array.isArray(c.memberPortrait) && c.memberPortrait.length > size) {
+					update[`flags.stonetop_pwd.customFollowers.${slug}.memberPortrait`] = c.memberPortrait.slice(0, size);
 				}
 				// Clamp an explicitly-set group pool to the new max (unset tracks full).
 				const rawPool = Number(c.groupHp);
@@ -3573,7 +3750,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			};
 			html.find(".stonetop-custom-group-size-step").on("click", ev => {
 				const { slug, delta } = ev.currentTarget.dataset;
-				const cur = Math.max(2, Math.trunc(Number(this.actor.getFlag("stonetop_pwd", `customFollowers.${slug}.size`)) || 0) || 2);
+				const cur = customGroupSize({ size: this.actor.getFlag("stonetop_pwd", `customFollowers.${slug}.size`) });
 				setCustomGroupSize(slug, cur + Number(delta));
 			});
 			html.find(".stonetop-custom-group-size-input").on("change", ev =>
@@ -3739,11 +3916,15 @@ export function createStonetopCharacterSheetClass(Base) {
 				new Dialog({
 					title:   "Name this Crew Member",
 					content,
+					// One button, keyed `save`. NOT `add`: that key is in the global affirmative list
+					// (`.vtt .dialog .dialog-buttons [data-button="add"]`), which pushes its button to
+					// the far LEFT with `margin-right: auto` so a Cancel can sit opposite it. With
+					// nothing to sit opposite, that rule would strand the lone button on the left.
+					// Closing the window is the cancel — the titlebar ✕ already does it.
 					buttons: {
-						cancel: { label: "Cancel" },
-						add: {
+						save: {
 							icon:  "<i class='fas fa-user-pen'></i>",
-							label: "Name",
+							label: "Save",
 							callback: async (dlgHtml) => {
 								const name = dlgHtml.find("[name='ind-name']").val().trim();
 								if (!name) return;
@@ -3780,16 +3961,32 @@ export function createStonetopCharacterSheetClass(Base) {
 								const individualsHp = { ...(this.actor.getFlag("stonetop_pwd", "crew.individualsHp") ?? {}) };
 								if (carriedHp != null) individualsHp[newIndex] = carriedHp;
 								memberHp.splice(anonIndex, 1);
-								await this.actor.update({
-									"flags.stonetop_pwd.crew.individuals":   [...individuals, { name, tag, traits }],
+								// The face comes with them. Standing out is the moment a body on the
+								// roster becomes a person, so losing the portrait here would be the
+								// one point in the crew's life where a chosen face is thrown away.
+								// It moves OUT of the parallel array and ONTO the new row, which is
+								// where a named individual keeps theirs (roster-portraits.js).
+								const memberPortrait = rosterPortraitList(this.actor, "crew-member");
+								const [carriedFace]  = memberPortrait.splice(anonIndex, 1);
+								const named = { name, tag, traits };
+								if (carriedFace?.img)           named.img           = carriedFace.img;
+								if (carriedFace?.portraitFrame) named.portraitFrame = carriedFace.portraitFrame;
+								const update = {
+									"flags.stonetop_pwd.crew.individuals":   [...individuals, named],
 									"flags.stonetop_pwd.crew.individualsHp": individualsHp,
 									"flags.stonetop_pwd.crew.memberHp":      memberHp,
-								});
+								};
+								// Only when the store exists: a crew that has never picked a face
+								// should not gain an empty array the first time it names somebody.
+								if (memberPortrait.length || carriedFace !== undefined) {
+									update["flags.stonetop_pwd.crew.memberPortrait"] = memberPortrait;
+								}
+								await this.actor.update(update);
 								this.render(false);
 							},
 						},
 					},
-					default: "add",
+					default: "save",
 					render: (dlgHtml) => {
 						bringDialogToFront(dlgHtml);
 						// Swap the name/tag/trait combos' native <datalist> popups (which
@@ -3810,7 +4007,19 @@ export function createStonetopCharacterSheetClass(Base) {
 							});
 						});
 					},
-				}, { width: 540, height: 580, classes: ["dialog", "stonetop-individual-dialog"] }).render(true);
+					// "stonetop" is what carries our window CHROME — the header bar, the content
+					// parchment, the focus glow — all of which is scoped to that class so it cannot
+					// bleed onto core or another module's windows. Without it this dialog kept
+					// Foundry's default dark header and textured body while still picking up its own
+					// `.stonetop-individual-dialog` form and button rules, which is why it looked
+					// half-styled rather than plainly unstyled.
+					// height "auto", not a fixed 580: this dialog is three short fields and a chip
+					// list, so a fixed height left ~226px of dead air between the traits and the
+					// footer. The trait grid caps itself at 340px and scrolls, so "auto" cannot run
+					// away on a crew with a long trait list. Resizing the window taller still keeps
+					// Save in the bottom-right corner — that is what the footer's margin-top:auto is
+					// for, and it now only does work when there IS slack to take up.
+				}, { width: 540, height: "auto", classes: ["dialog", "stonetop", "stonetop-individual-dialog"] }).render(true);
 			};
 			html.find(".stonetop-crew-name-member").on("click", ev => {
 				openNameMemberDialog(Number(ev.currentTarget.dataset.index));
@@ -3839,34 +4048,24 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (dmgLabel) dmgLabel.textContent    = roll;
 			}, true);
 
-			// -- Followers: group fight Clash / Let Fly --
-			html[0].addEventListener("click", async ev => {
-				const btn = ev.target.closest(".stonetop-group-fight-roll");
-				if (!btn) return;
-				ev.stopPropagation();
-				const moveLabel = btn.dataset.moveLabel || "Clash";
-				// Order Followers (p.462): a group rolls its OWN bonus (the crew's
-				// rollMod, the "+1" the card shows), not the PC's +STAT. The crew's
-				// modifier already bakes in its relevant tag(s), so the group-fight
-				// shortcut skips the per-tag prompt and rolls it directly.
-				const bonus = Math.trunc(Number(btn.dataset.rollMod) || 0);
-				// Read the name off the group-fight damage button's data attribute, not
-				// the header's name text — that text node is replaced by an <input> in
-				// edit mode, which would drop the name to the "Crew" fallback.
-				const section  = btn.closest(".stonetop-group-fight-section");
-				const crewName = section?.querySelector(".stonetop-group-fight-dmg-roll")?.dataset.followerName?.trim() || "Crew";
-				await this._stonetopCharacter.onOrderFollowersRoll({ bonus, moveName: `${crewName}: ${moveLabel}` });
-			}, true);
-
 			// -- Followers: Order (direct any follower to make a move, p.462) --
+			// Every way in comes through here: the per-card Order button, a named crew
+			// member's own button, and both groups' Clash / Let Fly. The crew's
+			// group-fight buttons used to shortcut straight to a roll on the pre-baked
+			// `rollMod` the card shows, which meant a group could never come out with
+			// disadvantage even when a shared tag was plainly in the way — and that
+			// modifier is only ever "+1 if a tag applies, +2 if exceptional", which is
+			// exactly what the dialog derives anyway.
 			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".stonetop-follower-order");
 				if (!btn) return;
 				ev.stopPropagation();
-				const tags = (btn.dataset.tags || "").split("|").map(s => s.trim()).filter(Boolean);
+				const pipeList = (raw) => (raw || "").split("|").map(s => s.trim()).filter(Boolean);
 				const follower = {
 					name:        btn.dataset.followerName || "Follower",
-					tags,
+					tags:        pipeList(btn.dataset.tags),
+					// Their moves count toward the same bonus as their tags (p.462).
+					moves:       pipeList(btn.dataset.moves),
 					exceptional: btn.dataset.exceptional === "true",
 					// A group-fight Clash/Let Fly button pre-selects that move; the plain
 					// Order button leaves it at the default (Defy Danger).
@@ -4183,6 +4382,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._stonetopCharacter.setPostDeathInsert(btn.dataset.slug).then(() => this.render(false));
 			}, true);
 
+			// The Ghost's tether. Saved on blur (not per keystroke) so naming it doesn't re-render
+			// the sheet out from under the cursor.
+			html.find(".stonetop-pdi-tether-input").on("change", ev => {
+				this._stonetopCharacter.setTether(ev.currentTarget.value).then(() => this.render(false));
+			});
+
 			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".stonetop-pdi-remove");
 				if (!btn) return;
@@ -4276,7 +4481,10 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		_activateTabDragDrop(html) {
-			const root = html[0];
+			// Scope to the window FRAME rather than the form: mountTabRail has moved the rail
+			// out of the form and onto the frame, which still contains `.window-content` (and so
+			// `.sheet-body`), making it the one root that resolves BOTH halves of a reorder.
+			const root = this.element?.[0] ?? html[0];
 			const nav = root.querySelector(".sheet-tabs");
 			if (!nav) return;
 
@@ -4340,18 +4548,47 @@ export function createStonetopCharacterSheetClass(Base) {
 			const tabMap = new Map(tabs.map(t => [t.dataset.tab, t]));
 			const panels = body ? [...body.children].filter(el => el.matches?.(".tab[data-tab]")) : [];
 			const panelMap = new Map(panels.map(panel => [panel.dataset.tab, panel]));
-			for (const key of savedOrder) {
+			for (const key of this._mergeTabOrder(savedOrder, tabs.map(t => t.dataset.tab))) {
 				const tab = tabMap.get(key);
 				if (tab) nav.appendChild(tab);
 				const panel = panelMap.get(key);
 				if (panel) body.appendChild(panel);
 			}
-			for (const tab of tabs) {
-				if (!savedOrder.includes(tab.dataset.tab)) nav.appendChild(tab);
+		}
+
+		/**
+		 * Fold the tabs a player has never seen into the order they saved.
+		 *
+		 * A saved order is a snapshot of the rail as it stood the day it was dragged, so any
+		 * tab added since is missing from it. Appending those at the end (what this used to do)
+		 * quietly buries a new page at the bottom of the rail for exactly the players who use
+		 * it most — the ones who reorder. Instead each unknown tab keeps its TEMPLATE position
+		 * relative to the tabs around it: it lands just after the nearest tab above it in the
+		 * template that the player did place, or first if there is none. A page written first
+		 * in character.hbs therefore arrives first for everyone; drag it and that choice sticks
+		 * from then on.
+		 *
+		 * Conditional tabs (Arcana, Followers, Post-Death) drop in and out of the template
+		 * freely — a key in `savedOrder` with no tab rendered is simply skipped by the caller.
+		 *
+		 * @param {string[]} savedOrder   tab keys in the order the player last dragged them
+		 * @param {string[]} templateOrder tab keys as the template rendered them, in DOM order
+		 * @returns {string[]} the merged order
+		 */
+		_mergeTabOrder(savedOrder, templateOrder) {
+			const merged = savedOrder.filter(key => templateOrder.includes(key));
+			for (let i = 0; i < templateOrder.length; i++) {
+				const key = templateOrder[i];
+				if (merged.includes(key)) continue;
+				// Nearest template sibling ABOVE this one that already has a place.
+				let at = 0;
+				for (let j = i - 1; j >= 0; j--) {
+					const found = merged.indexOf(templateOrder[j]);
+					if (found >= 0) { at = found + 1; break; }
+				}
+				merged.splice(at, 0, key);
 			}
-			for (const panel of panels) {
-				if (!savedOrder.includes(panel.dataset.tab)) body.appendChild(panel);
-			}
+			return merged;
 		}
 
 		_getDragEventData(ev) {
@@ -4385,12 +4622,44 @@ export function createStonetopCharacterSheetClass(Base) {
 			this.render(false);
 		}
 
+		/**
+		 * The character a drop should be written to, and the name to blame if that isn't the
+		 * one whose sheet is on screen.
+		 *
+		 * A sheet opened by double-clicking a token is backed by the TOKEN's actor. When the
+		 * token is unlinked that actor is a private copy living in the token's ActorDelta, so
+		 * everything dropped here saves to that one token and nowhere else — the player opens
+		 * their character from the sidebar and finds nothing. Characters created from now on
+		 * link their prototype token (StonetopActor._preCreate), but tokens already placed in
+		 * an existing world stay unlinked forever, so the drop has to resolve its own target.
+		 *
+		 * Redirect rather than refuse: a `character` actor is somebody's PC, and a GM dropping
+		 * gear on one always means "give this to that character", never "give this to this one
+		 * copy of them". The toast names where it landed, so nothing moves silently.
+		 *
+		 * `isToken` is true ONLY for the synthetic case — a linked token hands back the world
+		 * actor itself — so this costs nothing on the sheet opened from the sidebar.
+		 */
+		_dropTarget() {
+			const base = this.actor?.isToken ? this.actor.token?.baseActor : null;
+			const character = base?.typedActor;
+			if (!character || character === this._stonetopCharacter) {
+				return { character: this._stonetopCharacter, unlinkedFrom: null, redirectedTo: null };
+			}
+			// The Actor document as well as the character: the write lands on THAT one, so it is
+			// also the one with a sheet worth re-drawing afterwards.
+			return { character, unlinkedFrom: base.name, redirectedTo: base };
+		}
+
 		async _onDropItemCreate(itemData) {
 			const items     = Array.isArray(itemData) ? itemData : [itemData];
 			const arcana    = items.filter(i => i.type === "move" && i.system?.moveType === "arcanum");
 			const inventory = items.filter(i => i.type === "move" && i.system?.moveType === "inventory");
 			const moves     = items.filter(i => i.type === "move" && !["arcanum", "inventory"].includes(i.system?.moveType));
 			const others    = items.filter(i => i.type !== "move");
+			// Everything below writes through `target`, not `this._stonetopCharacter`, so a drop
+			// onto an unlinked token's sheet still reaches the character the player opens.
+			const { character: target, unlinkedFrom, redirectedTo } = this._dropTarget();
 			let anyAdded = false;
 			// A dropped arcanum is added UNIDENTIFIED — a face-down "mystery" card the player
 			// Identifies in play (drop is the only path that plants a mystery; onboarding,
@@ -4398,24 +4667,48 @@ export function createStonetopCharacterSheetClass(Base) {
 			// no name or art until identified, and can land on a tab you aren't looking at, a
 			// silent add reads as "nothing happened". So collect the freshly-added ones (skip
 			// arcana already owned — a re-drop is a no-op) to toast and reveal the Arcana tab.
-			const ownedArcana = this._stonetopCharacter.ownedArcanaSlugs;
+			const ownedArcana = target.ownedArcanaSlugs;
 			const addedArcana = [];
 			for (const item of arcana) {
 				const slug = item.flags?.stonetop?.slug;
 				if (slug && !ownedArcana.has(slug)) {
-					await this._stonetopCharacter.addArcanum(slug);
+					await target.addArcanum(slug);
 					addedArcana.push(item.name || item.flags?.stonetop?.front?.title || "an arcanum");
 					anyAdded = true;
 				}
 			}
 			for (const item of moves) {
-				if (await this._stonetopCharacter.onDropMove(item)) anyAdded = true;
+				if (await target.onDropMove(item)) anyAdded = true;
 			}
+			// Gear lands on a tab the GM usually isn't looking at (they drop from a journal or the
+			// Items sidebar, onto whichever tab happens to be open), and a treasure joins a
+			// "Treasures" heading partway down a long column. So a silent add reads as "nothing
+			// happened" — the same reason the arcana branch above toasts. Naming the character is
+			// what makes a drop onto the wrong actor, or onto a token copy, visible immediately.
+			const addedInventory = [];
 			for (const item of inventory) {
-				await this._stonetopCharacter.addDroppedInventoryItem(item);
+				await target.addDroppedInventoryItem(item);
+				addedInventory.push(item.name || "an item");
 				anyAdded = true;
 			}
+			// `others` (non-move documents) stays with the base handler, which writes to
+			// this.actor — so on an unlinked token it lands on the token copy. Nothing on a
+			// character sheet drops down that branch today; revisit it if something ever does.
 			if (others.length) await super._onDropItemCreate(others);
+			if (addedInventory.length) {
+				const names = joinNames(addedInventory.map(n => `"${n}"`));
+				ui.notifications?.info?.(unlinkedFrom
+					? format("stonetop.inventory.dropAddedUnlinked", { names, actor: unlinkedFrom })
+					: format("stonetop.inventory.dropAdded", { names, actor: this.actor?.name ?? "this character" }));
+			}
+			// Where the write actually LANDED, which on a redirect is NOT this sheet: this one is
+			// backed by the token's ActorDelta copy, which the drop deliberately did not touch. Both
+			// the re-render and the Arcana-tab reveal below belong to that sheet — re-drawing this
+			// one shows a sheet still visibly missing what the toast has just said was added, on the
+			// one path where the redirect most needs to read clearly. `render(false)` refreshes the
+			// base actor's sheet if it happens to be open and does nothing if it isn't, which is
+			// what "don't open windows nobody asked for" wants.
+			const landedOn = redirectedTo ? redirectedTo.sheet : this;
 			if (addedArcana.length) {
 				const one = addedArcana.length === 1;
 				ui.notifications?.info?.(
@@ -4429,9 +4722,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				// consumed by _render makes the switch deterministic regardless of which render
 				// wins — and, unlike a global Hooks.once(render…), can't be swallowed by another
 				// open character sheet that happens to re-render first.
-				this._activateArcanaTabOnRender = true;
+				if (landedOn) landedOn._activateArcanaTabOnRender = true;
 			}
-			if (anyAdded) this.render(false);
+			if (anyAdded) landedOn?.render(false);
 		}
 
 		// Roll one of this character's owned moves by its embedded item id, running the
@@ -4457,7 +4750,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (askItem) return this._promptStatChoice(askItem, rollable, undefined, { shiftKey });
 
 			const altChoice = this._altStatChoiceForRollable(rollable);
-			if (altChoice) return this._promptStatChoice(altChoice.item, rollable, altChoice.stats, { shiftKey });
+			if (altChoice) return this._promptStatChoice(altChoice.item, rollable, altChoice.stats, { shiftKey, grants: altChoice.grants });
 
 			const situational = await this._maybePromptRollModifier({ shiftKey, rollable });
 			if (situational === null) return;   // player cancelled the modifier prompt
@@ -4521,7 +4814,9 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		// A fixed-stat move (e.g. Clash +STR) becomes a stat choice when the actor owns a
 		// move that grants an alternate stat for it (e.g. Skill at Arms → +DEX). Returns
-		// { item, stats: [default, ...alts] } or null. See ALT_STAT_GRANTS.
+		// { item, stats: [default, ...alts], grants: [grantingMove, …] } or null — the
+		// granting moves come back so the picker can show the rule that earned the extra
+		// stat (their own text carries the fictional trigger). See ALT_STAT_GRANTS.
 		_altStatChoiceForRollable(rollable) {
 			const itemId = rollable.closest(".item")?.dataset.itemId;
 			if (!itemId) return null;
@@ -4529,17 +4824,19 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (!item || item.type !== "move") return null;
 			const defaultStat = normalizeRollType(item.system?.rollType);
 			if (!defaultStat || !_STAT_KEYS.has(defaultStat)) return null; // skip "ask"/formula moves
-			const owned = new Set(this.actor.items.filter(i => i.type === "move").map(i => i.name));
+			const owned = new Map(this.actor.items.filter(i => i.type === "move").map(i => [i.name, i]));
 			const alts = [];
+			const grants = [];
 			for (const g of ALT_STAT_GRANTS) {
 				const matches = (g.whenMove && g.whenMove === item.name)
 					|| (g.whenDefaultStat && g.whenDefaultStat === defaultStat);
 				if (matches && owned.has(g.ownsMove) && g.altStat !== defaultStat && !alts.includes(g.altStat)) {
 					alts.push(g.altStat);
+					grants.push(owned.get(g.ownsMove));
 				}
 			}
 			if (!alts.length) return null;
-			return { item, stats: [defaultStat, ...alts] };
+			return { item, stats: [defaultStat, ...alts], grants };
 		}
 
 		// Optional pre-roll modifier prompt, gated by the "Prompt for Roll Modifier"
@@ -4558,7 +4855,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			return promptRollModifier({ title: resolvedTitle });
 		}
 
-		_promptStatChoice(item, rollable, statKeys = _STAT_KEYS, { shiftKey = false } = {}) {
+		// `grants` are the moves that opened this choice up (empty for a move whose own
+		// rollType is "ask"). Their text is quoted under the question so the player can
+		// see the rule — and its fictional trigger, which we don't enforce — before picking.
+		_promptStatChoice(item, rollable, statKeys = _STAT_KEYS, { shiftKey = false, grants = [] } = {}) {
 			const stats = this.actor.system?.stats ?? {};
 			const buttons = {};
 			for (const key of statKeys) {
@@ -4575,9 +4875,26 @@ export function createStonetopCharacterSheetClass(Base) {
 					label: `${label} (${sign(value)})`,
 				};
 			}
+			const whyHtml = grants.filter(Boolean).map(grant => {
+				// A move that also turns something into a weapon (Purifying Flames' holy light)
+				// changes the damage, not just the stat — spell that out here, since the damage
+				// die is the part that's easy to miss in the move's prose.
+				const granted = grantedWeaponForMove(grant.name);
+				const weaponNote = granted
+					? `<p class="stonetop-stat-picker-weapon"><i class="fas fa-dice-d10"></i>
+						Choosing ${_esc(Handlebars.helpers.statLabel(granted.whenStat))} means the
+						<strong>${_esc(granted.meta.name)}</strong> is your weapon &mdash;
+						<strong>${_esc(weaponTraitText(granted.meta))}</strong>, in place of your own damage die.</p>`
+					: "";
+				return `<div class="stonetop-stat-picker-why">
+					<strong>${_esc(grant.name)}</strong>
+					${grant.system?.description ?? ""}
+					${weaponNote}
+				</div>`;
+			}).join("");
 			new Dialog({
 				title: `${item.name} — Choose a Stat`,
-				content: `<p>Which stat are you rolling with?</p>`,
+				content: `<p>Which stat are you rolling with?</p>${whyHtml}`,
 				buttons,
 				render: bringDialogToFront,
 			}, { width: 480, classes: ["dialog", "stonetop", "stonetop-stat-picker-dialog"] }).render(true);
@@ -5096,12 +5413,76 @@ export function createStonetopCharacterSheetClass(Base) {
 			).render(true);
 		}
 
+		/**
+		 * Open the Death's Door walkthrough — but only when Death's Door is the move this
+		 * character actually triggers. A PC carrying a post-death insert has their own 0-HP
+		 * move (Undying / Tethered / Dark Succor), so they get pointed at it instead of a
+		 * dialog that would walk them through the wrong rules.
+		 */
 		async _onDeathsDoorOpen() {
-			if ((this.actor.system?.attributes?.hp?.value ?? 1) > 0) return;
+			const move = this._stonetopCharacter.zeroHpMove;
+			// A character with an insert faces their insert's 0-HP move, which has its own
+			// walkthrough — it marks consequences, gains and crosses off Marks, and resets Favor.
+			// Gated the same way the card's own button is (_buildDeathsDoorData): a dying chat
+			// card stays in the log forever and comes through here too, so without this an old
+			// one re-opens the move — and hands out half their max HP again — for a Revenant who
+			// is back on their feet, or a second time for a Ghost still dispersed.
+			if (!move.dialog) {
+				const state = this._stonetopCharacter.deathsDoorState;
+				const settled = state === DEATHS_DOOR_STATE.OUT_OF_ACTION || state === DEATHS_DOOR_STATE.DEAD;
+				if (this._stonetopCharacter.hp > 0 || settled) return;
+				return this._onUndeathOpen();
+			}
+			// A spent 6- still opens the dialog — not to roll again, but to choose the fate it
+			// left hanging; the dialog resumes on that step.
+			const pending = this._stonetopCharacter.deathsDoorState === DEATHS_DOOR_STATE.FATE_PENDING;
+			if (!pending && !this._stonetopCharacter.canFaceDeathsDoor) return;
 			new DeathsDoorDialog(
 				this._stonetopCharacter,
 				() => this.render(false),
 			).render(true);
+		}
+
+		/**
+		 * Open the walkthrough for an insert's 0-HP move (Undying / Tethered / Dark Succor).
+		 * Falls back to simply rolling the move for a homebrew insert we have no spec for, so an
+		 * unrecognised insert still gets its move rather than a dead button.
+		 */
+		async _onUndeathOpen() {
+			const move = this._stonetopCharacter.zeroHpMove;
+			if (!this._stonetopCharacter.zeroHpResolution) return this.rollMoveByName(move.name);
+			await UndeathDialog.open(this._stonetopCharacter, () => this.render(false));
+		}
+
+		/**
+		 * Roll (or post) one of the character's own moves by name — the entry point the dying
+		 * chat card uses to hand an undead PC their insert's 0-HP move. Falls back to a notice
+		 * rather than silence when the move isn't on the sheet, since that means the insert's
+		 * moves failed to embed.
+		 */
+		async rollMoveByName(name) {
+			const item = this.actor?.items?.find(i => i.type === "move" && i.name === name);
+			if (!item) return void ui.notifications.warn(`${name} isn't on this character's sheet.`);
+			return this.rollMoveById(item.id);
+		}
+
+		/**
+		 * Clear a lingering death state. The 7-9 leaves the character out of the action "until
+		 * you say otherwise" (p.245) — this is the GM (or the player) saying otherwise. Also
+		 * un-does a mistaken "stepped through the Last Door", which nothing else reverses.
+		 */
+		async _onDeathsDoorClear() {
+			if (!this.isEditable) return;
+			// A dispersed Ghost doesn't just wake up: "you reform near your tether with half your
+			// max HP". Clearing the state IS the reforming, so it brings the hit points with it,
+			// in the one write.
+			const disperses = this._stonetopCharacter.zeroHpResolution?.disperses;
+			const reformHp = disperses && this._stonetopCharacter.deathsDoorState === DEATHS_DOOR_STATE.OUT_OF_ACTION
+				? resolvedHp(disperses, await this._stonetopCharacter.computedMaxHp())
+				: null;
+			if (reformHp !== null) await this._stonetopCharacter.restoreHp(reformHp, "Tethered", { clearsDeathsDoor: true });
+			else await this._stonetopCharacter.setDeathsDoorState(null);
+			this.render(false);
 		}
 
 		// Open the Create-a-Follower walkthrough (Book I, NPCs & Followers, p.474).
@@ -5293,7 +5674,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				moveResults: {
 					success: { value: "They go, now." },
 					partial: { value: "They go, but take their time and likely do some harm on the way out." },
-					failure: { value: "Spend their Loyalty or mark a consequence and they'll eventually go &mdash; otherwise, this batch breaks free of your control." },
+					failure: { value: "Spend their Loyalty or mark a consequence and they'll eventually go, otherwise this batch breaks free of your control." },
 				},
 			});
 			const total = Number(roll?.total) || 0;
@@ -5483,6 +5864,12 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * the same reason the NPC header and the hover preview do: the square is a small face cut
 		 * out of a standing figure, so popping it out would answer "show me this bigger" with a
 		 * picture smaller than the one just tapped.
+		 *
+		 * The window carries the same two controls a sheet's own portrait window does — "Edit
+		 * Photo", which opens the People of Stonetop gallery, and "Frame Face" — so a follower's
+		 * face can be changed or re-framed while READING the card, without first opening its
+		 * pencil. That is the whole reason a tap here enlarges rather than picks: the picker is
+		 * one control away, so making the common intent (see it) the default costs nothing.
 		 */
 		_onFollowerPortraitView(portrait) {
 			if (!portrait) return;
@@ -5492,7 +5879,117 @@ export function createStonetopCharacterSheetClass(Base) {
 			// The popup is portaled to <body> and would otherwise hang over the popout.
 			removeAvatarPreview();
 			const name = imgEl.dataset.name || "Follower";
-			imagePopout({ src: displayPortraitSrc(stored), title: name })?.render(true);
+			const popout = imagePopout({ src: displayPortraitSrc(stored), title: name });
+			if (!popout) return;
+			popout.render(true);
+
+			this._hangFollowerPortraitControls(popout, portrait, name);
+		}
+
+		/**
+		 * The two controls a follower's portrait window carries, hung as a unit so a window that
+		 * had to re-render — which builds a fresh header and drops what was on the old one — can
+		 * have them put back with one call.
+		 *
+		 * `card` is the .stonetop-follower-portrait element the window was opened from; it is only
+		 * read for the (ftype, slug) pair, since the live element is re-looked-up per click.
+		 */
+		_hangFollowerPortraitControls(popout, card, name) {
+			if (!popout || !card) return;
+			const { ftype, slug } = card.dataset;
+			// The element is re-looked-up per click rather than captured: picking a new face
+			// re-renders the sheet under this window, and the one in the closure is by then a
+			// detached copy still carrying the OLD portrait — so a second Edit Photo would open
+			// the gallery with the previous face marked as the one in use. The captured element
+			// remains the fallback for when the sheet itself has been closed behind the window;
+			// its ftype/slug are all the picker needs to write.
+			const liveCard = () => this._followerPortraitEl(ftype, slug) ?? card;
+
+			// The same "Edit Photo" the sheet headers and the steading roster put on a photo,
+			// opening the same gallery, so the control means one thing wherever it is met.
+			//
+			// A follower's face is a flag on this character rather than a document's own `img`, so
+			// there is no updateActor/img change for the window to follow (what
+			// bindImagePopoutToActor gives a sheet header's). It is pointed at the new picture from
+			// the pick itself, and re-hung when that patch had to fall back to a re-render. A
+			// CLEARED portrait leaves nothing to show, so the window closes rather than sit there
+			// displaying a face nobody wears any more.
+			if (this.isEditable) {
+				addPopoutHeaderControl(popout, {
+					key: "stonetop-edit-follower-photo",
+					icon: "fa-camera",
+					label: localize("stonetop.portraitPicker.popout"),
+					onClick: () => this._onFollowerPortraitPick(liveCard(), {
+						onPicked: (src) => {
+							if (!pointImagePopoutAt(popout, displayPortraitSrc(src))) {
+								this._hangFollowerPortraitControls(popout, card, name);
+							}
+						},
+						onCleared: () => popout.close(),
+					}),
+				});
+			}
+			// Tokenizer, for the TOKEN — the same control the sheet headers' window carries, on
+			// the same terms as this card's own Tokenizer pip. TWO handles rather than one,
+			// because a follower's two portraits are genuinely two things: the face on the card
+			// is a flag on this character (what the framer edits), while the token is made for
+			// the Actor they were placed on the map as. addTokenizerControl reads only these two
+			// fields and gates itself on both. Registered BEFORE the framing control so it lands
+			// to its left, matching the order of the pips.
+			addTokenizerControl(popout, {
+				canWrite: this.isEditable,
+				actor: this._followerLinkedActor(ftype, slug),
+			});
+			// Which square of this portrait the small round surfaces show. The handle answers both
+			// "is there anything to frame" and "may this viewer write it", so the control gates
+			// itself; a follower type with no flag namespace yields none and gets nothing.
+			const base = _followerDetailBase(ftype, slug);
+			const handle = base ? followerFrameHandle(this.actor, base, { editable: this.isEditable }) : null;
+			addPortraitFrameControl(popout, handle, {
+				name,
+				// A frame write touches neither `img` nor anything the sheet watches, so nothing
+				// re-renders on its own.
+				onSaved: () => this.render(false),
+			});
+		}
+
+		/**
+		 * The Actor a follower card has already become, if any — what its Tokenizer pip and the
+		 * matching control on its portrait window both act on. Reads the card's stored link out
+		 * of the flags rather than the DOM, so it is right after a re-render and after a drop
+		 * that wrote the link while the sheet was open.
+		 */
+		_followerLinkedActor(ftype, slug) {
+			const base = _followerDetailBase(ftype, slug);
+			if (!base) return null;
+			const detail = foundry.utils.getProperty(resolvedFlags(this.actor), base) ?? {};
+			return followerActorFromLink(detail);
+		}
+
+		/**
+		 * Open Tokenizer on the Actor this follower already is. Never creates one — the pip is
+		 * rendered only where that Actor exists (see withSectionEdits), so a missing one here is
+		 * a card whose link went stale (the actor deleted) rather than a case to make it up.
+		 */
+		_onFollowerTokenize(portrait) {
+			if (!this.isEditable || !portrait) return;
+			const actor = this._followerLinkedActor(portrait.dataset.ftype, portrait.dataset.slug);
+			if (!actor) {
+				ui.notifications?.warn?.(localize("stonetop.portraitFrame.noTokenizeTarget"));
+				return;
+			}
+			openTokenizer(actor);
+		}
+
+		/**
+		 * The live element for a follower card's portrait, by the same (ftype, slug) pair every
+		 * other follower handler resolves its flag paths through. Null once the sheet is closed.
+		 */
+		_followerPortraitEl(ftype, slug) {
+			const root = this.element?.[0] ?? this.element;
+			if (!root?.querySelector || !ftype) return null;
+			const esc = globalThis.CSS?.escape ?? (s => s);
+			return root.querySelector(`.stonetop-follower-portrait[data-ftype="${esc(ftype)}"][data-slug="${esc(slug ?? "")}"]`);
 		}
 
 		_onFollowerPortraitFrame(portrait) {
@@ -5505,17 +6002,26 @@ export function createStonetopCharacterSheetClass(Base) {
 			// No early return on a null handle: openPortraitFrameEditor reports why it cannot
 			// open, which is the difference between a diagnosable message and a dead button.
 			const handle = followerFrameHandle(this.actor, base, { editable: this.isEditable });
+			// The same title the framer carries everywhere else (addPortraitFrameControl builds
+			// it for the window control this card's portrait ALSO offers), so the two routes to
+			// framing one follower cannot come to disagree about what the window is called.
+			const name = portrait.querySelector(".stonetop-follower-portrait-img")?.dataset.name || "Follower";
 			openPortraitFrameEditor({
 				handle,
 				img: handle?.img,
-				title: portrait.dataset.frameTitle || "Frame Face",
+				title: format("stonetop.portraitFrame.title", { name }),
 				// A frame write touches neither `img` nor anything the sheet watches, so nothing
 				// re-renders on its own.
 				onSaved: () => this.render(false)
 			});
 		}
 
-		_onFollowerPortraitPick(portrait) {
+		/**
+		 * `onPicked` / `onCleared` are for a caller with something of its own to keep in step —
+		 * the portrait window this same face can be edited from, which sits open across the pick
+		 * and would otherwise go on showing the picture that has just been replaced.
+		 */
+		_onFollowerPortraitPick(portrait, { onPicked, onCleared } = {}) {
 			if (!this.isEditable || !portrait) return;
 			const base = _followerDetailBase(portrait.dataset.ftype, portrait.dataset.slug);
 			if (!base) return;
@@ -5531,6 +6037,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const apply = async src => {
 				await this.actor.setFlag("stonetop_pwd", path, src ?? "");
 				this.render(false);
+				onPicked?.(src ?? "");
 			};
 			openPeoplePortraitPicker({
 				current,
@@ -5546,10 +6053,196 @@ export function createStonetopCharacterSheetClass(Base) {
 						[`flags.stonetop_pwd.${base}.-=portraitFrame`]: null,
 					});
 					this.render(false);
+					onCleared?.();
 				},
 				// A browsed file is exactly the case with no sensible default framing, so offer
 				// the framer the moment one is chosen.
 				onFrame: () => this._onFollowerPortraitFrame(portrait),
+			});
+		}
+
+		/**
+		 * Which roster member an avatar belongs to, straight off its dataset: the store `kind`, the
+		 * custom follower's `slug` where there is one, and the row `index`. One reader, so the four
+		 * handlers below cannot come to disagree about how a roster row names itself.
+		 */
+		_rosterAvatarRef(avatar) {
+			const kind  = avatar?.dataset?.roster;
+			const slug  = avatar?.dataset?.slug ?? "";
+			const index = Number(avatar?.dataset?.index);
+			if (!kind || !Number.isInteger(index) || index < 0) return null;
+			// rosterPortraitListPath is the whitelist: an unknown kind, or a custom member with no
+			// follower id, resolves to no store and so to no ref at all.
+			return rosterPortraitListPath(kind, slug) ? { kind, slug, index } : null;
+		}
+
+		/**
+		 * The anonymous rows of a group roster — the crew's unnamed tail, and every member of a
+		 * custom group (which names none of its own).
+		 *
+		 * Both rosters are the same row: an index, a label, HP clamped against the shared max, and
+		 * the avatar context that gives it a face. Built in one place so a field added to the row
+		 * cannot land on one roster and be forgotten on the other.
+		 *
+		 * `labelFor` is the only real difference — the crew counts past its named members, a custom
+		 * group counts from one.
+		 */
+		_anonRosterMembers(count, { hp = [], img = [], hpMax, editing, labelFor }) {
+			return Array.from({ length: count }, (_, i) => {
+				const label = labelFor(i);
+				return {
+					index:     i,
+					label,
+					hpMax,
+					hpCurrent: _clampHp(hp[i], hpMax),
+					...rosterAvatarContext(img[i], {
+						name: label, canWrite: this.isEditable, rosterEditing: editing,
+					}),
+				};
+			});
+		}
+
+		/** The name a roster row's avatar captions its windows with. */
+		_rosterAvatarName(avatar) {
+			return avatar?.querySelector?.(".stonetop-roster-avatar-img")?.dataset.name || "this member";
+		}
+
+		/**
+		 * DOM adapter for the in-sheet click path. Everything below works from the `ref` alone —
+		 * see _pickRosterPortrait for why.
+		 */
+		_onRosterAvatarPick(avatar) {
+			const ref = this._rosterAvatarRef(avatar);
+			if (ref) this._pickRosterPortrait(ref, this._rosterAvatarName(avatar));
+		}
+
+		/**
+		 * Give a roster member a face: the same People of Stonetop gallery every other portrait in
+		 * the system opens, writing to that member's own slot (see roster-portraits.js).
+		 *
+		 * Keyed on the REF — `{kind, slug, index}` — and never on an element, which is the whole
+		 * reason this is split from the click handler above. The follower card's equivalent has to
+		 * re-look-up its portrait element per click (a pick re-renders the sheet, leaving the
+		 * captured node detached and still showing the old face) and then fall back to the stale
+		 * node for when the sheet has been CLOSED behind the portrait window. A ref needs neither
+		 * dance: it does not go stale, it survives the sheet closing, and the store read below is
+		 * always current. Without this split, "Edit Photo" on a roster member's portrait window
+		 * died silently the moment the sheet behind it was closed, while "Frame Face" beside it —
+		 * which already worked from the ref — kept working.
+		 *
+		 * `onPicked` / `onCleared` are for a caller with something of its own to keep in step: that
+		 * same window, which would otherwise go on showing the picture just replaced.
+		 */
+		_pickRosterPortrait(ref, name, { onPicked, onCleared } = {}) {
+			if (!this.isEditable || !ref) return;
+			// Asked of the STORE rather than read back off the image on screen: a member wearing
+			// only the drawn placeholder has no stored path at all, and reading `src` would hand the
+			// gallery a placeholder to mark as the face in use. (It is also why this needs none of
+			// the follower card's getAttribute care — nothing here has been through the DOM's URL
+			// resolution.)
+			const current = readRosterPortrait(this.actor, ref.kind, ref.slug, ref.index).img;
+
+			// The gallery opens over the sheet; a preview raised by the hover that led to the click
+			// would be left floating on top of it with nothing to anchor to.
+			removeAvatarPreview();
+			openPeoplePortraitPicker({
+				current,
+				// The roster's own faces are in this scan (usedActorPortraits sweeps them through
+				// claimRosterPortraits), so two crew members cannot be handed one face without the
+				// gallery saying so.
+				used: this._followerPortraitsInUse(),
+				// Both branches follow through only on a write that LANDED. The store refuses,
+				// silently, a ref that has fallen off the end of its roster — the reachable case
+				// being this very window, kept open across a crew shrinking beneath it (see
+				// roster-portraits.js). Telling the window about a face that was never stored is
+				// the one outcome worse than the refusal: it would show the new picture, and the
+				// sheet behind it would still be showing the old one.
+				onPick: async (src) => {
+					if (!await writeRosterPortrait(this.actor, ref.kind, ref.slug, ref.index, { img: src ?? "" })) return;
+					this.render(false);
+					onPicked?.(src ?? "");
+				},
+				// Drops the frame with the picture, in one write, for the reason the follower card's
+				// clear spells out: an orphan rect would otherwise sit there forever with nothing
+				// left to ever clear it.
+				onClear: async () => {
+					if (!await clearRosterPortrait(this.actor, ref.kind, ref.slug, ref.index)) return;
+					this.render(false);
+					onCleared?.();
+				},
+				// A browsed file is exactly the case with no hand-cut square behind it, so offer the
+				// framer the moment one is chosen. Carries the ref, not the element, so the chain
+				// survives the same closed-sheet case the pick itself does.
+				onFrame: () => this._frameRosterPortrait(ref, name),
+			});
+		}
+
+		/** Which square of a roster member's portrait the small round avatar shows. Ref-keyed too. */
+		_frameRosterPortrait(ref, name) {
+			if (!this.isEditable || !ref) return;
+			// No early return on a null handle: openPortraitFrameEditor reports why it cannot open,
+			// which is the difference between a diagnosable message and a dead control.
+			openPortraitFrameEditor({
+				handle: rosterMemberFrameHandle(this.actor, ref, { editable: this.isEditable }),
+				title:  format("stonetop.portraitFrame.title", { name }),
+				// A frame write touches nothing the sheet watches, so nothing re-renders on its own.
+				onSaved: () => this.render(false),
+			});
+		}
+
+		/**
+		 * Enlarge a roster member's portrait, the way tapping any other face in the system does —
+		 * carrying the same "Edit Photo" and "Frame Face", so the face can be changed or re-framed
+		 * while READING the roster, without first opening its pencil. That is the whole reason a tap
+		 * here enlarges rather than picks.
+		 */
+		_onRosterAvatarView(avatar) {
+			const ref = this._rosterAvatarRef(avatar);
+			if (!ref) return;
+			const stored = readRosterPortrait(this.actor, ref.kind, ref.slug, ref.index).img;
+			if (!stored) return;
+			// The popup is portaled to <body> and would otherwise hang over the popout.
+			removeAvatarPreview();
+			const name = this._rosterAvatarName(avatar);
+			// displayPortraitSrc: a People-of-Stonetop square is a small face cut out of a standing
+			// figure, so popping the square itself would answer "show me this bigger" with a picture
+			// smaller than the one just tapped.
+			const popout = imagePopout({ src: displayPortraitSrc(stored), title: name });
+			if (!popout) return;
+			popout.render(true);
+			this._hangRosterAvatarControls(popout, ref, name);
+		}
+
+		/**
+		 * The two controls a roster member's portrait window carries, hung as a unit so a window
+		 * that had to re-render — which builds a fresh header and drops what was on the old one —
+		 * can have them put back with one call. No Tokenizer, unlike a follower card's: a roster
+		 * member is a row in a flag array and never an Actor, so there is nothing to token.
+		 *
+		 * BOTH controls are built from the `ref` and touch no DOM, so this window keeps working
+		 * after the sheet behind it is closed — which is the normal way to look at a face
+		 * unobstructed, and used to leave "Edit Photo" dead beside a live "Frame Face".
+		 */
+		_hangRosterAvatarControls(popout, ref, name) {
+			if (!popout || !ref || !this.isEditable) return;
+			addPopoutHeaderControl(popout, {
+				key:   "stonetop-edit-roster-photo",
+				icon:  "fa-camera",
+				label: localize("stonetop.portraitPicker.popout"),
+				onClick: () => this._pickRosterPortrait(ref, name, {
+					onPicked: (src) => {
+						if (!pointImagePopoutAt(popout, displayPortraitSrc(src))) {
+							this._hangRosterAvatarControls(popout, ref, name);
+						}
+					},
+					// A cleared portrait leaves nothing to show, so the window closes rather than
+					// sit there displaying a face nobody wears any more.
+					onCleared: () => popout.close(),
+				}),
+			});
+			addPortraitFrameControl(popout, rosterMemberFrameHandle(this.actor, ref, { editable: this.isEditable }), {
+				name,
+				onSaved: () => this.render(false),
 			});
 		}
 
@@ -5578,7 +6271,8 @@ export function createStonetopCharacterSheetClass(Base) {
 		// outcome. Every other follower's "action" just posts a note recording the GM's
 		// call.
 		async _resolveFollowerFate(action, { name, loyalty, follower, slug } = {}) {
-			const who = escHtml(name || "Your follower");
+			const plainWho = name || "Your follower";
+			const who = escHtml(plainWho);
 			if (action === "roll") {
 				await rollStat("", this.actor, {
 					statValue:   0,
@@ -5586,10 +6280,13 @@ export function createStonetopCharacterSheetClass(Base) {
 					rollMode:    loyalty > 0 ? "adv" : "normal",
 					noXpOnMiss:  true,
 					moveDescription: `<p>When your <strong><em>companion is at 0 HP</em></strong>, roll +0, with advantage if it holds Loyalty.</p>`,
+					// Plain text, and the unescaped name: the card escapes these itself (and
+					// persists them into a data-outcome-* attribute), so tags would print as
+					// literal markup and a pre-escaped "&" would come out as "&amp;".
 					moveResults: {
-						success: { label: "10+", value: `<strong>${who}</strong> will be fine once it regains any HP.` },
-						partial: { label: "7–9", value: `<strong>${who}</strong> survives but takes the <em>injured</em> tag.` },
-						failure: { label: "6–", value: `<strong>${who}</strong> is injured and will die soon unless someone saves it.` },
+						success: { label: "10+", value: `${plainWho} will be fine once it regains any HP.` },
+						partial: { label: "7–9", value: `${plainWho} survives but takes the "injured" tag.` },
+						failure: { label: "6–", value: `${plainWho} is injured and will die soon unless someone saves it.` },
 					},
 				});
 				this.render(false);
@@ -6049,6 +6746,31 @@ export function createStonetopCharacterSheetClass(Base) {
 			this.render(false);
 		}
 
+		// ── Damage die ─────────────────────────────────────────────────────────────
+		// Hand-editing the Damage field. It has to end up as a "d#" the roller can use, so
+		// loose spellings are tidied ("8", "D8", "1d8" → "d8") and anything that isn't a
+		// single die is refused with the old value put back rather than half-saved. Typing
+		// the playbook's own die, or clearing the field, drops the override so the die
+		// follows the playbook (and its move bonuses) again.
+		async _onDamageDieEdit(ev) {
+			const el = ev.currentTarget;
+			if (!this.isEditable) return;
+			const typed = String(el.value ?? "").trim();
+			const base  = el.dataset.damageBase || null;
+			if (typed) {
+				const die = normalizeDamageDie(typed);
+				if (!die) {
+					ui.notifications?.warn(`"${typed}" isn't a damage die — write a single die, like d8.`);
+					el.value = this.actor.system?.attributes?.damage?.value ?? base ?? "";
+					return;
+				}
+				await this._stonetopCharacter.setDamageDieOverride(die === base ? "" : die, { base });
+			} else {
+				await this._stonetopCharacter.setDamageDieOverride("", { base });
+			}
+			this.render(false);
+		}
+
 		// ── Wounds (4th harm track) ────────────────────────────────────────────────
 		_woundIdFromEvent(ev) {
 			return ev.currentTarget.closest("[data-wound-id]")?.dataset.woundId ?? null;
@@ -6191,14 +6913,17 @@ export function createStonetopCharacterSheetClass(Base) {
 				// the player backed all the way out, so fall back to opening their sheet.
 				let picked = false;
 				this._setOnboardingState("picker");
-				new PlaybookPickerDialog(
+				// Tracked against the character being built: it isn't a document sheet, so
+				// nothing else would close it if that character were deleted out from under
+				// the player mid-creation. See creation-flow.js.
+				trackCreationFlow(new PlaybookPickerDialog(
 					async (playbookDoc) => {
 						picked = true;
 						this._launchOnboarding(playbookDoc, { openSheetOnce, openPicker });
 					},
 					// Closing the picker without picking is leaving creation entirely.
 					{ onClose: () => { if (!picked) { this._setOnboardingState("exited"); openSheetOnce(); } } },
-				).render(true);
+				), this.actor.id).render(true);
 			};
 
 			const existingPlaybook = this.actor.system?.playbook?.slug;
@@ -6297,12 +7022,21 @@ export function createStonetopCharacterSheetClass(Base) {
 				stepType:     info.stepType,
 				selections:   info.selections,
 			});
-			new CharacterOnboardingDialog(
+			// Tracked against the character being built (see openPicker, and creation-flow.js).
+			trackCreationFlow(new CharacterOnboardingDialog(
 				playbookDoc,
 				async (selections) => {
 					await this._applyPlaybookSelections(playbookDoc, selections);
 					await this._clearOnboardingProgress();
 					clearOnboardingResume(this.actor);
+					// A finished character belongs on the village roster, however they were
+					// made — the first-session guide, the sidebar picker, or this sheet's own
+					// "Create Character" button. Last, after the character is committed, so
+					// the row points at a sheet that is actually filled in. Only the
+					// completion callback files them: re-opening onboarding to EDIT a
+					// finished character runs a different path (_openEditCharacterOnboarding),
+					// so a GM who takes a departed player off the roster keeps them off.
+					await this._addToSteadingRoster();
 				},
 				{
 					initialSelections,
@@ -6333,7 +7067,19 @@ export function createStonetopCharacterSheetClass(Base) {
 						saveResume(info);
 					},
 				},
-			).render(true);
+			), this.actor.id).render(true);
+		}
+
+		// File the freshly-finished character on the steading's Player Characters roster
+		// and say so, since the roster is on the steading sheet rather than in front of the
+		// player who just finished. Silent when there's nothing to report: already listed
+		// (a re-run of creation), no steading in the world yet, or a world where the player
+		// can't write it. Never throws — the helper reports its own failures to the console.
+		async _addToSteadingRoster() {
+			const added = await addCharacterToSteadingPlayers(this.actor);
+			if (!added) return;
+			const steading = getStonetopSteadingActor();
+			ui.notifications?.info?.(`${this.actor.name} joins the people of ${steading?.name || "Stonetop"}.`);
 		}
 
 		async _openEditCharacterOnboarding(options = {}) {

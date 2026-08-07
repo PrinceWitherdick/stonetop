@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { createStonetopCharacterSheetClass } from "../../../module/actors/character/StonetopCharacterSheet.js";
 import {FakeActorBuilder} from "../../fakes/FakeActorBuilder.js";
+import { DEATHS_DOOR_STATE, zeroHpMove, zeroHpResolution } from "../../../module/actors/character/deaths-door.js";
 
 // -- Helpers ------------------------------------------------------------------
 
@@ -174,6 +175,72 @@ describe("StonetopCharacterSheet event handlers", () => {
 		const sheet = makeSheet(actor);
 		await sheet._onOriginNameClick({ currentTarget: { value: "Arwel" } });
 		expect(actor.typedActor.updateName).toHaveBeenCalledWith("Arwel");
+	});
+});
+
+describe("StonetopCharacterSheet damage die editing", () => {
+	function damageInput(value, base = "d6") {
+		return { currentTarget: { value, dataset: { damageBase: base } } };
+	}
+
+	function makeDamageSheet() {
+		const actor = makeActor();
+		actor.typedActor.setDamageDieOverride = vi.fn(async () => null);
+		return { actor, sheet: makeSheet(actor) };
+	}
+
+	it("saves a typed die as an override", async () => {
+		const { actor, sheet } = makeDamageSheet();
+		await sheet._onDamageDieEdit(damageInput("d8"));
+		// The derived die rides along, so the model never rebuilds the snapshot to find it.
+		expect(actor.typedActor.setDamageDieOverride).toHaveBeenCalledWith("d8", { base: "d6" });
+	});
+
+	it("normalizes loose spellings before saving", async () => {
+		const { actor, sheet } = makeDamageSheet();
+		await sheet._onDamageDieEdit(damageInput("1D8 "));
+		expect(actor.typedActor.setDamageDieOverride).toHaveBeenCalledWith("d8", { base: "d6" });
+	});
+
+	it("clears the override when the field is emptied", async () => {
+		const { actor, sheet } = makeDamageSheet();
+		await sheet._onDamageDieEdit(damageInput(""));
+		expect(actor.typedActor.setDamageDieOverride).toHaveBeenCalledWith("", { base: "d6" });
+	});
+
+	it("clears the override when the typed die is the playbook's own", async () => {
+		const { actor, sheet } = makeDamageSheet();
+		await sheet._onDamageDieEdit(damageInput("d6", "d6"));
+		expect(actor.typedActor.setDamageDieOverride).toHaveBeenCalledWith("", { base: "d6" });
+	});
+
+	it("refuses a value that isn't a single die and puts the old one back", async () => {
+		global.ui = { notifications: { warn: vi.fn() } };
+		const { actor, sheet } = makeDamageSheet();
+		actor.system.attributes.damage.value = "d6";
+		const ev = damageInput("2d6");
+
+		await sheet._onDamageDieEdit(ev);
+
+		expect(actor.typedActor.setDamageDieOverride).not.toHaveBeenCalled();
+		expect(ev.currentTarget.value).toBe("d6");
+		expect(global.ui.notifications.warn).toHaveBeenCalled();
+	});
+
+	it("getData mirrors the die in play onto the input, playbook or not", async () => {
+		installGetDataGlobals();
+		const actor = makeActor();
+		actor.typedActor.playbook = vi.fn(async () => null);
+		actor.typedActor.possessionTriggerMoves = vi.fn(() => ({}));
+		actor.typedActor.buildSnapshot = vi.fn(async () => {
+			const snap = minimalSheetSnapshot({});
+			snap.vitals.damage = "d8";
+			return snap;
+		});
+		const sheet = makeSheet(actor);
+
+		const context = await sheet.getData();
+		expect(context.system.attributes.damage.value).toBe("d8");
 	});
 });
 
@@ -443,5 +510,150 @@ describe("StonetopCharacterSheet._onDropItemCreate", () => {
 		const sheet = makeSheet(actor);
 		await sheet._onDropItemCreate(makeNonMove());
 		expect(sheet.render).not.toHaveBeenCalled();
+	});
+
+	// Gear lands on a tab the GM usually isn't looking at, so a silent add reads as "nothing
+	// happened" — and, worse, gives no clue when the drop went somewhere the player can't see.
+	describe("tells the GM where the gear went", () => {
+		let savedUi;
+		beforeEach(() => {
+			savedUi = global.ui;
+			global.ui = { notifications: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } };
+		});
+		afterEach(() => { global.ui = savedUi; });
+
+		it("names the character an item was added to", async () => {
+			const actor = makeActor();
+			actor.name = "Ordep";
+			await makeSheet(actor)._onDropItemCreate(makeInventoryItem());
+			expect(global.ui.notifications.info)
+				.toHaveBeenCalledWith('Added "Rope" to Ordep\'s Inventory tab.');
+		});
+
+		it("joins several items into one toast rather than one apiece", async () => {
+			const actor = makeActor();
+			actor.name = "Ordep";
+			const second = { ...makeInventoryItem(), name: "Brass sphere" };
+			await makeSheet(actor)._onDropItemCreate([makeInventoryItem(), second]);
+			expect(global.ui.notifications.info).toHaveBeenCalledTimes(1);
+			expect(global.ui.notifications.info)
+				.toHaveBeenCalledWith('Added "Rope" & "Brass sphere" to Ordep\'s Inventory tab.');
+		});
+
+		it("says nothing when the drop carried no inventory", async () => {
+			await makeSheet(makeActor())._onDropItemCreate(makeNonMove());
+			expect(global.ui.notifications.info).not.toHaveBeenCalled();
+		});
+	});
+
+	// A sheet opened by double-clicking an UNLINKED token is backed by the token's own copy of
+	// the character (its ActorDelta). Everything written there saves fine and reaches nobody:
+	// the player opens their character from the sidebar and finds nothing. This is the whole
+	// reason a GM reports "I gave them a treasure and they can't see it".
+	describe("on an unlinked token's sheet", () => {
+		let savedUi;
+		beforeEach(() => {
+			savedUi = global.ui;
+			global.ui = { notifications: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } };
+		});
+		afterEach(() => { global.ui = savedUi; });
+
+		/** The synthetic actor behind an unlinked token, and the world actor it was stamped from. */
+		function makeTokenActor() {
+			const world = makeActor();
+			world.name = "Ordep";
+			const synthetic = makeActor();
+			synthetic.name = "Ordep";
+			synthetic.isToken = true;
+			synthetic.token = { baseActor: world };
+			return { synthetic, world };
+		}
+
+		it("writes gear to the character, not to the token's private copy", async () => {
+			const { synthetic, world } = makeTokenActor();
+			const item = makeInventoryItem();
+			await makeSheet(synthetic)._onDropItemCreate(item);
+			expect(world.typedActor.addDroppedInventoryItem).toHaveBeenCalledWith(item);
+			expect(synthetic.typedActor.addDroppedInventoryItem).not.toHaveBeenCalled();
+		});
+
+		it("redirects arcana and moves the same way", async () => {
+			const { synthetic, world } = makeTokenActor();
+			await makeSheet(synthetic)._onDropItemCreate([makeArcanum("humble-broom"), makeMove()]);
+			expect(world.typedActor.addArcanum).toHaveBeenCalledWith("humble-broom");
+			expect(world.typedActor.onDropMove).toHaveBeenCalled();
+			expect(synthetic.typedActor.addArcanum).not.toHaveBeenCalled();
+			expect(synthetic.typedActor.onDropMove).not.toHaveBeenCalled();
+		});
+
+		it("says so, so the redirect is never silent", async () => {
+			const { synthetic } = makeTokenActor();
+			await makeSheet(synthetic)._onDropItemCreate(makeInventoryItem());
+			expect(global.ui.notifications.info)
+				.toHaveBeenCalledWith(expect.stringContaining("isn't linked to Ordep"));
+		});
+
+		// A linked token hands back the world actor itself, so isToken is false and there is
+		// nothing to resolve — the common case must not pay for the rare one.
+		it("leaves an ordinary sheet writing to its own character", async () => {
+			const actor = makeActor();
+			const item = makeInventoryItem();
+			await makeSheet(actor)._onDropItemCreate(item);
+			expect(actor.typedActor.addDroppedInventoryItem).toHaveBeenCalledWith(item);
+		});
+
+		// A token whose baseActor has gone (a deleted actor, a torn-down scene) must still take
+		// the drop rather than throwing on the way to resolving a target.
+		it("falls back to its own character when the base actor is gone", async () => {
+			const { synthetic } = makeTokenActor();
+			synthetic.token = { baseActor: null };
+			const item = makeInventoryItem();
+			await makeSheet(synthetic)._onDropItemCreate(item);
+			expect(synthetic.typedActor.addDroppedInventoryItem).toHaveBeenCalledWith(item);
+		});
+	});
+});
+
+// _onDeathsDoorOpen is the ONE way into a character's 0-HP move: the sheet's own button and the
+// dying chat card both come through it (hooks/DeathsDoorPrompt.js). The card outlives the moment
+// it was posted for, so the gate has to live here rather than only on the button the sheet draws.
+describe("StonetopCharacterSheet 0-HP move gate", () => {
+	function makeInsertSheet({ hp, state = null }) {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		sheet._stonetopCharacter = {
+			hp,
+			deathsDoorState: state,
+			zeroHpMove: zeroHpMove("revenant"),   // Undying — its own walkthrough, not Death's Door
+			zeroHpResolution: zeroHpResolution("revenant"),
+		};
+		sheet._onUndeathOpen = vi.fn(async () => {});
+		return sheet;
+	}
+
+	it("opens the insert's walkthrough for a character who is actually down", async () => {
+		const sheet = makeInsertSheet({ hp: 0, state: DEATHS_DOOR_STATE.DYING });
+		await sheet._onDeathsDoorOpen();
+		expect(sheet._onUndeathOpen).toHaveBeenCalled();
+	});
+
+	it("refuses an old dying card once the character is back on their feet", async () => {
+		// Without this, clicking a spent card's button re-rolls Undying and hands out half their
+		// max HP again — for a Revenant standing there at full health.
+		const sheet = makeInsertSheet({ hp: 6 });
+		await sheet._onDeathsDoorOpen();
+		expect(sheet._onUndeathOpen).not.toHaveBeenCalled();
+	});
+
+	it("refuses it again while they're out of the action — the move is spent, not pending", async () => {
+		const sheet = makeInsertSheet({ hp: 0, state: DEATHS_DOOR_STATE.OUT_OF_ACTION });
+		await sheet._onDeathsDoorOpen();
+		expect(sheet._onUndeathOpen).not.toHaveBeenCalled();
+	});
+
+	it("refuses it for one who stepped through the Last Door", async () => {
+		const sheet = makeInsertSheet({ hp: 0, state: DEATHS_DOOR_STATE.DEAD });
+		await sheet._onDeathsDoorOpen();
+		expect(sheet._onUndeathOpen).not.toHaveBeenCalled();
 	});
 });

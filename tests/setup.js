@@ -58,9 +58,19 @@ global.foundry = {
 			for (let i = 0; i < length; i++) id += chars[Math.floor(Math.random() * chars.length)];
 			return id;
 		},
+		// Mirrors Foundry's flattenObject (common/utils/helpers.mjs), INCLUDING the two cases it is
+		// easy to get wrong and which silently weaken every test that depends on this:
+		//   • an EMPTY object is kept as a leaf rather than recursed away to nothing. Recursing
+		//     drops the key entirely, so a production path that writes `{}` — the crew's
+		//     `individualsHp` on a first naming, say — reached the code under test in the fake but
+		//     never in Foundry, and a defect there passed the suite while failing in the world.
+		//   • only PLAIN objects are descended. A class instance (a ForcedDeletion operator, a
+		//     Document, a Set) is a leaf, exactly as core treats it.
 		flattenObject: (obj, prefix = "") => Object.entries(obj ?? {}).reduce((acc, [key, value]) => {
 			const path = prefix ? `${prefix}.${key}` : key;
-			if (value && typeof value === "object" && !Array.isArray(value)) {
+			const isPlain = value !== null && typeof value === "object" && !Array.isArray(value)
+				&& (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
+			if (isPlain && Object.keys(value).length) {
 				Object.assign(acc, global.foundry.utils.flattenObject(value, path));
 			} else {
 				acc[path] = value;

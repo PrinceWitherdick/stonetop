@@ -50,6 +50,19 @@ const EDITABLE_COLUMNS = {
 	neighbors: ["name", "home", "occupation", "traits", "relations", "notes"],
 };
 
+/**
+ * Where someone lives when their Home says nothing: the village itself. Declared by the module
+ * that WRITES the field, so the writers and everything that reads or groups by it agree — a
+ * reader with its own copy of the literal is how a Home facet quietly splits into a ""
+ * bucket and a "Stonetop" bucket.
+ */
+export const HOME_STONETOP = "Stonetop";
+
+/** Someone's home for display and grouping — blank means the village itself. */
+export function npcHome(npc) {
+	return String(npc?.system?.home ?? "").trim() || HOME_STONETOP;
+}
+
 /** Update path for a Residents/Neighbors column, or null if the column isn't editable. */
 export function personFieldPath(list, field) {
 	if (!EDITABLE_COLUMNS[list]?.includes(field)) return null;
@@ -386,7 +399,7 @@ export async function createPersonNpc(list, data = {}, { folder = null } = {}) {
 	// Residents live in Stonetop by definition, so seed their Home with "Stonetop"
 	// (the NPC sheet shows it; a specific home can still be typed to override). A
 	// non-blank home carried in by migration is respected.
-	if (list === "residents") system.home = system.home.trim() || "Stonetop";
+	if (list === "residents") system.home = system.home.trim() || HOME_STONETOP;
 	const createData = {
 		name: data.name?.trim() || DEFAULT_PERSON_NAMES[list] || "New Person",
 		type: "npc",
@@ -430,6 +443,39 @@ export async function addPersonToSteading(list, data = {}, steading = null) {
 	if (!actor) return null;
 	await (steading ?? getStonetopSteadingActor())?.typedActor?.addPersonRow(list, actor);
 	return actor;
+}
+
+/**
+ * File a player character on the steading's Player Characters roster, if they aren't
+ * already listed.
+ *
+ * Called when a player finishes character creation (StonetopCharacterSheet#_launchOnboarding),
+ * whichever door they came in by — the GM's Welcome guide, the sidebar's Create Actor
+ * picker, or the sheet's own "Create Character" button. Before this, the only way onto the
+ * roster was for someone to drag the sheet onto the steading, so a character made outside
+ * the first-session flow quietly never appeared in the village.
+ *
+ * Runs on the finishing PLAYER's client, not the GM's: the steading is owned by everyone
+ * (hooks/StonetopSingleton.js#_ensureStartingValues), so they can write the row themselves
+ * and it lands whether or not a GM is connected. A world whose GM has narrowed that
+ * ownership fails the permission check and we simply don't file them — the drag stays
+ * available, and a failed write must never be what a player sees at the end of creation.
+ *
+ * @param {Actor} actor        the finished character
+ * @param {Actor} [steading]   the steading to file them on; defaults to the world's
+ * @returns {Promise<boolean>} whether a row was added (false if already listed, no
+ *                             steading, or not permitted)
+ */
+export async function addCharacterToSteadingPlayers(actor, steading = null) {
+	if (actor?.type !== "character") return false;
+	const target = steading ?? getStonetopSteadingActor();
+	if (!target?.canUserModify?.(game.user, "update")) return false;
+	try {
+		return await target.typedActor?.addPlayerRow?.(actor) ?? false;
+	} catch (err) {
+		console.warn("Stonetop | Could not add", actor?.name, "to the steading's Player Characters roster.", err);
+		return false;
+	}
 }
 
 /**
@@ -618,7 +664,7 @@ export async function backfillResidentHomes(steading) {
 		const actor = personRowActor(row);
 		if (!actor || actor.type !== "npc") continue;
 		if (String(actor.system?.home ?? "").trim()) continue;
-		try { await actor.update({ "system.home": "Stonetop" }); updated++; }
+		try { await actor.update({ "system.home": HOME_STONETOP }); updated++; }
 		catch (err) { console.warn("Stonetop | Could not backfill Home for", actor?.name, err); }
 	}
 	await steading.setFlag("stonetop_pwd", "steading", { residentHomesBackfilled: true });
