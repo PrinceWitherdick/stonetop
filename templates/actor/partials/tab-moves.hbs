@@ -1,6 +1,21 @@
 <div class="tab moves{{#if stonetop.hideUnselected}} hide-unselected{{/if}}" data-group="primary" data-tab="moves">
 	<section class="sheet-tab">
 
+		{{!-- MODERN layout only. The stat block heads this page: stats, debilities, and the
+		      damage / HP / armor / XP / level row. It is here rather than above the tabs so the
+		      other pages don't pay for it, and here rather than on a page of its own because
+		      this is the page a player rolls from — the stats and the moves that spend them
+		      belong together. The CLASSIC layout mounts the same partial above the tabs
+		      instead (character.hbs).
+
+		      The guard is MANDATORY, not cosmetic. Without it the classic layout renders two
+		      full stat blocks, and every field in there is a named input — two
+		      `system.attributes.debilities.options.weakened.value`, two of every vital.
+		      FormDataExtended collapses duplicate names into an array, so the next submit
+		      writes garbage to all three debilities and to level/armor/xp. It looks like a
+		      harmless visual duplicate right up until someone saves. --}}
+		{{#unless stonetop.classicLayout}}{{> "stonetop.stat-block"}}{{/unless}}
+
 		{{!-- Love letters (Book I p.568): single-use, GM-authored moves addressed to this
 		      PC. The section exists only while at least one letter is on the sheet — the
 		      last one vanishes with its section when the player resolves it. Players read

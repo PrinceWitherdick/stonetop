@@ -1,6 +1,15 @@
 <div class="tab overview" data-group="primary" data-tab="overview">
 	<section class="sheet-tab steading-overview">
 
+		{{!-- MODERN layout: the stat columns lead the tab. They read as the steading's headline
+		      numbers, which is what Overview is for, and the height they cost is spent only on
+		      the tab that wants it. The CLASSIC layout mounts the same partial as a permanent
+		      band above the tabs instead (steading.hbs), which is where it used to live.
+
+		      Both mounts are guarded, or classic renders the band twice: once above the tabs
+		      and again as the first block of this page, complete with the restored divider. --}}
+		{{#unless stonetop.classicLayout}}{{> "stonetop.steading-stats-bar"}}{{/unless}}
+
 		{{!-- Resources, Fortifications, and Assets sit in equal-width columns that
 		      stretch to a shared height, filling down to Places of Interest. --}}
 		<div class="steading-overview-cards">
@@ -130,34 +139,10 @@
 			</div>
 		</div>
 
-		{{!-- Relationships — how Stonetop stands with the communities beyond it, on
-		      the same 1-5 hearts the NPC and character sheets use for their side of a tie.
-		      The roster is the book's (module/data/settlements.js) and ships at neutral;
-		      clicking a heart sets the rating, clicking the last filled one drops it. The
-		      pencil reveals a show/hide box per row so a table can trim the list to the
-		      neighbors it actually deals with. Full width, between the inventory cards and
-		      Places of Interest. --}}
-		<div class="steading-card steading-residents-section steading-residents-section--settlements steading-edit-section{{#unless stonetop.edit.settlements}} stonetop-readonly{{/unless}}">
-			{{> "stonetop.steading-section-toggle" section="settlements" editing=stonetop.edit.settlements collapse="settlements"}}
-			{{!-- Table/Board toggle INSIDE the heading, pushed to the far right by margin-left:
-			      auto. Inside rather than beside it because this card is the positioning
-			      context (the pencil anchors to the card's corner, not the heading's), so an
-			      absolutely-placed sibling would sit in the card padding above the heading
-			      text. The h3 stays a full-width block, so its underline still spans the card
-			      and the buttons sit above it. --}}
-			{{!-- Gated like the section body: with no rows, neither layout has anything to
-			      show and the toggle would switch between two identical empty states. --}}
-			<h3 class="steading-list-heading">Relationships{{#if stonetop.hasSettlements}}{{> "stonetop.relationships-viewbar" resizeKey=stonetop.settlementsRel.resizeKey view=stonetop.settlementsRel.view inHeading=true}}{{/if}}</h3>
-			{{#if stonetop.hasSettlements}}
-			{{> "stonetop.relationships-view" rows=stonetop.settlements lanes=stonetop.settlementsRel.lanes
-			    view=stonetop.settlementsRel.view resizeKey=stonetop.settlementsRel.resizeKey hideViewbar=true
-			    nameLabel=(localize "stonetop.steading.settlement") canRate=stonetop.canEdit
-			    canToggle=stonetop.edit.settlements
-			    showTooltip=(localize "stonetop.steading.settlementShowTooltip")}}
-			{{else}}
-			<p class="stonetop-rel-empty">{{localize "stonetop.steading.settlementsAllHidden"}}</p>
-			{{/if}}
-		</div>
+		{{!-- CLASSIC layout: the settlements Relationships card sits on Overview, where it was
+		      before the redesign moved it to the bottom of the Residents tab. Same partial,
+		      guarded on both sides so exactly one copy renders. --}}
+		{{#if stonetop.classicLayout}}{{> "stonetop.steading-settlements-card"}}{{/if}}
 
 		{{!-- Places of Interest gets the full-width bottom row to itself. --}}
 		<div class="steading-overview-bottom">

@@ -1,0 +1,25 @@
+{{!-- One tab button, in whichever shape this sheet's layout wants.
+
+      MODERN is the icon rail: a glyph worn as a CSS mask, name in the tooltip and the
+      aria-label (see stonetop.tab-rail-item). CLASSIC is the horizontal strip: the name is
+      the button. These two <a> shapes are the only chrome this toggle duplicates - the tab
+      LIST itself, the stat block, the wounds line and the NPC quick facts are all one copy
+      of the markup, mounted in two places, so the layouts cannot drift apart.
+
+      `stonetop.classicLayout` is read off the INHERITED context rather than passed down: a
+      partial's context is its caller's plus the hash, every nav sits at its template's root,
+      and each of the three sheets puts its own effective value under that one key. So this
+      partial needs no call-site plumbing and cannot be handed the wrong sheet's answer.
+
+      The level-up dot is modern-only. In classic the vitals row is pinned above the tabs and
+      actor-vitals.hbs already draws `.stonetop-levelup-icon` there with its own tooltip - the
+      rail dot exists only because the redesign put the vitals behind a tab. The attention
+      class is still stamped on the classic anchor so a classic-scoped dot rule is one
+      selector away if that turns out to be wanted; no dot is drawn today. --}}
+{{#if stonetop.classicLayout}}
+<a class="item{{#if attention}} stonetop-tab-attention{{/if}}" data-tab="{{tab}}"
+   aria-label="{{label}}{{#if attention}} ({{attentionLabel}}){{/if}}"
+   {{#if attention}}data-tooltip="{{label}} ({{attentionLabel}})"{{/if}}><span class="stonetop-tab-label">{{label}}</span></a>
+{{else}}
+{{> "stonetop.tab-rail-item" tab=tab label=label attention=attention attentionLabel=attentionLabel}}
+{{/if}}

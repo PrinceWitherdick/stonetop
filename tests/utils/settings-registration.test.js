@@ -130,7 +130,7 @@ describe("settings registration", () => {
 		// not know); settings.js names the retired key in a comment so it is not reused.
 		const KEPT = new Set([]);
 		const corpus = searchCorpus();
-		// settings.js's own exported accessors (getCharacterSheetWidth, getCrewSectionsOpen,
+		// settings.js's own exported accessors (getSheetSize, getCrewSectionsOpen,
 		// …) name their key rather than going through getSetting, so the accessor region —
 		// everything after registerSettings() closes — counts as a reference too.
 		const accessorRegion = SETTINGS_SRC.slice(SETTINGS_SRC.indexOf("export const HOVER_DESCRIPTION_SETTING_KEYS"));

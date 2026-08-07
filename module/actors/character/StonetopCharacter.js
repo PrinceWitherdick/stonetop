@@ -41,20 +41,21 @@ import {statRequirementLabel, statRequirementsUnmet} from "./stat-requirement.js
 import {MoveResources} from "./MoveResources.js";
 import {moveMarkBudget} from "./move-mark-budget.js";
 import {StonetopFlags, STONETOP_SCOPE, ITEM_FLAG_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
+import {DEATHS_DOOR_FLAG, canFaceDeathsDoor, deathsDoorRollOptions, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
 import {heroDisplayName, WBH_HERO_FLAG, ownsAsteriskMove} from "./WouldBeHeroAsterisk.js";
 import {CharacterBackgrounds} from "./CharacterBackgrounds.js";
 import {CharacterInstincts} from "./CharacterInstincts.js";
 import {CharacterAppearance} from "./CharacterAppearance.js";
 import {CharacterOrigin} from "./CharacterOrigin.js";
 import {CharacterPossessions} from "./CharacterPossessions.js";
-import {grantsToCreate} from "./possession-grants.js";
+import {grantsToCreate, grantSourceMap, grantAdoptionKeys, itemGrantKey} from "./possession-grants.js";
 import {CharacterInventory} from "./CharacterInventory.js";
 import {maybeBeginAttack, attackMoveFor} from "../../combat/attack-flow.js";
 import {defendReadinessHold, defendReadinessCap} from "../../combat/defend-readiness.js";
 import {classifyResult, xpToLevelUp} from "../../utils/roll-engine.js";
 import {CharacterArcana} from "./CharacterArcana.js";
 import {CharacterLore} from "./CharacterLore.js";
-import {CharacterPostDeath, buildLoreSection} from "./CharacterPostDeath.js";
+import {CharacterPostDeath, buildLoreSection, insertHpPenalty} from "./CharacterPostDeath.js";
 import {effectiveSubgroupMax, sumMoveBonus} from "./dialogs/possession-choice-cap.js";
 import {FoundryRepositoryFactory} from "./repositories/FoundryRepositoryFactory.js";
 import {capitalizeFirst, slugify, composeInstinct, escHtml} from "../../utils/strings.js";
@@ -67,7 +68,7 @@ import {buildCustomMoveData, clampInt} from "../../utils/custom-move-data.js";
 import {buildInventoryItemData} from "../../utils/inventory-item-data.js";
 import {isLoveLetter} from "./love-letters.js";
 import {deriveLoadLevel, loadLimitsFor} from "../../utils/load.js";
-import {maxDie, stepDie} from "../../utils/damage-die.js";
+import {maxDie, stepDie, normalizeDamageDie} from "../../utils/damage-die.js";
 
 const OTHER_MOVE_TYPES = ["background", "special", "follower", "homefront"];
 // Expedition moves that operate on the STEADING rather than the individual hero,
@@ -430,7 +431,10 @@ export class StonetopCharacter {
 			.withDebilities(_buildDebilitiesSection(actor))
 			.withWounds(_buildWoundsSection(actor))
 			.withStats(_buildStatsSection(actor))
-			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses, wornArmorBase))
+			// A Thrall's Marks eat into their max HP ("Reduce your max HP by 2"), and they collect
+			// more as Dark Succor keeps saving them — so it's derived from the marked options
+			// every render, not written once.
+			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses, wornArmorBase, insertHpPenalty(postDeath.activeInsert?.lore)))
 			.withMoves(moves)
 			.withMovelist(_buildMovelist(moves, inventory.other, pdiLabel, actorLevel, inventory.loveLetters))
 			.withInventory(inventory)
@@ -737,26 +741,26 @@ export class StonetopCharacter {
 			...this._possessions.selected,
 			...(playbookData?.specialPossessions?.preselected ?? []),
 		]);
+		const activePossessionOptions = (playbookData?.specialPossessions?.options ?? [])
+			.filter(opt => activePossessionSlugs.has(opt.slug));
+		// A TAGGED item names its own possession, so it is matched on slug + name alone — the tag
+		// already answers the question the column and the collision guard below exist to answer.
 		const grantByPossessionAndKey = new Map();
 		const grantKeyFor = (slug, key) => `${slug}:${key}`;
-		// De-dupe within a grant: a grant that repeats a name (e.g. sourceKey === aliases[0])
-		// must not look like the same name coming from two possessions, or the collision guard
-		// below would null its inference and drop an untagged legacy item into the columns.
-		const grantNames = grant => [...new Set([grant.name, grant.sourceKey, ...(grant.aliases ?? [])].filter(Boolean))];
-		const inferredGrantSources = new Map();
-		for (const opt of (playbookData?.specialPossessions?.options ?? [])) {
-			if (!activePossessionSlugs.has(opt.slug)) continue;
+		for (const opt of activePossessionOptions) {
 			for (const grant of (opt.grantsItems ?? [])) {
 				if (!grant?.name) continue;
-				for (const name of grantNames(grant)) {
+				for (const name of [...new Set([grant.name, grant.sourceKey, ...(grant.aliases ?? [])].filter(Boolean))]) {
 					grantByPossessionAndKey.set(grantKeyFor(opt.slug, name), grant);
-					const key = `${grant.column === "regular" ? "regular" : "small"}:${name}`;
-					// Exact duplicates across selected possessions are ambiguous unless the item is
-					// tagged, so leave those as normal write-ins instead of guessing the parent.
-					inferredGrantSources.set(key, inferredGrantSources.has(key) ? null : { slug: opt.slug, grant });
 				}
 			}
 		}
+		// UNTAGGED legacy gear is claimed by column + name, and only where exactly one grant
+		// answers to that key — the shared rule the select/deselect sync adopts and disowns by
+		// (possession-grants.js#grantSourceMap). Shared rather than restated, because a sheet that
+		// renders an item inside a possession's card while the teardown declines to claim it — or
+		// the reverse — is how a deselect comes to delete a player's hand-written gear.
+		const inferredGrantSources = grantSourceMap(activePossessionOptions);
 		const grantForTaggedItem = item => {
 			const slug = item.system?.sourcePossession;
 			if (!slug) return null;
@@ -764,19 +768,33 @@ export class StonetopCharacter {
 				?? grantByPossessionAndKey.get(grantKeyFor(slug, item.name))
 				?? null;
 		};
-		const inferredGrantFor = item => {
-			const column = item.system?.inventoryColumn === "regular" ? "regular" : "small";
-			return inferredGrantSources.get(`${column}:${item.name}`) ?? null;
-		};
+		const inferredGrantFor = item => inferredGrantSources.get(itemGrantKey(item)) ?? null;
+		// Which possessions will actually draw a card below. _buildPossessionsSnapshot walks
+		// `options` and reads grantedByPossession by slug, so gear tagged to a slug that isn't
+		// there has no card to live in — which covers a possession since deselected, a slug
+		// left behind by a playbook change, and every slug at all on a character whose
+		// playbook resolved to nothing.
+		const cardBearingSlugs = new Set(
+			(playbookData?.specialPossessions?.options ?? [])
+				.map(opt => opt.slug)
+				.filter(slug => activePossessionSlugs.has(slug)));
+		// Claim for the possession cards FIRST, then let everything else fall through. These
+		// two have to be a partition of customItems: written as two independent predicates they
+		// left a gap between them — an item tagged to a possession that wasn't active satisfied
+		// neither, so it rendered in no section at all while still sitting on the actor,
+		// costing no load and no small-item allowance. Deriving the write-ins as "whatever the
+		// cards didn't take" makes that unrepresentable rather than merely fixed.
+		const possessionItems = customItems.filter(i => {
+			const slug = i.system?.sourcePossession;
+			return slug ? cardBearingSlugs.has(slug) : !!inferredGrantFor(i);
+		});
+		const claimedByPossession = new Set(possessionItems);
 		// Book II treasures dragged in from a journal are write-ins too, but they get their
 		// own "Treasures" heading in each column rather than sitting among the hand-written
 		// items — so subtract them from the catch-all here, or they'd render in both places.
-		const isWriteIn       = i => !i.system?.sourcePossession && !inferredGrantFor(i);
+		const isWriteIn       = i => !claimedByPossession.has(i);
 		const writeInItems    = customItems.filter(i => isWriteIn(i) && !i.system?.isTreasure);
 		const treasureItems   = customItems.filter(i => isWriteIn(i) && !!i.system?.isTreasure);
-		const possessionItems = customItems.filter(i =>
-			(i.system?.sourcePossession && activePossessionSlugs.has(i.system.sourcePossession)) ||
-			(!i.system?.sourcePossession && !!inferredGrantFor(i)));
 		const grantedByPossession = new Map();
 		for (const i of possessionItems) {
 			const inferred = inferredGrantFor(i);
@@ -1517,26 +1535,63 @@ export class StonetopCharacter {
 
 	// Bundled-gear sync (see possession-grants.js). Materialize a possession's
 	// `grantsItems` as inventory items on select; tear them down on deselect.
-	_grantedItemsFor(slug) {
-		return this._actor.items.filter(i =>
-			i.type === "move" &&
-			i.system?.moveType === "inventory-custom" &&
-			i.system?.sourcePossession === slug,
-		);
+	//
+	// Matches the `sourcePossession` tag first, then falls back to adopting untagged gear by
+	// COLUMN + NAME (possession-grants.js#grantAdoptionKeys). That fallback carries the gear of
+	// every world older than the day MoveModel learned to declare the tag: until then it was
+	// stripped on the way into the document, so those items carry no tag at all and a tag-only
+	// match would tear down nothing, stranding the gear on the sheet for good.
+	//
+	// The adoption rule is SHARED with the gear tab, which renders those same items inside the
+	// possession's card (inferredGrantFor, in _buildInventorySection), and with
+	// _addPossessionGrants below, which counts an adoptable write-in as this grant already being
+	// present and declines to create it. All three have to agree — see that module for what each
+	// direction of disagreement costs.
+	async _grantedItemsFor(slug) {
+		const tagged = [], untagged = [];
+		for (const i of this._actor.items) {
+			if (i.type !== "move" || i.system?.moveType !== "inventory-custom") continue;
+			if (i.system?.sourcePossession === slug) tagged.push(i);
+			else if (!i.system?.sourcePossession) untagged.push(i);
+		}
+		// Nothing untagged to adopt: skip resolving the playbook (a pack lookup) entirely.
+		if (!untagged.length) return tagged;
+		const adopt = await this._grantAdoptionKeys(slug);
+		if (!adopt.size) return tagged;
+		return [...tagged, ...untagged.filter(i => adopt.has(itemGrantKey(i)))];
+	}
+
+	// Which untagged write-ins possession `slug` may claim, resolved against every possession the
+	// character actually holds. `slug` is added explicitly rather than relied on being selected:
+	// deselectPossession drops it from the selection BEFORE calling the teardown, and a possession
+	// missing from the active set would claim nothing at all.
+	async _grantAdoptionKeys(slug) {
+		const sp = (await this.playbook())?.specialPossessions;
+		const active = new Set([...this._possessions.selected, ...(sp?.preselected ?? []), slug]);
+		return grantAdoptionKeys(slug, (sp?.options ?? []).filter(opt => active.has(opt.slug)));
 	}
 
 	async _addPossessionGrants(slug) {
 		const playbook = await this.playbook();
 		const opt = (playbook?.specialPossessions?.options ?? []).find(o => o.slug === slug);
 		if (!opt?.grantsItems?.length) return;
-		// Dedupe against this possession's already-materialized grants AND any plain write-in
-		// gear of the same name — so a character who hand-added the bundled items before grants
-		// existed (untagged write-ins) isn't handed a duplicate by the ready-time back-fill.
-		const existing = new Set(this._grantedItemsFor(slug).map(i => i.system?.sourceKey ?? i.name));
+		// Dedupe against this possession's already-materialized grants AND any untagged write-in
+		// its own grants would ADOPT — so a character who hand-added the bundled items before
+		// grants existed isn't handed a duplicate by the ready-time back-fill.
+		//
+		// Keyed on the GRANT rather than on the item's own name, because an adopted legacy item may
+		// be spelled with one of the grant's aliases ("Fine whisky" for "Fine whisky (advantage to
+		// Persuade)") while grantsToCreate asks by `sourceKey`. And adoption is asked through the
+		// same helper the teardown uses: suppressing a create on a LOOSER rule than the one that
+		// later claims the item is what leaves a grant permanently unmaterialized.
+		const adopt = await this._grantAdoptionKeys(slug);
+		const existing = new Set();
 		for (const i of this._actor.items) {
-			if (i.type === "move" && i.system?.moveType === "inventory-custom" && !i.system?.sourcePossession) {
-				existing.add(i.name);
-			}
+			if (i.type !== "move" || i.system?.moveType !== "inventory-custom") continue;
+			if (i.system?.sourcePossession === slug) { existing.add(i.system?.sourceKey ?? i.name); continue; }
+			if (i.system?.sourcePossession) continue;
+			const grant = adopt.get(itemGrantKey(i));
+			if (grant) existing.add(grant.sourceKey ?? grant.name);
 		}
 		const sourceLabel = (opt.label ?? "").replace(/<[^>]*>/g, "").trim();
 		const toCreate    = grantsToCreate(opt.grantsItems, existing, { slug, sourceLabel });
@@ -1547,7 +1602,7 @@ export class StonetopCharacter {
 	}
 
 	async _removePossessionGrants(slug) {
-		const ids = this._grantedItemsFor(slug).map(i => i._id);
+		const ids = (await this._grantedItemsFor(slug)).map(i => i._id);
 		if (ids.length) await this._actor.deleteEmbeddedDocuments("Item", ids);
 		// Clear the mark so re-selecting the possession re-grants its gear afresh.
 		await this._clearPossessionGrantsApplied(slug);
@@ -1906,7 +1961,7 @@ export class StonetopCharacter {
 		// Returns null for non-attack moves. See module/combat/attack-flow.js.
 		let attackExtra = null;
 		if (!descriptionOnly) {
-			const begun = await maybeBeginAttack(this._actor, item);
+			const begun = await maybeBeginAttack(this._actor, item, { stat });
 			if (begun === "cancel") return true;
 			// Going on the offense (Clash / Let Fly) sheds any held Defend Readiness (p.216) —
 			// but only once the attack is committed, not on a cancelled weapon/target prompt.
@@ -2102,6 +2157,174 @@ export class StonetopCharacter {
 
 	async setRollMode(rollMode) {
 		await this._actor.setFlag(STONETOP_SCOPE, "rollMode", _normalizeSheetRollMode(rollMode));
+	}
+
+	// ── Death and dying (Book I, Harm & Healing p.245) ─────────────────────────
+	// HP alone can't say whether a character at 0 HP still has their 0-HP move ahead of
+	// them: a Death's Door 7-9 leaves them at 0 HP and expressly no longer dying. The
+	// state flag carries that; deaths-door.js owns what the transitions are.
+
+	/** DEATHS_DOOR_STATE value, or null for the ordinary living state. */
+	get deathsDoorState() {
+		return resolvedFlagProperty(this._actor, DEATHS_DOOR_FLAG) ?? null;
+	}
+
+	async setDeathsDoorState(state) {
+		if (state) await this._actor.setFlag(STONETOP_SCOPE, DEATHS_DOOR_FLAG, state);
+		else await this._actor.unsetFlag(STONETOP_SCOPE, DEATHS_DOOR_FLAG);
+	}
+
+	/**
+	 * Clearing the state as part of another write, for the moves where coming back and being
+	 * healed are one decision (see restoreHp / markDebility). Written as an explicit null
+	 * rather than an unset, which is how the preUpdate hook writes it too — the reader treats
+	 * both alike (see deathsDoorState).
+	 */
+	get _clearDeathsDoorUpdate() {
+		return { [`flags.${STONETOP_SCOPE}.${DEATHS_DOOR_FLAG}`]: null };
+	}
+
+	get hp() { return Number(this._actor.system?.attributes?.hp?.value) || 0; }
+
+	/** At 0 HP with their 0-HP move still to face. */
+	get canFaceDeathsDoor() {
+		return canFaceDeathsDoor({ hp: this.hp, state: this.deathsDoorState });
+	}
+
+	/** Which move this character triggers at 0 HP — Death's Door only until they take an insert. */
+	get zeroHpMove() {
+		return zeroHpMove(this._postDeath.activeSlug);
+	}
+
+	/**
+	 * The Heavy's Death's Door modifiers, read off the character's own moves: Hard to Kill's
+	 * "+CON or +nothing (your choice)" and Unstoppable's "-1 penalty for each circle marked".
+	 */
+	deathsDoorRollOptions() {
+		return deathsDoorRollOptions(
+			this._actor.items.filter(i => i.type === "move").map(i => i.name),
+			this._moveResources.getMoveResources(),
+		);
+	}
+
+	/**
+	 * Death's Door 10+: "return to 1 HP", and with it the end of dying. Written here rather than
+	 * left to the player, since the move gives them no choice about it. restoreHp only ever
+	 * raises hit points, which is exactly what this wants: a character who was somehow healed
+	 * above 1 while the dialog was open keeps the better number.
+	 */
+	async returnToOneHp() {
+		return this.restoreHp(1, "Death's Door", { clearsDeathsDoor: true });
+	}
+
+	// ── The inserts' own 0-HP moves (Undying / Tethered / Dark Succor) ─────────
+	// Their bookkeeping lives on the insert (consequences, Marks, Favor), so these are thin
+	// pass-throughs to CharacterPostDeath; the walkthrough calls them rather than reaching
+	// through `_postDeath` itself.
+
+	/** The resolution spec for this character's 0-HP move, or null without an insert. */
+	get zeroHpResolution() {
+		return zeroHpResolution(this._postDeath.activeSlug);
+	}
+
+	/**
+	 * The character's real max HP.
+	 *
+	 * NOT `system.attributes.hp.max`: that field is written once, when the playbook is dropped,
+	 * and never again — every later contribution (move bonuses, and a Thrall's max-HP Marks)
+	 * lives only in the computed snapshot, which the sheet mirrors into its inputs without
+	 * persisting. Anything doing arithmetic on "your max HP" has to ask for the computed value
+	 * or it will quietly use the character's level-1 number.
+	 */
+	async computedMaxHp() {
+		const snapshot = await this.buildSnapshot();
+		return snapshot.vitals?.hp?.max ?? this.storedMaxHp;
+	}
+
+	/** The persisted field — stale by design; see computedMaxHp. Only for a last-resort fallback. */
+	get storedMaxHp()       { return Number(this._actor.system?.attributes?.hp?.max) || 0; }
+
+	/** The hand-set damage die, or null when the die follows the playbook. */
+	get damageDieOverride() { return normalizeDamageDie(this._actor.system?.attributes?.damage?.override); }
+
+	/**
+	 * Set (or clear, with a blank/unparseable value) the hand-typed damage die.
+	 *
+	 * `damage.value` is written alongside it because that persisted field is what the damage
+	 * roller reads (see combat/attack-flow.js) and what the sheet's Damage input shows. Clearing
+	 * puts the derived die back in both places, so nothing keeps rolling the abandoned override —
+	 * and blanks them when there's no derived die to fall back on (no playbook), rather than
+	 * leaving the cleared override standing in the one field that decides the roll.
+	 * Returns the die now in play, or null if there is none (no playbook and nothing typed).
+	 *
+	 * `base` is the derived (playbook + marks) die when the caller already has it — the sheet
+	 * renders it into the field's own dataset — which saves rebuilding the whole snapshot just
+	 * to read one string back out of it.
+	 */
+	async setDamageDieOverride(input, { base: knownBase = null } = {}) {
+		const die = normalizeDamageDie(input);
+		const base = die ? null : (knownBase ?? (await this.buildSnapshot()).vitals?.damageBase ?? null);
+		const effective = die ?? base;
+		await this._actor.update({
+			"system.attributes.damage.override": die ?? "",
+			"system.attributes.damage.value": effective ?? "",
+		});
+		return effective;
+	}
+	async setMasterTask(t)  { await this._postDeath.setMasterTask(t); }
+	get tether()            { return this._postDeath.tether; }
+	async setTether(t)      { await this._postDeath.setTether(t); }
+	async crossOffMark(s)   { return this._postDeath.crossOffMark(s); }
+	async sectionOptions(s) { return this._postDeath.sectionOptions(s); }
+	async markSectionOption(section, option) { return this._postDeath.markSectionOption(section, option); }
+	favor()                 { return this._postDeath.favor(); }
+	async setFavor(v)       { await this._postDeath.setFavor(v); }
+
+	/**
+	 * Set HP to an exact value, for the insert moves that restore a stated amount ("regain half
+	 * your max HP", "regain 1 HP"). The caller computes the amount against the real max (see
+	 * computedMaxHp), so it's taken as authoritative here — this only refuses to LOWER hit
+	 * points, since these moves restore rather than cap.
+	 *
+	 * `clearsDeathsDoor` rides the state change along in the same write: being restored IS the
+	 * end of the brush with death, so it should cost one ledger line and one re-render rather
+	 * than two. It still has to happen when the hit points DON'T move (a character healed above
+	 * the amount while the dialog was open), so that path writes the state on its own.
+	 */
+	async restoreHp(value, moveName, { clearsDeathsDoor = false } = {}) {
+		const target = Math.max(0, Math.trunc(Number(value) || 0));
+		if (target <= this.hp) {
+			if (clearsDeathsDoor) await this.setDeathsDoorState(null);
+			return false;
+		}
+		const update = { "system.attributes.hp.value": target };
+		if (clearsDeathsDoor) Object.assign(update, this._clearDeathsDoorUpdate);
+		await this._actor.update(update, moveName ? { stonetopMove: moveName } : {});
+		return true;
+	}
+
+	/** The three debilities and whether each is marked — for a move that offers a choice of one. */
+	get debilityChoices() {
+		const opts = this._actor.system?.attributes?.debilities?.options ?? {};
+		return _DEBILITY_DEFS.map(({ key, name, description }) => ({
+			key, name, description, marked: !!opts[key]?.value,
+		}));
+	}
+
+	/**
+	 * Mark one debility, optionally in the same write as an HP change and the end of a brush
+	 * with death — the Heavy's Hard to Kill trades exactly that on a 7-9 ("mark a debility of
+	 * your choice to regain 1 HP", which is also what takes them out of being out of the
+	 * action), and one write means one ledger line and one re-render for what is one decision.
+	 */
+	async markDebility(key, { hp = null, moveName, clearsDeathsDoor = false } = {}) {
+		if (!_DEBILITY_DEF_BY_KEY[key]) return false;
+		if (this.debilityChoices.find(d => d.key === key)?.marked) return false;
+		const update = { [`system.attributes.debilities.options.${key}.value`]: true };
+		if (hp !== null) update["system.attributes.hp.value"] = hp;
+		if (clearsDeathsDoor) Object.assign(update, this._clearDeathsDoorUpdate);
+		await this._actor.update(update, moveName ? { stonetopMove: moveName } : {});
+		return true;
 	}
 
 	// ── Problematic / permanent wounds (Book I, Harm & Healing) ────────────────
@@ -2535,16 +2758,23 @@ function _buildWoundsSection(actor) {
 }
 
 
-function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, wornArmorBase = 0) {
+function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, wornArmorBase = 0, insertHpPenalty = 0) {
 	const attrs = actor.system?.attributes ?? {};
 	const level = attrs.level?.value ?? 1;
-	const hpBonus = moveBonuses.hp ?? 0;
-	const damage = playbookData
+	// Floored at 1: a Thrall who collects enough max-HP Marks would otherwise arrive at 0 max HP
+	// and be permanently dying, which is Unholy Vessel's job to end, not arithmetic's.
+	const hpMax = Math.max(1, (playbookData?.hp ?? 0) + (moveBonuses.hp ?? 0) - insertHpPenalty);
+	const damageBase = playbookData
 		? (moveBonuses.damageDie ? maxDie(playbookData.damage, moveBonuses.damageDie) : playbookData.damage)
 		: null;
+	// A die typed into the sheet's Damage field wins outright: it is the player saying "this
+	// character's die is X", which the playbook has no business overwriting on the next render.
+	// Clearing the field drops back to the derived die (see setDamageDieOverride).
+	const damage = normalizeDamageDie(attrs.damage?.override) ?? damageBase;
 	return new VitalsSnapshotBuilder()
-		.withHp(playbookData ? new ValueMax(attrs.hp?.value ?? 0, (playbookData.hp ?? 0) + hpBonus) : new ValueMax(0, 0))
+		.withHp(playbookData ? new ValueMax(Math.min(attrs.hp?.value ?? 0, hpMax), hpMax) : new ValueMax(0, 0))
 		.withDamage(damage)
+		.withDamageBase(damageBase)
 		.withArmor(armorValue)
 		.withWornArmor(wornArmorBase)
 		.withLevel(level)

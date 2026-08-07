@@ -392,6 +392,41 @@ describe("buildSnapshot — vitals", () => {
 		expect(snap.vitals.damage).toBeNull();
 	});
 
+	it("a hand-set damage die overrides the playbook's, and damageBase keeps the playbook's", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.withDamage("d8", "d8")
+			.build();
+		const snap = await new TestCharacterBuilder(actor).addPlaybook(HEAVY_PLAYBOOK).build().buildSnapshot();
+		expect(snap.vitals.damage).toBe("d8");
+		expect(snap.vitals.damageBase).toBe("d10");
+	});
+
+	it("a loosely typed override is normalized to a d# die", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.withDamage("d10", " 1D8 ")
+			.build();
+		const snap = await new TestCharacterBuilder(actor).addPlaybook(HEAVY_PLAYBOOK).build().buildSnapshot();
+		expect(snap.vitals.damage).toBe("d8");
+	});
+
+	it("a blank override leaves the playbook die in charge", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.withDamage("d10", "")
+			.build();
+		const snap = await new TestCharacterBuilder(actor).addPlaybook(HEAVY_PLAYBOOK).build().buildSnapshot();
+		expect(snap.vitals.damage).toBe("d10");
+	});
+
+	it("an override stands on a character with no playbook", async () => {
+		const actor = new FakeActorBuilder().withDamage("d4", "d8").build();
+		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
+		expect(snap.vitals.damage).toBe("d8");
+		expect(snap.vitals.damageBase).toBeNull();
+	});
+
 	it("armor is derived from checked inventory items", async () => {
 		const actor = new FakeActorBuilder()
 			.withFlag("inventory.checked", {"thick-hides": true, "shield": true})

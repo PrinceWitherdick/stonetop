@@ -1,0 +1,155 @@
+<div class="undeath-dialog-content">
+
+	<h2 class="undeath-move-name">{{moveName}}</h2>
+	<p class="undeath-trigger">{{{trigger}}}</p>
+
+	{{#if isRoll}}
+	<div class="undeath-step undeath-step--roll">
+		{{#if forcedMiss}}
+		{{! Revenant: "If your body is completely destroyed… treat it as if you rolled a 6-." }}
+		<label class="undeath-toggle">
+			<input type="checkbox" class="undeath-forced-miss" {{#if forcedMiss.on}}checked{{/if}}>
+			<span>{{forcedMiss.label}}</span>
+		</label>
+		<p class="undeath-hint">{{forcedMiss.hint}}</p>
+		{{/if}}
+
+		<p class="undeath-instruction">
+			Roll
+			<button type="button" class="undeath-roll-btn">
+				<span class="undeath-roll-chip">{{rollLabel}}</span>
+				<i class="fas fa-dice-d6"></i>
+			</button>
+			{{#if favor}}<span class="undeath-favor-note">You hold <strong>{{favor}}</strong> Favor.</span>{{/if}}
+		</p>
+	</div>
+	{{/if}}
+
+	{{#if isResolve}}
+	<div class="undeath-step undeath-step--resolve">
+		{{#if rolledTotal}}
+		<p class="undeath-result-banner">You rolled <strong>{{rolledTotal}}</strong> &mdash; <strong>{{tierLabel}}</strong>.</p>
+		{{/if}}
+
+		{{#if hp}}
+		<p class="undeath-hp">You regain <strong>{{hp}} HP</strong>.</p>
+		{{/if}}
+		{{#if hpNote}}
+		<p class="undeath-hint">{{hpNote}}</p>
+		{{/if}}
+		{{#if disperses}}
+		{{#unless tetherDestroyed.on}}
+		<p class="undeath-hp">
+			Your essence disperses until the next sunset. You reform near
+			{{#if tether}}<strong>{{tether}}</strong>{{else}}your tether{{/if}}
+			with <strong>{{disperses}} HP</strong> &mdash; reform from your Special Moves tab when you do.
+		</p>
+		{{/unless}}
+
+		{{#if needsTether}}
+		{{! Tethered turns on what they're bound to, and it's never been named. Ask once; it
+		    sticks to the sheet from here on. }}
+		<div class="undeath-tether">
+			<p class="undeath-pick-label">What are you bound to?</p>
+			<p class="undeath-hint">Your mortal remains, the place where you died, an object of personal significance&hellip;</p>
+			<input type="text" class="undeath-tether-input" value="{{tether}}" placeholder="Name your tether">
+		</div>
+		{{/if}}
+		{{/if}}
+
+		{{#if tetherDestroyed}}
+		<label class="undeath-toggle">
+			<input type="checkbox" class="undeath-tether-destroyed" {{#if tetherDestroyed.on}}checked{{/if}}>
+			<span>{{tetherDestroyed.label}}</span>
+		</label>
+		<p class="undeath-hint">{{tetherDestroyed.hint}}</p>
+		{{#if tetherDestroyed.on}}
+		<p class="undeath-hint undeath-warning">
+			<i class="fas fa-triangle-exclamation"></i>
+			There is nothing left to reform beside. Your connection to humanity is lost, and you pass
+			into the GM's hands.
+		</p>
+		{{/if}}
+		{{/if}}
+
+		<p class="undeath-pick-label">
+			{{#if allApply}}
+			All of these apply:
+			{{else}}
+			Choose {{pick}} &mdash; <span class="undeath-pick-count">{{pickedCount}} of {{pick}} taken</span>:
+			{{/if}}
+		</p>
+
+		<div class="undeath-effects">
+			{{#each effects}}
+			<div class="undeath-effect{{#if picked}} is-picked{{/if}}{{#if exhausted}} is-exhausted{{/if}}">
+				<label class="undeath-effect-label">
+					<input type="checkbox" class="undeath-effect-check" data-kind="{{kind}}"
+					       {{#if picked}}checked{{/if}} {{#if exhausted}}disabled{{/if}}>
+					<span>{{label}}</span>
+				</label>
+
+				{{#if exhausted}}
+				<p class="undeath-hint">Nothing left to take here &mdash; they're all already marked.</p>
+				{{else if picked}}
+					{{#if (eq kind "task")}}
+					<input type="text" class="undeath-task-input" value="{{choice}}"
+					       placeholder="What does your master demand?">
+					{{else if options.length}}
+					<select class="undeath-effect-select" data-kind="{{kind}}">
+						<option value="">&mdash; choose &mdash;</option>
+						{{#each options}}
+						<option value="{{slug}}"{{#if (eq slug ../choice)}} selected{{/if}}>{{label}}</option>
+						{{/each}}
+					</select>
+					{{/if}}
+				{{/if}}
+			</div>
+			{{/each}}
+		</div>
+
+		{{#if alternative}}
+		{{! The Revenant's 6- fork: not one of the three, a different answer entirely. }}
+		<div class="undeath-alternative">
+			<p class="undeath-pick-label">&hellip;or instead:</p>
+			<button type="button" class="undeath-alternative-btn" data-insert="{{alternative.insert}}">
+				{{alternative.label}}
+			</button>
+		</div>
+		{{/if}}
+
+		{{#if resetsFavor}}
+		<p class="undeath-hint"><i class="fas fa-rotate-left"></i> Regardless of the roll, your Favor resets to 0.</p>
+		{{/if}}
+	</div>
+	{{/if}}
+
+	{{#if isDone}}
+	<div class="undeath-step undeath-step--done">
+		<p class="undeath-result-banner"><i class="fas fa-check"></i> Recorded on your sheet:</p>
+		<ul class="undeath-summary">
+			{{#each summary}}<li>{{{this}}}</li>{{/each}}
+		</ul>
+	</div>
+	{{/if}}
+
+</div>
+
+<div class="undeath-dialog-buttons">
+	{{#if isRoll}}
+	<button class="undeath-cancel-btn" type="button">Not yet</button>
+	{{/if}}
+
+	{{#if isResolve}}
+	<button class="undeath-cancel-btn" type="button">Cancel</button>
+	<button class="undeath-apply-btn is-primary" type="button" {{#unless canApply}}disabled{{/unless}}>
+		<i class="fas fa-check"></i> Apply
+	</button>
+	{{/if}}
+
+	{{#if isDone}}
+	<button class="undeath-close-btn is-primary" type="button">
+		<i class="fas fa-check"></i> Done
+	</button>
+	{{/if}}
+</div>

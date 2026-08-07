@@ -4,6 +4,7 @@ import { book2ArtSrcWith } from "./art-root.js";
 import { browseArtDirs } from "./browse.js";
 import { loadImage } from "./rebuild-crops.js";
 import { landmarkIcon, landmarkNoteData } from "../hooks/PlaceOfInterestDrop.js";
+import { placeNoteLink } from "../utils/places-chronicle.js";
 import { error, info } from "../utils/logger.js";
 
 // Turning the poster maps the GM already has on disk into world Scenes.
@@ -246,6 +247,14 @@ async function placePosterMapPins(scene, map, width, height) {
 		&& !existing.some(e => e.text === note.name && String(e.texture?.src ?? "").endsWith(iconFile(note.letter))));
 	if (!missing.length) return 0;
 
+	// Point each pin at its Chronicle page, seeding the "Places of Interest" journal on the
+	// first one that needs it. Resolved per pin rather than per map because the three
+	// Watchtower pins all share the F page — the lookup is a cached find after the first.
+	const links = new Map();
+	for (const note of missing) {
+		if (!links.has(note.letter)) links.set(note.letter, await placeNoteLink(note.letter));
+	}
+
 	// Same writer as a GM dragging a Place of Interest onto the canvas, so a pin laid down
 	// here and one dropped by hand are the same document — which is also what lets
 	// StonetopNoteLabels recognise both.
@@ -253,6 +262,7 @@ async function placePosterMapPins(scene, map, width, height) {
 		...landmarkNoteData({
 			x: Math.round(note.fx * width), y: Math.round(note.fy * height),
 			letter: note.letter, name: note.name,
+			...(links.get(note.letter) ?? {}),
 		}),
 		flags: { [SYSTEM_ID]: { posterPin: note.key } },
 	})));

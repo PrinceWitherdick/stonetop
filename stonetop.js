@@ -30,6 +30,8 @@ import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { onHotbarDrop } from "./module/hooks/HotbarDrop.js";
 import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
 import { onDropFollower } from "./module/hooks/FollowerDrop.js";
+import { onPreUpdateActorDeathsDoor, onUpdateActorDeathsDoorAutoOpen, wireDyingPrompt } from "./module/hooks/DeathsDoorPrompt.js";
+import { deathDripStamp, markDeathDrip } from "./module/hooks/DeathChatDrip.js";
 import { onPreCreateThreatNote } from "./module/hooks/ThreatNotePins.js";
 import { onDrawStonetopNote } from "./module/hooks/StonetopNoteLabels.js";
 import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
@@ -61,7 +63,7 @@ import { maybeAnnounceBecameHero } from "./module/actors/character/WouldBeHeroAs
 import { StonetopSteading } from "./module/actors/steading/StonetopSteading.js";
 import { onSteadingPeopleUpdate, repaintOpenSteadingRosters } from "./module/actors/steading/steading-people.js";
 import { makeDialogsResizable, enableAutoHeightVerticalResize } from "./module/utils/resizable-dialogs.js";
-import { registerStonetopWindowTheme } from "./module/utils/window-theme.js";
+import { registerStonetopWindowTheme, registerStonetopLightTheme } from "./module/utils/window-theme.js";
 import { installWindowRestore } from "./module/utils/window-restore.js";
 import { registerUuidRedirects } from "./module/migration/compat.js";
 import { adoptLegacyClientSettings } from "./module/migration/copy-settings.js";
@@ -100,6 +102,11 @@ Hooks.once("init", () => {
 	// Skin a curated allowlist of core Foundry windows (e.g. User Configuration)
 	// to match our sheets/modals; scoped to a marker class so nothing else moves.
 	registerStonetopWindowTheme();
+
+	// Our parchment skin has no dark variant, so hold every Stonetop window to the
+	// light theme even in a dark-mode world. Core already does this for AppV1; this
+	// covers our ApplicationV2 windows. Native Foundry windows are left alone.
+	registerStonetopLightTheme();
 
 	// Track open document sheets + their geometry and reopen them at the same spot on
 	// the next reload (per-client; toggled by the "Restore Open Windows on Reload"
@@ -322,6 +329,7 @@ Hooks.once("init", () => {
 		"stonetop.portrait-frame-pip": "systems/stonetop_pwd/templates/actor/partials/portrait-frame-pip.hbs",
 		"stonetop.actor-stats":      "systems/stonetop_pwd/templates/actor/partials/actor-stats.hbs",
 		"stonetop.actor-vitals":     "systems/stonetop_pwd/templates/actor/partials/actor-vitals.hbs",
+		"stonetop.stat-block":       "systems/stonetop_pwd/templates/actor/partials/stat-block.hbs",
 		"stonetop.tab-details":      "systems/stonetop_pwd/templates/actor/partials/tab-details.hbs",
 		"stonetop.tab-moves":        "systems/stonetop_pwd/templates/actor/partials/tab-moves.hbs",
 		"stonetop.tab-equipment":    "systems/stonetop_pwd/templates/actor/partials/tab-equipment.hbs",
@@ -331,8 +339,13 @@ Hooks.once("init", () => {
 		"stonetop.tab-post-death":      "systems/stonetop_pwd/templates/actor/partials/tab-post-death.hbs",
 		"stonetop.tab-special-moves":   "systems/stonetop_pwd/templates/actor/partials/tab-special-moves.hbs",
 		"stonetop.tab-notes":           "systems/stonetop_pwd/templates/actor/partials/tab-notes.hbs",
+		"stonetop.tab-rail-item":       "systems/stonetop_pwd/templates/actor/partials/tab-rail-item.hbs",
+		"stonetop.tab-nav-item":        "systems/stonetop_pwd/templates/actor/partials/tab-nav-item.hbs",
+		"stonetop.npc-quick-facts":     "systems/stonetop_pwd/templates/actor/partials/npc-quick-facts.hbs",
+		"stonetop.npc-tab-nav":         "systems/stonetop_pwd/templates/actor/partials/npc-tab-nav.hbs",
 		"stonetop.move-group":           "systems/stonetop_pwd/templates/actor/partials/move-group.hbs",
 		"stonetop.tab-search-control":   "systems/stonetop_pwd/templates/actor/partials/tab-search-control.hbs",
+		"stonetop.catalog-shell":        "systems/stonetop_pwd/templates/dialogs/partials/catalog-shell.hbs",
 		"stonetop.move-mark-level":      "systems/stonetop_pwd/templates/actor/partials/move-mark-level.hbs",
 		"stonetop.sidebar-move-list":    "systems/stonetop_pwd/templates/actor/partials/sidebar-move-list.hbs",
 		"stonetop.lore-section":          "systems/stonetop_pwd/templates/actor/partials/lore-section.hbs",
@@ -353,7 +366,13 @@ Hooks.once("init", () => {
 		"stonetop.inv-item-regular": "systems/stonetop_pwd/templates/actor/partials/inv-item-regular.hbs",
 		"stonetop.inv-item-small":   "systems/stonetop_pwd/templates/actor/partials/inv-item-small.hbs",
 		"stonetop.choice-gear-row":  "systems/stonetop_pwd/templates/actor/partials/choice-gear-row.hbs",
+		"stonetop.roll-mode-picker": "systems/stonetop_pwd/templates/actor/partials/roll-mode-picker.hbs",
+		"stonetop.roll-mode-radios": "systems/stonetop_pwd/templates/actor/partials/roll-mode-radios.hbs",
 		"stonetop.steading-section-toggle":   "systems/stonetop_pwd/templates/actor/partials/steading-section-toggle.hbs",
+		"stonetop.steading-stats-bar":        "systems/stonetop_pwd/templates/actor/partials/steading-stats-bar.hbs",
+		"stonetop.steading-settlements-card": "systems/stonetop_pwd/templates/actor/partials/steading-settlements-card.hbs",
+		"stonetop.steading-moves-sidebar":    "systems/stonetop_pwd/templates/actor/partials/steading-moves-sidebar.hbs",
+		"stonetop.steading-move-controls":    "systems/stonetop_pwd/templates/actor/partials/steading-move-controls.hbs",
 		"stonetop.steading-tab-overview":     "systems/stonetop_pwd/templates/actor/partials/steading-tab-overview.hbs",
 		"stonetop.steading-tab-neighbors":    "systems/stonetop_pwd/templates/actor/partials/steading-tab-neighbors.hbs",
 		"stonetop.steading-tab-improvements": "systems/stonetop_pwd/templates/actor/partials/steading-tab-improvements.hbs",
@@ -375,6 +394,7 @@ Hooks.once("init", () => {
 		"stonetop.guide-toc":                 "systems/stonetop_pwd/templates/dialogs/partials/guide-toc.hbs",
 		"stonetop.intros-capture-head":       "systems/stonetop_pwd/templates/dialogs/partials/intros-capture-head.hbs",
 		"stonetop.threat-string-list":        "systems/stonetop_pwd/templates/dialogs/partials/threat-string-list.hbs",
+		"stonetop.deaths-door-outcomes":      "systems/stonetop_pwd/templates/dialogs/partials/deaths-door-outcomes.hbs",
 		"stonetop.card-doom-track":           "systems/stonetop_pwd/templates/journal/partials/card-doom-track.hbs",
 		"stonetop.card-gm-moves":             "systems/stonetop_pwd/templates/journal/partials/card-gm-moves.hbs",
 		"stonetop.card-player-moves":         "systems/stonetop_pwd/templates/journal/partials/card-player-moves.hbs",
@@ -582,13 +602,31 @@ Hooks.on("preUpdateActor", (actor, changes) => {
 	}
 });
 
-// -- CHAT SPEAKER ALIAS ----------------------------------------
+// -- DEATH AND DYING -------------------------------------------
+// A PC reduced to 0 HP is dying and must face their 0-HP move (Book I p.245). Record that
+// state on the same write and announce it, naming the move they actually trigger — Death's
+// Door only until they carry a post-death insert.
+Hooks.on("preUpdateActor", onPreUpdateActorDeathsDoor);
+// And, if the table wants it, open that move's walkthrough on the dying player's own screen.
+// A separate hook because it has to run somewhere the preUpdate can't: that fires only on the
+// client applying the damage, which is usually the GM's.
+Hooks.on("updateActor", onUpdateActorDeathsDoorAutoOpen);
+
+// -- CHAT SPEAKER: ALIAS AND DEATH -----------------------------
+// Two stamps a character's message carries from the moment it is created: the playbook in the
+// speaker's name, and — for a PC past the Last Door — the kind of death behind them, which the
+// render pass turns into the fringe under the card. Both are written in one updateSource so a
+// message costs one source edit, not two.
 Hooks.on("preCreateChatMessage", (message) => {
 	const actor = _speakerActor(message);
 	if (!actor || actor.type !== "character") return;
+
+	const changes = {};
 	const playbookName = actor.system?.playbook?.name ?? "";
-	if (!playbookName) return;
-	message.updateSource({ "speaker.alias": `${actor.name} ${playbookName}` });
+	if (playbookName) changes["speaker.alias"] = `${actor.name} ${playbookName}`;
+	Object.assign(changes, deathDripStamp(actor) ?? {});
+
+	if (Object.keys(changes).length) message.updateSource(changes);
 });
 
 // -- BLIND / PRIVATE ROLLS -------------------------------------
@@ -632,6 +670,34 @@ function _chatWireBook2ArtReminder(message, html) {
 	if (!btn) return;
 	if (!game.user.isGM) { btn.style.display = "none"; return; }
 	btn.addEventListener("click", () => game.stonetop?.importBookArt?.());
+}
+
+// -- SHEET LAYOUT OFFER CARD ----------------------------------
+// The card that tells an upgraded world its sheets stayed on the classic layout, and the
+// one offering the way back that pressing its button posts (utils/sheet-layout.js). One
+// handler for both: the target layout rides on the button's data-layout.
+//
+// The setting it writes is world-scoped, so this really is GM-only rather than defensively
+// so; the card is whispered to GMs, and the footer points everyone else at their own row in
+// Configure Settings.
+//
+// There is ONE such card per world and the flip EDITS it, so pressing the button rewrites the
+// very card it sits on — headline, prose and button all flip to the other direction. Which is
+// why nothing here has to report success: the update re-renders the message, this handler runs
+// again on the new markup, and the button the user is looking at is already the way back. Only
+// the failure path touches the DOM (re-enable), and the in-flight disable is there so a double
+// click cannot start a second write against a card that is about to be replaced.
+function _chatWireLayoutSwitch(message, html) {
+	const btn = html.querySelector(".stonetop-layout-switch");
+	if (!btn) return;
+	if (!game.user.isGM) { btn.style.display = "none"; return; }
+	btn.addEventListener("click", async () => {
+		if (btn.disabled) return;
+		btn.disabled = true;
+		const { setWorldSheetLayout } = await import("./module/utils/sheet-layout.js");
+		if (await setWorldSheetLayout(btn.dataset.layout)) return;
+		btn.disabled = false;   // refused (not a GM after all) - leave the card usable
+	});
 }
 
 // -- REBUILD DETAIL PORTRAITS CARD -----------------------------
@@ -876,15 +942,18 @@ Hooks.on("createItem", (item, options, userId) => maybeAnnounceBecameHero(item, 
 
 // One render hook drives all of the above, in this order: the blind-roll strip
 // MUST run first (it removes our card so the button-wiring helpers below no-op
-// for viewers who can't see the result), then prose treatment, then the button
-// and annotation passes. A single dispatch beats nine separate hook registrations
-// each re-scanning the same message DOM on every chat render.
+// for viewers who can't see the result), then the message-root passes, then prose
+// treatment, then the button and annotation passes. A single dispatch beats nine
+// separate hook registrations each re-scanning the same message DOM on every chat
+// render.
 Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatStripBlindRoll(message, html);
+	markDeathDrip(message, html);
 	_chatProseTreatment(message, html);
 	_chatWireStartupWelcome(message, html);
 	_chatWireBook2ArtReminder(message, html);
 	_chatWireRebuildCrops(message, html);
+	_chatWireLayoutSwitch(message, html);
 	_chatWireDescToggle(message, html);
 	_chatAnnotateDebility(message, html);
 	_chatWireRollShifting(message, html);
@@ -892,6 +961,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatWireRequisitionMissCost(message, html);
 	_chatWireSeasonsRoll(message, html);
 	_chatWireLoveLetterPicks(message, html);
+	wireDyingPrompt(message, html);
 	wireAttackConfirm(message, html);
 	wireApplyDamage(message, html);
 	wireSufferAttack(message, html);

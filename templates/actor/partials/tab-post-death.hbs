@@ -21,6 +21,46 @@
 			{{> "stonetop.lore-section" lore=stonetop.postDeathInsert.activeInsert.lore editMode=stonetop.editMode}}
 		</div>
 
+		{{! Ghost: what you're bound to. Tethered reforms you beside it and its destruction is the
+		    Final Consequence, so the move can't resolve honestly until it's named. }}
+		{{#if (or stonetop.postDeathInsert.activeInsert.tether stonetop.postDeathInsert.activeInsert.needsTether)}}
+		<div class="details-section stonetop-pdi-tether">
+			{{> "stonetop.section-heading" title=(localize "stonetop.postDeath.tether") collapse="postDeathTether"}}
+			<p class="stonetop-pdi-hint">{{localize "stonetop.postDeath.tetherHint"}}</p>
+			<input type="text" class="stonetop-pdi-tether-input"
+			       value="{{stonetop.postDeathInsert.activeInsert.tether}}"
+			       placeholder="{{localize "stonetop.postDeath.tetherPlaceholder"}}">
+			{{#if stonetop.postDeathInsert.activeInsert.needsTether}}
+			<p class="stonetop-pdi-hint stonetop-pdi-warning">
+				<i class="fas fa-triangle-exclamation"></i>
+				{{localize "stonetop.postDeath.tetherMissing"}}
+			</p>
+			{{/if}}
+		</div>
+		{{/if}}
+
+		{{! Thrall: what Dark Succor took away for good, and what the master demands. Neither has
+		    a box on the insert, so they get their own rows rather than being lost to chat. }}
+		{{#if stonetop.postDeathInsert.activeInsert.crossedOffMarks.length}}
+		<div class="details-section stonetop-pdi-crossed">
+			{{> "stonetop.section-heading" title=(localize "stonetop.postDeath.crossedOff") collapse="postDeathCrossed"}}
+			<p class="stonetop-pdi-hint">{{localize "stonetop.postDeath.crossedOffHint"}}</p>
+			<ul class="stonetop-pdi-crossed-list">
+				{{#each stonetop.postDeathInsert.activeInsert.crossedOffMarks}}
+				<li><s>{{label}}</s></li>
+				{{/each}}
+			</ul>
+		</div>
+		{{/if}}
+
+		{{#if stonetop.postDeathInsert.activeInsert.masterTask}}
+		<div class="details-section stonetop-pdi-task">
+			{{> "stonetop.section-heading" title=(localize "stonetop.postDeath.masterTask") collapse="postDeathTask"}}
+			<p class="stonetop-pdi-task-text">{{stonetop.postDeathInsert.activeInsert.masterTask}}</p>
+			<p class="stonetop-pdi-hint">{{localize "stonetop.postDeath.masterTaskHint"}}</p>
+		</div>
+		{{/if}}
+
 		{{! Instinct }}
 		{{#if stonetop.postDeathInsert.activeInsert.instinct.options.length}}
 		<div class="details-section">
@@ -47,13 +87,19 @@
 
 		{{else}}
 
-		{{! No active insert — choose one }}
+		{{! No active insert — choose one. Death's Door grants these itself on a 6-; this is the
+		    manual route, for a table that resolved the move away from the sheet. }}
 		<div class="details-section">
 			{{> "stonetop.section-heading" title=(localize "stonetop.postDeath.chooseFate") collapse="postDeathFate"}}
+			<p class="stonetop-pdi-hint">{{localize "stonetop.postDeath.chooseFateHint"}}</p>
 			<div class="stonetop-pdi-available">
 				{{#each stonetop.postDeathInsert.availableInserts}}
 				<button type="button" class="stonetop-pdi-activate" data-slug="{{slug}}">
-					{{name}}
+					{{#if img}}<img class="stonetop-pdi-activate-img" src="{{img}}" alt="">{{/if}}
+					<span class="stonetop-pdi-activate-text">
+						<span class="stonetop-pdi-activate-name">{{name}}</span>
+						{{#if description}}<span class="stonetop-pdi-activate-blurb">{{{description}}}</span>{{/if}}
+					</span>
 				</button>
 				{{/each}}
 			</div>

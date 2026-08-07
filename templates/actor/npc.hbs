@@ -112,102 +112,12 @@
 
 		<section class="sheet-main flexcol stonetop-npc-main">
 
-			{{!-- Quick facts — a tight stat block (home, instinct, occupation, relations),
-			     spaced like the monster stat block rather than the roomy body. --}}
-			<div class="stonetop-npc-stat-block">
-
-				{{!-- Following — the PC(s) who've recruited this NPC as a follower (derived
-				     from the follower cards that link back here). Click to open their sheet.
-				     Labelled rather than tooltipped: these carry no href, so the label is the
-				     only thing that says they lead anywhere, and they sit inline in a run of
-				     prose where a hover bubble would land on the names beside them. --}}
-				{{#if stonetop.isFollowing}}
-				<section class="stonetop-npc-field stonetop-npc-following">
-					<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.following"}}</strong>
-					<span class="stonetop-npc-prose stonetop-npc-following-list">
-						{{#each stonetop.following}}<a class="stonetop-npc-following-pc" data-pc-id="{{id}}" aria-label='{{localize "stonetop.relationships.open" name=name}}'><i class="fas fa-user"></i> {{name}}</a>{{#unless @last}}, {{/unless}}{{/each}}
-					</span>
-				</section>
-				{{/if}}
-
-				{{!-- Home — where they live, sitting just above Instinct. Residents of
-				     Stonetop default to "Stonetop" (auto-filled when they're added to the
-				     steading's Residents list). --}}
-				{{#if (or stonetop.editMode system.home)}}
-				<section class="stonetop-npc-field stonetop-npc-stat-line stonetop-npc-home">
-					<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.home"}}</strong>
-					{{#if stonetop.editMode}}
-					<input class="stonetop-npc-stat-input" type="text" name="system.home"
-					       value="{{system.home}}" placeholder='{{localize "stonetop.npc.homePlaceholder"}}'>
-					{{else}}
-					<span class="stonetop-npc-prose">{{system.home}}</span>
-					{{/if}}
-				</section>
-				{{/if}}
-
-				{{!-- Embodiment — GM-only acting note, sitting between Home and Instinct. --}}
-				{{#if (or stonetop.editMode system.embodiment)}}
-				<section class="stonetop-npc-field stonetop-npc-embodiment">
-					<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.embodiment"}}</strong>
-					{{#if stonetop.editMode}}
-					<input class="stonetop-npc-stat-input" type="text" name="system.embodiment"
-					       value="{{system.embodiment}}" placeholder='{{localize "stonetop.npc.embodimentPlaceholder"}}'>
-					{{else}}
-					<span class="stonetop-npc-prose">{{system.embodiment}}</span>
-					{{/if}}
-				</section>
-				{{/if}}
-
-				{{!-- Instinct — the anchor field. Plain stat line, matching the monster sheet. --}}
-				<section class="stonetop-npc-field stonetop-npc-instinct">
-					<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.instinct"}}</strong>
-					{{#if stonetop.editMode}}
-					<input class="stonetop-npc-stat-input" type="text" name="system.instinct"
-					       value="{{system.instinct}}" placeholder='{{localize "stonetop.npc.instinctPlaceholder"}}'>
-					{{else}}
-					<span class="stonetop-npc-prose">{{#if system.instinct}}{{system.instinct}}{{else}}<em class="stonetop-npc-empty">{{localize "stonetop.npc.instinctEmpty"}}</em>{{/if}}</span>
-					{{/if}}
-				</section>
-
-				{{!-- Occupation — sits just below Instinct. --}}
-				{{#if (or stonetop.editMode system.occupation)}}
-				<section class="stonetop-npc-field stonetop-npc-stat-line stonetop-npc-occupation-field">
-					<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.occupation"}}</strong>
-					{{#if stonetop.editMode}}
-					<input class="stonetop-npc-stat-input" type="text" name="system.occupation"
-					       value="{{system.occupation}}" placeholder='{{localize "stonetop.npc.occupationPlaceholder"}}'>
-					{{else}}
-					<span class="stonetop-npc-prose">{{system.occupation}}</span>
-					{{/if}}
-				</section>
-				{{/if}}
-
-				{{!-- Relations — kin, allies, rivals in a quick line; also backs the Steading
-				     Residents/Neighbors table columns. --}}
-				{{#if (or stonetop.editMode system.relations)}}
-				<section class="stonetop-npc-field stonetop-npc-stat-line stonetop-npc-relations-quick">
-					<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.relations"}}</strong>
-					{{#if stonetop.editMode}}
-					<input class="stonetop-npc-stat-input" type="text" name="system.relations"
-					       value="{{system.relations}}" placeholder='{{localize "stonetop.npc.relationsPlaceholder"}}'>
-					{{else}}
-					<span class="stonetop-npc-prose">{{system.relations}}</span>
-					{{/if}}
-				</section>
-				{{/if}}
-
-			</div>{{!-- /stat-block --}}
-
-			{{!-- Tabs sit below the pinned quick-facts block, so Instinct (the anchor)
-			     stays visible whichever tab is open. Details is always the landing tab;
-			     Relationships appears once there are PCs to rate (or in edit mode); Stats
-			     appears only when the NPC has game stats; Notes is always present. --}}
-			<nav class="sheet-tabs tabs stonetop-npc-tabs" data-group="primary">
-				<a class="item" data-tab="details"><span class="stonetop-tab-label">{{localize "stonetop.npc.tabs.details"}}</span></a>
-				{{#if stonetop.showRelationships}}<a class="item" data-tab="relationships"><span class="stonetop-tab-label">{{localize "stonetop.npc.tabs.relationships"}}</span></a>{{/if}}
-				{{#if system.hasStats}}<a class="item" data-tab="stats"><span class="stonetop-tab-label">{{localize "stonetop.npc.tabs.stats"}}</span></a>{{/if}}
-				<a class="item" data-tab="notes"><span class="stonetop-tab-label">{{localize "stonetop.npc.tabs.notes"}}</span></a>
-			</nav>
+			{{!-- CLASSIC layout: the quick facts are pinned above the tab strip, where they sat
+			     before the redesign, so Instinct (the anchor field) stays on screen whichever tab
+			     is open - and the tab strip sits directly below them. Both are the same partials
+			     the modern layout mounts elsewhere; only the position differs. --}}
+			{{#if stonetop.classicLayout}}{{> "stonetop.npc-quick-facts"}}{{/if}}
+			{{#if stonetop.classicLayout}}{{> "stonetop.npc-tab-nav"}}{{/if}}
 
 			<section class="sheet-body">
 
@@ -215,6 +125,13 @@
 			     note, and (in edit mode) the give-stats toggle. Connections live on the
 			     Relationships tab, alongside the per-PC ratings. --}}
 			<div class="tab details" data-group="primary" data-tab="details">
+
+			{{!-- MODERN layout: the quick facts head the Details tab. CLASSIC pins the same
+			     partial above the tab strip instead (further up this file). BOTH mounts are
+			     guarded - the block is five named inputs, and rendering it twice makes
+			     FormDataExtended collapse each duplicate name into an array, so the next submit
+			     writes garbage into all five. --}}
+			{{#unless stonetop.classicLayout}}{{> "stonetop.npc-quick-facts"}}{{/unless}}
 
 			{{!-- Impressions — up to 3 sensory hooks. --}}
 			{{#if (or stonetop.editMode stonetop.impressionsShown.length)}}
@@ -268,9 +185,10 @@
 			</section>
 			{{/if}}
 
-			{{!-- Both sections above are conditional, so in play mode this tab can render
-			      empty. Say so, rather than handing the reader a blank panel under the strip
-			      they just landed on. --}}
+			{{!-- Both sections above are conditional, so in the CLASSIC layout this tab can
+			      render empty in play mode. Say so, rather than handing the reader a blank panel
+			      under the strip they just landed on. Modern never reaches this: the quick-facts
+			      block above heads the tab there, and `detailsEmpty` is gated on the layout. --}}
 			{{#if stonetop.detailsEmpty}}
 			<p class="stonetop-npc-empty stonetop-npc-details-empty">{{localize "stonetop.npc.detailsEmpty"}}</p>
 			{{/if}}
@@ -433,6 +351,13 @@
 			</div>{{!-- /notes tab --}}
 
 			</section>{{!-- /sheet-body --}}
+
+			{{!-- MODERN layout: the icon rail, rendered here and then lifted onto the window
+			     frame. CLASSIC renders the same partial as a horizontal strip above .sheet-body
+			     instead. Details is always the landing tab; Relationships appears once there are
+			     PCs to rate (or in edit mode); Stats appears only when the NPC has game stats;
+			     Notes is always present. --}}
+			{{#unless stonetop.classicLayout}}{{> "stonetop.npc-tab-nav"}}{{/unless}}
 
 		</section>
 	</div>

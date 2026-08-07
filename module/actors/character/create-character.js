@@ -7,6 +7,7 @@
 import { charactersOwnedBy } from "../../utils/playbook-actors.js";
 import { bringDialogToFront } from "../../utils/front-on-open.js";
 import { STONETOP_SCOPE } from "./StonetopFlags.js";
+import { isMidCreation, progressFor } from "./onboarding-progress.js";
 
 /**
  * Create a character, hand it to a player, and greet them with character creation.
@@ -91,16 +92,33 @@ export async function createCharacterForUser(userId, { folder = null, name = "" 
 	return actor;
 }
 
-/** Confirm discarding the player's current character (or characters). */
+/**
+ * Confirm discarding the player's current character (or characters).
+ *
+ * Names anyone who is part-way through building theirs. The Welcome guide's roster puts
+ * this button directly beside a row reading "on page 4 of 9", so the GM most likely to
+ * press it is the one whose player is mid-creation right now — and what they lose isn't a
+ * blank sheet, it's an hour of answers. Worth spelling out before the delete, not after.
+ */
 function _confirmReplacement(user, existing) {
 	const names = existing.map(a => `<strong>${a.name}</strong>`).join(", ");
 	const it = existing.length === 1 ? "it" : "them";
+	const busy = existing.filter(isMidCreation).map(a => `<strong>${a.name}</strong> (${progressFor(a).text})`);
+	// Deliberately plain markup: Dialog.confirm builds a bare core dialog with no
+	// "stonetop" class, so nothing in this system's stylesheet reaches inside it. <strong>
+	// carries the emphasis on its own rather than depending on a class that would render
+	// as an unstyled paragraph here.
+	const warning = busy.length
+		? `<p><strong>Careful:</strong> ${busy.join(", ")} ${busy.length === 1 ? "is" : "are"} ` +
+		  `still being created. Everything answered so far will be lost, and the creation ` +
+		  `window will close on ${user.name}'s screen.</p>`
+		: "";
 	return Dialog.confirm({
 		title: `Replace ${user.name}'s character?`,
 		content:
 			`<p><strong>${user.name}</strong> already has a character assigned: ${names}.</p>` +
 			`<p>Creating a new character will <strong>permanently delete</strong> ${it}. ` +
-			`This can't be undone.</p>`,
+			`This can't be undone.</p>` + warning,
 		defaultYes: false,
 		render: bringDialogToFront,
 	});

@@ -208,6 +208,9 @@ export class LoreOptionSnapshot {
 		this.checks      = this.type === "text" ? [] : Array.from({ length: this.max }, (_, i) => i < this.count);
 		this.textValue   = this.type === "text" ? (b._textValue ?? "") : null;
 		this.requires    = b._requires ?? null;
+		// Thrall only: a Mark that Dark Succor crossed off. Not "not taken" — taken away, for
+		// good, so the row is struck through and its box can't be ticked.
+		this.crossedOff  = !!b._crossedOff;
 		// Seeker Minor Arcana: per-question card picker ({ role, options, selectedSlug, selectedName, muted }).
 		this.arcanaPicker = b._arcanaPicker ?? null;
 		// Inline fill-in blank: a pick option whose text has a "___" the player completes
@@ -247,6 +250,7 @@ export class LoreOptionSnapshotBuilder {
 	withCount(v)       { this._count       = v; return this; }
 	withTextValue(v)   { this._textValue   = v; return this; }
 	withRequires(v)    { this._requires    = v; return this; }
+	withCrossedOff(v)  { this._crossedOff  = v; return this; }
 	withArcanaPicker(v) { this._arcanaPicker = v; return this; }
 	build()            { return new LoreOptionSnapshot(this); }
 }

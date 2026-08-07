@@ -116,6 +116,14 @@
 						       value="{{trait}}"
 						       placeholder="{{traitLabel}}"
 						       autocomplete="off">
+						{{!-- A <button> is interactive content, so the wrapping <label> never
+						      forwards a click on it to the trait input — it only rolls. --}}
+						<button type="button"
+						        class="onboard-background-neighbor-random"
+						        title="Roll a trait at random"
+						        aria-label="Roll a random trait for {{name}}">
+							<i class="fas fa-dice-d6"></i>
+						</button>
 					</label>
 					{{/each}}
 					{{#each setup.neighborChoices}}

@@ -1,6 +1,6 @@
 import { escHtml } from "../utils/strings.js";
 import { sign } from "../utils/roll-engine.js";
-import { ensureChronicleFolder, ensureChronicleJournal } from "../utils/chronicle.js";
+import { ensureChronicleFolder, ensureChronicleJournal } from "../utils/chronicle-journals.js";
 import { seasonLabel, SEASON_IDS } from "./seasons-change-reminders.js";
 
 // ── Seasons Change chronicle ───────────────────────────────────────────────────

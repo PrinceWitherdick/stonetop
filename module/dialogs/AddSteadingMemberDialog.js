@@ -128,7 +128,11 @@ export class AddSteadingMemberDialog extends StonetopDialog {
 			content: `<div class="stonetop-asm-home-info">${entries}</div>`,
 			buttons: { close: { label: "Close" } },
 			default: "close",
-		}, { width: 480, classes: ["dialog", "stonetop-asm-home-info-dialog", HOME_INFO_DIALOG_CLASS] }).render(true);
+			// "stonetop" carries our window chrome (header bar, content parchment, focus glow),
+			// which is scoped to that class so it cannot bleed onto core or another module's
+			// windows. Without it this kept Foundry's default dark header while still picking up
+			// its own `.stonetop-asm-home-info-dialog` rules — half-styled rather than unstyled.
+		}, { width: 480, classes: ["dialog", "stonetop", "stonetop-asm-home-info-dialog", HOME_INFO_DIALOG_CLASS] }).render(true);
 	}
 
 	/**

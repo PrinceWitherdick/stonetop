@@ -48,7 +48,11 @@ export function tokenizerApi() {
  * Only the module being present and this being a real Actor. Upload rights are deliberately NOT
  * checked: Tokenizer's own `launchTokenizer` warns about them and can still be opened read-only
  * (its `disable-player` setting decides), so gating here would hide a window the module itself is
- * willing to show. A follower card is a flag rather than a document and has no token to make.
+ * willing to show.
+ *
+ * A follower card is a flag rather than a document, so it answers this with the Actor it has
+ * already been placed on the map as (module/hooks/FollowerDrop.js) — and with null until then,
+ * which is the whole gate: no actor, no token to make.
  */
 export function canOpenTokenizer(actor) {
 	return !!(actor && tokenizerApi()?.launch);
