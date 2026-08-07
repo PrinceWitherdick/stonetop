@@ -11596,7 +11596,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-npc-portrait-img,
 .stonetop-portrait-img,
 .stonetop-people-gallery .stonetop-people-pick img,
-.stonetop-rel-portrait-img {
+.stonetop-rel-portrait-img,
+.stonetop-roster-avatar-img {
 	object-fit: cover;
 	object-position: center top;
 	/* Core v13 paints a BLACK BOX around every image in a classic Application:
@@ -11633,7 +11634,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .steading-player-portrait-img,
 .stonetop-npc-portrait-img,
 .stonetop-portrait-img,
-.stonetop-rel-portrait-img {
+.stonetop-rel-portrait-img,
+.stonetop-roster-avatar-img {
 	display: block;
 	width: 100%;
 	height: 100%;
@@ -16648,11 +16650,108 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	border: 1px solid #eee;
 	border-radius: var(--st-radius);
 	font-size: var(--st-fs-sm);
+	/* The row carries a lot for its width — a face, a name, an HP track, and in edit mode a crop
+	   button and "Name them" — inside a card that is HALF the tab on a two-column layout. Rather
+	   than let five items fight over ~340px and all lose (see the notes on each below), let the
+	   row give way honestly: the controls drop to a second line when they no longer fit, and sit
+	   back up on one line the moment the sheet is wide enough or the tab is a single column. */
+	flex-wrap: wrap;
 }
 
+/* ONE line, always. This is `Crew member 3` — a positional label, not a name someone chose — so
+   the useful failure at a narrow width is to clip it, never to stack it into a three-line column
+   of single words. It was doing exactly that at a large UI font even before the roster grew an
+   avatar: `flex: 1 1 auto` with no `min-width` lets a flex item shrink below its content and wrap,
+   and this is the item with the most slack to give. */
 .stonetop-crew-member-name {
 	flex: 1 1 auto;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 	color: var(--st-text-muted);
+}
+
+/* "Name them" must never break its own label across two lines.
+   TWO fixes, and the second is the one that actually matters: core sets
+   `body.game .app button { width: 100% }` (v13, unlayered-beating specificity 0,2,1), so this
+   button enters the row asking for the FULL row width and is then flex-shrunk down to whatever is
+   left — which is why its text wrapped rather than the button simply being too wide. `width: auto`
+   makes it ask for its content instead, and `flex: none` stops the row shrinking it below that.
+   Its neighbours in this row already each carry their own version of this (the crop pip and the
+   delete button both pin an explicit px width for the same reason). */
+.stonetop-crew-name-member {
+	flex: none;
+	width: auto;
+	white-space: nowrap;
+}
+
+/* The row's edit-mode controls, grouped so they WRAP AS A UNIT. Without the wrapper each button
+   wrapped on its own, so a member with a portrait (crop + "Name them") stranded one button at the
+   right of the first line and the other at the left of the second, while a member without one put
+   its single button on the right — the same roster laid out two different ways down its own
+   length.
+   LEFT-aligned: no auto margin. Dropped to its own line the button starts at the row's left edge,
+   under the member's name rather than out at the far right under the HP box — so the eye runs
+   down one column of buttons instead of tracking across each row to find them.
+   (The group is gated in the template rather than hidden here when empty: whitespace inside it
+   still makes it a flex ITEM, so an "empty" one would add the row's 6px gap for nothing.) */
+.stonetop-crew-member-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+/* ── Roster avatars ──────────────────────────────────────────────────────────
+   The face on one roster row: a named crew individual, an anonymous crew member, or a member
+   of a custom group follower.
+
+   CIRCULAR at 26px, matching .stonetop-rel-portrait and .steading-member-avatar rather than
+   the follower CARD's 75px square. The call is the one the card's own comment spells out: at
+   this size a portrait is a name-row bullet, not a card, and every other small face in the
+   system is a disc. The crew's Roster is a dense list of them, so it reads as one treatment.
+
+   The clipping box, not the image: a chosen frame paints by absolutely positioning the image
+   inside this box at up to a few hundred percent, so `position` and `overflow` are what make
+   the frame a frame rather than an oversized picture spilling across the sheet. `display:
+   block` never flex, for the reason .stonetop-rel-portrait gives. */
+.stonetop-roster-avatar {
+	width: 26px;
+	height: 26px;
+	flex: 0 0 26px;
+	display: block;
+	position: relative;
+	overflow: hidden;
+	border-radius: 50%;
+	border: 1px solid rgba(0, 0, 0, 0.22);
+	background: rgba(255, 255, 255, 0.55);
+}
+
+/* A real portrait fills the disc edge to edge, so the pale plate behind it would only ever show
+   as a second ring while the image loads. (Must sit AFTER the base rule: a `--modifier` ties
+   with its base on specificity and wins only on source order.) */
+.stonetop-roster-avatar--photo {
+	background: none;
+}
+
+/* Clicking does something: the People of Stonetop gallery where the face may be chosen, the
+   picture at full size where it may only be looked at. The class is rendered only when one of
+   the two is actually on offer, so the cursor and the ring never promise a window that never
+   opens. Same ring the follower card's portrait uses, one size down. */
+.stonetop-roster-avatar--editable {
+	cursor: pointer;
+}
+
+.stonetop-roster-avatar--editable:hover {
+	border-color: var(--st-btn-primary-border, #4f5b66);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--st-btn-primary-border, #4f5b66) 30%, transparent);
+}
+
+/* No href and a span with role="button", so core's focus styling never fires — without this the
+   keyboard path reaches the avatar with nothing to show for it. */
+.stonetop-roster-avatar--editable:focus-visible {
+	outline: 2px solid var(--st-btn-primary-border, #4f5b66);
+	outline-offset: 2px;
 }
 
 /* ── Rulebook "Follower" card layout ─────────────────────────────────────────
@@ -17776,7 +17875,13 @@ li.question-bullet {
 /* Individual creation dialog */
 .stonetop-individual-form .form-group { margin-bottom: 10px; }
 
-.stonetop-individual-traits-group label { display: block; margin-bottom: 4px; }
+/* The group's own caption ("Traits (choose one or more)") only — hence the CHILD combinator.
+   As a descendant selector this also matched every trait chip, which is a <label> too, and at
+   (0,1,1) it beat the chip's own `display: inline-flex` (0,1,0) whatever the source order. The
+   chips still looked like pills (a flex item's outer display is blockified regardless), but their
+   INNER display was `block`, so `align-items: center` never applied and each checkbox sat on the
+   text baseline instead of centred against its label. */
+.stonetop-individual-traits-group > label { display: block; margin-bottom: 4px; }
 
 .stonetop-individual-traits-grid {
 	display: flex;
@@ -17808,12 +17913,38 @@ li.question-bullet {
 	flex: none;
 }
 
-/* Add sits left, Cancel right (the global [data-button] order rules); styled like onboarding buttons */
+/* One lone Save, pinned to the BOTTOM-RIGHT of the window.
+   Two separate things are needed, and neither is obvious:
+   • `margin-top: auto` pins it DOWN. Core makes every direct child of `.window-content` a flex
+     item (`.window-content > * { flex: 1 }`), so on a window taller than its content the footer
+     was being stretched and its buttons centred inside that stretch — floating in the middle of
+     the empty space with a huge gap above them, rather than sitting at the bottom. `flex: 0 0
+     auto` stops the stretch; the auto margin then pushes the un-stretched row to the bottom.
+     (Same pattern as the "Pin modal footers" block near the end of this file.)
+   • `justify-content: flex-end` pins it RIGHT. This used to be `space-between`, which is what put
+     Save opposite Cancel; with Cancel gone that would strand the lone button on the left. */
 .stonetop-individual-dialog .dialog-buttons {
-	justify-content: space-between;
+	flex: 0 0 auto;
+	margin-top: auto;
+	justify-content: flex-end;
 	align-items: center;
 	gap: 8px;
 	padding: 10px 20px 14px;
+}
+
+/* The content above it takes the slack instead, so the traits box sits under the fields rather
+   than being pushed down by a stretched footer. `min-height: 0` so its own scroll region can
+   shrink below content height inside the flex column. */
+.stonetop-individual-dialog .window-content {
+	display: flex;
+	flex-direction: column;
+}
+
+.stonetop-individual-dialog .dialog-content {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
 }
 
 .stonetop-individual-dialog .dialog-buttons button {
@@ -17833,19 +17964,15 @@ li.question-bullet {
 	white-space: nowrap;
 }
 
-.stonetop-individual-dialog .dialog-buttons [data-button="add"] {
+.stonetop-individual-dialog .dialog-buttons [data-button="save"] {
 	background: var(--st-btn-primary-bg);
 	border-color: var(--st-btn-primary-border);
 	color: var(--st-btn-primary-text);
 }
 
-.stonetop-individual-dialog .dialog-buttons [data-button="add"]:hover {
+.stonetop-individual-dialog .dialog-buttons [data-button="save"]:hover {
 	background: var(--st-btn-primary-bg-hover);
 	border-color: var(--st-btn-primary-border-hover);
-}
-
-.stonetop-individual-dialog .dialog-buttons [data-button="cancel"]:hover {
-	background: hsl(210 10% 92%);
 }
 
 /* ── Followers: Group Fight ────────────────────────────────────────────────── */

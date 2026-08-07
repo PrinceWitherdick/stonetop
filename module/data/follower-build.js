@@ -6,6 +6,7 @@
 
 import { creatureTypeFaIcon } from "../bestiary/creature-types.js";
 import { isDefaultImg } from "../utils/strings.js";
+import { customGroupSize } from "../utils/crew.js";
 import { documentPortraitFrame } from "../utils/portrait-frame.js";
 
 // ── Step 3: hit points (p.476–477) ───────────────────────────────────────────
@@ -182,7 +183,7 @@ export function buildCustomFollower(input = {}) {
 	// (per-member HP against the shared `hpMax`, an abstracted group-HP pool, and the
 	// outnumber calculator); `size` is the headcount. A group is at least 2 strong.
 	const isGroup = !!input.isGroup;
-	const size = isGroup ? Math.max(2, Math.trunc(Number(input.size) || 0) || 2) : 0;
+	const size = isGroup ? customGroupSize(input) : 0;
 	return {
 		name:         String(input.name ?? "").trim(),
 		pronoun:      String(input.pronoun ?? "").trim(),

@@ -56,6 +56,20 @@ import { SYSTEM_ID } from "../system-id.js";
  */
 export const documentPortraitFrame = (doc) => doc?.flags?.[SYSTEM_ID]?.portraitFrame ?? null;
 
+/**
+ * What tapping a portrait will DO, in one string for the tooltip AND the aria-label — so a copy
+ * edit cannot leave the sighted and the screen-reader name disagreeing.
+ *
+ * Shared by every small face in the system (the follower card's portrait button, the roster row's
+ * avatar disc), because those surfaces describe the SAME three states and a reader who meets both
+ * should not be told about one act two ways.
+ */
+export function portraitActionLabel(name, { editable, hasPortrait } = {}) {
+	const who = name || "this member";
+	if (!editable) return `View ${who}'s portrait`;
+	return hasPortrait ? `Change ${who}'s portrait` : `Choose a portrait for ${who}`;
+}
+
 
 /**
  * The folder every baked square is written to, under the world's own data.

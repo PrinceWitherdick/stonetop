@@ -377,6 +377,312 @@ describe("CharacterLedger", () => {
 		]);
 	});
 
+	// The crew keeps its roster in flag ARRAYS, written back WHOLE because a flag array cannot be
+	// updated by dotted path (see actors/character/roster-portraits.js). formatValue joins an array
+	// with ", ", so an array of OBJECTS came out as the literal "[object Object]" — one such line
+	// for every portrait pick, every "Use default", and every member added or removed.
+	describe("the crew's roster", () => {
+		const crew = (extra) => makeActor({}, { stonetop: { crew: { name: "The Red Shields", ...extra } } });
+
+		it("says who was named, from the whole-array write behind it", async () => {
+			const actor = crew({ individuals: [{ name: "Aled", tag: "eager" }] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop-pwd.crew.individuals": [{ name: "Aled", tag: "eager" }, { name: "Eira" }],
+			});
+			expect(entries.map(e => e.action)).toEqual(["Eira named to The Red Shields"]);
+		});
+
+		it("says who was removed", async () => {
+			const actor = crew({ individuals: [{ name: "Aled" }, { name: "Eira" }] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop-pwd.crew.individuals": [{ name: "Eira" }],
+			});
+			expect(entries.map(e => e.action)).toEqual(["Aled removed from The Red Shields"]);
+		});
+
+		// Matched by NAME, not by position: the array is spliced, so a positional diff would report
+		// the whole tail as replaced when the member removed was not the last one.
+		it("does not report the survivors as replaced when a member in the middle leaves", async () => {
+			const actor = crew({ individuals: [{ name: "Aled" }, { name: "Eira" }, { name: "Glaw" }] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop-pwd.crew.individuals": [{ name: "Aled" }, { name: "Glaw" }],
+			});
+			expect(entries.map(e => e.action)).toEqual(["Eira removed from The Red Shields"]);
+		});
+
+		// A portrait pick rewrites this same array with the membership untouched.
+		it("stays quiet when the only change to the array is a face", async () => {
+			const actor = crew({ individuals: [{ name: "Aled" }] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop-pwd.crew.individuals": [{ name: "Aled", img: "aled.webp" }],
+			});
+			expect(entries.map(e => e.action)).toEqual([]);
+		});
+
+		// The card's own two are covered by the system-wide cosmetic-portrait rule; the anonymous
+		// members' array needs a rule of its own, because it is one atomic leaf whose path never
+		// mentions `img`.
+		it("stays quiet on an anonymous member's face, and on the crew card's own", async () => {
+			const actor = crew({ memberPortrait: [{ img: "old.webp" }], details: { img: "card.webp" } });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop-pwd.crew.memberPortrait": [{ img: "new.webp" }],
+				"flags.stonetop-pwd.crew.details.img": "other.webp",
+				"flags.stonetop-pwd.crew.details.portraitFrame": { src: "other.webp", rect: [0.1, 0.2, 0.3, 0.4] },
+			});
+			expect(entries.map(e => e.action)).toEqual([]);
+		});
+
+		// A `-=` key is a DELETION, not a value — it used to render as "set to blank".
+		it("stays quiet on a deletion key", async () => {
+			const actor = crew({ details: { portraitFrame: { src: "x.webp", rect: [0, 0, 1, 1] } } });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop-pwd.crew.details.-=portraitFrame": null,
+			});
+			expect(entries.map(e => e.action)).toEqual([]);
+		});
+
+		// A custom group follower's roster is silenced by customFollowerEntry's ALLOWLIST rather
+		// than by the crew's rules, so it is covered separately: if that allowlist ever grows, this
+		// catches the day "[object Object]" comes back on the other roster.
+		it("stays quiet on a custom group follower's roster faces too", async () => {
+			const actor = makeActor({}, {
+				stonetop: {
+					customFollowers: { warband: { name: "The Warband", loyalty: 1, memberPortrait: [{ img: "old.webp" }] } },
+				},
+			});
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop-pwd.customFollowers.warband.memberPortrait": [{ img: "new.webp" }],
+			});
+			expect(entries.map(e => e.action)).toEqual([]);
+		});
+
+		// HP is the play-relevant track and must survive all of the above — now naming the member
+		// the sheet names, instead of printing two lists of numbers to spot the difference between.
+		it("names the anonymous member who took the hit", async () => {
+			const actor = crew({ individuals: [{ name: "Aled" }], memberHp: [6, 6] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop-pwd.crew.memberHp": [4, 6],
+			});
+			// Counts past the one named individual, exactly as the roster labels them.
+			expect(entries.map(e => e.action)).toEqual(["Crew member 2 HP changed from 6 to 4"]);
+		});
+
+		it("names the individual who took the hit", async () => {
+			const actor = crew({ individuals: [{ name: "Aled" }, { name: "Eira" }], individualsHp: { 1: 6 } });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop-pwd.crew.individualsHp.1": 3,
+			});
+			expect(entries.map(e => e.action)).toEqual(["Eira HP changed from 6 to 3"]);
+		});
+
+		// A row that IS an individual but has no name yet numbers from the top of the roster, the
+		// way the sheet draws it (crewIndividualLabel) — not from the end of the named block, which
+		// is how the ANONYMOUS tail is numbered. Labelled with the anonymous rule, a ledger line
+		// pointed at "Crew member 4" for the row the sheet calls "Crew member 1".
+		it("numbers an unnamed individual from the top of the roster, as the sheet does", async () => {
+			const actor = crew({
+				individuals: [{ tag: "eager" }, { name: "Eira" }, { name: "Glaw" }],
+				individualsHp: { 0: 6 },
+			});
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop-pwd.crew.individualsHp.0": 4,
+				"flags.stonetop-pwd.crew.individuals.0.tag": "cautious",
+			});
+			expect(entries.map(e => e.action)).toEqual([
+				"Crew member 1 HP changed from 6 to 4",
+				"Crew member 1 tag changed from eager to cautious",
+			]);
+		});
+
+		// The anonymous tail is numbered from the named block AS THIS UPDATE LEAVES IT. Removing a
+		// named member frees a body back into that tail in the same write, and `names` is built
+		// from the actor BEFORE it — so numbering off that counted one name too many.
+		it("numbers the anonymous tail against the roster the update leaves behind", async () => {
+			const actor = crew({ individuals: [{ name: "Aled" }, { name: "Eira" }], size: 6, memberHp: [6, 6, 6, 6] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop-pwd.crew.individuals": [{ name: "Aled" }],
+				"flags.stonetop-pwd.crew.memberHp": [6, 6, 6, 4, 6],
+			});
+			// One name left, so the tail starts at 2 — "Crew member 5", not the pre-update 6.
+			expect(entries.map(e => e.action)).toContain("Crew member 5 HP changed from 6 to 4");
+		});
+
+		// The HP writer sizes the array up to the member it is writing, so the FIRST hit on a
+		// late member grows the array — that is damage, not a resize, and must still log.
+		it("still logs the first hit on a member past the end of the stored array", async () => {
+			const actor = crew({ memberHp: [6] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop-pwd.crew.memberHp": [6, 4],
+			});
+			expect(entries.map(e => e.action)).toEqual(["Crew member 2 HP set to 4"]);
+		});
+
+		// Shrinking is a resize or a promotion: the indices no longer line up, so a positional diff
+		// would invent hits nobody took. The size line beside it is the real record.
+		it("invents no damage when the roster shrinks", async () => {
+			const actor = crew({ size: 6, memberHp: [6, 4, 6] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop-pwd.crew.size": 5,
+				"flags.stonetop-pwd.crew.memberHp": [6, 4],
+			});
+			expect(entries.map(e => e.action)).toEqual(["The Red Shields roster size changed from 6 to 5"]);
+		});
+
+		// Two members called Aled is a keystroke away: the naming dialog only requires a non-empty
+		// string, and its datalist offers nine names for a crew a half-dozen strong. With a SET
+		// diff, removing one of them changed no set and the Chronicle recorded that nobody left.
+		it("reports a removal even when two members share a name", async () => {
+			const actor = crew({ individuals: [{ name: "Aled" }, { name: "Aled" }, { name: "Eira" }] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop-pwd.crew.individuals": [{ name: "Aled" }, { name: "Eira" }],
+			});
+			expect(entries.map(e => e.action)).toEqual(["Aled removed from The Red Shields"]);
+		});
+
+		// Numbered, so coalesceEntries — which dedupes on the action string — cannot fold two
+		// genuinely separate departures into one line.
+		it("numbers repeats so two departures do not collapse into one line", async () => {
+			const actor = crew({ individuals: [{ name: "Aled" }, { name: "Aled" }] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop-pwd.crew.individuals": [],
+			});
+			expect(entries.map(e => e.action)).toEqual([
+				"Aled (1 of 2) removed from The Red Shields",
+				"Aled (2 of 2) removed from The Red Shields",
+			]);
+		});
+
+		// unsetFlag("crew.groupHp") deletes at the crew's own ROOT, so the key is a bare `-=groupHp`
+		// with no dot in front of it — which a dotted-only guard let through as "set to blank".
+		it("stays quiet when the group-HP pool is restored to full", async () => {
+			const actor = crew({ groupHp: 12 });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop-pwd.crew.-=groupHp": null,
+			});
+			expect(entries.map(e => e.action)).toEqual([]);
+		});
+
+		// The promote handler always writes the whole individualsHp map, and on a crew whose HP was
+		// never touched that map is EMPTY — which Foundry's flattenObject keeps as a leaf.
+		it("stays quiet on the whole individualsHp map, even when it is empty", async () => {
+			const actor = crew({ individuals: [] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop-pwd.crew.individuals": [{ name: "Bran" }],
+				"flags.stonetop-pwd.crew.individualsHp": {},
+				"flags.stonetop-pwd.crew.memberHp": [],
+			});
+			expect(entries.map(e => e.action)).toEqual(["Bran named to The Red Shields"]);
+		});
+
+		// Every one of these collapsed to the field name "details" and read as the bare crew name.
+		it("names which card field was edited", async () => {
+			const actor = crew({ details: { moves: "", notes: "", armor: 1 } });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop-pwd.crew.details.moves": "Hold the line",
+				"flags.stonetop-pwd.crew.details.notes": "Grumbling",
+				"flags.stonetop-pwd.crew.details.armor": 2,
+			});
+			expect(entries.map(e => e.action)).toEqual([
+				"The Red Shields moves set to Hold the line",
+				"The Red Shields notes set to Grumbling",
+				"The Red Shields armor changed from 1 to 2",
+			]);
+		});
+
+		it("names the item when a gear pip moves, not just the crew", async () => {
+			const actor = crew({ gear: { "bow-arrows": 0 } });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop-pwd.crew.gear.bow-arrows": 1,
+			});
+			expect(entries.map(e => e.action)).toEqual(["The Red Shields Bow Arrows load changed from 0 to 1"]);
+		});
+
+		// Removing a member re-keys individualsHp to follow the splice. Read one key at a time
+		// those look like every survivor taking the damage of the member below them, under the
+		// wrong name — so the membership line speaks and the HP noise beside it is dropped.
+		it("reports a removal once, not as phantom damage to everyone above the gap", async () => {
+			const actor = crew({
+				individuals: [{ name: "Aled" }, { name: "Eira" }, { name: "Glaw" }],
+				individualsHp: { 0: 6, 1: 2, 2: 5 },
+				size: 6,
+			});
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop-pwd.crew.individuals": [{ name: "Aled" }, { name: "Glaw" }],
+				"flags.stonetop-pwd.crew.individualsHp.0": 6,
+				"flags.stonetop-pwd.crew.individualsHp.1": 5,
+				"flags.stonetop-pwd.crew.individualsHp.-=2": null,
+				"flags.stonetop-pwd.crew.size": 5,
+			});
+			expect(entries.map(e => e.action)).toEqual([
+				"Eira removed from The Red Shields",
+				"The Red Shields roster size changed from 6 to 5",
+			]);
+		});
+	});
+
+	// One rule for every follower type, so a type added later is quiet by default rather than
+	// quietly noisy. Each of these used to emit a raw file path or a bare rect.
+	it("never logs a follower's portrait or its crop, whichever follower wears it", async () => {
+		const actor = makeActor({}, {
+			stonetop: {
+				animalCompanion: { name: "Bramble", details: { img: "old.webp" } },
+				initiateDetails: { acolyte: { img: "old.webp" } },
+				customFollowers: { warband: { name: "The Warband", img: "old.webp" } },
+			},
+		});
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop-pwd.animalCompanion.details.img": "bramble.webp",
+			"flags.stonetop-pwd.animalCompanion.details.portraitFrame": { src: "bramble.webp", rect: [0.1, 0.2, 0.3, 0.4] },
+			"flags.stonetop-pwd.initiateDetails.acolyte.img": "acolyte.webp",
+			"flags.stonetop-pwd.customFollowers.warband.img": "warband.webp",
+		});
+		expect(entries.map(e => e.action)).toEqual([]);
+	});
+
+	// Clearing a portrait is TWO writes: the picture away as img:"" and the frame with it as
+	// `.-=portraitFrame`. Silencing only the first left every "Use default" writing "set to blank".
+	it("stays quiet on both halves of a portrait clear", async () => {
+		const actor = makeActor({}, {
+			stonetop: {
+				animalCompanion: { name: "Bramble", details: { img: "old.webp", portraitFrame: { src: "old.webp", rect: [0, 0, 1, 1] } } },
+			},
+		});
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop-pwd.animalCompanion.details.img": "",
+			"flags.stonetop-pwd.animalCompanion.details.-=portraitFrame": null,
+		});
+		expect(entries.map(e => e.action)).toEqual([]);
+	});
+
+	// The ◇ checklist is an array of {label, checked} objects rewritten whole on every tick, so it
+	// printed "[object Object]" — the very junk the crew rewrite existed to remove, one card over.
+	it("reports a follower's gear checklist as a fact, not as stringified objects", async () => {
+		const actor = makeActor({}, {
+			stonetop: { animalCompanion: { name: "Bramble", details: { gear: [{ label: "Harness", checked: false }] } } },
+		});
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop-pwd.animalCompanion.details.gear": [{ label: "Harness", checked: true }],
+		});
+		expect(entries.map(e => e.action)).toEqual(["Bramble gear updated"]);
+	});
+
+	it("names which of the animal companion's card fields was edited", async () => {
+		const actor = makeActor({}, { stonetop: { animalCompanion: { name: "Bramble", details: { notes: "" } } } });
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop-pwd.animalCompanion.details.notes": "Limping",
+		});
+		expect(entries.map(e => e.action)).toEqual(["Bramble notes set to Limping"]);
+	});
+
+	// …but the rule is scoped to FLAG paths, so it cannot silence anything on the actor itself.
+	it("leaves non-flag paths alone", async () => {
+		const actor = makeActor({ attributes: { hp: { value: 10 } } }, {});
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"system.attributes.hp.value": 7,
+		});
+		expect(entries.map(e => e.action)).toEqual(["HP changed from 10 to 7"]);
+	});
+
 	it("records learned and removed moves", () => {
 		const item = { name: "Ambush", type: "move", system: { moveType: "playbook" } };
 		expect(CharacterLedger.entriesForCreatedItems([item]).map(e => e.action)).toEqual(["Ambush learned"]);

@@ -33,7 +33,7 @@ import {createPacker, fitColumns, makeColumns, packShortest, wireMasonry} from "
 import {mountTabRail} from "../../utils/tab-rail.js";
 import {mountScrollFrost} from "../../utils/scroll-frost.js";
 import {withSheetSizeMemory} from "../../utils/sheet-size.js";
-import { crewExists } from "../../utils/crew.js";
+import { crewExists, effectiveCrewSize, customGroupSize, crewAnonMemberLabel, crewIndividualLabel, CREW_SIZE_MAX } from "../../utils/crew.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
 import {createArcanumItem} from "../../item/createArcanum.js";
 import {rollDamage, rollStat, sign, classifyResult} from "../../utils/roll-engine.js";
@@ -71,9 +71,10 @@ import {availablePossessionFollowers} from "../../data/possession-followers.js";
 import {FOLLOWER_MOVES} from "../../data/follower-moves.js";
 import {FOLLOWER_DRAG_TYPE} from "../../data/follower-actor.js";
 import {CREW_INDIVIDUAL_NAMES, CREW_INDIVIDUAL_TAGS, CREW_INDIVIDUAL_TRAITS} from "../../data/steading-members.js";
-import {resolvePortrait} from "../../utils/portrait-frame.js";
+import {resolvePortrait, portraitActionLabel} from "../../utils/portrait-frame.js";
 import {displayPortraitSrc} from "../../book2-art/people-portraits.js";
-import {followerFrameHandle} from "../../utils/portrait-frame-handles.js";
+import {followerFrameHandle, rosterMemberFrameHandle} from "../../utils/portrait-frame-handles.js";
+import {clearRosterPortrait, readRosterPortrait, rosterAvatarContext, rosterPortraitList, rosterPortraitListPath, writeRosterPortrait} from "./roster-portraits.js";
 import {openPortraitFrameEditor} from "../../utils/PortraitFrameDialog.js";
 import {headerPortraitContext, usedActorPortraits, wirePortraitPopout, pointImagePopoutAt} from "../../utils/actor-portrait-picker.js";
 import {addPopoutHeaderControl, addPortraitFrameControl, addTokenizerControl} from "../../utils/popout-header-control.js";
@@ -567,15 +568,6 @@ function _followerDragSnapshot(card, actor) {
 // Only a genuinely unset (null/undefined/non-numeric) size defaults to 6 — an
 // explicit 0 is honoured, so emptying the roster doesn't spring back to six.
 // Shared by the read side (_buildFollowersData) and the resize/delete handlers.
-function _effectiveCrewSize(rawSize, namedCount) {
-	const n = Number(rawSize);
-	const base = Number.isFinite(n) ? Math.max(0, n) : 6;
-	return Math.max(namedCount, base);
-}
-
-// Hard cap on crew headcount, so a fat-fingered roster size can't build a
-// thousand-member anonymous list (and a thousand-die group HP pool).
-const _CREW_SIZE_MAX = 99;
 
 // Flag path where a follower type stores its Loyalty value, driving the single
 // shared loyalty-pip click handler (see _FOLLOWER_FLAGS).
@@ -1634,26 +1626,35 @@ export function createStonetopCharacterSheetClass(Base) {
 					const val = Math.min(prosperity, 2);
 					return label.replace(token, html ? `${val} <em>piercing</em>` : `${val} piercing`);
 				};
+				// Whether the Roster's own pencil is open, computed here rather than read off
+				// card.edit.individuals: withSectionEdits runs on the finished card, and the rows
+				// inside it are built first. Same expression, one source — see withSectionEdits.
+				const crewRosterEditing = followersEditing || this._editingSections.has("follower-individuals:crew:");
 				const crewIndividuals = (sf.crew?.individuals ?? []).map((ind, idx) => {
 					const indHpRaw = (sf.crew?.individualsHp ?? {})[idx];
-					return { ...ind, index: idx, hpMax: crewMaxHp, hpCurrent: _clampHp(indHpRaw, crewMaxHp) };
+					return {
+						...ind, index: idx, hpMax: crewMaxHp, hpCurrent: _clampHp(indHpRaw, crewMaxHp),
+						// A named individual keeps their face on their own row, beside their name
+						// and traits (see roster-portraits.js), so it rides the splice when the
+						// crew shrinks instead of needing the index re-key individualsHp does.
+						...rosterAvatarContext(ind, { name: ind?.name, canWrite: this.isEditable, rosterEditing: crewRosterEditing }),
+					};
 				});
 				// Roster: the crew is "a half-dozen strong by default" (Crew insert,
 				// p.144). Named individuals are the members who've "stood out"; the
 				// rest are tracked as anonymous members. Every member has their own
 				// current HP against the one shared max (NPCs & Followers, p.470/472).
 				const crewNamedCount = crewIndividuals.length;
-				const crewSize       = _effectiveCrewSize(sf.crew?.size, crewNamedCount);
+				const crewSize       = effectiveCrewSize(sf.crew?.size, crewNamedCount);
 				const crewAnonCount  = Math.max(0, crewSize - crewNamedCount);
 				const crewMemberHp   = Array.isArray(sf.crew?.memberHp) ? sf.crew.memberHp : [];
-				const crewAnonMembers = Array.from({ length: crewAnonCount }, (_, i) => {
-					const raw = crewMemberHp[i];
-					return {
-						index:     i,
-						label:     `Crew member ${crewNamedCount + i + 1}`,
-						hpMax:     crewMaxHp,
-						hpCurrent: _clampHp(raw, crewMaxHp),
-					};
+				// An anonymous member has no row of their own to hang a face on, so their portrait
+				// is its own array slot, parallel to memberHp and moved with it.
+				const crewMemberImg  = Array.isArray(sf.crew?.memberPortrait) ? sf.crew.memberPortrait : [];
+				const crewAnonMembers = this._anonRosterMembers(crewAnonCount, {
+					hp: crewMemberHp, img: crewMemberImg, hpMax: crewMaxHp,
+					editing: crewRosterEditing,
+					labelFor: (i) => crewAnonMemberLabel(crewNamedCount, i),
 				});
 				const crewAliveCount = crewIndividuals.filter(m => m.hpCurrent > 0).length
 				                     + crewAnonMembers.filter(m => m.hpCurrent > 0).length;
@@ -1998,14 +1999,18 @@ export function createStonetopCharacterSheetClass(Base) {
 					// hired warband, an arcana-summoned group, or a converted group monster.
 					if (c?.isGroup) {
 						const memberHpMax = hpMax || 1;
-						const size = Math.max(2, Math.trunc(Number(c?.size) || 0) || 2);
-						const memberHpRaw = Array.isArray(c?.memberHp) ? c.memberHp : [];
-						const anonMembers = Array.from({ length: size }, (_, i) => ({
-							index:     i,
-							label:     `Member ${i + 1}`,
-							hpMax:     memberHpMax,
-							hpCurrent: _clampHp(memberHpRaw[i], memberHpMax),
-						}));
+						const size = customGroupSize(c);
+						const memberHpRaw  = Array.isArray(c?.memberHp) ? c.memberHp : [];
+						// Faces, on the crew roster's terms: an array parallel to memberHp, trimmed
+						// with it by the size stepper. This roster has no named individuals, so
+						// every row is an anonymous slot.
+						const memberImgRaw = Array.isArray(c?.memberPortrait) ? c.memberPortrait : [];
+						const groupEditing = cardEditing("custom", id);
+						const anonMembers = this._anonRosterMembers(size, {
+							hp: memberHpRaw, img: memberImgRaw, hpMax: memberHpMax,
+							editing: groupEditing,
+							labelFor: (i) => `Member ${i + 1}`,
+						});
 						const groupHpMax     = size * memberHpMax;
 						const groupHpCurrent = _clampHp(Number(c?.groupHp), groupHpMax);
 						card.isGroup        = true;
@@ -2060,14 +2065,17 @@ export function createStonetopCharacterSheetClass(Base) {
 					.map(t => (typeof t === "string" ? t : t?.label))
 					.filter(Boolean);
 				card.orderTagsCsv = tags.join("|");
+				// A follower's moves earn the same +1/+2 as a tag ("at least one
+				// appropriate tag or move", p.462), so the Order dialog chips them
+				// alongside the tags. Pipe-joined like the tags — a move line is free
+				// text, so strip any pipe rather than let it split into two chips.
+				const moves = (card.movesLines ?? []).map(m => String(m).replace(/\|/g, "/"));
+				card.orderMovesCsv = moves.join("|");
 				card.orderName    = card.name || card.label || card.namePlaceholder || card.typeLabel || "Follower";
-				// One string for the portrait button's tooltip AND its aria-label, so a copy edit
-				// cannot leave the sighted and the screen-reader name disagreeing.
-				card.portraitLabel = !card.portraitEditable
-					? `View ${card.orderName}'s portrait`
-					: card.img
-						? `Change ${card.orderName}'s portrait`
-						: `Choose a portrait for ${card.orderName}`;
+				// Worded by the shared labeller, so the card and the roster row cannot end up
+				// describing the same act two ways (see portraitActionLabel).
+				card.portraitLabel = portraitActionLabel(card.orderName,
+					{ editable: card.portraitEditable, hasPortrait: !!card.img });
 				card.portraitFrameLabel = `Frame ${card.orderName}'s face`;
 				if (Array.isArray(card.loyalty) && card.loyalty.length) {
 					card.loyaltyValue = card.loyalty.filter(p => p.filled).length;
@@ -2138,8 +2146,11 @@ export function createStonetopCharacterSheetClass(Base) {
 						const own = [ind.tag, ...(Array.isArray(ind.traits) ? ind.traits : [])].filter(Boolean);
 						return {
 							...ind,
-							orderName:    ind.name || `Crew member ${ind.index + 1}`,
+							orderName:    ind.name || crewIndividualLabel(ind.index),
 							orderTagsCsv: [...tags, ...own].join("|"),
+							// The crew's moves belong to every member of it, so a member
+							// ordered on their own can still lean on one.
+							orderMovesCsv: card.orderMovesCsv,
 							exceptional:  !!card.exceptional,
 						};
 					});
@@ -3051,6 +3062,27 @@ export function createStonetopCharacterSheetClass(Base) {
 			html[0].addEventListener("click", pickFollowerPortrait, true);
 			html[0].addEventListener("keydown", pickFollowerPortrait, true);
 
+			// The same two things, for the faces on a group follower's ROSTER — the crew's named
+			// individuals and anonymous members, and a custom group's members. A separate wiring
+			// rather than a widened selector because a roster row resolves its store from
+			// (roster kind, slug, index) where a card resolves its from (ftype, slug); pooling
+			// them would mean one handler branching on which dataset it found. The hover preview
+			// IS pooled, though — wireAvatarPreview joins selectors into one listener pair.
+			wireAvatarPreview(html[0], ".stonetop-roster-avatar-img");
+			const pickRosterAvatar = ev => {
+				if (ev.type === "keydown" && ev.key !== "Enter" && ev.key !== " ") return;
+				const avatar = ev.target.closest?.(".stonetop-roster-avatar--editable");
+				if (!avatar) return;
+				// Space would otherwise scroll the roster out from under the row while the
+				// gallery opens over it.
+				ev.preventDefault();
+				ev.stopPropagation();
+				if (avatar.dataset.portraitMode === "pick") this._onRosterAvatarPick(avatar);
+				else this._onRosterAvatarView(avatar);
+			};
+			html[0].addEventListener("click", pickRosterAvatar, true);
+			html[0].addEventListener("keydown", pickRosterAvatar, true);
+
 			// Every follower on this sheet becomes an `npc` Actor, made here rather than at each of
 			// the dozen places a follower can arrive from (the walkthrough, a converted monster or
 			// NPC, a possession, an arcana summon, the onboarding dialog's animal companion, crew
@@ -3587,7 +3619,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				// Shrink the roster by one: "Remove" takes the member out of the crew
 				// entirely. Without this the freed slot reappears as a fresh full-HP
 				// anonymous member (`size` would still imply the old headcount).
-				const sizeBefore = _effectiveCrewSize(this.actor.getFlag("stonetop-pwd", "crew.size"), individuals.length + 1);
+				const sizeBefore = effectiveCrewSize(this.actor.getFlag("stonetop-pwd", "crew.size"), individuals.length + 1);
 				const newSize = Math.max(individuals.length, sizeBefore - 1);
 				update["flags.stonetop-pwd.crew.size"] = newSize;
 				clampStoredGroupHp(update, newSize);
@@ -3604,13 +3636,21 @@ export function createStonetopCharacterSheetClass(Base) {
 			// individuals. Trims trailing anonymous-member HP entries when shrinking.
 			const setCrewSize = async (size) => {
 				const namedCount = (this.actor.getFlag("stonetop-pwd", "crew.individuals") ?? []).length;
-				const clamped    = Math.min(_CREW_SIZE_MAX, Math.max(namedCount, Math.max(0, size)));
+				const clamped    = Math.min(CREW_SIZE_MAX, Math.max(namedCount, Math.max(0, size)));
 				const anonCount  = Math.max(0, clamped - namedCount);
 				const memberHp   = (this.actor.getFlag("stonetop-pwd", "crew.memberHp") ?? []).slice(0, anonCount);
 				const update = {
 					"flags.stonetop-pwd.crew.size":     clamped,
 					"flags.stonetop-pwd.crew.memberHp": memberHp,
 				};
+				// The anonymous members' faces are an array parallel to their HP, so they are trimmed
+				// by the same cut. Only written when there is something to trim: an untouched roster
+				// has no portrait store at all, and seeding an empty array here would leave one
+				// behind on every crew that never picked a face.
+				const memberPortrait = rosterPortraitList(this.actor, "crew-member");
+				if (memberPortrait.length > anonCount) {
+					update["flags.stonetop-pwd.crew.memberPortrait"] = memberPortrait.slice(0, anonCount);
+				}
 				clampStoredGroupHp(update, clamped);
 				await this.actor.update(update);
 				this.render(false);
@@ -3687,12 +3727,16 @@ export function createStonetopCharacterSheetClass(Base) {
 			const setCustomGroupSize = async (slug, next) => {
 				const c = this.actor.getFlag("stonetop-pwd", `customFollowers.${slug}`);
 				if (!c) return;
-				const size = Math.max(2, Math.min(_CREW_SIZE_MAX, Math.trunc(Number(next) || 0) || 2));
+				const size = customGroupSize({ size: next });
 				const memberHpMax = Math.max(1, Math.trunc(Number(c.hpMax) || 0) || 1);
 				const update = { [`flags.stonetop-pwd.customFollowers.${slug}.size`]: size };
 				// Trim per-member HP to the new roster length.
 				if (Array.isArray(c.memberHp) && c.memberHp.length > size) {
 					update[`flags.stonetop-pwd.customFollowers.${slug}.memberHp`] = c.memberHp.slice(0, size);
+				}
+				// And their faces, which are an array parallel to that HP (roster-portraits.js).
+				if (Array.isArray(c.memberPortrait) && c.memberPortrait.length > size) {
+					update[`flags.stonetop-pwd.customFollowers.${slug}.memberPortrait`] = c.memberPortrait.slice(0, size);
 				}
 				// Clamp an explicitly-set group pool to the new max (unset tracks full).
 				const rawPool = Number(c.groupHp);
@@ -3705,7 +3749,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			};
 			html.find(".stonetop-custom-group-size-step").on("click", ev => {
 				const { slug, delta } = ev.currentTarget.dataset;
-				const cur = Math.max(2, Math.trunc(Number(this.actor.getFlag("stonetop-pwd", `customFollowers.${slug}.size`)) || 0) || 2);
+				const cur = customGroupSize({ size: this.actor.getFlag("stonetop-pwd", `customFollowers.${slug}.size`) });
 				setCustomGroupSize(slug, cur + Number(delta));
 			});
 			html.find(".stonetop-custom-group-size-input").on("change", ev =>
@@ -3871,11 +3915,15 @@ export function createStonetopCharacterSheetClass(Base) {
 				new Dialog({
 					title:   "Name this Crew Member",
 					content,
+					// One button, keyed `save`. NOT `add`: that key is in the global affirmative list
+					// (`.vtt .dialog .dialog-buttons [data-button="add"]`), which pushes its button to
+					// the far LEFT with `margin-right: auto` so a Cancel can sit opposite it. With
+					// nothing to sit opposite, that rule would strand the lone button on the left.
+					// Closing the window is the cancel — the titlebar ✕ already does it.
 					buttons: {
-						cancel: { label: "Cancel" },
-						add: {
+						save: {
 							icon:  "<i class='fas fa-user-pen'></i>",
-							label: "Name",
+							label: "Save",
 							callback: async (dlgHtml) => {
 								const name = dlgHtml.find("[name='ind-name']").val().trim();
 								if (!name) return;
@@ -3912,16 +3960,32 @@ export function createStonetopCharacterSheetClass(Base) {
 								const individualsHp = { ...(this.actor.getFlag("stonetop-pwd", "crew.individualsHp") ?? {}) };
 								if (carriedHp != null) individualsHp[newIndex] = carriedHp;
 								memberHp.splice(anonIndex, 1);
-								await this.actor.update({
-									"flags.stonetop-pwd.crew.individuals":   [...individuals, { name, tag, traits }],
+								// The face comes with them. Standing out is the moment a body on the
+								// roster becomes a person, so losing the portrait here would be the
+								// one point in the crew's life where a chosen face is thrown away.
+								// It moves OUT of the parallel array and ONTO the new row, which is
+								// where a named individual keeps theirs (roster-portraits.js).
+								const memberPortrait = rosterPortraitList(this.actor, "crew-member");
+								const [carriedFace]  = memberPortrait.splice(anonIndex, 1);
+								const named = { name, tag, traits };
+								if (carriedFace?.img)           named.img           = carriedFace.img;
+								if (carriedFace?.portraitFrame) named.portraitFrame = carriedFace.portraitFrame;
+								const update = {
+									"flags.stonetop-pwd.crew.individuals":   [...individuals, named],
 									"flags.stonetop-pwd.crew.individualsHp": individualsHp,
 									"flags.stonetop-pwd.crew.memberHp":      memberHp,
-								});
+								};
+								// Only when the store exists: a crew that has never picked a face
+								// should not gain an empty array the first time it names somebody.
+								if (memberPortrait.length || carriedFace !== undefined) {
+									update["flags.stonetop-pwd.crew.memberPortrait"] = memberPortrait;
+								}
+								await this.actor.update(update);
 								this.render(false);
 							},
 						},
 					},
-					default: "add",
+					default: "save",
 					render: (dlgHtml) => {
 						bringDialogToFront(dlgHtml);
 						// Swap the name/tag/trait combos' native <datalist> popups (which
@@ -3942,7 +4006,19 @@ export function createStonetopCharacterSheetClass(Base) {
 							});
 						});
 					},
-				}, { width: 540, height: 580, classes: ["dialog", "stonetop-individual-dialog"] }).render(true);
+					// "stonetop" is what carries our window CHROME — the header bar, the content
+					// parchment, the focus glow — all of which is scoped to that class so it cannot
+					// bleed onto core or another module's windows. Without it this dialog kept
+					// Foundry's default dark header and textured body while still picking up its own
+					// `.stonetop-individual-dialog` form and button rules, which is why it looked
+					// half-styled rather than plainly unstyled.
+					// height "auto", not a fixed 580: this dialog is three short fields and a chip
+					// list, so a fixed height left ~226px of dead air between the traits and the
+					// footer. The trait grid caps itself at 340px and scrolls, so "auto" cannot run
+					// away on a crew with a long trait list. Resizing the window taller still keeps
+					// Save in the bottom-right corner — that is what the footer's margin-top:auto is
+					// for, and it now only does work when there IS slack to take up.
+				}, { width: 540, height: "auto", classes: ["dialog", "stonetop", "stonetop-individual-dialog"] }).render(true);
 			};
 			html.find(".stonetop-crew-name-member").on("click", ev => {
 				openNameMemberDialog(Number(ev.currentTarget.dataset.index));
@@ -5935,6 +6011,191 @@ export function createStonetopCharacterSheetClass(Base) {
 				// A browsed file is exactly the case with no sensible default framing, so offer
 				// the framer the moment one is chosen.
 				onFrame: () => this._onFollowerPortraitFrame(portrait),
+			});
+		}
+
+		/**
+		 * Which roster member an avatar belongs to, straight off its dataset: the store `kind`, the
+		 * custom follower's `slug` where there is one, and the row `index`. One reader, so the four
+		 * handlers below cannot come to disagree about how a roster row names itself.
+		 */
+		_rosterAvatarRef(avatar) {
+			const kind  = avatar?.dataset?.roster;
+			const slug  = avatar?.dataset?.slug ?? "";
+			const index = Number(avatar?.dataset?.index);
+			if (!kind || !Number.isInteger(index) || index < 0) return null;
+			// rosterPortraitListPath is the whitelist: an unknown kind, or a custom member with no
+			// follower id, resolves to no store and so to no ref at all.
+			return rosterPortraitListPath(kind, slug) ? { kind, slug, index } : null;
+		}
+
+		/**
+		 * The anonymous rows of a group roster — the crew's unnamed tail, and every member of a
+		 * custom group (which names none of its own).
+		 *
+		 * Both rosters are the same row: an index, a label, HP clamped against the shared max, and
+		 * the avatar context that gives it a face. Built in one place so a field added to the row
+		 * cannot land on one roster and be forgotten on the other.
+		 *
+		 * `labelFor` is the only real difference — the crew counts past its named members, a custom
+		 * group counts from one.
+		 */
+		_anonRosterMembers(count, { hp = [], img = [], hpMax, editing, labelFor }) {
+			return Array.from({ length: count }, (_, i) => {
+				const label = labelFor(i);
+				return {
+					index:     i,
+					label,
+					hpMax,
+					hpCurrent: _clampHp(hp[i], hpMax),
+					...rosterAvatarContext(img[i], {
+						name: label, canWrite: this.isEditable, rosterEditing: editing,
+					}),
+				};
+			});
+		}
+
+		/** The name a roster row's avatar captions its windows with. */
+		_rosterAvatarName(avatar) {
+			return avatar?.querySelector?.(".stonetop-roster-avatar-img")?.dataset.name || "this member";
+		}
+
+		/**
+		 * DOM adapter for the in-sheet click path. Everything below works from the `ref` alone —
+		 * see _pickRosterPortrait for why.
+		 */
+		_onRosterAvatarPick(avatar) {
+			const ref = this._rosterAvatarRef(avatar);
+			if (ref) this._pickRosterPortrait(ref, this._rosterAvatarName(avatar));
+		}
+
+		/**
+		 * Give a roster member a face: the same People of Stonetop gallery every other portrait in
+		 * the system opens, writing to that member's own slot (see roster-portraits.js).
+		 *
+		 * Keyed on the REF — `{kind, slug, index}` — and never on an element, which is the whole
+		 * reason this is split from the click handler above. The follower card's equivalent has to
+		 * re-look-up its portrait element per click (a pick re-renders the sheet, leaving the
+		 * captured node detached and still showing the old face) and then fall back to the stale
+		 * node for when the sheet has been CLOSED behind the portrait window. A ref needs neither
+		 * dance: it does not go stale, it survives the sheet closing, and the store read below is
+		 * always current. Without this split, "Edit Photo" on a roster member's portrait window
+		 * died silently the moment the sheet behind it was closed, while "Frame Face" beside it —
+		 * which already worked from the ref — kept working.
+		 *
+		 * `onPicked` / `onCleared` are for a caller with something of its own to keep in step: that
+		 * same window, which would otherwise go on showing the picture just replaced.
+		 */
+		_pickRosterPortrait(ref, name, { onPicked, onCleared } = {}) {
+			if (!this.isEditable || !ref) return;
+			// Asked of the STORE rather than read back off the image on screen: a member wearing
+			// only the drawn placeholder has no stored path at all, and reading `src` would hand the
+			// gallery a placeholder to mark as the face in use. (It is also why this needs none of
+			// the follower card's getAttribute care — nothing here has been through the DOM's URL
+			// resolution.)
+			const current = readRosterPortrait(this.actor, ref.kind, ref.slug, ref.index).img;
+
+			// The gallery opens over the sheet; a preview raised by the hover that led to the click
+			// would be left floating on top of it with nothing to anchor to.
+			removeAvatarPreview();
+			openPeoplePortraitPicker({
+				current,
+				// The roster's own faces are in this scan (usedActorPortraits sweeps them through
+				// claimRosterPortraits), so two crew members cannot be handed one face without the
+				// gallery saying so.
+				used: this._followerPortraitsInUse(),
+				// Both branches follow through only on a write that LANDED. The store refuses,
+				// silently, a ref that has fallen off the end of its roster — the reachable case
+				// being this very window, kept open across a crew shrinking beneath it (see
+				// roster-portraits.js). Telling the window about a face that was never stored is
+				// the one outcome worse than the refusal: it would show the new picture, and the
+				// sheet behind it would still be showing the old one.
+				onPick: async (src) => {
+					if (!await writeRosterPortrait(this.actor, ref.kind, ref.slug, ref.index, { img: src ?? "" })) return;
+					this.render(false);
+					onPicked?.(src ?? "");
+				},
+				// Drops the frame with the picture, in one write, for the reason the follower card's
+				// clear spells out: an orphan rect would otherwise sit there forever with nothing
+				// left to ever clear it.
+				onClear: async () => {
+					if (!await clearRosterPortrait(this.actor, ref.kind, ref.slug, ref.index)) return;
+					this.render(false);
+					onCleared?.();
+				},
+				// A browsed file is exactly the case with no hand-cut square behind it, so offer the
+				// framer the moment one is chosen. Carries the ref, not the element, so the chain
+				// survives the same closed-sheet case the pick itself does.
+				onFrame: () => this._frameRosterPortrait(ref, name),
+			});
+		}
+
+		/** Which square of a roster member's portrait the small round avatar shows. Ref-keyed too. */
+		_frameRosterPortrait(ref, name) {
+			if (!this.isEditable || !ref) return;
+			// No early return on a null handle: openPortraitFrameEditor reports why it cannot open,
+			// which is the difference between a diagnosable message and a dead control.
+			openPortraitFrameEditor({
+				handle: rosterMemberFrameHandle(this.actor, ref, { editable: this.isEditable }),
+				title:  format("stonetop.portraitFrame.title", { name }),
+				// A frame write touches nothing the sheet watches, so nothing re-renders on its own.
+				onSaved: () => this.render(false),
+			});
+		}
+
+		/**
+		 * Enlarge a roster member's portrait, the way tapping any other face in the system does —
+		 * carrying the same "Edit Photo" and "Frame Face", so the face can be changed or re-framed
+		 * while READING the roster, without first opening its pencil. That is the whole reason a tap
+		 * here enlarges rather than picks.
+		 */
+		_onRosterAvatarView(avatar) {
+			const ref = this._rosterAvatarRef(avatar);
+			if (!ref) return;
+			const stored = readRosterPortrait(this.actor, ref.kind, ref.slug, ref.index).img;
+			if (!stored) return;
+			// The popup is portaled to <body> and would otherwise hang over the popout.
+			removeAvatarPreview();
+			const name = this._rosterAvatarName(avatar);
+			// displayPortraitSrc: a People-of-Stonetop square is a small face cut out of a standing
+			// figure, so popping the square itself would answer "show me this bigger" with a picture
+			// smaller than the one just tapped.
+			const popout = imagePopout({ src: displayPortraitSrc(stored), title: name });
+			if (!popout) return;
+			popout.render(true);
+			this._hangRosterAvatarControls(popout, ref, name);
+		}
+
+		/**
+		 * The two controls a roster member's portrait window carries, hung as a unit so a window
+		 * that had to re-render — which builds a fresh header and drops what was on the old one —
+		 * can have them put back with one call. No Tokenizer, unlike a follower card's: a roster
+		 * member is a row in a flag array and never an Actor, so there is nothing to token.
+		 *
+		 * BOTH controls are built from the `ref` and touch no DOM, so this window keeps working
+		 * after the sheet behind it is closed — which is the normal way to look at a face
+		 * unobstructed, and used to leave "Edit Photo" dead beside a live "Frame Face".
+		 */
+		_hangRosterAvatarControls(popout, ref, name) {
+			if (!popout || !ref || !this.isEditable) return;
+			addPopoutHeaderControl(popout, {
+				key:   "stonetop-edit-roster-photo",
+				icon:  "fa-camera",
+				label: localize("stonetop.portraitPicker.popout"),
+				onClick: () => this._pickRosterPortrait(ref, name, {
+					onPicked: (src) => {
+						if (!pointImagePopoutAt(popout, displayPortraitSrc(src))) {
+							this._hangRosterAvatarControls(popout, ref, name);
+						}
+					},
+					// A cleared portrait leaves nothing to show, so the window closes rather than
+					// sit there displaying a face nobody wears any more.
+					onCleared: () => popout.close(),
+				}),
+			});
+			addPortraitFrameControl(popout, rosterMemberFrameHandle(this.actor, ref, { editable: this.isEditable }), {
+				name,
+				onSaved: () => this.render(false),
 			});
 		}
 

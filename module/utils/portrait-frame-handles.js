@@ -2,6 +2,7 @@ import { SYSTEM_ID } from "../system-id.js";
 import { resolvedFlags } from "../actors/character/StonetopFlags.js";
 import { isActorRow, personRowActor } from "../actors/steading/steading-people.js";
 import { STEADING_DEFAULTS } from "../actors/steading/StonetopSteading.js";
+import { readRosterPortrait, rosterPortraitListPath, writeRosterPortrait } from "../actors/character/roster-portraits.js";
 import { normalizeFrame, documentPortraitFrame } from "./portrait-frame.js";
 
 /**
@@ -99,6 +100,34 @@ export function followerFrameHandle(actor, base, { editable = false } = {}) {
 		clear: () => (detail().portraitFrame === undefined
 			? Promise.resolve()
 			: actor.update({ [`flags.${SYSTEM_ID}.${base}.-=portraitFrame`]: null }))
+	};
+}
+
+/**
+ * One member of a group follower's ROSTER: a named crew individual, an anonymous crew member, or
+ * a member of a custom group follower.
+ *
+ * Like a legacy steading row and unlike a follower card, these live in flag ARRAYS, so the whole
+ * array is rewritten per change — see the warning at the top of actors/character/roster-portraits.js,
+ * which owns that rule and the three stores behind it. This handle only translates it into the
+ * four questions the framer asks.
+ *
+ * `ref` is `{kind, slug, index}`, straight off the avatar's dataset.
+ */
+export function rosterMemberFrameHandle(actor, { kind, slug = "", index = 0 } = {}, { editable = false } = {}) {
+	if (!actor || !rosterPortraitListPath(kind, slug)) return null;
+	const stored = () => readRosterPortrait(actor, kind, slug, index);
+	return {
+		canWrite: !!editable,
+		get img() { return stored().img; },
+		read: () => stored().portraitFrame,
+		write: (frame) => writeRosterPortrait(actor, kind, slug, index, { portraitFrame: frame }),
+		// `undefined` is the delete signal there, and a plain delete is what an array row needs —
+		// the same asymmetry the legacy row handle below relies on. Guarded so clearing an
+		// unframed member is a genuine no-op rather than a pointless whole-array rewrite.
+		clear: () => (stored().portraitFrame == null
+			? Promise.resolve()
+			: writeRosterPortrait(actor, kind, slug, index, { portraitFrame: undefined })),
 	};
 }
 
