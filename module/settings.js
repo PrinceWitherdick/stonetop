@@ -69,6 +69,19 @@ export function registerSettings() {
 		default: false
 	});
 
+	// Whether the lettered Place-of-Interest pins already on this world's scenes have been
+	// opened up to players (see hooks/Ready.js _revealLandmarkNotesOnce). They were written
+	// without global visibility and owned by the GM who placed them, which Foundry 14 reads
+	// as "GM's private note"; new pins are written public at creation. Once per world rather
+	// than every load, so a GM who later hides a pin on purpose keeps that decision.
+	game.settings.register("stonetop-pwd", "landmarkNotesRevealed", {
+		name: "Landmark Map Pins Revealed",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
 	// Whether the one-time import of the Book II "Treasures & Wonders" items from the
 	// stonetop-items compendium into the world's Items sidebar has run (see
 	// hooks/SeedItems.js). Independent of the journal/bestiary seeds so an established

@@ -35,6 +35,7 @@ import { ensureThreatsEntry } from "../threats/threat-store.js";
 import { ensureHazardsEntry } from "../hazards/hazard-store.js";
 import { STONETOP_SCOPE, resolvedFlagProperty } from "../actors/character/StonetopFlags.js";
 import { deletionEntry } from "../utils/foundry-compat.js";
+import { linkLandmarkNotes, revealLandmarkNotesOnce } from "./PlaceOfInterestDrop.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
 import { migrateAllSteadingPeople, ensurePeopleFolders, backfillAllResidentHomes } from "../actors/steading/steading-people.js";
 import { PERSON_DEFAULT_IMG } from "../utils/person-portrait.js";
@@ -129,6 +130,13 @@ export async function onReady() {
 		catch (err) { console.error("Stonetop | NPC placeholder-portrait migration failed", err); }
 		try { await _migrateTokenImagesToPortraits(); }
 		catch (err) { console.error("Stonetop | token-image backfill failed", err); }
+		// Open the lettered village pins already on this world's scenes up to the players
+		// they were always for (once per world; see revealLandmarkNotesOnce), then point any
+		// that still open nothing at their Chronicle page (every load; a no-op once linked).
+		try { await revealLandmarkNotesOnce(); }
+		catch (err) { console.error("Stonetop | landmark map-pin reveal failed", err); }
+		try { await linkLandmarkNotes(); }
+		catch (err) { console.error("Stonetop | landmark map-pin linking failed", err); }
 	}
 	await runStartupMigrations();
 	// If the renamed system has been installed alongside this one, offer to move this
