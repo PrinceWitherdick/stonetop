@@ -97,7 +97,9 @@ export function buildPlacePages(places = [], { villageLink = "" } = {}) {
 function villageJournalLink() {
 	const journal = game.journal?.find(j => j.name === VILLAGE_JOURNAL_NAME) ?? null;
 	if (!journal) return "";
-	return `<p>More about the village: @UUID[JournalEntry.${journal.id}]{${VILLAGE_JOURNAL_NAME}}</p>`;
+	// Bolded like every other crosslink we write (see gazetteer-linkify): a link reads as a
+	// link in our journals because it is bold, not because of its colour.
+	return `<p>More about the village: <strong>@UUID[JournalEntry.${journal.id}]{${VILLAGE_JOURNAL_NAME}}</strong></p>`;
 }
 
 /** Find (or create) the "Places of Interest" journal in the Chronicle folder. GM-only. */

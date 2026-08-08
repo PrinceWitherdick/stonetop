@@ -6,7 +6,7 @@ import { STEADING_DEFAULTS } from "../../module/actors/steading/StonetopSteading
 // steading's lettered list, which is what a village map pin opens. These cover the pure
 // compiler and the steading read; creating the journal itself needs Foundry.
 
-const VILLAGE_LINK = "<p>More about the village: @UUID[JournalEntry.abc]{The Village of Stonetop}</p>";
+const VILLAGE_LINK = "<p>More about the village: <strong>@UUID[JournalEntry.abc]{The Village of Stonetop}</strong></p>";
 
 describe("placePageKey", () => {
 	it("keys a page by its map letter, case-folded", () => {
