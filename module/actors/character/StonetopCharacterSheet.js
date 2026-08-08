@@ -11,6 +11,7 @@ import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
 import {PossessionChoicesDialog} from "./dialogs/PossessionChoicesDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
 import {UndeathDialog} from "./dialogs/UndeathDialog.js";
+import {buildPostDeathChoices, choiceWriteIns} from "./post-death-choices.js";
 import {DEATHS_DOOR_STATE, POST_DEATH_INSERT_SLUGS, resolvedHp, zeroHpMove} from "./deaths-door.js";
 import {WoundDialog} from "./dialogs/WoundDialog.js";
 import {WOUND_STATUS_GLYPH, WOUND_STATUS_LABEL} from "./wound-display.js";
@@ -970,7 +971,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			const detailsFilled = {
 				lore:       !!pb?.lore?.hasReadonlyContent,
 				background: !!(pb?.background?.selected && pb.background.options?.some(o => o.selected)),
-				instinct:   !!pb?.instinct?.hasSelection,
+				// An insert's Instinct replaces the playbook's, and it is what this section reads
+				// out — so it counts as filled even for a character whose playbook Instinct was
+				// never set, who would otherwise choose one at Death's Door and see no sign of it.
+				instinct:   !!pb?.instinct?.hasSelection
+				         || !!context.stonetop.postDeathInsert?.activeInsert?.instinct?.selected,
 				appearance: !!pb?.appearance?.summary,
 				origin:     !!(pb?.origin?.selected && pb.origin.selectedOption),
 			};
@@ -1006,6 +1011,48 @@ export function createStonetopCharacterSheetClass(Base) {
 			// player or GM has already said they're changing the sheet, rather than hanging a
 			// Post-Death tab off every living character.
 			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug || context.stonetop.editMode;
+			// Built for its write-in rows alone. The tab used to carry a button into the chooser,
+			// labelled with what was still outstanding; that went, and the label / count / flag it
+			// needed went with it. The full view model is still what the rows are derived from, so
+			// this stays a build rather than a narrower query.
+			//
+			// Who the Terrible Purpose is about, what a Revenant with STRANGE APPETITES eats: free
+			// text hung off a pick, with no box on the printed insert, so it would otherwise live
+			// only inside the window that collected it.
+			//
+			// `open` decides ask-or-print, on exactly the rule postDeathInstinctOpen uses below:
+			// edit mode, or an answer that has never been given. Death's Door's chooser is a
+			// one-shot step and three routes to an insert (its own advice to finish on this tab,
+			// the Choose Your Fate buttons, an Item drop) never pass through it, so a question left
+			// unanswered has to stay askable here or it can never be answered at all.
+			const pdChoices = await buildPostDeathChoices(this._stonetopCharacter);
+			context.stonetop.postDeathChoices = pdChoices ? {
+				writeIns: choiceWriteIns(pdChoices).map(row => ({
+					...row,
+					open: !!context.stonetop.editMode || !String(row.value ?? "").trim(),
+				})),
+			} : null;
+			// Suffix for the tab's radio `name`s. Radio grouping is document-global, so two undead
+			// PCs' sheets open at once would otherwise share one group and a click on either would
+			// clear the other's answer — the same reason the chooser partial carries `choices.group`.
+			context.stonetop.postDeathRadioGroup = this.actor?.id ?? "";
+			// Whether the tab prints the Instinct as a QUESTION rather than as an answer. Open in
+			// edit mode, as it always was — and open, in ordinary play, while it has never been
+			// answered at all. That second case used to be a dead end: the tab said "turn on edit
+			// mode to choose one" and the chooser button beside it was the way nobody had to. With
+			// the button gone, a character whose Death's Door was resolved away from the sheet had
+			// no route to their own Instinct.
+			//
+			// Deliberately NOT open once an answer exists: changing one is an edit, and the
+			// playbook Instinct on the Details tab has always drawn the line in the same place.
+			context.stonetop.postDeathInstinctOpen = !!context.stonetop.editMode
+				|| !context.stonetop.postDeathInsert?.activeInsert?.instinct?.selected;
+			// The heading is the same heading either way — same title, same fold id — so it is
+			// printed once and only its note changes. Resolved here because Handlebars can't pick
+			// between two partial arguments without printing the whole call twice, and the two
+			// copies then drift (a retitled section that folds under two different ids).
+			context.stonetop.postDeathInstinctNote = context.stonetop.postDeathInstinctOpen
+				? game.i18n.localize("stonetop.character.selection.chooseOne") : "";
 			// Mirror computed vitals back onto system attributes for the sheet's inputs.
 			// HP-max is playbook-derived, so it only applies with a playbook — keeps
 			// onboarding-built characters from showing the stale template default. Damage
@@ -4409,10 +4456,29 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._stonetopCharacter.setPostDeathInsert(null).then(() => this.render(false));
 			}, true);
 
+			// These radios now render in ordinary play too, not just edit mode (an unanswered
+			// Instinct — see postDeathInstinctOpen), so the write needs the editability guard the
+			// edit-mode-only version got for free from the tab never drawing them.
 			html[0].addEventListener("change", ev => {
 				const radio = ev.target.closest(".stonetop-pdi-instinct");
 				if (!radio) return;
+				if (!this.isEditable) return;
 				this._stonetopCharacter.setPostDeathInstinct(radio.value);
+			}, true);
+
+			// The write-in answers hung off a post-death pick: who the Terrible Purpose is about,
+			// what a Revenant with STRANGE APPETITES eats. Live outside edit mode while unanswered,
+			// for the same reason the Instinct above is — Death's Door's chooser is a one-shot step
+			// and there are three routes to an insert that never pass through it. Text saves on
+			// blur, not per keystroke, so naming your Purpose doesn't re-render out from under the
+			// cursor; the radios re-render to move the tick.
+			html[0].addEventListener("change", ev => {
+				const el = ev.target.closest(".stonetop-pdi-writein, .stonetop-pdi-writein-pick");
+				if (!el) return;
+				if (!this.isEditable) return;
+				this._stonetopCharacter
+					.setPostDeathLoreText(el.dataset.section, el.dataset.option, el.value)
+					.then(() => this.render(false));
 			}, true);
 
 			html[0].addEventListener("change", ev => {

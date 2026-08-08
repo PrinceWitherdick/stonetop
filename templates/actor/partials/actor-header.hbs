@@ -26,11 +26,34 @@
 		{{#if (and isCharacter (not limited))}}
 		<div class="stonetop-playbook-block">
 			<div class="stonetop-playbook-row">
+				{{!-- What this character IS, in one line. Normally that's the playbook and its
+				      Instinct. Once they've died and come back wearing an insert, the insert IS
+				      what they are — it replaces the playbook's name here and brings its own
+				      Instinct, because "Ghost (Denial)" is the true answer and "The Heavy
+				      (Loyal)" is who they used to be. The old pair stays, struck through and
+				      small, beside it: nothing about them was deleted, and a Revenant is still a
+				      Heavy underneath. --}}
 				<span class="stonetop-playbook-drop-zone {{#unless stonetop.playbook.name}}empty{{/unless}}">
-					{{#if stonetop.playbook.name}}
+					{{#if stonetop.postDeathInsert.activeInsert}}
+					{{stonetop.postDeathInsert.activeInsert.name}}{{#if stonetop.postDeathInsert.activeInsert.instinct.badge}} <span class="stonetop-instinct-badge" data-tooltip="{{stonetop.postDeathInsert.activeInsert.instinct.badge.tooltip}}" data-tooltip-direction="DOWN">({{stonetop.postDeathInsert.activeInsert.instinct.badge.word}})</span>{{/if}}
+					{{else if stonetop.playbook.name}}
 					{{stonetop.playbook.name}}{{#if stonetop.playbook.instinct.badge}} <span class="stonetop-instinct-badge" data-tooltip="{{stonetop.playbook.instinct.badge.tooltip}}" data-tooltip-direction="DOWN">({{stonetop.playbook.instinct.badge.word}})</span>{{/if}}
 					{{else}}Drop a playbook here{{/if}}
 				</span>
+				{{#if stonetop.postDeathInsert.activeInsert}}
+				{{#if stonetop.playbook.name}}
+				{{! The playbook goes grey the moment the insert lands — that identity IS replaced.
+				    Its Instinct is a separate question and comes along only once the insert's own
+				    Instinct has actually been chosen, which is the same gate the Details tab uses
+				    for its "retired" note and its read-out. Between taking the insert and choosing
+				    an Instinct (a state the walkthrough explicitly allows you to leave the window
+				    in) the header used to strike out an Instinct the sheet was still using. }}
+				<span class="stonetop-playbook-retired"
+				      data-tooltip="{{localize "stonetop.postDeath.retiredTooltip"}}" data-tooltip-direction="DOWN">
+					<s>{{stonetop.playbook.name}}{{#if stonetop.postDeathInsert.activeInsert.instinct.selected}}{{#if stonetop.playbook.instinct.badge}} ({{stonetop.playbook.instinct.badge.word}}){{/if}}{{/if}}</s>
+				</span>
+				{{/if}}
+				{{/if}}
 			</div>
 			{{#if stonetop.playbook.description}}
 			<p class="stonetop-playbook-description">{{stonetop.playbook.description}}</p>

@@ -207,12 +207,21 @@ describe("deathsDoorRollOptions — the Heavy's two modifiers", () => {
 		expect(opts.hardToKill).toBe(false);
 		expect(opts.statChoices).toEqual([{ stat: "", label: "+nothing" }]);
 		expect(opts.penalty).toBe(0);
+		// Nothing opened a choice up, so there's no move for the dialog to explain.
+		expect(opts.statChoiceMove).toBeNull();
 	});
 
 	it("offers +CON as well with Hard to Kill, with +nothing still first", () => {
 		const opts = deathsDoorRollOptions(["Hard to Kill"], {});
 		expect(opts.hardToKill).toBe(true);
 		expect(opts.statChoices.map(c => c.stat)).toEqual(["", "con"]);
+	});
+
+	it("names the move that opened the choice up, so the dialog can print its description", () => {
+		expect(deathsDoorRollOptions(["Hard to Kill"], {}).statChoiceMove).toBe("Hard to Kill");
+		// The canonical spelling, not whatever case the owned copy happens to carry — the lookup
+		// on the other side is case-insensitive, and the label reads better spelled properly.
+		expect(deathsDoorRollOptions(["hard to kill"], {}).statChoiceMove).toBe("Hard to Kill");
 	});
 
 	it("matches the move name case-insensitively", () => {

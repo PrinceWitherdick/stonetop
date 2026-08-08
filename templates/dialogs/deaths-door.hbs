@@ -1,8 +1,8 @@
 <div class="deaths-door-dialog-content">
 
-	{{! The move heads every step of its own walkthrough; "Refuse to Go" is a different move
-	    and brings its own heading. }}
-	{{#unless isFate}}
+	{{! The move heads every step of its own walkthrough; "Refuse to Go" and the insert's own
+	    questions are past it, and bring their own headings. }}
+	{{#unless (or isFate isChoices)}}
 	<h2 class="deaths-door-move-name">{{move.name}}</h2>
 	<p class="deaths-door-intro deaths-door-move-trigger">{{{move.trigger}}}</p>
 	{{/unless}}
@@ -18,9 +18,11 @@
 		</p>
 
 		{{#if hasStatChoice}}
-		{{! The Heavy's Hard to Kill: "you can roll +CON or +nothing (your choice)". }}
+		{{! The Heavy's Hard to Kill: "you can roll +CON or +nothing (your choice)". The move's
+		    name and its own words both come from the owned Item, so a player who is suddenly
+		    offered a stat can see which move is giving it to them and read why. }}
 		<div class="deaths-door-roll-option">
-			<span class="deaths-door-roll-option-label">Hard to Kill &mdash; roll with:</span>
+			<span class="deaths-door-roll-option-label">{{#if statChoiceMove}}{{statChoiceMove}} &mdash; {{/if}}roll with:</span>
 			<div class="deaths-door-stat-choices">
 				{{#each statChoices}}
 				{{! The label wraps the radio so the text is a hit target too. No `is-checked`
@@ -33,6 +35,11 @@
 				</label>
 				{{/each}}
 			</div>
+			{{#if statChoiceMoveDescription}}
+			{{! Raw: this is the move's own stored HTML, the same string its card and the playbook
+			    reference print. }}
+			<div class="deaths-door-roll-option-move">{{{statChoiceMoveDescription}}}</div>
+			{{/if}}
 		</div>
 		{{/if}}
 
@@ -173,6 +180,26 @@
 	</div>
 	{{/if}}
 
+	{{! The insert is theirs; this is what it asks of them. Nothing here is compulsory — the answers
+	    live on the sheet and can be changed there — so the footer says Done, not Next, however much
+	    is still outstanding. }}
+	{{#if isChoices}}
+	<div class="deaths-door-step deaths-door-step--choices">
+		<h2 class="deaths-door-move-name">{{insertName}}</h2>
+		{{! Told per fate — a Thrall didn't refuse anything, they called something up. }}
+		<p class="deaths-door-intro deaths-door-move-trigger">{{choicesIntro}}</p>
+		{{> "stonetop.post-death-choices" choices=choices}}
+		{{! This used to name the button that reopened these questions. There is no such button any
+		    more — the Post-Death tab prints the insert's own state — so it points at the tab, and
+		    at edit mode, which is now the way to change an answer afterwards. }}
+		<p class="deaths-door-note">
+			<i class="fas fa-hourglass-half"></i>
+			<span>No rush: whatever you leave undecided is waiting on your Post-Death tab, and can be
+			answered there in edit mode.</span>
+		</p>
+	</div>
+	{{/if}}
+
 </div>
 
 <div class="deaths-door-dialog-buttons">
@@ -188,5 +215,12 @@
 
 	{{#if isFate}}
 	<button class="deaths-door-cancel-btn" type="button">Cancel</button>
+	{{/if}}
+
+	{{#if isChoices}}
+	{{#if outstandingLabel}}<span class="deaths-door-outstanding">{{outstandingLabel}}</span>{{/if}}
+	<button class="deaths-door-close-btn is-primary" type="button">
+		<i class="fas fa-check"></i> Done
+	</button>
 	{{/if}}
 </div>

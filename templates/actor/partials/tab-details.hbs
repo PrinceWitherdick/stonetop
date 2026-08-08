@@ -130,6 +130,14 @@
 				{{/if}}
 				{{> "stonetop.details-section-edit-toggle" section="instinct" editing=stonetop.detailsEdit.instinct collapse="instinct"}}
 			</div>
+			{{! "Lose the Instinct from your playbook, and replace it with one of these." The
+			    playbook's is kept in the data and stays editable here in edit mode — removing the
+			    insert brings it straight back — but it is the insert's that the sheet reads out. }}
+			{{#if stonetop.postDeathInsert.activeInsert.instinct.selected}}
+			<p class="stonetop-instinct-replaced-note">
+				<i class="fas fa-skull"></i> {{localize "stonetop.postDeath.instinctRetired"}}
+			</p>
+			{{/if}}
 			{{#if stonetop.detailsEdit.instinct}}
 			<div class="stonetop-instinct-custom-row">
 				<input type="text" class="stonetop-instinct-custom-word"
@@ -156,7 +164,9 @@
 			</div>
 			{{/if}}
 			{{else}}
-			{{#if stonetop.playbook.instinct.selected}}
+			{{#if stonetop.postDeathInsert.activeInsert.instinct.selected}}
+			<p class="stonetop-instinct-readonly">{{stonetop.postDeathInsert.activeInsert.instinct.selected}}</p>
+			{{else if stonetop.playbook.instinct.selected}}
 			<p class="stonetop-instinct-readonly">{{stonetop.playbook.instinct.selected}}</p>
 			{{/if}}
 			{{/if}}

@@ -3003,6 +3003,11 @@ input.stonetop-name-field {
 .stonetop-npc-hasstats-check,
 .stonetop-rel-show-check,
 .stonetop-spend-unwilling,
+.stonetop-pdc-pick,
+.stonetop-pdc-mark,
+.stonetop-pdc-instinct,
+.stonetop-pdc-subpick,
+.stonetop-pdi-writein-pick,
 .steading-list-check {
 	appearance: none !important;
 	-webkit-appearance: none !important;
@@ -3059,6 +3064,11 @@ input.stonetop-name-field {
 .stonetop-npc-hasstats-check:checked,
 .stonetop-rel-show-check:checked,
 .stonetop-spend-unwilling:checked,
+.stonetop-pdc-pick:checked,
+.stonetop-pdc-mark:checked,
+.stonetop-pdc-instinct:checked,
+.stonetop-pdc-subpick:checked,
+.stonetop-pdi-writein-pick:checked,
 .steading-list-check:checked {
 	background: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
 }
@@ -3090,6 +3100,8 @@ input.stonetop-name-field {
 .stonetop-move-mark-check:disabled,
 .stonetop-onboarding-check:disabled,
 .stonetop-bg-action-check:disabled,
+.stonetop-pdc-pick:disabled,
+.stonetop-pdc-mark:disabled,
 .stonetop-arcanum-unlock-check:disabled {
 	opacity: 0.35;
 	cursor: default;
@@ -4512,8 +4524,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
    just not taken, and the fade already says that (an un-owned playbook move reads the same
    way). Only the name/description fade; the leading checkbox keeps full contrast so
    re-learning stays an obvious click. */
-.tab.moves .stonetop-item.move-unlearned .stonetop-item-name,
-.tab.moves .stonetop-item.move-unlearned .stonetop-item-description {
+:is(.tab.moves, .tab.post-death) .stonetop-item.move-unlearned .stonetop-item-name,
+:is(.tab.moves, .tab.post-death) .stonetop-item.move-unlearned .stonetop-item-description {
 	opacity: 0.5;
 }
 
@@ -4521,7 +4533,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
    playbook move, which is always learned and so shows no toggle). Same scaled 15px box
    the checkbox reserves, so every title in the section starts on one line — the header's
    own 8px gap does the spacing. */
-.tab.moves .stonetop-item-check-spacer {
+:is(.tab.moves, .tab.post-death) .stonetop-item-check-spacer {
 	flex: 0 0 calc(15px * var(--stonetop-font-scale, 1));
 	height: calc(15px * var(--stonetop-font-scale, 1));
 }
@@ -4531,7 +4543,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
    (the red error below): this is a BLUE "needs your input" call-to-action — border,
    tint, and inset left stripe (the stripe via box-shadow so it adds no width). Declared
    before .move-requirements-unmet so the red error wins the tint if a move is both. */
-.tab.moves .stonetop-item.move-needs-choice {
+:is(.tab.moves, .tab.post-death) .stonetop-item.move-needs-choice {
 	border-color: var(--st-blue-border);
 	background: var(--st-blue-bg);
 	box-shadow: inset 3px 0 0 var(--st-blue-border);
@@ -4555,7 +4567,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
    (an un-takeable move, faded out), this must STAND OUT so the broken
    prerequisite is noticed — a red border, tint, and inset left stripe (the
    stripe via box-shadow so it adds no width and never shifts the row). */
-.tab.moves .stonetop-item.move-requirements-unmet {
+:is(.tab.moves, .tab.post-death) .stonetop-item.move-requirements-unmet {
 	border-color: var(--st-red-border);
 	background: var(--st-red-bg);
 	box-shadow: inset 3px 0 0 var(--st-red-border);
@@ -7050,7 +7062,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
    sections (.tab.details > .details-section + .details-section) so a group's
    heading — e.g. "Other Moves" — doesn't crowd the last card of the group above
    it. The first group hugs the top; each subsequent one gets the gap. */
-.tab.moves .sheet-tab > .stonetop-move-group:not(:first-child) {
+:is(.tab.moves, .tab.post-death) .sheet-tab > .stonetop-move-group:not(:first-child) {
 	margin-top: 14px;
 }
 
@@ -7070,7 +7082,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 /* Card styling shared by the Moves tab, the Invocations tab, and the Special
    Possessions list (gear tab) so all three read as the same bordered cards. */
 
-.tab.moves .stonetop-item,
+:is(.tab.moves, .tab.post-death) .stonetop-item,
 .stonetop-invocation-card,
 .stonetop-possession-list .stonetop-item {
 	border: 1px solid var(--color-border-light-2);
@@ -7079,12 +7091,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	padding: 8px 12px;
 }
 
-.tab.moves .stonetop-item,
+:is(.tab.moves, .tab.post-death) .stonetop-item,
 .stonetop-possession-list .stonetop-item {
 	margin-bottom: 6px;
 }
 
-.tab.moves .stonetop-item-header,
+:is(.tab.moves, .tab.post-death) .stonetop-item-header,
 .stonetop-invocation-header,
 .stonetop-possession-list .stonetop-item-header {
 	border-bottom: 1px solid rgba(0,0,0,0.12);
@@ -7098,14 +7110,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	flex-wrap: wrap;
 }
 
-.tab.moves .stonetop-item-name,
+:is(.tab.moves, .tab.post-death) .stonetop-item-name,
 .stonetop-invocation-name,
 .stonetop-possession-list .stonetop-item-name {
 	font-family: var(--font-stonetop);
 	font-size: calc(1rem * var(--stonetop-font-scale, 1));
 }
 
-.tab.moves .stonetop-item-name {
+:is(.tab.moves, .tab.post-death) .stonetop-item-name {
 	flex: initial;
 }
 
@@ -7123,7 +7135,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
    forces a wrap, and the negative inline margin cancels one of the two 8px
    header gaps it introduces, so the track wraps at exactly the same width as
    before. */
-.tab.moves .stonetop-item-header-spacer {
+:is(.tab.moves, .tab.post-death) .stonetop-item-header-spacer {
 	flex: 1 1 0;
 	min-width: 0;
 	margin-inline: -4px;
@@ -7140,18 +7152,18 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
    the label (last in flow) would itself be the thing that wraps down. Scoped
    with :has() so headers WITHOUT a source label (love letters, custom/other
    moves, player-chosen moves) keep the untouched flex layout. */
-.tab.moves .stonetop-move-group .stonetop-item-header:has(.stonetop-item-source) {
+:is(.tab.moves, .tab.post-death) .stonetop-move-group .stonetop-item-header:has(.stonetop-item-source) {
 	display: flow-root;
 }
 
 /* Block flow drops the flex `align-items:center`, so re-centre the now-inline
    controls vertically. Their horizontal spacing comes from the normal
    whitespace between the inline elements. */
-.tab.moves .stonetop-move-group .stonetop-item-header:has(.stonetop-item-source) > * {
+:is(.tab.moves, .tab.post-death) .stonetop-move-group .stonetop-item-header:has(.stonetop-item-source) > * {
 	vertical-align: middle;
 }
 
-.tab.moves .stonetop-move-group .stonetop-item-source {
+:is(.tab.moves, .tab.post-death) .stonetop-move-group .stonetop-item-source {
 	float: right;
 	max-width: 100%;
 	margin-left: 8px;
@@ -7163,25 +7175,25 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
    the Chronicler's "Well Versed"). Keep it inline beside the title with
    inline-flex. (The resource track below is the one child we DO want on its own
    line.) */
-.tab.moves .stonetop-move-group .stonetop-item-header:has(.stonetop-item-source) > .stonetop-repeat-checks {
+:is(.tab.moves, .tab.post-death) .stonetop-move-group .stonetop-item-header:has(.stonetop-item-source) > .stonetop-repeat-checks {
 	display: inline-flex;
 }
 
 /* Keep a resource ("hold & use") track on its own line under the controls
    (clear:both drops it below the floated label) rather than letting it ride up
    into the badge's corner. */
-.tab.moves .stonetop-move-group .stonetop-item-header:has(.stonetop-item-source) > .stonetop-item-resources {
+:is(.tab.moves, .tab.post-death) .stonetop-move-group .stonetop-item-header:has(.stonetop-item-source) > .stonetop-item-resources {
 	clear: both;
 }
 
 /* The spacer only means something in the flex header; in this block-flow one it
    would be an empty inline that the surrounding whitespace still spaces out. */
-.tab.moves .stonetop-move-group .stonetop-item-header:has(.stonetop-item-source) > .stonetop-item-header-spacer {
+:is(.tab.moves, .tab.post-death) .stonetop-move-group .stonetop-item-header:has(.stonetop-item-source) > .stonetop-item-header-spacer {
 	display: none;
 }
 
-.tab.moves .stonetop-item-description,
-.tab.moves .stonetop-move-note,
+:is(.tab.moves, .tab.post-death) .stonetop-item-description,
+:is(.tab.moves, .tab.post-death) .stonetop-move-note,
 .stonetop-possession-list .stonetop-item-description,
 .stonetop-possession-list .stonetop-possession-choice-summary {
 	padding-left: 0;
@@ -7263,6 +7275,49 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	font-style: italic;
 	opacity: 0.75;
 	cursor: default;
+}
+
+/* Who they used to be. Beside the insert that replaced them, at a size that says "footnote"
+   rather than "second heading": small enough to lose the argument with the name it sits next to,
+   still large enough to read the playbook off. The strike is the whole point — nothing here was
+   deleted, the playbook and its Instinct are still on the sheet and come straight back if the
+   insert is removed. */
+.stonetop-playbook-retired {
+	/* Sits on the big name's baseline rather than floating in the middle of it: the row centres
+	   its items, and a small label centred against a display-size one lands halfway up, reading
+	   as a separate thing beside the name instead of a footnote to it. */
+	align-self: flex-end;
+	/* Top of the shared scale, several steps above the caption size it started at. This line is
+	   the only place the playbook still shows in the header, so it has to be read at a glance
+	   rather than squinted at — and against a display-size name there is room to be this big
+	   without competing for the heading. The strike keeps it unmistakably past tense. */
+	font-size: var(--st-fs-xl);
+	line-height: 1.2;
+	/* 0.75, not the 0.55 this started at. The element only ever renders on a character wearing an
+	   insert — which is the same condition that blackens the sheet — and opacity composites onto
+	   the CHILD, so at 0.55 the maroon strike came out around 1.3:1 against the inverted paper and
+	   survived only where it crossed a letter: the line read as a dashed artefact rather than as a
+	   strike, on the one element whose entire job is the strike. */
+	opacity: 0.75;
+	cursor: default;
+	white-space: nowrap;
+}
+
+/* The strike in the maroon core rules every heading with (`h1`–`h4` get
+   `border-bottom: … var(--color-underline-header)`, which is what draws the line under Granted
+   Moves, Instinct and the rest). Reading the core token rather than restating #782e22 keeps the
+   two in step if a theme moves it, and it means this sheet has exactly one red in it.
+
+   Set on the `<s>`, not its wrapper: text-decoration is drawn by the element that DECLARES it,
+   so a colour on the span would be ignored by the child that owns the line.
+
+   Thickened, because the line now has a large word to cross and a hairline over 1.3em text reads
+   as an artefact. It fades with the wrapper's 0.55 like everything else in the span — opacity on
+   a child composites with its parent's rather than replacing it, so there is no undoing it from
+   here; if the red wants to be stronger, the wrapper's opacity is the dial. */
+.stonetop-playbook-retired s {
+	text-decoration-color: var(--color-underline-header, #782e22);
+	text-decoration-thickness: 2px;
 }
 
 .stonetop-appearance-summary {
@@ -7655,20 +7710,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 }
 .stonetop-pdi-remove--danger:hover {
 	background: #c02828;
-}
-
-/* Insert name + description share the Moves tab's fonts (--font-stonetop,
-   matching .stonetop-item-name / .stonetop-item-description sizes). */
-.stonetop-pdi-name {
-	font-family: var(--font-stonetop);
-	font-size: calc(1rem * var(--stonetop-font-scale, 1));
-}
-
-.stonetop-pdi-description {
-	font-family: var(--font-stonetop);
-	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
-	color: var(--color-text-dark-secondary);
-	line-height: 1.4;
 }
 
 /* ── Inventory toolbar ──────────────────────────────────────────── */
@@ -8966,6 +9007,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	border-color: var(--st-btn-primary-border);
 }
 
+/* Done shares its row with the "still to choose" line on the choices step, so it stops filling
+   the footer there and lets that line keep the left edge. It must not SHRINK for it either: the
+   line names the outstanding steps rather than counting them, and on a Thrall that is four of
+   them — long enough to squeeze "Done" onto two lines if the button is left flexible. */
+.deaths-door-outstanding + .deaths-door-close-btn {
+	width: auto;
+	flex: 0 0 auto;
+}
+
 /* "Not yet" / "Cancel" are dismissive, so they sit at the right edge (Foundry's convention)
    rather than at the left, where space-between drops a lone button. */
 .deaths-door-cancel-btn {
@@ -9013,6 +9063,26 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	font-size: var(--st-fs-sm);
 	font-style: italic;
 	color: var(--color-text-dark-secondary);
+}
+
+/* The granting move's own words, under the choice it opened up. A footnote, not a heading: the
+   radios are still the thing being asked for, so this sits quieter than they do and hangs off a
+   rule on the accent to tie it to the move rather than to the dialog. */
+.deaths-door-roll-option-move {
+	margin: 7px 0 0;
+	padding: 0 0 0 9px;
+	border-left: 2px solid var(--dd-accent);
+	font-size: var(--st-fs-sm);
+	line-height: 1.45;
+	color: var(--color-text-dark-secondary);
+}
+
+.deaths-door-roll-option-move :is(p, ul, ol) {
+	margin: 0;
+}
+
+.deaths-door-roll-option-move :is(p, ul, ol) + :is(p, ul, ol) {
+	margin-top: 4px;
 }
 
 /* Plain radios, deliberately: this is one setting with two values ("+CON or +nothing, your
@@ -9507,6 +9577,228 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	}
 }
 
+/* ── What the insert asks for ─────────────────────────────────────────
+   One block of styling for one partial rendered in two windows: Death's Door's last step and the
+   standalone chooser off the Post-Death tab. Deliberately NOT scoped to either dialog's root —
+   the whole point of the shared partial is that the two look identical, and a rule that named one
+   of them would be the first thing to drift.
+
+   Both windows wear `deaths-door-mood--door`, so every surface below reads the --dd-* tokens and
+   comes out black without restating a colour. */
+
+.stonetop-pdc {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.stonetop-pdc-step {
+	padding: 9px 11px;
+	border: 1px solid var(--dd-rule);
+	border-radius: var(--st-radius);
+	background: var(--dd-inset);
+}
+
+/* Answered. The left edge carries it rather than a colour wash over the whole panel: a player
+   scanning for what's left should see the ticks and the gaps in one pass down the margin. */
+.stonetop-pdc-step.is-done {
+	box-shadow: inset 3px 0 0 var(--dd-accent);
+}
+
+.stonetop-pdc-step-title {
+	display: flex;
+	align-items: baseline;
+	gap: 7px;
+	margin: 0;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-md);
+	font-weight: bold;
+}
+
+/* Held back until the step is answered — the dim is the default, so only the one state that
+   changes it needs saying. */
+.stonetop-pdc-step-mark {
+	flex: 0 0 auto;
+	font-size: var(--st-fs-sm);
+	color: var(--dd-accent);
+	opacity: 0.45;
+}
+
+.stonetop-pdc-step.is-done .stonetop-pdc-step-mark { opacity: 1; }
+
+.stonetop-pdc-step-hint {
+	margin: 3px 0 0;
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	line-height: 1.4;
+	color: var(--color-text-dark-secondary);
+}
+
+/* Whose call it is. The book hands the Thrall's Impulse and first Mark to the GM, and with no
+   sockets in this system the only honest way to say so is to say so. */
+.stonetop-pdc-gm {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	margin: 5px 0 0;
+	padding: 3px 7px;
+	border-left: 2px solid var(--dd-accent);
+	font-size: var(--st-fs-sm);
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-pdc-options {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	margin-top: 7px;
+}
+
+/* The card. The LABEL is `.stonetop-pdc-option-main` just inside it, covering the head, the
+   summary and the detail — everything whose click should select the option, which is nearly all
+   of it: these entries are long, and a 15px radio is a poor thing to have to hit when the text
+   beside it is the actual choice. What the label deliberately does NOT cover is the sub-pick row,
+   which carries controls of its own (see the partial). */
+.stonetop-pdc-option {
+	display: block;
+	padding: 6px 9px;
+	border: 1px solid var(--dd-rule);
+	border-radius: var(--st-radius-sm);
+	background: var(--dd-surface);
+	cursor: pointer;
+	transition: background 0.1s, border-color 0.1s;
+}
+
+/* Follows the card's cursor rather than declaring its own, so a blocked option reads
+   `not-allowed` across the label as well as around it. */
+.stonetop-pdc-option-main {
+	display: block;
+	cursor: inherit;
+}
+
+.stonetop-pdc-option:hover { background: var(--dd-surface-hover); }
+
+.stonetop-pdc-option.is-chosen {
+	border-color: var(--dd-accent);
+	background: var(--dd-accent-bg);
+}
+
+/* Can't be taken: already held elsewhere, crossed off for good, or waiting on the option it
+   requires. Still printed — the ladder only makes sense whole — but plainly out of reach. */
+.stonetop-pdc-option.is-blocked:not(.is-chosen) {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+.stonetop-pdc-option.is-crossed .stonetop-pdc-option-name { text-decoration: line-through; }
+
+.stonetop-pdc-option-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+/* Sizing and the bone SVG skin come from the shared check-control master block up the file, which
+   these three classes are listed in — so an option here is drawn exactly like every other check
+   on a Stonetop sheet, and turns bone on black by the same variable swap.
+   Core drops AppV1 radios 2px (`body.game .app input[type=radio] { top: 2px }` in its
+   compatibility layer). Unlayered CSS wins per-property, so `top` has to be DECLARED — not merely
+   left unset — or every option sits 2px below its own label. */
+.stonetop-pdc-option-head :is(input[type="radio"], input[type="checkbox"]) {
+	position: relative;
+	top: 0;
+}
+
+.stonetop-pdc-option-name {
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-base);
+}
+
+.stonetop-pdc-option-tag {
+	font-size: var(--st-fs-xs);
+	font-style: italic;
+	color: var(--st-text-faint);
+}
+
+/* An option's prose, in both its halves: the summary every option shows, and the full rules of
+   the one you took. They are the same text at the same size — only where they sit differs — so
+   the type is stated once for the pair. */
+:is(.stonetop-pdc-option-body, .stonetop-pdc-option-detail) {
+	display: block;
+	font-size: var(--st-fs-sm);
+	line-height: 1.45;
+	color: var(--color-text-dark-secondary);
+}
+
+:is(.stonetop-pdc-option-body, .stonetop-pdc-option-detail) p { margin: 0 0 4px; }
+:is(.stonetop-pdc-option-body, .stonetop-pdc-option-detail) p:last-child { margin-bottom: 0; }
+:is(.stonetop-pdc-option-body, .stonetop-pdc-option-detail) ul { margin: 3px 0; padding-left: 18px; }
+
+.stonetop-pdc-option-body { margin-top: 3px; }
+
+/* The detail sits under a rule that ties it to the option. Only ever rendered for the chosen
+   one, so it can afford the room. */
+.stonetop-pdc-option-detail {
+	margin-top: 6px;
+	padding-top: 6px;
+	border-top: 1px solid var(--dd-rule);
+}
+
+/* The question an option asks of itself (STRANGE APPETITES' six fares). A wrapping row rather
+   than a column: these are two or three words each, and stacked they'd read as another ladder of
+   consequences instead of one line of detail about the one above. */
+.stonetop-pdc-subpicks {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 14px;
+	margin-top: 6px;
+	padding-top: 6px;
+	border-top: 1px solid var(--dd-rule);
+}
+
+.stonetop-pdc-subpick-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-size: var(--st-fs-sm);
+	color: var(--color-text-dark-secondary);
+	cursor: pointer;
+}
+
+.stonetop-pdc-subpick-label.is-chosen {
+	color: var(--color-text-dark-primary);
+	font-weight: 600;
+}
+
+.stonetop-pdc-subpick-label input {
+	position: relative;
+	top: 0;
+}
+
+.stonetop-pdc-name,
+.stonetop-pdc-text,
+.stonetop-pdc-tether {
+	width: 100%;
+	margin-top: 7px;
+	font-size: var(--st-fs-base);
+}
+
+/* The write-in alternative to a list of picks (the Thrall's "Other" Impulse) sits under the
+   options with a rule tying it to them, so it doesn't read as a separate question. */
+.stonetop-pdc-writein {
+	border-left: 2px solid var(--dd-rule);
+}
+
+/* The "Still to choose: …" line in Death's Door's own footer. This once shared its rule with the
+   standalone chooser's `.stonetop-pdc-outstanding`; that window is gone (see the partial's header),
+   so only Death's Door's copy is left. */
+.deaths-door-outstanding {
+	flex: 1;
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+}
+
 /* ── Post-Death tab: what Dark Succor took, and what it demands ───── */
 
 .stonetop-pdi-hint {
@@ -9523,7 +9815,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	color: var(--color-text-dark-secondary);
 }
 
-.stonetop-pdi-task-text {
+.stonetop-pdi-task-text,
+.stonetop-pdi-purpose-text {
 	margin: 0;
 	font-size: var(--st-fs-base);
 	line-height: 1.45;
@@ -9533,6 +9826,58 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 .undeath-tether-input {
 	width: 100%;
 	font-size: var(--st-fs-base);
+}
+
+/* A write-in answer hung off a pick, while it's still being asked. Rows stack; a free-text one
+   puts its label above its field, an option list wraps its alternatives under the same label. */
+.stonetop-pdi-writein-row + .stonetop-pdi-writein-row {
+	margin-top: 8px;
+}
+
+.stonetop-pdi-writein-field {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.stonetop-pdi-writein-label {
+	font-size: var(--st-fs-sm);
+	font-weight: 600;
+	letter-spacing: 0.02em;
+}
+
+.stonetop-pdi-writein {
+	width: 100%;
+	font-size: var(--st-fs-base);
+}
+
+.stonetop-pdi-writein-picks {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 10px;
+	margin-top: 3px;
+}
+
+.stonetop-pdi-writein-pick-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-size: var(--st-fs-sm);
+	line-height: 1.3;
+	color: var(--color-text-dark-secondary);
+	cursor: pointer;
+}
+
+.stonetop-pdi-writein-pick-label.is-chosen {
+	color: var(--color-text-dark-primary);
+	font-weight: 600;
+}
+
+/* Core drops AppV1 radios 2px (`body.game .app input[type=radio] { top: 2px }`). Unlayered CSS
+   wins per-property, so `top` has to be DECLARED or every alternative sits below its own word. */
+.stonetop-pdi-writein-pick {
+	position: relative;
+	top: 0;
 }
 
 .undeath-tether {
@@ -9549,6 +9894,42 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	color: var(--stonetop-red, #8a2b2b);
 	font-style: normal;
 }
+
+/* The insert's moves need no styling of their own: the tab renders the shared move-group partial,
+   and the card skin now answers to `:is(.tab.moves, .tab.post-death)`, so they wear exactly what
+   playbook moves wear. Kept as a tab list rather than re-scoped to `.stonetop-move-group` because
+   both `:is()` arguments are two classes — the selectors stay at the specificity they were, and
+   nothing that overrides the card skin on the Moves tab (the love-letter card, needs-choice,
+   requirements-unmet) can be tipped over by the change.
+
+   The cost of widening by TAB is that the tab's other `.stonetop-item`s get carded too, and the
+   Instinct options are built from that same markup so they read like the Details tab's. Put them
+   back: on Details they are plain rows inside their section, and these should match. */
+.tab.post-death .stonetop-instinct-options .stonetop-item {
+	border: none;
+	border-radius: 0;
+	background: none;
+	padding: 0;
+	margin-bottom: 0;
+}
+
+.tab.post-death .stonetop-instinct-options .stonetop-item-header {
+	border-bottom: none;
+	padding-bottom: 0;
+	margin-bottom: 0;
+}
+
+/* The playbook Instinct, once an insert has replaced it. Sits above the editor rather than
+   replacing it: the old Instinct is still in the data and still editable here, and taking the
+   insert off puts it straight back. */
+.stonetop-instinct-replaced-note {
+	margin: 0 0 6px;
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-instinct-replaced-note i { margin-right: 5px; opacity: 0.75; }
 
 /* ── Choose Your Fate: the three inserts, as cards ────────────────── */
 
@@ -9616,8 +9997,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	min-width: 0;
 }
 
-/* Matches .stonetop-pdi-name / .stonetop-pdi-description, so the card a player picks and the
-   insert they end up with read as the same thing. */
+/* Sized like a move-card name, so the card a player picks reads as the same kind of thing as the
+   insert they end up with. (The insert's own name is printed in the sheet header now, not here.) */
 /* Colour stated, not inherited: the sheet keeps its parchment in a dark-mode world, but core
    still hands a <button> its dark-theme text colour, which comes out white on white here. */
 .stonetop-pdi-activate-name {

@@ -303,6 +303,11 @@ export function deathsDoorRollOptions(moveNames = [], moveResources = {}) {
 	const marks = has(UNSTOPPABLE) ? Math.max(0, Math.trunc(Number(moveResources?.[UNSTOPPABLE]) || 0)) : 0;
 	return {
 		hardToKill,
+		// Which of their own moves opened the choice up, so the dialog can print that move's own
+		// words next to it rather than leaving a +CON option to be taken on faith. A NAME, not the
+		// prose: this module is fed move names and nothing else, and the description lives on the
+		// owned Item (see StonetopCharacter.deathsDoorRollOptions).
+		statChoiceMove: hardToKill ? HARD_TO_KILL : null,
 		// +nothing stays first: it's the move as written, and the choice is the Heavy's to make.
 		statChoices: hardToKill
 			? [{ stat: "", label: "+nothing" }, { stat: "con", label: "+CON" }]

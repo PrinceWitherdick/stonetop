@@ -141,7 +141,10 @@
       "masterTask": "Your Master's Task",
       "masterTaskHint": "Until it's done, your Favor stays at 0.",
       "instinct": "Instinct",
-      "moves": "Granted Moves"
+      "moves": "Granted Moves",
+      "purpose": "In Your Own Words",
+      "retiredTooltip": "Who they were before they died. The playbook and its Instinct are still on the sheet, and come back if the insert is removed.",
+      "instinctRetired": "Retired when you took the insert. It comes back if the insert is removed."
     },
     "arcana": {
       "createGmOnly": "Only the GM can create homebrew arcana in this world.",

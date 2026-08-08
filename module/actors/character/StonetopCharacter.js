@@ -1253,6 +1253,14 @@ export class StonetopCharacter {
 	}
 
 	async setPostDeathInsert(slug) {
+		// Swapping one insert for another leaves the old one's answers behind in their own flag
+		// namespaces. Prune them to what the incoming insert can actually hold — before the slug
+		// moves, so the pruning is measured against the new insert and not against itself.
+		// Removal (slug = null) deliberately prunes nothing: it's an edit-mode undo, and a
+		// mis-click shouldn't cost a character every Consequence they've collected.
+		const previous = this._postDeath.activeSlug;
+		if (slug && slug !== previous) await this._postDeath.pruneToInsert(slug);
+
 		const toRemove = this._actor.items
 			.filter(i => i.type === "move" && i.system?.moveType === "post-death")
 			.map(i => i._id);
@@ -2199,12 +2207,18 @@ export class StonetopCharacter {
 	/**
 	 * The Heavy's Death's Door modifiers, read off the character's own moves: Hard to Kill's
 	 * "+CON or +nothing (your choice)" and Unstoppable's "-1 penalty for each circle marked".
+	 *
+	 * The pure rule lives in deaths-door.js and only ever sees move NAMES, so the one thing it
+	 * can't hand back is the prose. Fetched here instead, off the character's own copy of the
+	 * move, so the dialog can show a player who is being offered +CON where that came from.
 	 */
 	deathsDoorRollOptions() {
-		return deathsDoorRollOptions(
-			this._actor.items.filter(i => i.type === "move").map(i => i.name),
-			this._moveResources.getMoveResources(),
-		);
+		const moves = this._actor.items.filter(i => i.type === "move");
+		const opts  = deathsDoorRollOptions(moves.map(i => i.name), this._moveResources.getMoveResources());
+		const owner = opts.statChoiceMove
+			? moves.find(i => i.name?.toLowerCase() === opts.statChoiceMove.toLowerCase())
+			: null;
+		return { ...opts, statChoiceMoveDescription: owner?.system?.description ?? null };
 	}
 
 	/**
@@ -2276,9 +2290,22 @@ export class StonetopCharacter {
 	async setTether(t)      { await this._postDeath.setTether(t); }
 	async crossOffMark(s)   { return this._postDeath.crossOffMark(s); }
 	async sectionOptions(s) { return this._postDeath.sectionOptions(s); }
-	async markSectionOption(section, option) { return this._postDeath.markSectionOption(section, option); }
+	async markSectionOption(section, option)   { return this._postDeath.markSectionOption(section, option); }
+	async unmarkSectionOption(section, option) { return this._postDeath.unmarkSectionOption(section, option); }
+	async clearSectionPicks(section)           { return this._postDeath.clearSectionPicks(section); }
 	favor()                 { return this._postDeath.favor(); }
 	async setFavor(v)       { await this._postDeath.setFavor(v); }
+
+	/**
+	 * Which insert is worn, and the two readers a chooser needs that the sheet snapshot doesn't
+	 * carry cheaply: the insert's own Instincts, and one written lore value. Together with
+	 * sectionOptions above, these are the whole read surface of post-death-choices.js.
+	 */
+	get postDeathSlug()                 { return this._postDeath.activeSlug; }
+	async postDeathInsertName()         { return this._postDeath.insertName(); }
+	async postDeathInstinctOptions()    { return this._postDeath.instinctOptions(); }
+	postDeathLoreText(section, option)  { return this._postDeath.loreText(section, option); }
+	async chooseOneSectionOption(section, option) { return this._postDeath.chooseOneSectionOption(section, option); }
 
 	/**
 	 * Set HP to an exact value, for the insert moves that restore a stated amount ("regain half

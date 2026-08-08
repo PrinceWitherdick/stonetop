@@ -70,6 +70,9 @@ export function stripHtmlToText(value) {
 		.replace(/<[^>]*>/g, "")
 		.replace(/&nbsp;/gi, " ")
 		.replace(/&mdash;/gi, "—")
+		.replace(/&ndash;/gi, "–")
+		.replace(/&quot;/gi, '"')
+		.replace(/&#39;|&rsquo;/gi, "'")
 		.replace(/&amp;/gi, "&")
 		.replace(/&lt;/gi, "<")
 		.replace(/&gt;/gi, ">")
@@ -87,7 +90,11 @@ const _PICK_MARKER = /\b(?:pick|choose|select)\b[^:]{0,40}:/i;
 // Options after the hinge are separated by " / " (from a collapsed <ul>) or by a
 // deliberate capitalised "OR" / "; OR". "OR" is matched case-SENSITIVELY so an option's
 // own natural-language "or" (and lowercase comma lists) stay intact — those read as prose.
-const _PICK_SEPARATOR = /\s+\/\s+|\s*;?\s*\bOR\b\s+/;
+//
+// Exported because the post-death chooser splits the same kind of list out of an insert
+// option's own prose ("Pick 1: still-warm blood / dying breaths / …"); the two must agree
+// about what separates one alternative from the next.
+export const PICK_SEPARATOR = /\s+\/\s+|\s*;?\s*\bOR\b\s+/;
 
 /**
  * Render a move-result outcome string as HTML. When the text presents a "pick N:" list
@@ -104,7 +111,7 @@ export function formatOutcomeDetail(text) {
 		const markerEnd = m.index + m[0].length;
 		const intro   = raw.slice(0, markerEnd).trim();
 		const rest    = raw.slice(markerEnd).trim().replace(/\.\s*$/, "");
-		const options = rest.split(_PICK_SEPARATOR).map((s) => s.trim()).filter(Boolean);
+		const options = rest.split(PICK_SEPARATOR).map((s) => s.trim()).filter(Boolean);
 		if (options.length >= 2) {
 			const items = options.map((o) => `<li>${escHtml(o)}</li>`).join("");
 			return `<span class="stonetop-roll-result-lead">${escHtml(intro)}</span>`

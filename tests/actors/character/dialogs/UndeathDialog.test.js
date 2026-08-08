@@ -48,6 +48,32 @@ describe("UndeathDialog — the Revenant's destroyed-body tick", () => {
 	});
 });
 
+describe("UndeathDialog — what the consequence picker will offer", () => {
+	it("never offers THE FINAL CONSEQUENCE", () => {
+		// It carries no `requires` and nothing marks it until it happens, so it is never `blocked`
+		// and sat in the dropdown as an ordinary choice. Picking it ends the character — with no
+		// confirmation, and without even setting the dead state, since only the tether-destroyed
+		// branch does that.
+		const dialog = makeRevenantDialog();
+		dialog._sections.consequences = [
+			{ slug: "breakdown",         label: "BREAKDOWN",             blocked: false, marked: false },
+			{ slug: "final-consequence", label: "THE FINAL CONSEQUENCE", blocked: false, marked: false },
+		];
+
+		expect(dialog._optionsFor("consequence").map(o => o.slug)).toEqual(["breakdown"]);
+	});
+
+	it("counts the picker exhausted when the only thing left is the one nobody picks", () => {
+		// Otherwise the effect stays offered with an empty dropdown, and Apply can never satisfy it.
+		const dialog = makeRevenantDialog();
+		dialog._sections.consequences = [
+			{ slug: "final-consequence", label: "THE FINAL CONSEQUENCE", blocked: false, marked: false },
+		];
+
+		expect(dialog._isExhausted("consequence")).toBe(true);
+	});
+});
+
 describe("UndeathDialog — a move that doesn't roll", () => {
 	it("keeps the Ghost's single forced pick: Tethered's `always` tier is a real tier", () => {
 		const dialog = new UndeathDialog({ zeroHpResolution: zeroHpResolution("ghost") }, () => {});
