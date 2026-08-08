@@ -160,6 +160,39 @@
 	--stonetop-section-gap: 12px;
 	/* The spiral icon used for bullets/markers throughout the sheets. */
 	--stonetop-spiral-icon: url('/systems/stonetop-pwd/assets/icons/steading/check-spiral.svg');
+	/* The check controls, likewise. All three of these are fixed near-black art painted as a
+	   background IMAGE (not a mask), so they vanish on any surface that turns black — routing
+	   them through variables is what lets one scope re-skin the lot. */
+	--stonetop-checkbox-icon:         url('/systems/stonetop-pwd/assets/icons/steading/checkbox.svg');
+	--stonetop-checkbox-checked-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg');
+
+	/* What lifts a card off the page it sits on — the move cards, the invocation cards, the
+	   special-possessions list. On paper that's a whisper of shadow; on a surface that has been
+	   inverted to black it has to become a whisper of light, or the cards dissolve into it.
+	   Named here so one scope can turn all three families over at once. */
+	--st-card-fill: rgba(0, 0, 0, 0.03);
+	--st-card-rule: rgba(0, 0, 0, 0.12);
+
+	/* What a hit tier is written in on a chat card. Named so the surfaces that invert to black
+	   can re-point them; these are the paper values, unchanged. */
+	--st-tier-failure-text: #6e0000;
+	--st-tier-partial-text: #6b4400;
+	--st-tier-success-text: #1a4a1a;
+
+	/* How far off pitch black the dead surfaces sit.
+	   Inverting the sheet's near-white paper lands on roughly #080807, which is black enough that
+	   a window reads as a hole in the screen rather than as a dark room. This is the even lift
+	   laid back over it — one number, tuned here, that every one of those surfaces builds from:
+	   the Death's Door moods, the sheet of a character wearing an insert, and their chat cards.
+	   Raise it to soften them all; drop it to nothing for true black. */
+	--st-black-lift: rgba(255, 255, 255, 0.055);
+	/* And the faintest tint of whichever thing brought them back, laid over that lift. One value
+	   per insert, tuned here, for the same reason: two surfaces paint it — the sheet of a
+	   character wearing one, and everything they say in chat — and written out twice they were
+	   two comments asking the next maintainer to keep three colours in step by hand. */
+	--st-undead-wash-revenant: hsla(210, 40%, 55%, 0.05);
+	--st-undead-wash-thrall:   hsla(96, 30%, 52%, 0.05);
+	--st-undead-wash-ghost:    hsla(283, 34%, 58%, 0.045);
 	/* The arrow glyph used on wizard/stepper Back/Next buttons (masked → currentColor). */
 	--stonetop-arrow-icon: url('/systems/stonetop-pwd/assets/icons/arrow.svg');
 	/* The exclamation "legend" marker the rulebook puts beside hazard custom moves
@@ -3016,7 +3049,11 @@ input.stonetop-name-field {
 	flex: 0 0 calc(15px * var(--stonetop-font-scale, 1)) !important;
 	border: none !important;
 	border-radius: 0 !important;
-	background: url('/systems/stonetop-pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain !important;
+	/* Through a variable, not a literal, for the same reason the spiral bullets go through one:
+	   this art is a fixed near-black fill, so on any surface that turns black it disappears. One
+	   override of these two variables re-skins every check control in the scope at once — see
+	   "the sheet of someone who came back". */
+	background: var(--stonetop-checkbox-icon) no-repeat center / contain !important;
 	cursor: pointer;
 	margin: 0;
 }
@@ -3070,7 +3107,7 @@ input.stonetop-name-field {
 .stonetop-pdc-subpick:checked,
 .stonetop-pdi-writein-pick:checked,
 .steading-list-check:checked {
-	background: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
+	background: var(--stonetop-checkbox-checked-icon) no-repeat center / contain !important;
 }
 
 /* Foundry v13 paints checkbox/radio state via ::before/::after Font Awesome glyphs
@@ -3092,7 +3129,7 @@ input.stonetop-name-field {
 .stonetop-ledger-select-all:indeterminate {
 	background:
 		linear-gradient(currentColor, currentColor) no-repeat center / 56% 2px,
-		url('/systems/stonetop-pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain !important;
+		var(--stonetop-checkbox-icon) no-repeat center / contain !important;
 }
 
 .stonetop-item-check:disabled,
@@ -4013,10 +4050,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	line-height: 1.35;
 }
 
-:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .failure { color: #6e0000; }
-:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .partial { color: #6b4400; }
-:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .success { color: #1a4a1a; }
-:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .critical { color: #1a4a1a; }
+/* The tier inks. Through variables because a card is not always on parchment: an undead PC's
+   cards are inverted to black (see "what the undead say, said on black"), and these three are
+   chosen to sit on paper — on black they are mud, which is exactly how they were reported. The
+   values here are unchanged; the dark scope re-points them. */
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .failure { color: var(--st-tier-failure-text); }
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .partial { color: var(--st-tier-partial-text); }
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .success { color: var(--st-tier-success-text); }
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .critical { color: var(--st-tier-success-text); }
 
 :is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons {
 	display: flex;
@@ -7087,7 +7128,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 .stonetop-possession-list .stonetop-item {
 	border: 1px solid var(--color-border-light-2);
 	border-radius: var(--st-radius);
-	background: rgba(0,0,0,0.03);
+	/* Through a variable: the fill is a faint SHADOW on paper, and a shadow on black paper is
+	   nothing at all — a card on the sheet of someone who came back needs a faint LIGHT instead.
+	   The value here is the paper one, unchanged; the dark scope re-points it. */
+	background: var(--st-card-fill);
 	padding: 8px 12px;
 }
 
@@ -7099,7 +7143,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 :is(.tab.moves, .tab.post-death) .stonetop-item-header,
 .stonetop-invocation-header,
 .stonetop-possession-list .stonetop-item-header {
-	border-bottom: 1px solid rgba(0,0,0,0.12);
+	border-bottom: 1px solid var(--st-card-rule);
 	padding-bottom: 5px;
 	margin-bottom: 4px;
 }
@@ -9401,19 +9445,25 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
    instead of one fixed skin. DeathsDoorDialog._paintMood stamps the mood class on the window
    ROOT (not the content) so the frame and the title bar turn over with the body:
 
-     --dusk        the dice are still in hand: parchment holds, but the light is going
-     --returned    10+, wrested back: the warmth comes up from the top of the window
-     --waved-off   7-9, the Lady waves you off: colour drains, the veil thickens
-     --door        6- or Refuse to Go: the lamp is out, and only the fates are lit
+     --dusk        the dice are still in hand: the room is dark, one lamp still burning
+     --returned    10+, wrested back: the parchment comes BACK, warm from the top edge
+     --waved-off   7-9, the Lady waves you off: the lamp gutters out, colour drains
+     --door        6- or Refuse to Go: pitch black, and only the fates are lit
+
+   Three of the four are dark, and none of them gets there with a black film laid over the
+   content — the paper itself turns (see the invert in the repaint below). The one that goes
+   the other way is --returned: you lived, so the daylight comes back. That's the whole point
+   of the ladder, and it only reads as a payoff if the window it interrupts was dark.
 
    Undeath (Undying / Tethered / Dark Succor) is always past the Door, so it opens straight
    into --door and only moves its accent by tier. Everything below reads the --dd-* surfaces
    declared at the top of the Death's Door section; a mood repaints by redefining those. */
 
-/* The veil itself: one wash over the whole window frame, chrome included, so the dark
-   arrives at the title bar too. It hangs off the ROOT rather than .window-content because
-   the content scrolls — an overlay inside it would slide away up the page on a long step.
-   pointer-events:none keeps every control underneath live. */
+/* The overlay: one wash over the whole window frame, chrome included, so it reaches the title
+   bar too. It hangs off the ROOT rather than .window-content because the content scrolls — an
+   overlay inside it would slide away up the page on a long step. pointer-events:none keeps
+   every control underneath live. Only two moods use it now, and both use it to add LIGHT
+   rather than dark; the snuff animation borrows it for one shot. */
 .stonetop-deathsdoor-dialog::after,
 .stonetop-undeath-dialog::after {
 	content: "";
@@ -9425,22 +9475,46 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	background: var(--dd-veil);
 }
 
-.stonetop-deathsdoor-dialog.deaths-door-mood--dusk {
-	--dd-veil: radial-gradient(ellipse 118% 88% at 50% 36%, transparent 26%, rgba(14, 20, 36, 0.32) 100%);
+/* ── The three dark moods ─────────────────────────────────────────
+   Shared surfaces. Neutral greys, not the slate the rest of the UI is built from: there is no
+   colour temperature left in this room, only whatever the accent is carrying. */
+.stonetop-deathsdoor-dialog.deaths-door-mood--dusk,
+.stonetop-deathsdoor-dialog.deaths-door-mood--waved-off,
+.stonetop-deathsdoor-dialog.deaths-door-mood--door,
+.stonetop-undeath-dialog.deaths-door-mood--door {
+	--dd-surface:       rgba(255, 255, 255, 0.055);
+	--dd-surface-hover: rgba(255, 255, 255, 0.11);
+	--dd-inset:         rgba(0, 0, 0, 0.32);
+	--dd-rule:          hsl(0 0% 25%);
+	/* How much light is left in the room: an even lift over the black paper, so a mood dims by
+	   taking light AWAY rather than by adding black on top of the words. The floor is the shared
+	   --st-black-lift, so no mood ever bottoms out at pitch; the two above the Door add to it. */
+	--dd-lift:          var(--st-black-lift);
+	/* A pool of warmth at the top edge, for the mood that still has one. */
+	--dd-glow:          transparent;
 }
 
-/* Wrested back to the realm of the living: the same mechanism run warm, so the window that
-   was closing in opens back up. */
+/* Dusk: the dice are still in hand. The lamp is lit but low — a soft pool in the middle of the
+   window falling off to nothing at the edges, which is the same "dark comes in from the edges"
+   shape as before, run as light receding instead of black arriving. It breathes, below. */
+.stonetop-deathsdoor-dialog.deaths-door-mood--dusk {
+	--dd-lift: rgba(255, 255, 255, 0.105);
+	--dd-veil: radial-gradient(ellipse 108% 80% at 50% 34%, rgba(255, 246, 224, 0.055), transparent 62%);
+}
+
+/* Wrested back to the realm of the living: alone among the four this one does NOT go dark. The
+   parchment returns (no repaint below matches --returned) and the warmth comes up from the top,
+   so the window that had closed in opens back up. */
 .stonetop-deathsdoor-dialog.deaths-door-mood--returned {
 	--dd-veil: radial-gradient(ellipse 130% 100% at 50% 0%, rgba(255, 226, 158, 0.28), transparent 58%);
 }
 
-/* Waved off: no gold — nothing was won here. Colour drains out of the whole step and the
-   tier that landed is picked out in cold grey rather than the success gold. */
+/* Waved off: no gold — nothing was won here. The last of the light goes, colour drains out of
+   the whole step, and the tier that landed is picked out in cold grey rather than success gold. */
 .stonetop-deathsdoor-dialog.deaths-door-mood--waved-off {
-	--dd-veil: radial-gradient(ellipse 108% 82% at 50% 38%, transparent 18%, rgba(14, 20, 36, 0.42) 100%);
-	--dd-accent:    hsl(210 12% 58%);
-	--dd-accent-bg: hsla(210, 12%, 58%, 0.16);
+	--dd-lift:      rgba(255, 255, 255, 0.078);
+	--dd-accent:    hsl(0 0% 55%);
+	--dd-accent-bg: hsla(0, 0%, 55%, 0.16);
 }
 
 .stonetop-deathsdoor-dialog.deaths-door-mood--waved-off .deaths-door-dialog-content {
@@ -9451,15 +9525,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 
 .stonetop-deathsdoor-dialog.deaths-door-mood--door,
 .stonetop-undeath-dialog.deaths-door-mood--door {
-	--dd-surface:       rgba(206, 218, 236, 0.07);
-	--dd-surface-hover: rgba(206, 218, 236, 0.14);
-	--dd-inset:         rgba(0, 0, 0, 0.3);
-	--dd-rule:          hsl(212 14% 30%);
 	--dd-accent:        hsl(8 58% 48%);
 	--dd-accent-bg:     hsla(8, 58%, 42%, 0.18);
-	/* The window IS the veil now, so the overlay steps aside; the one exception is the
-	   snuff below, which borrows it for a moment. */
-	--dd-veil:          none;
+	/* Nothing lifts the paper here — but a last guttering warmth at the top edge, the only
+	   light left in the window. */
+	--dd-glow:          hsla(28, 45%, 58%, 0.12);
 }
 
 /* An Undeath roll that went well still gets its gold back — the Thrall's master answered,
@@ -9469,54 +9539,78 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	--dd-accent-bg: rgba(201, 162, 39, 0.14);
 }
 
-/* The repaint. Redefining core's own text/border tokens ON this one window's content turns
-   over every rule above that reads them, without restating a single selector — and the
-   redefinition can't escape the window it's scoped to. `color-scheme: dark` is what makes
-   the native controls (Undeath's selects and checkboxes, the scrollbars) come along.
-   Specificity: the four root classes plus `.vtt` reach (0,6,0), enough to beat the general
-   sheet parchment fill at `.vtt .stonetop:not(…) .window-content` (0,4,0). */
-.vtt .stonetop-deathsdoor-dialog.deaths-door-mood--door.stonetop.window-app .window-content,
-.vtt .stonetop-undeath-dialog.deaths-door-mood--door.stonetop.window-app .window-content {
+/* The repaint, shared by every dark mood. Redefining core's own text/border tokens ON this one
+   window's content turns over every rule above that reads them, without restating a single
+   selector — and the redefinition can't escape the window it's scoped to. `color-scheme: dark`
+   is what makes the native controls (the Hard to Kill radios, Undeath's selects and checkboxes,
+   the scrollbars) come along.
+   Specificity: `:is()` counts as its most specific argument, so this still reads (0,6,0) — the
+   same as the four bare classes it replaces, and enough to beat the general sheet parchment
+   fill at `.vtt .stonetop:not(…) .window-content` (0,4,0). --returned is deliberately absent:
+   that's the one roll that puts the daylight back. */
+.vtt :is(.stonetop-deathsdoor-dialog, .stonetop-undeath-dialog):is(.deaths-door-mood--dusk,
+	.deaths-door-mood--waved-off, .deaths-door-mood--door).stonetop.window-app .window-content {
 	color-scheme: dark;
 	--color-text-dark-primary:     hsl(38 22% 88%);
 	--color-text-dark-secondary:   hsl(38 12% 71%);
-	--color-border-light-primary:  hsl(212 14% 30%);
-	--color-border-light-tertiary: hsl(212 14% 26%);
-	--st-text-faint:               hsl(212 10% 46%);
+	--color-border-light-primary:  hsl(0 0% 25%);
+	--color-border-light-tertiary: hsl(0 0% 21%);
+	--st-text-faint:               hsl(0 0% 44%);
 	--st-green-text:               hsl(140 32% 66%);
 	--st-red-text:                 hsl(6 62% 70%);
 	--st-red-bg:                   hsla(6, 45%, 32%, 0.35);
 	--st-red-border:               hsl(6 45% 46%);
 	--stonetop-red:                hsl(6 62% 68%);
+	/* The spiral bullets and the check controls are fixed near-black background art; on black
+	   paper an unswapped checkbox isn't merely hard to read, it's invisible. */
+	--stonetop-spiral-icon:           url('/systems/stonetop-pwd/assets/icons/steading/check-spiral-light.svg');
+	--stonetop-checkbox-icon:         url('/systems/stonetop-pwd/assets/icons/steading/checkbox-light.svg');
+	--stonetop-checkbox-checked-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked-light.svg');
 	/* The confirm buttons come down with the room, past slate to near-black: left at the
 	   standard slategrey they are the brightest thing in the window, which puts the eye on
 	   "Done" instead of on the three fates — the one decision this step is actually asking
 	   for. Sitting a shade DARKER than the footer behind them, they read as cut into the
 	   window rather than laid on it; the bone label and the rule around them carry the
 	   affordance, so they still say "press me" without lighting anything up. */
-	--st-btn-primary-bg:           hsl(214 24% 4%);
-	--st-btn-primary-bg-hover:     hsl(214 20% 11%);
+	--st-btn-primary-bg:           hsl(0 0% 9%);
+	--st-btn-primary-bg-hover:     hsl(0 0% 16%);
 	/* Warm bone rather than the cool rule Cancel wears, so the affirmative still reads as the
 	   affirmative where the two sit side by side (Undeath's Cancel / Apply). The distinction is
 	   carried by the edge, not by a lit fill. */
 	--st-btn-primary-border:       hsl(40 13% 44%);
 	--st-btn-primary-text:         hsl(38 18% 84%);
 	color: hsl(38 20% 86%);
-	/* A last guttering warmth at the top edge, over cold black. */
+	/* The room doesn't get a dark sheet laid over it — the paper itself turns. The sheet
+	   background every other window wears is a near-white field of spirals; `difference`
+	   against white subtracts it from 1, which is exactly an invert, so the SAME asset paints
+	   black paper with the same spirals still walking across it. Nothing sits on top of the
+	   content, so no control is looking through a film, and the result is neutral black rather
+	   than the slate a hand-mixed gradient lands on.
+	   Three layers, always the same three, so the blend list can't drift out of step with them:
+	   the mood's warm pool, the mood's even lift, and the inverted paper. Both of the first two
+	   default to `transparent`, so a mood opts in by naming a colour and pays nothing when it
+	   doesn't. Layers blend bottom-up, which is what pairs the `difference` with the white
+	   background-color directly beneath it. */
 	background:
-		radial-gradient(ellipse 90% 55% at 50% 0%, hsla(28, 45%, 58%, 0.11), transparent 72%),
-		linear-gradient(180deg, hsl(214 18% 11%), hsl(214 20% 7%));
+		radial-gradient(ellipse 90% 55% at 50% 0%, var(--dd-glow, transparent), transparent 72%)
+			center / auto no-repeat,
+		linear-gradient(var(--dd-lift, transparent), var(--dd-lift, transparent))
+			center / auto no-repeat,
+		#fff url('/systems/stonetop-pwd/assets/graphics/sheet-bg.webp') center / cover no-repeat;
+	background-blend-mode: normal, normal, difference;
 }
 
-.vtt .stonetop-deathsdoor-dialog.deaths-door-mood--door.stonetop.window-app .window-header,
-.vtt .stonetop-undeath-dialog.deaths-door-mood--door.stonetop.window-app .window-header {
-	background: hsl(214 22% 9%);
+/* The title bar comes down with the room. The hairline under it is the mood's own accent, so
+   the chrome says which tier landed before a word is read: gold while there's still a way back,
+   cold grey once the Lady waves you off, ember past the Door. */
+.vtt :is(.stonetop-deathsdoor-dialog, .stonetop-undeath-dialog):is(.deaths-door-mood--dusk,
+	.deaths-door-mood--waved-off, .deaths-door-mood--door).stonetop.window-app .window-header {
+	background: hsl(0 0% 11%);
 	border-bottom: 1px solid var(--dd-accent);
 }
 
-.vtt .stonetop-deathsdoor-dialog.deaths-door-mood--door.stonetop.window-app
-	.window-header :is(.window-title, .header-control, .window-icon, a, button),
-.vtt .stonetop-undeath-dialog.deaths-door-mood--door.stonetop.window-app
+.vtt :is(.stonetop-deathsdoor-dialog, .stonetop-undeath-dialog):is(.deaths-door-mood--dusk,
+	.deaths-door-mood--waved-off, .deaths-door-mood--door).stonetop.window-app
 	.window-header :is(.window-title, .header-control, .window-icon, a, button) {
 	color: hsl(38 20% 82%);
 }
@@ -9527,11 +9621,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	text-shadow: 0 0 16px hsla(8, 62%, 52%, 0.45);
 }
 
-/* The spiral bullets are a black SVG, not a mask, so they vanish on black — invert them
-   rather than leaving the 6-'s three fates as an unmarked list. */
-.deaths-door-mood--door .deaths-door-outcome-options li::before {
-	filter: invert(1);
-	opacity: 0.5;
+/* The 6-'s three fates keep their bullets in every dark mood. This used to flip the black spiral
+   with `filter: invert(1)`, from before `--stonetop-spiral-icon` existed and the repaint above
+   started handing this scope the bone-filled twin. Inverting bone puts it straight back to
+   near-black, so the invert had quietly become the thing making these vanish: measured over the
+   dark paper the marker peaked at luminance 15 against a 12 background, which is not a faint
+   bullet, it is no bullet. The art arrives the right colour now, so it only has to stop being
+   knocked back: full strength, as on the sheet and on the chat cards. */
+:is(.deaths-door-mood--dusk, .deaths-door-mood--waved-off, .deaths-door-mood--door)
+	.deaths-door-outcome-options li::before {
+	opacity: 1;
 }
 
 /* The three fates, as doorways. On hover a warm crack opens down the leading edge — the
@@ -9562,9 +9661,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 }
 
 @media (prefers-reduced-motion: no-preference) {
-	/* A slow breath while the veil is up — failing consciousness, not a pulse to look at. */
-	.stonetop-deathsdoor-dialog.deaths-door-mood--dusk::after,
-	.stonetop-deathsdoor-dialog.deaths-door-mood--waved-off::after {
+	/* A slow breath in the one pool of light left while the dice are in hand — failing
+	   consciousness, not a pulse to look at. Waved-off has no lamp left to gutter. */
+	.stonetop-deathsdoor-dialog.deaths-door-mood--dusk::after {
 		animation: deaths-door-breathe 7.5s ease-in-out infinite;
 	}
 
@@ -9575,6 +9674,475 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 		background: #000;
 		animation: deaths-door-snuff 0.85s ease-out both;
 	}
+}
+
+/* ── The sheet of someone who came back ────────────────────────────
+   A character wearing the Revenant, Ghost or Thrall insert carries the Death's Door black on
+   their own sheet, by the same means: the paper is INVERTED, not covered (see the repaint above
+   for how and why). It says, every time the sheet is opened, that this isn't the person it used
+   to be — and it has to survive being played with for whole sessions, which is why it repaints
+   surfaces rather than dimming them.
+
+   A character who simply DIED is deliberately left alone. StonetopCharacterSheet._stampPastDeath
+   only stamps the three insert slugs; `pastDeathKind`'s fourth answer, "dead", gets nothing. That
+   sheet is a record of a life and is done being played — announcing the ending in its own chrome
+   is the one place this effect would be in poor taste rather than atmospheric.
+
+   Their chat messages already carry a per-kind ink (the drip, further down); the accents here are
+   the same three hues lifted to read against black, so the sheet and the log agree about what
+   came back.
+
+   The three sit ~73° apart on the wheel, which is what keeps them apart at these low saturations
+   and at the 5% the wash is used at — closer neighbours read as one grey-blue smear once they're
+   that faint. Each says what brought them back rather than what killed them:
+
+     Revenant  a cold grave-blue. A body kept working past its stopping point; iron, not blood.
+     Thrall    bile-moss. The one that isn't yours — something else moved in and is growing.
+     Ghost     spectral violet. No body left to stain anything, only the light it left behind.
+
+   All three are also declared as `--st-drip-ink` further down at a much lower lightness (ink over
+   a lit scene, not an accent over black); keep the hue in step across the pair. */
+.stonetop.character.stonetop-past-death              { --st-past-death-ink: hsl(0 0% 52%); }
+.stonetop.character.stonetop-past-death--revenant    { --st-past-death-ink: hsl(210 40% 55%); }
+.stonetop.character.stonetop-past-death--thrall      { --st-past-death-ink: hsl(96 30% 52%); }
+/* A Ghost's runs thin — the one kind that fades rather than stains. */
+.stonetop.character.stonetop-past-death--ghost       { --st-past-death-ink: hsl(283 34% 58%); }
+
+/* Specificity: `.vtt` + three root classes + `.window-app` + `.window-content` = (0,6,0), which
+   is what it takes to beat the sheet parchment fill at (0,4,0). Redefining `--stonetop-bg` here
+   is doing a lot of the work on its own: the stat boxes, the vitals, the "also called" well and
+   the arcanum headers all fill from it, so they come down with the paper without being named. */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content {
+	color-scheme: dark;
+	--stonetop-bg:                 hsl(0 0% 12%);
+	--color-text-dark-primary:     hsl(38 22% 88%);
+	--color-text-dark-secondary:   hsl(38 12% 71%);
+	--color-border-light-primary:  hsl(0 0% 25%);
+	--color-border-light-tertiary: hsl(0 0% 21%);
+	--color-border-dark:           hsl(0 0% 32%);
+	--st-text:                     hsl(38 22% 88%);
+	--st-text-body:                hsl(38 20% 84%);
+	--st-text-secondary:           hsl(38 12% 71%);
+	--st-text-muted:               hsl(0 0% 58%);
+	--st-text-faint:               hsl(0 0% 44%);
+	--st-green-text:               hsl(140 32% 66%);
+	--st-red-text:                 hsl(6 62% 70%);
+	--st-red-bg:                   hsla(6, 45%, 32%, 0.35);
+	--st-red-border:               hsl(6 45% 46%);
+	--stonetop-red:                hsl(6 62% 68%);
+	/* The other two accent families, turned over the same way the red one is. They are not
+	   decoration: `--st-blue-bg` fills the "this move still wants a choice from you" card, which
+	   the Moves and Post-Death tabs both raise, and at its paper value (a near-white
+	   hsl(212 55% 90%)) it painted a white slab under this sheet's bone text — about 1.05:1, so
+	   the card read as blank with a lone accent icon floating on it. Fills become translucent
+	   washes, borders and ink lift to clear the black; the same three-part shape as the reds. */
+	--st-blue-bg:                  hsla(212, 45%, 34%, 0.35);
+	--st-blue-bg-hover:            hsla(212, 45%, 40%, 0.42);
+	--st-blue-border:              hsl(212 45% 54%);
+	--st-blue-text:                hsl(212 55% 78%);
+	--st-green-bg:                 hsla(140, 35%, 30%, 0.32);
+	--st-green-border:             hsl(140 30% 50%);
+	/* Every spiral bullet and every check control on the sheet is one of these variables painted
+	   as a background IMAGE with a fixed black fill, so on black paper they'd all disappear at
+	   once — the checkboxes most damagingly, since an invisible checkbox isn't just unreadable,
+	   it's unfindable. Five swaps to the bone-filled twins cover the lot. Each pair shares a
+	   path and an alpha channel, so the places that use the same art as a MASK are untouched.
+
+	   The two diamonds are the load track — the ◇ beside every inventory line, and the row of them
+	   that reserves undefined items on the Items tab. Same fixed-fill trap; they were missed the
+	   first time round because the Items tab was read for its cards and its wells rather than for
+	   the marks, which are the whole point of an equipment list. */
+	--stonetop-spiral-icon:           url('/systems/stonetop-pwd/assets/icons/steading/check-spiral-light.svg');
+	--stonetop-checkbox-icon:         url('/systems/stonetop-pwd/assets/icons/steading/checkbox-light.svg');
+	--stonetop-checkbox-checked-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked-light.svg');
+	--stonetop-diamond-icon:          url('/systems/stonetop-pwd/assets/icons/playbooks/diamond-light.svg');
+	--stonetop-diamond-selected-icon: url('/systems/stonetop-pwd/assets/icons/playbooks/diamond_selected-light.svg');
+	/* Cards lift off this paper with light rather than with shadow. Every move card on the sheet
+	   comes with it — the insert's granted moves and the playbook's alike — and so do the
+	   invocation cards and the special-possessions list. */
+	--st-card-fill:                rgba(255, 255, 255, 0.055);
+	--st-card-rule:                rgba(255, 255, 255, 0.14);
+	--st-btn-primary-bg:           hsl(0 0% 9%);
+	--st-btn-primary-bg-hover:     hsl(0 0% 16%);
+	--st-btn-primary-border:       hsl(40 13% 44%);
+	--st-btn-primary-text:         hsl(38 18% 84%);
+	color: hsl(38 20% 86%);
+	/* Three layers: the insert's own faint tint, the shared lift that keeps this off pitch black,
+	   and the inverted paper. A sheet is looked at for whole sessions, so it gets the lift as its
+	   own layer rather than folded into the tint — tuning how dark it is and tuning what colour
+	   brought them back are different decisions. */
+	background:
+		linear-gradient(var(--st-past-death-wash, transparent), var(--st-past-death-wash, transparent))
+			center / auto no-repeat,
+		linear-gradient(var(--st-black-lift), var(--st-black-lift)) center / auto no-repeat,
+		#fff url('/systems/stonetop-pwd/assets/graphics/sheet-bg.webp') center / cover no-repeat;
+	background-blend-mode: normal, normal, difference;
+}
+
+/* The one warmth on the sheet is whichever thing brought them back, so the ink tints the paper
+   the faintest amount rather than being spent only on rules and edges. The colours themselves are
+   the shared `--st-undead-wash-*` tokens, which the chat cards read too, so the two surfaces can
+   no longer be tuned apart; the local name is what keeps the `transparent` fallback meaningful
+   for a kind with no tint of its own. */
+.stonetop.character.stonetop-past-death--revenant .window-content { --st-past-death-wash: var(--st-undead-wash-revenant); }
+.stonetop.character.stonetop-past-death--thrall   .window-content { --st-past-death-wash: var(--st-undead-wash-thrall); }
+.stonetop.character.stonetop-past-death--ghost    .window-content { --st-past-death-wash: var(--st-undead-wash-ghost); }
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-header {
+	background: hsl(0 0% 11%);
+	border-bottom: 1px solid var(--st-past-death-ink);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app
+	.window-header :is(.window-title, .header-control, .window-icon, a, button) {
+	color: hsl(38 20% 82%);
+}
+
+/* Form wells. `color-scheme: dark` already turns the native controls over, but every well the
+   system fills itself is a hard-coded translucent WHITE and would stay a lit panel on black. */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	:is(input:not([type=checkbox], [type=radio], [type=range], [type=color]), select, textarea) {
+	background: rgba(255, 255, 255, 0.06);
+	color: var(--color-text-dark-primary);
+}
+
+/* The Followers tab. Every surface here fills from a LITERAL pale colour rather than from a token,
+   so re-pointing the palette above cannot reach any of it: the text came down with `--st-text-body`
+   and the fills stayed put, leaving a `background: #fff` card carrying bone text at about 1.1:1 —
+   a white slab on a black sheet with its writing all but gone.
+
+   The card and its header band go translucent so the inverted paper shows through, and the pills
+   follow as washes that keep their families (trait amber, detail violet). The card FIRST, because
+   it is what the pills are read against. */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-follower-card {
+	background: rgba(255, 255, 255, 0.045);
+	border-color: rgba(255, 255, 255, 0.16);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-follower-header {
+	background: rgba(255, 255, 255, 0.05);
+	border-bottom-color: rgba(255, 255, 255, 0.14);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-follower-tag {
+	background: rgba(255, 255, 255, 0.075);
+	border-color: rgba(255, 255, 255, 0.22);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	:is(.stonetop-follower-tag--trait, .stonetop-follower-tag--exceptional) {
+	background: hsla(40, 45%, 58%, 0.22);
+	border-color: hsla(40, 45%, 62%, 0.45);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-follower-tag--detail {
+	background: hsla(270, 32%, 60%, 0.2);
+	border-color: hsla(270, 32%, 62%, 0.42);
+}
+
+/* Written after the two rules above, and heavier than the toggle's own `.is-selected`, so the
+   picked state still reads as picked rather than being flattened into the plain pill. */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	.stonetop-follower-tag.stonetop-exceptional-toggle.is-selected {
+	background: hsla(40, 45%, 55%, 0.38);
+	border-color: hsla(40, 45%, 62%, 0.65);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	.stonetop-follower-card--custom .stonetop-follower-header {
+	background: rgba(255, 255, 255, 0.06);
+}
+
+/* The tab's SLATE. Three surfaces reach for it by name — the inline buttons' border and ink, the
+   Loyalty/Readiness pips' ring, and a filled pip's fill — and slategrey (#708090) was chosen to be a
+   quiet mid-tone against parchment. Against near-black it is simply dim: the Spend buttons and
+   "Have what they need" came out as grey text in a grey outline on black, which is the one thing on
+   a card that has to be obviously pressable.
+
+   None of it becomes a new colour. It joins what the palette above already turned over: the warm
+   button edge for anything that was a slate line, and the body ink for anything that was a slate
+   FILL, so a filled pip is the same bone as the words beside it and reads as full at a glance.
+
+   `:not(--danger)` on both button rules: the danger variant restates border and colour in red at
+   (0,1,0)/(0,2,0), which this chain would otherwise outrank and flatten into the ordinary button —
+   losing the one visual difference between "spend a Loyalty" and "dismiss this follower". */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	.stonetop-inline-btn:not(.stonetop-inline-btn--danger) {
+	border-color: var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	.stonetop-inline-btn:not(.stonetop-inline-btn--danger):hover {
+	background: rgba(255, 255, 255, 0.09);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	:is(.stonetop-loyalty-pip, .stonetop-readiness-pip) {
+	border-color: var(--st-btn-primary-border);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	:is(.stonetop-loyalty-pip, .stonetop-readiness-pip).is-filled {
+	background: var(--st-text-body);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	:is(.stonetop-loyalty-pip, .stonetop-readiness-pip):hover {
+	background: rgba(255, 255, 255, 0.28);
+}
+
+/* The shared rules cards — "Follower Special Moves", "Animal Companion Moves". They wear
+   `.stonetop-follower-card`, so the card itself came over with the rule above; everything INSIDE it
+   is pale literals that did not. The header band, the expand-all chevron's `#fff` button, the
+   `#eee` hairline round each move and — worst of it — every move's summary bar at `hsl(210 10% 97%)`
+   carrying slate text, which is what turned the list into white slabs with unreadable headings. */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-follower-rules-header {
+	background: rgba(255, 255, 255, 0.05);
+	border-bottom-color: rgba(255, 255, 255, 0.14);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-follower-rules-toggle {
+	background: rgba(255, 255, 255, 0.06);
+	border-color: rgba(255, 255, 255, 0.22);
+	color: var(--st-text-body);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-follower-rules-toggle:hover {
+	background: rgba(255, 255, 255, 0.12);
+	border-color: rgba(255, 255, 255, 0.34);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-follower-rule {
+	border-color: rgba(255, 255, 255, 0.12);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-follower-rule summary {
+	background: rgba(255, 255, 255, 0.055);
+	color: var(--st-text-body);
+}
+
+/* The open/closed arrow is `arrow_icon.svg` painted as a background IMAGE with a baked `#242021`
+   fill — the same trap the spiral bullets and the check boxes were in, but this one is a hard-coded
+   url rather than a variable, so the bone twins swapped further up cannot reach it. There is no
+   second file to point at and the art is a single flat shape, so it inverts in place. */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	.stonetop-follower-rule summary::before {
+	filter: invert(1);
+}
+
+/* The HP octagon is built as two clipped shapes: the element itself is the RING and already fills
+   from `--st-text-body`, so it came over as bone on its own — but the `::before` inset 2px inside it
+   is a flat `#fff`, and that stayed. The result was a white cell with `--st-text-body` printing "HP"
+   and the value onto it, which is bone on white: the ring survived and everything it was drawn
+   around did not. The interior takes the sheet's own paper, the way every other stat box here does,
+   and the bone ring goes back to being an outline round something readable. */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	.stonetop-follower-hp-octagon::before {
+	background: var(--stonetop-bg);
+}
+
+/* Edit mode's max-HP field. Its FILL is already handled — the form-well rule further up catches
+   every input on the sheet — but its border is a black hairline that rule does not touch, and its
+   focus ring is one more slategrey. */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	.stonetop-follower-hp-octagon-max-input {
+	border-color: rgba(255, 255, 255, 0.22);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	.stonetop-follower-hp-octagon-max-input:focus {
+	outline-color: var(--st-btn-primary-border);
+}
+
+/* The last two slate holdouts, both `color: slategrey` on their own: the card's type line ("test
+   follower", under the name) and the d6 that rolls a follower's damage. The type line is a quiet
+   aside and takes the muted ink; the die is a control and takes the body ink, so it sits at the same
+   weight as the damage text it belongs to rather than a step below it.
+
+   Hover goes to `--st-past-death-ink` — the one warm thing on this sheet, already carrying the
+   window header's rule and the active tab — instead of core's `--color-text-hyperlink`, which is not
+   redefined anywhere in this block and would have answered with a light-theme blue. */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-follower-type {
+	color: var(--st-text-muted);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-follower-damage-roll {
+	color: var(--st-text-body);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-follower-damage-roll:hover {
+	color: var(--st-past-death-ink);
+}
+
+/* Swapping the art to the bone twins above only gets the marks half way back. Both families are
+   then knocked back by opacities written for ink on parchment: a description spiral runs at 0.5,
+   and a move's checkbox is `disabled` whenever the sheet isn't in moves-edit mode, which runs at
+   0.35. Against paper that reads as "quiet" and "not editable"; against near-black it reads as
+   switched off, sitting at a mid grey beside text that is nearly white.
+
+   Bone (#d9d2c2) and the body ink (hsl(38 20% 84%)) are the same value, so full opacity puts
+   every bullet and every box exactly where the words are, which is the whole point of the pair
+   of files. The disabled boxes give up their dimming to get there: no loss on this sheet, where
+   the checks are disabled all together and there is no enabled twin beside one to compare it
+   against, and where flipping into edit mode is what says the sheet is open for changes. */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	.stonetop-item-description li::before {
+	opacity: 1;
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	:is(.stonetop-item-check, .stonetop-lore-option-check, .stonetop-move-mark-check,
+	    .stonetop-onboarding-check, .stonetop-bg-action-check,
+	    .stonetop-arcanum-unlock-check):disabled {
+	opacity: 1;
+}
+
+/* The Notes tab. Its editor box is a translucent WHITE (see `.stonetop .character-notes-editor
+   .editor-content` at the end of the file) — the same trick the form wells above use, and it fails
+   the same way: 28% white over near-black is a lit panel, so the one tab that is nothing but a page
+   of writing came out as a grey slab. It drops to the wash the input wells wear, and its rule turns
+   over from black-on-paper to white-on-black so the box still has an edge. */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	.character-notes-editor .editor-content {
+	background: rgba(255, 255, 255, 0.055);
+	border-color: rgba(255, 255, 255, 0.16);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	.character-notes-editor:is(:hover, :focus-within) .editor-content {
+	background: rgba(255, 255, 255, 0.1);
+	border-color: rgba(255, 255, 255, 0.32);
+}
+
+/* …and the pencil that opens it. Core parks `<prose-mirror toggled>`'s toggle at the top-right of
+   the box on `background: rgba(255, 255, 240, 0.8)` and lets the glyph inherit the sheet's colour,
+   which on this sheet is bone — bone on ivory, so the only way into the Notes tab was all but
+   invisible. Painted as one of this sheet's own buttons instead, off the same three tokens the
+   palette above already turned over, so it reads as a control rather than as a chip of daylight. */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	prose-mirror button.toggle {
+	background: var(--st-btn-primary-bg);
+	border: 1px solid var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	prose-mirror button.toggle:hover {
+	background: var(--st-btn-primary-bg-hover);
+	color: var(--st-text);
+}
+
+/* The sheet header — portrait, name, playbook line — gets the same edge. It carries no chrome of
+   its own anywhere (it is a bare flex row on every other sheet in the system), which on parchment is
+   right: the paper itself frames it. On black there is no paper to speak of, so the portrait and the
+   name floated with nothing holding them together. Same fill, same rule, same radius as the
+   relationships card below, so the two bounded things on this sheet are bounded the same way.
+
+   Padding is declared here rather than inherited because there was none to inherit: a border on a
+   zero-padding flex row would have been drawn against the portrait's own edge. */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-sheet-header {
+	padding: 10px 12px;
+	border: 1px solid rgba(255, 255, 255, 0.24);
+	border-radius: var(--st-radius-lg);
+	background: rgba(255, 255, 255, 0.018);
+}
+
+/* The relationships component, both of its views, for the same reason and by the same numbers.
+   Every fill here is a literal translucent white written to sit on parchment — the board's lanes at
+   35%, its cards at 72% — so on the inverted paper the whole board came up as a stack of lit panels
+   with the names on them at almost no contrast. They come down onto --st-card-fill's alpha and the
+   rules turn over from black-on-paper to white-on-black, which is the treatment the follower cards
+   above already wear: the two boards are the same object seen from either side of the sheet, and
+   they should not part company over which one the reader is on.
+
+   The slate borders (`rgba(100, 116, 139, …)`) come with the fills. They are not white, so they were
+   never a lit panel, but at 25-28% alpha over black they were the wrong kind of invisible — the
+   lanes stopped being columns and the cards stopped being cards. */
+/* The component's outer card first. It shares `.steading-card`'s chrome — a black wash inside a
+   black hairline — and both vanish into this paper, so the board and the table were loose on the
+   sheet with nothing saying where the component started or stopped. One white rule gives it its
+   edge back; that edge is what lets everything inside go as quiet as it does below. */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-character-relationships {
+	background: rgba(255, 255, 255, 0.018);
+	border-color: rgba(255, 255, 255, 0.24);
+}
+
+/* ── Table view ──
+   The table borrows the steading Residents chrome wholesale, and that chrome is built entirely out
+   of BLACK washes on a pale ground — a 12% black frame, an 8% black header band, a 6% black rule
+   between rows. All three are the same colour as this paper, so the table arrived with no frame, no
+   header band and no row rules at all: just its rows, which fill with `rgba(255, 255, 255, 0.5)` and
+   were therefore the brightest slabs on the sheet, each one a grey block with a name on it.
+
+   Everything inverts. The frame and the header's underline take the component's own white rule so
+   the table is bounded the same way its container is; the header band and the rows drop to the
+   alphas the board's lanes and cards now use. The row divider matters more here than its 6% black
+   ever did on paper: with the fill this quiet, the hairline is most of what still says "row". */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .steading-residents-table {
+	background: rgba(255, 255, 255, 0.012);
+	border-color: rgba(255, 255, 255, 0.24);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .steading-residents-header {
+	background: rgba(255, 255, 255, 0.07);
+	border-bottom-color: rgba(255, 255, 255, 0.24);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .steading-residents-col-sortable:hover {
+	background: rgba(255, 255, 255, 0.07);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .steading-residents-row {
+	background: rgba(255, 255, 255, 0.03);
+	border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-rel-lane {
+	background: rgba(255, 255, 255, 0.02);
+	border-color: rgba(255, 255, 255, 0.1);
+	/* `border-color` is a four-side shorthand, and this rule outranks the base one — without
+	   restating it the lane's 3px identity cap would be repainted along with its sides and every
+	   lane would lose its accent. */
+	border-top-color: var(--st-lane-accent, #777);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-rel-card {
+	background: rgba(255, 255, 255, 0.03);
+	border-color: rgba(255, 255, 255, 0.13);
+}
+
+/* After the card rule, not before: both sit at the same specificity, so source order is the only
+   thing keeping the unrated card's lighter fill on top of the ordinary one. */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-rel-card--unrated {
+	background: rgba(255, 255, 255, 0.014);
+}
+
+/* The lane's count pill is slate at 18% — legible against parchment, gone against this. */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-rel-lane-count {
+	background: rgba(255, 255, 255, 0.06);
+}
+
+/* Table view's Notes field. It is invisible at rest by design and paints its wash only on hover or
+   focus, so the white was doing all the work of saying "you are in this field" — which on black
+   made the one row being typed into the brightest thing on the sheet. */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	:is(.stonetop-rel-note-input:hover:not(:disabled), .stonetop-rel-note-input:focus) {
+	background: rgba(255, 255, 255, 0.06);
+	border-color: rgba(255, 255, 255, 0.24);
+}
+
+/* The portrait well fills from `--stonetop-bg`, so it came down with the paper on its own — but the
+   placeholder head inside it is a deliberate `#000`, chosen to read against the PALE well. Black on
+   a near-black well is the one thing worse than the washed-out grey that rule was written to fix, so
+   it turns over to the sheet's ink. Someone with no image is now a bone head on dark rather than a
+   blank disc; the well's own hairline turns over with it. */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-rel-portrait {
+	border-color: rgba(255, 255, 255, 0.14);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-rel-portrait--empty {
+	color: var(--st-text-body);
 }
 
 /* ── What the insert asks for ─────────────────────────────────────────
@@ -10095,22 +10663,28 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
    on the message when it is created (hooks/DeathChatDrip.js), never re-read at render, so the
    log stays a record of when they died rather than being rewritten the moment they do.
 
-   The fringe is one clipped strip, not art: `clip-path` cuts an irregular run of ink out of a
-   14px band. Tiled gradients were tried first and read as even scalloping — any repeat short
-   enough to fit a chat card is short enough to see. The points are x in PERCENT (so the run
-   spreads with the log's width instead of leaving a bare stretch on a wide sidebar) and y in
-   PIXELS (so the depth is fixed however tall the message is). The longest run reaches 13px, the
-   shortest 6px, off a 4px edge. Not animated, by request; nothing here is interactive either,
-   so pointer-events stay off. */
+   The fringe is one masked strip, not art: an irregular run of ink cut out of an 11px band.
+   Tiled gradients were tried first and read as even scalloping — any repeat short enough to fit
+   a chat card is short enough to see. Not animated, by request; nothing here is interactive
+   either, so pointer-events stay off. */
 :is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip {
-	--st-drip-ink: hsl(216 22% 19%);
-	/* One pixel of headroom under the deepest valley in the clip path — shrink this and the long
-	   points get cut off flat instead of getting shorter. */
-	--st-drip-depth: 14px;
+	/* Near-neutral, and deliberately so: this is the fringe of someone who simply died, and the
+	   three inserts below are the only things that get a hue. It keeps a few degrees of cold
+	   rather than going pure grey — a hueless fringe over a lit scene reads as a drop shadow on
+	   the card instead of ink under it. The sheet's base accent is hueless for the same reason in
+	   reverse: there it sits on flat black, where a shadow isn't a reading anyone can make. */
+	--st-drip-ink: hsl(220 8% 18%);
+	/* One pixel of headroom under the longest lobe (which reaches 10px) — shrink this and the
+	   long ones get cut off flat instead of getting shorter. */
+	--st-drip-depth: 11px;
+	/* The unbroken edge the lobes hang off, and the line their centres sit on: a lobe centred
+	   just inside the edge fuses into it with no seam. */
+	--st-drip-edge: 3px;
 	position: relative;
 	/* Core gives a message 4px of margin, which leaves the fringe nowhere to hang and would let
-	   it paint over the next message. Claim its depth back as space of its own. */
-	margin-bottom: calc(var(--st-drip-depth) + 6px);
+	   it paint over the next message. Claim its depth back as space of its own — and no more:
+	   anything past the deepest lobe reads as the message having been pushed away from the log. */
+	margin-bottom: calc(var(--st-drip-depth) + 1px);
 }
 
 :is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip::after {
@@ -10128,49 +10702,221 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	   sidebar, so this hangs over the map, not over a background we control: a fringe in one flat
 	   near-black vanishes on a night map, and one flat pale vanishes on a snowfield. Carrying both
 	   ends of the range inside the shape means one of them always reads. It is also why the inks
-	   below sit mid-dark rather than at the black they'd be if this had a surface behind it. */
+	   below sit mid-dark rather than at the black they'd be if this had a surface behind it.
+
+	   This gradient is the ONLY thing keeping the fringe legible, and it has to be: an outline
+	   can't help. Chromium applies `filter` BEFORE `mask`, so a `drop-shadow` here is a halo round
+	   the 11px band that the lobes then cut away to nothing — verified, and worth knowing before
+	   reaching for one. (It does trace a `clip-path`, which is why the polygon this replaced could
+	   carry a hairline. Masking is not clipping in that respect.) */
 	background: linear-gradient(to bottom,
 		var(--chat-message-border-color, #6f6c66) 0 2px,
 		var(--st-drip-ink) 100%);
-	/* A 4px unbroken edge with narrow runs hanging off it, right to left. Each run is three
-	   points — shoulder, tip, shoulder — and the flat between two runs is the straight segment
-	   from one shoulder to the next, so nothing has to be spelled out twice. Runs are ~1.2% wide
-	   against a depth of up to 13px, and that ratio is the whole effect: widen them and the same
-	   points stop reading as ink and start reading as a row of teeth. Lengths and gaps are
-	   deliberately uneven; a regular beat is what gives this away as a pattern. */
-	clip-path: polygon(
-		0 0, 100% 0,
-		100% 4px,
-		93.8% 4px, 93.2% 9px,  92.6% 4px,   86.0% 4px, 85.4% 12px, 84.8% 4px,
-		80.5% 4px, 79.9% 6px,  79.3% 4px,   72.0% 4px, 71.4% 11px, 70.8% 4px,
-		66.5% 4px, 65.9% 7px,  65.3% 4px,   59.0% 4px, 58.4% 13px, 57.8% 4px,
-		49.9% 4px, 49.3% 10px, 48.7% 4px,   44.5% 4px, 43.9% 6px,  43.3% 4px,
-		38.0% 4px, 37.4% 12px, 36.8% 4px,   29.5% 4px, 28.9% 7px,  28.3% 4px,
-		24.0% 4px, 23.4% 11px, 22.8% 4px,   15.9% 4px, 15.3% 6px,  14.7% 4px,
-		10.0% 4px, 9.4% 13px,   8.8% 4px,    3.8% 4px, 3.2% 9px,    2.6% 4px,
-		0 4px
-	);
+	/* Rounded lobes, not teeth. The first cut of this was a `clip-path` polygon, and a polygon can
+	   only join its points with straight lines: every run came to a hard point and the fringe read
+	   as a saw blade. A lobe is a half-ellipse instead, so it ends BLUNT the way a bead of liquid
+	   does. Mask layers union by default (`mask-composite: add`), so the unbroken edge and the
+	   lobes hanging off it are just listed one after another.
+
+	   Centres are in PERCENT, so the run spreads with the log's width instead of leaving a bare
+	   stretch on a wide sidebar. The radii are in PIXELS, so a lobe keeps a drip's proportions
+	   rather than stretching into a wide shallow scallop as the log gets wider — the polygon used
+	   percent for its x and got exactly that on a popped-out log.
+
+	   Every lobe varies in THREE ways: how far it reaches, how wide it is, and how far it sits
+	   from its neighbour. One flat width is what makes a fringe read as bunting whatever its
+	   lengths. Long lobes are the THINNEST (a thread of ink that ran), short ones the widest (a
+	   bead that didn't), which is the way liquid actually behaves. The `99%` stop on each is the
+	   antialiasing — a hard `100%` edge stairsteps.
+
+	   Held in a custom property so the prefixed twin this file gives every other mask doesn't mean
+	   eighteen lines written out again — and can't drift from the unprefixed one if a lobe moves. */
+	--st-drip-mask:
+		linear-gradient(#000 0 var(--st-drip-edge), #0000 var(--st-drip-edge)),
+		radial-gradient(3.4px 4.5px at 95.4% 2px, #000 99%, #0000),
+		radial-gradient(2.2px 8.0px at 90.2% 2px, #000 99%, #0000),
+		radial-gradient(4.0px 3.5px at 86.6% 2px, #000 99%, #0000),
+		radial-gradient(2.4px 7.2px at 78.9% 2px, #000 99%, #0000),
+		radial-gradient(3.2px 5.0px at 74.6% 2px, #000 99%, #0000),
+		radial-gradient(2.2px 8.0px at 68.0% 2px, #000 99%, #0000),
+		radial-gradient(3.8px 4.0px at 61.2% 2px, #000 99%, #0000),
+		radial-gradient(2.6px 6.6px at 56.8% 2px, #000 99%, #0000),
+		radial-gradient(2.2px 7.8px at 47.9% 2px, #000 99%, #0000),
+		radial-gradient(4.2px 3.4px at 43.0% 2px, #000 99%, #0000),
+		radial-gradient(2.8px 6.0px at 38.4% 2px, #000 99%, #0000),
+		radial-gradient(2.4px 7.4px at 31.2% 2px, #000 99%, #0000),
+		radial-gradient(3.4px 4.6px at 26.7% 2px, #000 99%, #0000),
+		radial-gradient(2.2px 8.0px at 19.4% 2px, #000 99%, #0000),
+		radial-gradient(3.6px 4.2px at 14.9% 2px, #000 99%, #0000),
+		radial-gradient(2.6px 6.8px at  8.1% 2px, #000 99%, #0000),
+		radial-gradient(3.0px 5.2px at  3.4% 2px, #000 99%, #0000);
+	-webkit-mask-image: var(--st-drip-mask);
+	mask-image: var(--st-drip-mask);
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
 }
 
 /* Which death it was. Only the ink moves — the drip is the statement, the colour is the
    footnote. Each modifier carries the base class too: on its own it would tie with the block
-   above on specificity and depend on file order alone to win. */
+   above on specificity and depend on file order alone to win.
+   `--st-death-wash` is the same hue as a tint over BLACK rather than as ink over the scene, for
+   the card repaint below. Both come from the shared `--st-undead-wash-*` tokens the sheet reads,
+   so the pair can no longer drift. */
 :is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip.stonetop-death-drip--revenant {
-	--st-drip-ink: hsl(10 34% 23%);
+	--st-drip-ink:   hsl(210 36% 24%);
+	--st-death-wash: var(--st-undead-wash-revenant);
 }
 
 :is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip.stonetop-death-drip--thrall {
-	--st-drip-ink: hsl(283 30% 24%);
+	--st-drip-ink:   hsl(96 32% 22%);
+	--st-death-wash: var(--st-undead-wash-thrall);
 }
 
-/* A Ghost has no ichor to leave. Theirs runs cold and thin — the one kind that fades rather than
-   stains, so it stops short of the ink the others reach and carries some of the scene through. */
+/* A Ghost has no ichor to leave. Theirs runs thin — the one kind that fades rather than stains,
+   which is the palest of the three inks and the faintest of the three washes.
+   (It used to fade its fringe to `opacity: 0.78` as well. That predates the fringe taking the
+   card's own black below; a translucent fringe under an opaque card is the one thing that gives
+   away that they are two elements, and a Ghost's card is black like the others'.) */
 :is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip.stonetop-death-drip--ghost {
-	--st-drip-ink: hsl(200 20% 44%);
+	--st-drip-ink:   hsl(283 22% 44%);
+	--st-death-wash: var(--st-undead-wash-ghost);
 }
 
-:is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip.stonetop-death-drip--ghost::after {
-	opacity: 0.78;
+/* ── What the undead say, said on black ──────────────────────────────
+   Anything one of the three inserts puts in the log — a stat roll, a move card, a line of
+   speech — is the same card everyone else's is, turned over: their sheet is black (see "the
+   sheet of someone who came back"), and a bone-white card under a black sheet's name read as
+   someone else talking.
+
+   Same means as everywhere else in this file: the card's own parchment is INVERTED with
+   `difference` against white, not covered with a dark film. The Stonetop roll/move cards already
+   fill from that exact asset, so this is the same image doing the opposite job; a plain speech
+   message has no fill of its own and simply takes the black.
+
+   Scoped to the INSERTS only, through the `--insert` class the stamp adds for exactly this (see
+   DeathChatDrip.markDeathDrip). A character who stepped through the Last Door and stayed there
+   still gets the fringe and nothing else — same call as the sheet, and the same shape: one class
+   that means "came back", so a fourth rule wanting it doesn't restate the list of who did.
+
+   Specificity: `:is(#chat,…)` (1,0,0) + `.message` + the two drip classes = (1,3,0), which clears
+   the parchment fill on `.message:has(.stonetop-roll-card)` at (1,2,0) without depending on
+   source order. */
+:is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip.stonetop-death-drip--insert {
+	color-scheme: dark;
+	--stonetop-bg:                 hsl(0 0% 12%);
+	--color-text-dark-primary:     hsl(38 22% 88%);
+	--color-text-dark-secondary:   hsl(38 12% 71%);
+	--color-border-light-primary:  hsl(0 0% 25%);
+	--color-border-light-tertiary: hsl(0 0% 21%);
+	--color-border-dark:           hsl(0 0% 32%);
+	--st-text:                     hsl(38 22% 88%);
+	--st-text-body:                hsl(38 20% 84%);
+	--st-text-secondary:           hsl(38 12% 71%);
+	--st-text-muted:               hsl(0 0% 58%);
+	--st-text-faint:               hsl(0 0% 44%);
+	--st-green-text:               hsl(140 32% 66%);
+	--st-red-text:                 hsl(6 62% 70%);
+	--st-red-bg:                   hsla(6, 45%, 32%, 0.35);
+	--st-red-border:               hsl(6 45% 46%);
+	--stonetop-red:                hsl(6 62% 68%);
+	/* Core paints an <h2> — the card's move name — from its own emphatic ink, which is near-black
+	   and inherits nowhere near the tokens above. */
+	--color-text-emphatic:         hsl(38 24% 90%);
+	--color-text-primary:          hsl(38 20% 84%);
+	/* The hit tiers, lifted off the paper inks. Same three hues so a miss still reads red and a
+	   weak hit amber, at a lightness that survives the black underneath. */
+	--st-tier-failure-text:        hsl(6 62% 68%);
+	--st-tier-partial-text:        hsl(38 60% 64%);
+	--st-tier-success-text:        hsl(140 34% 62%);
+	/* The bullets in a "choose 1" outcome, and any check control a card carries, are black-filled
+	   background images; swapped for the bone twins, exactly as the sheet does it. */
+	--stonetop-spiral-icon:           url('/systems/stonetop-pwd/assets/icons/steading/check-spiral-light.svg');
+	--stonetop-checkbox-icon:         url('/systems/stonetop-pwd/assets/icons/steading/checkbox-light.svg');
+	--stonetop-checkbox-checked-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked-light.svg');
+	--st-btn-primary-bg:           hsl(0 0% 9%);
+	--st-btn-primary-bg-hover:     hsl(0 0% 16%);
+	--st-btn-primary-border:       hsl(40 13% 44%);
+	--st-btn-primary-text:         hsl(38 18% 84%);
+	color: hsl(38 20% 86%);
+	border-color: hsl(0 0% 25%);
+	/* The kind's own tint, the shared lift off pitch black, and the inverted paper — the same
+	   three layers the sheet uses, so a card and the sheet behind it are the same black. */
+	background:
+		linear-gradient(var(--st-death-wash, transparent), var(--st-death-wash, transparent))
+			center / auto no-repeat,
+		linear-gradient(var(--st-black-lift), var(--st-black-lift)) center / auto no-repeat,
+		#fff url('/systems/stonetop-pwd/assets/graphics/sheet-bg.webp') center / cover no-repeat;
+	background-blend-mode: normal, normal, difference;
+}
+
+/* And the fringe hanging off it is that same black, painted the same way — not the pale-shouldered
+   ink above. That gradient is built to read over a SCENE, which is right for a plain death, whose
+   card is still parchment. Under an insert the card above it is black, and a fringe that started
+   pale read as a separate object stuck to the bottom of the card rather than as the card's own ink
+   running off it. So the shoulder takes the identical background stack — kind's wash, the shared
+   lift off pitch black, inverted paper. Keep it in step with the repaint above; they are one
+   surface, and the seam between them is the whole point.
+
+   The tip is where the kind's ink finally arrives, ramped in over the depth rather than switched
+   on. Two things fall out of that, both wanted. A fringe that were card-black end to end would
+   vanish on a night map, which is very nearly the colour the inverted paper already is (the card
+   gets away with it because it has a 1px border; a masked pseudo-element can't have one — see
+   above). And because the ramp is measured against the full 11px, the short beads stay card-black
+   and only the long runs thin out to colour, which is what a drip that ran actually does. */
+:is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip.stonetop-death-drip--insert::after {
+	background:
+		linear-gradient(to bottom, transparent var(--st-drip-edge), var(--st-drip-ink) 100%),
+		linear-gradient(var(--st-death-wash, transparent), var(--st-death-wash, transparent))
+			center / auto no-repeat,
+		linear-gradient(var(--st-black-lift), var(--st-black-lift)) center / auto no-repeat,
+		#fff url('/systems/stonetop-pwd/assets/graphics/sheet-bg.webp') center / cover no-repeat;
+	background-blend-mode: normal, normal, normal, difference;
+}
+
+/* Core paints the speaker's name and the timestamp from its own light-theme colours. */
+:is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip.stonetop-death-drip--insert
+	:is(.message-header, .message-sender, .message-metadata, .whisper-to) {
+	color: hsl(38 16% 76%);
+}
+
+/* The one card that must keep its own edge: "someone is dying". The black repaint above names the
+   message itself at (1,3,0) and so outranks the dying card's (1,2,0) fill and ember border — which
+   meant the three inserts, the only characters whose 0-HP move this whole feature exists to route,
+   were the ones whose interruption card came out with a neutral grey edge. The ember goes back on
+   as a first background layer over the black stack, so the card is still inverted paper and still
+   reads as an alarm.
+
+   Its title rule and its button keep their own ember from the block further up; nothing here
+   touches those. */
+:is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip.stonetop-death-drip--insert:has(.stonetop-dying-card) {
+	background:
+		linear-gradient(180deg, hsla(8, 55%, 42%, 0.22), transparent 46%),
+		linear-gradient(var(--st-death-wash, transparent), var(--st-death-wash, transparent))
+			center / auto no-repeat,
+		linear-gradient(var(--st-black-lift), var(--st-black-lift)) center / auto no-repeat,
+		#fff url('/systems/stonetop-pwd/assets/graphics/sheet-bg.webp') center / cover no-repeat;
+	background-blend-mode: normal, normal, normal, difference;
+	border-color: hsl(8 45% 52%);
+}
+
+/* The card's own furniture is drawn with faint BLACK washes — invisible once the card is black,
+   which would flatten the formula chip and the result block into the paper. Same weights, run
+   the other way. The tier tints (failure/partial/critical) are coloured rather than black and
+   still read, so they're left alone. */
+:is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip.stonetop-death-drip--insert
+	:is(.stonetop-roll-formula, .stonetop-roll-result, .stonetop-roll-card-desc-toggle,
+	    .stonetop-fate-result) {
+	background: rgba(255, 255, 255, 0.06);
+	border-color: hsl(0 0% 28%);
+}
+
+/* And the bullets come up to full strength, as they do on the sheet: the 0.5 they run at was
+   chosen for ink on parchment, and it drops the bone twin to a mid grey against a black card
+   while the words beside it stay near-white. Same insert prose, same paper, same call. */
+:is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip.stonetop-death-drip--insert
+	:is(.stonetop-chat-move-description, .stonetop-roll-card-description,
+	    .stonetop-item-description) li::before {
+	opacity: 1;
 }
 
 /* ── End of Session dialog ──────────────────────────────────────── */
@@ -10491,6 +11237,31 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	font-weight: bold;
 }
 
+/* The same strip on the sheet of someone who came back — the CLASSIC layout, which renders this
+   instead of the rail. `--st-btn-primary-bg` is repainted to near-black there, so the ACTIVE tab
+   filled black while the eight inactive ones kept their hard-coded #999/#fff: the selected tab
+   read as a gap and the unselected ones as the brightest things on a black sheet, which is the
+   affordance exactly backwards. The rail solved this by taking the insert's ink; the strip takes
+   it too, so both layouts say "you are here" the same way.
+
+   `stonetop-past-death` compounds on the frame (it is stamped on the same element as `.pbta`), so
+   these must not descend from it — see the classic-layout note further down. */
+.pbta.sheet.stonetop-past-death .sheet-tabs:not(.stonetop-tab-rail) .item {
+	background: rgba(255, 255, 255, 0.09);
+	color: hsl(38 16% 80%);
+}
+
+.pbta.sheet.stonetop-past-death .sheet-tabs:not(.stonetop-tab-rail) .item:hover,
+.pbta.sheet.stonetop-past-death .sheet-tabs:not(.stonetop-tab-rail) .item:focus {
+	background: rgba(255, 255, 255, 0.16);
+	color: hsl(38 22% 90%);
+}
+
+.pbta.sheet.stonetop-past-death .sheet-tabs:not(.stonetop-tab-rail) .item.active {
+	background: var(--st-past-death-ink);
+	color: hsl(0 0% 10%);
+}
+
 /* Tab drag-and-drop (available in and out of edit mode) */
 .sheet-tabs .item[draggable="true"] {
 	cursor: grab;
@@ -10726,6 +11497,44 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 .stonetop .sheet-tabs.stonetop-tab-rail .stonetop-tab-drag-over {
 	outline: none;
 	box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.85);
+}
+
+/* -- The rail on the sheet of someone who came back --------------
+   The Revenant / Ghost / Thrall repaint hangs its whole token block off `.window-content`, and
+   the rail is a SIBLING of that element out on the frame — so none of it reaches here, and the
+   rail stayed a parchment panel with black glyphs stuck to the edge of a black sheet. Restate
+   only what the rail actually reads: `--stonetop-bg` (its panel fill, and the ring around the
+   attention dot) and the three button colours, which can't simply be copied from the repaint —
+   `--st-btn-primary-bg` is a near-black FILL there, and a near-black glyph on this panel would
+   be no more visible than the parchment one was.
+
+   `--st-past-death-ink` does reach here: it is set on the frame, one level up. The border and
+   the active fill take it so the rail says which thing brought them back, the way the window
+   header's underline already does.
+
+   Weight is (0,4,0) — the same as the `-left` mirror above — so this must sit AFTER it for the
+   border colour to land on a left-hung rail too. `border-color` alone is enough for both: each
+   mirror's `border-<edge>: none` sets a STYLE, which this doesn't disturb. */
+.stonetop.stonetop-past-death .sheet-tabs.stonetop-tab-rail {
+	--stonetop-bg: hsl(0 0% 12%);
+	border-color: var(--st-past-death-ink);
+}
+
+.stonetop.stonetop-past-death .sheet-tabs.stonetop-tab-rail .item {
+	color: hsl(38 16% 78%);
+}
+
+.stonetop.stonetop-past-death .sheet-tabs.stonetop-tab-rail .item:hover,
+.stonetop.stonetop-past-death .sheet-tabs.stonetop-tab-rail .item:focus {
+	background: rgba(255, 255, 255, 0.12);
+	color: hsl(38 22% 90%);
+}
+
+/* Inverted from the light sheet's dark fill / light glyph, which has nothing to sit against
+   here: the ink carries the fill and the glyph drops to the panel's own black. */
+.stonetop.stonetop-past-death .sheet-tabs.stonetop-tab-rail .item.active {
+	background: var(--st-past-death-ink);
+	color: hsl(0 0% 10%);
 }
 
 /* Kill the stray orange dotted focus outline browsers draw around generic

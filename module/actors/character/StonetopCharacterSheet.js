@@ -12,7 +12,7 @@ import {PossessionChoicesDialog} from "./dialogs/PossessionChoicesDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
 import {UndeathDialog} from "./dialogs/UndeathDialog.js";
 import {buildPostDeathChoices, choiceWriteIns} from "./post-death-choices.js";
-import {DEATHS_DOOR_STATE, POST_DEATH_INSERT_SLUGS, resolvedHp, zeroHpMove} from "./deaths-door.js";
+import {DEATHS_DOOR_STATE, POST_DEATH_INSERT_SLUGS, pastDeathKind, resolvedHp, zeroHpMove} from "./deaths-door.js";
 import {WoundDialog} from "./dialogs/WoundDialog.js";
 import {WOUND_STATUS_GLYPH, WOUND_STATUS_LABEL} from "./wound-display.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
@@ -789,12 +789,39 @@ export function createStonetopCharacterSheetClass(Base) {
 			this._injectHeaderToggle();
 			this.element[0]?.classList.toggle("stonetop-edit-mode", this._editMode);
 			stampLayoutClass(this, "character");
+			this._stampPastDeath();
 			// Deferred one-shot: switch to the Arcana tab after a dropped card's re-render (set
 			// in _onDropItemCreate). Instance-scoped so a sibling sheet's render can't consume it.
 			if (this._activateArcanaTabOnRender) {
 				this._activateArcanaTabOnRender = false;
 				this._tabs?.[0]?.activate?.("arcana");
 			}
+		}
+
+		/**
+		 * A sheet that came back wearing one of the three inserts wears the Death's Door black —
+		 * see "the sheet of someone who came back" in stonetop.css. Deliberately NOT for a
+		 * character who simply died: their sheet is a record of a life, and the last thing it
+		 * should do is announce the ending in its own chrome. The dark is for the ones still being
+		 * played, where it says every session that this isn't the person it used to be.
+		 *
+		 * Read off the flags rather than the render context so it survives a re-render that
+		 * doesn't rebuild the context, and stamped on the ROOT so the frame and title bar turn
+		 * over with the body — same reasoning as the dialog's moods. Read THROUGH the character
+		 * rather than off the actor's flags directly, so the flag paths stay named in one place.
+		 */
+		_stampPastDeath() {
+			const root = this.element?.[0];
+			if (!root) return;
+			const kind = pastDeathKind({
+				state:      this._stonetopCharacter.deathsDoorState,
+				insertSlug: this._stonetopCharacter.postDeathSlug,
+			});
+			// pastDeathKind also answers "dead", which is exactly the case that gets nothing here.
+			const insert = POST_DEATH_INSERT_SLUGS.includes(kind) ? kind : null;
+			root.classList.toggle("stonetop-past-death", !!insert);
+			POST_DEATH_INSERT_SLUGS.forEach(s =>
+				root.classList.toggle(`stonetop-past-death--${s}`, s === insert));
 		}
 
 		/**

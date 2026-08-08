@@ -1,5 +1,5 @@
 import { STONETOP_SCOPE, resolvedFlagProperty } from "../actors/character/StonetopFlags.js";
-import { DEATHS_DOOR_FLAG, pastDeathKind } from "../actors/character/deaths-door.js";
+import { DEATHS_DOOR_FLAG, POST_DEATH_INSERT_SLUGS, pastDeathKind } from "../actors/character/deaths-door.js";
 
 /**
  * The dead keep talking, and the log should say so.
@@ -36,8 +36,13 @@ export function deathDripStamp(actor) {
 
 /**
  * Put the fringe on a rendered message (dispatched from stonetop.js renderChatMessageHTML).
- * Two classes: the base one carries the whole effect, the modifier only re-tints the ink, so an
- * unrecognised kind from a hand-edited flag still drips rather than silently doing nothing.
+ *
+ * Three classes at most. The base one carries the whole effect and the kind modifier only
+ * re-tints the ink, so an unrecognised kind from a hand-edited flag still drips rather than
+ * silently doing nothing. `--insert` says the speaker came BACK rather than merely died, which
+ * is the line the black card repaint is drawn on — the same distinction, and the same reason,
+ * as the sheet's `stonetop-past-death` (see StonetopCharacterSheet._stampPastDeath). Named once
+ * here rather than spelled out as a three-way `:is()` on every rule that wants it.
  */
 export function markDeathDrip(message, html) {
 	const root = html?.[0] ?? html;
@@ -47,4 +52,5 @@ export function markDeathDrip(message, html) {
 	if (!kind) return;
 
 	root.classList.add(DRIP_CLASS, `${DRIP_CLASS}--${kind}`);
+	if (POST_DEATH_INSERT_SLUGS.includes(kind)) root.classList.add(`${DRIP_CLASS}--insert`);
 }
