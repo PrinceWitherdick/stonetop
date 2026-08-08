@@ -37,6 +37,7 @@ function makeCharacterMock(actor) {
 		// which returns a Set of owned slugs).
 		ownedArcanaSlugs: new Set(),
 		onDropMove: vi.fn(async () => false),
+		setPostDeathInsert: vi.fn(async () => {}),
 		moveResources: { add: vi.fn() },
 		buildSnapshot: vi.fn(async () => ({})),
 		setInventoryResource: vi.fn(),
@@ -438,6 +439,49 @@ describe("StonetopCharacterSheet._applyConvalesce", () => {
 		const sheet = makeSheet(actor);
 		await sheet._applyConvalesce({ oldHp: 4, newHp: 8, debilities: [] });
 		expect(sheet.render).toHaveBeenCalledWith(false);
+	});
+});
+
+describe("StonetopCharacterSheet._onDropPlaybook", () => {
+	// The three post-death inserts are `type: "playbook"` Items too, so one handler receives both
+	// and has to tell them apart. It used to ask "does it carry lore?" — which every shipped
+	// playbook does — so a playbook drop set the character's INSERT instead of their playbook,
+	// and the prune that runs with it measured their post-death answers against the wrong lore
+	// and deleted them.
+	function makePlaybookDoc(slug, extra = {}) {
+		return {
+			uuid: `Compendium.stonetop-pwd.stonetop-items.${slug}`,
+			name: slug,
+			type: "playbook",
+			system: { slug },
+			flags: { stonetop: { lore: [{ slug: "violence-reputation", options: [] }], hp: 20, ...extra } },
+		};
+	}
+
+	it("assigns a playbook that carries lore of its own, instead of taking it for an insert", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		actor.update = vi.fn(async () => {});
+
+		await sheet._onDropPlaybook(makePlaybookDoc("the-heavy"));
+
+		expect(actor.typedActor.setPostDeathInsert).not.toHaveBeenCalled();
+		expect(actor.update).toHaveBeenCalled();
+		expect(actor.update.mock.calls[0][0]["system.playbook"].slug).toBe("the-heavy");
+		expect(actor.typedActor.ensureStartingMoves).toHaveBeenCalled();
+	});
+
+	it("still takes the three real inserts as inserts", async () => {
+		for (const slug of ["revenant", "ghost", "thrall"]) {
+			const actor = makeActor();
+			const sheet = makeSheet(actor);
+			actor.update = vi.fn(async () => {});
+
+			await sheet._onDropPlaybook(makePlaybookDoc(slug));
+
+			expect(actor.typedActor.setPostDeathInsert).toHaveBeenCalledWith(slug);
+			expect(actor.update).not.toHaveBeenCalled();
+		}
 	});
 });
 

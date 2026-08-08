@@ -11,7 +11,7 @@ import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
 import {PossessionChoicesDialog} from "./dialogs/PossessionChoicesDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
 import {UndeathDialog} from "./dialogs/UndeathDialog.js";
-import {DEATHS_DOOR_STATE, resolvedHp, zeroHpMove} from "./deaths-door.js";
+import {DEATHS_DOOR_STATE, POST_DEATH_INSERT_SLUGS, resolvedHp, zeroHpMove} from "./deaths-door.js";
 import {WoundDialog} from "./dialogs/WoundDialog.js";
 import {WOUND_STATUS_GLYPH, WOUND_STATUS_LABEL} from "./wound-display.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
@@ -4618,22 +4618,38 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		async _onDropPlaybook(playbookDoc) {
 			if (!this.isEditable) return;
-			if (playbookDoc.flags?.stonetop?.lore?.length) {
-				const slug = playbookDoc.system?.slug;
-				if (slug) await this._stonetopCharacter.setPostDeathInsert(slug);
-				this.render(false);
+			// The three post-death inserts are `type: "playbook"` Items too, so this one handler
+			// receives both and has to tell them apart. It used to ask "does it carry lore?" —
+			// which is true of EVERY shipped playbook (the Heavy has four lore sections of its
+			// own), so dropping a playbook set the character's post-death insert to their
+			// playbook: no playbook was assigned, the Post-Death tab appeared, and the prune
+			// below measured their recorded answers against the Heavy's lore keys and deleted
+			// the lot. Ask the only question that actually separates them instead.
+			const slug = playbookDoc.system?.slug;
+			// Through the same redirect every other drop uses: on a legacy UNLINKED token's sheet
+			// `this.actor` is the token's own copy, so an insert dropped there wrote the slug and
+			// the three granted move Items onto that one token — the player's own sheet showed no
+			// insert, no Post-Death tab and no black paper. A playbook drop had it too.
+			const { character: target, unlinkedFrom, redirectedTo } = this._dropTarget();
+			const actor = redirectedTo ?? this.actor;
+			if (unlinkedFrom) {
+				ui.notifications?.info?.(`Dropped onto ${unlinkedFrom}'s unlinked token — written to the character instead.`);
+			}
+			if (POST_DEATH_INSERT_SLUGS.includes(slug)) {
+				await target.setPostDeathInsert(slug);
+				(redirectedTo?.sheet ?? this).render(false);
 				return;
 			}
-			await this.actor.update({
+			await actor.update({
 				"system.playbook": {
 					uuid: playbookDoc.uuid,
 					name: playbookDoc.name,
-					slug: playbookDoc.system?.slug ?? "",
+					slug: slug ?? "",
 				},
 				...this._playbookHpInit(playbookDoc),
 			});
-			await this._stonetopCharacter.ensureStartingMoves();
-			this.render(false);
+			await target.ensureStartingMoves();
+			(redirectedTo?.sheet ?? this).render(false);
 		}
 
 		/**
