@@ -3337,12 +3337,22 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
    shared :has() rule above), a stonetop-font title bar with a gold-tan accent,
    and a tinted description block. */
 
-:is(#chat, #chat-notifications) .message .stonetop-chat-move {
+/* THE CHAT SCOPE, used by every chat rule in this file (~120 of them):
+       :is(#chat, #chat-notifications, #chat-popout)
+   The sidebar log, the floating notification stack, and the log POPPED OUT into its own window —
+   core builds that one as `id="chat-popout"` (SidebarTab#renderPopout), and it is a common setup
+   whenever the sidebar is collapsed for canvas room. It was missing here, so a popped-out log
+   rendered every Stonetop card as an unstyled core message: no parchment, no move card, and no
+   fringe or black card under a dead PC's line — the one reading the drip exists to prevent.
+   `:is()` takes the specificity of its heaviest argument and all three are ids, so adding it
+   changed no weights. Note core's `.chat-popout` CLASS is a different thing (a single message
+   popped out on its own); this is the id. */
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-chat-move {
 	border-radius: var(--st-radius-lg);
 	overflow: hidden;
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-chat-move-name {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-chat-move-name {
 	font-family: var(--font-stonetop, "Signika", serif);
 	font-size: var(--font-size-16);
 	font-weight: bold;
@@ -3354,14 +3364,14 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	background: rgba(159, 146, 117, 0.08);
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-chat-move-description {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-chat-move-description {
 	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	line-height: 1.4;
 	color: var(--st-text-body);
 	padding: 8px;
 }
-:is(#chat, #chat-notifications) .message .stonetop-chat-move-description p { margin: 0 0 4px; }
-:is(#chat, #chat-notifications) .message .stonetop-chat-move-description p:last-child { margin-bottom: 0; }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-chat-move-description p { margin: 0 0 4px; }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-chat-move-description p:last-child { margin-bottom: 0; }
 /* Bullet sizing/gap deliberately uses bare selectors so the system-wide spiral
    normalization rules (further down) layer on top at matching specificity. */
 .stonetop-chat-move-description ul { margin: 0 0 5px; padding-left: 0; list-style: none; }
@@ -3396,19 +3406,19 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 .stonetop-roll-card-desc-toggle:hover { background: rgba(0,0,0,0.12); color: var(--st-text); }
 
 /* When the global body class is active (user setting off), show the button and hide descriptions. */
-body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .stonetop-roll-card-desc-toggle {
+body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card-desc-toggle {
 	display: flex;
 }
-body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .stonetop-roll-card-description {
+body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card-description {
 	display: none;
 }
 
 /* When a specific card has been manually revealed, show its description regardless. */
-body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .stonetop-roll-card.desc-revealed .stonetop-roll-card-description {
+body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card.desc-revealed .stonetop-roll-card-description {
 	display: block;
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-roll-card-description {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card-description {
 	font-size: var(--font-size-13);
 	color: var(--st-text-body);
 	padding: 6px 8px;
@@ -3417,15 +3427,15 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* On the journal roll-table card the description IS the result body and the last
    element in the card, so the move-card divider reads as a stray line — drop it. */
-:is(#chat, #chat-notifications) .message .stonetop-roll-card-description.stonetop-roll-result-body {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card-description.stonetop-roll-result-body {
 	border-bottom: none;
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-roll-card-description p { margin: 0 0 4px; }
-:is(#chat, #chat-notifications) .message .stonetop-roll-card-description p:last-child { margin-bottom: 0; }
-:is(#chat, #chat-notifications) .message .stonetop-roll-card-description ul { margin: 0 0 4px; padding-left: 0; list-style: none; }
-:is(#chat, #chat-notifications) .message .stonetop-roll-card-description li { margin: 2px 0; }
-:is(#chat, #chat-notifications) .message .stonetop-roll-card-description li::before {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card-description p { margin: 0 0 4px; }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card-description p:last-child { margin-bottom: 0; }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card-description ul { margin: 0 0 4px; padding-left: 0; list-style: none; }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card-description li { margin: 2px 0; }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card-description li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
 	background-image: var(--stonetop-spiral-icon);
 	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
@@ -3434,17 +3444,17 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 /* Roll-card "Conditions Applied" list (advantage / disadvantage / forward / ongoing
    / situational): spiral bullets, matching the move description above it. Chat-scoped
    so the ID specificity beats core's default disc bullets on chat-message lists. */
-:is(#chat, #chat-notifications) .message .stonetop-roll-conditions ul {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-conditions ul {
 	list-style: none;
 	margin: 4px 0 0;
 	padding-left: 14px;
 }
-:is(#chat, #chat-notifications) .message .stonetop-roll-conditions li {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-conditions li {
 	position: relative;
 	margin: 2px 0;
 	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
 }
-:is(#chat, #chat-notifications) .message .stonetop-roll-conditions li::before {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-conditions li::before {
 	content: "";
 	position: absolute;
 	left: 0;
@@ -3457,24 +3467,24 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* Lasting-injury reminder on a move's roll card (echoed from a wound's tag). A
    reminder only — it doesn't change the roll — so it reads as a warm caution note. */
-:is(#chat, #chat-notifications) .message .stonetop-roll-wound-notice {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-wound-notice {
 	border-left: 3px solid #a8544c;
 	padding-left: 8px;
 }
-:is(#chat, #chat-notifications) .message .stonetop-roll-wound-notice .cell__subtitle {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-wound-notice .cell__subtitle {
 	color: #a8544c;
 }
-:is(#chat, #chat-notifications) .message .stonetop-roll-wound-notice .fa-triangle-exclamation {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-wound-notice .fa-triangle-exclamation {
 	margin-right: 4px;
 }
-:is(#chat, #chat-notifications) .message .stonetop-roll-wound-notice ul {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-wound-notice ul {
 	list-style: none;
 	margin: 3px 0 0;
 	padding-left: 2px;
 	font-style: italic;
 }
 
-:is(#chat, #chat-notifications) .message .pbta-chat-card .cell--chat {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .cell--chat {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
@@ -3657,62 +3667,62 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-weather-roll-btn:hover { background: var(--st-btn-primary-bg-hover); }
 .stonetop-weather-roll-btn > i { margin-right: 4px; }
 
-:is(#chat, #chat-notifications) .message .stonetop-startup-card__content {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-startup-card__content {
 	display: grid;
 	gap: 8px;
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-startup-card__title-logo {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-startup-card__title-logo {
 	font-family: var(--font-avara);
 	font-weight: bold;
 	font-size: 1.35em;
 	line-height: 0.85;
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-startup-card__section {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-startup-card__section {
 	display: block;
 	padding-top: 6px;
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-startup-card__section h3 {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-startup-card__section h3 {
 	margin: 0 0 4px;
 	padding-top: 2px;
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-startup-card__section ul {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-startup-card__section ul {
 	margin: 4px 0 0;
 	padding-left: 0;
 	list-style: none;
 }
-:is(#chat, #chat-notifications) .message .stonetop-startup-card__section li::before {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-startup-card__section li::before {
 	content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-top: 3px;
 	background-image: var(--stonetop-spiral-icon);
 	background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.5;
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-startup-card__section li {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-startup-card__section li {
 	margin: 3px 0;
 	line-height: 1.35;
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-startup-card__footer,
-:is(#chat, #chat-notifications) .message .stonetop-layout-offer__footer {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-startup-card__footer,
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-layout-offer__footer {
 	display: block;
 	color: var(--color-text-dark-secondary);
 	font-size: var(--font-size-12);
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-startup-card__actions,
-:is(#chat, #chat-notifications) .message .stonetop-art-reminder__actions,
-:is(#chat, #chat-notifications) .message .stonetop-layout-offer__actions {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-startup-card__actions,
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-art-reminder__actions,
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-layout-offer__actions {
 	display: flex;
 	justify-content: center;
 	padding-top: 6px;
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome,
-:is(#chat, #chat-notifications) .message .stonetop-layout-switch,
-:is(#chat, #chat-notifications) .message .stonetop-import-art-open {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-startup-open-welcome,
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-layout-switch,
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-import-art-open {
 	width: auto;
 	padding: 5px 14px;
 	font-family: var(--font-stonetop);
@@ -3725,22 +3735,22 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	transition: background 0.15s;
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome:hover,
-:is(#chat, #chat-notifications) .message .stonetop-layout-switch:hover,
-:is(#chat, #chat-notifications) .message .stonetop-import-art-open:hover { background: var(--st-btn-primary-bg-hover); }
-:is(#chat, #chat-notifications) .message .stonetop-startup-open-welcome > i,
-:is(#chat, #chat-notifications) .message .stonetop-layout-switch > i,
-:is(#chat, #chat-notifications) .message .stonetop-import-art-open > i { margin-right: 4px; }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-startup-open-welcome:hover,
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-layout-switch:hover,
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-import-art-open:hover { background: var(--st-btn-primary-bg-hover); }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-startup-open-welcome > i,
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-layout-switch > i,
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-import-art-open > i { margin-right: 4px; }
 /* Pressed: the world is now on the layout this card offered, and the card posted underneath
    it is the live control. Keep it legible rather than greying it into the background. */
-:is(#chat, #chat-notifications) .message .stonetop-layout-switch:disabled {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-layout-switch:disabled {
 	opacity: 0.65;
 	cursor: default;
 }
 
-:is(#chat, #chat-notifications) .message:has(.stonetop-roll-card),
-:is(#chat, #chat-notifications) .message:has(.stonetop-startup-card),
-:is(#chat, #chat-notifications) .message:has(.stonetop-chat-move) {
+:is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-roll-card),
+:is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-startup-card),
+:is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-chat-move) {
 	background: var(--stonetop-bg, #f0ece3) url(/systems/stonetop-pwd/assets/graphics/sheet-bg.webp) center / cover;
 	border-radius: var(--st-radius-lg);
 	border-width: 1px;
@@ -3771,7 +3781,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 .stonetop-roll-formula[data-tooltip] {
 	cursor: help;
 }
-:is(#chat, #chat-notifications) .message:has(.stonetop-roll-card) .message-content .dice-roll {
+:is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-roll-card) .message-content .dice-roll {
 	display: none;
 }
 
@@ -3891,14 +3901,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 .stonetop-damage-mark i { font-size: 1.4em; opacity: 0.85; }
 
-:is(#chat, #chat-notifications) .message .pbta-chat-card .chat-title {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .chat-title {
 	align-items: center;
 	padding: 6px 4px;
 	border-bottom: 1px solid rgba(159, 146, 117, 0.4);
 	background: rgba(159, 146, 117, 0.08);
 }
 
-:is(#chat, #chat-notifications) .message .pbta-chat-card .cell__title {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .cell__title {
 	font-family: var(--font-stonetop, "Signika", serif);
 	font-size: var(--font-size-16);
 	font-weight: bold;
@@ -3909,11 +3919,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* Secondary title lines (the section/table breadcrumb below a roll-table card's
    name) read in normal weight, so only the first line carries the bold. */
-:is(#chat, #chat-notifications) .message .pbta-chat-card .cell__title .stonetop-chat-title-sub {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .cell__title .stonetop-chat-title-sub {
 	font-weight: normal;
 }
 
-:is(#chat, #chat-notifications) .message .pbta-chat-card .cell__subtitle {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .cell__subtitle {
 	font-family: var(--font-stonetop);
 	font-size: var(--font-size-11);
 	font-weight: bold;
@@ -3924,26 +3934,26 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	color: var(--color-text-dark-secondary);
 }
 
-:is(#chat, #chat-notifications) .message .pbta-chat-card .row {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .row {
 	font-size: var(--font-size-13);
 }
 
-:is(#chat, #chat-notifications) .message .pbta-chat-card .row--border {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .row--border {
 	margin-top: 0;
 }
 
-:is(#chat, #chat-notifications) .message .pbta-chat-card .card-content .row {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-content .row {
 	background: rgba(0, 0, 0, 0.05);
 	border-radius: var(--st-radius-sm);
 	padding: 3px 6px;
 	margin: 0;
 }
 
-:is(#chat, #chat-notifications) .message .pbta-chat-card .result {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .result {
 	margin: 0;
 }
 
-:is(#chat, #chat-notifications) .message .pbta-chat-card .result-label {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .result-label {
 	text-align: center;
 	font-size: var(--font-size-18);
 	font-weight: bold;
@@ -3954,60 +3964,60 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	background: rgba(159, 146, 117, 0.1);
 }
 
-:is(#chat, #chat-notifications) .message .pbta-chat-card .result.failure .result-label {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .result.failure .result-label {
 	background: #f5dada;
 	border-color: #8b1a1a;
 	color: #6e0000;
 }
 
-:is(#chat, #chat-notifications) .message .pbta-chat-card .result.partial .result-label {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .result.partial .result-label {
 	background: #f5edd8;
 	border-color: #9f7640;
 	color: #6b4400;
 }
 
-:is(#chat, #chat-notifications) .message .pbta-chat-card .result.success .result-label,
-:is(#chat, #chat-notifications) .message .pbta-chat-card .result.critical .result-label {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .result.success .result-label,
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .result.critical .result-label {
 	background: #d0dbc8;
 	border-color: #2d6a2d;
 	color: #1a4a1a;
 }
 
-:is(#chat, #chat-notifications) .message.whisper .pbta-chat-card .result-label {
+:is(#chat, #chat-notifications, #chat-popout) .message.whisper .pbta-chat-card .result-label {
 	background: #d8dff0;
 	border-color: #5566aa;
 }
 
-:is(#chat, #chat-notifications) .message .pbta-chat-card .result-details,
-:is(#chat, #chat-notifications) .message .pbta-chat-card .result-choices {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .result-details,
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .result-choices {
 	padding: 0 10px;
 }
 
 /* Per-tier move outcome (10+/7-9/6-) surfaced beneath the result label. */
-:is(#chat, #chat-notifications) .message .pbta-chat-card .result-details:not(:empty) {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .result-details:not(:empty) {
 	padding: 7px 10px 3px;
 	text-align: center;
 	font-size: var(--font-size-13, 13px);
 	line-height: 1.35;
 }
 
-:is(#chat, #chat-notifications) .message .pbta-chat-card .failure { color: #6e0000; }
-:is(#chat, #chat-notifications) .message .pbta-chat-card .partial { color: #6b4400; }
-:is(#chat, #chat-notifications) .message .pbta-chat-card .success { color: #1a4a1a; }
-:is(#chat, #chat-notifications) .message .pbta-chat-card .critical { color: #1a4a1a; }
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .failure { color: #6e0000; }
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .partial { color: #6b4400; }
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .success { color: #1a4a1a; }
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .critical { color: #1a4a1a; }
 
-:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 4px;
 	margin: 0;
 }
 
-:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons:empty {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons:empty {
 	display: none;
 }
 
-:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons button {
 	font-family: var(--font-stonetop);
 	font-size: var(--font-size-11);
 	font-weight: bold;
@@ -4022,12 +4032,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	min-height: unset;
 }
 
-:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button[data-action="shiftUp"],
-:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button[data-action="shiftDown"] {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons button[data-action="shiftUp"],
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons button[data-action="shiftDown"] {
 	flex: 1 1 0;
 }
 
-:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button:hover:not(:disabled) {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons button:hover:not(:disabled) {
 	background: rgba(159, 146, 117, 0.28);
 	box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
 }
@@ -4068,14 +4078,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* Roll-damage / Apply / Suffer / Confirm actions stack full-width and centre their labels —
    long labels ("Strike hard (+1d6…)") read better stacked than crammed in a row. */
-:is(#chat, #chat-notifications) .message .pbta-chat-card .stonetop-attack-btn {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .stonetop-attack-btn {
 	flex: 1 1 100%;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 	gap: 6px;
 }
-:is(#chat, #chat-notifications) .message .pbta-chat-card .stonetop-attack-btn:disabled {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .stonetop-attack-btn:disabled {
 	opacity: 0.5;
 	cursor: default;
 }
@@ -4084,13 +4094,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
    `.card-buttons button` rule (font-size-11, padding 4px 8px) is more specific than the
    `.stonetop-attack-btn` class alone, so we match it (`.card-buttons button.stonetop-attack-btn`)
    to win on size. */
-:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button.stonetop-attack-btn {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons button.stonetop-attack-btn {
 	font-size: var(--font-size-13);
 	padding: 8px 12px;
 }
 
 /* Each tier's controls stack vertically: any pick / add-on rows, then the lone Confirm. */
-:is(#chat, #chat-notifications) .message .pbta-chat-card .stonetop-roll-tier-action {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .stonetop-roll-tier-action {
 	flex: 1 1 100%;
 	display: flex;
 	flex-direction: column;
@@ -4098,7 +4108,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 /* display:flex above out-specifies the UA [hidden]{display:none}; re-hide non-active tiers
    (the render marks all but the rolled tier hidden; a GM Shift Up/Down swaps which shows). */
-:is(#chat, #chat-notifications) .message .pbta-chat-card .stonetop-roll-tier-action[hidden] {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .stonetop-roll-tier-action[hidden] {
 	display: none;
 }
 
@@ -4119,30 +4129,30 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 /* Confirm reads as the primary action of the tier (slate CTA tokens), like Apply damage. */
-:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button.stonetop-attack-confirm {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons button.stonetop-attack-confirm {
 	background: var(--st-btn-primary-bg);
 	border-color: var(--st-btn-primary-border);
 	color: var(--st-btn-primary-text);
 	font-weight: bold;
 }
-:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button.stonetop-attack-confirm:hover:not(:disabled) {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons button.stonetop-attack-confirm:hover:not(:disabled) {
 	background: var(--st-btn-primary-bg-hover, var(--st-btn-primary-bg));
 }
 
 /* GM "Apply damage" reads as the primary action (slate CTA tokens). */
-:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button.stonetop-apply-damage {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons button.stonetop-apply-damage {
 	background: var(--st-btn-primary-bg);
 	border-color: var(--st-btn-primary-border);
 	color: var(--st-btn-primary-text);
 }
-:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button.stonetop-apply-damage:hover:not(:disabled) {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons button.stonetop-apply-damage:hover:not(:disabled) {
 	background: var(--st-btn-primary-bg-hover, var(--st-btn-primary-bg));
 }
 
 /* Per-target damage list on the results card: one roll-result block per target (stacked,
    not the old hairline-separated single-line rows), so each number carries the weight of
    a move roll's total. The blocks own their own padding; the list only spaces them. */
-:is(#chat, #chat-notifications) .message .stonetop-damage-list {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-damage-list {
 	list-style: none;
 	display: flex;
 	flex-direction: column;
@@ -4150,9 +4160,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin: 6px 0;
 	padding: 0;
 }
-:is(#chat, #chat-notifications) .message .stonetop-damage-target.is-friendly { color: #6b4400; }
-:is(#chat, #chat-notifications) .message .stonetop-damage-mitigated { opacity: 0.7; font-size: 0.85em; }
-:is(#chat, #chat-notifications) .message .stonetop-attack-warn {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-damage-target.is-friendly { color: #6b4400; }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-damage-mitigated { opacity: 0.7; font-size: 0.85em; }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-warn {
 	font-size: var(--font-size-11);
 	color: #6b4400;
 	margin: 4px 0;
@@ -4162,19 +4172,19 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 /* Weapon-tag reminder cards (messy / forceful): fiction the HP number can't carry. */
-:is(#chat, #chat-notifications) .message .stonetop-attack-tag-note {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-tag-note {
 	display: flex;
 	gap: 6px;
 	align-items: baseline;
 	margin: 2px 0;
 	font-size: var(--font-size-12);
 }
-:is(#chat, #chat-notifications) .message .stonetop-attack-messy { color: #7a1f14; }
-:is(#chat, #chat-notifications) .message .stonetop-attack-messy .fa-burst { color: #a3341f; }
-:is(#chat, #chat-notifications) .message .stonetop-attack-forceful { color: #4a3a12; }
-:is(#chat, #chat-notifications) .message .stonetop-attack-forceful .fa-hand-fist { color: #7a5e1f; }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-messy { color: #7a1f14; }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-messy .fa-burst { color: #a3341f; }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-forceful { color: #4a3a12; }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-forceful .fa-hand-fist { color: #7a5e1f; }
 /* Dotted underline signals the hover description for "problematic wound". */
-:is(#chat, #chat-notifications) .message .stonetop-problematic-wound {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-problematic-wound {
 	text-decoration: underline dotted;
 	text-underline-offset: 2px;
 	cursor: help;
@@ -5603,21 +5613,21 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
    lists above. Without the #chat prefix core's list indent wins and the options render
    pushed far to the right of the checkboxes. */
 .stonetop-roll-card-picklist { padding: 6px 8px 8px; }
-:is(#chat, #chat-notifications) .message .stonetop-roll-card-picklist .stonetop-picklist {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card-picklist .stonetop-picklist {
 	list-style: none;
 	margin: 0;
 	padding: 0;
 }
-:is(#chat, #chat-notifications) .message .stonetop-roll-card-picklist .stonetop-picklist-item { margin: 3px 0; padding: 0; }
-:is(#chat, #chat-notifications) .message .stonetop-roll-card-picklist .stonetop-picklist-item label {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card-picklist .stonetop-picklist-item { margin: 3px 0; padding: 0; }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card-picklist .stonetop-picklist-item label {
 	display: flex;
 	align-items: flex-start;
 	gap: 6px;
 	cursor: pointer;
 	line-height: 1.35;
 }
-:is(#chat, #chat-notifications) .message .stonetop-roll-card-picklist .stonetop-picklist-check { margin: 1px 0 0; }
-:is(#chat, #chat-notifications) .message .stonetop-roll-card-picklist .stonetop-picklist-item.is-picked span {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card-picklist .stonetop-picklist-check { margin: 1px 0 0; }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card-picklist .stonetop-picklist-item.is-picked span {
 	font-weight: bold;
 }
 
@@ -9645,7 +9655,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
    like another move roll. The parchment fill comes from the shared
    `.message:has(.stonetop-roll-card)` rule above; this block is later in the file, so it
    wins the tie on that selector's own specificity. */
-:is(#chat, #chat-notifications) .message:has(.stonetop-dying-card) {
+:is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-dying-card) {
 	background:
 		linear-gradient(180deg, hsla(8, 45%, 22%, 0.14), transparent 42%),
 		var(--stonetop-bg, #f0ece3) url(/systems/stonetop-pwd/assets/graphics/sheet-bg.webp) center / cover;
@@ -9653,12 +9663,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 }
 
 /* Ember rule under the title, where other cards carry the tan one. */
-:is(#chat, #chat-notifications) .message .stonetop-dying-card .chat-title {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-dying-card .chat-title {
 	border-bottom-color: hsla(8, 45%, 38%, 0.55);
 	background: hsla(8, 45%, 38%, 0.09);
 }
 
-:is(#chat, #chat-notifications) .message .stonetop-dying-card .cell__title {
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-dying-card .cell__title {
 	letter-spacing: 0.045em;
 }
 
@@ -9672,7 +9682,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 
 /* The shared `.card-buttons` rule zeroes the margin at (1,3,0), so a bare class here never
    landed and the button sat right under the trigger text. Match that rule's scope to win. */
-:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons.stonetop-dying-actions {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons.stonetop-dying-actions {
 	margin-top: 12px;
 }
 
@@ -9686,12 +9696,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
    whatever the shared card buttons use, so it still reads as a chat-card action. Matched
    the same way `.stonetop-attack-btn` is above: the shared `.card-buttons button` rule sets
    `border` wholesale at (0,4,0), so a bare class here loses and the ember edge never lands. */
-:is(#chat, #chat-notifications) .message .pbta-chat-card .card-buttons button.stonetop-dying-btn {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons button.stonetop-dying-btn {
 	border-color: hsl(8 38% 46%);
 	transition: box-shadow 0.18s, border-color 0.18s;
 }
 
-:is(#chat, #chat-notifications) .message .pbta-chat-card
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card
 	.card-buttons button.stonetop-dying-btn:hover:not(:disabled) {
 	border-color: hsl(8 52% 52%);
 	box-shadow: 0 0 12px -3px hsl(8 55% 48%);
@@ -9711,7 +9721,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
    PIXELS (so the depth is fixed however tall the message is). The longest run reaches 13px, the
    shortest 6px, off a 4px edge. Not animated, by request; nothing here is interactive either,
    so pointer-events stay off. */
-:is(#chat, #chat-notifications) .message.stonetop-death-drip {
+:is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip {
 	--st-drip-ink: hsl(216 22% 19%);
 	/* One pixel of headroom under the deepest valley in the clip path — shrink this and the long
 	   points get cut off flat instead of getting shorter. */
@@ -9722,7 +9732,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 	margin-bottom: calc(var(--st-drip-depth) + 6px);
 }
 
-:is(#chat, #chat-notifications) .message.stonetop-death-drip::after {
+:is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip::after {
 	content: "";
 	position: absolute;
 	/* Below the border box, and held off both corners so the fringe's straight top edge doesn't
@@ -9764,21 +9774,21 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications) .message .s
 /* Which death it was. Only the ink moves — the drip is the statement, the colour is the
    footnote. Each modifier carries the base class too: on its own it would tie with the block
    above on specificity and depend on file order alone to win. */
-:is(#chat, #chat-notifications) .message.stonetop-death-drip.stonetop-death-drip--revenant {
+:is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip.stonetop-death-drip--revenant {
 	--st-drip-ink: hsl(10 34% 23%);
 }
 
-:is(#chat, #chat-notifications) .message.stonetop-death-drip.stonetop-death-drip--thrall {
+:is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip.stonetop-death-drip--thrall {
 	--st-drip-ink: hsl(283 30% 24%);
 }
 
 /* A Ghost has no ichor to leave. Theirs runs cold and thin — the one kind that fades rather than
    stains, so it stops short of the ink the others reach and carries some of the scene through. */
-:is(#chat, #chat-notifications) .message.stonetop-death-drip.stonetop-death-drip--ghost {
+:is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip.stonetop-death-drip--ghost {
 	--st-drip-ink: hsl(200 20% 44%);
 }
 
-:is(#chat, #chat-notifications) .message.stonetop-death-drip.stonetop-death-drip--ghost::after {
+:is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip.stonetop-death-drip--ghost::after {
 	opacity: 0.78;
 }
 
@@ -17599,8 +17609,8 @@ li.question-bullet::before {
    bullet → text gap from --stonetop-spiral-gap (matching Overview > Resources). */
 .stonetop-basic-move-panel li::before,
 .stonetop-chat-move-description li::before,
-:is(#chat, #chat-notifications) .message .stonetop-roll-card-description li::before,
-:is(#chat, #chat-notifications) .message .stonetop-startup-card__section li::before,
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card-description li::before,
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-startup-card__section li::before,
 .stonetop-item-description li::before,
 .stonetop-arcanum-body li::before,
 .stonetop-arcanum-chat-card li::before,
@@ -17619,8 +17629,8 @@ li.question-bullet::before {
 
 .stonetop-basic-move-panel li,
 .stonetop-chat-move-description li,
-:is(#chat, #chat-notifications) .message .stonetop-roll-card-description li,
-:is(#chat, #chat-notifications) .message .stonetop-startup-card__section li,
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card-description li,
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-startup-card__section li,
 .stonetop-item-description li,
 .stonetop-arcanum-body li,
 .stonetop-arcanum-chat-card li,
