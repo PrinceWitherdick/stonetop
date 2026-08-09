@@ -1,18 +1,16 @@
+import { ensurePackIndex } from "../../../utils/pack-index.js";
+
 export class FoundryPackStore {
 	constructor(packName, fields) {
 		this._packName = packName;
 		this._fields   = fields;
-		this._indexed  = false;
 	}
 
+	// No local "already indexed" flag: several stores share one pack with different field lists,
+	// and each store's own flag let the LAST list narrow what the pack thinks it holds — see
+	// utils/pack-index.js, which keeps the union and makes a covered call a no-op.
 	async _ensureIndexed() {
-		const pack = game.packs.get(this._packName);
-		if (!pack) return null;
-		if (!this._indexed) {
-			await pack.getIndex({ fields: this._fields });
-			this._indexed = true;
-		}
-		return pack;
+		return ensurePackIndex(this._packName, this._fields);
 	}
 
 	async findEntry(predicate) {

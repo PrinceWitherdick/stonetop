@@ -19,8 +19,11 @@ const COMPENDIUM = [
 function setGame(actors = []) {
 	globalThis.game = {
 		packs: {
+			// `index` as well as getIndex's return value: the real getIndex resolves to the pack's
+			// own index collection, and a caller sharing the pack reads it back off the pack (see
+			// utils/pack-index.js) rather than keeping whatever its own call returned.
 			get: (id) => id === "stonetop-pwd.stonetop-bestiary"
-				? { collection: "x", getIndex: async () => COMPENDIUM }
+				? { collection: "x", index: COMPENDIUM, getIndex: async () => COMPENDIUM }
 				: null,
 		},
 		actors,

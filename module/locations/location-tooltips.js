@@ -7,6 +7,7 @@
 // (registered in stonetop.js) call applyLocationTooltips() on the rendered HTML.
 
 import { isInJournalEditor } from "../utils/journal-editor-guard.js";
+import { ensurePackIndex } from "../utils/pack-index.js";
 import { getHoverDescriptionSetting } from "../settings.js";
 
 // Where the resolved summary is recorded regardless of the hover setting. The hover
@@ -53,10 +54,9 @@ export function invalidateLocationSummaryIndex() {
 /** Index every summarized entry of one compendium pack into `map`, keyed by uuid
  *  (falling back to a constructed Compendium uuid for indexes that omit it). */
 async function _indexPackSummaries(map, packId) {
-	const pack = globalThis.game?.packs?.get?.(packId);
+	const pack = await ensurePackIndex(packId, ["flags.stonetop.summary"]);
 	if (!pack) return;
-	const index = await pack.getIndex({ fields: ["flags.stonetop.summary"] });
-	for (const entry of index) {
+	for (const entry of pack.index) {
 		const summary = entry.flags?.stonetop?.summary;
 		if (summary) map.set(entry.uuid ?? `Compendium.${pack.collection}.JournalEntry.${entry._id}`, summary);
 	}

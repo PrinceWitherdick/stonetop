@@ -1,5 +1,6 @@
 import { ITEM_FLAG_SCOPE, ARCANA_PACK } from "../actors/character/StonetopFlags.js";
 import { slugify } from "../utils/strings.js";
+import { ensurePackIndex } from "../utils/pack-index.js";
 
 // Re-exported for the arcana creator's callers (kept here for back-compat); the
 // implementation is the shared one in utils/strings.js.
@@ -77,10 +78,9 @@ export function buildArcanumItemData({ slug, name = "New Arcanum", major = false
  */
 export async function collectTakenArcanumSlugs({ excludeId = null } = {}) {
 	const taken = new Set();
-	const pack  = globalThis.game?.packs?.get(ARCANA_PACK);
+	const pack  = await ensurePackIndex(ARCANA_PACK, [`flags.${ITEM_FLAG_SCOPE}.slug`]);
 	if (pack) {
-		const index = await pack.getIndex({ fields: [`flags.${ITEM_FLAG_SCOPE}.slug`] });
-		for (const e of index) {
+		for (const e of pack.index) {
 			const slug = e.flags?.[ITEM_FLAG_SCOPE]?.slug;
 			if (slug) taken.add(slug);
 		}
