@@ -12,7 +12,11 @@
 
       Rows are stamped `filtered` by getData so the first paint already honours the chip
       state; after that the dialog toggles the class in place rather than re-rendering, so
-      the list keeps its scroll position and the search box keeps its term. --}}
+      the list keeps its scroll position and the search box keeps its term.
+
+      A row whose source named a `dragType` also carries it, and is draggable: the pair IS
+      the contract the dialog's dragstart reads (see CatalogBrowserDialog#activateListeners),
+      so the handler never has to ask which tab is up. --}}
 
 <div class="stonetop-catalog">
 
@@ -74,12 +78,18 @@
 		{{#each rows}}
 		<div class="stonetop-catalog-row{{#if filtered}} stonetop-catalog-filtered{{/if}}{{#if marked}} is-marked{{/if}}{{#if inactive}} is-inactive{{/if}}"
 		     data-key="{{key}}" data-uuid="{{uuid}}" data-search="{{search}}"
+		     {{#if dragType}}draggable="true" data-drag-type="{{dragType}}" {{/if}}
 		     role="button" tabindex="0" aria-label="Open {{title}}">
 
 			{{!-- Always an image: an entry with no art of its own gets a category marker,
-			      dimmed by `is-placeholder` so real art still stands out. --}}
+			      dimmed by `is-placeholder` so real art still stands out.
+
+			      draggable="false" so a press on the art drags the ROW: an <img> is draggable
+			      by default, and the drag source is the nearest draggable ancestor STARTING AT
+			      the grabbed node — so without this, grabbing a monster by its portrait would
+			      drag the image file's URL and drop nothing anywhere. --}}
 			<div class="stonetop-catalog-thumb">
-				<img src="{{img}}" alt="" loading="lazy"
+				<img src="{{img}}" alt="" loading="lazy" draggable="false"
 				     class="{{#if placeholderImg}}is-placeholder{{/if}}">
 			</div>
 
@@ -98,7 +108,10 @@
 					{{#each badges}}
 					<span class="stonetop-catalog-badge{{#if mod}} stonetop-catalog-badge--{{mod}}{{/if}}"
 					      {{#if hint}}data-tooltip="{{hint}}" data-tooltip-direction="UP"{{/if}}>
-						{{#if img}}<img src="{{img}}" alt="">{{else}}{{#if icon}}<i class="{{icon}}" aria-hidden="true"></i>{{/if}}{{/if}}{{label}}
+						{{!-- draggable="false" for the same reason as the thumb above: the
+						      creature-type disc is an <img>, and grabbing a row by it must
+						      still drag the row. --}}
+						{{#if img}}<img src="{{img}}" alt="" draggable="false">{{else}}{{#if icon}}<i class="{{icon}}" aria-hidden="true"></i>{{/if}}{{/if}}{{label}}
 					</span>
 					{{/each}}
 					{{#if note}}<span class="stonetop-catalog-note">{{note}}</span>{{/if}}

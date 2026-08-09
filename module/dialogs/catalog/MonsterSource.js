@@ -34,6 +34,10 @@ export class MonsterSource extends CatalogSource {
 			// A world monster edit stales this list; CatalogSource#staleFor spells out what that
 			// does and does not count as.
 			worldActorType: "monster",
+			// A stat block drags as the Actor it is — onto a scene to place its token (core
+			// imports the pack copy into the world first), into the Actors directory to keep one,
+			// onto a character sheet to offer the follower conversion.
+			dragType: "Actor",
 		});
 	}
 

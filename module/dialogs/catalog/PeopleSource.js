@@ -52,6 +52,9 @@ export class PeopleSource extends CatalogSource {
 			// An NPC edit stales this list; CatalogSource#staleFor spells out what that does and
 			// does not count as.
 			worldActorType: "npc",
+			// Everyone here is already a world Actor, so a row drags as one — onto a scene to put
+			// them on the map, onto a character sheet to offer the follower conversion.
+			dragType: "Actor",
 		});
 	}
 

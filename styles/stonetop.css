@@ -29406,6 +29406,15 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	background: rgba(100, 116, 139, 0.10);
 }
 
+/* A row also drags out of the window as the document it summarises — a card onto a character
+   sheet, a stat block onto a scene. `pointer` stays the RESTING cursor: opening is still the
+   primary gesture, and the core sidebar's rows read the same way while being just as
+   draggable. The grab only appears once a press has begun, so the affordance acknowledges a
+   drag without competing with the click. */
+.stonetop-catalog-row[draggable="true"]:active {
+	cursor: grabbing;
+}
+
 .stonetop-catalog-row:focus-visible {
 	outline: 2px solid var(--st-btn-primary-border, #4f5b66);
 	outline-offset: -2px;

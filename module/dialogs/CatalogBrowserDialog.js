@@ -12,7 +12,8 @@ import { SYSTEM_ID } from "../system-id.js";
  * It exists because those gestures are the whole of a browser and none of its subject. A
  * CatalogSource says WHAT is in one list and HOW each of its rows reads; everything below —
  * loading, chip state, filtering in place, the live count, the empty state, staying current
- * with the world, opening a row's sheet — is the same work whatever the lists hold.
+ * with the world, opening a row's sheet, dragging one out of the window — is the same work
+ * whatever the lists hold.
  *
  * So there is exactly ONE seam, and it is the source: a subclass provides `_buildSources()`
  * and its own chrome, and everything that varies per list is asked of every source in turn
@@ -159,7 +160,14 @@ export class CatalogBrowserDialog extends StonetopDialog {
 			}),
 			hasSources: sources.length > 1,
 			groups:  buildFacetGroups(current?.facetGroups(rows) ?? [], rows, active),
-			rows:    rows.map(row => ({ ...row, filtered: isRowHidden(row, active) })),
+			// `dragType` is the source's, but it is gated per row on there being a uuid to send:
+			// a row with nothing to point at would drag an empty payload, which reads to every
+			// drop target as a failed drop rather than as a row that isn't draggable.
+			rows:    rows.map(row => ({
+				...row,
+				filtered: isRowHidden(row, active),
+				dragType: row.uuid ? (current?.dragType ?? "") : "",
+			})),
 			// Seeds the count line for the first paint; _updateCount rewrites it from the DOM
 			// from then on, which is the only place that knows about the search's hides too.
 			total:   `${rows.length} ${this._countNoun()}`,
@@ -225,6 +233,33 @@ export class CatalogBrowserDialog extends StonetopDialog {
 			if (!select) return;
 			this._active[this._source] = { ...this._activeFilters, [select.dataset.group]: select.value };
 			this._applyFilters(root);
+		});
+
+		// Drag a row out of the window as the document it summarises. This is what turns the
+		// browser from a reading tool into a working one: a GM who has just filtered the bestiary
+		// down to "swamp things, in a group" wants that stat block ON the scene, and a GM reading
+		// the arcana wants the card they picked ON the character who found it. Without this the
+		// only route was to note the name, close the window, and go find it again in a compendium.
+		//
+		// The payload is core's own `{type, uuid}` — the same thing Document#toDragData emits from
+		// the sidebar — so every core drop target already knows what to do with it and nothing here
+		// has to: the canvas places a token (importing a pack actor into the world first), the
+		// sidebar directories import a copy, and this system's own sheets route it exactly as they
+		// route a sidebar drag (an arcanum lands face-down, an NPC offers the follower conversion).
+		//
+		// It reads BOTH halves of the contract off the row rather than asking which tab is up:
+		// `_currentSource` and the rendered rows do agree (a tab switch re-renders), but a handler
+		// that depends on that agreement breaks silently the day something paints rows without one.
+		// It cannot be async either — a dragstart that awaits has already lost its dataTransfer —
+		// which is the other reason the row carries what it needs rather than the uuid being
+		// resolved here.
+		root.addEventListener("dragstart", ev => {
+			const row  = ev.target.closest?.(".stonetop-catalog-row[draggable='true']");
+			const uuid = row?.dataset.uuid;
+			const type = row?.dataset.dragType;
+			if (!uuid || !type) return;
+			ev.dataTransfer.setData("text/plain", JSON.stringify({ type, uuid }));
+			ev.dataTransfer.effectAllowed = "copy";
 		});
 
 		// The rows are role="button", so they owe a keyboard user the same opening. Space is

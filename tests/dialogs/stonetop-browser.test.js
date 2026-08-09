@@ -133,6 +133,43 @@ describe("CatalogSource#facetGroups — each list's own filter bar", () => {
 	});
 });
 
+describe("CatalogSource#dragType — what each list's rows drag out AS", () => {
+	it("drags an arcanum as the Item it is, so a sheet and the Items directory both take it", () => {
+		expect(new ArcanaSource().dragType).toBe("Item");
+	});
+
+	it("drags a stat block and a person as Actors, so a scene places their token", () => {
+		expect(new MonsterSource().dragType).toBe("Actor");
+		expect(new PeopleSource().dragType).toBe("Actor");
+	});
+
+	it("leaves rows undraggable for a source that names no type", () => {
+		expect(new CatalogSource({ key: "k", label: "L", icon: "i", noun: "n", search: {}, empty: "" }).dragType).toBe("");
+	});
+});
+
+describe("CatalogBrowserDialog#getData — the drag stamp on each row", () => {
+	/** A browser whose current list is already cached, so getData reads rows without a pack. */
+	function withRows(source, rows) {
+		const app = browser();
+		app._selectSource(source);
+		app._rowCache.set(source, rows);
+		return app;
+	}
+
+	it("stamps the current source's drag type on its rows, which is what makes them draggable", async () => {
+		const data = await withRows("people", [{ key: "a", uuid: "Actor.abc", facets: {} }]).getData();
+		expect(data.rows[0].dragType).toBe("Actor");
+	});
+
+	it("gives a row with nothing to point at no drag type at all", async () => {
+		// A draggable row with an empty payload reads to every drop target as a FAILED drop,
+		// which is worse than a row that simply doesn't drag.
+		const data = await withRows("people", [{ key: "a", uuid: "", facets: {} }]).getData();
+		expect(data.rows[0].dragType).toBe("");
+	});
+});
+
 describe("CatalogSource#staleFor — which list a world edit invalidates", () => {
 	const arcana   = new ArcanaSource();
 	const monsters = new MonsterSource();
@@ -217,8 +254,9 @@ describe("StonetopBrowserDialog#activateListeners", () => {
 
 		const app = wired(root);
 
-		// The gestures: a tab, a chip, a row, a dropdown facet, and the keyboard's share of it.
-		expect(Object.keys(root.listeners).sort()).toEqual(["change", "click", "keydown"]);
+		// The gestures: a tab, a chip, a row, a dropdown facet, dragging a row out, and the
+		// keyboard's share of it.
+		expect(Object.keys(root.listeners).sort()).toEqual(["change", "click", "dragstart", "keydown"]);
 		// And the count line, which only the first paint's _updateCount writes.
 		expect(count.textContent).toBe("0 arcana");
 		// And the world hooks, which the source list asks for because two of the three lists are
@@ -236,6 +274,47 @@ describe("StonetopBrowserDialog#activateListeners", () => {
 
 		expect(app._source).toBe("people");
 		expect(app.render).toHaveBeenCalledWith(false);
+	});
+
+	/** A dragstart on `row`, returning what was written into the drag payload. */
+	function dragged(app, root, row) {
+		const written = {};
+		root.listeners.dragstart[0]({
+			target: { closest: sel => (row && sel === ".stonetop-catalog-row[draggable='true']" ? row : null) },
+			dataTransfer: { setData: (fmt, value) => { written[fmt] = value; }, set effectAllowed(v) { written.effect = v; } },
+		});
+		return written;
+	}
+
+	it("hands out core's own {type, uuid} payload, which is what every drop target already reads", () => {
+		// The whole feature rests on this being byte-for-byte what the sidebar emits: nothing in
+		// this system teaches the canvas, the directories or the character sheet a private shape.
+		const root = el();
+		const app  = wired(root);
+
+		const written = dragged(app, root, { dataset: { uuid: "Actor.abc", dragType: "Actor" } });
+
+		expect(JSON.parse(written["text/plain"])).toEqual({ type: "Actor", uuid: "Actor.abc" });
+		expect(written.effect).toBe("copy");
+	});
+
+	it("reads the type off the ROW, not off whichever tab happens to be up", () => {
+		// The rendered rows and _currentSource do agree today, but a handler that depends on that
+		// agreement is one stray paint away from dropping arcana as actors.
+		const root = el();
+		const app  = wired(root);
+		app._selectSource("people");
+
+		const written = dragged(app, root, { dataset: { uuid: "Compendium.x.y.Item.z", dragType: "Item" } });
+
+		expect(JSON.parse(written["text/plain"]).type).toBe("Item");
+	});
+
+	it("writes nothing when the drag did not start on a draggable row", () => {
+		const root = el();
+		const app  = wired(root);
+		expect(dragged(app, root, null)).toEqual({});
+		expect(dragged(app, root, { dataset: { uuid: "", dragType: "Actor" } })).toEqual({});
 	});
 
 	it("refuses a tab whose data-source no list answers to", () => {

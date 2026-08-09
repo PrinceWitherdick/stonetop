@@ -21,6 +21,16 @@ import { truncateValue } from "../../utils/ledger-core.js";
  *   staleFor(doc)     → does this world-document change mean loadRows() must run again?
  *   retarget(context) → take whatever of the browser's open() context is this source's, and
  *                       say whether that stales the rows.
+ *
+ * DRAGGING a row out of the browser is a `dragType` and nothing else. A row already carries the
+ * uuid of the document it summarises, and core's whole drop vocabulary is `{type, uuid}` — the
+ * same payload `Document#toDragData` emits from the sidebar — so a source that names the document
+ * name its rows ARE gets every core drop target for free: a compendium arcanum onto a character
+ * sheet or into the Items directory, a stat block onto a scene as a token or into the Actors
+ * directory. Which is why nothing here (and nothing in the browser) knows what any of those
+ * targets DO with it: the browser only has to hand out the same pointer the sidebar would.
+ *
+ * A source that leaves it empty has rows that open and nothing more, which is the default.
  */
 export class CatalogSource {
 	/**
@@ -35,9 +45,12 @@ export class CatalogSource {
 	 * @param {string} [def.worldActorType] Actor `type` this list is built from, if it is built
 	 *                           from world actors at all. Declaring it is what makes the list
 	 *                           live — see staleFor.
+	 * @param {string} [def.dragType] The core document name this list's rows drag AS — "Item",
+	 *                           "Actor". Declaring it is what makes the rows draggable at all;
+	 *                           see the note below.
 	 */
-	constructor({ key, label, icon, noun, search, empty, worldActorType = "" }) {
-		Object.assign(this, { key, label, icon, noun, search, empty, worldActorType });
+	constructor({ key, label, icon, noun, search, empty, worldActorType = "", dragType = "" }) {
+		Object.assign(this, { key, label, icon, noun, search, empty, worldActorType, dragType });
 	}
 
 	/** The rows in this list. Called once per window; the browser caches the result. */

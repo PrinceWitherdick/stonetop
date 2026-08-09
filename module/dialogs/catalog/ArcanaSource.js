@@ -45,6 +45,10 @@ export class ArcanaSource extends CatalogSource {
 			// Minor + any curse chip is a real, reachable, empty combination — only majors carry
 			// a Consequences track — so the line says why rather than leaving it a mystery.
 			empty: "No arcana match those filters. (Only Major arcana carry a Consequences track.)",
+			// Every row here is an arcanum Item, so a row drags as one: onto a character sheet to
+			// plant the card face-down as a mystery (StonetopCharacterSheet#_onDropItemCreate), or
+			// into the Items directory to pull a copy out of the pack to homebrew from.
+			dragType: "Item",
 		});
 		// Which cards the character who opened the browser already holds, for the "held" badge.
 		// Filled by retarget() rather than by a constructor argument, so that ONE writer answers
