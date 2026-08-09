@@ -129,6 +129,9 @@ const ARCANA_SLUG_LISTS = {
 	identified: { added: "Arcanum identified", removed: "Arcanum un-identified",     merge: "Arcana identified" },
 	leads:      { added: "Arcanum lead found", removed: "Arcanum lead resolved",     merge: "Arcana leads" },
 	revealed:   { added: "Arcanum revealed",   removed: "Arcanum hidden again",      merge: "Arcana revealed" },
+	// A 7-9 on the Know Things roll to identify a card (Book I p.440) hands over the front and
+	// promises the back later; the debt is settled when the GM reveals it.
+	backOwed:   { added: "Arcanum back owed",  removed: "Arcanum back delivered",    merge: "Arcana backs owed" },
 };
 // Bookkeeping sub-flags with no play meaning of their own — a backfill guard, the onboarding
 // draw, per-card display state. They were logging lines like "Arcana set to on".

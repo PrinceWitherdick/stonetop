@@ -4127,6 +4127,46 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	cursor: default;
 }
 
+/* ── Know Things: the moves that act on a landed roll ───────────────────────── */
+
+/* The Logbook's "treat this as a 10+" spend. Shares the Burn Brightly row and its full-width
+   stacking, since both are post-roll spends and their labels are long. */
+.stonetop-logbook-btn {
+	flex: 0 0 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	font-weight: bold;
+	border: none;
+}
+
+.stonetop-logbook-btn:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+/* Never at a Loss: the mark-XP / decline-XP pair, in the failure tier's action row. */
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .stonetop-know-things-xp {
+	flex: 1 1 100%;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	font-size: var(--st-fs-sm);
+}
+
+.stonetop-know-things-xp:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+/* The one they picked stays legible after both are disabled. */
+.stonetop-know-things-xp:disabled.is-chosen {
+	opacity: 1;
+	font-weight: bold;
+}
+
 /* ── Attack moves: Clash / Let Fly ──────────────────────────────────────────── */
 
 /* Roll-damage / Apply / Suffer / Confirm actions stack full-width and centre their labels —
@@ -6502,8 +6542,49 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	opacity: 0.55;
 }
 
+/* Face-down card actions: the owner's Know Things roll, and (GM only) the no-roll
+   hand-over. Two buttons wrap rather than squeeze in a narrow masonry column. */
+.stonetop-arcanum-identify-row {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 8px;
+}
+
+/* The back a 7-9 still owes the reader (Book I p.440). Sits at the top of the front
+   panel, above the card text, and vanishes once the back is permitted. */
+.stonetop-arcanum-backowed {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 8px;
+	padding: 5px 8px;
+	border: 1px dashed var(--color-border-dark);
+	border-radius: var(--st-radius-sm);
+	font-size: var(--st-fs-2xs);
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
+}
+
+.stonetop-arcanum-backowed span { flex: 1; min-width: 8em; }
+
+.stonetop-arcanum-backowed-btn {
+	width: auto;
+	flex: 0 0 auto;
+	font-size: var(--st-fs-2xs);
+	font-style: normal;
+	padding: 2px 8px;
+	cursor: pointer;
+	background-color: transparent;
+	border: 1px solid var(--color-border-dark);
+	border-radius: var(--st-radius-sm);
+}
+
 .stonetop-arcanum-identify-btn,
+.stonetop-arcanum-givecard-btn,
 .stonetop-arcanum-discover-btn {
+	width: auto;
 	font-size: var(--st-fs-sm);
 	padding: 4px 14px;
 	cursor: pointer;
@@ -6907,9 +6988,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	background: var(--stonetop-spiral-icon) no-repeat center / contain;
 }
 
+/* The "lead" card is one the Seeker doesn't hold — only knows of. Unbolded and
+   dimmed so it reads as lighter than the cards in the collection above it, but
+   left upright: italic on top of that tipped it from "not yet found" into hard
+   to read. */
 .stonetop-lore-arcana-card.is-muted {
 	font-weight: 400;
-	font-style: italic;
 	opacity: 0.6;
 }
 
@@ -19440,6 +19524,19 @@ li.question-bullet {
 .stonetop-stat-picker-dialog .stonetop-stat-picker-why p {
 	margin: 4px 0 0;
 }
+
+/* Claiming an advantage grant (Polyglot, Naturalist) on the arcana identify roll. Sits above
+   the quoted moves, since it applies to whichever of them the player judges relevant. */
+.stonetop-stat-picker-dialog .stonetop-identify-adv-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 8px;
+	font-size: var(--st-fs-sm);
+	cursor: pointer;
+}
+
+.stonetop-stat-picker-dialog .stonetop-identify-adv-row span { flex: 1; }
 
 .stonetop-stat-picker-dialog .stonetop-stat-picker-why p:last-child {
 	margin-bottom: 0;

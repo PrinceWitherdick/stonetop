@@ -49,8 +49,10 @@ import { characterFullName } from "./module/utils/playbook-actors.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
-import { rollSeasonsCard, sign, SPRING_SEASONS_RESULT, xpToLevelUp } from "./module/utils/roll-engine.js";
-import { formatOutcomeDetail } from "./module/utils/strings.js";
+import { rollSeasonsCard, sign, SPRING_SEASONS_RESULT, xpToLevelUp, markMissXp } from "./module/utils/roll-engine.js";
+import { formatOutcomeDetail, escHtml } from "./module/utils/strings.js";
+import { moveChatCard } from "./module/utils/chat.js";
+import { isKnowThings, logbookUses, LOGBOOK, STRONG_HIT_TOTAL } from "./module/actors/character/know-things.js";
 import { wireAttackConfirm, wireApplyDamage, wireSufferAttack } from "./module/combat/attack-flow.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
 import { wrapGlyphTextContainers } from "./module/utils/glyphs.js";
@@ -873,6 +875,172 @@ function _chatWireBurnBrightly(message, html) {
 	});
 }
 
+// -- KNOW THINGS: the moves that reach back into a landed roll --
+//
+// Two Seeker moves act on a Know Things roll AFTER the dice land, so both live on the card:
+//   Never at a Loss — "you may choose to not mark XP" on a 6-. The automatic mark was suppressed
+//     at roll time (see StonetopItem.roll), so one of these two buttons has to be pressed for the
+//     XP to happen at all. Rendered as failure-tier actions, so a GM Shift Up hides them.
+//   Logbook — "expend a use ... treat the result as a 10+". Spends a use and pads the roll's
+//     shift term up to exactly 10, reusing the same term math the GM's Shift buttons use.
+//
+// Caveat worth knowing: a later GM Shift Down can take a padded 10 back to 9 and revoke the
+// guarantee, because _shiftRollCardFlavor derives the tier from the total alone and has no notion
+// of a locked tier. That's a GM overriding a player's spend, which is their call to make.
+
+/** The move a roll card came from, as stamped by StonetopItem.roll. Null for non-move rolls. */
+function _cardMoveName(message) {
+	return message.getFlag("stonetop-pwd", "move") ?? null;
+}
+
+/**
+ * Bring an arcanum's identification up to the card's CURRENT tier.
+ *
+ * Identifying a face-down arcanum by Knowing Things about it commits its outcome at roll time
+ * (_onArcanumKnowThings), which is right for the roll and wrong for everything that rewrites the
+ * tier afterwards: the Logbook's "expend a use … treat the result as a 10+" re-labelled the card a
+ * Strong Hit and said "You read the card, front and back" while leaving the arcanum front-only with
+ * its back still owed — the player spent a limited resource and got exactly what the 7-9 had
+ * already given them. A GM Shift Up out of a 6- read the same way, promising a card nobody had
+ * been shown. The slug rides on the message (see the roll's messageFlags) so both routes can
+ * finish the job here rather than each keeping their own copy of p.440's ladder.
+ *
+ * UPGRADES ONLY. A Shift Down may take a padded 10 back to 9 — that's a GM overriding a player's
+ * spend, and their call — but it cannot un-read a card the player has already been shown, and
+ * re-applying the weak hit's outcome would re-open a settled back debt. So a tier at or below what
+ * the arcanum already carries writes nothing.
+ */
+async function _syncArcanumIdentification(message, actor, total) {
+	const slug = message.getFlag("stonetop-pwd", "arcanum");
+	const character = actor?.typedActor;
+	if (!slug || !character) return;
+
+	const key  = _classifyShiftedTotal(Number(total) || 0).key;
+	const opts = { stonetopMove: "Know Things" };
+	try {
+		if (key === "success" || key === "critical") {
+			// Already read front and back? Then there is nothing to grant, and identifyAndReveal
+			// would be a no-op write that re-renders every open sheet.
+			if (character.revealedArcanaSlugs?.has?.(slug) && !character.backOwedArcanaSlugs?.has?.(slug)) return;
+			await character.identifyAndRevealArcanum(slug, opts);
+		} else if (key === "partial") {
+			if (character.identifiedArcanaSlugs?.has?.(slug)) return;   // a 6- shifted up to a 7-9 only
+			await character.identifyFrontOwedArcanum(slug, opts);
+		} else return;
+		actor.sheet?.render(false);
+	} catch (err) {
+		console.error("Stonetop | Error re-applying the arcanum's identification:", err);
+	}
+}
+
+// Burn Brightly gates on actor.isOwner but then calls message.update(), which throws when the GM
+// rolled on a player's behalf. Both handlers below need BOTH rights, so check them together.
+function _canRewriteCard(message, actor) {
+	if (!actor || actor.type !== "character" || !actor.isOwner) return false;
+	return message.canUserModify?.(game.user, "update") ?? game.user.isGM;
+}
+
+function _chatWireKnowThings(message, html) {
+	const card = html.querySelector(".stonetop-roll-card");
+	if (!card || !isKnowThings(_cardMoveName(message))) return;
+	const actor = _speakerActor(message);
+	if (!_canRewriteCard(message, actor)) return;
+	_wireNeverAtALoss(message, html, actor);
+	_wireLogbook(message, html, actor, card);
+}
+
+// The two failure-tier buttons. The choice latches on the message so a re-render (or a second
+// click) can't mark the XP twice.
+function _wireNeverAtALoss(message, html, actor) {
+	const buttons = html.querySelectorAll(".stonetop-know-things-xp");
+	if (!buttons.length) return;
+	const chosen = message.getFlag("stonetop-pwd", "knowThingsXp") ?? null;
+	for (const btn of buttons) {
+		if (chosen) {
+			btn.disabled = true;
+			btn.classList.toggle("is-chosen", btn.dataset.choice === chosen);
+			continue;
+		}
+		btn.addEventListener("click", async () => {
+			for (const b of buttons) b.disabled = true;
+			const choice = btn.dataset.choice;
+			try {
+				await message.setFlag("stonetop-pwd", "knowThingsXp", choice);
+				if (choice === "mark") return void await markMissXp(actor, "Know Things");
+				await ChatMessage.create({
+					content: moveChatCard("Never at a Loss",
+						`<p><strong>${escHtml(actor.name)}</strong> declines the XP. The GM tells them nothing`
+						+ ` interesting or useful about the subject &mdash; but does tell them how they could learn more.</p>`),
+					speaker: ChatMessage.getSpeaker({ actor }),
+				});
+			} catch (err) {
+				console.error("Stonetop | Error resolving Never at a Loss:", err);
+				for (const b of buttons) b.disabled = false;
+			}
+		});
+	}
+}
+
+// "expend a use ... treat the result as a 10+". Only offered while the card is still below a
+// strong hit and the logbook still has a use in it.
+function _wireLogbook(message, html, actor, card) {
+	if (message.getFlag("stonetop-pwd", "knowThingsUpgrade")) return;
+	const roll = message.rolls?.at(0);
+	if (!roll || roll.total >= STRONG_HIT_TOTAL) return;
+
+	const uses = logbookUses(actor, actor.typedActor?.moveResources?.getMoveResources?.() ?? {});
+	if (!uses || uses.left <= 0) return;
+
+	const cardButtons = card.querySelector(".stonetop-card-buttons");
+	if (!cardButtons) return;
+	const btn = document.createElement("button");
+	btn.className = "stonetop-logbook-btn";
+	btn.innerHTML = `<i class="fas fa-book"></i> Consult your logbook`;
+	btn.dataset.tooltip = `Expend a use (${uses.left} of ${uses.max} left) to ignore this roll and treat the result as a 10+.`;
+	btn.dataset.tooltipDirection = "UP";
+	cardButtons.appendChild(btn);
+	cardButtons.style.display = "flex";
+
+	btn.addEventListener("click", async () => {
+		btn.disabled = true;
+		try {
+			// Re-read at click time: the track may have been spent elsewhere since this rendered.
+			const now = logbookUses(actor, actor.typedActor?.moveResources?.getMoveResources?.() ?? {});
+			if (!now || now.left <= 0) {
+				ui.notifications.warn("Your logbook has no uses left.");
+				return;
+			}
+			// A move track counts uses SPENT, so expending one increments. Routed through the
+			// class that owns that storage shape — the same door the sheet's pips use — so the
+			// flag path is spelled out in one place. Attributed for the ledger.
+			await actor.typedActor.moveResources.setUses(LOGBOOK, now.spent + 1, { stonetopMove: LOGBOOK });
+			// Pad to exactly 10. _shiftRoll only steps by one, and stopping at 10 keeps the card
+			// off the 12+ "critical" label a bigger pad would earn.
+			const rolls = message.rolls;
+			const shifted = rolls.at(0);
+			while (shifted.total < STRONG_HIT_TOTAL) await _shiftRoll(shifted, 1);
+			await message.update({
+				rolls,
+				flavor: _shiftRollCardFlavor(message.flavor, shifted.total, shifted.formula),
+				flags:  { "stonetop-pwd": { knowThingsUpgrade: LOGBOOK } },
+			});
+			await ChatMessage.create({
+				content: moveChatCard("Logbook",
+					`<p><strong>${escHtml(actor.name)}</strong> consults their logbook and expends a use`
+					+ ` (${now.left - 1} of ${now.max} left), treating that roll as a 10+.</p>`),
+				speaker: ChatMessage.getSpeaker({ actor }),
+			});
+			// If this roll was identifying an arcanum, the 10+ the use just bought has to actually
+			// hand the card over — the outcome was committed when the dice landed.
+			await _syncArcanumIdentification(message, actor, shifted.total);
+			actor.sheet?.render(false);
+		} catch (err) {
+			console.error("Stonetop | Error consulting the logbook:", err);
+			btn.disabled = false;
+		}
+	});
+}
+
 // -- REQUISITION: apply miss cost from the roll card ------------
 function _speakerActor(message) {
 	const { token: tokenId, actor: actorId } = message.speaker ?? {};
@@ -975,6 +1143,9 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatAnnotateDebility(message, html);
 	_chatWireRollShifting(message, html);
 	_chatWireBurnBrightly(message, html);
+	// After the roll-shift pass (which hides the button row from non-GMs) and after Burn
+	// Brightly, so the logbook pill sits to its right in the shared button row.
+	_chatWireKnowThings(message, html);
 	_chatWireRequisitionMissCost(message, html);
 	_chatWireSeasonsRoll(message, html);
 	_chatWireLoveLetterPicks(message, html);
@@ -1025,6 +1196,10 @@ async function _onRollShift(event, message) {
 			rolls:  message.rolls,
 			flavor: _shiftRollCardFlavor(message.flavor, roll.total, roll.formula),
 		});
+		// A shifted Know Things card that was identifying an arcanum has to carry the new tier's
+		// disclosure with it, or a Shift Up says "You read the card, front and back" over a card
+		// still face down. No-op for every other roll — the flag is only on that one.
+		await _syncArcanumIdentification(message, _speakerActor(message), roll.total);
 	} catch (err) {
 		console.error("Stonetop | Error shifting roll result:", err);
 	} finally {

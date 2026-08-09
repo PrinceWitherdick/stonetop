@@ -150,6 +150,82 @@ describe("StonetopCharacterSheet event handlers", () => {
 		expect((await sheet.getData()).stonetop.movelist.showLevelMovesOverLimit).toBe(true);
 	});
 
+	// The "back is owed" strip carries the promise a 7-9 on the identifying Know Things roll
+	// made (Book I p.440). It has to vanish the moment the back actually arrives, or it lies.
+	describe("arcana identify context", () => {
+		function arcanaSheet({ isGM = false, peek = false, revealed = [], card = {}, owns = true } = {}) {
+			installGetDataGlobals();
+			global.game.user = { isGM, getFlag: () => ({}) };
+			global.game.settings = { get: (_scope, key) => (key === "arcanaPlayersSeeBothSides" ? peek : false) };
+			const actor = makeActor();
+			actor.isOwner = owns;
+			actor.typedActor.playbook = vi.fn(async () => null);
+			actor.typedActor.possessionTriggerMoves = vi.fn(() => ({}));
+			actor.typedActor.revealedArcanaSlugs = new Set(revealed);
+			const snapshot = minimalSheetSnapshot({});
+			snapshot.arcana.minor = { hasOwned: true, items: [{
+				slug: "the-key", owned: true, identified: true, unlocked: false, backOwed: false,
+				front: { title: "The Key", description: "<p>x</p>", unlock: {} }, back: {}, ...card,
+			}] };
+			actor.typedActor.buildSnapshot = vi.fn(async () => snapshot);
+			return makeSheet(actor);
+		}
+		const cardOf = async sheet => (await sheet.getData()).stonetop.arcana.minor.items[0];
+
+		it("shows the owner the back they are owed", async () => {
+			const card = await cardOf(arcanaSheet({ card: { backOwed: true } }));
+			expect(card.showBackOwed).toBe(true);
+			expect(card.gmBackOwed).toBe(false);
+		});
+
+		it("drops the strip once the back has actually arrived", async () => {
+			for (const [label, opts] of [
+				["revealed", { revealed: ["the-key"], card: { backOwed: true } }],
+				["unlocked", { card: { backOwed: true, unlocked: true } }],
+				["peek on",  { peek: true, card: { backOwed: true } }],
+			]) {
+				expect((await cardOf(arcanaSheet(opts))).showBackOwed, label).toBe(false);
+			}
+		});
+
+		it("shows the GM the back they owe, and no strip once it is moot", async () => {
+			expect((await cardOf(arcanaSheet({ isGM: true, card: { backOwed: true } }))).gmBackOwed).toBe(true);
+			// An unlocked card's back is the owner's already, so there is nothing left to reveal.
+			expect((await cardOf(arcanaSheet({ isGM: true, card: { backOwed: true, unlocked: true } }))).gmBackOwed).toBe(false);
+			expect((await cardOf(arcanaSheet({ isGM: true, revealed: ["the-key"], card: { backOwed: true } }))).gmBackOwed).toBe(false);
+			expect((await cardOf(arcanaSheet({ isGM: true }))).gmBackOwed).toBe(false);
+		});
+
+		/**
+		 * revealArcanum is the ONLY thing that clears backOwed, and the GM's strip is the only route
+		 * to it for a still-locked card. Gated on the reveal TOGGLE's rule (which carries a
+		 * "secretive mode only" term) the debt was stranded with the world's peek switch on: nobody
+		 * could settle it, and the day the switch went off the owner's sheet went back to claiming a
+		 * back they had been reading for sessions.
+		 */
+		it("still lets the GM settle the debt while players can already peek", async () => {
+			const card = await cardOf(arcanaSheet({ isGM: true, peek: true, card: { backOwed: true } }));
+			expect(card.gmBackOwed).toBe(true);
+		});
+
+		/**
+		 * A player with Observer permission on somebody else's sheet fails permittedBack for the same
+		 * reason a locked-out owner does — but the strip addresses its reader in the second person
+		 * ("You've read the front…") over a Study it button that _onArcanumStudyBack drops on the
+		 * spot, since the sheet isn't theirs to edit. Nothing happened and nothing said why.
+		 */
+		it("keeps the owed-back strip off a non-owning viewer's copy of the sheet", async () => {
+			const card = await cardOf(arcanaSheet({ owns: false, card: { backOwed: true } }));
+			expect(card.showBackOwed).toBe(false);
+			expect(card.gmBackOwed).toBe(false);
+		});
+
+		it("offers the no-roll hand-over to the GM only", async () => {
+			expect((await cardOf(arcanaSheet({ isGM: true }))).canGiveCard).toBe(true);
+			expect((await cardOf(arcanaSheet({ isGM: false }))).canGiveCard).toBe(false);
+		});
+	});
+
 	it("_onBackgroundChange calls selectBackground with the slug", async () => {
 		const actor = makeActor();
 		const sheet = makeSheet(actor);

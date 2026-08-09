@@ -45,6 +45,9 @@ import {normalizeRollType} from "../../utils/roll-types.js";
 import {escHtml, isDefaultImg, normalizePlaybookGlyphs, composeInstinct} from "../../utils/strings.js";
 import {playbookIconPath, partyCharacters} from "../../utils/playbook-actors.js";
 import {postMoveToChat, moveChatCard} from "../../utils/chat.js";
+import {buildMoveTierResults} from "../../utils/move-results.js";
+import {knowThingsRollChoices, withAdvantage, KNOW_THINGS_STAT} from "./arcana-identify.js";
+import {knowThingsRollOptions} from "./know-things.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {openChroniclePageForActor} from "../../utils/chronicle.js";
 import {getDragEventData, deletionEntry, imagePopout} from "../../utils/foundry-compat.js";
@@ -1232,6 +1235,29 @@ export function createStonetopCharacterSheetClass(Base) {
 					// The flip button shows whenever the back is permitted and the card isn't
 					// already a spread (nothing to flip when both sides are open).
 					item.canFlip           = permittedBack && !spread;
+					// Book I p.440: handing a card over without a roll is the GM's move ("just
+					// give the player(s) the card and have them read it, front and back"). The
+					// player's own route to a face-down card is the Know Things roll.
+					item.canGiveCard       = viewerIsGM;
+					// The 7-9 debt ("show them the back when they have some time to study it or
+					// learn more"). Each side sees the half of it they can act on:
+					//
+					//  · the OWNER, while the back is still withheld from them. Scoped to the owner
+					//    and not merely to "may not see the back", because a non-owning viewer (an
+					//    Observer-permission player on somebody else's sheet) fails permittedBack
+					//    too — and the strip addresses its reader in the second person over a
+					//    "Study it" button that _onArcanumStudyBack drops on the spot (!isEditable).
+					//  · the GM, while the back is still theirs to hand over — which is a question
+					//    about the OWNER's access, not the viewer's, so it can't reuse permittedBack.
+					//    An unlocked or already-revealed back is the owner's for keeps and owes them
+					//    nothing. Pointedly NOT narrowed to canReveal, though: that carries a
+					//    `!playersSeeBothArcana` term, and revealArcanum is the only thing that ever
+					//    clears backOwed — so with the world's peek switch on the debt was stranded
+					//    with nobody able to settle it, to resurface the day the switch went off as a
+					//    claim about a back the player read sessions ago. Granting it is a real write
+					//    even while everyone can already peek: it is what closes the record.
+					item.showBackOwed      = item.backOwed && !permittedBack && viewerOwnsActor;
+					item.gmBackOwed        = item.backOwed && viewerIsGM && !revealed && !item.unlocked;
 
 					// The plain "Add as follower" button manifests only the directly-summoned
 					// followers. `viaCallUp` followers (the Ring of Daagon's Servants) are rolled
@@ -4277,14 +4303,21 @@ export function createStonetopCharacterSheetClass(Base) {
 				const btn = ev.target.closest(".stonetop-arcanum-identify-btn");
 				if (!btn) return;
 				ev.stopPropagation();
-				const { slug } = btn.dataset;
-				Dialog.confirm({
-					title: game.i18n.localize("stonetop.arcana.identifyTitle"),
-					content: `<p>${game.i18n.localize("stonetop.arcana.identifyConfirm")}</p>`,
-					yes: () => this._stonetopCharacter.identifyArcanum(slug).then(() => this.render(false)),
-					render: bringDialogToFront,
-					options: { classes: ["dialog", "stonetop"] },
-				});
+				this._onArcanumKnowThings(btn.dataset.slug, { shiftKey: ev.shiftKey });
+			}, true);
+
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".stonetop-arcanum-givecard-btn");
+				if (!btn) return;
+				ev.stopPropagation();
+				this._onArcanumGiveCard(btn.dataset.slug);
+			}, true);
+
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".stonetop-arcanum-backowed-btn");
+				if (!btn) return;
+				ev.stopPropagation();
+				this._onArcanumStudyBack(btn.dataset.slug);
 			}, true);
 
 			html[0].addEventListener("click", ev => {
@@ -4785,11 +4818,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			const { character: target, unlinkedFrom, redirectedTo } = this._dropTarget();
 			let anyAdded = false;
 			// A dropped arcanum is added UNIDENTIFIED — a face-down "mystery" card the player
-			// Identifies in play (drop is the only path that plants a mystery; onboarding,
-			// level-up, and the homebrew creator all identify on add). Because that card shows
-			// no name or art until identified, and can land on a tab you aren't looking at, a
-			// silent add reads as "nothing happened". So collect the freshly-added ones (skip
-			// arcana already owned — a re-drop is a no-op) to toast and reveal the Arcana tab.
+			// Knows Things about in play (drop is the only path that plants a mystery;
+			// onboarding, level-up, and the homebrew creator all identify on add). Because that
+			// card shows only its name, no art and none of its text, and can land on a tab you
+			// aren't looking at, a silent add reads as "nothing happened". So collect the freshly
+			// added ones (skip arcana already owned — a re-drop is a no-op) to toast and reveal
+			// the Arcana tab.
 			const ownedArcana = target.ownedArcanaSlugs;
 			const addedArcana = [];
 			for (const item of arcana) {
@@ -4835,7 +4869,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (addedArcana.length) {
 				const one = addedArcana.length === 1;
 				ui.notifications?.info?.(
-					`Added ${joinNames(addedArcana)} to the Arcana tab, face-down — use Identify to reveal ${one ? "it" : "them"}.`,
+					`Added ${joinNames(addedArcana)} to the Arcana tab, face-down — Know Things about ${one ? "it" : "them"} to learn what ${one ? "it is" : "they are"}.`,
 				);
 				// Reveal the Arcana tab so the new (face-down) card is visible — but do it AFTER
 				// the re-render lands, as a cheap DOM toggle, not by presetting active before a
@@ -5832,6 +5866,202 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 		}
 
+		/**
+		 * Identify a face-down arcanum by Knowing Things about it (Book I, Discoveries p.440):
+		 * "prompt them to Know Things about the arcanum: on a 10+, give them the card and have
+		 * them read both sides; on a 7-9, have them read the front, and show them the back when
+		 * they have some time to study it or learn more; on a 6-, either have them read the
+		 * front and then have something bad happen, or hint at the arcanum's power and tell them
+		 * how they could learn more."
+		 *
+		 * The two hit tiers write themselves — the book is emphatic that you should be generous
+		 * with arcana info — while the miss deliberately writes nothing: both of its branches are
+		 * GM calls, and the GM's own "Give the card" button covers the first of them. The roll
+		 * goes through onDirectStatRoll rather than rollStat so the character's forward, ongoing,
+		 * debility downgrade and global advantage toggle all apply, and so a miss marks XP.
+		 */
+		async _onArcanumKnowThings(slug, { shiftKey = false } = {}) {
+			if (!this.isEditable || !slug) return;
+			// In-flight latch, like every other one-shot action on this sheet. Nothing before the
+			// first await here does more than stop the event, and that first await is a DIALOG — so
+			// two quick clicks on the identify button opened two stat pickers, posted two roll cards
+			// and wrote this card's flags twice, in whichever order the two rolls happened to land.
+			// Keyed by slug, since identifying a different arcanum meanwhile is a real second action.
+			this._arcanaIdentifying ??= new Set();
+			if (this._arcanaIdentifying.has(slug)) return;
+			this._arcanaIdentifying.add(slug);
+			try {
+				await this._knowThingsAboutArcanum(slug, { shiftKey });
+			} finally {
+				this._arcanaIdentifying.delete(slug);
+			}
+		}
+
+		/** The body of the roll above, so the latch is a plain try/finally around one call. */
+		async _knowThingsAboutArcanum(slug, { shiftKey }) {
+			// The character's own Know Things move carries the text the "?" toggle shows. Every
+			// character owns it (ensureStartingMoves grants all basic moves), but fall back to
+			// the trigger sentence rather than an empty card if a sheet somehow lacks it.
+			const moves = this.actor.items.filter(i => i.type === "move");
+			const owned = moves.find(i => i.name === "Know Things");
+
+			// A character with a move that bends this roll (Well-Read's +WIS, Polyglot's and
+			// Naturalist's advantage) gets asked which apply, since every one of those triggers
+			// is fiction the system can't see. Everyone else rolls straight through, so the
+			// ordinary case stays a single click.
+			const choices = knowThingsRollChoices(moves.map(i => i.name));
+			const picked  = choices.hasChoice
+				? await this._promptIdentifyRoll(choices, moves)
+				: { stat: KNOW_THINGS_STAT, advantage: false };
+			if (!picked) return;                // player closed the picker
+
+			const situational = await this._maybePromptRollModifier({ shiftKey, title: "Know Things" });
+			if (situational === null) return;   // player cancelled the modifier prompt
+
+			const roll = await this._stonetopCharacter.onDirectStatRoll(picked.stat, {
+				situational,
+				rollMode: withAdvantage(this._stonetopCharacter.rollMode, picked.advantage),
+				// This roll bypasses StonetopItem.roll, so it has to stamp the move identity and
+				// pick up Never at a Loss / the Logbook itself — otherwise the card's post-roll
+				// buttons would work from the Moves tab but not from the arcana card.
+				// `arcanum` is what makes the tier RE-APPLIABLE. The outcome is committed below,
+				// at roll time, but the Logbook ("treat the result as a 10+") and a GM Shift both
+				// rewrite the card's tier afterwards — and without the slug on the message there
+				// is nothing left to tell them which card the new tier is about. See
+				// _syncArcanumIdentification in stonetop.js.
+				messageFlags: { [STONETOP_SCOPE]: { move: "Know Things", arcanum: slug } },
+				...(knowThingsRollOptions(this.actor) ?? {}),
+				moveName:        "Know Things",
+				moveDescription: owned?.system?.description
+					?? `<p>When you <strong><em>consult your accumulated knowledge</em></strong>, roll +INT.</p>`,
+				// Arcana-specific outcomes, not the generic Know Things ones: p.440 spells out
+				// what each tier means for a card. English literals, because the flavor string is
+				// persisted and re-parsed by the GM's Shift Up/Down (see roll-engine.js).
+				moveResults: buildMoveTierResults({
+					success: "You read the card, front and back.",
+					partial: "You read the front. The GM will show you the back when you've had time to study it or learn more.",
+					failure: "The GM makes a move: read the front and something bad happens, or you get only a hint of its power and how you could learn more.",
+				}),
+			});
+
+			const opts = { stonetopMove: "Know Things" };
+			const tier = classifyResult(Number(roll?.total) || 0).key;
+			if (tier === "success")      await this._stonetopCharacter.identifyAndRevealArcanum(slug, opts);
+			else if (tier === "partial") await this._stonetopCharacter.identifyFrontOwedArcanum(slug, opts);
+			this.render(false);
+		}
+
+		/**
+		 * Ask which of the character's Know Things moves apply to this arcanum: the stat (a
+		 * button per option, +INT first) and any advantage grants (a checkbox, since Polyglot and
+		 * Naturalist can both be in play at once). Each contributing move is quoted so the player
+		 * can read its fictional trigger before deciding, exactly as the inline stat picker does.
+		 *
+		 * Resolves `{ stat, advantage }`, or null if the player closes the dialog. Only the first
+		 * settle counts, so the close handler can safely cancel after a button already answered.
+		 */
+		_promptIdentifyRoll(choices, moves) {
+			const byName = new Map(moves.map(i => [i.name, i]));
+			const stats  = this.actor.system?.stats ?? {};
+			const quote  = name => {
+				const move = byName.get(name);
+				if (!move) return "";
+				return `<div class="stonetop-stat-picker-why"><strong>${_esc(name)}</strong>${move.system?.description ?? ""}</div>`;
+			};
+			const advRow = choices.advantageMoves.length
+				? `<label class="stonetop-identify-adv-row">
+						<input type="checkbox" class="stonetop-identify-adv">
+						<span>${_esc(game.i18n.localize("stonetop.arcana.identifyAdvantage"))}</span>
+					</label>`
+				: "";
+			const content = `<p>${_esc(game.i18n.localize("stonetop.arcana.identifyPrompt"))}</p>`
+				+ advRow
+				+ [...choices.statGrants, ...choices.advantageMoves].map(quote).join("");
+
+			return new Promise(resolve => {
+				const answer = html => {
+					const root = html?.[0] ?? html;
+					return !!root?.querySelector?.(".stonetop-identify-adv")?.checked;
+				};
+				const buttons = {};
+				for (const key of choices.stats) {
+					buttons[key] = {
+						label: `${Handlebars.helpers.statLabel(key)} (${sign(stats[key]?.value ?? 0)})`,
+						callback: html => resolve({ stat: key, advantage: answer(html) }),
+					};
+				}
+				buttons.cancel = { label: "Cancel", callback: () => resolve(null) };
+				new Dialog({
+					title:   `${game.i18n.localize("stonetop.arcana.identify")} — ${_esc(this.actor.name)}`,
+					content,
+					buttons,
+					default: choices.stats[0],
+					close:   () => resolve(null),
+					render:  bringDialogToFront,
+				}, { width: 480, classes: ["dialog", "stonetop", "stonetop-stat-picker-dialog"] }).render(true);
+			});
+		}
+
+		/**
+		 * The GM's no-roll hand-over (p.440: "just give the player(s) the card and have them read
+		 * it, front and back"). Front-only is the same bullet's lesser form, and the reachable
+		 * shape of a 6-'s "have them read the front and then have something bad happen".
+		 */
+		_onArcanumGiveCard(slug) {
+			if (!game.user.isGM || !slug) return;
+			const give = async both => {
+				const opts = { stonetopMove: "Give the card" };
+				if (both) await this._stonetopCharacter.identifyAndRevealArcanum(slug, opts);
+				else      await this._stonetopCharacter.identifyArcanum(slug, opts);
+				this.render(false);
+			};
+			new Dialog({
+				title:   game.i18n.localize("stonetop.arcana.giveCardTitle"),
+				content: `<p>${game.i18n.localize("stonetop.arcana.giveCardPrompt")}</p>`,
+				buttons: {
+					both:   { label: game.i18n.localize("stonetop.arcana.giveCardBoth"),  callback: () => give(true) },
+					front:  { label: game.i18n.localize("stonetop.arcana.giveCardFront"), callback: () => give(false) },
+					cancel: { label: "Cancel" },
+				},
+				default: "both",
+				render:  bringDialogToFront,
+			}, { width: 420, classes: ["dialog", "stonetop"] }).render(true);
+		}
+
+		/**
+		 * Settle a 7-9's outstanding back. The GM's copy of the button reveals the back outright;
+		 * the owner's copy posts the request to chat, since the reveal is the GM's to make and
+		 * this system has no player-to-GM socket.
+		 */
+		async _onArcanumStudyBack(slug) {
+			if (!this.isEditable || !slug) return;
+			// The GM path neither reads the arcanum nor posts a card, so it must not pay for the
+			// document fetch below — every GM click would load a document only to discard it.
+			if (game.user.isGM) {
+				await this._stonetopCharacter.revealArcanum(slug, { stonetopMove: "Study it" });
+				this.render(false);
+				return;
+			}
+			const item = await this._stonetopCharacter.getArcanum(slug);
+			const name = item?.front?.title ?? slug;
+			await this._postMoveCard(game.i18n.localize("stonetop.arcana.backOwedTitle"),
+				`<p><strong>${escHtml(this.actor.name)}</strong> takes the time to study <strong>${escHtml(name)}</strong>, and is owed its reverse.</p>`);
+		}
+
+		/**
+		 * Use an Invocation (the tap on its title). Every Lightbearer starts with Invoke the Sun
+		 * God, so using one is a MOVE — imbue your holy light with Helior's power, roll +WIS,
+		 * take a consequence — and not just a card. The window asks the two questions the rules
+		 * put before the roll, together:
+		 *
+		 *  • roll +WIS or not (some tables narrate an Invocation without a roll, and the "just
+		 *    show it" path is also how anyone reads the text out to the table)
+		 *  • empower it or not, for a Lightbearer who has Empowered Invocations
+		 *
+		 * The empowered effect is left OFF the card unless it was bought: it isn't part of what
+		 * the Invocation does, it's what it does IF you pay an extra consequence for it, and
+		 * printed alongside the normal effect it just muddies what actually happened.
+		 */
 		// The 6- branch: pay to make them leave (spend the Ring's shared Loyalty, or mark a
 		// consequence) or let them break free of your control.
 		_onServantsResist(slug, who) {

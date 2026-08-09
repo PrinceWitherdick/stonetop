@@ -2088,7 +2088,9 @@ export class StonetopCharacter {
 		// roll engine renders it as a "Situational" pill (modifier − forward − ongoing).
 		const modifier = forward + ongoing + situational;
 
-		await rollStat(stat, this._actor, this.applyDebilityRollMode(stat, {
+		// Returned so a caller that has to act on the outcome (the arcana Identify roll) can
+		// classify the total without re-rolling or re-deriving the tier thresholds.
+		const roll = await rollStat(stat, this._actor, this.applyDebilityRollMode(stat, {
 			rollMode,
 			modifier,
 			forward,
@@ -2099,6 +2101,7 @@ export class StonetopCharacter {
 		if (forward !== 0) {
 			await this._actor.update({ "system.attributes.forward.value": 0 }, extraOptions.moveName ? { stonetopMove: extraOptions.moveName } : {});
 		}
+		return roll;
 	}
 
 	/**
@@ -2422,16 +2425,23 @@ export class StonetopCharacter {
 	async getArcanum(slug)                           { return this._arcana.getArcanum(slug); }
 	async addArcanum(slug)                           { await this._arcana.addArcanum(slug); }
 	async removeArcanum(slug)                        { await this._arcana.removeArcanum(slug); await this._inventory.clearArcanumResources(slug); }
-	async identifyArcanum(slug)                      { await this._arcana.identifyArcanum(slug); }
+	async identifyArcanum(slug, options)             { await this._arcana.identifyArcanum(slug, options); }
+	async identifyAndRevealArcanum(slug, options)    { await this._arcana.identifyAndRevealArcanum(slug, options); }
+	async identifyFrontOwedArcanum(slug, options)    { await this._arcana.identifyFrontOwedArcanum(slug, options); }
 	async addLead(slug)                              { await this._arcana.addLead(slug); }
 	async discoverArcanum(slug)                      { await this._arcana.discoverArcanum(slug); }
 	async ensureSeekerLeadCard()                     { await this._arcana.ensureLeadBackfill(); }
 	async masterArcanum(slug)                        { await this._arcana.masterArcanum(slug); }
 	async getArcanumChatContent(slug, flipped)       { return this._arcana.getArcanumChatContent(slug, flipped); }
 	async setMinorArcanumRole(role, slug) { await this._arcana.setMinorRole(role, slug); }
-	async revealArcanum(slug)   { await this._arcana.revealArcanum(slug); }
-	async hideArcanum(slug)     { await this._arcana.hideArcanum(slug); }
+	async revealArcanum(slug, options) { await this._arcana.revealArcanum(slug, options); }
+	async hideArcanum(slug, options)   { await this._arcana.hideArcanum(slug, options); }
 	get revealedArcanaSlugs()   { return this._arcana.revealedSlugs; }
+	get backOwedArcanaSlugs()   { return this._arcana.backOwedSlugs; }
+	// The lower rung of p.440's disclosure ladder, so a caller re-applying a rewritten roll tier
+	// can tell "never read" from "front already read" and refuse to walk the ladder backwards
+	// (see _syncArcanumIdentification in stonetop.js).
+	get identifiedArcanaSlugs() { return this._arcana.identifiedSlugs; }
 	get ownedArcanaSlugs()      { return this._arcana.ownedSlugs; }
 	async setArcanumUnlockCount(arcanumSlug, optionSlug, count)          { await this._arcana.setUnlockCount(arcanumSlug, optionSlug, count); }
 	async setArcanumBackOptionCount(arcanumSlug, optionSlug, count)      { await this._arcana.setBackOptionCount(arcanumSlug, optionSlug, count); }

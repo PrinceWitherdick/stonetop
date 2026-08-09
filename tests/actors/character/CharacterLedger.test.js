@@ -794,6 +794,38 @@ describe("CharacterLedger arcana flags", () => {
 		expect(entries.map(e => e.action)).toEqual(["Arcanum identified: Minor Arcana The Key"]);
 	});
 
+	it("logs both sides of a 10+ identify from the one batched update", async () => {
+		// identifyAndRevealArcanum writes identified and revealed together, so the pair has to
+		// survive as two distinct lines out of a single actor.update.
+		const actor = withSnapshot(
+			makeActor({}, { stonetop: { arcana: { identified: [], revealed: [] } } }),
+			{ arcana: { minor: { items: [{ slug: "the-key", front: { title: "The Key" } }] } } },
+		);
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop-pwd.arcana.identified": ["the-key"],
+			"flags.stonetop-pwd.arcana.revealed":   ["the-key"],
+		});
+		expect(entries.map(e => e.action)).toEqual([
+			"Arcanum identified: Minor Arcana The Key",
+			"Arcanum revealed: Minor Arcana The Key",
+		]);
+	});
+
+	it("names the back a 7-9 owes, and the delivery that settles it", async () => {
+		// Without an ARCANA_SLUG_LISTS row, arcanaFlagEntries returns [] for an unknown sub-key
+		// and the write vanishes from the ledger silently.
+		const snapshot = { arcana: { minor: { items: [{ slug: "the-key", front: { title: "The Key" } }] } } };
+		const owed = withSnapshot(makeActor({}, { stonetop: { arcana: { backOwed: [] } } }), snapshot);
+		expect((await CharacterLedger.entriesForActorUpdate(owed, {
+			"flags.stonetop-pwd.arcana.backOwed": ["the-key"],
+		})).map(e => e.action)).toEqual(["Arcanum back owed: Minor Arcana The Key"]);
+
+		const paid = withSnapshot(makeActor({}, { stonetop: { arcana: { backOwed: ["the-key"] } } }), snapshot);
+		expect((await CharacterLedger.entriesForActorUpdate(paid, {
+			"flags.stonetop-pwd.arcana.backOwed": [],
+		})).map(e => e.action)).toEqual(["Arcanum back delivered: Minor Arcana The Key"]);
+	});
+
 	it("reports a minor role cleared to null, not just to an empty string", async () => {
 		// `typeof null` is "object", so the whole-object guard used to swallow the clear that
 		// the same field reported when it arrived as "".

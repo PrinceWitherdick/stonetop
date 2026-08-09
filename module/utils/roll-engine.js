@@ -389,28 +389,41 @@ export async function rollStat(statKey, actor, options = {}) {
 	}
 
 	if (result.key === "failure" && actor?.type === "character" && !options.noXpOnMiss) {
-		const currentXp = actor.system?.attributes?.xp?.value ?? 0;
-		const level     = actor.system?.attributes?.level?.value ?? 1;
-		const maxXp     = xpToLevelUp(level);
-		const newXp     = currentXp + 1;
-		// Attribute the marked XP to the move that missed, so the ledger reads "via <move>".
-		await actor.update({ "system.attributes.xp.value": newXp }, moveName ? { stonetopMove: moveName } : {});
-		const xpCard = _rollCard({
-			header: "Miss",
-			result: `+1 XP (${newXp} / ${maxXp})`,
-			resultClass: "success",
-			description: `<p>On a <strong>miss</strong> (a total of 6 or less), you <strong>mark XP</strong> &mdash; a tick mark that raises your total by 1 &mdash; unless the move says otherwise.</p>`
-		});
-		await ChatMessage.create({
-			content:  xpCard,
-			speaker:  ChatMessage.getSpeaker({ actor }),
-			rollMode: game.settings.get("core", "rollMode"),
-		});
+		await markMissXp(actor, moveName);
 	}
 
 	await maybeRemindPotentialForGreatness(actor, statKey, total);
 
 	return roll;
+}
+
+/**
+ * Mark the +1 XP a miss earns (Book I p.209: "On a 6 or less, it's a miss. That means: They mark
+ * XP") and post the receipt card. Normally fired automatically from rollStat, but exported so a
+ * move that defers the choice can suppress it with `noXpOnMiss` and then mark it later from a
+ * chat-card button (Never at a Loss) — the two paths must write the same thing, so they share
+ * this one. `moveName` attributes the write in the character ledger.
+ *
+ * XP is deliberately not capped: xpToLevelUp is a level-up threshold, not a ceiling.
+ */
+export async function markMissXp(actor, moveName) {
+	const currentXp = actor.system?.attributes?.xp?.value ?? 0;
+	const level     = actor.system?.attributes?.level?.value ?? 1;
+	const maxXp     = xpToLevelUp(level);
+	const newXp     = currentXp + 1;
+	// Attribute the marked XP to the move that missed, so the ledger reads "via <move>".
+	await actor.update({ "system.attributes.xp.value": newXp }, moveName ? { stonetopMove: moveName } : {});
+	const xpCard = _rollCard({
+		header: "Miss",
+		result: `+1 XP (${newXp} / ${maxXp})`,
+		resultClass: "success",
+		description: `<p>On a <strong>miss</strong> (a total of 6 or less), you <strong>mark XP</strong> &mdash; a tick mark that raises your total by 1 &mdash; unless the move says otherwise.</p>`
+	});
+	await ChatMessage.create({
+		content:  xpCard,
+		speaker:  ChatMessage.getSpeaker({ actor }),
+		rollMode: game.settings.get("core", "rollMode"),
+	});
 }
 
 // The Advantage / Disadvantage condition pill(s) for a roll mode — shared by the stat and

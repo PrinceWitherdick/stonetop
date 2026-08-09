@@ -3,6 +3,8 @@ import {rollFormula, rollStat} from "../utils/roll-engine.js";
 import {normalizeRollType} from "../utils/roll-types.js";
 import {filterStatOptionLines, escHtml} from "../utils/strings.js";
 import {stonetopThumbnail} from "../utils/item-icon.js";
+import {STONETOP_SCOPE} from "../actors/character/StonetopFlags.js";
+import {isKnowThings, knowThingsRollOptions} from "../actors/character/know-things.js";
 
 export function createStonetopItemClass(BaseItem) {
 	return class StonetopItem extends BaseItem {
@@ -96,8 +98,27 @@ export function createStonetopItemClass(BaseItem) {
 				? `${this.name} with ${options.statOverride.toUpperCase()}`
 				: this.name;
 
+			// Stamp the move's identity on the message so a chat-card handler can tell WHICH
+			// move a roll card came from. The header text can't be trusted for this: an "ask"
+			// or alt-stat roll renders as "Know Things with WIS". Stored under the base name.
+			// Merged rather than assigned, so an existing producer (the attack flow) keeps its
+			// own payload.
+			const priorFlags = options.messageFlags ?? {};
+			const messageFlags = {
+				...priorFlags,
+				[STONETOP_SCOPE]: { move: this.name, ...(priorFlags[STONETOP_SCOPE] ?? {}) },
+			};
+
+			// Never at a Loss defers the miss XP to a choice on the card, so a Know Things roll by
+			// a character who owns it suppresses the automatic mark and carries the two buttons
+			// instead. Null for everyone else, leaving the roll exactly as it was.
+			const knowThings = isKnowThings(this.name) && actor?.type === "character"
+				? knowThingsRollOptions(actor)
+				: null;
+
 			if (stat) return rollStat(stat, actor, {
 				...options,
+				messageFlags,
 				moveName,
 				moveDescription,
 				moveResults: this.system?.moveResults ?? null,
@@ -107,6 +128,8 @@ export function createStonetopItemClass(BaseItem) {
 				// Moves that explicitly override the standard "+1 XP on a miss" (e.g. Danger
 				// Sense, Hard to Kill / Death's Door rolls) set system.noXpOnMiss.
 				noXpOnMiss:  this.system?.noXpOnMiss ?? false,
+				// Last, so Never at a Loss's deferred-XP override beats the item's own default.
+				...(knowThings ?? {}),
 			});
 
 			// Raw formula path — used by npcMove items
