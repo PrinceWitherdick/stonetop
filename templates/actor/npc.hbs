@@ -50,6 +50,12 @@
 						<span class="input--title stonetop-header-locked stonetop-name-field"><span class="stonetop-npc-name-text">{{actor.name}}</span></span>
 						{{#if stonetop.status.value}}<span class="stonetop-npc-status-badge" data-status="{{stonetop.status.value}}">{{stonetop.status.label}}</span>{{/if}}
 						{{/if}}
+						{{!-- A Judge's Condemn brand. Rendered in BOTH modes, unlike the status badge
+						      beside it: the status is an editable field whose select replaces the badge
+						      in edit mode, whereas nothing on this sheet can lift a brand — that is the
+						      Judge's alone — so there is no edit-mode control for it to make way for.
+						      Its tooltip names who did it. --}}
+						{{#if stonetop.condemned.condemned}}{{> "stonetop.condemned-tag" byLabel=stonetop.condemned.byLabel}}{{/if}}
 					</div>
 
 					<div class="stonetop-npc-header-details">

@@ -262,6 +262,44 @@
 	--st-levelup-accent:       hsl(140 60% 38%);
 	--st-levelup-accent-hover: hsl(140 65% 30%);
 
+	/* ── Holy light ───────────────────────────────────────────────────────
+	   The Lightbearer's candle in the sheet header. A warm gold that reads as
+	   "burning" against the parchment, with two glow strengths for the halo. */
+	--st-holy-light:           hsl(41 88% 58%);
+	--st-holy-light-glow:      hsla(41, 88%, 58%, 0.85);
+	--st-holy-light-glow-soft: hsla(41, 88%, 58%, 0.5);
+
+	/* ── Condemned ────────────────────────────────────────────────────────
+	   The near-black the Judge's brand FURNITURE is drawn in: the scales in their header once
+	   brands are standing, the dismiss hover in the roster, the drop ring, the note focus rule.
+	   NOT the Condemned pill itself, which is painted from the shared --st-red-* family — see
+	   the .stonetop-condemned-tag block.
+
+	   Not pure #000. A hair of blue keeps it from reading as a rendering artefact against
+	   the parchment, and the near-black is what lets the faint wash sit under it without the
+	   two collapsing into one flat block. */
+	--st-condemned-text:   hsl(220 18% 10%);
+	--st-condemned-border: hsla(220, 18%, 10%, 0.55);
+	--st-condemned-bg:     hsla(220, 18%, 10%, 0.10);
+	/* The ink that goes on a filled disc in this family — the count on the header scales, which is
+	   painted in the sheet's red. Turned over beside those fills on black paper, so the numeral is
+	   legible whichever way round the disc is. Not `--stonetop-bg`, which is the parchment and is
+	   itself inverted by that scope: reading the background token here would have flipped the
+	   numeral in lockstep with its disc and kept the two the same colour as each other. */
+	--st-condemned-on:     hsl(30 20% 94%);
+
+	/* ── Uppercase optical centring ───────────────────────────────────────
+	   How far a run of CAPITALS has to be pushed down to look centred in a box that centres its
+	   em box. Capitals have no descenders, so their ink fills only the upper part of that box and
+	   the empty descender space pools underneath.
+
+	   REPLACED AT RUNTIME, per font, by settings.js#applySheetFont — the sheet font is a user
+	   setting with three faces whose corrections differ by a factor of ten, so this cannot be one
+	   number here. The value below is Signika's, matching that file's _DEFAULT_FONT, so a client
+	   that has not applied the setting yet lands on the same answer a fresh one does.
+	   See _FONT_CAPS_NUDGE for how the numbers were arrived at. */
+	--st-caps-nudge: 0.073em;
+
 	/* ── Blue "step/sequence" tint ────────────────────────────────────────
 	   Mirrors the green accent palette for ordered, numbered sequences — the
 	   circle step badges in the Welcome guide read as steps, not active states. */
@@ -1230,6 +1268,26 @@ input.stonetop-name-field {
 	border: 1px solid rgba(0, 0, 0, 0.2);
 	background: rgba(255, 255, 255, 0.5);
 }
+
+/* The name plate and the playbook's carried state beside it — the Lightbearer's holy light,
+   the Judge's scales, whichever of them this character has. The row is what lets those be as
+   tall as the plate: `align-items: stretch` hands each the plate's own height, which nothing
+   else in this column could tell it (the plate's height is content — a 40px name at whatever
+   the world's font scale is, plus its label and padding).
+
+   `margin-top: auto` moves off the plate and onto the row, because it is the row that is
+   now the header column's flex item; left on the plate it would ALSO cancel the stretch
+   and drop the plate to the row's bottom edge. */
+.stonetop-name-called-row {
+	display: flex;
+	align-items: stretch;
+	gap: 8px;
+	margin-top: auto;
+	min-width: 0;
+	max-width: 100%;
+}
+
+.stonetop-name-called-row > .stonetop-name-called-box { margin-top: 0; }
 
 .stonetop-name-called-box {
 	width: fit-content;
@@ -3427,6 +3485,22 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-chat-move-description p { margin: 0 0 4px; }
 :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-chat-move-description p:last-child { margin-bottom: 0; }
+/* The empowered-effect banner, on the card only when the player paid the extra consequence
+   for it (see _postInvocationCard). A warm sun-tinted band so the reader can tell at a glance
+   that this Invocation came at a price and the text under it is the stronger effect. */
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-chat-empowered-note {
+	margin: 6px 0 4px;
+	padding: 4px 6px;
+	border-left: 3px solid rgba(196, 149, 42, 0.7);
+	border-radius: 0 var(--st-radius) var(--st-radius) 0;
+	background: rgba(226, 184, 84, 0.16);
+	font-size: 0.95em;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-chat-empowered-note i {
+	margin-right: 4px;
+	color: rgba(176, 128, 24, 0.9);
+}
+
 /* Bullet sizing/gap deliberately uses bare selectors so the system-wide spiral
    normalization rules (further down) layer on top at matching specificity. */
 .stonetop-chat-move-description ul { margin: 0 0 5px; padding-left: 0; list-style: none; }
@@ -4329,6 +4403,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 
 /* Shared mask-icon recipe — size/repeat/position are constant; each class supplies its own url + background. */
 .stonetop-burn-brightly-icon,
+.stonetop-holy-light-icon,
+.stonetop-condemn-icon,
 .stonetop-nav-arrow {
 	-webkit-mask-size: contain;
 	mask-size: contain;
@@ -7551,6 +7627,573 @@ button.stonetop-dead-tag:hover {
 	line-height: 1.4;
 }
 
+/* ── Name-plate glyph controls ─────────────────────────────────────────────
+   The controls standing beside the name plate — the Lightbearer's candle and the Judge's
+   scales — share one base because they share one seam. Each takes the plate's height from
+   the row (see .stonetop-name-called-row) and centres its glyph in it; the glyph's own
+   height is set per class below.
+
+   The 16px sits on the BUTTON, not on the masked span: padding on a masked element grows
+   its padding box, and `mask-size: contain` then rescales the drawing to fit the bigger
+   box — so the glyph would shrink and shift instead of moving over. Note the seam you SEE
+   is 24px: this 16px plus the row's own 8px gap. Tune whichever you mean; they are not
+   interchangeable. Shared rather than repeated per glyph so a Judge who is somehow also a
+   Lightbearer gets one even seam rather than two that drifted apart.
+
+   Every other property core sets on an in-app button has to be NAMED here: unlayered class
+   rules beat core's layered ones per property, but only for the properties actually named.
+   `width` above all — core's `body.game .app button { width: 100% }` would stretch these
+   across the rest of the header — and `min-height`, which beats core's `height` in that
+   same rule and would otherwise pad the button out past the plate. A property core starts
+   setting in some future version has to be added HERE, once. */
+.stonetop-holy-light,
+.stonetop-condemn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: auto;
+	min-width: 0;
+	min-height: 0;
+	height: auto;
+	flex: none;
+	margin: 0;
+	padding: 0 0 0 16px;
+	gap: 0;
+	border: none;
+	background: none;
+	box-shadow: none;
+	border-radius: var(--st-radius-sm);
+	color: var(--st-text-faint);
+	line-height: 1;
+}
+
+button.stonetop-holy-light:focus-visible,
+.stonetop-condemn:focus-visible {
+	outline: 2px solid var(--color-shadow-primary, slategrey);
+	outline-offset: 2px;
+}
+
+/* ── The Lightbearer's holy light ──────────────────────────────────────────
+   Lit while a consecrated flame burns. The glow lives on the BUTTON, never on the masked
+   span inside it: a mask is applied AFTER filter, so a drop-shadow on the masked element
+   is erased by its own mask. */
+.stonetop-holy-light {
+	transition: filter 0.15s ease, color 0.15s ease;
+}
+
+/* Only the editable copy is a button, so only it says "press me". */
+button.stonetop-holy-light { cursor: pointer; }
+
+/* `:not(.is-lit)` is load-bearing, not tidiness: `button.…:hover` carries an element on top
+   of its class and so OUT-SPECIFIES `.stonetop-holy-light.is-lit` below, which would drag a
+   burning candle to near-black the moment the pointer touched it — dark wax sitting inside
+   its own gold halo. A lit one answers the pointer by flaring instead. */
+button.stonetop-holy-light:not(.is-lit):hover { color: var(--st-text-body); }
+
+button.stonetop-holy-light.is-lit:hover {
+	filter: drop-shadow(0 0 0.3em var(--st-holy-light-glow))
+	        drop-shadow(0 0 0.85em var(--st-holy-light-glow));
+}
+
+/* 50px tall, centred against the name plate rather than filling it. Only the height is
+   stated: the width comes from `aspect-ratio`, which is the cropped drawing's own
+   214.32 / 464.56 (see candle-light.svg). A ratio rather than a second length, so the
+   candle can never be letterboxed inside its own box again — which is what the crop was
+   for — and so resizing it stays a one-number change. */
+.stonetop-holy-light-icon {
+	display: block;
+	height: 50px;
+	width: auto;
+	aspect-ratio: 214.32 / 464.56;
+	background: currentColor;
+	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/candle-light.svg');
+	mask-image: url('/systems/stonetop-pwd/assets/icons/candle-light.svg');
+	transition: background-color 0.15s ease;
+}
+
+/* Declared AFTER the base rule on purpose: an equal-specificity modifier that sits earlier
+   silently loses the tie, which has bitten this file before. */
+.stonetop-holy-light.is-lit {
+	color: var(--st-holy-light);
+	/* Two shadows: a tight one that reads as the flame itself and a wide, weaker one for the
+	   light it throws. Both scale with the header's type, since a fixed px halo that suited
+	   a small icon reads as a smudge at plate height. */
+	filter: drop-shadow(0 0 0.25em var(--st-holy-light-glow))
+	        drop-shadow(0 0 0.6em var(--st-holy-light-glow-soft));
+}
+
+/* ── The Judge's scales ────────────────────────────────────────────────────
+   ALWAYS a button, unlike the candle: it opens a list, and reading who has been branded is not
+   an edit. `position: relative` is for the count, which is absolutely positioned against it. */
+.stonetop-condemn {
+	position: relative;
+	cursor: pointer;
+	transition: color 0.15s ease;
+}
+
+.stonetop-condemn:hover { color: var(--st-text-body); }
+
+/* A Judge holding live brands wears them in ink, not in the faint grey of an empty docket — the
+   same "this state is ON" signal the candle's gold gives, in the colour the brand itself is.
+   Declared AFTER the base rule: an equal-specificity modifier sitting earlier silently loses the
+   tie, which has bitten this file before. */
+.stonetop-condemn.is-branding { color: var(--st-condemned-text); }
+
+/* 38px, not the candle's 50. The two are the same INK, not the same height: the candle is a tall
+   narrow taper (0.46 wide) and the scales are wider than they are tall (1.15), so matching their
+   heights would give the scales nearly three times the area and turn a Judge's header into a
+   billboard. Only the height is stated; the width comes from `aspect-ratio`, which is the cropped
+   drawing's own 481.75 / 420.72 (see scales.svg), so the glyph can never be letterboxed inside
+   its own box and resizing stays a one-number change. */
+.stonetop-condemn-icon {
+	display: block;
+	height: 38px;
+	width: auto;
+	aspect-ratio: 481.75 / 420.72;
+	background: currentColor;
+	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/scales.svg');
+	mask-image: url('/systems/stonetop-pwd/assets/icons/scales.svg');
+	transition: background-color 0.15s ease;
+}
+
+/* How many brands are standing, as a superscript on the right pan. Absolutely positioned rather
+   than laid out beside the glyph: in flow it would widen the button and push the scales off the
+   centre they are balanced on, and the number changing from 9 to 10 would visibly shift the icon.
+
+   A TRUE circle, and it takes more than `width` + `height` + `border-radius: 50%` to guarantee one
+   inside an application window, which is why this rule looks over-specified. Every way the two
+   axes can come out different is closed off deliberately:
+
+     • ONE length, --st-condemn-count-size, drives both. Not `1.5em` twice: `em` resolves against
+       this element's own font-size, so the two axes were two separate resolutions of a value that
+       also carries `--stonetop-font-scale` through a calc. One custom property is one computed
+       length used twice, and it cannot round or resolve differently on one side.
+     • min-/max- are PINNED to that same length on both axes. A bare `width`/`height` pair loses to
+       any inherited `min-height` or `min-width` — core sets those on plenty of things inside a
+       window — and losing on ONE axis is precisely what an ellipse is.
+     • NO PADDING. With `box-sizing: border-box` padding is harmless, but that declaration is one
+       more thing that has to win; a single asymmetric padding edge surviving on a content-box
+       element is another way to stretch one axis. The digit is centred by flex instead, which
+       needs no box space at all.
+     • `aspect-ratio: 1` as the backstop: if something still beats a length, this keeps the shape
+       round rather than letting it go oval unnoticed.
+     • `flex: none`, in case this ever stops being absolutely positioned and becomes a real flex
+       item of the button, where `flex-shrink` would squeeze the width and nothing else.
+
+   RED rather than the brand's black, and in the sheet's own red tokens rather than a hand-mixed
+   one, so it comes down with the black scope's repaint the way every other red on the sheet does.
+   The numeral keeps its paired ink (--st-condemned-on), which is inverted in that same scope, so
+   the two flip together and the digit stays legible whichever way round the disc is painted. */
+.stonetop-condemn-count {
+	/* WHOLE PIXELS, deliberately, where nearly everything else in this file scales with
+	   --stonetop-font-scale. The box was provably square either way — 18.000 x 18.000 measured in
+	   Chromium — and it still did not read as round, because the scaled size lands on a FRACTION
+	   (0.9rem against a 20px root through a scale factor). A circle rasterised at a fractional box
+	   on a 1x display antialiases unevenly around the curve: the top and left edges land on pixel
+	   boundaries and the bottom and right do not, and at 18px across there are too few pixels for
+	   the eye to average it out, so a true circle paints as a lopsided rounded square. Snapping the
+	   box to an integer is what makes the curve symmetric.
+
+	   Fixed px is honest here in a way it would not be for text: this is chrome, an ornament on an
+	   icon, and it holds one or two digits at any font scale. If it ever needs to follow the scale
+	   again, snap it with `round(…, 1px)` rather than going back to a bare calc.
+
+	   THE RATIO OF DIGIT TO DISC IS THE POINT, and it is the one thing to preserve if either number
+	   changes. This disc measured as a perfect circle in Chromium under the full core+PbtA cascade
+	   at 18px and still did not LOOK like one, because the numeral filled it: the ring of red left
+	   around the glyph was ~3px, and a thin even margin around a rectangular shape reads as a
+	   rounded-square border rather than a curve. That is a perception problem, not a geometry one,
+	   and the fix is ring width — hold the clear space at roughly a third of the diameter. The
+	   font-size below is set against this number to keep it there. */
+	--st-condemn-count-size: 18px;
+	position: absolute;
+	/* Sat 4px lower than the pan it marks. */
+	top: 2px;
+	right: -4px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	flex: none;
+	width: var(--st-condemn-count-size);
+	min-width: var(--st-condemn-count-size);
+	max-width: var(--st-condemn-count-size);
+	height: var(--st-condemn-count-size);
+	min-height: var(--st-condemn-count-size);
+	max-height: var(--st-condemn-count-size);
+	aspect-ratio: 1;
+	padding: 0;
+	border-radius: 50%;
+	background: var(--st-red-text);
+	color: var(--st-condemned-on);
+	font-family: var(--font-stonetop);
+	/* Whole pixels too, and for the same reason as the box: a fractional font-size inside a small
+	   disc puts the digit on half-pixels and the blur reads as the disc being off-round.
+	   Shrunk WITH the disc — the ring is what makes the curve legible (see above), so a smaller
+	   circle needs a smaller numeral or it goes back to reading as a rounded square. */
+	font-size: 10px;
+	font-weight: 700;
+	line-height: 1;
+	text-align: center;
+}
+
+/* ── Condemned ─────────────────────────────────────────────────────
+   The brand, worn by the person it was laid on — the NPC, monster and character sheets all render
+   the one partial (templates/actor/partials/condemned-tag.hbs).
+
+   RED, in the sheet's own three red tokens rather than a hand-mixed one, so it reads at the same
+   weight as every other red here and comes down with the black scope's repaint (which re-points
+   all three). That also puts it in step with the count disc on the Judge's scales, which is
+   painted from the same --st-red-text.
+
+   ⚠ It is now the SAME red as the Dead pill, and on the character sheet both ride the same
+   appearance line — a character who died and was branded shows two red pills that differ only by
+   icon and word. That is deliberate rather than overlooked: they are both "a hard fact about this
+   person" and the system has one red for that. If they ever need telling apart at a glance, give
+   this one its own token family rather than nudging the shared reds, which the Dead pill and half
+   the sheet also read.
+
+   It does NOT use the --st-condemned-* tokens beside it; those still carry the near-black that
+   the scales' branding state, the dismiss hover, the drop ring and the note focus are drawn in.
+
+   A <span> everywhere, never a button: only the Judge can lift this, from their own roster window.
+   That means core's application-button rules never touch it and it needs none of the width /
+   min-height defence the two icons above carry. It DOES declare `font-style: normal`, because on
+   the character sheet it rides the end of a line of small italic prose (the appearance summary),
+   and inherited italic on a letterspaced uppercase pill reads as a typo.
+
+   SIZED IN REM, not em, and that is the whole reason this rule is not simply the Dead pill's. The
+   Dead pill only ever renders inside .stonetop-appearance-summary, which is itself 0.85rem, so its
+   `em` size is shrunk twice and lands small. This one also hangs off the NPC and monster NAME
+   wrappers, which have no such parent — there an `em` size resolved against the sheet body and the
+   pill came out as large as the prose beside it. An absolute size makes the chip the same chip on
+   all three sheets regardless of what it is standing next to, which is what a status marker wants;
+   0.62rem is the NPC status badge's own size, since on that sheet the two sit side by side. */
+.stonetop-condemned-tag {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35em;
+	/* No LEFT margin in the base: on the NPC and monster sheets the pill sits under the name, and
+	   an indent there reads as a chip that failed to line up with it. The small top margin lifts it
+	   off the name, and the right one keeps it from touching the status badge it can follow. The
+	   character sheet, where it really does trail a sentence, restores the left gap below. */
+	margin: 3px 6px 0 0;
+	/* SYMMETRIC. This was once asymmetric (0.28em over 0.18em) to push the uppercase label down off
+	   the top of its line box — but padding on the container moves BOTH children by the same
+	   amount, and measurement showed the two need opposite corrections: with the real Libre Caslon
+	   face the word sits high in its box while the gavel hangs low in its own. One shared nudge
+	   could only ever fix one of them, and it was making the gavel worse. Each child now carries
+	   its own; see .stonetop-condemned-tag i / -text below. */
+	padding: 0.23em 0.7em;
+	border: 1px solid var(--st-red-border);
+	border-radius: 999px;
+	background: var(--st-red-bg);
+	font-family: var(--font-stonetop);
+	font-size: calc(0.62rem * var(--stonetop-font-scale, 1));
+	font-style: normal;
+	font-weight: 700;
+	/* 1, so the pill's height is the padding above plus the caps plus the padding below, and the
+	   nudge above is measured against something that does not move. A 1.7 line-height would fold
+	   its own half-leading into the sum and swallow the correction. */
+	line-height: 1;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--st-red-text);
+	/* The line can wrap; the pill must not be broken across it. */
+	white-space: nowrap;
+	vertical-align: middle;
+}
+
+.stonetop-condemned-tag i { font-size: 0.95em; }
+
+/* The label's optical centring, and the ONLY nudge left here.
+   `align-items: center` centres both children's BOXES exactly — measured at 0.000px off — so the
+   gavel needs nothing once the container's padding is symmetric; it looked low because that
+   padding was pushing it, not because of its own metrics. What remains is the label riding high
+   in its em box, which is what --st-caps-nudge answers.
+   The nudge is a VARIABLE, not a constant, because the sheet font is a user setting and the three
+   faces need corrections a factor of ten apart — see settings.js#_FONT_CAPS_NUDGE. It is in `em`,
+   so it also follows this pill's two sizes (the name row's and the character sheet's prose line).
+   A transform, not padding: a flex item is blockified so it applies, it lands sub-pixel, and it
+   moves the ink without changing the pill's height. */
+.stonetop-condemned-tag-text { transform: translateY(var(--st-caps-nudge, 0.073em)); }
+
+/* The character sheet's copy, which DOES trail a sentence — the appearance summary — rather than
+   standing under a name. It gets the left gap that detaches it from that sentence, sits on the
+   text's baseline instead of the middle of the line, and takes the size of the Dead pill it shares
+   the line with (`em` here, because that is the one context with a small parent to inherit from,
+   and two pills on one line at two sizes is worse than either size). */
+.stonetop-appearance-summary .stonetop-condemned-tag {
+	margin: 0 0 0 0.7em;
+	font-size: var(--st-fs-xs);
+	vertical-align: baseline;
+}
+
+/* ── The Condemned roster window ───────────────────────────────────
+   Opened from the header scales; one row per standing brand, and the only place one can be
+   lifted. Kept in this block rather than with the other dialogs so the whole feature — the two
+   icons, the tag and the window — reads as one thing.
+
+   `.window-content` padding is zeroed so the body owns its own, which is what lets the drop
+   highlight below reach the window's edges rather than leaving an unresponsive frame around a
+   target that says "drop here". */
+.stonetop-condemned-dialog .window-content { padding: 0; }
+
+/* The whole panel is capped, and the LIST is what gives way inside it — see the list rule below.
+   The cap lives here rather than on the window: this is an auto-height AppV1 dialog, so by the
+   time a `max-height` on `.window-app` could bite, setPosition has already measured the content
+   and fixed a pixel height, and the cap would crop the add row off the bottom instead of making
+   anything scroll. Capping the CONTENT means the measurement itself comes back small, so the
+   window hugs a sane height on its own. */
+.stonetop-condemned-body {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 12px;
+	max-height: 78vh;
+	/* The dashed affordance is drawn as an INSET ring rather than a border so appearing and
+	   disappearing costs no layout: a real border would grow the box by 2px on dragenter and
+	   shuffle every row down as the pointer crossed the window. */
+	box-shadow: inset 0 0 0 2px transparent;
+	transition: box-shadow 0.12s ease;
+}
+
+.stonetop-condemned-body.is-drop-target {
+	box-shadow: inset 0 0 0 2px var(--st-condemned-border);
+}
+
+/* The Judge's mark over the move text, both centred — a title block, not a row. The image is
+   whose move this is; the prose is what it does. */
+.stonetop-condemned-heading {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	text-align: center;
+}
+
+/* Height only, so the art keeps its own proportions whatever they are — `width: auto` on an
+   <img> with a stated height is the one direction that never distorts. `max-width` is the guard
+   for a wide mark in a narrow window; the two together letterbox nothing.
+
+   `border: none` is not tidiness: core paints a black 1px border on every <img> inside an
+   application, which on a transparent-cornered mark draws a box around empty space. */
+.stonetop-condemned-mark {
+	display: block;
+	height: 76px;
+	width: auto;
+	max-width: 60%;
+	object-fit: contain;
+	border: none;
+	flex: none;
+}
+
+.stonetop-condemned-rule {
+	margin: 0;
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	color: var(--st-text-secondary);
+}
+
+/* The one part of the panel that gives way. Everything else here — the mark, the rule, the add
+   row, the drop hint — is fixed furniture that must stay reachable however many people the Judge
+   has branded; the roster is the only thing that grows without bound, so it is the only thing
+   that scrolls. A Judge four sessions in would otherwise open a window taller than the screen
+   with the add field somewhere below the bottom edge.
+
+   `flex: 1 1 auto` + `min-height: 0` rather than a `max-height` of its own. A fixed list cap
+   (46vh, as this was) has to be chosen against a GUESS at how tall the furniture above it is, and
+   that guess is wrong the moment the rule text wraps to another line at a large font scale — the
+   two caps then add up past the screen. Letting the list absorb whatever the panel's own cap
+   leaves over needs no such number and cannot drift out of step with it.
+
+   `min-height: 0` is belt and braces: a flex item's automatic minimum size is already zero for a
+   scroll container, so `overflow-y: auto` alone does the job today — but that is a subtle spec
+   rule to be relying on silently, and losing the overflow for any reason would turn the cap off
+   rather than merely change the look. The scrollport is named in the dialog's `scrollY`, so the
+   position survives the re-render after each dismissal. */
+.stonetop-condemned-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.stonetop-condemned-row {
+	display: grid;
+	grid-template-columns: auto 1fr auto;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	border: 1px solid var(--color-border-light-tertiary, #ddd);
+	border-radius: var(--st-radius);
+	background: rgba(255, 255, 255, 0.35);
+}
+
+/* The clipping box, so a framed portrait's several-hundred-percent image cannot paint across
+   the row — the same shape the sheet headers use (see actor-header.hbs). */
+.stonetop-condemned-portrait {
+	position: relative;
+	display: block;
+	overflow: hidden;
+	width: 34px;
+	height: 34px;
+	flex: none;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.06);
+}
+
+.stonetop-condemned-portrait-img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	object-position: top center;
+	/* Core paints a black border on any <img> inside an application; say otherwise. */
+	border: none;
+}
+
+.stonetop-condemned-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.stonetop-condemned-nameline {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	min-width: 0;
+}
+
+.stonetop-condemned-name-text {
+	font-family: var(--font-stonetop);
+	font-weight: 600;
+	color: var(--st-text);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+a.stonetop-condemned-name-text { cursor: pointer; }
+a.stonetop-condemned-name-text:hover { text-decoration: underline; }
+
+.stonetop-condemned-note,
+.stonetop-condemned-note-text {
+	margin: 0;
+	font-size: var(--st-fs-xs);
+	font-style: italic;
+	color: var(--st-text-secondary);
+}
+
+/* The quiet underline every editable field in this system wears, rather than a grey well —
+   a column of wells would out-shout the names they belong to. */
+.stonetop-condemned-note {
+	width: 100%;
+	height: auto;
+	padding: 1px 0;
+	border: none;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+	border-radius: 0;
+	background: none;
+}
+
+.stonetop-condemned-note:focus {
+	border-bottom-color: var(--st-condemned-border);
+	box-shadow: none;
+	outline: none;
+}
+
+/* Core's `body.game .app button { width: 100% }` would stretch this across the row, and its
+   `height` would pad it past the portrait — both have to be NAMED to be beaten. */
+.stonetop-condemned-dismiss {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: none;
+	width: 24px;
+	min-width: 0;
+	height: 24px;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background: none;
+	box-shadow: none;
+	color: var(--st-text-faint);
+	line-height: 1;
+	cursor: pointer;
+	transition: background 0.12s, color 0.12s;
+}
+
+.stonetop-condemned-dismiss:hover {
+	background: var(--st-condemned-bg);
+	color: var(--st-condemned-text);
+}
+
+/* The X inside it. Both declarations are corrections, measured rather than guessed — see
+   condemn-dismiss-centre.mjs in the verify harness, which scans the painted ink against the
+   circle rather than trusting the box model.
+
+   `margin: 0` is the one that matters. Core spaces an <i> from the LABEL that normally follows it
+   in a button, and this button has no label — so that right margin was pushing the glyph 1.5px
+   off-centre inside a 24px circle, which is where the "not centred" came from. It is a layout
+   offset, not an optical one: `justify-content: center` was centring the icon's box correctly and
+   the box itself carried the margin.
+
+   The nudge is the smaller, optical half: Font Awesome ink paints above its own box centre, so a
+   perfectly centred box still reads high. Measured at 0.62px for fa-xmark at this size, against
+   the REAL Pro webfont — a missing-glyph box has its own metrics and measuring one of those gives
+   a number for a shape nobody sees. A transform rather than `top`, so it can land sub-pixel
+   instead of rounding to a whole one. */
+.stonetop-condemned-dismiss i {
+	margin: 0;
+	line-height: 1;
+	transform: translateY(0.62px);
+}
+
+.stonetop-condemned-empty {
+	margin: 0;
+	padding: 10px 0;
+	font-style: italic;
+	text-align: center;
+	color: var(--st-text-muted);
+}
+
+.stonetop-condemned-add {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding-top: 8px;
+	border-top: 1px solid var(--color-border-light-tertiary, #ddd);
+}
+
+.stonetop-condemned-add .stonetop-condemned-name {
+	flex: 1;
+	min-width: 0;
+}
+
+.stonetop-condemned-add-btn {
+	width: auto;
+	min-width: 0;
+	flex: none;
+}
+
+.stonetop-condemned-hint {
+	margin: 0;
+	font-size: var(--st-fs-2xs);
+	font-style: italic;
+	text-align: center;
+	color: var(--st-text-muted);
+}
+
+
 /* The empty "Drop a playbook here" hint is hidden by default so a fresh sheet
    isn't cluttered with a confusing dashed box — the whole sheet still accepts a
    playbook drop. It surfaces only while something is being dragged over the
@@ -10042,6 +10685,22 @@ button.stonetop-dead-tag:hover {
 	--st-blue-text:                hsl(212 55% 78%);
 	--st-green-bg:                 hsla(140, 35%, 30%, 0.32);
 	--st-green-border:             hsl(140 30% 50%);
+	/* The Judge's brand furniture, turned over the same way. Not merely dimmed on black paper but
+	   GONE: these are near-black at their paper values, so the scales' branding state and the
+	   roster's hover and focus marks would paint black-on-black. Reached by a condemned PC's own
+	   sheet, and by the Judge's roster window when a past-death Judge opens it (the `.app` scope
+	   above dresses the dialogs a sheet raises).
+
+	   The Condemned PILL is not in this list and does not need to be: it reads the shared
+	   --st-red-* family, which is re-pointed a few lines up, so it comes down with the reds.
+
+	   Inverted rather than merely lightened, the same move `--st-red-text` makes above. The count
+	   disc on the scales keeps its own paired ink (--st-condemned-on) so the numeral stays legible
+	   against whichever way round the disc is painted. */
+	--st-condemned-text:           hsl(38 14% 82%);
+	--st-condemned-border:         hsla(38, 12%, 72%, 0.55);
+	--st-condemned-bg:             hsla(38, 12%, 72%, 0.12);
+	--st-condemned-on:             hsl(0 0% 10%);
 	/* Every spiral bullet and every check control on the sheet is one of these variables painted
 	   as a background IMAGE with a fixed black fill, so on black paper they'd all disappear at
 	   once — the checkboxes most damagingly, since an invisible checkbox isn't just unreadable,
@@ -12697,20 +13356,30 @@ button.stonetop-dead-tag:hover {
 	color: #900;
 }
 
+/* The shared full-width dashed "add a row" entry point — same rule the inventory
+   tab's Add item (.stonetop-inv-add-btn) and this sheet's own Create improvement /
+   Make a hazard (.steading-improvement-add-btn) use. Was a muted left-aligned
+   caption, which read as a different control from the ones beside it. */
 .steading-list-add {
-	background: none;
-	border: 1px dashed rgba(0,0,0,0.25);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	background: transparent;
+	border: 1px dashed var(--color-border-light, #ccc);
 	border-radius: var(--st-radius);
 	cursor: pointer;
+	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-xs);
-	color: var(--st-text-muted);
+	color: var(--st-text-body);
 	padding: 2px 8px;
+	margin-top: 4px;
 	width: 100%;
-	text-align: left;
+	transition: background 0.15s;
 }
 
 .steading-list-add:hover {
-	background: rgba(0,0,0,0.05);
+	background: hsl(210 10% 92%);
 	color: var(--st-text-body);
 }
 
@@ -13847,10 +14516,11 @@ a.steading-player-open:hover {
 	padding: 4px 2px;
 	margin-top: 8px;
 }
-/* The Threats tab's "Write up a threat" button shares this dashed-border look
-   (its own .threat-add-btn class keeps the JS handlers separate). */
+/* The Threats tab's "Write up a threat" and "Make a hazard" buttons share this
+   dashed-border look (their own classes keep the JS handlers separate). */
 .steading-improvement-add-btn,
-.threat-add-btn {
+.threat-add-btn,
+.hazard-add-btn {
 	flex: 1 1 100%;
 	display: flex;
 	align-items: center;
@@ -13866,7 +14536,25 @@ a.steading-player-open:hover {
 	transition: background 0.15s;
 }
 .steading-improvement-add-btn:hover,
-.threat-add-btn:hover { background: hsl(210 10% 92%); }
+.threat-add-btn:hover,
+.hazard-add-btn:hover { background: hsl(210 10% 92%); }
+
+/* Drop the leading "+" a pixel so it sits on the button's centre line.
+   `align-items: center` above already centres the <i>'s BOX exactly, but Font
+   Awesome 7's vertical metrics are lopsided (it reports far more ascent than
+   descent), so the glyph paints flush against the top of that box and all the
+   slack collects underneath. At the default 16px root that measures 10px of air
+   over the plus against 12px under it, which reads as "not centred" straight
+   away on a 34px-tall button with a hard dashed edge to compare against.
+   Nudging the glyph rather than the padding leaves the label's baseline alone.
+   Verified by pixel-scanning the render at device scale 1, 1.25, 1.5 and 2:
+   worst case goes from 1.4px high to 0.33px low. */
+.steading-improvement-add-btn > i,
+.threat-add-btn > i,
+.hazard-add-btn > i {
+	position: relative;
+	top: 1px;
+}
 
 /* Drop target highlight while dragging a Steading Improvement card over the tab. */
 .tab.improvements.steading-improvement-drag-over {
@@ -16244,12 +16932,38 @@ a.steading-player-open:hover {
 	color: #1f2937;
 }
 
+/* A row is the value and, optionally, a dimmed hint pushed to the right edge — where an NPC
+   lives, say, so two people of the same name can be told apart. Flex rather than a grid: most
+   lists have no hints at all, and a grid would reserve the second column on every one of them. */
 .stonetop-autocomplete-option {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 10px;
 	padding: 5px 8px;
 	border-radius: var(--st-radius-sm);
 	font-weight: 400;
 	line-height: 1.3;
 	cursor: pointer;
+}
+
+/* The name wins the space; a long hint is what gets clipped, never the thing being picked. */
+.stonetop-autocomplete-value {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.stonetop-autocomplete-hint {
+	flex: none;
+	max-width: 45%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--st-fs-2xs);
+	font-style: italic;
+	color: var(--st-text-muted);
 }
 
 .stonetop-autocomplete-option:hover,
@@ -16844,12 +17558,31 @@ a.steading-player-open:hover {
 	align-content: start;
 }
 
-/* Filter: hide un-learned invocations when the toggle is on — mirrors the moves tab. */
-.tab.stonetop-invocations.hide-unknown-invocations .stonetop-invocation-card.is-unknown {
+/* Filter: hide un-learned invocations when the toggle is on — mirrors the moves tab,
+   including the `:not(.is-searching)` guard: an active tab search (which flags this same
+   element) suspends the hide, so a matching invocation is surfaced whether or not it's
+   learned. Non-matches are hidden by the search's own `.stonetop-search-hidden`. */
+.tab.stonetop-invocations.hide-unknown-invocations:not(.is-searching) .stonetop-invocation-card.is-unknown {
 	display: none;
 }
 
-/* Filter + sort toolbar — mirrors the Ledger toolbar's search/sort controls. */
+/* An un-learned Invocation reads as what it is, without being hidden. It matters more than
+   it looks: the whole list is on this tab (a 1st-level Lightbearer knows 2 of 10), the two
+   states used to differ by nothing but a disabled checkbox, and only a LEARNED one is
+   offered the +WIS roll on tap. Faded rather than greyed out — it is still readable, still
+   tappable, and still posts its text. */
+.stonetop-invocation-card.is-unknown {
+	opacity: 0.62;
+	border-style: dashed;
+}
+
+.stonetop-invocation-card.is-unknown:hover,
+.stonetop-invocation-card.is-unknown:focus-within {
+	opacity: 1;
+}
+
+/* Toolbar — the hide-un-learned toggle and the sort; the text filter is the shared
+   magnifying-glass control up in the heading row (see .stonetop-tab-search). */
 .stonetop-invocations-toolbar {
 	display: flex;
 	align-items: center;
@@ -16857,20 +17590,15 @@ a.steading-player-open:hover {
 	flex-wrap: wrap;
 }
 
-.stonetop-invocation-search {
-	flex: 1 1 140px;
-	min-width: 0;
-	height: 24px;
-	padding: 0 8px;
-	border: 1px solid var(--color-border-dark, #7a7971);
-	border-radius: var(--st-radius);
-	font-family: var(--font-stonetop);
-	font-size: calc(13px * var(--stonetop-font-scale, 1));
-	background: #fff;
+/* The tab is a flex column with its own gap, so drop the reused label's vertical margin. */
+.tab.stonetop-invocations .stonetop-hide-unselected-label {
+	margin: 0;
+	flex-shrink: 0;
 }
 
-.stonetop-invocation-sort {
+.stonetop-invocations-toolbar .stonetop-invocation-sort {
 	flex-shrink: 0;
+	width: auto;
 	height: 24px;
 	padding: 0 4px;
 	border: 1px solid var(--color-border-dark, #7a7971);
@@ -16878,13 +17606,50 @@ a.steading-player-open:hover {
 	font-family: var(--font-stonetop);
 	font-size: calc(13px * var(--stonetop-font-scale, 1));
 	background: #fff;
+}
+
+/* The Invocation prompt — raised whenever a Lightbearer uses an Invocation: roll +WIS to
+   Invoke the Sun God, and (for those who have the move) empower it. The empowered effect
+   they'd be buying is quoted in the sun-tinted band (same band as the chat card's, so the
+   offer and the posted result read as the same thing); the cost line under it is the part
+   players forget, so it stays plain and last. */
+.stonetop-empower-dialog .stonetop-empower-effect {
+	margin: 8px 0;
+	padding: 6px 8px;
+	border-left: 3px solid rgba(196, 149, 42, 0.7);
+	border-radius: 0 var(--st-radius) var(--st-radius) 0;
+	background: rgba(226, 184, 84, 0.16);
+}
+
+.stonetop-empower-dialog .stonetop-empower-effect p:last-child { margin-bottom: 0; }
+
+.stonetop-empower-dialog .stonetop-empower-cost {
+	color: var(--st-text-secondary);
+}
+
+/* Empowering is a modifier of invoking, not a third button — so it rides a checkbox on its
+   own line, directly above the effect band it turns on. */
+.stonetop-invoke-dialog .stonetop-invoke-empower {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	margin: 8px 0 0;
 	cursor: pointer;
 }
 
-/* The tab is a flex column with its own gap, so drop the reused label's vertical margin. */
-.tab.stonetop-invocations .stonetop-hide-unselected-label {
-	margin: 0;
-	flex-shrink: 0;
+.stonetop-invoke-dialog .stonetop-invoke-empower input { flex: none; }
+
+/* Whether a light is at hand is the table's call, so this states the sheet's answer rather
+   than blocking the roll: a note, not an error. */
+.stonetop-invoke-dialog .stonetop-invoke-nolight {
+	margin: 8px 0 0;
+	color: var(--st-text-secondary);
+	font-size: 0.95em;
+}
+
+.stonetop-invoke-dialog .stonetop-invoke-nolight i {
+	margin-right: 4px;
+	color: rgba(176, 128, 24, 0.9);
 }
 
 /* ---- Collapsible tab search (Moves, Arcana) -----------------------------
@@ -16989,6 +17754,18 @@ a.steading-player-open:hover {
 	opacity: 1;
 	pointer-events: auto;
 	padding: 0 6px 0 2px;
+}
+
+/* Exception: grow DOWNWARD where the heading is a scrollport's first line.
+   The upward growth above assumes empty space over the heading. On the Invocations tab the
+   heading is the tab's very first line AND the tab is its own scroll container, so the open
+   box overflows past the scrollport's top edge and is clipped — a sliver at scale 1, a
+   visible chop at the larger UI font sizes (everything here scales but the tab's 12px
+   padding). Dropping the negative margin lets the h3's line box simply grow instead: the
+   box is never cut, at the cost of nudging the heading's rule and the blocks under it down
+   by 8px while it's open. */
+.tab.stonetop-invocations .stonetop-tab-search.is-open {
+	margin-top: 0;
 }
 
 /* The control renders inline at the end of the section-heading <h3>, right after the
@@ -23460,7 +24237,18 @@ th:has(> .stonetop-roll-table-btn) {
 	text-underline-offset: 2px;
 }
 .stonetop-welcome-textlink:hover { color: var(--st-green-border); text-shadow: none; }
-.stonetop-welcome-textlink > i { margin-right: 3px; }
+/* The circle-question glyph is a full-em disc (its ink runs 0.88em above the
+   baseline and 0.13em below it) while the label's caps only reach 0.77em, so on
+   plain baseline alignment the disc floats a couple of pixels above the word it
+   introduces. Trim it to just over cap height and lift it back onto the centre
+   of the cap band, so mark and label read as one line rather than two heights.
+   (`vertical-align` lengths resolve against the icon's OWN font-size, i.e. the
+   0.82em set here.) */
+.stonetop-welcome-textlink > i {
+	margin-right: 3px;
+	font-size: 0.82em;
+	vertical-align: 0.073em;
+}
 
 /* Inline variant: flows mid-sentence (core's `button { display: flex }` would
    otherwise break it onto its own line). Used by the step 2 "Agenda & Principles"

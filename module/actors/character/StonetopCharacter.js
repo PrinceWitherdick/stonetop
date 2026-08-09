@@ -43,6 +43,8 @@ import {moveMarkBudget} from "./move-mark-budget.js";
 import {StonetopFlags, STONETOP_SCOPE, ITEM_FLAG_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
 import {DEATHS_DOOR_FLAG, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
 import {heroDisplayName, WBH_HERO_FLAG, ownsAsteriskMove} from "./WouldBeHeroAsterisk.js";
+import {HOLY_LIGHT_FLAG, canWieldHolyLight} from "./holy-light.js";
+import {CONDEMNED_FLAG, canCondemn, readCondemned, addCondemned, removeCondemned, noteCondemned} from "./condemn.js";
 import {CharacterBackgrounds} from "./CharacterBackgrounds.js";
 import {CharacterInstincts} from "./CharacterInstincts.js";
 import {CharacterAppearance} from "./CharacterAppearance.js";
@@ -2066,6 +2068,84 @@ export class StonetopCharacter {
 		const next = Math.max(0, Math.trunc(Number(n) || 0));
 		if (next === this.defendReadiness) return;
 		await this._actor.setFlag(STONETOP_SCOPE, _DEFEND_READINESS_FLAG, next);
+	}
+
+	// -- Holy light (the Lightbearer's consecrated flame) ----------------------------
+
+	/** Is a holy light burning? A scalar, never an object: setFlag deep-merges plain
+	 *  objects, so a sub-key could only ever be dropped through the `-=` dance, while a
+	 *  boolean is replaced wholesale. See holy-light.js for why one slot is enough. */
+	get holyLight() {
+		return !!this._actor.getFlag(STONETOP_SCOPE, HOLY_LIGHT_FLAG);
+	}
+
+	/** Whether this character has any move that MAKES a holy light — what earns the candle. */
+	get canWieldHolyLight() {
+		return canWieldHolyLight(this._actor);
+	}
+
+	/** Returns true only when the flag actually changed, so a caller can skip a re-render —
+	 *  and, more to the point, so re-consecrating an already-lit flame writes no document
+	 *  update and broadcasts nothing to the other clients. */
+	async setHolyLight(lit) {
+		const next = !!lit;
+		if (next === this.holyLight) return false;
+		if (next) await this._actor.setFlag(STONETOP_SCOPE, HOLY_LIGHT_FLAG, true);
+		else      await this._actor.unsetFlag(STONETOP_SCOPE, HOLY_LIGHT_FLAG);
+		return true;
+	}
+
+	// -- Condemn (the Judge's brand) --------------------------------------------------
+
+	/** Everyone this Judge is holding a brand on, normalised. See condemn.js for the shape. */
+	get condemned() {
+		return readCondemned(this._actor.getFlag(STONETOP_SCOPE, CONDEMNED_FLAG));
+	}
+
+	/** Whether this character owns Condemn — what earns the scales in the header. */
+	get canCondemn() {
+		return canCondemn(this._actor);
+	}
+
+	/**
+	 * ⚠ The store is a flag ARRAY, and Foundry's update merge treats an array as an ATOMIC value —
+	 * so every write here hands over the WHOLE list rather than reaching into a slot. A dotted
+	 * `condemned.2.note` does not patch element 2: it expands to `{ condemned: { 2: … } }` and
+	 * replaces the array with an object, destroying the roster. Same rule, for the same reason, as
+	 * roster-portraits.js — read its header note before changing any of the three writers below.
+	 */
+	async _writeCondemned(entries) {
+		await this._actor.setFlag(STONETOP_SCOPE, CONDEMNED_FLAG, entries);
+	}
+
+	/**
+	 * Brand somebody. Returns the stored entry, or null when the list was left alone — which is
+	 * either a nameless target or one already branded. Nothing is written in that case, so
+	 * re-Censuring the same person broadcasts no update and re-renders no sheets.
+	 */
+	async brandCondemned(entry) {
+		const { entries, added } = addCondemned(
+			this._actor.getFlag(STONETOP_SCOPE, CONDEMNED_FLAG), entry, () => foundry.utils.randomID(16),
+		);
+		if (!added) return null;
+		await this._writeCondemned(entries);
+		return added;
+	}
+
+	/** Dismiss one brand — the only way it ever ends. Returns the entry that was lifted, or null. */
+	async dismissCondemned(id) {
+		const { entries, removed } = removeCondemned(this._actor.getFlag(STONETOP_SCOPE, CONDEMNED_FLAG), id);
+		if (!removed) return null;
+		await this._writeCondemned(entries);
+		return removed;
+	}
+
+	/** Re-word why somebody is branded. Returns the patched entry, or null when nothing changed. */
+	async setCondemnedNote(id, note) {
+		const { entries, changed } = noteCondemned(this._actor.getFlag(STONETOP_SCOPE, CONDEMNED_FLAG), id, note);
+		if (!changed) return null;
+		await this._writeCondemned(entries);
+		return changed;
 	}
 
 	// Raise the held Readiness to the amount this Defend tier grants, never lowering an

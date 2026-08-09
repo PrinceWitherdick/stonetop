@@ -10,8 +10,10 @@ Where our filename differs from the original, the game-icons.net source name is 
 | Icon | game-icons.net source | Artist | Artist page |
 |------|-----------------------|--------|-------------|
 | broken-heart.svg | broken-heart | Lorc | https://lorcblog.blogspot.com |
+| candle-light.svg | candle-light | Lorc | https://lorcblog.blogspot.com |
 | hearts.svg | hearts | Skoll | https://game-icons.net |
 | move.svg | move | Delapouite | https://delapouite.com |
+| scales.svg | scales | Lorc | https://lorcblog.blogspot.com |
 
 `move.svg` recolours the glyph and sets it on the system's dark octagon token; the artwork
 itself is unchanged.

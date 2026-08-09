@@ -832,6 +832,38 @@
       "openFailed": "The portrait framer could not open. See the console for details.",
       "tokenizerPip": "Open Tokenizer",
       "noTokenizeTarget": "Tokenizer works on the actor this follower was placed as, and that actor is gone. Drag the card onto a scene to place them again."
+    },
+    "holyLight": {
+      "litTooltip": "Wielding a holy light. Click to snuff it out.",
+      "unlitTooltip": "No holy light. Click to light one, or use Consecrated Flame.",
+      "readOnlyLit": "A holy light burns.",
+      "readOnlyUnlit": "No holy light is lit.",
+      "litLabel": "Holy light is lit",
+      "unlitLabel": "Holy light is out"
+    },
+    "condemn": {
+      "openLabel": "The Condemned",
+      "noneTooltip": "Nobody bears your brand. Click to open the roster.",
+      "someTooltip": "{count} bearing your brand. Click to open the roster.",
+      "rule": "A brand that cannot be removed or hidden until you dismiss it. Any intelligent creature who sees the mark recognizes the bearer as an agent of chaos and anathema to civilization.",
+      "empty": "Nobody bears your brand.",
+      "add": "Condemn",
+      "addPlaceholder": "Name someone, or a faction…",
+      "notePlaceholder": "What they were denounced for…",
+      "dropHint": "Or drop a person onto this window.",
+      "dismissLabel": "Dismiss the brand on {name}",
+      "needName": "Name who is being condemned first.",
+      "ambiguous": "Several people match \"{name}\": {names}. Type the full name, or drop the right one onto this window.",
+      "sameName": "More than one {name} in the world — the first was branded. Drop the right one onto this window to be certain.",
+      "matched": "Found {name} in the world; their sheet now carries the brand.",
+      "nameOnly": "Nobody in the world is named {name}, so the brand records the name alone — no sheet will carry the tag.",
+      "already": "{name} already bears your brand.",
+      "notSelf": "A Judge cannot condemn themself.",
+      "notBrandable": "{name} is not somebody who can be denounced.",
+      "fromCompendium": "{name} came from a compendium, so the brand records the name only — it will not tag that person's sheet in this world.",
+      "tag": "Condemned",
+      "tagTooltip": "Condemned by {who} — branded as an agent of chaos and anathema to civilization.",
+      "tagTooltipPlain": "Branded as an agent of chaos and anathema to civilization."
     }
   }
 }

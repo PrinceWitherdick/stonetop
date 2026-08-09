@@ -54,7 +54,13 @@
 //             identity + up to three impressions + instinct, the drives (connections /
 //             motivations / GM embodiment note), per-PC relationship hearts + notes, the optional
 //             combat stat block, embedded npcMove GM moves, a lifecycle status, and @UUID
-//             cross-links to a seeded monster stat block and threat. The singleton actor itself is
+//             cross-links to a seeded monster stat block and threat. The roster's Judge (Old
+//             Bartholomew) ends the run holding four standing Condemn brands, one per way the
+//             feature renders: on an NPC (Gethin), on a fellow PC (Quill), on a monster stat block
+//             (the Hillfolk Raiders, a Proclamation widened to the whole war-band), and on a
+//             faction nobody has made an Actor for (the Cult of the Black Water) — so the header
+//             scales, the roster window and the condemned tag on all three sheet types each have a
+//             fixture. The singleton actor itself is
 //             never created or deleted — only its test members (each tagged isTest) are added and
 //             later removed.
 // Re-run:     deletes everything this macro created (characters — the roster and the Graveyard
@@ -2248,6 +2254,74 @@
     return npc;
   };
 
+  // ── The Judge's brand: a few standing Condemnations ────────────────────
+  // Condemn is the only Judge move that leaves state behind — "marked with a mystical brand that
+  // cannot be removed or hidden UNTIL YOU DISMISS IT" — so it is also the only one with nothing to
+  // look at until somebody has actually been branded. An empty roster renders one line of "nobody",
+  // which tells you the window opens and nothing else.
+  //
+  // Four rows, chosen to cover every way the feature draws rather than to be four names:
+  //   • an `npc` Actor (Gethin) and a `monster` stat block (the Hillfolk Raiders) and a fellow
+  //     `character` (Quill) — the three BRANDABLE types, each of whose sheets wears the condemned
+  //     tag, and each of which resolves back to a portrait + openable link in the roster window;
+  //   • a faction with no Actor anywhere (the Cult of the Black Water, the Crow-Mother's people from
+  //     the seeded threats) — the name-only row a Proclamation always produces, which lists fine and
+  //     deliberately tags nobody.
+  // The war-band row is that same Proclamation reach in its other form: branded against the stat
+  // block rather than the man, which is what "a group or faction … regardless of distance" looks
+  // like once it is written down.
+  //
+  // WORKS ON BOTH PATHS, showing a different half of showCondemn on each. Condemn is a level 2-5
+  // move, so the Level-1 Judge does not own it and the scales appear only because the list is
+  // non-empty — exactly the stranded-brands case the header keeps the button for. The maxed Judge
+  // owns it, so the same fixture reads as an ordinary Judge holding a list.
+  //
+  // No cleanup of its own: the brands are one flag array on the Judge, and the re-run's actor sweep
+  // deletes that character outright.
+  const JUDGE_SLUG = "the-judge";
+  const TEST_CONDEMNED = [
+    { name: "Gethin Iron-Hand",           note: "Denounced from the steps after the raid on the winter stores. He wears the mark up in the high country and laughs about it." },
+    { name: "Hillfolk Raider",            note: "Proclaimed against the war-band, not the man: every raider who came down the Maker's Road carries it." },
+    { name: "Quill",                      note: "Caught with the reeve's strongbox key in his boot and no answer for it. The brand stands until he makes the village whole." },
+    { name: "The Cult of the Black Water", note: "Named aloud before the whole square. Nobody yet knows which faces in Stonetop are under it." },
+  ];
+
+  // Brand each row on the roster's Judge, through the real writer (brandCondemned — which mints the
+  // row id, refuses a duplicate and writes the whole array back) rather than by setting the flag by
+  // hand. A name that matches an actor this run created is stored as a LINK to them; anything else
+  // stores as a name, which is a perfectly good roster row that simply tags no sheet.
+  const seedCondemned = async (pcs, targets) => {
+    // Slug off the character's stored playbook block, falling back to the embedded playbook Item
+    // and finally to the preset name — `||` rather than `??` throughout, since both slug fields are
+    // blank-initialised strings and a blank must fall through rather than win.
+    const pcSlug = (a) => a?.system?.playbook?.slug || a?.items?.find(i => i.type === "playbook")?.system?.slug || "";
+    const judge = (pcs ?? []).find(a => pcSlug(a) === JUDGE_SLUG)
+      ?? (pcs ?? []).find(a => a?.name === PRESET.judge.name);
+    const typed = judge?.typedActor;
+    if (!typed?.brandCondemned) {
+      console.log("[TEST] No Judge in the roster — skipped the Condemn brands.");
+      return 0;
+    }
+    // First actor wins a shared name; the Judge himself is never a target (condemnersOf skips self,
+    // so a self-brand would sit on the roster tagging nothing).
+    const byName = new Map();
+    for (const a of (targets ?? []).flat().filter(Boolean)) {
+      if (a.id !== judge.id && !byName.has(a.name)) byName.set(a.name, a);
+    }
+    let branded = 0;
+    for (const row of TEST_CONDEMNED) {
+      const target = byName.get(row.name) ?? null;
+      const added = await typed.brandCondemned({
+        name: target?.name ?? row.name,
+        uuid: target?.uuid ?? "",
+        note: row.note,
+      });
+      if (added) branded++;
+    }
+    console.log(`[TEST] Condemned by ${judge.name}: ${branded}/${TEST_CONDEMNED.length} — ${TEST_CONDEMNED.map(r => r.name).join(", ")}.`);
+    return branded;
+  };
+
   // ── Steading people: the Residents / Neighbors NPC actors ──────────────
   // The two Actor folders the steading's people live in, mirroring PEOPLE_FOLDERS in
   // module/actors/steading/steading-people.js — same names and colours, so the seeded NPCs
@@ -2658,7 +2732,13 @@
   // One fully-filled `npc` Actor, cross-linked to a seeded Monster stat block + Threat and to
   // the created PCs (relationship hearts + @UUID connections). Torn down on re-run by the actor
   // sweep (isTest) and the empty-flagged "NPCs" folder prune.
-  await seedTestNpc({ pcs: created, monsters: testMonsters, threats: testThreatPages });
+  const exampleNpc = await seedTestNpc({ pcs: created, monsters: testMonsters, threats: testThreatPages });
+
+  // ── The Judge's standing Condemnations ─────────────────────────────────
+  // Last of all, because a brand stores a LINK to its target: every actor a row could name — the
+  // PCs, the villagers, the monster stat blocks and the example NPC — has to exist before the
+  // roster is written, or the row silently degrades to a name-only entry that tags no sheet.
+  const brandCount = await seedCondemned(created, [created, testVillagers, testMonsters, [exampleNpc]]);
 
   // ── Record introductions answers + an example expedition ───────────────
   // So the GM can run game.stonetop.saveChronicle() (or the Introductions dialog's
@@ -2678,7 +2758,7 @@
   // is somehow run before onReady wires up the API.)
   await game.stonetop?.saveChronicle?.();
 
-  ui.notifications.info(`[TEST] Done — ${playbookDocs.length} characters${maxLevel ? " (maxed to level " + (created[0]?.system?.attributes?.level?.value ?? "?") + "+, arcana scattered)" : ""}, each with a test custom move + follower, ${TEST_WORLD_MOVES.length} world moves, ${TEST_WORLD_ITEMS.length} world items, ${TEST_MONSTERS.length} monsters and one example NPC, ${steading ? `${testVillagers.length} resident/neighbor NPCs, seeded steading members, Notes + 3 threats, settlement standings, ` : ""}${relCount} relationship ratings, introductions answers, an example expedition, and the compiled Chronicle.`);
+  ui.notifications.info(`[TEST] Done — ${playbookDocs.length} characters${maxLevel ? " (maxed to level " + (created[0]?.system?.attributes?.level?.value ?? "?") + "+, arcana scattered)" : ""}, ${buried.length} in the Graveyard (1st level, whatever the roster did), each with a test custom move + follower, ${TEST_WORLD_MOVES.length} world moves, ${TEST_WORLD_ITEMS.length} world items, ${TEST_MONSTERS.length} monsters and one example NPC, ${steading ? `${testVillagers.length} resident/neighbor NPCs, seeded steading members, Notes + 3 threats, settlement standings, ` : ""}${relCount} relationship ratings, ${brandCount} Condemn brands on the Judge, introductions answers, an example expedition, and the compiled Chronicle.`);
   } finally {
     globalThis.__stonetopTestFixturesRunning = false;
   }

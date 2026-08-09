@@ -19,6 +19,7 @@ import { getDragEventData } from "../../utils/foundry-compat.js";
 import { openLedgerDialog } from "../../utils/ledger-dialog.js";
 import { NpcLedger } from "./NpcLedger.js";
 import { npcStatusMeta, NPC_STATUSES } from "../../data-models/npc-status.js";
+import { condemnedContext } from "../character/condemn.js";
 import { partyCharacters } from "../../utils/playbook-actors.js";
 import { preserveScroll } from "../../utils/scroll-parent.js";
 import { mountTabRail } from "../../utils/tab-rail.js";
@@ -234,6 +235,11 @@ export function createStonetopNpcSheetClass(Base) {
 			st.detailsEmpty = st.classicLayout && !st.editMode && !st.impressionsShown.length && !st.hasMotivations;
 			st.statBlockLink = statBlockLink;
 			st.threatLink    = threatLink;
+
+			// A Judge's Condemn brand, if this person is wearing one. Asked of the world rather
+			// than read off this actor: the brand is stored on the Judge, because a player-owned
+			// Judge has no write permission on a GM's NPC. See condemn.js.
+			st.condemned = condemnedContext(this.actor);
 
 			// Relationships: every player character, with how much this NPC likes them as
 			// a 1-5 heart rating (absent = the default 3). Hearts render as a masked SVG so

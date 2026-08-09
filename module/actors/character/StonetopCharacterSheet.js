@@ -60,7 +60,10 @@ import {openLedgerDialog} from "../../utils/ledger-dialog.js";
 import {promptRollModifier} from "../../dialogs/RollModifierDialog.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
-import {annotateInvocationEffects} from "./invocation-effects.js";
+import {annotateInvocationEffects, splitEmpoweredEffect} from "./invocation-effects.js";
+import {CONSECRATED_FLAME, INVOKE_THE_SUN_GOD, EMPOWERED_INVOCATIONS, ownsMoveNamed, showHolyLight} from "./holy-light.js";
+import {showCondemn, condemnedContext, CONDEMN, CENSURE} from "./condemn.js";
+import {CondemnedDialog} from "./dialogs/CondemnedDialog.js";
 import {wrapGlyphTextContainers} from "../../utils/glyphs.js";
 import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {canAuthorCustomMoves, canCreateArcana} from "../../utils/authoring-gates.js";
@@ -315,9 +318,31 @@ const EXPEDITION_MOVE_HANDLERS = {
 	Outfit:      sheet => sheet._onOutfitOpen(),
 };
 
+// Description-only moves whose USE does something beyond posting their text. These have no
+// rollType, so they fall through every roll path to the "post it to chat" tail — and posting
+// the text IS using them. Keyed by move name so both tails (the move-name click and the hotbar
+// macro) stay one lookup, and so a fourth playbook adds a row here rather than another method
+// plus a call at each site, where the two can silently drift apart.
+//
+// Matched on the resolved ITEM, never the row's text: an un-owned playbook row posts its text
+// with no item id at all, and a player-authored custom move can carry any name. Each handler
+// does its own gating (editable, owns the move that grants the effect).
+const MOVE_USE_EFFECTS = {
+	[CONSECRATED_FLAME]: sheet => sheet._consecrateFlame(),
+	[CONDEMN]:           sheet => sheet._openCondemnedIfJudge(),
+	[CENSURE]:           sheet => sheet._openCondemnedIfJudge(),
+};
+
 // Inventory slugs that hold "uses of supplies", in the order Recover depletes
 // them. Mirrors _PROSPERITY_RESOURCE_SLUGS in StonetopCharacter.js.
 const RECOVER_SUPPLY_SLUGS = ["supplies", "more-supplies", "even-more-supplies"];
+
+// Rides an Invocation's chat card when the player bought the empowered effect, so the
+// table can see the price was paid rather than inferring it from the stronger text.
+const EMPOWERED_NOTE_HTML =
+	`<p class="stonetop-chat-empowered-note"><i class="fas fa-sun" aria-hidden="true"></i> `
+	+ `Empowered: an <strong>extra consequence</strong>, chosen before the roll and taken `
+	+ `whatever it comes up.</p>`;
 
 function _addToLeadingNumber(value, delta) {
 	const match = String(value ?? "").match(/^(-?\d+)(.*)$/);
@@ -1349,6 +1374,27 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.recover = this._buildRecoverData(context.stonetop);
 			context.stonetop.convalesce = this._buildConvalesceData(context.stonetop);
 			context.stonetop.woundsView = this._buildWoundsView(context.stonetop.wounds, context.editable);
+			// The header candle. `show` is not just "is a Lightbearer": a LIT light is shown on
+			// any sheet, so one stranded by a playbook swap can still be snuffed.
+			const holyLit = this._stonetopCharacter.holyLight;
+			context.stonetop.holyLight = {
+				show: showHolyLight({ owns: this._stonetopCharacter.canWieldHolyLight, lit: holyLit }),
+				lit:  holyLit,
+			};
+			// The header scales, on the same terms: shown once the Judge owns Condemn, and kept on a
+			// sheet that no longer does while brands are still standing, so they can be dismissed.
+			// `count` is what the tooltip says and what the badge shows; the roster itself is read
+			// fresh by the dialog rather than carried through here, since it is the dialog that
+			// re-renders when it changes.
+			const brands = this._stonetopCharacter.condemned;
+			context.stonetop.condemn = {
+				show:  showCondemn({ owns: this._stonetopCharacter.canCondemn, count: brands.length }),
+				count: brands.length,
+			};
+			// And the other side of it: a brand this character is WEARING. A PC is as Censurable as
+			// anyone — Aratis does not exempt the party — and condemnersOf already skips self, so a
+			// Judge cannot brand themself into their own header.
+			context.stonetop.condemned = condemnedContext(this.actor);
 			return context;
 		}
 
@@ -2380,7 +2426,6 @@ export function createStonetopCharacterSheetClass(Base) {
 			return {
 				startingCount: raw.startingCount ?? 2,
 				hideUnknown:   this.actor.getFlag("stonetop-pwd", "hideUnknownInvocations") ?? false,
-				sort,
 				sortKnown:     sort === "known",
 				sortAlpha:     sort === "alpha",
 				options,
@@ -2563,21 +2608,6 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this.actor.setFlag("stonetop-pwd", "invocationsSort", ev.currentTarget.value);
 			});
 
-			// Live text filter over invocation cards (name + description). Client-side
-			// only, mirroring the Ledger search; composes with the hide-un-learned CSS.
-			const invCards = [...html[0].querySelectorAll(".stonetop-invocation-card")];
-			invCards.forEach(card => {
-				const name = card.querySelector(".stonetop-invocation-name")?.textContent ?? "";
-				const desc = card.querySelector(".stonetop-invocation-desc")?.textContent ?? "";
-				card._invText = `${name} ${desc}`.toLowerCase();
-			});
-			html.find(".stonetop-invocation-search").on("input", (ev) => {
-				const term = ev.currentTarget.value.trim().toLowerCase();
-				invCards.forEach(card => {
-					card.hidden = !!term && !card._invText.includes(term);
-				});
-			});
-
 			// Live text filters (shared wireTabSearch): a round magnifying-glass button beside a
 			// header that expands into a filter box (tab-search-control.hbs). Each call is scoped
 			// to the container that holds both the box and the items it hides, so scoping to a
@@ -2588,6 +2618,15 @@ export function createStonetopCharacterSheetClass(Base) {
 				// Hiding / revealing cards changes the column balance, so re-pack the masonry
 				// for the new visible set (defined further down, with the packer itself).
 				onFilter: () => this._repackMoves?.(),
+			});
+			// Invocations tab (Lightbearer): one filter over the whole tab, matched on each card's
+			// name and description. Scoped to the tab element, which is also the one carrying
+			// `hide-unknown-invocations` — so an active term flags it `.is-searching` and suspends
+			// that hide, surfacing a matching invocation whether or not it's learned.
+			wireTabSearch(html[0].querySelector(".tab.stonetop-invocations"), {
+				itemSel: ".stonetop-invocation-card",
+				textFor: card => [".stonetop-invocation-name", ".stonetop-invocation-desc"]
+					.map(sel => card.querySelector(sel)?.textContent ?? "").join(" "),
 			});
 			// Arcana tab: the Major and Minor sections each get their own filter, scoped to that
 			// section, so each search only hides its own cards. An active term flags the section
@@ -2639,7 +2678,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// uses on their own document, which is the check that this feature never needs isGM.
 			wirePortraitPopout(this, html[0]);
 
-			html[0].addEventListener("click", ev => {
+			html[0].addEventListener("click", async ev => {
 				const nameEl = ev.target.closest(".stonetop-item-name");
 				if (!nameEl) return;
 				// Move names stay "play-like" (open guided move / roll / post to chat) even in
@@ -2661,8 +2700,10 @@ export function createStonetopCharacterSheetClass(Base) {
 				// A player-authored move (moveType "other") that happens to share a guided
 				// move's name acts as itself, never the built-in dialog — the same rule the
 				// dice path applies in _guidedMoveForRollable.
-				const isOtherMove = li?.dataset.itemId
-					&& this.actor.items.get(li.dataset.itemId)?.system?.moveType === "other";
+				// The row's own item, when it has one — an un-owned playbook row has none. Read
+				// once here: the moveType check below and _maybeConsecrateFlame both want it.
+				const item = li?.dataset.itemId ? this.actor.items.get(li.dataset.itemId) : null;
+				const isOtherMove = item?.system?.moveType === "other";
 				const guide = isOtherMove ? null : GUIDED_CHARACTER_MOVES[name];
 				const rollable = li?.querySelector(".rollable");
 				if (guide && _guidedCharacterMoveHasAction(guide, rollable)) {
@@ -2687,6 +2728,10 @@ export function createStonetopCharacterSheetClass(Base) {
 					content: moveChatCard(name, description),
 					speaker,
 				});
+				// A description-only move has no rollType, so it falls all the way through to
+				// here — and posting its text IS using it. MOVE_USE_EFFECTS is what "using it"
+				// then means (lighting a holy light, opening the Judge's roster).
+				await this._onDescriptionMoveUsed(item);
 			});
 
 			// Clicking the move name fires the same roll as the dice icon.
@@ -3457,6 +3502,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			// points on a dead sheet, and a table that plays the resurrection out in the fiction
 			// first has no reason to have touched HP yet.
 			html.find(".stonetop-dead-tag").on("click", this._onDeadTagClick.bind(this));
+			// The header candle. `button.` on purpose: the read-only copy is a <span> and must
+			// not be wired, so nothing offers a click that would do nothing.
+			html.find("button.stonetop-holy-light").on("click", this._onHolyLightToggle.bind(this));
+			// The header scales. Unlike the candle this is wired for READERS too — the span/button
+			// split is about who may WRITE, and opening a list of who has been branded is looking,
+			// not writing. The dialog itself withholds its add and dismiss controls (see
+			// CondemnedDialog), so a player reading a GM's Judge gets the roster and nothing else.
+			html.find(".stonetop-condemn").on("click", this._onCondemnOpen.bind(this));
 			html.find(".stonetop-recover-open-btn").on("click", this._onRecoverOpen.bind(this));
 			html.find(".stonetop-convalesce-open-btn").on("click", this._onConvalesceOpen.bind(this));
 
@@ -4264,13 +4317,22 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this.actor.setFlag("stonetop-pwd", "invocations.selected", updated);
 				this.render(false);
 			});
-			// Tapping an Invocation's title posts its details to chat, mirroring moves.
+			// Tapping an Invocation's title uses it: the window asks whether to Invoke the Sun
+			// God (+WIS) and whether to empower it, then posts the card and rolls.
 			html.find(".stonetop-invocation-name").on("click", ev => {
 				const card = ev.currentTarget.closest(".stonetop-invocation-card");
 				if (!card) return;
 				const name = ev.currentTarget.textContent.trim();
 				const description = card.querySelector(".stonetop-invocation-desc")?.innerHTML ?? "";
-				this._postMoveCard(name, description);
+				// The whole list is on the tab, learned or not — a 1st-level Lightbearer knows 2
+				// of 10 — and Invoke the Sun God is "choose an Invocation YOU KNOW and roll +WIS".
+				// So an un-learned one is still readable (tap it, get the text) but is not
+				// offered the roll: the same line this sheet draws for moves, where the roll is
+				// what's gated and the reading is not.
+				const known = !card.classList.contains("is-unknown");
+				// Shift is "skip the situational-modifier prompt" everywhere a roll starts; carry
+				// it through so the Invocation's roll honours it too.
+				this._postInvocationCard(name, description, { shiftKey: ev.shiftKey, known });
 			});
 			html.find(".stonetop-other-move-delete").on("click", ev => {
 				const { itemId } = ev.currentTarget.dataset;
@@ -4970,7 +5032,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (!this.isEditable) return;
 
 			const rollable = this._makeSyntheticRollable(item);
-			if (!rollable) return item.roll();   // description-only move → post to chat
+			if (!rollable) {                     // description-only move → post to chat
+				const posted = await item.roll();
+				// The other half: a move dragged to the hotbar is used from there just as truly
+				// as from the sheet, so it gets the same effects.
+				await this._onDescriptionMoveUsed(item);
+				return posted;
+			}
 
 			const guided = this._guidedMoveForRollable(rollable);
 			if (guided) return this._openGuidedCharacterMove(guided, rollable);
@@ -5692,10 +5760,10 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * rather than silence when the move isn't on the sheet, since that means the insert's
 		 * moves failed to embed.
 		 */
-		async rollMoveByName(name) {
+		async rollMoveByName(name, opts = {}) {
 			const item = this.actor?.items?.find(i => i.type === "move" && i.name === name);
 			if (!item) return void ui.notifications.warn(`${name} isn't on this character's sheet.`);
-			return this.rollMoveById(item.id);
+			return this.rollMoveById(item.id, opts);
 		}
 
 		/**
@@ -5758,6 +5826,78 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * player correcting the tracker (the flame guttered out, the GM says it's out), so it
 		 * posts nothing to chat — the same convention Defend's Readiness pips follow.
 		 */
+		async _onHolyLightToggle(ev) {
+			ev.preventDefault();
+			ev.stopPropagation();
+			if (!this.isEditable) return;
+			if (await this._stonetopCharacter.setHolyLight(!this._stonetopCharacter.holyLight)) this.render(false);
+		}
+
+		/**
+		 * The header scales: open the roster of everyone this Judge has branded.
+		 *
+		 * A window rather than a tab. Condemn is not a thing the Judge does every session, the list
+		 * is usually three or four names, and a whole tab standing empty on every Judge who has not
+		 * taken the move yet (or has dismissed everybody) is worse than a button that appears when
+		 * there is something to see — the same call the post-death walkthrough made when its tab
+		 * button was cut.
+		 *
+		 * One window PER CHARACTER (perDocumentOptions): two Judges at one table is an ordinary
+		 * evening, and two dialogs sharing one AppV1 id paint into each other's frame.
+		 */
+		async _onCondemnOpen(ev) {
+			ev.preventDefault();
+			ev.stopPropagation();
+			await this._openCondemned();
+		}
+
+		_openCondemned() {
+			return new CondemnedDialog(this.actor, this._stonetopCharacter, { editable: this.isEditable }).render(true);
+		}
+
+		/**
+		 * Using the move opens the roster — the Judge's half of the Consecrated Flame hook above.
+		 * Neither move has a rollType, so posting its text IS using it and both fall through to
+		 * the description-only path that calls this.
+		 *
+		 * BOTH moves, not just Condemn. Condemn is passive — it never fires on its own, it amends
+		 * what Censure does ("When you Censure someone, they ARE marked"). So the moment a brand is
+		 * actually laid is a Censure, and a Judge who denounced somebody and was handed no way to
+		 * write it down would be back to keeping the list in their head, which is the thing this
+		 * feature exists to stop. Reading Condemn itself opens it too, since that is where a player
+		 * goes looking for what the move is doing.
+		 *
+		 * Gated on OWNING Condemn: a Judge who has not taken it brands nobody when they Censure, so
+		 * the roster is not theirs to open.
+		 */
+		async _openCondemnedIfJudge() {
+			if (!this._stonetopCharacter.canCondemn) return;
+			await this._openCondemned();
+		}
+
+		/**
+		 * Consecrating a flame lights the holy light. Called on both paths by which a
+		 * description-only owned move is used — the move-name click and the hotbar macro — and
+		 * matched on the resolved ITEM, never on the row's text: an un-owned playbook row posts
+		 * its text with no item id at all, and a player-authored custom move can carry any name.
+		 *
+		 * One slot, so re-consecrating writes nothing (setHolyLight returns false) and the sheet
+		 * doesn't re-render. No chat card either: the move's own card has already posted.
+		 */
+		async _consecrateFlame() {
+			if (!this.isEditable) return;
+			if (await this._stonetopCharacter.setHolyLight(true)) this.render(false);
+		}
+
+		/**
+		 * Run whatever using this description-only move does beyond posting its text — see
+		 * MOVE_USE_EFFECTS. One lookup, called from both tails that post a move to chat.
+		 */
+		async _onDescriptionMoveUsed(item) {
+			if (item?.type !== "move") return;
+			await MOVE_USE_EFFECTS[item.name]?.(this);
+		}
+
 		// Open the Create-a-Follower walkthrough (Book I, NPCs & Followers, p.474).
 		// On finish it hands back buildCustomFollower() data, which we persist.
 		async _onCreateFollowerOpen() {
@@ -6178,6 +6318,95 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * the Invocation does, it's what it does IF you pay an extra consequence for it, and
 		 * printed alongside the normal effect it just muddies what actually happened.
 		 */
+		async _postInvocationCard(name, description, { shiftKey = false, known = true } = {}) {
+			const { base, empowered } = splitEmpoweredEffect(description);
+			// `known` first: an Invocation this character hasn't learned can be read but not
+			// invoked, so neither question is worth asking about one. rollMoveById also bails
+			// silently when the sheet isn't editable, so an observer must never be offered a
+			// roll button that would do nothing.
+			const canInvoke  = known && this.isEditable && ownsMoveNamed(this.actor, INVOKE_THE_SUN_GOD);
+			const canEmpower = known && !!empowered && ownsMoveNamed(this.actor, EMPOWERED_INVOCATIONS);
+			// Nothing to decide — post it and stay out of the way.
+			if (!canInvoke && !canEmpower) return this._postMoveCard(name, base);
+
+			const answer = await this._promptInvokeInvocation({
+				name, empoweredHtml: empowered, canInvoke, canEmpower,
+				lit: this._stonetopCharacter.holyLight,
+			});
+			if (answer === null) return null;   // dismissed — the Invocation isn't used at all
+
+			// Card first, roll second: the card is the statement and the roll is how it goes.
+			// It also means a cancelled situational-modifier prompt (which fires INSIDE
+			// rollMoveById) leaves the Invocation posted rather than losing everything.
+			const card = answer.empower
+				? await this._postMoveCard(`${name} (Empowered)`, base + EMPOWERED_NOTE_HTML + empowered)
+				: await this._postMoveCard(name, base);
+			if (answer.roll) await this.rollMoveByName(INVOKE_THE_SUN_GOD, { shiftKey });
+			return card;
+		}
+
+		/**
+		 * The Invocation window. Resolves {roll, empower}, or null if it was dismissed — the
+		 * choices are made BEFORE the roll, so backing out means the Invocation was never used
+		 * and nothing is posted.
+		 *
+		 * TWO FIXED BUTTONS, always the same two. Empowering is a modifier of invoking, not a
+		 * third alternative, so it rides a checkbox: this window now opens on every single
+		 * Invocation use, and a button set that grows at 6th level would break the muscle memory
+		 * of every use before it. It also folds what would otherwise be two sequential dialogs
+		 * into one.
+		 */
+		_promptInvokeInvocation({ name, empoweredHtml, canInvoke, canEmpower, lit }) {
+			return new Promise(resolve => {
+				let answer = null;
+				const read = (html, roll) => ({
+					roll,
+					empower: !!html.find('[name="empower"]')[0]?.checked,
+				});
+				let content = "";
+				if (canInvoke) {
+					content += `<p><em>Invoke the Sun God:</em> imbue your holy light with Helior's power `
+						+ `and roll +WIS. On a 10+ it works, and you choose 1 consequence; on a 7-9 it works, `
+						+ `and you and the GM each choose 1.</p>`;
+					// Not a block: whether a light is at hand is the table's call, and the sheet's
+					// candle is only ever as current as someone kept it. Say it and move on.
+					if (!lit) content += `<p class="stonetop-invoke-nolight">`
+						+ `<i class="fas fa-triangle-exclamation" aria-hidden="true"></i> `
+						+ `No holy light is lit on this sheet — consecrate a flame, or check with your GM.</p>`;
+				}
+				if (canEmpower) {
+					content += `<label class="stonetop-invoke-empower"><input type="checkbox" name="empower"> `
+						+ `<span>Empower it: choose an extra consequence before you roll.</span></label>`
+						+ `<div class="stonetop-empower-effect">${empoweredHtml}</div>`
+						+ `<p class="stonetop-empower-cost">The extra consequence is the price of asking, not a `
+						+ `penalty for failing: you take it however the roll turns out, even on a 10+.</p>`;
+				}
+				new Dialog({
+					title:   canInvoke ? `${name} — Invoke the Sun God?` : `${name} — Empower it?`,
+					content,
+					buttons: {
+						// The affirmative key is declared first and is in the shared left-side list,
+						// so it sits opposite "Just show it".
+						roll: {
+							icon:     '<i class="fas fa-sun"></i>',
+							label:    canInvoke ? "Invoke the Sun God (+WIS)" : "Use it",
+							callback: html => { answer = read(html, canInvoke); },
+						},
+						no: {
+							icon:     '<i class="fas fa-comment"></i>',
+							label:    "Just show it",
+							callback: html => { answer = read(html, false); },
+						},
+					},
+					default: "roll",
+					render:  bringDialogToFront,
+					// Runs on every path out, button or ✕, so it is the one place that answers.
+					// A promise resolved only from the button callbacks would hang on a dismiss.
+					close:   () => resolve(answer),
+				}, { width: 460, classes: this._pastDeathWindowClasses(["dialog", "stonetop", "stonetop-empower-dialog", "stonetop-invoke-dialog"]) }).render(true);
+			});
+		}
+
 		// The 6- branch: pay to make them leave (spend the Ring's shared Loyalty, or mark a
 		// consequence) or let them break free of your control.
 		_onServantsResist(slug, who) {

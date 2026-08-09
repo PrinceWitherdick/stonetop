@@ -45,6 +45,7 @@ import { onRenderCompendiumItemIcons } from "./module/hooks/CompendiumItemIcons.
 import { decoratePortraitRow, onUpdateActorPortraitFrame } from "./module/hooks/ActorDirectoryPortraits.js";
 import { decorateNameRow, onUpdateActorPlaybookName } from "./module/hooks/ActorDirectoryNames.js";
 import { decorateActorDirectoryRows } from "./module/hooks/actor-directory-rows.js";
+import { onUpdateCondemned } from "./module/hooks/CondemnedTag.js";
 import { characterFullName } from "./module/utils/playbook-actors.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
@@ -332,6 +333,7 @@ Hooks.once("init", () => {
 		"stonetop.arcanum-sheet-edit": "systems/stonetop-pwd/templates/item/arcanum-sheet-edit.hbs",
 		"stonetop.actor-header":     "systems/stonetop-pwd/templates/actor/partials/actor-header.hbs",
 		"stonetop.portrait-frame-pip": "systems/stonetop-pwd/templates/actor/partials/portrait-frame-pip.hbs",
+		"stonetop.condemned-tag":     "systems/stonetop-pwd/templates/actor/partials/condemned-tag.hbs",
 		"stonetop.actor-stats":      "systems/stonetop-pwd/templates/actor/partials/actor-stats.hbs",
 		"stonetop.actor-vitals":     "systems/stonetop-pwd/templates/actor/partials/actor-vitals.hbs",
 		"stonetop.stat-block":       "systems/stonetop-pwd/templates/actor/partials/stat-block.hbs",
@@ -439,6 +441,12 @@ Hooks.on("renderDocumentDirectory", (app, element) =>
 	decorateActorDirectoryRows(app, element, [decoratePortraitRow, decorateNameRow]));
 Hooks.on("updateActor", onUpdateActorPortraitFrame);
 Hooks.on("updateActor", onUpdateActorPlaybookName);
+
+// -- THE JUDGE'S BRAND -----------------------------------------
+// A Condemn brand is stored on the JUDGE but WORN by the person branded, so core re-renders the
+// wrong sheet when one is laid or lifted. Repaint the affected targets by hand.
+// See module/hooks/CondemnedTag.js.
+Hooks.on("updateActor", onUpdateCondemned);
 
 // -- READY -----------------------------------------------------
 Hooks.once("ready", onReady);

@@ -60,15 +60,60 @@
 			{{/if}}
 		</div>
 		{{/if}}
-		<div class="stonetop-name-called-box">
-			<div class="stonetop-name-called-inner">
-				<span class="stonetop-name-called-label">I am called...</span>
-				{{#if stonetop.editMode}}
-				<input class="input--title stonetop-name-field" name="name" type="text" value="{{actor.name}}" placeholder="Name"/>
-				{{else}}
-				<span class="input--title stonetop-header-locked stonetop-name-field">{{actor.name}}</span>
-				{{/if}}
+		{{! The name plate, and beside it the Lightbearer's holy light. The row exists ONLY to
+		    stand the candle next to the plate at the plate's own height — it is the thing this
+		    character is carrying, said as loudly as their name. }}
+		<div class="stonetop-name-called-row">
+			<div class="stonetop-name-called-box">
+				<div class="stonetop-name-called-inner">
+					<span class="stonetop-name-called-label">I am called...</span>
+					{{#if stonetop.editMode}}
+					<input class="input--title stonetop-name-field" name="name" type="text" value="{{actor.name}}" placeholder="Name"/>
+					{{else}}
+					<span class="input--title stonetop-header-locked stonetop-name-field">{{actor.name}}</span>
+					{{/if}}
+				</div>
 			</div>
+			{{! Shows in BOTH edit and play mode — consecrating a flame is play, not editing — and
+			    only on a sheet that can make a light (or that already has one burning, so a light
+			    stranded by a playbook swap can still be snuffed). A button where the sheet is
+			    editable and a span where it isn't, the same split the Dead chip below uses, so
+			    nothing offers a click that would do nothing. `type="button"` is not optional: the
+			    whole sheet is one <form> and a bare button submits it. }}
+			{{#if stonetop.holyLight.show}}
+			{{#if editable}}
+			<button type="button" class="stonetop-holy-light{{#if stonetop.holyLight.lit}} is-lit{{/if}}"
+			        aria-pressed="{{#if stonetop.holyLight.lit}}true{{else}}false{{/if}}"
+			        aria-label="{{#if stonetop.holyLight.lit}}{{localize "stonetop.holyLight.litLabel"}}{{else}}{{localize "stonetop.holyLight.unlitLabel"}}{{/if}}"
+			        data-tooltip="{{#if stonetop.holyLight.lit}}{{localize "stonetop.holyLight.litTooltip"}}{{else}}{{localize "stonetop.holyLight.unlitTooltip"}}{{/if}}"
+			        data-tooltip-direction="UP"><span class="stonetop-holy-light-icon" aria-hidden="true"></span></button>
+			{{else}}
+			<span class="stonetop-holy-light{{#if stonetop.holyLight.lit}} is-lit{{/if}}"
+			      aria-label="{{#if stonetop.holyLight.lit}}{{localize "stonetop.holyLight.litLabel"}}{{else}}{{localize "stonetop.holyLight.unlitLabel"}}{{/if}}"
+			      data-tooltip="{{#if stonetop.holyLight.lit}}{{localize "stonetop.holyLight.readOnlyLit"}}{{else}}{{localize "stonetop.holyLight.readOnlyUnlit"}}{{/if}}"
+			      data-tooltip-direction="UP"><span class="stonetop-holy-light-icon" aria-hidden="true"></span></span>
+			{{/if}}
+			{{/if}}
+			{{! The Judge's scales, beside the candle and on the same terms — shown once they own
+			    Condemn, or while brands are still standing on a sheet that has since lost the move,
+			    so those can still be dismissed.
+
+			    Always a <button>, where the candle is a button only where the sheet is editable.
+			    That split is about who may WRITE, and this opens a list; reading who has been
+			    branded is not an edit, and the dialog withholds its own add/dismiss controls from a
+			    viewer who cannot write. `type="button"` is not optional: the whole sheet is one
+			    <form> and a bare button submits it.
+
+			    The count rides the button as a superscript rather than living only in the tooltip:
+			    the one thing a Judge wants off this icon at a glance is how many brands are out
+			    there, and a tooltip cannot be glanced at. Suppressed at zero — a Judge who has
+			    branded nobody should see the scales, not a "0". }}
+			{{#if stonetop.condemn.show}}
+			<button type="button" class="stonetop-condemn{{#if stonetop.condemn.count}} is-branding{{/if}}"
+			        aria-label="{{localize "stonetop.condemn.openLabel"}}"
+			        data-tooltip="{{#if stonetop.condemn.count}}{{localize "stonetop.condemn.someTooltip" count=stonetop.condemn.count}}{{else}}{{localize "stonetop.condemn.noneTooltip"}}{{/if}}"
+			        data-tooltip-direction="UP"><span class="stonetop-condemn-icon" aria-hidden="true"></span>{{#if stonetop.condemn.count}}<span class="stonetop-condemn-count" aria-hidden="true">{{stonetop.condemn.count}}</span>{{/if}}</button>
+			{{/if}}
 		</div>
 		{{! Through the Last Door, with no insert. The three returns say what they are in the name
 		    at the top of the header (a Ghost reads "Ghost"), so only a plain death needs a word of

@@ -21,11 +21,37 @@ function makeCharacterMock(actor) {
 		saved: actor.getFlag("stonetop-pwd", "appearance.selected") ?? {},
 	};
 	const origin = { select: vi.fn() };
+	// The holy light is live state, not a stub return: getData reads the getter and the
+	// handlers write through the setter, so both have to see the same value or the
+	// "already lit, so don't re-render" assertions can't be written at all.
+	let lit = false;
+	// Writable, so a test can be a NON-Lightbearer. Hardcoding it true made the "show" half
+	// of the context assertion unfailable — it would have passed with `show` wired to a
+	// constant.
+	let canWield = true;
+	// The Judge's brand roster, on exactly the same terms as the holy light above: live state
+	// rather than a stub return, and a writable `canCondemn` so a test can be a non-Judge. The
+	// real getter always answers an ARRAY, so the sheet reads `.length` off it without a guard —
+	// a stub returning undefined here would be the only thing in the world that could break that.
+	let brands = [];
+	let canBrand = true;
 	return {
 		background,
 		instinct,
 		appearance,
 		origin,
+		get holyLight() { return lit; },
+		get canWieldHolyLight() { return canWield; },
+		set canWieldHolyLight(value) { canWield = !!value; },
+		get condemned() { return brands; },
+		set condemned(value) { brands = Array.isArray(value) ? value : []; },
+		get canCondemn() { return canBrand; },
+		set canCondemn(value) { canBrand = !!value; },
+		setHolyLight: vi.fn(async value => {
+			const changed = !!value !== lit;
+			lit = !!value;
+			return changed;
+		}),
 		ensureStartingMoves: vi.fn(),
 		updateName: vi.fn(async name => actor.update({ name })),
 		addMove: vi.fn(),
@@ -252,6 +278,148 @@ describe("StonetopCharacterSheet event handlers", () => {
 		const sheet = makeSheet(actor);
 		await sheet._onOriginNameClick({ currentTarget: { value: "Arwel" } });
 		expect(actor.typedActor.updateName).toHaveBeenCalledWith("Arwel");
+	});
+});
+
+// The Lightbearer's holy light: the header candle, and the Consecrated Flame hook that
+// lights it. This suite never drives activateListeners, so the handlers are called directly.
+describe("StonetopCharacterSheet holy light candle", () => {
+	const clickEvent = () => ({ preventDefault: vi.fn(), stopPropagation: vi.fn() });
+
+	it("toggles the light and repaints the sheet", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+
+		await sheet._onHolyLightToggle(clickEvent());
+		expect(actor.typedActor.setHolyLight).toHaveBeenCalledWith(true);
+		expect(sheet.render).toHaveBeenCalledWith(false);
+
+		await sheet._onHolyLightToggle(clickEvent());
+		expect(actor.typedActor.setHolyLight).toHaveBeenLastCalledWith(false);
+	});
+
+	it("leaves the light alone on a sheet the viewer can't edit", async () => {
+		const actor = makeActor();
+		const Base = class {
+			constructor() { this._actor = actor; }
+			get actor() { return this._actor; }
+			get isEditable() { return false; }
+			async getData() { return {}; }
+			activateListeners() {}
+			render = vi.fn();
+		};
+		const sheet = new (createStonetopCharacterSheetClass(Base))();
+		await sheet._onHolyLightToggle(clickEvent());
+		expect(actor.typedActor.setHolyLight).not.toHaveBeenCalled();
+		expect(sheet.render).not.toHaveBeenCalled();
+	});
+
+	it("lights up when Consecrated Flame is used", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		await sheet._onDescriptionMoveUsed({ type: "move", name: "Consecrated Flame" });
+		expect(actor.typedActor.setHolyLight).toHaveBeenCalledWith(true);
+		expect(sheet.render).toHaveBeenCalledWith(false);
+	});
+
+	// One slot: "until the flame goes out or until you consecrate another flame". The second
+	// consecration replaces the same light, so nothing is written and nothing repaints.
+	it("doesn't repaint when the light is already burning", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		await sheet._onDescriptionMoveUsed({ type: "move", name: "Consecrated Flame" });
+		sheet.render.mockClear();
+		await sheet._onDescriptionMoveUsed({ type: "move", name: "Consecrated Flame" });
+		expect(sheet.render).not.toHaveBeenCalled();
+	});
+
+	it("ignores any other move, a same-named non-move, and a row with no item at all", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		await sheet._onDescriptionMoveUsed({ type: "move", name: "Lamplighter" });
+		await sheet._onDescriptionMoveUsed({ type: "item", name: "Consecrated Flame" });
+		await sheet._onDescriptionMoveUsed(null);
+		expect(actor.typedActor.setHolyLight).not.toHaveBeenCalled();
+	});
+
+	it("hands the header its state", async () => {
+		installGetDataGlobals();
+		const actor = makeActor();
+		actor.typedActor.playbook = vi.fn(async () => null);
+		actor.typedActor.possessionTriggerMoves = vi.fn(() => ({}));
+		actor.typedActor.buildSnapshot = vi.fn(async () => minimalSheetSnapshot({}));
+		const sheet = makeSheet(actor);
+
+		expect((await sheet.getData()).stonetop.holyLight).toEqual({ show: true, lit: false });
+		await sheet._onHolyLightToggle(clickEvent());
+		expect((await sheet.getData()).stonetop.holyLight).toEqual({ show: true, lit: true });
+
+		// A sheet with no light-making move gets no candle — unless one is already burning,
+		// which is the case that keeps a light stranded by a playbook swap snuffable.
+		actor.typedActor.canWieldHolyLight = false;
+		expect((await sheet.getData()).stonetop.holyLight).toEqual({ show: true, lit: true });
+		await sheet._onHolyLightToggle(clickEvent());
+		expect((await sheet.getData()).stonetop.holyLight).toEqual({ show: false, lit: false });
+	});
+
+	it("hands the header the Judge's brand count", async () => {
+		installGetDataGlobals();
+		const actor = makeActor();
+		actor.typedActor.playbook = vi.fn(async () => null);
+		actor.typedActor.possessionTriggerMoves = vi.fn(() => ({}));
+		actor.typedActor.buildSnapshot = vi.fn(async () => minimalSheetSnapshot({}));
+		const sheet = makeSheet(actor);
+
+		expect((await sheet.getData()).stonetop.condemn).toEqual({ show: true, count: 0 });
+		actor.typedActor.condemned = [{ id: "a", name: "Brennan" }, { id: "b", name: "The Claws" }];
+		expect((await sheet.getData()).stonetop.condemn).toEqual({ show: true, count: 2 });
+
+		// A sheet that lost Condemn keeps the scales while brands still stand — otherwise a
+		// playbook swap strands them with nothing left that could dismiss them.
+		actor.typedActor.canCondemn = false;
+		expect((await sheet.getData()).stonetop.condemn).toEqual({ show: true, count: 2 });
+		actor.typedActor.condemned = [];
+		expect((await sheet.getData()).stonetop.condemn).toEqual({ show: false, count: 0 });
+	});
+});
+
+// Neither move has a rollType, so both fall through to the description-only path that posts
+// their text — the same path Consecrated Flame rides. Stubbed at _openCondemned: what is being
+// asserted is WHICH uses open the roster, not the window itself.
+describe("StonetopCharacterSheet Condemn roster on move use", () => {
+	function condemnSheet() {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		sheet._openCondemned = vi.fn(async () => {});
+		return { actor, sheet };
+	}
+
+	// Condemn never fires on its own — it amends what Censure does — so the moment a brand is
+	// actually laid is a Censure, and that has to open the roster or the Judge is back to
+	// keeping the list in their head.
+	it("opens on Censure as well as on Condemn", async () => {
+		for (const name of ["Censure", "Condemn"]) {
+			const { sheet } = condemnSheet();
+			await sheet._onDescriptionMoveUsed({ type: "move", name });
+			expect(sheet._openCondemned, name).toHaveBeenCalled();
+		}
+	});
+
+	// A Judge who hasn't taken Condemn brands nobody when they Censure, so the roster isn't
+	// theirs to open.
+	it("stays shut for a character without Condemn", async () => {
+		const { actor, sheet } = condemnSheet();
+		actor.typedActor.canCondemn = false;
+		await sheet._onDescriptionMoveUsed({ type: "move", name: "Censure" });
+		expect(sheet._openCondemned).not.toHaveBeenCalled();
+	});
+
+	it("ignores any other move, a same-named non-move, and a row with no item at all", async () => {
+		const { sheet } = condemnSheet();
+		await sheet._onDescriptionMoveUsed({ type: "move", name: "Castigate" });
+		await sheet._onDescriptionMoveUsed({ type: "item", name: "Condemn" });
+		await sheet._onDescriptionMoveUsed(null);
+		expect(sheet._openCondemned).not.toHaveBeenCalled();
 	});
 });
 

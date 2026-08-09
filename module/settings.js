@@ -1074,14 +1074,41 @@ const _FONT_MAP = {
 	"signika":         "Signika, sans-serif",
 };
 
+/**
+ * How far a run of UPPERCASE has to be pushed DOWN, per face, to sit optically centred in a box
+ * that centres its EM box — published as `--st-caps-nudge` for any letterspaced small-caps pill
+ * to read (the Condemned brand is the first).
+ *
+ * Why it cannot be one number in the stylesheet: capitals have no descenders, so their ink fills
+ * only the upper part of the em box and centring that box leaves the empty descender space pooling
+ * underneath. The size of that gap is `(capHeight + descent - ascent) / 2`, which is a property of
+ * the FACE — and these three disagree by a factor of ten. IM Fell English is an antique face with
+ * a very deep descent and needs ~0.155em; Libre Caslon needs ~0.016em. A constant tuned on either
+ * is visibly wrong on the other, which is exactly how the brand pill came to sit high for everyone
+ * on the default font while measuring perfect against the one it had been tuned against.
+ *
+ * CSS has no way to ask a font for its cap height that is safe to rely on yet (`1cap` gets close,
+ * but centring caps also needs ascent and descent, and `text-box-trim` is newer still) — so the
+ * numbers are measured per face and travel with the font that needs them.
+ * Measured with condemn-tag-fonts.mjs in the verify harness; re-measure if a face is added here.
+ */
+const _FONT_CAPS_NUDGE = {
+	"libre-caslon":    "0.016em",
+	"im-fell-english": "0.155em",
+	"signika":         "0.073em",
+};
+
 // The registered default for `sheetFont`. Shared with the fallback below so an
 // unreadable/unrecognized value lands on the same font a fresh client gets, rather
 // than a second, different "default" only the fallback path can produce.
 const _DEFAULT_FONT = "signika";
 
 export function applySheetFont(value) {
-	const font = _FONT_MAP[value] ?? _FONT_MAP[_DEFAULT_FONT];
-	document.documentElement.style.setProperty("--font-stonetop", font);
+	// One resolved key for both properties, so an unrecognised setting cannot land on one font's
+	// family with another font's caps nudge — which would be worse than either on its own.
+	const key = _FONT_MAP[value] ? value : _DEFAULT_FONT;
+	document.documentElement.style.setProperty("--font-stonetop", _FONT_MAP[key]);
+	document.documentElement.style.setProperty("--st-caps-nudge", _FONT_CAPS_NUDGE[key]);
 }
 
 export function applySheetFontScale(value) {
