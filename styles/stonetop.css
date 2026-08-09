@@ -12992,6 +12992,17 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	white-space: nowrap;
 }
 
+/* The playbook trailing a player character's name — "Pim <span>The Lightbearer</span>".
+   Lighter and unbolded against the bold name above, so the pair reads as name-then-epithet
+   rather than as one long shout. Deliberately NOT a smaller font: it is part of the name.
+
+   No margin — the space before it is a real space in the markup, because this sits inside an
+   ellipsis-truncated line and a margin would survive the truncation as a gap after the "…". */
+.stonetop-playbook-epithet {
+	font-weight: 400;
+	color: var(--st-text-secondary);
+}
+
 a.steading-player-open {
 	color: inherit;
 	cursor: pointer;
@@ -29106,6 +29117,18 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	flex: 0 0 var(--sidebar-item-height);
 	width: var(--sidebar-item-height);
 	height: var(--sidebar-item-height);
+}
+
+/* The playbook trailing a player character's name in the Actors sidebar — "Pim The
+   Lightbearer" (hooks/ActorDirectoryNames.js). It sits INSIDE core's `.entry-name` anchor, so
+   it truncates with the name instead of competing with it for the row's flex line.
+
+   Faded with `opacity` rather than one of our text tokens on purpose: the sidebar is core's
+   chrome, not a Stonetop sheet, and its text colour changes with the user's Foundry theme —
+   dimming whatever colour the row already has follows the theme, a fixed grey does not. */
+.directory .directory-item .entry-name .stonetop-dir-playbook {
+	opacity: 0.72;
+	font-weight: 400;
 }
 
 /* The positioning context the pip is placed against, wrapping whatever a header renders as its

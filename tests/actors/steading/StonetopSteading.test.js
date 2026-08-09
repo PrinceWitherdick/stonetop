@@ -116,6 +116,8 @@ describe("StonetopSteading", () => {
 		expect(snapshot.players).toEqual([
 			{ uuid: "Actor.hero", name: "Wren", img: "wren.webp", checked: true,
 			  traits: "", relations: "", notes: "", resolvedOccupation: "", playbookName: "",
+			  // No playbook resolves either, so the long form is just the name.
+			  fullName: "Wren",
 			  // No live actor resolves here, so the stored snapshot path stands in and there is
 			  // no frame to apply. imgStyle is present-and-empty rather than absent, so the
 			  // template's {{#if imgStyle}} has something definite to test.
@@ -123,7 +125,7 @@ describe("StonetopSteading", () => {
 		]);
 	});
 
-	it("surfaces the player's playbook for the tooltip, not the Occupation column", async () => {
+	it("names a player by their playbook, but keeps it out of the Occupation column", async () => {
 		const hero = {
 			id: "hero", type: "character", name: "Wren",
 			system: { playbook: { name: "The Blessed", slug: "the-blessed" } },
@@ -138,6 +140,8 @@ describe("StonetopSteading", () => {
 			});
 			const snapshot = await new StonetopSteading(actor).buildSnapshot();
 			expect(snapshot.players[0].playbookName).toBe("The Blessed");
+			expect(snapshot.players[0].fullName).toBe("Wren The Blessed");
+			// A playbook isn't a job — players may hold any occupation, so the column stays theirs.
 			expect(snapshot.players[0].resolvedOccupation).toBe("");
 		} finally {
 			game.actors = prevActors;

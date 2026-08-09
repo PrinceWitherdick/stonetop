@@ -42,7 +42,10 @@ import { addJournalShareButton } from "./module/journal/share-journal.js";
 import { patchJournalImagePopoutTitles } from "./module/journal/journal-image-titles.js";
 import { onRenderPause } from "./module/hooks/RenderPause.js";
 import { onRenderCompendiumItemIcons } from "./module/hooks/CompendiumItemIcons.js";
-import { onRenderActorDirectoryPortraits, onUpdateActorPortraitFrame } from "./module/hooks/ActorDirectoryPortraits.js";
+import { decoratePortraitRow, onUpdateActorPortraitFrame } from "./module/hooks/ActorDirectoryPortraits.js";
+import { decorateNameRow, onUpdateActorPlaybookName } from "./module/hooks/ActorDirectoryNames.js";
+import { decorateActorDirectoryRows } from "./module/hooks/actor-directory-rows.js";
+import { characterFullName } from "./module/utils/playbook-actors.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
@@ -416,17 +419,24 @@ Hooks.on("pauseGame", (paused) => paused && onRenderPause());
 // and never build a document, so they need this. See module/hooks/CompendiumItemIcons.js.
 Hooks.on("renderDocumentDirectory", onRenderCompendiumItemIcons);
 
-// -- ACTORS SIDEBAR PORTRAIT FRAMES ----------------------------
-// A chosen crop is a rect on a flag, so core's bare `<img src>` rows show the uncropped picture.
-// Wrap each framed row's image in a clipping box and paint the same style the sheets do, so a
-// person's face is the same face in the sidebar as everywhere else.
+// -- ACTORS SIDEBAR ROW DECORATION -----------------------------
+// Two features paint these rows and they share one walk over them (the row list and the
+// per-row `collection.get` are the cost; doing them twice on the same event is pure waste):
 //
-// The updateActor half is not optional: core redraws the directory for name / img / sort / folder
-// and nothing else, so a frame — which lives in flags — would otherwise not show up until the
-// world was reloaded. It repaints the one row rather than re-rendering the directory, so cropping
-// a face costs nobody their scroll position. See module/hooks/ActorDirectoryPortraits.js.
-Hooks.on("renderDocumentDirectory", onRenderActorDirectoryPortraits);
+//   PORTRAIT FRAMES — a chosen crop is a rect on a flag, so core's bare `<img src>` rows show
+//     the uncropped picture. Each framed row's image is wrapped in a clipping box painted with
+//     the same style the sheets use, so a person's face is the same face everywhere.
+//   PLAYBOOK EPITHETS — name the player characters the way the table does, "Pim The
+//     Lightbearer". Appended to the row, never written to the document.
+//
+// The updateActor halves are not optional: core redraws the directory for name / img / sort /
+// folder and nothing else, so a frame (in `flags`) or a playbook (in `system`) would otherwise
+// not show up until the world was reloaded. Each repaints its ONE row rather than re-rendering
+// the directory, so nobody's scroll position moves. See module/hooks/actor-directory-rows.js.
+Hooks.on("renderDocumentDirectory", (app, element) =>
+	decorateActorDirectoryRows(app, element, [decoratePortraitRow, decorateNameRow]));
 Hooks.on("updateActor", onUpdateActorPortraitFrame);
+Hooks.on("updateActor", onUpdateActorPlaybookName);
 
 // -- READY -----------------------------------------------------
 Hooks.once("ready", onReady);
@@ -624,8 +634,11 @@ Hooks.on("preCreateChatMessage", (message) => {
 	if (!actor || actor.type !== "character") return;
 
 	const changes = {};
-	const playbookName = actor.system?.playbook?.name ?? "";
-	if (playbookName) changes["speaker.alias"] = `${actor.name} ${playbookName}`;
+	// The same long name the Actors sidebar and the steading's roster show — including the
+	// Would-Be Hero's mid-campaign rename, which this used to miss by reading the stored
+	// playbook name directly (a crossed-off hero spoke as "Would-Be" forever).
+	const fullName = characterFullName(actor);
+	if (fullName !== actor.name) changes["speaker.alias"] = fullName;
 	Object.assign(changes, deathDripStamp(actor) ?? {});
 
 	if (Object.keys(changes).length) message.updateSource(changes);
@@ -828,7 +841,9 @@ function _chatWireBurnBrightly(message, html) {
 			return;
 		}
 		try {
-			const playbookName = actor.system?.playbook?.name ?? "";
+			// Read before the update, so the re-stamped alias is the one the card was created
+			// with rather than whatever the actor has become mid-click.
+			const fullName = characterFullName(actor);
 			await actor.update({ "system.attributes.xp.value": currentXp - 2 });
 			const newXp = currentXp - 2;
 			const maxXp = xpToLevelUp(currentLevel);
@@ -843,7 +858,7 @@ function _chatWireBurnBrightly(message, html) {
 			// same dice-term math the ± roll-shift buttons use, so the two never drift.
 			await _shiftRoll(roll, 1);
 
-			const speakerUpdate = playbookName ? { alias: `${actor.name} ${playbookName}` } : {};
+			const speakerUpdate = fullName !== actor.name ? { alias: fullName } : {};
 			await message.update({
 				rolls,
 				// Regenerate the card so the readout, result label and per-tier outcome reflect the +1.

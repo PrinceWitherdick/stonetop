@@ -1,5 +1,6 @@
 import { documentPortraitFrame, resolvePortrait } from "../utils/portrait-frame.js";
 import { SYSTEM_ID } from "../system-id.js";
+import { repaintActorRow } from "./actor-directory-rows.js";
 
 /**
  * Show a chosen portrait frame on the Actors sidebar rows.
@@ -48,7 +49,7 @@ function unwrap(box) {
  * Bring one rendered row into line with the frame its actor is wearing — wrapping, repainting or
  * unwrapping as needed. Idempotent, so it can be called on every render and every update.
  */
-function decorateRow(li, actor) {
+export function decoratePortraitRow(li, actor) {
 	const existing = li.querySelector(`.${BOX}`);
 	// Read the flag FIRST: this runs for every row of every directory render, and almost none of
 	// them are framed. With no frame stored and no box of ours already there, the row is one core
@@ -85,25 +86,6 @@ function decorateRow(li, actor) {
 	}
 }
 
-/** Is this app a rendered WORLD Actor directory (not a compendium's index view)? */
-function isActorDirectory(app) {
-	const collection = app?.collection;
-	// Duck-typed, and `index` is what tells a CompendiumCollection from a world collection.
-	return collection?.documentName === "Actor" && typeof collection.get === "function" && !collection.index;
-}
-
-/**
- * @param {Application}  app
- * @param {HTMLElement}  element
- */
-export function onRenderActorDirectoryPortraits(app, element) {
-	if (!isActorDirectory(app)) return;
-	for (const li of element.querySelectorAll("li.directory-item.document[data-entry-id]")) {
-		const actor = app.collection.get(li.dataset.entryId);
-		if (actor) decorateRow(li, actor);
-	}
-}
-
 /**
  * Repaint one actor's sidebar row when its frame changes.
  *
@@ -122,23 +104,5 @@ export function onRenderActorDirectoryPortraits(app, element) {
 export function onUpdateActorPortraitFrame(actor, changed) {
 	const bag = changed?.flags?.[SYSTEM_ID];
 	if (!bag || !("portraitFrame" in bag || "-=portraitFrame" in bag)) return;
-	for (const app of renderedActorDirectories()) {
-		const root = app.element?.jquery ? app.element[0] : app.element;
-		const li = root?.querySelector?.(`li.directory-item.document[data-entry-id="${actor.id}"]`);
-		if (li) decorateRow(li, actor);
-	}
-}
-
-/**
- * Every rendered Actor directory: the sidebar tab, plus any popped-out copy of it. Collected by
- * duck-type rather than from `ui.actors` alone, so a popout — which is a second application over
- * the same collection — is not left showing the old crop.
- */
-function renderedActorDirectories() {
-	const candidates = [
-		ui?.actors,
-		...Object.values(ui?.windows ?? {}),
-		...(foundry?.applications?.instances?.values?.() ?? []),
-	];
-	return [...new Set(candidates)].filter(app => app && isActorDirectory(app) && app.element);
+	repaintActorRow(actor, decoratePortraitRow);
 }
