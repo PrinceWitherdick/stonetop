@@ -230,6 +230,12 @@ export class LoreOptionSnapshot {
 		// A text option counts as answered only if it holds a real value — blank or a
 		// "to be written" placeholder is treated as unanswered (hidden in read-only).
 		this.hasAnswer   = this.type === "text" ? _hasRealLoreAnswer(this.textValue) : this.count > 0;
+		// A text option asking for a NAME rather than for prose — the Thrall's master today. The
+		// sheet sets these in the display face it gives a playbook's name, because that is what
+		// the player wrote: a proper noun, and in the master's case the one they now belong to.
+		// Read off the slug rather than a flag in the packs, so an insert or a playbook naming
+		// something doesn't have to carry a presentation decision in its data.
+		this.isName      = this.type === "text" && /(^|-)name$/.test(this.slug ?? "");
 	}
 }
 

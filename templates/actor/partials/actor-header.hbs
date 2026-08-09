@@ -70,8 +70,28 @@
 				{{/if}}
 			</div>
 		</div>
-		{{#if stonetop.playbook.appearance.summary}}
-		<p class="stonetop-appearance-summary">{{stonetop.playbook.appearance.summary}}</p>
+		{{! Through the Last Door, with no insert. The three returns say what they are in the name
+		    at the top of the header (a Ghost reads "Ghost"), so only a plain death needs a word of
+		    its own — and it is the one state the header could otherwise not tell from an ordinary
+		    living character. It rides the end of the appearance line, which is the last thing said
+		    about who this person is.
+
+		    A BUTTON where the sheet can be edited: it opens "is this character being brought back?",
+		    which is otherwise reachable only by putting hit points on a dead sheet — and a table
+		    playing out a resurrection in the fiction first has no reason to have touched HP yet.
+		    A plain span for anyone who can only look, so nothing offers a click that would do
+		    nothing.
+
+		    The `or` is not optional: the line only renders when there IS an appearance summary, and
+		    a character who never filled one in would otherwise lose the tag entirely. The same is
+		    true of the Condemned brand beside it, which is why that is in the guard too — a PC can
+		    be Censured, and a branded one with no appearance written would have lost the mark.
+
+		    This line is where the sheet keeps its tags about WHO THIS PERSON IS, which is why the
+		    brand rides it rather than sitting by the name plate the way it does on the NPC and
+		    monster sheets: those have no such line, and this one already carries Dead. }}
+		{{#if (or stonetop.playbook.appearance.summary stonetop.isDead stonetop.condemned.condemned)}}
+		<p class="stonetop-appearance-summary">{{stonetop.playbook.appearance.summary}}{{#if stonetop.isDead}}{{#if editable}}<button type="button" class="stonetop-dead-tag" data-tooltip="{{localize "stonetop.postDeath.deadTooltipAction"}}" data-tooltip-direction="UP"><i class="fas fa-skull"></i>{{localize "stonetop.postDeath.deadTag"}}</button>{{else}}<span class="stonetop-dead-tag" data-tooltip="{{localize "stonetop.postDeath.deadTooltip"}}" data-tooltip-direction="UP"><i class="fas fa-skull"></i>{{localize "stonetop.postDeath.deadTag"}}</span>{{/if}}{{/if}}{{#if stonetop.condemned.condemned}}{{> "stonetop.condemned-tag" byLabel=stonetop.condemned.byLabel}}{{/if}}</p>
 		{{/if}}
 	</div>
 </div>

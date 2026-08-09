@@ -92,3 +92,32 @@ describe("LoreOptionSnapshot.requires", () => {
 		expect(opt.requires).toBeNull();
 	});
 });
+
+// What a player writes into one of these is a proper noun, and the sheet sets it in the display
+// face rather than in the italic hand the prose answers take.
+describe("LoreOptionSnapshot.isName", () => {
+	const textOption = (slug) => new LoreOptionSnapshotBuilder()
+		.withSlug(slug).withDescription("<p>Name it.</p>").withType("text").withTextValue("Cthuhlu").build();
+
+	it("is true for the Thrall's master", () => {
+		expect(textOption("master-name").isName).toBe(true);
+	});
+
+	it("is true for a bare 'name' option", () => {
+		expect(textOption("name").isName).toBe(true);
+	});
+
+	// The word has to END the slug: "name-your-price" asks for a thing, not for a name.
+	it("is false when the slug merely contains the word", () => {
+		expect(textOption("name-your-price").isName).toBe(false);
+		expect(textOption("nickname").isName).toBe(false);
+	});
+
+	// The arcana's "learn-name" unlock requirement is a BOX, not a written answer — nothing to set
+	// in any face, and the readonly row it renders as has no value to carry the class.
+	it("is false for a checkbox option however it is named", () => {
+		const box = new LoreOptionSnapshotBuilder()
+			.withSlug("learn-name").withDescription("<p>Learn its true name.</p>").withMax(1).withCount(1).build();
+		expect(box.isName).toBe(false);
+	});
+});

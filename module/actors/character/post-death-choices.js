@@ -59,11 +59,17 @@ import { joinNames, stripHtmlToText, PICK_SEPARATOR } from "../../utils/strings.
  * `gm` marks a step the book hands to the GM. There are no sockets in this system, so it can't be
  * pushed to their screen; it renders in place with a note saying whose call it is.
  *
- * `short` is the step's name as it appears in the "still to choose" line, where the titles are
- * being read as a list rather than as headings: no leading "Your" (it would repeat three times in
- * one sentence) and no article. Written out rather than derived from the title, because the two
- * Thrall steps that share a subject need telling apart in a list — "master's name" and "master's
- * Impulse" — and a mechanical strip of "Your " would give the first of them just "master".
+ * `short` is the step's name as it appears in the "still to choose" line and on the chooser's own
+ * rail, where the titles are being read as a list rather than as headings: no leading "Your" (it
+ * would repeat three times in one sentence) and no article. Written out rather than derived from
+ * the title, because the two Thrall steps that share a subject need telling apart in a list —
+ * "master's name" and "master's Impulse" — and a mechanical strip of "Your " would give the first
+ * of them just "master".
+ *
+ * `icon` is the Font Awesome glyph that stands for the step on that rail. It lives here with the
+ * rest of the step's identity rather than in the window: the rail is one entry per question the
+ * insert asks, so adding a question must not mean remembering to add a picture for it somewhere
+ * else.
  */
 const _PURPOSE = {
 	key:     "purpose",
@@ -71,6 +77,7 @@ const _PURPOSE = {
 	section: "terrible-purpose",
 	title:   "Your Terrible Purpose",
 	short:   "Terrible Purpose",
+	icon:    "fa-hand-fist",
 	hint:    "What you will not leave behind. Choose 1 — and say who, or what.",
 	nameFor: true,
 	namePlaceholder: "Name them, or name the task…",
@@ -96,6 +103,7 @@ const _CONSEQUENCE = {
 	neverPick: NEVER_CHOSEN_OPTIONS,
 	title:   "Your first Consequence",
 	short:   "first Consequence",
+	icon:    "fa-heart-crack",
 	hint:    "What coming back cost you. Take 1 now — and another whenever a move says so.",
 	// Once one is held the step has nothing left to hand out, so the invitation stops being an
 	// instruction and starts being a lie: a Revenant three sessions in would otherwise read
@@ -108,6 +116,7 @@ const _INSTINCT = {
 	kind:  "instinct",
 	title: "Your new Instinct",
 	short: "new Instinct",
+	icon:  "fa-compass",
 	hint:  "This replaces the Instinct from your playbook. Choose 1.",
 };
 
@@ -122,6 +131,7 @@ export const POST_DEATH_CHOICES = {
 			kind:  "tether",
 			title: "Your tether",
 			short: "tether",
+			icon:  "fa-anchor",
 			// Word for word `stonetop.postDeath.tetherHint` / `tetherPlaceholder` in
 			// languages/en.json, which the Post-Death tab prints over the SAME field. They said
 			// the same rule in two different sentences before, and the Final Consequence clause is
@@ -139,6 +149,7 @@ export const POST_DEATH_CHOICES = {
 			option:  "master-name",
 			title:   "Your master",
 			short:   "master's name",
+			icon:    "fa-signature",
 			hint:    "The Thing Below you called on by name. Name it here, with any titles you know.",
 			placeholder: "Name your master…",
 		},
@@ -148,6 +159,7 @@ export const POST_DEATH_CHOICES = {
 			section: "impulse",
 			title:   "Your master's Impulse",
 			short:   "master's Impulse",
+			icon:    "fa-bolt",
 			hint:    "Its nature and its will, working through you.",
 			gm:      true,
 			// The insert carries an "Other (write in)" option the book's seven bullets don't; it's
@@ -166,6 +178,7 @@ export const POST_DEATH_CHOICES = {
 			takeNow: 1,
 			title:   "Your first Mark",
 			short:   "first Mark",
+			icon:    "fa-fingerprint",
 			// Third person, like the Impulse step beside it, because this one is the GM's to make
 			// too — thrall.json says "the GM will choose 1 Mark for you". It read "Take 1 now"
 			// directly above "Your GM chooses this one", which is an instruction and its own
@@ -214,6 +227,10 @@ async function _buildStep(character, step) {
 		kind:  step.kind,
 		title: step.title,
 		short: step.short ?? step.title,
+		// The rail's glyph. A step that forgot one still gets an entry rather than a gap where an
+		// icon should be — the rail is how the window is navigated, so it can't lose a question
+		// over a missing picture.
+		icon:  step.icon ?? "fa-circle-dot",
 		hint:  step.hint,
 		gm:    !!step.gm,
 		gmNote: step.gm ? GM_CHOOSES_NOTE : "",

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { StonetopFlags, resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE } from "../../../module/actors/character/StonetopFlags.js";
 import { SYSTEM_ID, LEGACY_FLAG_SCOPES, CUTOVER_KEY } from "../../../module/system-id.js";
 
@@ -6,7 +6,8 @@ import { SYSTEM_ID, LEGACY_FLAG_SCOPES, CUTOVER_KEY } from "../../../module/syst
 function makeActor(flags = {}) {
 	return {
 		flags,
-		getFlag: (scope, path) => foundry.utils.getProperty(flags[scope] ?? {}, path)
+		getFlag: (scope, path) => foundry.utils.getProperty(flags[scope] ?? {}, path),
+		update: vi.fn(async () => {}),
 	};
 }
 
@@ -84,6 +85,44 @@ describe("resolvedFlags", () => {
 	it("reads a nested path via resolvedFlagProperty", () => {
 		const actor = makeActor({ [SYSTEM_ID]: { steading: { population: 320 } } });
 		expect(resolvedFlagProperty(actor, "steading.population")).toBe(320);
+	});
+});
+
+describe("batch deletions", () => {
+	afterEach(() => { delete globalThis.game; });
+
+	// v14 still applies the legacy "-=key" form, but logs a deprecation for EVERY key — a prune
+	// that drops a dozen answers (swapping one post-death insert for another) filled the console
+	// with them. Route through deletionEntry so each core gets the form it prefers.
+	it("deletes sub-keys with a ForcedDeletion instance on v14+", async () => {
+		globalThis.game = { release: { generation: 14 } };
+		const actor = makeActor();
+		await new StonetopFlags(actor, "postDeathLore").batch({ deletes: { counts: ["marks:red-wrath"] } });
+		const data = actor.update.mock.calls[0][0];
+		expect(Object.keys(data)).toEqual([`flags.${SYSTEM_ID}.postDeathLore.counts.marks:red-wrath`]);
+		expect(Object.values(data)[0]).toBeInstanceOf(foundry.data.operators.ForcedDeletion);
+	});
+
+	it("falls back to the legacy `-=` leaf key below v14", async () => {
+		globalThis.game = { release: { generation: 13 } };
+		const actor = makeActor();
+		await new StonetopFlags(actor, "postDeathLore").batch({ deletes: { texts: ["impulse:erode-hope"] } });
+		expect(actor.update.mock.calls[0][0]).toEqual({
+			[`flags.${SYSTEM_ID}.postDeathLore.texts.-=impulse:erode-hope`]: null,
+		});
+	});
+
+	it("still writes `sets` wholesale alongside the deletions", async () => {
+		globalThis.game = { release: { generation: 13 } };
+		const actor = makeActor();
+		await new StonetopFlags(actor, "postDeathLore").batch({
+			sets:    { counts: { "favor:favor-track": 2 } },
+			deletes: { texts: ["impulse:erode-hope"] },
+		});
+		expect(actor.update.mock.calls[0][0]).toEqual({
+			[`flags.${SYSTEM_ID}.postDeathLore.counts`]: { "favor:favor-track": 2 },
+			[`flags.${SYSTEM_ID}.postDeathLore.texts.-=impulse:erode-hope`]: null,
+		});
 	});
 });
 

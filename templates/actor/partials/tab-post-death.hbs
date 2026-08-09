@@ -189,6 +189,24 @@
 			</div>
 		</div>
 
+		{{! The way out of a tab about being dead on a living character's sheet: nothing but the
+		    request flag is holding it open, so this says it isn't wanted. Not offered when a slug
+		    IS set and merely unreadable (a pack that hasn't loaded) — that tab belongs to a real
+		    insert and the picker above is the way back to it, not out of it. Nor when a fate is
+		    actually owed (canHidePostDeathTab): the tab is then drawn by the character's own state,
+		    which this button doesn't touch, so it would redraw itself the instant it was dismissed.
+		    Taking any insert brings the tab back, so this can't strand a character who dies later. }}
+		{{#unless stonetop.postDeathInsert.activeSlug}}
+		{{#if stonetop.canHidePostDeathTab}}
+		<div class="stonetop-pdi-footer">
+			<button type="button" class="stonetop-pdi-hide-tab stonetop-pdi-remove--danger"
+			        data-tooltip="{{localize "stonetop.postDeath.hideTabHint"}}">
+				{{localize "stonetop.postDeath.hideTab"}}
+			</button>
+		</div>
+		{{/if}}
+		{{/unless}}
+
 		{{/if}}
 
 	</section>

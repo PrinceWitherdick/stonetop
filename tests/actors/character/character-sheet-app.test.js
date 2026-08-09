@@ -379,6 +379,116 @@ describe("StonetopCharacterSheet Details tab section visibility", () => {
 	});
 });
 
+describe("StonetopCharacterSheet Post-Death tab visibility", () => {
+	async function showPostDeathFor(postDeathInsert, { editMode = false, requested = false, state = null } = {}) {
+		installGetDataGlobals();
+		const actor = makeActor();
+		actor.typedActor.playbook = vi.fn(async () => null);
+		actor.typedActor.possessionTriggerMoves = vi.fn(() => ({}));
+		actor.typedActor.postDeathTabRequested = requested;
+		actor.typedActor.deathsDoorState = state;
+		actor.typedActor.buildSnapshot = vi.fn(async () => ({ ...minimalSheetSnapshot({}), postDeathInsert }));
+		const sheet = makeSheet(actor);
+		sheet._editMode = editMode;
+		return (await sheet.getData()).stonetop.showPostDeath;
+	}
+
+	it("shows the tab for a character wearing an insert", async () => {
+		expect(await showPostDeathFor({ activeSlug: "revenant", activeInsert: {} })).toBe(true);
+	});
+
+	it("hides it from a living character in play mode", async () => {
+		expect(await showPostDeathFor(null)).toBe(false);
+		expect(await showPostDeathFor({ activeSlug: null, activeInsert: null })).toBe(false);
+	});
+
+	// The wrench must not put a tab about being dead on every living sheet.
+	it("does not open on edit mode alone", async () => {
+		expect(await showPostDeathFor(null, { editMode: true })).toBe(false);
+	});
+
+	// Removing an insert requests the tab, so it stays standing on its "Choose Your Fate" picker —
+	// picking another fate is the whole point of removing one.
+	it("keeps it open in edit mode once the tab has been requested", async () => {
+		expect(await showPostDeathFor(null, { editMode: true, requested: true })).toBe(true);
+		expect(await showPostDeathFor(null, { requested: true })).toBe(false);
+	});
+
+	// The other reason an empty tab is wanted: a fate is owed for a Door already faced, whether or
+	// not the sheet was the thing that asked.
+	it("opens in edit mode for a character who owes a fate", async () => {
+		expect(await showPostDeathFor(null, { editMode: true, state: "fate-pending" })).toBe(true);
+		expect(await showPostDeathFor(null, { editMode: true, state: "dead" })).toBe(true);
+		expect(await showPostDeathFor(null, { editMode: true, state: "out-of-action" })).toBe(false);
+	});
+
+	// The request is about an EMPTY tab. A worn insert answers on its own — and Death's Door grants
+	// one without asking, so a character who dies later is never left without their insert.
+	it("shows the tab for a worn insert with no request on file", async () => {
+		expect(await showPostDeathFor({ activeSlug: "thrall", activeInsert: {} })).toBe(true);
+	});
+
+	// A slug that's set but unreadable (a pack that hasn't loaded) still gets the tab: the picker
+	// is the way back to a legible sheet.
+	it("keeps the tab for a slug whose insert cannot be read", async () => {
+		expect(await showPostDeathFor({ activeSlug: "ghost", activeInsert: null })).toBe(true);
+	});
+});
+
+/**
+ * The two halves of "who can ask for this tab, and who can send it away".
+ *
+ * The tab being opt-in is deliberate — the wrench must not put a tab about being dead on every
+ * living sheet — but for a while the ONLY thing that ever opted in was REMOVING an insert, which
+ * made the "Choose Your Fate" picker unreachable for the case its own hint text describes: a table
+ * who resolved the Last Door in conversation and left no state on the sheet at all. And the foot's
+ * "Remove Post-Death Tab" was inert for the opposite group, since a character who owes a fate has
+ * a tab that redraws itself on the next render whatever that button writes.
+ */
+describe("StonetopCharacterSheet Post-Death tab, asked for and sent away", () => {
+	async function contextFor({ editMode = false, requested = false, state = null, insert = null } = {}) {
+		installGetDataGlobals();
+		const actor = makeActor();
+		actor.typedActor.playbook = vi.fn(async () => null);
+		actor.typedActor.possessionTriggerMoves = vi.fn(() => ({}));
+		actor.typedActor.postDeathTabRequested = requested;
+		actor.typedActor.deathsDoorState = state;
+		actor.typedActor.buildSnapshot = vi.fn(async () => ({ ...minimalSheetSnapshot({}), postDeathInsert: insert }));
+		const sheet = makeSheet(actor);
+		sheet._editMode = editMode;
+		return { sheet, stonetop: (await sheet.getData()).stonetop };
+	}
+
+	// The Death's Door card's own route in, offered where the picker can't be reached any other way.
+	it("offers the Post-Death opt-in in edit mode, and only while the tab is absent", async () => {
+		expect((await contextFor({ editMode: true })).stonetop.deathsDoor.openPostDeath).toBe(true);
+		// Already there, by request or by state — nothing left to ask for.
+		expect((await contextFor({ editMode: true, requested: true })).stonetop.deathsDoor.openPostDeath).toBe(false);
+		expect((await contextFor({ editMode: true, state: "dead" })).stonetop.deathsDoor.openPostDeath).toBe(false);
+		// Play mode: the tab is opt-in from the wrench, so the opt-in lives there too.
+		expect((await contextFor({})).stonetop.deathsDoor.openPostDeath).toBe(false);
+	});
+
+	it("puts the tab on the sheet and goes to it", async () => {
+		const { sheet } = await contextFor({ editMode: true });
+		sheet.actor.typedActor.setPostDeathTabRequested = vi.fn(async () => {});
+
+		await sheet._onPostDeathTabOpen();
+
+		expect(sheet.actor.typedActor.setPostDeathTabRequested).toHaveBeenCalledWith(true);
+		// Deferred, not preset: the flag write schedules its own render, which races this one.
+		expect(sheet._activateTabOnRender).toBe("post-death");
+	});
+
+	// The foot's way out, offered only while the REQUEST is the sole thing holding the tab open.
+	it("offers to remove the tab, except from a character who owes a fate", async () => {
+		expect((await contextFor({ editMode: true, requested: true })).stonetop.canHidePostDeathTab).toBe(true);
+		for (const state of ["fate-pending", "dead"]) {
+			expect((await contextFor({ editMode: true, state })).stonetop.canHidePostDeathTab, state).toBe(false);
+		}
+	});
+});
+
 describe("StonetopCharacterSheet._buildRecoverData", () => {
 	it("can recover when supplies remain, HP is below max, and not locked", () => {
 		const actor = new FakeActorBuilder().withFlag("inventory.resources", { supplies: 3 }).build();

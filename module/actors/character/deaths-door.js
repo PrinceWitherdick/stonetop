@@ -268,6 +268,31 @@ export function canFaceDeathsDoor({ hp, state = null }) {
 }
 
 /**
+ * The state as it should be READ, given what the character is now wearing.
+ *
+ * `fate-pending` means a 6- is on the table and the fate it demands has not been chosen. An
+ * insert IS that fate — it is only ever reached by choosing one — so the two together are a
+ * contradiction, and the insert is the half that can be trusted: it brought three moves onto the
+ * sheet with it, where the state is one flag.
+ *
+ * They can end up together because taking an insert is two writes, and only the first of them is
+ * the insert. A reload between the two (2026-08-08, in play: a Ghost taken, the page refreshed a
+ * beat later) left `fate-pending` standing on a character who had already chosen, which told
+ * every surface that reads this that Death's Door was still owed — a Ghost at 0 HP was offered
+ * the fate fork again instead of Tethered, the move they actually have. The write is one update
+ * now (see StonetopCharacter#setPostDeathInsert), so it can't be torn again; this is what heals
+ * the sheets it was already torn on, and it costs a comparison.
+ *
+ * Only that one pairing is reinterpreted. `out-of-action` and `dead` mean what they say on a
+ * character with an insert: a dispersed Ghost is out of the action, and having an insert doesn't
+ * make it untrue.
+ */
+export function effectiveDeathsDoorState({ state = null, insertSlug = null } = {}) {
+	if (state !== DEATHS_DOOR_STATE.FATE_PENDING) return state;
+	return POST_DEATH_INSERT_SLUGS.includes(insertSlug) ? null : state;
+}
+
+/**
  * Whether a character is PAST death, and in what way — for anything that wants to show it
  * rather than rule on it. Returns their insert slug ("revenant"/"ghost"/"thrall"), "dead" for
  * one who stepped through the Last Door, or null for the living.
@@ -284,6 +309,44 @@ export function canFaceDeathsDoor({ hp, state = null }) {
 export function pastDeathKind({ state = null, insertSlug = null } = {}) {
 	if (POST_DEATH_INSERT_SLUGS.includes(insertSlug)) return insertSlug;
 	return state === DEATHS_DOOR_STATE.DEAD ? "dead" : null;
+}
+
+/**
+ * Every answer {@link pastDeathKind} can give, for a caller that has to clear the ones that no
+ * longer apply as well as set the one that does.
+ */
+export const PAST_DEATH_KINDS = [...POST_DEATH_INSERT_SLUGS, "dead"];
+
+/**
+ * The window classes that carry the Death's Door black — the sheet's own, and any window opened
+ * from it. Empty for the living, so a call site can spread this unconditionally.
+ *
+ * Named here rather than at each window because the pair is a unit: the base class is the whole
+ * repaint and the kind modifier only says which tint the paper takes, so a window that got one
+ * without the other would come out black with nothing of what brought them back in it.
+ *
+ * This used to be for the three INSERTS only: a character who simply died was left on parchment,
+ * on the reasoning that their sheet is a record of a life and announcing the ending in its own
+ * chrome would be in poor taste. The user asked for the black on them too (2026-08-08), which is
+ * the call to make — a sheet that has been through the Last Door should say so at a glance, and
+ * the dead take the base grey ink with no wash over it, so nothing warms that paper the way the
+ * three returns do.
+ */
+export function pastDeathClasses(kind) {
+	return kind ? ["stonetop-past-death", `stonetop-past-death--${kind}`] : [];
+}
+
+/**
+ * Is this HP change someone being raised? The one transition that walks `dead` back.
+ *
+ * "There's no saving them. Only the rarest of magic can bring them back" (p.245) — so the rules
+ * don't say this can't happen, only that it takes something extraordinary. Which means the system
+ * must not decide it silently either way: nothing here clears the state, it only recognises the
+ * moment worth ASKING about (see DeathsDoorPrompt's raise prompt). A GM correcting a typo in the
+ * HP box and a GM working a resurrection look identical from here.
+ */
+export function raisedFromDead({ oldHp, newHp, state = null }) {
+	return state === DEATHS_DOOR_STATE.DEAD && oldHp <= 0 && newHp > 0;
 }
 
 /**

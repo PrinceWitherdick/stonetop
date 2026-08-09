@@ -12,7 +12,7 @@ import {PossessionChoicesDialog} from "./dialogs/PossessionChoicesDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
 import {UndeathDialog} from "./dialogs/UndeathDialog.js";
 import {buildPostDeathChoices, choiceWriteIns} from "./post-death-choices.js";
-import {DEATHS_DOOR_STATE, POST_DEATH_INSERT_SLUGS, pastDeathKind, resolvedHp, zeroHpMove} from "./deaths-door.js";
+import {DEATHS_DOOR_STATE, PAST_DEATH_KINDS, POST_DEATH_INSERT_SLUGS, pastDeathClasses, pastDeathKind, resolvedHp, zeroHpMove} from "./deaths-door.js";
 import {WoundDialog} from "./dialogs/WoundDialog.js";
 import {WOUND_STATUS_GLYPH, WOUND_STATUS_LABEL} from "./wound-display.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
@@ -86,6 +86,7 @@ import {addPopoutHeaderControl, addPortraitFrameControl, addTokenizerControl} fr
 import {canOpenTokenizer, openTokenizer} from "../../utils/portrait-tokenizer.js";
 import {ensureFollowerActors, followerActorFromLink, syncFollowerActors} from "./follower-actors.js";
 import {localize, format} from "../../utils/i18n.js";
+import {promptRaiseFromDead} from "../../hooks/DeathsDoorPrompt.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "con", "int", "wis", "cha"]);
 const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
@@ -793,20 +794,22 @@ export function createStonetopCharacterSheetClass(Base) {
 			this.element[0]?.classList.toggle("stonetop-edit-mode", this._editMode);
 			stampLayoutClass(this, "character");
 			this._stampPastDeath();
-			// Deferred one-shot: switch to the Arcana tab after a dropped card's re-render (set
-			// in _onDropItemCreate). Instance-scoped so a sibling sheet's render can't consume it.
-			if (this._activateArcanaTabOnRender) {
-				this._activateArcanaTabOnRender = false;
-				this._tabs?.[0]?.activate?.("arcana");
+			// Deferred one-shot: switch to a named tab after the re-render that puts it there — a
+			// dropped card's Arcana tab (_onDropItemCreate), the Post-Death tab a fate is about to
+			// be chosen on (_onPostDeathTabOpen). Instance-scoped so a sibling sheet's render can't
+			// consume it, and cleared BEFORE the activate so a throw can't leave it armed.
+			if (this._activateTabOnRender) {
+				const tab = this._activateTabOnRender;
+				this._activateTabOnRender = null;
+				this._tabs?.[0]?.activate?.(tab);
 			}
 		}
 
 		/**
-		 * A sheet that came back wearing one of the three inserts wears the Death's Door black —
-		 * see "the sheet of someone who came back" in stonetop.css. Deliberately NOT for a
-		 * character who simply died: their sheet is a record of a life, and the last thing it
-		 * should do is announce the ending in its own chrome. The dark is for the ones still being
-		 * played, where it says every session that this isn't the person it used to be.
+		 * A sheet past the Last Door wears the Death's Door black — see "the sheet of someone who
+		 * came back" in stonetop.css. All four kinds: the three inserts, which say every session
+		 * that this isn't the person it used to be, and a plain death, which takes the base grey
+		 * with no wash over it because nothing brought them back.
 		 *
 		 * Read off the flags rather than the render context so it survives a re-render that
 		 * doesn't rebuild the context, and stamped on the ROOT so the frame and title bar turn
@@ -816,15 +819,35 @@ export function createStonetopCharacterSheetClass(Base) {
 		_stampPastDeath() {
 			const root = this.element?.[0];
 			if (!root) return;
-			const kind = pastDeathKind({
+			const kind = this._pastDeathKind();
+			root.classList.toggle("stonetop-past-death", !!kind);
+			// Every kind is cleared and one is set, so a character raised out of `dead` (or handed
+			// an insert) doesn't keep the modifier of what they used to be.
+			PAST_DEATH_KINDS.forEach(k =>
+				root.classList.toggle(`stonetop-past-death--${k}`, k === kind));
+		}
+
+		/** What this character is past the Door: an insert slug, "dead", or null. */
+		_pastDeathKind() {
+			return pastDeathKind({
 				state:      this._stonetopCharacter.deathsDoorState,
 				insertSlug: this._stonetopCharacter.postDeathSlug,
 			});
-			// pastDeathKind also answers "dead", which is exactly the case that gets nothing here.
-			const insert = POST_DEATH_INSERT_SLUGS.includes(kind) ? kind : null;
-			root.classList.toggle("stonetop-past-death", !!insert);
-			POST_DEATH_INSERT_SLUGS.forEach(s =>
-				root.classList.toggle(`stonetop-past-death--${s}`, s === insert));
+		}
+
+		/**
+		 * Window classes for a dialog opened FROM this sheet, carrying the same black if the
+		 * character came back wearing an insert. A move played out of a black sheet used to open a
+		 * bone-parchment window on top of it, which read as someone else's move: the sheet, the
+		 * dialog and the chat card it posts are one action and should be one surface.
+		 *
+		 * Takes the window's own classes rather than being spread onto them by the caller, because
+		 * AppV1 REPLACES an array option instead of merging it — a dialog handed `classes` loses the
+		 * ones its defaultOptions declared, and for our windows that includes the bare `stonetop`
+		 * that draws all of the chrome.
+		 */
+		_pastDeathWindowClasses(base = []) {
+			return [...base, ...pastDeathClasses(this._pastDeathKind())];
 		}
 
 		/**
@@ -1035,12 +1058,36 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.followersEdit   = sectionEdit("followers");
 			context.stonetop.showRollStatChips = getRollStatChipsSetting();
 			// The tab carries the active insert — and, when there isn't one, the "Choose Your Fate"
-			// picker. Gating it purely on having an insert made that picker unreachable: the only
-			// way to a first insert was dragging one in from the compendium. Death's Door grants it
-			// properly now, so this is the manual route back — offered in edit mode, where the
-			// player or GM has already said they're changing the sheet, rather than hanging a
-			// Post-Death tab off every living character.
-			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug || context.stonetop.editMode;
+			// picker, which is the manual route for a table who resolved Death's Door away from the
+			// sheet. Edit mode is NOT reason enough to draw it: a tab about being dead would open on
+			// every living character whose player touches the wrench. So the empty tab needs a
+			// reason, and there are three, all meaning "a fate is being decided for this character":
+			//
+			//   · they had an insert and it was just removed (setPostDeathInsert requests the tab,
+			//     since the picker is the whole point of removing one), until Remove Post-Death Tab
+			//     takes it back;
+			//   · the Death's Door card's own "Choose Your Fate" asks for it — which is what makes
+			//     the picker reachable AT ALL for the case its hint text describes, a table who
+			//     resolved the Door in conversation and left no state behind for the rule below to
+			//     fire on. Same flag, so the tab's foot still takes it away again; and
+			//   · they are through the Last Door or owe a fate for it right now.
+			//
+			// A worn insert answers on its own and outranks all three.
+			const pdState = this._stonetopCharacter.deathsDoorState;
+			const pdFateOwed = pdState === DEATHS_DOOR_STATE.FATE_PENDING || pdState === DEATHS_DOOR_STATE.DEAD;
+			// Stepped through the Last Door and took no insert. The header says so in a tag beside
+			// the playbook, because the black paper alone can't tell that apart from the three
+			// returns — and "The Heavy" with nothing else on the line is exactly what a character
+			// who is still being played looks like.
+			context.stonetop.isDead = pdState === DEATHS_DOOR_STATE.DEAD;
+			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug
+				|| (context.stonetop.editMode && (!!this._stonetopCharacter.postDeathTabRequested || pdFateOwed));
+			// Whether the tab's foot offers to send it away. Only while the REQUEST is the only thing
+			// holding it open: a character who is through the Last Door or owes a fate for it has a
+			// tab that pdFateOwed re-draws on the next render, so the button wrote nothing (the flag
+			// it clears is already unset) and the tab came straight back — a control that could never
+			// do what it says for the very characters most likely to press it.
+			context.stonetop.canHidePostDeathTab = !pdFateOwed;
 			// Built for its write-in rows alone. The tab used to carry a button into the chooser,
 			// labelled with what was still outstanding; that went, and the label / count / flag it
 			// needed went with it. The full view model is still what the rows are derived from, so
@@ -1362,6 +1409,14 @@ export function createStonetopCharacterSheetClass(Base) {
 				// is spent but the choice isn't made.
 				canFace,
 				isFatePending,
+				// The way to the Post-Death tab for a table who resolved the Door in conversation.
+				// That tab is opt-in (showPostDeath), and until this control existed the only thing
+				// that ever opted in was REMOVING an insert — so the "Choose Your Fate" picker, whose
+				// own hint text advertises it for exactly this case, could not be reached by a
+				// character who had never worn one. Offered in edit mode, where whoever is holding
+				// the wrench has already said they're changing the sheet, and only while the tab
+				// isn't already there.
+				openPostDeath: !!snapshot.editMode && !snapshot.showPostDeath,
 			};
 		}
 
@@ -3397,6 +3452,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-levelup-icon").on("click", this._onLevelUpOpen.bind(this));
 			html.find(".stonetop-deathsdoor-open-btn").on("click", this._onDeathsDoorOpen.bind(this));
 			html.find(".stonetop-deathsdoor-clear-btn").on("click", this._onDeathsDoorClear.bind(this));
+			html.find(".stonetop-deathsdoor-postdeath-btn").on("click", this._onPostDeathTabOpen.bind(this));
+			// The `Dead` tag in the header. The other way into the raise question is putting hit
+			// points on a dead sheet, and a table that plays the resurrection out in the fiction
+			// first has no reason to have touched HP yet.
+			html.find(".stonetop-dead-tag").on("click", this._onDeadTagClick.bind(this));
 			html.find(".stonetop-recover-open-btn").on("click", this._onRecoverOpen.bind(this));
 			html.find(".stonetop-convalesce-open-btn").on("click", this._onConvalesceOpen.bind(this));
 
@@ -4191,6 +4251,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						const roll = await this._stonetopCharacter.onOrderFollowersRoll(result);
 						await this._maybeHoldReadinessOnDefend(ftype, slug, result, roll);
 					},
+					{ classes: this._pastDeathWindowClasses(OrderFollowersDialog.defaultOptions.classes) },
 				).render(true);
 			}, true);
 
@@ -4514,6 +4575,17 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!btn) return;
 				ev.stopPropagation();
 				this._stonetopCharacter.setPostDeathInsert(null).then(() => this.render(false));
+			}, true);
+
+			// Send the whole tab away. The tab it is drawn on goes with it, so the re-render lands
+			// on another one — core's Tabs#activate falls back to the first when the stored tab is
+			// no longer in the nav.
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".stonetop-pdi-hide-tab");
+				if (!btn) return;
+				ev.stopPropagation();
+				if (!this.isEditable) return;
+				this._stonetopCharacter.setPostDeathTabRequested(false).then(() => this.render(false));
 			}, true);
 
 			// These radios now render in ordinary play too, not just edit mode (an unanswered
@@ -4879,7 +4951,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				// consumed by _render makes the switch deterministic regardless of which render
 				// wins — and, unlike a global Hooks.once(render…), can't be swallowed by another
 				// open character sheet that happens to re-render first.
-				if (landedOn) landedOn._activateArcanaTabOnRender = true;
+				if (landedOn) landedOn._activateTabOnRender = "arcana";
 			}
 			if (anyAdded) landedOn?.render(false);
 		}
@@ -5544,6 +5616,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				this.actor,
 				steading,
 				() => this.render(false),
+				{ classes: this._pastDeathWindowClasses(RequisitionDialog.defaultOptions.classes) },
 			).render(true);
 		}
 
@@ -5553,6 +5626,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._stonetopCharacter,
 				snapshot.inventory.outfit,
 				() => this.render(false),
+				{ classes: this._pastDeathWindowClasses(OutfitMoveDialog.defaultOptions.classes) },
 			).render(true);
 		}
 
@@ -5567,6 +5641,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					// the sacred-pouch editor so the player picks it right away.
 					if (addedMoveName) this._maybeOpenPossessionChoicesForMove(addedMoveName);
 				},
+				{ classes: this._pastDeathWindowClasses(LevelUpDialog.defaultOptions.classes) },
 			).render(true);
 		}
 
@@ -5642,6 +5717,47 @@ export function createStonetopCharacterSheetClass(Base) {
 			this.render(false);
 		}
 
+		/**
+		 * Put the Post-Death tab on this sheet, and go to it.
+		 *
+		 * The manual counterpart to Death's Door granting an insert on its 6-: a table that played
+		 * the Last Door out in conversation leaves no state behind, so nothing else on the sheet
+		 * ever asks for the tab, and the "Choose Your Fate" picker its own hint text advertises for
+		 * exactly that case could not be reached. Writes the same request flag that removing an
+		 * insert writes, so the tab's foot still takes it away again.
+		 *
+		 * Deliberately does NOT touch deathsDoorState: whether this character owes a fate is the
+		 * table's account of what happened, and asking to see the picker is not a claim about it.
+		 */
+		async _onPostDeathTabOpen() {
+			if (!this.isEditable) return;
+			await this._stonetopCharacter.setPostDeathTabRequested(true);
+			// Consumed by _render, for the reason the dropped-arcanum switch is: the flag write
+			// schedules its own auto-render, which races the explicit one below, and presetting the
+			// active tab loses that race intermittently.
+			this._activateTabOnRender = "post-death";
+			this.render(false);
+		}
+
+		/**
+		 * The `Dead` tag in the header: ask whether they're being brought back.
+		 *
+		 * The same question the hit-point route asks, from the same place, so the two can't come to
+		 * disagree about what a raise does — it is the prompt's own module that owns both the wording
+		 * and the write. Nothing happens here if they say no, and the sheet re-renders either way
+		 * because the answer decides whether this tag and the black paper are still true.
+		 */
+		async _onDeadTagClick() {
+			if (!this.isEditable) return;
+			await promptRaiseFromDead(this.actor);
+			if (this.rendered) this.render(false);
+		}
+
+		/**
+		 * The header candle: snuff the light, or light it by hand. A manual toggle is the
+		 * player correcting the tracker (the flame guttered out, the GM says it's out), so it
+		 * posts nothing to chat — the same convention Defend's Readiness pips follow.
+		 */
 		// Open the Create-a-Follower walkthrough (Book I, NPCs & Followers, p.474).
 		// On finish it hands back buildCustomFollower() data, which we persist.
 		async _onCreateFollowerOpen() {
@@ -6722,7 +6838,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				},
 				default: "add",
 				render:  bringDialogToFront,
-			}, { classes: ["dialog", "stonetop"] }).render(true);
+			}, { classes: this._pastDeathWindowClasses(["dialog", "stonetop"]) }).render(true);
 		}
 
 		// Outfit the crew (p.472): the group Outfits with the same gear, restocking
@@ -6819,7 +6935,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				},
 				default: "spend",
 				render:  bringDialogToFront,
-			}, { classes: ["dialog", "stonetop"] }).render(true);
+			}, { classes: this._pastDeathWindowClasses(["dialog", "stonetop"]) }).render(true);
 		}
 
 		async _applySpendLoyalty(path, name, reasons, html) {
@@ -6864,7 +6980,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				},
 				default: "spend",
 				render:  bringDialogToFront,
-			}, { classes: ["dialog", "stonetop"] }).render(true);
+			}, { classes: this._pastDeathWindowClasses(["dialog", "stonetop"]) }).render(true);
 		}
 
 		async _applySpendReadiness({ rPath, lPath, name, reasons, html }) {
@@ -6968,7 +7084,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				},
 				default: "recover",
 				render: bringDialogToFront,
-			}, { width: 480, classes: ["dialog", "stonetop", "stonetop-recover-dialog"] }).render(true);
+			}, { width: 480, classes: this._pastDeathWindowClasses(["dialog", "stonetop", "stonetop-recover-dialog"]) }).render(true);
 		}
 
 		async _applyRecover({ supplySlug, currentUses, oldHp, newHp }) {
@@ -7071,7 +7187,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				},
 				default: "convalesce",
 				render: bringDialogToFront,
-			}, { width: 480, classes: ["dialog", "stonetop", "stonetop-convalesce-dialog"] }).render(true);
+			}, { width: 480, classes: this._pastDeathWindowClasses(["dialog", "stonetop", "stonetop-convalesce-dialog"]) }).render(true);
 		}
 
 		async _applyConvalesce({ oldHp, newHp, debilities, healable = [], healIds = [], planNotes = {} }) {

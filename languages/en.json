@@ -62,6 +62,8 @@
         "dispersedHint": "Your essence has dispersed. You reform near your tether at the next sunset with {hp} HP.",
         "reform": "Reform at your tether",
         "deadHint": "They stepped through the Last Door.",
+        "postDeathTab": "Choose Your Fate",
+        "postDeathTabHint": "Opens the Post-Death tab, where you can take the Revenant, Ghost or Thrall insert. Death's Door grants one for you on a 6- — use this if your table resolved that away from the sheet.",
         "lockedHint": "Only available when the character is dying — at 0 HP, with the move still to face.",
         "summary": "When you <em><strong>are dying</strong></em>, you glimpse the Last Door and the Lady of Crows. Roll +nothing: on a 10+ return to 1 HP; on a 7-9 you're out of action; on a 6- choose a dark fate.",
         "description": "When you <em><strong>are dying</strong></em>, you glimpse the Last Door and the Lady of Crows (describe it). Then, roll +nothing: on a 10+, you wrest yourself back to the realm of the living&mdash;return to 1 HP but say how your brush with death has marked you; on a 7-9, the Lady waves you off&mdash;you're no longer dying but you're out of the action; on a 6-, your time has come&mdash;choose 1: make one last move as if you rolled a 12+, then step through the Last Door; refuse to go and gain the Revenant or Ghost insert; or call on one of the Things Below by name and beseech it to intercede, gaining the Thrall insert."
@@ -131,7 +133,9 @@
     "postDeath": {
       "chooseFate": "Choose Your Fate",
       "chooseFateHint": "You take one of these only when it becomes relevant — you died, and refused to go. Death's Door grants it for you on a 6-; pick one here if your table resolved that away from the sheet.",
-      "removeInsert": "Remove",
+      "removeInsert": "Remove Insert",
+      "hideTab": "Remove Post-Death Tab",
+      "hideTabHint": "Take this tab off the sheet. It comes back on its own if this character takes an insert, or faces the Last Door.",
       "tether": "Your Tether",
       "tetherHint": "Tethered reforms you beside it. If it's ever destroyed, you mark the Final Consequence.",
       "tetherPlaceholder": "Your mortal remains, the place where you died, an object of significance…",
@@ -144,7 +148,18 @@
       "moves": "Granted Moves",
       "purpose": "In Your Own Words",
       "retiredTooltip": "Who they were before they died. The playbook and its Instinct are still on the sheet, and come back if the insert is removed.",
-      "instinctRetired": "Retired when you took the insert. It comes back if the insert is removed."
+      "instinctRetired": "Retired when you took the insert. It comes back if the insert is removed.",
+      "deadTag": "Dead",
+      "deadTooltip": "They made one last move as if they rolled a 12+, then stepped through the Last Door. Only the rarest of magic can bring them back.",
+      "deadTooltipAction": "They made one last move as if they rolled a 12+, then stepped through the Last Door. Only the rarest of magic can bring them back — click here if it has.",
+      "raiseTitle": "Is {name} being brought back?",
+      "raiseBody": "<strong>{name}</strong> stepped through the Last Door.",
+      "raiseHpNote": "Their hit points have just gone above 0.",
+      "raiseAsk": "Only the rarest of magic can bring them back. Is that what happened?",
+      "raiseYes": "Yes, they live again",
+      "raiseNo": "No, they are still dead",
+      "raised": "{name} is no longer dead. Their sheet is their own again.",
+      "raiseFailed": "Couldn't clear the dead state. Try again, or clear it on the Special Moves tab."
     },
     "arcana": {
       "createGmOnly": "Only the GM can create homebrew arcana in this world.",

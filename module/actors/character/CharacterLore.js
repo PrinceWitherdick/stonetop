@@ -49,7 +49,7 @@ export class CharacterLore {
 	 *
 	 * Deleted through `batch`, not by writing a filtered object back: an object flag value MERGES
 	 * on write, so a filtered copy would leave every dropped key exactly where it was. Removing a
-	 * sub-key needs Foundry's `-=key` syntax, which is what batch's `deletes` builds. One
+	 * sub-key needs an explicit delete, which is what batch's `deletes` builds. One
 	 * actor.update for the lot, so it costs one re-render rather than one per key.
 	 *
 	 * Returns how many were dropped, so a caller can tell whether anything happened.

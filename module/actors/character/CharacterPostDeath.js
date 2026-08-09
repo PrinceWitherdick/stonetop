@@ -24,8 +24,49 @@ export class CharacterPostDeath {
 		this._moveRepo    = moveRepo;
 	}
 
-	get activeSlug()       { return this._insertFlags.getFlag("slug") ?? null; }
-	async setActiveSlug(s) { await this._insertFlags.setFlag("slug", s); }
+	get activeSlug() { return this._insertFlags.getFlag("slug") ?? null; }
+
+	/**
+	 * The same write as an `actor.update()` fragment, for a caller that must land it in ONE update
+	 * alongside something outside this namespace.
+	 *
+	 * There is one such caller: taking an insert at the Door has to end the brush with death that
+	 * led to it, and the Death's Door state is a sibling of these flags rather than one of them.
+	 * As two writes it could be torn in half by a reload, leaving a character wearing a Ghost and
+	 * still owing a fate (see StonetopCharacter#setPostDeathInsert).
+	 */
+	slugUpdateData(s) { return this._insertFlags.updateData("slug", s); }
+
+	/**
+	 * Keep the Post-Death tab on a sheet that has no insert?
+	 *
+	 * Asked because edit mode is the wrong answer on its own: a tab about being dead would then
+	 * open on every living character whose player touches the wrench. So the empty tab is opt-in,
+	 * and the one thing that opts in is REMOVING an insert (StonetopCharacter#setPostDeathInsert) —
+	 * a character who was undead a moment ago is exactly the one whose fate is being reconsidered,
+	 * and the tab has to stay put long enough to pick another. The tab's own foot takes it back.
+	 *
+	 * Only ever consulted while there is no insert; taking one shows the tab on its own merits and
+	 * drops this, so the flag can't outlive the question it answers.
+	 */
+	get tabRequested() { return !!this._insertFlags.getFlag("tabOpen"); }
+
+	async setTabRequested(requested) {
+		const data = this.tabRequestUpdateData(requested);
+		if (data) await this._insertFlags.applyUpdateData(data);
+	}
+
+	/**
+	 * The same write as an `actor.update()` fragment, so a caller already writing the slug can
+	 * land both in ONE update — see `slugUpdateData`. Null when there is nothing to write.
+	 *
+	 * Unset rather than write false: the flag's absence is the ordinary state, and leaving a
+	 * `false` behind would keep a record of a tab nobody ever asked for.
+	 */
+	tabRequestUpdateData(requested) {
+		if (requested) return this._insertFlags.updateData("tabOpen", true);
+		return this.tabRequested ? this._insertFlags.deletionData("tabOpen") : null;
+	}
 	get instinct()         { return this._instinct; }
 	get lore()             { return this._lore; }
 

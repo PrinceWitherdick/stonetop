@@ -167,9 +167,9 @@
 	--stonetop-checkbox-checked-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg');
 
 	/* What lifts a card off the page it sits on — the move cards, the invocation cards, the
-	   special-possessions list. On paper that's a whisper of shadow; on a surface that has been
-	   inverted to black it has to become a whisper of light, or the cards dissolve into it.
-	   Named here so one scope can turn all three families over at once. */
+	   special-possessions list, the Items tab's Outfit panel. On paper that's a whisper of shadow;
+	   on a surface that has been inverted to black it has to become a whisper of light, or the
+	   cards dissolve into it. Named here so one scope can turn them all over at once. */
 	--st-card-fill: rgba(0, 0, 0, 0.03);
 	--st-card-rule: rgba(0, 0, 0, 0.12);
 
@@ -1499,7 +1499,13 @@ input.stonetop-name-field {
    (game-icons.net "Broken Heart" by Lorc, CC BY 3.0). The SVG is used as a
    mask so it's painted a flat black via the background colour, mirroring the
    level-up cue. Empty button (no glyph child); the box stays fully clickable
-   even though only the heart shape is painted. */
+   even though only the heart shape is painted.
+
+   The fill goes through a variable rather than being written literally: a mask
+   takes its paint from the background, so the ink cannot come from `color` the
+   way the sheet's other masked glyphs do, and a returned character's sheet
+   inverts the paper to near-black — a literal #000 here is a heart that is
+   simply not there. The past-death block repoints this to bone. */
 .stonetop-wound-add {
 	flex: 0 0 auto;
 	width: 15px !important;
@@ -1507,7 +1513,7 @@ input.stonetop-name-field {
 	padding: 0 !important;
 	border: none !important;
 	box-shadow: none !important;
-	background: #000 !important;
+	background: var(--st-wound-add-ink, #000) !important;
 	cursor: pointer;
 	opacity: 0.6;
 	transition: opacity 0.12s, transform 0.12s;
@@ -3392,7 +3398,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
    core builds that one as `id="chat-popout"` (SidebarTab#renderPopout), and it is a common setup
    whenever the sidebar is collapsed for canvas room. It was missing here, so a popped-out log
    rendered every Stonetop card as an unstyled core message: no parchment, no move card, and no
-   fringe or black card under a dead PC's line — the one reading the drip exists to prevent.
+   black card under an undead PC's line — the one reading that repaint exists to prevent.
    `:is()` takes the specificity of its heaviest argument and all three are ids, so adding it
    changed no weights. Note core's `.chat-popout` CLASS is a different thing (a single message
    popped out on its own); this is the id. */
@@ -5773,11 +5779,18 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 .stonetop-edit-mode .stonetop-possession-list > li:not(.is-checked) { display: list-item; }
 
 /* -- Outfit header -------------------------------------------- */
+/* Fill and rule come from the shared card tokens rather than from literal blacks. This panel is
+   the same thing the move and invocation cards are — a surface lifted off the paper it sits on —
+   and a literal `rgba(0,0,0,…)` only lifts while the paper is pale. On the sheet of someone who
+   came back the paper is INVERTED to black, so black-on-black erased the whole panel: the Outfit
+   rules and the load tiers read as bare text floating at the top of the Items tab, with nothing
+   marking them off from the equipment list below. The tokens turn over with that scope (they
+   become a whisper of white there), so the panel now survives the repaint by itself. */
 .stonetop-outfit-header {
 	margin-bottom: 8px;
 	padding: 6px 8px;
-	background: rgba(0, 0, 0, 0.05);
-	border: 1px solid rgba(0, 0, 0, 0.15);
+	background: var(--st-card-fill);
+	border: 1px solid var(--st-card-rule);
 	border-radius: var(--st-radius-sm);
 	font-size: var(--st-fs-base);
 }
@@ -7049,6 +7062,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	flex-direction: column;
 }
 
+/* A write-in prompt ("What did you do?") is a question, the same as the entry titles
+   it sits beside — so it's set bold in both modes, and doesn't change weight when edit
+   mode is toggled. Scoped to --text: the checkbox rows use this class for their option
+   text, which is an answer, not a question. */
+.stonetop-lore-option--text > .stonetop-lore-option-desc {
+	font-weight: bold;
+}
+
 .stonetop-lore-option-text {
 	width: 100%;
 	box-sizing: border-box;
@@ -7063,7 +7084,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 
 .stonetop-lore-option--text.stonetop-lore-option--readonly .stonetop-lore-option-desc {
 	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
-	font-weight: normal;
+	font-weight: bold;
 	font-style: normal;
 	color: var(--color-text-dark-secondary);
 	margin-bottom: 1px;
@@ -7082,6 +7103,22 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	/* Match the edit-mode textarea (.stonetop-lore-option-text) so the answer
 	   text doesn't resize when toggling between edit and read-only. */
 	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+}
+
+/* A name, not a sentence. What a player writes into a "…-name" option — the Thrall's master, so
+   far — is a proper noun, so it takes the display face the header gives a playbook's name rather
+   than the italic hand the other answers are written in: a god's name set as handwriting read as
+   an aside about the character instead of as the thing that owns them.
+
+   Both modes, and at one size, for the reason the sizes above are matched: the answer shouldn't
+   change face or jump when edit mode is toggled. Single-class modifiers, so they must sit LATER
+   in the file than the bases they override — which is what this position is. */
+.stonetop-lore-readonly-value--name,
+.stonetop-lore-option-text--name {
+	font-family: var(--font-avara);
+	font-weight: bold;
+	font-style: normal;
+	font-size: calc(0.95rem * var(--stonetop-font-scale, 1));
 }
 
 .stonetop-lore-option--readonly {
@@ -7446,6 +7483,63 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 .stonetop-playbook-retired s {
 	text-decoration-color: var(--color-underline-header, #782e22);
 	text-decoration-thickness: 2px;
+}
+
+/* ── Dead ──────────────────────────────────────────────────────────
+   Through the Last Door, with no insert. A pill at the end of the appearance line rather than a
+   wash over anything, because the paper is already black by the time this renders (see "the sheet
+   of someone past the Last Door") and the one thing the black cannot say on its own is WHICH of
+   the four kinds this is: the three returns name themselves at the top of the header, and a plain
+   death would otherwise look like an ordinary living character on dark paper.
+
+   Red, in the sheet's own three red tokens rather than a hand-mixed one, so it reads at the same
+   weight as every other red on the sheet and comes down with the black scope's repaint (which
+   re-points all three). It sits at the end of a line of small italic prose, so it declares
+   `font-style: normal` — inherited italic on a letterspaced uppercase pill reads as a typo.
+
+   It is a <button> wherever the sheet can be edited (it opens the "are they being brought back?"
+   question) and a <span> otherwise, so EVERY property core sets on an application button has to be
+   declared here rather than merely left alone: `width` above all, since core's
+   `body.game .app button { width: 100% }` would otherwise stretch a five-letter pill across the
+   whole header. Unlayered beats core's layered compatibility rules per property, which is why one
+   class is enough — but only for the properties actually named. */
+.stonetop-dead-tag {
+	display: inline-flex;
+	width: auto;
+	align-items: center;
+	gap: 0.35em;
+	/* Detached from the sentence it follows: the appearance line is a description of a person and
+	   this is not part of it. */
+	margin: 0 0 0 0.7em;
+	padding: 0 8px;
+	border: 1px solid var(--st-red-border);
+	border-radius: 999px;
+	background: var(--st-red-bg);
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	font-style: normal;
+	font-weight: 600;
+	line-height: 1.7;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--st-red-text);
+	/* The line can wrap; the pill must not be broken across it. */
+	white-space: nowrap;
+	vertical-align: baseline;
+	transition: background 0.12s, border-color 0.12s;
+}
+
+.stonetop-dead-tag i {
+	font-size: 0.9em;
+}
+
+/* Only the editable copy is a button, so only it says "press me". */
+button.stonetop-dead-tag { cursor: pointer; }
+
+button.stonetop-dead-tag:hover {
+	background: var(--st-red-border);
+	border-color: var(--st-red-text);
+	color: var(--st-btn-primary-text, #fff);
 }
 
 .stonetop-appearance-summary {
@@ -7831,6 +7925,28 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	font-style: italic;
 }
 
+/* Edit mode's Remove Insert bar. Its own gap below, so the button doesn't sit on top of the
+   first lore heading — the header is a bare wrapper otherwise and the sections beneath it
+   space themselves from each other, not from it. */
+.stonetop-pdi-header {
+	margin-bottom: 12px;
+}
+
+/* Remove Post-Death Tab, at the foot of the fate picker. Held to its own width rather than the
+   full-bleed Remove Insert bar above: this one leaves the sheet, so it shouldn't read as the
+   obvious next click after choosing a fate. */
+.stonetop-pdi-footer {
+	display: flex;
+	justify-content: center;
+	margin-top: 16px;
+}
+
+.stonetop-pdi-footer .stonetop-pdi-hide-tab {
+	width: auto;
+	flex: 0 0 auto;
+	padding: 0 16px;
+}
+
 .stonetop-pdi-remove--danger {
 	background: #a02020;
 	border-color: #7a1010;
@@ -7947,6 +8063,17 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 
 .stonetop-special-move-card button {
 	margin-top: auto;
+}
+
+/* The Death's Door card can carry a SECOND button in edit mode — the route to the Post-Death
+   tab. `margin-top: auto` on both would split the card's free space between them rather than
+   settling the pair at its foot, so the follower keeps the card's own gap and the quieter look
+   of the two: this is sheet plumbing, not a move anyone is making. */
+.stonetop-special-move-card .stonetop-deathsdoor-postdeath-btn {
+	margin-top: 0;
+	background: transparent;
+	border: 1px dashed var(--color-border-dark-5, #7a7971);
+	color: var(--color-text-dark-secondary);
 }
 
 /* ── Add Resident / Neighbor dialog ────────────────────────────── */
@@ -8798,6 +8925,46 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	gap: 10px;
 }
 
+/* ── The last step is a left-rail sheet ────────────────────────────
+   What the insert asks for is four lists of the book's own prose, and stacked they made a window
+   taller than the screen. That step wears the shared .stonetop-guide-* chrome instead (the
+   first-session guide's rail), which needs the body to stop being the thing that scrolls: the
+   panel column inside the split takes that over, so the rail stays put beside it.
+
+   `:has()` rather than a class on the body, because the body is one element shared by all four
+   steps and only this one wants the layout. */
+.deaths-door-dialog-content:has(.deaths-door-step--choices) {
+	min-height: 0;
+	padding: 0;
+	overflow: hidden;
+}
+
+.deaths-door-step--choices {
+	flex: 1 1 auto;
+	min-height: 0;
+	gap: 0;
+}
+
+/* The insert's name and what taking it cost, above the split: it is the frame for every question
+   on the rail rather than part of any one of them, so it stays on screen as they are answered.
+   Padded on its own now that the body isn't. */
+.deaths-door-choices-head {
+	flex: 0 0 auto;
+	padding: 12px 14px 9px;
+	border-bottom: 1px solid var(--dd-rule, var(--color-border-light-tertiary, #ccc));
+}
+
+.deaths-door-choices-head .deaths-door-intro { margin-top: 4px; }
+
+/* Answered, on the rail. The tick rides at the end of the entry rather than replacing the step's
+   own glyph, so an entry keeps saying WHICH question it is after it has been settled. */
+.deaths-door-choice-tab-done {
+	flex: 0 0 auto;
+	align-self: center;
+	font-size: var(--st-fs-xs);
+	color: var(--st-green-text);
+}
+
 /* Letterspaced a touch wider than the other dialog headings: this one is read slowly. */
 .deaths-door-move-name {
 	margin: 0;
@@ -8819,61 +8986,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	border-bottom: 1px solid var(--color-border-light-tertiary, #ccc);
 }
 
-.deaths-door-roll-chip {
-	display: inline-block;
-	padding: 1px 6px;
-	border: 1px solid var(--color-text-dark-secondary);
-	border-radius: var(--st-radius-sm);
-	font-size: var(--st-fs-base);
-	line-height: 1.2;
-	color: var(--color-text-dark-secondary);
-	white-space: nowrap;
-}
-
-/* Rollable "+nothing" control on the overview step */
-.deaths-door-roll-btn {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	width: auto;
-	margin: 0 2px;
-	padding: 2px 8px;
-	border: 1px solid var(--dd-rule);
-	border-radius: var(--st-radius);
-	background: var(--dd-surface);
-	color: var(--color-text-dark-primary);
-	cursor: pointer;
-	line-height: 1.2;
-	transition: background 0.1s, border-color 0.1s;
-}
-
-.deaths-door-roll-btn:hover {
-	background: var(--dd-surface-hover);
-	border-color: var(--color-text-dark-secondary);
-}
-
-.deaths-door-roll-btn .deaths-door-roll-chip {
-	border: none;
-	padding: 0;
-}
-
-.deaths-door-roll-btn i {
-	font-size: var(--st-fs-md);
-	color: var(--color-text-dark-secondary);
-}
-
 .deaths-door-result-banner {
 	margin: 0;
 	font-size: var(--st-fs-md);
 	font-weight: bold;
 	color: var(--color-text-dark-primary);
-}
-
-.deaths-door-instruction {
-	margin: 0;
-	font-style: italic;
-	font-size: var(--st-fs-base);
-	color: var(--color-text-dark-secondary);
 }
 
 /* ── Death's Door: the outcome ladder ──────────────────────────────
@@ -9052,25 +9169,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	min-width: 0;
 }
 
-.deaths-door-mark-add {
-	width: auto !important;
-	flex: 0 0 auto;
-	white-space: nowrap;
-	padding: 4px 12px;
-	border: 1px solid var(--dd-rule);
-	border-radius: var(--st-radius-sm);
-	background: var(--dd-surface);
-	color: var(--color-text-dark-primary);
-	cursor: pointer;
-}
-
-.deaths-door-mark-add:hover {
-	background: var(--dd-surface-hover);
-	border-color: var(--color-text-dark-secondary);
-}
-
+/* Sits UNDER the input now rather than replacing it: the mark is on the sheet from the moment
+   the 10+ lands, so this confirms a standing record while the field stays open to name it. */
 .deaths-door-mark-done {
-	margin: 0;
+	margin: 6px 0 0;
 	font-size: var(--st-fs-base);
 	color: var(--st-green-text);
 }
@@ -9105,6 +9207,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 /* No background here: every one of these states its own below, primary or transparent. */
 .deaths-door-close-btn,
 .deaths-door-cancel-btn,
+.deaths-door-roll-btn,
 .undeath-apply-btn,
 .undeath-close-btn,
 .undeath-cancel-btn {
@@ -9116,8 +9219,31 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 }
 
 .deaths-door-close-btn,
-.deaths-door-cancel-btn {
+.deaths-door-cancel-btn,
+.deaths-door-roll-btn {
 	transition: background 0.1s, border-color 0.1s;
+}
+
+/* The roll is the whole point of the step, so it takes whatever the footer has left over rather
+   than shrinking to its label — "Not yet" beside it stays at its own width. */
+.deaths-door-roll-btn {
+	/* `width` is declared because core hands every button in an application `width: 100%`, which
+	   would otherwise become this one's flex basis and squeeze "Not yet" into wrapping. Growing
+	   from the label's own width fills the same space without taking it from the neighbour. */
+	width: auto;
+	flex: 1 1 auto;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	/* NO `line-height` here. Every other button in this footer inherits the window's, and this one
+	   used to declare 1.2 — which made it 30.8px tall beside a 42px "Not yet", a step down that the
+	   full-width fill only made more obvious. Height in this row is one shared inheritance rather
+	   than a number per button, so a footer that gains a control can't land it at a third height. */
+}
+
+.deaths-door-roll-btn i {
+	font-size: var(--st-fs-md);
 }
 
 /* Done stands alone in its row, so it fills the footer with a centred label rather than
@@ -9128,6 +9254,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 }
 
 .deaths-door-close-btn,
+.deaths-door-roll-btn,
 .undeath-apply-btn,
 .undeath-close-btn {
 	background: var(--st-btn-primary-bg);
@@ -9135,13 +9262,54 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	border-color: var(--st-btn-primary-border);
 }
 
-/* Done shares its row with the "still to choose" line on the choices step, so it stops filling
-   the footer there and lets that line keep the left edge. It must not SHRINK for it either: the
-   line names the outstanding steps rather than counting them, and on a Thrall that is four of
-   them — long enough to squeeze "Done" onto two lines if the button is left flexible. */
-.deaths-door-outstanding + .deaths-door-close-btn {
+/* Done shares its row with Back / Next and the "still to choose" line on the choices step, so it
+   stops filling the footer there and lets that line keep the left edge. None of the three may
+   SHRINK for it either: the line names the outstanding steps rather than counting them, and on a
+   Thrall that is four of them — long enough to squeeze a label onto two lines if the buttons are
+   left flexible. */
+.deaths-door-choices-nav {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 0 0 auto;
+	margin-left: auto;
+}
+
+.deaths-door-choices-nav .deaths-door-close-btn,
+.deaths-door-choice-back,
+.deaths-door-choice-next {
 	width: auto;
 	flex: 0 0 auto;
+}
+
+/* Back / Next are the walkthrough's own navigation, not its affirmative: transparent, like the
+   dismissive buttons beside them on the earlier steps, so "Done" stays the only lit thing in the
+   footer. Same padding and rule as the rest of the row (see the shared block above). */
+.deaths-door-choice-back,
+.deaths-door-choice-next {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.45em;
+	padding: 6px 12px;
+	border: 1px solid var(--dd-rule);
+	border-radius: var(--st-radius-sm);
+	background: transparent;
+	color: inherit;
+	font-size: var(--st-fs-base);
+	cursor: pointer;
+	transition: background 0.1s, border-color 0.1s;
+}
+
+.deaths-door-choice-back:hover:not(:disabled),
+.deaths-door-choice-next:hover:not(:disabled) {
+	background: var(--dd-surface-hover);
+	border-color: var(--dd-accent);
+}
+
+.deaths-door-choice-back:disabled,
+.deaths-door-choice-next:disabled {
+	opacity: 0.35;
+	cursor: not-allowed;
 }
 
 /* "Not yet" / "Cancel" are dismissive, so they sit at the right edge (Foundry's convention)
@@ -9151,7 +9319,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	margin-left: auto;
 }
 
-.deaths-door-close-btn:hover {
+.deaths-door-close-btn:hover,
+.deaths-door-roll-btn:hover {
 	background: var(--st-btn-primary-bg-hover);
 }
 
@@ -9729,6 +9898,44 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	box-shadow: inset 3px 0 0 var(--dd-accent), 0 0 14px -4px var(--dd-accent);
 }
 
+/* ── The rail, in the dark ─────────────────────────────────────────
+   The last step wears the shared .stonetop-guide-toc chrome, which is mixed for parchment: its
+   fills are black-on-light and its hover is a warm cream that lands as a lit block on this
+   window's inverted paper. Restated here in the --dd-* tokens the rest of the room reads, so the
+   rail comes down with everything else. Each of these carries the mood class, so it outranks the
+   one-class rule it is replacing wherever they touch the same property. */
+.deaths-door-mood--door .stonetop-guide-toc {
+	background: var(--dd-inset);
+	border-right-color: var(--dd-rule);
+}
+
+.deaths-door-mood--door .stonetop-guide-toc-btn:hover {
+	background: var(--dd-surface-hover);
+}
+
+/* The question being answered. Ember, like every other "this is the one you took" surface in the
+   window (see .stonetop-pdc-option.is-chosen), rather than the green the parchment rail uses. */
+.deaths-door-mood--door .stonetop-guide-toc-item.is-active .stonetop-guide-toc-btn {
+	background: var(--dd-accent-bg);
+	border-color: var(--dd-accent);
+	color: var(--color-text-dark-primary);
+}
+
+.deaths-door-mood--door .stonetop-guide-toc-item.is-active .stonetop-guide-toc-icon {
+	color: var(--dd-accent);
+}
+
+/* Settled. The entry steps back rather than lighting up: what is left to answer is what the rail
+   is being read for, so the unanswered ones are the ones that should carry the eye. The tick
+   itself stays at full strength. */
+.deaths-door-mood--door .stonetop-guide-toc-item.is-answered:not(.is-active) .stonetop-guide-toc-text {
+	color: var(--color-text-dark-secondary);
+}
+
+.deaths-door-mood--door .deaths-door-choice-tab-done {
+	color: var(--dd-accent);
+}
+
 /* ── The two pieces of motion ──────────────────────────────────────
    Both are decoration, so both sit behind prefers-reduced-motion: with motion off the moods
    still read entirely from colour. */
@@ -9760,21 +9967,22 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	}
 }
 
-/* ── The sheet of someone who came back ────────────────────────────
+/* ── The sheet of someone past the Last Door ───────────────────────
    A character wearing the Revenant, Ghost or Thrall insert carries the Death's Door black on
    their own sheet, by the same means: the paper is INVERTED, not covered (see the repaint above
    for how and why). It says, every time the sheet is opened, that this isn't the person it used
    to be — and it has to survive being played with for whole sessions, which is why it repaints
    surfaces rather than dimming them.
 
-   A character who simply DIED is deliberately left alone. StonetopCharacterSheet._stampPastDeath
-   only stamps the three insert slugs; `pastDeathKind`'s fourth answer, "dead", gets nothing. That
-   sheet is a record of a life and is done being played — announcing the ending in its own chrome
-   is the one place this effect would be in poor taste rather than atmospheric.
+   A character who simply DIED wears it too (2026-08-08, at the user's request; it used to be the
+   three inserts only, on the reasoning that a sheet which is done being played shouldn't announce
+   the ending in its own chrome). They take the base grey ink and NO wash — none of the three
+   tints below names them — so their paper is the one that nothing warms, which is the difference
+   between a return and an ending. The `Dead` tag on the playbook line is what says which it is in
+   words; the black alone can't tell the four kinds apart.
 
-   Their chat messages already carry a per-kind ink (the drip, further down); the accents here are
-   the same three hues lifted to read against black, so the sheet and the log agree about what
-   came back.
+   Their chat messages carry the same black card (further down); the accents here are the same
+   three hues lifted to read against black, so the sheet and the log agree about what came back.
 
    The three sit ~73° apart on the wheel, which is what keeps them apart at these low saturations
    and at the 5% the wash is used at — closer neighbours read as one grey-blue smear once they're
@@ -9784,19 +9992,27 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
      Thrall    bile-moss. The one that isn't yours — something else moved in and is growing.
      Ghost     spectral violet. No body left to stain anything, only the light it left behind.
 
-   All three are also declared as `--st-drip-ink` further down at a much lower lightness (ink over
-   a lit scene, not an accent over black); keep the hue in step across the pair. */
-.stonetop.character.stonetop-past-death              { --st-past-death-ink: hsl(0 0% 52%); }
-.stonetop.character.stonetop-past-death--revenant    { --st-past-death-ink: hsl(210 40% 55%); }
-.stonetop.character.stonetop-past-death--thrall      { --st-past-death-ink: hsl(96 30% 52%); }
+   The chat card reads the same three hues through the shared `--st-undead-wash-*` tokens, so the
+   sheet and the log can't drift apart. */
+.stonetop.app.stonetop-past-death              { --st-past-death-ink: hsl(0 0% 52%); }
+.stonetop.app.stonetop-past-death--revenant    { --st-past-death-ink: hsl(210 40% 55%); }
+.stonetop.app.stonetop-past-death--thrall      { --st-past-death-ink: hsl(96 30% 52%); }
 /* A Ghost's runs thin — the one kind that fades rather than stains. */
-.stonetop.character.stonetop-past-death--ghost       { --st-past-death-ink: hsl(283 34% 58%); }
+.stonetop.app.stonetop-past-death--ghost       { --st-past-death-ink: hsl(283 34% 58%); }
 
 /* Specificity: `.vtt` + three root classes + `.window-app` + `.window-content` = (0,6,0), which
    is what it takes to beat the sheet parchment fill at (0,4,0). Redefining `--stonetop-bg` here
    is doing a lot of the work on its own: the stat boxes, the vitals, the "also called" well and
-   the arcanum headers all fill from it, so they come down with the paper without being named. */
-.vtt .stonetop.character.stonetop-past-death.window-app .window-content {
+   the arcanum headers all fill from it, so they come down with the paper without being named.
+
+   `.app` where you'd expect `.character`, in this rule and the four below it: AppV1 puts `app
+   window-app` on every popped-out window, so these five — the paper, the tint, the title bar and
+   the form wells, everything that is chrome rather than sheet furniture — also dress a DIALOG the
+   sheet opens (see StonetopCharacterSheet._pastDeathWindowClasses). A returned character's move
+   used to open a bone-parchment window on top of their black sheet, which read as someone else's.
+   `.app` is a class like `.character` was, so every weight below is unchanged; the rules further
+   down that name sheet furniture keep `.character` and cannot reach a dialog. */
+.vtt .stonetop.app.stonetop-past-death.window-app .window-content {
 	color-scheme: dark;
 	--stonetop-bg:                 hsl(0 0% 12%);
 	--color-text-dark-primary:     hsl(38 22% 88%);
@@ -9841,6 +10057,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	--stonetop-checkbox-checked-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked-light.svg');
 	--stonetop-diamond-icon:          url('/systems/stonetop-pwd/assets/icons/playbooks/diamond-light.svg');
 	--stonetop-diamond-selected-icon: url('/systems/stonetop-pwd/assets/icons/playbooks/diamond_selected-light.svg');
+	/* The one glyph that is a MASK and still had to be turned over by hand: the add-wound heart
+	   beside HP. A mask paints from the background, so it can't ride `color` down with the rest
+	   of the sheet's furniture, and its fill was a literal black — on this paper the heart was
+	   there and clickable but invisible, on the sheets most likely to want a wound recorded. */
+	--st-wound-add-ink:               hsl(38 20% 86%);
 	/* Cards lift off this paper with light rather than with shadow. Every move card on the sheet
 	   comes with it — the insert's granted moves and the playbook's alike — and so do the
 	   invocation cards and the special-possessions list. */
@@ -9868,26 +10089,95 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
    the shared `--st-undead-wash-*` tokens, which the chat cards read too, so the two surfaces can
    no longer be tuned apart; the local name is what keeps the `transparent` fallback meaningful
    for a kind with no tint of its own. */
-.stonetop.character.stonetop-past-death--revenant .window-content { --st-past-death-wash: var(--st-undead-wash-revenant); }
-.stonetop.character.stonetop-past-death--thrall   .window-content { --st-past-death-wash: var(--st-undead-wash-thrall); }
-.stonetop.character.stonetop-past-death--ghost    .window-content { --st-past-death-wash: var(--st-undead-wash-ghost); }
+.stonetop.app.stonetop-past-death--revenant .window-content { --st-past-death-wash: var(--st-undead-wash-revenant); }
+.stonetop.app.stonetop-past-death--thrall   .window-content { --st-past-death-wash: var(--st-undead-wash-thrall); }
+.stonetop.app.stonetop-past-death--ghost    .window-content { --st-past-death-wash: var(--st-undead-wash-ghost); }
 
-.vtt .stonetop.character.stonetop-past-death.window-app .window-header {
+.vtt .stonetop.app.stonetop-past-death.window-app .window-header {
 	background: hsl(0 0% 11%);
 	border-bottom: 1px solid var(--st-past-death-ink);
 }
 
-.vtt .stonetop.character.stonetop-past-death.window-app
+.vtt .stonetop.app.stonetop-past-death.window-app
 	.window-header :is(.window-title, .header-control, .window-icon, a, button) {
 	color: hsl(38 20% 82%);
 }
 
 /* Form wells. `color-scheme: dark` already turns the native controls over, but every well the
    system fills itself is a hard-coded translucent WHITE and would stay a lit panel on black. */
-.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+.vtt .stonetop.app.stonetop-past-death.window-app .window-content
 	:is(input:not([type=checkbox], [type=radio], [type=range], [type=color]), select, textarea) {
 	background: rgba(255, 255, 255, 0.06);
 	color: var(--color-text-dark-primary);
+}
+
+/* The one surface in the follower-move dialogs that fills from a LITERAL pale colour rather than
+   from a token the block above re-points: Order Followers' live readout, which stayed a white slab
+   carrying bone text. Same treatment the Followers tab's cards get — translucent, so the inverted
+   paper reads through it. The chips, the checkboxes and the footer buttons need nothing: they
+   already draw from `--st-green-bg` / `--stonetop-checkbox-icon` / `--st-btn-primary-*`, all of
+   which turn over with the window. */
+.vtt .stonetop.app.stonetop-past-death.window-app .window-content .stonetop-of-readout {
+	background: rgba(255, 255, 255, 0.06);
+}
+
+/* And the spring-dialog chrome that window borrows draws its banner and the rule above its footer
+   as faint BLACK washes, which are invisible on black rather than merely wrong — the same trap the
+   chat card's furniture fell into. Same weights, run the other way. */
+.vtt .stonetop.app.stonetop-past-death.window-app .window-content .stonetop-guide-banner {
+	background: rgba(255, 255, 255, 0.055);
+	border-color: rgba(255, 255, 255, 0.14);
+}
+
+.vtt .stonetop.app.stonetop-past-death.window-app .window-content .stonetop-guide-nav {
+	border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+/* ── …and the special moves ──────────────────────────────────────────
+   Recover, Convalesce, Level Up, Outfit and Requisition open windows of their own, and their
+   furniture is drawn either as a faint BLACK wash — which on black paper doesn't read as wrong,
+   it reads as absent — or as a literal white, which is a lit slab on it. The palette above turns
+   over everything that fills from a token; what follows is the literals, which no amount of
+   re-pointing can reach.
+
+   Grouped by what a thing IS rather than by which window it belongs to — a panel, a hover, a
+   chip, a rule — so a sixth dialog wanting the same treatment joins the list it matches instead
+   of bringing another block. */
+.vtt .stonetop.app.stonetop-past-death.window-app .window-content
+	:is(.stonetop-homestead-reference, .stonetop-requisition-roll, .stonetop-outfit-rule-note,
+	    .stonetop-outfit-load-option, .stonetop-levelup-summary,
+	    .stonetop-levelup-invocation-option, .stonetop-levelup-stat-option) {
+	background: rgba(255, 255, 255, 0.055);
+	border-color: rgba(255, 255, 255, 0.14);
+}
+
+/* Every hover in these windows lifts by DARKENING, which is the one move that can't be read on a
+   black window: the row simply stopped answering the mouse. */
+.vtt .stonetop.app.stonetop-past-death.window-app .window-content
+	:is(.stonetop-levelup-invocation-option, .stonetop-levelup-stat-option, .stonetop-outfit-item,
+	    .stonetop-levelup-back-btn, .stonetop-levelup-move-chip):hover {
+	background: rgba(255, 255, 255, 0.1);
+}
+
+/* Level Up's move search and the chips beside it fill from a literal `white`. */
+.vtt .stonetop.app.stonetop-past-death.window-app .window-content
+	:is(.stonetop-levelup-move-search, .stonetop-levelup-move-chip) {
+	background: rgba(255, 255, 255, 0.06);
+	border-color: rgba(255, 255, 255, 0.2);
+	color: var(--st-text-body);
+}
+
+/* Rules and separators drawn in black ink rather than from a border token. */
+.vtt .stonetop.app.stonetop-past-death.window-app .window-content
+	:is(.stonetop-requisition-subheading, .stonetop-requisition-item,
+	    .stonetop-homestead-field input, .stonetop-homestead-field textarea) {
+	border-color: rgba(255, 255, 255, 0.16);
+}
+
+/* And the trigger line every guided-move window opens with is a hard-coded near-black — the move's
+   own words, and the first thing in the window. */
+.vtt .stonetop.app.stonetop-past-death.window-app .window-content .stonetop-homestead-trigger {
+	color: var(--st-text-secondary);
 }
 
 /* The Followers tab. Every surface here fills from a LITERAL pale colour rather than from a token,
@@ -10229,6 +10519,50 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	color: var(--st-text-body);
 }
 
+/* The Roll Modifier's radios, the sidebar's only hand-drawn control. Everything else that says
+   "picked" on this sheet is one of the checkbox SVGs, which the bone twins further up already
+   turned over; this one is built out of literals instead (a slategrey ring, a `#fff` disc, a
+   slategrey dot) and none of them were reachable from the palette.
+
+   Unlit, that inverted the affordance it was drawn for. The two options NOT chosen were solid
+   white discs, the brightest marks in the sidebar, while the chosen one dropped its disc for a
+   dim slate dot on near-black paper: the sheet was pointing at the wrong row. Both empty rings
+   come down onto the same wash the form wells wear, which puts the three back on equal footing
+   and leaves the selection to be said by colour alone.
+
+   And the colour is the insert's. `--st-past-death-ink` is already what brought them back
+   (revenant blue, thrall bile-moss, ghost violet) and already carries the window header's rule
+   and the active tab, so the one thing on this sheet that is warm is also the one thing that
+   answers a question. The row tint behind it is the same ink at 16%, replacing a 6% BLACK wash
+   that on black paper said nothing at all; hover stays a plain white lift, so hovering an
+   unchosen row can't be mistaken for having chosen it. */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	.stonetop-roll-mode-option input {
+	border-color: var(--st-btn-primary-border);
+	background: rgba(255, 255, 255, 0.06);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	.stonetop-roll-mode-option input:checked {
+	border-color: var(--st-past-death-ink);
+	/* Longhands, not the shorthand the base rule uses: the disc has to survive the dot being
+	   painted over it, and `background: <gradient>` would reset the colour to transparent. */
+	background-color: rgba(255, 255, 255, 0.06);
+	background-image: radial-gradient(circle, var(--st-past-death-ink) 0 44%, transparent 48%);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	.stonetop-roll-mode-option:hover {
+	background: rgba(255, 255, 255, 0.06);
+}
+
+/* After the hover rule, not before: the two tie on specificity, so source order is the only thing
+   keeping the chosen row's tint on top while it is also being hovered. */
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content
+	.stonetop-roll-mode-option.is-checked {
+	background: color-mix(in srgb, var(--st-past-death-ink) 16%, transparent);
+}
+
 /* ── What the insert asks for ─────────────────────────────────────────
    One block of styling for one partial rendered in two windows: Death's Door's last step and the
    standalone chooser off the Post-Death tab. Deliberately NOT scoped to either dialog's root —
@@ -10446,6 +10780,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
    so only Death's Door's copy is left. */
 .deaths-door-outstanding {
 	flex: 1;
+	/* One line, clipped, with the whole phrase on hover: it shares the footer with Back / Next /
+	   Done now, and a Thrall with everything outstanding names four steps — enough to wrap the
+	   line and push the buttons down a row if it is allowed to. */
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
 	font-size: var(--st-fs-sm);
 	font-style: italic;
 	color: var(--color-text-dark-secondary);
@@ -10624,15 +10965,18 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	box-shadow: none;
 }
 
-/* Same 40px rounded tile the onboarding dialog gives a playbook icon, so a sigil reads the same
-   wherever it appears. `border: none` is not decoration: core puts a 1px black border on every
-   .app img, and these sigils are already black tiles, so it lands as a hard extra edge. */
-/* The sigils are black line art on transparency (assets/post-death-inserts/*.svg, punched to the
-   same form as assets/icons/tabs), so there is no tile here to round or to border. `border: none`
-   is still load-bearing: core draws a 1px black border on every .app img, which on a transparent
-   glyph reads as a box someone drew round it. The 40px square and `contain` match the tile the
-   onboarding dialog gives a playbook icon, and centre the drawing on both axes: the artwork's
-   own viewBox is square and its inner <svg> is inset evenly and set to xMidYMid. */
+/* The sigils are self-contained tiles (assets/post-death-inserts/*.svg): cream artwork on an
+   opaque #141210 square, the same palette as the treasure marker. They were transparent black
+   line art, which read here on the parchment but vanished everywhere the background is dark —
+   the Items compendium sidebar most of all, where the row is black on black. An <img> can't
+   know what it is sitting on, so the contrast has to live in the asset, not in a rule here.
+
+   `border: none` is load-bearing: core draws a 1px black border on every .app img, and on a
+   near-black tile that lands as a hard extra edge. The 40px square and `contain` match the tile
+   the onboarding dialog gives a playbook icon — which is the same shape of thing, a black tile
+   with light art — so a sigil reads the same wherever it appears. `contain` centres the drawing
+   on both axes: the artwork's own viewBox is square and its inner <svg> is inset evenly and set
+   to xMidYMid. */
 .stonetop-pdi-activate-img {
 	flex: 0 0 auto;
 	width: 40px;
@@ -10740,129 +11084,30 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	box-shadow: 0 0 12px -3px hsl(8 55% 48%);
 }
 
-/* ── The dead keep talking: the chat drip ────────────────────────────
-   Everything said by a PC who stepped through the Last Door — or who came back wearing one of
-   the three post-death inserts — hangs a dark fringe off the bottom edge of its message, so an
-   undead PC's line doesn't scroll past reading like anyone else's. The kind of death is stamped
-   on the message when it is created (hooks/DeathChatDrip.js), never re-read at render, so the
-   log stays a record of when they died rather than being rewritten the moment they do.
+/* ── The dead keep talking: which death it was ───────────────────────
+   The kind of death is stamped on a message when it is created (hooks/DeathChatDrip.js), never
+   re-read at render, so the log stays a record of when they died rather than being rewritten the
+   moment they do.
 
-   The fringe is one masked strip, not art: an irregular run of ink cut out of an 11px band.
-   Tiled gradients were tried first and read as even scalloping — any repeat short enough to fit
-   a chat card is short enough to see. Not animated, by request; nothing here is interactive
-   either, so pointer-events stay off. */
-:is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip {
-	/* Near-neutral, and deliberately so: this is the fringe of someone who simply died, and the
-	   three inserts below are the only things that get a hue. It keeps a few degrees of cold
-	   rather than going pure grey — a hueless fringe over a lit scene reads as a drop shadow on
-	   the card instead of ink under it. The sheet's base accent is hueless for the same reason in
-	   reverse: there it sits on flat black, where a shadow isn't a reading anyone can make. */
-	--st-drip-ink: hsl(220 8% 18%);
-	/* One pixel of headroom under the longest lobe (which reaches 10px) — shrink this and the
-	   long ones get cut off flat instead of getting shorter. */
-	--st-drip-depth: 11px;
-	/* The unbroken edge the lobes hang off, and the line their centres sit on: a lobe centred
-	   just inside the edge fuses into it with no seam. */
-	--st-drip-edge: 3px;
-	position: relative;
-	/* Core gives a message 4px of margin, which leaves the fringe nowhere to hang and would let
-	   it paint over the next message. Claim its depth back as space of its own — and no more:
-	   anything past the deepest lobe reads as the message having been pushed away from the log. */
-	margin-bottom: calc(var(--st-drip-depth) + 1px);
-}
+   Every one of these messages used to hang a dark masked fringe off its bottom edge as well —
+   that is what "drip" in these class names is. The fringe was cut by request; the names are left
+   alone rather than churning the stamp, the sheet's twin and their tests over a word. What
+   remains is the black card below, so a PC who simply DIED now gets nothing in the log and the
+   three inserts get the same turned-over card their sheet is.
 
-:is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip::after {
-	content: "";
-	position: absolute;
-	/* Below the border box, and held off both corners so the fringe's straight top edge doesn't
-	   jut out past the card's rounded bottom. */
-	top: 100%;
-	left: 7px;
-	right: 7px;
-	height: var(--st-drip-depth);
-	pointer-events: none;
-	/* The fringe starts as the message's own border and darkens into the death colour as it runs,
-	   which is what makes it legible over ANY scene. Core leaves the chat log transparent in the
-	   sidebar, so this hangs over the map, not over a background we control: a fringe in one flat
-	   near-black vanishes on a night map, and one flat pale vanishes on a snowfield. Carrying both
-	   ends of the range inside the shape means one of them always reads. It is also why the inks
-	   below sit mid-dark rather than at the black they'd be if this had a surface behind it.
-
-	   This gradient is the ONLY thing keeping the fringe legible, and it has to be: an outline
-	   can't help. Chromium applies `filter` BEFORE `mask`, so a `drop-shadow` here is a halo round
-	   the 11px band that the lobes then cut away to nothing — verified, and worth knowing before
-	   reaching for one. (It does trace a `clip-path`, which is why the polygon this replaced could
-	   carry a hairline. Masking is not clipping in that respect.) */
-	background: linear-gradient(to bottom,
-		var(--chat-message-border-color, #6f6c66) 0 2px,
-		var(--st-drip-ink) 100%);
-	/* Rounded lobes, not teeth. The first cut of this was a `clip-path` polygon, and a polygon can
-	   only join its points with straight lines: every run came to a hard point and the fringe read
-	   as a saw blade. A lobe is a half-ellipse instead, so it ends BLUNT the way a bead of liquid
-	   does. Mask layers union by default (`mask-composite: add`), so the unbroken edge and the
-	   lobes hanging off it are just listed one after another.
-
-	   Centres are in PERCENT, so the run spreads with the log's width instead of leaving a bare
-	   stretch on a wide sidebar. The radii are in PIXELS, so a lobe keeps a drip's proportions
-	   rather than stretching into a wide shallow scallop as the log gets wider — the polygon used
-	   percent for its x and got exactly that on a popped-out log.
-
-	   Every lobe varies in THREE ways: how far it reaches, how wide it is, and how far it sits
-	   from its neighbour. One flat width is what makes a fringe read as bunting whatever its
-	   lengths. Long lobes are the THINNEST (a thread of ink that ran), short ones the widest (a
-	   bead that didn't), which is the way liquid actually behaves. The `99%` stop on each is the
-	   antialiasing — a hard `100%` edge stairsteps.
-
-	   Held in a custom property so the prefixed twin this file gives every other mask doesn't mean
-	   eighteen lines written out again — and can't drift from the unprefixed one if a lobe moves. */
-	--st-drip-mask:
-		linear-gradient(#000 0 var(--st-drip-edge), #0000 var(--st-drip-edge)),
-		radial-gradient(3.4px 4.5px at 95.4% 2px, #000 99%, #0000),
-		radial-gradient(2.2px 8.0px at 90.2% 2px, #000 99%, #0000),
-		radial-gradient(4.0px 3.5px at 86.6% 2px, #000 99%, #0000),
-		radial-gradient(2.4px 7.2px at 78.9% 2px, #000 99%, #0000),
-		radial-gradient(3.2px 5.0px at 74.6% 2px, #000 99%, #0000),
-		radial-gradient(2.2px 8.0px at 68.0% 2px, #000 99%, #0000),
-		radial-gradient(3.8px 4.0px at 61.2% 2px, #000 99%, #0000),
-		radial-gradient(2.6px 6.6px at 56.8% 2px, #000 99%, #0000),
-		radial-gradient(2.2px 7.8px at 47.9% 2px, #000 99%, #0000),
-		radial-gradient(4.2px 3.4px at 43.0% 2px, #000 99%, #0000),
-		radial-gradient(2.8px 6.0px at 38.4% 2px, #000 99%, #0000),
-		radial-gradient(2.4px 7.4px at 31.2% 2px, #000 99%, #0000),
-		radial-gradient(3.4px 4.6px at 26.7% 2px, #000 99%, #0000),
-		radial-gradient(2.2px 8.0px at 19.4% 2px, #000 99%, #0000),
-		radial-gradient(3.6px 4.2px at 14.9% 2px, #000 99%, #0000),
-		radial-gradient(2.6px 6.8px at  8.1% 2px, #000 99%, #0000),
-		radial-gradient(3.0px 5.2px at  3.4% 2px, #000 99%, #0000);
-	-webkit-mask-image: var(--st-drip-mask);
-	mask-image: var(--st-drip-mask);
-	-webkit-mask-repeat: no-repeat;
-	mask-repeat: no-repeat;
-}
-
-/* Which death it was. Only the ink moves — the drip is the statement, the colour is the
-   footnote. Each modifier carries the base class too: on its own it would tie with the block
-   above on specificity and depend on file order alone to win.
-   `--st-death-wash` is the same hue as a tint over BLACK rather than as ink over the scene, for
-   the card repaint below. Both come from the shared `--st-undead-wash-*` tokens the sheet reads,
-   so the pair can no longer drift. */
+   `--st-death-wash` is the kind's hue as a tint over BLACK, for that repaint. It comes from the
+   shared `--st-undead-wash-*` tokens the sheet reads, so the pair can't drift. Each modifier
+   carries the base class too, to keep the pattern this file uses everywhere else. */
 :is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip.stonetop-death-drip--revenant {
-	--st-drip-ink:   hsl(210 36% 24%);
 	--st-death-wash: var(--st-undead-wash-revenant);
 }
 
 :is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip.stonetop-death-drip--thrall {
-	--st-drip-ink:   hsl(96 32% 22%);
 	--st-death-wash: var(--st-undead-wash-thrall);
 }
 
-/* A Ghost has no ichor to leave. Theirs runs thin — the one kind that fades rather than stains,
-   which is the palest of the three inks and the faintest of the three washes.
-   (It used to fade its fringe to `opacity: 0.78` as well. That predates the fringe taking the
-   card's own black below; a translucent fringe under an opaque card is the one thing that gives
-   away that they are two elements, and a Ghost's card is black like the others'.) */
+/* A Ghost has no ichor to leave. Theirs runs thin — the faintest of the three washes. */
 :is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip.stonetop-death-drip--ghost {
-	--st-drip-ink:   hsl(283 22% 44%);
 	--st-death-wash: var(--st-undead-wash-ghost);
 }
 
@@ -10878,9 +11123,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
    message has no fill of its own and simply takes the black.
 
    Scoped to the INSERTS only, through the `--insert` class the stamp adds for exactly this (see
-   DeathChatDrip.markDeathDrip). A character who stepped through the Last Door and stayed there
-   still gets the fringe and nothing else — same call as the sheet, and the same shape: one class
-   that means "came back", so a fourth rule wanting it doesn't restate the list of who did.
+   DeathChatDrip.markDeathDrip). A character who stepped through the Last Door and stayed there is
+   left alone — same call as the sheet, and the same shape: one class that means "came back", so a
+   fourth rule wanting it doesn't restate the list of who did.
 
    Specificity: `:is(#chat,…)` (1,0,0) + `.message` + the two drip classes = (1,3,0), which clears
    the parchment fill on `.message:has(.stonetop-roll-card)` at (1,2,0) without depending on
@@ -10931,30 +11176,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 		linear-gradient(var(--st-black-lift), var(--st-black-lift)) center / auto no-repeat,
 		#fff url('/systems/stonetop-pwd/assets/graphics/sheet-bg.webp') center / cover no-repeat;
 	background-blend-mode: normal, normal, difference;
-}
-
-/* And the fringe hanging off it is that same black, painted the same way — not the pale-shouldered
-   ink above. That gradient is built to read over a SCENE, which is right for a plain death, whose
-   card is still parchment. Under an insert the card above it is black, and a fringe that started
-   pale read as a separate object stuck to the bottom of the card rather than as the card's own ink
-   running off it. So the shoulder takes the identical background stack — kind's wash, the shared
-   lift off pitch black, inverted paper. Keep it in step with the repaint above; they are one
-   surface, and the seam between them is the whole point.
-
-   The tip is where the kind's ink finally arrives, ramped in over the depth rather than switched
-   on. Two things fall out of that, both wanted. A fringe that were card-black end to end would
-   vanish on a night map, which is very nearly the colour the inverted paper already is (the card
-   gets away with it because it has a 1px border; a masked pseudo-element can't have one — see
-   above). And because the ramp is measured against the full 11px, the short beads stay card-black
-   and only the long runs thin out to colour, which is what a drip that ran actually does. */
-:is(#chat, #chat-notifications, #chat-popout) .message.stonetop-death-drip.stonetop-death-drip--insert::after {
-	background:
-		linear-gradient(to bottom, transparent var(--st-drip-edge), var(--st-drip-ink) 100%),
-		linear-gradient(var(--st-death-wash, transparent), var(--st-death-wash, transparent))
-			center / auto no-repeat,
-		linear-gradient(var(--st-black-lift), var(--st-black-lift)) center / auto no-repeat,
-		#fff url('/systems/stonetop-pwd/assets/graphics/sheet-bg.webp') center / cover no-repeat;
-	background-blend-mode: normal, normal, normal, difference;
 }
 
 /* Core paints the speaker's name and the timestamp from its own light-theme colours. */
@@ -23490,7 +23711,8 @@ th:has(> .stonetop-roll-table-btn) {
 /* The rail dialogs whose content column scrolls on its own (rather than the whole
    dialog scrolling): same four declarations, so they share one rule. */
 .stonetop-wound-edit-dialog .stonetop-guide-main,
-.stonetop-custom-move-dialog .stonetop-guide-main {
+.stonetop-custom-move-dialog .stonetop-guide-main,
+.deaths-door-choices-main {
 	flex: 1 1 auto;
 	min-width: 0;
 	min-height: 0;

@@ -30,7 +30,7 @@ import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { onHotbarDrop } from "./module/hooks/HotbarDrop.js";
 import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
 import { onDropFollower } from "./module/hooks/FollowerDrop.js";
-import { onPreUpdateActorDeathsDoor, onUpdateActorDeathsDoorAutoOpen, wireDyingPrompt } from "./module/hooks/DeathsDoorPrompt.js";
+import { onPreUpdateActorDeathsDoor, onUpdateActorDeathsDoorAutoOpen, onUpdateActorDeathsDoorRaised, wireDyingPrompt } from "./module/hooks/DeathsDoorPrompt.js";
 import { deathDripStamp, markDeathDrip } from "./module/hooks/DeathChatDrip.js";
 import { onPreCreateThreatNote } from "./module/hooks/ThreatNotePins.js";
 import { onDrawStonetopNote } from "./module/hooks/StonetopNoteLabels.js";
@@ -625,6 +625,9 @@ Hooks.on("preUpdateActor", onPreUpdateActorDeathsDoor);
 // A separate hook because it has to run somewhere the preUpdate can't: that fires only on the
 // client applying the damage, which is usually the GM's.
 Hooks.on("updateActor", onUpdateActorDeathsDoorAutoOpen);
+// The other direction: hit points appearing on a sheet that is through the Last Door. Nothing
+// walks `dead` back on its own, so this asks whoever made the change whether it was a raising.
+Hooks.on("updateActor", onUpdateActorDeathsDoorRaised);
 
 // -- CHAT SPEAKER: ALIAS AND DEATH -----------------------------
 // Two stamps a character's message carries from the moment it is created: the playbook in the

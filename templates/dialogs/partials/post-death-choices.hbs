@@ -3,9 +3,17 @@
       split is what keeps the rules table and the markup honest about which knows what.
 
       Everything here is driven by the step table in module/actors/character/post-death-choices.js
-      — this template knows the four `kind`s and nothing else about the rules. --}}
+      — this template knows the four `kind`s and nothing else about the rules.
+
+      ONE step is drawn per render: the window puts a rail beside this column (see deaths-door.hbs)
+      and flags the step it is showing, because four of these stacked is a page of the book's own
+      prose and a window taller than the screen. The `{{#each}}` stays, with the whole section
+      behind `isActive`, so every `../` path below still counts the same number of frames it always
+      did — `{{#if}}` adds no context depth, and rewriting them was the one way this change could
+      have quietly mis-bound a radio group. --}}
 <div class="stonetop-pdc">
 	{{#each choices.steps}}
+	{{#if isActive}}
 	<section class="stonetop-pdc-step{{#if done}} is-done{{/if}}" data-step="{{key}}">
 		<h3 class="stonetop-pdc-step-title">
 			<span class="stonetop-pdc-step-mark">{{#if done}}<i class="fas fa-check"></i>{{else}}<i class="fas fa-circle-dot"></i>{{/if}}</span>
@@ -126,5 +134,6 @@
 		<input type="text" class="stonetop-pdc-tether" value="{{value}}" placeholder="{{placeholder}}">
 		{{/if}}
 	</section>
+	{{/if}}
 	{{/each}}
 </div>

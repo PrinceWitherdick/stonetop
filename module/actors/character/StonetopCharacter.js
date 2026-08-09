@@ -41,7 +41,7 @@ import {statRequirementLabel, statRequirementsUnmet} from "./stat-requirement.js
 import {MoveResources} from "./MoveResources.js";
 import {moveMarkBudget} from "./move-mark-budget.js";
 import {StonetopFlags, STONETOP_SCOPE, ITEM_FLAG_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
-import {DEATHS_DOOR_FLAG, canFaceDeathsDoor, deathsDoorRollOptions, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
+import {DEATHS_DOOR_FLAG, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
 import {heroDisplayName, WBH_HERO_FLAG, ownsAsteriskMove} from "./WouldBeHeroAsterisk.js";
 import {CharacterBackgrounds} from "./CharacterBackgrounds.js";
 import {CharacterInstincts} from "./CharacterInstincts.js";
@@ -1267,7 +1267,22 @@ export class StonetopCharacter {
 		if (toRemove.length > 0) {
 			await this._actor.deleteEmbeddedDocuments("Item", toRemove);
 		}
-		await this._postDeath.setActiveSlug(slug);
+		// One update, not two: taking an insert is also the END of the brush with death that led
+		// to it, and as separate writes a reload landing between them left a character wearing a
+		// Ghost and still flagged `fate-pending` — every surface then said Death's Door was owed by
+		// someone who had already answered it (see effectiveDeathsDoorState, which heals the sheets
+		// this already happened to). Only when an insert is TAKEN: removing one is an edit-mode
+		// undo and has no brush with death to end.
+		//
+		// The tab request rides along in the SAME update for the same reason. Removing an insert
+		// holds the tab open (it shows the fate picker, which is the whole point of removing one);
+		// taking an insert shows the tab on its own merits, so the request is dropped rather than
+		// left to outlive the question. See CharacterPostDeath#tabRequested.
+		await this._actor.update({
+			...this._postDeath.slugUpdateData(slug),
+			...(slug ? this._clearDeathsDoorUpdate : {}),
+			...(this._postDeath.tabRequestUpdateData(!slug) ?? {}),
+		});
 		if (slug) {
 			const entries = await this._moveRepo.getPostDeathMoves(slug);
 			await this._actor.createEmbeddedDocuments("Item", entries.map(m => ({
@@ -1277,6 +1292,14 @@ export class StonetopCharacter {
 			})));
 		}
 	}
+
+	/**
+	 * The Post-Death tab on a sheet with no insert: opt-in, so it doesn't open on every living
+	 * character in edit mode. Removing an insert opts in; the tab's own foot opts back out.
+	 */
+	get postDeathTabRequested()             { return this._postDeath.tabRequested; }
+	async setPostDeathTabRequested(open)    { await this._postDeath.setTabRequested(open); }
+
 	async setPostDeathInstinct(value)                    { await this._postDeath.instinct.select(value); }
 	async setPostDeathLoreCount(loreSlug, optSlug, n)    { await this._postDeath.lore.setCount(loreSlug, optSlug, n); }
 	async setPostDeathLoreText(loreSlug, optSlug, value) { await this._postDeath.lore.setText(loreSlug, optSlug, value); }
@@ -2175,9 +2198,18 @@ export class StonetopCharacter {
 	// them: a Death's Door 7-9 leaves them at 0 HP and expressly no longer dying. The
 	// state flag carries that; deaths-door.js owns what the transitions are.
 
-	/** DEATHS_DOOR_STATE value, or null for the ordinary living state. */
+	/**
+	 * DEATHS_DOOR_STATE value, or null for the ordinary living state.
+	 *
+	 * Read through `effectiveDeathsDoorState`, which is what stops a `fate-pending` left standing
+	 * beside an insert from telling every surface that Death's Door is still owed by someone who
+	 * has already answered it. See that function for how the pair used to come about.
+	 */
 	get deathsDoorState() {
-		return resolvedFlagProperty(this._actor, DEATHS_DOOR_FLAG) ?? null;
+		return effectiveDeathsDoorState({
+			state:      resolvedFlagProperty(this._actor, DEATHS_DOOR_FLAG) ?? null,
+			insertSlug: this._postDeath.activeSlug,
+		});
 	}
 
 	async setDeathsDoorState(state) {

@@ -20,6 +20,16 @@
 //             roster rather than given to everyone: by position a character gets all four,
 //             exactly one, or none at all, so the Moves tab's Love Letters section is seen
 //             full, holding a single card, and absent entirely.
+//             Also creates a "Graveyard" Actor folder holding four more filled-out characters,
+//             one per fate past the Last Door — a Revenant, a Ghost, a Thrall (each with the
+//             insert's own questions answered: Terrible Purpose and who it is about, a first
+//             Consequence, the insert's Instinct, a Ghost's tether, a Thrall's master, Impulse
+//             and first Mark) and one who simply died, at 0 HP. They are ALWAYS 1st level, even
+//             on the Max Level path — a maxed sheet and a dead one are different things to look
+//             at — and they are kept out of the party roster, so nothing sweeps them into the
+//             introductions, the steading's players or the example NPC's relationships. The
+//             living roster can't cover any of this: SKIP_PLAYBOOKS keeps the three inserts out
+//             of it, so without the Graveyard the Death's Door black has no fixture.
 //             Also records Introductions answers + one example Expedition and compiles the
 //             shared "Chronicle" journal. Seeds the steading "Stonetop" (the world's required
 //             singleton) with a thematic set of test Residents, Neighbors, and Players (the
@@ -47,7 +57,8 @@
 //             cross-links to a seeded monster stat block and threat. The singleton actor itself is
 //             never created or deleted — only its test members (each tagged isTest) are added and
 //             later removed.
-// Re-run:     deletes everything this macro created (characters, the resident/neighbor NPCs,
+// Re-run:     deletes everything this macro created (characters — the roster and the Graveyard
+//             alike, both carry the test flag — the resident/neighbor NPCs,
 //             and the test Introductions/Expedition data), strips the steading's test members
 //             (including any villager an older run left behind, whose isTest tag the people
 //             migration dropped when it rewrote the row),
@@ -2450,6 +2461,133 @@
         console.log(`[TEST] Arcana → ${actor.name}: ${majors.length} major (${majors.join(", ") || "none"}), ${minors.length} minor.`);
       }
     }
+  }
+
+  // ── The Graveyard: four characters past the Last Door ──────────────────
+  // The living roster can't exercise any of this. SKIP_PLAYBOOKS keeps the three post-death
+  // inserts out of it (they are `playbook` Items, but nobody STARTS as one), so without these
+  // four the Death's Door black — the sheet repaint, the chat cards, the Post-Death tab, the
+  // header's retired playbook and its `Dead` tag — has no fixture at all.
+  //
+  // One per fate: the two ways of refusing to go, the one way of being interceded for, and the
+  // ending where nobody came back. They live in their own folder because they are not the
+  // party: nothing else in this macro should sweep them into the introductions, the steading's
+  // player list or the NPC's relationship hearts, and `created` is what all of those read.
+  //
+  // ALWAYS 1st level, whichever way the modal was answered. A maxed sheet and a dead one are
+  // two different things to look at, and stacking them buries the one these fixtures exist for
+  // under twenty levels of moves. `climbToMax` is simply never called on them.
+  const GRAVEYARD = [
+    {
+      slug: "the-heavy", fate: "revenant", name: "Duvin Ash-Hand",
+      purpose: "Ceri, who is still waiting at the ford",
+      notes: `<h2>Duvin Ash-Hand</h2><p>Went down under the crinwin at the ford and <strong>would not go</strong>. Came back in his own body, colder than he left it.</p><blockquote><p>"She is still waiting. That is the whole of it."</p></blockquote>`,
+    },
+    {
+      slug: "the-fox", fate: "ghost", name: "Nesta Fell",
+      purpose: "Whoever cut the rope",
+      tether: "The broken bridge over the gorge, where she fell",
+      notes: `<h2>Nesta Fell</h2><p>The rope did not fray; it was <em>cut</em>. Her body is at the bottom of the gorge and she is not done with the question.</p>`,
+    },
+    {
+      slug: "the-ranger", fate: "thrall", name: "Emrys Tal",
+      master: "Kel-Sha-Ba, the Bone-Deep Whisper",
+      notes: `<h2>Emrys Tal</h2><p>Called a name he should not have known, and something answered. He recovered. <strong>Something is owed.</strong></p>`,
+    },
+    {
+      slug: "the-judge", fate: "dead", name: "Hafgan the Elder",
+      notes: `<h2>Hafgan the Elder</h2><p>Made one last move as though he had rolled a 12+, and stepped through the Last Door. There is no saving him.</p>`,
+    },
+  ];
+
+  // The Revenant's STRANGE APPETITES asks a question of its own ("Pick 1: still-warm blood /
+  // dying breaths / …") and its Consequence reads as unanswered until it is settled. Read out
+  // of the printed line rather than listed here, exactly as post-death-choices.js does it, so a
+  // reworded option is still honoured; the separator is that module's PICK_SEPARATOR.
+  const answerSubPick = async (typed, section, option) => {
+    const inner = String(option?.description ?? "").match(/\b(?:pick|choose|select)\s+1\s*:\s*([\s\S]*?)<\/p>/i)?.[1];
+    if (!inner) return;
+    const first = inner.replace(/<[^>]*>/g, "").split(/\s+\/\s+|\s*;?\s*\bOR\b\s+/)[0]?.trim();
+    if (first) await typed.setPostDeathLoreText(section, option.slug, first);
+  };
+
+  // Everything the insert asks of them, answered by this macro's usual contract: the first
+  // option that can actually be taken. THE FINAL CONSEQUENCE is skipped by name — it is
+  // inflicted, never chosen, and handing it to a fixture would end the character.
+  const fillPostDeath = async (actor, entry) => {
+    const typed = actor.typedActor;
+    if (!typed) return;
+
+    if (entry.fate === "dead") {
+      // Nothing on the sheet changes but the state and the hit points that got them there:
+      // the last move is made in the fiction, at the table, as a 12+.
+      await actor.update({ "system.attributes.hp.value": 0 });
+      await typed.setDeathsDoorState("dead");
+      return;
+    }
+
+    // Grants the insert's moves and ends the brush with death, in that one call.
+    await typed.setPostDeathInsert(entry.fate);
+
+    const firstTakeable = async (section) => (await typed.sectionOptions(section))
+      .find(o => !o.blocked && !o.marked && o.slug !== "final-consequence") ?? null;
+
+    if (entry.fate === "thrall") {
+      await typed.setPostDeathLoreText("your-master", "master-name", entry.master);
+      const impulse = await firstTakeable("impulse");
+      if (impulse) await typed.chooseOneSectionOption("impulse", impulse.slug);
+      // Marks ACCUMULATE, so this one is marked rather than chosen — see post-death-choices.js.
+      const mark = await firstTakeable("marks");
+      if (mark) await typed.markSectionOption("marks", mark.slug);
+    } else {
+      const purpose = await firstTakeable("terrible-purpose");
+      if (purpose) {
+        await typed.chooseOneSectionOption("terrible-purpose", purpose.slug);
+        // "Name the person or persons you refuse to let go of." The answer hangs off the
+        // option that was taken, so it can only be written once the pick is made.
+        await typed.setPostDeathLoreText("terrible-purpose", purpose.slug, entry.purpose);
+      }
+      const consequence = await firstTakeable("consequences");
+      if (consequence) {
+        await typed.markSectionOption("consequences", consequence.slug);
+        await answerSubPick(typed, "consequences", consequence);
+      }
+    }
+
+    // The insert's Instinct REPLACES the playbook's on the Details tab and in the header.
+    const instincts = await typed.postDeathInstinctOptions();
+    if (instincts[0]) await typed.setPostDeathInstinct(instincts[0].value);
+    if (entry.tether) await typed.setTether(entry.tether);
+
+    // A Thrall's first Mark can take 2 off their max HP, and the playbook fill left them at
+    // the old maximum — so the sheet would open reading 20/18. Clamp to what the character
+    // actually has now (computedMaxHp, never the stored attribute, which is the level-1
+    // number and doesn't know about the insert).
+    const max = await typed.computedMaxHp?.();
+    const hp  = Number(actor.system?.attributes?.hp?.value) || 0;
+    if (Number.isFinite(max) && hp > max) await actor.update({ "system.attributes.hp.value": max });
+  };
+
+  const graveFolder = await ensureTestFolder("Actor", "Graveyard");
+  const buried = [];
+  for (const entry of GRAVEYARD) {
+    // A fork that renamed a slug still gets four graves rather than a silent gap.
+    const pbDoc = playbookDocs.find(d => d.system?.slug === entry.slug)
+      ?? playbookDocs[buried.length % playbookDocs.length];
+    if (!pbDoc) break;
+
+    const sel = { ...buildSelections(pbDoc), name: entry.name, notes: entry.notes };
+    const actor = await Actor.create({ name: sel.name, type: "character", folder: graveFolder.id });
+    await actor.setFlag(FLAG_SCOPE, TEST_FLAG, true);
+    await actor.sheet._applyPlaybookSelections(pbDoc, sel);
+    if (sel.notes) await actor.update({ "system.notes": sel.notes });
+    await applyStartingMoveMarks(actor);
+    await fillPostDeath(actor, entry);
+    // The custom move, the follower and this slot's love letters again — on black paper this
+    // time, which is the one place those cards are never otherwise seen.
+    await seedTestCustomContent(actor, buried.length);
+    buried.push(actor);
+    console.log(`[TEST] Graveyard: ${actor.name} — ${pbDoc.name}, ${entry.fate}.`);
   }
 
   // ── Seed reusable world Moves / Items / Monsters ───────────────────────

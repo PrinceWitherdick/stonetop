@@ -10,7 +10,7 @@
 				{{/each}}
 			</select>
 			{{/if}}
-			<textarea class="stonetop-lore-option-text"
+			<textarea class="stonetop-lore-option-text{{#if isName}} stonetop-lore-option-text--name{{/if}}"
 			          data-lore-slug="{{../slug}}"
 			          data-option-slug="{{slug}}"
 			          placeholder="To be written."
