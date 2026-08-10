@@ -14,7 +14,7 @@ import { IntroductionsDialog } from "../../module/dialogs/IntroductionsDialog.js
 // No DOM in this suite (vitest runs in node), so the dialog is driven through hand-built
 // stand-ins for the two things the flush reads: the window root, and the PC actor's flag.
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const FLAG  = "intro";
 
 function makeActor(intro = {}) {

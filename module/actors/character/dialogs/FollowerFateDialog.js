@@ -33,7 +33,7 @@ export class FollowerFateDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-follower-fate",
 			title:     "Follower Down",
-			template:  "systems/stonetop-pwd/templates/dialogs/follower-fate.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/follower-fate.hbs",
 			width:     460,
 			height:    "auto",
 			resizable: true,

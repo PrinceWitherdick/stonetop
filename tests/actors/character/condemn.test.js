@@ -345,8 +345,8 @@ describe("who is holding a brand on this person", () => {
 	describe("the world pool it builds when none is injected", () => {
 		const worldActor = (name, brands) => ({
 			name, type: "character", uuid: `Actor.${name}`, id: name,
-			flags: brands ? { "stonetop-pwd": { [CONDEMNED_FLAG]: brands } } : {},
-			getFlag: (scope, key) => (scope === "stonetop-pwd" && key === CONDEMNED_FLAG ? brands : undefined),
+			flags: brands ? { "stonetop_pwd": { [CONDEMNED_FLAG]: brands } } : {},
+			getFlag: (scope, key) => (scope === "stonetop_pwd" && key === CONDEMNED_FLAG ? brands : undefined),
 		});
 		afterEach(() => { delete globalThis.game; });
 

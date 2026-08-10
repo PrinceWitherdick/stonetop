@@ -29,7 +29,7 @@ const SYSTEM = SYSTEM_ID;
 
 /**
  * Follower portraits live in flags, not on a document field: a card's art is
- * `flags.stonetop-pwd.customFollowers.<id>.img`. Today that is the ONE store — every follower
+ * `flags.stonetop_pwd.customFollowers.<id>.img`. Today that is the ONE store — every follower
  * kind (custom, recruited NPC, monster-derived) lands there. Walking for the `img` key rather
  * than reading that one path is a small bet that a later follower kind nests differently and
  * would otherwise be silently missed; the walk is over our own namespace only, so it cannot

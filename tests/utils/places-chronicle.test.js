@@ -87,7 +87,7 @@ describe("buildPlacePages", () => {
 
 describe("steadingPlaces", () => {
 	it("reads the steading's own list when it has one", () => {
-		const steading = { flags: { "stonetop-pwd": { steading: { places: [{ letter: "A", name: "The Stone" }] } } } };
+		const steading = { flags: { "stonetop_pwd": { steading: { places: [{ letter: "A", name: "The Stone" }] } } } };
 
 		expect(steadingPlaces(steading)).toEqual([{ letter: "A", name: "The Stone" }]);
 	});
@@ -100,7 +100,7 @@ describe("steadingPlaces", () => {
 	});
 
 	it("trims what it reads and drops a row with no letter", () => {
-		const steading = { flags: { "stonetop-pwd": { steading: { places: [
+		const steading = { flags: { "stonetop_pwd": { steading: { places: [
 			{ letter: " A ", name: " The Stone " },
 			{ letter: "", name: "Homeless" },
 		] } } } };

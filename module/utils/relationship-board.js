@@ -18,7 +18,7 @@ import { scrollParent } from "./scroll-parent.js";
 // sheet can sit in board view while the steading stays a table.
 export const REL_VIEWS = ["table", "board"];
 export const REL_VIEW_DEFAULT = "table";
-const VIEW_STORAGE_PREFIX = "stonetop-pwd.relView.";
+const VIEW_STORAGE_PREFIX = "stonetop_pwd.relView.";
 
 /** The stored layout for one table, falling back to the table on anything unrecognized. */
 export function relationshipView(resizeKey) {

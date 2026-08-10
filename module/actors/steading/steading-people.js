@@ -167,13 +167,13 @@ export function rebasePersonRows(live, replacements, additions = []) {
 
 /**
  * Distinct, non-empty names of a steading's Residents + Neighbors, for name-suggestion
- * datalists (e.g. Create-a-Follower). Reads the nested `stonetop-pwd.steading` flag where
+ * datalists (e.g. Create-a-Follower). Reads the nested `stonetop_pwd.steading` flag where
  * the people rows actually live — the flat `getFlag(…, "residents")` path is never written.
  * Best-effort: a missing/unlinked steading (or any read error) just yields [].
  */
 export function peopleNames(steading) {
 	try {
-		const flags = steading?.getFlag?.("stonetop-pwd", "steading") ?? {};
+		const flags = steading?.getFlag?.("stonetop_pwd", "steading") ?? {};
 		const rows = Object.keys(PEOPLE_FOLDERS).flatMap(list => Array.isArray(flags[list]) ? flags[list] : []);
 		return [...new Set(rows.map(r => String(r?.name ?? "").trim()).filter(Boolean))];
 	} catch { return []; }
@@ -188,7 +188,7 @@ export function peopleNames(steading) {
  */
 export function steadingPeopleActors(steading) {
 	try {
-		const flags = steading?.getFlag?.("stonetop-pwd", "steading") ?? {};
+		const flags = steading?.getFlag?.("stonetop_pwd", "steading") ?? {};
 		const seen = new Set();
 		const people = [];
 		for (const list of Object.keys(PEOPLE_FOLDERS)) {
@@ -221,7 +221,7 @@ export function steadingPeopleActors(steading) {
  */
 export function usedPersonPortraits(steading, exclude = {}) {
 	try {
-		const flags = steading?.getFlag?.("stonetop-pwd", "steading") ?? {};
+		const flags = steading?.getFlag?.("stonetop_pwd", "steading") ?? {};
 		const used = {};
 		for (const list of Object.keys(PEOPLE_FOLDERS)) {
 			const rows = Array.isArray(flags[list]) ? flags[list] : [];
@@ -417,7 +417,7 @@ export async function createPersonNpc(list, data = {}, { folder = null } = {}) {
 		// the loss would happen silently on the GM's next load with nothing to notice. Only
 		// written when there IS one — an explicit null would be a key every read then has to
 		// special-case.
-		if (data.portraitFrame) createData.flags = { "stonetop-pwd": { portraitFrame: data.portraitFrame } };
+		if (data.portraitFrame) createData.flags = { "stonetop_pwd": { portraitFrame: data.portraitFrame } };
 	}
 	return Actor.create(createData);
 }
@@ -497,12 +497,12 @@ export async function addCharacterToSteadingPlayers(actor, steading = null) {
  */
 export async function migrateSteadingPeople(steading) {
 	if (!game.user?.isGM || steading?.type !== "stonetop") return 0;
-	// The steading stores its lists nested under flags.stonetop-pwd.steading (see
+	// The steading stores its lists nested under flags.stonetop_pwd.steading (see
 	// StonetopSteading#_flags / setFlags), so read and rewrite that sub-object rather than the
 	// top-level scope. Read through a function, not into a variable: everything below the scan
 	// awaits, and the rows have to be re-read once those awaits are done.
 	const readRows = list => {
-		const rows = steading.flags?.["stonetop-pwd"]?.steading?.[list];
+		const rows = steading.flags?.["stonetop_pwd"]?.steading?.[list];
 		return Array.isArray(rows) ? rows : [];
 	};
 	// Cheap scan before anything else: the steady state is "every row already points at an
@@ -551,7 +551,7 @@ export async function migrateSteadingPeople(steading) {
 		// re-writing an identical array, which would broadcast an update for no reason.
 		if (rows.length !== live.length || rows.some((row, i) => row !== live[i])) update[list] = rows;
 	}
-	if (Object.keys(update).length) await steading.setFlag("stonetop-pwd", "steading", update);
+	if (Object.keys(update).length) await steading.setFlag("stonetop_pwd", "steading", update);
 	return converted;
 }
 
@@ -633,7 +633,7 @@ export function repaintOpenSteadingRosters(actor) {
 		if (steading.type !== "stonetop") continue;
 		const openApps = Object.values(steading.apps ?? {});
 		if (!openApps.length) continue;
-		const people = steading.flags?.["stonetop-pwd"]?.steading ?? {};
+		const people = steading.flags?.["stonetop_pwd"]?.steading ?? {};
 		const rows = lists.flatMap(list => people[list] ?? []);
 		const listed = rows.some(r =>
 			(r?.uuid && r.uuid === uuid) ||
@@ -657,8 +657,8 @@ export function repaintOpenSteadingRosters(actor) {
  */
 export async function backfillResidentHomes(steading) {
 	if (!game.user?.isGM || steading?.type !== "stonetop") return 0;
-	if (steading.flags?.["stonetop-pwd"]?.steading?.residentHomesBackfilled) return 0;
-	const rows = steading.flags?.["stonetop-pwd"]?.steading?.residents;
+	if (steading.flags?.["stonetop_pwd"]?.steading?.residentHomesBackfilled) return 0;
+	const rows = steading.flags?.["stonetop_pwd"]?.steading?.residents;
 	let updated = 0;
 	for (const row of (Array.isArray(rows) ? rows : [])) {
 		const actor = personRowActor(row);
@@ -667,7 +667,7 @@ export async function backfillResidentHomes(steading) {
 		try { await actor.update({ "system.home": HOME_STONETOP }); updated++; }
 		catch (err) { console.warn("Stonetop | Could not backfill Home for", actor?.name, err); }
 	}
-	await steading.setFlag("stonetop-pwd", "steading", { residentHomesBackfilled: true });
+	await steading.setFlag("stonetop_pwd", "steading", { residentHomesBackfilled: true });
 	return updated;
 }
 

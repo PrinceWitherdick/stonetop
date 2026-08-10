@@ -15,7 +15,7 @@ function makeSteading(people, { open = true } = {}) {
 		id: "steading-1",
 		type: "stonetop",
 		apps: open ? { app1: { render } } : {},
-		flags: { "stonetop-pwd": { steading: { ...people } } },
+		flags: { "stonetop_pwd": { steading: { ...people } } },
 		render,
 	};
 }

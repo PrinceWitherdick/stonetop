@@ -14,7 +14,7 @@ import { error, info } from "../utils/logger.js";
 // `${book2ArtRoot}/assets/maps`, and builds a navigation Scene from each — with the village
 // map's lettered places-of-interest pins placed for them.
 //
-// That folder is DURABLE: it sits outside `systems/stonetop-pwd`, so it survives a system
+// That folder is DURABLE: it sits outside `systems/stonetop_pwd`, so it survives a system
 // update, a reinstall, and — crucially — a brand-new world. The Scenes do not: they are
 // world documents, so a GM who imported once and then started a fresh campaign had their
 // maps sitting right there on disk with nothing pointing at them, and no way to get the

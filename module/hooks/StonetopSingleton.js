@@ -147,7 +147,7 @@ function _shouldGuideMonster(actor, data, options) {
 	if ((actor?.type ?? data?.type) !== "monster") return false;
 	if (!game.user?.isGM) return false;
 	if (options?.stonetopMonsterBuilt) return false; // our own finished create
-	if (game.settings?.get?.("stonetop-pwd", "monsterBuilderEnabled") === false) return false;
+	if (game.settings?.get?.("stonetop_pwd", "monsterBuilderEnabled") === false) return false;
 	if (options?.fromCompendium || options?.keepId) return false; // compendium import / drop
 	// Duplicates carry no keepId, but their toObject() data reads as content (see
 	// _hasMonsterContent: _stats.duplicateSource + populated stats), so they pass through.

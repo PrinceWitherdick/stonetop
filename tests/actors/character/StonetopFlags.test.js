@@ -36,7 +36,7 @@ describe("StonetopFlags scope resolution", () => {
 	// is stamped the old copy is stale and must stop showing through.
 	it("stops falling back once the document is cut over", () => {
 		const actor = makeActor({
-			[SYSTEM_ID]: { [CUTOVER_KEY]: "stonetop-pwd" },
+			[SYSTEM_ID]: { [CUTOVER_KEY]: "stonetop_pwd" },
 			[LEGACY]: { "playbook.origin": "Marshedge" }
 		});
 		expect(new StonetopFlags(actor, "playbook").getFlag("origin")).toBeUndefined();
@@ -60,7 +60,7 @@ describe("StonetopFlags scope resolution", () => {
 
 	it("does not resurrect a sub-key deleted after cutover", () => {
 		const actor = makeActor({
-			[SYSTEM_ID]: { [CUTOVER_KEY]: "stonetop-pwd", arcana: { boxes: {} } },
+			[SYSTEM_ID]: { [CUTOVER_KEY]: "stonetop_pwd", arcana: { boxes: {} } },
 			[LEGACY]: { arcana: { boxes: { "hectumel:1": true } } }
 		});
 		expect(resolvedFlags(actor).arcana.boxes["hectumel:1"]).toBeUndefined();

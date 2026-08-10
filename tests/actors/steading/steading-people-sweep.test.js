@@ -14,7 +14,7 @@ function makeSteading(people) {
 	const steading = {
 		id: "steading-1",
 		type: "stonetop",
-		flags: { "stonetop-pwd": { steading: { ...people } } },
+		flags: { "stonetop_pwd": { steading: { ...people } } },
 		setFlag: vi.fn(async (scope, key, value) => {
 			steading.flags[scope][key] = { ...steading.flags[scope][key], ...value };
 		}),
@@ -24,7 +24,7 @@ function makeSteading(people) {
 
 /** The rows the sweep left on a steading, for the list under test. */
 function rowsOn(steading, list) {
-	return steading.flags["stonetop-pwd"].steading[list];
+	return steading.flags["stonetop_pwd"].steading[list];
 }
 
 beforeEach(() => {
@@ -137,7 +137,7 @@ describe("migrateSteadingPeople", () => {
 	it("does not revert a steading edit that lands while it is making the NPCs", async () => {
 		const steading = makeSteading({ surplus: 1, neighbors: [{ name: "Ennis" }] });
 		global.Actor.create.mockImplementationOnce(async data => {
-			steading.flags["stonetop-pwd"].steading.surplus = 4; // a Surplus click, mid-create
+			steading.flags["stonetop_pwd"].steading.surplus = 4; // a Surplus click, mid-create
 			const actor = { id: "npc1", uuid: "Actor.npc1", name: data.name, type: data.type, system: data.system };
 			actors.push(actor);
 			return actor;
@@ -145,7 +145,7 @@ describe("migrateSteadingPeople", () => {
 
 		expect(await migrateSteadingPeople(steading)).toBe(1);
 
-		expect(steading.flags["stonetop-pwd"].steading.surplus).toBe(4);
+		expect(steading.flags["stonetop_pwd"].steading.surplus).toBe(4);
 		expect(rowsOn(steading, "neighbors")).toEqual([
 			{ uuid: "Actor.npc1", id: "npc1", name: "Ennis", checked: false },
 		]);
@@ -156,7 +156,7 @@ describe("migrateSteadingPeople", () => {
 	it("keeps a row somebody else added while it was working", async () => {
 		const steading = makeSteading({ neighbors: [{ name: "Ennis" }] });
 		global.Actor.create.mockImplementationOnce(async data => {
-			steading.flags["stonetop-pwd"].steading.neighbors = [
+			steading.flags["stonetop_pwd"].steading.neighbors = [
 				{ name: "Ennis" },
 				{ uuid: "Actor.late", id: "late", name: "Kesh" },
 			];

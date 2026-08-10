@@ -1,4 +1,4 @@
-// Test fixture generator for Stonetop (system id "stonetop-pwd").
+// Test fixture generator for Stonetop (system id "stonetop_pwd").
 // Paste this into any Foundry Script macro and run it — assign it to a hotbar slot
 // yourself; the script does not claim a slot of its own.
 //
@@ -90,11 +90,11 @@
   // The active scope is the system id in system.json (module/system-id.js#SYSTEM_ID).
   // Older ids are read-only fallback rungs there (LEGACY_FLAG_SCOPES) — fixtures are
   // always written to the active scope, never to a legacy one.
-  const FLAG_SCOPE   = "stonetop-pwd";        // must be a registered system/module ID
+  const FLAG_SCOPE   = "stonetop_pwd";        // must be a registered system/module ID
   const LEGACY_SCOPES = ["stonetop_pwd", "stonetop"]; // read-only rungs, newest first
   const TEST_FLAG    = "isTestCharacter";     // key within that scope
-  const PACK_ID      = "stonetop-pwd.stonetop-items";
-  const ARCANA_PACK_ID = "stonetop-pwd.stonetop-arcana";
+  const PACK_ID      = "stonetop_pwd.stonetop-items";
+  const ARCANA_PACK_ID = "stonetop_pwd.stonetop-arcana";
   // Post-death playbooks we don't want a test character for.
   const SKIP_PLAYBOOKS = new Set(["ghost", "revenant", "thrall"]);
   const MAJOR_FOLDER = "JwVuMk5DtWmttIYY";
@@ -826,7 +826,7 @@
   };
 
   // Formatted rich-text seeded into the steading's Notes tab (the prose-mirror editor
-  // bound to flags["stonetop-pwd"].steading.notes, rendered through TextEditor.enrichHTML).
+  // bound to flags["stonetop_pwd"].steading.notes, rendered through TextEditor.enrichHTML).
   // Deliberately exercises the full range of blocks the editor produces — headings,
   // bold/italic, an unordered and an ordered list, a blockquote, a rule, a table, an
   // external link and an inline [[/roll]] enricher — so the Notes tab's styling can be
@@ -1649,7 +1649,7 @@
   // card and the Followers tab's custom-follower card are exercised on every sheet
   // (mirroring how the arcana scatter touches every character). Both live ON the
   // actor — the move is an embedded `move` item (moveType "other", flagged
-  // stonetop-pwd.custom), the follower is an actor flag under customFollowers — so the
+  // stonetop_pwd.custom), the follower is an actor flag under customFollowers — so the
   // re-run's Actor.deleteDocuments tears them down with the character; no separate
   // cleanup is needed.
 
@@ -1686,7 +1686,7 @@
   //   - Vahid & Blodwen  — distinct per-tier 10+/7-9/6- prose, no shared list
   //   - Blodwen also exercises noXpOnMiss (its 6- is the one example that does NOT mark XP)
   // All four carry a "signed" sign-off. Like the custom move they're embedded `move`
-  // items living ON the actor — flagged stonetop-pwd.loveLetter (NOT custom, so no
+  // items living ON the actor — flagged stonetop_pwd.loveLetter (NOT custom, so no
   // player edit UI, and they never land in the "Other Moves" list) — so the re-run's
   // Actor.deleteDocuments tears them down with the character; no separate cleanup.
   //
@@ -1899,7 +1899,7 @@
   // the empty-flagged-folder prune) tears them all down.
   const OBSERVER          = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
   const HOSTILE           = CONST.TOKEN_DISPOSITIONS.HOSTILE;
-  const BESTIARY_ICON_DIR = "systems/stonetop-pwd/assets/icons/bestiary";
+  const BESTIARY_ICON_DIR = "systems/stonetop_pwd/assets/icons/bestiary";
 
   // Three custom world moves (moveType "other", flagged custom) spanning the roll types and
   // every Advanced field. Shaping mirrors buildCustomMoveData / worldMoveSaver: the

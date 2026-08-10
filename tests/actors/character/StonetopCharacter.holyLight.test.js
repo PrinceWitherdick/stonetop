@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { TestCharacterBuilder } from "../../fakes/TestCharacterBuilder.js";
 import { FakeActorBuilder } from "../../fakes/FakeActorBuilder.js";
 
-// FakeActorBuilder aliases both flag scopes ("stonetop-pwd" and the legacy "stonetop") to
+// FakeActorBuilder aliases both flag scopes ("stonetop_pwd" and the legacy "stonetop") to
 // ONE object, so reading a flag back can never prove which scope it was written under. The
 // scope is therefore asserted through the spy's literal arguments. Its getFlag also answers
 // `null`, not `undefined`, on a miss — hence the boolean coercion in the getter.
@@ -27,14 +27,14 @@ describe("StonetopCharacter holy light", () => {
 	it("lights it under the system's own flag scope", async () => {
 		const { char, actor } = makeChar();
 		await expect(char.setHolyLight(true)).resolves.toBe(true);
-		expect(actor.setFlag).toHaveBeenCalledWith("stonetop-pwd", "holyLight", true);
+		expect(actor.setFlag).toHaveBeenCalledWith("stonetop_pwd", "holyLight", true);
 	});
 
 	// UNSET, not `setFlag(..., false)`: a snuffed light should leave no trace on the actor.
 	it("snuffs it by dropping the flag", async () => {
 		const { char, actor } = makeChar({ lit: true });
 		await expect(char.setHolyLight(false)).resolves.toBe(true);
-		expect(actor.unsetFlag).toHaveBeenCalledWith("stonetop-pwd", "holyLight");
+		expect(actor.unsetFlag).toHaveBeenCalledWith("stonetop_pwd", "holyLight");
 		expect(actor.setFlag).not.toHaveBeenCalled();
 	});
 

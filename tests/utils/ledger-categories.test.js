@@ -16,19 +16,19 @@ describe("categoryForCharacterPath", () => {
 			"system.attributes.wounds": "stats",
 			"system.stats.str.value": "stats",
 			"system.playbook.name": "character",
-			"flags.stonetop-pwd.arcana.owned": "arcana",
-			"flags.stonetop-pwd.arcana.boxes.the-key:front:0": "arcana",
-			"flags.stonetop-pwd.invocations.selected": "moves",
-			"flags.stonetop-pwd.moves.backgroundChoices.Well Versed": "moves",
-			"flags.stonetop-pwd.inventory.checked.bow-arrows": "inventory",
-			"flags.stonetop-pwd.possessions.selected": "inventory",
-			"flags.stonetop-pwd.lore.counts.the-earth-mother:shrine-loved": "character",
-			"flags.stonetop-pwd.appearance.selected.0": "character",
-			"flags.stonetop-pwd.background.selected": "character",
-			"flags.stonetop-pwd.crew.individuals.0.name": "followers",
-			"flags.stonetop-pwd.animalCompanion.name": "followers",
-			"flags.stonetop-pwd.beastLoyalty.wolf": "followers",
-			"flags.stonetop-pwd.initiatesHp.acolyte": "followers",
+			"flags.stonetop_pwd.arcana.owned": "arcana",
+			"flags.stonetop_pwd.arcana.boxes.the-key:front:0": "arcana",
+			"flags.stonetop_pwd.invocations.selected": "moves",
+			"flags.stonetop_pwd.moves.backgroundChoices.Well Versed": "moves",
+			"flags.stonetop_pwd.inventory.checked.bow-arrows": "inventory",
+			"flags.stonetop_pwd.possessions.selected": "inventory",
+			"flags.stonetop_pwd.lore.counts.the-earth-mother:shrine-loved": "character",
+			"flags.stonetop_pwd.appearance.selected.0": "character",
+			"flags.stonetop_pwd.background.selected": "character",
+			"flags.stonetop_pwd.crew.individuals.0.name": "followers",
+			"flags.stonetop_pwd.animalCompanion.name": "followers",
+			"flags.stonetop_pwd.beastLoyalty.wolf": "followers",
+			"flags.stonetop_pwd.initiatesHp.acolyte": "followers",
 		};
 		for (const [path, expected] of Object.entries(cases)) {
 			expect(categoryForCharacterPath(path), path).toBe(expected);
@@ -36,7 +36,7 @@ describe("categoryForCharacterPath", () => {
 	});
 
 	it("falls back to other for an unmapped path", () => {
-		expect(categoryForCharacterPath("flags.stonetop-pwd.rollMode")).toBe("other");
+		expect(categoryForCharacterPath("flags.stonetop_pwd.rollMode")).toBe("other");
 	});
 });
 

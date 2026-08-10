@@ -136,7 +136,7 @@ function _sumLearnedMoveField(actor, field) {
 
 // Resource-track snapshot for an "other" move, in the shape the resourceChecks helper
 // consumes ({ title, max, labels, current }), or null when the move has no track. The
-// held value lives under flags.stonetop-pwd.moves.backgroundChoices, keyed by the move's
+// held value lives under flags.stonetop_pwd.moves.backgroundChoices, keyed by the move's
 // resourceKey (item id for custom moves, name otherwise — see buildMovelist), so the
 // existing .stonetop-item-resource-check handler works for custom moves unchanged.
 function _buildOtherMoveResource(resource, current) {
@@ -455,7 +455,7 @@ export class StonetopCharacter {
 		const totals = { hp: 0, armor: 0, crewHp: 0, damageDie: null, crewDamageSteps: 0, crewDamageCap: "d10", crewRollSteps: 0, crewTags: 0, companionHp: 0, companionArmor: 0 };
 		// Player-authored custom moves aren't in the pack, so the name-matched playbook
 		// loop below never sees them — read their hp/armor straight off the embedded item.
-		// Scoped to _isCustomMove (the stonetop-pwd.custom flag) so a foreign cross-playbook
+		// Scoped to _isCustomMove (the stonetop_pwd.custom flag) so a foreign cross-playbook
 		// move that happens to be stored as moveType "other" doesn't get its bonus counted
 		// here. (loadBonus/shieldLoadReduction are summed across all owned moves elsewhere.)
 		for (const i of this._actor.items) {
@@ -1673,7 +1673,7 @@ export class StonetopCharacter {
 	}
 
 	// Per-actor record of which possessions have had their bundled gear materialized
-	// (flags.stonetop-pwd.possessionGrantsApplied[slug] = true). Tracked separately from
+	// (flags.stonetop_pwd.possessionGrantsApplied[slug] = true). Tracked separately from
 	// item presence so a grant the player deliberately deleted is never resurrected.
 	_possessionGrantsApplied() {
 		return this._actor.getFlag(STONETOP_SCOPE, "possessionGrantsApplied") ?? {};
@@ -2655,7 +2655,7 @@ export class StonetopCharacter {
 		let needsInvocation     = false;
 		let availableInvocations = [];
 		if (newLevel % 2 === 0 && playbookData?.invocations?.options?.length) {
-			const selected = new Set(actor.getFlag("stonetop-pwd", "invocations.selected") ?? []);
+			const selected = new Set(actor.getFlag("stonetop_pwd", "invocations.selected") ?? []);
 			availableInvocations = playbookData.invocations.options.filter(o => !selected.has(o.slug));
 			needsInvocation = availableInvocations.length > 0;
 		}
@@ -2749,8 +2749,8 @@ export class StonetopCharacter {
 			await this._applyMarkChoices(choices.marks.moveName, choices.marks.picks);
 		}
 		if (selectedInvocationSlug) {
-			const current = this._actor.getFlag("stonetop-pwd", "invocations.selected") ?? [];
-			await this._actor.setFlag("stonetop-pwd", "invocations.selected", [...current, selectedInvocationSlug]);
+			const current = this._actor.getFlag("stonetop_pwd", "invocations.selected") ?? [];
+			await this._actor.setFlag("stonetop_pwd", "invocations.selected", [...current, selectedInvocationSlug]);
 		}
 	}
 
@@ -2822,7 +2822,7 @@ export class StonetopCharacter {
 	// Apply a level-up mark step's picks (the budgeted moves — Veteran Crew / Heroes to the
 	// Last / Beast of Legend / Well Versed) to the move's mark store via setCountMark
 	// (budget-clamped, level-stamped; hp/armor/crew/companion effects are derived on render,
-	// so we never apply them here). Writes flags.stonetop-pwd.moves.moveMarks keyed by move
+	// so we never apply them here). Writes flags.stonetop_pwd.moves.moveMarks keyed by move
 	// NAME, the same surface the sheet's own checkboxes use.
 	async _applyMarkChoices(moveName, picks) {
 		for (const pick of picks) {

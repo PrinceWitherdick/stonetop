@@ -31,7 +31,7 @@ export class PlaybookPickerDialog extends StonetopDialog {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-playbook-picker",
-			template:  "systems/stonetop-pwd/templates/dialogs/playbook-picker.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/playbook-picker.hbs",
 			title:     game.i18n.localize("stonetop.newCharacter.pickerTitle"),
 			width:     640,
 			height:    "auto",

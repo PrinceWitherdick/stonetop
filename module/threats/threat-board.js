@@ -16,8 +16,8 @@ import { gmPrepPageById, isGmPrepDoc } from "../journal/gm-prep-page.js";
 // Hazard pins ride the same board: the hazard card shares the threat card's markup
 // conventions (doom checkboxes), so only the template + VM differ.
 const CARD_TEMPLATES = {
-	threat: "systems/stonetop-pwd/templates/journal/partials/threat-card.hbs",
-	hazard: "systems/stonetop-pwd/templates/journal/partials/hazard-card.hbs",
+	threat: "systems/stonetop_pwd/templates/journal/partials/threat-card.hbs",
+	hazard: "systems/stonetop_pwd/templates/journal/partials/hazard-card.hbs",
 };
 const CARD_VMS = { threat: buildThreatCardVM, hazard: buildHazardCardVM };
 const _renderTemplate = (path, data) =>

@@ -36,14 +36,14 @@
       "src": null,
       "system": {
         "concept": "The royalty of deer — proud, vast-antlered, untouchable.",
-        "description": "<p>Majestic. Proud. Antlers so large you can scarce believe how deftly it moves through the woods. They are the royalty of deer. It is said that only the <strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.6wnyTkZl7GRhVM8g]{Pale Hunter}</strong> can give them chase, and that any mortal who dares to stalk them quickly finds the tables turned.</p>",
+        "description": "<p>Majestic. Proud. Antlers so large you can scarce believe how deftly it moves through the woods. They are the royalty of deer. It is said that only the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6wnyTkZl7GRhVM8g]{Pale Hunter}</strong> can give them chase, and that any mortal who dares to stalk them quickly finds the tables turned.</p>",
         "questions": [
           {
             "prompt": "What special property does folklore say the ceirwmawr's antlers possess?",
             "answer": ""
           },
           {
-            "prompt": "What dire fate is said to befall those who slay a ceirwmawr without @UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.6wnyTkZl7GRhVM8g]{the Pale Hunter}'s permission?",
+            "prompt": "What dire fate is said to befall those who slay a ceirwmawr without @UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.6wnyTkZl7GRhVM8g]{the Pale Hunter}'s permission?",
             "answer": ""
           }
         ],
@@ -57,7 +57,7 @@
         "dangers": [],
         "notes": "",
         "statBlocks": [
-          "Compendium.stonetop-pwd.stonetop-bestiary.Actor.Qe9HW1xQCicVwtGC"
+          "Compendium.stonetop_pwd.stonetop-bestiary.Actor.Qe9HW1xQCicVwtGC"
         ]
       },
       "sort": 100000,

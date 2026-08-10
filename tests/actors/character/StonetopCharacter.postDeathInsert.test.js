@@ -4,9 +4,9 @@ import { DEATHS_DOOR_STATE } from "../../../module/actors/character/deaths-door.
 import { FakeActorBuilder } from "../../fakes/FakeActorBuilder.js";
 import { FakeRepositoryFactory } from "../../fakes/FakeRepositoryFactory.js";
 
-const SLUG_PATH  = "flags.stonetop-pwd.postDeathInsert.slug";
-const STATE_PATH = "flags.stonetop-pwd.deathsDoor";
-const TAB_PATH   = "flags.stonetop-pwd.postDeathInsert.tabOpen";
+const SLUG_PATH  = "flags.stonetop_pwd.postDeathInsert.slug";
+const STATE_PATH = "flags.stonetop_pwd.deathsDoor";
+const TAB_PATH   = "flags.stonetop_pwd.postDeathInsert.tabOpen";
 
 function makeCharacter(flags = {}) {
 	const actor = new FakeActorBuilder().withFlags(flags).build();

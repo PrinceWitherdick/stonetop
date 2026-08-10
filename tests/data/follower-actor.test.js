@@ -65,13 +65,13 @@ describe("followerNpcActorData", () => {
 
 	it("gives a portrait-less follower their card's own mark, not Foundry's mystery man", () => {
 		const data = followerNpcActorData({ ...CREW, img: "", portraitIcon: "fas fa-users" });
-		expect(data.img).toBe("systems/stonetop-pwd/assets/icons/bestiary/human-group.svg");
+		expect(data.img).toBe("systems/stonetop_pwd/assets/icons/bestiary/human-group.svg");
 		expect(data.prototypeToken.texture).toEqual({ src: data.img });
 	});
 
 	it("treats a stock Foundry placeholder as no portrait at all", () => {
 		const data = followerNpcActorData({ ...CREW, img: "icons/svg/mystery-man.svg", portraitIcon: "fas fa-paw" });
-		expect(data.img).toBe("systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg");
+		expect(data.img).toBe("systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg");
 	});
 
 	it("dresses the token in the follower's portrait when the card has one", () => {
@@ -84,15 +84,15 @@ describe("followerNpcActorData", () => {
 	// from one somebody has since changed on the NPC itself.
 	it("remembers everything the card dictated, so a later edit can tell what is still ours", () => {
 		const stamp = followerNpcActorData({ ...CREW, img: "worlds/art/hafr.webp" })
-			.flags["stonetop-pwd"].followerCard;
+			.flags["stonetop_pwd"].followerCard;
 		expect(stamp.fields.name).toBe("The Ragged Half-Dozen");
 		expect(stamp.fields.img).toBe("worlds/art/hafr.webp");
 		expect(stamp.fields.instinct).toBe("To question leadership");
 		expect(stamp.moves).toEqual(["Hold the line", "Scatter"]);
 		// The stand-in disc is stamped too — it is just as much what the card gave it.
 		expect(followerNpcActorData({ ...CREW, img: "", portraitIcon: "fas fa-users" })
-			.flags["stonetop-pwd"].followerCard.fields.img)
-			.toBe("systems/stonetop-pwd/assets/icons/bestiary/human-group.svg");
+			.flags["stonetop_pwd"].followerCard.fields.img)
+			.toBe("systems/stonetop_pwd/assets/icons/bestiary/human-group.svg");
 	});
 
 	// The table is what keeps creation and the reconciling sweep from drifting; a field with no
@@ -125,7 +125,7 @@ describe("followerNpcActorData", () => {
 		const origin = { characterUuid: "Actor.abc", ftype: "crew", slug: "" };
 		const data = followerNpcActorData(CREW, { folder: "folder1", origin });
 		expect(data.folder).toBe("folder1");
-		expect(data.flags["stonetop-pwd"].followerOrigin).toEqual(origin);
+		expect(data.flags["stonetop_pwd"].followerOrigin).toEqual(origin);
 	});
 });
 
@@ -151,7 +151,7 @@ describe("followerCardStamp", () => {
 
 	it("is what a freshly built Actor is stamped with, so creation and the sweep agree", () => {
 		const data = followerNpcActorData(CREW);
-		expect(data.flags["stonetop-pwd"].followerCard)
+		expect(data.flags["stonetop_pwd"].followerCard)
 			.toEqual(followerCardStamp(followerActorFields(CREW), followerActorMoves(CREW)));
 	});
 });
@@ -190,18 +190,18 @@ describe("followerNotesHtml", () => {
 });
 
 describe("followerMarkerImg", () => {
-	const mark = t => `systems/stonetop-pwd/assets/icons/bestiary/${t}.svg`;
+	const mark = t => `systems/stonetop_pwd/assets/icons/bestiary/${t}.svg`;
 
 	it("gives an initiate of Danu the new shoot", () => {
 		expect(followerMarkerImg("fas fa-seedling")).toBe(NEW_SHOOT_MARKER);
-		expect(NEW_SHOOT_MARKER).toBe("systems/stonetop-pwd/assets/icons/followers/new-shoot.svg");
+		expect(NEW_SHOOT_MARKER).toBe("systems/stonetop_pwd/assets/icons/followers/new-shoot.svg");
 	});
 
 	// The art moved off sprout.svg, and that file is gone. An actor stamped before the move
 	// still names it, so the old path has to stay recognisable under every id this package
 	// has shipped under (hooks/Ready.js lifts them onto the current file).
 	it("still recognises the path the marker used to live at", () => {
-		expect(LEGACY_SHOOT_MARKERS).toContain("systems/stonetop-pwd/assets/icons/followers/sprout.svg");
+		expect(LEGACY_SHOOT_MARKERS).toContain("systems/stonetop_pwd/assets/icons/followers/sprout.svg");
 		expect(LEGACY_SHOOT_MARKERS).toContain("systems/stonetop_pwd/assets/icons/followers/sprout.svg");
 		expect(LEGACY_SHOOT_MARKERS).not.toContain(NEW_SHOOT_MARKER);
 	});
@@ -245,14 +245,14 @@ describe("isFollowerMarkerImg", () => {
 	// isDefaultImg answers for the mystery man and the "human, individual" mark and stops there;
 	// a converted beast's disc is just as much a placeholder and only this can say so.
 	it("covers the discs isDefaultImg cannot, under every id and a stray leading slash", () => {
-		expect(isFollowerMarkerImg("/systems/stonetop-pwd/assets/icons/bestiary/undead.svg")).toBe(true);
+		expect(isFollowerMarkerImg("/systems/stonetop_pwd/assets/icons/bestiary/undead.svg")).toBe(true);
 		expect(isFollowerMarkerImg("systems/stonetop_pwd/assets/icons/bestiary/fae.svg")).toBe(true);
 		expect(isFollowerMarkerImg("systems/stonetop_pwd/assets/icons/followers/sprout.svg")).toBe(true);
 	});
 
 	it("never mistakes art somebody chose for one of ours", () => {
 		expect(isFollowerMarkerImg("worlds/art/hafr.webp")).toBe(false);
-		expect(isFollowerMarkerImg("systems/stonetop-pwd/assets/icons/bestiary/not-a-type.svg")).toBe(false);
+		expect(isFollowerMarkerImg("systems/stonetop_pwd/assets/icons/bestiary/not-a-type.svg")).toBe(false);
 		expect(isFollowerMarkerImg("")).toBe(false);
 		expect(isFollowerMarkerImg(undefined)).toBe(false);
 	});

@@ -25,7 +25,7 @@
  * repairing. Calls per pack are chained so a burst can't fire several server round trips before
  * the first one records what it indexed.
  *
- * @param {string} packName  Full pack id, e.g. "stonetop-pwd.stonetop-items".
+ * @param {string} packName  Full pack id, e.g. "stonetop_pwd.stonetop-items".
  * @param {string[]} [fields]  Index fields this caller needs.
  * @returns {Promise<CompendiumCollection|null>}  The pack, or null when it isn't registered.
  */

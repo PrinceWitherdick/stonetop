@@ -66,7 +66,7 @@ describe("PlaceOfInterestDrop", () => {
 			y: 240,
 			text: "The Cistern",
 			texture: expect.objectContaining({
-				src: "systems/stonetop-pwd/assets/icons/landmarks/landmark-c.svg",
+				src: "systems/stonetop_pwd/assets/icons/landmarks/landmark-c.svg",
 			}),
 		})]);
 		expect(globalThis.ui.controls.activate).toHaveBeenCalledWith({ control: "notes", tool: "select" });
@@ -121,7 +121,7 @@ describe("PlaceOfInterestDrop", () => {
 			id,
 			global: false,
 			_source: { author: "gm-user-id" },
-			texture: { src: `systems/stonetop-pwd/assets/icons/landmarks/landmark-${letter}.svg` },
+			texture: { src: `systems/stonetop_pwd/assets/icons/landmarks/landmark-${letter}.svg` },
 		});
 		const sceneWith = (notes) => ({ notes, updateEmbeddedDocuments: vi.fn(async () => {}) });
 
@@ -155,7 +155,7 @@ describe("PlaceOfInterestDrop", () => {
 		it("leaves notes that are not ours alone", async () => {
 			const scene = sceneWith([
 				{ id: "book", global: false, _source: {}, texture: { src: "icons/svg/book.svg" } },
-				{ id: "threat", global: true, _source: { author: "gm-user-id" }, texture: { src: "systems/stonetop-pwd/assets/icons/threat-note.svg" } },
+				{ id: "threat", global: true, _source: { author: "gm-user-id" }, texture: { src: "systems/stonetop_pwd/assets/icons/threat-note.svg" } },
 			]);
 			const { read, write } = world();
 
@@ -235,7 +235,7 @@ describe("PlaceOfInterestDrop", () => {
 		const pin = (id, letter, extra = {}) => ({
 			id,
 			entryId: null,
-			texture: { src: `systems/stonetop-pwd/assets/icons/landmarks/landmark-${letter}.svg` },
+			texture: { src: `systems/stonetop_pwd/assets/icons/landmarks/landmark-${letter}.svg` },
 			...extra,
 		});
 		const sceneWith = (notes) => ({ notes, updateEmbeddedDocuments: vi.fn(async () => {}) });

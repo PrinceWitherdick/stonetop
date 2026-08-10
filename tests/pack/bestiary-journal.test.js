@@ -15,8 +15,8 @@ const SRC = path.resolve("packs/src");
 const JOURNAL_DIR = path.join(SRC, "stonetop-bestiary-journal");
 const ACTOR_DIR = path.join(SRC, "stonetop-bestiary");
 
-const ACTOR_PACK = "Compendium.stonetop-pwd.stonetop-bestiary.Actor";
-const JOURNAL_PACK = "Compendium.stonetop-pwd.stonetop-journal.JournalEntry";
+const ACTOR_PACK = "Compendium.stonetop_pwd.stonetop-bestiary.Actor";
+const JOURNAL_PACK = "Compendium.stonetop_pwd.stonetop-journal.JournalEntry";
 
 async function readDocs(dir) {
 	const out = [];

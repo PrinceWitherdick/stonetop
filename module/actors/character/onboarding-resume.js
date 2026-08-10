@@ -11,7 +11,7 @@
 // Trade-off: being client-local, this won't follow a player to a different browser
 // or computer — there, creation falls back to restarting the current page.
 
-const PREFIX = "stonetop-pwd.onboarding";
+const PREFIX = "stonetop_pwd.onboarding";
 
 function storageKey(actor) {
 	return `${PREFIX}.${game?.world?.id ?? "world"}.${actor.id}`;
