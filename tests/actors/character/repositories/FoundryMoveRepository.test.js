@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { FoundryMoveRepository } from "../../../../module/actors/character/repositories/FoundryMoveRepository.js";
+import { resetPackIndexFields } from "../../../../module/utils/pack-index.js";
 import { MoveDefinition } from "../../../../module/model/MoveDefinition.js";
 
 // -- Fixtures ------------------------------------------------------------------
@@ -58,6 +59,10 @@ function stubGameNoPacks() {
 // -- Tests ---------------------------------------------------------------------
 
 describe("FoundryMoveRepository", () => {
+	// The index fields asked of a pack are remembered per pack across the session (the union is
+	// what keeps one store's narrower list from un-indexing another's — see utils/pack-index.js),
+	// so each test starts from an empty registry or it would inherit the previous one's fields.
+	beforeEach(() => resetPackIndexFields());
 	afterEach(() => vi.unstubAllGlobals());
 
 	describe("getPlaybookMoves", () => {

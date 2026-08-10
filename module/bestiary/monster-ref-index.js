@@ -11,6 +11,7 @@
 
 import { CREATURE_LINK_DENYLIST } from "./creature-link-denylist.js";
 import { escapeRegExp } from "../utils/strings.js";
+import { ensurePackIndex } from "../utils/pack-index.js";
 
 const PACK_ID = "stonetop-pwd.stonetop-bestiary";
 const ENTRY_SUFFIX = /\s*\(Bestiary\)\s*$/i;
@@ -74,16 +75,15 @@ export async function buildMonsterRefIndex() {
 	if (_index) return _index;
 	const map = new Map();
 
-	const pack = globalThis.game?.packs?.get?.(PACK_ID);
-	if (pack) {
-		try {
-			const index = await pack.getIndex({ fields: ["type", "system.concept"] });
-			for (const e of index) {
+	try {
+		const pack = await ensurePackIndex(PACK_ID, ["type", "system.concept"]);
+		if (pack) {
+			for (const e of pack.index) {
 				const uuid = e.uuid ?? `Compendium.${pack.collection}.Actor.${e._id}`;
 				_addActorLike({ name: e.name, type: e.type, uuid, concept: e.system?.concept }, map, 0);
 			}
-		} catch (_e) { /* pack unavailable — fall back to world actors only */ }
-	}
+		}
+	} catch (_e) { /* pack unavailable — fall back to world actors only */ }
 
 	for (const a of globalThis.game?.actors ?? []) {
 		_addActorLike({ name: a.name, type: a.type, uuid: a.uuid, concept: a.system?.concept }, map, 10);

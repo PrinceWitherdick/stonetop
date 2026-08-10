@@ -130,7 +130,7 @@ describe("settings registration", () => {
 		// not know); settings.js names the retired key in a comment so it is not reused.
 		const KEPT = new Set([]);
 		const corpus = searchCorpus();
-		// settings.js's own exported accessors (getCharacterSheetWidth, getCrewSectionsOpen,
+		// settings.js's own exported accessors (getSheetSize, getCrewSectionsOpen,
 		// …) name their key rather than going through getSetting, so the accessor region —
 		// everything after registerSettings() closes — counts as a reference too.
 		const accessorRegion = SETTINGS_SRC.slice(SETTINGS_SRC.indexOf("export const HOVER_DESCRIPTION_SETTING_KEYS"));
@@ -142,5 +142,43 @@ describe("settings registration", () => {
 			if (!referenced) unused.push(key);
 		}
 		expect(unused, `Registered settings nothing reads:\n  ${unused.join("\n  ")}`).toEqual([]);
+	});
+});
+
+// The sheet-font maps. applySheetFont resolves ONE key and reads both of them with it, so a face
+// present in one and missing from the other silently sets `--st-caps-nudge: undefined` — which
+// does not throw, does not log, and surfaces only as uppercase pills sitting high on that one
+// font. A near-miss of exactly that shape already shipped: the nudge was a single constant in the
+// stylesheet, tuned against a face that is not the default, so it was wrong for everybody who had
+// not changed the setting.
+describe("sheet font maps", () => {
+	/** Keys of an object literal declared as `const <name> = { … }` in settings.js. */
+	function literalKeys(name) {
+		const start = SETTINGS_SRC.indexOf(`const ${name} = {`);
+		expect(start, `${name} not found in settings.js`).toBeGreaterThan(-1);
+		const body = SETTINGS_SRC.slice(start, SETTINGS_SRC.indexOf("};", start));
+		return [...body.matchAll(/^\s*"([^"]+)":/gm)].map(m => m[1]).sort();
+	}
+
+	it("gives every sheet font a caps nudge, and every nudge a font", () => {
+		expect(literalKeys("_FONT_CAPS_NUDGE")).toEqual(literalKeys("_FONT_MAP"));
+	});
+
+	// The stylesheet's fallback is what a client paints with before applySheetFont runs, and what
+	// it keeps for good if that never happens. It has to agree with the default face's entry, or
+	// every capitalised pill shifts the moment the setting lands.
+	it("matches the stylesheet fallback to the default font's nudge", () => {
+		const dflt = SETTINGS_SRC.match(/const _DEFAULT_FONT = "([^"]+)"/)?.[1];
+		expect(dflt, "_DEFAULT_FONT not found in settings.js").toBeTruthy();
+
+		const nudgeStart = SETTINGS_SRC.indexOf("const _FONT_CAPS_NUDGE = {");
+		const nudgeBody  = SETTINGS_SRC.slice(nudgeStart, SETTINGS_SRC.indexOf("};", nudgeStart));
+		const nudge = nudgeBody.match(new RegExp(`"${dflt}":\\s*"([^"]+)"`))?.[1];
+		expect(nudge, `no _FONT_CAPS_NUDGE entry for the default font "${dflt}"`).toBeTruthy();
+
+		const css = fs.readFileSync(path.join(ROOT, "styles/stonetop.css"), "utf8");
+		const fallback = css.match(/--st-caps-nudge:\s*([^;]+);/)?.[1]?.trim();
+		expect(fallback, "--st-caps-nudge is not declared in stonetop.css").toBeTruthy();
+		expect(fallback).toBe(nudge);
 	});
 });

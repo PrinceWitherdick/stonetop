@@ -89,9 +89,30 @@ describe("orderFollowersBonus", () => {
 		expect(orderFollowersBonus({ helps: 1, hinders: 1, exceptional: true })).toEqual({ bonus: 2, rollMode: "dis" });
 	});
 
-	it("honors the optional advantage toggle, but a hindering tag overrides it", () => {
+	it("honors the outside advantage and disadvantage toggles", () => {
 		expect(orderFollowersBonus({ helps: 1, advantage: true }).rollMode).toBe("adv");
-		expect(orderFollowersBonus({ helps: 1, hinders: 1, advantage: true }).rollMode).toBe("dis");
+		// Interfere (p.329) hands out disadvantage on the next roll even when nothing
+		// about the follower is in the way.
+		expect(orderFollowersBonus({ helps: 1, disadvantage: true }).rollMode).toBe("dis");
+		expect(orderFollowersBonus({ helps: 0, disadvantage: true })).toEqual({ bonus: 0, rollMode: "dis" });
+	});
+
+	it("cancels advantage against disadvantage rather than letting either win (p.230)", () => {
+		// Stentorian on a follower whose mischievous tag is in the way: straight 2d6+1.
+		expect(orderFollowersBonus({ helps: 1, hinders: 1, advantage: true })).toEqual({ bonus: 1, rollMode: "normal" });
+		expect(orderFollowersBonus({ helps: 1, advantage: true, disadvantage: true }).rollMode).toBe("normal");
+		// Neither side stacks, so extra hindering tags don't out-vote one advantage.
+		expect(orderFollowersBonus({ helps: 1, hinders: 3, advantage: true }).rollMode).toBe("normal");
+		// The bonus is untouched by the cancellation.
+		expect(orderFollowersBonus({ helps: 1, hinders: 1, advantage: true, exceptional: true }).bonus).toBe(2);
+	});
+
+	it("counts an applicable move toward the bonus the same as a tag", () => {
+		// The dialog folds move picks into `helps`, since p.462 reads "at least one
+		// appropriate tag or move".
+		expect(orderFollowersBonus({ helps: 1, exceptional: false }).bonus).toBe(1);
+		// ...and a move alone can't impose disadvantage, so hinders stays 0 there.
+		expect(orderFollowersBonus({ helps: 1 }).rollMode).toBe("normal");
 	});
 
 	it("defaults to a clean +0/normal with no arguments", () => {

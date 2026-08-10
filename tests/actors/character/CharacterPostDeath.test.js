@@ -3,10 +3,27 @@ import { CharacterPostDeath } from "../../../module/actors/character/CharacterPo
 import { CharacterInstincts } from "../../../module/actors/character/CharacterInstincts.js";
 import { CharacterLore } from "../../../module/actors/character/CharacterLore.js";
 
+// Stands in for the deletion marker StonetopFlags emits (a ForcedDeletion on v14+, a "-=key"
+// path below it) so this fake can tell a write from a removal without either shape.
+const DELETE = Symbol("delete");
+
 function makeFlags(store = {}) {
 	return {
 		getFlag: (key) => store[key] ?? null,
 		setFlag: vi.fn(async (key, val) => { store[key] = val; }),
+		unsetFlag: vi.fn(async (key) => { delete store[key]; }),
+		// The fragment builders, mirroring StonetopFlags: a plain object the caller can spread
+		// into ONE document update. Keyed by the bare flag key rather than the real dotted path —
+		// the path itself is StonetopFlags' own business, and what these tests are about is which
+		// fragment gets built and whether it lands in one write.
+		updateData:   vi.fn((key, val) => ({ [key]: val })),
+		deletionData: vi.fn((key) => ({ [key]: DELETE })),
+		applyUpdateData: vi.fn(async (data) => {
+			for (const [key, val] of Object.entries(data ?? {})) {
+				if (val === DELETE) delete store[key];
+				else store[key] = val;
+			}
+		}),
 	};
 }
 
@@ -14,14 +31,6 @@ describe("CharacterPostDeath", () => {
 	it("activeSlug returns null when unset", () => {
 		const pd = new CharacterPostDeath(makeFlags(), new CharacterInstincts(makeFlags()), new CharacterLore(makeFlags()));
 		expect(pd.activeSlug).toBeNull();
-	});
-
-	it("setActiveSlug stores slug and activeSlug returns it", async () => {
-		const flags = makeFlags();
-		const pd = new CharacterPostDeath(flags, new CharacterInstincts(makeFlags()), new CharacterLore(makeFlags()));
-		await pd.setActiveSlug("revenant");
-		expect(flags.setFlag).toHaveBeenCalledWith("slug", "revenant");
-		expect(pd.activeSlug).toBe("revenant");
 	});
 
 	it("instinct returns the CharacterInstincts instance", () => {
@@ -34,5 +43,58 @@ describe("CharacterPostDeath", () => {
 		const lore = new CharacterLore(makeFlags());
 		const pd = new CharacterPostDeath(makeFlags(), new CharacterInstincts(makeFlags()), lore);
 		expect(pd.lore).toBe(lore);
+	});
+
+	describe("tabRequested", () => {
+		function makePostDeath(store = {}) {
+			const flags = makeFlags(store);
+			return { flags, pd: new CharacterPostDeath(flags, new CharacterInstincts(makeFlags()), new CharacterLore(makeFlags())) };
+		}
+
+		// Opt-in, so an empty Post-Death tab can't open on every living character in edit mode.
+		it("is false until the tab is asked for", () => {
+			expect(makePostDeath().pd.tabRequested).toBe(false);
+		});
+
+		it("records a request", async () => {
+			const { flags, pd } = makePostDeath();
+			await pd.setTabRequested(true);
+			expect(flags.updateData).toHaveBeenCalledWith("tabOpen", true);
+			expect(pd.tabRequested).toBe(true);
+		});
+
+		// Unset rather than written false: the flag's absence is the ordinary state.
+		it("unsets rather than storing false", async () => {
+			const { flags, pd } = makePostDeath({ tabOpen: true });
+			await pd.setTabRequested(false);
+			expect(flags.deletionData).toHaveBeenCalledWith("tabOpen");
+			expect(flags.updateData).not.toHaveBeenCalled();
+			expect(pd.tabRequested).toBe(false);
+		});
+
+		it("writes nothing when clearing a request that was never made", async () => {
+			const { flags, pd } = makePostDeath();
+			await pd.setTabRequested(false);
+			expect(flags.applyUpdateData).not.toHaveBeenCalled();
+		});
+
+		// The fragment form is what lets setPostDeathInsert land the slug, the Death's Door
+		// clear and this in ONE update — see StonetopCharacter.postDeathInsert.test.js.
+		it("offers the request as a fragment, and nothing to write when there is nothing to do", () => {
+			const { pd } = makePostDeath();
+			expect(pd.tabRequestUpdateData(true)).toEqual({ tabOpen: true });
+			expect(pd.tabRequestUpdateData(false)).toBeNull();
+		});
+	});
+
+	// Taking an insert has to end the brush with death in the SAME update, and the Death's Door
+	// state is a sibling of these flags rather than one of them — so the slug is offered as an
+	// update fragment its caller can combine with one.
+	it("hands the slug write out as a fragment for a caller that must batch it", () => {
+		const flags = makeFlags();
+		flags.updateData = (key, value) => ({ [`flags.stonetop-pwd.postDeathInsert.${key}`]: value });
+		const pd = new CharacterPostDeath(flags, new CharacterInstincts(makeFlags()), new CharacterLore(makeFlags()));
+
+		expect(pd.slugUpdateData("ghost")).toEqual({ "flags.stonetop-pwd.postDeathInsert.slug": "ghost" });
 	});
 });

@@ -17,6 +17,7 @@ import { addPopoutHeaderControl, addPortraitFrameControl, addTokenizerControl } 
 import { actorFrameHandle } from "./portrait-frame-handles.js";
 import { PERSON_DEFAULT_IMG } from "./person-portrait.js";
 import { resolvedFlags } from "../actors/character/StonetopFlags.js";
+import { claimRosterPortraits } from "../actors/character/roster-portraits.js";
 import { displayPortraitSrc } from "../book2-art/people-portraits.js";
 import { hasVideoExtension, imagePopout, setAppOption } from "./foundry-compat.js";
 import { documentPortraitFrame, resolvePortrait } from "./portrait-frame.js";
@@ -67,6 +68,11 @@ function claimFollowerPortraits(actor, claim) {
 			claim(card.img, own || `${actor.name}'s follower`);
 		}
 	}
+	// The members INSIDE a group follower — the crew's named individuals and anonymous bodies,
+	// and any custom group's roster. Those are neither documents nor cards, so they are invisible
+	// to both of this module's sweeps; without this a face on the crew's roster would read as
+	// free from every sheet in the world. The stores live with the code that writes them.
+	claimRosterPortraits(flags, claim);
 }
 
 /**

@@ -1,6 +1,7 @@
 import { BEAST_CATALOG } from "../../data/beasts.js";
 import { stripHtmlToText } from "../../utils/strings.js";
 import { categoryForCharacterPath } from "../../utils/ledger-categories.js";
+import { crewAnonMemberLabel, crewIndividualLabel } from "../../utils/crew.js";
 import {
 	LEDGER_SCOPE, isLedgerPath, normalizeFlagPath, getActorProperty,
 	appendLedgerEntries, deleteLedgerEntries, getLedgerEntries,
@@ -14,6 +15,11 @@ const SYSTEM_PATH_LABELS = {
 	"system.attributes.damage.value": "Damage value",
 	"system.attributes.hp.value": "HP",
 	"system.attributes.hp.max": "Max HP",
+	// The lasting hand-set change on top of the derived max — an arcanum's soul-wound or a
+	// Mark's boon. Labelled so it lands in the ledger like any other permanent change; without
+	// a row here an unlabelled path is dropped, and the one write that OUGHT to be on the
+	// record would be the one that isn't.
+	"system.attributes.hp.adjustment": "Max HP (permanent)",
 	"system.attributes.xp.value": "XP",
 	"system.attributes.xp.max": "XP max",
 	"system.attributes.level.value": "Level",
@@ -52,7 +58,6 @@ const FLAG_PATH_LABELS = byFlagPath({
 	"inventory.regularPool": "Item slots ◇",
 	"inventory.smallPool": "Small item slots □",
 	"postDeathInsert.slug": "Post-death insert",
-	"rollMode": "Roll mode",
 	"steadingId": "Linked steading",
 });
 
@@ -129,6 +134,9 @@ const ARCANA_SLUG_LISTS = {
 	identified: { added: "Arcanum identified", removed: "Arcanum un-identified",     merge: "Arcana identified" },
 	leads:      { added: "Arcanum lead found", removed: "Arcanum lead resolved",     merge: "Arcana leads" },
 	revealed:   { added: "Arcanum revealed",   removed: "Arcanum hidden again",      merge: "Arcana revealed" },
+	// A 7-9 on the Know Things roll to identify a card (Book I p.440) hands over the front and
+	// promises the back later; the debt is settled when the GM reveals it.
+	backOwed:   { added: "Arcanum back owed",  removed: "Arcanum back delivered",    merge: "Arcana backs owed" },
 };
 // Bookkeeping sub-flags with no play meaning of their own — a backfill guard, the onboarding
 // draw, per-card display state. They were logging lines like "Arcana set to on".
@@ -150,6 +158,11 @@ const BACKGROUND_ANSWERS_PREFIX = `flags.${LEDGER_SCOPE}.moves.backgroundAnswers
 // Pure sheet state: which level-overage warning the player dismissed. Never a ledger event.
 const MOVES_SILENT_PATH = `flags.${LEDGER_SCOPE}.moves.dismissedLevelOverage`;
 const BACKGROUND_SELECTED_PATH = `flags.${LEDGER_SCOPE}.background.selected`;
+// The roll-mode picker stores the slug the dice formula is built from, so the generic scalar
+// formatter wrote the slug itself: "Roll mode set to dis". Spell the mode out. An absent flag
+// is Normal (see _normalizeSheetRollMode), so a first pick is still a real change.
+const ROLL_MODE_PATH = `flags.${LEDGER_SCOPE}.rollMode`;
+const ROLL_MODE_NAMES = { adv: "Advantage", normal: "Normal", dis: "Disadvantage" };
 
 // Numeric/scalar sheet fields whose repeated nudges collapse into one entry (see mergeRuns):
 // clicking XP up three times, or walking a new character from level 1 to level 34.
@@ -231,6 +244,7 @@ async function buildNameLookup(actor) {
 		moveMarkOptions: new Map(),
 		followers: new Map(),
 		crewIndividuals: new Map(),
+		crewNamedCount: 0,
 		followerFields: new Map([
 			["cost", "cost"],
 			["hpCurrent", "HP"],
@@ -355,9 +369,14 @@ async function buildNameLookup(actor) {
 		if (!names.followers.has("animalCompanion")) addFollower("animalCompanion", companionTypeLabel ?? "Animal companion");
 		const crewName = getActorProperty(actor, `flags.${LEDGER_SCOPE}.crew.name`);
 		addFollower("crew", crewName || "Crew");
-		for (const [index, individual] of Object.entries(getActorProperty(actor, `flags.${LEDGER_SCOPE}.crew.individuals`) ?? [])) {
+		const crewIndividuals = getActorProperty(actor, `flags.${LEDGER_SCOPE}.crew.individuals`) ?? [];
+		for (const [index, individual] of Object.entries(crewIndividuals)) {
 			if (individual?.name) names.crewIndividuals.set(String(index), individual.name);
 		}
+		// How many of the crew are named, so an ANONYMOUS member can be labelled the way the sheet
+		// labels them — "Crew member 4" counts from the end of the named ones. Taken from the array
+		// length rather than from the map above, which drops a row with no name yet.
+		names.crewNamedCount = Array.isArray(crewIndividuals) ? crewIndividuals.length : 0;
 		// Custom followers (walkthrough / monster conversion / arcana summon): name from
 		// the stored record so a Loyalty/HP change reads "<Name> loyalty changed…".
 		for (const [id, data] of Object.entries(getActorProperty(actor, `flags.${LEDGER_SCOPE}.customFollowers`) ?? {})) {
@@ -448,22 +467,211 @@ function followerFieldEntry(followerName, field, oldValue, newValue) {
 	return { action: actionForField(label, oldValue, newValue) };
 }
 
-function animalCompanionEntry(path, oldValue, newValue, names) {
-	const field = path.slice(ANIMAL_COMPANION_PREFIX.length).split(".")[0];
-	const followerName = names.followers.get("animalCompanion") ?? "Animal companion";
-	return followerFieldEntry(followerName, names.followerFields.get(field), oldValue, newValue);
+/**
+ * The hand-edited fields every follower keeps under its own `details` namespace (_FOLLOWER_FLAGS
+ * in StonetopCharacterSheet.js). Every entry builder that meets one used to reach them through
+ * `key.split(".")[0]`, which collapses all of them to the literal "details" — a field name no
+ * label map knows — so a Moves edit, a Notes edit and an Armor override all came out as the
+ * follower's bare name with no indication of what had moved.
+ *
+ * `gear` is absent on purpose: it is an ARRAY OF OBJECTS (the ◇ checklist), so the generic
+ * formatter renders it "[object Object]" whatever it is labelled. It is handled below.
+ */
+const FOLLOWER_DETAIL_LABELS = new Map([
+	["moves",       "moves"],
+	["notes",       "notes"],
+	["hpMax",       "max HP"],
+	["armor",       "armor"],
+	["armorSource", "armor source"],
+	["damage",      "damage"],
+	["instinct",    "instinct"],
+	["cost",        "cost"],
+	["exceptional", "exceptional"],
+	["usesAmmo",    "uses ammo"],
+]);
+
+/**
+ * One follower's `details.<field>` write, named. `gear` is a free-text ◇ checklist rewritten whole
+ * on every tick, rename or addition — there is no honest one-line diff of an array of
+ * `{label, checked}` objects, and it was printing "[object Object]" into the Chronicle — so it is
+ * reported as a fact rather than as a value, and an unknown field stays quiet rather than guessing.
+ */
+function followerDetailEntries(followerName, field, oldValue, newValue) {
+	if (field === "gear") return [{ action: `${followerName} gear updated` }];
+	const label = FOLLOWER_DETAIL_LABELS.get(field);
+	return label ? [followerFieldEntry(followerName, label, oldValue, newValue)] : [];
 }
 
-function crewEntry(path, oldValue, newValue, names) {
+function animalCompanionEntry(path, oldValue, newValue, names) {
+	const key = path.slice(ANIMAL_COMPANION_PREFIX.length);
+	const followerName = names.followers.get("animalCompanion") ?? "Animal companion";
+	if (key.split(".").some(segment => segment.startsWith("-="))) return [];
+	if (key.startsWith("details.")) return followerDetailEntries(followerName, key.slice("details.".length), oldValue, newValue);
+	return [followerFieldEntry(followerName, names.followerFields.get(key.split(".")[0]), oldValue, newValue)];
+}
+
+// ── The crew's roster, as ledger lines ──────────────────────────────────────────────────────
+//
+// The crew keeps three of its four roster stores in flag ARRAYS, written back WHOLE because a
+// flag array cannot be updated by dotted path (see actors/character/roster-portraits.js). That is
+// what the rules below are for: a whole-array write reaches the ledger as one leaf holding the
+// entire roster, and the generic field formatter has nothing useful to say about it. Left alone,
+// `formatValue` joins the array with ", ", so an array of OBJECTS came out as the literal
+// "[object Object]" — one such line in the player's Chronicle for every portrait pick, every
+// "Use default", and every member added or removed.
+//
+// So each store is read for what actually changed, and the cosmetic ones say nothing at all.
+
+/** Crew-only field names the shared `followerFields` map has no entry for. */
+const CREW_FIELD_LABELS = new Map([
+	["size",    "roster size"],
+	["groupHp", "group HP"],
+	["ammo",    "ammo"],
+]);
+
+// Cosmetic crew writes: a face and the rect that crops it, on the crew CARD (`details`) and on the
+// anonymous members' roster slots. A portrait is not an act of play and has no business in a
+// ledger — and each of these rendered as junk besides ("[object Object]" for the roster slots, a
+// raw file path or a bare "0.1, 0.2, 0.3, 0.4" for the card's).
+//
+// The custom group follower's equivalent needs no entry here: customFollowerEntry below works off
+// an ALLOWLIST, so it is already silent. It has a test of its own so that stays true if the
+// allowlist ever grows.
+// The anonymous members' faces. Needs naming here, where the two `.img`-shaped stores do not
+// (isCosmeticPortraitPath covers those): this is an ARRAY of portrait slots, which flattenObject
+// leaves as ONE atomic leaf, so the path never mentions `img` at all — it rendered as the literal
+// "[object Object]".
+const isUnloggedCrewKey = (key) => key === "memberPortrait";
+
+/**
+ * How many of the crew are named, AS THIS UPDATE LEAVES THEM — which is what the anonymous tail
+ * is numbered from.
+ *
+ * `names` is built from the PRE-update actor, so on an update that rewrites `crew.individuals`
+ * and touches member HP in the same breath it is already stale: naming a member grows the named
+ * block and shrinks the anonymous tail in one `actor.update`, and removing one does the reverse.
+ * Numbering the survivors against the roster they have just left is off by one against what the
+ * sheet draws a moment later. The update's own value wins wherever it carries one.
+ */
+function crewNamedCount(names, ctx) {
+	const written = ctx?.newValues?.get(`${CREW_PREFIX}individuals`);
+	return Array.isArray(written) ? written.length : names.crewNamedCount;
+}
+
+/**
+ * Who joined and who left, from the whole-array write behind naming or removing a member.
+ *
+ * Matched by NAME rather than by position: the array is spliced, so every index above the change
+ * shifts and a positional diff would report the whole tail as replaced. A portrait pick rewrites
+ * this same array with the membership untouched, which is exactly why this yields nothing then.
+ */
+function crewMembershipEntries(oldValue, newValue, crewName) {
+	const tally = (value) => (Array.isArray(value) ? value : []).reduce((counts, row) => {
+		const name = String(row?.name ?? "").trim();
+		if (name) counts.set(name, (counts.get(name) ?? 0) + 1);
+		return counts;
+	}, new Map());
+	const before = tally(oldValue);
+	const after  = tally(newValue);
+
+	// A MULTISET diff, not a set one. The crew's names come from a nine-name pick list on a roster
+	// that is a half-dozen strong by default, so two members called Aled is a keystroke away — and
+	// with plain sets, removing one of them changed no set and the Chronicle recorded that nobody
+	// had left. Repeats are numbered in the text so coalesceEntries (which dedupes on the action
+	// string) cannot fold two genuinely separate departures into one line.
+	const entries = [];
+	for (const name of new Set([...before.keys(), ...after.keys()])) {
+		const delta = (after.get(name) ?? 0) - (before.get(name) ?? 0);
+		const verb  = delta > 0 ? `named to ${crewName}` : `removed from ${crewName}`;
+		for (let i = 0; i < Math.abs(delta); i++) {
+			const ordinal = Math.abs(delta) > 1 ? ` (${i + 1} of ${Math.abs(delta)})` : "";
+			entries.push({ action: `${name}${ordinal} ${verb}` });
+		}
+	}
+	return entries;
+}
+
+/**
+ * Per-member HP out of the anonymous members' whole-array write, so a hit reads as "Crew member 3
+ * HP changed from 6 to 4" rather than as two lists of numbers to spot the difference between.
+ *
+ * A SHRINKING array is a resize or a promotion, not damage: the indices no longer line up, so a
+ * positional diff would invent hits nobody took. The `crew.size` write, or the membership line
+ * above, is what records those. Growth is normal — the HP writer sizes the array to the member it
+ * is writing — so it is diffed against the missing slots.
+ */
+function crewMemberHpEntries(oldValue, newValue, namedCount) {
+	const before = Array.isArray(oldValue) ? oldValue : [];
+	const after  = Array.isArray(newValue) ? newValue : [];
+	if (after.length < before.length) return [];
+	return after
+		.map((value, index) => (value === before[index]
+			? null
+			: { action: actionForField(`${crewAnonMemberLabel(namedCount, index)} HP`, before[index], value) }))
+		.filter(Boolean);
+}
+
+/**
+ * A roster resize is recognised HERE, from `ctx.paths`, rather than being handed down as a
+ * crew-shaped flag: when the SAME update also rewrites `crew.individuals`, the delete handler has
+ * RE-KEYED `individualsHp` to stay aligned with the spliced array. Read per key, those re-keyed
+ * writes look like every survivor above the gap taking the damage of the member below them, under
+ * the wrong name. The membership line already says what happened, so the HP noise beside it is
+ * dropped rather than reported wrongly.
+ */
+function crewEntries(path, oldValue, newValue, names, ctx = {}) {
 	const key = path.slice(CREW_PREFIX.length);
+	const crewName = names.followers.get("crew") ?? "Crew";
+
+	// A DELETION rather than a value. Older cores send `-=<key>` with null; v14+ sends a
+	// ForcedDeletion instance at the plain path (utils/foundry-compat.js#deletionEntry), which the
+	// individualsHp guard below catches by way of ctx. Neither is anything to read out to a player:
+	// they rendered as "set to blank" and "changed to changed" respectively.
+	//
+	// Matched as a SEGMENT, not after a dot: `unsetFlag("stonetop-pwd", "crew.groupHp")` deletes at
+	// the crew's own root, so the key is a bare `-=groupHp` with no dot in front of it. That is the
+	// crew's "Restore the group to full HP" button, and a dotted-only test let it through.
+	if (key.split(".").some(segment => segment.startsWith("-="))) return [];
+
+	if (isUnloggedCrewKey(key)) return [];
+
+	// One named individual's own field: individuals.<i>.<field>. A row with no name yet falls back
+	// to crewIndividualLabel, NOT to the anonymous labeller: this row is INSIDE the named block, so
+	// it numbers from the top of the roster the way the sheet draws it, where the anonymous tail
+	// counts on from the end of that block (see utils/crew.js — the two labellers differ on
+	// purpose). Labelling it "Crew member 4" put a ledger line against a row the sheet calls
+	// "Crew member 1".
 	if (key.startsWith("individuals.")) {
 		const [, index, field] = key.split(".");
-		const followerName = names.crewIndividuals.get(index);
-		return followerFieldEntry(followerName || `Crew member ${Number(index) + 1}`, names.followerFields.get(field), oldValue, newValue);
+		const memberName = names.crewIndividuals.get(index) ?? crewIndividualLabel(index);
+		return [followerFieldEntry(memberName, names.followerFields.get(field), oldValue, newValue)];
 	}
+	if (key === "individuals")     return crewMembershipEntries(oldValue, newValue, crewName);
+	if (key === "memberHp")        return crewMemberHpEntries(oldValue, newValue, crewNamedCount(names, ctx));
+	// The WHOLE per-individual HP map, rewritten as one object by the promote and delete handlers.
+	// It carries nothing the per-key branch below does not already report, and on a crew whose HP
+	// has never been touched it is an EMPTY object — which Foundry's flattenObject keeps as a leaf,
+	// so naming the very first crew member logged "<crew> set to changed" beside the good line.
+	if (key === "individualsHp")   return [];
+	// Hand-edited card fields (Moves, Notes, the Armor / max-HP overrides…). Named here because
+	// `key.split(".")[0]` collapses every one of them to "details", which no label map knows — so
+	// they all read as the crew's bare name and became indistinguishable in the Chronicle.
+	if (key.startsWith("details.")) return followerDetailEntries(crewName, key.slice("details.".length), oldValue, newValue);
+	// The crew's kit is a pip track PER ITEM (`gear.<slug>` = filled load pips), so name the item.
+	// Without this a shield being taken up read as a bare number against the crew's own name.
+	if (key.startsWith("gear.")) {
+		return [followerFieldEntry(crewName, `${prettifySlug(key.slice("gear.".length))} load`, oldValue, newValue)];
+	}
+	if (key.startsWith("individualsHp.")) {
+		if (ctx.paths?.has(`${CREW_PREFIX}individuals`)) return [];
+		const index = key.slice("individualsHp.".length);
+		// A named individual's own HP — same named-block numbering as the branch above.
+		const memberName = names.crewIndividuals.get(index) ?? crewIndividualLabel(index);
+		return [followerFieldEntry(memberName, "HP", oldValue, newValue)];
+	}
+
 	const field = key.split(".")[0];
-	const followerName = names.followers.get("crew") ?? "Crew";
-	return followerFieldEntry(followerName, names.followerFields.get(field), oldValue, newValue);
+	return [followerFieldEntry(crewName, CREW_FIELD_LABELS.get(field) ?? names.followerFields.get(field), oldValue, newValue)];
 }
 
 // Custom follower record (customFollowers.<id>.<field>). Only the play-relevant scalar
@@ -721,7 +929,15 @@ function loreTextEntry(path, newValue, names) {
 
 // Appearance lines carry no category names in the playbook data (they are just four ordered
 // lists), so the entry names the chosen trait and merges the burst into a single line.
+//
+// A CLEARED line arrives as a DELETION, not a value, and the two cores disagree on its shape:
+// v13 sends `-=<n>` with null (which falls out at the empty check below), while v14+ sends a
+// ForcedDeletion INSTANCE at the plain path (utils/foundry-compat.js#deletionEntry) — and that
+// stringifies to "[object Object]", so without the type test a player emptying a write-in box
+// got a ledger row reading "Appearance set to [object Object]". Same trap crewEntries guards
+// at its own door; a line is only ever a string, so anything else is not a choice to read out.
 function appearanceEntry(newValue) {
+	if (typeof newValue !== "string") return null;
 	const value = stripHtml(newValue);
 	if (!value) return null;
 	return { action: `Appearance set to ${value}`, merge: listMerge("Appearance", "appearance", [value]) };
@@ -731,6 +947,13 @@ function initiateDetailEntry(newValue) {
 	const value = stripHtml(newValue);
 	if (!value) return null;
 	return { action: `Initiate details set to ${value}`, merge: listMerge("Initiate details", "initiateDetails", [value]) };
+}
+
+function rollModeEntry(oldValue, newValue) {
+	const before = ROLL_MODE_NAMES[oldValue] ?? ROLL_MODE_NAMES.normal;
+	const after  = ROLL_MODE_NAMES[newValue] ?? ROLL_MODE_NAMES.normal;
+	if (before === after) return null;
+	return { action: `Roll mode set to ${after}` };
 }
 
 function debilityEntry(label, oldValue, newValue) {
@@ -758,6 +981,7 @@ const EXACT_PATH_ENTRIES = {
 	[BACKGROUND_SELECTED_PATH]: (p, o, n, names) => [{
 		action: isBlank(n) ? "Background cleared" : `Background set to ${nameFrom(names.backgrounds, n)}`,
 	}],
+	[ROLL_MODE_PATH]:           (p, o, n) => [rollModeEntry(o, n)],
 };
 
 const PREFIX_ENTRIES = {
@@ -773,8 +997,8 @@ const PREFIX_ENTRIES = {
 	[BEAST_LOYALTY_PREFIX]:       (p, o, n, names) => [perSlugFollowerEntry(p, BEAST_LOYALTY_PREFIX, "beast", "loyalty", o, n, names)],
 	[BEAST_HP_PREFIX]:            (p, o, n, names) => [perSlugFollowerEntry(p, BEAST_HP_PREFIX, "beast", "HP", o, n, names)],
 	[BEAST_READINESS_PREFIX]:     (p, o, n, names) => [perSlugFollowerEntry(p, BEAST_READINESS_PREFIX, "beast", "Readiness", o, n, names)],
-	[ANIMAL_COMPANION_PREFIX]:    (p, o, n, names) => [animalCompanionEntry(p, o, n, names)],
-	[CREW_PREFIX]:                (p, o, n, names) => [crewEntry(p, o, n, names)],
+	[ANIMAL_COMPANION_PREFIX]:    (p, o, n, names) => animalCompanionEntry(p, o, n, names),
+	[CREW_PREFIX]:                (p, o, n, names, ctx) => crewEntries(p, o, n, names, ctx),
 	[CUSTOM_FOLLOWERS_PREFIX]:    (p, o, n, names) => [customFollowerEntry(p, o, n, names)],
 	[INITIATE_DETAILS_PREFIX]:    (p, o, n) => [initiateDetailEntry(n)],
 
@@ -802,7 +1026,31 @@ const PREFIX_ENTRIES = {
 
 const SORTED_ENTRY_PREFIXES = Object.keys(PREFIX_ENTRIES).sort((a, b) => b.length - a.length);
 
-function granularEntriesForPath(path, oldValue, newValue, names) {
+/**
+ * A face, and the rect that crops it — cosmetic wherever it is stored, and never a ledger line.
+ *
+ * Every follower type keeps its portrait at `<namespace>.img` with an optional `portraitFrame`
+ * beside it (StonetopCharacterSheet's _FOLLOWER_FLAGS), and a roster member keeps theirs the same
+ * way. None of it is an act of play, and all of it rendered badly when it fell through to the
+ * generic field formatter: a raw file path for the picture, a bare "0.1, 0.2, 0.3, 0.4" for the
+ * rect (a `portraitFrame` is a plain object, so flattenObject splits it into `.src` and `.rect`).
+ *
+ * ONE rule rather than an entry per follower type — the crew, the animal companion, the initiates,
+ * the beasts, the custom followers and the roster members all store a face the same way, so a type
+ * added later is quiet by default instead of quietly noisy.
+ *
+ * Restricted to FLAG paths so it cannot reach the actor's own top-level `img`, which is a
+ * different question and not this function's to answer.
+ */
+// `(?:-=)?` because clearing a portrait is TWO writes, not one: "Use default" sends the picture
+// away as `img: ""` and the frame with it as `.-=portraitFrame`. Silencing only the first left
+// every follower's "Use default" writing "<name> set to blank" into the Chronicle.
+const COSMETIC_PORTRAIT_KEY = /\.(?:-=)?(img|portraitFrame)(\.|$)/;
+const isCosmeticPortraitPath = (path) =>
+	path.startsWith(`flags.${LEDGER_SCOPE}.`) && COSMETIC_PORTRAIT_KEY.test(path);
+
+function granularEntriesForPath(path, oldValue, newValue, names, ctx) {
+	if (isCosmeticPortraitPath(path)) return [];
 	// Object.hasOwn, not a bare lookup: `path` is attacker-adjacent data off an actor update,
 	// and a plain `EXACT_PATH_ENTRIES[path]` would happily hand back Object.prototype members
 	// for a path named "constructor" or "toString" — which this then tries to call.
@@ -813,7 +1061,7 @@ function granularEntriesForPath(path, oldValue, newValue, names) {
 		const prefix = SORTED_ENTRY_PREFIXES.find(p => path.startsWith(p));
 		handler = prefix ? PREFIX_ENTRIES[prefix] : null;
 	}
-	if (handler) return (handler(path, oldValue, newValue, names) ?? []).filter(Boolean);
+	if (handler) return (handler(path, oldValue, newValue, names, ctx) ?? []).filter(Boolean);
 
 	// A set rather than table rows: it reads its label from SYSTEM_PATH_LABELS, so a row here
 	// would just repeat what that map already says.
@@ -835,7 +1083,26 @@ function withCategory(entries, path) {
 async function actorUpdateEntries(actor, changed) {
 	const names = await buildNameLookup(actor);
 	const entries = [];
-	for (const [path, newValue] of Object.entries(foundry.utils.flattenObject(changed))) {
+	const flattened = foundry.utils.flattenObject(changed);
+	// Facts about the update AS A WHOLE, for the handful of entry builders that cannot tell what
+	// happened from one key alone. Kept separate from `names` so it stays obvious that this is
+	// per-update state and not a lookup table.
+	//
+	// What ELSE landed alongside the key a builder is looking at, and what it landed AS.
+	// Deliberately the raw question rather than a pre-chewed answer: the callers today are both
+	// the crew's (see crewEntries), and a generic walker that knew that fact by name would need a
+	// second bespoke flag for the next builder with the same need. `names` cannot answer either
+	// question — it is built from the actor BEFORE the update.
+	const normalized = new Map();
+	for (const [path, value] of Object.entries(flattened)) {
+		const key = normalizeFlagPath(path);
+		if (key) normalized.set(key, value);
+	}
+	const ctx = {
+		paths:     new Set(normalized.keys()),
+		newValues: normalized,
+	};
+	for (const [path, newValue] of Object.entries(flattened)) {
 		const normalizedPath = normalizeFlagPath(path);
 		if (!normalizedPath || isLedgerPath(normalizedPath)) continue;
 
@@ -858,7 +1125,7 @@ async function actorUpdateEntries(actor, changed) {
 		const oldValue = getActorProperty(actor, normalizedPath);
 		if (valuesEqual(oldValue, newValue)) continue;
 
-		const granularEntries = granularEntriesForPath(normalizedPath, oldValue, newValue, names);
+		const granularEntries = granularEntriesForPath(normalizedPath, oldValue, newValue, names, ctx);
 		if (granularEntries) {
 			entries.push(...withCategory(granularEntries, normalizedPath));
 			continue;

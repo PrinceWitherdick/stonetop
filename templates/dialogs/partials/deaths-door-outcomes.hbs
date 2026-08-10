@@ -1,0 +1,19 @@
+{{!-- The Death's Door outcome ladder. Rendered twice: as a preview on the roll step (nothing
+      current yet, so every tier reads the same), and again on the result step where the tier
+      that landed carries `is-current`. The 6-'s three fates are listed only while they're not
+      the current tier, because the current one renders them as actual buttons below. --}}
+{{#each tiers}}
+<div class="deaths-door-outcome{{#if isCurrent}} is-result{{/if}}">
+	<h3 class="deaths-door-outcome-label"><strong>{{label}}</strong></h3>
+	{{! Escaped, not raw: the tier text is plain text (the chat card escapes the same string),
+	    so both surfaces treat it the same way and neither can be fed markup by accident. }}
+	<p class="deaths-door-outcome-text">{{text}}</p>
+	{{#if options}}
+	{{#unless isCurrent}}
+	<ul class="deaths-door-outcome-options">
+		{{#each options}}<li>{{this}}</li>{{/each}}
+	</ul>
+	{{/unless}}
+	{{/if}}
+</div>
+{{/each}}

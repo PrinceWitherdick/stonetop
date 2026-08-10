@@ -258,6 +258,40 @@ describe("buildSnapshot — playbook section", () => {
 		expect(snap.playbook.appearance.options[1].options.find(o => o.value === "scarred").selected).toBe(true);
 	});
 
+	// A line can be WRITTEN IN rather than picked — the onboarding wizard offers it on the
+	// appearance step and the Details tab's own heading says "or make something up". A
+	// written-in value matches no suggestion, so every reader that only looked for a ticked
+	// option showed nothing: a character created with custom lines had a blank appearance.
+	it("appearance line reads out a written-in value as well as a ticked suggestion", async () => {
+		const snap = await buildSnap({"appearance.selected": {0: "built like a barn door", 1: "scarred"}});
+		const [custom, picked] = snap.playbook.appearance.options;
+		expect(custom.isCustom).toBe(true);
+		expect(custom.customValue).toBe("built like a barn door");
+		expect(custom.value).toBe("built like a barn door");
+		expect(custom.options.some(o => o.selected)).toBe(false);
+		expect(picked.isCustom).toBe(false);
+		expect(picked.customValue).toBe("");
+		expect(picked.value).toBe("scarred");
+	});
+
+	it("appearance.summary includes written-in lines", async () => {
+		const snap = await buildSnap({"appearance.selected": {0: "built like a barn door", 1: "scarred"}});
+		expect(snap.playbook.appearance.summary).toBe("Built like a barn door · scarred");
+	});
+
+	// The Details tab hides a section it reads as never filled in (detailsShow keys off
+	// summary), so an all-written-in character used to lose the section entirely.
+	it("appearance.summary is non-empty when every line was written in", async () => {
+		const snap = await buildSnap({"appearance.selected": {0: "wiry", 1: "inked all over"}});
+		expect(snap.playbook.appearance.summary).toBe("Wiry · inked all over");
+	});
+
+	it("appearance.summary is empty when nothing is chosen", async () => {
+		const snap = await buildSnap();
+		expect(snap.playbook.appearance.summary).toBe("");
+		expect(snap.playbook.appearance.options.every(l => l.value === "")).toBe(true);
+	});
+
 	it("origin.selected is null when none saved", async () => {
 		const snap = await buildSnap();
 		expect(snap.playbook.origin.selected).toBeNull();
@@ -390,6 +424,41 @@ describe("buildSnapshot — vitals", () => {
 	it("damage is null when no playbook", async () => {
 		const snap = await new TestCharacterBuilder(new FakeActorBuilder().build()).build().buildSnapshot();
 		expect(snap.vitals.damage).toBeNull();
+	});
+
+	it("a hand-set damage die overrides the playbook's, and damageBase keeps the playbook's", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.withDamage("d8", "d8")
+			.build();
+		const snap = await new TestCharacterBuilder(actor).addPlaybook(HEAVY_PLAYBOOK).build().buildSnapshot();
+		expect(snap.vitals.damage).toBe("d8");
+		expect(snap.vitals.damageBase).toBe("d10");
+	});
+
+	it("a loosely typed override is normalized to a d# die", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.withDamage("d10", " 1D8 ")
+			.build();
+		const snap = await new TestCharacterBuilder(actor).addPlaybook(HEAVY_PLAYBOOK).build().buildSnapshot();
+		expect(snap.vitals.damage).toBe("d8");
+	});
+
+	it("a blank override leaves the playbook die in charge", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.withDamage("d10", "")
+			.build();
+		const snap = await new TestCharacterBuilder(actor).addPlaybook(HEAVY_PLAYBOOK).build().buildSnapshot();
+		expect(snap.vitals.damage).toBe("d10");
+	});
+
+	it("an override stands on a character with no playbook", async () => {
+		const actor = new FakeActorBuilder().withDamage("d4", "d8").build();
+		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
+		expect(snap.vitals.damage).toBe("d8");
+		expect(snap.vitals.damageBase).toBeNull();
 	});
 
 	it("armor is derived from checked inventory items", async () => {
@@ -691,6 +760,41 @@ describe("buildSnapshot — moves", () => {
 			rollType: "str",
 			sourceLabel: "Granted by Versatile · The Heavy",
 		});
+	});
+
+	// A foreign move dropped straight onto the sheet from the compendium carries no
+	// `grantedBy` flag, and its own playbook keeps it out of the playbook category — so it
+	// used to render in NO category: invisible on the sheet, yet owned, which also hid its
+	// name from the Versatile picker (that skips names the actor already owns). The player
+	// could see neither the move nor any way to get rid of it.
+	it("shows an UNFLAGGED foreign move under Learned Moves, labeled with its origin playbook", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-would-be-hero", "The Would-Be Hero")
+			.addItem({
+				_id: "stray1", type: "move", name: "Smash",
+				system: { moveType: "playbook", playbook: "The Heavy", description: "Smash desc", rollType: "str" },
+			})
+			.build();
+		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
+		const learned = snap.moves.find(c => c.key === "learned");
+		expect(learned.moves.map(m => m.name)).toEqual(["Smash"]);
+		// No granter to name, so it wears the origin playbook alone — not "Granted by —".
+		expect(learned.moves[0]).toMatchObject({ owned: true, ownedId: "stray1", sourceLabel: "The Heavy" });
+	});
+
+	// The catch-all must not double-render: a move the playbook category already shows
+	// belongs there and nowhere else.
+	it("does NOT re-list an own-playbook move the playbook category already shows", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.addItem({ _id: "o1", type: "move", name: "Bravo", system: { moveType: "playbook" } })
+			.build();
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(HEAVY_PLAYBOOK))
+			.addPlaybookMove(makeMove("pm2", "Bravo"))
+			.build().buildSnapshot();
+		expect(snap.moves.find(c => c.key === "playbook").moves.map(m => m.name)).toEqual(["Bravo"]);
+		expect(snap.moves.find(c => c.key === "learned")).toBeUndefined();
 	});
 
 	it("owned playbook moves are listed before unowned playbook moves", async () => {

@@ -30,6 +30,8 @@ import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { onHotbarDrop } from "./module/hooks/HotbarDrop.js";
 import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
 import { onDropFollower } from "./module/hooks/FollowerDrop.js";
+import { onPreUpdateActorDeathsDoor, onUpdateActorDeathsDoorAutoOpen, onUpdateActorDeathsDoorRaised, wireDyingPrompt } from "./module/hooks/DeathsDoorPrompt.js";
+import { deathDripStamp, markDeathDrip } from "./module/hooks/DeathChatDrip.js";
 import { onPreCreateThreatNote } from "./module/hooks/ThreatNotePins.js";
 import { onDrawStonetopNote } from "./module/hooks/StonetopNoteLabels.js";
 import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
@@ -40,12 +42,18 @@ import { addJournalShareButton } from "./module/journal/share-journal.js";
 import { patchJournalImagePopoutTitles } from "./module/journal/journal-image-titles.js";
 import { onRenderPause } from "./module/hooks/RenderPause.js";
 import { onRenderCompendiumItemIcons } from "./module/hooks/CompendiumItemIcons.js";
-import { onRenderActorDirectoryPortraits, onUpdateActorPortraitFrame } from "./module/hooks/ActorDirectoryPortraits.js";
+import { decoratePortraitRow, onUpdateActorPortraitFrame } from "./module/hooks/ActorDirectoryPortraits.js";
+import { decorateNameRow, onUpdateActorPlaybookName } from "./module/hooks/ActorDirectoryNames.js";
+import { decorateActorDirectoryRows } from "./module/hooks/actor-directory-rows.js";
+import { onUpdateCondemned } from "./module/hooks/CondemnedTag.js";
+import { characterFullName } from "./module/utils/playbook-actors.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
-import { rollSeasonsCard, sign, SPRING_SEASONS_RESULT, xpToLevelUp } from "./module/utils/roll-engine.js";
-import { formatOutcomeDetail } from "./module/utils/strings.js";
+import { rollSeasonsCard, sign, SPRING_SEASONS_RESULT, xpToLevelUp, markMissXp } from "./module/utils/roll-engine.js";
+import { formatOutcomeDetail, escHtml } from "./module/utils/strings.js";
+import { moveChatCard } from "./module/utils/chat.js";
+import { isKnowThings, logbookUses, LOGBOOK, STRONG_HIT_TOTAL } from "./module/actors/character/know-things.js";
 import { wireAttackConfirm, wireApplyDamage, wireSufferAttack } from "./module/combat/attack-flow.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
 import { wrapGlyphTextContainers } from "./module/utils/glyphs.js";
@@ -61,7 +69,7 @@ import { maybeAnnounceBecameHero } from "./module/actors/character/WouldBeHeroAs
 import { StonetopSteading } from "./module/actors/steading/StonetopSteading.js";
 import { onSteadingPeopleUpdate, repaintOpenSteadingRosters } from "./module/actors/steading/steading-people.js";
 import { makeDialogsResizable, enableAutoHeightVerticalResize } from "./module/utils/resizable-dialogs.js";
-import { registerStonetopWindowTheme } from "./module/utils/window-theme.js";
+import { registerStonetopWindowTheme, registerStonetopLightTheme } from "./module/utils/window-theme.js";
 import { installWindowRestore } from "./module/utils/window-restore.js";
 import { registerUuidRedirects } from "./module/migration/compat.js";
 import { adoptLegacyClientSettings } from "./module/migration/copy-settings.js";
@@ -100,6 +108,11 @@ Hooks.once("init", () => {
 	// Skin a curated allowlist of core Foundry windows (e.g. User Configuration)
 	// to match our sheets/modals; scoped to a marker class so nothing else moves.
 	registerStonetopWindowTheme();
+
+	// Our parchment skin has no dark variant, so hold every Stonetop window to the
+	// light theme even in a dark-mode world. Core already does this for AppV1; this
+	// covers our ApplicationV2 windows. Native Foundry windows are left alone.
+	registerStonetopLightTheme();
 
 	// Track open document sheets + their geometry and reopen them at the same spot on
 	// the next reload (per-client; toggled by the "Restore Open Windows on Reload"
@@ -320,8 +333,10 @@ Hooks.once("init", () => {
 		"stonetop.arcanum-sheet-edit": "systems/stonetop-pwd/templates/item/arcanum-sheet-edit.hbs",
 		"stonetop.actor-header":     "systems/stonetop-pwd/templates/actor/partials/actor-header.hbs",
 		"stonetop.portrait-frame-pip": "systems/stonetop-pwd/templates/actor/partials/portrait-frame-pip.hbs",
+		"stonetop.condemned-tag":     "systems/stonetop-pwd/templates/actor/partials/condemned-tag.hbs",
 		"stonetop.actor-stats":      "systems/stonetop-pwd/templates/actor/partials/actor-stats.hbs",
 		"stonetop.actor-vitals":     "systems/stonetop-pwd/templates/actor/partials/actor-vitals.hbs",
+		"stonetop.stat-block":       "systems/stonetop-pwd/templates/actor/partials/stat-block.hbs",
 		"stonetop.tab-details":      "systems/stonetop-pwd/templates/actor/partials/tab-details.hbs",
 		"stonetop.tab-moves":        "systems/stonetop-pwd/templates/actor/partials/tab-moves.hbs",
 		"stonetop.tab-equipment":    "systems/stonetop-pwd/templates/actor/partials/tab-equipment.hbs",
@@ -331,8 +346,15 @@ Hooks.once("init", () => {
 		"stonetop.tab-post-death":      "systems/stonetop-pwd/templates/actor/partials/tab-post-death.hbs",
 		"stonetop.tab-special-moves":   "systems/stonetop-pwd/templates/actor/partials/tab-special-moves.hbs",
 		"stonetop.tab-notes":           "systems/stonetop-pwd/templates/actor/partials/tab-notes.hbs",
+		"stonetop.tab-rail-item":       "systems/stonetop-pwd/templates/actor/partials/tab-rail-item.hbs",
+		"stonetop.tab-nav-item":        "systems/stonetop-pwd/templates/actor/partials/tab-nav-item.hbs",
+		"stonetop.npc-quick-facts":     "systems/stonetop-pwd/templates/actor/partials/npc-quick-facts.hbs",
+		"stonetop.npc-tab-nav":         "systems/stonetop-pwd/templates/actor/partials/npc-tab-nav.hbs",
 		"stonetop.move-group":           "systems/stonetop-pwd/templates/actor/partials/move-group.hbs",
 		"stonetop.tab-search-control":   "systems/stonetop-pwd/templates/actor/partials/tab-search-control.hbs",
+		"stonetop.catalog-shell":        "systems/stonetop-pwd/templates/dialogs/partials/catalog-shell.hbs",
+		// Rendered by BOTH Death's Door's last step and the standalone Post-Death chooser.
+		"stonetop.post-death-choices":   "systems/stonetop-pwd/templates/dialogs/partials/post-death-choices.hbs",
 		"stonetop.move-mark-level":      "systems/stonetop-pwd/templates/actor/partials/move-mark-level.hbs",
 		"stonetop.sidebar-move-list":    "systems/stonetop-pwd/templates/actor/partials/sidebar-move-list.hbs",
 		"stonetop.lore-section":          "systems/stonetop-pwd/templates/actor/partials/lore-section.hbs",
@@ -353,7 +375,13 @@ Hooks.once("init", () => {
 		"stonetop.inv-item-regular": "systems/stonetop-pwd/templates/actor/partials/inv-item-regular.hbs",
 		"stonetop.inv-item-small":   "systems/stonetop-pwd/templates/actor/partials/inv-item-small.hbs",
 		"stonetop.choice-gear-row":  "systems/stonetop-pwd/templates/actor/partials/choice-gear-row.hbs",
+		"stonetop.roll-mode-picker": "systems/stonetop-pwd/templates/actor/partials/roll-mode-picker.hbs",
+		"stonetop.roll-mode-radios": "systems/stonetop-pwd/templates/actor/partials/roll-mode-radios.hbs",
 		"stonetop.steading-section-toggle":   "systems/stonetop-pwd/templates/actor/partials/steading-section-toggle.hbs",
+		"stonetop.steading-stats-bar":        "systems/stonetop-pwd/templates/actor/partials/steading-stats-bar.hbs",
+		"stonetop.steading-settlements-card": "systems/stonetop-pwd/templates/actor/partials/steading-settlements-card.hbs",
+		"stonetop.steading-moves-sidebar":    "systems/stonetop-pwd/templates/actor/partials/steading-moves-sidebar.hbs",
+		"stonetop.steading-move-controls":    "systems/stonetop-pwd/templates/actor/partials/steading-move-controls.hbs",
 		"stonetop.steading-tab-overview":     "systems/stonetop-pwd/templates/actor/partials/steading-tab-overview.hbs",
 		"stonetop.steading-tab-neighbors":    "systems/stonetop-pwd/templates/actor/partials/steading-tab-neighbors.hbs",
 		"stonetop.steading-tab-improvements": "systems/stonetop-pwd/templates/actor/partials/steading-tab-improvements.hbs",
@@ -375,6 +403,7 @@ Hooks.once("init", () => {
 		"stonetop.guide-toc":                 "systems/stonetop-pwd/templates/dialogs/partials/guide-toc.hbs",
 		"stonetop.intros-capture-head":       "systems/stonetop-pwd/templates/dialogs/partials/intros-capture-head.hbs",
 		"stonetop.threat-string-list":        "systems/stonetop-pwd/templates/dialogs/partials/threat-string-list.hbs",
+		"stonetop.deaths-door-outcomes":      "systems/stonetop-pwd/templates/dialogs/partials/deaths-door-outcomes.hbs",
 		"stonetop.card-doom-track":           "systems/stonetop-pwd/templates/journal/partials/card-doom-track.hbs",
 		"stonetop.card-gm-moves":             "systems/stonetop-pwd/templates/journal/partials/card-gm-moves.hbs",
 		"stonetop.card-player-moves":         "systems/stonetop-pwd/templates/journal/partials/card-player-moves.hbs",
@@ -394,17 +423,30 @@ Hooks.on("pauseGame", (paused) => paused && onRenderPause());
 // and never build a document, so they need this. See module/hooks/CompendiumItemIcons.js.
 Hooks.on("renderDocumentDirectory", onRenderCompendiumItemIcons);
 
-// -- ACTORS SIDEBAR PORTRAIT FRAMES ----------------------------
-// A chosen crop is a rect on a flag, so core's bare `<img src>` rows show the uncropped picture.
-// Wrap each framed row's image in a clipping box and paint the same style the sheets do, so a
-// person's face is the same face in the sidebar as everywhere else.
+// -- ACTORS SIDEBAR ROW DECORATION -----------------------------
+// Two features paint these rows and they share one walk over them (the row list and the
+// per-row `collection.get` are the cost; doing them twice on the same event is pure waste):
 //
-// The updateActor half is not optional: core redraws the directory for name / img / sort / folder
-// and nothing else, so a frame — which lives in flags — would otherwise not show up until the
-// world was reloaded. It repaints the one row rather than re-rendering the directory, so cropping
-// a face costs nobody their scroll position. See module/hooks/ActorDirectoryPortraits.js.
-Hooks.on("renderDocumentDirectory", onRenderActorDirectoryPortraits);
+//   PORTRAIT FRAMES — a chosen crop is a rect on a flag, so core's bare `<img src>` rows show
+//     the uncropped picture. Each framed row's image is wrapped in a clipping box painted with
+//     the same style the sheets use, so a person's face is the same face everywhere.
+//   PLAYBOOK EPITHETS — name the player characters the way the table does, "Pim The
+//     Lightbearer". Appended to the row, never written to the document.
+//
+// The updateActor halves are not optional: core redraws the directory for name / img / sort /
+// folder and nothing else, so a frame (in `flags`) or a playbook (in `system`) would otherwise
+// not show up until the world was reloaded. Each repaints its ONE row rather than re-rendering
+// the directory, so nobody's scroll position moves. See module/hooks/actor-directory-rows.js.
+Hooks.on("renderDocumentDirectory", (app, element) =>
+	decorateActorDirectoryRows(app, element, [decoratePortraitRow, decorateNameRow]));
 Hooks.on("updateActor", onUpdateActorPortraitFrame);
+Hooks.on("updateActor", onUpdateActorPlaybookName);
+
+// -- THE JUDGE'S BRAND -----------------------------------------
+// A Condemn brand is stored on the JUDGE but WORN by the person branded, so core re-renders the
+// wrong sheet when one is laid or lifted. Repaint the affected targets by hand.
+// See module/hooks/CondemnedTag.js.
+Hooks.on("updateActor", onUpdateCondemned);
 
 // -- READY -----------------------------------------------------
 Hooks.once("ready", onReady);
@@ -582,13 +624,37 @@ Hooks.on("preUpdateActor", (actor, changes) => {
 	}
 });
 
-// -- CHAT SPEAKER ALIAS ----------------------------------------
+// -- DEATH AND DYING -------------------------------------------
+// A PC reduced to 0 HP is dying and must face their 0-HP move (Book I p.245). Record that
+// state on the same write and announce it, naming the move they actually trigger — Death's
+// Door only until they carry a post-death insert.
+Hooks.on("preUpdateActor", onPreUpdateActorDeathsDoor);
+// And, if the table wants it, open that move's walkthrough on the dying player's own screen.
+// A separate hook because it has to run somewhere the preUpdate can't: that fires only on the
+// client applying the damage, which is usually the GM's.
+Hooks.on("updateActor", onUpdateActorDeathsDoorAutoOpen);
+// The other direction: hit points appearing on a sheet that is through the Last Door. Nothing
+// walks `dead` back on its own, so this asks whoever made the change whether it was a raising.
+Hooks.on("updateActor", onUpdateActorDeathsDoorRaised);
+
+// -- CHAT SPEAKER: ALIAS AND DEATH -----------------------------
+// Two stamps a character's message carries from the moment it is created: the playbook in the
+// speaker's name, and — for a PC past the Last Door — the kind of death behind them, which the
+// render pass turns into the fringe under the card. Both are written in one updateSource so a
+// message costs one source edit, not two.
 Hooks.on("preCreateChatMessage", (message) => {
 	const actor = _speakerActor(message);
 	if (!actor || actor.type !== "character") return;
-	const playbookName = actor.system?.playbook?.name ?? "";
-	if (!playbookName) return;
-	message.updateSource({ "speaker.alias": `${actor.name} ${playbookName}` });
+
+	const changes = {};
+	// The same long name the Actors sidebar and the steading's roster show — including the
+	// Would-Be Hero's mid-campaign rename, which this used to miss by reading the stored
+	// playbook name directly (a crossed-off hero spoke as "Would-Be" forever).
+	const fullName = characterFullName(actor);
+	if (fullName !== actor.name) changes["speaker.alias"] = fullName;
+	Object.assign(changes, deathDripStamp(actor) ?? {});
+
+	if (Object.keys(changes).length) message.updateSource(changes);
 });
 
 // -- BLIND / PRIVATE ROLLS -------------------------------------
@@ -632,6 +698,34 @@ function _chatWireBook2ArtReminder(message, html) {
 	if (!btn) return;
 	if (!game.user.isGM) { btn.style.display = "none"; return; }
 	btn.addEventListener("click", () => game.stonetop?.importBookArt?.());
+}
+
+// -- SHEET LAYOUT OFFER CARD ----------------------------------
+// The card that tells an upgraded world its sheets stayed on the classic layout, and the
+// one offering the way back that pressing its button posts (utils/sheet-layout.js). One
+// handler for both: the target layout rides on the button's data-layout.
+//
+// The setting it writes is world-scoped, so this really is GM-only rather than defensively
+// so; the card is whispered to GMs, and the footer points everyone else at their own row in
+// Configure Settings.
+//
+// There is ONE such card per world and the flip EDITS it, so pressing the button rewrites the
+// very card it sits on — headline, prose and button all flip to the other direction. Which is
+// why nothing here has to report success: the update re-renders the message, this handler runs
+// again on the new markup, and the button the user is looking at is already the way back. Only
+// the failure path touches the DOM (re-enable), and the in-flight disable is there so a double
+// click cannot start a second write against a card that is about to be replaced.
+function _chatWireLayoutSwitch(message, html) {
+	const btn = html.querySelector(".stonetop-layout-switch");
+	if (!btn) return;
+	if (!game.user.isGM) { btn.style.display = "none"; return; }
+	btn.addEventListener("click", async () => {
+		if (btn.disabled) return;
+		btn.disabled = true;
+		const { setWorldSheetLayout } = await import("./module/utils/sheet-layout.js");
+		if (await setWorldSheetLayout(btn.dataset.layout)) return;
+		btn.disabled = false;   // refused (not a GM after all) - leave the card usable
+	});
 }
 
 // -- REBUILD DETAIL PORTRAITS CARD -----------------------------
@@ -760,7 +854,9 @@ function _chatWireBurnBrightly(message, html) {
 			return;
 		}
 		try {
-			const playbookName = actor.system?.playbook?.name ?? "";
+			// Read before the update, so the re-stamped alias is the one the card was created
+			// with rather than whatever the actor has become mid-click.
+			const fullName = characterFullName(actor);
 			await actor.update({ "system.attributes.xp.value": currentXp - 2 });
 			const newXp = currentXp - 2;
 			const maxXp = xpToLevelUp(currentLevel);
@@ -775,7 +871,7 @@ function _chatWireBurnBrightly(message, html) {
 			// same dice-term math the ± roll-shift buttons use, so the two never drift.
 			await _shiftRoll(roll, 1);
 
-			const speakerUpdate = playbookName ? { alias: `${actor.name} ${playbookName}` } : {};
+			const speakerUpdate = fullName !== actor.name ? { alias: fullName } : {};
 			await message.update({
 				rolls,
 				// Regenerate the card so the readout, result label and per-tier outcome reflect the +1.
@@ -785,6 +881,172 @@ function _chatWireBurnBrightly(message, html) {
 			});
 		} catch (err) {
 			console.error("Stonetop | Error burning brightly:", err);
+			btn.disabled = false;
+		}
+	});
+}
+
+// -- KNOW THINGS: the moves that reach back into a landed roll --
+//
+// Two Seeker moves act on a Know Things roll AFTER the dice land, so both live on the card:
+//   Never at a Loss — "you may choose to not mark XP" on a 6-. The automatic mark was suppressed
+//     at roll time (see StonetopItem.roll), so one of these two buttons has to be pressed for the
+//     XP to happen at all. Rendered as failure-tier actions, so a GM Shift Up hides them.
+//   Logbook — "expend a use ... treat the result as a 10+". Spends a use and pads the roll's
+//     shift term up to exactly 10, reusing the same term math the GM's Shift buttons use.
+//
+// Caveat worth knowing: a later GM Shift Down can take a padded 10 back to 9 and revoke the
+// guarantee, because _shiftRollCardFlavor derives the tier from the total alone and has no notion
+// of a locked tier. That's a GM overriding a player's spend, which is their call to make.
+
+/** The move a roll card came from, as stamped by StonetopItem.roll. Null for non-move rolls. */
+function _cardMoveName(message) {
+	return message.getFlag("stonetop-pwd", "move") ?? null;
+}
+
+/**
+ * Bring an arcanum's identification up to the card's CURRENT tier.
+ *
+ * Identifying a face-down arcanum by Knowing Things about it commits its outcome at roll time
+ * (_onArcanumKnowThings), which is right for the roll and wrong for everything that rewrites the
+ * tier afterwards: the Logbook's "expend a use … treat the result as a 10+" re-labelled the card a
+ * Strong Hit and said "You read the card, front and back" while leaving the arcanum front-only with
+ * its back still owed — the player spent a limited resource and got exactly what the 7-9 had
+ * already given them. A GM Shift Up out of a 6- read the same way, promising a card nobody had
+ * been shown. The slug rides on the message (see the roll's messageFlags) so both routes can
+ * finish the job here rather than each keeping their own copy of p.440's ladder.
+ *
+ * UPGRADES ONLY. A Shift Down may take a padded 10 back to 9 — that's a GM overriding a player's
+ * spend, and their call — but it cannot un-read a card the player has already been shown, and
+ * re-applying the weak hit's outcome would re-open a settled back debt. So a tier at or below what
+ * the arcanum already carries writes nothing.
+ */
+async function _syncArcanumIdentification(message, actor, total) {
+	const slug = message.getFlag("stonetop-pwd", "arcanum");
+	const character = actor?.typedActor;
+	if (!slug || !character) return;
+
+	const key  = _classifyShiftedTotal(Number(total) || 0).key;
+	const opts = { stonetopMove: "Know Things" };
+	try {
+		if (key === "success" || key === "critical") {
+			// Already read front and back? Then there is nothing to grant, and identifyAndReveal
+			// would be a no-op write that re-renders every open sheet.
+			if (character.revealedArcanaSlugs?.has?.(slug) && !character.backOwedArcanaSlugs?.has?.(slug)) return;
+			await character.identifyAndRevealArcanum(slug, opts);
+		} else if (key === "partial") {
+			if (character.identifiedArcanaSlugs?.has?.(slug)) return;   // a 6- shifted up to a 7-9 only
+			await character.identifyFrontOwedArcanum(slug, opts);
+		} else return;
+		actor.sheet?.render(false);
+	} catch (err) {
+		console.error("Stonetop | Error re-applying the arcanum's identification:", err);
+	}
+}
+
+// Burn Brightly gates on actor.isOwner but then calls message.update(), which throws when the GM
+// rolled on a player's behalf. Both handlers below need BOTH rights, so check them together.
+function _canRewriteCard(message, actor) {
+	if (!actor || actor.type !== "character" || !actor.isOwner) return false;
+	return message.canUserModify?.(game.user, "update") ?? game.user.isGM;
+}
+
+function _chatWireKnowThings(message, html) {
+	const card = html.querySelector(".stonetop-roll-card");
+	if (!card || !isKnowThings(_cardMoveName(message))) return;
+	const actor = _speakerActor(message);
+	if (!_canRewriteCard(message, actor)) return;
+	_wireNeverAtALoss(message, html, actor);
+	_wireLogbook(message, html, actor, card);
+}
+
+// The two failure-tier buttons. The choice latches on the message so a re-render (or a second
+// click) can't mark the XP twice.
+function _wireNeverAtALoss(message, html, actor) {
+	const buttons = html.querySelectorAll(".stonetop-know-things-xp");
+	if (!buttons.length) return;
+	const chosen = message.getFlag("stonetop-pwd", "knowThingsXp") ?? null;
+	for (const btn of buttons) {
+		if (chosen) {
+			btn.disabled = true;
+			btn.classList.toggle("is-chosen", btn.dataset.choice === chosen);
+			continue;
+		}
+		btn.addEventListener("click", async () => {
+			for (const b of buttons) b.disabled = true;
+			const choice = btn.dataset.choice;
+			try {
+				await message.setFlag("stonetop-pwd", "knowThingsXp", choice);
+				if (choice === "mark") return void await markMissXp(actor, "Know Things");
+				await ChatMessage.create({
+					content: moveChatCard("Never at a Loss",
+						`<p><strong>${escHtml(actor.name)}</strong> declines the XP. The GM tells them nothing`
+						+ ` interesting or useful about the subject &mdash; but does tell them how they could learn more.</p>`),
+					speaker: ChatMessage.getSpeaker({ actor }),
+				});
+			} catch (err) {
+				console.error("Stonetop | Error resolving Never at a Loss:", err);
+				for (const b of buttons) b.disabled = false;
+			}
+		});
+	}
+}
+
+// "expend a use ... treat the result as a 10+". Only offered while the card is still below a
+// strong hit and the logbook still has a use in it.
+function _wireLogbook(message, html, actor, card) {
+	if (message.getFlag("stonetop-pwd", "knowThingsUpgrade")) return;
+	const roll = message.rolls?.at(0);
+	if (!roll || roll.total >= STRONG_HIT_TOTAL) return;
+
+	const uses = logbookUses(actor, actor.typedActor?.moveResources?.getMoveResources?.() ?? {});
+	if (!uses || uses.left <= 0) return;
+
+	const cardButtons = card.querySelector(".stonetop-card-buttons");
+	if (!cardButtons) return;
+	const btn = document.createElement("button");
+	btn.className = "stonetop-logbook-btn";
+	btn.innerHTML = `<i class="fas fa-book"></i> Consult your logbook`;
+	btn.dataset.tooltip = `Expend a use (${uses.left} of ${uses.max} left) to ignore this roll and treat the result as a 10+.`;
+	btn.dataset.tooltipDirection = "UP";
+	cardButtons.appendChild(btn);
+	cardButtons.style.display = "flex";
+
+	btn.addEventListener("click", async () => {
+		btn.disabled = true;
+		try {
+			// Re-read at click time: the track may have been spent elsewhere since this rendered.
+			const now = logbookUses(actor, actor.typedActor?.moveResources?.getMoveResources?.() ?? {});
+			if (!now || now.left <= 0) {
+				ui.notifications.warn("Your logbook has no uses left.");
+				return;
+			}
+			// A move track counts uses SPENT, so expending one increments. Routed through the
+			// class that owns that storage shape — the same door the sheet's pips use — so the
+			// flag path is spelled out in one place. Attributed for the ledger.
+			await actor.typedActor.moveResources.setUses(LOGBOOK, now.spent + 1, { stonetopMove: LOGBOOK });
+			// Pad to exactly 10. _shiftRoll only steps by one, and stopping at 10 keeps the card
+			// off the 12+ "critical" label a bigger pad would earn.
+			const rolls = message.rolls;
+			const shifted = rolls.at(0);
+			while (shifted.total < STRONG_HIT_TOTAL) await _shiftRoll(shifted, 1);
+			await message.update({
+				rolls,
+				flavor: _shiftRollCardFlavor(message.flavor, shifted.total, shifted.formula),
+				flags:  { "stonetop-pwd": { knowThingsUpgrade: LOGBOOK } },
+			});
+			await ChatMessage.create({
+				content: moveChatCard("Logbook",
+					`<p><strong>${escHtml(actor.name)}</strong> consults their logbook and expends a use`
+					+ ` (${now.left - 1} of ${now.max} left), treating that roll as a 10+.</p>`),
+				speaker: ChatMessage.getSpeaker({ actor }),
+			});
+			// If this roll was identifying an arcanum, the 10+ the use just bought has to actually
+			// hand the card over — the outcome was committed when the dice landed.
+			await _syncArcanumIdentification(message, actor, shifted.total);
+			actor.sheet?.render(false);
+		} catch (err) {
+			console.error("Stonetop | Error consulting the logbook:", err);
 			btn.disabled = false;
 		}
 	});
@@ -876,22 +1138,29 @@ Hooks.on("createItem", (item, options, userId) => maybeAnnounceBecameHero(item, 
 
 // One render hook drives all of the above, in this order: the blind-roll strip
 // MUST run first (it removes our card so the button-wiring helpers below no-op
-// for viewers who can't see the result), then prose treatment, then the button
-// and annotation passes. A single dispatch beats nine separate hook registrations
-// each re-scanning the same message DOM on every chat render.
+// for viewers who can't see the result), then the message-root passes, then prose
+// treatment, then the button and annotation passes. A single dispatch beats nine
+// separate hook registrations each re-scanning the same message DOM on every chat
+// render.
 Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatStripBlindRoll(message, html);
+	markDeathDrip(message, html);
 	_chatProseTreatment(message, html);
 	_chatWireStartupWelcome(message, html);
 	_chatWireBook2ArtReminder(message, html);
 	_chatWireRebuildCrops(message, html);
+	_chatWireLayoutSwitch(message, html);
 	_chatWireDescToggle(message, html);
 	_chatAnnotateDebility(message, html);
 	_chatWireRollShifting(message, html);
 	_chatWireBurnBrightly(message, html);
+	// After the roll-shift pass (which hides the button row from non-GMs) and after Burn
+	// Brightly, so the logbook pill sits to its right in the shared button row.
+	_chatWireKnowThings(message, html);
 	_chatWireRequisitionMissCost(message, html);
 	_chatWireSeasonsRoll(message, html);
 	_chatWireLoveLetterPicks(message, html);
+	wireDyingPrompt(message, html);
 	wireAttackConfirm(message, html);
 	wireApplyDamage(message, html);
 	wireSufferAttack(message, html);
@@ -938,6 +1207,10 @@ async function _onRollShift(event, message) {
 			rolls:  message.rolls,
 			flavor: _shiftRollCardFlavor(message.flavor, roll.total, roll.formula),
 		});
+		// A shifted Know Things card that was identifying an arcanum has to carry the new tier's
+		// disclosure with it, or a Shift Up says "You read the card, front and back" over a card
+		// still face down. No-op for every other roll — the flag is only on that one.
+		await _syncArcanumIdentification(message, _speakerActor(message), roll.total);
 	} catch (err) {
 		console.error("Stonetop | Error shifting roll result:", err);
 	} finally {

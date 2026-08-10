@@ -110,7 +110,7 @@
           "options": [
             {
               "slug": "a-festering-rot",
-              "description": "<p><strong>A FESTERING ROT</strong> &mdash; Reduce your max HP by 2.</p><p>You are unharmed by poison, disease, caustic substances, and vermin bites. Things in your presence rot, crack, corrode, and spoil.</p><p>When you <strong><em>roll doubles</em></strong>, something on your person is ruined. The GM will tell you what, and how.</p>",
+              "description": "<p><strong>A FESTERING ROT</strong> &mdash; You are unharmed by poison, disease, caustic substances, and vermin bites. Things in your presence rot, crack, corrode, and spoil.</p><p>When you <strong><em>roll doubles</em></strong>, something on your person is ruined. The GM will tell you what, and how.</p>",
               "max": 1,
               "requires": null
             },

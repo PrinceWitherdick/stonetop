@@ -1,0 +1,189 @@
+{{!-- The steading's six stat columns: Surplus, Fortunes, Size, Population, Prosperity,
+      Defenses, and the Debilities checkboxes. Its own partial rather than markup inline in
+      the Overview tab because it is one region with its own reflow rules, and it used to sit
+      above the tabs as a permanent band — this file is what that band became. Now the first
+      block of the Overview tab; the sheet's constant top is the title alone. --}}
+<div class="steading-stats-bar">
+
+	{{!-- Surplus + Fortunes: the steading's seasonal stores and standing. Paired
+	      into one card so Fortunes' track fills the width the lone Surplus number
+	      used to leave empty. Each half keeps its own hover edit pencil. --}}
+	<div class="steading-statsbar-pair steading-statsbar-combo">
+		<div class="steading-combo-cell steading-combo-cell--left steading-edit-section{{#unless stonetop.edit.fortunes}} stonetop-readonly{{/unless}}">
+			{{> "stonetop.steading-section-toggle" section="fortunes" editing=stonetop.edit.fortunes collapse="fortunes"}}
+			<div class="steading-stat-block">
+				<div class="steading-stat-label-row">
+					<span class="steading-stat-label" data-steading-stat="fortunes">Fortunes</span>
+					{{#if stonetop.edit.fortunes}}<span class="steading-stat-hint">Starts at +1</span>{{/if}}
+				</div>
+				<div class="steading-track">
+					{{#each (steadingTrack stonetop.system.stats.fortunes.value 1)}}
+					<label class="steading-track-option {{#if checked}}is-selected{{/if}}">
+						<input type="radio" name="system.stats.fortunes.value" value="{{val}}" {{#if checked}}checked{{/if}} {{#unless ../stonetop.edit.fortunes}}disabled{{/unless}}>
+						<span class="steading-track-label">{{label}}</span>
+					</label>
+					{{/each}}
+				</div>
+			</div>
+		</div>
+		<div class="steading-combo-cell steading-edit-section{{#unless stonetop.edit.surplus}} stonetop-readonly{{/unless}}">
+			{{> "stonetop.steading-section-toggle" section="surplus" editing=stonetop.edit.surplus collapse="surplus"}}
+			<div class="steading-surplus-block">
+				<div class="steading-stat-label-row">
+					<span class="steading-stat-label" data-steading-stat="surplus">Surplus</span>
+					{{#if stonetop.edit.surplus}}<span class="steading-stat-hint">Starts at 1</span>{{/if}}
+				</div>
+				{{#if stonetop.edit.surplus}}
+				<input class="steading-surplus-input" type="number" name="system.attributes.surplus.value"
+				       value="{{stonetop.system.attributes.surplus.value}}" min="0" max="99">
+				{{else}}
+				<span class="steading-surplus-value">{{stonetop.system.attributes.surplus.value}}</span>
+				{{/if}}
+			</div>
+		</div>
+	</div>
+
+	{{!-- Population + Size: both describe the people of the steading, so they share
+	      one card. Size shows the four tiers compactly (its ranges live in the label
+	      tooltip); Population keeps its rolled track. --}}
+	<div class="steading-statsbar-pair steading-statsbar-combo">
+		<div class="steading-combo-cell steading-combo-cell--left steading-edit-section{{#unless stonetop.edit.size}} stonetop-readonly{{/unless}}">
+			{{> "stonetop.steading-section-toggle" section="size" editing=stonetop.edit.size collapse="size"}}
+			<div class="steading-stat-block">
+				<div class="steading-stat-label-row">
+					<span class="steading-stat-label" data-steading-stat="size">Size</span>
+					{{#if stonetop.edit.size}}<span class="steading-stat-hint">Starts at village</span>{{/if}}
+				</div>
+				<div class="steading-size-options">
+					<label class="steading-size-option">
+						<input type="radio" class="steading-size-radio" value="hamlet"
+						       {{#if (eq stonetop.size "hamlet")}}checked{{/if}} {{#unless stonetop.edit.size}}disabled{{/unless}}>
+						<span><em>hamlet</em></span>
+					</label>
+					<label class="steading-size-option">
+						<input type="radio" class="steading-size-radio" value="village"
+						       {{#if (eq stonetop.size "village")}}checked{{/if}} {{#unless stonetop.edit.size}}disabled{{/unless}}>
+						<span><em>village</em></span>
+					</label>
+					<label class="steading-size-option">
+						<input type="radio" class="steading-size-radio" value="town"
+						       {{#if (eq stonetop.size "town")}}checked{{/if}} {{#unless stonetop.edit.size}}disabled{{/unless}}>
+						<span><em>town</em></span>
+					</label>
+					<label class="steading-size-option">
+						<input type="radio" class="steading-size-radio" value="city"
+						       {{#if (eq stonetop.size "city")}}checked{{/if}} {{#unless stonetop.edit.size}}disabled{{/unless}}>
+						<span><em>city</em></span>
+					</label>
+				</div>
+			</div>
+		</div>
+		<div class="steading-combo-cell steading-edit-section{{#unless stonetop.edit.population}} stonetop-readonly{{/unless}}">
+			{{> "stonetop.steading-section-toggle" section="population" editing=stonetop.edit.population collapse="population"}}
+			<div class="steading-stat-block">
+				<div class="steading-stat-label-row">
+					<span class="steading-stat-label" data-steading-stat="population">Population</span>
+					{{#if stonetop.edit.population}}<span class="steading-stat-hint">Starts at +0</span>{{/if}}
+				</div>
+				<div class="steading-track">
+					{{#each (steadingTrack stonetop.system.attributes.population.value 0)}}
+					<label class="steading-track-option {{#if checked}}is-selected{{/if}}">
+						<input type="radio" name="system.attributes.population.value" value="{{val}}" {{#if checked}}checked{{/if}} {{#unless ../stonetop.edit.population}}disabled{{/unless}}>
+						<span class="steading-track-label">{{label}}</span>
+					</label>
+					{{/each}}
+				</div>
+			</div>
+		</div>
+	</div>
+
+	{{!-- Prosperity --}}
+	<div class="steading-statsbar-pair steading-edit-section{{#unless stonetop.edit.prosperity}} stonetop-readonly{{/unless}}">
+		{{> "stonetop.steading-section-toggle" section="prosperity" editing=stonetop.edit.prosperity collapse="prosperity"}}
+		<div class="steading-stat-block">
+			<div class="steading-stat-label-row">
+				<span class="steading-stat-label" data-steading-stat="prosperity">Prosperity</span>
+				{{#if stonetop.edit.prosperity}}<span class="steading-stat-hint">Starts at +0</span>{{/if}}
+			</div>
+			<div class="steading-track">
+				{{#each (steadingTrack stonetop.system.attributes.prosperity.value 0)}}
+				<label class="steading-track-option {{#if checked}}is-selected{{/if}}">
+					<input type="radio" name="system.attributes.prosperity.value" value="{{val}}" {{#if checked}}checked{{/if}} {{#unless ../stonetop.edit.prosperity}}disabled{{/unless}}>
+					<span class="steading-track-label">{{label}}</span>
+				</label>
+				{{/each}}
+			</div>
+		</div>
+	</div>
+
+	{{!-- Defenses --}}
+	<div class="steading-statsbar-pair steading-edit-section{{#unless stonetop.edit.defenses}} stonetop-readonly{{/unless}}">
+		{{> "stonetop.steading-section-toggle" section="defenses" editing=stonetop.edit.defenses collapse="defenses"}}
+		<div class="steading-stat-block steading-defense-track-block">
+			<div class="steading-stat-label-row">
+				<span class="steading-stat-label" data-steading-stat="defenses">Defenses</span>
+				{{#if stonetop.edit.defenses}}<span class="steading-stat-hint">Starts at +0</span>{{/if}}
+			</div>
+			<div class="steading-track">
+				{{#each (steadingDefenseTrack stonetop.system.stats.defenses.value 0)}}
+				<label class="steading-track-option {{#if checked}}is-selected{{/if}}">
+					<input type="radio" name="system.stats.defenses.value" value="{{val}}" {{#if checked}}checked{{/if}} {{#unless ../stonetop.edit.defenses}}disabled{{/unless}}>
+					<span class="steading-track-label">{{label}}</span>
+					<span class="steading-track-sublabel">{{sublabel}}</span>
+				</label>
+				{{/each}}
+			</div>
+		</div>
+	</div>
+
+	{{!-- Debilities are always editable for owners: they flip often during play
+	      and the three checkboxes are low-risk, so they skip the per-section edit
+	      pencil. Non-owners still see them read-only. --}}
+	<div class="steading-statsbar-pair steading-statsbar-pair--debilities">
+		<div class="steading-debilities-section steading-stat-block{{#unless stonetop.canEdit}} stonetop-readonly{{/unless}}">
+			<span class="steading-section-label" data-steading-stat="debilities">Debilities</span>
+			<div class="steading-debilities">
+				<div class="steading-debility">
+					<label class="steading-debility-control"
+					       data-tooltip="Disadvantage to Deploy, Muster, or Pull Together"
+					       data-tooltip-direction="UP">
+						<input type="checkbox" class="steading-debility-check"
+						       name="system.attributes.debilities.options.diminished.value"
+						       {{#if stonetop.system.attributes.debilities.options.diminished.value}}checked{{/if}}>
+						<span class="steading-debility-text">
+							<span class="steading-debility-name">DIMINISHED</span>
+							<span class="steading-debility-desc">by injury/sickness/doubt</span>
+						</span>
+					</label>
+				</div>
+				<div class="steading-debility">
+					<label class="steading-debility-control"
+					       data-tooltip="Treat Prosperity as if it's 1 lower than it is"
+					       data-tooltip-direction="UP">
+						<input type="checkbox" class="steading-debility-check"
+						       name="system.attributes.debilities.options.lacking.value"
+						       {{#if stonetop.system.attributes.debilities.options.lacking.value}}checked{{/if}}>
+						<span class="steading-debility-text">
+							<span class="steading-debility-name">LACKING</span>
+							<span class="steading-debility-desc">due to shortages/hoarding/distrust</span>
+						</span>
+					</label>
+				</div>
+				<div class="steading-debility">
+					<label class="steading-debility-control"
+					       data-tooltip="Fortunes reset to +0 each season, not +1; folks need Persuading more often"
+					       data-tooltip-direction="UP">
+						<input type="checkbox" class="steading-debility-check"
+						       name="system.attributes.debilities.options.malcontent.value"
+						       {{#if stonetop.system.attributes.debilities.options.malcontent.value}}checked{{/if}}>
+						<span class="steading-debility-text">
+							<span class="steading-debility-name">MALCONTENT</span>
+							<span class="steading-debility-desc">from fear/anger/despair</span>
+						</span>
+					</label>
+				</div>
+			</div>
+		</div>
+	</div>
+
+</div>

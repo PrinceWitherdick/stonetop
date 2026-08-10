@@ -645,18 +645,104 @@ describe("CharacterArcana.buildSnapshot()", () => {
 			});
 		});
 
+		// The three rungs of Book I p.440's "Identifying arcana" ladder. `identified` is the
+		// front, `revealed` is the back, `backOwed` is the 7-9's promise of the back later.
+		describe("identify tiers", () => {
+			it("identifyArcanum grants the front only, and owes nothing", async () => {
+				const store = {};
+				const flags = makeFlags(store);
+				await new CharacterArcana(flags, new FakeArcanaRepository()).identifyArcanum("some-slug");
+				expect(store.identified).toEqual(["some-slug"]);
+				expect(store.revealed).toBeUndefined();
+				expect(store.backOwed).toBeUndefined();
+			});
+
+			it("identifyArcanum forwards options so the write is attributable", async () => {
+				const flags = makeFlags();
+				await new CharacterArcana(flags, new FakeArcanaRepository())
+					.identifyArcanum("some-slug", { stonetopMove: "Know Things" });
+				expect(flags.setFlag).toHaveBeenCalledWith("identified", ["some-slug"], { stonetopMove: "Know Things" });
+			});
+
+			it("identifyAndRevealArcanum (10+) grants both sides in ONE batched write", async () => {
+				const store = {};
+				const flags = makeFlags(store);
+				await new CharacterArcana(flags, new FakeArcanaRepository())
+					.identifyAndRevealArcanum("some-slug", { stonetopMove: "Know Things" });
+				expect(flags.batch).toHaveBeenCalledTimes(1);
+				expect(flags.setFlag).not.toHaveBeenCalled();
+				expect(flags.batch.mock.calls[0][1]).toEqual({ stonetopMove: "Know Things" });
+				expect(store.identified).toEqual(["some-slug"]);
+				expect(store.revealed).toEqual(["some-slug"]);
+			});
+
+			it("identifyFrontOwedArcanum (7-9) grants the front and owes the back, never revealing it", async () => {
+				const store = {};
+				const flags = makeFlags(store);
+				await new CharacterArcana(flags, new FakeArcanaRepository()).identifyFrontOwedArcanum("some-slug");
+				expect(flags.batch).toHaveBeenCalledTimes(1);
+				expect(store.identified).toEqual(["some-slug"]);
+				expect(store.backOwed).toEqual(["some-slug"]);
+				expect(store.revealed).toBeUndefined();
+			});
+
+			it("a 10+ after an earlier 7-9 on the same card settles the owed back", async () => {
+				const store = { identified: ["some-slug"], backOwed: ["some-slug"] };
+				const arcana = new CharacterArcana(makeFlags(store), new FakeArcanaRepository());
+				await arcana.identifyAndRevealArcanum("some-slug");
+				expect(store.revealed).toEqual(["some-slug"]);
+				expect(store.backOwed).toEqual([]);
+				expect(store.identified).toEqual(["some-slug"]);   // no duplicate
+			});
+
+			it("revealing an owed back settles the debt in the same write", async () => {
+				const store = { identified: ["a"], backOwed: ["a", "b"] };
+				const flags = makeFlags(store);
+				await new CharacterArcana(flags, new FakeArcanaRepository()).revealArcanum("a");
+				expect(flags.batch).toHaveBeenCalledTimes(1);
+				expect(store.revealed).toEqual(["a"]);
+				expect(store.backOwed).toEqual(["b"]);             // other cards' debts untouched
+			});
+
+			it("revealing a card that owes nothing stays a plain single write", async () => {
+				const flags = makeFlags({ backOwed: ["b"] });
+				await new CharacterArcana(flags, new FakeArcanaRepository()).revealArcanum("a");
+				expect(flags.batch).not.toHaveBeenCalled();
+				expect(flags.setFlag).toHaveBeenCalledWith("revealed", ["a"], undefined);
+			});
+
+			it("removeArcanum clears the owed back, so a re-dropped card carries no stale promise", async () => {
+				const flags = makeFlags({ owned: ["a"], identified: ["a"], backOwed: ["a"] });
+				await new CharacterArcana(flags, new FakeArcanaRepository()).removeArcanum("a");
+				const { sets } = flags.batch.mock.calls[0][0];
+				expect(sets.backOwed).toEqual([]);
+				expect(sets.identified).toEqual([]);
+			});
+
+			it("buildSnapshot surfaces backOwed on the owed card only", async () => {
+				const snapshot = await makeArcana({
+					owned:      ["huge-wooden-sphere", "test-arcanum"],
+					identified: ["huge-wooden-sphere", "test-arcanum"],
+					backOwed:   ["huge-wooden-sphere"],
+				}, [FFYRNIG_SPHERE, ARCANUM_WITH_BACK_OPTS]).buildSnapshot();
+				const items = [...snapshot.minor.items, ...snapshot.major.items];
+				expect(items.find(i => i.slug === "huge-wooden-sphere").backOwed).toBe(true);
+				expect(items.find(i => i.slug === "test-arcanum").backOwed).toBe(false);
+			});
+		});
+
 		it("revealArcanum adds slug to revealed flag", async () => {
 			const flags = makeFlags();
 			const arcana = new CharacterArcana(flags, new FakeArcanaRepository());
 			await arcana.revealArcanum("some-slug");
-			expect(flags.setFlag).toHaveBeenCalledWith("revealed", ["some-slug"]);
+			expect(flags.setFlag).toHaveBeenCalledWith("revealed", ["some-slug"], undefined);
 		});
 
 		it("hideArcanum removes slug from revealed flag", async () => {
 			const flags = makeFlags({ revealed: ["some-slug"] });
 			const arcana = new CharacterArcana(flags, new FakeArcanaRepository());
 			await arcana.hideArcanum("some-slug");
-			expect(flags.setFlag).toHaveBeenCalledWith("revealed", []);
+			expect(flags.setFlag).toHaveBeenCalledWith("revealed", [], undefined);
 		});
 
 		it("setUnlockCount stores the count under arcanumSlug:optionSlug key", async () => {

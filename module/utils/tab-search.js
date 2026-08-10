@@ -19,8 +19,13 @@
  * @param {object} opts
  * @param {string} opts.itemSel              Selector, resolved within `scope`, for filterable items.
  * @param {(el: HTMLElement) => string} opts.textFor  Returns the searchable text for one item.
+ * @param {() => void} [opts.onFilter]       Called after each pass, for a tab that has to react to
+ *                                           the new visible set (the Moves tab re-packs its masonry
+ *                                           columns). Hung off `apply` rather than the input's
+ *                                           `input` event so it also fires on the paths that clear
+ *                                           the term without one: Escape, and closing the box.
  */
-export function wireTabSearch(scope, {itemSel, textFor}) {
+export function wireTabSearch(scope, {itemSel, textFor, onFilter}) {
 	const box    = scope?.querySelector(".stonetop-tab-search");
 	const input  = box?.querySelector(".stonetop-tab-search-input");
 	const toggle = box?.querySelector(".stonetop-tab-search-toggle");
@@ -38,6 +43,7 @@ export function wireTabSearch(scope, {itemSel, textFor}) {
 				item._stSearchText = (textFor(item) ?? "").toLowerCase();
 			item.classList.toggle("stonetop-search-hidden", !!term && !item._stSearchText.includes(term));
 		}
+		onFilter?.();
 	};
 	input.addEventListener("input", apply);
 

@@ -10,6 +10,9 @@ import { createCharacterForUser } from "../actors/character/create-character.js"
 import { stonetopSteadingHeaderButton } from "../utils/world.js";
 import { runImportBookArtMacro } from "../book2-art/macro.js";
 import { hasImportedBook2Art } from "../book2-art/reapply.js";
+// Shared with the replacement confirmation, so the roster's "on page 4 of 9" and the
+// warning shown before that character is deleted can never disagree.
+import { progressLabel } from "../actors/character/onboarding-progress.js";
 
 // ── WelcomeDialog ───────────────────────────────────────────────────────────
 // A GM-only "first session" guide. Walks the GM through the Book I "Getting
@@ -40,38 +43,6 @@ function premiseSource() {
 	// its own <p class="stonetop-welcome-lead">, so don't return the <p> itself.
 	const firstParagraph = (firstPage?.text?.content ?? "").match(/<p[^>]*>([\s\S]*?)<\/p>/i)?.[1];
 	return firstParagraph ?? PREMISE_FALLBACK;
-}
-
-// Turn a character's onboardingProgress flag (+ its committed playbook, if any)
-// into a short roster note — { playbook, text, status } where status keys the
-// styling and playbook names the chosen playbook (committed wins; otherwise the
-// in-progress pick the onboarding flow stamps onto the flag — see _launchOnboarding,
-// since the GM can't read the player's local resume snapshot). With no flag, a
-// character with no playbook yet hasn't been touched ("not started yet"); one that
-// has a playbook is finished.
-function progressLabel(p, playbook) {
-	const hasPlaybook = !!playbook?.slug;
-	// Committed name wins; before commit, fall back to the playbook stamped on the
-	// progress flag (blank at the picker stage, where nothing is chosen yet).
-	const name = (hasPlaybook ? playbook.name : p?.playbook) || "";
-	// A committed playbook means creation is done (or was explicitly saved), so it
-	// always reads "Finished" — even if a mid-creation "Save & close" or an edit pass
-	// left a stale onboardingProgress flag behind that hasn't been cleared yet. The
-	// live "picker"/"on page N" states only apply before a playbook is committed,
-	// which is exactly when there's no playbook. `playbook` is attached once at the
-	// return, so each branch only carries its own status text.
-	const label =
-		hasPlaybook          ? { text: "Finished", status: "finished" } :
-		!p                   ? { text: "not started yet", status: "not-started" } :
-		p.state === "picker" ? { text: "on playbook picker", status: "picker" } :
-		p.state === "exited" ? { text: "exited onboarding", status: "exited" } :
-		// "onboarding" — or a legacy flag with just step/total and no state. A
-		// known page count reads "on page N of M"; otherwise (a partial/legacy flag
-		// with no usable total) still show the player as mid-creation rather than
-		// dropping them from the roster entirely.
-		p.total > 0          ? { text: `on page ${p.step} of ${p.total}`, status: "onboarding" } :
-		                       { text: "in character creation", status: "onboarding" };
-	return { playbook: name, ...label };
 }
 
 // The guide's panels, in order, driving the left rail (like Run an Expedition /
@@ -110,7 +81,17 @@ export class WelcomeDialog extends Application {
 		// browseArtDirs, which owns a session cache every writer already busts (see browse.js).
 	}
 
+	// GM-only, enforced HERE rather than at each caller. The guide mints characters for other
+	// players, drives this world's session-zero walkthroughs and launches the art importer —
+	// and it is reached through a world macro ("Welcome to Stonetop") that any player can see
+	// in the Macro Directory and drag onto their own hotbar, where slot 1 answers the `1` key.
+	// A player who did that got a GM console popping open under their hands. The auto-open at
+	// ready has its own GM check; this covers the macro, the startup chat card and the console.
 	static open() {
+		if (!game.user?.isGM) {
+			ui.notifications?.warn("The first-session guide is for the GM.");
+			return null;
+		}
 		return openOrFocus("stonetop-welcome", () => new WelcomeDialog().render(true));
 	}
 

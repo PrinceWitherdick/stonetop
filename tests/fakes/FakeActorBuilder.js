@@ -32,6 +32,8 @@ export class FakeActorBuilder {
 	_armor        = 0;
 	_xp           = {value: 0, max: 8};
 	_hp           = {value: 8, max: 8};
+	_hpAdjustment = 0;
+	_damage       = {value: "d4", override: ""};
 	_statBuilder  = new FakeStatBuilder();
 	_debilities   = {
 		weakened:  {value: false, stat: ["str", "dex"]},
@@ -43,9 +45,13 @@ export class FakeActorBuilder {
 	withPlaybook(slug, name)  { this._playbook = {slug, name}; return this; }
 	withName(name)            { this._name = name; return this; }
 	withHp(current, max)      { this._hp = {value: current, max}; return this; }
+	// The permanent hand-set change to max HP, signed. Held apart from `_hp` so withHp
+	// and this one can be called in either order without either clobbering the other.
+	withMaxHpAdjustment(n)    { this._hpAdjustment = n; return this; }
 	withXp(current, max)      { this._xp = {value: current, max}; return this; }
 	withLevel(level)          { this._level = level; return this; }
 	withArmor(armor)          { this._armor  = armor;  return this; }
+	withDamage(value, override = "") { this._damage = {value, override}; return this; }
 	withItems(items)          { this._items = items; return this; }
 	withRollMode(rollMode)    { this._pbtaRollMode = rollMode; return this; }
 
@@ -88,10 +94,10 @@ export class FakeActorBuilder {
 				stats: this._statBuilder.build(),
 				attributes: {
 					level:   {value: this._level},
-					hp:      this._hp,
+					hp:      {...this._hp, adjustment: this._hpAdjustment},
 					armor:   {value: this._armor},
 					xp:      this._xp,
-					damage:  {value: "d4"},
+					damage:  {...this._damage},
 					debilities: {options: {...this._debilities}},
 				},
 			},

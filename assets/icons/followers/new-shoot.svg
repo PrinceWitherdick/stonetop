@@ -1,0 +1,44 @@
+<!-- Follower marker: an initiate of Danu, whose card shows them as a new shoot.
+
+     This is the SAME drawing the follower card wears. The card renders `fas fa-seedling`
+     (StonetopCharacterSheet.js, FOLLOWER_FTYPE_DEFAULTS), and a card glyph cannot be an
+     Actor's `img` because Font Awesome is a font, so followerMarkerImg hands back this file
+     instead. Sheet, sidebar, token and card now show one shoot rather than two drawings.
+
+     Sourced from Font Awesome FREE 6.7.2 ("seedling", solid), CC BY 4.0, artwork unchanged.
+     Deliberately NOT extracted from the Font Awesome that Foundry bundles: that copy is
+     Pro, licensed to Foundry, and its outlines may not be redistributed here. The Free
+     notice below is the attribution CC BY 4.0 asks for; leave it in place.
+
+     Read the same way round as the Book I creature-type marks in assets/icons/bestiary/: a
+     black field with the drawing standing in cream, over a cream disc that shows past the
+     field as a hairline rim. So a folder of follower actors reads as one set with the
+     monsters. That rim is not decoration. Foundry's sidebar and the compendium browser sit
+     on a dark ground, and a plain black disc loses its edge against them, which is why the
+     Book I marks carry one too (they clip their field at 712.53 inside a 723.38 disc).
+
+     Recipe: three pieces on a 1600x1600 canvas. A cream disc at r=723.45 centred on
+     (800, 800), a black field at r=712.60 on the same centre (the same 10.85 rim the Book I
+     marks leave), and the icon's single path in cream on top. Its bounding box is exactly 512
+     square from (0, 0), drawn at a side of 1007.11 (a scale of 1.96702).
+
+     Both of the numbers that place the shoot are judged by eye, so treat them as settings
+     rather than as results. Recomputing either from the geometry will undo a correction.
+     Throughout, 1px means 8 canvas units, the ratio between this file's 1600 viewBox and the
+     200x200 it declares.
+
+     Size. The square the shoot is drawn at starts from the largest that fits inside the disc
+     (side = r * sqrt 2 = 1023.11) and comes in by 16 units, 2px, from there. Working in from
+     the inscribed square rather than out from the disc's full width is what keeps the leaf
+     tips off the rim at token sizes.
+
+     Position. The shoot alone is centred on (800, 816), not (800, 800): 16 units low, again
+     2px. The drawing is broad-leaved at the top and tapers to a thin stem, so hanging it on
+     the true centre leaves it reading high in the disc. Re-judge this at 36px if the size
+     above ever changes.
+
+     One trap, learned the hard way: an XML comment may not contain two hyphens in a row. An
+     SVG loaded through <img> is parsed strictly, so a stray pair anywhere above makes the
+     whole file fail to render, and it fails as a broken image rather than as a warning. Set
+     any aside in this comment with commas or parentheses instead. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1600" width="200" height="200"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc. --><circle cx="800" cy="800" r="723.45" fill="#f0ece3"/><circle cx="800" cy="800" r="712.60" fill="#000"/><g transform="translate(800 816) scale(1.96702) translate(-256 -256)"><path d="M512 32c0 113.6-84.6 207.5-194.2 222c-7.1-53.4-30.6-101.6-65.3-139.3C290.8 46.3 364 0 448 0l32 0c17.7 0 32 14.3 32 32zM0 96C0 78.3 14.3 64 32 64l32 0c123.7 0 224 100.3 224 224l0 32 0 160c0 17.7-14.3 32-32 32s-32-14.3-32-32l0-160C100.3 320 0 219.7 0 96z" fill="#f0ece3"/></g></svg>

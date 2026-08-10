@@ -6,6 +6,7 @@
 
 import { creatureTypeFaIcon } from "../bestiary/creature-types.js";
 import { isDefaultImg } from "../utils/strings.js";
+import { customGroupSize } from "../utils/crew.js";
 import { documentPortraitFrame } from "../utils/portrait-frame.js";
 
 // ── Step 3: hit points (p.476–477) ───────────────────────────────────────────
@@ -182,7 +183,7 @@ export function buildCustomFollower(input = {}) {
 	// (per-member HP against the shared `hpMax`, an abstracted group-HP pool, and the
 	// outnumber calculator); `size` is the headcount. A group is at least 2 strong.
 	const isGroup = !!input.isGroup;
-	const size = isGroup ? Math.max(2, Math.trunc(Number(input.size) || 0) || 2) : 0;
+	const size = isGroup ? customGroupSize(input) : 0;
 	return {
 		name:         String(input.name ?? "").trim(),
 		pronoun:      String(input.pronoun ?? "").trim(),
@@ -229,18 +230,29 @@ function sourceActorImg(img) {
 // help or hinder is a table judgment call, so the caller passes the counts the
 // player resolved rather than this guessing from tag text.
 //
-// `helps`/`hinders` are how many of the follower's tags/moves the player marked as
-// applicable / in-the-way; `advantage` is an optional manual toggle (e.g. a group
-// focusing fire). Returns { bonus, rollMode } ready for rollStat. Note the
-// rulebook edge case: an exceptional follower with no other applicable tag is
-// still +0 — only helps > 0 earns the +1/+2.
-export function orderFollowersBonus({ helps = 0, hinders = 0, exceptional = false, advantage = false } = {}) {
+// `helps` is how many of the follower's tags AND moves the player marked as
+// applicable — the book counts both toward the bonus ("at least one appropriate
+// tag or move"). `hinders` is tags only: only a tag can get in the way.
+// `advantage`/`disadvantage` are the outside sources that don't come from the
+// follower at all (Stentorian, Aid, Seek Insight; Interfere, a GM move), which is
+// why they're separate toggles rather than more chips.
+//
+// Returns { bonus, rollMode } ready for rollStat. Note the rulebook edge case: an
+// exceptional follower with no other applicable tag is still +0 — only helps > 0
+// earns the +1/+2.
+export function orderFollowersBonus({ helps = 0, hinders = 0, exceptional = false, advantage = false, disadvantage = false } = {}) {
 	const h = Math.max(0, Math.trunc(Number(helps)   || 0));
 	const x = Math.max(0, Math.trunc(Number(hinders) || 0));
 	const bonus = h <= 0 ? 0 : (exceptional ? 2 : 1);
-	// A hindering tag means disadvantage; it overrides the optional advantage
-	// toggle (the book says such a follower "rolls with disadvantage").
-	const rollMode = x > 0 ? "dis" : (advantage ? "adv" : "normal");
+	// Advantage and disadvantage are binary and CANCEL each other out (p.230), so a
+	// hindering tag does not simply beat an outside source of advantage: a Marshal
+	// spending Command on Stentorian to order a follower whose mischievous tag is in
+	// the way rolls a straight 2d6. Neither side stacks either — "by default, it
+	// doesn't matter if you have multiple sources of advantage vs. a single source of
+	// disadvantage" — so this is a boolean XOR, not a tally.
+	const adv = !!advantage;
+	const dis = x > 0 || !!disadvantage;
+	const rollMode = adv === dis ? "normal" : (adv ? "adv" : "dis");
 	return { bonus, rollMode };
 }
 

@@ -342,12 +342,3 @@ export function arcanaSummonFollowers(arcanum) {
 	}
 	return arcanaSummon(arcanum?.slug)?.followers ?? null;
 }
-
-// Join names for display: ["Astor","Halix"] → "Astor & Halix"; three or more use an
-// Oxford-free serial comma ("A, B & C"). Drives the summon button label and confirm.
-export function joinNames(names) {
-	const list = (names ?? []).filter(Boolean);
-	if (list.length <= 1) return list[0] ?? "";
-	if (list.length === 2) return `${list[0]} & ${list[1]}`;
-	return `${list.slice(0, -1).join(", ")} & ${list[list.length - 1]}`;
-}

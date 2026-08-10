@@ -10,6 +10,7 @@ import { BOOK2_ART_MACRO_NAME, findBook2ArtWorldMacro, loadBook2ArtMacroSource, 
 import { offerDurableArtOnce } from "../book2-art/offer-once.js";
 import { openProgressNotification } from "../utils/progress-notification.js";
 import { stonetopChatCard } from "../utils/chat.js";
+import { stampWorldLayoutBaseline } from "../utils/sheet-layout.js";
 import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyHideRollableIcon, applyReduceMotion, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
@@ -21,22 +22,27 @@ import { WeatherDialog } from "../dialogs/WeatherDialog.js";
 import { WelcomeDialog } from "../dialogs/WelcomeDialog.js";
 import { FoundryBasicsDialog } from "../dialogs/FoundryBasicsDialog.js";
 import { CharacterCreationDialog } from "../actors/character/dialogs/CharacterCreationDialog.js";
+import { creationFlowOpen, registerCreationFlowCleanup } from "../actors/character/creation-flow.js";
+import { progressFor } from "../actors/character/onboarding-progress.js";
 import { readOnboardingResume, clearOnboardingResume } from "../actors/character/onboarding-resume.js";
 import { playbookSlug } from "../utils/playbook-actors.js";
 import { rollDieOfFate } from "../utils/die-of-fate.js";
 import { createArcanumItem } from "../item/createArcanum.js";
 import { LoveLetterDialog } from "../dialogs/LoveLetterDialog.js";
 import { StonetopArcanaInspireDialog } from "../item/StonetopArcanaInspireDialog.js";
+import { StonetopBrowserDialog } from "../dialogs/StonetopBrowserDialog.js";
 import { findVisibleJournal, SETTING_OVERVIEW_JOURNAL } from "../utils/seeded-journals.js";
 import { getStonetopSteadingActor, getStonetopSteadingActorOrWarn } from "../utils/world.js";
 import { rollMoveFromUuid } from "./HotbarDrop.js";
 import { ensureThreatsEntry } from "../threats/threat-store.js";
 import { ensureHazardsEntry } from "../hazards/hazard-store.js";
-import { STONETOP_SCOPE, resolvedFlagProperty } from "../actors/character/StonetopFlags.js";
+import { STONETOP_SCOPE, resolvedFlagProperty, resolvedFlags } from "../actors/character/StonetopFlags.js";
 import { deletionEntry } from "../utils/foundry-compat.js";
+import { linkLandmarkNotes, revealLandmarkNotesOnce } from "./PlaceOfInterestDrop.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
 import { migrateAllSteadingPeople, ensurePeopleFolders, backfillAllResidentHomes } from "../actors/steading/steading-people.js";
 import { PERSON_DEFAULT_IMG } from "../utils/person-portrait.js";
+import { NEW_SHOOT_MARKER, LEGACY_SHOOT_MARKERS } from "../data/follower-actor.js";
 import { isDefaultImg } from "../utils/strings.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
@@ -74,26 +80,52 @@ const w = Object.values(ui.windows).find(w => w.id === "stonetop-introductions")
 if (w?.rendered) { w.bringToTop(); return; }
 game.stonetop?.openIntroductions?.();`;
 
-// The ordered system hotbar macros (slots 1–6), in their canonical order. The
+// Retired hotbar macros — the two catalogue browsers became one window with a tab each, so
+// "Browse Stonetop" replaces both and these are deleted rather than slotted (see
+// _retireMergedBrowserMacros). Name + command identify the system-created ones, so a GM's own
+// macro that happens to share a name is left alone.
+const _RETIRED_BROWSER_MACROS = [
+	{ name: "Browse the Arcana",   command: "game.stonetop?.openArcanaBrowser?.()" },
+	{ name: "Browse the Bestiary", command: "game.stonetop?.openBestiaryBrowser?.()" },
+];
+
+// The ordered system hotbar macros (slots 1–7), in their canonical order. The
 // single source of truth for both _ensureHotbarMacro (places any that are missing)
 // and _reorderSystemMacros (snaps them into this order). Chronicle (9) / End of Session
 // (10) are handled separately below because they also key on their command. Seasons
 // Change took the spring icon that Welcome used to carry; Welcome now uses the
-// direction-signs. "Write a Love Letter" (slot 5) is GM prep (Book I p.568) — a GM-only
-// block places these, so it never reaches a player's hotbar.
+// direction-signs. "Write a Love Letter" (slot 5) is GM prep (Book I p.568), and
+// "Browse Stonetop" (slot 7) reads GM-hidden compendia and the GM's own NPC notes — a
+// GM-only block places these, so they never reach a player's hotbar.
+//
+// `shared` marks the one macro the whole table uses: the Die of Fate is rolled by whoever
+// the fiction points at, not just the GM, so it is created readable by everyone and placed
+// on each player's own hotbar at `playerSlot` (see _ensurePlayerHotbarMacros). A player's
+// bar is otherwise empty of system macros, so it starts at slot 1 rather than the GM's 6.
 const _SYSTEM_MACROS = [
 	{ name: "Welcome to Stonetop", img: "systems/stonetop-pwd/assets/icons/macros/direction-signs.svg", command: "game.stonetop?.openWelcome?.()",        slot: 1 },
 	{ name: "Seasons Change",      img: "systems/stonetop-pwd/assets/icons/macros/spring.svg",           command: "game.stonetop?.openSeasonsChange?.()", slot: 2 },
 	{ name: "Run an Expedition",   img: "systems/stonetop-pwd/assets/icons/macros/treasure-map.svg",     command: "game.stonetop?.openExpedition?.()",     slot: 3 },
 	{ name: "Weather",             img: "systems/stonetop-pwd/assets/icons/macros/sun-cloud.svg",        command: "game.stonetop?.openWeather?.()",        slot: 4 },
 	{ name: "Write a Love Letter", img: "systems/stonetop-pwd/assets/icons/macros/love-letter.svg",      command: "game.stonetop?.openLoveLetter?.()",     slot: 5 },
-	{ name: "Die of Fate",         img: "systems/stonetop-pwd/assets/icons/macros/die-of-fate.svg",      command: "game.stonetop?.rollDieOfFate?.()",      slot: 6 },
+	{ name: "Die of Fate",         img: "systems/stonetop-pwd/assets/icons/macros/die-of-fate.svg",      command: "game.stonetop?.rollDieOfFate?.()",      slot: 6, shared: true, playerSlot: 1 },
+	// One window over the arcana, the bestiary and the world's people (see
+	// dialogs/StonetopBrowserDialog.js), so a magnifying glass rather than any one list's
+	// symbol — it is the LOOKING that all three tabs have in common.
+	{ name: "Browse Stonetop",     img: "systems/stonetop-pwd/assets/icons/macros/magnifying-glass.svg", command: "game.stonetop?.openBrowser?.()",        slot: 7 },
 ];
 
 // Bump to re-snap the system macros into their canonical slots once, on every client
 // (the per-client `systemHotbarLayoutVersion` setting trails this until then). Bumped
 // to 2 when Seasons Change was inserted at slot 2 and the rest shifted right; to 3 when
 // Write a Love Letter took slot 5 and Die of Fate moved to slot 6.
+//
+// Deliberately NOT bumped for the browsers, in either direction: they were APPENDED at slots
+// 7-8 rather than inserted, and merging them back into one at slot 7 leaves slots 1-6 exactly
+// where they were. _ensureHotbarMacro places a missing macro whatever the layout version, and
+// _retireMergedBrowserMacros frees slot 7 for it. Re-snapping would lift every system macro
+// off the hotbar and put it back — undoing any arrangement a GM had made — to fix an order
+// that isn't wrong.
 const _HOTBAR_LAYOUT_VERSION = 3;
 
 export async function onReady() {
@@ -128,6 +160,15 @@ export async function onReady() {
 		catch (err) { console.error("Stonetop | NPC placeholder-portrait migration failed", err); }
 		try { await _migrateTokenImagesToPortraits(); }
 		catch (err) { console.error("Stonetop | token-image backfill failed", err); }
+		try { await _migrateShootMarker(); }
+		catch (err) { console.error("Stonetop | initiate shoot-marker backfill failed", err); }
+		// Open the lettered village pins already on this world's scenes up to the players
+		// they were always for (once per world; see revealLandmarkNotesOnce), then point any
+		// that still open nothing at their Chronicle page (every load; a no-op once linked).
+		try { await revealLandmarkNotesOnce(); }
+		catch (err) { console.error("Stonetop | landmark map-pin reveal failed", err); }
+		try { await linkLandmarkNotes(); }
+		catch (err) { console.error("Stonetop | landmark map-pin linking failed", err); }
 	}
 	await runStartupMigrations();
 	// If the renamed system has been installed alongside this one, offer to move this
@@ -189,7 +230,7 @@ export async function onReady() {
 	// it falls back to the current user's assigned character:
 	//   game.stonetop.openCharacterCreation()
 	game.stonetop.openCharacterCreation = (actor = game.user.character) =>
-		actor ? new CharacterCreationDialog(actor).render(true)
+		actor ? CharacterCreationDialog.open(actor)
 		      : ui.notifications.warn("No character to start creation for.");
 	// Cut every portrait this world could have out of the book art already on disk — the detail
 	// portraits, and the square faces the small round pictures use — then point NPCs already
@@ -229,6 +270,24 @@ export async function onReady() {
 	// Roll a learned move from its uuid — the entry point the move hotbar macros call
 	// (drag a move off a character sheet onto the hotbar; see hooks/HotbarDrop.js).
 	game.stonetop.rollMoveMacro     = rollMoveFromUuid;
+	// Look THROUGH what the world holds, with a tab per list: every arcanum (the shipped
+	// compendium plus any homebrew cards, filtered by what each one does and by how badly its
+	// Consequences track punishes whoever carries it), every monster stat block, and every NPC.
+	// GM prep: both compendia are GM-hidden, half the point of the arcana list is reading the
+	// curses on cards the players haven't found, and an NPC's status and home are the GM's own
+	// notes — so its macro is seeded inside the GM-only block below and there is no button for
+	// it on a character sheet. Pass a source to land on a particular tab:
+	//   game.stonetop.openBrowser("people")
+	//
+	// `ownedSlugs` only badges arcana rows as "Held". Read off the caller's assigned character
+	// when they have one (a GM usually doesn't), so the badges are right without the browser
+	// having to be opened from a sheet.
+	game.stonetop.openBrowser = (source, actor = game.user.character) =>
+		StonetopBrowserDialog.open({ source, ownedSlugs: actor ? resolvedFlags(actor).arcana?.owned ?? [] : [] });
+	// The two windows "Browse Stonetop" replaced, kept as the tab they used to open. Console
+	// and macro habits outlive a merge, and both are one line.
+	game.stonetop.openArcanaBrowser   = (actor)  => game.stonetop.openBrowser("arcana", actor);
+	game.stonetop.openBestiaryBrowser = (source) => game.stonetop.openBrowser(source ?? "monsters");
 	// Create a blank homebrew arcanum world Item and open its editor. Minor by default;
 	// pass { major: true } for a major. Callable from a macro/console/hotbar:
 	//   game.stonetop.createArcanum({ name: "My Charm" })
@@ -259,7 +318,14 @@ export async function onReady() {
 	game.stonetop.importBookArt     = () => runImportBookArtMacro();
 
 	_registerCharacterAutoOpen();
+	// Close any half-finished creation whose character is deleted out from under it — the
+	// GM minting a replacement is a delete first. Every client, since the player who loses
+	// the character is rarely the one who pressed the button. See creation-flow.js.
+	registerCreationFlowCleanup();
 
+	// Both of these read `seedingComplete` to tell a fresh world from an established one, so
+	// both MUST stay above runWorldSetup() (which is what sets it). See their own comments.
+	if (game.user.isGM) await stampWorldLayoutBaseline();
 	if (game.user.isGM) await _applyCoreSettingDefaultsForNewWorld();
 	if (game.user.isGM) await _ensurePlayerActorCreationGrant();
 	if (game.user.isGM) await _assignSteadingToUnassignedGm();
@@ -291,11 +357,18 @@ export async function onReady() {
 		if (!wasFreshWorld) await seeding;
 
 		await _retireIntroductionsMacro();
+		// Both before the placement below, and in this order, so the slot the old "Browse the
+		// Arcana" held is free for the "Browse Stonetop" that replaced it: deleting a macro
+		// leaves its id sitting in `user.hotbar`, and the sweep is what takes it out. That sweep
+		// is world-wide rather than scoped to those two — see its own comment for why it has to
+		// be, and why it is its own call rather than a tail of the retirement.
+		await _retireMergedBrowserMacros();
+		await _clearDanglingHotbarSlots();
 		// Place any missing system macros at their default slots (existing placements
 		// are left alone, so a manual rearrangement sticks). Their fixed starting order
 		// — 1 Welcome · 2 Seasons Change · 3 Run an Expedition · 4 Weather · 5 Write a
-		// Love Letter · 6 Die of Fate · 9 The Chronicle · 10 End of Session — is applied
-		// for the slots-1–6 set per layout version by _reorderSystemMacros, below;
+		// Love Letter · 6 Die of Fate · 7 Browse Stonetop · 9 The Chronicle · 10 End of
+		// Session — is applied for the slots-1–6 set per layout version by _reorderSystemMacros, below;
 		// Chronicle and End of Session are placed (but not reordered) by their own
 		// _ensureHotbarMacro calls.
 		for (const macro of _SYSTEM_MACROS) await _ensureHotbarMacro(macro);
@@ -310,6 +383,10 @@ export async function onReady() {
 		await _reorderSystemMacros();
 		await _ensureTestPopulateMacro();
 		await _ensureBook2ArtMacro();
+	} else {
+		// A player's share of the same pass: the Die of Fate belongs on everyone's bar.
+		try { await ensurePlayerHotbarMacros(); }
+		catch (err) { console.error("Stonetop | player hotbar macro placement failed", err); }
 	}
 	if (game.user.isGM) {
 		await _postStartupWelcomeMessageOnce();
@@ -538,7 +615,16 @@ function _maybeOpenCharacterCreation(actor) {
 	const mintedForMe  = actor.getFlag?.(STONETOP_SCOPE, "autoOpenFor") === game.user.id;
 	const isMyAssigned = !game.user.isGM && game.user.character?.id === actor.id;
 	if (!mintedForMe && !isMyAssigned) return;
-	// Owner-only flag; drop it first so the mint greeting only ever fires once.
+
+	// Someone on this screen is already mid-creation — the intro, the playbook picker or
+	// the onboarding walkthrough is up, for this character or another. Re-entering now
+	// would bury the flow they are in and, if they clicked through, restart them at the
+	// picker with their answers stranded behind it. Bail BEFORE clearing autoOpenFor: the
+	// mint's one-shot greeting is preserved rather than burnt on a prompt nobody saw, so
+	// it arrives on the next load instead.
+	if (creationFlowOpen()) return;
+
+	// Owner-only flag; drop it now so the mint greeting only ever fires once.
 	if (mintedForMe) actor.unsetFlag(STONETOP_SCOPE, "autoOpenFor").catch(() => {});
 
 	if (playbookSlug(actor)) {
@@ -561,8 +647,19 @@ function _maybeOpenCharacterCreation(actor) {
 	const snap = readOnboardingResume(actor);
 	if (snap?.playbookUuid && snap?.selections) {
 		actor.sheet._onNewCharacter({ openSheetWhenDone: true, resume: true });
+	} else if (!mintedForMe && progressFor(actor).status === "exited") {
+		// They have already been offered this and deliberately backed out, with nothing saved
+		// to resume. Re-modalling them on every load is nagging, and the modal is the thing
+		// they closed. Open the sheet instead: it carries its own "Create Character" button
+		// and the amber incomplete banner, so the way back in is right there whenever they
+		// want it — nobody is stranded, and nobody is pestered. A fresh mint always greets.
+		actor.sheet.render(true);
 	} else {
-		new CharacterCreationDialog(actor).render(true);
+		// Fire-and-forget from a sync hook callback, so catch here: open() awaits a stale
+		// dialog's close, and an unhandled rejection would surface as a bare console error
+		// with no hint that a player simply never got greeted.
+		CharacterCreationDialog.open(actor)
+			.catch(err => console.error("Stonetop | failed to open character creation", err));
 	}
 }
 
@@ -638,12 +735,25 @@ function _firstFreeHotbarSlot(from = 1) {
 // avoid clashing with any user macro of the same name). Run these serially — each
 // assignHotbarMacro writes the same user.hotbar document, so concurrent calls would
 // clobber each other.
-async function _ensureHotbarMacro({ name, img, command, slot, match }) {
+//
+// GM-only (every call site sits inside a game.user.isGM block), which is what lets it
+// set ownership: a Macro is created at ownership.default NONE, and only a GM may change
+// that. A `shared` macro is raised to OBSERVER — on creation AND on an existing macro in
+// a world that predates the flag, so the fix reaches tables already playing.
+async function _ensureHotbarMacro({ name, img, command, slot, match, shared }) {
+	const OBSERVER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
 	let macro = game.macros.find(match ?? (m => m.name === name));
 	if (!macro) {
-		macro = await Macro.create({ name, type: "script", img, command, scope: "global" });
-	} else if (macro.img !== img) {
-		await macro.update({ img });
+		macro = await Macro.create({
+			name, type: "script", img, command, scope: "global",
+			...(shared ? { ownership: { default: OBSERVER } } : {}),
+		});
+	} else {
+		const update = {};
+		if (macro.img !== img) update.img = img;
+		// Dotted, so a per-user grant the GM added by hand survives.
+		if (shared && (macro.ownership?.default ?? 0) < OBSERVER) update["ownership.default"] = OBSERVER;
+		if (Object.keys(update).length) await macro.update(update);
 	}
 
 	const alreadySlotted = Object.values(game.user.hotbar).includes(macro.id);
@@ -651,6 +761,28 @@ async function _ensureHotbarMacro({ name, img, command, slot, match }) {
 
 	const target = _isHotbarSlotFree(slot) ? slot : _firstFreeHotbarSlot();
 	if (target) await game.user.assignHotbarMacro(macro, target);
+}
+
+// Place the shared system macros (currently just the Die of Fate) on a PLAYER's hotbar.
+// The player never creates the Macro — a player-created copy would be a second document
+// owned by them alone, one per player — so this only slots the world macro the GM's pass
+// already made, and only once it is actually theirs to run: a world whose GM has not
+// loaded since this shipped still has the macro at ownership NONE, and skipping it there
+// keeps a dead icon off the bar. Both cases fix themselves on the player's next reload.
+//
+// Same non-destructive placement as the GM's: never evicts whatever is in the target slot,
+// and never moves a macro that is already on the bar, so a player's own arrangement sticks.
+//
+// Exported for its test — onReady is the only caller.
+export async function ensurePlayerHotbarMacros() {
+	for (const { name, command, playerSlot } of _SYSTEM_MACROS.filter(m => m.shared)) {
+		const macro = game.macros.find(m => m.name === name && m.command === command);
+		if (!macro?.canExecute) continue;
+		if (Object.values(game.user.hotbar).includes(macro.id)) continue;
+
+		const target = _isHotbarSlotFree(playerSlot) ? playerSlot : _firstFreeHotbarSlot();
+		if (target) await game.user.assignHotbarMacro(macro, target);
+	}
 }
 
 // Snap the system macros into their canonical order (1 Welcome · 2 Seasons Change ·
@@ -766,6 +898,60 @@ async function _retireIntroductionsMacro() {
 	if (intro) await intro.delete();
 }
 
+// Delete the two catalogue browsers that "Browse Stonetop" replaced. Runs before
+// _ensureHotbarMacro, and only ever touches macros this system created (name AND command must
+// both match). GM-only: the call site sits inside a game.user.isGM block, and only a GM may
+// delete a world Macro.
+//
+// Deleting them is only half of freeing their slots — see _clearDanglingHotbarSlots, which the
+// ready sequence calls straight after this and which is what the placement below depends on.
+async function _retireMergedBrowserMacros() {
+	const ids = _RETIRED_BROWSER_MACROS
+		.map(({ name, command }) => game.macros.find(m => m.name === name && m.command === command)?.id)
+		.filter(Boolean);
+	// One request for the pair rather than one apiece: this runs inside the awaited `ready`
+	// chain, where every round trip is a beat before the world is usable.
+	if (ids.length) await Macro.deleteDocuments(ids);
+}
+
+// Clear every hotbar slot pointing at a Macro that no longer exists.
+//
+// Its own call in the ready sequence rather than a tail call inside the browser retirement above,
+// because it is not that migration's business and it is not scoped to it: this sweeps the WHOLE
+// hotbar, including a slot orphaned months ago by a module the GM uninstalled. Hidden under a
+// name about two specific macros, that breadth read as an accident.
+//
+// It is nonetheless what makes the placement below work. Deleting a Macro leaves its id sitting
+// in `user.hotbar`, where _isHotbarSlotFree still counts the slot as taken — so without this the
+// new "Browse Stonetop" would flow past slot 7 into the first genuinely empty slot and land
+// somewhere arbitrary. And `user.hotbar` is PER-USER, so the delete only frees the slots on the
+// hotbar of the GM who happened to load first; a second GM arrives to find the macros already
+// gone and two tiles that draw nothing but still count as occupied. Which is exactly why it
+// cannot be narrowed to the ids retired above: by then there is no macro left to read them off.
+//
+// Nothing visible is lost. A slot pointing at a deleted macro already draws a blank tile that
+// opens nothing, and slots are fixed positions, so clearing one moves nothing else.
+//
+// GM-only, which is what makes the "no longer exists" test safe: a player is never sent macros
+// they can't observe, so for them a live macro can look missing — for a GM, missing is missing.
+//
+// One write for the lot, the same shape core's own assignHotbarMacro uses. Slot by slot, this was
+// a User-document round trip apiece on the blocking ready path, for a bar that can hold fifty.
+async function _clearDanglingHotbarSlots() {
+	// Off toObject(), like core's own assignHotbarMacro, so what we hand back is a plain source
+	// object rather than the live one being mutated under the document.
+	const hotbar = game.user.toObject?.().hotbar ?? foundry.utils.deepClone(game.user.hotbar ?? {});
+	let dropped = false;
+	for (const [slot, id] of Object.entries(hotbar)) {
+		if (game.macros.get(id)) continue;
+		delete hotbar[slot];
+		dropped = true;
+	}
+	// `recursive: false` is what makes a REMOVED key a removal rather than a no-op: a merge would
+	// only ever add slots back.
+	if (dropped) await game.user.update({ hotbar }, { diff: false, recursive: false, noHook: true });
+}
+
 // Bring existing NPC actors up to the "name shows on hover to anyone" token default that
 // new NPCs now get at creation (StonetopActor#_preCreate). Only touches NPCs still at the
 // untouched core default (displayName NONE), so a GM who deliberately set a different mode
@@ -824,6 +1010,47 @@ async function _migrateTokenImagesToPortraits() {
 	) ?? [];
 	const updates = stale.map(a => ({ _id: a.id, "prototypeToken.texture.src": a.img }));
 	if (updates.length) await Actor.updateDocuments(updates);
+}
+
+// Lift an initiate of Danu off the marker's old file. The shoot an art-less initiate wears
+// moved from followers/sprout.svg to followers/new-shoot.svg, and the old file is gone, so an
+// actor stamped before the move points at nothing and draws a broken image. The old path is
+// matched under every id this package has shipped under (LEGACY_SHOOT_MARKERS), since an
+// actor stamped before a rename still names the old one.
+//
+// Both the portrait and the prototype token, because followerNpcActorData sets the two
+// together and a token left behind would put the break back on the next drag to a scene.
+// Only exact matches on a path we ourselves wrote, so art anyone chose is never touched.
+// Idempotent: once lifted, the actor stops matching, so re-running every load is a cheap
+// no-op needing no version flag. Primary-GM only (the caller gates it).
+//
+// AND the tokens already standing on scenes, which its two neighbours above have no need to
+// touch and this one does. They repoint paths that still resolve — a mystery-man silhouette is
+// ugly, not broken — while the file this one is lifting off is GONE from the package. A
+// TokenDocument carries its own `texture.src`, copied from the prototype when it was placed, so
+// an initiate already on a map would draw a broken image on every load forever; `prototypeToken`
+// only governs the NEXT one dragged out.
+async function _migrateShootMarker() {
+	const wasOurs = p => LEGACY_SHOOT_MARKERS.includes(String(p ?? "").replace(/^\//, ""));
+	const updates = [];
+	for (const actor of game.actors ?? []) {
+		const update = { _id: actor.id };
+		if (wasOurs(actor.img)) update.img = NEW_SHOOT_MARKER;
+		if (wasOurs(actor.prototypeToken?.texture?.src)) {
+			update["prototypeToken.texture.src"] = NEW_SHOOT_MARKER;
+		}
+		if (Object.keys(update).length > 1) updates.push(update);
+	}
+	if (updates.length) await Actor.updateDocuments(updates);
+
+	// One request per affected scene, and none at all for a scene with nothing to lift — which
+	// after the first load is every scene.
+	for (const scene of game.scenes ?? []) {
+		const tokens = [...(scene.tokens ?? [])]
+			.filter(t => wasOurs(t.texture?.src))
+			.map(t => ({ _id: t.id, "texture.src": NEW_SHOOT_MARKER }));
+		if (tokens.length) await scene.updateEmbeddedDocuments("Token", tokens);
+	}
 }
 
 async function _migrateArmourToArmor() {

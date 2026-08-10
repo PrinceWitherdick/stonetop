@@ -116,6 +116,8 @@ describe("StonetopSteading", () => {
 		expect(snapshot.players).toEqual([
 			{ uuid: "Actor.hero", name: "Wren", img: "wren.webp", checked: true,
 			  traits: "", relations: "", notes: "", resolvedOccupation: "", playbookName: "",
+			  // No playbook resolves either, so the long form is just the name.
+			  fullName: "Wren",
 			  // No live actor resolves here, so the stored snapshot path stands in and there is
 			  // no frame to apply. imgStyle is present-and-empty rather than absent, so the
 			  // template's {{#if imgStyle}} has something definite to test.
@@ -123,7 +125,7 @@ describe("StonetopSteading", () => {
 		]);
 	});
 
-	it("surfaces the player's playbook for the tooltip, not the Occupation column", async () => {
+	it("names a player by their playbook, but keeps it out of the Occupation column", async () => {
 		const hero = {
 			id: "hero", type: "character", name: "Wren",
 			system: { playbook: { name: "The Blessed", slug: "the-blessed" } },
@@ -138,6 +140,8 @@ describe("StonetopSteading", () => {
 			});
 			const snapshot = await new StonetopSteading(actor).buildSnapshot();
 			expect(snapshot.players[0].playbookName).toBe("The Blessed");
+			expect(snapshot.players[0].fullName).toBe("Wren The Blessed");
+			// A playbook isn't a job — players may hold any occupation, so the column stays theirs.
 			expect(snapshot.players[0].resolvedOccupation).toBe("");
 		} finally {
 			game.actors = prevActors;
@@ -186,6 +190,84 @@ describe("StonetopSteading", () => {
 		const snapshot = await new StonetopSteading(actor).buildSnapshot();
 
 		expect(snapshot.players[0].resolvedOccupation).toBe("Hawker of Trinkets");
+	});
+
+	// The roster's one write path, shared by the drag onto the steading sheet and by the
+	// automatic filing a character gets when its player finishes creation. Both must agree
+	// on the row shape and on what counts as "already listed", which is why neither builds
+	// a row of its own.
+	describe("addPlayerRow", () => {
+		function makeMutableSteadingActor(steadingFlags = {}) {
+			const actor = {
+				type: "stonetop",
+				system: {},
+				flags: { stonetop: { steading: steadingFlags } },
+				getFlag: (scope, key) => (key === "steading" ? actor.flags.stonetop.steading : null),
+				setFlag: vi.fn((scope, key, value) => { actor.flags.stonetop.steading = value; return Promise.resolve(); }),
+				update: vi.fn(),
+			};
+			return actor;
+		}
+
+		const wren = { id: "hero-id", uuid: "Actor.hero", name: "Wren", img: "wren.webp", type: "character" };
+
+		it("appends a full row for a character who isn't listed yet", async () => {
+			const actor = makeMutableSteadingActor();
+
+			expect(await new StonetopSteading(actor).addPlayerRow(wren)).toBe(true);
+			expect(actor.flags.stonetop.steading.players).toEqual([{
+				id: "hero-id", uuid: "Actor.hero", name: "Wren", img: "wren.webp",
+				checked: true, traits: "", relations: "", notes: "",
+			}]);
+		});
+
+		it("leaves the roster alone when they're already on it", async () => {
+			const actor = makeMutableSteadingActor({
+				players: [{ id: "hero-id", uuid: "Actor.hero", name: "Wren", img: "wren.webp", checked: true }],
+			});
+
+			expect(await new StonetopSteading(actor).addPlayerRow(wren)).toBe(false);
+			expect(actor.setFlag).not.toHaveBeenCalled();
+		});
+
+		it("matches on uuid alone when the row predates stored ids", async () => {
+			const actor = makeMutableSteadingActor({ players: [{ uuid: "Actor.hero", name: "Wren" }] });
+
+			expect(await new StonetopSteading(actor).addPlayerRow(wren)).toBe(false);
+		});
+
+		// Identity is the id, not the name. A GM re-minting a character for a player who
+		// already had one deletes the old actor but keeps its row (the roster shows the
+		// cached name so nobody silently vanishes), and the player usually reuses the name.
+		// Matching on that would read the replacement as "already listed" and silently never
+		// file them — the one failure mode with nothing on screen to notice.
+		it("files a replacement character even when a row still carries their old name", async () => {
+			const actor = makeMutableSteadingActor({
+				players: [{ id: "old-hero", uuid: "Actor.old-hero", name: "Wren" }],
+			});
+
+			expect(await new StonetopSteading(actor).addPlayerRow(wren)).toBe(true);
+			expect(actor.flags.stonetop.steading.players).toHaveLength(2);
+		});
+
+		// Two rows can share a name — two players naming their characters the same is
+		// allowed, and both belong on the roster.
+		it("files two different characters who share a name", async () => {
+			const actor = makeMutableSteadingActor({
+				players: [{ id: "other", uuid: "Actor.other", name: "Wren" }],
+			});
+
+			expect(await new StonetopSteading(actor).addPlayerRow(wren)).toBe(true);
+			expect(actor.flags.stonetop.steading.players.map(r => r.id)).toEqual(["other", "hero-id"]);
+		});
+
+		it("ignores anything that isn't a player character", async () => {
+			const actor = makeMutableSteadingActor();
+
+			expect(await new StonetopSteading(actor).addPlayerRow({ id: "n1", name: "Marek", type: "npc" })).toBe(false);
+			expect(await new StonetopSteading(actor).addPlayerRow(null)).toBe(false);
+			expect(actor.setFlag).not.toHaveBeenCalled();
+		});
 	});
 
 	it("resolves resident avatars from the linked NPC's art; legacy/text rows fall back to the default", async () => {
