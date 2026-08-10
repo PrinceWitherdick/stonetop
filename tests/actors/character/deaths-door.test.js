@@ -1,14 +1,18 @@
 import { describe, it, expect } from "vitest";
 import {
 	DEATHS_DOOR_STATE,
+	PAST_DEATH_KINDS,
 	POST_DEATH_INSERT_SLUGS,
 	ZERO_HP_MOVES,
 	ZERO_HP_RESOLUTIONS,
 	becameDying,
 	canFaceDeathsDoor,
 	deathsDoorRollOptions,
+	effectiveDeathsDoorState,
 	nextDeathsDoorState,
+	pastDeathClasses,
 	pastDeathKind,
+	raisedFromDead,
 	zeroHpMove,
 } from "../../../module/actors/character/deaths-door.js";
 import {
@@ -159,6 +163,44 @@ describe("canFaceDeathsDoor", () => {
 	});
 });
 
+// Taking an insert used to be two writes, and a reload could land between them (2026-08-08, in
+// play): the Ghost was granted and the `fate-pending` from the 6- was left standing. Every reader
+// then said Death's Door was still owed by a character who had just answered it — a Ghost at 0 HP
+// was offered the fate fork again instead of Tethered. The write is one update now; this is what
+// heals the sheets it already happened to.
+describe("effectiveDeathsDoorState — an insert IS the fate", () => {
+	it("drops a fate-pending left standing beside an insert", () => {
+		for (const slug of POST_DEATH_INSERT_SLUGS) {
+			expect(effectiveDeathsDoorState({ state: DEATHS_DOOR_STATE.FATE_PENDING, insertSlug: slug })).toBe(null);
+		}
+	});
+
+	it("leaves a real fate-pending alone", () => {
+		expect(effectiveDeathsDoorState({ state: DEATHS_DOOR_STATE.FATE_PENDING, insertSlug: null }))
+			.toBe(DEATHS_DOOR_STATE.FATE_PENDING);
+	});
+
+	// A homebrew insert isn't one of the book's three fates, so it can't be the answer to a 6-.
+	// Reinterpreting on any truthy slug would strand such a character with no fate to choose.
+	it("leaves it alone for an insert Death's Door never offered", () => {
+		expect(effectiveDeathsDoorState({ state: DEATHS_DOOR_STATE.FATE_PENDING, insertSlug: "wight" }))
+			.toBe(DEATHS_DOOR_STATE.FATE_PENDING);
+	});
+
+	// Only that one pairing is reinterpreted: a dispersed Ghost is out of the action, and having
+	// an insert doesn't make that untrue.
+	it("passes every other state through, insert or not", () => {
+		for (const state of [null, DEATHS_DOOR_STATE.DYING, DEATHS_DOOR_STATE.OUT_OF_ACTION, DEATHS_DOOR_STATE.DEAD]) {
+			expect(effectiveDeathsDoorState({ state, insertSlug: "ghost" })).toBe(state);
+			expect(effectiveDeathsDoorState({ state, insertSlug: null })).toBe(state);
+		}
+	});
+
+	it("answers for a caller that passes nothing", () => {
+		expect(effectiveDeathsDoorState()).toBe(null);
+	});
+});
+
 describe("pastDeathKind — who the log should mark as dead", () => {
 	it("is null for the living", () => {
 		expect(pastDeathKind({})).toBe(null);
@@ -201,18 +243,79 @@ describe("pastDeathKind — who the log should mark as dead", () => {
 	});
 });
 
+describe("PAST_DEATH_KINDS — every answer a sheet has to be able to clear", () => {
+	// The sheet clears all of them and sets one, so a list short of an answer pastDeathKind can
+	// give would leave a raised character still wearing the modifier of what they used to be.
+	it("covers everything pastDeathKind returns", () => {
+		expect(PAST_DEATH_KINDS).toEqual([...POST_DEATH_INSERT_SLUGS, "dead"]);
+	});
+});
+
+describe("pastDeathClasses — the pair a window is stamped with", () => {
+	it("names the repaint and the kind that tints it", () => {
+		expect(pastDeathClasses("ghost")).toEqual(["stonetop-past-death", "stonetop-past-death--ghost"]);
+	});
+
+	// The black is for a plain death too now (2026-08-08, at the user's request). It used to stop
+	// at the three inserts, so this is the case that would silently regress.
+	it("stamps a character who died and stayed dead", () => {
+		expect(pastDeathClasses("dead")).toEqual(["stonetop-past-death", "stonetop-past-death--dead"]);
+	});
+
+	// Spread onto a window's own classes unconditionally, so the empty case has to be a list.
+	it("is empty for the living", () => {
+		expect(pastDeathClasses(null)).toEqual([]);
+	});
+});
+
+describe("raisedFromDead — the one transition that walks `dead` back", () => {
+	const dead = DEATHS_DOOR_STATE.DEAD;
+
+	it("is true when hit points appear on a sheet through the Last Door", () => {
+		expect(raisedFromDead({ oldHp: 0, newHp: 4, state: dead })).toBe(true);
+	});
+
+	// Recognising the TRANSITION, not the condition: a second write while they are already up
+	// would otherwise ask again, every time.
+	it("is false for a write that finds them already above 0", () => {
+		expect(raisedFromDead({ oldHp: 4, newHp: 6, state: dead })).toBe(false);
+	});
+
+	it("is false while they stay at or below 0", () => {
+		expect(raisedFromDead({ oldHp: 0, newHp: 0, state: dead })).toBe(false);
+		expect(raisedFromDead({ oldHp: -2, newHp: -1, state: dead })).toBe(false);
+	});
+
+	// Every other state has its own way back and doesn't need asking about: a dying character
+	// healed above 0 was simply patched up before they faced the move.
+	it("is false for anyone who isn't dead", () => {
+		for (const state of [null, DEATHS_DOOR_STATE.DYING, DEATHS_DOOR_STATE.OUT_OF_ACTION, DEATHS_DOOR_STATE.FATE_PENDING]) {
+			expect(raisedFromDead({ oldHp: 0, newHp: 4, state })).toBe(false);
+		}
+	});
+});
+
 describe("deathsDoorRollOptions — the Heavy's two modifiers", () => {
 	it("offers only +nothing by default", () => {
 		const opts = deathsDoorRollOptions(["Dangerous", "Armored"], {});
 		expect(opts.hardToKill).toBe(false);
 		expect(opts.statChoices).toEqual([{ stat: "", label: "+nothing" }]);
 		expect(opts.penalty).toBe(0);
+		// Nothing opened a choice up, so there's no move for the dialog to explain.
+		expect(opts.statChoiceMove).toBeNull();
 	});
 
 	it("offers +CON as well with Hard to Kill, with +nothing still first", () => {
 		const opts = deathsDoorRollOptions(["Hard to Kill"], {});
 		expect(opts.hardToKill).toBe(true);
 		expect(opts.statChoices.map(c => c.stat)).toEqual(["", "con"]);
+	});
+
+	it("names the move that opened the choice up, so the dialog can print its description", () => {
+		expect(deathsDoorRollOptions(["Hard to Kill"], {}).statChoiceMove).toBe("Hard to Kill");
+		// The canonical spelling, not whatever case the owned copy happens to carry — the lookup
+		// on the other side is case-insensitive, and the label reads better spelled properly.
+		expect(deathsDoorRollOptions(["hard to kill"], {}).statChoiceMove).toBe("Hard to Kill");
 	});
 
 	it("matches the move name case-insensitively", () => {

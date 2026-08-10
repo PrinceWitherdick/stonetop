@@ -17,7 +17,14 @@ export class CharacterModel extends foundry.abstract.TypeDataModel {
 				cha: valueField(),
 			}),
 			attributes: new fields.SchemaField({
-				hp:      valueMaxField(16, 16),
+				hp:      valueMaxField(16, 16, {
+					// A lasting, hand-set change to max HP, for the arcana and post-death
+					// consequences that grant or cost it outright ("reducing your max HP by 4",
+					// "gain +1 armor and +4 max HP"). Stored as a signed DELTA rather than a
+					// replacement so it keeps riding on top of the playbook's number and its
+					// move bonuses as the character grows; see StonetopCharacter#setMaxHp.
+					adjustment: new fields.NumberField({ required: true, integer: true, initial: 0 }),
+				}),
 				xp:      valueMaxField(0, 8),
 				level:   valueField(1),
 				armor:   valueField(),

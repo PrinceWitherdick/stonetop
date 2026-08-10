@@ -1,0 +1,19 @@
+{{!-- The Judge's brand, worn by the person it was laid on. One partial for all three sheets that
+      can show it (npc, monster, character), because "Condemned" must not come to mean three
+      slightly different things depending on whose sheet you are reading.
+
+      A <span>, never a button: nothing on the BRANDED person's sheet can lift this. Condemn says
+      the mark "cannot be removed or hidden until you dismiss it", and "you" is the Judge — so the
+      only control that ends it lives in their roster window (templates/dialogs/condemned.hbs), and
+      offering one here would be offering a click that does nothing.
+
+      The word is wrapped in a SPAN rather than left as a bare text node. Two reasons, and the pill
+      is a flex row so both bite: an anonymous flex item cannot be targeted, and the gavel and the
+      word need OPPOSITE vertical nudges to look level (see .stonetop-condemned-tag-text) — so
+      there has to be something to hang the label's on. It also keeps the word one item; loose
+      inline text in a flex container is split per word, which `gap` then spaces apart.
+
+      Takes `by` (the Judge names) and `byLabel` (those names joined) from condemnedContext. --}}
+<span class="stonetop-condemned-tag"
+      data-tooltip="{{#if byLabel}}{{localize "stonetop.condemn.tagTooltip" who=byLabel}}{{else}}{{localize "stonetop.condemn.tagTooltipPlain"}}{{/if}}"
+      data-tooltip-direction="DOWN"><i class="fas fa-gavel"></i><span class="stonetop-condemned-tag-text">{{localize "stonetop.condemn.tag"}}</span></span>

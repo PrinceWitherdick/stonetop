@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="155.43 23.56 214.32 464.56">
+	<!-- The Lightbearer's holy light, at the end of the appearance line in the character sheet
+	     header. Painted as a CSS MASK (.stonetop-holy-light-icon), so only the ALPHA of this
+	     file matters: the shape is the hole the colour shows through.
+
+	     TWO departures from the game-icons.net original, both to the CANVAS — the drawing
+	     itself is untouched geometry.
+
+	     One: the opaque black backing plate is gone. As a mask, an opaque plate is a perfectly
+	     valid one that passes 100% of its own box, so the sheet would render a solid slab that
+	     still lays out, hovers and clicks, with nothing logged anywhere. If this icon ever
+	     reads as a filled rectangle, that is why.
+
+	     Two: the 0 0 512 512 canvas is CROPPED to the drawing's own bounding box (measured, not
+	     eyeballed: x 155.43-369.76, y 23.56-488.12). The original centres a tall narrow candle
+	     in a square, which under `mask-size: contain` leaves the glyph floating with ~29% of
+	     the box empty on each side and a slice empty below — so the flame could not be sat on
+	     the text's baseline, only near it. Cropped, the box IS the candle: the element's
+	     0.7em x 1.5em keeps the drawing's 0.4613 aspect, and its bottom edge is the candle's
+	     bottom edge. Re-importing the upstream file undoes both; redo them if you do. -->
+	<path fill="#fff" d="M258.75 23.563c-27.913 0-93.875 87.237-93.875 158.593 0 59.35 29.018 79.715 68.625 94.875-15.47-15.607-26.03-43.75-26.03-76.186 0-49.232 31.292-89.188 53.25-89.188 21.132 0 53.25 39.955 53.25 89.188 0 30.39-9.41 56.833-23.283 72.937 36.097-18.016 61.938-35.72 61.938-91.624 0-71.356-66.786-158.594-93.875-158.594zm6.72 175.906-18.5 2.686c5.764 39.366 6.665 69.034 4.25 97.875-24.957-.97-49.677-5.972-73.69-14.75v95.47c-3.295 25.668-22.434 30.526-22.093 53.47.29 19.547 14.998 26.003 22.094 17.624v36.28h164.69v-88.343c8.615 10.89 27.17 3.06 27.53-21.31.432-29.117-24.597-34.605-27.53-68.814V285.28c-23.916 8.88-48.17 13.702-72.314 14.72 2.337-29.752 1.383-60.792-4.437-100.53z"/>
+</svg>

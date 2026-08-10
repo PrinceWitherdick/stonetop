@@ -15,6 +15,11 @@ const SYSTEM_PATH_LABELS = {
 	"system.attributes.damage.value": "Damage value",
 	"system.attributes.hp.value": "HP",
 	"system.attributes.hp.max": "Max HP",
+	// The lasting hand-set change on top of the derived max — an arcanum's soul-wound or a
+	// Mark's boon. Labelled so it lands in the ledger like any other permanent change; without
+	// a row here an unlabelled path is dropped, and the one write that OUGHT to be on the
+	// record would be the one that isn't.
+	"system.attributes.hp.adjustment": "Max HP (permanent)",
 	"system.attributes.xp.value": "XP",
 	"system.attributes.xp.max": "XP max",
 	"system.attributes.level.value": "Level",
@@ -129,6 +134,9 @@ const ARCANA_SLUG_LISTS = {
 	identified: { added: "Arcanum identified", removed: "Arcanum un-identified",     merge: "Arcana identified" },
 	leads:      { added: "Arcanum lead found", removed: "Arcanum lead resolved",     merge: "Arcana leads" },
 	revealed:   { added: "Arcanum revealed",   removed: "Arcanum hidden again",      merge: "Arcana revealed" },
+	// A 7-9 on the Know Things roll to identify a card (Book I p.440) hands over the front and
+	// promises the back later; the debt is settled when the GM reveals it.
+	backOwed:   { added: "Arcanum back owed",  removed: "Arcanum back delivered",    merge: "Arcana backs owed" },
 };
 // Bookkeeping sub-flags with no play meaning of their own — a backfill guard, the onboarding
 // draw, per-card display state. They were logging lines like "Arcana set to on".
@@ -921,7 +929,15 @@ function loreTextEntry(path, newValue, names) {
 
 // Appearance lines carry no category names in the playbook data (they are just four ordered
 // lists), so the entry names the chosen trait and merges the burst into a single line.
+//
+// A CLEARED line arrives as a DELETION, not a value, and the two cores disagree on its shape:
+// v13 sends `-=<n>` with null (which falls out at the empty check below), while v14+ sends a
+// ForcedDeletion INSTANCE at the plain path (utils/foundry-compat.js#deletionEntry) — and that
+// stringifies to "[object Object]", so without the type test a player emptying a write-in box
+// got a ledger row reading "Appearance set to [object Object]". Same trap crewEntries guards
+// at its own door; a line is only ever a string, so anything else is not a choice to read out.
 function appearanceEntry(newValue) {
+	if (typeof newValue !== "string") return null;
 	const value = stripHtml(newValue);
 	if (!value) return null;
 	return { action: `Appearance set to ${value}`, merge: listMerge("Appearance", "appearance", [value]) };

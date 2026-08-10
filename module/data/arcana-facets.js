@@ -3,7 +3,7 @@ import { isMajorArcanumItem } from "../arcana-icons.js";
 
 /**
  * What an arcanum DOES, derived from its own data — the browse facets behind the
- * Relic / Power / Conduit chips in the arcana browser (see ArcanaBrowserDialog).
+ * Relic / Power / Conduit chips in the arcana browser (see dialogs/catalog/ArcanaSource.js).
  *
  * Nothing in the pack tags an arcanum this way, so these are read off the card's shape
  * rather than curated: an arcanum that hands you something to carry is a Relic, one that

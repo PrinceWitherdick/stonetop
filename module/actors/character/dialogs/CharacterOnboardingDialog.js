@@ -22,6 +22,7 @@ import { getHoverDescriptionSetting } from "../../../settings.js";
 import { moveGroupsForPlaybook, moveGroupKeys } from "./onboarding-move-groups.js";
 import { effectiveSubgroupMax } from "./possession-choice-cap.js";
 import { playbookIconPath } from "../../../utils/playbook-actors.js";
+import { ensurePackIndex } from "../../../utils/pack-index.js";
 
 const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
 
@@ -792,9 +793,8 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		this._arcanaCachePromise = (async () => {
 			// Arcana live in their own GM-hidden compendium (split out of stonetop-items);
 			// the pack is arcana-only, but keep the moveType filter below as a defensive guard.
-			const pack = game.packs.get(ARCANA_PACK);
+			const pack = await ensurePackIndex(ARCANA_PACK, ["system.moveType"]);
 			if (!pack) return { major: [], minor: [] };
-			await pack.getIndex({ fields: ["system.moveType"] });
 			const entries = pack.index.filter(entry => entry.system?.moveType === "arcanum");
 			const docs = await Promise.all(entries.map(entry => pack.getDocument(entry._id)));
 			const options = docs.filter(Boolean).flatMap(doc => {
@@ -951,9 +951,9 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	}
 
 	async _loadPlaybookMoves() {
-		const pack = game.packs.get(ITEMS_PACK);
+		const pack = await ensurePackIndex(ITEMS_PACK,
+			["system.playbook", "system.isStartingMove", "system.requirement"]);
 		if (!pack) return [];
-		await pack.getIndex({ fields: ["system.playbook", "system.isStartingMove", "system.requirement"] });
 		const relevant = pack.index.filter(e => e.system?.playbook === this._playbookDoc.name);
 		const docs = await Promise.all(relevant.map(e => pack.getDocument(e._id)));
 		return docs.filter(Boolean);

@@ -25,6 +25,22 @@ const LEVELUP_WIDE_STEPS = ["move", "foreignMove", "invocation"];
 // keep this the one source of truth for step order + skip logic.
 const LEVELUP_STEPS = ["overview", "move", "foreignMove", "stat", "marks", "invocation"];
 
+// The foreign-move step reuses the move step's card and chip markup so it inherits that
+// styling (including the past-death skin, which targets these class names directly): a
+// foreign card carries `.stonetop-levelup-move-option` too, and a playbook chip carries
+// `.stonetop-levelup-move-chip`. So a handler selecting on the shared class alone ALSO
+// binds to the other step's DOM — the two steps never render together, but the state each
+// handler writes is on the instance and outlives the step. That is how a group chip left
+// active on the move step used to blank the whole foreign list (a foreign card has no
+// `data-move-groups`, so it matched no group), and how clicking a foreign move used to
+// overwrite `_selectedMoveId` with the foreign move's id and level the character up with
+// the wrong move entirely. Select through these constants — each pairs the shared class
+// with the thing that tells the two families apart — rather than the bare class.
+const MOVE_CARD    = ".stonetop-levelup-move-option:not(.stonetop-levelup-foreign-option)";
+const FOREIGN_CARD = ".stonetop-levelup-foreign-option";
+const MOVE_CHIP    = ".stonetop-levelup-move-chip[data-move-group]";
+const FOREIGN_CHIP = ".stonetop-levelup-foreign-chip";
+
 export class LevelUpDialog extends StonetopDialog {
 	constructor(character, levelUpData, onDone, options = {}) {
 		super(options);
@@ -48,6 +64,7 @@ export class LevelUpDialog extends StonetopDialog {
 		this._foreignMoves           = [];
 		this._foreignMovesForId      = null; // the move id _foreignMoves was loaded for (avoid re-fetch on Back/Next)
 		this._foreignSearch          = "";
+		this._activeForeignPlaybook  = null; // source-playbook chip filter ("The Fox" | … | null = all)
 		this._onDone = onDone;
 	}
 
@@ -159,6 +176,12 @@ export class LevelUpDialog extends StonetopDialog {
 			selected:      m.compendiumId === this._selectedForeignMoveId,
 		}));
 
+		// Source-playbook chips beside the foreign-move search. Derived from the moves
+		// actually offered (so a chip can never filter to nothing) rather than from the
+		// full playbook roster, and only worth showing once two or more are represented —
+		// a cross-playbook move naming a single playbook needs no filter.
+		const foreignPlaybooks = this._foreignPlaybookChips();
+
 		// How many distinct options are actually SELECTABLE this take (a count option with a
 		// free box). The required allowance is capped to this, so a budgeted move whose budget
 		// exceeds its distinct options (e.g. Beast of Legend's 2 options on a 3-pick take) can
@@ -238,11 +261,23 @@ export class LevelUpDialog extends StonetopDialog {
 			statCap,
 			statAllAtCap:    statOptions.length > 0 && statOptions.every(s => s.atCap),
 			foreignMoves,
+			foreignPlaybooks,
 			hasForeignMoves: foreignMoves.length > 0,
 			foreignMovesEmpty: isForeignMove && foreignMoves.length === 0,
 			foreignFromMoveName: selectedEntry?.name ?? null,
 			foreignGrantsPouch:  !!selectedEntry?.crossPlaybook?.grantsPossession,
 		};
+	}
+
+	// The distinct source playbooks among the offered foreign moves, as filter chips
+	// ({ key, label }). `key` is the playbook name exactly as a move stores it (the value
+	// matched against `data-playbook`); `label` drops the article so the chips read as the
+	// playbooks are spoken — "Fox", "Heavy", "Would-Be Hero". Returns [] below two entries,
+	// which the template reads as "no chip row".
+	_foreignPlaybookChips() {
+		const names = [...new Set(this._foreignMoves.map(m => m.playbook).filter(Boolean))].sort();
+		if (names.length < 2) return [];
+		return names.map(name => ({ key: name, label: name.replace(/^The\s+/i, "") }));
 	}
 
 	// The PlaybookMoveEntry for the currently-selected move (carries `cap`/`name`), or null.
@@ -335,6 +370,40 @@ export class LevelUpDialog extends StonetopDialog {
 		this._foreignMovesForId = entry.compendiumId;
 		this._selectedForeignMoveId = null;
 		this._foreignSearch = "";
+		this._activeForeignPlaybook = null;
+	}
+
+	// Show/hide one card list against its step's filter (`match` decides whether a card
+	// passes), and reveal that list's "nothing matches" line when the filter empties it.
+	//
+	// The card the player has already picked is pinned visible whether or not it matches:
+	// Continue is enabled off the stored pick, so a hidden selection means a player filtering
+	// after choosing sees an unexplained live button — or worse, levels up on a card that
+	// scrolled out of existence. Pinning keeps the enabled button and the highlighted card in
+	// agreement without discarding a deliberate choice.
+	_applyCardFilter(html, cardSelector, emptySelector, match) {
+		let visible = 0;
+		html.find(cardSelector).each((_, el) => {
+			// Block body is load-bearing: a bare-arrow callback returning `show` would abort
+			// jQuery's .each() on the first filtered-out card, leaving the rest unfiltered.
+			const show = match(el) || el.classList.contains("is-selected");
+			el.classList.toggle("is-filtered-out", !show);
+			if (show) visible++;
+		});
+		html.find(emptySelector).toggleClass("is-filtered-out", visible > 0);
+	}
+
+	// Paint a chip row's active state: the chip whose `data-<dataKey>` equals `active` lights,
+	// the rest clear. `aria-pressed` carries the same state for a screen reader, which has no
+	// access to the highlight. A null `active` (no filter) matches no chip and clears the row.
+	_paintChips(html, chipSelector, dataKey, active) {
+		html.find(chipSelector).each((_, b) => {
+			// Block body is load-bearing: classList.toggle returns a boolean, and a
+			// bare-arrow return of `false` aborts jQuery's .each() mid-loop.
+			const on = b.dataset[dataKey] === active;
+			b.classList.toggle("is-active", on);
+			b.setAttribute("aria-pressed", on ? "true" : "false");
+		});
 	}
 
 	activateListeners(html) {
@@ -346,7 +415,7 @@ export class LevelUpDialog extends StonetopDialog {
 			markProseSpiralBullets(desc);
 		}
 
-		html.find(".stonetop-levelup-move-option:not(.is-locked)").on("click", ev => {
+		html.find(`${MOVE_CARD}:not(.is-locked)`).on("click", ev => {
 			this._selectedMoveId = ev.currentTarget.dataset.compendiumId;
 			// Drop any stat / foreign-move / mark pick from a previously-selected move so they
 			// re-validate against the new move (a non-stat / non-cross-playbook move ignores them).
@@ -362,16 +431,27 @@ export class LevelUpDialog extends StonetopDialog {
 			this._selectedForeignMoveId = ev.currentTarget.dataset.compendiumId;
 			this.render(false);
 		});
-		// Foreign-move search (pure DOM show/hide; state survives the selection re-render).
+		// Foreign-move search + source-playbook chips (pure DOM show/hide, mirroring the
+		// move step; state lives on the instance so a pick — which re-renders — keeps both).
 		const applyForeignFilter = () => {
 			const q = this._foreignSearch.trim().toLowerCase();
-			html.find(".stonetop-levelup-foreign-option").each((_, el) => {
-				el.classList.toggle("is-filtered-out", !!q && !el.textContent.toLowerCase().includes(q));
+			this._applyCardFilter(html, FOREIGN_CARD, ".stonetop-levelup-foreign-no-matches", el => {
+				const textMatch     = !q || el.textContent.toLowerCase().includes(q);
+				const playbookMatch = !this._activeForeignPlaybook || el.dataset.playbook === this._activeForeignPlaybook;
+				return textMatch && playbookMatch;
 			});
 		};
 		const foreignSearch = html.find(".levelup-foreign-search");
 		foreignSearch.val(this._foreignSearch);
 		foreignSearch.on("input", ev => { this._foreignSearch = ev.currentTarget.value; applyForeignFilter(); });
+		html.find(FOREIGN_CHIP).on("click", ev => {
+			const key = ev.currentTarget.dataset.playbook;
+			this._activeForeignPlaybook = this._activeForeignPlaybook === key ? null : key; // tap again to clear
+			this._paintChips(html, FOREIGN_CHIP, "playbook", this._activeForeignPlaybook);
+			applyForeignFilter();
+		});
+		// Restore the active-chip highlight and apply the current filter after each render.
+		this._paintChips(html, FOREIGN_CHIP, "playbook", this._activeForeignPlaybook);
 		applyForeignFilter();
 
 		html.find(".stonetop-levelup-stat-option:not(.is-at-cap)").on("click", ev => {
@@ -398,11 +478,11 @@ export class LevelUpDialog extends StonetopDialog {
 		// we re-apply it below on every render.
 		const applyMoveFilter = () => {
 			const query = this._moveSearch.trim().toLowerCase();
-			html.find(".stonetop-levelup-move-option").each((_, el) => {
+			this._applyCardFilter(html, MOVE_CARD, ".stonetop-levelup-move-no-matches", el => {
 				const textMatch  = !query || el.textContent.toLowerCase().includes(query);
 				const groups     = (el.dataset.moveGroups ?? "").split(/\s+/).filter(Boolean);
 				const groupMatch = !this._activeMoveGroup || groups.includes(this._activeMoveGroup);
-				el.classList.toggle("is-filtered-out", !(textMatch && groupMatch));
+				return textMatch && groupMatch;
 			});
 		};
 		const search = html.find(".levelup-move-search");
@@ -411,20 +491,14 @@ export class LevelUpDialog extends StonetopDialog {
 			this._moveSearch = ev.currentTarget.value;
 			applyMoveFilter();
 		});
-		html.find(".stonetop-levelup-move-chip").on("click", ev => {
+		html.find(MOVE_CHIP).on("click", ev => {
 			const key = ev.currentTarget.dataset.moveGroup;
 			this._activeMoveGroup = this._activeMoveGroup === key ? null : key; // tap again to clear
-			html.find(".stonetop-levelup-move-chip").each((_, b) => {
-				// Block body is load-bearing: classList.toggle returns a boolean, and a
-				// bare-arrow return of `false` aborts jQuery's .each() mid-loop.
-				b.classList.toggle("is-active", b.dataset.moveGroup === this._activeMoveGroup);
-			});
+			this._paintChips(html, MOVE_CHIP, "moveGroup", this._activeMoveGroup);
 			applyMoveFilter();
 		});
 		// Restore the active-chip highlight and apply the current filter after each render.
-		html.find(".stonetop-levelup-move-chip").each((_, b) => {
-			b.classList.toggle("is-active", b.dataset.moveGroup === this._activeMoveGroup);
-		});
+		this._paintChips(html, MOVE_CHIP, "moveGroup", this._activeMoveGroup);
 		applyMoveFilter();
 
 		html.find(".stonetop-levelup-locked-check").on("change", ev => {

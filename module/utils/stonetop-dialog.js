@@ -120,6 +120,34 @@ export class StonetopDialog extends Application {
 		}
 	}
 
+	/**
+	 * Re-render an already-open window. The guard is not optional: AppV1's `render(true)`
+	 * force-renders a CLOSED application back onto the page, so a dialog dismissed while an
+	 * await was in flight would pop open again on top of whatever the user moved on to.
+	 *
+	 * `render(true)` rather than renderNow()'s `render(false)`, because a step-based dialog
+	 * re-renders to CHANGE step and has to be brought to the front with it.
+	 */
+	renderIfOpen() {
+		if (this.rendered) this.render(true);
+	}
+
+	/**
+	 * Options for a dialog that must have one window PER DOCUMENT rather than one window at all.
+	 *
+	 * AppV1 resolves `Application#element` as `$("#" + this.id)` whenever `_element` is unset, so
+	 * two dialogs sharing the single id from defaultOptions both resolve to the FIRST one's frame:
+	 * the second's `_replaceHTML` paints its content into the first's window, and the first's
+	 * handlers are left bound to nodes nothing will re-render. Two PCs at Death's Door in one
+	 * fight is an ordinary evening, and the longer a dialog stays open the easier it is to hit.
+	 *
+	 * A static rather than something the constructor does, because `this.options` is frozen after
+	 * `super()` — the id has to arrive in the options object, before the base class sees it.
+	 */
+	static perDocumentOptions(prefix, documentId, options = {}) {
+		return foundry.utils.mergeObject({ id: `${prefix}-${documentId ?? "unknown"}` }, options);
+	}
+
 	/** Read a form field's value by selector from a root element; "" when the field is absent. */
 	static readValue(root, selector) {
 		return root.querySelector(selector)?.value ?? "";

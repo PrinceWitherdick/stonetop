@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { FoundryPackStore } from "../../../../module/actors/character/repositories/FoundryPackStore.js";
+import { resetPackIndexFields } from "../../../../module/utils/pack-index.js";
 
 // -- Helpers ------------------------------------------------------------------
 
@@ -23,6 +24,8 @@ function stubGameNoPack() {
 	vi.stubGlobal("game", { packs: { get: () => null } });
 }
 
+// The per-pack field union is remembered across calls, so each test starts from an empty registry.
+beforeEach(() => resetPackIndexFields());
 afterEach(() => vi.unstubAllGlobals());
 
 // -- Tests --------------------------------------------------------------------
@@ -108,14 +111,43 @@ describe("FoundryPackStore", () => {
 			expect(pack.getIndex).toHaveBeenCalledWith({ fields: ["system.slug", "system.name"] });
 		});
 
-		it("calls getIndex only once per instance even with multiple queries", async () => {
+		// Deliberately NOT "only once": the pack is asked on every query, because a getIndex it has
+		// already covered returns without a round trip, while one it hasn't is exactly the case that
+		// needs re-indexing — another store having narrowed the pack's indexed fields.
+		it("asks the pack on every query", async () => {
 			const pack = makePack([ENTRY_A], {});
 			stubGame(pack);
 			const store = new FoundryPackStore("stonetop.test", ["system.slug"]);
 			await store.findEntry(e => e.system?.slug === "alpha");
 			await store.filterEntries(() => true);
 			await store.getAll();
-			expect(pack.getIndex).toHaveBeenCalledTimes(1);
+			expect(pack.getIndex).toHaveBeenCalledTimes(3);
+		});
+
+		// The bug this guards: v14 rebuilds a document's index entry out of the fields the pack was
+		// LAST indexed on, dropping every other one. Two stores sharing a pack with different lists
+		// therefore un-indexed each other's fields, and any entry whose document had been loaded lost
+		// them — post-death inserts vanishing from "Choose Your Fate" once opened. So every store's
+		// request carries the union of what all of them have asked for.
+		it("asks for the union of every store's fields on the same pack", async () => {
+			const pack = makePack([ENTRY_A], {});
+			stubGame(pack);
+			const slugStore = new FoundryPackStore("stonetop.test", ["system.slug"]);
+			const typeStore = new FoundryPackStore("stonetop.test", ["system.moveType"]);
+			await slugStore.getAll();
+			await typeStore.getAll();
+			await slugStore.getAll();
+			for (const call of pack.getIndex.mock.calls.slice(1)) {
+				expect(call[0].fields).toEqual(expect.arrayContaining(["system.slug", "system.moveType"]));
+			}
+		});
+
+		it("keeps the field sets of different packs apart", async () => {
+			const packs = { a: makePack([], {}), b: makePack([], {}) };
+			vi.stubGlobal("game", { packs: { get: (id) => packs[id] ?? null } });
+			await new FoundryPackStore("a", ["system.slug"]).getAll();
+			await new FoundryPackStore("b", ["system.moveType"]).getAll();
+			expect(packs.b.getIndex).toHaveBeenCalledWith({ fields: ["system.moveType"] });
 		});
 	});
 });

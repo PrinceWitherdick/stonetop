@@ -103,26 +103,33 @@
 				{{!-- The level-up cue: modern raises a dot here because the redesign put the
 				      vitals row behind a tab. In classic the vitals are pinned above the tabs
 				      and actor-vitals.hbs already draws the cue there, so no dot is needed. --}}
+				{{!-- Post-Death leads. It only exists for a character who died and came back (or
+				      for a sheet in edit mode), and when it exists it is the most important thing
+				      on the sheet — what they are now qualifies everything below it. Its DOM
+				      position here IS the template order both layouts merge a saved rail against
+				      (_mergeTabOrder), so moving it moves it in classic and modern at once. --}}
+				{{#if stonetop.showPostDeath}}{{> "stonetop.tab-nav-item" tab="post-death" label=(localize "stonetop.sheet.tabs.postDeath")}}{{/if}}
 				{{> "stonetop.tab-nav-item" tab="moves"         label=(localize "stonetop.sheet.tabs.moves") attention=stonetop.canLevelUp attentionLabel=(localize "stonetop.specialMoves.levelUp.ready")}}
 				{{#if stonetop.invocations}}{{> "stonetop.tab-nav-item" tab="invocations" label=(localize "stonetop.sheet.tabs.invocations")}}{{/if}}
 				{{#if stonetop.showFollowersTab}}{{> "stonetop.tab-nav-item" tab="followers" label=(localize "stonetop.sheet.tabs.followers")}}{{/if}}
 				{{> "stonetop.tab-nav-item" tab="inventory"     label=(localize "stonetop.sheet.tabs.inventory")}}
 				{{#if stonetop.hasArcana}}{{> "stonetop.tab-nav-item" tab="arcana" label=(localize "stonetop.sheet.tabs.arcana")}}{{/if}}
 				{{> "stonetop.tab-nav-item" tab="details"       label=(localize "stonetop.sheet.tabs.details")}}
-				{{#if stonetop.showPostDeath}}{{> "stonetop.tab-nav-item" tab="post-death" label=(localize "stonetop.sheet.tabs.postDeath")}}{{/if}}
 				{{> "stonetop.tab-nav-item" tab="special-moves" label=(localize "stonetop.sheet.tabs.specialMoves")}}
 				{{> "stonetop.tab-nav-item" tab="notes"         label=(localize "stonetop.sheet.tabs.notes")}}
 			</nav>
 
 			<div class="stonetop-sheet-layout">
 				<section class="sheet-body">
+					{{!-- Panel order follows the nav so the two read the same way in the DOM;
+					      which panel is SHOWN is the nav's business, not this order's. --}}
+					{{#if stonetop.showPostDeath}}{{> "stonetop.tab-post-death"}}{{/if}}
 					{{> "stonetop.tab-moves"}}
 					{{#if stonetop.invocations}}{{> "stonetop.tab-invocations"}}{{/if}}
 					{{#if stonetop.showFollowersTab}}{{> "stonetop.tab-followers"}}{{/if}}
 					{{> "stonetop.tab-equipment"}}
 					{{#if stonetop.hasArcana}}{{> "stonetop.tab-arcana"}}{{/if}}
 					{{> "stonetop.tab-details"}}
-					{{#if stonetop.showPostDeath}}{{> "stonetop.tab-post-death"}}{{/if}}
 					{{> "stonetop.tab-special-moves"}}
 					{{> "stonetop.tab-notes"}}
 				</section>

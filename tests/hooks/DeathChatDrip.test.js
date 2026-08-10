@@ -45,19 +45,29 @@ describe("deathDripStamp — what a message carries from the moment it's made", 
 	});
 });
 
-describe("markDeathDrip — the fringe on a rendered message", () => {
+describe("markDeathDrip — the marks on a rendered message", () => {
 	it("adds nothing to a message with no stamp", () => {
 		const { message, html, classes } = rendered(undefined);
 		markDeathDrip(message, html);
 		expect([...classes]).toEqual([]);
 	});
 
-	// The base class carries the whole effect and the modifier only re-tints it, so a kind the
-	// CSS has never heard of still drips instead of silently doing nothing.
-	it("adds the base class and the kind's modifier", () => {
+	// The base and kind classes are the record of which death it was; an insert adds a third,
+	// "came back", which is what the black card repaint is drawn on.
+	it("adds the base class, the kind's modifier and the insert mark", () => {
 		const { message, html, classes } = rendered("revenant");
 		markDeathDrip(message, html);
-		expect([...classes]).toEqual(["stonetop-death-drip", "stonetop-death-drip--revenant"]);
+		expect([...classes]).toEqual([
+			"stonetop-death-drip", "stonetop-death-drip--revenant", "stonetop-death-drip--insert",
+		]);
+	});
+
+	// A character who stepped through the Last Door and stayed there is stamped and nothing more —
+	// no repaint, because the repaint belongs to the ones still being played.
+	it("withholds the insert mark from a plain death", () => {
+		const { message, html, classes } = rendered("dead");
+		markDeathDrip(message, html);
+		expect([...classes]).toEqual(["stonetop-death-drip", "stonetop-death-drip--dead"]);
 	});
 
 	it("unwraps a jQuery-style handle, like the other chat passes", () => {

@@ -18,7 +18,8 @@
         "value": "Your time has come—choose 1: Make one last move as if you rolled a 12+, then step through the Last Door / Refuse to go; gain the Revenant or Ghost insert / Call on one of the Things Below by name and beseech it to intercede; gain the Thrall insert."
       }
     },
-    "rollType": "ask"
+    "rollType": "ask",
+    "noXpOnMiss": true
   },
   "_id": "apBTuwKXNYmtl8rX",
   "_key": "!items!apBTuwKXNYmtl8rX",

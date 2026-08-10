@@ -3,17 +3,21 @@
 <div class="tab stonetop-invocations stonetop-gap-managed{{#if stonetop.invocations.hideUnknown}} hide-unknown-invocations{{/if}}" data-group="primary" data-tab="invocations">
 
 	<div class="stonetop-details-heading-row">
-		{{> "stonetop.section-heading" title=(localize "stonetop.sheet.tabs.invocations")}}
+		{{> "stonetop.section-heading" title=(localize "stonetop.sheet.tabs.invocations")
+		    searchControl=true
+		    searchTitle="Search invocations"
+		    searchPlaceholder="Filter invocations…"}}
 		{{> "stonetop.details-section-edit-toggle" section="invocations" editing=stonetop.invocationsEdit collapse="invocations"}}
 	</div>
 
+	{{!-- The filter moved up into the shared section heading (searchControl); the sort stayed
+	      down here beside the hide toggle, since both are about what the grid below shows. --}}
 	<div class="stonetop-invocations-toolbar">
 		<label class="stonetop-hide-unselected-label">
 			<input type="checkbox" class="stonetop-hide-unknown-invocations-check"{{#if stonetop.invocations.hideUnknown}} checked{{/if}}>
 			Hide un-learned invocations
 		</label>
-		<input type="search" class="stonetop-invocation-search" placeholder="Filter invocations…">
-		<select class="stonetop-invocation-sort">
+		<select class="stonetop-invocation-sort" data-tooltip="Order the invocations below">
 			<option value="known"{{#if stonetop.invocations.sortKnown}} selected{{/if}}>Known first</option>
 			<option value="alpha"{{#if stonetop.invocations.sortAlpha}} selected{{/if}}>A–Z</option>
 		</select>
@@ -35,7 +39,10 @@
 				       data-slug="{{slug}}"
 				       {{#if known}}checked{{/if}}
 				       {{#unless @root.stonetop.invocationsEdit}}disabled{{/unless}}>
-				<span class="stonetop-invocation-name" role="button" tabindex="0" data-tooltip="Send to chat">{{label}}</span>
+				{{!-- Both states are tappable: an un-learned Invocation still posts its text, it
+				      just isn't offered the roll (see the click handler). The tooltip is what
+				      says which of the two this tap will be. --}}
+				<span class="stonetop-invocation-name" role="button" tabindex="0" data-tooltip="{{#if known}}Use this Invocation{{else}}You haven't learned this Invocation — tap to read it out{{/if}}">{{label}}</span>
 				{{#if ongoing}}<span class="stonetop-item-source stonetop-invocation-ongoing" data-tooltip="While one Invocation is ongoing, you can't use another. You can end an Invocation whenever you wish, and it will end immediately if your holy light is extinguished. An invocation's range is equal to that of its light source." data-tooltip-direction="UP">Ongoing</span>{{/if}}
 			</div>
 			<div class="stonetop-invocation-desc">{{{description}}}</div>

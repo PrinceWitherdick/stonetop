@@ -114,6 +114,12 @@ export class MinorArcanumSnapshot {
 		this.checked    = b._checked;
 		this.unlocked   = b._unlocked;
 		this.identified = b._identified;
+		// The back is owed: a 7-9 on the Know Things roll to identify this card let the owner
+		// read the front, and promised the back "when they have some time to study it or learn
+		// more" (Book I p.440). Purely a reminder that the GM owes a reveal — it grants no
+		// access on its own, and it's meaningless once the back is permitted (revealed or
+		// unlocked), which the sheet suppresses rather than the snapshot.
+		this.backOwed   = b._backOwed ?? false;
 		// A "lead": the owner knows this arcanum's whereabouts but hasn't recovered it yet
 		// (the Seeker's Lead role). Shows a placeholder card with a "discovered" action that
 		// promotes it to the normal, identified form. A card is never lead AND identified.
@@ -144,6 +150,7 @@ export class MinorArcanumSnapshotBuilder {
 	withChecked(v)     { this._checked    = v; return this; }
 	withUnlocked(v)    { this._unlocked   = v; return this; }
 	withIdentified(v)  { this._identified = v; return this; }
+	withBackOwed(v)    { this._backOwed   = v; return this; }
 	withLead(v)        { this._lead       = v; return this; }
 	withImg(v)         { this._img        = v; return this; }
 	withMajor(v)       { this._major      = v; return this; }

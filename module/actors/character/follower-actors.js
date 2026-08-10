@@ -6,13 +6,16 @@
 // (module/hooks/FollowerDrop.js), except that it is now made when the follower is ADDED rather
 // than only when somebody first drags them onto a scene.
 //
-// ONE place decides both halves of that, because the two have to agree:
+// ONE place decides all three parts of that, because they have to agree:
 //
 //   • WHO a follower already is (followerActorFromLink), so nothing creates a second copy of a
 //     creature that exists — the drop, the card's Tokenizer pip, and this sweep all ask here.
 //   • What making one MEANS (createFollowerActor): the folder, the provenance stamp, and the
 //     ownership, which is the character's own — your follower's NPC is yours, whoever's client
 //     happened to make it.
+//   • That the actor goes on MATCHING the card (syncFollowerActors). Making it once was not
+//     enough: a follower renamed, re-tagged or given a portrait after their NPC existed kept the
+//     name, face and numbers it was born with — most visibly as the token dropped on a scene.
 //
 // Never a one-shot. Followers arrive from a dozen places (the walkthrough, a converted monster
 // or NPC, a possession, an arcana summon, the onboarding dialog's animal companion / crew /
@@ -20,9 +23,14 @@
 // that set it — the mistake migrateSteadingPeople carries a paragraph about. Instead the sweep is
 // cheap enough to run on every render and does nothing in the steady state.
 
-import { FOLLOWER_FOLDER, followerNpcActorData } from "../../data/follower-actor.js";
+import {
+	CARD_FIELD_PATHS, FOLLOWER_FOLDER, followerActorFields, followerActorMoves, followerCardStamp,
+	followerNpcActorData, followerPortraitFrame, isFollowerMarkerImg,
+} from "../../data/follower-actor.js";
 import { ensureNamedActorFolder } from "../steading/steading-people.js";
 import { resolvedFlags } from "./StonetopFlags.js";
+import { sameSrc } from "../../utils/portrait-frame.js";
+import { isDefaultImg } from "../../utils/strings.js";
 import { SYSTEM_ID } from "../../system-id.js";
 
 /**
@@ -216,4 +224,236 @@ export async function ensureFollowerActors(character, snapshots = []) {
 	} finally {
 		_sweepsInFlight.delete(character.id);
 	}
+}
+
+// Characters a sync is mid-flight on. The sheet re-renders freely — a portrait pick calls render
+// itself — and each render would otherwise start another pass over updates that have not landed.
+const _syncsInFlight = new Set();
+
+/**
+ * Every write this sweep makes, marked as the machine's rather than a person's.
+ *
+ * `stonetopLedger` is the ledgers' own kill switch (StonetopActor#_preUpdate and the two
+ * descendant hooks read it), and this sweep is exactly what it is for: NpcLedger watches all
+ * thirteen fields the card governs, plus move adds and removes, so without this a follower
+ * RENAMED ON A CHARACTER SHEET would file a column of "Name changed", "Tags changed", "Move
+ * added:" entries against their NPC — in the voice of whichever client's render happened to win
+ * the makerRank stagger, as though somebody had sat down and typed them. The card is the author
+ * here; the NPC's log is for what people do to the NPC.
+ */
+const SILENT = Object.freeze({ stonetopLedger: true });
+
+/** The stamp: what the card last dictated to this actor, or null for one made before it existed. */
+const cardStamp = (actor) => actor?.flags?.[SYSTEM_ID]?.[STAMP_KEY] ?? null;
+const STAMP_KEY = "followerCard";
+
+/**
+ * Is this field still ours to write?
+ *
+ * The same three-state rule `tokenFollowsPortrait` (utils/portrait-token-frame.js) applies to a
+ * token, raised one level and generalised:
+ *   • the actor holds exactly what the card last gave it — it was following, so it follows on;
+ *   • the actor holds nothing at all — an empty field has nothing to lose.
+ * Anything else was typed on the NPC's own sheet, and the card does not overrule it.
+ *
+ * `img` keeps a wider first test, because a portrait has stand-ins a blank string doesn't: a stock
+ * placeholder or one of our category discs is exactly as empty as an empty field, and is what an
+ * actor made before the stamp existed is wearing — which is the case the whole sweep began with.
+ *
+ * An actor with no stamp therefore only takes fields it is missing. That is deliberate: for a
+ * value it already holds there is no way to tell "the card changed since" from "a GM typed this",
+ * and guessing wrong overwrites somebody's work. The first pass plants the stamp, and from then on
+ * every change follows.
+ */
+function fieldFollowsCard(actor, key, stamped) {
+	const current = foundry.utils.getProperty(actor, CARD_FIELD_PATHS[key]);
+	if (key === "img") {
+		return isDefaultImg(current) || isFollowerMarkerImg(current) || sameSrc(current, stamped);
+	}
+	if (_holdsNothing(key, current)) return true;
+	return current === stamped;
+}
+
+// The card's two NUMBER fields. NpcModel starts both at 0, which is that schema's way of saying
+// "nothing here" — so for these, 0 is the empty field, exactly as "" is for the text ones.
+const NUMERIC_CARD_FIELDS = new Set(["hpMax", "armor"]);
+
+/**
+ * Is this field empty — nothing to lose, so the card may fill it?
+ *
+ * Spelled out rather than left as a bare `=== ""` because a numeric 0 read as "the actor holds
+ * something", and that quietly stranded every follower actor made before the stamp existed at
+ * 0 armour and a 0 HP ceiling — permanently, not merely on the first pass. 0 is not undefined,
+ * null or "", so the field looked held and was skipped; the stamp was then planted saying the
+ * card had given 6; and every pass after compared 0 against 6, disagreed, and skipped it again.
+ * The token dropped on the map read 0/0 forever, which is the exact drift this sweep exists to
+ * undo.
+ *
+ * The trade is the same one the blank-string rule already makes: an NPC deliberately zeroed
+ * while its card says otherwise takes the card's number back. At 0 there is no way to tell
+ * "nobody has touched this" from "somebody meant it", and the schema default has to win, or the
+ * default state — which is what nearly every one of these actors is in — can never be filled at
+ * all.
+ */
+function _holdsNothing(key, current) {
+	if (current === undefined || current === null || current === "") return true;
+	return NUMERIC_CARD_FIELDS.has(key) && Number(current) === 0;
+}
+
+/** Equal for our purposes: a portrait ignores the cache-buster stamp, everything else is strict. */
+const _sameValue = (key, a, b) => (key === "img" ? sameSrc(a, b) : a === b);
+
+/** Shallow equality over two stamps, so an unchanged one is never re-written. */
+function _stampEq(a, b) {
+	if (!a || !b) return false;
+	const keys = new Set([...Object.keys(a.fields ?? {}), ...Object.keys(b.fields ?? {})]);
+	for (const key of keys) if (a.fields?.[key] !== b.fields?.[key]) return false;
+	return (a.moves ?? []).join(" ") === (b.moves ?? []).join(" ");
+}
+
+/**
+ * What this one actor needs to catch up with its card: an update object, the moves to add, and the
+ * `npcMove` items to take away. Null when it is already in step.
+ */
+function followerActorPlan(actor, follower) {
+	const fields = followerActorFields(follower);
+	const moves  = followerActorMoves(follower);
+	const stamp  = cardStamp(actor);
+	const update = {};
+
+	for (const [key, value] of Object.entries(fields)) {
+		const path = CARD_FIELD_PATHS[key];
+		if (!fieldFollowsCard(actor, key, stamp?.fields?.[key])) continue;
+		if (_sameValue(key, foundry.utils.getProperty(actor, path), value)) continue;
+		update[path] = value;
+	}
+
+	// A ceiling the card just lowered cannot leave the token reading 6/4. Only ever downward:
+	// healing a follower back to full because their sheet re-rendered is not this sweep's business.
+	if (update[CARD_FIELD_PATHS.hpMax] !== undefined) {
+		const current = Number(foundry.utils.getProperty(actor, "system.attributes.hp.value") ?? 0);
+		if (current > fields.hpMax) update["system.attributes.hp.value"] = fields.hpMax;
+	}
+
+	// The frame goes with the picture it was measured on, so a face arriving without one takes the
+	// old rect away rather than leaving an orphan behind — the same atomic pair the card's own
+	// clear handler writes.
+	if (update.img !== undefined) {
+		const frame = followerPortraitFrame(follower);
+		if (frame) update[`flags.${SYSTEM_ID}.portraitFrame`] = frame;
+		else if (actor.flags?.[SYSTEM_ID]?.portraitFrame) update[`flags.${SYSTEM_ID}.-=portraitFrame`] = null;
+	}
+
+	// Moves are documents, not fields, so they are reconciled by name rather than overwritten. Only
+	// the ones the card LOST are removed, and only if the card put them there: a GM move written on
+	// the NPC is never in the stamp, so it is never in this list.
+	const have    = new Map(_npcMoves(actor).map(i => [i.name, i]));
+	const add     = moves.filter(m => !have.has(m));
+	const dropped = (stamp?.moves ?? []).filter(m => !moves.includes(m));
+	const remove  = dropped.map(m => have.get(m)?.id).filter(Boolean);
+
+	// Through followerCardStamp, which is also what creation writes: the stamp is a flag object and
+	// Foundry merges one of those, so it has to carry every key or a dropped one lives forever.
+	const next = followerCardStamp(fields, moves);
+	if (!_stampEq(stamp, next)) update[`flags.${SYSTEM_ID}.${STAMP_KEY}`] = next;
+
+	if (!Object.keys(update).length && !add.length && !remove.length) return null;
+	return { update, add, remove };
+}
+
+/** This actor's GM-move items. */
+function _npcMoves(actor) {
+	return [...(actor?.items ?? [])].filter(i => i?.type === "npcMove");
+}
+
+/**
+ * Keep every follower's Actor in step with the card it was made from.
+ *
+ * Run beside ensureFollowerActors, from the same post-render call, and for the same reason: a
+ * follower can be renamed, re-tagged, re-armed or given a portrait from the card, the walkthrough,
+ * an NPC or monster conversion, a possession or an arcana summon — and every one of those ends in
+ * a render of this sheet, so none of them has to know about this. Making the actor once was not
+ * enough; it went on wearing the name, face and numbers it was born with.
+ *
+ * Only the actor made FOR this card (`actorUuid`). The NPC a follower was recruited from is a
+ * document in their own right — changing the card is not a licence to rewrite the villager they
+ * came from.
+ *
+ * Current HP is the one thing the card does not govern: the token takes damage on the map. The
+ * ceiling follows, and drags the current value down with it when it is lowered past it.
+ *
+ * The prototype token comes along for free where the portrait moves: writing `img` is what
+ * StonetopActor#_syncPrototypeTokenImage watches, and it carries a token that was following.
+ *
+ * Returns how many actors were brought back into step.
+ *
+ * @param {Actor}    character
+ * @param {object[]} snapshots  the finished cards' drag snapshots (_followerDragSnapshot)
+ */
+export async function syncFollowerActors(character, snapshots = []) {
+	// The in-flight guard first: a pass already running is about to answer for these snapshots,
+	// so planning them again is work whose result we would throw away.
+	if (_syncsInFlight.has(character?.id)) return 0;
+
+	// Then the cheap scan, as above: the steady state is "every actor already matches its card",
+	// and the price of that answer on every render must be one walk of a handful of snapshots.
+	//
+	// Guarded, and separately from the writes below, because this is where a malformed snapshot
+	// lands: followerActorPlan reads every field on the card. The same guard ensureFollowerActors
+	// keeps, and for the same reason — both are fired and forgotten from the character sheet's
+	// post-render with no `.catch` of their own to fall back on, so a throw here is an unhandled
+	// rejection on EVERY render of that sheet, and one nothing on screen connects to the sheet
+	// the player is looking at.
+	const drifted = [];
+	try {
+		for (const snapshot of snapshots ?? []) {
+			const follower = snapshot?.follower;
+			if (!follower) continue;
+			const actor = worldActorFromUuid(follower.actorUuid);
+			if (!actor?.isOwner) continue;
+			if (followerActorPlan(actor, follower)) drifted.push({ actor, follower });
+		}
+	} catch (err) {
+		console.error("Stonetop | Could not work out which follower actors need updating.", err);
+		return 0;
+	}
+	if (!drifted.length) return 0;
+
+	_syncsInFlight.add(character?.id);
+	let moved = 0;
+	try {
+		// The same queue the creating sweep waits in, for a sharper version of the same reason.
+		// Two people with this sheet open both see every write to it, so both would otherwise
+		// reconcile in the same instant — and while writing a field twice is merely wasteful,
+		// ADDING a move twice leaves the follower carrying it twice, which nothing takes back.
+		const rank = makerRank(character);
+		if (rank > 0) await _wait(rank * MAKER_STAGGER_MS);
+
+		for (const { actor, follower } of drifted) {
+			// Re-planned after the wait rather than trusting the scan above, because the whole
+			// point of the wait is to let the other client's writes land first.
+			const plan = followerActorPlan(actor, follower);
+			if (!plan) continue;
+			try {
+				if (Object.keys(plan.update).length) await actor.update(plan.update, SILENT);
+				// Removals first: a move renamed on the card is an add and a drop on the same
+				// creature's list, and doing it in this order never leaves the two side by side.
+				if (plan.remove.length) await actor.deleteEmbeddedDocuments?.("Item", plan.remove, SILENT);
+				if (plan.add.length) {
+					await actor.createEmbeddedDocuments?.("Item",
+						plan.add.map(m => ({ name: m, type: "npcMove" })), SILENT);
+				}
+				moved++;
+			} catch (err) {
+				console.warn("Stonetop | Could not bring this follower's actor back in step.", actor?.name, err);
+			}
+		}
+	} catch (err) {
+		// Outside the per-actor guard above: makerRank walks the connected users and asks the
+		// character about each one's permissions, and that is before any single actor is in hand.
+		console.error("Stonetop | Could not sync this character's follower actors.", err);
+	} finally {
+		_syncsInFlight.delete(character?.id);
+	}
+	return moved;
 }

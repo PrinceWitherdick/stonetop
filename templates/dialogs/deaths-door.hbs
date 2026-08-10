@@ -1,8 +1,8 @@
 <div class="deaths-door-dialog-content">
 
-	{{! The move heads every step of its own walkthrough; "Refuse to Go" is a different move
-	    and brings its own heading. }}
-	{{#unless isFate}}
+	{{! The move heads every step of its own walkthrough; "Refuse to Go" and the insert's own
+	    questions are past it, and bring their own headings. }}
+	{{#unless (or isFate isChoices)}}
 	<h2 class="deaths-door-move-name">{{move.name}}</h2>
 	<p class="deaths-door-intro deaths-door-move-trigger">{{{move.trigger}}}</p>
 	{{/unless}}
@@ -18,9 +18,11 @@
 		</p>
 
 		{{#if hasStatChoice}}
-		{{! The Heavy's Hard to Kill: "you can roll +CON or +nothing (your choice)". }}
+		{{! The Heavy's Hard to Kill: "you can roll +CON or +nothing (your choice)". The move's
+		    name and its own words both come from the owned Item, so a player who is suddenly
+		    offered a stat can see which move is giving it to them and read why. }}
 		<div class="deaths-door-roll-option">
-			<span class="deaths-door-roll-option-label">Hard to Kill &mdash; roll with:</span>
+			<span class="deaths-door-roll-option-label">{{#if statChoiceMove}}{{statChoiceMove}} &mdash; {{/if}}roll with:</span>
 			<div class="deaths-door-stat-choices">
 				{{#each statChoices}}
 				{{! The label wraps the radio so the text is a hit target too. No `is-checked`
@@ -33,6 +35,11 @@
 				</label>
 				{{/each}}
 			</div>
+			{{#if statChoiceMoveDescription}}
+			{{! Raw: this is the move's own stored HTML, the same string its card and the playbook
+			    reference print. }}
+			<div class="deaths-door-roll-option-move">{{{statChoiceMoveDescription}}}</div>
+			{{/if}}
 		</div>
 		{{/if}}
 
@@ -43,20 +50,12 @@
 		</p>
 		{{/if}}
 
-		{{! Stakes first, then the roll: the button stays the last thing before the footer, where
-		    the eye lands after reading what it's for. }}
+		{{! Stakes first, then the roll — which is in the footer with "Not yet", the one place a
+		    dialog's actions live. }}
 		<div class="deaths-door-outcomes">
 			<p class="deaths-door-outcomes-label">However it lands:</p>
 			{{> "stonetop.deaths-door-outcomes" tiers=tiers}}
 		</div>
-
-		<p class="deaths-door-instruction">
-			Then, roll
-			<button type="button" class="deaths-door-roll-btn" title="Roll Death's Door">
-				<span class="deaths-door-roll-chip">{{#if hasStatChoice}}the dice{{else}}+nothing{{/if}}</span>
-				<i class="fas fa-dice-d6"></i>
-			</button>
-		</p>
 
 		<p class="deaths-door-note">
 			<i class="fas fa-hourglass-half"></i>
@@ -84,20 +83,25 @@
 			<p class="deaths-door-applied"><i class="fas fa-check"></i> Back to <strong>1 HP</strong>, and no longer dying.</p>
 			{{/if}}
 
+			{{! The mark is already a wound on the sheet by the time this renders (the tier seeds it),
+			    so there is no "record" button and no un-recorded state: this is the field where the
+			    player says what it was, and it saves itself as they leave it. }}
 			<div class="deaths-door-mark">
-				{{#if markSeeded}}
-				<p class="deaths-door-mark-done"><i class="fas fa-check"></i> Mark recorded on your sheet. Bring it up often.</p>
-				{{else}}
-				<p class="deaths-door-mark-label">Record how it marked you (mind, body, or soul):</p>
+				<p class="deaths-door-mark-label">Say how it marked you (mind, body, or soul):</p>
 				<div class="deaths-door-mark-chips">
 					{{#each markChips}}
 					<button type="button" class="deaths-door-mark-chip" data-mark="{{this}}">{{this}}</button>
 					{{/each}}
 				</div>
 				<div class="deaths-door-mark-row">
-					<input type="text" class="deaths-door-mark-input" placeholder="&hellip;or describe your own mark">
-					<button type="button" class="deaths-door-mark-add"><i class="fas fa-plus"></i> Record mark</button>
+					<input type="text" class="deaths-door-mark-input" value="{{markText}}" placeholder="&hellip;or describe your own mark">
 				</div>
+				{{#if markSeeded}}
+				<p class="deaths-door-mark-done">
+					<i class="fas fa-check"></i>
+					{{#if markText}}Mark recorded on your sheet. Bring it up often.
+					{{else}}The mark is on your sheet already &mdash; what you write here names it.{{/if}}
+				</p>
 				{{/if}}
 			</div>
 		</div>
@@ -173,10 +177,68 @@
 	</div>
 	{{/if}}
 
+	{{! The insert is theirs; this is what it asks of them. Nothing here is compulsory — the answers
+	    live on the sheet and can be changed there — so Done is always live, however much is still
+	    outstanding.
+
+	    Laid out as the shared left-rail sheet (the same .stonetop-guide-* chrome as the
+	    first-session guide): one question on screen at a time, with the rail carrying the rest and
+	    marking off what has been answered. Stacked, the four ran to a window taller than the
+	    screen, and a player scrolling past three lists of the book's prose to reach the fourth had
+	    no way of telling how much of it was still asking something of them. }}
+	{{#if isChoices}}
+	<div class="deaths-door-step deaths-door-step--choices">
+		<div class="deaths-door-choices-head">
+			<h2 class="deaths-door-move-name">{{insertName}}</h2>
+			{{! Told per fate — a Thrall didn't refuse anything, they called something up. }}
+			<p class="deaths-door-intro">{{choicesIntro}}</p>
+		</div>
+
+		<div class="stonetop-guide-split">
+			{{! The rail. One entry per question, ticked as each is settled, so what is left to do is
+			    read down the margin instead of scrolled for. }}
+			<nav class="stonetop-guide-toc" aria-label="What the {{insertName}} insert asks of you">
+				<ol class="stonetop-guide-toc-list">
+					{{#each choiceTabs}}
+					<li class="stonetop-guide-toc-item{{#if isActive}} is-active{{/if}}{{#if done}} is-answered{{/if}}">
+						<button type="button" class="stonetop-guide-toc-btn deaths-door-choice-tab"
+						        data-choice-step="{{key}}"{{#if isActive}} aria-current="true"{{/if}}>
+							<i class="fas {{icon}} stonetop-guide-toc-icon"></i>
+							<span class="stonetop-guide-toc-text">{{label}}</span>
+							{{#if done}}<i class="fas fa-check deaths-door-choice-tab-done" aria-label="answered"></i>{{/if}}
+						</button>
+					</li>
+					{{/each}}
+				</ol>
+			</nav>
+
+			<div class="stonetop-guide-main deaths-door-choices-main">
+				{{> "stonetop.post-death-choices" choices=choices}}
+				{{! This used to name the button that reopened these questions. There is no such button
+				    any more — the Post-Death tab prints the insert's own state — so it points at the
+				    tab, and at edit mode, which is now the way to change an answer afterwards. }}
+				<p class="deaths-door-note">
+					<i class="fas fa-hourglass-half"></i>
+					<span>No rush: whatever you leave undecided is waiting on your Post-Death tab, and can be
+					answered there in edit mode.</span>
+				</p>
+			</div>
+		</div>
+	</div>
+	{{/if}}
+
 </div>
 
 <div class="deaths-door-dialog-buttons">
 	{{#if isRoll}}
+	{{! The roll is this step's affirmative action, so it takes the left of the footer (Foundry's
+	    order) at full button size, and "Not yet" keeps the right edge. The label carries what is
+	    being rolled: with no stat choice on offer there is nothing else on the step that says
+	    "+nothing". }}
+	<button class="deaths-door-roll-btn is-primary" type="button" title="Roll Death's Door">
+		<i class="fas fa-dice-d6"></i>
+		<span>Roll {{#if hasStatChoice}}the dice{{else}}+nothing{{/if}}</span>
+	</button>
 	<button class="deaths-door-cancel-btn" type="button">Not yet</button>
 	{{/if}}
 
@@ -188,5 +250,25 @@
 
 	{{#if isFate}}
 	<button class="deaths-door-cancel-btn" type="button">Cancel</button>
+	{{/if}}
+
+	{{#if isChoices}}
+	{{! `title` because the line is clipped to one row now that it shares the footer with three
+	    buttons, and on a Thrall with nothing answered it names four steps. }}
+	{{#if outstandingLabel}}<span class="deaths-door-outstanding" title="{{outstandingLabel}}">{{outstandingLabel}}</span>{{/if}}
+	{{! Back / Next walk the rail; Done leaves. A wizard keeps its forward action on the right (the
+	    one place our dialogs don't put the affirmative first), and Done sits past it because it is
+	    the way OUT of the walkthrough rather than the next step of it. }}
+	<span class="deaths-door-choices-nav">
+		<button class="deaths-door-choice-back" type="button"{{#if atFirstChoice}} disabled{{/if}}>
+			<span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>Back
+		</button>
+		<button class="deaths-door-choice-next" type="button"{{#if atLastChoice}} disabled{{/if}}>
+			Next<span class="stonetop-nav-arrow"></span>
+		</button>
+		<button class="deaths-door-close-btn is-primary" type="button">
+			<i class="fas fa-check"></i> Done
+		</button>
+	</span>
 	{{/if}}
 </div>

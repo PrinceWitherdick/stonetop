@@ -47,13 +47,17 @@
 								<i class="fas fa-user"></i>
 							</span>
 							{{/if}}
+							{{!-- The playbook rides the name here — "Pim The Lightbearer" — as it does in
+							      the Actors sidebar and on a chat card's speaker. It sits INSIDE the name
+							      element so the cell's ellipsis truncates the pair as one name; the aria
+							      label and tooltip take the whole thing as a single string. --}}
 							{{#if uuid}}
 							{{!-- Labelled rather than tooltipped, for the same reason as the NPC rows
 							      below: no href to announce, and no room for a hover bubble. --}}
 							<a class="steading-player-name-text steading-player-open" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}"
-							   draggable="true" aria-label='{{localize "stonetop.relationships.open" name=name}}'>{{name}}</a>
+							   draggable="true" aria-label='{{localize "stonetop.relationships.open" name=fullName}}'>{{name}}{{#if playbookName}} <span class="stonetop-playbook-epithet">{{playbookName}}</span>{{/if}}</a>
 							{{else}}
-							<span class="steading-player-name-text" data-tooltip="{{name}}">{{name}}</span>
+							<span class="steading-player-name-text" data-tooltip="{{fullName}}">{{name}}{{#if playbookName}} <span class="stonetop-playbook-epithet">{{playbookName}}</span>{{/if}}</span>
 							{{/if}}
 						</div>
 						<div class="steading-residents-col steading-residents-col-occupation" data-tooltip="{{#if @root.stonetop.edit.players}}{{occupation}}{{else}}{{resolvedOccupation}}{{/if}}">

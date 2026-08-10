@@ -3,6 +3,7 @@ import {slugify} from "../../utils/strings.js";
 import {OCCUPATIONS, TRAITS, HOMES} from "../../data/steading-members.js";
 import {resolvePersonRow} from "./steading-people.js";
 import {resolvePortrait, documentPortraitFrame} from "../../utils/portrait-frame.js";
+import {playbookTitle, characterFullName} from "../../utils/playbook-actors.js";
 
 /**
  * The three lenses the Improvements tab filters by — the toggle chips beside its
@@ -1235,10 +1236,14 @@ export class StonetopSteading {
 				|| (p.name ? characterByName.get(p.name.toLowerCase()) : null)
 				|| null;
 			// A playbook isn't an occupation — players may hold any job — so the
-			// Occupation column shows only an explicit occupation; the playbook name
-			// surfaces under the portrait's hover preview instead (or, for an art-less
-			// character, on the placeholder's tooltip — see the neighbors tab).
-			const playbookName = actor?.system?.playbook?.name ?? "";
+			// Occupation column shows only an explicit occupation; the playbook rides
+			// the NAME instead ("Pim The Lightbearer"), and doubles as the portrait
+			// hover preview's subtitle (or, for an art-less character, the placeholder's
+			// tooltip — see the neighbors tab).
+			//
+			// playbookTitle, not the raw stored name, so a Would-Be Hero who has crossed
+			// off "Would-be" is "The Hero" here exactly as on their own sheet header.
+			const playbookName = playbookTitle(actor);
 			const resolvedOccupation = p.occupation || "";
 			// The LIVE portrait, not the stored one. `p.img` is a snapshot taken when the player
 			// was dropped onto the roster, while a frame is authored against the character's own
@@ -1253,7 +1258,13 @@ export class StonetopSteading {
 			// always shown the live name (resolvePersonRow); this brings Players in line. The
 			// snapshot stays as the fallback for a row whose actor has gone.
 			const name = actor?.name || p.name || "";
-			return { traits: "", relations: "", ...p, name, notes: p.notes ?? p.etc ?? "", resolvedOccupation, playbookName,
+			// The whole thing, for the places that need one string rather than two runs of
+			// text — the open-sheet label a screen reader announces, and the row's tooltip.
+			// Joined by the shared helper, so the sidebar epithet, the chat speaker and this
+			// roster can't drift apart on separator or ordering. Falls back to the snapshot
+			// name for a row whose actor has gone.
+			const fullName = actor ? characterFullName(actor) : name;
+			return { traits: "", relations: "", ...p, name, notes: p.notes ?? p.etc ?? "", resolvedOccupation, playbookName, fullName,
 				img: portrait.src, imgStyle: portrait.style };
 		});
 

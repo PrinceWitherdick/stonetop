@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="548" height="548" viewBox="0 0 548 548">
+  <title>Load diamond, empty (light)</title>
+  <!-- The shipped diamond.svg in bone rather than ink, for the surfaces that turn black: it is
+       painted as a fixed-fill background image (not a mask), so on a dark sheet the original
+       vanishes. Same geometry and same viewBox as its twin, so anything using this art as a MASK
+       is unaffected by the swap. -->
+  <path d="M274 26 L522 274 L274 522 L26 274 Z"
+        fill="none"
+        stroke="#d9d2c2"
+        stroke-width="52"
+        stroke-linejoin="round"
+        stroke-linecap="round"/>
+</svg>

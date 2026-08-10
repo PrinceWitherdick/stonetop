@@ -1,0 +1,77 @@
+<div class="stonetop-condemned-body">
+
+	{{!-- Whose move this is, then the move itself. Condemn's brand is the only Judge state that
+	      outlives its scene, and the clause that makes this window necessary ("until you dismiss
+	      it") is the one a table forgets. --}}
+	<div class="stonetop-condemned-heading">
+		{{#if playbookImg}}
+		<img class="stonetop-condemned-mark" src="{{playbookImg}}" alt="" draggable="false">
+		{{/if}}
+		<p class="stonetop-condemned-rule">{{localize "stonetop.condemn.rule"}}</p>
+	</div>
+
+	{{#if hasRows}}
+	<ul class="stonetop-condemned-list">
+		{{#each rows}}
+		<li class="stonetop-condemned-row" data-condemned-id="{{id}}">
+			<span class="stonetop-condemned-portrait">
+				<img class="stonetop-condemned-portrait-img" src="{{img}}" style="{{imgStyle}}" alt="" draggable="false">
+			</span>
+
+			<div class="stonetop-condemned-text">
+				<div class="stonetop-condemned-nameline">
+					{{!-- A link only where there is still a document to open. A brand outlives the
+					      actor it names, so a deleted target degrades to plain text rather than to a
+					      control that warns every time it is pressed. --}}
+					{{#if linked}}
+					<a class="stonetop-condemned-open stonetop-condemned-name-text" data-actor-uuid="{{uuid}}"
+					   tabindex="0" aria-label="{{localize "stonetop.relationships.open" name=name}}">{{name}}</a>
+					{{else}}
+					<span class="stonetop-condemned-name-text">{{name}}</span>
+					{{/if}}
+				</div>
+
+				{{#if ../editable}}
+				<input type="text" class="stonetop-condemned-note" data-condemned-id="{{id}}"
+				       value="{{note}}" autocomplete="off"
+				       placeholder="{{localize "stonetop.condemn.notePlaceholder"}}">
+				{{else}}{{#if note}}
+				<p class="stonetop-condemned-note-text">{{note}}</p>
+				{{/if}}{{/if}}
+			</div>
+
+			{{#if ../editable}}
+			<button type="button" class="stonetop-condemned-dismiss" data-condemned-id="{{id}}"
+			        aria-label="{{localize "stonetop.condemn.dismissLabel" name=name}}"
+			        data-tooltip="{{localize "stonetop.condemn.dismissLabel" name=name}}"
+			        data-tooltip-direction="LEFT"><i class="fas fa-xmark"></i></button>
+			{{/if}}
+		</li>
+		{{/each}}
+	</ul>
+	{{else}}
+	<p class="stonetop-condemned-empty">{{localize "stonetop.condemn.empty"}}</p>
+	{{/if}}
+
+	{{#if editable}}
+	{{!-- Free-type, backed by a datalist of world actors: a Censure most often lands on somebody
+	      nobody has made an Actor for, and a Proclamation's faction never has one at all. A typed
+	      name that matches an actor exactly is stored as a link to them anyway (see _addTyped), so
+	      the two ways of adding the same person record the same thing. Dropping an Actor onto this
+	      window does it without the typing. --}}
+	<div class="stonetop-condemned-add">
+		<input type="text" class="stonetop-condemned-name" list="stonetop-condemned-suggestions"
+		       autocomplete="off" placeholder="{{localize "stonetop.condemn.addPlaceholder"}}">
+		{{!-- `label` is where a native datalist already means "the aside beside this option", and
+		      it is what StonetopAutocomplete renders as the dimmed second column. Only `value` is
+		      ever inserted into the field, so a picked "Brennan the Claw / Marshedge" types just
+		      the name and the search resolves it cleanly. --}}
+		<datalist id="stonetop-condemned-suggestions">
+			{{#each suggestions}}<option value="{{value}}"{{#if hint}} label="{{hint}}"{{/if}}></option>{{/each}}
+		</datalist>
+		<button type="button" class="stonetop-condemned-add-btn">{{localize "stonetop.condemn.add"}}</button>
+	</div>
+	<p class="stonetop-condemned-hint">{{localize "stonetop.condemn.dropHint"}}</p>
+	{{/if}}
+
+</div>

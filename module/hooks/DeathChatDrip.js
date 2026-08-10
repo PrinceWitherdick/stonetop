@@ -1,19 +1,25 @@
 import { STONETOP_SCOPE, resolvedFlagProperty } from "../actors/character/StonetopFlags.js";
-import { DEATHS_DOOR_FLAG, pastDeathKind } from "../actors/character/deaths-door.js";
+import { DEATHS_DOOR_FLAG, POST_DEATH_INSERT_SLUGS, pastDeathKind } from "../actors/character/deaths-door.js";
 
 /**
  * The dead keep talking, and the log should say so.
  *
- * A character who stepped through the Last Door — or who came back wearing one of the three
- * post-death inserts — gets a dark fringe hanging off the bottom edge of everything they say
- * in chat. It carries no rule and clicks nothing; it is there so a Ghost's line doesn't scroll
- * past reading like anyone else's.
+ * A character who came back wearing one of the three post-death inserts has everything they say
+ * in chat turned over the way their sheet is: a black card instead of parchment (see the stylesheet,
+ * "What the undead say, said on black"). It carries no rule and clicks nothing; it is there so a
+ * Ghost's line doesn't scroll past reading like anyone else's.
+ *
+ * The name is older than that. Every death — insert or not — used to hang a dark fringe off the
+ * bottom edge of its message, and that fringe is the "drip" here. It was cut by request; the flag,
+ * the classes and this module keep their names rather than churning three files and their tests
+ * over a word. A character who stepped through the Last Door and stayed there is still stamped,
+ * and now draws nothing.
  *
  * STAMPED AT CREATION, not read at render. The kind rides along on the message as a flag, so a
  * message means "spoken while dead" for good: the log stays a record of when they died rather
  * than being rewritten the moment they do. (It also keeps the render pass off the actor
  * documents, which matters when a long backlog re-renders.) The cost is that messages already
- * in the log when a PC dies never pick the fringe up — which is the reading we want anyway.
+ * in the log when a PC dies are never repainted — which is the reading we want anyway.
  */
 
 /** Message flag (under the system scope) holding the speaker's {@link pastDeathKind}. */
@@ -35,9 +41,18 @@ export function deathDripStamp(actor) {
 }
 
 /**
- * Put the fringe on a rendered message (dispatched from stonetop.js renderChatMessageHTML).
- * Two classes: the base one carries the whole effect, the modifier only re-tints the ink, so an
- * unrecognised kind from a hand-edited flag still drips rather than silently doing nothing.
+ * Mark a rendered message with its speaker's death (dispatched from stonetop.js
+ * renderChatMessageHTML).
+ *
+ * Three classes at most: the base one, the kind, and `--insert`. That last one says the speaker
+ * came BACK rather than merely died, and is the line the black card repaint is drawn on — the
+ * same distinction, and the same reason, as the sheet's `stonetop-past-death` (see
+ * StonetopCharacterSheet._stampPastDeath). Named once here rather than spelled out as a
+ * three-way `:is()` on every rule that wants it.
+ *
+ * The base and kind classes carry no styling of their own now that the fringe is gone; they stay
+ * because the kind is what the repaint tints from, and because a hand-edited flag naming a kind
+ * CSS has never heard of should land somewhere inert rather than throw.
  */
 export function markDeathDrip(message, html) {
 	const root = html?.[0] ?? html;
@@ -47,4 +62,5 @@ export function markDeathDrip(message, html) {
 	if (!kind) return;
 
 	root.classList.add(DRIP_CLASS, `${DRIP_CLASS}--${kind}`);
+	if (POST_DEATH_INSERT_SLUGS.includes(kind)) root.classList.add(`${DRIP_CLASS}--insert`);
 }

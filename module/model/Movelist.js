@@ -27,6 +27,11 @@ export class OtherItemSnapshot {
 		this.rollLabel   = b._rollLabel ?? null;
 		this.custom      = b._custom ?? false;
 		this.learned     = b._learned ?? true;
+		// Origin badge for the row's top-right corner, on the same terms as a playbook
+		// move's "Starting move" / "Granted by …": the playbook a move came from when that
+		// ISN'T this character's own. Null for anything homegrown, so the badge only ever
+		// appears where it says something.
+		this.sourceLabel = b._sourceLabel ?? null;
 		this.resourceKey = b._resourceKey ?? b._name;
 		this.resource    = b._resource ?? null;
 	}
@@ -42,6 +47,7 @@ export class OtherItemSnapshotBuilder {
 	withRollLabel(v)   { this._rollLabel   = v; return this; }
 	withCustom(v)      { this._custom      = v; return this; }
 	withLearned(v)     { this._learned     = v; return this; }
+	withSourceLabel(v) { this._sourceLabel = v; return this; }
 	withResourceKey(v) { this._resourceKey = v; return this; }
 	withResource(v)    { this._resource    = v; return this; }
 	build()            { return new OtherItemSnapshot(this); }

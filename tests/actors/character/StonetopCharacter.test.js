@@ -265,6 +265,36 @@ describe("StonetopCharacter.buildSnapshot — playbook display fields", () => {
 		expect(data.movelist.otherMoves.map(m => m.name)).toEqual(["Anthem", "Zeal", "Dirge"]);
 	});
 
+	// A move dropped on the sheet from another playbook lands in Other Moves keeping its
+	// origin in system.playbook. Without a badge it sits there unexplained — the corner
+	// label is how the sheet says "this came from the Fox", the way a playbook row says
+	// "Starting move".
+	describe("otherMoves origin badge", () => {
+		const otherMove = (playbook) => ({
+			_id: "m1", type: "move", name: "Ambush",
+			system: { moveType: "other", rollType: null, playbook },
+		});
+		const labelFor = async (actorPlaybook, movePlaybook) => {
+			const builder = new FakeActorBuilder().withItems([otherMove(movePlaybook)]);
+			if (actorPlaybook) builder.withPlaybook("the-would-be-hero", actorPlaybook);
+			const snap = await new TestCharacterBuilder(builder.build()).build().buildSnapshot();
+			return snap.movelist.otherMoves[0].sourceLabel;
+		};
+
+		it("names the origin playbook when it isn't the character's own", async () => {
+			expect(await labelFor("The Would-Be Hero", "The Fox")).toBe("The Fox");
+		});
+
+		// Their own playbook's name in the corner of their own sheet says nothing.
+		it("stays null for a move from the character's own playbook", async () => {
+			expect(await labelFor("The Fox", "The Fox")).toBeNull();
+		});
+
+		it("stays null for a homegrown move with no playbook at all", async () => {
+			expect(await labelFor("The Fox", undefined)).toBeNull();
+		});
+	});
+
 	it("returns playbook object when playbook present", async () => {
 		const actor = new FakeActorBuilder().withPlaybook("the-blessed", "The Blessed").build();
 		const char = new TestCharacterBuilder(actor).addPlaybook(BLESSED_PLAYBOOK).build();
@@ -970,6 +1000,37 @@ function makeOnRollActor(item, { pbtaRollMode = "def", debilities = {} } = {}) {
 	actor.items = itemsArr;
 	return actor;
 }
+
+// -- setMoveLearned -----------------------------------------------------------
+
+// The learned toggle used to refuse anything that wasn't player-authored, which left a
+// foreign move dropped onto the sheet permanently active with no way to park it. It writes
+// the same flag _isMoveLearned reads off ANY item, so there was never a reason to bail.
+describe("StonetopCharacter.setMoveLearned", () => {
+	const moveActor = (item) => {
+		const actor = new FakeActorBuilder().withItems([item]).build();
+		actor.items.get = id => actor.items.find(i => i._id === id) ?? null;
+		return actor;
+	};
+
+	it("un-learns a NON-custom move (a foreign playbook move dropped on the sheet)", async () => {
+		const item = { _id: "m1", type: "move", name: "Ambush", system: { moveType: "other", playbook: "The Fox" }, setFlag: vi.fn() };
+		await new TestCharacterBuilder(moveActor(item)).build().setMoveLearned("m1", false);
+		expect(item.setFlag).toHaveBeenCalledWith("stonetop_pwd", "learned", false);
+	});
+
+	it("re-learns a custom move", async () => {
+		const item = { _id: "c1", type: "move", name: "Homebrew", system: { moveType: "other" }, flags: { "stonetop_pwd": { custom: true } }, setFlag: vi.fn() };
+		await new TestCharacterBuilder(moveActor(item)).build().setMoveLearned("c1", true);
+		expect(item.setFlag).toHaveBeenCalledWith("stonetop_pwd", "learned", true);
+	});
+
+	it("does nothing for an id that isn't on the actor", async () => {
+		const item = { _id: "m1", type: "move", name: "Ambush", system: {}, setFlag: vi.fn() };
+		await new TestCharacterBuilder(moveActor(item)).build().setMoveLearned("gone", false);
+		expect(item.setFlag).not.toHaveBeenCalled();
+	});
+});
 
 // -- onDropMove ---------------------------------------------------------------
 

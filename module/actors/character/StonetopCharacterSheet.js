@@ -11,7 +11,8 @@ import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
 import {PossessionChoicesDialog} from "./dialogs/PossessionChoicesDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
 import {UndeathDialog} from "./dialogs/UndeathDialog.js";
-import {DEATHS_DOOR_STATE, resolvedHp, zeroHpMove} from "./deaths-door.js";
+import {buildPostDeathChoices, choiceWriteIns} from "./post-death-choices.js";
+import {DEATHS_DOOR_STATE, PAST_DEATH_KINDS, POST_DEATH_INSERT_SLUGS, pastDeathClasses, pastDeathKind, resolvedHp, zeroHpMove} from "./deaths-door.js";
 import {WoundDialog} from "./dialogs/WoundDialog.js";
 import {WOUND_STATUS_GLYPH, WOUND_STATUS_LABEL} from "./wound-display.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
@@ -44,6 +45,9 @@ import {normalizeRollType} from "../../utils/roll-types.js";
 import {escHtml, isDefaultImg, normalizePlaybookGlyphs, composeInstinct} from "../../utils/strings.js";
 import {playbookIconPath, partyCharacters} from "../../utils/playbook-actors.js";
 import {postMoveToChat, moveChatCard} from "../../utils/chat.js";
+import {buildMoveTierResults} from "../../utils/move-results.js";
+import {knowThingsRollChoices, withAdvantage, KNOW_THINGS_STAT} from "./arcana-identify.js";
+import {knowThingsRollOptions} from "./know-things.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {openChroniclePageForActor} from "../../utils/chronicle.js";
 import {getDragEventData, deletionEntry, imagePopout} from "../../utils/foundry-compat.js";
@@ -56,7 +60,10 @@ import {openLedgerDialog} from "../../utils/ledger-dialog.js";
 import {promptRollModifier} from "../../dialogs/RollModifierDialog.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
-import {annotateInvocationEffects} from "./invocation-effects.js";
+import {annotateInvocationEffects, splitEmpoweredEffect} from "./invocation-effects.js";
+import {CONSECRATED_FLAME, INVOKE_THE_SUN_GOD, EMPOWERED_INVOCATIONS, ownsMoveNamed, showHolyLight} from "./holy-light.js";
+import {showCondemn, condemnedContext, CONDEMN, CENSURE} from "./condemn.js";
+import {CondemnedDialog} from "./dialogs/CondemnedDialog.js";
 import {wrapGlyphTextContainers} from "../../utils/glyphs.js";
 import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {canAuthorCustomMoves, canCreateArcana} from "../../utils/authoring-gates.js";
@@ -80,8 +87,9 @@ import {openPortraitFrameEditor} from "../../utils/PortraitFrameDialog.js";
 import {headerPortraitContext, usedActorPortraits, wirePortraitPopout, pointImagePopoutAt} from "../../utils/actor-portrait-picker.js";
 import {addPopoutHeaderControl, addPortraitFrameControl, addTokenizerControl} from "../../utils/popout-header-control.js";
 import {canOpenTokenizer, openTokenizer} from "../../utils/portrait-tokenizer.js";
-import {ensureFollowerActors, followerActorFromLink} from "./follower-actors.js";
+import {ensureFollowerActors, followerActorFromLink, syncFollowerActors} from "./follower-actors.js";
 import {localize, format} from "../../utils/i18n.js";
+import {promptRaiseFromDead} from "../../hooks/DeathsDoorPrompt.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "con", "int", "wis", "cha"]);
 const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
@@ -310,9 +318,31 @@ const EXPEDITION_MOVE_HANDLERS = {
 	Outfit:      sheet => sheet._onOutfitOpen(),
 };
 
+// Description-only moves whose USE does something beyond posting their text. These have no
+// rollType, so they fall through every roll path to the "post it to chat" tail — and posting
+// the text IS using them. Keyed by move name so both tails (the move-name click and the hotbar
+// macro) stay one lookup, and so a fourth playbook adds a row here rather than another method
+// plus a call at each site, where the two can silently drift apart.
+//
+// Matched on the resolved ITEM, never the row's text: an un-owned playbook row posts its text
+// with no item id at all, and a player-authored custom move can carry any name. Each handler
+// does its own gating (editable, owns the move that grants the effect).
+const MOVE_USE_EFFECTS = {
+	[CONSECRATED_FLAME]: sheet => sheet._consecrateFlame(),
+	[CONDEMN]:           sheet => sheet._openCondemnedIfJudge(),
+	[CENSURE]:           sheet => sheet._openCondemnedIfJudge(),
+};
+
 // Inventory slugs that hold "uses of supplies", in the order Recover depletes
 // them. Mirrors _PROSPERITY_RESOURCE_SLUGS in StonetopCharacter.js.
 const RECOVER_SUPPLY_SLUGS = ["supplies", "more-supplies", "even-more-supplies"];
+
+// Rides an Invocation's chat card when the player bought the empowered effect, so the
+// table can see the price was paid rather than inferring it from the stronger text.
+const EMPOWERED_NOTE_HTML =
+	`<p class="stonetop-chat-empowered-note"><i class="fas fa-sun" aria-hidden="true"></i> `
+	+ `Empowered: an <strong>extra consequence</strong>, chosen before the roll and taken `
+	+ `whatever it comes up.</p>`;
 
 function _addToLeadingNumber(value, delta) {
 	const match = String(value ?? "").match(/^(-?\d+)(.*)$/);
@@ -788,12 +818,61 @@ export function createStonetopCharacterSheetClass(Base) {
 			this._injectHeaderToggle();
 			this.element[0]?.classList.toggle("stonetop-edit-mode", this._editMode);
 			stampLayoutClass(this, "character");
-			// Deferred one-shot: switch to the Arcana tab after a dropped card's re-render (set
-			// in _onDropItemCreate). Instance-scoped so a sibling sheet's render can't consume it.
-			if (this._activateArcanaTabOnRender) {
-				this._activateArcanaTabOnRender = false;
-				this._tabs?.[0]?.activate?.("arcana");
+			this._stampPastDeath();
+			// Deferred one-shot: switch to a named tab after the re-render that puts it there — a
+			// dropped card's Arcana tab (_onDropItemCreate), the Post-Death tab a fate is about to
+			// be chosen on (_onPostDeathTabOpen). Instance-scoped so a sibling sheet's render can't
+			// consume it, and cleared BEFORE the activate so a throw can't leave it armed.
+			if (this._activateTabOnRender) {
+				const tab = this._activateTabOnRender;
+				this._activateTabOnRender = null;
+				this._tabs?.[0]?.activate?.(tab);
 			}
+		}
+
+		/**
+		 * A sheet past the Last Door wears the Death's Door black — see "the sheet of someone who
+		 * came back" in stonetop.css. All four kinds: the three inserts, which say every session
+		 * that this isn't the person it used to be, and a plain death, which takes the base grey
+		 * with no wash over it because nothing brought them back.
+		 *
+		 * Read off the flags rather than the render context so it survives a re-render that
+		 * doesn't rebuild the context, and stamped on the ROOT so the frame and title bar turn
+		 * over with the body — same reasoning as the dialog's moods. Read THROUGH the character
+		 * rather than off the actor's flags directly, so the flag paths stay named in one place.
+		 */
+		_stampPastDeath() {
+			const root = this.element?.[0];
+			if (!root) return;
+			const kind = this._pastDeathKind();
+			root.classList.toggle("stonetop-past-death", !!kind);
+			// Every kind is cleared and one is set, so a character raised out of `dead` (or handed
+			// an insert) doesn't keep the modifier of what they used to be.
+			PAST_DEATH_KINDS.forEach(k =>
+				root.classList.toggle(`stonetop-past-death--${k}`, k === kind));
+		}
+
+		/** What this character is past the Door: an insert slug, "dead", or null. */
+		_pastDeathKind() {
+			return pastDeathKind({
+				state:      this._stonetopCharacter.deathsDoorState,
+				insertSlug: this._stonetopCharacter.postDeathSlug,
+			});
+		}
+
+		/**
+		 * Window classes for a dialog opened FROM this sheet, carrying the same black if the
+		 * character came back wearing an insert. A move played out of a black sheet used to open a
+		 * bone-parchment window on top of it, which read as someone else's move: the sheet, the
+		 * dialog and the chat card it posts are one action and should be one surface.
+		 *
+		 * Takes the window's own classes rather than being spread onto them by the caller, because
+		 * AppV1 REPLACES an array option instead of merging it — a dialog handed `classes` loses the
+		 * ones its defaultOptions declared, and for our windows that includes the bare `stonetop`
+		 * that draws all of the chrome.
+		 */
+		_pastDeathWindowClasses(base = []) {
+			return [...base, ...pastDeathClasses(this._pastDeathKind())];
 		}
 
 		/**
@@ -970,7 +1049,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			const detailsFilled = {
 				lore:       !!pb?.lore?.hasReadonlyContent,
 				background: !!(pb?.background?.selected && pb.background.options?.some(o => o.selected)),
-				instinct:   !!pb?.instinct?.hasSelection,
+				// An insert's Instinct replaces the playbook's, and it is what this section reads
+				// out — so it counts as filled even for a character whose playbook Instinct was
+				// never set, who would otherwise choose one at Death's Door and see no sign of it.
+				instinct:   !!pb?.instinct?.hasSelection
+				         || !!context.stonetop.postDeathInsert?.activeInsert?.instinct?.selected,
 				appearance: !!pb?.appearance?.summary,
 				origin:     !!(pb?.origin?.selected && pb.origin.selectedOption),
 			};
@@ -1000,12 +1083,78 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.followersEdit   = sectionEdit("followers");
 			context.stonetop.showRollStatChips = getRollStatChipsSetting();
 			// The tab carries the active insert — and, when there isn't one, the "Choose Your Fate"
-			// picker. Gating it purely on having an insert made that picker unreachable: the only
-			// way to a first insert was dragging one in from the compendium. Death's Door grants it
-			// properly now, so this is the manual route back — offered in edit mode, where the
-			// player or GM has already said they're changing the sheet, rather than hanging a
-			// Post-Death tab off every living character.
-			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug || context.stonetop.editMode;
+			// picker, which is the manual route for a table who resolved Death's Door away from the
+			// sheet. Edit mode is NOT reason enough to draw it: a tab about being dead would open on
+			// every living character whose player touches the wrench. So the empty tab needs a
+			// reason, and there are three, all meaning "a fate is being decided for this character":
+			//
+			//   · they had an insert and it was just removed (setPostDeathInsert requests the tab,
+			//     since the picker is the whole point of removing one), until Remove Post-Death Tab
+			//     takes it back;
+			//   · the Death's Door card's own "Choose Your Fate" asks for it — which is what makes
+			//     the picker reachable AT ALL for the case its hint text describes, a table who
+			//     resolved the Door in conversation and left no state behind for the rule below to
+			//     fire on. Same flag, so the tab's foot still takes it away again; and
+			//   · they are through the Last Door or owe a fate for it right now.
+			//
+			// A worn insert answers on its own and outranks all three.
+			const pdState = this._stonetopCharacter.deathsDoorState;
+			const pdFateOwed = pdState === DEATHS_DOOR_STATE.FATE_PENDING || pdState === DEATHS_DOOR_STATE.DEAD;
+			// Stepped through the Last Door and took no insert. The header says so in a tag beside
+			// the playbook, because the black paper alone can't tell that apart from the three
+			// returns — and "The Heavy" with nothing else on the line is exactly what a character
+			// who is still being played looks like.
+			context.stonetop.isDead = pdState === DEATHS_DOOR_STATE.DEAD;
+			context.stonetop.showPostDeath = !!context.stonetop.postDeathInsert?.activeSlug
+				|| (context.stonetop.editMode && (!!this._stonetopCharacter.postDeathTabRequested || pdFateOwed));
+			// Whether the tab's foot offers to send it away. Only while the REQUEST is the only thing
+			// holding it open: a character who is through the Last Door or owes a fate for it has a
+			// tab that pdFateOwed re-draws on the next render, so the button wrote nothing (the flag
+			// it clears is already unset) and the tab came straight back — a control that could never
+			// do what it says for the very characters most likely to press it.
+			context.stonetop.canHidePostDeathTab = !pdFateOwed;
+			// Built for its write-in rows alone. The tab used to carry a button into the chooser,
+			// labelled with what was still outstanding; that went, and the label / count / flag it
+			// needed went with it. The full view model is still what the rows are derived from, so
+			// this stays a build rather than a narrower query.
+			//
+			// Who the Terrible Purpose is about, what a Revenant with STRANGE APPETITES eats: free
+			// text hung off a pick, with no box on the printed insert, so it would otherwise live
+			// only inside the window that collected it.
+			//
+			// `open` decides ask-or-print, on exactly the rule postDeathInstinctOpen uses below:
+			// edit mode, or an answer that has never been given. Death's Door's chooser is a
+			// one-shot step and three routes to an insert (its own advice to finish on this tab,
+			// the Choose Your Fate buttons, an Item drop) never pass through it, so a question left
+			// unanswered has to stay askable here or it can never be answered at all.
+			const pdChoices = await buildPostDeathChoices(this._stonetopCharacter);
+			context.stonetop.postDeathChoices = pdChoices ? {
+				writeIns: choiceWriteIns(pdChoices).map(row => ({
+					...row,
+					open: !!context.stonetop.editMode || !String(row.value ?? "").trim(),
+				})),
+			} : null;
+			// Suffix for the tab's radio `name`s. Radio grouping is document-global, so two undead
+			// PCs' sheets open at once would otherwise share one group and a click on either would
+			// clear the other's answer — the same reason the chooser partial carries `choices.group`.
+			context.stonetop.postDeathRadioGroup = this.actor?.id ?? "";
+			// Whether the tab prints the Instinct as a QUESTION rather than as an answer. Open in
+			// edit mode, as it always was — and open, in ordinary play, while it has never been
+			// answered at all. That second case used to be a dead end: the tab said "turn on edit
+			// mode to choose one" and the chooser button beside it was the way nobody had to. With
+			// the button gone, a character whose Death's Door was resolved away from the sheet had
+			// no route to their own Instinct.
+			//
+			// Deliberately NOT open once an answer exists: changing one is an edit, and the
+			// playbook Instinct on the Details tab has always drawn the line in the same place.
+			context.stonetop.postDeathInstinctOpen = !!context.stonetop.editMode
+				|| !context.stonetop.postDeathInsert?.activeInsert?.instinct?.selected;
+			// The heading is the same heading either way — same title, same fold id — so it is
+			// printed once and only its note changes. Resolved here because Handlebars can't pick
+			// between two partial arguments without printing the whole call twice, and the two
+			// copies then drift (a retitled section that folds under two different ids).
+			context.stonetop.postDeathInstinctNote = context.stonetop.postDeathInstinctOpen
+				? game.i18n.localize("stonetop.character.selection.chooseOne") : "";
 			// Mirror computed vitals back onto system attributes for the sheet's inputs.
 			// HP-max is playbook-derived, so it only applies with a playbook — keeps
 			// onboarding-built characters from showing the stale template default. Damage
@@ -1021,6 +1170,15 @@ export function createStonetopCharacterSheetClass(Base) {
 			for (const [path, value] of Object.entries(vitalsToSystem)) {
 				foundry.utils.setProperty(context.system, path, value);
 			}
+			// A permanent max-HP change (an arcanum's soul-wound, a Mark's boon) is otherwise
+			// invisible once applied — the field just shows a number that disagrees with the
+			// playbook. Marked and spelled out here so a GM reading the sheet months later can
+			// see there IS one and how big it is, rather than suspecting a stale value.
+			const hpAdjust = context.stonetop.playbook ? v.hp.max - v.hpBase : 0;
+			context.stonetop.hpMaxAdjusted = hpAdjust !== 0;
+			context.stonetop.hpMaxNote = hpAdjust
+				? `Max HP ${hpAdjust > 0 ? "+" : "−"}${Math.abs(hpAdjust)} permanently (your playbook gives ${v.hpBase}). Type a new max to change it, or ${v.hpBase} to clear it.`
+				: (context.stonetop.editMode ? "Type a new max to change it permanently. The difference is kept as you level." : "");
 			// Followers tab — build data from flags + playbook definition.
 			// Pass smallItemLimit from the already-computed snapshot so crew gear
 			// uses the exact same prosperity value as outfit inventory items.
@@ -1158,6 +1316,29 @@ export function createStonetopCharacterSheetClass(Base) {
 					// The flip button shows whenever the back is permitted and the card isn't
 					// already a spread (nothing to flip when both sides are open).
 					item.canFlip           = permittedBack && !spread;
+					// Book I p.440: handing a card over without a roll is the GM's move ("just
+					// give the player(s) the card and have them read it, front and back"). The
+					// player's own route to a face-down card is the Know Things roll.
+					item.canGiveCard       = viewerIsGM;
+					// The 7-9 debt ("show them the back when they have some time to study it or
+					// learn more"). Each side sees the half of it they can act on:
+					//
+					//  · the OWNER, while the back is still withheld from them. Scoped to the owner
+					//    and not merely to "may not see the back", because a non-owning viewer (an
+					//    Observer-permission player on somebody else's sheet) fails permittedBack
+					//    too — and the strip addresses its reader in the second person over a
+					//    "Study it" button that _onArcanumStudyBack drops on the spot (!isEditable).
+					//  · the GM, while the back is still theirs to hand over — which is a question
+					//    about the OWNER's access, not the viewer's, so it can't reuse permittedBack.
+					//    An unlocked or already-revealed back is the owner's for keeps and owes them
+					//    nothing. Pointedly NOT narrowed to canReveal, though: that carries a
+					//    `!playersSeeBothArcana` term, and revealArcanum is the only thing that ever
+					//    clears backOwed — so with the world's peek switch on the debt was stranded
+					//    with nobody able to settle it, to resurface the day the switch went off as a
+					//    claim about a back the player read sessions ago. Granting it is a real write
+					//    even while everyone can already peek: it is what closes the record.
+					item.showBackOwed      = item.backOwed && !permittedBack && viewerOwnsActor;
+					item.gmBackOwed        = item.backOwed && viewerIsGM && !revealed && !item.unlocked;
 
 					// The plain "Add as follower" button manifests only the directly-summoned
 					// followers. `viaCallUp` followers (the Ring of Daagon's Servants) are rolled
@@ -1202,6 +1383,27 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.recover = this._buildRecoverData(context.stonetop);
 			context.stonetop.convalesce = this._buildConvalesceData(context.stonetop);
 			context.stonetop.woundsView = this._buildWoundsView(context.stonetop.wounds, context.editable);
+			// The header candle. `show` is not just "is a Lightbearer": a LIT light is shown on
+			// any sheet, so one stranded by a playbook swap can still be snuffed.
+			const holyLit = this._stonetopCharacter.holyLight;
+			context.stonetop.holyLight = {
+				show: showHolyLight({ owns: this._stonetopCharacter.canWieldHolyLight, lit: holyLit }),
+				lit:  holyLit,
+			};
+			// The header scales, on the same terms: shown once the Judge owns Condemn, and kept on a
+			// sheet that no longer does while brands are still standing, so they can be dismissed.
+			// `count` is what the tooltip says and what the badge shows; the roster itself is read
+			// fresh by the dialog rather than carried through here, since it is the dialog that
+			// re-renders when it changes.
+			const brands = this._stonetopCharacter.condemned;
+			context.stonetop.condemn = {
+				show:  showCondemn({ owns: this._stonetopCharacter.canCondemn, count: brands.length }),
+				count: brands.length,
+			};
+			// And the other side of it: a brand this character is WEARING. A PC is as Censurable as
+			// anyone — Aratis does not exempt the party — and condemnersOf already skips self, so a
+			// Judge cannot brand themself into their own header.
+			context.stonetop.condemned = condemnedContext(this.actor);
 			return context;
 		}
 
@@ -1262,6 +1464,14 @@ export function createStonetopCharacterSheetClass(Base) {
 				// is spent but the choice isn't made.
 				canFace,
 				isFatePending,
+				// The way to the Post-Death tab for a table who resolved the Door in conversation.
+				// That tab is opt-in (showPostDeath), and until this control existed the only thing
+				// that ever opted in was REMOVING an insert — so the "Choose Your Fate" picker, whose
+				// own hint text advertises it for exactly this case, could not be reached by a
+				// character who had never worn one. Offered in edit mode, where whoever is holding
+				// the wrench has already said they're changing the sheet, and only while the tab
+				// isn't already there.
+				openPostDeath: !!snapshot.editMode && !snapshot.showPostDeath,
 			};
 		}
 
@@ -2225,7 +2435,6 @@ export function createStonetopCharacterSheetClass(Base) {
 			return {
 				startingCount: raw.startingCount ?? 2,
 				hideUnknown:   this.actor.getFlag("stonetop_pwd", "hideUnknownInvocations") ?? false,
-				sort,
 				sortKnown:     sort === "known",
 				sortAlpha:     sort === "alpha",
 				options,
@@ -2408,21 +2617,6 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this.actor.setFlag("stonetop_pwd", "invocationsSort", ev.currentTarget.value);
 			});
 
-			// Live text filter over invocation cards (name + description). Client-side
-			// only, mirroring the Ledger search; composes with the hide-un-learned CSS.
-			const invCards = [...html[0].querySelectorAll(".stonetop-invocation-card")];
-			invCards.forEach(card => {
-				const name = card.querySelector(".stonetop-invocation-name")?.textContent ?? "";
-				const desc = card.querySelector(".stonetop-invocation-desc")?.textContent ?? "";
-				card._invText = `${name} ${desc}`.toLowerCase();
-			});
-			html.find(".stonetop-invocation-search").on("input", (ev) => {
-				const term = ev.currentTarget.value.trim().toLowerCase();
-				invCards.forEach(card => {
-					card.hidden = !!term && !card._invText.includes(term);
-				});
-			});
-
 			// Live text filters (shared wireTabSearch): a round magnifying-glass button beside a
 			// header that expands into a filter box (tab-search-control.hbs). Each call is scoped
 			// to the container that holds both the box and the items it hides, so scoping to a
@@ -2433,6 +2627,15 @@ export function createStonetopCharacterSheetClass(Base) {
 				// Hiding / revealing cards changes the column balance, so re-pack the masonry
 				// for the new visible set (defined further down, with the packer itself).
 				onFilter: () => this._repackMoves?.(),
+			});
+			// Invocations tab (Lightbearer): one filter over the whole tab, matched on each card's
+			// name and description. Scoped to the tab element, which is also the one carrying
+			// `hide-unknown-invocations` — so an active term flags it `.is-searching` and suspends
+			// that hide, surfacing a matching invocation whether or not it's learned.
+			wireTabSearch(html[0].querySelector(".tab.stonetop-invocations"), {
+				itemSel: ".stonetop-invocation-card",
+				textFor: card => [".stonetop-invocation-name", ".stonetop-invocation-desc"]
+					.map(sel => card.querySelector(sel)?.textContent ?? "").join(" "),
 			});
 			// Arcana tab: the Major and Minor sections each get their own filter, scoped to that
 			// section, so each search only hides its own cards. An active term flags the section
@@ -2484,7 +2687,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// uses on their own document, which is the check that this feature never needs isGM.
 			wirePortraitPopout(this, html[0]);
 
-			html[0].addEventListener("click", ev => {
+			html[0].addEventListener("click", async ev => {
 				const nameEl = ev.target.closest(".stonetop-item-name");
 				if (!nameEl) return;
 				// Move names stay "play-like" (open guided move / roll / post to chat) even in
@@ -2506,8 +2709,10 @@ export function createStonetopCharacterSheetClass(Base) {
 				// A player-authored move (moveType "other") that happens to share a guided
 				// move's name acts as itself, never the built-in dialog — the same rule the
 				// dice path applies in _guidedMoveForRollable.
-				const isOtherMove = li?.dataset.itemId
-					&& this.actor.items.get(li.dataset.itemId)?.system?.moveType === "other";
+				// The row's own item, when it has one — an un-owned playbook row has none. Read
+				// once here: the moveType check below and _maybeConsecrateFlame both want it.
+				const item = li?.dataset.itemId ? this.actor.items.get(li.dataset.itemId) : null;
+				const isOtherMove = item?.system?.moveType === "other";
 				const guide = isOtherMove ? null : GUIDED_CHARACTER_MOVES[name];
 				const rollable = li?.querySelector(".rollable");
 				if (guide && _guidedCharacterMoveHasAction(guide, rollable)) {
@@ -2532,6 +2737,10 @@ export function createStonetopCharacterSheetClass(Base) {
 					content: moveChatCard(name, description),
 					speaker,
 				});
+				// A description-only move has no rollType, so it falls all the way through to
+				// here — and posting its text IS using it. MOVE_USE_EFFECTS is what "using it"
+				// then means (lighting a holy light, opening the Judge's roster).
+				await this._onDescriptionMoveUsed(item);
 			});
 
 			// Clicking the move name fires the same roll as the dice icon.
@@ -3095,7 +3304,21 @@ export function createStonetopCharacterSheetClass(Base) {
 			// and the write it makes at the end re-renders the sheet with the links in place. It
 			// does nothing at all once every follower has one, which is the state after the first
 			// pass; see ensureFollowerActors for the rest of the guards.
-			ensureFollowerActors(this.actor, [...(this._followerDragData?.values() ?? [])]);
+			//
+			// Its companion keeps that actor MATCHING the card afterwards. Making it once was not
+			// enough: a follower renamed or given a portrait later kept the name and the stand-in
+			// disc on their NPC and on the token dropped onto a scene. Same call site for the same
+			// reason — a card can be edited from a dozen places, and all of them end here.
+			//
+			// Both carry their own guards, and both get a `.catch` here as well: a fire-and-forget
+			// promise with nothing attached turns any throw they ever grow into an unhandled
+			// rejection on every render of this sheet, which is a console warning nobody connects
+			// to the sheet in front of them.
+			const followerSnapshots = [...(this._followerDragData?.values() ?? [])];
+			ensureFollowerActors(this.actor, followerSnapshots)
+				.catch(err => console.error("Stonetop | follower actor creation failed", err));
+			syncFollowerActors(this.actor, followerSnapshots)
+				.catch(err => console.error("Stonetop | follower actor sync failed", err));
 
 			// Followers tab: drag a card onto the canvas to put that follower on the map as a
 			// token (module/hooks/FollowerDrop.js turns the payload below into an Actor).
@@ -3215,6 +3438,11 @@ export function createStonetopCharacterSheetClass(Base) {
 					this._stonetopCharacter.instinct.select(composeInstinct(word, desc));
 				});
 				html.find(".stonetop-appearance-radio").on("change", this._onAppearanceChange.bind(this));
+				// Written-in appearance lines, the same trade the Instinct pair makes just above:
+				// each line holds ONE value, so ticking a suggestion empties that row's write-in
+				// box and typing in it unticks the row's radios. Scoped to the row (data-line),
+				// since all four rows are on screen together.
+				html.find(".stonetop-appearance-custom").on("change", this._onAppearanceCustomChange.bind(this));
 				html.find("[name=stonetop-origin]").on("change", ev =>
 					this._stonetopCharacter.origin.select(ev.currentTarget.value)
 				);
@@ -3283,6 +3511,19 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-levelup-icon").on("click", this._onLevelUpOpen.bind(this));
 			html.find(".stonetop-deathsdoor-open-btn").on("click", this._onDeathsDoorOpen.bind(this));
 			html.find(".stonetop-deathsdoor-clear-btn").on("click", this._onDeathsDoorClear.bind(this));
+			html.find(".stonetop-deathsdoor-postdeath-btn").on("click", this._onPostDeathTabOpen.bind(this));
+			// The `Dead` tag in the header. The other way into the raise question is putting hit
+			// points on a dead sheet, and a table that plays the resurrection out in the fiction
+			// first has no reason to have touched HP yet.
+			html.find(".stonetop-dead-tag").on("click", this._onDeadTagClick.bind(this));
+			// The header candle. `button.` on purpose: the read-only copy is a <span> and must
+			// not be wired, so nothing offers a click that would do nothing.
+			html.find("button.stonetop-holy-light").on("click", this._onHolyLightToggle.bind(this));
+			// The header scales. Unlike the candle this is wired for READERS too — the span/button
+			// split is about who may WRITE, and opening a list of who has been branded is looking,
+			// not writing. The dialog itself withholds its add and dismiss controls (see
+			// CondemnedDialog), so a player reading a GM's Judge gets the roster and nothing else.
+			html.find(".stonetop-condemn").on("click", this._onCondemnOpen.bind(this));
 			html.find(".stonetop-recover-open-btn").on("click", this._onRecoverOpen.bind(this));
 			html.find(".stonetop-convalesce-open-btn").on("click", this._onConvalesceOpen.bind(this));
 
@@ -3297,6 +3538,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Damage die, typed by hand in edit mode. Saved as an override rather than through
 			// the form, since the field's rendered value is the computed die (see actor-vitals.hbs).
 			html.find("[data-damage-die]").on("change", this._onDamageDieEdit.bind(this));
+
+			// Max HP, same story: the rendered number is computed, so a hand-typed one is banked
+			// as a permanent adjustment instead of being written straight to the stale field.
+			html.find("[data-hp-max]").on("change", this._onMaxHpEdit.bind(this));
 
 			// -- Followers tab: shared follower-card fields ----------------
 			// Common, hand-editable fields on every follower card (name,
@@ -4077,6 +4322,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						const roll = await this._stonetopCharacter.onOrderFollowersRoll(result);
 						await this._maybeHoldReadinessOnDefend(ftype, slug, result, roll);
 					},
+					{ classes: this._pastDeathWindowClasses(OrderFollowersDialog.defaultOptions.classes) },
 				).render(true);
 			}, true);
 
@@ -4089,13 +4335,22 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this.actor.setFlag("stonetop_pwd", "invocations.selected", updated);
 				this.render(false);
 			});
-			// Tapping an Invocation's title posts its details to chat, mirroring moves.
+			// Tapping an Invocation's title uses it: the window asks whether to Invoke the Sun
+			// God (+WIS) and whether to empower it, then posts the card and rolls.
 			html.find(".stonetop-invocation-name").on("click", ev => {
 				const card = ev.currentTarget.closest(".stonetop-invocation-card");
 				if (!card) return;
 				const name = ev.currentTarget.textContent.trim();
 				const description = card.querySelector(".stonetop-invocation-desc")?.innerHTML ?? "";
-				this._postMoveCard(name, description);
+				// The whole list is on the tab, learned or not — a 1st-level Lightbearer knows 2
+				// of 10 — and Invoke the Sun God is "choose an Invocation YOU KNOW and roll +WIS".
+				// So an un-learned one is still readable (tap it, get the text) but is not
+				// offered the roll: the same line this sheet draws for moves, where the roll is
+				// what's gated and the reading is not.
+				const known = !card.classList.contains("is-unknown");
+				// Shift is "skip the situational-modifier prompt" everywhere a roll starts; carry
+				// it through so the Invocation's roll honours it too.
+				this._postInvocationCard(name, description, { shiftKey: ev.shiftKey, known });
 			});
 			html.find(".stonetop-other-move-delete").on("click", ev => {
 				const { itemId } = ev.currentTarget.dataset;
@@ -4120,12 +4375,18 @@ export function createStonetopCharacterSheetClass(Base) {
 					onSaved: () => this.render(false),
 				}).render(true);
 			};
-			// Learned toggle on a custom move: un-checking keeps it on the sheet but inactive
-			// (not rollable, bonuses off); re-checking re-learns it. Gated the same way as
-			// authoring, so a player can't toggle a GM-authored one when authoring is GM-only.
-			html.find(".stonetop-custom-move-learned").on("change", async ev => {
-				if (!this.isEditable || !canAuthorCustomMoves()) return;
-				await this._stonetopCharacter.setCustomMoveLearned(ev.currentTarget.dataset.itemId, ev.currentTarget.checked);
+			// Learned toggle on an Other Moves row: un-checking keeps it on the sheet but
+			// inactive (not rollable, bonuses off); re-checking re-learns it. The authoring gate
+			// applies to CUSTOM moves only — it exists so a player can't alter a GM-authored
+			// homebrew when authoring is GM-only. A shipped move that landed here (a foreign
+			// playbook move dropped on the sheet) isn't anyone's homebrew, so it answers to
+			// isEditable alone — the same rule the delete affordance beside it already uses.
+			html.find(".stonetop-other-move-learned").on("change", async ev => {
+				if (!this.isEditable) return;
+				const itemId = ev.currentTarget.dataset.itemId;
+				const item   = this.actor.items.get(itemId);
+				if (item?.flags?.[STONETOP_SCOPE]?.custom && !canAuthorCustomMoves()) return;
+				await this._stonetopCharacter.setMoveLearned(itemId, ev.currentTarget.checked);
 				this.render(false);
 			});
 			html.find(".stonetop-add-custom-move").on("click", () => openCustomMove());
@@ -4189,14 +4450,21 @@ export function createStonetopCharacterSheetClass(Base) {
 				const btn = ev.target.closest(".stonetop-arcanum-identify-btn");
 				if (!btn) return;
 				ev.stopPropagation();
-				const { slug } = btn.dataset;
-				Dialog.confirm({
-					title: game.i18n.localize("stonetop.arcana.identifyTitle"),
-					content: `<p>${game.i18n.localize("stonetop.arcana.identifyConfirm")}</p>`,
-					yes: () => this._stonetopCharacter.identifyArcanum(slug).then(() => this.render(false)),
-					render: bringDialogToFront,
-					options: { classes: ["dialog", "stonetop"] },
-				});
+				this._onArcanumKnowThings(btn.dataset.slug, { shiftKey: ev.shiftKey });
+			}, true);
+
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".stonetop-arcanum-givecard-btn");
+				if (!btn) return;
+				ev.stopPropagation();
+				this._onArcanumGiveCard(btn.dataset.slug);
+			}, true);
+
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".stonetop-arcanum-backowed-btn");
+				if (!btn) return;
+				ev.stopPropagation();
+				this._onArcanumStudyBack(btn.dataset.slug);
 			}, true);
 
 			html[0].addEventListener("click", ev => {
@@ -4395,10 +4663,40 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._stonetopCharacter.setPostDeathInsert(null).then(() => this.render(false));
 			}, true);
 
+			// Send the whole tab away. The tab it is drawn on goes with it, so the re-render lands
+			// on another one — core's Tabs#activate falls back to the first when the stored tab is
+			// no longer in the nav.
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".stonetop-pdi-hide-tab");
+				if (!btn) return;
+				ev.stopPropagation();
+				if (!this.isEditable) return;
+				this._stonetopCharacter.setPostDeathTabRequested(false).then(() => this.render(false));
+			}, true);
+
+			// These radios now render in ordinary play too, not just edit mode (an unanswered
+			// Instinct — see postDeathInstinctOpen), so the write needs the editability guard the
+			// edit-mode-only version got for free from the tab never drawing them.
 			html[0].addEventListener("change", ev => {
 				const radio = ev.target.closest(".stonetop-pdi-instinct");
 				if (!radio) return;
+				if (!this.isEditable) return;
 				this._stonetopCharacter.setPostDeathInstinct(radio.value);
+			}, true);
+
+			// The write-in answers hung off a post-death pick: who the Terrible Purpose is about,
+			// what a Revenant with STRANGE APPETITES eats. Live outside edit mode while unanswered,
+			// for the same reason the Instinct above is — Death's Door's chooser is a one-shot step
+			// and there are three routes to an insert that never pass through it. Text saves on
+			// blur, not per keystroke, so naming your Purpose doesn't re-render out from under the
+			// cursor; the radios re-render to move the tick.
+			html[0].addEventListener("change", ev => {
+				const el = ev.target.closest(".stonetop-pdi-writein, .stonetop-pdi-writein-pick");
+				if (!el) return;
+				if (!this.isEditable) return;
+				this._stonetopCharacter
+					.setPostDeathLoreText(el.dataset.section, el.dataset.option, el.value)
+					.then(() => this.render(false));
 			}, true);
 
 			html[0].addEventListener("change", ev => {
@@ -4604,22 +4902,38 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		async _onDropPlaybook(playbookDoc) {
 			if (!this.isEditable) return;
-			if (playbookDoc.flags?.stonetop?.lore?.length) {
-				const slug = playbookDoc.system?.slug;
-				if (slug) await this._stonetopCharacter.setPostDeathInsert(slug);
-				this.render(false);
+			// The three post-death inserts are `type: "playbook"` Items too, so this one handler
+			// receives both and has to tell them apart. It used to ask "does it carry lore?" —
+			// which is true of EVERY shipped playbook (the Heavy has four lore sections of its
+			// own), so dropping a playbook set the character's post-death insert to their
+			// playbook: no playbook was assigned, the Post-Death tab appeared, and the prune
+			// below measured their recorded answers against the Heavy's lore keys and deleted
+			// the lot. Ask the only question that actually separates them instead.
+			const slug = playbookDoc.system?.slug;
+			// Through the same redirect every other drop uses: on a legacy UNLINKED token's sheet
+			// `this.actor` is the token's own copy, so an insert dropped there wrote the slug and
+			// the three granted move Items onto that one token — the player's own sheet showed no
+			// insert, no Post-Death tab and no black paper. A playbook drop had it too.
+			const { character: target, unlinkedFrom, redirectedTo } = this._dropTarget();
+			const actor = redirectedTo ?? this.actor;
+			if (unlinkedFrom) {
+				ui.notifications?.info?.(`Dropped onto ${unlinkedFrom}'s unlinked token — written to the character instead.`);
+			}
+			if (POST_DEATH_INSERT_SLUGS.includes(slug)) {
+				await target.setPostDeathInsert(slug);
+				(redirectedTo?.sheet ?? this).render(false);
 				return;
 			}
-			await this.actor.update({
+			await actor.update({
 				"system.playbook": {
 					uuid: playbookDoc.uuid,
 					name: playbookDoc.name,
-					slug: playbookDoc.system?.slug ?? "",
+					slug: slug ?? "",
 				},
 				...this._playbookHpInit(playbookDoc),
 			});
-			await this._stonetopCharacter.ensureStartingMoves();
-			this.render(false);
+			await target.ensureStartingMoves();
+			(redirectedTo?.sheet ?? this).render(false);
 		}
 
 		/**
@@ -4662,11 +4976,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			const { character: target, unlinkedFrom, redirectedTo } = this._dropTarget();
 			let anyAdded = false;
 			// A dropped arcanum is added UNIDENTIFIED — a face-down "mystery" card the player
-			// Identifies in play (drop is the only path that plants a mystery; onboarding,
-			// level-up, and the homebrew creator all identify on add). Because that card shows
-			// no name or art until identified, and can land on a tab you aren't looking at, a
-			// silent add reads as "nothing happened". So collect the freshly-added ones (skip
-			// arcana already owned — a re-drop is a no-op) to toast and reveal the Arcana tab.
+			// Knows Things about in play (drop is the only path that plants a mystery;
+			// onboarding, level-up, and the homebrew creator all identify on add). Because that
+			// card shows only its name, no art and none of its text, and can land on a tab you
+			// aren't looking at, a silent add reads as "nothing happened". So collect the freshly
+			// added ones (skip arcana already owned — a re-drop is a no-op) to toast and reveal
+			// the Arcana tab.
 			const ownedArcana = target.ownedArcanaSlugs;
 			const addedArcana = [];
 			for (const item of arcana) {
@@ -4677,8 +4992,17 @@ export function createStonetopCharacterSheetClass(Base) {
 					anyAdded = true;
 				}
 			}
+			// onDropMove refuses a move the character already owns by NAME and returns false.
+			// That refusal used to be entirely silent — no card, no toast, no console error —
+			// which reads exactly like the drop was ignored, and sends you hunting for a bug in
+			// the drop handler when the answer is "it's already on this sheet somewhere". A
+			// foreign move makes that worse: the owned copy ALSO hides its name from the
+			// cross-playbook picker (which skips owned names), so it looks missing from both
+			// places at once while in fact being present.
+			const skippedMoves = [];
 			for (const item of moves) {
 				if (await target.onDropMove(item)) anyAdded = true;
+				else skippedMoves.push(item.name || "that move");
 			}
 			// Gear lands on a tab the GM usually isn't looking at (they drop from a journal or the
 			// Items sidebar, onto whichever tab happens to be open), and a treasure joins a
@@ -4701,6 +5025,11 @@ export function createStonetopCharacterSheetClass(Base) {
 					? format("stonetop.inventory.dropAddedUnlinked", { names, actor: unlinkedFrom })
 					: format("stonetop.inventory.dropAdded", { names, actor: this.actor?.name ?? "this character" }));
 			}
+			if (skippedMoves.length) {
+				const names = joinNames(skippedMoves.map(n => `"${n}"`));
+				ui.notifications?.warn?.(
+					`${names} ${skippedMoves.length === 1 ? "is" : "are"} already on ${unlinkedFrom ?? this.actor?.name ?? "this character"} — nothing was added. Check the Moves tab, including Learned Moves and Other Moves.`);
+			}
 			// Where the write actually LANDED, which on a redirect is NOT this sheet: this one is
 			// backed by the token's ActorDelta copy, which the drop deliberately did not touch. Both
 			// the re-render and the Arcana-tab reveal below belong to that sheet — re-drawing this
@@ -4712,7 +5041,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (addedArcana.length) {
 				const one = addedArcana.length === 1;
 				ui.notifications?.info?.(
-					`Added ${joinNames(addedArcana)} to the Arcana tab, face-down — use Identify to reveal ${one ? "it" : "them"}.`,
+					`Added ${joinNames(addedArcana)} to the Arcana tab, face-down — Know Things about ${one ? "it" : "them"} to learn what ${one ? "it is" : "they are"}.`,
 				);
 				// Reveal the Arcana tab so the new (face-down) card is visible — but do it AFTER
 				// the re-render lands, as a cheap DOM toggle, not by presetting active before a
@@ -4722,7 +5051,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				// consumed by _render makes the switch deterministic regardless of which render
 				// wins — and, unlike a global Hooks.once(render…), can't be swallowed by another
 				// open character sheet that happens to re-render first.
-				if (landedOn) landedOn._activateArcanaTabOnRender = true;
+				if (landedOn) landedOn._activateTabOnRender = "arcana";
 			}
 			if (anyAdded) landedOn?.render(false);
 		}
@@ -4741,7 +5070,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (!this.isEditable) return;
 
 			const rollable = this._makeSyntheticRollable(item);
-			if (!rollable) return item.roll();   // description-only move → post to chat
+			if (!rollable) {                     // description-only move → post to chat
+				const posted = await item.roll();
+				// The other half: a move dragged to the hotbar is used from there just as truly
+				// as from the sheet, so it gets the same effects.
+				await this._onDescriptionMoveUsed(item);
+				return posted;
+			}
 
 			const guided = this._guidedMoveForRollable(rollable);
 			if (guided) return this._openGuidedCharacterMove(guided, rollable);
@@ -5019,8 +5354,34 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		async _onAppearanceChange(ev) {
-			const el = ev.currentTarget;
-			await this._stonetopCharacter.appearance.select(Number(el.dataset.line), el.value);
+			const el   = ev.currentTarget;
+			const line = Number(el.dataset.line);
+			// A suggestion wins the line: clear the row's write-in box so the two can't both
+			// look chosen until the next render settles it.
+			const custom = this._appearanceRow(el)?.querySelector(".stonetop-appearance-custom");
+			if (custom) custom.value = "";
+			await this._stonetopCharacter.appearance.select(line, el.value);
+		}
+
+		// A written-in appearance line. Stored exactly like a ticked suggestion (the line holds
+		// one string either way), so an emptied box clears the line rather than saving "".
+		async _onAppearanceCustomChange(ev) {
+			const el    = ev.currentTarget;
+			const line  = Number(el.dataset.line);
+			const value = el.value.trim();
+			el.value = value;
+			this._appearanceRow(el)?.querySelectorAll(".stonetop-appearance-radio")
+				.forEach(r => { r.checked = false; });
+			await this._stonetopCharacter.appearance.select(line, value);
+		}
+
+		/**
+		 * The one appearance line an input belongs to — its suggestions and its write-in box.
+		 * Optional-called: the saving half of both handlers is what matters, and a detached
+		 * element (or a unit test's plain-object event) simply has no row to tidy.
+		 */
+		_appearanceRow(el) {
+			return el?.closest?.(".stonetop-appearance-row") ?? null;
 		}
 
 		async _onOriginNameClick(ev) {
@@ -5387,6 +5748,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				this.actor,
 				steading,
 				() => this.render(false),
+				{ classes: this._pastDeathWindowClasses(RequisitionDialog.defaultOptions.classes) },
 			).render(true);
 		}
 
@@ -5396,6 +5758,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._stonetopCharacter,
 				snapshot.inventory.outfit,
 				() => this.render(false),
+				{ classes: this._pastDeathWindowClasses(OutfitMoveDialog.defaultOptions.classes) },
 			).render(true);
 		}
 
@@ -5410,6 +5773,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					// the sacred-pouch editor so the player picks it right away.
 					if (addedMoveName) this._maybeOpenPossessionChoicesForMove(addedMoveName);
 				},
+				{ classes: this._pastDeathWindowClasses(LevelUpDialog.defaultOptions.classes) },
 			).render(true);
 		}
 
@@ -5460,10 +5824,10 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * rather than silence when the move isn't on the sheet, since that means the insert's
 		 * moves failed to embed.
 		 */
-		async rollMoveByName(name) {
+		async rollMoveByName(name, opts = {}) {
 			const item = this.actor?.items?.find(i => i.type === "move" && i.name === name);
 			if (!item) return void ui.notifications.warn(`${name} isn't on this character's sheet.`);
-			return this.rollMoveById(item.id);
+			return this.rollMoveById(item.id, opts);
 		}
 
 		/**
@@ -5483,6 +5847,119 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (reformHp !== null) await this._stonetopCharacter.restoreHp(reformHp, "Tethered", { clearsDeathsDoor: true });
 			else await this._stonetopCharacter.setDeathsDoorState(null);
 			this.render(false);
+		}
+
+		/**
+		 * Put the Post-Death tab on this sheet, and go to it.
+		 *
+		 * The manual counterpart to Death's Door granting an insert on its 6-: a table that played
+		 * the Last Door out in conversation leaves no state behind, so nothing else on the sheet
+		 * ever asks for the tab, and the "Choose Your Fate" picker its own hint text advertises for
+		 * exactly that case could not be reached. Writes the same request flag that removing an
+		 * insert writes, so the tab's foot still takes it away again.
+		 *
+		 * Deliberately does NOT touch deathsDoorState: whether this character owes a fate is the
+		 * table's account of what happened, and asking to see the picker is not a claim about it.
+		 */
+		async _onPostDeathTabOpen() {
+			if (!this.isEditable) return;
+			await this._stonetopCharacter.setPostDeathTabRequested(true);
+			// Consumed by _render, for the reason the dropped-arcanum switch is: the flag write
+			// schedules its own auto-render, which races the explicit one below, and presetting the
+			// active tab loses that race intermittently.
+			this._activateTabOnRender = "post-death";
+			this.render(false);
+		}
+
+		/**
+		 * The `Dead` tag in the header: ask whether they're being brought back.
+		 *
+		 * The same question the hit-point route asks, from the same place, so the two can't come to
+		 * disagree about what a raise does — it is the prompt's own module that owns both the wording
+		 * and the write. Nothing happens here if they say no, and the sheet re-renders either way
+		 * because the answer decides whether this tag and the black paper are still true.
+		 */
+		async _onDeadTagClick() {
+			if (!this.isEditable) return;
+			await promptRaiseFromDead(this.actor);
+			if (this.rendered) this.render(false);
+		}
+
+		/**
+		 * The header candle: snuff the light, or light it by hand. A manual toggle is the
+		 * player correcting the tracker (the flame guttered out, the GM says it's out), so it
+		 * posts nothing to chat — the same convention Defend's Readiness pips follow.
+		 */
+		async _onHolyLightToggle(ev) {
+			ev.preventDefault();
+			ev.stopPropagation();
+			if (!this.isEditable) return;
+			if (await this._stonetopCharacter.setHolyLight(!this._stonetopCharacter.holyLight)) this.render(false);
+		}
+
+		/**
+		 * The header scales: open the roster of everyone this Judge has branded.
+		 *
+		 * A window rather than a tab. Condemn is not a thing the Judge does every session, the list
+		 * is usually three or four names, and a whole tab standing empty on every Judge who has not
+		 * taken the move yet (or has dismissed everybody) is worse than a button that appears when
+		 * there is something to see — the same call the post-death walkthrough made when its tab
+		 * button was cut.
+		 *
+		 * One window PER CHARACTER (perDocumentOptions): two Judges at one table is an ordinary
+		 * evening, and two dialogs sharing one AppV1 id paint into each other's frame.
+		 */
+		async _onCondemnOpen(ev) {
+			ev.preventDefault();
+			ev.stopPropagation();
+			await this._openCondemned();
+		}
+
+		_openCondemned() {
+			return new CondemnedDialog(this.actor, this._stonetopCharacter, { editable: this.isEditable }).render(true);
+		}
+
+		/**
+		 * Using the move opens the roster — the Judge's half of the Consecrated Flame hook above.
+		 * Neither move has a rollType, so posting its text IS using it and both fall through to
+		 * the description-only path that calls this.
+		 *
+		 * BOTH moves, not just Condemn. Condemn is passive — it never fires on its own, it amends
+		 * what Censure does ("When you Censure someone, they ARE marked"). So the moment a brand is
+		 * actually laid is a Censure, and a Judge who denounced somebody and was handed no way to
+		 * write it down would be back to keeping the list in their head, which is the thing this
+		 * feature exists to stop. Reading Condemn itself opens it too, since that is where a player
+		 * goes looking for what the move is doing.
+		 *
+		 * Gated on OWNING Condemn: a Judge who has not taken it brands nobody when they Censure, so
+		 * the roster is not theirs to open.
+		 */
+		async _openCondemnedIfJudge() {
+			if (!this._stonetopCharacter.canCondemn) return;
+			await this._openCondemned();
+		}
+
+		/**
+		 * Consecrating a flame lights the holy light. Called on both paths by which a
+		 * description-only owned move is used — the move-name click and the hotbar macro — and
+		 * matched on the resolved ITEM, never on the row's text: an un-owned playbook row posts
+		 * its text with no item id at all, and a player-authored custom move can carry any name.
+		 *
+		 * One slot, so re-consecrating writes nothing (setHolyLight returns false) and the sheet
+		 * doesn't re-render. No chat card either: the move's own card has already posted.
+		 */
+		async _consecrateFlame() {
+			if (!this.isEditable) return;
+			if (await this._stonetopCharacter.setHolyLight(true)) this.render(false);
+		}
+
+		/**
+		 * Run whatever using this description-only move does beyond posting its text — see
+		 * MOVE_USE_EFFECTS. One lookup, called from both tails that post a move to chat.
+		 */
+		async _onDescriptionMoveUsed(item) {
+			if (item?.type !== "move") return;
+			await MOVE_USE_EFFECTS[item.name]?.(this);
 		}
 
 		// Open the Create-a-Follower walkthrough (Book I, NPCs & Followers, p.474).
@@ -5706,6 +6183,291 @@ export function createStonetopCharacterSheetClass(Base) {
 			return ChatMessage.create({
 				content: moveChatCard(title, body),
 				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+			});
+		}
+
+		/**
+		 * Identify a face-down arcanum by Knowing Things about it (Book I, Discoveries p.440):
+		 * "prompt them to Know Things about the arcanum: on a 10+, give them the card and have
+		 * them read both sides; on a 7-9, have them read the front, and show them the back when
+		 * they have some time to study it or learn more; on a 6-, either have them read the
+		 * front and then have something bad happen, or hint at the arcanum's power and tell them
+		 * how they could learn more."
+		 *
+		 * The two hit tiers write themselves — the book is emphatic that you should be generous
+		 * with arcana info — while the miss deliberately writes nothing: both of its branches are
+		 * GM calls, and the GM's own "Give the card" button covers the first of them. The roll
+		 * goes through onDirectStatRoll rather than rollStat so the character's forward, ongoing,
+		 * debility downgrade and global advantage toggle all apply, and so a miss marks XP.
+		 */
+		async _onArcanumKnowThings(slug, { shiftKey = false } = {}) {
+			if (!this.isEditable || !slug) return;
+			// In-flight latch, like every other one-shot action on this sheet. Nothing before the
+			// first await here does more than stop the event, and that first await is a DIALOG — so
+			// two quick clicks on the identify button opened two stat pickers, posted two roll cards
+			// and wrote this card's flags twice, in whichever order the two rolls happened to land.
+			// Keyed by slug, since identifying a different arcanum meanwhile is a real second action.
+			this._arcanaIdentifying ??= new Set();
+			if (this._arcanaIdentifying.has(slug)) return;
+			this._arcanaIdentifying.add(slug);
+			try {
+				await this._knowThingsAboutArcanum(slug, { shiftKey });
+			} finally {
+				this._arcanaIdentifying.delete(slug);
+			}
+		}
+
+		/** The body of the roll above, so the latch is a plain try/finally around one call. */
+		async _knowThingsAboutArcanum(slug, { shiftKey }) {
+			// The character's own Know Things move carries the text the "?" toggle shows. Every
+			// character owns it (ensureStartingMoves grants all basic moves), but fall back to
+			// the trigger sentence rather than an empty card if a sheet somehow lacks it.
+			const moves = this.actor.items.filter(i => i.type === "move");
+			const owned = moves.find(i => i.name === "Know Things");
+
+			// A character with a move that bends this roll (Well-Read's +WIS, Polyglot's and
+			// Naturalist's advantage) gets asked which apply, since every one of those triggers
+			// is fiction the system can't see. Everyone else rolls straight through, so the
+			// ordinary case stays a single click.
+			const choices = knowThingsRollChoices(moves.map(i => i.name));
+			const picked  = choices.hasChoice
+				? await this._promptIdentifyRoll(choices, moves)
+				: { stat: KNOW_THINGS_STAT, advantage: false };
+			if (!picked) return;                // player closed the picker
+
+			const situational = await this._maybePromptRollModifier({ shiftKey, title: "Know Things" });
+			if (situational === null) return;   // player cancelled the modifier prompt
+
+			const roll = await this._stonetopCharacter.onDirectStatRoll(picked.stat, {
+				situational,
+				rollMode: withAdvantage(this._stonetopCharacter.rollMode, picked.advantage),
+				// This roll bypasses StonetopItem.roll, so it has to stamp the move identity and
+				// pick up Never at a Loss / the Logbook itself — otherwise the card's post-roll
+				// buttons would work from the Moves tab but not from the arcana card.
+				// `arcanum` is what makes the tier RE-APPLIABLE. The outcome is committed below,
+				// at roll time, but the Logbook ("treat the result as a 10+") and a GM Shift both
+				// rewrite the card's tier afterwards — and without the slug on the message there
+				// is nothing left to tell them which card the new tier is about. See
+				// _syncArcanumIdentification in stonetop.js.
+				messageFlags: { [STONETOP_SCOPE]: { move: "Know Things", arcanum: slug } },
+				...(knowThingsRollOptions(this.actor) ?? {}),
+				moveName:        "Know Things",
+				moveDescription: owned?.system?.description
+					?? `<p>When you <strong><em>consult your accumulated knowledge</em></strong>, roll +INT.</p>`,
+				// Arcana-specific outcomes, not the generic Know Things ones: p.440 spells out
+				// what each tier means for a card. English literals, because the flavor string is
+				// persisted and re-parsed by the GM's Shift Up/Down (see roll-engine.js).
+				moveResults: buildMoveTierResults({
+					success: "You read the card, front and back.",
+					partial: "You read the front. The GM will show you the back when you've had time to study it or learn more.",
+					failure: "The GM makes a move: read the front and something bad happens, or you get only a hint of its power and how you could learn more.",
+				}),
+			});
+
+			const opts = { stonetopMove: "Know Things" };
+			const tier = classifyResult(Number(roll?.total) || 0).key;
+			if (tier === "success")      await this._stonetopCharacter.identifyAndRevealArcanum(slug, opts);
+			else if (tier === "partial") await this._stonetopCharacter.identifyFrontOwedArcanum(slug, opts);
+			this.render(false);
+		}
+
+		/**
+		 * Ask which of the character's Know Things moves apply to this arcanum: the stat (a
+		 * button per option, +INT first) and any advantage grants (a checkbox, since Polyglot and
+		 * Naturalist can both be in play at once). Each contributing move is quoted so the player
+		 * can read its fictional trigger before deciding, exactly as the inline stat picker does.
+		 *
+		 * Resolves `{ stat, advantage }`, or null if the player closes the dialog. Only the first
+		 * settle counts, so the close handler can safely cancel after a button already answered.
+		 */
+		_promptIdentifyRoll(choices, moves) {
+			const byName = new Map(moves.map(i => [i.name, i]));
+			const stats  = this.actor.system?.stats ?? {};
+			const quote  = name => {
+				const move = byName.get(name);
+				if (!move) return "";
+				return `<div class="stonetop-stat-picker-why"><strong>${_esc(name)}</strong>${move.system?.description ?? ""}</div>`;
+			};
+			const advRow = choices.advantageMoves.length
+				? `<label class="stonetop-identify-adv-row">
+						<input type="checkbox" class="stonetop-identify-adv">
+						<span>${_esc(game.i18n.localize("stonetop.arcana.identifyAdvantage"))}</span>
+					</label>`
+				: "";
+			const content = `<p>${_esc(game.i18n.localize("stonetop.arcana.identifyPrompt"))}</p>`
+				+ advRow
+				+ [...choices.statGrants, ...choices.advantageMoves].map(quote).join("");
+
+			return new Promise(resolve => {
+				const answer = html => {
+					const root = html?.[0] ?? html;
+					return !!root?.querySelector?.(".stonetop-identify-adv")?.checked;
+				};
+				const buttons = {};
+				for (const key of choices.stats) {
+					buttons[key] = {
+						label: `${Handlebars.helpers.statLabel(key)} (${sign(stats[key]?.value ?? 0)})`,
+						callback: html => resolve({ stat: key, advantage: answer(html) }),
+					};
+				}
+				buttons.cancel = { label: "Cancel", callback: () => resolve(null) };
+				new Dialog({
+					title:   `${game.i18n.localize("stonetop.arcana.identify")} — ${_esc(this.actor.name)}`,
+					content,
+					buttons,
+					default: choices.stats[0],
+					close:   () => resolve(null),
+					render:  bringDialogToFront,
+				}, { width: 480, classes: ["dialog", "stonetop", "stonetop-stat-picker-dialog"] }).render(true);
+			});
+		}
+
+		/**
+		 * The GM's no-roll hand-over (p.440: "just give the player(s) the card and have them read
+		 * it, front and back"). Front-only is the same bullet's lesser form, and the reachable
+		 * shape of a 6-'s "have them read the front and then have something bad happen".
+		 */
+		_onArcanumGiveCard(slug) {
+			if (!game.user.isGM || !slug) return;
+			const give = async both => {
+				const opts = { stonetopMove: "Give the card" };
+				if (both) await this._stonetopCharacter.identifyAndRevealArcanum(slug, opts);
+				else      await this._stonetopCharacter.identifyArcanum(slug, opts);
+				this.render(false);
+			};
+			new Dialog({
+				title:   game.i18n.localize("stonetop.arcana.giveCardTitle"),
+				content: `<p>${game.i18n.localize("stonetop.arcana.giveCardPrompt")}</p>`,
+				buttons: {
+					both:   { label: game.i18n.localize("stonetop.arcana.giveCardBoth"),  callback: () => give(true) },
+					front:  { label: game.i18n.localize("stonetop.arcana.giveCardFront"), callback: () => give(false) },
+					cancel: { label: "Cancel" },
+				},
+				default: "both",
+				render:  bringDialogToFront,
+			}, { width: 420, classes: ["dialog", "stonetop"] }).render(true);
+		}
+
+		/**
+		 * Settle a 7-9's outstanding back. The GM's copy of the button reveals the back outright;
+		 * the owner's copy posts the request to chat, since the reveal is the GM's to make and
+		 * this system has no player-to-GM socket.
+		 */
+		async _onArcanumStudyBack(slug) {
+			if (!this.isEditable || !slug) return;
+			// The GM path neither reads the arcanum nor posts a card, so it must not pay for the
+			// document fetch below — every GM click would load a document only to discard it.
+			if (game.user.isGM) {
+				await this._stonetopCharacter.revealArcanum(slug, { stonetopMove: "Study it" });
+				this.render(false);
+				return;
+			}
+			const item = await this._stonetopCharacter.getArcanum(slug);
+			const name = item?.front?.title ?? slug;
+			await this._postMoveCard(game.i18n.localize("stonetop.arcana.backOwedTitle"),
+				`<p><strong>${escHtml(this.actor.name)}</strong> takes the time to study <strong>${escHtml(name)}</strong>, and is owed its reverse.</p>`);
+		}
+
+		/**
+		 * Use an Invocation (the tap on its title). Every Lightbearer starts with Invoke the Sun
+		 * God, so using one is a MOVE — imbue your holy light with Helior's power, roll +WIS,
+		 * take a consequence — and not just a card. The window asks the two questions the rules
+		 * put before the roll, together:
+		 *
+		 *  • roll +WIS or not (some tables narrate an Invocation without a roll, and the "just
+		 *    show it" path is also how anyone reads the text out to the table)
+		 *  • empower it or not, for a Lightbearer who has Empowered Invocations
+		 *
+		 * The empowered effect is left OFF the card unless it was bought: it isn't part of what
+		 * the Invocation does, it's what it does IF you pay an extra consequence for it, and
+		 * printed alongside the normal effect it just muddies what actually happened.
+		 */
+		async _postInvocationCard(name, description, { shiftKey = false, known = true } = {}) {
+			const { base, empowered } = splitEmpoweredEffect(description);
+			// `known` first: an Invocation this character hasn't learned can be read but not
+			// invoked, so neither question is worth asking about one. rollMoveById also bails
+			// silently when the sheet isn't editable, so an observer must never be offered a
+			// roll button that would do nothing.
+			const canInvoke  = known && this.isEditable && ownsMoveNamed(this.actor, INVOKE_THE_SUN_GOD);
+			const canEmpower = known && !!empowered && ownsMoveNamed(this.actor, EMPOWERED_INVOCATIONS);
+			// Nothing to decide — post it and stay out of the way.
+			if (!canInvoke && !canEmpower) return this._postMoveCard(name, base);
+
+			const answer = await this._promptInvokeInvocation({
+				name, empoweredHtml: empowered, canInvoke, canEmpower,
+				lit: this._stonetopCharacter.holyLight,
+			});
+			if (answer === null) return null;   // dismissed — the Invocation isn't used at all
+
+			// Card first, roll second: the card is the statement and the roll is how it goes.
+			// It also means a cancelled situational-modifier prompt (which fires INSIDE
+			// rollMoveById) leaves the Invocation posted rather than losing everything.
+			const card = answer.empower
+				? await this._postMoveCard(`${name} (Empowered)`, base + EMPOWERED_NOTE_HTML + empowered)
+				: await this._postMoveCard(name, base);
+			if (answer.roll) await this.rollMoveByName(INVOKE_THE_SUN_GOD, { shiftKey });
+			return card;
+		}
+
+		/**
+		 * The Invocation window. Resolves {roll, empower}, or null if it was dismissed — the
+		 * choices are made BEFORE the roll, so backing out means the Invocation was never used
+		 * and nothing is posted.
+		 *
+		 * TWO FIXED BUTTONS, always the same two. Empowering is a modifier of invoking, not a
+		 * third alternative, so it rides a checkbox: this window now opens on every single
+		 * Invocation use, and a button set that grows at 6th level would break the muscle memory
+		 * of every use before it. It also folds what would otherwise be two sequential dialogs
+		 * into one.
+		 */
+		_promptInvokeInvocation({ name, empoweredHtml, canInvoke, canEmpower, lit }) {
+			return new Promise(resolve => {
+				let answer = null;
+				const read = (html, roll) => ({
+					roll,
+					empower: !!html.find('[name="empower"]')[0]?.checked,
+				});
+				let content = "";
+				if (canInvoke) {
+					content += `<p><em>Invoke the Sun God:</em> imbue your holy light with Helior's power `
+						+ `and roll +WIS. On a 10+ it works, and you choose 1 consequence; on a 7-9 it works, `
+						+ `and you and the GM each choose 1.</p>`;
+					// Not a block: whether a light is at hand is the table's call, and the sheet's
+					// candle is only ever as current as someone kept it. Say it and move on.
+					if (!lit) content += `<p class="stonetop-invoke-nolight">`
+						+ `<i class="fas fa-triangle-exclamation" aria-hidden="true"></i> `
+						+ `No holy light is lit on this sheet — consecrate a flame, or check with your GM.</p>`;
+				}
+				if (canEmpower) {
+					content += `<label class="stonetop-invoke-empower"><input type="checkbox" name="empower"> `
+						+ `<span>Empower it: choose an extra consequence before you roll.</span></label>`
+						+ `<div class="stonetop-empower-effect">${empoweredHtml}</div>`
+						+ `<p class="stonetop-empower-cost">The extra consequence is the price of asking, not a `
+						+ `penalty for failing: you take it however the roll turns out, even on a 10+.</p>`;
+				}
+				new Dialog({
+					title:   canInvoke ? `${name} — Invoke the Sun God?` : `${name} — Empower it?`,
+					content,
+					buttons: {
+						// The affirmative key is declared first and is in the shared left-side list,
+						// so it sits opposite "Just show it".
+						roll: {
+							icon:     '<i class="fas fa-sun"></i>',
+							label:    canInvoke ? "Invoke the Sun God (+WIS)" : "Use it",
+							callback: html => { answer = read(html, canInvoke); },
+						},
+						no: {
+							icon:     '<i class="fas fa-comment"></i>',
+							label:    "Just show it",
+							callback: html => { answer = read(html, false); },
+						},
+					},
+					default: "roll",
+					render:  bringDialogToFront,
+					// Runs on every path out, button or ✕, so it is the one place that answers.
+					// A promise resolved only from the button callbacks would hang on a dismiss.
+					close:   () => resolve(answer),
+				}, { width: 460, classes: this._pastDeathWindowClasses(["dialog", "stonetop", "stonetop-empower-dialog", "stonetop-invoke-dialog"]) }).render(true);
 			});
 		}
 
@@ -6369,7 +7131,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				},
 				default: "add",
 				render:  bringDialogToFront,
-			}, { classes: ["dialog", "stonetop"] }).render(true);
+			}, { classes: this._pastDeathWindowClasses(["dialog", "stonetop"]) }).render(true);
 		}
 
 		// Outfit the crew (p.472): the group Outfits with the same gear, restocking
@@ -6466,7 +7228,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				},
 				default: "spend",
 				render:  bringDialogToFront,
-			}, { classes: ["dialog", "stonetop"] }).render(true);
+			}, { classes: this._pastDeathWindowClasses(["dialog", "stonetop"]) }).render(true);
 		}
 
 		async _applySpendLoyalty(path, name, reasons, html) {
@@ -6511,7 +7273,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				},
 				default: "spend",
 				render:  bringDialogToFront,
-			}, { classes: ["dialog", "stonetop"] }).render(true);
+			}, { classes: this._pastDeathWindowClasses(["dialog", "stonetop"]) }).render(true);
 		}
 
 		async _applySpendReadiness({ rPath, lPath, name, reasons, html }) {
@@ -6615,7 +7377,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				},
 				default: "recover",
 				render: bringDialogToFront,
-			}, { width: 480, classes: ["dialog", "stonetop", "stonetop-recover-dialog"] }).render(true);
+			}, { width: 480, classes: this._pastDeathWindowClasses(["dialog", "stonetop", "stonetop-recover-dialog"]) }).render(true);
 		}
 
 		async _applyRecover({ supplySlug, currentUses, oldHp, newHp }) {
@@ -6718,7 +7480,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				},
 				default: "convalesce",
 				render: bringDialogToFront,
-			}, { width: 480, classes: ["dialog", "stonetop", "stonetop-convalesce-dialog"] }).render(true);
+			}, { width: 480, classes: this._pastDeathWindowClasses(["dialog", "stonetop", "stonetop-convalesce-dialog"]) }).render(true);
 		}
 
 		async _applyConvalesce({ oldHp, newHp, debilities, healable = [], healIds = [], planNotes = {} }) {
@@ -6768,6 +7530,29 @@ export function createStonetopCharacterSheetClass(Base) {
 			} else {
 				await this._stonetopCharacter.setDamageDieOverride("", { base });
 			}
+			this.render(false);
+		}
+
+		// ── Max HP ─────────────────────────────────────────────────────────────────
+		// Hand-editing the max-HP field. The number in the box is derived (playbook + move
+		// bonuses - a Thrall's Marks), so the difference between it and what was typed is what
+		// gets stored: that way a soul-wound taken at level 3 is still the same wound at level
+		// 8, instead of pinning max HP to a number the character has since outgrown. Typing the
+		// derived number back in clears the adjustment. Blank or nonsense puts the old value
+		// back rather than half-saving.
+		async _onMaxHpEdit(ev) {
+			const el = ev.currentTarget;
+			if (!this.isEditable) return;
+			const typed = Number(String(el.value ?? "").trim());
+			const base  = Number(el.dataset.hpBase) || 0;
+			if (!Number.isFinite(typed) || String(el.value ?? "").trim() === "" || typed < 1) {
+				if (String(el.value ?? "").trim() !== "") {
+					ui.notifications?.warn("Max HP has to be a whole number of 1 or more.");
+				}
+				el.value = this.actor.system?.attributes?.hp?.max ?? base;
+				return;
+			}
+			await this._stonetopCharacter.setMaxHp(typed, { base });
 			this.render(false);
 		}
 

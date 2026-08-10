@@ -1,5 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
 import { LevelUpDialog } from "../../../../module/actors/character/dialogs/LevelUpDialog.js";
+
+const TEMPLATE = fs.readFileSync(path.join(process.cwd(), "templates", "dialogs", "level-up.hbs"), "utf8");
+// Comments stripped: they name these selectors in prose, and a raw scan would read a
+// paragraph about the hazard as an instance of the hazard.
+const DIALOG_SRC = fs
+	.readFileSync(path.join(process.cwd(), "module", "actors", "character", "dialogs", "LevelUpDialog.js"), "utf8")
+	.replace(/\/\*[\s\S]*?\*\//g, "")
+	.replace(/^\s*\/\/.*$/gm, "");
 
 function makeDialog({ character = {}, data = {} } = {}) {
 	const char = {
@@ -16,6 +26,35 @@ function makeDialog({ character = {}, data = {} } = {}) {
 	dlg.close = vi.fn();
 	dlg.render = vi.fn();
 	return { dlg, char };
+}
+
+// Minimal stand-ins for the DOM the filter/chip helpers walk (the suite runs on the `node`
+// environment — no jsdom, no jQuery). `find` serves whatever the test registered under that
+// exact selector string, which is all these two helpers ask of a jQuery collection.
+function fakeEl({ classes = [], data = {} } = {}) {
+	const set = new Set(classes);
+	return {
+		dataset: data,
+		attrs: {},
+		classList: {
+			contains: c => set.has(c),
+			toggle:   (c, on) => { if (on) set.add(c); else set.delete(c); return on; },
+		},
+		setAttribute(k, v) { this.attrs[k] = v; },
+		hidden: () => set.has("is-filtered-out"),
+	};
+}
+
+function fakeHtml(map) {
+	return {
+		find: sel => {
+			const els = map[sel] ?? [];
+			return {
+				each(fn) { els.forEach((el, i) => fn(i, el)); return this; },
+				toggleClass(cls, on) { els.forEach(el => el.classList.toggle(cls, on)); return this; },
+			};
+		},
+	};
 }
 
 const crossMove = { compendiumId: "v1", name: "Versatile",      cap: null, crossPlaybook: { playbooks: "any" } };
@@ -60,6 +99,111 @@ describe("LevelUpDialog cross-playbook step machine", () => {
 		expect(dlg.getData().canContinue).toBe(true);
 		dlg._foreignMoves = []; dlg._selectedForeignMoveId = null;
 		expect(dlg.getData().canContinue).toBe(true);  // empty list still lets the player finish
+	});
+
+	it("foreignMove step: playbook chips are the distinct source playbooks, article-stripped, and suppressed below two", () => {
+		const { dlg } = makeDialog({ data: { availableMoves: [crossMove] } });
+		dlg._selectedMoveId = "v1";
+		dlg._step = "foreignMove";
+		dlg._foreignMoves = [
+			{ compendiumId: "f1", name: "Smash",   playbook: "The Heavy" },
+			{ compendiumId: "f2", name: "Danger",  playbook: "The Fox" },
+			{ compendiumId: "f3", name: "Ambush",  playbook: "The Fox" },   // same playbook — one chip
+			{ compendiumId: "f4", name: "Reserve", playbook: "The Would-Be Hero" },
+		];
+		expect(dlg.getData().foreignPlaybooks).toEqual([
+			{ key: "The Fox",           label: "Fox" },
+			{ key: "The Heavy",         label: "Heavy" },
+			{ key: "The Would-Be Hero", label: "Would-Be Hero" },
+		]);
+		dlg._foreignMoves = [{ compendiumId: "f1", name: "Smash", playbook: "The Heavy" }];
+		expect(dlg.getData().foreignPlaybooks).toEqual([]); // one playbook needs no filter
+	});
+
+	// Source scan: the two chip families share `.stonetop-levelup-move-chip` for its pill
+	// styling (including the past-death skin), so the MOVE step's handlers must be scoped by
+	// the attribute they read or they also bind to the foreign step's playbook chips. That
+	// regression is silent — the filtering still works, because it reads instance state — but
+	// a foreign chip click would set `_activeMoveGroup` to undefined (clobbering the move
+	// step's own chip on a Back) and light every playbook chip at once, since a bare
+	// `undefined === undefined` matches them all.
+	it("the move-step selectors exclude the foreign step's cards and chips", () => {
+		// Positive assertions first, so a rename can't make either scan trivially pass by
+		// leaving nothing for it to match.
+		expect(DIALOG_SRC).toContain(".stonetop-levelup-move-chip[data-move-group]");
+		expect(DIALOG_SRC).toContain(".stonetop-levelup-move-option:not(.stonetop-levelup-foreign-option)");
+		expect(DIALOG_SRC.match(/\.stonetop-levelup-move-chip(?!\[data-move-group\])/g)).toBe(null);
+		expect(DIALOG_SRC.match(/\.stonetop-levelup-move-option(?!:not\(\.stonetop-levelup-foreign-option\))/g)).toBe(null);
+
+		const chip = TEMPLATE.match(/<button[^>]*stonetop-levelup-foreign-chip[^>]*>/);
+		expect(chip).not.toBeNull();
+		expect(chip[0]).toContain('data-playbook="{{key}}"');
+		expect(chip[0]).not.toContain("data-move-group");
+
+		// And the cards the chips filter must expose the playbook the filter matches on.
+		const card = TEMPLATE.match(/<div[^>]*stonetop-levelup-foreign-option[^>]*>/);
+		expect(card).not.toBeNull();
+		expect(card[0]).toContain('data-playbook="{{playbook}}"');
+	});
+
+	it("both chip rows ship with aria-pressed, and _paintChips keeps it in step with the highlight", () => {
+		for (const chip of TEMPLATE.match(/<button[^>]*stonetop-levelup-move-chip[^>]*>/g) ?? []) {
+			expect(chip).toContain('aria-pressed="false"');
+		}
+
+		const { dlg } = makeDialog();
+		const fox   = fakeEl({ data: { playbook: "The Fox" } });
+		const heavy = fakeEl({ data: { playbook: "The Heavy" } });
+		const html  = fakeHtml({ ".stonetop-levelup-foreign-chip": [fox, heavy] });
+
+		dlg._paintChips(html, ".stonetop-levelup-foreign-chip", "playbook", "The Heavy");
+		expect(heavy.attrs["aria-pressed"]).toBe("true");
+		expect(fox.attrs["aria-pressed"]).toBe("false");
+
+		dlg._paintChips(html, ".stonetop-levelup-foreign-chip", "playbook", null); // filter cleared
+		expect(heavy.attrs["aria-pressed"]).toBe("false");
+		expect(fox.attrs["aria-pressed"]).toBe("false");
+	});
+
+	it("_applyCardFilter pins the current pick visible and reveals the no-matches line only when nothing shows", () => {
+		const { dlg } = makeDialog();
+		const picked = fakeEl({ classes: ["is-selected"], data: { playbook: "The Heavy" } });
+		const other  = fakeEl({ data: { playbook: "The Fox" } });
+		const line   = fakeEl({ classes: ["is-filtered-out"] });
+		const html   = fakeHtml({ ".card": [picked, other], ".empty": [line] });
+
+		// A filter that matches NEITHER card still leaves the pick on screen, so the enabled
+		// Continue button always has a visible card behind it — and the list isn't "empty".
+		dlg._applyCardFilter(html, ".card", ".empty", () => false);
+		expect(picked.hidden()).toBe(false);
+		expect(other.hidden()).toBe(true);
+		expect(line.hidden()).toBe(true);
+
+		// With nothing picked, the same dead filter empties the list and explains itself.
+		const a = fakeEl(), b = fakeEl();
+		const html2 = fakeHtml({ ".card": [a, b], ".empty": [line] });
+		dlg._applyCardFilter(html2, ".card", ".empty", () => false);
+		expect(line.hidden()).toBe(false);
+
+		// And a filter that matches hides the line again.
+		dlg._applyCardFilter(html2, ".card", ".empty", el => el === a);
+		expect(a.hidden()).toBe(false);
+		expect(b.hidden()).toBe(true);
+		expect(line.hidden()).toBe(true);
+	});
+
+	it("_loadForeignMoves clears a stale playbook chip when the source move changes", async () => {
+		const fetch = vi.fn().mockResolvedValue([{ compendiumId: "f1", name: "Smash", playbook: "The Heavy" }]);
+		const otherCross = { compendiumId: "v2", name: "Worldly", cap: null, crossPlaybook: { playbooks: ["The Ranger"] } };
+		const { dlg } = makeDialog({ data: { availableMoves: [crossMove, otherCross] }, character: { getForeignMovesForLevelUp: fetch } });
+		dlg._selectedMoveId = "v1";
+		await dlg._loadForeignMoves();
+		dlg._activeForeignPlaybook = "The Heavy";
+		await dlg._loadForeignMoves();                     // same move → cached, chip kept
+		expect(dlg._activeForeignPlaybook).toBe("The Heavy");
+		dlg._selectedMoveId = "v2";
+		await dlg._loadForeignMoves();                     // new source move → fresh list, chip cleared
+		expect(dlg._activeForeignPlaybook).toBe(null);
 	});
 
 	it("a cross-playbook move that grants no invocation makes the move step NON-terminal (foreignMove follows)", () => {

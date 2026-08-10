@@ -41,8 +41,10 @@ import {statRequirementLabel, statRequirementsUnmet} from "./stat-requirement.js
 import {MoveResources} from "./MoveResources.js";
 import {moveMarkBudget} from "./move-mark-budget.js";
 import {StonetopFlags, STONETOP_SCOPE, ITEM_FLAG_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
-import {DEATHS_DOOR_FLAG, canFaceDeathsDoor, deathsDoorRollOptions, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
+import {DEATHS_DOOR_FLAG, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
 import {heroDisplayName, WBH_HERO_FLAG, ownsAsteriskMove} from "./WouldBeHeroAsterisk.js";
+import {HOLY_LIGHT_FLAG, canWieldHolyLight} from "./holy-light.js";
+import {CONDEMNED_FLAG, canCondemn, readCondemned, addCondemned, removeCondemned, noteCondemned} from "./condemn.js";
 import {CharacterBackgrounds} from "./CharacterBackgrounds.js";
 import {CharacterInstincts} from "./CharacterInstincts.js";
 import {CharacterAppearance} from "./CharacterAppearance.js";
@@ -534,17 +536,36 @@ export class StonetopCharacter {
 		// (Versatile/Worldly/…). They keep their origin playbook in system.playbook (so they
 		// don't surface under the actor's own playbook category) and carry a `grantedBy` item
 		// flag; group them here, labeled with the move that granted them + their origin.
-		const grantedItems = this._actor.items.filter(i => i.type === "move" && i.flags?.[STONETOP_SCOPE]?.grantedBy);
-		if (grantedItems.length > 0) {
+		//
+		// This group is also the CATCH-ALL for any `moveType: "playbook"` item the playbook
+		// category above didn't show — a foreign move dropped straight onto the sheet from
+		// the compendium (which carries no `grantedBy` flag), or an owned move whose name no
+		// longer matches anything in its playbook's pack. Without it such an item renders in
+		// NO category at all: silently invisible on the sheet, yet owned — so it also
+		// vanishes from the cross-playbook picker, which skips names the actor already owns.
+		// Nothing on the actor should be un-seeable; better a card with a plain origin label.
+		const shownPlaybookIds = new Set(
+			(categories.find(c => c.key === "playbook")?.moves ?? []).flatMap(m => m.ownedIds ?? []));
+		const learnedItems = this._actor.items.filter(i =>
+			i.type === "move"
+			&& (i.flags?.[STONETOP_SCOPE]?.grantedBy || i.system?.moveType === "playbook")
+			&& !shownPlaybookIds.has(i._id));
+		if (learnedItems.length > 0) {
 			const learnedResourcesMap = this._moveResources.getMoveResources();
 			const learnedMarksMap     = this._moveResources.getMarks();
 			categories.push(new MoveCategorySnapshotBuilder()
 				.withKey("learned")
 				.withTitle("Learned Moves")
-				.withNote("Moves you've gained from other playbooks.")
-				.withMoves(grantedItems.map(i => {
+				.withNote("Moves you've gained from outside your own playbook's list.")
+				.withMoves(learnedItems.map(i => {
 					const grantedBy   = i.flags?.[STONETOP_SCOPE]?.grantedBy ?? {};
 					const origin      = i.system?.playbook ?? null;
+					// A cross-playbook grant says who granted it; a move added by hand has no
+					// granter to name, so it wears its origin playbook alone rather than the
+					// old "Granted by —" placeholder, which read like a bug of its own.
+					const sourceLabel = grantedBy.move
+						? `Granted by ${grantedBy.move}${origin ? ` · ${origin}` : ""}`
+						: (origin ?? "Added directly");
 					// Full card fidelity: resource track + markOptions, keyed by move NAME (the
 					// same store playbook moves use), so e.g. a learned ammo/Marks track works.
 					const resourceDef = i.system?.resource ?? null;
@@ -565,7 +586,7 @@ export class StonetopCharacter {
 						.withRollLabel(_rollLabelForMove(i.name, i.system?.rollType, i.system))
 						.withIsStarting(false)
 						.withSource({ type: "learned" })
-						.withSourceLabel(`Granted by ${grantedBy.move ?? "—"}${origin ? ` · ${origin}` : ""}`)
+						.withSourceLabel(sourceLabel)
 						.withOwned(true).withOwnedIds([i._id])
 						.withLocked(false).withRequirement(null).withRequiresLabel(null)
 						.withResource(resource)
@@ -905,6 +926,15 @@ export class StonetopCharacter {
 				// two tracks or orphan a saved count. Shipped/foreign "other" moves keep name
 				// keying so their already-stored data is unaffected.
 				const resourceKey = _isCustomMove(i) ? i._id : i.name;
+				// A move dropped here from another playbook keeps its origin in system.playbook
+				// (onDropMove only rewrites the moveType). Say so in the corner badge, the same
+				// way a playbook move announces "Starting move" — otherwise the Fox's Ambush sits
+				// in a Would-Be Hero's Other Moves with nothing to explain where it came from.
+				// Compared against the actor's STORED playbook name, which is the same field
+				// onDropMove judged "foreign" by — so the badge appears on exactly the moves that
+				// were routed here for being foreign, whether or not the playbook doc resolves.
+				const origin = i.system?.playbook ?? null;
+				const ownPlaybook = this._actor.system?.playbook?.name ?? playbookData?.name ?? null;
 				return new OtherItemSnapshotBuilder()
 					.withId(i._id)
 					.withName(i.name)
@@ -913,6 +943,7 @@ export class StonetopCharacter {
 					.withOwnedId(i._id)
 					.withRollType(normalizeRollType(i.system?.rollType))
 					.withRollLabel(_rollLabelForMove(i.name, i.system?.rollType, i.system))
+					.withSourceLabel(origin && origin !== ownPlaybook ? origin : null)
 					.withCustom(_isCustomMove(i))
 					.withLearned(_isMoveLearned(i))
 					.withResourceKey(resourceKey)
@@ -1253,13 +1284,36 @@ export class StonetopCharacter {
 	}
 
 	async setPostDeathInsert(slug) {
+		// Swapping one insert for another leaves the old one's answers behind in their own flag
+		// namespaces. Prune them to what the incoming insert can actually hold — before the slug
+		// moves, so the pruning is measured against the new insert and not against itself.
+		// Removal (slug = null) deliberately prunes nothing: it's an edit-mode undo, and a
+		// mis-click shouldn't cost a character every Consequence they've collected.
+		const previous = this._postDeath.activeSlug;
+		if (slug && slug !== previous) await this._postDeath.pruneToInsert(slug);
+
 		const toRemove = this._actor.items
 			.filter(i => i.type === "move" && i.system?.moveType === "post-death")
 			.map(i => i._id);
 		if (toRemove.length > 0) {
 			await this._actor.deleteEmbeddedDocuments("Item", toRemove);
 		}
-		await this._postDeath.setActiveSlug(slug);
+		// One update, not two: taking an insert is also the END of the brush with death that led
+		// to it, and as separate writes a reload landing between them left a character wearing a
+		// Ghost and still flagged `fate-pending` — every surface then said Death's Door was owed by
+		// someone who had already answered it (see effectiveDeathsDoorState, which heals the sheets
+		// this already happened to). Only when an insert is TAKEN: removing one is an edit-mode
+		// undo and has no brush with death to end.
+		//
+		// The tab request rides along in the SAME update for the same reason. Removing an insert
+		// holds the tab open (it shows the fate picker, which is the whole point of removing one);
+		// taking an insert shows the tab on its own merits, so the request is dropped rather than
+		// left to outlive the question. See CharacterPostDeath#tabRequested.
+		await this._actor.update({
+			...this._postDeath.slugUpdateData(slug),
+			...(slug ? this._clearDeathsDoorUpdate : {}),
+			...(this._postDeath.tabRequestUpdateData(!slug) ?? {}),
+		});
 		if (slug) {
 			const entries = await this._moveRepo.getPostDeathMoves(slug);
 			await this._actor.createEmbeddedDocuments("Item", entries.map(m => ({
@@ -1269,6 +1323,14 @@ export class StonetopCharacter {
 			})));
 		}
 	}
+
+	/**
+	 * The Post-Death tab on a sheet with no insert: opt-in, so it doesn't open on every living
+	 * character in edit mode. Removing an insert opts in; the tab's own foot opts back out.
+	 */
+	get postDeathTabRequested()             { return this._postDeath.tabRequested; }
+	async setPostDeathTabRequested(open)    { await this._postDeath.setTabRequested(open); }
+
 	async setPostDeathInstinct(value)                    { await this._postDeath.instinct.select(value); }
 	async setPostDeathLoreCount(loreSlug, optSlug, n)    { await this._postDeath.lore.setCount(loreSlug, optSlug, n); }
 	async setPostDeathLoreText(loreSlug, optSlug, value) { await this._postDeath.lore.setText(loreSlug, optSlug, value); }
@@ -1451,13 +1513,15 @@ export class StonetopCharacter {
 		await item.update(buildCustomMoveData(input));
 	}
 
-	// Toggle a custom move between learned (active — rollable, bonuses apply) and un-learned
-	// (kept on the sheet but inactive). Persisted as an item flag; an absent flag means
-	// learned, so a fresh move never needs the flag written to default to learned. No-op for
-	// non-custom moves, which are always active.
-	async setCustomMoveLearned(itemId, learned) {
+	// Toggle a move between learned (active — rollable, bonuses apply) and un-learned (kept
+	// on the sheet but inactive). Persisted as an item flag; an absent flag means learned, so
+	// a fresh move never needs the flag written to default to learned. Applies to ANY owned
+	// move, not just player-authored ones: a move dropped onto the sheet from another
+	// playbook is exactly as reversible as a homebrew one, and _isMoveLearned (which gates
+	// the roll icon and every per-move bonus) has always read the flag off any item.
+	async setMoveLearned(itemId, learned) {
 		const item = this._actor.items.get(itemId);
-		if (!item || !_isCustomMove(item)) return;
+		if (!item) return;
 		await item.setFlag(STONETOP_SCOPE, "learned", !!learned);
 	}
 
@@ -2037,6 +2101,84 @@ export class StonetopCharacter {
 		await this._actor.setFlag(STONETOP_SCOPE, _DEFEND_READINESS_FLAG, next);
 	}
 
+	// -- Holy light (the Lightbearer's consecrated flame) ----------------------------
+
+	/** Is a holy light burning? A scalar, never an object: setFlag deep-merges plain
+	 *  objects, so a sub-key could only ever be dropped through the `-=` dance, while a
+	 *  boolean is replaced wholesale. See holy-light.js for why one slot is enough. */
+	get holyLight() {
+		return !!this._actor.getFlag(STONETOP_SCOPE, HOLY_LIGHT_FLAG);
+	}
+
+	/** Whether this character has any move that MAKES a holy light — what earns the candle. */
+	get canWieldHolyLight() {
+		return canWieldHolyLight(this._actor);
+	}
+
+	/** Returns true only when the flag actually changed, so a caller can skip a re-render —
+	 *  and, more to the point, so re-consecrating an already-lit flame writes no document
+	 *  update and broadcasts nothing to the other clients. */
+	async setHolyLight(lit) {
+		const next = !!lit;
+		if (next === this.holyLight) return false;
+		if (next) await this._actor.setFlag(STONETOP_SCOPE, HOLY_LIGHT_FLAG, true);
+		else      await this._actor.unsetFlag(STONETOP_SCOPE, HOLY_LIGHT_FLAG);
+		return true;
+	}
+
+	// -- Condemn (the Judge's brand) --------------------------------------------------
+
+	/** Everyone this Judge is holding a brand on, normalised. See condemn.js for the shape. */
+	get condemned() {
+		return readCondemned(this._actor.getFlag(STONETOP_SCOPE, CONDEMNED_FLAG));
+	}
+
+	/** Whether this character owns Condemn — what earns the scales in the header. */
+	get canCondemn() {
+		return canCondemn(this._actor);
+	}
+
+	/**
+	 * ⚠ The store is a flag ARRAY, and Foundry's update merge treats an array as an ATOMIC value —
+	 * so every write here hands over the WHOLE list rather than reaching into a slot. A dotted
+	 * `condemned.2.note` does not patch element 2: it expands to `{ condemned: { 2: … } }` and
+	 * replaces the array with an object, destroying the roster. Same rule, for the same reason, as
+	 * roster-portraits.js — read its header note before changing any of the three writers below.
+	 */
+	async _writeCondemned(entries) {
+		await this._actor.setFlag(STONETOP_SCOPE, CONDEMNED_FLAG, entries);
+	}
+
+	/**
+	 * Brand somebody. Returns the stored entry, or null when the list was left alone — which is
+	 * either a nameless target or one already branded. Nothing is written in that case, so
+	 * re-Censuring the same person broadcasts no update and re-renders no sheets.
+	 */
+	async brandCondemned(entry) {
+		const { entries, added } = addCondemned(
+			this._actor.getFlag(STONETOP_SCOPE, CONDEMNED_FLAG), entry, () => foundry.utils.randomID(16),
+		);
+		if (!added) return null;
+		await this._writeCondemned(entries);
+		return added;
+	}
+
+	/** Dismiss one brand — the only way it ever ends. Returns the entry that was lifted, or null. */
+	async dismissCondemned(id) {
+		const { entries, removed } = removeCondemned(this._actor.getFlag(STONETOP_SCOPE, CONDEMNED_FLAG), id);
+		if (!removed) return null;
+		await this._writeCondemned(entries);
+		return removed;
+	}
+
+	/** Re-word why somebody is branded. Returns the patched entry, or null when nothing changed. */
+	async setCondemnedNote(id, note) {
+		const { entries, changed } = noteCondemned(this._actor.getFlag(STONETOP_SCOPE, CONDEMNED_FLAG), id, note);
+		if (!changed) return null;
+		await this._writeCondemned(entries);
+		return changed;
+	}
+
 	// Raise the held Readiness to the amount this Defend tier grants, never lowering an
 	// existing pool (a fresh 7-9 shouldn't shrink Readiness you're already holding). Posts
 	// a chat note when the pool actually grows.
@@ -2080,7 +2222,9 @@ export class StonetopCharacter {
 		// roll engine renders it as a "Situational" pill (modifier − forward − ongoing).
 		const modifier = forward + ongoing + situational;
 
-		await rollStat(stat, this._actor, this.applyDebilityRollMode(stat, {
+		// Returned so a caller that has to act on the outcome (the arcana Identify roll) can
+		// classify the total without re-rolling or re-deriving the tier thresholds.
+		const roll = await rollStat(stat, this._actor, this.applyDebilityRollMode(stat, {
 			rollMode,
 			modifier,
 			forward,
@@ -2091,6 +2235,7 @@ export class StonetopCharacter {
 		if (forward !== 0) {
 			await this._actor.update({ "system.attributes.forward.value": 0 }, extraOptions.moveName ? { stonetopMove: extraOptions.moveName } : {});
 		}
+		return roll;
 	}
 
 	/**
@@ -2164,9 +2309,18 @@ export class StonetopCharacter {
 	// them: a Death's Door 7-9 leaves them at 0 HP and expressly no longer dying. The
 	// state flag carries that; deaths-door.js owns what the transitions are.
 
-	/** DEATHS_DOOR_STATE value, or null for the ordinary living state. */
+	/**
+	 * DEATHS_DOOR_STATE value, or null for the ordinary living state.
+	 *
+	 * Read through `effectiveDeathsDoorState`, which is what stops a `fate-pending` left standing
+	 * beside an insert from telling every surface that Death's Door is still owed by someone who
+	 * has already answered it. See that function for how the pair used to come about.
+	 */
 	get deathsDoorState() {
-		return resolvedFlagProperty(this._actor, DEATHS_DOOR_FLAG) ?? null;
+		return effectiveDeathsDoorState({
+			state:      resolvedFlagProperty(this._actor, DEATHS_DOOR_FLAG) ?? null,
+			insertSlug: this._postDeath.activeSlug,
+		});
 	}
 
 	async setDeathsDoorState(state) {
@@ -2199,12 +2353,18 @@ export class StonetopCharacter {
 	/**
 	 * The Heavy's Death's Door modifiers, read off the character's own moves: Hard to Kill's
 	 * "+CON or +nothing (your choice)" and Unstoppable's "-1 penalty for each circle marked".
+	 *
+	 * The pure rule lives in deaths-door.js and only ever sees move NAMES, so the one thing it
+	 * can't hand back is the prose. Fetched here instead, off the character's own copy of the
+	 * move, so the dialog can show a player who is being offered +CON where that came from.
 	 */
 	deathsDoorRollOptions() {
-		return deathsDoorRollOptions(
-			this._actor.items.filter(i => i.type === "move").map(i => i.name),
-			this._moveResources.getMoveResources(),
-		);
+		const moves = this._actor.items.filter(i => i.type === "move");
+		const opts  = deathsDoorRollOptions(moves.map(i => i.name), this._moveResources.getMoveResources());
+		const owner = opts.statChoiceMove
+			? moves.find(i => i.name?.toLowerCase() === opts.statChoiceMove.toLowerCase())
+			: null;
+		return { ...opts, statChoiceMoveDescription: owner?.system?.description ?? null };
 	}
 
 	/**
@@ -2231,10 +2391,10 @@ export class StonetopCharacter {
 	 * The character's real max HP.
 	 *
 	 * NOT `system.attributes.hp.max`: that field is written once, when the playbook is dropped,
-	 * and never again — every later contribution (move bonuses, and a Thrall's max-HP Marks)
-	 * lives only in the computed snapshot, which the sheet mirrors into its inputs without
-	 * persisting. Anything doing arithmetic on "your max HP" has to ask for the computed value
-	 * or it will quietly use the character's level-1 number.
+	 * and never again — every later contribution (move bonuses, a Thrall's max-HP Marks, and the
+	 * permanent hand-set adjustment; see setMaxHp) lives only in the computed snapshot, which the
+	 * sheet mirrors into its inputs without persisting. Anything doing arithmetic on "your max
+	 * HP" has to ask for the computed value or it will quietly use the level-1 number.
 	 */
 	async computedMaxHp() {
 		const snapshot = await this.buildSnapshot();
@@ -2243,6 +2403,44 @@ export class StonetopCharacter {
 
 	/** The persisted field — stale by design; see computedMaxHp. Only for a last-resort fallback. */
 	get storedMaxHp()       { return Number(this._actor.system?.attributes?.hp?.max) || 0; }
+
+	/** The lasting hand-set change to max HP, signed. 0 when max HP is purely derived. */
+	get maxHpAdjustment()   { return Math.trunc(Number(this._actor.system?.attributes?.hp?.adjustment) || 0); }
+
+	/**
+	 * Set max HP by hand, permanently.
+	 *
+	 * A dozen arcana and post-death consequences move max HP for good — "the ring wounds your
+	 * soul, reducing your max HP by 4", "gain unholy resilience: increase your max HP by 2" —
+	 * and typing the new number into the sheet used to last exactly one render, because the
+	 * max field mirrors the computed value (see computedMaxHp) and the computation knew nothing
+	 * about it. What's stored is the DELTA from the derived number, not the number itself, so
+	 * the scar keeps its size when a later level or move raises the base underneath it.
+	 *
+	 * `base` is the derived max the sheet already rendered into the field's dataset, which
+	 * saves rebuilding the snapshot to read one integer back out. A base of 0 means there is
+	 * no derived number to sit on top of (no playbook yet), so the typed value is written
+	 * straight to the stored max as it always was.
+	 *
+	 * Lowering the max takes current HP down with it — a soul-wound doesn't leave you standing
+	 * at more hit points than you now have. Returns the max HP now in play.
+	 */
+	async setMaxHp(input, { base: knownBase = null } = {}) {
+		// `null` is "I don't know it", NOT zero — Number(null) is 0, which would silently take
+		// the no-playbook branch below and write a raw max the next render would overwrite.
+		const base = (knownBase !== null && knownBase !== undefined && Number.isFinite(Number(knownBase)))
+			? Math.trunc(Number(knownBase))
+			: ((await this.buildSnapshot()).vitals?.hpBase ?? 0);
+		const typed = Math.trunc(Number(input));
+		if (!Number.isFinite(typed)) return base > 0 ? await this.computedMaxHp() : this.storedMaxHp;
+		const target = Math.max(1, typed);
+		const update = base > 0
+			? { "system.attributes.hp.adjustment": target - base }
+			: { "system.attributes.hp.max": target };
+		if (this.hp > target) update["system.attributes.hp.value"] = target;
+		await this._actor.update(update);
+		return target;
+	}
 
 	/** The hand-set damage die, or null when the die follows the playbook. */
 	get damageDieOverride() { return normalizeDamageDie(this._actor.system?.attributes?.damage?.override); }
@@ -2276,9 +2474,22 @@ export class StonetopCharacter {
 	async setTether(t)      { await this._postDeath.setTether(t); }
 	async crossOffMark(s)   { return this._postDeath.crossOffMark(s); }
 	async sectionOptions(s) { return this._postDeath.sectionOptions(s); }
-	async markSectionOption(section, option) { return this._postDeath.markSectionOption(section, option); }
+	async markSectionOption(section, option)   { return this._postDeath.markSectionOption(section, option); }
+	async unmarkSectionOption(section, option) { return this._postDeath.unmarkSectionOption(section, option); }
+	async clearSectionPicks(section)           { return this._postDeath.clearSectionPicks(section); }
 	favor()                 { return this._postDeath.favor(); }
 	async setFavor(v)       { await this._postDeath.setFavor(v); }
+
+	/**
+	 * Which insert is worn, and the two readers a chooser needs that the sheet snapshot doesn't
+	 * carry cheaply: the insert's own Instincts, and one written lore value. Together with
+	 * sectionOptions above, these are the whole read surface of post-death-choices.js.
+	 */
+	get postDeathSlug()                 { return this._postDeath.activeSlug; }
+	async postDeathInsertName()         { return this._postDeath.insertName(); }
+	async postDeathInstinctOptions()    { return this._postDeath.instinctOptions(); }
+	postDeathLoreText(section, option)  { return this._postDeath.loreText(section, option); }
+	async chooseOneSectionOption(section, option) { return this._postDeath.chooseOneSectionOption(section, option); }
 
 	/**
 	 * Set HP to an exact value, for the insert moves that restore a stated amount ("regain half
@@ -2395,16 +2606,23 @@ export class StonetopCharacter {
 	async getArcanum(slug)                           { return this._arcana.getArcanum(slug); }
 	async addArcanum(slug)                           { await this._arcana.addArcanum(slug); }
 	async removeArcanum(slug)                        { await this._arcana.removeArcanum(slug); await this._inventory.clearArcanumResources(slug); }
-	async identifyArcanum(slug)                      { await this._arcana.identifyArcanum(slug); }
+	async identifyArcanum(slug, options)             { await this._arcana.identifyArcanum(slug, options); }
+	async identifyAndRevealArcanum(slug, options)    { await this._arcana.identifyAndRevealArcanum(slug, options); }
+	async identifyFrontOwedArcanum(slug, options)    { await this._arcana.identifyFrontOwedArcanum(slug, options); }
 	async addLead(slug)                              { await this._arcana.addLead(slug); }
 	async discoverArcanum(slug)                      { await this._arcana.discoverArcanum(slug); }
 	async ensureSeekerLeadCard()                     { await this._arcana.ensureLeadBackfill(); }
 	async masterArcanum(slug)                        { await this._arcana.masterArcanum(slug); }
 	async getArcanumChatContent(slug, flipped)       { return this._arcana.getArcanumChatContent(slug, flipped); }
 	async setMinorArcanumRole(role, slug) { await this._arcana.setMinorRole(role, slug); }
-	async revealArcanum(slug)   { await this._arcana.revealArcanum(slug); }
-	async hideArcanum(slug)     { await this._arcana.hideArcanum(slug); }
+	async revealArcanum(slug, options) { await this._arcana.revealArcanum(slug, options); }
+	async hideArcanum(slug, options)   { await this._arcana.hideArcanum(slug, options); }
 	get revealedArcanaSlugs()   { return this._arcana.revealedSlugs; }
+	get backOwedArcanaSlugs()   { return this._arcana.backOwedSlugs; }
+	// The lower rung of p.440's disclosure ladder, so a caller re-applying a rewritten roll tier
+	// can tell "never read" from "front already read" and refuse to walk the ladder backwards
+	// (see _syncArcanumIdentification in stonetop.js).
+	get identifiedArcanaSlugs() { return this._arcana.identifiedSlugs; }
 	get ownedArcanaSlugs()      { return this._arcana.ownedSlugs; }
 	async setArcanumUnlockCount(arcanumSlug, optionSlug, count)          { await this._arcana.setUnlockCount(arcanumSlug, optionSlug, count); }
 	async setArcanumBackOptionCount(arcanumSlug, optionSlug, count)      { await this._arcana.setBackOptionCount(arcanumSlug, optionSlug, count); }
@@ -2762,8 +2980,15 @@ function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, 
 	const attrs = actor.system?.attributes ?? {};
 	const level = attrs.level?.value ?? 1;
 	// Floored at 1: a Thrall who collects enough max-HP Marks would otherwise arrive at 0 max HP
-	// and be permanently dying, which is Unholy Vessel's job to end, not arithmetic's.
-	const hpMax = Math.max(1, (playbookData?.hp ?? 0) + (moveBonuses.hp ?? 0) - insertHpPenalty);
+	// and be permanently dying, which is Unholy Vessel's job to end, not arithmetic's. The same
+	// floor covers a permanent adjustment deep enough to do it the other way round.
+	const derivedHp = (playbookData?.hp ?? 0) + (moveBonuses.hp ?? 0) - insertHpPenalty;
+	// The lasting hand-set change: arcana that cost or grant max HP outright ("reducing your max
+	// HP by 1d4+1", "+4 max HP"). Kept as a delta on top of the derived number so levelling and
+	// new move bonuses still land, rather than freezing max HP at whatever was typed.
+	const hpAdjust = Math.trunc(Number(attrs.hp?.adjustment) || 0);
+	const hpBase = playbookData ? Math.max(1, derivedHp) : 0;
+	const hpMax = Math.max(1, derivedHp + hpAdjust);
 	const damageBase = playbookData
 		? (moveBonuses.damageDie ? maxDie(playbookData.damage, moveBonuses.damageDie) : playbookData.damage)
 		: null;
@@ -2773,6 +2998,7 @@ function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, 
 	const damage = normalizeDamageDie(attrs.damage?.override) ?? damageBase;
 	return new VitalsSnapshotBuilder()
 		.withHp(playbookData ? new ValueMax(Math.min(attrs.hp?.value ?? 0, hpMax), hpMax) : new ValueMax(0, 0))
+		.withHpBase(hpBase)
 		.withDamage(damage)
 		.withDamageBase(damageBase)
 		.withArmor(armorValue)
@@ -2950,10 +3176,13 @@ function _buildPlaybookSection(playbookData, background, instinct, appearance, o
 			.build();
 	});
 
+	// The saved value rides along on each line: it is not always one of `opts` (both the
+	// onboarding wizard and the Details tab let a line be written in), and the snapshot is
+	// what every reader asks — so a written-in line has to be visible from it.
 	const appearanceOptions = (playbookData.appearance ?? []).map((opts, i) =>
 		new AppearanceLineSnapshot(i, opts.map(v =>
 			new AppearanceOptionSnapshot(v, (savedAppearance?.[i]) === v)
-		))
+		), savedAppearance?.[i] ?? "")
 	);
 
 	const originOptions = (playbookData.origin ?? []).map(({ region, names }) =>

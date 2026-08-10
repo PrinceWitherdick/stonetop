@@ -3,6 +3,7 @@ import { stonetopChatCard } from "../../../utils/chat.js";
 import { escHtml } from "../../../utils/strings.js";
 import { classifyResult, rollStat } from "../../../utils/roll-engine.js";
 import { DEATHS_DOOR_STATE, resolutionTier, resolvedHp } from "../deaths-door.js";
+import { NEVER_CHOSEN_OPTIONS } from "../post-death-choices.js";
 
 /**
  * The 0-HP move of a character who already died once — Undying (Revenant), Tethered (Ghost) or
@@ -29,7 +30,10 @@ const _FINAL_CONSEQUENCE = "final-consequence";
 
 export class UndeathDialog extends StonetopDialog {
 	constructor(character, onDone, options = {}) {
-		super(options);
+		// One window PER CHARACTER — see StonetopDialog.perDocumentOptions. Two undead PCs
+		// dropping in one fight is an ordinary evening.
+		super(StonetopDialog.perDocumentOptions(
+			"stonetop-undeath-dialog", character?._actor?.id, options));
 		this._character  = character;
 		this._onDone     = onDone;
 		this._resolution = character?.zeroHpResolution ?? null;
@@ -158,9 +162,21 @@ export class UndeathDialog extends StonetopDialog {
 		};
 	}
 
-	/** The picker a given effect needs, or [] for one that just happens. */
+	/**
+	 * The picker a given effect needs, or [] for one that just happens.
+	 *
+	 * NEVER_CHOSEN_OPTIONS is filtered out of the consequence list rather than left to `blocked`:
+	 * THE FINAL CONSEQUENCE carries no `requires` and is marked by nothing until it happens, so it
+	 * is never blocked and used to sit in this dropdown between DISTURBING and POLTERGEIST. One
+	 * mis-click there ended the character — with no confirmation, and without even setting the
+	 * dead state, since only the tether-destroyed branch below does that. It stays reachable the
+	 * one way the book inflicts it, and unreachable as a choice.
+	 */
 	_optionsFor(kind) {
-		if (kind === "consequence")   return this._sections[_CONSEQUENCES].filter(o => !o.blocked);
+		if (kind === "consequence") {
+			return this._sections[_CONSEQUENCES]
+				.filter(o => !o.blocked && !NEVER_CHOSEN_OPTIONS.includes(o.slug));
+		}
 		if (kind === "mark-gain")     return this._sections[_MARKS].filter(o => !o.blocked);
 		// Crossing off is the mirror image: only a Mark you DON'T have can be crossed off.
 		if (kind === "mark-crossoff") return this._sections[_MARKS].filter(o => !o.marked && !o.crossedOff);
@@ -271,6 +287,10 @@ export class UndeathDialog extends StonetopDialog {
 				...options,
 				statValue,
 				moveName: this._moveName,
+				// Undying / Tethered / Dark Succor ARE Death's Door for a character who has already
+				// been through it, so they follow the same house rule: no +1 XP on the miss that
+				// might end them. See DeathsDoorDialog._onRoll.
+				noXpOnMiss: true,
 				moveDescription: `<p>${this._character.zeroHpMove.trigger}</p>`,
 			});
 
@@ -278,7 +298,9 @@ export class UndeathDialog extends StonetopDialog {
 			this._tierKey = classifyResult(roll.total).key;
 			this._step    = "resolve";
 			this._syncForcedPicks();
-			this.render(true);
+			// Guarded: the 3D dice are several seconds of await, and a window closed during them
+			// must not be forced back open. See DeathsDoorDialog._onRoll.
+			this.renderIfOpen();
 		} finally {
 			this._rolling = false;
 		}
@@ -336,7 +358,9 @@ export class UndeathDialog extends StonetopDialog {
 		this._summary = done;
 		this._step = "done";
 		await this._post(done);
-		this.render(true);
+		// Guarded: everything above is server round trips (the HP write, each effect, the chat
+		// card), and a window closed part-way through them must not pop back open.
+		this.renderIfOpen();
 	}
 
 	/** One effect, applied. Returns the lines it contributes to the summary. */
@@ -397,7 +421,8 @@ export class UndeathDialog extends StonetopDialog {
 		];
 		this._step = "done";
 		await this._post(this._summary);
-		this.render(true);
+		// Guarded, like _onApply: setPostDeathInsert alone is a prune and several writes.
+		this.renderIfOpen();
 	}
 
 	async _post(lines) {

@@ -14,6 +14,7 @@ import { postListCard } from "../../utils/chat.js";
 import { localize, format } from "../../utils/i18n.js";
 import { deletionEntry, enrichHTML, compendiumSourceOf } from "../../utils/foundry-compat.js";
 import { withSheetSizeMemory } from "../../utils/sheet-size.js";
+import { condemnedContext } from "../character/condemn.js";
 
 // Per-organization combat budget (Book I, "Dangers", pp.396-398).
 const ORGANIZATION_DEFAULTS = {
@@ -306,6 +307,11 @@ export function createStonetopMonsterSheetClass(Base) {
 			st.displayTags = displayTags.join(", ");
 			st.damageModes = _parseDamageModes(system?.attributes?.damage?.value);
 			st.multiDamage = st.damageModes.length > 1;
+
+			// A Judge's Condemn brand. A stat block is a person often enough for this to matter —
+			// a bandit chief, a cultist, a Lodge assassin — and Censure's target only has to be
+			// "an individual in your presence". Read from the world; see condemn.js.
+			st.condemned = condemnedContext(this.actor);
 
 			// Hover tooltips for the organization / size / quality tags on the
 			// header stat line, explaining each term (Book I "Dangers").
