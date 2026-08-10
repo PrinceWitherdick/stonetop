@@ -127,6 +127,9 @@ export class IntroductionsDialog extends StonetopDialog {
 		this._combatHooks = null;
 		this._introHook   = null;
 		this._liveDraftTimer = null;
+		// One-shot: a commit has just cleared the live draft, so the re-render that follows
+		// must NOT flush the (still un-rebuilt) capture DOM back into it. See _commitStep.
+		this._skipDraftFlushOnce = false;
 		// The cursor position this dialog is currently DRAWN at (see cursorPositionKey),
 		// recorded by _syncFromCursor. handleIntroCursor compares against it to tell a real
 		// move from one of the same-position writes a single turn attracts.
@@ -383,20 +386,21 @@ export class IntroductionsDialog extends StonetopDialog {
 		// own textarea is never reset mid-word; the watching client (not focused) refreshes.
 		// The selected question is snapshotted at input time (not re-read when the debounced
 		// write fires) and the timer is cancellable, so a keystroke that lands after the turn
-		// has moved on can't resurrect a just-cleared draft with the next PC's question.
-		const domSelectedQ = () => {
-			const sel = this.element?.[0]?.querySelector(".stonetop-intros-question-pick.is-selected");
-			return sel ? Number(sel.dataset.qIndex) : null;
-		};
+		// has moved on can't resurrect a just-cleared draft with the next PC's question. It is
+		// snapshotted from the FLAG, not from the highlighted button: a pick writes the flag and
+		// only then re-renders, so between the two the DOM is a render behind — and a blur
+		// `change` fires exactly there, when clicking a question is what moved focus off the
+		// textarea. Reading the DOM wrote the old pick back over the new one.
+		const pickedQ = (actorId, stepKey) => this._stepDraft(actorId, stepKey).q;
 		html.find(".stonetop-intros-draft").on("input", ev => {
 			const el = ev.currentTarget;
 			this._setSaveStatus("saving");
-			this._scheduleLiveDraft(el.dataset.actorId, el.dataset.stepKey, domSelectedQ(), el.value);
+			this._scheduleLiveDraft(el.dataset.actorId, el.dataset.stepKey, pickedQ(el.dataset.actorId, el.dataset.stepKey), el.value);
 		});
 		html.find(".stonetop-intros-draft").on("change", async ev => {
 			const el = ev.currentTarget;
 			this._cancelLiveDraft();
-			await this._saveDraft(el.dataset.actorId, el.dataset.stepKey, { q: domSelectedQ(), a: el.value });
+			await this._saveDraft(el.dataset.actorId, el.dataset.stepKey, { q: pickedQ(el.dataset.actorId, el.dataset.stepKey), a: el.value });
 			this._setSaveStatus("saved");
 		});
 		// Pick (or toggle off) which question the draft answers/asks, preserving any typed
@@ -548,6 +552,11 @@ export class IntroductionsDialog extends StonetopDialog {
 			[`flags.${_FLAG_SCOPE}.${_INTRO_FLAG}.${stepKey}.${field}`]: value,
 			[`flags.${_FLAG_SCOPE}.${_INTRO_FLAG}.-=live`]: null,
 		});
+		// Every commit is followed by a re-render, and _render flushes the capture DOM first —
+		// but that DOM still shows the answer just recorded, so the flush would write it
+		// straight back as a fresh draft and the next Next would record it a SECOND time.
+		// Suppress exactly that one flush; the render after it rebuilds the field empty.
+		this._skipDraftFlushOnce = true;
 	}
 
 	// ── Narration rounds (1–3): a single plain-string answer, on the PC's own flag ──────
@@ -1195,6 +1204,10 @@ export class IntroductionsDialog extends StonetopDialog {
 	// this._pcIndex), so the flush still fires the instant AFTER the cursor moved the turn on.
 	async _flushCaptureFromDom() {
 		const root = this.element?.[0];
+		// Consumed even when there is nothing to flush, so a suppression set by a commit
+		// whose render never reached here can't skip a later, legitimate flush.
+		const justCommitted = this._skipDraftFlushOnce;
+		this._skipDraftFlushOnce = false;
 		if (!root) return;
 		this._cancelLiveDraft();
 		// This runs at the top of _render, so a throw here would abort the whole render.
@@ -1207,9 +1220,15 @@ export class IntroductionsDialog extends StonetopDialog {
 				await this._saveNarration(nar.dataset.actorId, nar.dataset.roundKey, nar.value);
 			}
 			const draft = root.querySelector("textarea.stonetop-intros-draft:not([readonly])");
-			if (draft?.dataset.actorId && draft.dataset.stepKey && soleEditor(draft.dataset.actorId)) {
-				const sel = root.querySelector(".stonetop-intros-question-pick.is-selected");
-				const q   = sel ? Number(sel.dataset.qIndex) : this._stepDraft(draft.dataset.actorId, draft.dataset.stepKey).q;
+			if (!justCommitted && draft?.dataset.actorId && draft.dataset.stepKey
+				&& soleEditor(draft.dataset.actorId) && this._draftWorthFlushing(draft)) {
+				// The DOM is authoritative for the TEXT and only the text: a keystroke can sit
+				// in the textarea unwritten (that is the whole reason for this flush), but a
+				// PICK is never DOM-only — every click writes the flag before re-rendering. So
+				// read q from the flag. Reading it back off the last render instead re-wrote the
+				// pick the player had just moved OFF, which is what made a second choice on
+				// "Bonds & ties" / "Asking the others" look like it did nothing at all.
+				const { q } = this._stepDraft(draft.dataset.actorId, draft.dataset.stepKey);
 				await this._saveDraft(draft.dataset.actorId, draft.dataset.stepKey, { q, a: draft.value });
 			}
 		} catch (err) {
@@ -1217,16 +1236,42 @@ export class IntroductionsDialog extends StonetopDialog {
 		}
 	}
 
-	// Flush the compose UI's current state (selected question + textarea text) to the
-	// draft flag and await it, so a fast type-then-Next records the latest text rather
-	// than racing the debounced/blur writes. The DOM is authoritative at click time —
-	// the selected pick reflects the last render, the textarea holds the live value.
+	// Does a live draft for this step actually EXIST on the actor? _stepDraft answers the
+	// same empty { q: null, a: "" } for "no draft" and "an empty one", which is right for
+	// reading and wrong for deciding whether to write.
+	_hasLiveDraft(actorId, stepKey) {
+		const live = this._intro(actorId).live;
+		return !!live && live.stepKey === stepKey;
+	}
+
+	/**
+	 * Is there anything in the capture field worth writing back? Only when a live draft still
+	 * exists (the field mirrors it, and may hold newer keystrokes), or the caret is in the
+	 * field right now — the first keystroke of a brand-new draft, still inside the 300ms
+	 * debounce this flush cancels.
+	 *
+	 * Neither holds right after a commit: the buffer is gone and the field goes on showing the
+	 * recorded answer until the repaint. Writing THAT back re-creates a draft nobody is
+	 * drafting, and the next Next records the same answer twice.
+	 *
+	 * `_skipDraftFlushOnce` covers the same ground on the client that did the committing; this
+	 * covers every OTHER open dialog, whose re-render is driven by the updateActor hook and
+	 * which never saw a commit of its own — the GM's Next clears an online player's draft, and
+	 * it was the PLAYER's screen that put it back.
+	 */
+	_draftWorthFlushing(el) {
+		if (this._hasLiveDraft(el.dataset.actorId, el.dataset.stepKey)) return true;
+		return el === globalThis.document?.activeElement;
+	}
+
+	// Flush the compose UI's current state to the draft flag and await it, so a fast
+	// type-then-Next records the latest text rather than racing the debounced/blur writes.
+	// The textarea is authoritative (it holds the live value); the PICK comes from the flag,
+	// which a click always writes before the highlight moves — see _flushCaptureFromDom.
 	async _flushDraftFromDom(actor, phase) {
-		const root = this.element?.[0];
-		const el   = root?.querySelector(".stonetop-intros-draft");
+		const el = this.element?.[0]?.querySelector(".stonetop-intros-draft");
 		if (!el || el.dataset.actorId !== actor.id) return;
-		const sel = root.querySelector(".stonetop-intros-question-pick.is-selected");
-		const q   = sel ? Number(sel.dataset.qIndex) : this._stepDraft(actor.id, phase.stepKey).q;
+		const { q } = this._stepDraft(actor.id, phase.stepKey);
 		await this._saveDraft(actor.id, phase.stepKey, { q, a: el.value });
 	}
 
