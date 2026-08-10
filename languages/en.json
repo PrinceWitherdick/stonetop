@@ -82,6 +82,7 @@
         "invocationAside": "Your new level is even — you'll also choose a new Invocation on the next step.",
         "moveIntro": "Choose one new move from your playbook (or an insert you've unlocked).",
         "noMoves": "No additional moves are available at this level.",
+        "noMovesMatch": "No moves match this filter.",
         "invocationIntro": "Choose one new Invocation to add to your repertoire.",
         "statIntro": "Choose which stat to raise by +1.",
         "statAllAtCap": "All of your stats are already at this move's maximum — go back and pick a different move.",

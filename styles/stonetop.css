@@ -16123,6 +16123,15 @@ a.steading-player-open:hover {
 .stonetop-onboarding-card--move.is-filtered-out,
 .stonetop-levelup-move-option.is-filtered-out { display: none; }
 
+/* The "no moves match this filter" line under each level-up card list. It ships hidden and
+   the filter reveals it once every card is out, so an emptied list explains itself rather
+   than reading as a broken window. Same `is-filtered-out` switch as the cards above — but
+   that rule is scoped to `.stonetop-levelup-move-option`, so the line needs its own. */
+.stonetop-levelup-empty.is-filtered-out { display: none; }
+
+.stonetop-levelup-move-no-matches,
+.stonetop-levelup-foreign-no-matches { margin-top: 8px; }
+
 /* Inline "+1 to which stat?" picker on a stat-increase move (the Would-Be Hero's
    Improved Stat). Hidden until the move card is selected, mirroring the initiate
    inline-choice pattern. */
