@@ -536,17 +536,36 @@ export class StonetopCharacter {
 		// (Versatile/Worldly/…). They keep their origin playbook in system.playbook (so they
 		// don't surface under the actor's own playbook category) and carry a `grantedBy` item
 		// flag; group them here, labeled with the move that granted them + their origin.
-		const grantedItems = this._actor.items.filter(i => i.type === "move" && i.flags?.[STONETOP_SCOPE]?.grantedBy);
-		if (grantedItems.length > 0) {
+		//
+		// This group is also the CATCH-ALL for any `moveType: "playbook"` item the playbook
+		// category above didn't show — a foreign move dropped straight onto the sheet from
+		// the compendium (which carries no `grantedBy` flag), or an owned move whose name no
+		// longer matches anything in its playbook's pack. Without it such an item renders in
+		// NO category at all: silently invisible on the sheet, yet owned — so it also
+		// vanishes from the cross-playbook picker, which skips names the actor already owns.
+		// Nothing on the actor should be un-seeable; better a card with a plain origin label.
+		const shownPlaybookIds = new Set(
+			(categories.find(c => c.key === "playbook")?.moves ?? []).flatMap(m => m.ownedIds ?? []));
+		const learnedItems = this._actor.items.filter(i =>
+			i.type === "move"
+			&& (i.flags?.[STONETOP_SCOPE]?.grantedBy || i.system?.moveType === "playbook")
+			&& !shownPlaybookIds.has(i._id));
+		if (learnedItems.length > 0) {
 			const learnedResourcesMap = this._moveResources.getMoveResources();
 			const learnedMarksMap     = this._moveResources.getMarks();
 			categories.push(new MoveCategorySnapshotBuilder()
 				.withKey("learned")
 				.withTitle("Learned Moves")
-				.withNote("Moves you've gained from other playbooks.")
-				.withMoves(grantedItems.map(i => {
+				.withNote("Moves you've gained from outside your own playbook's list.")
+				.withMoves(learnedItems.map(i => {
 					const grantedBy   = i.flags?.[STONETOP_SCOPE]?.grantedBy ?? {};
 					const origin      = i.system?.playbook ?? null;
+					// A cross-playbook grant says who granted it; a move added by hand has no
+					// granter to name, so it wears its origin playbook alone rather than the
+					// old "Granted by —" placeholder, which read like a bug of its own.
+					const sourceLabel = grantedBy.move
+						? `Granted by ${grantedBy.move}${origin ? ` · ${origin}` : ""}`
+						: (origin ?? "Added directly");
 					// Full card fidelity: resource track + markOptions, keyed by move NAME (the
 					// same store playbook moves use), so e.g. a learned ammo/Marks track works.
 					const resourceDef = i.system?.resource ?? null;
@@ -567,7 +586,7 @@ export class StonetopCharacter {
 						.withRollLabel(_rollLabelForMove(i.name, i.system?.rollType, i.system))
 						.withIsStarting(false)
 						.withSource({ type: "learned" })
-						.withSourceLabel(`Granted by ${grantedBy.move ?? "—"}${origin ? ` · ${origin}` : ""}`)
+						.withSourceLabel(sourceLabel)
 						.withOwned(true).withOwnedIds([i._id])
 						.withLocked(false).withRequirement(null).withRequiresLabel(null)
 						.withResource(resource)
@@ -907,6 +926,15 @@ export class StonetopCharacter {
 				// two tracks or orphan a saved count. Shipped/foreign "other" moves keep name
 				// keying so their already-stored data is unaffected.
 				const resourceKey = _isCustomMove(i) ? i._id : i.name;
+				// A move dropped here from another playbook keeps its origin in system.playbook
+				// (onDropMove only rewrites the moveType). Say so in the corner badge, the same
+				// way a playbook move announces "Starting move" — otherwise the Fox's Ambush sits
+				// in a Would-Be Hero's Other Moves with nothing to explain where it came from.
+				// Compared against the actor's STORED playbook name, which is the same field
+				// onDropMove judged "foreign" by — so the badge appears on exactly the moves that
+				// were routed here for being foreign, whether or not the playbook doc resolves.
+				const origin = i.system?.playbook ?? null;
+				const ownPlaybook = this._actor.system?.playbook?.name ?? playbookData?.name ?? null;
 				return new OtherItemSnapshotBuilder()
 					.withId(i._id)
 					.withName(i.name)
@@ -915,6 +943,7 @@ export class StonetopCharacter {
 					.withOwnedId(i._id)
 					.withRollType(normalizeRollType(i.system?.rollType))
 					.withRollLabel(_rollLabelForMove(i.name, i.system?.rollType, i.system))
+					.withSourceLabel(origin && origin !== ownPlaybook ? origin : null)
 					.withCustom(_isCustomMove(i))
 					.withLearned(_isMoveLearned(i))
 					.withResourceKey(resourceKey)
@@ -1484,13 +1513,15 @@ export class StonetopCharacter {
 		await item.update(buildCustomMoveData(input));
 	}
 
-	// Toggle a custom move between learned (active — rollable, bonuses apply) and un-learned
-	// (kept on the sheet but inactive). Persisted as an item flag; an absent flag means
-	// learned, so a fresh move never needs the flag written to default to learned. No-op for
-	// non-custom moves, which are always active.
-	async setCustomMoveLearned(itemId, learned) {
+	// Toggle a move between learned (active — rollable, bonuses apply) and un-learned (kept
+	// on the sheet but inactive). Persisted as an item flag; an absent flag means learned, so
+	// a fresh move never needs the flag written to default to learned. Applies to ANY owned
+	// move, not just player-authored ones: a move dropped onto the sheet from another
+	// playbook is exactly as reversible as a homebrew one, and _isMoveLearned (which gates
+	// the roll icon and every per-move bonus) has always read the flag off any item.
+	async setMoveLearned(itemId, learned) {
 		const item = this._actor.items.get(itemId);
-		if (!item || !_isCustomMove(item)) return;
+		if (!item) return;
 		await item.setFlag(STONETOP_SCOPE, "learned", !!learned);
 	}
 

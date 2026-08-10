@@ -4375,12 +4375,18 @@ export function createStonetopCharacterSheetClass(Base) {
 					onSaved: () => this.render(false),
 				}).render(true);
 			};
-			// Learned toggle on a custom move: un-checking keeps it on the sheet but inactive
-			// (not rollable, bonuses off); re-checking re-learns it. Gated the same way as
-			// authoring, so a player can't toggle a GM-authored one when authoring is GM-only.
-			html.find(".stonetop-custom-move-learned").on("change", async ev => {
-				if (!this.isEditable || !canAuthorCustomMoves()) return;
-				await this._stonetopCharacter.setCustomMoveLearned(ev.currentTarget.dataset.itemId, ev.currentTarget.checked);
+			// Learned toggle on an Other Moves row: un-checking keeps it on the sheet but
+			// inactive (not rollable, bonuses off); re-checking re-learns it. The authoring gate
+			// applies to CUSTOM moves only — it exists so a player can't alter a GM-authored
+			// homebrew when authoring is GM-only. A shipped move that landed here (a foreign
+			// playbook move dropped on the sheet) isn't anyone's homebrew, so it answers to
+			// isEditable alone — the same rule the delete affordance beside it already uses.
+			html.find(".stonetop-other-move-learned").on("change", async ev => {
+				if (!this.isEditable) return;
+				const itemId = ev.currentTarget.dataset.itemId;
+				const item   = this.actor.items.get(itemId);
+				if (item?.flags?.[STONETOP_SCOPE]?.custom && !canAuthorCustomMoves()) return;
+				await this._stonetopCharacter.setMoveLearned(itemId, ev.currentTarget.checked);
 				this.render(false);
 			});
 			html.find(".stonetop-add-custom-move").on("click", () => openCustomMove());
@@ -4986,8 +4992,17 @@ export function createStonetopCharacterSheetClass(Base) {
 					anyAdded = true;
 				}
 			}
+			// onDropMove refuses a move the character already owns by NAME and returns false.
+			// That refusal used to be entirely silent — no card, no toast, no console error —
+			// which reads exactly like the drop was ignored, and sends you hunting for a bug in
+			// the drop handler when the answer is "it's already on this sheet somewhere". A
+			// foreign move makes that worse: the owned copy ALSO hides its name from the
+			// cross-playbook picker (which skips owned names), so it looks missing from both
+			// places at once while in fact being present.
+			const skippedMoves = [];
 			for (const item of moves) {
 				if (await target.onDropMove(item)) anyAdded = true;
+				else skippedMoves.push(item.name || "that move");
 			}
 			// Gear lands on a tab the GM usually isn't looking at (they drop from a journal or the
 			// Items sidebar, onto whichever tab happens to be open), and a treasure joins a
@@ -5009,6 +5024,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				ui.notifications?.info?.(unlinkedFrom
 					? format("stonetop.inventory.dropAddedUnlinked", { names, actor: unlinkedFrom })
 					: format("stonetop.inventory.dropAdded", { names, actor: this.actor?.name ?? "this character" }));
+			}
+			if (skippedMoves.length) {
+				const names = joinNames(skippedMoves.map(n => `"${n}"`));
+				ui.notifications?.warn?.(
+					`${names} ${skippedMoves.length === 1 ? "is" : "are"} already on ${unlinkedFrom ?? this.actor?.name ?? "this character"} — nothing was added. Check the Moves tab, including Learned Moves and Other Moves.`);
 			}
 			// Where the write actually LANDED, which on a redirect is NOT this sheet: this one is
 			// backed by the token's ActorDelta copy, which the drop deliberately did not touch. Both

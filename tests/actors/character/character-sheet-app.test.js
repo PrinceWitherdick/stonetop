@@ -920,6 +920,26 @@ describe("StonetopCharacterSheet._onDropItemCreate", () => {
 		expect(actor.typedActor.addArcanum).not.toHaveBeenCalled();
 	});
 
+	// onDropMove returns false for a move the character already owns. That refusal has to
+	// say so: silently doing nothing is indistinguishable from a broken drop handler, and
+	// it's the exact shape of "I dragged the move on and it just didn't show up".
+	it("warns by name when a dropped move was refused as already owned", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		actor.typedActor.onDropMove.mockResolvedValue(false);
+		await sheet._onDropItemCreate({ type: "move", name: "Smash", system: { moveType: "playbook" }, flags: {} });
+		expect(global.ui.notifications.warn).toHaveBeenCalledWith(expect.stringContaining('"Smash" is already on'));
+	});
+
+	it("stays quiet when the dropped move was actually added", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		actor.typedActor.onDropMove.mockResolvedValue(true);
+		global.ui.notifications.warn.mockClear();  // the notification stub is shared across tests
+		await sheet._onDropItemCreate(makeMove());
+		expect(global.ui.notifications.warn).not.toHaveBeenCalled();
+	});
+
 	it("routes inventory moves to addDroppedInventoryItem", async () => {
 		const actor = makeActor();
 		const sheet = makeSheet(actor);

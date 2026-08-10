@@ -4719,15 +4719,6 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	opacity: 0.5;
 }
 
-/* Stands in for the "learned" checkbox on an Other Moves row that has none (a foreign
-   playbook move, which is always learned and so shows no toggle). Same scaled 15px box
-   the checkbox reserves, so every title in the section starts on one line — the header's
-   own 8px gap does the spacing. */
-:is(.tab.moves, .tab.post-death) .stonetop-item-check-spacer {
-	flex: 0 0 calc(15px * var(--stonetop-font-scale, 1));
-	height: calc(15px * var(--stonetop-font-scale, 1));
-}
-
 /* A move the player OWNS that still has unspent selection budget (e.g. Veteran Crew
    taken but its pick not yet made). Deliberately DISTINCT from .move-requirements-unmet
    (the red error below): this is a BLUE "needs your input" call-to-action — border,

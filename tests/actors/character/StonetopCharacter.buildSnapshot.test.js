@@ -762,6 +762,41 @@ describe("buildSnapshot — moves", () => {
 		});
 	});
 
+	// A foreign move dropped straight onto the sheet from the compendium carries no
+	// `grantedBy` flag, and its own playbook keeps it out of the playbook category — so it
+	// used to render in NO category: invisible on the sheet, yet owned, which also hid its
+	// name from the Versatile picker (that skips names the actor already owns). The player
+	// could see neither the move nor any way to get rid of it.
+	it("shows an UNFLAGGED foreign move under Learned Moves, labeled with its origin playbook", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-would-be-hero", "The Would-Be Hero")
+			.addItem({
+				_id: "stray1", type: "move", name: "Smash",
+				system: { moveType: "playbook", playbook: "The Heavy", description: "Smash desc", rollType: "str" },
+			})
+			.build();
+		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
+		const learned = snap.moves.find(c => c.key === "learned");
+		expect(learned.moves.map(m => m.name)).toEqual(["Smash"]);
+		// No granter to name, so it wears the origin playbook alone — not "Granted by —".
+		expect(learned.moves[0]).toMatchObject({ owned: true, ownedId: "stray1", sourceLabel: "The Heavy" });
+	});
+
+	// The catch-all must not double-render: a move the playbook category already shows
+	// belongs there and nowhere else.
+	it("does NOT re-list an own-playbook move the playbook category already shows", async () => {
+		const actor = new FakeActorBuilder()
+			.withPlaybook("the-heavy", "The Heavy")
+			.addItem({ _id: "o1", type: "move", name: "Bravo", system: { moveType: "playbook" } })
+			.build();
+		const snap = await new TestCharacterBuilder(actor)
+			.withPlaybookRepo(new FakePlaybookRepository(HEAVY_PLAYBOOK))
+			.addPlaybookMove(makeMove("pm2", "Bravo"))
+			.build().buildSnapshot();
+		expect(snap.moves.find(c => c.key === "playbook").moves.map(m => m.name)).toEqual(["Bravo"]);
+		expect(snap.moves.find(c => c.key === "learned")).toBeUndefined();
+	});
+
 	it("owned playbook moves are listed before unowned playbook moves", async () => {
 		const actor =  new FakeActorBuilder()
 			.withPlaybook("the-heavy", "The Heavy")
