@@ -2201,6 +2201,23 @@ input.stonetop-name-field {
 	padding: 2px 0;
 }
 
+/* The write-in box that ends each appearance line. It rides in the same flex row as the
+   line's suggestions, so it takes the leftover width rather than a fixed one — the four
+   lines carry very different numbers of suggestions, and a fixed box would wrap the short
+   lines and crowd the long ones. min-width keeps it usable when little is left over. */
+.stonetop-appearance-custom-option {
+	flex: 1 1 8em;
+	min-width: 8em;
+	padding: 0;
+}
+
+.stonetop-appearance-custom {
+	box-sizing: border-box;
+	width: 100%;
+	font-family: inherit;
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
+}
+
 .stonetop-appearance-readonly-list {
 	display: flex;
 	flex-direction: column;

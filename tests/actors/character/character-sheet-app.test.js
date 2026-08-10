@@ -273,6 +273,54 @@ describe("StonetopCharacterSheet event handlers", () => {
 		expect(actor.typedActor.appearance.select).toHaveBeenCalledWith(0, "gray & wizened");
 	});
 
+	// One appearance line, one value: the row's suggestions and its write-in box are the two
+	// ways to set it, so choosing either has to clear the other. These fakes stand in for the
+	// row because the suite runs without a DOM — what matters is that the handlers reach for
+	// the row and blank/untick what they find.
+	function fakeAppearanceRow() {
+		const custom = { value: "old text" };
+		const radios = [{ checked: true }, { checked: false }];
+		return {
+			custom, radios,
+			el: { querySelector: () => custom, querySelectorAll: () => radios },
+		};
+	}
+	const inRow = (row, line, value) => ({
+		currentTarget: { dataset: { line: String(line) }, value, closest: () => row.el },
+	});
+
+	it("_onAppearanceCustomChange saves the written-in line, trimmed", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		const row   = fakeAppearanceRow();
+		await sheet._onAppearanceCustomChange(inRow(row, 2, "  built like a barn door  "));
+		expect(actor.typedActor.appearance.select).toHaveBeenCalledWith(2, "built like a barn door");
+		expect(row.radios.every(r => r.checked === false)).toBe(true);
+	});
+
+	it("_onAppearanceCustomChange clears the line when the box is emptied", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		await sheet._onAppearanceCustomChange(inRow(fakeAppearanceRow(), 1, "   "));
+		expect(actor.typedActor.appearance.select).toHaveBeenCalledWith(1, "");
+	});
+
+	it("_onAppearanceChange empties the row's write-in box", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		const row   = fakeAppearanceRow();
+		await sheet._onAppearanceChange(inRow(row, 0, "gray & wizened"));
+		expect(row.custom.value).toBe("");
+		expect(actor.typedActor.appearance.select).toHaveBeenCalledWith(0, "gray & wizened");
+	});
+
+	it("appearance handlers still save when there is no row to tidy", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		await sheet._onAppearanceCustomChange({ currentTarget: { dataset: { line: "3" }, value: "sharp-eyed" } });
+		expect(actor.typedActor.appearance.select).toHaveBeenCalledWith(3, "sharp-eyed");
+	});
+
 	it("_onOriginNameClick updates the actor name", async () => {
 		const actor = makeActor();
 		const sheet = makeSheet(actor);

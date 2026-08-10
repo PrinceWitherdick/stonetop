@@ -197,10 +197,30 @@
 					</div>
 				</label>
 				{{/each}}
+				{{! "…or make something up" — the section heading has said so all along, and the
+				    onboarding wizard offers it on this very step, but the sheet had nowhere to
+				    write one in: a line made up during creation could be read back here only as
+				    four unticked suggestions. Typing here unticks the row's suggestions and
+				    ticking a suggestion clears this (both in activateListeners), so the line
+				    holds exactly one value either way. }}
+				<label class="stonetop-item stonetop-appearance-option stonetop-appearance-custom-option{{#if isCustom}} is-checked{{/if}}">
+					<div class="stonetop-item-header">
+						{{! maxlength because this line is read out INLINE — the header joins all
+						    four with " · " — and the longest authored suggestion in any playbook
+						    is 20 characters ("like a whippin stick"). 60 leaves room to be
+						    inventive without letting a pasted paragraph become the name-line. }}
+						<input type="text" class="stonetop-appearance-custom"
+						       data-line="{{lineIdx}}"
+						       value="{{customValue}}"
+						       maxlength="60"
+						       aria-label="{{localize "stonetop.character.selection.appearance.customLabel"}}"
+						       placeholder="{{localize "stonetop.character.selection.appearance.customPlaceholder"}}">
+					</div>
+				</label>
 			</div>
 			{{/each}}
 			{{else}}
-			<p class="stonetop-appearance-readonly">{{#each stonetop.playbook.appearance.options}}{{#each options}}{{#if selected}}<span class="stonetop-appearance-readonly-item">{{value}}</span>{{/if}}{{/each}}{{/each}}</p>
+			<p class="stonetop-appearance-readonly">{{#each stonetop.playbook.appearance.options}}{{#if value}}<span class="stonetop-appearance-readonly-item">{{value}}</span>{{/if}}{{/each}}</p>
 			{{/if}}
 		</div>
 		{{/if}}

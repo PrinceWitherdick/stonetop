@@ -3145,10 +3145,13 @@ function _buildPlaybookSection(playbookData, background, instinct, appearance, o
 			.build();
 	});
 
+	// The saved value rides along on each line: it is not always one of `opts` (both the
+	// onboarding wizard and the Details tab let a line be written in), and the snapshot is
+	// what every reader asks — so a written-in line has to be visible from it.
 	const appearanceOptions = (playbookData.appearance ?? []).map((opts, i) =>
 		new AppearanceLineSnapshot(i, opts.map(v =>
 			new AppearanceOptionSnapshot(v, (savedAppearance?.[i]) === v)
-		))
+		), savedAppearance?.[i] ?? "")
 	);
 
 	const originOptions = (playbookData.origin ?? []).map(({ region, names }) =>

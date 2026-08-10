@@ -806,7 +806,9 @@
         "appearance": {
           "label": "Appearance",
           "dialogTitle": "Choose Appearance",
-          "instruction": "Choose 1 on each line, or make something up:"
+          "instruction": "Choose 1 on each line, or make something up:",
+          "customPlaceholder": "Make your own",
+          "customLabel": "Write in your own"
         },
         "origin": {
           "label": "Origin",

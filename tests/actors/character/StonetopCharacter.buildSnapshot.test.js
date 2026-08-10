@@ -258,6 +258,40 @@ describe("buildSnapshot — playbook section", () => {
 		expect(snap.playbook.appearance.options[1].options.find(o => o.value === "scarred").selected).toBe(true);
 	});
 
+	// A line can be WRITTEN IN rather than picked — the onboarding wizard offers it on the
+	// appearance step and the Details tab's own heading says "or make something up". A
+	// written-in value matches no suggestion, so every reader that only looked for a ticked
+	// option showed nothing: a character created with custom lines had a blank appearance.
+	it("appearance line reads out a written-in value as well as a ticked suggestion", async () => {
+		const snap = await buildSnap({"appearance.selected": {0: "built like a barn door", 1: "scarred"}});
+		const [custom, picked] = snap.playbook.appearance.options;
+		expect(custom.isCustom).toBe(true);
+		expect(custom.customValue).toBe("built like a barn door");
+		expect(custom.value).toBe("built like a barn door");
+		expect(custom.options.some(o => o.selected)).toBe(false);
+		expect(picked.isCustom).toBe(false);
+		expect(picked.customValue).toBe("");
+		expect(picked.value).toBe("scarred");
+	});
+
+	it("appearance.summary includes written-in lines", async () => {
+		const snap = await buildSnap({"appearance.selected": {0: "built like a barn door", 1: "scarred"}});
+		expect(snap.playbook.appearance.summary).toBe("Built like a barn door · scarred");
+	});
+
+	// The Details tab hides a section it reads as never filled in (detailsShow keys off
+	// summary), so an all-written-in character used to lose the section entirely.
+	it("appearance.summary is non-empty when every line was written in", async () => {
+		const snap = await buildSnap({"appearance.selected": {0: "wiry", 1: "inked all over"}});
+		expect(snap.playbook.appearance.summary).toBe("Wiry · inked all over");
+	});
+
+	it("appearance.summary is empty when nothing is chosen", async () => {
+		const snap = await buildSnap();
+		expect(snap.playbook.appearance.summary).toBe("");
+		expect(snap.playbook.appearance.options.every(l => l.value === "")).toBe(true);
+	});
+
 	it("origin.selected is null when none saved", async () => {
 		const snap = await buildSnap();
 		expect(snap.playbook.origin.selected).toBeNull();

@@ -929,7 +929,15 @@ function loreTextEntry(path, newValue, names) {
 
 // Appearance lines carry no category names in the playbook data (they are just four ordered
 // lists), so the entry names the chosen trait and merges the burst into a single line.
+//
+// A CLEARED line arrives as a DELETION, not a value, and the two cores disagree on its shape:
+// v13 sends `-=<n>` with null (which falls out at the empty check below), while v14+ sends a
+// ForcedDeletion INSTANCE at the plain path (utils/foundry-compat.js#deletionEntry) — and that
+// stringifies to "[object Object]", so without the type test a player emptying a write-in box
+// got a ledger row reading "Appearance set to [object Object]". Same trap crewEntries guards
+// at its own door; a line is only ever a string, so anything else is not a choice to read out.
 function appearanceEntry(newValue) {
+	if (typeof newValue !== "string") return null;
 	const value = stripHtml(newValue);
 	if (!value) return null;
 	return { action: `Appearance set to ${value}`, merge: listMerge("Appearance", "appearance", [value]) };

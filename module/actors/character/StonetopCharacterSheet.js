@@ -3438,6 +3438,11 @@ export function createStonetopCharacterSheetClass(Base) {
 					this._stonetopCharacter.instinct.select(composeInstinct(word, desc));
 				});
 				html.find(".stonetop-appearance-radio").on("change", this._onAppearanceChange.bind(this));
+				// Written-in appearance lines, the same trade the Instinct pair makes just above:
+				// each line holds ONE value, so ticking a suggestion empties that row's write-in
+				// box and typing in it unticks the row's radios. Scoped to the row (data-line),
+				// since all four rows are on screen together.
+				html.find(".stonetop-appearance-custom").on("change", this._onAppearanceCustomChange.bind(this));
 				html.find("[name=stonetop-origin]").on("change", ev =>
 					this._stonetopCharacter.origin.select(ev.currentTarget.value)
 				);
@@ -5329,8 +5334,34 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		async _onAppearanceChange(ev) {
-			const el = ev.currentTarget;
-			await this._stonetopCharacter.appearance.select(Number(el.dataset.line), el.value);
+			const el   = ev.currentTarget;
+			const line = Number(el.dataset.line);
+			// A suggestion wins the line: clear the row's write-in box so the two can't both
+			// look chosen until the next render settles it.
+			const custom = this._appearanceRow(el)?.querySelector(".stonetop-appearance-custom");
+			if (custom) custom.value = "";
+			await this._stonetopCharacter.appearance.select(line, el.value);
+		}
+
+		// A written-in appearance line. Stored exactly like a ticked suggestion (the line holds
+		// one string either way), so an emptied box clears the line rather than saving "".
+		async _onAppearanceCustomChange(ev) {
+			const el    = ev.currentTarget;
+			const line  = Number(el.dataset.line);
+			const value = el.value.trim();
+			el.value = value;
+			this._appearanceRow(el)?.querySelectorAll(".stonetop-appearance-radio")
+				.forEach(r => { r.checked = false; });
+			await this._stonetopCharacter.appearance.select(line, value);
+		}
+
+		/**
+		 * The one appearance line an input belongs to — its suggestions and its write-in box.
+		 * Optional-called: the saving half of both handlers is what matters, and a detached
+		 * element (or a unit test's plain-object event) simply has no row to tidy.
+		 */
+		_appearanceRow(el) {
+			return el?.closest?.(".stonetop-appearance-row") ?? null;
 		}
 
 		async _onOriginNameClick(ev) {

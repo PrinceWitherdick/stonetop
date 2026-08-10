@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { CharacterLedger } from "../../../module/actors/character/CharacterLedger.js";
 import { ledgerNoun } from "../../../module/utils/ledger-core.js";
+import { SYSTEM_ID } from "../../../module/system-id.js";
 
 function makeActor(system = {}, flags = {}) {
 	return {
@@ -1012,5 +1013,38 @@ describe("CharacterLedger item batches", () => {
 		expect(CharacterLedger.entriesForDeletedItems(cards)[0].action).toBe(
 			"Arcana removed (5): Card 0, Card 1, Card 2, and 2 more",
 		);
+	});
+
+	// Emptying a written-in appearance line DELETES the sub-key, and the two supported cores
+	// send a deletion in different shapes. Neither is a choice the player made, so neither
+	// belongs in the ledger — and the v14 shape is an object, which used to stringify into the
+	// row as "[object Object]".
+	describe("a cleared appearance line", () => {
+		const appearancePath = n => `flags.${SYSTEM_ID}.appearance.selected.${n}`;
+		const withLine = value => makeActor({}, { [SYSTEM_ID]: { appearance: { selected: { 0: value } } } });
+
+		it("records nothing for the v14 ForcedDeletion shape", async () => {
+			const entries = await CharacterLedger.entriesForActorUpdate(
+				withLine("built like a barn door"),
+				{ [appearancePath(0)]: new foundry.data.operators.ForcedDeletion() },
+			);
+			expect(entries.map(e => e.action)).toEqual([]);
+		});
+
+		it("records nothing for the v13 -= shape", async () => {
+			const entries = await CharacterLedger.entriesForActorUpdate(
+				withLine("built like a barn door"),
+				{ [`flags.${SYSTEM_ID}.appearance.selected.-=0`]: null },
+			);
+			expect(entries.map(e => e.action)).toEqual([]);
+		});
+
+		it("still records a line that was actually set", async () => {
+			const entries = await CharacterLedger.entriesForActorUpdate(
+				makeActor(),
+				{ [appearancePath(0)]: "built like a barn door" },
+			);
+			expect(entries.map(e => e.action)).toEqual(["Appearance set to built like a barn door"]);
+		});
 	});
 });

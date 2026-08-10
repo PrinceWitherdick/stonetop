@@ -250,9 +250,13 @@
 						       value="{{customValue}}"
 						       data-line="{{lineIdx}}"
 						       {{#if customSelected}}checked{{/if}}>
+						{{! Same 60 as the sheet's write-in box (tab-details.hbs) — a line typed
+						    here is read back and edited there, and all four end up on one
+						    inline header line. }}
 						<input type="text" class="onboard-appearance-custom"
 						       data-line="{{lineIdx}}"
 						       value="{{customValue}}"
+						       maxlength="60"
 						       placeholder="Make your own">
 					</label>
 				</div>
