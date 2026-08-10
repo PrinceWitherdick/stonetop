@@ -42,16 +42,45 @@
         {{else}}
         <span class="stonetop-cf-chosen-empty">No tags — they roll +0.</span>
         {{/if}}
+
+        {{!-- Their moves count toward the same +1/+2 ("at least one appropriate tag
+              or move", p.462), but can't put anything in the way, so these toggle
+              rather than cycle. --}}
+        {{#if followerMoves.length}}
+        <span class="stonetop-cf-chosen-label stonetop-of-moves-label">…and any of their moves? <span class="stonetop-of-tags-hint">(click to apply)</span></span>
+        <div class="stonetop-of-tags">
+          {{#each followerMoves}}
+          <button type="button"
+                  class="stonetop-of-tag stonetop-of-move-chip{{#if help}} is-help{{/if}}"
+                  data-move="{{move}}">
+            {{#if help}}<i class="fas fa-arrow-up"></i> {{/if}}{{move}}
+          </button>
+          {{/each}}
+        </div>
+        {{/if}}
+
         {{#if exceptional}}
-        <div class="stonetop-of-exceptional"><i class="fas fa-star"></i> <strong>exceptional</strong> — +2 instead of +1 when a tag applies</div>
+        <div class="stonetop-of-exceptional"><i class="fas fa-star"></i> <strong>exceptional</strong> — +2 instead of +1 when a tag or move applies</div>
         {{/if}}
       </div>
 
-      {{!-- Optional manual advantage (e.g. a group focusing fire) --}}
-      <label class="stonetop-of-adv-row{{#if advDisabled}} is-disabled{{/if}}">
-        <input type="checkbox" class="stonetop-of-adv" {{#if advantage}}checked{{/if}} {{#if advDisabled}}disabled{{/if}}>
-        Roll with advantage
-      </label>
+      {{!-- Advantage/disadvantage from OUTSIDE the follower: Stentorian or an Aid on
+            one side, Interfere or a GM move on the other. Both stay live — they
+            cancel each other out rather than one winning (p.230). --}}
+      <div class="stonetop-of-mode-block">
+        <span class="stonetop-cf-chosen-label">Anything else swinging the roll? <span class="stonetop-of-tags-hint">(Stentorian, an Aid, an Interfere…)</span></span>
+        <div class="stonetop-of-mode-row">
+          <label class="stonetop-of-adv-row">
+            <input type="checkbox" class="stonetop-of-adv" {{#if advantage}}checked{{/if}}>
+            Advantage
+          </label>
+          <label class="stonetop-of-adv-row">
+            <input type="checkbox" class="stonetop-of-dis" {{#if disadvantage}}checked{{/if}}>
+            Disadvantage
+          </label>
+        </div>
+        {{#if modeNote}}<div class="stonetop-of-mode-note">{{modeNote}}</div>{{/if}}
+      </div>
 
       <div class="stonetop-of-readout"><i class="fas fa-dice"></i> {{readout}}</div>
 

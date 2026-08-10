@@ -14,59 +14,36 @@
 		</div>
 		{{else}}
 
-		<section class="sheet-top flexcol">
-			<div class="stonetop-details-heading-row">
-				{{> "stonetop.section-heading" title=(localize "stonetop.character.stats.sectionTitle") note=stonetop.statsNoteDisplay}}
-				{{> "stonetop.details-section-edit-toggle" section="stats" editing=stonetop.statsEdit collapse="stats"}}
-			</div>
+		{{!-- CLASSIC layout pins the stat block above the tabs, where it lived before the
+		     redesign: every page pays its ~270px, and every page shows the stats and the
+		     vitals without a click. The SAME partial the Moves tab includes — one copy of the
+		     markup, two mount points — so the two layouts cannot drift apart.
 
-			<section class="sheet-attributes flexrow">
-				{{> "stonetop.actor-stats"}}
-			</section>
-			<div class="stonetop-debilities">
-				<div class="stonetop-debility">
-					<span class="stonetop-debility-bracket"></span>
-					<label class="stonetop-debility-control" data-tooltip="Fatigued, tired, sluggish, shaky. Disadvantage on +STR or +DEX rolls." data-tooltip-direction="UP">
-						<input type="checkbox" class="attr-list"
-						       name="system.attributes.debilities.options.weakened.value"
-						       {{#if system.attributes.debilities.options.weakened.value}}checked{{/if}}>
-						<span class="stonetop-debility-label">weakened</span>
-					</label>
-				</div>
-				<div class="stonetop-debility">
-					<span class="stonetop-debility-bracket"></span>
-					<label class="stonetop-debility-control" data-tooltip="Out of it, befuddled, not thinking clearly. Disadvantage on +INT or +WIS rolls." data-tooltip-direction="UP">
-						<input type="checkbox" class="attr-list"
-						       name="system.attributes.debilities.options.dazed.value"
-						       {{#if system.attributes.debilities.options.dazed.value}}checked{{/if}}>
-						<span class="stonetop-debility-label">dazed</span>
-					</label>
-				</div>
-				<div class="stonetop-debility">
-					<span class="stonetop-debility-bracket"></span>
-					<label class="stonetop-debility-control" data-tooltip="Greatly distressed, angry, unwell, in pain. Disadvantage on +CON or +CHA rolls." data-tooltip-direction="UP">
-						<input type="checkbox" class="attr-list"
-						       name="system.attributes.debilities.options.miserable.value"
-						       {{#if system.attributes.debilities.options.miserable.value}}checked{{/if}}>
-						<span class="stonetop-debility-label">miserable</span>
-					</label>
-				</div>
-			</div>
+		     It goes ABOVE the wounds line, not below. At HEAD one `.sheet-top` box held both;
+		     the redesign split them, and the wounds are now a bare child of `.sheet-wrapper`.
+		     Mounting the block below them would invert the reading order (header, wounds,
+		     stats, vitals) and divorce the wounds line from the HP cell whose "add wound"
+		     control it belongs to. Every `.sheet-top` rule in ours and pbta's stylesheets is a
+		     descendant chain from `.sheet-wrapper`, which is an ancestor at either mount, so
+		     no CSS follows the move. --}}
+		{{#if stonetop.classicLayout}}{{> "stonetop.stat-block"}}{{/if}}
 
-			<section class="sheet-attributes-top">
-				{{> "stonetop.actor-vitals"}}
-			</section>
-
-			{{!-- Problematic/permanent wounds: a compact, comma-separated line that
-			     sits under the vitals and only appears when there's a wound to show.
-			     The "add wound" affordance lives by the HP label (in actor-vitals). --}}
-			{{#if stonetop.woundsView.show}}
-			<div class="stonetop-wounds stonetop-wounds--inline">
-				{{#if stonetop.woundsView.active.length}}
-				<div class="stonetop-wounds-line">
-					<span class="stonetop-wounds-label">Problematic wounds:</span>
-					<ul class="stonetop-wound-list stonetop-wound-list--inline">
-						{{#each stonetop.woundsView.active}}
+		{{!-- Problematic/permanent wounds: a compact, comma-separated line that sits
+		     under the header and only appears when there's a wound to show. It stays
+		     pinned above the tabs, with the portrait and the name, in BOTH layouts — a wound
+		     is a live harm track, and hiding it behind a tab would let a player forget it
+		     between rolls. (In the modern layout the stat block it used to follow heads the
+		     Moves tab instead; in classic it sits directly above, as it always did.) The
+		     "add wound" affordance still lives by the HP label (in actor-vitals), which
+		     modern puts over on Moves; editing/tending/removing an existing wound stays on
+		     the line itself. --}}
+		{{#if stonetop.woundsView.show}}
+		<div class="stonetop-wounds stonetop-wounds--inline">
+			{{#if stonetop.woundsView.active.length}}
+			<div class="stonetop-wounds-line">
+				<span class="stonetop-wounds-label">Problematic wounds:</span>
+				<ul class="stonetop-wound-list stonetop-wound-list--inline">
+					{{#each stonetop.woundsView.active}}
 					<li class="stonetop-wound stonetop-wound--{{this.status}}{{#if this.isDeathsDoor}} is-deaths-door{{/if}}" data-wound-id="{{this.id}}">
 						<span class="stonetop-wound-glyph" data-tooltip="{{this.statusLabel}}"><i class="fas {{this.glyph}}"></i></span>
 						<span class="stonetop-wound-text" data-tooltip="{{this.tooltip}}">{{#if this.isDeathsDoor}}<i class="fas fa-skull stonetop-wound-dd" data-tooltip="Death's Door mark"></i> {{/if}}{{#if this.text}}{{this.text}}{{else}}<em class="stonetop-wound-empty">(describe the wound)</em>{{/if}}</span>
@@ -80,55 +57,79 @@
 					</li>
 					{{/each}}
 				</ul>
-				</div>
-				{{/if}}
-
-				{{#if stonetop.woundsView.scarCount}}
-				<details class="stonetop-wound-scars">
-					<summary>Scars ({{stonetop.woundsView.scarCount}})</summary>
-					<ul class="stonetop-wound-list stonetop-wound-list--inline stonetop-wound-list--scars">
-						{{#each stonetop.woundsView.scars}}
-						<li class="stonetop-wound stonetop-wound--scar{{#if this.isDeathsDoor}} is-deaths-door{{/if}}" data-wound-id="{{this.id}}">
-							<span class="stonetop-wound-glyph"><i class="fas fa-heart-crack"></i></span>
-							<span class="stonetop-wound-text" data-tooltip="{{this.tooltip}}">{{#if this.isDeathsDoor}}<i class="fas fa-skull stonetop-wound-dd"></i> {{/if}}{{this.text}}</span>
-							{{#if ../stonetop.woundsView.canEdit}}
-							<span class="stonetop-wound-actions">
-								<button type="button" class="stonetop-wound-edit" data-tooltip="Edit"><i class="fas fa-pen"></i></button>
-								<button type="button" class="stonetop-wound-remove" data-tooltip="Remove"><i class="fas fa-trash"></i></button>
-							</span>
-							{{/if}}
-						</li>
-						{{/each}}
-					</ul>
-				</details>
-				{{/if}}
 			</div>
 			{{/if}}
 
-		</section>
+			{{#if stonetop.woundsView.scarCount}}
+			<details class="stonetop-wound-scars">
+				<summary>Scars ({{stonetop.woundsView.scarCount}})</summary>
+				<ul class="stonetop-wound-list stonetop-wound-list--inline stonetop-wound-list--scars">
+					{{#each stonetop.woundsView.scars}}
+					<li class="stonetop-wound stonetop-wound--scar{{#if this.isDeathsDoor}} is-deaths-door{{/if}}" data-wound-id="{{this.id}}">
+						<span class="stonetop-wound-glyph"><i class="fas fa-heart-crack"></i></span>
+						<span class="stonetop-wound-text" data-tooltip="{{this.tooltip}}">{{#if this.isDeathsDoor}}<i class="fas fa-skull stonetop-wound-dd"></i> {{/if}}{{this.text}}</span>
+						{{#if ../stonetop.woundsView.canEdit}}
+						<span class="stonetop-wound-actions">
+							<button type="button" class="stonetop-wound-edit" data-tooltip="Edit"><i class="fas fa-pen"></i></button>
+							<button type="button" class="stonetop-wound-remove" data-tooltip="Remove"><i class="fas fa-trash"></i></button>
+						</span>
+						{{/if}}
+					</li>
+					{{/each}}
+				</ul>
+			</details>
+			{{/if}}
+		</div>
+		{{/if}}
 
 		<section class="sheet-main flexcol">
-			<nav class="sheet-tabs tabs" data-group="primary">
-				<a class="item" data-tab="moves"><span class="stonetop-tab-label">{{localize "stonetop.sheet.tabs.moves"}}</span></a>
-				{{#if stonetop.invocations}}<a class="item" data-tab="invocations"><span class="stonetop-tab-label">{{localize "stonetop.sheet.tabs.invocations"}}</span></a>{{/if}}
-				{{#if stonetop.showFollowersTab}}<a class="item" data-tab="followers"><span class="stonetop-tab-label">{{localize "stonetop.sheet.tabs.followers"}}</span></a>{{/if}}
-				<a class="item" data-tab="inventory"><span class="stonetop-tab-label">{{localize "stonetop.sheet.tabs.inventory"}}</span></a>
-				{{#if stonetop.hasArcana}}<a class="item" data-tab="arcana"><span class="stonetop-tab-label">{{localize "stonetop.sheet.tabs.arcana"}}</span></a>{{/if}}
-				<a class="item" data-tab="details"><span class="stonetop-tab-label">{{localize "stonetop.sheet.tabs.details"}}</span></a>
-				{{#if stonetop.showPostDeath}}<a class="item" data-tab="post-death"><span class="stonetop-tab-label">{{localize "stonetop.sheet.tabs.postDeath"}}</span></a>{{/if}}
-				<a class="item" data-tab="special-moves"><span class="stonetop-tab-label">{{localize "stonetop.sheet.tabs.specialMoves"}}</span></a>
-				<a class="item" data-tab="notes"><span class="stonetop-tab-label">{{localize "stonetop.sheet.tabs.notes"}}</span></a>
+			{{!-- One nav, two skins. MODERN wears `stonetop-tab-rail` and is lifted onto the
+			      window frame by module/utils/tab-rail.js the moment it is bound, so it hangs
+			      off the sheet's right edge; CLASSIC stays right here, a horizontal strip of
+			      text tabs between the pinned stat block and the tab body. Each entry picks its
+			      own <a> shape — see tab-nav-item.hbs.
+
+			      Rendered at the CLASSIC position in BOTH layouts: the rail's position in the
+			      form is arbitrary because it is never painted here (Tabs#bind stores a direct
+			      reference against `.window-content` and mountTabRail relocates the node
+			      afterwards, in the same synchronous task), while classic's position is not.
+			      One <nav> rather than two behind {{#if}}/{{else}} because the nine-entry list
+			      carries four conditionals, and two copies of that is exactly what drifts.
+
+			      Keep each entry on ONE line: tests/actors/character/stat-block-placement.test.js
+			      matches the Moves entry with a line-anchored regex. --}}
+			<nav class="sheet-tabs tabs{{#unless stonetop.classicLayout}} stonetop-tab-rail{{/unless}}"
+			     data-group="primary" aria-label="{{localize "stonetop.sheet.tabs.railLabel"}}">
+				{{!-- The level-up cue: modern raises a dot here because the redesign put the
+				      vitals row behind a tab. In classic the vitals are pinned above the tabs
+				      and actor-vitals.hbs already draws the cue there, so no dot is needed. --}}
+				{{!-- Post-Death leads. It only exists for a character who died and came back (or
+				      for a sheet in edit mode), and when it exists it is the most important thing
+				      on the sheet — what they are now qualifies everything below it. Its DOM
+				      position here IS the template order both layouts merge a saved rail against
+				      (_mergeTabOrder), so moving it moves it in classic and modern at once. --}}
+				{{#if stonetop.showPostDeath}}{{> "stonetop.tab-nav-item" tab="post-death" label=(localize "stonetop.sheet.tabs.postDeath")}}{{/if}}
+				{{> "stonetop.tab-nav-item" tab="moves"         label=(localize "stonetop.sheet.tabs.moves") attention=stonetop.canLevelUp attentionLabel=(localize "stonetop.specialMoves.levelUp.ready")}}
+				{{#if stonetop.invocations}}{{> "stonetop.tab-nav-item" tab="invocations" label=(localize "stonetop.sheet.tabs.invocations")}}{{/if}}
+				{{#if stonetop.showFollowersTab}}{{> "stonetop.tab-nav-item" tab="followers" label=(localize "stonetop.sheet.tabs.followers")}}{{/if}}
+				{{> "stonetop.tab-nav-item" tab="inventory"     label=(localize "stonetop.sheet.tabs.inventory")}}
+				{{#if stonetop.hasArcana}}{{> "stonetop.tab-nav-item" tab="arcana" label=(localize "stonetop.sheet.tabs.arcana")}}{{/if}}
+				{{> "stonetop.tab-nav-item" tab="details"       label=(localize "stonetop.sheet.tabs.details")}}
+				{{> "stonetop.tab-nav-item" tab="special-moves" label=(localize "stonetop.sheet.tabs.specialMoves")}}
+				{{> "stonetop.tab-nav-item" tab="notes"         label=(localize "stonetop.sheet.tabs.notes")}}
 			</nav>
 
 			<div class="stonetop-sheet-layout">
 				<section class="sheet-body">
+					{{!-- Panel order follows the nav so the two read the same way in the DOM;
+					      which panel is SHOWN is the nav's business, not this order's. --}}
+					{{#if stonetop.showPostDeath}}{{> "stonetop.tab-post-death"}}{{/if}}
 					{{> "stonetop.tab-moves"}}
 					{{#if stonetop.invocations}}{{> "stonetop.tab-invocations"}}{{/if}}
 					{{#if stonetop.showFollowersTab}}{{> "stonetop.tab-followers"}}{{/if}}
 					{{> "stonetop.tab-equipment"}}
 					{{#if stonetop.hasArcana}}{{> "stonetop.tab-arcana"}}{{/if}}
 					{{> "stonetop.tab-details"}}
-					{{#if stonetop.showPostDeath}}{{> "stonetop.tab-post-death"}}{{/if}}
 					{{> "stonetop.tab-special-moves"}}
 					{{> "stonetop.tab-notes"}}
 				</section>
@@ -141,26 +142,7 @@
 					</button>
 					<div class="stonetop-sidebar-body">
 					{{> "stonetop.section-heading" title="Roll Modifier" collapse="rollModifier"}}
-					<div class="stonetop-roll-mode-control" role="group" aria-label="Roll mode">
-						<label class="stonetop-roll-mode-option{{#if (eq stonetop.rollMode "adv")}} is-checked{{/if}}">
-							<input type="radio" class="stonetop-roll-mode-input" name="stonetop-roll-mode" value="adv"
-							       {{#if (eq stonetop.rollMode "adv")}}checked{{/if}}
-							       {{#unless editable}}disabled{{/unless}}>
-							<span>Advantage</span>
-						</label>
-						<label class="stonetop-roll-mode-option{{#if (eq stonetop.rollMode "normal")}} is-checked{{/if}}">
-							<input type="radio" class="stonetop-roll-mode-input" name="stonetop-roll-mode" value="normal"
-							       {{#if (eq stonetop.rollMode "normal")}}checked{{/if}}
-							       {{#unless editable}}disabled{{/unless}}>
-							<span>Normal</span>
-						</label>
-						<label class="stonetop-roll-mode-option{{#if (eq stonetop.rollMode "dis")}} is-checked{{/if}}">
-							<input type="radio" class="stonetop-roll-mode-input" name="stonetop-roll-mode" value="dis"
-							       {{#if (eq stonetop.rollMode "dis")}}checked{{/if}}
-							       {{#unless editable}}disabled{{/unless}}>
-							<span>Disadvantage</span>
-						</label>
-					</div>
+					{{> "stonetop.roll-mode-radios" rollMode=stonetop.rollMode enabled=editable}}
 
 					{{> "stonetop.sidebar-move-list" moves=stonetop.movelist.basicMoves titleKey="stonetop.character.moves.basicMoves" openClass="stonetop-basic-move-open" sectionId="basicMoves" open=stonetop.movesOpen.basicMoves}}
 					{{> "stonetop.sidebar-move-list" moves=stonetop.movelist.expeditionMoves titleKey="stonetop.character.moves.expeditionMoves" openClass="stonetop-expedition-move-open" sectionId="expeditionMoves" open=stonetop.movesOpen.expeditionMoves}}

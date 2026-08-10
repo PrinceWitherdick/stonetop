@@ -1,0 +1,28 @@
+{{!-- The NPC sheet's tab nav, in whichever shape this user's layout wants.
+
+      Only the WRAPPER'S CLASS differs between the layouts; the item list is one copy, and each
+      item picks its own shape in stonetop.tab-nav-item. One <nav> with a conditional class
+      rather than two behind {{#if}}/{{else}}: splitting an open tag across branches leaves
+      markup no template engine can check, and it is the shape the character and steading
+      sheets already use.
+
+      CLASSIC is a horizontal strip of text tabs sitting below the pinned quick-facts block, so
+      Instinct (the anchor field) stays visible whichever tab is open. `stonetop-npc-tabs` is
+      required by the strip rule in stonetop.css - this frame carries no `pbta` class, so the
+      shared strip skin never reaches it and core's own nav border would show through, top and
+      bottom, cutting the quick-facts block off from the strip.
+
+      MODERN is the icon rail, hung off the window's right edge. Rendered here and then lifted
+      onto the window frame by module/utils/tab-rail.js - see the character sheet's rail.
+
+      The two are mounted at different points in npc.hbs - classic sits above `.sheet-body`,
+      modern below it - so this partial is included twice under complementary guards. Unlike
+      the quick-facts block it carries no named inputs, so a double render would only be
+      visually wrong, not data-corrupting; it is still guarded on both sides. --}}
+<nav class="sheet-tabs tabs {{#if stonetop.classicLayout}}stonetop-npc-tabs{{else}}stonetop-tab-rail{{/if}}"
+     data-group="primary" aria-label="{{localize "stonetop.sheet.tabs.railLabel"}}">
+	{{> "stonetop.tab-nav-item" tab="details" label=(localize "stonetop.npc.tabs.details")}}
+	{{#if stonetop.showRelationships}}{{> "stonetop.tab-nav-item" tab="relationships" label=(localize "stonetop.npc.tabs.relationships")}}{{/if}}
+	{{#if system.hasStats}}{{> "stonetop.tab-nav-item" tab="stats" label=(localize "stonetop.npc.tabs.stats")}}{{/if}}
+	{{> "stonetop.tab-nav-item" tab="notes" label=(localize "stonetop.npc.tabs.notes")}}
+</nav>

@@ -3,6 +3,7 @@ import { openJournalSheetAsChild } from "../../../utils/front-on-open.js";
 import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 import { playbookIconPath } from "../../../utils/playbook-actors.js";
 import { ITEMS_PACK } from "../StonetopFlags.js";
+import { ensurePackIndex } from "../../../utils/pack-index.js";
 
 const PLAYBOOK_DESCRIPTIONS = {
 	"the-blessed":       { complexity: "Medium",       desc: "Nature priest. Speaks to spirits and beasts. Works subtle magics via sacred markings and materials." },
@@ -47,9 +48,8 @@ export class PlaybookPickerDialog extends StonetopDialog {
 
 	async getData() {
 		if (!this._playbooks.length) {
-			const pack = game.packs.get(ITEMS_PACK);
+			const pack = await ensurePackIndex(ITEMS_PACK, ["type", "system.slug", "img"]);
 			if (pack) {
-				await pack.getIndex({ fields: ["type", "system.slug", "img"] });
 				const entries = [...pack.index].filter(e =>
 					e.type === "playbook" && !!PLAYBOOK_DESCRIPTIONS[e.system?.slug ?? ""]
 				);

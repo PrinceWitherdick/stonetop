@@ -22,6 +22,7 @@ import { getHoverDescriptionSetting } from "../../../settings.js";
 import { moveGroupsForPlaybook, moveGroupKeys } from "./onboarding-move-groups.js";
 import { effectiveSubgroupMax } from "./possession-choice-cap.js";
 import { playbookIconPath } from "../../../utils/playbook-actors.js";
+import { ensurePackIndex } from "../../../utils/pack-index.js";
 
 const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
 
@@ -792,9 +793,8 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		this._arcanaCachePromise = (async () => {
 			// Arcana live in their own GM-hidden compendium (split out of stonetop-items);
 			// the pack is arcana-only, but keep the moveType filter below as a defensive guard.
-			const pack = game.packs.get(ARCANA_PACK);
+			const pack = await ensurePackIndex(ARCANA_PACK, ["system.moveType"]);
 			if (!pack) return { major: [], minor: [] };
-			await pack.getIndex({ fields: ["system.moveType"] });
 			const entries = pack.index.filter(entry => entry.system?.moveType === "arcanum");
 			const docs = await Promise.all(entries.map(entry => pack.getDocument(entry._id)));
 			const options = docs.filter(Boolean).flatMap(doc => {
@@ -951,9 +951,9 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	}
 
 	async _loadPlaybookMoves() {
-		const pack = game.packs.get(ITEMS_PACK);
+		const pack = await ensurePackIndex(ITEMS_PACK,
+			["system.playbook", "system.isStartingMove", "system.requirement"]);
 		if (!pack) return [];
-		await pack.getIndex({ fields: ["system.playbook", "system.isStartingMove", "system.requirement"] });
 		const relevant = pack.index.filter(e => e.system?.playbook === this._playbookDoc.name);
 		const docs = await Promise.all(relevant.map(e => pack.getDocument(e._id)));
 		return docs.filter(Boolean);
@@ -2337,6 +2337,31 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			_syncBackgroundSelection(prevBackground, backgroundSlug);
 			_refreshNextButton();
 		});
+		// Roll-a-trait die beside each neighbor's field (the Ranger's Wide Wanderer names
+		// five neighbors, so typing five traits is a slog). It draws from the same pool the
+		// suggestion popup offers, minus the traits this background's other neighbors are
+		// already wearing and the one in the field — five clicks give five different people.
+		html.find(".onboard-background-neighbor-random").on("click", ev => {
+			ev.preventDefault();
+			const input = ev.currentTarget.parentElement
+				?.querySelector(".onboard-background-neighbor-trait");
+			if (!input) return;
+			const taken = new Set(
+				Array.from(ev.currentTarget.closest(".stonetop-onboarding-background-setup")
+					?.querySelectorAll(".onboard-background-neighbor-trait") ?? [])
+					.map(el => el.value.trim().toLowerCase())
+					.filter(Boolean)
+			);
+			// A steading with more neighbors than the ~90 listed traits would exhaust the
+			// pool; fall back to the whole list rather than doing nothing.
+			const pool = STEADING_NPC_TRAITS.filter(trait => !taken.has(trait.toLowerCase()));
+			const options = pool.length ? pool : STEADING_NPC_TRAITS;
+			input.value = options[Math.floor(Math.random() * options.length)];
+			// Let the field's own "input" handler record the pick, then dismiss the
+			// suggestion popup that handler's event just re-opened.
+			input.dispatchEvent(new Event("input", { bubbles: true }));
+			StonetopAutocomplete.close();
+		});
 		this._attachTraitAutocomplete(html);
 		html.find(".stonetop-onboarding-background-neighbor-option").on("click", ev => {
 			if (ev.target.type === "checkbox") return;
@@ -3237,6 +3262,9 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	}
 
 	async _skip() {
+		// Already finishing: see _confirm's guard. The last step's Skip completes the flow
+		// exactly as Finish does, so it needs the same one.
+		if (this._completed) return;
 		this._clearPopups();
 		const next = this._step + 1;
 		if (next >= this._steps.length) {
@@ -3258,7 +3286,15 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		this.render(false);
 	}
 
+	// Finish. Re-entrant until the completion callback resolves — committing the character
+	// writes a long chain of awaits (items, portrait, actor fields, the steading roster) and
+	// the button stays live for every one of them, so a second click lands mid-commit and
+	// runs the whole thing again: duplicate starting gear, and a second roster row for a
+	// player whose first one hadn't been written yet. `_completed` is set-once and never
+	// reset (it already means "this flow has finished" to the close handler and the live-save
+	// timer), so reading it here is the whole guard.
 	async _confirm() {
+		if (this._completed) return;
 		if (!this._isStepComplete()) return;
 		this._completed = true;
 		if (this._onComplete) await this._onComplete(this._selections);

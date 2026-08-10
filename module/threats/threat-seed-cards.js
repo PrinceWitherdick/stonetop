@@ -6,7 +6,7 @@
 // improvement card's look with its own accent + skull icon.
 import { escHtml } from "../utils/strings.js";
 import { createHomebrewCard, readHomebrewCardPayload, bindHomebrewCardDrag } from "../journal/homebrew-cards.js";
-import { ensureChronicleFolder } from "../utils/chronicle.js";
+import { ensureChronicleFolder } from "../utils/chronicle-journals.js";
 import { threatType, threatProximity, normalizeThreatSeedExtras } from "./threat-types.js";
 
 export const STONETOP_THREAT_SEED_DRAG_TYPE = "StonetopThreatSeed";

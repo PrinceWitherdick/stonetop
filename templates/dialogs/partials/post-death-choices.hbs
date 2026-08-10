@@ -1,0 +1,139 @@
+{{!-- The choices an insert asks for, rendered in Death's Door's last step. A partial rather than
+      part of deaths-door.hbs: it is a long, self-contained block with its own handlers, and the
+      split is what keeps the rules table and the markup honest about which knows what.
+
+      Everything here is driven by the step table in module/actors/character/post-death-choices.js
+      — this template knows the four `kind`s and nothing else about the rules.
+
+      ONE step is drawn per render: the window puts a rail beside this column (see deaths-door.hbs)
+      and flags the step it is showing, because four of these stacked is a page of the book's own
+      prose and a window taller than the screen. The `{{#each}}` stays, with the whole section
+      behind `isActive`, so every `../` path below still counts the same number of frames it always
+      did — `{{#if}}` adds no context depth, and rewriting them was the one way this change could
+      have quietly mis-bound a radio group. --}}
+<div class="stonetop-pdc">
+	{{#each choices.steps}}
+	{{#if isActive}}
+	<section class="stonetop-pdc-step{{#if done}} is-done{{/if}}" data-step="{{key}}">
+		<h3 class="stonetop-pdc-step-title">
+			<span class="stonetop-pdc-step-mark">{{#if done}}<i class="fas fa-check"></i>{{else}}<i class="fas fa-circle-dot"></i>{{/if}}</span>
+			<span>{{title}}</span>
+		</h3>
+		{{#if hint}}<p class="stonetop-pdc-step-hint">{{hint}}</p>{{/if}}
+		{{#if gm}}
+		<p class="stonetop-pdc-gm"><i class="fas fa-user-pen"></i> {{gmNote}}</p>
+		{{/if}}
+
+		{{!-- Radio `name`s are document-global, so every group below is suffixed with the window's
+		      own id. Without it, two PCs at Death's Door in one fight would share one group across
+		      their two windows, and a click in one would clear the other's answer. --}}
+		{{#if (eq kind "instinct")}}
+		<div class="stonetop-pdc-options">
+			{{#each options}}
+			<label class="stonetop-pdc-option{{#if selected}} is-chosen{{/if}}">
+				<span class="stonetop-pdc-option-head">
+					<input type="radio" class="stonetop-pdc-instinct" name="stonetop-pdc-instinct-{{../../choices.group}}"
+					       value="{{value}}"{{#if selected}} checked{{/if}}>
+					<strong class="stonetop-pdc-option-name">{{word}}</strong>
+				</span>
+				<span class="stonetop-pdc-option-body">{{description}}</span>
+			</label>
+			{{/each}}
+		</div>
+		{{/if}}
+
+		{{#if (eq kind "pick")}}
+		<div class="stonetop-pdc-options">
+			{{#each options}}
+			{{!-- A locked option prints but can't be clicked: crossed off for good, waiting on the
+			      option it requires, inflicted rather than taken, or — in an exclusive section
+			      only — already held. An ACCUMULATING section leaves what's marked clickable, so
+			      a Consequence taken by mistake can be taken back off. --}}
+			{{!-- The card is a DIV and the label is inside it, wrapping only the parts that are
+			      meant to select the option. It used to be one label around everything, which put
+			      the sub-pick row (below) inside the option's own hit target: a click on that
+			      row's padding, its column gaps, or the tail of its last line toggled the option's
+			      checkbox and silently UNMARKED the Consequence the sub-pick belongs to. Nested
+			      <label>s are also invalid HTML. --}}
+			<div class="stonetop-pdc-option{{#if marked}} is-chosen{{/if}}{{#if crossedOff}} is-crossed{{/if}}{{#if locked}} is-blocked{{/if}}">
+			<label class="stonetop-pdc-option-main">
+				<span class="stonetop-pdc-option-head">
+					{{#if ../accumulates}}
+					{{!-- No `name`: these are independent, and grouping them as radios is what
+					      would make a second marked option hide the first. --}}
+					<input type="checkbox" class="stonetop-pdc-mark"
+					       data-section="{{../section}}" data-option="{{slug}}"
+					       {{#if marked}}checked{{/if}}{{#if locked}} disabled{{/if}}>
+					{{else}}
+					<input type="radio" class="stonetop-pdc-pick" name="stonetop-pdc-{{../key}}-{{../../choices.group}}"
+					       data-section="{{../section}}" data-option="{{slug}}"
+					       {{#if ../textOption}}data-writein="{{../textOption}}"{{/if}}
+					       {{#if marked}}checked{{/if}}{{#if locked}} disabled{{/if}}>
+					{{/if}}
+					<strong class="stonetop-pdc-option-name">{{label}}</strong>
+					{{#if crossedOff}}<span class="stonetop-pdc-option-tag">crossed off</span>{{/if}}
+					{{#if inflicted}}<span class="stonetop-pdc-option-tag">inflicted, never chosen</span>{{/if}}
+					{{#if requiresLabel}}<span class="stonetop-pdc-option-tag">needs {{requiresLabel}}</span>{{/if}}
+				</span>
+				{{#if summary}}<span class="stonetop-pdc-option-body">{{{summary}}}</span>{{/if}}
+				{{!-- The rest of what this option does to you. Held back until it's the one you
+				      took: you don't need four paragraphs of consequences to pick between three
+				      names, and you do need them the moment one is yours. --}}
+				{{#if marked}}{{#if detail}}
+				<span class="stonetop-pdc-option-detail">{{{detail}}}</span>
+				{{/if}}{{/if}}
+			</label>
+
+				{{!-- The question the option asks of itself, once it's yours. Its own radio group,
+				      named for the option, so it can't collide with the step's. Outside the label
+				      above, so that clicking in here can never toggle the option itself. --}}
+				{{#if subPicks.length}}
+				<span class="stonetop-pdc-subpicks">
+					{{#each subPicks}}
+					<label class="stonetop-pdc-subpick-label{{#if (eq this ../subValue)}} is-chosen{{/if}}">
+						<input type="radio" class="stonetop-pdc-subpick"
+						       name="stonetop-pdc-sub-{{../slug}}-{{../../../choices.group}}"
+						       data-section="{{../../section}}" data-option="{{../slug}}"
+						       value="{{this}}"{{#if (eq this ../subValue)}} checked{{/if}}>
+						<span>{{this}}</span>
+					</label>
+					{{/each}}
+				</span>
+				{{/if}}
+			</div>
+			{{/each}}
+		</div>
+
+		{{!-- A written-in option the book doesn't print but the insert carries (the Thrall's
+		      "Other" Impulse). Kept under the list rather than inside it: it isn't one of the
+		      radio choices, it's an alternative to all of them. --}}
+		{{#if textOption}}
+		<input type="text" class="stonetop-pdc-text stonetop-pdc-writein"
+		       data-section="{{section}}" data-option="{{textOption}}"
+		       value="{{textValue}}" placeholder="{{textPlaceholder}}">
+		{{/if}}
+
+		{{!-- "Name the person or persons you refuse to let go of." Only once there's something to
+		      name — an unanswered Purpose has no option to hang the name on. --}}
+		{{#if nameFor}}
+		{{#if chosenSlug}}
+		<input type="text" class="stonetop-pdc-name"
+		       data-section="{{section}}" data-option="{{chosenSlug}}"
+		       value="{{nameValue}}" placeholder="{{namePlaceholder}}">
+		{{/if}}
+		{{/if}}
+		{{/if}}
+
+		{{#if (eq kind "text")}}
+		<input type="text" class="stonetop-pdc-text"
+		       data-section="{{section}}" data-option="{{option}}"
+		       value="{{value}}" placeholder="{{placeholder}}">
+		{{/if}}
+
+		{{#if (eq kind "tether")}}
+		<input type="text" class="stonetop-pdc-tether" value="{{value}}" placeholder="{{placeholder}}">
+		{{/if}}
+	</section>
+	{{/if}}
+	{{/each}}
+</div>

@@ -17,21 +17,15 @@
 // the next save.
 
 import { getSetting } from "../settings.js";
+import { writePlacesOfInterest } from "./places-chronicle.js";
 import { getPlayerCharacters, playbookSlug, orderByCombatTurns } from "./playbook-actors.js";
+import { ensureChronicleFolder, ensureChronicleJournal, seedChroniclePages, findChronicleFolder } from "./chronicle-journals.js";
 import {
 	buildChroniclePages,
-	mergeChronicleSections,
-	CHRONICLE_FOLDER_NAME,
-	CHRONICLE_FOLDER_COLOR,
 	INTRODUCTIONS_JOURNAL_NAME,
 	EXPEDITIONS_JOURNAL_NAME,
 	EXPEDITION_PAGE_KEY_PREFIX,
 } from "./chronicle-core.js";
-
-// Per-page flag holding the change-detection hash of each prose section's body as WE
-// last wrote it (keyed by heading). Lets seedChroniclePages keep a still-pristine
-// section syncing with the source while freezing one the GM has edited in the journal.
-const CHRONICLE_PROSE_FLAG = "chronicleProse";
 
 // Player characters in the introductions' turn order when a combat is set up
 // (honouring how the GM arranged the table), else the world roster. Any PC not in
@@ -83,7 +77,7 @@ export async function saveChronicleFromButton(button, { context = "Chronicle", b
 // seeded. Read-only lookup (doesn't create anything), for callers that just want to
 // jump to an existing page.
 function findIntroductionsJournal() {
-	const folder = (game.folders?.contents ?? []).find(f => f.type === "JournalEntry" && f.name === CHRONICLE_FOLDER_NAME);
+	const folder = findChronicleFolder();
 	if (!folder) return null;
 	return (game.journal?.contents ?? []).find(j => j.folder?.id === folder.id && j.name === INTRODUCTIONS_JOURNAL_NAME) ?? null;
 }
@@ -120,83 +114,6 @@ export async function openChroniclePageForActor(actor) {
 	return true;
 }
 
-// Find (or create) the "The Chronicle" journal folder that holds the introductions,
-// expeditions, and Seasons Change journals. Shared so each journal builder finds the
-// one folder instead of re-implementing the lookup (see seasons/seasons-chronicle.js).
-export async function ensureChronicleFolder() {
-	const existing = (game.folders?.contents ?? []).find(f => f.type === "JournalEntry" && f.name === CHRONICLE_FOLDER_NAME);
-	return existing ?? await Folder.create({ name: CHRONICLE_FOLDER_NAME, type: "JournalEntry", color: CHRONICLE_FOLDER_COLOR }) ?? null;
-}
-
-// Find (or create) a journal named `name` inside `folder`. `ensureObserver` opens a
-// pre-existing GM-only entry to players (for the introductions journal); the
-// expeditions journal is left at whatever ownership the GM set.
-export async function ensureChronicleJournal(name, folderId, defaultOwnership, { ensureObserver = false } = {}) {
-	const OBSERVER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
-	let entry = (game.journal?.contents ?? []).find(j => j.folder?.id === folderId && j.name === name) ?? null;
-	if (!entry) {
-		entry = await JournalEntry.create({ name, folder: folderId, ownership: { default: defaultOwnership } });
-	} else if (ensureObserver && (entry.ownership?.default ?? 0) < OBSERVER) {
-		await entry.update({ "ownership.default": OBSERVER });
-	}
-	return entry;
-}
-
-// Seed + top up: create the pages whose key isn't present yet (appended after the
-// journal's current pages), and for an already-seeded page fold in only content recorded
-// since — new sections, and new Q&A pairs (see mergeChronicleSections) — so a part-way or
-// later-session save isn't silently dropped. Existing/edited sections are preserved, so
-// inline edits still survive re-saves. Returns { created, updated } counts.
-async function seedChroniclePages(entry, pages, { adoptLegacyKeys = null } = {}) {
-	if (!entry || !pages.length) return { created: 0, updated: 0 };
-	const existingByKey = new Map();
-	let maxSort = 0;
-	for (const page of entry.pages ?? []) {
-		const key = page.getFlag?.("stonetop_pwd", "chronicleKey");
-		if (key) existingByKey.set(key, page);
-		maxSort = Math.max(maxSort, Number(page.sort) || 0);
-	}
-	const toCreate = [];
-	const toUpdate = [];
-	let sort = maxSort;
-	for (const page of pages) {
-		const existing = existingByKey.get(page.key);
-		if (existing) {
-			// Already seeded — merge in any sections/pairs recorded since, and refresh
-			// still-pristine prose to the latest source (so a player's introduction fills in
-			// live as they type; a hand-edited section is left alone — see
-			// mergeChronicleSections). toObject() gives plain data the merge can spread and
-			// the update can store back; the per-heading prose hashes ride in a page flag.
-			const current = existing.toObject().system?.sections ?? [];
-			const proseManaged = existing.getFlag?.("stonetop_pwd", CHRONICLE_PROSE_FLAG) ?? {};
-			// A page in `adoptLegacyKeys` is being authored live right now, so its untracked
-			// (pre-hash) prose may be taken over by the current text — see mergeChronicleSections.
-			const adoptLegacy = adoptLegacyKeys ? adoptLegacyKeys.has(page.key) : false;
-			const merged = mergeChronicleSections(current, page.sections, { proseManaged, adoptLegacy });
-			if (merged.added) toUpdate.push({
-				_id: existing.id,
-				"system.sections": merged.sections,
-				[`flags.stonetop_pwd.${CHRONICLE_PROSE_FLAG}`]: merged.proseManaged,
-			});
-			continue;
-		}
-		sort += 10;
-		// Stamp the initial prose hashes so subsequent saves can tell this seed from a
-		// later hand edit (merge with an empty page fingerprints every prose section).
-		const { proseManaged } = mergeChronicleSections([], page.sections);
-		toCreate.push({
-			name:   page.name,
-			type:   "chronicle",
-			sort,
-			system: { sections: page.sections },
-			flags:  { "stonetop_pwd": { chronicleKey: page.key, [CHRONICLE_PROSE_FLAG]: proseManaged } },
-		});
-	}
-	if (toCreate.length) await entry.createEmbeddedDocuments("JournalEntryPage", toCreate);
-	if (toUpdate.length) await entry.updateEmbeddedDocuments("JournalEntryPage", toUpdate);
-	return { created: toCreate.length, updated: toUpdate.length };
-}
-
 /**
  * Compile the recorded answers into the "The Chronicle" folder's two journals,
  * seeding any pages that don't exist yet (creating the folder/journals the first
@@ -213,6 +130,20 @@ export async function writeChronicle({ silent = false, adoptLegacyKeys = null } 
 	if (!game.user?.isGM) {
 		if (!silent) ui.notifications?.warn?.("Only the GM can save the Chronicle.");
 		return null;
+	}
+
+	// The village's places are chronicled alongside the PCs, so an EXPLICIT save picks up a place
+	// the GM has since named or renamed. Its own journal, seeded from the steading rather than
+	// from recorded answers, so it runs before the "nothing recorded yet" exit below and never
+	// blocks the save if it fails — see utils/places-chronicle.js.
+	//
+	// Skipped on the silent live saves, which the Introductions dialog fires on a timer while a
+	// player is still typing. This re-derives the roster from a full `game.journal` scan and
+	// re-seeds up to 18 place pages, to catch something that changes maybe once a session — and
+	// the ready hook and every pin placement already seed it. An autosave is not the place.
+	if (!silent) {
+		try { await writePlacesOfInterest(); }
+		catch (err) { console.error("Stonetop | Chronicle: could not write the Places of Interest", err); }
 	}
 
 	const expeditionLog = getSetting("expeditionAnswers") ?? {};

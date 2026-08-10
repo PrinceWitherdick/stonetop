@@ -197,14 +197,21 @@ export function openLedgerDialog(actor, ledger) {
 					content: `<p>You're about to delete ${checked.length} entries. Are you sure?</p>`,
 					yes: doDelete,
 					render: bringDialogToFront,
-					options: { classes: ["dialog", "stonetop-ledger-child"] },
+					// "stonetop" carries our window chrome; without it this confirm kept Foundry's
+					// default dark header while every other confirm in the system wears ours.
+					options: { classes: ["dialog", "stonetop", "stonetop-ledger-child"] },
 				});
 			});
 		},
 	}, {
 		width: 560,
 		height: 640,
-		classes: ["dialog", "stonetop-ledger-window"],
+		// "stonetop" is what carries our window chrome — the header bar, the content background,
+		// the focus glow, and the font-scale setting the whole ledger inherits. It is scoped to
+		// that class precisely so none of it can bleed onto core or another module's windows, so
+		// omitting it here left the Chronicle wearing Foundry's default dark header and parchment
+		// while every other window in the system wore ours.
+		classes: ["dialog", "stonetop", "stonetop-ledger-window"],
 	});
 	attachFrontOnOpen(ledgerDialog);
 	ledgerDialog.render(true);

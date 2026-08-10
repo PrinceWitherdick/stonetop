@@ -70,6 +70,29 @@ describe("StonetopActor#_preCreate", () => {
 		const actor = await precreate({}, { prototypeToken: { displayName: 0 } });
 		expect(actor.applied.some(change => "prototypeToken.displayName" in change)).toBe(false);
 	});
+
+	// Foundry leaves actorLink false, which for a PC means every token on a scene carries a
+	// private copy of the character. A GM who opens the sheet by double-clicking that token is
+	// editing the copy: gear handed over there saves without complaint and never reaches the
+	// sheet the player opens from the sidebar.
+	it("links a new character's prototype token, so a token on the map edits the shared character", async () => {
+		const actor = await precreate({ type: "character" });
+		expect(actor["prototypeToken.actorLink"]).toBe(true);
+	});
+
+	it("keeps an actorLink the creation data chose, so a duplicate or import is preserved", async () => {
+		const actor = await precreate({ type: "character" }, { prototypeToken: { actorLink: false } });
+		expect(actor.applied.some(change => "prototypeToken.actorLink" in change)).toBe(false);
+	});
+
+	// A scene's townsfolk and monsters are placed many times over and each copy is its own
+	// creature, so only characters get the link.
+	it("leaves other actor types' tokens unlinked", async () => {
+		for (const type of ["npc", "monster", "stonetop"]) {
+			const actor = await precreate({ type });
+			expect(actor.applied.some(change => "prototypeToken.actorLink" in change)).toBe(false);
+		}
+	});
 });
 
 // `actor.img` and `prototypeToken.texture.src` are two separate pictures, and Foundry fills the

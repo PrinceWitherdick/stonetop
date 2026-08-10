@@ -11,9 +11,10 @@ import { saveChronicleFromButton, writeChronicle } from "../utils/chronicle.js";
 import { getSetting, setSetting } from "../settings.js";
 import { getWalkthroughResume, patchWalkthroughResume, markWalkthroughDone } from "./walkthrough-resume.js";
 // Pure round-robin/done logic for the looping answer/ask steps (unit-tested).
-import { stepPcDone, nextActiveIndex, firstActiveIndex, turnsUntilActive } from "./introductions-flow.js";
+import { stepPcDone, nextActiveIndex, firstActiveIndex, turnsUntilActive, cursorReaction, cursorPositionKey } from "./introductions-flow.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
 import { escHtml } from "../utils/strings.js";
+import { findOpenApp } from "../utils/open-windows.js";
 
 // The player-authored answer/ask step data lives on the PC actor flag
 // flags.stonetop_pwd.intro. Scope MUST be the system id "stonetop_pwd" (not "stonetop",
@@ -126,6 +127,13 @@ export class IntroductionsDialog extends StonetopDialog {
 		this._combatHooks = null;
 		this._introHook   = null;
 		this._liveDraftTimer = null;
+		// One-shot: a commit has just cleared the live draft, so the re-render that follows
+		// must NOT flush the (still un-rebuilt) capture DOM back into it. See _commitStep.
+		this._skipDraftFlushOnce = false;
+		// The cursor position this dialog is currently DRAWN at (see cursorPositionKey),
+		// recorded by _syncFromCursor. handleIntroCursor compares against it to tell a real
+		// move from one of the same-position writes a single turn attracts.
+		this._cursorKey   = null;
 	}
 
 	// Entry point used by the Welcome guide / macro: auto-populate the Combat Tracker
@@ -164,9 +172,11 @@ export class IntroductionsDialog extends StonetopDialog {
 		return dialog.render(true);
 	}
 
-	// The currently open dialog instance, if any.
+	// The currently open dialog instance, if any. Checks both app registries so this
+	// keeps working if the dialog is ever migrated to ApplicationV2 (see open-windows.js);
+	// silently answering null would stack a second copy on every cursor write.
 	static _current() {
-		return Object.values(ui.windows ?? {}).find(w => w instanceof IntroductionsDialog) ?? null;
+		return findOpenApp(w => w instanceof IntroductionsDialog);
 	}
 
 	// onChange handler for the world cursor (wired in Ready.js). Runs on every client.
@@ -175,44 +185,49 @@ export class IntroductionsDialog extends StonetopDialog {
 	// conflicting turn). A player opens/focuses the dialog when it becomes their turn on any
 	// round-robin round they author (narration or answer/ask step), follows read-only
 	// otherwise, and closes when the session ends.
+	//
+	// What to do is decided by cursorReaction (pure, unit-tested); this only carries out the
+	// verdict and keeps the bookkeeping it hands back. The two gates that matter to a player
+	// mid-sentence — repaint only when the screen is actually out of date, raise only on a
+	// real hand-off — live there with their reasoning.
 	static handleIntroCursor(cursor = {}) {
 		if (game.user?.isGM && isPrimaryGM()) return; // the author ignores its own writes
-		const dialog  = IntroductionsDialog._current();
-		const myTurn  = !!cursor.active && cursor.activeUserId === game.user?.id && _isRoundRobin(_PHASES[cursor.phase]);
-		// The GM's "Show players" button bumps showNonce to force-summon the dialog onto
-		// every client at the current spot — even a player who closed it, and even when it
-		// isn't their turn. Only a NEW nonce forces (so a normal turn write doesn't).
-		const forceShow = !!cursor.active && Number.isInteger(cursor.showNonce)
-			&& cursor.showNonce > (IntroductionsDialog._lastShowNonce ?? -1);
-		if (forceShow) IntroductionsDialog._lastShowNonce = cursor.showNonce;
+		const dialog = IntroductionsDialog._current();
+		const act = cursorReaction({
+			cursor,
+			prevKey:       dialog?._cursorKey ?? null,
+			userId:        game.user?.id ?? "",
+			isRoundRobin:  _isRoundRobin(_PHASES[cursor.phase]),
+			hasDialog:     !!dialog,
+			// The caret being inside this window is what makes a repaint destructive: it
+			// rebuilds the capture textarea from the stored value mid-word.
+			typing:        !!dialog?.element?.[0]?.contains(document.activeElement),
+			lastShowNonce: IntroductionsDialog._lastShowNonce,
+			lastTurnKey:   IntroductionsDialog._lastTurnKey,
+		});
+		IntroductionsDialog._lastShowNonce = act.showNonce;
+		IntroductionsDialog._lastTurnKey   = act.turnKey;
 
-		if (!cursor.active) { IntroductionsDialog._lastTurnKey = null; dialog?.close(); return; }
-
+		if (act.close) { dialog?.close(); return; }
 		// Toast the player the moment the turn lands on them, so they notice even when the
 		// dialog is already open behind another window or off-screen.
-		IntroductionsDialog._notifyMyTurn(cursor, myTurn);
+		if (act.toast) IntroductionsDialog._notifyMyTurn(cursor);
 
 		if (dialog) {
+			// Always sync the local phase/turn (and re-record _cursorKey) even when the
+			// repaint is deferred: the state must not lag the cursor, only the DOM may.
 			dialog._syncFromCursor();
-			dialog.render(false);
-			if (myTurn || forceShow) dialog.bringToTop();
+			if (act.render) dialog.render(false);
+			if (act.raise)  dialog.bringToTop();
 			return;
 		}
-		// No dialog open yet: pop it on this player's turn, or when the GM force-shows it.
-		if (myTurn || forceShow) IntroductionsDialog.open();
+		if (act.open) IntroductionsDialog.open();
 	}
 
-	// Show a one-shot "your turn" toast when the cursor newly hands the turn to this
-	// player. Keyed on phase+actor so the repeated cursor writes for a single turn (nonce
-	// bumps while the GM watches typing, a roster reshuffle) don't re-toast; cleared
-	// whenever it isn't this player's turn so the next hand-off notifies again — including
-	// a later turn on the SAME PC within a looping step (the turn passes through others
-	// first, resetting the key). Phrased to match the phase: narrate / answer / ask.
-	static _notifyMyTurn(cursor, myTurn) {
-		if (!myTurn) { IntroductionsDialog._lastTurnKey = null; return; }
-		const key = `${cursor.phase}:${cursor.activeActorId}`;
-		if (IntroductionsDialog._lastTurnKey === key) return;
-		IntroductionsDialog._lastTurnKey = key;
+	// The one-shot "your turn" toast, phrased to match the phase: narrate / answer / ask.
+	// Whether this is a NEW turn (rather than one of the repeated writes a single turn
+	// attracts) is cursorReaction's call; by here it has already been made.
+	static _notifyMyTurn(cursor) {
 		const kind = _PHASES[cursor.phase]?.kind;
 		const what = kind === "ask" ? "ask the others a question"
 			: kind === "answer" ? "answer a question"
@@ -288,10 +303,12 @@ export class IntroductionsDialog extends StonetopDialog {
 	async _render(force, options) {
 		// Persist whatever's typed in the editable capture field to its flag BEFORE the DOM is
 		// rebuilt. The narration rounds have no player commit button (only autosave), so a turn
-		// advance — the GM's Next writes the cursor, which re-renders this dialog with no focus
-		// guard — would otherwise drop the last, not-yet-debounced characters (a removed focused
-		// textarea doesn't reliably fire its blur `change`). Flushing here catches every
-		// re-render path, so a player's introduction survives the hand-off.
+		// advance — the GM's Next writes the cursor, which re-renders this dialog whether or not
+		// the player is mid-word, because their turn may just have ended — would otherwise drop
+		// the last, not-yet-debounced characters (a removed focused textarea doesn't reliably
+		// fire its blur `change`). Flushing here catches every re-render path, so a player's
+		// introduction survives the hand-off. Same-position cursor writes don't reach here at
+		// all while they type: cursorReaction defers those instead.
 		await this._flushCaptureFromDom();
 		await super._render(force, options);
 		// Record where we are + that we're open, so a reload can reopen here. Every
@@ -369,20 +386,21 @@ export class IntroductionsDialog extends StonetopDialog {
 		// own textarea is never reset mid-word; the watching client (not focused) refreshes.
 		// The selected question is snapshotted at input time (not re-read when the debounced
 		// write fires) and the timer is cancellable, so a keystroke that lands after the turn
-		// has moved on can't resurrect a just-cleared draft with the next PC's question.
-		const domSelectedQ = () => {
-			const sel = this.element?.[0]?.querySelector(".stonetop-intros-question-pick.is-selected");
-			return sel ? Number(sel.dataset.qIndex) : null;
-		};
+		// has moved on can't resurrect a just-cleared draft with the next PC's question. It is
+		// snapshotted from the FLAG, not from the highlighted button: a pick writes the flag and
+		// only then re-renders, so between the two the DOM is a render behind — and a blur
+		// `change` fires exactly there, when clicking a question is what moved focus off the
+		// textarea. Reading the DOM wrote the old pick back over the new one.
+		const pickedQ = (actorId, stepKey) => this._stepDraft(actorId, stepKey).q;
 		html.find(".stonetop-intros-draft").on("input", ev => {
 			const el = ev.currentTarget;
 			this._setSaveStatus("saving");
-			this._scheduleLiveDraft(el.dataset.actorId, el.dataset.stepKey, domSelectedQ(), el.value);
+			this._scheduleLiveDraft(el.dataset.actorId, el.dataset.stepKey, pickedQ(el.dataset.actorId, el.dataset.stepKey), el.value);
 		});
 		html.find(".stonetop-intros-draft").on("change", async ev => {
 			const el = ev.currentTarget;
 			this._cancelLiveDraft();
-			await this._saveDraft(el.dataset.actorId, el.dataset.stepKey, { q: domSelectedQ(), a: el.value });
+			await this._saveDraft(el.dataset.actorId, el.dataset.stepKey, { q: pickedQ(el.dataset.actorId, el.dataset.stepKey), a: el.value });
 			this._setSaveStatus("saved");
 		});
 		// Pick (or toggle off) which question the draft answers/asks, preserving any typed
@@ -534,6 +552,11 @@ export class IntroductionsDialog extends StonetopDialog {
 			[`flags.${_FLAG_SCOPE}.${_INTRO_FLAG}.${stepKey}.${field}`]: value,
 			[`flags.${_FLAG_SCOPE}.${_INTRO_FLAG}.-=live`]: null,
 		});
+		// Every commit is followed by a re-render, and _render flushes the capture DOM first —
+		// but that DOM still shows the answer just recorded, so the flush would write it
+		// straight back as a fresh draft and the next Next would record it a SECOND time.
+		// Suppress exactly that one flush; the render after it rebuilds the field empty.
+		this._skipDraftFlushOnce = true;
 	}
 
 	// ── Narration rounds (1–3): a single plain-string answer, on the PC's own flag ──────
@@ -649,6 +672,9 @@ export class IntroductionsDialog extends StonetopDialog {
 	// to the local combat roster before the GM has written an order.
 	_syncFromCursor() {
 		const cur = this._cursor();
+		// Record what we are now drawn at, so the next cursor write can tell a real move from
+		// a same-position bump (see handleIntroCursor).
+		this._cursorKey = cursorPositionKey(cur);
 		const fromCursor = Array.isArray(cur.pcOrder)
 			? cur.pcOrder.map(id => this._actor(id)).filter(a => a && playbookSlug(a))
 			: [];
@@ -1178,6 +1204,10 @@ export class IntroductionsDialog extends StonetopDialog {
 	// this._pcIndex), so the flush still fires the instant AFTER the cursor moved the turn on.
 	async _flushCaptureFromDom() {
 		const root = this.element?.[0];
+		// Consumed even when there is nothing to flush, so a suppression set by a commit
+		// whose render never reached here can't skip a later, legitimate flush.
+		const justCommitted = this._skipDraftFlushOnce;
+		this._skipDraftFlushOnce = false;
 		if (!root) return;
 		this._cancelLiveDraft();
 		// This runs at the top of _render, so a throw here would abort the whole render.
@@ -1190,9 +1220,15 @@ export class IntroductionsDialog extends StonetopDialog {
 				await this._saveNarration(nar.dataset.actorId, nar.dataset.roundKey, nar.value);
 			}
 			const draft = root.querySelector("textarea.stonetop-intros-draft:not([readonly])");
-			if (draft?.dataset.actorId && draft.dataset.stepKey && soleEditor(draft.dataset.actorId)) {
-				const sel = root.querySelector(".stonetop-intros-question-pick.is-selected");
-				const q   = sel ? Number(sel.dataset.qIndex) : this._stepDraft(draft.dataset.actorId, draft.dataset.stepKey).q;
+			if (!justCommitted && draft?.dataset.actorId && draft.dataset.stepKey
+				&& soleEditor(draft.dataset.actorId) && this._draftWorthFlushing(draft)) {
+				// The DOM is authoritative for the TEXT and only the text: a keystroke can sit
+				// in the textarea unwritten (that is the whole reason for this flush), but a
+				// PICK is never DOM-only — every click writes the flag before re-rendering. So
+				// read q from the flag. Reading it back off the last render instead re-wrote the
+				// pick the player had just moved OFF, which is what made a second choice on
+				// "Bonds & ties" / "Asking the others" look like it did nothing at all.
+				const { q } = this._stepDraft(draft.dataset.actorId, draft.dataset.stepKey);
 				await this._saveDraft(draft.dataset.actorId, draft.dataset.stepKey, { q, a: draft.value });
 			}
 		} catch (err) {
@@ -1200,16 +1236,42 @@ export class IntroductionsDialog extends StonetopDialog {
 		}
 	}
 
-	// Flush the compose UI's current state (selected question + textarea text) to the
-	// draft flag and await it, so a fast type-then-Next records the latest text rather
-	// than racing the debounced/blur writes. The DOM is authoritative at click time —
-	// the selected pick reflects the last render, the textarea holds the live value.
+	// Does a live draft for this step actually EXIST on the actor? _stepDraft answers the
+	// same empty { q: null, a: "" } for "no draft" and "an empty one", which is right for
+	// reading and wrong for deciding whether to write.
+	_hasLiveDraft(actorId, stepKey) {
+		const live = this._intro(actorId).live;
+		return !!live && live.stepKey === stepKey;
+	}
+
+	/**
+	 * Is there anything in the capture field worth writing back? Only when a live draft still
+	 * exists (the field mirrors it, and may hold newer keystrokes), or the caret is in the
+	 * field right now — the first keystroke of a brand-new draft, still inside the 300ms
+	 * debounce this flush cancels.
+	 *
+	 * Neither holds right after a commit: the buffer is gone and the field goes on showing the
+	 * recorded answer until the repaint. Writing THAT back re-creates a draft nobody is
+	 * drafting, and the next Next records the same answer twice.
+	 *
+	 * `_skipDraftFlushOnce` covers the same ground on the client that did the committing; this
+	 * covers every OTHER open dialog, whose re-render is driven by the updateActor hook and
+	 * which never saw a commit of its own — the GM's Next clears an online player's draft, and
+	 * it was the PLAYER's screen that put it back.
+	 */
+	_draftWorthFlushing(el) {
+		if (this._hasLiveDraft(el.dataset.actorId, el.dataset.stepKey)) return true;
+		return el === globalThis.document?.activeElement;
+	}
+
+	// Flush the compose UI's current state to the draft flag and await it, so a fast
+	// type-then-Next records the latest text rather than racing the debounced/blur writes.
+	// The textarea is authoritative (it holds the live value); the PICK comes from the flag,
+	// which a click always writes before the highlight moves — see _flushCaptureFromDom.
 	async _flushDraftFromDom(actor, phase) {
-		const root = this.element?.[0];
-		const el   = root?.querySelector(".stonetop-intros-draft");
+		const el = this.element?.[0]?.querySelector(".stonetop-intros-draft");
 		if (!el || el.dataset.actorId !== actor.id) return;
-		const sel = root.querySelector(".stonetop-intros-question-pick.is-selected");
-		const q   = sel ? Number(sel.dataset.qIndex) : this._stepDraft(actor.id, phase.stepKey).q;
+		const { q } = this._stepDraft(actor.id, phase.stepKey);
 		await this._saveDraft(actor.id, phase.stepKey, { q, a: el.value });
 	}
 

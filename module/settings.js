@@ -69,6 +69,19 @@ export function registerSettings() {
 		default: false
 	});
 
+	// Whether the lettered Place-of-Interest pins already on this world's scenes have been
+	// opened up to players (see hooks/Ready.js _revealLandmarkNotesOnce). They were written
+	// without global visibility and owned by the GM who placed them, which Foundry 14 reads
+	// as "GM's private note"; new pins are written public at creation. Once per world rather
+	// than every load, so a GM who later hides a pin on purpose keeps that decision.
+	game.settings.register("stonetop_pwd", "landmarkNotesRevealed", {
+		name: "Landmark Map Pins Revealed",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
 	// Whether the one-time import of the Book II "Treasures & Wonders" items from the
 	// stonetop-items compendium into the world's Items sidebar has run (see
 	// hooks/SeedItems.js). Independent of the journal/bestiary seeds so an established
@@ -141,6 +154,36 @@ export function registerSettings() {
 	game.settings.register("stonetop_pwd", "startOfSessionReminders", {
 		name: "stonetop.settings.startOfSessionReminders.name",
 		hint: "stonetop.settings.startOfSessionReminders.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: true,
+	});
+
+	// Posts a chat card the moment a PC is reduced to 0 HP, naming the 0-HP move they
+	// actually trigger (Death's Door, or their post-death insert's own move). On by default:
+	// the book has the whole table react to a PC going down, and without it the moment can
+	// pass unnoticed. The card never forces the roll — the book explicitly allows holding it
+	// off "until the scene wraps up" — so a GM who wants the moment kept quiet turns it off.
+	game.settings.register("stonetop_pwd", "deathsDoorPrompt", {
+		name: "stonetop.settings.deathsDoorPrompt.name",
+		hint: "stonetop.settings.deathsDoorPrompt.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: true,
+	});
+
+	// Opens the 0-HP walkthrough on the dying player's own screen as well as posting the card,
+	// so the moment doesn't wait on someone noticing a line of chat. Subordinate to the setting
+	// above: a table that has turned the announcement off doesn't want a window either.
+	//
+	// The dialog is still only an invitation — its Cancel closes it and the card stays in chat —
+	// so the book's "hold the roll off until the scene wraps up" is intact. Turn this off to
+	// leave the card as the only nudge.
+	game.settings.register("stonetop_pwd", "deathsDoorAutoOpen", {
+		name: "stonetop.settings.deathsDoorAutoOpen.name",
+		hint: "stonetop.settings.deathsDoorAutoOpen.hint",
 		scope: "world",
 		config: true,
 		type: Boolean,
@@ -594,6 +637,137 @@ export function registerSettings() {
 		onChange: value => applySheetFontScale(value),
 	});
 
+	// CLASSIC vs MODERN sheet layout: the table's answer, one person's override of it, and
+	// one toggle per sheet.
+	//
+	// MODERN is what ships: the vertical icon tab rail hung off the window's edge, the
+	// character's stat block at the head of its Moves tab, the steading's stat band at the
+	// head of Overview with its homefront moves on a tab of their own, and the NPC's quick
+	// facts inside Details. CLASSIC is the layout before that: a horizontal text tab strip
+	// inside the sheet body, with each of those blocks pinned above it.
+	//
+	// `worldSheetLayout` is the table's answer, and the one the chat card's buttons flip. It
+	// defaults to MODERN, which is what a world created on this release gets. A world that
+	// already existed when the redesign landed is stamped CLASSIC on its first load instead,
+	// so nobody's sheets rearrange themselves under them mid-campaign — see
+	// utils/sheet-layout.js, which also whispers the GM the offer to try the new one.
+	//
+	// `sheetLayout` is one person's override of that, defaulting to "world" (follow the
+	// table). It has to be a tri-state rather than a checkbox, because a client setting lives
+	// in browser localStorage keyed only by namespace.key and so is SHARED by every world on
+	// this browser (the same trap settingOverviewShown documents above). A boolean here would
+	// mean a GM running an old campaign and a new one on one browser could not have classic
+	// in the first and modern in the second: whichever world they opened last would win. Only
+	// an explicit override lives per browser; the real answer lives per world.
+	//
+	// Effective classic for a sheet is then `<resolved master> && classicLayout<Sheet>` (see
+	// isClassicLayout below). A modern master is modern everywhere however the children are
+	// set; a classic master is classic on every sheet whose own box is still ticked. That is
+	// why the children default TRUE: one flip brings the whole old layout back, and nothing
+	// moves for anyone who never opens the settings window.
+	//
+	// The Monster sheet has no tabs and never took part in the redesign, so it gets no toggle.
+	game.settings.register("stonetop_pwd", "worldSheetLayout", {
+		name: "stonetop.settings.worldSheetLayout.name",
+		hint: "stonetop.settings.worldSheetLayout.hint",
+		scope: "world",
+		config: true,
+		type: String,
+		choices: {
+			"modern":  "stonetop.settings.worldSheetLayout.modern",
+			"classic": "stonetop.settings.worldSheetLayout.classic",
+		},
+		default: "modern",
+		onChange: () => _rerenderActorSheets(),
+	});
+
+	// Whether this world's layout has been answered once (see stampWorldLayoutBaseline).
+	// Stamped on the first GM load after the redesign shipped, fresh world or not, so the
+	// stamp never runs twice and can never overwrite a choice the GM has since made.
+	game.settings.register("stonetop_pwd", "worldSheetLayoutChosen", {
+		name: "World Sheet Layout Chosen",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
+	// Whether the "your sheets stayed classic, here is how to try the new ones" card has been
+	// whispered to this world's GMs. Its own flag rather than riding on the stamp above: chat
+	// is not always up that early in a load, and that card is the only notice an upgraded
+	// table ever gets that the modern layout exists, so a lost one has to be re-offered.
+	game.settings.register("stonetop_pwd", "classicLayoutNoticeShown", {
+		name: "Classic Layout Notice Shown",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
+	// The id of that card, so every later flip EDITS it instead of posting another one. There is
+	// exactly one layout card in a world's chat log at a time and it always shows the layout
+	// currently in force; flipping back and forth would otherwise leave a trail of cards, most
+	// of them describing a state the table left. Empty until the card is first posted, and
+	// re-filled if it is ever deleted. See utils/sheet-layout.js showLayoutCard.
+	game.settings.register("stonetop_pwd", "layoutCardId", {
+		name: "Sheet Layout Card Message Id",
+		scope: "world",
+		config: false,
+		type: String,
+		default: ""
+	});
+
+	// RETIRED KEY: "classicLayout". This is the same switch, re-registered as the tri-state
+	// described above rather than the boolean it started as. It never shipped, so no world is
+	// carrying a value that needs migrating, but a browser that ran a pre-release build still
+	// holds one in localStorage (client settings outlive their registration there) — so the
+	// name is named here rather than reused, and _classicMaster reads any unrecognized value
+	// as "follow the world".
+	game.settings.register("stonetop_pwd", "sheetLayout", {
+		name: "stonetop.settings.sheetLayout.name",
+		hint: "stonetop.settings.sheetLayout.hint",
+		scope: "client",
+		config: true,
+		type: String,
+		choices: {
+			"world":   "stonetop.settings.sheetLayout.world",
+			"modern":  "stonetop.settings.sheetLayout.modern",
+			"classic": "stonetop.settings.sheetLayout.classic",
+		},
+		default: "world",
+		onChange: () => _rerenderActorSheets(),
+	});
+
+	game.settings.register("stonetop_pwd", "classicLayoutCharacter", {
+		name: "stonetop.settings.classicLayoutCharacter.name",
+		hint: "stonetop.settings.classicLayoutCharacter.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: true,
+		onChange: () => _rerenderActorSheets(),
+	});
+
+	game.settings.register("stonetop_pwd", "classicLayoutSteading", {
+		name: "stonetop.settings.classicLayoutSteading.name",
+		hint: "stonetop.settings.classicLayoutSteading.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: true,
+		onChange: () => _rerenderActorSheets(),
+	});
+
+	game.settings.register("stonetop_pwd", "classicLayoutNpc", {
+		name: "stonetop.settings.classicLayoutNpc.name",
+		hint: "stonetop.settings.classicLayoutNpc.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: true,
+		onChange: () => _rerenderActorSheets(),
+	});
+
 	// How long you must hover a section before its edit pencil fades in (seconds).
 	// Drives the --st-edit-reveal-delay CSS variable. The pencils stay clickable
 	// while still invisible, so this only affects when they become visible.
@@ -684,10 +858,22 @@ export function registerSettings() {
 		onChange: value => applyReduceMotion(value),
 	});
 
-	// Remembers each character (playbook) sheet's width so it reopens at the size
-	// the user last left it. Per-user (client) and per-actor: a map of actor id
-	// -> width. Internal (not shown in the settings menu).
+	// Superseded by "sheetSizes" below, which remembers height as well and covers every
+	// actor sheet rather than just the character. Still registered, and still READ as a
+	// fallback, so a user who had a width remembered here keeps it — the value moves over
+	// the first time they resize. Nothing writes to it any more.
 	game.settings.register("stonetop_pwd", "characterSheetWidths", {
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {},
+	});
+
+	// Remembers each actor sheet's SIZE so it reopens as the user last left it — character,
+	// steading, monster and NPC alike. Per-user (client) and per-actor: a map of actor id ->
+	// {width, height}. Actor ids are unique across types, so one map serves them all.
+	// Internal (not shown in the settings menu).
+	game.settings.register("stonetop_pwd", "sheetSizes", {
 		scope: "client",
 		config: false,
 		type: Object,
@@ -888,14 +1074,41 @@ const _FONT_MAP = {
 	"signika":         "Signika, sans-serif",
 };
 
+/**
+ * How far a run of UPPERCASE has to be pushed DOWN, per face, to sit optically centred in a box
+ * that centres its EM box — published as `--st-caps-nudge` for any letterspaced small-caps pill
+ * to read (the Condemned brand is the first).
+ *
+ * Why it cannot be one number in the stylesheet: capitals have no descenders, so their ink fills
+ * only the upper part of the em box and centring that box leaves the empty descender space pooling
+ * underneath. The size of that gap is `(capHeight + descent - ascent) / 2`, which is a property of
+ * the FACE — and these three disagree by a factor of ten. IM Fell English is an antique face with
+ * a very deep descent and needs ~0.155em; Libre Caslon needs ~0.016em. A constant tuned on either
+ * is visibly wrong on the other, which is exactly how the brand pill came to sit high for everyone
+ * on the default font while measuring perfect against the one it had been tuned against.
+ *
+ * CSS has no way to ask a font for its cap height that is safe to rely on yet (`1cap` gets close,
+ * but centring caps also needs ascent and descent, and `text-box-trim` is newer still) — so the
+ * numbers are measured per face and travel with the font that needs them.
+ * Measured with condemn-tag-fonts.mjs in the verify harness; re-measure if a face is added here.
+ */
+const _FONT_CAPS_NUDGE = {
+	"libre-caslon":    "0.016em",
+	"im-fell-english": "0.155em",
+	"signika":         "0.073em",
+};
+
 // The registered default for `sheetFont`. Shared with the fallback below so an
 // unreadable/unrecognized value lands on the same font a fresh client gets, rather
 // than a second, different "default" only the fallback path can produce.
 const _DEFAULT_FONT = "signika";
 
 export function applySheetFont(value) {
-	const font = _FONT_MAP[value] ?? _FONT_MAP[_DEFAULT_FONT];
-	document.documentElement.style.setProperty("--font-stonetop", font);
+	// One resolved key for both properties, so an unrecognised setting cannot land on one font's
+	// family with another font's caps nudge — which would be worse than either on its own.
+	const key = _FONT_MAP[value] ? value : _DEFAULT_FONT;
+	document.documentElement.style.setProperty("--font-stonetop", _FONT_MAP[key]);
+	document.documentElement.style.setProperty("--st-caps-nudge", _FONT_CAPS_NUDGE[key]);
 }
 
 export function applySheetFontScale(value) {
@@ -926,6 +1139,102 @@ export function getPromptRollModifierSetting() {
 // Whether actor sheets should open in Edit mode rather than Play mode.
 export function getOpenSheetsInEditMode() {
 	return globalThis.game?.settings?.get?.("stonetop_pwd", "openSheetsInEditMode") ?? false;
+}
+
+/**
+ * Which sheets have a CLASSIC toggle, and what each one's setting is called.
+ *
+ * Spelled out rather than built from the argument: the settings suite proves every
+ * registered key is read by searching the source for the quoted key, so a key assembled
+ * at runtime is invisible to it and the setting fails the build as dead.
+ * See tests/utils/settings-registration.test.js.
+ */
+export const CLASSIC_LAYOUT_KEYS = {
+	character: "classicLayoutCharacter",
+	steading:  "classicLayoutSteading",
+	npc:       "classicLayoutNpc",
+};
+
+/**
+ * The resolved master switch: is this client's sheet layout CLASSIC?
+ *
+ * The personal `sheetLayout` override wins whenever it names a layout; "world" (its default)
+ * defers to the table's `worldSheetLayout`, which is what makes a fresh world modern and an
+ * upgraded one classic on a browser that opens both. Any OTHER stored value is read as
+ * "follow the world" rather than guessed at, so a value left behind by a build that kept a
+ * boolean under this key resolves to the world's answer instead of pinning a layout nobody
+ * chose.
+ *
+ * Throws if either key is unregistered; its one caller owns the try/catch. See isClassicLayout.
+ */
+function _classicMaster(settings) {
+	const mine = settings.get("stonetop_pwd", "sheetLayout");
+	if (mine === "classic") return true;
+	if (mine === "modern")  return false;
+	return settings.get("stonetop_pwd", "worldSheetLayout") === "classic";
+}
+
+/**
+ * Should this sheet render the CLASSIC layout - a horizontal text tab strip with the stat
+ * block / stat band / quick facts pinned above it - rather than the MODERN one, where the
+ * tabs are an icon rail off the window's edge and those blocks live on a tab?
+ *
+ * Two switches, ANDed: the resolved master (above) and the sheet's own toggle. A modern
+ * master is modern everywhere, whatever the children say.
+ *
+ * Answers false for an unrecognized sheet and for a game whose settings are not registered:
+ * a sheet class is constructible in a unit test, and MODERN is what ships, so "modern" is
+ * the right answer when there is nothing to read.
+ *
+ * The try/catch is what actually delivers that second promise, and `??` cannot stand in for
+ * it: core's `ClientSettings#get` THROWS on a key it has no registration for rather than
+ * returning undefined. `layoutClasses` is called from the static `defaultOptions` getter of all
+ * three sheet classes — i.e. at construction — so any sheet built before `registerSettings()`
+ * has finished (a module erroring inside its own `init` hook, a partially failed system init)
+ * would otherwise throw on open instead of quietly rendering modern.
+ *
+ * @param {"character"|"steading"|"npc"} sheet
+ * @returns {boolean}
+ */
+export function isClassicLayout(sheet) {
+	const key = CLASSIC_LAYOUT_KEYS[sheet];
+	if (!key) return false;
+	const settings = globalThis.game?.settings;
+	if (typeof settings?.get !== "function") return false;
+	try {
+		if (!_classicMaster(settings)) return false;
+		return !!settings.get("stonetop_pwd", key);
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * The frame marker the conditional CSS hangs off, ready to spread into a sheet's
+ * `defaultOptions.classes`. Empty in the modern layout.
+ *
+ * Every classic CSS rule COMPOUNDS this with the sheet's own frame classes
+ * (`.stonetop-layout-classic.pbta.sheet.actor.character`), never descends from it - the
+ * marker lands on the same element as those classes, not on an ancestor.
+ */
+export function layoutClasses(sheet) {
+	return isClassicLayout(sheet) ? ["stonetop-layout-classic"] : [];
+}
+
+/**
+ * Re-stamp that same marker on a rendered sheet's frame. The other half of the pair, and the
+ * load-bearing one: `layoutClasses` seeds `defaultOptions` at construction, but `_replaceHTML`
+ * only replaces the contents of `.window-content` and never rebuilds the frame's class list —
+ * so without this, flipping the setting on an open sheet re-renders classic markup under modern
+ * CSS (or the reverse) until it is closed and reopened.
+ *
+ * Call from `_render`, after `super._render`.
+ *
+ * @param {Application} app
+ * @param {"character"|"steading"|"npc"} sheet
+ */
+export function stampLayoutClass(app, sheet) {
+	app?.element?.[0]?.classList.toggle("stonetop-layout-classic", isClassicLayout(sheet));
 }
 
 // Whether the rollable dice icon is hidden; when it is, rolls fire from the move
@@ -1023,21 +1332,49 @@ export function migrateFlatSettingOverviewShown() {
 	return markSettingOverviewShown();
 }
 
-// Last-used width for a given character sheet, or null if none stored yet.
-export function getCharacterSheetWidth(actorId) {
-	if (!actorId) return null;
-	const map = globalThis.game?.settings?.get?.("stonetop_pwd", "characterSheetWidths");
-	const w = map?.[actorId];
-	return Number.isFinite(w) && w > 0 ? w : null;
+/** A positive, whole pixel count, or null for anything that isn't one. */
+function _px(v) {
+	const n = Math.round(Number(v));
+	return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-export function setCharacterSheetWidth(actorId, width) {
+/**
+ * Last-used size for a given actor sheet as `{width, height}`, either of which may be null
+ * if nothing usable is stored. Never returns null itself, so callers can destructure.
+ *
+ * Falls back to the retired "characterSheetWidths" map for the width, so upgrading doesn't
+ * throw away a width the user had already established. Height has no legacy source — a
+ * sheet that only ever stored a width reopens at its default height, once. That map only
+ * ever held characters; other actor types simply never match it.
+ */
+export function getSheetSize(actorId) {
+	if (!actorId) return { width: null, height: null };
+	const size = globalThis.game?.settings?.get?.("stonetop_pwd", "sheetSizes")?.[actorId];
+	const legacy = globalThis.game?.settings?.get?.("stonetop_pwd", "characterSheetWidths")?.[actorId];
+	return {
+		width: _px(size?.width) ?? _px(legacy),
+		height: _px(size?.height),
+	};
+}
+
+/**
+ * Store an actor sheet's size. Each dimension is validated and kept independently, so a
+ * caller that only knows one of them (or whose window is mid-animation and reports a junk
+ * value for the other) can't wipe the good one.
+ */
+export function setSheetSize(actorId, { width, height } = {}) {
 	if (!actorId) return;
-	const w = Math.round(Number(width));
-	if (!Number.isFinite(w) || w <= 0) return;
-	if (w === getCharacterSheetWidth(actorId)) return; // avoid redundant writes
-	const map = globalThis.game?.settings?.get?.("stonetop_pwd", "characterSheetWidths") ?? {};
-	return game.settings.set("stonetop_pwd", "characterSheetWidths", { ...map, [actorId]: w });
+	const w = _px(width), h = _px(height);
+	if (w === null && h === null) return;
+
+	const current = getSheetSize(actorId);
+	const next = { width: w ?? current.width, height: h ?? current.height };
+	// Avoid redundant writes: settings.set round-trips through the server for the
+	// client store and this is called off a debounce on every resize frame.
+	if (next.width === current.width && next.height === current.height) return;
+
+	const map = globalThis.game?.settings?.get?.("stonetop_pwd", "sheetSizes") ?? {};
+	return game.settings.set("stonetop_pwd", "sheetSizes", { ...map, [actorId]: next });
 }
 
 // Per-actor, per-user list of collapsible section ids (sorted, de-duped), or []

@@ -55,6 +55,28 @@
 		</div>
 		<div class="stonetop-arcanum-body">
 			<span class="stonetop-arcanum-side-label">{{localize "stonetop.arcana.frontLabel"}}</span>
+			{{!-- A 7-9 on the identifying Know Things roll bought the front and promised the back
+			      "when they have some time to study it or learn more" (Book I p.440). The strip
+			      keeps that promise on the card instead of in a chat message that scrolls away;
+			      it disappears the moment the back is permitted. The owner's button asks for the
+			      back in chat, the GM's grants it outright. --}}
+			{{#if showBackOwed}}
+			<div class="stonetop-arcanum-backowed">
+				<i class="fas fa-hourglass-half"></i>
+				<span>{{localize "stonetop.arcana.backOwedText"}}</span>
+				<button type="button" class="stonetop-arcanum-backowed-btn" data-slug="{{slug}}">
+					{{localize "stonetop.arcana.backOwedStudy"}}
+				</button>
+			</div>
+			{{else if gmBackOwed}}
+			<div class="stonetop-arcanum-backowed stonetop-arcanum-backowed--gm">
+				<i class="fas fa-hourglass-half"></i>
+				<span>{{localize "stonetop.arcana.backOwedGmText"}}</span>
+				<button type="button" class="stonetop-arcanum-backowed-btn" data-slug="{{slug}}">
+					{{localize "stonetop.arcana.backOwedGrant"}}
+				</button>
+			</div>
+			{{/if}}
 			{{{front.description}}}
 			<p class="stonetop-arcanum-unlock-lead">{{{front.unlock.description}}}</p>
 			<ul class="stonetop-arcanum-unlock-list">
@@ -177,7 +199,10 @@
 				{{#if showBoth}}{{localize "stonetop.arcana.showFrontOnly"}}{{else}}{{localize "stonetop.arcana.showBothSides"}}{{/if}}
 			</button>
 			{{/if}}
-			{{#if sectionEditable}}
+			{{!-- Reveal is a play action, not an edit one: it's how the GM settles a 7-9's owed
+			      back (Book I p.440), so it can't sit behind the section pencil. It is already
+			      GM-only via canReveal, so lifting it out of edit mode exposes nothing new.
+			      Remove stays edit-only. --}}
 			{{#if canReveal}}
 			<button type="button" class="stonetop-arcanum-reveal-btn{{#if revealedToPlayers}} is-revealed{{/if}}"
 			        data-slug="{{slug}}" data-revealed="{{revealedToPlayers}}">
@@ -185,6 +210,7 @@
 				{{#if revealedToPlayers}}{{localize "stonetop.arcana.hideFromPlayers"}}{{else}}{{localize "stonetop.arcana.revealToPlayers"}}{{/if}}
 			</button>
 			{{/if}}
+			{{#if sectionEditable}}
 			<button type="button" class="stonetop-arcanum-delete" data-slug="{{slug}}"
 			        title="{{localize 'stonetop.arcana.removeArcanum'}}">
 				<i class="fas fa-trash"></i> Remove
@@ -227,9 +253,21 @@
 		</div>
 		<div class="stonetop-arcanum-body stonetop-arcanum-unidentified-body">
 			<p>{{localize "stonetop.arcana.unidentifiedText"}}</p>
-			<button type="button" class="stonetop-arcanum-identify-btn" data-slug="{{slug}}">
-				{{localize "stonetop.arcana.identify"}}
-			</button>
+			{{!-- The player's route to a face-down card is the roll (Book I p.440, "prompt them
+			      to Know Things about the arcanum"); handing it over without one is the GM's
+			      move, so "Give the card" renders only for them. --}}
+			<div class="stonetop-arcanum-identify-row">
+				<button type="button" class="stonetop-arcanum-identify-btn" data-slug="{{slug}}"
+				        title="{{localize 'stonetop.arcana.identifyHint'}}">
+					<i class="fas fa-dice-d6"></i> {{localize "stonetop.arcana.identify"}}
+				</button>
+				{{#if canGiveCard}}
+				<button type="button" class="stonetop-arcanum-givecard-btn" data-slug="{{slug}}"
+				        title="{{localize 'stonetop.arcana.giveCardHint'}}">
+					<i class="fas fa-hand-holding"></i> {{localize "stonetop.arcana.giveCard"}}
+				</button>
+				{{/if}}
+			</div>
 		</div>
 		{{#if sectionEditable}}
 		<div class="stonetop-arcanum-footer">

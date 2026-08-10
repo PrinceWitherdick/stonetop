@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { createStonetopCharacterSheetClass } from "../../../module/actors/character/StonetopCharacterSheet.js";
 import {FakeActorBuilder} from "../../fakes/FakeActorBuilder.js";
+import { DEATHS_DOOR_STATE, zeroHpMove, zeroHpResolution } from "../../../module/actors/character/deaths-door.js";
 
 // -- Helpers ------------------------------------------------------------------
 
@@ -20,11 +21,37 @@ function makeCharacterMock(actor) {
 		saved: actor.getFlag("stonetop_pwd", "appearance.selected") ?? {},
 	};
 	const origin = { select: vi.fn() };
+	// The holy light is live state, not a stub return: getData reads the getter and the
+	// handlers write through the setter, so both have to see the same value or the
+	// "already lit, so don't re-render" assertions can't be written at all.
+	let lit = false;
+	// Writable, so a test can be a NON-Lightbearer. Hardcoding it true made the "show" half
+	// of the context assertion unfailable — it would have passed with `show` wired to a
+	// constant.
+	let canWield = true;
+	// The Judge's brand roster, on exactly the same terms as the holy light above: live state
+	// rather than a stub return, and a writable `canCondemn` so a test can be a non-Judge. The
+	// real getter always answers an ARRAY, so the sheet reads `.length` off it without a guard —
+	// a stub returning undefined here would be the only thing in the world that could break that.
+	let brands = [];
+	let canBrand = true;
 	return {
 		background,
 		instinct,
 		appearance,
 		origin,
+		get holyLight() { return lit; },
+		get canWieldHolyLight() { return canWield; },
+		set canWieldHolyLight(value) { canWield = !!value; },
+		get condemned() { return brands; },
+		set condemned(value) { brands = Array.isArray(value) ? value : []; },
+		get canCondemn() { return canBrand; },
+		set canCondemn(value) { canBrand = !!value; },
+		setHolyLight: vi.fn(async value => {
+			const changed = !!value !== lit;
+			lit = !!value;
+			return changed;
+		}),
 		ensureStartingMoves: vi.fn(),
 		updateName: vi.fn(async name => actor.update({ name })),
 		addMove: vi.fn(),
@@ -36,6 +63,7 @@ function makeCharacterMock(actor) {
 		// which returns a Set of owned slugs).
 		ownedArcanaSlugs: new Set(),
 		onDropMove: vi.fn(async () => false),
+		setPostDeathInsert: vi.fn(async () => {}),
 		moveResources: { add: vi.fn() },
 		buildSnapshot: vi.fn(async () => ({})),
 		setInventoryResource: vi.fn(),
@@ -148,6 +176,82 @@ describe("StonetopCharacterSheet event handlers", () => {
 		expect((await sheet.getData()).stonetop.movelist.showLevelMovesOverLimit).toBe(true);
 	});
 
+	// The "back is owed" strip carries the promise a 7-9 on the identifying Know Things roll
+	// made (Book I p.440). It has to vanish the moment the back actually arrives, or it lies.
+	describe("arcana identify context", () => {
+		function arcanaSheet({ isGM = false, peek = false, revealed = [], card = {}, owns = true } = {}) {
+			installGetDataGlobals();
+			global.game.user = { isGM, getFlag: () => ({}) };
+			global.game.settings = { get: (_scope, key) => (key === "arcanaPlayersSeeBothSides" ? peek : false) };
+			const actor = makeActor();
+			actor.isOwner = owns;
+			actor.typedActor.playbook = vi.fn(async () => null);
+			actor.typedActor.possessionTriggerMoves = vi.fn(() => ({}));
+			actor.typedActor.revealedArcanaSlugs = new Set(revealed);
+			const snapshot = minimalSheetSnapshot({});
+			snapshot.arcana.minor = { hasOwned: true, items: [{
+				slug: "the-key", owned: true, identified: true, unlocked: false, backOwed: false,
+				front: { title: "The Key", description: "<p>x</p>", unlock: {} }, back: {}, ...card,
+			}] };
+			actor.typedActor.buildSnapshot = vi.fn(async () => snapshot);
+			return makeSheet(actor);
+		}
+		const cardOf = async sheet => (await sheet.getData()).stonetop.arcana.minor.items[0];
+
+		it("shows the owner the back they are owed", async () => {
+			const card = await cardOf(arcanaSheet({ card: { backOwed: true } }));
+			expect(card.showBackOwed).toBe(true);
+			expect(card.gmBackOwed).toBe(false);
+		});
+
+		it("drops the strip once the back has actually arrived", async () => {
+			for (const [label, opts] of [
+				["revealed", { revealed: ["the-key"], card: { backOwed: true } }],
+				["unlocked", { card: { backOwed: true, unlocked: true } }],
+				["peek on",  { peek: true, card: { backOwed: true } }],
+			]) {
+				expect((await cardOf(arcanaSheet(opts))).showBackOwed, label).toBe(false);
+			}
+		});
+
+		it("shows the GM the back they owe, and no strip once it is moot", async () => {
+			expect((await cardOf(arcanaSheet({ isGM: true, card: { backOwed: true } }))).gmBackOwed).toBe(true);
+			// An unlocked card's back is the owner's already, so there is nothing left to reveal.
+			expect((await cardOf(arcanaSheet({ isGM: true, card: { backOwed: true, unlocked: true } }))).gmBackOwed).toBe(false);
+			expect((await cardOf(arcanaSheet({ isGM: true, revealed: ["the-key"], card: { backOwed: true } }))).gmBackOwed).toBe(false);
+			expect((await cardOf(arcanaSheet({ isGM: true }))).gmBackOwed).toBe(false);
+		});
+
+		/**
+		 * revealArcanum is the ONLY thing that clears backOwed, and the GM's strip is the only route
+		 * to it for a still-locked card. Gated on the reveal TOGGLE's rule (which carries a
+		 * "secretive mode only" term) the debt was stranded with the world's peek switch on: nobody
+		 * could settle it, and the day the switch went off the owner's sheet went back to claiming a
+		 * back they had been reading for sessions.
+		 */
+		it("still lets the GM settle the debt while players can already peek", async () => {
+			const card = await cardOf(arcanaSheet({ isGM: true, peek: true, card: { backOwed: true } }));
+			expect(card.gmBackOwed).toBe(true);
+		});
+
+		/**
+		 * A player with Observer permission on somebody else's sheet fails permittedBack for the same
+		 * reason a locked-out owner does — but the strip addresses its reader in the second person
+		 * ("You've read the front…") over a Study it button that _onArcanumStudyBack drops on the
+		 * spot, since the sheet isn't theirs to edit. Nothing happened and nothing said why.
+		 */
+		it("keeps the owed-back strip off a non-owning viewer's copy of the sheet", async () => {
+			const card = await cardOf(arcanaSheet({ owns: false, card: { backOwed: true } }));
+			expect(card.showBackOwed).toBe(false);
+			expect(card.gmBackOwed).toBe(false);
+		});
+
+		it("offers the no-roll hand-over to the GM only", async () => {
+			expect((await cardOf(arcanaSheet({ isGM: true }))).canGiveCard).toBe(true);
+			expect((await cardOf(arcanaSheet({ isGM: false }))).canGiveCard).toBe(false);
+		});
+	});
+
 	it("_onBackgroundChange calls selectBackground with the slug", async () => {
 		const actor = makeActor();
 		const sheet = makeSheet(actor);
@@ -169,11 +273,267 @@ describe("StonetopCharacterSheet event handlers", () => {
 		expect(actor.typedActor.appearance.select).toHaveBeenCalledWith(0, "gray & wizened");
 	});
 
+	// One appearance line, one value: the row's suggestions and its write-in box are the two
+	// ways to set it, so choosing either has to clear the other. These fakes stand in for the
+	// row because the suite runs without a DOM — what matters is that the handlers reach for
+	// the row and blank/untick what they find.
+	function fakeAppearanceRow() {
+		const custom = { value: "old text" };
+		const radios = [{ checked: true }, { checked: false }];
+		return {
+			custom, radios,
+			el: { querySelector: () => custom, querySelectorAll: () => radios },
+		};
+	}
+	const inRow = (row, line, value) => ({
+		currentTarget: { dataset: { line: String(line) }, value, closest: () => row.el },
+	});
+
+	it("_onAppearanceCustomChange saves the written-in line, trimmed", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		const row   = fakeAppearanceRow();
+		await sheet._onAppearanceCustomChange(inRow(row, 2, "  built like a barn door  "));
+		expect(actor.typedActor.appearance.select).toHaveBeenCalledWith(2, "built like a barn door");
+		expect(row.radios.every(r => r.checked === false)).toBe(true);
+	});
+
+	it("_onAppearanceCustomChange clears the line when the box is emptied", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		await sheet._onAppearanceCustomChange(inRow(fakeAppearanceRow(), 1, "   "));
+		expect(actor.typedActor.appearance.select).toHaveBeenCalledWith(1, "");
+	});
+
+	it("_onAppearanceChange empties the row's write-in box", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		const row   = fakeAppearanceRow();
+		await sheet._onAppearanceChange(inRow(row, 0, "gray & wizened"));
+		expect(row.custom.value).toBe("");
+		expect(actor.typedActor.appearance.select).toHaveBeenCalledWith(0, "gray & wizened");
+	});
+
+	it("appearance handlers still save when there is no row to tidy", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		await sheet._onAppearanceCustomChange({ currentTarget: { dataset: { line: "3" }, value: "sharp-eyed" } });
+		expect(actor.typedActor.appearance.select).toHaveBeenCalledWith(3, "sharp-eyed");
+	});
+
 	it("_onOriginNameClick updates the actor name", async () => {
 		const actor = makeActor();
 		const sheet = makeSheet(actor);
 		await sheet._onOriginNameClick({ currentTarget: { value: "Arwel" } });
 		expect(actor.typedActor.updateName).toHaveBeenCalledWith("Arwel");
+	});
+});
+
+// The Lightbearer's holy light: the header candle, and the Consecrated Flame hook that
+// lights it. This suite never drives activateListeners, so the handlers are called directly.
+describe("StonetopCharacterSheet holy light candle", () => {
+	const clickEvent = () => ({ preventDefault: vi.fn(), stopPropagation: vi.fn() });
+
+	it("toggles the light and repaints the sheet", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+
+		await sheet._onHolyLightToggle(clickEvent());
+		expect(actor.typedActor.setHolyLight).toHaveBeenCalledWith(true);
+		expect(sheet.render).toHaveBeenCalledWith(false);
+
+		await sheet._onHolyLightToggle(clickEvent());
+		expect(actor.typedActor.setHolyLight).toHaveBeenLastCalledWith(false);
+	});
+
+	it("leaves the light alone on a sheet the viewer can't edit", async () => {
+		const actor = makeActor();
+		const Base = class {
+			constructor() { this._actor = actor; }
+			get actor() { return this._actor; }
+			get isEditable() { return false; }
+			async getData() { return {}; }
+			activateListeners() {}
+			render = vi.fn();
+		};
+		const sheet = new (createStonetopCharacterSheetClass(Base))();
+		await sheet._onHolyLightToggle(clickEvent());
+		expect(actor.typedActor.setHolyLight).not.toHaveBeenCalled();
+		expect(sheet.render).not.toHaveBeenCalled();
+	});
+
+	it("lights up when Consecrated Flame is used", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		await sheet._onDescriptionMoveUsed({ type: "move", name: "Consecrated Flame" });
+		expect(actor.typedActor.setHolyLight).toHaveBeenCalledWith(true);
+		expect(sheet.render).toHaveBeenCalledWith(false);
+	});
+
+	// One slot: "until the flame goes out or until you consecrate another flame". The second
+	// consecration replaces the same light, so nothing is written and nothing repaints.
+	it("doesn't repaint when the light is already burning", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		await sheet._onDescriptionMoveUsed({ type: "move", name: "Consecrated Flame" });
+		sheet.render.mockClear();
+		await sheet._onDescriptionMoveUsed({ type: "move", name: "Consecrated Flame" });
+		expect(sheet.render).not.toHaveBeenCalled();
+	});
+
+	it("ignores any other move, a same-named non-move, and a row with no item at all", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		await sheet._onDescriptionMoveUsed({ type: "move", name: "Lamplighter" });
+		await sheet._onDescriptionMoveUsed({ type: "item", name: "Consecrated Flame" });
+		await sheet._onDescriptionMoveUsed(null);
+		expect(actor.typedActor.setHolyLight).not.toHaveBeenCalled();
+	});
+
+	it("hands the header its state", async () => {
+		installGetDataGlobals();
+		const actor = makeActor();
+		actor.typedActor.playbook = vi.fn(async () => null);
+		actor.typedActor.possessionTriggerMoves = vi.fn(() => ({}));
+		actor.typedActor.buildSnapshot = vi.fn(async () => minimalSheetSnapshot({}));
+		const sheet = makeSheet(actor);
+
+		expect((await sheet.getData()).stonetop.holyLight).toEqual({ show: true, lit: false });
+		await sheet._onHolyLightToggle(clickEvent());
+		expect((await sheet.getData()).stonetop.holyLight).toEqual({ show: true, lit: true });
+
+		// A sheet with no light-making move gets no candle — unless one is already burning,
+		// which is the case that keeps a light stranded by a playbook swap snuffable.
+		actor.typedActor.canWieldHolyLight = false;
+		expect((await sheet.getData()).stonetop.holyLight).toEqual({ show: true, lit: true });
+		await sheet._onHolyLightToggle(clickEvent());
+		expect((await sheet.getData()).stonetop.holyLight).toEqual({ show: false, lit: false });
+	});
+
+	it("hands the header the Judge's brand count", async () => {
+		installGetDataGlobals();
+		const actor = makeActor();
+		actor.typedActor.playbook = vi.fn(async () => null);
+		actor.typedActor.possessionTriggerMoves = vi.fn(() => ({}));
+		actor.typedActor.buildSnapshot = vi.fn(async () => minimalSheetSnapshot({}));
+		const sheet = makeSheet(actor);
+
+		expect((await sheet.getData()).stonetop.condemn).toEqual({ show: true, count: 0 });
+		actor.typedActor.condemned = [{ id: "a", name: "Brennan" }, { id: "b", name: "The Claws" }];
+		expect((await sheet.getData()).stonetop.condemn).toEqual({ show: true, count: 2 });
+
+		// A sheet that lost Condemn keeps the scales while brands still stand — otherwise a
+		// playbook swap strands them with nothing left that could dismiss them.
+		actor.typedActor.canCondemn = false;
+		expect((await sheet.getData()).stonetop.condemn).toEqual({ show: true, count: 2 });
+		actor.typedActor.condemned = [];
+		expect((await sheet.getData()).stonetop.condemn).toEqual({ show: false, count: 0 });
+	});
+});
+
+// Neither move has a rollType, so both fall through to the description-only path that posts
+// their text — the same path Consecrated Flame rides. Stubbed at _openCondemned: what is being
+// asserted is WHICH uses open the roster, not the window itself.
+describe("StonetopCharacterSheet Condemn roster on move use", () => {
+	function condemnSheet() {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		sheet._openCondemned = vi.fn(async () => {});
+		return { actor, sheet };
+	}
+
+	// Condemn never fires on its own — it amends what Censure does — so the moment a brand is
+	// actually laid is a Censure, and that has to open the roster or the Judge is back to
+	// keeping the list in their head.
+	it("opens on Censure as well as on Condemn", async () => {
+		for (const name of ["Censure", "Condemn"]) {
+			const { sheet } = condemnSheet();
+			await sheet._onDescriptionMoveUsed({ type: "move", name });
+			expect(sheet._openCondemned, name).toHaveBeenCalled();
+		}
+	});
+
+	// A Judge who hasn't taken Condemn brands nobody when they Censure, so the roster isn't
+	// theirs to open.
+	it("stays shut for a character without Condemn", async () => {
+		const { actor, sheet } = condemnSheet();
+		actor.typedActor.canCondemn = false;
+		await sheet._onDescriptionMoveUsed({ type: "move", name: "Censure" });
+		expect(sheet._openCondemned).not.toHaveBeenCalled();
+	});
+
+	it("ignores any other move, a same-named non-move, and a row with no item at all", async () => {
+		const { sheet } = condemnSheet();
+		await sheet._onDescriptionMoveUsed({ type: "move", name: "Castigate" });
+		await sheet._onDescriptionMoveUsed({ type: "item", name: "Condemn" });
+		await sheet._onDescriptionMoveUsed(null);
+		expect(sheet._openCondemned).not.toHaveBeenCalled();
+	});
+});
+
+describe("StonetopCharacterSheet damage die editing", () => {
+	function damageInput(value, base = "d6") {
+		return { currentTarget: { value, dataset: { damageBase: base } } };
+	}
+
+	function makeDamageSheet() {
+		const actor = makeActor();
+		actor.typedActor.setDamageDieOverride = vi.fn(async () => null);
+		return { actor, sheet: makeSheet(actor) };
+	}
+
+	it("saves a typed die as an override", async () => {
+		const { actor, sheet } = makeDamageSheet();
+		await sheet._onDamageDieEdit(damageInput("d8"));
+		// The derived die rides along, so the model never rebuilds the snapshot to find it.
+		expect(actor.typedActor.setDamageDieOverride).toHaveBeenCalledWith("d8", { base: "d6" });
+	});
+
+	it("normalizes loose spellings before saving", async () => {
+		const { actor, sheet } = makeDamageSheet();
+		await sheet._onDamageDieEdit(damageInput("1D8 "));
+		expect(actor.typedActor.setDamageDieOverride).toHaveBeenCalledWith("d8", { base: "d6" });
+	});
+
+	it("clears the override when the field is emptied", async () => {
+		const { actor, sheet } = makeDamageSheet();
+		await sheet._onDamageDieEdit(damageInput(""));
+		expect(actor.typedActor.setDamageDieOverride).toHaveBeenCalledWith("", { base: "d6" });
+	});
+
+	it("clears the override when the typed die is the playbook's own", async () => {
+		const { actor, sheet } = makeDamageSheet();
+		await sheet._onDamageDieEdit(damageInput("d6", "d6"));
+		expect(actor.typedActor.setDamageDieOverride).toHaveBeenCalledWith("", { base: "d6" });
+	});
+
+	it("refuses a value that isn't a single die and puts the old one back", async () => {
+		global.ui = { notifications: { warn: vi.fn() } };
+		const { actor, sheet } = makeDamageSheet();
+		actor.system.attributes.damage.value = "d6";
+		const ev = damageInput("2d6");
+
+		await sheet._onDamageDieEdit(ev);
+
+		expect(actor.typedActor.setDamageDieOverride).not.toHaveBeenCalled();
+		expect(ev.currentTarget.value).toBe("d6");
+		expect(global.ui.notifications.warn).toHaveBeenCalled();
+	});
+
+	it("getData mirrors the die in play onto the input, playbook or not", async () => {
+		installGetDataGlobals();
+		const actor = makeActor();
+		actor.typedActor.playbook = vi.fn(async () => null);
+		actor.typedActor.possessionTriggerMoves = vi.fn(() => ({}));
+		actor.typedActor.buildSnapshot = vi.fn(async () => {
+			const snap = minimalSheetSnapshot({});
+			snap.vitals.damage = "d8";
+			return snap;
+		});
+		const sheet = makeSheet(actor);
+
+		const context = await sheet.getData();
+		expect(context.system.attributes.damage.value).toBe("d8");
 	});
 });
 
@@ -232,6 +592,116 @@ describe("StonetopCharacterSheet Details tab section visibility", () => {
 		const show = await detailsShowFor(playbook);
 		expect(show.background).toBe(false);
 		expect(show.origin).toBe(false);
+	});
+});
+
+describe("StonetopCharacterSheet Post-Death tab visibility", () => {
+	async function showPostDeathFor(postDeathInsert, { editMode = false, requested = false, state = null } = {}) {
+		installGetDataGlobals();
+		const actor = makeActor();
+		actor.typedActor.playbook = vi.fn(async () => null);
+		actor.typedActor.possessionTriggerMoves = vi.fn(() => ({}));
+		actor.typedActor.postDeathTabRequested = requested;
+		actor.typedActor.deathsDoorState = state;
+		actor.typedActor.buildSnapshot = vi.fn(async () => ({ ...minimalSheetSnapshot({}), postDeathInsert }));
+		const sheet = makeSheet(actor);
+		sheet._editMode = editMode;
+		return (await sheet.getData()).stonetop.showPostDeath;
+	}
+
+	it("shows the tab for a character wearing an insert", async () => {
+		expect(await showPostDeathFor({ activeSlug: "revenant", activeInsert: {} })).toBe(true);
+	});
+
+	it("hides it from a living character in play mode", async () => {
+		expect(await showPostDeathFor(null)).toBe(false);
+		expect(await showPostDeathFor({ activeSlug: null, activeInsert: null })).toBe(false);
+	});
+
+	// The wrench must not put a tab about being dead on every living sheet.
+	it("does not open on edit mode alone", async () => {
+		expect(await showPostDeathFor(null, { editMode: true })).toBe(false);
+	});
+
+	// Removing an insert requests the tab, so it stays standing on its "Choose Your Fate" picker —
+	// picking another fate is the whole point of removing one.
+	it("keeps it open in edit mode once the tab has been requested", async () => {
+		expect(await showPostDeathFor(null, { editMode: true, requested: true })).toBe(true);
+		expect(await showPostDeathFor(null, { requested: true })).toBe(false);
+	});
+
+	// The other reason an empty tab is wanted: a fate is owed for a Door already faced, whether or
+	// not the sheet was the thing that asked.
+	it("opens in edit mode for a character who owes a fate", async () => {
+		expect(await showPostDeathFor(null, { editMode: true, state: "fate-pending" })).toBe(true);
+		expect(await showPostDeathFor(null, { editMode: true, state: "dead" })).toBe(true);
+		expect(await showPostDeathFor(null, { editMode: true, state: "out-of-action" })).toBe(false);
+	});
+
+	// The request is about an EMPTY tab. A worn insert answers on its own — and Death's Door grants
+	// one without asking, so a character who dies later is never left without their insert.
+	it("shows the tab for a worn insert with no request on file", async () => {
+		expect(await showPostDeathFor({ activeSlug: "thrall", activeInsert: {} })).toBe(true);
+	});
+
+	// A slug that's set but unreadable (a pack that hasn't loaded) still gets the tab: the picker
+	// is the way back to a legible sheet.
+	it("keeps the tab for a slug whose insert cannot be read", async () => {
+		expect(await showPostDeathFor({ activeSlug: "ghost", activeInsert: null })).toBe(true);
+	});
+});
+
+/**
+ * The two halves of "who can ask for this tab, and who can send it away".
+ *
+ * The tab being opt-in is deliberate — the wrench must not put a tab about being dead on every
+ * living sheet — but for a while the ONLY thing that ever opted in was REMOVING an insert, which
+ * made the "Choose Your Fate" picker unreachable for the case its own hint text describes: a table
+ * who resolved the Last Door in conversation and left no state on the sheet at all. And the foot's
+ * "Remove Post-Death Tab" was inert for the opposite group, since a character who owes a fate has
+ * a tab that redraws itself on the next render whatever that button writes.
+ */
+describe("StonetopCharacterSheet Post-Death tab, asked for and sent away", () => {
+	async function contextFor({ editMode = false, requested = false, state = null, insert = null } = {}) {
+		installGetDataGlobals();
+		const actor = makeActor();
+		actor.typedActor.playbook = vi.fn(async () => null);
+		actor.typedActor.possessionTriggerMoves = vi.fn(() => ({}));
+		actor.typedActor.postDeathTabRequested = requested;
+		actor.typedActor.deathsDoorState = state;
+		actor.typedActor.buildSnapshot = vi.fn(async () => ({ ...minimalSheetSnapshot({}), postDeathInsert: insert }));
+		const sheet = makeSheet(actor);
+		sheet._editMode = editMode;
+		return { sheet, stonetop: (await sheet.getData()).stonetop };
+	}
+
+	// The Death's Door card's own route in, offered where the picker can't be reached any other way.
+	it("offers the Post-Death opt-in in edit mode, and only while the tab is absent", async () => {
+		expect((await contextFor({ editMode: true })).stonetop.deathsDoor.openPostDeath).toBe(true);
+		// Already there, by request or by state — nothing left to ask for.
+		expect((await contextFor({ editMode: true, requested: true })).stonetop.deathsDoor.openPostDeath).toBe(false);
+		expect((await contextFor({ editMode: true, state: "dead" })).stonetop.deathsDoor.openPostDeath).toBe(false);
+		// Play mode: the tab is opt-in from the wrench, so the opt-in lives there too.
+		expect((await contextFor({})).stonetop.deathsDoor.openPostDeath).toBe(false);
+	});
+
+	it("puts the tab on the sheet and goes to it", async () => {
+		const { sheet } = await contextFor({ editMode: true });
+		sheet.actor.typedActor.setPostDeathTabRequested = vi.fn(async () => {});
+
+		await sheet._onPostDeathTabOpen();
+
+		expect(sheet.actor.typedActor.setPostDeathTabRequested).toHaveBeenCalledWith(true);
+		// Deferred, not preset: the flag write schedules its own render, which races this one.
+		expect(sheet._activateTabOnRender).toBe("post-death");
+	});
+
+	// The foot's way out, offered only while the REQUEST is the sole thing holding the tab open.
+	it("offers to remove the tab, except from a character who owes a fate", async () => {
+		expect((await contextFor({ editMode: true, requested: true })).stonetop.canHidePostDeathTab).toBe(true);
+		for (const state of ["fate-pending", "dead"]) {
+			expect((await contextFor({ editMode: true, state })).stonetop.canHidePostDeathTab, state).toBe(false);
+		}
 	});
 });
 
@@ -374,6 +844,49 @@ describe("StonetopCharacterSheet._applyConvalesce", () => {
 	});
 });
 
+describe("StonetopCharacterSheet._onDropPlaybook", () => {
+	// The three post-death inserts are `type: "playbook"` Items too, so one handler receives both
+	// and has to tell them apart. It used to ask "does it carry lore?" — which every shipped
+	// playbook does — so a playbook drop set the character's INSERT instead of their playbook,
+	// and the prune that runs with it measured their post-death answers against the wrong lore
+	// and deleted them.
+	function makePlaybookDoc(slug, extra = {}) {
+		return {
+			uuid: `Compendium.stonetop_pwd.stonetop-items.${slug}`,
+			name: slug,
+			type: "playbook",
+			system: { slug },
+			flags: { stonetop: { lore: [{ slug: "violence-reputation", options: [] }], hp: 20, ...extra } },
+		};
+	}
+
+	it("assigns a playbook that carries lore of its own, instead of taking it for an insert", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		actor.update = vi.fn(async () => {});
+
+		await sheet._onDropPlaybook(makePlaybookDoc("the-heavy"));
+
+		expect(actor.typedActor.setPostDeathInsert).not.toHaveBeenCalled();
+		expect(actor.update).toHaveBeenCalled();
+		expect(actor.update.mock.calls[0][0]["system.playbook"].slug).toBe("the-heavy");
+		expect(actor.typedActor.ensureStartingMoves).toHaveBeenCalled();
+	});
+
+	it("still takes the three real inserts as inserts", async () => {
+		for (const slug of ["revenant", "ghost", "thrall"]) {
+			const actor = makeActor();
+			const sheet = makeSheet(actor);
+			actor.update = vi.fn(async () => {});
+
+			await sheet._onDropPlaybook(makePlaybookDoc(slug));
+
+			expect(actor.typedActor.setPostDeathInsert).toHaveBeenCalledWith(slug);
+			expect(actor.update).not.toHaveBeenCalled();
+		}
+	});
+});
+
 describe("StonetopCharacterSheet._onDropItemCreate", () => {
 	it("calls addArcanum with the slug from flags when an arcanum is dropped", async () => {
 		const actor = makeActor();
@@ -405,6 +918,26 @@ describe("StonetopCharacterSheet._onDropItemCreate", () => {
 		await sheet._onDropItemCreate(move);
 		expect(actor.typedActor.onDropMove).toHaveBeenCalledWith(move);
 		expect(actor.typedActor.addArcanum).not.toHaveBeenCalled();
+	});
+
+	// onDropMove returns false for a move the character already owns. That refusal has to
+	// say so: silently doing nothing is indistinguishable from a broken drop handler, and
+	// it's the exact shape of "I dragged the move on and it just didn't show up".
+	it("warns by name when a dropped move was refused as already owned", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		actor.typedActor.onDropMove.mockResolvedValue(false);
+		await sheet._onDropItemCreate({ type: "move", name: "Smash", system: { moveType: "playbook" }, flags: {} });
+		expect(global.ui.notifications.warn).toHaveBeenCalledWith(expect.stringContaining('"Smash" is already on'));
+	});
+
+	it("stays quiet when the dropped move was actually added", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		actor.typedActor.onDropMove.mockResolvedValue(true);
+		global.ui.notifications.warn.mockClear();  // the notification stub is shared across tests
+		await sheet._onDropItemCreate(makeMove());
+		expect(global.ui.notifications.warn).not.toHaveBeenCalled();
 	});
 
 	it("routes inventory moves to addDroppedInventoryItem", async () => {
@@ -443,5 +976,150 @@ describe("StonetopCharacterSheet._onDropItemCreate", () => {
 		const sheet = makeSheet(actor);
 		await sheet._onDropItemCreate(makeNonMove());
 		expect(sheet.render).not.toHaveBeenCalled();
+	});
+
+	// Gear lands on a tab the GM usually isn't looking at, so a silent add reads as "nothing
+	// happened" — and, worse, gives no clue when the drop went somewhere the player can't see.
+	describe("tells the GM where the gear went", () => {
+		let savedUi;
+		beforeEach(() => {
+			savedUi = global.ui;
+			global.ui = { notifications: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } };
+		});
+		afterEach(() => { global.ui = savedUi; });
+
+		it("names the character an item was added to", async () => {
+			const actor = makeActor();
+			actor.name = "Ordep";
+			await makeSheet(actor)._onDropItemCreate(makeInventoryItem());
+			expect(global.ui.notifications.info)
+				.toHaveBeenCalledWith('Added "Rope" to Ordep\'s Inventory tab.');
+		});
+
+		it("joins several items into one toast rather than one apiece", async () => {
+			const actor = makeActor();
+			actor.name = "Ordep";
+			const second = { ...makeInventoryItem(), name: "Brass sphere" };
+			await makeSheet(actor)._onDropItemCreate([makeInventoryItem(), second]);
+			expect(global.ui.notifications.info).toHaveBeenCalledTimes(1);
+			expect(global.ui.notifications.info)
+				.toHaveBeenCalledWith('Added "Rope" & "Brass sphere" to Ordep\'s Inventory tab.');
+		});
+
+		it("says nothing when the drop carried no inventory", async () => {
+			await makeSheet(makeActor())._onDropItemCreate(makeNonMove());
+			expect(global.ui.notifications.info).not.toHaveBeenCalled();
+		});
+	});
+
+	// A sheet opened by double-clicking an UNLINKED token is backed by the token's own copy of
+	// the character (its ActorDelta). Everything written there saves fine and reaches nobody:
+	// the player opens their character from the sidebar and finds nothing. This is the whole
+	// reason a GM reports "I gave them a treasure and they can't see it".
+	describe("on an unlinked token's sheet", () => {
+		let savedUi;
+		beforeEach(() => {
+			savedUi = global.ui;
+			global.ui = { notifications: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } };
+		});
+		afterEach(() => { global.ui = savedUi; });
+
+		/** The synthetic actor behind an unlinked token, and the world actor it was stamped from. */
+		function makeTokenActor() {
+			const world = makeActor();
+			world.name = "Ordep";
+			const synthetic = makeActor();
+			synthetic.name = "Ordep";
+			synthetic.isToken = true;
+			synthetic.token = { baseActor: world };
+			return { synthetic, world };
+		}
+
+		it("writes gear to the character, not to the token's private copy", async () => {
+			const { synthetic, world } = makeTokenActor();
+			const item = makeInventoryItem();
+			await makeSheet(synthetic)._onDropItemCreate(item);
+			expect(world.typedActor.addDroppedInventoryItem).toHaveBeenCalledWith(item);
+			expect(synthetic.typedActor.addDroppedInventoryItem).not.toHaveBeenCalled();
+		});
+
+		it("redirects arcana and moves the same way", async () => {
+			const { synthetic, world } = makeTokenActor();
+			await makeSheet(synthetic)._onDropItemCreate([makeArcanum("humble-broom"), makeMove()]);
+			expect(world.typedActor.addArcanum).toHaveBeenCalledWith("humble-broom");
+			expect(world.typedActor.onDropMove).toHaveBeenCalled();
+			expect(synthetic.typedActor.addArcanum).not.toHaveBeenCalled();
+			expect(synthetic.typedActor.onDropMove).not.toHaveBeenCalled();
+		});
+
+		it("says so, so the redirect is never silent", async () => {
+			const { synthetic } = makeTokenActor();
+			await makeSheet(synthetic)._onDropItemCreate(makeInventoryItem());
+			expect(global.ui.notifications.info)
+				.toHaveBeenCalledWith(expect.stringContaining("isn't linked to Ordep"));
+		});
+
+		// A linked token hands back the world actor itself, so isToken is false and there is
+		// nothing to resolve — the common case must not pay for the rare one.
+		it("leaves an ordinary sheet writing to its own character", async () => {
+			const actor = makeActor();
+			const item = makeInventoryItem();
+			await makeSheet(actor)._onDropItemCreate(item);
+			expect(actor.typedActor.addDroppedInventoryItem).toHaveBeenCalledWith(item);
+		});
+
+		// A token whose baseActor has gone (a deleted actor, a torn-down scene) must still take
+		// the drop rather than throwing on the way to resolving a target.
+		it("falls back to its own character when the base actor is gone", async () => {
+			const { synthetic } = makeTokenActor();
+			synthetic.token = { baseActor: null };
+			const item = makeInventoryItem();
+			await makeSheet(synthetic)._onDropItemCreate(item);
+			expect(synthetic.typedActor.addDroppedInventoryItem).toHaveBeenCalledWith(item);
+		});
+	});
+});
+
+// _onDeathsDoorOpen is the ONE way into a character's 0-HP move: the sheet's own button and the
+// dying chat card both come through it (hooks/DeathsDoorPrompt.js). The card outlives the moment
+// it was posted for, so the gate has to live here rather than only on the button the sheet draws.
+describe("StonetopCharacterSheet 0-HP move gate", () => {
+	function makeInsertSheet({ hp, state = null }) {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		sheet._stonetopCharacter = {
+			hp,
+			deathsDoorState: state,
+			zeroHpMove: zeroHpMove("revenant"),   // Undying — its own walkthrough, not Death's Door
+			zeroHpResolution: zeroHpResolution("revenant"),
+		};
+		sheet._onUndeathOpen = vi.fn(async () => {});
+		return sheet;
+	}
+
+	it("opens the insert's walkthrough for a character who is actually down", async () => {
+		const sheet = makeInsertSheet({ hp: 0, state: DEATHS_DOOR_STATE.DYING });
+		await sheet._onDeathsDoorOpen();
+		expect(sheet._onUndeathOpen).toHaveBeenCalled();
+	});
+
+	it("refuses an old dying card once the character is back on their feet", async () => {
+		// Without this, clicking a spent card's button re-rolls Undying and hands out half their
+		// max HP again — for a Revenant standing there at full health.
+		const sheet = makeInsertSheet({ hp: 6 });
+		await sheet._onDeathsDoorOpen();
+		expect(sheet._onUndeathOpen).not.toHaveBeenCalled();
+	});
+
+	it("refuses it again while they're out of the action — the move is spent, not pending", async () => {
+		const sheet = makeInsertSheet({ hp: 0, state: DEATHS_DOOR_STATE.OUT_OF_ACTION });
+		await sheet._onDeathsDoorOpen();
+		expect(sheet._onUndeathOpen).not.toHaveBeenCalled();
+	});
+
+	it("refuses it for one who stepped through the Last Door", async () => {
+		const sheet = makeInsertSheet({ hp: 0, state: DEATHS_DOOR_STATE.DEAD });
+		await sheet._onDeathsDoorOpen();
+		expect(sheet._onUndeathOpen).not.toHaveBeenCalled();
 	});
 });

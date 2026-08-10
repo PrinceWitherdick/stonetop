@@ -11,12 +11,26 @@ export class AppearanceOptionSnapshot {
 	}
 }
 
-/** One line of appearance options (e.g. "tall and broad / lean and wiry / slight"). */
+/**
+ * One line of appearance options (e.g. "tall and broad / lean and wiry / slight").
+ * `saved` is what this line actually holds, which is NOT always one of `options`: the
+ * onboarding wizard and the Details tab both offer a "make your own" fill-in, and a
+ * typed value is stored the same way a suggestion is. Mirrors InstinctSection's
+ * isCustom/customValue pair — without it, a written-in line matches no option, so
+ * every reader that only asked `options.find(o => o.selected)` showed nothing at all.
+ */
 export class AppearanceLineSnapshot {
-	constructor(lineIdx, options) {
+	constructor(lineIdx, options, saved = "") {
 		this.lineIdx = lineIdx;
 		this.options = options;
+		this.saved   = typeof saved === "string" ? saved : "";
 	}
+	get selectedOption() { return this.options.find(o => o.selected) ?? null; }
+	/** The saved value isn't one of the playbook's suggestions — it was written in. */
+	get isCustom()    { return !!this.saved && !this.options.some(o => o.value === this.saved); }
+	get customValue() { return this.isCustom ? this.saved : ""; }
+	/** What this line reads out: the ticked suggestion, or the written-in text. "" when unset. */
+	get value()       { return this.selectedOption?.value ?? this.customValue; }
 }
 
 /** The full appearance section on PlaybookSnapshot. */
@@ -25,9 +39,7 @@ export class AppearanceSection {
 		this.options = options;
 	}
 	get summary() {
-		const selected = this.options
-			.map(line => line.options.find(o => o.selected)?.value)
-			.filter(Boolean);
+		const selected = this.options.map(line => line.value).filter(Boolean);
 		if (selected.length === 0) return "";
 		return capitalizeFirst(selected.join(" · "));
 	}
@@ -208,6 +220,9 @@ export class LoreOptionSnapshot {
 		this.checks      = this.type === "text" ? [] : Array.from({ length: this.max }, (_, i) => i < this.count);
 		this.textValue   = this.type === "text" ? (b._textValue ?? "") : null;
 		this.requires    = b._requires ?? null;
+		// Thrall only: a Mark that Dark Succor crossed off. Not "not taken" — taken away, for
+		// good, so the row is struck through and its box can't be ticked.
+		this.crossedOff  = !!b._crossedOff;
 		// Seeker Minor Arcana: per-question card picker ({ role, options, selectedSlug, selectedName, muted }).
 		this.arcanaPicker = b._arcanaPicker ?? null;
 		// Inline fill-in blank: a pick option whose text has a "___" the player completes
@@ -227,6 +242,12 @@ export class LoreOptionSnapshot {
 		// A text option counts as answered only if it holds a real value — blank or a
 		// "to be written" placeholder is treated as unanswered (hidden in read-only).
 		this.hasAnswer   = this.type === "text" ? _hasRealLoreAnswer(this.textValue) : this.count > 0;
+		// A text option asking for a NAME rather than for prose — the Thrall's master today. The
+		// sheet sets these in the display face it gives a playbook's name, because that is what
+		// the player wrote: a proper noun, and in the master's case the one they now belong to.
+		// Read off the slug rather than a flag in the packs, so an insert or a playbook naming
+		// something doesn't have to carry a presentation decision in its data.
+		this.isName      = this.type === "text" && /(^|-)name$/.test(this.slug ?? "");
 	}
 }
 
@@ -247,6 +268,7 @@ export class LoreOptionSnapshotBuilder {
 	withCount(v)       { this._count       = v; return this; }
 	withTextValue(v)   { this._textValue   = v; return this; }
 	withRequires(v)    { this._requires    = v; return this; }
+	withCrossedOff(v)  { this._crossedOff  = v; return this; }
 	withArcanaPicker(v) { this._arcanaPicker = v; return this; }
 	build()            { return new LoreOptionSnapshot(this); }
 }

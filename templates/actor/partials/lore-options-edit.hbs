@@ -1,5 +1,5 @@
 {{#each options}}
-		<div class="stonetop-lore-option{{#if (eq type 'text')}} stonetop-lore-option--text{{/if}}">
+		<div class="stonetop-lore-option{{#if (eq type 'text')}} stonetop-lore-option--text{{/if}}{{#if crossedOff}} is-crossed-off{{/if}}">
 			{{#if (eq type "text")}}
 			{{#if description}}<label class="stonetop-lore-option-desc">{{{description}}}</label>{{/if}}
 			{{#if arcanaPicker}}
@@ -10,7 +10,7 @@
 				{{/each}}
 			</select>
 			{{/if}}
-			<textarea class="stonetop-lore-option-text"
+			<textarea class="stonetop-lore-option-text{{#if isName}} stonetop-lore-option-text--name{{/if}}"
 			          data-lore-slug="{{../slug}}"
 			          data-option-slug="{{slug}}"
 			          placeholder="To be written."
@@ -22,7 +22,7 @@
 				       data-lore-slug="{{../../slug}}"
 				       data-option-slug="{{../slug}}"
 				       data-idx="{{@index}}"
-				       {{#if this}}checked{{/if}}>
+				       {{#if this}}checked{{/if}} {{#if ../crossedOff}}disabled{{/if}}>
 				{{/each}}
 			</span>
 			<span class="stonetop-lore-option-desc">{{#if hasBlank}}{{{fillBefore}}}<input type="text" class="stonetop-lore-option-text stonetop-lore-fill" data-lore-slug="{{../slug}}" data-option-slug="{{slug}}" value="{{fillValue}}" placeholder="…">{{{fillAfter}}}{{else}}{{{description}}}{{/if}}</span>

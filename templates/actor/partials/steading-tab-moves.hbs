@@ -1,32 +1,56 @@
-<section class="steading-moves-tab">
+{{!-- HOMEFRONT MOVES — its own tab, reached from the rail. It used to be a permanently
+      visible sidebar down the right of every steading tab; the icon rail took that edge, and
+      a page gives the moves room to sit two-up instead of wrapping in a narrow column.
 
-	<ol class="items-list steading-moves-list">
-		{{#each stonetop.moves}}
-		<li class="stonetop-move-item steading-move-row{{#unless rollable}}{{#unless interactive}} move-unowned{{/unless}}{{/unless}}">
+      The Roll Modifier came across with them. It only ever governs these rolls, so it belongs
+      on the same page rather than pinned beside tabs that never roll anything. It is no longer
+      a SECTION of its own, though: a heading and a page-wide underline gave a three-way toggle
+      the visual weight of the page's actual subject, and its stacked radio list was a leftover
+      of the narrow sidebar. It rides in the moves heading now, as the same segmented pill in
+      the same spot the Relationships card's table/board toggle uses.
 
-			{{#if interactive}}
-			<button type="button" class="steading-interactive-btn rollable move-rollable"
-			        data-move-slug="{{slug}}"
-			        title="{{label}}">
-				<i class="fas fa-dice-d6"></i>
-			</button>
-			{{else}}
-			{{#if rollable}}
-			<button type="button" class="steading-roll-btn rollable move-rollable"
-			        data-move-name="{{label}}" data-stat="{{stat}}"
-			        title="Roll 2d6+{{this.statLabel}}">
-				<i class="fas fa-dice-d6"></i>
-			</button>
-			{{/if}}
-			{{/if}}
-			{{#if (and @root.stonetop.showRollStatChips statChipLabel)}}
-			<span class="stonetop-move-roll-chip steading-move-stat-tag">+{{this.statChipLabel}}</span>
-			{{/if}}
-			<span class="stonetop-move-name stonetop-steading-move-open">{{label}}</span>
-			{{#if description}}<div class="stonetop-basic-move-desc" hidden>{{{boldMissText description}}}</div>{{/if}}
+      `.steading-moves-tab` stays on an INNER wrapper rather than on the panel itself. It
+      carries `display: flex`, and an unlayered `display` on a `.tab` beats core's layered
+      `.tab { display: none }` — the panel would then show on every tab at once, the trap
+      documented on `.tab.stonetop-invocations` and the Notes tabs. Off the panel, this tab's
+      show/hide is Foundry's alone, exactly like Overview and Residents.
 
-		</li>
-		{{/each}}
-	</ol>
+      The moves themselves are the character sheet's move CARDS, not the compact one-line rows
+      they were as a sidebar. Same `.stonetop-move-group` > `.items-list` > `.stonetop-item`
+      shape, so they inherit the bordered card, the underlined title row and the masonry
+      columns from `.tab.moves` — this panel is a `.tab.moves` too. The text a card shows was
+      the hover panel's whole job, so that panel is gone from this sheet.
 
-</section>
+      The moves keep their wrapper even though they are now the tab's only section: the fold
+      walk (a heading claims every FOLLOWING SIBLING until the next heading) has no other
+      boundary, so a section added here later would be swallowed by this one's caret. --}}
+<div class="tab moves" data-group="primary" data-tab="moves">
+	<section class="sheet-tab steading-moves-tab">
+
+	<div class="stonetop-move-group">
+		{{!-- The h3 is written out rather than taken from `stonetop.section-heading` for the
+		      same reason the Relationships card writes its own: the partial has no slot for a
+		      control, and the pill has to sit INSIDE the heading — that is what puts it on the
+		      heading's own line, above the underline, instead of in the padding above it.
+
+		      The tab's name lives in a tooltip now that the rail is icon-only, so this heading
+		      is also the only place the page says what it is. --}}
+		<h3 class="stonetop-move-group-title">{{localize "stonetop.steading.tabs.moves"}}
+			{{> "stonetop.roll-mode-picker" rollMode=stonetop.rollMode}}
+			{{> "stonetop.section-collapse" collapse="steadingMoves"}}
+		</h3>
+		<ol class="items-list">
+			{{#each stonetop.moves}}
+			<li class="stonetop-item steading-move-card{{#unless rollable}}{{#unless interactive}} move-unowned{{/unless}}{{/unless}}">
+				<div class="stonetop-item-header">
+					{{> "stonetop.steading-move-controls"}}
+					<strong class="stonetop-item-name stonetop-steading-move-open">{{label}}</strong>
+				</div>
+				{{#if description}}<div class="stonetop-item-description">{{{boldMissText description}}}</div>{{/if}}
+			</li>
+			{{/each}}
+		</ol>
+	</div>
+
+	</section>
+</div>

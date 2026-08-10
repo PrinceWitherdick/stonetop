@@ -1,6 +1,21 @@
 <div class="tab moves{{#if stonetop.hideUnselected}} hide-unselected{{/if}}" data-group="primary" data-tab="moves">
 	<section class="sheet-tab">
 
+		{{!-- MODERN layout only. The stat block heads this page: stats, debilities, and the
+		      damage / HP / armor / XP / level row. It is here rather than above the tabs so the
+		      other pages don't pay for it, and here rather than on a page of its own because
+		      this is the page a player rolls from — the stats and the moves that spend them
+		      belong together. The CLASSIC layout mounts the same partial above the tabs
+		      instead (character.hbs).
+
+		      The guard is MANDATORY, not cosmetic. Without it the classic layout renders two
+		      full stat blocks, and every field in there is a named input — two
+		      `system.attributes.debilities.options.weakened.value`, two of every vital.
+		      FormDataExtended collapses duplicate names into an array, so the next submit
+		      writes garbage to all three debilities and to level/armor/xp. It looks like a
+		      harmless visual duplicate right up until someone saves. --}}
+		{{#unless stonetop.classicLayout}}{{> "stonetop.stat-block"}}{{/unless}}
+
 		{{!-- Love letters (Book I p.568): single-use, GM-authored moves addressed to this
 		      PC. The section exists only while at least one letter is on the sheet — the
 		      last one vanishes with its section when the player resolves it. Players read
@@ -167,22 +182,20 @@
 					      stay visible with the filter on, un-learned ones drop out. --}}
 					<li class="item stonetop-item{{#if learned}} is-checked{{else}} move-unlearned{{/if}}" data-item-id="{{ownedId}}">
 						<div class="stonetop-item-header">
-							{{!-- Custom moves carry a "learned" checkbox (checked by default). Un-checking
-							      it in edit mode keeps the move on the sheet but inactive — not rollable,
-							      and its HP/armor/load bonuses stop applying. Foreign playbook moves that
-							      also land in "other" are always learned, so they show no toggle. --}}
-							{{#if custom}}
-							<input type="checkbox" class="stonetop-item-check stonetop-custom-move-learned"
+							{{!-- The origin badge goes FIRST so its right float can claim the corner on
+							      line 1 — same DOM-order requirement as the playbook rows' "Starting
+							      move" badge; see the .stonetop-item-source float rules. Only set when
+							      the move came from a playbook that isn't this character's. --}}
+							{{#if sourceLabel}}<span class="stonetop-item-source">{{sourceLabel}}</span>{{/if}}
+							{{!-- Every row here carries a "learned" checkbox (checked by default).
+							      Un-checking it in edit mode keeps the move on the sheet but inactive —
+							      not rollable, and its bonuses stop applying. Custom moves additionally
+							      answer to the authoring gate, exactly as the delete affordance does. --}}
+							<input type="checkbox" class="stonetop-item-check stonetop-other-move-learned"
 							       data-item-id="{{ownedId}}"
-							       title="{{localize 'stonetop.character.moves.custom.learnedTitle'}}"
+							       title="{{localize 'stonetop.character.moves.learnedTitle'}}"
 							       {{#if learned}}checked{{/if}}
-							       {{#unless @root.stonetop.movesEdit}}disabled{{/unless}}>
-							{{else}}
-							{{!-- No toggle to show, so hold the checkbox's width: otherwise a foreign
-							      playbook move's title starts where every custom move's checkbox is,
-							      and the section reads as two ragged columns. --}}
-							<span class="stonetop-item-check-spacer" aria-hidden="true"></span>
-							{{/if}}
+							       {{#unless (and @root.stonetop.movesEdit (or (not custom) @root.stonetop.canAuthorCustomMoves))}}disabled{{/unless}}>
 							{{#if (and rollType learned)}}
 							<span class="rollable move-rollable" data-roll="{{rollType}}" data-mod="">
 								<i class="fas fa-dice-d6"></i>

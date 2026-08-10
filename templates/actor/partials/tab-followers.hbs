@@ -14,6 +14,51 @@
 	{{#if exceptionalAvailable}}{{#if edit.stats}}<button type="button" class="stonetop-follower-tag stonetop-follower-tag--exceptional stonetop-exceptional-toggle{{#if exceptional}} is-selected{{/if}}{{#unless exceptionalMet}} is-locked{{/unless}}" data-ftype="{{ftype}}" data-slug="{{slug}}" data-met="{{exceptionalMet}}" data-hint="{{exceptionalHint}}"{{#unless exceptionalMet}} data-tooltip="{{exceptionalHint}}" data-tooltip-direction="UP"{{/unless}}>exceptional{{#unless exceptionalMet}} <i class="fas fa-lock"></i>{{/unless}}</button>{{else}}{{#if exceptional}}<span class="stonetop-follower-tag stonetop-follower-tag--exceptional">exceptional</span>{{/if}}{{/if}}{{/if}}
 	{{/inline}}
 
+	{{!-- One roster row's face: the crew's named individuals and anonymous members, and the
+	      members of a custom group follower. The same picture the follower CARD's portrait
+	      shows, one size down and circular — the small avatars in this system
+	      (.steading-member-avatar, .stonetop-rel-portrait) are name-row bullets rather than
+	      cards, and this is a dense list of them.
+
+	      Nothing is required and nothing had to be migrated: a member with no face of their own
+	      shows the empty-figure placeholder the steading's rosters draw, which is DRAWN and never
+	      stored, so "has this person a portrait?" keeps answering honestly.
+
+	      `roster` names which store a pick goes to (crew-individual / crew-member /
+	      custom-member — the same three names the HP writer uses for these rows), and `slug` is
+	      the custom follower's id where there is one. Behaviour attributes stay on the WRAPPER,
+	      which is what the handler resolves with closest, and the inner image is explicitly
+	      undraggable so a press on the face is a click rather than the start of an image drag. --}}
+	{{#*inline "stonetopRosterAvatar"}}
+	<span class="stonetop-roster-avatar stonetop-portrait-box{{#if hasPortrait}} stonetop-roster-avatar--photo{{/if}}{{#if avatarInteractive}} stonetop-roster-avatar--editable{{/if}}"
+	      data-roster="{{roster}}" data-slug="{{slug}}" data-index="{{index}}"
+	      data-portrait-mode="{{avatarMode}}"
+	      {{#if avatarInteractive}}role="button" tabindex="0"
+	      data-tooltip="{{avatarLabel}}"
+	      data-tooltip-direction="UP"
+	      aria-label="{{avatarLabel}}"{{/if}}><img class="stonetop-roster-avatar-img" src="{{avatarImg}}" alt="" draggable="false" data-name="{{avatarName}}"{{#if avatarStyle}} style="{{avatarStyle}}"{{/if}}></span>
+	{{/inline}}
+
+	{{!-- Every button that opens the Order dialog. Six of these are rendered across this file —
+	      the card's own "Order", the crew individual's inline one, and Clash / Let Fly for the
+	      crew and for a custom group — and all six carry the SAME six data-attributes, which the
+	      handler reads to build the roll. Written once so an attribute added to the dialog's
+	      contract lands on all of them at once rather than on five of six.
+
+	      `ftype` / `slug` / `moveKey` / `icon` / `caption` / `extraClass` are the only things that
+	      vary; everything else is read from the surrounding card context. Omit `moveKey` for the
+	      plain Order button — the dialog opens on no particular move. --}}
+	{{#*inline "stonetopOrderButton"}}
+	<button type="button" class="stonetop-follower-order{{#if extraClass}} {{extraClass}}{{/if}}"
+	        data-ftype="{{ftype}}" data-slug="{{slug}}"
+	        data-follower-name="{{orderName}}"
+	        data-exceptional="{{#if exceptional}}true{{else}}false{{/if}}"
+	        data-tags="{{orderTagsCsv}}"
+	        data-moves="{{orderMovesCsv}}"{{#if moveKey}} data-move-key="{{moveKey}}"{{/if}}>
+		<i class="fas {{icon}}"></i> {{caption}}
+	</button>
+	{{/inline}}
+
 	{{!-- ═══ Shared follower-card body (rulebook "Follower" card layout) ═══════
 	      Rendered for every follower type. Type-specific extras (crew inventory,
 	      individuals, group fight) are appended by the caller inside the same
@@ -37,11 +82,13 @@
 			      one that is captioned are the same element.
 
 			      A tap does one of two things, and portraitInteractive is true for either:
-			      with the card's pencil open it opens the gallery to CHANGE the portrait,
-			      and otherwise it ENLARGES the one that is there. A viewer who can do
-			      neither (no portrait, no pencil) gets no tab stop and no pointer cursor,
-			      rather than one promising something that will not happen. The glyph stays
-			      clickable while editing, since picking a first portrait is the point. --}}
+			      it opens the gallery to CHANGE the portrait (with the card's pencil open,
+			      or where there is no face yet to enlarge), and otherwise it ENLARGES the
+			      one that is there — and that window carries the same "Edit Photo" and
+			      "Frame Face" the sheet's own portrait window does, so a face can be
+			      changed without first opening the pencil. A viewer who can do neither (no
+			      portrait, and no permission to choose one) gets no tab stop and no pointer
+			      cursor, rather than one promising something that will not happen. --}}
 			<div class="stonetop-follower-portrait stonetop-portrait-box{{#if img}} stonetop-follower-portrait--photo{{/if}}{{#if portraitInteractive}} stonetop-follower-portrait--editable{{/if}}"
 			     data-ftype="{{ftype}}" data-slug="{{slug}}"
 			     data-portrait-mode="{{#if portraitEditable}}pick{{else}}view{{/if}}"
@@ -60,13 +107,30 @@
 				{{else}}
 				<i class="{{portraitIcon}}" aria-hidden="true"></i>
 				{{/if}}
-				{{#if portraitEditable}}{{#if img}}
-				{{!-- tabindex="-1": the portrait itself already owns the tab stop and Enter/Space,
+				{{!-- The same pair of pips a sheet header carries, in the same order and the same
+				      corner, shown in BOTH modes exactly as the header's are: neither is an
+				      edit-mode act. Framing is a reading choice about a picture that already
+				      exists, and Tokenizer makes a map token, not a sheet. Each has its own gate
+				      (see the sheet's withSectionEdits) rather than the card's pencil.
+
+				      Tokenizer sits to the LEFT of the crop pip and is emitted first so tabbing
+				      runs left to right; the visual order comes from `right` in the CSS, since
+				      both are absolutely positioned. It appears only for a follower who already
+				      exists as an Actor — dropped on a scene, or the NPC they were recruited
+				      from — because that Actor is the thing a token is made for.
+
+				      tabindex="-1": the portrait itself already owns the tab stop and Enter/Space,
 				      and a second stop inside a 75px circle is noise. The keyboard route to
-				      framing is the portrait, then "Adjust frame…" in the gallery. --}}
-				<button type="button" class="stonetop-follower-portrait-frame" tabindex="-1"
+				      framing is the portrait, then "Frame Face" in the window it opens. --}}
+				{{#if portraitTokenizable}}
+				<button type="button" class="stonetop-follower-portrait-pip stonetop-follower-portrait-tokenize" tabindex="-1"
+				        data-tooltip="{{localize 'stonetop.portraitFrame.tokenizerPip'}}"
+				        aria-label="{{localize 'stonetop.portraitFrame.tokenizerPip'}}"><i class="fas fa-circle-user"></i></button>
+				{{/if}}
+				{{#if portraitFrameable}}
+				<button type="button" class="stonetop-follower-portrait-pip stonetop-follower-portrait-frame" tabindex="-1"
 				        data-tooltip="{{portraitFrameLabel}}" aria-label="{{portraitFrameLabel}}"><i class="fas fa-crop-simple"></i></button>
-				{{/if}}{{/if}}
+				{{/if}}
 			</div>
 			<div class="stonetop-follower-title">
 				<div class="stonetop-follower-name-row">
@@ -411,13 +475,7 @@
 		      livestock — which can't be ordered — doesn't show it. --}}
 		{{#if canOrder}}{{#unless edit.stats}}
 		<div class="stonetop-follower-order-row">
-			<button type="button" class="stonetop-follower-order"
-			        data-ftype="{{ftype}}" data-slug="{{slug}}"
-			        data-follower-name="{{orderName}}"
-			        data-exceptional="{{#if exceptional}}true{{else}}false{{/if}}"
-			        data-tags="{{orderTagsCsv}}">
-				<i class="fas fa-hand-point-right"></i> Order
-			</button>
+			{{> stonetopOrderButton icon="fa-hand-point-right" caption="Order"}}
 			{{#if canHaveNeed}}
 			<button type="button" class="stonetop-follower-have-need stonetop-inline-btn"
 			        data-ftype="{{ftype}}" data-slug="{{slug}}" data-follower-name="{{orderName}}"
@@ -524,6 +582,7 @@
 				{{#each individuals}}
 				<div class="stonetop-crew-individual">
 					<div class="stonetop-crew-individual-header">
+						{{> stonetopRosterAvatar roster="crew-individual" slug=""}}
 						<span class="stonetop-crew-individual-name">{{name}}</span>
 						<span class="stonetop-follower-hp-track stonetop-follower-hp-track--individual">
 							<strong class="stonetop-follower-hp-label">HP</strong>
@@ -569,7 +628,7 @@
 					{{!-- Direct this member on their own (p.471): their unique tag + traits
 					      apply on top of the crew's shared tags. Opens the Order dialog. --}}
 					<div class="stonetop-crew-individual-order">
-						<button type="button" class="stonetop-follower-order stonetop-inline-btn" data-ftype="crew" data-slug="" data-follower-name="{{orderName}}" data-exceptional="{{#if exceptional}}true{{else}}false{{/if}}" data-tags="{{orderTagsCsv}}"><i class="fas fa-hand-point-right"></i> Order {{name}}</button>
+						{{> stonetopOrderButton ftype="crew" slug="" extraClass="stonetop-inline-btn" icon="fa-hand-point-right" caption=(concat "Order " name)}}
 					</div>
 					{{/if}}
 				</div>
@@ -582,6 +641,7 @@
 			<div class="stonetop-crew-members">
 				{{#each anonMembers}}
 				<div class="stonetop-crew-member-row">
+					{{> stonetopRosterAvatar roster="crew-member" slug=""}}
 					<span class="stonetop-crew-member-name">{{label}}</span>
 					<span class="stonetop-follower-hp-track stonetop-follower-hp-track--individual">
 						<strong class="stonetop-follower-hp-label">HP</strong>
@@ -591,10 +651,16 @@
 						<span class="stonetop-hp-sep">/</span>
 						<span class="stonetop-hp-max">{{hpMax}}</span>
 					</span>
+					{{!-- Wrapped so it drops to a second line as a UNIT when the row runs out of
+					      width, rather than each button wrapping on its own. Left-aligned when it
+					      does, under the member's name rather than out under the HP box, so the
+					      eye runs down one column of buttons; see the CSS. --}}
 					{{#if ../edit.individuals}}
-					<button type="button" class="stonetop-crew-name-member stonetop-inline-btn" data-index="{{index}}" title="Name this member">
-						<i class="fas fa-user-pen"></i> Name them
-					</button>
+					<span class="stonetop-crew-member-actions">
+						<button type="button" class="stonetop-crew-name-member stonetop-inline-btn" data-index="{{index}}" data-tooltip="Name this member" data-tooltip-direction="UP">
+							<i class="fas fa-user-pen"></i> Name them
+						</button>
+					</span>
 					{{/if}}
 				</div>
 				{{/each}}
@@ -643,15 +709,15 @@
 				<input class="stonetop-outnumber-theirs" type="number" min="1" value="1">
 				<span class="stonetop-outnumber-result"></span>
 			</div>
-			{{!-- Order Followers roll (p.462): a group rolls its own bonus (+{{rollMod}}),
-			      NOT the PC's +STAT. data-roll-mod carries the crew's modifier. --}}
+			{{!-- Order Followers roll (p.462): the crew rolls its OWN bonus, not the PC's
+			      +STAT. Opens the Order dialog with the crew's shared tags and moves, the
+			      same as a named member's button and the custom groups below — the
+			      "+{{rollMod}}" the stats row shows is just that dialog's answer when a
+			      tag applies, and going through it is what lets a shared tag in the way
+			      impose disadvantage. --}}
 			<div class="stonetop-group-fight-roll-row">
-				<button type="button" class="stonetop-group-fight-roll" data-move-label="Clash" data-roll-mod="{{rollMod}}">
-					<i class="fas fa-dice-d6"></i> Clash
-				</button>
-				<button type="button" class="stonetop-group-fight-roll" data-move-label="Let Fly" data-roll-mod="{{rollMod}}">
-					<i class="fas fa-dice-d6"></i> Let Fly
-				</button>
+				{{> stonetopOrderButton ftype="crew" slug="" moveKey="clash"   icon="fa-dice-d6" caption="Clash"}}
+				{{> stonetopOrderButton ftype="crew" slug="" moveKey="let-fly" icon="fa-dice-d6" caption="Let Fly"}}
 			</div>
 		</details>
 	</div>
@@ -701,6 +767,7 @@
 			<div class="stonetop-crew-members">
 				{{#each groupMembers}}
 				<div class="stonetop-crew-member-row">
+					{{> stonetopRosterAvatar roster="custom-member" slug=../slug}}
 					<span class="stonetop-crew-member-name">{{label}}</span>
 					<span class="stonetop-follower-hp-track stonetop-follower-hp-track--individual">
 						<strong class="stonetop-follower-hp-label">HP</strong>
@@ -757,12 +824,8 @@
 			      group's tags (p.471); the outnumber bonus above rewrites the group
 			      damage roll. --}}
 			<div class="stonetop-group-fight-roll-row">
-				<button type="button" class="stonetop-follower-order" data-ftype="custom" data-slug="{{slug}}" data-follower-name="{{orderName}}" data-exceptional="{{#if exceptional}}true{{else}}false{{/if}}" data-tags="{{orderTagsCsv}}" data-move-key="clash">
-					<i class="fas fa-dice-d6"></i> Clash
-				</button>
-				<button type="button" class="stonetop-follower-order" data-ftype="custom" data-slug="{{slug}}" data-follower-name="{{orderName}}" data-exceptional="{{#if exceptional}}true{{else}}false{{/if}}" data-tags="{{orderTagsCsv}}" data-move-key="let-fly">
-					<i class="fas fa-dice-d6"></i> Let Fly
-				</button>
+				{{> stonetopOrderButton ftype="custom" moveKey="clash"   icon="fa-dice-d6" caption="Clash"}}
+				{{> stonetopOrderButton ftype="custom" moveKey="let-fly" icon="fa-dice-d6" caption="Let Fly"}}
 			</div>
 		</details>
 		{{/if}}

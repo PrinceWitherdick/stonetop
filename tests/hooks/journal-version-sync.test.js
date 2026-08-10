@@ -201,7 +201,7 @@ describe("updateSeededJournalsOnVersionChange", () => {
 	// A world seeded under an older system id stamps its sources with that id. The pack is
 	// matched on the package-id-free tail so those entries still find their source.
 	it("matches an entry seeded under an older system id", async () => {
-		const entry = seeded("a", { source: "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.a" });
+		const entry = seeded("a", { source: "Compendium.stonetop.stonetop-journal.JournalEntry.a" });
 		harness({ journals: [entry], packDocs: [shipped("a")] });
 
 		await updateSeededJournalsOnVersionChange();

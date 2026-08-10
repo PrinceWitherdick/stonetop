@@ -7,8 +7,10 @@ export class FakePostDeathInsertRepository {
 
 	async getAll() {
 		return this._inserts.map(d => ({
-			slug: d.system?.slug ?? d.slug ?? "",
-			name: d.name ?? "",
+			slug:        d.system?.slug ?? d.slug ?? "",
+			name:        d.name ?? "",
+			img:         d.img ?? null,
+			description: d.system?.description ?? null,
 		}));
 	}
 

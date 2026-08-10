@@ -21,9 +21,9 @@
 //    stays a player action.
 
 import {STONETOP_SCOPE} from "../actors/character/StonetopFlags.js";
-import {weaponMeta, isClashWeapon, isLetFlyWeapon} from "../data/weapons.js";
+import {weaponMeta, isClashWeapon, isLetFlyWeapon, weaponTraitText, weaponArmorBits, grantedWeaponForMove, MOVE_GRANTED_WEAPONS, UNARMED_META} from "../data/weapons.js";
 import {escHtml} from "../utils/strings.js";
-import {stonetopChatCard, rollFormulaChip, damageBadge} from "../utils/chat.js";
+import {stonetopChatCard, rollFormulaChip, damageMark, damageBadge} from "../utils/chat.js";
 import {rollDamage, multiDieFaces, sign} from "../utils/roll-engine.js";
 import {mitigateDamage, resolvePiercing, applyDamageToActor, dieFromDamage} from "../utils/damage.js";
 import {bringDialogToFront} from "../utils/front-on-open.js";
@@ -76,7 +76,11 @@ async function advanceWeaponAmmo(actor, slug) {
 
 // -- Weapon enumeration -------------------------------------------------------
 
-// The carried weapons (checked inventory slugs present in WEAPON_META) that fit `move`.
+// The carried weapons (checked inventory slugs present in WEAPON_META) that fit `move`,
+// plus any weapon an owned move grants (the Lightbearer's holy light). A granted weapon
+// isn't inventory, so it's appended rather than read off the checked flags; it's offered
+// whenever its move is owned, since whether the fiction supports it — wielding a holy
+// light against a creature of darkness — is the table's call, not ours.
 function carriedAttackWeapons(actor, move) {
 	const checked = actor.getFlag(SCOPE, "inventory.checked") ?? {};
 	const out = [];
@@ -85,7 +89,32 @@ function carriedAttackWeapons(actor, move) {
 		const meta = weaponMeta(slug);
 		if (meta && move.filter(meta)) out.push({ slug, meta, ammoLabel: meta.ammo ? weaponAmmoLabel(actor, slug) : null });
 	}
-	return out;
+	for (const moveName of Object.keys(MOVE_GRANTED_WEAPONS)) {
+		// Through the accessor, so the weapon carries the stat the move actually grants for
+		// the roll rather than a second recording of it.
+		const granted = grantedWeaponForMove(moveName);
+		if (!move.filter(granted.meta)) continue;
+		if (!actor.items.some(i => i.type === "move" && i.name === moveName)) continue;
+		out.push({ slug: granted.slug, meta: granted.meta, ammoLabel: null, grantedBy: moveName, whenStat: granted.whenStat });
+	}
+	return withUnarmedChoice(out);
+}
+
+/**
+ * OFFER a move-granted weapon; never impose it. A granted weapon is owned rather than picked
+ * up, so when it's the only thing that fits the move the single-candidate shortcut in
+ * promptWeaponChoice would put a holy light in the hands of a Lightbearer who owns Purifying
+ * Flames, has no melee weapon ticked, and meant to Clash with +STR — the d10 + 2 piercing +
+ * area arriving with no prompt and no way back. The unarmed row goes in FIRST so it is what a
+ * stat that doesn't imply the granted weapon defaults to; +WIS still pre-selects the light
+ * through `preferSlug`. Carried weapons are left alone: one ticked weapon IS the player's
+ * answer, and a prompt for it would only be in the way.
+ *
+ * Exported for the tests; the flow only reaches it through carriedAttackWeapons.
+ */
+export function withUnarmedChoice(candidates) {
+	if (!candidates.length || !candidates.every(c => c.grantedBy)) return candidates;
+	return [{ slug: "", meta: UNARMED_META, ammoLabel: null, unarmed: true }, ...candidates];
 }
 
 // The flattened, storable weapon record baked into the chat card (no functions).
@@ -97,30 +126,24 @@ function serializeWeapon({ slug, meta }) {
 	};
 }
 
-// A short readout of a weapon's mechanically-relevant traits for the picker.
-function weaponTraitText(meta) {
-	const bits = [meta.range.join(", ")];
-	if (meta.damageBonus) bits.push(`${sign(meta.damageBonus)} damage`);
-	if (meta.piercing === "prosperity") bits.push("x piercing");
-	else if (meta.piercing) bits.push(`${meta.piercing} piercing`);
-	if (meta.ignoresArmor) bits.push("ignores armor");
-	if (meta.area) bits.push("area");
-	if (meta.damageDie) bits.push(`${meta.damageDie} damage`);
-	if (meta.tags?.length) bits.push(meta.tags.join(", "));
-	return bits.filter(Boolean).join(" · ");
-}
-
 // -- Prompts ------------------------------------------------------------------
 
 // Ask which weapon is in hand. Returns { weapon } (possibly null — unarmed / no matching
-// weapon) or "cancel". Auto-resolves without a dialog for 0 or 1 candidate.
-function promptWeaponChoice(candidates, moveName) {
+// weapon) or "cancel". Auto-resolves without a dialog for 0 or 1 candidate. `preferSlug`
+// pre-checks a candidate instead of the first — the stat the player rolled can imply the
+// weapon (+WIS on Clash means the Lightbearer's holy light). The unarmed row (see
+// withUnarmedChoice) is a choice, not a weapon: picking it resolves to null, the same as
+// having nothing that fits the move.
+function promptWeaponChoice(candidates, moveName, { preferSlug = null } = {}) {
+	const chosen = (c) => ({ weapon: c?.unarmed ? null : (c ?? null) });
 	if (candidates.length === 0) return Promise.resolve({ weapon: null });
-	if (candidates.length === 1) return Promise.resolve({ weapon: candidates[0] });
+	if (candidates.length === 1) return Promise.resolve(chosen(candidates[0]));
 
+	const preferred = candidates.findIndex(c => c.slug === preferSlug);
+	const checkedIndex = preferred >= 0 ? preferred : 0;
 	const rows = candidates.map((c, i) => `<label class="stonetop-weapon-option">
-		<input type="radio" name="weapon" value="${escHtml(c.slug)}"${i === 0 ? " checked" : ""}>
-		<span class="stonetop-weapon-name">${escHtml(c.meta.name)}</span>
+		<input type="radio" name="weapon" value="${escHtml(c.slug)}"${i === checkedIndex ? " checked" : ""}>
+		<span class="stonetop-weapon-name">${escHtml(c.meta.name)}${c.grantedBy ? ` <em>(${escHtml(c.grantedBy)})</em>` : ""}</span>
 		<span class="stonetop-weapon-traits">${escHtml(weaponTraitText(c.meta))}${c.ammoLabel ? ` · <em>${escHtml(c.ammoLabel.toLowerCase())}</em>` : ""}</span>
 	</label>`).join("");
 
@@ -135,7 +158,7 @@ function promptWeaponChoice(candidates, moveName) {
 						const root = htmlEl?.[0] ?? htmlEl;
 						const slug = root.querySelector('input[name="weapon"]:checked')?.value;
 						const weapon = candidates.find(c => c.slug === slug) ?? candidates[0];
-						resolve({ weapon });
+						resolve(chosen(weapon));
 					},
 				},
 				cancel: { label: "Cancel", callback: () => resolve("cancel") },
@@ -258,7 +281,7 @@ function buildTierActions(move, weapon) {
  *   - "cancel"   → the player cancelled a prompt; abort
  *   - { … }      → merge into the roll options
  */
-export async function maybeBeginAttack(actor, item) {
+export async function maybeBeginAttack(actor, item, { stat = null } = {}) {
 	const move = attackMoveFor(item);
 	if (!move) return null;
 
@@ -269,7 +292,11 @@ export async function maybeBeginAttack(actor, item) {
 		easyShot = mode === "easy";
 	}
 
-	const picked = await promptWeaponChoice(carriedAttackWeapons(actor, move), item.name);
+	// Rolling the stat a granted weapon rides on (+WIS to Clash → Purifying Flames)
+	// pre-selects that weapon, so the d10 the move promises is what's in hand by default.
+	const candidates = carriedAttackWeapons(actor, move);
+	const preferSlug = candidates.find(c => c.whenStat && c.whenStat === stat)?.slug ?? null;
+	const picked = await promptWeaponChoice(candidates, item.name, { preferSlug });
 	if (picked === "cancel") return "cancel";
 	const weapon = picked.weapon ? serializeWeapon(picked.weapon) : null;
 
@@ -291,10 +318,24 @@ export async function maybeBeginAttack(actor, item) {
 
 // -- Damage rolling + the results card ----------------------------------------
 
+// The PC's damage die, as the sheet shows it: a die typed into the Damage field wins,
+// then the playbook's die raised by any marked move (Potential for Greatness' "increase
+// your damage die to a d8"). `system.attributes.damage.value` only records what was
+// written when the playbook was dropped or the field edited, so a mark-raised die would
+// otherwise keep rolling at its old size. Asked of the actor's OWN StonetopCharacter
+// (cached on the document, with its compendium repositories already warm) rather than a
+// throwaway one, so a damage roll doesn't re-index the items pack.
+async function pcDamageDie(actor) {
+	const stored = String(actor?.system?.attributes?.damage?.value ?? "").trim();
+	if (actor?.type !== "character") return stored;
+	const snapshot = await actor.typedActor?.buildSnapshot?.();
+	return snapshot?.vitals?.damage || stored;
+}
+
 // The damage formula for one attack: the PC die (or the weapon's own die), plus the
 // weapon's +N damage, plus any extra dice (Clash 10+ strike-hard's +1d6).
-function damageFormula(actor, weapon, extraDice) {
-	const die   = weapon?.damageDie || actor.system?.attributes?.damage?.value || "d6";
+async function damageFormula(actor, weapon, extraDice) {
+	const die   = weapon?.damageDie || await pcDamageDie(actor) || "d6";
 	const bonus = weapon?.damageBonus ? sign(weapon.damageBonus) : "";
 	const extra = extraDice ? `+${extraDice}` : "";
 	return `${die}${bonus}${extra}`;
@@ -351,7 +392,7 @@ function postTagReminders(actor, weapon) {
 // targets, fall back to a single plain damage roll (no Apply button). Tagged weapons
 // (messy / forceful) add follow-up reminder cards either way.
 async function rollAndPostDamage(actor, { move, weapon, targets, extraDice = "", counter = false }) {
-	const formula   = damageFormula(actor, weapon, extraDice);
+	const formula   = await damageFormula(actor, weapon, extraDice);
 	const applyable = (targets ?? []).filter(t => t.hasActor !== false && t.uuid);
 
 	if (applyable.length === 0) {
@@ -380,17 +421,39 @@ async function rollAndPostDamage(actor, { move, weapon, targets, extraDice = "",
 	await postTagReminders(actor, weapon);
 }
 
+// The fine print a bare number can't carry: which weapon rolled it, and whether armor
+// will bite when the GM applies it. Sits under the target name in each damage block. The
+// armor bits come from module/data/weapons.js, so the picker and the card can't drift.
+function damageRowDetail(weapon) {
+	if (!weapon) return "";
+	return [escHtml(weapon.name), ...weaponArmorBits(weapon)].join(" · ");
+}
+
 function postDamageResultsCard(actor, { move, weapon, results, counter }) {
 	const multiWarn = results.length > 1 && !weapon?.area
 		? `<p class="stonetop-attack-warn"><i class="fas fa-triangle-exclamation"></i> ${escHtml(move)} is a single-foe move — applying to multiple targets is a GM abstraction.</p>`
 		: "";
 
-	const rows = results.map(r => `<li class="stonetop-damage-row"${r.uuid ? ` data-uuid="${escHtml(r.uuid)}"` : ""}>
-		${r.uuid
-			? `<span class="stonetop-damage-target${isFriendly(r.disposition) ? " is-friendly" : ""}">${escHtml(r.name)}${isFriendly(r.disposition) ? " <em>(friendly)</em>" : ""}</span>`
-			: `<span class="stonetop-damage-target">Damage dealt</span>`}
-		<span class="stonetop-damage-amount">${r.raw}</span>
-	</li>`).join("");
+	// Each target gets the shared roll-result block (big total + label + fine print) rather
+	// than a one-line "name .......... 7" row, so the damage number reads at the same size
+	// as a move roll's total — it's the one thing the table actually needs to see. The red
+	// burst and red total say "damage" without re-reading the title. Each total carries its
+	// own die-faces tooltip: the targets are rolled independently, so the shared formula
+	// chip above can only speak for one of them.
+	const detail = damageRowDetail(weapon);
+	const rows = results.map(r => {
+		const friendly = Boolean(r.uuid) && isFriendly(r.disposition);
+		const label = r.uuid
+			? `${escHtml(r.name)}${friendly ? " <em>(friendly)</em>" : ""}`
+			: "Damage dealt";
+		return `<li class="stonetop-damage-row stonetop-roll-result stonetop-roll-result--damage"${r.uuid ? ` data-uuid="${escHtml(r.uuid)}"` : ""}>
+			${damageMark(r.raw, r.faces)}
+			<div class="stonetop-roll-result-body">
+				<span class="stonetop-roll-result-label stonetop-damage-target${friendly ? " is-friendly" : ""}">${label}</span>
+				<span class="stonetop-roll-result-details">${detail}</span>
+			</div>
+		</li>`;
+	}).join("");
 
 	// Each target is rolled independently, so a single shared die-faces tooltip is only
 	// meaningful when there's exactly one result; with several it would show the first

@@ -97,12 +97,13 @@ describe("the clipping boxes a chosen frame paints inside", () => {
 		}
 	});
 
-	// Both pips — the follower card's and the sheet headers' — share one declaration block, so
-	// each is asserted through its own selector: the day they are split apart, whichever one loses
-	// the pinning has to fail here rather than quietly render as an ellipse. The header pips are
-	// asserted through .stonetop-header-pip, the one class both of them are styled through.
+	// Every pip — the follower card's two and the sheet headers' two — shares one declaration
+	// block, so each SURFACE is asserted through its own selector: the day they are split apart,
+	// whichever one loses the pinning has to fail here rather than quietly render as an ellipse.
+	// Each surface has one class all its pips are styled through (their own classes exist for the
+	// JS to bind to), which is the class asserted here.
 	it.each([
-		[".stonetop-follower-portrait-frame"],
+		[".stonetop-follower-portrait-pip"],
 		[".stonetop-header-pip"],
 	])("pins %s against core's button rule", (sel) => {
 		// Core styles a bare `button` with `height: var(--button-size)` AND
@@ -114,6 +115,26 @@ describe("the clipping boxes a chosen frame paints inside", () => {
 		expect(b, "the crop pip rule is gone").toBeTruthy();
 		expect(b).toMatch(/min-height:\s*0/);
 		expect(b).toMatch(/padding:\s*0/);
+	});
+
+	// Both pips on a surface are absolutely positioned into the same bottom-right corner by the
+	// shared block, so ONLY a `right` of its own keeps the Tokenizer pip from sitting exactly on
+	// top of the crop pip. Two single-class selectors tie on specificity, so it must also come
+	// LATER in the file than the shared block that gives every pip `right: -1px` / `right: 6px`.
+	it.each([
+		[".stonetop-follower-portrait-tokenize", ".stonetop-follower-portrait-pip"],
+		[".stonetop-portrait-tokenize-pip", ".stonetop-header-pip"],
+	])("moves %s out from under the crop pip", (tokenize, shared) => {
+		const own = block(tokenize);
+		expect(own, `${tokenize} has no rule of its own, so it stacks on the crop pip`).toBeTruthy();
+		expect(own).toMatch(/right:\s*\d/);
+		// The last rule that positions the shared class — whichever it is, and there are several
+		// rules on each of these classes — has to come BEFORE the override, or the tie is lost.
+		const positioning = [...CSS.matchAll(/([^{}]*)\{([^}]*)\}/g)]
+			.filter((m) => m[1].includes(shared) && /right:/.test(m[2]));
+		expect(positioning.length, `nothing positions ${shared}`).toBeGreaterThan(0);
+		const lastShared = positioning[positioning.length - 1].index;
+		expect(CSS.indexOf(`${tokenize} {`)).toBeGreaterThan(lastShared);
 	});
 
 	it("gives the sheet headers' pip a positioned, unclipped box to sit in", () => {
@@ -267,14 +288,18 @@ describe("selectors that would break silently", () => {
 		const m = sharedCropRule();
 		expect(m, "the shared cover/center-top rule is gone").toBeTruthy();
 		const selectors = m[1].split(",").map((s) => s.trim()).filter(Boolean);
-		expect(selectors).toHaveLength(7);
+		expect(selectors).toHaveLength(8);
 		for (const sel of [".steading-member-avatar-img", ".steading-player-portrait-img",
 			".stonetop-follower-portrait-img", ".stonetop-npc-portrait-img",
 			// The character and monster headers' framed portrait. It joined this rule when those
 			// two headers started painting the crop; without it core's black img border draws
 			// inside the clipping box, which is the whole reason this list exists.
 			".stonetop-portrait-img",
-			".stonetop-rel-portrait-img"]) {
+			".stonetop-rel-portrait-img",
+			// A group follower's roster row (the crew's individuals and members, a custom group's
+			// members). Same 26px clipping disc as the relationship portrait, so it needs the same
+			// two fixes: core's black img border, and no radius on a framed image.
+			".stonetop-roster-avatar-img"]) {
 			expect(selectors, `${sel} missing from the shared crop rule`).toContain(sel);
 		}
 		// The gallery tile is NOT a frame site (a tile shows source art, not a person's
