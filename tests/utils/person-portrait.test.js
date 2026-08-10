@@ -18,7 +18,7 @@ describe("the people placeholder portraits", () => {
 	});
 
 	it("recognises the same files under an id this package shipped under before", () => {
-		expect(isPersonPlaceholderImg("systems/stonetop_pwd/assets/icons/people/default_profile.svg")).toBe(true);
+		expect(isPersonPlaceholderImg("systems/stonetop/assets/icons/people/default_profile.svg")).toBe(true);
 		expect(isPersonPlaceholderImg("systems/stonetop/assets/icons/people/empty_profile.svg")).toBe(true);
 	});
 
@@ -32,7 +32,7 @@ describe("isDefaultImg", () => {
 	it("counts both people placeholders as no art, like Foundry's own defaults", () => {
 		expect(isDefaultImg(PERSON_DEFAULT_IMG)).toBe(true);
 		expect(isDefaultImg(PERSON_ROSTER_IMG)).toBe(true);
-		expect(isDefaultImg("systems/stonetop_pwd/assets/icons/people/default_profile.svg")).toBe(true);
+		expect(isDefaultImg("systems/stonetop/assets/icons/people/default_profile.svg")).toBe(true);
 	});
 
 	it("still counts Foundry's defaults and a missing image as no art", () => {

@@ -202,7 +202,7 @@ describe("followerMarkerImg", () => {
 	// has shipped under (hooks/Ready.js lifts them onto the current file).
 	it("still recognises the path the marker used to live at", () => {
 		expect(LEGACY_SHOOT_MARKERS).toContain("systems/stonetop_pwd/assets/icons/followers/sprout.svg");
-		expect(LEGACY_SHOOT_MARKERS).toContain("systems/stonetop_pwd/assets/icons/followers/sprout.svg");
+		expect(LEGACY_SHOOT_MARKERS).toContain("systems/stonetop/assets/icons/followers/sprout.svg");
 		expect(LEGACY_SHOOT_MARKERS).not.toContain(NEW_SHOOT_MARKER);
 	});
 
@@ -246,8 +246,8 @@ describe("isFollowerMarkerImg", () => {
 	// a converted beast's disc is just as much a placeholder and only this can say so.
 	it("covers the discs isDefaultImg cannot, under every id and a stray leading slash", () => {
 		expect(isFollowerMarkerImg("/systems/stonetop_pwd/assets/icons/bestiary/undead.svg")).toBe(true);
-		expect(isFollowerMarkerImg("systems/stonetop_pwd/assets/icons/bestiary/fae.svg")).toBe(true);
-		expect(isFollowerMarkerImg("systems/stonetop_pwd/assets/icons/followers/sprout.svg")).toBe(true);
+		expect(isFollowerMarkerImg("systems/stonetop/assets/icons/bestiary/fae.svg")).toBe(true);
+		expect(isFollowerMarkerImg("systems/stonetop/assets/icons/followers/sprout.svg")).toBe(true);
 	});
 
 	it("never mistakes art somebody chose for one of ours", () => {
