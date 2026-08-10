@@ -13,6 +13,8 @@ import { outnumberBonus } from "../../data/follower-build.js";
 import { postListCard } from "../../utils/chat.js";
 import { localize, format } from "../../utils/i18n.js";
 import { deletionEntry, enrichHTML, compendiumSourceOf } from "../../utils/foundry-compat.js";
+import { withSheetSizeMemory } from "../../utils/sheet-size.js";
+import { condemnedContext } from "../character/condemn.js";
 
 // Per-organization combat budget (Book I, "Dangers", pp.396-398).
 const ORGANIZATION_DEFAULTS = {
@@ -140,7 +142,8 @@ function _hasRichContent(value) {
 }
 
 export function createStonetopMonsterSheetClass(Base) {
-	return class StonetopMonsterSheet extends Base {
+	// withSheetSizeMemory: reopen at the size this user last left this monster's sheet.
+	return class StonetopMonsterSheet extends withSheetSizeMemory(Base) {
 		_editMode = false;
 		_initialHeightApplied = false;
 
@@ -148,6 +151,20 @@ export function createStonetopMonsterSheetClass(Base) {
 			super(...args);
 			// Honor the "Open Sheets in Edit Mode" client setting on first open.
 			this._editMode = getOpenSheetsInEditMode();
+
+			// A remembered height retires _applyInitialHeight: that measures the sheet and sizes
+			// the window so Notes sits just below the fold, which is a good guess for a sheet
+			// nobody has sized and a bad one for a sheet somebody has — left armed it would fire
+			// on the next render and overwrite the size the user chose, which is the very thing
+			// the restore put back.
+			//
+			// Load-bearing that the size memory only records a DRAGGED size (see
+			// utils/sheet-size.js): this measurement calls setPosition itself, so a memory that
+			// recorded programmatic sizing would store this first guess and then read it back
+			// here forever, and the monster would still be sized for the content it had the day
+			// it was first opened. With the drag latch, an unresized monster re-measures on every
+			// open, which is what picks up newly added GM moves or a stat block.
+			if (this._restoredSheetSize.height) this._initialHeightApplied = true;
 		}
 
 		static get defaultOptions() {
@@ -159,6 +176,10 @@ export function createStonetopMonsterSheetClass(Base) {
 				// window opens with everything above Notes visible and Notes itself
 				// just below the fold (scroll/resize to reach it).
 				height:    680,
+				// Mirrors the CSS floor in stonetop.css — see the character sheet's note.
+				// This frame carries no `pbta` class, so pbta's own actor floor never reached
+				// it and core's 50px fallback was all that stood in the way of a drag.
+				minHeight: 480,
 				resizable: true,
 			});
 		}
@@ -286,6 +307,11 @@ export function createStonetopMonsterSheetClass(Base) {
 			st.displayTags = displayTags.join(", ");
 			st.damageModes = _parseDamageModes(system?.attributes?.damage?.value);
 			st.multiDamage = st.damageModes.length > 1;
+
+			// A Judge's Condemn brand. A stat block is a person often enough for this to matter —
+			// a bandit chief, a cultist, a Lodge assassin — and Censure's target only has to be
+			// "an individual in your presence". Read from the world; see condemn.js.
+			st.condemned = condemnedContext(this.actor);
 
 			// Hover tooltips for the organization / size / quality tags on the
 			// header stat line, explaining each term (Book I "Dangers").

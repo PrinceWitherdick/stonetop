@@ -41,7 +41,8 @@
         "arcana": "Arcana",
         "postDeath": "Post-Death",
         "specialMoves": "Special Moves",
-        "notes": "Notes"
+        "notes": "Notes",
+        "railLabel": "Sheet sections"
       }
     },
     "specialMoves": {
@@ -52,8 +53,18 @@
       },
       "deathsDoor": {
         "title": "Death's Door",
-        "button": "Understand Death's Door",
-        "lockedHint": "Only available when the character is at 0 HP.",
+        "button": "Face Death's Door",
+        "clear": "No longer out of the action",
+        "chooseFate": "Choose your fate",
+        "fatePendingHint": "You rolled a 6-. Your time has come — choose how it ends.",
+        "supersededHint": "You've already died once. At 0 HP you trigger {move} instead — it's on your Moves tab.",
+        "outOfActionHint": "No longer dying, but out of the action until the GM says otherwise.",
+        "dispersedHint": "Your essence has dispersed. You reform near your tether at the next sunset with {hp} HP.",
+        "reform": "Reform at your tether",
+        "deadHint": "They stepped through the Last Door.",
+        "postDeathTab": "Choose Your Fate",
+        "postDeathTabHint": "Opens the Post-Death tab, where you can take the Revenant, Ghost or Thrall insert. Death's Door grants one for you on a 6- — use this if your table resolved that away from the sheet.",
+        "lockedHint": "Only available when the character is dying — at 0 HP, with the move still to face.",
         "summary": "When you <em><strong>are dying</strong></em>, you glimpse the Last Door and the Lady of Crows. Roll +nothing: on a 10+ return to 1 HP; on a 7-9 you're out of action; on a 6- choose a dark fate.",
         "description": "When you <em><strong>are dying</strong></em>, you glimpse the Last Door and the Lady of Crows (describe it). Then, roll +nothing: on a 10+, you wrest yourself back to the realm of the living&mdash;return to 1 HP but say how your brush with death has marked you; on a 7-9, the Lady waves you off&mdash;you're no longer dying but you're out of the action; on a 6-, your time has come&mdash;choose 1: make one last move as if you rolled a 12+, then step through the Last Door; refuse to go and gain the Revenant or Ghost insert; or call on one of the Things Below by name and beseech it to intercede, gaining the Thrall insert."
       },
@@ -71,6 +82,7 @@
         "invocationAside": "Your new level is even — you'll also choose a new Invocation on the next step.",
         "moveIntro": "Choose one new move from your playbook (or an insert you've unlocked).",
         "noMoves": "No additional moves are available at this level.",
+        "noMovesMatch": "No moves match this filter.",
         "invocationIntro": "Choose one new Invocation to add to your repertoire.",
         "statIntro": "Choose which stat to raise by +1.",
         "statAllAtCap": "All of your stats are already at this move's maximum — go back and pick a different move.",
@@ -121,9 +133,34 @@
     },
     "postDeath": {
       "chooseFate": "Choose Your Fate",
-      "removeInsert": "Remove",
+      "chooseFateHint": "You take one of these only when it becomes relevant — you died, and refused to go. Death's Door grants it for you on a 6-; pick one here if your table resolved that away from the sheet.",
+      "removeInsert": "Remove Insert",
+      "hideTab": "Remove Post-Death Tab",
+      "hideTabHint": "Take this tab off the sheet. It comes back on its own if this character takes an insert, or faces the Last Door.",
+      "tether": "Your Tether",
+      "tetherHint": "Tethered reforms you beside it. If it's ever destroyed, you mark the Final Consequence.",
+      "tetherPlaceholder": "Your mortal remains, the place where you died, an object of significance…",
+      "tetherMissing": "Name your tether — Tethered can't resolve without knowing where you reform.",
+      "crossedOff": "Crossed Off",
+      "crossedOffHint": "Dark Succor took these away. You can never gain them.",
+      "masterTask": "Your Master's Task",
+      "masterTaskHint": "Until it's done, your Favor stays at 0.",
       "instinct": "Instinct",
-      "moves": "Granted Moves"
+      "moves": "Granted Moves",
+      "purpose": "In Your Own Words",
+      "retiredTooltip": "Who they were before they died. The playbook and its Instinct are still on the sheet, and come back if the insert is removed.",
+      "instinctRetired": "Retired when you took the insert. It comes back if the insert is removed.",
+      "deadTag": "Dead",
+      "deadTooltip": "They made one last move as if they rolled a 12+, then stepped through the Last Door. Only the rarest of magic can bring them back.",
+      "deadTooltipAction": "They made one last move as if they rolled a 12+, then stepped through the Last Door. Only the rarest of magic can bring them back — click here if it has.",
+      "raiseTitle": "Is {name} being brought back?",
+      "raiseBody": "<strong>{name}</strong> stepped through the Last Door.",
+      "raiseHpNote": "Their hit points have just gone above 0.",
+      "raiseAsk": "Only the rarest of magic can bring them back. Is that what happened?",
+      "raiseYes": "Yes, they live again",
+      "raiseNo": "No, they are still dead",
+      "raised": "{name} is no longer dead. Their sheet is their own again.",
+      "raiseFailed": "Couldn't clear the dead state. Try again, or clear it on the Special Moves tab."
     },
     "arcana": {
       "createGmOnly": "Only the GM can create homebrew arcana in this world.",
@@ -138,12 +175,24 @@
       "hideFromPlayers": "Hide back from player",
       "removeArcanum": "Remove",
       "toggleCard": "Collapse / expand card",
-      "identify": "Identify",
+      "identify": "Know Things",
       "searchLabel": "Search arcana",
       "searchPlaceholder": "Filter arcana…",
-      "identifyTitle": "Identify Arcanum",
-      "identifyConfirm": "Are you sure you you've successfully identified this Arcanum? This action cannot be undone.",
-      "unidentifiedText": "This arcanum has not yet been identified. Study it closely to reveal its nature.",
+      "identifyHint": "Consult your accumulated knowledge about this arcanum (+INT by default). Hold Shift to skip the modifier prompt.",
+      "identifyPrompt": "What are you drawing on to place this arcanum?",
+      "identifyAdvantage": "This falls under one of the moves below — roll with advantage.",
+      "giveCard": "Give the card",
+      "giveCardHint": "Hand this arcanum to the player without a roll.",
+      "giveCardTitle": "Give the card",
+      "giveCardPrompt": "Hand this arcanum to the player. Which sides do they get to read?",
+      "giveCardBoth": "Front and back",
+      "giveCardFront": "Front only",
+      "backOwedText": "You've read the front. The back is owed you, once you've had time to study it or learn more.",
+      "backOwedStudy": "Study it",
+      "backOwedTitle": "Study it",
+      "backOwedGmText": "You owe this card's back: they read the front on a 7-9.",
+      "backOwedGrant": "Show them the back",
+      "unidentifiedText": "This arcanum has not yet been identified. You can tell it's something, but not what.",
       "discover": "Arcana Discovered",
       "discoverTitle": "Arcanum Discovered",
       "discoverConfirm": "Have you tracked down and recovered this arcanum? Its full details will be revealed.",
@@ -165,6 +214,8 @@
       "addSmallItem": "Add small item",
       "createWorldItem": "Create Inventory Item",
       "worldCreated": "Created inventory item \"{name}\" — drag it onto a character's Inventory tab to add it.",
+      "dropAdded": "Added {names} to {actor}'s Inventory tab.",
+      "dropAddedUnlinked": "Added {names} to {actor}'s character sheet. This token isn't linked to {actor}, so anything dropped on it would otherwise have stayed on the token and never reached the player.",
       "addItemColumn": "Column",
       "addItemColumnRegular": "Items (◇, counts toward load)",
       "addItemColumnSmall": "Small items (pocket, pouch, or boot)",
@@ -243,6 +294,31 @@
         "larger": "Larger (125%)",
         "largest": "Largest (140%)"
       },
+      "worldSheetLayout": {
+        "name": "Sheet Layout (Whole Table)",
+        "hint": "Which sheet layout this world uses for everyone who has not chosen their own below. Modern puts the tabs on an icon strip down the outside of the window and moves the stats block onto a tab; Classic is the older look, with a row of tab names across the top of the sheet and the stats block always on screen above them. New worlds start on Modern; a world that already existed before the two layouts were added stays on Classic until you change it here. Monster sheets have no tabs and look the same either way.",
+        "modern": "Modern (icon tabs down the side)",
+        "classic": "Classic (tab names across the top)"
+      },
+      "sheetLayout": {
+        "name": "Sheet Layout (Just for Me)",
+        "hint": "Overrides the table-wide layout on this browser only, so you can read the sheets the way you prefer without changing anyone else's. Leave it on \"Use this world's setting\" to follow whichever layout the GM has chosen for this world. Picking Modern or Classic here sticks across every world you open in this browser, which is the point: it is your preference, not the campaign's.",
+        "world": "Use this world's setting",
+        "modern": "Modern (icon tabs down the side)",
+        "classic": "Classic (tab names across the top)"
+      },
+      "classicLayoutCharacter": {
+        "name": "Classic Layout: Character Sheets",
+        "hint": "Only applies while the sheets are set to Classic. Ticked, character sheets use the classic layout: tab names across the top, and the stats, debilities, damage, HP, armor, XP and level block pinned above them instead of heading the Moves tab. Untick to keep character sheets on the modern layout while other sheets go classic."
+      },
+      "classicLayoutSteading": {
+        "name": "Classic Layout: Steading Sheets",
+        "hint": "Only applies while the sheets are set to Classic. Ticked, steading sheets use the classic layout: tab names across the top, the Surplus, Fortunes, Size, Population, Prosperity, Defenses and Debilities band pinned above them, and the homefront moves in a sidebar beside every tab rather than on a tab of their own. Untick to keep steading sheets on the modern layout while other sheets go classic."
+      },
+      "classicLayoutNpc": {
+        "name": "Classic Layout: NPC Sheets",
+        "hint": "Only applies while the sheets are set to Classic. Ticked, NPC sheets use the classic layout: tab names across the top, with the quick facts pinned above them instead of inside the Details tab. Untick to keep NPC sheets on the modern layout while other sheets go classic."
+      },
       "editPencilRevealDelay": {
         "name": "Edit Pencil Reveal Delay",
         "hint": "How long to hover a section (in seconds) before its edit pencil fades in. The pencils stay clickable while still invisible, so you can click one without waiting. Set to 0 to show them instantly."
@@ -279,6 +355,14 @@
         "name": "Start-of-Session Reminders",
         "hint": "Post the automatic start-of-session chat reminders, such as the Destined \"roll +Omens\" nudge. These are public cards the whole table sees. Turn this off to stop them."
       },
+      "deathsDoorPrompt": {
+        "name": "Announce When a Character Is Dying",
+        "hint": "Post a chat card the moment a character is reduced to 0 HP, naming the move they trigger — Death's Door, or their post-death insert's own move. The card never forces the roll; the GM can hold it off until the scene wraps up. On by default."
+      },
+      "deathsDoorAutoOpen": {
+        "name": "Open the Dying Character's Move Automatically",
+        "hint": "Also open the walkthrough for the move on the dying player's own screen, rather than waiting for them to click the chat card. It opens for the player the character is assigned to and nobody else — not the GM applying the damage, and not the rest of the party. If that player isn't logged in, the GM gets it. Cancelling still leaves the card in chat, so the roll can wait. Requires the setting above."
+      },
       "chatShiftButtons": {
         "name": "Shift Up/Down Buttons on Roll Cards",
         "hint": "Add \"Shift Up\" and \"Shift Down\" buttons to move roll cards in chat, letting the GM bump a roll's result to a higher or lower tier. Only the GM sees them. Off by default."
@@ -299,7 +383,7 @@
       },
       "hoverDescriptionsBasicMoves": {
         "name": "Hover Descriptions: Basic Moves",
-        "hint": "Show the move description panel when hovering the Basic Moves list on a character sheet, or the moves list on Stonetop's own sheet."
+        "hint": "Show the move description panel when hovering the Basic Moves list on a character sheet, or the Homefront Moves list on Stonetop's own sheet in the classic layout."
       },
       "hoverDescriptionsPlaybookMoves": {
         "name": "Hover Descriptions: Playbook Moves",
@@ -498,6 +582,15 @@
       "gone": "That character no longer exists.",
       "goneNpc": "That NPC no longer exists."
     },
+    "rollMode": {
+      "label": "Roll modifier",
+      "adv": "Advantage",
+      "advTooltip": "Roll 3d6 and keep the highest two",
+      "normal": "Normal",
+      "normalTooltip": "Roll 2d6",
+      "dis": "Disadvantage",
+      "disTooltip": "Roll 3d6 and keep the lowest two"
+    },
     "relationships": {
       "regard": "Feelings",
       "notes": "Notes",
@@ -602,6 +695,7 @@
         "otherMoves": "Other Moves",
         "addMove": "Add Move",
         "removeMove": "Remove Move",
+        "learnedTitle": "Learned — un-check to keep this move on the sheet but inactive (not rollable, bonuses off)",
         "chooseStartingMoves": "Choose Starting Moves",
         "levelMovesIncompleteOne": "You still have 1 move to choose for level {level}.",
         "levelMovesIncompleteMany": "You still have {count} moves to choose for level {level}.",
@@ -623,7 +717,6 @@
           "next": "Next",
           "addButton": "Create a move",
           "editMove": "Edit this move",
-          "learnedTitle": "Learned — un-check to keep this move on the sheet but inactive (not rollable, bonuses off)",
           "nameLabel": "Move name",
           "namePlaceholder": "e.g. Reckless Charge",
           "nameRequired": "Your move needs a name.",
@@ -713,7 +806,9 @@
         "appearance": {
           "label": "Appearance",
           "dialogTitle": "Choose Appearance",
-          "instruction": "Choose 1 on each line, or make something up:"
+          "instruction": "Choose 1 on each line, or make something up:",
+          "customPlaceholder": "Make your own",
+          "customLabel": "Write in your own"
         },
         "origin": {
           "label": "Origin",
@@ -738,7 +833,40 @@
       "readOnly": "You do not have permission to change this portrait.",
       "noImage": "Choose a portrait first, then you can frame it.",
       "openFailed": "The portrait framer could not open. See the console for details.",
-      "tokenizerPip": "Open Tokenizer"
+      "tokenizerPip": "Open Tokenizer",
+      "noTokenizeTarget": "Tokenizer works on the actor this follower was placed as, and that actor is gone. Drag the card onto a scene to place them again."
+    },
+    "holyLight": {
+      "litTooltip": "Wielding a holy light. Click to snuff it out.",
+      "unlitTooltip": "No holy light. Click to light one, or use Consecrated Flame.",
+      "readOnlyLit": "A holy light burns.",
+      "readOnlyUnlit": "No holy light is lit.",
+      "litLabel": "Holy light is lit",
+      "unlitLabel": "Holy light is out"
+    },
+    "condemn": {
+      "openLabel": "The Condemned",
+      "noneTooltip": "Nobody bears your brand. Click to open the roster.",
+      "someTooltip": "{count} bearing your brand. Click to open the roster.",
+      "rule": "A brand that cannot be removed or hidden until you dismiss it. Any intelligent creature who sees the mark recognizes the bearer as an agent of chaos and anathema to civilization.",
+      "empty": "Nobody bears your brand.",
+      "add": "Condemn",
+      "addPlaceholder": "Name someone, or a faction…",
+      "notePlaceholder": "What they were denounced for…",
+      "dropHint": "Or drop a person onto this window.",
+      "dismissLabel": "Dismiss the brand on {name}",
+      "needName": "Name who is being condemned first.",
+      "ambiguous": "Several people match \"{name}\": {names}. Type the full name, or drop the right one onto this window.",
+      "sameName": "More than one {name} in the world — the first was branded. Drop the right one onto this window to be certain.",
+      "matched": "Found {name} in the world; their sheet now carries the brand.",
+      "nameOnly": "Nobody in the world is named {name}, so the brand records the name alone — no sheet will carry the tag.",
+      "already": "{name} already bears your brand.",
+      "notSelf": "A Judge cannot condemn themself.",
+      "notBrandable": "{name} is not somebody who can be denounced.",
+      "fromCompendium": "{name} came from a compendium, so the brand records the name only — it will not tag that person's sheet in this world.",
+      "tag": "Condemned",
+      "tagTooltip": "Condemned by {who} — branded as an agent of chaos and anathema to civilization.",
+      "tagTooltipPlain": "Branded as an agent of chaos and anathema to civilization."
     }
   }
 }

@@ -20,6 +20,22 @@ export class MoveResources {
 		return this._flags.getFlag(key) ?? {};
 	}
 
+	/**
+	 * Set one move's track outright, for callers that compute the new count themselves (the
+	 * Logbook spend on a chat card, say, rather than a pip click).
+	 *
+	 * A move track counts uses SPENT, so spending INCREMENTS — see `logbookUses` in
+	 * know-things.js for why, and do not copy that to the possession tracks, which count the
+	 * other way.
+	 *
+	 * Written as a SUB-KEY so it cannot clobber a sibling move's track via a stale spread.
+	 * `options` reaches `actor.update`, so a caller can attribute the write for the ledger
+	 * with `{ stonetopMove }`.
+	 */
+	async setUses(moveName, value, options) {
+		await this._flags.setSubKey(key, moveName, value, options);
+	}
+
 	async _addMoveResource(current, moveName, newValue) {
 		await this._flags.setFlag(key, {...current, [moveName]: newValue});
 	}

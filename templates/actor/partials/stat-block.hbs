@@ -1,0 +1,58 @@
+{{!-- The stat block: stats, the three debilities, and the vitals row (damage / HP /
+      armor / XP / level).
+
+      It heads the Moves tab. It used to sit above the tabs, always on screen, which cost
+      every other page the same ~200px of header before a single item was visible; it is
+      one page's header now, and the page it belongs to is the one a player rolls from.
+      What stays pinned above the tabs is the portrait, playbook, name and appearance —
+      plus the wounds line, which is a live harm track a player needs to see whatever page
+      they are reading.
+
+      The `.sheet-top` wrapper is kept despite no longer being the top of anything:
+      pbta's own stylesheet skins this block through `.pbta.sheet .sheet-wrapper
+      .sheet-top .sheet-attributes-top …` chains (and our 2:1 vitals-width rule matches
+      that specificity deliberately), so dropping the class would silently unstyle the
+      vitals row. Descendant selectors, so they still resolve from inside the tab. --}}
+<section class="sheet-top flexcol">
+	<div class="stonetop-details-heading-row">
+		{{> "stonetop.section-heading" title=(localize "stonetop.character.stats.sectionTitle") note=stonetop.statsNoteDisplay}}
+		{{> "stonetop.details-section-edit-toggle" section="stats" editing=stonetop.statsEdit collapse="stats"}}
+	</div>
+
+	<section class="sheet-attributes flexrow">
+		{{> "stonetop.actor-stats"}}
+	</section>
+	<div class="stonetop-debilities">
+		<div class="stonetop-debility">
+			<span class="stonetop-debility-bracket"></span>
+			<label class="stonetop-debility-control" data-tooltip="Fatigued, tired, sluggish, shaky. Disadvantage on +STR or +DEX rolls." data-tooltip-direction="UP">
+				<input type="checkbox" class="attr-list"
+				       name="system.attributes.debilities.options.weakened.value"
+				       {{#if system.attributes.debilities.options.weakened.value}}checked{{/if}}>
+				<span class="stonetop-debility-label">weakened</span>
+			</label>
+		</div>
+		<div class="stonetop-debility">
+			<span class="stonetop-debility-bracket"></span>
+			<label class="stonetop-debility-control" data-tooltip="Out of it, befuddled, not thinking clearly. Disadvantage on +INT or +WIS rolls." data-tooltip-direction="UP">
+				<input type="checkbox" class="attr-list"
+				       name="system.attributes.debilities.options.dazed.value"
+				       {{#if system.attributes.debilities.options.dazed.value}}checked{{/if}}>
+				<span class="stonetop-debility-label">dazed</span>
+			</label>
+		</div>
+		<div class="stonetop-debility">
+			<span class="stonetop-debility-bracket"></span>
+			<label class="stonetop-debility-control" data-tooltip="Greatly distressed, angry, unwell, in pain. Disadvantage on +CON or +CHA rolls." data-tooltip-direction="UP">
+				<input type="checkbox" class="attr-list"
+				       name="system.attributes.debilities.options.miserable.value"
+				       {{#if system.attributes.debilities.options.miserable.value}}checked{{/if}}>
+				<span class="stonetop-debility-label">miserable</span>
+			</label>
+		</div>
+	</div>
+
+	<section class="sheet-attributes-top">
+		{{> "stonetop.actor-vitals"}}
+	</section>
+</section>

@@ -9,6 +9,75 @@
 // like any write-in) tagged with `sourcePossession`/`sourceKey` for sync, plus a
 // `sourceLabel` that drives the "from <possession>" note on the gear tab.
 
+/**
+ * Every name one grant answers to, qualified by the column it lands in
+ * (`regular:Bee smokers` / `small:Honey`).
+ *
+ * De-duped WITHIN the grant: a grant that repeats a name (the Distillery's whisky lists its
+ * `sourceKey` verbatim in `aliases` too) must not read as the same name coming from two places
+ * and null itself out of the source map below.
+ */
+function grantKeys(grant) {
+	const column = grant.column === "regular" ? "regular" : "small";
+	return [...new Set([grant.name, grant.sourceKey, ...(grant.aliases ?? [])].filter(Boolean))]
+		.map(name => `${column}:${name}`);
+}
+
+/**
+ * The column-qualified name an inventory ITEM answers to, for matching an untagged write-in
+ * against the grant keys above.
+ */
+export function itemGrantKey(item) {
+	return `${item?.system?.inventoryColumn === "regular" ? "regular" : "small"}:${item?.name ?? ""}`;
+}
+
+/**
+ * Which active possession each grant key belongs to: `key → {slug, grant}`, or `null` for a key
+ * two grants both produce.
+ *
+ * This is the ONE rule for recognising untagged gear, and all three places that ask about it go
+ * through it: the gear tab, which renders a legacy item inside its possession's card; the select
+ * path, which declines to duplicate a grant that is already sitting there as a write-in; and the
+ * deselect path, which tears the same items down. Legacy gear carries no `sourcePossession`
+ * (MoveModel stripped the field before it declared it), so name inference is the only way to
+ * recognise it at all — but a bare name match is not the rule:
+ *
+ *  • the COLUMN has to agree. A hand-written small "Grappling hook" is not the Burglar's Kit's ◇
+ *    regular one, and a name-only match let a deselect delete the player's own item;
+ *  • a key TWO grants produce is claimed by NEITHER — whether they come from two possessions
+ *    (Carpenter's tools and the Distillery both grant firkins) or from one. Guessing a parent
+ *    there is how an item ends up rendered under one possession and deleted by another.
+ *
+ * The three have to agree because they are the two halves of one sync plus the view of it:
+ * adopting on the way in on a looser rule than the one that disowns on the way out leaves a sheet
+ * full of orphans, and the reverse leaves a grant that can never materialize.
+ *
+ * `activeOptions` is the possessions the character actually holds (selected + preselected) — and
+ * on the teardown path must still INCLUDE the one being deselected, which the selection has
+ * already dropped by then. Pure — unit-tested without Foundry.
+ */
+export function grantSourceMap(activeOptions = []) {
+	const sources = new Map();
+	for (const opt of activeOptions) {
+		for (const grant of (opt?.grantsItems ?? [])) {
+			if (!grant?.name) continue;
+			for (const key of grantKeys(grant)) {
+				sources.set(key, sources.has(key) ? null : { slug: opt.slug, grant });
+			}
+		}
+	}
+	return sources;
+}
+
+/** Just the keys one possession may claim, as `key → grant`. See grantSourceMap. */
+export function grantAdoptionKeys(slug, activeOptions = []) {
+	const mine = new Map();
+	for (const [key, source] of grantSourceMap(activeOptions)) {
+		if (source?.slug === slug) mine.set(key, source.grant);
+	}
+	return mine;
+}
+
 // Build the embedded-item create payloads for a possession's grants, skipping any
 // already present (matched by `sourceKey`) so re-selecting / re-running onboarding
 // never duplicates. Pure — unit-tested without Foundry.

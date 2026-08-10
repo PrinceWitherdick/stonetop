@@ -40,6 +40,10 @@
 					{{else}}
 					<span class="input--title stonetop-header-locked stonetop-name-field">{{actor.name}}</span>
 					{{/if}}
+					{{!-- A Judge's Condemn brand. In both modes: nothing on this sheet can lift it
+					      (only the Judge's own roster can), so it never makes way for an edit
+					      control the way a writable field would. --}}
+					{{#if stonetop.condemned.condemned}}{{> "stonetop.condemned-tag" byLabel=stonetop.condemned.byLabel}}{{/if}}
 				</div>{{!-- /name wrapper --}}
 
 				{{!-- Concept + traits on their own row, stretching full width beneath

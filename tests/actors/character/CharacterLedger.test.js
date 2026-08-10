@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { CharacterLedger } from "../../../module/actors/character/CharacterLedger.js";
 import { ledgerNoun } from "../../../module/utils/ledger-core.js";
+import { SYSTEM_ID } from "../../../module/system-id.js";
 
 function makeActor(system = {}, flags = {}) {
 	return {
@@ -377,6 +378,312 @@ describe("CharacterLedger", () => {
 		]);
 	});
 
+	// The crew keeps its roster in flag ARRAYS, written back WHOLE because a flag array cannot be
+	// updated by dotted path (see actors/character/roster-portraits.js). formatValue joins an array
+	// with ", ", so an array of OBJECTS came out as the literal "[object Object]" — one such line
+	// for every portrait pick, every "Use default", and every member added or removed.
+	describe("the crew's roster", () => {
+		const crew = (extra) => makeActor({}, { stonetop: { crew: { name: "The Red Shields", ...extra } } });
+
+		it("says who was named, from the whole-array write behind it", async () => {
+			const actor = crew({ individuals: [{ name: "Aled", tag: "eager" }] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.crew.individuals": [{ name: "Aled", tag: "eager" }, { name: "Eira" }],
+			});
+			expect(entries.map(e => e.action)).toEqual(["Eira named to The Red Shields"]);
+		});
+
+		it("says who was removed", async () => {
+			const actor = crew({ individuals: [{ name: "Aled" }, { name: "Eira" }] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.crew.individuals": [{ name: "Eira" }],
+			});
+			expect(entries.map(e => e.action)).toEqual(["Aled removed from The Red Shields"]);
+		});
+
+		// Matched by NAME, not by position: the array is spliced, so a positional diff would report
+		// the whole tail as replaced when the member removed was not the last one.
+		it("does not report the survivors as replaced when a member in the middle leaves", async () => {
+			const actor = crew({ individuals: [{ name: "Aled" }, { name: "Eira" }, { name: "Glaw" }] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.crew.individuals": [{ name: "Aled" }, { name: "Glaw" }],
+			});
+			expect(entries.map(e => e.action)).toEqual(["Eira removed from The Red Shields"]);
+		});
+
+		// A portrait pick rewrites this same array with the membership untouched.
+		it("stays quiet when the only change to the array is a face", async () => {
+			const actor = crew({ individuals: [{ name: "Aled" }] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.crew.individuals": [{ name: "Aled", img: "aled.webp" }],
+			});
+			expect(entries.map(e => e.action)).toEqual([]);
+		});
+
+		// The card's own two are covered by the system-wide cosmetic-portrait rule; the anonymous
+		// members' array needs a rule of its own, because it is one atomic leaf whose path never
+		// mentions `img`.
+		it("stays quiet on an anonymous member's face, and on the crew card's own", async () => {
+			const actor = crew({ memberPortrait: [{ img: "old.webp" }], details: { img: "card.webp" } });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.crew.memberPortrait": [{ img: "new.webp" }],
+				"flags.stonetop_pwd.crew.details.img": "other.webp",
+				"flags.stonetop_pwd.crew.details.portraitFrame": { src: "other.webp", rect: [0.1, 0.2, 0.3, 0.4] },
+			});
+			expect(entries.map(e => e.action)).toEqual([]);
+		});
+
+		// A `-=` key is a DELETION, not a value — it used to render as "set to blank".
+		it("stays quiet on a deletion key", async () => {
+			const actor = crew({ details: { portraitFrame: { src: "x.webp", rect: [0, 0, 1, 1] } } });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.crew.details.-=portraitFrame": null,
+			});
+			expect(entries.map(e => e.action)).toEqual([]);
+		});
+
+		// A custom group follower's roster is silenced by customFollowerEntry's ALLOWLIST rather
+		// than by the crew's rules, so it is covered separately: if that allowlist ever grows, this
+		// catches the day "[object Object]" comes back on the other roster.
+		it("stays quiet on a custom group follower's roster faces too", async () => {
+			const actor = makeActor({}, {
+				stonetop: {
+					customFollowers: { warband: { name: "The Warband", loyalty: 1, memberPortrait: [{ img: "old.webp" }] } },
+				},
+			});
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.customFollowers.warband.memberPortrait": [{ img: "new.webp" }],
+			});
+			expect(entries.map(e => e.action)).toEqual([]);
+		});
+
+		// HP is the play-relevant track and must survive all of the above — now naming the member
+		// the sheet names, instead of printing two lists of numbers to spot the difference between.
+		it("names the anonymous member who took the hit", async () => {
+			const actor = crew({ individuals: [{ name: "Aled" }], memberHp: [6, 6] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.crew.memberHp": [4, 6],
+			});
+			// Counts past the one named individual, exactly as the roster labels them.
+			expect(entries.map(e => e.action)).toEqual(["Crew member 2 HP changed from 6 to 4"]);
+		});
+
+		it("names the individual who took the hit", async () => {
+			const actor = crew({ individuals: [{ name: "Aled" }, { name: "Eira" }], individualsHp: { 1: 6 } });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.crew.individualsHp.1": 3,
+			});
+			expect(entries.map(e => e.action)).toEqual(["Eira HP changed from 6 to 3"]);
+		});
+
+		// A row that IS an individual but has no name yet numbers from the top of the roster, the
+		// way the sheet draws it (crewIndividualLabel) — not from the end of the named block, which
+		// is how the ANONYMOUS tail is numbered. Labelled with the anonymous rule, a ledger line
+		// pointed at "Crew member 4" for the row the sheet calls "Crew member 1".
+		it("numbers an unnamed individual from the top of the roster, as the sheet does", async () => {
+			const actor = crew({
+				individuals: [{ tag: "eager" }, { name: "Eira" }, { name: "Glaw" }],
+				individualsHp: { 0: 6 },
+			});
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.crew.individualsHp.0": 4,
+				"flags.stonetop_pwd.crew.individuals.0.tag": "cautious",
+			});
+			expect(entries.map(e => e.action)).toEqual([
+				"Crew member 1 HP changed from 6 to 4",
+				"Crew member 1 tag changed from eager to cautious",
+			]);
+		});
+
+		// The anonymous tail is numbered from the named block AS THIS UPDATE LEAVES IT. Removing a
+		// named member frees a body back into that tail in the same write, and `names` is built
+		// from the actor BEFORE it — so numbering off that counted one name too many.
+		it("numbers the anonymous tail against the roster the update leaves behind", async () => {
+			const actor = crew({ individuals: [{ name: "Aled" }, { name: "Eira" }], size: 6, memberHp: [6, 6, 6, 6] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.crew.individuals": [{ name: "Aled" }],
+				"flags.stonetop_pwd.crew.memberHp": [6, 6, 6, 4, 6],
+			});
+			// One name left, so the tail starts at 2 — "Crew member 5", not the pre-update 6.
+			expect(entries.map(e => e.action)).toContain("Crew member 5 HP changed from 6 to 4");
+		});
+
+		// The HP writer sizes the array up to the member it is writing, so the FIRST hit on a
+		// late member grows the array — that is damage, not a resize, and must still log.
+		it("still logs the first hit on a member past the end of the stored array", async () => {
+			const actor = crew({ memberHp: [6] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.crew.memberHp": [6, 4],
+			});
+			expect(entries.map(e => e.action)).toEqual(["Crew member 2 HP set to 4"]);
+		});
+
+		// Shrinking is a resize or a promotion: the indices no longer line up, so a positional diff
+		// would invent hits nobody took. The size line beside it is the real record.
+		it("invents no damage when the roster shrinks", async () => {
+			const actor = crew({ size: 6, memberHp: [6, 4, 6] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.crew.size": 5,
+				"flags.stonetop_pwd.crew.memberHp": [6, 4],
+			});
+			expect(entries.map(e => e.action)).toEqual(["The Red Shields roster size changed from 6 to 5"]);
+		});
+
+		// Two members called Aled is a keystroke away: the naming dialog only requires a non-empty
+		// string, and its datalist offers nine names for a crew a half-dozen strong. With a SET
+		// diff, removing one of them changed no set and the Chronicle recorded that nobody left.
+		it("reports a removal even when two members share a name", async () => {
+			const actor = crew({ individuals: [{ name: "Aled" }, { name: "Aled" }, { name: "Eira" }] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.crew.individuals": [{ name: "Aled" }, { name: "Eira" }],
+			});
+			expect(entries.map(e => e.action)).toEqual(["Aled removed from The Red Shields"]);
+		});
+
+		// Numbered, so coalesceEntries — which dedupes on the action string — cannot fold two
+		// genuinely separate departures into one line.
+		it("numbers repeats so two departures do not collapse into one line", async () => {
+			const actor = crew({ individuals: [{ name: "Aled" }, { name: "Aled" }] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.crew.individuals": [],
+			});
+			expect(entries.map(e => e.action)).toEqual([
+				"Aled (1 of 2) removed from The Red Shields",
+				"Aled (2 of 2) removed from The Red Shields",
+			]);
+		});
+
+		// unsetFlag("crew.groupHp") deletes at the crew's own ROOT, so the key is a bare `-=groupHp`
+		// with no dot in front of it — which a dotted-only guard let through as "set to blank".
+		it("stays quiet when the group-HP pool is restored to full", async () => {
+			const actor = crew({ groupHp: 12 });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.crew.-=groupHp": null,
+			});
+			expect(entries.map(e => e.action)).toEqual([]);
+		});
+
+		// The promote handler always writes the whole individualsHp map, and on a crew whose HP was
+		// never touched that map is EMPTY — which Foundry's flattenObject keeps as a leaf.
+		it("stays quiet on the whole individualsHp map, even when it is empty", async () => {
+			const actor = crew({ individuals: [] });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.crew.individuals": [{ name: "Bran" }],
+				"flags.stonetop_pwd.crew.individualsHp": {},
+				"flags.stonetop_pwd.crew.memberHp": [],
+			});
+			expect(entries.map(e => e.action)).toEqual(["Bran named to The Red Shields"]);
+		});
+
+		// Every one of these collapsed to the field name "details" and read as the bare crew name.
+		it("names which card field was edited", async () => {
+			const actor = crew({ details: { moves: "", notes: "", armor: 1 } });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.crew.details.moves": "Hold the line",
+				"flags.stonetop_pwd.crew.details.notes": "Grumbling",
+				"flags.stonetop_pwd.crew.details.armor": 2,
+			});
+			expect(entries.map(e => e.action)).toEqual([
+				"The Red Shields moves set to Hold the line",
+				"The Red Shields notes set to Grumbling",
+				"The Red Shields armor changed from 1 to 2",
+			]);
+		});
+
+		it("names the item when a gear pip moves, not just the crew", async () => {
+			const actor = crew({ gear: { "bow-arrows": 0 } });
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.crew.gear.bow-arrows": 1,
+			});
+			expect(entries.map(e => e.action)).toEqual(["The Red Shields Bow Arrows load changed from 0 to 1"]);
+		});
+
+		// Removing a member re-keys individualsHp to follow the splice. Read one key at a time
+		// those look like every survivor taking the damage of the member below them, under the
+		// wrong name — so the membership line speaks and the HP noise beside it is dropped.
+		it("reports a removal once, not as phantom damage to everyone above the gap", async () => {
+			const actor = crew({
+				individuals: [{ name: "Aled" }, { name: "Eira" }, { name: "Glaw" }],
+				individualsHp: { 0: 6, 1: 2, 2: 5 },
+				size: 6,
+			});
+			const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+				"flags.stonetop_pwd.crew.individuals": [{ name: "Aled" }, { name: "Glaw" }],
+				"flags.stonetop_pwd.crew.individualsHp.0": 6,
+				"flags.stonetop_pwd.crew.individualsHp.1": 5,
+				"flags.stonetop_pwd.crew.individualsHp.-=2": null,
+				"flags.stonetop_pwd.crew.size": 5,
+			});
+			expect(entries.map(e => e.action)).toEqual([
+				"Eira removed from The Red Shields",
+				"The Red Shields roster size changed from 6 to 5",
+			]);
+		});
+	});
+
+	// One rule for every follower type, so a type added later is quiet by default rather than
+	// quietly noisy. Each of these used to emit a raw file path or a bare rect.
+	it("never logs a follower's portrait or its crop, whichever follower wears it", async () => {
+		const actor = makeActor({}, {
+			stonetop: {
+				animalCompanion: { name: "Bramble", details: { img: "old.webp" } },
+				initiateDetails: { acolyte: { img: "old.webp" } },
+				customFollowers: { warband: { name: "The Warband", img: "old.webp" } },
+			},
+		});
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.animalCompanion.details.img": "bramble.webp",
+			"flags.stonetop_pwd.animalCompanion.details.portraitFrame": { src: "bramble.webp", rect: [0.1, 0.2, 0.3, 0.4] },
+			"flags.stonetop_pwd.initiateDetails.acolyte.img": "acolyte.webp",
+			"flags.stonetop_pwd.customFollowers.warband.img": "warband.webp",
+		});
+		expect(entries.map(e => e.action)).toEqual([]);
+	});
+
+	// Clearing a portrait is TWO writes: the picture away as img:"" and the frame with it as
+	// `.-=portraitFrame`. Silencing only the first left every "Use default" writing "set to blank".
+	it("stays quiet on both halves of a portrait clear", async () => {
+		const actor = makeActor({}, {
+			stonetop: {
+				animalCompanion: { name: "Bramble", details: { img: "old.webp", portraitFrame: { src: "old.webp", rect: [0, 0, 1, 1] } } },
+			},
+		});
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.animalCompanion.details.img": "",
+			"flags.stonetop_pwd.animalCompanion.details.-=portraitFrame": null,
+		});
+		expect(entries.map(e => e.action)).toEqual([]);
+	});
+
+	// The ◇ checklist is an array of {label, checked} objects rewritten whole on every tick, so it
+	// printed "[object Object]" — the very junk the crew rewrite existed to remove, one card over.
+	it("reports a follower's gear checklist as a fact, not as stringified objects", async () => {
+		const actor = makeActor({}, {
+			stonetop: { animalCompanion: { name: "Bramble", details: { gear: [{ label: "Harness", checked: false }] } } },
+		});
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.animalCompanion.details.gear": [{ label: "Harness", checked: true }],
+		});
+		expect(entries.map(e => e.action)).toEqual(["Bramble gear updated"]);
+	});
+
+	it("names which of the animal companion's card fields was edited", async () => {
+		const actor = makeActor({}, { stonetop: { animalCompanion: { name: "Bramble", details: { notes: "" } } } });
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.animalCompanion.details.notes": "Limping",
+		});
+		expect(entries.map(e => e.action)).toEqual(["Bramble notes set to Limping"]);
+	});
+
+	// …but the rule is scoped to FLAG paths, so it cannot silence anything on the actor itself.
+	it("leaves non-flag paths alone", async () => {
+		const actor = makeActor({ attributes: { hp: { value: 10 } } }, {});
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"system.attributes.hp.value": 7,
+		});
+		expect(entries.map(e => e.action)).toEqual(["HP changed from 10 to 7"]);
+	});
+
 	it("records learned and removed moves", () => {
 		const item = { name: "Ambush", type: "move", system: { moveType: "playbook" } };
 		expect(CharacterLedger.entriesForCreatedItems([item]).map(e => e.action)).toEqual(["Ambush learned"]);
@@ -488,6 +795,38 @@ describe("CharacterLedger arcana flags", () => {
 		expect(entries.map(e => e.action)).toEqual(["Arcanum identified: Minor Arcana The Key"]);
 	});
 
+	it("logs both sides of a 10+ identify from the one batched update", async () => {
+		// identifyAndRevealArcanum writes identified and revealed together, so the pair has to
+		// survive as two distinct lines out of a single actor.update.
+		const actor = withSnapshot(
+			makeActor({}, { stonetop: { arcana: { identified: [], revealed: [] } } }),
+			{ arcana: { minor: { items: [{ slug: "the-key", front: { title: "The Key" } }] } } },
+		);
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.arcana.identified": ["the-key"],
+			"flags.stonetop_pwd.arcana.revealed":   ["the-key"],
+		});
+		expect(entries.map(e => e.action)).toEqual([
+			"Arcanum identified: Minor Arcana The Key",
+			"Arcanum revealed: Minor Arcana The Key",
+		]);
+	});
+
+	it("names the back a 7-9 owes, and the delivery that settles it", async () => {
+		// Without an ARCANA_SLUG_LISTS row, arcanaFlagEntries returns [] for an unknown sub-key
+		// and the write vanishes from the ledger silently.
+		const snapshot = { arcana: { minor: { items: [{ slug: "the-key", front: { title: "The Key" } }] } } };
+		const owed = withSnapshot(makeActor({}, { stonetop: { arcana: { backOwed: [] } } }), snapshot);
+		expect((await CharacterLedger.entriesForActorUpdate(owed, {
+			"flags.stonetop_pwd.arcana.backOwed": ["the-key"],
+		})).map(e => e.action)).toEqual(["Arcanum back owed: Minor Arcana The Key"]);
+
+		const paid = withSnapshot(makeActor({}, { stonetop: { arcana: { backOwed: ["the-key"] } } }), snapshot);
+		expect((await CharacterLedger.entriesForActorUpdate(paid, {
+			"flags.stonetop_pwd.arcana.backOwed": [],
+		})).map(e => e.action)).toEqual(["Arcanum back delivered: Minor Arcana The Key"]);
+	});
+
 	it("reports a minor role cleared to null, not just to an empty string", async () => {
 		// `typeof null` is "object", so the whole-object guard used to swallow the clear that
 		// the same field reported when it arrived as "".
@@ -552,6 +891,32 @@ describe("CharacterLedger debilities", () => {
 			"system.attributes.debilities.options.dazed.value": true,
 		});
 		expect(entries.map(e => e.action)).toEqual(["Dazed marked"]);
+	});
+});
+
+describe("CharacterLedger roll mode", () => {
+	// Was "Roll mode set to dis" — the dice-formula slug, straight out of the generic formatter.
+	it("spells the mode out instead of logging the slug", async () => {
+		const actor = makeActor({}, { stonetop: { rollMode: "normal" } });
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.rollMode": "dis",
+		});
+		expect(entries.map(e => e.action)).toEqual(["Roll mode set to Disadvantage"]);
+	});
+
+	it("treats an unset flag as Normal, so a first pick still reads as a change", async () => {
+		const entries = await CharacterLedger.entriesForActorUpdate(makeActor(), {
+			"flags.stonetop_pwd.rollMode": "adv",
+		});
+		expect(entries.map(e => e.action)).toEqual(["Roll mode set to Advantage"]);
+	});
+
+	it("stays quiet when the mode does not actually change", async () => {
+		const actor = makeActor({}, { stonetop: { rollMode: "normal" } });
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.rollMode": "",
+		});
+		expect(entries).toEqual([]);
 	});
 });
 
@@ -648,5 +1013,38 @@ describe("CharacterLedger item batches", () => {
 		expect(CharacterLedger.entriesForDeletedItems(cards)[0].action).toBe(
 			"Arcana removed (5): Card 0, Card 1, Card 2, and 2 more",
 		);
+	});
+
+	// Emptying a written-in appearance line DELETES the sub-key, and the two supported cores
+	// send a deletion in different shapes. Neither is a choice the player made, so neither
+	// belongs in the ledger — and the v14 shape is an object, which used to stringify into the
+	// row as "[object Object]".
+	describe("a cleared appearance line", () => {
+		const appearancePath = n => `flags.${SYSTEM_ID}.appearance.selected.${n}`;
+		const withLine = value => makeActor({}, { [SYSTEM_ID]: { appearance: { selected: { 0: value } } } });
+
+		it("records nothing for the v14 ForcedDeletion shape", async () => {
+			const entries = await CharacterLedger.entriesForActorUpdate(
+				withLine("built like a barn door"),
+				{ [appearancePath(0)]: new foundry.data.operators.ForcedDeletion() },
+			);
+			expect(entries.map(e => e.action)).toEqual([]);
+		});
+
+		it("records nothing for the v13 -= shape", async () => {
+			const entries = await CharacterLedger.entriesForActorUpdate(
+				withLine("built like a barn door"),
+				{ [`flags.${SYSTEM_ID}.appearance.selected.-=0`]: null },
+			);
+			expect(entries.map(e => e.action)).toEqual([]);
+		});
+
+		it("still records a line that was actually set", async () => {
+			const entries = await CharacterLedger.entriesForActorUpdate(
+				makeActor(),
+				{ [appearancePath(0)]: "built like a barn door" },
+			);
+			expect(entries.map(e => e.action)).toEqual(["Appearance set to built like a barn door"]);
+		});
 	});
 });

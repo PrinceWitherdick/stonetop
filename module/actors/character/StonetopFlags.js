@@ -1,4 +1,5 @@
 import { SYSTEM_ID, LEGACY_FLAG_SCOPES, isCutOver, packId } from "../../system-id.js";
+import { deletionEntry } from "../../utils/foundry-compat.js";
 
 const _scope = SYSTEM_ID;
 export const STONETOP_SCOPE = _scope;
@@ -67,19 +68,39 @@ export class StonetopFlags {
 		return { [`flags.${_scope}.${this.buildKey(key)}`]: value };
 	}
 
+	// The same, for REMOVING a flag: the `unsetFlag` counterpart of `updateData`, so a caller
+	// batching several changes can drop a flag in the same update rather than in a second write.
+	// Emitted in whichever form the running core applies (deletionEntry: a ForcedDeletion on
+	// v14+, the legacy "-=key" prefix below it).
+	deletionData(key) {
+		const [path, value] = deletionEntry(`flags.${_scope}.${this.buildKey(key)}`);
+		return { [path]: value };
+	}
+
+	// Apply a fragment built by updateData/deletionData on its own, for a caller that has no
+	// other changes to batch it with. No-op on an empty or absent fragment.
+	async applyUpdateData(data, options) {
+		if (data && Object.keys(data).length) await this._actor.update(data, options);
+	}
+
 	// Apply several flag writes and/or sub-key deletions in ONE actor.update (a single
 	// document write / sheet re-render) instead of many sequential setFlag/unsetFlag calls.
 	// `sets` is { key: value } — each REPLACES that flag wholesale (an array/primitive
 	// replaces; note a plain-object value still deep-MERGES, so use `deletes` to drop keys).
-	// `deletes` is { key: [subKey, …] } — each subKey is removed from that flag object via
-	// Foundry's "-=key" syntax (a subKey may contain ':' but not '.').
+	// `deletes` is { key: [subKey, …] } — each subKey is removed from that flag object in whichever
+	// form the running core actually applies (deletionEntry: a ForcedDeletion on v14+, the legacy
+	// "-=key" prefix below it). A subKey may contain ':' but not '.'. v14 still honours "-=", but
+	// logs a deprecation for every key — a prune that drops a dozen answers filled the console.
 	async batch({ sets = {}, deletes = {} } = {}, options) {
 		const data = {};
 		for (const [key, value] of Object.entries(sets)) {
 			data[`flags.${_scope}.${this.buildKey(key)}`] = value;
 		}
 		for (const [key, subKeys] of Object.entries(deletes)) {
-			for (const sub of subKeys) data[`flags.${_scope}.${this.buildKey(key)}.-=${sub}`] = null;
+			for (const sub of subKeys) {
+				const [path, value] = deletionEntry(`flags.${_scope}.${this.buildKey(key)}.${sub}`);
+				data[path] = value;
+			}
 		}
 		if (Object.keys(data).length) await this._actor.update(data, options);
 	}

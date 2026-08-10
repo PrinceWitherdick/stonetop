@@ -78,7 +78,7 @@ describe("isPosterMapScene", () => {
 	it("matches a Scene the macro stamped under a legacy package id", () => {
 		// The macro stamps the RUNTIME game.system.id, which on a renamed install is not the
 		// pinned SYSTEM_ID. Missing this would build a second Scene beside the GM's existing one.
-		expect(isPosterMapScene({ name: "Renamed", flags: { stonetop_pwd: { posterMap: village.slug } } }, village)).toBe(true);
+		expect(isPosterMapScene({ name: "Renamed", flags: { stonetop: { posterMap: village.slug } } }, village)).toBe(true);
 	});
 
 	it("falls back to the map's name when there is no flag at all", () => {

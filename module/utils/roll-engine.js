@@ -1,7 +1,7 @@
 import { maybeRemindPotentialForGreatness } from "../actors/character/WouldBeHeroAsterisk.js";
 import { escHtml, formatOutcomeDetail } from "./strings.js";
 import { pickLeadText } from "./move-results.js";
-import { stonetopCardShell, stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber, damageBadge } from "./chat.js";
+import { stonetopCardShell, stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber, damageMark, damageBadge } from "./chat.js";
 
 const _STAT_LABELS = {
 	str: "Strength", dex: "Dexterity", int: "Intelligence",
@@ -133,7 +133,7 @@ export function postSeasonsRollPrompt({ alias = "Seasons Change — Spring", hop
 	});
 }
 
-function _rollCard({ header, result = "", resultClass = "", resultDetail = "", resultOutcomes = null, resultLegend = "", pickList = "", tierActions = null, conditionsHtml = "", noticesHtml = "", buttons = false, total = null, formula = "", description = "", dieResults = "", badge = "", sectionClass = "" }) {
+function _rollCard({ header, result = "", resultClass = "", resultDetail = "", resultOutcomes = null, resultLegend = "", pickList = "", tierActions = null, conditionsHtml = "", noticesHtml = "", buttons = false, total = null, formula = "", description = "", dieResults = "", badge = "", sectionClass = "", damage = false }) {
 	// Stash every tier's outcome on the row so a GM Shift Up/Down can swap the
 	// detail line to match the new tier (see _shiftRollCardFlavor in stonetop.js).
 	const outcomeAttrs = resultOutcomes
@@ -152,9 +152,12 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", r
 	// the hit tier and its per-tier outcome, colour-coded down the left edge. Replaces
 	// the old separate centred readout + boxed "Weak Hit" label. Cards without a roll
 	// (e.g. the "+1 XP on a miss" follow-up) pass no total and just show the label.
+	// A damage roll has no hit tier to colour the block, so its total wears the red burst
+	// mark instead — the same one the attack flow's per-target damage rows use.
+	const resultNumberHtml = damage ? damageMark(total, dieResults) : rollResultNumber(total, dieResults);
 	const resultBlockHtml = (total != null || result)
 		? `<div class="stonetop-roll-result ${resultClass}"${outcomeAttrs}>
-			${total != null ? rollResultNumber(total, dieResults) : ""}
+			${total != null ? resultNumberHtml : ""}
 			<div class="stonetop-roll-result-body">
 				${result ? `<span class="stonetop-roll-result-label">${result}</span>` : ""}
 				<span class="stonetop-roll-result-details">${formatOutcomeDetail(resultDetail)}</span>
@@ -386,28 +389,41 @@ export async function rollStat(statKey, actor, options = {}) {
 	}
 
 	if (result.key === "failure" && actor?.type === "character" && !options.noXpOnMiss) {
-		const currentXp = actor.system?.attributes?.xp?.value ?? 0;
-		const level     = actor.system?.attributes?.level?.value ?? 1;
-		const maxXp     = xpToLevelUp(level);
-		const newXp     = currentXp + 1;
-		// Attribute the marked XP to the move that missed, so the ledger reads "via <move>".
-		await actor.update({ "system.attributes.xp.value": newXp }, moveName ? { stonetopMove: moveName } : {});
-		const xpCard = _rollCard({
-			header: "Miss",
-			result: `+1 XP (${newXp} / ${maxXp})`,
-			resultClass: "success",
-			description: `<p>On a <strong>miss</strong> (a total of 6 or less), you <strong>mark XP</strong> &mdash; a tick mark that raises your total by 1 &mdash; unless the move says otherwise.</p>`
-		});
-		await ChatMessage.create({
-			content:  xpCard,
-			speaker:  ChatMessage.getSpeaker({ actor }),
-			rollMode: game.settings.get("core", "rollMode"),
-		});
+		await markMissXp(actor, moveName);
 	}
 
 	await maybeRemindPotentialForGreatness(actor, statKey, total);
 
 	return roll;
+}
+
+/**
+ * Mark the +1 XP a miss earns (Book I p.209: "On a 6 or less, it's a miss. That means: They mark
+ * XP") and post the receipt card. Normally fired automatically from rollStat, but exported so a
+ * move that defers the choice can suppress it with `noXpOnMiss` and then mark it later from a
+ * chat-card button (Never at a Loss) — the two paths must write the same thing, so they share
+ * this one. `moveName` attributes the write in the character ledger.
+ *
+ * XP is deliberately not capped: xpToLevelUp is a level-up threshold, not a ceiling.
+ */
+export async function markMissXp(actor, moveName) {
+	const currentXp = actor.system?.attributes?.xp?.value ?? 0;
+	const level     = actor.system?.attributes?.level?.value ?? 1;
+	const maxXp     = xpToLevelUp(level);
+	const newXp     = currentXp + 1;
+	// Attribute the marked XP to the move that missed, so the ledger reads "via <move>".
+	await actor.update({ "system.attributes.xp.value": newXp }, moveName ? { stonetopMove: moveName } : {});
+	const xpCard = _rollCard({
+		header: "Miss",
+		result: `+1 XP (${newXp} / ${maxXp})`,
+		resultClass: "success",
+		description: `<p>On a <strong>miss</strong> (a total of 6 or less), you <strong>mark XP</strong> &mdash; a tick mark that raises your total by 1 &mdash; unless the move says otherwise.</p>`
+	});
+	await ChatMessage.create({
+		content:  xpCard,
+		speaker:  ChatMessage.getSpeaker({ actor }),
+		rollMode: game.settings.get("core", "rollMode"),
+	});
 }
 
 // The Advantage / Disadvantage condition pill(s) for a roll mode — shared by the stat and
@@ -460,7 +476,7 @@ export async function rollDamage(formula, actor, options = {}) {
 
 	await roll.toMessage({
 		speaker:  ChatMessage.getSpeaker({ actor }),
-		flavor:   _rollCard({ header: label, buttons: true, total: roll.total, formula: roll.formula, dieResults: dieResultsText(roll), conditionsHtml: _conditionsHtml(conditions), badge: damageBadge(), sectionClass: "stonetop-damage-roll-card" }),
+		flavor:   _rollCard({ header: label, buttons: true, total: roll.total, formula: roll.formula, dieResults: dieResultsText(roll), conditionsHtml: _conditionsHtml(conditions), badge: damageBadge(), sectionClass: "stonetop-damage-roll-card", damage: true }),
 		rollMode: game.settings.get("core", "rollMode"),
 	});
 

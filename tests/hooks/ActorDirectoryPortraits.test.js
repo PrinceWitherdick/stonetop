@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { onRenderActorDirectoryPortraits, onUpdateActorPortraitFrame } from "../../module/hooks/ActorDirectoryPortraits.js";
+import { decoratePortraitRow, onUpdateActorPortraitFrame } from "../../module/hooks/ActorDirectoryPortraits.js";
+import { decorateActorDirectoryRows } from "../../module/hooks/actor-directory-rows.js";
+
+// Production registers ONE walk that runs every row decorator (see stonetop.js); these tests
+// drive that same walk with only this feature's decorator, so the collection guard and the
+// row lookup under test are the real ones.
+const onRenderActorDirectoryPortraits = (app, element) =>
+	decorateActorDirectoryRows(app, element, [decoratePortraitRow]);
 import { SYSTEM_ID } from "../../module/system-id.js";
 
 // The pass rewrites Actors sidebar rows after render. The test env is node, so we fake just the

@@ -4,6 +4,7 @@ import { BOOK2_ART_APPLY_MANIFEST } from "./manifest.js";
 import { bestiaryDescriptionWithArt, codexFieldWithArt, locationSectionsWithArt, textPageWithManagedMap, matchWorldPage } from "./world-journal-art.js";
 import { managedHash } from "../hooks/journal-sync-core.js";
 import { compendiumSourceOf } from "../utils/foundry-compat.js";
+import { openApplications } from "../utils/open-windows.js";
 import { book2ArtRoot, book2ArtSrcWith } from "./art-root.js";
 import { browseArtDirs } from "./browse.js";
 import { STEADING_ACTOR_TYPE, isSteadingPlaceholderImg } from "../actors/steading/steading-portrait.js";
@@ -235,8 +236,7 @@ function codexEntryNeedsWork(entry, curation) {
 // Best-effort re-render every OPEN app (AppV2 sheet registry + legacy AppV1 windows) whose
 // bound document matches `pred`. A failed render must never fail the pass.
 function rerenderOpenAppsWhere(pred) {
-	const apps = [...(foundry.applications?.instances?.values?.() ?? []), ...Object.values(ui.windows ?? {})];
-	for (const app of apps) {
+	for (const app of openApplications()) {
 		const doc = app?.document ?? app?.object;
 		if (doc && app.rendered && pred(doc)) {
 			try { app.render(); } catch (_) { /* best-effort refresh */ }

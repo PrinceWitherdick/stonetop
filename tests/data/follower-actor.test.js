@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
 	followerNpcActorData, followerNotesHtml, splitFollowerName, followerMarkerImg,
-	SPROUT_MARKER, FOLLOWER_DRAG_TYPE,
+	followerActorFields, followerActorMoves, followerPortraitFrame, isFollowerMarkerImg, followerCardStamp,
+	CARD_FIELD_PATHS, NEW_SHOOT_MARKER, LEGACY_SHOOT_MARKERS, FOLLOWER_DRAG_TYPE,
 } from "../../module/data/follower-actor.js";
 
 // The follower → NPC Actor mapping behind dragging a follower card onto the canvas
@@ -79,6 +80,30 @@ describe("followerNpcActorData", () => {
 		expect(data.prototypeToken.texture).toEqual({ src: "worlds/art/hafr.webp" });
 	});
 
+	// The stamp is what lets a LATER edit on the card tell a field this actor still holds AS GIVEN
+	// from one somebody has since changed on the NPC itself.
+	it("remembers everything the card dictated, so a later edit can tell what is still ours", () => {
+		const stamp = followerNpcActorData({ ...CREW, img: "worlds/art/hafr.webp" })
+			.flags["stonetop_pwd"].followerCard;
+		expect(stamp.fields.name).toBe("The Ragged Half-Dozen");
+		expect(stamp.fields.img).toBe("worlds/art/hafr.webp");
+		expect(stamp.fields.instinct).toBe("To question leadership");
+		expect(stamp.moves).toEqual(["Hold the line", "Scatter"]);
+		// The stand-in disc is stamped too — it is just as much what the card gave it.
+		expect(followerNpcActorData({ ...CREW, img: "", portraitIcon: "fas fa-users" })
+			.flags["stonetop_pwd"].followerCard.fields.img)
+			.toBe("systems/stonetop_pwd/assets/icons/bestiary/human-group.svg");
+	});
+
+	// The table is what keeps creation and the reconciling sweep from drifting; a field with no
+	// path is a field the sweep would silently never write.
+	it("gives every card-authored field a place on the actor", () => {
+		const fields = Object.keys(followerActorFields(CREW));
+		expect(fields.every(key => !!CARD_FIELD_PATHS[key])).toBe(true);
+		// And no path may be a stamp key with a dot in it — Foundry would expand it on write.
+		expect(Object.keys(CARD_FIELD_PATHS).some(key => key.includes("."))).toBe(false);
+	});
+
 	it("falls back to a generic name and full HP when the card gives neither", () => {
 		const data = followerNpcActorData({ hp: { max: 6 } });
 		expect(data.name).toBe("Follower");
@@ -101,6 +126,33 @@ describe("followerNpcActorData", () => {
 		const data = followerNpcActorData(CREW, { folder: "folder1", origin });
 		expect(data.folder).toBe("folder1");
 		expect(data.flags["stonetop_pwd"].followerOrigin).toEqual(origin);
+	});
+});
+
+describe("followerCardStamp", () => {
+	it("carries every key it governs, including an img the fields left out", () => {
+		// The stamp is stored as a flag OBJECT, and Foundry MERGES one of those: a key absent from
+		// a later write cannot displace the one already stored, since dropping a subkey takes an
+		// explicit `-=`. `img` is the one field followerActorFields omits rather than blanks, so a
+		// stamp allowed to omit it too would strand the old path there for good — _stampEq would
+		// then disagree on every single pass, and the sweep would re-write the stamp, and re-fire
+		// the NPC's change ledger, on every render of the character sheet.
+		const fields = followerActorFields({ name: "Enfys" });
+		delete fields.img;
+
+		expect(followerCardStamp(fields, [])).toEqual({ fields: { ...fields, img: "" }, moves: [] });
+	});
+
+	it("keeps a portrait the card did choose, and the moves alongside it", () => {
+		const stamp = followerCardStamp({ name: "Enfys", img: "worlds/art/enfys.webp" }, ["Stand fast"]);
+		expect(stamp.fields.img).toBe("worlds/art/enfys.webp");
+		expect(stamp.moves).toEqual(["Stand fast"]);
+	});
+
+	it("is what a freshly built Actor is stamped with, so creation and the sweep agree", () => {
+		const data = followerNpcActorData(CREW);
+		expect(data.flags["stonetop_pwd"].followerCard)
+			.toEqual(followerCardStamp(followerActorFields(CREW), followerActorMoves(CREW)));
 	});
 });
 
@@ -140,9 +192,18 @@ describe("followerNotesHtml", () => {
 describe("followerMarkerImg", () => {
 	const mark = t => `systems/stonetop_pwd/assets/icons/bestiary/${t}.svg`;
 
-	it("gives an initiate of Danu the sprout", () => {
-		expect(followerMarkerImg("fas fa-seedling")).toBe(SPROUT_MARKER);
-		expect(SPROUT_MARKER).toBe("systems/stonetop_pwd/assets/icons/followers/sprout.svg");
+	it("gives an initiate of Danu the new shoot", () => {
+		expect(followerMarkerImg("fas fa-seedling")).toBe(NEW_SHOOT_MARKER);
+		expect(NEW_SHOOT_MARKER).toBe("systems/stonetop_pwd/assets/icons/followers/new-shoot.svg");
+	});
+
+	// The art moved off sprout.svg, and that file is gone. An actor stamped before the move
+	// still names it, so the old path has to stay recognisable under every id this package
+	// has shipped under (hooks/Ready.js lifts them onto the current file).
+	it("still recognises the path the marker used to live at", () => {
+		expect(LEGACY_SHOOT_MARKERS).toContain("systems/stonetop_pwd/assets/icons/followers/sprout.svg");
+		expect(LEGACY_SHOOT_MARKERS).toContain("systems/stonetop/assets/icons/followers/sprout.svg");
+		expect(LEGACY_SHOOT_MARKERS).not.toContain(NEW_SHOOT_MARKER);
 	});
 
 	it("maps the taxonomy's own glyphs straight back to their marks", () => {
@@ -169,6 +230,46 @@ describe("followerMarkerImg", () => {
 
 	it("is not fooled by Font Awesome's style and utility classes", () => {
 		expect(followerMarkerImg("fa-solid fa-fw fa-paw")).toBe(mark("natural-beast"));
+	});
+});
+
+// Reading a marker back off an actor: what tells a follower's NPC still wearing the stand-in we
+// gave it from one somebody has since chosen art for.
+describe("isFollowerMarkerImg", () => {
+	it("knows every mark followerMarkerImg can hand out", () => {
+		expect(isFollowerMarkerImg(followerMarkerImg("fas fa-paw"))).toBe(true);
+		expect(isFollowerMarkerImg(followerMarkerImg("fas fa-seedling"))).toBe(true);
+		expect(isFollowerMarkerImg(followerMarkerImg(""))).toBe(true);
+	});
+
+	// isDefaultImg answers for the mystery man and the "human, individual" mark and stops there;
+	// a converted beast's disc is just as much a placeholder and only this can say so.
+	it("covers the discs isDefaultImg cannot, under every id and a stray leading slash", () => {
+		expect(isFollowerMarkerImg("/systems/stonetop_pwd/assets/icons/bestiary/undead.svg")).toBe(true);
+		expect(isFollowerMarkerImg("systems/stonetop/assets/icons/bestiary/fae.svg")).toBe(true);
+		expect(isFollowerMarkerImg("systems/stonetop/assets/icons/followers/sprout.svg")).toBe(true);
+	});
+
+	it("never mistakes art somebody chose for one of ours", () => {
+		expect(isFollowerMarkerImg("worlds/art/hafr.webp")).toBe(false);
+		expect(isFollowerMarkerImg("systems/stonetop_pwd/assets/icons/bestiary/not-a-type.svg")).toBe(false);
+		expect(isFollowerMarkerImg("")).toBe(false);
+		expect(isFollowerMarkerImg(undefined)).toBe(false);
+	});
+});
+
+describe("followerPortraitFrame", () => {
+	const rect = { src: "worlds/art/hafr.webp", rect: [0.1, 0.1, 0.5, 0.5] };
+
+	it("rides along with a portrait the follower actually chose", () => {
+		expect(followerPortraitFrame({ img: "worlds/art/hafr.webp", portraitFrame: rect })).toEqual(rect);
+	});
+
+	it("is dropped where the picture fell back to a stand-in mark", () => {
+		// A rect measured against a picture this actor no longer wears is dead weight.
+		expect(followerPortraitFrame({ img: "", portraitFrame: rect })).toBeNull();
+		expect(followerPortraitFrame({ img: "icons/svg/mystery-man.svg", portraitFrame: rect })).toBeNull();
+		expect(followerPortraitFrame({ img: "worlds/art/hafr.webp" })).toBeNull();
 	});
 });
 

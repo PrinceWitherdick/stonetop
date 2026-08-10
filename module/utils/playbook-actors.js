@@ -3,6 +3,9 @@
 // Introductions and Let-Spring-Burst walkthroughs, the playbook picker, and the
 // character sheet's avatar art.
 
+import { WBH_PLAYBOOK_NAME, WBH_HERO_FLAG, heroDisplayName, ownsAsteriskMove } from "../actors/character/WouldBeHeroAsterisk.js";
+import { STONETOP_SCOPE } from "../actors/character/StonetopFlags.js";
+
 /**
  * A character's playbook slug, from either the embedded `system.playbook` data or
  * a contained playbook item. Returns "" when there's no playbook yet — which also
@@ -12,6 +15,41 @@ export function playbookSlug(actor) {
 	return actor?.system?.playbook?.slug
 		?? actor?.items?.find?.(i => i.type === "playbook")?.system?.slug
 		?? "";
+}
+
+/**
+ * A character's playbook as it should READ — "The Lightbearer", "The Blessed" — or "" for
+ * an actor who hasn't picked one. This is the sheet header's name, not the stored one: a
+ * Would-Be Hero who has crossed off "Would-be" is "The Hero" everywhere they are named.
+ *
+ * The cross-off is only ever consulted for the one playbook it can apply to, so the rest
+ * of the party never pays for the item scan behind `ownsAsteriskMove` — this runs once per
+ * row of every Actors-sidebar render.
+ */
+export function playbookTitle(actor) {
+	const name = actor?.system?.playbook?.name ?? "";
+	if (name !== WBH_PLAYBOOK_NAME) return name;
+	const becameHero = !!actor?.getFlag?.(STONETOP_SCOPE, WBH_HERO_FLAG) || ownsAsteriskMove(actor);
+	return heroDisplayName(name, becameHero);
+}
+
+/**
+ * A player character named the way the table says them out loud: "Pim The Lightbearer".
+ *
+ * DISPLAY ONLY — the Actor document keeps the bare name it was given. The playbook is not
+ * part of who somebody is on disk: it can be swapped, it renames itself mid-campaign (see
+ * `playbookTitle`), and half this system matches people BY name (the steading roster, the
+ * relationships tables, follower recruitment, the chronicle's page-per-PC). Baking the
+ * epithet in would either strand those matches or need every one of them rewritten, and a
+ * chat speaker would end up "Pim The Lightbearer The Lightbearer" (see the alias stamp in
+ * stonetop.js). Surfaces that want the long form ask for it here.
+ *
+ * Falls back to the plain name, so it is safe to call on any actor.
+ */
+export function characterFullName(actor) {
+	const name  = actor?.name ?? "";
+	const title = playbookTitle(actor);
+	return title && name ? `${name} ${title}` : name;
 }
 
 /** Every world actor that is a player character (a `character` with a playbook). */

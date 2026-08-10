@@ -17,6 +17,17 @@
 
 const MAX_HEIGHT = 250; // Foundry-style cap so the list never fills the screen.
 
+/**
+ * Normalise one supplied option. An option may be a bare string (every caller before hints
+ * existed) or `{ value, hint }`, where the hint is a dimmed second column — where an NPC lives,
+ * say — shown to tell two people of the same name apart. Only `value` is ever inserted into the
+ * field; the hint is display and search fodder and never becomes text the caller has to parse
+ * back off, which is the trap a "Name (Home)" value string would have set.
+ */
+const asOption = o => (typeof o === "string"
+	? { value: o, hint: "" }
+	: { value: String(o?.value ?? ""), hint: String(o?.hint ?? "") });
+
 class StonetopAutocompleteController {
 	constructor() {
 		this._popup = null;
@@ -32,6 +43,11 @@ class StonetopAutocompleteController {
 	 * popup with ours. The linked `<datalist>` is kept as the live option source (so
 	 * datalists refreshed at runtime stay current) but the `list` attribute is removed
 	 * to suppress the native popup. `root` may be a jQuery object or an Element.
+	 *
+	 * An option's `label` attribute becomes its dimmed hint column. That is the attribute a
+	 * native datalist already means this by, so a template declares the pair in markup
+	 * (`<option value="Brennan" label="Marshedge">`) and nothing has to be wired in JS. Options
+	 * without one — which is every datalist that existed before hints did — carry no hint.
 	 */
 	upgradeAll(root) {
 		const el = root?.jquery ? root[0] : root;
@@ -44,13 +60,15 @@ class StonetopAutocompleteController {
 			input.removeAttribute("list");
 			// Read live each time so a datalist rebuilt at runtime is reflected.
 			this.attach(input, () => [...datalist.querySelectorAll("option")]
-				.map(o => o.value).filter(Boolean));
+				.map(o => ({ value: o.value, hint: o.getAttribute("label") ?? "" }))
+				.filter(o => o.value));
 		});
 	}
 
 	/**
-	 * Attach the popup to a single input. `options` is a `string[]` or a
-	 * `() => string[]` getter (read fresh on every open, for dynamic suggestion sets).
+	 * Attach the popup to a single input. `options` is an array or a getter returning one (read
+	 * fresh on every open, for dynamic suggestion sets). Each entry is a bare string, or
+	 * `{ value, hint }` to put a dimmed second column beside it — see asOption.
 	 */
 	attach(input, options) {
 		if (input._stAutocomplete) return;
@@ -96,15 +114,24 @@ class StonetopAutocompleteController {
 	_open(input, getOptions) {
 		if (this._suppress) return;
 		const query = input.value.trim().toLowerCase();
-		const matches = getOptions().filter(o => o.toLowerCase().includes(query));
+		// Matched against the hint as well as the value, so typing a place ("marshedge") narrows
+		// to the people from it. Picking one still inserts only their name.
+		const matches = getOptions()
+			.map(asOption)
+			.filter(o => o.value)
+			.filter(o => `${o.value} ${o.hint}`.toLowerCase().includes(query));
 		// Nothing to suggest (or the field already holds the sole exact match) → no popup.
-		if (!matches.length || (matches.length === 1 && matches[0].toLowerCase() === query)) {
+		if (!matches.length || (matches.length === 1 && matches[0].value.toLowerCase() === query)) {
 			this.close();
 			return;
 		}
+		const esc = foundry.utils.escapeHTML;
 		const popup = this._ensurePopup();
 		popup.innerHTML = matches
-			.map(o => `<li class="stonetop-autocomplete-option" data-value="${foundry.utils.escapeHTML(o)}">${foundry.utils.escapeHTML(o)}</li>`)
+			.map(o => `<li class="stonetop-autocomplete-option" data-value="${esc(o.value)}">`
+				+ `<span class="stonetop-autocomplete-value">${esc(o.value)}</span>`
+				+ (o.hint ? `<span class="stonetop-autocomplete-hint">${esc(o.hint)}</span>` : "")
+				+ `</li>`)
 			.join("");
 		this._input = input;
 		this._index = -1;

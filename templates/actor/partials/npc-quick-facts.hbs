@@ -1,0 +1,99 @@
+{{!-- The NPC quick facts: Following, Home, Embodiment, Instinct, Occupation, Relations.
+
+      One copy of the markup, mounted in two places. In the MODERN layout it heads the
+      Details tab; in the CLASSIC layout it is pinned above the tab strip, where it sat
+      before the redesign, so Instinct stays on screen whichever page is open. Both mount
+      sites in npc.hbs are guarded by complementary {{#if}}/{{#unless}} on
+      `stonetop.classicLayout` - it MUST render exactly once. Every field here is a named
+      input (system.home, system.embodiment, system.instinct, system.occupation,
+      system.relations); render it twice and FormDataExtended collapses each duplicate name
+      into an array, so the next submit writes garbage into all five. It looks like a
+      harmless visual duplicate right up until someone saves.
+
+      Reads only root-context keys, and both mount points are at root depth, so a bare
+      include resolves identically at either.
+
+      Spaced like the monster stat block rather than the roomy body. --}}
+<div class="stonetop-npc-stat-block">
+
+	{{!-- Following — the PC(s) who've recruited this NPC as a follower (derived
+	     from the follower cards that link back here). Click to open their sheet.
+	     Labelled rather than tooltipped: these carry no href, so the label is the
+	     only thing that says they lead anywhere, and they sit inline in a run of
+	     prose where a hover bubble would land on the names beside them. --}}
+	{{#if stonetop.isFollowing}}
+	<section class="stonetop-npc-field stonetop-npc-following">
+		<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.following"}}</strong>
+		<span class="stonetop-npc-prose stonetop-npc-following-list">
+			{{#each stonetop.following}}<a class="stonetop-npc-following-pc" data-pc-id="{{id}}" aria-label='{{localize "stonetop.relationships.open" name=name}}'><i class="fas fa-user"></i> {{name}}</a>{{#unless @last}}, {{/unless}}{{/each}}
+		</span>
+	</section>
+	{{/if}}
+
+	{{!-- Home — where they live, sitting just above Instinct. Residents of
+	     Stonetop default to "Stonetop" (auto-filled when they're added to the
+	     steading's Residents list). --}}
+	{{#if (or stonetop.editMode system.home)}}
+	<section class="stonetop-npc-field stonetop-npc-stat-line stonetop-npc-home">
+		<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.home"}}</strong>
+		{{#if stonetop.editMode}}
+		<input class="stonetop-npc-stat-input" type="text" name="system.home"
+		       value="{{system.home}}" placeholder='{{localize "stonetop.npc.homePlaceholder"}}'>
+		{{else}}
+		<span class="stonetop-npc-prose">{{system.home}}</span>
+		{{/if}}
+	</section>
+	{{/if}}
+
+	{{!-- Embodiment — GM-only acting note, sitting between Home and Instinct. --}}
+	{{#if (or stonetop.editMode system.embodiment)}}
+	<section class="stonetop-npc-field stonetop-npc-embodiment">
+		<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.embodiment"}}</strong>
+		{{#if stonetop.editMode}}
+		<input class="stonetop-npc-stat-input" type="text" name="system.embodiment"
+		       value="{{system.embodiment}}" placeholder='{{localize "stonetop.npc.embodimentPlaceholder"}}'>
+		{{else}}
+		<span class="stonetop-npc-prose">{{system.embodiment}}</span>
+		{{/if}}
+	</section>
+	{{/if}}
+
+	{{!-- Instinct — the anchor field. Plain stat line, matching the monster sheet. --}}
+	<section class="stonetop-npc-field stonetop-npc-instinct">
+		<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.instinct"}}</strong>
+		{{#if stonetop.editMode}}
+		<input class="stonetop-npc-stat-input" type="text" name="system.instinct"
+		       value="{{system.instinct}}" placeholder='{{localize "stonetop.npc.instinctPlaceholder"}}'>
+		{{else}}
+		<span class="stonetop-npc-prose">{{#if system.instinct}}{{system.instinct}}{{else}}<em class="stonetop-npc-empty">{{localize "stonetop.npc.instinctEmpty"}}</em>{{/if}}</span>
+		{{/if}}
+	</section>
+
+	{{!-- Occupation — sits just below Instinct. --}}
+	{{#if (or stonetop.editMode system.occupation)}}
+	<section class="stonetop-npc-field stonetop-npc-stat-line stonetop-npc-occupation-field">
+		<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.occupation"}}</strong>
+		{{#if stonetop.editMode}}
+		<input class="stonetop-npc-stat-input" type="text" name="system.occupation"
+		       value="{{system.occupation}}" placeholder='{{localize "stonetop.npc.occupationPlaceholder"}}'>
+		{{else}}
+		<span class="stonetop-npc-prose">{{system.occupation}}</span>
+		{{/if}}
+	</section>
+	{{/if}}
+
+	{{!-- Relations — kin, allies, rivals in a quick line; also backs the Steading
+	     Residents/Neighbors table columns. --}}
+	{{#if (or stonetop.editMode system.relations)}}
+	<section class="stonetop-npc-field stonetop-npc-stat-line stonetop-npc-relations-quick">
+		<strong class="stonetop-npc-stat-key">{{localize "stonetop.npc.relations"}}</strong>
+		{{#if stonetop.editMode}}
+		<input class="stonetop-npc-stat-input" type="text" name="system.relations"
+		       value="{{system.relations}}" placeholder='{{localize "stonetop.npc.relationsPlaceholder"}}'>
+		{{else}}
+		<span class="stonetop-npc-prose">{{system.relations}}</span>
+		{{/if}}
+	</section>
+	{{/if}}
+
+</div>{{!-- /stat-block --}}

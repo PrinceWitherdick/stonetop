@@ -144,6 +144,7 @@ export class CharacterArcana {
 	get ownedSlugs()       { return new Set(this._flags.getFlag("owned") ?? []); }
 	get revealedSlugs()    { return new Set(this._flags.getFlag("revealed") ?? []); }
 	get identifiedSlugs()  { return new Set(this._flags.getFlag("identified") ?? []); }
+	get backOwedSlugs()    { return new Set(this._flags.getFlag("backOwed") ?? []); }
 	get leadSlugs()        { return new Set(this._flags.getFlag("leads") ?? []); }
 	get unlockCounts()     { return this._flags.getFlag("unlock") ?? {}; }
 	get backOptionCounts() { return this._flags.getFlag("backOptions") ?? {}; }
@@ -180,6 +181,7 @@ export class CharacterArcana {
 	async buildSnapshot(stats = {}, checkedMap = {}, inventoryResources = {}) {
 		const ownedSlugs       = this.ownedSlugs;
 		const identifiedSlugs  = this.identifiedSlugs;
+		const backOwedSlugs    = this.backOwedSlugs;
 		const leadSlugs        = this.leadSlugs;
 		const unlockCounts     = this.unlockCounts;
 		const backOptionCounts = this.backOptionCounts;
@@ -298,6 +300,7 @@ export class CharacterArcana {
 				.withChecked(checkedMap[item.slug] ?? false)
 				.withUnlocked(unlocked)
 				.withIdentified(identifiedSlugs.has(item.slug))
+				.withBackOwed(backOwedSlugs.has(item.slug))
 				.withLead(leadSlugs.has(item.slug) && !identifiedSlugs.has(item.slug))
 				.withImg(arcanumCardImg(item))
 				.withMajor(isMajorArcanumItem(item))
@@ -336,7 +339,7 @@ export class CharacterArcana {
 		const sets = {}, deletes = {};
 		// Slug arrays: writing the filtered array replaces it wholesale (mergeObject doesn't
 		// deep-merge arrays), dropping the slug.
-		for (const key of ["owned", "identified", "leads", "revealed", "flipped"]) {
+		for (const key of ["owned", "identified", "backOwed", "leads", "revealed", "flipped"]) {
 			const cur = this._flags.getFlag(key) ?? [];
 			if (cur.includes(slug)) sets[key] = cur.filter(s => s !== slug);
 		}
@@ -350,10 +353,56 @@ export class CharacterArcana {
 		await this._flags.batch({ sets, deletes });
 	}
 
-	async identifyArcanum(slug) {
-		const s = this.identifiedSlugs;
-		s.add(slug);
-		await this._flags.setFlag("identified", [...s]);
+	// The three outcomes of identifying an arcanum (Book I, Discoveries p.440). The book's
+	// ladder is a disclosure ladder, and the two flags we already keep are exactly its two
+	// rungs: `identified` means the owner may read the FRONT, `revealed` means they may also
+	// read the BACK of a still-locked card (it's the only owner-side input to the sheet's
+	// permittedBack). So a 10+ writes both, a 7-9 writes only `identified`, and a 6- writes
+	// nothing. Each write is batched so one tier is one document update / one re-render, and
+	// each takes `options` so the caller can attribute it in the ledger ({stonetopMove: …}).
+
+	/** Read the front, and nothing more. The GM's "front only" hand-over. */
+	async identifyArcanum(slug, options) {
+		const identified = this.identifiedSlugs;
+		identified.add(slug);
+		await this._flags.setFlag("identified", [...identified], options);
+	}
+
+	/**
+	 * "on a 10+, give them the card and have them read both sides" — front and back at once.
+	 * Clears any outstanding back debt from an earlier 7-9 on the same card, since the back
+	 * has now arrived.
+	 */
+	async identifyAndRevealArcanum(slug, options) {
+		const identified = this.identifiedSlugs;
+		const revealed   = this.revealedSlugs;
+		const backOwed   = this.backOwedSlugs;
+		identified.add(slug);
+		revealed.add(slug);
+		backOwed.delete(slug);
+		await this._flags.batch({ sets: {
+			identified: [...identified],
+			revealed:   [...revealed],
+			backOwed:   [...backOwed],
+		} }, options);
+	}
+
+	/**
+	 * "on a 7-9, have them read the front, and show them the back when they have some time to
+	 * study it or learn more" — the front now, the back as a debt the GM settles later. The
+	 * debt needs its own flag because `identified && !revealed` is also the resting state of
+	 * every card a GM simply hands over front-only; without it the promise would live only in
+	 * a chat message that scrolls away.
+	 */
+	async identifyFrontOwedArcanum(slug, options) {
+		const identified = this.identifiedSlugs;
+		const backOwed   = this.backOwedSlugs;
+		identified.add(slug);
+		backOwed.add(slug);
+		await this._flags.batch({ sets: {
+			identified: [...identified],
+			backOwed:   [...backOwed],
+		} }, options);
 	}
 
 	// Record a "lead": the owner knows this arcanum exists and roughly where it is, but
@@ -428,16 +477,25 @@ export class CharacterArcana {
 	// player (an unlocked back is always visible to its owner, and with the peek setting on
 	// players see backs anyway, so the reveal toggle only shows for a locked card while the
 	// setting is off). The GM always sees both sides regardless.
-	async revealArcanum(slug) {
-		const s = this.revealedSlugs;
-		s.add(slug);
-		await this._flags.setFlag("revealed", [...s]);
+	async revealArcanum(slug, options) {
+		const revealed = this.revealedSlugs;
+		const backOwed = this.backOwedSlugs;
+		revealed.add(slug);
+		// Handing the back over settles a 7-9's debt, whether the GM does it from the card's
+		// footer or from the "back is owed" strip. Batched with the reveal so the strip can't
+		// linger for a render after the back arrives. Most reveals owe nothing, so they stay a
+		// plain single write rather than a batch of two.
+		if (backOwed.delete(slug)) {
+			await this._flags.batch({ sets: { revealed: [...revealed], backOwed: [...backOwed] } }, options);
+		} else {
+			await this._flags.setFlag("revealed", [...revealed], options);
+		}
 	}
 
-	async hideArcanum(slug) {
+	async hideArcanum(slug, options) {
 		const s = this.revealedSlugs;
 		s.delete(slug);
-		await this._flags.setFlag("revealed", [...s]);
+		await this._flags.setFlag("revealed", [...s], options);
 	}
 
 	async setUnlockCount(arcanumSlug, optionSlug, count) {

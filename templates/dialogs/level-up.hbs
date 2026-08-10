@@ -46,7 +46,7 @@
 		{{#if moveGroups.length}}
 		<div class="stonetop-levelup-move-chips">
 			{{#each moveGroups}}
-			<button type="button" class="stonetop-levelup-move-chip" data-move-group="{{key}}">{{label}}</button>
+			<button type="button" class="stonetop-levelup-move-chip" data-move-group="{{key}}" aria-pressed="false">{{label}}</button>
 			{{/each}}
 		</div>
 		{{/if}}
@@ -90,6 +90,9 @@
 			{{/each}}
 			{{/if}}
 			</div>
+			{{!-- Revealed by the filter when it hides every card. Starts hidden so it cannot
+			      flash before activateListeners runs. --}}
+			<p class="stonetop-levelup-empty stonetop-levelup-move-no-matches is-filtered-out">{{{localize "stonetop.specialMoves.levelUp.noMovesMatch"}}}</p>
 		</div>
 		{{else}}
 			{{#if showLockedMoves}}
@@ -112,6 +115,7 @@
 				</div>
 				{{/each}}
 				</div>
+				<p class="stonetop-levelup-empty stonetop-levelup-move-no-matches is-filtered-out">{{{localize "stonetop.specialMoves.levelUp.noMovesMatch"}}}</p>
 			</div>
 			{{else}}
 			<p class="stonetop-levelup-empty">{{{localize "stonetop.specialMoves.levelUp.noMoves"}}}</p>
@@ -134,11 +138,19 @@
 			<i class="fas fa-magnifying-glass" aria-hidden="true"></i>
 			<input type="search" class="levelup-foreign-search" placeholder="Filter moves…" aria-label="Filter moves">
 		</div>
+		{{#if foreignPlaybooks.length}}
+		<div class="stonetop-levelup-move-chips">
+			{{#each foreignPlaybooks}}
+			<button type="button" class="stonetop-levelup-move-chip stonetop-levelup-foreign-chip" data-playbook="{{key}}" aria-pressed="false">{{label}}</button>
+			{{/each}}
+		</div>
+		{{/if}}
 		<div class="stonetop-levelup-move-list">
 			<div class="stonetop-levelup-move-grid">
 			{{#each foreignMoves}}
 			<div class="stonetop-levelup-move-option stonetop-levelup-foreign-option{{#if selected}} is-selected{{/if}}"
-				data-compendium-id="{{compendiumId}}">
+				data-compendium-id="{{compendiumId}}"
+				data-playbook="{{playbook}}">
 				<div class="stonetop-levelup-move-header">
 					<span class="stonetop-levelup-move-name">{{name}}</span>
 					<span class="stonetop-levelup-move-req">{{playbook}}</span>
@@ -150,6 +162,7 @@
 			</div>
 			{{/each}}
 			</div>
+			<p class="stonetop-levelup-empty stonetop-levelup-foreign-no-matches is-filtered-out">{{{localize "stonetop.specialMoves.levelUp.noMovesMatch"}}}</p>
 		</div>
 		{{/if}}
 	</div>
