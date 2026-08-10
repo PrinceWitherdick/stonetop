@@ -2360,10 +2360,10 @@ export class StonetopCharacter {
 	 * The character's real max HP.
 	 *
 	 * NOT `system.attributes.hp.max`: that field is written once, when the playbook is dropped,
-	 * and never again — every later contribution (move bonuses, and a Thrall's max-HP Marks)
-	 * lives only in the computed snapshot, which the sheet mirrors into its inputs without
-	 * persisting. Anything doing arithmetic on "your max HP" has to ask for the computed value
-	 * or it will quietly use the character's level-1 number.
+	 * and never again — every later contribution (move bonuses, a Thrall's max-HP Marks, and the
+	 * permanent hand-set adjustment; see setMaxHp) lives only in the computed snapshot, which the
+	 * sheet mirrors into its inputs without persisting. Anything doing arithmetic on "your max
+	 * HP" has to ask for the computed value or it will quietly use the level-1 number.
 	 */
 	async computedMaxHp() {
 		const snapshot = await this.buildSnapshot();
@@ -2372,6 +2372,44 @@ export class StonetopCharacter {
 
 	/** The persisted field — stale by design; see computedMaxHp. Only for a last-resort fallback. */
 	get storedMaxHp()       { return Number(this._actor.system?.attributes?.hp?.max) || 0; }
+
+	/** The lasting hand-set change to max HP, signed. 0 when max HP is purely derived. */
+	get maxHpAdjustment()   { return Math.trunc(Number(this._actor.system?.attributes?.hp?.adjustment) || 0); }
+
+	/**
+	 * Set max HP by hand, permanently.
+	 *
+	 * A dozen arcana and post-death consequences move max HP for good — "the ring wounds your
+	 * soul, reducing your max HP by 4", "gain unholy resilience: increase your max HP by 2" —
+	 * and typing the new number into the sheet used to last exactly one render, because the
+	 * max field mirrors the computed value (see computedMaxHp) and the computation knew nothing
+	 * about it. What's stored is the DELTA from the derived number, not the number itself, so
+	 * the scar keeps its size when a later level or move raises the base underneath it.
+	 *
+	 * `base` is the derived max the sheet already rendered into the field's dataset, which
+	 * saves rebuilding the snapshot to read one integer back out. A base of 0 means there is
+	 * no derived number to sit on top of (no playbook yet), so the typed value is written
+	 * straight to the stored max as it always was.
+	 *
+	 * Lowering the max takes current HP down with it — a soul-wound doesn't leave you standing
+	 * at more hit points than you now have. Returns the max HP now in play.
+	 */
+	async setMaxHp(input, { base: knownBase = null } = {}) {
+		// `null` is "I don't know it", NOT zero — Number(null) is 0, which would silently take
+		// the no-playbook branch below and write a raw max the next render would overwrite.
+		const base = (knownBase !== null && knownBase !== undefined && Number.isFinite(Number(knownBase)))
+			? Math.trunc(Number(knownBase))
+			: ((await this.buildSnapshot()).vitals?.hpBase ?? 0);
+		const typed = Math.trunc(Number(input));
+		if (!Number.isFinite(typed)) return base > 0 ? await this.computedMaxHp() : this.storedMaxHp;
+		const target = Math.max(1, typed);
+		const update = base > 0
+			? { "system.attributes.hp.adjustment": target - base }
+			: { "system.attributes.hp.max": target };
+		if (this.hp > target) update["system.attributes.hp.value"] = target;
+		await this._actor.update(update);
+		return target;
+	}
 
 	/** The hand-set damage die, or null when the die follows the playbook. */
 	get damageDieOverride() { return normalizeDamageDie(this._actor.system?.attributes?.damage?.override); }
@@ -2911,8 +2949,15 @@ function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, 
 	const attrs = actor.system?.attributes ?? {};
 	const level = attrs.level?.value ?? 1;
 	// Floored at 1: a Thrall who collects enough max-HP Marks would otherwise arrive at 0 max HP
-	// and be permanently dying, which is Unholy Vessel's job to end, not arithmetic's.
-	const hpMax = Math.max(1, (playbookData?.hp ?? 0) + (moveBonuses.hp ?? 0) - insertHpPenalty);
+	// and be permanently dying, which is Unholy Vessel's job to end, not arithmetic's. The same
+	// floor covers a permanent adjustment deep enough to do it the other way round.
+	const derivedHp = (playbookData?.hp ?? 0) + (moveBonuses.hp ?? 0) - insertHpPenalty;
+	// The lasting hand-set change: arcana that cost or grant max HP outright ("reducing your max
+	// HP by 1d4+1", "+4 max HP"). Kept as a delta on top of the derived number so levelling and
+	// new move bonuses still land, rather than freezing max HP at whatever was typed.
+	const hpAdjust = Math.trunc(Number(attrs.hp?.adjustment) || 0);
+	const hpBase = playbookData ? Math.max(1, derivedHp) : 0;
+	const hpMax = Math.max(1, derivedHp + hpAdjust);
 	const damageBase = playbookData
 		? (moveBonuses.damageDie ? maxDie(playbookData.damage, moveBonuses.damageDie) : playbookData.damage)
 		: null;
@@ -2922,6 +2967,7 @@ function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, 
 	const damage = normalizeDamageDie(attrs.damage?.override) ?? damageBase;
 	return new VitalsSnapshotBuilder()
 		.withHp(playbookData ? new ValueMax(Math.min(attrs.hp?.value ?? 0, hpMax), hpMax) : new ValueMax(0, 0))
+		.withHpBase(hpBase)
 		.withDamage(damage)
 		.withDamageBase(damageBase)
 		.withArmor(armorValue)

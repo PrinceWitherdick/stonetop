@@ -41,10 +41,16 @@
 					       {{#unless editable}}disabled{{/unless}}>
 				</span>
 				<span class="cell__separator">/</span>
-				<span class="cell__max">
-					<input class="attr-max" type="number"
-					       name="system.attributes.hp.max"
+				{{!-- Max HP, like the damage die above, carries no `name`: the number shown is the
+				      computed one (playbook + move bonuses - a Thrall's Marks), so a blanket form
+				      write would be overwritten on the next render. Typing here goes through the
+				      sheet's handler, which banks the difference as a permanent adjustment. --}}
+				<span class="cell__max"{{#if stonetop.hpMaxNote}} data-tooltip="{{stonetop.hpMaxNote}}"{{/if}}>
+					<input class="attr-max{{#if stonetop.hpMaxAdjusted}} stonetop-hp-max--adjusted{{/if}}" type="number"
+					       data-hp-max
+					       data-hp-base="{{stonetop.vitals.hpBase}}"
 					       value="{{system.attributes.hp.max}}"
+					       min="1"
 					       {{#unless stonetop.editMode}}disabled{{/unless}}>
 				</span>
 			</div>

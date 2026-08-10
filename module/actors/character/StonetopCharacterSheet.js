@@ -1170,6 +1170,15 @@ export function createStonetopCharacterSheetClass(Base) {
 			for (const [path, value] of Object.entries(vitalsToSystem)) {
 				foundry.utils.setProperty(context.system, path, value);
 			}
+			// A permanent max-HP change (an arcanum's soul-wound, a Mark's boon) is otherwise
+			// invisible once applied — the field just shows a number that disagrees with the
+			// playbook. Marked and spelled out here so a GM reading the sheet months later can
+			// see there IS one and how big it is, rather than suspecting a stale value.
+			const hpAdjust = context.stonetop.playbook ? v.hp.max - v.hpBase : 0;
+			context.stonetop.hpMaxAdjusted = hpAdjust !== 0;
+			context.stonetop.hpMaxNote = hpAdjust
+				? `Max HP ${hpAdjust > 0 ? "+" : "−"}${Math.abs(hpAdjust)} permanently (your playbook gives ${v.hpBase}). Type a new max to change it, or ${v.hpBase} to clear it.`
+				: (context.stonetop.editMode ? "Type a new max to change it permanently. The difference is kept as you level." : "");
 			// Followers tab — build data from flags + playbook definition.
 			// Pass smallItemLimit from the already-computed snapshot so crew gear
 			// uses the exact same prosperity value as outfit inventory items.
@@ -3524,6 +3533,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Damage die, typed by hand in edit mode. Saved as an override rather than through
 			// the form, since the field's rendered value is the computed die (see actor-vitals.hbs).
 			html.find("[data-damage-die]").on("change", this._onDamageDieEdit.bind(this));
+
+			// Max HP, same story: the rendered number is computed, so a hand-typed one is banked
+			// as a permanent adjustment instead of being written straight to the stale field.
+			html.find("[data-hp-max]").on("change", this._onMaxHpEdit.bind(this));
 
 			// -- Followers tab: shared follower-card fields ----------------
 			// Common, hand-editable fields on every follower card (name,
@@ -7466,6 +7479,29 @@ export function createStonetopCharacterSheetClass(Base) {
 			} else {
 				await this._stonetopCharacter.setDamageDieOverride("", { base });
 			}
+			this.render(false);
+		}
+
+		// ── Max HP ─────────────────────────────────────────────────────────────────
+		// Hand-editing the max-HP field. The number in the box is derived (playbook + move
+		// bonuses - a Thrall's Marks), so the difference between it and what was typed is what
+		// gets stored: that way a soul-wound taken at level 3 is still the same wound at level
+		// 8, instead of pinning max HP to a number the character has since outgrown. Typing the
+		// derived number back in clears the adjustment. Blank or nonsense puts the old value
+		// back rather than half-saving.
+		async _onMaxHpEdit(ev) {
+			const el = ev.currentTarget;
+			if (!this.isEditable) return;
+			const typed = Number(String(el.value ?? "").trim());
+			const base  = Number(el.dataset.hpBase) || 0;
+			if (!Number.isFinite(typed) || String(el.value ?? "").trim() === "" || typed < 1) {
+				if (String(el.value ?? "").trim() !== "") {
+					ui.notifications?.warn("Max HP has to be a whole number of 1 or more.");
+				}
+				el.value = this.actor.system?.attributes?.hp?.max ?? base;
+				return;
+			}
+			await this._stonetopCharacter.setMaxHp(typed, { base });
 			this.render(false);
 		}
 

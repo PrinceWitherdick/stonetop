@@ -15,6 +15,11 @@ const SYSTEM_PATH_LABELS = {
 	"system.attributes.damage.value": "Damage value",
 	"system.attributes.hp.value": "HP",
 	"system.attributes.hp.max": "Max HP",
+	// The lasting hand-set change on top of the derived max — an arcanum's soul-wound or a
+	// Mark's boon. Labelled so it lands in the ledger like any other permanent change; without
+	// a row here an unlabelled path is dropped, and the one write that OUGHT to be on the
+	// record would be the one that isn't.
+	"system.attributes.hp.adjustment": "Max HP (permanent)",
 	"system.attributes.xp.value": "XP",
 	"system.attributes.xp.max": "XP max",
 	"system.attributes.level.value": "Level",

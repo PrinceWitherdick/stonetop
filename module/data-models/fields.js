@@ -9,10 +9,13 @@ export const valueField = (initial = 0) => new fields.SchemaField({
 	value: new fields.NumberField({ required: true, integer: true, initial }),
 });
 
-// A `{ value, max }` integer resource pair (hp, xp).
-export const valueMaxField = (value = 0, max = 0) => new fields.SchemaField({
+// A `{ value, max }` integer resource pair (hp, xp). `extras` adds sibling fields for a
+// resource that carries more than the pair (HP's permanent adjustment), so those stay
+// grouped with the track they belong to instead of floating loose under `attributes`.
+export const valueMaxField = (value = 0, max = 0, extras = {}) => new fields.SchemaField({
 	value: new fields.NumberField({ required: true, integer: true, initial: value }),
 	max:   new fields.NumberField({ required: true, integer: true, initial: max }),
+	...extras,
 });
 
 // A debility toggle. Characters also tag each debility with the stats it covers;

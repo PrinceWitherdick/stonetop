@@ -7,7 +7,12 @@ export class ValueMax {
 }
 
 /**
- * @property {ValueMax} hp  - max = playbook.hp; both 0 if no playbook
+ * @property {ValueMax} hp  - max = playbook.hp, plus move bonuses and the permanent
+ *   adjustment; both 0 if no playbook
+ * @property {number} hpBase - max HP with the permanent adjustment ignored, so the sheet
+ *   can turn a hand-typed max into a delta (and show what clearing it goes back to).
+ *   0 when there is no playbook, which is also the signal that there is no derived
+ *   number to sit on top of. See StonetopCharacter#setMaxHp.
  * @property {string|null} damage - the die actually in play, e.g. "d10": the hand-set
  *   override if there is one, else the playbook's die (raised by move bonuses). Null
  *   when there is neither a playbook nor an override.
@@ -23,6 +28,7 @@ export class ValueMax {
 export class VitalsSnapshot {
 	constructor(b) {
 		this.hp         = b._hp;
+		this.hpBase     = b._hpBase ?? 0;
 		this.damage     = b._damage;
 		this.damageBase = b._damageBase ?? null;
 		this.armor      = b._armor;
@@ -34,6 +40,7 @@ export class VitalsSnapshot {
 
 export class VitalsSnapshotBuilder {
 	withHp(v)         { this._hp         = v; return this; }
+	withHpBase(v)     { this._hpBase     = v; return this; }
 	withDamage(v)     { this._damage     = v; return this; }
 	withDamageBase(v) { this._damageBase = v; return this; }
 	withArmor(v)      { this._armor      = v; return this; }

@@ -1121,6 +1121,16 @@ body :is(.app, .window-app).stonetop-height-resized {
 	box-sizing: border-box;
 }
 
+/* Max HP carrying a permanent adjustment (an arcanum's soul-wound, a Mark's boon).
+   The number alone looks like a stale field, so the box says it was set by hand — a
+   dashed rule rather than a colour, since the adjustment can go either way and neither
+   direction is a warning. Sits after the shared `.cell__resource input` rule and wins on
+   specificity, not order alone. */
+.sheet-attributes-top .cell--Resource .cell__resource input.stonetop-hp-max--adjusted {
+	border-style: dashed;
+	border-color: var(--st-text-muted);
+}
+
 /* Read-only HP max outside edit mode: matches the value input's box metrics so
    the "value / max" pair stays aligned, but reads as static text (no border).
    Shared by the monster and NPC sheets. */
