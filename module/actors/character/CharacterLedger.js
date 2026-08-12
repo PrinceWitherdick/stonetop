@@ -2,6 +2,7 @@ import { BEAST_CATALOG } from "../../data/beasts.js";
 import { stripHtmlToText } from "../../utils/strings.js";
 import { categoryForCharacterPath } from "../../utils/ledger-categories.js";
 import { crewAnonMemberLabel, crewIndividualLabel } from "../../utils/crew.js";
+import { SYSTEM_ID } from "../../system-id.js";
 import {
 	LEDGER_SCOPE, isLedgerPath, normalizeFlagPath, getActorProperty,
 	appendLedgerEntries, deleteLedgerEntries, getLedgerEntries,
@@ -274,7 +275,7 @@ async function buildNameLookup(actor) {
 		if (item?._id && item.name) names.inventory.set(item._id, item.name);
 		// Custom moves persist their resource track by item id; map that id back to the
 		// move's name/title so a ledger tick reads "<Move> - <Title>", not a raw id.
-		if (item?.type === "move" && item.flags?.["stonetop-pwd"]?.custom && item._id) {
+		if (item?.type === "move" && item.flags?.[SYSTEM_ID]?.custom && item._id) {
 			names.moveResourceNames.set(item._id, stripHtml(item.name) ?? item.name);
 			if (item.system?.resource?.title) names.moveResourceTitles.set(item._id, stripHtml(item.system.resource.title));
 		}

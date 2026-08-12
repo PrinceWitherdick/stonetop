@@ -1,3 +1,4 @@
+import { SYSTEM_ID } from "../system-id.js";
 // Where the Book II art the GM imported lives, and how a manifest `out` path resolves
 // against it.
 //
@@ -20,7 +21,7 @@ export const DEFAULT_ROOT = "stonetop-book-art";
 export function book2ArtRoot() {
 	let configured = null;
 	try {
-		configured = globalThis.game?.settings?.get?.("stonetop-pwd", "book2ArtRoot");
+		configured = globalThis.game?.settings?.get?.(SYSTEM_ID, "book2ArtRoot");
 	} catch (_) { /* setting not registered in this world */ }
 	return String(configured || DEFAULT_ROOT).replace(/\/+$/, "");
 }

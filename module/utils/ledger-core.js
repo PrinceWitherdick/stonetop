@@ -11,8 +11,9 @@
  * {@link appendLedgerEntries} for the rest.
  */
 import { stripHtmlToText } from "./strings.js";
+import { SYSTEM_ID } from "../system-id.js";
 
-export const LEDGER_SCOPE = "stonetop-pwd";
+export const LEDGER_SCOPE = SYSTEM_ID;
 export const LEDGER_KEY = "ledger";
 /** Hard cap on stored entries. The ledger is a flag, so it cannot grow forever. */
 export const LEDGER_MAX_ENTRIES = 300;

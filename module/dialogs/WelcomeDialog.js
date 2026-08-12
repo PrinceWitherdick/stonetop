@@ -14,6 +14,7 @@ import { hasImportedBook2Art } from "../book2-art/reapply.js";
 // Shared with the replacement confirmation, so the roster's "on page 4 of 9" and the
 // warning shown before that character is deleted can never disagree.
 import { progressLabel } from "../actors/character/onboarding-progress.js";
+import { SYSTEM_ID, JOURNAL_PACK } from "../system-id.js";
 
 // ── WelcomeDialog ───────────────────────────────────────────────────────────
 // A GM-only "first session" guide. Walks the GM through the Book I "Getting
@@ -130,7 +131,7 @@ export class WelcomeDialog extends Application {
 		// renders the link "broken". Load the index first so it always resolves.
 		// Through ensurePackIndex so warming the index for link resolution can't narrow the
 		// pack's tracked fields out from under whoever indexed it for their own.
-		await ensurePackIndex("stonetop-pwd.stonetop-journal");
+		await ensurePackIndex(JOURNAL_PACK);
 
 		const players = game.users
 			.filter(u => !u.isGM)
@@ -147,7 +148,7 @@ export class WelcomeDialog extends Application {
 						// _setOnboardingState in StonetopCharacterSheet); cleared once they
 						// finish, so a completed character shows no note.
 						progress: progressLabel(
-							a.getFlag?.("stonetop-pwd", "onboardingProgress"),
+							a.getFlag?.(SYSTEM_ID, "onboardingProgress"),
 							a.system?.playbook,
 						),
 					})),
@@ -370,7 +371,7 @@ export class WelcomeDialog extends Application {
 				if ("name" in changes || "img" in changes || "ownership" in changes) { refresh(); return; }
 				// Onboarding progress writes (and the unset on completion, which arrives
 				// as a "-=onboardingProgress" key) should update the page count live.
-				const stFlags = changes.flags?.["stonetop-pwd"];
+				const stFlags = changes.flags?.[SYSTEM_ID];
 				if (stFlags && Object.keys(stFlags).some(k => k.replace(/^-=/, "") === "onboardingProgress")) refresh();
 			})],
 		];

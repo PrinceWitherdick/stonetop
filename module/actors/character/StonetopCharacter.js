@@ -2667,7 +2667,7 @@ export class StonetopCharacter {
 		let needsInvocation     = false;
 		let availableInvocations = [];
 		if (newLevel % 2 === 0 && playbookData?.invocations?.options?.length) {
-			const selected = new Set(actor.getFlag("stonetop-pwd", "invocations.selected") ?? []);
+			const selected = new Set(actor.getFlag(STONETOP_SCOPE, "invocations.selected") ?? []);
 			availableInvocations = playbookData.invocations.options.filter(o => !selected.has(o.slug));
 			needsInvocation = availableInvocations.length > 0;
 		}
@@ -2761,8 +2761,8 @@ export class StonetopCharacter {
 			await this._applyMarkChoices(choices.marks.moveName, choices.marks.picks);
 		}
 		if (selectedInvocationSlug) {
-			const current = this._actor.getFlag("stonetop-pwd", "invocations.selected") ?? [];
-			await this._actor.setFlag("stonetop-pwd", "invocations.selected", [...current, selectedInvocationSlug]);
+			const current = this._actor.getFlag(STONETOP_SCOPE, "invocations.selected") ?? [];
+			await this._actor.setFlag(STONETOP_SCOPE, "invocations.selected", [...current, selectedInvocationSlug]);
 		}
 	}
 

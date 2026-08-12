@@ -23,6 +23,7 @@ import { moveGroupsForPlaybook, moveGroupKeys } from "./onboarding-move-groups.j
 import { effectiveSubgroupMax } from "./possession-choice-cap.js";
 import { playbookIconPath } from "../../../utils/playbook-actors.js";
 import { ensurePackIndex } from "../../../utils/pack-index.js";
+import { SYSTEM_ID } from "../../../system-id.js";
 
 const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
 
@@ -3470,7 +3471,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		const key = text.toLowerCase();
 		if (this._wordCache.has(key)) return this._wordCache.get(key);
 		const packs = game.packs.filter(
-			p => p.metadata.packageName === "stonetop-pwd" && p.metadata.type === "Item"
+			p => p.metadata.packageName === SYSTEM_ID && p.metadata.type === "Item"
 		);
 		for (const pack of packs) {
 			// ensurePackIndex, not `pack.getIndex()` — a fieldless call narrows this pack's tracked

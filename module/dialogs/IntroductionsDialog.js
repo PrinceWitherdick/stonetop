@@ -16,11 +16,12 @@ import { stepPcDone, nextActiveIndex, firstActiveIndex, turnsUntilActive, cursor
 import { isPrimaryGM } from "../utils/primary-gm.js";
 import { escHtml } from "../utils/strings.js";
 import { findOpenApp } from "../utils/open-windows.js";
+import { SYSTEM_ID } from "../system-id.js";
 
 // The player-authored answer/ask step data lives on the PC actor flag
 // flags.stonetop-pwd.intro. Scope MUST be the system id "stonetop-pwd" (not "stonetop",
 // which points at read-only pack-baked flags and throws).
-const _FLAG_SCOPE = "stonetop-pwd";
+const _FLAG_SCOPE = SYSTEM_ID;
 const _INTRO_FLAG = "intro";
 
 // The world setting holding the answers recorded during the introductions, keyed

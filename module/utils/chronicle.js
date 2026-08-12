@@ -20,6 +20,7 @@ import { getSetting } from "../settings.js";
 import { writePlacesOfInterest } from "./places-chronicle.js";
 import { getPlayerCharacters, playbookSlug, orderByCombatTurns } from "./playbook-actors.js";
 import { ensureChronicleFolder, ensureChronicleJournal, seedChroniclePages, findChronicleFolder } from "./chronicle-journals.js";
+import { SYSTEM_ID } from "../system-id.js";
 import {
 	buildChroniclePages,
 	INTRODUCTIONS_JOURNAL_NAME,
@@ -85,7 +86,7 @@ function findIntroductionsJournal() {
 // The page in `journal` that belongs to the actor with `actorId` — matched by the
 // stable chronicleKey flag (the actor id), so it survives renames.
 function findActorChroniclePage(journal, actorId) {
-	return journal?.pages?.find(p => p.getFlag?.("stonetop-pwd", "chronicleKey") === actorId) ?? null;
+	return journal?.pages?.find(p => p.getFlag?.(SYSTEM_ID, "chronicleKey") === actorId) ?? null;
 }
 
 /**

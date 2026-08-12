@@ -2,6 +2,7 @@ import { escHtml } from "../utils/strings.js";
 import { sign } from "../utils/roll-engine.js";
 import { ensureChronicleFolder, ensureChronicleJournal } from "../utils/chronicle-journals.js";
 import { seasonLabel, SEASON_IDS } from "./seasons-change-reminders.js";
+import { SYSTEM_ID } from "../system-id.js";
 
 // ── Seasons Change chronicle ───────────────────────────────────────────────────
 // Records each Seasons Change move (the steading flow's "Done") into a "Seasons Change"
@@ -110,7 +111,7 @@ export async function recordSeasonsChange({ seasonId, year = 1, gainNames = [], 
 	const yearName = `${ordinalWord(yr)} Year`;
 	const block    = _seasonBlock(seasonId, gainNames, fortunes, surplusChange, notes);
 
-	const page = (journal.pages ?? []).find(p => Number(p.getFlag?.("stonetop-pwd", "chronicleYear")) === yr) ?? null;
+	const page = (journal.pages ?? []).find(p => Number(p.getFlag?.(SYSTEM_ID, "chronicleYear")) === yr) ?? null;
 	if (page) {
 		await page.update({ "text.content": mergeSeasonBlock(page.text?.content ?? "", seasonId, block) });
 	} else {
@@ -120,7 +121,7 @@ export async function recordSeasonsChange({ seasonId, year = 1, gainNames = [], 
 			type:  "text",
 			sort:  maxSort + 10,
 			text:  { content: block, format: CONST.JOURNAL_ENTRY_PAGE_FORMATS.HTML },
-			flags: { "stonetop-pwd": { chronicleYear: yr } },
+			flags: { SYSTEM_ID: { chronicleYear: yr } },
 		}]);
 	}
 

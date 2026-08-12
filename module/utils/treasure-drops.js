@@ -17,6 +17,7 @@ import { slugify } from "./strings.js";
 import { book2ArtSrc } from "../book2-art/art-root.js";
 import { isInJournalEditor } from "./journal-editor-guard.js";
 import { STONETOP_ITEM_ICONS } from "./item-icon.js";
+import { SYSTEM_ID } from "../system-id.js";
 
 const norm = s => String(s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
@@ -76,9 +77,9 @@ function treasureArtSrc(slug) {
 	const settings = globalThis.game?.settings;
 	// guarded: this module is unit-tested outside Foundry, and the setting is absent in a
 	// world running an older system version that hasn't registered it yet
-	if (!settings?.settings?.has?.("stonetop-pwd.treasureArt")) return null;
+	if (!settings?.settings?.has?.(`${SYSTEM_ID}.treasureArt`)) return null;
 	try {
-		const out = settings.get("stonetop-pwd", "treasureArt")?.[slug];
+		const out = settings.get(SYSTEM_ID, "treasureArt")?.[slug];
 		return out ? book2ArtSrc(out) : null;
 	} catch (_) {
 		return null;

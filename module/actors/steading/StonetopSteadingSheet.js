@@ -632,7 +632,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			context.stonetop.recentlyEdited = Object.fromEntries(
 				STEADING_EDIT_SECTIONS.map(section => [section, this._recentlyEditedSections.has(section)])
 			);
-			context.stonetop.hideUnearnedImprovements = this.actor.getFlag("stonetop-pwd", "hideUnearnedImprovements") ?? false;
+			context.stonetop.hideUnearnedImprovements = this.actor.getFlag(STONETOP_SCOPE, "hideUnearnedImprovements") ?? false;
 			context.stonetop.improvementCategories = IMPROVEMENT_CATEGORIES.map(cat => ({
 				...cat,
 				active: this._improvementCategory === cat.key,
@@ -1012,7 +1012,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				const cb = ev.target.closest(".steading-hide-unearned-improvements-check");
 				if (!cb) return;
 				ev.stopPropagation();
-				this.actor.setFlag("stonetop-pwd", "hideUnearnedImprovements", cb.checked)
+				this.actor.setFlag(STONETOP_SCOPE, "hideUnearnedImprovements", cb.checked)
 					.catch(err => console.error("Stonetop | could not save the improvements filter", err));
 			}, true);
 

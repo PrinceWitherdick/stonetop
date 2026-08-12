@@ -15,6 +15,7 @@ import { createCharacterForUser } from "../actors/character/create-character.js"
 import { charactersOwnedBy } from "../utils/playbook-actors.js";
 import { addPersonToSteading, createPersonNpc } from "../actors/steading/steading-people.js";
 import { buildMonsterActorData } from "../data/monster-builder.js";
+import { SYSTEM_ID } from "../system-id.js";
 
 // Sentinel for the "no player yet" row of the character-owner step. Never a real user id.
 const UNASSIGNED = "__unassigned__";
@@ -252,7 +253,7 @@ async function _createMonster(folder, name) {
 		ui.notifications?.warn("Only the GM can create monsters.");
 		return null;
 	}
-	const builderEnabled = game.settings?.get?.("stonetop-pwd", "monsterBuilderEnabled") !== false;
+	const builderEnabled = game.settings?.get?.(SYSTEM_ID, "monsterBuilderEnabled") !== false;
 	const kind = builderEnabled
 		? await pickContentOption({ title: "Create a Monster", options: MONSTER_KIND_OPTIONS })
 		: "blank";

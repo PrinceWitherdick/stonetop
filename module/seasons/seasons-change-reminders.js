@@ -1,6 +1,7 @@
 import { escHtml } from "../utils/strings.js";
 import { stonetopCardShell } from "../utils/chat.js";
 import { getPlayerCharacters } from "../utils/playbook-actors.js";
+import { SYSTEM_ID } from "../system-id.js";
 
 // ── Seasons Change reminders ─────────────────────────────────────────────────
 // A few playbook moves and special possessions have rules that fire "each
@@ -64,7 +65,7 @@ export function seasonLabel(season) {
 export function remindersForActor(actor) {
 	if (actor?.type !== "character") return [];
 	const moveNames = new Set(actor.items.filter(i => i.type === "move").map(i => i.name));
-	const selected  = new Set(actor.getFlag?.("stonetop-pwd", "possessions.selected") ?? []);
+	const selected  = new Set(actor.getFlag?.(SYSTEM_ID, "possessions.selected") ?? []);
 	return SEASONAL_REMINDERS.filter(r =>
 		r.kind === "move" ? moveNames.has(r.name) : selected.has(r.slug),
 	);

@@ -72,6 +72,7 @@ import { registerStonetopWindowTheme, registerStonetopLightTheme } from "./modul
 import { installWindowRestore } from "./module/utils/window-restore.js";
 import { registerUuidRedirects } from "./module/migration/compat.js";
 import { adoptLegacyClientSettings } from "./module/migration/copy-settings.js";
+import { SYSTEM_ID } from "./module/system-id.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -233,28 +234,28 @@ Hooks.once("init", () => {
 	}
 
 	const StonetopCharacterSheet = createStonetopCharacterSheetClass(ActorSheet);
-	Actors.registerSheet("stonetop-pwd", StonetopCharacterSheet, {
+	Actors.registerSheet(SYSTEM_ID, StonetopCharacterSheet, {
 		types:       ["character"],
 		makeDefault: true,
 		label:       "Stonetop Character Sheet",
 	});
 
 	const StonetopSteadingSheet = createStonetopSteadingSheetClass(ActorSheet);
-	Actors.registerSheet("stonetop-pwd", StonetopSteadingSheet, {
+	Actors.registerSheet(SYSTEM_ID, StonetopSteadingSheet, {
 		types:       ["stonetop"],
 		makeDefault: true,
 		label:       "Stonetop Steading Sheet",
 	});
 
 	const StonetopMonsterSheet = createStonetopMonsterSheetClass(ActorSheet);
-	Actors.registerSheet("stonetop-pwd", StonetopMonsterSheet, {
+	Actors.registerSheet(SYSTEM_ID, StonetopMonsterSheet, {
 		types:       ["monster"],
 		makeDefault: true,
 		label:       "Stonetop Monster Sheet",
 	});
 
 	const StonetopNpcSheet = createStonetopNpcSheetClass(ActorSheet);
-	Actors.registerSheet("stonetop-pwd", StonetopNpcSheet, {
+	Actors.registerSheet(SYSTEM_ID, StonetopNpcSheet, {
 		types:       ["npc"],
 		makeDefault: true,
 		label:       "Stonetop NPC Sheet",
@@ -265,7 +266,7 @@ Hooks.once("init", () => {
 	CONFIG.JournalEntryPage.dataModels["bestiary"] = BestiaryPageModel;
 	const JournalPageSheetV1 = foundry.appv1?.sheets?.JournalPageSheet ?? globalThis.JournalPageSheet;
 	const StonetopBestiaryPageSheet = createStonetopBestiaryPageSheetClass(JournalPageSheetV1);
-	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop-pwd", StonetopBestiaryPageSheet, {
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, SYSTEM_ID, StonetopBestiaryPageSheet, {
 		types:       ["bestiary"],
 		makeDefault: true,
 		label:       "Stonetop Bestiary Page",
@@ -275,7 +276,7 @@ Hooks.once("init", () => {
 	// per-section inline editing) — mirrors the bestiary page above.
 	CONFIG.JournalEntryPage.dataModels["location"] = LocationPageModel;
 	const StonetopLocationPageSheet = createStonetopLocationPageSheetClass(JournalPageSheetV1);
-	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop-pwd", StonetopLocationPageSheet, {
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, SYSTEM_ID, StonetopLocationPageSheet, {
 		types:       ["location"],
 		makeDefault: true,
 		label:       "Stonetop Location Page",
@@ -286,7 +287,7 @@ Hooks.once("init", () => {
 	// Play" questions. Chronicle pages set every section's group to "glance", so no act
 	// banners render. See utils/chronicle.js.
 	CONFIG.JournalEntryPage.dataModels["chronicle"] = LocationPageModel;
-	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop-pwd", StonetopLocationPageSheet, {
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, SYSTEM_ID, StonetopLocationPageSheet, {
 		types:       ["chronicle"],
 		makeDefault: true,
 		label:       "Stonetop Chronicle Page",
@@ -297,7 +298,7 @@ Hooks.once("init", () => {
 	// (live doom track), dropped onto scenes as a linked Note. See module/threats/.
 	CONFIG.JournalEntryPage.dataModels["threat"] = ThreatPageModel;
 	const StonetopThreatPageSheet = createStonetopThreatPageSheetClass(JournalPageSheetV1);
-	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop-pwd", StonetopThreatPageSheet, {
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, SYSTEM_ID, StonetopThreatPageSheet, {
 		types:       ["threat"],
 		makeDefault: true,
 		label:       "Stonetop Threat Page",
@@ -308,14 +309,14 @@ Hooks.once("init", () => {
 	// architecture; authored via the Make-a-Hazard walkthrough. See module/hazards/.
 	CONFIG.JournalEntryPage.dataModels["hazard"] = HazardPageModel;
 	const StonetopHazardPageSheet = createStonetopHazardPageSheetClass(JournalPageSheetV1);
-	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, "stonetop-pwd", StonetopHazardPageSheet, {
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, SYSTEM_ID, StonetopHazardPageSheet, {
 		types:       ["hazard"],
 		makeDefault: true,
 		label:       "Stonetop Hazard Page",
 	});
 
 	const StonetopArcanumSheet = createStonetopArcanumSheetClass(ItemSheet);
-	Items.registerSheet("stonetop-pwd", StonetopArcanumSheet, {
+	Items.registerSheet(SYSTEM_ID, StonetopArcanumSheet, {
 		types:       ["move"],
 		makeDefault: false,
 		label:       "Stonetop Arcanum",
@@ -615,8 +616,8 @@ Hooks.on("preUpdateActor", (actor, changes) => {
 	const newHp = foundry.utils.getProperty(changes, "system.attributes.hp.value");
 	if (newHp === undefined) return;
 	const oldHp = actor.system?.attributes?.hp?.value ?? 0;
-	if (newHp < oldHp && actor.getFlag("stonetop-pwd", "recover.spent")) {
-		foundry.utils.setProperty(changes, "flags.stonetop-pwd.recover.spent", false);
+	if (newHp < oldHp && actor.getFlag(SYSTEM_ID, "recover.spent")) {
+		foundry.utils.setProperty(changes, `flags.${SYSTEM_ID}.recover.spent`, false);
 	}
 });
 
@@ -821,7 +822,7 @@ function _chatWireBurnBrightly(message, html) {
 
 	if (!actor || actor.type !== "character" || !actor.isOwner) return;
 
-	const alreadyBurned = message.getFlag("stonetop-pwd", "burnBrightly") ?? false;
+	const alreadyBurned = message.getFlag(SYSTEM_ID, "burnBrightly") ?? false;
 	const xp    = actor.system?.attributes?.xp?.value    ?? 0;
 	const level = actor.system?.attributes?.level?.value ?? 1;
 	const canAfford = xp >= xpToLevelUp(level);
@@ -873,7 +874,7 @@ function _chatWireBurnBrightly(message, html) {
 				// Regenerate the card so the readout, result label and per-tier outcome reflect the +1.
 				flavor:  _shiftRollCardFlavor(message.flavor, roll.total, roll.formula),
 				speaker: { ...message.speaker, ...speakerUpdate },
-				flags:   { "stonetop-pwd": { burnBrightly: true } },
+				flags:   { SYSTEM_ID: { burnBrightly: true } },
 			});
 		} catch (err) {
 			console.error("Stonetop | Error burning brightly:", err);
@@ -897,7 +898,7 @@ function _chatWireBurnBrightly(message, html) {
 
 /** The move a roll card came from, as stamped by StonetopItem.roll. Null for non-move rolls. */
 function _cardMoveName(message) {
-	return message.getFlag("stonetop-pwd", "move") ?? null;
+	return message.getFlag(SYSTEM_ID, "move") ?? null;
 }
 
 /**
@@ -918,7 +919,7 @@ function _cardMoveName(message) {
  * the arcanum already carries writes nothing.
  */
 async function _syncArcanumIdentification(message, actor, total) {
-	const slug = message.getFlag("stonetop-pwd", "arcanum");
+	const slug = message.getFlag(SYSTEM_ID, "arcanum");
 	const character = actor?.typedActor;
 	if (!slug || !character) return;
 
@@ -961,7 +962,7 @@ function _chatWireKnowThings(message, html) {
 function _wireNeverAtALoss(message, html, actor) {
 	const buttons = html.querySelectorAll(".stonetop-know-things-xp");
 	if (!buttons.length) return;
-	const chosen = message.getFlag("stonetop-pwd", "knowThingsXp") ?? null;
+	const chosen = message.getFlag(SYSTEM_ID, "knowThingsXp") ?? null;
 	for (const btn of buttons) {
 		if (chosen) {
 			btn.disabled = true;
@@ -972,7 +973,7 @@ function _wireNeverAtALoss(message, html, actor) {
 			for (const b of buttons) b.disabled = true;
 			const choice = btn.dataset.choice;
 			try {
-				await message.setFlag("stonetop-pwd", "knowThingsXp", choice);
+				await message.setFlag(SYSTEM_ID, "knowThingsXp", choice);
 				if (choice === "mark") return void await markMissXp(actor, "Know Things");
 				await ChatMessage.create({
 					content: moveChatCard("Never at a Loss",
@@ -991,7 +992,7 @@ function _wireNeverAtALoss(message, html, actor) {
 // "expend a use ... treat the result as a 10+". Only offered while the card is still below a
 // strong hit and the logbook still has a use in it.
 function _wireLogbook(message, html, actor, card) {
-	if (message.getFlag("stonetop-pwd", "knowThingsUpgrade")) return;
+	if (message.getFlag(SYSTEM_ID, "knowThingsUpgrade")) return;
 	const roll = message.rolls?.at(0);
 	if (!roll || roll.total >= STRONG_HIT_TOTAL) return;
 
@@ -1029,7 +1030,7 @@ function _wireLogbook(message, html, actor, card) {
 			await message.update({
 				rolls,
 				flavor: _shiftRollCardFlavor(message.flavor, shifted.total, shifted.formula),
-				flags:  { "stonetop-pwd": { knowThingsUpgrade: LOGBOOK } },
+				flags:  { SYSTEM_ID: { knowThingsUpgrade: LOGBOOK } },
 			});
 			await ChatMessage.create({
 				content: moveChatCard("Logbook",
@@ -1059,7 +1060,7 @@ function _chatWireRequisitionMissCost(message, html) {
 	const btn = html.querySelector(".stonetop-requisition-miss-cost");
 	if (!btn) return;
 
-	if (message.getFlag("stonetop-pwd", "requisitionMissCostApplied")) {
+	if (message.getFlag(SYSTEM_ID, "requisitionMissCostApplied")) {
 		btn.disabled = true;
 		btn.textContent = "Miss cost applied";
 		return;
@@ -1083,7 +1084,7 @@ function _chatWireRequisitionMissCost(message, html) {
 			const fortunes = steading.getStatValue("fortunes");
 			const newFortunes = Math.max(fortunes - 1, -1);
 			await steading.setSystemValue("stats.fortunes.value", newFortunes, { stonetopMove: "Requisition" });
-			await message.setFlag("stonetop-pwd", "requisitionMissCostApplied", true);
+			await message.setFlag(SYSTEM_ID, "requisitionMissCostApplied", true);
 			for (const sheet of Object.values(actor.apps ?? {})) sheet.render(false);
 			ui.notifications.info(`Fortunes reduced to ${sign(newFortunes)}.`);
 		} catch (err) {
@@ -1103,7 +1104,7 @@ function _chatWireLoveLetterPicks(message, html) {
 	const boxes = html.querySelectorAll(".stonetop-picklist-check");
 	if (!boxes.length) return;
 
-	const saved   = message.getFlag("stonetop-pwd", "pickChecked") ?? [];
+	const saved   = message.getFlag(SYSTEM_ID, "pickChecked") ?? [];
 	const canSave = message.canUserModify?.(game.user, "update") ?? game.user.isGM;
 
 	for (const box of boxes) {
@@ -1118,7 +1119,7 @@ function _chatWireLoveLetterPicks(message, html) {
 			if (!canSave) return;
 			const arr = Array.from(boxes).map((b) => !!b.checked);
 			try {
-				await message.setFlag("stonetop-pwd", "pickChecked", arr);
+				await message.setFlag(SYSTEM_ID, "pickChecked", arr);
 			} catch (err) {
 				console.error("Stonetop | Error saving love-letter picks:", err);
 			}

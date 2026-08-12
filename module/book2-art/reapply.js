@@ -10,7 +10,7 @@ import { browseArtDirs } from "./browse.js";
 import { STEADING_ACTOR_TYPE, isSteadingPlaceholderImg } from "../actors/steading/steading-portrait.js";
 import { isBestiaryPlaceholderImg } from "../bestiary/monster-portrait.js";
 import { isOurCompendiumRef } from "../migration/compat.js";
-import { packId } from "../system-id.js";
+import { SYSTEM_ID, packId } from "../system-id.js";
 
 // Re-apply the Book II illustrations to the compendia, the world journals, and the
 // world actors, WITHOUT the source PDF.
@@ -387,7 +387,7 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	const touchedEntries = new Map();
 	const noteEntry = (entry) => {
 		if (touchedEntries.has(entry)) return;
-		const base = entry.getFlag?.("stonetop-pwd", "journalSync");
+		const base = entry.getFlag?.(SYSTEM_ID, "journalSync");
 		let pristine = false;
 		try { pristine = !!base?.hash && base.hash === managedHash(entry.toObject()); } catch (_) { /* treat as edited */ }
 		touchedEntries.set(entry, { base, pristine });
@@ -622,7 +622,7 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 		//    landed and is idempotent, so a retry would not re-touch the entry to re-stamp it.
 		for (const [entry, { base, pristine }] of touchedEntries) {
 			if (!pristine) continue;
-			try { await entry.setFlag("stonetop-pwd", "journalSync", { hash: managedHash(entry.toObject()), version: base?.version ?? version }); }
+			try { await entry.setFlag(SYSTEM_ID, "journalSync", { hash: managedHash(entry.toObject()), version: base?.version ?? version }); }
 			catch (e) { error(`Book II art re-apply: journal re-stamp "${entry?.name}"`, e); }
 		}
 	} finally {

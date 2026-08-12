@@ -133,7 +133,25 @@ export default [
 			// Sheet code parses `data-` attributes constantly; a missing radix on a value that
 			// can start with "0" is a silent wrong answer.
 			radix: "error",
+			// The package id namespaces every flag, setting and pack this system stores in a
+			// world, and it had been retyped as a literal 269 times. Import SYSTEM_ID (or the
+			// STONETOP_SCOPE alias) from module/system-id.js instead, so a rename is one edit.
+			//
+			// Matches the EXACT string only, so asset paths ("systems/stonetop-pwd/templates/…")
+			// and pack ids ("stonetop-pwd.stonetop-items") are untouched: the former follow the
+			// install directory and are also spelled out in .hbs partials that no JS constant can
+			// reach, and the latter have named constants of their own in system-id.js.
+			"no-restricted-syntax": ["error", {
+				selector: 'Literal[value="stonetop-pwd"]',
+				message: "Import SYSTEM_ID from module/system-id.js instead of retyping the package id.",
+			}],
 		},
+	},
+
+	// The one file allowed to spell the package id out: it is where SYSTEM_ID is defined.
+	{
+		files: ["module/system-id.js"],
+		rules: { "no-restricted-syntax": "off" },
 	},
 
 	// Tests: same globals plus vitest's (vitest.config.js sets `globals: true`).

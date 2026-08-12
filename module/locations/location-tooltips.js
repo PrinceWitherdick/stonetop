@@ -7,6 +7,7 @@
 // (registered in stonetop.js) call applyLocationTooltips() on the rendered HTML.
 
 import { isInJournalEditor } from "../utils/journal-editor-guard.js";
+import { JOURNAL_PACK } from "../system-id.js";
 import { ensurePackIndex } from "../utils/pack-index.js";
 import { getHoverDescriptionSetting } from "../settings.js";
 import { restrictContentLinks } from "../journal/restrict-content-links.js";
@@ -21,7 +22,7 @@ const SUMMARY_DATA_KEY = "stonetopSummary";
 
 // Packs that carry hover summaries. The locations, lore, and bestiary-codex
 // generators all stamp `flags.stonetop.summary`; they now ship in one merged pack.
-const SUMMARY_PACKS = ["stonetop-pwd.stonetop-journal"];
+const SUMMARY_PACKS = [JOURNAL_PACK];
 
 let _indexPromise = null;
 

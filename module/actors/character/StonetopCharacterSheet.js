@@ -1017,7 +1017,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// off whichever sheet's context it lands in, which is why all three sheets name it
 			// `stonetop.classicLayout` with no sheet suffix.
 			context.stonetop.classicLayout = isClassicLayout("character");
-			context.stonetop.hideUnselected = this.actor.getFlag('stonetop-pwd', 'hideUnselected') ?? true;
+			context.stonetop.hideUnselected = this.actor.getFlag(STONETOP_SCOPE, "hideUnselected") ?? true;
 			context.stonetop.editMode = this._editMode;
 			context.stonetop.canEdit = this.isEditable;
 			// The header portrait and the two pips over it, answered once for all three sheets
@@ -1230,7 +1230,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// whether the creature(s) are already on the Followers tab (matched by the
 			// stable sourceUuid marker). See module/data/arcana-summons.js.
 			const summonedUuids = new Set(
-				Object.values(this.actor.getFlag("stonetop-pwd", "customFollowers") ?? {})
+				Object.values(this.actor.getFlag(STONETOP_SCOPE, "customFollowers") ?? {})
 					.map(f => f?.sourceUuid).filter(Boolean)
 			);
 			// Per-card arcana back visibility. Two independent things gate whether the back
@@ -1249,7 +1249,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// the GM-only reveal toggle, meaningful only in secretive mode for a still-LOCKED
 			// card. isSpread marks a card that renders both sides, laid out full-width by the
 			// masonry. See settings.js and tab-arcana.hbs.
-			const playersSeeBothArcana = game.settings.get("stonetop-pwd", "arcanaPlayersSeeBothSides");
+			const playersSeeBothArcana = game.settings.get(STONETOP_SCOPE, "arcanaPlayersSeeBothSides");
 			const viewerIsGM           = game.user.isGM;
 			// True when the viewing user owns this actor (GMs own everything, but they're
 			// already covered by viewerIsGM). An unlocked back is the owner's earned reward,
@@ -1258,14 +1258,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			const revealedArcana       = this._stonetopCharacter.revealedArcanaSlugs;
 			// Keyed by actor id since one user (esp. the GM) may view several character sheets.
 			const showBothArcana       = new Set(
-				(game.user.getFlag("stonetop-pwd", "arcanaShowBoth") ?? {})[this.actor.id] ?? []
+				(game.user.getFlag(STONETOP_SCOPE, "arcanaShowBoth") ?? {})[this.actor.id] ?? []
 			);
 			// The single-side flip (front ⇄ back) is a second, independent per-user view
 			// preference, stored the same way. It only takes effect when the card isn't
 			// already laid open as a spread (show-both wins), and never on a card whose back
 			// this viewer isn't permitted to see.
 			const showBackArcana       = new Set(
-				(game.user.getFlag("stonetop-pwd", "arcanaShowBack") ?? {})[this.actor.id] ?? []
+				(game.user.getFlag(STONETOP_SCOPE, "arcanaShowBack") ?? {})[this.actor.id] ?? []
 			);
 			for (const [section, sectionEditable] of [
 				[context.stonetop.arcana?.major, context.stonetop.arcanaEdit.major],
@@ -1480,8 +1480,8 @@ export function createStonetopCharacterSheetClass(Base) {
 		// 4+Prosperity. The benefit is locked after use until the character takes
 		// damage again (cleared by the preUpdateActor hook in stonetop.js).
 		_buildRecoverData(snapshot) {
-			const locked      = !!this.actor.getFlag("stonetop-pwd", "recover.spent");
-			const resources   = this.actor.getFlag("stonetop-pwd", "inventory.resources") ?? {};
+			const locked      = !!this.actor.getFlag(STONETOP_SCOPE, "recover.spent");
+			const resources   = this.actor.getFlag(STONETOP_SCOPE, "inventory.resources") ?? {};
 			const suppliesLeft = RECOVER_SUPPLY_SLUGS.reduce((sum, slug) => sum + (Number(resources[slug]) || 0), 0);
 			const healAmount  = snapshot.inventory?.smallItemLimit ?? 4;
 			const hp          = snapshot.vitals.hp;
@@ -2320,7 +2320,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						card.showReadiness     = true;
 						card.readinessFollower = card.ftype;
 						card.readinessSlug     = rSlug;
-						card.readinessValue    = Math.max(0, Number(this.actor.getFlag("stonetop-pwd", _followerReadinessPath(card.ftype, rSlug))) || 0);
+						card.readinessValue    = Math.max(0, Number(this.actor.getFlag(STONETOP_SCOPE, _followerReadinessPath(card.ftype, rSlug))) || 0);
 						card.readinessHasShield = _followerBearsShield(card.gear);
 						card.readinessPips      = _makeReadinessPips(card.readinessValue, readinessCap(card.readinessHasShield));
 					}
@@ -2340,7 +2340,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					card.canUseAmmo = true;
 					card.usesAmmo   = !!detailFlagsFor(card.ftype, card.slug).usesAmmo;
 					if (card.usesAmmo) {
-						const ammoVal = Math.max(0, Math.min(2, Number(this.actor.getFlag("stonetop-pwd", _followerAmmoPath(card.ftype, aSlug))) || 0));
+						const ammoVal = Math.max(0, Math.min(2, Number(this.actor.getFlag(STONETOP_SCOPE, _followerAmmoPath(card.ftype, aSlug))) || 0));
 						card.ammoFollower = card.ftype;
 						card.ammoSlug     = aSlug;
 						card.ammoValue    = ammoVal;
@@ -2411,7 +2411,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		_buildInvocationsData(playbookDoc) {
 			const raw = playbookDoc?.invocations;
 			if (!raw?.options?.length) return null;
-			const selected = new Set(this.actor.getFlag("stonetop-pwd", "invocations.selected") ?? []);
+			const selected = new Set(this.actor.getFlag(STONETOP_SCOPE, "invocations.selected") ?? []);
 			const showEffectTips = getHoverDescriptionSetting("hoverDescriptionsInvocations");
 			const options = raw.options.map(opt => {
 				const description = opt.description ?? "";
@@ -2423,7 +2423,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					ongoing:     !!opt.ongoing,
 				};
 			});
-			const sort = this.actor.getFlag("stonetop-pwd", "invocationsSort") ?? "known";
+			const sort = this.actor.getFlag(STONETOP_SCOPE, "invocationsSort") ?? "known";
 			if (sort === "alpha") {
 				options.sort((a, b) => a.label.localeCompare(b.label));
 			} else {
@@ -2435,7 +2435,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 			return {
 				startingCount: raw.startingCount ?? 2,
-				hideUnknown:   this.actor.getFlag("stonetop-pwd", "hideUnknownInvocations") ?? false,
+				hideUnknown:   this.actor.getFlag(STONETOP_SCOPE, "hideUnknownInvocations") ?? false,
 				sortKnown:     sort === "known",
 				sortAlpha:     sort === "alpha",
 				options,
@@ -2555,7 +2555,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						return;
 					}
 					if (doc?.system?.customType === "stonetop") {
-						await this.actor.setFlag("stonetop-pwd", "steadingId", doc.id);
+						await this.actor.setFlag(STONETOP_SCOPE, "steadingId", doc.id);
 						this.render(false);
 					} else if (doc?.type === "monster") {
 						// Dropping a monster offers to convert it to a follower (NPCs &
@@ -2612,15 +2612,15 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 
 			html.find(".stonetop-hide-unselected-check").on("change", async (ev) => {
-				await this.actor.setFlag('stonetop-pwd', 'hideUnselected', ev.currentTarget.checked);
+				await this.actor.setFlag(STONETOP_SCOPE, "hideUnselected", ev.currentTarget.checked);
 			});
 
 			html.find(".stonetop-hide-unknown-invocations-check").on("change", async (ev) => {
-				await this.actor.setFlag('stonetop-pwd', 'hideUnknownInvocations', ev.currentTarget.checked);
+				await this.actor.setFlag(STONETOP_SCOPE, "hideUnknownInvocations", ev.currentTarget.checked);
 			});
 
 			html.find(".stonetop-invocation-sort").on("change", async (ev) => {
-				await this.actor.setFlag("stonetop-pwd", "invocationsSort", ev.currentTarget.value);
+				await this.actor.setFlag(STONETOP_SCOPE, "invocationsSort", ev.currentTarget.value);
 			});
 
 			// Live text filters (shared wireTabSearch): a round magnifying-glass button beside a
@@ -3574,7 +3574,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const path = _followerStructuralPath(el.dataset.ftype, el.dataset.field)
 					?? followerDetailPath(el.dataset.ftype, el.dataset.slug, el.dataset.field);
 				if (!path) return;
-				await this.actor.setFlag("stonetop-pwd", path, el.value.trim());
+				await this.actor.setFlag(STONETOP_SCOPE, path, el.value.trim());
 				this.render(false);
 			});
 			// Armor-source field: a free-type input with a suggestion dropdown (leather,
@@ -3596,7 +3596,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					ui.notifications.warn(el.dataset.hint || "This follower can't be marked exceptional yet.");
 					return;
 				}
-				await this.actor.setFlag("stonetop-pwd", path, turnOn);
+				await this.actor.setFlag(STONETOP_SCOPE, path, turnOn);
 				this.render(false);
 			});
 			// Crew tag picker + its custom write-in row: store only the player's chosen tags
@@ -3610,7 +3610,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const tags = html.find(".stonetop-crew-tag-option:checked:not(:disabled)").toArray().map(el => el.value);
 				const custom = html.find(".stonetop-crew-tag-custom").val()?.trim();
 				if (custom) tags.push(custom);
-				await this.actor.setFlag("stonetop-pwd", "crew.tags", tags);
+				await this.actor.setFlag(STONETOP_SCOPE, "crew.tags", tags);
 				this.render(false);
 			});
 			// Animal-companion trait picker + its custom write-in row: pick up to the type's
@@ -3621,7 +3621,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const traits = html.find(".stonetop-ac-trait-option:checked:not(:disabled)").toArray().map(el => el.value);
 				const custom = html.find(".stonetop-ac-trait-custom").val()?.trim();
 				if (custom) traits.push(custom);
-				await this.actor.setFlag("stonetop-pwd", "animalCompanion.traits", traits);
+				await this.actor.setFlag(STONETOP_SCOPE, "animalCompanion.traits", traits);
 				this.render(false);
 			});
 			// Initiate of Danu trait lines: "pick 1 on each line". Each radio row writes
@@ -3634,34 +3634,34 @@ export function createStonetopCharacterSheetClass(Base) {
 				const rowIdx = Number(el.dataset.rowIdx);
 				if (!slug || !Number.isInteger(rowIdx)) return;
 				const path = `initiateDetails.${slug}.rows`;
-				const rows = foundry.utils.deepClone(this.actor.getFlag("stonetop-pwd", path) ?? {});
+				const rows = foundry.utils.deepClone(this.actor.getFlag(STONETOP_SCOPE, path) ?? {});
 				rows[rowIdx] = el.value;
-				await this.actor.setFlag("stonetop-pwd", path, rows);
+				await this.actor.setFlag(STONETOP_SCOPE, path, rows);
 				this.render(false);
 			});
 			// Crew instinct / cost pickers (pick one from the playbook list)
 			html.find(".stonetop-crew-instinct-option").on("change", async ev => {
-				await this.actor.setFlag("stonetop-pwd", "crew.instinct", ev.currentTarget.value);
+				await this.actor.setFlag(STONETOP_SCOPE, "crew.instinct", ev.currentTarget.value);
 				this.render(false);
 			});
 			html.find(".stonetop-crew-cost-option").on("change", async ev => {
-				await this.actor.setFlag("stonetop-pwd", "crew.cost", ev.currentTarget.value);
+				await this.actor.setFlag(STONETOP_SCOPE, "crew.cost", ev.currentTarget.value);
 				this.render(false);
 			});
 			// Crew instinct / cost write-ins (the insert's blank rows): save the typed value
 			// verbatim; picking a radio above overwrites it, matching onboarding.
 			html.find(".stonetop-crew-instinct-custom").on("change", async ev => {
-				await this.actor.setFlag("stonetop-pwd", "crew.instinct", ev.currentTarget.value.trim());
+				await this.actor.setFlag(STONETOP_SCOPE, "crew.instinct", ev.currentTarget.value.trim());
 				this.render(false);
 			});
 			html.find(".stonetop-crew-cost-custom").on("change", async ev => {
-				await this.actor.setFlag("stonetop-pwd", "crew.cost", ev.currentTarget.value.trim());
+				await this.actor.setFlag(STONETOP_SCOPE, "crew.cost", ev.currentTarget.value.trim());
 				this.render(false);
 			});
 			// Gear checklist: toggle carried, rename, add, remove
 			const readFollowerGear = (ftype, slug) => {
 				const path = followerDetailPath(ftype, slug, "gear");
-				const cur  = path ? this.actor.getFlag("stonetop-pwd", path) : null;
+				const cur  = path ? this.actor.getFlag(STONETOP_SCOPE, path) : null;
 				return { path, list: Array.isArray(cur) ? foundry.utils.deepClone(cur) : [] };
 			};
 			html.find(".stonetop-follower-gear-check").on("change", async ev => {
@@ -3670,7 +3670,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const i = Number(el.dataset.index);
 				if (!path || !list[i]) return;
 				list[i].checked = el.checked;
-				await this.actor.setFlag("stonetop-pwd", path, list);
+				await this.actor.setFlag(STONETOP_SCOPE, path, list);
 				this.render(false);
 			});
 			html.find(".stonetop-follower-gear-label").on("change", async ev => {
@@ -3679,7 +3679,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const i = Number(el.dataset.index);
 				if (!path || !list[i]) return;
 				list[i].label = el.value.trim();
-				await this.actor.setFlag("stonetop-pwd", path, list);
+				await this.actor.setFlag(STONETOP_SCOPE, path, list);
 				// no re-render: the typed value already shows; avoids a focus jump
 			});
 			html.find(".stonetop-follower-gear-add").on("click", async ev => {
@@ -3687,7 +3687,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const { path, list } = readFollowerGear(el.dataset.ftype, el.dataset.slug);
 				if (!path) return;
 				list.push({ label: "", checked: false });
-				await this.actor.setFlag("stonetop-pwd", path, list);
+				await this.actor.setFlag(STONETOP_SCOPE, path, list);
 				this.render(false);
 			});
 			html.find(".stonetop-follower-gear-remove").on("click", async ev => {
@@ -3696,7 +3696,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const i = Number(el.dataset.index);
 				if (!path) return;
 				list.splice(i, 1);
-				await this.actor.setFlag("stonetop-pwd", path, list);
+				await this.actor.setFlag(STONETOP_SCOPE, path, list);
 				this.render(false);
 			});
 
@@ -3741,7 +3741,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-follower-remove").on("click", ev => {
 				const slug = ev.currentTarget.dataset.slug;
 				if (!slug) return;
-				const name = this.actor.getFlag("stonetop-pwd", `customFollowers.${slug}.name`) || "this follower";
+				const name = this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}.name`) || "this follower";
 				Dialog.confirm({
 					title:   "Remove follower",
 					content: `<p>Remove <strong>${escHtml(name)}</strong> from your followers? This can't be undone.</p>`,
@@ -3755,7 +3755,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const slug = ev.currentTarget.dataset.slug;
 				if (!slug) return;
 				const name = ev.currentTarget.dataset.followerName
-					|| this.actor.getFlag("stonetop-pwd", `customFollowers.${slug}.name`) || "this follower";
+					|| this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}.name`) || "this follower";
 				this._onHandOffFollower(slug, name);
 			});
 			// Party-wide follower toggle (advisory): any PC may pay its cost / spend its
@@ -3775,8 +3775,8 @@ export function createStonetopCharacterSheetClass(Base) {
 				const path = _followerLoyaltyPath(ftype, slug);
 				if (!path) return;
 				const idx     = Number(ev.currentTarget.dataset.index);
-				const current = Number(this.actor.getFlag("stonetop-pwd", path)) || 0;
-				await this.actor.setFlag("stonetop-pwd", path, current === idx + 1 ? idx : idx + 1);
+				const current = Number(this.actor.getFlag(STONETOP_SCOPE, path)) || 0;
+				await this.actor.setFlag(STONETOP_SCOPE, path, current === idx + 1 ? idx : idx + 1);
 				this.render(false);
 			});
 			// Spend Loyalty / Readiness (p.464 / p.469): open a small chooser for the
@@ -3818,9 +3818,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				const pips = ev.currentTarget.closest(".stonetop-crew-gear-pips");
 				if (pips) pips.querySelectorAll(".stonetop-crew-gear-check").forEach(cb => { cb.checked = checked; });
 				ev.currentTarget.closest(".stonetop-crew-gear-item")?.classList.toggle("is-checked", checked);
-				const gear    = foundry.utils.deepClone(this.actor.getFlag("stonetop-pwd", "crew.gear") ?? {});
+				const gear    = foundry.utils.deepClone(this.actor.getFlag(STONETOP_SCOPE, "crew.gear") ?? {});
 				gear[slug]    = checked ? (Number(weight) || 1) : 0;
-				await this.actor.setFlag("stonetop-pwd", "crew.gear", gear);
+				await this.actor.setFlag(STONETOP_SCOPE, "crew.gear", gear);
 				this.render(false);
 			});
 			// Crew supplies pip circles — 6 independent sets stored as an array of counts
@@ -3828,11 +3828,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				const setIdx = Number(ev.currentTarget.dataset.set);
 				const pipIdx = Number(ev.currentTarget.dataset.pip);
 				const newVal = ev.currentTarget.checked ? pipIdx + 1 : pipIdx;
-				const current = this.actor.getFlag("stonetop-pwd", "crew.supplies");
+				const current = this.actor.getFlag(STONETOP_SCOPE, "crew.supplies");
 				const arr = Array.isArray(current) ? [...current] : Array(6).fill(0);
 				while (arr.length < 6) arr.push(0);
 				arr[setIdx] = newVal;
-				await this.actor.setFlag("stonetop-pwd", "crew.supplies", arr);
+				await this.actor.setFlag(STONETOP_SCOPE, "crew.supplies", arr);
 				this.render(false);
 			});
 			// Add a group-fight pool clamp to a pending update when the roster shrinks:
@@ -3840,7 +3840,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// leave a stale over-max value stored. Only an explicitly-set value is
 			// touched — an unset groupHp tracks the full max on its own.
 			const clampStoredGroupHp = (update, crewSize) => {
-				const raw = Number(this.actor.getFlag("stonetop-pwd", "crew.groupHp"));
+				const raw = Number(this.actor.getFlag(STONETOP_SCOPE, "crew.groupHp"));
 				if (!Number.isFinite(raw)) return;
 				const max = Math.max(0, crewSize) * (this._crewMemberHpMax ?? 6);
 				if (raw > max) update["flags.stonetop-pwd.crew.groupHp"] = max;
@@ -3848,14 +3848,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Delete individual crew member
 			html.find(".stonetop-crew-delete-individual").on("click", ev => {
 				const idx = Number(ev.currentTarget.dataset.index);
-				const individuals = [...(this.actor.getFlag("stonetop-pwd", "crew.individuals") ?? [])];
+				const individuals = [...(this.actor.getFlag(STONETOP_SCOPE, "crew.individuals") ?? [])];
 				if (idx < 0 || idx >= individuals.length) return;
 				const name = individuals[idx]?.name || "this crew member";
 				individuals.splice(idx, 1);
 				// Re-key per-individual HP to stay aligned with the spliced array:
 				// the removed entry is dropped and every entry above it shifts down
 				// one. (individualsHp is an index-keyed map, not part of the array.)
-				const oldHp = this.actor.getFlag("stonetop-pwd", "crew.individualsHp") ?? {};
+				const oldHp = this.actor.getFlag(STONETOP_SCOPE, "crew.individualsHp") ?? {};
 				const newHp = {};
 				for (const [k, v] of Object.entries(oldHp)) {
 					const i = Number(k);
@@ -3878,7 +3878,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				// Shrink the roster by one: "Remove" takes the member out of the crew
 				// entirely. Without this the freed slot reappears as a fresh full-HP
 				// anonymous member (`size` would still imply the old headcount).
-				const sizeBefore = effectiveCrewSize(this.actor.getFlag("stonetop-pwd", "crew.size"), individuals.length + 1);
+				const sizeBefore = effectiveCrewSize(this.actor.getFlag(STONETOP_SCOPE, "crew.size"), individuals.length + 1);
 				const newSize = Math.max(individuals.length, sizeBefore - 1);
 				update["flags.stonetop-pwd.crew.size"] = newSize;
 				clampStoredGroupHp(update, newSize);
@@ -3894,10 +3894,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Crew roster size — total headcount; never below the number of named
 			// individuals. Trims trailing anonymous-member HP entries when shrinking.
 			const setCrewSize = async (size) => {
-				const namedCount = (this.actor.getFlag("stonetop-pwd", "crew.individuals") ?? []).length;
+				const namedCount = (this.actor.getFlag(STONETOP_SCOPE, "crew.individuals") ?? []).length;
 				const clamped    = Math.min(CREW_SIZE_MAX, Math.max(namedCount, Math.max(0, size)));
 				const anonCount  = Math.max(0, clamped - namedCount);
-				const memberHp   = (this.actor.getFlag("stonetop-pwd", "crew.memberHp") ?? []).slice(0, anonCount);
+				const memberHp   = (this.actor.getFlag(STONETOP_SCOPE, "crew.memberHp") ?? []).slice(0, anonCount);
 				const update = {
 					"flags.stonetop-pwd.crew.size":     clamped,
 					"flags.stonetop-pwd.crew.memberHp": memberHp,
@@ -3939,7 +3939,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const path = _followerReadinessPath(ftype, slug);
 				if (!path) return;
 				const idx     = Number(ev.currentTarget.dataset.index);
-				const current = Math.max(0, Number(this.actor.getFlag("stonetop-pwd", path)) || 0);
+				const current = Math.max(0, Number(this.actor.getFlag(STONETOP_SCOPE, path)) || 0);
 				await this.actor.update({ [`flags.stonetop-pwd.${path}`]: current === idx + 1 ? idx : idx + 1 });
 				this.render(false);
 			});
@@ -3976,7 +3976,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-group-hp-reset").on("click", async ev => {
 				const slug = ev.currentTarget.dataset.slug;
 				if (slug) await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.groupHp`]: null });
-				else      await this.actor.unsetFlag("stonetop-pwd", "crew.groupHp");
+				else      await this.actor.unsetFlag(STONETOP_SCOPE, "crew.groupHp");
 				this.render(false);
 			});
 
@@ -3984,7 +3984,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// abstracted group-HP pool down when the group shrinks, and drops any
 			// per-member HP entries beyond the new size, so nothing stale is left.
 			const setCustomGroupSize = async (slug, next) => {
-				const c = this.actor.getFlag("stonetop-pwd", `customFollowers.${slug}`);
+				const c = this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}`);
 				if (!c) return;
 				const size = customGroupSize({ size: next });
 				const memberHpMax = Math.max(1, Math.trunc(Number(c.hpMax) || 0) || 1);
@@ -4008,7 +4008,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			};
 			html.find(".stonetop-custom-group-size-step").on("click", ev => {
 				const { slug, delta } = ev.currentTarget.dataset;
-				const cur = customGroupSize({ size: this.actor.getFlag("stonetop-pwd", `customFollowers.${slug}.size`) });
+				const cur = customGroupSize({ size: this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}.size`) });
 				setCustomGroupSize(slug, cur + Number(delta));
 			});
 			html.find(".stonetop-custom-group-size-input").on("change", ev =>
@@ -4212,11 +4212,11 @@ export function createStonetopCharacterSheetClass(Base) {
 								// Promote the targeted anonymous member: append the named
 								// individual, carry its current HP over, and drop it from
 								// the anonymous-member HP list.
-								const individuals   = [...(this.actor.getFlag("stonetop-pwd", "crew.individuals") ?? [])];
+								const individuals   = [...(this.actor.getFlag(STONETOP_SCOPE, "crew.individuals") ?? [])];
 								const newIndex      = individuals.length;
-								const memberHp      = [...(this.actor.getFlag("stonetop-pwd", "crew.memberHp") ?? [])];
+								const memberHp      = [...(this.actor.getFlag(STONETOP_SCOPE, "crew.memberHp") ?? [])];
 								const carriedHp     = memberHp[anonIndex];
-								const individualsHp = { ...(this.actor.getFlag("stonetop-pwd", "crew.individualsHp") ?? {}) };
+								const individualsHp = { ...(this.actor.getFlag(STONETOP_SCOPE, "crew.individualsHp") ?? {}) };
 								if (carriedHp != null) individualsHp[newIndex] = carriedHp;
 								memberHp.splice(anonIndex, 1);
 								// The face comes with them. Standing out is the moment a body on the
@@ -4341,11 +4341,11 @@ export function createStonetopCharacterSheetClass(Base) {
 
 			html.find(".stonetop-invocation-check").on("change", async ev => {
 				const { slug } = ev.currentTarget.dataset;
-				const current = this.actor.getFlag("stonetop-pwd", "invocations.selected") ?? [];
+				const current = this.actor.getFlag(STONETOP_SCOPE, "invocations.selected") ?? [];
 				const updated = ev.currentTarget.checked
 					? [...current, slug]
 					: current.filter(s => s !== slug);
-				await this.actor.setFlag("stonetop-pwd", "invocations.selected", updated);
+				await this.actor.setFlag(STONETOP_SCOPE, "invocations.selected", updated);
 				this.render(false);
 			});
 			// Tapping an Invocation's title uses it: the window asks whether to Invoke the Sun
@@ -4762,12 +4762,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				// "unset" HP means full (see _clampHp) — so an undefined previous value
 				// counts as alive; only an explicit 0 means they were already down.
 				const wasAlive = fateEligible
-					&& Number(this.actor.getFlag("stonetop-pwd", fateHpPaths[follower])) !== 0;
+					&& Number(this.actor.getFlag(STONETOP_SCOPE, fateHpPaths[follower])) !== 0;
 				await this._setFollowerHp(follower, slug, index, val);
 				// Reviving a fallen custom follower (HP back above 0) clears its "dead" mark so
 				// the card returns to normal — a mirror of the fate dialog's "Dead" outcome.
 				if (follower === "custom" && slug && val > 0
-					&& this.actor.getFlag("stonetop-pwd", `customFollowers.${slug}.dead`)) {
+					&& this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}.dead`)) {
 					await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.dead`]: false });
 				}
 				// Capture the follower's display name off the live card BEFORE the
@@ -4782,7 +4782,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				// Death's Door / dying / dead) for a follower who just went down.
 				if (wasAlive) {
 					const loyaltyPath = _followerLoyaltyPath(follower, slug);
-					const loyalty = Math.max(0, Number(this.actor.getFlag("stonetop-pwd", loyaltyPath)) || 0);
+					const loyalty = Math.max(0, Number(this.actor.getFlag(STONETOP_SCOPE, loyaltyPath)) || 0);
 					// Loyal to the End is the Ranger's animal-companion move (p.469 → p.143):
 					// it replaces the standard fate choice, and only the companion gets it.
 					new FollowerFateDialog(this.actor, { name: fateName, loyalty, isAnimalCompanion: follower === "animal-companion" },
@@ -4841,7 +4841,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				else target.before(dragSource);
 				const newOrder = [...nav.querySelectorAll(".item[data-tab]")].map(t => t.dataset.tab);
 				this._applyTabOrder(root, newOrder);
-				await this.actor.setFlag("stonetop-pwd", "tabOrder", newOrder);
+				await this.actor.setFlag(STONETOP_SCOPE, "tabOrder", newOrder);
 				this.render(false);
 				dragSource = null;
 			});
@@ -4856,7 +4856,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const nav = root.querySelector(".sheet-tabs");
 			const body = root.querySelector(".sheet-body");
 			if (!nav) return;
-			const savedOrder = order ?? this.actor.getFlag("stonetop-pwd", "tabOrder");
+			const savedOrder = order ?? this.actor.getFlag(STONETOP_SCOPE, "tabOrder");
 			if (!savedOrder?.length) return;
 			const tabs = [...nav.querySelectorAll(".item[data-tab]")];
 			const tabMap = new Map(tabs.map(t => [t.dataset.tab, t]));
@@ -6027,9 +6027,9 @@ export function createStonetopCharacterSheetClass(Base) {
 		// may view several character sheets. Writing only this actor's key lets Foundry's
 		// mergeObject preserve preferences for the user's other sheets.
 		async _toggleArcanumShowBoth(slug, show) {
-			const set = new Set((game.user.getFlag("stonetop-pwd", "arcanaShowBoth") ?? {})[this.actor.id] ?? []);
+			const set = new Set((game.user.getFlag(STONETOP_SCOPE, "arcanaShowBoth") ?? {})[this.actor.id] ?? []);
 			if (show) set.add(slug); else set.delete(slug);
-			await game.user.setFlag("stonetop-pwd", "arcanaShowBoth", { [this.actor.id]: [...set] });
+			await game.user.setFlag(STONETOP_SCOPE, "arcanaShowBoth", { [this.actor.id]: [...set] });
 			// Collapsing a spread ("Show front only") returns to the front, so clear any lingering
 			// back-only flip on this card — otherwise it would land on the back, belying the label.
 			if (!show) await this._toggleArcanumShowBack(slug, false);
@@ -6039,9 +6039,9 @@ export function createStonetopCharacterSheetClass(Base) {
 		// exactly like show-both (a per-user, per-actor User flag) so each client renders its own
 		// flip state and the GM's choices stay independent of the owning player's.
 		async _toggleArcanumShowBack(slug, show) {
-			const set = new Set((game.user.getFlag("stonetop-pwd", "arcanaShowBack") ?? {})[this.actor.id] ?? []);
+			const set = new Set((game.user.getFlag(STONETOP_SCOPE, "arcanaShowBack") ?? {})[this.actor.id] ?? []);
 			if (show) set.add(slug); else set.delete(slug);
-			await game.user.setFlag("stonetop-pwd", "arcanaShowBack", { [this.actor.id]: [...set] });
+			await game.user.setFlag(STONETOP_SCOPE, "arcanaShowBack", { [this.actor.id]: [...set] });
 		}
 
 		// Drop a removed arcanum's slug from this user's per-actor show-both / show-back view
@@ -6051,10 +6051,10 @@ export function createStonetopCharacterSheetClass(Base) {
 		async _pruneArcanumUserPrefs(slug) {
 			// The two prefs are independent flags, so prune them concurrently.
 			await Promise.all(["arcanaShowBoth", "arcanaShowBack"].map(flag => {
-				const all = game.user.getFlag("stonetop-pwd", flag);
+				const all = game.user.getFlag(STONETOP_SCOPE, flag);
 				const forActor = all?.[this.actor.id];
 				if (!Array.isArray(forActor) || !forActor.includes(slug)) return null;
-				return game.user.setFlag("stonetop-pwd", flag, { ...all, [this.actor.id]: forActor.filter(s => s !== slug) });
+				return game.user.setFlag(STONETOP_SCOPE, flag, { ...all, [this.actor.id]: forActor.filter(s => s !== slug) });
 			}));
 		}
 
@@ -6084,7 +6084,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 			if (!confirmed) return;
 
-			const existing = this.actor.getFlag("stonetop-pwd", "customFollowers") ?? {};
+			const existing = this.actor.getFlag(STONETOP_SCOPE, "customFollowers") ?? {};
 			const present  = new Set(Object.values(existing).map(f => f?.sourceUuid).filter(Boolean));
 			const update   = {};
 			let order = this._nextFollowerOrder();
@@ -6107,7 +6107,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		// The Ring-of-Daagon follower on this sheet (or a null-ish stub), for the shared
 		// Loyalty pool that Call Up spends and a Servant's Spend button draws on.
 		_ringFollowerEntry() {
-			return findRingFollower(this.actor.getFlag("stonetop-pwd", "customFollowers") ?? {});
+			return findRingFollower(this.actor.getFlag(STONETOP_SCOPE, "customFollowers") ?? {});
 		}
 
 		// Open the Call Up the Deep Ones roller. Requires the Ring itself to be a follower
@@ -6159,7 +6159,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		async _onSendServantsBack(slug, name) {
 			if (!this.isEditable || !slug) return;
 			const who = name
-				|| this.actor.getFlag("stonetop-pwd", `customFollowers.${slug}.name`)
+				|| this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}.name`)
 				|| "the servants of Daagon";
 			const roll = await rollStat("cha", this.actor, {
 				moveName:        "Send Them Back",
@@ -6521,7 +6521,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const ring = this._ringFollowerEntry();
 			let line;
 			if (kind === "loyalty" && ring.id && ring.loyalty > 0) {
-				await this.actor.setFlag("stonetop-pwd", `customFollowers.${ring.id}.loyalty`, ring.loyalty - 1);
+				await this.actor.setFlag(STONETOP_SCOPE, `customFollowers.${ring.id}.loyalty`, ring.loyalty - 1);
 				line = `<p>You spend <strong>1 Loyalty</strong> from ${escHtml(ring.name)} (now ${ring.loyalty - 1}). <strong>${escHtml(who)}</strong> will eventually go.</p>`;
 			} else {
 				line = `<p>You <strong>mark a consequence</strong>. <strong>${escHtml(who)}</strong> will eventually go.</p>`;
@@ -6533,7 +6533,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		async _servantsBreakLoose(slug, who) {
 			// No longer yours to command. Flag the batch (the card shows a "broke free" badge)
 			// and note it; it stays on the tab until removed.
-			await this.actor.setFlag("stonetop-pwd", `customFollowers.${slug}.brokenFree`, true);
+			await this.actor.setFlag(STONETOP_SCOPE, `customFollowers.${slug}.brokenFree`, true);
 			await this._postMoveCard("Send Them Back",
 				`<p><strong>${escHtml(who)}</strong> break free of your control. They are no longer yours to command.</p>`);
 			this.render(false);
@@ -6548,7 +6548,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const { possessionFollower } = await import("../../data/possession-followers.js");
 			const input = possessionFollower(slug);
 			if (!input) return;
-			const existing = this.actor.getFlag("stonetop-pwd", "customFollowers") ?? {};
+			const existing = this.actor.getFlag(STONETOP_SCOPE, "customFollowers") ?? {};
 			if (Object.values(existing).some(f => f?.sourceUuid === input.sourceUuid)) return;
 			const id = foundry.utils.randomID(16);
 			await this.actor.update({
@@ -6820,7 +6820,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// click would be left floating on top of it with nothing to anchor to.
 			removeAvatarPreview();
 			const apply = async src => {
-				await this.actor.setFlag("stonetop-pwd", path, src ?? "");
+				await this.actor.setFlag(STONETOP_SCOPE, path, src ?? "");
 				this.render(false);
 				onPicked?.(src ?? "");
 			};
@@ -7050,7 +7050,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		// `order`, so two followers added in the same millisecond still sort by insertion
 		// (Date.now() alone can tie). Date.now() is the floor for the first follower.
 		_nextFollowerOrder() {
-			return nextFollowerOrder(this.actor.getFlag("stonetop-pwd", "customFollowers") ?? {});
+			return nextFollowerOrder(this.actor.getFlag(STONETOP_SCOPE, "customFollowers") ?? {});
 		}
 
 		// Apply the fate chosen for a follower that hit 0 HP (FollowerFateDialog).
@@ -7107,17 +7107,17 @@ export function createStonetopCharacterSheetClass(Base) {
 		// merges it) instead of cloning the whole map.
 		async _setFollowerHp(follower, slug, index, val) {
 			if (follower === "animal-companion") {
-				await this.actor.setFlag("stonetop-pwd", "animalCompanion.hpCurrent", val);
+				await this.actor.setFlag(STONETOP_SCOPE, "animalCompanion.hpCurrent", val);
 			} else if (follower === "initiate") {
 				await this.actor.update({ [`flags.stonetop-pwd.initiatesHp.${slug}`]: val });
 			} else if (follower === "crew-individual") {
 				await this.actor.update({ [`flags.stonetop-pwd.crew.individualsHp.${Number(index)}`]: val });
 			} else if (follower === "crew-member") {
-				const arr = [...(this.actor.getFlag("stonetop-pwd", "crew.memberHp") ?? [])];
+				const arr = [...(this.actor.getFlag(STONETOP_SCOPE, "crew.memberHp") ?? [])];
 				arr[Number(index)] = val;
-				await this.actor.setFlag("stonetop-pwd", "crew.memberHp", arr);
+				await this.actor.setFlag(STONETOP_SCOPE, "crew.memberHp", arr);
 			} else if (follower === "crew-group") {
-				await this.actor.setFlag("stonetop-pwd", "crew.groupHp", val);
+				await this.actor.setFlag(STONETOP_SCOPE, "crew.groupHp", val);
 			} else if (follower === "beast") {
 				await this.actor.update({ [`flags.stonetop-pwd.beastHp.${slug}`]: val });
 			} else if (follower === "custom") {
@@ -7125,7 +7125,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			} else if (follower === "custom-group") {
 				await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.groupHp`]: val });
 			} else if (follower === "custom-member") {
-				const arr = [...(this.actor.getFlag("stonetop-pwd", `customFollowers.${slug}.memberHp`) ?? [])];
+				const arr = [...(this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}.memberHp`) ?? [])];
 				arr[Number(index)] = val;
 				await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.memberHp`]: arr });
 			}
@@ -7146,9 +7146,9 @@ export function createStonetopCharacterSheetClass(Base) {
 						callback: async html => {
 							const item = String(html?.[0]?.querySelector(".stonetop-hwtn-item")?.value ?? "").trim();
 							if (!item) return;
-							const cur = foundry.utils.deepClone(this.actor.getFlag("stonetop-pwd", gearPath) ?? []);
+							const cur = foundry.utils.deepClone(this.actor.getFlag(STONETOP_SCOPE, gearPath) ?? []);
 							cur.push({ label: item, checked: true });
-							await this.actor.setFlag("stonetop-pwd", gearPath, cur);
+							await this.actor.setFlag(STONETOP_SCOPE, gearPath, cur);
 							await this._postMoveCard("Have What They Need",
 								`<p><strong>${escHtml(name || "Your follower")}</strong> produces <em>${escHtml(item)}</em> — added to their gear.</p>`);
 							this.render(false);
@@ -7166,7 +7166,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// The Supplies-per-set count is "4 + Prosperity" — a synchronous read; no need
 			// to build the whole sheet snapshot just to pull one scalar off it.
 			const pipsPerSet = this._stonetopCharacter.getSmallItemLimit() ?? 5;
-			await this.actor.setFlag("stonetop-pwd", "crew.supplies", Array(6).fill(pipsPerSet));
+			await this.actor.setFlag(STONETOP_SCOPE, "crew.supplies", Array(6).fill(pipsPerSet));
 			await this._postMoveCard("Outfit",
 				`<p>The crew Outfits — every member's Supplies restocked to full (${pipsPerSet} uses each).</p>`);
 			this.render(false);
@@ -7177,12 +7177,12 @@ export function createStonetopCharacterSheetClass(Base) {
 		// match a "shield" gear label; the crew reads the shield pip of its structured kit.
 		_followerHasShield(ftype, slug) {
 			if (ftype === "crew") {
-				const gearFlags = this.actor.getFlag("stonetop-pwd", "crew.gear") ?? {};
+				const gearFlags = this.actor.getFlag(STONETOP_SCOPE, "crew.gear") ?? {};
 				// A number is filled load pips (equipped once ≥ its weight, default 1); a
 				// non-number flag is already the "fully equipped" boolean.
 				return typeof gearFlags.shield === "number" ? gearFlags.shield >= 1 : !!gearFlags.shield;
 			}
-			const detail = this.actor.getFlag("stonetop-pwd", _followerDetailBase(ftype, slug));
+			const detail = this.actor.getFlag(STONETOP_SCOPE, _followerDetailBase(ftype, slug));
 			return _followerBearsShield(detail?.gear);
 		}
 
@@ -7205,7 +7205,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Never REDUCE an already-held pool: a follower who held 3 (or clicked a 4th pip
 			// for their shield) and then Defends again at 7–9 keeps the higher pool rather
 			// than being silently knocked down to 1.
-			const existing = Math.max(0, Number(this.actor.getFlag("stonetop-pwd", path)) || 0);
+			const existing = Math.max(0, Number(this.actor.getFlag(STONETOP_SCOPE, path)) || 0);
 			const next = Math.max(existing, held);
 			// Only advertise the shield's +1 when the follower actually bears one, and only
 			// when this Defend set the (fresh) base hold — not when we kept a higher pool.
@@ -7236,7 +7236,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		_onSpendLoyalty(ftype, slug, name) {
 			const path = _followerLoyaltyPath(ftype, slug);
 			if (!path) return;
-			const current = Math.max(0, Number(this.actor.getFlag("stonetop-pwd", path)) || 0);
+			const current = Math.max(0, Number(this.actor.getFlag(STONETOP_SCOPE, path)) || 0);
 			if (current <= 0) { ui.notifications?.warn?.(`${name || "This follower"} holds no Loyalty to spend.`); return; }
 			const reasons = [
 				{ key: "fear",      label: "Overcome their fear to do as you say" },
@@ -7262,7 +7262,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const reason = reasons.find(r => r.key === key)?.label ?? "";
 			// Decrement the LIVE value, not the count captured when this (non-modal) dialog
 			// opened — the track may have changed since, and writing captured−1 would clobber it.
-			const live = Math.max(0, Number(this.actor.getFlag("stonetop-pwd", path)) || 0);
+			const live = Math.max(0, Number(this.actor.getFlag(STONETOP_SCOPE, path)) || 0);
 			if (live <= 0) { ui.notifications?.warn?.(`${name || "This follower"} no longer holds any Loyalty to spend.`); return; }
 			await this.actor.update({ [`flags.stonetop-pwd.${path}`]: live - 1 }, { stonetopMove: "Spend Loyalty" });
 			await this._postMoveCard("Spend Loyalty",
@@ -7277,10 +7277,10 @@ export function createStonetopCharacterSheetClass(Base) {
 		_onSpendReadiness(ftype, slug, name) {
 			const rPath = _followerReadinessPath(ftype, slug);
 			if (!rPath) return;
-			const readiness = Math.max(0, Number(this.actor.getFlag("stonetop-pwd", rPath)) || 0);
+			const readiness = Math.max(0, Number(this.actor.getFlag(STONETOP_SCOPE, rPath)) || 0);
 			if (readiness <= 0) { ui.notifications?.warn?.(`${name || "This follower"} holds no Readiness to spend.`); return; }
 			const lPath   = _followerLoyaltyPath(ftype, slug);
-			const loyalty = Math.max(0, Number(this.actor.getFlag("stonetop-pwd", lPath)) || 0);
+			const loyalty = Math.max(0, Number(this.actor.getFlag(STONETOP_SCOPE, lPath)) || 0);
 			const reasons = [
 				{ key: "suffer",    label: "Suffer the damage/effects of an attack for a ward" },
 				{ key: "attention", label: "Draw all attention from a ward to themselves" },
@@ -7307,10 +7307,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			const reason    = reasons.find(r => r.key === key)?.label ?? "";
 			// Decrement the LIVE tracks, not the counts captured when this (non-modal) dialog
 			// opened — either may have changed since, and writing captured−1 would clobber it.
-			const liveReadiness = Math.max(0, Number(this.actor.getFlag("stonetop-pwd", rPath)) || 0);
+			const liveReadiness = Math.max(0, Number(this.actor.getFlag(STONETOP_SCOPE, rPath)) || 0);
 			if (liveReadiness <= 0) { ui.notifications?.warn?.(`${name || "This follower"} no longer holds any Readiness to spend.`); return; }
 			const wantsUnwilling = !!html?.[0]?.querySelector(".stonetop-spend-unwilling")?.checked;
-			const liveLoyalty = lPath ? Math.max(0, Number(this.actor.getFlag("stonetop-pwd", lPath)) || 0) : 0;
+			const liveLoyalty = lPath ? Math.max(0, Number(this.actor.getFlag(STONETOP_SCOPE, lPath)) || 0) : 0;
 			// Only charge the "wouldn't want to" Loyalty if they still hold some to pay it.
 			const unwilling = wantsUnwilling && !!lPath && liveLoyalty > 0;
 			const update = { [`flags.stonetop-pwd.${rPath}`]: liveReadiness - 1 };
@@ -7353,11 +7353,11 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		async _handOffFollower(slug, targetId) {
-			const data   = this.actor.getFlag("stonetop-pwd", `customFollowers.${slug}`);
+			const data   = this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}`);
 			const target = game.actors.get(targetId);
 			if (!data || !target) return;
 			// Fresh id + order on the destination so it can't collide with one of theirs.
-			const targetMap = target.getFlag("stonetop-pwd", "customFollowers") ?? {};
+			const targetMap = target.getFlag(STONETOP_SCOPE, "customFollowers") ?? {};
 			const maxOrder  = Object.values(targetMap).reduce((m, f) => Math.max(m, Number(f?.order) || 0), 0);
 			const newId     = foundry.utils.randomID(16);
 			await target.update({
@@ -7371,10 +7371,10 @@ export function createStonetopCharacterSheetClass(Base) {
 		async _onRecoverOpen() {
 			const snapshot = await this._stonetopCharacter.buildSnapshot();
 			const hp = snapshot.vitals.hp;
-			if (this.actor.getFlag("stonetop-pwd", "recover.spent")) return;
+			if (this.actor.getFlag(STONETOP_SCOPE, "recover.spent")) return;
 			if (hp.value >= hp.max) return;
 
-			const resources  = this.actor.getFlag("stonetop-pwd", "inventory.resources") ?? {};
+			const resources  = this.actor.getFlag(STONETOP_SCOPE, "inventory.resources") ?? {};
 			const supplySlug = RECOVER_SUPPLY_SLUGS.find(slug => (Number(resources[slug]) || 0) > 0);
 			if (!supplySlug) return;
 
@@ -7730,14 +7730,14 @@ export function createStonetopCharacterSheetClass(Base) {
 		// or "exited" (closed mid-creation). Fire-and-forget — a failed write must
 		// never interrupt the player's creation flow.
 		_setOnboardingState(state, extra = {}) {
-			this.actor.setFlag("stonetop-pwd", "onboardingProgress", { state, ...extra })
+			this.actor.setFlag(STONETOP_SCOPE, "onboardingProgress", { state, ...extra })
 				.catch(err => console.error("Stonetop | failed to record onboarding progress", err));
 		}
 
 		// Drop the progress flag once creation is finished, so the roster stops
 		// showing progress for a completed character.
 		_clearOnboardingProgress() {
-			return this.actor.unsetFlag("stonetop-pwd", "onboardingProgress").catch(() => {});
+			return this.actor.unsetFlag(STONETOP_SCOPE, "onboardingProgress").catch(() => {});
 		}
 
 		async _onNewCharacter(options = {}) {

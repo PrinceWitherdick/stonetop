@@ -13,6 +13,7 @@
 // floor, so this never clobbers an intentional one-off share.
 
 import { StonetopDialog } from "../utils/stonetop-dialog.js";
+import { SYSTEM_ID } from "../system-id.js";
 
 // Looked up lazily (not at module load) so the file imports cleanly outside
 // Foundry — e.g. under the unit tests — and never races the global's setup.
@@ -43,7 +44,7 @@ export function addJournalShareButton(app) {
 	if (!(journal instanceof JournalEntry)) return;
 	// The Threats / Hazards journals are pure GM prep, never shared with players — suppress
 	// the header "Share" eye on them so they can't be handed out by accident.
-	if (journal.getFlag?.("stonetop-pwd", "threat") || journal.getFlag?.("stonetop-pwd", "hazard")) return;
+	if (journal.getFlag?.(SYSTEM_ID, "threat") || journal.getFlag?.(SYSTEM_ID, "hazard")) return;
 
 	const root = app.element?.jquery ? app.element[0] : app.element;
 	const header = root?.querySelector?.(".window-header");

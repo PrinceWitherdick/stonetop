@@ -17,6 +17,7 @@ import {
 } from "../utils/expedition-log-core.js";
 import { getPlayerCharacters } from "../utils/playbook-actors.js";
 import { deriveLoadLevel, LOAD_LEVEL_LIMITS } from "../utils/load.js";
+import { SYSTEM_ID } from "../system-id.js";
 
 const ANSWERS_SETTING = "expeditionAnswers";
 
@@ -635,7 +636,7 @@ export class ExpeditionDialog extends StepperDialog {
 		const rows = [];
 		const crew = this._crewRow(actor);
 		if (crew) rows.push(crew);
-		const map = actor.getFlag?.("stonetop-pwd", "customFollowers") ?? {};
+		const map = actor.getFlag?.(SYSTEM_ID, "customFollowers") ?? {};
 		for (const f of Object.values(map)
 			.filter(f => f?.party)
 			.sort((a, b) => (Number(a?.order) || 0) - (Number(b?.order) || 0))) {
@@ -648,7 +649,7 @@ export class ExpeditionDialog extends StepperDialog {
 	// (stored at flags.stonetop-pwd.crew.gear as { slug: filledCount }); Supplies are a
 	// separate track and don't count. Returns null for a PC with no crew.
 	_crewRow(actor) {
-		const crew = actor.getFlag?.("stonetop-pwd", "crew");
+		const crew = actor.getFlag?.(SYSTEM_ID, "crew");
 		const exists = crewExists(crew);
 		if (!exists) return null;
 		const gear  = crew.gear ?? {};
