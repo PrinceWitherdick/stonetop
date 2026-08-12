@@ -9,6 +9,7 @@
 // pick go — so this is where those answers are given once, and each sheet only has to say which
 // actor it means.
 
+import { deletionEntry } from "./foundry-compat.js";
 import { openPeoplePortraitPicker } from "../actors/steading/PeopleGalleryDialog.js";
 import { usedPersonPortraits } from "../actors/steading/steading-people.js";
 import { getStonetopSteadingActor } from "./world.js";
@@ -165,9 +166,12 @@ export function openActorPortraitPicker(actor, { editable = null, onSaved } = {}
 		// rect. It would not misapply — the frame's `src` stamp neutralises it against a
 		// different picture — but the dead data would accumulate with nothing to ever clear it.
 		onClear: async () => {
+			// deletionEntry, not a hard-coded `-=`: v14 still honours the legacy prefix but
+			// logs a deprecation for every key it sees.
+			const [frameKey, frameVal] = deletionEntry(`flags.${SYSTEM_ID}.portraitFrame`);
 			await actor.update({
 				img: defaultPortraitFor(actor),
-				[`flags.${SYSTEM_ID}.-=portraitFrame`]: null,
+				[frameKey]: frameVal,
 			});
 			onSaved?.(actor.img);
 		},

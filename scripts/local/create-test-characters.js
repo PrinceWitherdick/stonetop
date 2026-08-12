@@ -310,7 +310,7 @@
   // Returns the minimum pick count from a lore section description.
   const parseLorePickMin = desc => {
     const d = String(desc ?? "").toLowerCase();
-    const rangeM = d.match(/(?:choose|pick)\s+(\d+)\s*[–\-]\s*\d+/);
+    const rangeM = d.match(/(?:choose|pick)\s+(\d+)\s*[–-]\s*\d+/);
     const orM    = d.match(/(?:choose|pick)\s+(\d+)\s+or\s+\d+/);
     const maybeM = d.match(/(?:choose|pick)\s+(\d+)[,\s]+maybe\s+\d+/);
     const singM  = d.match(/(?:choose|pick)\s+(\d+)/);

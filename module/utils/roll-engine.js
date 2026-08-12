@@ -265,7 +265,11 @@ function _conditionsHtml(conditions) {
  * @param {string} statKey   - One of str/dex/int/wis/con/cha
  * @param {Actor}  actor
  * @param {object} options
- * @param {string} [options.rollMode]                  - "adv" | "dis" | "def" | "normal"
+ * @param {string} [options.rollMode]                  - "adv" | "dis" | "normal". NOT Foundry's
+ *   core rollMode (public/gmroll/blind/self) — that is read separately from the client setting
+ *   when the message is built. Anything other than "adv"/"dis" is coerced to "normal"; a "def"
+ *   value was documented here for a while and never implemented, so a caller trusting it got a
+ *   flat 2d6.
  * @param {number} [options.modifier]                  - Total numeric modifier (forward + ongoing + situational)
  * @param {number} [options.forward]                   - Forward portion (shown separately in card)
  * @param {number} [options.ongoing]                   - Ongoing portion (shown separately in card)

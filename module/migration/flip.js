@@ -211,7 +211,7 @@ export async function verifyFlip({ worldId, target = RENAME_TARGET_ID, fetchImpl
  * the loaded packs are still the old one, so anyone joining is served zero compendium
  * packs and a page refresh boots the new system's code against old server state.
  */
-export async function shutdownWorld(game, { settleMs = 4000, wait = (ms) => new Promise((r) => setTimeout(r, ms)) } = {}) {
+export async function shutdownWorld(game, { settleMs = 4000, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) } = {}) {
 	try {
 		await game?.shutDown?.();
 	} catch (err) {

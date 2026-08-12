@@ -1,5 +1,6 @@
 import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 import { buildChoiceGroupsView } from "./possession-choice-cap.js";
+import { stripHtmlToText } from "../../../utils/strings.js";
 
 // Standalone editor for a possession's `choiceGroups` — the Blessed's sacred pouch:
 // the "Your sacred pouch is…" flavor lines (radios, pick 1 each) and the
@@ -44,7 +45,7 @@ export class PossessionChoicesDialog extends StonetopDialog {
 		const playbook = await this._character.playbook();
 		const opt = (playbook?.specialPossessions?.options ?? []).find(o => o.slug === this._possessionSlug);
 		if (!opt) return { groups: [], possessionSlug: this._possessionSlug };
-		this._title = (opt.label ?? "Special Possession").replace(/<[^>]*>/g, "").trim();
+		this._title = stripHtmlToText(opt.label) || "Special Possession";
 		const picked     = this._character.possessions.subChoices[this._possessionSlug] ?? [];
 		const moveCounts = this._character.ownedMoveCounts();
 		const name = this._title.toLowerCase();

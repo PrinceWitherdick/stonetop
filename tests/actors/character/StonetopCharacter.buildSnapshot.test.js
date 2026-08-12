@@ -4,7 +4,6 @@ import {OutfitItemBuilder} from "../../../module/model/OutfitItem.js";
 import {FakePlaybookRepository} from "../../fakes/FakePlaybookRepository.js";
 import {FakeInventoryRepository} from "../../fakes/FakeInventoryRepository.js";
 import {TestCharacterBuilder} from "../../fakes/TestCharacterBuilder.js";
-import {FakeMoveRepository} from "../../fakes/FakeMoveRepository.js";
 import {FakePostDeathInsertRepository} from "../../fakes/FakePostDeathInsertRepository.js";
 import {FakeActorBuilder, FakeStatBuilder} from "../../fakes/FakeActorBuilder.js";
 
@@ -2385,12 +2384,6 @@ const REVENANT_INSERT = {
 	img: null,
 	system: { slug: "revenant", description: "<p>When you die…</p>" },
 	flags: { stonetop: { instincts: [], lore: [] } },
-};
-
-const REVENANT_MOVE = {
-	_id: "pdMove001",
-	name: "Undying",
-	system: { rollType: "str", description: "You refuse to stay down." },
 };
 
 const REVENANT_ACTOR_MOVE = {

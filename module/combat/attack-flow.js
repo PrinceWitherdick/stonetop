@@ -520,13 +520,15 @@ export function wireAttackConfirm(message, html) {
 		}
 	}
 
+	// Confirming writes the `resolved` latch onto this message (lockAttackCard), so it needs
+	// message ownership as well as the attacker's — see wireSufferAttack.
 	actorFromUuid(attack.attackerUuid).then(actor => {
-		const owner = !!actor?.isOwner;
+		const owner = !!actor?.isOwner && !!message.isOwner;
 		for (const btn of btns) {
 			if (!owner || message.getFlag(SCOPE, "attack")?.resolved) { btn.disabled = true; continue; }
 			btn.addEventListener("click", () => resolveAttackTier(message, actor, btn, root));
 		}
-	});
+	}).catch(err => console.error("Stonetop | could not wire the attack card's Confirm buttons", err));
 }
 
 // Enact one tier's Confirm. Disables the clicked button while it runs; only marks the whole
@@ -667,15 +669,32 @@ export function wireSufferAttack(message, html) {
 
 	actorFromUuid(ctx.attackerUuid).then(pc => {
 		if (!pc?.isOwner) { btn.disabled = true; return; }
+		// Owning the PC is not enough: suffering writes a `suffered` latch onto this MESSAGE, and
+		// a player can't update a card the GM authored. Say so rather than letting the click fail
+		// half-way. Mirrors the multi-GM affordance in wireApplyDamage.
+		if (!message.isOwner) {
+			btn.disabled = true;
+			btn.title = "Ask the GM to apply this attack's damage";
+			return;
+		}
 		if (message.getFlag(SCOPE, flagKey)?.suffered) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-check"></i> Suffered the attack'; return; }
 		btn.addEventListener("click", async () => {
 			if (btn.disabled) return;
 			btn.disabled = true;
-			const ok = await executeSuffer(message, pc, ctx, flagKey);
-			if (ok) btn.innerHTML = '<i class="fas fa-check"></i> Suffered the attack';
-			else btn.disabled = false;
+			// A throw here used to escape the handler, so the button stayed disabled with no
+			// explanation and the rejection went unhandled. Re-enable on failure like a
+			// cancelled prompt does — executeSuffer latches before it writes HP, so a retry
+			// can't double-apply.
+			try {
+				const ok = await executeSuffer(message, pc, ctx, flagKey);
+				if (ok) btn.innerHTML = '<i class="fas fa-check"></i> Suffered the attack';
+				else btn.disabled = false;
+			} catch (err) {
+				console.error("Stonetop | suffering the attack failed", err);
+				btn.disabled = false;
+			}
 		});
-	});
+	}).catch(err => console.error("Stonetop | could not wire the Suffer button", err));
 }
 
 // Roll the foe's counter-attack, confirm the number, and self-write the PC's HP. The incoming
@@ -683,7 +702,10 @@ export function wireSufferAttack(message, html) {
 // dialog so the table can adjust for the fiction. Once-only via `flagKey`'s `suffered` marker
 // ("attack" on the roll card, "damage" on the results card). Returns true when applied, false
 // if already suffered or the player cancelled the prompt.
-async function executeSuffer(message, pc, ctx, flagKey) {
+// Exported for tests: the latch-before-damage ordering below is the whole guard against a
+// player taking the same attack twice, and it is not reachable through the wired button
+// without standing up a chat card and a Dialog.
+export async function executeSuffer(message, pc, ctx, flagKey) {
 	if (message.getFlag(SCOPE, flagKey)?.suffered) return false;
 	const foe = ctx.targets?.[0] ? await fromUuid(ctx.targets[0].uuid).then(td => td?.actor).catch(() => null) : null;
 	// The rollable die is `damage.rollFormula`; `damage.value` is PROSE ("rusty sword d8+2
@@ -704,8 +726,24 @@ async function executeSuffer(message, pc, ctx, flagKey) {
 	const amount = await promptIncomingDamage({ pcName: pc.name, foeName: ctx.targets?.[0]?.name, foeDie, foeText, rolled, armor, suggested });
 	if (amount === null) return false;
 
+	// Latch BEFORE the HP write, never after.
+	//
+	// The button is gated on the PC's ownership, but this flag lives on the chat MESSAGE — which
+	// a player does NOT own when the GM rolled the attack for them. Applying damage first meant
+	// the HP write landed, the latch then threw on permission, and the card came back on the next
+	// render still unlatched, so the same attack could be suffered a second time. Writing the
+	// latch first makes the failure mode safe: nothing is deducted unless the "already suffered"
+	// marker actually stored.
+	try {
+		await message.setFlag(SCOPE, flagKey, { ...message.getFlag(SCOPE, flagKey), suffered: true });
+	} catch (err) {
+		console.error("Stonetop | could not mark the attack suffered; damage NOT applied", err);
+		ui.notifications?.warn(
+			"You can't update this attack card, so the damage was not applied. Ask the GM to apply it.");
+		return false;
+	}
+
 	const t = await applyDamageToActor(pc, amount);
-	await message.setFlag(SCOPE, flagKey, { ...message.getFlag(SCOPE, flagKey), suffered: true });
 	await ChatMessage.create({
 		content: stonetopChatCard("Suffered the enemy's attack", `<div class="card-content"><p><strong>${escHtml(pc.name)}</strong> takes <strong>${amount}</strong> damage: ${t?.oldHp} &rarr; ${t?.newHp} HP.</p></div>`, "stonetop-attack-suffer-card"),
 		speaker: ChatMessage.getSpeaker({ actor: pc }),

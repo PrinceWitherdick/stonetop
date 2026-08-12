@@ -56,7 +56,12 @@ export class ThreatBoard {
 	_schedule() {
 		if (this._refreshQueued) return;
 		this._refreshQueued = true;
-		Promise.resolve().then(() => { this._refreshQueued = false; this.refresh(); });
+		Promise.resolve()
+			.then(() => { this._refreshQueued = false; this.refresh(); })
+			// The latch is cleared above before refresh() runs, so a throw here can't wedge the
+			// board — but without the catch it would surface as an unhandled rejection with no
+			// hint that it came from a note edit.
+			.catch(err => console.error("Stonetop | threat board refresh failed", err));
 	}
 
 	_threatNotes() {

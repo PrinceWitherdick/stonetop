@@ -26,7 +26,6 @@ export class ThreatEditorDialog extends StonetopDialog {
 		this._moreOpen = false;
 		// Keep the form in sync if the page changes elsewhere (tab toggle, another GM).
 		this._onUpdate = (doc) => { if (doc?.id === this.page?.id && this.rendered) this.render(false); };
-		Hooks.on("updateJournalEntryPage", this._onUpdate);
 	}
 
 	static get defaultOptions() {
@@ -41,8 +40,28 @@ export class ThreatEditorDialog extends StonetopDialog {
 
 	get title() { return `Threat — ${this.page?.name ?? ""}`; }
 
+	/**
+	 * Register the page-sync hook on FIRST RENDER, not in the constructor.
+	 *
+	 * `close()` is the only thing that unregisters it, and close() only ever runs on a dialog
+	 * that was rendered — so a ThreatEditorDialog constructed and then dropped (an early return,
+	 * a throw between `new` and `render`) used to leak a live hook holding a strong reference to
+	 * the dead dialog AND its page, and every later page update called into it. Binding here
+	 * means the registration and its removal are on the same lifecycle.
+	 *
+	 * Idempotent: AppV1 re-renders call this repeatedly, and Hooks.on would happily add the same
+	 * function again each time.
+	 */
+	async _render(force, options) {
+		if (!this._syncHookId) this._syncHookId = Hooks.on("updateJournalEntryPage", this._onUpdate);
+		return super._render(force, options);
+	}
+
 	async close(options = {}) {
-		Hooks.off("updateJournalEntryPage", this._onUpdate);
+		if (this._syncHookId) {
+			Hooks.off("updateJournalEntryPage", this._syncHookId);
+			this._syncHookId = null;
+		}
 		// super.close (StonetopDialog) stops the FrontOnOpen lifecycle.
 		return super.close(options);
 	}

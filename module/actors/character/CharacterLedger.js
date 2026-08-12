@@ -792,7 +792,7 @@ function possessionChoiceCarriedEntry(path, oldValue, newValue, names) {
 
 function possessionChoiceUsesEntry(path, oldValue, newValue, names) {
 	const key = path.slice(POSSESSION_CHOICE_USES_PREFIX.length);
-	const [possessionSlug, choiceSlug] = key.split(":");
+	const [possessionSlug] = key.split(":");
 	const possessionName = nameFrom(names.possessions, possessionSlug);
 	const choiceName = nameFrom(names.possessionChoices, key);
 	return { action: `${possessionName}: ${choiceName} uses changed from ${formatValue(oldValue)} to ${formatValue(newValue)}` };

@@ -55,11 +55,13 @@ export function withSectionEditing(Base) {
 			}, true);
 		}
 
-		/** Hook: a section's pencil was just opened. */
-		_onSectionEditOpened(section) {}
+		// Deliberately empty override points. The `_` prefix is only there to say "unused here" —
+		// a subclass overriding these names its own parameter.
+		/** Hook: a section's pencil was just opened. @param {string} _section */
+		_onSectionEditOpened(_section) {}
 
-		/** Hook: a section's pencil was just closed. */
-		_onSectionEditClosed(section) {}
+		/** Hook: a section's pencil was just closed. @param {string} _section */
+		_onSectionEditClosed(_section) {}
 
 		// ── Section collapse ──────────────────────────────────────────────────
 		// The caret beside each pencil folds its section down to just the heading.

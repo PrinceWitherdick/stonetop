@@ -1,4 +1,3 @@
-import { getSetting, setSetting } from "../settings.js";
 import { info, error } from "../utils/logger.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
 import { WorldSetupDialog } from "../dialogs/WorldSetupDialog.js";

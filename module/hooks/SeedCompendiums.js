@@ -1,5 +1,6 @@
 import { getSetting, setSetting } from "../settings.js";
 import { info, error } from "../utils/logger.js";
+import { ensurePackIndex } from "../utils/pack-index.js";
 import { invalidateLocationSummaryIndex } from "../locations/location-tooltips.js";
 import { makeRewriter, remapPageData, managedHash, carryOverPageState, planSourceRestamp } from "./journal-sync-core.js";
 import { compendiumSourceOf } from "../utils/foundry-compat.js";
@@ -83,7 +84,7 @@ export async function seedCompendiumJournalsOnce({ onProgress } = {}) {
 				onProgress: progressSlice(onProgress, packBounds(i)),
 			});
 			if (!Array.isArray(docs)) continue;
-			await pack.getIndex();
+			await ensurePackIndex(pack.collection);
 			const worldUuidByName = new Map(docs.map(d => [d.name, d.uuid]));
 			for (const idx of pack.index) {
 				const worldUuid = worldUuidByName.get(idx.name);
@@ -336,7 +337,8 @@ export async function restampSeededJournalSources() {
 	if (!pack) return;
 	let updates;
 	try {
-		updates = planSourceRestamp(game.journal ?? [], await pack.getIndex(), pack.collection);
+		updates = planSourceRestamp(
+			game.journal ?? [], (await ensurePackIndex(pack.collection))?.index ?? [], pack.collection);
 	} catch (err) {
 		error("Failed to index the journal pack for re-stamping:", err);
 		return;

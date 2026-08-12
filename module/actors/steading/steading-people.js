@@ -170,13 +170,20 @@ export function rebasePersonRows(live, replacements, additions = []) {
  * datalists (e.g. Create-a-Follower). Reads the nested `stonetop-pwd.steading` flag where
  * the people rows actually live — the flat `getFlag(…, "residents")` path is never written.
  * Best-effort: a missing/unlinked steading (or any read error) just yields [].
+ *
+ * The optional chaining above already covers "no steading", so the catch only ever fires on
+ * something genuinely unexpected — and an empty list is indistinguishable from "this steading
+ * has nobody". Log it, or a broken read looks exactly like an empty village.
  */
 export function peopleNames(steading) {
 	try {
 		const flags = steading?.getFlag?.("stonetop-pwd", "steading") ?? {};
 		const rows = Object.keys(PEOPLE_FOLDERS).flatMap(list => Array.isArray(flags[list]) ? flags[list] : []);
 		return [...new Set(rows.map(r => String(r?.name ?? "").trim()).filter(Boolean))];
-	} catch { return []; }
+	} catch (err) {
+		console.error("Stonetop | could not read the steading's people names", err);
+		return [];
+	}
 }
 
 /**
@@ -185,6 +192,10 @@ export function peopleNames(steading) {
  * deleted, since both lack an actor to rate. Backs the character sheet's Relationships
  * section, which offers everyone on the steading sheet as a rateable row.
  * Best-effort: a missing/unlinked steading (or any read error) just yields [].
+ *
+ * Logged for the same reason as peopleNames: this backs the character sheet's Relationships
+ * section, where a swallowed failure reads as "this steading has no people" and the player
+ * simply loses the section with no clue why.
  */
 export function steadingPeopleActors(steading) {
 	try {
@@ -200,7 +211,10 @@ export function steadingPeopleActors(steading) {
 			}
 		}
 		return people;
-	} catch { return []; }
+	} catch (err) {
+		console.error("Stonetop | could not resolve the steading's people actors", err);
+		return [];
+	}
 }
 
 /**

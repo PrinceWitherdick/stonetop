@@ -1,7 +1,7 @@
 import {
 	LEDGER_SCOPE, isLedgerPath, normalizeFlagPath, getActorProperty,
 	appendLedgerEntries, deleteLedgerEntries, getLedgerEntries,
-	isBlank, formatValue, valuesEqual, actionForField, coalesceEntries, prettifySlug,
+	isBlank, valuesEqual, actionForField, coalesceEntries, prettifySlug,
 	truncateValue, scalarEntry,
 } from "../../utils/ledger-core.js";
 import { IMPROVEMENT_DEFINITIONS } from "./StonetopSteading.js";

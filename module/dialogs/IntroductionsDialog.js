@@ -1,4 +1,5 @@
 import { bringDialogToFront } from "../utils/front-on-open.js";
+import { deletionEntry } from "../utils/foundry-compat.js";
 import { StonetopDialog } from "../utils/stonetop-dialog.js";
 import { shuffle } from "../utils/arrays.js";
 import { stonetopSteadingHeaderButton } from "../utils/world.js";
@@ -548,9 +549,10 @@ export class IntroductionsDialog extends StonetopDialog {
 	// same update — the two always go together (recording or passing ends the draft), so
 	// centralizing means neither path can forget the `-=live` unset.
 	async _commitStep(actor, stepKey, field, value) {
+		const [liveKey, liveVal] = deletionEntry(`flags.${_FLAG_SCOPE}.${_INTRO_FLAG}.live`);
 		await actor.update({
 			[`flags.${_FLAG_SCOPE}.${_INTRO_FLAG}.${stepKey}.${field}`]: value,
-			[`flags.${_FLAG_SCOPE}.${_INTRO_FLAG}.-=live`]: null,
+			[liveKey]: liveVal,
 		});
 		// Every commit is followed by a re-render, and _render flushes the capture DOM first —
 		// but that DOM still shows the answer just recorded, so the flush would write it
@@ -638,9 +640,21 @@ export class IntroductionsDialog extends StonetopDialog {
 	// GM-only cursor write. Always bumps `nonce` so an otherwise-equal cursor still fires
 	// onChange on players (Foundry suppresses equal-value setSetting) — centralizing this
 	// means no write path can forget the bump and silently desync a player's dialog.
+	//
+	// SERIALIZED, because it is a read-modify-write on a world setting and the callers fire in
+	// bursts: a showNonce bump followed in the same tick by _syncCursorFromLocal both read the
+	// same `cur`, so the second overwrote the first's patch AND reused its nonce — defeating the
+	// very "no write path can forget the bump" guarantee this method exists to provide. Chaining
+	// off the previous write means each read sees the setting the last one stored.
 	_writeCursor(patch) {
-		const cur = this._cursor();
-		setSetting(_CURSOR_SETTING, { ...cur, ...patch, nonce: (Number(cur.nonce) || 0) + 1 });
+		const run = (this._cursorWrite ?? Promise.resolve()).then(() => {
+			const cur = this._cursor();
+			return setSetting(_CURSOR_SETTING, { ...cur, ...patch, nonce: (Number(cur.nonce) || 0) + 1 });
+		});
+		// Neutralised link: one failed write must not reject every write queued behind it.
+		this._cursorWrite = run.catch(err =>
+			console.error("Stonetop | Introductions: cursor write failed", err));
+		return run;
 	}
 
 	// Primary GM only: mirror this dialog's local phase/turn into the world cursor so every
@@ -953,7 +967,19 @@ export class IntroductionsDialog extends StonetopDialog {
 		// this, narration typed then closed with the X (rather than the Save-to-Chronicle
 		// button) would never reach the setting the Chronicle compiler reads. Primary GM only
 		// (only a GM can write a world setting, and only the primary should).
-		if (game.user?.isGM && isPrimaryGM()) { try { await this._harvestAll(); } catch (_e) { /* non-fatal */ } }
+		// Non-fatal — closing must not be blockable — but NOT silent. This is the only path that
+		// persists narration typed and then closed with the X, so a swallowed failure here loses
+		// player-written text outright, and the table's only clue is that the Chronicle came out
+		// short. Say so loudly enough that it can be retyped before anyone moves on.
+		if (game.user?.isGM && isPrimaryGM()) {
+			try { await this._harvestAll(); }
+			catch (err) {
+				console.error("Stonetop | Introductions: harvesting answers on close failed", err);
+				ui.notifications?.error(
+					"Stonetop: the Introductions answers could not be saved. Reopen the window and "
+					+ "check the latest narration before continuing.");
+			}
+		}
 		this._unregisterCombatHooks();
 		this._unregisterIntroHooks();
 		// Closing on purpose (the X or "Let spring break forth!") clears the open flag
@@ -1258,10 +1284,26 @@ export class IntroductionsDialog extends StonetopDialog {
 	 * covers every OTHER open dialog, whose re-render is driven by the updateActor hook and
 	 * which never saw a commit of its own — the GM's Next clears an online player's draft, and
 	 * it was the PLAYER's screen that put it back.
+	 *
+	 * Which is why focus ALONE is not enough, and why the text is checked against what has already
+	 * been recorded. On that other client the caret is still in the field when the commit lands
+	 * (the re-render that would have cleared it is suppressed precisely because it has focus), so
+	 * the field goes on showing the answer just recorded with no live draft behind it — the one
+	 * state this was supposed to refuse. Flushing it wrote the answer back as a new draft carrying
+	 * `q: null`, since there is no live draft left to read the pick from, and when the round came
+	 * back to that PC the commit refused it with "Tap the question they chose" and returned false.
+	 * The GM's Next then did nothing at all, with nothing on screen to say why.
 	 */
 	_draftWorthFlushing(el) {
 		if (this._hasLiveDraft(el.dataset.actorId, el.dataset.stepKey)) return true;
-		return el === globalThis.document?.activeElement;
+		if (el !== globalThis.document?.activeElement) return false;
+		const text = String(el.value ?? "").trim();
+		if (!text) return false;
+		// Anything already committed for this step is a mirror of the record, not a draft. A
+		// genuine first keystroke — the case this branch exists for, still inside the 300ms
+		// debounce — is by definition text nobody has recorded yet.
+		const recorded = this._stepRecord(el.dataset.actorId, el.dataset.stepKey).answers;
+		return !recorded.some(entry => String(entry?.a ?? "").trim() === text);
 	}
 
 	// Flush the compose UI's current state to the draft flag and await it, so a fast

@@ -1,7 +1,4 @@
 import {
-	LoreOptionSnapshotBuilder,
-	LoreEntrySnapshotBuilder,
-	LoreSection,
 	AppearanceLineSnapshot,
 	AppearanceOptionSnapshot,
 	AppearanceSection,
@@ -37,6 +34,7 @@ import {
 	VitalsSnapshotBuilder,
 } from "../../model/CharacterSnapshot.js";
 import {PlaybookMoveEntry} from "./PlaybookMoveEntry.js";
+import {deletionEntry} from "../../utils/foundry-compat.js";
 import {statRequirementLabel, statRequirementsUnmet} from "./stat-requirement.js";
 import {MoveResources} from "./MoveResources.js";
 import {moveMarkBudget} from "./move-mark-budget.js";
@@ -60,7 +58,7 @@ import {CharacterLore} from "./CharacterLore.js";
 import {CharacterPostDeath, buildLoreSection, insertHpPenalty} from "./CharacterPostDeath.js";
 import {effectiveSubgroupMax, sumMoveBonus} from "./dialogs/possession-choice-cap.js";
 import {FoundryRepositoryFactory} from "./repositories/FoundryRepositoryFactory.js";
-import {capitalizeFirst, slugify, composeInstinct, escHtml} from "../../utils/strings.js";
+import {capitalizeFirst, slugify, composeInstinct, escHtml, stripHtmlToText} from "../../utils/strings.js";
 import {splitFillBlank, fillBlank} from "../../utils/fill-blanks.js";
 import {localize as _loc} from "../../utils/i18n.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
@@ -1657,7 +1655,7 @@ export class StonetopCharacter {
 			const grant = adopt.get(itemGrantKey(i));
 			if (grant) existing.add(grant.sourceKey ?? grant.name);
 		}
-		const sourceLabel = (opt.label ?? "").replace(/<[^>]*>/g, "").trim();
+		const sourceLabel = stripHtmlToText(opt.label);
 		const toCreate    = grantsToCreate(opt.grantsItems, existing, { slug, sourceLabel });
 		if (toCreate.length) await this._actor.createEmbeddedDocuments("Item", toCreate);
 		// Record that this possession's gear has been materialized, so the ready-time
@@ -1687,8 +1685,10 @@ export class StonetopCharacter {
 	}
 	async _clearPossessionGrantsApplied(slug) {
 		if (!(slug in this._possessionGrantsApplied())) return;
-		// setFlag can't drop keys — delete just this slug's entry via `-=`.
-		await this._actor.update({ [`flags.${STONETOP_SCOPE}.possessionGrantsApplied.-=${slug}`]: null });
+		// setFlag can't drop keys — delete just this slug's entry, in whichever form the running
+		// core applies (deletionEntry: ForcedDeletion on v14+, the legacy `-=` prefix below it).
+		await this._actor.update(Object.fromEntries(
+			[deletionEntry(`flags.${STONETOP_SCOPE}.possessionGrantsApplied.${slug}`)]));
 	}
 
 	// Ready-time back-fill for characters whose grant-bearing possessions were selected
@@ -2398,7 +2398,13 @@ export class StonetopCharacter {
 	 */
 	async computedMaxHp() {
 		const snapshot = await this.buildSnapshot();
-		return snapshot.vitals?.hp?.max ?? this.storedMaxHp;
+		// 0 is the vitals section's way of saying "there is no computed max": without a playbook it
+		// emits `new ValueMax(0, 0)`. That is not nullish, so a bare `??` never reached the fallback
+		// below and this handed back a max of 0 — and every caller doing arithmetic on it inherited
+		// the zero. UndeathDialog's "reform with half your max HP" floored to 1 HP for a Ghost whose
+		// playbook slug no longer resolved in the pack, which is the one moment it most matters.
+		const computed = Number(snapshot.vitals?.hp?.max);
+		return Number.isFinite(computed) && computed > 0 ? computed : this.storedMaxHp;
 	}
 
 	/** The persisted field — stale by design; see computedMaxHp. Only for a last-resort fallback. */
@@ -2434,8 +2440,14 @@ export class StonetopCharacter {
 		const typed = Math.trunc(Number(input));
 		if (!Number.isFinite(typed)) return base > 0 ? await this.computedMaxHp() : this.storedMaxHp;
 		const target = Math.max(1, typed);
+		// The adjustment is the delta and stays the delta — that is what keeps a soul-wound the same
+		// size when a later level raises the base underneath it. `hp.max` is written ALONGSIDE it as
+		// a mirror, never instead of it: `system.json` names `attributes.hp` as the primary token
+		// attribute and this system links PC prototype tokens, so the bar over the character's head
+		// reads the stored field and nothing else. Left alone it kept the number the playbook drop
+		// wrote, and a Heavy who typed 24 here had a token that still filled at 20.
 		const update = base > 0
-			? { "system.attributes.hp.adjustment": target - base }
+			? { "system.attributes.hp.adjustment": target - base, "system.attributes.hp.max": target }
 			: { "system.attributes.hp.max": target };
 		if (this.hp > target) update["system.attributes.hp.value"] = target;
 		await this._actor.update(update);
@@ -2792,8 +2804,10 @@ export class StonetopCharacter {
 	async _revertStatIncreaseChoice(moveItem) {
 		const statKey = (this._actor.getFlag(STONETOP_SCOPE, "improvedStatChoices") ?? {})[moveItem.id];
 		if (!statKey) return;
-		// setFlag merges (it can't drop keys), so unset just this instance's entry via `-=`.
-		await this._actor.update({ [`flags.${STONETOP_SCOPE}.improvedStatChoices.-=${moveItem.id}`]: null });
+		// setFlag merges (it can't drop keys), so unset just this instance's entry — via
+		// deletionEntry, so v14 gets a ForcedDeletion rather than a deprecated `-=` key.
+		await this._actor.update(Object.fromEntries(
+			[deletionEntry(`flags.${STONETOP_SCOPE}.improvedStatChoices.${moveItem.id}`)]));
 		if (!_STAT_DEFS[statKey]) return;
 		const current = this._actor.system?.stats?.[statKey]?.value ?? 0;
 		await this._actor.update(

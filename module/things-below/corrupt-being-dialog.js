@@ -3,7 +3,7 @@ import { creatureTypeIcon } from "../bestiary/creature-types.js";
 import { invalidateMonsterRefIndex } from "../bestiary/monster-ref-index.js";
 import { formatCustomMoveDescription } from "../utils/custom-move-text.js";
 import { buildMonsterActorData } from "../data/monster-builder.js";
-import { THEMES, ASPECTS, INSTINCTS, EMANATION_ORIGINS, rollOnTable, rollDistinct, themeLabels, aspectTexts, themeCheckboxes, aspectCheckboxes } from "../data/things-below-tables.js";
+import { THEMES, ASPECTS, EMANATION_ORIGINS, rollOnTable, rollDistinct, themeLabels, aspectTexts, themeCheckboxes, aspectCheckboxes } from "../data/things-below-tables.js";
 import { GIFTS, MARKS, EMANATION_BASE, applyCorruption } from "../data/corruption-tables.js";
 
 // ── CorruptBeingDialog ───────────────────────────────────────────────────────

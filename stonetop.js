@@ -35,8 +35,7 @@ import { deathDripStamp, markDeathDrip } from "./module/hooks/DeathChatDrip.js";
 import { onPreCreateThreatNote } from "./module/hooks/ThreatNotePins.js";
 import { onDrawStonetopNote } from "./module/hooks/StonetopNoteLabels.js";
 import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
-import { ensureLocationSummaryIndex, applyLocationTooltips } from "./module/locations/location-tooltips.js";
-import { restrictContentLinks } from "./module/journal/restrict-content-links.js";
+import { ensureLocationSummaryIndex, applyTooltipsThenRestrict } from "./module/locations/location-tooltips.js";
 import { hideBrokenJournalArt } from "./module/journal/hide-broken-art.js";
 import { addJournalShareButton } from "./module/journal/share-journal.js";
 import { patchJournalImagePopoutTitles } from "./module/journal/journal-image-titles.js";
@@ -521,12 +520,9 @@ Hooks.on("drawNote", onDrawStonetopNote);
 Hooks.once("ready", () => ensureLocationSummaryIndex());
 const _onJournalRender = (app, html) => {
 	// Give cross-links their hover summary FIRST, then neuter any a player can't
-	// follow. Order matters: restrictContentLinks carries the just-stamped
-	// data-tooltip onto the de-linked span, so a player still gets the description
-	// on hover for Locations & Lore — while the GM-only bestiary codex is flattened
-	// to plain text with no tooltip. No-op for GMs (they keep every link). The
-	// tooltip index is async, so chain the restriction after it resolves.
-	applyLocationTooltips(html).then(() => restrictContentLinks(html));
+	// follow. Tooltips then restriction, in that order and for the reasons written down
+	// in applyTooltipsThenRestrict.
+	applyTooltipsThenRestrict(html);
 	// Drop any book-art image whose file fails to load, so no reader — player or GM —
 	// is ever shown an empty frame where a durable illustration went missing.
 	hideBrokenJournalArt(html);

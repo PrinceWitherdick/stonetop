@@ -2,6 +2,7 @@ import { getSetting, setSetting } from "../settings.js";
 import { enrichHTML } from "../utils/foundry-compat.js";
 import { findVisibleJournal, settingOverviewPages, SETTING_OVERVIEW_JOURNAL } from "../utils/seeded-journals.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
+import { ensurePackIndex } from "../utils/pack-index.js";
 import { applyGuideRail } from "../utils/guide-rail.js";
 import { applyLocationTooltips } from "../locations/location-tooltips.js";
 import { FoundryBasicsDialog } from "./FoundryBasicsDialog.js";
@@ -127,7 +128,9 @@ export class WelcomeDialog extends Application {
 		// entry). Those only resolve while enriching if that pack's index is already
 		// loaded — and this guide often opens before anything else warms it, which
 		// renders the link "broken". Load the index first so it always resolves.
-		await game.packs.get("stonetop-pwd.stonetop-journal")?.getIndex();
+		// Through ensurePackIndex so warming the index for link resolution can't narrow the
+		// pack's tracked fields out from under whoever indexed it for their own.
+		await ensurePackIndex("stonetop-pwd.stonetop-journal");
 
 		const players = game.users
 			.filter(u => !u.isGM)
@@ -224,7 +227,8 @@ export class WelcomeDialog extends Application {
 			actor?.sheet?.render(true);
 		});
 		html.find(".stonetop-welcome-dontshow-input").on("change", ev =>
-			setSetting("gmWelcomeShown", ev.currentTarget.checked));
+			setSetting("gmWelcomeShown", ev.currentTarget.checked)
+				.catch(err => console.error("Stonetop | could not save the welcome preference", err)));
 
 		this._registerHooks();
 	}

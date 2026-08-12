@@ -1,8 +1,9 @@
-import { StonetopSteading, IMPROVEMENT_DEFINITIONS, IMPROVEMENT_CATEGORIES, STEADING_DEFAULTS, improvementRequirementsMet, improvementRequirementCount, HERD_SURPLUS_PER } from "./StonetopSteading.js";
+import { StonetopSteading, IMPROVEMENT_CATEGORIES, STEADING_DEFAULTS, improvementRequirementsMet, improvementRequirementCount, HERD_SURPLUS_PER } from "./StonetopSteading.js";
 import {rollStat, sign, postSeasonsRollPrompt, resultsLegendHtml} from "../../utils/roll-engine.js";
 import {SteadingLedger} from "./SteadingLedger.js";
 import {openLedgerDialog} from "../../utils/ledger-dialog.js";
 import {wireTabSearch} from "../../utils/tab-search.js";
+import {injectHeaderToggle} from "../../utils/sheet-chrome.js";
 import {escHtml} from "../../utils/strings.js";
 import {CUSTOM_ASSET_VALUE, wireCustomAssetSelect} from "../../utils/requisition-asset.js";
 import {postMoveToChat} from "../../utils/chat.js";
@@ -507,44 +508,17 @@ export function createStonetopSteadingSheetClass(Base) {
 		}
 
 		_injectHeaderToggle() {
-			const header = this.element[0]?.querySelector(".window-header");
-			if (!header || !this.isEditable) return;
-
-			header.querySelector(".stonetop-header-toggle")?.remove();
-
-			const label = document.createElement("label");
-			label.className = "stonetop-edit-toggle stonetop-header-toggle";
-			// Master edit toggle: when on, every section is editable. Each section
-			// also has its own hover pencil for editing it in isolation.
-			label.title = this._editMode ? "Lock Steading" : "Edit Steading";
-
-			const checkbox = document.createElement("input");
-			checkbox.type = "checkbox";
-			checkbox.checked = this._editMode;
-			checkbox.addEventListener("change", () => {
-				this._editMode = checkbox.checked;
+			// Master edit toggle: when on, every section is editable. Each section also has its
+			// own hover pencil for editing it in isolation. Shared with the character, NPC and
+			// monster sheets — see utils/sheet-chrome.js.
+			injectHeaderToggle(this, "Steading", {
 				// Locking the sheet resets any per-section pencils back to read-only.
-				if (!this._editMode) {
+				onChange: (on) => {
+					if (on) return;
 					this._editingSections.clear();
 					this._clearAllSectionDoneTimers();
-				}
-				this.render(false);
+				},
 			});
-
-			const track = document.createElement("span");
-			track.className = "stonetop-toggle-track";
-			const thumb = document.createElement("span");
-			thumb.className = "stonetop-toggle-thumb";
-			const icon = document.createElement("i");
-			icon.className = "fas fa-wrench";
-			thumb.appendChild(icon);
-			track.appendChild(thumb);
-
-			label.appendChild(checkbox);
-			label.appendChild(track);
-
-			const title = header.querySelector(".window-title");
-			header.insertBefore(label, title);
 		}
 
 		_getHeaderButtons() {
@@ -1038,7 +1012,8 @@ export function createStonetopSteadingSheetClass(Base) {
 				const cb = ev.target.closest(".steading-hide-unearned-improvements-check");
 				if (!cb) return;
 				ev.stopPropagation();
-				this.actor.setFlag("stonetop-pwd", "hideUnearnedImprovements", cb.checked);
+				this.actor.setFlag("stonetop-pwd", "hideUnearnedImprovements", cb.checked)
+					.catch(err => console.error("Stonetop | could not save the improvements filter", err));
 			}, true);
 
 			// Per-section edit toggle (pencil/check at each section's corner) flips
@@ -1113,7 +1088,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				const input = ev.target.closest(".steading-surplus-input");
 				if (!input) return;
 				ev.stopPropagation();
-				this._onSteadingTrackChange(input.name, Math.max(0, parseInt(input.value) || 0));
+				this._onSteadingTrackChange(input.name, Math.max(0, parseInt(input.value, 10) || 0));
 			};
 			html[0].addEventListener("input", onSurplusInput, true);
 			html[0].addEventListener("change", onSurplusInput, true);
@@ -1132,7 +1107,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				if (!cb) return;
 				ev.stopPropagation();
 				const { list, index } = cb.dataset;
-				this._onListItemCheck(list, parseInt(index), cb.checked);
+				this._onListItemCheck(list, parseInt(index, 10), cb.checked);
 			}, true);
 
 			// Click a requisitioned ("taken") asset to return it to the steading.
@@ -1140,7 +1115,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				const taken = ev.target.closest(".steading-asset-taken");
 				if (!taken) return;
 				ev.stopPropagation();
-				this._onReturnAsset(parseInt(taken.dataset.index));
+				this._onReturnAsset(parseInt(taken.dataset.index, 10));
 			}, true);
 
 			// Add list item (residents/neighbors are handled above, regardless of edit mode)
@@ -1158,7 +1133,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				if (!btn) return;
 				ev.stopPropagation();
 				const { list, index } = btn.dataset;
-				this._onListItemDelete(btn.dataset.list, parseInt(index));
+				this._onListItemDelete(list, parseInt(index, 10));
 			}, true);
 
 			// Rows that name an actor: the Player Characters table opens a PC, a
@@ -1187,7 +1162,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				const inp = ev.target.closest(".steading-place-name");
 				if (!inp) return;
 				ev.stopPropagation();
-				this._onPlaceChange(parseInt(inp.dataset.index), inp.value);
+				this._onPlaceChange(parseInt(inp.dataset.index, 10), inp.value);
 			}, true);
 
 // Resident / neighbor / player details
@@ -1201,10 +1176,10 @@ export function createStonetopSteadingSheetClass(Base) {
 			// which would make personFieldPath bail and silently drop the edit).
 			const list = inp.dataset.list || "residents";
 			if (list === "players") {
-				this._onPlayerFieldChange(parseInt(index), field, inp.value);
+				this._onPlayerFieldChange(parseInt(index, 10), field, inp.value);
 			} else {
 				// list is "residents" or "neighbors" — both go through the shared handler.
-				this._onPersonFieldChange(list, parseInt(index), field, inp.value);
+				this._onPersonFieldChange(list, parseInt(index, 10), field, inp.value);
 			}
 			}, true);
 
@@ -1230,7 +1205,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				if (!inp) return;
 				ev.stopPropagation();
 				const { currency, field } = inp.dataset;
-				this._onCurrencyChange(currency, field, parseInt(inp.value) || 0);
+				this._onCurrencyChange(currency, field, parseInt(inp.value, 10) || 0);
 			}, true);
 
 			// Improvement complete checkbox
@@ -1247,7 +1222,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				if (!cb) return;
 				ev.stopPropagation();
 				const { slug, index } = cb.dataset;
-				this._onImprovementReq(slug, parseInt(index), cb.checked);
+				this._onImprovementReq(slug, parseInt(index, 10), cb.checked);
 			}, true);
 
 			// Herd of Horses tracker: +/- steppers and direct number entry per age tier.
@@ -1255,7 +1230,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				const btn = ev.target.closest(".steading-herd-step");
 				if (!btn) return;
 				ev.stopPropagation();
-				this._onHerdStep(btn.dataset.tier, parseInt(btn.dataset.delta) || 0);
+				this._onHerdStep(btn.dataset.tier, parseInt(btn.dataset.delta, 10) || 0);
 			}, true);
 			html[0].addEventListener("change", ev => {
 				const inp = ev.target.closest(".steading-herd-input");
@@ -1709,7 +1684,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			};
 			if (flow.label !== "Trade & Barter") return options;
 			const data = this._formDataFromDialog(html);
-			const value = Math.max(0, parseInt(data.value) || 0);
+			const value = Math.max(0, parseInt(data.value, 10) || 0);
 			return {
 				...options,
 				modifier: value ? -value : 0,
@@ -1802,8 +1777,9 @@ export function createStonetopSteadingSheetClass(Base) {
 					<span class="stonetop-disaster-choice-detail">${c.detail}</span>
 				</li>`).join("");
 
-			let dialog;
-			dialog = new Dialog({
+			// `const`, even though the render/button callbacks below refer to `dialog`: they run
+			// after this statement completes, so the binding is always initialised by then.
+			const dialog = new Dialog({
 				title: "Meet with Disaster",
 				content: `<div class="stonetop-disaster-dialog">
 					<p><em>Fortunes cannot drop below −1.</em> The GM picks 1:</p>
@@ -1870,8 +1846,9 @@ export function createStonetopSteadingSheetClass(Base) {
 					<span class="stonetop-disaster-choice-detail">${d.detail}</span>
 				</li>`).join("");
 
-			let dialog;
-			dialog = new Dialog({
+			// `const`, even though the render/button callbacks below refer to `dialog`: they run
+			// after this statement completes, so the binding is always initialised by then.
+			const dialog = new Dialog({
 				title: "Return Triumphant",
 				content: `<div class="stonetop-disaster-dialog">
 					<p><em>You return home in triumph.</em> Clear 1 of the steading's debilities:</p>
@@ -1989,8 +1966,9 @@ export function createStonetopSteadingSheetClass(Base) {
 			const yearOptions  = Array.from({ length: currentYear }, (_, i) => i + 1)
 				.map(y => `<option value="${y}"${y === currentYear ? " selected" : ""}>${ordinalWord(y)} Year</option>`)
 				.join("");
-			let dialog;
-			dialog = new Dialog({
+			// `const`, even though the render/button callbacks below refer to `dialog`: they run
+			// after this statement completes, so the binding is always initialised by then.
+			const dialog = new Dialog({
 				title: "Seasons Change",
 				content: `<div class="stonetop-season-picker">
 					<p><em>Which season is beginning?</em></p>
@@ -2262,8 +2240,9 @@ export function createStonetopSteadingSheetClass(Base) {
 				</div>`;
 			}
 
-			let dialog;
-			dialog = new Dialog({
+			// `const`, even though the render/button callbacks below refer to `dialog`: they run
+			// after this statement completes, so the binding is always initialised by then.
+			const dialog = new Dialog({
 				title: `Seasons Change — ${label}`,
 				content,
 				// Done resets Fortunes (the season's close-out), applies any ticked mechanical
@@ -2843,8 +2822,9 @@ export function createStonetopSteadingSheetClass(Base) {
 		// Prompt for a custom improvement (name + optional flavor/effect) and add it as a
 		// tracked custom improvement — the same path a dropped journal card takes.
 		async _onCreateImprovementOpen() {
-			let dialog;
-			dialog = new Dialog({
+			// `const`, even though the render/button callbacks below refer to `dialog`: they run
+			// after this statement completes, so the binding is always initialised by then.
+			const dialog = new Dialog({
 				title: "Create Improvement",
 				content: `<form class="stonetop-homestead-dialog">
 					<p class="stonetop-homestead-trigger"><em>Add a custom improvement to track alongside the book's built-ins.</em></p>

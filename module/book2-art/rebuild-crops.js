@@ -178,7 +178,7 @@ export async function rebuildPeopleCrops({ plan = null, onProgress = null } = {}
 			}
 			if (!loadedImg) throw new Error(`could not load ${item.parentSrc}`);
 			const canvas = cropToCanvas(loadedImg, item.crop);
-			const blob = await new Promise((res) => canvas.toBlob(res, "image/webp", WEBP_QUALITY));
+			const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", WEBP_QUALITY));
 			if (!blob) throw new Error("encode returned no blob");
 			const name = item.out.slice(item.out.lastIndexOf("/") + 1);
 			await FP.upload("data", dir, new File([blob], name, { type: "image/webp" }),

@@ -137,7 +137,8 @@ export async function onReady() {
 	// Fold the pre-world-keying Setting Overview gate under this world, so every OTHER
 	// world stops reading it as already-shown (see settings.js).
 	await migrateFlatSettingOverviewShown();
-	await _migrateArmourToArmor();
+	try { await _migrateArmourToArmor(); }
+	catch (err) { console.error("Stonetop | armour → armor migration failed", err); }
 	await _migrateGmPrepPagesToSingleJournal();
 	// Convert each steading's plain-text Residents/Neighbors rows into linked NPC actors
 	// (idempotent; primary-GM only so two connected GMs can't double-create). Swept every
@@ -1053,13 +1054,23 @@ async function _migrateShootMarker() {
 	}
 }
 
-async function _migrateArmourToArmor() {
+// Drop the pre-rename `system.attributes.armour` key from characters that still carry it.
+//
+// PRIMARY-GM ONLY, like every other sweep in onReady. A player has no right to update actors
+// they don't own, so running this on their client threw `User lacks permission to update Actor`
+// once per stale character — and because the call site was a bare `await`, that rejection tore
+// down the rest of onReady for them: no hotbar macros, no game.stonetop, no window restore. It
+// went unnoticed because the early return below makes it a silent no-op in an already-clean
+// world, which is every world the developers were testing against.
+export async function _migrateArmourToArmor() {
+	if (!game.user?.isGM || !isPrimaryGM()) return;
 	const staleActors = game.actors.filter(
 		a => a.type === "character" && a.system?.attributes?.armour !== undefined
 	);
 	if (!staleActors.length) return;
 	for (const actor of staleActors) {
-		await actor.update({ "system.attributes.-=armour": null });
+		const [key, val] = deletionEntry("system.attributes.armour");
+		await actor.update({ [key]: val });
 	}
 }
 

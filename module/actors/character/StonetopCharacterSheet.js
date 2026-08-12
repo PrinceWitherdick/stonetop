@@ -32,6 +32,7 @@ import {CharacterLedger} from "./CharacterLedger.js";
 import {wireTabSearch} from "../../utils/tab-search.js";
 import {createPacker, fitColumns, makeColumns, packShortest, wireMasonry} from "../../utils/masonry.js";
 import {mountTabRail} from "../../utils/tab-rail.js";
+import {injectHeaderToggle} from "../../utils/sheet-chrome.js";
 import {mountScrollFrost} from "../../utils/scroll-frost.js";
 import {withSheetSizeMemory} from "../../utils/sheet-size.js";
 import { crewExists, effectiveCrewSize, customGroupSize, crewAnonMemberLabel, crewIndividualLabel, CREW_SIZE_MAX } from "../../utils/crew.js";
@@ -898,36 +899,32 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		_injectHeaderToggle() {
-			const header = this.element[0]?.querySelector(".window-header");
-			if (!header || !this.isEditable) return;
+			// Shared with the steading, NPC and monster sheets — see utils/sheet-chrome.js. The
+			// hand-rolled copy this replaced bailed on `!this.isEditable`, so a character opened
+			// from a compendium showed no toggle and no reason why; the shared one draws a lock
+			// that explains it.
+			injectHeaderToggle(this, "Character", { lockLabel: "Lock Sheet" });
+		}
 
-			header.querySelector(".stonetop-header-toggle")?.remove();
-
-			const label = document.createElement("label");
-			label.className = "stonetop-edit-toggle stonetop-header-toggle";
-			label.title = this._editMode ? "Lock Sheet" : "Edit Character";
-			const checkbox = document.createElement("input");
-			checkbox.type = "checkbox";
-			checkbox.checked = this._editMode;
-			checkbox.addEventListener("change", () => {
-				this._editMode = !this._editMode;
-				this.render(false);
-			});
-
-			const track = document.createElement("span");
-			track.className = "stonetop-toggle-track";
-			const thumb = document.createElement("span");
-			thumb.className = "stonetop-toggle-thumb";
-			const icon = document.createElement("i");
-			icon.className = "fas fa-wrench";
-			thumb.appendChild(icon);
-			track.appendChild(thumb);
-
-			label.appendChild(checkbox);
-			label.appendChild(track);
-
-			const title = header.querySelector(".window-title");
-			header.insertBefore(label, title);
+		/**
+		 * Repaint once `work` settles, and surface a failed write instead of dropping it.
+		 *
+		 * A dozen handlers below share the shape "write to the actor, then re-render". Written
+		 * as a bare `.then(() => this.render(false))` the rejection went nowhere: the repaint
+		 * never ran, so the sheet kept showing the state the player had been told they were in —
+		 * the arcanum they just "revealed", the insert they just "chose" — with nothing in the
+		 * console and nothing on screen to say otherwise.
+		 *
+		 * The render runs on the failure path TOO, deliberately: falling back to what actually
+		 * stored is the whole point, and it is what makes the optimistic DOM honest again.
+		 */
+		_renderAfter(work) {
+			return Promise.resolve(work)
+				.catch(err => {
+					console.error("Stonetop | character sheet write failed", err);
+					ui.notifications?.error("That change could not be saved. The sheet has been refreshed.");
+				})
+				.finally(() => this.render(false));
 		}
 
 		// Jump to this character's page in the shared "Player Introductions" Chronicle
@@ -1170,6 +1167,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			for (const [path, value] of Object.entries(vitalsToSystem)) {
 				foundry.utils.setProperty(context.system, path, value);
 			}
+			// Kept for the post-render mirror (_syncStoredMaxHp). That write needs the computed max
+			// and this is the one place it has already been worked out — asking for it again would
+			// rebuild the whole snapshot on every render. 0 means "no playbook, nothing to mirror".
+			this._computedMaxHp = context.stonetop.playbook ? v.hp.max : 0;
 			// A permanent max-HP change (an arcanum's soul-wound, a Mark's boon) is otherwise
 			// invisible once applied — the field just shows a number that disagrees with the
 			// playbook. Marked and spelled out here so a GM reading the sheet months later can
@@ -2483,7 +2484,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				ev.stopPropagation();
 				const value = pm.value ?? "";
 				if (value === (this.actor.system?.notes ?? "")) return;
-				this.actor.update({ "system.notes": value });
+				// Caught, not dropped: a failed persist here left the editor showing text the
+				// player believed was saved, with nothing logged.
+				this.actor.update({ "system.notes": value }).catch(err => {
+					console.error("Stonetop | could not save the character's notes", err);
+					ui.notifications?.error("Those notes could not be saved.");
+				});
 			}, true);
 
 			html.find(".stonetop-create-character-btn").on("click", () => this._onNewCharacter());
@@ -3320,6 +3326,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			syncFollowerActors(this.actor, followerSnapshots)
 				.catch(err => console.error("Stonetop | follower actor sync failed", err));
 
+			// The token's HP bar reads the PERSISTED max, which the sheet itself never does. Same
+			// call site and the same fire-and-forget shape as the follower sweeps above, for the
+			// same reason: every route that can move a character's max HP (a level, a Marshal's
+			// marked move, a Thrall's Marks, an insert's penalty) ends in a render of this sheet.
+			this._syncStoredMaxHp()
+				.catch(err => console.error("Stonetop | max HP mirror failed", err));
+
 			// Followers tab: drag a card onto the canvas to put that follower on the map as a
 			// token (module/hooks/FollowerDrop.js turns the payload below into an Actor).
 			// Ungated, like the steading's NPC-row drag: dragging writes nothing here, and what
@@ -3904,10 +3917,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-crew-size-step").on("click", ev => {
 				const delta = Number(ev.currentTarget.dataset.delta) || 0;
 				const input = ev.currentTarget.parentElement.querySelector(".stonetop-crew-size-input");
-				setCrewSize((parseInt(input?.value) || 0) + delta);
+				setCrewSize((parseInt(input?.value, 10) || 0) + delta);
 			});
 			html.find(".stonetop-crew-size-input").on("change", ev => {
-				const v = parseInt(ev.currentTarget.value);
+				const v = parseInt(ev.currentTarget.value, 10);
 				// Blank/non-numeric input: revert to the current size rather than
 				// collapsing the roster to the named count (which would drop every
 				// anonymous member's tracked HP).
@@ -4442,8 +4455,8 @@ export function createStonetopCharacterSheetClass(Base) {
 						speaker: ChatMessage.getSpeaker({ actor: this.actor }),
 					};
 					ChatMessage.applyRollMode(messageData, game.settings.get("core", "rollMode"));
-					ChatMessage.create(messageData);
-				});
+					return ChatMessage.create(messageData);
+				}).catch(err => console.error("Stonetop | could not post the arcanum card", err));
 			}, true);
 
 			html[0].addEventListener("click", ev => {
@@ -4505,7 +4518,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!btn) return;
 				ev.stopPropagation();
 				const { slug, show } = btn.dataset;
-				this._toggleArcanumShowBoth(slug, show !== "true").then(() => this.render(false));
+				this._renderAfter(this._toggleArcanumShowBoth(slug, show !== "true"));
 			}, true);
 
 			// "Show back" ⇄ "Show front" single-side flip. A sibling PER-USER preference to
@@ -4516,7 +4529,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!btn) return;
 				ev.stopPropagation();
 				const { slug, show } = btn.dataset;
-				this._toggleArcanumShowBack(slug, show !== "true").then(() => this.render(false));
+				this._renderAfter(this._toggleArcanumShowBack(slug, show !== "true"));
 			}, true);
 
 			// GM-only: in secretive mode (setting off), toggle whether the owning player can
@@ -4531,7 +4544,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const action = revealed === "true"
 					? this._stonetopCharacter.hideArcanum(slug)
 					: this._stonetopCharacter.revealArcanum(slug);
-				action.then(() => this.render(false));
+				this._renderAfter(action);
 			}, true);
 
 			html[0].addEventListener("click", ev => {
@@ -4571,9 +4584,13 @@ export function createStonetopCharacterSheetClass(Base) {
 				Dialog.confirm({
 					title:   "Remove arcanum",
 					content: `<p>Remove <strong>${escHtml(title)}</strong> from your arcana? This can't be undone.</p>`,
-					yes:     () => this._pruneArcanumUserPrefs(slug)
-						.then(() => this._stonetopCharacter.removeArcanum(slug))
-						.then(() => this.render(true)),
+					// render(false) via _renderAfter, not render(true): every sibling handler
+					// repaints in place, while force re-opens the window and resets its position.
+					// The catch matters more — a failed removal used to leave the card the user
+					// was just told was gone sitting on the sheet with nothing logged.
+					yes:     () => this._renderAfter(
+						this._pruneArcanumUserPrefs(slug)
+							.then(() => this._stonetopCharacter.removeArcanum(slug))),
 					render:  bringDialogToFront,
 					options: { classes: ["dialog", "stonetop", "stonetop-remove-arcanum-dialog"] },
 				});
@@ -4647,20 +4664,20 @@ export function createStonetopCharacterSheetClass(Base) {
 				const btn = ev.target.closest(".stonetop-pdi-activate");
 				if (!btn) return;
 				ev.stopPropagation();
-				this._stonetopCharacter.setPostDeathInsert(btn.dataset.slug).then(() => this.render(false));
+				this._renderAfter(this._stonetopCharacter.setPostDeathInsert(btn.dataset.slug));
 			}, true);
 
 			// The Ghost's tether. Saved on blur (not per keystroke) so naming it doesn't re-render
 			// the sheet out from under the cursor.
 			html.find(".stonetop-pdi-tether-input").on("change", ev => {
-				this._stonetopCharacter.setTether(ev.currentTarget.value).then(() => this.render(false));
+				this._renderAfter(this._stonetopCharacter.setTether(ev.currentTarget.value));
 			});
 
 			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".stonetop-pdi-remove");
 				if (!btn) return;
 				ev.stopPropagation();
-				this._stonetopCharacter.setPostDeathInsert(null).then(() => this.render(false));
+				this._renderAfter(this._stonetopCharacter.setPostDeathInsert(null));
 			}, true);
 
 			// Send the whole tab away. The tab it is drawn on goes with it, so the re-render lands
@@ -4671,7 +4688,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!btn) return;
 				ev.stopPropagation();
 				if (!this.isEditable) return;
-				this._stonetopCharacter.setPostDeathTabRequested(false).then(() => this.render(false));
+				this._renderAfter(this._stonetopCharacter.setPostDeathTabRequested(false));
 			}, true);
 
 			// These radios now render in ordinary play too, not just edit mode (an unanswered
@@ -4694,9 +4711,8 @@ export function createStonetopCharacterSheetClass(Base) {
 				const el = ev.target.closest(".stonetop-pdi-writein, .stonetop-pdi-writein-pick");
 				if (!el) return;
 				if (!this.isEditable) return;
-				this._stonetopCharacter
-					.setPostDeathLoreText(el.dataset.section, el.dataset.option, el.value)
-					.then(() => this.render(false));
+				this._renderAfter(this._stonetopCharacter
+					.setPostDeathLoreText(el.dataset.section, el.dataset.option, el.value));
 			}, true);
 
 			html[0].addEventListener("change", ev => {
@@ -4727,7 +4743,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				// Clamp to the field's max on write, not just on the next render's
 				// display — otherwise a typed over-max value (the max= attribute is
 				// advisory) would persist and resurface if the max later grows.
-				let val = Math.max(0, parseInt(input.value) || 0);
+				let val = Math.max(0, parseInt(input.value, 10) || 0);
 				if (Number.isFinite(max) && max > 0) val = Math.min(val, max);
 				const { follower, slug, index } = input.dataset;
 				// Watch for a named single follower (animal companion / initiate / beast /
@@ -6586,7 +6602,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		 *
 		 * The steading is merged last so a face a named resident wears reads as theirs.
 		 */
-		_followerPortraitsInUse({ ftype, slug } = {}) {
+		_followerPortraitsInUse({ ftype, slug, own } = {}) {
 			const used = {};
 			for (const p of this._followerPortraits ?? []) {
 				if (p.ftype === ftype && p.slug === (slug ?? "")) continue;
@@ -6598,7 +6614,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			// resident wins the label over the same person's bare actor entry. A follower
 			// recruited from an NPC shares that NPC's portrait on purpose, and the gallery does
 			// not read a person's own current face as taken from them.
-			return { ...used, ...usedActorPortraits(), ...usedPersonPortraits(getStonetopSteadingActor()) };
+			const all = { ...used, ...usedActorPortraits(), ...usedPersonPortraits(getStonetopSteadingActor()) };
+			// `own` is the same "this one is already mine" the (ftype, slug) skip above expresses,
+			// for a caller that cannot express it that way. A ROSTER member has no such pair, and
+			// their face is claimed by the world scan (usedActorPortraits reaches it through
+			// claimRosterPortraits) — so without this the gallery told a crew member the picture
+			// they are wearing belongs to somebody else and dropped it out of "Unused".
+			if (own) delete all[own];
+			return all;
 		}
 
 		/**
@@ -6810,9 +6833,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				// whatever picture is chosen next (it would not — the src stamp neutralises it —
 				// but the dead data would accumulate forever).
 				onClear: async () => {
+					const [frameKey, frameVal] =
+						deletionEntry(`flags.${STONETOP_SCOPE}.${base}.portraitFrame`);
 					await this.actor.update({
-						[`flags.stonetop-pwd.${path}`]: "",
-						[`flags.stonetop-pwd.${base}.-=portraitFrame`]: null,
+						[`flags.${STONETOP_SCOPE}.${path}`]: "",
+						[frameKey]: frameVal,
 					});
 					this.render(false);
 					onCleared?.();
@@ -6911,8 +6936,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				current,
 				// The roster's own faces are in this scan (usedActorPortraits sweeps them through
 				// claimRosterPortraits), so two crew members cannot be handed one face without the
-				// gallery saying so.
-				used: this._followerPortraitsInUse(),
+				// gallery saying so — and `own` takes THIS member's back out again, since the same
+				// sweep is what would otherwise report their current face as another person's.
+				used: this._followerPortraitsInUse({ own: current }),
 				// Both branches follow through only on a write that LANDED. The store refuses,
 				// silently, a ref that has fallen off the end of its roster — the reachable case
 				// being this very window, kept open across a crew shrinking beneath it (see
@@ -7549,11 +7575,45 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (String(el.value ?? "").trim() !== "") {
 					ui.notifications?.warn("Max HP has to be a whole number of 1 or more.");
 				}
-				el.value = this.actor.system?.attributes?.hp?.max ?? base;
+				// Back to the number this field was RENDERED with, which `defaultValue` still holds
+				// however much has been typed over it since. NOT `system.attributes.hp.max`: getData
+				// mirrors the computed max into the render context, so the box shows the real number
+				// while the persisted field is the stale one — reverting to that showed a Heavy with
+				// move bonuses their level-1 max and then left it there, since this branch returns
+				// without a re-render to put it right.
+				el.value = el.defaultValue || String(base || "");
 				return;
 			}
 			await this._stonetopCharacter.setMaxHp(typed, { base });
 			this.render(false);
+		}
+
+		/**
+		 * Mirror the computed max HP onto the persisted `hp.max`.
+		 *
+		 * The stored field is stale by design (StonetopCharacter#computedMaxHp sets out why) and
+		 * this sheet never reads it — getData mirrors the computed number into the render context
+		 * instead. The TOKEN reads it: `system.json` names `attributes.hp` as the primary token
+		 * attribute and this system links PC prototype tokens, so the bar over a character's head
+		 * is drawn from the stored max and nothing else. A Heavy whose marked moves took them to 24
+		 * had a bar that showed full at 20; a Thrall whose Marks cut them to 16 had one that could
+		 * never fill.
+		 *
+		 * Until this release the blanket form submit pushed the mirrored value back on any sheet
+		 * edit, so the field converged by accident. Dropping `name` from the max input — so typing
+		 * there banks a permanent adjustment rather than pinning the number — took that away and
+		 * put nothing in its place.
+		 *
+		 * Ledger-silenced: the real change was the level or the Mark, which the ledger already
+		 * files. Writes only on a genuine difference, so it settles in one pass and costs a
+		 * comparison on every render after that.
+		 */
+		async _syncStoredMaxHp() {
+			const computed = Number(this._computedMaxHp) || 0;
+			if (computed <= 0) return;
+			if (!this.actor?.isOwner) return;
+			if (Number(this.actor.system?.attributes?.hp?.max) === computed) return;
+			await this.actor.update({ "system.attributes.hp.max": computed }, { stonetopLedger: true });
 		}
 
 		// ── Wounds (4th harm track) ────────────────────────────────────────────────
@@ -7946,7 +8006,6 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		_readSelectionsFromActor(playbookDoc = null) {
 			const f  = resolvedFlags(this.actor);
-			const sys = this.actor.system ?? {};
 
 			// Major arcanum: use the saved flag if present, otherwise infer from owned arcana
 			// cross-referenced with the background's allowed list.

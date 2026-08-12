@@ -1,4 +1,5 @@
 import { SYSTEM_ID } from "../system-id.js";
+import { deletionEntry } from "./foundry-compat.js";
 import { resolvedFlags } from "../actors/character/StonetopFlags.js";
 import { isActorRow, personRowActor } from "../actors/steading/steading-people.js";
 import { STEADING_DEFAULTS } from "../actors/steading/StonetopSteading.js";
@@ -94,12 +95,13 @@ export function followerFrameHandle(actor, base, { editable = false } = {}) {
 		get img() { return String(detail().img ?? "").trim(); },
 		read: () => detail().portraitFrame ?? null,
 		write: (frame) => actor.setFlag(SYSTEM_ID, `${base}.portraitFrame`, normalizeFrame(frame)),
-		// An explicit `-=` through update() rather than unsetFlag: it touches the parent anyway,
-		// so no phantom `initiateDetails.acolyte: {}` can be inserted for a follower that never
-		// had a frame. Guarded so clearing an unframed follower is a genuine no-op.
+		// An explicit deletion through update() rather than unsetFlag: it touches the parent
+		// anyway, so no phantom `initiateDetails.acolyte: {}` can be inserted for a follower that
+		// never had a frame. Guarded so clearing an unframed follower is a genuine no-op.
+		// Via deletionEntry so v14 gets a ForcedDeletion instead of a deprecated `-=` key.
 		clear: () => (detail().portraitFrame === undefined
 			? Promise.resolve()
-			: actor.update({ [`flags.${SYSTEM_ID}.${base}.-=portraitFrame`]: null }))
+			: actor.update(Object.fromEntries([deletionEntry(`flags.${SYSTEM_ID}.${base}.portraitFrame`)])))
 	};
 }
 

@@ -231,7 +231,7 @@ export class CreateFollowerDialog extends StepperDialog {
 
 		// Group toggle + size (HP step). Re-render on toggle so the size field appears.
 		html.find(".stonetop-cf-group-toggle").on("change", ev => { this._sel.isGroup = ev.currentTarget.checked; this.render(false); });
-		html.find(".stonetop-cf-group-size").on("change", ev => { this._sel.groupSize = Math.max(2, parseInt(ev.currentTarget.value) || 2); });
+		html.find(".stonetop-cf-group-size").on("change", ev => { this._sel.groupSize = Math.max(2, parseInt(ev.currentTarget.value, 10) || 2); });
 
 		// Tag chips (toggle) + add free-text tag(s).
 		html.find(".stonetop-cf-tag").on("click", ev => this._toggleTag(ev.currentTarget.dataset.tag));
@@ -307,7 +307,7 @@ export class CreateFollowerDialog extends StepperDialog {
 			if (this._sel.gear[i]) this._sel.gear[i].label = el.value;
 		});
 		const sizeEl = root.querySelector(".stonetop-cf-group-size");
-		if (sizeEl) this._sel.groupSize = Math.max(2, parseInt(sizeEl.value) || 2);
+		if (sizeEl) this._sel.groupSize = Math.max(2, parseInt(sizeEl.value, 10) || 2);
 	}
 
 	async _finish() {
