@@ -687,9 +687,13 @@ function _chatWireStartupWelcome(message, html) {
 }
 
 // -- ART-IMPORT REMINDER CARD: LAUNCH IMPORT MACRO -------------
-// The one-time "Import Your Book Art" reminder (whispered to GMs; see hooks/Ready.js
-// _postBook2ArtReminderOnce) carries a button that kicks off the Import Book Art macro.
-// GM-only card, but hide/guard the button for players defensively like the startup card.
+// Both whispered GM cards that launch the Import Book Art macro carry this button: the one-time
+// "Import Your Book Art" reminder for a world that never imported, and "Finish Your Art Import"
+// for one whose run fell short of the manifest (hooks/Ready.js _postBook2ArtReminderOnce and
+// _offerPartialArtImportOnce). They are mutually exclusive by construction — one needs no art on
+// disk, the other needs some — so a single generic wiring serves both and a third card offering
+// the same macro would need no change here.
+// GM-only cards, but hide/guard the button for players defensively like the startup card.
 function _chatWireBook2ArtReminder(message, html) {
 	const btn = html.querySelector(".stonetop-import-art-open");
 	if (!btn) return;

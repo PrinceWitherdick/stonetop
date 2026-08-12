@@ -9,6 +9,7 @@ import { book2ArtRoot, book2ArtSrcWith } from "./art-root.js";
 import { browseArtDirs } from "./browse.js";
 import { STEADING_ACTOR_TYPE, isSteadingPlaceholderImg } from "../actors/steading/steading-portrait.js";
 import { isBestiaryPlaceholderImg } from "../bestiary/monster-portrait.js";
+import { creatureTypeIcon } from "../bestiary/creature-types.js";
 import { isOurCompendiumRef } from "../migration/compat.js";
 import { SYSTEM_ID, packId } from "../system-id.js";
 
@@ -70,6 +71,75 @@ const browseDurableArt = (root) => browseArtDirs(root);
 export async function hasImportedBook2Art() {
 	const present = await browseDurableArt(book2ArtRoot());
 	return present.size > 0;
+}
+
+// The most art a world can be missing and still read as "an import that fell short" rather than
+// "a book that was never supplied". Book I is 64% of the illustrations and Book II is 36%, and a
+// GM who skipped one is not someone to nudge about a handful of failures — they need the plain
+// import, which the Ready-flow reminder already offers. A run that merely lost some pages comes
+// in far under this: the printing change that could not be matched by size cost 12 of 473, or
+// 2.5%. Well clear of both edges, deliberately, because the useful signal is the ORDER of
+// magnitude and not the exact figure.
+const PARTIAL_IMPORT_MAX_MISSING = 0.10;
+
+/**
+ * Every illustration the importer writes, as manifest `out` paths. Deduped: rows legitimately
+ * share a picture (two creatures drawn in one figure, a region's plate that is also its monster's
+ * portrait), and counting one file twice would misreport both halves of the ratio below.
+ *
+ * A Setting Overview map is satisfied by ANY link in its preference chain, since `replaces` names
+ * the user-supplied poster map an earlier release embedded there. Counting the chain as one entry
+ * is what stops a GM who is legitimately on the older map from reading as incomplete forever.
+ */
+function everyDurableArtPath({ monsters, locations, settingOverviewMaps = [], treasures = [], people = [], steadings = [] }) {
+	const chains = [];
+	const one = (out) => { if (out) chains.push([out]); };
+	for (const m of monsters) one(m.out);
+	for (const l of locations) for (const im of l.images ?? []) one(im.out);
+	for (const t of treasures) one(t.out);
+	for (const s of steadings) one(s.out);
+	for (const p of people) { one(p.out); one(p.portraitOut); }
+	for (const s of settingOverviewMaps) {
+		const chain = [s.out, ...(s.replaces ?? [])].filter(Boolean);
+		if (chain.length) chains.push(chain);
+	}
+	// Dedupe on the chain's own identity, so a shared picture is one unit of work either way.
+	return [...new Map(chains.map((c) => [c.join("|"), c])).values()];
+}
+
+/**
+ * Whether this world looks like an import that fell short, and by how much.
+ *
+ * A GM whose import failed on some illustrations has no way to know: the failures scroll past in
+ * the console during a run that otherwise reports success, and what they see afterwards is a
+ * handful of entries that never got their picture. This is the detector behind the once-only
+ * offer to finish the job (hooks/Ready.js), and it deliberately describes the SHAPE of the
+ * problem rather than any particular cause. The printing change that prompted it is one way to
+ * get here; a page that timed out, a PDF that stopped being readable part way, and a run the GM
+ * closed early all land in the same place and all have the same remedy.
+ *
+ * Returns null when there is nothing to say: nothing imported at all (the plain import reminder
+ * owns that GM), nothing missing, or so much missing that a whole book is clearly absent.
+ *
+ * @returns {Promise<{missing: number, total: number} | null>}
+ */
+export async function countMissingDurableArt() {
+	try {
+		const root = book2ArtRoot();
+		const present = await browseDurableArt(root);
+		if (!present.size) return null;                     // never imported; not our nudge to make
+		const srcOf = (out) => book2ArtSrcWith(root, out);
+		const chains = everyDurableArtPath(BOOK2_ART_APPLY_MANIFEST);
+		const missing = chains.filter((chain) => !chain.some((out) => present.has(srcOf(out)))).length;
+		if (!missing) return null;
+		if (missing > chains.length * PARTIAL_IMPORT_MAX_MISSING) return null;   // a whole book is absent
+		return { missing, total: chains.length };
+	} catch (e) {
+		// Best-effort, exactly like hasImportedBook2Art: a browse that failed reads as "say
+		// nothing", which is the safe default for something that only ever offers.
+		error("Book II art: could not check whether the import is complete", e);
+		return null;
+	}
 }
 
 // Publish which document-less art rows have their illustration on disk into a world-scoped
@@ -197,6 +267,34 @@ function worldMonsterArtUpdate(actor, src, tails) {
 		if ((ours(tex.src) || tokPlaceholder) && tex.src !== src) upd["prototypeToken.texture.src"] = src;
 		if (tokPlaceholder && tex.fit !== TOKEN_FIT) upd["prototypeToken.texture.fit"] = TOKEN_FIT;
 	}
+	return Object.keys(upd).length ? upd : null;
+}
+
+// The mirror of worldMonsterArtUpdate, for art that has gone the other way: this actor still
+// points at one of OUR durable paths, and that file is no longer on disk. A partial import is the
+// ordinary way in (a printing that re-saved an illustration the matcher could not find, a page
+// that timed out), as is re-importing into a fresh art folder after moving or clearing the old
+// one. Nothing else ever clears it: the compendium is reset to art-less defaults by any system
+// update, but a world actor survives updates, and the passes above only ever wire art that IS
+// present — so the broken image sits on the sheet, the token and every catalog row indefinitely.
+//
+// It reverts to the creature-type icon, which is the same shipped placeholder SeedActors gave the
+// actor before any import. That matters beyond looking tidy: isBestiaryPlaceholderImg reads it as
+// a placeholder again, so the moment the GM does re-import, the adopt-over-placeholder path picks
+// the picture straight back up. Nothing is lost and nothing needs undoing.
+//
+// Only ever touches paths that are ALREADY ours, on exactly the same `tails` test the re-point
+// uses, so a portrait the group chose is untouched here as everywhere else. Null when there is
+// nothing to change.
+function staleMonsterArtReset(actor, tails) {
+	const ours = (path) => tails.some((t) => String(path ?? "").endsWith(t));
+	// Read at call time, like isBestiaryPlaceholderImg, so it reflects the running Foundry.
+	const fallback = creatureTypeIcon(actor.system?.creatureType)
+		?? globalThis.CONST?.DEFAULT_TOKEN ?? "icons/svg/mystery-man.svg";
+	const upd = {};
+	if (ours(actor.img) && actor.img !== fallback) upd.img = fallback;
+	const tex = actor.prototypeToken?.texture;
+	if (tex && ours(tex.src) && tex.src !== fallback) upd["prototypeToken.texture.src"] = fallback;
 	return Object.keys(upd).length ? upd : null;
 }
 
@@ -578,11 +676,27 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 				}
 			}
 			for (const m of monsters) {
-				if (!available.has(m.out)) continue;
-				const src = srcOf(m.out);
 				const uuid = `Compendium.${m.actorPack ?? BES_PACK}.Actor.${m.actorId}`;
 				const tails = [`/${m.out}`, ...(m.retired ?? []).map((r) => `/${r}`)];
-				for (const a of actorsBySource.get(uuid) ?? []) {
+				const worldOnes = actorsBySource.get(uuid) ?? [];
+				// This monster's picture is NOT on disk. Clearing a pointer at it is only honest if
+				// we can tell "this one file is missing" from "the browse came back empty", so it is
+				// gated on some OTHER monster's art being present: that proves the bestiary folder
+				// was read and has content. Without the gate a transient FilePicker failure would
+				// strip all 73 portraits at once, and while the next load would re-adopt them, the
+				// churn is exactly the kind of alarming that a self-heal must never cause.
+				if (!available.has(m.out)) {
+					if (!monstersOnDisk) continue;
+					for (const a of worldOnes) {
+						try {
+							const upd = staleMonsterArtReset(a, tails);
+							if (upd) { await a.update(upd); worldActors++; }
+						} catch (e) { errors++; error(`Book II art re-apply: world actor "${a.name ?? a.id}"`, e); }
+					}
+					continue;
+				}
+				const src = srcOf(m.out);
+				for (const a of worldOnes) {
 					try {
 						const upd = worldMonsterArtUpdate(a, src, tails);
 						if (upd) { await a.update(upd); worldActors++; }

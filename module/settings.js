@@ -354,6 +354,26 @@ export function registerSettings() {
 		default: false
 	});
 
+	// Whether the one-time "your import did not finish — want to pick up the rest?" offer has been
+	// made (hooks/Ready.js _offerPartialArtImportOnce). World-scoped like its siblings: it is a
+	// property of this world's art folder, not of whoever is logged in.
+	//
+	// Unlike the rebuild above, saying yes needs the GM's PDFs again, because the missing pictures
+	// were never extracted and nothing on disk can stand in for them. That is also why the offer
+	// exists at all: a run that fails on some illustrations reports success, the failures scroll
+	// past in the console, and what the GM is left with is a few entries that never got a picture
+	// and no reason to connect the two.
+	//
+	// Safe to re-ask: findWork returns falsy for a complete import, so a world with nothing missing
+	// stays silent and never sets this.
+	game.settings.register(SYSTEM_ID, "partialArtImportOffered", {
+		name: "Partial Art Import Offered",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
 	// Whether the one-time "you already have these poster maps — want them as Scenes?" offer
 	// has been made in this world (hooks/WorldSetup.js offerPosterMapScenesOnce). The map
 	// images live in the durable art folder, which outlives the world they were imported in,

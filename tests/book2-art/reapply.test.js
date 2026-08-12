@@ -747,6 +747,87 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		// but the version is left unstamped so the next load retries
 		expect(h.store.book2ArtSyncVersion).toBe("");
 	});
+
+	// Art that has gone the other way: the actor still points at one of ours and the file is no
+	// longer on disk. A run that failed on some illustrations is the ordinary way in, as is
+	// re-importing into a fresh art folder. Nothing else clears it — the compendium is reset by
+	// any system update, but a world actor survives updates, and every other pass only ever wires
+	// art that IS present — so the broken image would sit on the sheet and token indefinitely.
+	describe("art that has vanished from disk", () => {
+		// Every monster's art present EXCEPT the first, so "this one is missing" is a statement
+		// about one file rather than about a folder that could not be read.
+		const allButFirst = () => monsters.slice(1).map((m) => m.out)
+			.concat(locations.flatMap((l) => l.images).map((im) => im.out));
+
+		const staleActor = (mon, { creatureType } = {}) => {
+			const durable = durableOf(mon.out);
+			const a = {
+				img: durable,
+				system: creatureType ? { creatureType } : {},
+				prototypeToken: { texture: { src: durable, fit: "cover" } },
+				_stats: { compendiumSource: uuidOf(mon) },
+				getFlag: () => undefined,
+			};
+			a.update = async (upd) => { applyUpdate(a, upd); };
+			return a;
+		};
+
+		it("reverts a world actor to its creature-type icon", async () => {
+			// The same shipped placeholder SeedActors gave it, so isBestiaryPlaceholderImg reads it
+			// as adoptable again and a later re-import picks the picture straight back up.
+			const a = staleActor(monsters[0], { creatureType: "natural-beast" });
+			makeHarness({ worldActors: [a], present: allButFirst() });
+			await reapplyBook2ArtOnVersionChange();
+
+			expect(a.img).toBe("systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg");
+			expect(a.prototypeToken.texture.src).toBe("systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg");
+		});
+
+		it("falls back to Foundry's default when the actor has no creature type", async () => {
+			const a = staleActor(monsters[0]);
+			makeHarness({ worldActors: [a], present: allButFirst() });
+			await reapplyBook2ArtOnVersionChange();
+
+			expect(a.img).toBe(DEFAULT_ICON);
+		});
+
+		it("never touches a portrait the group chose", async () => {
+			// The same `tails` test the re-point uses: only paths that are already ours.
+			const a = staleActor(monsters[0], { creatureType: "natural-beast" });
+			a.img = "worlds/mine/portrait.png";
+			makeHarness({ worldActors: [a], present: allButFirst() });
+			await reapplyBook2ArtOnVersionChange();
+
+			expect(a.img).toBe("worlds/mine/portrait.png");
+		});
+
+		it("clears nothing when NO monster art is on disk", async () => {
+			// The guard against a browse that came back empty. Without it a transient FilePicker
+			// failure would strip all 73 portraits at once; the next load would re-adopt them, but
+			// the churn is exactly the alarm a self-heal must never raise.
+			const a = staleActor(monsters[0], { creatureType: "natural-beast" });
+			const durable = durableOf(monsters[0].out);
+			// Location images that are NOT also a monster's file. Several are: where the book draws
+			// a creature as its region's plate, the collapse gives both rows the one bestiary path,
+			// so handing over every location image would put monster art on disk after all and this
+			// case would silently stop testing the guard.
+			const monsterOuts = new Set(monsters.map((m) => m.out));
+			const locOnly = locations.flatMap((l) => l.images).map((im) => im.out).filter((o) => !monsterOuts.has(o));
+			expect(locOnly.length).toBeGreaterThan(0);
+			makeHarness({ worldActors: [a], present: locOnly });
+			await reapplyBook2ArtOnVersionChange();
+
+			expect(a.img).toBe(durable);
+		});
+
+		it("leaves an actor alone when its art IS on disk", async () => {
+			const a = staleActor(monsters[0], { creatureType: "natural-beast" });
+			makeHarness({ worldActors: [a] });
+			await reapplyBook2ArtOnVersionChange();
+
+			expect(a.img).toBe(durableOf(monsters[0].out));
+		});
+	});
 });
 
 // The reusable worker behind the manual-import + self-heal triggers. These exercise the

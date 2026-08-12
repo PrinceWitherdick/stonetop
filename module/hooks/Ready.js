@@ -399,6 +399,12 @@ export async function onReady() {
 		// answer is always "nothing", on every single load. Nothing below waits on it.
 		_offerPeopleArtRebuildOnce()
 			.catch(err => console.error("Stonetop | portrait rebuild offer failed:", err));
+		// Backgrounded for the same reason, and it browses the very same folder. Ordered after
+		// the rebuild offer so a world owed both is asked about the free one first: cutting
+		// portraits from art already on disk costs the GM nothing, while this one asks them to
+		// go and find their PDFs.
+		_offerPartialArtImportOnce()
+			.catch(err => console.error("Stonetop | partial art import offer failed:", err));
 		await remindDestinedOmenRoll();
 	}
 
@@ -1260,6 +1266,61 @@ function _buildPeopleArtRebuildContent(count) {
 		<div class="row stonetop-art-reminder__actions">
 			<button type="button" class="stonetop-rebuild-crops-run">
 				<i class="fas fa-crop-simple"></i> Rebuild ${count} portraits
+			</button>
+		</div>`,
+		"stonetop-art-reminder-card");
+}
+
+// -- FINISH AN IMPORT THAT FELL SHORT --------------------------
+// An import that fails on some illustrations still reports success. The failures scroll past in
+// the console during a run that takes a couple of minutes, and what the GM is left with is a
+// handful of entries that never got a picture and nothing connecting the two. The 2nd printing of
+// both books is one way to arrive here (it re-saved nine illustrations at a resolution the
+// importer could not match until the shape-and-place fallback landed), but a page that timed out,
+// a PDF that stopped reading part way, or a run closed early all end in the same state.
+//
+// Unlike the rebuild above this CANNOT be done from disk: the missing pictures were never
+// extracted, and the system keeps no copy of the books. So the honest offer is to re-run the
+// import, which skips everything already present and processes only the gap.
+//
+// The once-per-world rules — including "found nothing, so do not latch, and ask again next load"
+// — belong to offerDurableArtOnce; what is local here is what counts as a shortfall (see
+// countMissingDurableArt, which stays quiet when a whole book is simply absent) and how the offer
+// is presented.
+function _offerPartialArtImportOnce() {
+	return offerDurableArtOnce({
+		setting: "partialArtImportOffered",
+		findWork: async () => {
+			const { countMissingDurableArt } = await import("../book2-art/reapply.js");
+			return await countMissingDurableArt();
+		},
+		offer: async ({ missing, total }) => {
+			if (!globalThis.ChatMessage?.create) return false; // chat isn't ready — retry next load
+			await ChatMessage.create({
+				content: _buildPartialArtImportContent(missing, total),
+				whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id),
+				speaker: { alias: "Stonetop" },
+			});
+		},
+	});
+}
+
+function _buildPartialArtImportContent(missing, total) {
+	const pictures = missing === 1 ? "picture" : "pictures";
+	return stonetopChatCard(
+		"Finish Your Art Import",
+		`<div class="stonetop-roll-card-description">
+			<p>Your book art is imported, but <strong>${missing}</strong> of ${total} ${pictures} never made it
+			onto your disk &mdash; so a few bestiary entries, locations or portraits are sitting without their
+			illustration. An import reports those failures only in the console, which is easy to miss.</p>
+			<p>Running <strong>Import Book Art</strong> again picks up just the ${pictures} that are missing:
+			everything already on disk is skipped, so it is a short run rather than another full one.
+			<strong>You will need your PDFs again</strong> &mdash; missing art has to come out of the books,
+			and nothing already imported is touched or deleted.</p>
+		</div>
+		<div class="row stonetop-art-reminder__actions">
+			<button type="button" class="stonetop-import-art-open">
+				<i class="fas fa-images"></i> Import the missing ${missing}
 			</button>
 		</div>`,
 		"stonetop-art-reminder-card");
