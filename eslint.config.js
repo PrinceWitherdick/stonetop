@@ -1,0 +1,202 @@
+import js from "@eslint/js";
+import globals from "globals";
+import promise from "eslint-plugin-promise";
+
+/**
+ * Lint config for a no-build Foundry system.
+ *
+ * The rule that earns its keep here is `promise/catch-or-return`. A Foundry sheet is a wall of
+ * async click handlers writing to documents, and a dropped rejection is invisible: the write
+ * fails, the DOM keeps the optimistic state, and the player is told the change landed. That
+ * class of bug is what this config exists to catch.
+ *
+ * `no-floating-promises` would be the sharper tool, but it is type-aware — it needs
+ * typescript-eslint and a tsconfig, which this project deliberately doesn't have. `catch-or-return`
+ * gets the common case (a bare `.then()` chain with no `.catch`) without adding a build step.
+ * Bare `await`s inside an async function are NOT covered by either rule; those were found by hand.
+ */
+
+/** Foundry's globals. Not exhaustive — extended as `no-undef` finds more. */
+const foundryGlobals = {
+	game: "readonly",
+	ui: "readonly",
+	canvas: "readonly",
+	CONFIG: "readonly",
+	CONST: "readonly",
+	Hooks: "readonly",
+	foundry: "readonly",
+	Actor: "readonly",
+	Actors: "readonly",
+	ActorSheet: "readonly",
+	Item: "readonly",
+	Items: "readonly",
+	ItemSheet: "readonly",
+	Application: "readonly",
+	FormApplication: "readonly",
+	DocumentSheet: "readonly",
+	Dialog: "readonly",
+	ChatMessage: "readonly",
+	Roll: "readonly",
+	Macro: "readonly",
+	Folder: "readonly",
+	JournalEntry: "readonly",
+	JournalEntryPage: "readonly",
+	JournalPageSheet: "readonly",
+	JournalTextPageSheet: "readonly",
+	Scene: "readonly",
+	Token: "readonly",
+	TokenDocument: "readonly",
+	RollTable: "readonly",
+	ActiveEffect: "readonly",
+	Setting: "readonly",
+	User: "readonly",
+	Users: "readonly",
+	Combat: "readonly",
+	Combatant: "readonly",
+	NoteDocument: "readonly",
+	TextEditor: "readonly",
+	FilePicker: "readonly",
+	ImageHelper: "readonly",
+	AudioHelper: "readonly",
+	KeyboardManager: "readonly",
+	SortingHelpers: "readonly",
+	CompendiumCollection: "readonly",
+	DocumentSheetConfig: "readonly",
+	Handlebars: "readonly",
+	ProseMirror: "readonly",
+	fromUuid: "readonly",
+	fromUuidSync: "readonly",
+	getDocumentClass: "readonly",
+	renderTemplate: "readonly",
+	loadTemplates: "readonly",
+	saveDataToFile: "readonly",
+	readTextFromFile: "readonly",
+	srcExists: "readonly",
+	duplicate: "readonly",
+	mergeObject: "readonly",
+	expandObject: "readonly",
+	flattenObject: "readonly",
+	deepClone: "readonly",
+	isEmpty: "readonly",
+	randomID: "readonly",
+	setProperty: "readonly",
+	getProperty: "readonly",
+	hasProperty: "readonly",
+	debounce: "readonly",
+	PIXI: "readonly",
+};
+
+export default [
+	{
+		ignores: [
+			"node_modules/**",
+			"packs/**",
+			// Generated from the Book II art pipeline; header says "Do NOT edit by hand".
+			"module/book2-art/manifest.js",
+		],
+	},
+
+	js.configs.recommended,
+
+	// System code: browser + Foundry.
+	{
+		files: ["module/**/*.js", "stonetop.js"],
+		languageOptions: {
+			ecmaVersion: 2023,
+			sourceType: "module",
+			globals: { ...globals.browser, ...foundryGlobals },
+		},
+		plugins: { promise },
+		rules: {
+			// The reason this config exists. A `.then()` chain with no `.catch` silently
+			// swallows a failed document write.
+			"promise/catch-or-return": ["error", { allowFinally: true }],
+			"promise/no-nesting": "warn",
+			"promise/no-return-wrap": "error",
+			"promise/param-names": "error",
+			// `for (const x of y) await f(x)` over documents is usually a batch waiting to happen,
+			// but it is sometimes deliberately serial. Warn, don't block.
+			"no-await-in-loop": "off",
+			"no-unused-vars": ["warn", {
+				argsIgnorePattern: "^_",
+				varsIgnorePattern: "^_",
+				caughtErrorsIgnorePattern: "^_",
+				// `const { takenBy, ...rest } = row` is how this codebase DROPS a key. The
+				// binding is unused on purpose — that is the whole mechanism.
+				ignoreRestSiblings: true,
+			}],
+			"no-empty": ["error", { allowEmptyCatch: false }],
+			"no-console": "off",
+			eqeqeq: ["error", "smart"],
+			"no-var": "error",
+			"prefer-const": "warn",
+			// Sheet code parses `data-` attributes constantly; a missing radix on a value that
+			// can start with "0" is a silent wrong answer.
+			radix: "error",
+		},
+	},
+
+	// Tests: same globals plus vitest's (vitest.config.js sets `globals: true`).
+	{
+		files: ["tests/**/*.js"],
+		languageOptions: {
+			ecmaVersion: 2023,
+			sourceType: "module",
+			globals: {
+				...globals.browser,
+				...globals.node,
+				...foundryGlobals,
+				describe: "readonly",
+				it: "readonly",
+				test: "readonly",
+				expect: "readonly",
+				vi: "readonly",
+				beforeEach: "readonly",
+				afterEach: "readonly",
+				beforeAll: "readonly",
+				afterAll: "readonly",
+			},
+		},
+		rules: {
+			"no-unused-vars": ["warn", {
+				argsIgnorePattern: "^_",
+				varsIgnorePattern: "^_",
+				// Tests use `const { a, ...rest } = x` to assert on "everything but a".
+				ignoreRestSiblings: true,
+			}],
+			// A test that asserts something throws often has nothing to do in the catch.
+			"no-empty": ["error", { allowEmptyCatch: true }],
+		},
+	},
+
+	// Build/pack scripts run under Node.
+	{
+		files: ["scripts/**/*.js", "scripts/**/*.mjs", "*.config.js"],
+		languageOptions: {
+			ecmaVersion: 2023,
+			sourceType: "module",
+			globals: { ...globals.node },
+		},
+		rules: {
+			"no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+		},
+	},
+
+	// `scripts/local/` are not Node scripts — they are pasted into a Foundry Script macro and
+	// run inside the client, so they see the browser and Foundry globals, not `process`.
+	{
+		files: ["scripts/local/**/*.js"],
+		languageOptions: {
+			ecmaVersion: 2023,
+			sourceType: "script",
+			globals: { ...globals.browser, ...foundryGlobals },
+		},
+	},
+
+	// Node script whose `page.evaluate` callbacks are serialized and run inside Chromium, so
+	// their bodies legitimately reference browser globals this file never defines.
+	{
+		files: ["scripts/trace-icon-svg.js"],
+		languageOptions: { globals: { ...globals.node, ...globals.browser } },
+	},
+];
