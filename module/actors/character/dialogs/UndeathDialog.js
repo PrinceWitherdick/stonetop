@@ -110,7 +110,7 @@ export class UndeathDialog extends StonetopDialog {
 		const effects = (res?.effects ?? []).map(e => ({
 			...e,
 			picked:  this._picked.has(e.kind),
-			options: this._optionsFor(e.kind),
+			options: this._selectableFor(e.kind),
 			choice:  this._choices[e.kind] ?? "",
 			// A cost with nothing left to spend can't be taken — every consequence already
 			// marked, say. Flagged rather than hidden, so the player can see why.
@@ -192,12 +192,41 @@ export class UndeathDialog extends StonetopDialog {
 		return _OPTION_KINDS.has(kind) && this._optionsFor(kind).length === 0;
 	}
 
-	/** Every picked effect that needs a choice has one. */
+	/**
+	 * What a dropdown may actually OFFER: everything the kind has left, less the Mark its opposite
+	 * number is already spending.
+	 *
+	 * mark-gain keeps `!o.blocked` and mark-crossoff keeps `!o.marked && !o.crossedOff`, and those
+	 * two overlap on every Mark the character neither holds nor has already lost. A 6- on Dark
+	 * Succor forces both at once, so the same slug could be gained AND crossed off in one apply,
+	 * leaving a Mark that is ticked and struck through together: the tab prints it under "you can
+	 * never gain them", the checkbox beside it is disabled so it can never be unticked again, and
+	 * its 2 max HP are gone for good.
+	 *
+	 * Deliberately NOT folded into _optionsFor, which answers the different question _isExhausted
+	 * counts by — "has this cost anything left to spend at all". One dropdown's pick declaring the
+	 * other exhausted would drop the tier's `available`, and with it the number of costs the move
+	 * is allowed to demand.
+	 */
+	_selectableFor(kind) {
+		const opposite = kind === "mark-gain" ? "mark-crossoff" : kind === "mark-crossoff" ? "mark-gain" : null;
+		const taken = opposite ? this._choices[opposite] : null;
+		const options = this._optionsFor(kind);
+		return taken ? options.filter(o => o.slug !== taken) : options;
+	}
+
+	/** Every picked effect that needs a choice has one, and no Mark is being gained and lost at once. */
 	_choicesComplete() {
 		for (const kind of this._picked) {
 			if (kind === "task") { if (!String(this._choices.task ?? "").trim()) return false; continue; }
 			if (this._optionsFor(kind).length && !this._choices[kind]) return false;
 		}
+		// Behind _selectableFor rather than instead of it: the two selects are independent, so a
+		// choice made before its opposite number narrowed the list survives until a re-render, and
+		// this is the gate Apply is actually held on.
+		const gained = this._choices["mark-gain"];
+		if (gained && this._picked.has("mark-gain") && this._picked.has("mark-crossoff")
+			&& gained === this._choices["mark-crossoff"]) return false;
 		return true;
 	}
 

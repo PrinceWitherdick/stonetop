@@ -451,8 +451,13 @@ export class DeathsDoorDialog extends StonetopDialog {
 		html.find(".deaths-door-debility-btn").on("click", (ev) => this._onTradeDebility(ev.currentTarget.dataset.debility));
 
 		// 6-: pick a fate, then (for "refuse to go") which insert tells it.
-		html.find(".deaths-door-fate-btn").on("click", (ev) => this._onChooseFate(ev.currentTarget.dataset.fate));
-		html.find(".deaths-door-insert-btn").on("click", (ev) => this._onTakeInsert(ev.currentTarget.dataset.slug));
+		// Both carry a `.catch`: each handler rolls its latch back and rethrows, and a click is
+		// fired and forgotten, so without one the rejection reached the console and the player was
+		// left looking at a window that had silently ignored them.
+		html.find(".deaths-door-fate-btn").on("click", (ev) =>
+			this._onChooseFate(ev.currentTarget.dataset.fate).catch(err => this._onFateFailed(err)));
+		html.find(".deaths-door-insert-btn").on("click", (ev) =>
+			this._onTakeInsert(ev.currentTarget.dataset.slug).catch(err => this._onFateFailed(err)));
 
 		// The rail down the side of the last step, and the pair of buttons that walk it. Navigation
 		// is this window's, not the chooser's: the rules table knows what the questions are, and
@@ -646,6 +651,13 @@ export class DeathsDoorDialog extends StonetopDialog {
 
 	get _actorName() { return this._character?._actor?.name ?? "The character"; }
 
+	/** A fate that could not be written. The latch is already back off; say so and redraw. */
+	_onFateFailed(err) {
+		console.error("Stonetop | Could not apply this Death's Door fate.", err);
+		ui.notifications?.error("That fate could not be recorded. Try it again, or ask your GM to check your permissions.");
+		this.renderIfOpen();
+	}
+
 	/**
 	 * A 6- fate. "Refuse to go" forks again (Revenant or Ghost), so it advances to the insert
 	 * step; the other two resolve here.
@@ -659,8 +671,19 @@ export class DeathsDoorDialog extends StonetopDialog {
 
 		// Step through the Last Door. Nothing on the sheet changes but the state — the last
 		// move is made in the fiction, at the table, as a 12+.
+		//
+		// The latch is rolled back on a failed write, the same as _onTakeInsert below. Left set, a
+		// refused update (a player-owned actor whose permission the server declines, a dropped
+		// connection) wrote nothing, posted nothing and re-rendered nothing, while every later
+		// click returned at the guard above: the three fates stayed on screen and none of them
+		// could be chosen again.
 		this._fateApplied = true;
-		await this._character.setDeathsDoorState(DEATHS_DOOR_STATE.DEAD);
+		try {
+			await this._character.setDeathsDoorState(DEATHS_DOOR_STATE.DEAD);
+		} catch (err) {
+			this._fateApplied = false;
+			throw err;
+		}
 		await this._post("The Last Door", `<p><strong>${escHtml(this._actorName)}</strong> makes one last move as if they rolled a <strong>12+</strong>, then steps through the Last Door.</p>
 			<p class="stonetop-dying-trigger">There's no saving them. Only the rarest of magic can bring them back.</p>`);
 		this.renderIfOpen();

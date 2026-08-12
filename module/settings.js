@@ -738,10 +738,22 @@ export function registerSettings() {
 		onChange: () => _rerenderActorSheets(),
 	});
 
+	// The three per-sheet boxes are WORLD, for the reason `sheetLayout` above is a tri-state and
+	// not a checkbox: a client setting lives in browser localStorage keyed only by namespace.key,
+	// so a boolean one is shared by every world on that browser. Registered as client, these were
+	// exactly the trap that comment warns about — a GM running an upgraded campaign and a new one
+	// side by side who unticked "Classic Layout: NPC Sheets" in the second silently took the first
+	// one's NPC sheets modern too, with no setting anywhere that could let the two differ. Pressing
+	// "Go Back to the Classic Layout" in either world re-ticked the box for both.
+	//
+	// They belong with the master they qualify: effective classic is `<world master> && <this box>`,
+	// so both halves are the table's answer. The per-person escape hatch is `sheetLayout`, which
+	// stays client-scoped and still overrides the lot. Only a GM writes these, which the one caller
+	// (utils/sheet-layout.js setWorldSheetLayout) already gates on.
 	game.settings.register("stonetop-pwd", "classicLayoutCharacter", {
 		name: "stonetop.settings.classicLayoutCharacter.name",
 		hint: "stonetop.settings.classicLayoutCharacter.hint",
-		scope: "client",
+		scope: "world",
 		config: true,
 		type: Boolean,
 		default: true,
@@ -751,7 +763,7 @@ export function registerSettings() {
 	game.settings.register("stonetop-pwd", "classicLayoutSteading", {
 		name: "stonetop.settings.classicLayoutSteading.name",
 		hint: "stonetop.settings.classicLayoutSteading.hint",
-		scope: "client",
+		scope: "world",
 		config: true,
 		type: Boolean,
 		default: true,
@@ -761,7 +773,7 @@ export function registerSettings() {
 	game.settings.register("stonetop-pwd", "classicLayoutNpc", {
 		name: "stonetop.settings.classicLayoutNpc.name",
 		hint: "stonetop.settings.classicLayoutNpc.hint",
-		scope: "client",
+		scope: "world",
 		config: true,
 		type: Boolean,
 		default: true,

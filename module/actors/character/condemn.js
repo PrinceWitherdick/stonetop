@@ -296,8 +296,14 @@ export function condemnersOf(actor, judges, readFlag) {
 	return found;
 }
 
-/** Every string that should resolve to this actor: its uuid, and the bare id inside it. */
-function actorMatchKeys(actor) {
+/**
+ * Every string that should resolve to this actor: its uuid, and the bare id inside it.
+ *
+ * Exported because the REPAINT side has to fold identically or it repaints the wrong sheets — see
+ * hooks/CondemnedTag.js. Two functions deciding "is this the branded person" by different rules is
+ * how the tag came to be derived correctly and then never drawn.
+ */
+export function actorMatchKeys(actor) {
 	const keys = new Set();
 	const uuid = String(actor?.uuid ?? "").trim();
 	const id   = String(actor?.id ?? "").trim();
@@ -308,7 +314,7 @@ function actorMatchKeys(actor) {
 }
 
 /** The document id at the end of an Actor uuid, whatever it was reached through. */
-function trailingActorId(uuid) {
+export function trailingActorId(uuid) {
 	const parts = String(uuid ?? "").split(".");
 	return parts[parts.length - 1] ?? "";
 }

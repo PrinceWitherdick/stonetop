@@ -27,6 +27,17 @@
 
 	{{#if isResolve}}
 	<div class="undeath-step undeath-step--resolve">
+		{{#if forcedMiss.on}}
+		{{! The same tick as the roll step, carried through so it can be TAKEN BACK. Turning it on
+		    resolves the move as a 6- and jumps straight to this step, which used to leave the only
+		    control that undoes it behind on a step no longer on screen: a mis-click cost the whole
+		    window, and the roll could only be reached again by cancelling and reopening. }}
+		<label class="undeath-toggle">
+			<input type="checkbox" class="undeath-forced-miss" checked>
+			<span>{{forcedMiss.label}}</span>
+		</label>
+		{{/if}}
+
 		{{#if rolledTotal}}
 		<p class="undeath-result-banner">You rolled <strong>{{rolledTotal}}</strong> &mdash; <strong>{{tierLabel}}</strong>.</p>
 		{{/if}}

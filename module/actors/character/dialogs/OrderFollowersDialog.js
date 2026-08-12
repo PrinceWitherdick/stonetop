@@ -158,7 +158,14 @@ export class OrderFollowersDialog extends StonetopDialog {
 		html.find(".stonetop-of-custom").on("change", ev => { this._customMove = ev.currentTarget.value; });
 
 		// Tri-state tag chip: cycles neither → helps → hinders → neither.
-		html.find(".stonetop-of-tag").on("click", ev => {
+		//
+		// Matched on the ATTRIBUTE this reads, not on the class alone: a move chip wears
+		// `stonetop-of-tag` too (it takes the same styling) and carries `data-move` instead, so the
+		// bare class selector ran this handler on it as well. Both handlers fired on one click,
+		// cycling a phantom `_tagState[undefined]` — two clicks on move chips put it on "hinder",
+		// and the roll went out with disadvantage and a note claiming a tag was in the way while no
+		// tag chip was marked at all.
+		html.find(".stonetop-of-tag[data-tag]").on("click", ev => {
 			const tag = ev.currentTarget.dataset.tag;
 			const cur = this._tagState[tag] ?? "";
 			this._tagState[tag] = cur === "" ? "help" : cur === "help" ? "hinder" : "";
