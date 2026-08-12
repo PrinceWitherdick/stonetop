@@ -41,6 +41,17 @@ function macroManifest() {
 
 const MANIFEST = macroManifest();
 
+/**
+ * A CONFIG number read out of the macro itself. The ambiguity guard below has to run against the
+ * tolerances that SHIP, not against a copy of them: hardcoding the pair here would let someone
+ * widen either one in the macro and watch every test stay green while the guarantee quietly died.
+ */
+function configNumber(name) {
+	const m = COMMAND.match(new RegExp(`\\b${name}:\\s*([0-9.]+)`));
+	expect(m, `CONFIG.${name} is not declared in the macro`).not.toBeNull();
+	return Number(m[1]);
+}
+
 /** Every image the importer lifts as a stencil, with the geometry the matcher uses. */
 function stencils() {
 	const out = [];
@@ -109,18 +120,38 @@ describe("the manifest can still be matched by shape and place", () => {
 		// What would make the fallback ambiguous. Two rows describing the SAME picture are the
 		// normal case and fine (a person illustration and its square face are one image cut
 		// twice); two rows describing DIFFERENT pixels are not.
-		const SHAPE_TOL = 0.01, MAX_OFFSET_PT = 200;
+		//
+		// Read from the macro, so widening either tolerance is checked against the book rather
+		// than merely re-stating itself. Also reports how close the nearest survivor came, since
+		// "no clashes" says nothing about whether the next edit creates one: the tightest pair in
+		// Book II clears the placement ceiling by only about 1.5x.
+		const SHAPE_TOL = configNumber("SHAPE_TOL");
+		const MAX_OFFSET_PT = configNumber("MAX_OFFSET_PT");
 		const clashes = [];
+		let tightest = null;
 		for (let i = 0; i < ALL.length; i++) {
 			for (let j = i + 1; j < ALL.length; j++) {
 				const a = ALL[i], b = ALL[j];
 				if (a.book !== b.book || a.page !== b.page) continue;
 				if (a.w === b.w && a.h === b.h) continue;                       // one picture, many rows
-				if (Math.abs((a.w / a.h) / (b.w / b.h) - 1) > SHAPE_TOL) continue;
-				if (Math.hypot(a.at[0] - b.at[0], a.at[1] - b.at[1]) > MAX_OFFSET_PT) continue;
-				clashes.push(`b${a.book} p${a.page}: ${a.out} (${a.w}x${a.h}) vs ${b.out} (${b.w}x${b.h})`);
+				// Only pairs the "not smaller" clause would let stand in for each other.
+				if (!((a.w >= b.w && a.h >= b.h) || (b.w >= a.w && b.h >= a.h))) continue;
+				const shapeGap = Math.abs((a.w / a.h) / (b.w / b.h) - 1);
+				const placeGap = Math.hypot(a.at[0] - b.at[0], a.at[1] - b.at[1]);
+				const where = `b${a.book} p${a.page}: ${a.out} (${a.w}x${a.h}) vs ${b.out} (${b.w}x${b.h})`;
+				if (shapeGap <= SHAPE_TOL && placeGap <= MAX_OFFSET_PT) { clashes.push(where); continue; }
+				// Margin on whichever tolerance this pair clears by the least.
+				const margin = Math.min(shapeGap / SHAPE_TOL, placeGap / MAX_OFFSET_PT);
+				if (!tightest || margin < tightest.margin) tightest = { margin, where, shapeGap, placeGap };
 			}
 		}
 		expect(clashes, "two different pictures the fallback could confuse").toEqual([]);
+		expect(tightest, "no differently-sized pairs found at all, so this guard proves nothing").not.toBeNull();
+		expect(
+			tightest.margin,
+			`the closest pair is only ${tightest.margin.toFixed(2)}x clear of a tolerance `
+			+ `(${Math.round(tightest.placeGap)}pt vs a ${MAX_OFFSET_PT}pt ceiling, `
+			+ `${(tightest.shapeGap * 100).toFixed(2)}% vs a ${(SHAPE_TOL * 100).toFixed(2)}% shape tolerance) -- ${tightest.where}`,
+		).toBeGreaterThan(1.25);
 	});
 });
