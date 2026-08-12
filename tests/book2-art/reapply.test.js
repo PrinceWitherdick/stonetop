@@ -827,6 +827,74 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 
 			expect(a.img).toBe(durableOf(monsters[0].out));
 		});
+
+		// The page half of the same problem: an embed a previous import left behind renders as a
+		// broken image once the file is gone, and every pass only ever places art that IS present,
+		// so nothing removed it.
+		// The harness builds a compendium page on first access, so seeding one means asking for it
+		// exactly as the code under test will.
+		const cmpPage = async (h, entryId, pageId) => (await h.jrnPack.getDocument(entryId)).pages.get(pageId);
+
+		it("strips a vanished creature's embed off its bestiary page", async () => {
+			const mon0 = monsters[0];
+			const embed = `<p><img class="stonetop-journal-art" src="${durableOf(mon0.out)}" alt="${mon0.name}"></p>`;
+			const h = makeHarness({ present: allButFirst() });
+			const page = await cmpPage(h, mon0.journalEntryId, mon0.journalPageId);
+			page.system.description = `${embed}<p>prose</p>`;
+			await reapplyBook2ArtOnVersionChange();
+
+			// Assert the vanished path is gone rather than the whole body, because a bestiary page
+			// can be shared: crinwin and crinwin-broodfather are drawn on one page, so the peer
+			// whose art IS on disk legitimately places its own embed here in the same pass.
+			expect(page.system.description).not.toContain(durableOf(mon0.out));
+			expect(page.system.description).toContain("<p>prose</p>");
+		});
+
+		it("strips the same embed from a seeded world copy", async () => {
+			const mon0 = monsters[0];
+			const embed = `<p><img class="stonetop-journal-art" src="${durableOf(mon0.out)}" alt="${mon0.name}"></p>`;
+			const worldPage = makeWorldPage({
+				id: mon0.journalPageId, name: `cmp:${mon0.journalPageId}`, type: "bestiary",
+				system: { description: `${embed}<p>world prose</p>` },
+			});
+			const worldEntry = makeWorldJournal({ source: JRN_SOURCE(mon0.journalEntryId), pages: [worldPage] });
+			makeHarness({ present: allButFirst(), worldJournals: [worldEntry] });
+			await reapplyBook2ArtOnVersionChange();
+
+			expect(worldPage.system.description).not.toContain(durableOf(mon0.out));
+			expect(worldPage.system.description).toContain("<p>world prose</p>");
+		});
+
+		it("strips nothing off a page when NO monster art is on disk", async () => {
+			// Same guard as the actor reset: a browse that came back empty must not be read as
+			// "every illustration in the book has been deleted".
+			const mon0 = monsters[0];
+			const embed = `<p><img class="stonetop-journal-art" src="${durableOf(mon0.out)}" alt="${mon0.name}"></p>`;
+			const monsterOuts = new Set(monsters.map((m) => m.out));
+			const locOnly = locations.flatMap((l) => l.images).map((im) => im.out).filter((o) => !monsterOuts.has(o));
+			const h = makeHarness({ present: locOnly });
+			const page = await cmpPage(h, mon0.journalEntryId, mon0.journalPageId);
+			page.system.description = `${embed}<p>prose</p>`;
+			await reapplyBook2ArtOnVersionChange();
+
+			expect(page.system.description).toBe(`${embed}<p>prose</p>`);
+		});
+
+		it("strips a vanished plate off its location page", async () => {
+			// A location row places into a section body rather than a description, so it travels a
+			// different helper and needs its own cover.
+			const loc = locations.find((l) => l.images.length === 1 && l.images[0].out.startsWith("assets/locations/"));
+			expect(loc, "expected a single-image location plate").toBeTruthy();
+			const embed = `<p><img class="stonetop-journal-art" src="${durableOf(loc.images[0].out)}" alt="${loc.name}"></p>`;
+			const keep = locations.flatMap((l) => l.images).map((im) => im.out).filter((o) => o !== loc.images[0].out);
+			const h = makeHarness({ present: keep.concat(monsters.map((m) => m.out)) });
+			const page = await cmpPage(h, loc.journalEntryId, loc.journalPageId);
+			const idx = loc.sectionIndex ?? 0;
+			page.system.sections[idx] = { kind: "prose", heading: "At a Glance", body: `${embed}<p>glance</p>`, pairs: [], groups: [] };
+			await reapplyBook2ArtOnVersionChange();
+
+			expect(page.system.sections[idx].body).toBe("<p>glance</p>");
+		});
 	});
 });
 

@@ -455,6 +455,10 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	// it may let a world through that turns out to have no bestiary actors of ours, which pass 3
 	// then no-ops over — the cheap, correct failure mode. Skipped on a scoped import (no actors).
 	const monstersOnDisk = !Array.isArray(entries) && monsters.some((m) => present.has(srcOf(m.out)));
+	// The same signal for location plates, and used for the same one thing: deciding whether an
+	// absent file is really absent, or whether the browse simply came back empty. Not scoped to a
+	// scoped import, unlike the flag above, because the page passes DO run on one.
+	const locationsOnDisk = locations.some((l) => l.images.some((im) => present.has(srcOf(im.out))));
 	if (!available.size && !mapPicks.length && !steadingOnDisk) return null;
 
 	const besPack = game.packs.get(monsters[0]?.actorPack ?? BES_PACK);
@@ -503,14 +507,26 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 		//    seeded world journal). Unconditional on the compendium: an update resets it to
 		//    the shipped (art-less) defaults every time, so always re-point.
 		for (const m of monsters) {
-			if (!available.has(m.out)) continue;
-			const src = srcOf(m.out);
+			// This row's picture is NOT on disk. There is nothing to place and no actor art to
+			// wire, but a previous import may have embedded it on the page, and that embed now
+			// renders as a broken image. Carry on with a null `src`, which puts the page half into
+			// strip-only mode, and hand it the absent path as retired — the same mechanism, for
+			// the same reason: it keys on the embed rather than on a file, which is exactly what
+			// is needed when the file is the thing that has gone.
+			//
+			// Gated on some OTHER monster's art being present, like the actor reset above: that is
+			// what separates "this one picture is missing" from "the browse came back empty", and
+			// without it a transient FilePicker failure would strip the art off every bestiary
+			// page at once.
+			const onDisk = available.has(m.out);
+			if (!onDisk && !monstersOnDisk) continue;
+			const src = onDisk ? srcOf(m.out) : null;
 			// Retired art: a src a PRIOR manifest embedded for this creature and this system no
 			// longer names — two entries the book draws in ONE picture now share the one file, so
 			// the loser's embed has to come off the page. Resolved regardless of disk presence,
 			// like the locations pass: it keys on the embed, not on a file.
-			const retired = (m.retired ?? []).map(srcOf);
-			if (!onlyWorld) {
+			const retired = [...(m.retired ?? []).map(srcOf), ...(onDisk ? [] : [srcOf(m.out)])];
+			if (!onlyWorld && onDisk) {
 				try {
 					const actor = await besPack.getDocument(m.actorId);
 					const upd = actor && artUpdate(actor, src);
@@ -524,8 +540,11 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 				const worldEntries = worldBySource.get(jrnSource(m.journalEntryId)) ?? [];
 				// Skip the compendium read when this is a world-only pass with no world work:
 				// no matching world entries, or (in cheap mode) every one already has the art.
+				// In strip-only mode there is no art to be missing, so the only work is an embed
+				// left behind — and asking `entryHasSrc` about a null src would search the prose
+				// for the literal "null" and answer at random.
 				const worldNeedsArt = worldEntries.length && (!cheapWorldSkip || worldEntries.some(
-					(e) => !entryHasSrc(e, src) || retired.some((r) => entryHasSrc(e, r))));
+					(e) => (src && !entryHasSrc(e, src)) || retired.some((r) => entryHasSrc(e, r))));
 				if (onlyWorld && !worldNeedsArt) continue;
 				try {
 					const page = (await jrnPack.getDocument(m.journalEntryId))?.pages?.get(m.journalPageId);
@@ -608,7 +627,20 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 				// exactly that shape. Nothing is lost by waiting: the leftover embed is cleared
 				// the moment they import the art it was renamed to. (The monster pass gets this
 				// for free — it already skips any creature whose art is not on disk.)
-				const retired = srcs.length === l.images.length ? (l.retired ?? []).map(srcOf) : [];
+				//
+				// An image this row WANTS but cannot find is a different case, and gets stripped
+				// whether or not the rest of the row is complete: there is no replacement to wait
+				// for, because the missing path IS the one the manifest names, so an embed of it
+				// can only ever render as a broken image. Gated on some OTHER location plate being
+				// present, like the bestiary pass, so a browse that failed cannot strip the art off
+				// every location page at once.
+				const gone = locationsOnDisk
+					? l.images.filter((im) => !available.has(im.out)).map((im) => srcOf(im.out))
+					: [];
+				const retired = [
+					...(srcs.length === l.images.length ? (l.retired ?? []).map(srcOf) : []),
+					...gone,
+				];
 				if (!srcs.length && !retired.length) continue; // nothing to place and nothing to retire
 				const worldEntries = worldBySource.get(jrnSource(l.journalEntryId)) ?? [];
 				const worldNeedsArt = worldEntries.length && (!cheapWorldSkip || worldEntries.some(
