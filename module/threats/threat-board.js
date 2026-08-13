@@ -11,17 +11,18 @@
 import { getSetting } from "../settings.js";
 import { buildThreatCardVM, wireThreatDoomChange } from "./threat-view.js";
 import { buildHazardCardVM } from "../hazards/hazard-view.js";
-import { gmPrepPageById, isGmPrepDoc } from "../journal/gm-prep-page.js";
+import { buildSiteCardVM } from "../sites/site-view.js";
+import { gmPrepPageById, isGmPrepDoc, wireGmPrepCardExtras } from "../journal/gm-prep-page.js";
+import { renderTemplate } from "../utils/foundry-compat.js";
 
-// Hazard pins ride the same board: the hazard card shares the threat card's markup
-// conventions (doom checkboxes), so only the template + VM differ.
+// Hazard and site pins ride the same board: both cards share the threat card's markup
+// conventions (doom checkboxes, wrapper classes), so only the template + VM differ.
 const CARD_TEMPLATES = {
 	threat: "systems/stonetop-pwd/templates/journal/partials/threat-card.hbs",
 	hazard: "systems/stonetop-pwd/templates/journal/partials/hazard-card.hbs",
+	site:   "systems/stonetop-pwd/templates/journal/partials/site-card.hbs",
 };
-const CARD_VMS = { threat: buildThreatCardVM, hazard: buildHazardCardVM };
-const _renderTemplate = (path, data) =>
-	(foundry.applications?.handlebars?.renderTemplate ?? globalThis.renderTemplate)(path, data);
+const CARD_VMS = { threat: buildThreatCardVM, hazard: buildHazardCardVM, site: buildSiteCardVM };
 
 export class ThreatBoard {
 	constructor() {
@@ -85,6 +86,9 @@ export class ThreatBoard {
 		el.className = "stonetop stonetop-threat-overlay";
 		parent.appendChild(el);
 		wireThreatDoomChange(el, chk => fromUuid(chk.closest(".threat-card")?.dataset.pageUuid ?? ""));
+		// Whatever controls each kind's own card carries (a site's random tables), so a pin of any
+		// kind behaves on the map exactly as it does in the journal.
+		wireGmPrepCardExtras(el, target => fromUuid(target.closest(".threat-card")?.dataset.pageUuid ?? ""));
 		this.layer = el;
 		return el;
 	}
@@ -108,7 +112,7 @@ export class ThreatBoard {
 			const sig = this._cardSig(page);
 			const existing = this.cards.get(note.id);
 			if (existing && existing.sig === sig) return { note, sig, html: null }; // unchanged
-			return { note, sig, html: await _renderTemplate(CARD_TEMPLATES[page.type], await CARD_VMS[page.type](page)) };
+			return { note, sig, html: await renderTemplate(CARD_TEMPLATES[page.type], await CARD_VMS[page.type](page)) };
 		}));
 		const seen = new Set();
 		for (const item of built) {

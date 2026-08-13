@@ -1,13 +1,13 @@
-// Factory for the CRUD shared by the "GM-prep page" families — threats and hazards.
+// Factory for the CRUD shared by the "GM-prep page" families: threats, hazards and sites.
 // Each family stores ALL of a steading's items as pages of ONE hidden JournalEntry
-// (named "<Steading> Threats" / "<Steading> Hazards"); the steading points at that
-// entry via a flag. See threat-store.js for the full rationale — in short, these are
-// pure GM prep that is never shared with players, so a single many-page journal is
-// safe (there is no per-item "reveal", hence no whole-entry-broadcast leak to guard).
+// (named "<Steading> Threats" / "<Steading> Hazards" / "<Steading> Sites"); the steading
+// points at that entry via a flag. See threat-store.js for the full rationale: in short,
+// these are pure GM prep that is never shared with players, so a single many-page journal
+// is safe (there is no per-item "reveal", hence no whole-entry-broadcast leak to guard).
 //
-// Threats and hazards share this entire surface and differ only in the config constants
+// All three families share this entire surface and differ only in the config constants
 // below plus the seed->system shaper, so the CRUD lives once here. The doom-tick and
-// delete helpers are page-shape generic and stay in threat-store, which hazards reuse.
+// delete helpers are page-shape generic and stay in threat-store, which the others reuse.
 import { STONETOP_SCOPE, resolvedFlagProperty } from "../actors/character/StonetopFlags.js";
 
 // Looked up lazily (not at module load) so callers import cleanly outside Foundry.
@@ -17,7 +17,7 @@ const SORT_STEP = 100000;
 
 /**
  * @param {object} cfg
- * @param {string} cfg.pageType     JournalEntryPage type ("threat" | "hazard").
+ * @param {string} cfg.pageType     JournalEntryPage type ("threat" | "hazard" | "site").
  * @param {string} cfg.entryFlag    Boolean flag marking the entry as ours (flags.<scope>.<entryFlag>).
  * @param {string} cfg.entryFlagId  Steading flag holding the entry id (e.g. "threatsEntryId").
  * @param {string} cfg.entrySuffix  Journal name suffix (e.g. "Threats" -> "<Steading> Threats").

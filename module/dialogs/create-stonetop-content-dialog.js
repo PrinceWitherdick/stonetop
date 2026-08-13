@@ -44,6 +44,12 @@ const CONTENT_OPTIONS = [
 		icon: "fa-eye",
 		hint: "Create a Thing Below, a corrupted site, a corrupted being, or an emanation (Book II).",
 	},
+	{
+		id: "site",
+		label: "Site",
+		icon: "fa-mountain-sun",
+		hint: "Walk through Book I's Creating Sites process. The write-up lands on Stonetop's Sites tab, ready to pin to a scene.",
+	},
 ];
 
 // The Thing Below sub-chooser (shown after picking "Thing Below"): the four Book II
@@ -105,8 +111,9 @@ function pickContentType() {
 	// for a player who isn't allowed to author it, so the sidebar can't bypass the same gate
 	// the arcana-tab "Create arcanum" buttons enforce.
 	let options = canCreateArcana() ? CONTENT_OPTIONS : CONTENT_OPTIONS.filter(o => o.id !== "arcanum");
-	// Things Below are GM prep (they end in world threats/monsters and the stores are GM-only).
-	if (!game.user?.isGM) options = options.filter(o => o.id !== "thingBelow");
+	// Things Below and sites are GM prep (they end in world threats/monsters, or a page of the
+	// steading's GM-only Sites journal, and those stores are GM-only).
+	if (!game.user?.isGM) options = options.filter(o => o.id !== "thingBelow" && o.id !== "site");
 	return pickContentOption({ title: "Create Stonetop Content", options });
 }
 
@@ -151,7 +158,29 @@ export async function openCreateStonetopContent() {
 		await openCreateArcanum();
 	} else if (choice === "thingBelow") {
 		await openCreateThingBelow();
+	} else if (choice === "site") {
+		await openCreateSite();
 	}
+}
+
+/**
+ * Site flow (Book I, "Sites"): run the walkthrough and store the result on the steading,
+ * the way the Sites tab's own button does. Sites aren't a draggable seed card like threats:
+ * a site IS its write-up, and there is one place it belongs.
+ */
+async function openCreateSite() {
+	const { getStonetopSteadingActorOrWarn } = await import("../utils/world.js");
+	const steading = getStonetopSteadingActorOrWarn();
+	if (!steading) return;
+	const { CreateSiteDialog } = await import("../sites/create-site-dialog.js");
+	const { createSite } = await import("../sites/site-store.js");
+	const seed = await new CreateSiteDialog().promise();
+	if (!seed) return;
+	const page = await createSite(steading, seed);
+	if (!page) return;
+	ui.notifications?.info?.(`Added site: ${page.name}. It's on ${steading.name}'s Sites tab.`);
+	// The steading sheet doesn't observe journal-page creation, so nudge an open one.
+	steading.sheet?.rendered && steading.sheet.render(false);
 }
 
 /**

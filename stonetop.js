@@ -22,6 +22,8 @@ import { ThreatPageModel } from "./module/journal/ThreatPageModel.js";
 import { createStonetopThreatPageSheetClass } from "./module/journal/StonetopThreatPageSheet.js";
 import { HazardPageModel } from "./module/journal/HazardPageModel.js";
 import { createStonetopHazardPageSheetClass } from "./module/journal/StonetopHazardPageSheet.js";
+import { SitePageModel } from "./module/journal/SitePageModel.js";
+import { createStonetopSitePageSheetClass } from "./module/journal/StonetopSitePageSheet.js";
 import { ThreatBoard } from "./module/threats/threat-board.js";
 import { onReady } from "./module/hooks/Ready.js";
 import { handleImportedJournalArt, ART_INDEX_SETTINGS } from "./module/book2-art/reapply.js";
@@ -315,6 +317,17 @@ Hooks.once("init", () => {
 		label:       "Stonetop Hazard Page",
 	});
 
+	// Sites: interesting places the PCs can explore (Book I "Sites", pp. 345-377), the third
+	// GM-prep page type. Same one-entry-per-page storage/visibility architecture as threats
+	// and hazards; authored via the Create-a-Site walkthrough. See module/sites/.
+	CONFIG.JournalEntryPage.dataModels["site"] = SitePageModel;
+	const StonetopSitePageSheet = createStonetopSitePageSheetClass(JournalPageSheetV1);
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, SYSTEM_ID, StonetopSitePageSheet, {
+		types:       ["site"],
+		makeDefault: true,
+		label:       "Stonetop Site Page",
+	});
+
 	const StonetopArcanumSheet = createStonetopArcanumSheetClass(ItemSheet);
 	Items.registerSheet(SYSTEM_ID, StonetopArcanumSheet, {
 		types:       ["move"],
@@ -397,6 +410,9 @@ Hooks.once("init", () => {
 		"stonetop.hazard-page":               "systems/stonetop-pwd/templates/journal/hazard-page.hbs",
 		"stonetop.hazard-card":               "systems/stonetop-pwd/templates/journal/partials/hazard-card.hbs",
 		"stonetop.steading-tab-threats":      "systems/stonetop-pwd/templates/actor/partials/steading-tab-threats.hbs",
+		"stonetop.site-page":                 "systems/stonetop-pwd/templates/journal/site-page.hbs",
+		"stonetop.site-card":                 "systems/stonetop-pwd/templates/journal/partials/site-card.hbs",
+		"stonetop.steading-tab-sites":        "systems/stonetop-pwd/templates/actor/partials/steading-tab-sites.hbs",
 		"stonetop.bestiary-section-head":     "systems/stonetop-pwd/templates/journal/partials/bestiary-section-head.hbs",
 		"stonetop.bestiary-group-section":    "systems/stonetop-pwd/templates/journal/partials/bestiary-group-section.hbs",
 		"stonetop.introductions-dialog":      "systems/stonetop-pwd/templates/dialogs/introductions.hbs",
@@ -404,6 +420,7 @@ Hooks.once("init", () => {
 		"stonetop.intros-capture-head":       "systems/stonetop-pwd/templates/dialogs/partials/intros-capture-head.hbs",
 		"stonetop.threat-string-list":        "systems/stonetop-pwd/templates/dialogs/partials/threat-string-list.hbs",
 		"stonetop.deaths-door-outcomes":      "systems/stonetop-pwd/templates/dialogs/partials/deaths-door-outcomes.hbs",
+		"stonetop.card-head":                 "systems/stonetop-pwd/templates/journal/partials/card-head.hbs",
 		"stonetop.card-doom-track":           "systems/stonetop-pwd/templates/journal/partials/card-doom-track.hbs",
 		"stonetop.card-gm-moves":             "systems/stonetop-pwd/templates/journal/partials/card-gm-moves.hbs",
 		"stonetop.card-player-moves":         "systems/stonetop-pwd/templates/journal/partials/card-player-moves.hbs",

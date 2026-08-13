@@ -1,6 +1,8 @@
 <div class="tab threats steading-edit-section{{#unless stonetop.edit.threats}} stonetop-readonly{{/unless}}" data-group="primary" data-tab="threats">
 	{{#if stonetop.isGM}}{{> "stonetop.steading-section-toggle" section="threats" editing=stonetop.edit.threats}}{{/if}}
-	<section class="sheet-tab steading-threats">
+	{{!-- steading-prep-cards is the shared card chrome (collapse, type scale) this tab
+	      wears alongside the Sites tab; see stonetop.css. --}}
+	<section class="sheet-tab steading-threats steading-prep-cards">
 
 		{{#if stonetop.isGM}}
 		<p class="steading-threats-intro">

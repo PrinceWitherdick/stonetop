@@ -23,7 +23,7 @@
 		      nav onto the window frame (so its position here is arbitrary) and what every
 		      `:not(.stonetop-tab-rail)` in the horizontal-strip skin excludes.
 
-		      CLASSIC gets five entries, not six: Homefront Moves is the SIDEBAR there, so it has
+		      CLASSIC gets one entry fewer: Homefront Moves is the SIDEBAR there, so it has
 		      no page of its own, and the `moves` panel below is dropped with it - a `.tab` with
 		      no nav entry is dead markup that still costs a render. A user sitting on `moves`
 		      when the setting flips is handled by core: Tabs#activate falls back to the first
@@ -38,6 +38,7 @@
 			{{> "stonetop.tab-nav-item" tab="neighbors"    label=(localize "stonetop.steading.tabs.neighbors")}}
 			{{> "stonetop.tab-nav-item" tab="improvements" label=(localize "stonetop.steading.tabs.improvements")}}
 			{{#if stonetop.canSeeThreats}}{{> "stonetop.tab-nav-item" tab="threats" label=(localize "stonetop.steading.tabs.threats")}}{{/if}}
+			{{#if stonetop.canSeeSites}}{{> "stonetop.tab-nav-item" tab="sites" label=(localize "stonetop.steading.tabs.sites")}}{{/if}}
 			{{> "stonetop.tab-nav-item" tab="notes"        label=(localize "stonetop.steading.tabs.notes")}}
 		</nav>
 
@@ -48,6 +49,7 @@
 				{{> "stonetop.steading-tab-neighbors"}}
 				{{> "stonetop.steading-tab-improvements"}}
 				{{#if stonetop.canSeeThreats}}{{> "stonetop.steading-tab-threats"}}{{/if}}
+				{{#if stonetop.canSeeSites}}{{> "stonetop.steading-tab-sites"}}{{/if}}
 				{{> "stonetop.steading-tab-notes"}}
 			</section>
 

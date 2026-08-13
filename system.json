@@ -113,7 +113,8 @@
                                                    "location":  {},
                                                    "chronicle":  {},
                                                    "threat":  {},
-                                                   "hazard":  {}
+                                                   "hazard":  {},
+                                                   "site":  {}
                                                }
                       },
     "primaryTokenAttribute":  "attributes.hp",

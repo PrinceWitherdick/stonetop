@@ -77,6 +77,12 @@ Everything within the ring is otherwise the trace untouched, roughness and ink f
 the rays, the sun's centre hole, and the two flecks floating in the gap. A re-run of the
 tracer undoes both edits, so redraw the ring and re-centre the sun if you re-run it.
 
+Also not from game-icons.net, and the project's own drawing: `site-mound.svg`, the Sites
+tab's glyph. A mound with an open way in, which is what most Stonetop sites look like from
+outside (a barrow, a cave mouth, a Maker-ruin gone to grass). Plain geometry: a dome and a
+semicircle-topped doorway in one `fill-rule="evenodd"` path, so the entrance is a hole and
+not a lighter shape, plus a rounded ground bar. Nothing to re-derive if it is ever redrawn.
+
 Also not from game-icons.net, and the project's own drawing rather than either:
 `arcanum.svg`, the Arcana tab's glyph. It is the triple spiral from
 `assets/icons/arcanum.svg` — generated geometry, redrawn from the mark the rulebooks print

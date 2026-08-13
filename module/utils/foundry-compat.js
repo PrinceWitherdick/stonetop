@@ -85,6 +85,18 @@ export function imagePopoutTitle(popout) {
 }
 
 /**
+ * Render a Handlebars template file to HTML. V13 moved `renderTemplate` under
+ * `foundry.applications.handlebars` and deprecated the bare global; prefer the namespaced
+ * implementation and fall back to the global on older cores.
+ * @param {string} path  System-relative template path (as passed to loadTemplates).
+ * @param {object} data  The template's context.
+ * @returns {Promise<string>}
+ */
+export function renderTemplate(path, data) {
+	return (foundry.applications?.handlebars?.renderTemplate ?? globalThis.renderTemplate)(path, data);
+}
+
+/**
  * Enrich stored HTML for display (resolves `@UUID` links, inline rolls, etc.).
  * V13 moved TextEditor under `foundry.applications.ux`; on older cores (or before
  * it's ready) fall back to the raw value so callers always get a usable string.

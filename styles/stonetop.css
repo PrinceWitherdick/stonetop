@@ -3379,6 +3379,12 @@ input.stonetop-name-field {
 .stonetop-readonly .hazard-add-btn,
 .stonetop-readonly .hazard-edit-open,
 .stonetop-readonly .hazard-remove,
+/* Sites likewise. Rolling a site's own table is play-time use, not editing, and it
+   writes nothing to the page at all, so the d20 button stays live too. */
+.stonetop-readonly .site-add-btn,
+.stonetop-readonly .site-edit-open,
+.stonetop-readonly .site-remove,
+.stonetop-readonly .site-table-roll,
 /* Collapse chevron stays live outside edit mode: clamping a card to its title +
    Instinct is a view convenience, not structural editing. Without this the button's
    pointer-events:none makes a chevron click fall through to the card (the header sits
@@ -12470,6 +12476,7 @@ a.stonetop-condemned-name-text:hover { text-decoration: underline; }
 .stonetop-tab-rail .item[data-tab="neighbors"]     { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/three-friends.svg'); }
 .stonetop-tab-rail .item[data-tab="improvements"]  { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/hammer-nails.svg'); }
 .stonetop-tab-rail .item[data-tab="threats"]       { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/hazard-sign.svg'); }
+.stonetop-tab-rail .item[data-tab="sites"]         { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/site-mound.svg'); }
 .stonetop-tab-rail .item[data-tab="relationships"] { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/hearts.svg'); }
 .stonetop-tab-rail .item[data-tab="stats"]         { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/crossed-swords.svg'); }
 
@@ -25344,6 +25351,65 @@ th:has(> .stonetop-roll-table-btn) {
 	overflow: hidden;
 }
 
+/* ── Create-a-Site walkthrough (create-site.hbs) ─────────────────────────────
+   Rides the shared .stonetop-cf-* control styles; only site-specific bits here. The
+   steps are long lists, so the reusable pieces are a hint list, a pick-and-roll row,
+   and two bordered blocks (an area, a random table). */
+.stonetop-create-site-dialog .stonetop-cs-note {
+	margin: 2px 0 0;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
+	font-style: italic;
+}
+.stonetop-create-site-dialog .stonetop-cs-page { color: var(--st-text-muted); font-style: normal; }
+.stonetop-create-site-dialog .stonetop-cs-hint { display: flex; flex-direction: column; gap: 3px; }
+.stonetop-create-site-dialog .stonetop-cs-hint-list {
+	margin: 0;
+	padding-left: 18px;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
+	line-height: 1.45;
+}
+/* Pick-or-roll: the select fills the row and the d20 button sits on its baseline. */
+.stonetop-create-site-dialog .stonetop-cs-table-pick {
+	display: flex;
+	align-items: flex-end;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+.stonetop-create-site-dialog .stonetop-cs-table-pick .stonetop-cf-label { flex: 1 1 260px; min-width: 0; }
+.stonetop-create-site-dialog .stonetop-cs-table-pick .stonetop-cs-note { flex: 1 0 100%; }
+/* A prompt and its answer stack, with the answer indented under it. */
+.stonetop-create-site-dialog .stonetop-cs-pair-row { display: flex; flex-direction: column; gap: 4px; }
+.stonetop-create-site-dialog .stonetop-cs-answer { margin-left: 14px; width: auto; }
+.stonetop-create-site-dialog .stonetop-cs-when { flex: 0 1 11em; }
+.stonetop-create-site-dialog .stonetop-cs-area,
+.stonetop-create-site-dialog .stonetop-cs-rtable {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	padding: 8px 10px;
+	border: 1px solid rgba(0, 0, 0, 0.12);
+	border-radius: var(--st-radius);
+	background: rgba(0, 0, 0, 0.02);
+}
+.stonetop-create-site-dialog .stonetop-cs-area-title { font-family: var(--font-stonetop); font-weight: 700; }
+.stonetop-create-site-dialog .stonetop-cs-die { flex: 0 0 auto; font-size: var(--st-fs-xs); color: var(--st-text-muted); }
+.stonetop-create-site-dialog .stonetop-cs-roll-no {
+	flex: 0 0 1.2em;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-muted);
+	font-variant-numeric: tabular-nums;
+}
+/* Keep a long description from swallowing the review card. */
+.stonetop-create-site-dialog .stonetop-cs-preview-desc {
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
 /* Review card (final step) + the conversion's kept-stats line */
 .stonetop-cf-preview,
 .stonetop-mf-stats {
@@ -26415,37 +26481,42 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	.stonetop .threat-portent__box, .stonetop .threat-portent__box::after { transition: none; }
 }
 
-/* --- the steading Threats tab --------------------------------------------- */
+/* --- the steading Threats & Dangers and Sites tabs ------------------------- */
 
-/* The shared threat card is sized in root-relative rem (tuned for the standalone
-   journal page + canvas overlay), so on this tab it reads a notch larger than the
+/* `.steading-prep-cards` is worn by BOTH sections (Threats & Dangers, Sites): every
+   rule under it is card chrome the two tabs share, so neither can drift from the other.
+   Rules that stay scoped to `.steading-threats` below are the ones only that tab has
+   (the proximity line, the hazard rows).
+
+   The shared threat card is sized in root-relative rem (tuned for the standalone
+   journal page + canvas overlay), so on these tabs it reads a notch larger than the
    Improvements cards, which use the em-based --st-fs-* tokens off the sheet body.
-   Re-map the card's type to those same tokens here so the two tabs match; the
+   Re-map the card's type to those same tokens here so the tabs match; the
    page sheet / overlay renderings keep the larger standalone scale. */
-.stonetop .steading-threats .threat-name         { font-size: var(--st-fs-lg); }
-.stonetop .steading-threats .threat-type         { font-size: var(--st-fs-xs); }
-.stonetop .steading-threats .threat-instinct     { font-size: var(--st-fs-base); margin-bottom: 0.6rem; }
-.stonetop .steading-threats .threat-desc         { font-size: var(--st-fs-xs); }
-.stonetop .steading-threats .threat-portent      { font-size: var(--st-fs-xs); }
-.stonetop .steading-threats .threat-stakes       { font-size: var(--st-fs-xs); }
-.stonetop .steading-threats .threat-move-list li { font-size: var(--st-fs-xs); }
-.stonetop .steading-threats .threat-nested       { font-size: var(--st-fs-xs); }
-.stonetop .steading-threats .threat-player-move  { font-size: var(--st-fs-xs); }
+.stonetop .steading-prep-cards .threat-name         { font-size: var(--st-fs-lg); }
+.stonetop .steading-prep-cards .threat-type         { font-size: var(--st-fs-xs); }
+.stonetop .steading-prep-cards .threat-instinct     { font-size: var(--st-fs-base); margin-bottom: 0.6rem; }
+.stonetop .steading-prep-cards .threat-desc         { font-size: var(--st-fs-xs); }
+.stonetop .steading-prep-cards .threat-portent      { font-size: var(--st-fs-xs); }
+.stonetop .steading-prep-cards .threat-stakes       { font-size: var(--st-fs-xs); }
+.stonetop .steading-prep-cards .threat-move-list li { font-size: var(--st-fs-xs); }
+.stonetop .steading-prep-cards .threat-nested       { font-size: var(--st-fs-xs); }
+.stonetop .steading-prep-cards .threat-player-move  { font-size: var(--st-fs-xs); }
 
 /* The proximity line ("Homefront/Nearby/Distant threat") is redundant on this tab
    since cards are already grouped under proximity section headers. Hidden here only;
    the standalone journal page + canvas overlay (no section headers) keep it. */
 .stonetop .steading-threats .threat-proximity { display: none; }
 
-/* On this tab the card's top-right corner holds only the collapse chevron; reserve room
+/* On these tabs the card's top-right corner holds only the collapse chevron; reserve room
    for it so the title never runs under it. (The chevron sits at top:0.4rem / right:0.5rem.) */
-.stonetop .steading-threats .threat-card__head { margin-right: 2rem; } /* clear the corner chevron */
+.stonetop .steading-prep-cards .threat-card__head { margin-right: 2rem; } /* clear the corner chevron */
 
-/* Collapse chrome (this tab only): the whole card header is a click target that clamps
+/* Collapse chrome (these tabs only): the whole card header is a click target that clamps
    the card down to its title + Instinct. The chevron sits in the top-right corner (where
    the drag grip used to be) and reflects / announces the state. */
-.stonetop .steading-threats .threat-card__head--collapsible { cursor: pointer; }
-.stonetop .steading-threats .threat-collapse-btn {
+.stonetop .steading-prep-cards .threat-card__head--collapsible { cursor: pointer; }
+.stonetop .steading-prep-cards .threat-collapse-btn {
 	position: absolute;
 	top: 0.4rem;
 	right: 0.5rem;
@@ -26466,29 +26537,29 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	opacity: 0.6;
 	transition: opacity 0.15s ease, color 0.15s ease;
 }
-.stonetop .steading-threats .threat-collapse-btn:hover { opacity: 1; color: var(--threat-accent); }
-.stonetop .steading-threats .threat-collapse-btn i {
+.stonetop .steading-prep-cards .threat-collapse-btn:hover { opacity: 1; color: var(--threat-accent); }
+.stonetop .steading-prep-cards .threat-collapse-btn i {
 	display: inline-block;
 	margin: 0;
 	transition: transform 0.15s ease;
 }
 /* Open: the chevron rests pointing down. Collapsed: a half-turn to up. */
-.stonetop .steading-threats .threat-card.is-collapsed .threat-collapse-btn i { transform: rotate(180deg); }
+.stonetop .steading-prep-cards .threat-card.is-collapsed .threat-collapse-btn i { transform: rotate(180deg); }
 
 /* Collapsed: keep only the header (title / type + chevron) and the Instinct line;
    everything below is hidden. The proximity line is already hidden on this tab. */
-.stonetop .steading-threats .threat-card.is-collapsed .threat-desc,
-.stonetop .steading-threats .threat-card.is-collapsed .threat-themes,
-.stonetop .steading-threats .threat-card.is-collapsed .threat-aspects,
-.stonetop .steading-threats .threat-card.is-collapsed .threat-doom,
-.stonetop .steading-threats .threat-card.is-collapsed .threat-stakes,
-.stonetop .steading-threats .threat-card.is-collapsed .threat-moves,
-.stonetop .steading-threats .threat-card.is-collapsed .threat-nested,
-.stonetop .steading-threats .threat-card.is-collapsed .threat-player-moves {
+.stonetop .steading-prep-cards .threat-card.is-collapsed .threat-desc,
+.stonetop .steading-prep-cards .threat-card.is-collapsed .threat-themes,
+.stonetop .steading-prep-cards .threat-card.is-collapsed .threat-aspects,
+.stonetop .steading-prep-cards .threat-card.is-collapsed .threat-doom,
+.stonetop .steading-prep-cards .threat-card.is-collapsed .threat-stakes,
+.stonetop .steading-prep-cards .threat-card.is-collapsed .threat-moves,
+.stonetop .steading-prep-cards .threat-card.is-collapsed .threat-nested,
+.stonetop .steading-prep-cards .threat-card.is-collapsed .threat-player-moves {
 	display: none;
 }
 /* Instinct becomes the last visible line when clamped — trim its trailing margin. */
-.stonetop .steading-threats .threat-card.is-collapsed .threat-instinct { margin-bottom: 0.15rem; }
+.stonetop .steading-prep-cards .threat-card.is-collapsed .threat-instinct { margin-bottom: 0.15rem; }
 
 /* ── Hazard cards (Book I "Dangers") ride the threat-card chrome ─────────────
    The wrapper IS a .threat-card (shared edge/head/portents/tools CSS); only the
@@ -26508,6 +26579,109 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 .stonetop .steading-threats .threat-card.is-collapsed .hazard-advance { display: none; }
 .stonetop .steading-threats .threat-card.is-collapsed .hazard-damage { margin-bottom: 0.15rem; }
+
+/* ── Site cards (Book I "Sites") also ride the threat-card chrome ────────────
+   The wrapper IS a .threat-card, so the edge / head / tools / collapse CSS above
+   applies; only a site's own rows need rules. A site is a long write-up, so its
+   sections are separated by a hairline and its lists are dense. */
+.stonetop .site-foundation {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.3rem 0.55rem;
+	margin: 0.1rem 0 0.5rem;
+	font-family: "IM Fell English", var(--font-stonetop);
+	font-size: 0.9rem;
+	color: var(--tc-ink-soft);
+}
+/* A middot between the manner, the region and the terrain: they read as one line
+   ("Green Lord site . The Great Wood . Clearing, meadow, sparse trees"). */
+.stonetop .site-foundation__part + .site-foundation__part::before {
+	content: "\00b7";
+	margin-right: 0.55rem;
+	color: var(--threat-accent);
+}
+.stonetop .site-why {
+	margin: 0 0 0.5rem;
+	font-size: 0.9rem;
+	font-style: italic;
+	color: var(--tc-ink-soft);
+}
+.stonetop .site-picks { margin: 0 0 0.6rem; }
+.stonetop .site-pick { margin: 0 0 0.15rem; font-size: 0.9rem; line-height: 1.35; }
+.stonetop .site-block {
+	margin: 0 0 0.6rem;
+	padding-top: 0.45rem;
+	border-top: 1px solid color-mix(in srgb, var(--threat-accent, var(--tc-ink-soft)) 25%, transparent);
+}
+.stonetop .site-block > .threat-label { display: block; margin-bottom: 0.3rem; }
+.stonetop .site-list {
+	margin: 0 0 0.35rem;
+	padding-left: 1.1rem;
+	font-size: 0.92rem;
+	line-height: 1.35;
+	color: var(--tc-ink-soft);
+}
+.stonetop .site-list li { margin: 0 0 0.12rem; }
+.stonetop .site-when { margin-right: 0.4rem; color: var(--tc-ink); }
+/* A question with no answer yet is a note to self; mark it so it reads as unfinished. */
+.stonetop .site-question-answer { display: block; color: var(--tc-ink); }
+.stonetop .site-question--open .site-question-prompt { font-style: italic; opacity: 0.85; }
+.stonetop .site-area {
+	margin: 0 0 0.5rem;
+	padding-left: 0.55rem;
+	border-left: 2px solid color-mix(in srgb, var(--threat-accent, var(--tc-ink-soft)) 40%, transparent);
+}
+.stonetop .site-area-title {
+	margin: 0 0 0.2rem;
+	font-family: var(--font-stonetop);
+	font-size: 0.98rem;
+	font-weight: 700;
+	border: 0;
+}
+.stonetop .site-area-desc,
+.stonetop .site-area-contents {
+	margin: 0 0 0.25rem;
+	font-size: 0.92rem;
+	line-height: 1.4;
+	white-space: pre-line;   /* a room description is typed with its own line breaks */
+}
+.stonetop .site-area-exits { margin: 0; font-size: 0.86rem; color: var(--tc-ink-soft); }
+.stonetop .site-table + .site-table { margin-top: 0.5rem; }
+.stonetop .site-table-head { display: flex; align-items: center; gap: 0.4rem; margin: 0 0 0.25rem; }
+.stonetop .site-table-die { font-size: 0.82rem; color: var(--tc-ink-soft); }
+.stonetop .site-table-roll {
+	width: auto;   /* override core's full-width button */
+	height: auto;
+	margin: 0;
+	padding: 0.1rem 0.35rem;
+	border: 1px solid color-mix(in srgb, var(--threat-accent, var(--tc-ink-soft)) 45%, transparent);
+	border-radius: 4px;
+	background: transparent;
+	color: var(--tc-ink-soft);
+	font-size: 0.82rem;
+	line-height: 1;
+	cursor: pointer;
+}
+.stonetop .site-table-roll:hover { color: var(--threat-accent); border-color: var(--threat-accent); }
+.stonetop .site-table-list { list-style: none; padding-left: 0; }
+.stonetop .site-table-list li { display: flex; gap: 0.45rem; }
+.stonetop .site-table-roll-no { flex: 0 0 1.1rem; color: var(--threat-accent); font-variant-numeric: tabular-nums; }
+/* The row a card-side roll landed on. Marked in the DOM only (see wireSiteTableRoll):
+   these tables are rolled again and again in play, so nothing is written to the page. */
+.stonetop .site-table-list li.is-rolled {
+	background: color-mix(in srgb, var(--threat-accent, var(--tc-ink-soft)) 14%, transparent);
+	border-radius: 3px;
+	color: var(--tc-ink);
+}
+
+/* Collapsed, a site keeps only its title + the foundation line (manner / region /
+   terrain), which is what tells you which site you're looking at. */
+.stonetop .steading-prep-cards .threat-card.is-collapsed .site-why,
+.stonetop .steading-prep-cards .threat-card.is-collapsed .site-picks,
+.stonetop .steading-prep-cards .threat-card.is-collapsed .site-block {
+	display: none;
+}
+.stonetop .steading-prep-cards .threat-card.is-collapsed .site-foundation { margin-bottom: 0.15rem; }
 
 /* Match the Improvements-tab intro blurb: italic, secondary color, --st-fs-sm. */
 .stonetop .steading-threats-intro {
