@@ -117,7 +117,11 @@ export default [
 			// `for (const x of y) await f(x)` over documents is usually a batch waiting to happen,
 			// but it is sometimes deliberately serial. Warn, don't block.
 			"no-await-in-loop": "off",
-			"no-unused-vars": ["warn", {
+			// `error`, not `warn`: CI runs a bare `eslint .`, so a warning here exits 0 and the
+			// dead import it is describing lands anyway. The deliberately advisory rules above
+			// (`promise/no-nesting`, `prefer-const`) stay warnings on purpose; this one is the
+			// class that was actually being cleaned up by hand.
+			"no-unused-vars": ["error", {
 				argsIgnorePattern: "^_",
 				varsIgnorePattern: "^_",
 				caughtErrorsIgnorePattern: "^_",
@@ -176,7 +180,7 @@ export default [
 			},
 		},
 		rules: {
-			"no-unused-vars": ["warn", {
+			"no-unused-vars": ["error", {
 				argsIgnorePattern: "^_",
 				varsIgnorePattern: "^_",
 				// Tests use `const { a, ...rest } = x` to assert on "everything but a".
@@ -196,7 +200,7 @@ export default [
 			globals: { ...globals.node },
 		},
 		rules: {
-			"no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+			"no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
 		},
 	},
 

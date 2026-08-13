@@ -1,8 +1,6 @@
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
 import { railHangsLeft, railTopFor } from "../../module/utils/tab-rail.js";
+import { readRepo, readCss, declarations } from "../fakes/css.js";
 
 // The vertical icon rail hangs OUTSIDE the window frame, which buys it the dnd5e silhouette
 // and costs it every guarantee a child of the sheet gets for free. Two of those are geometry,
@@ -17,18 +15,13 @@ import { railHangsLeft, railTopFor } from "../../module/utils/tab-rail.js";
 // The arithmetic for both is pure and exported so it can be checked here; the placement itself
 // is verified in a browser.
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const read = rel => fs.readFileSync(path.resolve(HERE, "../..", rel), "utf8");
+const read = readRepo;
 
 const RAIL_JS = read("module/utils/tab-rail.js");
-// Comments carry braces and selector-like text, so strip them before matching rules.
-const CSS = read("styles/stonetop.css").replace(/\/\*[\s\S]*?\*\//g, "");
+const CSS = readCss();
 
-/** The declaration block for an exact selector, so one rule can be asserted on alone. */
-function block(selector) {
-	const rx = new RegExp(`(^|[,}])\\s*${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`, "m");
-	return CSS.match(rx)?.[2] ?? null;
-}
+/** Everything an exact selector declares, across every rule that names it — see fakes/css.js. */
+const block = (selector) => declarations(CSS, selector);
 
 describe("railTopFor", () => {
 	// The header banner ends 154px below the frame's top; + the 1rem gap dnd5e uses.

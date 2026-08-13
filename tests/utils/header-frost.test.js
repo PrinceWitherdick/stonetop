@@ -1,7 +1,5 @@
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
+import { readRepo, readCss, declarations } from "../fakes/css.js";
 
 // The frosted seam between a sheet's pinned header and the tab scrolling under it: content
 // blurs and dissolves as it passes behind the portrait block instead of being sliced off at
@@ -16,20 +14,15 @@ import { describe, it, expect } from "vitest";
 //     always, and the tab's first line is permanently fuzzy — which reads as a broken
 //     renderer, not a depth cue.
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const read = (rel) => fs.readFileSync(path.resolve(HERE, "../..", rel), "utf8");
+const read = readRepo;
 
-// Comments carry braces and selector-like text, so strip them before matching rules.
-const CSS = read("styles/stonetop.css").replace(/\/\*[\s\S]*?\*\//g, "");
+const CSS = readCss();
 const CHARACTER_SHEET = read("module/actors/character/StonetopCharacterSheet.js");
 const STEADING_SHEET = read("module/actors/steading/StonetopSteadingSheet.js");
 const FROST = read("module/utils/scroll-frost.js");
 
-/** The declaration block for an exact selector, so one rule can be asserted on alone. */
-function block(selector) {
-	const rx = new RegExp(`(^|[,}])\\s*${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`, "m");
-	return CSS.match(rx)?.[2] ?? null;
-}
+/** Everything an exact selector declares, across every rule that names it — see fakes/css.js. */
+const block = (selector) => declarations(CSS, selector);
 
 describe("the frosted header seam", () => {
 	it("anchors the band to the scrolling body, not to the window", () => {
