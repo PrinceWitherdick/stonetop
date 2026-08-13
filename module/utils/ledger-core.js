@@ -317,7 +317,15 @@ function _serializeLedgerWrite(actor, work) {
 	const run = prev.then(work, work);
 	// The rejection belongs to the caller; the stored link is neutralised so one failed write
 	// can't reject every write queued behind it.
-	_ledgerWrites.set(key, run.catch(() => {}));
+	//
+	// The tail drops the chain once it is idle. An entry is only needed while a write for that
+	// actor is in flight; without this the map keeps one settled promise per actor id touched for
+	// the life of the session, including actors since deleted. The identity check is what makes it
+	// safe: a write queued behind this one has already replaced the value, and must stay.
+	const link = run.then(() => {}, () => {}).then(() => {
+		if (_ledgerWrites.get(key) === link) _ledgerWrites.delete(key);
+	});
+	_ledgerWrites.set(key, link);
 	return run;
 }
 

@@ -91,7 +91,7 @@ const PARTIAL_IMPORT_MAX_MISSING = 0.10;
  * the user-supplied poster map an earlier release embedded there. Counting the chain as one entry
  * is what stops a GM who is legitimately on the older map from reading as incomplete forever.
  */
-function everyDurableArtPath({ monsters, locations, settingOverviewMaps = [], treasures = [], people = [], steadings = [] }) {
+function everyDurableArtPath({ monsters = [], locations = [], settingOverviewMaps = [], treasures = [], people = [], steadings = [] }) {
 	const chains = [];
 	const one = (out) => { if (out) chains.push([out]); };
 	for (const m of monsters) one(m.out);

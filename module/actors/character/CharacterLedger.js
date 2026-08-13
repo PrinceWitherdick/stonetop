@@ -972,8 +972,26 @@ function debilityEntry(label, oldValue, newValue) {
 // ahead of `arcana.` without anyone having to remember to write it first. Adding a nested
 // namespace under an existing one is therefore just a new row.
 
+// Max HP is stored twice on purpose: `hp.adjustment` is the signed DELTA that survives a later
+// level raising the base underneath it, and `hp.max` is a mirror written beside it so the token
+// bar over the character's head reads the right number (see StonetopCharacter#setMaxHp).
+const MAX_HP_PATH            = "system.attributes.hp.max";
+const MAX_HP_ADJUSTMENT_PATH = "system.attributes.hp.adjustment";
+
 const EXACT_PATH_ENTRIES = {
 	[POSSESSION_SELECTED_PATH]: (p, o, n, names) => possessionSelectionEntries(o, n, names),
+	// The mirror says nothing when its source landed in the same update. Both paths are
+	// labelled, so one player typing 24 into the max-HP box filed TWO rows for one edit —
+	// "Max HP (permanent) changed …" and "Max HP changed …". The delta is the change that was
+	// made; the mirror is bookkeeping. Silencing the pair at the WRITE would have been wrong in
+	// the other direction: `stonetopLedger: true` is a whole-update kill switch, and a permanent
+	// change to max HP is exactly the kind of thing the ledger exists to record.
+	//
+	// Still speaks on its own. A character with no playbook has no derived base to sit a delta
+	// on top of, so setMaxHp writes the typed number straight to this field and nothing else —
+	// and that write is the only record there is.
+	[MAX_HP_PATH]: (p, o, n, names, ctx) =>
+		ctx?.paths?.has(MAX_HP_ADJUSTMENT_PATH) ? [] : [scalarEntry(SYSTEM_PATH_LABELS[MAX_HP_PATH], o, n, p)],
 	[POSSESSION_CUSTOM_PATH]:   (p, o, n) => possessionCustomEntries(o, n),
 	[WOUNDS_PATH]:              (p, o, n) => woundLedgerEntries(o, n),
 	[INVOCATIONS_PATH]:         (p, o, n, names) => invocationEntries(o, n, names),

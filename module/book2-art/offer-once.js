@@ -1,4 +1,5 @@
 import { getSetting, setSetting } from "../settings.js";
+import { isPrimaryGM } from "../utils/primary-gm.js";
 
 /**
  * Make a once-per-world offer about art the GM already has on disk.
@@ -25,6 +26,15 @@ import { getSetting, setSetting } from "../settings.js";
  * @param {{setting: string, findWork: () => Promise<any>, offer: (work: any) => Promise<any>}} spec
  */
 export async function offerDurableArtOnce({ setting, findWork, offer }) {
+	// ONE GM asks. The latch is world-scoped but it is only written at the END, after findWork
+	// and offer have both awaited — so two GMs joining together both pass the check below and
+	// both whisper the same card to the GM group. The gate belongs here rather than at each call
+	// site: WorldSetup's caller had it and both of Ready.js's did not, which is precisely the
+	// asymmetry a shared helper exists to remove.
+	//
+	// Paired with isGM because isPrimaryGM() alone is true when NO GM is connected, which would
+	// let a lone player run it — the same pairing every other world-writing sweep uses.
+	if (!game.user?.isGM || !isPrimaryGM()) return;
 	if (getSetting(setting)) return;
 	const work = await findWork();
 	if (!work) return;

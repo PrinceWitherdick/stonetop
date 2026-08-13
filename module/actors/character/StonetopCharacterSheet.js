@@ -7611,7 +7611,13 @@ export function createStonetopCharacterSheetClass(Base) {
 		async _syncStoredMaxHp() {
 			const computed = Number(this._computedMaxHp) || 0;
 			if (computed <= 0) return;
-			if (!this.actor?.isOwner) return;
+			// `isEditable` as well as ownership. Ownership alone is true in two places this must
+			// not write: a character previewed inside a LOCKED compendium, where the update throws
+			// and leaves one console error per render forever; and an unlinked token's sheet,
+			// where it would push a stored max into that token's ActorDelta — override data for a
+			// field the token was reading off the actor perfectly well. isEditable is the sheet's
+			// own answer to "may this be written", and it already accounts for both.
+			if (!this.actor?.isOwner || !this.isEditable) return;
 			if (Number(this.actor.system?.attributes?.hp?.max) === computed) return;
 			await this.actor.update({ "system.attributes.hp.max": computed }, { stonetopLedger: true });
 		}

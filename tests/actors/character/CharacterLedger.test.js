@@ -28,6 +28,31 @@ describe("CharacterLedger", () => {
 		expect(entries.map(e => e.action)).toEqual(["Damage value changed from d4 to d6"]);
 	});
 
+	// Max HP is stored twice: `hp.adjustment` is the signed delta the sheet keeps, and `hp.max`
+	// is a mirror written beside it so the token bar reads the right number. Both paths are
+	// labelled, so one player typing a new max used to file TWO rows for one edit.
+	it("files one row when a hand-set max HP writes the delta and its mirror together", async () => {
+		const actor = makeActor({ attributes: { hp: { value: 20, max: 20, adjustment: 0 } } });
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"system.attributes.hp.adjustment": 4,
+			"system.attributes.hp.max": 24,
+		});
+		expect(entries).toHaveLength(1);
+		expect(entries[0].action).toContain("Max HP (permanent)");
+	});
+
+	// A character with no playbook has no derived base to sit a delta on, so setMaxHp writes the
+	// typed number straight to the stored field — and that write is the only record there is.
+	it("still records the stored max when it changes on its own", async () => {
+		const actor = makeActor({ attributes: { hp: { value: 10, max: 10, adjustment: 0 } } });
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"system.attributes.hp.max": 14,
+		});
+		expect(entries).toHaveLength(1);
+		expect(entries[0].action).toContain("Max HP");
+		expect(entries[0].action).not.toContain("permanent");
+	});
+
 	it("records wound additions, status changes, and removals", async () => {
 		const actor = makeActor({ attributes: { wounds: [
 			{ id: "w1", text: "Twisted ankle", status: "problematic", healed: false },

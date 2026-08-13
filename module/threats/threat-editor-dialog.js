@@ -53,12 +53,15 @@ export class ThreatEditorDialog extends StonetopDialog {
 	 * function again each time.
 	 */
 	async _render(force, options) {
-		if (!this._syncHookId) this._syncHookId = Hooks.on("updateJournalEntryPage", this._onUpdate);
+		// `== null`, not falsy: a hook id of 0 is a VALID registration, and testing it for truth
+		// would re-register on every re-render and unregister only one of them — the leak this
+		// method exists to close.
+		if (this._syncHookId == null) this._syncHookId = Hooks.on("updateJournalEntryPage", this._onUpdate);
 		return super._render(force, options);
 	}
 
 	async close(options = {}) {
-		if (this._syncHookId) {
+		if (this._syncHookId != null) {
 			Hooks.off("updateJournalEntryPage", this._syncHookId);
 			this._syncHookId = null;
 		}

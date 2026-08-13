@@ -523,9 +523,17 @@ export function wireAttackConfirm(message, html) {
 	// Confirming writes the `resolved` latch onto this message (lockAttackCard), so it needs
 	// message ownership as well as the attacker's — see wireSufferAttack.
 	actorFromUuid(attack.attackerUuid).then(actor => {
-		const owner = !!actor?.isOwner && !!message.isOwner;
 		for (const btn of btns) {
-			if (!owner || message.getFlag(SCOPE, "attack")?.resolved) { btn.disabled = true; continue; }
+			if (!actor?.isOwner || message.getFlag(SCOPE, "attack")?.resolved) { btn.disabled = true; continue; }
+			// Owning the attacker is not enough, and the two refusals are not the same refusal.
+			// A player who owns the PC but not the GM-authored CARD gets a button that can never
+			// work, so it says why — a silently greyed-out Confirm reads as a broken card. Same
+			// affordance, same wording shape as wireSufferAttack.
+			if (!message.isOwner) {
+				btn.disabled = true;
+				btn.title = "Ask the GM to confirm this attack";
+				continue;
+			}
 			btn.addEventListener("click", () => resolveAttackTier(message, actor, btn, root));
 		}
 	}).catch(err => console.error("Stonetop | could not wire the attack card's Confirm buttons", err));
