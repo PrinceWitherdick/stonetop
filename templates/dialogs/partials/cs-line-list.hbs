@@ -1,0 +1,38 @@
+{{!-- One "labelled list of removable text lines" on the Create-a-Site wizard.
+
+      Six of the wizard's steps collect exactly this shape — connections, dangers, discoveries,
+      the two impression lists, and plans — and differ only in their wording and in whether
+      suggestions sit above the rows. The JS side was already fully generic (`_LINE_LISTS`,
+      `blankRow`, and one delegated `.stonetop-cs-add` handler keyed on `data-list`); only the
+      markup had been pasted per list, so a change to the row chrome meant six edits and the one
+      that got missed looked identical to the five that did not.
+
+      Context: the dialog's own, plus
+        list         the `data-list` key every handler here reads ("dangers")
+        label        the heading
+        hint         optional parenthetical beside the heading, WITHOUT its brackets
+        rows         this list's rows ({index, text})
+        chips        optional click-to-fill suggestions ({text, used})
+        kinds        optional book prompts, rendered as a static hint list
+        placeholder  the row input's placeholder
+        addLabel     the add button's wording ("Add danger") --}}
+<div class="stonetop-cf-gear">
+  <div class="stonetop-cf-pick-label">{{label}}{{#if hint}} <span class="stonetop-cf-pick-hint">({{hint}})</span>{{/if}}</div>
+  {{#if chips}}
+  <div class="stonetop-cf-chips">
+    {{#each chips}}
+    <button type="button" class="stonetop-cf-chip stonetop-cs-suggest{{#if used}} is-selected{{/if}}" data-list="{{../list}}" data-text="{{text}}">{{text}}</button>
+    {{/each}}
+  </div>
+  {{/if}}
+  {{#if kinds}}
+  <ul class="stonetop-cs-hint-list">{{#each kinds}}<li>{{this}}</li>{{/each}}</ul>
+  {{/if}}
+  {{#each rows}}
+  <div class="stonetop-cf-gear-row">
+    <input type="text" class="stonetop-cf-input stonetop-cs-line" data-list="{{../list}}" data-index="{{index}}" value="{{text}}" placeholder="{{../placeholder}}">
+    <button type="button" class="stonetop-cs-remove stonetop-cf-mini-btn stonetop-cf-mini-btn--danger" data-list="{{../list}}" data-index="{{index}}"><i class="fas fa-times"></i></button>
+  </div>
+  {{/each}}
+  <button type="button" class="stonetop-cs-add stonetop-cf-mini-btn" data-list="{{list}}"><i class="fas fa-plus"></i> {{addLabel}}</button>
+</div>

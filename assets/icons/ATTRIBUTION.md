@@ -11,9 +11,11 @@ Where our filename differs from the original, the game-icons.net source name is 
 |------|-----------------------|--------|-------------|
 | broken-heart.svg | broken-heart | Lorc | https://lorcblog.blogspot.com |
 | candle-light.svg | candle-light | Lorc | https://lorcblog.blogspot.com |
+| enrage.svg | enrage | Delapouite | https://delapouite.com |
 | hearts.svg | hearts | Skoll | https://game-icons.net |
 | move.svg | move | Delapouite | https://delapouite.com |
 | scales.svg | scales | Lorc | https://lorcblog.blogspot.com |
+| triquetra.svg | triquetra | Delapouite | https://delapouite.com |
 
 `move.svg` recolours the glyph and sets it on the system's dark octagon token; the artwork
 itself is unchanged.

@@ -279,6 +279,10 @@ function _conditionsHtml(conditions) {
  * @param {object} [options.tierActions]               - Optional HTML actions keyed by result tier
  * @param {string}  [options.stonetopDebility]          - Debility name for annotation
  * @param {string}  [options.stonetopDebilityTooltip]
+ * @param {string}  [options.stonetopDebilityIgnored]      - What is cancelling a marked debility
+ *   (the Heavy's Battle Joy). Mutually exclusive with stonetopDebility: either the debility bit,
+ *   or something is ignoring it.
+ * @param {string}  [options.stonetopDebilityIgnoredName]  - Which debility is being ignored
  * @param {boolean} [options.noXpOnMiss]               - Skip the automatic +1 XP on a miss (for moves that replace it)
  * @param {string[]} [options.pickOptions]             - Shared "choose from this list" pool (love letters); rendered as a checklist
  * @returns {Promise<Roll>}
@@ -353,6 +357,17 @@ export async function rollStat(statKey, actor, options = {}) {
 	const situational = modifier - forward - ongoing;
 	if (situational !== 0) {
 		conditions.push(`<li class="stonetop-condition-situational">Situational ${sign(situational)}</li>`);
+	}
+	// A debility that is marked and doing nothing (the Heavy's Battle Joy). Said out loud, because
+	// the alternative is a player seeing no Disadvantage pill on a roll their ticked box should
+	// have spoiled and reading the tracker as broken.
+	if (options.stonetopDebilityIgnored) {
+		const ignored = String(options.stonetopDebilityIgnoredName ?? "").trim();
+		const tip = ignored
+			? `${options.stonetopDebilityIgnored}: you ignore the effects of debilities (${ignored.toLowerCase()}) as long as you keep fighting.`
+			: `${options.stonetopDebilityIgnored}: you ignore the effects of debilities as long as you keep fighting.`;
+		conditions.push(`<li class="stonetop-condition-debility-ignored" data-tooltip="${escHtml(tip)}">`
+			+ `${escHtml(options.stonetopDebilityIgnored)}</li>`);
 	}
 
 	const conditionsHtml = _conditionsHtml(conditions);

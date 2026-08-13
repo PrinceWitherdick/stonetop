@@ -122,6 +122,11 @@ Hooks.once("init", () => {
 	installWindowRestore();
 
 	Handlebars.registerHelper("format", (key, options) => game.i18n.format(String(key), options.hash));
+	// For the one shape Handlebars can't express on its own: a localised string that carries its
+	// own markup (so it has to be emitted with `{{{ }}}`) around a value that does not (so the
+	// value has to be escaped before it goes in). Without this, `{{{format …}}}` is a hole and
+	// `{{format …}}` prints the string's own <strong> at the reader.
+	Handlebars.registerHelper("escapeHtml", value => escHtml(value));
 	Handlebars.registerHelper("boldMissText", value => boldMissText(value));
 	Handlebars.registerHelper("eq", (a, b) => a === b);
 	Handlebars.registerHelper("or", (...args) => args.slice(0, -1).some(Boolean));
@@ -419,7 +424,11 @@ Hooks.once("init", () => {
 		"stonetop.guide-toc":                 "systems/stonetop-pwd/templates/dialogs/partials/guide-toc.hbs",
 		"stonetop.intros-capture-head":       "systems/stonetop-pwd/templates/dialogs/partials/intros-capture-head.hbs",
 		"stonetop.threat-string-list":        "systems/stonetop-pwd/templates/dialogs/partials/threat-string-list.hbs",
+		"stonetop.cs-line-list":              "systems/stonetop-pwd/templates/dialogs/partials/cs-line-list.hbs",
+		"stonetop.roster-row":                "systems/stonetop-pwd/templates/dialogs/partials/roster-row.hbs",
 		"stonetop.deaths-door-outcomes":      "systems/stonetop-pwd/templates/dialogs/partials/deaths-door-outcomes.hbs",
+		"stonetop.header-toggle-glyph":       "systems/stonetop-pwd/templates/actor/partials/header-toggle-glyph.hbs",
+		"stonetop.header-count-glyph":        "systems/stonetop-pwd/templates/actor/partials/header-count-glyph.hbs",
 		"stonetop.card-head":                 "systems/stonetop-pwd/templates/journal/partials/card-head.hbs",
 		"stonetop.card-doom-track":           "systems/stonetop-pwd/templates/journal/partials/card-doom-track.hbs",
 		"stonetop.card-gm-moves":             "systems/stonetop-pwd/templates/journal/partials/card-gm-moves.hbs",

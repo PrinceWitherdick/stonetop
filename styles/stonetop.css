@@ -268,6 +268,15 @@
 	--st-holy-light:           hsl(41 88% 58%);
 	--st-holy-light-glow:      hsla(41, 88%, 58%, 0.85);
 	--st-holy-light-glow-soft: hsla(41, 88%, 58%, 0.5);
+	/* The same flame worn as FURNITURE rather than as light: the ongoing-Invocation chip in the
+	   header, its banner over the Invocations grid, and the card that Invocation is running from.
+	   The candle's own gold is a glow colour — legible as a halo, far too pale as ink on
+	   parchment or as a border — so this trio darkens the hue for text and holds the fill at a
+	   wash. Same family, three jobs; see the .stonetop-invocation-chip block. */
+	--st-holy-light-ink:       hsl(38 72% 26%);
+	--st-holy-light-border:    hsla(41, 70%, 42%, 0.55);
+	--st-holy-light-bg:        hsla(41, 88%, 58%, 0.16);
+	--st-holy-light-bg-hover:  hsla(41, 88%, 55%, 0.3);
 
 	/* ── Condemned ────────────────────────────────────────────────────────
 	   The near-black the Judge's brand FURNITURE is drawn in: the scales in their header once
@@ -3533,6 +3542,16 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	margin-right: 4px;
 	color: rgba(176, 128, 24, 0.9);
 }
+/* The Invocation this one displaced, named at the top of the card that displaced it — one post
+   rather than two, so the table never has to pair an "X ends" card with the card that ended it.
+   Quiet and set apart: it is what STOPPED, and the card is about what started. */
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-chat-invocation-ended {
+	margin: 0 0 6px;
+	padding-bottom: 4px;
+	border-bottom: 1px dashed rgba(176, 128, 24, 0.45);
+	font-size: 0.95em;
+	color: var(--st-text-secondary);
+}
 
 /* Bullet sizing/gap deliberately uses bare selectors so the system-wide spiral
    normalization rules (further down) layer on top at matching specificity. */
@@ -4438,6 +4457,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 .stonetop-burn-brightly-icon,
 .stonetop-holy-light-icon,
 .stonetop-condemn-icon,
+.stonetop-blessed-marks-icon,
+.stonetop-battle-joy-icon,
 .stonetop-nav-arrow {
 	-webkit-mask-size: contain;
 	mask-size: contain;
@@ -7671,7 +7692,9 @@ button.stonetop-dead-tag:hover {
    same rule and would otherwise pad the button out past the plate. A property core starts
    setting in some future version has to be added HERE, once. */
 .stonetop-holy-light,
-.stonetop-condemn {
+.stonetop-condemn,
+.stonetop-blessed-marks,
+.stonetop-battle-joy {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -7692,7 +7715,9 @@ button.stonetop-dead-tag:hover {
 }
 
 button.stonetop-holy-light:focus-visible,
-.stonetop-condemn:focus-visible {
+.stonetop-condemn:focus-visible,
+.stonetop-blessed-marks:focus-visible,
+.stonetop-battle-joy:focus-visible {
 	outline: 2px solid var(--color-shadow-primary, slategrey);
 	outline-offset: 2px;
 }
@@ -7744,6 +7769,77 @@ button.stonetop-holy-light.is-lit:hover {
 	   a small icon reads as a smudge at plate height. */
 	filter: drop-shadow(0 0 0.25em var(--st-holy-light-glow))
 	        drop-shadow(0 0 0.6em var(--st-holy-light-glow-soft));
+}
+
+/* ── The ongoing Invocation ────────────────────────────────────────────────
+   The name of the Invocation the Lightbearer is holding open, worn beside the candle: the candle
+   says a light burns, this says what it has been shaped into.
+
+   A PILL WITH WORDS IN IT, where its two neighbours are bare masked glyphs. It is not decoration
+   that got out of hand — an Invocation is only trackable if you can read WHICH one, and an icon
+   cannot say "Hold Back the Darkness". Same construction as the Dead tag, which is the sheet's
+   other name-bearing pill (see .stonetop-dead-tag), in the candle's gold rather than the red.
+
+   It is a <button> where the sheet is editable and a <span> where it isn't, so every property
+   core sets on an in-app button has to be NAMED here rather than left alone — `width` above all,
+   since `body.game .app button { width: 100% }` would stretch a two-word pill across the header,
+   and `min-height`, which beats core's `height` in that same rule. Unlayered class rules beat
+   core's layered ones per property, but only for the properties actually written down. */
+.stonetop-invocation-chip {
+	display: inline-flex;
+	align-items: center;
+	/* Centred against the plate rather than stretched by the row, which is `align-items: stretch`
+	   — a pill drawn the full height of the name plate reads as a second field, not a tag. */
+	align-self: center;
+	gap: 0.4em;
+	/* Shrinkable, and only as wide as it needs: the name inside can be four words long, and the
+	   plate beside it must keep the room. `min-width: 0` is what lets the name ellipsise instead
+	   of forcing the row wider than the header. */
+	flex: 0 1 auto;
+	width: auto;
+	min-width: 0;
+	max-width: 14em;
+	min-height: 0;
+	height: auto;
+	margin: 0;
+	padding: 1px 9px;
+	border: 1px solid var(--st-holy-light-border);
+	border-radius: 999px;
+	background: var(--st-holy-light-bg);
+	box-shadow: none;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	font-style: normal;
+	font-weight: 600;
+	line-height: 1.7;
+	letter-spacing: 0.04em;
+	color: var(--st-holy-light-ink);
+	transition: background 0.12s, border-color 0.12s;
+}
+
+.stonetop-invocation-chip i { font-size: 0.95em; }
+
+/* The name is the one part allowed to shrink; the sun and the padding are not. Ellipsised rather
+   than wrapped — the pill sits in a fixed-height row — with the full name in the tooltip. */
+.stonetop-invocation-chip-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Only the editable copy is a button, so only it says "press me" — and what it does when pressed
+   is END the Invocation, so it warms rather than lighting up further. */
+button.stonetop-invocation-chip { cursor: pointer; }
+
+button.stonetop-invocation-chip:hover {
+	background: var(--st-holy-light-bg-hover);
+	border-color: var(--st-holy-light-ink);
+}
+
+button.stonetop-invocation-chip:focus-visible {
+	outline: 2px solid var(--color-shadow-primary, slategrey);
+	outline-offset: 2px;
 }
 
 /* ── The Judge's scales ────────────────────────────────────────────────────
@@ -7808,7 +7904,8 @@ button.stonetop-holy-light.is-lit:hover {
    one, so it comes down with the black scope's repaint the way every other red on the sheet does.
    The numeral keeps its paired ink (--st-condemned-on), which is inverted in that same scope, so
    the two flip together and the digit stays legible whichever way round the disc is painted. */
-.stonetop-condemn-count {
+.stonetop-condemn-count,
+.stonetop-marks-count {
 	/* WHOLE PIXELS, deliberately, where nearly everything else in this file scales with
 	   --stonetop-font-scale. The box was provably square either way — 18.000 x 18.000 measured in
 	   Chromium — and it still did not read as round, because the scaled size lands on a FRACTION
@@ -7859,6 +7956,93 @@ button.stonetop-holy-light.is-lit:hover {
 	font-weight: 700;
 	line-height: 1;
 	text-align: center;
+}
+
+/* ── The Blessed's marks ───────────────────────────────────────────────────
+   The triquetra, standing where the Judge's scales stand and behaving identically: it opens a
+   roster, so it is always a <button> (reading who is marked is looking, not writing) and it wears
+   a count when there is something to count.
+
+   38px, matching the scales rather than the candle. The three are the same INK at roughly the same
+   AREA, not the same height: the candle is a tall narrow taper (0.46 wide) and both of the others
+   are a little wider than tall, so equal heights would give them nearly three times the candle's
+   area and turn the header into a billboard. */
+.stonetop-blessed-marks {
+	position: relative;
+	cursor: pointer;
+	transition: color 0.15s ease;
+}
+
+.stonetop-blessed-marks:hover { color: var(--st-text-body); }
+
+/* A Blessed with marks standing wears them in the green the sheet uses for a live, benign state,
+   where the Judge's brand is near-black — these are blessings, not condemnations, and the colours
+   should not agree. Both flip with the black scope's repaint, since both read a shared token.
+
+   Declared AFTER the base rule: an equal-specificity modifier sitting earlier silently loses the
+   tie, which has bitten this file before. */
+.stonetop-blessed-marks.is-marking { color: var(--st-green-text); }
+
+/* Only the height is stated; the width comes from `aspect-ratio`, which is the cropped drawing's
+   own 472.71 / 417.13 (see triquetra.svg), so the glyph can never be letterboxed inside its own
+   box and resizing stays a one-number change. */
+.stonetop-blessed-marks-icon {
+	display: block;
+	height: 38px;
+	width: auto;
+	aspect-ratio: 472.71 / 417.13;
+	background: currentColor;
+	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/triquetra.svg');
+	mask-image: url('/systems/stonetop-pwd/assets/icons/triquetra.svg');
+	transition: background-color 0.15s ease;
+}
+
+/* ── The Heavy's Battle Joy ────────────────────────────────────────────────
+   The candle's shape rather than the scales': one state, toggled, with no list behind it — so it
+   is a <button> where the sheet is editable and a <span> where it isn't, and it carries no count.
+
+   40px against the scales' 38: the drawing is very nearly square (1.007) where the scales are
+   1.15 wide, so the extra 2px is what keeps the two at the same painted area. */
+.stonetop-battle-joy {
+	transition: color 0.15s ease;
+}
+
+/* Only the editable copy is a button, so only it says "press me". */
+button.stonetop-battle-joy { cursor: pointer; }
+
+/* `:not(.is-raging)` is load-bearing, not tidiness: `button.…:hover` carries an element on top of
+   its class and so OUT-SPECIFIES `.stonetop-battle-joy.is-raging` below, which would drag a raging
+   Heavy's glyph to near-black the moment the pointer touched it. The same trap the candle's hover
+   rule documents. A raging one is left alone under the pointer — it is already at full colour. */
+button.stonetop-battle-joy:not(.is-raging):hover { color: var(--st-text-body); }
+
+.stonetop-battle-joy-icon {
+	display: block;
+	height: 40px;
+	width: auto;
+	aspect-ratio: 475.16 / 471.71;
+	background: currentColor;
+	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/enrage.svg');
+	mask-image: url('/systems/stonetop-pwd/assets/icons/enrage.svg');
+	transition: background-color 0.15s ease;
+}
+
+/* Red, in the sheet's own red token rather than a hand-mixed one, so it comes down with the black
+   scope's repaint like every other red here. Declared AFTER the base rule, per the tie note above. */
+.stonetop-battle-joy.is-raging { color: var(--st-red-text); }
+
+/* The three debility boxes while that rage lasts. They stay TICKED and stop doing anything ("you
+   ignore … the effects of debilities as long as you keep fighting"), so this fades them rather
+   than clearing them — a cleared box would say the debility was gone, and it will bite again the
+   moment the action stops.
+
+   `pointer-events` is deliberately NOT disabled: a Heavy can still take a debility mid-rage (a
+   Death's Door 6- says so outright), and a block you cannot tick would make that impossible. */
+.stonetop-debilities.is-ignored {
+	opacity: 0.45;
+	text-decoration: line-through;
+	text-decoration-color: var(--st-red-text);
+	text-decoration-thickness: 1px;
 }
 
 /* ── Condemned ─────────────────────────────────────────────────────
@@ -7961,7 +8145,8 @@ button.stonetop-holy-light.is-lit:hover {
    `.window-content` padding is zeroed so the body owns its own, which is what lets the drop
    highlight below reach the window's edges rather than leaving an unresponsive frame around a
    target that says "drop here". */
-.stonetop-condemned-dialog .window-content { padding: 0; }
+.stonetop-condemned-dialog .window-content,
+.stonetop-blessed-marks-dialog .window-content { padding: 0; }
 
 /* The whole panel is capped, and the LIST is what gives way inside it — see the list rule below.
    The cap lives here rather than on the window: this is an auto-height AppV1 dialog, so by the
@@ -7969,7 +8154,8 @@ button.stonetop-holy-light.is-lit:hover {
    and fixed a pixel height, and the cap would crop the add row off the bottom instead of making
    anything scroll. Capping the CONTENT means the measurement itself comes back small, so the
    window hugs a sane height on its own. */
-.stonetop-condemned-body {
+.stonetop-condemned-body,
+.stonetop-marks-body {
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
@@ -7982,13 +8168,17 @@ button.stonetop-holy-light.is-lit:hover {
 	transition: box-shadow 0.12s ease;
 }
 
-.stonetop-condemned-body.is-drop-target {
+.stonetop-condemned-body.is-drop-target,
+.stonetop-condemned-section.is-drop-target,
+.stonetop-oath-section.is-drop-target,
+.stonetop-marks-body.is-drop-target {
 	box-shadow: inset 0 0 0 2px var(--st-condemned-border);
 }
 
 /* The Judge's mark over the move text, both centred — a title block, not a row. The image is
    whose move this is; the prose is what it does. */
-.stonetop-condemned-heading {
+.stonetop-condemned-heading,
+.stonetop-marks-heading {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -8002,7 +8192,8 @@ button.stonetop-holy-light.is-lit:hover {
 
    `border: none` is not tidiness: core paints a black 1px border on every <img> inside an
    application, which on a transparent-cornered mark draws a box around empty space. */
-.stonetop-condemned-mark {
+.stonetop-condemned-mark,
+.stonetop-marks-mark {
 	display: block;
 	height: 76px;
 	width: auto;
@@ -8012,7 +8203,8 @@ button.stonetop-holy-light.is-lit:hover {
 	flex: none;
 }
 
-.stonetop-condemned-rule {
+.stonetop-condemned-rule,
+.stonetop-marks-rule {
 	margin: 0;
 	font-size: var(--st-fs-sm);
 	font-style: italic;
@@ -8036,7 +8228,8 @@ button.stonetop-holy-light.is-lit:hover {
    rule to be relying on silently, and losing the overflow for any reason would turn the cap off
    rather than merely change the look. The scrollport is named in the dialog's `scrollY`, so the
    position survives the re-render after each dismissal. */
-.stonetop-condemned-list {
+.stonetop-condemned-list,
+.stonetop-marks-list {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
@@ -8048,7 +8241,8 @@ button.stonetop-holy-light.is-lit:hover {
 	overflow-y: auto;
 }
 
-.stonetop-condemned-row {
+.stonetop-condemned-row,
+.stonetop-marks-row {
 	display: grid;
 	grid-template-columns: auto 1fr auto;
 	align-items: center;
@@ -8061,7 +8255,8 @@ button.stonetop-holy-light.is-lit:hover {
 
 /* The clipping box, so a framed portrait's several-hundred-percent image cannot paint across
    the row — the same shape the sheet headers use (see actor-header.hbs). */
-.stonetop-condemned-portrait {
+.stonetop-condemned-portrait,
+.stonetop-marks-portrait {
 	position: relative;
 	display: block;
 	overflow: hidden;
@@ -8072,7 +8267,8 @@ button.stonetop-holy-light.is-lit:hover {
 	background: rgba(0, 0, 0, 0.06);
 }
 
-.stonetop-condemned-portrait-img {
+.stonetop-condemned-portrait-img,
+.stonetop-marks-portrait-img {
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
@@ -8081,21 +8277,24 @@ button.stonetop-holy-light.is-lit:hover {
 	border: none;
 }
 
-.stonetop-condemned-text {
+.stonetop-condemned-text,
+.stonetop-marks-text {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
 	min-width: 0;
 }
 
-.stonetop-condemned-nameline {
+.stonetop-condemned-nameline,
+.stonetop-marks-nameline {
 	display: flex;
 	align-items: baseline;
 	gap: 6px;
 	min-width: 0;
 }
 
-.stonetop-condemned-name-text {
+.stonetop-condemned-name-text,
+.stonetop-marks-name-text {
 	font-family: var(--font-stonetop);
 	font-weight: 600;
 	color: var(--st-text);
@@ -8104,11 +8303,16 @@ button.stonetop-holy-light.is-lit:hover {
 	white-space: nowrap;
 }
 
-a.stonetop-condemned-name-text { cursor: pointer; }
-a.stonetop-condemned-name-text:hover { text-decoration: underline; }
+a.stonetop-condemned-name-text,
+a.stonetop-marks-name-text { cursor: pointer; }
+a.stonetop-condemned-name-text:hover,
+a.stonetop-marks-name-text:hover { text-decoration: underline; }
 
 .stonetop-condemned-note,
-.stonetop-condemned-note-text {
+.stonetop-condemned-note-text,
+.stonetop-oath-note,
+.stonetop-mark-note,
+.stonetop-marks-note-text {
 	margin: 0;
 	font-size: var(--st-fs-xs);
 	font-style: italic;
@@ -8117,7 +8321,9 @@ a.stonetop-condemned-name-text:hover { text-decoration: underline; }
 
 /* The quiet underline every editable field in this system wears, rather than a grey well —
    a column of wells would out-shout the names they belong to. */
-.stonetop-condemned-note {
+.stonetop-condemned-note,
+.stonetop-oath-note,
+.stonetop-mark-note {
 	width: 100%;
 	height: auto;
 	padding: 1px 0;
@@ -8127,7 +8333,9 @@ a.stonetop-condemned-name-text:hover { text-decoration: underline; }
 	background: none;
 }
 
-.stonetop-condemned-note:focus {
+.stonetop-condemned-note:focus,
+.stonetop-oath-note:focus,
+.stonetop-mark-note:focus {
 	border-bottom-color: var(--st-condemned-border);
 	box-shadow: none;
 	outline: none;
@@ -8135,7 +8343,9 @@ a.stonetop-condemned-name-text:hover { text-decoration: underline; }
 
 /* Core's `body.game .app button { width: 100% }` would stretch this across the row, and its
    `height` would pad it past the portrait — both have to be NAMED to be beaten. */
-.stonetop-condemned-dismiss {
+.stonetop-condemned-dismiss,
+.stonetop-oath-release,
+.stonetop-mark-lift {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -8156,7 +8366,9 @@ a.stonetop-condemned-name-text:hover { text-decoration: underline; }
 	transition: background 0.12s, color 0.12s;
 }
 
-.stonetop-condemned-dismiss:hover {
+.stonetop-condemned-dismiss:hover,
+.stonetop-oath-release:hover,
+.stonetop-mark-lift:hover {
 	background: var(--st-condemned-bg);
 	color: var(--st-condemned-text);
 }
@@ -8176,13 +8388,16 @@ a.stonetop-condemned-name-text:hover { text-decoration: underline; }
    the REAL Pro webfont — a missing-glyph box has its own metrics and measuring one of those gives
    a number for a shape nobody sees. A transform rather than `top`, so it can land sub-pixel
    instead of rounding to a whole one. */
-.stonetop-condemned-dismiss i {
+.stonetop-condemned-dismiss i,
+.stonetop-oath-release i,
+.stonetop-mark-lift i {
 	margin: 0;
 	line-height: 1;
 	transform: translateY(0.62px);
 }
 
-.stonetop-condemned-empty {
+.stonetop-condemned-empty,
+.stonetop-marks-empty {
 	margin: 0;
 	padding: 10px 0;
 	font-style: italic;
@@ -8190,7 +8405,8 @@ a.stonetop-condemned-name-text:hover { text-decoration: underline; }
 	color: var(--st-text-muted);
 }
 
-.stonetop-condemned-add {
+.stonetop-condemned-add,
+.stonetop-marks-add {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -8198,23 +8414,145 @@ a.stonetop-condemned-name-text:hover { text-decoration: underline; }
 	border-top: 1px solid var(--color-border-light-tertiary, #ddd);
 }
 
-.stonetop-condemned-add .stonetop-condemned-name {
+.stonetop-condemned-add .stonetop-condemned-name,
+.stonetop-marks-add .stonetop-marks-name {
 	flex: 1;
 	min-width: 0;
 }
 
-.stonetop-condemned-add-btn {
+.stonetop-condemned-add-btn,
+.stonetop-marks-add-btn {
 	width: auto;
 	min-width: 0;
 	flex: none;
 }
 
-.stonetop-condemned-hint {
+.stonetop-condemned-hint,
+.stonetop-marks-hint {
 	margin: 0;
 	font-size: var(--st-fs-2xs);
 	font-style: italic;
 	text-align: center;
 	color: var(--st-text-muted);
+}
+
+/* ── Sections inside a roster window ───────────────────────────────────────
+   The Judge's window holds two lists (brands, oaths) and the Blessed's holds up to five, so each
+   is a band of its own: heading, the move's own rule, its rows, its add row.
+
+   The padding is what the drop ring needs. Each section is its own drop target (a drop onto the
+   window as a whole could not say which list it meant), and an inset ring drawn tight against the
+   rows reads as a box that has gone wrong rather than as a target. */
+.stonetop-condemned-section,
+.stonetop-oath-section,
+.stonetop-marks-group {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 6px;
+	/* Same inset-ring trick as the body above: appearing and disappearing must cost no layout, or
+	   every row below shuffles as the pointer crosses the section. */
+	box-shadow: inset 0 0 0 2px transparent;
+	transition: box-shadow 0.12s ease;
+}
+
+/* Subordinate to nothing above them but the title block, so they read as labels rather than as
+   headings competing with the window's own: small, tracked, muted, over a hairline that carries
+   the eye across the list they open. The same shape the Crew tab's section headings use. */
+.stonetop-condemned-section-heading,
+.stonetop-marks-group-heading {
+	margin: 0;
+	padding-bottom: 3px;
+	border-bottom: 1px solid var(--st-card-rule);
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-sm);
+	font-weight: 700;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--st-text-secondary);
+}
+
+/* What the move actually does for whoever is on this list, quoted rather than paraphrased. Left
+   aligned where the window's own rule is centred: that one is a title block, this is the top of a
+   list and wants the same left edge the rows have. */
+.stonetop-condemned-section-rule,
+.stonetop-marks-group-rule {
+	margin: 0;
+	font-size: var(--st-fs-2xs);
+	font-style: italic;
+	line-height: 1.35;
+	color: var(--st-text-muted);
+}
+
+/* ── The oath tick ─────────────────────────────────────────────────────────
+   Broken or kept, worn on the name line. Inline with the name rather than under it, because it is
+   part of who this row IS — an oathbreaker is a different row from somebody who simply swore. */
+.stonetop-oath-broken-control {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35em;
+	margin-left: 0.6em;
+	cursor: pointer;
+	font-size: var(--st-fs-2xs);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--st-text-muted);
+	white-space: nowrap;
+}
+
+.stonetop-oath-broken-tag {
+	margin-left: 0.6em;
+	font-size: var(--st-fs-2xs);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--st-red-text);
+	white-space: nowrap;
+}
+
+/* A broken oath is the one state on either list that grants something MECHANICAL (advantage on
+   all rolls against them), so the row says so in the sheet's own red rather than leaving it to a
+   tick box the eye skips. Declared after the base name rule, per the modifier-tie note elsewhere
+   in this file. */
+.stonetop-oath-row.is-broken .stonetop-condemned-name-text,
+.stonetop-oath-row.is-broken .stonetop-oath-broken-label {
+	color: var(--st-red-text);
+	font-weight: 700;
+}
+
+/* ── The Blessed's add row and Loyalty ─────────────────────────────────────
+   The kind picker leads the add row. It must not stretch: the name field is what should take the
+   slack, and a select sharing the growth would leave "Barkskin" adrift in half the window.
+
+   `width: auto` and the min/max pair are both needed, for the reason every other control in this
+   file states them: core's `body.game .app select` sets a width these would otherwise inherit. */
+.stonetop-marks-kind {
+	flex: 0 0 auto;
+	width: auto;
+	min-width: 8em;
+	max-width: 12em;
+}
+
+/* Shared Souls' three circles, on the name line beside the beast. Sized like the Moves sidebar's
+   Readiness pips rather than the Crew tab's, since these sit in running text rather than in a
+   row of their own: 12px reads as punctuation, 16px reads as a control bar. */
+.stonetop-mark-loyalty {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	margin-left: 0.5em;
+}
+
+.stonetop-mark-loyalty-pip {
+	width: 12px;
+	height: 12px;
+}
+
+/* A span rather than a button where the sheet cannot be written to, so it must be told to draw
+   like one: the shared pip rule targets both, but `cursor` would still say "press me". */
+span.stonetop-mark-loyalty-pip {
+	display: inline-block;
+	box-sizing: border-box;
+	cursor: default;
 }
 
 
@@ -17600,6 +17938,77 @@ a.steading-player-open:hover {
 	display: none;
 }
 
+/* ── Concentrating ─────────────────────────────────────────────────────────
+   The banner naming the Invocation being held open, under the rule it is subject to. Painted in
+   the candle's gold family (see --st-holy-light-ink), so the header chip, this, and the card it
+   points at all read as one state in three places.
+
+   Not `.stonetop-invocations-rules`' sibling margin: this tab's spacing is the flex column's own
+   gap (see `.stonetop-gap-managed` on the tab), and the 6px the rules block adds back is for the
+   rule and the grid, not for a band that should sit close under the text it qualifies. */
+.stonetop-invocation-concentrating {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 5px 8px;
+	border: 1px solid var(--st-holy-light-border);
+	border-left-width: 3px;
+	border-radius: var(--st-radius);
+	background: var(--st-holy-light-bg);
+	font-size: var(--st-fs-sm);
+	color: var(--st-holy-light-ink);
+}
+
+.stonetop-invocation-concentrating-text { flex: 1; min-width: 0; }
+
+/* Core's `body.game .app button { width: 100% }` reaches this one too — every property that has
+   to hold is named, the same way the header chip's are. */
+.stonetop-invocation-concentrating .stonetop-invocation-end {
+	flex: none;
+	width: auto;
+	min-width: 0;
+	min-height: 0;
+	height: auto;
+	margin: 0;
+	padding: 1px 10px;
+	border: 1px solid var(--st-holy-light-border);
+	border-radius: 999px;
+	background: transparent;
+	box-shadow: none;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	font-weight: 600;
+	line-height: 1.7;
+	color: var(--st-holy-light-ink);
+	cursor: pointer;
+	transition: background 0.12s, border-color 0.12s;
+}
+
+.stonetop-invocation-concentrating .stonetop-invocation-end:hover {
+	background: var(--st-holy-light-bg-hover);
+	border-color: var(--st-holy-light-ink);
+}
+
+/* The card the banner is talking about. The ordering that matters is against the shared card
+   base, which is much earlier in this file (see `.tab.moves .stonetop-item`); it needs no order
+   against `.is-unknown` below, because the two set disjoint properties — un-ticking an Invocation
+   you are holding open leaves a card that is faded AND lit, which is exactly the right way to
+   read a state that shouldn't exist. The glow is the lit candle's, at card strength. */
+.stonetop-invocation-card.is-concentrating {
+	border-color: var(--st-holy-light-border);
+	background: var(--st-holy-light-bg);
+	box-shadow: 0 0 0 1px var(--st-holy-light-border), 0 0 8px var(--st-holy-light-glow-soft);
+}
+
+/* The badge that replaces "Ongoing" on that card — same pill as the type badge it stands in for
+   (`.stonetop-item-source`), repainted so it reads as ON rather than as a category. */
+.stonetop-invocation-active {
+	border-color: var(--st-holy-light-border);
+	background: var(--st-holy-light-bg-hover);
+	color: var(--st-holy-light-ink);
+	cursor: help;
+}
+
 /* An un-learned Invocation reads as what it is, without being hidden. It matters more than
    it looks: the whole list is on this tab (a 1st-level Lightbearer knows 2 of 10), the two
    states used to differ by nothing but a disabled checkbox, and only a LEARNED one is
@@ -17684,6 +18093,29 @@ a.steading-player-open:hover {
 .stonetop-invoke-dialog .stonetop-invoke-nolight i {
 	margin-right: 4px;
 	color: rgba(176, 128, 24, 0.9);
+}
+
+/* What using this Invocation does to the one already running. `.is-ending` is the half that
+   costs something — an Invocation is about to stop — so it gets the band and the ink, while the
+   plain "this one is ongoing" case stays a quiet note like the no-light line above it. Neither
+   blocks the roll: swapping Invocations is legal and ordinary, it just has to be a decision. */
+.stonetop-invoke-dialog .stonetop-invoke-ongoing {
+	margin: 8px 0 0;
+	color: var(--st-text-secondary);
+	font-size: 0.95em;
+}
+
+.stonetop-invoke-dialog .stonetop-invoke-ongoing i {
+	margin-right: 4px;
+	color: rgba(176, 128, 24, 0.9);
+}
+
+.stonetop-invoke-dialog .stonetop-invoke-ongoing.is-ending {
+	padding: 4px 8px;
+	border-left: 3px solid var(--st-holy-light-border);
+	border-radius: 0 var(--st-radius) var(--st-radius) 0;
+	background: var(--st-holy-light-bg);
+	color: var(--st-holy-light-ink);
 }
 
 /* ---- Collapsible tab search (Moves, Arcana) -----------------------------

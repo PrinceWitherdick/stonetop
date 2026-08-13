@@ -42,7 +42,11 @@ import {StonetopFlags, STONETOP_SCOPE, ITEM_FLAG_SCOPE, resolvedFlags, resolvedF
 import {DEATHS_DOOR_FLAG, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
 import {heroDisplayName, WBH_HERO_FLAG, ownsAsteriskMove} from "./WouldBeHeroAsterisk.js";
 import {HOLY_LIGHT_FLAG, canWieldHolyLight} from "./holy-light.js";
+import {ONGOING_INVOCATION_FLAG, readOngoing} from "./ongoing-invocation.js";
 import {CONDEMNED_FLAG, canCondemn, readCondemned, addCondemned, removeCondemned, noteCondemned} from "./condemn.js";
+import {OATHS_FLAG, canBindOaths, readOaths, addOath, removeOath, noteOath, setOathBroken} from "./oaths.js";
+import {BLESSED_MARKS_FLAG, canMarkBlessed, readMarks, addMark, removeMark, noteMark, setMarkLoyalty} from "./blessed-marks.js";
+import {BATTLE_JOY_FLAG, BATTLE_JOY, canEnterBattleJoy, ignoresDebilities} from "./battle-joy.js";
 import {CharacterBackgrounds} from "./CharacterBackgrounds.js";
 import {CharacterInstincts} from "./CharacterInstincts.js";
 import {CharacterAppearance} from "./CharacterAppearance.js";
@@ -258,6 +262,11 @@ const _DEFEND_READINESS_FLAG = "readiness";
 function _ownedShieldLoadReduction(actor) {
 	return _sumLearnedMoveField(actor, "shieldLoadReduction");
 }
+
+// The id seed every standing-list row is minted with (see _rosterWrite). One width, in one place,
+// because the rows are addressed by it: three call sites each passing their own length is how two
+// of the rosters come to disagree about how unique a row id is.
+const newRosterId = () => foundry.utils.randomID(16);
 
 export class StonetopCharacter {
 	constructor(actor, repos) {
@@ -2020,6 +2029,12 @@ export class StonetopCharacter {
 		const isDescription = event.currentTarget.getAttribute("data-show") === "description";
 		const descriptionOnly = isDescription || (item.type === "npcMove" && !item.system.rollFormula);
 
+		// Battle Joy's only roll is its ENDING ("when the action stops, roll +CON"), so making it is
+		// leaving the state. Dropped before the options below are built, which is what puts the
+		// character's debilities back in play for this roll and no earlier — see
+		// applyDebilityRollMode. Reading the move's text is not rolling it, hence the guard.
+		if (!descriptionOnly) await this._endBattleJoyBeforeRoll(item);
+
 		// Clash / Let Fly: capture the targeted foes + chosen weapon and, for a hit, attach
 		// the tier-gated Roll-damage action — or resolve a Let Fly "easy shot" with no roll.
 		// Returns null for non-attack moves. See module/combat/attack-flow.js.
@@ -2120,17 +2135,76 @@ export class StonetopCharacter {
 	 *  update and broadcasts nothing to the other clients. */
 	async setHolyLight(lit) {
 		const next = !!lit;
-		if (next === this.holyLight) return false;
+		// The Invocation goes out with the light — "it will end immediately if your holy light is
+		// extinguished". Enforced HERE rather than at the one button that snuffs a flame, so no
+		// future way of putting a light out can strand a Lightbearer concentrating on nothing.
+		// Anyone who wants to SAY what stopped reads `ongoingInvocation` before calling.
+		const droppedInvocation = !next && !!this.ongoingInvocation && await this.setOngoingInvocation("");
+		if (next === this.holyLight) return droppedInvocation;
 		if (next) await this._actor.setFlag(STONETOP_SCOPE, HOLY_LIGHT_FLAG, true);
 		else      await this._actor.unsetFlag(STONETOP_SCOPE, HOLY_LIGHT_FLAG);
 		return true;
+	}
+
+	// -- The ongoing Invocation (what the Lightbearer is concentrating on) -------------
+
+	/** The slug of the Invocation being held open, or "" for none. See ongoing-invocation.js
+	 *  for why this is one slug and not a list, and why the label isn't stored beside it. */
+	get ongoingInvocation() {
+		return readOngoing(this._actor.getFlag(STONETOP_SCOPE, ONGOING_INVOCATION_FLAG));
+	}
+
+	/** Start concentrating on an Invocation, or end it with "". Same contract as setHolyLight:
+	 *  true only when something actually changed, so renewing the Invocation already running
+	 *  writes nothing and broadcasts nothing. */
+	async setOngoingInvocation(slug) {
+		const next = readOngoing(slug);
+		if (next === this.ongoingInvocation) return false;
+		// Unset rather than storing "": an Invocation that has ended should leave no trace on the
+		// actor, the same way a snuffed light doesn't.
+		if (next) await this._actor.setFlag(STONETOP_SCOPE, ONGOING_INVOCATION_FLAG, next);
+		else      await this._actor.unsetFlag(STONETOP_SCOPE, ONGOING_INVOCATION_FLAG);
+		return true;
+	}
+
+	// -- The standing lists (Condemn, oaths, the Blessed's marks) -----------------------
+	//
+	// Three rosters, one storage contract, so the contract is written once here and each feature's
+	// writers below are a single line naming their own flag and their own roster operation. The
+	// list algebra itself lives in marked-people.js; these two are only its binding to the actor.
+
+	/** One standing list's raw stored value, for handing to that roster's operations. */
+	_rosterRaw(flag) {
+		return this._actor.getFlag(STONETOP_SCOPE, flag);
+	}
+
+	/**
+	 * Commit a roster operation's result and hand back what it did, or null when it did nothing.
+	 *
+	 * Two rules live here, and ONLY here, for all three lists:
+	 *
+	 * ⚠ The store is a flag ARRAY, and Foundry's update merge treats an array as an ATOMIC value —
+	 * so the write hands over the WHOLE list rather than reaching into a slot. A dotted
+	 * `condemned.2.note` does not patch element 2: it expands to `{ condemned: { 2: … } }` and
+	 * replaces the array with an object, destroying the roster. Same rule, for the same reason, as
+	 * roster-portraits.js — read its header note before changing this.
+	 *
+	 * And: an operation that changed nothing writes NOTHING. Re-Censuring somebody already branded
+	 * would otherwise broadcast an update and re-render every open sheet to store what was already
+	 * there.
+	 */
+	async _rosterWrite(flag, { entries, added, removed, changed }) {
+		const result = added ?? removed ?? changed ?? null;
+		if (!result) return null;
+		await this._actor.setFlag(STONETOP_SCOPE, flag, entries);
+		return result;
 	}
 
 	// -- Condemn (the Judge's brand) --------------------------------------------------
 
 	/** Everyone this Judge is holding a brand on, normalised. See condemn.js for the shape. */
 	get condemned() {
-		return readCondemned(this._actor.getFlag(STONETOP_SCOPE, CONDEMNED_FLAG));
+		return readCondemned(this._rosterRaw(CONDEMNED_FLAG));
 	}
 
 	/** Whether this character owns Condemn — what earns the scales in the header. */
@@ -2139,44 +2213,145 @@ export class StonetopCharacter {
 	}
 
 	/**
-	 * ⚠ The store is a flag ARRAY, and Foundry's update merge treats an array as an ATOMIC value —
-	 * so every write here hands over the WHOLE list rather than reaching into a slot. A dotted
-	 * `condemned.2.note` does not patch element 2: it expands to `{ condemned: { 2: … } }` and
-	 * replaces the array with an object, destroying the roster. Same rule, for the same reason, as
-	 * roster-portraits.js — read its header note before changing any of the three writers below.
-	 */
-	async _writeCondemned(entries) {
-		await this._actor.setFlag(STONETOP_SCOPE, CONDEMNED_FLAG, entries);
-	}
-
-	/**
 	 * Brand somebody. Returns the stored entry, or null when the list was left alone — which is
-	 * either a nameless target or one already branded. Nothing is written in that case, so
-	 * re-Censuring the same person broadcasts no update and re-renders no sheets.
+	 * either a nameless target or one already branded.
 	 */
 	async brandCondemned(entry) {
-		const { entries, added } = addCondemned(
-			this._actor.getFlag(STONETOP_SCOPE, CONDEMNED_FLAG), entry, () => foundry.utils.randomID(16),
-		);
-		if (!added) return null;
-		await this._writeCondemned(entries);
-		return added;
+		return this._rosterWrite(CONDEMNED_FLAG,
+			addCondemned(this._rosterRaw(CONDEMNED_FLAG), entry, newRosterId));
 	}
 
 	/** Dismiss one brand — the only way it ever ends. Returns the entry that was lifted, or null. */
 	async dismissCondemned(id) {
-		const { entries, removed } = removeCondemned(this._actor.getFlag(STONETOP_SCOPE, CONDEMNED_FLAG), id);
-		if (!removed) return null;
-		await this._writeCondemned(entries);
-		return removed;
+		return this._rosterWrite(CONDEMNED_FLAG, removeCondemned(this._rosterRaw(CONDEMNED_FLAG), id));
 	}
 
 	/** Re-word why somebody is branded. Returns the patched entry, or null when nothing changed. */
 	async setCondemnedNote(id, note) {
-		const { entries, changed } = noteCondemned(this._actor.getFlag(STONETOP_SCOPE, CONDEMNED_FLAG), id, note);
-		if (!changed) return null;
-		await this._writeCondemned(entries);
-		return changed;
+		return this._rosterWrite(CONDEMNED_FLAG, noteCondemned(this._rosterRaw(CONDEMNED_FLAG), id, note));
+	}
+
+	// -- Oaths (the Judge's Binding Arbitration) ---------------------------------------
+	// The Judge's SECOND standing list, kept beside the first and shown in the same window.
+
+	/** Every oath this Judge is holding somebody to, normalised. See oaths.js for the shape. */
+	get oaths() {
+		return readOaths(this._rosterRaw(OATHS_FLAG));
+	}
+
+	/** Whether this character owns Binding Arbitration — the other thing that earns the scales. */
+	get canBindOaths() {
+		return canBindOaths(this._actor);
+	}
+
+	/**
+	 * Witness an oath. Returns the stored entry, or null when the list was left alone — a nameless
+	 * swearer, or one already on the list.
+	 */
+	async witnessOath(entry) {
+		return this._rosterWrite(OATHS_FLAG, addOath(this._rosterRaw(OATHS_FLAG), entry, newRosterId));
+	}
+
+	/** Release somebody from an oath — the only way it ends. Returns the entry lifted, or null. */
+	async releaseOath(id) {
+		return this._rosterWrite(OATHS_FLAG, removeOath(this._rosterRaw(OATHS_FLAG), id));
+	}
+
+	/** Re-word what somebody swore. Returns the patched entry, or null when nothing changed. */
+	async setOathNote(id, note) {
+		return this._rosterWrite(OATHS_FLAG, noteOath(this._rosterRaw(OATHS_FLAG), id, note));
+	}
+
+	/** Mark an oath kept or broken — a broken one is advantage on all rolls against them. */
+	async setOathBroken(id, broken) {
+		return this._rosterWrite(OATHS_FLAG, setOathBroken(this._rosterRaw(OATHS_FLAG), id, broken));
+	}
+
+	// -- The Blessed's marks -----------------------------------------------------------
+	// Five moves, one list, each row carrying WHICH of the five it is.
+
+	/** Every mark this Blessed has standing, normalised. See blessed-marks.js for the shape. */
+	get blessedMarks() {
+		return readMarks(this._rosterRaw(BLESSED_MARKS_FLAG));
+	}
+
+	/** Whether this character owns any of the five marking moves — what earns the header glyph. */
+	get canMarkBlessed() {
+		return canMarkBlessed(this._actor);
+	}
+
+	/** Lay a mark. Returns the stored entry, or null for a nameless or already-marked subject. */
+	async layBlessedMark(entry) {
+		return this._rosterWrite(BLESSED_MARKS_FLAG,
+			addMark(this._rosterRaw(BLESSED_MARKS_FLAG), entry, newRosterId));
+	}
+
+	/** Lift a mark. Returns the entry lifted, or null when the id matched nothing. */
+	async liftBlessedMark(id) {
+		return this._rosterWrite(BLESSED_MARKS_FLAG, removeMark(this._rosterRaw(BLESSED_MARKS_FLAG), id));
+	}
+
+	/** Re-word what a mark is for. Returns the patched entry, or null when nothing changed. */
+	async setBlessedMarkNote(id, note) {
+		return this._rosterWrite(BLESSED_MARKS_FLAG, noteMark(this._rosterRaw(BLESSED_MARKS_FLAG), id, note));
+	}
+
+	/**
+	 * Spend or restore a Shared Souls beast's Loyalty.
+	 *
+	 * The one writer with something to say beyond the shared contract: it returns `{ changed, ended }`,
+	 * where `ended` is the move's own stopping condition — "when you spend its last Loyalty, the
+	 * effect ends". Whether the row GOES with it is the caller's to ask for (`liftOnEnd`), so the
+	 * announcement still belongs to the dialog; when it does ask, the removal rides the same write
+	 * rather than storing and broadcasting an exhausted row first.
+	 */
+	async setBlessedMarkLoyalty(id, loyalty, options = {}) {
+		const result = setMarkLoyalty(this._rosterRaw(BLESSED_MARKS_FLAG), id, loyalty, options);
+		const changed = await this._rosterWrite(BLESSED_MARKS_FLAG, result);
+		return { changed, ended: changed ? result.ended : false };
+	}
+
+	// -- Battle Joy (the Heavy) ---------------------------------------------------------
+
+	/** Is this character lost in their Battle Joy? A scalar, for the reason holyLight is. */
+	get battleJoy() {
+		return !!this._actor.getFlag(STONETOP_SCOPE, BATTLE_JOY_FLAG);
+	}
+
+	/** Whether this character owns Battle Joy — what earns the glyph in the header. */
+	get canEnterBattleJoy() {
+		return canEnterBattleJoy(this._actor);
+	}
+
+	/**
+	 * Whether the three debility boxes are presently doing nothing — "you ignore … the effects of
+	 * debilities as long as you keep fighting". Read by the roll path below and by the sheet, which
+	 * greys the boxes out, so the tick and the roll can never disagree about whether it applies.
+	 */
+	get ignoresDebilities() {
+		return ignoresDebilities({ raging: this.battleJoy });
+	}
+
+	/** Returns true only when the flag actually changed, so a caller can skip a re-render. */
+	async setBattleJoy(raging) {
+		const next = !!raging;
+		if (next === this.battleJoy) return false;
+		if (next) await this._actor.setFlag(STONETOP_SCOPE, BATTLE_JOY_FLAG, true);
+		else      await this._actor.unsetFlag(STONETOP_SCOPE, BATTLE_JOY_FLAG);
+		return true;
+	}
+
+	/**
+	 * Matched on the resolved ITEM's name, never on a row's text: an un-owned playbook row posts its
+	 * text with no item at all, and a player-authored custom move can carry any name.
+	 *
+	 * Returns whether it actually ended something, so the sheet knows whether this roll was the end
+	 * of a rage (and can repaint the glyph) or an ordinary Battle Joy roll by somebody who never
+	 * ticked it on.
+	 */
+	async _endBattleJoyBeforeRoll(item) {
+		if (item?.name !== BATTLE_JOY) return false;
+		return this.setBattleJoy(false);
 	}
 
 	// Raise the held Readiness to the amount this Defend tier grants, never lowering an
@@ -2279,6 +2454,20 @@ export class StonetopCharacter {
 		return true;
 	}
 
+	/**
+	 * Turn a marked debility into disadvantage on the rolls it touches, and say on the card which
+	 * one did it. THE one place a debility affects a roll — which is why the Heavy's Battle Joy is
+	 * enforced here rather than at each of the four callers.
+	 *
+	 * "You ignore fear, pain, mind-control, and the effects of debilities as long as you keep
+	 * fighting." So a raging Heavy's boxes stay ticked (they are still weakened; they are simply
+	 * past caring) and the roll goes out clean — with a pill saying so, because a player who has
+	 * forgotten they are in it would otherwise read the missing disadvantage as a bug.
+	 *
+	 * The move's OWN roll is exempt by construction: rolling Battle Joy is "when the action stops",
+	 * and the sheet drops the state before that roll is built (see _endBattleJoyBeforeRoll), so the
+	 * debility applies to it exactly as the rules say.
+	 */
 	applyDebilityRollMode(stat, options) {
 		const debilityOptions = this._actor.system.attributes?.debilities?.options ?? {};
 		const activeEntry = Object.entries(debilityOptions).find(
@@ -2291,6 +2480,12 @@ export class StonetopCharacter {
 		if (!activeEntry) return options;
 		const [key] = activeEntry;
 		const def = _DEBILITY_DEF_BY_KEY[key];
+		// Battle Joy: the debility is marked and does nothing. Named on the card rather than left
+		// silent, and the roll mode is passed through UNTOUCHED — including an advantage the
+		// debility would otherwise have cancelled, which is the point of ignoring it.
+		if (this.ignoresDebilities) {
+			return { ...options, stonetopDebilityIgnored: BATTLE_JOY, stonetopDebilityIgnoredName: def?.name ?? key };
+		}
 		const base = { ...options, stonetopDebility: def?.name ?? key, stonetopDebilityTooltip: def?.description ?? "" };
 		if (options.rollMode === "adv") return { ...base, rollMode: "normal" };
 		return { ...base, rollMode: "dis" };

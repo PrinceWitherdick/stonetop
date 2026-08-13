@@ -63,8 +63,15 @@ import {withSectionEditing} from "../../utils/section-editing.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {annotateInvocationEffects, splitEmpoweredEffect} from "./invocation-effects.js";
 import {CONSECRATED_FLAME, INVOKE_THE_SUN_GOD, EMPOWERED_INVOCATIONS, ownsMoveNamed, showHolyLight} from "./holy-light.js";
-import {showCondemn, condemnedContext, CONDEMN, CENSURE} from "./condemn.js";
+import {invocationLabel, invokeNotice, readOngoing, resolveInvocationUse} from "./ongoing-invocation.js";
+import {showJudgeMarks, condemnedContext, CONDEMN, CENSURE} from "./condemn.js";
+import {BINDING_ARBITRATION} from "./oaths.js";
 import {CondemnedDialog} from "./dialogs/CondemnedDialog.js";
+import {showBattleJoy, BATTLE_JOY} from "./battle-joy.js";
+import {
+	showBlessedMarks, BARKSKIN, TRACKLESS_STEP, SHARED_SOULS, AMULETS_TALISMANS, WARDS_BINDINGS,
+} from "./blessed-marks.js";
+import {BlessedMarksDialog} from "./dialogs/BlessedMarksDialog.js";
 import {wrapGlyphTextContainers} from "../../utils/glyphs.js";
 import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {canAuthorCustomMoves, canCreateArcana} from "../../utils/authoring-gates.js";
@@ -329,14 +336,101 @@ const EXPEDITION_MOVE_HANDLERS = {
 // with no item id at all, and a player-authored custom move can carry any name. Each handler
 // does its own gating (editable, owns the move that grants the effect).
 const MOVE_USE_EFFECTS = {
-	[CONSECRATED_FLAME]: sheet => sheet._consecrateFlame(),
-	[CONDEMN]:           sheet => sheet._openCondemnedIfJudge(),
-	[CENSURE]:           sheet => sheet._openCondemnedIfJudge(),
+	[CONSECRATED_FLAME]:  sheet => sheet._consecrateFlame(),
+	[CONDEMN]:            sheet => sheet._openCondemnedIfJudge(),
+	[CENSURE]:            sheet => sheet._openCondemnedIfJudge(),
+	[BINDING_ARBITRATION]: sheet => sheet._openCondemnedIfJudge(),
+	// The Blessed's three description-only marking moves. Using one IS laying a mark, and a
+	// Blessed handed no way to write it down is back to keeping the list in their head.
+	[BARKSKIN]:           sheet => sheet._openBlessedMarksIfBlessed(),
+	[TRACKLESS_STEP]:     sheet => sheet._openBlessedMarksIfBlessed(),
+	[SHARED_SOULS]:       sheet => sheet._openBlessedMarksIfBlessed(),
 };
+
+// The same idea for moves that ROLL: their use does not fall through to the post-it-to-chat tail,
+// so MOVE_USE_EFFECTS never sees them. Only the Blessed's two +INT marking moves are here — both
+// lay something that stands afterwards, and both are ordinary fixed-stat rolls, so consulting this
+// once the roll has resolved catches every way of making them. BOTH roll entry points do it: the
+// Moves tab's click and rollMoveById, which is where a move on the hotbar arrives.
+const MOVE_ROLL_EFFECTS = {
+	[AMULETS_TALISMANS]: sheet => sheet._openBlessedMarksIfBlessed(),
+	[WARDS_BINDINGS]:    sheet => sheet._openBlessedMarksIfBlessed(),
+};
+
+/** Which sentence the scales' tooltip says, given what the Judge is actually holding. */
+function _judgeMarksTooltipKey(brands, oaths) {
+	if (brands && oaths) return "stonetop.condemn.bothTooltip";
+	if (brands) return "stonetop.condemn.someTooltip";
+	if (oaths) return "stonetop.condemn.oathsTooltip";
+	return "stonetop.condemn.noneTooltip";
+}
+
+/**
+ * What the two TOGGLE glyphs in the header say, per state. The candle and the Battle Joy are the
+ * same control twice — one state, flipped, with a read-only face for a viewer who cannot write —
+ * and the only thing that differs between them is these six strings.
+ *
+ * Spelled out per glyph rather than derived from a stem because the two key families are not
+ * symmetric (`litLabel` against `onLabel`, `readOnlyLit` against `readOnlyOn`). Naming them once
+ * here is what lets the markup be shared; renaming the keys to match would be a bigger change to
+ * make in the language files than it saves.
+ */
+const HOLY_LIGHT_GLYPH = {
+	label:    { on: "stonetop.holyLight.litLabel",    off: "stonetop.holyLight.unlitLabel" },
+	tooltip:  { on: "stonetop.holyLight.litTooltip",  off: "stonetop.holyLight.unlitTooltip" },
+	readOnly: { on: "stonetop.holyLight.readOnlyLit", off: "stonetop.holyLight.readOnlyUnlit" },
+};
+const BATTLE_JOY_GLYPH = {
+	label:    { on: "stonetop.battleJoy.onLabel",     off: "stonetop.battleJoy.offLabel" },
+	tooltip:  { on: "stonetop.battleJoy.onTooltip",   off: "stonetop.battleJoy.offTooltip" },
+	readOnly: { on: "stonetop.battleJoy.readOnlyOn",  off: "stonetop.battleJoy.readOnlyOff" },
+};
+
+/**
+ * Which of a toggle glyph's sentences apply right now.
+ *
+ * Picked here rather than branched in the template: it is a FOUR-way choice — on or off, crossed
+ * with writable or read-only — and four nested `{{#if}}`s inside an HTML attribute is exactly how
+ * these two glyphs came to be written out in full twice over.
+ */
+function _toggleGlyphKeys(keys, on, editable) {
+	const state = on ? "on" : "off";
+	return { labelKey: keys.label[state], tooltipKey: (editable ? keys.tooltip : keys.readOnly)[state] };
+}
 
 // Inventory slugs that hold "uses of supplies", in the order Recover depletes
 // them. Mirrors _PROSPERITY_RESOURCE_SLUGS in StonetopCharacter.js.
 const RECOVER_SUPPLY_SLUGS = ["supplies", "more-supplies", "even-more-supplies"];
+
+// What the invoke window says about the Invocation already running, keyed by the kinds
+// invokeNotice reports. The whole point of the window growing this line: the rule that one
+// Invocation ends another is enforced silently a beat later, and a player who has forgotten what
+// they were holding would only find out by noticing it stopped working in the fiction.
+//
+// Only "start" is a plain statement; the other three name a cost that is about to be paid, so
+// each says WHICH Invocation is at stake rather than "your ongoing Invocation" — hence the
+// {name} placeholder in three of the four.
+//
+// Localised, unlike this file's roll-card flavor: nothing persists these sentences and nothing
+// parses them back (the reason the tier text is an English literal is that a settled roll card's
+// flavor is stored and re-read by the GM's Shift Up/Down — see roll-engine `_shiftRollCardFlavor`).
+// A window that explains what a chip means has to speak the same language as the chip.
+const INVOCATION_NOTICE_KEYS = {
+	start:     "stonetop.invocations.noticeStart",
+	renew:     "stonetop.invocations.noticeRenew",
+	replace:   "stonetop.invocations.noticeReplace",
+	interrupt: "stonetop.invocations.noticeInterrupt",
+};
+
+// Why an Invocation stopped, said in the chat card that reports it. The Invocation ending is a
+// thing that happens in the fiction — a wall of light drops, a blinding glare gutters — so unlike
+// the candle (a tracker correction, which posts nothing) every ending is spoken aloud. The two
+// reasons are whole sentences rather than a stem plus a suffix, so a translator can put the
+// because-clause wherever their language wants it.
+const INVOCATION_ENDED_KEYS = {
+	byHand: "stonetop.invocations.endedByHand",
+	light:  "stonetop.invocations.endedLight",
+};
 
 // Rides an Invocation's chat card when the player bought the empowered effect, so the
 // table can see the price was paid rather than inferring it from the stronger text.
@@ -655,6 +749,9 @@ export function createStonetopCharacterSheetClass(Base) {
 	return class StonetopCharacterSheet extends withSectionEditing(withSheetSizeMemory(Base)) {
 		_stonetopCharacter;
 		_editMode = false;
+		// The playbook's Invocation list as of the last render, so a click can name one without
+		// re-reading the playbook document. Empty until then, and for everyone but a Lightbearer.
+		_invocationOptions = [];
 
 		constructor(...args) {
 			super(...args);
@@ -1390,16 +1487,56 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.holyLight = {
 				show: showHolyLight({ owns: this._stonetopCharacter.canWieldHolyLight, lit: holyLit }),
 				lit:  holyLit,
+				..._toggleGlyphKeys(HOLY_LIGHT_GLYPH, holyLit, context.editable),
 			};
-			// The header scales, on the same terms: shown once the Judge owns Condemn, and kept on a
-			// sheet that no longer does while brands are still standing, so they can be dismissed.
-			// `count` is what the tooltip says and what the badge shows; the roster itself is read
-			// fresh by the dialog rather than carried through here, since it is the dialog that
-			// re-renders when it changes.
+			// And what that light is currently shaped into. In the HEADER, not only on the
+			// Invocations tab: the tab is one of nine, an ongoing Invocation lasts until something
+			// ends it, and the player who most needs to see it is the one whose sheet is sitting on
+			// Moves reaching for the next thing to do.
+			context.stonetop.ongoingInvocation = this._ongoingInvocationContext();
+			// The header scales, on the same terms: shown once the Judge owns Condemn or Binding
+			// Arbitration, and kept on a sheet that no longer does while rows are still standing, so
+			// they can be lifted. The two lists are read fresh by the dialog rather than carried
+			// through here, since it is the dialog that re-renders when they change.
+			//
+			// The BADGE is the total of both, because it answers "how much am I holding" at a
+			// glance; the tooltip breaks it down. Only the brands turn the glyph red — a brand is a
+			// public mark of chaos, an oath is a promise somebody made, and colouring them alike
+			// would say the Judge had condemned everyone who ever swore anything.
 			const brands = this._stonetopCharacter.condemned;
+			const oaths  = this._stonetopCharacter.oaths;
 			context.stonetop.condemn = {
-				show:  showCondemn({ owns: this._stonetopCharacter.canCondemn, count: brands.length }),
-				count: brands.length,
+				show: showJudgeMarks({
+					ownsCondemn: this._stonetopCharacter.canCondemn, brandCount: brands.length,
+					ownsOaths:   this._stonetopCharacter.canBindOaths, oathCount: oaths.length,
+				}),
+				count:  brands.length + oaths.length,
+				brands: brands.length,
+				oaths:  oaths.length,
+				// Picked here rather than branched in the template: "2 branded, 0 sworn" is a worse
+				// sentence than "2 bearing your brand", and four nested {{#if}}s in an attribute is
+				// a worse template. The key is resolved by the `localize` helper, which formats
+				// with the hash arguments beside it.
+				tooltipKey: _judgeMarksTooltipKey(brands.length, oaths.length),
+			};
+			// The Heavy's Battle Joy. `raging` is not only a glyph state: it is what greys the three
+			// debility boxes out on the Moves tab and what stops them biting in the roll path, so
+			// the same read feeds both (see StonetopCharacter#ignoresDebilities).
+			const raging = this._stonetopCharacter.battleJoy;
+			context.stonetop.battleJoy = {
+				show:   showBattleJoy({ owns: this._stonetopCharacter.canEnterBattleJoy, raging }),
+				raging,
+				..._toggleGlyphKeys(BATTLE_JOY_GLYPH, raging, context.editable),
+			};
+			// And the Blessed's marks, on the candle's and the scales' terms exactly.
+			const marks = this._stonetopCharacter.blessedMarks;
+			context.stonetop.blessedMarks = {
+				show:  showBlessedMarks({ owns: this._stonetopCharacter.canMarkBlessed, count: marks.length }),
+				count: marks.length,
+				// Picked here for the reason the scales' is, and so that the two COUNT glyphs answer
+				// the question the same way — this one had kept an inline template ladder while the
+				// scales resolved theirs in JS, which is how the pair drifted apart.
+				tooltipKey: marks.length ? "stonetop.blessedMarks.someTooltip" : "stonetop.blessedMarks.noneTooltip",
 			};
 			// And the other side of it: a brand this character is WEARING. A PC is as Censurable as
 			// anyone — Aratis does not exempt the party — and condemnersOf already skips self, so a
@@ -2410,9 +2547,16 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		_buildInvocationsData(playbookDoc) {
 			const raw = playbookDoc?.invocations;
+			// The playbook's own option list, kept for the paths that need to name an Invocation
+			// without rebuilding the tab: the click handler, the header chip, and the chat line
+			// that says which one just ended. Stashed BEFORE the early return, so a sheet whose
+			// playbook no longer has Invocations still gets an (empty) list rather than a stale one
+			// left over from the playbook it used to have.
+			this._invocationOptions = raw?.options ?? [];
 			if (!raw?.options?.length) return null;
 			const selected = new Set(this.actor.getFlag(STONETOP_SCOPE, "invocations.selected") ?? []);
 			const showEffectTips = getHoverDescriptionSetting("hoverDescriptionsInvocations");
+			const ongoingSlug = this._stonetopCharacter.ongoingInvocation;
 			const options = raw.options.map(opt => {
 				const description = opt.description ?? "";
 				return {
@@ -2421,6 +2565,10 @@ export function createStonetopCharacterSheetClass(Base) {
 					description: showEffectTips ? annotateInvocationEffects(description) : description,
 					known:       selected.has(opt.slug),
 					ongoing:     !!opt.ongoing,
+					// `ongoing` is what this Invocation IS; `active` is what it is DOING. Only one
+					// card can carry `active`, and it replaces the type badge there — a card that is
+					// visibly running does not also need telling that it is the running kind.
+					active:      !!ongoingSlug && opt.slug === ongoingSlug,
 				};
 			});
 			const sort = this.actor.getFlag(STONETOP_SCOPE, "invocationsSort") ?? "known";
@@ -2438,8 +2586,23 @@ export function createStonetopCharacterSheetClass(Base) {
 				hideUnknown:   this.actor.getFlag(STONETOP_SCOPE, "hideUnknownInvocations") ?? false,
 				sortKnown:     sort === "known",
 				sortAlpha:     sort === "alpha",
+				// The banner over the grid. Named here as well as on its own card because the
+				// hide-un-learned toggle and the search can both push that card out of sight, and
+				// the rule the banner restates is the one that costs you an Invocation.
+				concentrating: this._ongoingInvocationContext(),
 				options,
 			};
+		}
+
+		/** The Invocation being held open, for the header chip and the tab's banner. */
+		_ongoingInvocationContext() {
+			const slug = readOngoing(this._stonetopCharacter.ongoingInvocation);
+			return { active: !!slug, slug, label: this._invocationLabel(slug) };
+		}
+
+		/** An Invocation's printed name, from whichever playbook the last render read. */
+		_invocationLabel(slug) {
+			return invocationLabel(slug, this._invocationOptions);
 		}
 
 		// Every candidate row for the Details tab's Relationships section, in display
@@ -2785,6 +2948,9 @@ export function createStonetopCharacterSheetClass(Base) {
 					if (situational === null) return;
 				}
 				const handled = await this._stonetopCharacter.onRoll({ currentTarget: rollable }, { situational });
+				// What rolling this move DOES beyond the roll — see MOVE_ROLL_EFFECTS. Only after
+				// the roll actually happened, so a cancelled weapon/target prompt opens nothing.
+				if (handled) await this._onRollableRolled(rollable);
 				if (!handled) {
 					const roll = rollable.dataset.roll;
 					if (!roll) return;
@@ -3532,11 +3698,21 @@ export function createStonetopCharacterSheetClass(Base) {
 			// The header candle. `button.` on purpose: the read-only copy is a <span> and must
 			// not be wired, so nothing offers a click that would do nothing.
 			html.find("button.stonetop-holy-light").on("click", this._onHolyLightToggle.bind(this));
+			// "End it" — one class, wired once, wherever it is drawn: the header chip beside the
+			// candle and the banner over the Invocations grid are the same control in two places a
+			// player might look for it. Only ever rendered where the sheet is editable.
+			html.find("button.stonetop-invocation-end").on("click", this._onEndOngoingInvocation.bind(this));
 			// The header scales. Unlike the candle this is wired for READERS too — the span/button
 			// split is about who may WRITE, and opening a list of who has been branded is looking,
 			// not writing. The dialog itself withholds its add and dismiss controls (see
 			// CondemnedDialog), so a player reading a GM's Judge gets the roster and nothing else.
 			html.find(".stonetop-condemn").on("click", this._onCondemnOpen.bind(this));
+			// The Blessed's triquetra, on the same terms as the scales: a reader may open the
+			// roster, and the dialog withholds the writing.
+			html.find(".stonetop-blessed-marks").on("click", this._onBlessedMarksOpen.bind(this));
+			// The Heavy's Battle Joy, on the CANDLE's terms: `button.` on purpose, since the
+			// read-only copy is a <span> and must not be wired.
+			html.find("button.stonetop-battle-joy").on("click", this._onBattleJoyToggle.bind(this));
 			html.find(".stonetop-recover-open-btn").on("click", this._onRecoverOpen.bind(this));
 			html.find(".stonetop-convalesce-open-btn").on("click", this._onConvalesceOpen.bind(this));
 
@@ -4361,9 +4537,15 @@ export function createStonetopCharacterSheetClass(Base) {
 				// offered the roll: the same line this sheet draws for moves, where the roll is
 				// what's gated and the reading is not.
 				const known = !card.classList.contains("is-unknown");
+				// Which Invocation this is, and whether it is one of the six that keep running —
+				// read off the card rather than matched by name, since the name in the DOM is the
+				// printed label and the state is keyed by slug.
+				const { slug = "", ongoing } = card.dataset;
 				// Shift is "skip the situational-modifier prompt" everywhere a roll starts; carry
 				// it through so the Invocation's roll honours it too.
-				this._postInvocationCard(name, description, { shiftKey: ev.shiftKey, known });
+				this._postInvocationCard(name, description, {
+					shiftKey: ev.shiftKey, known, slug, ongoing: ongoing === "1",
+				});
 			});
 			html.find(".stonetop-other-move-delete").on("click", ev => {
 				const { itemId } = ev.currentTarget.dataset;
@@ -5106,6 +5288,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			const situational = await this._maybePromptRollModifier({ shiftKey, rollable });
 			if (situational === null) return;   // player cancelled the modifier prompt
 			await this._stonetopCharacter.onRoll({ currentTarget: rollable }, { situational });
+			// What rolling this move DOES beyond the roll — the same effects the Moves tab's own
+			// click fires. A move dragged to the hotbar is rolled from there just as truly as from
+			// the sheet, and this path had been getting the roll without them: a Blessed who put
+			// Amulets & Talismans on their bar laid a charm the roster never heard about. The
+			// description-only branch above already reasons this way for MOVE_USE_EFFECTS.
+			await this._onMoveRolled(item);
 		}
 
 		// Resolve a love letter (Book I p.568): post it like any move, then consume it.
@@ -5910,7 +6098,52 @@ export function createStonetopCharacterSheetClass(Base) {
 			ev.preventDefault();
 			ev.stopPropagation();
 			if (!this.isEditable) return;
-			if (await this._stonetopCharacter.setHolyLight(!this._stonetopCharacter.holyLight)) this.render(false);
+			const lit = this._stonetopCharacter.holyLight;
+			// "An Invocation will end immediately if your holy light is extinguished." Read its name
+			// FIRST, because by the time the write returns there is nothing left to tell the table
+			// what went out — and then END IT HERE, so the chat card is gated on the write that
+			// actually did it. The model drops it too, and must (no future way of putting a light
+			// out may strand a Lightbearer concentrating on nothing), but its own boolean conflates
+			// "the light changed" with "an Invocation went with it" and only the second is news.
+			// Dropping it first makes the model's own drop a no-op, so this is still two writes.
+			const ending = lit ? this._invocationLabel(this._stonetopCharacter.ongoingInvocation) : "";
+			const ended  = !!ending && await this._stonetopCharacter.setOngoingInvocation("");
+			const snuffed = await this._stonetopCharacter.setHolyLight(!lit);
+			if (snuffed || ended) this.render(false);
+			// The candle itself still posts nothing — snuffing it is the player correcting the
+			// tracker. The Invocation it took with it is a different thing: that one was affecting
+			// the fiction, and its ending is news. Said ONCE: a second click that found the
+			// Invocation already gone wrote nothing, so it has nothing to announce.
+			if (ended) await this._postInvocationEnded(ending, "light");
+		}
+
+		/**
+		 * End the Invocation being held open — the "End it" control on the tab banner and on the
+		 * header chip. "You can end an Invocation whenever you wish", so there is nothing to
+		 * confirm and nothing to roll; it is one click, and re-invoking is one more.
+		 *
+		 * The card is posted only when the write actually ended something. There are two controls
+		 * for the one act (the header chip and the tab banner) plus however many clients have this
+		 * sheet open, so "it was running when I read it" is not the same question as "I am the one
+		 * who stopped it" — and the table should hear it stop once.
+		 */
+		async _onEndOngoingInvocation(ev) {
+			ev.preventDefault();
+			ev.stopPropagation();
+			if (!this.isEditable) return;
+			const ending = this._invocationLabel(this._stonetopCharacter.ongoingInvocation);
+			if (!ending) return;
+			if (!await this._stonetopCharacter.setOngoingInvocation("")) return;
+			this.render(false);
+			await this._postInvocationEnded(ending, "byHand");
+		}
+
+		/** Tell the table an Invocation stopped, and why. */
+		_postInvocationEnded(label, reason) {
+			const key = INVOCATION_ENDED_KEYS[reason] ?? INVOCATION_ENDED_KEYS.byHand;
+			return this._postMoveCard(
+				game.i18n.localize("stonetop.invocations.endedTitle"),
+				`<p>${game.i18n.format(key, { name: escHtml(label) })}</p>`);
 		}
 
 		/**
@@ -5951,8 +6184,126 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * the roster is not theirs to open.
 		 */
 		async _openCondemnedIfJudge() {
-			if (!this._stonetopCharacter.canCondemn) return;
+			// Either move is enough. Condemn and Censure open the brands; Binding Arbitration opens
+			// the same window for its own half, which is the whole reason the two lists share one.
+			if (!this._stonetopCharacter.canCondemn && !this._stonetopCharacter.canBindOaths) return;
 			await this._openCondemned();
+		}
+
+		/**
+		 * The Blessed's roster of standing marks, from the header glyph.
+		 *
+		 * A window rather than a tab, for the reason the Judge's is: five moves that a Blessed uses
+		 * a handful of times a session, usually two or three rows, and a permanent tab standing
+		 * empty on every Blessed who has taken none of the five is worse than a glyph that appears
+		 * when there is something to see.
+		 *
+		 * One window PER CHARACTER (perDocumentOptions): two Blessed at one table is unusual but
+		 * legal, and two dialogs sharing one AppV1 id paint into each other's frame.
+		 */
+		async _onBlessedMarksOpen(ev) {
+			ev.preventDefault();
+			ev.stopPropagation();
+			await this._openBlessedMarks();
+		}
+
+		_openBlessedMarks() {
+			return new BlessedMarksDialog(this.actor, this._stonetopCharacter, { editable: this.isEditable }).render(true);
+		}
+
+		/**
+		 * Using any of the five marking moves opens the roster — the Blessed's half of the
+		 * Consecrated Flame and Condemn hooks above. Three of the five are description-only and
+		 * arrive through MOVE_USE_EFFECTS; the other two roll +INT and arrive through
+		 * MOVE_ROLL_EFFECTS. Both land here.
+		 *
+		 * Gated on OWNING one of them, so reading an un-owned move's text off the playbook list
+		 * opens nothing.
+		 */
+		async _openBlessedMarksIfBlessed() {
+			if (!this._stonetopCharacter.canMarkBlessed) return;
+			await this._openBlessedMarks();
+		}
+
+		/**
+		 * What rolling a move does beyond rolling it. Resolved from the ITEM rather than the row's
+		 * text, for the reason MOVE_USE_EFFECTS is: an un-owned playbook row carries no item id at
+		 * all, and a player-authored custom move can be called anything.
+		 */
+		async _onMoveRolled(item) {
+			const effect = item?.name ? MOVE_ROLL_EFFECTS[item.name] : null;
+			if (effect) await effect(this);
+		}
+
+		/** The same, for a caller that has only the clicked row. */
+		async _onRollableRolled(rollable) {
+			const itemId = rollable?.closest(".item")?.dataset?.itemId;
+			return this._onMoveRolled(itemId ? this.actor.items.get(itemId) : null);
+		}
+
+		/**
+		 * The header's Battle Joy glyph: lose yourself in the fight, or come out of it.
+		 *
+		 * TURNING IT ON writes nothing else. It is a fictional state the player declares, exactly
+		 * as consecrating a flame is, and it posts nothing to chat for the same reason the candle
+		 * doesn't.
+		 *
+		 * TURNING IT OFF is a different thing, because the move attaches a roll to that moment:
+		 * "when the action stops, roll +CON". So this asks rather than assuming — a Heavy who
+		 * ticked the glyph by mistake, or whose GM has already resolved it in the fiction, must be
+		 * able to simply stop. Answering yes rolls Battle Joy itself, which is also the path a
+		 * player gets by clicking the move on the Moves tab; both go through the model, which drops
+		 * the state before building the roll so their debilities are back in play for it.
+		 */
+		async _onBattleJoyToggle(ev) {
+			ev.preventDefault();
+			ev.stopPropagation();
+			if (!this.isEditable) return;
+			const raging = this._stonetopCharacter.battleJoy;
+			if (!raging) {
+				if (await this._stonetopCharacter.setBattleJoy(true)) this.render(false);
+				return;
+			}
+			const item = this.actor.items.find(i => i.type === "move" && i.name === BATTLE_JOY);
+			// No move on the sheet means this state was stranded by a playbook swap: there is
+			// nothing to roll, so the only thing left to offer is putting it out.
+			const rolled = item && await Dialog.confirm({
+				title:   game.i18n.localize("stonetop.battleJoy.endTitle"),
+				content: `<p>${game.i18n.localize("stonetop.battleJoy.endPrompt")}</p>`,
+				yes:     () => true,
+				no:      () => false,
+				defaultYes: true,
+				render:  bringDialogToFront,
+				options: { classes: ["dialog", "stonetop"] },
+			});
+			// Cancelled with Escape or the X — leave the Heavy exactly as they were, still raging.
+			if (rolled === null) return;
+			if (rolled) {
+				// Rolling it IS leaving it: the model clears the state on the way into the roll.
+				await this._stonetopCharacter.onRoll({ currentTarget: this._battleJoyRollable(item) });
+				this.render(false);
+				return;
+			}
+			if (await this._stonetopCharacter.setBattleJoy(false)) this.render(false);
+		}
+
+		/**
+		 * A stand-in for the move row's roll element, so the header can drive the same roll path the
+		 * Moves tab does rather than a second one that could drift from it.
+		 *
+		 * onRoll reads exactly two things off the event target — the enclosing `.item`'s item id,
+		 * and a `data-show` attribute — so a detached node carrying the id is all it needs, and
+		 * building one here is cheaper and steadier than hunting for a row that may be on a tab
+		 * this sheet has not rendered.
+		 */
+		_battleJoyRollable(item) {
+			const wrapper = document.createElement("div");
+			wrapper.className = "item";
+			wrapper.dataset.itemId = item.id;
+			const rollable = document.createElement("span");
+			rollable.className = "rollable move-rollable";
+			wrapper.appendChild(rollable);
+			return rollable;
 		}
 
 		/**
@@ -6397,8 +6748,20 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * The empowered effect is left OFF the card unless it was bought: it isn't part of what
 		 * the Invocation does, it's what it does IF you pay an extra consequence for it, and
 		 * printed alongside the normal effect it just muddies what actually happened.
+		 *
+		 * It is also where the ongoing Invocation is picked up and put down. That happens on the
+		 * AFFIRMATIVE button only — "Invoke the Sun God" / "Use it" is the player saying they use
+		 * this, where "Just show it" is reading the text out to the table, and reading an
+		 * Invocation aloud must not silently drop the one they are holding.
+		 *
+		 * When there is nothing to ask, the window is skipped and the use is simply taken as read.
+		 * The bookkeeping is NOT skipped with it: owning Invoke the Sun God is what earns the roll,
+		 * not what makes an Invocation take hold, so a character who has Invocations without that
+		 * move (a cross-playbook pick through Versatile, a Lightbearer whose starting move was
+		 * dropped) has to be tracked like any other — otherwise the header chip, the banner and the
+		 * "you can't use another while one is ongoing" rule are dead for them forever.
 		 */
-		async _postInvocationCard(name, description, { shiftKey = false, known = true } = {}) {
+		async _postInvocationCard(name, description, { shiftKey = false, known = true, slug = "", ongoing = false } = {}) {
 			const { base, empowered } = splitEmpoweredEffect(description);
 			// `known` first: an Invocation this character hasn't learned can be read but not
 			// invoked, so neither question is worth asking about one. rollMoveById also bails
@@ -6406,22 +6769,51 @@ export function createStonetopCharacterSheetClass(Base) {
 			// roll button that would do nothing.
 			const canInvoke  = known && this.isEditable && ownsMoveNamed(this.actor, INVOKE_THE_SUN_GOD);
 			const canEmpower = known && !!empowered && ownsMoveNamed(this.actor, EMPOWERED_INVOCATIONS);
-			// Nothing to decide — post it and stay out of the way.
-			if (!canInvoke && !canEmpower) return this._postMoveCard(name, base);
+			// Whether this tap is a USE at all, which is the narrower question the two gates above
+			// answer for the roll and the empower checkbox. An un-learned Invocation is being read
+			// out; a sheet nobody can write is being looked at; anything else is being used.
+			const canUse = known && this.isEditable;
 
-			const answer = await this._promptInvokeInvocation({
-				name, empoweredHtml: empowered, canInvoke, canEmpower,
-				lit: this._stonetopCharacter.holyLight,
-			});
-			if (answer === null) return null;   // dismissed — the Invocation isn't used at all
+			const used = { slug, ongoing };
+			// Nothing to decide — no window, and the affirmative is assumed, because a tap with no
+			// question attached to it is still the player saying they use this.
+			let answer = { roll: false, used: canUse, empower: false };
+			if (canInvoke || canEmpower) {
+				answer = await this._promptInvokeInvocation({
+					name, empoweredHtml: empowered, canInvoke, canEmpower,
+					lit:    this._stonetopCharacter.holyLight,
+					notice: invokeNotice({ current: this._stonetopCharacter.ongoingInvocation, used, options: this._invocationOptions }),
+				});
+				if (answer === null) return null;   // dismissed — the Invocation isn't used at all
+			}
+
+			// What using it does to the Invocation already running. Worked out BEFORE the card is
+			// built, because the one it displaces is named on that card: the ending belongs in the
+			// same post as the thing that caused it, not in a second card the table has to pair up
+			// with the first.
+			const use = answer.used
+				? resolveInvocationUse({ current: this._stonetopCharacter.ongoingInvocation, used })
+				: null;
+			const lead = use?.ended
+				? `<p class="stonetop-chat-invocation-ended"><em>${escHtml(this._invocationLabel(use.ended))} ends.</em></p>`
+				: "";
 
 			// Card first, roll second: the card is the statement and the roll is how it goes.
 			// It also means a cancelled situational-modifier prompt (which fires INSIDE
 			// rollMoveById) leaves the Invocation posted rather than losing everything.
 			const card = answer.empower
-				? await this._postMoveCard(`${name} (Empowered)`, base + EMPOWERED_NOTE_HTML + empowered)
-				: await this._postMoveCard(name, base);
+				? await this._postMoveCard(`${name} (Empowered)`, lead + base + EMPOWERED_NOTE_HTML + empowered)
+				: await this._postMoveCard(name, lead + base);
+			// Written before the roll, deliberately. A 6- is the GM's to narrate — it may or may not
+			// mean the Invocation failed to take hold — so the sheet records what the player did and
+			// leaves "it didn't work" to one click on End it, rather than guessing from a die.
+			if (use?.changed) await this._stonetopCharacter.setOngoingInvocation(use.next);
 			if (answer.roll) await this.rollMoveByName(INVOKE_THE_SUN_GOD, { shiftKey });
+			// The banner, the header chip and the card's badge are all read at render time, so the
+			// flag write above shows up only once the sheet repaints. Left until AFTER the roll —
+			// re-rendering mid-roll would pull the modifier prompt out from under it — and guarded
+			// on the sheet still being open, since the roll is an await and it may have been closed.
+			if (use?.changed && this.rendered) this.render(false);
 			return card;
 		}
 
@@ -6436,11 +6828,12 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * of every use before it. It also folds what would otherwise be two sequential dialogs
 		 * into one.
 		 */
-		_promptInvokeInvocation({ name, empoweredHtml, canInvoke, canEmpower, lit }) {
+		_promptInvokeInvocation({ name, empoweredHtml, canInvoke, canEmpower, lit, notice = null }) {
 			return new Promise(resolve => {
 				let answer = null;
-				const read = (html, roll) => ({
+				const read = (html, roll, used) => ({
 					roll,
+					used,
 					empower: !!html.find('[name="empower"]')[0]?.checked,
 				});
 				let content = "";
@@ -6453,6 +6846,17 @@ export function createStonetopCharacterSheetClass(Base) {
 					if (!lit) content += `<p class="stonetop-invoke-nolight">`
 						+ `<i class="fas fa-triangle-exclamation" aria-hidden="true"></i> `
 						+ `No holy light is lit on this sheet — consecrate a flame, or check with your GM.</p>`;
+				}
+				// What this does to the Invocation already running — OUTSIDE the canInvoke block,
+				// because the affirmative button takes hold of the Invocation either way and the
+				// window must never change that state without having said so. Also not a block:
+				// ending one Invocation to use another is a legal, ordinary thing to do, it just
+				// has to be a decision rather than a discovery.
+				{
+					const key  = notice && INVOCATION_NOTICE_KEYS[notice.kind];
+					const line = key ? game.i18n.format(key, { name: escHtml(notice.ending) }) : "";
+					if (line) content += `<p class="stonetop-invoke-ongoing${notice.kind === "start" ? "" : " is-ending"}">`
+						+ `<i class="fas fa-sun" aria-hidden="true"></i> ${line}</p>`;
 				}
 				if (canEmpower) {
 					content += `<label class="stonetop-invoke-empower"><input type="checkbox" name="empower"> `
@@ -6470,12 +6874,15 @@ export function createStonetopCharacterSheetClass(Base) {
 						roll: {
 							icon:     '<i class="fas fa-sun"></i>',
 							label:    canInvoke ? "Invoke the Sun God (+WIS)" : "Use it",
-							callback: html => { answer = read(html, canInvoke); },
+							callback: html => { answer = read(html, canInvoke, true); },
 						},
 						no: {
 							icon:     '<i class="fas fa-comment"></i>',
 							label:    "Just show it",
-							callback: html => { answer = read(html, false); },
+							// `used: false` is the load-bearing half of this button. Showing an
+							// Invocation's text is not using it, so it must not take hold of a new one
+							// or let go of the one already running.
+							callback: html => { answer = read(html, false, false); },
 						},
 					},
 					default: "roll",
