@@ -48,10 +48,12 @@ import {playbookIconPath, partyCharacters} from "../../utils/playbook-actors.js"
 import {postMoveToChat, moveChatCard} from "../../utils/chat.js";
 import {buildMoveTierResults} from "../../utils/move-results.js";
 import {knowThingsRollChoices, withAdvantage, KNOW_THINGS_STAT} from "./arcana-identify.js";
+import {ARTIFACT_STATE, artifactStateForTier, knowThingsArtifactResults, seekInsightArtifactResults,
+	ARTIFACT_INSIGHT_QUESTIONS, ARTIFACT_LEAD_SUGGESTIONS} from "./artifact-identify.js";
 import {knowThingsRollOptions} from "./know-things.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {openChroniclePageForActor} from "../../utils/chronicle.js";
-import {getDragEventData, deletionEntry, imagePopout} from "../../utils/foundry-compat.js";
+import {getDragEventData, deletionEntry, imagePopout, renderTemplate} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
 import {peopleNames, steadingPeopleActors, usedPersonPortraits, createPersonNpc, isActorRow, personRowActor, personRowKey, personRowIdentity, rebasePersonRows, addCharacterToSteadingPlayers} from "../steading/steading-people.js";
 import {openPeoplePortraitPicker} from "../steading/PeopleGalleryDialog.js";
@@ -401,6 +403,20 @@ function _toggleGlyphKeys(keys, on, editable) {
 // Inventory slugs that hold "uses of supplies", in the order Recover depletes
 // them. Mirrors _PROSPERITY_RESOURCE_SLUGS in StonetopCharacter.js.
 const RECOVER_SUPPLY_SLUGS = ["supplies", "more-supplies", "even-more-supplies"];
+
+// The GM's artifact control (_onArtifactGmControl). The rungs in ladder order, weakest first,
+// and the three text fields in the order p.430-431 introduces them — the hint that stands in
+// for the tags, the write-up a 10+ hands over, the lead a miss leaves. `key` is both the
+// knowledge field read out and the form control's name, so the harvest needs no second table.
+const ARTIFACT_GM_TEMPLATE = "systems/stonetop-pwd/templates/dialogs/artifact-gm.hbs";
+const ARTIFACT_GM_STATES = [
+	ARTIFACT_STATE.NONE, ARTIFACT_STATE.UNKNOWN, ARTIFACT_STATE.PARTIAL, ARTIFACT_STATE.KNOWN,
+];
+const ARTIFACT_GM_FIELDS = [
+	{ key: "hint", labelKey: "stonetop.artifact.fieldHint", hintKey: "stonetop.artifact.fieldHintNote" },
+	{ key: "lore", labelKey: "stonetop.artifact.fieldLore", hintKey: "stonetop.artifact.fieldLoreNote", multiline: true },
+	{ key: "lead", labelKey: "stonetop.artifact.fieldLead", hintKey: "stonetop.artifact.fieldLeadNote" },
+];
 
 // What the invoke window says about the Invocation already running, keyed by the kinds
 // invokeNotice reports. The whole point of the window growing this line: the rule that one
@@ -1074,7 +1090,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			const context = await super.getData();
 			context.system ??= this.actor.system;
 			context.isCharacter = this.actor.type === "character";
-			context.stonetop = await this._stonetopCharacter.buildSnapshot();
+			// The viewer reaches the snapshot because a hidden artifact's tags are concealed
+			// while it's built, not while it's rendered (Book I p.430) — the GM sees what they
+			// wrote, nobody else does, and the withheld text never enters the DOM.
+			// `isGM` comes back ON the snapshot (it drives the GM-only artifact control on each
+			// gear row), from the same `viewerIsGM` the concealment reads — one fact, told once.
+			context.stonetop = await this._stonetopCharacter.buildSnapshot({ viewerIsGM: game.user.isGM });
 			// Notes tab: raw source (for the editor to serialize) + enriched HTML (for
 			// the read-only preview, resolving @UUID links, inline rolls, etc.).
 			context.stonetop.notes = this.actor.system?.notes ?? "";
@@ -3657,6 +3678,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-inv-add-btn").on("click", this._onAddInventoryItem.bind(this));
 			html.find(".stonetop-inv-delete").on("click", this._onDeleteCustomInventoryItem.bind(this));
 			html.find(".stonetop-inv-remove-special").on("click", this._onRemoveSpecialItem.bind(this));
+			// Identifying artifacts (Book I pp.430-431): the player's magnifier rolls, the GM's
+			// mask hands the thing over (or hides it in the first place).
+			html.find(".stonetop-inv-artifact-identify").on("click", ev =>
+				this._onArtifactIdentify(ev.currentTarget.dataset.ownedId, { shiftKey: ev.shiftKey }));
+			html.find(".stonetop-inv-artifact-gm").on("click", ev =>
+				this._onArtifactGmControl(ev.currentTarget.dataset.ownedId));
 			html.find(".stonetop-possession-check").on("change", this._onPossessionCheck.bind(this));
 			html.find(".stonetop-possession-custom-remove").on("click", this._onRemoveCustomPossession.bind(this));
 			html.find(".stonetop-possession-sub-check").on("change", this._onPossessionSubCheck.bind(this));
@@ -5208,8 +5235,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			// happened" — the same reason the arcana branch above toasts. Naming the character is
 			// what makes a drop onto the wrong actor, or onto a token copy, visible immediately.
 			const addedInventory = [];
+			// "When the PCs find an artifact, describe it! Tell them what they've found, and
+			// what's obvious at a glance" (Book I p.430). A world that turns this on has every
+			// dropped Book II treasure land with its tags and Value withheld, ready for a Know
+			// Things; off (the default) a drop reads exactly as it always has, and the GM hides
+			// individual artifacts by hand from the row's own control.
+			const hideArtifact = game.settings.get(STONETOP_SCOPE, "artifactsStartUnidentified");
 			for (const item of inventory) {
-				await target.addDroppedInventoryItem(item);
+				await target.addDroppedInventoryItem(item, { hideArtifact });
 				addedInventory.push(item.name || "an item");
 				anyAdded = true;
 			}
@@ -6569,23 +6602,51 @@ export function createStonetopCharacterSheetClass(Base) {
 		 */
 		async _onArcanumKnowThings(slug, { shiftKey = false } = {}) {
 			if (!this.isEditable || !slug) return;
-			// In-flight latch, like every other one-shot action on this sheet. Nothing before the
-			// first await here does more than stop the event, and that first await is a DIALOG — so
-			// two quick clicks on the identify button opened two stat pickers, posted two roll cards
-			// and wrote this card's flags twice, in whichever order the two rolls happened to land.
-			// Keyed by slug, since identifying a different arcanum meanwhile is a real second action.
-			this._arcanaIdentifying ??= new Set();
-			if (this._arcanaIdentifying.has(slug)) return;
-			this._arcanaIdentifying.add(slug);
+			return this._underIdentifyLatch(`arcanum:${slug}`,
+				() => this._knowThingsAboutArcanum(slug, { shiftKey }));
+		}
+
+		/**
+		 * Run a one-shot identify action under an in-flight latch, keyed by the thing being
+		 * identified.
+		 *
+		 * Every identify path's first await is a DIALOG, and nothing before it does more than stop
+		 * the event — so without this, two quick clicks on an identify button opened two stat
+		 * pickers, posted two roll cards and wrote the same flags twice, in whichever order the two
+		 * rolls happened to land. Keyed rather than global because identifying a DIFFERENT thing
+		 * meanwhile is a real second action; the key carries its kind so an arcanum slug and an item
+		 * id can never be taken for each other.
+		 */
+		async _underIdentifyLatch(key, fn) {
+			this._identifyLatch ??= new Set();
+			if (this._identifyLatch.has(key)) return;
+			this._identifyLatch.add(key);
 			try {
-				await this._knowThingsAboutArcanum(slug, { shiftKey });
+				return await fn();
 			} finally {
-				this._arcanaIdentifying.delete(slug);
+				this._identifyLatch.delete(key);
 			}
 		}
 
-		/** The body of the roll above, so the latch is a plain try/finally around one call. */
-		async _knowThingsAboutArcanum(slug, { shiftKey }) {
+		/**
+		 * Roll Know Things about a particular thing, and hand back what the dice said.
+		 *
+		 * Both identify paths make the SAME roll — an arcanum's card (p.440) and an artifact's item
+		 * (p.430): the same stat/advantage picker over the character's Know Things moves, the same
+		 * Never at a Loss / Logbook plumbing, and onDirectStatRoll rather than rollStat so forward,
+		 * ongoing, the debility downgrade and the global advantage toggle all apply and a miss marks
+		 * XP. They differ only in what the tiers SAY and what they settle, so that is all a caller
+		 * passes, and the settling stays with the caller.
+		 *
+		 * `subject` is stamped on the message and is what makes the tier RE-APPLIABLE: the outcome
+		 * commits at roll time, but the Logbook ("treat the result as a 10+") and a GM Shift both
+		 * rewrite the card's tier afterwards, and without it there is nothing left to tell them which
+		 * thing the new tier is about. See _resyncIdentification in stonetop.js.
+		 *
+		 * Resolves `{ roll }`, or null when the player backed out of one of the prompts — which is
+		 * NOT the same as a roll that came back empty, and the callers settle only the latter.
+		 */
+		async _rollKnowThingsAbout({ subject, results, shiftKey }) {
 			// The character's own Know Things move carries the text the "?" toggle shows. Every
 			// character owns it (ensureStartingMoves grants all basic moves), but fall back to
 			// the trigger sentence rather than an empty card if a sheet somehow lacks it.
@@ -6600,39 +6661,45 @@ export function createStonetopCharacterSheetClass(Base) {
 			const picked  = choices.hasChoice
 				? await this._promptIdentifyRoll(choices, moves)
 				: { stat: KNOW_THINGS_STAT, advantage: false };
-			if (!picked) return;                // player closed the picker
+			if (!picked) return null;               // player closed the picker
 
 			const situational = await this._maybePromptRollModifier({ shiftKey, title: "Know Things" });
-			if (situational === null) return;   // player cancelled the modifier prompt
+			if (situational === null) return null;  // player cancelled the modifier prompt
 
 			const roll = await this._stonetopCharacter.onDirectStatRoll(picked.stat, {
 				situational,
 				rollMode: withAdvantage(this._stonetopCharacter.rollMode, picked.advantage),
 				// This roll bypasses StonetopItem.roll, so it has to stamp the move identity and
 				// pick up Never at a Loss / the Logbook itself — otherwise the card's post-roll
-				// buttons would work from the Moves tab but not from the arcana card.
-				// `arcanum` is what makes the tier RE-APPLIABLE. The outcome is committed below,
-				// at roll time, but the Logbook ("treat the result as a 10+") and a GM Shift both
-				// rewrite the card's tier afterwards — and without the slug on the message there
-				// is nothing left to tell them which card the new tier is about. See
-				// _syncArcanumIdentification in stonetop.js.
-				messageFlags: { [STONETOP_SCOPE]: { move: "Know Things", arcanum: slug } },
+				// buttons would work from the Moves tab but not from here.
+				messageFlags: { [STONETOP_SCOPE]: { move: "Know Things", ...subject } },
 				...(knowThingsRollOptions(this.actor) ?? {}),
 				moveName:        "Know Things",
 				moveDescription: owned?.system?.description
 					?? `<p>When you <strong><em>consult your accumulated knowledge</em></strong>, roll +INT.</p>`,
+				moveResults: buildMoveTierResults(results),
+			});
+			return { roll };
+		}
+
+		/** The body of the roll above, so the latch is a plain try/finally around one call. */
+		async _knowThingsAboutArcanum(slug, { shiftKey }) {
+			const outcome = await this._rollKnowThingsAbout({
+				subject: { arcanum: slug },
 				// Arcana-specific outcomes, not the generic Know Things ones: p.440 spells out
 				// what each tier means for a card. English literals, because the flavor string is
 				// persisted and re-parsed by the GM's Shift Up/Down (see roll-engine.js).
-				moveResults: buildMoveTierResults({
+				results: {
 					success: "You read the card, front and back.",
 					partial: "You read the front. The GM will show you the back when you've had time to study it or learn more.",
 					failure: "The GM makes a move: read the front and something bad happens, or you get only a hint of its power and how you could learn more.",
-				}),
+				},
+				shiftKey,
 			});
+			if (!outcome) return;
 
 			const opts = { stonetopMove: "Know Things" };
-			const tier = classifyResult(Number(roll?.total) || 0).key;
+			const tier = classifyResult(Number(outcome.roll?.total) || 0).key;
 			if (tier === "success")      await this._stonetopCharacter.identifyAndRevealArcanum(slug, opts);
 			else if (tier === "partial") await this._stonetopCharacter.identifyFrontOwedArcanum(slug, opts);
 			this.render(false);
@@ -6733,6 +6800,182 @@ export function createStonetopCharacterSheetClass(Base) {
 			const name = item?.front?.title ?? slug;
 			await this._postMoveCard(game.i18n.localize("stonetop.arcana.backOwedTitle"),
 				`<p><strong>${escHtml(this.actor.name)}</strong> takes the time to study <strong>${escHtml(name)}</strong>, and is owed its reverse.</p>`);
+		}
+
+		// ── Identifying artifacts (Book I, Discoveries pp.430-431) ─────────────────
+		// The arcana ladder above is p.440's; this is its sibling for ordinary treasure. The
+		// two are deliberately separate: an arcanum is a pack card with a front and a back and
+		// per-character flags, an artifact is an inventory Item whose own fields carry the
+		// state, and neither's controls should ever appear on the other.
+
+		/**
+		 * The player's magnifier: pick a move, roll it, settle what it tells them.
+		 *
+		 * p.430 names two moves, and they do different jobs. Know Things settles the ladder —
+		 * "on a 7+, tell them some combo of what it is, what it does, what it's worth" — so its
+		 * tier writes the item. Seek Insight buys questions and answers, which are the GM's to
+		 * give at the table, so it rolls, posts the question list scoped to this artifact, and
+		 * deliberately writes nothing: the GM settles it with their own control if the answers
+		 * amounted to figuring the thing out.
+		 */
+		async _onArtifactIdentify(ownedId, { shiftKey = false } = {}) {
+			if (!this.isEditable || !ownedId) return;
+			return this._underIdentifyLatch(`artifact:${ownedId}`, async () => {
+				const knowledge = this._stonetopCharacter.artifactKnowledge(ownedId);
+				if (!knowledge) return;
+				const move = await this._promptArtifactMove(knowledge);
+				if (!move) return;
+				if (move === "know")  await this._knowThingsAboutArtifact(knowledge, { shiftKey });
+				if (move === "seek")  await this._seekInsightAboutArtifact(knowledge, { shiftKey });
+			});
+		}
+
+		/**
+		 * Which move the player is making about this artifact. Each is quoted from the book's own
+		 * paragraph so the choice is made on what the move will actually do, not on its name.
+		 * Resolves "know" | "seek", or null if the dialog is closed.
+		 */
+		_promptArtifactMove(knowledge) {
+			const owed = knowledge.state === ARTIFACT_STATE.PARTIAL;
+			const content =
+				`<p>${_esc(game.i18n.format("stonetop.artifact.promptIntro", { name: knowledge.name }))}</p>`
+				+ (owed ? `<p class="stonetop-artifact-owed">${_esc(game.i18n.localize("stonetop.artifact.promptOwed"))}</p>` : "")
+				+ `<div class="stonetop-stat-picker-why"><strong>${_esc(game.i18n.localize("stonetop.artifact.knowThings"))}</strong>`
+				+ `<p>${_esc(game.i18n.localize("stonetop.artifact.knowThingsWhy"))}</p></div>`
+				+ `<div class="stonetop-stat-picker-why"><strong>${_esc(game.i18n.localize("stonetop.artifact.seekInsight"))}</strong>`
+				+ `<p>${_esc(game.i18n.localize("stonetop.artifact.seekInsightWhy"))}</p></div>`;
+			return new Promise(resolve => {
+				new Dialog({
+					title:   `${game.i18n.localize("stonetop.artifact.identify")}: ${_esc(knowledge.name)}`,
+					content,
+					buttons: {
+						know:   { label: game.i18n.localize("stonetop.artifact.knowThings"),  callback: () => resolve("know") },
+						seek:   { label: game.i18n.localize("stonetop.artifact.seekInsight"), callback: () => resolve("seek") },
+						cancel: { label: "Cancel", callback: () => resolve(null) },
+					},
+					default: "know",
+					close:   () => resolve(null),
+					render:  bringDialogToFront,
+				}, { width: 520, classes: ["dialog", "stonetop", "stonetop-stat-picker-dialog"] }).render(true);
+			});
+		}
+
+		/**
+		 * Know Things about an artifact (p.430). The roll is the arcanum identify's twin — same
+		 * stat/advantage picker, same Never at a Loss / Logbook plumbing, same onDirectStatRoll so
+		 * forward, ongoing, debilities and the global advantage toggle all apply — and differs
+		 * only in what the tiers say and what they settle.
+		 */
+		async _knowThingsAboutArtifact(knowledge, { shiftKey }) {
+			const outcome = await this._rollKnowThingsAbout({
+				subject: { artifact: knowledge.id },
+				results: knowThingsArtifactResults(),
+				shiftKey,
+			});
+			if (!outcome) return;
+
+			const tier  = classifyResult(Number(outcome.roll?.total) || 0).key;
+			const state = artifactStateForTier(tier);
+			if (state) {
+				await this._stonetopCharacter.setArtifactState(knowledge.id, state, { upgradeOnly: true });
+			}
+			// A miss leaves the item alone — both of p.430's answers there are the GM's to make —
+			// but it must not leave the table with nothing, so the lead the GM already wrote (or a
+			// reminder that they owe one) goes to chat where the roll card can be read beside it.
+			else await this._postArtifactLeadCard(knowledge);
+			this.render(false);
+		}
+
+		/**
+		 * Seek Insight about an artifact (p.430: "resolve the move! On a 7+, answer their
+		 * question(s) honestly and helpfully"). Rolls +WIS and posts the question list alongside,
+		 * scoped to this thing. It never writes the ladder: the answers are the GM's, and how much
+		 * of the artifact they gave away is the GM's call to record with their own control.
+		 */
+		async _seekInsightAboutArtifact(knowledge, { shiftKey }) {
+			const owned = this.actor.items.find(i => i.type === "move" && i.name === "Seek Insight");
+			const situational = await this._maybePromptRollModifier({ shiftKey, title: "Seek Insight" });
+			if (situational === null) return;
+			const roll = await this._stonetopCharacter.onDirectStatRoll("wis", {
+				situational,
+				messageFlags: { [STONETOP_SCOPE]: { move: "Seek Insight", artifact: knowledge.id } },
+				moveName:        "Seek Insight",
+				moveDescription: owned?.system?.description
+					?? `<p>When you <strong><em>study a situation or person, looking to the GM for insight</em></strong>, roll +WIS.</p>`,
+				moveResults: buildMoveTierResults(seekInsightArtifactResults()),
+			});
+			if (classifyResult(Number(roll?.total) || 0).key === "failure") return;
+			await this._postMoveCard(
+				game.i18n.format("stonetop.artifact.insightTitle", { name: knowledge.name }),
+				`<ul>${ARTIFACT_INSIGHT_QUESTIONS.map(q => `<li>${escHtml(q)}</li>`).join("")}</ul>`);
+		}
+
+		/** What a 6- leaves behind: the GM's written lead, or a nudge that p.431 wants one. */
+		async _postArtifactLeadCard(knowledge) {
+			const body = knowledge.lead
+				? `<p>${escHtml(knowledge.lead)}</p>`
+				: `<p><em>${escHtml(game.i18n.localize("stonetop.artifact.leadMissing"))}</em></p>`
+					+ `<ul>${ARTIFACT_LEAD_SUGGESTIONS.map(s => `<li>${escHtml(s)}</li>`).join("")}</ul>`;
+			await this._postMoveCard(
+				game.i18n.format("stonetop.artifact.leadTitle", { name: knowledge.name }), body);
+		}
+
+		/**
+		 * The GM's control. Two jobs in one window, because they're the same decision seen from
+		 * either end: how much of this artifact the player may read, and what there is to read.
+		 *
+		 * The state select is p.430's ladder run by hand — "Once a PC figures an artifact out,
+		 * give the player its tags, write-up, and any custom moves" is a thing the GM does at the
+		 * table as often as a roll settles it, and hiding a thing in the first place has no roll
+		 * at all. The three text fields are the artifact's own copy of p.430-431: the hint that
+		 * stands in for its tags, the write-up a 10+ hands over, and the lead a miss leaves.
+		 *
+		 * The rungs are a SELECT rather than one button each: four states plus a cancel is five
+		 * buttons crammed into one dialog row, and the choice reads better as "how much may they
+		 * read?" answered once than as five verbs to pick between.
+		 *
+		 * The body is a TEMPLATE (templates/dialogs/artifact-gm.hbs), like every other GM editor in
+		 * the system. It was thirty-odd lines of HTML built here with a local string helper, which
+		 * is how the one value that isn't escaped came to be un-escaped by accident rather than on
+		 * purpose: in a template escaping is the default, and the single raw field says why.
+		 */
+		async _onArtifactGmControl(ownedId) {
+			if (!game.user.isGM || !ownedId) return;
+			const knowledge = this._stonetopCharacter.artifactKnowledge(ownedId);
+			if (!knowledge) return;
+			const loc = key => game.i18n.localize(`stonetop.artifact.${key}`);
+			const content = await renderTemplate(ARTIFACT_GM_TEMPLATE, {
+				note:   knowledge.note,
+				states: ARTIFACT_GM_STATES.map(state => ({
+					value:    state,
+					labelKey: `stonetop.artifact.state.${state || "none"}`,
+					selected: state === knowledge.state,
+				})),
+				fields: ARTIFACT_GM_FIELDS.map(field => ({ ...field, value: knowledge[field.key] })),
+			});
+
+			// Every declared DialogV1 button closes the window, so the fields have to be
+			// harvested by the Save button rather than written as they're edited. Read off the
+			// same table the template was built from, so a fourth field is one entry, not three.
+			const save = async html => {
+				const root = html?.[0] ?? html;
+				const read = name => root?.querySelector?.(`[name="${name}"]`)?.value ?? "";
+				await this._stonetopCharacter.updateArtifactKnowledge(ownedId, {
+					state: read("state"),
+					...Object.fromEntries(ARTIFACT_GM_FIELDS.map(f => [f.key, read(f.key)])),
+				});
+				this.render(false);
+			};
+			new Dialog({
+				title:   `${loc("gmTitle")}: ${_esc(knowledge.name)}`,
+				content,
+				buttons: {
+					save:   { label: loc("saveOnly"), callback: save },
+					cancel: { label: "Cancel" },
+				},
+				default: "save",
+				render:  bringDialogToFront,
+			}, { width: 560, classes: ["dialog", "stonetop", "stonetop-artifact-dialog"], resizable: true }).render(true);
 		}
 
 		/**

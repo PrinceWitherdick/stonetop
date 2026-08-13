@@ -5072,6 +5072,82 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	font-weight: normal;
 }
 
+/* ── Identifying artifacts (Book I, Discoveries pp.430-431) ────────────────────
+   A hidden artifact's tags and ○ uses never reach the DOM (concealArtifactFields drops
+   them before the snapshot), so the row would otherwise read as a bare name. These four
+   fill that gap: the "?" chip standing where the parenthetical was, the GM's hint, the
+   lead, and the two action affordances. Everything here is scoped to
+   .stonetop-inv-item so it can't leak onto any other list. */
+.stonetop-inv-artifact-chip {
+	color: var(--st-tier-partial-text, #6b4400);
+	font-size: 0.9em;
+	/* The chip replaces the note, so it must sit where the note would — before the
+	   edit-mode ✕, which is order 0 like everything else on the row. */
+	flex: 0 0 auto;
+}
+/* The GM is seeing text the owner isn't. Tint rather than badge: the row is the player's
+   and shouldn't sprout GM furniture, but a GM skimming a sheet has to be able to tell at a
+   glance which lines they're reading privileged. */
+.stonetop-inv-artifact-chip.is-gm-peek {
+	color: var(--st-tier-failure-text, #6e0000);
+	opacity: 0.75;
+}
+.stonetop-inv-artifact-hint,
+.stonetop-inv-artifact-lead {
+	color: var(--color-text-dark-secondary, #666);
+	font-style: italic;
+	font-size: 0.92em;
+	/* Same trick the treasure note uses: claim the next line rather than crowd the name. */
+	order: 1;
+	flex-basis: 100%;
+	padding-left: calc(14px * var(--stonetop-font-scale, 1) + 4px);
+}
+.stonetop-inv-artifact-lead { opacity: 0.85; }
+/* The write-up a 10+ hands over. pre-wrap so a GM who typed plain paragraphs into the
+   textarea keeps their line breaks, while pasted markup still renders as markup. */
+.stonetop-inv-artifact-lore {
+	order: 1;
+	flex-basis: 100%;
+	padding-left: calc(14px * var(--stonetop-font-scale, 1) + 4px);
+	white-space: pre-wrap;
+	font-size: 0.94em;
+	color: var(--color-text-dark-secondary, #666);
+}
+.stonetop-inv-artifact-lore.is-gm-peek { opacity: 0.8; }
+.stonetop-inv-artifact-identify,
+.stonetop-inv-artifact-gm {
+	flex: 0 0 auto;
+	cursor: pointer;
+	color: var(--color-text-dark-secondary, #666);
+	opacity: 0.55;
+	transition: opacity 120ms ease, color 120ms ease;
+}
+.stonetop-inv-artifact-identify:hover,
+.stonetop-inv-artifact-gm:hover { opacity: 1; }
+.stonetop-inv-artifact-identify { color: var(--st-tier-partial-text, #6b4400); opacity: 0.8; }
+/* An artifact the GM has actually hidden gets a solid mask; one that merely COULD be hidden
+   (every write-in and treasure carries the control) stays faint, so the icon reads as state
+   rather than as clutter repeated down the column. */
+.stonetop-inv-artifact-gm.is-hidden-artifact { opacity: 0.9; }
+/* A row wraps only when it has a second line to give — an artifact with a hint or a lead. */
+.stonetop-inv-item:has(.stonetop-inv-artifact-hint),
+.stonetop-inv-item:has(.stonetop-inv-artifact-lead),
+.stonetop-inv-item:has(.stonetop-inv-artifact-lore) { flex-wrap: wrap; }
+
+/* The GM's knowledge window: three stacked labelled fields. */
+.stonetop-artifact-form .stonetop-artifact-field { margin-bottom: 8px; }
+.stonetop-artifact-form .stonetop-artifact-field > label {
+	display: block;
+	font-weight: bold;
+	margin-bottom: 2px;
+}
+.stonetop-artifact-form .stonetop-artifact-field > input,
+.stonetop-artifact-form .stonetop-artifact-field > select,
+.stonetop-artifact-form .stonetop-artifact-field > textarea { width: 100%; }
+.stonetop-artifact-form .stonetop-artifact-field > .notes { margin: 2px 0 0; }
+.stonetop-artifact-form .stonetop-artifact-current { font-style: italic; }
+.stonetop-artifact-owed { font-style: italic; }
+
 .stonetop-inv-item-toggle {
 	display: contents; /* no box — children slot directly into parent flex, label click still activates input */
 }

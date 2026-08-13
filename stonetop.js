@@ -55,6 +55,7 @@ import { rollSeasonsCard, sign, SPRING_SEASONS_RESULT, xpToLevelUp, markMissXp }
 import { formatOutcomeDetail, escHtml } from "./module/utils/strings.js";
 import { moveChatCard } from "./module/utils/chat.js";
 import { isKnowThings, logbookUses, LOGBOOK, STRONG_HIT_TOTAL } from "./module/actors/character/know-things.js";
+import { artifactStateForTier } from "./module/actors/character/artifact-identify.js";
 import { wireAttackConfirm, wireApplyDamage, wireSufferAttack } from "./module/combat/attack-flow.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
 import { wrapGlyphTextContainers } from "./module/utils/glyphs.js";
@@ -392,6 +393,7 @@ Hooks.once("init", () => {
 		"stonetop.inv-note":         "systems/stonetop-pwd/templates/actor/partials/inv-note.hbs",
 		"stonetop.inv-item-regular": "systems/stonetop-pwd/templates/actor/partials/inv-item-regular.hbs",
 		"stonetop.inv-item-small":   "systems/stonetop-pwd/templates/actor/partials/inv-item-small.hbs",
+		"stonetop.inv-artifact":     "systems/stonetop-pwd/templates/actor/partials/inv-artifact.hbs",
 		"stonetop.choice-gear-row":  "systems/stonetop-pwd/templates/actor/partials/choice-gear-row.hbs",
 		"stonetop.roll-mode-picker": "systems/stonetop-pwd/templates/actor/partials/roll-mode-picker.hbs",
 		"stonetop.roll-mode-radios": "systems/stonetop-pwd/templates/actor/partials/roll-mode-radios.hbs",
@@ -427,6 +429,7 @@ Hooks.once("init", () => {
 		"stonetop.cs-line-list":              "systems/stonetop-pwd/templates/dialogs/partials/cs-line-list.hbs",
 		"stonetop.roster-row":                "systems/stonetop-pwd/templates/dialogs/partials/roster-row.hbs",
 		"stonetop.deaths-door-outcomes":      "systems/stonetop-pwd/templates/dialogs/partials/deaths-door-outcomes.hbs",
+		"stonetop.artifact-gm":              "systems/stonetop-pwd/templates/dialogs/artifact-gm.hbs",
 		"stonetop.header-toggle-glyph":       "systems/stonetop-pwd/templates/actor/partials/header-toggle-glyph.hbs",
 		"stonetop.header-count-glyph":        "systems/stonetop-pwd/templates/actor/partials/header-count-glyph.hbs",
 		"stonetop.card-head":                 "systems/stonetop-pwd/templates/journal/partials/card-head.hbs",
@@ -971,6 +974,50 @@ async function _syncArcanumIdentification(message, actor, total) {
 	}
 }
 
+/**
+ * The same job for an artifact (Book I pp.430-431), which rides on the message as an ITEM ID
+ * rather than a pack slug: an artifact is a document the character owns, so there is one to name.
+ *
+ * Upgrades only, and for the same reason as the arcanum above — a Shift Down must not take back a
+ * write-up the player has already read. `setArtifactState` enforces that itself, so this only has
+ * to translate the tier and hand it over. A Shift Down that lands on a 6- translates to no state
+ * at all and writes nothing, which leaves the artifact exactly as the better roll left it.
+ */
+async function _syncArtifactIdentification(message, actor, total) {
+	const itemId = message.getFlag(SYSTEM_ID, "artifact");
+	const character = actor?.typedActor;
+	// Seek Insight also stamps `artifact` (so a card can say which thing it was about), but it
+	// never settles the ladder — p.430 leaves those answers with the GM. Only Know Things writes.
+	if (!itemId || !character || !isKnowThings(_cardMoveName(message))) return;
+
+	const state = artifactStateForTier(_classifyShiftedTotal(Number(total) || 0).key);
+	if (!state) return;
+	try {
+		if (await character.setArtifactState(itemId, state, { upgradeOnly: true })) {
+			actor.sheet?.render(false);
+		}
+	} catch (err) {
+		console.error("Stonetop | Error re-applying the artifact's identification:", err);
+	}
+}
+
+/**
+ * Every kind of thing a Know Things roll can be identifying.
+ *
+ * The two bodies stay separate because they genuinely differ (the arcanum walks p.440's ladder
+ * with per-tier skip guards; the artifact hands one state to `setArtifactState`, which enforces
+ * upgrade-only itself). What is shared is the DISPATCH: every place that rewrites a roll's total
+ * has to re-apply it to whatever the roll was about. Listing them here means a third identifiable
+ * thing is one entry rather than another line at each rewrite site — and a rewrite site that
+ * forgot one failed silently, promising a 10+ and delivering a 7-9's disclosure.
+ */
+const IDENTIFY_SYNCERS = [_syncArcanumIdentification, _syncArtifactIdentification];
+
+/** Re-apply a rewritten roll total to whatever that roll was identifying. */
+async function _resyncIdentification(message, actor, total) {
+	for (const sync of IDENTIFY_SYNCERS) await sync(message, actor, total);
+}
+
 // Burn Brightly gates on actor.isOwner but then calls message.update(), which throws when the GM
 // rolled on a player's behalf. Both handlers below need BOTH rights, so check them together.
 function _canRewriteCard(message, actor) {
@@ -1068,9 +1115,9 @@ function _wireLogbook(message, html, actor, card) {
 					+ ` (${now.left - 1} of ${now.max} left), treating that roll as a 10+.</p>`),
 				speaker: ChatMessage.getSpeaker({ actor }),
 			});
-			// If this roll was identifying an arcanum, the 10+ the use just bought has to actually
-			// hand the card over — the outcome was committed when the dice landed.
-			await _syncArcanumIdentification(message, actor, shifted.total);
+			// If this roll was identifying an arcanum or an artifact, the 10+ the use just bought
+			// has to actually hand the thing over — the outcome was committed when the dice landed.
+			await _resyncIdentification(message, actor, shifted.total);
 			actor.sheet?.render(false);
 		} catch (err) {
 			console.error("Stonetop | Error consulting the logbook:", err);
@@ -1237,7 +1284,7 @@ async function _onRollShift(event, message) {
 		// A shifted Know Things card that was identifying an arcanum has to carry the new tier's
 		// disclosure with it, or a Shift Up says "You read the card, front and back" over a card
 		// still face down. No-op for every other roll — the flag is only on that one.
-		await _syncArcanumIdentification(message, _speakerActor(message), roll.total);
+		await _resyncIdentification(message, _speakerActor(message), roll.total);
 	} catch (err) {
 		console.error("Stonetop | Error shifting roll result:", err);
 	} finally {

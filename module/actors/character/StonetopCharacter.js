@@ -70,6 +70,7 @@ import {moveChatCard} from "../../utils/chat.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
 import {buildCustomMoveData, clampInt} from "../../utils/custom-move-data.js";
 import {buildInventoryItemData} from "../../utils/inventory-item-data.js";
+import {ARTIFACT_STATE, concealArtifactFields, isArtifactUpgrade, normalizeArtifactState} from "./artifact-identify.js";
 import {isLoveLetter} from "./love-letters.js";
 import {deriveLoadLevel, loadLimitsFor} from "../../utils/load.js";
 import {maxDie, stepDie, normalizeDamageDie} from "../../utils/damage-die.js";
@@ -397,13 +398,20 @@ export class StonetopCharacter {
 		return entries.filter(e => !NON_PLAYER_EXPEDITION_MOVES.has(e.name));
 	}
 
-	async buildSnapshot() {
+	/**
+	 * @param {object} [view] Who is looking. Only `viewerIsGM` is read, and only by the gear
+	 *        section: a hidden artifact's tags are concealed from everyone else (Book I p.430),
+	 *        and concealing them HERE keeps them out of the rendered DOM entirely. This class is
+	 *        Foundry-free by design, so the viewer has to be handed in — the sheet supplies it.
+	 *        Omitting it conceals, which is the safe way round for a caller that forgot.
+	 */
+	async buildSnapshot(view = {}) {
 		const actor = this._actor;
 		const actorLevel = actor.system?.attributes?.level?.value ?? 1;
 		const playbookData = await this.playbook();
 		const ownedAllByName = this._buildOwnedMovesMap();
 		const moves    = await this._buildMovesSection(playbookData, ownedAllByName, actorLevel);
-		const inventory = await this._buildInventorySection(playbookData, ownedAllByName, actorLevel);
+		const inventory = await this._buildInventorySection(playbookData, ownedAllByName, actorLevel, view);
 		const allOutfitItems = await this._inventoryRepo.getAll();
 		const postDeath = await this._postDeath.buildSnapshot();
 		const pdiLabel  = postDeath.activeInsert?.name ?? null;
@@ -452,6 +460,7 @@ export class StonetopCharacter {
 			.withRollMode(_normalizeSheetRollMode(resolvedFlags(actor).rollMode))
 			.withCrewBonuses(_buildCrewStats(playbookData?.crew, moveBonuses))
 			.withCompanionBonuses(_buildCompanionBonuses(moveBonuses, ownedAllByName))
+			.withViewerIsGM(!!view.viewerIsGM)
 			.build();
 	}
 
@@ -664,7 +673,8 @@ export class StonetopCharacter {
 		]);
 	}
 
-	async _buildInventorySection(playbookData, ownedAllByName, actorLevel) {
+	async _buildInventorySection(playbookData, ownedAllByName, actorLevel, view = {}) {
+		const viewerIsGM     = !!view.viewerIsGM;
 		const checked        = this._inventory.checked;
 		const resources      = this._inventory.resources;
 		const possessionUses = this._possessions.uses;
@@ -730,20 +740,35 @@ export class StonetopCharacter {
 					// A write-in's "x piercing" tag scales with the steading's Prosperity, same
 					// as the shipped catalog gear above (line ~642).
 					: _transformPiercingNote(item.system?.note ?? null, prosperity));
+			// Identifying artifacts, Book I pp.430-431: an artifact the GM has hidden shows only
+			// what's "obvious at a glance" until a PC works it out. The tags/Value parenthetical
+			// and the ○ uses track are withheld here — before the snapshot, so they never reach
+			// the template — while the ◇ load below is deliberately NOT, since the book has the
+			// PCs accounting for an artifact's load the moment they pick it up.
+			const artifact = concealArtifactFields({
+				state:    item.system?.identifyState,
+				note,
+				resource: res,
+				hint:     item.system?.artifactHint,
+				lore:     item.system?.artifactLore,
+				lead:     item.system?.artifactLead,
+			}, { viewerIsGM });
+			const shownRes = artifact.resource;
 			return new InventoryItemSnapshotBuilder()
 			.withSlug(item._id)
 			.withName(grant?.name ?? item.name)
 			// Plain write-ins carry no source note. Possession gear now renders inside its
 			// possession's card (grouped under the possession label), so it needs no
 			// "from <possession>" note either.
-			.withNote(note)
+			.withNote(artifact.note)
 			.withWeight(item.system.weight ?? 1)
 			.withChecked(checked[item._id] ?? false)
-			.withResource(res ? new ResourceBuilder()
-				.withCurrent(Math.min(currentUses ?? 0, res.max ?? 0))
-				.withMax(res.max)
-				.withTitle(res.title ?? null)
-				.withLabels(res.labels ?? [])
+			.withArtifact(artifact)
+			.withResource(shownRes ? new ResourceBuilder()
+				.withCurrent(Math.min(currentUses ?? 0, shownRes.max ?? 0))
+				.withMax(shownRes.max)
+				.withTitle(shownRes.title ?? null)
+				.withLabels(shownRes.labels ?? [])
 				.build() : null)
 			// Trailing text the book prints after the ○ track ("uses, grants advantage to
 			// Persuade"), so the whisky reads as one phrase. Only grants carry it; write-ins
@@ -1466,15 +1491,35 @@ export class StonetopCharacter {
 	 * `flags.stonetop` or `system` depending on where it came from, so resolve each field
 	 * from whichever source has it and hand the result to the one shared builder — that
 	 * way a new inventory field only has to be taught to buildInventoryItemData.
+	 *
+	 * @param {object} [opts]
+	 * @param {boolean} [opts.hideArtifact=false] Land this drop unidentified (Book I p.430).
+	 *        Read from the world setting by the sheet, because this class never touches
+	 *        `game`. Only ever applied to a drop that doesn't already state its own
+	 *        identification — a GM handing over an artifact they'd already revealed must not
+	 *        have it re-hidden on the way in.
 	 */
-	async addDroppedInventoryItem(itemData) {
+	async addDroppedInventoryItem(itemData, opts = {}) {
 		const st = itemData?.flags?.[ITEM_FLAG_SCOPE] ?? {};
 		const sys = itemData?.system ?? {};
 		const clone = v => globalThis.foundry?.utils?.deepClone?.(v) ?? v;
 		const rawColumn = st.inventoryColumn ?? sys.inventoryColumn ?? st.column ?? sys.column;
 		const resource = st.resource ?? sys.resource;
 		const armor = st.armor ?? sys.armor;
+		const isTreasure = !!(st.isTreasure ?? sys.isTreasure);
+		const carriedState = normalizeArtifactState(st.identifyState ?? sys.identifyState);
+		// Only a treasure/artifact is ever hidden by default. An ordinary write-in dragged off
+		// the sidebar has no tags worth concealing, and hiding it would strand the player with a
+		// "?" on their own gear.
+		const state = carriedState
+			|| (opts.hideArtifact && isTreasure ? ARTIFACT_STATE.UNKNOWN : ARTIFACT_STATE.NONE);
 		const data = buildInventoryItemData({
+			artifact: {
+				state,
+				hint: st.artifactHint ?? sys.artifactHint ?? "",
+				lore: st.artifactLore ?? sys.artifactLore ?? "",
+				lead: st.artifactLead ?? sys.artifactLead ?? "",
+			},
 			name: itemData?.name,
 			// A drop's column is untrusted; anything but an explicit "regular" reads as small.
 			column: rawColumn === "regular" ? "regular" : "small",
@@ -1485,7 +1530,7 @@ export class StonetopCharacter {
 			moveType: "inventory-custom",
 			// A Book II treasure keeps its marker through the re-plant, so the gear tab can
 			// group it under "Treasures" rather than among the write-ins.
-			isTreasure: !!(st.isTreasure ?? sys.isTreasure),
+			isTreasure,
 			// And its art: a treasure resolves its illustration at drag time (there is no
 			// document to point at ahead of time), so the drop payload is the only place
 			// that carries it. Rebuilding the item without this drops the picture on the
@@ -1498,6 +1543,63 @@ export class StonetopCharacter {
 
 	async removeCustomInventoryItem(itemId) {
 		await this._actor.deleteEmbeddedDocuments("Item", [itemId]);
+	}
+
+	// --- Identifying artifacts (Book I, Discoveries pp.430-431) -------------
+	//
+	// State lives on the inventory Item, not in actor flags, because an artifact IS a document
+	// the character owns — unlike an arcanum, which is a pack card the actor merely references
+	// by slug. One consequence worth knowing: the ledger diffs ACTOR updates only, so these
+	// writes are not ledgered and there is no point handing them a `stonetopMove`. The roll card
+	// in chat is the durable record of how a thing came to be identified.
+
+	/** The artifact fields of one owned inventory item, or null if there's no such item. */
+	artifactKnowledge(itemId) {
+		const item = this._actor.items.get(itemId);
+		if (!item) return null;
+		return {
+			id:    item.id,
+			name:  item.name,
+			state: normalizeArtifactState(item.system?.identifyState),
+			note:  item.system?.note ?? "",
+			hint:  item.system?.artifactHint ?? "",
+			lore:  item.system?.artifactLore ?? "",
+			lead:  item.system?.artifactLead ?? "",
+		};
+	}
+
+	/**
+	 * Move an artifact to `state`.
+	 *
+	 * `upgradeOnly` is what the roll paths pass: a Know Things result may only ever tell the
+	 * character MORE than they already knew, so a Logbook spend or a GM Shift that re-lands on a
+	 * lower tier writes nothing rather than taking back a write-up already read. The GM's own
+	 * hand-over control passes it false, since re-hiding a thing is exactly what that control is
+	 * for. Returns whether anything was written.
+	 */
+	async setArtifactState(itemId, state, { upgradeOnly = false, ...options } = {}) {
+		const item = this._actor.items.get(itemId);
+		if (!item) return false;
+		const next    = normalizeArtifactState(state);
+		const current = normalizeArtifactState(item.system?.identifyState);
+		if (next === current) return false;
+		if (upgradeOnly && !isArtifactUpgrade(current, next)) return false;
+		await item.update({ "system.identifyState": next }, options);
+		return true;
+	}
+
+	/** Save the GM's hint / write-up / lead for an artifact. Absent keys are left alone. */
+	async updateArtifactKnowledge(itemId, { hint, lore, lead, state } = {}, options = {}) {
+		const item = this._actor.items.get(itemId);
+		if (!item) return false;
+		const update = {};
+		if (hint  !== undefined) update["system.artifactHint"]  = String(hint ?? "");
+		if (lore  !== undefined) update["system.artifactLore"]  = String(lore ?? "");
+		if (lead  !== undefined) update["system.artifactLead"]  = String(lead ?? "");
+		if (state !== undefined) update["system.identifyState"] = normalizeArtifactState(state);
+		if (!Object.keys(update).length) return false;
+		await item.update(update, options);
+		return true;
 	}
 
 	// --- Player-authored custom moves -------------------------------------

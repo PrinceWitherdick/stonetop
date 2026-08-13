@@ -433,6 +433,10 @@
       "hoverDescriptionsLoreTerms": {
         "name": "Hover Descriptions: Lore Terms",
         "hint": "Explain Stonetop's four gods (Danu, Aratis, Helior, Tor) when hovering their names in the Character Introductions prompts and the character creation wizard."
+      },
+      "artifactsStartUnidentified": {
+        "name": "Artifacts Arrive Unidentified",
+        "hint": "Book I, Discoveries pp.430-431. When on, a Book II treasure dropped onto a character sheet arrives with its tags, Value and uses withheld: the player sees only what's obvious at a glance, and has to Know Things or Seek Insight about it to learn more. Off by default, so treasure lands fully described as it always has. Either way you can hide or hand over any single artifact from the mask icon on its gear row."
       }
     },
     "newCharacter": {
@@ -888,6 +892,39 @@
       "oathsTooltip": "{oaths} held to an oath. Click to open the roster.",
       "bothTooltip": "{brands} bearing your brand, {oaths} held to an oath. Click to open the roster.",
       "notSwearable": "{name} is not somebody who can swear an oath."
+    },
+    "artifact": {
+      "identify": "Identify artifact",
+      "identifyTooltip": "There's more to this than meets the eye. Know Things or Seek Insight about it.",
+      "promptIntro": "How do you try to work out what {name} is?",
+      "promptOwed": "You already know roughly what it is and what it's worth. What it truly does is still owed you.",
+      "knowThings": "Know Things",
+      "knowThingsWhy": "Consult your accumulated knowledge (+INT). On a 7+ the GM tells you some combination of what it is, what it does, what it's worth, how to use it or sell it for full value. On a 10+, the write-up and any custom move in full.",
+      "seekInsight": "Seek Insight",
+      "seekInsightWhy": "Study it, looking to the GM for insight (+WIS). On a 7+ they answer your questions about it honestly and helpfully. It's the GM who decides how much that gave away.",
+      "insightTitle": "Seek Insight: {name}",
+      "leadTitle": "{name}: how to learn more",
+      "leadTooltip": "How you could learn more about this",
+      "leadMissing": "The GM hasn't named a path yet. Book I p.431 suggests:",
+      "chipUnknown": "Unidentified. You know only what's obvious at a glance.",
+      "chipPartial": "Partly identified. You know what it is and what it's worth; the full write-up is still owed.",
+      "gmTooltip": "GM: what this artifact is, and how much of it the player may read",
+      "gmTitle": "Artifact knowledge",
+      "gmTags": "Concealed tags:",
+      "gmCurrentState": "How much of this may the player read?",
+      "state": {
+        "none": "everything (this is ordinary gear, nothing is hidden)",
+        "unknown": "the name and its load, nothing else",
+        "partial": "its tags and Value; the write-up is still owed",
+        "known": "everything, write-up included"
+      },
+      "fieldHint": "Hint",
+      "fieldHintNote": "\"More than meets the eye\". Shown on the gear row in place of the concealed tags.",
+      "fieldLore": "Write-up",
+      "fieldLoreNote": "What it truly does, and any custom move's full text. Handed over on a 10+.",
+      "fieldLead": "How to learn more",
+      "fieldLeadNote": "Who would know, what they'd need to consult, the Plan they could make. What a 6- leaves them with.",
+      "saveOnly": "Save"
     },
     "oaths": {
       "heading": "The Sworn",

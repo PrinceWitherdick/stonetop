@@ -1215,7 +1215,7 @@ describe("StonetopCharacterSheet._onDropItemCreate", () => {
 		const sheet = makeSheet(actor);
 		const item = makeInventoryItem();
 		await sheet._onDropItemCreate(item);
-		expect(actor.typedActor.addDroppedInventoryItem).toHaveBeenCalledWith(item);
+		expect(actor.typedActor.addDroppedInventoryItem).toHaveBeenCalledWith(item, { hideArtifact: false });
 		expect(actor.typedActor.onDropMove).not.toHaveBeenCalled();
 	});
 
@@ -1309,7 +1309,7 @@ describe("StonetopCharacterSheet._onDropItemCreate", () => {
 			const { synthetic, world } = makeTokenActor();
 			const item = makeInventoryItem();
 			await makeSheet(synthetic)._onDropItemCreate(item);
-			expect(world.typedActor.addDroppedInventoryItem).toHaveBeenCalledWith(item);
+			expect(world.typedActor.addDroppedInventoryItem).toHaveBeenCalledWith(item, { hideArtifact: false });
 			expect(synthetic.typedActor.addDroppedInventoryItem).not.toHaveBeenCalled();
 		});
 
@@ -1335,7 +1335,7 @@ describe("StonetopCharacterSheet._onDropItemCreate", () => {
 			const actor = makeActor();
 			const item = makeInventoryItem();
 			await makeSheet(actor)._onDropItemCreate(item);
-			expect(actor.typedActor.addDroppedInventoryItem).toHaveBeenCalledWith(item);
+			expect(actor.typedActor.addDroppedInventoryItem).toHaveBeenCalledWith(item, { hideArtifact: false });
 		});
 
 		// A token whose baseActor has gone (a deleted actor, a torn-down scene) must still take
@@ -1345,7 +1345,7 @@ describe("StonetopCharacterSheet._onDropItemCreate", () => {
 			synthetic.token = { baseActor: null };
 			const item = makeInventoryItem();
 			await makeSheet(synthetic)._onDropItemCreate(item);
-			expect(synthetic.typedActor.addDroppedInventoryItem).toHaveBeenCalledWith(item);
+			expect(synthetic.typedActor.addDroppedInventoryItem).toHaveBeenCalledWith(item, { hideArtifact: false });
 		});
 	});
 });

@@ -264,6 +264,20 @@ export function registerSettings() {
 		default: false,
 	});
 
+	// Identifying artifacts, Book I pp.430-431. When on, a Book II treasure dropped onto a
+	// character sheet lands with its tags, Value and ○ uses withheld, so the table plays out
+	// "describe it… hint at more than meets the eye" and a PC has to Know Things about it.
+	// Off by default: that's how every existing world already behaves, and a GM who prefers to
+	// hand treasure over plainly can still hide individual pieces from the row's own control.
+	game.settings.register(SYSTEM_ID, "artifactsStartUnidentified", {
+		name: "stonetop.settings.artifactsStartUnidentified.name",
+		hint: "stonetop.settings.artifactsStartUnidentified.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: false,
+	});
+
 	// The flagship "threats on the map" option. When on, each threat pin also draws its
 	// full book card on the canvas, anchored to the pin and panning/zooming with the
 	// scene, with a live doom track the GM ticks right there. Off by default: the safe
