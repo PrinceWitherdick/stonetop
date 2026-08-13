@@ -878,7 +878,7 @@ function _chatWireBurnBrightly(message, html) {
 				// Regenerate the card so the readout, result label and per-tier outcome reflect the +1.
 				flavor:  _shiftRollCardFlavor(message.flavor, roll.total, roll.formula),
 				speaker: { ...message.speaker, ...speakerUpdate },
-				flags:   { SYSTEM_ID: { burnBrightly: true } },
+				flags:   { [SYSTEM_ID]: { burnBrightly: true } },
 			});
 		} catch (err) {
 			console.error("Stonetop | Error burning brightly:", err);
@@ -1034,7 +1034,7 @@ function _wireLogbook(message, html, actor, card) {
 			await message.update({
 				rolls,
 				flavor: _shiftRollCardFlavor(message.flavor, shifted.total, shifted.formula),
-				flags:  { SYSTEM_ID: { knowThingsUpgrade: LOGBOOK } },
+				flags:  { [SYSTEM_ID]: { knowThingsUpgrade: LOGBOOK } },
 			});
 			await ChatMessage.create({
 				content: moveChatCard("Logbook",

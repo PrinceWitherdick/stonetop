@@ -2,6 +2,7 @@ import { runStartupMigrations } from "./PbtaSheetConfig.js";
 import { maybeOfferMigration } from "../migration/announce.js";
 import { finishSystemIdMigration } from "../migration/finish-run.js";
 import { maybeRescueStrandedWorld } from "../migration/rescue.js";
+import { repairAllChronicleFlagScopes } from "../migration/chronicle-flag-scope.js";
 import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingleton.js";
 import { runWorldSetup, pendingSetupWork } from "./WorldSetup.js";
 import { reapplyBook2Art, hasImportedBook2Art } from "../book2-art/reapply.js";
@@ -11,7 +12,7 @@ import { offerDurableArtOnce } from "../book2-art/offer-once.js";
 import { openProgressNotification } from "../utils/progress-notification.js";
 import { stonetopChatCard } from "../utils/chat.js";
 import { stampWorldLayoutBaseline } from "../utils/sheet-layout.js";
-import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyHideRollableIcon, applyReduceMotion, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown } from "../settings.js";
+import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyHideRollableIcon, applyReduceMotion, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown, adoptClassicLayoutScope } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
 import { SpringBurstDialog } from "../dialogs/SpringBurstDialog.js";
@@ -137,6 +138,11 @@ export async function onReady() {
 	// Fold the pre-world-keying Setting Overview gate under this world, so every OTHER
 	// world stops reading it as already-shown (see settings.js).
 	await migrateFlatSettingOverviewShown();
+	// Before any sheet renders: carry a GM's pre-move choice for the three classic-layout boxes
+	// out of browser localStorage and into the world scope they now live in. Without it an
+	// upgraded world silently reverts to the classic layout. See adoptClassicLayoutScope.
+	try { await adoptClassicLayoutScope(); }
+	catch (err) { console.error("Stonetop | classic-layout scope adoption failed", err); }
 	try { await _migrateArmourToArmor(); }
 	catch (err) { console.error("Stonetop | armour → armor migration failed", err); }
 	await _migrateGmPrepPagesToSingleJournal();
@@ -145,6 +151,12 @@ export async function onReady() {
 	// load, not once per world: players can't create actors, so a background that seeds
 	// neighbors during onboarding leaves text rows for the GM to pick up here.
 	if (isPrimaryGM()) {
+		// Un-duplicate any chronicle journal a build with the misfiled flag key re-seeded. Swept
+		// every load rather than latched: it is idempotent by construction (nothing is left for
+		// it to match once it has run), so there is no gate that can get stuck. See
+		// migration/chronicle-flag-scope.js.
+		try { await repairAllChronicleFlagScopes(); }
+		catch (err) { console.error("Stonetop | chronicle flag-scope repair failed", err); }
 		try { await migrateAllSteadingPeople(); }
 		catch (err) { console.error("Stonetop | Residents/Neighbors → NPC conversion failed", err); }
 		// Give already-linked Residents of Stonetop a "Stonetop" Home if theirs is blank

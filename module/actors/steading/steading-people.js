@@ -432,7 +432,7 @@ export async function createPersonNpc(list, data = {}, { folder = null } = {}) {
 		// the loss would happen silently on the GM's next load with nothing to notice. Only
 		// written when there IS one — an explicit null would be a key every read then has to
 		// special-case.
-		if (data.portraitFrame) createData.flags = { SYSTEM_ID: { portraitFrame: data.portraitFrame } };
+		if (data.portraitFrame) createData.flags = { [SYSTEM_ID]: { portraitFrame: data.portraitFrame } };
 	}
 	return Actor.create(createData);
 }

@@ -1365,6 +1365,79 @@ export function migrateFlatSettingOverviewShown() {
 	return markSettingOverviewShown();
 }
 
+/**
+ * The three per-sheet layout boxes, which shipped CLIENT-scoped and are now WORLD-scoped
+ * (see their registration above for why they had to move).
+ */
+export const CLASSIC_LAYOUT_SETTINGS = Object.freeze([
+	"classicLayoutCharacter",
+	"classicLayoutSteading",
+	"classicLayoutNpc",
+]);
+
+// The registered default for all three. Only a stored value that DISAGREES with it is worth
+// carrying over — agreeing with the default is exactly what an absent world setting already
+// means, and writing it would create a Setting document that says nothing.
+const _CLASSIC_LAYOUT_DEFAULT = true;
+
+/**
+ * Which of the three still need their old client value carried into the world scope.
+ *
+ * Pure — takes the storage and the set of world Setting keys that already exist, returns
+ * `[{key, value}]` — so the rule can be tested without a Foundry world.
+ *
+ * Two things it must never do:
+ *  - OVERWRITE. A world Setting document for the key means the GM has already answered under
+ *    the new scope; the localStorage entry beside it is a fossil.
+ *  - GUESS. Only the two exact JSON booleans a Boolean client setting can hold are acted on.
+ */
+export function planClassicLayoutAdoption({ storage, worldKeys, systemId = SYSTEM_ID, keys = CLASSIC_LAYOUT_SETTINGS } = {}) {
+	if (!storage) return [];
+	const already = worldKeys instanceof Set ? worldKeys : new Set(worldKeys ?? []);
+	const plan = [];
+	for (const key of keys) {
+		const storedKey = `${systemId}.${key}`;
+		if (already.has(storedKey)) continue;
+		const raw = storage.getItem?.(storedKey);
+		if (raw !== "true" && raw !== "false") continue;
+		const value = raw === "true";
+		if (value === _CLASSIC_LAYOUT_DEFAULT) continue;
+		plan.push({ key, value });
+	}
+	return plan;
+}
+
+/**
+ * Carry a GM's pre-move choice for the three layout boxes into the world scope, once.
+ *
+ * A world-scoped setting never reads localStorage, so without this a GM who had unticked
+ * "Classic Layout: Character Sheets" to run the modern sheet got the registered default `true`
+ * back on the upgrade, and every sheet in the world silently reverted to classic. The old value
+ * is still sitting in their browser under the same `<namespace>.<key>` string, unread.
+ *
+ * GM-only but deliberately NOT primary-GM-only: the value lives in whichever GM's BROWSER it was
+ * set from, so gating it to the elected primary would throw the choice away whenever that is not
+ * the GM who made it. Two GMs adopting at once write the same key; the no-overwrite rule above
+ * makes that idempotent, and a genuine disagreement between two browsers has no better answer
+ * than last-write-wins.
+ *
+ * `copy-settings.js` does not cover this: that migration re-namespaces settings for the system-id
+ * rename, and a change of SCOPE moves the value between two different stores entirely.
+ */
+export async function adoptClassicLayoutScope({ game = globalThis.game, storage = globalThis.localStorage } = {}) {
+	if (!game?.user?.isGM) return { adopted: 0 };
+	// The Setting documents themselves — ClientSettings has no API for "is this key stored?",
+	// and `get` would hand back the registered default without saying it was a default. Nothing
+	// to read means nothing can be told apart, and guessing would clobber a real choice.
+	const worldStore = game.settings?.storage?.get?.("world");
+	if (!worldStore) return { adopted: 0 };
+	const plan = planClassicLayoutAdoption({ storage, worldKeys: new Set([...worldStore].map(doc => doc?.key)) });
+	// Written through the same `game` the plan was read from, rather than the module-level
+	// `setSetting`, so the read and the write can never end up talking to different worlds.
+	for (const { key, value } of plan) await game.settings.set(SYSTEM_ID, key, value);
+	return { adopted: plan.length };
+}
+
 /** A positive, whole pixel count, or null for anything that isn't one. */
 function _px(v) {
 	const n = Math.round(Number(v));

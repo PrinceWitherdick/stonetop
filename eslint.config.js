@@ -148,6 +148,17 @@ export default [
 			"no-restricted-syntax": ["error", {
 				selector: 'Literal[value="stonetop-pwd"]',
 				message: "Import SYSTEM_ID from module/system-id.js instead of retyping the package id.",
+			}, {
+				// The other half of the rule above. Swapping the literal for the constant is only
+				// half a fix: `{ SYSTEM_ID: {...} }` is a property named "SYSTEM_ID", not the
+				// package id, so the flag is written where nothing reads it and the failure is
+				// SILENT — `getFlag` just returns undefined forever. It cost five flag writes when
+				// the ids were first centralised (chronicle keys, portrait frames, the Burn
+				// Brightly and logbook once-only latches). Brackets make it a computed key.
+				//
+				// Shorthand `{ SYSTEM_ID }` is excluded: there the name IS the intent.
+				selector: 'Property[computed=false][shorthand=false][key.name=/^(SYSTEM_ID|ITEM_FLAG_SCOPE|LEDGER_SCOPE)$/]',
+				message: "Bracket it: { [SYSTEM_ID]: … }. Unbracketed, this writes a flag under the literal key \"SYSTEM_ID\".",
 			}],
 		},
 	},

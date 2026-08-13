@@ -107,7 +107,7 @@ export async function seedChroniclePages(entry, pages, { adoptLegacyKeys = null 
 			type:   "chronicle",
 			sort,
 			system: { sections: page.sections },
-			flags:  { SYSTEM_ID: { chronicleKey: page.key, [CHRONICLE_PROSE_FLAG]: proseManaged } },
+			flags:  { [SYSTEM_ID]: { chronicleKey: page.key, [CHRONICLE_PROSE_FLAG]: proseManaged } },
 		});
 	}
 	if (toCreate.length) await entry.createEmbeddedDocuments("JournalEntryPage", toCreate);

@@ -121,7 +121,7 @@ export async function recordSeasonsChange({ seasonId, year = 1, gainNames = [], 
 			type:  "text",
 			sort:  maxSort + 10,
 			text:  { content: block, format: CONST.JOURNAL_ENTRY_PAGE_FORMATS.HTML },
-			flags: { SYSTEM_ID: { chronicleYear: yr } },
+			flags: { [SYSTEM_ID]: { chronicleYear: yr } },
 		}]);
 	}
 
