@@ -17,7 +17,33 @@
 		Hide un-learned moves
 	</label>
 	{{/if}}
-	{{#if splitUnowned}}
+	{{#if groups}}
+		{{!-- The playbook's moves split into the three clusters the onboarding "choose
+		      moves" step filters by (onboarding-move-groups.js), plus a trailing "Other"
+		      for the moves no cluster claims — chiefly Improved / Superior Stat.
+
+		      Each sub-group is its own <div> so the SECTION's fold still swallows the lot:
+		      the collapse walks a heading's following SIBLINGS and stops at the next
+		      heading (section-editing.js#_sectionFoldTargets), and these sub-titles are
+		      `.stonetop-move-group-title` too. Boxed up they're never siblings of the
+		      section's heading row, while inside a box a sub-title's own fold reaches
+		      exactly its own lists. Sub-fold ids are namespaced under the section's, so a
+		      group key can't collide with a section id elsewhere on the sheet.
+
+		      Owned / un-owned stay split WITHIN each group, so "Hide un-learned moves"
+		      and the tab search work the same as they do on a flat list. --}}
+		{{#each groups}}
+		<div class="stonetop-move-subgroup">
+			{{> "stonetop.section-heading" title=label collapse=(concat ../collapseId ":" key)}}
+			{{#if ownedMoves.length}}
+			{{> "stonetop.move-group" listOnly=true moves=ownedMoves listClass="stonetop-move-list--owned"}}
+			{{/if}}
+			{{#if unownedMoves.length}}
+			{{> "stonetop.move-group" listOnly=true moves=unownedMoves listClass="stonetop-move-list--unowned"}}
+			{{/if}}
+		</div>
+		{{/each}}
+	{{else if splitUnowned}}
 		{{#if ownedMoves.length}}
 		{{> "stonetop.move-group" listOnly=true moves=ownedMoves listClass="stonetop-move-list--owned"}}
 		{{/if}}

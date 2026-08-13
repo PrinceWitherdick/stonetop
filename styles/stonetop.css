@@ -3050,6 +3050,48 @@ input.stonetop-name-field {
 	display: none;
 }
 
+/* ── Playbook moves, split by the playbook's three onboarding clusters ──────────
+   The Moves tab heads each of a playbook's three move clusters (Spirits / Nature /
+   Wards for the Blessed, and so on — the same groups the onboarding "choose moves"
+   step filters by) plus a trailing "Other", inside the one Playbook Moves section.
+   Each box owns its own heading and its own owned / un-owned lists, so the section's
+   fold, the tab search and "Hide un-learned moves" all keep working through them. */
+/* On the FIRST cluster too, not just between them: above it sits the section's
+   "Hide un-learned moves" line, which its heading would otherwise crowd. */
+.stonetop-move-subgroup {
+	margin-top: 12px;
+}
+
+/* Subordinate to the section title above it — that one is an <h3> at core's full
+   heading size, so these read as labels instead: small caps-ish, tracked, muted,
+   over a hairline that carries the eye across the cluster they open. */
+.stonetop-move-subgroup > .stonetop-move-group-title {
+	margin: 0;
+	padding-bottom: 3px;
+	border-bottom: 1px solid var(--st-card-rule);
+	font-size: var(--st-fs-md);
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--st-text-secondary);
+}
+
+/* A cluster whose every card is hidden would otherwise leave a heading standing over
+   nothing — four of them, once a search or "Hide un-learned moves" empties the tab out.
+   Two rules because the two filters hide cards by different means: `hide-unselected`
+   drops the whole un-owned list (so a cluster the character has learned nothing from
+   has no `--owned` list left), while the search hides individual cards by class.
+   `:not(.is-searching)` on the first for the same reason the rule above it carries one:
+   a live search overrides the learned filter. */
+.tab.moves.hide-unselected:not(.is-searching)
+	.stonetop-move-subgroup:not(:has(.stonetop-move-list--owned)) {
+	display: none;
+}
+.tab.moves.is-searching
+	.stonetop-move-subgroup:not(:has(.stonetop-item:not(.stonetop-search-hidden))) {
+	display: none;
+}
+
 .stonetop-moves-sidebar .items-list {
 	columns: 1;
 	/* pbta only zeroes .items-list padding inside .cell--* move blocks, not our

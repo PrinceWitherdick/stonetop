@@ -61,6 +61,7 @@ import {CharacterArcana} from "./CharacterArcana.js";
 import {CharacterLore} from "./CharacterLore.js";
 import {CharacterPostDeath, buildLoreSection, insertHpPenalty} from "./CharacterPostDeath.js";
 import {effectiveSubgroupMax, sumMoveBonus} from "./dialogs/possession-choice-cap.js";
+import {partitionMovesByGroup} from "./dialogs/onboarding-move-groups.js";
 import {FoundryRepositoryFactory} from "./repositories/FoundryRepositoryFactory.js";
 import {capitalizeFirst, slugify, composeInstinct, escHtml, stripHtmlToText} from "../../utils/strings.js";
 import {splitFillBlank, fillBlank} from "../../utils/fill-blanks.js";
@@ -453,7 +454,7 @@ export class StonetopCharacter {
 			// every render, not written once.
 			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses, wornArmorBase, insertHpPenalty(postDeath.activeInsert?.lore)))
 			.withMoves(moves)
-			.withMovelist(_buildMovelist(moves, inventory.other, pdiLabel, actorLevel, inventory.loveLetters))
+			.withMovelist(_buildMovelist(moves, inventory.other, pdiLabel, actorLevel, inventory.loveLetters, playbookData?.name ?? null))
 			.withInventory(inventory)
 			.withArcana(await this._arcana.buildSnapshot(actor.system.stats ?? {}, this._inventory.checked, this._inventory.resources))
 			.withPostDeathInsert(postDeath)
@@ -3754,7 +3755,7 @@ function _rollLabelForMove(name, rollType, data = {}) {
 	return ROLL_LABELS_BY_TYPE[normalizedRollType] ?? null;
 }
 
-function _buildMovelist(categories, other, pdiLabel = null, actorLevel = 1, loveLetters = []) {
+function _buildMovelist(categories, other, pdiLabel = null, actorLevel = 1, loveLetters = [], playbookName = null) {
 	const playbookCat   = categories.find(c => c.key === "playbook");
 	const basicCat      = categories.find(c => c.key === "basic");
 	const expeditionCat = categories.find(c => c.key === "expedition");
@@ -3793,6 +3794,10 @@ function _buildMovelist(categories, other, pdiLabel = null, actorLevel = 1, love
 
 	return new MovelistBuilder()
 		.withPlaybookMoves(playbookCat?.moves ?? [])
+		// Same moves, bucketed by the playbook's three onboarding groups so the tab can
+		// head each cluster. Falls back to [] — one flat list — for a playbook the group
+		// table doesn't know (homebrew, or none chosen yet).
+		.withPlaybookMoveGroups(partitionMovesByGroup(playbookName, playbookCat?.moves ?? []))
 		.withLearnedMoves(learnedCat?.moves ?? [])
 		.withBasicMoves(basicCat?.moves ?? [])
 		.withExpeditionMoves(expeditionCat?.moves ?? [])

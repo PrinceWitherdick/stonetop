@@ -5,6 +5,10 @@
 // advancement moves (Improved Stat, Superior Stat) and a few outliers — match no
 // chip and are reachable only via the text search.
 //
+// The character sheet's Moves tab splits its playbook section by these same three
+// groups (partitionMovesByGroup below), so a name added here shows up in both the
+// onboarding chips and the sheet headings — that is the point of the one table.
+//
 // Names must match the move item names exactly (raw doc.name, before display
 // normalization). Keyed by playbook display name (Item.system.playbook).
 
@@ -66,4 +70,39 @@ export function moveGroupKeys(playbookName, moveName) {
 	return (ONBOARDING_MOVE_GROUPS[playbookName] ?? [])
 		.filter(g => g.moves.includes(moveName))
 		.map(g => g.key);
+}
+
+// The trailing bucket for the moves no chip claims. Labelled "Other" rather than
+// "Other Moves" because the Moves tab already ends in a section by that name (the
+// custom / foreign-playbook moves), and the two are not the same thing: these are
+// this playbook's own moves, they just sit outside its three clusters.
+export const UNGROUPED_MOVE_KEY   = "ungrouped";
+export const UNGROUPED_MOVE_LABEL = "Other";
+
+/**
+ * Split a playbook's moves into its three groups plus the leftover bucket, for the
+ * sheet's Moves tab. Order within each group is the order the moves arrive in, so
+ * whatever sorting the caller applied (owned first, then alphabetical) survives.
+ *
+ * A move lands in the FIRST group that lists it and never in a second, even though
+ * the table above permits overlap: each rendered card carries live controls (the
+ * learn checkbox, the resource track, mark pickers, a drag handle), and a move drawn
+ * twice would hand one move two sets of them, writing over each other.
+ *
+ * @param {string|null} playbookName  display name, as in Item.system.playbook
+ * @param {Array<{name: string}>} moves
+ * @returns {Array<{key: string, label: string, moves: object[]}>} groups with at
+ *   least one move, in table order; [] when the playbook defines no groups (an
+ *   unrecognized or homebrew playbook), which tells the caller to render one flat list.
+ */
+export function partitionMovesByGroup(playbookName, moves) {
+	const groups = ONBOARDING_MOVE_GROUPS[playbookName];
+	if (!groups?.length) return [];
+	const buckets = new Map(groups.map(g => [g.key, { key: g.key, label: g.label, moves: [] }]));
+	buckets.set(UNGROUPED_MOVE_KEY, { key: UNGROUPED_MOVE_KEY, label: UNGROUPED_MOVE_LABEL, moves: [] });
+	for (const move of moves ?? []) {
+		const group = groups.find(g => g.moves.includes(move.name));
+		buckets.get(group?.key ?? UNGROUPED_MOVE_KEY).moves.push(move);
+	}
+	return [...buckets.values()].filter(b => b.moves.length);
 }
