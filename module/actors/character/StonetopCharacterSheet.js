@@ -6767,7 +6767,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 				buttons.cancel = { label: "Cancel", callback: () => resolve(null) };
 				new Dialog({
-					title:   `${game.i18n.localize("stonetop.arcana.identify")} — ${_esc(this.actor.name)}`,
+					title:   `${game.i18n.localize("stonetop.arcana.identify")} — ${this.actor.name}`,
 					content,
 					buttons,
 					default: choices.stats[0],
@@ -6867,7 +6867,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				+ `<p>${_esc(game.i18n.localize("stonetop.artifact.seekInsightWhy"))}</p></div>`;
 			return new Promise(resolve => {
 				new Dialog({
-					title:   `${game.i18n.localize("stonetop.artifact.identify")}: ${_esc(knowledge.name)}`,
+					title:   `${game.i18n.localize("stonetop.artifact.identify")}: ${knowledge.name}`,
 					content,
 					buttons: {
 						know:   { label: game.i18n.localize("stonetop.artifact.knowThings"),  callback: () => resolve("know") },
@@ -6988,7 +6988,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				this.render(false);
 			};
 			new Dialog({
-				title:   `${loc("gmTitle")}: ${_esc(knowledge.name)}`,
+				title:   `${loc("gmTitle")}: ${knowledge.name}`,
 				content,
 				buttons: {
 					save:   { label: loc("saveOnly"), callback: save },

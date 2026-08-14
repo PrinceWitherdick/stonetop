@@ -29,6 +29,7 @@ export class MonsterSource extends CatalogSource {
 			label: "Monsters",
 			icon:  "fas fa-dragon",
 			noun:  "monsters",
+			nounOne: "monster",
 			search: { title: "Search monsters", placeholder: "Filter monsters…" },
 			empty:  "No monsters match those filters.",
 			// A world monster edit stales this list; CatalogSource#staleFor spells out what that

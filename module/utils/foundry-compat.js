@@ -93,7 +93,9 @@ export function imagePopoutTitle(popout) {
  * @returns {Promise<string>}
  */
 export function renderTemplate(path, data) {
-	return (foundry.applications?.handlebars?.renderTemplate ?? globalThis.renderTemplate)(path, data);
+	const handlebars = globalThis.foundry?.applications?.handlebars;
+	if (typeof handlebars?.renderTemplate === "function") return handlebars.renderTemplate(path, data);
+	return globalThis.renderTemplate(path, data);
 }
 
 /**
