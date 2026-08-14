@@ -12,12 +12,30 @@
 	{{> "stonetop.section-heading" title=title note=note collapse=collapseId}}
 	{{/if}}
 	{{#if hideToggle}}
-	<label class="stonetop-hide-unselected-label">
-		<input type="checkbox" class="stonetop-hide-unselected-check"{{#if hideUnselected}} checked{{/if}}>
-		Hide un-learned moves
-	</label>
+	{{!-- Both toggles share one row so they read as a pair of filters over the list
+	      below, and so the row (not either label) owns the heading-to-first-card gap.
+	      "Organize by category" is gated on `groups`, not on `groupByCategory`: the
+	      playbook either has clusters to organize by or it doesn't, and gating it on
+	      the toggle's own state would make the checkbox disappear the moment it was
+	      un-ticked, with no way back. --}}
+	<div class="stonetop-move-toggle-row">
+		<label class="stonetop-hide-unselected-label">
+			<input type="checkbox" class="stonetop-hide-unselected-check"{{#if hideUnselected}} checked{{/if}}>
+			Hide un-learned moves
+		</label>
+		{{#if groups}}
+		<label class="stonetop-hide-unselected-label">
+			<input type="checkbox" class="stonetop-group-by-category-check"{{#if groupByCategory}} checked{{/if}}>
+			Organize by category
+		</label>
+		{{/if}}
+	</div>
 	{{/if}}
-	{{#if groups}}
+	{{!-- A bare `groups` is safe here: `and` answers exactly as `{{#if groups}}` does,
+	      empty array included (utils/hbs-truthy.js). It did not always — built on plain
+	      `Boolean` it called a homebrew playbook's empty group list TRUE and rendered
+	      this branch's empty `{{#each}}`, i.e. no move list at all. --}}
+	{{#if (and groupByCategory groups)}}
 		{{!-- The playbook's moves split into the three clusters the onboarding "choose
 		      moves" step filters by (onboarding-move-groups.js), plus a trailing "Other"
 		      for the moves no cluster claims — chiefly Improved / Superior Stat.

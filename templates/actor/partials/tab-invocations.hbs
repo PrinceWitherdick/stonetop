@@ -10,17 +10,13 @@
 		{{> "stonetop.details-section-edit-toggle" section="invocations" editing=stonetop.invocationsEdit collapse="invocations"}}
 	</div>
 
-	{{!-- The filter moved up into the shared section heading (searchControl); the sort stayed
-	      down here beside the hide toggle, since both are about what the grid below shows. --}}
+	{{!-- The filter moved up into the shared section heading (searchControl); the hide toggle
+	      stayed down here, since it is about what the grid below shows. --}}
 	<div class="stonetop-invocations-toolbar">
 		<label class="stonetop-hide-unselected-label">
 			<input type="checkbox" class="stonetop-hide-unknown-invocations-check"{{#if stonetop.invocations.hideUnknown}} checked{{/if}}>
 			Hide un-learned invocations
 		</label>
-		<select class="stonetop-invocation-sort" data-tooltip="Order the invocations below">
-			<option value="known"{{#if stonetop.invocations.sortKnown}} selected{{/if}}>Known first</option>
-			<option value="alpha"{{#if stonetop.invocations.sortAlpha}} selected{{/if}}>A–Z</option>
-		</select>
 	</div>
 
 	<div class="stonetop-invocations-rules">

@@ -1140,6 +1140,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			// `stonetop.classicLayout` with no sheet suffix.
 			context.stonetop.classicLayout = isClassicLayout("character");
 			context.stonetop.hideUnselected = this.actor.getFlag(STONETOP_SCOPE, "hideUnselected") ?? true;
+			// "Organize by category": whether the Playbook Moves section heads each of the
+			// playbook's three onboarding clusters, or draws one flat owned / un-owned list.
+			// Defaults to ON — the clusters are how the section has always read, and the
+			// toggle exists to get back to the flat list, not to opt into the split.
+			context.stonetop.groupMovesByCategory =
+				this.actor.getFlag(STONETOP_SCOPE, "groupMovesByCategory") ?? true;
 			context.stonetop.editMode = this._editMode;
 			context.stonetop.canEdit = this.isEditable;
 			// The header portrait and the two pips over it, answered once for all three sheets
@@ -2614,21 +2620,17 @@ export function createStonetopCharacterSheetClass(Base) {
 					active:      !!ongoingSlug && opt.slug === ongoingSlug,
 				};
 			});
-			const sort = this.actor.getFlag(STONETOP_SCOPE, "invocationsSort") ?? "known";
-			if (sort === "alpha") {
-				options.sort((a, b) => a.label.localeCompare(b.label));
-			} else {
-				// Known first, then alphabetically — mirrors the moves tab's owned-first order.
-				options.sort((a, b) => {
-					if (a.known !== b.known) return a.known ? -1 : 1;
-					return a.label.localeCompare(b.label);
-				});
-			}
+			// Known first, then alphabetically — mirrors the moves tab's owned-first order. The one
+			// order the tab has: an A–Z alternative used to be offered here as a dropdown, but the
+			// list is ten cards long and the hide-un-learned toggle already answers "just show me
+			// mine", so the choice bought nothing the toolbar didn't already do.
+			options.sort((a, b) => {
+				if (a.known !== b.known) return a.known ? -1 : 1;
+				return a.label.localeCompare(b.label);
+			});
 			return {
 				startingCount: raw.startingCount ?? 2,
 				hideUnknown:   this.actor.getFlag(STONETOP_SCOPE, "hideUnknownInvocations") ?? false,
-				sortKnown:     sort === "known",
-				sortAlpha:     sort === "alpha",
 				// The banner over the grid. Named here as well as on its own card because the
 				// hide-un-learned toggle and the search can both push that card out of sight, and
 				// the rule the banner restates is the one that costs you an Invocation.
@@ -2821,12 +2823,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this.actor.setFlag(STONETOP_SCOPE, "hideUnselected", ev.currentTarget.checked);
 			});
 
-			html.find(".stonetop-hide-unknown-invocations-check").on("change", async (ev) => {
-				await this.actor.setFlag(STONETOP_SCOPE, "hideUnknownInvocations", ev.currentTarget.checked);
+			html.find(".stonetop-group-by-category-check").on("change", async (ev) => {
+				await this.actor.setFlag(STONETOP_SCOPE, "groupMovesByCategory", ev.currentTarget.checked);
 			});
 
-			html.find(".stonetop-invocation-sort").on("change", async (ev) => {
-				await this.actor.setFlag(STONETOP_SCOPE, "invocationsSort", ev.currentTarget.value);
+			html.find(".stonetop-hide-unknown-invocations-check").on("change", async (ev) => {
+				await this.actor.setFlag(STONETOP_SCOPE, "hideUnknownInvocations", ev.currentTarget.checked);
 			});
 
 			// Live text filters (shared wireTabSearch): a round magnifying-glass button beside a

@@ -146,6 +146,10 @@ export async function onReady() {
 	catch (err) { console.error("Stonetop | classic-layout scope adoption failed", err); }
 	try { await _migrateArmourToArmor(); }
 	catch (err) { console.error("Stonetop | armour → armor migration failed", err); }
+	// Take retired sheet-preference flags off any actor still carrying one (see
+	// _RETIRED_ACTOR_FLAGS). Self-gated to the primary GM, and a no-op in a clean world.
+	try { await _dropRetiredActorFlags(); }
+	catch (err) { console.error("Stonetop | retired actor-flag sweep failed", err); }
 	await _migrateGmPrepPagesToSingleJournal();
 	// Convert each steading's plain-text Residents/Neighbors rows into linked NPC actors
 	// (idempotent; primary-GM only so two connected GMs can't double-create). Swept every
@@ -1184,6 +1188,51 @@ export async function _migrateArmourToArmor() {
 		() => Object.fromEntries([deletionEntry("system.attributes.armour")]),
 		"armour key drop",
 	);
+}
+
+// Per-actor flags in OUR scope that no code reads any more, because the control that wrote them
+// is gone from the sheet. Nothing breaks if one is left behind — a stale flag is inert — but a
+// world's actor data should say what the system actually uses, and a retired key left lying
+// around is the kind of thing that gets mistaken for live state later.
+//
+// Add a key here only once its last READER is gone, not merely its writer: a flag still consulted
+// somewhere would be silently reset to its default by this sweep.
+const _RETIRED_ACTOR_FLAGS = [
+	// The Invocations tab's "Known first / A–Z" sort dropdown, dropped when the tab settled on the
+	// single order (known first, then alphabetically). Only a Lightbearer whose player opened that
+	// dropdown ever carried it.
+	"invocationsSort",
+];
+
+// Sweep those keys off every actor that still has one.
+//
+// PRIMARY-GM ONLY, like every other write in onReady. A player has no right to update actors they
+// don't own, and the rejection would tear down the rest of the hook for them — the lesson
+// _migrateArmourToArmor above learned the hard way.
+//
+// Needs no version flag: it is idempotent by construction, since after a run there is no key left
+// to match and the walk below makes it a silent no-op. One batched request rather than one per
+// actor, because unlike the armour sweep this walks EVERY actor in the world, not just characters
+// — with the same per-actor retry behind it, so one unwritable actor can't hold the rest stale.
+export async function _dropRetiredActorFlags() {
+	if (!game.user?.isGM || !isPrimaryGM()) return 0;
+	const staleKeys = new Map();
+	for (const actor of game.actors ?? []) {
+		const flags = actor.flags?.[STONETOP_SCOPE];
+		if (!flags) continue;
+		const stale = _RETIRED_ACTOR_FLAGS.filter(key => flags[key] !== undefined);
+		if (stale.length) staleKeys.set(actor, stale);
+	}
+	if (!staleKeys.size) return 0;
+	await _updateActorsBatched(
+		[...staleKeys.keys()],
+		// Through deletionEntry so v14 gets a ForcedDeletion instance rather than a deprecated
+		// `-=` key, while v13 gets the `-=` prefix, which is the only form that works there.
+		actor => Object.fromEntries(
+			staleKeys.get(actor).map(key => deletionEntry(`flags.${STONETOP_SCOPE}.${key}`))),
+		"retired flag sweep",
+	);
+	return staleKeys.size;
 }
 
 // The GM-prep page families (threats / hazards) used to store one JournalEntry per item in

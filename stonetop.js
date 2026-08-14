@@ -51,6 +51,7 @@ import { characterFullName } from "./module/utils/playbook-actors.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
+import { hbsTruthy } from "./module/utils/hbs-truthy.js";
 import { rollSeasonsCard, sign, SPRING_SEASONS_RESULT, xpToLevelUp, markMissXp } from "./module/utils/roll-engine.js";
 import { formatOutcomeDetail, escHtml } from "./module/utils/strings.js";
 import { moveChatCard } from "./module/utils/chat.js";
@@ -130,9 +131,13 @@ Hooks.once("init", () => {
 	Handlebars.registerHelper("escapeHtml", value => escHtml(value));
 	Handlebars.registerHelper("boldMissText", value => boldMissText(value));
 	Handlebars.registerHelper("eq", (a, b) => a === b);
-	Handlebars.registerHelper("or", (...args) => args.slice(0, -1).some(Boolean));
-	Handlebars.registerHelper("and", (...args) => args.slice(0, -1).every(Boolean));
-	Handlebars.registerHelper("not", value => !value);
+	// `hbsTruthy`, never bare `Boolean`: these three sit beside `{{#if}}` in the same
+	// expression and have to answer the same way, and an EMPTY ARRAY is the case where
+	// plain JS truthiness doesn't — truthy to `Boolean`, falsy to `{{#if}}`. See
+	// utils/hbs-truthy.js. `.slice(0, -1)` drops the options object Handlebars appends.
+	Handlebars.registerHelper("or", (...args) => args.slice(0, -1).some(hbsTruthy));
+	Handlebars.registerHelper("and", (...args) => args.slice(0, -1).every(hbsTruthy));
+	Handlebars.registerHelper("not", value => !hbsTruthy(value));
 	// No `concat` here on purpose: core already registers one (its own doc example is
 	// exactly our use, building an id out of a loop variable), and Handlebars helpers are
 	// global to the Foundry runtime — re-registering it would shadow core's for every

@@ -3167,6 +3167,7 @@ input.stonetop-name-field {
 .stonetop-arcanum-unlock-check,
 .stonetop-arcanum-box,
 .stonetop-hide-unselected-check,
+.stonetop-group-by-category-check,
 .stonetop-hide-unknown-invocations-check,
 .stonetop-possession-check,
 .stonetop-possession-sub-check,
@@ -3232,6 +3233,7 @@ input.stonetop-name-field {
 .stonetop-arcanum-unlock-check:checked,
 .stonetop-arcanum-box:checked,
 .stonetop-hide-unselected-check:checked,
+.stonetop-group-by-category-check:checked,
 .stonetop-hide-unknown-invocations-check:checked,
 .stonetop-possession-check:checked,
 .stonetop-possession-sub-check:checked,
@@ -7445,6 +7447,30 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	   higher specificity. Stating 4px here just says out loud what actually applies,
 	   which the old 12px did not. */
 	margin: 4px 0 8px;
+}
+
+/* The Moves tab's two list toggles — "Hide un-learned moves" and "Organize by category"
+   — on one line. The row now stands between the Playbook Moves rule and that group's
+   first card, so it inherits the margins the lone label used to carry (see the note
+   above: the 4px top is what the generic `.stonetop-details-heading-row + *` rule
+   applies anyway, the 8px bottom collapses into the list's own 4px). The labels
+   themselves drop theirs, or the second toggle would push the row taller than the
+   single label ever was.
+
+   Wraps rather than shrinking: at a narrow sheet width, two full labels don't fit, and
+   a wrapped second line reads better than either one clipped. `column-gap` is the wide
+   step between toggles, `row-gap` the tight one once they stack. */
+.stonetop-move-toggle-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	column-gap: 16px;
+	row-gap: 2px;
+	margin: 4px 0 8px;
+}
+
+.stonetop-move-toggle-row .stonetop-hide-unselected-label {
+	margin: 0;
 }
 
 /* Scoped to `.character`, not the bare `.pbta.sheet` this used to carry. Every tab in the
@@ -18134,9 +18160,10 @@ a.steading-player-open:hover {
 
 /* The card the banner is talking about. The ordering that matters is against the shared card
    base, which is much earlier in this file (see `.tab.moves .stonetop-item`); it needs no order
-   against `.is-unknown` below, because the two set disjoint properties — un-ticking an Invocation
-   you are holding open leaves a card that is faded AND lit, which is exactly the right way to
-   read a state that shouldn't exist. The glow is the lit candle's, at card strength. */
+   against `.is-unknown` below, because that one paints the card's CONTENTS and this one paints the
+   card — un-ticking an Invocation you are holding open leaves a card that is lit with faded text,
+   which is exactly the right way to read a state that shouldn't exist. The glow is the lit
+   candle's, at card strength. */
 .stonetop-invocation-card.is-concentrating {
 	border-color: var(--st-holy-light-border);
 	background: var(--st-holy-light-bg);
@@ -18156,19 +18183,20 @@ a.steading-player-open:hover {
    it looks: the whole list is on this tab (a 1st-level Lightbearer knows 2 of 10), the two
    states used to differ by nothing but a disabled checkbox, and only a LEARNED one is
    offered the +WIS roll on tap. Faded rather than greyed out — it is still readable, still
-   tappable, and still posts its text. */
-.stonetop-invocation-card.is-unknown {
-	opacity: 0.62;
-	border-style: dashed;
+   tappable, and still posts its text.
+
+   Exactly the un-learned MOVE treatment (see `.stonetop-item.move-unlearned`), because these
+   are the same statement on two tabs: the name and the text fade, the card keeps its ordinary
+   solid border, and the leading checkbox keeps full contrast so learning it stays an obvious
+   click. The card itself is deliberately left alone — a dashed edge said "placeholder" or
+   "drop target" here rather than "not taken", and the moves list never needed one to say it. */
+.stonetop-invocation-card.is-unknown .stonetop-invocation-name,
+.stonetop-invocation-card.is-unknown .stonetop-invocation-desc {
+	opacity: 0.5;
 }
 
-.stonetop-invocation-card.is-unknown:hover,
-.stonetop-invocation-card.is-unknown:focus-within {
-	opacity: 1;
-}
-
-/* Toolbar — the hide-un-learned toggle and the sort; the text filter is the shared
-   magnifying-glass control up in the heading row (see .stonetop-tab-search). */
+/* Toolbar — the hide-un-learned toggle; the text filter is the shared magnifying-glass
+   control up in the heading row (see .stonetop-tab-search). */
 .stonetop-invocations-toolbar {
 	display: flex;
 	align-items: center;
@@ -18180,18 +18208,6 @@ a.steading-player-open:hover {
 .tab.stonetop-invocations .stonetop-hide-unselected-label {
 	margin: 0;
 	flex-shrink: 0;
-}
-
-.stonetop-invocations-toolbar .stonetop-invocation-sort {
-	flex-shrink: 0;
-	width: auto;
-	height: 24px;
-	padding: 0 4px;
-	border: 1px solid var(--color-border-dark, #7a7971);
-	border-radius: var(--st-radius);
-	font-family: var(--font-stonetop);
-	font-size: calc(13px * var(--stonetop-font-scale, 1));
-	background: #fff;
 }
 
 /* The Invocation prompt — raised whenever a Lightbearer uses an Invocation: roll +WIS to
