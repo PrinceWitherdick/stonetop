@@ -848,6 +848,7 @@
       "unlitTooltip": "No holy light. Click to light one, or use Consecrated Flame.",
       "readOnlyLit": "A holy light burns.",
       "readOnlyUnlit": "No holy light is lit.",
+      "unlitAttackNotice": "No holy light is lit — the candle in the sheet header lights one.",
       "litLabel": "Holy light is lit",
       "unlitLabel": "Holy light is out"
     },

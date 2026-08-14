@@ -2122,7 +2122,16 @@ export class StonetopCharacter {
 		await this.ensureStartingMoves();
 	}
 
-	async onRoll(event, { statOverride = null, situational = 0 } = {}) {
+	// `weaponSlug` pre-answers the attack flow's weapon prompt — set only by the paths where the
+	// player has already chosen the weapon by choosing the move (see grantedWeaponAttackFor).
+	//
+	// RETURNS: `false` when there was nothing here to roll and the caller should try its other
+	// paths (a bare stat, a damage formula); `"cancel"` when this WAS a move roll but the player
+	// backed out of the weapon or target prompt, so no dice were thrown; `true` otherwise. The two
+	// truthy answers both mean "taken, stop looking" — the distinction is only for a caller with
+	// something to fire after the roll (see MOVE_ROLL_EFFECTS), which must not fire on a prompt
+	// nobody answered.
+	async onRoll(event, { statOverride = null, situational = 0, weaponSlug = null } = {}) {
 		const itemId = event.currentTarget.closest(".item")?.dataset.itemId;
 		if (!itemId) return false;
 		const item = this._actor.items.get(itemId);
@@ -2143,8 +2152,13 @@ export class StonetopCharacter {
 		// Returns null for non-attack moves. See module/combat/attack-flow.js.
 		let attackExtra = null;
 		if (!descriptionOnly) {
-			const begun = await maybeBeginAttack(this._actor, item, { stat });
-			if (begun === "cancel") return true;
+			const begun = await maybeBeginAttack(this._actor, item, { stat, weaponSlug });
+			// "cancel", not a bare `true`. Both stop the caller looking for another way to roll
+			// this rollable, which is all the fall-through needs — but a caller that also has an
+			// after-the-roll effect to fire has to be able to tell "the dice landed" from "the
+			// player closed the weapon prompt", and while these answered the same the guards
+			// written for exactly that (`if (handled) …`) were doing nothing at all.
+			if (begun === "cancel") return "cancel";
 			// Going on the offense (Clash / Let Fly) sheds any held Defend Readiness (p.216) —
 			// but only once the attack is committed, not on a cancelled weapon/target prompt.
 			if (attackMoveFor(item)) await this._loseDefendReadinessToOffense(item.name);

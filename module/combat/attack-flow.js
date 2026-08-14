@@ -44,6 +44,38 @@ export function attackMoveFor(item) {
 	return ATTACK_MOVES[item?.name] ?? null;
 }
 
+/**
+ * The attack a move-granted weapon IS, when the granting move's whole mechanical offer is
+ * "this thing counts as a weapon" — the Lightbearer's Purifying Flames, whose holy light
+ * "counts as a weapon (d10 damage, hand, close, area, 2 piercing)" and which lets them roll
+ * +WIS to Clash. Such a move has no roll of its own, so using it is that attack with the
+ * weapon already in hand; this returns what the roll needs:
+ *
+ *   { item, stat, weaponSlug }  the attack move to roll (an item ON this actor, since the
+ *                               roll resolves it by id), the stat the grant rides on, and the
+ *                               weapon that skips the weapon prompt;
+ *   { readyWhen, unreadyNotice } the weapon's own precondition, straight off its row in
+ *                               data/weapons.js — SAID by the caller when unmet, never enforced,
+ *                               so a second granted weapon needs no new branch in the roll path.
+ *
+ * Null for every other move, and for a granting move whose attack move the actor doesn't own —
+ * the caller then treats it as the description-only move it has always been. Matched on the
+ * resolved ITEM, never a row's text: an un-owned playbook row carries no item at all, and a
+ * player-authored move (moveType "other") that happens to share the name acts as itself, the
+ * same rule the guided-move and stat-picker paths apply.
+ */
+export function grantedWeaponAttackFor(actor, item) {
+	if (item?.type !== "move" || item.system?.moveType === "other") return null;
+	const granted = grantedWeaponForMove(item.name);
+	if (!granted?.viaMove || !ATTACK_MOVES[granted.viaMove]) return null;
+	const attackItem = actor?.items?.find(i => i.type === "move" && i.name === granted.viaMove);
+	if (!attackItem) return null;
+	return {
+		item: attackItem, stat: granted.whenStat, weaponSlug: granted.slug,
+		readyWhen: granted.readyWhen ?? null, unreadyNotice: granted.unreadyNotice ?? null,
+	};
+}
+
 function isFriendly(disposition) {
 	return disposition === CONST.TOKEN_DISPOSITIONS.FRIENDLY;
 }
@@ -129,13 +161,22 @@ function serializeWeapon({ slug, meta }) {
 // -- Prompts ------------------------------------------------------------------
 
 // Ask which weapon is in hand. Returns { weapon } (possibly null — unarmed / no matching
-// weapon) or "cancel". Auto-resolves without a dialog for 0 or 1 candidate. `preferSlug`
-// pre-checks a candidate instead of the first — the stat the player rolled can imply the
-// weapon (+WIS on Clash means the Lightbearer's holy light). The unarmed row (see
-// withUnarmedChoice) is a choice, not a weapon: picking it resolves to null, the same as
-// having nothing that fits the move.
-function promptWeaponChoice(candidates, moveName, { preferSlug = null } = {}) {
+// weapon) or "cancel". The unarmed row (see withUnarmedChoice) is a choice, not a weapon: picking
+// it resolves to null, the same as having nothing that fits the move.
+//
+// EVERY reason not to ask lives here, so "when is the player asked?" is one function's answer
+// rather than something a caller can also decide:
+//   forceSlug  the weapon is ALREADY chosen — clicking Purifying Flames is choosing the holy
+//              light — so there is nothing to ask. A slug that isn't on offer (a move removed
+//              mid-click) falls through to the prompt rather than attacking with a weapon this
+//              character doesn't have.
+//   0 or 1 candidate  there is no choice to make.
+// `preferSlug` does not skip the prompt; it pre-checks a candidate instead of the first, because
+// the stat the player rolled can IMPLY the weapon (+WIS on Clash means the holy light).
+function promptWeaponChoice(candidates, moveName, { preferSlug = null, forceSlug = null } = {}) {
 	const chosen = (c) => ({ weapon: c?.unarmed ? null : (c ?? null) });
+	const forced = forceSlug ? candidates.find(c => c.slug === forceSlug) : null;
+	if (forced) return Promise.resolve(chosen(forced));
 	if (candidates.length === 0) return Promise.resolve({ weapon: null });
 	if (candidates.length === 1) return Promise.resolve(chosen(candidates[0]));
 
@@ -280,8 +321,11 @@ function buildTierActions(move, weapon) {
  *   - "handled"  → a no-roll easy shot was posted; the caller must NOT roll
  *   - "cancel"   → the player cancelled a prompt; abort
  *   - { … }      → merge into the roll options
+ *
+ * `weaponSlug` names a weapon the caller has ALREADY chosen (clicking Purifying Flames is
+ * choosing the holy light), which skips the weapon prompt.
  */
-export async function maybeBeginAttack(actor, item, { stat = null } = {}) {
+export async function maybeBeginAttack(actor, item, { stat = null, weaponSlug = null } = {}) {
 	const move = attackMoveFor(item);
 	if (!move) return null;
 
@@ -296,7 +340,9 @@ export async function maybeBeginAttack(actor, item, { stat = null } = {}) {
 	// pre-selects that weapon, so the d10 the move promises is what's in hand by default.
 	const candidates = carriedAttackWeapons(actor, move);
 	const preferSlug = candidates.find(c => c.whenStat && c.whenStat === stat)?.slug ?? null;
-	const picked = await promptWeaponChoice(candidates, item.name, { preferSlug });
+	// Both "which weapon should be pre-checked" and "is there anything to ask at all" are the
+	// prompt's own call — see promptWeaponChoice.
+	const picked = await promptWeaponChoice(candidates, item.name, { preferSlug, forceSlug: weaponSlug });
 	if (picked === "cancel") return "cancel";
 	const weapon = picked.weapon ? serializeWeapon(picked.weapon) : null;
 

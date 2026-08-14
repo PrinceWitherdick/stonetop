@@ -25,6 +25,7 @@ import {FollowerFateDialog} from "./dialogs/FollowerFateDialog.js";
 import {CallUpDeepOnesDialog} from "./dialogs/CallUpDeepOnesDialog.js";
 import {RING_SOURCE_UUID, SERVANT_SOURCE_UUID, buildServantFollower} from "../../data/servant-of-daagon.js";
 import {grantedWeaponForMove, weaponTraitText} from "../../data/weapons.js";
+import {grantedWeaponAttackFor} from "../../combat/attack-flow.js";
 import {ALT_STAT_GRANTS} from "../../data/alt-stat-grants.js";
 import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
 import {trackCreationFlow} from "./creation-flow.js";
@@ -2940,6 +2941,18 @@ export function createStonetopCharacterSheetClass(Base) {
 					rollable.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, shiftKey: ev.shiftKey }));
 					return;
 				}
+				// A move whose whole offer is "this counts as a weapon" (Purifying Flames) has no
+				// roll of its own, so using it IS the attack it grants — run below, after the tail,
+				// with the weapon already in hand.
+				//
+				// AFTER, not INSTEAD. Having no rollType means having no dice icon, so this
+				// name-click is the move's ONLY surface: a shortcut that took the click would be
+				// the one move on the sheet its owner cannot show the table. So it does both, in
+				// the order they read — here is what Purifying Flames says, and here is the Clash
+				// at +WIS it turns into. Answered here rather than at the call itself so the
+				// editability gate sits with the decision it gates: an observer gets the card and
+				// no roll, which is the same tail every other move gives them.
+				const grantedAttack = this.isEditable ? grantedWeaponAttackFor(this.actor, item) : null;
 				const description = li.querySelector(".stonetop-item-description")?.innerHTML ?? "";
 				const playbookName = html[0].querySelector(".stonetop-playbook-drop-zone:not(.empty)")?.textContent?.trim() ?? "";
 				const speaker = ChatMessage.getSpeaker({ actor: this.actor });
@@ -2952,6 +2965,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				// here — and posting its text IS using it. MOVE_USE_EFFECTS is what "using it"
 				// then means (lighting a holy light, opening the Judge's roster).
 				await this._onDescriptionMoveUsed(item);
+				// …and for the handful whose text is an offer of a weapon, using it is also that
+				// weapon's attack. See grantedAttack above.
+				if (grantedAttack) await this._rollGrantedWeaponAttack(item, grantedAttack, { shiftKey: ev.shiftKey });
 			});
 
 			// Clicking the move name fires the same roll as the dice icon.
@@ -2967,32 +2983,16 @@ export function createStonetopCharacterSheetClass(Base) {
 					?? chip?.closest("li")?.querySelector(".rollable");
 				if (!rollable || !this.isEditable) return;
 				ev.stopPropagation();
-				const guided = this._guidedMoveForRollable(rollable);
-				if (guided) {
-					this._openGuidedCharacterMove(guided, rollable);
-					return;
-				}
-				const askItem = this._statChoiceMoveForRollable(rollable);
-				if (askItem) {
-					this._promptStatChoice(askItem, rollable, undefined, { shiftKey: ev.shiftKey });
-					return;
-				}
-				const altChoice = this._altStatChoiceForRollable(rollable);
-				if (altChoice) {
-					this._promptStatChoice(altChoice.item, rollable, altChoice.stats, { shiftKey: ev.shiftKey, grants: altChoice.grants });
-					return;
-				}
-				// Optional pre-roll modifier prompt for 2d6 move/stat rolls (not damage).
-				// Returns null when the player cancels the prompt — abort the roll then.
-				let situational = 0;
-				if (rollable.classList.contains("move-rollable") || _STAT_KEYS.has(rollable.dataset.roll)) {
-					situational = await this._maybePromptRollModifier({ shiftKey: ev.shiftKey, rollable });
-					if (situational === null) return;
-				}
+				// Guided move, the two stat pickers, then the optional modifier prompt — the same
+				// ladder the hotbar path walks. See _resolveMoveRollPrompts.
+				const situational = await this._resolveMoveRollPrompts(rollable, { shiftKey: ev.shiftKey });
+				if (situational === "handled" || situational === "cancel") return;
 				const handled = await this._stonetopCharacter.onRoll({ currentTarget: rollable }, { situational });
 				// What rolling this move DOES beyond the roll — see MOVE_ROLL_EFFECTS. Only after
-				// the roll actually happened, so a cancelled weapon/target prompt opens nothing.
-				if (handled) await this._onRollableRolled(rollable);
+				// the roll actually happened, so a cancelled weapon/target prompt opens nothing:
+				// that is the `"cancel"` half of onRoll's answer, which is truthy (nothing else may
+				// run for this rollable) but is not a roll.
+				if (handled && handled !== "cancel") await this._onRollableRolled(rollable);
 				if (!handled) {
 					const roll = rollable.dataset.roll;
 					if (!roll) return;
@@ -5314,40 +5314,44 @@ export function createStonetopCharacterSheetClass(Base) {
 		// This is the entry point used by the hotbar move-macros (drag a move onto the
 		// hotbar): it works whether or not the sheet is currently rendered, because it
 		// builds a detached stand-in for the row's rollable icon (see _makeSyntheticRollable)
-		// and feeds it to the same helpers the inline click handler uses. Keep the branch
-		// order here in sync with that handler in activateListeners.
+		// and feeds it to the same helpers the inline click handler uses — literally the same
+		// ladder, via _resolveMoveRollPrompts, so the two can no longer fall out of step.
 		async rollMoveById(itemId, { shiftKey = false } = {}) {
 			const item = this.actor?.items?.get(itemId);
 			if (!item) return void ui.notifications.warn("That move is no longer on this character.");
 			if (!this.isEditable) return;
 
-			const rollable = this._makeSyntheticRollable(item);
+			// A weapon-granting move (Purifying Flames) has no rollType of its own, so it belongs
+			// in the description branch — and it is steered there rather than merely landing there,
+			// so that a granting move which one day DOES carry a rollType still acts as the weapon
+			// it offers, exactly as the Moves tab's name-click has it.
+			const grantedAttack = grantedWeaponAttackFor(this.actor, item);
+
+			const rollable = grantedAttack ? null : this._makeSyntheticRollable(item);
 			if (!rollable) {                     // description-only move → post to chat
 				const posted = await item.roll();
 				// The other half: a move dragged to the hotbar is used from there just as truly
 				// as from the sheet, so it gets the same effects.
 				await this._onDescriptionMoveUsed(item);
+				// And the third, for a move whose text is an offer of a weapon: its card, then the
+				// attack it grants. Both halves, in the same order the sheet does them, so a move
+				// on the hotbar and the same move on the tab do the same thing.
+				if (grantedAttack) await this._rollGrantedWeaponAttack(item, grantedAttack, { shiftKey });
 				return posted;
 			}
 
-			const guided = this._guidedMoveForRollable(rollable);
-			if (guided) return this._openGuidedCharacterMove(guided, rollable);
-
-			const askItem = this._statChoiceMoveForRollable(rollable);
-			if (askItem) return this._promptStatChoice(askItem, rollable, undefined, { shiftKey });
-
-			const altChoice = this._altStatChoiceForRollable(rollable);
-			if (altChoice) return this._promptStatChoice(altChoice.item, rollable, altChoice.stats, { shiftKey, grants: altChoice.grants });
-
-			const situational = await this._maybePromptRollModifier({ shiftKey, rollable });
-			if (situational === null) return;   // player cancelled the modifier prompt
-			await this._stonetopCharacter.onRoll({ currentTarget: rollable }, { situational });
+			// The same ladder the Moves tab's own dice click walks, which is the point: a move on
+			// the hotbar must ask what the sheet asks. See _resolveMoveRollPrompts.
+			const situational = await this._resolveMoveRollPrompts(rollable, { shiftKey });
+			if (situational === "handled" || situational === "cancel") return;
+			const handled = await this._stonetopCharacter.onRoll({ currentTarget: rollable }, { situational });
 			// What rolling this move DOES beyond the roll — the same effects the Moves tab's own
-			// click fires. A move dragged to the hotbar is rolled from there just as truly as from
-			// the sheet, and this path had been getting the roll without them: a Blessed who put
-			// Amulets & Talismans on their bar laid a charm the roster never heard about. The
+			// click fires, and gated the same way, so a weapon/target prompt backed out of here
+			// fires nothing either. A move dragged to the hotbar is rolled from there just as truly
+			// as from the sheet, and this path had been getting the roll without them: a Blessed who
+			// put Amulets & Talismans on their bar laid a charm the roster never heard about. The
 			// description-only branch above already reasons this way for MOVE_USE_EFFECTS.
-			await this._onMoveRolled(item);
+			if (handled !== "cancel") await this._onMoveRolled(item);
 		}
 
 		// Resolve a love letter (Book I p.568): post it like any move, then consume it.
@@ -5395,6 +5399,89 @@ export function createStonetopCharacterSheetClass(Base) {
 			rollable.dataset.roll = stat;
 			li.append(name, rollable);
 			return rollable;
+		}
+
+		/**
+		 * Use a move that grants a weapon: roll the attack it rides on, with that weapon already
+		 * in hand. Purifying Flames is the whole case today — the Lightbearer's holy light
+		 * "counts as a weapon (d10 damage, hand, close, area, 2 piercing) and you can choose to
+		 * roll +WIS to Clash" — so clicking it Clashes with the light at +WIS, which is exactly
+		 * the state a player used to reach by clicking Clash, picking +WIS, and then picking the
+		 * light out of the weapon prompt.
+		 *
+		 * The other combination the move allows (the light in hand while rolling +STR) is still
+		 * reachable the old way, since the weapon prompt offers the light whichever stat was
+		 * chosen — so this shortcut costs nothing to leave un-asked.
+		 *
+		 * `moveItem` is the move the player CLICKED; `attack.item` is the Clash it becomes. The
+		 * modifier prompt is titled with the former (it's what they asked for), while the roll,
+		 * its card, and the effects of having rolled all belong to the latter.
+		 *
+		 * BOTH CALLERS POST THE MOVE'S TEXT FIRST and then call this. A granting move has no
+		 * rollType, so it renders no dice icon and its name-click is its only surface; taking that
+		 * click for the attack alone would leave it the one move on the sheet its owner cannot show
+		 * the table. The card then reads as the reason for the roll under it.
+		 *
+		 * THE CALLER OWNS THE EDITABILITY GATE, and deliberately: rollMoveById has already returned
+		 * for a read-only sheet, while the Moves tab resolves the attack only when editable, so an
+		 * observer gets the move's text and no roll. A guard here would swallow the difference.
+		 */
+		async _rollGrantedWeaponAttack(moveItem, attack, { shiftKey = false } = {}) {
+			const rollable = this._makeSyntheticRollable(attack.item);
+			if (!rollable) return;              // the attack move has no rollType — nothing to roll
+			// Said, not enforced: whether the granted weapon is ready — a holy light actually
+			// burning — and whether the foe is a creature of darkness are the table's call, the
+			// same call the weapon picker already leaves them. WHICH state to look at and what to
+			// say both come from the weapon's own row (data/weapons.js, via grantedWeaponAttackFor),
+			// so the second granted weapon is a table entry rather than a branch here.
+			if (attack.readyWhen && !this._stonetopCharacter?.[attack.readyWhen]) {
+				ui.notifications?.info(game.i18n.localize(attack.unreadyNotice));
+			}
+			const situational = await this._maybePromptRollModifier({ shiftKey, title: moveItem.name });
+			if (situational === null) return;   // player cancelled the modifier prompt
+			const handled = await this._stonetopCharacter.onRoll({ currentTarget: rollable }, {
+				statOverride: attack.stat, situational, weaponSlug: attack.weaponSlug,
+			});
+			// The same guard both other roll paths use. The weapon is pre-answered here, but the
+			// TARGET prompt is not, and backing out of it is a roll that never happened — an
+			// effect fired on one would be a mark laid, or a roster opened, for nothing.
+			if (handled !== "cancel") await this._onMoveRolled(attack.item);
+		}
+
+		/**
+		 * Everything a move roll has to ASK before the dice are thrown: the guided-move dialog,
+		 * the "ask" stat picker, the alt-stat picker, then the optional pre-roll modifier prompt.
+		 *
+		 * One ladder, because it has to BE one — dragging a move to the hotbar must ask exactly
+		 * what clicking its dice icon on the sheet asks. It used to be written out twice, with a
+		 * comment on the second copy telling the reader to keep the branch order in step with the
+		 * first by hand; that instruction is what this replaces.
+		 *
+		 * Returns:
+		 *   "handled"  a dialog took the roll over and owns it from here — the caller stops;
+		 *   "cancel"   the player backed out of the modifier prompt;
+		 *   a number   the situational modifier to roll with (0 when nothing was asked).
+		 *
+		 * The modifier prompt is only for 2d6 move/stat rolls, never a raw formula (a damage die,
+		 * a follower's attack) — so this answers correctly for ANY rollable on the sheet, which is
+		 * what lets the general rollable handler share it with the move-only hotbar path.
+		 */
+		async _resolveMoveRollPrompts(rollable, { shiftKey = false } = {}) {
+			const guided = this._guidedMoveForRollable(rollable);
+			if (guided) { this._openGuidedCharacterMove(guided, rollable); return "handled"; }
+
+			const askItem = this._statChoiceMoveForRollable(rollable);
+			if (askItem) { this._promptStatChoice(askItem, rollable, undefined, { shiftKey }); return "handled"; }
+
+			const altChoice = this._altStatChoiceForRollable(rollable);
+			if (altChoice) {
+				this._promptStatChoice(altChoice.item, rollable, altChoice.stats, { shiftKey, grants: altChoice.grants });
+				return "handled";
+			}
+
+			if (!rollable.classList.contains("move-rollable") && !_STAT_KEYS.has(rollable.dataset.roll)) return 0;
+			const situational = await this._maybePromptRollModifier({ shiftKey, rollable });
+			return situational === null ? "cancel" : situational;
 		}
 
 		_statChoiceMoveForRollable(rollable) {
