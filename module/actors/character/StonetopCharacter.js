@@ -2756,6 +2756,30 @@ export class StonetopCharacter {
 	get damageDieOverride() { return normalizeDamageDie(this._actor.system?.attributes?.damage?.override); }
 
 	/**
+	 * The damage die this character actually rolls: the hand-set override if there is one, else the
+	 * playbook's die raised by any owned move that raises it ("increase your damage die to a d8").
+	 *
+	 * The same answer `buildSnapshot().vitals.damage` gives — it shares `_derivedDamageDie`, so the
+	 * rule is stated once — for a fraction of the work. A snapshot walks moves, inventory, arcana,
+	 * possessions and post-death lore to build a whole sheet; this needs the playbook and the move
+	 * bonuses and nothing else. That matters because the damage roller asks per ROLL, including on
+	 * the counter-attack and multi-target paths, and `system.attributes.damage.value` cannot answer
+	 * on its own: it records what was written when the playbook was dropped or the field edited, so
+	 * a mark-raised die would keep rolling at its old size.
+	 *
+	 * The override is checked first and costs a property read, which is the whole answer for any
+	 * character whose die is whatever they typed.
+	 */
+	async computedDamageDie() {
+		const override = this.damageDieOverride;
+		if (override) return override;
+		const playbookData = await this.playbook();
+		if (!playbookData) return null;
+		const moveBonuses = await this._ownedMoveBonuses(playbookData, this._buildOwnedMovesMap());
+		return _derivedDamageDie(playbookData, moveBonuses);
+	}
+
+	/**
 	 * Set (or clear, with a blank/unparseable value) the hand-typed damage die.
 	 *
 	 * `damage.value` is written alongside it because that persisted field is what the damage
@@ -2837,12 +2861,17 @@ export class StonetopCharacter {
 	 * with death — the Heavy's Hard to Kill trades exactly that on a 7-9 ("mark a debility of
 	 * your choice to regain 1 HP", which is also what takes them out of being out of the
 	 * action), and one write means one ledger line and one re-render for what is one decision.
+	 *
+	 * `hp` is a FLOOR, not an assignment, on exactly restoreHp's terms: these moves RESTORE hit
+	 * points, so the number is where they must not be below rather than where they must be. The
+	 * difference shows when someone else heals a downed character while the walkthrough is still
+	 * open — a Heavy healed to 6 who then trades a debility was being set back down to 1.
 	 */
 	async markDebility(key, { hp = null, moveName, clearsDeathsDoor = false } = {}) {
 		if (!_DEBILITY_DEF_BY_KEY[key]) return false;
 		if (this.debilityChoices.find(d => d.key === key)?.marked) return false;
 		const update = { [`system.attributes.debilities.options.${key}.value`]: true };
-		if (hp !== null) update["system.attributes.hp.value"] = hp;
+		if (hp !== null && hp > this.hp) update["system.attributes.hp.value"] = hp;
 		if (clearsDeathsDoor) Object.assign(update, this._clearDeathsDoorUpdate);
 		await this._actor.update(update, moveName ? { stonetopMove: moveName } : {});
 		return true;
@@ -3288,6 +3317,22 @@ function _buildWoundsSection(actor) {
 }
 
 
+/**
+ * The DERIVED damage die: the playbook's, raised by any owned move that raises it. Null without a
+ * playbook, since there is nothing to derive from.
+ *
+ * Stated here alone because two callers need the same answer at very different prices — the vitals
+ * section building a whole sheet, and `computedDamageDie` answering a single damage roll. A second
+ * copy is how the roller and the sheet come to disagree about what die a character rolls.
+ *
+ * Does NOT consider the hand-typed override: that WINS over this, and the two callers apply it at
+ * their own layer (the field is what the sheet renders, and it is checked first by the accessor).
+ */
+function _derivedDamageDie(playbookData, moveBonuses = {}) {
+	if (!playbookData) return null;
+	return moveBonuses.damageDie ? maxDie(playbookData.damage, moveBonuses.damageDie) : playbookData.damage;
+}
+
 function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, wornArmorBase = 0, insertHpPenalty = 0) {
 	const attrs = actor.system?.attributes ?? {};
 	const level = attrs.level?.value ?? 1;
@@ -3300,10 +3345,14 @@ function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, 
 	// new move bonuses still land, rather than freezing max HP at whatever was typed.
 	const hpAdjust = Math.trunc(Number(attrs.hp?.adjustment) || 0);
 	const hpBase = playbookData ? Math.max(1, derivedHp) : 0;
-	const hpMax = Math.max(1, derivedHp + hpAdjust);
-	const damageBase = playbookData
-		? (moveBonuses.damageDie ? maxDie(playbookData.damage, moveBonuses.damageDie) : playbookData.damage)
-		: null;
+	// Built on hpBase, NOT on the un-floored derivedHp, so the number the sheet shows as the base
+	// and the number the adjustment is measured against are the same one. They part company only
+	// when the floor fires, and that is exactly when the hand-set round trip broke: the field
+	// renders `hpBase` into `data-hp-base`, _onMaxHpEdit stores `typed - base`, and computing the
+	// max off derivedHp then landed somewhere else entirely. The floor still holds, since hpBase
+	// is already at least 1 wherever a playbook exists.
+	const hpMax = Math.max(1, hpBase + hpAdjust);
+	const damageBase = _derivedDamageDie(playbookData, moveBonuses);
 	// A die typed into the sheet's Damage field wins outright: it is the player saying "this
 	// character's die is X", which the playbook has no business overwriting on the next render.
 	// Clearing the field drops back to the derived die (see setDamageDieOverride).

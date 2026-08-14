@@ -328,8 +328,11 @@ export async function maybeBeginAttack(actor, item, { stat = null } = {}) {
 async function pcDamageDie(actor) {
 	const stored = String(actor?.system?.attributes?.damage?.value ?? "").trim();
 	if (actor?.type !== "character") return stored;
-	const snapshot = await actor.typedActor?.buildSnapshot?.();
-	return snapshot?.vitals?.damage || stored;
+	// computedDamageDie, not buildSnapshot: the same answer, without building a whole sheet for one
+	// string. This runs per damage ROLL — twice over on the counter-attack and multi-target paths —
+	// and the snapshot it used to ask walks moves, inventory, arcana, possessions and post-death
+	// lore to get there. `stored` remains the fallback for a character with no playbook resolved.
+	return (await actor.typedActor?.computedDamageDie?.()) || stored;
 }
 
 // The damage formula for one attack: the PC die (or the weapon's own die), plus the
