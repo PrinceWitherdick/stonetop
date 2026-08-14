@@ -1052,8 +1052,10 @@ function _wireNeverAtALoss(message, html, actor) {
 		btn.addEventListener("click", async () => {
 			for (const b of buttons) b.disabled = true;
 			const choice = btn.dataset.choice;
+			let latched = false;
 			try {
 				await message.setFlag(SYSTEM_ID, "knowThingsXp", choice);
+				latched = true;
 				if (choice === "mark") return void await markMissXp(actor, "Know Things");
 				await ChatMessage.create({
 					content: moveChatCard("Never at a Loss",
@@ -1063,6 +1065,15 @@ function _wireNeverAtALoss(message, html, actor) {
 				});
 			} catch (err) {
 				console.error("Stonetop | Error resolving Never at a Loss:", err);
+				// Take the latch back off. It is written FIRST so a second click (or a re-render
+				// arriving mid-flight) cannot mark the XP twice — but that also means a failure
+				// after it lands leaves the choice recorded and the XP unmarked, with both buttons
+				// rendering disabled from here on and no way to ask again. Re-enabling the DOM is
+				// not enough on its own: the next render reads the flag, not these buttons.
+				if (latched) {
+					await message.unsetFlag(SYSTEM_ID, "knowThingsXp")
+						.catch(e => console.error("Stonetop | Could not release the Never at a Loss latch:", e));
+				}
 				for (const b of buttons) b.disabled = false;
 			}
 		});

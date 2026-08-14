@@ -45,6 +45,7 @@ export class UndeathDialog extends StonetopDialog {
 
 		this._picked   = new Set();   // effect kinds the player has taken
 		this._applied  = false;
+		this._maimed   = false;       // set once the maiming is on the wound list; see _applyEffect
 		this._forcedMiss = false;     // Revenant: body destroyed → resolve as a 6-
 		this._tetherDestroyed = false;
 		this._choices  = {};          // effect kind → chosen option slug / text
@@ -233,11 +234,16 @@ export class UndeathDialog extends StonetopDialog {
 	activateListeners(html) {
 		super.activateListeners(html);
 
-		html.find(".undeath-roll-btn").on("click", () => this._onRoll());
-		html.find(".undeath-apply-btn").on("click", () => this._onApply());
+		// Each of the three writing handlers carries a `.catch`, on DeathsDoorDialog's terms (see
+		// _onFateFailed there): they roll their latch back and rethrow, and a click is fired and
+		// forgotten, so without one the rejection only reaches the console and the player is left
+		// looking at a window that appears to have ignored them.
+		html.find(".undeath-roll-btn").on("click", () => this._onRoll().catch(err => this._onApplyFailed(err)));
+		html.find(".undeath-apply-btn").on("click", () => this._onApply().catch(err => this._onApplyFailed(err)));
 		html.find(".undeath-close-btn").on("click", () => this._onFinish());
 		html.find(".undeath-cancel-btn").on("click", () => this.close());
-		html.find(".undeath-alternative-btn").on("click", (ev) => this._onAlternative(ev.currentTarget.dataset.insert));
+		html.find(".undeath-alternative-btn").on("click", (ev) =>
+			this._onAlternative(ev.currentTarget.dataset.insert).catch(err => this._onApplyFailed(err)));
 
 		html.find(".undeath-forced-miss").on("change", (ev) => {
 			this._setForcedMiss(ev.currentTarget.checked);
@@ -392,6 +398,13 @@ export class UndeathDialog extends StonetopDialog {
 		this.renderIfOpen();
 	}
 
+	/**
+	 * An undeath that could not be written. The latch is already back off (every handler rolls it
+	 * back before rethrowing), so this only has to name what failed — StonetopDialog says it and
+	 * redraws. The same failure as DeathsDoorDialog#_onFateFailed, one window along.
+	 */
+	_onApplyFailed(err) { this.reportWriteFailure("undeath resolution", err); }
+
 	/** One effect, applied. Returns the lines it contributes to the summary. */
 	async _applyEffect(kind) {
 		const label = (section, slug) => this._sections[section].find(o => o.slug === slug)?.label ?? slug;
@@ -418,6 +431,13 @@ export class UndeathDialog extends StonetopDialog {
 			return [`Your master sets a task: <em>${escHtml(text)}</em>. Favor stays at 0 until it's done.`];
 		}
 		if (kind === "maim") {
+			// Remembered, because this is the ONE effect here that is not idempotent on its own.
+			// The others all ask the model to mark something already marked and are told no
+			// (markSectionOption, crossOffMark) or overwrite a single field (setMasterTask); a
+			// wound is appended to a list, so a second attempt appends a second wound. _onApply
+			// rolls its latch back on a failure precisely so the player CAN click again — which
+			// turned one maiming into two whenever the failure came after this line.
+			if (this._maimed) return [];
 			// "…permanently maimed in some way of the GM's choosing" — a permanent wound is
 			// exactly the sheet's record for that, and it prompts them to name it.
 			await this._character.addWound({
@@ -425,6 +445,7 @@ export class UndeathDialog extends StonetopDialog {
 				status: "permanent",
 				origin: "wound",
 			});
+			this._maimed = true;
 			return ["Recorded a <strong>permanent maiming</strong> on your wound list."];
 		}
 		if (kind === "out-of-action") return ["Out of the action until the next sunset."];

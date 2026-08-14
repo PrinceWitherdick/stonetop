@@ -652,11 +652,7 @@ export class DeathsDoorDialog extends StonetopDialog {
 	get _actorName() { return this._character?._actor?.name ?? "The character"; }
 
 	/** A fate that could not be written. The latch is already back off; say so and redraw. */
-	_onFateFailed(err) {
-		console.error("Stonetop | Could not apply this Death's Door fate.", err);
-		ui.notifications?.error("That fate could not be recorded. Try it again, or ask your GM to check your permissions.");
-		this.renderIfOpen();
-	}
+	_onFateFailed(err) { this.reportWriteFailure("fate", err); }
 
 	/**
 	 * A 6- fate. "Refuse to go" forks again (Revenant or Ghost), so it advances to the insert
