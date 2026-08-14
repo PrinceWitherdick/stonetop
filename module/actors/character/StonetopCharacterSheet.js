@@ -958,12 +958,15 @@ export function createStonetopCharacterSheetClass(Base) {
 		_stampPastDeath() {
 			const root = this.element?.[0];
 			if (!root) return;
-			const kind = this._pastDeathKind();
-			root.classList.toggle("stonetop-past-death", !!kind);
-			// Every kind is cleared and one is set, so a character raised out of `dead` (or handed
-			// an insert) doesn't keep the modifier of what they used to be.
-			PAST_DEATH_KINDS.forEach(k =>
-				root.classList.toggle(`stonetop-past-death--${k}`, k === kind));
+			// The class PAIR comes from pastDeathClasses, which owns the naming so the sheet frame
+			// and the dialogs opened from it (_pastDeathWindowClasses) can never disagree about
+			// which tint the paper takes. Rebuilding `stonetop-past-death--${kind}` here made that
+			// one decision two.
+			// Every kind is cleared and only what this character is now goes back on, so one raised
+			// out of `dead` (or handed an insert) doesn't keep the modifier of what they used to be.
+			root.classList.remove("stonetop-past-death",
+				...PAST_DEATH_KINDS.map(k => `stonetop-past-death--${k}`));
+			root.classList.add(...pastDeathClasses(this._pastDeathKind()));
 		}
 
 		/** What this character is past the Door: an insert slug, "dead", or null. */
@@ -1242,7 +1245,15 @@ export function createStonetopCharacterSheetClass(Base) {
 			// one-shot step and three routes to an insert (its own advice to finish on this tab,
 			// the Choose Your Fate buttons, an Item drop) never pass through it, so a question left
 			// unanswered has to stay askable here or it can never be answered at all.
-			const pdChoices = await buildPostDeathChoices(this._stonetopCharacter);
+			// Gated on the tab actually being drawn. This is the most expensive thing in getData for
+			// an undead character — four steps' worth of sectionOptions plus the Instinct list, each
+			// reaching the insert repository — and it was being paid on EVERY render: every hit point,
+			// every checkbox, every flag write, every follower-sweep re-render, whether or not the one
+			// template that reads it was on screen. `showPostDeath` is the same condition character.hbs
+			// puts on both the tab button and the panel, so nothing can consume this when it is false.
+			const pdChoices = context.stonetop.showPostDeath
+				? await buildPostDeathChoices(this._stonetopCharacter)
+				: null;
 			context.stonetop.postDeathChoices = pdChoices ? {
 				writeIns: choiceWriteIns(pdChoices).map(row => ({
 					...row,
@@ -1623,6 +1634,16 @@ export function createStonetopCharacterSheetClass(Base) {
 				// is spent but the choice isn't made.
 				canFace,
 				isFatePending,
+				// A way OFF `fate-pending` for a table who settled the 6- away from this window —
+				// played the fate out in conversation, or retconned the roll entirely. Nothing else
+				// walks that state back: nextDeathsDoorState returns it unchanged for every HP
+				// change thereafter, so the character is healed, plays on, and is never recognised
+				// as dying again, while the card's only control goes on offering "Choose fate".
+				// Choosing one is still the ordinary way out, which is why this sits BESIDE that
+				// button rather than replacing it, and only in edit mode — the same terms as the
+				// Post-Death route below, and for the same reason: whoever is holding the wrench has
+				// already said they are changing the sheet.
+				clearFate: isFatePending && !!snapshot.editMode,
 				// The way to the Post-Death tab for a table who resolved the Door in conversation.
 				// That tab is opt-in (showPostDeath), and until this control existed the only thing
 				// that ever opted in was REMOVING an insert — so the "Choose Your Fate" picker, whose

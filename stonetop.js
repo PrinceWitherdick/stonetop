@@ -32,7 +32,7 @@ import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { onHotbarDrop } from "./module/hooks/HotbarDrop.js";
 import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
 import { onDropFollower } from "./module/hooks/FollowerDrop.js";
-import { onPreUpdateActorDeathsDoor, onUpdateActorDeathsDoorAutoOpen, onUpdateActorDeathsDoorRaised, wireDyingPrompt } from "./module/hooks/DeathsDoorPrompt.js";
+import { onPreUpdateActorDeathsDoor, onUpdateActorDeathsDoorAutoOpen, onUpdateActorDeathsDoorCard, onUpdateActorDeathsDoorRaised, wireDyingPrompt } from "./module/hooks/DeathsDoorPrompt.js";
 import { deathDripStamp, markDeathDrip } from "./module/hooks/DeathChatDrip.js";
 import { onPreCreateThreatNote } from "./module/hooks/ThreatNotePins.js";
 import { onDrawStonetopNote } from "./module/hooks/StonetopNoteLabels.js";
@@ -655,6 +655,9 @@ Hooks.on("preUpdateActor", (actor, changes) => {
 // state on the same write and announce it, naming the move they actually trigger — Death's
 // Door only until they carry a post-death insert.
 Hooks.on("preUpdateActor", onPreUpdateActorDeathsDoor);
+// The announcement rides the COMMITTED write, not the preUpdate that plans it: an update can
+// still be refused after that hook has run, and a card is not taken back when it is.
+Hooks.on("updateActor", onUpdateActorDeathsDoorCard);
 // And, if the table wants it, open that move's walkthrough on the dying player's own screen.
 // A separate hook because it has to run somewhere the preUpdate can't: that fires only on the
 // client applying the damage, which is usually the GM's.

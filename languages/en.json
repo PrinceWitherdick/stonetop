@@ -57,6 +57,8 @@
         "button": "Face Death's Door",
         "clear": "No longer out of the action",
         "chooseFate": "Choose your fate",
+        "clearFate": "Clear the pending fate",
+        "clearFateHint": "Takes the sheet off \"a fate is owed\" without choosing one — for a table who played the 6- out in conversation, or took the roll back. Until this is cleared the character is never recognised as dying again.",
         "fatePendingHint": "You rolled a 6-. Your time has come — choose how it ends.",
         "supersededHint": "You've already died once. At 0 HP you trigger {move} instead — it's on your Moves tab.",
         "outOfActionHint": "No longer dying, but out of the action until the GM says otherwise.",
