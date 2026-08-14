@@ -245,27 +245,27 @@ export async function onReady() {
 	game.stonetop.openCharacterCreation = (actor = game.user.character) =>
 		actor ? CharacterCreationDialog.open(actor)
 		      : ui.notifications.warn("No character to start creation for.");
-	// Cut every portrait this world could have out of the book art already on disk — the detail
-	// portraits, and the square faces the small round pictures use — then point NPCs already
-	// holding a whole illustration at their close-up. GM-only (it writes files).
+	// Cut every picture this world could have out of the book art already on disk — the detail
+	// portraits, the square faces the small round pictures use, and the square a creature's token
+	// stands on — then point NPCs and creatures already in play at them. GM-only (it writes files).
 	//
 	// The same work the one-time chat card offers, reachable on demand because that card latches
 	// the moment it is posted: scrolled past, deleted, or landed on the other GM and it is gone
 	// for good. Safe to run any number of times — every stage re-plans from what is on disk.
 	game.stonetop.rebuildPortraits = async () => {
-		if (!game.user.isGM) return ui.notifications.warn("Only a GM can rebuild portrait art.");
-		const { runPeopleArtRebuild, countPeopleArtRebuilds, describeRebuild } =
+		if (!game.user.isGM) return ui.notifications.warn("Only a GM can rebuild book art.");
+		const { runBookArtRebuild, countBookArtRebuilds, describeRebuild } =
 			await import("../book2-art/run-rebuild.js");
-		const todo = await countPeopleArtRebuilds();
-		if (!todo) return ui.notifications.info("Every portrait this world can build is already on disk.");
+		const todo = await countBookArtRebuilds();
+		if (!todo) return ui.notifications.info("Every picture this world can build is already on disk.");
 		// The other two entry points are buttons, which count down in their own label. This one
 		// has no button, and a toast that fades after five seconds while a 140-image job runs on
 		// is the exact thing the notification bar exists for. No delay: the caller just asked.
 		const bar = openProgressNotification(
-			`Stonetop: rebuilding ${todo} portrait${todo === 1 ? "" : "s"}`, { delayMs: 0 });
+			`Stonetop: rebuilding ${todo} picture${todo === 1 ? "" : "s"}`, { delayMs: 0 });
 		let res;
 		try {
-			res = await runPeopleArtRebuild({
+			res = await runBookArtRebuild({
 				onProgress: (done, total) => bar.update({ fraction: done / total, detail: `${done} of ${total}` }),
 			});
 		} catch (err) {
@@ -409,7 +409,7 @@ export async function onReady() {
 		// the plan is empty so a later import still gets the nudge — so for a GM who never
 		// imports, an awaited call stalls the ready sequence on a server round-trip whose
 		// answer is always "nothing", on every single load. Nothing below waits on it.
-		_offerPeopleArtRebuildOnce()
+		_offerBookArtRebuildOnce()
 			.catch(err => console.error("Stonetop | portrait rebuild offer failed:", err));
 		// Backgrounded for the same reason, and it browses the very same folder. Ordered after
 		// the rebuild offer so a world owed both is asked about the free one first: cutting
@@ -1230,30 +1230,38 @@ function _buildBook2ArtReminderContent() {
 		"stonetop-art-reminder-card");
 }
 
-// -- REBUILD DETAIL PORTRAITS FROM ART ALREADY IMPORTED --------
-// Detail portraits (crops of a multi-figure illustration) arrived after the first release that
-// shipped whole-illustration People art, so a GM who already imported holds every PARENT on disk
-// and none of the details. Those can be cut from the parents locally — no PDF, no re-import — so
-// offer it once rather than making them hunt for their books again. See book2-art/rebuild-crops.js.
+// -- REBUILD CUT PICTURES FROM ART ALREADY IMPORTED --------
+// Three kinds of picture arrived after releases that had already shipped whole illustrations: the
+// detail portraits (crops of a multi-figure drawing), the square faces the small round surfaces
+// use, and the square a creature's prototype token stands on. Each leaves a GM who already
+// imported holding every SOURCE on disk and none of the results. All three can be cut from those
+// sources locally — no PDF, no re-import — so offer it once rather than making them hunt for
+// their books again. See book2-art/rebuild-crops.js.
 //
 // The once-per-world rules — including "found nothing, so do not latch, and ask again next
 // load" — belong to offerDurableArtOnce; what is local here is what counts as rebuildable and
 // how the offer is presented.
-function _offerPeopleArtRebuildOnce() {
+function _offerBookArtRebuildOnce() {
 	return offerDurableArtOnce({
-		setting: "peopleArtRebuildOffered",
+		// A NEW KEY, not `peopleArtRebuildOffered`. Every world that answered the squares offer has
+		// that one set, so reusing it would latch all of them shut against creature tokens — which
+		// did not exist when they answered. This is the second time that trap has come up here (the
+		// squares offer could not reuse the crops key either), and it fails SILENTLY: the offer is
+		// simply never made. When this offer next grows to cover new work, mint another key.
+		setting: "bookArtRebuildOffered",
 		findWork: async () => {
-			// Both kinds of cuttable art: the detail portraits, and the square faces the small
-			// surfaces use. One offer covers both — they are the same work from the GM's side
-			// (cut from pictures already on disk) and asking twice would just be nagging.
-			// Counted through run-rebuild.js, the same façade the three run paths use.
-			const { countPeopleArtRebuilds } = await import("../book2-art/run-rebuild.js");
-			return await countPeopleArtRebuilds() || null;
+			// Every kind of cuttable art at once: the detail portraits, the square faces the small
+			// surfaces use, and the creature token squares. One offer covers all of them — they are
+			// the same work from the GM's side (cut from pictures already on disk) and asking three
+			// times would just be nagging. Counted through run-rebuild.js, the same façade the
+			// three run paths use.
+			const { countBookArtRebuilds } = await import("../book2-art/run-rebuild.js");
+			return await countBookArtRebuilds() || null;
 		},
 		offer: async count => {
 			if (!globalThis.ChatMessage?.create) return false; // chat isn't ready — retry next load
 			await ChatMessage.create({
-				content: _buildPeopleArtRebuildContent(count),
+				content: _buildBookArtRebuildContent(count),
 				whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id),
 				speaker: { alias: "Stonetop" },
 			});
@@ -1261,13 +1269,16 @@ function _offerPeopleArtRebuildOnce() {
 	});
 }
 
-function _buildPeopleArtRebuildContent(count) {
+function _buildBookArtRebuildContent(count) {
 	return stonetopChatCard(
-		"Rebuild Portraits",
+		"Rebuild Book Art",
 		`<div class="stonetop-roll-card-description">
-			<p>The <strong>People of Stonetop</strong> gallery now offers individual portraits cut from the
-			group illustrations &mdash; one face per person, instead of a whole crowd scene &mdash; and a
-			square close-up of each face, for the small round portraits on the character and steading sheets.
+			<p>Some of the book art is now cut finer than the whole-page illustrations you imported. The
+			<strong>People of Stonetop</strong> gallery offers individual portraits carved out of the group
+			illustrations &mdash; one face per person, instead of a whole crowd scene &mdash; plus a square
+			close-up of each face for the small round portraits on the character and steading sheets; and every
+			creature with art can carry a square framed for its <strong>token</strong>, so what stands on the
+			battle map is the beast rather than a blind slice through the middle of the page.
 			You already have the source pictures, so <strong>${count}</strong> of these can be made right here
 			from the art you imported before.
 			<strong>You do not need your PDFs, and you do not need to re-import.</strong></p>
@@ -1277,7 +1288,7 @@ function _buildPeopleArtRebuildContent(count) {
 		</div>
 		<div class="row stonetop-art-reminder__actions">
 			<button type="button" class="stonetop-rebuild-crops-run">
-				<i class="fas fa-crop-simple"></i> Rebuild ${count} portraits
+				<i class="fas fa-crop-simple"></i> Rebuild ${count} pictures
 			</button>
 		</div>`,
 		"stonetop-art-reminder-card");

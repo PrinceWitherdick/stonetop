@@ -58,18 +58,41 @@ export function isValidRect(rect) {
 
 const permille = (f) => String(Math.round(f * 1000)).padStart(3, "0");
 
+/**
+ * `-<letter><x0>-<y0>-<x1>-<y1>`, per-mille. MUST agree with the Python, or a re-export orphans
+ * files.
+ *
+ * The letter is the only thing that varies between the kinds of rect this pipeline names: `q` for
+ * a person's square face, `t` for a creature's token square (monster-tokens.js), `c` for a crop.
+ * The rounding and the padding are stated once here, because those are what have to match
+ * merge-art-picker.py exactly — a half-up tie resolved differently in one place mints a filename
+ * nothing ever writes.
+ */
+export const rectSuffix = (letter, rect) => `-${letter}${rect.map(permille).join("-")}`;
+
+/**
+ * A derived path: the source path with a rect suffix spliced in before its extension.
+ *
+ * Shared with monster-tokens.js. The splice is only three lines, but the edge case (a path with
+ * no extension, or a dot that belongs to a DIRECTORY name rather than a file) is the kind that
+ * looks handled in each copy and is only handled in one.
+ */
+export function outWithSuffix(out, suffix) {
+	const s = String(out);
+	const dot = s.lastIndexOf(".");
+	const slash = s.lastIndexOf("/");
+	if (dot <= slash) return s + suffix;   // no extension to splice before
+	return s.slice(0, dot) + suffix + s.slice(dot);
+}
+
 /** `-q<x0>-<y0>-<x1>-<y1>`, per-mille. MUST agree with the Python, or a re-export orphans files. */
 export function portraitSuffix(rect) {
-	return "-q" + rect.map(permille).join("-");
+	return rectSuffix("q", rect);
 }
 
 /** The square's own `out` path: the person's path with the suffix spliced before its extension. */
 export function portraitOutFor(out, rect) {
-	const s = String(out);
-	const dot = s.lastIndexOf(".");
-	const slash = s.lastIndexOf("/");
-	if (dot <= slash) return s + portraitSuffix(rect);   // no extension to splice before
-	return s.slice(0, dot) + portraitSuffix(rect) + s.slice(dot);
+	return outWithSuffix(out, portraitSuffix(rect));
 }
 
 // A square is always measured against the PERSON image — after `crop`, not before. There is

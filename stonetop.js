@@ -761,21 +761,22 @@ function _chatWireLayoutSwitch(message, html) {
 	});
 }
 
-// -- REBUILD DETAIL PORTRAITS CARD -----------------------------
-// The one-time offer to cut the new People detail portraits out of art the GM already imported
-// (hooks/Ready.js _offerPeopleArtRebuildOnce). Runs in the browser off files already on disk,
-// so it needs no PDF — but it does write files, hence GM-only. Disable the button while it runs
-// so an impatient second click can't start a duplicate pass over the same 140-odd images.
+// -- REBUILD BOOK ART CARD -------------------------------------
+// The one-time offer to cut the finer pictures — People detail portraits, square faces and
+// creature token squares — out of art the GM already imported (hooks/Ready.js
+// _offerBookArtRebuildOnce). Runs in the browser off files already on disk, so it needs no PDF —
+// but it does write files, hence GM-only. Disable the button while it runs so an impatient second
+// click can't start a duplicate pass over the same 200-odd images.
 function _chatWireRebuildCrops(message, html) {
 	const btn = html.querySelector(".stonetop-rebuild-crops-run");
 	if (!btn) return;
 	if (!game.user.isGM) { btn.style.display = "none"; return; }
 	btn.addEventListener("click", async () => {
 		if (btn.disabled) return;
-		const { runPeopleArtRebuildFromButton } = await import("./module/book2-art/run-rebuild.js");
+		const { runBookArtRebuildFromButton } = await import("./module/book2-art/run-rebuild.js");
 		// Owns the disable, the counting spinner, the notification and the restore-on-error;
 		// what is left here is only what this card says once the run is over.
-		const res = await runPeopleArtRebuildFromButton(btn);
+		const res = await runBookArtRebuildFromButton(btn);
 		if (!res) return;   // threw — the label is already back
 		if (res.failed) {
 			// A partial run leaves work undone, so the card has to stay usable: pressing it

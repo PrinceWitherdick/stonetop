@@ -342,26 +342,31 @@ export function registerSettings() {
 		default: false
 	});
 
-	// RETIRED KEY: "peopleCropRebuildOffered". Superseded by peopleArtRebuildOffered below and
+	// RETIRED KEY: "peopleCropRebuildOffered". Superseded by bookArtRebuildOffered below and
 	// no longer registered — nothing reads it, and Foundry simply ignores a stored value whose
 	// key it does not know, so leaving it registered bought nothing. Named here so the key is
 	// not reused: a world upgraded from an older build still HOLDS a `true` under it, and a new
 	// setting reusing the name would silently start out latched shut in exactly those worlds.
 
-	// Whether the one-time "this portrait art can be rebuilt from pictures you already have"
-	// offer has been made (hooks/Ready.js _offerPeopleArtRebuildOnce). World-scoped: it is a
-	// property of this world's art folder, not of whoever happens to be logged in.
+	// RETIRED KEY: "peopleArtRebuildOffered". Superseded by bookArtRebuildOffered below, for the
+	// same reason and by the same rule as the retirement above. Named here so it is not reused.
+
+	// Whether the one-time "this book art can be rebuilt from pictures you already have" offer has
+	// been made (hooks/Ready.js _offerBookArtRebuildOnce). World-scoped: it is a property of this
+	// world's art folder, not of whoever happens to be logged in.
 	//
-	// A NEW key rather than reusing the one above, deliberately. That flag was set the moment a
-	// world was offered the DETAIL-portrait rebuild, months before square faces existed — so
-	// every world that already said yes to crops would have been latched shut against an offer
-	// that did not exist yet, and the squares would silently never be cut. Re-asking costs one
-	// card in the worlds that have new work; staying latched costs the feature entirely.
+	// A NEW key rather than reusing either of the two above, deliberately, and this is now the
+	// THIRD time the same trap has come up. Each earlier flag was set the moment a world was
+	// offered the work that existed THEN — detail portraits, then square faces — so reusing one
+	// would latch every world that already answered shut against work that did not exist yet, and
+	// the new pictures would silently never be cut. Nothing throws; the offer is simply never made.
+	// Re-asking costs one card in the worlds that have new work; staying latched costs the feature
+	// entirely. THE RULE: when this offer grows to cover a new kind of cut, mint a new key.
 	//
 	// Safe to re-ask: findWork returns falsy when there is nothing left to cut, so a world that
 	// is already complete stays silent and never sets this at all.
-	game.settings.register(SYSTEM_ID, "peopleArtRebuildOffered", {
-		name: "People Portrait Rebuild Offered",
+	game.settings.register(SYSTEM_ID, "bookArtRebuildOffered", {
+		name: "Book Art Rebuild Offered",
 		scope: "world",
 		config: false,
 		type: Boolean,
@@ -414,6 +419,26 @@ export function registerSettings() {
 		// Shared with book2ArtRoot()'s fallback, so a world that never set this and a world
 		// whose setting can't be read resolve art to the same folder.
 		default: DEFAULT_BOOK2_ART_ROOT
+	});
+
+	// What a browse of that folder says sits in FRONT of it on this host, learned from a real
+	// listing and published so clients that cannot browse can still resolve art.
+	//
+	// Empty on a self-hosted Foundry: the art folder is served straight out of the user data path,
+	// so `<root>/assets/people/x.webp` is both the identity and the URL. Not empty where user files
+	// live elsewhere — The Forge redirects a `data` upload into its Assets Library and serves it
+	// from `https://assets.forge-vtt.com/<userId>/`, so the bare path 404s and every art index
+	// computed by comparing the two comes out empty. Vendor-neutral by construction: the value is
+	// whatever the host actually returned, never a hostname this system knows about.
+	//
+	// World-scoped because the People gallery and the treasure drop both run on PLAYER clients,
+	// which have no way to browse and so no way to work this out for themselves.
+	game.settings.register(SYSTEM_ID, "book2ArtPrefix", {
+		name: "Book Art URL Prefix",
+		scope: "world",
+		config: false,
+		type: String,
+		default: ""
 	});
 
 	// Which Book II treasures have their illustration on disk under `book2ArtRoot`, as a

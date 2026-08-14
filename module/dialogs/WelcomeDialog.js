@@ -163,12 +163,12 @@ export class WelcomeDialog extends Application {
 			this._bookArtImported = await hasImportedBook2Art().catch(() => false);
 		}
 
-		// How much could be cut from art already on disk without the PDFs — the detail portraits
-		// and the square faces. Shown here because the one-time chat card that normally offers
-		// this latches the moment it is posted, so a GM who missed it has no other way back.
-		// Zero (the steady state) renders nothing at all.
-		const { countPeopleArtRebuilds } = await import("../book2-art/run-rebuild.js");
-		const rebuildableArt = this._bookArtImported ? await countPeopleArtRebuilds() : 0;
+		// How much could be cut from art already on disk without the PDFs — the detail portraits,
+		// the square faces and the creature token squares. Shown here because the one-time chat
+		// card that normally offers this latches the moment it is posted, so a GM who missed it has
+		// no other way back. Zero (the steady state) renders nothing at all.
+		const { countBookArtRebuilds } = await import("../book2-art/run-rebuild.js");
+		const rebuildableArt = this._bookArtImported ? await countBookArtRebuilds() : 0;
 
 		return {
 			rebuildableArt,
@@ -325,10 +325,10 @@ export class WelcomeDialog extends Application {
 	 * the offer permanently — and on an upgrade that means the new art silently never appears.
 	 */
 	async _rebuildPortraits(btn) {
-		const { runPeopleArtRebuildFromButton } = await import("../book2-art/run-rebuild.js");
+		const { runBookArtRebuildFromButton } = await import("../book2-art/run-rebuild.js");
 		// The disable, the counting spinner, the notification and the restore-on-error are the
 		// chat card's too, so they live in run-rebuild.js beside the work itself.
-		if (!await runPeopleArtRebuildFromButton(btn)) return;   // threw — the label is already back
+		if (!await runBookArtRebuildFromButton(btn)) return;   // threw — the label is already back
 		// Re-render, which re-counts from disk rather than assuming it is now zero: a partial run
 		// leaves the remainder, and the button has to keep offering it.
 		if (this.rendered) await this.render(false);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planPortraitRepoints } from "../../module/book2-art/repoint-portraits.js";
+import { planPortraitRepoints, squareOnDiskResolver } from "../../module/book2-art/repoint-portraits.js";
 
 // Moving art a GM already chose onto the square face, once the squares are on disk. The pure
 // planning half; the update half needs Foundry.
@@ -134,5 +134,77 @@ describe("planning the re-point", () => {
 	it("handles an empty pool", () => {
 		expect(planPortraitRepoints([], squareFor)).toEqual([]);
 		expect(planPortraitRepoints(null, squareFor)).toEqual([]);
+	});
+});
+
+// The resolver the real pass uses, which answers from the published indexes rather than from the
+// path it was handed. That is what lets it do two repairs at once: illustration -> square (what
+// it was written for), and a path that names the right file in a spelling this host no longer
+// serves (a world wired before it knew where its art lived — on The Forge those are the bare
+// `stonetop-book-art/…` paths, and nothing else would ever move them).
+describe("squareOnDiskResolver", () => {
+	const FORGE = "https://assets.forge-vtt.com/abc123/";
+	const outFull = "assets/people/b1-p135-x526.webp";
+	const outSquare = "assets/people/b1-p135-x526-q000-000-1000-720.webp";
+
+	function withWorld({ prefix = "" } = {}) {
+		const store = {
+			book2ArtRoot: ROOT,
+			book2ArtPrefix: prefix,
+			peoplePortraitArt: { [outFull]: outSquare },
+		};
+		global.game = { settings: { get: (_ns, key) => store[key] } };
+	}
+
+	it("moves an illustration onto its square", () => {
+		withWorld();
+		expect(squareOnDiskResolver()(`${ROOT}/${outFull}`)).toBe(`${ROOT}/${outSquare}`);
+	});
+
+	it("says nothing to do when the portrait already holds exactly that square", () => {
+		// Idempotency is what lets this stay a flagless migration.
+		withWorld();
+		expect(squareOnDiskResolver()(`${ROOT}/${outSquare}`)).toBeNull();
+	});
+
+	it("ignores a portrait that is not gallery art at all", () => {
+		withWorld();
+		expect(squareOnDiskResolver()("worlds/mine/our-own-drawing.webp")).toBeNull();
+	});
+
+	it("ignores a square the GM has not extracted", () => {
+		global.game = { settings: { get: (_ns, key) => ({ book2ArtRoot: ROOT, book2ArtPrefix: "", peoplePortraitArt: {} })[key] } };
+		expect(squareOnDiskResolver()(`${ROOT}/${outFull}`)).toBeNull();
+	});
+
+	it("hands out the square at the path THIS host serves it from", () => {
+		withWorld({ prefix: FORGE });
+		expect(squareOnDiskResolver()(`${FORGE}${ROOT}/${outFull}`)).toBe(`${FORGE}${ROOT}/${outSquare}`);
+	});
+
+	it("repairs a square left on a spelling the host no longer resolves", () => {
+		withWorld({ prefix: FORGE });
+		expect(squareOnDiskResolver()(`${ROOT}/${outSquare}`)).toBe(`${FORGE}${ROOT}/${outSquare}`);
+	});
+
+	it("is still a no-op once that repair has landed", () => {
+		withWorld({ prefix: FORGE });
+		expect(squareOnDiskResolver()(`${FORGE}${ROOT}/${outSquare}`)).toBeNull();
+	});
+
+	it("leaves the GM's own art alone when it merely shares a filename", () => {
+		// The whole pass is a bulk write with no undo, so answering on the filename alone was how
+		// a GM's own picture got silently replaced by a different one from the art folder.
+		withWorld();
+		expect(squareOnDiskResolver()("worlds/mine/art/b1-p135-x526.webp")).toBeNull();
+		expect(squareOnDiskResolver()("worlds/mine/art/b1-p135-x526-q000-000-1000-720.webp")).toBeNull();
+	});
+
+	it("still answers for the art folder under a root the GM renamed", () => {
+		// The confirmation is a TAIL match, so it stays root-agnostic: any root, and any host
+		// prefix, sits in front of the part the manifest actually names.
+		const store = { book2ArtRoot: "my-art", book2ArtPrefix: "", peoplePortraitArt: { [outFull]: outSquare } };
+		global.game = { settings: { get: (_ns, key) => store[key] } };
+		expect(squareOnDiskResolver()(`my-art/${outFull}`)).toBe(`my-art/${outSquare}`);
 	});
 });

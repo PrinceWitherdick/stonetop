@@ -13,7 +13,7 @@ const JRN_SOURCE = (entryId) => `Compendium.stonetop-pwd.stonetop-journal.Journa
 
 const VERSION = "9.9.9";
 const ROOT = "stonetop-book-art";
-const { monsters, locations, settingOverviewMaps = [], treasures = [], steadings = [] } = BOOK2_ART_APPLY_MANIFEST;
+const { monsters, locations, settingOverviewMaps = [], treasures = [], steadings = [], people = [] } = BOOK2_ART_APPLY_MANIFEST;
 const DEFAULT_ICON = "icons/svg/mystery-man.svg";
 
 function setDotted(obj, path, value) {
@@ -28,6 +28,11 @@ function applyUpdate(doc, upd) {
 
 const uuidOf = (m) => `Compendium.${m.actorPack}.Actor.${m.actorId}`;
 const durableOf = (out) => `${ROOT}/${out}`;
+// What this creature's prototype token should end up showing: its hand-framed square when the
+// manifest names one, else the whole illustration. DERIVED rather than pinned, because whether any
+// given creature has a token square is authoring data that changes with every picker batch — these
+// assertions are about the wiring rule, not about which creatures happen to be framed today.
+const tokenSrcFor = (m) => durableOf(m.tokenOut ?? m.out);
 
 function makeWorldActor({ source, img, tokenSrc = img, legacy = false, fit = "cover" }) {
 	const actor = {
@@ -68,7 +73,10 @@ function makeWorldJournal({ source, name = "World Entry", pages, stamp = false, 
 }
 
 // `present`: "all" | "none" | array of out-paths that exist on disk.
-function makeHarness({ isGM = true, syncVersion = "", present = "all", worldActors = [], worldJournals = [] } = {}) {
+// `hostPrefix` makes the browse answer the way a host that keeps user files somewhere else does
+// (The Forge's Assets Library, an S3 bucket): absolute URLs rather than the data-relative paths
+// the caller built. Empty by default, which is every self-hosted world.
+function makeHarness({ isGM = true, syncVersion = "", present = "all", worldActors = [], worldJournals = [], hostPrefix = "" } = {}) {
 	const store = { book2ArtSyncVersion: syncVersion, book2ArtRoot: ROOT };
 	const besDocs = new Map();
 	const pageDocs = new Map();
@@ -119,17 +127,21 @@ function makeHarness({ isGM = true, syncVersion = "", present = "all", worldActo
 	// fallback (the poster map), which is not any row's `out`.
 	const wanted = Array.isArray(present) ? new Set(present) : null;
 	const allOuts = [
-		...monsters.map((m) => m.out),
+		// A creature's token square is a file of its own with its own presence, exactly as the
+		// runtime treats it — a world can hold every illustration and none of the squares.
+		...monsters.flatMap((m) => (m.tokenOut ? [m.out, m.tokenOut] : [m.out])),
 		...locations.flatMap((l) => l.images).map((im) => im.out),
 		...settingOverviewMaps.flatMap((s) => [s.out, ...(s.replaces ?? [])]),
 		...treasures.map((t) => t.out),
 		...steadings.map((s) => s.out),
+		// A person's square face is its own file with its own presence, like a creature's token.
+		...people.flatMap((p) => (p.portraitOut ? [p.out, p.portraitOut] : [p.out])),
 	];
 	const onDisk = present === "none" ? [] : [...new Set(allOuts.filter((o) => !wanted || wanted.has(o)))];
-	const filesIn = (dir) => onDisk.filter((o) => o.startsWith(`${dir}/`)).map(durableOf);
+	const filesIn = (dir) => onDisk.filter((o) => o.startsWith(`${dir}/`)).map((o) => `${hostPrefix}${durableOf(o)}`);
 
 	const browse = vi.fn(async (source, path) => {
-		for (const dir of ["assets/bestiary", "assets/locations", "assets/maps", "assets/treasures", "assets/steading"]) {
+		for (const dir of ["assets/bestiary", "assets/locations", "assets/maps", "assets/treasures", "assets/steading", "assets/people"]) {
 			if (path.endsWith(`/${dir}`)) return { files: filesIn(dir) };
 		}
 		return { files: [] };
@@ -257,7 +269,7 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		for (const m of monsters) {
 			const doc = h.besDocs.get(m.actorId);
 			expect(doc.img).toBe(durableOf(m.out));
-			expect(doc.prototypeToken.texture.src).toBe(durableOf(m.out));
+			expect(doc.prototypeToken.texture.src).toBe(tokenSrcFor(m));
 			expect(doc.prototypeToken.texture.fit).toBe("cover");
 		}
 		// bestiary journal pages: art prepended once
@@ -718,16 +730,19 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		makeHarness({ worldActors: [a1, a2, a3] });
 		await reapplyBook2ArtOnVersionChange();
 
-		// a1: both our stale paths re-pointed; the GM's fit:"contain" is preserved
+		// a1: both our stale paths re-pointed; the GM's fit:"contain" is preserved. The token lands
+		// on this creature's SQUARE where one is framed — that is the whole point of the square —
+		// and is DERIVED rather than pinned, so this stays a test of the wiring rule rather than of
+		// which creatures a given picker batch happens to have framed.
 		expect(a1.img).toBe(durable);
-		expect(a1.prototypeToken.texture.src).toBe(durable);
+		expect(a1.prototypeToken.texture.src).toBe(tokenSrcFor(mon0));
 		expect(a1.prototypeToken.texture.fit).toBe("contain");
 		// a2: portrait fixed, custom token src left alone
 		expect(a2.img).toBe(durable);
 		expect(a2.prototypeToken.texture.src).toBe("worlds/mine/tok.png");
 		// a3: token fixed, custom portrait left alone
 		expect(a3.img).toBe("worlds/mine/portrait.png");
-		expect(a3.prototypeToken.texture.src).toBe(durable);
+		expect(a3.prototypeToken.texture.src).toBe(tokenSrcFor(mon0));
 	});
 
 	it("does not stamp the version if an item write throws (retries next load, other docs still applied)", async () => {
@@ -1064,7 +1079,7 @@ describe("world bestiary actor portraits (adopt over the creature-type placehold
 		await reapplyBook2ArtOnVersionChange();
 
 		expect(actor.img).toBe(durableOf(mon0.out));
-		expect(actor.prototypeToken.texture.src).toBe(durableOf(mon0.out));
+		expect(actor.prototypeToken.texture.src).toBe(tokenSrcFor(mon0));
 		expect(actor.prototypeToken.texture.fit).toBe("cover"); // forced when adopting over a placeholder token
 	});
 
@@ -1102,7 +1117,7 @@ describe("world bestiary actor portraits (adopt over the creature-type placehold
 		await reapplyBook2ArtOnVersionChange();
 
 		expect(actor.img).toBe(durableOf(monR.out));
-		expect(actor.prototypeToken.texture.src).toBe(durableOf(monR.out));
+		expect(actor.prototypeToken.texture.src).toBe(tokenSrcFor(monR));
 		// Not a placeholder adoption, so the GM's token fit is still left alone.
 		expect(actor.prototypeToken.texture.fit).toBe("contain");
 	});
@@ -1118,8 +1133,116 @@ describe("world bestiary actor portraits (adopt over the creature-type placehold
 		await reapplyBook2ArtOnVersionChange();
 
 		expect(actor.img).toBe("worlds/mine/my-crinwin.png"); // custom portrait untouched
-		expect(actor.prototypeToken.texture.src).toBe(durableOf(mon0.out)); // placeholder token adopts
+		expect(actor.prototypeToken.texture.src).toBe(tokenSrcFor(mon0)); // placeholder token adopts
 		expect(actor.prototypeToken.texture.fit).toBe("cover");
+	});
+
+	// -- the hand-framed TOKEN square -----------------------------------------------------
+	// A creature's token stands on its own small square while `img` stays the whole
+	// illustration — so the sheet, the codex page and an image-hover popup keep showing the
+	// artist's whole composition. The shipped manifest carries no tokens yet, so these stitch
+	// one onto a real monster row for the length of the block: the wiring has to be right
+	// BEFORE the first batch is framed, not discovered to be wrong after it.
+	describe("the token square", () => {
+		const mon0 = monsters[0];
+		const TOKEN_OUT = "assets/bestiary/__test-crinwin-t100-100-900-900.webp";
+		const RETIRED_TOKEN = "assets/bestiary/__test-crinwin-t000-000-500-500.webp";
+
+		// Restore rather than delete: this row is the SHIPPED manifest's, shared with every other
+		// test in the file, and one of them looks for a monster carrying `retired`. Deleting a key
+		// that was really there would break a neighbour in a way that reads as a bug in the code.
+		let saved;
+		beforeEach(() => {
+			vi.restoreAllMocks();
+			saved = { token: mon0.token, tokenOut: mon0.tokenOut, retired: mon0.retired };
+			mon0.token = [0.1, 0.1, 0.9, 0.9];
+			mon0.tokenOut = TOKEN_OUT;
+		});
+		afterEach(() => {
+			for (const k of ["token", "tokenOut", "retired"]) {
+				if (saved[k] === undefined) delete mon0[k]; else mon0[k] = saved[k];
+			}
+		});
+
+		it("points the token at the square and the portrait at the whole illustration", async () => {
+			const actor = makeWorldActor({ source: uuidOf(mon0), img: PLACEHOLDER, fit: "contain" });
+			makeHarness({ worldActors: [actor] });
+
+			await reapplyBook2ArtOnVersionChange();
+
+			expect(actor.img).toBe(durableOf(mon0.out));
+			expect(actor.prototypeToken.texture.src).toBe(durableOf(TOKEN_OUT));
+		});
+
+		it("does the same for the compendium actor", async () => {
+			const { besDocs } = makeHarness();
+
+			await reapplyBook2ArtOnVersionChange();
+
+			const doc = besDocs.get(mon0.actorId);
+			expect(doc.img).toBe(durableOf(mon0.out));
+			expect(doc.prototypeToken.texture.src).toBe(durableOf(TOKEN_OUT));
+		});
+
+		it("moves a token already wired to the whole illustration onto the square", async () => {
+			// The upgrade shape: a world imported before tokens existed has both fields on the
+			// illustration. The token pointer is one of OURS, so it may move; the portrait is
+			// already right and must not.
+			const actor = makeWorldActor({ source: uuidOf(mon0), img: durableOf(mon0.out) });
+			makeHarness({ worldActors: [actor] });
+
+			await reapplyBook2ArtOnVersionChange();
+
+			expect(actor.img).toBe(durableOf(mon0.out));
+			expect(actor.prototypeToken.texture.src).toBe(durableOf(TOKEN_OUT));
+		});
+
+		it("falls back to the illustration when the square is not on disk yet", async () => {
+			// The state of every world between shipping a token rect and running the rebuild.
+			// Pointing at a file nothing wrote would be a broken image on the battle map, which is
+			// strictly worse than the centre-sliced illustration it replaces.
+			const actor = makeWorldActor({ source: uuidOf(mon0), img: PLACEHOLDER });
+			makeHarness({ worldActors: [actor], present: [mon0.out] });
+
+			await reapplyBook2ArtOnVersionChange();
+
+			expect(actor.img).toBe(durableOf(mon0.out));
+			expect(actor.prototypeToken.texture.src).toBe(durableOf(mon0.out));
+		});
+
+		it("brings a token back to the illustration when its square was retired", async () => {
+			// Clearing a token in the picker drops both keys and retires the old path. The file is
+			// still on disk, so nothing LOOKS broken — which is exactly why the pointer has to be
+			// recognised as ours and moved, or the creature keeps a square the manifest no longer
+			// names for good.
+			delete mon0.token;
+			delete mon0.tokenOut;
+			mon0.retired = [RETIRED_TOKEN];
+			const actor = makeWorldActor({ source: uuidOf(mon0), img: durableOf(mon0.out), tokenSrc: durableOf(RETIRED_TOKEN) });
+			makeHarness({ worldActors: [actor] });
+
+			await reapplyBook2ArtOnVersionChange();
+
+			expect(actor.prototypeToken.texture.src).toBe(durableOf(mon0.out));
+		});
+
+		it("still leaves a token the group chose themselves alone", async () => {
+			const actor = makeWorldActor({ source: uuidOf(mon0), img: durableOf(mon0.out), tokenSrc: "worlds/mine/my-token.png" });
+			makeHarness({ worldActors: [actor] });
+
+			await reapplyBook2ArtOnVersionChange();
+
+			expect(actor.prototypeToken.texture.src).toBe("worlds/mine/my-token.png");
+		});
+
+		it("writes nothing on a second pass over an already-tokened world", async () => {
+			const actor = makeWorldActor({ source: uuidOf(mon0), img: durableOf(mon0.out), tokenSrc: durableOf(TOKEN_OUT) });
+			makeHarness({ worldActors: [actor] });
+
+			await reapplyBook2ArtOnVersionChange();
+
+			expect(actor._writes).toBe(0);
+		});
 	});
 
 	it("does nothing when the monster's art is not on disk", async () => {
@@ -1424,5 +1547,119 @@ describe("curated codex pages", () => {
 		// both portraits still stack, exactly as before this feature existed
 		expect(page.system.description).toContain(CRIN.out);
 		expect(page.system.description).toContain(BROOD.out);
+	});
+});
+
+// ── Hosts that serve the art folder from somewhere else ──────────────────────────────
+//
+// The Forge redirects a `data` upload into its Assets Library, and both browse and upload answer
+// with `https://assets.forge-vtt.com/<userId>/<root>/…`. Every presence check in this module is a
+// comparison against a path reassembled from the manifest, so before the browse keyed those
+// root-relative EVERY row read as absent on such a world: the authoritative art indexes were
+// republished empty — the People gallery went blank on a world holding all of its portraits —
+// and no document was ever re-pointed.
+describe("art served from a host prefix", () => {
+	const FORGE = "https://assets.forge-vtt.com/abc123/";
+	const served = (out) => `${FORGE}${ROOT}/${out}`;
+	const firstPerson = people[0];
+
+	beforeEach(() => { vi.restoreAllMocks(); });
+
+	it("publishes the People gallery index instead of wiping it", async () => {
+		const h = makeHarness({ hostPrefix: FORGE });
+		await reapplyBook2Art();
+		// The regression itself. Keyed by manifest `out`, exactly as on a self-hosted world, so
+		// nothing about the setting's shape depends on where the files turned out to live.
+		expect(Object.keys(h.store.peopleArt ?? {})).toHaveLength(people.length);
+		expect(h.store.peopleArt[firstPerson.out]).toBe(firstPerson.name);
+	});
+
+	it("publishes the square-face index too", async () => {
+		const h = makeHarness({ hostPrefix: FORGE });
+		await reapplyBook2Art();
+		expect(h.store.peoplePortraitArt[firstPerson.out]).toBe(firstPerson.portraitOut);
+	});
+
+	it("publishes the prefix, which is the only way a player can resolve any of it", async () => {
+		const h = makeHarness({ hostPrefix: FORGE });
+		await reapplyBook2Art();
+		expect(h.store.book2ArtPrefix).toBe(FORGE);
+	});
+
+	it("leaves the prefix empty on a self-hosted world", async () => {
+		const h = makeHarness();
+		await reapplyBook2Art();
+		expect(h.store.book2ArtPrefix ?? "").toBe("");
+	});
+
+	it("never publishes a prefix from a browse that came back empty", async () => {
+		// An empty listing cannot tell "no art here" from "that call failed", and an empty prefix
+		// would re-point every document at a path this host does not resolve.
+		const h = makeHarness({ hostPrefix: FORGE, present: "none" });
+		h.store.book2ArtPrefix = FORGE;
+		await reapplyBook2Art();
+		expect(h.store.book2ArtPrefix).toBe(FORGE);
+	});
+
+	it("points a compendium actor at the URL the host served, not the bare path", async () => {
+		const m = monsters[0];
+		const h = makeHarness({ hostPrefix: FORGE });
+		await reapplyBook2Art();
+		expect((await h.besPack.getDocument(m.actorId)).img).toBe(served(m.out));
+	});
+
+	it("embeds the served URL on a journal page", async () => {
+		const l = locations[0];
+		const h = makeHarness({ hostPrefix: FORGE });
+		await reapplyBook2Art();
+		const page = h.pageDocs.get(`${l.journalEntryId}::${l.journalPageId}`);
+		expect(page.system.sections[l.sectionIndex].body).toContain(served(l.images[0].out));
+	});
+
+	it("takes the stale bare embed off a page an earlier build wrote, rather than stacking on it", async () => {
+		// The upgrade path: this world's pages carry `<root>/assets/…` from a build that did not
+		// know where its art was served from. Both would render, and one of the two is broken.
+		const l = locations[0];
+		const bare = durableOf(l.images[0].out);
+		const embed = `<p><img class="stonetop-journal-art" src="${bare}" alt=""></p>`;
+		const page = makeWorldPage({
+			id: l.journalPageId, name: `cmp:${l.journalPageId}`, type: "location",
+			system: {
+				sections: Array.from({ length: 64 }, (_, i) => ({
+					body: i === l.sectionIndex ? `${embed}<p>loc prose</p>` : "<p>loc prose</p>",
+				})),
+			},
+		});
+		const world = makeWorldJournal({ source: JRN_SOURCE(l.journalEntryId), pages: [page], stamp: true });
+		makeHarness({ hostPrefix: FORGE, worldJournals: [world] });
+
+		await reapplyBook2Art();
+
+		const body = page.system.sections[l.sectionIndex].body;
+		expect(body).toContain(served(l.images[0].out));
+		expect(body).not.toContain(`src="${bare}"`);
+	});
+
+	it("re-points a world actor still holding the bare path", async () => {
+		// `tails` match on the manifest `out`, which is a suffix of BOTH spellings — so a world
+		// wired by an older build is recognised as ours and moved, not mistaken for custom art.
+		const m = monsters[0];
+		const actor = makeWorldActor({ source: uuidOf(m), img: durableOf(m.out) });
+		makeHarness({ hostPrefix: FORGE, worldActors: [actor] });
+
+		await reapplyBook2Art();
+
+		expect(actor.img).toBe(served(m.out));
+	});
+
+	it("leaves a portrait the group chose alone, prefix or no prefix", async () => {
+		const m = monsters[0];
+		const actor = makeWorldActor({ source: uuidOf(m), img: "worlds/mine/our-own-drawing.webp" });
+		makeHarness({ hostPrefix: FORGE, worldActors: [actor] });
+
+		await reapplyBook2Art();
+
+		expect(actor.img).toBe("worlds/mine/our-own-drawing.webp");
+		expect(actor._writes).toBe(0);
 	});
 });

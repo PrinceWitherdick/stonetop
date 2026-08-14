@@ -1,4 +1,5 @@
 import { squarePortraitSrc, basenameOf as basename } from "./people-portraits.js";
+import { book2ArtPrefix, book2ArtRoot, book2ArtServedWith } from "./art-root.js";
 import { SYSTEM_ID } from "../system-id.js";
 import { getObjectSetting } from "../settings.js";
 
@@ -120,18 +121,60 @@ export function planPortraitRepoints(actors, squareFor = squarePortraitSrc) {
 }
 
 /**
- * A `squareFor` that only ever names a square THAT IS ON DISK.
+ * A `squareFor` that only ever names a square THAT IS ON DISK, at the path this host serves it
+ * from.
  *
  * The manifest knows every square that has been authored; the `peoplePortraitArt` index knows
  * which of them the GM has actually extracted. Re-pointing on the manifest alone would leave a
  * broken image on any world that has not run the rebuild — the one thing worse than a portrait
  * cropped badly is a portrait that does not load.
+ *
+ * It answers for TWO shapes of stale path, because on a hosted setup they are the same repair:
+ *
+ *  • an ILLUSTRATION, which becomes its square — the upgrade this pass was written for; and
+ *  • a path that already names the right file but in a spelling that no longer resolves. A world
+ *    that wired its art before it knew where the host actually served it from holds bare
+ *    `stonetop-book-art/…` paths that 404 on The Forge, and nothing else would ever move them:
+ *    the gallery only writes a portrait when someone picks a face again.
+ *
+ * Idempotent either way, which is what lets this stay a flagless migration: the answer is built
+ * from the index rather than from the input, so a portrait already on the served square resolves
+ * to the string it already holds and is reported as nothing to do.
  */
 export function squareOnDiskResolver() {
-	const present = new Set(Object.values(getObjectSetting("peoplePortraitArt")).map(basename));
+	const index = getObjectSetting("peoplePortraitArt");
+	// Hoisted alongside the index, and for the same reason: the resolver runs once per `img` on
+	// every world actor plus every follower flag, and neither the root nor the host prefix can
+	// change while it does. Read inside, `book2ArtSrc` would be two `game.settings.get` calls per
+	// match — the convention reapply.js states for its own per-row loop.
+	const root = book2ArtRoot();
+	const prefix = book2ArtPrefix();
+	// basename -> the square's manifest `out`, reachable from either end of the pair. Keying on
+	// the file rather than the path is what keeps this root- AND host-agnostic, exactly as
+	// people-portraits.js does; slugs are unique, so a basename identifies a row on its own.
+	const squareOutOf = new Map();
+	for (const [out, portraitOut] of Object.entries(index ?? {})) {
+		if (!out || !portraitOut) continue;
+		squareOutOf.set(basename(out), [out, portraitOut]);                   // from the whole illustration
+		squareOutOf.set(basename(portraitOut), [portraitOut, portraitOut]);   // from the square itself
+	}
 	return (src) => {
-		const square = squarePortraitSrc(src);
-		return square && present.has(basename(square)) ? square : null;
+		if (!src) return null;
+		const hit = squareOutOf.get(basename(src));
+		if (!hit) return null;
+		const [matched, out] = hit;
+		// The basename found a CANDIDATE row; this confirms the file is actually the book art that
+		// row names, by requiring the row's whole in-root path (`assets/people/x.webp`) to be a tail
+		// of the source. Root- and host-agnostic exactly as the basename key is — every root and
+		// every host prefix sits in FRONT of that tail — but it no longer answers for a file that
+		// merely shares a name. A GM's own `worlds/mine/art/aeronwen.webp` would otherwise be
+		// bulk-rewritten to a different picture in a different directory, with no undo.
+		const s = String(src);
+		if (s !== matched && !s.endsWith(`/${matched}`)) return null;
+		const served = book2ArtServedWith(root, out, prefix);
+		// Nothing to do when it already holds exactly this. Compared as whole strings, not by
+		// basename: the same file under a path that does not resolve is precisely the case to move.
+		return served === String(src) ? null : served;
 	};
 }
 

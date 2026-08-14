@@ -6,7 +6,7 @@ import { managedHash } from "../hooks/journal-sync-core.js";
 import { compendiumSourceOf } from "../utils/foundry-compat.js";
 import { openApplications } from "../utils/open-windows.js";
 import { book2ArtRoot, book2ArtSrcWith } from "./art-root.js";
-import { browseArtDirs } from "./browse.js";
+import { browseArtDirs, servedPath } from "./browse.js";
 import { STEADING_ACTOR_TYPE, isSteadingPlaceholderImg } from "../actors/steading/steading-portrait.js";
 import { isBestiaryPlaceholderImg } from "../bestiary/monster-portrait.js";
 import { creatureTypeIcon } from "../bestiary/creature-types.js";
@@ -94,6 +94,13 @@ const PARTIAL_IMPORT_MAX_MISSING = 0.10;
 function everyDurableArtPath({ monsters = [], locations = [], settingOverviewMaps = [], treasures = [], people = [], steadings = [] }) {
 	const chains = [];
 	const one = (out) => { if (out) chains.push([out]); };
+	// The creature ILLUSTRATION only. A token square is deliberately NOT counted, even though it is
+	// a manifest `out` like any other: this ratio decides whether to say "your import fell short",
+	// and the remedy it offers is re-running the PDF import. A token square does not come from a
+	// PDF — it is cut locally from the illustration by the rebuild — so a world whose import is
+	// perfect but which has simply not run the rebuild yet is not a world that fell short. Counting
+	// them would also move the ratio by more than the threshold the moment the manifest gains token
+	// rects (73 of 571 = 12.8% against a 10% cap), silently switching the nudge off for everyone.
 	for (const m of monsters) one(m.out);
 	for (const l of locations) for (const im of l.images ?? []) one(im.out);
 	for (const t of treasures) one(t.out);
@@ -177,6 +184,29 @@ async function refreshArtIndex(setting, rows, present, srcOf, entryOf, label, pa
 	}
 }
 
+/**
+ * Publish what this host puts in front of the art root, so clients that cannot browse can still
+ * resolve a picture (art-root.js `book2ArtPrefix`). Empty on a self-hosted Foundry; the Assets
+ * Library origin on The Forge.
+ *
+ * Only ever published from a listing that actually returned something. A browse that came back
+ * empty cannot distinguish "no art here" from "that call failed", and while an empty index is a
+ * harmless (self-healing) answer to the first, an empty PREFIX is not: it would re-point every
+ * document at a path that does not resolve on this host, which is the failure this whole
+ * mechanism exists to undo.
+ */
+async function refreshArtPrefix(present) {
+	try {
+		if (!present?.size) return;
+		const prefix = present.prefix ?? "";
+		if (getSetting("book2ArtPrefix") === prefix) return;
+		await setSetting("book2ArtPrefix", prefix);
+		info(`Book II art: durable art is served from "${prefix || "the data folder"}"`);
+	} catch (e) {
+		error("Book II art: could not record where the art folder is served from", e);
+	}
+}
+
 // Every document-less art index this module publishes. Exported because a writer of one of these
 // has to bust the browse cache (see browse.js, and the `updateSetting` hook in stonetop.js) — that
 // hook used to name them in a regex of its own, so a fourth index could be added here and silently
@@ -212,6 +242,9 @@ export async function publishPeopleArtIndexes() {
 	if (!game.user?.isGM) return;
 	const root = book2ArtRoot();
 	const present = await browseArtDirs(root, ["assets/people"]);
+	// The files this rebuild just wrote are the first listing some worlds ever get back, so record
+	// where the host serves them from here too rather than waiting for the next full pass.
+	await refreshArtPrefix(present);
 	await refreshPeopleArtIndexes(BOOK2_ART_APPLY_MANIFEST.people ?? [], present, (out) => book2ArtSrcWith(root, out));
 }
 
@@ -234,11 +267,22 @@ async function applyWorldPages(worldEntries, page, updateKey, buildNext, noteEnt
 // Minimal portrait + prototype-token update pointing `doc` at `src`, forcing the token
 // fit. For COMPENDIUM docs, which an update resets to the shipped defaults every time.
 // Returns null when nothing would change, so no-op writes are skipped.
-function artUpdate(doc, src) {
+//
+// `tokenSrc` defaults to `src` — one picture doing both jobs, which is what everything but a
+// hand-framed creature wants. A creature with a token square passes its own smaller file, so the
+// token is the square while `img` stays the whole illustration (see monster-tokens.js).
+// The update key for a prototype token's picture. Foundry's own dotted-path idiom, spelled the
+// same way all over this system — named here alone because this file is the only one that reads
+// an update object back after building it (the token counter below), and a counter comparing
+// against its own copy of the string would silently report zero if these writers ever moved to a
+// nested `prototypeToken: {texture: {…}}` form.
+const TOKEN_SRC_KEY = "prototypeToken.texture.src";
+
+function artUpdate(doc, src, tokenSrc = src) {
 	const upd = {};
 	if (doc.img !== src) upd.img = src;
 	const tex = doc.prototypeToken?.texture;
-	if (tex && tex.src !== src) upd["prototypeToken.texture.src"] = src;
+	if (tex && tex.src !== tokenSrc) upd[TOKEN_SRC_KEY] = tokenSrc;
 	if (tex && tex.fit !== TOKEN_FIT) upd["prototypeToken.texture.fit"] = TOKEN_FIT;
 	return Object.keys(upd).length ? upd : null;
 }
@@ -256,7 +300,14 @@ function artUpdate(doc, src) {
 // A portrait/token the group chose is left untouched. The token `fit` is forced ONLY when
 // adopting over a placeholder token, so a GM's "contain" on art that was already ours is never
 // reverted to "cover" on every load. Null when nothing to change.
-function worldMonsterArtUpdate(actor, src, tails) {
+//
+// `tokenSrc` is the creature's hand-framed square when it has one and that file is on disk, else
+// `src` (see monster-tokens.js). It is a THIRD safe case for the token field, not a replacement
+// for the two above: a world whose token still points at the whole illustration is pointing at
+// one of OUR paths, so `ours` already recognises it and the re-point moves it to the square. The
+// reverse also holds — `tails` carries the token path too, so clearing a token square in the
+// picker moves an already-wired token back to the illustration rather than stranding it.
+function worldMonsterArtUpdate(actor, src, tails, tokenSrc = src) {
 	const upd = {};
 	const ours = (path) => tails.some((t) => String(path ?? "").endsWith(t));
 	const imgPlaceholder = isBestiaryPlaceholderImg(actor.img);
@@ -264,7 +315,7 @@ function worldMonsterArtUpdate(actor, src, tails) {
 	const tex = actor.prototypeToken?.texture;
 	if (tex) {
 		const tokPlaceholder = isBestiaryPlaceholderImg(tex.src);
-		if ((ours(tex.src) || tokPlaceholder) && tex.src !== src) upd["prototypeToken.texture.src"] = src;
+		if ((ours(tex.src) || tokPlaceholder) && tex.src !== tokenSrc) upd[TOKEN_SRC_KEY] = tokenSrc;
 		if (tokPlaceholder && tex.fit !== TOKEN_FIT) upd["prototypeToken.texture.fit"] = TOKEN_FIT;
 	}
 	return Object.keys(upd).length ? upd : null;
@@ -294,7 +345,7 @@ function staleMonsterArtReset(actor, tails) {
 	const upd = {};
 	if (ours(actor.img) && actor.img !== fallback) upd.img = fallback;
 	const tex = actor.prototypeToken?.texture;
-	if (tex && ours(tex.src) && tex.src !== fallback) upd["prototypeToken.texture.src"] = fallback;
+	if (tex && ours(tex.src) && tex.src !== fallback) upd[TOKEN_SRC_KEY] = fallback;
 	return Object.keys(upd).length ? upd : null;
 }
 
@@ -377,9 +428,11 @@ function rerenderOpenCompendia(packs) {
 //   • cheapWorldSkip — in the world-journal passes, skip the compendium read for any row
 //                    whose art is already present in every matching world entry. Makes the
 //                    every-load self-heal near-free once everything is applied.
+//   • quiet        — do the work but skip the finishing toast. For a caller that runs this as
+//                    one step of a larger job and reports that job's result itself.
 // Returns a stats object ({ errors, total, … }) on a completed pass, or null when it could
 // not run (not GM / nothing on disk / packs missing) so the caller can decide about stamping.
-export async function reapplyBook2Art({ entries = null, worldOnly = false, cheapWorldSkip = false } = {}) {
+export async function reapplyBook2Art({ entries = null, worldOnly = false, cheapWorldSkip = false, quiet = false } = {}) {
 	if (!game.user?.isGM) return null;
 	const version = game.system.version;
 	const onlyWorld = worldOnly || Array.isArray(entries);
@@ -389,8 +442,31 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 
 	// book2ArtSrc with the root hoisted: this runs once per manifest row per pass, and the
 	// root cannot change mid-pass, so there's no reason to re-read the setting each time.
+	//
+	// This is the IDENTITY of a picture — what the browse is asked about and what an art index is
+	// keyed by. What a DOCUMENT gets pointed at is `servedOf`: the path the host actually listed
+	// the file under, which off a hosted setup is the very same string (see browse.js).
 	const srcOf = (out) => book2ArtSrcWith(root, out);
+	// `resolve` is asked rather than rebuilt from the published prefix, because it is the listing's
+	// own answer for THIS file — no assumption that one prefix fits every directory, and no window
+	// where the setting has not caught up with what was just browsed.
+	const servedOf = (out) => servedPath(present, srcOf(out));
+	// Every spelling of one picture this system could ever have written onto a page: the bare
+	// identity (what every build before hosted support embedded), whatever the host is serving it
+	// as now, and the identity under the published prefix — which is the one that catches a file
+	// that has since been DELETED, where `resolve` has nothing to answer with. Deduped, because on
+	// a self-hosted world all three are the same string and a strip set of three copies of one path
+	// would just do the same work three times.
+	const bothOf = (out) => [...new Set([srcOf(out), servedOf(out), `${present.prefix ?? ""}${srcOf(out)}`])];
+	// Those same spellings MINUS the one we are about to place: the stale <img> a previous pass
+	// left behind, so it comes off the page instead of sitting beside the new one as a permanent
+	// broken image. Empty on a self-hosted world, so this is inert there.
+	const renamedOf = (out) => bothOf(out).filter((p) => p !== servedOf(out));
 	const { monsters, locations, settingOverviewMaps = [], treasures = [], people = [], codex = [], steadings = [] } = BOOK2_ART_APPLY_MANIFEST;
+
+	// Before the indexes: they are keyed by identity, but every consumer resolves through the
+	// prefix, so publishing it late would leave one load pointing players at unresolvable art.
+	await refreshArtPrefix(present);
 
 	// Treasures first, and BEFORE the nothing-on-disk return below. They are not documents,
 	// so publishing which of them have a file on disk, and where, is their whole apply step —
@@ -424,8 +500,19 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	// Only wire art that is actually on disk (a partial import must not point a
 	// document at a file that isn't there).
 	const available = new Set();
-	for (const m of monsters) if (present.has(srcOf(m.out))) available.add(m.out);
+	for (const m of monsters) {
+		if (present.has(srcOf(m.out))) available.add(m.out);
+		// The hand-framed token square is a SEPARATE file with its own presence: a GM who
+		// imported before tokens existed has every illustration and none of the squares, and
+		// must keep a working token rather than a broken image, until the rebuild cuts them.
+		if (m.tokenOut && present.has(srcOf(m.tokenOut))) available.add(m.tokenOut);
+	}
 	for (const l of locations) for (const im of l.images) if (present.has(srcOf(im.out))) available.add(im.out);
+	// The picture a creature's TOKEN should show: its square when the manifest names one AND that
+	// file is on disk, else the whole illustration. Stated once, because the compendium pass and
+	// the world-actor pass have to agree — a token wired to the square in one and the illustration
+	// in the other would flip back and forth on every load.
+	const tokenSrcOf = (m, src) => (m.tokenOut && available.has(m.tokenOut) ? servedOf(m.tokenOut) : src);
 
 	// Setting Overview maps resolve their preference chain HERE rather than in pass 2.5, so
 	// the rule is stated once and the early return below can see their work. Each row is an
@@ -440,7 +527,14 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	const mapPicks = settingOverviewMaps.flatMap((s) => {
 		const chain = [s.out, ...(s.replaces ?? [])];
 		const pick = chain.find((o) => present.has(srcOf(o)));
-		return pick ? [{ s, src: srcOf(pick), replaces: chain.filter((o) => o !== pick).map(srcOf) }] : [];
+		// Both the OTHER links in the chain and the stale spellings of the pick itself:
+		// superseding the poster map and re-pointing a map this host now serves from somewhere
+		// else are the same operation on the page, so one list covers both.
+		return pick ? [{
+			s,
+			src: servedOf(pick),
+			replaces: [...chain.filter((o) => o !== pick).flatMap(bothOf), ...renamedOf(pick)],
+		}] : [];
 	});
 	// Nothing of ours on disk at all — not a document image, not a map, not the steading
 	// portrait. (Maps count even though they never enter `available`: a GM who only ever
@@ -496,7 +590,7 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	};
 
 	const relock = [];
-	let actors = 0, besPages = 0, codexPages = 0, locPages = 0, soPages = 0, worldActors = 0, worldJournalPages = 0, steadingActors = 0, errors = 0;
+	let actors = 0, besPages = 0, codexPages = 0, locPages = 0, soPages = 0, worldActors = 0, worldJournalPages = 0, steadingActors = 0, worldTokens = 0, errors = 0;
 	try {
 		// Unlock inside the try so the finally relocks whatever we opened even if the
 		// second unlock (or any later step) throws. Only the compendium-writing passes
@@ -520,16 +614,22 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 			// page at once.
 			const onDisk = available.has(m.out);
 			if (!onDisk && !monstersOnDisk) continue;
-			const src = onDisk ? srcOf(m.out) : null;
+			const src = onDisk ? servedOf(m.out) : null;
 			// Retired art: a src a PRIOR manifest embedded for this creature and this system no
 			// longer names — two entries the book draws in ONE picture now share the one file, so
 			// the loser's embed has to come off the page. Resolved regardless of disk presence,
 			// like the locations pass: it keys on the embed, not on a file.
-			const retired = [...(m.retired ?? []).map(srcOf), ...(onDisk ? [] : [srcOf(m.out)])];
+			// Every spelling of each, so art retired under a bare path comes off a page whose host
+			// has since moved (and vice versa). When the picture is gone, `bothOf` is what strips
+			// the embed even though `resolve` has nothing left to answer with.
+			const retired = [
+				...(m.retired ?? []).flatMap(bothOf),
+				...(onDisk ? renamedOf(m.out) : bothOf(m.out)),
+			];
 			if (!onlyWorld && onDisk) {
 				try {
 					const actor = await besPack.getDocument(m.actorId);
-					const upd = actor && artUpdate(actor, src);
+					const upd = actor && artUpdate(actor, src, tokenSrcOf(m, src));
 					if (upd) { await actor.update(upd); actors++; }
 				} catch (e) { errors++; error(`Book II art re-apply: actor "${m.slug}"`, e); }
 			}
@@ -575,11 +675,14 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 				// import never embeds a broken <img>; `managed` stays COMPLETE so a missing
 				// file can still be stripped off a page that already carries it.
 				const curation = {
-					managed: (c.managed ?? []).map(srcOf),
+					// The strip set takes every spelling: this pass is authoritative, so a page still
+					// carrying the bare path from an older build has to lose it before the served
+					// one goes back, or the reader is shown both.
+					managed: (c.managed ?? []).flatMap(bothOf),
 					slots: (c.slots ?? []).map((s) => ({
 						slot: s.slot,
 						images: (s.images ?? []).filter((i) => available.has(i.out))
-							.map((i) => ({ src: srcOf(i.out), name: i.name })),
+							.map((i) => ({ src: servedOf(i.out), name: i.name })),
 					})),
 				};
 				const worldEntries = worldBySource.get(jrnSource(c.journalEntryId)) ?? [];
@@ -614,7 +717,7 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 		//    into the target section body in book order.
 		for (const l of locations) {
 			try {
-				const srcs = l.images.filter((im) => available.has(im.out)).map((im) => srcOf(im.out));
+				const srcs = l.images.filter((im) => available.has(im.out)).map((im) => servedOf(im.out));
 				// Retired art: a src a PRIOR manifest embedded that this system no longer names
 				// (a duplicate extraction we removed, or a plate that turned out to be the same
 				// picture as a creature's portrait and now shares that ONE file). Keyed on the
@@ -635,11 +738,16 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 				// present, like the bestiary pass, so a browse that failed cannot strip the art off
 				// every location page at once.
 				const gone = locationsOnDisk
-					? l.images.filter((im) => !available.has(im.out)).map((im) => srcOf(im.out))
+					? l.images.filter((im) => !available.has(im.out)).flatMap((im) => bothOf(im.out))
 					: [];
 				const retired = [
-					...(srcs.length === l.images.length ? (l.retired ?? []).map(srcOf) : []),
+					...(srcs.length === l.images.length ? (l.retired ?? []).flatMap(bothOf) : []),
 					...gone,
+					// A picture this row still places, but under a path this host no longer serves it
+					// from. NOT gated on the row being complete like the retirees above: this is a
+					// rename with its replacement in hand, so there is nothing to wait for, and
+					// leaving it would put the same illustration on the page twice — once broken.
+					...l.images.filter((im) => available.has(im.out)).flatMap((im) => renamedOf(im.out)),
 				];
 				if (!srcs.length && !retired.length) continue; // nothing to place and nothing to retire
 				const worldEntries = worldBySource.get(jrnSource(l.journalEntryId)) ?? [];
@@ -709,7 +817,15 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 			}
 			for (const m of monsters) {
 				const uuid = `Compendium.${m.actorPack ?? BES_PACK}.Actor.${m.actorId}`;
-				const tails = [`/${m.out}`, ...(m.retired ?? []).map((r) => `/${r}`)];
+				// The token square counts as one of OUR paths too. Both directions need it: a token
+				// still on the whole illustration has to be recognised so it can move ONTO the
+				// square, and a token already on a square has to be recognised so clearing that
+				// square in the picker moves it back rather than stranding it on a deleted file.
+				const ourOuts = [m.out, ...(m.tokenOut ? [m.tokenOut] : []), ...(m.retired ?? [])];
+				// Matched as path TAILS, so a stored path resolves whether it was written bare or
+				// under a host prefix. Kept alongside the outs they came from rather than sliced
+				// back out of, since the absence check below asks about the out.
+				const tails = ourOuts.map((o) => `/${o}`);
 				const worldOnes = actorsBySource.get(uuid) ?? [];
 				// This monster's picture is NOT on disk. Clearing a pointer at it is only honest if
 				// we can tell "this one file is missing" from "the browse came back empty", so it is
@@ -719,19 +835,35 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 				// churn is exactly the kind of alarming that a self-heal must never cause.
 				if (!available.has(m.out)) {
 					if (!monstersOnDisk) continue;
+					// Only the paths that are actually GONE, which is not the same list as `tails`.
+					// A creature's token square is stored separately from the illustration it was
+					// cut from, so the square can sit happily on disk while that illustration is
+					// missing — and the reset is field-by-field, so handing it the whole list would
+					// wipe a working token back to the creature-type icon on the strength of the
+					// OTHER file's absence. A retired path is never `available`, so it still resets.
+					const goneTails = ourOuts.filter((o) => !available.has(o)).map((o) => `/${o}`);
 					for (const a of worldOnes) {
 						try {
-							const upd = staleMonsterArtReset(a, tails);
+							const upd = staleMonsterArtReset(a, goneTails);
 							if (upd) { await a.update(upd); worldActors++; }
 						} catch (e) { errors++; error(`Book II art re-apply: world actor "${a.name ?? a.id}"`, e); }
 					}
 					continue;
 				}
-				const src = srcOf(m.out);
+				const src = servedOf(m.out);
+				const tokSrc = tokenSrcOf(m, src);
+				// Is this creature's token being moved onto its own SQUARE, as opposed to the whole
+				// illustration it falls back to? Counted apart from `worldActors`, because the two
+				// answer different questions: `worldActors` is "how many documents did this pass
+				// write", which includes a portrait re-point and a stale reset, while the rebuild
+				// reports "N creatures now use their token square" and must not claim ones that did
+				// not move — least of all when the manifest names no squares and none could have.
+				const toSquare = !!(m.tokenOut && available.has(m.tokenOut));
 				for (const a of worldOnes) {
 					try {
-						const upd = worldMonsterArtUpdate(a, src, tails);
+						const upd = worldMonsterArtUpdate(a, src, tails, tokSrc);
 						if (upd) { await a.update(upd); worldActors++; }
+						if (toSquare && upd?.[TOKEN_SRC_KEY] === tokSrc) worldTokens++;
 					} catch (e) { errors++; error(`Book II art re-apply: world actor "${a.name ?? a.id}"`, e); }
 				}
 			}
@@ -751,12 +883,11 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 		//    journal import (Array.isArray(entries)) — that must not touch actors. artUpdate forces
 		//    the token fit like the macro does; safe here because we only ever touch a placeholder.
 		if (!Array.isArray(entries)) for (const s of steadings) {
-			const src = srcOf(s.out);
-			if (!present.has(src)) continue;
+			if (!present.has(srcOf(s.out))) continue;
 			try {
 				const actor = game.actors?.find((a) => a.type === STEADING_ACTOR_TYPE);
 				if (!actor || !isSteadingPlaceholderImg(actor.img)) continue;
-				const upd = artUpdate(actor, src);
+				const upd = artUpdate(actor, servedOf(s.out));
 				if (upd) { await actor.update(upd); steadingActors++; }
 			} catch (e) { errors++; error(`Book II art re-apply: steading "${s.slug}"`, e); }
 		}
@@ -787,9 +918,12 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	const total = actors + besPages + codexPages + locPages + soPages + worldActors + worldJournalPages + steadingActors;
 	if (total) {
 		info(`Book II art applied: ${actors} actors, ${besPages + codexPages + locPages + soPages} compendium journal pages, ${worldJournalPages} world journal pages, ${worldActors} world actors${steadingActors ? ", steading portrait" : ""}.`);
-		ui.notifications?.info(`Stonetop: added Book II art to ${total} ${total === 1 ? "entry" : "entries"}.`);
+		// The console line always goes out; the TOAST is suppressible. A caller running this as one
+		// step of a larger job reports that job's own result, and two unrelated notifications for one
+		// button press reads as two things having happened.
+		if (!quiet) ui.notifications?.info(`Stonetop: added Book II art to ${total} ${total === 1 ? "entry" : "entries"}.`);
 	}
-	return { errors, total, actors, besPages, codexPages, locPages, soPages, worldActors, worldJournalPages, steadingActors };
+	return { errors, total, actors, besPages, codexPages, locPages, soPages, worldActors, worldJournalPages, steadingActors, worldTokens };
 }
 
 // The version-change trigger: run the full re-apply ONCE per system version, then stamp
