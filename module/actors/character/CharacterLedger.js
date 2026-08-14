@@ -539,7 +539,7 @@ const CREW_FIELD_LABELS = new Map([
 // an ALLOWLIST, so it is already silent. It has a test of its own so that stays true if the
 // allowlist ever grows.
 // The anonymous members' faces. Needs naming here, where the two `.img`-shaped stores do not
-// (isCosmeticPortraitPath covers those): this is an ARRAY of portrait slots, which flattenObject
+// (isBookkeepingPath covers those): this is an ARRAY of portrait slots, which flattenObject
 // leaves as ONE atomic leaf, so the path never mentions `img` at all — it rendered as the literal
 // "[object Object]".
 const isUnloggedCrewKey = (key) => key === "memberPortrait";
@@ -1046,7 +1046,8 @@ const PREFIX_ENTRIES = {
 const SORTED_ENTRY_PREFIXES = Object.keys(PREFIX_ENTRIES).sort((a, b) => b.length - a.length);
 
 /**
- * A face, and the rect that crops it — cosmetic wherever it is stored, and never a ledger line.
+ * A follower's face, the rect that crops it, and the link to the Actor made for them — plumbing
+ * wherever it is stored, and never a ledger line.
  *
  * Every follower type keeps its portrait at `<namespace>.img` with an optional `portraitFrame`
  * beside it (StonetopCharacterSheet's _FOLLOWER_FLAGS), and a roster member keeps theirs the same
@@ -1054,8 +1055,15 @@ const SORTED_ENTRY_PREFIXES = Object.keys(PREFIX_ENTRIES).sort((a, b) => b.lengt
  * generic field formatter: a raw file path for the picture, a bare "0.1, 0.2, 0.3, 0.4" for the
  * rect (a `portraitFrame` is a plain object, so flattenObject splits it into `.src` and `.rect`).
  *
+ * `actorUuid` is the same kind of key and belongs in the same rule. It is written by the sweep
+ * that gives every follower an Actor (actors/character/follower-actors.js#ensureFollowerActors)
+ * and by a drag onto the canvas (hooks/FollowerDrop.js) — never by a player deciding anything.
+ * Left to fall through, one sweep put "Initiate details set to Actor.E0FGjEd91XwUD7Jc,
+ * Actor.si3Eu6QXhkPwDnIJ" into a Blessed's Chronicle, two raw ids run together because the sweep
+ * writes the lot in ONE update and listMerge folded the pair into a single line.
+ *
  * ONE rule rather than an entry per follower type — the crew, the animal companion, the initiates,
- * the beasts, the custom followers and the roster members all store a face the same way, so a type
+ * the beasts, the custom followers and the roster members all store these the same way, so a type
  * added later is quiet by default instead of quietly noisy.
  *
  * Restricted to FLAG paths so it cannot reach the actor's own top-level `img`, which is a
@@ -1064,12 +1072,12 @@ const SORTED_ENTRY_PREFIXES = Object.keys(PREFIX_ENTRIES).sort((a, b) => b.lengt
 // `(?:-=)?` because clearing a portrait is TWO writes, not one: "Use default" sends the picture
 // away as `img: ""` and the frame with it as `.-=portraitFrame`. Silencing only the first left
 // every follower's "Use default" writing "<name> set to blank" into the Chronicle.
-const COSMETIC_PORTRAIT_KEY = /\.(?:-=)?(img|portraitFrame)(\.|$)/;
-const isCosmeticPortraitPath = (path) =>
-	path.startsWith(`flags.${LEDGER_SCOPE}.`) && COSMETIC_PORTRAIT_KEY.test(path);
+const BOOKKEEPING_KEY = /\.(?:-=)?(img|portraitFrame|actorUuid)(\.|$)/;
+const isBookkeepingPath = (path) =>
+	path.startsWith(`flags.${LEDGER_SCOPE}.`) && BOOKKEEPING_KEY.test(path);
 
 function granularEntriesForPath(path, oldValue, newValue, names, ctx) {
-	if (isCosmeticPortraitPath(path)) return [];
+	if (isBookkeepingPath(path)) return [];
 	// Object.hasOwn, not a bare lookup: `path` is attacker-adjacent data off an actor update,
 	// and a plain `EXACT_PATH_ENTRIES[path]` would happily hand back Object.prototype members
 	// for a path named "constructor" or "toString" — which this then tries to call.

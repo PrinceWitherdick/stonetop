@@ -53,7 +53,8 @@ import {ACTOR_LINK_MISSING, openLinkedActorSheet, withLinkedActor} from "../../u
 import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relationship-board.js";
 import {displayPortraitSrc} from "../../book2-art/people-portraits.js";
 import {addPopoutHeaderControl, addPortraitFrameControl, addTokenizerControl} from "../../utils/popout-header-control.js";
-import {personFrameHandle} from "../../utils/portrait-frame-handles.js";
+import {personFrameHandle, actorPortraitPickUpdate, saveLegacyPersonRow} from "../../utils/portrait-frame-handles.js";
+import {normalizeFrame} from "../../utils/portrait-frame.js";
 import {bindImagePopoutToActor, pointImagePopoutAt, usedActorPortraits} from "../../utils/actor-portrait-picker.js";
 import {openPortraitFrameEditor} from "../../utils/PortraitFrameDialog.js";
 import {localize} from "../../utils/i18n.js";
@@ -1619,8 +1620,8 @@ export function createStonetopSteadingSheetClass(Base) {
 		_onMemberAvatarPickImage({ list, index, current, popout }) {
 			// Apply a chosen path (a gallery pick, a browsed file, or "" for the default), keep the
 			// open photo popout in sync, and re-render the sheet. Shared by all three routes.
-			const applyPath = async path => {
-				await this._onMemberAvatarImageChange(list, index, path);
+			const applyPath = async (path, pick = null) => {
+				await this._onMemberAvatarImageChange(list, index, path, pick);
 				if (popout) this._refreshMemberImagePopout(popout, path);
 				this.render(false);
 			};
@@ -1682,25 +1683,38 @@ export function createStonetopSteadingSheetClass(Base) {
 			if (!patched) this._scheduleMemberImageHeaderControl(popout);
 		}
 
-		async _onMemberAvatarImageChange(list, index, value) {
+		// `pick` is what the gallery tile carried alongside the path — `{frame, square}` — because
+		// the picture, the square it crops to and the file the map draws are one choice. Null for
+		// a browsed file and for "Use default", both of which correctly leave no frame behind.
+		async _onMemberAvatarImageChange(list, index, value, pick = null) {
 			if (!["residents", "neighbors"].includes(list) || !Number.isInteger(index)) return;
 			const f = this._stonetopSteading._flags;
 			const rows = f[list] ?? STEADING_DEFAULTS[list];
 			const row = rows[index];
-			// Actor-backed row: the portrait is the NPC actor's own image.
+			// Actor-backed row: the portrait is the NPC actor's own image, and it is a real
+			// document with a prototype token — so this is the same three-field write the sheet
+			// header's own picker makes. See actorPortraitPickUpdate.
 			if (row && isActorRow(row)) {
 				const actor = (row.id ? game.actors?.get(row.id) : null)
 					|| (row.uuid ? await fromUuid(row.uuid).catch(() => null) : null);
 				// Clearing a portrait returns the person to the people silhouette, which is what
 				// the roster draws for an un-portraited member anyway — so the cleared row looks
 				// the same here as one that never had art, rather than reverting to mystery-man.
-				if (actor) await actor.update({ img: value || PERSON_DEFAULT_IMG });
+				if (actor) {
+					await actor.update(actorPortraitPickUpdate(actor, value || PERSON_DEFAULT_IMG, pick ?? {}));
+				}
 				return;
 			}
-			const arr = foundry.utils.deepClone(rows);
-			if (!arr[index]) return;
-			arr[index].img = value;
-			await this._stonetopSteading.setFlags({ [list]: arr });
+			// A legacy text row keeps its frame on the row object itself, beside the img — so both
+			// move in ONE write, because they are one choice. saveLegacyPersonRow owns how this
+			// list is stored (the whole array back, which is what lets a plain `delete` land) and
+			// refuses an actor-backed row, which the branch above has already taken anyway.
+			await saveLegacyPersonRow(this._stonetopSteading, list, index, (r) => {
+				r.img = value;
+				const frame = normalizeFrame(pick?.frame);
+				if (frame) r.portraitFrame = frame;
+				else delete r.portraitFrame;
+			});
 		}
 
 		_onHomesteadMove(moveSlug) {

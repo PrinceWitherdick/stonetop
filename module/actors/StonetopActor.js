@@ -76,11 +76,21 @@ export function createStonetopActorClass(BaseActor) {
 		 * The NPC defaults below deliberately keep their tokens unlinked — a scene's
 		 * townsfolk are placed many times over and each copy is its own creature.
 		 *
-		 * The token reveals its name on hover to anyone. NPCs are the townsfolk and neighbors
-		 * the PCs talk to (not hidden threats), so their name should be legible to every
-		 * player on hover — matching how the Residents/Neighbors rows already name them
-		 * openly. Only applied when the creation data didn't specify a display mode, so a
-		 * deliberate choice, a duplicate, or a compendium import that carries its own
+		 * EVERY kind of actor reveals its name on hover to anyone. Foundry's own default is
+		 * NONE — a nameless token — which leaves a table reading the map by portrait alone
+		 * and asking out loud which of the three villagers is which. NPCs got this first
+		 * because they are the townsfolk the PCs talk to, but a PC's own token, a follower's
+		 * and a creature's all answer the same question for the same reason, and a rule that
+		 * held for one kind of token and not the others was a difference nobody at the table
+		 * could see a reason for.
+		 *
+		 * ⚠ A creature's name is a SPOILER a nameplate now gives away — hovering an unknown
+		 * horror reads its name off the map. That is the GM's call to make per token, and
+		 * Foundry already gives them the controls: hide the token, or set its display mode.
+		 * This only moves the default.
+		 *
+		 * Only applied when the creation data didn't specify a display mode, so a deliberate
+		 * choice, a duplicate, or a compendium import that carries its own
 		 * `prototypeToken.displayName` is preserved.
 		 *
 		 * An NPC with no portrait wears the system's people silhouette instead of Foundry's
@@ -96,19 +106,26 @@ export function createStonetopActorClass(BaseActor) {
 		async _preCreate(data, options, user) {
 			const allowed = await super._preCreate(data, options, user);
 			if (allowed === false) return false;
-			if (this.type === "character") {
-				if (foundry.utils.getProperty(data, "prototypeToken.actorLink") === undefined) {
-					this.updateSource({ "prototypeToken.actorLink": true });
-				}
-				return;
-			}
-			if (this.type !== "npc") return;
+			// Collected and applied in ONE updateSource at the end. Each call is its own diff and
+			// validation pass over the whole document, so a character creating with two of them paid
+			// twice for one decision — and a bestiary bulk import pays that per creature, a hundred
+			// at a time.
+			const patch = {};
+			// Not per-type: a character, an NPC, a creature and the steading all get a name on
+			// hover. The steading is a place nobody drags onto a scene, so for it this is a no-op
+			// rather than an exception worth writing down — and if somebody ever does place it, a
+			// nameplate is the right answer.
 			if (foundry.utils.getProperty(data, "prototypeToken.displayName") === undefined) {
-				this.updateSource({ "prototypeToken.displayName": CONST.TOKEN_DISPLAY_MODES.HOVER });
+				patch["prototypeToken.displayName"] = CONST.TOKEN_DISPLAY_MODES.HOVER;
 			}
-			if (isDefaultImg(this.img) && !isPersonPlaceholderImg(this.img)) {
-				this.updateSource({ img: PERSON_DEFAULT_IMG });
+			if (this.type === "character"
+				&& foundry.utils.getProperty(data, "prototypeToken.actorLink") === undefined) {
+				patch["prototypeToken.actorLink"] = true;
 			}
+			if (this.type === "npc" && isDefaultImg(this.img) && !isPersonPlaceholderImg(this.img)) {
+				patch.img = PERSON_DEFAULT_IMG;
+			}
+			if (Object.keys(patch).length) this.updateSource(patch);
 		}
 
 		get typedActor() {
@@ -153,6 +170,14 @@ export function createStonetopActorClass(BaseActor) {
 		 * written down once and shared with the framing side, so the sheet and the map cannot come
 		 * to disagree about whose token is ours to move.
 		 *
+		 * WITHOUT ITS FOURTH STATE, though, and that is the one difference between the two sides.
+		 * A token wearing the art pipeline's own hand-framed square is fair game for a re-FRAME,
+		 * which puts another square there and remembers the one it displaced; it is not fair game
+		 * here, where the replacement would be the uncropped picture and nothing would be
+		 * remembered. That is a bestiary creature's normal resting state — portrait the whole
+		 * illustration, token a `-t<rect>` square cut from it — so treating it as "following"
+		 * would throw the square away on any write that so much as touches `img`.
+		 *
 		 * Folded into the SAME update rather than written after it, so the two pictures cannot be
 		 * seen apart and one write cannot land without the other.
 		 *
@@ -169,7 +194,7 @@ export function createStonetopActorClass(BaseActor) {
 			// shape an update can arrive in.
 			if (changed["prototypeToken.texture.src"] !== undefined) return;
 			if (foundry.utils.getProperty(changed, "prototypeToken.texture.src") !== undefined) return;
-			if (!tokenFollowsPortrait(this)) return;
+			if (!tokenFollowsPortrait(this, { pipelineSquare: false })) return;
 			changed["prototypeToken.texture.src"] = next;
 		}
 

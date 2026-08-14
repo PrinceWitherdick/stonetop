@@ -665,6 +665,30 @@ describe("CharacterLedger", () => {
 		expect(entries.map(e => e.action)).toEqual([]);
 	});
 
+	// The link to the Actor made for a follower is plumbing, not play: it is written by the sweep
+	// in follower-actors.js and by a drag onto the canvas, never by a player deciding anything.
+	// Falling through, it wrote raw uuids into the Chronicle — and because the sweep links every
+	// follower in ONE update, listMerge folded them into a single "Initiate details set to
+	// Actor.<id>, Actor.<id>" line.
+	it("never logs the Actor link a follower sweep writes back, whichever follower it is for", async () => {
+		const actor = makeActor({}, {
+			stonetop: {
+				animalCompanion: { name: "Bramble", details: {} },
+				initiateDetails: { enfys: {}, afon: {} },
+				beastDetails: { mule: {} },
+				crew: { name: "The Red Shields", details: {} },
+			},
+		});
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop-pwd.initiateDetails.enfys.actorUuid": "Actor.E0FGjEd91XwUD7Jc",
+			"flags.stonetop-pwd.initiateDetails.afon.actorUuid": "Actor.si3Eu6QXhkPwDnIJ",
+			"flags.stonetop-pwd.beastDetails.mule.actorUuid": "Actor.aaaaaaaaaaaaaaaa",
+			"flags.stonetop-pwd.animalCompanion.details.actorUuid": "Actor.bbbbbbbbbbbbbbbb",
+			"flags.stonetop-pwd.crew.details.actorUuid": "Actor.cccccccccccccccc",
+		});
+		expect(entries.map(e => e.action)).toEqual([]);
+	});
+
 	// Clearing a portrait is TWO writes: the picture away as img:"" and the frame with it as
 	// `.-=portraitFrame`. Silencing only the first left every "Use default" writing "set to blank".
 	it("stays quiet on both halves of a portrait clear", async () => {

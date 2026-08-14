@@ -61,14 +61,22 @@ describe("StonetopActor#_preCreate", () => {
 		}
 	});
 
-	it("still defaults an NPC's token to name-on-hover", async () => {
-		const actor = await precreate({});
-		expect(actor["prototypeToken.displayName"]).toBe(HOVER);
+	it("defaults EVERY kind of actor's token to name-on-hover", async () => {
+		// Foundry's own default is a nameless token, which leaves a table reading the map by
+		// portrait alone. The rule is deliberately not per-type — a PC's token, a villager's and
+		// a creature's all answer the same question.
+		for (const type of ["npc", "character", "monster", "stonetop"]) {
+			expect((await precreate({ type }))["prototypeToken.displayName"]).toBe(HOVER);
+		}
 	});
 
-	it("keeps a display mode the creation data chose", async () => {
-		const actor = await precreate({}, { prototypeToken: { displayName: 0 } });
-		expect(actor.applied.some(change => "prototypeToken.displayName" in change)).toBe(false);
+	it("keeps a display mode the creation data chose, whatever the type", async () => {
+		// A duplicate, or a compendium import that carries its own mode. Checked on a character
+		// too, because that branch returns early and could easily stop seeing this rule.
+		for (const type of ["npc", "character"]) {
+			const actor = await precreate({ type }, { prototypeToken: { displayName: 0 } });
+			expect(actor.applied.some(change => "prototypeToken.displayName" in change)).toBe(false);
+		}
 	});
 
 	// Foundry leaves actorLink false, which for a PC means every token on a scene carries a

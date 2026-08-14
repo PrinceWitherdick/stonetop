@@ -45,6 +45,7 @@ import { migrateAllSteadingPeople, ensurePeopleFolders, backfillAllResidentHomes
 import { PERSON_DEFAULT_IMG } from "../utils/person-portrait.js";
 import { NEW_SHOOT_MARKER, LEGACY_SHOOT_MARKERS } from "../data/follower-actor.js";
 import { isDefaultImg } from "../utils/strings.js";
+import { updatePlacedTokens } from "../utils/placed-tokens.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
 const _EOS_MACRO_IMG    = "systems/stonetop-pwd/assets/icons/macros/truce.svg";
@@ -167,14 +168,16 @@ export async function onReady() {
 		// (folder creation is a GM-only right; ensurePeopleFolder returns null for them).
 		try { await ensurePeopleFolders(); }
 		catch (err) { console.error("Stonetop | ensurePeopleFolders failed", err); }
-		try { await _migrateNpcTokenNameplates(); }
-		catch (err) { console.error("Stonetop | NPC token-nameplate migration failed", err); }
+		try { await _migrateTokenNameplates(); }
+		catch (err) { console.error("Stonetop | token-nameplate migration failed", err); }
 		try { await _migrateNpcPlaceholderPortraits(); }
 		catch (err) { console.error("Stonetop | NPC placeholder-portrait migration failed", err); }
 		try { await _migrateTokenImagesToPortraits(); }
 		catch (err) { console.error("Stonetop | token-image backfill failed", err); }
 		try { await _migrateShootMarker(); }
 		catch (err) { console.error("Stonetop | initiate shoot-marker backfill failed", err); }
+		try { await _migratePeoplePortraitsToWhole(); }
+		catch (err) { console.error("Stonetop | people portrait/frame flip failed", err); }
 		// Open the lettered village pins already on this world's scenes up to the players
 		// they were always for (once per world; see revealLandmarkNotesOnce), then point any
 		// that still open nothing at their Chronicle page (every load; a no-op once linked).
@@ -971,21 +974,42 @@ async function _clearDanglingHotbarSlots() {
 	if (dropped) await game.user.update({ hotbar }, { diff: false, recursive: false, noHook: true });
 }
 
-// Bring existing NPC actors up to the "name shows on hover to anyone" token default that
-// new NPCs now get at creation (StonetopActor#_preCreate). Only touches NPCs still at the
-// untouched core default (displayName NONE), so a GM who deliberately set a different mode
-// (hidden, always-on, owner-only) keeps it. Idempotent: once bumped, the actor no longer
-// matches, so re-running every load is a cheap no-op needing no version flag. Primary-GM
-// only (the caller gates it) so two connected GMs can't both write the same actors.
-async function _migrateNpcTokenNameplates() {
+// Bring the actors already in the world up to the "name shows on hover to anyone" token default
+// that new ones now get at creation (StonetopActor#_preCreate). Every type, not just NPCs: see
+// there for why the rule stopped being per-type, and for the spoiler note on creature names.
+//
+// Only touches what is still at the untouched core default (displayName NONE), so a GM who
+// deliberately set a different mode (hidden, always-on, owner-only) keeps it. NONE is also how a
+// GM would deliberately hide a name, and there is no way to tell those two apart — core's own
+// default IS NONE — so this reads it as "never decided", which is what it is on all but a handful
+// of tokens in any world.
+//
+// AND the tokens already standing on scenes, which the prototype does not reach: a TokenDocument
+// carries its own `displayName`, copied when it was placed, so a sweep that stopped at the
+// prototype would fix only the NEXT token dragged out and leave every villager already on the map
+// nameless. That is precisely the token somebody is hovering.
+//
+// One batched write per collection rather than a round trip each: this now matches most of the
+// actor list rather than a handful of NPCs, and each separate update is its own socket round trip,
+// document diff and sidebar repaint, all of it on the blocking startup path.
+//
+// Idempotent: once bumped, nothing matches, so re-running every load is a cheap no-op needing no
+// version flag. Primary-GM only (the caller gates it) so two connected GMs can't both write the
+// same documents.
+async function _migrateTokenNameplates() {
 	const NONE = CONST.TOKEN_DISPLAY_MODES.NONE;
 	const HOVER = CONST.TOKEN_DISPLAY_MODES.HOVER;
-	const stale = game.actors?.filter(
-		a => a.type === "npc" && (a.prototypeToken?.displayName ?? NONE) === NONE
-	) ?? [];
-	for (const actor of stale) {
-		await actor.update({ "prototypeToken.displayName": HOVER });
+	const unnamed = (mode) => (mode ?? NONE) === NONE;
+
+	const stale = game.actors?.filter(a => unnamed(a.prototypeToken?.displayName)) ?? [];
+	if (stale.length) {
+		await Actor.updateDocuments(stale.map(a => ({ _id: a.id, "prototypeToken.displayName": HOVER })));
 	}
+
+	// One request per affected scene, and none at all for a scene with nothing to bump — which
+	// after the first load is every scene. See utils/placed-tokens.js, shared with the two other
+	// sweeps that have to reach past the prototype.
+	await updatePlacedTokens(t => unnamed(t.displayName), () => ({ displayName: HOVER }), { what: "name" });
 }
 
 // Give the NPCs already in the world the people silhouette new ones now get at creation
@@ -996,12 +1020,15 @@ async function _migrateNpcTokenNameplates() {
 // anyone chose is never overwritten. Idempotent: once stamped, the actor no longer matches,
 // so re-running every load is a cheap no-op needing no version flag. Primary-GM only (the
 // caller gates it) so two connected GMs can't both write the same actors.
+// One batched write rather than a round trip each, for the reason its neighbours state: on the
+// load where this fires it fires for every art-less NPC in the world at once, and a world seeded
+// with a full steading roster has a lot of those.
 async function _migrateNpcPlaceholderPortraits() {
 	const stale = game.actors?.filter(
 		a => a.type === "npc" && a.img !== PERSON_DEFAULT_IMG && isDefaultImg(a.img)
 	) ?? [];
-	for (const actor of stale) {
-		await actor.update({ img: PERSON_DEFAULT_IMG });
+	if (stale.length) {
+		await Actor.updateDocuments(stale.map(a => ({ _id: a.id, img: PERSON_DEFAULT_IMG })));
 	}
 }
 
@@ -1063,13 +1090,73 @@ async function _migrateShootMarker() {
 	if (updates.length) await Actor.updateDocuments(updates);
 
 	// One request per affected scene, and none at all for a scene with nothing to lift — which
-	// after the first load is every scene.
-	for (const scene of game.scenes ?? []) {
-		const tokens = [...(scene.tokens ?? [])]
-			.filter(t => wasOurs(t.texture?.src))
-			.map(t => ({ _id: t.id, "texture.src": NEW_SHOOT_MARKER }));
-		if (tokens.length) await scene.updateEmbeddedDocuments("Token", tokens);
+	// after the first load is every scene. See utils/placed-tokens.js.
+	await updatePlacedTokens(
+		t => wasOurs(t.texture?.src),
+		() => ({ "texture.src": NEW_SHOOT_MARKER }),
+		{ what: "lift" },
+	);
+}
+
+// Put every People-of-Stonetop portrait onto the WHOLE illustration, with the hand-chosen square
+// as a frame over it and as the token's own file. See module/book2-art/repoint-portraits.js for
+// the three writes and why they are one move.
+//
+// ON LOAD, unlike the rebuild it also runs inside. The rebuild is behind a chat card that
+// offer-once.js latches the moment it is POSTED, so a world whose GM scrolled past that card can
+// never be asked again — and every one of those worlds is currently showing a small square face to
+// any module that reads `actor.img`, which is the bug this fixes. Nothing here CUTS a file (the
+// resolver only ever names squares the world has already extracted), so unlike the rebuild there
+// is nothing to ask permission for: it rearranges three fields into the layout a bestiary creature
+// has always had, and leaves every surface drawing the same pixels it drew before.
+//
+// Idempotent by construction, so re-running every load is a cheap no-op needing no version flag:
+// the target values are computed from the art index rather than from the actor, so a portrait
+// already in this layout produces an empty update and drops out of the plan. Primary-GM only (the
+// caller gates it) so two connected GMs can't both write the same actors.
+async function _migratePeoplePortraitsToWhole() {
+	const { flipPeoplePortraitsToWhole } = await import("../book2-art/repoint-portraits.js");
+	const result = await flipPeoplePortraitsToWhole();
+	if (result.changes) {
+		const placed = result.placed ? ` ${result.placed} placed token(s) followed.` : "";
+		console.log(`Stonetop | People portraits: ${result.changes} field(s) moved onto the whole illustration across ${result.updated} actor(s).${placed}`);
 	}
+}
+
+// One batched actor write, falling back to one write per actor.
+//
+// `build(actor)` returns the update body for that actor, WITHOUT `_id`, and is called once per
+// actor per attempt — deliberately, never once for the whole batch. On v14 a deletion body carries
+// a `ForcedDeletion` INSTANCE rather than a magic key (utils/foundry-compat.js), and core deletes
+// only where the value `instanceof ForcedDeletion`; the contract there is a fresh instance per key,
+// so building one and spreading it across every document in the request is trusting an operator
+// object to be reusable when nothing says it is.
+//
+// THE FALLBACK IS WHAT MAKES A PARTIAL SWEEP HONEST. `Actor.updateDocuments` is all-or-nothing, so
+// one locked or unwritable actor rejects the batch and every clean actor behind it stays stale —
+// on a sweep that only ever fires on the one load where it has work to do. Walking them
+// individually saves everything that can be saved, exactly as flipPeoplePortraitsToWhole does; all
+// of these are idempotent, so whatever still fails is simply picked up next load.
+//
+// `what` names the job in the two warnings.
+async function _updateActorsBatched(actors, build, what) {
+	if (!actors.length) return 0;
+	try {
+		await Actor.updateDocuments(actors.map(a => ({ _id: a.id, ...build(a) })));
+		return actors.length;
+	} catch (err) {
+		console.warn(`Stonetop | bulk ${what} failed; retrying one actor at a time:`, err);
+	}
+	let updated = 0;
+	for (const actor of actors) {
+		try {
+			await actor.update(build(actor));
+			updated++;
+		} catch (err) {
+			console.warn(`Stonetop | could not ${what} on "${actor?.name}":`, err);
+		}
+	}
+	return updated;
 }
 
 // Drop the pre-rename `system.attributes.armour` key from characters that still carry it.
@@ -1086,10 +1173,16 @@ export async function _migrateArmourToArmor() {
 		a => a.type === "character" && a.system?.attributes?.armour !== undefined
 	);
 	if (!staleActors.length) return;
-	for (const actor of staleActors) {
-		const [key, val] = deletionEntry("system.attributes.armour");
-		await actor.update({ [key]: val });
-	}
+	// ONE batched request, like every other actor sweep here. Per-actor updates cost a socket
+	// round trip, a world-wide `updateActor` broadcast and an Actors-sidebar repaint EACH, all on
+	// the blocking startup path — and on the one load where this fires it fires for every stale
+	// character at once. Built per actor rather than once for the batch, and with a per-actor
+	// retry behind it: see _updateActorsBatched for both reasons.
+	await _updateActorsBatched(
+		staleActors,
+		() => Object.fromEntries([deletionEntry("system.attributes.armour")]),
+		"armour key drop",
+	);
 }
 
 // The GM-prep page families (threats / hazards) used to store one JournalEntry per item in

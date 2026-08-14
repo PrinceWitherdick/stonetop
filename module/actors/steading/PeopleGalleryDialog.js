@@ -2,7 +2,8 @@ import { StonetopDialog } from "../../utils/stonetop-dialog.js";
 import { book2ArtPrefix, book2ArtRoot, book2ArtServedWith, book2ArtSrcWith } from "../../book2-art/art-root.js";
 import { splitAtArtRoot } from "../../book2-art/browse.js";
 import { BOOK2_ART_APPLY_MANIFEST } from "../../book2-art/manifest.js";
-import { displayPortraitSrc } from "../../book2-art/people-portraits.js";
+import { displayPortraitSrc, portraitRectOf } from "../../book2-art/people-portraits.js";
+import { normalizeFrame } from "../../utils/portrait-frame.js";
 import { getObjectSetting } from "../../settings.js";
 import { filePicker } from "../../utils/foundry-compat.js";
 
@@ -184,9 +185,13 @@ export class PeopleGalleryDialog extends StonetopDialog {
 		const people = Object.entries(idx).map(([out, name]) => {
 			const key = book2ArtSrcWith(root, out);
 			const full = book2ArtServedWith(root, out, prefix);
-			// The square is what gets committed and what the tile shows, so the grid is a
-			// preview of the sheet rather than of the book page. The whole illustration is one
-			// hover away, which is where a standing figure actually reads.
+			// The square is what the tile SHOWS, so the grid is a preview of the sheet rather
+			// than of the book page. The whole illustration is one hover away, which is where a
+			// standing figure actually reads.
+			//
+			// What gets COMMITTED is the whole illustration plus the square as a frame over it —
+			// see `_choose`. The tile still previews the square because that is what the sheet
+			// will draw; only the way it gets there has changed.
 			const square = squares[out] ? book2ArtServedWith(root, squares[out], prefix) : "";
 			const src = square || full;
 			// A portrait with no manifest entry (an older import, or a file dropped in by hand)
@@ -280,11 +285,43 @@ export class PeopleGalleryDialog extends StonetopDialog {
 
 	// ── Picking ───────────────────────────────────────────────────────
 
-	/** Apply a portrait and close. Only Accept gets here: every other route only proposes. */
-	async _choose(src) {
+	/**
+	 * Apply a portrait and close. Only Accept gets here: every other route only proposes.
+	 *
+	 * Commits the WHOLE illustration and hands the square over as a FRAME, which is the layout a
+	 * bestiary creature has always used and which people now share (book2-art/repoint-portraits.js
+	 * has the reasoning and migrates worlds already holding the older shape). Committing the square
+	 * as `img` looked identical on every surface in this system and was wrong one step outside it:
+	 * a module reading `actor.img` — Image Hover on a token — got a small cropped face where the
+	 * same gesture on a monster gave the artist's whole composition.
+	 *
+	 * The second argument carries BOTH halves of that arrangement — the frame the small round
+	 * surfaces crop to, and the square file the map draws — because a caller that took only the
+	 * picture would leave a following token on the tall illustration. Both are null for a tile with
+	 * no square behind it and for a browsed file, which is why every `onPick` must still work from
+	 * `src` alone.
+	 */
+	async _choose(btn) {
+		const src = btn?.dataset?.full || btn?.dataset?.src;
 		if (!src) return;
-		await this._onPick?.(src);
+		const frame = this.constructor._frameOf(btn, src);
+		await this._onPick?.(src, { frame, square: frame ? (btn?.dataset?.src ?? "") : "" });
 		this.close();
+	}
+
+	/**
+	 * The frame a tile commits: its hand-chosen rect, stamped against the picture it was measured on.
+	 *
+	 * Read back out of the square's own filename, which is the only place that rect survives
+	 * (people-portraits.js). `data-src` IS the square whenever one was cut, so no second data
+	 * channel is needed — and `portraitRectOf` returns null for the tile that carries no square
+	 * (its `data-src` is the whole illustration) and for a square whose name predates the suffix,
+	 * which are exactly the tiles with no frame to commit. Cache-busters are stripped there, so a
+	 * served path with a query string still resolves.
+	 */
+	static _frameOf(btn, src) {
+		const rect = portraitRectOf(btn?.dataset?.src);
+		return rect ? normalizeFrame({ src, rect }) : null;
 	}
 
 	/** The tiles the filters currently leave on screen — the pool Random rolls from. */
@@ -547,10 +584,10 @@ export class PeopleGalleryDialog extends StonetopDialog {
 		// one, else the member's current portrait — so rolling again always moves.
 		//
 		// Rolled over `data-full`, not `data-src`, for the reason getData spells out: a portrait
-		// chosen before squares existed is held as the WHOLE illustration while its tile now
-		// shows the square, so comparing the two raw paths never matches and "avoid the current
-		// one" silently stops avoiding anything. The winning tile still contributes its own
-		// `data-src` — the square is what Accept commits.
+		// is held as the WHOLE illustration while its tile shows the square, so comparing the two
+		// raw paths never matches and "avoid the current one" silently stops avoiding anything.
+		// The comparison itself goes through `portraitIdentity`, which normalises either spelling,
+		// so a world still holding the older square-as-img shape is avoided correctly too.
 		this._randomBtn?.addEventListener("click", () => {
 			const visible = this._visiblePicks();
 			const held = this._proposed?.dataset.src || this._current;
@@ -560,7 +597,7 @@ export class PeopleGalleryDialog extends StonetopDialog {
 		});
 
 		// The one door a portrait actually goes through, however it was landed on.
-		this._acceptBtn?.addEventListener("click", () => this._choose(this._proposed?.dataset.src));
+		this._acceptBtn?.addEventListener("click", () => this._choose(this._proposed));
 
 		// Close first so the gallery isn't stacked over the FilePicker it opens.
 		root.querySelector(".stonetop-people-browse")?.addEventListener("click", () => {

@@ -1,13 +1,13 @@
 import { rebuildBookArt, plannedBookArtRebuilds } from "./rebuild-crops.js";
 import { publishPeopleArtIndexes, reapplyBook2Art } from "./reapply.js";
-import { repointPeopleSquares } from "./repoint-portraits.js";
+import { flipPeoplePortraitsToWhole } from "./repoint-portraits.js";
 
 /**
  * Cut every picture this world could have from the art it already holds, then point what is
  * already in play at it. The one path all three entry points take.
  *
  * Three kinds of cut, all the same operation on different rects: the detail portraits carved out
- * of a multi-figure drawing, the square faces an NPC's `img` points at, and the square a
+ * of a multi-figure drawing, the square faces an NPC's token stands on, and the square a
  * creature's prototype token stands on. They share a run because they share a cause — a GM who
  * imported before any of them existed holds every source file and none of the results — and
  * because two chat cards asking the same favour is one too many.
@@ -32,7 +32,7 @@ export async function runBookArtRebuild({ onProgress = null } = {}) {
 	await publishPeopleArtIndexes();
 	let repointed = 0;
 	try {
-		repointed = (await repointPeopleSquares()).changes;
+		repointed = (await flipPeoplePortraitsToWhole()).changes;
 	} catch (err) {
 		// Never fails the rebuild. The files are cut and the gallery works either way, and
 		// running again retries this half on its own.

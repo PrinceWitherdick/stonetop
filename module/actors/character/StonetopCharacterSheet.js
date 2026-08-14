@@ -91,7 +91,7 @@ import {FOLLOWER_DRAG_TYPE} from "../../data/follower-actor.js";
 import {CREW_INDIVIDUAL_NAMES, CREW_INDIVIDUAL_TAGS, CREW_INDIVIDUAL_TRAITS} from "../../data/steading-members.js";
 import {resolvePortrait, portraitActionLabel} from "../../utils/portrait-frame.js";
 import {displayPortraitSrc} from "../../book2-art/people-portraits.js";
-import {followerFrameHandle, rosterMemberFrameHandle} from "../../utils/portrait-frame-handles.js";
+import {followerFrameHandle, rosterMemberFrameHandle, followerPortraitPickUpdate, followerPortraitClearUpdate} from "../../utils/portrait-frame-handles.js";
 import {clearRosterPortrait, readRosterPortrait, rosterAvatarContext, rosterPortraitList, rosterPortraitListPath, writeRosterPortrait} from "./roster-portraits.js";
 import {openPortraitFrameEditor} from "../../utils/PortraitFrameDialog.js";
 import {headerPortraitContext, usedActorPortraits, wirePortraitPopout, pointImagePopoutAt} from "../../utils/actor-portrait-picker.js";
@@ -7481,7 +7481,6 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (!this.isEditable || !portrait) return;
 			const base = _followerDetailBase(portrait.dataset.ftype, portrait.dataset.slug);
 			if (!base) return;
-			const path = `${base}.img`;
 			// getAttribute, not `.src`: the DOM resolves that to an absolute URL, which would
 			// match none of the gallery's relative tile paths, so the portrait already in use
 			// would not read as selected.
@@ -7490,8 +7489,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			// The gallery opens over the sheet; a preview raised by the hover that led to the
 			// click would be left floating on top of it with nothing to anchor to.
 			removeAvatarPreview();
-			const apply = async src => {
-				await this.actor.setFlag(STONETOP_SCOPE, path, src ?? "");
+			// Picture and frame in ONE update, both ways — see followerPortraitPickUpdate and its
+			// clear, which own where a card keeps its face and why the two move together.
+			const apply = async (src, { frame = null } = {}) => {
+				await this.actor.update(followerPortraitPickUpdate(base, src, { frame }));
 				this.render(false);
 				onPicked?.(src ?? "");
 			};
@@ -7499,17 +7500,8 @@ export function createStonetopCharacterSheetClass(Base) {
 				current,
 				used: this._followerPortraitsInUse(portrait.dataset),
 				onPick: apply,
-				// One atomic update: clearing the portrait must also drop any frame authored
-				// against it, or the follower keeps an orphan rect that would silently apply to
-				// whatever picture is chosen next (it would not — the src stamp neutralises it —
-				// but the dead data would accumulate forever).
 				onClear: async () => {
-					const [frameKey, frameVal] =
-						deletionEntry(`flags.${STONETOP_SCOPE}.${base}.portraitFrame`);
-					await this.actor.update({
-						[`flags.${STONETOP_SCOPE}.${path}`]: "",
-						[frameKey]: frameVal,
-					});
+					await this.actor.update(followerPortraitClearUpdate(base));
 					this.render(false);
 					onCleared?.();
 				},
@@ -7616,8 +7608,13 @@ export function createStonetopCharacterSheetClass(Base) {
 				// roster-portraits.js). Telling the window about a face that was never stored is
 				// the one outcome worse than the refusal: it would show the new picture, and the
 				// sheet behind it would still be showing the old one.
-				onPick: async (src) => {
-					if (!await writeRosterPortrait(this.actor, ref.kind, ref.slug, ref.index, { img: src ?? "" })) return;
+				onPick: async (src, { frame = null } = {}) => {
+					// Picture and frame in the one array rewrite, for the reason the follower card
+					// above spells out: the 26px disc crops to the frame, and a picture stored
+					// without one falls back to a blind top slice. `undefined` is the store's own
+					// delete signal, which is exactly what a browsed file (no square) should leave.
+					if (!await writeRosterPortrait(this.actor, ref.kind, ref.slug, ref.index,
+						{ img: src ?? "", portraitFrame: frame ?? undefined })) return;
 					this.render(false);
 					onPicked?.(src ?? "");
 				},
