@@ -6,7 +6,7 @@ import { getPlayerCharacters } from "../utils/playbook-actors.js";
 import { setWorldSetting } from "../settings.js";
 import { postSeasonsChangeReminder } from "../seasons/seasons-change-reminders.js";
 import { recordSeasonsChange } from "../seasons/seasons-chronicle.js";
-import { getWalkthroughResume, patchWalkthroughResume, markWalkthroughDone } from "./walkthrough-resume.js";
+import { markWalkthroughDone } from "./walkthrough-resume.js";
 import { saveChronicleFromButton } from "../utils/chronicle.js";
 import { SEASONAL_GAINS } from "./spring-burst-data.js";
 
@@ -117,8 +117,8 @@ export class SpringBurstDialog extends StepperDialog {
 		// Set once the GM hands the roll to the table via chat. The result lands in
 		// chat, not here, so the omen step can't gate the gains on a tier it never
 		// sees — it shows all gains once the roll's been delegated. Persisted in the
-		// resume record (see _saveResume/_restoreStep) so a reload that resumes on the
-		// roll step doesn't hide the gains the GM already ticked.
+		// resume record (see _resumeExtras) so a reload that resumes on the roll step
+		// doesn't hide the gains the GM already ticked.
 		this._delegatedRoll = false;
 	}
 
@@ -133,35 +133,12 @@ export class SpringBurstDialog extends StepperDialog {
 		});
 	}
 
-	// ── Reload-resume ──────────────────────────────────────────────────────────
-	// The dialog doesn't survive a browser refresh; record the current step + that
-	// we're open so hooks/Ready.js can reopen it here. See walkthrough-resume.js.
-	async _render(force, options) {
-		await super._render(force, options);
-		this._saveResume();
-	}
-
-	async close(options = {}) {
-		// Closing on purpose clears the open flag (no auto-reopen next load); a reload
-		// skips close() and leaves it set. The saved step stays for a manual reopen.
-		patchWalkthroughResume(RESUME_KEY, { open: false });
-		return super.close(options);
-	}
-
-	_restoreStep() {
-		const saved = getWalkthroughResume(RESUME_KEY);
-		const step  = Number(saved?.step);
-		if (Number.isInteger(step) && step >= 0 && step < this._steps.length) this._step = step;
-		// Restore the roll-delegated flag too (it gates the gains checklist) so resuming
-		// on the roll step keeps showing the gains the GM had already ticked.
-		this._delegatedRoll = !!saved?.delegated;
-	}
-
-	_saveResume() {
-		const cur = getWalkthroughResume(RESUME_KEY);
-		if (cur?.open === true && cur.step === this._step && cur.delegated === this._delegatedRoll) return;
-		patchWalkthroughResume(RESUME_KEY, { open: true, step: this._step, delegated: this._delegatedRoll });
-	}
+	// Reload-resume, implemented once in StepperDialog. `delegated` rides along as an extra
+	// because it GATES what the roll step shows: without it a reload that resumes there would
+	// hide the gains the GM had already ticked.
+	get _resumeKey() { return RESUME_KEY; }
+	_resumeExtras() { return { delegated: this._delegatedRoll }; }
+	_applyResumeExtras(saved) { this._delegatedRoll = !!saved?.delegated; }
 
 	// "Done" on the final step compiles everything recorded — the Introductions
 	// answers and the notes from this walkthrough — into the Chronicle, then closes.

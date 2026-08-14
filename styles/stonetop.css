@@ -326,6 +326,31 @@
 	--st-red-bg-hover:   hsl(0 60% 85%);
 	--st-red-text:       hsl(0 55% 30%);
 
+	/* ── Gold "encumbrance/caution" accent ────────────────────────────────
+	   The warning tier that isn't yet a failure: a heavy load on the Expedition
+	   readout, a threat's clock, the Death's Door accent. The app painted all three
+	   from the same gold by hand (`#c9a227` and a 0.10–0.15 wash of it, a dozen
+	   literals); these name it, and every literal that was an EXACT match now reads
+	   the token — so there is one spelling of this colour rather than two, which is
+	   the drift naming it was meant to prevent.
+	   Kept as the exact hex already in use, not re-expressed in hsl, so migrating an
+	   existing literal was a swap rather than a colour change. EXACT IS THE WHOLE RULE,
+	   and it is why the following are deliberately left as literals — each is a near
+	   miss, and converting one would BE a colour change under cover of a rename:
+	     · washes at other strengths — the packhorse note's and the load head's 0.10,
+	       the heavy load pill's 0.15, the spared Death's Door's 0.14, and a ticked
+	       end-of-session question's 0.1;
+	     · #c29a1f, a second gold two points per channel off this one, on the heavy
+	       load row's avatar and pips.
+	   Fold one of those in when somebody decides that pixel should move, as its own
+	   change with its own reason — not as a side effect of naming a colour. Three
+	   stops, not the family's usual four —
+	   nothing gold is hoverable yet. `-text` is the ink tone: the border gold is only
+	   ~2.3:1 on parchment and can't carry a word. */
+	--st-gold-border: #c9a227;
+	--st-gold-bg:     rgba(201, 162, 39, 0.12);
+	--st-gold-text:   #8a6d12;
+
 	/* ── Slate "primary" action ───────────────────────────────────────────
 	   Solid-fill primary buttons share one palette — every dialog's confirm /
 	   submit (Add resident, Outfit, Death's Door, End of Session, onboarding,
@@ -8821,7 +8846,7 @@ span.stonetop-mark-loyalty-pip {
 }
 
 .stonetop-edit-toggle input:checked + .stonetop-toggle-track .stonetop-toggle-thumb i {
-	color: #c9a227;
+	color: var(--st-gold-border);
 }
 
 .stonetop-edit-toggle input:checked + .stonetop-toggle-track {
@@ -9448,8 +9473,8 @@ span.stonetop-mark-loyalty-pip {
 
 .stonetop-outfit-load-option.is-active {
 	opacity: 1;
-	background: rgba(201, 162, 39, 0.12);
-	border-color: #c9a227;
+	background: var(--st-gold-bg);
+	border-color: var(--st-gold-border);
 }
 
 .stonetop-outfit-load-badge {
@@ -9460,7 +9485,7 @@ span.stonetop-mark-loyalty-pip {
 .stonetop-outfit-packhorse-note {
 	margin: 0;
 	padding: 4px 8px;
-	border-left: 3px solid #c9a227;
+	border-left: 3px solid var(--st-gold-border);
 	background: rgba(201, 162, 39, 0.10);
 	border-radius: var(--st-radius);
 	font-size: var(--st-fs-sm);
@@ -9763,7 +9788,7 @@ span.stonetop-mark-loyalty-pip {
 	font-size: var(--st-fs-sm);
 	font-style: italic;
 	color: var(--color-text-dark-secondary);
-	border-left: 2px solid #c9a227;
+	border-left: 2px solid var(--st-gold-border);
 	padding-left: 8px;
 }
 
@@ -9860,8 +9885,8 @@ span.stonetop-mark-loyalty-pip {
 
 .stonetop-levelup-move-option.is-selected,
 .stonetop-levelup-invocation-option.is-selected {
-	background: rgba(201, 162, 39, 0.12);
-	border-color: #c9a227;
+	background: var(--st-gold-bg);
+	border-color: var(--st-gold-border);
 }
 
 .stonetop-levelup-move-header {
@@ -9931,8 +9956,8 @@ span.stonetop-mark-loyalty-pip {
 }
 
 .stonetop-levelup-stat-option.is-selected {
-	background: rgba(201, 162, 39, 0.12);
-	border-color: #c9a227;
+	background: var(--st-gold-bg);
+	border-color: var(--st-gold-border);
 }
 
 .stonetop-levelup-stat-option.is-at-cap {
@@ -10017,8 +10042,8 @@ span.stonetop-mark-loyalty-pip {
 	--dd-inset:         rgba(0, 0, 0, 0.02);        /* a recessed panel in the paper */
 	--dd-rule:          var(--color-border-light-primary, #ccc);
 	/* The tier that landed. Gold while there's still a way back; ember once there isn't. */
-	--dd-accent:        #c9a227;
-	--dd-accent-bg:     rgba(201, 162, 39, 0.12);
+	--dd-accent:        var(--st-gold-border);
+	--dd-accent-bg:     var(--st-gold-bg);
 	/* Washed over the whole window frame, edges inward. `none` = full daylight. */
 	--dd-veil:          none;
 }
@@ -10911,7 +10936,7 @@ span.stonetop-mark-loyalty-pip {
 /* An Undeath roll that went well still gets its gold back — the Thrall's master answered,
    the Revenant held together. The window stays dark; only the accent warms. */
 .stonetop-undeath-dialog.deaths-door-mood--door.deaths-door-mood--spared {
-	--dd-accent:    #c9a227;
+	--dd-accent:    var(--st-gold-border);
 	--dd-accent-bg: rgba(201, 162, 39, 0.14);
 }
 
@@ -12461,7 +12486,7 @@ span.stonetop-mark-loyalty-pip {
 
 .stonetop-eos-question.is-checked {
 	background: rgba(201, 162, 39, 0.1);
-	border-color: #c9a227;
+	border-color: var(--st-gold-border);
 }
 
 .stonetop-eos-question input[type="checkbox"] {
@@ -25452,6 +25477,12 @@ th:has(> .stonetop-roll-table-btn) {
    arriving-home checklist, and the inline d6 reference table. See
    dialogs/ExpeditionDialog.js. */
 
+/* This one opens at a fixed height (unlike the auto-height Spring Burst stepper it
+   borrows its chrome from), so the shared viewport cap above has nothing left to cap —
+   and would leave a dead band under the content on a window dragged taller than the
+   viewport. Same two-class weight as the rule it answers, declared later, so it wins. */
+.stonetop-expedition-dialog .window-content { max-height: none; }
+
 /* Log bar between the banner and step body: name the current trip, switch logged
    trips, start a new one. */
 .stonetop-exp-bar {
@@ -27764,9 +27795,12 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 /* ── Run an Expedition · Outfit step · live party-load readout ─────────────────
    One row per party member: a diamond ◇ load track (grouped in the light/normal/heavy
    bands), a band pill, the ◇ count, and any load-gated move the load switched off.
-   Encumbrance keeps the system's gold accent (#c9a227); scoped to the dialog so none
-   of it leaks onto core/other sheets. Diamonds are discrete pips, not a fill bar,
-   matching the house idiom. */
+   Encumbrance is painted from the shared --st-gold-* accent; scoped to the dialog so
+   none of it leaks onto core/other sheets. Diamonds are discrete pips, not a fill bar,
+   matching the house idiom. Sizes come from the --st-fs-* scale (which tracks the sheet
+   font setting and holds the 0.9em readability floor), never a bare rem; the tags and
+   counts are set in the house face with tabular figures rather than a monospace stack,
+   which appeared nowhere else in the system. */
 .stonetop-expedition-dialog .stonetop-exp-load {
 	margin-top: 12px;
 	border: 1px solid rgba(0,0,0,0.14);
@@ -27777,13 +27811,15 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-expedition-dialog .stonetop-exp-load-head {
 	display: flex; align-items: center; gap: 8px;
 	padding: 8px 12px;
+	/* 0.10, not --st-gold-bg's 0.12: the same wash the packhorse note carries, and the
+	   pair reads as one tint only while they stay equal. See the --st-gold-* block. */
 	background: rgba(201,162,39,0.10);
 	border-bottom: 1px solid rgba(0,0,0,0.08);
 }
 .stonetop-expedition-dialog .stonetop-exp-load-title {
 	font-family: var(--font-stonetop);
 	text-transform: uppercase; letter-spacing: 0.08em;
-	font-size: var(--st-fs-2xs); font-weight: 700; color: #8a6d12;
+	font-size: var(--st-fs-2xs); font-weight: 700; color: var(--st-gold-text);
 }
 .stonetop-expedition-dialog .stonetop-exp-load-live {
 	margin-left: auto; font-size: var(--st-fs-2xs); color: var(--st-text-muted);
@@ -27793,10 +27829,13 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--st-green-border);
 }
 
-/* "who's coming" chips */
+/* "who's coming" chips. Deeper below than above: the row's 8px matched its neighbours
+   while it held one line of chips, but a party big enough to wrap sits as a block of
+   pills, and a block reads as crowded against the rule beneath it at the spacing a
+   single line reads as even. The extra 4px is under the chips only. */
 .stonetop-expedition-dialog .stonetop-exp-load-pick {
 	display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-	padding: 8px 12px; border-bottom: 1px solid rgba(0,0,0,0.08);
+	padding: 8px 12px 12px; border-bottom: 1px solid rgba(0,0,0,0.08);
 }
 .stonetop-expedition-dialog .stonetop-exp-load-picklab {
 	font-size: var(--st-fs-2xs); color: var(--st-text-muted); font-style: italic;
@@ -27832,7 +27871,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 .stonetop-expedition-dialog .stonetop-exp-load-glance .g-tally b { font-size: var(--st-fs-md); font-weight: 700; }
 .stonetop-expedition-dialog .stonetop-exp-load-glance .g-warn b { color: var(--st-red-text); }
-.stonetop-expedition-dialog .stonetop-exp-load-glance .g-caut b { color: #8a6d12; }
+.stonetop-expedition-dialog .stonetop-exp-load-glance .g-caut b { color: var(--st-gold-text); }
 .stonetop-expedition-dialog .stonetop-exp-load-glance .g-ok { color: var(--st-green-text); font-style: italic; }
 
 /* rows */
@@ -27843,8 +27882,10 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 .stonetop-expedition-dialog .stonetop-exp-load-row:last-child { border-bottom: none; }
 .stonetop-expedition-dialog .stonetop-exp-load-row.lvl-light { border-left-color: var(--st-green-border); }
-.stonetop-expedition-dialog .stonetop-exp-load-row.lvl-heavy { border-left-color: #c9a227; }
-.stonetop-expedition-dialog .stonetop-exp-load-row.lvl-over  { border-left-color: var(--st-red-border); background: rgba(200,60,60,0.06); }
+.stonetop-expedition-dialog .stonetop-exp-load-row.lvl-heavy { border-left-color: var(--st-gold-border); }
+/* The palette red at half strength: full --st-red-bg is the pill/chip fill, too loud
+   across a whole row. */
+.stonetop-expedition-dialog .stonetop-exp-load-row.lvl-over  { border-left-color: var(--st-red-border); background: color-mix(in srgb, var(--st-red-bg) 50%, transparent); }
 
 .stonetop-expedition-dialog .stonetop-exp-load-ava {
 	width: 26px; height: 26px; flex: 0 0 auto; border-radius: 50%;
@@ -27853,6 +27894,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	color: #fff; background: slategrey;
 }
 .stonetop-expedition-dialog .stonetop-exp-load-row.lvl-light .stonetop-exp-load-ava { background: var(--st-green-border); }
+/* #c29a1f, not --st-gold-border's #c9a227: a second, very slightly deeper gold that the
+   avatar and the pips below share. See the --st-gold-* block on why it stays a literal. */
 .stonetop-expedition-dialog .stonetop-exp-load-row.lvl-heavy .stonetop-exp-load-ava { background: #c29a1f; }
 .stonetop-expedition-dialog .stonetop-exp-load-row.lvl-over  .stonetop-exp-load-ava { background: var(--st-red-text); }
 .stonetop-expedition-dialog .stonetop-exp-load-row.is-follower .stonetop-exp-load-ava { width: 22px; height: 22px; font-size: var(--st-fs-2xs); }
@@ -27864,9 +27907,9 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	font-weight: 400; font-style: normal; color: var(--st-text-muted); font-size: var(--st-fs-2xs);
 }
 .stonetop-expedition-dialog .stonetop-exp-load-fol {
-	font-family: ui-monospace, monospace; font-size: 0.6rem;
+	font-family: var(--font-stonetop); font-size: var(--st-fs-2xs);
 	text-transform: uppercase; letter-spacing: 0.04em; color: var(--st-text-faint);
-	border: 1px solid rgba(0,0,0,0.2); border-radius: 3px; padding: 0 4px;
+	border: 1px solid rgba(0,0,0,0.2); border-radius: var(--st-radius-sm); padding: 0 4px;
 }
 
 /* diamond track */
@@ -27881,7 +27924,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-expedition-dialog .lvl-heavy .stonetop-exp-load-pip.on { background: #c29a1f; border-color: #c29a1f; }
 .stonetop-expedition-dialog .lvl-over .stonetop-exp-load-pip.on { background: var(--st-red-text); border-color: var(--st-red-text); }
 .stonetop-expedition-dialog .stonetop-exp-load-over {
-	font-family: ui-monospace, monospace; font-weight: 700; font-size: 0.66rem;
+	font-family: var(--font-stonetop); font-variant-numeric: tabular-nums;
+	font-weight: 700; font-size: var(--st-fs-2xs);
 	color: var(--st-red-text); background: var(--st-red-bg);
 	border: 1px solid var(--st-red-border); border-radius: 999px; padding: 0 6px;
 }
@@ -27889,15 +27933,18 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 /* band pill + ◇ count */
 .stonetop-expedition-dialog .stonetop-exp-load-pill {
 	font-family: var(--font-stonetop); text-transform: uppercase; letter-spacing: 0.06em;
-	font-size: 0.62rem; font-weight: 700; padding: 2px 9px;
+	font-size: var(--st-fs-2xs); font-weight: 700; padding: 2px 9px;
 	border-radius: 999px; border: 1px solid transparent; white-space: nowrap;
 }
 .stonetop-expedition-dialog .stonetop-exp-load-pill.light  { color: var(--st-green-text); background: var(--st-green-bg); border-color: var(--st-green-border); }
 .stonetop-expedition-dialog .stonetop-exp-load-pill.normal { color: var(--st-text-body); border-color: rgba(0,0,0,0.2); }
-.stonetop-expedition-dialog .stonetop-exp-load-pill.heavy  { color: #8a6d12; background: rgba(201,162,39,0.15); border-color: #c9a227; }
+/* 0.15, not --st-gold-bg's 0.12: a pill is small and carries a word, so its fill sits a
+   shade stronger than the panel washes. See the --st-gold-* block. */
+.stonetop-expedition-dialog .stonetop-exp-load-pill.heavy  { color: var(--st-gold-text); background: rgba(201,162,39,0.15); border-color: var(--st-gold-border); }
 .stonetop-expedition-dialog .stonetop-exp-load-pill.over   { color: var(--st-red-text); background: var(--st-red-bg); border-color: var(--st-red-border); }
 .stonetop-expedition-dialog .stonetop-exp-load-count {
-	font-family: ui-monospace, monospace; font-size: var(--st-fs-2xs);
+	font-family: var(--font-stonetop); font-variant-numeric: tabular-nums;
+	font-size: var(--st-fs-2xs);
 	color: var(--st-text-muted); min-width: 34px; text-align: right;
 }
 .stonetop-expedition-dialog .stonetop-exp-load-count b { color: var(--st-text); }
@@ -27909,8 +27956,10 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	font-family: var(--font-stonetop); font-size: var(--st-fs-2xs);
 	padding: 1px 8px; border-radius: 999px; border: 1px solid rgba(0,0,0,0.18);
 }
-.stonetop-expedition-dialog .stonetop-exp-load-move .ic { font-family: ui-monospace, monospace; font-weight: 700; font-size: 0.66rem; }
-.stonetop-expedition-dialog .stonetop-exp-load-move .rq { color: var(--st-text-faint); font-size: 0.66rem; }
+.stonetop-expedition-dialog .stonetop-exp-load-move .ic { font-weight: 700; font-size: var(--st-fs-2xs); }
+.stonetop-expedition-dialog .stonetop-exp-load-move .rq { color: var(--st-text-faint); font-size: var(--st-fs-2xs); }
+/* A 0.10 wash, NOT the solid --st-red-bg: a switched-off move is struck through and read
+   past, so it stays quieter than the "over encumbered" pill that shares the red border. */
 .stonetop-expedition-dialog .stonetop-exp-load-move.off { color: var(--st-red-text); background: rgba(200,60,60,0.10); border-color: var(--st-red-border); }
 .stonetop-expedition-dialog .stonetop-exp-load-move.off .nm { text-decoration: line-through; }
 .stonetop-expedition-dialog .stonetop-exp-load-move.on { color: var(--st-green-text); background: var(--st-green-bg); border-color: var(--st-green-border); }
@@ -27919,7 +27968,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	font-size: var(--st-fs-2xs); color: var(--st-text-muted); font-style: italic;
 }
 .stonetop-expedition-dialog .stonetop-exp-load-note.danger { color: var(--st-red-text); font-weight: 600; font-style: normal; }
-.stonetop-expedition-dialog .stonetop-exp-load-note .mod { color: #8a6d12; font-weight: 700; font-style: normal; }
+.stonetop-expedition-dialog .stonetop-exp-load-note .mod { color: var(--st-gold-text); font-weight: 700; font-style: normal; }
 .stonetop-expedition-dialog .stonetop-exp-load-empty {
 	padding: 12px; font-size: var(--st-fs-sm); color: var(--st-text-muted); font-style: italic; text-align: center;
 }

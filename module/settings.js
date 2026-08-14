@@ -617,8 +617,9 @@ export function registerSettings() {
 		default: ""
 	});
 
-	// Reload-resume state for the session-zero walkthroughs — Character Introductions
-	// and Let Spring Burst Forth (see dialogs/walkthrough-resume.js). The dialogs don't
+	// Reload-resume state for the GM walkthroughs — the session-zero pair (Character
+	// Introductions, Let Spring Burst Forth) and Run an Expedition (see
+	// dialogs/walkthrough-resume.js). The dialogs don't
 	// survive a browser refresh, so each records where it is and whether it's open, and
 	// hooks/Ready.js reopens any that were still open at the page they were on. Client-
 	// scoped because this is per-user, local UI state (which browser had a dialog open).
@@ -628,7 +629,8 @@ export function registerSettings() {
 	// walkthrough-resume.js). Shape:
 	//   { "<worldId>": {
 	//       introductions: { open: <bool>, phase: <0-8>, pcIndex: <int> },
-	//       springBurst:   { open: <bool>, step: <int>, delegated: <bool> } } }
+	//       springBurst:   { open: <bool>, step: <int>, delegated: <bool> },
+	//       expedition:    { open: <bool>, step: <int> } } }
 	game.settings.register(SYSTEM_ID, "walkthroughResume", {
 		name: "Walkthrough Resume State",
 		scope: "client",

@@ -429,9 +429,10 @@ export async function onReady() {
 	// Overview journal doesn't exist yet.
 	if (!wasFreshWorld) await _openSettingOverview();
 
-	// Reopen any session-zero walkthrough (Introductions / Let Spring Burst Forth)
-	// that was open when this client last reloaded, at the page it was on. Per-client,
-	// so it only fires for whoever actually had one open. See walkthrough-resume.js.
+	// Reopen any GM walkthrough — session-zero (Introductions / Let Spring Burst Forth)
+	// or Run an Expedition — that was open when this client last reloaded, at the page it
+	// was on. Per-client, so it only fires for whoever actually had one open. See
+	// walkthrough-resume.js.
 	//
 	// The GM Welcome guide auto-opens here too, but its getData awaits a pack index so
 	// it renders a beat later and would bury a resumed walkthrough — so when it's

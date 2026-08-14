@@ -20,6 +20,8 @@ import { deriveLoadLevel, LOAD_LEVEL_LIMITS } from "../utils/load.js";
 import { SYSTEM_ID } from "../system-id.js";
 
 const ANSWERS_SETTING = "expeditionAnswers";
+// This dialog's key in the client-scoped reload-resume record (see walkthrough-resume.js).
+const RESUME_KEY = "expedition";
 
 // ── ExpeditionDialog ─────────────────────────────────────────────────────────
 // A GM walkthrough of Book I's Expeditions chapter (p.301–343). It follows the
@@ -292,18 +294,46 @@ export class ExpeditionDialog extends StepperDialog {
 	get _answersSetting() { return ANSWERS_SETTING; }
 
 	static open() {
-		return openOrFocus("stonetop-expedition", () => new ExpeditionDialog().render(true));
+		return openOrFocus("stonetop-expedition", () => {
+			const dialog = new ExpeditionDialog();
+			dialog._restoreStep();   // reopen on the step left off at before a reload
+			return dialog.render(true);
+		});
 	}
+
+	// Same contract as the session-zero walkthroughs, and the same implementation — see the
+	// reload-resume block in StepperDialog. The trip itself already persists (world-scoped
+	// `expeditionAnswers`); only the reader's place in the eleven steps is per-client, so it
+	// rides in the client-scoped resume record and this is the whole opt-in.
+	get _resumeKey() { return RESUME_KEY; }
 
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-expedition",
 			title:     "Run an Expedition",
 			template:  "systems/stonetop-pwd/templates/dialogs/expedition.hbs",
-			// Wider than the other steppers to seat the jump-to-step TOC rail.
-			width:     640,
-			height:    "auto",
+			// Wider than the other steppers to seat the jump-to-step TOC rail, and wide
+			// enough for a load row (avatar · name · nine ◇ · band pill · count) to sit on
+			// one line.
+			width:     700,
+			// Fixed, like the other left-rail guides (Welcome 660×580, Make a Monster
+			// 760×620) — NOT "auto". These eleven steps run from two paragraphs (intro) to a
+			// twelve-box checklist (Chart a Course) to a per-PC load table (Outfit), and an
+			// auto-height window re-measures its content on EVERY render: measured against a
+			// 1000px viewport it opened anywhere from 597px to 951px, and from 734px to 951px
+			// at a larger UI font — up to 95% of the screen, a different height on each Next /
+			// Back / rail click. (Core clamps an auto height only to the viewport, and the
+			// shared .stonetop-spring-dialog cap is itself viewport-sized, so neither bounded
+			// it.) 620 is also the exact height at which all eleven rail entries are visible
+			// at the default UI font. The step column scrolls instead — see
+			// .stonetop-guide-main. A fixed height also means a manual resize sticks; core
+			// discards one on an auto-height window.
+			height:    620,
 			resizable: true,
+			// Hold the reader's place through the re-renders a step does in place — naming
+			// the trip, toggling who's on it, re-rolling Requisition — now that the column
+			// scrolls. Changing step scrolls back to the top (see StepperDialog._render).
+			scrollY:   [".stonetop-guide-main", ".stonetop-guide-toc"],
 			// Reuse the spring dialog's window-content reset + body/qa/tier styling.
 			classes:   ["stonetop", "stonetop-spring-dialog", "stonetop-expedition-dialog"],
 		});

@@ -10,7 +10,7 @@ import { wrapLoreTerms } from "../utils/lore-terms.js";
 import { INTRO_PLAYBOOK_DATA as _PLAYBOOK_DATA } from "./introductions-data.js";
 import { saveChronicleFromButton, writeChronicle } from "../utils/chronicle.js";
 import { getSetting, setSetting } from "../settings.js";
-import { getWalkthroughResume, patchWalkthroughResume, markWalkthroughDone } from "./walkthrough-resume.js";
+import { getWalkthroughResume, patchWalkthroughResume, markWalkthroughDone, saveWalkthroughPosition } from "./walkthrough-resume.js";
 // Pure round-robin/done logic for the looping answer/ask steps (unit-tested).
 import { stepPcDone, nextActiveIndex, firstActiveIndex, turnsUntilActive, cursorReaction, cursorPositionKey } from "./introductions-flow.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
@@ -1515,12 +1515,12 @@ export class IntroductionsDialog extends StonetopDialog {
 		return true;
 	}
 
-	// Persist the current round/turn (and that we're open) so a reload can reopen
-	// here. Fire-and-forget client-scoped write; guarded so same-spot re-renders
-	// don't re-write.
+	// Persist the current round/turn (and that we're open) so a reload can reopen here.
+	// Fire-and-forget client-scoped write; saveWalkthroughPosition drops it when nothing has
+	// moved, which matters more here than for the steppers — this dialog re-renders on a capture
+	// flush and on every cursor sync, not only when the GM navigates. This walkthrough's "place"
+	// is the round, the turn within it, and the format version those two are written in.
 	_saveResume() {
-		const cur = getWalkthroughResume(_RESUME_KEY);
-		if (cur?.open === true && cur.phase === this._phase && cur.pcIndex === this._pcIndex) return;
-		patchWalkthroughResume(_RESUME_KEY, { open: true, v: _RESUME_VERSION, phase: this._phase, pcIndex: this._pcIndex });
+		saveWalkthroughPosition(_RESUME_KEY, { v: _RESUME_VERSION, phase: this._phase, pcIndex: this._pcIndex });
 	}
 }
