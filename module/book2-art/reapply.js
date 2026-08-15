@@ -83,13 +83,72 @@ export async function hasImportedBook2Art() {
 const PARTIAL_IMPORT_MAX_MISSING = 0.10;
 
 /**
+ * The shell the "would this world gain anything?" detectors share.
+ *
+ * Browses the durable art folder once and hands `read` the only two things such a detector
+ * needs: the set of files present, and the `srcOf` that maps a manifest output to the path it
+ * would occupy. Answers null before calling it when NOTHING is imported — the plain import
+ * reminder owns that GM, and every detector here agrees on that.
+ *
+ * Best-effort by construction: a browse that threw reads as "say nothing", which is the safe
+ * default for something that only ever offers. GM-only, since only a GM can browse data files.
+ *
+ * @param {string} failure  What to log if the browse throws.
+ * @param {(ctx: {present: Set<string>, srcOf: (out: any) => string}) => any} read
+ */
+async function withPresentArt(failure, read) {
+	try {
+		const root = book2ArtRoot();
+		const present = await browseDurableArt(root);
+		if (!present.size) return null;                     // never imported; not our nudge to make
+		return read({ present, srcOf: (out) => book2ArtSrcWith(root, out) });
+	} catch (e) {
+		error(failure, e);
+		return null;
+	}
+}
+
+/**
+ * The ordered list of files that could serve one Setting Overview page, best first.
+ *
+ * A row states `prefer` when more than one PDF prints the same picture and they are not equally
+ * good — the GM playbook's 300 dpi Vicinity map beats Book II's ~700px crop of it, which in turn
+ * beats the poster map an early release embedded there. `out` is the row's own picture and
+ * `replaces` is whatever it superseded, which is the older implicit way of saying the same thing.
+ *
+ * ONE chain assembled from whatever the row states, rather than two encodings with one winning.
+ * `prefer` used to be read INSTEAD of `out`/`replaces`, so a row carrying both had a half that
+ * could never run and a row where the two disagreed would silently lose links — and every
+ * consumer had to know which half to read. Ordered, deduped, falsy dropped: for a row that
+ * states only `out`/`replaces` this is exactly the old implicit shape, and for today's rows
+ * (whose `prefer` already covers both) it is exactly `prefer`.
+ *
+ * Every consumer must ask this same question the same way. Which file the page SHOWS and which
+ * files get stripped off it are the two halves of one decision, and a caller that computed the
+ * chain differently would strip the very art another caller had just placed.
+ */
+export function pageChain(row) {
+	return [...new Set([
+		...(Array.isArray(row?.prefer) ? row.prefer : []),
+		row?.out,
+		...(row?.replaces ?? []),
+	])].filter(Boolean);
+}
+
+/**
  * Every illustration the importer writes, as manifest `out` paths. Deduped: rows legitimately
  * share a picture (two creatures drawn in one figure, a region's plate that is also its monster's
  * portrait), and counting one file twice would misreport both halves of the ratio below.
  *
- * A Setting Overview map is satisfied by ANY link in its preference chain, since `replaces` names
- * the user-supplied poster map an earlier release embedded there. Counting the chain as one entry
- * is what stops a GM who is legitimately on the older map from reading as incomplete forever.
+ * A Setting Overview map is satisfied by ANY link in its preference chain (`pageChain`), since the
+ * lesser links name art an earlier release — or a GM without the GM playbook — legitimately has
+ * there instead. Counting the chain as one entry is what stops a GM who is on the older map from
+ * reading as incomplete forever.
+ *
+ * `gmDiagrams` is deliberately absent, for the same reason the token squares below are: this ratio
+ * decides whether to tell a GM their import fell short, and the diagrams come from an OPTIONAL
+ * twelve-page PDF. A world with both rulebooks fully imported and no GM playbook has not fallen
+ * short of anything, and counting them would say so on every load, forever.
  */
 function everyDurableArtPath({ monsters = [], locations = [], settingOverviewMaps = [], treasures = [], people = [], steadings = [] }) {
 	const chains = [];
@@ -107,7 +166,7 @@ function everyDurableArtPath({ monsters = [], locations = [], settingOverviewMap
 	for (const s of steadings) one(s.out);
 	for (const p of people) { one(p.out); one(p.portraitOut); }
 	for (const s of settingOverviewMaps) {
-		const chain = [s.out, ...(s.replaces ?? [])].filter(Boolean);
+		const chain = pageChain(s).filter(Boolean);
 		if (chain.length) chains.push(chain);
 	}
 	// Dedupe on the chain's own identity, so a shared picture is one unit of work either way.
@@ -131,22 +190,45 @@ function everyDurableArtPath({ monsters = [], locations = [], settingOverviewMap
  * @returns {Promise<{missing: number, total: number} | null>}
  */
 export async function countMissingDurableArt() {
-	try {
-		const root = book2ArtRoot();
-		const present = await browseDurableArt(root);
-		if (!present.size) return null;                     // never imported; not our nudge to make
-		const srcOf = (out) => book2ArtSrcWith(root, out);
+	return withPresentArt("Book II art: could not check whether the import is complete", ({ present, srcOf }) => {
 		const chains = everyDurableArtPath(BOOK2_ART_APPLY_MANIFEST);
 		const missing = chains.filter((chain) => !chain.some((out) => present.has(srcOf(out)))).length;
 		if (!missing) return null;
 		if (missing > chains.length * PARTIAL_IMPORT_MAX_MISSING) return null;   // a whole book is absent
 		return { missing, total: chains.length };
-	} catch (e) {
-		// Best-effort, exactly like hasImportedBook2Art: a browse that failed reads as "say
-		// nothing", which is the safe default for something that only ever offers.
-		error("Book II art: could not check whether the import is complete", e);
-		return null;
-	}
+	});
+}
+
+/**
+ * What this world would gain by also supplying the GM playbook, or null if nothing.
+ *
+ * The GM playbook joined the importer as a third source after worlds had already imported, and it
+ * is the one addition a GM cannot discover for themselves: nothing looks broken to them. Their map
+ * pages carry a map — just not the sharpest one printed — and the two flowcharts live on a sheet
+ * tab whose placeholder they may never scroll to. So the offer behind this (hooks/Ready.js
+ * `_offerGmPlaybookArtOnce`) has to arrive on its own.
+ *
+ * `maps` counts Setting Overview pages showing a LESSER link than the head of their chain. Both
+ * halves of that are load-bearing. A page whose best link is already on disk has nothing to gain;
+ * a page with NO link on disk is a partial import rather than a world that would benefit from a
+ * new source, and `countMissingDurableArt` above owns that GM — telling someone whose maps are
+ * missing entirely that their maps could be sharper is nonsense.
+ *
+ * Returns null when nothing is imported at all (the plain import reminder owns that GM, and the
+ * playbook is a field on the very dialog its button opens), and when there is nothing to add.
+ *
+ * @returns {Promise<{maps: number, diagrams: number} | null>}
+ */
+export async function countGmPlaybookGains() {
+	return withPresentArt("Book II art: could not check what the GM playbook would add", ({ present, srcOf }) => {
+		const { settingOverviewMaps = [], gmDiagrams = [] } = BOOK2_ART_APPLY_MANIFEST;
+		const maps = settingOverviewMaps.filter((s) => {
+			const chain = pageChain(s).filter(Boolean);
+			return chain.length > 1 && !present.has(srcOf(chain[0])) && chain.some((o) => present.has(srcOf(o)));
+		}).length;
+		const diagrams = gmDiagrams.filter((d) => !present.has(srcOf(d.out))).length;
+		return (maps || diagrams) ? { maps, diagrams } : null;
+	});
 }
 
 // Publish which document-less art rows have their illustration on disk into a world-scoped
@@ -211,7 +293,7 @@ async function refreshArtPrefix(present) {
 // has to bust the browse cache (see browse.js, and the `updateSetting` hook in stonetop.js) — that
 // hook used to name them in a regex of its own, so a fourth index could be added here and silently
 // never invalidate. One list, one place.
-export const ART_INDEX_SETTINGS = ["treasureArt", "peopleArt", "peoplePortraitArt"];
+export const ART_INDEX_SETTINGS = ["treasureArt", "peopleArt", "peoplePortraitArt", "gmDiagramArt"];
 
 // The two People-of-Stonetop indexes, published together because they are read together: a
 // consumer joins them by the illustration `out`, and a square index describing files whose
@@ -462,7 +544,7 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	// left behind, so it comes off the page instead of sitting beside the new one as a permanent
 	// broken image. Empty on a self-hosted world, so this is inert there.
 	const renamedOf = (out) => bothOf(out).filter((p) => p !== servedOf(out));
-	const { monsters, locations, settingOverviewMaps = [], treasures = [], people = [], codex = [], steadings = [] } = BOOK2_ART_APPLY_MANIFEST;
+	const { monsters, locations, settingOverviewMaps = [], gmDiagrams = [], treasures = [], people = [], codex = [], steadings = [] } = BOOK2_ART_APPLY_MANIFEST;
 
 	// Before the indexes: they are keyed by identity, but every consumer resolves through the
 	// prefix, so publishing it late would leave one load pointing players at unresolvable art.
@@ -477,6 +559,11 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	// also the safe failure mode if a browse fails transiently — a dropped item falls back
 	// to its load-class icon, and the next load restores the index.
 	await refreshArtIndex("treasureArt", treasures, present, srcOf, (t) => [t.slug, t.out], "treasure");
+	// The GM playbook's two flowcharts, for exactly the same reasons as the treasures above: no
+	// document points at them, so the index IS the apply step, and it must stay authoritative so a
+	// GM who cleared the art folder gets a Core Loop tab that says "not imported" rather than two
+	// broken images.
+	await refreshArtIndex("gmDiagramArt", gmDiagrams, present, srcOf, (d) => [d.slug, d.out], "GM playbook diagram");
 	// People-of-Stonetop portraits are document-less too. But UNLIKE treasures, this reapply is
 	// NOT their publisher: a portrait's display name lives only in the Import Book Art macro's
 	// manifest (`kind:"person"` rows), so the macro publishes `peopleArt` itself, additively, from
@@ -515,17 +602,17 @@ export async function reapplyBook2Art({ entries = null, worldOnly = false, cheap
 	const tokenSrcOf = (m, src) => (m.tokenOut && available.has(m.tokenOut) ? servedOf(m.tokenOut) : src);
 
 	// Setting Overview maps resolve their preference chain HERE rather than in pass 2.5, so
-	// the rule is stated once and the early return below can see their work. Each row is an
-	// ORDERED preference: the Book II page crop (`out`) first, then `replaces` — the
-	// user-supplied poster map an earlier release embedded here. Show the best one on disk
-	// and supersede the rest. Preferring `out` is the upgrade (a world still showing the
-	// poster map gets the labelled Book II map instead); falling back matters just as much,
-	// because a GM who has not re-run the macro — or who has no Book II PDF at all — still
-	// has only the poster map on disk, and skipping the row outright would leave them
+	// the rule is stated once and the early return below can see their work. `pageChain` is that
+	// ordering, best first: the GM playbook's 300 dpi map where the GM imported one, then the
+	// Book II page crop, then the user-supplied poster map an early release embedded here. Show
+	// the best one on disk and supersede the rest. Walking DOWN the chain is the upgrade (a world
+	// still showing the poster map gets a labelled printed map instead); falling back matters just
+	// as much, because a GM who has not re-run the macro — or who has none of those PDFs at all —
+	// still has only the poster map on disk, and skipping the row outright would leave them
 	// staring at a blank page where their map used to be. The poster map file is never
 	// touched: it still backs its Scene.
 	const mapPicks = settingOverviewMaps.flatMap((s) => {
-		const chain = [s.out, ...(s.replaces ?? [])];
+		const chain = pageChain(s);
 		const pick = chain.find((o) => present.has(srcOf(o)));
 		// Both the OTHER links in the chain and the stale spellings of the pick itself:
 		// superseding the poster map and re-pointing a map this host now serves from somewhere

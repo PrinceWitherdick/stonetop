@@ -424,6 +424,12 @@ export async function onReady() {
 		// go and find their PDFs.
 		_offerPartialArtImportOnce()
 			.catch(err => console.error("Stonetop | partial art import offer failed:", err));
+		// Backgrounded and folder-browsing like the two above, and ordered LAST of the three on
+		// purpose: it is the only one that is not about a gap. The rebuild fixes pictures the GM
+		// is owed for free, the partial import fixes ones that failed; this one offers to improve
+		// art that is already there and already looks fine, so it yields to both.
+		_offerGmPlaybookArtOnce()
+			.catch(err => console.error("Stonetop | GM playbook art offer failed:", err));
 		await remindDestinedOmenRoll();
 	}
 
@@ -1401,14 +1407,7 @@ function _offerBookArtRebuildOnce() {
 			const { countBookArtRebuilds } = await import("../book2-art/run-rebuild.js");
 			return await countBookArtRebuilds() || null;
 		},
-		offer: async count => {
-			if (!globalThis.ChatMessage?.create) return false; // chat isn't ready — retry next load
-			await ChatMessage.create({
-				content: _buildBookArtRebuildContent(count),
-				whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id),
-				speaker: { alias: "Stonetop" },
-			});
-		},
+		card: _buildBookArtRebuildContent,
 	});
 }
 
@@ -1460,14 +1459,7 @@ function _offerPartialArtImportOnce() {
 			const { countMissingDurableArt } = await import("../book2-art/reapply.js");
 			return await countMissingDurableArt();
 		},
-		offer: async ({ missing, total }) => {
-			if (!globalThis.ChatMessage?.create) return false; // chat isn't ready — retry next load
-			await ChatMessage.create({
-				content: _buildPartialArtImportContent(missing, total),
-				whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id),
-				speaker: { alias: "Stonetop" },
-			});
-		},
+		card: ({ missing, total }) => _buildPartialArtImportContent(missing, total),
 	});
 }
 
@@ -1487,6 +1479,65 @@ function _buildPartialArtImportContent(missing, total) {
 		<div class="row stonetop-art-reminder__actions">
 			<button type="button" class="stonetop-import-art-open">
 				<i class="fas fa-images"></i> Import the missing ${missing}
+			</button>
+		</div>`,
+		"stonetop-art-reminder-card");
+}
+
+// -- THE GM PLAYBOOK, ADDED AS A THIRD SOURCE --------------
+// A world that imported before this release has no way to learn the importer reads a third PDF
+// now. Nothing looks broken to them: their map pages carry a map, and the two diagrams live on a
+// tab whose placeholder they may never scroll to. So this is the one nudge that has to arrive on
+// its own, rather than being discovered.
+//
+// Worth interrupting for because the PDF is FREE — it is the publisher's own handout, not a book
+// to buy — and because the books really are the poorer source here: Book I embeds the village map
+// at 478x272 and Book II the other two at ~700px, against a true 300 dpi in the playbook.
+//
+// The once-per-world rules — including "found nothing, so do not latch, and ask again next load"
+// — belong to offerDurableArtOnce, and which worlds have anything to gain belongs to
+// countGmPlaybookGains (which stays quiet for a world that never imported, since the plain
+// reminder owns that GM and the playbook is a field on the very dialog its button opens). What is
+// local here is only how the offer is put.
+function _offerGmPlaybookArtOnce() {
+	return offerDurableArtOnce({
+		setting: "gmPlaybookArtOffered",
+		findWork: async () => {
+			const { countGmPlaybookGains } = await import("../book2-art/reapply.js");
+			return await countGmPlaybookGains();
+		},
+		card: _buildGmPlaybookArtContent,
+	});
+}
+
+// Written against what this world would actually gain, not against everything the playbook holds:
+// a GM who already has the diagrams and only stands to sharpen a map should not be told about a
+// tab they have been using, and the reverse.
+function _buildGmPlaybookArtContent({ maps, diagrams }) {
+	const gains = [];
+	if (maps) {
+		gains.push(`<li><strong>Sharper regional maps.</strong> ${maps === 1 ? "One" : maps} of your Setting
+			Overview map pages ${maps === 1 ? "is" : "are"} showing a coarser copy than the playbook prints.
+			The rulebooks embed those maps small (Book I stores the village map at 478&times;272),
+			where the playbook prints all three at a full 300 dpi.</li>`);
+	}
+	if (diagrams) {
+		gains.push(`<li><strong>The core loop and the flow of play.</strong> The playbook's two flowcharts, which
+			are in no other PDF. They fill the <strong>Core Loop</strong> tab on your GM Toolkit sheet.</li>`);
+	}
+	return stonetopChatCard(
+		"Add The GM Playbook",
+		`<div class="stonetop-roll-card-description">
+			<p><strong>Import Book Art</strong> reads a third PDF as of this update: the <strong>GM
+			playbook</strong>. It's the free 12-page handout from the publisher, not a book you buy,
+			and for a few pictures it is a better source than either rulebook.</p>
+			<ul>${gains.join("")}</ul>
+			<p>Everything you have already imported is skipped, so this is a short run rather than another full
+			one, and nothing already on disk is touched or deleted.</p>
+		</div>
+		<div class="row stonetop-art-reminder__actions">
+			<button type="button" class="stonetop-import-art-open">
+				<i class="fas fa-images"></i> Add the GM playbook
 			</button>
 		</div>`,
 		"stonetop-art-reminder-card");

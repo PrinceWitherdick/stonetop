@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { reapplyBook2ArtOnVersionChange, reapplyBook2Art, handleImportedJournalArt } from "../../module/book2-art/reapply.js";
 import { BOOK2_ART_APPLY_MANIFEST } from "../../module/book2-art/manifest.js";
-import { clearArtBrowseCache } from "../../module/book2-art/browse.js";
+import { clearArtBrowseCache, DURABLE_ART_DIRS } from "../../module/book2-art/browse.js";
 import { managedHash } from "../../module/hooks/journal-sync-core.js";
 
 const JRN_SOURCE = (entryId) => `Compendium.stonetop-pwd.stonetop-journal.JournalEntry.${entryId}`;
@@ -13,7 +13,7 @@ const JRN_SOURCE = (entryId) => `Compendium.stonetop-pwd.stonetop-journal.Journa
 
 const VERSION = "9.9.9";
 const ROOT = "stonetop-book-art";
-const { monsters, locations, settingOverviewMaps = [], treasures = [], steadings = [], people = [] } = BOOK2_ART_APPLY_MANIFEST;
+const { monsters, locations, settingOverviewMaps = [], gmDiagrams = [], treasures = [], steadings = [], people = [] } = BOOK2_ART_APPLY_MANIFEST;
 const DEFAULT_ICON = "icons/svg/mystery-man.svg";
 
 function setDotted(obj, path, value) {
@@ -123,16 +123,18 @@ function makeHarness({ isGM = true, syncVersion = "", present = "all", worldActo
 	};
 
 	// Every out-path the manifest can put on disk, routed to the directory it lives in — so a
-	// test can name ANY of them in `present`, including a Setting Overview row's `replaces`
-	// fallback (the poster map), which is not any row's `out`.
+	// test can name ANY of them in `present`, including the links in a Setting Overview row's
+	// preference chain that are not that row's own `out`: the poster map it superseded, and the
+	// GM playbook's sharper crop of the same map, which is a different row's extraction.
 	const wanted = Array.isArray(present) ? new Set(present) : null;
 	const allOuts = [
 		// A creature's token square is a file of its own with its own presence, exactly as the
 		// runtime treats it — a world can hold every illustration and none of the squares.
 		...monsters.flatMap((m) => (m.tokenOut ? [m.out, m.tokenOut] : [m.out])),
 		...locations.flatMap((l) => l.images).map((im) => im.out),
-		...settingOverviewMaps.flatMap((s) => [s.out, ...(s.replaces ?? [])]),
+		...settingOverviewMaps.flatMap((s) => [s.out, ...(s.replaces ?? []), ...(s.prefer ?? [])]),
 		...treasures.map((t) => t.out),
+		...gmDiagrams.map((d) => d.out),
 		...steadings.map((s) => s.out),
 		// A person's square face is its own file with its own presence, like a creature's token.
 		...people.flatMap((p) => (p.portraitOut ? [p.out, p.portraitOut] : [p.out])),
@@ -140,8 +142,12 @@ function makeHarness({ isGM = true, syncVersion = "", present = "all", worldActo
 	const onDisk = present === "none" ? [] : [...new Set(allOuts.filter((o) => !wanted || wanted.has(o)))];
 	const filesIn = (dir) => onDisk.filter((o) => o.startsWith(`${dir}/`)).map((o) => `${hostPrefix}${durableOf(o)}`);
 
+	// The real directory list, imported. A hand-copy that misses a directory added to browse.js
+	// answers "no files in that folder", so every test over the new directory passes vacuously
+	// against a browse that returns nothing. (The chain rule further down IS hand-copied, on
+	// purpose and for the opposite reason; see its own note.)
 	const browse = vi.fn(async (source, path) => {
-		for (const dir of ["assets/bestiary", "assets/locations", "assets/maps", "assets/treasures", "assets/steading", "assets/people"]) {
+		for (const dir of DURABLE_ART_DIRS) {
 			if (path.endsWith(`/${dir}`)) return { files: filesIn(dir) };
 		}
 		return { files: [] };
@@ -245,6 +251,42 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 			h.store.treasureArt = { stale: "assets/treasures/stale.webp" };
 			await reapplyBook2Art();
 			expect(h.store.treasureArt).toEqual({ stale: "assets/treasures/stale.webp" });
+		});
+	});
+
+	// The GM playbook's two flowcharts are document-less for the same reason a treasure is, and
+	// the GM Toolkit's Core Loop tab reads this index to tell "imported" from "not imported".
+	// A system update wipes compendium edits but not the durable folder, so without a refresh
+	// here a world that HAD the diagrams would keep whatever the macro published — which is
+	// right until the GM moves or clears the art folder, and silently wrong after.
+	describe("the GM playbook diagram index", () => {
+		it("publishes each on-disk diagram as slug -> the manifest's own out path", async () => {
+			const h = makeHarness({});
+			await reapplyBook2ArtOnVersionChange();
+			expect(h.store.gmDiagramArt).toEqual(Object.fromEntries(gmDiagrams.map((d) => [d.slug, d.out])));
+		});
+
+		// The half-imported world the tab is written for: one figure, one placeholder.
+		it("indexes only the diagrams whose file is actually on disk", async () => {
+			const h = makeHarness({ present: [gmDiagrams[0].out] });
+			await reapplyBook2ArtOnVersionChange();
+			expect(h.store.gmDiagramArt).toEqual({ [gmDiagrams[0].slug]: gmDiagrams[0].out });
+		});
+
+		// Authoritative, like the treasures': a GM who cleared the art folder must get a tab that
+		// offers the import again, not two broken images.
+		it("clears the index when the art folder is empty or gone", async () => {
+			const h = makeHarness({ present: "none" });
+			h.store.gmDiagramArt = { "core-loop": "assets/diagrams/core-loop.webp" };
+			await reapplyBook2Art();
+			expect(h.store.gmDiagramArt).toEqual({});
+		});
+
+		it("stays a non-GM no-op", async () => {
+			const h = makeHarness({ isGM: false });
+			h.store.gmDiagramArt = { stale: "assets/diagrams/stale.webp" };
+			await reapplyBook2Art();
+			expect(h.store.gmDiagramArt).toEqual({ stale: "assets/diagrams/stale.webp" });
 		});
 	});
 
@@ -551,6 +593,16 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		expect(locPage.system.sections).toHaveLength(1);
 	});
 
+	// A Setting Overview page's files, best first. The same rule reapply itself applies: the row's
+	// stated `prefer` where it has one (a page whose map is printed in more than one PDF at more
+	// than one resolution), else the older implicit "this row's picture, then what it superseded".
+	// Spelled out here rather than imported so a change to the shipped rule has to be MADE here
+	// too, deliberately, instead of both sides drifting together and the tests staying green.
+	const chainOf = (s) => (s.prefer?.length ? s.prefer : [s.out, ...(s.replaces ?? [])]);
+	// The row the chain tests below drive: the one with the most links, so the walk down the chain
+	// is exercised at full length rather than on a two-link row that cannot show ordering.
+	const soChained = settingOverviewMaps.slice().sort((a, b) => chainOf(b).length - chainOf(a).length)[0];
+
 	it("re-embeds Setting Overview regional maps into the setting journal's text pages", async () => {
 		const so0 = settingOverviewMaps[0];
 		expect(so0).toBeTruthy(); // guard: the apply manifest ships the SO maps
@@ -565,7 +617,8 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		const h = makeHarness({ worldJournals: [worldSO] });
 		await reapplyBook2ArtOnVersionChange();
 
-		const durable = durableOf(so0.out);
+		// The best link on disk, which with everything present is the head of the chain.
+		const durable = durableOf(chainOf(so0)[0]);
 		// compendium page: map figure prepended to text.content
 		const cmpPage = h.pageDocs.get(`${so0.journalEntryId}::${so0.journalPageId}`);
 		expect(cmpPage.text.content).toContain(`<figure class="stonetop-map"><img src="${durable}"`);
@@ -579,14 +632,14 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 	});
 
 	// The upgrade path, end to end: a world that imported an earlier release still shows the
-	// user-supplied poster map on this page. Because the labelled Book II crop lives at a
+	// user-supplied poster map on this page. Because the labelled printed crop lives at a
 	// DIFFERENT path (the poster map still backs its Scene, so it can't be overwritten in
 	// place), the old "never stack any map" rule would have skipped the new map forever on
-	// exactly the worlds that had already imported. `replaces` is what makes it swap.
-	it("replaces a superseded poster map on the setting page with the Book II crop", async () => {
-		const so0 = settingOverviewMaps.find((s) => s.replaces?.length);
-		expect(so0).toBeTruthy(); // guard: at least one SO map supersedes a poster map
-		const oldSrc = durableOf(so0.replaces[0]);
+	// exactly the worlds that had already imported. The chain is what makes it swap.
+	it("replaces a superseded poster map on the setting page with the best printed crop", async () => {
+		const so0 = soChained;
+		expect(chainOf(so0).length).toBeGreaterThan(1); // guard: at least one SO map supersedes something
+		const oldSrc = durableOf(chainOf(so0).at(-1));
 
 		const soPage = makeWorldPage({ id: so0.journalPageId, name: `cmp:${so0.journalPageId}`, type: "text", system: {} });
 		soPage.text = { content: `<figure class="stonetop-map"><img src="${oldSrc}" alt="${so0.name}"></figure><p>world setting prose</p>` };
@@ -596,7 +649,7 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		const h = makeHarness({ worldJournals: [worldSO] });
 		await reapplyBook2ArtOnVersionChange();
 
-		const durable = durableOf(so0.out);
+		const durable = durableOf(chainOf(so0)[0]);
 		expect(soPage.text.content).toContain(`<figure class="stonetop-map"><img src="${durable}"`);
 		expect(soPage.text.content).not.toContain(oldSrc);          // the poster map figure is gone
 		expect(soPage.text.content).toContain("world setting prose"); // the prose is not
@@ -613,38 +666,50 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 	// The regression this guards: an update resets the compendium SO page to the shipped,
 	// art-less version and re-seeds pristine world copies from it, so pass 2.5 is the only
 	// thing that puts a map back. A GM who supplied poster maps but has not re-run the macro
-	// (or has no Book II PDF at all) has ONLY the poster map on disk — skipping the row for
-	// want of the Book II crop would leave them staring at a blank page where their map was.
-	it("falls back to the superseded poster map when the Book II crop is not on disk", async () => {
-		const so0 = settingOverviewMaps.find((s) => s.replaces?.length);
-		const fallback = so0.replaces[0];
+	// (or has none of the PDFs at all) has ONLY the poster map on disk — skipping the row for
+	// want of a printed crop would leave them staring at a blank page where their map was.
+	it("falls back to the last link in the chain when nothing better is on disk", async () => {
+		const so0 = soChained;
+		const fallback = chainOf(so0).at(-1);
 
 		const soPage = makeWorldPage({ id: so0.journalPageId, name: `cmp:${so0.journalPageId}`, type: "text", system: {} });
 		soPage.text = { content: "<p>world setting prose</p>" };
 		const worldSO = makeWorldJournal({ source: JRN_SOURCE(so0.journalEntryId), name: "Setting Overview", pages: [soPage], stamp: true });
 
-		// on disk: the poster map only, NOT the Book II crop
+		// on disk: the poster map only, none of the printed crops
 		makeHarness({ worldJournals: [worldSO], present: [fallback] });
 		await reapplyBook2ArtOnVersionChange();
 
 		expect(soPage.text.content).toContain(`<figure class="stonetop-map"><img src="${durableOf(fallback)}"`);
-		expect(soPage.text.content).not.toContain(durableOf(so0.out));
+		for (const better of chainOf(so0).slice(0, -1)) {
+			expect(soPage.text.content).not.toContain(durableOf(better));
+		}
 		expect(soPage.text.content).toContain("world setting prose");
 	});
 
-	it("prefers the Book II crop over the poster map when both are on disk", async () => {
-		const so0 = settingOverviewMaps.find((s) => s.replaces?.length);
-		const fallback = so0.replaces[0];
+	// Walks the chain one link at a time. Each round puts exactly one more link on disk, starting
+	// from the worst, and asserts the page moves up to it: that is the whole ordering contract,
+	// and it holds however many PDFs a GM happens to own. A test that only compared the first and
+	// last links would pass on a chain whose middle was ignored entirely — which is precisely the
+	// bug a third source (the GM playbook's sharper map, ahead of the Book II crop) can introduce.
+	it("shows the best link on disk, at every depth of the chain", async () => {
+		const chain = chainOf(soChained);
+		expect(chain.length).toBeGreaterThanOrEqual(3); // guard: a two-link chain proves no ordering
 
-		const soPage = makeWorldPage({ id: so0.journalPageId, name: `cmp:${so0.journalPageId}`, type: "text", system: {} });
-		soPage.text = { content: "<p>prose</p>" };
-		const worldSO = makeWorldJournal({ source: JRN_SOURCE(so0.journalEntryId), name: "Setting Overview", pages: [soPage], stamp: true });
+		for (let i = chain.length - 1; i >= 0; i--) {
+			const onDisk = chain.slice(i);
+			const soPage = makeWorldPage({ id: soChained.journalPageId, name: `cmp:${soChained.journalPageId}`, type: "text", system: {} });
+			soPage.text = { content: "<p>prose</p>" };
+			const worldSO = makeWorldJournal({ source: JRN_SOURCE(soChained.journalEntryId), name: "Setting Overview", pages: [soPage], stamp: true });
 
-		makeHarness({ worldJournals: [worldSO], present: [so0.out, fallback] });
-		await reapplyBook2ArtOnVersionChange();
+			makeHarness({ worldJournals: [worldSO], present: onDisk });
+			await reapplyBook2ArtOnVersionChange();
 
-		expect(soPage.text.content).toContain(durableOf(so0.out));
-		expect(soPage.text.content).not.toContain(durableOf(fallback));
+			expect(soPage.text.content, `best of ${onDisk.join(", ")}`).toContain(durableOf(chain[i]));
+			for (const worse of chain.slice(i + 1)) {
+				expect(soPage.text.content, `${worse} should have been superseded`).not.toContain(durableOf(worse));
+			}
+		}
 	});
 
 	it("does not stack a second map when the setting page already carries one", async () => {

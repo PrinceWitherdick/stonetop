@@ -393,6 +393,22 @@ export function registerSettings() {
 		default: false
 	});
 
+	// Whether the one-time "the GM playbook is a source too" offer has been made in this world
+	// (hooks/Ready.js _offerGmPlaybookArtOnce). A world that imported before that PDF was wired in
+	// has no way to learn it: the art it would add is BETTER copies of maps that already look
+	// fine, plus two diagrams on a tab whose placeholder they may never open.
+	//
+	// Safe to re-ask, and the reason is the same as the partial import above: findWork returns
+	// falsy for a world that already has the playbook art (and for one that has imported nothing
+	// at all, which the "Import Your Book Art" nudge owns), so neither latches this.
+	game.settings.register(SYSTEM_ID, "gmPlaybookArtOffered", {
+		name: "GM Playbook Art Offered",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
 	// Whether the one-time "you already have these poster maps — want them as Scenes?" offer
 	// has been made in this world (hooks/WorldSetup.js offerPosterMapScenesOnce). The map
 	// images live in the durable art folder, which outlives the world they were imported in,
@@ -452,6 +468,20 @@ export function registerSettings() {
 	// browse files) get it broadcast like any setting.
 	game.settings.register(SYSTEM_ID, "treasureArt", {
 		name: "Treasure Art On Disk",
+		scope: "world",
+		config: false,
+		type: Object,
+		default: {}
+	});
+
+	// Which of the GM playbook's flowcharts have been extracted to disk under `book2ArtRoot`, as a
+	// { diagram slug -> path within the art folder } map. The same shape and the same reason as
+	// `treasureArt`: nothing in any compendium points at these two pictures, so the only way the
+	// GM Toolkit's Core Loop tab can tell "imported" from "not imported" is to read an index the
+	// GM-side passes publish. World-scoped like the rest, though this one is read only on a GM's
+	// own sheet — a broadcast setting costs nothing and keeps the four indexes alike.
+	game.settings.register(SYSTEM_ID, "gmDiagramArt", {
+		name: "GM Playbook Diagrams On Disk",
 		scope: "world",
 		config: false,
 		type: Object,

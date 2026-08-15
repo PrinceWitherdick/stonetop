@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { countMissingDurableArt } from "../../module/book2-art/reapply.js";
+import { countMissingDurableArt, pageChain } from "../../module/book2-art/reapply.js";
 import { BOOK2_ART_APPLY_MANIFEST } from "../../module/book2-art/manifest.js";
-import { clearArtBrowseCache } from "../../module/book2-art/browse.js";
+import { clearArtBrowseCache, DURABLE_ART_DIRS } from "../../module/book2-art/browse.js";
 
 // An import that fails on some illustrations still reports success: the failures go to the
 // console during a run that takes minutes, and the GM is left with a few entries that never got
@@ -23,14 +23,22 @@ const CHAINS = [
 	...treasures.map((t) => [t.out]),
 	...steadings.map((s) => [s.out]),
 	...people.flatMap((p) => [[p.out], ...(p.portraitOut ? [[p.portraitOut]] : [])]),
-	...settingOverviewMaps.map((s) => [s.out, ...(s.replaces ?? [])].filter(Boolean)),
+	// The detector's own chain rule, IMPORTED rather than re-spelled: a page whose map is printed
+	// in more than one PDF lists every copy, best first, and is satisfied by ANY of them. The
+	// expected totals below are derived from it, so a copy of the rule here would go on asserting
+	// the chain the shipped code no longer builds. (tests/book2-art/reapply.test.js keeps its own
+	// copy on purpose, and says why; this file only ever meant to match.)
+	...settingOverviewMaps.map((s) => pageChain(s).filter(Boolean)),
 ].filter((c) => c.length && c[0]);
 const TOTAL = new Map(CHAINS.map((c) => [c.join("|"), c])).size;
 
 /** Every path that could sit on disk, in manifest order, deduped. */
 const ALL_PATHS = [...new Set(CHAINS.flat())];
 
-const DIRS = ["assets/bestiary", "assets/locations", "assets/maps", "assets/treasures", "assets/steading", "assets/people"];
+// The real list, imported. A hand-copy that misses a directory added to browse.js answers "no
+// files in that folder", so every test over the new directory passes vacuously against a browse
+// that returns nothing.
+const DIRS = DURABLE_ART_DIRS;
 
 /**
  * Stand up a world whose art folder holds exactly `onDisk`.

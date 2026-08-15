@@ -1,0 +1,173 @@
+import { describe, it, expect } from "vitest";
+import { readRepo as read } from "../fakes/css.js";
+import { DURABLE_ART_DIRS } from "../../module/book2-art/browse.js";
+
+// The GM playbook as a THIRD optional PDF the Import Book Art macro can read (`book: 3`).
+//
+// It is worth reading even for a GM who owns both rulebooks: it prints the Village, Vicinity and
+// World's End maps at a true 300 dpi, where Book I embeds the village map at 478x272 and Book II
+// the other two at ~700px, and it is the only PDF carrying the core-loop and flow-of-play
+// diagrams. Everything asserted here fails silently if it breaks — an unlabelled book field, a
+// row whose target folder is never created, a render capped below what the row asked for — so
+// this file reads the SHIPPED macro command rather than any local copy of its source.
+
+
+const COMMAND = JSON.parse(read("packs/src/stonetop-macros/import-book2-art.json")).command;
+
+/** The manifest literal the shipped macro carries, extracted the way art-match-fallback does. */
+function macroManifest() {
+	const marker = COMMAND.indexOf("/*__MANIFEST__*/");
+	const start = COMMAND.indexOf("{", marker);
+	let depth = 0;
+	for (let i = start; i < COMMAND.length; i++) {
+		const c = COMMAND[i];
+		if (c === "{") depth++;
+		else if (c === "}" && --depth === 0) return JSON.parse(COMMAND.slice(start, i + 1));
+	}
+	throw new Error("could not find the manifest literal in the Import Book Art macro");
+}
+
+const MANIFEST = macroManifest();
+const ROWS = MANIFEST.rows ?? [];
+const GM_ROWS = ROWS.filter(r => r.book === 3);
+const RENDERED = ROWS.filter(r => r.render === "region");
+const DIAGRAMS = ROWS.filter(r => r.kind === "diagram");
+/** A pagemap row owns a Setting Overview page only if it names one. */
+const PAGE_OWNERS = ROWS.filter(r => r.kind === "pagemap" && r.soEntryId && r.soPageId);
+
+/** A CONFIG number read out of the macro that ships, not out of a copy of it. */
+function configNumber(name) {
+	const m = COMMAND.match(new RegExp(`\\b${name}:\\s*([0-9.]+)`));
+	expect(m, `CONFIG.${name} is not declared in the macro`).not.toBeNull();
+	return Number(m[1]);
+}
+
+describe("the GM playbook as a third source", () => {
+	it("contributes the three maps and the two diagrams", () => {
+		expect(GM_ROWS.map(r => r.slug)).toEqual([
+			"gm-village", "gm-vicinity", "gm-worlds-end", "core-loop", "flow-of-play",
+		]);
+	});
+
+	// Every label the dialog and the console messages use comes out of one BOOKS table. Without an
+	// entry the fallback spells the label from the number, and a GM is asked for "Book 3".
+	it("is named in the macro's book table rather than numbered", () => {
+		expect(COMMAND).toMatch(/3:\s*\{\s*title:\s*"GM playbook"/);
+		expect(COMMAND).toContain('label: "the GM playbook"');
+		expect(COMMAND).not.toMatch(/Book \$\{roman\(book\)\}/);
+	});
+
+	// The file field is rendered for every book the ROWS reference, so a manifest with book-3 rows
+	// and no way to supply a book-3 PDF fails every one of them with "not provided".
+	it("earns a file field, and a page count to check the file against", () => {
+		expect(COMMAND).toContain("MANIFEST.rows.map((r) => r.book ?? 2)");
+		expect(MANIFEST.meta.expectedPdfPagesGm).toBe(12);
+		expect(COMMAND).toContain('expected: "expectedPdfPagesGm"');
+	});
+
+	// Vector flowcharts and text-labelled maps both have to be RENDERED from the page: a stencil
+	// lift takes the image object and leaves the text behind, and on page 12 there is no image
+	// object at all.
+	it("renders every one of its rows from a page rect", () => {
+		for (const r of GM_ROWS) {
+			expect(r.render, r.slug).toBe("region");
+			expect(Array.isArray(r.rect) && r.rect.length === 4, r.slug).toBe(true);
+			expect(r.rect[2] > r.rect[0] && r.rect[3] > r.rect[1], `${r.slug} rect is inside out`).toBe(true);
+		}
+	});
+
+	// The ceiling is applied as min(PAGEMAP_MAXDIM, row.nlong), so a row asking for more than the
+	// cap is silently downscaled — the exact failure that made a 300 dpi map come out at 2000px.
+	it("is not capped below what its rows ask for", () => {
+		const cap = configNumber("PAGEMAP_MAXDIM");
+		for (const r of RENDERED) {
+			expect(r.nlong ?? cap, `${r.slug} asks for more than PAGEMAP_MAXDIM`).toBeLessThanOrEqual(cap);
+		}
+		// And the GM maps really do ask for more than the old 2000 cap, or this guard proves nothing.
+		expect(Math.max(...GM_ROWS.filter(r => r.kind === "pagemap").map(r => r.nlong))).toBeGreaterThan(2000);
+	});
+
+	// Three lists have to name the folder or the files are written and then never seen again: the
+	// macro creates it, the macro's own inventory lists it (SKIP_EXISTING), and the runtime browse
+	// lists it (the index refresh).
+	it("writes into folders the macro creates and both sides browse", () => {
+		for (const r of GM_ROWS) {
+			const dir = r.out.slice(0, r.out.lastIndexOf("/"));
+			expect(COMMAND, `${dir} is never created`).toContain(`ensureDir(\`\${CONFIG.ROOT}/${dir}\`)`);
+			expect(COMMAND, `${dir} is not inventoried`).toContain(`"${dir}"`);
+			expect(DURABLE_ART_DIRS, `${dir} is not browsed at runtime`).toContain(dir);
+		}
+	});
+});
+
+describe("the Setting Overview preference chains", () => {
+	// The GM playbook's maps are extraction-only: they are a sharper file for a page a Book II row
+	// already owns. Two rows owning one page would fight, since a page holds one managed figure.
+	it("keeps one owner per page, with the GM maps owning none", () => {
+		const pages = PAGE_OWNERS.map(r => r.soPageId);
+		expect(new Set(pages).size).toBe(pages.length);
+		for (const r of GM_ROWS) expect(r.soPageId, r.slug).toBeUndefined();
+	});
+
+	it("skips rows that own no page rather than asking the pack for undefined", () => {
+		expect(COMMAND).toContain("if (!p.soEntryId || !p.soPageId) continue;");
+	});
+
+	// The chain is what makes a GM who owns more PDFs see a better picture, and a GM who owns
+	// fewer keep the one they have.
+	it("leads each chain with the GM playbook's file and ends it with the poster map", () => {
+		expect(PAGE_OWNERS.length).toBeGreaterThan(0);
+		for (const r of PAGE_OWNERS) {
+			expect(Array.isArray(r.prefer), `${r.slug} states no chain`).toBe(true);
+			expect(r.prefer[0], `${r.slug} does not lead with the GM playbook`).toMatch(/^assets\/maps\/gm-/);
+			expect(r.prefer.at(-1), `${r.slug} does not fall back to a poster map`).toMatch(/^assets\/maps\/map-/);
+			// Every link is a file something actually produces, or the chain has a dead rung that
+			// can never be picked and quietly shortens by one.
+			for (const link of r.prefer) {
+				const produced = ROWS.some(x => x.out === link)
+					|| ROWS.some(x => (x.images ?? []).some(im => im.out === link))
+					|| (MANIFEST.maps ?? []).some(m => m.out === link);
+				expect(produced, `${r.slug}: nothing ever writes ${link}`).toBe(true);
+			}
+		}
+	});
+
+	it("resolves the chain through one shared helper on both sides", () => {
+		expect(COMMAND).toContain("const pageChain = (p) =>");
+		expect(COMMAND).toContain("const chain = pageChain(p);");
+	});
+});
+
+describe("the diagrams the toolkit shows", () => {
+	it("both come off the playbook's last spread, side by side", () => {
+		expect(DIAGRAMS).toHaveLength(2);
+		for (const d of DIAGRAMS) expect(d.pdfPage, d.slug).toBe(12);
+		const [core, flow] = DIAGRAMS;
+		// Non-overlapping halves of one landscape spread; an overlap means one crop carries part
+		// of the other diagram, which no assertion on size would catch.
+		expect(core.rect[2]).toBeLessThanOrEqual(flow.rect[0]);
+	});
+
+	// Diagrams are always rendered, so unlike a pagemap there is no wiring-only case to skip —
+	// and a `continue` copied over from that loop would extract neither.
+	it("are extracted unconditionally, and published as an index", () => {
+		expect(COMMAND).toContain("for (const d of diagrams) {");
+		// Published through the macro's one index-publishing helper, which is what gives every
+		// art index the same union-with-prior and write-only-on-change rules. Asserting the
+		// call rather than a `settings.set` line is the point: an index that stopped going
+		// through the helper would be the bug.
+		expect(COMMAND).toContain('publishIndex("gmDiagramArt", diagrams');
+	});
+
+	// All four art indexes ride the same helper. A fifth added as a hand-rolled copy is exactly
+	// how the first four drifted into four spellings of one rule.
+	it("publishes every art index through the one helper", () => {
+		expect(COMMAND).toMatch(/const publishIndex = async \(key, rows, pair, label\) =>/);
+		for (const key of ["treasureArt", "gmDiagramArt", "peopleArt", "peoplePortraitArt"]) {
+			expect(COMMAND, key).toContain(`publishIndex("${key}"`);
+		}
+		// ...and none of them still writes its setting inline.
+		expect(COMMAND).not.toMatch(
+			/settings\.set\("stonetop-pwd", "(treasureArt|gmDiagramArt|peopleArt|peoplePortraitArt)"/);
+	});
+});

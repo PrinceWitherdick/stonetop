@@ -23,9 +23,30 @@ import { isPrimaryGM } from "../utils/primary-gm.js";
  * The flag is set once `offer` resolves, BEFORE any work the caller does with the answer — so
  * a GM who says yes and then hits an error is not asked the whole question again.
  *
- * @param {{setting: string, findWork: () => Promise<any>, offer: (work: any) => Promise<any>}} spec
+ * Most of these offers are one whispered chat card, so `card` is the shorthand for that shape:
+ * hand it a function from the work to the card's HTML and this does the not-ready guard and the
+ * GM whisper. Three callers in Ready.js had that same closure written out longhand, differing
+ * only in which `_build…Content` they called, which put the not-ready return value and the
+ * whisper recipients in three places — the same asymmetry across call sites this helper exists
+ * to remove. `offer` remains for anything that is not a chat card (WorldSetup asks a dialog).
+ *
+ * @param {object} spec
+ * @param {string} spec.setting                 The once-per-world latch.
+ * @param {() => Promise<any>} spec.findWork
+ * @param {(work: any) => string} [spec.card]   Build the whispered card's HTML.
+ * @param {(work: any) => Promise<any>} [spec.offer]  Present it some other way.
  */
-export async function offerDurableArtOnce({ setting, findWork, offer }) {
+export async function offerDurableArtOnce({ setting, findWork, card, offer }) {
+	// The chat-card shape, stated once. Returning false when chat is not up yet is what keeps
+	// the latch unset so the offer is made on a later load instead of being lost.
+	offer ??= async work => {
+		if (!globalThis.ChatMessage?.create) return false;
+		await ChatMessage.create({
+			content: card(work),
+			whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id),
+			speaker: { alias: "Stonetop" },
+		});
+	};
 	// ONE GM asks. The latch is world-scoped but it is only written at the END, after findWork
 	// and offer have both awaited — so two GMs joining together both pass the check below and
 	// both whisper the same card to the GM group. The gate belongs here rather than at each call

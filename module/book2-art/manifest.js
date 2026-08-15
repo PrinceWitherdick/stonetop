@@ -2581,6 +2581,11 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "journalPageId": "stonetopSOp00005",
    "replaces": [
     "assets/maps/map-vicinity.webp"
+   ],
+   "prefer": [
+    "assets/maps/gm-vicinity.webp",
+    "assets/maps/book2-vicinity.webp",
+    "assets/maps/map-vicinity.webp"
    ]
   },
   {
@@ -2590,6 +2595,11 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "journalEntryId": "stonetopSO000001",
    "journalPageId": "stonetopSOp00010",
    "replaces": [
+    "assets/maps/map-worlds-end.webp"
+   ],
+   "prefer": [
+    "assets/maps/gm-worlds-end.webp",
+    "assets/maps/book2-worlds-end.webp",
     "assets/maps/map-worlds-end.webp"
    ]
   },
@@ -2601,7 +2611,24 @@ export const BOOK2_ART_APPLY_MANIFEST = {
    "journalPageId": "stonetopSOp00004",
    "replaces": [
     "assets/maps/map-stonetop-village.webp"
+   ],
+   "prefer": [
+    "assets/maps/gm-village.webp",
+    "assets/locations/the-village-of-stonetop-1.webp",
+    "assets/maps/map-stonetop-village.webp"
    ]
+  }
+ ],
+ "gmDiagrams": [
+  {
+   "slug": "core-loop",
+   "name": "The core loop",
+   "out": "assets/diagrams/core-loop.webp"
+  },
+  {
+   "slug": "flow-of-play",
+   "name": "The flow of play",
+   "out": "assets/diagrams/flow-of-play.webp"
   }
  ],
  "treasures": [

@@ -32,6 +32,7 @@ import { filePicker } from "../utils/foundry-compat.js";
 export const DURABLE_ART_DIRS = [
 	"assets/bestiary", "assets/locations", "assets/maps",
 	"assets/treasures", "assets/people", "assets/steading",
+	"assets/diagrams",
 ];
 
 // One in-flight-or-settled browse per `${root}|${dir}`.
