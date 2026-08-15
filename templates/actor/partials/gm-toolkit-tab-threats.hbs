@@ -32,7 +32,7 @@
 			      than a line under it: the heading is the one part of a section a fold leaves on
 			      screen, so a GM scanning three collapsed trackers for where a new threat belongs
 			      can still read the answer. --}}
-			<h3 class="steading-residents-heading">{{heading}} <span class="stonetop-section-note">{{hint}}</span>{{> "stonetop.section-collapse" collapse=id}}</h3>
+			{{> "stonetop.section-heading" class="steading-residents-heading" title=heading note=hint collapse=id}}
 			{{#if threats.length}}
 			<div class="steading-threats-grid">
 				{{#each threats}}
@@ -52,7 +52,7 @@
 		      expeditions). Same card affordances as threats: drag-to-pin, collapse; the pen
 		      reopens the Make-a-Hazard walkthrough pre-filled. --}}
 		<div class="steading-threats-section steading-hazards-section">
-			<h3 class="steading-residents-heading">{{localize "stonetop.gmToolkit.threats.hazards"}}{{> "stonetop.section-collapse" collapse="hazards"}}</h3>
+			{{> "stonetop.section-heading" class="steading-residents-heading" title=(localize "stonetop.gmToolkit.threats.hazards") collapse="hazards"}}
 			<p class="steading-threats-intro">{{localize "stonetop.gmToolkit.threats.hazardsIntro"}}</p>
 			{{#if stonetop.hazards.length}}
 			<div class="steading-threats-grid">
@@ -89,26 +89,19 @@
 
 			{{#each stonetop.threatGuidance}}
 			<div class="steading-threats-section steading-threats-guide">
-				<h3 class="steading-residents-heading">{{title}} <span class="stonetop-section-note">{{note}}</span>{{> "stonetop.section-collapse" collapse=collapseId defaultCollapsed=true}}</h3>
+				{{> "stonetop.section-heading" class="steading-residents-heading" title=title note=note collapse=collapseId defaultCollapsed=true}}
 				{{#if caution}}<p class="steading-threats-intro">{{caution}}</p>{{/if}}
 				{{#each groups}}
 				<div class="steading-threats-guide-group">
 					{{#if label}}<h4 class="steading-threats-guide-label">{{label}}</h4>{{/if}}
 					{{!-- Numbered only where the order is the point (the write-up steps). The
 					      `ordered` flag rides on the SECTION, so a group inherits it through the
-					      `../` walk out of this each. --}}
+					      `../` walk out of this each. Only the LIST TAG differs between the two
+					      branches; the rows come from one partial so they cannot drift apart. --}}
 					{{#if ../ordered}}
-					<ol class="steading-threats-guide-list is-ordered">
-						{{#each items}}
-						<li><strong>{{name}}</strong>{{#if optional}} <em class="steading-threats-guide-optional">{{@root.stonetop.threatOptionalLabel}}</em>{{/if}}<span>{{gloss}}</span></li>
-						{{/each}}
-					</ol>
+					<ol class="steading-threats-guide-list is-ordered">{{> "stonetop.gm-prep-guide-items" items}}</ol>
 					{{else}}
-					<ul class="steading-threats-guide-list">
-						{{#each items}}
-						<li><strong>{{name}}</strong>{{#if optional}} <em class="steading-threats-guide-optional">{{@root.stonetop.threatOptionalLabel}}</em>{{/if}}<span>{{gloss}}</span></li>
-						{{/each}}
-					</ul>
+					<ul class="steading-threats-guide-list">{{> "stonetop.gm-prep-guide-items" items}}</ul>
 					{{/if}}
 				</div>
 				{{/each}}
@@ -122,7 +115,10 @@
 			      accent as the tick down its left edge, the one place the card chrome uses
 			      colour. --}}
 			<div class="steading-threats-section steading-threats-guide">
-				<h3 class="steading-residents-heading">{{localize "stonetop.gmToolkit.threats.guide.types"}} <span class="stonetop-section-note">{{localize "stonetop.gmToolkit.threats.guide.typesNote"}}</span>{{> "stonetop.section-collapse" collapse="threatGuideTypes" defaultCollapsed=true}}</h3>
+				{{> "stonetop.section-heading" class="steading-residents-heading"
+				    title=(localize "stonetop.gmToolkit.threats.guide.types")
+				    note=(localize "stonetop.gmToolkit.threats.guide.typesNote")
+				    collapse="threatGuideTypes" defaultCollapsed=true}}
 				<ul class="steading-threats-guide-list steading-threat-type-list">
 					{{#each stonetop.threatTypeReference}}
 					<li style="--threat-accent: {{accent}}"><strong>{{label}}</strong><span>{{blurb}}</span></li>

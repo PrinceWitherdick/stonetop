@@ -20,20 +20,20 @@
 //
 // Storage staying on the steading is also correct on its own terms: a world has one set of
 // threats whoever is running it, and a second GM opening their own toolkit sees the same prep.
-import { listThreatPages, createThreat, deleteThreat, threatsEntryId } from "../../threats/threat-store.js";
+import { listThreatPages, createThreat } from "../../threats/threat-store.js";
 import { buildThreatCardVM, wireThreatDoomChange, wireThreatCardDrag } from "../../threats/threat-view.js";
 import { THREAT_PROXIMITIES, THREAT_TYPES } from "../../threats/threat-types.js";
 import { threatGuidanceSections } from "../../threats/threat-guidance.js";
 import { CreateThreatDialog } from "../../threats/create-threat-dialog.js";
 import { ThreatEditorDialog } from "../../threats/threat-editor-dialog.js";
 import { STONETOP_THREAT_SEED_DRAG_TYPE } from "../../threats/threat-seed-cards.js";
-import { listHazardPages, createHazard, deleteHazard, hazardsEntryId } from "../../hazards/hazard-store.js";
+import { listHazardPages, createHazard } from "../../hazards/hazard-store.js";
 import { buildHazardCardVM } from "../../hazards/hazard-view.js";
 import { CreateHazardDialog } from "../../hazards/create-hazard-dialog.js";
-import { listSitePages, deleteSite, sitesEntryId } from "../../sites/site-store.js";
+import { listSitePages } from "../../sites/site-store.js";
 import { openSiteWizard, createSiteFlow } from "./gm-prep-actions.js";
 import { buildSiteCardVM } from "../../sites/site-view.js";
-import { wireGmPrepCardExtras, GM_PREP_KIND_IDS } from "../../journal/gm-prep-page.js";
+import { wireGmPrepCardExtras, gmPrepEntryIds, deleteGmPrepPage, GM_PREP_KIND_IDS } from "../../journal/gm-prep-page.js";
 import { getStonetopSteadingActor, getStonetopSteadingActorOrWarn } from "../../utils/world.js";
 import { wireCardDropZone } from "../../utils/card-drop-zone.js";
 import { escHtml } from "../../utils/strings.js";
@@ -49,6 +49,46 @@ const PREP_KIND_COLLAPSED = { site: true };
 
 /** Sections on these tabs that carry their own edit pencil. Read by `_addGmPrepContext`. */
 const GM_PREP_EDIT_SECTIONS = ["threats", "sites"];
+
+/**
+ * The Threats tab's static reference, localized once.
+ *
+ * Every input is a module constant or an i18n key, so the finished shape is the same on every
+ * render — but this tab re-renders on EVERY prep-page write in the world (see `_wirePrepPageSync`),
+ * so rebuilding it meant re-allocating a dozen objects and re-running a dozen `localize` lookups
+ * each time a doom track ticked on some other client.
+ *
+ * Built lazily rather than at import: `game.i18n` is not ready when this module loads. Not
+ * invalidated, because the language cannot change without a reload.
+ */
+let _threatReference = null;
+function threatReference() {
+	_threatReference ??= {
+		guidance: threatGuidanceSections().map(section => ({
+			key:        section.key,
+			title:      localize(section.titleKey),
+			note:       localize(section.noteKey),
+			collapseId: section.collapseId,
+			ordered:    !!section.ordered,
+			// Empty string rather than undefined for the sections without one: the template
+			// branches on `{{#if caution}}`, and both read the same there, but a string keeps
+			// the published shape identical across all four sections.
+			caution:    section.cautionKey ? localize(section.cautionKey) : "",
+			groups:     section.groups.map(group => ({
+				label: group.labelKey ? localize(group.labelKey) : "",
+				items: group.items,
+			})),
+		})),
+		// The one bit of chrome the reference block needs that isn't per-section.
+		optionalLabel: localize("stonetop.gmToolkit.threats.optional"),
+		// The eight types, blurb only. The catalog is the same one the Write-Up-a-Threat dialog
+		// offers, read straight rather than copied, so a type cannot come to mean two different
+		// things on two screens. The dialog is where you PICK one and see its GM moves; this is
+		// the list you read before you get there.
+		types: THREAT_TYPES.map(t => ({ id: t.id, label: t.label, blurb: t.blurb, accent: t.accent })),
+	};
+	return _threatReference;
+}
 
 /**
  * Which family a card element belongs to.
@@ -102,10 +142,7 @@ export function withGmPrepTabs(Base) {
 		 * be permanently empty on a fresh world.
 		 */
 		_prepEntryIds() {
-			const steading = this._prepSteading();
-			if (!steading) return [];
-			return [threatsEntryId(steading), hazardsEntryId(steading), sitesEntryId(steading)]
-				.filter(Boolean);
+			return gmPrepEntryIds(this._prepSteading());
 		}
 
 		/**
@@ -285,29 +322,12 @@ export function withGmPrepTabs(Base) {
 			//
 			// Localized HERE rather than in the template, the shape the sheet already uses for
 			// its move sections: the template then gets plain strings, and the tests can assert
-			// on the finished sections without standing up a Handlebars environment.
-			st.threatGuidance = threatGuidanceSections().map(section => ({
-				key:        section.key,
-				title:      localize(section.titleKey),
-				note:       localize(section.noteKey),
-				collapseId: section.collapseId,
-				ordered:    !!section.ordered,
-				// Empty string rather than undefined for the sections without one: the template
-				// branches on `{{#if caution}}`, and both read the same there, but a string keeps
-				// the published shape identical across all four sections.
-				caution:    section.cautionKey ? localize(section.cautionKey) : "",
-				groups:     section.groups.map(group => ({
-					label: group.labelKey ? localize(group.labelKey) : "",
-					items: group.items,
-				})),
-			}));
-			// The one bit of chrome the reference block needs that isn't per-section.
-			st.threatOptionalLabel = localize("stonetop.gmToolkit.threats.optional");
-			// The eight types, blurb only. The catalog is the same one the Write-Up-a-Threat
-			// dialog offers, read straight rather than copied, so a type cannot come to mean two
-			// different things on two screens. The dialog is where you PICK one and see its GM
-			// moves; this is the list you read before you get there.
-			st.threatTypeReference = THREAT_TYPES.map(t => ({ id: t.id, label: t.label, blurb: t.blurb, accent: t.accent }));
+			// on the finished sections without standing up a Handlebars environment. Built once
+			// for the life of the page — see `threatReference`.
+			const reference = threatReference();
+			st.threatGuidance      = reference.guidance;
+			st.threatOptionalLabel = reference.optionalLabel;
+			st.threatTypeReference = reference.types;
 			// Stated once, here, rather than as an empty-shape literal per builder that has to
 			// keep matching the keys this method reads back.
 			st.threatGroups = [];
@@ -338,19 +358,19 @@ export function withGmPrepTabs(Base) {
 			// Every prep tool on these two tabs, one row per kind. The three kinds' edit / remove
 			// / add handling was the same six-line `closest` chain three times over, differing
 			// only in the selector words.
+			// Deleting carries only its NOUN here: the three kinds' deletes are one function under
+			// three names (see deleteGmPrepPage), so a `remove` column presented one behaviour as
+			// three and gave a fourth kind a third thing to remember.
 			const prepTools = [
-				{ scope: ".steading-threats", kind: "threat",
+				{ scope: ".steading-threats", kind: "threat", deleteTitle: "Delete Threat",
 					edit: page => this._openThreatEditor(page),
-					remove: page => this._confirmDeletePrepPage(page, "Delete Threat", deleteThreat),
 					// Threats are added per proximity band; the button says which.
 					add: btn => this._onCreateThreat(btn.dataset.proximity) },
-				{ scope: ".steading-threats", kind: "hazard",
+				{ scope: ".steading-threats", kind: "hazard", deleteTitle: "Delete Hazard",
 					edit: page => this._onEditHazard(page),
-					remove: page => this._confirmDeletePrepPage(page, "Delete Hazard", deleteHazard),
 					add: () => this._onCreateHazard() },
-				{ scope: ".steading-sites", kind: "site",
+				{ scope: ".steading-sites", kind: "site", deleteTitle: "Delete Site",
 					edit: page => this._onEditSite(page),
-					remove: page => this._confirmDeletePrepPage(page, "Delete Site", deleteSite),
 					add: () => this._onCreateSite() },
 			];
 
@@ -371,7 +391,7 @@ export function withGmPrepTabs(Base) {
 						// states it too rather than trusting `pointer-events`.
 						if (remove.closest(".stonetop-readonly")) return;
 						const page = await fromUuid(remove.dataset.pageUuid);
-						if (page) tool.remove(page);
+						if (page) this._confirmDeletePrepPage(page, tool.deleteTitle);
 						return;
 					}
 				}
@@ -427,15 +447,15 @@ export function withGmPrepTabs(Base) {
 		}
 
 		// Confirm-and-delete a GM-prep page: identical card + scene-pin cleanup for all three
-		// kinds, only the noun and the delete fn differ.
-		async _confirmDeletePrepPage(page, title, remove) {
+		// kinds, and only the noun differs — the deletion itself is one function (deleteGmPrepPage).
+		async _confirmDeletePrepPage(page, title) {
 			const ok = await Dialog.confirm({
 				title,
 				content: `<p>Delete <strong>${escHtml(page.name)}</strong>? This removes its card and any pins placed on scenes.</p>`,
 				options: { classes: ["dialog", "stonetop", "stonetop-delete-threat-dialog"] },
 			});
 			if (!ok) return;
-			await remove(page);
+			await deleteGmPrepPage(page);
 		}
 
 		// None of the flows below re-render: the page write itself is what the sheet is watching

@@ -16,8 +16,18 @@ import { localize } from "../../module/utils/i18n.js";
 // laid out as a flat sibling rather than its own box lets one caret swallow the sections below.
 
 const THREATS_HBS = read("templates/actor/partials/gm-toolkit-tab-threats.hbs");
+const GUIDE_ITEMS_HBS = read("templates/actor/partials/gm-prep-guide-items.hbs");
 const PREP_JS     = read("module/actors/gmtoolkit/gm-prep-tabs.js");
 const CSS         = readCss();
+
+// Every fold caret this tab asks for, however it asks. A heading either invokes section-collapse
+// directly or goes through section-heading, which forwards `collapse` and `defaultCollapsed` to
+// it — the two spellings mean exactly the same thing to the fold walk, so the checks below read
+// both rather than pinning one.
+const foldCarets = (hbs) => [...hbs.matchAll(/\{\{>\s*"stonetop\.section-(?:collapse|heading)"([\s\S]*?)\}\}/g)]
+	.map(m => m[1])
+	.filter(body => /\bcollapse=/.test(body))
+	.map(body => ({ id: body.match(/\bcollapse=(\S+)/)[1], rest: body }));
 
 const ALL_ITEMS = [
 	...THREAT_WRITEUP_STEPS, ...THREAT_WRITEUP_MOMENTS,
@@ -143,14 +153,15 @@ describe("threat prep guidance (Book I, Threats)", () => {
 describe("the tab renders the reference", () => {
 	it("draws every section, each folding under its own id", () => {
 		expect(THREATS_HBS).toContain("{{#each stonetop.threatGuidance}}");
-		expect(THREATS_HBS).toContain('{{> "stonetop.section-collapse" collapse=collapseId defaultCollapsed=true}}');
+		// Through the shared heading partial, which forwards both to section-collapse.
+		expect(foldCarets(THREATS_HBS).find(c => c.id === "collapseId")?.rest)
+			.toContain("defaultCollapsed=true");
 	});
 
 	// Reference, not prep. Expanded by default it would be five screens of chapter under the
 	// cards on every open; a GM who wants it open pushes it open once and the sheet remembers.
 	it("starts every reference section folded, cards included in neither direction", () => {
-		const carets = [...THREATS_HBS.matchAll(/section-collapse" collapse=(\S+)([^}]*)\}\}/g)]
-			.map(m => ({ id: m[1], rest: m[2] }));
+		const carets = foldCarets(THREATS_HBS);
 		const reference = carets.filter(c => /collapseId|threatGuideTypes/.test(c.id));
 		const cards     = carets.filter(c => !/collapseId|threatGuideTypes/.test(c.id));
 		expect(reference).toHaveLength(2); // the guidance loop, plus the types section
@@ -185,7 +196,10 @@ describe("the tab renders the reference", () => {
 	// One catalog, read straight rather than restated, so a type cannot come to mean two
 	// different things on the tab and in the Write-Up-a-Threat dialog.
 	it("reads the eight types from the one catalog", () => {
-		expect(PREP_JS).toMatch(/st\.threatTypeReference\s*=\s*THREAT_TYPES\.map/);
+		// Built inside `threatReference()` (localized once per page rather than per render) and
+		// published from there, so the assertion is that the list still comes off THREAT_TYPES.
+		expect(PREP_JS).toMatch(/types:\s*THREAT_TYPES\.map/);
+		expect(PREP_JS).toMatch(/st\.threatTypeReference\s*=\s*reference\.types/);
 		expect(THREATS_HBS).toContain("{{#each stonetop.threatTypeReference}}");
 		// Blurbs live in threat-types.js and nowhere else.
 		for (const t of THREAT_TYPES.slice(0, 3)) {
@@ -198,7 +212,9 @@ describe("the tab renders the reference", () => {
 	// label. Inline in the heading so a folded tracker still says what it means.
 	it("prints each proximity's hint in its heading", () => {
 		expect(PREP_JS).toMatch(/hint:\s*p\.hint/);
-		expect(THREATS_HBS).toContain('{{heading}} <span class="stonetop-section-note">{{hint}}</span>');
+		// The hint rides in as the heading's `note`, which the shared partial renders as the
+		// dimmed span beside the title.
+		expect(THREATS_HBS).toMatch(/section-heading"[^}]*title=heading[^}]*note=hint/);
 	});
 });
 
@@ -230,8 +246,13 @@ describe("the tab's chrome is localized", () => {
 	// Generated content cannot be localized and is not reliably announced by screen readers, so
 	// the one word saying a step can be skipped has to be a real element.
 	it("marks optional steps with a real element, not CSS content", () => {
-		expect(THREATS_HBS).toContain('<em class="steading-threats-guide-optional">{{@root.stonetop.threatOptionalLabel}}</em>');
-		expect(PREP_JS).toMatch(/st\.threatOptionalLabel\s*=\s*localize\(/);
+		// The guidance rows live in their own partial now (one copy for the ordered list and the
+		// plain one alike), so the element is asserted where it is actually written.
+		expect(GUIDE_ITEMS_HBS).toContain('<em class="steading-threats-guide-optional">{{@root.stonetop.threatOptionalLabel}}</em>');
+		// Localized in `threatReference()` with the rest of the tab's static chrome, and published
+		// from there — the point being that it is a localize() call and not a CSS `content:`.
+		expect(PREP_JS).toMatch(/optionalLabel:\s*localize\(/);
+		expect(PREP_JS).toMatch(/st\.threatOptionalLabel\s*=\s*reference\.optionalLabel/);
 		expect(CSS).not.toMatch(/content:\s*"optional"/);
 	});
 });

@@ -3511,10 +3511,12 @@ input.stonetop-name-field {
    binned with one stray click while its section is only being read. Both tab templates
    and StonetopGmToolkitSheet say so in as many words; the omission of
    `.threat-remove` / `.hazard-remove` / `.site-remove` here, plus the matching check in
-   gm-prep-tabs.js, is what makes it true. */
-.stonetop-readonly .threat-edit-open,
-.stonetop-readonly .hazard-edit-open,
-.stonetop-readonly .site-edit-open,
+   gm-prep-tabs.js, is what makes it true.
+
+   By the ONE class the shared partial emits beside the per-kind hook, like the add bar
+   above: named per kind, this list had to be extended for every new prep kind, and a kind
+   whose line was forgotten drew a pencil that silently did nothing. */
+.stonetop-readonly .stonetop-prep-edit-btn,
 /* Rolling a site's own table is play-time use, not editing, and it writes nothing to
    the page at all, so the d20 button stays live too. */
 .stonetop-readonly .site-table-roll,

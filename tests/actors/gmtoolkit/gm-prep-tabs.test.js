@@ -211,9 +211,14 @@ describe("the toolkit picked them up whole", () => {
 	});
 
 	it("the shared prep partials emit every class word the handler table matches", () => {
-		expect(TOOLS_HBS).toContain('class="{{kind}}-edit-open"');
+		// Two classes: the shared LOOK/gate word, then the per-kind handler hook. Both on one
+		// button. The pencil takes the same shape as the add bar below, so the readonly
+		// allow-list keys on one class instead of naming every kind.
+		expect(TOOLS_HBS).toContain('class="stonetop-prep-edit-btn {{kind}}-edit-open"');
+		// The trash carries the per-kind hook ALONE, deliberately: no shared gate word is what
+		// keeps it off the readonly allow-list and so dead while a section is only being read.
 		expect(TOOLS_HBS).toContain('class="{{kind}}-remove"');
-		// Two classes: the shared LOOK, then the per-kind handler hook. Both on one button.
+		expect(TOOLS_HBS).not.toContain("stonetop-prep-remove-btn");
 		expect(ADD_BAR_HBS).toContain('class="stonetop-prep-add-btn {{kind}}-add-btn"');
 		// The scoping ancestors the handlers pair those with.
 		expect(stripComments(PREP_JS)).toContain('scope: ".steading-threats"');
@@ -225,6 +230,16 @@ describe("the toolkit picked them up whole", () => {
 	// `.site-add-btn` on it, so the Sites tab drew a filled core button that read as the tab's
 	// primary action, and nothing failed. With the class emitted by the shared partial there is
 	// no per-kind list left to fall off.
+	// Same argument, one control over: the pencil's "stays live outside edit mode" line was
+	// itself a list of kind names in the stylesheet, so a fourth kind's pencil would have gone
+	// dead with nothing to say so. It keys on the shared class now, and the TRASH still keys on
+	// nothing at all, which is what keeps deleting gated.
+	it("keeps every prep pencil live outside edit mode from one shared class", () => {
+		expect(CSS).toMatch(/\.stonetop-readonly \.stonetop-prep-edit-btn\s*[,{]/);
+		expect(CSS).not.toMatch(/\.stonetop-readonly \.(threat|hazard|site)-edit-open/);
+		expect(CSS).not.toMatch(/\.stonetop-readonly \.(threat|hazard|site)-remove/);
+	});
+
 	it("draws every add bar from one shared dashed-entry class", () => {
 		expect(CSS).toMatch(/\.stonetop-prep-add-btn\s*\{[^}]*border:\s*1px dashed/);
 		// The `+` nudge and the hover wash are separate rules; the look is only complete with

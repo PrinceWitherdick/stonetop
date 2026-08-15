@@ -1,0 +1,15 @@
+{{!-- The rows of one guidance group: a name, an "optional" tag where the step can be skipped,
+      and the gloss.
+
+      Here rather than inline because the list around it comes in two flavours — numbered where
+      the order is the point (the write-up steps), plain everywhere else — and the rows were
+      written out identically inside each branch. Two copies of one <li> means any change to a
+      guidance row is two edits, and the missed one is invisible: only the write-up section takes
+      the ordered branch, so an edit made to the <ul> copy alone looks correct everywhere a reader
+      is likely to check.
+
+      Invoked with the group's `items`, so `this` is the row list. `@root` still reaches the
+      sheet context for the shared "optional" label. --}}
+{{#each this}}
+<li><strong>{{name}}</strong>{{#if optional}} <em class="steading-threats-guide-optional">{{@root.stonetop.threatOptionalLabel}}</em>{{/if}}<span>{{gloss}}</span></li>
+{{/each}}

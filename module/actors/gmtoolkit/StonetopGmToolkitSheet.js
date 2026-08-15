@@ -38,6 +38,32 @@ import { stonetopSteadingHeaderButton } from "../../utils/world.js";
  */
 const HEADING_SELECTOR = ".stonetop-move-group-title, .steading-residents-heading";
 
+/**
+ * The GM moves, localized once.
+ *
+ * The catalog is a module constant and the rest is i18n keys, so the finished list never differs
+ * between renders — and this sheet re-renders on every prep-page write in the world, which is a
+ * lot of rebuilding for a list of static reference text.
+ *
+ * Lazy rather than a top-level constant because `game.i18n` is not ready at import time; never
+ * invalidated because the language cannot change without a reload.
+ */
+let _moveSections = null;
+function localizedMoveSections() {
+	_moveSections ??= gmMoveSections().map(section => ({
+		key:        section.key,
+		title:      localize(section.titleKey),
+		note:       localize(section.noteKey),
+		collapseId: section.collapseId,
+		moves:      section.moves,
+		// The die beside the note. One string for all three, carried per-section rather than
+		// hung on the context beside the list, so the template needs no `../` walk out of its
+		// `{{#each}}` and a section stays one self-contained object.
+		randomizeTitle: localize("stonetop.gmToolkit.moves.randomize"),
+	}));
+	return _moveSections;
+}
+
 export function createStonetopGmToolkitSheetClass(Base) {
 	// withSheetSizeMemory: reopen at the size this GM last left the toolkit at. This sheet has
 	// a fixed default height rather than `height: "auto"`, so the mixin only ever has to
@@ -156,17 +182,8 @@ export function createStonetopGmToolkitSheetClass(Base) {
 
 			// Localized at the boundary rather than in the template, so the sections are one
 			// list of plain objects the tests can assert on without a Handlebars environment.
-			context.stonetop.moveSections = gmMoveSections().map(section => ({
-				key:        section.key,
-				title:      localize(section.titleKey),
-				note:       localize(section.noteKey),
-				collapseId: section.collapseId,
-				moves:      section.moves,
-				// The die beside the note. One string for all three, carried per-section rather
-				// than hung on the context beside the list, so the template needs no `../` walk
-				// out of its `{{#each}}` and a section stays one self-contained object.
-				randomizeTitle: localize("stonetop.gmToolkit.moves.randomize"),
-			}));
+			// Built once for the life of the page — see `localizedMoveSections`.
+			context.stonetop.moveSections = localizedMoveSections();
 
 			// The Core Loop tab's two figures. Localized and resolved to a servable path at the
 			// boundary, same as the move sections, so the template gets plain data and the tests

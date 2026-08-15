@@ -6,6 +6,7 @@
 // Editing opens the Create-a-Site walkthrough pre-filled (CreateSiteDialog in edit mode)
 // rather than a separate editor dialog; the wizard IS the site editor.
 import { buildSiteCardVM } from "../sites/site-view.js";
+import { openSiteWizard } from "../actors/gmtoolkit/gm-prep-actions.js";
 import { gmPrepCardWiring } from "./gm-prep-page.js";
 import { createStonetopGmPrepPageSheetClass } from "./gm-prep-page-sheet.js";
 
@@ -14,14 +15,13 @@ export function createStonetopSitePageSheetClass(Base) {
 		template: "systems/stonetop-pwd/templates/journal/site-page.hbs",
 		buildCardVM: buildSiteCardVM,
 		editSelector: ".site-edit-start",
-		// Imported at click time, not at load: the wizard drags in the whole Create-a-Site book
-		// data (data/site-tables.js, the largest data module in the system), and only a GM who
-		// opens the editor ever needs it. Viewing a site card does not. create-stonetop-content-
-		// dialog.js defers it the same way.
-		openEditor: async (document) => {
-			const { CreateSiteDialog } = await import("../sites/create-site-dialog.js");
-			return new CreateSiteDialog({ page: document }).promise();
-		},
+		// Through the shared opener rather than standing the dialog up here: this is the THIRD
+		// surface that opens the walkthrough (the Sites tab and the sidebar's Create Stonetop
+		// Content picker are the other two), and gm-prep-actions.js exists because the first two
+		// had already diverged. It keeps the click-time import too — the wizard drags in the whole
+		// Create-a-Site book data (data/site-tables.js, the largest data module in the system),
+		// and only a GM who opens the editor ever needs it. Viewing a site card does not.
+		openEditor: (document) => openSiteWizard({ page: document }),
 		// Read from the same per-kind table the multi-kind hosts wire from, so a site's card
 		// controls are declared in exactly one place however the card is being drawn.
 		wireExtras: (root, page) => gmPrepCardWiring("site")?.(root, () => page),

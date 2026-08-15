@@ -2,29 +2,29 @@
 // here rather than in any one store because they reference all three; the scene-pin code
 // and the on-canvas overlay treat those pins identically, resolving whichever kind an
 // entry/page id or a document flag names.
-import { threatPageById } from "../threats/threat-store.js";
-import { hazardPageById } from "../hazards/hazard-store.js";
-import { sitePageById } from "../sites/site-store.js";
+import { threatPageById, threatsEntryId } from "../threats/threat-store.js";
+import { hazardPageById, hazardsEntryId } from "../hazards/hazard-store.js";
+import { sitePageById, sitesEntryId } from "../sites/site-store.js";
 import { wireSiteTableRoll } from "../sites/site-view.js";
 import { STONETOP_SCOPE } from "../actors/character/StonetopFlags.js";
 
 /**
  * Everything that varies by GM-prep kind, in ONE table.
  *
- * The flag that marks a document as this kind, how to resolve one of its pages, and any card
- * wiring only this kind carries. Kept together because they are the same fact — "the kinds are
- * threat, hazard and site" — and spelling it three ways is how a fourth kind comes to be added
- * to two of them.
+ * The flag that marks a document as this kind, how to resolve one of its pages, where that kind
+ * keeps its journal entry, and any card wiring only this kind carries. Kept together because they
+ * are the same fact — "the kinds are threat, hazard and site" — and spelling it three ways is how
+ * a fourth kind comes to be added to two of them.
  *
  * `wireCard` is a DELEGATED wiring: it binds one listener to a root that may hold cards of any
  * kind, and finds nothing when no card of its kind is there. That is what lets every host wire
  * the whole table blindly instead of testing which kinds it is about to draw.
  */
 const GM_PREP_KINDS = {
-	threat: { pageById: threatPageById },
-	hazard: { pageById: hazardPageById },
+	threat: { pageById: threatPageById, entryId: threatsEntryId },
+	hazard: { pageById: hazardPageById, entryId: hazardsEntryId },
 	// A site card carries its own random tables (Book I p. 369), rollable in place.
-	site:   { pageById: sitePageById, wireCard: wireSiteTableRoll },
+	site:   { pageById: sitePageById, entryId: sitesEntryId, wireCard: wireSiteTableRoll },
 };
 
 /**
@@ -45,6 +45,31 @@ export function gmPrepPageById(entryId, pageId) {
 		if (page) return page;
 	}
 	return null;
+}
+
+/**
+ * Delete a GM-prep page of ANY kind: the page, its scene pins, and the journal entry behind it
+ * once nothing is left in it.
+ *
+ * There is genuinely one deletion here — `deleteHazard` and `deleteSite` are both `deleteThreat`
+ * re-exported, because the work is page-shaped rather than kind-shaped. Named neutrally and
+ * offered from the module that owns the kind table, so a caller with a page and no particular
+ * kind in mind stops having to pick one of the three aliases and present one behaviour as three.
+ */
+export { deleteThreat as deleteGmPrepPage } from "../threats/threat-store.js";
+
+/**
+ * The journal entries a steading files its prep in, by id — every kind's, with the ones this
+ * steading has not minted yet dropped.
+ *
+ * From the table for the reason the table exists: a host asking "is this page write one of
+ * ours?" should not be re-listing the kinds by hand, because a kind added above but missed
+ * there renders and wires correctly and then never refreshes, which reads as a stale tab
+ * rather than as a missing registration.
+ */
+export function gmPrepEntryIds(steading) {
+	if (!steading) return [];
+	return Object.values(GM_PREP_KINDS).map(({ entryId }) => entryId(steading)).filter(Boolean);
 }
 
 /** Whether a JournalEntry / Note document is one of our GM-prep kinds. */
