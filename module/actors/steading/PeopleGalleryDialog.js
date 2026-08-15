@@ -57,15 +57,20 @@ export const asFullPortrait = displayPortraitSrc;
  *
  * Used for every "is this the same portrait?" question the gallery asks — selected, used-by, and
  * the roll's avoid-the-current-one — but never to BUILD a path.
+ *
+ * `root` is injectable for the same reason `book2ArtPrefix` is hoisted in getData: every caller
+ * asks this once PER ITEM — once per used portrait, and once per pool tile inside the roll — so
+ * reading the setting in here means one `game.settings.get` per element of a 155-tile pool for a
+ * value that cannot change between iterations. Callers with a root already in hand pass it.
  */
-export const portraitIdentity = (src) => {
+export const portraitIdentity = (src, root = book2ArtRoot()) => {
 	if (!src) return "";
 	// `splitAtArtRoot` is the browse's own answer to "what is in front of the root, and what
 	// identifies the file?" — the same question asked of a stored path instead of a listed one.
 	// Sharing it is what keeps a gallery tile and a browse result agreeing about one picture; it
 	// also matches on the DEEPEST occurrence of the root, so a URL that happens to repeat it
 	// higher up still resolves to the file.
-	return splitAtArtRoot(String(asFullPortrait(src)), book2ArtRoot()).key;
+	return splitAtArtRoot(String(asFullPortrait(src)), root).key;
 };
 
 /**
@@ -171,9 +176,9 @@ export class PeopleGalleryDialog extends StonetopDialog {
 		// already known — `${root}/${out}`, the same key the browse and every art index use — and
 		// re-deriving it from the path built one line below would cost a setting read and a
 		// manifest lookup on each of 155 tiles, twice over, to arrive back where it started.
-		const currentKey = portraitIdentity(this._current);
+		const currentKey = portraitIdentity(this._current, root);
 		const usedByKey = {};
-		for (const [src, who] of Object.entries(this._used ?? {})) usedByKey[portraitIdentity(src)] = who;
+		for (const [src, who] of Object.entries(this._used ?? {})) usedByKey[portraitIdentity(src, root)] = who;
 		const people = Object.entries(idx).map(([out, name]) => {
 			const key = book2ArtSrcWith(root, out);
 			const full = book2ArtServedWith(root, out, prefix);
@@ -583,8 +588,11 @@ export class PeopleGalleryDialog extends StonetopDialog {
 		this._randomBtn?.addEventListener("click", () => {
 			const visible = this._visiblePicks();
 			const held = this._proposed?.dataset.src || this._current;
+			// One setting read for the whole roll: `keyOf` is called once for the held portrait and
+			// once per pool tile, and the art root is the same for all of them.
+			const artRoot = book2ArtRoot();
 			const full = pickRandomPortrait(visible.map(p => p.dataset.full),
-				{ current: held, keyOf: portraitIdentity });
+				{ current: held, keyOf: (s) => portraitIdentity(s, artRoot) });
 			if (full) this._propose(visible.find(p => p.dataset.full === full), { scroll: true });
 		});
 

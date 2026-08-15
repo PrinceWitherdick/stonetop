@@ -90,24 +90,10 @@
         {{#if is_story}}
         {{> "stonetop.cs-line-list" list="connections" label="Connections" rows=connectionRows chips=connectionChips placeholder="the Forest Folk must have known about this place…" addLabel="Add connection"}}
 
-        <div class="stonetop-cf-gear">
-          <div class="stonetop-cf-pick-label">Questions &amp; answers <span class="stonetop-cf-pick-hint">(leave an answer blank to come back to it)</span></div>
-          <div class="stonetop-cf-chips">
-            {{#each questionChips}}
-            <button type="button" class="stonetop-cf-chip stonetop-cs-suggest{{#if used}} is-selected{{/if}}" data-list="questions" data-text="{{text}}">{{text}}</button>
-            {{/each}}
-          </div>
-          {{#each questionRows}}
-          <div class="stonetop-cs-pair-row">
-            <div class="stonetop-cf-gear-row">
-              <input type="text" class="stonetop-cf-input stonetop-cs-pair" data-list="questions" data-index="{{index}}" data-key="prompt" value="{{prompt}}" placeholder="Why didn't the Fae gut the tomb during their uprising?">
-              <button type="button" class="stonetop-cs-remove stonetop-cf-mini-btn stonetop-cf-mini-btn--danger" data-list="questions" data-index="{{index}}"><i class="fas fa-times"></i></button>
-            </div>
-            <input type="text" class="stonetop-cf-input stonetop-cs-pair stonetop-cs-answer" data-list="questions" data-index="{{index}}" data-key="answer" value="{{answer}}" placeholder="The inner vault is guarded by powerful, loyal Fae…">
-          </div>
-          {{/each}}
-          <button type="button" class="stonetop-cs-add stonetop-cf-mini-btn" data-list="questions"><i class="fas fa-plus"></i> Add question</button>
-        </div>
+        {{!-- Label and placeholders are passed as PLAIN text, not pre-escaped markup: the partial
+              prints them through `{{ }}`, which escapes, so an "&amp;" handed in here would reach
+              the screen as a literal "&amp;". --}}
+        {{> "stonetop.cs-pair-list" list="questions" label="Questions & answers" hint="leave an answer blank to come back to it" rows=questionRows chips=questionChips keyA="prompt" keyB="answer" placeholderA="Why didn't the Fae gut the tomb during their uprising?" placeholderB="The inner vault is guarded by powerful, loyal Fae…" addLabel="Add question"}}
         {{/if}}
 
         {{#if is_timeline}}
@@ -125,19 +111,9 @@
         {{/if}}
 
         {{#if is_contents}}
-        <div class="stonetop-cf-gear">
-          <div class="stonetop-cf-pick-label">Denizens <span class="stonetop-cf-pick-hint">(people, beasts, spirits, constructs, undead)</span></div>
-          {{#each denizenRows}}
-          <div class="stonetop-cs-pair-row">
-            <div class="stonetop-cf-gear-row">
-              <input type="text" class="stonetop-cf-input stonetop-cs-pair" data-list="denizens" data-index="{{index}}" data-key="name" value="{{name}}" placeholder="&quot;Trusted&quot; crinwin">
-              <button type="button" class="stonetop-cs-remove stonetop-cf-mini-btn stonetop-cf-mini-btn--danger" data-list="denizens" data-index="{{index}}"><i class="fas fa-times"></i></button>
-            </div>
-            <input type="text" class="stonetop-cf-input stonetop-cs-pair stonetop-cs-answer" data-list="denizens" data-index="{{index}}" data-key="notes" value="{{notes}}" placeholder="Nest inside, lord over the others, jealous of the kids, mimic Sajra's voice">
-          </div>
-          {{/each}}
-          <button type="button" class="stonetop-cs-add stonetop-cf-mini-btn" data-list="denizens"><i class="fas fa-plus"></i> Add denizen</button>
-        </div>
+        {{!-- Single-quoted so the placeholder can carry its own double quotes, and plain text for
+              the reason the questions list above gives. --}}
+        {{> "stonetop.cs-pair-list" list="denizens" label="Denizens" hint="people, beasts, spirits, constructs, undead" rows=denizenRows keyA="name" keyB="notes" placeholderA='"Trusted" crinwin' placeholderB="Nest inside, lord over the others, jealous of the kids, mimic Sajra's voice" addLabel="Add denizen"}}
 
         {{> "stonetop.cs-line-list" list="dangers" label="Dangers" rows=dangerRows kinds=dangerKinds placeholder="unstable construction; magical wards on the vault (create!)…" addLabel="Add danger"}}
 

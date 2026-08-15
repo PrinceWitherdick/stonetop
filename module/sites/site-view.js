@@ -10,11 +10,16 @@ import { hasText, stringList, cardEnricher } from "../journal/card-vm.js";
 /** Card/pin accent for sites: weathered stone, distinct from the threat hues and hazard moss. */
 export const SITE_ACCENT = "#5a5f6b";
 
-/** Trimmed {label, value} pairs from a paired system list, dropping rows with no value. */
+/**
+ * Trimmed pairs from a paired system list, dropping rows where both halves are blank.
+ *
+ * Emits the caller's OWN key names rather than a positional `a`/`b`, so a row arrives ready to
+ * render — every call site used to map the pair straight back to the names it had just passed in.
+ */
 function pairList(arr, keyA, keyB) {
 	return (Array.isArray(arr) ? arr : [])
-		.map(row => ({ a: String(row?.[keyA] ?? "").trim(), b: String(row?.[keyB] ?? "").trim() }))
-		.filter(row => row.a || row.b);
+		.map(row => ({ [keyA]: String(row?.[keyA] ?? "").trim(), [keyB]: String(row?.[keyB] ?? "").trim() }))
+		.filter(row => row[keyA] || row[keyB]);
 }
 
 /**
@@ -32,10 +37,10 @@ export async function buildSiteCardVM(page, { forOwner } = {}) {
 		.map(s => String(s ?? "").trim())
 		.filter(Boolean);
 
-	const picks = pairList(sys.picks, "label", "value").map(p => ({ label: p.a, value: p.b }));
-	const questions = pairList(sys.questions, "prompt", "answer").map(q => ({ prompt: q.a, answer: q.b }));
-	const timeline = pairList(sys.timeline, "when", "text").map(t => ({ when: t.a, text: t.b }));
-	const denizens = pairList(sys.denizens, "name", "notes").map(d => ({ name: d.a, notes: d.b }));
+	const picks = pairList(sys.picks, "label", "value");
+	const questions = pairList(sys.questions, "prompt", "answer");
+	const timeline = pairList(sys.timeline, "when", "text");
+	const denizens = pairList(sys.denizens, "name", "notes");
 
 	const connections = stringList(sys.connections);
 	const dangers = stringList(sys.dangers);

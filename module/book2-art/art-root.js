@@ -11,19 +11,27 @@ import { SYSTEM_ID } from "../system-id.js";
 export const DEFAULT_ROOT = "stonetop-book-art";
 
 /**
+ * Read one of this module's settings, or null.
+ *
+ * Tolerant of a missing/unregistered setting, which both readers below need for the same two
+ * reasons: treasure-drops.js is unit-tested outside Foundry, and a world on an older system
+ * version hasn't registered these settings yet. Shared so the tolerance is one decision rather
+ * than two copies that could come to disagree about what "not there" means.
+ */
+function artSetting(key) {
+	try {
+		return globalThis.game?.settings?.get?.(SYSTEM_ID, key) ?? null;
+	} catch (_) { /* setting not registered in this world */ }
+	return null;
+}
+
+/**
  * The configured durable art folder, with trailing slashes normalized away so `${root}/${out}`
  * never yields a double slash — which wouldn't match the paths FilePicker.browse returns, and
  * would silently no-op the whole apply pass.
- *
- * Tolerant of a missing/unregistered setting: treasure-drops.js is unit-tested outside Foundry,
- * and a world on an older system version hasn't registered these settings yet.
  */
 export function book2ArtRoot() {
-	let configured = null;
-	try {
-		configured = globalThis.game?.settings?.get?.(SYSTEM_ID, "book2ArtRoot");
-	} catch (_) { /* setting not registered in this world */ }
-	return String(configured || DEFAULT_ROOT).replace(/\/+$/, "");
+	return String(artSetting("book2ArtRoot") || DEFAULT_ROOT).replace(/\/+$/, "");
 }
 
 /**
@@ -52,18 +60,11 @@ export function book2ArtSrcWith(root, out) {
  *
  * World-scoped, so a PLAYER opening the People gallery — who can never run a browse of their own
  * — gets it broadcast like any other setting.
- *
- * Tolerant of a missing/unregistered setting for the same reasons book2ArtRoot is: unit tests run
- * outside Foundry, and a world on an older system version has never registered it.
  */
 export function book2ArtPrefix() {
-	let configured = null;
-	try {
-		configured = globalThis.game?.settings?.get?.(SYSTEM_ID, "book2ArtPrefix");
-	} catch (_) { /* setting not registered in this world */ }
 	// A prefix has to end in a separator to be a prefix; a value stored without one would
 	// silently weld itself onto the root ("…/uidstonetop-book-art/…").
-	const s = String(configured || "");
+	const s = String(artSetting("book2ArtPrefix") || "");
 	return !s || s.endsWith("/") ? s : `${s}/`;
 }
 

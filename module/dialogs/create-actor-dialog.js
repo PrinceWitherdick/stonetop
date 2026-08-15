@@ -21,30 +21,40 @@ import { GM_TOOLKIT_TYPE, createGmToolkit, theGmToolkit } from "../actors/gmtool
 // Sentinel for the "no player yet" row of the character-owner step. Never a real user id.
 const UNASSIGNED = "__unassigned__";
 
+// What the chooser offers, and what each row DOES. The flow belongs on the row rather than in a
+// dispatch ladder beside it: a subtype added to one and missed in the other is a picker option
+// that silently returns null, or a flow nothing can reach, and neither fails loudly.
+//
+// `create` is called with the sidebar's folder and any caller-supplied name; the flows that want
+// neither ignore them.
 const ACTOR_OPTIONS = [
 	{
 		id: "character",
 		label: "Player Character",
 		icon: "fa-user",
 		hint: "A new PC. Pick whose it is, and character creation opens on their screen: playbook, stats, gear, bonds.",
+		create: (folder, name) => _createCharacter(folder, name, true),
 	},
 	{
 		id: "npc",
 		label: "Person",
 		icon: "fa-people-group",
 		hint: "A villager, a neighbor from elsewhere, or a stranger. Built from the steading worksheet: name, occupation, traits, notes.",
+		create: (folder) => _createPerson(folder),
 	},
 	{
 		id: "monster",
 		label: "Monster",
 		icon: "fa-dragon",
 		hint: "A stat block from the Dangers worksheet, a being or emanation corrupted by the Things Below, or a blank one you fill in yourself.",
+		create: (folder, name) => _createMonster(folder, name),
 	},
 	{
 		id: GM_TOOLKIT_TYPE,
 		label: "GM Toolkit",
 		icon: "fa-book-open",
 		hint: "Your own sheet: the GM playbook on screen. Opens on the GM moves, with Exploration and Homefront under them.",
+		create: (folder, name) => _createGmToolkit(folder, name),
 	},
 ];
 
@@ -187,11 +197,8 @@ export async function openCreateActor({ folder = null, name = "" } = {}) {
 	});
 	if (!choice) return null;
 
-	if (choice === "character") return _createCharacter(folder, name, isGM);
-	if (choice === "npc") return _createPerson(folder);
-	if (choice === "monster") return _createMonster(folder, name);
-	if (choice === GM_TOOLKIT_TYPE) return _createGmToolkit(folder, name);
-	return null;
+	// Straight off the row that was picked — the options table IS the dispatch.
+	return ACTOR_OPTIONS.find(o => o.id === choice)?.create?.(folder, name) ?? null;
 }
 
 /**

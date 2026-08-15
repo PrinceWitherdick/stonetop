@@ -1,0 +1,45 @@
+{{!-- One "labelled list of PAIRED rows" on the Create-a-Site wizard: a first field carrying the
+      delete button, and a second indented under it.
+
+      The sibling of cs-line-list.hbs and here for the same reason. Questions & answers and
+      Denizens collect exactly this shape and differed only in their wording and in whether
+      suggestion chips sit above the rows, yet the block was pasted twice. The JS side was already
+      fully generic — `_PAIR_LISTS` names each list's keys, `blankRow` and `_pairRows` read that
+      table, and one delegated `.stonetop-cs-add` handler keys on `data-list` — so only the markup
+      stood between the wizard and a third paired list.
+
+      NOT the timeline, which is genuinely a different shape (both fields on one row, no indent).
+
+      Row values are reached with `lookup` rather than named directly, which is what lets one
+      block serve lists whose keys differ; `_PAIR_LISTS` is where those key names are declared.
+
+      Context: the dialog's own, plus
+        list          the `data-list` key every handler here reads ("denizens")
+        label         the heading
+        hint          optional parenthetical beside the heading, WITHOUT its brackets
+        chips         optional click-to-fill suggestions ({text, used}), filling keyA
+        rows          this list's rows ({index, ...keys})
+        keyA / keyB   the two field names, in the order they render
+        placeholderA  the first field's placeholder
+        placeholderB  the second field's placeholder
+        addLabel      the add button's wording ("Add denizen") --}}
+<div class="stonetop-cf-gear">
+  <div class="stonetop-cf-pick-label">{{label}}{{#if hint}} <span class="stonetop-cf-pick-hint">({{hint}})</span>{{/if}}</div>
+  {{#if chips}}
+  <div class="stonetop-cf-chips">
+    {{#each chips}}
+    <button type="button" class="stonetop-cf-chip stonetop-cs-suggest{{#if used}} is-selected{{/if}}" data-list="{{../list}}" data-text="{{text}}">{{text}}</button>
+    {{/each}}
+  </div>
+  {{/if}}
+  {{#each rows}}
+  <div class="stonetop-cs-pair-row">
+    <div class="stonetop-cf-gear-row">
+      <input type="text" class="stonetop-cf-input stonetop-cs-pair" data-list="{{../list}}" data-index="{{index}}" data-key="{{../keyA}}" value="{{lookup this ../keyA}}" placeholder="{{../placeholderA}}">
+      <button type="button" class="stonetop-cs-remove stonetop-cf-mini-btn stonetop-cf-mini-btn--danger" data-list="{{../list}}" data-index="{{index}}"><i class="fas fa-times"></i></button>
+    </div>
+    <input type="text" class="stonetop-cf-input stonetop-cs-pair stonetop-cs-answer" data-list="{{../list}}" data-index="{{index}}" data-key="{{../keyB}}" value="{{lookup this ../keyB}}" placeholder="{{../placeholderB}}">
+  </div>
+  {{/each}}
+  <button type="button" class="stonetop-cs-add stonetop-cf-mini-btn" data-list="{{list}}"><i class="fas fa-plus"></i> {{addLabel}}</button>
+</div>

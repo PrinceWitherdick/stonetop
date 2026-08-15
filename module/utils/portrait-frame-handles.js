@@ -106,12 +106,13 @@ export function followerPortraitPickUpdate(base, src, { frame = null } = {}) {
  * wears. It would not misapply — the frame's own `src` stamp neutralises it against a different
  * picture — but the dead data would sit there with nothing left to ever clear it. Via
  * deletionEntry so v14 gets a ForcedDeletion rather than a deprecated `-=` key.
+ *
+ * Which is precisely a pick of nothing: the pick above already takes the delete branch whenever no
+ * frame comes with the picture, so this is that call rather than a second spelling of it — one key,
+ * one clearing convention, and now one piece of code holding it.
  */
 export function followerPortraitClearUpdate(base) {
-	return Object.fromEntries([
-		[`flags.${SYSTEM_ID}.${base}.img`, ""],
-		deletionEntry(`flags.${SYSTEM_ID}.${base}.portraitFrame`),
-	]);
+	return followerPortraitPickUpdate(base, "");
 }
 
 /**

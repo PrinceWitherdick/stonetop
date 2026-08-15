@@ -48,6 +48,49 @@ export const parentSlugOf = (slug) => String(slug ?? "").replace(CROP_SUFFIX_RX,
 export const isValidCrop = isValidRect;
 
 /**
+ * The one planner behind all three of the rebuilds below.
+ *
+ * Every one of them asks the same question — "which fractional rects could I cut out of files
+ * already on disk?" — and the answer is the same eight steps each time. Only three things vary,
+ * so they are the three parameters: where the row keeps its RECT, where it wants the cut WRITTEN,
+ * and which file it is cut FROM. Written out per kind, the guards and the plan shape were spelled
+ * three times, and the dedupe rule below had reached only the last of them.
+ *
+ * `parentOutOf` returning null means this row cannot name a source, which is how the crop rebuild
+ * says "that slug is not a crop slug" — the only place that test can actually bite is the slug
+ * arithmetic itself.
+ *
+ * @param {Set|object} present    art inventory: what is already on disk
+ * @param {string} root           the durable art folder
+ * @param {Array} rows            manifest rows (people or monsters)
+ * @param {object} accessors      {rectOf, outOf, parentOutOf}
+ */
+function plannedRectCuts(present, root, rows, { rectOf, outOf, parentOutOf }) {
+	const srcOf = (out) => book2ArtSrcWith(root, out);
+	const plan = [];
+	// A plan is a list of FILES to write, not of rows. Two subjects drawn in one picture who framed
+	// the same rect share one output file — gen-pack-macro's duplicate-art collapse points them
+	// both at it deliberately, since the extraction is identical. Planning it once per row would
+	// decode, encode and upload the same pixels twice, and would make the offer print a number
+	// higher than the files the button actually writes.
+	const planned = new Set();
+	for (const row of rows ?? []) {
+		const crop = rectOf(row);
+		const out  = outOf(row);
+		if (!crop || !out || !isValidRect(crop)) continue;
+		const dest = srcOf(out);
+		if (present.has(dest) || planned.has(dest)) continue;   // already have it, or already planned
+		const parentOut = parentOutOf(row);
+		if (!parentOut) continue;                      // this row cannot name a source
+		const parentKey = srcOf(parentOut);
+		if (!present.has(parentKey)) continue;         // nothing to cut it from
+		planned.add(dest);
+		plan.push({ slug: row.slug, name: row.name, out, crop, dest, parentKey, parentSrc: servedPath(present, parentKey) });
+	}
+	return plan;
+}
+
+/**
  * Which detail portraits could be rebuilt right now, given what is on disk.
  *
  * Pure and side-effect free so it can be unit-tested and so the prompt can count the work
@@ -55,21 +98,16 @@ export const isValidCrop = isValidRect;
  * the paths it would report).
  */
 export function plannedCropRebuilds(present, root, people = BOOK2_ART_APPLY_MANIFEST.people ?? []) {
-	const srcOf = (out) => book2ArtSrcWith(root, out);
-	const plan = [];
-	for (const p of people) {
-		if (!p?.crop || !p.out || !isCropSlug(p.slug)) continue;
-		if (!isValidCrop(p.crop)) continue;
-		const dest = srcOf(p.out);
-		if (present.has(dest)) continue;               // already have this detail
+	return plannedRectCuts(present, root, people, {
+		rectOf: (p) => p?.crop,
+		outOf:  (p) => p?.out,
 		// The parent keeps its own filename in the same folder, whether or not it is still a
 		// person row itself — a parent superseded by its crops stays on disk, just unreferenced.
-		const parentOut = `${p.out.slice(0, p.out.lastIndexOf("/") + 1)}${parentSlugOf(p.slug)}.webp`;
-		const parentKey = srcOf(parentOut);
-		if (!present.has(parentKey)) continue;         // nothing to cut it from
-		plan.push({ slug: p.slug, name: p.name, out: p.out, crop: p.crop, dest, parentKey, parentSrc: servedPath(present, parentKey) });
-	}
-	return plan;
+		// Only a crop slug has a parent to recover, which is what gates the arithmetic.
+		parentOutOf: (p) => (isCropSlug(p?.slug)
+			? `${p.out.slice(0, p.out.lastIndexOf("/") + 1)}${parentSlugOf(p.slug)}.webp`
+			: null),
+	});
 }
 
 /**
@@ -85,18 +123,11 @@ export function plannedCropRebuilds(present, root, people = BOOK2_ART_APPLY_MANI
  * cost is resolution only, and a square is the smallest thing this pipeline produces.
  */
 export function plannedPortraitRebuilds(present, root, people = BOOK2_ART_APPLY_MANIFEST.people ?? []) {
-	const srcOf = (out) => book2ArtSrcWith(root, out);
-	const plan = [];
-	for (const p of people) {
-		if (!p?.portrait || !p.portraitOut || !p.out) continue;
-		if (!isValidRect(p.portrait)) continue;
-		const dest = srcOf(p.portraitOut);
-		if (present.has(dest)) continue;               // already have this square
-		const parentKey = srcOf(p.out);
-		if (!present.has(parentKey)) continue;         // nothing to cut it from
-		plan.push({ slug: p.slug, name: p.name, out: p.portraitOut, crop: p.portrait, dest, parentKey, parentSrc: servedPath(present, parentKey) });
-	}
-	return plan;
+	return plannedRectCuts(present, root, people, {
+		rectOf:      (p) => p?.portrait,
+		outOf:       (p) => p?.portraitOut,
+		parentOutOf: (p) => p?.out,
+	});
 }
 
 /**
@@ -112,25 +143,11 @@ export function plannedPortraitRebuilds(present, root, people = BOOK2_ART_APPLY_
  * gates on the file being present — so nothing is ever broken while this is pending.
  */
 export function plannedMonsterTokenRebuilds(present, root, monsters = BOOK2_ART_APPLY_MANIFEST.monsters ?? []) {
-	const srcOf = (out) => book2ArtSrcWith(root, out);
-	const plan = [];
-	// A plan is a list of FILES to write, not of rows. Two creatures drawn in one picture who
-	// framed the same square share one token file — gen-pack-macro's duplicate-art collapse points
-	// them both at it deliberately, since the extraction is identical. Planning it once per row
-	// would decode, encode and upload the same pixels twice, and would make the offer print a
-	// number one higher than the files the button actually writes.
-	const planned = new Set();
-	for (const m of monsters) {
-		if (!m?.token || !m.tokenOut || !m.out) continue;
-		if (!isValidRect(m.token)) continue;
-		const dest = srcOf(m.tokenOut);
-		if (present.has(dest) || planned.has(dest)) continue;   // already have it, or already planned
-		const parentKey = srcOf(m.out);
-		if (!present.has(parentKey)) continue;         // nothing to cut it from
-		planned.add(dest);
-		plan.push({ slug: m.slug, name: m.name, out: m.tokenOut, crop: m.token, dest, parentKey, parentSrc: servedPath(present, parentKey) });
-	}
-	return plan;
+	return plannedRectCuts(present, root, monsters, {
+		rectOf:      (m) => m?.token,
+		outOf:       (m) => m?.tokenOut,
+		parentOutOf: (m) => m?.out,
+	});
 }
 
 /**

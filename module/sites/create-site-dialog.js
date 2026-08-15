@@ -99,17 +99,19 @@ const _TEXT_FIELDS = new Set(["name", "why", "description"]);
 // The plain string-list fields, keyed by the data-list value their rows carry.
 const _LINE_LISTS = ["connections", "dangers", "discoveries", "outside", "inside", "plans"];
 
-// The paired-row lists: which two keys each row holds, in the order they render.
+// The keyed-row lists: which keys each row holds, in the order they render. Areas belong here
+// with the rest — they are simply the one list with four keys instead of two, and everything
+// that reads this table (blank rows, seeding, row view-models, live capture) treats them alike.
 const _PAIR_LISTS = {
 	questions: ["prompt", "answer"],
 	timeline:  ["when", "text"],
 	denizens:  ["name", "notes"],
+	areas:     ["title", "description", "contents", "exits"],
 };
 
 /** A blank row for a list, so add-a-row and seeding agree on the shape. */
 function blankRow(list) {
 	if (_PAIR_LISTS[list]) return Object.fromEntries(_PAIR_LISTS[list].map(k => [k, ""]));
-	if (list === "areas") return { title: "", description: "", contents: "", exits: "" };
 	return "";
 }
 
@@ -163,6 +165,9 @@ export class CreateSiteDialog extends StepperDialog {
 		}
 		const pairs = (arr, keys) => (Array.isArray(arr) ? arr : [])
 			.map(row => Object.fromEntries(keys.map(k => [k, String(row?.[k] ?? "")])));
+		// Both families are seeded FROM their tables rather than re-listed here. A list added to
+		// _LINE_LISTS or _PAIR_LISTS but forgotten in this method was collected on the wizard,
+		// saved to the page, and then silently dropped the next time the site was opened to edit.
 		return {
 			name: page.name ?? "",
 			why: String(sys.why ?? ""),
@@ -171,16 +176,8 @@ export class CreateSiteDialog extends StepperDialog {
 			picks,
 			regionId: String(sys.regionId ?? ""),
 			terrain: String(sys.terrain ?? ""),
-			connections: [...(sys.connections ?? [])].map(String),
-			questions: pairs(sys.questions, _PAIR_LISTS.questions),
-			timeline: pairs(sys.timeline, _PAIR_LISTS.timeline),
-			denizens: pairs(sys.denizens, _PAIR_LISTS.denizens),
-			dangers: [...(sys.dangers ?? [])].map(String),
-			discoveries: [...(sys.discoveries ?? [])].map(String),
-			outside: [...(sys.outside ?? [])].map(String),
-			inside: [...(sys.inside ?? [])].map(String),
-			areas: pairs(sys.areas, ["title", "description", "contents", "exits"]),
-			plans: [...(sys.plans ?? [])].map(String),
+			...Object.fromEntries(_LINE_LISTS.map(list => [list, [...(sys[list] ?? [])].map(String)])),
+			...Object.fromEntries(Object.entries(_PAIR_LISTS).map(([list, keys]) => [list, pairs(sys[list], keys)])),
 			randomTables: (sys.randomTables ?? []).map(t => ({
 				caption: String(t?.caption ?? ""),
 				rows: [...(t?.rows ?? [])].map(String),
@@ -253,7 +250,7 @@ export class CreateSiteDialog extends StepperDialog {
 			ctx.insideRows = this._lineRows("inside");
 		}
 		if (step.key === "areas") {
-			ctx.areaRows = sel.areas.map((a, index) => ({ index, ...a }));
+			ctx.areaRows = this._pairRows("areas");
 			ctx.areaPrompts = AREA_DETAIL_PROMPTS;
 			ctx.layoutTips = SITE_LAYOUT_TIPS;
 		}
