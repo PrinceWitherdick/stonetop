@@ -6,12 +6,14 @@ import { createStonetopCharacterSheetClass } from "./module/actors/character/Sto
 import { createStonetopSteadingSheetClass } from "./module/actors/steading/StonetopSteadingSheet.js";
 import { createStonetopMonsterSheetClass } from "./module/actors/monster/StonetopMonsterSheet.js";
 import { createStonetopNpcSheetClass } from "./module/actors/npc/StonetopNpcSheet.js";
+import { createStonetopGmToolkitSheetClass } from "./module/actors/gmtoolkit/StonetopGmToolkitSheet.js";
 import { BestiaryPageModel } from "./module/journal/BestiaryPageModel.js";
 import { LocationPageModel } from "./module/journal/LocationPageModel.js";
 import { CharacterModel } from "./module/data-models/CharacterModel.js";
 import { SteadingModel } from "./module/data-models/SteadingModel.js";
 import { MonsterModel } from "./module/data-models/MonsterModel.js";
 import { NpcModel } from "./module/data-models/NpcModel.js";
+import { GmToolkitModel } from "./module/data-models/GmToolkitModel.js";
 import { MoveModel } from "./module/data-models/MoveModel.js";
 import { PlaybookModel } from "./module/data-models/PlaybookModel.js";
 import { NpcMoveModel } from "./module/data-models/NpcMoveModel.js";
@@ -231,6 +233,7 @@ Hooks.once("init", () => {
 	CONFIG.Actor.dataModels.stonetop  = SteadingModel;
 	CONFIG.Actor.dataModels.monster   = MonsterModel;
 	CONFIG.Actor.dataModels.npc       = NpcModel;
+	CONFIG.Actor.dataModels.gmToolkit = GmToolkitModel;
 	CONFIG.Item.dataModels.move        = MoveModel;
 	CONFIG.Item.dataModels.playbook    = PlaybookModel;
 	CONFIG.Item.dataModels.npcMove     = NpcMoveModel;
@@ -272,6 +275,16 @@ Hooks.once("init", () => {
 		types:       ["npc"],
 		makeDefault: true,
 		label:       "Stonetop NPC Sheet",
+	});
+
+	// The GM's own sheet: the screen-side companion to the GM playbook. Modern layout only
+	// (no classic variant), so it takes no `layoutClasses` and registers no per-sheet layout
+	// setting. See module/actors/gmtoolkit/StonetopGmToolkitSheet.js.
+	const StonetopGmToolkitSheet = createStonetopGmToolkitSheetClass(ActorSheet);
+	Actors.registerSheet(SYSTEM_ID, StonetopGmToolkitSheet, {
+		types:       ["gmToolkit"],
+		makeDefault: true,
+		label:       "Stonetop GM Toolkit",
 	});
 
 	// Bestiary entry as a custom JournalEntryPage subtype.
@@ -414,6 +427,13 @@ Hooks.once("init", () => {
 		"stonetop.steading-tab-improvements": "systems/stonetop-pwd/templates/actor/partials/steading-tab-improvements.hbs",
 		"stonetop.steading-tab-moves":        "systems/stonetop-pwd/templates/actor/partials/steading-tab-moves.hbs",
 		"stonetop.steading-tab-notes":        "systems/stonetop-pwd/templates/actor/partials/steading-tab-notes.hbs",
+		"stonetop.gm-toolkit-tab-moves":      "systems/stonetop-pwd/templates/actor/partials/gm-toolkit-tab-moves.hbs",
+		"stonetop.gm-toolkit-tab-loop":       "systems/stonetop-pwd/templates/actor/partials/gm-toolkit-tab-loop.hbs",
+		"stonetop.gm-toolkit-tab-threats":    "systems/stonetop-pwd/templates/actor/partials/gm-toolkit-tab-threats.hbs",
+		"stonetop.gm-toolkit-tab-sites":      "systems/stonetop-pwd/templates/actor/partials/gm-toolkit-tab-sites.hbs",
+		"stonetop.gm-prep-card-tools":        "systems/stonetop-pwd/templates/actor/partials/gm-prep-card-tools.hbs",
+		"stonetop.gm-prep-add-bar":           "systems/stonetop-pwd/templates/actor/partials/gm-prep-add-bar.hbs",
+		"stonetop.gm-prep-no-steading":       "systems/stonetop-pwd/templates/actor/partials/gm-prep-no-steading.hbs",
 		"stonetop.monster-sheet":             "systems/stonetop-pwd/templates/actor/monster.hbs",
 		"stonetop.npc-sheet":                 "systems/stonetop-pwd/templates/actor/npc.hbs",
 		"stonetop.bestiary-line-list":        "systems/stonetop-pwd/templates/actor/partials/bestiary-line-list.hbs",
@@ -423,10 +443,8 @@ Hooks.once("init", () => {
 		"stonetop.threat-card":               "systems/stonetop-pwd/templates/journal/partials/threat-card.hbs",
 		"stonetop.hazard-page":               "systems/stonetop-pwd/templates/journal/hazard-page.hbs",
 		"stonetop.hazard-card":               "systems/stonetop-pwd/templates/journal/partials/hazard-card.hbs",
-		"stonetop.steading-tab-threats":      "systems/stonetop-pwd/templates/actor/partials/steading-tab-threats.hbs",
 		"stonetop.site-page":                 "systems/stonetop-pwd/templates/journal/site-page.hbs",
 		"stonetop.site-card":                 "systems/stonetop-pwd/templates/journal/partials/site-card.hbs",
-		"stonetop.steading-tab-sites":        "systems/stonetop-pwd/templates/actor/partials/steading-tab-sites.hbs",
 		"stonetop.bestiary-section-head":     "systems/stonetop-pwd/templates/journal/partials/bestiary-section-head.hbs",
 		"stonetop.bestiary-group-section":    "systems/stonetop-pwd/templates/journal/partials/bestiary-group-section.hbs",
 		"stonetop.introductions-dialog":      "systems/stonetop-pwd/templates/dialogs/introductions.hbs",

@@ -1,0 +1,52 @@
+{{!-- CORE LOOP — the GM playbook's last spread: the core-loop flowchart and, facing it, the
+      flow of play across a whole campaign. Reference only; nothing here rolls or is stored.
+
+      Unlike the Moves tab, this page is not transcribed. The two flowcharts are the publisher's
+      artwork, so the system ships neither of them: a GM extracts them from their own copy of the
+      free GM playbook PDF with the "Import Book Art" macro, and module/gm-toolkit/gm-diagrams.js
+      reads the world index of what that produced. Until then each figure draws a placeholder
+      saying so, rather than the tab being hidden — a GM who cannot see the tab has no way to
+      learn the diagrams exist.
+
+      `data-tab="loop"` earns the rail's flowchart glyph; the icon table in stonetop.css is one
+      flat list keyed by data-tab with no per-sheet scope.
+
+      Each figure is its own <figure>, not a bare <img>, so the caption travels with the picture
+      when the two columns collapse to one on a narrow window. --}}
+<div class="tab loop" data-group="primary" data-tab="loop">
+	<section class="sheet-tab">
+
+		<div class="stonetop-gm-diagrams">
+			{{#each stonetop.diagrams}}
+			<figure class="stonetop-gm-diagram">
+				<figcaption class="stonetop-gm-diagram-caption">
+					<strong class="stonetop-gm-diagram-title">{{caption}}</strong>
+					<span class="stonetop-gm-diagram-note">{{note}}</span>
+				</figcaption>
+				{{#if src}}
+				{{!-- Click to open at full size. The flowcharts are ~2000px tall and the tab shows
+				      them at a few hundred, which is legible for finding your place but not for
+				      reading a box. --}}
+				<a class="stonetop-gm-diagram-zoom" href="{{src}}" target="_blank" rel="noopener"
+				   data-tooltip="{{localize "stonetop.gmToolkit.loop.zoom"}}">
+					<img class="stonetop-gm-diagram-img" src="{{src}}" alt="{{caption}}">
+				</a>
+				{{else}}
+				<div class="stonetop-gm-diagram-missing">
+					<p>{{localize "stonetop.gmToolkit.loop.missing"}}</p>
+					{{!-- `@root`, because inside {{#each}} the context is the diagram: a bare
+					      `stonetop.isGM` resolves against that, finds nothing, and silently
+					      renders no button at all. --}}
+					{{#if @root.stonetop.isGM}}
+					<button type="button" class="stonetop-gm-diagram-import">
+						<i class="fas fa-images"></i> {{localize "stonetop.gmToolkit.loop.import"}}
+					</button>
+					{{/if}}
+				</div>
+				{{/if}}
+			</figure>
+			{{/each}}
+		</div>
+
+	</section>
+</div>

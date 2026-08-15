@@ -4,7 +4,8 @@
       "character": "Character",
       "stonetop": "Stonetop",
       "monster": "Monster",
-      "npc": "NPC"
+      "npc": "NPC",
+      "gmToolkit": "GM Toolkit"
     },
     "Item": {
       "move": "Move",
@@ -29,8 +30,6 @@
         "overview": "Overview",
         "neighbors": "Residents",
         "improvements": "Improvements",
-        "threats": "Threats & Dangers",
-        "sites": "Sites",
         "moves": "Homefront Moves",
         "notes": "Notes"
       }
@@ -47,6 +46,59 @@
         "specialMoves": "Special Moves",
         "notes": "Notes",
         "railLabel": "Sheet sections"
+      }
+    },
+    "gmToolkit": {
+      "subtitle": "The Game Master's playbook, on screen",
+      "tabs": {
+        "moves": "GM Moves",
+        "loop": "Core Loop",
+        "threats": "Threats & Dangers",
+        "sites": "Sites"
+      },
+      "moves": {
+        "basic": "GM Moves",
+        "basicNote": "Any time you owe the table a move",
+        "exploration": "Exploration",
+        "explorationNote": "On an expedition, or inside a site",
+        "homefront": "Homefront",
+        "homefrontNote": "At home in Stonetop, or in another steading",
+        "randomize": "Draw one at random (whispered to the GM)",
+        "randomTitle": "Make a GM move"
+      },
+      "loop": {
+        "coreLoop": "The core loop",
+        "coreLoopNote": "One exchange at the table, start to finish",
+        "flowOfPlay": "The flow of play",
+        "flowOfPlayNote": "How a campaign moves between adventure and home",
+        "zoom": "Open at full size",
+        "missing": "This diagram is artwork from the GM playbook, so it isn't shipped with the system. Run Import Book Art and give it your copy of the free GM playbook PDF.",
+        "import": "Import Book Art"
+      },
+      "threats": {
+        "intro": "Ongoing problems that will trouble Stonetop if left unchecked (Book I, Threats). Written up here for your eyes only. Drag a card onto a scene to pin it to the map.",
+        "proximityHeading": "{proximity} Threats",
+        "addThreat": "Write up a {proximity} threat",
+        "hazards": "Hazards",
+        "hazardsIntro": "Environmental dangers: traps, treacherous terrain, weather (Book I, Dangers). They can't be fought, only avoided, endured, thwarted, or overcome.",
+        "addHazard": "Make a hazard",
+        "optional": "optional",
+        "guide": {
+          "writeup": "Writing a threat",
+          "writeupNote": "Book I, p.282",
+          "when": "When to write one up",
+          "whenNote": "Book I, pp.280-281",
+          "whenCaution": "Not every NPC, monster or situation is a threat. If it won't get worse when left alone, it is just a danger to be faced. Don't write one up unless you know it is going to be a big deal.",
+          "portents": "Portents, dooms and stakes",
+          "portentsNote": "Book I, pp.290-293",
+          "grimPortents": "Grim portents",
+          "impendingDoom": "Impending doom",
+          "stakes": "Stakes",
+          "review": "Between sessions",
+          "reviewNote": "Book I, p.298",
+          "types": "The eight threat types",
+          "typesNote": "Book I, pp.284-287"
+        }
       }
     },
     "specialMoves": {

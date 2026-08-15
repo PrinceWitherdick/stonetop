@@ -3,6 +3,7 @@ import {stonetopChatCard} from "../utils/chat.js";
 import {STONETOP_SCOPE, resolvedFlagProperty} from "../actors/character/StonetopFlags.js";
 import {isPrimaryGM as _isPrimaryGM} from "../utils/primary-gm.js";
 import {STEADING_ACTOR_TYPE, STEADING_DEFAULT_IMG} from "../actors/steading/steading-portrait.js";
+import {isGmToolkitData, gmToolkitActors} from "../actors/gmtoolkit/gm-toolkit-actor.js";
 
 const _OMEN_REMINDER_FLAG = "lastOmenReminder";
 
@@ -53,6 +54,23 @@ export function registerStonetopSingletonHooks() {
 			return false;
 		}
 
+		// The GM Toolkit is a singleton for the same reason and by the same mechanism, but on
+		// different grounds: the steading is one because the world has one Stonetop, and the
+		// toolkit is one because a second would show identical content. Its schema is empty, its
+		// Moves and Core Loop tabs are reference transcribed from the playbook, and its Threats
+		// and Sites tabs read their storage off the steading — so a second is a second window,
+		// not a second sheet. Which toolkit a given GM's "C" key opens is per-user and lives on
+		// their User document; that is the thing that actually varies between gamemasters.
+		//
+		// Vetoed HERE rather than in the Create-Actor picker because this is the only place that
+		// catches every path: a macro, a duplicate, a compendium import or a drag-drop all pass
+		// through preCreateActor and none of them go near our picker.
+		if (isGmToolkitData(data ?? actor)) {
+			if (!gmToolkitActors().length) return;
+			ui.notifications?.warn("This world already has a GM Toolkit.");
+			return false;
+		}
+
 		// Players can only ever create their own character. Even if a `monster` type slips
 		// past the Create-Actor picker (e.g. a macro), a non-GM must never create a monster
 		// stat block (that is GM content), so veto it outright.
@@ -71,11 +89,23 @@ export function registerStonetopSingletonHooks() {
 	});
 
 	Hooks.on("preDeleteActor", actor => {
-		if (!_isStonetopActorData(actor)) return;
-		if (_getStonetopActors().length > 1) return;
+		if (_isStonetopActorData(actor)) {
+			if (_getStonetopActors().length > 1) return;
+			ui.notifications?.warn("The Stonetop sheet is required and cannot be deleted.");
+			return false;
+		}
 
-		ui.notifications?.warn("The Stonetop sheet is required and cannot be deleted.");
-		return false;
+		// Deleting the last toolkit is refused rather than allowed-and-remembered, and that is
+		// what keeps the mint gate simple: with deletion impossible, "no toolkit in this world"
+		// can only mean "never made one", so the ready hook is a plain find-or-mint with no
+		// don't-resurrect-what-somebody-threw-away latch to keep per user. A GM who does not
+		// want it on screen can leave it closed; it is not in any player's sidebar (its
+		// `ownership.default` is NONE).
+		if (isGmToolkitData(actor)) {
+			if (gmToolkitActors().length > 1) return;
+			ui.notifications?.warn("The GM Toolkit is the GM's own sheet and cannot be deleted.");
+			return false;
+		}
 	});
 
 	// Display-only steading portrait fallback for the Actors sidebar. We no longer ship

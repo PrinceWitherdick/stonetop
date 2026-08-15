@@ -108,11 +108,7 @@
 		      Dropping a journal card is the other way in
 		      (see StonetopSteadingSheet._onDropSteadingImprovement). --}}
 		{{#if stonetop.canEdit}}
-		<div class="steading-improvement-add-bar">
-			<button type="button" class="steading-improvement-add-btn">
-				<i class="fas fa-plus"></i> Create improvement
-			</button>
-		</div>
+		{{> "stonetop.gm-prep-add-bar" kind="steading-improvement" label="Create improvement"}}
 		{{/if}}
 
 	</section>

@@ -100,7 +100,8 @@
                                         "character":  {},
                                         "stonetop":  {},
                                         "monster":  {},
-                                        "npc":  {}
+                                        "npc":  {},
+                                        "gmToolkit":  {}
                                     },
                           "Item":  {
                                        "move":  {},

@@ -28,26 +28,15 @@ import {makeColumnsSortable} from "../../utils/sortable-columns.js";
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {STEADING_IMPROVEMENT_DRAG_TYPE} from "../../journal/steading-improvement-cards.js";
 import {improvementCategoryFieldHtml} from "../../dialogs/create-improvement-dialog.js";
-import {STONETOP_THREAT_SEED_DRAG_TYPE} from "../../threats/threat-seed-cards.js";
 import {PLACE_OF_INTEREST_DRAG_TYPE} from "../../hooks/PlaceOfInterestDrop.js";
 import {getDragEventData, imagePopout, imagePopoutTitle} from "../../utils/foundry-compat.js";
+import {wireCardDropZone} from "../../utils/card-drop-zone.js";
 import {postSeasonsChangeReminder, seasonIconSrc, seasonLabel} from "../../seasons/seasons-change-reminders.js";
 import {recordSeasonsChange} from "../../seasons/seasons-chronicle.js";
 import {readCurrentSeason, recordCurrentSeason, currentSeasonView, readCurrentYear} from "../../seasons/current-season.js";
 import {openSeasonPicker} from "../../seasons/season-picker.js";
 import {SEASONAL_GAINS} from "../../dialogs/spring-burst-data.js";
 import {addStonetopSteadingButton} from "../../utils/world.js";
-import {listThreatPages, createThreat, deleteThreat} from "../../threats/threat-store.js";
-import {buildThreatCardVM, wireThreatDoomChange, wireThreatCardDrag} from "../../threats/threat-view.js";
-import {THREAT_PROXIMITIES} from "../../threats/threat-types.js";
-import {CreateThreatDialog} from "../../threats/create-threat-dialog.js";
-import {ThreatEditorDialog} from "../../threats/threat-editor-dialog.js";
-import {listHazardPages, createHazard, deleteHazard} from "../../hazards/hazard-store.js";
-import {buildHazardCardVM} from "../../hazards/hazard-view.js";
-import {CreateHazardDialog} from "../../hazards/create-hazard-dialog.js";
-import {listSitePages, createSite, deleteSite} from "../../sites/site-store.js";
-import {buildSiteCardVM} from "../../sites/site-view.js";
-import {wireGmPrepCardExtras} from "../../journal/gm-prep-page.js";
 import {SETTLEMENTS} from "../../data/settlements.js";
 import {relationshipRow, wireRelationshipTable} from "../../utils/relationship-hearts.js";
 import {wireAvatarPreview, removeAvatarPreview} from "../../utils/avatar-preview.js";
@@ -77,34 +66,6 @@ const memberPhotoDisplaySrc = displayPortraitSrc;
 
 function _normalizeSheetRollMode(rollMode) {
 	return ["adv", "dis"].includes(rollMode) ? rollMode : "normal";
-}
-
-/** The GM-prep card kinds the steading's two prep tabs draw, in the order they are looked for. */
-const PREP_KINDS = ["threat", "hazard", "site"];
-
-/**
- * Which prep kind a rendered card is, read off the `data-<kind>-id` every card template stamps.
- *
- * The modifier class cannot answer this: a threat card's is `threat-card--{{type.id}}`, which
- * carries the threat's TYPE rather than the word "threat". The data attribute is the one thing all
- * three spell the same way, and reading it means a fourth kind needs no new branch here.
- */
-function cardKind(card) {
-	return PREP_KINDS.find(kind => `${kind}Id` in card.dataset) ?? "threat";
-}
-
-/**
- * Open the Create-a-Site walkthrough, resolving to its seed (or null if cancelled).
- *
- * The wizard is imported at CLICK time rather than at load. It drags in the whole Create-a-Site
- * book data (data/site-tables.js, the largest data module in the system), and only a GM who opens
- * the walkthrough ever needs it — every other client, including every player, was paying to fetch
- * and parse it on every world load. StonetopSitePageSheet and create-stonetop-content-dialog defer
- * it the same way.
- */
-async function openSiteWizard(options) {
-	const {CreateSiteDialog} = await import("../../sites/create-site-dialog.js");
-	return new CreateSiteDialog(options).promise();
 }
 
 const _STEADING_MOVES_RAW = [
@@ -464,7 +425,9 @@ const STEADING_EDIT_SECTIONS = [
 	"surplus", "fortunes", "population", "defenses", "prosperity",
 	"size", "fortifications", "currency",
 	"resources", "assets", "places",
-	"players", "residents", "neighbors", "settlements", "improvements", "threats", "sites",
+	// "threats" and "sites" left with their tabs, which moved to the GM Toolkit sheet
+	// (module/actors/gmtoolkit/gm-prep-tabs.js declares its own list).
+	"players", "residents", "neighbors", "settlements", "improvements",
 ];
 
 export function createStonetopSteadingSheetClass(Base) {
@@ -492,42 +455,6 @@ export function createStonetopSteadingSheetClass(Base) {
 		// viewer's lens on the list, not a property of the steading, and a player with
 		// read-only access to the actor could not write a flag anyway.
 		_improvementCategory = "";
-		/**
-		 * Which prep cards the user has toggled away from their kind's default, by kind.
-		 *
-		 * ONE shape for every kind, because the two polarities are the same fact told twice: a set
-		 * of OVERRIDES plus the default that set is measured against. Threats default expanded (a
-		 * threat is a few lines), sites default collapsed (a written-up site runs to a page of
-		 * prose, so the tab opens as a list of titles) — and holding that as "collapsedThreats"
-		 * beside "expandedSites" meant every reader had to remember which way round each one went,
-		 * and every new kind added a third convention.
-		 *
-		 * Kept on the instance like _openImprovements so the state survives the re-render a reveal /
-		 * create / delete triggers; it resets when the sheet is closed.
-		 */
-		_cardCollapse = {
-			threat: { defaultCollapsed: false, overrides: new Set() },
-			hazard: { defaultCollapsed: false, overrides: new Set() },
-			site:   { defaultCollapsed: true,  overrides: new Set() },
-		};
-
-		/**
-		 * Card view-models built on an earlier render, by kind then page uuid, each stamped with its
-		 * page's last-modified time.
-		 *
-		 * Building one is a walk of async enrichHTML round-trips — a site with six areas is thirteen
-		 * of them, and a GM with ten such sites paid a hundred and thirty per render. This sheet
-		 * re-renders for reasons that have nothing to do with any of them: ticking one threat's doom
-		 * track rebuilt every threat, every hazard and every site on the tab, and the sites are the
-		 * expensive kind AND the kind that opens collapsed, so most of that work was for markup
-		 * nobody was looking at.
-		 *
-		 * Fingerprinted rather than lazily built, because expanding a card is a class flip with no
-		 * re-render behind it (see the head-click handler): the body has to be in the DOM already.
-		 * Same stamp the canvas board uses for the same job — see threat-board.js `_cardSig`.
-		 */
-		_cardVMs = { threat: new Map(), hazard: new Map(), site: new Map() };
-
 		constructor(...args) {
 			super(...args);
 			this._stonetopSteading = this.actor.typedActor;
@@ -709,17 +636,6 @@ export function createStonetopSteadingSheetClass(Base) {
 				imp.isOpen = this._openImprovements.has(imp.slug);
 				imp.filtered = this._isImprovementFiltered(imp.category);
 			}
-			const threatsCtx = await this._buildThreatsContext();
-			context.stonetop.threatGroups = threatsCtx.threatGroups;
-			context.stonetop.hazards = threatsCtx.hazards;
-			context.stonetop.showHazards = threatsCtx.showHazards;
-			context.stonetop.canSeeThreats = threatsCtx.canSeeThreats;
-			// Sites get their own tab rather than a third section on Threats & Dangers: a
-			// written-up site is a page-long card, and stacking those under the threat and
-			// hazard sections would bury both.
-			const sitesCtx = await this._buildSitesContext();
-			context.stonetop.sites = sitesCtx.sites;
-			context.stonetop.canSeeSites = sitesCtx.canSeeSites;
 			context.stonetop.isGM = game.user?.isGM ?? false;
 			// The clock beside the sheet's title: the season the table is playing in and the
 			// year it belongs to, stamped by the Seasons Change move. The un-stamped case falls
@@ -727,262 +643,6 @@ export function createStonetopSteadingSheetClass(Base) {
 			// turned a season since this shipped (see module/seasons/current-season.js).
 			context.stonetop.currentSeason = currentSeasonView(readCurrentSeason(this.actor), this._seasonsCurrentYear());
 			return context;
-		}
-
-		/** Resolve the steading's threat + hazard cards. Threats and hazards are pure GM prep
-		 *  (never shared with players), so the whole "Threats & Dangers" tab is GM-only: a
-		 *  non-GM gets nothing, which hides the tab (it's gated on `canSeeThreats`). */
-		async _buildThreatsContext() {
-			const isGM = game.user?.isGM ?? false;
-			if (!isGM) return { threatGroups: [], hazards: [], showHazards: false, canSeeThreats: false };
-			const pages = listThreatPages(this.actor);
-			// Hazards render as one flat section after the proximity groups (they have no
-			// proximity; they belong to places and expeditions, Book I "Dangers").
-			const hazardPages = listHazardPages(this.actor);
-			// Enrich every card VM concurrently (each page is independent, and the threat
-			// and hazard batches don't depend on each other) rather than serializing the
-			// enrichHTML calls, then decorate with host collapse chrome. A card whose page
-			// hasn't moved since the last render is reused rather than re-enriched.
-			const [vms, hazardVMs] = await Promise.all([
-				this._cardVMsFor("threat", pages, buildThreatCardVM),
-				this._cardVMsFor("hazard", hazardPages, buildHazardCardVM),
-			]);
-			// On this tab each card can clamp to its title + Instinct. Both kinds default expanded
-			// (a threat is a few lines), so the state is whatever the user has toggled since.
-			const decorate = (vm, page, kind) => {
-				vm.canDrag = vm.isOwner;
-				vm.collapsible = true;
-				vm.collapsed = this._isCardCollapsed(kind, page.uuid);
-				return vm;
-			};
-			const threats = vms.map((vm, i) => decorate(vm, pages[i], "threat"));
-			// Group by proximity (Homefront / Nearby / Distant, Book I p. 288) in book order,
-			// mirroring the Residents tab's stacked Player/Residents/Neighbors sections. The GM
-			// always sees all three headers (prep view), each with its own "write up" button.
-			const threatGroups = THREAT_PROXIMITIES.map(p => ({
-				id: p.id,
-				label: p.label,
-				lowerLabel: p.label.toLowerCase(),
-				hint: p.hint,
-				threats: threats.filter(t => t.proximity.id === p.id),
-			}));
-			const hazards = hazardVMs.map((vm, i) => decorate(vm, hazardPages[i], "hazard"));
-			return { threatGroups, hazards, showHazards: true, canSeeThreats: true };
-		}
-
-		/**
-		 * Is this card drawn collapsed? Its kind's default, unless the user has said otherwise.
-		 *
-		 * The two readers and the one writer below are the whole of the polarity question: every
-		 * caller says what it MEANS ("is this collapsed", "collapse this") and never has to know
-		 * which way its kind's set is stored.
-		 */
-		_isCardCollapsed(kind, uuid) {
-			const state = this._cardCollapse[kind];
-			if (!state) return false;
-			return state.overrides.has(uuid) ? !state.defaultCollapsed : state.defaultCollapsed;
-		}
-
-		/** Record that this card is now collapsed (or not), as an override of its kind's default. */
-		_setCardCollapsed(kind, uuid, collapsed) {
-			const state = this._cardCollapse[kind];
-			if (!state) return;
-			if (collapsed === state.defaultCollapsed) state.overrides.delete(uuid);
-			else state.overrides.add(uuid);
-		}
-
-		/**
-		 * One kind's card view-models, built concurrently and reused while their pages sit still.
-		 *
-		 * What is cached is the expensive half — the enriched prose. The per-render chrome (drag,
-		 * collapse) is applied by the caller afterwards, on the same object, so a card's collapse
-		 * state still follows the viewer rather than whenever the VM was built.
-		 *
-		 * @param {"threat"|"hazard"|"site"} kind
-		 * @param {Array<JournalEntryPage>} pages
-		 * @param {(page: JournalEntryPage) => Promise<object>} build
-		 */
-		async _cardVMsFor(kind, pages, build) {
-			const cache = this._cardVMs[kind];
-			const vms = await Promise.all(pages.map(async page => {
-				const sig = `${page._stats?.modifiedTime ?? 0}`;
-				const hit = cache.get(page.uuid);
-				if (hit && hit.sig === sig) return hit.vm;
-				const vm = await build(page);
-				cache.set(page.uuid, { sig, vm });
-				return vm;
-			}));
-			// Forget cards whose page is gone, so deleting prep doesn't hold its VM for the life of
-			// the sheet.
-			const live = new Set(pages.map(page => page.uuid));
-			for (const uuid of [...cache.keys()]) if (!live.has(uuid)) cache.delete(uuid);
-			return vms;
-		}
-
-		/** Resolve the steading's site cards. Sites are pure GM prep like threats and
-		 *  hazards, so the whole tab is GM-only (it's gated on `canSeeSites`). */
-		async _buildSitesContext() {
-			const isGM = game.user?.isGM ?? false;
-			if (!isGM) return { sites: [], canSeeSites: false };
-			const pages = listSitePages(this.actor);
-			const vms = await this._cardVMsFor("site", pages, buildSiteCardVM);
-			// Same collapse chrome as the threat/hazard cards, read the same way. A written-up site
-			// is long, so this kind's default is COLLAPSED (see _cardCollapse): the tab opens as a
-			// list of titles you expand into.
-			const sites = vms.map((vm, i) => {
-				vm.canDrag = vm.isOwner;
-				vm.collapsible = true;
-				vm.collapsed = this._isCardCollapsed("site", pages[i].uuid);
-				return vm;
-			});
-			return { sites, canSeeSites: true };
-		}
-
-		/** Threats tab interactions: doom-track toggles, drag-to-scene, edit / remove /
-		 *  create. Self-gated per action (page ownership / GM), so it's independent of the
-		 *  section edit-mode gate; delegated on the sheet root. */
-		_activateThreatsListeners(root) {
-			if (!root) return;
-
-			wireThreatDoomChange(root, chk => fromUuid(chk.closest(".threat-card")?.dataset.pageUuid ?? ""));
-
-			// Every prep tool on these two tabs, one row per kind. The three kinds' edit / remove /
-			// add handling was the same six-line `closest` chain three times over, differing only in
-			// the selector words — so a fourth prep kind was a fourth copy, and the copy that got a
-			// fix and the two that didn't looked identical.
-			const prepTools = [
-				{ scope: ".steading-threats", kind: "threat",
-					edit: page => this._openThreatEditor(page), remove: page => this._onDeleteThreat(page),
-					// Threats are added per proximity band; the button says which.
-					add: btn => this._onCreateThreat(btn.dataset.proximity) },
-				{ scope: ".steading-threats", kind: "hazard",
-					edit: page => this._onEditHazard(page), remove: page => this._onDeleteHazard(page),
-					add: () => this._onCreateHazard() },
-				{ scope: ".steading-sites", kind: "site",
-					edit: page => this._onEditSite(page), remove: page => this._onDeleteSite(page),
-					add: () => this._onCreateSite() },
-			];
-
-			root.addEventListener("click", async ev => {
-				for (const tool of prepTools) {
-					const add = ev.target.closest?.(`${tool.scope} .${tool.kind}-add-btn`);
-					if (add) { ev.preventDefault(); tool.add(add); return; }
-					const edit = ev.target.closest?.(`${tool.scope} .${tool.kind}-edit-open`);
-					if (edit) { ev.preventDefault(); const page = await fromUuid(edit.dataset.pageUuid); if (page) tool.edit(page); return; }
-					const remove = ev.target.closest?.(`${tool.scope} .${tool.kind}-remove`);
-					if (remove) { ev.preventDefault(); const page = await fromUuid(remove.dataset.pageUuid); if (page) tool.remove(page); return; }
-				}
-
-				// Collapse / expand a card down to its title + Instinct. Any header click toggles
-				// it (mirrors the Improvements tab); the edit / remove tools are handled and
-				// returned above. A drag suppresses the click, so grabbing the header to pin it
-				// doesn’t also collapse it. State lives in _cardCollapse so it survives re-renders;
-				// no re-render, just a class flip.
-				const head = ev.target.closest?.(".steading-threats .threat-card__head--collapsible, .steading-sites .threat-card__head--collapsible");
-				if (head) {
-					const card = head.closest(".threat-card");
-					if (!card) return;
-					const collapsed = card.classList.toggle("is-collapsed");
-					card.querySelector(".threat-collapse-btn")?.setAttribute("aria-expanded", String(!collapsed));
-					const uuid = card.dataset.pageUuid;
-					if (!uuid) return;
-					this._setCardCollapsed(cardKind(card), uuid, collapsed);
-				}
-			});
-
-			// Whatever controls each kind's own card carries (a site's random tables, Book I p. 369).
-			wireGmPrepCardExtras(root, target => fromUuid(target.closest(".threat-card")?.dataset.pageUuid ?? ""));
-
-			// The whole card is the drag handle (no separate grip): grab it anywhere to drop
-			// a pinned Note on a scene. A plain click still toggles collapse (a drag suppresses
-			// the click), and interactive children (doom checks, tools) keep working.
-			// Shares the one drag-wiring helper with the page sheet so the selector can't diverge.
-			wireThreatCardDrag(root, {
-				selector: ".steading-threats .threat-card[draggable='true'], .steading-sites .threat-card[draggable='true']",
-			});
-		}
-
-		/** Open a threat's editor (a proper movable dialog, not the page sheet standalone). */
-		_openThreatEditor(page) {
-			if (page) new ThreatEditorDialog(page).render(true);
-		}
-
-		// Confirm-and-delete a GM-prep page (threat or hazard): identical card + scene-pin
-		// cleanup, only the noun and the delete fn differ.
-		async _confirmDeletePrepPage(page, title, remove) {
-			const ok = await Dialog.confirm({
-				title,
-				content: `<p>Delete <strong>${escHtml(page.name)}</strong>? This removes its card and any pins placed on scenes.</p>`,
-				options: { classes: ["dialog", "stonetop", "stonetop-delete-threat-dialog"] },
-			});
-			if (!ok) return;
-			await remove(page);
-			this.render(false);
-		}
-
-		async _onDeleteThreat(page) {
-			return this._confirmDeletePrepPage(page, "Delete Threat", deleteThreat);
-		}
-
-		async _onCreateThreat(defaultProximity) {
-			const seed = await new CreateThreatDialog(this.actor, { defaultProximity }).promise();
-			if (!seed) return;
-			const page = await createThreat(this.actor, seed);
-			this.render(false);
-			if (page) this._openThreatEditor(page);
-		}
-
-		// The Make-a-Hazard walkthrough collects the whole write-up, so unlike threats
-		// nothing needs an editor to open afterwards; edits reopen the wizard pre-filled.
-		async _onCreateHazard() {
-			const seed = await new CreateHazardDialog().promise();
-			if (!seed) return;
-			await createHazard(this.actor, seed);
-			this.render(false);
-		}
-
-		async _onEditHazard(page) {
-			const saved = await new CreateHazardDialog({ page }).promise();
-			// The sheet doesn't observe journal-page updates, so re-render after a save.
-			if (saved) this.render(false);
-		}
-
-		async _onDeleteHazard(page) {
-			return this._confirmDeletePrepPage(page, "Delete Hazard", deleteHazard);
-		}
-
-		// Like hazards, the Create-a-Site walkthrough collects the whole write-up, so nothing
-		// needs an editor to open afterwards; edits reopen the wizard pre-filled. A new site
-		// opens expanded, since you've just written it and will want to read it back.
-		async _onCreateSite() {
-			const seed = await openSiteWizard();
-			if (!seed) return;
-			const page = await createSite(this.actor, seed);
-			if (page) this._setCardCollapsed("site", page.uuid, false);
-			this.render(false);
-		}
-
-		async _onEditSite(page) {
-			const saved = await openSiteWizard({ page });
-			// The sheet doesn't observe journal-page updates, so re-render after a save.
-			if (saved) this.render(false);
-		}
-
-		async _onDeleteSite(page) {
-			return this._confirmDeletePrepPage(page, "Delete Site", deleteSite);
-		}
-
-		// Create this steading's own threat from a dropped homebrew threat card's seed
-		// (the reusable "Create Item -> Threat" path). Same result as the guided creator,
-		// minus the dialog — the fuller doom track / stakes / prose are still authored in
-		// the editor that opens right after.
-		async _onDropThreatSeed(seed) {
-			if (!seed?.name) return;
-			const page = await createThreat(this.actor, seed);
-			if (!page) return;
-			globalThis.ui?.notifications?.info?.(`Added threat: ${page.name}.`);
-			this.render(false);
-			this._openThreatEditor(page);
 		}
 
 		activateListeners(html) {
@@ -993,7 +653,6 @@ export function createStonetopSteadingSheetClass(Base) {
 			// rail is on the frame, since that is where the tab-change watcher binds.
 			mountScrollFrost(this, html);
 			wrapStonetopGlyphsInEl(html[0]);
-			this._activateThreatsListeners(html[0]);
 
 			// Residents / Neighbors filters (see utils/tab-search.js). Each is scoped to its own
 			// section so it only hides that section's rows; a row matches on the text of every
@@ -1463,38 +1122,10 @@ export function createStonetopSteadingSheetClass(Base) {
 				}, true);
 			}
 
-			// Wire a tab as a drop zone for journal-dragged cards of one drag type,
-			// showing the shared drag-over highlight and routing the payload to onDrop.
-			const wireCardDropZone = (tabEl, dragType, onDrop) => {
-				if (!tabEl) return;
-				const setDrag = on => tabEl.classList.toggle("steading-improvement-drag-over", on);
-				tabEl.addEventListener("dragover", (ev) => {
-					ev.preventDefault();
-					ev.dataTransfer.dropEffect = "copy";
-					setDrag(true);
-				});
-				tabEl.addEventListener("dragleave", (ev) => {
-					if (!tabEl.contains(ev.relatedTarget)) setDrag(false);
-				});
-				tabEl.addEventListener("drop", async (ev) => {
-					const data = getDragEventData(ev);
-					if (data?.type !== dragType) return;
-					ev.preventDefault();
-					ev.stopPropagation();
-					setDrag(false);
-					await onDrop(data);
-				});
-			};
-
 			// Drop a "Steading Improvement" card (dragged from a journal) onto the
 			// Improvements tab to add it as a tracked custom improvement.
 			wireCardDropZone(html[0].querySelector(".tab.improvements"),
 				STEADING_IMPROVEMENT_DRAG_TYPE, (data) => this._onDropSteadingImprovement(data.improvement));
-
-			// Drop a "Threat" card (dragged from a journal) onto the Threats tab to
-			// create this steading's own threat entry from the card's seed.
-			wireCardDropZone(html[0].querySelector(".tab.threats"),
-				STONETOP_THREAT_SEED_DRAG_TYPE, (data) => this._onDropThreatSeed(data.seed));
 
 			// Remove a custom (journal-sourced) improvement.
 			html[0].addEventListener("click", (ev) => {

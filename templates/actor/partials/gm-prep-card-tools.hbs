@@ -1,0 +1,18 @@
+{{!-- The edit / delete pair that rides under one GM-prep card, for all three kinds.
+
+      `kind` spells both the class words the sheet's handler table matches on
+      (`.<kind>-edit-open` / `.<kind>-remove`, see gm-prep-tabs.js `prepTools`) AND what the
+      tooltips call the thing. One parameter, not two: every call site passed the same word
+      twice, and a pair free to disagree is a working button with the wrong tooltip. Passing
+      the kind rather than copying the block per family is what keeps those class words and
+      that table in step: a fourth prep kind is one more row in the table and one more `kind=`,
+      not two hand-copied markup blocks.
+
+      The DELETE button is live only while the section's pencil is on: the panel wears
+      `stonetop-readonly` otherwise, which is on neither the CSS allow-list nor past the
+      handler's own check, so a GM reading their prep cannot bin a card by accident. Editing
+      opens a dialog that writes nothing until it is saved, so it stays live. --}}
+<div class="threat-card-tools">
+	<button type="button" class="{{kind}}-edit-open" data-page-uuid="{{uuid}}" data-tooltip="Edit {{kind}}" data-tooltip-direction="UP"><i class="fas fa-pen"></i></button>
+	<button type="button" class="{{kind}}-remove" data-page-uuid="{{uuid}}" data-tooltip="Delete {{kind}}" data-tooltip-direction="UP"><i class="fas fa-trash"></i></button>
+</div>

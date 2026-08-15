@@ -83,6 +83,13 @@ outside (a barrow, a cave mouth, a Maker-ruin gone to grass). Plain geometry: a 
 semicircle-topped doorway in one `fill-rule="evenodd"` path, so the entrance is a hole and
 not a lighter shape, plus a rounded ground bar. Nothing to re-derive if it is ever redrawn.
 
+Also the project's own drawing: `flow-chart.svg`, the GM Toolkit's Core Loop tab glyph. Three
+boxes wired into a cycle, which is the shape of both diagrams that tab holds. Plain geometry, and
+the file's own comment states every coordinate rule, so there is nothing to re-derive if it is
+redrawn. Each box is an outer rounded rect plus an inner one wound the other way, so nonzero fill
+leaves a wall and an empty middle without `fill-rule`; the arrowhead that closes the loop is on
+the RETURN leg, so the cycle reads bottom-back-to-top the way the printed diagram runs.
+
 Also not from game-icons.net, and the project's own drawing rather than either:
 `arcanum.svg`, the Arcana tab's glyph. It is the triple spiral from
 `assets/icons/arcanum.svg` — generated geometry, redrawn from the mark the rulebooks print

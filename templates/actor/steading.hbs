@@ -64,19 +64,20 @@
 			{{#unless stonetop.classicLayout}}{{> "stonetop.tab-nav-item" tab="moves" label=(localize "stonetop.steading.tabs.moves")}}{{/unless}}
 			{{> "stonetop.tab-nav-item" tab="neighbors"    label=(localize "stonetop.steading.tabs.neighbors")}}
 			{{> "stonetop.tab-nav-item" tab="improvements" label=(localize "stonetop.steading.tabs.improvements")}}
-			{{#if stonetop.canSeeThreats}}{{> "stonetop.tab-nav-item" tab="threats" label=(localize "stonetop.steading.tabs.threats")}}{{/if}}
-			{{#if stonetop.canSeeSites}}{{> "stonetop.tab-nav-item" tab="sites" label=(localize "stonetop.steading.tabs.sites")}}{{/if}}
+			{{!-- Threats & Dangers and Sites used to sit here. They are the GM's own prep,
+			      written for one pair of eyes, so they moved to the GM Toolkit sheet. Their
+			      STORAGE did not move: both are still journal pages filed under this steading
+			      (module/journal/gm-prep-page-store.js), so nothing about a world's existing
+			      prep changed, only where the GM reads it. --}}
 			{{> "stonetop.tab-nav-item" tab="notes"        label=(localize "stonetop.steading.tabs.notes")}}
 		</nav>
 
-		<div class="stonetop-sheet-layout steading-sheet-layout">
+		<div class="stonetop-sheet-layout steading-sheet-layout stonetop-sheet-layout--own-seam">
 			<section class="sheet-body">
 				{{> "stonetop.steading-tab-overview"}}
 				{{#unless stonetop.classicLayout}}{{> "stonetop.steading-tab-moves"}}{{/unless}}
 				{{> "stonetop.steading-tab-neighbors"}}
 				{{> "stonetop.steading-tab-improvements"}}
-				{{#if stonetop.canSeeThreats}}{{> "stonetop.steading-tab-threats"}}{{/if}}
-				{{#if stonetop.canSeeSites}}{{> "stonetop.steading-tab-sites"}}{{/if}}
 				{{> "stonetop.steading-tab-notes"}}
 			</section>
 

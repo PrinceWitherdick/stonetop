@@ -18,8 +18,23 @@ import {
 import { getPlayerCharacters } from "../utils/playbook-actors.js";
 import { deriveLoadLevel, LOAD_LEVEL_LIMITS } from "../utils/load.js";
 import { SYSTEM_ID } from "../system-id.js";
+import { EXPLORATION_GM_MOVES } from "../gm-toolkit/gm-moves.js";
 
 const ANSWERS_SETTING = "expeditionAnswers";
+
+/**
+ * The seven exploration moves, as the "Exploration moves" step prints them.
+ *
+ * Rendered from the ONE table in gm-toolkit/gm-moves.js, which the GM Toolkit's Moves tab also
+ * prints. Restating them here meant seven names and seven glosses maintained in two files, held
+ * together only by a test that scraped this file's source text for `<li><strong>…</strong>`, so
+ * reformatting the list at all broke the guard, and a wording fix in one place left the
+ * walkthrough and the toolkit teaching the same move in different words on two screens the same
+ * GM meets in one session.
+ */
+const EXPLORATION_MOVE_LIST = EXPLORATION_GM_MOVES
+	.map(m => `<li><strong>${escHtml(m.name)}.</strong> ${escHtml(m.gloss)}</li>`)
+	.join("\n\t\t\t\t\t");
 // This dialog's key in the client-scoped reload-resume record (see walkthrough-resume.js).
 const RESUME_KEY = "expedition";
 
@@ -210,13 +225,7 @@ const _STEPS = [
 		icon:  "fa-compass",
 		body:  `<p>Add these to your arsenal once the PCs leave town:</p>
 				<ul>
-					<li><strong>Provide a choice of paths</strong> &mdash; a fork with a meaningful difference.</li>
-					<li><strong>Hint at more than meets the eye</strong> &mdash; point at something fraught, stay coy.</li>
-					<li><strong>Offer riches at a price</strong> &mdash; something valuable, but costly or fleeting.</li>
-					<li><strong>Present a discovery</strong> &mdash; put an interesting, not-yet-dangerous thing in front of them.</li>
-					<li><strong>Point to a looming danger</strong> &mdash; the clawprint, the distant howl.</li>
-					<li><strong>Introduce a danger, person, or faction</strong> &mdash; it's here, not looming.</li>
-					<li><strong>Bar the way</strong> &mdash; an obstacle, dead end, or missing piece.</li>
+					${EXPLORATION_MOVE_LIST}
 				</ul>
 				<p>And keep using your standard GM moves too: ask provocative questions, use up their resources, separate them, show downsides.</p>`,
 	},

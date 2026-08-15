@@ -16,6 +16,7 @@ import { charactersOwnedBy } from "../utils/playbook-actors.js";
 import { addPersonToSteading, createPersonNpc } from "../actors/steading/steading-people.js";
 import { buildMonsterActorData } from "../data/monster-builder.js";
 import { SYSTEM_ID } from "../system-id.js";
+import { GM_TOOLKIT_TYPE, createGmToolkit, theGmToolkit } from "../actors/gmtoolkit/gm-toolkit-actor.js";
 
 // Sentinel for the "no player yet" row of the character-owner step. Never a real user id.
 const UNASSIGNED = "__unassigned__";
@@ -38,6 +39,12 @@ const ACTOR_OPTIONS = [
 		label: "Monster",
 		icon: "fa-dragon",
 		hint: "A stat block from the Dangers worksheet, a being or emanation corrupted by the Things Below, or a blank one you fill in yourself.",
+	},
+	{
+		id: GM_TOOLKIT_TYPE,
+		label: "GM Toolkit",
+		icon: "fa-book-open",
+		hint: "Your own sheet: the GM playbook on screen. Opens on the GM moves, with Exploration and Homefront under them.",
 	},
 ];
 
@@ -110,10 +117,20 @@ const MONSTER_KIND_OPTIONS = [
 /**
  * Which kinds a user may create. Players only ever make their own character: people and
  * monsters are GM prep, and preCreateActor vetoes a player-made monster outright.
+ *
+ * The GM Toolkit row drops out once the world HAS one. It is a singleton
+ * (hooks/StonetopSingleton.js), so the row would be a dead entry that only ever warns; the
+ * steading is kept out of this table entirely for the same reason, and differs only in never
+ * being absent. `haveToolkit` is passed in rather than read here so the table stays a pure
+ * function of its inputs, which is what lets the tests drive both states.
+ *
  * @param {boolean} isGM
+ * @param {object}  [world]
+ * @param {boolean} [world.haveToolkit=false]  Does this world already hold a GM Toolkit?
  */
-export function actorOptionsFor(isGM) {
-	return isGM ? ACTOR_OPTIONS : ACTOR_OPTIONS.filter(o => o.id === "character");
+export function actorOptionsFor(isGM, { haveToolkit = false } = {}) {
+	if (!isGM) return ACTOR_OPTIONS.filter(o => o.id === "character");
+	return ACTOR_OPTIONS.filter(o => !(o.id === GM_TOOLKIT_TYPE && haveToolkit));
 }
 
 /**
@@ -166,14 +183,38 @@ export async function openCreateActor({ folder = null, name = "" } = {}) {
 
 	const choice = await pickContentOption({
 		title: game.i18n.localize("stonetop.actorCreate.title"),
-		options: actorOptionsFor(isGM),
+		options: actorOptionsFor(isGM, { haveToolkit: !!theGmToolkit() }),
 	});
 	if (!choice) return null;
 
 	if (choice === "character") return _createCharacter(folder, name, isGM);
 	if (choice === "npc") return _createPerson(folder);
 	if (choice === "monster") return _createMonster(folder, name);
+	if (choice === GM_TOOLKIT_TYPE) return _createGmToolkit(folder, name);
 	return null;
+}
+
+/**
+ * GM Toolkit flow. There is no worksheet: the sheet is reference the GM reads, so it has
+ * nothing to ask before it exists. Create it and open it.
+ *
+ * Not a world singleton, deliberately. A table can reasonably want more than one (a second
+ * GM, or a toolkit per campaign in a shared world), and the create/delete vetoes that make
+ * the steading a singleton are the hard thing to undo once someone has two.
+ *
+ * Visibility is handled where it belongs, in StonetopActor#_preCreate: a toolkit is stamped
+ * `ownership.default = NONE` so it never appears in a player's Actors sidebar.
+ */
+async function _createGmToolkit(folder, name) {
+	if (!game.user?.isGM) {
+		ui.notifications?.warn("Only the GM can create a GM Toolkit.");
+		return null;
+	}
+	// Both failure modes — a world launched before this subtype existed, and a create that
+	// throws — are handled inside createGmToolkit, which owns the notices.
+	const actor = await createGmToolkit({ name, folder });
+	actor?.sheet?.render(true);
+	return actor;
 }
 
 /**

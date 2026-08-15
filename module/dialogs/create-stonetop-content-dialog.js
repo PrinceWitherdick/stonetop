@@ -36,7 +36,7 @@ const CONTENT_OPTIONS = [
 		id: "threat",
 		label: "Threat",
 		icon: "fa-skull",
-		hint: "A homebrew threat card you drag onto Stonetop's Threats tab.",
+		hint: "A homebrew threat card you drag onto the GM Toolkit's Threats tab.",
 	},
 	{
 		id: "thingBelow",
@@ -48,7 +48,7 @@ const CONTENT_OPTIONS = [
 		id: "site",
 		label: "Site",
 		icon: "fa-mountain-sun",
-		hint: "Walk through Book I's Creating Sites process. The write-up lands on Stonetop's Sites tab, ready to pin to a scene.",
+		hint: "Walk through Book I's Creating Sites process. The write-up lands on the GM Toolkit's Sites tab, ready to pin to a scene.",
 	},
 ];
 
@@ -164,29 +164,33 @@ export async function openCreateStonetopContent() {
 }
 
 /**
- * Site flow (Book I, "Sites"): run the walkthrough and store the result on the steading,
- * the way the Sites tab's own button does. Sites aren't a draggable seed card like threats:
- * a site IS its write-up, and there is one place it belongs.
+ * Site flow (Book I, "Sites"): run the walkthrough and FILE the result under the steading, the
+ * way the Sites tab's own button does. Sites aren't a draggable seed card like threats: a site
+ * IS its write-up, and there is one place it belongs.
+ *
+ * Filed under the steading, READ on the GM Toolkit. Those are two different actors since the
+ * Sites tab moved, and both matter here: `createSite` still takes the steading (the journal
+ * that holds the page is pointed at by a flag on it), while the sheet to nudge afterwards is
+ * the toolkit's.
  */
 async function openCreateSite() {
 	const { getStonetopSteadingActorOrWarn } = await import("../utils/world.js");
-	const steading = getStonetopSteadingActorOrWarn();
+	const steading = getStonetopSteadingActorOrWarn({ because: "there is nowhere to file a site" });
 	if (!steading) return;
-	const { CreateSiteDialog } = await import("../sites/create-site-dialog.js");
-	const { createSite } = await import("../sites/site-store.js");
-	const seed = await new CreateSiteDialog().promise();
-	if (!seed) return;
-	const page = await createSite(steading, seed);
+	// The same flow the Sites tab's own button runs. Any open GM Toolkit picks the new card up
+	// by watching its journal pages, so there is nothing to nudge from here.
+	const { createSiteFlow } = await import("../actors/gmtoolkit/gm-prep-actions.js");
+	const page = await createSiteFlow(steading);
 	if (!page) return;
-	ui.notifications?.info?.(`Added site: ${page.name}. It's on ${steading.name}'s Sites tab.`);
-	// The steading sheet doesn't observe journal-page creation, so nudge an open one.
-	steading.sheet?.rendered && steading.sheet.render(false);
+	// Said HERE and not in the flow: creating from the tab shows you the card appear, but this
+	// path may leave the toolkit closed entirely, so it has to say where the site went.
+	ui.notifications?.info?.(`Added site: ${page.name}. It's on the GM Toolkit's Sites tab.`);
 }
 
 /**
  * Second-step Thing Below flow (Book II, The Things Below): pick which of the four creation
  * wizards to run. Thing + Corrupted Site resolve a threat SEED that becomes a draggable card
- * (dropped onto a steading's Threats tab, like the plain Threat flow); Corrupted Being +
+ * (dropped onto the GM Toolkit's Threats tab, like the plain Threat flow); Corrupted Being +
  * Emanation open the lighter corruption dialog, which creates a `monster` stat-block actor.
  */
 async function openCreateThingBelow() {

@@ -3,12 +3,28 @@ import { actorOptionsFor, ownerOptions } from "../../module/dialogs/create-actor
 
 describe("actorOptionsFor", () => {
 	it("offers the GM every kind of actor", () => {
-		expect(actorOptionsFor(true).map(o => o.id)).toEqual(["character", "npc", "monster"]);
+		expect(actorOptionsFor(true).map(o => o.id)).toEqual(["character", "npc", "monster", "gmToolkit"]);
 	});
 
 	it("offers a player only their own character", () => {
 		// People and monsters are GM prep; preCreateActor vetoes a player-made monster anyway.
 		expect(actorOptionsFor(false).map(o => o.id)).toEqual(["character"]);
+	});
+
+	// The toolkit is a world singleton, so once the world has one the row is a dead entry that
+	// only ever warns. It stays offered while the world has NONE, which is the case a world
+	// launched before the subtype existed lands in: there the picker is the way to make it.
+	it("drops the GM Toolkit row once the world has one", () => {
+		expect(actorOptionsFor(true, { haveToolkit: true }).map(o => o.id))
+			.toEqual(["character", "npc", "monster"]);
+	});
+
+	it("keeps offering it while the world has none", () => {
+		expect(actorOptionsFor(true, { haveToolkit: false }).map(o => o.id)).toContain("gmToolkit");
+	});
+
+	it("still offers a player nothing but their character either way", () => {
+		expect(actorOptionsFor(false, { haveToolkit: true }).map(o => o.id)).toEqual(["character"]);
 	});
 
 	it("gives every row an icon and a hint", () => {

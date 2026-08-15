@@ -625,7 +625,7 @@ img.stonetop-journal-art {
 	/* Cap the illustration at 800px, but never wider than its column (narrow popouts). */
 	max-width: min(100%, 800px);
 	height: auto;
-	border: 2px solid hsl(40 30% 82%);
+	border: 2px solid var(--st-art-frame);
 	border-radius: 3px;
 	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
@@ -764,6 +764,8 @@ figure.stonetop-map figcaption {
 .stonetop-item-name,
 .stonetop-item-description,
 .stonetop-move-group-title,
+.stonetop-gm-move-name,
+.stonetop-gm-move-gloss,
 .stonetop-monster-move-name,
 .stonetop-monster-move-description,
 .stonetop-monster-readonly-text {
@@ -866,6 +868,14 @@ figure.stonetop-map figcaption {
 
 .window-app.stonetop.sheet.actor.npc {
 	min-height: 400px;
+}
+
+/* The GM Toolkit's tabs are tall ones (thirty glossary rows on Moves alone), and like the
+   monster and NPC its frame has no `pbta` class, so it would otherwise fall back to core's
+   50px MIN_WINDOW_HEIGHT. Mirrored by `minHeight` in the sheet's defaultOptions; the pair is
+   pinned together by tests/actors/tabbed-sheet-height.test.js. */
+.window-app.stonetop.sheet.actor.gm-toolkit {
+	min-height: 420px;
 }
 
 /* A window the user has dragged taller by its resize handle, marked by
@@ -2109,6 +2119,30 @@ input.stonetop-name-field {
 	padding: 8px
 }
 
+/* …but NOT along the bottom, on a sheet whose tab body runs to the window's edge.
+
+   The inset above is a margin on all four sides, which is right for three of them and wrong
+   for the fourth. On a tabbed sheet the bottom edge of `.stonetop-sheet-layout` is a SCROLL
+   EDGE, not the end of the content: the active tab is the scrollport (`overflow-y: auto`,
+   bar hidden), so at any position but the last the tab clips a row of cards mid-height. The
+   form's 8px then sits below that clip as a permanent strip of bare parchment — a gap the
+   content is visibly cut off *before*, which reads as the sheet losing its bottom few pixels
+   rather than as "there is more, scroll". Measured on the live character sheet: tab bottom
+   943, window bottom 951.
+
+   The tab's OWN `padding-bottom` is not the same thing and stays: a scrollport's padding box
+   IS its viewport, so that padding is painted over while scrolling and only opens up at the
+   end of the list, which is exactly where breathing room is wanted.
+
+   Gated on `:has()` so it reaches only the sheets that scroll this way. The no-playbook
+   state (`.stonetop-no-playbook-state`, further down) is a centred call-to-action with no
+   layout and no scrollport, and it keeps its inset on all four sides.
+
+   One class heavier than the rule above so it wins outright rather than on source order. */
+.pbta.sheet.actor .window-content form:has(.stonetop-sheet-layout) {
+	padding-bottom: 0;
+}
+
 .pbta.sheet.playbook-the-would-be-hero form {
 	background-color: color-mix(in hsl, var(--color-the-would-be-hero) 10%, transparent);
 }
@@ -2444,24 +2478,29 @@ input.stonetop-name-field {
    Always present but transparent, coloured in only once the tab is off its top. Toggling the
    border itself would move the whole layout a pixel each time the seam appeared.
 
-   NOT on the steading, hence the `:not()`. Something of its own already carries
-   `border-bottom: 2px solid slategrey` flush above this seam (measured: a 0px gap) — the
-   `.steading-header` in the modern layout, the tab strip in the classic one — so painting
-   both makes the rule visibly thicken and darken the moment the tab scrolls, a glitch rather
-   than a depth cue. The steading has its separator already; this gives one to the sheets whose
-   seam is bare, and a sheet added later on the plain layout gets it by default, which is the
-   way round we want.
+   NOT on a sheet that already draws its own rule flush above this seam (measured: a 0px gap) —
+   the `.steading-header` in the modern layout, the `.stonetop-gm-toolkit-header` banner, the
+   tab strip in the classic one. Painting both makes the rule visibly thicken and darken the
+   moment the tab scrolls, a glitch rather than a depth cue.
 
-   The classic CHARACTER sheet is the same case for the same reason — its strip sits flush
-   above the seam too — but it cannot be excluded by this selector, so the overrides block
-   further down kills the COLOUR there instead of the border. (Killing the colour, not the
+   Those sheets say so THEMSELVES, with `stonetop-sheet-layout--own-seam` on the layout div,
+   rather than this rule carrying a list of them. That is deliberate: the fact belongs to
+   whoever gives a header its bottom border, and lives in the same template they write it in.
+   An exclusion list here is a thing to remember from a different file, and the failure is
+   invisible at rest — the seam is transparent until the tab scrolls, so a doubled rule only
+   shows up under the scroll, which is exactly when nobody is looking at the header. A sheet
+   on the plain layout gets the seam by default, which is the way round we want.
+
+   The classic CHARACTER sheet is the same case for the same reason (its strip sits flush above
+   the seam too), but it is a LAYOUT-conditional fact rather than a property of the sheet, so
+   the overrides block further down kills the COLOUR there instead. (Killing the colour, not the
    border: toggling the border itself moves the layout a pixel, per the note above.) */
-.stonetop-sheet-layout:not(.steading-sheet-layout) {
+.stonetop-sheet-layout:not(.stonetop-sheet-layout--own-seam) {
 	border-top: 1px solid transparent;
 	transition: border-top-color 0.15s ease-out;
 }
 
-.stonetop-sheet-layout:not(.steading-sheet-layout):has(> .sheet-body.is-scrolled) {
+.stonetop-sheet-layout:not(.stonetop-sheet-layout--own-seam):has(> .sheet-body.is-scrolled) {
 	border-top-color: rgba(0, 0, 0, 0.25);
 }
 
@@ -3462,20 +3501,22 @@ input.stonetop-name-field {
 .stonetop-readonly .steading-interactive-btn,
 .stonetop-readonly .stonetop-answer-character-questions-btn,
 .stonetop-readonly .steading-list-add,
-.stonetop-readonly .steading-improvement-add-btn,
-.stonetop-readonly .threat-add-btn,
+/* Every "write one up" bar, by the one class the shared partial emits: adding is not
+   editing what is already written, and the handlers are GM-gated themselves. */
+.stonetop-readonly .stonetop-prep-add-btn,
+/* Opening a prep card stays live too (the editor writes nothing until it is saved),
+   but DELETING one does NOT: the trash is the only control here that destroys a
+   write-up, and the pencil is the GM Toolkit's whole write gate, since it has no
+   global edit wrench. `<kind>-remove` on this allow-list would mean a threat could be
+   binned with one stray click while its section is only being read. Both tab templates
+   and StonetopGmToolkitSheet say so in as many words; the omission of
+   `.threat-remove` / `.hazard-remove` / `.site-remove` here, plus the matching check in
+   gm-prep-tabs.js, is what makes it true. */
 .stonetop-readonly .threat-edit-open,
-.stonetop-readonly .threat-remove,
-/* Hazard cards share the threat cards' self-gated interactions (GM/ownership
-   checks in the handlers), so their controls stay live outside edit mode too. */
-.stonetop-readonly .hazard-add-btn,
 .stonetop-readonly .hazard-edit-open,
-.stonetop-readonly .hazard-remove,
-/* Sites likewise. Rolling a site's own table is play-time use, not editing, and it
-   writes nothing to the page at all, so the d20 button stays live too. */
-.stonetop-readonly .site-add-btn,
 .stonetop-readonly .site-edit-open,
-.stonetop-readonly .site-remove,
+/* Rolling a site's own table is play-time use, not editing, and it writes nothing to
+   the page at all, so the d20 button stays live too. */
 .stonetop-readonly .site-table-roll,
 /* Collapse chevron stays live outside edit mode: clamping a card to its title +
    Instinct is a view convenience, not structural editing. Without this the button's
@@ -13059,6 +13100,7 @@ span.stonetop-mark-loyalty-pip {
 .stonetop-tab-rail .item[data-tab="sites"]         { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/site-mound.svg'); }
 .stonetop-tab-rail .item[data-tab="relationships"] { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/hearts.svg'); }
 .stonetop-tab-rail .item[data-tab="stats"]         { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/crossed-swords.svg'); }
+.stonetop-tab-rail .item[data-tab="loop"]          { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/flow-chart.svg'); }
 
 /* Drag-reorder feedback: the strip's dashed outline sat inside a wide pill, but a 34px
    square has no room for a 2px inset dash — it swallows the glyph. Mark the drop target
@@ -13152,8 +13194,8 @@ span.stonetop-mark-loyalty-pip {
    tab scrolls, not as depth — the same reason the steading is excluded from that rule
    outright. Kill the COLOUR, not the border: toggling the border shifts the layout a pixel
    each time the seam appears. The frosted band itself stays. */
-.stonetop-layout-classic .stonetop-sheet-layout:not(.steading-sheet-layout),
-.stonetop-layout-classic .stonetop-sheet-layout:not(.steading-sheet-layout):has(> .sheet-body.is-scrolled) {
+.stonetop-layout-classic .stonetop-sheet-layout:not(.stonetop-sheet-layout--own-seam),
+.stonetop-layout-classic .stonetop-sheet-layout:not(.stonetop-sheet-layout--own-seam):has(> .sheet-body.is-scrolled) {
 	border-top-color: transparent;
 }
 
@@ -15121,11 +15163,14 @@ a.steading-player-open:hover {
 	padding: 4px 2px;
 	margin-top: 8px;
 }
-/* The Threats tab's "Write up a threat" and "Make a hazard" buttons share this
-   dashed-border look (their own classes keep the JS handlers separate). */
-.steading-improvement-add-btn,
-.threat-add-btn,
-.hazard-add-btn {
+/* Every "write one up" bar wears this: Improvements' "Create improvement", the
+   Threats tab's "Write up a threat" and "Make a hazard", and the Sites tab's
+   "Create a site". ONE class, emitted by templates/actor/partials/gm-prep-add-bar.hbs
+   alongside the per-kind `.<kind>-add-btn` that keeps their JS handlers separate.
+   This used to be a list of kind names kept here, in a file nobody opens when
+   adding a tab, and it shipped once without `.site-add-btn` on it: the Sites tab
+   drew a bare core button and nothing failed. */
+.stonetop-prep-add-btn {
 	flex: 1 1 100%;
 	display: flex;
 	align-items: center;
@@ -15140,9 +15185,7 @@ a.steading-player-open:hover {
 	background: transparent;
 	transition: background 0.15s;
 }
-.steading-improvement-add-btn:hover,
-.threat-add-btn:hover,
-.hazard-add-btn:hover { background: hsl(210 10% 92%); }
+.stonetop-prep-add-btn:hover { background: hsl(210 10% 92%); }
 
 /* Drop the leading "+" a pixel so it sits on the button's centre line.
    `align-items: center` above already centres the <i>'s BOX exactly, but Font
@@ -15154,15 +15197,17 @@ a.steading-player-open:hover {
    Nudging the glyph rather than the padding leaves the label's baseline alone.
    Verified by pixel-scanning the render at device scale 1, 1.25, 1.5 and 2:
    worst case goes from 1.4px high to 0.33px low. */
-.steading-improvement-add-btn > i,
-.threat-add-btn > i,
-.hazard-add-btn > i {
+.stonetop-prep-add-btn > i {
 	position: relative;
 	top: 1px;
 }
 
-/* Drop target highlight while dragging a Steading Improvement card over the tab. */
-.tab.improvements.steading-improvement-drag-over {
+/* Drop target highlight while a Stonetop card is dragged over a tab that accepts one.
+   Set by module/utils/card-drop-zone.js, so the class is neutral and the rule UNSCOPED:
+   every zone that helper wires paints the same way (the steading's Improvements tab, the
+   GM Toolkit's Threats tab). Scoping this to one tab is how the next drop zone comes to
+   toggle a class with no rule behind it and silently lose its drop feedback. */
+.stonetop-card-drag-over {
 	outline: 2px dashed var(--stonetop-improvement-accent);
 	outline-offset: -4px;
 	background: color-mix(in srgb, var(--stonetop-improvement-accent) 6%, transparent);
@@ -27218,9 +27263,18 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	.stonetop .threat-portent__box, .stonetop .threat-portent__box::after { transition: none; }
 }
 
-/* --- the steading Threats & Dangers and Sites tabs ------------------------- */
+/* --- the Threats & Dangers and Sites tabs ---------------------------------- */
 
-/* `.steading-prep-cards` is worn by BOTH sections (Threats & Dangers, Sites): every
+/* ⚠ These tabs live on the GM TOOLKIT sheet now, not the steading. The `steading-` class
+   names below are CSS HOOKS the markup still carries, not a statement about where it is:
+   roughly forty rules in this block hang off `.steading-threats` / `.steading-sites` /
+   `.steading-prep-cards`, and renaming them would mean rewriting every one, with each rule
+   that stopped matching failing silently as an oversized or unstyled card. The templates
+   (templates/actor/partials/gm-toolkit-tab-{threats,sites}.hbs) say the same thing from the
+   other side. Nothing here is scoped to `.steading-sheet` or `.pbta`, which is why the whole
+   block followed the markup across untouched.
+
+   `.steading-prep-cards` is worn by BOTH sections (Threats & Dangers, Sites): every
    rule under it is card chrome the two tabs share, so neither can drift from the other.
    Rules that stay scoped to `.steading-threats` below are the ones only that tab has
    (the proximity line, the hazard rows).
@@ -27444,6 +27498,143 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	gap: 1rem;
 	align-items: start;
 }
+/* --- prep reference (Book I, "Threats") ------------------------------------
+   The condensed chapter guidance under the cards: how to write a threat up, when to,
+   the rules of thumb for portents and stakes, the between-sessions pass, and the eight
+   types. Reference, not prep, so it is deliberately QUIETER than the cards it sits
+   below: no paper ground, no border, no shadow. The cards are the page; this is the
+   margin note. Each section folds on its own caret (see section-editing.js), so a GM
+   who knows the chapter shuts them once and the sheet remembers per user. */
+.stonetop .steading-threats-reference {
+	margin-top: 20px;
+	padding-top: 14px;
+	/* The one line separating written prep from reference about writing it. A literal
+	   warm grey rather than a token: this file has no separator token, and the neutral
+	   rgba(0,0,0,...) hairlines used elsewhere read cold against the parchment ground. */
+	border-top: 1px solid rgba(120, 105, 80, 0.35);
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+/* Sub-heading inside a section that carries more than one list (Grim portents /
+   Impending doom / Stakes). Deliberately not an <h3>: only <h3> is a fold heading on
+   this sheet, and a fourth heading in the run would cut the section's own fold short. */
+.stonetop .steading-threats-guide-label {
+	margin: 0 0 2px 0;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-sm);
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--st-text-secondary);
+}
+.stonetop .steading-threats-guide-group + .steading-threats-guide-group { margin-top: 10px; }
+.stonetop .steading-threats-guide-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	/* MULTI-COLUMN, not a grid, and for the reason CreateThreatDialog's `_splitColumns`
+	   already gives about its own two-column move list: in a grid, one item that wraps to a
+	   second line stretches its whole ROW, leaving a gap under its shorter neighbour. These
+	   glosses are a clause each and wrap constantly, so a grid would rag the whole panel.
+	   Columns have no row coupling, so each one packs independently, and they need no view
+	   model splitting to do it. Reading order becomes column-major (down, then across),
+	   which is also the right way to read a numbered list of steps.
+
+	   Two tracks at this sheet's 820px, folding to one when the window is dragged under
+	   about 40rem. */
+	columns: 2 19rem;
+	column-gap: 18px;
+	counter-reset: stonetop-guide-step;
+}
+.stonetop .steading-threats-guide-list > li {
+	/* A row split across a column break would leave its marker with one line and its gloss
+	   at the top of the next column. */
+	break-inside: avoid;
+	position: relative;
+	padding: 3px 0 3px 1.35em;
+	font-size: var(--st-fs-sm);
+	line-height: 1.4;
+}
+.stonetop .steading-threats-guide-list > li > strong {
+	font-weight: 700;
+	color: var(--st-text);
+}
+/* The gloss on its own line under the name, the shape the GM Moves tab already uses
+   for a move and its one-line gloss. */
+.stonetop .steading-threats-guide-list > li > span {
+	display: block;
+	color: var(--st-text-secondary);
+	font-size: 0.94em;
+}
+/* Numbered where the order is the point, dashed where it is a checklist. Both drawn as
+   markers in the padding rather than list-style, so the number and the dash sit on the
+   same left edge and a wrapped gloss stays hung off it. */
+.stonetop .steading-threats-guide-list.is-ordered > li::before {
+	counter-increment: stonetop-guide-step;
+	content: counter(stonetop-guide-step) ".";
+	position: absolute;
+	left: 0;
+	top: 3px;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	color: var(--st-text-secondary);
+}
+/* The type list is excluded rather than left to lose a specificity race. It carries BOTH
+   class names, and this selector outranks the accent-tick rule below it (three classes to
+   two), so without the second :not() every type row draws this grey dash instead of its
+   own colour and the tick rule silently does nothing. */
+.stonetop .steading-threats-guide-list:not(.is-ordered):not(.steading-threat-type-list) > li::before {
+	content: "";
+	position: absolute;
+	left: 0.25em;
+	top: 0.72em;
+	width: 0.5em;
+	height: 1px;
+	background: var(--st-text-secondary);
+	opacity: 0.55;
+}
+/* The chapter's last three write-up steps are explicitly optional, and a GM who reads
+   all eight as required writes four times the prep the game asks for. Marked rather
+   than dimmed: dimming reads as disabled.
+
+   A REAL element rather than a `content:` string on a pseudo, which is what this was:
+   generated content cannot be localized (CSS has no access to the language file) and
+   is not reliably announced by screen readers, so the one word that says a step can be
+   skipped would have been the one word neither a translator nor a screen reader could
+   reach. */
+.stonetop .steading-threats-guide-optional {
+	margin-left: 0.5em;
+	padding: 0 0.4em;
+	border: 1px solid var(--st-text-secondary);
+	border-radius: 2px;
+	font-size: 0.78em;
+	font-weight: 400;
+	font-style: italic;
+	letter-spacing: 0.02em;
+	text-transform: lowercase;
+	color: var(--st-text-secondary);
+	opacity: 0.75;
+	white-space: nowrap;
+}
+/* The eight types wear their own accent as the tick down the left edge, the one place
+   the card chrome spends colour. The inline `--threat-accent` per row comes from the
+   catalog, so the tick and the card a threat of that type draws agree. */
+.stonetop .steading-threat-type-list > li { padding-left: 0.85em; }
+.stonetop .steading-threat-type-list > li::before {
+	content: "";
+	/* Declared here rather than inherited from the dash rule above, which no longer matches
+	   this list: without it the tick is an inline box and left/top/bottom do nothing. */
+	position: absolute;
+	left: 0;
+	top: 4px;
+	bottom: 4px;
+	width: 3px;
+	border-radius: 2px;
+	background: var(--threat-accent, var(--st-text-secondary));
+	opacity: 0.8;
+}
+
 .stonetop .threat-card-wrap { position: relative; }
 .stonetop .threat-card-tools {
 	position: absolute;
@@ -28491,19 +28682,24 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    then a scrollbar beats silently hiding the bottom of the sheet, which is what plain
    `overflow: hidden` did. See the `.sheet-body` floor below, which is what lets the
    shortfall reach this element instead of being swallowed lower down. */
-.stonetop.sheet.actor.npc .window-content {
+/* The GM Toolkit frame joins this rule rather than restating it: its window-content wants the
+   same four declarations for the same reason, and it adds only a zeroed bottom padding, which
+   stays with the rest of that sheet's block further down. */
+.stonetop.sheet.actor.npc .window-content,
+.stonetop.sheet.actor.gm-toolkit .window-content {
 	display: flex;
 	flex-direction: column;
 	overflow-x: hidden;
 	overflow-y: auto;
 }
-.stonetop-npc-sheet {
-	flex: 1 1 auto;
-	min-height: 0;
-	display: flex;
-	flex-direction: column;
-}
-.stonetop-npc-container {
+/* The form and the box inside it, both links in the flex chain that lets the active tab own
+   the scroll. One selector list rather than two identical blocks: a fix applied to only one of
+   them clips the tab body on a frame that otherwise looks fine. The GM Toolkit's form and
+   container are the same chain and so are named here, not in a second copy of this block. */
+.stonetop-npc-sheet,
+.stonetop-npc-container,
+.stonetop-gm-toolkit-sheet,
+.stonetop-gm-toolkit-container {
 	flex: 1 1 auto;
 	min-height: 0;
 	display: flex;
@@ -31760,5 +31956,353 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-catalog-badge--ungraded {
 	border-style: dashed;
 	color: var(--st-text-muted);
+}
+
+/* ==========================================================================
+   GM TOOLKIT sheet (Actor subtype "gmToolkit") — the GM's own sheet, the
+   screen-side companion to the GM playbook (Book I, "Running the Game").
+
+   MODERN LAYOUT ONLY. Nothing here is gated on `.stonetop-layout-classic`, and
+   nothing should be: the sheet postdates the icon rail, so it has no
+   pre-redesign shape to preserve.
+
+   This frame carries NO `pbta` class (like the monster and the NPC), so every
+   rule pbta or the character scope would otherwise have supplied has to be
+   stated here: the height floor further up, the window-content flex chain, the
+   tab show/hide pair, and the tab's own gutter.
+   ========================================================================== */
+
+/* Narrow enough to park beside a scene, wide enough that the Moves list still
+   reads in its two columns. That count is fixed (at the foot of this file), so
+   squeezing the frame narrows both tracks rather than dropping one: measured at
+   this exact floor the tracks are 238px and 26 of the 30 glosses run to two
+   lines, against 368px and 14 at the 820px default. Below here they go to three
+   and four. */
+.window-app.stonetop.gm-toolkit {
+	min-width: 560px;
+}
+
+/* The form fills the window content and lays out as a column, so the header
+   banner stays pinned and only the active tab scrolls (chain below).
+
+   `overflow-y: auto` here is the LAST RESORT, not the normal scroll: everything
+   below carries `min-height: 0`, so at any workable size the chain absorbs the
+   space and this never engages. It exists for the case core clamps the frame to
+   a viewport too short to hold the sheet's irreducible minimum, where a
+   scrollbar beats silently cutting the bottom off. Those four declarations are
+   shared with the NPC sheet and stated once, up with its window-content rule;
+   what is left here is the one thing only this frame wants. */
+.stonetop.sheet.actor.gm-toolkit .window-content {
+	/* Zero along the bottom for the reason the character sheet's form is zeroed there (see
+	   `.pbta.sheet.actor .window-content form:has(.stonetop-sheet-layout)`): the active tab
+	   is the scrollport, so the layout's bottom edge is a scroll edge, and core's 8px below
+	   it is a permanent strip of bare parchment that the content is visibly cut off before.
+	   Stated HERE rather than on a form, because this frame carries no `pbta` class and so
+	   never got `.pbta.sheet.actor .window-content { padding: 0 }` — the 8px it is losing is
+	   core's own `body.game .app.window-app .window-content` padding, still supplying the
+	   other three sides. */
+	padding-bottom: 0;
+}
+
+/* (The form/container flex chain for this sheet is declared with the NPC sheet's, which wants
+   exactly the same four declarations — see `.stonetop-npc-sheet` above.) */
+
+/* -- Header banner --------------------------------------------------------
+   Also the tab rail's MEASURING ANCHOR: module/utils/tab-rail.js looks for
+   `.stonetop-sheet-header, .steading-header` inside the form and starts the
+   rail 16px below whatever it finds, bailing out if the match has no height.
+   So this block having real, non-zero height is what places the rail; a
+   collapsed or missing banner drops it to the flat 150px fallback, which looks
+   nearly right and is how that mistake survives review. */
+.stonetop-gm-toolkit-header {
+	flex: 0 0 auto;
+	align-items: center;
+	padding-bottom: 6px;
+	border-bottom: 2px solid slategrey;
+}
+
+.stonetop-gm-toolkit-title {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+/* Avara, at the display size the steading's title wears, because this is the
+   same kind of thing: a GM-facing sheet named for what it is rather than for a
+   person. */
+.stonetop-gm-toolkit-name {
+	font-family: var(--font-avara);
+	font-size: var(--font-size-display);
+	font-weight: bold;
+	line-height: 1.1;
+	margin: 0;
+	padding: 0;
+	border: none;
+}
+
+.stonetop-gm-toolkit-subtitle {
+	margin: 0;
+	font-size: var(--st-fs-xs);
+	font-style: italic;
+	color: var(--st-text-muted);
+}
+
+/* -- Tab body -------------------------------------------------------------
+   The ACTIVE TAB owns the scroll, not the shared body: that keeps each tab's
+   own scroll position once a second one arrives, and it is also what the
+   frosted seam reads (module/utils/scroll-frost.js stamps `is-scrolled` on a
+   scrolling tab's PARENT, which has to be `.sheet-body`).
+
+   The body's `overflow: hidden` overrides the `overflow-y: auto` that the
+   shared `.stonetop-sheet-layout .sheet-body` rule sets. Equal specificity,
+   settled on source order, which is why this block sits at the end of the
+   file. */
+/* A FLOOR on the clipping element, not on anything inside it. `.stonetop-sheet-layout` is
+   `overflow: hidden; min-height: 0`, so a floor set anywhere below it is simply sheared off:
+   the layout goes on shrinking past it, hides the difference, and nothing upstream ever learns
+   the content did not fit, so the `overflow-y: auto` on `.window-content` above never has any
+   overflow to scroll and the tab is silently clipped instead. Same value and same reasoning as
+   the character sheet's `.pbta.sheet.actor.character .stonetop-sheet-layout { min-height }`.
+   Bites when the banner grows: a long actor name wrapping the 42px display title several times
+   is enough. */
+.stonetop-gm-toolkit-layout {
+	min-height: 260px;
+}
+
+.stonetop-gm-toolkit-layout .sheet-body {
+	overflow: hidden;
+}
+
+/* Show/hide stated as an unlayered PAIR, so core's V13 layered
+   `.tab { display: none }` cannot win over just the show half and leak an
+   inactive tab onto the page. `margin: 0` zeroes what core's V1 form-hint rule
+   (`body.game .app form .notes`) hands a `.tab.notes` panel, which paired with
+   `height: 100%` pushes the panel past the body's bottom edge. */
+.stonetop-gm-toolkit-sheet .sheet-body > .tab {
+	display: none;
+	height: 100%;
+	margin: 0;
+}
+
+.stonetop-gm-toolkit-sheet .sheet-body > .tab.active {
+	display: block;
+}
+
+.stonetop-gm-toolkit-sheet .sheet-body > .tab.active:not(.notes) {
+	overflow-y: auto;
+	overflow-x: hidden;
+	scrollbar-width: thin;
+	scrollbar-gutter: stable;
+}
+
+/* The tab's own gutter, for every tab. The equivalent character-sheet rule is scoped
+   `.pbta.sheet.actor.character` and the steading's inset came from `.steading-sheet
+   .sheet-tab`; this frame matches neither, so it states its own. No TOP inset: a tab starts
+   flush under the pinned banner, so its first row reads as continuous with the header rather
+   than floating below it.
+
+   `:is()` so a new tab is one word here rather than a fourth copy of the rule. It takes the
+   specificity of its heaviest argument, and all three are one `.tab` plus one name class, so
+   this weighs exactly what three spelled-out selectors would. */
+.stonetop-gm-toolkit-sheet .sheet-body > :is(.tab.moves, .tab.loop, .tab.threats, .tab.sites) {
+	padding: 0 12px 12px;
+}
+
+/* The prep tabs' edit pencil floats in the panel's top-right corner and is positioned against
+   it, so the panel has to be the containing block. `.steading-edit-section` supplies
+   `position: relative` already, but only as a bare class; restating it here is what survives
+   that rule being re-scoped to the steading later, which is now a thing someone might do. */
+.stonetop-gm-toolkit-sheet .sheet-body > :is(.tab.threats, .tab.sites) {
+	position: relative;
+}
+
+/* -- Moves tab ------------------------------------------------------------
+   Deliberately NOT the bordered card the rest of the system sets a move in.
+   These thirty are reference: nothing is learned, nothing is missing, nothing
+   rolls, and no entry has more body than the single line under its name. So
+   they are set as a two-column REFERENCE LIST — name, its gloss on the line
+   below it, a hairline between entries and a column rule down the middle.
+   Every name starts on the same x, which is the point: a GM scanning for
+   "what now?" runs their eye down one edge, and a masonry of boxes has no
+   such edge to run down.
+
+   Flow is DOWN each column and then over, which is what CSS multi-column
+   gives and what a two-track grid would not: a grid deals the second move
+   into the right-hand column. The lists are printed in the playbook's order —
+   roughly the softest move to the hardest — and that order only survives if
+   the column reads top to bottom.
+
+   The panel is still `class="tab moves"` and each section is still a
+   `.stonetop-move-group`. That pair is load-bearing for three things this
+   block does NOT restate: the tab's own padding (further up this file), the
+   14px gap between groups (`:is(.tab.moves, .tab.post-death) .sheet-tab >
+   .stonetop-move-group:not(:first-child)`), and the fold caret's box.
+
+   The ENTRIES, though, wear their own classes rather than the shared move
+   card's. Only one rule below is still an override (the two-column count,
+   which beats `.stonetop-move-group .items-list` with a third class); the rest
+   describe a reference entry positively instead of dressing it as a card and
+   then undoing the card declaration by declaration. */
+
+/* Exactly TWO columns, not the "as many 240px tracks as fit" the shared
+   `.stonetop-move-group .items-list` sets up. `column-width: initial` as well
+   as the count, because with both declared the used count is the SMALLER of
+   the two — leave the 240px width standing and a narrowed frame silently
+   collapses this to one column.
+
+   The divider between the columns is `column-rule`: one line down the whole
+   list, drawn by the container, rather than a border on each entry. */
+.stonetop-gm-toolkit-moves .stonetop-move-group .items-list {
+	column-count: 2;
+	column-width: initial;
+	column-gap: 24px;
+	column-rule: 1px solid var(--st-card-rule);
+}
+
+/* One entry: the name, and its gloss on the line below.
+
+   Its OWN classes, stated positively. These entries used to wear the shared
+   move-card classes (`stonetop-item`, `-header`, `-name`, `-description`) and
+   then spend thirteen declarations taking the card back off again — `border:
+   none`, `background: none`, `border-radius: 0`, `display: block`, `max-width:
+   none`, `padding: 0`, `cursor: default` — to arrive at a plain two-line
+   reference entry that shares nothing with a card but its font. Nothing those
+   classes contributed survived, and every future edit to the shared chrome had
+   to be re-checked against this block or it would leak a border or a fill in
+   here with nothing failing. The font comes from the `--font-stonetop` list
+   near the top of this file, which these two classes now join.
+
+   `break-inside: avoid` is what keeps the name and its gloss together —
+   without it the column break falls wherever it lands, and the entry at the
+   foot of the left column hands its gloss to the top of the right one, where
+   it reads as belonging to a different move entirely. Nothing about that looks
+   broken enough to notice. */
+.stonetop-gm-toolkit-moves .stonetop-gm-move {
+	break-inside: avoid;
+	border-bottom: 1px solid var(--st-card-rule);
+	padding: 6px 0;
+}
+
+/* Note there is NO `:last-child` exception to the rule above, deliberately.
+   Only the DOM-last entry is `:last-child`, and that one sits at the foot of
+   the RIGHT column — so an exception would close one column with a hairline
+   and the other without, at the same height, side by side. Every entry keeps
+   its rule and both columns close the same way. */
+
+/* The name. A plain block, so a long one wraps inside its column rather than
+   being sized to content the way a flex row would. */
+.stonetop-gm-toolkit-moves .stonetop-gm-move-name {
+	display: block;
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
+	line-height: 1.3;
+}
+
+/* The gloss, in italic secondary ink so it stays subordinate to the move it
+   explains. No left indent: the indent a character's move description carries
+   is there to clear its checkbox column, and with no checkbox here it would
+   only break the left edge the names line up on. */
+.stonetop-gm-toolkit-moves .stonetop-gm-move-gloss {
+	margin-top: 2px;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	line-height: 1.4;
+	font-style: italic;
+	color: var(--st-text-secondary);
+}
+
+/* -- Core Loop tab --------------------------------------------------------
+   The GM playbook's two flowcharts, side by side the way the playbook prints
+   them, and stacked once the window is too narrow to give each a readable
+   column. Both are tall portrait pictures (roughly 2:3), so the pair only
+   works side by side when there is real width: `auto-fit` with a 260px floor
+   drops to one column on its own, without a media query that would have to
+   guess the sheet's width rather than the panel's.
+
+   Nothing here is a card. The Moves tab is a reference LIST and this is a
+   reference PICTURE; a border and a fill around an already-boxed diagram
+   would read as a frame around a frame. */
+.stonetop-gm-diagrams {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+	gap: 18px;
+	align-items: start;
+	padding-top: 10px;
+}
+
+.stonetop-gm-diagram {
+	margin: 0;
+	min-width: 0; /* a grid item's default `min-width: auto` refuses to shrink below its image */
+	text-align: center;
+}
+
+/* Caption ABOVE the picture, unlike a journal figure. This is a tab a GM
+   opens mid-sentence looking for one of two diagrams, so the title has to be
+   the first thing on the row, not something found under a 500px picture. */
+.stonetop-gm-diagram-caption {
+	display: block;
+	margin-bottom: 6px;
+	text-align: left;
+}
+
+.stonetop-gm-diagram-title {
+	display: block;
+	font-size: var(--st-fs-lg);
+}
+
+.stonetop-gm-diagram-note {
+	display: block;
+	font-size: var(--st-fs-xs);
+	font-style: italic;
+	color: var(--st-text-secondary);
+}
+
+.stonetop-gm-diagram-zoom {
+	display: block;
+	/* The anchor is a bare wrapper for the picture; core's link colour and
+	   underline on it would paint a rule across the bottom of every diagram. */
+	color: inherit;
+	text-decoration: none;
+}
+
+/* `border` is declared, not left off: core's `body.game .app img` puts a 1px
+   black border and a 2px radius on every image inside a sheet, so the choice
+   is between stating a border and wearing that one. A hairline in the page's
+   own warm grey suits ink-on-paper line art; black does not. */
+.stonetop-gm-diagram-img {
+	display: block;
+	width: 100%;
+	height: auto;
+	border: 1px solid var(--st-art-frame);
+	border-radius: var(--st-radius-sm);
+	background: #fff;
+}
+
+/* The not-yet-imported state. Sized in `aspect-ratio` rather than a fixed
+   height so the gap where a diagram will go is the shape of the diagram,
+   which is what stops the tab reflowing the moment a GM imports one. */
+.stonetop-gm-diagram-missing {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	aspect-ratio: 2 / 3;
+	padding: 16px;
+	border: 1px dashed hsl(40 20% 70%);
+	border-radius: var(--st-radius-sm);
+	color: var(--st-text-muted);
+	font-size: var(--st-fs-sm);
+}
+
+.stonetop-gm-diagram-missing p {
+	margin: 0;
+}
+
+/* `width: auto` because core gives an in-app button `width: 100%`, which here
+   would stretch it the whole width of the placeholder. */
+.stonetop-gm-diagram-import {
+	width: auto;
+	flex: 0 0 auto;
 }
 

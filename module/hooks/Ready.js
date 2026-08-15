@@ -1,4 +1,5 @@
 import { runStartupMigrations } from "./PbtaSheetConfig.js";
+import { theGmToolkit, createGmToolkit } from "../actors/gmtoolkit/gm-toolkit-actor.js";
 import { maybeOfferMigration } from "../migration/announce.js";
 import { finishSystemIdMigration } from "../migration/finish-run.js";
 import { maybeRescueStrandedWorld } from "../migration/rescue.js";
@@ -33,7 +34,7 @@ import { LoveLetterDialog } from "../dialogs/LoveLetterDialog.js";
 import { StonetopArcanaInspireDialog } from "../item/StonetopArcanaInspireDialog.js";
 import { StonetopBrowserDialog } from "../dialogs/StonetopBrowserDialog.js";
 import { findVisibleJournal, SETTING_OVERVIEW_JOURNAL } from "../utils/seeded-journals.js";
-import { getStonetopSteadingActor, getStonetopSteadingActorOrWarn } from "../utils/world.js";
+import { getStonetopSteadingActorOrWarn } from "../utils/world.js";
 import { rollMoveFromUuid } from "./HotbarDrop.js";
 import { ensureThreatsEntry } from "../threats/threat-store.js";
 import { ensureHazardsEntry } from "../hazards/hazard-store.js";
@@ -348,7 +349,7 @@ export async function onReady() {
 	if (game.user.isGM) await stampWorldLayoutBaseline();
 	if (game.user.isGM) await _applyCoreSettingDefaultsForNewWorld();
 	if (game.user.isGM) await _ensurePlayerActorCreationGrant();
-	if (game.user.isGM) await _assignSteadingToUnassignedGm();
+	if (game.user.isGM) await _assignGmToolkitToGm();
 
 	// Set this world up: the durable-art re-apply, the gazetteer seed, the bestiary and the
 	// treasure library — narrated by the setup progress window when there is actually a wait
@@ -511,43 +512,91 @@ async function _ensurePlayerActorCreationGrant() {
 	await setSetting("playerActorCreationGranted", true);
 }
 
-// Give a GM who has no assigned character the shared steading as their default character,
-// once. Foundry's `User#character` only references an actor id (it needn't be a
-// `character`-type actor), so the "Stonetop" steading rides in the GM's player-list entry
-// and their "toggle character sheet" hotkey (core binds C → game.toggleCharacterSheet,
-// which opens game.user.character when no token is controlled) opens it in a click.
+// The world's GM Toolkit: find it, or make it. ONE per world, like the steading, and enforced
+// the same way — hooks/StonetopSingleton.js vetoes a second create and refuses to delete the
+// last, so whichever GM loads first mints it and every GM after that finds it.
+//
+// One is the right number because nothing on the sheet is per-GM: `GmToolkitModel`'s schema is
+// empty, the Moves and Core Loop tabs are reference transcribed from the playbook, and the
+// Threats and Sites tabs read their storage off the STEADING. What genuinely varies between
+// gamemasters is which sheet their "C" key opens, and that is a per-user flag on the User
+// document (see _assignGmToolkitToGm below), not a second Actor.
+//
+// Plain find-or-mint, with NO once-per-user latch, and the delete guard is what pays for that:
+// with deletion refused, "no toolkit in this world" can only mean "never made one". There is no
+// don't-resurrect-what-somebody-threw-away case left to remember, and no flag that could jam the
+// gate shut by conflating "already minted" with "could not mint".
+//
+// The toolkit is stamped `ownership.default = NONE` by StonetopActor#_preCreate, so it never
+// appears in a player's Actors sidebar. GM-only caller.
+export async function _ensureGmToolkit() {
+	const existing = theGmToolkit();
+	if (existing) return existing;
+
+	// Silent: this runs before anyone has asked for anything, so a world whose launch predates
+	// the subtype should say nothing and try again next load rather than greet the GM with a
+	// warning about a sheet they have not gone looking for. Returns null on any failure, and the
+	// next load simply asks again.
+	return await createGmToolkit({ warn: false });
+}
+
+// Give a GM who has no assigned character their GM Toolkit as their default character, once.
+// Foundry's `User#character` only references an actor id (it needn't be a `character`-type
+// actor), so the toolkit rides in the GM's player-list entry and their "toggle character
+// sheet" hotkey (core binds C → game.toggleCharacterSheet, which opens game.user.character
+// when no token is controlled) opens it in a click.
+//
+// It used to be the STEADING behind that key, from before the GM had a sheet of their own.
+// The toolkit is the better answer now: it holds the GM moves and, since they moved off the
+// steading, the Threats and Sites prep. A GM who is still on the steading from an earlier run
+// is moved across — that assignment was ours to begin with, and the `gmSteadingAssigned` flag
+// is how we know it was. A GM who chose something else is left alone.
 //
 // The once-gate is a per-USER WORLD flag on the GM's own User document — NOT a client
 // setting. A client-scoped setting lives in the browser's localStorage keyed only by
 // namespace.key, so it leaks across every world on this browser+server and a "fresh world"
-// reads it already-set — which silently skipped this assignment (the steading never became
-// the GM's character, so C did nothing). A User flag resets per world (new world = new
-// User docs) and is still per-user, so it gates correctly:
-//   • a GM who already runs their own PC (or previously accepted the steading) is left
-//     untouched — we record the flag and never re-check; and
+// reads it already-set — which silently skipped this assignment (nothing became the GM's
+// character, so C did nothing). A User flag resets per world (new world = new User docs) and
+// is still per-user, so it gates correctly:
+//   • a GM who already runs their own PC is left untouched — we record the flag and never
+//     re-check; and
 //   • a GM who later clears the assignment stays cleared — we never re-assign.
-// If no steading exists yet (e.g. a secondary GM logging in before the primary GM minted
-// it), we return WITHOUT setting the flag so the next load tries again. GM-only caller.
-async function _assignSteadingToUnassignedGm() {
-	if (game.user.getFlag(STONETOP_SCOPE, "gmSteadingAssigned")) return;
+// If the toolkit could not be minted, we return WITHOUT setting the flag so the next load
+// tries again. GM-only caller.
+export async function _assignGmToolkitToGm() {
+	if (game.user.getFlag(STONETOP_SCOPE, "gmToolkitAssigned")) return;
 
-	// Already has a character (their own PC, or the steading from a prior run): respect it
-	// and stop checking.
-	if (game.user.character) {
-		await game.user.setFlag(STONETOP_SCOPE, "gmSteadingAssigned", true);
-		return;
+	const toolkit = await _ensureGmToolkit();
+	const current = game.user.character;
+
+	// Somebody else's choice: their own PC, or anything we did not put there. Respect it and
+	// stop checking. The one assignment we WILL move is the steading we assigned ourselves in
+	// an earlier version, which `gmSteadingAssigned` records.
+	if (current) {
+		const oursToMove = current.type === "stonetop"
+			&& !!game.user.getFlag(STONETOP_SCOPE, "gmSteadingAssigned");
+		if (!oursToMove) {
+			await game.user.setFlag(STONETOP_SCOPE, "gmToolkitAssigned", true);
+			return;
+		}
 	}
 
-	const steading = getStonetopSteadingActor();
-	if (!steading) return; // not minted yet — retry next load, flag left unset
+	if (!toolkit) return; // not minted yet — retry next load, flag left unset
 
+	// The assignment and its latch in ONE write, rather than an update followed by a setFlag.
+	// Two writes to the same User document is one round trip more than the job needs, and it is
+	// the pairing that matters: if the second half fails, the next load re-assigns a character
+	// that is already assigned. Together they land or neither does.
 	try {
-		await game.user.update({ character: steading.id });
+		await game.user.update({
+			character: toolkit.id,
+			flags: { [STONETOP_SCOPE]: { gmToolkitAssigned: true } },
+		});
 	} catch (err) {
-		console.warn("Stonetop | Could not assign the steading as the GM's character.", err);
-		return; // leave the flag unset so a transient failure retries next load
+		console.warn("Stonetop | Could not assign the GM Toolkit as the GM's character.", err);
+		// Flag left unset so the next load tries again — which it now can, because
+		// _ensureGmToolkit hands back the toolkit it already minted.
 	}
-	await game.user.setFlag(STONETOP_SCOPE, "gmSteadingAssigned", true);
 }
 
 // Let players create actors: their own characters from Foundry's "Create Actor"
@@ -1580,7 +1629,7 @@ function _buildStartupWelcomeContent() {
 					<ul>
 						<li>A first-session Welcome guide and a Let Spring Burst Forth walkthrough.</li>
 						<li>A steading sheet with seasonal automation, improvements, and disasters.</li>
-						<li>A Threats tab of book-faithful cards you can pin to a scene.</li>
+						<li>A GM Toolkit with your moves, and Threats and Sites tabs you can pin to a scene.</li>
 						<li>Love Letters: personal, one-time moves you hand to a single character.</li>
 						<li>Character Introductions that compile into "The Chronicle" world journal.</li>
 						<li>An End of Session macro that awards XP to the whole table at once.</li>

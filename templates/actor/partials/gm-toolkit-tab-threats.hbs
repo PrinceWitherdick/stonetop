@@ -1,0 +1,136 @@
+{{!-- THREATS & DANGERS — moved here from the steading sheet. A threat is the GM's own prep,
+      written for one pair of eyes, so it belongs on the GM's sheet rather than on the village
+      the players share.
+
+      The `steading-*` class names are kept DELIBERATELY. They are CSS hooks, not statements
+      about where the panel lives: `.steading-prep-cards` is the shared card chrome (collapse
+      chevron, the re-map from the standalone card's rem sizes onto this sheet's --st-fs-*
+      tokens) that this tab and Sites both wear, and `.steading-threats` is the scoping ancestor
+      roughly forty rules in stonetop.css hang off. Renaming them means rewriting that block,
+      and every rule that stopped matching would fail silently as an oversized or unstyled card.
+      The storage did not move either, which is the other half of the same story: these cards
+      live in a journal pointed at by a flag on the STEADING actor. See gm-prep-tabs.js.
+
+      `stonetop-readonly` when the section's pencil is off, so a GM reading their prep can't
+      delete a threat with a stray click. --}}
+<div class="tab threats steading-edit-section{{#unless stonetop.edit.threats}} stonetop-readonly{{/unless}}" data-group="primary" data-tab="threats">
+	{{> "stonetop.steading-section-toggle" section="threats" editing=stonetop.edit.threats}}
+	<section class="sheet-tab steading-threats steading-prep-cards">
+
+		{{#if stonetop.hasSteading}}
+		<p class="steading-threats-intro">{{localize "stonetop.gmToolkit.threats.intro"}}</p>
+
+		{{!-- One section per proximity tracker (Homefront / Nearby / Distant), each with its own
+		      "write up" button that pre-seeds that proximity. --}}
+		{{#each stonetop.threatGroups}}
+		<div class="steading-threats-section">
+			{{!-- Folded under the proximity's stable id ("homefront" / "nearby" / "distant"), not
+			      its label: a label is display text, so a copy edit would silently drop the fold
+			      and a blank one would leave a caret that does nothing.
+
+			      The hint is what the tracker MEANS (Book I p.288), inline in the heading rather
+			      than a line under it: the heading is the one part of a section a fold leaves on
+			      screen, so a GM scanning three collapsed trackers for where a new threat belongs
+			      can still read the answer. --}}
+			<h3 class="steading-residents-heading">{{heading}} <span class="stonetop-section-note">{{hint}}</span>{{> "stonetop.section-collapse" collapse=id}}</h3>
+			{{#if threats.length}}
+			<div class="steading-threats-grid">
+				{{#each threats}}
+				<div class="threat-card-wrap" data-page-uuid="{{uuid}}">
+					{{> "stonetop.threat-card" this}}
+					{{> "stonetop.gm-prep-card-tools" kind="threat" uuid=uuid}}
+				</div>
+				{{/each}}
+			</div>
+			{{/if}}
+			{{> "stonetop.gm-prep-add-bar" kind="threat" proximity=id label=addLabel}}
+		</div>
+		{{/each}}
+
+		{{!-- Hazards: the environmental half of Book I "Dangers", one flat section after the
+		      proximity groups (hazards have no proximity; they belong to places and
+		      expeditions). Same card affordances as threats: drag-to-pin, collapse; the pen
+		      reopens the Make-a-Hazard walkthrough pre-filled. --}}
+		<div class="steading-threats-section steading-hazards-section">
+			<h3 class="steading-residents-heading">{{localize "stonetop.gmToolkit.threats.hazards"}}{{> "stonetop.section-collapse" collapse="hazards"}}</h3>
+			<p class="steading-threats-intro">{{localize "stonetop.gmToolkit.threats.hazardsIntro"}}</p>
+			{{#if stonetop.hazards.length}}
+			<div class="steading-threats-grid">
+				{{#each stonetop.hazards}}
+				<div class="threat-card-wrap" data-page-uuid="{{uuid}}">
+					{{> "stonetop.hazard-card" this}}
+					{{> "stonetop.gm-prep-card-tools" kind="hazard" uuid=uuid}}
+				</div>
+				{{/each}}
+			</div>
+			{{/if}}
+			{{> "stonetop.gm-prep-add-bar" kind="hazard" label=(localize "stonetop.gmToolkit.threats.addHazard")}}
+		</div>
+		{{else}}
+		{{> "stonetop.gm-prep-no-steading" noun="Threats and hazards"}}
+		{{/if}}
+
+		{{!-- PREP REFERENCE — the Threats chapter's guidance, condensed, from
+		      module/threats/threat-guidance.js. Reference only: nothing here reads or writes a
+		      card, so it sits OUTSIDE the has-a-steading branch above and is drawn either way.
+		      A world with no prep filed yet is a GM about to write their first threat, which is
+		      exactly who this is for.
+
+		      It goes at the BOTTOM, under the cards. The tab's job is the prep you have written;
+		      this is the glance-down for while you are writing more, and above the cards it would
+		      push them off the first screen. Each section carries its own fold caret, so a GM who
+		      knows the chapter folds them once and the sheet remembers per user.
+
+		      Each section is its OWN `.steading-threats-section` box. That is load bearing: the
+		      fold walk claims a heading's following siblings until the next heading
+		      (utils/section-editing.js), so these laid out in one flat run would let the first
+		      caret swallow every section below it. --}}
+		<div class="steading-threats-reference">
+
+			{{#each stonetop.threatGuidance}}
+			<div class="steading-threats-section steading-threats-guide">
+				<h3 class="steading-residents-heading">{{title}} <span class="stonetop-section-note">{{note}}</span>{{> "stonetop.section-collapse" collapse=collapseId defaultCollapsed=true}}</h3>
+				{{#if caution}}<p class="steading-threats-intro">{{caution}}</p>{{/if}}
+				{{#each groups}}
+				<div class="steading-threats-guide-group">
+					{{#if label}}<h4 class="steading-threats-guide-label">{{label}}</h4>{{/if}}
+					{{!-- Numbered only where the order is the point (the write-up steps). The
+					      `ordered` flag rides on the SECTION, so a group inherits it through the
+					      `../` walk out of this each. --}}
+					{{#if ../ordered}}
+					<ol class="steading-threats-guide-list is-ordered">
+						{{#each items}}
+						<li><strong>{{name}}</strong>{{#if optional}} <em class="steading-threats-guide-optional">{{@root.stonetop.threatOptionalLabel}}</em>{{/if}}<span>{{gloss}}</span></li>
+						{{/each}}
+					</ol>
+					{{else}}
+					<ul class="steading-threats-guide-list">
+						{{#each items}}
+						<li><strong>{{name}}</strong>{{#if optional}} <em class="steading-threats-guide-optional">{{@root.stonetop.threatOptionalLabel}}</em>{{/if}}<span>{{gloss}}</span></li>
+						{{/each}}
+					</ul>
+					{{/if}}
+				</div>
+				{{/each}}
+			</div>
+			{{/each}}
+
+			{{!-- The eight types, blurb only. The same catalog the Write-Up-a-Threat dialog
+			      offers, read straight from threat-types.js rather than restated here. That
+			      dialog is where you PICK a type and see its GM moves; this is the list you
+			      read to work out which one you are looking at. Each row carries its type's
+			      accent as the tick down its left edge, the one place the card chrome uses
+			      colour. --}}
+			<div class="steading-threats-section steading-threats-guide">
+				<h3 class="steading-residents-heading">{{localize "stonetop.gmToolkit.threats.guide.types"}} <span class="stonetop-section-note">{{localize "stonetop.gmToolkit.threats.guide.typesNote"}}</span>{{> "stonetop.section-collapse" collapse="threatGuideTypes" defaultCollapsed=true}}</h3>
+				<ul class="steading-threats-guide-list steading-threat-type-list">
+					{{#each stonetop.threatTypeReference}}
+					<li style="--threat-accent: {{accent}}"><strong>{{label}}</strong><span>{{blurb}}</span></li>
+					{{/each}}
+				</ul>
+			</div>
+
+		</div>
+
+	</section>
+</div>
