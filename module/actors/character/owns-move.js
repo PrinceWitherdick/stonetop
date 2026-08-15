@@ -27,3 +27,18 @@ export function ownedMove(actor, name) {
 export function ownedMoveNames(actor) {
 	return new Set((actor?.items ?? []).filter(i => i.type === "move").map(i => i.name));
 }
+
+/**
+ * Does this actor own ANY of `names`?
+ *
+ * `owned` is an optional pre-built Set from `ownedMoveNames`, for callers resolving several of
+ * these in one go: the character sheet's getData asks five separate ownership questions per
+ * render, and each one answering for itself walks the whole item collection again.
+ *
+ * Without a Set this stays the short-circuiting `some(ownsMoveNamed)` it was, deliberately —
+ * building a Set to test one or two names costs more than the scan it would replace.
+ */
+export function ownsAnyMoveNamed(actor, names, owned = null) {
+	return owned ? names.some(name => owned.has(name))
+	             : names.some(name => ownsMoveNamed(actor, name));
+}

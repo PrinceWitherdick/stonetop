@@ -57,8 +57,8 @@ const roster = createRoster({ prefix: "condemned" });
  * not Condemn — so a Judge can own Proclamation and still have nothing to list. Condemn is the
  * only move in the playbook that leaves a mark behind, so it is the only one that earns the icon.
  */
-export function canCondemn(actor) {
-	return ownsMoveNamed(actor, CONDEMN);
+export function canCondemn(actor, owned = null) {
+	return owned ? owned.has(CONDEMN) : ownsMoveNamed(actor, CONDEMN);
 }
 
 /**

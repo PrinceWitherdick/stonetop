@@ -65,11 +65,32 @@ export function moveGroupsForPlaybook(playbookName) {
 	return (ONBOARDING_MOVE_GROUPS[playbookName] ?? []).map(g => ({ key: g.key, label: g.label }));
 }
 
+// Reverse index of the table above: playbook -> move name -> the group keys listing it, in
+// table order. Built on first use and kept, because the table is module-level and nothing
+// writes to it, so the mapping is fixed for the life of the process.
+//
+// Worth having because both readers below are called per MOVE while the table is searched per
+// GROUP: the sheet's Moves tab partitions ~40 playbook moves on every character-sheet render,
+// and a linear `groups.filter(g => g.moves.includes(name))` is ~30 string comparisons each —
+// ~1,200 per render to answer a question whose answer never changes.
+const _groupKeyIndex = new Map();
+function groupKeyIndexFor(playbookName) {
+	let index = _groupKeyIndex.get(playbookName);
+	if (index) return index;
+	index = new Map();
+	for (const group of ONBOARDING_MOVE_GROUPS[playbookName] ?? []) {
+		for (const name of group.moves) {
+			if (index.has(name)) index.get(name).push(group.key);
+			else index.set(name, [group.key]);
+		}
+	}
+	_groupKeyIndex.set(playbookName, index);
+	return index;
+}
+
 // The group keys a given move belongs to, within its playbook (0, 1, or more).
 export function moveGroupKeys(playbookName, moveName) {
-	return (ONBOARDING_MOVE_GROUPS[playbookName] ?? [])
-		.filter(g => g.moves.includes(moveName))
-		.map(g => g.key);
+	return [...(groupKeyIndexFor(playbookName).get(moveName) ?? [])];
 }
 
 // The trailing bucket for the moves no chip claims. Labelled "Other" rather than
@@ -100,9 +121,12 @@ export function partitionMovesByGroup(playbookName, moves) {
 	if (!groups?.length) return [];
 	const buckets = new Map(groups.map(g => [g.key, { key: g.key, label: g.label, moves: [] }]));
 	buckets.set(UNGROUPED_MOVE_KEY, { key: UNGROUPED_MOVE_KEY, label: UNGROUPED_MOVE_LABEL, moves: [] });
+	// The index lists a move's groups in table order, so `[0]` IS the first group that claims it —
+	// the same answer the linear `find` gave, at one lookup per move instead of a scan.
+	const index = groupKeyIndexFor(playbookName);
 	for (const move of moves ?? []) {
-		const group = groups.find(g => g.moves.includes(move.name));
-		buckets.get(group?.key ?? UNGROUPED_MOVE_KEY).moves.push(move);
+		const key = index.get(move.name)?.[0];
+		buckets.get(key ?? UNGROUPED_MOVE_KEY).moves.push(move);
 	}
 	return [...buckets.values()].filter(b => b.moves.length);
 }

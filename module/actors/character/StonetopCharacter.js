@@ -41,6 +41,7 @@ import {moveMarkBudget} from "./move-mark-budget.js";
 import {StonetopFlags, STONETOP_SCOPE, ITEM_FLAG_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
 import {DEATHS_DOOR_FLAG, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
 import {heroDisplayName, WBH_HERO_FLAG, ownsAsteriskMove} from "./WouldBeHeroAsterisk.js";
+import {ownedMoveNames} from "./owns-move.js";
 import {HOLY_LIGHT_FLAG, canWieldHolyLight} from "./holy-light.js";
 import {ONGOING_INVOCATION_FLAG, readOngoing} from "./ongoing-invocation.js";
 import {CONDEMNED_FLAG, canCondemn, readCondemned, addCondemned, removeCondemned, noteCondemned} from "./condemn.js";
@@ -2231,6 +2232,26 @@ export class StonetopCharacter {
 		const next = Math.max(0, Math.trunc(Number(n) || 0));
 		if (next === this.defendReadiness) return;
 		await this._actor.setFlag(STONETOP_SCOPE, _DEFEND_READINESS_FLAG, next);
+	}
+
+	/**
+	 * All five header-glyph ownership answers, from ONE walk of the items.
+	 *
+	 * Each getter below resolves independently, and the character sheet's getData asks for every
+	 * one of them on every render — so a sheet owning none of these moves (most sheets) paid a
+	 * full traversal per predicate, seven in total once the multi-name ones are counted. The
+	 * single-answer getters stay for the callers that only want one; this is for the caller that
+	 * wants them all, which is the one that runs on every repaint.
+	 */
+	get headerGlyphOwnership() {
+		const owned = ownedMoveNames(this._actor);
+		return {
+			holyLight: canWieldHolyLight(this._actor, owned),
+			condemn:   canCondemn(this._actor, owned),
+			oaths:     canBindOaths(this._actor, owned),
+			battleJoy: canEnterBattleJoy(this._actor, owned),
+			blessed:   canMarkBlessed(this._actor, owned),
+		};
 	}
 
 	// -- Holy light (the Lightbearer's consecrated flame) ----------------------------

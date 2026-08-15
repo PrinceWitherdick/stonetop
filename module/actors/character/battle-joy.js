@@ -27,7 +27,7 @@
  * global in sight.
  */
 
-import { ownsMoveNamed } from "./owns-move.js";
+import { ownsMoveNamed, ownsAnyMoveNamed } from "./owns-move.js";
 
 // Re-exported so the sheet and this playbook's tests keep reaching the predicate through the
 // feature module they already import.
@@ -45,8 +45,8 @@ export const BERSERKER       = "Berserker";
 // is correct — they have the move, so they have the state.
 const BATTLE_JOY_MOVES = [BATTLE_JOY];
 
-export function canEnterBattleJoy(actor) {
-	return BATTLE_JOY_MOVES.some(name => ownsMoveNamed(actor, name));
+export function canEnterBattleJoy(actor, owned = null) {
+	return ownsAnyMoveNamed(actor, BATTLE_JOY_MOVES, owned);
 }
 
 /**

@@ -143,12 +143,6 @@ export function markKind(key) {
 	return KIND_BY_KEY[coerceKind(key)] ?? null;
 }
 
-/** Whether this character owns the move behind a kind — what puts that kind in the add form. */
-export function ownsKind(actor, key) {
-	const def = markKind(key);
-	return !!def && ownsMoveNamed(actor, def.move);
-}
-
 /**
  * The kinds this character can actually lay, in roster order. Empty for anyone who is not one.
  *
@@ -161,10 +155,15 @@ export function availableKinds(actor) {
 	return MARK_KINDS.filter(def => owned.has(def.move));
 }
 
-/** Whether this character can mark anybody at all — what earns the glyph in the header. */
-export function canMarkBlessed(actor) {
-	const owned = ownedMoveNames(actor);
-	return MARK_KINDS.some(def => owned.has(def.move));
+/**
+ * Whether this character can mark anybody at all — what earns the glyph in the header.
+ *
+ * Takes the sheet's one-pass Set when it has one, so the five header glyphs share a single walk
+ * of the items rather than each paying for their own.
+ */
+export function canMarkBlessed(actor, owned = null) {
+	const names = owned ?? ownedMoveNames(actor);
+	return MARK_KINDS.some(def => names.has(def.move));
 }
 
 /**
@@ -212,12 +211,6 @@ export function setMarkLoyalty(list, id, loyalty, { liftOnEnd = false } = {}) {
 	// Cut from the PATCHED list, and reported as `changed` rather than `removed`, so the write
 	// still reads as the one act it was: the player spent a Loyalty, and the mark went with it.
 	return { entries: roster.remove(result.entries, id).entries, changed: result.changed, ended };
-}
-
-/** Every mark of one kind, for the roster's per-kind groups. */
-export function marksOfKind(list, key) {
-	const kind = coerceKind(key);
-	return readMarks(list).filter(m => m.kind === kind);
 }
 
 /**

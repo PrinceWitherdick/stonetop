@@ -59,28 +59,20 @@
 	{{/if}}
 
 	{{#if canAdd}}
-	{{!-- The kind first, then who. Free-type, backed by a datalist of world actors: a ward names a
-	      doorway and a Shared Souls beast is very often something nobody has made an Actor for. A
-	      typed name that matches an actor is stored as a link to them anyway (see _addTyped), so
-	      typing and dropping record the same thing. --}}
-	<div class="stonetop-marks-add">
-		<select class="stonetop-marks-kind" aria-label="{{localize "stonetop.blessedMarks.kindLabel"}}">
-			{{#each kinds}}
-			<option value="{{key}}"{{#if (eq key ../defaultKind)}} selected{{/if}}>{{label}}</option>
-			{{/each}}
-		</select>
-		<input type="text" class="stonetop-marks-name" list="stonetop-marks-suggestions"
-		       autocomplete="off" placeholder="{{localize "stonetop.blessedMarks.addPlaceholder"}}">
-		{{!-- `label` is where a native datalist already means "the aside beside this option", and it
-		      is what StonetopAutocomplete renders as a dimmed second column. Only `value` is ever
-		      inserted into the field, so a picked "Brennan the Claw / Marshedge" types just the
-		      name and the search resolves it cleanly. --}}
-		<datalist id="stonetop-marks-suggestions">
-			{{#each suggestions}}<option value="{{value}}"{{#if hint}} label="{{hint}}"{{/if}}></option>{{/each}}
-		</datalist>
-		<button type="button" class="stonetop-marks-add-btn">{{localize "stonetop.blessedMarks.add"}}</button>
-	</div>
-	<p class="stonetop-marks-hint">{{localize "stonetop.blessedMarks.dropHint"}}</p>
+	{{!-- The kind first, then who — the kind chooser is this list's one addition to the shared bar,
+	      so it rides in the block body and everything else comes from the partial. --}}
+	{{#> "stonetop.roster-add" prefix="stonetop-marks"
+	     nameClass="stonetop-marks-name" listId="stonetop-marks-suggestions"
+	     addClass="stonetop-marks-add-btn"
+	     addLabel=(localize "stonetop.blessedMarks.add")
+	     placeholder=(localize "stonetop.blessedMarks.addPlaceholder")
+	     hint=(localize "stonetop.blessedMarks.dropHint")}}
+	<select class="stonetop-marks-kind" aria-label="{{localize "stonetop.blessedMarks.kindLabel"}}">
+		{{#each kinds}}
+		<option value="{{key}}"{{#if (eq key ../defaultKind)}} selected{{/if}}>{{label}}</option>
+		{{/each}}
+	</select>
+	{{/"stonetop.roster-add"}}
 	{{/if}}
 
 </div>

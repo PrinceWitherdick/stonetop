@@ -37,24 +37,12 @@
 		{{/if}}
 
 		{{#if canBrand}}
-		{{!-- Free-type, backed by a datalist of world actors: a Censure most often lands on somebody
-		      nobody has made an Actor for, and a Proclamation's faction never has one at all. A typed
-		      name that matches an actor exactly is stored as a link to them anyway (see _addTyped), so
-		      the two ways of adding the same person record the same thing. Dropping an Actor onto this
-		      section does it without the typing. --}}
-		<div class="stonetop-condemned-add">
-			<input type="text" class="stonetop-condemned-name" list="stonetop-condemned-suggestions"
-			       autocomplete="off" placeholder="{{localize "stonetop.condemn.addPlaceholder"}}">
-			{{!-- `label` is where a native datalist already means "the aside beside this option", and
-			      it is what StonetopAutocomplete renders as the dimmed second column. Only `value` is
-			      ever inserted into the field, so a picked "Brennan the Claw / Marshedge" types just
-			      the name and the search resolves it cleanly. --}}
-			<datalist id="stonetop-condemned-suggestions">
-				{{#each suggestions}}<option value="{{value}}"{{#if hint}} label="{{hint}}"{{/if}}></option>{{/each}}
-			</datalist>
-			<button type="button" class="stonetop-condemned-add-btn">{{localize "stonetop.condemn.add"}}</button>
-		</div>
-		<p class="stonetop-condemned-hint">{{localize "stonetop.condemn.dropHint"}}</p>
+		{{#> "stonetop.roster-add" prefix="stonetop-condemned"
+		     nameClass="stonetop-condemned-name" listId="stonetop-condemned-suggestions"
+		     addClass="stonetop-condemned-add-btn"
+		     addLabel=(localize "stonetop.condemn.add")
+		     placeholder=(localize "stonetop.condemn.addPlaceholder")
+		     hint=(localize "stonetop.condemn.dropHint")}}{{/"stonetop.roster-add"}}
 		{{/if}}
 	</section>
 	{{/if}}
@@ -106,15 +94,15 @@
 		{{/if}}
 
 		{{#if canWitness}}
-		<div class="stonetop-condemned-add">
-			<input type="text" class="stonetop-oath-name" list="stonetop-oath-suggestions"
-			       autocomplete="off" placeholder="{{localize "stonetop.oaths.addPlaceholder"}}">
-			<datalist id="stonetop-oath-suggestions">
-				{{#each oathSuggestions}}<option value="{{value}}"{{#if hint}} label="{{hint}}"{{/if}}></option>{{/each}}
-			</datalist>
-			<button type="button" class="stonetop-oath-add-btn">{{localize "stonetop.oaths.add"}}</button>
-		</div>
-		<p class="stonetop-condemned-hint">{{localize "stonetop.oaths.dropHint"}}</p>
+		{{!-- The brands' bar exactly, on the oaths' own suggestions and classes: the shared chrome
+		      stem stays `stonetop-condemned` because both halves of this window wear it. --}}
+		{{#> "stonetop.roster-add" prefix="stonetop-condemned"
+		     nameClass="stonetop-oath-name" listId="stonetop-oath-suggestions"
+		     addClass="stonetop-oath-add-btn"
+		     addLabel=(localize "stonetop.oaths.add")
+		     placeholder=(localize "stonetop.oaths.addPlaceholder")
+		     hint=(localize "stonetop.oaths.dropHint")
+		     suggestions=oathSuggestions}}{{/"stonetop.roster-add"}}
 		{{/if}}
 	</section>
 	{{/if}}

@@ -151,19 +151,15 @@ export class CondemnedDialog extends RosterDialog {
 
 		if (!this._editable) return;
 
-		root.querySelector(".stonetop-condemned-add-btn")?.addEventListener("click", () => this._addTyped(root));
-		root.querySelector(".stonetop-oath-add-btn")?.addEventListener("click", () => this._addTypedOath(root));
-		// Enter in a name field is the same act as pressing its button. Without this the fields sit
-		// inside a dialog with no form, so Enter does nothing at all and reads as a dead control.
-		root.querySelector(".stonetop-condemned-name")?.addEventListener("keydown", ev => {
-			if (ev.key !== "Enter") return;
-			ev.preventDefault();
-			this._addTyped(root);
+		// Enter in a name field is the same act as pressing its button — stated once, in the base
+		// class, for both bars here and the Blessed's third.
+		this._wireAddBar(root, {
+			btnSelector: ".stonetop-condemned-add-btn", nameSelector: ".stonetop-condemned-name",
+			add: () => this._addTyped(root),
 		});
-		root.querySelector(".stonetop-oath-name")?.addEventListener("keydown", ev => {
-			if (ev.key !== "Enter") return;
-			ev.preventDefault();
-			this._addTypedOath(root);
+		this._wireAddBar(root, {
+			btnSelector: ".stonetop-oath-add-btn", nameSelector: ".stonetop-oath-name",
+			add: () => this._addTypedOath(root),
 		});
 
 		// Both lists' rows carry their id under ONE attribute (`data-row-id`, written by the shared

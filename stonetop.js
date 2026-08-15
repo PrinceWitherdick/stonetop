@@ -453,6 +453,7 @@ Hooks.once("init", () => {
 		"stonetop.threat-string-list":        "systems/stonetop-pwd/templates/dialogs/partials/threat-string-list.hbs",
 		"stonetop.cs-line-list":              "systems/stonetop-pwd/templates/dialogs/partials/cs-line-list.hbs",
 		"stonetop.roster-row":                "systems/stonetop-pwd/templates/dialogs/partials/roster-row.hbs",
+		"stonetop.roster-add":                "systems/stonetop-pwd/templates/dialogs/partials/roster-add.hbs",
 		"stonetop.deaths-door-outcomes":      "systems/stonetop-pwd/templates/dialogs/partials/deaths-door-outcomes.hbs",
 		"stonetop.artifact-gm":              "systems/stonetop-pwd/templates/dialogs/artifact-gm.hbs",
 		"stonetop.header-toggle-glyph":       "systems/stonetop-pwd/templates/actor/partials/header-toggle-glyph.hbs",

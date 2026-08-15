@@ -50,8 +50,8 @@ const roster = createRoster({
  * that turns a promise into a standing question the Judge may ask forever, so it is the only one
  * that earns a row. Exactly the Censure/Condemn split in condemn.js.
  */
-export function canBindOaths(actor) {
-	return ownsMoveNamed(actor, BINDING_ARBITRATION);
+export function canBindOaths(actor, owned = null) {
+	return owned ? owned.has(BINDING_ARBITRATION) : ownsMoveNamed(actor, BINDING_ARBITRATION);
 }
 
 /**

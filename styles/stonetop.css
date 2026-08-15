@@ -4592,6 +4592,23 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	mask-position: center;
 }
 
+/* The three HEADER glyphs share more than the recipe above: each is a block that takes its width
+   from its own aspect-ratio, paints in the current colour, and eases when that colour changes.
+   Written per glyph, those four lines were three copies carrying three real values between them,
+   and a fourth glyph would have been a fourth copy. Scoped to these three deliberately —
+   `.stonetop-burn-brightly-icon` is inline-block with an em width, and `.stonetop-nav-arrow`
+   differs again, so neither belongs here. Each glyph below still states its own height,
+   aspect-ratio and mask url, which are the only things that actually differ. Earlier than all
+   three, so a per-glyph override would still win. */
+.stonetop-condemn-icon,
+.stonetop-blessed-marks-icon,
+.stonetop-battle-joy-icon {
+	display: block;
+	width: auto;
+	background: currentColor;
+	transition: background-color 0.15s ease;
+}
+
 .stonetop-burn-brightly-icon {
 	display: inline-block;
 	width: 1.5em;
@@ -8066,16 +8083,23 @@ button.stonetop-invocation-chip:focus-visible {
 	outline-offset: 2px;
 }
 
-/* ── The Judge's scales ────────────────────────────────────────────────────
-   ALWAYS a button, unlike the candle: it opens a list, and reading who has been branded is not
-   an edit. `position: relative` is for the count, which is absolutely positioned against it. */
-.stonetop-condemn {
+/* ── The Judge's scales, and the Blessed's triquetra ───────────────────────
+   ALWAYS buttons, unlike the candle: each opens a list, and reading who has been branded or
+   marked is not an edit. `position: relative` is for the count, which is absolutely positioned
+   against it.
+
+   One rule for both because they are the same control twice over — the triquetra's block was a
+   byte-identical copy of the scales', hover included. Only what they are COLOURED is theirs
+   alone, and those two modifiers stay separate below. */
+.stonetop-condemn,
+.stonetop-blessed-marks {
 	position: relative;
 	cursor: pointer;
 	transition: color 0.15s ease;
 }
 
-.stonetop-condemn:hover { color: var(--st-text-body); }
+.stonetop-condemn:hover,
+.stonetop-blessed-marks:hover { color: var(--st-text-body); }
 
 /* A Judge holding live brands wears them in ink, not in the faint grey of an empty docket — the
    same "this state is ON" signal the candle's gold gives, in the colour the brand itself is.
@@ -8090,14 +8114,10 @@ button.stonetop-invocation-chip:focus-visible {
    drawing's own 481.75 / 420.72 (see scales.svg), so the glyph can never be letterboxed inside
    its own box and resizing stays a one-number change. */
 .stonetop-condemn-icon {
-	display: block;
 	height: 38px;
-	width: auto;
 	aspect-ratio: 481.75 / 420.72;
-	background: currentColor;
 	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/scales.svg');
 	mask-image: url('/systems/stonetop-pwd/assets/icons/scales.svg');
-	transition: background-color 0.15s ease;
 }
 
 /* How many brands are standing, as a superscript on the right pan. Absolutely positioned rather
@@ -8190,14 +8210,10 @@ button.stonetop-invocation-chip:focus-visible {
    38px, matching the scales rather than the candle. The three are the same INK at roughly the same
    AREA, not the same height: the candle is a tall narrow taper (0.46 wide) and both of the others
    are a little wider than tall, so equal heights would give them nearly three times the candle's
-   area and turn the header into a billboard. */
-.stonetop-blessed-marks {
-	position: relative;
-	cursor: pointer;
-	transition: color 0.15s ease;
-}
+   area and turn the header into a billboard.
 
-.stonetop-blessed-marks:hover { color: var(--st-text-body); }
+   The button chrome itself (relative, pointer, hover wash) is up with the scales' — one rule for
+   both, since the two blocks were identical. */
 
 /* A Blessed with marks standing wears them in the green the sheet uses for a live, benign state,
    where the Judge's brand is near-black — these are blessings, not condemnations, and the colours
@@ -8211,14 +8227,10 @@ button.stonetop-invocation-chip:focus-visible {
    own 472.71 / 417.13 (see triquetra.svg), so the glyph can never be letterboxed inside its own
    box and resizing stays a one-number change. */
 .stonetop-blessed-marks-icon {
-	display: block;
 	height: 38px;
-	width: auto;
 	aspect-ratio: 472.71 / 417.13;
-	background: currentColor;
 	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/triquetra.svg');
 	mask-image: url('/systems/stonetop-pwd/assets/icons/triquetra.svg');
-	transition: background-color 0.15s ease;
 }
 
 /* ── The Heavy's Battle Joy ────────────────────────────────────────────────
@@ -8241,14 +8253,10 @@ button.stonetop-battle-joy { cursor: pointer; }
 button.stonetop-battle-joy:not(.is-raging):hover { color: var(--st-text-body); }
 
 .stonetop-battle-joy-icon {
-	display: block;
 	height: 40px;
-	width: auto;
 	aspect-ratio: 475.16 / 471.71;
-	background: currentColor;
 	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/enrage.svg');
 	mask-image: url('/systems/stonetop-pwd/assets/icons/enrage.svg');
-	transition: background-color 0.15s ease;
 }
 
 /* Red, in the sheet's own red token rather than a hand-mixed one, so it comes down with the black

@@ -72,6 +72,18 @@ function makeCharacterMock(actor) {
 		get battleJoy() { return raging; },
 		get canEnterBattleJoy() { return canRage; },
 		set canEnterBattleJoy(value) { canRage = !!value; },
+		// What getData actually reads for the five header glyphs — the real one answers all five
+		// from a single walk of the items. Derived from the same live values the individual
+		// getters above expose, so a test that writes `canCondemn = false` still moves it.
+		get headerGlyphOwnership() {
+			return {
+				holyLight: canWield,
+				condemn:   canBrand,
+				oaths:     canSwear,
+				battleJoy: canRage,
+				blessed:   canMark,
+			};
+		},
 		setBattleJoy: vi.fn(async value => {
 			const changed = !!value !== raging;
 			raging = !!value;

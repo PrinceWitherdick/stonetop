@@ -1520,11 +1520,15 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.recover = this._buildRecoverData(context.stonetop);
 			context.stonetop.convalesce = this._buildConvalesceData(context.stonetop);
 			context.stonetop.woundsView = this._buildWoundsView(context.stonetop.wounds, context.editable);
+			// Which of the header glyphs this character has EARNED, all five from one walk of the
+			// items — asking each one separately is five to seven traversals of the collection per
+			// render, and most sheets own none of these moves and so pay every one in full.
+			const ownsGlyph = this._stonetopCharacter.headerGlyphOwnership;
 			// The header candle. `show` is not just "is a Lightbearer": a LIT light is shown on
 			// any sheet, so one stranded by a playbook swap can still be snuffed.
 			const holyLit = this._stonetopCharacter.holyLight;
 			context.stonetop.holyLight = {
-				show: showHolyLight({ owns: this._stonetopCharacter.canWieldHolyLight, lit: holyLit }),
+				show: showHolyLight({ owns: ownsGlyph.holyLight, lit: holyLit }),
 				lit:  holyLit,
 				..._toggleGlyphKeys(HOLY_LIGHT_GLYPH, holyLit, context.editable),
 			};
@@ -1546,8 +1550,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			const oaths  = this._stonetopCharacter.oaths;
 			context.stonetop.condemn = {
 				show: showJudgeMarks({
-					ownsCondemn: this._stonetopCharacter.canCondemn, brandCount: brands.length,
-					ownsOaths:   this._stonetopCharacter.canBindOaths, oathCount: oaths.length,
+					ownsCondemn: ownsGlyph.condemn, brandCount: brands.length,
+					ownsOaths:   ownsGlyph.oaths,   oathCount: oaths.length,
 				}),
 				count:  brands.length + oaths.length,
 				brands: brands.length,
@@ -1563,14 +1567,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			// the same read feeds both (see StonetopCharacter#ignoresDebilities).
 			const raging = this._stonetopCharacter.battleJoy;
 			context.stonetop.battleJoy = {
-				show:   showBattleJoy({ owns: this._stonetopCharacter.canEnterBattleJoy, raging }),
+				show:   showBattleJoy({ owns: ownsGlyph.battleJoy, raging }),
 				raging,
 				..._toggleGlyphKeys(BATTLE_JOY_GLYPH, raging, context.editable),
 			};
 			// And the Blessed's marks, on the candle's and the scales' terms exactly.
 			const marks = this._stonetopCharacter.blessedMarks;
 			context.stonetop.blessedMarks = {
-				show:  showBlessedMarks({ owns: this._stonetopCharacter.canMarkBlessed, count: marks.length }),
+				show:  showBlessedMarks({ owns: ownsGlyph.blessed, count: marks.length }),
 				count: marks.length,
 				// Picked here for the reason the scales' is, and so that the two COUNT glyphs answer
 				// the question the same way — this one had kept an inline template ladder while the
@@ -6423,30 +6427,15 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (rolled === null) return;
 			if (rolled) {
 				// Rolling it IS leaving it: the model clears the state on the way into the roll.
-				await this._stonetopCharacter.onRoll({ currentTarget: this._battleJoyRollable(item) });
+				// Through the shared stand-in builder, so the header drives the same roll path the
+				// Moves tab does. Null only for a move carrying no rollType, which is the case
+				// onRoll answers `false` to anyway — the repaint below still runs either way.
+				const rollable = this._makeSyntheticRollable(item);
+				if (rollable) await this._stonetopCharacter.onRoll({ currentTarget: rollable });
 				this.render(false);
 				return;
 			}
 			if (await this._stonetopCharacter.setBattleJoy(false)) this.render(false);
-		}
-
-		/**
-		 * A stand-in for the move row's roll element, so the header can drive the same roll path the
-		 * Moves tab does rather than a second one that could drift from it.
-		 *
-		 * onRoll reads exactly two things off the event target — the enclosing `.item`'s item id,
-		 * and a `data-show` attribute — so a detached node carrying the id is all it needs, and
-		 * building one here is cheaper and steadier than hunting for a row that may be on a tab
-		 * this sheet has not rendered.
-		 */
-		_battleJoyRollable(item) {
-			const wrapper = document.createElement("div");
-			wrapper.className = "item";
-			wrapper.dataset.itemId = item.id;
-			const rollable = document.createElement("span");
-			rollable.className = "rollable move-rollable";
-			wrapper.appendChild(rollable);
-			return rollable;
 		}
 
 		/**

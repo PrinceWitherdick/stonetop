@@ -236,6 +236,31 @@ export class RosterDialog extends StonetopDialog {
 	}
 
 	/**
+	 * Wire one add bar: its button, and Enter in its name field.
+	 *
+	 * Both are the same act, and saying so in one place is the point — the Enter guard in
+	 * particular was written out once per bar (three times across the two dialogs), and a bar whose
+	 * copy was missed reads as a dead field rather than as an unwired one, because the button
+	 * beside it still works. This class already owns the other end of the same control in
+	 * `_clearAddField`, so the bar's lifecycle lives together.
+	 *
+	 * @param {HTMLElement} root
+	 * @param {object} bar
+	 * @param {string} bar.btnSelector   the add button
+	 * @param {string} bar.nameSelector  the text field Enter should fire from
+	 * @param {() => any} bar.add        what pressing either one does
+	 */
+	_wireAddBar(root, { btnSelector, nameSelector, add }) {
+		root.querySelector(btnSelector)?.addEventListener("click", () => add());
+		// Without this the fields sit inside a dialog with no form, so Enter does nothing at all.
+		root.querySelector(nameSelector)?.addEventListener("keydown", ev => {
+			if (ev.key !== "Enter") return;
+			ev.preventDefault();
+			add();
+		});
+	}
+
+	/**
 	 * Empty an add field after a successful write, so the next one starts clean.
 	 *
 	 * Reached through the live element rather than left to the re-render: `height: "auto"` windows

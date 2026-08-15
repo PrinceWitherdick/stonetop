@@ -142,13 +142,10 @@ export class BlessedMarksDialog extends RosterDialog {
 
 		if (!this._editable) return;
 
-		root.querySelector(".stonetop-marks-add-btn")?.addEventListener("click", () => this._addTyped(root));
-		// Enter in the name field is the same act as pressing the button. Without this the field
-		// sits inside a dialog with no form, so Enter does nothing at all and reads as dead.
-		root.querySelector(".stonetop-marks-name")?.addEventListener("keydown", ev => {
-			if (ev.key !== "Enter") return;
-			ev.preventDefault();
-			this._addTyped(root);
+		// Enter in the name field is the same act as pressing the button — see RosterDialog.
+		this._wireAddBar(root, {
+			btnSelector: ".stonetop-marks-add-btn", nameSelector: ".stonetop-marks-name",
+			add: () => this._addTyped(root),
 		});
 
 		root.addEventListener("click", async ev => {

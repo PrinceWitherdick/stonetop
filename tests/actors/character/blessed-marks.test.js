@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
 	BLESSED_MARKS_FLAG, MARK_KINDS, DEFAULT_KIND, SHARED_SOULS_LOYALTY,
 	BARKSKIN, TRACKLESS_STEP, SHARED_SOULS, AMULETS_TALISMANS, WARDS_BINDINGS,
-	canMarkBlessed, showBlessedMarks, availableKinds, ownsKind, markKind,
-	readMarks, addMark, removeMark, noteMark, setMarkLoyalty, marksOfKind, groupMarks,
+	canMarkBlessed, showBlessedMarks, availableKinds, markKind,
+	readMarks, addMark, removeMark, noteMark, setMarkLoyalty, groupMarks,
 } from "../../../module/actors/character/blessed-marks.js";
 
 const actorWith = (...items) => ({ items });
@@ -30,9 +30,12 @@ describe("who can lay a mark", () => {
 	// The add form offers what this character can actually lay, so a Blessed without Shared Souls
 	// is never asked to name a beast.
 	it("offers only the kinds whose move is owned, in roster order", () => {
-		expect(availableKinds(blessed).map(k => k.key)).toEqual(["barkskin", "beast"]);
-		expect(ownsKind(blessed, "barkskin")).toBe(true);
-		expect(ownsKind(blessed, "ward")).toBe(false);
+		const keys = availableKinds(blessed).map(k => k.key);
+		expect(keys).toEqual(["barkskin", "beast"]);
+		// The same rule per kind, asserted through the list the form actually reads: an owned
+		// move's kind is on offer and an unowned one's is not.
+		expect(keys).toContain("barkskin");
+		expect(keys).not.toContain("ward");
 	});
 });
 
@@ -182,7 +185,9 @@ describe("grouping for the roster", () => {
 
 	it("filters a kind's own rows", () => {
 		const list = [{ kind: "ward", name: "the gate" }, { kind: "barkskin", name: "Alun" }];
-		expect(marksOfKind(list, "ward").map(m => m.name)).toEqual(["the gate"]);
+		const groups = groupMarks(list, blessed);
+		expect(groups.find(g => g.def.key === "ward").rows.map(m => m.name)).toEqual(["the gate"]);
+		expect(groups.find(g => g.def.key === "barkskin").rows.map(m => m.name)).toEqual(["Alun"]);
 	});
 });
 
