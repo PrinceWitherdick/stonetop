@@ -31,8 +31,10 @@ import {improvementCategoryFieldHtml} from "../../dialogs/create-improvement-dia
 import {STONETOP_THREAT_SEED_DRAG_TYPE} from "../../threats/threat-seed-cards.js";
 import {PLACE_OF_INTEREST_DRAG_TYPE} from "../../hooks/PlaceOfInterestDrop.js";
 import {getDragEventData, imagePopout, imagePopoutTitle} from "../../utils/foundry-compat.js";
-import {postSeasonsChangeReminder, seasonIconSrc, seasonLabel, SEASON_IDS} from "../../seasons/seasons-change-reminders.js";
-import {recordSeasonsChange, ordinalWord} from "../../seasons/seasons-chronicle.js";
+import {postSeasonsChangeReminder, seasonIconSrc, seasonLabel} from "../../seasons/seasons-change-reminders.js";
+import {recordSeasonsChange} from "../../seasons/seasons-chronicle.js";
+import {readCurrentSeason, recordCurrentSeason, currentSeasonView, readCurrentYear} from "../../seasons/current-season.js";
+import {openSeasonPicker} from "../../seasons/season-picker.js";
 import {SEASONAL_GAINS} from "../../dialogs/spring-burst-data.js";
 import {addStonetopSteadingButton} from "../../utils/world.js";
 import {listThreatPages, createThreat, deleteThreat} from "../../threats/threat-store.js";
@@ -719,6 +721,11 @@ export function createStonetopSteadingSheetClass(Base) {
 			context.stonetop.sites = sitesCtx.sites;
 			context.stonetop.canSeeSites = sitesCtx.canSeeSites;
 			context.stonetop.isGM = game.user?.isGM ?? false;
+			// The clock beside the sheet's title: the season the table is playing in and the
+			// year it belongs to, stamped by the Seasons Change move. The un-stamped case falls
+			// back to the picker's year so the header still names a year on a world that hasn't
+			// turned a season since this shipped (see module/seasons/current-season.js).
+			context.stonetop.currentSeason = currentSeasonView(readCurrentSeason(this.actor), this._seasonsCurrentYear());
 			return context;
 		}
 
@@ -1098,6 +1105,11 @@ export function createStonetopSteadingSheetClass(Base) {
 				if (mode === this._sheetRollMode()) return; // already on it — nothing to write
 				await this.actor.setFlag(STONETOP_SCOPE, "rollMode", mode);
 			}, true);
+
+			// The season/year clock beside the title. Only a GM gets a button here (the
+			// template renders a plain div for everyone else), so this binds nothing for
+			// players and the method re-checks anyway.
+			html.find("[data-action='set-current-season']").on("click", () => this._onSetCurrentSeason());
 
 			// A real radio group, so `change` rather than a delegated click: the browser owns the
 			// deselection, and change only fires on the one that became checked.
@@ -2142,51 +2154,54 @@ export function createStonetopSteadingSheetClass(Base) {
 		// starting at 1). Advanced by one each time a Winter is completed (see
 		// _saveSeasonChange), so the season picker defaults to the latest year.
 		_seasonsCurrentYear() {
-			return Math.max(1, Math.trunc(Number(this.actor.getFlag(STONETOP_SCOPE, "seasonsCurrentYear")) || 1));
+			return readCurrentYear(this.actor);
+		}
+
+		// Set the header's clock by hand, without running the Seasons Change move — the move
+		// applies seasonal gains, resets Fortunes and writes a journal entry, none of which a
+		// GM wants when they're only correcting what the header says. Needed by any table that
+		// was already mid-campaign when the readout shipped (their clock has never been
+		// stamped) and by the mis-clicked season. GM-only; the header only offers it to a GM.
+		//
+		// Deliberately the same cards-and-year-dropdown shape as the move's own picker, so the
+		// two read as the same question. One year past the current is offered so the clock can
+		// be moved forward to a year no Winter has closed out yet; picking it carries
+		// `seasonsCurrentYear` along, or the move's picker would still default a year behind.
+		async _onSetCurrentSeason() {
+			if (!game.user?.isGM) return;
+			const stamped  = readCurrentSeason(this.actor);
+			const pickYear = stamped?.year ?? this._seasonsCurrentYear();
+			openSeasonPicker({
+				title:  "Set the Current Season",
+				prompt: "Which season is Stonetop in?",
+				note:   "Only changes what the sheet says. It doesn't make the Seasons Change move.",
+				selected: stamped?.season ?? null,
+				// One year past the current, so the clock can be moved forward to a year no
+				// Winter has closed out yet.
+				years: Math.max(this._seasonsCurrentYear(), stamped?.year ?? 1) + 1,
+				selectedYear: pickYear,
+				// One write for both halves of the clock. The move's picker only ever offers
+				// years up to `seasonsCurrentYear`, so setting the clock ahead has to carry it;
+				// `pickerYear` defaults to the stamped year, and the never-rewind guard lives
+				// in recordCurrentSeason.
+				onPick: (season, year) => recordCurrentSeason(this.actor, season, year),
+			});
 		}
 
 		async _onSeasonsChange() {
-			// Ids + labels come from the shared season source, not a local copy.
-			const SEASONS = SEASON_IDS.map(id => ({ id, label: seasonLabel(id) }));
-			// Year dropdown under the season cards: every year up to the current one
-			// (Winter completion bumps it), defaulting to the latest so the journal page
-			// matches by default. The chosen year rides through to recordSeasonsChange.
-			const currentYear  = this._seasonsCurrentYear();
-			const yearOptions  = Array.from({ length: currentYear }, (_, i) => i + 1)
-				.map(y => `<option value="${y}"${y === currentYear ? " selected" : ""}>${ordinalWord(y)} Year</option>`)
-				.join("");
-			// `const`, even though the render/button callbacks below refer to `dialog`: they run
-			// after this statement completes, so the binding is always initialised by then.
-			const dialog = new Dialog({
-				title: "Seasons Change",
-				content: `<div class="stonetop-season-picker">
-					<p><em>Which season is beginning?</em></p>
-					<div class="stonetop-season-cards">
-						${SEASONS.map(s => `
-							<div class="stonetop-season-card" data-season="${s.id}">
-								<img src="${seasonIconSrc(s.id)}" alt="${s.label}" class="stonetop-season-icon">
-								<span class="stonetop-season-label">${s.label}</span>
-							</div>`).join("")}
-					</div>
-					<div class="stonetop-season-year">
-						<label class="stonetop-season-year-label" for="stonetop-season-year-select">Year</label>
-						<select id="stonetop-season-year-select" class="stonetop-season-year-select">${yearOptions}</select>
-					</div>
-				</div>`,
-				buttons: {},
-				render: (html) => {
-					addStonetopSteadingButton(html);
-					const yearSelect = html[0].querySelector(".stonetop-season-year-select");
-					html[0].querySelectorAll(".stonetop-season-card").forEach(el => {
-						el.addEventListener("click", () => {
-							const year = Math.trunc(Number(yearSelect?.value)) || currentYear;
-							dialog.close();
-							this._showSeasonDialog(el.dataset.season, year);
-						});
-					});
-				},
-			}, { classes: ["dialog", "stonetop", "stonetop-season-picker-dialog"] });
-			dialog.render(true);
+			// Every year up to the current one (Winter completion bumps it), defaulting to the
+			// latest so the journal page matches by default. The chosen year rides through to
+			// recordSeasonsChange.
+			const currentYear = this._seasonsCurrentYear();
+			openSeasonPicker({
+				title:  "Seasons Change",
+				prompt: "Which season is beginning?",
+				years:  currentYear,
+				selectedYear: currentYear,
+				// Openable from a hotbar macro, away from the sheet, so this one offers the jump.
+				headerShortcut: true,
+				onPick: (season, year) => this._showSeasonDialog(season, year),
+			});
 		}
 
 		// Read the season dialog's ticked gains + notes off the DOM (Done), apply the two
@@ -2238,12 +2253,18 @@ export function createStonetopSteadingSheetClass(Base) {
 			const notes   = root.querySelector(".stonetop-season-notes")?.value ?? "";
 			const journal = await recordSeasonsChange({ seasonId, year, gainNames, fortunes, surplusChange, notes });
 
-			// Winter closes out the year: advance the steading's current year so the next
-			// season picker offers (and defaults to) the new one. max() guards against
-			// recording an out-of-order older Winter regressing the count.
-			if (seasonId === "winter") {
-				await this.actor.setFlag(STONETOP_SCOPE, "seasonsCurrentYear", Math.max(this._seasonsCurrentYear(), year + 1));
-			}
+			// This season has begun: stamp it on the steading so the sheet header reads it,
+			// and carry the picker's year with it in the same write. Winter closes out the
+			// year, so it hands the picker the NEXT one; every other season leaves the count
+			// where it is (a `pickerYear` already behind is a no-op).
+			//
+			// advanceOnly because re-recording an older season to fix its journal entry
+			// mustn't rewind the header's clock, and recordCurrentSeason owns the matching
+			// guard against an out-of-order older Winter regressing the year.
+			await recordCurrentSeason(this.actor, seasonId, year, {
+				advanceOnly: true,
+				pickerYear:  seasonId === "winter" ? year + 1 : year,
+			});
 
 			journal?.sheet?.render(true);
 		}

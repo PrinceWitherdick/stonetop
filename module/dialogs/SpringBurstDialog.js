@@ -6,6 +6,8 @@ import { getPlayerCharacters } from "../utils/playbook-actors.js";
 import { setWorldSetting } from "../settings.js";
 import { postSeasonsChangeReminder } from "../seasons/seasons-change-reminders.js";
 import { recordSeasonsChange } from "../seasons/seasons-chronicle.js";
+import { recordCurrentSeason } from "../seasons/current-season.js";
+import { getStonetopSteadingActor } from "../utils/world.js";
 import { markWalkthroughDone } from "./walkthrough-resume.js";
 import { saveChronicleFromButton } from "../utils/chronicle.js";
 import { SEASONAL_GAINS } from "./spring-burst-data.js";
@@ -160,6 +162,10 @@ export class SpringBurstDialog extends StepperDialog {
 			fortunes: FIRST_SPRING_FORTUNES,
 			notes:    this._answers().hook ?? "",
 		});
+		// …and set the steading's clock to it, so the sheet header opens on "Spring · First
+		// Year" from session zero rather than waiting for the second season to name one.
+		// advanceOnly so re-running this walkthrough mid-campaign can't rewind the clock.
+		await recordCurrentSeason(getStonetopSteadingActor(), "spring", 1, { advanceOnly: true });
 		// Spring has burst forth: mark this walkthrough finished. With the Introductions
 		// also done, hooks/Ready.js stops auto-opening the Welcome guide (sessionZeroComplete).
 		// Drop the saved step + delegated flag so a manual reopen starts a fresh run.

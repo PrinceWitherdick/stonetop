@@ -32,6 +32,19 @@ export function ordinalWord(n) {
 	return _ORDINAL_WORDS[n] ?? ordinal(n);
 }
 
+/**
+ * What a campaign year is CALLED, everywhere it is named.
+ *
+ * Three surfaces show this string and they have to agree: the Chronicle page title in the
+ * journal sidebar (below), the season picker's year dropdown, and the steading header's
+ * clock. Nothing checks that they match at runtime, because `recordSeasonsChange` finds its
+ * page by the `chronicleYear` flag rather than by name, so three hand-built copies could
+ * drift apart silently and only show up as the sidebar disagreeing with the sheet.
+ */
+export function yearLabel(year) {
+	return `${ordinalWord(year)} Year`;
+}
+
 // Find (or create) the "Seasons Change" journal in the Chronicle folder, reusing the
 // shared folder/journal find-or-create so all of the Chronicle journals are built the
 // same way. Player-readable (OBSERVER) like the introductions journal.
@@ -108,7 +121,7 @@ export async function recordSeasonsChange({ seasonId, year = 1, gainNames = [], 
 	if (!journal) return null;
 
 	const yr       = Number.isInteger(year) && year >= 1 ? year : 1;
-	const yearName = `${ordinalWord(yr)} Year`;
+	const yearName = yearLabel(yr);
 	const block    = _seasonBlock(seasonId, gainNames, fortunes, surplusChange, notes);
 
 	const page = (journal.pages ?? []).find(p => Number(p.getFlag?.(SYSTEM_ID, "chronicleYear")) === yr) ?? null;

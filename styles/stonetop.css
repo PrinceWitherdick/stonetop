@@ -173,6 +173,20 @@
 	--st-card-fill: rgba(0, 0, 0, 0.03);
 	--st-card-rule: rgba(0, 0, 0, 0.12);
 
+	/* The warm rule drawn around a piece of printed BOOK ART — a journal illustration, a GM
+	   playbook flowchart. Not `--st-card-rule`: that one separates our own surfaces, while this
+	   frames somebody else's picture and is deliberately warmer and heavier.
+	   Deliberately NOT re-pointed in the dark block below, which is where a dark value would go
+	   if one is ever wanted. Book art is printed on paper and reads as paper here too; naming it
+	   is about having ONE place to change that mind, not about having changed it. */
+	--st-art-frame: hsl(40 30% 82%);
+
+	/* The warm wash a pickable card takes on hover — the season cards in the picker, and the
+	   season readout in the steading header that opens it. Two surfaces asking the same
+	   question, so they highlight the same way. */
+	--st-warm-hover-bg: rgba(122, 98, 72, 0.12);
+	--st-warm-hover-border: #7a6248;
+
 	/* What a hit tier is written in on a chat card. Named so the surfaces that invert to black
 	   can re-point them; these are the paper values, unchanged. */
 	--st-tier-failure-text: #6e0000;
@@ -12639,11 +12653,16 @@ span.stonetop-mark-loyalty-pip {
 	flex-shrink: 0;
 }
 
+/* `flex: 0 1 auto`, not `flex: 1`: the season clock is the header's second flex item and
+   sits directly beside the title, so the name block must not eat the row. It kept the
+   column direction — it is still a name-over-subtitle stack, just no longer the only
+   thing in the header. */
 .steading-header-name {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
-	flex: 1;
+	flex: 0 1 auto;
+	min-width: 0;
 }
 
 .steading-title {
@@ -12653,6 +12672,60 @@ span.stonetop-mark-loyalty-pip {
 	margin: 0;
 	padding: 0;
 	border: none;
+}
+
+/* The campaign's clock beside the title — the season Stonetop is in and the year it
+   belongs to, stamped by the Seasons Change move. A pill so it reads as a status readout
+   rather than a second heading, and so the GM's clickable version has a hit area with
+   edges.
+
+   Reached through `.steading-header` (and `.stonetop` for the glyph) rather than by class
+   alone, because a bare class loses to core on both halves of this: `.app button` styles
+   the GM's form as a full-width block with its own box, and `body.game .app img` (0,2,2)
+   paints a 1px black border and a 2px radius on every image inside a sheet. Restating the
+   box at a class-only weight would silently do nothing. */
+.steading-header .steading-header-season {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 0 0 auto;
+	width: auto;
+	margin: 0;
+	padding: 3px 10px;
+	border: 1px solid var(--st-card-rule);
+	border-radius: 999px;
+	background: var(--st-card-fill);
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	line-height: 1.4;
+	text-align: left;
+	color: var(--st-text-secondary);
+	white-space: nowrap;
+}
+
+.stonetop .steading-header .steading-header-season-icon {
+	width: 18px;
+	height: 18px;
+	object-fit: contain;
+	border: none;
+	border-radius: 0;
+	flex: 0 0 auto;
+}
+
+.steading-header .steading-header-season-name {
+	font-weight: 600;
+	color: var(--st-text-body);
+}
+
+.steading-header .steading-header-season-sep { color: var(--st-text-faint); }
+
+/* GM-only: clicking it opens the "Set the Current Season" dialog. Ties with the base rule
+   above on specificity, so it has to stay BELOW it to win. */
+.steading-header .steading-header-season--set { cursor: pointer; }
+
+.steading-header .steading-header-season--set:hover {
+	background: var(--st-warm-hover-bg);
+	border-color: var(--st-warm-hover-border);
 }
 
 /* -- Tabs — horizontal strip ------------------------------------ */
@@ -15347,8 +15420,24 @@ a.steading-player-open:hover {
 }
 
 .stonetop-season-card:hover {
-	background: rgba(122, 98, 72, 0.12);
-	border-color: #7a6248;
+	background: var(--st-warm-hover-bg);
+	border-color: var(--st-warm-hover-border);
+}
+
+/* Only the "Set the Current Season" dialog marks a card — it opens on whatever the
+   steading's clock already says. The move's own picker never sets this, since it asks
+   which season is BEGINNING rather than which one is current. */
+.stonetop-season-card.is-selected {
+	background: var(--st-green-bg);
+	border-color: var(--st-green-border);
+}
+
+/* Qualified by the wrapper so it outranks `.stonetop-season-picker p` above (which
+   would otherwise put this footnote's margin ABOVE it, not below). */
+.stonetop-season-picker p.stonetop-season-picker-note {
+	margin: 10px 0 0;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-muted);
 }
 
 .stonetop-season-icon {

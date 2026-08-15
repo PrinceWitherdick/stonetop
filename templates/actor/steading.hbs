@@ -5,6 +5,33 @@
 			<div class="steading-header-name">
 				<h1 class="steading-title">Stonetop</h1>
 			</div>
+			{{!-- The campaign's clock, beside the title: the season the table is playing in and
+			      the year it belongs to, stamped by the Seasons Change move (see
+			      module/seasons/current-season.js). The season half is absent until the first
+			      Seasons Change is recorded — the year is always known, so it always shows.
+
+			      A GM can click it to correct what it says without running the move; a player
+			      gets the same readout as plain text. Rendered as a <button> for the GM rather
+			      than a clickable <div> so it is keyboard-reachable and announces itself.
+
+			      Complementary `{{#if}}` / `{{#unless}}` rather than one `{{#if}}/{{else}}`,
+			      the same shape the layout guards below use — this file's markup is asserted
+			      to be branch-free of `{{else}}` so that the classic/modern split can never
+			      become two whole copies of the sheet (tests/actors/steading/
+			      steading-section-placement.test.js). The readout itself is a partial, so the
+			      two wrappers cannot drift apart. --}}
+			{{#if stonetop.isGM}}
+			<button type="button" class="steading-header-season steading-header-season--set"
+			        data-action="set-current-season"
+			        data-tooltip="{{localize "stonetop.steading.season.setTooltip"}}">
+				{{> "stonetop.steading-header-season" season=stonetop.currentSeason}}
+			</button>
+			{{/if}}
+			{{#unless stonetop.isGM}}
+			<div class="steading-header-season">
+				{{> "stonetop.steading-header-season" season=stonetop.currentSeason}}
+			</div>
+			{{/unless}}
 		</div>
 
 		{{!-- CLASSIC only: the stat band is a permanent strip above the tab strip, the way it

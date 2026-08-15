@@ -1,0 +1,15 @@
+{{!-- The steading header's clock: the season Stonetop is in, then the campaign year.
+
+      Its own partial because the header wraps it in a <button> for a GM (who can correct
+      it) and a plain <div> for everyone else — two wrappers, one readout, and the partial
+      is what keeps them from drifting apart.
+
+      The season half is omitted until a Seasons Change has been recorded: a world that
+      has never made the move has no season to name, and guessing one would put a wrong
+      season on the sheet. The year is always known, so it always shows. --}}
+{{#if season.season}}
+<img class="steading-header-season-icon" src="{{season.iconSrc}}" alt="">
+<span class="steading-header-season-name">{{season.label}}</span>
+<span class="steading-header-season-sep" aria-hidden="true">·</span>
+{{/if}}
+<span class="steading-header-season-year">{{season.yearLabel}}</span>
