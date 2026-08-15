@@ -22654,6 +22654,57 @@ li.question-bullet {
 .stonetop-move-group-title:has(> .stonetop-section-caret) {
 	position: relative;
 }
+
+/* "Draw one at random", sat inline right after a heading's note (section-randomize.hbs).
+   Quiet at rest and lit on hover, like the pencils, but never hidden until hover the way the
+   fold caret is: the caret repeats an affordance every section on every sheet already has,
+   and this one is the only thing on the page that says the list can deal you a move.
+
+   Sized in REM, not em, for the same reason `.stonetop-section-note` above is: this sits
+   inside an <h3> and would otherwise inherit the heading's enlarged size and swell to a
+   button. `--stonetop-font-scale` is honoured so it tracks the sheet's text.
+
+   Width and height are DECLARED because core's `body.game .app button { width: 100% }` would
+   otherwise stretch this across the heading and push the fold caret off the line. Every other
+   in-app button in this file names its width for that same reason. `display: inline-flex`
+   rather than flex because V13 core sets `display: flex` on buttons, and a flex button in a
+   text line takes the whole line. */
+.stonetop-section-randomize {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width:  calc(1.35rem * var(--stonetop-font-scale, 1));
+	height: calc(1.35rem * var(--stonetop-font-scale, 1));
+	flex: 0 0 auto;
+	margin: 0 0 0 5px;
+	padding: 0;
+	vertical-align: middle;
+	/* Transparent rather than absent, so lighting it on hover adds no width and cannot shift
+	   the note beside it by a pixel. */
+	border: 1px solid transparent;
+	border-radius: var(--st-radius-sm);
+	background: none;
+	color: var(--color-text-dark-secondary);
+	font-size: calc(0.72rem * var(--stonetop-font-scale, 1));
+	line-height: 1;
+	cursor: pointer;
+	opacity: 0.55;
+	transition: opacity 0.12s, background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.stonetop-section-randomize:hover,
+.stonetop-section-randomize:focus-visible {
+	opacity: 1;
+	background: var(--st-btn-primary-bg);
+	border-color: var(--st-btn-primary-border);
+	color: var(--st-btn-primary-text);
+}
+
+/* The glyph carries its own font-family from Font Awesome; the margin is what core's button
+   rules would otherwise put beside it inside a box this small. */
+.stonetop-section-randomize i {
+	margin: 0;
+}
 .stonetop-move-group-title > .stonetop-section-collapse {
 	position: absolute;
 	top: 0;

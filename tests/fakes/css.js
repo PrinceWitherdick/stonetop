@@ -29,6 +29,24 @@ export function readRepo(rel) {
 	return fs.readFileSync(path.resolve(ROOT, rel), "utf8");
 }
 
+/** An absolute path to a repo file, by repo-relative path. Local: nothing outside needs one. */
+function repoPath(rel) {
+	return path.resolve(ROOT, rel);
+}
+
+/**
+ * Does this repo-relative path exist on disk?
+ *
+ * The other half of what these tests need alongside `readRepo`: several assert that a path
+ * NAMED in source (a sheet's `template`, a preloaded partial, a deleted template that must stay
+ * deleted) really is or is not a file. Doing that by hand meant every such test carrying its own
+ * `fs`, `path` and `fileURLToPath` imports plus a `HERE` whose `../..` depth had to match where
+ * the file happened to sit — which is the drift this module exists to stop.
+ */
+export function repoFileExists(rel) {
+	return fs.existsSync(repoPath(rel));
+}
+
 /**
  * The stylesheet with comments stripped — a commented-out rule must not answer for a live one,
  * and these comments are long and full of commas and braces, so a selector list read out of the

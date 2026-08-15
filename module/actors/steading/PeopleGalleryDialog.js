@@ -6,6 +6,7 @@ import { displayPortraitSrc, portraitRectOf } from "../../book2-art/people-portr
 import { normalizeFrame } from "../../utils/portrait-frame.js";
 import { getObjectSetting } from "../../settings.js";
 import { filePicker } from "../../utils/foundry-compat.js";
+import { pickRandomExcluding } from "../../utils/arrays.js";
 
 // How long the grid takes to travel to a rolled portrait, however far away it landed. The
 // browser's own `scrollIntoView({behavior:"smooth"})` picks its own duration and scales it
@@ -80,16 +81,7 @@ export const portraitIdentity = (src) => {
  * for the same picture — see there.
  */
 export function pickRandomPortrait(srcs, { current = "", rng = Math.random, keyOf = (s) => s } = {}) {
-	const pool = (srcs ?? []).filter(Boolean);
-	if (!pool.length) return null;
-	// Compared through `keyOf` so the two sides can be spelled differently and still be the same
-	// picture — see portraitIdentity. The RETURN is always a raw member of `pool`, because the
-	// caller looks the winning tile up by it.
-	const held = keyOf(current);
-	const fresh = pool.filter(src => keyOf(src) !== held);
-	const choices = fresh.length ? fresh : pool;
-	// Clamp rather than trust rng() < 1: a stub (or an edge-case 1) would index past the end.
-	return choices[Math.min(choices.length - 1, Math.floor(rng() * choices.length))];
+	return pickRandomExcluding(srcs, { exclude: current, rng, keyOf });
 }
 
 /**

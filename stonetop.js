@@ -391,6 +391,7 @@ Hooks.once("init", () => {
 		"stonetop.relationships-viewbar": "systems/stonetop-pwd/templates/actor/partials/relationships-viewbar.hbs",
 		"stonetop.section-heading":  "systems/stonetop-pwd/templates/actor/partials/section-heading.hbs",
 		"stonetop.section-collapse": "systems/stonetop-pwd/templates/actor/partials/section-collapse.hbs",
+		"stonetop.section-randomize": "systems/stonetop-pwd/templates/actor/partials/section-randomize.hbs",
 		"stonetop.section-edit-toggle": "systems/stonetop-pwd/templates/actor/partials/section-edit-toggle.hbs",
 		"stonetop.details-section-edit-toggle": "systems/stonetop-pwd/templates/actor/partials/details-section-edit-toggle.hbs",
 		"stonetop.follower-section-edit": "systems/stonetop-pwd/templates/actor/partials/follower-section-edit.hbs",

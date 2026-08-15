@@ -27,6 +27,16 @@ const GM_PREP_KINDS = {
 	site:   { pageById: sitePageById, wireCard: wireSiteTableRoll },
 };
 
+/**
+ * The kind names alone, for the hosts that need to iterate or test them without caring how a
+ * kind resolves its pages — the prep tabs key their collapse state and view-model caches off
+ * this, and use it as the cheap `doc.type` discriminator on world-wide page hooks.
+ *
+ * Exported so that list is not spelled a fourth time: this table is the one place a kind is
+ * declared, and the docblock above says why.
+ */
+export const GM_PREP_KIND_IDS = Object.freeze(Object.keys(GM_PREP_KINDS));
+
 /** Resolve the threat, hazard OR site page an entry/page id pair links to (as a scene Note
  *  does), or null. */
 export function gmPrepPageById(entryId, pageId) {

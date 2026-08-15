@@ -77,6 +77,17 @@ global.foundry = {
 			.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 			.replace(/"/g, "&quot;").replace(/'/g, "&#39;"),
 		getProperty: (obj, path) => path.split(".").reduce((value, key) => value?.[key], obj),
+		// Mirrors Foundry's debounce (common/utils/helpers.mjs): each call cancels the pending
+		// one, so a burst collapses to a single trailing invocation. Faithful on purpose — a
+		// pass-through fake would let a test "pass" against a coalescing production path and
+		// hide the very batching the caller is relying on.
+		debounce: (callback, delay) => {
+			let timeoutId;
+			return function (...args) {
+				clearTimeout(timeoutId);
+				timeoutId = setTimeout(() => callback.apply(this, args), delay);
+			};
+		},
 		randomID: (length = 16) => {
 			const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 			let id = "";
