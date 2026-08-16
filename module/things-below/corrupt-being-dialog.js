@@ -51,7 +51,7 @@ const _STEP_DEFS = {
 		title:   "Review",
 		icon:    "fa-clipboard-check",
 		isFinal: true,
-		body:    `<p>Look it over, then create the stat block. Open its sheet afterward to tweak anything &mdash; corruption often reshapes tags, qualities, and moves in ways worth revising.</p>`,
+		body:    `<p>Look it over, then create the stat block. Open its sheet afterward to tweak anything: corruption often reshapes tags, qualities, and moves in ways worth revising.</p>`,
 	},
 };
 

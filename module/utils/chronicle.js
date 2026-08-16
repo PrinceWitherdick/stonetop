@@ -107,7 +107,7 @@ export async function openChroniclePageForActor(actor) {
 	}
 	if (!page) {
 		ui.notifications?.warn?.(game.user?.isGM
-			? `${actor.name} has no Chronicle page yet — record their introductions to create one.`
+			? `${actor.name} has no Chronicle page yet: record their introductions to create one.`
 			: `${actor.name} doesn't have a Chronicle page yet.`);
 		return false;
 	}
@@ -188,6 +188,6 @@ export async function writeChronicle({ silent = false, adoptLegacyKeys = null } 
 	if (updated) parts.push(`updated ${updated} ${updated === 1 ? "page" : "pages"}`);
 	if (!silent) ui.notifications?.info?.(parts.length
 		? `Chronicle: ${parts.join(", ")}.`
-		: "The Chronicle is already up to date — edit its pages there directly.");
+		: "The Chronicle is already up to date: edit its pages there directly.");
 	return intro;
 }

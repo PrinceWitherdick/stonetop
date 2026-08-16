@@ -26246,10 +26246,14 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-create-site-dialog .stonetop-cs-pair-row { display: flex; flex-direction: column; gap: 4px; }
 .stonetop-create-site-dialog .stonetop-cs-answer { margin-left: 14px; width: auto; }
 .stonetop-create-site-dialog .stonetop-cs-when { flex: 0 1 11em; }
-/* A boxed sub-card, in the token every other boxed surface in this file reads rather than the
-   same colour spelled out. That matters beyond tidiness: both tokens are re-pointed to their
-   light-on-dark values inside the past-death scope, so a hard-coded rule stays black-on-black
-   there while everything around it flips. */
+/* Areas are cards rather than rows, so they keep the step's own 12px rhythm instead of the tighter
+   gap .stonetop-cf-gear gives a list of plain controls. */
+.stonetop-create-site-dialog .stonetop-cs-area-list { gap: 12px; }
+/* A boxed sub-card, in the tokens every other boxed surface in this file reads rather than the
+   same colours spelled out — so a retint of the card palette reaches the wizard's sub-cards along
+   with everything else, instead of leaving them behind at a value nothing else uses.
+   `--st-card-fill` is a shade deeper than the 0.02 this rule carried on its own (0.03, the fill
+   every other card in the system is painted with); the border was already an exact match. */
 .stonetop-create-site-dialog .stonetop-cs-area,
 .stonetop-create-site-dialog .stonetop-cs-rtable {
 	display: flex;
@@ -26277,12 +26281,14 @@ th:has(> .stonetop-roll-table-btn) {
 	overflow: hidden;
 }
 
-/* Review card (final step) + the conversion's kept-stats line */
+/* Review card (final step) + the conversion's kept-stats line. The same boxed-sub-card surface the
+   wizard's area and table cards wear, and read from the same two tokens: the last step of a wizard
+   painted from literals drifts away from the steps before it the moment the palette moves. */
 .stonetop-cf-preview,
 .stonetop-mf-stats {
-	border: 1px solid rgba(0, 0, 0, 0.12);
+	border: 1px solid var(--st-card-rule);
 	border-radius: var(--st-radius);
-	background: rgba(0, 0, 0, 0.03);
+	background: var(--st-card-fill);
 	padding: 8px 12px;
 }
 .stonetop-cf-preview { display: flex; flex-direction: column; gap: 5px; }

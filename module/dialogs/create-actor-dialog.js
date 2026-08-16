@@ -10,7 +10,7 @@
 //     corruption wizards, or a blank stat block for a GM who'd rather type it in.
 // Opened from StonetopActor.createDialog.
 
-import { pickContentOption } from "./content-picker.js";
+import { pickContentOption, runPickedOption } from "./content-picker.js";
 import { createCharacterForUser } from "../actors/character/create-character.js";
 import { charactersOwnedBy } from "../utils/playbook-actors.js";
 import { addPersonToSteading, createPersonNpc } from "../actors/steading/steading-people.js";
@@ -26,14 +26,16 @@ const UNASSIGNED = "__unassigned__";
 // that silently returns null, or a flow nothing can reach, and neither fails loudly.
 //
 // `create` is called with the sidebar's folder and any caller-supplied name; the flows that want
-// neither ignore them.
+// neither ignore them. NOTHING ELSE may be baked in here — actorOptionsFor hands the character
+// row to PLAYERS, so a row that assumed its caller was the GM would be a player running the GM's
+// branch of a flow. Whose client this is stays where it can be read afresh, in the flow itself.
 const ACTOR_OPTIONS = [
 	{
 		id: "character",
 		label: "Player Character",
 		icon: "fa-user",
 		hint: "A new PC. Pick whose it is, and character creation opens on their screen: playbook, stats, gear, bonds.",
-		create: (folder, name) => _createCharacter(folder, name, true),
+		create: (folder, name) => _createCharacter(folder, name),
 	},
 	{
 		id: "npc",
@@ -96,31 +98,37 @@ const PERSON_KINDS = [
 const _rosterLabel = list => (list ? list[0].toUpperCase() + list.slice(1) : "");
 
 // The Monster sub-chooser: the book's own worksheet, the two Things Below corruption
-// wizards (which also end in a stat block), or an empty one.
+// wizards (which also end in a stat block), or an empty one. Each row carries its own flow, for
+// the reason ACTOR_OPTIONS gives — the two corruption rows differ only in the `mode` they pass,
+// and each names its own rather than the dispatch re-testing which of them was picked.
 const MONSTER_KIND_OPTIONS = [
 	{
 		id: "worksheet",
 		label: "Make a Monster",
 		icon: "fa-dragon",
 		hint: "The Book I worksheet: organization, size, tags, HP, armor, damage, instinct and moves, with the stats totted up as you go.",
+		create: (folder, name) => _openMonsterWorksheet(folder, name),
 	},
 	{
 		id: "being",
 		label: "Corrupted being",
 		icon: "fa-skull",
 		hint: "Twist an existing monster with the Things Below's gifts and marks (Book II).",
+		create: (folder) => _openCorruption("being", folder),
 	},
 	{
 		id: "emanation",
 		label: "Emanation",
 		icon: "fa-hurricane",
 		hint: "A Thing's discharge given form, from a source monster or a blank template (Book II).",
+		create: (folder) => _openCorruption("emanation", folder),
 	},
 	{
 		id: "blank",
 		label: "Blank stat block",
 		icon: "fa-file-lines",
 		hint: "Skip the worksheet and fill the stat block in by hand.",
+		create: (folder, name) => _createBlankMonster(folder, name),
 	},
 ];
 
@@ -187,9 +195,11 @@ function _ownerHint(user, existing = []) {
  */
 export async function openCreateActor({ folder = null, name = "" } = {}) {
 	const isGM = !!game.user?.isGM;
-	// A player has exactly one option, so the chooser would be a one-row formality:
-	// send them straight into their own character.
-	if (!isGM) return _createCharacter(folder, name, isGM);
+	// A player has exactly one option, so the chooser would be a one-row formality: send them
+	// straight into their own character. Through the table, not past it — this is a shortcut
+	// around the PICKER, and a second spelling of the flow beside it is the drift the table exists
+	// to prevent.
+	if (!isGM) return runPickedOption(ACTOR_OPTIONS, "character", folder, name);
 
 	const choice = await pickContentOption({
 		title: game.i18n.localize("stonetop.actorCreate.title"),
@@ -197,8 +207,7 @@ export async function openCreateActor({ folder = null, name = "" } = {}) {
 	});
 	if (!choice) return null;
 
-	// Straight off the row that was picked — the options table IS the dispatch.
-	return ACTOR_OPTIONS.find(o => o.id === choice)?.create?.(folder, name) ?? null;
+	return runPickedOption(ACTOR_OPTIONS, choice, folder, name);
 }
 
 /**
@@ -229,9 +238,14 @@ async function _createGmToolkit(folder, name) {
  * takes over from there (the creation intro, then the playbook picker and onboarding);
  * an unassigned sheet has no player to greet, so we open it here instead. Its playbook
  * gate offers the same first step.
+ *
+ * Whose client this is, is READ HERE rather than passed in. Choosing an owner is the GM's step —
+ * a player's character is their own by definition — and a caller that could get the answer wrong
+ * would put a player in front of "Whose character is this?", listing every other player, and let
+ * them mint a sheet that replaces someone else's.
  */
-async function _createCharacter(folder, name, isGM) {
-	if (!isGM) return createCharacterForUser(game.user?.id ?? null, { folder, name });
+async function _createCharacter(folder, name) {
+	if (!game.user?.isGM) return createCharacterForUser(game.user?.id ?? null, { folder, name });
 
 	const owner = await _pickOwner();
 	if (!owner) return null;
@@ -305,17 +319,19 @@ async function _createMonster(folder, name) {
 	const kind = builderEnabled
 		? await pickContentOption({ title: "Create a Monster", options: MONSTER_KIND_OPTIONS })
 		: "blank";
-	if (!kind) return null;
+	return runPickedOption(MONSTER_KIND_OPTIONS, kind, folder, name);
+}
 
-	if (kind === "worksheet") {
-		const { CreateMonsterDialog } = await import("./CreateMonsterDialog.js");
-		return new CreateMonsterDialog({ name, folder }).promise();
-	}
-	if (kind === "being" || kind === "emanation") {
-		const { CorruptBeingDialog } = await import("../things-below/corrupt-being-dialog.js");
-		return new CorruptBeingDialog({ mode: kind, folder }).promise();
-	}
-	return _createBlankMonster(folder, name);
+/** The Book I worksheet, which creates its own finished stat block. */
+async function _openMonsterWorksheet(folder, name) {
+	const { CreateMonsterDialog } = await import("./CreateMonsterDialog.js");
+	return new CreateMonsterDialog({ name, folder }).promise();
+}
+
+/** Either Things Below corruption wizard; both also end in a stat block. */
+async function _openCorruption(mode, folder) {
+	const { CorruptBeingDialog } = await import("../things-below/corrupt-being-dialog.js");
+	return new CorruptBeingDialog({ mode, folder }).promise();
 }
 
 async function _createBlankMonster(folder, name) {

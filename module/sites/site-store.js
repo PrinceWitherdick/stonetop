@@ -8,47 +8,32 @@
 // makeGmPrepPageStore; the delete helper in threat-store (page + its scene pins, dropping
 // an emptied journal) is page-shape generic, so sites reuse it directly.
 import { makeGmPrepPageStore } from "../journal/gm-prep-page-store.js";
-
-/** A list of trimmed, non-empty strings from a seed's list field. */
-const cleanLines = (arr) => (Array.isArray(arr) ? arr : []).map(s => String(s ?? "").trim()).filter(Boolean);
-
-/** Keep a row only if at least one of its fields carries text. */
-const someText = (row, keys) => keys.some(k => String(row?.[k] ?? "").trim());
+import { SITE_PAIR_LISTS, cleanLines, keyedRows, shapePairList } from "./site-schema.js";
 
 /** Normalize a creator/editor payload into the site page's system data. */
 export function shapeSiteSystem(seed = {}) {
-	const rows = (arr, keys) => (Array.isArray(arr) ? arr : [])
-		.map(row => Object.fromEntries(keys.map(k => [k, String(row?.[k] ?? "").trim()])))
-		.filter(row => someText(row, keys));
 	return {
 		description: String(seed.description ?? ""),
 		why: String(seed.why ?? "").trim(),
 		manner: String(seed.manner ?? ""),
 		mannerLabel: String(seed.mannerLabel ?? ""),
 		// A pick with no result is nothing at all, so those rows go (unlike a question,
-		// which is worth keeping unanswered).
-		picks: rows(seed.picks, ["key", "label", "value"]).filter(p => p.value),
+		// which is worth keeping unanswered). Not a wizard list — the manner's tables write it —
+		// so it is the one keyed list named here rather than read off the schema.
+		picks: keyedRows(seed.picks, ["key", "label", "value"]).filter(p => p.value),
 		regionId: String(seed.regionId ?? ""),
 		regionLabel: String(seed.regionLabel ?? ""),
 		terrain: String(seed.terrain ?? "").trim(),
 		connections: cleanLines(seed.connections),
-		questions: rows(seed.questions, ["prompt", "answer"]),
-		timeline: rows(seed.timeline, ["when", "text"]),
-		denizens: rows(seed.denizens, ["name", "notes"]),
 		dangers: cleanLines(seed.dangers),
 		discoveries: cleanLines(seed.discoveries),
 		outside: cleanLines(seed.outside),
 		inside: cleanLines(seed.inside),
-		// An area's description is a textarea, so it keeps its interior line breaks; only
-		// fully blank areas are dropped.
-		areas: (Array.isArray(seed.areas) ? seed.areas : [])
-			.map(a => ({
-				title: String(a?.title ?? "").trim(),
-				description: String(a?.description ?? ""),
-				contents: String(a?.contents ?? ""),
-				exits: String(a?.exits ?? "").trim(),
-			}))
-			.filter(a => someText(a, ["title", "description", "contents", "exits"])),
+		// Every paired list, shaped from the schema rather than named one by one. This is the
+		// SAVE half of the round-trip the wizard's seeding is the read half of: a list added to
+		// the schema and missed here used to be collected on screen and then written nowhere,
+		// which loses the GM's typing outright rather than merely on re-open.
+		...Object.fromEntries(Object.keys(SITE_PAIR_LISTS).map(list => [list, shapePairList(list, seed[list])])),
 		plans: cleanLines(seed.plans),
 		// A table with a caption but no rows is still worth keeping (it's a note to fill in);
 		// one with neither is not.
@@ -82,6 +67,7 @@ export const createSite = _store.create;
 /** Rename a site everywhere its name is its identity: the page and its scene pins. */
 export const setSiteName = _store.setName;
 
-// Delete carries no site-specific logic (it removes a page + its scene pins and tidies an
-// empty journal), so sites reuse threats' helper directly.
-export { deleteThreat as deleteSite } from "../threats/threat-store.js";
+// No `deleteSite`. Deleting carries no site-specific logic — it removes a page, its scene pins
+// and an emptied journal — so it is `deleteGmPrepPage` in gm-prep-page-store.js, which is where
+// callers reach it. An alias here would be a second name for one behaviour, offered from the one
+// module a caller with a site in hand would find first.

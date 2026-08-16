@@ -7,6 +7,7 @@ import {
 	SITE_LAYOUT_TIPS, SITE_REVIEW_CHECKS,
 } from "../data/site-tables.js";
 import { shapeSiteSystem, setSiteName } from "./site-store.js";
+import { SITE_LINE_LISTS, SITE_PAIR_LISTS, pairKeys } from "./site-schema.js";
 
 // ── CreateSiteDialog ─────────────────────────────────────────────────────────
 // A walkthrough for "Creating sites" (Book I, Sites, pp. 355-370). The book's procedure
@@ -96,23 +97,105 @@ const _STEPS = [
 // `_sel`; list-row fields are captured by their own classed handlers.
 const _TEXT_FIELDS = new Set(["name", "why", "description"]);
 
-// The plain string-list fields, keyed by the data-list value their rows carry.
-const _LINE_LISTS = ["connections", "dangers", "discoveries", "outside", "inside", "plans"];
+// Which lists exist and what keys their rows hold is site-schema.js's to say — the shaper and the
+// card view-model read the same table, which is what makes "collected on the wizard" and "saved to
+// the page" one fact instead of three that can disagree.
 
-// The keyed-row lists: which keys each row holds, in the order they render. Areas belong here
-// with the rest — they are simply the one list with four keys instead of two, and everything
-// that reads this table (blank rows, seeding, row view-models, live capture) treats them alike.
-const _PAIR_LISTS = {
-	questions: ["prompt", "answer"],
-	timeline:  ["when", "text"],
-	denizens:  ["name", "notes"],
-	areas:     ["title", "description", "contents", "exits"],
+// The paired lists' field CHROME: which control each key gets, what it suggests, and any class it
+// carries. Keyed by list, then by the key names the schema declares — a key added there and missed
+// here still renders, as a plain single-line field, rather than not rendering at all.
+//
+// Here rather than in the template because the row markup is a loop over these: a fixed keyA/keyB
+// pair of hash arguments could not serve areas' four keys, and quietly dropped everything past the
+// second while the schema went on advertising them.
+// `inline` puts every field of a row on ONE control row (the timeline: a date and what happened,
+// which read as one line); the default stacks the first field with the delete button and indents
+// the rest under it. `rowClass` is the wrapper each row gets.
+const _PAIR_FIELDS = {
+	questions: {
+		rowClass: "stonetop-cs-pair-row",
+		fields: {
+			prompt: { placeholder: "Why didn't the Fae gut the tomb during their uprising?" },
+			answer: { placeholder: "The inner vault is guarded by powerful, loyal Fae…", cls: "stonetop-cs-answer" },
+		},
+	},
+	timeline: {
+		inline: true,
+		fields: {
+			when: { placeholder: "Last autumn", cls: "stonetop-cs-when" },
+			text: { placeholder: "Sajra arrives with crinwin thralls in tow; Thornthumb is made to stay away" },
+		},
+	},
+	denizens: {
+		rowClass: "stonetop-cs-pair-row",
+		fields: {
+			name:  { placeholder: '"Trusted" crinwin' },
+			notes: { placeholder: "Nest inside, lord over the others, jealous of the kids, mimic Sajra's voice", cls: "stonetop-cs-answer" },
+		},
+	},
+	areas: {
+		rowClass: "stonetop-cs-area",
+		fields: {
+			title:       { placeholder: "Entrance chamber (A)", cls: "stonetop-cs-area-title" },
+			description: { placeholder: "Dimly lit from outside. Soil and debris piled nearly 4 feet high at the entrance, sloping down into the room. Beyond, the floor is filthy, muddy…", multiline: true, lines: 3 },
+			contents:    { placeholder: "Contents: who's here, what they're doing, dangers, discoveries, questions to ask the PCs…", multiline: true, lines: 2 },
+			exits:       { placeholder: "Exits: outside (north), collapsed hallway (B), central chamber (C)" },
+		},
+	},
 };
+
+// Every hash argument the list partials read. Handlebars MERGES a partial's hash into the enclosing
+// context, so any of these left sitting on the dialog's own context would be inherited by every
+// list that was not passed one — silently handing the denizens the questions' suggestion chips.
+// getData clears them rather than trusting nobody will ever add one.
+const _PARTIAL_PARAMS = ["list", "label", "hint", "chips", "kinds", "rows", "cells", "addLabel",
+	"placeholder", "rowClass", "frameClass", "inline"];
+
+// The review step's tally, in step order, and which shaped lists each line counts. Two of the
+// wizard's lists share a line (the two impression lists read as one "Impressions"), so this cannot
+// simply be the schema's keys — but it IS checked against them, in _previewCard, so a list added to
+// the site and left out here says so instead of quietly going uncounted on the step whose whole job
+// is to tell the GM what they have.
+const _COUNT_GROUPS = [
+	["Connections",  ["connections"]],
+	["Questions",    ["questions"]],
+	["Timeline",     ["timeline"]],
+	["Denizens",     ["denizens"]],
+	["Dangers",      ["dangers"]],
+	["Discoveries",  ["discoveries"]],
+	["Impressions",  ["outside", "inside"]],
+	["Areas",        ["areas"]],
+	["Plans",        ["plans"]],
+	["Tables",       ["randomTables"]],
+];
+
+// `picks` is a list too, but the review card prints it in full a few lines up rather than counting
+// it, so it is the one list the coverage check below expects to be absent.
+const _UNCOUNTED = new Set(["picks"]);
+
+/**
+ * The review step's "what you have" tally, and the check that it is telling the whole truth.
+ *
+ * Exported for the tests: the point of the check is that adding a list to the site without adding
+ * it here is caught, and a warning nobody asserts on is a warning nobody notices.
+ *
+ * @param {object} shaped  shapeSiteSystem's output
+ * @returns {{label: string, n: number}[]}  non-empty lines, in step order
+ */
+export function _countLines(shaped = {}) {
+	const counted = new Set(_COUNT_GROUPS.flatMap(([, keys]) => keys));
+	const missed = Object.keys(shaped)
+		.filter(k => Array.isArray(shaped[k]) && !counted.has(k) && !_UNCOUNTED.has(k));
+	if (missed.length) console.warn(`Stonetop | the site review step is not counting: ${missed.join(", ")}`);
+	return _COUNT_GROUPS
+		.map(([label, keys]) => ({ label, n: keys.reduce((n, k) => n + (shaped[k]?.length ?? 0), 0) }))
+		.filter(c => c.n > 0);
+}
 
 /** A blank row for a list, so add-a-row and seeding agree on the shape. */
 function blankRow(list) {
-	if (_PAIR_LISTS[list]) return Object.fromEntries(_PAIR_LISTS[list].map(k => [k, ""]));
-	return "";
+	const keys = pairKeys(list);
+	return keys ? Object.fromEntries(keys.map(k => [k, ""])) : "";
 }
 
 export class CreateSiteDialog extends StepperDialog {
@@ -163,11 +246,14 @@ export class CreateSiteDialog extends StepperDialog {
 			const table = manner?.tables.find(t => t.key === p?.key) ?? manner?.tables.find(t => t.label === p?.label);
 			if (table) picks[table.key] = String(p?.value ?? "");
 		}
+		// Read back UNTRIMMED and with blank rows kept: this is the editor re-opening, so a row the
+		// GM half-filled is theirs to finish, not ours to drop. The shaper applies that rule once,
+		// on the way out.
 		const pairs = (arr, keys) => (Array.isArray(arr) ? arr : [])
 			.map(row => Object.fromEntries(keys.map(k => [k, String(row?.[k] ?? "")])));
-		// Both families are seeded FROM their tables rather than re-listed here. A list added to
-		// _LINE_LISTS or _PAIR_LISTS but forgotten in this method was collected on the wizard,
-		// saved to the page, and then silently dropped the next time the site was opened to edit.
+		// Both families are seeded FROM the schema rather than re-listed here. A list added to it
+		// but forgotten in this method was collected on the wizard, saved to the page, and then
+		// silently dropped the next time the site was opened to edit.
 		return {
 			name: page.name ?? "",
 			why: String(sys.why ?? ""),
@@ -176,8 +262,8 @@ export class CreateSiteDialog extends StepperDialog {
 			picks,
 			regionId: String(sys.regionId ?? ""),
 			terrain: String(sys.terrain ?? ""),
-			...Object.fromEntries(_LINE_LISTS.map(list => [list, [...(sys[list] ?? [])].map(String)])),
-			...Object.fromEntries(Object.entries(_PAIR_LISTS).map(([list, keys]) => [list, pairs(sys[list], keys)])),
+			...Object.fromEntries(SITE_LINE_LISTS.map(list => [list, [...(sys[list] ?? [])].map(String)])),
+			...Object.fromEntries(Object.entries(SITE_PAIR_LISTS).map(([list, { keys }]) => [list, pairs(sys[list], keys)])),
 			randomTables: (sys.randomTables ?? []).map(t => ({
 				caption: String(t?.caption ?? ""),
 				rows: [...(t?.rows ?? [])].map(String),
@@ -229,11 +315,9 @@ export class CreateSiteDialog extends StepperDialog {
 		}
 		if (step.key === "story") {
 			ctx.connectionRows = this._lineRows("connections");
-			ctx.connectionChips = SITE_CONNECTIONS.map(text => ({ text, used: sel.connections.includes(text) }));
+			ctx.connectionChips = this._lineChips("connections", SITE_CONNECTIONS);
 			ctx.questionRows = this._pairRows("questions");
-			ctx.questionChips = SITE_QUESTION_PROMPTS.map(text => ({
-				text, used: sel.questions.some(q => q.prompt === text),
-			}));
+			ctx.questionChips = this._pairChips("questions", SITE_QUESTION_PROMPTS);
 		}
 		if (step.key === "timeline") {
 			ctx.timelineRows = this._pairRows("timeline");
@@ -267,17 +351,71 @@ export class CreateSiteDialog extends StepperDialog {
 			ctx.preview = this._previewCard();
 			ctx.reviewChecks = SITE_REVIEW_CHECKS;
 		}
+		// Nothing above may leave a bare partial parameter on the context; see _PARTIAL_PARAMS.
+		for (const name of _PARTIAL_PARAMS) {
+			if (name in ctx) {
+				console.error(`Stonetop | create-site context carries "${name}", which every list partial would inherit as its own; dropping it.`);
+				delete ctx[name];
+			}
+		}
 		return ctx;
 	}
 
-	/** {index, text} rows for a string list. */
+	/** {index, list, text} rows for a string list. `list` rides along for the reason _pairRows gives. */
 	_lineRows(list) {
-		return this._sel[list].map((text, index) => ({ index, text }));
+		return this._sel[list].map((text, index) => ({ index, list, text }));
 	}
 
-	/** {index, ...keys} rows for a paired list. */
+	/** Suggestion chips for a string list, marked when the list already carries one. */
+	_lineChips(list, prompts = []) {
+		return prompts.map(text => ({ list, text, used: this._sel[list].includes(text) }));
+	}
+
+	/**
+	 * Rows for a paired list, as `{index, cells}` — one cell per key the schema declares, in the
+	 * order it declares them. The template loops the cells rather than naming two fields, so the
+	 * four-key areas list and the two-key ones render through the same block.
+	 */
 	_pairRows(list) {
-		return this._sel[list].map((row, index) => ({ index, ...row }));
+		const ui = _PAIR_FIELDS[list] ?? {};
+		const chrome = ui.fields ?? {};
+		const keys = pairKeys(list) ?? [];
+		// `list` and `index` ride on the ROWS and on the CELLS rather than being walked back to
+		// with `../`. Inside a partial's block the hash arguments have pushed a frame, so the
+		// depth a `../` chain lands on depends on how the partial was called — and getting it
+		// wrong fails by reading undefined, which is a `data-list=""` that no handler matches.
+		return this._sel[list].map((row, index) => ({
+			index,
+			list,
+			rowClass: ui.rowClass ?? "",
+			inline: !!ui.inline,
+			cells: keys.map((key, i) => ({
+				list,
+				index,
+				key,
+				first: i === 0,
+				value: row?.[key] ?? "",
+				placeholder: chrome[key]?.placeholder ?? "",
+				cls: chrome[key]?.cls ?? "",
+				multiline: !!chrome[key]?.multiline,
+				// `lines`, not `rows`: a cell sits inside the partial's own `rows` loop, and a
+				// second meaning of that name on the inner context is a trap for no gain.
+				lines: chrome[key]?.lines ?? 3,
+			})),
+		}));
+	}
+
+	/**
+	 * Suggestion chips for a paired list, marked when the list already carries one.
+	 *
+	 * The chip's "already added" state and the click handler's "add it once" guard are the same
+	 * question, so they read the same key — the list's FIRST, whatever it is called. Asking for a
+	 * hardcoded `prompt` made both correct for questions alone: on any other list the chip never
+	 * lit up and every click appended another row.
+	 */
+	_pairChips(list, prompts = []) {
+		const [first] = pairKeys(list) ?? [];
+		return prompts.map(text => ({ list, text, used: this._sel[list].some(r => r?.[first] === text) }));
 	}
 
 	// A compact summary of the site-to-be, shown on the final step.
@@ -297,18 +435,7 @@ export class CreateSiteDialog extends StepperDialog {
 			why:         shaped.why,
 			description: shaped.description.trim(),
 			picks:       pickLines(manner, sel.picks),
-			counts: [
-				{ label: "Connections",  n: shaped.connections.length },
-				{ label: "Questions",    n: shaped.questions.length },
-				{ label: "Timeline",     n: shaped.timeline.length },
-				{ label: "Denizens",     n: shaped.denizens.length },
-				{ label: "Dangers",      n: shaped.dangers.length },
-				{ label: "Discoveries",  n: shaped.discoveries.length },
-				{ label: "Impressions",  n: shaped.outside.length + shaped.inside.length },
-				{ label: "Areas",        n: shaped.areas.length },
-				{ label: "Plans",        n: shaped.plans.length },
-				{ label: "Tables",       n: shaped.randomTables.length },
-			].filter(c => c.n > 0),
+			counts:      _countLines(shaped),
 			areas: shaped.areas.map(a => a.title).filter(Boolean),
 		};
 	}
@@ -387,9 +514,12 @@ export class CreateSiteDialog extends StepperDialog {
 		html.find(".stonetop-cs-suggest").on("click", ev => {
 			this._captureLiveFields();
 			const { list, text } = ev.currentTarget.dataset;
-			if (_PAIR_LISTS[list]) {
-				if (!this._sel[list].some(r => r.prompt === text)) {
-					this._sel[list].push({ ...blankRow(list), [_PAIR_LISTS[list][0]]: text });
+			const [first] = pairKeys(list) ?? [];
+			if (first) {
+				// Read and written through the same key, so the guard holds for every paired list
+				// rather than only the one whose first key happens to be called "prompt".
+				if (!this._sel[list].some(r => r?.[first] === text)) {
+					this._sel[list].push({ ...blankRow(list), [first]: text });
 				}
 			} else if (!this._sel[list].includes(text)) {
 				this._sel[list].push(text);
@@ -447,10 +577,12 @@ export class CreateSiteDialog extends StepperDialog {
 			if (_TEXT_FIELDS.has(el.dataset.field)) this._sel[el.dataset.field] = el.value;
 		});
 		// Plain string rows: <input class="stonetop-cs-line" data-list data-index>
-		for (const list of _LINE_LISTS) {
+		for (const list of SITE_LINE_LISTS) {
 			this._captureRowInputs(root, `.stonetop-cs-line[data-list="${list}"]`, this._sel[list]);
 		}
-		// Paired rows and areas: <input class="stonetop-cs-pair" data-list data-index data-key>
+		// Paired rows, areas among them: <input|textarea class="stonetop-cs-pair" data-list
+		// data-index data-key>. One sweep for every key of every paired list, because the key is
+		// on the element rather than implied by which list it belongs to.
 		root.querySelectorAll(".stonetop-cs-pair").forEach(el => {
 			const row = this._sel[el.dataset.list]?.[Number(el.dataset.index)];
 			if (row && el.dataset.key in row) row[el.dataset.key] = el.value;

@@ -6,21 +6,15 @@
 //
 // A site has no doom track, so the doom wiring simply finds nothing to bind.
 import { hasText, stringList, cardEnricher } from "../journal/card-vm.js";
+import { keyedRows, pairKeys } from "./site-schema.js";
 
 /** Card/pin accent for sites: weathered stone, distinct from the threat hues and hazard moss. */
 export const SITE_ACCENT = "#5a5f6b";
 
-/**
- * Trimmed pairs from a paired system list, dropping rows where both halves are blank.
- *
- * Emits the caller's OWN key names rather than a positional `a`/`b`, so a row arrives ready to
- * render — every call site used to map the pair straight back to the names it had just passed in.
- */
-function pairList(arr, keyA, keyB) {
-	return (Array.isArray(arr) ? arr : [])
-		.map(row => ({ [keyA]: String(row?.[keyA] ?? "").trim(), [keyB]: String(row?.[keyB] ?? "").trim() }))
-		.filter(row => row[keyA] || row[keyB]);
-}
+// Rows are read back through the SCHEMA's helper, not a private copy of it. The store and this
+// file each spelled out "map the keys, trim, drop the blank rows" and so each owned a definition
+// of "blank" — a site could be saved with a row the card then declined to render.
+const rowsOf = (arr, list) => keyedRows(arr, pairKeys(list) ?? []);
 
 /**
  * View-model for one site page. Async because prose fields are enriched. Pass
@@ -37,10 +31,12 @@ export async function buildSiteCardVM(page, { forOwner } = {}) {
 		.map(s => String(s ?? "").trim())
 		.filter(Boolean);
 
-	const picks = pairList(sys.picks, "label", "value");
-	const questions = pairList(sys.questions, "prompt", "answer");
-	const timeline = pairList(sys.timeline, "when", "text");
-	const denizens = pairList(sys.denizens, "name", "notes");
+	// Picks are the manner tables' own output rather than a wizard list, so they name their two
+	// shown keys here; the rest read theirs off the schema.
+	const picks = keyedRows(sys.picks, ["label", "value"]);
+	const questions = rowsOf(sys.questions, "questions");
+	const timeline = rowsOf(sys.timeline, "timeline");
+	const denizens = rowsOf(sys.denizens, "denizens");
 
 	const connections = stringList(sys.connections);
 	const dangers = stringList(sys.dangers);

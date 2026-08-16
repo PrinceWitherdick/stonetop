@@ -452,6 +452,7 @@ Hooks.once("init", () => {
 		"stonetop.guide-toc":                 "systems/stonetop-pwd/templates/dialogs/partials/guide-toc.hbs",
 		"stonetop.intros-capture-head":       "systems/stonetop-pwd/templates/dialogs/partials/intros-capture-head.hbs",
 		"stonetop.threat-string-list":        "systems/stonetop-pwd/templates/dialogs/partials/threat-string-list.hbs",
+		"stonetop.cs-list-frame":             "systems/stonetop-pwd/templates/dialogs/partials/cs-list-frame.hbs",
 		"stonetop.cs-line-list":              "systems/stonetop-pwd/templates/dialogs/partials/cs-line-list.hbs",
 		"stonetop.cs-pair-list":              "systems/stonetop-pwd/templates/dialogs/partials/cs-pair-list.hbs",
 		"stonetop.roster-row":                "systems/stonetop-pwd/templates/dialogs/partials/roster-row.hbs",

@@ -90,30 +90,20 @@
         {{#if is_story}}
         {{> "stonetop.cs-line-list" list="connections" label="Connections" rows=connectionRows chips=connectionChips placeholder="the Forest Folk must have known about this place…" addLabel="Add connection"}}
 
-        {{!-- Label and placeholders are passed as PLAIN text, not pre-escaped markup: the partial
-              prints them through `{{ }}`, which escapes, so an "&amp;" handed in here would reach
-              the screen as a literal "&amp;". --}}
-        {{> "stonetop.cs-pair-list" list="questions" label="Questions & answers" hint="leave an answer blank to come back to it" rows=questionRows chips=questionChips keyA="prompt" keyB="answer" placeholderA="Why didn't the Fae gut the tomb during their uprising?" placeholderB="The inner vault is guarded by powerful, loyal Fae…" addLabel="Add question"}}
+        {{!-- Labels are passed as PLAIN text, not pre-escaped markup: the partial prints them
+              through `{{ }}`, which escapes, so an "&amp;" handed in here would reach the screen
+              as a literal "&amp;". Field placeholders live beside the schema in the JS, which is
+              what lets one block serve lists of two keys and of four. --}}
+        {{> "stonetop.cs-pair-list" list="questions" label="Questions & answers" hint="leave an answer blank to come back to it" rows=questionRows chips=questionChips addLabel="Add question"}}
         {{/if}}
 
         {{#if is_timeline}}
-        <div class="stonetop-cf-gear">
-          {{#each timelineRows}}
-          <div class="stonetop-cf-gear-row">
-            <input type="text" class="stonetop-cf-input stonetop-cs-pair stonetop-cs-when" data-list="timeline" data-index="{{index}}" data-key="when" value="{{when}}" placeholder="Last autumn">
-            <input type="text" class="stonetop-cf-input stonetop-cs-pair" data-list="timeline" data-index="{{index}}" data-key="text" value="{{text}}" placeholder="Sajra arrives with crinwin thralls in tow; Thornthumb is made to stay away">
-            <button type="button" class="stonetop-cs-remove stonetop-cf-mini-btn stonetop-cf-mini-btn--danger" data-list="timeline" data-index="{{index}}"><i class="fas fa-times"></i></button>
-          </div>
-          {{/each}}
-          <button type="button" class="stonetop-cs-add stonetop-cf-mini-btn" data-list="timeline"><i class="fas fa-plus"></i> Add event</button>
-        </div>
+        {{> "stonetop.cs-pair-list" list="timeline" rows=timelineRows addLabel="Add event"}}
         <p class="stonetop-cs-note">If the site is more than a decade or so old, line its timeline up with the ages of the world (Book II p. 496).</p>
         {{/if}}
 
         {{#if is_contents}}
-        {{!-- Single-quoted so the placeholder can carry its own double quotes, and plain text for
-              the reason the questions list above gives. --}}
-        {{> "stonetop.cs-pair-list" list="denizens" label="Denizens" hint="people, beasts, spirits, constructs, undead" rows=denizenRows keyA="name" keyB="notes" placeholderA='"Trusted" crinwin' placeholderB="Nest inside, lord over the others, jealous of the kids, mimic Sajra's voice" addLabel="Add denizen"}}
+        {{> "stonetop.cs-pair-list" list="denizens" label="Denizens" hint="people, beasts, spirits, constructs, undead" rows=denizenRows addLabel="Add denizen"}}
 
         {{> "stonetop.cs-line-list" list="dangers" label="Dangers" rows=dangerRows kinds=dangerKinds placeholder="unstable construction; magical wards on the vault (create!)…" addLabel="Add danger"}}
 
@@ -131,18 +121,10 @@
           <div class="stonetop-cf-pick-label">Each area wants</div>
           <ul class="stonetop-cs-hint-list">{{#each areaPrompts}}<li>{{this}}</li>{{/each}}</ul>
         </div>
-        {{#each areaRows}}
-        <div class="stonetop-cs-area">
-          <div class="stonetop-cf-gear-row">
-            <input type="text" class="stonetop-cf-input stonetop-cs-pair stonetop-cs-area-title" data-list="areas" data-index="{{index}}" data-key="title" value="{{title}}" placeholder="Entrance chamber (A)">
-            <button type="button" class="stonetop-cs-remove stonetop-cf-mini-btn stonetop-cf-mini-btn--danger" data-list="areas" data-index="{{index}}"><i class="fas fa-times"></i></button>
-          </div>
-          <textarea class="stonetop-cf-textarea stonetop-cs-pair" data-list="areas" data-index="{{index}}" data-key="description" rows="3" placeholder="Dimly lit from outside. Soil and debris piled nearly 4 feet high at the entrance, sloping down into the room. Beyond, the floor is filthy, muddy…">{{description}}</textarea>
-          <textarea class="stonetop-cf-textarea stonetop-cs-pair" data-list="areas" data-index="{{index}}" data-key="contents" rows="2" placeholder="Contents: who's here, what they're doing, dangers, discoveries, questions to ask the PCs…">{{contents}}</textarea>
-          <input type="text" class="stonetop-cf-input stonetop-cs-pair" data-list="areas" data-index="{{index}}" data-key="exits" value="{{exits}}" placeholder="Exits: outside (north), collapsed hallway (B), central chamber (C)">
-        </div>
-        {{/each}}
-        <button type="button" class="stonetop-cs-add stonetop-cf-mini-btn" data-list="areas"><i class="fas fa-plus"></i> Add area</button>
+        {{!-- No `label`: the areas list is a column of self-titling cards, and the step's banner
+              has already said what they are. `frameClass` keeps the cards at the step's own
+              spacing rather than the tighter gap a list of plain rows wants. --}}
+        {{> "stonetop.cs-pair-list" list="areas" rows=areaRows addLabel="Add area" frameClass="stonetop-cs-area-list"}}
         <div class="stonetop-cs-hint">
           <div class="stonetop-cf-pick-label">To make it dynamic rather than linear</div>
           <ul class="stonetop-cs-hint-list">{{#each layoutTips}}<li>{{this}}</li>{{/each}}</ul>

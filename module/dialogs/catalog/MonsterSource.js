@@ -122,7 +122,7 @@ export class MonsterSource extends CatalogSource {
 		const badges = [];
 		if (type) badges.push({ label: creatureTypeLabel(type), img: creatureTypeIcon(type), hint: "Creature type" });
 		if (org)  badges.push({ label: MONSTER_ORGANIZATIONS.find(o => o.key === org)?.label ?? org, hint: "How many of them there are" });
-		if (hp)   badges.push({ label: `${hp} HP`, hint: armor ? `${armor} armor — ${sys.attributes?.armor?.source || "armor"}` : "Hit points" });
+		if (hp)   badges.push({ label: `${hp} HP`, hint: armor ? `${armor} armor: ${sys.attributes?.armor?.source || "armor"}` : "Hit points" });
 		if (sys.size) badges.push({ label: sys.size, hint: "Size" });
 
 		return {
