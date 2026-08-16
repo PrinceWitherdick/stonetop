@@ -4,6 +4,13 @@
     Pick the season (per your latest <em>Seasons Change</em>), then roll 1d6 on its table.
   </p>
 
+  {{#if clock}}
+  <p class="stonetop-weather-clock">
+    <i class="fas fa-hourglass-half"></i>
+    Stonetop is in <strong>{{clock.label}}</strong>, {{clock.yearLabel}}{{#if clock.followed}}: its table is selected below{{else}}, but you&rsquo;ve chosen a different table{{/if}}.
+  </p>
+  {{/if}}
+
   <div class="stonetop-weather-seasons">
     {{#each seasons}}
     <button type="button" class="stonetop-weather-season{{#if isActive}} is-active{{/if}}"

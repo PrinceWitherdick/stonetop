@@ -24,7 +24,7 @@
       "settlementShowTooltip": "Show this settlement on the sheet",
       "settlementsAllHidden": "No settlements ticked. Use the pencil to choose which ones this steading tracks.",
       "season": {
-        "setTooltip": "Set the current season and year (doesn't make the Seasons Change move)"
+        "setTooltip": "Make the Seasons Change move (or just correct what the sheet says)"
       },
       "tabs": {
         "overview": "Overview",

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { readRepo as read, readCss } from "../../fakes/css.js";
+import { readRepo as read, readCss, declarations, ownRule, stripComments } from "../../fakes/css.js";
+import { SEASON_IDS } from "../../../module/seasons/seasons-change-reminders.js";
 
 // The steading header's clock — the season Stonetop is in and the campaign year, beside
 // the title. What it SAYS is decided by module/seasons/current-season.js (covered by
@@ -9,8 +10,6 @@ import { readRepo as read, readCss } from "../../fakes/css.js";
 
 // The comments explain the very wiring being asserted, so they have to come out first or
 // a guard passes on its own rationale rather than on the markup.
-const stripComments = hbs => hbs.replace(/\{\{!--[\s\S]*?--\}\}/g, "");
-
 const STEADING_HBS = stripComments(read("templates/actor/steading.hbs"));
 const SEASON_HBS   = stripComments(read("templates/actor/partials/steading-header-season.hbs"));
 const STONETOP_JS  = read("stonetop.js");
@@ -71,28 +70,129 @@ describe("the steading header's season clock", () => {
 		expect(header.match(/<button /g), "GM button").toHaveLength(1);
 	});
 
-	it("omits the season half until one is stamped, but always names the year", () => {
-		// A world that has never made the Seasons Change move has no season to name, and
-		// guessing one would put a wrong season on the sheet. The year is always known.
-		const guarded = SEASON_HBS.slice(SEASON_HBS.indexOf("{{#if season.season}}"), SEASON_HBS.indexOf("{{/if}}"));
-		expect(guarded).toContain("season.iconSrc");
-		expect(guarded).toContain("season.label");
-		expect(guarded).not.toContain("season.yearLabel");
+	it("paints a whole clock unconditionally, fallback and all", () => {
+		// Both halves come out of currentSeasonView already resolved — an un-stamped world
+		// gets Spring of the First Year there, not here. So the partial holds NO branch: a
+		// guard on `season.season` would be a second place deciding what shows, and the one
+		// that used to live here is what left the sheet reading a bare year.
+		expect(SEASON_HBS).toContain("{{season.label}}");
 		expect(SEASON_HBS).toContain("{{season.yearLabel}}");
+		expect(SEASON_HBS).not.toContain("{{#if");
 	});
 
-	it("wires the GM's click to the setter, which is gated on being a GM", () => {
-		expect(SHEET_JS).toContain(`html.find("[data-action='set-current-season']").on("click", () => this._onSetCurrentSeason());`);
-		expect(SHEET_JS).toMatch(/async _onSetCurrentSeason\(\)\s*\{\s*\n\s*if \(!game\.user\?\.isGM\) return;/);
+	// Season over year, centred on each other and parked at the header's right edge.
+	it("stacks the season over the year, centred, against the right edge", () => {
+		const wrapper = ownRule(CSS, ".steading-header .steading-header-season");
+		expect(wrapper).toMatch(/flex-direction:\s*column\s*;/);
+		expect(wrapper).toMatch(/align-items:\s*center\s*;/);
+		expect(wrapper).toMatch(/margin:\s*0 0 0 auto\s*;/);
+		// Name first, year second — the stack's order is the markup's.
+		expect(SEASON_HBS.indexOf("season.label")).toBeLessThan(SEASON_HBS.indexOf("season.yearLabel"));
+	});
+
+	// Only the YEAR is boxed. The wrapper is a <button> for the GM, so every piece of the
+	// chrome core hands a button has to be stripped by name or the stack wears two boxes.
+	it("boxes the year alone and leaves the wrapper bare", () => {
+		const wrapper = ownRule(CSS, ".steading-header .steading-header-season");
+		for (const prop of ["border", "background", "box-shadow", "height", "padding"]) {
+			expect(wrapper, prop).toMatch(new RegExp(`${prop}:\\s*(none|auto|0)`));
+		}
+		// The box comes from `.stonetop-year-chip`, the one class all three surfaces that show a
+		// year wear (here, the picker's readout, the Seasons Change banner) — so the assertion is
+		// that the markup asks for it and that the class still draws a stadium.
+		expect(SEASON_HBS).toContain("stonetop-year-chip");
+		const chip = declarations(CSS, ".stonetop-year-chip");
+		expect(chip).toMatch(/border:\s*1px solid/);
+		expect(chip).toMatch(/border-radius:\s*999px/);
+
+		// ...so the GM's hover has to warm the chip, not the surface-less wrapper.
+		expect(declarations(CSS, ".steading-header .steading-header-season--set:hover .steading-header-season-year"))
+			.toBeTruthy();
+	});
+
+	// The season name takes its season's ink. The modifier is interpolated from the
+	// SEASON_IDS key, so every id has to have a token behind it or a season silently falls
+	// back to neutral body ink.
+	it("inks the season name per season, for every season there is", () => {
+		expect(SEASON_HBS).toContain("steading-header-season-name--{{season.season}}");
+		for (const id of SEASON_IDS) {
+			expect(CSS, id).toContain(
+				`.steading-header .steading-header-season-name--${id} { color: var(--stonetop-season-${id}-ink); }`);
+			expect(CSS, `${id} token`).toMatch(new RegExp(`--stonetop-season-${id}-ink:\\s*hsl\\(`));
+		}
+		// The neutral stays the fallback, so an unrecognised season is plain rather than blank.
+		const name = ownRule(CSS, ".steading-header .steading-header-season-name");
+		expect(name).toContain("var(--st-text-body)");
+		// Bold and stepped up: with the glyph gone the name is the only thing naming the
+		// season, and the size is what puts it in WCAG's large-text bracket — which is the
+		// bar the inks above are pitched at, so the two have to move together.
+		expect(name).toMatch(/font-weight:\s*700\s*;/);
+		expect(name).toMatch(/font-size:\s*1\.[23]\d*em\s*;/);
+		// 700 is the heaviest face this family ships, so there is nowhere above it to go:
+		// a higher number matches the same Bold file and reads identically, and faking the
+		// difference with a stroke was tried and rejected.
+		expect(name).not.toMatch(/font-weight:\s*[89]00/);
+		expect(name).not.toContain("text-stroke");
+	});
+
+	// And nowhere else. The inks have spread three times — to the season picker's labels, to
+	// the marked card's ring, to the Seasons Change banner — and been pulled back every time.
+	// The reason is not taste: a colour means something because ONE thing wears it, and each
+	// surface that borrows these turns the header's coloured season into decoration. So the
+	// four tokens may be READ by exactly the four rules above, and this counts them.
+	//
+	// Counted over the whole stylesheet rather than over a list of suspects, because the next
+	// place they creep to is by definition one nobody thought to list.
+	it("spends the season inks on the clock and on nothing else", () => {
+		// One pass over the stylesheet tallying every ink read, rather than a scan per season:
+		// the tally also catches an ink for a season SEASON_IDS doesn't list, which a per-season
+		// loop cannot see.
+		const uses = {};
+		for (const [, id] of CSS.matchAll(/var\(--stonetop-season-(\w+)-ink/g)) uses[id] = (uses[id] ?? 0) + 1;
+		expect(Object.keys(uses).sort()).toEqual([...SEASON_IDS].sort());
+		for (const id of SEASON_IDS) {
+			expect(uses[id], `${id} is read outside the header's clock`).toBe(1);
+		}
+		// The variable those rules used to be routed through is gone with them; a live one is
+		// an open door back, since anything can set it from anywhere.
+		expect(CSS).not.toContain("--stonetop-season-ink");
+	});
+
+	// The glyph is gone — the season carries itself on weight and ink alone. Nothing may
+	// reintroduce it by halves: a leftover <img> with no rule behind it would take core's
+	// black 1px image border, and a leftover rule would be dead weight nobody could see.
+	it("carries no season glyph at all", () => {
+		expect(SEASON_HBS).not.toContain("<img");
+		expect(SEASON_HBS).not.toContain("iconSrc");
+		expect(CSS).not.toContain("steading-header-season-icon");
+		// And the view stops handing one out, so there is nothing left to render.
+		expect(read("module/seasons/current-season.js")).not.toContain("seasonIconSrc");
+	});
+
+	// The clock runs the MOVE — the same thing the hotbar macro and the move card run. It used
+	// to open the correct-the-clock window, which wrote a flag and made no move: the most
+	// obvious control on the sheet doing the once-a-campaign action instead of the
+	// four-times-a-year one. The correction is now a door inside the move's picker.
+	it("wires the GM's click to the Seasons Change move, not to the clock setter", () => {
+		expect(SHEET_JS).toContain(`html.find("[data-action='set-current-season']").on("click", () => this._onSeasonsChange());`);
+		// The setter is still there, still GM-gated — reached one click further in.
+		expect(SHEET_JS).toMatch(/async _onSetCurrentSeason\(openOn\)\s*\{\s*\n\s*if \(!game\.user\?\.isGM\) return;/);
+		expect(SHEET_JS).toContain("onRun: (year) => this._onSetCurrentSeason(year),");
 	});
 
 	// The setter only writes the flag. Applying seasonal gains, resetting Fortunes and
 	// writing the journal entry belong to the move; a GM correcting the header wants none
 	// of them.
 	it("keeps the setter clear of the move's own effects", () => {
-		const setter = SHEET_JS.slice(
-			SHEET_JS.indexOf("async _onSetCurrentSeason()"),
-			SHEET_JS.indexOf("async _onSeasonsChange()"));
+		const from = SHEET_JS.indexOf("async _onSetCurrentSeason(");
+		const to   = SHEET_JS.indexOf("async _onSeasonsChange()");
+		// Both anchors must actually be found and be in this order, or `slice` hands back an
+		// empty string and every assertion below passes on nothing. That is not hypothetical:
+		// the old anchor spelled the setter with empty parentheses, and giving it a parameter
+		// silently emptied this slice.
+		expect(from, "setter").toBeGreaterThan(-1);
+		expect(to, "move").toBeGreaterThan(from);
+		const setter = SHEET_JS.slice(from, to);
 		expect(setter).not.toContain("recordSeasonsChange");
 		expect(setter).not.toContain("setSystemValues");
 		expect(setter).not.toContain("postSeasonsChangeReminder");
@@ -117,10 +217,9 @@ describe("the steading header's season clock", () => {
 		}
 	});
 
-	// The clock is the header's second flex item and sits directly beside the title, so the
-	// name block must not claim the whole row.
+	// The clock is the header's second flex item and parks itself against the right edge
+	// with an auto left margin, which only has slack while the name block leaves the row.
 	it("leaves room for itself in the header row", () => {
-		const nameBlock = CSS.slice(CSS.indexOf(".steading-header-name {"));
-		expect(nameBlock.slice(0, nameBlock.indexOf("}"))).not.toMatch(/flex:\s*1\s*;/);
+		expect(ownRule(CSS, ".steading-header-name")).not.toMatch(/flex:\s*1\s*;/);
 	});
 });

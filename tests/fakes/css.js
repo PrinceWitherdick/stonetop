@@ -48,9 +48,32 @@ export function repoFileExists(rel) {
 }
 
 /**
+ * Source with its comments taken out — Handlebars, block and line — so a guard reads the CODE
+ * rather than the prose above it.
+ *
+ * The tests that need this are the ones asserting a thing is NOT done any more (no `target`,
+ * no `<a>`, no chevron bullet), and those files invariably explain the very practice they
+ * forbid in the comment right above the replacement. Left in, the comment answers for the
+ * code and the guard passes on its own rationale.
+ *
+ * One implementation rather than the copy each such test used to carry: they had drifted into
+ * stripping different subsets, so which comment syntax was honoured depended on which file you
+ * were in.
+ */
+export function stripComments(src) {
+	return src
+		.replace(/\{\{!--[\s\S]*?--\}\}/g, "")
+		.replace(/\/\*[\s\S]*?\*\//g, "")
+		.replace(/\/\/[^\n]*/g, "");
+}
+
+/**
  * The stylesheet with comments stripped — a commented-out rule must not answer for a live one,
  * and these comments are long and full of commas and braces, so a selector list read out of the
  * raw text would swallow the paragraph above its rule.
+ *
+ * Block comments only, deliberately: `//` is not a comment in CSS, and a `url(//host/…)` or a
+ * data URI run through `stripComments` would lose the rest of its line.
  */
 export function readCss(rel = "styles/stonetop.css") {
 	return readRepo(rel).replace(/\/\*[\s\S]*?\*\//g, "");

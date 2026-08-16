@@ -1,4 +1,4 @@
-import { SEASON_IDS, seasonLabel, seasonIconSrc } from "./seasons-change-reminders.js";
+import { SEASON_IDS, seasonLabel } from "./seasons-change-reminders.js";
 import { yearLabel } from "./seasons-chronicle.js";
 import { STONETOP_SCOPE } from "../actors/character/StonetopFlags.js";
 
@@ -12,7 +12,7 @@ import { STONETOP_SCOPE } from "../actors/character/StonetopFlags.js";
 // ONE flag holding both halves of the STAMP, not two, because the year on its own is
 // ambiguous: `seasonsCurrentYear` advances the moment a Winter is completed (it is the season
 // picker's default for NEXT time), so pairing a stamped season with it would read
-// "Winter · Second Year" for the whole of the first year's winter. The pair written
+// "Winter · Year Two" for the whole of the first year's winter. The pair written
 // together is a season and the year that season actually belongs to.
 //
 // The picker's year is still a second flag, because it is a HIGH-WATER MARK rather than a
@@ -112,23 +112,40 @@ export async function recordCurrentSeason(actor, season, year, { advanceOnly = f
 }
 
 /**
- * The header readout for the steading's clock: the stamped season (when there is one)
- * plus the year it belongs to, with the labels and icon the template paints.
+ * The season the header shows before any Seasons Change has been recorded.
  *
- * Pure, so the tests drive it directly. `fallbackYear` covers the un-stamped case — a
- * world that has never completed a Seasons Change still has a year, so the header reads
- * "First Year" rather than going blank while it waits for the first season to turn.
+ * Not a guess: the campaign opens in Spring of the First Year, which is exactly what the
+ * session-zero walkthrough stamps (SpringBurstDialog records `spring`/1). A world that has
+ * not turned a season yet is in the season it started in, so naming it is the truth and
+ * leaving the line blank was the thing that read wrong.
+ */
+export const DEFAULT_SEASON = "spring";
+
+/**
+ * The header readout for the steading's clock: the season plus the year it belongs to,
+ * as the two labels the template paints. No icon — the header names its season in that
+ * season's own ink instead, off the SEASON_IDS key returned here.
+ *
+ * Pure, so the tests drive it directly. The un-stamped case falls back on both halves —
+ * `fallbackYear` (usually the picker's year) and DEFAULT_SEASON — so the header always
+ * names a full clock rather than half of one.
+ *
+ * The fallback is a DISPLAY default and stops here. `readCurrentSeason` still returns null
+ * for an un-stamped world, so `seasonRank` still ranks it below every real season and the
+ * first actual Seasons Change lands under `advanceOnly` instead of being refused by a
+ * Spring nobody recorded.
  *
  * @param {{season: string, year: number}|null} stamp        From readCurrentSeason.
  * @param {number} [fallbackYear=1]                          Usually seasonsCurrentYear.
  */
 export function currentSeasonView(stamp, fallbackYear = 1) {
-	const year = stamp ? campaignYear(stamp.year) : campaignYear(fallbackYear);
+	const year   = stamp ? campaignYear(stamp.year) : campaignYear(fallbackYear);
+	const season = stamp?.season ?? DEFAULT_SEASON;
 	return {
-		season:    stamp?.season ?? null,
+		season,
 		year,
-		label:     stamp ? seasonLabel(stamp.season) : "",
-		iconSrc:   stamp ? seasonIconSrc(stamp.season) : "",
+		label:     seasonLabel(season),
 		yearLabel: yearLabel(year),
+		stamped:   Boolean(stamp),
 	};
 }

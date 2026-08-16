@@ -82,6 +82,62 @@ export function getWeatherSeason(key) {
 	return WEATHER_SEASONS.find(s => s.key === key) ?? null;
 }
 
+// ── The steading's clock, as a weather table ─────────────────────────────────
+// Six tables, four seasons. The campaign clock (the Seasons Change stamp, see
+// seasons/current-season.js) names one of spring/summer/autumn/winter, so it can only ever
+// point at the four tables that name a season outright. The two straddle tables ("late
+// winter / early spring", "late summer / early autumn") describe the seam BETWEEN two
+// stamped seasons, and nothing in the clock says how deep into a season the party is —
+// so those stay the GM's own pick rather than something we guess at.
+//
+// Keys are the SEASON_IDS of seasons-change-reminders.js. Not imported: that module pulls
+// in the chat card and the playbook-actor scan for a four-string list, and this file is the
+// pure rules data the tests drive directly. The pairing is guarded in tests/utils/weather.test.js
+// instead, which asserts these keys ARE SEASON_IDS.
+export const CAMPAIGN_SEASON_TABLES = Object.freeze({
+	spring: "spring-early-summer",
+	summer: "summer",
+	autumn: "autumn",
+	winter: "winter",
+});
+
+/**
+ * The weather table a stamped campaign season rolls on.
+ * @param {string|null} season  A SEASON_IDS key.
+ * @returns {string|null} null when there's no season stamped (or it isn't one we know).
+ */
+export function weatherSeasonForCampaignSeason(season) {
+	return CAMPAIGN_SEASON_TABLES[season] ?? null;
+}
+
+/**
+ * Which table the picker opens on.
+ *
+ * The clock wins, because the season the table is actually playing in is a fact and the
+ * remembered pick is only where this client happened to leave the dialog — a GM who ran the
+ * Seasons Change into autumn and then opened the weather should not be rolling summer.
+ *
+ * But the remembered pick is still worth keeping WITHIN a season: the GM who deliberately
+ * switched to "late summer / early autumn" is telling us where in the season they are, which
+ * is exactly the thing the clock can't say. So the pick is remembered together with the
+ * campaign season it was made under, and it only survives while that season does. One value
+ * holding both halves, for the same reason the clock itself is one flag: a key remembered
+ * separately from the season it belongs to is a pick that outlives its meaning.
+ *
+ * @param {string|null} campaignSeason        The stamped season, or null if none.
+ * @param {{key?: string, for?: string|null}|string|null} [remembered]  The stored pick. A bare
+ *   string is a pick saved before it was paired with a season — honoured only in an unstamped
+ *   world, which is where the clock has nothing to say anyway.
+ * @returns {string} Always a real WEATHER_SEASONS key.
+ */
+export function defaultWeatherSeason(campaignSeason, remembered = null) {
+	const pick = typeof remembered === "string" ? { key: remembered } : (remembered ?? {});
+	const rememberedKey = getWeatherSeason(pick.key) ? pick.key : null;
+	const sameSeason    = (pick.for ?? null) === (campaignSeason ?? null);
+	if (rememberedKey && sameSeason) return rememberedKey;
+	return weatherSeasonForCampaignSeason(campaignSeason) ?? rememberedKey ?? WEATHER_SEASONS[0].key;
+}
+
 /** The row a given 1d6 total lands on for a season (or null if the key is unknown). */
 export function resolveWeatherRow(seasonKey, total) {
 	const season = getWeatherSeason(seasonKey);

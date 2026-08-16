@@ -32,7 +32,7 @@ import {PLACE_OF_INTEREST_DRAG_TYPE} from "../../hooks/PlaceOfInterestDrop.js";
 import {getDragEventData, imagePopout, imagePopoutTitle} from "../../utils/foundry-compat.js";
 import {wireCardDropZone} from "../../utils/card-drop-zone.js";
 import {postSeasonsChangeReminder, seasonIconSrc, seasonLabel} from "../../seasons/seasons-change-reminders.js";
-import {recordSeasonsChange} from "../../seasons/seasons-chronicle.js";
+import {recordSeasonsChange, yearLabel} from "../../seasons/seasons-chronicle.js";
 import {readCurrentSeason, recordCurrentSeason, currentSeasonView, readCurrentYear} from "../../seasons/current-season.js";
 import {openSeasonPicker} from "../../seasons/season-picker.js";
 import {SEASONAL_GAINS} from "../../dialogs/spring-burst-data.js";
@@ -765,10 +765,17 @@ export function createStonetopSteadingSheetClass(Base) {
 				await this.actor.setFlag(STONETOP_SCOPE, "rollMode", mode);
 			}, true);
 
-			// The season/year clock beside the title. Only a GM gets a button here (the
-			// template renders a plain div for everyone else), so this binds nothing for
-			// players and the method re-checks anyway.
-			html.find("[data-action='set-current-season']").on("click", () => this._onSetCurrentSeason());
+			// The season/year clock beside the title. Runs the MOVE, the same thing the hotbar
+			// macro and the Seasons Change move card run — the clock is the most obvious thing
+			// on the sheet to click when the seasons turn, and it used to open the
+			// correct-the-clock window instead, which quietly wrote a flag and made no move.
+			// Correcting the clock is now a door at the bottom of that window (see
+			// _onSeasonsChange's `altAction`), which is the right way round: the move happens
+			// four times a year and the correction about once a campaign.
+			//
+			// Only a GM gets a button here (the template renders a plain div for everyone
+			// else), so this binds nothing for players.
+			html.find("[data-action='set-current-season']").on("click", () => this._onSeasonsChange());
 
 			// A real radio group, so `change` rather than a delegated click: the browser owns the
 			// deselection, and change only fires on the one that became checked.
@@ -1792,45 +1799,69 @@ export function createStonetopSteadingSheetClass(Base) {
 		// applies seasonal gains, resets Fortunes and writes a journal entry, none of which a
 		// GM wants when they're only correcting what the header says. Needed by any table that
 		// was already mid-campaign when the readout shipped (their clock has never been
-		// stamped) and by the mis-clicked season. GM-only; the header only offers it to a GM.
+		// stamped) and by the mis-clicked season. GM-only; only a GM can reach it at all.
 		//
-		// Deliberately the same cards-and-year-dropdown shape as the move's own picker, so the
-		// two read as the same question. One year past the current is offered so the clock can
-		// be moved forward to a year no Winter has closed out yet; picking it carries
-		// `seasonsCurrentYear` along, or the move's picker would still default a year behind.
-		async _onSetCurrentSeason() {
+		// NOT what the header's clock opens. Correcting the clock happens about once in a
+		// campaign, where the move happens four times a year, and the clock is the most
+		// obvious thing on the sheet to click when the seasons turn — so the header runs the
+		// MOVE, and this is one click further in, off the door at the bottom of that window.
+		//
+		// Deliberately the same cards-and-year-field shape as the move's own picker, so the two
+		// read as the same question. The clock can be set to any year, including one ahead of
+		// anything played — picking it carries `seasonsCurrentYear` along, or the move's picker
+		// would still default a year behind.
+		//
+		// @param {number} [openOn]  The year to open on, handed over by the move's picker so a
+		//   GM who has already dialled one in does not type it twice to change which question
+		//   they are answering. Falls back to the stamp, then to the campaign's current year.
+		async _onSetCurrentSeason(openOn) {
 			if (!game.user?.isGM) return;
 			const stamped  = readCurrentSeason(this.actor);
-			const pickYear = stamped?.year ?? this._seasonsCurrentYear();
+			const pickYear = openOn ?? stamped?.year ?? this._seasonsCurrentYear();
 			openSeasonPicker({
 				title:  "Set the Current Season",
 				prompt: "Which season is Stonetop in?",
 				note:   "Only changes what the sheet says. It doesn't make the Seasons Change move.",
 				selected: stamped?.season ?? null,
-				// One year past the current, so the clock can be moved forward to a year no
-				// Winter has closed out yet.
-				years: Math.max(this._seasonsCurrentYear(), stamped?.year ?? 1) + 1,
 				selectedYear: pickYear,
-				// One write for both halves of the clock. The move's picker only ever offers
-				// years up to `seasonsCurrentYear`, so setting the clock ahead has to carry it;
-				// `pickerYear` defaults to the stamped year, and the never-rewind guard lives
-				// in recordCurrentSeason.
+				// The high-water mark, for the picker's hint alone — not a ceiling. Both halves
+				// of the clock are candidates because they move independently: `seasonsCurrentYear`
+				// runs a year ahead of the stamp for the whole of a completed Winter.
+				latestYear: Math.max(this._seasonsCurrentYear(), stamped?.year ?? 1),
+				// One write for both halves of the clock. The move's picker defaults to
+				// `seasonsCurrentYear`, so setting the clock ahead has to carry it; `pickerYear`
+				// defaults to the stamped year, and the never-rewind guard lives in
+				// recordCurrentSeason.
 				onPick: (season, year) => recordCurrentSeason(this.actor, season, year),
 			});
 		}
 
+		// The move itself, and what all three ways in reach: the hotbar macro, the Seasons
+		// Change move card, and the header's clock. Picks a season and a year, then opens the
+		// move's own dialog — the rules, the seasonal gains, the Fortunes roll, Done.
 		async _onSeasonsChange() {
-			// Every year up to the current one (Winter completion bumps it), defaulting to the
-			// latest so the journal page matches by default. The chosen year rides through to
-			// recordSeasonsChange.
+			// Opens on the current year (Winter completion bumps it), which is also the
+			// high-water mark the picker's hint is measured against — a table catching the
+			// sheet up mid-campaign can type past it. The chosen year rides through to
+			// recordSeasonsChange, which files the season into that year's Chronicle page.
 			const currentYear = this._seasonsCurrentYear();
 			openSeasonPicker({
 				title:  "Seasons Change",
 				prompt: "Which season is beginning?",
-				years:  currentYear,
 				selectedYear: currentYear,
+				latestYear:   currentYear,
 				// Openable from a hotbar macro, away from the sheet, so this one offers the jump.
 				headerShortcut: true,
+				// The door to the other flow. This picker is what the header's clock opens, and
+				// a GM who clicked it meaning to fix a mis-typed season has to be able to get
+				// there from here — the two windows ask nearly the same question and are told
+				// apart by intent alone, so the one you land in owes you the other. GM-only,
+				// like the flow it opens, and the header only offers the clock to a GM anyway.
+				altAction: game.user?.isGM ? {
+					ask:   "Only correcting what the sheet says?",
+					label: "Set the season without making the move.",
+					onRun: (year) => this._onSetCurrentSeason(year),
+				} : null,
 				onPick: (season, year) => this._showSeasonDialog(season, year),
 			});
 		}
@@ -1915,9 +1946,19 @@ export function createStonetopSteadingSheetClass(Base) {
 			const label   = seasonLabel(seasonId);
 			const iconSrc = seasonIconSrc(seasonId);
 
+			// The season beside its icon, and the year in the same stadium chip the steading
+			// header's clock wears. NOT in the season's ink: those four colours belong to the
+			// header's clock and nowhere else — see the token block in styles/stonetop.css. The
+			// season is named by the window title, by this heading and by its glyph already; a
+			// colour spent here would be the fourth thing saying it and the second place teaching
+			// the eye that a coloured season means something.
+			//
+			// The icon's `alt` is empty on purpose, as it is on the picker's cards: the <h3> right
+			// beside it names the season in text, and a filled alt would say "Spring" twice.
 			const header = `<div class="stonetop-season-flow-header">
-				<img src="${iconSrc}" alt="${label}" class="stonetop-season-icon-sm">
-				<h3>${label}</h3>
+				<img src="${iconSrc}" alt="" class="stonetop-season-icon-sm">
+				<h3 class="stonetop-season-flow-title">${label}</h3>
+				<span class="stonetop-season-flow-year stonetop-year-chip">${yearLabel(year)}</span>
 			</div>`;
 
 			const statsNote = `<p class="stonetop-season-note">Fortunes: <strong>${sign(fortunes)}</strong> &nbsp;·&nbsp; Surplus: <strong>${surplus}</strong> &nbsp;·&nbsp; Population: <strong>${sign(population)}</strong></p>`;

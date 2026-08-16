@@ -7,10 +7,14 @@
 			</div>
 			{{!-- The campaign's clock, beside the title: the season the table is playing in and
 			      the year it belongs to, stamped by the Seasons Change move (see
-			      module/seasons/current-season.js). The season half is absent until the first
-			      Seasons Change is recorded — the year is always known, so it always shows.
+			      module/seasons/current-season.js). Both halves always show: a world that has
+			      not turned a season yet is still in the season it started in, so an un-stamped
+			      clock falls back on DEFAULT_SEASON and the current year rather than naming
+			      half of itself.
 
-			      A GM can click it to correct what it says without running the move; a player
+			      A GM clicking it makes the move (`_onSeasonsChange`); correcting the clock
+			      without rolling is a door at the bottom of that dialog, because the move
+			      happens four times a year and the correction about once a campaign. A player
 			      gets the same readout as plain text. Rendered as a <button> for the GM rather
 			      than a clickable <div> so it is keyboard-reachable and announces itself.
 

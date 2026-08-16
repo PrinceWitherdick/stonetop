@@ -4,6 +4,7 @@ import { maybeOfferMigration } from "../migration/announce.js";
 import { finishSystemIdMigration } from "../migration/finish-run.js";
 import { maybeRescueStrandedWorld } from "../migration/rescue.js";
 import { repairAllChronicleFlagScopes } from "../migration/chronicle-flag-scope.js";
+import { renameAllSeasonYearPages } from "../migration/season-year-page-names.js";
 import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingleton.js";
 import { runWorldSetup, pendingSetupWork } from "./WorldSetup.js";
 import { reapplyBook2Art, hasImportedBook2Art } from "../book2-art/reapply.js";
@@ -163,6 +164,13 @@ export async function onReady() {
 		// migration/chronicle-flag-scope.js.
 		try { await repairAllChronicleFlagScopes(); }
 		catch (err) { console.error("Stonetop | chronicle flag-scope repair failed", err); }
+		// Catch Chronicle year pages up to the "Year One" naming the sheet and the picker
+		// already use. Same shape as the sweep above and for the same reason: it recognises a
+		// generated name and writes one, so it is idempotent and needs no gate. The years that
+		// go stale are the closed-out ones nobody re-records, so healing on write is not enough.
+		// See migration/season-year-page-names.js.
+		try { await renameAllSeasonYearPages(); }
+		catch (err) { console.error("Stonetop | Chronicle year-page rename failed", err); }
 		try { await migrateAllSteadingPeople(); }
 		catch (err) { console.error("Stonetop | Residents/Neighbors → NPC conversion failed", err); }
 		// Give already-linked Residents of Stonetop a "Stonetop" Home if theirs is blank

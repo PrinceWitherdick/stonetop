@@ -142,32 +142,41 @@ describe("recordCurrentSeason", () => {
 });
 
 describe("currentSeasonView", () => {
-	it("names the season, the year and the icon once stamped", () => {
+	it("names the season and the year once stamped", () => {
 		const view = currentSeasonView({ season: "autumn", year: 2 }, 2);
 		expect(view.season).toBe("autumn");
 		expect(view.label).toBe("Autumn");
-		expect(view.yearLabel).toBe("Second Year");
-		// The "autumn" season's art ships as "fall" — the shared icon helper maps it.
-		expect(view.iconSrc).toContain("fall_icon.svg");
+		expect(view.yearLabel).toBe("Year Two");
 	});
 
 	it("keeps the stamped year even when the picker's year has moved on", () => {
 		// Completing a Winter advances seasonsCurrentYear to the NEXT year, so the fallback
 		// disagrees with the stamp by design. The stamp wins: it is still that Winter.
 		const view = currentSeasonView({ season: "winter", year: 1 }, 2);
-		expect(view.yearLabel).toBe("First Year");
+		expect(view.yearLabel).toBe("Year One");
 		expect(view.label).toBe("Winter");
 	});
 
-	it("shows the year alone before any season has been stamped", () => {
+	it("falls back to Spring before any season has been stamped", () => {
+		// A world that has never turned a season is in the one it opened in — session zero's
+		// walkthrough stamps exactly this — so the header names a whole clock, not half of one.
 		const view = currentSeasonView(null, 3);
-		expect(view.season).toBeNull();
-		expect(view.label).toBe("");
-		expect(view.iconSrc).toBe("");
-		expect(view.yearLabel).toBe("Third Year");
+		expect(view.season).toBe("spring");
+		expect(view.label).toBe("Spring");
+		expect(view.yearLabel).toBe("Year Three");
 	});
 
-	it("falls back to the first year when there is no year either", () => {
-		expect(currentSeasonView(null).yearLabel).toBe("First Year");
+	it("falls back to Spring of the first year when there is no year either", () => {
+		const view = currentSeasonView(null);
+		expect(view.label).toBe("Spring");
+		expect(view.yearLabel).toBe("Year One");
+	});
+
+	// The fallback is what the header SAYS. It must not read back as a recorded season, or
+	// the first real Seasons Change would rank at-or-below it and `advanceOnly` would drop it.
+	it("marks the fallback as unstamped, and leaves the stored clock alone", () => {
+		expect(currentSeasonView(null, 3).stamped).toBe(false);
+		expect(currentSeasonView({ season: "spring", year: 1 }, 1).stamped).toBe(true);
+		expect(readCurrentSeason(fakeSteading())).toBeNull();
 	});
 });

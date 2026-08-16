@@ -638,13 +638,19 @@ export function registerSettings() {
 
 	// The season last picked in the Weather roll dialog (see dialogs/WeatherDialog.js),
 	// so it reopens to where the GM left off. Client-scoped — it's a GM convenience,
-	// not shared world state. Holds a WEATHER_SEASONS key (or "" before first use).
+	// not shared world state.
+	//
+	// `{ key, for }`: the WEATHER_SEASONS key picked, and the campaign season (a SEASON_IDS
+	// key, or null in a world with no Seasons Change stamped) it was picked under. The pair
+	// is what lets the steading's clock take over the moment the season turns while still
+	// honouring a deliberate pick within a season — see defaultWeatherSeason in utils/weather.js.
+	// Untyped rather than Object so the bare-string value written by builds before the pairing
+	// survives the upgrade; the resolver reads both shapes.
 	game.settings.register(SYSTEM_ID, "weatherSeason", {
 		name: "Weather Roll Season",
 		scope: "client",
 		config: false,
-		type: String,
-		default: ""
+		default: {}
 	});
 
 	// Reload-resume state for the GM walkthroughs — the session-zero pair (Character

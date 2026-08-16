@@ -181,11 +181,19 @@
 	   is about having ONE place to change that mind, not about having changed it. */
 	--st-art-frame: hsl(40 30% 82%);
 
-	/* The warm wash a pickable card takes on hover — the season cards in the picker, and the
-	   season readout in the steading header that opens it. Two surfaces asking the same
-	   question, so they highlight the same way. */
+	/* The translucent slate a pickable SURFACE takes on hover — the season cards in the
+	   picker, and the season readout in the steading header that opens it. The system's
+	   interactive accent is slate everywhere else (some forty hover surfaces run off
+	   --st-btn-primary-bg-hover), so these derive from that palette rather than naming a
+	   colour of their own: a wash at 12% for the fill, the solid tone for the border. The
+	   dark-theme blocks re-point --st-btn-primary-bg-hover, and these follow it down. */
+	--st-slate-hover-bg: color-mix(in srgb, var(--st-btn-primary-bg-hover) 12%, transparent);
+	--st-slate-hover-border: var(--st-btn-primary-bg-hover);
+
+	/* The older WARM wash, kept for the GM Toolkit's move-draw flash alone. It is not a
+	   hover any more — those all went slate — but the flash was tuned against this tone and
+	   is a different gesture: the sheet pointing at a row, not an invitation to click. */
 	--st-warm-hover-bg: rgba(122, 98, 72, 0.12);
-	--st-warm-hover-border: #7a6248;
 
 	/* What a hit tier is written in on a chat card. Named so the surfaces that invert to black
 	   can re-point them; these are the paper values, unchanged. */
@@ -218,6 +226,37 @@
 	--stonetop-season-summer-icon: url('/systems/stonetop-pwd/assets/icons/seasons/summer_icon.svg');
 	--stonetop-season-fall-icon: url('/systems/stonetop-pwd/assets/icons/seasons/fall_icon.svg');
 	--stonetop-season-winter-icon: url('/systems/stonetop-pwd/assets/icons/seasons/winter_icon.svg');
+	/* Season INKS — the four seasons as text on the sheet's parchment.
+
+	   FOR THE STEADING HEADER'S CLOCK, AND NOWHERE ELSE. Not the season picker, not the
+	   Seasons Change flow's banner, not a chat card — all three have worn these and all
+	   three have had them taken back off. A colour means something because one thing wears
+	   it: the header's clock is the sheet's statement of what season Stonetop is in, and the
+	   moment a picker offers four coloured names beside it, the colour is decoration and the
+	   clock is just another green word. Anything else that names a season is told apart by
+	   its glyph, its size and its weight.
+
+	   Pitched at WCAG AA for LARGE text (3:1) rather than for body copy,
+	   and the header's season label is what earns that: bold, and stepped up past the 14px
+	   bold the guideline draws the line at. 3.5:1 at worst, ~3.8:1 typical, against both the
+	   sheet (hsl(30 20% 94%)) and the header band's 4% wash over it.
+
+	   These were once pitched at the body-text 4.5:1 and read as near-black with a tint —
+	   correct by the numbers and not recognisably COLOURED, which is the whole job here.
+	   Buying that recognition back costs contrast, and it is affordable precisely because
+	   the label is decorative: the year chip below it carries the same fact in plain ink, so
+	   nothing is lost if the hue does not register.
+
+	   Autumn is pushed red-ward to 12deg so it cannot be mistaken for summer's gold at a
+	   glance, and summer sits deepest of the four because yellow carries the most luminance
+	   per unit of lightness.
+
+	   Keyed "autumn", not "fall" like the icon above it: the icon is named for the file that
+	   ships, these are named for the SEASON_IDS key the markup interpolates. */
+	--stonetop-season-spring-ink: hsl(140 72% 31%);
+	--stonetop-season-summer-ink: hsl(35 95% 34%);
+	--stonetop-season-autumn-ink: hsl(12 80% 45%);
+	--stonetop-season-winter-ink: hsl(205 80% 42%);
 	/* Accent for journal-sourced ("added") steading improvements — the draggable
 	   journal card and the custom-improvement card it becomes on the sheet. */
 	--stonetop-improvement-accent: #7a5c2e;
@@ -3938,6 +3977,20 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	line-height: 1.45;
 	color: var(--color-text-dark-secondary);
 }
+
+/* The steading's clock, read back above the picker (see WeatherDialog#_clockLine). */
+.stonetop-weather-clock {
+	margin: 0;
+	padding: 5px 10px;
+	border-radius: var(--st-radius-lg);
+	border-left: 4px solid var(--st-green-border, #6b8e23);
+	background: var(--st-green-bg);
+	color: var(--st-green-text);
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	line-height: 1.4;
+}
+
+.stonetop-weather-clock > i { margin-right: 4px; }
 
 .stonetop-weather-seasons {
 	display: flex;
@@ -12772,20 +12825,34 @@ span.stonetop-mark-loyalty-pip {
 
 /* -- Header ---------------------------------------------------- */
 
-.steading-header {
+/* The banner both GM-facing sheets wear: a tinted strip under a slategrey rule, with an Avara
+   title in it. ONE rule for the two of them — the GM Toolkit's used to restate these six
+   declarations verbatim under a comment admitting they would drift, and they already had
+   (the toolkit's copy of the optical nudge below was documented as a value it no longer
+   carried). Both are also the tab rail's measuring anchor (module/utils/tab-rail.js looks for
+   `.stonetop-sheet-header, .steading-header` and starts the rail 16px below it), so a padding
+   change made in one copy silently moved the rail on one sheet only.
+
+   The inset is DELIBERATELY deeper at the bottom than the top: the title is a line of Avara,
+   whose capitals stand flush with the top of its ink and whose descenders hang a third of an
+   em below the baseline. Even inset the same on both sides, the `p` of "Stonetop" would sit
+   on the rule once the title is optically centred (see `.steading-title`). The extra 4px is
+   that descender's clearance, not a taste. */
+.steading-header,
+.stonetop-gm-toolkit-header {
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	padding: 6px 12px;
+	padding: 6px 12px 10px;
 	border-bottom: 2px solid slategrey;
 	background: rgba(0,0,0,0.04);
 	flex-shrink: 0;
 }
 
 /* `flex: 0 1 auto`, not `flex: 1`: the season clock is the header's second flex item and
-   sits directly beside the title, so the name block must not eat the row. It kept the
-   column direction — it is still a name-over-subtitle stack, just no longer the only
-   thing in the header. */
+   parks itself against the right edge with an auto left margin, which only has slack to
+   swallow while the name block leaves the row unclaimed. It kept the column direction —
+   it is still a name-over-subtitle stack, just no longer the only thing in the header. */
 .steading-header-name {
 	display: flex;
 	flex-direction: column;
@@ -12794,67 +12861,132 @@ span.stonetop-mark-loyalty-pip {
 	min-width: 0;
 }
 
-.steading-title {
+/* OPTICALLY centred in the banner, which `align-items: center` alone does not manage.
+   Avara stands its capitals on the font's full ascent (840 of 1000 units) over a 320-unit
+   descent, so a line of it is a tall box with the ink crowded into the top of it: flexbox
+   centres that BOX, and the letters come out visibly high with a band of dead space under
+   them. Nothing centres on cap height, so the title is nudged down by the imbalance —
+   the distance between the line box's centre (0.26em above the baseline) and the cap box's
+   (0.42em), plus half the descender clearance the banner adds below (see `.steading-header`)
+   and the 1px the 2px rule adds to the visible box. Measured, not guessed: it lands the cap
+   box within about a pixel of the banner's centre on both sheets.
+
+   `top`, not padding or margin: the nudge must not change what the banner MEASURES, since
+   that height is what module/utils/tab-rail.js places the icon rail against.
+
+   Shared with the GM Toolkit's title, which is the same kind of thing — a GM-facing sheet
+   named for what it is rather than for a person — and which used to restate all of this
+   under a comment citing a value it no longer carried. The toolkit's rule keeps only its
+   own line-height; leading is added symmetrically, so it moves the line box's top and
+   bottom together and never shifts the centre this nudge is measured against. */
+.steading-title,
+.stonetop-gm-toolkit-name {
 	font-family: var(--font-avara);
 	font-size: var(--font-size-display);
 	font-weight: bold;
 	margin: 0;
 	padding: 0;
 	border: none;
+	position: relative;
+	top: 0.21em;
 }
 
-/* The campaign's clock beside the title — the season Stonetop is in and the year it
-   belongs to, stamped by the Seasons Change move. A pill so it reads as a status readout
-   rather than a second heading, and so the GM's clickable version has a hit area with
-   edges.
+/* The campaign's clock at the far end of the header row — the season Stonetop is in over
+   the year it belongs to, stamped by the Seasons Change move. Two centred rows: the season
+   bare on top, the year alone in a chip below, so the box belongs to the count and the
+   season reads as its label instead of both crowding one border. The season carries itself
+   on weight and colour alone — no glyph.
+
+   The wrapper itself carries NO chrome. It is a bare stack whose only jobs are parking
+   itself right (`margin-left: auto` — the name block is `flex: 0 1 auto`, so the leftover
+   row is free for the auto margin to swallow) and centring its two rows on each other.
 
    Reached through `.steading-header` (and `.stonetop` for the glyph) rather than by class
    alone, because a bare class loses to core on both halves of this: `.app button` styles
-   the GM's form as a full-width block with its own box, and `body.game .app img` (0,2,2)
-   paints a 1px black border and a 2px radius on every image inside a sheet. Restating the
-   box at a class-only weight would silently do nothing. */
+   the GM's form as a fixed-height, full-width block with its own box and shadow, and
+   `body.game .app img` (0,2,2) paints a 1px black border and a 2px radius on every image
+   inside a sheet. Restating the box at a class-only weight would silently do nothing —
+   which is also why the stripping below is explicit about `height`, `box-shadow` and
+   `border`: this wrapper is a <button> for the GM and must not look like one. */
 .steading-header .steading-header-season {
 	display: flex;
+	flex-direction: column;
 	align-items: center;
-	gap: 6px;
+	gap: 4px;
 	flex: 0 0 auto;
 	width: auto;
-	margin: 0;
-	padding: 3px 10px;
+	height: auto;
+	margin: 0 0 0 auto;
+	padding: 0;
+	border: none;
+	border-radius: 0;
+	background: none;
+	box-shadow: none;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	line-height: 1.25;
+	text-align: center;
+	color: var(--st-text-secondary);
+	white-space: nowrap;
+}
+
+/* The season is the only thing naming itself up here — the glyph that used to carry that
+   weight is gone — so it takes the size and the ink, and the year chip below stays at the
+   wrapper's caption size as the quieter half. `em`, so the step is FROM that caption size
+   rather than a replacement for it. The size is also what keeps the label inside WCAG's
+   large-text bracket, which is the bar the season inks are pitched at; shrink it back and
+   those inks are under-contrast for what they've become.
+
+   700 is not a floor chosen for taste, it is the CEILING: Libre Caslon Text ships Regular,
+   Bold and Italic and nothing heavier, so `font-weight: 800` would match the same Bold file
+   and change nothing on screen. Going heavier than the face allows takes a synthetic stroke
+   over the glyphs, which was tried here and taken back out — at this size Caslon's thin
+   strokes fill in and the label stops looking like the rest of the sheet's type. */
+.steading-header .steading-header-season-name {
+	font-size: 1.35em;
+	font-weight: 700;
+	color: var(--st-text-body);
+}
+
+/* Each season in its own ink. Ties with the base rule above on specificity, so these have
+   to sit BELOW it to win. Body ink stays the fallback — a season the tokens don't cover
+   lands on a class that matches nothing and simply keeps the neutral above. */
+.steading-header .steading-header-season-name--spring { color: var(--stonetop-season-spring-ink); }
+.steading-header .steading-header-season-name--summer { color: var(--stonetop-season-summer-ink); }
+.steading-header .steading-header-season-name--autumn { color: var(--stonetop-season-autumn-ink); }
+.steading-header .steading-header-season-name--winter { color: var(--stonetop-season-winter-ink); }
+
+/* ── The year chip ───────────────────────────────────────────────────────────
+   A campaign year, boxed: a flat 999px stadium, which a one-line chip can take without the
+   curve biting into its own text.
+
+   ONE class for all three surfaces that show a year — the steading header's clock (below),
+   the season picker's readout (`.stonetop-season-year-name`) and the Seasons Change flow's
+   banner (`.stonetop-season-flow-year`). They were three copies of these seven declarations,
+   each with a comment claiming it was "the same chip the header wears" — a claim only prose
+   was keeping true. The next surface that names a year wears this class and is done.
+
+   Declared here, above all three, so each site's own rule (which carries only what is local
+   to it — an auto margin, a flex basis) still lands after it, and so does the GM hover below. */
+.stonetop-year-chip {
+	padding: 2px 12px;
 	border: 1px solid var(--st-card-rule);
 	border-radius: 999px;
 	background: var(--st-card-fill);
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-xs);
-	line-height: 1.4;
-	text-align: left;
 	color: var(--st-text-secondary);
 	white-space: nowrap;
 }
 
-.stonetop .steading-header .steading-header-season-icon {
-	width: 18px;
-	height: 18px;
-	object-fit: contain;
-	border: none;
-	border-radius: 0;
-	flex: 0 0 auto;
-}
-
-.steading-header .steading-header-season-name {
-	font-weight: 600;
-	color: var(--st-text-body);
-}
-
-.steading-header .steading-header-season-sep { color: var(--st-text-faint); }
-
 /* GM-only: clicking it opens the "Set the Current Season" dialog. Ties with the base rule
-   above on specificity, so it has to stay BELOW it to win. */
+   above on specificity, so it has to stay BELOW it to win. The hover lands on the chip
+   rather than the wrapper — the wrapper has no surface left to warm. */
 .steading-header .steading-header-season--set { cursor: pointer; }
 
-.steading-header .steading-header-season--set:hover {
-	background: var(--st-warm-hover-bg);
-	border-color: var(--st-warm-hover-border);
+.steading-header .steading-header-season--set:hover .steading-header-season-year {
+	background: var(--st-slate-hover-bg);
+	border-color: var(--st-slate-hover-border);
 }
 
 /* -- Tabs — horizontal strip ------------------------------------ */
@@ -15531,6 +15663,12 @@ a.steading-player-open:hover {
 
 /* -- Seasons Change dialog ------------------------------------- */
 
+/* The season-and-year picker (module/seasons/season-picker.js) — four season cards over
+   one year field. Pitched at the steading header's clock, because that readout is what
+   this dialog SETS: the seasons wear the same four inks the header names them in, and the
+   year is echoed back in the same stadium chip. Picking a season here should look like
+   editing the thing in the header. */
+
 .stonetop-season-picker p { margin: 0 0 10px; }
 
 .stonetop-season-cards {
@@ -15539,30 +15677,68 @@ a.steading-player-open:hover {
 	gap: 10px;
 }
 
-.stonetop-season-card {
+/* No per-season colour on these cards. The four season inks are the steading header
+   clock's alone (see their token block near the top of this file), and a picker of four
+   coloured names is precisely what makes the header's one coloured name stop meaning
+   anything. Each card is told apart by its glyph and its label, as the rest of this
+   system's pickable cards are.
+
+   The cards are <button>s — they are the dialog's only commit, so they have to be
+   reachable by keyboard, and the clock they set is a <button> in the header for the same
+   reason. That means core's button chrome has to be stripped BY NAME (`.app button` gives
+   every one of them a fixed height, a full-width box and a shadow), and reached through
+   the wrapper because a bare class loses to it. */
+.stonetop-season-picker .stonetop-season-card {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+	justify-content: center;
 	gap: 6px;
+	width: 100%;
+	height: auto;
+	margin: 0;
 	padding: 12px 8px;
-	border: 1px solid rgba(0,0,0,0.15);
+	border: 1px solid var(--st-card-rule);
 	border-radius: var(--st-radius-lg);
-	cursor: pointer;
-	background: rgba(0,0,0,0.03);
+	background: var(--st-card-fill);
+	box-shadow: none;
+	color: var(--st-text-body);
+	font-family: var(--font-stonetop);
+	line-height: 1.25;
 	text-align: center;
-}
-
-.stonetop-season-card:hover {
-	background: var(--st-warm-hover-bg);
-	border-color: var(--st-warm-hover-border);
+	cursor: pointer;
 }
 
 /* Only the "Set the Current Season" dialog marks a card — it opens on whatever the
    steading's clock already says. The move's own picker never sets this, since it asks
-   which season is BEGINNING rather than which one is current. */
-.stonetop-season-card.is-selected {
-	background: var(--st-green-bg);
-	border-color: var(--st-green-border);
+   which season is BEGINNING rather than which one is current.
+
+   The mark used to be the green "active" tint, which is the palette this system uses for
+   a CHOICE that has been made. Nothing has been chosen yet when this dialog opens; the
+   marked card is a statement of where the clock stands. So it is drawn in plain ink and
+   made of WEIGHT instead of colour: the card's own hairline pulled up to muted text, and
+   doubled by an inset ring, which is a heavier version of the border every card already
+   wears rather than a second idea. */
+.stonetop-season-picker .stonetop-season-card.is-selected {
+	border-color: var(--st-text-muted);
+	background: color-mix(in srgb, var(--st-text-muted) 8%, transparent);
+	box-shadow: inset 0 0 0 1px var(--st-text-muted);
+}
+
+/* Below `.is-selected` (they tie at three classes, so the later one wins) because hovering
+   the already-current season still has to feel like hovering a button. The inset ring set
+   above survives the swap, so the card stays marked while it is warmed. */
+.stonetop-season-picker .stonetop-season-card:hover,
+.stonetop-season-picker .stonetop-season-card:focus-visible {
+	background: var(--st-slate-hover-bg);
+	border-color: var(--st-slate-hover-border);
+}
+
+/* Keyboard focus needs a mark of its own — the hover wash above is a background change on a
+   card that already has one, which is not enough to find the cursor with. */
+.stonetop-season-picker .stonetop-season-card:focus-visible {
+	outline: 2px solid var(--st-slate-hover-border);
+	outline-offset: 2px;
 }
 
 /* Qualified by the wrapper so it outranks `.stonetop-season-picker p` above (which
@@ -15580,18 +15756,27 @@ a.steading-player-open:hover {
 	border: none;
 }
 
-.stonetop-season-label {
-	font-weight: bold;
+/* Bold, because it is the card's whole label. No colour of its own: the card's `color`
+   above carries neutral body ink down to it, and that is all a season name gets outside the
+   steading header's clock. */
+.stonetop-season-picker .stonetop-season-label {
+	font-weight: 700;
 	font-size: var(--st-fs-md);
 }
 
-/* Year dropdown under the season cards — picks which campaign year this Seasons
-   Change is filed under (defaults to the latest; Winter completion adds the next). */
+/* ── The year field ──────────────────────────────────────────────────────────
+   A −/＋ stepper you can also type into, and the chip naming what you picked. A
+   `<select>` of 1..N used to stand here, and the list came from a count that only moves
+   when a Winter is completed through this system — so a table that adopted the sheet in
+   their fourth year was offered the First Year and nothing else. Ruled off from the cards
+   above because it is the second question, not more of the first. */
 .stonetop-season-year {
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	margin-top: 12px;
+	gap: 10px;
+	margin-top: 14px;
+	padding-top: 12px;
+	border-top: 1px solid var(--st-card-rule);
 }
 
 .stonetop-season-year-label {
@@ -15599,22 +15784,165 @@ a.steading-player-open:hover {
 	font-size: var(--st-fs-sm);
 }
 
-.stonetop-season-year-select {
-	flex: 1;
-	font-family: var(--font-stonetop);
-	font-size: var(--st-fs-sm);
+.stonetop-season-year-stepper {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
 }
 
+/* Square nudge buttons, sized in em against the sheet's font scale so they stay square
+   next to the input at any UI size. Same stripping job as the cards above, same reason. */
+.stonetop-season-picker .stonetop-season-year-step {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	width:  calc(1.7em * var(--stonetop-font-scale, 1));
+	height: calc(1.7em * var(--stonetop-font-scale, 1));
+	margin: 0;
+	padding: 0;
+	border: 1px solid var(--st-card-rule);
+	border-radius: var(--st-radius-sm);
+	background: var(--st-card-fill);
+	box-shadow: none;
+	color: var(--st-text-body);
+	font-size: var(--st-fs-md);
+	line-height: 1;
+	cursor: pointer;
+}
+
+.stonetop-season-picker .stonetop-season-year-step:hover,
+.stonetop-season-picker .stonetop-season-year-step:focus-visible {
+	background: var(--st-slate-hover-bg);
+	border-color: var(--st-slate-hover-border);
+}
+
+.stonetop-season-year-input {
+	width: 4.5em;
+	text-align: center;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-md);
+	font-weight: 600;
+}
+
+/* The browser's own spinner is the same control as the two buttons flanking it, drawn
+   half the size and only on hover. One stepper, not two. */
+.stonetop-season-year-input::-webkit-outer-spin-button,
+.stonetop-season-year-input::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+	appearance: none;
+	margin: 0;
+}
+
+/* What the number is CALLED — "Year Seven" — in the stadium chip itself (`.stonetop-year-chip`,
+   which the markup also carries). The field takes a numeral because a numeral is what you can
+   type; this is the half of the clock the rest of the system actually shows. */
+.stonetop-season-year-name {
+	margin-left: auto;
+}
+
+/* ── The door to the other picker ────────────────────────────────────────────
+   The two season windows ask nearly the same question and are told apart by intent alone,
+   so whichever one you land in offers the other. A question in muted ink with the answer
+   as the thing you click — quiet, because it is the once-a-campaign action sitting under
+   the four-times-a-year one.
+
+   Qualified past `.stonetop-season-picker p` for its margin, as the footnote is. */
+.stonetop-season-picker p.stonetop-season-picker-alt {
+	margin: 12px 0 0;
+	padding-top: 10px;
+	border-top: 1px solid var(--st-card-rule);
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-muted);
+}
+
+/* A link, not a button, and core hands out neither: `.app button` is a full-width block
+   with a box and a shadow, so all of it comes off by name and the text is put back as
+   inline. `display: inline` and not `inline-flex` on purpose — this sits mid-sentence and
+   has to wrap with the words around it rather than as one unbreakable box. */
+.stonetop-season-picker .stonetop-season-alt-btn {
+	display: inline;
+	width: auto;
+	height: auto;
+	margin: 0;
+	padding: 0;
+	border: none;
+	border-radius: 0;
+	background: none;
+	box-shadow: none;
+	font-family: inherit;
+	font-size: inherit;
+	line-height: inherit;
+	text-align: left;
+	color: var(--st-btn-primary-bg-hover);
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.stonetop-season-picker .stonetop-season-alt-btn:hover,
+.stonetop-season-picker .stonetop-season-alt-btn:focus-visible {
+	background: none;
+	color: var(--st-text);
+}
+
+/* Only says anything once the field runs past the campaign's high-water year. Qualified
+   past `.stonetop-season-picker p` for its margin, as the footnote above is, and `:empty`
+   keeps it from reserving a line while it has nothing to say. */
+.stonetop-season-picker p.stonetop-season-year-hint {
+	margin: 8px 0 0;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-muted);
+}
+
+.stonetop-season-year-hint:empty { display: none; }
+
+/* ── The Seasons Change flow's own header ────────────────────────────────────
+   The banner at the top of "Seasons Change: <season>": the season's glyph, its name, and
+   the year in the same stadium chip the steading header's clock wears.
+
+   In plain ink. The four season colours are the header clock's alone — see the token block
+   near the top of this file — so what carries the season here is size, weight and the glyph.
+
+   The <h3> arrives with core's `body.game .app h3` on it: normal weight, Signika, and a
+   maroon 1px underline sized to the WORD, since a flex item shrinks to its content. That
+   short dark rule floating under "Spring" is the thing this block is undoing — the whole row
+   gets one hairline in the card-rule token instead, which is a heading with a rule under it
+   rather than an underlined word. */
 .stonetop-season-flow-header {
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	margin-bottom: 8px;
+	margin-bottom: 10px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--st-card-rule);
+}
+
+/* `border: none` and the weight are both corrections to core's h3, not taste: see the note
+   above. 700 is the ceiling Libre Caslon Text ships — heavier synthesises a stroke, which at
+   this size fills in Caslon's thin strokes, exactly as it does on the steading header. */
+.stonetop-season-flow-header .stonetop-season-flow-title {
+	flex: 1;
+	min-width: 0;
+	margin: 0;
+	border: none;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xl);
+	font-weight: 700;
+	line-height: 1.15;
+	color: var(--st-text);
+}
+
+/* The year as the quieter half, in the stadium chip itself (`.stonetop-year-chip`, which the
+   markup also carries). It is worth saying out loud here: Done files this season into THIS
+   year's Chronicle page, and the window's title names only the season. */
+.stonetop-season-flow-header .stonetop-season-flow-year {
+	flex: 0 0 auto;
+	line-height: 1.25;
 }
 
 .stonetop-season-icon-sm {
-	width: 36px;
-	height: 36px;
+	width: 40px;
+	height: 40px;
 	object-fit: contain;
 	flex-shrink: 0;
 	border: none;
@@ -15666,7 +15994,8 @@ a.steading-player-open:hover {
 	padding-top: 6px;
 }
 
-.stonetop-season-flow h3 { margin: 0; font-size: var(--st-fs-lg); }
+/* No `h3` rule here: the only one in this flow is the banner's title, styled with the rest
+   of that header above (where core's underline and normal weight are undone). */
 .stonetop-season-flow p  { margin: 5px 0; }
 .stonetop-season-flow ul { margin: 4px 0; padding-left: 24px; }
 .stonetop-season-flow li { margin: 3px 0; padding-left: 16px; }
