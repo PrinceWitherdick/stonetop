@@ -41,7 +41,7 @@ import {moveMarkBudget} from "./move-mark-budget.js";
 import {StonetopFlags, STONETOP_SCOPE, ITEM_FLAG_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
 import {DEATHS_DOOR_FLAG, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
 import {heroDisplayName, WBH_HERO_FLAG, ownsAsteriskMove} from "./WouldBeHeroAsterisk.js";
-import {ownedMoveNames} from "./owns-move.js";
+import {ownedNamesOr} from "./owns-move.js";
 import {HOLY_LIGHT_FLAG, canWieldHolyLight} from "./holy-light.js";
 import {ONGOING_INVOCATION_FLAG, readOngoing} from "./ongoing-invocation.js";
 import {CONDEMNED_FLAG, canCondemn, readCondemned, addCondemned, removeCondemned, noteCondemned} from "./condemn.js";
@@ -2237,14 +2237,19 @@ export class StonetopCharacter {
 	/**
 	 * All five header-glyph ownership answers, from ONE walk of the items.
 	 *
-	 * Each getter below resolves independently, and the character sheet's getData asks for every
-	 * one of them on every render — so a sheet owning none of these moves (most sheets) paid a
-	 * full traversal per predicate, seven in total once the multi-name ones are counted. The
-	 * single-answer getters stay for the callers that only want one; this is for the caller that
-	 * wants them all, which is the one that runs on every repaint.
+	 * Each single-answer getter resolves independently, and the character sheet's getData asks
+	 * for every one of them on every render — so a sheet owning none of these moves (most sheets)
+	 * paid a full traversal per predicate, seven in total once the multi-name ones are counted.
+	 *
+	 * A METHOD rather than a getter, and it takes the Set, because the sheet has other things
+	 * asking the same question of the same items in the same repaint (the crew's Shield-Wall
+	 * check, the per-card "exceptional" gate). A zero-argument getter could only ever build its
+	 * own, which left the walk halved rather than shared. Builds one when called without.
+	 *
+	 * @param {Set<string>|null} [owned]  the render's own `ownedMoveNames`, when it has one
 	 */
-	get headerGlyphOwnership() {
-		const owned = ownedMoveNames(this._actor);
+	headerGlyphOwnership(owned = null) {
+		owned = ownedNamesOr(this._actor, owned);
 		return {
 			holyLight: canWieldHolyLight(this._actor, owned),
 			condemn:   canCondemn(this._actor, owned),
@@ -2261,11 +2266,6 @@ export class StonetopCharacter {
 	 *  boolean is replaced wholesale. See holy-light.js for why one slot is enough. */
 	get holyLight() {
 		return !!this._actor.getFlag(STONETOP_SCOPE, HOLY_LIGHT_FLAG);
-	}
-
-	/** Whether this character has any move that MAKES a holy light — what earns the candle. */
-	get canWieldHolyLight() {
-		return canWieldHolyLight(this._actor);
 	}
 
 	/** Returns true only when the flag actually changed, so a caller can skip a re-render —
@@ -2456,11 +2456,6 @@ export class StonetopCharacter {
 		return !!this._actor.getFlag(STONETOP_SCOPE, BATTLE_JOY_FLAG);
 	}
 
-	/** Whether this character owns Battle Joy — what earns the glyph in the header. */
-	get canEnterBattleJoy() {
-		return canEnterBattleJoy(this._actor);
-	}
-
 	/**
 	 * Whether the three debility boxes are presently doing nothing — "you ignore … the effects of
 	 * debilities as long as you keep fighting". Read by the roll path below and by the sheet, which
@@ -2506,7 +2501,7 @@ export class StonetopCharacter {
 		// hold comes solely from Guardian) — that would falsely imply the shield applied.
 		const shieldNote = (this.bearsShield && tier !== "failure") ? " (shield)" : "";
 		await ChatMessage.create({
-			content: moveChatCard("Defend — Readiness held",
+			content: moveChatCard("Defend: Readiness held",
 				`<p><strong>${escHtml(this._actor.name)}</strong> holds <strong>${next}</strong> Readiness${escHtml(shieldNote)}.</p>`
 				+ `<p>Spend it to suffer an attack's damage/effects for a ward, halve it, draw all attention to yourself, or strike back.</p>`),
 			speaker: ChatMessage.getSpeaker({ actor: this._actor }),

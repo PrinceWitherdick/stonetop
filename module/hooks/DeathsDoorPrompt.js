@@ -329,8 +329,8 @@ export async function postDyingPrompt(actor) {
 			</button>`;
 
 	const lead = move.dialog
-		? `<p><strong>${who}</strong> is at 0 HP &mdash; they're <strong>dying</strong>.</p>`
-		: `<p><strong>${who}</strong> is at 0 HP. Death's Door is behind them &mdash; <strong>${escHtml(move.name)}</strong> triggers instead.</p>`;
+		? `<p><strong>${who}</strong> is at 0 HP: they're <strong>dying</strong>.</p>`
+		: `<p><strong>${who}</strong> is at 0 HP. Death's Door is behind them: <strong>${escHtml(move.name)}</strong> triggers instead.</p>`;
 
 	return ChatMessage.create({
 		speaker: ChatMessage.getSpeaker({ actor }),

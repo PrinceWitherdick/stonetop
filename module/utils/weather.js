@@ -105,7 +105,7 @@ export async function rollWeather(seasonKey) {
 	const row  = resolveWeatherRow(seasonKey, roll.total);
 
 	await roll.toMessage({
-		speaker: { alias: `Weather — ${season.label}` },
+		speaker: { alias: `Weather: ${season.label}` },
 		flavor:  stonetopCardShell(_weatherCardBody(roll.total, row, roll.formula), "stonetop-weather-card"),
 	});
 

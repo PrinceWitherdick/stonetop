@@ -78,7 +78,7 @@ const _PURPOSE = {
 	title:   "Your Terrible Purpose",
 	short:   "Terrible Purpose",
 	icon:    "fa-hand-fist",
-	hint:    "What you will not leave behind. Choose 1 — and say who, or what.",
+	hint:    "What you will not leave behind. Choose 1: and say who, or what.",
 	nameFor: true,
 	namePlaceholder: "Name them, or name the task…",
 };
@@ -104,7 +104,7 @@ const _CONSEQUENCE = {
 	title:   "Your first Consequence",
 	short:   "first Consequence",
 	icon:    "fa-heart-crack",
-	hint:    "What coming back cost you. Take 1 now — and another whenever a move says so.",
+	hint:    "What coming back cost you. Take 1 now: and another whenever a move says so.",
 	// Once one is held the step has nothing left to hand out, so the invitation stops being an
 	// instruction and starts being a lie: a Revenant three sessions in would otherwise read
 	// "Take 1 now" over a list where every remaining option is greyed out.
@@ -183,7 +183,7 @@ export const POST_DEATH_CHOICES = {
 			// too — thrall.json says "the GM will choose 1 Mark for you". It read "Take 1 now"
 			// directly above "Your GM chooses this one", which is an instruction and its own
 			// contradiction in two lines.
-			hint:    "What your master's touch leaves on you — one now, and more as your master gives them.",
+			hint:    "What your master's touch leaves on you: one now, and more as your master gives them.",
 			// Held once the first is taken: see `hintDone`.
 			hintDone: "The Marks your master has left on you so far.",
 			gm:      true,

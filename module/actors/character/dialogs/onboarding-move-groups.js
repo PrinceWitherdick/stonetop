@@ -1,3 +1,5 @@
+import { deepFreeze } from "../../../utils/localized-once.js";
+
 // Per-playbook groupings for the onboarding "Starting Moves" filter chips. Each
 // playbook gets three chips, each a single word that defines a cluster of that
 // playbook's moves (derived from a survey of every playbook's move list). A move
@@ -11,8 +13,14 @@
 //
 // Names must match the move item names exactly (raw doc.name, before display
 // normalization). Keyed by playbook display name (Item.system.playbook).
+//
+// FROZEN, and exported frozen. The reverse index below is built once and kept for the life of the
+// process while `moveGroupsForPlaybook` still reads this table live, so a write here after first
+// render would leave the two permanently disagreeing — a move showing on its onboarding chip and
+// landing in the sheet's "Other" bucket, with nothing failing. Anything wanting a fourth group or
+// a homebrew playbook belongs in this literal, where both readers see it.
 
-export const ONBOARDING_MOVE_GROUPS = {
+export const ONBOARDING_MOVE_GROUPS = deepFreeze({
 	"The Blessed": [
 		{ key: "spirits", label: "Spirits", moves: ["Big Magic", "Borrow Power", "Call the Spirits", "Danu's Grasp", "Rites of the Land", "Shared Souls", "Spirit Tongue", "Voice of the Earth Mother"] },
 		{ key: "nature", label: "Nature", moves: ["Barkskin", "Into the Lion's Den", "Lightning Rod", "Nature's Wrath", "Trackless Step", "Wild Soul"] },
@@ -58,7 +66,7 @@ export const ONBOARDING_MOVE_GROUPS = {
 		{ key: "heart", label: "Heart", moves: ["In Over Your Head", "Inquiring Minds", "Speak Truth to Power", "Tough Love", "Up With People", "Voice of Experience"] },
 		{ key: "grit", label: "Grit", moves: ["A Force to Be Reckoned With", "But I Get Up Again", "I Get Knocked Down", "Iron Will", "Never Gonna Keep Me Down", "Resourceful"] },
 	],
-};
+});
 
 // The chips (key + label only) to show for a playbook, or [] when none are defined.
 export function moveGroupsForPlaybook(playbookName) {
@@ -66,29 +74,40 @@ export function moveGroupsForPlaybook(playbookName) {
 }
 
 // Reverse index of the table above: playbook -> move name -> the group keys listing it, in
-// table order. Built on first use and kept, because the table is module-level and nothing
-// writes to it, so the mapping is fixed for the life of the process.
+// table order. Built on first use and kept, which is only sound because the table is FROZEN —
+// `moveGroupsForPlaybook` above still reads it live, so a table that could be written to would
+// leave the chips (live) and the Moves tab's headings (indexed) permanently disagreeing about
+// where a move belongs, and nothing would fail. The freeze makes that a loud write instead.
 //
-// Worth having because both readers below are called per MOVE while the table is searched per
-// GROUP: the sheet's Moves tab partitions ~40 playbook moves on every character-sheet render,
-// and a linear `groups.filter(g => g.moves.includes(name))` is ~30 string comparisons each —
-// ~1,200 per render to answer a question whose answer never changes.
+// Worth having because `partitionMovesByGroup` is called per MOVE while the table is searched per
+// GROUP: the sheet's Moves tab partitions a playbook's moves on every character-sheet render, and
+// a linear `groups.find(g => g.moves.includes(name))` is a scan of ~22 names per move. Microseconds
+// either way at this size — the reason to keep it is that the answer is fixed, not that the scan
+// was slow. (`moveGroupKeys` below is dialog-open only; it rides along.)
 const _groupKeyIndex = new Map();
 function groupKeyIndexFor(playbookName) {
 	let index = _groupKeyIndex.get(playbookName);
 	if (index) return index;
 	index = new Map();
 	for (const group of ONBOARDING_MOVE_GROUPS[playbookName] ?? []) {
-		for (const name of group.moves) {
+		// Once per GROUP, not once per occurrence: a name listed twice within one group's `moves`
+		// is a table typo, and pushing its key twice would send `["combat", "combat"]` out to a
+		// `groupsAttr` and to anything that counts the result.
+		for (const name of new Set(group.moves)) {
 			if (index.has(name)) index.get(name).push(group.key);
 			else index.set(name, [group.key]);
 		}
 	}
+	// Frozen for the same reason the table is: this is handed out (copied) to callers, but the
+	// arrays inside are the ones `partitionMovesByGroup` reads straight.
+	for (const keys of index.values()) Object.freeze(keys);
 	_groupKeyIndex.set(playbookName, index);
 	return index;
 }
 
-// The group keys a given move belongs to, within its playbook (0, 1, or more).
+// The group keys a given move belongs to, within its playbook (0, 1, or more). Copied on the way
+// out: the index's arrays are shared and frozen, and a caller that pushed into one would be
+// writing into every later answer for that move.
 export function moveGroupKeys(playbookName, moveName) {
 	return [...(groupKeyIndexFor(playbookName).get(moveName) ?? [])];
 }

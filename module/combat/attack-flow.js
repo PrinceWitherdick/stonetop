@@ -190,7 +190,7 @@ function promptWeaponChoice(candidates, moveName, { preferSlug = null, forceSlug
 
 	return new Promise(resolve => {
 		new Dialog({
-			title: `${moveName} — which weapon?`,
+			title: `${moveName}: which weapon?`,
 			content: `<form class="stonetop-weapon-choice"><div class="stonetop-weapon-options">${rows}</div></form>`,
 			buttons: {
 				choose: {
@@ -216,7 +216,7 @@ function promptLetFlyMode() {
 	return new Promise(resolve => {
 		new Dialog({
 			title: "Let Fly",
-			content: `<form class="stonetop-letfly-mode"><p>Is this a calm, easy shot — or are you under pressure?</p></form>`,
+			content: `<form class="stonetop-letfly-mode"><p>Is this a calm, easy shot, or are you under pressure?</p></form>`,
 			buttons: {
 				easy:     { icon: '<i class="fas fa-crosshairs"></i>', label: "Easy shot (deal damage, no roll)", callback: () => resolve("easy") },
 				pressure: { icon: '<i class="fas fa-dice-d6"></i>',    label: "Under pressure (roll +DEX)",       callback: () => resolve("pressure") },
@@ -348,7 +348,7 @@ export async function maybeBeginAttack(actor, item, { stat = null, weaponSlug = 
 
 	const targets = snapshotTargets();
 	if (targets.length === 0 && !easyShot) {
-		ui.notifications?.info("No foe targeted — you can still target one with T before rolling damage.");
+		ui.notifications?.info("No foe targeted: you can still target one with T before rolling damage.");
 	}
 
 	if (easyShot) {
@@ -393,7 +393,7 @@ async function damageFormula(actor, weapon, extraDice) {
 // Hover text for the "problematic wound" link in the messy reminder (Book I, Harm &
 // Healing p.243): a wound isn't just lost HP — it's a lasting fictional consequence the
 // victim now has to deal with, and messy attacks make these especially common.
-const PROBLEMATIC_WOUND_TIP = "A wound with lasting fictional consequences — a severed hand, a blow to the head that leaves them staggering — not just lost HP. It's now true in the fiction and something the victim has to deal with. Especially common with messy attacks.";
+const PROBLEMATIC_WOUND_TIP = "A wound with lasting fictional consequences, a severed hand, a blow to the head that leaves them staggering, not just lost HP. It's now true in the fiction and something the victim has to deal with. Especially common with messy attacks.";
 
 // Flavour tags whose fiction the table should be reminded of at damage time — a weapon's
 // `+N damage` / piercing already ride the numbers, but `messy` and `forceful` only live in
@@ -405,8 +405,8 @@ const TAG_REMINDERS = {
 		title: "Messy attack",
 		icon: "fa-burst",
 		body: name => `<strong>${name} is messy.</strong> This attack is especially destructive, ripping
-			people and things apart. It should often use up resources — destroying a shield, weapon, or
-			gear — or inflict a
+			people and things apart. It should often use up resources, destroying a shield, weapon, or
+			gear, or inflict a
 			<span class="stonetop-problematic-wound" data-tooltip="${escHtml(PROBLEMATIC_WOUND_TIP)}">problematic wound</span>.`,
 	},
 	forceful: {
@@ -414,7 +414,7 @@ const TAG_REMINDERS = {
 		icon: "fa-hand-fist",
 		body: name => `<strong>${name} is forceful.</strong> It can knock someone around, maybe even off
 			their feet. Even if it does no damage, it should still shift the momentum or positioning of the
-			fight — driving them back, breaking their stance, or setting up an ally.`,
+			fight: driving them back, breaking their stance, or setting up an ally.`,
 	},
 };
 
@@ -446,7 +446,7 @@ async function rollAndPostDamage(actor, { move, weapon, targets, extraDice = "",
 
 	if (applyable.length === 0) {
 		if (!counter) {
-			await rollDamage(formula, actor, { label: `${move}${weapon ? ` — ${weapon.name}` : ""}` });
+			await rollDamage(formula, actor, { label: `${move}${weapon ? `: ${weapon.name}` : ""}` });
 		} else {
 			// No foe targeted, but the tier (Clash 7-9 / strike-hard) still demands the PC
 			// suffer the counter-attack. Roll the damage for the fiction and post a results
@@ -480,7 +480,7 @@ function damageRowDetail(weapon) {
 
 function postDamageResultsCard(actor, { move, weapon, results, counter }) {
 	const multiWarn = results.length > 1 && !weapon?.area
-		? `<p class="stonetop-attack-warn"><i class="fas fa-triangle-exclamation"></i> ${escHtml(move)} is a single-foe move — applying to multiple targets is a GM abstraction.</p>`
+		? `<p class="stonetop-attack-warn"><i class="fas fa-triangle-exclamation"></i> ${escHtml(move)} is a single-foe move: applying to multiple targets is a GM abstraction.</p>`
 		: "";
 
 	// Each target gets the shared roll-result block (big total + label + fine print) rather
@@ -522,7 +522,7 @@ function postDamageResultsCard(actor, { move, weapon, results, counter }) {
 
 	return ChatMessage.create({
 		speaker: ChatMessage.getSpeaker({ actor }),
-		content: stonetopChatCard(`${move} — damage`, body, "stonetop-attack-damage-card", damageBadge()),
+		content: stonetopChatCard(`${move}: damage`, body, "stonetop-attack-damage-card", damageBadge()),
 		flags: { [SCOPE]: { damage: {
 			move, attackerUuid: actor.uuid,
 			weapon: weapon ? { name: weapon.name, piercing: weapon.piercing, ignoresArmor: weapon.ignoresArmor } : null,
@@ -685,22 +685,22 @@ export function wireApplyDamage(message, html) {
 			if (doneUuids.has(r.uuid)) continue;
 			const td = await fromUuid(r.uuid);
 			const targetActor = td?.actor ?? null;
-			if (!targetActor) { lines.push(`<li><strong>${escHtml(r.name)}</strong> — no longer on the map</li>`); continue; }
+			if (!targetActor) { lines.push(`<li><strong>${escHtml(r.name)}</strong>: no longer on the map</li>`); continue; }
 			const armor = Number(targetActor.system?.attributes?.armor?.value) || 0;
 			const effective = mitigateDamage(r.raw, { armor, piercing, ignoresArmor: current.weapon?.ignoresArmor });
 			const t = await applyDamageToActor(targetActor, effective);
 			// A target actor with no hp attribute (e.g. a steading token) yields null. Skip it
 			// without recording it as applied, so it can be retried if the actor is fixed —
 			// rather than rendering "undefined → undefined HP" and marking it done forever.
-			if (!t) { lines.push(`<li><strong>${escHtml(r.name)}</strong> — has no HP to damage</li>`); continue; }
+			if (!t) { lines.push(`<li><strong>${escHtml(r.name)}</strong>: has no HP to damage</li>`); continue; }
 			nextApplied.push({ uuid: r.uuid, effective, oldHp: t.oldHp, newHp: t.newHp });
 			const dead = t.newHp === 0 ? " <em>(0 HP)</em>" : "";
 			const mit = effective !== r.raw ? ` <span class="stonetop-damage-mitigated">(${r.raw}${armor ? ` − ${Math.max(0, armor - piercing)} armor` : ""})</span>` : "";
-			lines.push(`<li><strong>${escHtml(r.name)}</strong> — ${effective} damage${mit}: ${t.oldHp} &rarr; ${t.newHp} HP${dead}</li>`);
+			lines.push(`<li><strong>${escHtml(r.name)}</strong>: ${effective} damage${mit}: ${t.oldHp} &rarr; ${t.newHp} HP${dead}</li>`);
 		}
 		await message.setFlag(SCOPE, "damage", { ...current, applied: nextApplied });
 		await ChatMessage.create({
-			content: stonetopChatCard(`${current.move} — damage applied`, `<div class="card-content"><ul class="stonetop-homestead-chat-list">${lines.join("")}</ul></div>`, "stonetop-attack-applied-card"),
+			content: stonetopChatCard(`${current.move}: damage applied`, `<div class="card-content"><ul class="stonetop-homestead-chat-list">${lines.join("")}</ul></div>`, "stonetop-attack-applied-card"),
 			speaker: { alias: "Stonetop" },
 		});
 	});
@@ -817,7 +817,7 @@ function promptIncomingDamage({ pcName, foeName, foeDie, foeText, rolled, armor,
 			content: `<form class="stonetop-suffer-attack">
 				<p><strong>${escHtml(foeName || "The enemy")}</strong> attacks <strong>${escHtml(pcName)}</strong>.</p>
 				${foeText ? `<p class="stonetop-suffer-fiction">${escHtml(foeText)}</p>` : ""}
-				<p class="stonetop-suffer-detail">${foeDie ? `Rolled ${rolled} (${escHtml(foeDie)})` : "No stat-block damage found — enter the damage"}${armor ? ` − ${armor} armor` : ""}.</p>
+				<p class="stonetop-suffer-detail">${foeDie ? `Rolled ${rolled} (${escHtml(foeDie)})` : "No stat-block damage found: enter the damage"}${armor ? ` − ${armor} armor` : ""}.</p>
 				<label class="stonetop-suffer-field">Damage to take
 					<input type="number" name="amount" value="${suggested}" min="0" step="1">
 				</label>

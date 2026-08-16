@@ -30,12 +30,36 @@ describe("who can lay a mark", () => {
 	// The add form offers what this character can actually lay, so a Blessed without Shared Souls
 	// is never asked to name a beast.
 	it("offers only the kinds whose move is owned, in roster order", () => {
-		const keys = availableKinds(blessed).map(k => k.key);
-		expect(keys).toEqual(["barkskin", "beast"]);
-		// The same rule per kind, asserted through the list the form actually reads: an owned
-		// move's kind is on offer and an unowned one's is not.
-		expect(keys).toContain("barkskin");
-		expect(keys).not.toContain("ward");
+		expect(availableKinds(blessed).map(k => k.key)).toEqual(["barkskin", "beast"]);
+	});
+
+	// Every kind, one at a time: its own move puts it on offer and no other kind with it. The
+	// list assertion above pins one hand-picked pair, so a `move` renamed on one row of the
+	// table — or two rows' moves swapped — would still satisfy it as long as the count held.
+	for (const def of MARK_KINDS) {
+		it(`offers "${def.label}" for "${def.move}", and nothing else`, () => {
+			expect(availableKinds(actorWith(move(def.move))).map(k => k.key)).toEqual([def.key]);
+		});
+	}
+
+	// The glyph and the add form answer the same question, so they must never disagree: a glyph
+	// that lights over an empty form is a button that opens onto nothing.
+	it("lights the glyph exactly when the form has something to offer", () => {
+		for (const actor of [blessed, actorWith(), actorWith(move("Big Magic")), actorWith(move(BARKSKIN))]) {
+			expect(canMarkBlessed(actor)).toBe(availableKinds(actor).length > 0);
+		}
+	});
+
+	// Both take the sheet's one-pass Set when it has one. A falsy non-Set means "no Set was
+	// passed", not something to call `.has` on — this used to throw where its sibling predicates
+	// fell back to the scan.
+	it("agrees whether it is handed the owned-move Set, builds its own, or is handed junk", () => {
+		const names = new Set([BARKSKIN, SHARED_SOULS]);
+		expect(availableKinds(blessed, names).map(k => k.key)).toEqual(["barkskin", "beast"]);
+		for (const notASet of [null, undefined, 0, "", false]) {
+			expect(canMarkBlessed(blessed, notASet), String(notASet)).toBe(true);
+			expect(canMarkBlessed(actorWith(), notASet), String(notASet)).toBe(false);
+		}
 	});
 });
 

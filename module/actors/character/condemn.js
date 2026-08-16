@@ -28,7 +28,7 @@
  */
 
 import { SYSTEM_ID } from "../../system-id.js";
-import { ownsMoveNamed } from "./owns-move.js";
+import { ownsMoveNamed, ownsAnyMoveNamed } from "./owns-move.js";
 import { createRoster, findNamedActor, actorMatchKeys, trailingActorId, showStandingList } from "./marked-people.js";
 
 // Re-exported so this playbook's tests and dialog keep reaching the predicates through the feature
@@ -58,7 +58,7 @@ const roster = createRoster({ prefix: "condemned" });
  * only move in the playbook that leaves a mark behind, so it is the only one that earns the icon.
  */
 export function canCondemn(actor, owned = null) {
-	return owned ? owned.has(CONDEMN) : ownsMoveNamed(actor, CONDEMN);
+	return ownsAnyMoveNamed(actor, [CONDEMN], owned);
 }
 
 /**

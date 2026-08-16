@@ -25,7 +25,7 @@
  * Kept Foundry-free so the predicates can be tested without a world in sight.
  */
 
-import { ownsMoveNamed } from "./owns-move.js";
+import { ownsMoveNamed, ownsAnyMoveNamed } from "./owns-move.js";
 import { createRoster, showStandingList } from "./marked-people.js";
 
 // Re-exported so the dialog and this move's tests keep reaching the predicate through the feature
@@ -51,7 +51,7 @@ const roster = createRoster({
  * that earns a row. Exactly the Censure/Condemn split in condemn.js.
  */
 export function canBindOaths(actor, owned = null) {
-	return owned ? owned.has(BINDING_ARBITRATION) : ownsMoveNamed(actor, BINDING_ARBITRATION);
+	return ownsAnyMoveNamed(actor, [BINDING_ARBITRATION], owned);
 }
 
 /**

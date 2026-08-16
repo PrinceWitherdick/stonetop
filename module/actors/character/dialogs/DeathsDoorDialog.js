@@ -38,7 +38,7 @@ const _MOVE = zeroHpMove(null);
 // "say how your brush with death has marked you" — so the wound goes on the sheet the moment the
 // tier lands and carries the question until it's answered, rather than waiting on a click that
 // a player halfway into the next scene never gets round to.
-const _MARK_PLACEHOLDER = "Marked in mind, body, or soul — describe the mark";
+const _MARK_PLACEHOLDER = "Marked in mind, body, or soul: describe the mark";
 
 // One-tap suggestions for the 10+ mark — the book's own examples (p.245), so recording a mark
 // mid-session is a single click.
@@ -60,7 +60,7 @@ const _FATES = [
 	{
 		key:    "refuse",
 		label:  "Refuse to go; gain the Revenant or Ghost insert",
-		hint:   "The GM will ask why. If you can't say what you refuse to leave undone — your Terrible Purpose — you shouldn't pick this.",
+		hint:   "The GM will ask why. If you can't say what you refuse to leave undone, your Terrible Purpose, you shouldn't pick this.",
 		insert: "choice",
 	},
 	{
@@ -131,7 +131,7 @@ const _INSERT_TAKEN = {
 	thrall:   {
 		intro: "You called one of the Things Below by name, and it answered. Here is what that costs.",
 		card:  (who, what) =>
-			`<strong>${who}</strong> calls on a Thing Below by name, and it intercedes — gaining the <strong>${what}</strong> insert.`,
+			`<strong>${who}</strong> calls on a Thing Below by name, and it intercedes: gaining the <strong>${what}</strong> insert.`,
 		// The Mark is the GM's to choose (thrall.json: "the GM will choose 1 Mark for you"), so
 		// this does not tell the player to take one.
 		next:  "Name your master; your GM will choose the Mark it leaves on you.",
@@ -602,7 +602,7 @@ export class DeathsDoorDialog extends StonetopDialog {
 				});
 			} catch (err) {
 				console.error("Stonetop | could not record the Death's-Door mark", err);
-				ui.notifications?.warn?.("Couldn't record the Death's-Door mark — describe it and it will try again.");
+				ui.notifications?.warn?.("Couldn't record the Death's-Door mark: describe it and it will try again.");
 			} finally {
 				this._markSeeding = null;
 			}

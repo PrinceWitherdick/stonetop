@@ -55,6 +55,8 @@ function makeCharacterMock(actor) {
 		appearance,
 		origin,
 		get holyLight() { return lit; },
+		// Not a getter on the real class — see headerGlyphOwnership below. Kept here as the knob
+		// the tests turn, because "this character can wield a holy light" is what they mean.
 		get canWieldHolyLight() { return canWield; },
 		set canWieldHolyLight(value) { canWield = !!value; },
 		get condemned() { return brands; },
@@ -73,17 +75,21 @@ function makeCharacterMock(actor) {
 		get canEnterBattleJoy() { return canRage; },
 		set canEnterBattleJoy(value) { canRage = !!value; },
 		// What getData actually reads for the five header glyphs — the real one answers all five
-		// from a single walk of the items. Derived from the same live values the individual
-		// getters above expose, so a test that writes `canCondemn = false` still moves it.
-		get headerGlyphOwnership() {
-			return {
-				holyLight: canWield,
-				condemn:   canBrand,
-				oaths:     canSwear,
-				battleJoy: canRage,
-				blessed:   canMark,
-			};
-		},
+		// from a single walk of the items, and takes that walk from the sheet. A METHOD, matching
+		// the real signature: a getter here would keep passing while the sheet called a function.
+		// Derived from the same live values the individual getters above expose, so a test that
+		// writes `canCondemn = false` still moves it.
+		//
+		// This mock re-implements the mapping, so it cannot catch two of the five keys being
+		// swapped in the real getter — tests/actors/character/header-glyph-ownership.test.js
+		// pins that against the real predicates.
+		headerGlyphOwnership: () => ({
+			holyLight: canWield,
+			condemn:   canBrand,
+			oaths:     canSwear,
+			battleJoy: canRage,
+			blessed:   canMark,
+		}),
 		setBattleJoy: vi.fn(async value => {
 			const changed = !!value !== raging;
 			raging = !!value;
@@ -696,7 +702,7 @@ describe("StonetopCharacterSheet ongoing Invocation", () => {
 
 		expect(actor.typedActor.ongoingInvocation).toBe("");
 		expect(sheet._postMoveCard).toHaveBeenCalledTimes(1);
-		expect(sheet._postMoveCard.mock.calls[0][1]).toMatch(/Warmth of the Sun<\/strong> ends — the holy light is out\./);
+		expect(sheet._postMoveCard.mock.calls[0][1]).toMatch(/Warmth of the Sun<\/strong> ends. The holy light is out\./);
 	});
 
 	// LIGHTING one takes nothing away, and snuffing a light with no Invocation running has nothing

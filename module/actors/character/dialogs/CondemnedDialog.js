@@ -64,9 +64,9 @@ export class CondemnedDialog extends RosterDialog {
 		const who = this._actor?.name ?? "The Judge";
 		const brands = this._showBrands();
 		const oaths  = this._showOaths();
-		if (brands && oaths) return `${who} — The Condemned & the Sworn`;
-		if (oaths) return `${who} — The Sworn`;
-		return `${who} — The Condemned`;
+		if (brands && oaths) return `${who}: The Condemned & the Sworn`;
+		if (oaths) return `${who}: The Sworn`;
+		return `${who}: The Condemned`;
 	}
 
 	/**

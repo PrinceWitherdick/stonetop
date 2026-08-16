@@ -914,7 +914,7 @@ function loreCountEntry(path, oldValue, newValue, names) {
 	const before = Number(oldValue ?? 0);
 	const after  = Number(newValue ?? 0);
 	if (after === before) return null;
-	return { action: `Lore — ${question}: ${answer} ${after > before ? "marked" : "unmarked"}` };
+	return { action: `Lore: ${question}: ${answer} ${after > before ? "marked" : "unmarked"}` };
 }
 
 // A written lore answer. The prose can run several hundred characters, so the entry records the
@@ -924,8 +924,8 @@ function loreTextEntry(path, newValue, names) {
 	const [loreSlug = ""] = key.split(":");
 	const question = nameFrom(names.lore, loreSlug);
 	const text = stripHtml(newValue);
-	if (!text) return { action: `Lore — ${question}: answer cleared` };
-	return { action: `Lore — ${question} answered: “${truncateValue(text)}”` };
+	if (!text) return { action: `Lore: ${question}: answer cleared` };
+	return { action: `Lore: ${question} answered: “${truncateValue(text)}”` };
 }
 
 // Appearance lines carry no category names in the playbook data (they are just four ordered

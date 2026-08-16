@@ -422,7 +422,7 @@ export class UndeathDialog extends StonetopDialog {
 		if (kind === "mark-crossoff") {
 			const slug = this._choices["mark-crossoff"];
 			if (!slug || !await this._character.crossOffMark(slug)) return [];
-			return [`Crossed off <strong>${escHtml(label(_MARKS, slug))}</strong> — it can never be gained.`];
+			return [`Crossed off <strong>${escHtml(label(_MARKS, slug))}</strong>: it can never be gained.`];
 		}
 		if (kind === "task") {
 			const text = String(this._choices.task ?? "").trim();
@@ -441,7 +441,7 @@ export class UndeathDialog extends StonetopDialog {
 			// "…permanently maimed in some way of the GM's choosing" — a permanent wound is
 			// exactly the sheet's record for that, and it prompts them to name it.
 			await this._character.addWound({
-				text: "Permanently maimed — the GM says how",
+				text: "Permanently maimed: the GM says how",
 				status: "permanent",
 				origin: "wound",
 			});

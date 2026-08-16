@@ -120,7 +120,7 @@ export class OrderFollowersDialog extends StonetopDialog {
 		// were ignored.
 		const tagsHinder = this._tagsHinder();
 		const modeNote = this._advantage && (tagsHinder || this._disadvantage)
-			? "Advantage and disadvantage cancel out — rolling straight (p.230)."
+			? "Advantage and disadvantage cancel out: rolling straight (p.230)."
 			: tagsHinder ? "A tag in the way is already imposing disadvantage."
 			: "";
 		return {

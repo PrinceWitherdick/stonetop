@@ -78,13 +78,13 @@ const _STEADING_MOVES_RAW = [
 		interactive: true,
 		description: `<div class="stonetop-seasons-grid">
   <img src="systems/stonetop-pwd/assets/icons/seasons/spring_icon.svg" class="stonetop-season-row-icon" alt="Spring">
-  <div><strong>Spring</strong> — The <em>most hopeful</em> rolls +Fortunes. <strong>10+:</strong> pick 1 seasonal gain. <strong>7–9:</strong> pick 1 gain, but a threat makes itself known. <strong>6−:</strong> threats abound; don't mark XP. Reset Fortunes to +1.</div>
+  <div><strong>Spring</strong>: The <em>most hopeful</em> rolls +Fortunes. <strong>10+:</strong> pick 1 seasonal gain. <strong>7–9:</strong> pick 1 gain, but a threat makes itself known. <strong>6−:</strong> threats abound; don't mark XP. Reset Fortunes to +1.</div>
 
   <img src="systems/stonetop-pwd/assets/icons/seasons/summer_icon.svg" class="stonetop-season-row-icon" alt="Summer">
-  <div><strong>Summer</strong> — The <em>most content</em> rolls +Fortunes. <strong>10+:</strong> pick 2 seasonal gains. <strong>7–9:</strong> pick 1. <strong>6−:</strong> a threat makes itself known; don't mark XP. The steading generates 1d4−1 Surplus. Reset Fortunes to +1.</div>
+  <div><strong>Summer</strong>: The <em>most content</em> rolls +Fortunes. <strong>10+:</strong> pick 2 seasonal gains. <strong>7–9:</strong> pick 1. <strong>6−:</strong> a threat makes itself known; don't mark XP. The steading generates 1d4−1 Surplus. Reset Fortunes to +1.</div>
 
   <img src="systems/stonetop-pwd/assets/icons/seasons/fall_icon.svg" class="stonetop-season-row-icon" alt="Autumn">
-  <div><strong>Autumn</strong> — The <em>most determined</em> rolls +Fortunes. <strong>10+:</strong> pick 1 seasonal gain. <strong>7–9:</strong> pick 1 gain, but a threat makes itself known. <strong>6−:</strong> threats abound; don't mark XP. The steading generates 1d4 Surplus at harvest. Reset Fortunes to +1.</div>
+  <div><strong>Autumn</strong>: The <em>most determined</em> rolls +Fortunes. <strong>10+:</strong> pick 1 seasonal gain. <strong>7–9:</strong> pick 1 gain, but a threat makes itself known. <strong>6−:</strong> threats abound; don't mark XP. The steading generates 1d4 Surplus at harvest. Reset Fortunes to +1.</div>
 
   <img src="systems/stonetop-pwd/assets/icons/seasons/winter_icon.svg" class="stonetop-season-row-icon" alt="Winter">
   <div><strong>Winter</strong> — The <em>weariest</em> rolls 1d4+Population (min 0); the steading consumes that much Surplus. If there isn't enough: Surplus → 0, Fortunes −1, pick 1 consequence. Then roll +Fortunes. Reset Fortunes to +1.</div>
@@ -211,12 +211,12 @@ const STEADING_STAT_CHIP_LABELS = {
 // Hover tooltips for the steading stat labels, keyed by data-steading-stat
 // (Book I "Homefront"). Gated by hoverDescriptionsSteadingStats.
 const STEADING_STAT_TOOLTIPS = {
-	surplus:    "Stores of food and trade goods. A resource you accumulate, spend, and consume — not rolled. Generated in summer and autumn, eaten through in winter.",
-	fortunes:   "The steading's morale, social cohesion, and the favor of the gods — “how things are going.” Roll +Fortunes to Requisition and when the Seasons Change; resets to +1 each season.",
+	surplus:    "Stores of food and trade goods. A resource you accumulate, spend, and consume, not rolled. Generated in summer and autumn, eaten through in winter.",
+	fortunes:   "The steading's morale, social cohesion, and the favor of the gods: “how things are going.” Roll +Fortunes to Requisition and when the Seasons Change; resets to +1 each season.",
 	size:       "How big the steading is: hamlet (under 50 people), village (150–350), town (500–1500), city (2500+). Mostly descriptive, but it affects winter Surplus consumption and the Muster, Pull Together, and Trade & Barter moves.",
 	population: "The number of able bodies living here, relative to its Size. Roll +Population to Muster or Pull Together; higher Population also eats more Surplus each winter.",
 	prosperity: "The goods in circulation, the variety of tradesfolk, and merchant traffic. Roll +Prosperity to Trade & Barter; it also sets the value of “x piercing” and what gear is available.",
-	defenses:   "The steading's martial readiness — trained, armed residents and veteran warriors. Roll +Defenses to Deploy its people against a threat.",
+	defenses:   "The steading's martial readiness: trained, armed residents and veteran warriors. Roll +Defenses to Deploy its people against a threat.",
 	debilities: "Ongoing afflictions that drag the steading down: diminished (injury, sickness, or doubt), lacking (shortages, hoarding, or distrust), and malcontent (fear, anger, or despair). Check any that apply; each imposes its own penalty until it's cleared.",
 };
 const _esc = escHtml;
@@ -396,7 +396,7 @@ const HOMESTEAD_MOVE_FLOWS = {
 			"Someone has it, but they aren't keen to give it up",
 			"You can get something close, but not quite right",
 		],
-		picksLabel: "7-9 when buying — the GM picks 1:",
+		picksLabel: "7-9 when buying, the GM picks 1:",
 		note: "For unique or truly exceptional items, don't Trade & Barter — Make a Plan with the GM or wait for a trade opportunity when Seasons Change. Lacking treats Prosperity as 1 lower; subtract the item's Value as a modifier.",
 	},
 	persuade: {
@@ -1944,7 +1944,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			// Gain copy comes from the shared SEASONAL_GAINS so the dialog and Chronicle
 			// stay in lockstep.
 			const gainsRef = `<div class="stonetop-season-gains">
-				<p class="stonetop-season-gains-label">Seasonal gains <span class="stonetop-season-gains-hint">&mdash; tick what they pick</span></p>
+				<p class="stonetop-season-gains-label">Seasonal gains <span class="stonetop-season-gains-hint">(tick what they pick)</span></p>
 				<ul class="stonetop-season-gains-list">
 					${SEASONAL_GAINS.map(g => `<li class="stonetop-season-gain">
 						<label class="stonetop-season-gain-label">
@@ -2046,11 +2046,11 @@ export function createStonetopSteadingSheetClass(Base) {
 								</li>
 								<li class="stonetop-disaster-choice" data-consequence="resource">
 									<span class="stonetop-disaster-choice-label">Important resource lost or damaged</span>
-									<span class="stonetop-disaster-choice-detail">A horse, the cistern, etc. — lost or not maintained (narrative).</span>
+									<span class="stonetop-disaster-choice-detail">A horse, the cistern, etc.: lost or not maintained (narrative).</span>
 								</li>
 								<li class="stonetop-disaster-choice" data-consequence="npc">
 									<span class="stonetop-disaster-choice-label">Important NPC dies</span>
-									<span class="stonetop-disaster-choice-detail">Their role unfilled — a narrative consequence.</span>
+									<span class="stonetop-disaster-choice-detail">Their role unfilled: a narrative consequence.</span>
 								</li>
 								<li class="stonetop-disaster-choice" data-consequence="pc">
 									<span class="stonetop-disaster-choice-label">A PC dies, leaves, or retires</span>
@@ -2084,7 +2084,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			// `const`, even though the render/button callbacks below refer to `dialog`: they run
 			// after this statement completes, so the binding is always initialised by then.
 			const dialog = new Dialog({
-				title: `Seasons Change — ${label}`,
+				title: `Seasons Change: ${label}`,
 				content,
 				// Done resets Fortunes (the season's close-out), applies any ticked mechanical
 				// gains, then records this season into the year's "Seasons Change" Chronicle
@@ -2105,7 +2105,7 @@ export function createStonetopSteadingSheetClass(Base) {
 					// Spring only: hand the roll to the table — post a chat card asking the
 					// most hopeful character's player to roll +Fortunes, with a button to do it.
 					root.querySelector("[data-action='ask-hopeful']")?.addEventListener("click", () => {
-						postSeasonsRollPrompt({ alias: `Seasons Change — ${label}`, fortunes });
+						postSeasonsRollPrompt({ alias: `Seasons Change: ${label}`, fortunes });
 					});
 
 					// Done resets Fortunes for the new season (the move's guaranteed close-out)
@@ -2588,7 +2588,7 @@ export function createStonetopSteadingSheetClass(Base) {
 		_disableIfSeasonStepDone(btn, step, year, seasonId) {
 			if (!btn || !this._stonetopSteading.seasonStepApplied(step, year, seasonId)) return false;
 			btn.disabled = true;
-			btn.title = "Already done this season — reopening won't repeat it.";
+			btn.title = "Already done this season: reopening won't repeat it.";
 			return true;
 		}
 
@@ -2603,7 +2603,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			// (1d4 + Fortunes), not a bare 1d4 that disagrees with the herd change / notification.
 			const formula = fortunes >= 0 ? `1d4 + ${fortunes}` : `1d4 - ${Math.abs(fortunes)}`;
 			const roll = await new Roll(formula).evaluate();
-			await roll.toMessage({ flavor: `Herd — new foals (1d4 + Fortunes ${sign(fortunes)})` });
+			await roll.toMessage({ flavor: `Herd: new foals (1d4 + Fortunes ${sign(fortunes)})` });
 			const newFoals = Math.max(0, roll.total);
 			const next = StonetopSteading.advanceHerdForSummer(before, newFoals);
 			await this._stonetopSteading.setHerd(next, { stonetopMove: "Seasons Change" });
@@ -2623,14 +2623,14 @@ export function createStonetopSteadingSheetClass(Base) {
 			const surplus = this._stonetopSteading.getStatValue("surplus");
 			const cost = StonetopSteading.herdWinterCost(before);
 			if (cost <= 0) {
-				ui.notifications.info("The herd is small enough to forage — no Surplus needed this winter.");
+				ui.notifications.info("The herd is small enough to forage: no Surplus needed this winter.");
 				return;
 			}
 			const shortfall = Math.max(0, cost - Math.max(0, surplus));
 			let losses = 0;
 			if (shortfall > 0) {
 				const roll = await new Roll(`${shortfall}d6`).evaluate();
-				await roll.toMessage({ flavor: `Herd losses (${shortfall}× 1d6 — ${shortfall} Surplus short)` });
+				await roll.toMessage({ flavor: `Herd losses (${shortfall}× 1d6, ${shortfall} Surplus short)` });
 				losses = roll.total;
 			}
 			const result = StonetopSteading.feedHerdForWinter(before, surplus, losses);
@@ -2681,7 +2681,7 @@ export function createStonetopSteadingSheetClass(Base) {
 						</label>
 						<label class="stonetop-homestead-field">
 							<span>Effect</span>
-							<textarea name="effect" rows="2" placeholder="What completing it does — new resources, defenses, etc. (optional)."></textarea>
+							<textarea name="effect" rows="2" placeholder="What completing it does: new resources, defenses, etc. (optional)."></textarea>
 						</label>
 					</div>
 				</form>`,

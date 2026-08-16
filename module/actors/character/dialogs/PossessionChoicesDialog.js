@@ -59,7 +59,7 @@ export class PossessionChoicesDialog extends StonetopDialog {
 			// this editor only sets its descriptive traits, so say so. In add-only
 			// (level-up) mode, frame it as the single new trait just earned.
 			description:    this._addOnly
-				? `<p>You've gained an additional remarkable trait for your ${name}. Choose it below — your existing traits stay as they are.</p>`
+				? `<p>You've gained an additional remarkable trait for your ${name}. Choose it below: your existing traits stay as they are.</p>`
 				: `<p>Update the traits of your ${name} below.</p>`,
 			possessionSlug: this._possessionSlug,
 			groups:         buildChoiceGroupsView(opt.choiceGroups, picked, moveCounts, {

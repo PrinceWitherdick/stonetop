@@ -39,7 +39,7 @@
 		{{/if}}
 
 		{{#if rolledTotal}}
-		<p class="undeath-result-banner">You rolled <strong>{{rolledTotal}}</strong> &mdash; <strong>{{tierLabel}}</strong>.</p>
+		<p class="undeath-result-banner">You rolled <strong>{{rolledTotal}}</strong>, <strong>{{tierLabel}}</strong>.</p>
 		{{/if}}
 
 		{{#if hp}}
@@ -53,7 +53,7 @@
 		<p class="undeath-hp">
 			Your essence disperses until the next sunset. You reform near
 			{{#if tether}}<strong>{{tether}}</strong>{{else}}your tether{{/if}}
-			with <strong>{{disperses}} HP</strong> &mdash; reform from your Special Moves tab when you do.
+			with <strong>{{disperses}} HP</strong>. Reform from your Special Moves tab when you do.
 		</p>
 		{{/unless}}
 
@@ -87,7 +87,7 @@
 			{{#if allApply}}
 			All of these apply:
 			{{else}}
-			Choose {{pick}} &mdash; <span class="undeath-pick-count">{{pickedCount}} of {{pick}} taken</span>:
+			Choose {{pick}}, <span class="undeath-pick-count">{{pickedCount}} of {{pick}} taken</span>:
 			{{/if}}
 		</p>
 
@@ -101,7 +101,7 @@
 				</label>
 
 				{{#if exhausted}}
-				<p class="undeath-hint">Nothing left to take here &mdash; they're all already marked.</p>
+				<p class="undeath-hint">Nothing left to take here: they're all already marked.</p>
 				{{else if picked}}
 					{{#if (eq kind "task")}}
 					<input type="text" class="undeath-task-input" value="{{choice}}"

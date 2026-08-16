@@ -55,7 +55,7 @@ export class BlessedMarksDialog extends RosterDialog {
 	}
 
 	get title() {
-		return `${this._actor?.name ?? "The Blessed"} — Marks`;
+		return `${this._actor?.name ?? "The Blessed"}: Marks`;
 	}
 
 	getData() {

@@ -912,7 +912,7 @@ describe("CharacterLedger lore", () => {
 			"flags.stonetop-pwd.lore.counts.earth-mother:shrine-loved": 1,
 		});
 		// Was: "Lore set to 1".
-		expect(entries.map(e => e.action)).toEqual(["Lore — The Earth Mother: Loved and well-used. marked"]);
+		expect(entries.map(e => e.action)).toEqual(["Lore: The Earth Mother: Loved and well-used. marked"]);
 	});
 
 	it("previews a written answer instead of pasting the whole paragraph", async () => {
@@ -926,7 +926,7 @@ describe("CharacterLedger lore", () => {
 			"flags.stonetop-pwd.lore.texts.relic:where": "<p>" + long + "</p>",
 		});
 		expect(entries).toHaveLength(1);
-		expect(entries[0].action).toMatch(/^Lore — Your Relic answered: /);
+		expect(entries[0].action).toMatch(/^Lore: Your Relic answered: /);
 		expect(entries[0].action).toContain("…");
 		expect(entries[0].action.length).toBeLessThan(120);
 		expect(entries[0].action).not.toContain("<p>");

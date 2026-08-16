@@ -1603,7 +1603,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	}
 
 	get title() {
-		return `New Character — ${this._playbookDoc.name}`;
+		return `New Character: ${this._playbookDoc.name}`;
 	}
 
 	async _render(force, options) {

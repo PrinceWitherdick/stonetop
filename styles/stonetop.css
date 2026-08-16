@@ -4663,14 +4663,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	mask-position: center;
 }
 
-/* The three HEADER glyphs share more than the recipe above: each is a block that takes its width
+/* ALL FOUR header glyphs share more than the recipe above: each is a block that takes its width
    from its own aspect-ratio, paints in the current colour, and eases when that colour changes.
-   Written per glyph, those four lines were three copies carrying three real values between them,
-   and a fourth glyph would have been a fourth copy. Scoped to these three deliberately —
-   `.stonetop-burn-brightly-icon` is inline-block with an em width, and `.stonetop-nav-arrow`
-   differs again, so neither belongs here. Each glyph below still states its own height,
-   aspect-ratio and mask url, which are the only things that actually differ. Earlier than all
-   three, so a per-glyph override would still win. */
+   Written per glyph, those four lines were four copies carrying three real values between them.
+   The candle is here with the other three — it is already a member of both the mask recipe above
+   and the button chrome further down, and it differs only in height, aspect-ratio and mask url,
+   which are exactly the three things each glyph below still states for itself. Scoped to these
+   four deliberately: `.stonetop-burn-brightly-icon` is inline-block with an em width, and
+   `.stonetop-nav-arrow` differs again, so neither belongs here. Earlier than all four, so a
+   per-glyph override would still win. */
+.stonetop-holy-light-icon,
 .stonetop-condemn-icon,
 .stonetop-blessed-marks-icon,
 .stonetop-battle-joy-icon {
@@ -5183,12 +5185,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
    markers, the name, and the edit-mode ✕ (all order 0) so it lands alone on the next
    line — the ✕ stays up on the name's row. */
 .stonetop-inv-item.stonetop-inv-treasure { flex-wrap: wrap; }
-.stonetop-inv-item.stonetop-inv-treasure .stonetop-inv-note {
-	order: 1;
-	flex-basis: 100%;
-	/* Hang under the name, clear of the leading marker (one ◇ / check + the row's gap). */
-	padding-left: calc(14px * var(--stonetop-font-scale, 1) + 4px);
-}
+/* Where it drops to and how far it hangs is the shared second-line rule further down, which this
+   note wears alongside the artifact lines it can stack with. */
 /* Its own line has room now, so a long treasure name may wrap in the narrow small column
    rather than being clipped to one line like ordinary small gear. */
 .stonetop-inv-item.stonetop-inv-treasure.stonetop-inv-small .stonetop-inv-label { white-space: normal; }
@@ -5304,19 +5302,30 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	color: var(--st-tier-failure-text, #6e0000);
 	opacity: 0.75;
 }
-/* All three second lines an artifact row can carry. The `padding-left` calc is the ALIGNMENT
-   CONTRACT for every one of them — written twice, a font-scale change to one silently unaligns
-   the other, which is what had already happened here. */
+/* EVERY second line an inventory row can drop beneath its name: the three an artifact carries, and
+   a Book II treasure's tag/value note. `order: 1` sends them past the ◇ load markers, the name and
+   the edit-mode ✕ (all order 0) so each claims the next line rather than crowding the row, and the
+   `padding-left` calc hangs them clear of the leading marker (one ◇ / check, plus the row's gap).
+   That calc is the ALIGNMENT CONTRACT between them: a treasure the GM has marked as an artifact
+   renders the note AND a hint or a write-up, stacked, and a font-scale change reaching one copy of
+   the calc and not the other unaligns lines sitting directly above one another. One copy, so there
+   is no other to miss. */
+.stonetop-inv-artifact-hint,
+.stonetop-inv-artifact-lead,
+.stonetop-inv-artifact-lore,
+.stonetop-inv-item.stonetop-inv-treasure .stonetop-inv-note {
+	order: 1;
+	flex-basis: 100%;
+	padding-left: calc(14px * var(--stonetop-font-scale, 1) + 4px);
+}
+/* The artifact lines are the SHEET talking about the item, so they are set apart from its name;
+   the treasure note is part of the name and keeps the row's own type. */
 .stonetop-inv-artifact-hint,
 .stonetop-inv-artifact-lead,
 .stonetop-inv-artifact-lore {
 	color: var(--color-text-dark-secondary, #666);
 	font-style: italic;
 	font-size: 0.92em;
-	/* Same trick the treasure note uses: claim the next line rather than crowd the name. */
-	order: 1;
-	flex-basis: 100%;
-	padding-left: calc(14px * var(--stonetop-font-scale, 1) + 4px);
 }
 .stonetop-inv-artifact-lead { opacity: 0.85; }
 /* The write-up a 10+ hands over. pre-wrap so a GM who typed plain paragraphs into the
@@ -8063,15 +8072,13 @@ button.stonetop-holy-light.is-lit:hover {
    214.32 / 464.56 (see candle-light.svg). A ratio rather than a second length, so the
    candle can never be letterboxed inside its own box again — which is what the crop was
    for — and so resizing it stays a one-number change. */
+/* Its own height, aspect-ratio and mask; the block/width/paint/ease it shares with the other
+   three header glyphs is stated once, up with the mask recipe. */
 .stonetop-holy-light-icon {
-	display: block;
 	height: 50px;
-	width: auto;
 	aspect-ratio: 214.32 / 464.56;
-	background: currentColor;
 	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/candle-light.svg');
 	mask-image: url('/systems/stonetop-pwd/assets/icons/candle-light.svg');
-	transition: background-color 0.15s ease;
 }
 
 /* Declared AFTER the base rule on purpose: an equal-specificity modifier that sits earlier

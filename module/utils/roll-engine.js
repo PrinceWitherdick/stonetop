@@ -116,7 +116,7 @@ export async function rollSeasonsCard({ formula, title = "", alias = "", resultT
  * the carried Fortunes against SPRING_SEASONS_RESULT). `hopeful` is the recorded
  * "most hopeful" note, if any; `fortunes` is the steading's +Fortunes modifier.
  */
-export function postSeasonsRollPrompt({ alias = "Seasons Change — Spring", hopeful = "", fortunes = 0 } = {}) {
+export function postSeasonsRollPrompt({ alias = "Seasons Change: Spring", hopeful = "", fortunes = 0 } = {}) {
 	if (!globalThis.ChatMessage) return;
 	const who = hopeful ? `<strong>${escHtml(hopeful)}</strong>` : "Whoever is the <strong>most hopeful</strong>";
 	const body = `<div class="card-content stonetop-seasons-prompt">
@@ -436,7 +436,7 @@ export async function markMissXp(actor, moveName) {
 		header: "Miss",
 		result: `+1 XP (${newXp} / ${maxXp})`,
 		resultClass: "success",
-		description: `<p>On a <strong>miss</strong> (a total of 6 or less), you <strong>mark XP</strong> &mdash; a tick mark that raises your total by 1 &mdash; unless the move says otherwise.</p>`
+		description: `<p>On a <strong>miss</strong> (a total of 6 or less), you <strong>mark XP</strong>, a tick mark that raises your total by 1, unless the move says otherwise.</p>`
 	});
 	await ChatMessage.create({
 		content:  xpCard,

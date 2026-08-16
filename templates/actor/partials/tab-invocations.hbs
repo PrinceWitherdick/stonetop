@@ -58,7 +58,7 @@
 				{{!-- Both states are tappable: an un-learned Invocation still posts its text, it
 				      just isn't offered the roll (see the click handler). The tooltip is what
 				      says which of the two this tap will be. --}}
-				<span class="stonetop-invocation-name" role="button" tabindex="0" data-tooltip="{{#if known}}Use this Invocation{{else}}You haven't learned this Invocation — tap to read it out{{/if}}">{{label}}</span>
+				<span class="stonetop-invocation-name" role="button" tabindex="0" data-tooltip="{{#if known}}Use this Invocation{{else}}You haven't learned this Invocation: tap to read it out{{/if}}">{{label}}</span>
 				{{!-- The badge says what this Invocation IS until it says what it is DOING: a card
 				      that is visibly running doesn't also need telling that it's the running kind. --}}
 				{{#if active}}<span class="stonetop-item-source stonetop-invocation-active" data-tooltip="You are concentrating on this Invocation. It lasts until you end it, until you use another, or until your holy light goes out." data-tooltip-direction="UP">Concentrating</span>

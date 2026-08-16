@@ -34,7 +34,7 @@
  * Kept Foundry-free so all of this can be tested without a world in sight.
  */
 
-import { ownsMoveNamed, ownedMoveNames } from "./owns-move.js";
+import { ownsMoveNamed, ownedNamesOr, ownedMoveNames } from "./owns-move.js";
 import { createRoster, showStandingList } from "./marked-people.js";
 
 // Re-exported so the dialog and this playbook's tests keep reaching the predicate through the
@@ -148,22 +148,23 @@ export function markKind(key) {
  *
  * One pass over the items for all five kinds, not one pass each. The per-kind form short-circuits
  * on a hit, so a Blessed paid little — but everybody ELSE paid all five scans in full, and that is
- * most sheets in most worlds. `canMarkBlessed` runs from the character sheet's getData.
+ * most sheets in most worlds. Takes the sheet's one-pass Set when it has one, so the header glyphs
+ * and the add form share a single walk instead of each paying for their own.
  */
-export function availableKinds(actor) {
-	const owned = ownedMoveNames(actor);
-	return MARK_KINDS.filter(def => owned.has(def.move));
+export function availableKinds(actor, owned = null) {
+	const names = ownedNamesOr(actor, owned);
+	return MARK_KINDS.filter(def => names.has(def.move));
 }
 
 /**
  * Whether this character can mark anybody at all — what earns the glyph in the header.
  *
- * Takes the sheet's one-pass Set when it has one, so the five header glyphs share a single walk
- * of the items rather than each paying for their own.
+ * Literally "is there a kind available", asked of `availableKinds` rather than of a second walk
+ * of the same table: written twice, the glyph could light while the add form offered nothing, or
+ * the reverse. Five entries, so building the list costs nothing worth short-circuiting past.
  */
 export function canMarkBlessed(actor, owned = null) {
-	const names = owned ?? ownedMoveNames(actor);
-	return MARK_KINDS.some(def => names.has(def.move));
+	return availableKinds(actor, owned).length > 0;
 }
 
 /**

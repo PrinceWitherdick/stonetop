@@ -47,7 +47,7 @@ export async function openNpcNotesDialog(actor) {
 				if (value === (actor.system?.notes ?? "")) return;
 				actor.update({ "system.notes": value }).catch(err => {
 					console.error("Stonetop | could not save the NPC's notes", err);
-					ui.notifications?.warn("Those notes could not be saved — you don't own this NPC.");
+					ui.notifications?.warn("Those notes could not be saved: you don't own this NPC.");
 				});
 			});
 		},
