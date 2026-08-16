@@ -1,6 +1,6 @@
 import Handlebars from "handlebars";
 import { describe, it, expect } from "vitest";
-import { readRepo as read, readCss } from "../../fakes/css.js";
+import { readRepo as read, readCss, ownRule, stripComments } from "../../fakes/css.js";
 import { GM_DIAGRAMS, gmDiagrams } from "../../../module/gm-toolkit/gm-diagrams.js";
 import { GM_CORE_LOOP, GM_FLOW_OF_PLAY } from "../../../module/gm-toolkit/gm-loop-text.js";
 import { BOOK2_ART_APPLY_MANIFEST } from "../../../module/book2-art/manifest.js";
@@ -23,6 +23,10 @@ const LOOP_HBS  = read("templates/actor/partials/gm-toolkit-tab-loop.hbs");
 const STONETOP_JS = read("stonetop.js");
 const SETTINGS_JS = read("module/settings.js");
 const CSS       = readCss();
+
+// The tab's template and the sheet both discuss the browser tab this feature replaced, so the
+// prose has to come out (fakes/css.js#stripComments) before a guard can say the code does not
+// do it.
 
 /** Stub just enough of game.settings for the guarded index read. Mirrors treasure-drops.test.js. */
 const withSettings = (values, fn) => {
@@ -107,6 +111,13 @@ describe("the GM playbook diagrams", () => {
 		expect(rows.find(r => r.slug === "flow-of-play").caption).toBe("The flow of play");
 	});
 
+	// Core slants every figcaption (`figure figcaption { font-style: italic }`), and the title
+	// inherits it unless it says otherwise — leaving the two headings of the tab reading as an
+	// aside about the picture. The note under them keeps its own italic.
+	it("sets the two titles upright against core's italic figcaption", () => {
+		expect(ownRule(CSS, ".stonetop-gm-diagram-title")).toContain("font-style: normal");
+	});
+
 	// What the pictures SAY, which is rules text (Book I p.169) and not artwork. This is the half
 	// of the tab that renders in every world, so a GM who has not run the import meets the
 	// procedure rather than an apology for not having a picture of it.
@@ -160,6 +171,43 @@ describe("the GM playbook diagrams", () => {
 			expect(CSS.indexOf(".stonetop-gm-loop {"))
 				.toBeLessThan(CSS.indexOf(".stonetop-gm-loop--stages {"));
 		});
+
+		// House rule: every prose list in the system wears the spiral, and these were the last
+		// chevrons on a sheet. Asserted through the variable rather than the file path, because
+		// that is what the dark scopes repaint to reach a bullet.
+		it("bullets the items with the spiral, and the stage names with nothing", () => {
+			const marker = ownRule(CSS, ".stonetop-gm-loop-items > li::before");
+			expect(marker).toContain("var(--stonetop-spiral-icon)");
+			expect(marker).not.toContain("\\203A");
+			// A stage is a heading over its items, not their sibling — marking it would say
+			// otherwise. Both markers are off: the modifier's `list-style: none` and this.
+			expect(CSS).not.toContain(".stonetop-gm-loop--stages > .stonetop-gm-loop-step::before");
+		});
+
+		// Every step's name goes in the same wrapper whether or not the step has items. Without
+		// it, a step WITH items has its name in an anonymous block beside the <ul> while "Ask
+		// what do you do?" — the only step of either chart with nothing under it — has its name
+		// loose in the <li>, which is two layout paths for one row.
+		it("wraps every step's name row in a block, items or no items", () => {
+			// Comments out first: the wrapper's own note names the elements this looks for.
+			const src = stripComments(LOOP_HBS);
+			const step = src.slice(src.indexOf('<li class="stonetop-gm-loop-step">'));
+			const head = step.indexOf('<div class="stonetop-gm-loop-head">');
+			expect(head).toBeGreaterThan(-1);
+			// Inside the wrapper, not beside it: an unwrapped name is the bug this guards.
+			expect(head).toBeLessThan(step.indexOf('class="stonetop-gm-loop-name"'));
+			expect(head).toBeLessThan(step.indexOf('class="stonetop-gm-loop-page"'));
+			// Opened OUTSIDE every `{{#if}}`, or the step with no items keeps its own shape.
+			expect(head).toBeLessThan(step.indexOf("{{#if"));
+		});
+
+		// A flex `li` turns every inline child into its own flex item, so an item like "If they
+		// roll a 6-, make a hard GM move" would shatter into columns instead of wrapping.
+		it("hangs those bullets off block flow, not flex", () => {
+			const body = ownRule(CSS, ".stonetop-gm-loop-items > li");
+			expect(body).toContain("position: relative");
+			expect(body).not.toContain("display: flex");
+		});
 	});
 });
 
@@ -194,11 +242,55 @@ describe("the Core Loop tab", () => {
 	// Core's `body.game .app img` paints a 1px black border on every image inside a sheet, so a
 	// border here is not decoration — leaving it off means wearing that one.
 	it("declares its own image border rather than inheriting core's black one", () => {
-		expect(CSS).toMatch(/\.stonetop-gm-diagram-img\s*\{[^}]*border:\s*1px solid/s);
+		expect(ownRule(CSS, ".stonetop-gm-diagram-img")).toMatch(/border:\s*1px solid/);
 	});
 
 	it("puts the diagrams in the sheet context", () => {
 		expect(SHEET_JS).toContain("context.stonetop.diagrams = gmDiagrams();");
+	});
+
+	// The flowcharts are ~2000px tall and the tab draws them at a few hundred, so the click that
+	// opens one big is the only way anybody actually READS them. It used to be an anchor with
+	// `target="_blank"`, which threw the GM out of the game and into a browser tab to look at a
+	// page of their own rulebook; it is now our own zoom window (utils/image-zoom-window.js).
+	describe("opening a diagram big", () => {
+		it("is a button, so no click of any kind can reach a browser tab", () => {
+			expect(LOOP_HBS).toMatch(/<button type="button" class="stonetop-gm-diagram-zoom"/);
+			// The trap this replaced: a middle-click or a ctrl-click on an anchor opens the tab
+			// whatever the click handler does about it, so preventDefault alone is not the fix.
+			expect(LOOP_HBS).not.toContain('target="_blank"');
+			expect(LOOP_HBS).not.toMatch(/<a class="stonetop-gm-diagram-zoom"/);
+		});
+
+		// A delegated handler has only the DOM to go on, so every input the window needs has to
+		// be ON the button — a path rebuilt from the slug here would break the same way the
+		// index lookup is written not to.
+		it("carries the picture, its name and its slug on the button", () => {
+			expect(LOOP_HBS).toContain('data-src="{{src}}"');
+			expect(LOOP_HBS).toContain('data-caption="{{caption}}"');
+			expect(LOOP_HBS).toContain('data-slug="{{slug}}"');
+		});
+
+		it("opens the zoom window from the sheet's delegated click", () => {
+			const src = stripComments(SHEET_JS);
+			expect(src).toMatch(/closest\("\.stonetop-gm-diagram-zoom"\)/);
+			expect(src).toContain("openImageZoom({");
+			// Keyed by slug: the two charts of one spread open as two windows, and a second click
+			// on either raises the one already showing it instead of stacking a duplicate.
+			expect(src).toContain("key: diagram.dataset.slug");
+		});
+
+		// The button is a bare wrapper for the picture. Core paints every in-app button with a
+		// fill, a border, a radius and `width: 100%`, all of which would frame the diagram in a
+		// control it is not.
+		it("is un-buttoned in CSS", () => {
+			// `ownRule`, so the `:hover` rule below it — which also says `background: none` —
+			// cannot answer for the base one.
+			const block = ownRule(CSS, ".stonetop-gm-diagram-zoom");
+			expect(block).toContain("background: none");
+			expect(block).toContain("border: none");
+			expect(block).toContain("cursor: zoom-in");
+		});
 	});
 
 	// The placeholder's button is the only route from "I didn't know these existed" to having

@@ -24,13 +24,19 @@
 					<span class="stonetop-gm-diagram-note">{{note}}</span>
 				</figcaption>
 				{{#if src}}
-				{{!-- Click to open at full size. The flowcharts are ~2000px tall and the tab shows
-				      them at a few hundred, which is legible for finding your place but not for
-				      reading a box. --}}
-				<a class="stonetop-gm-diagram-zoom" href="{{src}}" target="_blank" rel="noopener"
-				   data-tooltip="{{localize "stonetop.gmToolkit.loop.zoom"}}">
+				{{!-- Click to open the zoom window (utils/image-zoom-window.js). The flowcharts are
+				      ~2000px tall and the tab shows them at a few hundred, which is legible for
+				      finding your place but not for reading a box.
+
+				      A BUTTON, not a link to the file. An anchor sends the picture to a browser tab
+				      — and does it on middle-click and ctrl-click whatever the click handler says —
+				      which throws the GM out of the game to read a page of their own rulebook. The
+				      `src` rides along in a data attribute so the handler has the path without one. --}}
+				<button type="button" class="stonetop-gm-diagram-zoom" data-src="{{src}}"
+				        data-caption="{{caption}}" data-slug="{{slug}}"
+				        data-tooltip="{{localize "stonetop.gmToolkit.loop.zoom"}}">
 					<img class="stonetop-gm-diagram-img" src="{{src}}" alt="{{caption}}">
-				</a>
+				</button>
 				{{else}}
 				<div class="stonetop-gm-diagram-missing">
 					<p>{{localize "stonetop.gmToolkit.loop.missing"}}</p>
@@ -57,8 +63,17 @@
 				<ol class="stonetop-gm-loop{{#unless numbered}} stonetop-gm-loop--stages{{/unless}}">
 					{{#each steps}}
 					<li class="stonetop-gm-loop-step">
-						<strong class="stonetop-gm-loop-name">{{name}}</strong>
-						{{#if pageRef}}<span class="stonetop-gm-loop-page">{{pageRef}}</span>{{/if}}
+						{{!-- The name row is a BLOCK of its own, and every step has one whether or
+						      not it has items. A step WITH items puts its name in an anonymous block
+						      (the browser wraps the loose inline run sitting beside the <ul>), while
+						      "Ask what do you do?" — the one step of the core loop with nothing under
+						      it — would be the only <li> in either chart whose text sits directly in
+						      the list item. Two layout paths for one row is what let that step drift
+						      out of line with the four around it. One wrapper, one path. --}}
+						<div class="stonetop-gm-loop-head">
+							<strong class="stonetop-gm-loop-name">{{name}}</strong>{{#if pageRef}}
+							<span class="stonetop-gm-loop-page">{{pageRef}}</span>{{/if}}
+						</div>
 						{{#if note}}<p class="stonetop-gm-loop-note">{{note}}</p>{{/if}}
 						{{#if items}}
 						<ul class="stonetop-gm-loop-items">

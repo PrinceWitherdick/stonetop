@@ -26289,6 +26289,14 @@ th:has(> .stonetop-roll-table-btn) {
 	color: var(--st-text-secondary);
 }
 
+/* The well every field in the system wears: translucent white over whatever paper it sits on,
+   a #999 hairline, and the slate focus ring — the same skin `.stonetop-themed` window content
+   gives a bare <input>, written out here because these worksheets carry `.stonetop`, not
+   `.stonetop-themed`, so that rule never reaches them. They used to fill with PARCHMENT and
+   edge in --color-border-dark, which on a parchment dialog left the box visible only by its
+   heavy border and made a wizard's fields read as a different kind of control from the fields
+   on a sheet. Shared: create-follower / -hazard / -thing / -site and corrupt-being all skin
+   their inputs from here. */
 .stonetop-cf-input,
 .stonetop-cf-textarea {
 	width: 100%;
@@ -26298,9 +26306,14 @@ th:has(> .stonetop-roll-table-btn) {
 	font-size: var(--st-fs-base);
 	font-weight: 400;
 	color: var(--st-text-body);
-	border: 1px solid var(--color-border-dark, #7a7971);
+	border: 1px solid #999;
 	border-radius: var(--st-radius-sm);
-	background: var(--stonetop-bg, #f5f0e8);
+	background: rgba(255, 255, 255, 0.7);
+}
+.stonetop-cf-input:focus,
+.stonetop-cf-textarea:focus {
+	border-color: var(--st-btn-primary-border);
+	box-shadow: 0 0 4px var(--color-shadow-highlight);
 }
 .stonetop-cf-textarea { resize: vertical; line-height: 1.45; }
 
@@ -26515,8 +26528,39 @@ th:has(> .stonetop-roll-table-btn) {
 	white-space: nowrap;
 }
 .stonetop-cf-mini-btn:hover { background: hsl(40 25% 85%); }
-.stonetop-cf-mini-btn--danger { border-color: var(--st-red-border); color: var(--st-red-text); }
-.stonetop-cf-mini-btn--danger:hover { background: var(--st-red-bg); }
+/* Remove-a-row. Every caller of this modifier is a bare `fa-times` beside a field — never a
+   worded command — and a bordered, paper-filled pill gave that X the same weight as the control
+   it deletes, so a list of six rows read as six buttons. Drawn as the ink alone, like the threat
+   editor's .threat-list-remove: no box, no fill, red so it still says "destructive". Same
+   specificity as the base rule, so it must stay BELOW it to win. */
+.stonetop-cf-mini-btn--danger {
+	flex: 0 0 auto;
+	justify-content: center;
+	width: 1.6em;
+	height: 1.6em;
+	padding: 0;
+	border: 0;
+	border-radius: var(--st-radius-sm);
+	background: transparent;
+	color: var(--st-red-text);
+}
+.stonetop-cf-mini-btn--danger:hover { background: var(--st-red-bg); color: var(--st-red-text); }
+
+/* An "add one more" button is not a command the way Roll is — it is the quiet entry point at the
+   end of a list, and everywhere else in the system that reads as a dashed slate edge on nothing
+   (.threat-list-add, .wd-req-add, the sheet tabs' full-width adds). The base mini-btn's solid
+   border and filled paper made the wizard's adds sit at the same weight as its Roll buttons, so
+   the eye had to read every one of them. Must stay BELOW the base rule: same specificity, later
+   wins. */
+.stonetop-cf-mini-btn--add {
+	border-style: dashed;
+	border-color: var(--st-btn-primary-border, #4f5b66);
+	background: transparent;
+}
+.stonetop-cf-mini-btn--add:hover {
+	border-color: var(--st-slate-hover-border);
+	background: var(--st-slate-hover-bg);
+}
 
 /* Gear rows (final step) */
 .stonetop-cf-gear { display: flex; flex-direction: column; gap: 5px; }
@@ -32514,6 +32558,10 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    exactly the same four declarations — see `.stonetop-npc-sheet` above.) */
 
 /* -- Header banner --------------------------------------------------------
+   The same boxed strip the steading wears, and now literally the same rule —
+   see `.steading-header`, which this selector shares. Only the flex sizing is
+   local to the toolkit's frame.
+
    Also the tab rail's MEASURING ANCHOR: module/utils/tab-rail.js looks for
    `.stonetop-sheet-header, .steading-header` inside the form and starts the
    rail 16px below whatever it finds, bailing out if the match has no height.
@@ -32522,37 +32570,16 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    nearly right and is how that mistake survives review. */
 .stonetop-gm-toolkit-header {
 	flex: 0 0 auto;
-	align-items: center;
-	padding-bottom: 6px;
-	border-bottom: 2px solid slategrey;
 }
 
-.stonetop-gm-toolkit-title {
+/* Everything about how this reads — Avara at the display size, the optical nudge that
+   centres it in the banner — comes from `.steading-title`, whose rule this shares. Only
+   the leading and the row sizing are local: the h1 is the banner's one flex item now
+   that the subtitle is gone, so it claims the row itself rather than through a wrapper. */
+.stonetop-gm-toolkit-name {
 	flex: 1;
 	min-width: 0;
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-}
-
-/* Avara, at the display size the steading's title wears, because this is the
-   same kind of thing: a GM-facing sheet named for what it is rather than for a
-   person. */
-.stonetop-gm-toolkit-name {
-	font-family: var(--font-avara);
-	font-size: var(--font-size-display);
-	font-weight: bold;
 	line-height: 1.1;
-	margin: 0;
-	padding: 0;
-	border: none;
-}
-
-.stonetop-gm-toolkit-subtitle {
-	margin: 0;
-	font-size: var(--st-fs-xs);
-	font-style: italic;
-	color: var(--st-text-muted);
 }
 
 /* -- Tab body -------------------------------------------------------------
@@ -32930,8 +32957,10 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    letter. The content box does not move, which matters here more than usual: this is a
    two-column list, and a text-shifting highlight would reflow the whole column under it.
 
-   `--st-warm-hover-bg` is the wash a pickable card takes on hover elsewhere in the
-   system. Same gesture — the sheet pointing at one row of a list — so the same colour. */
+   `--st-warm-hover-bg` is the one warm tone left in the system, kept for this flash alone.
+   It reads as the sheet pointing at a row rather than as an invitation to click, which is
+   why it did NOT follow the hover surfaces over to slate: a draw landing in the same colour
+   every button wears on hover would look like something the pointer had done. */
 @keyframes stonetop-gm-move-flash {
 	0%, 40% { background-color: var(--st-warm-hover-bg); }
 	100%    { background-color: transparent; }
@@ -33004,9 +33033,15 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	text-align: left;
 }
 
+/* `font-style: normal` because core slants EVERY figcaption (`figure figcaption
+   { font-style: italic }`), and the title inherited it — so "The core loop" and
+   "The flow of play" read as an aside about the picture instead of the heading of
+   the section, which on this tab is what they are. Declared here rather than on
+   the caption so the note below keeps the italic it asks for. */
 .stonetop-gm-diagram-title {
 	display: block;
 	font-size: var(--st-fs-lg);
+	font-style: normal;
 }
 
 .stonetop-gm-diagram-note {
@@ -33016,12 +33051,36 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	color: var(--st-text-secondary);
 }
 
+/* A BUTTON that opens the zoom window, not a link to the file — see the note in
+   gm-toolkit-tab-loop.hbs. So it has to be un-buttoned: core paints every button
+   in an app with a fill, a border, a radius and `width: 100%`, all of which would
+   frame the picture in a control it is not. Only the cursor stays, because a
+   picture that opens bigger has to say so before it is clicked. */
 .stonetop-gm-diagram-zoom {
 	display: block;
-	/* The anchor is a bare wrapper for the picture; core's link colour and
-	   underline on it would paint a rule across the bottom of every diagram. */
+	width: 100%;
+	padding: 0;
+	background: none;
+	border: none;
+	border-radius: 0;
+	box-shadow: none;
 	color: inherit;
 	text-decoration: none;
+	line-height: 0; /* a button's own line-height would open a gap under the image */
+	cursor: zoom-in;
+}
+
+/* Core's button hover is a red glow and a fill; both would flash around the
+   diagram on the way to clicking it. The focus ring is kept — and moved outside
+   the picture — because this is the tab's only keyboard-reachable control. */
+.stonetop-gm-diagram-zoom:hover,
+.stonetop-gm-diagram-zoom:focus {
+	background: none;
+	box-shadow: none;
+}
+.stonetop-gm-diagram-zoom:focus-visible {
+	outline: 2px solid var(--st-btn-primary-bg);
+	outline-offset: 2px;
 }
 
 /* `border` is declared, not left off: core's `body.game .app img` puts a 1px
@@ -33110,6 +33169,11 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	font-style: italic;
 	color: var(--st-text-secondary);
 }
+/* Spirals, like every other prose list in the system — these were chevrons, which is
+   the one bullet the sheets don't use. Block flow (relative li + absolute ::before),
+   never flex: a flex `li` would make its own column of every inline run, and step 4's
+   items are sentences. `--stonetop-spiral-icon` rather than the file, so the dark
+   scopes' light repaint of the icon reaches here too. */
 .stonetop-gm-loop-items {
 	margin: 2px 0 0;
 	padding: 0;
@@ -33117,12 +33181,86 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	color: var(--st-text-secondary);
 }
 .stonetop-gm-loop-items > li {
-	padding-left: 0.8em;
-	text-indent: -0.8em;
+	position: relative;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
 }
 .stonetop-gm-loop-items > li::before {
-	content: "\203A";
-	margin-right: 0.35em;
-	opacity: 0.5;
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
+}
+
+/* A stage name carries NO marker of its own (user, 2026-08-16). It is a heading over the
+   things that happen inside it, not one more bullet in a list — a spiral there would make
+   "Expedition" a sibling of "Preparations" when it is the thing they sit under. The
+   numbering stays off for the reason above, so the stage names simply run unmarked. */
+
+/* ── THE IMAGE ZOOM WINDOW ────────────────────────────────────────────────────
+   utils/image-zoom-window.js: one picture, at whatever size the reader wants it,
+   inside Foundry rather than in a browser tab. Opened from the Core Loop tab's
+   two flowcharts, which are page-sized line art and unreadable at tab size.
+
+   AppV1, so core lights the window for us (see the force-light note); the
+   viewport is pinned white either way, because what goes in it is ink on paper. */
+.stonetop-image-zoom .window-content {
+	display: flex;
+	flex-direction: column;
+	/* Stated rather than inherited from core's own `.window-content { flex: 1 }`: this window
+	   is nothing BUT its viewport, so a content box that sized to its content instead of to
+	   the frame would leave the picture at whatever height it opened with and the resize
+	   handle doing nothing. */
+	flex: 1 1 auto;
+	min-height: 0;
+	padding: 0;       /* the picture reaches the frame on every side */
+	overflow: hidden; /* the SCROLLPORT scrolls, not the window content around it */
+}
+
+/* No toolbar row (user, 2026-08-16): no magnifiers, no percentage readout, no line of
+   instructions — so the viewport IS the template's root, with nothing above it to be
+   stacked against and no wrapper in between restating the flex column it sits in.
+
+   The window the picture moves behind. `position: relative` is what the picture's
+   left/top are measured from, and `overflow: hidden` is the point of the exercise
+   (user, 2026-08-16): no scrollbars, and no scroll box pinning the picture to its
+   own edges. `touch-action: none` because the pan is ours — left to itself the
+   browser would pan this on a trackpad drag at the same time we do. */
+.stonetop-image-zoom-view {
+	position: relative;
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: hidden;
+	background: #fff;
+	cursor: grab;
+	touch-action: none;
+}
+
+.stonetop-image-zoom-view--panning { cursor: grabbing; }
+
+/* PLACED, not laid out: the width and both offsets come from the window in pixels
+   (utils/image-zoom-window.js#_applyZoom), which is what lets the picture sit
+   anywhere at all — half out of the frame, past a corner, wherever it was dragged.
+   Centring by margin or by flex could only ever put it where the box wanted it.
+   `left`/`top` are declared here so a picture that paints before the first offset
+   is computed still has somewhere to be. */
+.stonetop-image-zoom-img {
+	position: absolute;
+	left: 0;
+	top: 0;
+	display: block;
+	/* The width is set in pixels by the window, and both of these would fight
+	   it: core caps images inside an app at 100% of their box, and paints a 1px
+	   black border on them, a hairline that would ride the picture at every
+	   scale. */
+	max-width: none;
+	max-height: none;
+	border: none;
+	border-radius: 0;
+	user-select: none;
+	-webkit-user-drag: none;
 }
 

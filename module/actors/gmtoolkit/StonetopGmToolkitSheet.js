@@ -31,6 +31,7 @@ import { randomGmMove, postGmMove } from "../../gm-toolkit/random-gm-move.js";
 import { flashHighlight, spinHighlight } from "../../utils/flash-highlight.js";
 import { toggleDisclosure } from "../../utils/disclosure.js";
 import { gmDiagrams } from "../../gm-toolkit/gm-diagrams.js";
+import { openImageZoom } from "../../utils/image-zoom-window.js";
 import { runImportBookArtMacro } from "../../book2-art/macro.js";
 import { withGmPrepTabs } from "./gm-prep-tabs.js";
 import { localize } from "../../utils/i18n.js";
@@ -277,6 +278,21 @@ export function createStonetopGmToolkitSheetClass(Base) {
 		 */
 		_wireToolkitButtons(root) {
 			root.addEventListener("click", async (ev) => {
+				// A diagram, opened big. In OUR zoom window rather than a browser tab: the picture
+				// is a page of the GM's own rulebook, and reading it should not mean leaving the
+				// game to do it. Keyed by slug, so the two charts of the spread open as two windows
+				// and a second click on either raises the one already showing it.
+				const diagram = ev.target.closest(".stonetop-gm-diagram-zoom");
+				if (diagram) {
+					ev.preventDefault();
+					openImageZoom({
+						src: diagram.dataset.src,
+						title: diagram.dataset.caption,
+						key: diagram.dataset.slug,
+					});
+					return;
+				}
+
 				// Only rendered for a GM in the first place (the macro browses and writes files);
 				// asked again here because a delegated handler cannot rely on that.
 				if (ev.target.closest(".stonetop-gm-diagram-import")) {
