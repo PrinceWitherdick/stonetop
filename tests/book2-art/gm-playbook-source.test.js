@@ -164,6 +164,22 @@ describe("the diagrams the toolkit shows", () => {
 		expect(COMMAND).toContain("sheetX += viewport.width / scale;");
 	});
 
+	// ...and each page of a pair draws onto a sheet of ITS OWN before being composited in.
+	//
+	// pdf.js opens every render by filling the WHOLE target canvas with its background
+	// (`CanvasGraphics#beginDrawing`: `fillStyle = background || "#ffffff"; fillRect(0, 0, width,
+	// height)`), so two pages rendered into one context are not two pages — the second one's fill
+	// erases the first. The sheet came back blank down its left half: the entire core-loop chart,
+	// and the left page of all three regional maps, gone with nothing logged.
+	it("composites the pair rather than rendering both into one context", () => {
+		expect(COMMAND).toContain(`await p.render({ canvasContext: one.getContext("2d"), viewport }).promise;`);
+		expect(COMMAND).toContain("ctx.drawImage(one, Math.round(dx), Math.round(dy));");
+		// A lone page still renders straight into the crop at its exact fractional offset. That is
+		// every row of both rulebooks, and re-cutting all 545 of them a pixel over is not free.
+		expect(COMMAND).toContain("if (pages.length === 1) {");
+		expect(COMMAND).toContain("transform: [1, 0, 0, 1, dx, dy]");
+	});
+
 	// The offset is READ off the file rather than assumed, and the words that anchor it have to be
 	// the ones that appear on the flowchart page and nowhere else — "core loop" alone is also the
 	// agenda page and the contents list, which would anchor 22 pages early.
