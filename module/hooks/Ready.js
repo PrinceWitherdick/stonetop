@@ -1417,7 +1417,7 @@ function _buildBook2ArtReminderContent() {
 	return stonetopChatCard(
 		"Import Your Book Art",
 		`<div class="stonetop-roll-card-description">
-			<p>Own the Stonetop PDFs? You can rebuild the monster and location illustrations right here in your world &mdash; portraits, tokens, treasure and journal art, all filled in from your own books. Nothing is uploaded anywhere; the pictures are reconstructed locally on your machine.</p>
+			<p>Own the Stonetop PDFs? You can rebuild the monster and location illustrations right here in your world: portraits, tokens, treasure and journal art, all filled in from your own books. Nothing is uploaded anywhere; the pictures are reconstructed locally on your machine.</p>
 			<p>It's best to run this <strong>before your players join</strong>, and to <strong>close any journal you're editing</strong> first. You can re-run it any time from the <strong>Import Book Art</strong> macro in your Macro Directory.</p>
 		</div>
 		<div class="row stonetop-art-reminder__actions">
@@ -1466,7 +1466,7 @@ function _buildBookArtRebuildContent(count) {
 		`<div class="stonetop-roll-card-description">
 			<p>Some of the book art is now cut finer than the whole-page illustrations you imported. The
 			<strong>People of Stonetop</strong> gallery offers individual portraits carved out of the group
-			illustrations &mdash; one face per person, instead of a whole crowd scene &mdash; plus a square
+			illustrations, one face per person, instead of a whole crowd scene, plus a square
 			close-up of each face for the small round portraits on the character and steading sheets; and every
 			creature with art can carry a square framed for its <strong>token</strong>, so what stands on the
 			battle map is the beast rather than a blind slice through the middle of the page.
@@ -1475,7 +1475,7 @@ function _buildBookArtRebuildContent(count) {
 			<strong>You do not need your PDFs, and you do not need to re-import.</strong></p>
 			<p>They are cut from pictures already on your disk, so they come out a little smaller than a fresh
 			import would give. If you would rather have them at full size, re-run the
-			<strong>Import Book Art</strong> macro instead &mdash; either way, nothing already on disk is deleted.</p>
+			<strong>Import Book Art</strong> macro instead: either way, nothing already on disk is deleted.</p>
 		</div>
 		<div class="row stonetop-art-reminder__actions">
 			<button type="button" class="stonetop-rebuild-crops-run">
@@ -1518,11 +1518,11 @@ function _buildPartialArtImportContent(missing, total) {
 		"Finish Your Art Import",
 		`<div class="stonetop-roll-card-description">
 			<p>Your book art is imported, but <strong>${missing}</strong> of ${total} ${pictures} never made it
-			onto your disk &mdash; so a few bestiary entries, locations or portraits are sitting without their
+			onto your disk, so a few bestiary entries, locations or portraits are sitting without their
 			illustration. An import reports those failures only in the console, which is easy to miss.</p>
 			<p>Running <strong>Import Book Art</strong> again picks up just the ${pictures} that are missing:
 			everything already on disk is skipped, so it is a short run rather than another full one.
-			<strong>You will need your PDFs again</strong> &mdash; missing art has to come out of the books,
+			<strong>You will need your PDFs again</strong>: missing art has to come out of the books,
 			and nothing already imported is touched or deleted.</p>
 		</div>
 		<div class="row stonetop-art-reminder__actions">

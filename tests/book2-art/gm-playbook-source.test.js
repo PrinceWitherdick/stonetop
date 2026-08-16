@@ -148,6 +148,64 @@ describe("the diagrams the toolkit shows", () => {
 		expect(core.rect[2]).toBeLessThanOrEqual(flow.rect[0]);
 	});
 
+	// The playbook is published twice: the 12-page "spreads" PDF and a 1-up booklet, one printed
+	// page per portrait sheet, which is the download the publisher's page offers first. Read as a
+	// spread, a 1-up file takes its crops off the wrong page entirely, and every rect past the
+	// middle of a sheet falls off the paper and rasterises as blank white.
+	it("reads a 1-up playbook by stitching each sheet back out of its page pair", () => {
+		// Detected from the page's own shape, not the page count: a printing may add a cover.
+		expect(COMMAND).toContain("oneUp: vp.width < vp.height");
+		// Sheet S is 1-up pages 2S and 2S+1, offset by whatever front matter the file carries.
+		expect(COMMAND).toContain("const left = 2 * sheet + layout.offset;");
+		expect(COMMAND).toContain("return [left, left + 1];");
+		// ...and the pair is drawn onto ONE canvas, so a rect that crosses the gutter (all three
+		// regional maps do) still means what it says.
+		expect(COMMAND).toContain("const pages = Array.isArray(page) ? page : [page];");
+		expect(COMMAND).toContain("sheetX += viewport.width / scale;");
+	});
+
+	// The offset is READ off the file rather than assumed, and the words that anchor it have to be
+	// the ones that appear on the flowchart page and nowhere else — "core loop" alone is also the
+	// agenda page and the contents list, which would anchor 22 pages early.
+	it("anchors a 1-up file on the one page it can name by its own words", () => {
+		expect(COMMAND).toContain('words: ["core loop", "establish situation"]');
+		expect(COMMAND).toContain("if (!ONE_UP_ANCHOR.words.every((w) => text.includes(w))) continue;");
+		// Whitespace-insensitive: whether pdf.js hands a two-word label back as one item or two
+		// is a detail of the file, and a phrase must not stop matching because of it.
+		expect(COMMAND).toContain('.replace(/\\s+/g, " ").toLowerCase()');
+	});
+
+	// Only the playbook may be read 1-up. A rulebook's rows LIFT their art by size and placement on
+	// a numbered page, so a re-paginated file would not fail — it would fill a world with the wrong
+	// pictures, which is worse. Refused, and said out loud.
+	it("refuses a 1-up rulebook rather than mis-extracting it", () => {
+		expect(COMMAND).toMatch(/note: "sharper maps, plus the core loop & flow of play", oneUp: true/);
+		expect(COMMAND).toContain("if (layout.oneUp && !BOOKS[book]?.oneUp) {");
+		expect(COMMAND).toContain('is the 1-up edition (one page per sheet)');
+		// Book I and Book II must NOT carry the flag, or that guard passes them straight through.
+		expect(COMMAND).not.toMatch(/label: "Book I(I)?",[^}]*oneUp: true/);
+	});
+
+	// The flowchart sheet is the one page whose two editions are genuinely different layouts: the
+	// spread runs its text block to the gutter, the booklet insets it, and the charts are centred in
+	// whichever block they sit in. Same picture, moved — so those rows carry a second rect, and it
+	// has to stay the same SIZE as the first or the crop is no longer the same picture.
+	it("gives each diagram a 1-up rect of its own, same size and still side by side", () => {
+		for (const d of DIAGRAMS) {
+			const one = d.oneUp?.rect;
+			expect(Array.isArray(one) && one.length === 4, `${d.slug} has no 1-up rect`).toBe(true);
+			expect(one[2] - one[0], `${d.slug} 1-up width`).toBe(d.rect[2] - d.rect[0]);
+			expect(one[3] - one[1], `${d.slug} 1-up height`).toBe(d.rect[3] - d.rect[1]);
+		}
+		const [core, flow] = DIAGRAMS;
+		expect(core.oneUp.rect[2]).toBeLessThanOrEqual(flow.oneUp.rect[0]);
+		// Both inside the stitched sheet: two 396pt pages side by side.
+		expect(flow.oneUp.rect[2]).toBeLessThanOrEqual(792);
+		// And the row's rect is chosen by edition at the one place wants are built.
+		expect(COMMAND).toContain("rect: rectFor(d)");
+		expect(COMMAND).toContain("rect: rectFor(p)");
+	});
+
 	// Diagrams are always rendered, so unlike a pagemap there is no wiring-only case to skip —
 	// and a `continue` copied over from that loop would extract neither.
 	it("are extracted unconditionally, and published as an index", () => {

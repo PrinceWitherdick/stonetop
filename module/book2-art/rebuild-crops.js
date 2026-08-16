@@ -39,15 +39,6 @@ export const isCropSlug = (slug) => CROP_SUFFIX_RX.test(String(slug ?? ""));
 export const parentSlugOf = (slug) => String(slug ?? "").replace(CROP_SUFFIX_RX, "");
 
 /**
- * Four fractions in [0,1] describing a positive-area rect. Mirrors merge-art-picker.py.
- *
- * Same contract as a square's rect, and stated once in people-portraits.js — a crop and a square
- * are the same kind of thing, and two copies of this predicate would be two things to keep in
- * step with the Python.
- */
-export const isValidCrop = isValidRect;
-
-/**
  * The one planner behind all three of the rebuilds below.
  *
  * Every one of them asks the same question — "which fractional rects could I cut out of files
@@ -73,6 +64,12 @@ function plannedRectCuts(present, root, rows, { rectOf, outOf, parentOutOf }) {
 	// both at it deliberately, since the extraction is identical. Planning it once per row would
 	// decode, encode and upload the same pixels twice, and would make the offer print a number
 	// higher than the files the button actually writes.
+	//
+	// It follows that where two rows DO disagree — same destination, different rects — the FIRST
+	// row's framing is what lands. Before this rule was shared, the crop and square passes planned
+	// both and the last write won. Neither is more right than the other, and no such pair exists in
+	// the shipped manifest (checked across all people and monster rows); what matters is that the
+	// rule is now one rule, stated, rather than three passes that had each drifted to their own.
 	const planned = new Set();
 	for (const row of rows ?? []) {
 		const crop = rectOf(row);

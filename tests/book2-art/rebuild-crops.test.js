@@ -1,8 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
-	isCropSlug, parentSlugOf, isValidCrop, plannedCropRebuilds, plannedMonsterTokenRebuilds,
+	isCropSlug, parentSlugOf, plannedCropRebuilds, plannedMonsterTokenRebuilds,
 	splitSquaresBySource, artImageUrl,
 } from "../../module/book2-art/rebuild-crops.js";
+// The rect predicate the planner itself calls. rebuild-crops re-exported it under a second name
+// until the three passes were folded into one runner; the alias had no caller left but this file,
+// and a predicate reachable only from its tests is one a reader can change without changing
+// anything.
+import { isValidRect } from "../../module/book2-art/people-portraits.js";
 import { ArtInventory } from "../../module/book2-art/browse.js";
 import { BOOK2_ART_APPLY_MANIFEST } from "../../module/book2-art/manifest.js";
 
@@ -71,17 +76,17 @@ describe("crop slug parsing", () => {
 
 describe("crop rect validation", () => {
 	it("accepts a well-formed rect", () => {
-		expect(isValidCrop([0, 0.1, 0.5, 1])).toBe(true);
+		expect(isValidRect([0, 0.1, 0.5, 1])).toBe(true);
 	});
 
 	it("rejects malformed, inverted, zero-area and out-of-range rects", () => {
-		expect(isValidCrop(null)).toBe(false);
-		expect(isValidCrop([0, 0, 1])).toBe(false);
-		expect(isValidCrop([0.5, 0, 0.2, 1])).toBe(false);   // x1 <= x0
-		expect(isValidCrop([0.2, 0.4, 0.2, 0.9])).toBe(false); // zero width
-		expect(isValidCrop([-0.1, 0, 0.5, 1])).toBe(false);
-		expect(isValidCrop([0, 0, 1.2, 1])).toBe(false);
-		expect(isValidCrop(["a", 0, 1, 1])).toBe(false);
+		expect(isValidRect(null)).toBe(false);
+		expect(isValidRect([0, 0, 1])).toBe(false);
+		expect(isValidRect([0.5, 0, 0.2, 1])).toBe(false);   // x1 <= x0
+		expect(isValidRect([0.2, 0.4, 0.2, 0.9])).toBe(false); // zero width
+		expect(isValidRect([-0.1, 0, 0.5, 1])).toBe(false);
+		expect(isValidRect([0, 0, 1.2, 1])).toBe(false);
+		expect(isValidRect(["a", 0, 1, 1])).toBe(false);
 	});
 });
 
@@ -301,7 +306,7 @@ describe("against the real shipped manifest", () => {
 		// rebuild-crops is the only consumer of `crop` in the shipped projection; if
 		// gen-pack-macro ever stops emitting it, every rebuild silently plans nothing
 		expect(crops.length).toBeGreaterThan(0);
-		for (const c of crops) expect(isValidCrop(c.crop)).toBe(true);
+		for (const c of crops) expect(isValidRect(c.crop)).toBe(true);
 	});
 
 	it("never carries a crop on a whole-image portrait", () => {

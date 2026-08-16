@@ -218,7 +218,7 @@ export function injectHeaderToggle(sheet, noun, { editLabel, lockLabel, onChange
 	const label = document.createElement("label");
 	label.className = "stonetop-edit-toggle stonetop-header-toggle";
 	label.title = locked
-		? "Read-only — import to your world to edit"
+		? "Read-only: import to your world to edit"
 		: (sheet._editMode ? (lockLabel ?? `Lock ${noun}`) : (editLabel ?? `Edit ${noun}`));
 
 	const checkbox = document.createElement("input");

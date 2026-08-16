@@ -116,7 +116,7 @@ export async function runBookArtRebuildFromButton(btn) {
 		return res;
 	} catch (err) {
 		console.error("Stonetop | book art rebuild failed:", err);
-		ui.notifications?.error?.("Book art rebuild failed — see the console.");
+		ui.notifications?.error?.("Book art rebuild failed: see the console.");
 		if (btn) { btn.disabled = false; btn.innerHTML = label; }
 		return null;
 	}
