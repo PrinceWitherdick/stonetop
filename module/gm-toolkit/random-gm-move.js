@@ -1,5 +1,6 @@
 // "Give me one" — the randomizer beside each GM Moves heading. Picks a move out of that
-// section's list and whispers it to the GM.
+// section's list, and whispers it to the GM once the sheet's light has landed on it
+// (StonetopGmToolkitSheet `_spinToDrawnMove`).
 //
 // The paper playbook's lists are for reading down when there is time. This is for the other
 // case: the table has just handed the GM a golden opportunity, everyone is looking at them,
@@ -15,6 +16,7 @@
 // this system is written (pickRandomPortrait, rollOnTable, rollTerrain), so the tests pin the
 // roll rather than hoping for one.
 import { gmMoveSection } from "./gm-moves.js";
+import { bookPageRef } from "./book-ref.js";
 import { pickRandomExcluding } from "../utils/arrays.js";
 import { stonetopChatCard, moveChatCard } from "../utils/chat.js";
 import { escHtml } from "../utils/strings.js";
@@ -41,23 +43,55 @@ export function randomGmMove(sectionKey, { rng = Math.random, exclude = "" } = {
 }
 
 /**
- * Draw a move and whisper it to the GMs. Returns the move drawn, so the caller can hold it as
- * the next call's `exclude`; null when nothing was posted.
+ * The card's body: our gloss, then the book's own material for this move.
+ *
+ * ONE example, not all of them. The card is read mid-sentence with the table waiting, and three
+ * quoted paragraphs is a page to skim rather than a line to say; the sheet's own row expands to
+ * show the rest. Drawn at random so a GM who draws the same move next session gets a different
+ * one of its examples, which is also why `rng` is injectable.
+ *
+ * The example is a QUOTATION from Book I, marked up as one, and the page is printed under it.
+ * That matters twice over: it is the book's voice and not ours (it names the book's sample cast,
+ * so a GM reading "Rhianna" needs to know why), and it is the pointer to the full entry.
+ *
+ * Everything here goes through escHtml. `moveChatCard` renders its description RAW, because its
+ * usual caller passes move text that was escaped at storage; this text is plain prose out of
+ * module source and several lines of it carry quote marks.
+ */
+function gmMoveCardBody(move, rng) {
+	const parts = [`<p class="stonetop-gm-move-card-gloss">${escHtml(move.gloss)}</p>`];
+
+	const example = pickRandomExcluding(move.examples ?? [], { rng });
+	if (example) {
+		parts.push(`<blockquote class="stonetop-gm-move-card-example">${escHtml(example)}</blockquote>`);
+	}
+	if (move.hardness) {
+		parts.push(`<p class="stonetop-gm-move-card-hardness">${escHtml(move.hardness)}</p>`);
+	}
+	const pageRef = bookPageRef(move);
+	if (pageRef) parts.push(`<p class="stonetop-gm-move-card-page">${escHtml(pageRef)}</p>`);
+	return parts.join("");
+}
+
+/**
+ * Whisper a drawn move to the GMs. Returns the move posted; null when nothing went out.
+ *
+ * Takes the move rather than drawing one, because the two are separated by the walk: the sheet
+ * draws first (it needs the answer to know which row to land the light on), spins, and posts when
+ * the light arrives. A card that went out at the click would answer the question the animation is
+ * in the middle of asking.
  *
  * @param   {string} sectionKey
+ * @param   {import("./gm-moves.js").GmMove|null} move
  * @param   {object} [options]
- * @param   {() => number} [options.rng]
- * @param   {string} [options.exclude]
  * @param   {object} [options.speaker]  ChatMessage speaker data.
+ * @param   {() => number} [options.rng]  Which of the move's examples to quote.
  * @returns {Promise<import("./gm-moves.js").GmMove|null>}
  */
-export async function postRandomGmMove(sectionKey, { rng, exclude, speaker } = {}) {
-	// The section is resolved here for its `noteKey` (the second title line) and again inside
-	// randomGmMove for its moves. That is one `Array.find` over a three-row frozen table —
-	// cheaper than the private third function that existed to avoid it.
+export async function postGmMove(sectionKey, move, { speaker, rng } = {}) {
+	// Resolved for its `noteKey` — the card's second title line.
 	const section = gmMoveSection(sectionKey);
-	const move = randomGmMove(sectionKey, { rng, exclude });
-	if (!move) return null;
+	if (!move || !section) return null;
 	if (!globalThis.ChatMessage?.create) return null;
 
 	await ChatMessage.create({
@@ -65,13 +99,9 @@ export async function postRandomGmMove(sectionKey, { rng, exclude, speaker } = {
 		// the table a move"). The note rather than the section TITLE, which would read "Make a
 		// GM move / GM Moves"; the note says which list this came out of AND when that list
 		// applies, which is the half a GM mid-sentence actually needs.
-		//
-		// The gloss goes through escHtml because moveChatCard renders its description RAW (it
-		// is built for move text that was escaped at storage). These glosses are plain prose
-		// from module source, and one of them carries quote marks.
 		content: stonetopChatCard(
 			[localize("stonetop.gmToolkit.moves.randomTitle"), localize(section.noteKey)],
-			moveChatCard(move.name, escHtml(move.gloss)),
+			moveChatCard(move.name, gmMoveCardBody(move, rng)),
 			"stonetop-gm-move-chat-card",
 		),
 		// All GMs, which is what "GM only" means here: a second GM at the table is running the

@@ -8,8 +8,14 @@
       the ordered branch, so an edit made to the <ul> copy alone looks correct everywhere a reader
       is likely to check.
 
-      Invoked with the group's `items`, so `this` is the row list. `@root` still reaches the
-      sheet context for the shared "optional" label. --}}
+      Invoked with the group's `items`, so `this` is the row list; the shared "optional" tag is
+      passed in as `optionalLabel`. NOT reached for through `@root`, which would tie a partial
+      named for every GM-prep kind to one tab's context shape: rendered from the Sites or Hazards
+      tab, a page sheet or the canvas overlay — all of which the generic name invites, and reuse is
+      why it was extracted — every optional row would emit an empty <em> with no error to say so.
+
+      Context: the group's item rows ({name, optional, gloss}), plus
+        optionalLabel  the localized "optional" tag --}}
 {{#each this}}
-<li><strong>{{name}}</strong>{{#if optional}} <em class="steading-threats-guide-optional">{{@root.stonetop.threatOptionalLabel}}</em>{{/if}}<span>{{gloss}}</span></li>
+<li><strong>{{name}}</strong>{{#if optional}} <em class="steading-threats-guide-optional">{{../optionalLabel}}</em>{{/if}}<span>{{gloss}}</span></li>
 {{/each}}

@@ -24,11 +24,17 @@ import { mountScrollFrost } from "../../utils/scroll-frost.js";
 import { withSheetSizeMemory } from "../../utils/sheet-size.js";
 import { withSectionEditing } from "../../utils/section-editing.js";
 import { gmMoveSections } from "../../gm-toolkit/gm-moves.js";
-import { postRandomGmMove } from "../../gm-toolkit/random-gm-move.js";
+import { GM_AGENDA, GM_AGENDA_TEST, GM_PRINCIPLES } from "../../gm-toolkit/gm-agenda.js";
+import { bookPageRef } from "../../gm-toolkit/book-ref.js";
+import { moveBlurb } from "../../gm-toolkit/gm-move-blurb.js";
+import { randomGmMove, postGmMove } from "../../gm-toolkit/random-gm-move.js";
+import { flashHighlight, spinHighlight } from "../../utils/flash-highlight.js";
+import { toggleDisclosure } from "../../utils/disclosure.js";
 import { gmDiagrams } from "../../gm-toolkit/gm-diagrams.js";
 import { runImportBookArtMacro } from "../../book2-art/macro.js";
 import { withGmPrepTabs } from "./gm-prep-tabs.js";
 import { localize } from "../../utils/i18n.js";
+import { localizedOnce } from "../../utils/localized-once.js";
 import { stonetopSteadingHeaderButton } from "../../utils/world.js";
 
 /**
@@ -46,23 +52,30 @@ const HEADING_SELECTOR = ".stonetop-move-group-title, .steading-residents-headin
  * lot of rebuilding for a list of static reference text.
  *
  * Lazy rather than a top-level constant because `game.i18n` is not ready at import time; never
- * invalidated because the language cannot change without a reload.
+ * invalidated because the language cannot change without a reload. `localizedOnce` is what makes
+ * "not ready yet" safe rather than permanent, and freezes the result — see its header.
  */
-let _moveSections = null;
-function localizedMoveSections() {
-	_moveSections ??= gmMoveSections().map(section => ({
+const localizedMoveSections = localizedOnce(() =>
+	gmMoveSections().map(section => ({
 		key:        section.key,
 		title:      localize(section.titleKey),
 		note:       localize(section.noteKey),
 		collapseId: section.collapseId,
-		moves:      section.moves,
-		// The die beside the note. One string for all three, carried per-section rather than
-		// hung on the context beside the list, so the template needs no `../` walk out of its
-		// `{{#each}}` and a section stays one self-contained object.
+		// The moves, each with its book citation resolved and its book text cut into the part the
+		// row shows and the part it grows into (gm-move-blurb.js). A shallow copy per move rather
+		// than the frozen table's own objects, because the citation is localized and the table is
+		// not allowed to hold localized text (it is imported by the Expedition dialog too, and
+		// that module is loaded long before `game.i18n` exists).
+		moves:      section.moves.map(move => ({
+			...move, pageRef: bookPageRef(move), blurb: moveBlurb(move),
+		})),
+		// The die beside the note, and the tooltip on every entry's disclosure. Carried
+		// per-section rather than hung on the context beside the list, so a section stays one
+		// self-contained object: the heading partial then needs no `../` walk at all, and the
+		// entries need exactly one level of it.
 		randomizeTitle: localize("stonetop.gmToolkit.moves.randomize"),
-	}));
-	return _moveSections;
-}
+		expandTitle:    localize("stonetop.gmToolkit.moves.expand"),
+	})));
 
 export function createStonetopGmToolkitSheetClass(Base) {
 	// withSheetSizeMemory: reopen at the size this GM last left the toolkit at. This sheet has
@@ -91,6 +104,13 @@ export function createStonetopGmToolkitSheetClass(Base) {
 		// (see the character sheet's notes on `_element`), and `_lastRandomMove` collides with
 		// nothing in Application, FormApplication or ActorSheet.
 		_lastRandomMove = {};
+
+		// The walk currently running down a move list, if any, so a second click can abandon the
+		// first (see `_spinToDrawnMove`). One per SHEET rather than per section: the light is
+		// tab-wide, and a GM who clicks Homefront's die while Basic's is still travelling is
+		// asking for the second answer, not for both. Collides with nothing in Application,
+		// FormApplication or ActorSheet, which is checked because such a collision is silent.
+		_moveSpin = null;
 
 		static get defaultOptions() {
 			return foundry.utils.mergeObject(super.defaultOptions, {
@@ -185,6 +205,14 @@ export function createStonetopGmToolkitSheetClass(Base) {
 			// Built once for the life of the page — see `localizedMoveSections`.
 			context.stonetop.moveSections = localizedMoveSections();
 
+			// The agenda and the principles, which close the same tab. Straight off the frozen
+			// tables, plus the page citation resolved the same way the moves get theirs. The
+			// agenda's three goals carry no citation of their own: all three are printed on one
+			// page, and the heading already says which.
+			context.stonetop.agenda     = GM_AGENDA;
+			context.stonetop.agendaTest = GM_AGENDA_TEST;
+			context.stonetop.principles = GM_PRINCIPLES.map(p => ({ ...p, pageRef: bookPageRef(p) }));
+
 			// The Core Loop tab's two figures. Localized and resolved to a servable path at the
 			// boundary, same as the move sections, so the template gets plain data and the tests
 			// can assert on it without Handlebars. A diagram with no `src` is one this world has
@@ -244,7 +272,8 @@ export function createStonetopGmToolkitSheetClass(Base) {
 		 * Neither re-renders the sheet. The randomizer's move goes to CHAT, and the page it was
 		 * drawn from is reference that never changes; a render would cost a scroll jump for
 		 * nothing — the same reasoning the fold in section-editing.js gives for toggling classes
-		 * in place.
+		 * in place, and the same reason the drawn row is lit by a class rather than by re-rendering
+		 * the list with the draw marked on it.
 		 */
 		_wireToolkitButtons(root) {
 			root.addEventListener("click", async (ev) => {
@@ -256,17 +285,105 @@ export function createStonetopGmToolkitSheetClass(Base) {
 					return;
 				}
 
+				// An entry's own name, opening what the book prints under it. Before the
+				// randomizer check because both live inside the same move list, and this one is
+				// the more specific of the two.
+				const toggle = ev.target.closest(".stonetop-gm-move-toggle");
+				if (toggle) {
+					ev.preventDefault();
+					this._toggleMoveBook(toggle);
+					return;
+				}
+
 				const button = ev.target.closest(".stonetop-section-randomize");
 				if (!button) return;
 				ev.preventDefault();
 				const key = button.dataset.section;
-				const move = await postRandomGmMove(key, {
-					// The last move drawn from THIS section, so a second click always moves on.
-					exclude: this._lastRandomMove[key] ?? "",
-					speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-				});
-				if (move) this._lastRandomMove[key] = move.name;
+				// The last move drawn from THIS section, so a second click always moves on.
+				const move = randomGmMove(key, { exclude: this._lastRandomMove[key] ?? "" });
+				if (!move) return;
+
+				// Remembered at the DRAW rather than after the whisper. A second click supersedes
+				// this one before its card ever posts, and the move this walk was heading for still
+				// has to count as just-drawn — otherwise the click that interrupted it is free to
+				// land on the very same move.
+				this._lastRandomMove[key] = move.name;
+
+				// The whisper waits for the light to arrive. A card that posted at the click would
+				// answer the question the walk is still in the middle of asking, and a GM reading
+				// chat would have no reason to watch the list at all.
+				if (!await this._spinToDrawnMove(button, move.name)) return;
+				await postGmMove(key, move, { speaker: ChatMessage.getSpeaker({ actor: this.actor }) });
 			});
+		}
+
+		/**
+		 * Open or shut what Book I prints under one move: its description, the soft/hard line,
+		 * its examples of play, and the page they came off.
+		 *
+		 * A class toggle on the panel's `hidden`, not a re-render. The tab is thirty entries of
+		 * static reference text and a render would cost a scroll jump, which is the same reasoning
+		 * the fold in section-editing.js gives. It also means the open entry does NOT survive a
+		 * re-render, and this sheet re-renders on every prep-page write in the world: a GM who
+		 * opens an entry and then edits a threat finds it shut again. Persisting it would mean a
+		 * per-entry fold record thirty deep, per user, for a disclosure whose whole purpose is to
+		 * be read once and closed.
+		 *
+		 * TWO parts move together, and that is why the selector names both: the remainder of the
+		 * lead paragraph, which lives INSIDE the button and grows the visible sentence in place,
+		 * and the panel under it. One call rather than two, so the halves of one blurb cannot end
+		 * up in different states.
+		 *
+		 * The `hidden`/`aria-expanded` pair is moved by utils/disclosure.js, shared with the
+		 * Threats tab's type list, because moving one without the other leaves the panel open
+		 * while a screen reader is told it is shut and nothing visible says so.
+		 */
+		_toggleMoveBook(toggle) {
+			toggleDisclosure(toggle, ".stonetop-gm-move-rest, .stonetop-gm-move-book");
+		}
+
+		/**
+		 * Run the light down this section's entries, land it on the one drawn, and let it fade
+		 * (utils/flash-highlight.js).
+		 *
+		 * The move goes to CHAT, which is where it is read. This answers the other half of the
+		 * question — where in a list of thirteen it came from — and buys the list a moment of the
+		 * GM's attention on the way past: the entries the light crosses are the ones the die did
+		 * not give, which is the reading of the list nobody does mid-sentence.
+		 *
+		 * WALKED within the clicked section, but doused across the whole tab. The walk belongs to
+		 * one list, because a light running through Homefront's entries off a click on the Basic
+		 * die would be showing moves that were never in the draw; the dousing is tab-wide because
+		 * only ever one row should be lit, and two rows fading on two clocks is two answers to
+		 * "what did that just give me?".
+		 *
+		 * Matched on `data-move` by comparing the dataset rather than by building an attribute
+		 * SELECTOR: these names are printed prose ("Offer an opportunity (with or without a
+		 * cost)"), and interpolating one into a selector would need `CSS.escape` to survive the
+		 * brackets and the slash — a scan of thirteen <li> is cheaper than that is careful.
+		 *
+		 * @returns {Promise<boolean>}  false if a later click superseded this one, which is the
+		 *          caller's cue to post nothing: one landing, one card. True when there was no
+		 *          walk to make at all (a row not on the page, a folded section, motion turned
+		 *          off) — the whisper is the part that must still go out.
+		 */
+		async _spinToDrawnMove(button, name) {
+			const scope = button.closest(".stonetop-gm-toolkit-moves");
+			const rows = [...(button.closest(".stonetop-move-group")?.querySelectorAll(".stonetop-gm-move") ?? [])];
+			const target = rows.findIndex(li => li.dataset.move === name);
+			if (target < 0) return true;
+
+			// A walk still in flight is abandoned where it stands. Its `done` resolves false, so the
+			// click that started it drops out before posting and this click's card is the only one.
+			// A walk left running by a CLOSE is not cancelled here: its timers only touch detached
+			// nodes, and the card the GM asked for still arrives.
+			this._moveSpin?.cancel();
+			const spin = spinHighlight(rows, target, { scope });
+			this._moveSpin = spin;
+
+			if (!await spin.done) return false;
+			flashHighlight(rows[target], { scope });
+			return true;
 		}
 	};
 }

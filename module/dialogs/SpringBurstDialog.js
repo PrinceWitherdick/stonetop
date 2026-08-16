@@ -43,7 +43,7 @@ const _OMEN_TIERS = [
 	},
 	{
 		key:  "partial",
-		text: "They pick whatever gain they like &mdash; you'll pair it with a <strong>threat</strong> to the steading to build your starting situation.",
+		text: "They pick whatever gain they like: you'll pair it with a <strong>threat</strong> to the steading to build your starting situation.",
 	},
 	{
 		key:  "failure",
@@ -57,7 +57,7 @@ const _STEPS = [
 		key:   "spring",
 		title: "Spring bursts forth",
 		icon:  "fa-seedling",
-		body:  `<p>The introductions are done and the maps are marked. Tell the players that <strong>spring has just broken forth upon the land</strong> &mdash; the snows recede, the soil softens, and Stonetop stirs to life.</p>
+		body:  `<p>The introductions are done and the maps are marked. Tell the players that <strong>spring has just broken forth upon the land</strong>: the snows recede, the soil softens, and Stonetop stirs to life.</p>
 				<p>This last step turns everything they've given you into the seed of your first adventure.</p>`,
 	},
 	{
@@ -73,14 +73,14 @@ const _STEPS = [
 		showTiers: true,
 		showGains: true,
 		body:     `<p>The players decide together <strong>whose character is the most hopeful</strong>; that character makes the <strong>Seasons Change</strong> move (under <em>Homefront Moves</em> on the Moves &amp; Gear handout): they <strong>roll +Fortunes</strong>, which is <strong>+1</strong> this first spring.</p>
-				<p>You're looking for a <strong>plot hook</strong> &mdash; read the omen for what each result hands you, and tick whatever gain they pick.</p>`,
+				<p>You're looking for a <strong>plot hook</strong>: read the omen for what each result hands you, and tick whatever gain they pick.</p>`,
 		qa:       {
 			kind:        "single",
 			key:         "hook",
-			prompt:      "What hook does it open &mdash; the thread for your first adventure?",
+			prompt:      "What hook does it open, the thread for your first adventure?",
 			placeholder: "Opportunities or threats…",
 		},
-		footer:   `<p>Note the result and update the steading playbook if needed, then <strong>start to wrap up</strong>. It'll be tempting to leap straight into play &mdash; <strong>don't</strong>; give yourself time to mull over everything the players handed you and to prepare the first expedition.</p>`,
+		footer:   `<p>Note the result and update the steading playbook if needed, then <strong>start to wrap up</strong>. It'll be tempting to leap straight into play: <strong>don't</strong>; give yourself time to mull over everything the players handed you and to prepare the first expedition.</p>`,
 	},
 	{
 		key:   "question",
@@ -88,7 +88,7 @@ const _STEPS = [
 		icon:  "fa-comment-dots",
 		body:  `<p>Before everyone goes, ask each player:</p>
 				<blockquote>What excites you the most about playing your character?</blockquote>
-				<p>Whatever they tell you, <strong>write it down</strong> &mdash; and try to work it into the first adventure.</p>`,
+				<p>Whatever they tell you, <strong>write it down</strong>, and try to work it into the first adventure.</p>`,
 		qa:    {
 			kind:        "perPc",
 			key:         "excites",
@@ -104,9 +104,9 @@ const _STEPS = [
 		isFinal: true,
 		body:    `<p>Once you've broken up for the night, turn the evening's notes into your first adventure:</p>
 				<ul>
-					<li><strong>Organize your notes</strong> &mdash; record each NPC you established (with an occupation, ties, and maybe a trait) in the steading's Residents and Notable Neighbors.</li>
+					<li><strong>Organize your notes</strong>: record each NPC you established (with an occupation, ties, and maybe a trait) in the steading's Residents and Notable Neighbors.</li>
 					<li><strong>Build a timeline</strong> of the events the players established, oldest to newest, and reconcile any contradictions.</li>
-					<li><strong>Identify threats</strong> &mdash; the sources of trouble lurking in those notes.</li>
+					<li><strong>Identify threats</strong>: the sources of trouble lurking in those notes.</li>
 					<li>Keep an <strong>&ldquo;I wonder&hellip;&rdquo;</strong> list of open questions to answer in play.</li>
 					<li><strong>Plan the first adventure</strong> from your threats, that &ldquo;I wonder&hellip;&rdquo; list, and the Seasons Change result.</li>
 				</ul>`,
@@ -279,7 +279,7 @@ export class SpringBurstDialog extends StepperDialog {
 	// chat). The dialog never sees the tier, so flag the roll as delegated and show the
 	// gains checklist.
 	_askToRoll() {
-		postSeasonsRollPrompt({ alias: "Seasons Change — Spring", fortunes: FIRST_SPRING_FORTUNES });
+		postSeasonsRollPrompt({ alias: "Seasons Change: Spring", fortunes: FIRST_SPRING_FORTUNES });
 		postSeasonsChangeReminder("spring");
 		this._delegatedRoll = true;
 		this.render(false);

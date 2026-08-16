@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import Handlebars from "handlebars";
 import { readRepo as read, readCss } from "../fakes/css.js";
 import {
 	THREAT_GUIDANCE_SECTIONS, threatGuidanceSections,
@@ -21,13 +22,41 @@ const PREP_JS     = read("module/actors/gmtoolkit/gm-prep-tabs.js");
 const CSS         = readCss();
 
 // Every fold caret this tab asks for, however it asks. A heading either invokes section-collapse
-// directly or goes through section-heading, which forwards `collapse` and `defaultCollapsed` to
-// it — the two spellings mean exactly the same thing to the fold walk, so the checks below read
-// both rather than pinning one.
+// directly (`defaultCollapsed`) or goes through section-heading (`startCollapsed`, which it
+// forwards) — the two spellings mean exactly the same thing to the fold walk, so the checks below
+// read both rather than pinning one.
+//
+// `startsCollapsed` is answered by RENDERING rather than by grepping the invocation, because the
+// two are not the same question: Handlebars merges a partial's hash into the caller's context, so
+// a section can start folded because of a field on the object being rendered and never say
+// `startCollapsed=` anywhere. Grepping the text cannot see that; the emitted attribute can.
 const foldCarets = (hbs) => [...hbs.matchAll(/\{\{>\s*"stonetop\.section-(?:collapse|heading)"([\s\S]*?)\}\}/g)]
 	.map(m => m[1])
 	.filter(body => /\bcollapse=/.test(body))
-	.map(body => ({ id: body.match(/\bcollapse=(\S+)/)[1], rest: body }));
+	.map(body => ({
+		id: body.match(/\bcollapse=(\S+)/)[1],
+		rest: body,
+		startsCollapsed: renderHeading(body).includes('data-default-collapsed="true"'),
+	}));
+
+// One invocation, rendered through the REAL section-heading and section-collapse against an EMPTY
+// context, so what comes out is what the invocation itself asked for.
+const HEADING_HBS  = read("templates/actor/partials/section-heading.hbs");
+const COLLAPSE_HBS = read("templates/actor/partials/section-collapse.hbs");
+function renderHeading(body) {
+	const hb = Handlebars.create();
+	hb.registerPartial("stonetop.section-heading", HEADING_HBS);
+	hb.registerPartial("stonetop.section-collapse", COLLAPSE_HBS);
+	hb.registerHelper("localize", (k) => String(k));
+	// The randomize / search controls are chrome these assertions do not care about.
+	hb.registerPartial("stonetop.section-randomize", "");
+	hb.registerPartial("stonetop.tab-search-control", "");
+	// The context holds ONE key: whatever the invocation's `collapse=` names, so the caret is
+	// emitted at all. Everything else is absent, so anything else in the output was asked for.
+	const id = body.match(/\bcollapse=(\S+)/)?.[1] ?? "";
+	const ctx = /^["']/.test(id) ? {} : { [id]: "x" };
+	return hb.compile(`{{> "stonetop.section-heading" ${body}}}`)(ctx);
+}
 
 const ALL_ITEMS = [
 	...THREAT_WRITEUP_STEPS, ...THREAT_WRITEUP_MOMENTS,
@@ -154,8 +183,7 @@ describe("the tab renders the reference", () => {
 	it("draws every section, each folding under its own id", () => {
 		expect(THREATS_HBS).toContain("{{#each stonetop.threatGuidance}}");
 		// Through the shared heading partial, which forwards both to section-collapse.
-		expect(foldCarets(THREATS_HBS).find(c => c.id === "collapseId")?.rest)
-			.toContain("defaultCollapsed=true");
+		expect(foldCarets(THREATS_HBS).find(c => c.id === "collapseId")?.startsCollapsed).toBe(true);
 	});
 
 	// Reference, not prep. Expanded by default it would be five screens of chapter under the
@@ -165,10 +193,12 @@ describe("the tab renders the reference", () => {
 		const reference = carets.filter(c => /collapseId|threatGuideTypes/.test(c.id));
 		const cards     = carets.filter(c => !/collapseId|threatGuideTypes/.test(c.id));
 		expect(reference).toHaveLength(2); // the guidance loop, plus the types section
-		for (const c of reference) expect(c.rest, c.id).toContain("defaultCollapsed=true");
-		// The proximity trackers and Hazards hold the GM's actual prep and stay open.
+		for (const c of reference) expect(c.startsCollapsed, c.id).toBe(true);
+		// The proximity trackers and Hazards hold the GM's actual prep and stay open. Asserted on
+		// the RENDER, so a section that starts shut because of an ambient context field — not
+		// because anything here asked it to — fails here rather than folding the GM's prep away.
 		expect(cards.length).toBeGreaterThan(0);
-		for (const c of cards) expect(c.rest, c.id).not.toContain("defaultCollapsed");
+		for (const c of cards) expect(c.startsCollapsed, c.id).toBe(false);
 	});
 
 	// The fold walk claims a heading's FOLLOWING SIBLINGS until it meets the next heading
@@ -204,6 +234,39 @@ describe("the tab renders the reference", () => {
 		// Blurbs live in threat-types.js and nowhere else.
 		for (const t of THREAT_TYPES.slice(0, 3)) {
 			expect(THREATS_HBS, t.id).not.toContain(t.blurb);
+		}
+	});
+
+	// Each type's own GM moves, behind a disclosure on its name. The create dialog offers the same
+	// list as a checklist while you WRITE a threat up; this is where you read what one already on
+	// the table would do next, which is the question the book prints these lists for (p.283).
+	//
+	// Silent both ways: a type row with no moves is a caret that opens nothing, and a panel that
+	// renders open turns an eight-line reference into ninety.
+	it("opens each type's own moves off its name", () => {
+		expect(PREP_JS).toMatch(/moves:\s*t\.suggestedMoves/);
+		expect(THREATS_HBS).toContain('class="steading-threat-type-toggle" aria-expanded="false"');
+		expect(THREATS_HBS).toMatch(/<ul class="steading-threat-type-moves" hidden>/);
+		expect(THREATS_HBS).toContain("{{#each moves}}");
+		// Toggled by the shared helper, so the hidden/aria pair cannot drift from the Moves tab's.
+		expect(PREP_JS).toContain('toggleDisclosure(typeToggle, ".steading-threat-type-moves")');
+		// The caret matches the GM moves list: same size, same ink, same right edge. Two
+		// disclosures on one sheet that open the same way should not read as two affordances.
+		const caret = CSS.match(/\.stonetop \.steading-threat-type-toggle::after\s*\{([^}]*)\}/)?.[1];
+		expect(caret, "no caret rule for a threat type").toBeTruthy();
+		expect(caret).toMatch(/position:\s*absolute/);
+		expect(caret).toMatch(/right:\s*0/);
+		expect(caret).toMatch(/font-size:\s*1\.[2-9]/);
+		expect(caret).toMatch(/color:\s*var\(--st-text\)/);
+		// Positioned against the ROW, which is what has the right edge worth aligning to: the
+		// button is only as wide as the type's name. The row has to stay the containing block.
+		expect(CSS).toMatch(/\.stonetop \.steading-threats-guide-list > li \{[^}]*position:\s*relative/);
+		// ...with the lane kept clear of the name and the blurb both.
+		expect(CSS).toMatch(/\.stonetop \.steading-threat-type-list > li \{[^}]*padding-right:\s*1\.4em/);
+		// Every type has moves to show; the catalog is the one place they live.
+		for (const t of THREAT_TYPES) {
+			expect(t.suggestedMoves.length, `${t.id} has no moves`).toBeGreaterThanOrEqual(6);
+			expect(THREATS_HBS, t.id).not.toContain(t.suggestedMoves[0]);
 		}
 	});
 
@@ -248,12 +311,23 @@ describe("the tab's chrome is localized", () => {
 	it("marks optional steps with a real element, not CSS content", () => {
 		// The guidance rows live in their own partial now (one copy for the ordered list and the
 		// plain one alike), so the element is asserted where it is actually written.
-		expect(GUIDE_ITEMS_HBS).toContain('<em class="steading-threats-guide-optional">{{@root.stonetop.threatOptionalLabel}}</em>');
+		expect(GUIDE_ITEMS_HBS).toContain('<em class="steading-threats-guide-optional">{{../optionalLabel}}</em>');
 		// Localized in `threatReference()` with the rest of the tab's static chrome, and published
 		// from there — the point being that it is a localize() call and not a CSS `content:`.
 		expect(PREP_JS).toMatch(/optionalLabel:\s*localize\(/);
 		expect(PREP_JS).toMatch(/st\.threatOptionalLabel\s*=\s*reference\.optionalLabel/);
 		expect(CSS).not.toMatch(/content:\s*"optional"/);
+	});
+
+	// The rows partial is named for every GM-prep kind, so the label it prints has to arrive as a
+	// parameter. Reached for through `@root` it would resolve on this tab and nowhere else, and
+	// the failure is an empty <em> with no error — the very tag the test above exists to protect.
+	it("is handed the optional label rather than reaching for the sheet context", () => {
+		// The MARKUP, not the docblock — which says the word while explaining why it is not used.
+		expect(GUIDE_ITEMS_HBS.replace(/\{\{!--[\s\S]*?--\}\}/g, "")).not.toContain("@root");
+		const calls = [...THREATS_HBS.matchAll(/\{\{>\s*"stonetop\.gm-prep-guide-items"([^}]*)\}\}/g)];
+		expect(calls.length).toBeGreaterThan(0);
+		for (const [, args] of calls) expect(args).toMatch(/\boptionalLabel=/);
 	});
 });
 

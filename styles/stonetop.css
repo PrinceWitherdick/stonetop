@@ -3566,6 +3566,18 @@ input.stonetop-name-field {
 	opacity: 1;
 }
 
+/* The one POSITIVE gate in this block, and it outranks the allow-list above by sitting after it
+   at the same specificity (0,2,0).
+   A control marked `data-readonly-gated` must not be clickable while its panel is only being
+   read — the GM-prep trash, which is the only control on those tabs that destroys a write-up.
+   Stated as a mark the control WEARS rather than as a line it is missing from: kept dead by
+   omission, the trash would go live the day someone gave it a shared look-class that IS on the
+   list, which is a plausible thing to do to a button sitting beside the pencil in the same
+   toolbar. gm-prep-tabs.js checks the same thing in the handler; this is the other half. */
+.stonetop-readonly [data-readonly-gated] {
+	pointer-events: none;
+}
+
 .stonetop-readonly .steading-list-delete {
 	display: none;
 }
@@ -3643,6 +3655,10 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	border: 0;
 	border-bottom: 1px solid rgba(159, 146, 117, 0.4);
 	background: rgba(159, 146, 117, 0.08);
+	/* DECLARED, not inherited. See the note on `.cell__title` below: the card's paper is pinned
+	   parchment in every theme, so a heading left to core's ink turns bone-white on it the moment
+	   the user picks a dark interface. `--st-text` is the token that follows the CARD. */
+	color: var(--st-text);
 }
 
 :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-chat-move-description {
@@ -3653,6 +3669,39 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 }
 :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-chat-move-description p { margin: 0 0 4px; }
 :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-chat-move-description p:last-child { margin-bottom: 0; }
+/* THE WHISPERED GM MOVE (module/gm-toolkit/random-gm-move.js). Four parts, in the
+   order a GM reads them under pressure: our one-line gloss, one of the book's own examples of
+   the move being made, the soft/hard line where the book gives one, and the page.
+
+   The EXAMPLE is the reason the card is worth reading rather than glancing at, and it is set as
+   a quotation because that is what it is: Book I's words, in Book I's voice, naming Book I's
+   sample cast (Rhianna, Caradoc, Blodwen). A GM has to be able to tell at sight that the line is
+   a model to imitate and not a fact about their own table. Hence the rule down its left, the
+   italic, the quote marks. The page under it says where to go for the rest.
+
+   The card is whispered to the GMs, so none of this is ever read by a player. */
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-gm-move-card-gloss {
+	font-weight: 600;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-gm-move-card-example {
+	margin: 6px 0;
+	padding: 0 0 0 8px;
+	border: 0;
+	border-left: 2px solid rgba(159, 146, 117, 0.55);
+	font-style: italic;
+	color: var(--st-text-secondary);
+}
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-gm-move-card-example::before { content: "\201C"; }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-gm-move-card-example::after  { content: "\201D"; }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-gm-move-card-hardness {
+	margin: 6px 0 4px;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-gm-move-card-page {
+	margin: 4px 0 0;
+	font-size: 0.9em;
+	opacity: 0.7;
+}
+
 /* The empowered-effect banner, on the card only when the player paid the extra consequence
    for it (see _postInvocationCard). A warm sun-tinted band so the reader can tell at a glance
    that this Invocation came at a price and the text under it is the stronger effect. */
@@ -4215,6 +4264,25 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	background: rgba(159, 146, 117, 0.08);
 }
 
+/* The colour is the load-bearing declaration here, not the font.
+
+   A Stonetop card's paper is pinned: the `:has()` rule further up fills the whole message with
+   sheet-bg.webp over `--stonetop-bg`, in EVERY theme, because the card is meant to read as a page
+   out of the book rather than as a chat bubble. Its ink therefore has to be pinned with it. This
+   heading is an <h2>, and core paints an <h2> from `--color-text-emphatic`, which is near-black
+   under a light interface and near-white under a dark one (`body.theme-dark`, foundry2.css). Left
+   to inherit, the title of every card in this system — the GM Toolkit's whispered move, a stat
+   roll, a journal table draw — went bone-white on bone parchment for any GM running the dark
+   interface, which is to say it vanished while the body prose under it (which does declare its
+   colour, `--st-text-body`) stayed perfectly readable.
+
+   `--st-text` rather than a literal #222, because the token is what the black card redefines: an
+   undead PC's insert inverts the paper and flips the whole ink scale with it (see "What the undead
+   say, said on black"), and a hard-coded near-black would go invisible there instead. One token,
+   both directions.
+
+   The dying card colours its own title from its ember further down the file, later and heavier, so
+   that one still wins. */
 :is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .cell__title {
 	font-family: var(--font-stonetop, "Signika", serif);
 	font-size: var(--font-size-16);
@@ -4222,6 +4290,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	line-height: 1.2;
 	margin: 0;
 	border: 0;
+	color: var(--st-text);
 }
 
 /* Secondary title lines (the section/table breadcrumb below a roll-table card's
@@ -27636,7 +27705,9 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 /* The eight types wear their own accent as the tick down the left edge, the one place
    the card chrome spends colour. The inline `--threat-accent` per row comes from the
    catalog, so the tick and the card a threat of that type draws agree. */
-.stonetop .steading-threat-type-list > li { padding-left: 0.85em; }
+/* Room on the left for the accent tick, and on the right for the caret lane the
+   toggle's arrow sits in, kept clear of the name and the blurb both. */
+.stonetop .steading-threat-type-list > li { padding-left: 0.85em; padding-right: 1.4em; }
 .stonetop .steading-threat-type-list > li::before {
 	content: "";
 	/* Declared here rather than inherited from the dash rule above, which no longer matches
@@ -27649,6 +27720,83 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	border-radius: 2px;
 	background: var(--threat-accent, var(--st-text-secondary));
 	opacity: 0.8;
+}
+/* The type name is a BUTTON: clicking it opens that type's own GM moves, the list the
+   book prints for "what would this threat do next?". Stripped back to the text it
+   wraps, the same way the GM move entries' toggle is, because core sets
+   `.app button { width: 100% }` and (on v13) a display:flex that would put the name in
+   a centred row of its own. Inline-block, not block: the blurb sits on the same line. */
+.stonetop .steading-threat-type-toggle {
+	display: inline;
+	width: auto;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: none;
+	box-shadow: none;
+	font: inherit;
+	line-height: inherit;
+	color: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+.stonetop .steading-threat-type-toggle:hover strong {
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+/* The same caret as the GM moves list, in the same place and at the same weight:
+   it is the same control, and two disclosures on one sheet that open the same way
+   should not look like two different affordances.
+
+   Positioned against the ROW rather than the button, which is only as wide as the
+   type's name: the row is what has a right edge worth aligning to. The row is
+   already `position: relative` for its accent tick, and `top` matches its own
+   padding so the caret sits on the name's line. */
+.stonetop .steading-threat-type-toggle::after {
+	content: "\203A";                       /* › */
+	position: absolute;
+	right: 0;
+	top: 3px;
+	font-size: 1.5em;
+	line-height: 1.1;
+	color: var(--st-text);
+	opacity: 0.8;
+	transition: transform 120ms ease, opacity 120ms ease;
+}
+.stonetop .steading-threat-type-toggle:hover::after {
+	opacity: 1;
+}
+.stonetop .steading-threat-type-toggle[aria-expanded="true"]::after {
+	transform: rotate(90deg);
+	opacity: 1;
+}
+/* That type's moves. Set as a quiet inner list rather than as more of the guide list
+   around it: these are things to SAY, sat under a description of what the type is, and
+   the two read very differently if they look the same. Two columns where there is room,
+   because several types carry a dozen and a dozen full-width lines pushes the seven
+   types below it off the screen. */
+.stonetop .steading-threat-type-moves {
+	margin: 4px 0 2px;
+	padding: 0;
+	list-style: none;
+	columns: 2;
+	column-gap: 16px;
+	font-size: 0.94em;
+	color: var(--st-text-secondary);
+}
+.stonetop .steading-threat-type-moves > li {
+	break-inside: avoid;
+	padding-left: 0.7em;
+	text-indent: -0.7em;
+}
+.stonetop .steading-threat-type-moves > li::before {
+	content: "\203A";
+	margin-right: 0.3em;
+	opacity: 0.5;
+}
+@media (max-width: 720px) {
+	.stonetop .steading-threat-type-moves { columns: 1; }
 }
 
 .stonetop .threat-card-wrap { position: relative; }
@@ -32199,6 +32347,17 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	break-inside: avoid;
 	border-bottom: 1px solid var(--st-card-rule);
 	padding: 6px 0;
+	/* The name's metrics and the gap under it, named once because THREE rules need
+	   the same numbers: the name sets them, the blurb's top margin is the gap, and
+	   the caret is lifted out of the blurb and onto the name's line by exactly the
+	   two of them added together. Written as literals in each place, a later change
+	   to the name's size would leave the caret floating between the two lines with
+	   nothing failing. `--st-gm-caret-lane` is the clear strip the caret sits in,
+	   which the name pads for so a long one cannot run under it. */
+	--st-gm-name-size:  calc(0.9rem * var(--stonetop-font-scale, 1));
+	--st-gm-name-line:  1.3;
+	--st-gm-blurb-gap:  2px;
+	--st-gm-caret-lane: calc(1.2rem * var(--stonetop-font-scale, 1));
 }
 
 /* Note there is NO `:last-child` exception to the rule above, deliberately.
@@ -32211,8 +32370,12 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    being sized to content the way a flex row would. */
 .stonetop-gm-toolkit-moves .stonetop-gm-move-name {
 	display: block;
-	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
-	line-height: 1.3;
+	font-size: var(--st-gm-name-size);
+	line-height: var(--st-gm-name-line);
+	/* The caret's lane, kept clear. Four of the thirty names wrap in a 368px column
+	   ("Tell them the consequences/requirements (then ask)"), and without this the
+	   second line would run under the arrow. */
+	padding-right: var(--st-gm-caret-lane);
 }
 
 /* The gloss, in italic secondary ink so it stays subordinate to the move it
@@ -32225,6 +32388,244 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	line-height: 1.4;
 	font-style: italic;
 	color: var(--st-text-secondary);
+}
+
+/* THE AGENDA, closing the tab. Three goals, each with the book's own paragraph, and
+   the test under them. Numbered, unlike every other list on this tab: the book is
+   emphatic that there are three and no more ("these three goals, and no others"),
+   and a count is the one thing a bullet cannot say.
+
+   Single column, deliberately, where the move lists are two: these are paragraphs
+   rather than entries, and a paragraph in a 368px column is a very long way down. */
+.stonetop-gm-toolkit-moves .stonetop-gm-agenda-list {
+	margin: 0;
+	padding-left: 1.4em;
+	list-style: decimal;
+}
+.stonetop-gm-toolkit-moves .stonetop-gm-agenda-goal {
+	margin-bottom: 8px;
+}
+.stonetop-gm-toolkit-moves .stonetop-gm-agenda-name {
+	display: block;
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
+	line-height: 1.3;
+}
+.stonetop-gm-toolkit-moves .stonetop-gm-agenda-detail {
+	margin: 2px 0 0;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	line-height: 1.45;
+	color: var(--st-text-secondary);
+}
+/* The test the book prints under the three. Set apart from the goals it applies to,
+   because it is the instruction for using them and not a fourth one. */
+.stonetop-gm-toolkit-moves .stonetop-gm-agenda-test {
+	margin: 8px 0 0;
+	padding-top: 6px;
+	border-top: 1px solid var(--st-card-rule);
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	line-height: 1.45;
+	font-style: italic;
+}
+
+/* The thirteen principles wear the move entry's own classes, so they take its two
+   columns, its hairlines and its font with nothing restated. What they do NOT have
+   is a disclosure: each is one line already, and a caret on a row that opens nothing
+   is a promise the row cannot keep. The page citation sits inline instead.
+
+   With no caret there is no lane to keep clear either, so the name takes the full
+   column back. Written as an override rather than by asking which rows have a
+   toggle, because a modifier that undoes one declaration is cheaper to read than a
+   `:has()` on every name in the list. It sits AFTER the base rule, which is what
+   makes it win at equal specificity. */
+.stonetop-gm-toolkit-moves .stonetop-gm-principle .stonetop-gm-move-name {
+	padding-right: 0;
+}
+.stonetop-gm-toolkit-moves .stonetop-gm-principle .stonetop-gm-move-page {
+	margin-top: 2px;
+}
+
+/* THE BLURB is the button. The line under the name is the book's first sentence,
+   and opening the entry continues that sentence in place, so what is clickable is
+   the text itself rather than a separate control beside it.
+
+   Everything down to `cursor` strips the button back to the text it wraps: core
+   sets `.app button { width: 100% }` and, on v13, a display:flex that would lay
+   the sentence out as a centred flex row. The rest is what the gloss line used to
+   declare, moved here because this line took its place: same size, same italic,
+   same secondary ink, so the row still reads as a note under a name.
+
+   No hover underline on the text. This line is a paragraph to read, not a link,
+   and underlining a whole sentence on hover fights the reading; the caret at the
+   end of the row does the answering instead. A fill is out for the same reason a
+   selection is: nothing here is selected.
+
+   `position: relative` is what the caret hangs off. It has to be the BUTTON and
+   not the row: the row's padding box grows by 6px either side while a draw is lit
+   (see the flash band below), so a caret pinned to the row would slide out and
+   back over those five seconds. The button's own edges never move, because the
+   flash keeps the content box exactly where it was. */
+.stonetop-gm-toolkit-moves .stonetop-gm-move-toggle {
+	position: relative;
+	display: block;
+	width: 100%;
+	margin: var(--st-gm-blurb-gap) 0 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: none;
+	box-shadow: none;
+	text-align: left;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	line-height: 1.4;
+	font-style: italic;
+	color: var(--st-text-secondary);
+	cursor: pointer;
+}
+/* The caret turns, the same gesture the section folds use. Pinned to the RIGHT
+   EDGE of the entry rather than trailing the text: the column has one right edge
+   and thirty rows, so a caret in the same place on every one of them is a control
+   the eye finds without reading, where a caret chasing the end of each sentence is
+   thirty different places.
+
+   ON THE NAME'S LINE, not the blurb's. It is the row's control, so it belongs level
+   with the row's title; sat against the blurb it read as punctuation on a sentence.
+   Drawn by the BUTTON regardless, so it still turns with the button's own state,
+   which is why it is LIFTED rather than simply placed: `top` walks back up over the
+   gap and the whole of the name's line box, both taken from the variables the name
+   itself is set from.
+
+   Centred on that line by being a flex box of exactly the name's line height, which
+   is the one way to do it that survives the user's font scale: a fixed nudge tuned
+   at 16px drifts at 20px, and this GM runs a large UI font.
+
+   Set in the page's darkest ink and half again the size of the line it marks: at the
+   blurb's 0.85rem it is otherwise a grey speck at the edge of a grey line. */
+.stonetop-gm-toolkit-moves .stonetop-gm-move-toggle::after {
+	content: "\203A";                       /* › */
+	position: absolute;
+	right: 0;
+	top: calc(-1 * (var(--st-gm-blurb-gap) + var(--st-gm-name-size) * var(--st-gm-name-line)));
+	height: calc(var(--st-gm-name-size) * var(--st-gm-name-line));
+	display: flex;
+	align-items: center;
+	font-size: 1.5em;
+	font-style: normal;
+	line-height: 1;
+	color: var(--st-text);
+	opacity: 0.8;
+	transition: transform 120ms ease, opacity 120ms ease;
+}
+.stonetop-gm-toolkit-moves .stonetop-gm-move-toggle:hover::after {
+	opacity: 1;
+}
+.stonetop-gm-toolkit-moves .stonetop-gm-move-toggle[aria-expanded="true"]::after {
+	transform: rotate(90deg);
+	opacity: 1;
+}
+
+/* THE REST OF WHAT THE BOOK SAYS, under the blurb: any further paragraphs, the
+   soft/hard line, the examples of play, the page.
+
+   Flush with the blurb rather than indented behind a rule, because it is not an
+   aside to that line, it is the same passage carrying on. The first sentence is
+   already on screen and grows in place; this is the paragraph after it. An indent
+   or a border here would put a seam exactly where the reading is meant to be
+   continuous. The examples still stand apart, but as quotations (see below),
+   which is what they are.
+
+   `hidden` does the hiding (the sheet toggles the attribute), and it needs no
+   help here: nothing below sets a `display`, so the UA rule stands. */
+.stonetop-gm-toolkit-moves .stonetop-gm-move-book {
+	margin-top: 6px;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	line-height: 1.45;
+	color: var(--st-text-secondary);
+}
+.stonetop-gm-toolkit-moves .stonetop-gm-move-detail {
+	margin: 0 0 6px;
+}
+/* The soft/hard line is the operative one for a GM who just rolled a 6-, so it is
+   the one thing in the panel set in the sheet's own ink rather than the secondary. */
+.stonetop-gm-toolkit-moves .stonetop-gm-move-hardness {
+	margin: 0 0 6px;
+	font-weight: 600;
+}
+/* An example is a QUOTATION from the book, in the book's voice, naming the book's
+   own sample cast. It is set as one: quoted, indented, italic, so a GM never reads
+   a line of somebody else's table as an instruction to their own. */
+.stonetop-gm-toolkit-moves .stonetop-gm-move-example {
+	margin: 0 0 6px;
+	padding: 0;
+	border: 0;
+	font-style: italic;
+	color: var(--st-text-secondary);
+}
+.stonetop-gm-toolkit-moves .stonetop-gm-move-example::before { content: "\201C"; }
+.stonetop-gm-toolkit-moves .stonetop-gm-move-example::after  { content: "\201D"; }
+.stonetop-gm-toolkit-moves .stonetop-gm-move-page {
+	margin: 0;
+	font-size: calc(0.8rem * var(--stonetop-font-scale, 1));
+	opacity: 0.7;
+}
+
+/* THE ROW THE DIE JUST DREW. The randomizer beside the heading whispers its move to
+   chat and lights the entry it came out of, so a GM can see where in the list the draw
+   landed — the entries either side are the ones they did not get, and the next click is
+   made knowing that. module/utils/flash-highlight.js puts the class on and takes it off
+   again; everything about how it LOOKS is here.
+
+   THE 5s IS IN TWO PLACES: this animation and `FLASH_MS` in that file. They have to
+   agree, and a test pins the pair. A shorter animation leaves a row sat faded-out but
+   still classed until the timer catches up; a longer one is cut off mid-fade.
+
+   Held at full for the first two seconds and faded over the remaining three, rather than
+   fading from the first frame: the click also posts a chat card, so the GM's eye is very
+   often somewhere else for the first second, and a highlight that has already half gone
+   by the time they look back reads as a rendering glitch rather than as an answer.
+
+   The wash is pulled 6px wider than the entry and given the width straight back as
+   padding, so it reads as a band AROUND the text rather than starting on the first
+   letter. The content box does not move, which matters here more than usual: this is a
+   two-column list, and a text-shifting highlight would reflow the whole column under it.
+
+   `--st-warm-hover-bg` is the wash a pickable card takes on hover elsewhere in the
+   system. Same gesture — the sheet pointing at one row of a list — so the same colour. */
+@keyframes stonetop-gm-move-flash {
+	0%, 40% { background-color: var(--st-warm-hover-bg); }
+	100%    { background-color: transparent; }
+}
+
+/* The band itself, shared by the light PASSING over a row (`stonetop-spin`, one step of the
+   walk that leads up to the draw) and by the row it LANDS on (`stonetop-flash`). Declared
+   once for both, because the two swap on the landing row inside a single task: any geometry
+   that differed between them would jump at exactly the moment being watched. */
+.stonetop-gm-toolkit-moves .stonetop-gm-move:is(.stonetop-spin, .stonetop-flash) {
+	margin-inline: -6px;
+	padding-inline: 6px;
+	border-radius: 3px;
+}
+
+/* Passing through. Deliberately WEAKER than the landing wash — the walk crosses a dozen-odd
+   entries at 40ms and slows to 240ms, and if every step looked like the answer then the last
+   three steps would each look like the answer too. Half the tone, and no transition of its own:
+   a step is on screen for one interval, and anything easing in or out would still be arriving
+   when it was time to leave. */
+.stonetop-gm-toolkit-moves .stonetop-gm-move.stonetop-spin {
+	background-color: color-mix(in srgb, var(--st-warm-hover-bg) 50%, transparent);
+}
+
+.stonetop-gm-toolkit-moves .stonetop-gm-move.stonetop-flash {
+	animation: stonetop-gm-move-flash 5s ease-out both;
+}
+
+/* Motion off: the same wash, arriving and leaving with no fade at all. It still clears on
+   its own — the class comes off on the same 5s timer either way — so nothing is lost but
+   the transition. Same treatment the Death's Door moods get further up this file. */
+@media (prefers-reduced-motion: reduce) {
+	.stonetop-gm-toolkit-moves .stonetop-gm-move.stonetop-flash {
+		animation: none;
+		background-color: var(--st-warm-hover-bg);
+	}
 }
 
 /* -- Core Loop tab --------------------------------------------------------
@@ -32320,5 +32721,66 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-gm-diagram-import {
 	width: auto;
 	flex: 0 0 auto;
+}
+
+/* THE CHART AS TEXT, under whichever of the two the world has. This is the half
+   of the tab that always renders: the picture is the publisher's artwork and
+   ships nowhere, while what it draws is rules text (Book I p.169).
+
+   The placeholder above collapses to nothing much once this is here, which is
+   the point. A GM without the import gets the procedure; a GM with it gets the
+   procedure and a picture of it.
+
+   Left-aligned against a centred figure, because it is a list to read and not a
+   thing to look at. */
+.stonetop-gm-loop {
+	margin: 10px 0 0;
+	padding-left: 1.5em;
+	text-align: left;
+	list-style: decimal;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	line-height: 1.45;
+}
+/* The flow of play is STAGES a campaign moves between, not a numbered procedure.
+   Same markup, numbering off: a number would promise an order the chart doesn't
+   have (a game can go from downtime to crisis and back without passing through
+   an expedition). Later in the file than its base, so the modifier wins. */
+.stonetop-gm-loop--stages {
+	padding-left: 0;
+	list-style: none;
+}
+.stonetop-gm-loop-step {
+	margin-bottom: 8px;
+}
+.stonetop-gm-loop-name {
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
+}
+/* The chapter that runs this stage, on the same line as its name: the flow chart
+   is an index as much as a map, and a GM heading into downtime wants the page. */
+.stonetop-gm-loop-page {
+	margin-left: 6px;
+	font-size: calc(0.78rem * var(--stonetop-font-scale, 1));
+	opacity: 0.7;
+	white-space: nowrap;
+}
+.stonetop-gm-loop-note {
+	margin: 2px 0 0;
+	font-style: italic;
+	color: var(--st-text-secondary);
+}
+.stonetop-gm-loop-items {
+	margin: 2px 0 0;
+	padding: 0;
+	list-style: none;
+	color: var(--st-text-secondary);
+}
+.stonetop-gm-loop-items > li {
+	padding-left: 0.8em;
+	text-indent: -0.8em;
+}
+.stonetop-gm-loop-items > li::before {
+	content: "\203A";
+	margin-right: 0.35em;
+	opacity: 0.5;
 }
 

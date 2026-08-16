@@ -44,6 +44,30 @@
 					{{/if}}
 				</div>
 				{{/if}}
+
+				{{!-- What the chart SAYS, always, under whichever of the two the world has. The
+				      picture is the optional half of this tab: it is the publisher's artwork, so
+				      it ships nowhere, while the procedure it draws is rules text like every
+				      other list on this sheet (Book I p.169). A GM who has not run the import
+				      should meet the core loop, not an apology for not having a picture of it.
+
+				      Steps rather than prose, because what a chart is FOR is saying what follows
+				      what. The core loop is numbered and cycles; the flow of play is stages, so
+				      it takes the same markup with the numbering off. --}}
+				<ol class="stonetop-gm-loop{{#unless numbered}} stonetop-gm-loop--stages{{/unless}}">
+					{{#each steps}}
+					<li class="stonetop-gm-loop-step">
+						<strong class="stonetop-gm-loop-name">{{name}}</strong>
+						{{#if pageRef}}<span class="stonetop-gm-loop-page">{{pageRef}}</span>{{/if}}
+						{{#if note}}<p class="stonetop-gm-loop-note">{{note}}</p>{{/if}}
+						{{#if items}}
+						<ul class="stonetop-gm-loop-items">
+							{{#each items}}<li>{{this}}</li>{{/each}}
+						</ul>
+						{{/if}}
+					</li>
+					{{/each}}
+				</ol>
 			</figure>
 			{{/each}}
 		</div>

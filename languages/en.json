@@ -64,7 +64,14 @@
         "homefront": "Homefront",
         "homefrontNote": "At home in Stonetop, or in another steading",
         "randomize": "Draw one at random (whispered to the GM)",
-        "randomTitle": "Make a GM move"
+        "randomTitle": "Make a GM move",
+        "bookPage": "Book I, page {page}",
+        "bookPageAlt": "Book I, page {page}, and again on page {alt} for a site",
+        "expand": "What the book says about this move",
+        "agenda": "Your agenda",
+        "agendaNote": "Book I, p.168",
+        "principles": "Your principles",
+        "principlesNote": "Book I, pp.192-199"
       },
       "loop": {
         "coreLoop": "The core loop",
@@ -97,7 +104,8 @@
           "review": "Between sessions",
           "reviewNote": "Book I, p.298",
           "types": "The eight threat types",
-          "typesNote": "Book I, pp.284-287"
+          "typesNote": "Book I, pp.284-287",
+          "typeMoves": "What a threat of this type does next"
         }
       }
     },

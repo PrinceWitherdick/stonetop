@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { randomGmMove, postRandomGmMove } from "../../../module/gm-toolkit/random-gm-move.js";
+import { randomGmMove, postGmMove } from "../../../module/gm-toolkit/random-gm-move.js";
 import { BASIC_GM_MOVES, EXPLORATION_GM_MOVES, HOMEFRONT_GM_MOVES } from "../../../module/gm-toolkit/gm-moves.js";
 import { escHtml } from "../../../module/utils/strings.js";
 
@@ -64,9 +64,11 @@ describe("drawing a GM move at random", () => {
 	});
 });
 
+// The draw and the whisper are two calls, not one: the sheet needs the answer up front to know
+// which row to walk its light towards, and the card posts when the light lands.
 describe("whispering the drawn move", () => {
 	it("goes to the GMs and to nobody else", async () => {
-		await postRandomGmMove("basic", { rng: () => 0 });
+		await postGmMove("basic", BASIC_GM_MOVES[0]);
 		expect(posted).toHaveLength(1);
 		expect(posted[0].whisper).toEqual(["gm1", "gm2"]);
 	});
@@ -74,7 +76,7 @@ describe("whispering the drawn move", () => {
 	// Through escHtml on both sides: this gloss carries an apostrophe, and the raw string is
 	// NOT what should reach the card. The next test pins what the escaping actually produces.
 	it("carries the move's name and its gloss", async () => {
-		const move = await postRandomGmMove("homefront", { rng: () => 0 });
+		const move = await postGmMove("homefront", HOMEFRONT_GM_MOVES[0]);
 		expect(move).toBe(HOMEFRONT_GM_MOVES[0]);
 		expect(posted[0].content).toContain(escHtml(HOMEFRONT_GM_MOVES[0].name));
 		expect(posted[0].content).toContain(escHtml(HOMEFRONT_GM_MOVES[0].gloss));
@@ -84,25 +86,26 @@ describe("whispering the drawn move", () => {
 	// escaped at storage. These glosses are plain prose out of module source, and one of them
 	// is quoted speech.
 	it("escapes a gloss that carries quote marks", async () => {
-		const quoted = BASIC_GM_MOVES.findIndex(m => m.gloss.includes('"'));
-		expect(quoted, "no quoted gloss left to test the escaping with").toBeGreaterThan(-1);
-		await postRandomGmMove("basic", { rng: () => quoted / BASIC_GM_MOVES.length });
+		const quoted = BASIC_GM_MOVES.find(m => m.gloss.includes('"'));
+		expect(quoted, "no quoted gloss left to test the escaping with").toBeTruthy();
+		await postGmMove("basic", quoted);
 		expect(posted[0].content).toContain("&quot;If you do that");
 	});
 
 	// The section's NOTE, not its title: "Make a GM move / GM Moves" says nothing twice, while
 	// the note says which list this came from and when that list applies.
 	it("heads the card with the section's note", async () => {
-		await postRandomGmMove("exploration", { rng: () => 0 });
+		await postGmMove("exploration", EXPLORATION_GM_MOVES[0]);
 		expect(posted[0].content).toContain("Make a GM move");
 		expect(posted[0].content).toContain("On an expedition, or inside a site");
 	});
 
-	it("passes the speaker through, and posts nothing for an unknown section", async () => {
-		await postRandomGmMove("basic", { rng: () => 0, speaker: { alias: "GM Toolkit" } });
+	it("passes the speaker through, and posts nothing without a move or a section", async () => {
+		await postGmMove("basic", BASIC_GM_MOVES[0], { speaker: { alias: "GM Toolkit" } });
 		expect(posted[0].speaker).toEqual({ alias: "GM Toolkit" });
 
-		expect(await postRandomGmMove("nonesuch", { rng: () => 0 })).toBeNull();
+		expect(await postGmMove("nonesuch", BASIC_GM_MOVES[0])).toBeNull();
+		expect(await postGmMove("basic", null)).toBeNull();
 		expect(posted).toHaveLength(1);
 	});
 
@@ -110,6 +113,6 @@ describe("whispering the drawn move", () => {
 	// that never installs it. Neither should throw.
 	it("no-ops when chat is not available", async () => {
 		delete globalThis.ChatMessage;
-		expect(await postRandomGmMove("basic", { rng: () => 0 })).toBeNull();
+		expect(await postGmMove("basic", BASIC_GM_MOVES[0])).toBeNull();
 	});
 });

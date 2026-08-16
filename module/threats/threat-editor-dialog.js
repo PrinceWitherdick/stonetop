@@ -38,7 +38,7 @@ export class ThreatEditorDialog extends StonetopDialog {
 		});
 	}
 
-	get title() { return `Threat — ${this.page?.name ?? ""}`; }
+	get title() { return `Threat: ${this.page?.name ?? ""}`; }
 
 	/**
 	 * Register the page-sync hook on FIRST RENDER, not in the constructor.

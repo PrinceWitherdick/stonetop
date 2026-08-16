@@ -144,7 +144,7 @@ export async function preflight(game, { target = RENAME_TARGET_ID, source = SYST
 	// refusal still stands structurally wherever it actually matters.
 	const hosted = onHostedProvider(scope ?? globalThis);
 	if (hosted && !allowHosted) {
-		blockers.push("This looks like a hosted Foundry (The Forge or similar). The migration needs Foundry's own setup route, which hosted providers may replace or restrict, and it is the same route you would need to undo a bad move. Do not run it here unsupervised — see MIGRATION.md for the hosted path.");
+		blockers.push("This looks like a hosted Foundry (The Forge or similar). The migration needs Foundry's own setup route, which hosted providers may replace or restrict, and it is the same route you would need to undo a bad move. Do not run it here unsupervised: see MIGRATION.md for the hosted path.");
 	}
 
 	const invalid = game?.actors?.invalidDocumentIds?.size ?? 0;

@@ -95,8 +95,8 @@ function _refreshShareButton(btn, journal) {
 	const O = levels();
 	const shared = (journal?.ownership?.default ?? O.NONE) >= O.OBSERVER;
 	const tip = shared
-		? "Players can see this journal — click to change"
-		: "Hidden from players — click to share";
+		? "Players can see this journal: click to change"
+		: "Hidden from players: click to share";
 	btn.classList.toggle("is-shared", shared);
 	btn.setAttribute("data-tooltip", tip);
 	btn.setAttribute("aria-label", tip);

@@ -13,6 +13,8 @@
 import { book2ArtSrc } from "../book2-art/art-root.js";
 import { getObjectSetting } from "../settings.js";
 import { localize } from "../utils/i18n.js";
+import { GM_CORE_LOOP, GM_FLOW_OF_PLAY } from "./gm-loop-text.js";
+import { bookPageRef } from "./book-ref.js";
 
 /**
  * The diagrams the tab shows, in the order the playbook prints them (core loop on the left-hand
@@ -23,8 +25,23 @@ import { localize } from "../utils/i18n.js";
  * table the tests can read without a Handlebars or Foundry environment.
  */
 export const GM_DIAGRAMS = [
-	{ slug: "core-loop", captionKey: "stonetop.gmToolkit.loop.coreLoop", noteKey: "stonetop.gmToolkit.loop.coreLoopNote" },
-	{ slug: "flow-of-play", captionKey: "stonetop.gmToolkit.loop.flowOfPlay", noteKey: "stonetop.gmToolkit.loop.flowOfPlayNote" },
+	{
+		slug: "core-loop",
+		captionKey: "stonetop.gmToolkit.loop.coreLoop",
+		noteKey: "stonetop.gmToolkit.loop.coreLoopNote",
+		// What the picture SAYS, so the tab reads with or without the artwork. The core loop is
+		// five NUMBERED steps that cycle; the flow of play is stages a campaign moves between,
+		// and numbering those would promise an order the chart does not have.
+		steps: GM_CORE_LOOP,
+		numbered: true,
+	},
+	{
+		slug: "flow-of-play",
+		captionKey: "stonetop.gmToolkit.loop.flowOfPlay",
+		noteKey: "stonetop.gmToolkit.loop.flowOfPlayNote",
+		steps: GM_FLOW_OF_PLAY,
+		numbered: false,
+	},
 ];
 
 /**
@@ -47,6 +64,10 @@ export function gmDiagrams() {
 			caption: localize(d.captionKey),
 			note: localize(d.noteKey),
 			src: out ? book2ArtSrc(out) : null,
+			numbered: d.numbered,
+			// The chart as text, with each stage's chapter citation resolved. Always present:
+			// the picture is the optional half of this tab, not this.
+			steps: d.steps.map(step => ({ ...step, pageRef: bookPageRef(step) })),
 		};
 	});
 }

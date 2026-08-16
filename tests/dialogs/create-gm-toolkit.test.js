@@ -7,7 +7,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // picker still opens, the GM still clicks it, and nothing happens at all. No error, no actor,
 // no console line. So this drives the real function rather than asserting on the option list.
 const picker = vi.hoisted(() => ({ pick: vi.fn() }));
-vi.mock("../../module/dialogs/content-picker.js", () => ({ pickContentOption: picker.pick }));
+// Only the CHOOSER is faked — the picker's other half, which runs the flow sitting on the row that
+// was picked, is the real one. Stubbing that too would leave these tests asserting against a
+// dispatch of their own rather than the one the sidebar uses.
+vi.mock("../../module/dialogs/content-picker.js", async (importOriginal) => ({
+	...(await importOriginal()),
+	pickContentOption: picker.pick,
+}));
 
 const { openCreateActor } = await import("../../module/dialogs/create-actor-dialog.js");
 

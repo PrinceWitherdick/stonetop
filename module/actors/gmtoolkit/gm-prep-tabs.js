@@ -33,19 +33,16 @@ import { CreateHazardDialog } from "../../hazards/create-hazard-dialog.js";
 import { listSitePages } from "../../sites/site-store.js";
 import { openSiteWizard, createSiteFlow } from "./gm-prep-actions.js";
 import { buildSiteCardVM } from "../../sites/site-view.js";
-import { wireGmPrepCardExtras, gmPrepEntryIds, deleteGmPrepPage, GM_PREP_KIND_IDS } from "../../journal/gm-prep-page.js";
+import {
+	wireGmPrepCardExtras, gmPrepEntryIds, deleteGmPrepPage, GM_PREP_KIND_IDS,
+	gmPrepKindNoun, gmPrepStartsCollapsed,
+} from "../../journal/gm-prep-page.js";
 import { getStonetopSteadingActor, getStonetopSteadingActorOrWarn } from "../../utils/world.js";
 import { wireCardDropZone } from "../../utils/card-drop-zone.js";
 import { escHtml } from "../../utils/strings.js";
 import { localize, format } from "../../utils/i18n.js";
-
-/**
- * Which kinds open COLLAPSED. A site is a page-long write-up, so that kind opens collapsed and
- * the tab reads as a list of titles you expand into; a threat is a few lines and opens expanded.
- * Absent from this table means expanded — the kinds themselves come from `GM_PREP_KIND_IDS`,
- * which is where a kind is declared.
- */
-const PREP_KIND_COLLAPSED = { site: true };
+import { localizedOnce } from "../../utils/localized-once.js";
+import { toggleDisclosure } from "../../utils/disclosure.js";
 
 /** Sections on these tabs that carry their own edit pencil. Read by `_addGmPrepContext`. */
 const GM_PREP_EDIT_SECTIONS = ["threats", "sites"];
@@ -59,36 +56,42 @@ const GM_PREP_EDIT_SECTIONS = ["threats", "sites"];
  * each time a doom track ticked on some other client.
  *
  * Built lazily rather than at import: `game.i18n` is not ready when this module loads. Not
- * invalidated, because the language cannot change without a reload.
+ * invalidated, because the language cannot change without a reload. `localizedOnce` is what makes
+ * "not ready yet" safe rather than permanent, and freezes the result — see its header.
  */
-let _threatReference = null;
-function threatReference() {
-	_threatReference ??= {
-		guidance: threatGuidanceSections().map(section => ({
-			key:        section.key,
-			title:      localize(section.titleKey),
-			note:       localize(section.noteKey),
-			collapseId: section.collapseId,
-			ordered:    !!section.ordered,
-			// Empty string rather than undefined for the sections without one: the template
-			// branches on `{{#if caution}}`, and both read the same there, but a string keeps
-			// the published shape identical across all four sections.
-			caution:    section.cautionKey ? localize(section.cautionKey) : "",
-			groups:     section.groups.map(group => ({
-				label: group.labelKey ? localize(group.labelKey) : "",
-				items: group.items,
-			})),
+const threatReference = localizedOnce(() => ({
+	guidance: threatGuidanceSections().map(section => ({
+		key:        section.key,
+		title:      localize(section.titleKey),
+		note:       localize(section.noteKey),
+		collapseId: section.collapseId,
+		ordered:    !!section.ordered,
+		// Empty string rather than undefined for the sections without one: the template
+		// branches on `{{#if caution}}`, and both read the same there, but a string keeps
+		// the published shape identical across all four sections.
+		caution:    section.cautionKey ? localize(section.cautionKey) : "",
+		groups:     section.groups.map(group => ({
+			label: group.labelKey ? localize(group.labelKey) : "",
+			items: group.items,
 		})),
-		// The one bit of chrome the reference block needs that isn't per-section.
-		optionalLabel: localize("stonetop.gmToolkit.threats.optional"),
-		// The eight types, blurb only. The catalog is the same one the Write-Up-a-Threat dialog
-		// offers, read straight rather than copied, so a type cannot come to mean two different
-		// things on two screens. The dialog is where you PICK one and see its GM moves; this is
-		// the list you read before you get there.
-		types: THREAT_TYPES.map(t => ({ id: t.id, label: t.label, blurb: t.blurb, accent: t.accent })),
-	};
-	return _threatReference;
-}
+	})),
+	// The one bit of chrome the reference block needs that isn't per-section.
+	optionalLabel: localize("stonetop.gmToolkit.threats.optional"),
+	// The eight types: blurb, and the type's own GM moves behind a disclosure. The catalog is
+	// the same one the Write-Up-a-Threat dialog offers, read straight rather than copied, so a
+	// type cannot come to mean two different things on two screens.
+	//
+	// The MOVES are here as well as in that dialog because the two answer different questions.
+	// There you are writing a threat up and picking which of its moves to keep; here you have
+	// a threat already on the table and are asking what it would do next, which is the
+	// question a GM has mid-scene and the one the book prints these lists for (Book I p.283:
+	// "use a threat's special moves whenever the threat is involved, on screen or off").
+	types: THREAT_TYPES.map(t => ({
+		id: t.id, label: t.label, blurb: t.blurb, accent: t.accent, moves: t.suggestedMoves,
+	})),
+	// The disclosure's tooltip, once for all eight rather than once per row.
+	typeMovesLabel: localize("stonetop.gmToolkit.threats.guide.typeMoves"),
+}));
 
 /**
  * Which family a card element belongs to.
@@ -116,7 +119,7 @@ export function withGmPrepTabs(Base) {
 		// than a hand-written row per kind: `_cardVMsFor` indexes `_cardVMs` unguarded, so a
 		// kind these two maps disagree about is a TypeError mid-render rather than a default.
 		_cardCollapse = Object.fromEntries(GM_PREP_KIND_IDS.map(kind =>
-			[kind, { defaultCollapsed: !!PREP_KIND_COLLAPSED[kind], overrides: new Set() }]));
+			[kind, { defaultCollapsed: gmPrepStartsCollapsed(kind), overrides: new Set() }]));
 
 		// Card view-models from an earlier render, by kind then page uuid, each stamped with its
 		// page's last-modified time. Building one is a walk of async enrichHTML round trips (a
@@ -328,6 +331,7 @@ export function withGmPrepTabs(Base) {
 			st.threatGuidance      = reference.guidance;
 			st.threatOptionalLabel = reference.optionalLabel;
 			st.threatTypeReference = reference.types;
+			st.threatTypeMovesLabel = reference.typeMovesLabel;
 			// Stated once, here, rather than as an empty-shape literal per builder that has to
 			// keep matching the keys this method reads back.
 			st.threatGroups = [];
@@ -358,23 +362,39 @@ export function withGmPrepTabs(Base) {
 			// Every prep tool on these two tabs, one row per kind. The three kinds' edit / remove
 			// / add handling was the same six-line `closest` chain three times over, differing
 			// only in the selector words.
-			// Deleting carries only its NOUN here: the three kinds' deletes are one function under
-			// three names (see deleteGmPrepPage), so a `remove` column presented one behaviour as
-			// three and gave a fourth kind a third thing to remember.
+			// What is left here is only what a TAB knows and the kind table cannot: which panel a
+			// kind's cards are drawn in, and which of this sheet's methods its two buttons call.
+			// Everything that is a fact ABOUT a kind rather than about this sheet — including the
+			// noun in the delete prompt — is read off gm-prep-page.js, so a fourth kind adds one
+			// row here and one there instead of one in each of six tables.
+			//
+			// There is no `remove` column: the three kinds' deletes are one function (see
+			// deleteGmPrepPage), so a column would present one behaviour as three.
 			const prepTools = [
-				{ scope: ".steading-threats", kind: "threat", deleteTitle: "Delete Threat",
+				{ scope: ".steading-threats", kind: "threat",
 					edit: page => this._openThreatEditor(page),
 					// Threats are added per proximity band; the button says which.
 					add: btn => this._onCreateThreat(btn.dataset.proximity) },
-				{ scope: ".steading-threats", kind: "hazard", deleteTitle: "Delete Hazard",
+				{ scope: ".steading-threats", kind: "hazard",
 					edit: page => this._onEditHazard(page),
 					add: () => this._onCreateHazard() },
-				{ scope: ".steading-sites", kind: "site", deleteTitle: "Delete Site",
+				{ scope: ".steading-sites", kind: "site",
 					edit: page => this._onEditSite(page),
 					add: () => this._onCreateSite() },
 			];
 
 			root.addEventListener("click", async ev => {
+				// A threat type in the reference block, opening its own list of GM moves. First,
+				// because it is reference chrome rather than a prep tool and matches none of the
+				// selectors below: a threat already on the table has a type, and this is where a
+				// GM asks what one of those would do next.
+				const typeToggle = ev.target.closest?.(".steading-threat-type-toggle");
+				if (typeToggle) {
+					ev.preventDefault();
+					toggleDisclosure(typeToggle, ".steading-threat-type-moves");
+					return;
+				}
+
 				for (const tool of prepTools) {
 					const add = ev.target.closest?.(`${tool.scope} .${tool.kind}-add-btn`);
 					if (add) { ev.preventDefault(); tool.add(add); return; }
@@ -391,7 +411,18 @@ export function withGmPrepTabs(Base) {
 						// states it too rather than trusting `pointer-events`.
 						if (remove.closest(".stonetop-readonly")) return;
 						const page = await fromUuid(remove.dataset.pageUuid);
-						if (page) this._confirmDeletePrepPage(page, tool.deleteTitle);
+						// AWAITED, and its failure said out loud. A rejection here — a journal the
+						// GM cannot delete, a write that fails — used to close the confirm dialog,
+						// leave the card sitting there and report nothing, so the trash read as a
+						// dead button and only the console knew why.
+						if (page) {
+							try {
+								await this._confirmDeletePrepPage(page, `Delete ${gmPrepKindNoun(tool.kind)}`);
+							} catch (err) {
+								console.error("Stonetop | failed to delete GM prep page", err);
+								ui.notifications?.error?.("Couldn't delete that. See the console for details.");
+							}
+						}
 						return;
 					}
 				}

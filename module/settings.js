@@ -1686,7 +1686,7 @@ export function setSetting(key, value) {
 export function setWorldSetting(key, value) {
 	const scope = globalThis.game?.settings?.settings?.get?.(`stonetop-pwd.${key}`)?.scope;
 	if (scope === "world" && !globalThis.game?.user?.isGM) {
-		console.debug(`Stonetop | skipped world-setting write to "${key}" — not a GM.`);
+		console.debug(`Stonetop | skipped world-setting write to "${key}": not a GM.`);
 		return Promise.resolve();
 	}
 	return setSetting(key, value);

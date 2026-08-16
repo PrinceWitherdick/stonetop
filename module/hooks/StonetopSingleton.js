@@ -158,9 +158,9 @@ export async function resetOmenReminder() {
 
 function _buildOmenReminderContent(destined) {
 	const names = destined.map(a => escHtml(a.name)).join(", ");
-	return stonetopChatCard("Start of Session — Omen Roll",
+	return stonetopChatCard("Start of Session: Omen Roll",
 		`<div class="stonetop-roll-card-description">
-			<p><strong>Destined:</strong> ${names} — roll <strong>+Omens</strong>.</p>
+			<p><strong>Destined:</strong> ${names}, roll <strong>+Omens</strong>.</p>
 			<ul>
 				<li><strong>7+:</strong> lose all Omens; the GM shares a vision or portent that points toward your fate.</li>
 				<li><strong>10+:</strong> also ask the GM a follow-up question and get a clear, helpful answer.</li>

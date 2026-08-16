@@ -34,7 +34,7 @@ const SEASONAL_REMINDERS = [
 		slug:     "goat-herd",
 		label:    "Goat herd",
 		playbook: "The Blessed",
-		rule:     "Each season, there's a 1-in-4 chance your goat herd produces a bezoar — swallow it to cure poison. Roll to see if you have one.",
+		rule:     "Each season, there's a 1-in-4 chance your goat herd produces a bezoar: swallow it to cure poison. Roll to see if you have one.",
 	},
 	{
 		kind:     "possession",

@@ -1,9 +1,14 @@
 import Handlebars from "handlebars";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { readRepo as read, readCss, repoFileExists } from "../../fakes/css.js";
 import { createStonetopGmToolkitSheetClass } from "../../../module/actors/gmtoolkit/StonetopGmToolkitSheet.js";
 import { BASIC_GM_MOVES, EXPLORATION_GM_MOVES, HOMEFRONT_GM_MOVES, gmMoveSections } from "../../../module/gm-toolkit/gm-moves.js";
 import { actorOptionsFor } from "../../../module/dialogs/create-actor-dialog.js";
+import { FLASH_CLASS, FLASH_MS, SPIN_CLASS } from "../../../module/utils/flash-highlight.js";
+import { postGmMove } from "../../../module/gm-toolkit/random-gm-move.js";
+import { moveBlurb } from "../../../module/gm-toolkit/gm-move-blurb.js";
+import { GM_AGENDA, GM_AGENDA_TEST, GM_PRINCIPLES } from "../../../module/gm-toolkit/gm-agenda.js";
+import { escHtml } from "../../../module/utils/strings.js";
 
 // The GM Toolkit: the GM's own actor sheet, the screen-side companion to the GM playbook.
 //
@@ -107,6 +112,95 @@ describe("GM Toolkit move lists", () => {
 		// legitimately mention a move by name ("bar the way with a blizzard").
 		for (const move of EXPLORATION_GM_MOVES) {
 			expect(step, `${move.name} is written out again`).not.toContain(`<strong>${move.name}`);
+		}
+	});
+});
+
+// What Book I prints UNDER each move: its description, the soft/hard line, its examples of play,
+// and the page. Transcribed in gm-moves.js and shown in two places (the sheet's expanded entry,
+// the whispered card), so what these guard is the transcription itself: a move that lost its
+// examples still renders, still reads, and is simply missing the half a GM came for.
+describe("the book's own text, per move", () => {
+	const ALL_MOVES = [...BASIC_GM_MOVES, ...EXPLORATION_GM_MOVES, ...HOMEFRONT_GM_MOVES];
+
+	it("gives every move at least one example of play, in the book's words", () => {
+		for (const move of ALL_MOVES) {
+			expect(move.examples, `${move.name} has no examples`).toBeInstanceOf(Array);
+			expect(move.examples.length, `${move.name} has no examples`).toBeGreaterThan(0);
+			for (const example of move.examples) {
+				expect(example.length, `${move.name} has a stub example`).toBeGreaterThan(40);
+			}
+		}
+	});
+
+	// The renderers add the quotation marks, so an example that brought its own would print
+	// doubled ones on the card and in the sheet's expanded entry.
+	it("leaves the outer quotation marks off the examples", () => {
+		for (const move of ALL_MOVES) {
+			for (const example of move.examples) {
+				expect(example.startsWith('"'), `${move.name} quotes its own example`).toBe(false);
+				expect(example.endsWith('"'), `${move.name} quotes its own example`).toBe(false);
+			}
+		}
+	});
+
+	// Either the book's description or (for Capture someone, whose whole entry IS its soft/hard
+	// guidance) that guidance. One or the other, never neither: an entry that expands to nothing
+	// but a page number is a disclosure that wasted the click.
+	it("gives every move something to expand to", () => {
+		for (const move of ALL_MOVES) {
+			const has = (move.detail?.length ?? 0) > 0 || !!move.hardness;
+			expect(has, `${move.name} expands to nothing`).toBe(true);
+		}
+	});
+
+	it("cites the page every move was transcribed from", () => {
+		for (const move of ALL_MOVES) {
+			expect(move.page, `${move.name} has no page`).toBeGreaterThan(0);
+		}
+		// The three lists come out of three different chapters, and a page from the wrong one is
+		// the kind of thing that is only ever found by a GM who turns to it.
+		for (const move of BASIC_GM_MOVES)       expect(move.page).toBeGreaterThanOrEqual(180);
+		for (const move of BASIC_GM_MOVES)       expect(move.page).toBeLessThanOrEqual(188);
+		for (const move of EXPLORATION_GM_MOVES) expect(move.page).toBeGreaterThanOrEqual(317);
+		for (const move of EXPLORATION_GM_MOVES) expect(move.page).toBeLessThanOrEqual(321);
+		for (const move of HOMEFRONT_GM_MOVES)   expect(move.page).toBeGreaterThanOrEqual(502);
+		for (const move of HOMEFRONT_GM_MOVES)   expect(move.page).toBeLessThanOrEqual(507);
+	});
+
+	// The exploration moves are printed twice, once for expeditions and again for sites. What is
+	// transcribed is the expedition printing (the fuller of the two, and the only one carrying the
+	// hard-move notes), so the citation has to name the other or a GM reading a site will not find
+	// the entry where they are looking.
+	it("names both printings of the exploration moves, and only those", () => {
+		for (const move of EXPLORATION_GM_MOVES) {
+			expect(move.pageAlt, `${move.name} does not cite the sites printing`).toBeGreaterThan(340);
+		}
+		for (const move of [...BASIC_GM_MOVES, ...HOMEFRONT_GM_MOVES]) {
+			expect(move.pageAlt, `${move.name} is only printed once`).toBeUndefined();
+		}
+	});
+
+	// The soft/hard line is the operative one when the die is clicked right after a 6-. The book
+	// gives one for twelve of the thirty and is silent on the other eighteen, and the silence is
+	// KEPT: an invented "as a hard move" would be house rules wearing the book's voice. The count
+	// is pinned exactly, because both ways of getting it wrong are silent, and an entry that
+	// quietly grew a line nobody wrote in Book I is the worse of the two.
+	it("carries the book's soft/hard line for the twelve that have one, and no invented ones", () => {
+		const withGuidance = ALL_MOVES.filter(m => m.hardness);
+		expect(withGuidance).toHaveLength(12);
+		for (const move of withGuidance) {
+			expect(move.hardness, `${move.name} has guidance that says neither soft nor hard`)
+				.toMatch(/\b(hard|soft)\b/);
+		}
+	});
+
+	// The gloss is OURS and the detail is the BOOK'S, and the two must not become one thing: the
+	// gloss is what the Expedition walkthrough renders, in the house voice, one line long.
+	it("keeps our one-line gloss separate from the book's description", () => {
+		for (const move of ALL_MOVES) {
+			expect(move.gloss.length, `${move.name} has a gloss the size of a paragraph`).toBeLessThan(120);
+			expect(move.detail).not.toContain(move.gloss);
 		}
 	});
 });
@@ -237,18 +331,18 @@ describe("StonetopGmToolkitSheet", () => {
 
 // Render the REAL partial with the REAL section-heading, so the assertions below are about the
 // markup that ships rather than about a description of it.
-function renderMovesTab(sections) {
+function renderMovesTab(stonetop) {
 	const hb = Handlebars.create();
 	hb.registerHelper("localize", k => k);
 	hb.registerPartial("stonetop.section-heading", read("templates/actor/partials/section-heading.hbs"));
 	hb.registerPartial("stonetop.section-collapse", read("templates/actor/partials/section-collapse.hbs"));
 	hb.registerPartial("stonetop.section-randomize", read("templates/actor/partials/section-randomize.hbs"));
-	return hb.compile(MOVES_HBS)({ stonetop: { moveSections: sections } });
+	return hb.compile(MOVES_HBS)({ stonetop });
 }
 
 describe("the rendered moves tab", () => {
 	it("puts every heading INSIDE its own move-group box", async () => {
-		const html = renderMovesTab((await makeSheet().getData()).stonetop.moveSections);
+		const html = renderMovesTab((await makeSheet().getData()).stonetop);
 
 		// The fold walk claims a heading's FOLLOWING SIBLINGS up to the next heading. A heading
 		// that escapes its box therefore swallows every section below it, and the sheet still
@@ -256,31 +350,88 @@ describe("the rendered moves tab", () => {
 		// before the FIRST box, or between a box's close and the next box's open, is a heading
 		// that got out.
 		const chunks = html.split(/<div class="stonetop-move-group"/);
-		expect(chunks).toHaveLength(4);                       // preamble + 3 boxes
+		expect(chunks).toHaveLength(6);   // preamble + 3 move sections + agenda + principles
 		expect(chunks[0]).not.toContain("stonetop-move-group-title");
 		for (const chunk of chunks.slice(1)) {
 			expect((chunk.match(/stonetop-move-group-title/g) ?? [])).toHaveLength(1);
-			expect((chunk.match(/<ol class="items-list">/g) ?? [])).toHaveLength(1);
+			// Exactly one list per box, whatever that list is called: the three move sections and
+			// the principles are `items-list`, the agenda is its own numbered list.
+			expect((chunk.match(/<ol /g) ?? [])).toHaveLength(1);
 			// The heading must come FIRST inside the box, ahead of the list it folds.
 			expect(chunk.indexOf("stonetop-move-group-title")).toBeLessThan(chunk.indexOf("<ol"));
 		}
 	});
 
 	it("gives each heading a caret named for its own section", async () => {
-		const html = renderMovesTab((await makeSheet().getData()).stonetop.moveSections);
+		const html = renderMovesTab((await makeSheet().getData()).stonetop);
 		const ids = [...html.matchAll(/class="stonetop-section-collapse" data-section="([^"]+)"/g)].map(m => m[1]);
-		expect(ids).toEqual(["gmMovesBasic", "gmMovesExploration", "gmMovesHomefront"]);
+		expect(ids).toEqual([
+			"gmMovesBasic", "gmMovesExploration", "gmMovesHomefront", "gmAgenda", "gmPrinciples",
+		]);
 	});
 
-	it("renders every move, name and gloss", async () => {
-		const html = renderMovesTab((await makeSheet().getData()).stonetop.moveSections);
+	// The book's text, sat under each entry behind a disclosure. Every leg of this is silent: a
+	// panel that renders open turns a scannable list into a chapter, a button with no
+	// `aria-expanded` is a control a screen reader cannot report, and a missing panel is a caret
+	// that promises something the row does not have.
+	it("hides the book's text behind a disclosure on every entry", async () => {
+		const html = renderMovesTab((await makeSheet().getData()).stonetop);
+
+		expect((html.match(/class="stonetop-gm-move-toggle" aria-expanded="false"/g) ?? []))
+			.toHaveLength(30);
+		expect((html.match(/class="stonetop-gm-move-book" hidden/g) ?? [])).toHaveLength(30);
+		// The panel is the button's own NEXT-ISH sibling inside the entry, which is what lets the
+		// handler find it without an id per entry (see utils/disclosure.js).
+		expect(html).toMatch(/<button[^>]*stonetop-gm-move-toggle[\s\S]{0,400}?stonetop-gm-move-book/);
+	});
+
+	// The row is ONE blurb: the book's first sentence is the visible label, and the rest of that
+	// same paragraph is revealed inline after it, inside the button, so the words already on
+	// screen do not move when the entry opens.
+	it("leads with the book's own first sentence and grows the rest in place", async () => {
+		const html = renderMovesTab((await makeSheet().getData()).stonetop);
+		const { lead, rest } = moveBlurb(BASIC_GM_MOVES[0]);
+
+		expect(lead).toBe("This is one of your most versatile moves.");
+		expect(html).toContain(`<span class="stonetop-gm-move-lead">${lead}</span>`);
+		// The remainder sits INSIDE the button, hidden, immediately after the lead: that is what
+		// makes the sentence continue rather than a second block appear under it.
+		expect(html).toContain(`<span class="stonetop-gm-move-rest" hidden> ${rest}</span>`);
+		expect(html).toMatch(/stonetop-gm-move-lead[^<]*<\/span><span class="stonetop-gm-move-rest"/);
+		// Our gloss is NOT what the row shows any more. It stays in the data (the Expedition
+		// walkthrough renders it, the whispered card leads with it), just not here, where it would
+		// have to be read and then replaced by the book saying the same thing again.
+		expect(html).not.toContain(BASIC_GM_MOVES[0].gloss);
+	});
+
+	it("prints the book's description, examples and page inside that panel", async () => {
+		const html = renderMovesTab((await makeSheet().getData()).stonetop);
+		const first = BASIC_GM_MOVES[0];
+
+		expect(html).toContain(first.hardness.slice(0, 40));
+		// Every example of every move, not just the one the card quotes: the card is read under
+		// pressure and takes one, the sheet is where you go to read the rest.
+		const examples = [...BASIC_GM_MOVES, ...EXPLORATION_GM_MOVES, ...HOMEFRONT_GM_MOVES]
+			.flatMap(m => m.examples);
+		expect((html.match(/class="stonetop-gm-move-example"/g) ?? [])).toHaveLength(examples.length);
+		// Localized at the boundary, so the template prints a finished string rather than
+		// assembling "Book I, page" + a number itself.
+		expect(html).toContain("Book I, page 180");
+		expect(html).toContain("and again on page 352 for a site");
+	});
+
+	it("renders every move, name and blurb", async () => {
+		const html = renderMovesTab((await makeSheet().getData()).stonetop);
 		expect(html.match(/stonetop-gm-move"/g)).toHaveLength(30);
 		expect(html).toContain("Announce trouble (future or offscreen)");
 		expect(html).toContain("Bar the way");
 		expect(html).toContain("Play them against each other");
-		// One gloss carries double quotes; Handlebars escapes them, which is correct and must
-		// not be "fixed" into a triple-stache.
-		expect(html).toContain("&quot;If you do that, you realize ___, right?&quot;");
+		// Every entry leads with something, including the one whose whole book entry is its
+		// soft/hard line and so has no description to lead with.
+		expect((html.match(/class="stonetop-gm-move-lead"/g) ?? [])).toHaveLength(30);
+		// The book's text carries apostrophes and quoted speech, which Handlebars escapes. That is
+		// correct and must not be "fixed" into a triple-stache.
+		expect(html).toContain("&#x27;If you do that, you realize that ___, right?&#x27;");
 	});
 });
 
@@ -321,7 +472,7 @@ describe("the Moves tab is a two-column reference list, not a card list", () => 
 	// / `display: block` to arrive at two lines of text, and left every future edit to the
 	// shared card free to leak a border or a fill in here with nothing failing.
 	it("dresses an entry as a reference line, not as an un-carded card", () => {
-		expect(MOVES_HBS).toContain('<li class="stonetop-gm-move">');
+		expect(MOVES_HBS).toContain('<li class="stonetop-gm-move" data-move="{{name}}">');
 		expect(MOVES_HBS).toContain('class="stonetop-gm-move-name"');
 		expect(MOVES_HBS).toContain('class="stonetop-gm-move-gloss"');
 		// Asserted against the emitted CLASS ATTRIBUTES, not the file text: the header comment
@@ -382,7 +533,7 @@ describe("the move randomizer", () => {
 	const HEADING_HBS   = read("templates/actor/partials/section-heading.hbs");
 
 	it("puts one on each of the three headings, keyed to its own section", async () => {
-		const html = renderMovesTab((await makeSheet().getData()).stonetop.moveSections);
+		const html = renderMovesTab((await makeSheet().getData()).stonetop);
 		// Whitespace-tolerant: the partial breaks its attributes across two lines, and a negated
 		// character class spans that newline where a literal space would not.
 		const keys = [...html.matchAll(/<button[^>]*stonetop-section-randomize[^>]*data-section="([^"]+)"/g)].map(m => m[1]);
@@ -393,7 +544,7 @@ describe("the move randomizer", () => {
 	// description" means on this line. The caret is absolutely positioned at the heading's
 	// right edge, so it is not competing for the space.
 	it("sits right after the heading's note", async () => {
-		const html = renderMovesTab((await makeSheet().getData()).stonetop.moveSections);
+		const html = renderMovesTab((await makeSheet().getData()).stonetop);
 		const note = html.indexOf("Any time you owe the table a move");
 		const die  = html.indexOf("stonetop-section-randomize");
 		const caret = html.indexOf("stonetop-section-collapse");
@@ -439,6 +590,247 @@ describe("the move randomizer", () => {
 		// The no-repeat only works if the drawn move is kept and passed back as `exclude`.
 		expect(src).toMatch(/exclude:\s*this\._lastRandomMove\[key\]/);
 		expect(src).toMatch(/this\._lastRandomMove\[key\]\s*=\s*move\.name/);
+	});
+
+	// The draw is remembered BEFORE the walk, not after the card posts. A second click that
+	// supersedes the first drops out without posting, so a draw recorded after the post would be
+	// no draw at all — and the interrupting click would be free to land on the same move again.
+	it("remembers the draw before the walk that reveals it", () => {
+		const src = stripComments(SHEET_JS);
+		expect(src.indexOf("this._lastRandomMove[key] = move.name"))
+			.toBeLessThan(src.indexOf("_spinToDrawnMove(button, move.name)"));
+	});
+
+	// The whisper says WHICH move; the light says where in the list it came from — and gets there
+	// by running down the section's entries and slowing onto the one drawn. Every leg fails
+	// silently: a row with no `data-move` is never found, a class the stylesheet does not know is
+	// a class nobody can see, and a card posted at the click instead of at the landing simply
+	// spoils the answer with nothing anywhere to say so.
+	describe("lights the row it drew", () => {
+		// The declarations of the first rule whose prelude IS this selector. Takes a regex rather
+		// than a string because two of these preludes carry `:is(…)`, brackets and all.
+		const ruleBody = selector =>
+			CSS.match(new RegExp(`\\n${selector.source}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+
+		it("stamps every entry with the name the handler matches on", async () => {
+			const html = renderMovesTab((await makeSheet().getData()).stonetop);
+			const stamped = [...html.matchAll(/<li class="stonetop-gm-move" data-move="([^"]+)"/g)]
+				.map(m => m[1]);
+			expect(stamped).toHaveLength(30);
+			// Handlebars escapes the attribute, so what the DOM hands back as `dataset.move` is the
+			// move's own name and matches the object the randomizer returned.
+			expect(stamped[0]).toBe("Announce trouble (future or offscreen)");
+			expect(stamped.at(-1)).toBe("Play them against each other");
+		});
+
+		it("walks the light to that row, then flashes it", () => {
+			const src = stripComments(SHEET_JS);
+			expect(src).toContain('import { flashHighlight, spinHighlight } from "../../utils/flash-highlight.js"');
+			expect(src).toMatch(/this\._spinToDrawnMove\(button,\s*move\.name\)/);
+			// Compared as a dataset value, NOT interpolated into an attribute selector: the names
+			// carry brackets and a slash, which a selector would need CSS.escape to survive.
+			expect(src).toMatch(/li\.dataset\.move === name/);
+			expect(src).not.toMatch(/\[data-move=/);
+			expect(src).toMatch(/spinHighlight\(rows,\s*target,\s*\{\s*scope\s*\}\)/);
+			expect(src).toMatch(/flashHighlight\(rows\[target\],\s*\{\s*scope\s*\}\)/);
+		});
+
+		// The walk belongs to the list that was drawn from — a light crossing Homefront's entries
+		// off a click on the Basic die would be showing moves that were never in the draw. The
+		// DOUSING is tab-wide, so the previous draw's fade cannot still be burning two sections up.
+		it("walks one section but douses the whole tab", () => {
+			const src = stripComments(SHEET_JS);
+			expect(src).toMatch(/rows = \[\.\.\.\(button\.closest\("\.stonetop-move-group"\)/);
+			expect(src).toMatch(/scope = button\.closest\("\.stonetop-gm-toolkit-moves"\)/);
+		});
+
+		// One landing, one card. A click that is superseded mid-walk resolves false and must post
+		// nothing, or a GM drumming on the die ends up with a pile of cards for moves whose light
+		// never arrived.
+		it("abandons a walk in flight and posts only for the one that lands", () => {
+			const src = stripComments(SHEET_JS);
+			expect(src).toMatch(/this\._moveSpin\?\.cancel\(\)/);
+			expect(src).toMatch(/if \(!await spin\.done\) return false/);
+			expect(src).toMatch(/if \(!await this\._spinToDrawnMove\(button, move\.name\)\) return;/);
+			// The card goes out AFTER the walk, which is the whole point of splitting the draw
+			// from the whisper: `postGmMove` takes a move rather than drawing one.
+			expect(src.indexOf("_spinToDrawnMove(button, move.name)"))
+				.toBeLessThan(src.indexOf("postGmMove(key, move,"));
+		});
+
+		// The classes are put on and taken off by JS; how they LOOK is entirely CSS. A stylesheet
+		// that has never heard of them is a randomizer that silently highlights nothing.
+		it("styles the flash where the entries are styled", () => {
+			const rule = ruleBody(/\.stonetop-gm-toolkit-moves \.stonetop-gm-move\.stonetop-flash/);
+			expect(rule, "no flash rule for a drawn move").toBeTruthy();
+			expect(rule).toMatch(/animation:\s*stonetop-gm-move-flash/);
+			expect(CSS).toMatch(/@keyframes stonetop-gm-move-flash\s*\{/);
+		});
+
+		// The two classes swap on the landing row inside one task. Any geometry that differed
+		// between them would jump at exactly the moment being watched, which is why the band is
+		// declared once for both — and it must not shift the TEXT either: this is a two-column
+		// list, and a highlight that changed the content box would reflow the column under it.
+		it("gives the passing light and the landing the same band", () => {
+			const rule = ruleBody(
+				/\.stonetop-gm-toolkit-moves \.stonetop-gm-move:is\(\.stonetop-spin, \.stonetop-flash\)/);
+			expect(rule, "the two classes no longer share one geometry rule").toBeTruthy();
+			expect(rule).toMatch(/margin-inline:\s*-6px/);
+			expect(rule).toMatch(/padding-inline:\s*6px/);
+		});
+
+		// A step that looked like the answer would make the last three steps look like three
+		// answers. It is the same wash, weakened.
+		it("paints a passing step weaker than the landing", () => {
+			const rule = ruleBody(/\.stonetop-gm-toolkit-moves \.stonetop-gm-move\.stonetop-spin/);
+			expect(rule, "no rule for the light passing over a row").toBeTruthy();
+			expect(rule).toMatch(/color-mix\([^)]*--st-warm-hover-bg[^)]*\)/);
+			// No transition of its own: a step is on screen for 40ms at the start of the walk, and
+			// anything easing in would still be arriving when it was time to leave.
+			expect(rule).not.toMatch(/transition|animation/);
+		});
+
+		// The animation and the timer that removes the class have to agree. Too short an animation
+		// leaves a faded-out row still classed; too long a one is cut off mid-fade.
+		it("fades for exactly as long as the class is on", () => {
+			const rule = ruleBody(/\.stonetop-gm-toolkit-moves \.stonetop-gm-move\.stonetop-flash/);
+			const seconds = rule.match(/animation:\s*stonetop-gm-move-flash\s+([\d.]+)s/)?.[1];
+			expect(seconds, "the animation names no duration").toBeTruthy();
+			expect(Number(seconds) * 1000).toBe(FLASH_MS);
+		});
+
+		// The class names are the one contract between the two files, and neither errors if they
+		// disagree — the row simply never lights.
+		it("uses the classes the stylesheet is written against", () => {
+			expect(FLASH_CLASS).toBe("stonetop-flash");
+			expect(SPIN_CLASS).toBe("stonetop-spin");
+		});
+	});
+
+	// The whispered card. What it carries beyond the name is what makes it worth reading rather
+	// than glancing at: a line of the book's own GM speech, the soft/hard note, and the page.
+	describe("the whispered card", () => {
+		const posted = [];
+		beforeEach(() => {
+			posted.length = 0;
+			globalThis.ChatMessage = {
+				create: data => { posted.push(data); return Promise.resolve(data); },
+				getWhisperRecipients: () => [{ id: "gm1" }],
+				getSpeaker: () => ({ alias: "GM Toolkit" }),
+			};
+		});
+		afterEach(() => { delete globalThis.ChatMessage; });
+
+		it("quotes ONE of the move's examples, not all of them", async () => {
+			const move = BASIC_GM_MOVES[0];
+			await postGmMove("basic", move, { rng: () => 0 });
+
+			const quoted = move.examples.filter(e => posted[0].content.includes(escHtml(e)));
+			expect(quoted, "the card is a page of examples, not a line").toHaveLength(1);
+			expect(quoted[0]).toBe(move.examples[0]);
+		});
+
+		// A different one next time, so a GM who draws the same move twice in a campaign is not
+		// handed the same sentence twice.
+		it("takes a different example on a different roll", async () => {
+			const move = BASIC_GM_MOVES[0];
+			await postGmMove("basic", move, { rng: () => 0.99 });
+			expect(posted[0].content).toContain(escHtml(move.examples.at(-1)));
+		});
+
+		it("carries the soft/hard line and the page, and skips what the book doesn't give", async () => {
+			await postGmMove("basic", BASIC_GM_MOVES[0], { rng: () => 0 });
+			expect(posted[0].content).toContain(escHtml(BASIC_GM_MOVES[0].hardness));
+			expect(posted[0].content).toContain("Book I, page 180");
+
+			// "Ask a provocative question" has no soft/hard line in the book, so the card has no
+			// empty element where one would go.
+			const silent = BASIC_GM_MOVES.find(m => !m.hardness);
+			posted.length = 0;
+			await postGmMove("basic", silent, { rng: () => 0 });
+			expect(posted[0].content).not.toContain("stonetop-gm-move-card-hardness");
+		});
+
+		// The examples carry apostrophes and quoted speech, and `moveChatCard` renders its
+		// description RAW because its usual caller passes text escaped at storage.
+		it("escapes the book's text on the way in", async () => {
+			const quoted = HOMEFRONT_GM_MOVES.find(m => m.examples.some(e => e.includes("'")));
+			await postGmMove("homefront", quoted, { rng: () => 0 });
+			expect(posted[0].content).not.toMatch(/<blockquote[^>]*>[^<]*'/);
+			expect(posted[0].content).toContain("&#x27;");
+		});
+	});
+});
+
+// The agenda and the principles close the Moves tab. They are printed on the same playbook spread
+// as the move lists and were, until now, only inside a journal the Welcome dialog links to.
+describe("the agenda and the principles", () => {
+	it("carries all three goals and all thirteen principles", () => {
+		expect(GM_AGENDA.map(g => g.name)).toEqual([
+			"Portray a rich and mysterious world",
+			"Punctuate the characters' lives with adventure",
+			"Play to find out what happens",
+		]);
+		expect(GM_PRINCIPLES).toHaveLength(13);
+		expect(GM_PRINCIPLES[0].name).toBe("Follow the rules");
+		expect(GM_PRINCIPLES.at(-1).name).toBe("Let things burn");
+	});
+
+	// The book is emphatic that the three are a TEST ("which of these three goals does it
+	// support?"), and the three are not one without the sentence that says so.
+	it("keeps the test the book prints under the goals", () => {
+		expect(GM_AGENDA_TEST).toContain("which of these three goals does it support?");
+	});
+
+	it("gives every goal its paragraph and every principle its gist and page", () => {
+		for (const goal of GM_AGENDA) {
+			expect(goal.detail.length, `${goal.name} has no text`).toBeGreaterThan(0);
+		}
+		for (const principle of GM_PRINCIPLES) {
+			expect(principle.gist.length, `${principle.name} has no gist`).toBeGreaterThan(40);
+			expect(principle.page, `${principle.name} has no page`).toBeGreaterThanOrEqual(192);
+			expect(principle.page).toBeLessThanOrEqual(199);
+		}
+	});
+
+	it("renders both, shut, at the foot of the tab", async () => {
+		const html = renderMovesTab((await makeSheet().getData()).stonetop);
+
+		// Both start collapsed: the tab's first screen is the moves and the die, which is what it
+		// is open for mid-sentence. The mark is `data-default-collapsed`, which is what
+		// `_wireSectionCollapse` reads before paint; the caret's own `aria-expanded` in the
+		// markup is the un-wired default and is restated from the real state at wire time.
+		const shut = [...html.matchAll(/data-section="(gmAgenda|gmPrinciples)" data-default-collapsed="true"/g)];
+		expect(shut, "the agenda or the principles render open").toHaveLength(2);
+		// ...and after the three move lists, not before them.
+		expect(html.indexOf("Play them against each other")).toBeLessThan(html.indexOf("gmAgenda"));
+
+		expect(html).toContain("Portray a rich and mysterious world");
+		expect(html).toContain("which of these three goals does it support?");
+		expect((html.match(/class="stonetop-gm-move stonetop-gm-principle"/g) ?? [])).toHaveLength(13);
+		expect(html).toContain("Book I, page 199");
+	});
+
+	// They wear the move entry's classes to take its two columns and hairlines, but they carry no
+	// disclosure: each is one line already, and a caret on a row that opens nothing is a promise
+	// the row cannot keep.
+	it("gives a principle no disclosure to open", async () => {
+		const html = renderMovesTab((await makeSheet().getData()).stonetop);
+		const principles = html.slice(html.indexOf("gmPrinciples"));
+		expect(principles).not.toContain("stonetop-gm-move-toggle");
+		expect(principles).not.toContain("stonetop-gm-move-book");
+	});
+
+	// ...and with no caret, no lane kept clear for one. The move entries reserve a strip at the
+	// right of every NAME for the arrow to sit in; a principle would otherwise wear that gap for
+	// a control it does not have, ending its name short of a column edge nothing else respects.
+	it("takes back the caret's lane it has no caret for", () => {
+		const base = CSS.indexOf(".stonetop-gm-toolkit-moves .stonetop-gm-move-name {");
+		const override = CSS.indexOf(".stonetop-gm-toolkit-moves .stonetop-gm-principle .stonetop-gm-move-name {");
+		expect(override, "no override for the principle name").toBeGreaterThan(-1);
+		// Equal specificity, so the later rule is the one that wins.
+		expect(override).toBeGreaterThan(base);
+		expect(CSS.slice(override, override + 120)).toMatch(/padding-right:\s*0/);
 	});
 });
 
@@ -555,10 +947,15 @@ describe("things that break silently", () => {
 	// The fold walk claims a heading's FOLLOWING SIBLINGS until the next heading, so three
 	// headings in one flat run would let the first caret swallow the two below it.
 	it("boxes each move section in its own group wrapper", () => {
+		// Three wrappers in the source: one inside the {{#each}}, which is what makes it one box
+		// per move section, and one each for the agenda and the principles that close the tab.
 		const groups = MOVES_HBS.match(/class="stonetop-move-group"/g) ?? [];
-		expect(groups).toHaveLength(1);
-		// One wrapper inside the {{#each}}, which is what makes it one box per section.
+		expect(groups).toHaveLength(3);
 		expect(MOVES_HBS.indexOf("{{#each stonetop.moveSections}}"))
 			.toBeLessThan(MOVES_HBS.indexOf('class="stonetop-move-group"'));
+		// ...and the loop closes before the other two open, or they would be emitted three times
+		// each and the tab would carry three agendas.
+		expect(MOVES_HBS.indexOf("{{/each}}"))
+			.toBeLessThan(MOVES_HBS.indexOf('collapse="gmAgenda"'));
 	});
 });

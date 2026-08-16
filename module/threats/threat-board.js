@@ -9,20 +9,16 @@
 // `n.visible` is true. Threats/hazards are GM-only prep (the entry stays NONE-owned), so
 // a player never sees these pins and never gets a card; the overlay is effectively GM-only.
 import { getSetting } from "../settings.js";
-import { buildThreatCardVM, wireThreatDoomChange } from "./threat-view.js";
-import { buildHazardCardVM } from "../hazards/hazard-view.js";
-import { buildSiteCardVM } from "../sites/site-view.js";
-import { gmPrepPageById, isGmPrepDoc, wireGmPrepCardExtras } from "../journal/gm-prep-page.js";
+import { wireThreatDoomChange } from "./threat-view.js";
+import {
+	gmPrepCardTemplate, gmPrepCardVM, gmPrepPageById, isGmPrepDoc, wireGmPrepCardExtras,
+} from "../journal/gm-prep-page.js";
 import { renderTemplate } from "../utils/foundry-compat.js";
 
-// Hazard and site pins ride the same board: both cards share the threat card's markup
-// conventions (doom checkboxes, wrapper classes), so only the template + VM differ.
-const CARD_TEMPLATES = {
-	threat: "systems/stonetop-pwd/templates/journal/partials/threat-card.hbs",
-	hazard: "systems/stonetop-pwd/templates/journal/partials/hazard-card.hbs",
-	site:   "systems/stonetop-pwd/templates/journal/partials/site-card.hbs",
-};
-const CARD_VMS = { threat: buildThreatCardVM, hazard: buildHazardCardVM, site: buildSiteCardVM };
+// Hazard and site pins ride the same board: all three cards share the threat card's markup
+// conventions (doom checkboxes, wrapper classes), so only the template + VM differ — and which
+// template and which VM is the kind table's to say, along with everything else that varies by
+// kind. Two more per-kind maps lived here until they moved there.
 
 export class ThreatBoard {
 	constructor() {
@@ -42,7 +38,7 @@ export class ThreatBoard {
 		Hooks.on("canvasTearDown", () => this._teardown());
 		Hooks.on("canvasPan", () => this.reposition());
 		for (const h of ["createNote", "updateNote", "deleteNote"]) Hooks.on(h, () => this._schedule());
-		Hooks.on("updateJournalEntryPage", (page) => { if (CARD_TEMPLATES[page?.type]) this._schedule(); });
+		Hooks.on("updateJournalEntryPage", (page) => { if (gmPrepCardTemplate(page?.type)) this._schedule(); });
 		Hooks.on("deleteJournalEntryPage", () => this._schedule());
 		// A threat/hazard journal being created or deleted (e.g. the first item minting it, or
 		// the last delete tidying it away) doesn't touch the page hooks above, so refresh on any
@@ -112,7 +108,7 @@ export class ThreatBoard {
 			const sig = this._cardSig(page);
 			const existing = this.cards.get(note.id);
 			if (existing && existing.sig === sig) return { note, sig, html: null }; // unchanged
-			return { note, sig, html: await renderTemplate(CARD_TEMPLATES[page.type], await CARD_VMS[page.type](page)) };
+			return { note, sig, html: await renderTemplate(gmPrepCardTemplate(page.type), await gmPrepCardVM(page.type)(page)) };
 		}));
 		const seen = new Set();
 		for (const item of built) {

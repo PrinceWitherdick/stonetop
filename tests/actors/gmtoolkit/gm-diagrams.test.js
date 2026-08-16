@@ -2,6 +2,7 @@ import Handlebars from "handlebars";
 import { describe, it, expect } from "vitest";
 import { readRepo as read, readCss } from "../../fakes/css.js";
 import { GM_DIAGRAMS, gmDiagrams } from "../../../module/gm-toolkit/gm-diagrams.js";
+import { GM_CORE_LOOP, GM_FLOW_OF_PLAY } from "../../../module/gm-toolkit/gm-loop-text.js";
 import { BOOK2_ART_APPLY_MANIFEST } from "../../../module/book2-art/manifest.js";
 import { DURABLE_ART_DIRS } from "../../../module/book2-art/browse.js";
 import { ART_INDEX_SETTINGS } from "../../../module/book2-art/reapply.js";
@@ -104,6 +105,61 @@ describe("the GM playbook diagrams", () => {
 		const rows = withSettings({}, () => gmDiagrams());
 		expect(rows.find(r => r.slug === "core-loop").caption).toBe("The core loop");
 		expect(rows.find(r => r.slug === "flow-of-play").caption).toBe("The flow of play");
+	});
+
+	// What the pictures SAY, which is rules text (Book I p.169) and not artwork. This is the half
+	// of the tab that renders in every world, so a GM who has not run the import meets the
+	// procedure rather than an apology for not having a picture of it.
+	describe("as text", () => {
+		it("carries both charts, whether or not the art was ever imported", () => {
+			const rows = withSettings({}, () => gmDiagrams());
+			expect(rows.every(r => r.src === null)).toBe(true);
+			expect(rows.find(r => r.slug === "core-loop").steps).toHaveLength(GM_CORE_LOOP.length);
+			expect(rows.find(r => r.slug === "flow-of-play").steps).toHaveLength(GM_FLOW_OF_PLAY.length);
+		});
+
+		// Five numbered steps that cycle. Step 4 is the game's whole GM-facing procedure, and the
+		// 6- branch is the line a GM checks when they are not sure they owe the table a move.
+		it("keeps the core loop's five steps in the book's order", () => {
+			expect(GM_CORE_LOOP.map(s => s.name)).toEqual([
+				"Establish the situation",
+				"Make a soft GM move",
+				"Ask \"What do you do?\"",
+				"Resolve their actions",
+				"Repeat",
+			]);
+			expect(GM_CORE_LOOP[3].items.join(" ")).toContain("roll a 6-");
+			expect(GM_CORE_LOOP[3].items.join(" ")).toContain("hard GM move");
+		});
+
+		// The flow chart is an index as much as a map: each stage names the chapter that runs it.
+		it("cites the chapter behind every stage of the flow of play", () => {
+			for (const stage of GM_FLOW_OF_PLAY) {
+				expect(stage.page, `${stage.name} names no chapter`).toBeGreaterThan(0);
+			}
+			const rows = withSettings({}, () => gmDiagrams());
+			const flow = rows.find(r => r.slug === "flow-of-play");
+			expect(flow.steps[0].pageRef).toBe("Book I, page 251");
+			// The core loop's five steps are one page of one chapter, which the heading already
+			// names, so they carry no citation of their own.
+			expect(rows.find(r => r.slug === "core-loop").steps.every(s => !s.pageRef)).toBe(true);
+		});
+
+		// Numbering the flow of play would promise an order it doesn't have: a game goes from
+		// downtime to crisis and back without passing through an expedition.
+		it("numbers the loop and not the stages", () => {
+			const rows = withSettings({}, () => gmDiagrams());
+			expect(rows.find(r => r.slug === "core-loop").numbered).toBe(true);
+			expect(rows.find(r => r.slug === "flow-of-play").numbered).toBe(false);
+			expect(LOOP_HBS).toContain('{{#unless numbered}} stonetop-gm-loop--stages{{/unless}}');
+		});
+
+		// A modifier that sorts BEFORE its base loses to it at equal specificity, so the stages
+		// would silently take the numbered list's decimal marker and indent.
+		it("declares the stages modifier after the list it modifies", () => {
+			expect(CSS.indexOf(".stonetop-gm-loop {"))
+				.toBeLessThan(CSS.indexOf(".stonetop-gm-loop--stages {"));
+		});
 	});
 });
 

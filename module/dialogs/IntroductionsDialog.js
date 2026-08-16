@@ -83,12 +83,12 @@ const _PHASES = [
 	},
 	{
 		kind: "answer", title: "Bonds & ties", icon: "fa-link", stepKey: "step4",
-		getInstruction: () => `<strong>Answer a question</strong> from your playbook, naming one or more NPCs who live in Stonetop. Each turn, answer another — or pass. When everyone has passed, go on.`,
+		getInstruction: () => `<strong>Answer a question</strong> from your playbook, naming one or more NPCs who live in Stonetop. Each turn, answer another, or pass. When everyone has passed, go on.`,
 		getQuestions:   (pc) => _PLAYBOOK_DATA[playbookSlug(pc)]?.step4 ?? null,
 	},
 	{
 		kind: "ask", title: "Asking the others", icon: "fa-comments", stepKey: "step6",
-		getInstruction: () => `<strong>Ask your fellow PCs one of these.</strong> When others ask you, answer as you like. Each turn, ask another — or pass. When everyone has passed, go on.`,
+		getInstruction: () => `<strong>Ask your fellow PCs one of these.</strong> When others ask you, answer as you like. Each turn, ask another, or pass. When everyone has passed, go on.`,
 		getQuestions:   (pc) => _PLAYBOOK_DATA[playbookSlug(pc)]?.step6 ?? null,
 	},
 	{
@@ -234,7 +234,7 @@ export class IntroductionsDialog extends StonetopDialog {
 		const what = kind === "ask" ? "ask the others a question"
 			: kind === "answer" ? "answer a question"
 			: "share your introduction";
-		ui.notifications?.info(`Character Introductions — it's your turn to ${what}.`);
+		ui.notifications?.info(`Character Introductions: it's your turn to ${what}.`);
 	}
 
 	// Ready-time seed for a player who logs in / reloads mid-introductions: open the
@@ -752,12 +752,12 @@ export class IntroductionsDialog extends StonetopDialog {
 		});
 		if (best == null) return null;
 		const pcNote = best.name ? `(you're playing ${best.name})` : "";
-		if (best.turns < 0)   return { state: "done", icon: "fa-circle-check",   text: "You're all set here — sit back and enjoy the rest of the table.", pcNote: "" };
+		if (best.turns < 0)   return { state: "done", icon: "fa-circle-check",   text: "You're all set here: sit back and enjoy the rest of the table.", pcNote: "" };
 		// The current turn is only actionable if the cursor made THIS user its editor; a
 		// co-owner whose partner holds the turn is waiting, not up.
 		if (best.turns === 0) return iAmActiveUser
 			? { state: "now",  icon: "fa-feather",        text: "It's your turn now.", pcNote: "" }
-			: { state: "soon", icon: "fa-hourglass-half", text: `${best.name} is up now — you share this character.`, pcNote: "" };
+			: { state: "soon", icon: "fa-hourglass-half", text: `${best.name} is up now: you share this character.`, pcNote: "" };
 		if (best.turns === 1) return { state: "next", icon: "fa-hourglass-half", text: "You're up next.",           pcNote };
 		return                       { state: "soon", icon: "fa-hourglass-half", text: `You're ${best.turns} turns away.`, pcNote };
 	}
@@ -1376,7 +1376,7 @@ export class IntroductionsDialog extends StonetopDialog {
 		const isAsk = phase.kind === "ask";
 		const confirmed = await Dialog.confirm({
 			title:   "Pass this part?",
-			content: `<p>Passing means you're <strong>done ${isAsk ? "asking" : "answering"}</strong> for this part of the introductions — you won't be asked to ${isAsk ? "ask" : "answer"} another question about <em>${escHtml(phase.title)}</em>.</p>`
+			content: `<p>Passing means you're <strong>done ${isAsk ? "asking" : "answering"}</strong> for this part of the introductions: you won't be asked to ${isAsk ? "ask" : "answer"} another question about <em>${escHtml(phase.title)}</em>.</p>`
 			       + `<p>Anything you've already recorded is kept, and the group carries on. If you change your mind, just ask your GM.</p>`,
 			yes:        () => true,
 			no:         () => false,
