@@ -1,7 +1,7 @@
 // What Book II art is on disk right now.
 //
 // Its own leaf module because two passes ask the question and neither should own it: the
-// art re-apply sweeps all six durable directories (reapply.js), while the portrait-crop
+// art re-apply sweeps all seven durable directories (reapply.js), while the portrait-crop
 // rebuild only cares about `assets/people` (rebuild-crops.js). Sharing the walk means one
 // browse and one cache rather than two of each. Which FilePicker class to walk WITH is a
 // version question, so it lives with the other version shims (`filePicker`, foundry-compat.js).
@@ -37,7 +37,7 @@ export const DURABLE_ART_DIRS = [
 
 // One in-flight-or-settled browse per `${root}|${dir}`.
 //
-// A single GM load asks the same directories over and over: the art re-apply sweeps all six,
+// A single GM load asks the same directories over and over: the art re-apply sweeps all seven,
 // the finishing self-heal sweeps them again, the Welcome guide sweeps them a third time for
 // one boolean, and the poster-map offer reads assets/maps a fourth. `assets/people` (~155
 // files) and `assets/bestiary` (~200) are the two largest listings the system has, and none

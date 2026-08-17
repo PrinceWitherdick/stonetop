@@ -12,6 +12,14 @@
       "playbook": "Playbook",
       "npcMove": "NPC Move",
       "monsterMove": "Monster Move"
+    },
+    "JournalEntryPage": {
+      "bestiary": "Bestiary Entry",
+      "location": "Location",
+      "chronicle": "Chronicle",
+      "threat": "Threat",
+      "hazard": "Hazard",
+      "site": "Site"
     }
   },
   "stonetop": {
