@@ -39,11 +39,13 @@ export function gmToolkitActors() {
  * permission test cannot tell one GM's document from another's and would silently answer "the
  * first one in the list" while reading as though it meant "mine".
  *
- * One is the right number because nothing on the sheet is per-GM. `GmToolkitModel`'s schema is
- * empty; the Moves and Core Loop tabs are reference transcribed from the playbook; the Threats
- * and Sites tabs read their storage off the STEADING. A second toolkit would be a second window
- * onto identical data. What genuinely does vary per GM is which sheet their "C" key opens, and
- * that is a per-user flag on the User document (`gmToolkitAssigned`), not a second Actor.
+ * One is the right number because nothing on the sheet is per-GM. The Moves and Core Loop tabs
+ * are reference transcribed from the playbook; the Threats and Sites tabs read their storage off
+ * the STEADING; and the one authored surface, the "I wonder..." list on `system.wonders`, is the
+ * world's open questions rather than one GM's, which is why it sits on this document at all. A
+ * second toolkit would be a second window onto identical data. What genuinely does vary per GM is
+ * which sheet their "C" key opens, and that is a per-user flag on the User document
+ * (`gmToolkitAssigned`), not a second Actor.
  */
 export function theGmToolkit() {
 	return gmToolkitActors().at(0) ?? null;

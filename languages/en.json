@@ -54,7 +54,8 @@
         "moves": "GM Moves",
         "loop": "Core Loop",
         "threats": "Threats & Dangers",
-        "sites": "Sites"
+        "sites": "Sites",
+        "wonder": "I Wonder..."
       },
       "moves": {
         "basic": "GM Moves",
@@ -95,6 +96,29 @@
         "zoom": "Open in a window you can zoom and pan",
         "missing": "This diagram is artwork from the GM playbook, so it isn't shipped with the system. Run Import Book Art and give it your copy of the free GM playbook PDF.",
         "import": "Import Book Art"
+      },
+      "wonder": {
+        "intro": "Your running list of open questions (Book I, p.33): things you don't know the answer to yet, or want to leave for play to answer. Read it when you need something interesting to say; update it between sessions.",
+        "add": "Add this question to the list",
+        "addShort": "Add",
+        "addPlaceholder": "What did happen to the Forest Folk?",
+        "open": "Open questions",
+        "openNote": "Unanswered, and meant to be",
+        "empty": "Nothing open yet. Write down the first thing you find yourself wondering about, and let play answer it.",
+        "questionLabel": "The question",
+        "answerLabel": "The answer, or a hunch",
+        "answerPlaceholder": "Answer...",
+        "settle": "Answered: file it below",
+        "reopen": "Put this back on the open list",
+        "remove": "Delete this question",
+        "removeTitle": "Delete Question",
+        "removeBody": "Delete <strong>{question}</strong>, and any answer written under it? To take a question off the list but keep what it settled, use the tick instead.",
+        "removeUnnamed": "this question",
+        "settled": "Answered",
+        "settledNote": "Off the list, but decided",
+        "guide": "Keeping the list",
+        "guideNote": "Book I, p.33",
+        "writeFailed": "Couldn't save the I wonder list. See the console for details."
       },
       "threats": {
         "intro": "Ongoing problems that will trouble Stonetop if left unchecked (Book I, Threats). Written up here for your eyes only. Drag a card onto a scene to pin it to the map.",

@@ -13534,6 +13534,7 @@ span.stonetop-mark-loyalty-pip {
    in the same rail. `neighbors` and `followers` already share `three-friends.svg` on the same
    grounds. */
 .stonetop-tab-rail .item[data-tab="homefront"]     { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/village.svg'); }
+.stonetop-tab-rail .item[data-tab="wonder"]        { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/question-mark.svg'); }
 .stonetop-tab-rail .item[data-tab="loop"]          { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/flow-chart.svg'); }
 
 /* Drag-reorder feedback: the strip's dashed outline sat inside a wide pill, but a 34px
@@ -32957,7 +32958,11 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 /* The prep tabs' edit pencil floats in the panel's top-right corner and is positioned against
    it, so the panel has to be the containing block. `.steading-edit-section` supplies
    `position: relative` already, but only as a bare class; restating it here is what survives
-   that rule being re-scoped to the steading later, which is now a thing someone might do. */
+   that rule being re-scoped to the steading later, which is now a thing someone might do.
+
+   NOT the "I wonder..." tab, whose pencils are positioned against a section rather than a
+   panel: these two tabs put ONE pencil in the whole panel's corner, which is what makes the
+   panel the section here. */
 .stonetop-gm-toolkit-sheet .sheet-body > :is(.tab.threats, .tab.sites) {
 	position: relative;
 }
@@ -33242,6 +33247,448 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 		animation: none;
 		background-color: var(--st-warm-hover-bg);
 	}
+}
+
+/* -- "I wonder..." tab ----------------------------------------------------
+   The GM's running list of open questions (Book I p.33). The playbook prints
+   it as a column of RULED LINES, and that is what this is set as: a hairline
+   under each entry, no box, no fill, every question starting on the same x.
+   Not the bordered card the prep tabs use, for the reason the Moves tab gives
+   for not using one either — a card around one line of text is a frame around
+   nothing, and a stack of them loses the edge the eye runs down.
+
+   The two text controls are the same idea. A question is written ON the ruled
+   line, so its input carries no border of its own and takes the row's rule as
+   its own underline; it grows a real field only on focus, where the GM needs
+   to see what they are editing. Everything else about them is inherited, which
+   is why so few declarations are here.
+
+   No `.stonetop-readonly` handling anywhere in this block, unlike Threats and
+   Sites, though this tab now carries a pencil of its own. That class is the
+   sheet-wide lock — pointer-events off every input, textarea and button, then an
+   allow-list to put back the ones that were never editing — and on a tab whose
+   fields are the whole point it would put out the add bar, the questions and the
+   answers to guard three buttons. `--reading` hides those three and stops there;
+   the template's head says why the split falls where it does. */
+.stonetop-gm-wonder {
+	/* The gutter every row on this tab hangs its question-spiral in, and the step
+	   an answer is set in past its question. One pair of numbers, because the add
+	   bar, an open entry and a settled one all have to line up on the same x or
+	   the ruled column stops reading as one. */
+	--stonetop-wonder-gutter: calc(var(--stonetop-question-spiral-size, 14px) + var(--stonetop-spiral-gap));
+	--stonetop-wonder-answer-step: 12px;
+	/* How far inside its own box a field on this tab starts its text: 1px of border
+	   plus 4px of padding. Every question here is TYPED rather than set as prose,
+	   so the gutter's 8px is a gap to a box edge unless something takes this back
+	   out — and 8px to the box is 13px to the first letter, which is not the gap
+	   any other spiral in the system keeps. Both fields are padded to the same 4
+	   (the add bar's was 6) so that one number lands both their text columns on one
+	   x as well. */
+	--stonetop-wonder-field-inset: 5px;
+}
+
+/* Each section is a box, so its pencil has something to be positioned against —
+   and the fold walk wants one too (the template says why). `steading-edit-section`
+   rides alongside for the `position: relative` and the corner placement of the
+   pencil/caret pair, exactly as the Threats tab's sections wear it.
+
+   The house 14px section gap, on EVERY box and not just the ones after a sibling,
+   which is where this parts company with `.stonetop-gm-homefront-section + …`:
+   the first box here follows the add bar rather than the top of the tab, and it
+   wants the same air as the two below it. */
+.stonetop-gm-wonder-section {
+	margin-top: 14px;
+}
+
+.stonetop-gm-wonder-list {
+	margin: 6px 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+/* The rule under each entry IS the playbook's ruled line, so it is drawn under
+   every row including the last: the column of lines is the thing, and one that
+   stops short of the bottom reads as a list that has been cut off. */
+.stonetop-gm-wonder-item {
+	padding: 5px 0 6px var(--stonetop-wonder-gutter);
+	border-bottom: 1px solid var(--st-card-rule);
+}
+
+.stonetop-gm-wonder-head {
+	position: relative;
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+}
+
+/* The question-spiral, in the gutter the item's padding opened for it — the same
+   bullet the journals' question lists and the character-creation FAQ hang beside
+   a prompt, which is what every line on this tab is.
+
+   It replaces a printed "I wonder..." on each row. That was the book's phrase set
+   as a label, and read as one on a list of three; on a list of a dozen it was the
+   same four words down the left margin of every line, with the questions starting
+   at whatever x the phrase happened to end at. The bullet says the same thing in
+   the width of a bullet, and it puts every question on one x — which is what the
+   playbook's ruled column is.
+
+   Hung off the HEAD rather than the item, because the head's box top is the top of
+   the question input (it is the tallest thing in a baseline-aligned row), so
+   `top: 0.15em` lands the glyph on the input's first line of text however the row
+   grows. Off the item it would have to know the item's own padding as well.
+
+   Mask + `currentColor`, not a background image: the file is fixed near-black ink
+   and would vanish on any scope that turns the paper black. */
+.stonetop-gm-wonder-head::before {
+	content: "";
+	position: absolute;
+	left: calc(var(--stonetop-wonder-field-inset) - var(--stonetop-wonder-gutter));
+	top: 0.15em;
+	width: var(--stonetop-question-spiral-size, 14px);
+	height: var(--stonetop-question-spiral-size, 14px);
+	background-color: currentColor;
+	opacity: 0.55;
+	-webkit-mask: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg') center / contain no-repeat;
+	mask: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg') center / contain no-repeat;
+}
+
+/* The question, written on the line. Transparent and borderless at rest so the
+   row's own rule is the only horizontal in it; a real field appears on focus.
+   `min-width: 0` so a long question shrinks inside the flex row rather than
+   pushing the tools off the right edge, which is what an input's default
+   intrinsic width would do.
+
+   `box-shadow: none` is the load-bearing line, and a transparent border alone
+   is NOT enough: core paints every input an inset ring
+   (`--input-box-shadow: inset 0 0 6px var(--input-background-color)`), which
+   draws a soft rounded box whatever the border says. Without this the ruled
+   column renders as a stack of form fields — no error, nothing logged, and the
+   two look near enough alike in a thumbnail to pass a glance. */
+.stonetop-gm-wonder-item .stonetop-gm-wonder-question {
+	flex: 1 1 auto;
+	min-width: 0;
+	height: auto;
+	margin: 0;
+	padding: 1px 4px;
+	border: 1px solid transparent;
+	border-radius: var(--st-radius-sm);
+	background: transparent;
+	box-shadow: none;
+	font-size: var(--st-fs-base);
+	color: var(--st-text);
+}
+
+.stonetop-gm-wonder-item .stonetop-gm-wonder-question:hover {
+	border-color: var(--st-card-rule);
+}
+
+.stonetop-gm-wonder-item .stonetop-gm-wonder-question:focus {
+	border-color: var(--st-btn-primary-border);
+	background: var(--st-warm-hover-bg);
+}
+
+/* An answered question is no longer editable in place: it is a span, not an
+   input, and reads as settled rather than as a field someone forgot to fill. */
+.stonetop-gm-wonder-question--settled {
+	flex: 1 1 auto;
+	min-width: 0;
+	padding: 1px 4px;
+	color: var(--st-text-secondary);
+}
+
+/* The answer sits UNDER the question and one step in past it, so the pair reads
+   as one entry rather than as two rows of a table, and so the question's own x
+   stays the only one the eye has to run down. Two lines at rest, because that is
+   about what a hunch runs to, and draggable taller for the ones that don't.
+   `min-height: 0` because a textarea's default `rows` floor otherwise fights the
+   resize in a flex column.
+
+   The width has to lose what the margin takes or the box runs off the right edge:
+   `width: 100%` is the item's content box, which the indent starts inside. */
+.stonetop-gm-wonder-item .stonetop-gm-wonder-answer {
+	display: block;
+	width: calc(100% - var(--stonetop-wonder-answer-step));
+	min-height: 0;
+	margin: 3px 0 0 var(--stonetop-wonder-answer-step);
+	padding: 2px 4px 2px 8px;
+	border: 1px solid transparent;
+	border-radius: var(--st-radius-sm);
+	background: transparent;
+	/* THE ACCENT BAR, and core's inset input ring off in the same declaration —
+	   which is why it is a shadow and not a `border-left`. The ring is the reason
+	   `box-shadow: none` stood here (see the note on the question above), and the
+	   three border rules on this control set `border-color` as a shorthand, so a
+	   left border would be recoloured by every hover and focus.
+	   `inset 2px 0 0` draws exactly the 2px rule the journals' answers wear
+	   (.stonetop-entry-qa-answer-text, .stonetop-lore-readonly-value) at the inner
+	   edge of the transparent border, and nothing else on this control can reach
+	   it. The extra 4px of left padding is its clearance. */
+	box-shadow: inset 2px 0 0 var(--st-card-rule);
+	resize: vertical;
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	line-height: 1.4;
+	color: var(--st-text-secondary);
+}
+
+/* No bar on a box with nothing in it. The bar's whole claim is "this question has
+   been answered", and a question that hasn't been is the common case here — a
+   rule beside a placeholder says the opposite of what the placeholder says.
+   `:placeholder-shown` re-evaluates as the GM types, so the bar arrives on the
+   first character and leaves if the answer is cleared. */
+.stonetop-gm-wonder-item .stonetop-gm-wonder-answer:placeholder-shown {
+	box-shadow: none;
+}
+
+.stonetop-gm-wonder-item .stonetop-gm-wonder-answer:hover {
+	border-color: var(--st-card-rule);
+}
+
+.stonetop-gm-wonder-item .stonetop-gm-wonder-answer:focus {
+	border-color: var(--st-btn-primary-border);
+	background: var(--st-warm-hover-bg);
+	font-style: normal;
+}
+
+/* Where the browser can size a textarea to its content, do: the template's
+   `rows="2"` is a floor that costs about 30px of blank paper on every entry
+   with a one-line answer, and this list is meant to be SCANNED — a dozen
+   questions at a glance is the difference between reaching for it mid-session
+   and not. With it, an empty answer is one line and a long one is as many as it
+   needs, so the drag handle has nothing left to do and goes.
+
+   Behind `@supports` rather than declared flat, because `field-sizing` is
+   Chromium and Safari only: Firefox keeps the two-row box and its handle, which
+   is the state this tab shipped in and is no worse for the absence. Foundry's
+   own desktop runtime is Chromium, so the common case is the sized one. */
+@supports (field-sizing: content) {
+	.stonetop-gm-wonder-item .stonetop-gm-wonder-answer {
+		field-sizing: content;
+		resize: none;
+	}
+}
+
+/* A settled answer, as prose — and it is ALWAYS an answer, so it always wears the
+   bar. Same indent and same voice as the box it replaces, so filing a question
+   does not move its answer on the page, and the +1px is what makes that true
+   rather than nearly true: the textarea above draws its bar at the inner edge of
+   a 1px transparent border, one past its own margin. From there the two agree
+   without arithmetic — same 2px rule, same 6px of clearance after it. */
+.stonetop-gm-wonder-answer-text {
+	margin: 2px 0 0 calc(var(--stonetop-wonder-answer-step) + 1px);
+	padding-left: 6px;
+	border-left: 2px solid var(--st-card-rule);
+	font-size: var(--st-fs-sm);
+	line-height: 1.4;
+	color: var(--st-text-secondary);
+}
+
+/* The row's buttons. `width: auto` and an explicit box, because V13 gives every
+   `<button>` inside an app `width: 100%`, which would put one icon per line. */
+.stonetop-gm-wonder-tools {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+}
+
+/* That section's pencil off: its tick, arrow and trash go. `display: none` and not
+   a dim or a `pointer-events` lock, because the row is better without them — the
+   question takes the width they were holding, and a column of questions with
+   nothing but questions in it is what a GM is reading this tab for mid-session.
+   Later in the file than the base rule above, per the modifier ordering the token
+   block sets out. */
+.stonetop-gm-wonder-section--reading .stonetop-gm-wonder-tools {
+	display: none;
+}
+
+.stonetop-gm-wonder-tools > button {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	border: 0;
+	border-radius: var(--st-radius-sm);
+	background: transparent;
+	color: var(--st-text-faint);
+	cursor: pointer;
+	line-height: 1;
+}
+
+.stonetop-gm-wonder-tools > button:hover {
+	background: var(--st-warm-hover-bg);
+	box-shadow: none;
+}
+
+/* The three tool hovers, all through TOKENS — the settle and remove ones used to be raw hex
+   beside a reopen that was already tokenized. The tokens are re-pointed in all three dark
+   scopes and a literal cannot follow them, so a hex here is light-theme ink left standing on a
+   dark sheet: the "answered" tick and the delete cross would be the two things on the tab that
+   do not turn with it. */
+.stonetop-gm-wonder-settle:hover  { color: var(--st-green-text); }
+.stonetop-gm-wonder-reopen:hover  { color: var(--st-text-secondary); }
+.stonetop-gm-wonder-remove:hover  { color: var(--st-red-text); }
+
+/* The add bar, at the TOP of the list rather than its foot (the template says
+   why). Given the row's own rule and the row's own gutter, so a question being
+   typed sits on the same ruled line, and starts at the same x, as the ones
+   already filed. */
+.stonetop-gm-wonder-add {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 2px 0 8px;
+	padding-left: var(--stonetop-wonder-gutter);
+	padding-bottom: 6px;
+	border-bottom: 1px solid var(--st-card-rule);
+}
+
+/* The same spiral the filed rows wear, faded further: this row is a blank the GM
+   may never type in, and at the list's full weight it reads as an entry with no
+   question on it. Centred rather than set to `0.15em`, because unlike an entry's
+   head this row is `align-items: center` and its field is the only thing in it —
+   less half the 6px of padding under it, which is the rule's clearance and not
+   part of the row the glyph is centring on.
+
+   The ONE glyph on this tab not nudged in by `--stonetop-wonder-field-inset`, and
+   for the reason that variable exists: this field DRAWS its box, so the gap the
+   eye measures is to the border and not to the letter behind it. Nudged, the
+   spiral all but touches it. The 5px stagger against the list's glyphs costs
+   nothing — a heading and a rule sit between the two. */
+.stonetop-gm-wonder-add::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 50%;
+	width: var(--stonetop-question-spiral-size, 14px);
+	height: var(--stonetop-question-spiral-size, 14px);
+	margin-top: calc(var(--stonetop-question-spiral-size, 14px) / -2 - 3px);
+	background-color: currentColor;
+	opacity: 0.3;
+	-webkit-mask: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg') center / contain no-repeat;
+	mask: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg') center / contain no-repeat;
+}
+
+/* The left padding is 4 and not the 6 the right keeps, so this field starts its
+   text exactly where a filed entry's does — see `--stonetop-wonder-field-inset`. */
+.stonetop-gm-wonder-add .stonetop-gm-wonder-new {
+	flex: 1 1 auto;
+	min-width: 0;
+	height: auto;
+	margin: 0;
+	padding: 2px 6px 2px 4px;
+	background: transparent;
+	font-size: var(--st-fs-base);
+}
+
+/* `width: auto` against V13's full-width button default, and `flex: 0 0 auto`
+   so the field takes the row's slack rather than the button.
+
+   The dashed edge is `--color-border-light`, the same hairline every other
+   "write one up" bar in the system wears (.stonetop-prep-add-btn one screen
+   down, .stonetop-inv-add-btn, .steading-improvement-add-btn). It shipped once
+   as `--st-btn-primary-border`, which is the SOLID CTA's edge (#4f5b66): a
+   near-black dash beside a plain text field, three shades heavier than the
+   field's own border and heavier than every add bar it is meant to match. Those
+   tokens are for filled primaries only — see the token block at the top. */
+.stonetop-gm-wonder-add-btn {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	width: auto;
+	padding: 2px 10px;
+	border: 1px dashed var(--color-border-light, #ccc);
+	border-radius: var(--st-radius);
+	background: transparent;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	cursor: pointer;
+}
+
+/* The same one-pixel drop the other add bars carry, for the same reason: Font
+   Awesome 7 reports far more ascent than descent, so `align-items: center`
+   centres the <i>'s BOX exactly and the glyph still paints flush to the top of
+   it with all the slack underneath. The full account is on
+   `.stonetop-prep-add-btn > i`. */
+.stonetop-gm-wonder-add-btn > i {
+	position: relative;
+	top: 1px;
+}
+
+.stonetop-gm-wonder-add-btn:hover {
+	background: var(--st-warm-hover-bg);
+	box-shadow: none;
+}
+
+/* A bottom margin as well as a top one, because on an untouched tab the next
+   thing down is the guidance heading and the two would otherwise sit on the
+   same line of air: the list's rows carry their own rule to separate them and
+   this stand-in for the list carries none. */
+.stonetop-gm-wonder-empty {
+	margin: 8px 0 14px;
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	color: var(--st-text-muted);
+}
+
+/* Book I p.33, folded shut. Set as the Core Loop tab's step lists are, spirals
+   and all, because it is the same thing: transcribed book text under a heading,
+   read once and then closed. */
+.stonetop-gm-wonder-guide {
+	padding-top: 4px;
+	font-size: var(--st-fs-sm);
+	line-height: 1.45;
+}
+
+.stonetop-gm-wonder-guide-section + .stonetop-gm-wonder-guide-section {
+	margin-top: 8px;
+}
+
+.stonetop-gm-wonder-guide-title {
+	margin: 0;
+	font-size: var(--st-fs-base);
+}
+
+.stonetop-gm-wonder-guide-items {
+	margin: 2px 0 0;
+	padding: 0;
+	list-style: none;
+	color: var(--st-text-secondary);
+}
+
+/* Spirals, like every other prose list in the system. Block flow (relative li +
+   absolute ::before), never flex: a flex `li` makes its own column of every
+   inline run, and these items are sentences. */
+.stonetop-gm-wonder-guide-items > li {
+	position: relative;
+	margin-bottom: 2px;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+
+.stonetop-gm-wonder-guide-items > li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
+}
+
+/* Question items take the question-spiral. `markQuestionBullets` tags them (hooks/
+   RenderActorSheet.js), but the global `li.question-bullet::before` weighs exactly what the
+   rule above does and loses to it on source order, so the swap has to be re-asserted inside
+   this list — the same path the journal and monster rich-text bodies take, for the same
+   reason. Only the picture changes; the size and position stay the list's own. This guide is
+   half questions, so without it the one thing the tab is named for draws as ordinary prose. */
+.stonetop-gm-wonder-guide-items > li.question-bullet::before {
+	background-image: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg');
 }
 
 /* -- Homefront tab --------------------------------------------------------

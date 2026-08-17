@@ -16,8 +16,10 @@
 // way to strand a live rail there (tests/actors/classic-layout.test.js says so for the other
 // three sheets, and the reasoning is the same here).
 //
-// Phase 1 is reference only, so this class stores nothing and writes nothing: there is no
-// edit mode, no header edit/lock toggle, and no `_updateObject` work beyond the base class.
+// Almost everything here is reference, so this class has no global edit mode, no header
+// edit/lock toggle, and no `_updateObject` work beyond the base class. The one exception is the
+// "I wonder..." tab, which a GM authors: its writes go straight to `actor.system.wonders` through
+// gm-wonder-tab.js rather than through the form, so the absence of an edit mode still holds.
 import { stripHeaderChrome } from "../../utils/sheet-chrome.js";
 import { mountTabRail } from "../../utils/tab-rail.js";
 import { withSheetSizeMemory } from "../../utils/sheet-size.js";
@@ -32,6 +34,7 @@ import { gmDiagrams } from "../../gm-toolkit/gm-diagrams.js";
 import { openImageZoom } from "../../utils/image-zoom-window.js";
 import { runImportBookArtMacro } from "../../book2-art/macro.js";
 import { withGmPrepTabs } from "./gm-prep-tabs.js";
+import { withGmWonderTab } from "./gm-wonder-tab.js";
 import { localizedHomefrontSections } from "../../gm-toolkit/homefront-view.js";
 import { readCurrentSeason, currentSeasonView, isCurrentSeasonChange } from "../../seasons/current-season.js";
 import { localize } from "../../utils/i18n.js";
@@ -91,7 +94,11 @@ export function createStonetopGmToolkitSheetClass(Base) {
 	// withGmPrepTabs: the Threats & Dangers and Sites tabs, moved here from the steading sheet.
 	// Its file header explains the one thing that must not drift: the STORAGE stayed on the
 	// steading, so those tabs resolve it rather than using `this.actor`.
-	return class StonetopGmToolkitSheet extends withGmPrepTabs(withSectionEditing(withSheetSizeMemory(Base))) {
+	//
+	// withGmWonderTab: the "I wonder..." tab, the one authored surface on this sheet. Its storage
+	// IS the toolkit's own (`actor.system.wonders`), which is the opposite of the line above and
+	// stated here so the two are never confused for one another.
+	return class StonetopGmToolkitSheet extends withGmWonderTab(withGmPrepTabs(withSectionEditing(withSheetSizeMemory(Base)))) {
 		// Read by the mixin's `isSectionEditable`. Constant, not state: this sheet has no global
 		// edit wrench, so a section is editable exactly when its own pencil is on.
 		_editMode = false;
@@ -203,11 +210,18 @@ export function createStonetopGmToolkitSheetClass(Base) {
 				// The Homefront tab's "now" mark, kept in step with the steading's clock.
 				this._wireSeasonSync();
 			}
+			// Anything half-typed in the "I wonder..." tab, saved before the repaint takes the box
+			// away. Those two fields save on blur, and the sync above redraws this sheet on every
+			// prep-page write in the WORLD — a redraw no blur precedes. See the mixin.
+			await this._flushGmWonderEdits();
 			await super._render(force, options);
 			stripHeaderChrome(this);
 		}
 
 		async close(options = {}) {
+			// The same flush, for the close that no blur precedes: Escape shuts an AppV1 window
+			// straight from the focused field, so its `change` event never fires.
+			await this._flushGmWonderEdits();
 			this._unwirePrepPageSync();
 			this._unwireSeasonSync();
 			return super.close(options);
@@ -332,6 +346,10 @@ export function createStonetopGmToolkitSheetClass(Base) {
 			// sharing one resolution is the point.
 			await this._addGmPrepContext(context, steading);
 
+			// The "I wonder..." list, off `actor.system.wonders`, split into the open questions
+			// and the answered ones, plus the book's guidance on keeping it.
+			this._addGmWonderContext(context);
+
 			return context;
 		}
 
@@ -357,6 +375,9 @@ export function createStonetopGmToolkitSheetClass(Base) {
 			// journal threat-seed drop. Self-gated per action, so it goes outside the editable
 			// guard the same way the steading wired it.
 			this._activateGmPrepListeners(html[0]);
+			// The "I wonder..." tab: the add bar, its two text fields, and the three per-row
+			// buttons. Delegated on the same root and independent of everything above it.
+			this._activateGmWonderListeners(html[0]);
 			// This sheet's own two buttons. Both are delegated rather than bound per element,
 			// because both are re-emitted whenever their tab re-renders and either may be absent
 			// (the import button depends on which diagrams this world already has).

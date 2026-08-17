@@ -524,9 +524,10 @@ async function _ensurePlayerActorCreationGrant() {
 // the same way — hooks/StonetopSingleton.js vetoes a second create and refuses to delete the
 // last, so whichever GM loads first mints it and every GM after that finds it.
 //
-// One is the right number because nothing on the sheet is per-GM: `GmToolkitModel`'s schema is
-// empty, the Moves and Core Loop tabs are reference transcribed from the playbook, and the
-// Threats and Sites tabs read their storage off the STEADING. What genuinely varies between
+// One is the right number because nothing on the sheet is per-GM: the Moves and Core Loop tabs
+// are reference transcribed from the playbook, the Threats and Sites tabs read their storage off
+// the STEADING, and the "I wonder..." list on `system.wonders` is the world's open questions
+// rather than any one gamemaster's. What genuinely varies between
 // gamemasters is which sheet their "C" key opens, and that is a per-user flag on the User
 // document (see _assignGmToolkitToGm below), not a second Actor.
 //

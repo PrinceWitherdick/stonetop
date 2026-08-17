@@ -3,10 +3,11 @@ import { registerStonetopSingletonHooks } from "../../module/hooks/StonetopSingl
 
 // The GM Toolkit is a world SINGLETON, on the same two hooks the steading uses.
 //
-// One rather than one-per-GM because nothing on the sheet is per-GM: GmToolkitModel's schema is
-// empty, the Moves and Core Loop tabs are reference transcribed from the playbook, and the
-// Threats and Sites tabs read their storage off the steading. A second toolkit would be a second
-// window onto identical data. What does vary between gamemasters is which sheet their "C" key
+// One rather than one-per-GM because nothing on the sheet is per-GM: the Moves and Core Loop tabs
+// are reference transcribed from the playbook, the Threats and Sites tabs read their storage off
+// the steading, and the "I wonder..." list on `system.wonders` is the world's open questions
+// rather than any one GM's. A second toolkit would be a second
+// window onto identical data, and would split that list. What does vary between gamemasters is which sheet their "C" key
 // opens, and that is a flag on their own User document.
 //
 // Enforced in preCreateActor rather than in the Create-Actor picker because this is the only

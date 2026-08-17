@@ -56,10 +56,11 @@ export function registerStonetopSingletonHooks() {
 
 		// The GM Toolkit is a singleton for the same reason and by the same mechanism, but on
 		// different grounds: the steading is one because the world has one Stonetop, and the
-		// toolkit is one because a second would show identical content. Its schema is empty, its
-		// Moves and Core Loop tabs are reference transcribed from the playbook, and its Threats
-		// and Sites tabs read their storage off the steading — so a second is a second window,
-		// not a second sheet. Which toolkit a given GM's "C" key opens is per-user and lives on
+		// toolkit is one because a second would show identical content. Its Moves and Core Loop
+		// tabs are reference transcribed from the playbook, its Threats and Sites tabs read their
+		// storage off the steading, and its "I wonder..." list is the world's open questions
+		// rather than any one GM's — so a second is a second window, not a second sheet, and a
+		// second would SPLIT that list. Which toolkit a given GM's "C" key opens is per-user and lives on
 		// their User document; that is the thing that actually varies between gamemasters.
 		//
 		// Vetoed HERE rather than in the Create-Actor picker because this is the only place that

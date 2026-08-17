@@ -90,6 +90,15 @@ redrawn. Each box is an outer rounded rect plus an inner one wound the other way
 leaves a wall and an empty middle without `fill-rule`; the arrowhead that closes the loop is on
 the RETURN leg, so the cycle reads bottom-back-to-top the way the printed diagram runs.
 
+Also the project's own drawing: `question-mark.svg`, the GM Toolkit's "I wonder..." tab glyph.
+A question mark, because the tab is a list of open questions and the playbook's own heading for
+it is "I wonder...". Plain geometry, and the file's own comment states every coordinate rule, so
+there is nothing to re-derive if it is redrawn: the hook is an annulus sector swept from 205
+degrees round to -25, the stem leaves it at the band's own 72-unit width, and the outline runs
+down the hook's OUTER edge into the stem and back up into its INNER edge, which is what curls the
+tail out of the bowl rather than sticking it on. Both the band and the stem are sized so the
+stroke is 2.8px at the rail's 20px, below which a curve stops reading as one.
+
 Also not from game-icons.net, and the project's own drawing rather than either:
 `arcanum.svg`, the Arcana tab's glyph. It is the triple spiral from
 `assets/icons/arcanum.svg` — generated geometry, redrawn from the mark the rulebooks print
