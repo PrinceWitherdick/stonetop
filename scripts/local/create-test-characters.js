@@ -96,7 +96,7 @@
   // Older ids are read-only fallback rungs there (LEGACY_FLAG_SCOPES) — fixtures are
   // always written to the active scope, never to a legacy one.
   const FLAG_SCOPE   = "stonetop_pwd";        // must be a registered system/module ID
-  const LEGACY_SCOPES = ["stonetop_pwd", "stonetop"]; // read-only rungs, newest first
+  const LEGACY_SCOPES = ["stonetop"];         // read-only rungs, newest first
   const TEST_FLAG    = "isTestCharacter";     // key within that scope
   const PACK_ID      = "stonetop_pwd.stonetop-items";
   const ARCANA_PACK_ID = "stonetop_pwd.stonetop-arcana";
