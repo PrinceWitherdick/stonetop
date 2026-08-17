@@ -69,7 +69,7 @@ describe("maybeAnnounceBecameHero", () => {
 	it("crosses off Would-be and announces when a Would-Be Hero gains an asterisked move", async () => {
 		const actor = makeActor();
 		await maybeAnnounceBecameHero(makeMove(actor), "u1");
-		expect(actor.setFlag).toHaveBeenCalledWith("stonetop-pwd", WBH_HERO_FLAG, true);
+		expect(actor.setFlag).toHaveBeenCalledWith("stonetop_pwd", WBH_HERO_FLAG, true);
 		expect(ChatMessage.create).toHaveBeenCalledTimes(1);
 		expect(ChatMessage.create.mock.calls[0][0].content).toContain("A Would-Be Hero No Longer");
 	});

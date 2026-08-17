@@ -13,7 +13,7 @@ import { SYSTEM_ID } from "../system-id.js";
 
 // The seasonal upkeep registry. `kind` decides how a character is matched:
 //   • "move"       — an embedded move Item with this exact name.
-//   • "possession" — a selected special-possession slug (flags.stonetop-pwd.possessions.selected).
+//   • "possession" — a selected special-possession slug (flags.stonetop_pwd.possessions.selected).
 // `rule` is the season-facing reminder text shown in the card.
 const SEASONAL_REMINDERS = [
 	{
@@ -49,7 +49,7 @@ const SEASONAL_REMINDERS = [
 // "autumn" maps to the "fall" art). Forward slashes keep it a valid URL.
 export function seasonIconSrc(season) {
 	const id = season === "autumn" ? "fall" : season;
-	return `systems/stonetop-pwd/assets/icons/seasons/${id}_icon.svg`;
+	return `systems/stonetop_pwd/assets/icons/seasons/${id}_icon.svg`;
 }
 
 // The four seasons in turn order — the single source for the season picker and

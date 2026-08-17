@@ -181,7 +181,7 @@ export function scalarEntry(label, oldValue, newValue, key) {
 
 /**
  * "These two cancel out — drop the pair." Returned in place of an entry rather than stamped ONTO
- * one: every sibling key of a ledger entry is persisted to `flags.stonetop-pwd.ledger`, so a
+ * one: every sibling key of a ledger entry is persisted to `flags.stonetop_pwd.ledger`, so a
  * marker field on a copy of a real entry is one missed `pop()` away from being written into world
  * data permanently, with nothing in the storage layer to object. A Symbol cannot survive that.
  */

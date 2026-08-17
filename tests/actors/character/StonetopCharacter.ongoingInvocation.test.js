@@ -7,7 +7,7 @@ import { FakeActorBuilder } from "../../fakes/FakeActorBuilder.js";
 // no-op contract, and the one rule the model owns outright: the light going out takes the
 // Invocation with it, wherever the light was put out from.
 //
-// FakeActorBuilder aliases both flag scopes ("stonetop-pwd" and the legacy "stonetop") to ONE
+// FakeActorBuilder aliases both flag scopes ("stonetop_pwd" and the legacy "stonetop") to ONE
 // object, so reading a flag back can never prove which scope it was written under. The scope is
 // therefore asserted through the spy's literal arguments.
 function makeChar({ ongoing = "", lit = false } = {}) {
@@ -30,7 +30,7 @@ describe("StonetopCharacter ongoing Invocation", () => {
 	it("stores it under the system's own flag scope", async () => {
 		const { char, actor } = makeChar();
 		await expect(char.setOngoingInvocation("warmth-of-the-sun")).resolves.toBe(true);
-		expect(actor.setFlag).toHaveBeenCalledWith("stonetop-pwd", "ongoingInvocation", "warmth-of-the-sun");
+		expect(actor.setFlag).toHaveBeenCalledWith("stonetop_pwd", "ongoingInvocation", "warmth-of-the-sun");
 		expect(char.ongoingInvocation).toBe("warmth-of-the-sun");
 	});
 
@@ -39,7 +39,7 @@ describe("StonetopCharacter ongoing Invocation", () => {
 	it("ends it by dropping the flag", async () => {
 		const { char, actor } = makeChar({ ongoing: "warmth-of-the-sun" });
 		await expect(char.setOngoingInvocation("")).resolves.toBe(true);
-		expect(actor.unsetFlag).toHaveBeenCalledWith("stonetop-pwd", "ongoingInvocation");
+		expect(actor.unsetFlag).toHaveBeenCalledWith("stonetop_pwd", "ongoingInvocation");
 		expect(actor.setFlag).not.toHaveBeenCalled();
 		expect(char.ongoingInvocation).toBe("");
 	});
@@ -69,7 +69,7 @@ describe("StonetopCharacter ongoing Invocation", () => {
 		await expect(char.setHolyLight(false)).resolves.toBe(true);
 		expect(char.ongoingInvocation).toBe("");
 		expect(char.holyLight).toBe(false);
-		expect(actor.unsetFlag).toHaveBeenCalledWith("stonetop-pwd", "ongoingInvocation");
+		expect(actor.unsetFlag).toHaveBeenCalledWith("stonetop_pwd", "ongoingInvocation");
 	});
 
 	// Reported as a change even though the light itself didn't move, so the sheet repaints: a

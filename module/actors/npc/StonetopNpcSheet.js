@@ -88,7 +88,7 @@ export function createStonetopNpcSheetClass(Base) {
 		}
 
 		get template() {
-			return "systems/stonetop-pwd/templates/actor/npc.hbs";
+			return "systems/stonetop_pwd/templates/actor/npc.hbs";
 		}
 
 		async _render(force, options) {

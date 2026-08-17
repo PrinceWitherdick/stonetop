@@ -43,7 +43,7 @@ export class BlessedMarksDialog extends RosterDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id: "stonetop-blessed-marks-dialog",
 			title: "Marks",
-			template: "systems/stonetop-pwd/templates/dialogs/blessed-marks.hbs",
+			template: "systems/stonetop_pwd/templates/dialogs/blessed-marks.hbs",
 			// "stonetop" carries our window chrome; omitting it leaves the window half-styled,
 			// picking up our own rules over Foundry's default dark header.
 			classes: ["stonetop", "stonetop-blessed-marks-dialog"],

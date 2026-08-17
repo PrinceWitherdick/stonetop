@@ -36,4 +36,4 @@ the signals in `ai.txt`, `.well-known/tdmrep.json`, and `robots.txt`, and exclud
 repository and its release artifacts from AI-training use.
 
 Questions or requests: open an issue at
-https://github.com/PrinceWitherdick/stonetop-pwd/issues
+https://github.com/PrinceWitherdick/stonetop/issues

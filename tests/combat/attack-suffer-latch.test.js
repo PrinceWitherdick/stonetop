@@ -11,7 +11,7 @@ vi.mock("../../module/utils/damage.js", async (importOriginal) => ({
 const { applyDamageToActor } = await import("../../module/utils/damage.js");
 const { executeSuffer } = await import("../../module/combat/attack-flow.js");
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 
 // Suffering opens a confirm dialog; this Dialog answers it immediately with the suggested
 // number, so the test exercises the write ordering rather than the prompt.

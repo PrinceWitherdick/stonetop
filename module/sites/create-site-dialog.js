@@ -218,7 +218,7 @@ export class CreateSiteDialog extends StepperDialog {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-create-site",
-			template:  "systems/stonetop-pwd/templates/dialogs/create-site.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/create-site.hbs",
 			// Wide enough that the 168px jump-to-step rail sits beside the content column
 			// rather than eating into it (the same reason Create a Follower is 728).
 			width:     760,

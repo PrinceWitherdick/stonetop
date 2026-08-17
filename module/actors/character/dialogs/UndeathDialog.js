@@ -55,7 +55,7 @@ export class UndeathDialog extends StonetopDialog {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-undeath-dialog",
-			template:  "systems/stonetop-pwd/templates/dialogs/undeath.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/undeath.hbs",
 			title:     "Undeath",
 			width:     640,
 			height:    "auto",

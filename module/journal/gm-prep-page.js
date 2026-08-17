@@ -10,7 +10,7 @@ import { buildHazardCardVM } from "../hazards/hazard-view.js";
 import { buildSiteCardVM, wireSiteTableRoll } from "../sites/site-view.js";
 import { STONETOP_SCOPE } from "../actors/character/StonetopFlags.js";
 
-const CARD_PARTIALS = "systems/stonetop-pwd/templates/journal/partials";
+const CARD_PARTIALS = "systems/stonetop_pwd/templates/journal/partials";
 
 /**
  * Everything that varies by GM-prep kind, in ONE table.

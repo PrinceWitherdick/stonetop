@@ -629,7 +629,7 @@ function crewEntries(path, oldValue, newValue, names, ctx = {}) {
 	// individualsHp guard below catches by way of ctx. Neither is anything to read out to a player:
 	// they rendered as "set to blank" and "changed to changed" respectively.
 	//
-	// Matched as a SEGMENT, not after a dot: `unsetFlag("stonetop-pwd", "crew.groupHp")` deletes at
+	// Matched as a SEGMENT, not after a dot: `unsetFlag("stonetop_pwd", "crew.groupHp")` deletes at
 	// the crew's own root, so the key is a bare `-=groupHp` with no dot in front of it. That is the
 	// crew's "Restore the group to full HP" button, and a dotted-only test let it through.
 	if (key.split(".").some(segment => segment.startsWith("-="))) return [];

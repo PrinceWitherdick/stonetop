@@ -186,7 +186,7 @@ export function createStonetopMonsterSheetClass(Base) {
 		}
 
 		get template() {
-			return "systems/stonetop-pwd/templates/actor/monster.hbs";
+			return "systems/stonetop_pwd/templates/actor/monster.hbs";
 		}
 
 		async _render(force, options) {
@@ -581,7 +581,7 @@ export function createStonetopMonsterSheetClass(Base) {
 
 			if (current?.moveId === item.id) {
 				const base = current.baseValue ?? baseArmor;
-				const [boostKey, boostVal] = deletionEntry("flags.stonetop-pwd.armorBoost");
+				const [boostKey, boostVal] = deletionEntry("flags.stonetop_pwd.armorBoost");
 				await this.actor.update({
 					"system.attributes.armor.value": base,
 					[boostKey]: boostVal,
@@ -596,7 +596,7 @@ export function createStonetopMonsterSheetClass(Base) {
 			const baseValue = current ? current.baseValue : baseArmor;
 			await this.actor.update({
 				"system.attributes.armor.value": value,
-				"flags.stonetop-pwd.armorBoost": { moveId: item.id, value, baseValue, label },
+				"flags.stonetop_pwd.armorBoost": { moveId: item.id, value, baseValue, label },
 			});
 			this._postArmorBoostNote(label, baseArmor, value, true);
 		}

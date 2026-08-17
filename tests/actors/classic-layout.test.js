@@ -104,7 +104,7 @@ describe("isClassicLayout", () => {
 	// every actor sheet in the world down on open rather than quietly rendering modern.
 	it("answers false when settings exist but the keys are not registered yet", () => {
 		globalThis.game = { ...original, settings: { get: (_ns, key) => {
-			throw new Error(`"stonetop-pwd.${key}" is not a registered game setting`);
+			throw new Error(`"stonetop_pwd.${key}" is not a registered game setting`);
 		} } };
 		for (const sheet of ["character", "steading", "npc"]) {
 			expect(() => isClassicLayout(sheet), sheet).not.toThrow();
@@ -117,7 +117,7 @@ describe("isClassicLayout", () => {
 	it("answers false when the master reads but its child does not", () => {
 		globalThis.game = { ...original, settings: { get: (_ns, key) => {
 			if (key === "sheetLayout") return "classic";
-			throw new Error(`"stonetop-pwd.${key}" is not a registered game setting`);
+			throw new Error(`"stonetop_pwd.${key}" is not a registered game setting`);
 		} } };
 		expect(isClassicLayout("character")).toBe(false);
 	});
@@ -128,7 +128,7 @@ describe("isClassicLayout", () => {
 	it("answers false when the personal key reads but the world's does not", () => {
 		globalThis.game = { ...original, settings: { get: (_ns, key) => {
 			if (key === "sheetLayout") return "world";
-			throw new Error(`"stonetop-pwd.${key}" is not a registered game setting`);
+			throw new Error(`"stonetop_pwd.${key}" is not a registered game setting`);
 		} } };
 		expect(() => isClassicLayout("character")).not.toThrow();
 		expect(isClassicLayout("character")).toBe(false);

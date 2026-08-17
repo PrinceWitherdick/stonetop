@@ -18,8 +18,8 @@ import {
 	markTrackHtml, mysteryHtml, consequenceHtml,
 } from "./arcanum-edit.js";
 
-const VIEW_TEMPLATE = "systems/stonetop-pwd/templates/item/arcanum-sheet.hbs";
-const EDIT_TEMPLATE = "systems/stonetop-pwd/templates/item/arcanum-sheet-edit.hbs";
+const VIEW_TEMPLATE = "systems/stonetop_pwd/templates/item/arcanum-sheet.hbs";
+const EDIT_TEMPLATE = "systems/stonetop_pwd/templates/item/arcanum-sheet-edit.hbs";
 
 // The "Max = stat" picker options, derived from the shared stat list so the order and
 // labels match the rest of the app (and can't drift). { key, abbr } is the template shape.

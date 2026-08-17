@@ -140,7 +140,7 @@ describe("_onArtifactIdentify — Know Things about an artifact", () => {
 		const { sheet, character } = makeSheet({ rollTotal: 8 });
 		await sheet._onArtifactIdentify("item-1");
 		const { messageFlags } = character.onDirectStatRoll.mock.calls[0][1];
-		expect(messageFlags["stonetop-pwd"]).toMatchObject({ move: "Know Things", artifact: "item-1" });
+		expect(messageFlags["stonetop_pwd"]).toMatchObject({ move: "Know Things", artifact: "item-1" });
 	});
 });
 

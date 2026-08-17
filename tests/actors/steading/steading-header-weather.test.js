@@ -172,7 +172,7 @@ describe("the clock block's layout", () => {
 			const rule = `.steading-header .steading-header-weather--${sky}`;
 			expect(CSS, sky).toContain(rule);
 			expect(ownRule(CSS, rule), sky)
-				.toContain(`url('/systems/stonetop-pwd/assets/icons/weather/${sky}.svg')`);
+				.toContain(`url('/systems/stonetop_pwd/assets/icons/weather/${sky}.svg')`);
 
 			const svg = read(`assets/icons/weather/${sky}.svg`);
 			// The backing square punched transparent — see assets/icons/weather/ATTRIBUTION.md.

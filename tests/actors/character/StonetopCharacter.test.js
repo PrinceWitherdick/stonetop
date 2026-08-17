@@ -111,7 +111,7 @@ describe("StonetopCharacter.addDroppedInventoryItem", () => {
 		const src = "stonetop-book-art/assets/treasures/ustrina-brass-sphere.webp";
 		const prevGame = globalThis.game;
 		globalThis.game = { settings: {
-			settings: new Map([["stonetop-pwd.treasureArt", {}], ["stonetop-pwd.book2ArtRoot", {}]]),
+			settings: new Map([["stonetop_pwd.treasureArt", {}], ["stonetop_pwd.book2ArtRoot", {}]]),
 			get: (_ns, key) => ({
 				treasureArt: { "ustrina-brass-sphere": "assets/treasures/ustrina-brass-sphere.webp" },
 				book2ArtRoot: "stonetop-book-art",
@@ -255,7 +255,7 @@ describe("StonetopCharacter.buildSnapshot — playbook display fields", () => {
 		const other = (id, name, learned = true) => ({
 			_id: id, type: "move", name,
 			system: { moveType: "other", rollType: null },
-			flags: { "stonetop-pwd": { custom: true, ...(learned ? {} : { learned: false }) } },
+			flags: { "stonetop_pwd": { custom: true, ...(learned ? {} : { learned: false }) } },
 		});
 		// Creation order deliberately fights both sort keys.
 		const actor = new FakeActorBuilder()
@@ -910,8 +910,8 @@ describe("StonetopCharacter.getMoves otherMoves", () => {
 		expect(result.otherMoves[0].description).toBeNull();
 	});
 
-	it("marks player-authored moves (flags.stonetop-pwd.custom) with custom: true", async () => {
-		const move = { _id: "m6", type: "move", name: "Homebrew", system: { moveType: "other", rollType: null }, flags: { "stonetop-pwd": { custom: true } } };
+	it("marks player-authored moves (flags.stonetop_pwd.custom) with custom: true", async () => {
+		const move = { _id: "m6", type: "move", name: "Homebrew", system: { moveType: "other", rollType: null }, flags: { "stonetop_pwd": { custom: true } } };
 		const char = new TestCharacterBuilder(new FakeActorBuilder().withItems([move]).build()).build();
 		const result = await char.getMoves();
 		expect(result.otherMoves[0].custom).toBe(true);
@@ -1016,13 +1016,13 @@ describe("StonetopCharacter.setMoveLearned", () => {
 	it("un-learns a NON-custom move (a foreign playbook move dropped on the sheet)", async () => {
 		const item = { _id: "m1", type: "move", name: "Ambush", system: { moveType: "other", playbook: "The Fox" }, setFlag: vi.fn() };
 		await new TestCharacterBuilder(moveActor(item)).build().setMoveLearned("m1", false);
-		expect(item.setFlag).toHaveBeenCalledWith("stonetop-pwd", "learned", false);
+		expect(item.setFlag).toHaveBeenCalledWith("stonetop_pwd", "learned", false);
 	});
 
 	it("re-learns a custom move", async () => {
-		const item = { _id: "c1", type: "move", name: "Homebrew", system: { moveType: "other" }, flags: { "stonetop-pwd": { custom: true } }, setFlag: vi.fn() };
+		const item = { _id: "c1", type: "move", name: "Homebrew", system: { moveType: "other" }, flags: { "stonetop_pwd": { custom: true } }, setFlag: vi.fn() };
 		await new TestCharacterBuilder(moveActor(item)).build().setMoveLearned("c1", true);
-		expect(item.setFlag).toHaveBeenCalledWith("stonetop-pwd", "learned", true);
+		expect(item.setFlag).toHaveBeenCalledWith("stonetop_pwd", "learned", true);
 	});
 
 	it("does nothing for an id that isn't on the actor", async () => {
@@ -1158,6 +1158,6 @@ describe("StonetopCharacter.onRoll", () => {
 		const actor = makeOnRollActor(makeRollableItem());
 		const char = new TestCharacterBuilder(actor).build();
 		await char.setRollMode("dis");
-		expect(actor.setFlag).toHaveBeenCalledWith("stonetop-pwd", "rollMode", "dis");
+		expect(actor.setFlag).toHaveBeenCalledWith("stonetop_pwd", "rollMode", "dis");
 	});
 });

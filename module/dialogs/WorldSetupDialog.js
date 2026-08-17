@@ -82,7 +82,7 @@ export class WorldSetupDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-world-setup",
 			title:     "Setting up your world",
-			template:  "systems/stonetop-pwd/templates/dialogs/world-setup.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/world-setup.hbs",
 			width:     480,
 			height:    "auto",
 			resizable: true,

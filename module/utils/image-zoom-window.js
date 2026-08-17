@@ -26,7 +26,7 @@ import { StonetopDialog } from "./stonetop-dialog.js";
 import { openOrFocus } from "./open-or-focus.js";
 import { anchoredOffset, centreOffset, clampPan, clampZoom, fitScale, stepZoom } from "./image-zoom.js";
 
-const TEMPLATE = "systems/stonetop-pwd/templates/dialogs/image-zoom.hbs";
+const TEMPLATE = "systems/stonetop_pwd/templates/dialogs/image-zoom.hbs";
 
 export class ImageZoomWindow extends StonetopDialog {
 	constructor({ src = "", alt = "" } = {}, options = {}) {

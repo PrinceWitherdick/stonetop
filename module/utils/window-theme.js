@@ -71,7 +71,7 @@ const LIGHT_CLASSES = ["themed", "theme-light"];
 
 /**
  * True when a window root is one of ours — either a Stonetop application or a core
- * window tagWindow has skinned. `stonetop-pwd` is excluded: that is the package id,
+ * window tagWindow has skinned. `stonetop_pwd` is excluded: that is the package id,
  * and a class by that name would mean "a window belonging to this system", which
  * core and other modules may well apply to windows we do not own.
  */

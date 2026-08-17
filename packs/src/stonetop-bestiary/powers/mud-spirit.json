@@ -1,7 +1,7 @@
 {
   "name": "Mud Spirit",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/spirit.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "group, spirit, cheerful, grimy, clingy",
     "qualities": "",
     "count": 3,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.m88jHcxMlzd0u0N3",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.m88jHcxMlzd0u0N3",
     "notes": "<p>Genuinely doesn't get why you're upset or frustrated.</p>",
     "creatureType": "spirit"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/spirit.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg"
     }
   },
   "items": [],

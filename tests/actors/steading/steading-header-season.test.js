@@ -56,7 +56,7 @@ describe("the steading header's season clock", () => {
 	it("registers the partial it mounts", () => {
 		expect(STEADING_HBS).toContain('{{> "stonetop.steading-header-season"');
 		expect(STONETOP_JS).toContain(
-			'"stonetop.steading-header-season":    "systems/stonetop-pwd/templates/actor/partials/steading-header-season.hbs"');
+			'"stonetop.steading-header-season":    "systems/stonetop_pwd/templates/actor/partials/steading-header-season.hbs"');
 	});
 
 	// A GM gets a button (it opens the setter); everyone else gets a plain div. Two

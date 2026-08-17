@@ -12,8 +12,8 @@ import {
 import { rosterMemberFrameHandle } from "../../../module/utils/portrait-frame-handles.js";
 import { PERSON_ROSTER_IMG } from "../../../module/utils/person-portrait.js";
 
-const SCOPE = "stonetop-pwd";
-const FACE  = "systems/stonetop-pwd/assets/people/aled.webp";
+const SCOPE = "stonetop_pwd";
+const FACE  = "systems/stonetop_pwd/assets/people/aled.webp";
 const FRAME = { src: FACE, rect: [0.1, 0, 0.6, 0.5] };
 
 /**
@@ -30,7 +30,7 @@ function makeActor(stonetop = {}) {
 			actor.updates.push(data);
 			for (const [path, value] of Object.entries(data)) {
 				const parts = path.split(".");
-				// `flags.stonetop-pwd.…` — the scope is one segment, not two, despite the hyphen.
+				// `flags.stonetop_pwd.…` — the scope is one segment, not two, despite the hyphen.
 				const keys = ["flags", SCOPE, ...parts.slice(2)];
 				let node = actor;
 				for (const key of keys.slice(0, -1)) node = (node[key] ??= {});
@@ -241,7 +241,7 @@ describe("what a roster row draws", () => {
 // things it does in each state. Kept as a table because it decides reachability for three
 // rosters at once and a hole in it is invisible until someone tries that one combination.
 describe("what a roster row's avatar offers, per state", () => {
-	const FACE = "systems/stonetop-pwd/assets/people/aled.webp";
+	const FACE = "systems/stonetop_pwd/assets/people/aled.webp";
 	const ctx = (hasFace, canWrite, rosterEditing) =>
 		rosterAvatarContext(hasFace ? { img: FACE } : null, { name: "Aled", canWrite, rosterEditing });
 

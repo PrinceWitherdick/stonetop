@@ -410,7 +410,7 @@ const RECOVER_SUPPLY_SLUGS = ["supplies", "more-supplies", "even-more-supplies"]
 // and the three text fields in the order p.430-431 introduces them — the hint that stands in
 // for the tags, the write-up a 10+ hands over, the lead a miss leaves. `key` is both the
 // knowledge field read out and the form control's name, so the harvest needs no second table.
-const ARTIFACT_GM_TEMPLATE = "systems/stonetop-pwd/templates/dialogs/artifact-gm.hbs";
+const ARTIFACT_GM_TEMPLATE = "systems/stonetop_pwd/templates/dialogs/artifact-gm.hbs";
 const ARTIFACT_GM_STATES = [
 	ARTIFACT_STATE.NONE, ARTIFACT_STATE.UNKNOWN, ARTIFACT_STATE.PARTIAL, ARTIFACT_STATE.KNOWN,
 ];
@@ -890,7 +890,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		get template() {
-			return "systems/stonetop-pwd/templates/actor/character.hbs";
+			return "systems/stonetop_pwd/templates/actor/character.hbs";
 		}
 
 		async _render(force, options) {
@@ -4008,7 +4008,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-follower-party-check").on("change", async ev => {
 				const slug = ev.currentTarget.dataset.slug;
 				if (!slug) return;
-				await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.party`]: ev.currentTarget.checked });
+				await this.actor.update({ [`flags.stonetop_pwd.customFollowers.${slug}.party`]: ev.currentTarget.checked });
 				this.render(false);
 			});
 
@@ -4088,7 +4088,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const raw = Number(this.actor.getFlag(STONETOP_SCOPE, "crew.groupHp"));
 				if (!Number.isFinite(raw)) return;
 				const max = Math.max(0, crewSize) * (this._crewMemberHpMax ?? 6);
-				if (raw > max) update["flags.stonetop-pwd.crew.groupHp"] = max;
+				if (raw > max) update["flags.stonetop_pwd.crew.groupHp"] = max;
 			};
 			// Delete individual crew member
 			html.find(".stonetop-crew-delete-individual").on("click", ev => {
@@ -4112,20 +4112,20 @@ export function createStonetopCharacterSheetClass(Base) {
 				// object-valued flags, so without the key deletes the dropped/old
 				// trailing entries would persist.)
 				const survivors = new Set(Object.keys(newHp));
-				const update = { "flags.stonetop-pwd.crew.individuals": individuals };
+				const update = { "flags.stonetop_pwd.crew.individuals": individuals };
 				for (const k of Object.keys(oldHp))
 					if (!survivors.has(k)) {
 						const [updKey, val] = deletionEntry(`flags.${STONETOP_SCOPE}.crew.individualsHp.${k}`);
 						update[updKey] = val;
 					}
 				for (const [k, v] of Object.entries(newHp))
-					update[`flags.stonetop-pwd.crew.individualsHp.${k}`] = v;
+					update[`flags.stonetop_pwd.crew.individualsHp.${k}`] = v;
 				// Shrink the roster by one: "Remove" takes the member out of the crew
 				// entirely. Without this the freed slot reappears as a fresh full-HP
 				// anonymous member (`size` would still imply the old headcount).
 				const sizeBefore = effectiveCrewSize(this.actor.getFlag(STONETOP_SCOPE, "crew.size"), individuals.length + 1);
 				const newSize = Math.max(individuals.length, sizeBefore - 1);
-				update["flags.stonetop-pwd.crew.size"] = newSize;
+				update["flags.stonetop_pwd.crew.size"] = newSize;
 				clampStoredGroupHp(update, newSize);
 				Dialog.confirm({
 					title:   "Remove crew member",
@@ -4144,8 +4144,8 @@ export function createStonetopCharacterSheetClass(Base) {
 				const anonCount  = Math.max(0, clamped - namedCount);
 				const memberHp   = (this.actor.getFlag(STONETOP_SCOPE, "crew.memberHp") ?? []).slice(0, anonCount);
 				const update = {
-					"flags.stonetop-pwd.crew.size":     clamped,
-					"flags.stonetop-pwd.crew.memberHp": memberHp,
+					"flags.stonetop_pwd.crew.size":     clamped,
+					"flags.stonetop_pwd.crew.memberHp": memberHp,
 				};
 				// The anonymous members' faces are an array parallel to their HP, so they are trimmed
 				// by the same cut. Only written when there is something to trim: an untouched roster
@@ -4153,7 +4153,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				// behind on every crew that never picked a face.
 				const memberPortrait = rosterPortraitList(this.actor, "crew-member");
 				if (memberPortrait.length > anonCount) {
-					update["flags.stonetop-pwd.crew.memberPortrait"] = memberPortrait.slice(0, anonCount);
+					update["flags.stonetop_pwd.crew.memberPortrait"] = memberPortrait.slice(0, anonCount);
 				}
 				clampStoredGroupHp(update, clamped);
 				await this.actor.update(update);
@@ -4185,7 +4185,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!path) return;
 				const idx     = Number(ev.currentTarget.dataset.index);
 				const current = Math.max(0, Number(this.actor.getFlag(STONETOP_SCOPE, path)) || 0);
-				await this.actor.update({ [`flags.stonetop-pwd.${path}`]: current === idx + 1 ? idx : idx + 1 });
+				await this.actor.update({ [`flags.stonetop_pwd.${path}`]: current === idx + 1 ? idx : idx + 1 });
 				this.render(false);
 			});
 			// "Uses ammo" toggle (Damage section, edit mode): opts a ranged follower
@@ -4196,10 +4196,10 @@ export function createStonetopCharacterSheetClass(Base) {
 				const path = followerDetailPath(ftype, slug ?? "", "usesAmmo");
 				if (!path) return;
 				const on = ev.currentTarget.checked;
-				const update = { [`flags.stonetop-pwd.${path}`]: on };
+				const update = { [`flags.stonetop_pwd.${path}`]: on };
 				if (!on) {
 					const ammoPath = _followerAmmoPath(ftype, slug ?? "");
-					if (ammoPath) update[`flags.stonetop-pwd.${ammoPath}`] = 0;
+					if (ammoPath) update[`flags.stonetop_pwd.${ammoPath}`] = 0;
 				}
 				await this.actor.update(update);
 				this.render(false);
@@ -4212,7 +4212,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!path) return;
 				const idx    = Number(index);
 				const newVal = ev.currentTarget.checked ? idx + 1 : idx;
-				await this.actor.update({ [`flags.stonetop-pwd.${path}`]: newVal });
+				await this.actor.update({ [`flags.stonetop_pwd.${path}`]: newVal });
 				this.render(false);
 			});
 
@@ -4220,7 +4220,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// A data-slug marks a custom group's pool; without one it's the crew's.
 			html.find(".stonetop-group-hp-reset").on("click", async ev => {
 				const slug = ev.currentTarget.dataset.slug;
-				if (slug) await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.groupHp`]: null });
+				if (slug) await this.actor.update({ [`flags.stonetop_pwd.customFollowers.${slug}.groupHp`]: null });
 				else      await this.actor.unsetFlag(STONETOP_SCOPE, "crew.groupHp");
 				this.render(false);
 			});
@@ -4233,20 +4233,20 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!c) return;
 				const size = customGroupSize({ size: next });
 				const memberHpMax = Math.max(1, Math.trunc(Number(c.hpMax) || 0) || 1);
-				const update = { [`flags.stonetop-pwd.customFollowers.${slug}.size`]: size };
+				const update = { [`flags.stonetop_pwd.customFollowers.${slug}.size`]: size };
 				// Trim per-member HP to the new roster length.
 				if (Array.isArray(c.memberHp) && c.memberHp.length > size) {
-					update[`flags.stonetop-pwd.customFollowers.${slug}.memberHp`] = c.memberHp.slice(0, size);
+					update[`flags.stonetop_pwd.customFollowers.${slug}.memberHp`] = c.memberHp.slice(0, size);
 				}
 				// And their faces, which are an array parallel to that HP (roster-portraits.js).
 				if (Array.isArray(c.memberPortrait) && c.memberPortrait.length > size) {
-					update[`flags.stonetop-pwd.customFollowers.${slug}.memberPortrait`] = c.memberPortrait.slice(0, size);
+					update[`flags.stonetop_pwd.customFollowers.${slug}.memberPortrait`] = c.memberPortrait.slice(0, size);
 				}
 				// Clamp an explicitly-set group pool to the new max (unset tracks full).
 				const rawPool = Number(c.groupHp);
 				if (Number.isFinite(rawPool)) {
 					const max = size * memberHpMax;
-					if (rawPool > max) update[`flags.stonetop-pwd.customFollowers.${slug}.groupHp`] = max;
+					if (rawPool > max) update[`flags.stonetop_pwd.customFollowers.${slug}.groupHp`] = max;
 				}
 				await this.actor.update(update);
 				this.render(false);
@@ -4475,14 +4475,14 @@ export function createStonetopCharacterSheetClass(Base) {
 								if (carriedFace?.img)           named.img           = carriedFace.img;
 								if (carriedFace?.portraitFrame) named.portraitFrame = carriedFace.portraitFrame;
 								const update = {
-									"flags.stonetop-pwd.crew.individuals":   [...individuals, named],
-									"flags.stonetop-pwd.crew.individualsHp": individualsHp,
-									"flags.stonetop-pwd.crew.memberHp":      memberHp,
+									"flags.stonetop_pwd.crew.individuals":   [...individuals, named],
+									"flags.stonetop_pwd.crew.individualsHp": individualsHp,
+									"flags.stonetop_pwd.crew.memberHp":      memberHp,
 								};
 								// Only when the store exists: a crew that has never picked a face
 								// should not gain an empty array the first time it names somebody.
 								if (memberPortrait.length || carriedFace !== undefined) {
-									update["flags.stonetop-pwd.crew.memberPortrait"] = memberPortrait;
+									update["flags.stonetop_pwd.crew.memberPortrait"] = memberPortrait;
 								}
 								await this.actor.update(update);
 								this.render(false);
@@ -5019,7 +5019,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				// the card returns to normal — a mirror of the fate dialog's "Dead" outcome.
 				if (follower === "custom" && slug && val > 0
 					&& this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}.dead`)) {
-					await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.dead`]: false });
+					await this.actor.update({ [`flags.stonetop_pwd.customFollowers.${slug}.dead`]: false });
 				}
 				// Capture the follower's display name off the live card BEFORE the
 				// re-render detaches this input from the DOM.
@@ -6601,7 +6601,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				// summoned again and again, so they're never deduped by sourceUuid.
 				if (!input.repeatable && present.has(input.sourceUuid)) continue;
 				const id = foundry.utils.randomID(16);
-				update[`flags.stonetop-pwd.customFollowers.${id}`] = { ...buildCustomFollower(input), order: order++ };
+				update[`flags.stonetop_pwd.customFollowers.${id}`] = { ...buildCustomFollower(input), order: order++ };
 			}
 			if (Object.keys(update).length) await this.actor.update(update);
 			this.render(false);
@@ -6637,11 +6637,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			const ring   = this._ringFollowerEntry();
 			const id     = foundry.utils.randomID(16);
 			const update = {
-				[`flags.stonetop-pwd.customFollowers.${id}`]: { ...buildServantFollower(input), order: this._nextFollowerOrder() },
+				[`flags.stonetop_pwd.customFollowers.${id}`]: { ...buildServantFollower(input), order: this._nextFollowerOrder() },
 			};
 			let costLine;
 			if (cost?.kind === "loyalty" && ring.id && ring.loyalty > 0) {
-				update[`flags.stonetop-pwd.customFollowers.${ring.id}.loyalty`] = ring.loyalty - 1;
+				update[`flags.stonetop_pwd.customFollowers.${ring.id}.loyalty`] = ring.loyalty - 1;
 				costLine = `<p>You spend <strong>1 Loyalty</strong> from ${escHtml(ring.name)} (now ${ring.loyalty - 1}).</p>`;
 			} else if (cost?.kind === "loyalty") {
 				costLine = `<p>${escHtml(ring.name)} holds no Loyalty, so you <strong>mark a consequence</strong> to call them up.</p>`;
@@ -7326,7 +7326,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (Object.values(existing).some(f => f?.sourceUuid === input.sourceUuid)) return;
 			const id = foundry.utils.randomID(16);
 			await this.actor.update({
-				[`flags.stonetop-pwd.customFollowers.${id}`]: { ...buildCustomFollower(input), order: this._nextFollowerOrder() },
+				[`flags.stonetop_pwd.customFollowers.${id}`]: { ...buildCustomFollower(input), order: this._nextFollowerOrder() },
 			});
 			this.render(false);
 		}
@@ -7812,7 +7812,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (!data) return;
 			const id = foundry.utils.randomID(16);
 			await this.actor.update({
-				[`flags.stonetop-pwd.customFollowers.${id}`]: { ...data, order: this._nextFollowerOrder() },
+				[`flags.stonetop_pwd.customFollowers.${id}`]: { ...data, order: this._nextFollowerOrder() },
 			});
 			this.render(false);
 		}
@@ -7864,7 +7864,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				// built-in followers (animal companion / initiate / beast) aren't removable and
 				// have no per-record store, so they keep the chat-card record only.
 				if (follower === "custom" && slug) {
-					await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.dead`]: true });
+					await this.actor.update({ [`flags.stonetop_pwd.customFollowers.${slug}.dead`]: true });
 				}
 			} else {
 				return;
@@ -7880,9 +7880,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (follower === "animal-companion") {
 				await this.actor.setFlag(STONETOP_SCOPE, "animalCompanion.hpCurrent", val);
 			} else if (follower === "initiate") {
-				await this.actor.update({ [`flags.stonetop-pwd.initiatesHp.${slug}`]: val });
+				await this.actor.update({ [`flags.stonetop_pwd.initiatesHp.${slug}`]: val });
 			} else if (follower === "crew-individual") {
-				await this.actor.update({ [`flags.stonetop-pwd.crew.individualsHp.${Number(index)}`]: val });
+				await this.actor.update({ [`flags.stonetop_pwd.crew.individualsHp.${Number(index)}`]: val });
 			} else if (follower === "crew-member") {
 				const arr = [...(this.actor.getFlag(STONETOP_SCOPE, "crew.memberHp") ?? [])];
 				arr[Number(index)] = val;
@@ -7890,15 +7890,15 @@ export function createStonetopCharacterSheetClass(Base) {
 			} else if (follower === "crew-group") {
 				await this.actor.setFlag(STONETOP_SCOPE, "crew.groupHp", val);
 			} else if (follower === "beast") {
-				await this.actor.update({ [`flags.stonetop-pwd.beastHp.${slug}`]: val });
+				await this.actor.update({ [`flags.stonetop_pwd.beastHp.${slug}`]: val });
 			} else if (follower === "custom") {
-				await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.hpCurrent`]: val });
+				await this.actor.update({ [`flags.stonetop_pwd.customFollowers.${slug}.hpCurrent`]: val });
 			} else if (follower === "custom-group") {
-				await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.groupHp`]: val });
+				await this.actor.update({ [`flags.stonetop_pwd.customFollowers.${slug}.groupHp`]: val });
 			} else if (follower === "custom-member") {
 				const arr = [...(this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}.memberHp`) ?? [])];
 				arr[Number(index)] = val;
-				await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.memberHp`]: arr });
+				await this.actor.update({ [`flags.stonetop_pwd.customFollowers.${slug}.memberHp`]: arr });
 			}
 		}
 
@@ -7983,7 +7983,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const bearsShield = this._followerHasShield(ftype, slug ?? "");
 			const shieldNote = (bearsShield && next === held) ? ` (${held + 1} with their shield)` : "";
 			if (next !== existing) {
-				await this.actor.update({ [`flags.stonetop-pwd.${path}`]: next }, { stonetopMove: "Defend" });
+				await this.actor.update({ [`flags.stonetop_pwd.${path}`]: next }, { stonetopMove: "Defend" });
 			}
 			const who = result?.followerName || "Your follower";
 			await this._postMoveCard("Defend: Readiness held",
@@ -8035,7 +8035,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// opened — the track may have changed since, and writing captured−1 would clobber it.
 			const live = Math.max(0, Number(this.actor.getFlag(STONETOP_SCOPE, path)) || 0);
 			if (live <= 0) { ui.notifications?.warn?.(`${name || "This follower"} no longer holds any Loyalty to spend.`); return; }
-			await this.actor.update({ [`flags.stonetop-pwd.${path}`]: live - 1 }, { stonetopMove: "Spend Loyalty" });
+			await this.actor.update({ [`flags.stonetop_pwd.${path}`]: live - 1 }, { stonetopMove: "Spend Loyalty" });
 			await this._postMoveCard("Spend Loyalty",
 				`<p>You spend <strong>1 Loyalty</strong> to have <strong>${escHtml(name || "them")}</strong> <em>${escHtml(reason.toLowerCase())}</em>.</p>`
 				+ `<p>They now hold <strong>${live - 1}</strong> Loyalty.</p>`);
@@ -8084,8 +8084,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			const liveLoyalty = lPath ? Math.max(0, Number(this.actor.getFlag(STONETOP_SCOPE, lPath)) || 0) : 0;
 			// Only charge the "wouldn't want to" Loyalty if they still hold some to pay it.
 			const unwilling = wantsUnwilling && !!lPath && liveLoyalty > 0;
-			const update = { [`flags.stonetop-pwd.${rPath}`]: liveReadiness - 1 };
-			if (unwilling) update[`flags.stonetop-pwd.${lPath}`] = liveLoyalty - 1;
+			const update = { [`flags.stonetop_pwd.${rPath}`]: liveReadiness - 1 };
+			if (unwilling) update[`flags.stonetop_pwd.${lPath}`] = liveLoyalty - 1;
 			await this.actor.update(update, { stonetopMove: "Spend Readiness" });
 			const costLine = unwilling
 				? `<p>They didn't want to, so you also spent <strong>1 Loyalty</strong> (${liveLoyalty - 1} left).</p>`
@@ -8132,7 +8132,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const maxOrder  = Object.values(targetMap).reduce((m, f) => Math.max(m, Number(f?.order) || 0), 0);
 			const newId     = foundry.utils.randomID(16);
 			await target.update({
-				[`flags.stonetop-pwd.customFollowers.${newId}`]: { ...data, order: Math.max(maxOrder + 1, Date.now()) },
+				[`flags.stonetop_pwd.customFollowers.${newId}`]: { ...data, order: Math.max(maxOrder + 1, Date.now()) },
 			});
 			await this._removeCustomFollower(slug);
 			await this._postMoveCard("Follower Handed Off",
@@ -8181,7 +8181,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			await this._stonetopCharacter.setInventoryResource(supplySlug, Math.max(0, currentUses - 1));
 			await this.actor.update({
 				"system.attributes.hp.value": newHp,
-				"flags.stonetop-pwd.recover.spent": true,
+				"flags.stonetop_pwd.recover.spent": true,
 			});
 
 			const rows = [

@@ -35,7 +35,7 @@ export class RequisitionDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id: "stonetop-requisition",
 			title: "Requisition",
-			template: "systems/stonetop-pwd/templates/dialogs/requisition-picker.hbs",
+			template: "systems/stonetop_pwd/templates/dialogs/requisition-picker.hbs",
 			width: 540,
 			height: "auto",
 			resizable: true,
@@ -163,7 +163,7 @@ export class RequisitionDialog extends StonetopDialog {
 		const existing = this._characterActor.getFlag(SYSTEM_ID, "customFollowers") ?? {};
 		const id = foundry.utils.randomID(16);
 		await this._characterActor.update({
-			[`flags.stonetop-pwd.customFollowers.${id}`]: {
+			[`flags.stonetop_pwd.customFollowers.${id}`]: {
 				...buildCustomFollower({ ...input, notes: `Requisitioned from ${assetName}.` }),
 				order: nextFollowerOrder(existing),
 			},

@@ -120,7 +120,7 @@ export class PeopleGalleryDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id: "stonetop-people-gallery",
 			title: "People of Stonetop",
-			template: "systems/stonetop-pwd/templates/dialogs/people-gallery.hbs",
+			template: "systems/stonetop_pwd/templates/dialogs/people-gallery.hbs",
 			width: 640,
 			height: "auto",
 			resizable: true,

@@ -14,7 +14,7 @@
 import { systemAssetVariants } from "../../migration/compat.js";
 
 export const STEADING_ACTOR_TYPE = "stonetop";
-export const STEADING_DEFAULT_IMG = "systems/stonetop-pwd/assets/stonetop_image.svg";
+export const STEADING_DEFAULT_IMG = "systems/stonetop_pwd/assets/stonetop_image.svg";
 
 // Every image we treat as a "shipped placeholder" the book art may replace: the current "S"
 // emblem (svg + any legacy raster), the same paths under every system id this package has

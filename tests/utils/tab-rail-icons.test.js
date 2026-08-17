@@ -44,7 +44,7 @@ describe("tab rail icons", () => {
 	// Foundry serves these from the system root, so the path has to be the absolute one it
 	// understands, not a stylesheet-relative one.
 	it("addresses them the way Foundry serves them", () => {
-		const bad = DECLARED.filter(d => d.url !== `/systems/stonetop-pwd/assets/icons/tabs/${d.file}`);
+		const bad = DECLARED.filter(d => d.url !== `/systems/stonetop_pwd/assets/icons/tabs/${d.file}`);
 		expect(bad.map(d => d.url)).toEqual([]);
 	});
 

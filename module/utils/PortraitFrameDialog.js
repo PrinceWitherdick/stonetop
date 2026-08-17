@@ -41,7 +41,7 @@ export class PortraitFrameDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id: "stonetop-portrait-frame",
 			title: localize("stonetop.portraitFrame.control"),
-			template: "systems/stonetop-pwd/templates/dialogs/portrait-frame.hbs",
+			template: "systems/stonetop_pwd/templates/dialogs/portrait-frame.hbs",
 			width: 720,
 			height: "auto",
 			resizable: true,

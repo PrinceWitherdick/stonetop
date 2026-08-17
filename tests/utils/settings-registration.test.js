@@ -32,7 +32,7 @@ const I18N = (() => {
  * Every `game.settings.register(SYSTEM_ID, "<key>", { … })` block.
  *
  * Matched on the SYSTEM_ID identifier rather than the literal it resolves to: the namespace is
- * imported from system-id.js now, so the string "stonetop-pwd" no longer appears in this file.
+ * imported from system-id.js now, so the string "stonetop_pwd" no longer appears in this file.
  */
 function registrations() {
 	const out = [];

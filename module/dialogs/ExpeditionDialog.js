@@ -320,7 +320,7 @@ export class ExpeditionDialog extends StepperDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-expedition",
 			title:     "Run an Expedition",
-			template:  "systems/stonetop-pwd/templates/dialogs/expedition.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/expedition.hbs",
 			// Wider than the other steppers to seat the jump-to-step TOC rail, and wide
 			// enough for a load row (avatar · name · nine ◇ · band pill · count) to sit on
 			// one line.
@@ -685,7 +685,7 @@ export class ExpeditionDialog extends StepperDialog {
 	}
 
 	// The Marshal's crew, if this PC has one. Its ◇ load is the sum of filled gear pips
-	// (stored at flags.stonetop-pwd.crew.gear as { slug: filledCount }); Supplies are a
+	// (stored at flags.stonetop_pwd.crew.gear as { slug: filledCount }); Supplies are a
 	// separate track and don't count. Returns null for a PC with no crew.
 	_crewRow(actor) {
 		const crew = actor.getFlag?.(SYSTEM_ID, "crew");

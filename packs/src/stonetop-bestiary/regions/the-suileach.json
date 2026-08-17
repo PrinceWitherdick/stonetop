@@ -1,7 +1,7 @@
 {
   "name": "The Suileach",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/corrupted.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/corrupted.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "solitary, huge, magical, terrifying, aquatic, corrupted",
     "qualities": "<p>Many-eyed; impossible to surprise.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.Hv4lWQtBLYYJ67Cg",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Hv4lWQtBLYYJ67Cg",
     "notes": "",
     "creatureType": "corrupted"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/corrupted.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/corrupted.svg"
     }
   },
   "items": [

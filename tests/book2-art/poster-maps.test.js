@@ -72,7 +72,7 @@ describe("isPosterMapScene", () => {
 	const village = POSTER_MAPS[0];
 
 	it("matches on our own flag", () => {
-		expect(isPosterMapScene({ name: "Renamed", flags: { "stonetop-pwd": { posterMap: village.slug } } }, village)).toBe(true);
+		expect(isPosterMapScene({ name: "Renamed", flags: { "stonetop_pwd": { posterMap: village.slug } } }, village)).toBe(true);
 	});
 
 	it("matches a Scene the macro stamped under a legacy package id", () => {
@@ -86,7 +86,7 @@ describe("isPosterMapScene", () => {
 	});
 
 	it("does not match another map's Scene", () => {
-		expect(isPosterMapScene({ name: "Marshedge", flags: { "stonetop-pwd": { posterMap: "marshedge" } } }, village)).toBe(false);
+		expect(isPosterMapScene({ name: "Marshedge", flags: { "stonetop_pwd": { posterMap: "marshedge" } } }, village)).toBe(false);
 	});
 
 	it("survives a Scene with no flags object", () => {
@@ -113,7 +113,7 @@ describe("planPosterMapScenes", () => {
 
 	it("flags a map this world already has a Scene for", () => {
 		const present = new Set(POSTER_MAPS.map(m => durable(m.out)));
-		const scenes = [{ name: "whatever", flags: { "stonetop-pwd": { posterMap: "vicinity" } } }];
+		const scenes = [{ name: "whatever", flags: { "stonetop_pwd": { posterMap: "vicinity" } } }];
 		const plan = planPosterMapScenes(present, ROOT, scenes);
 		expect(plan.find(r => r.map.slug === "vicinity").hasScene).toBe(true);
 		expect(plan.filter(r => r.hasScene)).toHaveLength(1);

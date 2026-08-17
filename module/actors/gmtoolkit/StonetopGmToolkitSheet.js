@@ -188,7 +188,7 @@ export function createStonetopGmToolkitSheetClass(Base) {
 		}
 
 		get template() {
-			return "systems/stonetop-pwd/templates/actor/gm-toolkit.hbs";
+			return "systems/stonetop_pwd/templates/actor/gm-toolkit.hbs";
 		}
 
 		async _render(force, options) {

@@ -145,26 +145,26 @@
 	--color-the-ranger: hsl(49, 51%, 34%);
 	--color-the-lightbearer: hsl(40, 94%, 49%);
 	--color-the-judge: hsl(244, 93%, 18%);
-	--stonetop-diamond-icon: url('/systems/stonetop-pwd/assets/icons/playbooks/diamond.svg');
-	--stonetop-diamond-selected-icon: url('/systems/stonetop-pwd/assets/icons/playbooks/diamond_selected.svg');
+	--stonetop-diamond-icon: url('/systems/stonetop_pwd/assets/icons/playbooks/diamond.svg');
+	--stonetop-diamond-selected-icon: url('/systems/stonetop_pwd/assets/icons/playbooks/diamond_selected.svg');
 	/* Blood-drop charge marks: the Red Scepter's "still-warm blood" charges and the
 	   Redwood Effigy's Conduit track render as drops, not diamonds. Three states:
 	   hollow (empty/available), filled (marked), and dotted (a locked Conduit slot). */
-	--stonetop-blood-icon: url('/systems/stonetop-pwd/assets/icons/playbooks/blood.svg');
-	--stonetop-blood-filled-icon: url('/systems/stonetop-pwd/assets/icons/playbooks/blood-filled.svg');
-	--stonetop-blood-dotted-icon: url('/systems/stonetop-pwd/assets/icons/playbooks/blood-dotted.svg');
+	--stonetop-blood-icon: url('/systems/stonetop_pwd/assets/icons/playbooks/blood.svg');
+	--stonetop-blood-filled-icon: url('/systems/stonetop_pwd/assets/icons/playbooks/blood-filled.svg');
+	--stonetop-blood-dotted-icon: url('/systems/stonetop_pwd/assets/icons/playbooks/blood-dotted.svg');
 	/* Standard gap between a spiral bullet and its text (matches the Stonetop Assets list). */
 	--stonetop-spiral-gap: 8px;
 	/* Standard vertical gap between sections on the bestiary/monster sheets — used by
 	   the section grid, the Discoveries sub-sections, and the Dangers custom moves. */
 	--stonetop-section-gap: 12px;
 	/* The spiral icon used for bullets/markers throughout the sheets. */
-	--stonetop-spiral-icon: url('/systems/stonetop-pwd/assets/icons/steading/check-spiral.svg');
+	--stonetop-spiral-icon: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
 	/* The check controls, likewise. All three of these are fixed near-black art painted as a
 	   background IMAGE (not a mask), so they vanish on any surface that turns black — routing
 	   them through variables is what lets one scope re-skin the lot. */
-	--stonetop-checkbox-icon:         url('/systems/stonetop-pwd/assets/icons/steading/checkbox.svg');
-	--stonetop-checkbox-checked-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg');
+	--stonetop-checkbox-icon:         url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg');
+	--stonetop-checkbox-checked-icon: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg');
 
 	/* What lifts a card off the page it sits on — the move cards, the invocation cards, the
 	   special-possessions list, the Items tab's Outfit panel. On paper that's a whisper of shadow;
@@ -216,16 +216,16 @@
 	--st-undead-wash-thrall:   hsla(96, 30%, 52%, 0.05);
 	--st-undead-wash-ghost:    hsla(283, 34%, 58%, 0.045);
 	/* The arrow glyph used on wizard/stepper Back/Next buttons (masked → currentColor). */
-	--stonetop-arrow-icon: url('/systems/stonetop-pwd/assets/icons/arrow.svg');
+	--stonetop-arrow-icon: url('/systems/stonetop_pwd/assets/icons/arrow.svg');
 	/* The exclamation "legend" marker the rulebook puts beside hazard custom moves
 	   (e.g. Crinwin's "Unstable nest" and "Wasps" dangers). */
-	--stonetop-danger-icon: url('/systems/stonetop-pwd/assets/icons/bestiary/danger-move.svg');
+	--stonetop-danger-icon: url('/systems/stonetop_pwd/assets/icons/bestiary/danger-move.svg');
 	/* Season glyphs for the gazetteer "Impressions" subsections. Autumn shares the
 	   one "fall" icon. */
-	--stonetop-season-spring-icon: url('/systems/stonetop-pwd/assets/icons/seasons/spring_icon.svg');
-	--stonetop-season-summer-icon: url('/systems/stonetop-pwd/assets/icons/seasons/summer_icon.svg');
-	--stonetop-season-fall-icon: url('/systems/stonetop-pwd/assets/icons/seasons/fall_icon.svg');
-	--stonetop-season-winter-icon: url('/systems/stonetop-pwd/assets/icons/seasons/winter_icon.svg');
+	--stonetop-season-spring-icon: url('/systems/stonetop_pwd/assets/icons/seasons/spring_icon.svg');
+	--stonetop-season-summer-icon: url('/systems/stonetop_pwd/assets/icons/seasons/summer_icon.svg');
+	--stonetop-season-fall-icon: url('/systems/stonetop_pwd/assets/icons/seasons/fall_icon.svg');
+	--stonetop-season-winter-icon: url('/systems/stonetop_pwd/assets/icons/seasons/winter_icon.svg');
 	/* Season INKS — the four seasons as text on the sheet's parchment.
 
 	   FOR THE STEADING HEADER'S CLOCK, AND NOWHERE ELSE. Not the season picker, not the
@@ -712,17 +712,17 @@ figure.stonetop-map figcaption {
 }
 
 .stonetop-glyph--arrow {
-	background-image: url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon.svg');
+	background-image: url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
 }
 
 /* Inline ASCII checkboxes (e.g. the gear-value table's "□ Small metal tool")
    swapped for the same checkbox SVGs the interactive lists use. */
 .stonetop-glyph--checkbox {
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/checkbox.svg');
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg');
 }
 
 .stonetop-glyph--checkbox-checked {
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg');
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg');
 }
 
 /* Inline ASCII circles (e.g. arcana charge tracks "○○○○") drawn to match the
@@ -852,7 +852,7 @@ figure.stonetop-map figcaption {
    behavioral change is that the parchment no longer bleeds onto other modules' /
    core V1 windows. */
 .vtt .stonetop:not(.application,.image-popout,.journal-sheet,.sidebar-popout) .window-content {
-	background: var(--stonetop-bg) url(/systems/stonetop-pwd/assets/graphics/sheet-bg.webp);
+	background: var(--stonetop-bg) url(/systems/stonetop_pwd/assets/graphics/sheet-bg.webp);
 	background-position: center;
 	background-size: cover;
 	background-attachment: scroll;
@@ -988,7 +988,7 @@ body :is(.app, .window-app).stonetop-height-resized {
 
 /* Content: the same parchment field our sheets use, with dark legible text. */
 :is(.application, .window-app).stonetop-themed .window-content {
-	background: var(--stonetop-bg) url(/systems/stonetop-pwd/assets/graphics/sheet-bg.webp);
+	background: var(--stonetop-bg) url(/systems/stonetop_pwd/assets/graphics/sheet-bg.webp);
 	background-position: center;
 	background-size: cover;
 	color: var(--st-text-body);
@@ -1297,8 +1297,8 @@ body :is(.app, .window-app).stonetop-height-resized {
 	flex-shrink: 0;
 	cursor: pointer;
 	background-color: var(--st-levelup-accent);
-	-webkit-mask: url('/systems/stonetop-pwd/assets/icons/upgrade.svg') center / contain no-repeat;
-	mask: url('/systems/stonetop-pwd/assets/icons/upgrade.svg') center / contain no-repeat;
+	-webkit-mask: url('/systems/stonetop_pwd/assets/icons/upgrade.svg') center / contain no-repeat;
+	mask: url('/systems/stonetop_pwd/assets/icons/upgrade.svg') center / contain no-repeat;
 	transition: background-color 0.12s, transform 0.12s;
 }
 
@@ -1681,8 +1681,8 @@ input.stonetop-name-field {
 	cursor: pointer;
 	opacity: 0.6;
 	transition: opacity 0.12s, transform 0.12s;
-	-webkit-mask: url('/systems/stonetop-pwd/assets/icons/broken-heart.svg') center / contain no-repeat;
-	mask: url('/systems/stonetop-pwd/assets/icons/broken-heart.svg') center / contain no-repeat;
+	-webkit-mask: url('/systems/stonetop_pwd/assets/icons/broken-heart.svg') center / contain no-repeat;
+	mask: url('/systems/stonetop_pwd/assets/icons/broken-heart.svg') center / contain no-repeat;
 }
 
 .stonetop-wound-add:hover {
@@ -2850,7 +2850,7 @@ input.stonetop-name-field {
 	width: 0.6em;
 	height: 0.6em;
 	flex: none;
-	background: center / contain no-repeat url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon.svg');
+	background: center / contain no-repeat url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
 	transform: rotate(90deg); /* expanded: arrow points down */
 	transition: transform 0.15s;
 }
@@ -3633,32 +3633,32 @@ input.stonetop-name-field {
 	justify-content: flex-end;
 }
 
-select[name="stonetop-pwd.sheetFont"] option[value="libre-caslon"],
+select[name="stonetop_pwd.sheetFont"] option[value="libre-caslon"],
 select[name="sheetFont"] option[value="libre-caslon"] {
 	font-family: "Libre Caslon Text", serif;
 }
 
-select[name="stonetop-pwd.sheetFont"] option[value="im-fell-english"],
+select[name="stonetop_pwd.sheetFont"] option[value="im-fell-english"],
 select[name="sheetFont"] option[value="im-fell-english"] {
 	font-family: "IM Fell English", serif;
 }
 
-select[name="stonetop-pwd.sheetFont"] option[value="signika"],
+select[name="stonetop_pwd.sheetFont"] option[value="signika"],
 select[name="sheetFont"] option[value="signika"] {
 	font-family: Signika, sans-serif;
 }
 
-select[name="stonetop-pwd.sheetFont"]:has(option[value="libre-caslon"]:checked),
+select[name="stonetop_pwd.sheetFont"]:has(option[value="libre-caslon"]:checked),
 select[name="sheetFont"]:has(option[value="libre-caslon"]:checked) {
 	font-family: "Libre Caslon Text", serif;
 }
 
-select[name="stonetop-pwd.sheetFont"]:has(option[value="im-fell-english"]:checked),
+select[name="stonetop_pwd.sheetFont"]:has(option[value="im-fell-english"]:checked),
 select[name="sheetFont"]:has(option[value="im-fell-english"]:checked) {
 	font-family: "IM Fell English", serif;
 }
 
-select[name="stonetop-pwd.sheetFont"]:has(option[value="signika"]:checked),
+select[name="stonetop_pwd.sheetFont"]:has(option[value="signika"]:checked),
 select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	font-family: Signika, sans-serif;
 }
@@ -4260,7 +4260,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 :is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-roll-card),
 :is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-startup-card),
 :is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-chat-move) {
-	background: var(--stonetop-bg, #f0ece3) url(/systems/stonetop-pwd/assets/graphics/sheet-bg.webp) center / cover;
+	background: var(--stonetop-bg, #f0ece3) url(/systems/stonetop_pwd/assets/graphics/sheet-bg.webp) center / cover;
 	border-radius: var(--st-radius-lg);
 	border-width: 1px;
 	border-bottom-width: 2px;
@@ -4840,8 +4840,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	width: 1.5em;
 	height: 1.5em;
 	background: currentColor;
-	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/flame.svg');
-	mask-image: url('/systems/stonetop-pwd/assets/icons/flame.svg');
+	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/flame.svg');
+	mask-image: url('/systems/stonetop_pwd/assets/icons/flame.svg');
 }
 
 /* Wizard/stepper Back/Next arrow — replaces the old ▶/◀ unicode glyphs. Masked so
@@ -6639,7 +6639,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	width: 0.6em;
 	height: 0.6em;
 	flex: none;
-	background: center / contain no-repeat url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon.svg');
+	background: center / contain no-repeat url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
 	transform: rotate(90deg); /* expanded: arrow points down */
 	transition: transform 0.15s;
 }
@@ -6691,7 +6691,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	display: inline-block;
 	width: 0.7em;
 	height: 0.7em;
-	background: center / contain no-repeat url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon.svg');
+	background: center / contain no-repeat url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
 	transform: rotate(90deg); /* expanded: arrow points down */
 	transition: transform 0.15s;
 }
@@ -8230,8 +8230,8 @@ button.stonetop-holy-light.is-lit:hover {
 .stonetop-holy-light-icon {
 	height: 50px;
 	aspect-ratio: 214.32 / 464.56;
-	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/candle-light.svg');
-	mask-image: url('/systems/stonetop-pwd/assets/icons/candle-light.svg');
+	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/candle-light.svg');
+	mask-image: url('/systems/stonetop_pwd/assets/icons/candle-light.svg');
 }
 
 /* Declared AFTER the base rule on purpose: an equal-specificity modifier that sits earlier
@@ -8349,8 +8349,8 @@ button.stonetop-invocation-chip:focus-visible {
 .stonetop-condemn-icon {
 	height: 38px;
 	aspect-ratio: 481.75 / 420.72;
-	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/scales.svg');
-	mask-image: url('/systems/stonetop-pwd/assets/icons/scales.svg');
+	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/scales.svg');
+	mask-image: url('/systems/stonetop_pwd/assets/icons/scales.svg');
 }
 
 /* How many brands are standing, as a superscript on the right pan. Absolutely positioned rather
@@ -8462,8 +8462,8 @@ button.stonetop-invocation-chip:focus-visible {
 .stonetop-blessed-marks-icon {
 	height: 38px;
 	aspect-ratio: 472.71 / 417.13;
-	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/triquetra.svg');
-	mask-image: url('/systems/stonetop-pwd/assets/icons/triquetra.svg');
+	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/triquetra.svg');
+	mask-image: url('/systems/stonetop_pwd/assets/icons/triquetra.svg');
 }
 
 /* ── The Heavy's Battle Joy ────────────────────────────────────────────────
@@ -8488,8 +8488,8 @@ button.stonetop-battle-joy:not(.is-raging):hover { color: var(--st-text-body); }
 .stonetop-battle-joy-icon {
 	height: 40px;
 	aspect-ratio: 475.16 / 471.71;
-	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/enrage.svg');
-	mask-image: url('/systems/stonetop-pwd/assets/icons/enrage.svg');
+	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/enrage.svg');
+	mask-image: url('/systems/stonetop_pwd/assets/icons/enrage.svg');
 }
 
 /* Red, in the sheet's own red token rather than a hand-mixed one, so it comes down with the black
@@ -11286,9 +11286,9 @@ span.stonetop-mark-loyalty-pip {
 	--stonetop-red:                hsl(6 62% 68%);
 	/* The spiral bullets and the check controls are fixed near-black background art; on black
 	   paper an unswapped checkbox isn't merely hard to read, it's invisible. */
-	--stonetop-spiral-icon:           url('/systems/stonetop-pwd/assets/icons/steading/check-spiral-light.svg');
-	--stonetop-checkbox-icon:         url('/systems/stonetop-pwd/assets/icons/steading/checkbox-light.svg');
-	--stonetop-checkbox-checked-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked-light.svg');
+	--stonetop-spiral-icon:           url('/systems/stonetop_pwd/assets/icons/steading/check-spiral-light.svg');
+	--stonetop-checkbox-icon:         url('/systems/stonetop_pwd/assets/icons/steading/checkbox-light.svg');
+	--stonetop-checkbox-checked-icon: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked-light.svg');
 	/* The confirm buttons come down with the room, past slate to near-black: left at the
 	   standard slategrey they are the brightest thing in the window, which puts the eye on
 	   "Done" instead of on the three fates — the one decision this step is actually asking
@@ -11319,7 +11319,7 @@ span.stonetop-mark-loyalty-pip {
 			center / auto no-repeat,
 		linear-gradient(var(--dd-lift, transparent), var(--dd-lift, transparent))
 			center / auto no-repeat,
-		#fff url('/systems/stonetop-pwd/assets/graphics/sheet-bg.webp') center / cover no-repeat;
+		#fff url('/systems/stonetop_pwd/assets/graphics/sheet-bg.webp') center / cover no-repeat;
 	background-blend-mode: normal, normal, difference;
 }
 
@@ -11538,11 +11538,11 @@ span.stonetop-mark-loyalty-pip {
 	   that reserves undefined items on the Items tab. Same fixed-fill trap; they were missed the
 	   first time round because the Items tab was read for its cards and its wells rather than for
 	   the marks, which are the whole point of an equipment list. */
-	--stonetop-spiral-icon:           url('/systems/stonetop-pwd/assets/icons/steading/check-spiral-light.svg');
-	--stonetop-checkbox-icon:         url('/systems/stonetop-pwd/assets/icons/steading/checkbox-light.svg');
-	--stonetop-checkbox-checked-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked-light.svg');
-	--stonetop-diamond-icon:          url('/systems/stonetop-pwd/assets/icons/playbooks/diamond-light.svg');
-	--stonetop-diamond-selected-icon: url('/systems/stonetop-pwd/assets/icons/playbooks/diamond_selected-light.svg');
+	--stonetop-spiral-icon:           url('/systems/stonetop_pwd/assets/icons/steading/check-spiral-light.svg');
+	--stonetop-checkbox-icon:         url('/systems/stonetop_pwd/assets/icons/steading/checkbox-light.svg');
+	--stonetop-checkbox-checked-icon: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked-light.svg');
+	--stonetop-diamond-icon:          url('/systems/stonetop_pwd/assets/icons/playbooks/diamond-light.svg');
+	--stonetop-diamond-selected-icon: url('/systems/stonetop_pwd/assets/icons/playbooks/diamond_selected-light.svg');
 	/* The one glyph that is a MASK and still had to be turned over by hand: the add-wound heart
 	   beside HP. A mask paints from the background, so it can't ride `color` down with the rest
 	   of the sheet's furniture, and its fill was a literal black — on this paper the heart was
@@ -11566,7 +11566,7 @@ span.stonetop-mark-loyalty-pip {
 		linear-gradient(var(--st-past-death-wash, transparent), var(--st-past-death-wash, transparent))
 			center / auto no-repeat,
 		linear-gradient(var(--st-black-lift), var(--st-black-lift)) center / auto no-repeat,
-		#fff url('/systems/stonetop-pwd/assets/graphics/sheet-bg.webp') center / cover no-repeat;
+		#fff url('/systems/stonetop_pwd/assets/graphics/sheet-bg.webp') center / cover no-repeat;
 	background-blend-mode: normal, normal, difference;
 }
 
@@ -12521,7 +12521,7 @@ span.stonetop-mark-loyalty-pip {
 :is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-dying-card) {
 	background:
 		linear-gradient(180deg, hsla(8, 45%, 22%, 0.14), transparent 42%),
-		var(--stonetop-bg, #f0ece3) url(/systems/stonetop-pwd/assets/graphics/sheet-bg.webp) center / cover;
+		var(--stonetop-bg, #f0ece3) url(/systems/stonetop_pwd/assets/graphics/sheet-bg.webp) center / cover;
 	border-color: hsl(8 38% 46%);
 }
 
@@ -12645,9 +12645,9 @@ span.stonetop-mark-loyalty-pip {
 	--st-tier-success-text:        hsl(140 34% 62%);
 	/* The bullets in a "choose 1" outcome, and any check control a card carries, are black-filled
 	   background images; swapped for the bone twins, exactly as the sheet does it. */
-	--stonetop-spiral-icon:           url('/systems/stonetop-pwd/assets/icons/steading/check-spiral-light.svg');
-	--stonetop-checkbox-icon:         url('/systems/stonetop-pwd/assets/icons/steading/checkbox-light.svg');
-	--stonetop-checkbox-checked-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked-light.svg');
+	--stonetop-spiral-icon:           url('/systems/stonetop_pwd/assets/icons/steading/check-spiral-light.svg');
+	--stonetop-checkbox-icon:         url('/systems/stonetop_pwd/assets/icons/steading/checkbox-light.svg');
+	--stonetop-checkbox-checked-icon: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked-light.svg');
 	--st-btn-primary-bg:           hsl(0 0% 9%);
 	--st-btn-primary-bg-hover:     hsl(0 0% 16%);
 	--st-btn-primary-border:       hsl(40 13% 44%);
@@ -12660,7 +12660,7 @@ span.stonetop-mark-loyalty-pip {
 		linear-gradient(var(--st-death-wash, transparent), var(--st-death-wash, transparent))
 			center / auto no-repeat,
 		linear-gradient(var(--st-black-lift), var(--st-black-lift)) center / auto no-repeat,
-		#fff url('/systems/stonetop-pwd/assets/graphics/sheet-bg.webp') center / cover no-repeat;
+		#fff url('/systems/stonetop_pwd/assets/graphics/sheet-bg.webp') center / cover no-repeat;
 	background-blend-mode: normal, normal, difference;
 }
 
@@ -12685,7 +12685,7 @@ span.stonetop-mark-loyalty-pip {
 		linear-gradient(var(--st-death-wash, transparent), var(--st-death-wash, transparent))
 			center / auto no-repeat,
 		linear-gradient(var(--st-black-lift), var(--st-black-lift)) center / auto no-repeat,
-		#fff url('/systems/stonetop-pwd/assets/graphics/sheet-bg.webp') center / cover no-repeat;
+		#fff url('/systems/stonetop_pwd/assets/graphics/sheet-bg.webp') center / cover no-repeat;
 	background-blend-mode: normal, normal, normal, difference;
 	border-color: hsl(8 45% 52%);
 }
@@ -12820,12 +12820,12 @@ span.stonetop-mark-loyalty-pip {
 	margin-top: 2px;
 	border: none;
 	border-radius: 0;
-	background: url('/systems/stonetop-pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain !important;
+	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain !important;
 	cursor: pointer;
 }
 
 .stonetop-eos-question input[type="checkbox"]:checked {
-	background: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
+	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
 }
 
 .stonetop-eos-question-text {
@@ -12906,7 +12906,7 @@ span.stonetop-mark-loyalty-pip {
 	top: 0.05em;
 	width: 15px;
 	height: 15px;
-	background: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain;
+	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain;
 }
 
 /* ================================================================
@@ -13083,19 +13083,19 @@ span.stonetop-mark-loyalty-pip {
 /* One rule per sky, keyed by the modifier the template interpolates from the view's `sky` —
    a flat list like the tab rail's, so adding a weather is one line here and one in
    WEATHER_SKIES. Order is the vocabulary's own (fine to foul, then the two temperatures). */
-.steading-header .steading-header-weather--sun      { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/sun.svg'); }
-.steading-header .steading-header-weather--fair     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/fair.svg'); }
-.steading-header .steading-header-weather--cloud    { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/cloud.svg'); }
-.steading-header .steading-header-weather--wind     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/wind.svg'); }
-.steading-header .steading-header-weather--rain     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/rain.svg'); }
-.steading-header .steading-header-weather--downpour { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/downpour.svg'); }
-.steading-header .steading-header-weather--storm    { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/storm.svg'); }
-.steading-header .steading-header-weather--tornado  { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/tornado.svg'); }
-.steading-header .steading-header-weather--snow     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/snow.svg'); }
-.steading-header .steading-header-weather--blizzard { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/blizzard.svg'); }
-.steading-header .steading-header-weather--cold     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/cold.svg'); }
-.steading-header .steading-header-weather--heat     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/heat.svg'); }
-.steading-header .steading-header-weather--haze     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/haze.svg'); }
+.steading-header .steading-header-weather--sun      { --st-weather-icon: url('/systems/stonetop_pwd/assets/icons/weather/sun.svg'); }
+.steading-header .steading-header-weather--fair     { --st-weather-icon: url('/systems/stonetop_pwd/assets/icons/weather/fair.svg'); }
+.steading-header .steading-header-weather--cloud    { --st-weather-icon: url('/systems/stonetop_pwd/assets/icons/weather/cloud.svg'); }
+.steading-header .steading-header-weather--wind     { --st-weather-icon: url('/systems/stonetop_pwd/assets/icons/weather/wind.svg'); }
+.steading-header .steading-header-weather--rain     { --st-weather-icon: url('/systems/stonetop_pwd/assets/icons/weather/rain.svg'); }
+.steading-header .steading-header-weather--downpour { --st-weather-icon: url('/systems/stonetop_pwd/assets/icons/weather/downpour.svg'); }
+.steading-header .steading-header-weather--storm    { --st-weather-icon: url('/systems/stonetop_pwd/assets/icons/weather/storm.svg'); }
+.steading-header .steading-header-weather--tornado  { --st-weather-icon: url('/systems/stonetop_pwd/assets/icons/weather/tornado.svg'); }
+.steading-header .steading-header-weather--snow     { --st-weather-icon: url('/systems/stonetop_pwd/assets/icons/weather/snow.svg'); }
+.steading-header .steading-header-weather--blizzard { --st-weather-icon: url('/systems/stonetop_pwd/assets/icons/weather/blizzard.svg'); }
+.steading-header .steading-header-weather--cold     { --st-weather-icon: url('/systems/stonetop_pwd/assets/icons/weather/cold.svg'); }
+.steading-header .steading-header-weather--heat     { --st-weather-icon: url('/systems/stonetop_pwd/assets/icons/weather/heat.svg'); }
+.steading-header .steading-header-weather--haze     { --st-weather-icon: url('/systems/stonetop_pwd/assets/icons/weather/haze.svg'); }
 
 /* Nobody has set the weather yet, so the sun is ours rather than the GM's. Dropped to the
    secondary ink the year chip already uses — quiet enough to read as a default, not so quiet
@@ -13513,29 +13513,29 @@ span.stonetop-mark-loyalty-pip {
    `notes`, `details`, `neighbors`/`followers` — want the same icon anyway, so this stays a
    flat list rather than three sheet-scoped ones. Sourcing and licensing for every file:
    assets/icons/tabs/ATTRIBUTION.md. */
-.stonetop-tab-rail .item[data-tab="moves"]         { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/move.svg'); }
-.stonetop-tab-rail .item[data-tab="invocations"]   { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/lightbearer-sun.svg'); }
-.stonetop-tab-rail .item[data-tab="followers"]     { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/three-friends.svg'); }
-.stonetop-tab-rail .item[data-tab="inventory"]     { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/school-bag.svg'); }
-.stonetop-tab-rail .item[data-tab="arcana"]        { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/arcanum.svg'); }
-.stonetop-tab-rail .item[data-tab="details"]       { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/info.svg'); }
-.stonetop-tab-rail .item[data-tab="post-death"]    { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/death-skull.svg'); }
-.stonetop-tab-rail .item[data-tab="special-moves"] { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/round-star.svg'); }
-.stonetop-tab-rail .item[data-tab="notes"]         { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/notebook.svg'); }
-.stonetop-tab-rail .item[data-tab="overview"]      { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/village.svg'); }
-.stonetop-tab-rail .item[data-tab="neighbors"]     { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/three-friends.svg'); }
-.stonetop-tab-rail .item[data-tab="improvements"]  { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/hammer-nails.svg'); }
-.stonetop-tab-rail .item[data-tab="threats"]       { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/hazard-sign.svg'); }
-.stonetop-tab-rail .item[data-tab="sites"]         { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/site-mound.svg'); }
-.stonetop-tab-rail .item[data-tab="relationships"] { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/hearts.svg'); }
-.stonetop-tab-rail .item[data-tab="stats"]         { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/crossed-swords.svg'); }
+.stonetop-tab-rail .item[data-tab="moves"]         { --st-tab-icon: url('/systems/stonetop_pwd/assets/icons/tabs/move.svg'); }
+.stonetop-tab-rail .item[data-tab="invocations"]   { --st-tab-icon: url('/systems/stonetop_pwd/assets/icons/tabs/lightbearer-sun.svg'); }
+.stonetop-tab-rail .item[data-tab="followers"]     { --st-tab-icon: url('/systems/stonetop_pwd/assets/icons/tabs/three-friends.svg'); }
+.stonetop-tab-rail .item[data-tab="inventory"]     { --st-tab-icon: url('/systems/stonetop_pwd/assets/icons/tabs/school-bag.svg'); }
+.stonetop-tab-rail .item[data-tab="arcana"]        { --st-tab-icon: url('/systems/stonetop_pwd/assets/icons/tabs/arcanum.svg'); }
+.stonetop-tab-rail .item[data-tab="details"]       { --st-tab-icon: url('/systems/stonetop_pwd/assets/icons/tabs/info.svg'); }
+.stonetop-tab-rail .item[data-tab="post-death"]    { --st-tab-icon: url('/systems/stonetop_pwd/assets/icons/tabs/death-skull.svg'); }
+.stonetop-tab-rail .item[data-tab="special-moves"] { --st-tab-icon: url('/systems/stonetop_pwd/assets/icons/tabs/round-star.svg'); }
+.stonetop-tab-rail .item[data-tab="notes"]         { --st-tab-icon: url('/systems/stonetop_pwd/assets/icons/tabs/notebook.svg'); }
+.stonetop-tab-rail .item[data-tab="overview"]      { --st-tab-icon: url('/systems/stonetop_pwd/assets/icons/tabs/village.svg'); }
+.stonetop-tab-rail .item[data-tab="neighbors"]     { --st-tab-icon: url('/systems/stonetop_pwd/assets/icons/tabs/three-friends.svg'); }
+.stonetop-tab-rail .item[data-tab="improvements"]  { --st-tab-icon: url('/systems/stonetop_pwd/assets/icons/tabs/hammer-nails.svg'); }
+.stonetop-tab-rail .item[data-tab="threats"]       { --st-tab-icon: url('/systems/stonetop_pwd/assets/icons/tabs/hazard-sign.svg'); }
+.stonetop-tab-rail .item[data-tab="sites"]         { --st-tab-icon: url('/systems/stonetop_pwd/assets/icons/tabs/site-mound.svg'); }
+.stonetop-tab-rail .item[data-tab="relationships"] { --st-tab-icon: url('/systems/stonetop_pwd/assets/icons/tabs/hearts.svg'); }
+.stonetop-tab-rail .item[data-tab="stats"]         { --st-tab-icon: url('/systems/stonetop_pwd/assets/icons/tabs/crossed-swords.svg'); }
 /* The village, shared with the steading's Overview tab and deliberately: the GM Toolkit's
    Homefront tab IS the village, read from the other side of the screen, and the two never appear
    in the same rail. `neighbors` and `followers` already share `three-friends.svg` on the same
    grounds. */
-.stonetop-tab-rail .item[data-tab="homefront"]     { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/village.svg'); }
-.stonetop-tab-rail .item[data-tab="wonder"]        { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/question-mark.svg'); }
-.stonetop-tab-rail .item[data-tab="loop"]          { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/flow-chart.svg'); }
+.stonetop-tab-rail .item[data-tab="homefront"]     { --st-tab-icon: url('/systems/stonetop_pwd/assets/icons/tabs/village.svg'); }
+.stonetop-tab-rail .item[data-tab="wonder"]        { --st-tab-icon: url('/systems/stonetop_pwd/assets/icons/tabs/question-mark.svg'); }
+.stonetop-tab-rail .item[data-tab="loop"]          { --st-tab-icon: url('/systems/stonetop_pwd/assets/icons/tabs/flow-chart.svg'); }
 
 /* Drag-reorder feedback: the strip's dashed outline sat inside a wide pill, but a 34px
    square has no room for a 2px inset dash — it swallows the glyph. Mark the drop target
@@ -20161,7 +20161,7 @@ a.steading-player-open:hover {
 	width: 0.6em;
 	height: 0.6em;
 	flex: none;
-	background: center / contain no-repeat url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon.svg');
+	background: center / contain no-repeat url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
 	transform: rotate(-90deg); /* closed: arrow points up */
 	transition: transform 0.15s;
 }
@@ -21233,7 +21233,7 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	display: inline-block;
 	width: 0.65em;
 	height: 0.65em;
-	background: center / contain no-repeat url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon.svg');
+	background: center / contain no-repeat url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
 	transform: rotate(-90deg); /* closed: arrow points up */
 	transition: transform 0.15s;
 }
@@ -21280,7 +21280,7 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
    and a row outside every family never gets one. The result was 18px of empty space
    in front of one step and nothing in it. */
 li.question-bullet::before {
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg');
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
 }
 
 /* Block flow (not flex) — same fix as the journal bodies below: a flex `li` turns
@@ -21372,8 +21372,8 @@ li.question-bullet::before {
 }
 .stonetop-location-body li.question-bullet::before,
 .stonetop-journal-body li.question-bullet::before {
-	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg');
-	mask-image: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg');
+	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
+	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
 }
 /* Some prose opts out of the question-spiral auto-detection by wrapping its
    content in `.stonetop-no-question-spiral` (e.g. the Setting Overview's "Agenda &
@@ -21409,8 +21409,8 @@ li.question-bullet::before {
 	height: var(--stonetop-question-spiral-size, 14px);
 	background-color: currentColor;
 	opacity: 0.7;
-	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg');
-	mask-image: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg');
+	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
+	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
 	-webkit-mask-repeat: no-repeat;
 	mask-repeat: no-repeat;
 	-webkit-mask-position: center;
@@ -21424,8 +21424,8 @@ li.question-bullet::before {
    at render time by module/utils/check-bullets.js for hand-authored journals. */
 .stonetop-location-body li.check-bullet::before,
 .stonetop-journal-body li.check-bullet::before {
-	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/steading/checkbox.svg');
-	mask-image: url('/systems/stonetop-pwd/assets/icons/steading/checkbox.svg');
+	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg');
+	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg');
 	width: var(--stonetop-checkbox-size);
 	height: var(--stonetop-checkbox-size);
 }
@@ -21452,8 +21452,8 @@ li.question-bullet::before {
 }
 .stonetop-location-body li.check-bullet.checked::before,
 .stonetop-journal-body li.check-bullet.checked::before {
-	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg');
-	mask-image: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg');
+	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg');
+	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg');
 }
 /* Same treatment inside the bestiary/location rich-text bodies, whose markers are
    drawn as a background-image rather than a currentColor mask. */
@@ -21463,7 +21463,7 @@ li.question-bullet::before {
 }
 .stonetop-monster-rich-text li.check-bullet.checked::before,
 .stonetop-monster-move-description li.check-bullet.checked::before {
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg');
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg');
 }
 /* The injected control sits where the ::before marker hung (left padding), drawn
    as the same currentColor mask so it inherits the journal text colour in both
@@ -21477,16 +21477,16 @@ li.question-bullet::before {
 	background-color: currentColor;
 	opacity: 0.7;
 	cursor: pointer;
-	-webkit-mask: url('/systems/stonetop-pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain;
-	mask: url('/systems/stonetop-pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain;
+	-webkit-mask: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain;
+	mask: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain;
 }
 .stonetop-journal-check:hover {
 	opacity: 1;
 }
 .stonetop-journal-check[aria-checked="true"] {
 	opacity: 1;
-	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg');
-	mask-image: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg');
+	-webkit-mask-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg');
+	mask-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg');
 }
 .stonetop-journal-check:focus-visible {
 	outline: 2px solid var(--color-shadow-primary, slategrey);
@@ -23017,7 +23017,7 @@ li.question-bullet::before {
 	content: "";
 	width: 0.7em;
 	height: 1.4em; /* span the name's first line so the arrow centers on it */
-	background: center / 0.7em no-repeat url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon.svg');
+	background: center / 0.7em no-repeat url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
 	opacity: 0.7;
 }
 
@@ -23127,7 +23127,7 @@ li.question-bullet::before {
    journal-body path). Keeps the standard spiral size — only the icon changes. */
 .stonetop-monster-rich-text li.question-bullet::before,
 .stonetop-monster-move-description li.question-bullet::before {
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg');
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
 }
 
 /* Requirement/option check-lists (baked `class="check-bullet"` by the gazetteer
@@ -23136,7 +23136,7 @@ li.question-bullet::before {
    it via the existing `.theme-dark … li::before` rule. */
 .stonetop-monster-rich-text li.check-bullet::before,
 .stonetop-monster-move-description li.check-bullet::before {
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/checkbox.svg');
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg');
 	width: var(--stonetop-checkbox-size);
 	height: var(--stonetop-checkbox-size);
 	background-size: contain;
@@ -23924,7 +23924,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	top: 0.1em;
 	width: var(--stonetop-question-spiral-size, 14px);
 	height: var(--stonetop-question-spiral-size, 14px);
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg');
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
 	background-size: contain;
 	background-repeat: no-repeat;
 	background-position: center;
@@ -24901,14 +24901,14 @@ th:has(> .stonetop-roll-table-btn) {
 	width: calc(15px * var(--stonetop-font-scale, 1));
 	height: calc(15px * var(--stonetop-font-scale, 1));
 	margin-top: 0.15em;
-	background: url('/systems/stonetop-pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain;
+	background: url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain;
 }
 
 .stonetop-intros-question-pick.is-selected::before,
 .stonetop-intros-question-pick.is-used::before,
 .stonetop-intros-question-static.is-selected::before,
 .stonetop-intros-question-static.is-used::before {
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg');
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg');
 }
 
 .stonetop-intros-question-pick:hover { background: rgba(0, 0, 0, 0.05); }
@@ -25371,7 +25371,7 @@ th:has(> .stonetop-roll-table-btn) {
 	height: 96px;
 	/* The enlarged preview mirrors whichever hotbar icon this wraps — spring by
 	   default, overridden per-icon via --st-welcome-zoom-img (e.g. the signpost). */
-	background: #000 var(--st-welcome-zoom-img, url('/systems/stonetop-pwd/assets/icons/macros/spring.svg')) center / contain no-repeat;
+	background: #000 var(--st-welcome-zoom-img, url('/systems/stonetop_pwd/assets/icons/macros/spring.svg')) center / contain no-repeat;
 	border-radius: var(--st-radius);
 	border: 1px solid var(--color-border-dark, #7a7971);
 	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
@@ -25391,7 +25391,7 @@ th:has(> .stonetop-roll-table-btn) {
 /* The "signpost" (Welcome guide) hotbar icon reuses the same inline-icon + hover-zoom
    wrapper, so point its enlarged preview at the direction-signs art instead of spring. */
 .stonetop-welcome-springicon-wrap--signpost {
-	--st-welcome-zoom-img: url('/systems/stonetop-pwd/assets/icons/macros/direction-signs.svg');
+	--st-welcome-zoom-img: url('/systems/stonetop_pwd/assets/icons/macros/direction-signs.svg');
 }
 
 .stonetop-welcome-notice {
@@ -26308,7 +26308,7 @@ th:has(> .stonetop-roll-table-btn) {
 	top: 0.1em;
 	width: var(--stonetop-question-spiral-size, 14px);
 	height: var(--stonetop-question-spiral-size, 14px);
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg');
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
 	background-size: contain;
 	background-repeat: no-repeat;
 	background-position: center;
@@ -30102,7 +30102,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	content: "";
 	width: 0.7em;
 	height: 1.4em; /* span the name's first line so the arrow centers on it */
-	background: center / 0.7em no-repeat url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon.svg');
+	background: center / 0.7em no-repeat url('/systems/stonetop_pwd/assets/icons/playbooks/arrow_icon.svg');
 	opacity: 0.7;
 }
 
@@ -31357,8 +31357,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	height: 6px;
 	flex-shrink: 0;
 	background-color: currentColor;
-	-webkit-mask: url('/systems/stonetop-pwd/assets/icons/note-caret.svg') center / contain no-repeat;
-	mask: url('/systems/stonetop-pwd/assets/icons/note-caret.svg') center / contain no-repeat;
+	-webkit-mask: url('/systems/stonetop_pwd/assets/icons/note-caret.svg') center / contain no-repeat;
+	mask: url('/systems/stonetop_pwd/assets/icons/note-caret.svg') center / contain no-repeat;
 	/* Closed: up. Open: a half-turn to down — the same way round as every other
 	   fold on these sheets, so one glance reads the same everywhere. */
 	transform: rotate(180deg);
@@ -33348,8 +33348,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	height: var(--stonetop-question-spiral-size, 14px);
 	background-color: currentColor;
 	opacity: 0.55;
-	-webkit-mask: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg') center / contain no-repeat;
-	mask: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg') center / contain no-repeat;
+	-webkit-mask: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg') center / contain no-repeat;
+	mask: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg') center / contain no-repeat;
 }
 
 /* The question, written on the line. Transparent and borderless at rest so the
@@ -33569,8 +33569,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	margin-top: calc(var(--stonetop-question-spiral-size, 14px) / -2 - 3px);
 	background-color: currentColor;
 	opacity: 0.3;
-	-webkit-mask: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg') center / contain no-repeat;
-	mask: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg') center / contain no-repeat;
+	-webkit-mask: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg') center / contain no-repeat;
+	mask: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg') center / contain no-repeat;
 }
 
 /* The left padding is 4 and not the 6 the right keeps, so this field starts its
@@ -33688,7 +33688,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    reason. Only the picture changes; the size and position stay the list's own. This guide is
    half questions, so without it the one thing the tab is named for draws as ordinary prose. */
 .stonetop-gm-wonder-guide-items > li.question-bullet::before {
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg');
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
 }
 
 /* -- Homefront tab --------------------------------------------------------
@@ -33758,7 +33758,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    them — the partial says so in prose — and every one would otherwise draw as ordinary
    prose, which looks like nothing being wrong. */
 .stonetop-gm-homefront-items > li.question-bullet::before {
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg');
+	background-image: url('/systems/stonetop_pwd/assets/icons/steading/question-spiral.svg');
 }
 
 /* A sub-heading inside a section: the four groups of village facts, the five

@@ -242,6 +242,6 @@ describe("the diagrams the toolkit shows", () => {
 		}
 		// ...and none of them still writes its setting inline.
 		expect(COMMAND).not.toMatch(
-			/settings\.set\("stonetop-pwd", "(treasureArt|gmDiagramArt|peopleArt|peoplePortraitArt)"/);
+			/settings\.set\("stonetop_pwd", "(treasureArt|gmDiagramArt|peopleArt|peoplePortraitArt)"/);
 	});
 });

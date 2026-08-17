@@ -134,7 +134,7 @@ describe("_onArcanumKnowThings — the p.440 identify ladder", () => {
 		const { sheet, character } = makeSheet({ rollTotal: 8 });
 		await sheet._onArcanumKnowThings("huge-wooden-sphere");
 		const { messageFlags } = character.onDirectStatRoll.mock.calls[0][1];
-		expect(messageFlags["stonetop-pwd"]).toMatchObject({ move: "Know Things", arcanum: "huge-wooden-sphere" });
+		expect(messageFlags["stonetop_pwd"]).toMatchObject({ move: "Know Things", arcanum: "huge-wooden-sphere" });
 	});
 
 	/**

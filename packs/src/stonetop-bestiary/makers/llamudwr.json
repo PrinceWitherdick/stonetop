@@ -1,7 +1,7 @@
 {
   "name": "Llamudwr",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/construct.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/construct.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "solitary, large, construct, corrupted, cautious, stealthy",
     "qualities": "<p>Clumsy when grounded; hates the sun. Armor 0 vs. bronze.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.7qfPIuaRwuUPi4nV",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.7qfPIuaRwuUPi4nV",
     "notes": "",
     "creatureType": "construct"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/construct.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/construct.svg"
     }
   },
   "items": [

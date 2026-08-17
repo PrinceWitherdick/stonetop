@@ -16,7 +16,7 @@ function fakeSteading(stamped = undefined, pickerYear = undefined) {
 	const scoped = {};
 	if (stamped !== undefined) scoped[CURRENT_SEASON_KEY] = stamped;
 	if (pickerYear !== undefined) scoped[CURRENT_YEAR_KEY] = pickerYear;
-	const flags = { "stonetop-pwd": scoped };
+	const flags = { "stonetop_pwd": scoped };
 	const updates = [];
 	return {
 		flags,

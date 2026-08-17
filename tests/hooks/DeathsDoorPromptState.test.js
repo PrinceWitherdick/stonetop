@@ -8,7 +8,7 @@ import {
 import { DEATHS_DOOR_STATE } from "../../module/actors/character/deaths-door.js";
 import { FakeActorBuilder } from "../fakes/FakeActorBuilder.js";
 
-const STATE_PATH = "flags.stonetop-pwd.deathsDoor";
+const STATE_PATH = "flags.stonetop_pwd.deathsDoor";
 
 /**
  * A character about to take a hit, with whatever death flags the case needs. The prompt setting is
@@ -36,7 +36,7 @@ function recorded(actor, newHp, options = {}) {
 	const changes = { system: { attributes: { hp: { value: newHp } } } };
 	onPreUpdateActorDeathsDoor(actor, changes, options);
 	// setProperty writes the dotted path as a real nesting; read it either way.
-	return changes.flags?.["stonetop-pwd"]?.deathsDoor ?? changes[STATE_PATH];
+	return changes.flags?.["stonetop_pwd"]?.deathsDoor ?? changes[STATE_PATH];
 }
 
 /** Run the pair the way Foundry does: one options object handed to both halves. */
@@ -118,7 +118,7 @@ describe("onUpdateActorDeathsDoorRaised — asking whether they are back", () =>
 
 		expect(opened).toHaveLength(1);
 		expect(opened[0].title).toContain("Brakkos");
-		expect(actor.unsetFlag).toHaveBeenCalledWith("stonetop-pwd", "deathsDoor");
+		expect(actor.unsetFlag).toHaveBeenCalledWith("stonetop_pwd", "deathsDoor");
 	});
 
 	// "No" writes nothing at all: the hit points stay where the GM put them, and the only thing

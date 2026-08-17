@@ -1,7 +1,7 @@
 {
   "name": "Fire Vortex",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/spirit-construct.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -25,7 +25,7 @@
     "tags": "solitary, spirit, construct, amorphous, intense, aggressive",
     "qualities": "<p>Fireproof; harmed only by magical attacks, water, or smothering. Gains HP from heat and flames. HP/Armor/damage scale with size — see the entry.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.qUp7ZkpC5FdinUC4",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.qUp7ZkpC5FdinUC4",
     "notes": "",
     "creatureType": "spirit-construct"
   },
@@ -34,7 +34,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/spirit-construct.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.svg"
     }
   },
   "items": [
