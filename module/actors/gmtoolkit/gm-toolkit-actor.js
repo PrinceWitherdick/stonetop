@@ -11,8 +11,21 @@
 // create and refuses to delete the last one, which is what lets `theGmToolkit()` below be a
 // plain lookup rather than a question about ownership.
 
+import { SYSTEM_ID } from "../../system-id.js";
+
 /** The Actor subtype. Written once; everything else imports it. */
 export const GM_TOOLKIT_TYPE = "gmToolkit";
+
+/**
+ * The toolkit's portrait: a reader behind an open book, on the same cream-rimmed black disc the
+ * Book I creature marks and the follower marker wear, so the GM's own sheet reads as one set with
+ * them in the sidebar. See the file's own comment for the recipe and its attribution.
+ *
+ * Foundry's stock `mystery-man` is the alternative, and it is actively wrong here: it says "a
+ * person whose portrait nobody has set yet", which invites a GM to go looking for one. The toolkit
+ * is not a person and has no portrait to find.
+ */
+export const GM_TOOLKIT_DEFAULT_IMG = `systems/${SYSTEM_ID}/assets/icons/gm-toolkit.svg`;
 
 /** The toolkit's default name, from the manifest's type label when there is one. */
 function gmToolkitDefaultName() {
@@ -97,6 +110,11 @@ export async function createGmToolkit({ name = "", folder = null, warn = true } 
 			name: name?.trim() || gmToolkitDefaultName(),
 			type: GM_TOOLKIT_TYPE,
 			folder,
+			img: GM_TOOLKIT_DEFAULT_IMG,
+			// Nobody places the toolkit on a scene, but a GM CAN drag it there, and a sheet whose
+			// sidebar row and token disagreed would read as two different documents. Stated here
+			// rather than left to Foundry, which defaults the token to mystery-man regardless of img.
+			prototypeToken: { texture: { src: GM_TOOLKIT_DEFAULT_IMG } },
 		}) ?? null;
 	} catch (err) {
 		console.error("Stonetop | failed to create GM Toolkit", err);

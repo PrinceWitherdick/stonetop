@@ -98,6 +98,71 @@ describe("the GM Toolkit cannot be deleted away", () => {
 		expect(hooks.preDelete(b)).not.toBe(false);
 	});
 
+	// The hole a per-document count cannot see. Core walks a delete batch one document at a time
+	// against the collection as it stands BEFORE any of them go, so "is there more than one?" was
+	// true for BOTH halves of a two-toolkit selection and the world ended up with none — from
+	// which nothing re-mints, because `gmToolkitAssigned` short-circuits the ready hook. Every
+	// document in one batch shares one `options` object, which is what lets the guard tell "these
+	// two deletes are one action" from "two separate deletes".
+	it("keeps one back when both are deleted in a single batch", () => {
+		const [a, b] = [toolkit("t1"), toolkit("t2")];
+		globalThis.game.actors = [a, b];
+		const hooks = registerHooks();
+		const batch = {};
+
+		expect(hooks.preDelete(a, batch)).not.toBe(false);
+		expect(hooks.preDelete(b, batch)).toBe(false);
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining("cannot be deleted"));
+	});
+
+	// The order the batch happens to arrive in must not decide the answer: whichever is asked
+	// LAST is the one refused, so the GM keeps the copy they did not select first.
+	it("keeps the second back regardless of which is offered first", () => {
+		const [a, b] = [toolkit("t1"), toolkit("t2")];
+		globalThis.game.actors = [a, b];
+		const hooks = registerHooks();
+		const batch = {};
+
+		expect(hooks.preDelete(b, batch)).not.toBe(false);
+		expect(hooks.preDelete(a, batch)).toBe(false);
+	});
+
+	// Three at once still leaves one. A count-based guard would have let all three through.
+	it("leaves one standing out of three", () => {
+		const all = [toolkit("t1"), toolkit("t2"), toolkit("t3")];
+		globalThis.game.actors = all;
+		const hooks = registerHooks();
+		const batch = {};
+
+		const refused = all.filter(t => hooks.preDelete(t, batch) === false);
+		expect(refused).toHaveLength(1);
+	});
+
+	// Two SEPARATE deletes are not one batch, and must not be treated as one: the first really
+	// does leave a toolkit behind, so it is allowed, and the second is then the last one.
+	it("treats separate deletes separately", () => {
+		const [a, b] = [toolkit("t1"), toolkit("t2")];
+		globalThis.game.actors = [a, b];
+		const hooks = registerHooks();
+
+		expect(hooks.preDelete(a, {})).not.toBe(false);
+		globalThis.game.actors = [b]; // the first delete landed
+		expect(hooks.preDelete(b, {})).toBe(false);
+	});
+
+	// A refused document is not gone, so it must not count as gone against the rest of its batch.
+	// If it did, a selection of [only toolkit, some character] would refuse the toolkit and then
+	// have nothing left to protect.
+	it("does not count a refusal as a deletion", () => {
+		const only = toolkit();
+		globalThis.game.actors = [only];
+		const hooks = registerHooks();
+		const batch = {};
+
+		expect(hooks.preDelete(only, batch)).toBe(false);
+		expect(hooks.preDelete(only, batch)).toBe(false);
+	});
+
 	it("leaves every other actor type alone", () => {
 		globalThis.game.actors = [toolkit()];
 		const hooks = registerHooks();
@@ -121,5 +186,17 @@ describe("the steading's guards still hold", () => {
 	it("lets the first steading through", () => {
 		const hooks = registerHooks();
 		expect(hooks.preCreate({ type: "stonetop" }, { type: "stonetop" }, {})).not.toBe(false);
+	});
+
+	// The batch guard is one shared helper, so the steading gets the same protection for free.
+	// Worth pinning anyway: the steading is the older of the two and had the same hole.
+	it("keeps one steading back when both are deleted in a single batch", () => {
+		const [a, b] = [steading("s1"), steading("s2")];
+		globalThis.game.actors = [a, b];
+		const hooks = registerHooks();
+		const batch = {};
+
+		expect(hooks.preDelete(a, batch)).not.toBe(false);
+		expect(hooks.preDelete(b, batch)).toBe(false);
 	});
 });

@@ -214,9 +214,12 @@ export async function openCreateActor({ folder = null, name = "" } = {}) {
  * GM Toolkit flow. There is no worksheet: the sheet is reference the GM reads, so it has
  * nothing to ask before it exists. Create it and open it.
  *
- * Not a world singleton, deliberately. A table can reasonably want more than one (a second
- * GM, or a toolkit per campaign in a shared world), and the create/delete vetoes that make
- * the steading a singleton are the hard thing to undo once someone has two.
+ * A world SINGLETON, on the same two hooks as the steading: hooks/StonetopSingleton.js vetoes a
+ * second create and refuses to delete the last. This flow is not that guard and must not be read
+ * as one — `actorOptionsFor` drops the row once the world has a toolkit (line 149-152 above) only
+ * so the picker never offers a dead end that could just warn. Getting here at all means the world
+ * had none, which is either a world whose launch predates the subtype or one somebody emptied;
+ * both are exactly the cases this row exists to recover from.
  *
  * Visibility is handled where it belongs, in StonetopActor#_preCreate: a toolkit is stamped
  * `ownership.default = NONE` so it never appears in a player's Actors sidebar.

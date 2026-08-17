@@ -1,5 +1,5 @@
 import { runStartupMigrations } from "./PbtaSheetConfig.js";
-import { theGmToolkit, createGmToolkit } from "../actors/gmtoolkit/gm-toolkit-actor.js";
+import { theGmToolkit, createGmToolkit, isGmToolkitData, GM_TOOLKIT_DEFAULT_IMG } from "../actors/gmtoolkit/gm-toolkit-actor.js";
 import { maybeOfferMigration } from "../migration/announce.js";
 import { finishSystemIdMigration } from "../migration/finish-run.js";
 import { maybeRescueStrandedWorld } from "../migration/rescue.js";
@@ -347,6 +347,7 @@ export async function onReady() {
 	game.stonetop.importBookArt     = () => runImportBookArtMacro();
 
 	_registerCharacterAutoOpen();
+	_registerGmToolkitAdopt();
 	// Close any half-finished creation whose character is deleted out from under it — the
 	// GM minting a replacement is a delete first. Every client, since the player who loses
 	// the character is rarely the one who pressed the button. See creation-flow.js.
@@ -357,6 +358,13 @@ export async function onReady() {
 	if (game.user.isGM) await stampWorldLayoutBaseline();
 	if (game.user.isGM) await _applyCoreSettingDefaultsForNewWorld();
 	if (game.user.isGM) await _ensurePlayerActorCreationGrant();
+	// The world HAVING a toolkit and this GM being pointed at one are two questions, and only the
+	// second is answered once per user. _assignGmToolkitToGm returns on its latch before it reaches
+	// the mint, so a world whose gamemasters have all been assigned already would never re-check —
+	// which is how a world that reached zero (emptied before the delete guard shipped, or by a
+	// macro passing noHook) would stay empty, and how a toolkit still wearing Foundry's mystery-man
+	// would never pick up the portrait. Asking here, unlatched, is what makes both self-correcting.
+	if (game.user.isGM) await _ensureGmToolkit();
 	if (game.user.isGM) await _assignGmToolkitToGm();
 
 	// Set this world up: the durable-art re-apply, the gazetteer seed, the bestiary and the
@@ -522,7 +530,7 @@ async function _ensurePlayerActorCreationGrant() {
 
 // The world's GM Toolkit: find it, or make it. ONE per world, like the steading, and enforced
 // the same way — hooks/StonetopSingleton.js vetoes a second create and refuses to delete the
-// last, so whichever GM loads first mints it and every GM after that finds it.
+// last, so the primary GM mints it and every GM after that finds it.
 //
 // One is the right number because nothing on the sheet is per-GM: the Moves and Core Loop tabs
 // are reference transcribed from the playbook, the Threats and Sites tabs read their storage off
@@ -540,13 +548,53 @@ async function _ensurePlayerActorCreationGrant() {
 // appears in a player's Actors sidebar. GM-only caller.
 export async function _ensureGmToolkit() {
 	const existing = theGmToolkit();
-	if (existing) return existing;
+	if (existing) {
+		await _adoptGmToolkitPortrait(existing);
+		return existing;
+	}
+
+	// Minting is a shared-world write, so exactly ONE client may do it (utils/primary-gm.js).
+	// The preCreateActor veto cannot cover this on its own: it counts the INITIATING client's
+	// `game.actors`, so two GMs whose `ready` lands inside the same broadcast window both read
+	// zero and both pass, and the world gets two toolkits with the "I wonder..." list split
+	// across them. The steading has been gated this way all along (ensureStonetopSingleton); the
+	// toolkit missed it only because its mint rides inside a per-user function that must run on
+	// every GM client. A non-primary GM returns empty-handed and is handed the toolkit the moment
+	// the primary's create broadcasts (_registerGmToolkitAdopt), or failing that, next load.
+	if (!isPrimaryGM()) return null;
 
 	// Silent: this runs before anyone has asked for anything, so a world whose launch predates
 	// the subtype should say nothing and try again next load rather than greet the GM with a
 	// warning about a sheet they have not gone looking for. Returns null on any failure, and the
 	// next load simply asks again.
 	return await createGmToolkit({ warn: false });
+}
+
+// Put the toolkit's own mark on a toolkit that predates it, and ONLY over a stock default.
+//
+// The portrait shipped after the subtype did, so worlds already hold toolkits wearing Foundry's
+// mystery-man. That is not a portrait anybody chose — it is the absence of one, and on this sheet
+// it actively misleads, since it reads as "a person nobody has found a picture for". So this is a
+// self-heal rather than a migration, in the shape StonetopActor#_preCreate already uses for an
+// art-less NPC: `isDefaultImg` gates it, so a GM who set their own picture keeps it for good.
+//
+// Deliberately narrower than the steading's equivalent (_ensureStartingValues, which re-asserts
+// ownership on every load): once this has run the image is no longer a default, so it never runs
+// again and cannot fight a later choice.
+//
+// Primary GM only. Every GM client reaches _ensureGmToolkit, and this is a shared-world write.
+async function _adoptGmToolkitPortrait(toolkit) {
+	if (!isPrimaryGM() || !isDefaultImg(toolkit.img)) return;
+	try {
+		await toolkit.update({
+			img: GM_TOOLKIT_DEFAULT_IMG,
+			"prototypeToken.texture.src": GM_TOOLKIT_DEFAULT_IMG,
+		});
+	} catch (err) {
+		// Cosmetic, so a failure must never cost the GM their toolkit: the caller still returns it
+		// and the next load simply tries again.
+		console.warn("Stonetop | Could not set the GM Toolkit portrait.", err);
+	}
 }
 
 // Give a GM who has no assigned character their GM Toolkit as their default character, once.
@@ -688,6 +736,29 @@ function _localizedSettingText(value) {
 function _registerCharacterAutoOpen() {
 	Hooks.on("createActor", actor => _maybeOpenCharacterCreation(actor));
 	for (const actor of game.actors) _maybeOpenCharacterCreation(actor);
+}
+
+// Hand a co-GM the toolkit the moment it appears, rather than making them reload.
+//
+// Only the primary GM mints one (_ensureGmToolkit), so a second GM whose `ready` ran first has
+// nothing to be assigned and leaves `gmToolkitAssigned` unset to retry next load. That retry is
+// the correctness story; this is the part that makes it invisible. `_assignGmToolkitToGm` is
+// already idempotent — the flag is its first line — so firing it again costs a flag read.
+//
+// Ignores creates THIS client initiated: `createActor` fires from inside the create's response
+// handling, before `Actor.create` resolves, so our own mint would re-enter
+// _assignGmToolkitToGm while the outer call is still mid-flight and both halves would write the
+// same User update.
+export function _registerGmToolkitAdopt() {
+	Hooks.on("createActor", (actor, _options, userId) => {
+		if (!game.user?.isGM || userId === game.user.id) return;
+		if (!isGmToolkitData(actor)) return;
+		// Returned rather than dropped only so a test can await it — Foundry ignores whatever a
+		// `createActor` handler hands back. The catch is what makes that safe: an assignment that
+		// throws here has no caller to report to, and the next load retries anyway.
+		return _assignGmToolkitToGm()
+			.catch(err => console.warn("Stonetop | Could not adopt the GM Toolkit.", err));
+	});
 }
 
 // Greet a player with character creation, or resume an interrupted one:

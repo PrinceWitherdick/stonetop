@@ -89,9 +89,9 @@ export function registerStonetopSingletonHooks() {
 		}
 	});
 
-	Hooks.on("preDeleteActor", actor => {
+	Hooks.on("preDeleteActor", (actor, options) => {
 		if (_isStonetopActorData(actor)) {
-			if (_getStonetopActors().length > 1) return;
+			if (_oneWouldRemain(actor, options, _getStonetopActors())) return;
 			ui.notifications?.warn("The Stonetop sheet is required and cannot be deleted.");
 			return false;
 		}
@@ -103,7 +103,7 @@ export function registerStonetopSingletonHooks() {
 		// want it on screen can leave it closed; it is not in any player's sidebar (its
 		// `ownership.default` is NONE).
 		if (isGmToolkitData(actor)) {
-			if (gmToolkitActors().length > 1) return;
+			if (_oneWouldRemain(actor, options, gmToolkitActors())) return;
 			ui.notifications?.warn("The GM Toolkit is the GM's own sheet and cannot be deleted.");
 			return false;
 		}
@@ -211,6 +211,40 @@ async function _openMonsterBuilder(data) {
 	} catch (err) {
 		console.error("Stonetop | failed to open the monster builder", err);
 	}
+}
+
+// Core evaluates every document in a delete batch against the collection as it stands BEFORE any
+// of them go (client-backend.mjs, ClientDatabaseBackend##preDeleteDocumentArray), so a plain "is
+// there more than one?" answers yes for BOTH halves of a two-document selection and the world ends
+// up with none. Every document in one batch is handed the SAME `options` object, so that object is
+// the batch's identity: keyed off it we can remember what we have already let go, and refuse only
+// the document whose removal would empty the world.
+//
+// A WeakMap rather than a property ON `options`: core does `Object.assign(operation, options)` once
+// the loop is done and sends the operation to the server, so anything we left there would ride along.
+const _released = new WeakMap();
+
+/**
+ * Would one of this kind still be left once `actor` has gone?
+ *
+ * Records the ones we allow, so the last survivor of a multi-select is still refused. Only what
+ * we ACTUALLY let go is recorded: a document we refuse is not gone, and must not count as such
+ * against the rest of its batch.
+ *
+ * @param {Actor}  actor    The document being deleted.
+ * @param {object} options  The batch's shared delete options; its identity IS the batch. A caller
+ *   that passes none (a direct hook invocation) falls back to judging this document alone.
+ * @param {Array}  all      Every document of this kind currently in the world.
+ */
+function _oneWouldRemain(actor, options, all) {
+	const others = all.filter(a => a.id !== actor.id);
+	if (!options || typeof options !== "object") return others.length > 0;
+
+	let released = _released.get(options);
+	if (!released) _released.set(options, released = new Set());
+	const remains = others.some(a => !released.has(a.id));
+	if (remains) released.add(actor.id);
+	return remains;
 }
 
 function _getStonetopActors() {
