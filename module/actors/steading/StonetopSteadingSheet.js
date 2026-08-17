@@ -34,6 +34,7 @@ import {wireCardDropZone} from "../../utils/card-drop-zone.js";
 import {postSeasonsChangeReminder, seasonIconSrc, seasonLabel} from "../../seasons/seasons-change-reminders.js";
 import {recordSeasonsChange, yearLabel} from "../../seasons/seasons-chronicle.js";
 import {readCurrentSeason, recordCurrentSeason, currentSeasonView, readCurrentYear} from "../../seasons/current-season.js";
+import {readCurrentWeather, currentWeatherView} from "../../seasons/current-weather.js";
 import {openSeasonPicker} from "../../seasons/season-picker.js";
 import {SEASONAL_GAINS} from "../../dialogs/spring-burst-data.js";
 import {addStonetopSteadingButton} from "../../utils/world.js";
@@ -642,6 +643,10 @@ export function createStonetopSteadingSheetClass(Base) {
 			// back to the picker's year so the header still names a year on a world that hasn't
 			// turned a season since this shipped (see module/seasons/current-season.js).
 			context.stonetop.currentSeason = currentSeasonView(readCurrentSeason(this.actor), this._seasonsCurrentYear());
+			// And what the sky is doing, shown as a glyph to the left of that clock. Set by the
+			// Weather picker when the GM posts a result; fine weather until they do (see
+			// module/seasons/current-weather.js).
+			context.stonetop.currentWeather = currentWeatherView(readCurrentWeather(this.actor));
 			return context;
 		}
 
@@ -776,6 +781,16 @@ export function createStonetopSteadingSheetClass(Base) {
 			// Only a GM gets a button here (the template renders a plain div for everyone
 			// else), so this binds nothing for players.
 			html.find("[data-action='set-current-season']").on("click", () => this._onSeasonsChange());
+
+			// The weather glyph left of the clock opens the Weather picker — the window that
+			// decides what that glyph shows, so the readout is the way back to what set it.
+			// Through `game.stonetop.openWeather` rather than the class, which is what the hotbar
+			// macro and the Expedition dialog's own weather button both call: one entry point, so
+			// `openOrFocus` in there can keep it to one window however it was reached.
+			//
+			// GM-only, like the clock: the template renders a plain span for everyone else, so
+			// this binds nothing for a player.
+			html.find("[data-action='set-current-weather']").on("click", () => game.stonetop?.openWeather?.());
 
 			// A real radio group, so `change` rather than a delegated click: the browser owns the
 			// deselection, and change only fires on the one that became checked.

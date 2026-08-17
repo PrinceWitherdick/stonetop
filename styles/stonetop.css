@@ -4022,8 +4022,22 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	color: var(--st-green-text);
 }
 
+/* The selection standing off the clock (WeatherDialog#getData). Green means "this is the table
+   your world is in"; the moment the GM picks a different one that reading is a lie, so the same
+   button says so in red instead. Sits AFTER .is-active deliberately — it only ever appears with
+   it, and every declaration here is one of that block's own. */
+.stonetop-weather-season.is-active.is-off-clock {
+	background: var(--st-red-bg);
+	border-color: var(--st-red-border);
+	color: var(--st-red-text);
+}
+
+/* Hover is a single rule above, so it would repaint an off-clock button back to the neutral
+   wash under the pointer. Held to red — a warning that goes out when you reach for it is worse
+   than no warning. */
+.stonetop-weather-season.is-active.is-off-clock:hover { background: var(--st-red-bg); }
+
 .stonetop-weather-rows {
-	list-style: none;
 	margin: 0;
 	padding: 0;
 	display: flex;
@@ -4031,16 +4045,61 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	gap: 3px;
 }
 
+/* Each row is a real <button> (templates/dialogs/weather.hbs): the roll's light lands on one
+   and it stays standing there, and the GM can also just click the weather they want. So this
+   block undoes what core gives a button — the centred text, the border-box fill, the inherited
+   nothing of a font — and keeps the boxed line it has always drawn. */
 .stonetop-weather-row {
 	display: flex;
 	align-items: baseline;
+	/* DECLARED, not left to the cascade. `display: flex` above replaces core's own value but
+	   not the `justify-content: center` sitting beside it, and a centred row pushes the die
+	   range off the left margin and floats it against its text — the six ranges stop lining up
+	   in a column, which is the one thing a d6 table has to do. `text-align` cannot fix it: the
+	   row's children are flex items, not text. */
+	justify-content: flex-start;
 	gap: 10px;
+	width: 100%;
+	/* Core's bare `button` rule pins BOTH `height` and `min-height` to --button-size, and
+	   min-height wins — so a row whose text wraps (most of them, at this window's width) would
+	   spill out of a one-line box. Both are unpinned here, not just the one. */
+	height: auto;
+	min-height: 0;
+	text-align: left;
 	padding: 5px 10px;
 	border: 1px solid rgba(0, 0, 0, 0.1);
 	border-radius: var(--st-radius);
 	background: rgba(0, 0, 0, 0.02);
+	color: inherit;
+	font-family: var(--font-stonetop);
 	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	line-height: 1.4;
+	cursor: pointer;
+	transition: background 0.15s, border-color 0.15s;
+}
+
+.stonetop-weather-row:hover { background: var(--st-warm-hover-bg); }
+
+/* Passing through, one step of the walk the roll makes down the table (utils/flash-highlight.js).
+   The hover wash, at full strength but in a different HUE from the green the walk lands on — so
+   a step never looks like the answer, which is the thing the GM Moves list halves its tone to
+   avoid. Halving would not work here: these rows already carry a 2% fill of their own, and half
+   of this wash over it is a difference you cannot see at 40ms. No transition either, since a
+   step is on screen for one interval and anything easing in would still be arriving when it was
+   time to leave. */
+.stonetop-weather-row.stonetop-spin {
+	transition: none;
+	background-color: var(--st-warm-hover-bg);
+}
+
+/* The row now standing as the weather. Deliberately the SAME green as the active season chip
+   above it: both are "this is the one selected", and the window should only have one way of
+   saying that. Later in the file than the base and the hover, so the mod wins the tie. */
+.stonetop-weather-row.is-picked {
+	font-weight: 600;
+	background: var(--st-green-bg);
+	border-color: var(--st-green-border);
+	color: var(--st-green-text);
 }
 
 .stonetop-weather-row-range {
@@ -4058,8 +4117,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	flex-wrap: wrap;
 }
 
-.stonetop-weather-roll-btn {
-	width: 100%;
+/* The row's affirmative: "Roll the weather" while nothing is standing, "Post the weather" once
+   something is. One button or the other, never both, so they share the fill. `flex: 1 1 0`
+   rather than `width: 100%` — alone it still fills the row, and beside Re-roll it takes what is
+   left rather than fighting it for the whole width. */
+.stonetop-weather-roll-btn,
+.stonetop-weather-post-btn {
+	flex: 1 1 0;
+	width: auto;
 	justify-content: center;
 	padding: 5px 14px;
 	font-family: var(--font-stonetop);
@@ -4073,8 +4138,31 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	transition: background 0.15s;
 }
 
-.stonetop-weather-roll-btn:hover { background: var(--st-btn-primary-bg-hover); }
-.stonetop-weather-roll-btn > i { margin-right: 4px; }
+.stonetop-weather-roll-btn:hover,
+.stonetop-weather-post-btn:hover { background: var(--st-btn-primary-bg-hover); }
+
+.stonetop-weather-roll-btn > i,
+.stonetop-weather-post-btn > i,
+.stonetop-weather-reroll-btn > i { margin-right: 4px; }
+
+/* Re-roll is the secondary of the pair and wears the season chip's outline rather than the
+   slate fill, so the row reads as one call to action and one way back to the die. */
+.stonetop-weather-reroll-btn {
+	flex: 0 0 auto;
+	width: auto;
+	justify-content: center;
+	padding: 5px 12px;
+	font-family: var(--font-stonetop);
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	cursor: pointer;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius-sm);
+	background: var(--stonetop-bg, #f5f0e8);
+	color: inherit;
+	transition: background 0.15s;
+}
+
+.stonetop-weather-reroll-btn:hover { background: hsl(40 25% 85%); }
 
 :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-startup-card__content {
 	display: grid;
@@ -12908,6 +12996,115 @@ span.stonetop-mark-loyalty-pip {
    inside a sheet. Restating the box at a class-only weight would silently do nothing —
    which is also why the stripping below is explicit about `height`, `box-shadow` and
    `border`: this wrapper is a <button> for the GM and must not look like one. */
+/* The clock and the sky over it, as one block against the header's right edge. The auto margin
+   moved HERE from the season when the weather glyph joined it: two auto left margins in one
+   flex row split the row's free space between them instead of stacking, which put the glyph in
+   the middle of the header. The season keeps its own margin, which inside this content-sized
+   wrapper has no slack left to take. */
+.steading-header .steading-header-clock {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex: 0 0 auto;
+	margin-left: auto;
+}
+
+/* Today's weather, in plain ink. NOT in a colour of its own, and specifically not in a season
+   ink — those are the clock's alone (a test counts every read of them) — and not in a weather
+   palette either: the book is monochrome black-on-white throughout, so a blue rain glyph beside
+   a black season would be the only coloured thing on the sheet that the book never colours.
+   Sized against the season name so the pair reads as one block rather than a glyph with a
+   caption stuck to it.
+
+   One rule for both wrappers, and the GM's is a <button>, so every piece of chrome core hands a
+   button is stripped by name here — the same list the season's wrapper strips, and for the same
+   reason: a glyph in a 32px slate box beside a bare season is two different kinds of thing. */
+.steading-header .steading-header-weather {
+	flex: 0 0 auto;
+	display: grid;
+	place-items: center;
+	width: auto;
+	height: auto;
+	min-width: 0;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	border: none;
+	border-radius: var(--st-radius-sm);
+	background: none;
+	box-shadow: none;
+	/* Sized against the CLOCK, not against the text around it. The season name and the year chip
+	   stack about 2.2em of this wrapper's font-size between them, and a glyph much under that
+	   reads as a bullet hung off the clock rather than as the other half of a pair.
+
+	   Set ABOVE that stack rather than level with it, which is the one place this readout departs
+	   from matching the clock, and it is the drawings that ask for it. game-icons.net art carries
+	   generous margins inside its 512 square, and `contain` scales to the WHOLE square — so the
+	   ink lands well short of the box, and a glyph that measures the same as the clock draws
+	   visibly smaller than it. The detailed ones are what that costs: the blizzard is a snowflake
+	   with six branched arms and the wind is three stacked curls, and at the matched size they
+	   arrive as a smudge you have to already know to read. The extra is the margin handed back. */
+	font-size: 2.75em;
+	line-height: 1;
+	color: var(--st-text-body);
+	transition: background 0.15s;
+}
+
+/* The drawing, worn as a MASK over currentColor rather than painted as an <img> — the same way
+   the tab rail wears its icons (assets/icons/weather/ATTRIBUTION.md), and for the same reason:
+   one file then takes the header's ink in both themes, the dimmer tone below, and whatever the
+   dark palette hands it, with no second copy of the art and no filter to fight.
+
+   `1em`, so the glyph tracks the wrapper's font-size and the pair can be resized in one place.
+   `--st-weather-icon` has no fallback on purpose: a sky whose rule is missing paints nothing
+   visible, which is what the test pinning every sky to a rule below is there to catch, and a
+   default drawing would hide it behind the wrong weather instead. */
+.steading-header .steading-header-weather-glyph {
+	display: block;
+	width: 1em;
+	height: 1em;
+	background: currentColor;
+	-webkit-mask: var(--st-weather-icon) no-repeat center / contain;
+	mask: var(--st-weather-icon) no-repeat center / contain;
+}
+
+/* One rule per sky, keyed by the modifier the template interpolates from the view's `sky` —
+   a flat list like the tab rail's, so adding a weather is one line here and one in
+   WEATHER_SKIES. Order is the vocabulary's own (fine to foul, then the two temperatures). */
+.steading-header .steading-header-weather--sun      { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/sun.svg'); }
+.steading-header .steading-header-weather--fair     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/fair.svg'); }
+.steading-header .steading-header-weather--cloud    { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/cloud.svg'); }
+.steading-header .steading-header-weather--wind     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/wind.svg'); }
+.steading-header .steading-header-weather--rain     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/rain.svg'); }
+.steading-header .steading-header-weather--downpour { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/downpour.svg'); }
+.steading-header .steading-header-weather--storm    { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/storm.svg'); }
+.steading-header .steading-header-weather--tornado  { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/tornado.svg'); }
+.steading-header .steading-header-weather--snow     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/snow.svg'); }
+.steading-header .steading-header-weather--blizzard { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/blizzard.svg'); }
+.steading-header .steading-header-weather--cold     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/cold.svg'); }
+.steading-header .steading-header-weather--heat     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/heat.svg'); }
+.steading-header .steading-header-weather--haze     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/haze.svg'); }
+
+/* Nobody has set the weather yet, so the sun is ours rather than the GM's. Dropped to the
+   secondary ink the year chip already uses — quiet enough to read as a default, not so quiet
+   it reads as disabled. Ties with the base rule, so it sits after it. */
+.steading-header .steading-header-weather--unset { color: var(--st-text-secondary); }
+
+/* GM only: it opens the Weather picker. The glyph has no surface of its own to warm, so the
+   hover paints one just big enough to sit behind it — the season next door solves the same
+   problem by warming its year chip, which is a box it already had. Ties with the base rule, so
+   both of these have to stay BELOW it. */
+.steading-header .steading-header-weather--set {
+	cursor: pointer;
+	padding: 4px;
+	margin: -4px;
+}
+
+.steading-header .steading-header-weather--set:hover {
+	background: var(--st-slate-hover-bg);
+	color: var(--st-text-body);
+}
+
 .steading-header .steading-header-season {
 	display: flex;
 	flex-direction: column;

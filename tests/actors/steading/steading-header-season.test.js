@@ -67,7 +67,11 @@ describe("the steading header's season clock", () => {
 		expect(header).toContain('{{#unless stonetop.isGM}}');
 		expect(header.match(/\{\{> "stonetop\.steading-header-season"/g)).toHaveLength(2);
 		expect(header).toContain('data-action="set-current-season"');
-		expect(header.match(/<button /g), "GM button").toHaveLength(1);
+		// Counted by its own action rather than by tallying every `<button ` in the header: the
+		// weather glyph beside it is a GM button too (steading-header-weather.test.js), and a
+		// header-wide count would make this assertion about how many controls happen to be up
+		// here rather than about the clock having exactly one.
+		expect(header.match(/data-action="set-current-season"/g), "GM button").toHaveLength(1);
 	});
 
 	it("paints a whole clock unconditionally, fallback and all", () => {

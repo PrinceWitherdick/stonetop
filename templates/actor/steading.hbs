@@ -24,18 +24,71 @@
 			      become two whole copies of the sheet (tests/actors/steading/
 			      steading-section-placement.test.js). The readout itself is a partial, so the
 			      two wrappers cannot drift apart. --}}
-			{{#if stonetop.isGM}}
-			<button type="button" class="steading-header-season steading-header-season--set"
-			        data-action="set-current-season"
-			        data-tooltip="{{localize "stonetop.steading.season.setTooltip"}}">
-				{{> "stonetop.steading-header-season" season=stonetop.currentSeason}}
-			</button>
-			{{/if}}
-			{{#unless stonetop.isGM}}
-			<div class="steading-header-season">
-				{{> "stonetop.steading-header-season" season=stonetop.currentSeason}}
+			{{!-- The clock and the sky it is under, as one block parked at the header's right
+			      edge. The WRAPPER is what carries the auto margin now: the season keeps its own
+			      (it is asserted, and it is what the readout has always been positioned by), but
+			      two auto left margins in one flex row SPLIT the free space rather than stacking,
+			      which would strand the weather glyph in the middle of the header. Inside a
+			      content-sized wrapper the season's margin has no slack to take and is inert. --}}
+			<div class="steading-header-clock">
+				{{!-- What the sky is doing: the last weather the GM posted from the Weather
+				      picker, or fine weather on a world that has never set one (see
+				      module/seasons/current-weather.js).
+
+				      The same two wrappers the clock beside it uses, for the same reason. A GM
+				      clicking it opens the Weather picker — the window that decides this glyph,
+				      so the readout is also the way back to the thing that set it. A player gets
+				      the readout as plain text: the picker rolls, posts to chat and writes the
+				      steading, none of which is theirs to do.
+
+				      The hover carries the row's own line and nothing else, on both branches
+				      alike: the glyph says what kind of day it is and this says which day, and a
+				      hover that also explained the click would bury the one thing it was there
+				      to say. What the GM's click does is said by the pointer and by the picker
+				      it opens. The season beside it names its own action because its hover has
+				      nothing else to carry — a year the chip already shows in full.
+
+				      The glyph itself is an empty <span> wearing the drawing as a CSS mask, hung
+				      off the sky's modifier class in stonetop.css — the same way the tab rail
+				      wears its icons, and for the same reason: one file then takes the header's
+				      ink in both themes and its dimmer tone before anyone has set the weather.
+				      Which drawing is which is in assets/icons/weather/ATTRIBUTION.md.
+
+				      `role="img"` with the label on the wrapper and the glyph hidden: an empty
+				      span painting a masked background has no text for a screen reader to read,
+				      so it announces nothing at all. The GM's <button> takes `aria-label` for the
+				      same reason — it has no text of its own to be named by. --}}
+				{{#if stonetop.isGM}}
+				<button type="button"
+				        class="{{stonetop.currentWeather.classes}} steading-header-weather--set"
+				        data-action="set-current-weather"
+				        aria-label="{{stonetop.currentWeather.label}}"
+				        data-tooltip="{{stonetop.currentWeather.text}}">
+					<span class="steading-header-weather-glyph" aria-hidden="true"></span>
+				</button>
+				{{/if}}
+				{{#unless stonetop.isGM}}
+				<span class="{{stonetop.currentWeather.classes}}"
+				      role="img"
+				      aria-label="{{stonetop.currentWeather.label}}"
+				      data-tooltip="{{stonetop.currentWeather.text}}">
+					<span class="steading-header-weather-glyph" aria-hidden="true"></span>
+				</span>
+				{{/unless}}
+
+				{{#if stonetop.isGM}}
+				<button type="button" class="steading-header-season steading-header-season--set"
+				        data-action="set-current-season"
+				        data-tooltip="{{localize "stonetop.steading.season.setTooltip"}}">
+					{{> "stonetop.steading-header-season" season=stonetop.currentSeason}}
+				</button>
+				{{/if}}
+				{{#unless stonetop.isGM}}
+				<div class="steading-header-season">
+					{{> "stonetop.steading-header-season" season=stonetop.currentSeason}}
+				</div>
+				{{/unless}}
 			</div>
-			{{/unless}}
 		</div>
 
 		{{!-- CLASSIC only: the stat band is a permanent strip above the tab strip, the way it
