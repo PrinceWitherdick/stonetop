@@ -5,7 +5,9 @@ import { describe, it, expect } from "vitest";
 import { SYSTEM_ID } from "../../module/system-id.js";
 
 // A document update path is a STRING that Foundry splits on "." (foundry.utils.setProperty).
-// A hyphen is perfectly legal inside one, so the scope is written plainly:
+// A hyphen is perfectly legal inside one, so the scope is written plainly. This package's id
+// happens to be `stonetop_pwd`, which has no hyphen at all, but the same source also ships
+// under `stonetop-pwd`, and everything below is what keeps one tree correct under both:
 //
 //     actor.update({ [`flags.stonetop_pwd.customFollowers.${id}`]: data })   ✅
 //
