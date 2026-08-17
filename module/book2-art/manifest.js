@@ -5489,6 +5489,132 @@ export const BOOK2_ART_APPLY_MANIFEST = {
      ]
     }
    ]
+  },
+  {
+   "journalEntryId": "Ttz6Fnr2M0HNfIre",
+   "journalPageId": "FUyYoLbaxcMQ2XTA",
+   "name": "Crinwin",
+   "managed": [
+    "assets/bestiary/crinwin.webp",
+    "assets/bestiary/crinwin-broodfather.webp"
+   ],
+   "slots": [
+    {
+     "slot": "banner",
+     "images": [
+      {
+       "out": "assets/bestiary/crinwin.webp",
+       "name": "Crinwin"
+      }
+     ]
+    },
+    {
+     "slot": "nests",
+     "images": [
+      {
+       "out": "assets/bestiary/crinwin-broodfather.webp",
+       "name": "Crinwin Broodfather"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "journalEntryId": "3Q3V7QXv1XFx1UK8",
+   "journalPageId": "yZnBR4myriobQFz5",
+   "name": "Brennauwed",
+   "managed": [
+    "assets/bestiary/glasbren.webp",
+    "assets/bestiary/hennain.webp"
+   ],
+   "slots": [
+    {
+     "slot": "banner",
+     "images": [
+      {
+       "out": "assets/bestiary/glasbren.webp",
+       "name": "Glasbren"
+      }
+     ]
+    },
+    {
+     "slot": "description",
+     "images": [
+      {
+       "out": "assets/bestiary/hennain.webp",
+       "name": "Hennain"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "journalEntryId": "qUp7ZkpC5FdinUC4",
+   "journalPageId": "MlbyZpkmaCRWrwnL",
+   "name": "Elemental Vortex",
+   "managed": [
+    "assets/bestiary/fire-vortex.webp",
+    "assets/bestiary/lightning-vortex.webp",
+    "assets/bestiary/water-vortex.webp",
+    "assets/bestiary/wind-vortex.webp"
+   ],
+   "slots": [
+    {
+     "slot": "banner",
+     "images": [
+      {
+       "out": "assets/bestiary/fire-vortex.webp",
+       "name": "Fire Vortex"
+      }
+     ]
+    },
+    {
+     "slot": "description",
+     "images": [
+      {
+       "out": "assets/bestiary/lightning-vortex.webp",
+       "name": "Lightning Vortex"
+      },
+      {
+       "out": "assets/bestiary/water-vortex.webp",
+       "name": "Water Vortex"
+      },
+      {
+       "out": "assets/bestiary/wind-vortex.webp",
+       "name": "Wind Vortex"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "journalEntryId": "6wnyTkZl7GRhVM8g",
+   "journalPageId": "6Nw4LldBvZJA3Lm8",
+   "name": "The Pale Hunter",
+   "managed": [
+    "assets/bestiary/ghostly-hounds.webp",
+    "assets/bestiary/the-pale-hunter.webp"
+   ],
+   "slots": [
+    {
+     "slot": "banner",
+     "images": [
+      {
+       "out": "assets/bestiary/the-pale-hunter.webp",
+       "name": "The Pale Hunter"
+      }
+     ]
+    },
+    {
+     "slot": "description",
+     "images": [
+      {
+       "out": "assets/bestiary/ghostly-hounds.webp",
+       "name": "Ghostly Hounds"
+      }
+     ]
+    }
+   ]
   }
  ],
  "steadings": [
