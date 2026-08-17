@@ -149,6 +149,21 @@ describe("clampPan", () => {
 	});
 });
 
+// Counts a template's TOP-LEVEL elements. It has to walk the nesting rather than read the left
+// margin, because a sibling root added indented, or written on the same line as the one already
+// there, is still a second root — and a margin-reading count would wave it through as one.
+const VOID_TAGS = /^(?:img|br|hr|input|meta|link|source|area|base|col|embed|param|track|wbr)$/i;
+function countRoots(hbs) {
+	const markup = hbs.replace(/\{\{![\s\S]*?\}\}/g, "");
+	let depth = 0, roots = 0;
+	for (const [, closing, tag, selfClosing] of markup.matchAll(/<(\/?)(\w+)[^>]*?(\/?)>/g)) {
+		if (closing) { depth = Math.max(0, depth - 1); continue; }
+		if (depth === 0) roots += 1;
+		if (!selfClosing && !VOID_TAGS.test(tag)) depth += 1;
+	}
+	return roots;
+}
+
 // The window itself is a thin shell over the above, but a few of its decisions are the kind that
 // are invisible until they bite, so they are pinned here on the source.
 describe("the zoom window", () => {
@@ -213,5 +228,19 @@ describe("the zoom window", () => {
 	// The wheel has to beat the page's own scrolling, which a passive listener may not do.
 	it("takes the wheel non-passively so it can zoom instead of scroll", () => {
 		expect(WINDOW_JS).toMatch(/addEventListener\("wheel",.*passive: false/);
+	});
+
+	// Taking the toolbar out left the viewport as the template's ONLY element, so AppV1 hands it
+	// to activateListeners as the root itself. `root.querySelector(".stonetop-image-zoom-view")`
+	// searches descendants and never the element it was called on, so it answered null, the guard
+	// below it returned, and not one listener was ever bound: the window opened on a picture that
+	// would not zoom, would not drag, and had nothing to scroll either. The class the template's
+	// root carries and the class the window looks for have to agree, and the lookup has to be able
+	// to find it ON the root.
+	it("finds the viewport when it is the template's own root", () => {
+		const hbs = read("templates/dialogs/image-zoom.hbs");
+		expect(countRoots(hbs)).toBe(1);
+		expect(hbs).toMatch(/<div class="stonetop-image-zoom-view">/);
+		expect(WINDOW_JS).toContain('root.matches?.(".stonetop-image-zoom-view")');
 	});
 });

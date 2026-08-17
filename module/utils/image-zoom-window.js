@@ -90,8 +90,15 @@ export class ImageZoomWindow extends StonetopDialog {
 		super.activateListeners(html);
 		// ONE root element (AppV1 hands `html` as a jQuery wrapping the template's root).
 		const root = html[0];
-		this._view = root.querySelector(".stonetop-image-zoom-view");
-		this._img = root.querySelector(".stonetop-image-zoom-img");
+		// The viewport IS that root, since the toolbar row went and left nothing to wrap it
+		// against. `querySelector` only ever looks at DESCENDANTS, so asking the root for the
+		// viewport by class returns null and every listener below is silently skipped: no wheel,
+		// no drag, and no fit. Match the root itself first, and keep the descendant lookup for a
+		// template that grows a wrapper back.
+		this._view = root.matches?.(".stonetop-image-zoom-view")
+			? root
+			: root.querySelector(".stonetop-image-zoom-view");
+		this._img = this._view?.querySelector(".stonetop-image-zoom-img");
 		if (!this._view || !this._img) return;
 
 		// A cached picture — the second open of the same diagram, which is the common case — is
