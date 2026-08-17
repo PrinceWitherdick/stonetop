@@ -62,18 +62,15 @@
 				      it takes the same markup with the numbering off. --}}
 				<ol class="stonetop-gm-loop{{#unless numbered}} stonetop-gm-loop--stages{{/unless}}">
 					{{#each steps}}
+					{{!-- Step 5's items ask questions, and step 3 IS one ("Ask \"What do you
+					      do?\""), which matters here for a reason that has nothing to do with the
+					      chart: markQuestionBullets (hooks/RenderActorSheet.js) runs over every
+					      <li> on an actor sheet and tags anything ending in "?" as a
+					      `question-bullet`. That class is a picture swap only — see the note on
+					      it in stonetop.css — so a step wearing it lays out like any other. --}}
 					<li class="stonetop-gm-loop-step">
-						{{!-- The name row is a BLOCK of its own, and every step has one whether or
-						      not it has items. A step WITH items puts its name in an anonymous block
-						      (the browser wraps the loose inline run sitting beside the <ul>), while
-						      "Ask what do you do?" — the one step of the core loop with nothing under
-						      it — would be the only <li> in either chart whose text sits directly in
-						      the list item. Two layout paths for one row is what let that step drift
-						      out of line with the four around it. One wrapper, one path. --}}
-						<div class="stonetop-gm-loop-head">
-							<strong class="stonetop-gm-loop-name">{{name}}</strong>{{#if pageRef}}
-							<span class="stonetop-gm-loop-page">{{pageRef}}</span>{{/if}}
-						</div>
+						<strong class="stonetop-gm-loop-name">{{name}}</strong>
+						{{#if pageRef}}<span class="stonetop-gm-loop-page">{{pageRef}}</span>{{/if}}
 						{{#if note}}<p class="stonetop-gm-loop-note">{{note}}</p>{{/if}}
 						{{#if items}}
 						<ul class="stonetop-gm-loop-items">

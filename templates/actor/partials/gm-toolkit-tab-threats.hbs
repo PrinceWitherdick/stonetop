@@ -89,7 +89,7 @@
 
 			{{#each stonetop.threatGuidance}}
 			<div class="steading-threats-section steading-threats-guide">
-				{{> "stonetop.section-heading" headingClass="steading-residents-heading" title=title note=note collapse=collapseId startCollapsed=true}}
+				{{> "stonetop.section-heading" headingClass="steading-residents-heading" title=title note=note collapse=collapseId}}
 				{{#if caution}}<p class="steading-threats-intro">{{caution}}</p>{{/if}}
 				{{#each groups}}
 				<div class="steading-threats-guide-group">
@@ -97,11 +97,16 @@
 					{{!-- Numbered only where the order is the point (the write-up steps). The
 					      `ordered` flag rides on the SECTION, so a group inherits it through the
 					      `../` walk out of this each. Only the LIST TAG differs between the two
-					      branches; the rows come from one partial so they cannot drift apart. --}}
+					      branches; the rows come from one partial so they cannot drift apart.
+
+					      `rows=items`, in the hash beside the label, NOT as the partial's
+					      context: a hash merged into an array context flattens it to a plain
+					      object and the partial's each then walks the label as a row. See the
+					      partial's header. --}}
 					{{#if ../ordered}}
-					<ol class="steading-threats-guide-list is-ordered">{{> "stonetop.gm-prep-guide-items" items optionalLabel=@root.stonetop.threatOptionalLabel}}</ol>
+					<ol class="steading-threats-guide-list is-ordered">{{> "stonetop.gm-prep-guide-items" rows=items optionalLabel=@root.stonetop.threatOptionalLabel}}</ol>
 					{{else}}
-					<ul class="steading-threats-guide-list">{{> "stonetop.gm-prep-guide-items" items optionalLabel=@root.stonetop.threatOptionalLabel}}</ul>
+					<ul class="steading-threats-guide-list">{{> "stonetop.gm-prep-guide-items" rows=items optionalLabel=@root.stonetop.threatOptionalLabel}}</ul>
 					{{/if}}
 				</div>
 				{{/each}}
@@ -123,7 +128,7 @@
 				{{> "stonetop.section-heading" headingClass="steading-residents-heading"
 				    title=(localize "stonetop.gmToolkit.threats.guide.types")
 				    note=(localize "stonetop.gmToolkit.threats.guide.typesNote")
-				    collapse="threatGuideTypes" startCollapsed=true}}
+				    collapse="threatGuideTypes"}}
 				<ul class="steading-threats-guide-list steading-threat-type-list">
 					{{#each stonetop.threatTypeReference}}
 					<li style="--threat-accent: {{accent}}">

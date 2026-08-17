@@ -92,12 +92,16 @@ describe("whispering the drawn move", () => {
 		expect(posted[0].content).toContain("&quot;If you do that");
 	});
 
-	// The section's NOTE, not its title: "Make a GM move / GM Moves" says nothing twice, while
-	// the note says which list this came from and when that list applies.
-	it("heads the card with the section's note", async () => {
+	// The section's NAME, on its own. The frame gets one line: a prompt ("Make a GM move") only
+	// restates what the card is, and the section's note ("On an expedition, or inside a site")
+	// is a rule about when to reach for the list, not something a GM reads a drawn move for.
+	it("heads the card with the section's name, and nothing under it", async () => {
 		await postGmMove("exploration", EXPLORATION_GM_MOVES[0]);
-		expect(posted[0].content).toContain("Make a GM move");
-		expect(posted[0].content).toContain("On an expedition, or inside a site");
+		expect(posted[0].content).toContain("Exploration");
+		expect(posted[0].content).not.toContain("Make a GM move");
+		expect(posted[0].content).not.toContain("On an expedition, or inside a site");
+		// The sub-line span is what a two-part title renders; a one-line title must not emit it.
+		expect(posted[0].content).not.toContain("stonetop-chat-title-sub");
 	});
 
 	it("passes the speaker through, and posts nothing without a move or a section", async () => {

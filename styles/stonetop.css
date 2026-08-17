@@ -3700,6 +3700,19 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	color: var(--st-text);
 }
 
+/* ...unless the move box is sitting INSIDE a card that already has a title row — which is the
+   whispered GM move, and only that (every other moveChatCard caller posts the box bare, where
+   its band is the card's one header). `.chat-title` further down the file paints the identical
+   tint and the identical hairline, so stacking the two put two indistinguishable bands one on
+   top of the other: the frame ("Make a GM move / Any time you owe the table a move") and the
+   subject ("Demonstrate a downside") read as peers when the subject is the whole point of the
+   card. Drop the fill and let the name sit on the paper. The hairline stays — it is what
+   separates the name from the prose under it — and 8px of padding lines the name up with the
+   description's own 8px, which the full-bleed band was breaking. */
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .stonetop-chat-move-name {
+	background: none;
+}
+
 :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-chat-move-description {
 	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	line-height: 1.4;
@@ -21251,7 +21264,16 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	opacity: 0.5;
 }
 
-/* Question-spiral: swap icon on li items whose text ends with "?" */
+/* Question-spiral: swap icon on li items whose text ends with "?".
+   A SWAP AND NOTHING ELSE. `markQuestionBullets` (hooks/RenderActorSheet.js) runs over
+   EVERY <li> in an actor sheet's root, so this class lands on rows that are not prose
+   bullets at all — a step of the GM Toolkit's core loop is named `Ask "What do you
+   do?"`, and it got the class like any other list item. That is fine as long as the
+   class only changes an EXISTING bullet's picture, which is why it is not in the two
+   family rules below that hand out `padding-left` and position the marker: those give
+   an indent for a bullet that never draws here, because `content` is set per-family
+   and a row outside every family never gets one. The result was 18px of empty space
+   in front of one step and nothing in it. */
 li.question-bullet::before {
 	background-image: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg');
 }
@@ -21272,8 +21294,7 @@ li.question-bullet::before {
 .stonetop-arcanum-chat-card li::before,
 .stonetop-outfit-rule-note li::before,
 .stonetop-onboarding-card-desc li::before,
-.stonetop-follower-rule li::before,
-li.question-bullet::before {
+.stonetop-follower-rule li::before {
 	position: absolute;
 	left: 0;
 	top: 0.2em;
@@ -21292,8 +21313,7 @@ li.question-bullet::before {
 .stonetop-arcanum-chat-card li,
 .stonetop-outfit-rule-note li,
 .stonetop-onboarding-card-desc li,
-.stonetop-follower-rule li,
-li.question-bullet {
+.stonetop-follower-rule li {
 	position: relative;
 	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
 }
@@ -23436,7 +23456,11 @@ li.question-bullet {
 	font-size: calc(0.72rem * var(--stonetop-font-scale, 1));
 	line-height: 1;
 	cursor: pointer;
-	opacity: 0.55;
+	/* 0.62, not the 0.55 the pencils fade to: those are hover-revealed and this one is
+	   always on the line, so it has to clear the 3:1 non-text contrast floor on its own.
+	   Measured against the rendered page — 0.55 paints rgb(151,148,144) on the parchment,
+	   2.66:1; 0.62 is 3.08:1 and reads no louder. */
+	opacity: 0.62;
 	transition: opacity 0.12s, background 0.12s, border-color 0.12s, color 0.12s;
 }
 
@@ -23448,10 +23472,36 @@ li.question-bullet {
 	color: var(--st-btn-primary-text);
 }
 
+/* CLICKING A BUTTON FOCUSES IT, and it stays focused until the next click lands somewhere
+   else. Core's V1-compat sheet answers that with `body.game .app button:focus { box-shadow:
+   0 0 5px var(--color-shadow-primary) }` — plain `:focus`, so a MOUSE click takes it too,
+   and at two classes and two elements it outranks anything this selector can say on its own.
+   The result is a slate halo boxing the die that a GM has drawn from, sat there long after
+   the pointer left, which reads as a stuck hover. The rule above deliberately says
+   `:focus-visible` and is not the cause; this undoes what core did underneath it.
+
+   `:not(:focus-visible)`, so the ring a KEYBOARD user needs to see where they are is left
+   alone — that is the whole distinction the pseudo-class exists to draw. Same fix the
+   sidebar toggle carries further up this file, for the same core rule. */
+.stonetop-section-randomize:focus:not(:focus-visible) {
+	box-shadow: none;
+	outline: none;
+}
+
 /* The glyph carries its own font-family from Font Awesome; the margin is what core's button
-   rules would otherwise put beside it inside a box this small. */
+   rules would otherwise put beside it inside a box this small.
+
+   `top: 1px` because Font Awesome's vertical metrics are lopsided: the artwork ends up flush
+   with the top of its own em box and all the slack collects underneath, so centring the box
+   (which `align-items: center` does exactly) still leaves the die reading high. Scanned the
+   painted INK rather than the boxes — 11px of air above against 14 below at root 20, 8
+   against 11 at root 16 (device px at DPR 2), i.e. ~1.5 CSS px high at both. Invisible while
+   the button is bare; it is the hover chip that draws a visible box around the offset. Same
+   flat 1px nudge the dashed add bars carry. */
 .stonetop-section-randomize i {
 	margin: 0;
+	position: relative;
+	top: 1px;
 }
 .stonetop-move-group-title > .stonetop-section-collapse {
 	position: absolute;
@@ -29441,12 +29491,15 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 /* The form and the box inside it, both links in the flex chain that lets the active tab own
    the scroll. One selector list rather than two identical blocks: a fix applied to only one of
-   them clips the tab body on a frame that otherwise looks fine. The GM Toolkit's form and
-   container are the same chain and so are named here, not in a second copy of this block. */
+   them clips the tab body on a frame that otherwise looks fine.
+
+   The GM Toolkit's FORM is the same chain and is named here. Its CONTAINER is NOT, and that is
+   the one place these two frames part company: the toolkit scrolls as a single unit with its
+   header banner inside the scroll, so its container is a block SCROLLPORT rather than another
+   flex link. See `.stonetop-gm-toolkit-container` at the foot of this file. */
 .stonetop-npc-sheet,
 .stonetop-npc-container,
-.stonetop-gm-toolkit-sheet,
-.stonetop-gm-toolkit-container {
+.stonetop-gm-toolkit-sheet {
 	flex: 1 1 auto;
 	min-height: 0;
 	display: flex;
@@ -32741,9 +32794,9 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    what is left here is the one thing only this frame wants. */
 .stonetop.sheet.actor.gm-toolkit .window-content {
 	/* Zero along the bottom for the reason the character sheet's form is zeroed there (see
-	   `.pbta.sheet.actor .window-content form:has(.stonetop-sheet-layout)`): the active tab
-	   is the scrollport, so the layout's bottom edge is a scroll edge, and core's 8px below
-	   it is a permanent strip of bare parchment that the content is visibly cut off before.
+	   `.pbta.sheet.actor .window-content form:has(.stonetop-sheet-layout)`): the container
+	   is the scrollport, so its bottom edge is a scroll edge, and core's 8px below it is a
+	   permanent strip of bare parchment that the content is visibly cut off before.
 	   Stated HERE rather than on a form, because this frame carries no `pbta` class and so
 	   never got `.pbta.sheet.actor .window-content { padding: 0 }` — the 8px it is losing is
 	   core's own `body.game .app.window-app .window-content` padding, still supplying the
@@ -32751,23 +32804,69 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	padding-bottom: 0;
 }
 
-/* (The form/container flex chain for this sheet is declared with the NPC sheet's, which wants
-   exactly the same four declarations — see `.stonetop-npc-sheet` above.) */
+/* (The FORM's link in the flex chain is declared with the NPC sheet's, which wants exactly the
+   same four declarations — see `.stonetop-npc-sheet` above. The container is not; it is the
+   scrollport, below.) */
+
+/* -- THE WHOLE SHEET IS ONE SCROLLPORT ------------------------------------
+   The one thing this frame does differently from every other actor sheet in the system.
+
+   Everywhere else — character, NPC, steading — the header banner is PINNED and the active tab
+   scrolls beneath it, so each tab keeps its own offset. Here the banner is meant to scroll off
+   the top with the content: it says the actor's name and nothing else, the window title bar
+   directly above it already says the same, and a GM reading down a long Threats list should not
+   spend a banner's worth of a 660px window on a word they are not reading.
+
+   The cost is real and was taken deliberately. One scrollport means ONE offset shared by all
+   six tabs, so switching to a shorter tab clamps it and the position you had in the tall one is
+   gone on the way back. That is why the character sheet moved AWAY from this arrangement (see
+   the long note above `.pbta.sheet.actor.character .window-content`) — the difference is that
+   the toolkit's tabs are mostly reference text read top-down rather than places you hold a
+   position in, and its banner is a name rather than a portrait and stat block worth pinning.
+
+   THE CONTAINER, not `.window-content`, is the element that scrolls. AppV1 hands
+   `_restoreScrollPositions` the freshly rendered inner FORM, and jQuery's `.find()` only
+   searches descendants — so a `.window-content` entry in `scrollY` saves fine and then restores
+   nothing, because it is an ANCESTOR of the form. That matters more here than anywhere:
+   `_wirePrepPageSync` re-renders this sheet on every threat, hazard and site write, so a
+   scrollport the restore cannot reach throws a GM back to the top between two ticks of the same
+   grim portent. The sheet names this class in `scrollY` for exactly that reason.
+
+   `display: block`, overriding the flex column the shared chain would have given it: a flex
+   column would let the layout inside be squeezed to the frame, which is the pinning arrangement
+   this frame is opting out of. Block flow lets the content run past the bottom and this scroll
+   take it.
+
+   The gutter is reserved because the Moves tab always overflows and the short tabs do not:
+   without it, switching between them pops the bar in and out and reflows the two move columns
+   sideways. It is also the 10px the width arithmetic in the sheet's `defaultOptions` spends —
+   that used to be `.sheet-body`'s gutter and has simply moved up the tree with the scroll. */
+.stonetop-gm-toolkit-container {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: block;
+	overflow-x: hidden;
+	overflow-y: auto;
+	scrollbar-width: thin;
+	scrollbar-gutter: stable;
+}
 
 /* -- Header banner --------------------------------------------------------
-   The same boxed strip the steading wears, and now literally the same rule —
-   see `.steading-header`, which this selector shares. Only the flex sizing is
-   local to the toolkit's frame.
+   The same boxed strip the steading wears, and literally the same rule — see
+   `.steading-header`, which this selector shares. Nothing is local to this
+   frame any more: the banner used to carry `flex: 0 0 auto` to hold itself
+   rigid against a flex container, and the container is a block scroller now,
+   where that declaration is inert. It is a block in normal flow that scrolls
+   away with everything under it.
 
-   Also the tab rail's MEASURING ANCHOR: module/utils/tab-rail.js looks for
-   `.stonetop-sheet-header, .steading-header` inside the form and starts the
-   rail 16px below whatever it finds, bailing out if the match has no height.
-   So this block having real, non-zero height is what places the rail; a
-   collapsed or missing banner drops it to the flat 150px fallback, which looks
-   nearly right and is how that mistake survives review. */
-.stonetop-gm-toolkit-header {
-	flex: 0 0 auto;
-}
+   Still the tab rail's MEASURING ANCHOR, though: module/utils/tab-rail.js looks
+   for `.stonetop-sheet-header, .steading-header` inside the form and starts the
+   rail 16px below whatever it finds, bailing out if the match has no height. So
+   this block having real, non-zero height is what places the rail; a collapsed
+   or missing banner drops it to the flat 150px fallback, which looks nearly
+   right and is how that mistake survives review. Because the banner scrolls on
+   this frame, tab-rail.js adds back the scroll offset before it measures — the
+   rail is on the window frame and must not follow the banner up. */
 
 /* Everything about how this reads — Avara at the display size, the optical nudge that
    centres it in the banner — comes from `.steading-title`, whose rule this shares. Only
@@ -32780,64 +32879,75 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 
 /* -- Tab body -------------------------------------------------------------
-   The ACTIVE TAB owns the scroll, not the shared body: that keeps each tab's
-   own scroll position once a second one arrives, and it is also what the
-   frosted seam reads (module/utils/scroll-frost.js stamps `is-scrolled` on a
-   scrolling tab's PARENT, which has to be `.sheet-body`).
+   NOTHING below the container clips or scrolls on this frame. The scroll lives
+   up on `.stonetop-gm-toolkit-container` (above), so a scrollport here would be
+   a second one nested inside the first — the tab would get its own bar and its
+   own clipped bottom edge inside a sheet that is already scrolling past it.
 
-   The body's `overflow: hidden` overrides the `overflow-y: auto` that the
-   shared `.stonetop-sheet-layout .sheet-body` rule sets. Equal specificity,
-   settled on source order, which is why this block sits at the end of the
-   file. */
-/* A FLOOR on the clipping element, not on anything inside it. `.stonetop-sheet-layout` is
-   `overflow: hidden; min-height: 0`, so a floor set anywhere below it is simply sheared off:
-   the layout goes on shrinking past it, hides the difference, and nothing upstream ever learns
-   the content did not fit, so the `overflow-y: auto` on `.window-content` above never has any
-   overflow to scroll and the tab is silently clipped instead. Same value and same reasoning as
-   the character sheet's `.pbta.sheet.actor.character .stonetop-sheet-layout { min-height }`.
-   Bites when the banner grows: a long actor name wrapping the 42px display title several times
-   is enough. */
+   These two rules undo what the shared layout rules would otherwise impose:
+   `.stonetop-sheet-layout`'s `display: flex; flex: 1; min-height: 0; overflow:
+   hidden`, and `.stonetop-sheet-layout .sheet-body`'s `height: 100%; overflow-y:
+   auto; scrollbar-gutter: stable`. Equal specificity in both cases, settled on
+   source order, which is why this block sits at the end of the file.
+
+   No `min-height` floor either, where the character sheet and this frame's own
+   earlier arrangement both had one. That floor exists to stop a CLIPPING element
+   from shearing content away silently — the layout would go on shrinking past
+   the floor, hide the difference, and nothing upstream would ever learn the
+   content did not fit. With nothing clipping, the tab is simply as tall as it
+   is and the container scrolls to reach the rest. */
 .stonetop-gm-toolkit-layout {
-	min-height: 260px;
+	display: block;
+	overflow: visible;
 }
 
 .stonetop-gm-toolkit-layout .sheet-body {
-	overflow: hidden;
+	height: auto;
+	overflow: visible;
+	scrollbar-gutter: auto;
+}
+
+/* No frosted seam on this frame. The band exists to soften a line of text being sliced off at
+   a hard edge as it passes under a PINNED header, and nothing here is pinned — the banner goes
+   up with the text. `content: none` rather than leaving the pseudo-element inert at its default
+   `opacity: 0`, the same call the classic character sheet makes: this sheet no longer mounts
+   module/utils/scroll-frost.js, so `is-scrolled` can never be written and the band is
+   unreachable, but an unreachable `backdrop-filter` layer still promotes `.sheet-body` onto its
+   own compositing layer for every frame of every scroll. */
+.stonetop-gm-toolkit-layout .sheet-body::before {
+	content: none;
 }
 
 /* Show/hide stated as an unlayered PAIR, so core's V13 layered
    `.tab { display: none }` cannot win over just the show half and leak an
    inactive tab onto the page. `margin: 0` zeroes what core's V1 form-hint rule
-   (`body.game .app form .notes`) hands a `.tab.notes` panel, which paired with
-   `height: 100%` pushes the panel past the body's bottom edge. */
+   (`body.game .app form .notes`) hands a `.tab.notes` panel.
+
+   `height: auto`, where a pinned-header sheet says `height: 100%`: the panel is
+   the tallest thing in the scroll now, so it has to be as tall as its content
+   and let the container scroll past it. At `100%` it would resolve against a
+   `.sheet-body` that is itself content-sized, which is either a no-op or — once
+   someone gives the body a height again — a panel cut off at the fold.
+
+   The GUTTER is here too, on the same `.tab` this rule already covers. The equivalent
+   character-sheet rule is scoped `.pbta.sheet.actor.character` and the steading's inset came
+   from `.steading-sheet .sheet-tab`; this frame matches neither, so it states its own. No TOP
+   inset: a tab starts flush under the pinned banner, so its first row reads as continuous with
+   the header rather than floating below it.
+
+   It used to be its own rule listing every tab by name in an `:is()`, which is a list that
+   named all of them and excluded none — so it was the whole set spelled out, and every tab
+   added had to remember to join it or render flush against both edges of the frame with
+   nothing logged. Stated once, for every tab, there is nothing left to remember. */
 .stonetop-gm-toolkit-sheet .sheet-body > .tab {
 	display: none;
-	height: 100%;
+	height: auto;
 	margin: 0;
+	padding: 0 12px 12px;
 }
 
 .stonetop-gm-toolkit-sheet .sheet-body > .tab.active {
 	display: block;
-}
-
-.stonetop-gm-toolkit-sheet .sheet-body > .tab.active:not(.notes) {
-	overflow-y: auto;
-	overflow-x: hidden;
-	scrollbar-width: thin;
-	scrollbar-gutter: stable;
-}
-
-/* The tab's own gutter, for every tab. The equivalent character-sheet rule is scoped
-   `.pbta.sheet.actor.character` and the steading's inset came from `.steading-sheet
-   .sheet-tab`; this frame matches neither, so it states its own. No TOP inset: a tab starts
-   flush under the pinned banner, so its first row reads as continuous with the header rather
-   than floating below it.
-
-   `:is()` so a new tab is one word here rather than a fourth copy of the rule. It takes the
-   specificity of its heaviest argument, and all three are one `.tab` plus one name class, so
-   this weighs exactly what three spelled-out selectors would. */
-.stonetop-gm-toolkit-sheet .sheet-body > :is(.tab.moves, .tab.loop, .tab.threats, .tab.sites) {
-	padding: 0 12px 12px;
 }
 
 /* The prep tabs' edit pencil floats in the panel's top-right corner and is positioned against

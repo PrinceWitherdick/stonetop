@@ -89,18 +89,19 @@ function gmMoveCardBody(move, rng) {
  * @returns {Promise<import("./gm-moves.js").GmMove|null>}
  */
 export async function postGmMove(sectionKey, move, { speaker, rng } = {}) {
-	// Resolved for its `noteKey` — the card's second title line.
+	// Resolved for its `titleKey` — the card's one title line.
 	const section = gmMoveSection(sectionKey);
 	if (!move || !section) return null;
 	if (!globalThis.ChatMessage?.create) return null;
 
 	await ChatMessage.create({
-		// Two-line title: the prompt, then the section's own note under it ("Any time you owe
-		// the table a move"). The note rather than the section TITLE, which would read "Make a
-		// GM move / GM Moves"; the note says which list this came out of AND when that list
-		// applies, which is the half a GM mid-sentence actually needs.
+		// The section's own name and nothing else — "GM Moves", "Exploration", "Homefront".
+		// This row is the card's FRAME; the move under it is the subject, and the frame earns
+		// one line at most. A prompt ("Make a GM move") only says what the card already is, and
+		// the section's note ("Any time you owe the table a move") is a rule about when to reach
+		// for the list, which is not what a GM reads a drawn move for.
 		content: stonetopChatCard(
-			[localize("stonetop.gmToolkit.moves.randomTitle"), localize(section.noteKey)],
+			localize(section.titleKey),
 			moveChatCard(move.name, gmMoveCardBody(move, rng)),
 			"stonetop-gm-move-chat-card",
 		),

@@ -183,22 +183,22 @@ describe("the tab renders the reference", () => {
 	it("draws every section, each folding under its own id", () => {
 		expect(THREATS_HBS).toContain("{{#each stonetop.threatGuidance}}");
 		// Through the shared heading partial, which forwards both to section-collapse.
-		expect(foldCarets(THREATS_HBS).find(c => c.id === "collapseId")?.startsCollapsed).toBe(true);
+		expect(foldCarets(THREATS_HBS).find(c => c.id === "collapseId")).toBeDefined();
 	});
 
-	// Reference, not prep. Expanded by default it would be five screens of chapter under the
-	// cards on every open; a GM who wants it open pushes it open once and the sheet remembers.
-	it("starts every reference section folded, cards included in neither direction", () => {
+	// EVERY section on this tab opens expanded, reference included. It is a long tab and the
+	// reference is the bottom of it, but a section shut on first open is a section a GM never
+	// learns is there, and the caret plus the remembered preference is the whole answer to length:
+	// fold it once and it stays folded for that user.
+	it("starts every section expanded, reference included", () => {
 		const carets = foldCarets(THREATS_HBS);
 		const reference = carets.filter(c => /collapseId|threatGuideTypes/.test(c.id));
-		const cards     = carets.filter(c => !/collapseId|threatGuideTypes/.test(c.id));
 		expect(reference).toHaveLength(2); // the guidance loop, plus the types section
-		for (const c of reference) expect(c.startsCollapsed, c.id).toBe(true);
-		// The proximity trackers and Hazards hold the GM's actual prep and stay open. Asserted on
-		// the RENDER, so a section that starts shut because of an ambient context field — not
-		// because anything here asked it to — fails here rather than folding the GM's prep away.
-		expect(cards.length).toBeGreaterThan(0);
-		for (const c of cards) expect(c.startsCollapsed, c.id).toBe(false);
+		// Asserted on the RENDER, not on a grep for `startCollapsed=`: a section can start shut
+		// because of an ambient context field that nothing here asked for, and that would fold the
+		// GM's prep away with no invocation to grep for. See `foldCarets`.
+		expect(carets.length).toBeGreaterThan(reference.length);
+		for (const c of carets) expect(c.startsCollapsed, c.id).toBe(false);
 	});
 
 	// The fold walk claims a heading's FOLLOWING SIBLINGS until it meets the next heading
@@ -328,6 +328,31 @@ describe("the tab's chrome is localized", () => {
 		const calls = [...THREATS_HBS.matchAll(/\{\{>\s*"stonetop\.gm-prep-guide-items"([^}]*)\}\}/g)];
 		expect(calls.length).toBeGreaterThan(0);
 		for (const [, args] of calls) expect(args).toMatch(/\boptionalLabel=/);
+	});
+
+	// ...and handed the ROWS the same way, in the hash, which is the half that is not obvious.
+	// Handlebars merges a partial's hash INTO its context, and merging anything into an ARRAY
+	// flattens it to a plain object holding the indices plus the hash's keys — so passing the rows
+	// as the context and the label in the hash made the partial's each walk `optionalLabel` as if
+	// it were a row, emitting one nameless <li> per list: a lone dash under every checklist and a
+	// stray final number under the write-up steps. Nothing errored.
+	//
+	// Asserted by RENDERING the real partial rather than by grepping the invocation, because the
+	// invocation looked right: the failure is in what Handlebars does with it.
+	it("emits exactly one row per item, with nothing trailing the list", () => {
+		const hb = Handlebars.create();
+		hb.registerPartial("stonetop.gm-prep-guide-items", GUIDE_ITEMS_HBS);
+		const invocation = THREATS_HBS.match(/\{\{>\s*"stonetop\.gm-prep-guide-items"[^}]*\}\}/)[0]
+			.replace(/@root\.stonetop\.threatOptionalLabel/, "@root.label");
+		const render = hb.compile(`{{#each groups}}${invocation}{{/each}}`);
+		for (const section of THREAT_GUIDANCE_SECTIONS) {
+			const html = render({ groups: section.groups, label: "optional" });
+			const rows = [...html.matchAll(/<li>([\s\S]*?)<\/li>/g)].map(m => m[1]);
+			expect(rows.length, section.key).toBe(section.groups.reduce((n, g) => n + g.items.length, 0));
+			// A row with no name is the shape the stray one took: the markers are drawn in CSS off
+			// the <li> itself, so it is invisible to a count and visible on screen.
+			for (const row of rows) expect(row, section.key).toMatch(/<strong>\S/);
+		}
 	});
 });
 

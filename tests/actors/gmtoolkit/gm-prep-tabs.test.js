@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { readRepo as read, readCss, repoFileExists } from "../../fakes/css.js";
+import { readRepo as read, readCss, repoFileExists, declarations } from "../../fakes/css.js";
 import { withGmPrepTabs } from "../../../module/actors/gmtoolkit/gm-prep-tabs.js";
 
 // The Threats & Dangers and Sites tabs, moved off the steading sheet onto the GM Toolkit.
@@ -154,9 +154,14 @@ describe("the toolkit picked them up whole", () => {
 
 	// The steading's gutter came from `.steading-sheet .sheet-tab`, which this frame does not
 	// match. Without a replacement the cards sit flush against the panel edge.
+	//
+	// The gutter reaches every panel through the bare `> .tab`, so there is no per-tab membership
+	// left to assert — only that the rule stayed general. It used to be an `:is()` naming every
+	// tab on the sheet while excluding none, which meant three separate test files each checking
+	// that their own tab had been remembered. Declared once, none of them has anything to catch.
 	it("gives every tab its own gutter, since the steading's no longer reaches", () => {
-		expect(CSS).toMatch(
-			/\.stonetop-gm-toolkit-sheet \.sheet-body > :is\(\.tab\.moves, \.tab\.loop, \.tab\.threats, \.tab\.sites\)\s*\{[^}]*padding:/);
+		expect(declarations(CSS, ".stonetop-gm-toolkit-sheet .sheet-body > .tab")).toMatch(/padding:/);
+		expect(CSS).not.toMatch(/\.stonetop-gm-toolkit-sheet \.sheet-body > :is\([^)]*\)\s*\{[^}]*padding:/);
 	});
 
 	// The proximity and Hazards headings fold through the sheet's heading selector, which had

@@ -20,7 +20,6 @@
 // edit mode, no header edit/lock toggle, and no `_updateObject` work beyond the base class.
 import { stripHeaderChrome } from "../../utils/sheet-chrome.js";
 import { mountTabRail } from "../../utils/tab-rail.js";
-import { mountScrollFrost } from "../../utils/scroll-frost.js";
 import { withSheetSizeMemory } from "../../utils/sheet-size.js";
 import { withSectionEditing } from "../../utils/section-editing.js";
 import { gmMoveSections } from "../../gm-toolkit/gm-moves.js";
@@ -122,7 +121,7 @@ export function createStonetopGmToolkitSheetClass(Base) {
 				// Wide enough that the Moves list reads in its two columns without every gloss
 				// wrapping. The column COUNT is fixed at two in stonetop.css, so width here buys
 				// line length rather than tracks: this frame spends 60px before the content
-				// starts (16px window-content padding + 10px `.sheet-body` scrollbar gutter +
+				// starts (16px window-content padding + 10px container scrollbar gutter +
 				// 24px tab padding + 10px tab gutter), leaving 760px, which is two 368px tracks
 				// either side of a 24px gutter — measured, 14 of the 30 glosses take a second
 				// line there, against 26 at the 560px floor. Narrower is not broken, only
@@ -131,7 +130,9 @@ export function createStonetopGmToolkitSheetClass(Base) {
 				// A DEFINITE height, unlike the NPC's `height: "auto"`. The moves tab is long
 				// and its length is fixed (the lists are transcribed, not authored), so an
 				// auto-height window would simply open near the full height of the screen every
-				// time. A definite frame is also what lets the active tab own the scroll.
+				// time. A definite frame is also what gives the container something to scroll
+				// inside: at `"auto"` the window grows to the content and nothing ever overflows,
+				// so the banner would never leave the top of the screen.
 				height:    660,
 				// Mirrors the CSS floor in stonetop.css. This frame has no `pbta` class, so
 				// like the monster and NPC it would otherwise have no floor at all.
@@ -148,14 +149,26 @@ export function createStonetopGmToolkitSheetClass(Base) {
 				// never binds at all.
 				dragDrop:  [],
 				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "moves" }],
-				// The active tab IS the scrollport on this frame (stonetop.css), and AppV1 only
-				// saves and restores offsets for the selectors named here. It matters more on this
-				// sheet than on any other: `_wirePrepPageSync` re-renders it on every threat,
-				// hazard and site write, so without this a GM ticking the second of a threat's
-				// grim portents is thrown back to the top of the list between ticks. The character
-				// sheet declares the same selector for the same reason, and utils/scroll-frost.js
-				// is written assuming `_restoreScrollPositions` runs.
-				scrollY:   [".sheet-body > .tab.active"],
+				// THE WHOLE SHEET is one scrollport on this frame, and the container is the element
+				// that scrolls (stonetop.css) — header banner, tab body and all, so the banner
+				// scrolls off the top the way the window title above it never can. Every other
+				// actor sheet pins its header and scrolls the active tab instead, which is why
+				// this is not `.sheet-body > .tab.active` like the character sheet's.
+				//
+				// AppV1 only saves and restores offsets for the selectors named here, and it
+				// matters more on this sheet than on any other: `_wirePrepPageSync` re-renders it
+				// on every threat, hazard and site write, so without this a GM ticking the second
+				// of a threat's grim portents is thrown back to the top of the list between ticks.
+				//
+				// The selector has to resolve from INSIDE the form. `_restoreScrollPositions` is
+				// handed the freshly rendered inner form and jQuery's `.find()` searches
+				// descendants only, so `.window-content` — an ancestor of the form — saves fine
+				// and then silently restores nothing. The container is the outermost element that
+				// is still inside it.
+				//
+				// One scrollport means one offset shared by all six tabs; see the CSS for why
+				// that trade is the right one here and the wrong one on the character sheet.
+				scrollY:   [".stonetop-gm-toolkit-container"],
 			});
 		}
 
@@ -243,10 +256,12 @@ export function createStonetopGmToolkitSheetClass(Base) {
 			// Hang the tab rail off the window's right edge (module/utils/tab-rail.js). Done
 			// first so anything below sees the nav in its final home on the frame.
 			mountTabRail(this, html);
-			// The frosted seam between the pinned header and the scrolling tab under it. Must
-			// come AFTER mountTabRail: it binds its tab-change watcher against the frame, and
-			// the rail has to already be there for the click to be heard.
-			mountScrollFrost(this, html);
+			// NO mountScrollFrost here, unlike the character and steading sheets. The frosted
+			// seam softens text being sliced off as it passes under a PINNED header, and this
+			// sheet has none: the banner scrolls away with the content (see `scrollY` above).
+			// The helper reads the active TAB's offset, and no tab on this frame scrolls, so
+			// mounting it would bind a listener that can never fire and gate a band that can
+			// never paint.
 			// Folding a section is a reading preference, so this is wired outside any
 			// editability guard, exactly as the character and steading sheets wire theirs.
 			this._wireSectionCollapse(html, HEADING_SELECTOR);

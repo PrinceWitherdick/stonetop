@@ -583,6 +583,22 @@ describe("the move randomizer", () => {
 		expect(RANDOMIZE_HBS).toMatch(/<button type="button"/);
 	});
 
+	// Being a real <button> costs something: a click focuses it and the focus OUTLIVES the
+	// click, and core's V1-compat sheet paints every focused button a halo through a plain
+	// `:focus` that outranks this selector. So the die a GM has drawn from sits lit until they
+	// click elsewhere, which reads as a hover that will not let go. Both halves matter — a lit
+	// rule on `:focus` rather than `:focus-visible` would put the hover CHIP there too, and
+	// dropping the `:not(:focus-visible)` from the undo would take the keyboard ring with it.
+	it("does not stay lit after the click that drew a move", () => {
+		// A bare `:focus` — one followed by neither `-visible` nor the `:not(…)` below.
+		expect(CSS).not.toMatch(/\.stonetop-section-randomize:focus(?![-\w:])/);
+		const undo = CSS.match(
+			/\n\.stonetop-section-randomize:focus:not\(:focus-visible\)\s*\{([^}]*)\}/)?.[1];
+		expect(undo, "nothing clears core's focus glow off the randomizer").toBeTruthy();
+		expect(undo).toMatch(/box-shadow:\s*none/);
+		expect(undo).toMatch(/outline:\s*none/);
+	});
+
 	it("hands the sheet the click, and holds the draw to exclude next time", () => {
 		const src = stripComments(SHEET_JS);
 		expect(src).toContain("_wireToolkitButtons(html[0])");
@@ -892,10 +908,29 @@ describe("things that break silently", () => {
 		expect(stripComments(SHEET_JS.slice(call - 160, call))).not.toMatch(/isClassicLayout|classicLayout/);
 	});
 
-	// The frost watcher binds against the FRAME and needs the rail already lifted there.
-	it("mounts the scroll frost after the rail, not before", () => {
-		expect(SHEET_JS.indexOf("mountScrollFrost(this, html)"))
-			.toBeGreaterThan(SHEET_JS.indexOf("mountTabRail(this, html)"));
+	// This sheet scrolls as ONE unit — the banner goes up with the tab under it — so there is no
+	// pinned header for the frosted seam to soften text against, and no tab that scrolls for it
+	// to read. Mounting it would bind a scroll listener that can never fire and gate a band that
+	// can never paint. Asserted rather than left implicit because the character and steading
+	// sheets both mount it and this is the sheet a copy-paste would land on.
+	it("does not mount the scroll frost, having nothing pinned to frost against", () => {
+		const src = stripComments(SHEET_JS);
+		expect(src).not.toContain("mountScrollFrost");
+		expect(src).not.toContain("scroll-frost.js");
+	});
+
+	// The scrollport has to resolve from INSIDE the form: AppV1 hands _restoreScrollPositions the
+	// freshly rendered inner form, and jQuery's `.find()` searches descendants only — so
+	// `.window-content`, an ancestor of it, saves fine and then restores nothing at all. Silent,
+	// and this sheet re-renders on every prep write, so the symptom is a GM thrown to the top of
+	// the Threats list between two ticks of one grim portent.
+	it("saves the scroll on the container, which is inside the form", () => {
+		const scrollY = SHEET_JS.match(/scrollY:\s*\[([^\]]*)\]/)?.[1];
+		expect(scrollY, "no scrollY entry — the sheet loses its place on every prep write").toBeTruthy();
+		expect(scrollY).toContain(".stonetop-gm-toolkit-container");
+		expect(scrollY).not.toContain(".window-content");
+		// ...and the class it names is the one the template puts on that element.
+		expect(SHEET_HBS).toContain("stonetop-gm-toolkit-container");
 	});
 
 	// Modern only. There is no classic variant of this sheet and no `classicLayoutGmToolkit`

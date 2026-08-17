@@ -1,6 +1,6 @@
 import Handlebars from "handlebars";
 import { describe, it, expect } from "vitest";
-import { readRepo as read, readCss, ownRule, stripComments } from "../../fakes/css.js";
+import { readRepo as read, readCss, ownRule, declarations, stripComments } from "../../fakes/css.js";
 import { GM_DIAGRAMS, gmDiagrams } from "../../../module/gm-toolkit/gm-diagrams.js";
 import { GM_CORE_LOOP, GM_FLOW_OF_PLAY } from "../../../module/gm-toolkit/gm-loop-text.js";
 import { BOOK2_ART_APPLY_MANIFEST } from "../../../module/book2-art/manifest.js";
@@ -184,21 +184,24 @@ describe("the GM playbook diagrams", () => {
 			expect(CSS).not.toContain(".stonetop-gm-loop--stages > .stonetop-gm-loop-step::before");
 		});
 
-		// Every step's name goes in the same wrapper whether or not the step has items. Without
-		// it, a step WITH items has its name in an anonymous block beside the <ul> while "Ask
-		// what do you do?" — the only step of either chart with nothing under it — has its name
-		// loose in the <li>, which is two layout paths for one row.
-		it("wraps every step's name row in a block, items or no items", () => {
-			// Comments out first: the wrapper's own note names the elements this looks for.
-			const src = stripComments(LOOP_HBS);
-			const step = src.slice(src.indexOf('<li class="stonetop-gm-loop-step">'));
-			const head = step.indexOf('<div class="stonetop-gm-loop-head">');
-			expect(head).toBeGreaterThan(-1);
-			// Inside the wrapper, not beside it: an unwrapped name is the bug this guards.
-			expect(head).toBeLessThan(step.indexOf('class="stonetop-gm-loop-name"'));
-			expect(head).toBeLessThan(step.indexOf('class="stonetop-gm-loop-page"'));
-			// Opened OUTSIDE every `{{#if}}`, or the step with no items keeps its own shape.
-			expect(head).toBeLessThan(step.indexOf("{{#if"));
+		// `markQuestionBullets` runs over EVERY <li> on an actor sheet, so step 3 — named
+		// `Ask "What do you do?"` — wears `question-bullet` whether or not it is a prose
+		// bullet. The class has to stay a picture swap: while it also carried the family's
+		// `padding-left`, that step sat 18px right of the four around it, indented for a
+		// spiral that never drew (nothing gives the pseudo a `content` outside a family).
+		it("keeps question-bullet a picture swap, not an indent", () => {
+			expect(GM_CORE_LOOP[2].name).toMatch(/\?["'’)\]]*\s*$/);
+			expect(ownRule(CSS, "li.question-bullet::before")).not.toMatch(/padding|position/);
+			// The two family rules hand out the indent and place the marker. A bare
+			// `li.question-bullet` in either is the bug: it indents rows that have no bullet.
+			for (const rule of stripComments(CSS).split("}")) {
+				if (!/\bpadding-left:|position:\s*absolute/.test(rule)) continue;
+				const selectors = rule.slice(0, rule.indexOf("{")).split(",").map(s => s.trim());
+				// Unscoped, so `li.question-bullet` and its `::before` both start the string —
+				// the journal/location families are scoped by a container class and don't.
+				expect(selectors.filter(s => s.startsWith("li.question-bullet")),
+					rule.trim().slice(0, 80)).toEqual([]);
+			}
 		});
 
 		// A flex `li` turns every inline child into its own flex item, so an item like "If they
@@ -235,8 +238,13 @@ describe("the Core Loop tab", () => {
 		expect(game.i18n.localize("stonetop.gmToolkit.tabs.loop")).toBe("Core Loop");
 	});
 
+	// The gutter is declared once on the bare `> .tab`, which every panel on this sheet is, so
+	// there is no membership to assert — only that the rule is still the general one. It used to
+	// be an `:is()` naming every tab, and a tab left out of it rendered flush against both edges
+	// of the frame with nothing logged.
 	it("gets its panel gutter from the shared tab-padding rule", () => {
-		expect(CSS).toContain(":is(.tab.moves, .tab.loop, .tab.threats, .tab.sites)");
+		expect(declarations(CSS, ".stonetop-gm-toolkit-sheet .sheet-body > .tab")).toMatch(/padding:/);
+		expect(CSS).not.toMatch(/\.stonetop-gm-toolkit-sheet \.sheet-body > :is\([^)]*\)\s*\{[^}]*padding:/);
 	});
 
 	// Core's `body.game .app img` paints a 1px black border on every image inside a sheet, so a
