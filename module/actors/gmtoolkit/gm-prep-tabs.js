@@ -293,8 +293,16 @@ export function withGmPrepTabs(Base) {
 			return { threatGroups, hazards };
 		}
 
-		/** Publish both tabs' context. Call from the host's getData. */
-		async _addGmPrepContext(context) {
+		/**
+		 * Publish both tabs' context. Call from the host's getData.
+		 *
+		 * `steading` is a parameter so a host that has already resolved it can hand it down:
+		 * `getStonetopSteadingActor` is an unindexed scan of `game.actors`, and a caller that
+		 * needs the steading for its own context would otherwise make this the second one of
+		 * the same render. Defaults to resolving it here, so a host with no use for it is
+		 * unchanged.
+		 */
+		async _addGmPrepContext(context, steading = this._prepSteading()) {
 			const st = context.stonetop;
 			// Per-section edit flags, built here rather than by the host: these two tabs are the
 			// only sections that carry a pencil, so the list of them is the mixin's own business.
@@ -312,7 +320,6 @@ export function withGmPrepTabs(Base) {
 			};
 			// Resolved ONCE and passed down. Both builders used to ask for it themselves, which
 			// was two `game.actors` scans and two places to state the no-steading branch.
-			const steading = this._prepSteading();
 			// One flag for both tabs: with no steading in the world there is nowhere to file
 			// prep, so each tab says that instead of drawing an empty grid with a dead
 			// "write up a threat" button.

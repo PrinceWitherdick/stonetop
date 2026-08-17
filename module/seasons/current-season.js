@@ -74,6 +74,26 @@ export function readCurrentSeason(actor) {
 }
 
 /**
+ * Does this `updateActor` diff touch the season clock?
+ *
+ * Lives here beside the reader and the writer because it is the same knowledge: where on the
+ * document the clock is kept. A sheet that wants to redraw when the clock moves used to build
+ * `flags.<scope>.<key>` itself and read the diff with `getProperty`, which made it a second
+ * place that knew the storage — and a key or scope that moved would leave that filter compiling
+ * fine, matching nothing, and the readout silently stale.
+ *
+ * Plain property reads rather than a dotted path: EVERY actor update in the world reaches a
+ * hook that asks this, every HP tick on every character, so the discriminator that decides
+ * whether to do any real work should not be building a string and splitting it first.
+ *
+ * @param   {object} changed  The diff Foundry hands `updateActor`.
+ * @returns {boolean} true when the stamp is part of this update.
+ */
+export function isCurrentSeasonChange(changed) {
+	return changed?.flags?.[STONETOP_SCOPE]?.[CURRENT_SEASON_KEY] !== undefined;
+}
+
+/**
  * Record that a season has begun: the stamp AND the picker's year, in one write.
  *
  * The one writer for the whole clock, and the reason is that the clock is two flags. It used

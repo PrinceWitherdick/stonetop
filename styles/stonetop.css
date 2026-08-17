@@ -804,7 +804,6 @@ figure.stonetop-map figcaption {
 .stonetop-item-description,
 .stonetop-move-group-title,
 .stonetop-gm-move-name,
-.stonetop-gm-move-gloss,
 .stonetop-monster-move-name,
 .stonetop-monster-move-description,
 .stonetop-monster-readonly-text {
@@ -13530,6 +13529,11 @@ span.stonetop-mark-loyalty-pip {
 .stonetop-tab-rail .item[data-tab="sites"]         { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/site-mound.svg'); }
 .stonetop-tab-rail .item[data-tab="relationships"] { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/hearts.svg'); }
 .stonetop-tab-rail .item[data-tab="stats"]         { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/crossed-swords.svg'); }
+/* The village, shared with the steading's Overview tab and deliberately: the GM Toolkit's
+   Homefront tab IS the village, read from the other side of the screen, and the two never appear
+   in the same rail. `neighbors` and `followers` already share `three-friends.svg` on the same
+   grounds. */
+.stonetop-tab-rail .item[data-tab="homefront"]     { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/village.svg'); }
 .stonetop-tab-rail .item[data-tab="loop"]          { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/flow-chart.svg'); }
 
 /* Drag-reorder feedback: the strip's dashed outline sat inside a wide pill, but a 34px
@@ -33054,72 +33058,6 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	padding-right: var(--st-gm-caret-lane);
 }
 
-/* The gloss, in italic secondary ink so it stays subordinate to the move it
-   explains. No left indent: the indent a character's move description carries
-   is there to clear its checkbox column, and with no checkbox here it would
-   only break the left edge the names line up on. */
-.stonetop-gm-toolkit-moves .stonetop-gm-move-gloss {
-	margin-top: 2px;
-	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
-	line-height: 1.4;
-	font-style: italic;
-	color: var(--st-text-secondary);
-}
-
-/* THE AGENDA, closing the tab. Three goals, each with the book's own paragraph, and
-   the test under them. Numbered, unlike every other list on this tab: the book is
-   emphatic that there are three and no more ("these three goals, and no others"),
-   and a count is the one thing a bullet cannot say.
-
-   Single column, deliberately, where the move lists are two: these are paragraphs
-   rather than entries, and a paragraph in a 368px column is a very long way down. */
-.stonetop-gm-toolkit-moves .stonetop-gm-agenda-list {
-	margin: 0;
-	padding-left: 1.4em;
-	list-style: decimal;
-}
-.stonetop-gm-toolkit-moves .stonetop-gm-agenda-goal {
-	margin-bottom: 8px;
-}
-.stonetop-gm-toolkit-moves .stonetop-gm-agenda-name {
-	display: block;
-	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
-	line-height: 1.3;
-}
-.stonetop-gm-toolkit-moves .stonetop-gm-agenda-detail {
-	margin: 2px 0 0;
-	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
-	line-height: 1.45;
-	color: var(--st-text-secondary);
-}
-/* The test the book prints under the three. Set apart from the goals it applies to,
-   because it is the instruction for using them and not a fourth one. */
-.stonetop-gm-toolkit-moves .stonetop-gm-agenda-test {
-	margin: 8px 0 0;
-	padding-top: 6px;
-	border-top: 1px solid var(--st-card-rule);
-	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
-	line-height: 1.45;
-	font-style: italic;
-}
-
-/* The thirteen principles wear the move entry's own classes, so they take its two
-   columns, its hairlines and its font with nothing restated. What they do NOT have
-   is a disclosure: each is one line already, and a caret on a row that opens nothing
-   is a promise the row cannot keep. The page citation sits inline instead.
-
-   With no caret there is no lane to keep clear either, so the name takes the full
-   column back. Written as an override rather than by asking which rows have a
-   toggle, because a modifier that undoes one declaration is cheaper to read than a
-   `:has()` on every name in the list. It sits AFTER the base rule, which is what
-   makes it win at equal specificity. */
-.stonetop-gm-toolkit-moves .stonetop-gm-principle .stonetop-gm-move-name {
-	padding-right: 0;
-}
-.stonetop-gm-toolkit-moves .stonetop-gm-principle .stonetop-gm-move-page {
-	margin-top: 2px;
-}
-
 /* THE BLURB is the button. The line under the name is the book's first sentence,
    and opening the entry continues that sentence in place, so what is clickable is
    the text itself rather than a separate control beside it.
@@ -33304,6 +33242,295 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 		animation: none;
 		background-color: var(--st-warm-hover-bg);
 	}
+}
+
+/* -- Homefront tab --------------------------------------------------------
+   The GM playbook's Homefront page, whole: the village's facts, the questions
+   to ask about it, the year's work, Aftermath, Downtime, Make a Plan and the
+   Value tiers.
+
+   COLUMNS ARE THE POINT of this page. The playbook prints it as four, and the
+   reason is not economy of paper — every one of these lists is short entries
+   that are read by SCANNING, and a single 760px column turns thirty scannable
+   lines into thirty long ones with nothing to anchor the eye. So the three
+   grouped bodies (the village's facts, the seasons, the Value tiers) are
+   auto-fitting grids and the two flat lists (the questions, the requirements)
+   are two-column runs. Both collapse on their own as the window narrows, with
+   no media query having to guess the panel's width.
+
+   The STEPS are the exception and stay one column: Aftermath and Downtime are
+   sentences, not entries, and a sentence in a 240px track is a very long way
+   down.
+
+   Nothing here is a card, for the reason the Moves tab's block gives at
+   length: these are reference entries, and a border and a fill around each
+   would be a frame around one line of text. What separates a group from its
+   neighbour is a heading and air. */
+.stonetop-gm-homefront-section + .stonetop-gm-homefront-section {
+	margin-top: 14px;
+}
+
+/* Every bullet list on the tab, whatever it is a list OF. Spirals, block flow
+   (relative li + absolute ::before) and never flex, which is the same shape
+   every other prose list in the system uses — see the "I wonder..." guide's
+   copy of it for why flex is wrong here: a flex `li` makes its own column of
+   every inline run, and some of these items are sentences. */
+.stonetop-gm-homefront-items {
+	margin: 2px 0 0;
+	padding: 0;
+	list-style: none;
+	font-size: var(--st-fs-sm);
+	line-height: 1.4;
+	color: var(--st-text-body);
+}
+
+.stonetop-gm-homefront-items > li {
+	position: relative;
+	margin-bottom: 2px;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+	/* Keeps an entry whole when a column or grid track breaks under it. Without
+	   it a two-line question hands its second line to the top of the next
+	   column, where it reads as a question of its own. */
+	break-inside: avoid;
+}
+
+.stonetop-gm-homefront-items > li::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.2em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
+}
+
+/* The question-spiral swap, re-asserted inside this list for the reason the "I wonder..."
+   guide's copy gives: the global `li.question-bullet::before` ties the rule above on
+   specificity and loses to it on source order. "Questions to ask" is a whole section of
+   them — the partial says so in prose — and every one would otherwise draw as ordinary
+   prose, which looks like nothing being wrong. */
+.stonetop-gm-homefront-items > li.question-bullet::before {
+	background-image: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg');
+}
+
+/* A sub-heading inside a section: the four groups of village facts, the five
+   season blocks, the five Value tiers. One rule for all three, because they
+   are the same rank — the section's own <h3> is the heading, and these are
+   what it is divided into. */
+.stonetop-gm-homefront-group-title,
+.stonetop-gm-homefront-season-title,
+.stonetop-gm-homefront-tier-title {
+	margin: 0;
+	font-size: var(--st-fs-base);
+	line-height: 1.3;
+}
+
+/* The book citation under a group, a section, or beside a step. Small, muted
+   and never emphasised: it is the way OUT of this page, wanted only when the
+   line above it was not enough. */
+.stonetop-gm-homefront-page,
+.stonetop-gm-homefront-step-page {
+	margin: 4px 0 0;
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	color: var(--st-text-muted);
+}
+
+/* Beside a step rather than under it, and inline for that reason: only one
+   step carries a page (downtime's "Eventually, the Seasons Change", which is a
+   move with its own chapter), and a block under a one-line step would read as
+   a citation for the whole list. */
+.stonetop-gm-homefront-step-page {
+	margin: 0;
+}
+
+/* The three grouped bodies. `auto-fit` with a 240px floor, so the page holds
+   the playbook's columns at this sheet's 820px default and folds to one track
+   on a window dragged narrow — the same mechanism the Core Loop tab's pair of
+   figures uses, and for the same reason: the panel's width is what matters,
+   not the sheet's. */
+.stonetop-gm-homefront-groups,
+.stonetop-gm-homefront-seasons,
+.stonetop-gm-homefront-tiers {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: 10px 24px;
+	margin-top: 4px;
+}
+
+/* The two flat lists, as two column-flowed runs rather than a grid. Flow is
+   DOWN and then over, which is what multi-column gives and a grid would not:
+   both lists are in the book's order (the questions run from the immediate to
+   the ancestral), and that order only survives if a column reads top to
+   bottom. `column-width: initial` alongside the count for the reason the Moves
+   tab states — with both declared the used count is the SMALLER of the two, so
+   an inherited width would silently collapse this to one column. */
+.stonetop-gm-homefront-questions,
+.stonetop-gm-homefront-requirements {
+	column-count: 2;
+	column-width: initial;
+	column-gap: 24px;
+}
+
+/* THE YEAR'S WORK. The season the campaign is actually in is marked, and it is
+   marked in the NEUTRAL warm wash this system uses everywhere for "this one" —
+   the same token the Moves tab's randomizer lights a drawn move with.
+
+   Deliberately NOT the four `--stonetop-season-*-ink` tokens, which would be
+   the obvious choice and are the wrong one. Those belong to the steading
+   header's clock and to nothing else: they have spread three times (the season
+   picker's labels, the marked card's ring, the Seasons Change banner) and been
+   pulled back every time, because a colour means something when ONE thing wears
+   it, and every surface that borrows them turns the header's coloured season
+   into decoration. A test in tests/actors/steading/steading-header-season.test.js
+   counts every read of them across this whole stylesheet, and that test is the
+   reason this block is written the way it is rather than an obstacle it works
+   around. Routing them through a variable of our own would defeat the count
+   without changing what it is there to prevent.
+
+   So the mark here says WHICH, not which season: a rule down the left edge, the
+   wash behind it, and a chip. The season's NAME is what says which season, and
+   it is right there. */
+.stonetop-gm-homefront-season--now {
+	padding: 2px 6px 4px 8px;
+	border-left: 3px solid var(--st-text);
+	border-radius: 0 var(--st-radius-sm) var(--st-radius-sm) 0;
+	background: var(--st-warm-hover-bg);
+}
+
+/* The "now" chip beside the season's name. A note on the heading rather than a
+   second heading: the season's name is what is being read, and the chip only
+   says which one to read first.
+
+   OUTLINED, not filled. A filled pill needs a foreground that contrasts with
+   its fill, and `--st-text` inverts between the themes — it is near-black on
+   paper and near-cream in the dark, so a hardcoded `#fff` label is legible in
+   one theme and invisible in the other. An outline takes its ink and its border
+   from the same token and is right in both. */
+.stonetop-gm-homefront-now {
+	margin-left: 6px;
+	padding: 0 5px;
+	border: 1px solid var(--st-text);
+	border-radius: 999px;
+	color: var(--st-text);
+	font-size: 0.7em;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	vertical-align: 0.12em;
+}
+
+/* AFTERMATH and DOWNTIME. Numbered by default, because Aftermath's three are a
+   sequence; the modifier takes the numbers off Downtime's five, which are not.
+   Same pair the Core Loop tab uses for its numbered loop and its unnumbered
+   stages. */
+.stonetop-gm-homefront-steps {
+	margin: 4px 0 0;
+	padding-left: 1.4em;
+	list-style: decimal;
+	font-size: var(--st-fs-sm);
+	line-height: 1.45;
+}
+
+/* Downtime's five, which the playbook bullets rather than numbers. The numbers come off and the
+   house spiral goes on, so the step reads as one of a set rather than as a heading with a
+   paragraph under it — which is what a bold line alone looks like once there are five of them.
+   Positioned the same way every other list on this tab does it: relative li, absolute ::before,
+   never flex, because these steps are sentences. */
+.stonetop-gm-homefront-steps--unnumbered {
+	padding-left: 0;
+	list-style: none;
+}
+
+.stonetop-gm-homefront-steps--unnumbered > .stonetop-gm-homefront-step {
+	position: relative;
+	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+}
+
+.stonetop-gm-homefront-steps--unnumbered > .stonetop-gm-homefront-step::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0.25em;
+	width: var(--stonetop-bullet-size, 10px);
+	height: var(--stonetop-bullet-size, 10px);
+	background: var(--stonetop-spiral-icon) no-repeat center / contain;
+	opacity: 0.55;
+}
+
+.stonetop-gm-homefront-step + .stonetop-gm-homefront-step {
+	margin-top: 5px;
+}
+
+/* A step's name and its continuation are ONE of the playbook's sentences, so
+   they are set as one: the name in the body's own size and weight, the rest in
+   the same size and unstyled. Nothing here makes the two look like a label and
+   a description, because they are not. */
+.stonetop-gm-homefront-step-name {
+	font-weight: 700;
+}
+
+.stonetop-gm-homefront-step-detail {
+	color: var(--st-text-body);
+}
+
+/* What ends downtime, printed under its list. Set apart from the steps above
+   it by air and by italic, not by a rule: it is the same voice, saying when to
+   stop, and a rule would read as a new section. */
+.stonetop-gm-homefront-ends {
+	margin: 8px 0 0;
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	line-height: 1.45;
+	color: var(--st-text-secondary);
+}
+
+/* MAKE A PLAN. The move's own text leads, and it is the book's words rather
+   than ours, so it is set apart the way the Moves tab sets an example of play —
+   indented behind a rule, in the book's voice. The guidance under it is ours to
+   act on, so it comes back to plain body ink.
+
+   RELATIVE VALUE's lead wears the same skin for the same reason, and it is the
+   one paragraph on this tab that came off a different page than the section it
+   sits in: everything else under that heading is the GM playbook's Homefront
+   column, and this is Book I's "they are tiers, not a scale", which the
+   playbook's condensation leaves out. Set apart, it reads as the quotation it
+   is rather than as our gloss on the table under it. */
+.stonetop-gm-homefront-trigger,
+.stonetop-gm-homefront-lead {
+	margin: 4px 0 0;
+	padding-left: 10px;
+	border-left: 2px solid var(--st-card-rule);
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	line-height: 1.45;
+	color: var(--st-text-secondary);
+}
+
+.stonetop-gm-homefront-guidance,
+.stonetop-gm-homefront-intro {
+	margin: 8px 0 0;
+	font-size: var(--st-fs-sm);
+	line-height: 1.45;
+	color: var(--st-text-body);
+}
+
+/* RELATIVE VALUE. The notes under the tiers, which are doing real work: the
+   first answers the asterisk two of the entries carry, and the last is the
+   thing a table most often gets wrong. Plain runs rather than spiralled
+   bullets, because they are footnotes to the table and not more of it. */
+.stonetop-gm-homefront-notes {
+	margin: 10px 0 0;
+	padding: 0;
+	list-style: none;
+	font-size: var(--st-fs-sm);
+	line-height: 1.4;
+	color: var(--st-text-secondary);
+}
+
+.stonetop-gm-homefront-notes > li + li {
+	margin-top: 4px;
 }
 
 /* -- Core Loop tab --------------------------------------------------------

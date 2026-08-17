@@ -50,6 +50,7 @@
     },
     "gmToolkit": {
       "tabs": {
+        "homefront": "Homefront",
         "moves": "GM Moves",
         "loop": "Core Loop",
         "threats": "Threats & Dangers",
@@ -63,14 +64,28 @@
         "homefront": "Homefront",
         "homefrontNote": "At home in Stonetop, or in another steading",
         "randomize": "Draw one at random (whispered to the GM)",
-        "randomTitle": "Make a GM move",
-        "bookPage": "Book I, page {page}",
-        "bookPageAlt": "Book I, page {page}, and again on page {alt} for a site",
-        "expand": "What the book says about this move",
-        "agenda": "Your agenda",
-        "agendaNote": "Book I, p.168",
-        "principles": "Your principles",
-        "principlesNote": "Book I, pp.192-199"
+        "bookPage": "Book {book}, page {page}",
+        "bookPageAlt": "Book {book}, page {page}, and again on page {alt} for a site",
+        "expand": "What the book says about this move"
+      },
+      "homefront": {
+        "intro": "The GM playbook's Homefront page: what life in Stonetop is like, what folk are doing this season, and the two procedures that bracket every expedition. Reach for it when the party gets home.",
+        "life": "Life in Stonetop",
+        "lifeNote": "The village's own facts, for when someone asks",
+        "questions": "Questions to ask",
+        "questionsNote": "Their answers are true from then on",
+        "year": "The year's work",
+        "yearNote": "What folk are doing when you frame the scene",
+        "now": "now",
+        "aftermath": "Aftermath",
+        "aftermathNote": "After every expedition, and after every crisis",
+        "downtime": "Downtime",
+        "downtimeNote": "Between adventures, until the next one starts",
+        "plan": "Make a Plan",
+        "planNote": "The player move you answer with requirements",
+        "value": "Relative Value",
+        "valueNote": "Tiers, not a scale",
+        "valueTier": "A Value {value} item is generally worth:"
       },
       "loop": {
         "coreLoop": "The core loop",

@@ -7,7 +7,6 @@ import { actorOptionsFor } from "../../../module/dialogs/create-actor-dialog.js"
 import { FLASH_CLASS, FLASH_MS, SPIN_CLASS } from "../../../module/utils/flash-highlight.js";
 import { postGmMove } from "../../../module/gm-toolkit/random-gm-move.js";
 import { moveBlurb } from "../../../module/gm-toolkit/gm-move-blurb.js";
-import { GM_AGENDA, GM_AGENDA_TEST, GM_PRINCIPLES } from "../../../module/gm-toolkit/gm-agenda.js";
 import { escHtml } from "../../../module/utils/strings.js";
 
 // The GM Toolkit: the GM's own actor sheet, the screen-side companion to the GM playbook.
@@ -350,12 +349,11 @@ describe("the rendered moves tab", () => {
 		// before the FIRST box, or between a box's close and the next box's open, is a heading
 		// that got out.
 		const chunks = html.split(/<div class="stonetop-move-group"/);
-		expect(chunks).toHaveLength(6);   // preamble + 3 move sections + agenda + principles
+		expect(chunks).toHaveLength(4);   // preamble + 3 move sections
 		expect(chunks[0]).not.toContain("stonetop-move-group-title");
 		for (const chunk of chunks.slice(1)) {
 			expect((chunk.match(/stonetop-move-group-title/g) ?? [])).toHaveLength(1);
-			// Exactly one list per box, whatever that list is called: the three move sections and
-			// the principles are `items-list`, the agenda is its own numbered list.
+			// Exactly one list per box.
 			expect((chunk.match(/<ol /g) ?? [])).toHaveLength(1);
 			// The heading must come FIRST inside the box, ahead of the list it folds.
 			expect(chunk.indexOf("stonetop-move-group-title")).toBeLessThan(chunk.indexOf("<ol"));
@@ -365,9 +363,7 @@ describe("the rendered moves tab", () => {
 	it("gives each heading a caret named for its own section", async () => {
 		const html = renderMovesTab((await makeSheet().getData()).stonetop);
 		const ids = [...html.matchAll(/class="stonetop-section-collapse" data-section="([^"]+)"/g)].map(m => m[1]);
-		expect(ids).toEqual([
-			"gmMovesBasic", "gmMovesExploration", "gmMovesHomefront", "gmAgenda", "gmPrinciples",
-		]);
+		expect(ids).toEqual(["gmMovesBasic", "gmMovesExploration", "gmMovesHomefront"]);
 	});
 
 	// The book's text, sat under each entry behind a disclosure. Every leg of this is silent: a
@@ -474,7 +470,6 @@ describe("the Moves tab is a two-column reference list, not a card list", () => 
 	it("dresses an entry as a reference line, not as an un-carded card", () => {
 		expect(MOVES_HBS).toContain('<li class="stonetop-gm-move" data-move="{{name}}">');
 		expect(MOVES_HBS).toContain('class="stonetop-gm-move-name"');
-		expect(MOVES_HBS).toContain('class="stonetop-gm-move-gloss"');
 		// Asserted against the emitted CLASS ATTRIBUTES, not the file text: the header comment
 		// above names the classes this tab used to wear, and a plain substring search would
 		// read the explanation as the thing it explains.
@@ -494,10 +489,10 @@ describe("the Moves tab is a two-column reference list, not a card list", () => 
 		expect(bodyOf(".stonetop-gm-toolkit-moves .stonetop-gm-move")).toMatch(/border-bottom:\s*1px/);
 	});
 
-	// A name and its gloss are one entry. Let the column break fall inside one and the gloss
+	// A name and its blurb are one entry. Let the column break fall inside one and the blurb
 	// lands at the top of the RIGHT column, under a different move's name, reading as that
-	// move's gloss. Nothing about that looks broken enough to notice.
-	it("keeps a move's name and its gloss together at the column break", () => {
+	// move's blurb. Nothing about that looks broken enough to notice.
+	it("keeps a move's name and its blurb together at the column break", () => {
 		expect(bodyOf(".stonetop-gm-toolkit-moves .stonetop-gm-move"))
 			.toMatch(/break-inside:\s*avoid/);
 	});
@@ -511,16 +506,9 @@ describe("the Moves tab is a two-column reference list, not a card list", () => 
 
 	// These entries are not a character's move cards, but they are the same voice on the same
 	// screen, so they take the sheet's own face rather than whatever Foundry hands a bare <li>.
-	it("keeps both halves on the system font", () => {
+	it("keeps the name on the system font", () => {
 		expect(CSS).toMatch(
-			/\.stonetop-gm-move-name,\s*\.stonetop-gm-move-gloss,[\s\S]{0,240}?font-family:\s*var\(--font-stonetop\)/);
-	});
-
-	// The gloss hangs on the same left edge as the name it belongs to: that shared edge is what
-	// a GM scanning the list runs their eye down.
-	it("hangs the gloss on the same left edge as its name", () => {
-		expect(bodyOf(".stonetop-gm-toolkit-moves .stonetop-gm-move-gloss"))
-			.not.toMatch(/padding-left:\s*[1-9]/);
+			/\.stonetop-gm-move-name,[\s\S]{0,240}?font-family:\s*var\(--font-stonetop\)/);
 	});
 });
 
@@ -778,78 +766,6 @@ describe("the move randomizer", () => {
 	});
 });
 
-// The agenda and the principles close the Moves tab. They are printed on the same playbook spread
-// as the move lists and were, until now, only inside a journal the Welcome dialog links to.
-describe("the agenda and the principles", () => {
-	it("carries all three goals and all thirteen principles", () => {
-		expect(GM_AGENDA.map(g => g.name)).toEqual([
-			"Portray a rich and mysterious world",
-			"Punctuate the characters' lives with adventure",
-			"Play to find out what happens",
-		]);
-		expect(GM_PRINCIPLES).toHaveLength(13);
-		expect(GM_PRINCIPLES[0].name).toBe("Follow the rules");
-		expect(GM_PRINCIPLES.at(-1).name).toBe("Let things burn");
-	});
-
-	// The book is emphatic that the three are a TEST ("which of these three goals does it
-	// support?"), and the three are not one without the sentence that says so.
-	it("keeps the test the book prints under the goals", () => {
-		expect(GM_AGENDA_TEST).toContain("which of these three goals does it support?");
-	});
-
-	it("gives every goal its paragraph and every principle its gist and page", () => {
-		for (const goal of GM_AGENDA) {
-			expect(goal.detail.length, `${goal.name} has no text`).toBeGreaterThan(0);
-		}
-		for (const principle of GM_PRINCIPLES) {
-			expect(principle.gist.length, `${principle.name} has no gist`).toBeGreaterThan(40);
-			expect(principle.page, `${principle.name} has no page`).toBeGreaterThanOrEqual(192);
-			expect(principle.page).toBeLessThanOrEqual(199);
-		}
-	});
-
-	it("renders both, shut, at the foot of the tab", async () => {
-		const html = renderMovesTab((await makeSheet().getData()).stonetop);
-
-		// Both start collapsed: the tab's first screen is the moves and the die, which is what it
-		// is open for mid-sentence. The mark is `data-default-collapsed`, which is what
-		// `_wireSectionCollapse` reads before paint; the caret's own `aria-expanded` in the
-		// markup is the un-wired default and is restated from the real state at wire time.
-		const shut = [...html.matchAll(/data-section="(gmAgenda|gmPrinciples)" data-default-collapsed="true"/g)];
-		expect(shut, "the agenda or the principles render open").toHaveLength(2);
-		// ...and after the three move lists, not before them.
-		expect(html.indexOf("Play them against each other")).toBeLessThan(html.indexOf("gmAgenda"));
-
-		expect(html).toContain("Portray a rich and mysterious world");
-		expect(html).toContain("which of these three goals does it support?");
-		expect((html.match(/class="stonetop-gm-move stonetop-gm-principle"/g) ?? [])).toHaveLength(13);
-		expect(html).toContain("Book I, page 199");
-	});
-
-	// They wear the move entry's classes to take its two columns and hairlines, but they carry no
-	// disclosure: each is one line already, and a caret on a row that opens nothing is a promise
-	// the row cannot keep.
-	it("gives a principle no disclosure to open", async () => {
-		const html = renderMovesTab((await makeSheet().getData()).stonetop);
-		const principles = html.slice(html.indexOf("gmPrinciples"));
-		expect(principles).not.toContain("stonetop-gm-move-toggle");
-		expect(principles).not.toContain("stonetop-gm-move-book");
-	});
-
-	// ...and with no caret, no lane kept clear for one. The move entries reserve a strip at the
-	// right of every NAME for the arrow to sit in; a principle would otherwise wear that gap for
-	// a control it does not have, ending its name short of a column edge nothing else respects.
-	it("takes back the caret's lane it has no caret for", () => {
-		const base = CSS.indexOf(".stonetop-gm-toolkit-moves .stonetop-gm-move-name {");
-		const override = CSS.indexOf(".stonetop-gm-toolkit-moves .stonetop-gm-principle .stonetop-gm-move-name {");
-		expect(override, "no override for the principle name").toBeGreaterThan(-1);
-		// Equal specificity, so the later rule is the one that wins.
-		expect(override).toBeGreaterThan(base);
-		expect(CSS.slice(override, override + 120)).toMatch(/padding-right:\s*0/);
-	});
-});
-
 describe("the GM Toolkit is registered on all three legs", () => {
 	it("declares the actor subtype in the manifest", () => {
 		expect(JSON.parse(SYSTEM_JSON).documentTypes.Actor).toHaveProperty("gmToolkit");
@@ -982,15 +898,11 @@ describe("things that break silently", () => {
 	// The fold walk claims a heading's FOLLOWING SIBLINGS until the next heading, so three
 	// headings in one flat run would let the first caret swallow the two below it.
 	it("boxes each move section in its own group wrapper", () => {
-		// Three wrappers in the source: one inside the {{#each}}, which is what makes it one box
-		// per move section, and one each for the agenda and the principles that close the tab.
+		// ONE wrapper in the source, inside the {{#each}}, which is what makes it one box per
+		// move section rather than one box around all three.
 		const groups = MOVES_HBS.match(/class="stonetop-move-group"/g) ?? [];
-		expect(groups).toHaveLength(3);
+		expect(groups).toHaveLength(1);
 		expect(MOVES_HBS.indexOf("{{#each stonetop.moveSections}}"))
 			.toBeLessThan(MOVES_HBS.indexOf('class="stonetop-move-group"'));
-		// ...and the loop closes before the other two open, or they would be emitted three times
-		// each and the tab would carry three agendas.
-		expect(MOVES_HBS.indexOf("{{/each}}"))
-			.toBeLessThan(MOVES_HBS.indexOf('collapse="gmAgenda"'));
 	});
 });

@@ -16,7 +16,7 @@ Where our filename differs from the original, the game-icons.net source name is 
 | death-skull.svg | Post-Death | death-skull | sbed | http://opengameart.org/content/95-game-icons |
 | round-star.svg | Special Moves | round-star | Delapouite | https://delapouite.com |
 | notebook.svg | Notes | notebook | Delapouite | https://delapouite.com |
-| village.svg | Overview (steading) | village | Delapouite | https://delapouite.com |
+| village.svg | Overview (steading), Homefront (GM Toolkit) | village | Delapouite | https://delapouite.com |
 | hammer-nails.svg | Improvements | hammer-nails | Lorc | https://lorcblog.blogspot.com |
 | hazard-sign.svg | Threats & Dangers | hazard-sign | Lorc | https://lorcblog.blogspot.com |
 | hearts.svg | Relationships | hearts | Skoll | https://game-icons.net |

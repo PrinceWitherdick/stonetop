@@ -30,6 +30,13 @@
 		      that Foundry's Tabs controller finds and binds it normally first. --}}
 		<nav class="sheet-tabs tabs stonetop-tab-rail" data-group="primary"
 		     aria-label="{{localize "stonetop.sheet.tabs.railLabel"}}">
+			{{!-- Homefront leads the rail, above the moves. The playbook's own order puts the move
+			      lists first, and this one departs from it deliberately: the moves are what a GM
+			      reaches for mid-sentence and are the tab this sheet OPENS on, so the rail costs
+			      them nothing by sitting them second, while Homefront is the page you turn to when
+			      the party gets home — the start of a stretch of play rather than a moment in
+			      one. --}}
+			{{> "stonetop.tab-rail-item" tab="homefront" label=(localize "stonetop.gmToolkit.tabs.homefront")}}
 			{{> "stonetop.tab-rail-item" tab="moves"   label=(localize "stonetop.gmToolkit.tabs.moves")}}
 			{{> "stonetop.tab-rail-item" tab="threats" label=(localize "stonetop.gmToolkit.tabs.threats")}}
 			{{> "stonetop.tab-rail-item" tab="sites"   label=(localize "stonetop.gmToolkit.tabs.sites")}}
@@ -38,6 +45,7 @@
 
 		<div class="stonetop-sheet-layout stonetop-gm-toolkit-layout stonetop-sheet-layout--own-seam">
 			<section class="sheet-body">
+				{{> "stonetop.gm-toolkit-tab-homefront"}}
 				{{> "stonetop.gm-toolkit-tab-moves"}}
 				{{> "stonetop.gm-toolkit-tab-threats"}}
 				{{> "stonetop.gm-toolkit-tab-sites"}}

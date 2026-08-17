@@ -23,7 +23,6 @@ import { mountTabRail } from "../../utils/tab-rail.js";
 import { withSheetSizeMemory } from "../../utils/sheet-size.js";
 import { withSectionEditing } from "../../utils/section-editing.js";
 import { gmMoveSections } from "../../gm-toolkit/gm-moves.js";
-import { GM_AGENDA, GM_AGENDA_TEST, GM_PRINCIPLES } from "../../gm-toolkit/gm-agenda.js";
 import { bookPageRef } from "../../gm-toolkit/book-ref.js";
 import { moveBlurb } from "../../gm-toolkit/gm-move-blurb.js";
 import { randomGmMove, postGmMove } from "../../gm-toolkit/random-gm-move.js";
@@ -33,9 +32,11 @@ import { gmDiagrams } from "../../gm-toolkit/gm-diagrams.js";
 import { openImageZoom } from "../../utils/image-zoom-window.js";
 import { runImportBookArtMacro } from "../../book2-art/macro.js";
 import { withGmPrepTabs } from "./gm-prep-tabs.js";
+import { localizedHomefrontSections } from "../../gm-toolkit/homefront-view.js";
+import { readCurrentSeason, currentSeasonView, isCurrentSeasonChange } from "../../seasons/current-season.js";
 import { localize } from "../../utils/i18n.js";
 import { localizedOnce } from "../../utils/localized-once.js";
-import { stonetopSteadingHeaderButton } from "../../utils/world.js";
+import { getStonetopSteadingActor, stonetopSteadingHeaderButton } from "../../utils/world.js";
 
 /**
  * What counts as a foldable section heading on this sheet — see `_wireSectionCollapse`.
@@ -112,6 +113,13 @@ export function createStonetopGmToolkitSheetClass(Base) {
 		// FormApplication or ActorSheet, which is checked because such a collision is silent.
 		_moveSpin = null;
 
+		// The `updateActor` registration that keeps the Homefront tab's "now" mark in step with
+		// the steading's clock, or null while unbound. See `_wireSeasonSync`. Null rather than
+		// undefined so the `!= null` gate there reads as a state and not as an absence, and
+		// checked against Application, FormApplication and ActorSheet's own members, because a
+		// property collision with core is silent.
+		_seasonSyncHook = null;
+
 		static get defaultOptions() {
 			return foundry.utils.mergeObject(super.defaultOptions, {
 				// No `...layoutClasses("gmToolkit")` — see the modern-only note at the top.
@@ -183,18 +191,72 @@ export function createStonetopGmToolkitSheetClass(Base) {
 			//
 			// Gated on the render actually proceeding, which is the condition AppV1 applies
 			// INSIDE `super._render` ("not rendered and not forced, return") and therefore too
-			// late to stop this line. Without the gate, a debounced re-render landing after
-			// `close()` re-registers the three world-wide JournalEntryPage hooks on a dead sheet
-			// and the `close()` that would have dropped them has already run, leaving them live
-			// for the rest of the session.
-			if (force || this.rendered) this._wirePrepPageSync();
+			// late to stop these lines. Without the gate, a debounced re-render landing after
+			// `close()` re-registers world-wide hooks on a dead sheet — the three JournalEntryPage
+			// ones and the season clock's — and the `close()` that would have dropped them has
+			// already run, leaving them live for the rest of the session.
+			//
+			// Both syncs under ONE gate: it is the same condition for the same reason, and a
+			// second copy of it is a second thing to remember when a third sync is added.
+			if (force || this.rendered) {
+				this._wirePrepPageSync();
+				// The Homefront tab's "now" mark, kept in step with the steading's clock.
+				this._wireSeasonSync();
+			}
 			await super._render(force, options);
 			stripHeaderChrome(this);
 		}
 
 		async close(options = {}) {
 			this._unwirePrepPageSync();
+			this._unwireSeasonSync();
 			return super.close(options);
+		}
+
+		/**
+		 * Re-render when the steading's season clock moves, so the Homefront tab's "now" mark
+		 * follows it.
+		 *
+		 * A sheet is only told about documents it owns, and this one is not the steading — so
+		 * without this, a GM who runs Seasons Change with the toolkit open is left with a Homefront
+		 * tab marking the season that just ended, beside a steading header that has already moved
+		 * on. Nothing about that looks broken, which is exactly the problem: the mark's whole claim
+		 * is that it is live.
+		 *
+		 * Registered on FIRST RENDER and dropped on close, the shape `_wirePrepPageSync` uses and
+		 * for the reason its comment gives. `!= null` rather than a truth test, because a hook id
+		 * of 0 is a valid registration a falsy check would re-register on every re-render.
+		 *
+		 * The FLAG is tested before the steading is resolved, and that order is load-bearing rather
+		 * than stylistic: every actor update in the world arrives here — every HP tick on every
+		 * character — while `getStonetopSteadingActor` is an unindexed scan of `game.actors`. So
+		 * the cheap question goes first, and it is asked through `isCurrentSeasonChange` rather
+		 * than by spelling the flag path here: where the clock is kept is `current-season.js`'s
+		 * to know, and a sheet that knew it too would keep compiling after the key moved.
+		 *
+		 * Not `createActor`: a world that gains its first steading while this sheet is open has no
+		 * clock to have moved yet, and the mark it would gain is the un-stamped fallback — which
+		 * the next render picks up anyway. Watching creation as well would buy one repaint of a
+		 * value nobody has set.
+		 */
+		_wireSeasonSync() {
+			if (this._seasonSyncHook != null) return;
+			// Debounced for the same reason the prep sync is: `recordCurrentSeason` is one write,
+			// but the Seasons Change flow lands it alongside the steading's own updates, and a
+			// burst should cost one repaint rather than four.
+			const rerender = foundry.utils.debounce(() => { if (this.rendered) this.render(false); }, 100);
+			this._seasonSyncHook = Hooks.on("updateActor", (actor, changed) => {
+				if (!this.rendered) return;
+				if (!isCurrentSeasonChange(changed)) return;
+				if (actor?.id !== getStonetopSteadingActor()?.id) return;
+				rerender();
+			});
+		}
+
+		/** Drop the season-clock hook. */
+		_unwireSeasonSync() {
+			if (this._seasonSyncHook != null) Hooks.off("updateActor", this._seasonSyncHook);
+			this._seasonSyncHook = null;
 		}
 
 		// The gear goes, a "Stonetop" shortcut takes its place. Sheet configuration picks an
@@ -219,13 +281,32 @@ export function createStonetopGmToolkitSheetClass(Base) {
 			// Built once for the life of the page — see `localizedMoveSections`.
 			context.stonetop.moveSections = localizedMoveSections();
 
-			// The agenda and the principles, which close the same tab. Straight off the frozen
-			// tables, plus the page citation resolved the same way the moves get theirs. The
-			// agenda's three goals carry no citation of their own: all three are printed on one
-			// page, and the heading already says which.
-			context.stonetop.agenda     = GM_AGENDA;
-			context.stonetop.agendaTest = GM_AGENDA_TEST;
-			context.stonetop.principles = GM_PRINCIPLES.map(p => ({ ...p, pageRef: bookPageRef(p) }));
+			// The Homefront tab's seven sections, built once for the life of the page in the same
+			// way and for the same reason (module/gm-toolkit/homefront-view.js).
+			context.stonetop.homefrontSections = localizedHomefrontSections();
+
+			// Which of the year's-work blocks is marked "now". Read LIVE off the steading's clock
+			// on every render, and deliberately not stamped onto the frozen section table: a
+			// campaign turns its seasons mid-session, and a reference page that has to be reopened
+			// to stop naming the wrong one is worse than one that names none. `_wireSeasonSync`
+			// is what makes "on every render" mean something when the clock is the thing that
+			// moved.
+			//
+			// Through `currentSeasonView` rather than off `readCurrentSeason` directly, so this
+			// mark and the steading header's clock cannot disagree: a world that has recorded no
+			// Seasons Change yet is in the season it opened in (DEFAULT_SEASON), and the header
+			// already says so. Reading the flag raw would leave the header naming Spring while
+			// this tab marked nothing.
+			//
+			// NO steading is the one case that marks nothing, and an empty string rather than null
+			// says so: the value is compared against a season KEY in the template, where null
+			// would coerce to the string "null" — matching nothing either way, but reading in the
+			// DOM as though something had gone wrong. With no steading there is no campaign clock
+			// to be in step with, and inventing a season for one would be the invention.
+			const steading = getStonetopSteadingActor();
+			context.stonetop.homefrontSeason = steading
+				? currentSeasonView(readCurrentSeason(steading)).season
+				: "";
 
 			// The Core Loop tab's two figures. Localized and resolved to a servable path at the
 			// boundary, same as the move sections, so the template gets plain data and the tests
@@ -246,7 +327,10 @@ export function createStonetopGmToolkitSheetClass(Base) {
 			// Both prep tabs, including their per-section edit flags (a section is editable when
 			// its own pencil is toggled, which is what keeps the delete buttons inert while a GM
 			// is only reading).
-			await this._addGmPrepContext(context);
+			// The steading resolved above, handed down rather than looked up again: it is an
+			// unindexed `game.actors` scan, and the mixin's own note says both its builders
+			// sharing one resolution is the point.
+			await this._addGmPrepContext(context, steading);
 
 			return context;
 		}
