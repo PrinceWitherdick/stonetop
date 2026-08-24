@@ -25,13 +25,51 @@
 import { StonetopDialog } from "./stonetop-dialog.js";
 import { openOrFocus } from "./open-or-focus.js";
 import { anchoredOffset, centreOffset, clampPan, clampZoom, fitScale, stepZoom } from "./image-zoom.js";
+import { pickPointOnImage, watchPointsOnImage } from "./pick-point-on-image.js";
 
 const TEMPLATE = "systems/stonetop_pwd/templates/dialogs/image-zoom.hbs";
 
+// Which overlay children are CONTROLS rather than scenery, for a caller that says nothing. Two
+// attributes and not one, because a caller's overlay may want a control that names no place — the
+// travel maps' edge arrows carry a tier and an empty slug — and a button that reads as live has to
+// be live. See `_onPanStart` for why the pan handler needs to recognise them too.
+//
+// A CALLER MAY WIDEN IT (`controls`), and one does. This selector is the whole of what tells a
+// press on a pin from a press on open map, so an overlay that grows a kind of control neither
+// attribute names gets a button that cannot be clicked at all: the pan takes a pointer capture,
+// the click is retargeted to the viewport, and the delegate below never sees it. The default stays
+// what it always was, so nothing that does not ask changes.
+const DEFAULT_CONTROLS = "[data-slug], [data-tier]";
+
 export class ImageZoomWindow extends StonetopDialog {
-	constructor({ src = "", alt = "" } = {}, options = {}) {
+	constructor({ src = "", alt = "", onPick = null, controls = DEFAULT_CONTROLS } = {}, options = {}) {
 		super(options);
 		this._src = src;
+		// An optional layer drawn OVER the picture, in the picture's own coordinates.
+		//
+		// Trusted authored HTML whose children position themselves in PERCENTAGES: this window
+		// sizes the layer to the painted picture on every zoom and every pan, so a child at
+		// "40%, 60%" stays on the same speck of the map at any magnification, while anything it
+		// declares in pixels (a pin, a stroke width) keeps that size and stays crisp. Empty for
+		// every caller that only wants to read a picture, which is all of them but the travel maps.
+		//
+		// Starts empty and is filled through `setOverlay`, which is how the one caller that draws
+		// over a picture (the travel maps) keeps its pins in step with the route.
+		this._overlayHtml = "";
+		// Called with the DATASET of an overlay element the reader clicked, where one is clickable.
+		// Whatever the caller wrote onto its own markup arrives verbatim; this window knows nothing
+		// about what any of it means, which is what lets one overlay carry marks that do different
+		// things (a place to travel to, a map to switch to, a write-up to open).
+		this._onPick = onPick;
+		// Which overlay children are controls. See DEFAULT_CONTROLS.
+		this._controls = controls || DEFAULT_CONTROLS;
+		// Live only while `pickPoint` is waiting for a click. Aborting it is how a window that
+		// closes mid-gesture settles the promise somebody is awaiting and takes the global keydown
+		// listener back off; see `pickPoint`.
+		this._picking = null;
+		// And the standing counterpart: how `watchPoints` is taken back off again, which a window
+		// has to do on close for the same reason — its listeners are on markup that is about to go.
+		this._watching = null;
 		// The picture's own accessible name. Not the window title, which the caller passes through
 		// `options.title` — a screen reader that has already read the title should not hear it again
 		// as the image's description, but an empty alt on the one piece of content in the window is
@@ -83,13 +121,35 @@ export class ImageZoomWindow extends StonetopDialog {
 	}
 
 	getData() {
-		return { src: this._src, alt: this._alt };
+		return { src: this._src, alt: this._alt, overlay: this._overlayHtml };
 	}
 
 	activateListeners(html) {
 		super.activateListeners(html);
 		// ONE root element (AppV1 hands `html` as a jQuery wrapping the template's root).
 		const root = html[0];
+		// Everything below points into the render being REPLACED, and this render may have no
+		// viewport at all — a subclass whose template draws a "that map isn't in this world" panel
+		// instead of a picture. Dropped first, and unconditionally, so the early return leaves
+		// nothing aimed at nodes that have left the document: a stale `_overlay` takes the next
+		// `setOverlay`'s markup into a detached div where nobody will ever see it, and a stale
+		// observer goes on firing as its element is torn out, re-fitting against a 0x0 viewport.
+		this._resizeObserver?.disconnect();
+		this._resizeObserver = null;
+		// A standing watch is aimed at those same nodes, and it also holds the crosshair class on
+		// one of them: left alone it would go on swallowing clicks on a viewport nobody can see,
+		// and the caller would never learn its picture had been rebuilt underneath it.
+		this.stopWatchingPoints();
+		// And a ONE-SHOT pick is aimed at them too, with somebody awaiting its answer. The same
+		// argument, plus one: it never reports at all, so a caller left holding it would wait for
+		// a click on a viewport that has left the document until the window closed. `close` makes
+		// the same call for the same reason; this is the render that replaces the picture without
+		// closing anything.
+		this._picking?.abort();
+		this._picking = null;
+		this._view = null;
+		this._img = null;
+		this._overlay = null;
 		// The viewport IS that root, since the toolbar row went and left nothing to wrap it
 		// against. `querySelector` only ever looks at DESCENDANTS, so asking the root for the
 		// viewport by class returns null and every listener below is silently skipped: no wheel,
@@ -100,6 +160,32 @@ export class ImageZoomWindow extends StonetopDialog {
 			: root.querySelector(".stonetop-image-zoom-view");
 		this._img = this._view?.querySelector(".stonetop-image-zoom-img");
 		if (!this._view || !this._img) return;
+		this._overlay = this._view.querySelector(".stonetop-image-zoom-overlay");
+
+		// Delegated, so swapping the layer's contents (setOverlay) never has to rebind anything.
+		// The layer itself takes no pointer events and only its clickable children do, so a drag
+		// that starts on open map still pans — which is the gesture this window exists for.
+		//
+		// Both attributes travel, and neither is required. `data-slug` names a place; `data-tier`
+		// names a picture to move to. A control may carry one, the other, or both, and the caller
+		// decides what to do with what it gets — which is the only way a control that names no
+		// place (an edge arrow) can do anything at all from in here.
+		if (this._overlay && this._onPick) {
+			this._overlay.addEventListener("click", ev => {
+				const picked = ev.target.closest?.(this._controls);
+				if (!picked || !this._overlay.contains(picked)) return;
+				// The whole dataset, spread into a plain object so what the caller gets is
+				// inspectable rather than a live DOMStringMap on a node about to be replaced.
+				// Matching the selector IS the gate: an element the caller marked as a control is
+				// one, whatever it happens to carry, and reading two named attributes here meant a
+				// third kind of mark could not be added to an overlay without editing this file.
+				//
+				// THE EVENT GOES WITH IT, because a modifier is part of what a click said: the
+				// travel maps read the shift key off a pin to tell "go there instead" from "go
+				// there as well", and a dataset alone cannot carry that.
+				this._onPick({ ...picked.dataset }, ev);
+			});
+		}
 
 		// A cached picture — the second open of the same diagram, which is the common case — is
 		// already `complete` by the time listeners run and will never fire `load` again. Miss that
@@ -242,6 +328,90 @@ export class ImageZoomWindow extends StonetopDialog {
 		};
 		this._img.style.left = `${Math.round(this._offset.x)}px`;
 		this._img.style.top = `${Math.round(this._offset.y)}px`;
+		// The layer gets the picture's box exactly — including an explicit HEIGHT, which the image
+		// itself never carries (it is `auto`, derived by the browser from the width). A percentage
+		// `top` inside the layer resolves against ITS height, so leaving that `auto` would collapse
+		// it to nothing and stack every pin along the picture's top edge.
+		if (this._overlay) {
+			this._overlay.style.width = `${width}px`;
+			this._overlay.style.height = `${height}px`;
+			this._overlay.style.left = `${Math.round(this._offset.x)}px`;
+			this._overlay.style.top = `${Math.round(this._offset.y)}px`;
+		}
+	}
+
+	/**
+	 * Replace the overlay's contents without disturbing the zoom or the pan.
+	 *
+	 * What a caller needs once the reader picks something INSIDE this window: re-rendering the
+	 * Application would re-run `_fitToWindow` and throw away the corner they had zoomed into, which
+	 * is exactly the state they were using when they clicked.
+	 */
+	setOverlay(html = "") {
+		this._overlayHtml = html;
+		if (this._overlay) this._overlay.innerHTML = html;
+	}
+
+	/**
+	 * Ask the reader to click a point ON THE PICTURE, and answer where they clicked as a
+	 * percentage of it.
+	 *
+	 * Measured against the OVERLAY, not the viewport: the overlay is sized and placed onto the
+	 * painted picture on every zoom and every pan (`_applyZoom`), so its box is the picture's box
+	 * at whatever magnification and offset the reader has put it at. The viewport is where the
+	 * events arrive, because a pan takes a pointer capture there. See pick-point-on-image.js.
+	 *
+	 * Zoom and pan stay live throughout, which is the point of picking from this window rather
+	 * than from the panel: the reader wheels down to the valley they mean and then clicks it.
+	 *
+	 * @returns {Promise<{left: number, top: number}|null>}  null if they cancelled, or the window
+	 *          closed with the gesture still armed.
+	 */
+	async pickPoint() {
+		const target = this._overlay ?? this._img;
+		if (!this._view || !target) return null;
+		// A second call supersedes the first, rather than leaving two gestures armed over one
+		// picture, both swallowing the same click and only one of them being awaited.
+		this._picking?.abort();
+		const picking = new AbortController();
+		this._picking = picking;
+		try {
+			return await pickPointOnImage({
+				listenOn: this._view, measure: target, signal: picking.signal,
+			});
+		} finally {
+			if (this._picking === picking) this._picking = null;
+		}
+	}
+
+	/**
+	 * Stay armed over the picture and report every click on it, until the caller stops.
+	 *
+	 * THE STANDING COUNTERPART OF `pickPoint`, measured against the same two elements and for the
+	 * same reasons: the overlay is the picture's own box at whatever zoom and pan the reader has
+	 * put it at, and the viewport is where the events arrive once a pan has taken a pointer capture
+	 * there. What differs is only how long it lasts — one answer, or a run of them.
+	 *
+	 * ONE AT A TIME. A second call supersedes the first rather than leaving two watchers over one
+	 * picture reporting the same click twice, which is the same rule `pickPoint` follows and for
+	 * the same reason.
+	 *
+	 * @param {object} handlers  `{ onPoint, onUndo, ignore, undoIgnore }` — see
+	 *                           utils/pick-point-on-image.js `watchPointsOnImage`.
+	 * @returns {Function} stop watching.
+	 */
+	watchPoints(handlers = {}) {
+		this.stopWatchingPoints();
+		const target = this._overlay ?? this._img;
+		if (!this._view || !target) return () => {};
+		this._watching = watchPointsOnImage({ ...handlers, listenOn: this._view, measure: target });
+		return () => this.stopWatchingPoints();
+	}
+
+	/** Take the watch off, if there is one. Safe to call when there is not. */
+	stopWatchingPoints() {
+		this._watching?.();
+		this._watching = null;
 	}
 
 	/** Where a pointer event landed, relative to the viewport's own top-left. */
@@ -261,9 +431,21 @@ export class ImageZoomWindow extends StonetopDialog {
 	 * Left-drag moves the picture. Pointer capture, so a fast drag that leaves the window keeps
 	 * moving it — and, more to the point, so the pointerup still arrives when the cursor is out
 	 * over the canvas and the picture doesn't stay stuck to it.
+	 *
+	 * A press that landed on an overlay control starts no pan, and the reason is the capture and
+	 * not politeness. `setPointerCapture` on `this._view` RETARGETS every later event from that
+	 * pointer — including the `pointerup`, from which the browser derives the `click` — at the
+	 * capturing element. `this._view` is an ancestor of the overlay, so capturing here makes the
+	 * click fire at the viewport, `closest(PICK_SELECTOR)` find nothing, and the delegated handler
+	 * above never run: every pin in the window is dead, on a dead-centre click that never moved a
+	 * pixel. Releasing the capture on pointerup does not undo it, because the click inherits its
+	 * target from the already-retargeted pointerup. So the press has to be recognised as a click
+	 * on a control BEFORE the capture is taken.
 	 */
 	_onPanStart(ev) {
 		if (ev.button !== 0 || !this._view) return;
+		const control = ev.target?.closest?.(this._controls);
+		if (control && this._overlay?.contains(control)) return;
 		ev.preventDefault();
 		this._pan = {
 			id: ev.pointerId,
@@ -311,6 +493,12 @@ export class ImageZoomWindow extends StonetopDialog {
 	async close(options = {}) {
 		this._resizeObserver?.disconnect();
 		this._resizeObserver = null;
+		// A gesture still waiting for a click on a picture that is about to leave the screen. Its
+		// caller is awaiting the answer, so it is told there isn't one rather than being left
+		// holding a promise that can no longer settle.
+		this._picking?.abort();
+		this._picking = null;
+		this.stopWatchingPoints();
 		return super.close(options);
 	}
 }
@@ -325,11 +513,11 @@ export class ImageZoomWindow extends StonetopDialog {
  * Returns null for an empty src: the caller's picture simply isn't there yet, and an empty window
  * saying so is worse than nothing happening.
  */
-export function openImageZoom({ src, title = "", key = "" } = {}) {
+export function openImageZoom({ src, title = "", key = "", onPick = null } = {}) {
 	if (!src) return null;
 	const id = `stonetop-image-zoom-${key || "image"}`;
 	return openOrFocus(id, () => {
-		const app = new ImageZoomWindow({ src, alt: title }, { id, title });
+		const app = new ImageZoomWindow({ src, alt: title, onPick }, { id, title });
 		app.render(true);
 		return app;
 	});
