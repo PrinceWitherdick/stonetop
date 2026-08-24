@@ -29,7 +29,7 @@ import { createStonetopSitePageSheetClass } from "./module/journal/StonetopSiteP
 import { ThreatBoard } from "./module/threats/threat-board.js";
 import { onReady } from "./module/hooks/Ready.js";
 import { handleImportedJournalArt, ART_INDEX_SETTINGS } from "./module/book2-art/reapply.js";
-import { clearArtBrowseCache } from "./module/book2-art/browse.js";
+import { clearArtBrowseCache, ART_BROWSE_INPUTS } from "./module/book2-art/browse.js";
 import { onRenderActorSheet } from "./module/hooks/RenderActorSheet.js";
 import { onHotbarDrop } from "./module/hooks/HotbarDrop.js";
 import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
@@ -38,6 +38,8 @@ import { onPreUpdateActorDeathsDoor, onUpdateActorDeathsDoorAutoOpen, onUpdateAc
 import { deathDripStamp, markDeathDrip } from "./module/hooks/DeathChatDrip.js";
 import { onPreCreateThreatNote } from "./module/hooks/ThreatNotePins.js";
 import { onDrawStonetopNote } from "./module/hooks/StonetopNoteLabels.js";
+import { registerExpeditionRouteHooks } from "./module/hooks/ExpeditionRouteOverlay.js";
+import { bumpEncounterNotesGeneration } from "./module/actors/gmtoolkit/gm-encounters-tab.js";
 import { invalidateMonsterRefIndex } from "./module/bestiary/monster-ref-index.js";
 import { ensureLocationSummaryIndex, applyTooltipsThenRestrict } from "./module/locations/location-tooltips.js";
 import { hideBrokenJournalArt } from "./module/journal/hide-broken-art.js";
@@ -79,6 +81,7 @@ import { installWindowRestore } from "./module/utils/window-restore.js";
 import { registerUuidRedirects } from "./module/migration/compat.js";
 import { adoptLegacyClientSettings } from "./module/migration/copy-settings.js";
 import { SYSTEM_ID } from "./module/system-id.js";
+import { bootStep, recordBootPhase, reportBootHealth, bootReport } from "./module/utils/boot-guard.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -88,15 +91,19 @@ Hooks.once("init", () => {
 	// older system id. localStorage is per-browser, so the GM's migration only ever fixed
 	// the GM's own machine; without this every player silently reverts to defaults. Must
 	// precede registerSettings and onReady, which applies the sheet font on its first line.
-	adoptLegacyClientSettings();
+	// Wrapped, like the two steps below it, so a throw here is named and reported rather than only
+	// logged by Foundry and forgotten. Foundry catches a hook that throws and carries on with the
+	// next listener, so a failure in this run leaves a world that opens, looks right, and has
+	// silently registered none of the settings that come after it. See utils/boot-guard.js.
+	bootStep("adoptLegacyClientSettings", adoptLegacyClientSettings);
 
 	// Before anything can resolve a UUID: make every compendium link written under an
 	// older system id resolve against the current packs. This covers @UUID text, already
 	// serialized content-link anchors, embeds and compendiumSource lookups alike, so no
 	// stored string has to be rewritten for a renamed system to keep working.
-	registerUuidRedirects();
+	bootStep("registerUuidRedirects", registerUuidRedirects);
 
-	registerSettings();
+	bootStep("registerSettings", registerSettings);
 	registerStonetopSingletonHooks();
 
 	// Every window and modal in the system is drag-resizable; the ad-hoc
@@ -414,8 +421,6 @@ Hooks.once("init", () => {
 		"stonetop.inv-item-small":   "systems/stonetop_pwd/templates/actor/partials/inv-item-small.hbs",
 		"stonetop.inv-artifact":     "systems/stonetop_pwd/templates/actor/partials/inv-artifact.hbs",
 		"stonetop.choice-gear-row":  "systems/stonetop_pwd/templates/actor/partials/choice-gear-row.hbs",
-		"stonetop.roll-mode-picker": "systems/stonetop_pwd/templates/actor/partials/roll-mode-picker.hbs",
-		"stonetop.roll-mode-radios": "systems/stonetop_pwd/templates/actor/partials/roll-mode-radios.hbs",
 		"stonetop.steading-header-season":    "systems/stonetop_pwd/templates/actor/partials/steading-header-season.hbs",
 		"stonetop.steading-section-toggle":   "systems/stonetop_pwd/templates/actor/partials/steading-section-toggle.hbs",
 		"stonetop.steading-stats-bar":        "systems/stonetop_pwd/templates/actor/partials/steading-stats-bar.hbs",
@@ -433,6 +438,9 @@ Hooks.once("init", () => {
 		"stonetop.gm-toolkit-tab-sites":      "systems/stonetop_pwd/templates/actor/partials/gm-toolkit-tab-sites.hbs",
 		"stonetop.gm-toolkit-tab-homefront":  "systems/stonetop_pwd/templates/actor/partials/gm-toolkit-tab-homefront.hbs",
 		"stonetop.gm-toolkit-tab-wonder":     "systems/stonetop_pwd/templates/actor/partials/gm-toolkit-tab-wonder.hbs",
+		"stonetop.gm-toolkit-tab-encounters": "systems/stonetop_pwd/templates/actor/partials/gm-toolkit-tab-encounters.hbs",
+		// One card, printed by BOTH of that tab's lists — the live one and the Completed fold.
+		"stonetop.gm-encounter-card":         "systems/stonetop_pwd/templates/actor/partials/gm-encounter-card.hbs",
 		"stonetop.gm-prep-card-tools":        "systems/stonetop_pwd/templates/actor/partials/gm-prep-card-tools.hbs",
 		"stonetop.gm-prep-add-bar":           "systems/stonetop_pwd/templates/actor/partials/gm-prep-add-bar.hbs",
 		"stonetop.gm-prep-no-steading":       "systems/stonetop_pwd/templates/actor/partials/gm-prep-no-steading.hbs",
@@ -452,11 +460,20 @@ Hooks.once("init", () => {
 		"stonetop.bestiary-group-section":    "systems/stonetop_pwd/templates/journal/partials/bestiary-group-section.hbs",
 		"stonetop.introductions-dialog":      "systems/stonetop_pwd/templates/dialogs/introductions.hbs",
 		"stonetop.guide-toc":                 "systems/stonetop_pwd/templates/dialogs/partials/guide-toc.hbs",
+		"stonetop.expedition-load":           "systems/stonetop_pwd/templates/dialogs/partials/expedition-load.hbs",
+		"stonetop.expedition-journey":        "systems/stonetop_pwd/templates/dialogs/partials/expedition-journey.hbs",
+		"stonetop.expedition-journey-pins":   "systems/stonetop_pwd/templates/dialogs/partials/expedition-journey-pins.hbs",
+		"stonetop.expedition-journey-controls": "systems/stonetop_pwd/templates/dialogs/partials/expedition-journey-controls.hbs",
+		"stonetop.expedition-journey-drawhint": "systems/stonetop_pwd/templates/dialogs/partials/expedition-journey-drawhint.hbs",
+		"stonetop.expedition-journey-route":  "systems/stonetop_pwd/templates/dialogs/partials/expedition-journey-route.hbs",
 		"stonetop.intros-capture-head":       "systems/stonetop_pwd/templates/dialogs/partials/intros-capture-head.hbs",
 		"stonetop.threat-string-list":        "systems/stonetop_pwd/templates/dialogs/partials/threat-string-list.hbs",
 		"stonetop.cs-list-frame":             "systems/stonetop_pwd/templates/dialogs/partials/cs-list-frame.hbs",
 		"stonetop.cs-line-list":              "systems/stonetop_pwd/templates/dialogs/partials/cs-line-list.hbs",
 		"stonetop.cs-pair-list":              "systems/stonetop_pwd/templates/dialogs/partials/cs-pair-list.hbs",
+		"stonetop.cs-pick-slots":             "systems/stonetop_pwd/templates/dialogs/partials/cs-pick-slots.hbs",
+		"stonetop.settings-toggle-row":       "systems/stonetop_pwd/templates/settings/partials/settings-toggle-row.hbs",
+		"stonetop.settings-save-footer":      "systems/stonetop_pwd/templates/settings/partials/settings-save-footer.hbs",
 		"stonetop.roster-row":                "systems/stonetop_pwd/templates/dialogs/partials/roster-row.hbs",
 		"stonetop.roster-add":                "systems/stonetop_pwd/templates/dialogs/partials/roster-add.hbs",
 		"stonetop.deaths-door-outcomes":      "systems/stonetop_pwd/templates/dialogs/partials/deaths-door-outcomes.hbs",
@@ -467,7 +484,13 @@ Hooks.once("init", () => {
 		"stonetop.card-doom-track":           "systems/stonetop_pwd/templates/journal/partials/card-doom-track.hbs",
 		"stonetop.card-gm-moves":             "systems/stonetop_pwd/templates/journal/partials/card-gm-moves.hbs",
 		"stonetop.card-player-moves":         "systems/stonetop_pwd/templates/journal/partials/card-player-moves.hbs",
+		"stonetop.site-group":                "systems/stonetop_pwd/templates/journal/partials/site-group.hbs",
 	});
+
+	// Last line of `init`, so reaching it means the whole run got through. A world that never
+	// records this has a partial boot however healthy it looks, which is what reportBootHealth
+	// says out loud once the world is up.
+	recordBootPhase("init");
 });
 
 // -- RENDER PAUSE ----------------------------------------------
@@ -509,6 +532,22 @@ Hooks.on("updateActor", onUpdateActorPlaybookName);
 Hooks.on("updateActor", onUpdateCondemned);
 
 // -- READY -----------------------------------------------------
+// FIRST of the ready listeners, deliberately. This one reports whether the startup it is reporting
+// on actually finished, so it must not be able to be skipped by a later listener throwing. It is
+// registered at module scope like every hook here, which is what lets it still fire on a world
+// whose `init` threw — the case it exists for. See utils/boot-guard.js.
+Hooks.once("ready", () => {
+	reportBootHealth();
+	// Callable from the console: game.stonetop.bootReport()
+	//
+	// Hung off `game` rather than only `game.stonetop`, because `game.stonetop` is built during
+	// onReady and a boot broken enough to need this is a boot that may never build it. A GM asked
+	// for a bug report can paste the result of one expression instead of being talked through the
+	// console, and it answers the question every art report has to answer first: is this world's
+	// system actually running?
+	game.stonetop ??= {};
+	game.stonetop.bootReport = bootReport;
+});
 Hooks.once("ready", onReady);
 Hooks.once("ready", () => applyMoveDescriptionBodyClass(getSetting("showMoveDescriptionsInChat")));
 
@@ -558,9 +597,14 @@ Hooks.on("createJournalEntry", handleImportedJournalArt);
 // Driven off reapply.js's own list rather than naming the indexes again here: a fourth index
 // added there and forgotten here would simply never invalidate, and its files would stay unseen
 // for the rest of the session.
+//
+// ...and off browse.js's list of what a cached listing READS, for the same reason from the other
+// side. A published index means "the folder changed"; the art prefix means "the question we ask
+// the folder changed", and a listing taken before one was known answers nothing about the folder
+// a listing taken after would find. Neither module names the other's settings.
 const _onArtIndexPublished = (setting) => {
 	const key = setting?.key ?? "";
-	if (ART_INDEX_SETTINGS.some((s) => key.endsWith(`.${s}`))) clearArtBrowseCache();
+	if ([...ART_INDEX_SETTINGS, ...ART_BROWSE_INPUTS].some((s) => key.endsWith(`.${s}`))) clearArtBrowseCache();
 };
 Hooks.on("createSetting", _onArtIndexPublished);
 Hooks.on("updateSetting", _onArtIndexPublished);
@@ -573,6 +617,23 @@ Hooks.on("preCreateNote", onPreCreateThreatNote);
 // Give our lettered Place-of-Interest discs and threat/hazard pins a thick paper text
 // halo so their labels stay legible over the illustrated Stonetop maps.
 Hooks.on("drawNote", onDrawStonetopNote);
+
+// -- EXPEDITION ROUTE ON THE MAP -------------------------------
+// A journey put on a poster-map scene from the Run an Expedition walkthrough. The scene
+// carries the two place slugs and every client paints the line from them, players included.
+registerExpeditionRouteHooks();
+
+// -- ENCOUNTER NOTES: LINKS FOLLOW A RENAME --------------------
+// The GM Toolkit's Encounters tab holds each encounter's notes as already-enriched HTML, keyed
+// against the prose they were built from. That key cannot see a rename: `enrichHTML` resolves an
+// @UUID link to the target's CURRENT name, so renaming a linked monster leaves the prose
+// byte-identical and the cached HTML showing the old name for the rest of the session. Bumping a
+// counter on any rename of a thing a note can point at is what lets the next paint rebuild.
+for (const doc of ["Actor", "Item", "JournalEntry", "JournalEntryPage", "Scene", "RollTable", "Macro"]) {
+	Hooks.on(`update${doc}`, (_doc, changes) => {
+		if ("name" in (changes ?? {})) bumpEncounterNotesGeneration();
+	});
+}
 
 // -- LOCATION CROSS-LINK TOOLTIPS ------------------------------
 // Give cross-links into the Locations pack a useful hover summary instead of the
