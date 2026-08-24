@@ -27,6 +27,7 @@
 // Off a hosted setup the two are the same string and nothing changes.
 
 import { filePicker } from "../utils/foundry-compat.js";
+import { book2ArtPrefix } from "./art-root.js";
 
 /** Every directory the importer writes durable art into. */
 export const DURABLE_ART_DIRS = [
@@ -34,6 +35,27 @@ export const DURABLE_ART_DIRS = [
 	"assets/treasures", "assets/people", "assets/steading",
 	"assets/diagrams",
 ];
+
+/**
+ * World settings a cached listing DEPENDS on, and whose change therefore makes it stale.
+ *
+ * The root is not here because the cache is KEYED by it (`${root}|${dir}`), so pointing at a
+ * different art folder misses the cache rather than reading a wrong answer out of it. The prefix
+ * is a different matter: since `readDir` may ask a second time with it in front, the same
+ * directory can answer "nothing" before a prefix is known and "306 files" after — with nothing in
+ * the key to tell those two apart.
+ *
+ * That transition is real. A hosted world learns its prefix from the importer's upload results,
+ * mid-session, on the very run that fills the folder. Publishing an art index right afterwards
+ * happens to clear the cache today, but only when an index actually CHANGED: re-run the import on
+ * a world whose indexes already match and nothing is written, nothing is hooked, and every pass
+ * for the rest of that session reads back the empty listing from before the import.
+ *
+ * Exported rather than named in the hook, for the reason the hook itself gives about the indexes:
+ * a module that adds an input to this cache and forgets to say so somewhere else is a cache that
+ * silently stops being invalidated.
+ */
+export const ART_BROWSE_INPUTS = ["book2ArtPrefix"];
 
 // One in-flight-or-settled browse per `${root}|${dir}`.
 //
@@ -57,6 +79,22 @@ export const DURABLE_ART_DIRS = [
 const _browseCache = new Map();
 
 /**
+ * Session caches elsewhere that are keyed off these same files, forgotten when this one is.
+ *
+ * Registered rather than imported: every one of them already imports THIS module for the browse
+ * itself, so a call the other way would be a cycle. A cache that measures or reads a file the
+ * browse found is only as fresh as the browse, and a GM who re-runs Import Book Art mid-session
+ * gets one cleared and not the other — which is worse than either, because the two then disagree
+ * about a file that is right there on disk.
+ */
+const _dependents = new Set();
+
+/** Have a cache of your own forgotten whenever the art browse is. */
+export function onArtBrowseCleared(forget) {
+	_dependents.add(forget);
+}
+
+/**
  * Forget everything browseArtDirs has cached. Call after anything writes to the durable art
  * folder. Three callers today: the crop rebuild does it directly, the Import Book Art macro is
  * caught by the settings hook in stonetop.js (publishing its art index is the last thing it
@@ -65,6 +103,77 @@ const _browseCache = new Map();
  */
 export function clearArtBrowseCache() {
 	_browseCache.clear();
+	for (const forget of _dependents) forget();
+}
+
+/**
+ * One listing, or null where the host said there is no such directory.
+ *
+ * A rejected browse means the directory does not exist yet (the GM hasn't imported) -> nothing
+ * on disk from there. A browse that RESOLVES with an empty file list is a different and far
+ * more slippery answer — see `readDir`.
+ */
+const listDir = (FP, target) => FP.browse("data", target).catch(() => null);
+
+/**
+ * One directory's file list, asked a second way when the first way answers "nothing".
+ *
+ * WHY TWICE. Asking about `${root}/${dir}` asks the host about a path relative to the user data
+ * folder, and on a host that keeps user files somewhere else that is not where our art is. The
+ * Forge is the case in hand: `FilePicker.upload("data", …)` is redirected into its Assets
+ * Library, so every file lands under `<assets origin>/<userId>/${root}/…` while the
+ * data-relative folder either does not exist or exists and is EMPTY. Its browse tries the
+ * data-relative listing first and retries against the Assets Library only when that listing
+ * both finds nothing AND comes back describing a different folder than the one asked about — so
+ * an empty directory sitting at exactly the path we asked for satisfies it, and it reports "no
+ * files" about a folder holding every picture the GM imported.
+ *
+ * That report is indistinguishable from a folder the GM emptied on purpose, and the art indexes
+ * are AUTHORITATIVE (reapply.js). So it does not merely fail to find art: it republishes
+ * `peopleArt` / `peoplePortraitArt` / `treasureArt` / `gmDiagramArt` as empty on every GM load,
+ * and the People gallery goes blank on a world holding all 306 portraits.
+ *
+ * So when the data-relative listing yields no files, and this world has OBSERVED something in
+ * front of its art (`book2ArtPrefix` — published from a real listing, or from the importer's own
+ * upload results), ask again with that in front. A host that serves user files from elsewhere
+ * recognises its own absolute path and answers about the right folder.
+ *
+ * Vendor-neutral by construction: no hostname is named here or anywhere else. The prefix is
+ * whatever this host handed back, and an empty one — every self-hosted world — short-circuits to
+ * exactly the single browse this has always made. The retry costs a second round trip ONLY for a
+ * directory that came back empty, which in a world with art imported is no directory at all.
+ *
+ * WHAT THIS CANNOT REPAIR, and deliberately does not pretend to. The retry needs a prefix, and a
+ * prefix can only come from an import that recorded one. `book2ArtPrefix` was registered in 1.5.0
+ * (and the importer only publishes it where the setting exists), so a hosted world whose art was
+ * imported on 1.4.x or earlier has art on disk, no prefix, and no way to learn one: the browse
+ * cannot see the folder, and its documents cannot supply it either, because that importer wired
+ * the BARE identity (`srcOf = (out) => ${ROOT}/${out}`) rather than what the upload answered.
+ * Such a world is not merely missing its gallery — every book illustration in it is a broken
+ * image — and the one cure is, and always was, to re-run the import, which records both. Trying
+ * to auto-heal it here would mean guessing a hostname, which is the one thing this mechanism must
+ * never do.
+ *
+ * What actually reaches that GM is the empty People gallery's own offer (PeopleGalleryDialog's
+ * `_emptyOffer`, and the Welcome guide's Book Art step), which reads "nothing on disk" and puts
+ * the import in front of them every time they open it. NOT the cleared-index warning in
+ * reapply.js: that fires on the TRANSITION from populated to empty, and a world whose indexes
+ * were already emptied on an earlier build sits at `prev === have === {}` and returns before the
+ * warning is ever reached. The warning is for catching this happening, not for describing a world
+ * it already happened to.
+ */
+async function readDir(root, dir) {
+	const FP = filePicker();
+	const rel = `${root}/${dir}`;
+	const listed = await listDir(FP, rel);
+	if (listed?.files?.length) return listed;
+
+	const prefix = book2ArtPrefix();
+	if (!prefix) return listed;
+	const viaPrefix = await listDir(FP, `${prefix}${rel}`);
+	// Only PROMOTE a listing that found something: a second empty answer tells us nothing the
+	// first did not, and the first is the one the caller's own path built.
+	return viaPrefix?.files?.length ? viaPrefix : listed;
 }
 
 /** One directory's file list, from cache when we have already asked this session. */
@@ -72,11 +181,9 @@ function browseDir(root, dir) {
 	const key = `${root}|${dir}`;
 	let pending = _browseCache.get(key);
 	if (!pending) {
-		const FP = filePicker();
-		// A rejected browse means the directory does not exist yet (the GM hasn't imported)
-		// -> nothing on disk from there. Cached like any other answer: an absent directory
-		// stays absent until something creates it, and that clears the cache.
-		pending = FP.browse("data", `${root}/${dir}`).catch(() => null);
+		// Cached like any other answer, "not there" included: an absent directory stays absent
+		// until something creates it, and that clears the cache.
+		pending = readDir(root, dir);
 		_browseCache.set(key, pending);
 	}
 	return pending;
