@@ -35,7 +35,7 @@ describe("finding the world copy of a gazetteer entry", () => {
 	it("still matches a world seeded before the package was renamed", () => {
 		// The stamp carries whatever id the system was installed under at seed time, and it is
 		// the same entry. Keying on the tail is the rule the seeder itself uses.
-		const entry = worldEntry("world1", packRef("stonetop_pwd", "6yScslDfqrcCQ6CJ"));
+		const entry = worldEntry("world1", packRef("stonetop", "6yScslDfqrcCQ6CJ"));
 		const index = worldGazetteerIndex([entry]);
 		expect(worldGazetteerEntry("6yScslDfqrcCQ6CJ", index)).toBe(entry);
 	});
@@ -138,7 +138,7 @@ describe("opening an entry far enough that its pin survives", () => {
 	it("reads the stamp under an older package id too", () => {
 		// A world opened up before the rename carries the stamp spelled the old way, and it is
 		// the same promise. Missing it would re-open every place that world's GM had closed.
-		const legacy = worldEntry("w1", "x", { default: 0 }, { stonetop_pwd: { gazetteerPinOpened: true } });
+		const legacy = worldEntry("w1", "x", { default: 0 }, { stonetop: { gazetteerPinOpened: true } });
 		expect(alreadyOpened(legacy)).toBe(true);
 		expect(ownershipRaises([legacy])).toEqual([]);
 	});

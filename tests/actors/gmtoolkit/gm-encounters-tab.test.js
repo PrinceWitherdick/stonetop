@@ -1470,7 +1470,7 @@ describe("the Encounters tab: deploying to the map", () => {
 		}));
 		global.game.actors = [{
 			uuid: "Actor.world1", name: "Rust-Hound",
-			flags: { core: { sourceId: "Compendium.stonetop_pwd.bestiary.Actor.rh" } },
+			flags: { core: { sourceId: "Compendium.stonetop.bestiary.Actor.rh" } },
 		}];
 		globalThis.Actor = { create: vi.fn(), canUserCreate: () => true };
 		await host._deployEncounter("e1");

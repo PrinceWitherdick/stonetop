@@ -295,7 +295,7 @@ describe("markPosterMapScenes", () => {
 
 	it("claims a Scene the macro stamped under a legacy package id", async () => {
 		const scene = fakeScene("vicinity");
-		scene.flags = { stonetop_pwd: { posterMap: "vicinity" } };
+		scene.flags = { stonetop: { posterMap: "vicinity" } };
 		expect((await run([scene])).placed).toBe(14);
 	});
 

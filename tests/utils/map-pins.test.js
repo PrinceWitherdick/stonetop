@@ -508,7 +508,7 @@ describe("telling a marker apart from everything else on a scene", () => {
 		const suffixes = [PLACE_MARKER_ICON_SUFFIX, PLACE_EXIT_ICON_SUFFIX, PLACE_PEAK_ICON_SUFFIX];
 		for (const suffix of suffixes) {
 			expect(isPlaceMarkerNote({ texture: { src: `systems/stonetop_pwd/${suffix}` } }), suffix).toBe(true);
-			expect(isPlaceMarkerNote({ texture: { src: `systems/stonetop_pwd/${suffix}` } }), suffix).toBe(true);
+			expect(isPlaceMarkerNote({ texture: { src: `systems/stonetop/${suffix}` } }), suffix).toBe(true);
 		}
 		for (const kind of ["place", "exit", "peak", "region"]) {
 			expect(isPlaceMarkerNote({ texture: { src: placeMarkerIcon(kind) } }), kind).toBe(true);

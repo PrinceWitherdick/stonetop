@@ -52,7 +52,7 @@ describe("which poster map a scene is", () => {
 	});
 
 	it("reads it off a legacy flag scope, since the macro stamps the runtime id", () => {
-		expect(posterMapSlugOf({ name: "Renamed", flags: { stonetop_pwd: { posterMap: "marshedge" } } }))
+		expect(posterMapSlugOf({ name: "Renamed", flags: { stonetop: { posterMap: "marshedge" } } }))
 			.toBe("marshedge");
 	});
 
