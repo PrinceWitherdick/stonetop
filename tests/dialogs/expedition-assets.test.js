@@ -81,7 +81,7 @@ beforeEach(() => {
 		i18n: global.game.i18n,
 		user: { isGM: true },
 		settings: {
-			settings: new Map([["stonetop-pwd.expeditionAnswers", { scope: "world" }]]),
+			settings: new Map([["stonetop_pwd.expeditionAnswers", { scope: "world" }]]),
 			get: (_ns, key) => store[key],
 			set: (_ns, key, value) => { store[key] = value; return Promise.resolve(value); },
 		},

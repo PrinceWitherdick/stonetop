@@ -457,7 +457,7 @@ export function registerSettings() {
 	});
 
 	// The durable folder (a top-level data path, OUTSIDE the system folder) the "Import
-	// Book Art" macro writes extracted illustrations to. Living outside systems/stonetop-pwd
+	// Book Art" macro writes extracted illustrations to. Living outside systems/stonetop_pwd
 	// is what keeps the art across a system update or reinstall; the runtime re-apply
 	// (hooks/Ready.js -> book2-art/reapply.js) re-points documents at it after an update.
 	game.settings.register(SYSTEM_ID, "book2ArtRoot", {
@@ -692,7 +692,7 @@ export function registerSettings() {
 	// Answers recorded in the guided Character Introductions (see
 	// dialogs/IntroductionsDialog.js) — what each PC established about themselves and
 	// Stonetop. GM-written (only a GM can write a world setting): the GM types the
-	// narration rounds and HARVESTS each player's own `flags.stonetop-pwd.intro` flag
+	// narration rounds and HARVESTS each player's own `flags.stonetop_pwd.intro` flag
 	// (the player-driven answer/ask steps) into here for the Chronicle. Compiled into the
 	// shared "Chronicle" journal (utils/chronicle.js). Shape, keyed by actor id:
 	//   { <actorId>: {
@@ -1335,7 +1335,7 @@ export const HOVER_DESCRIPTION_SETTING_KEYS = [
  * asked for.
  *
  * The template path is built from SYSTEM_ID rather than written out. Two of these used to hard-
- * code `systems/stonetop-pwd/...` and one did not, which is exactly the kind of disagreement a
+ * code `systems/stonetop_pwd/...` and one did not, which is exactly the kind of disagreement a
  * package rename turns into a blank window with nothing logged.
  */
 function _createSettingsMenuApp({ id, titleKey, template, getData, update }) {
@@ -2121,7 +2121,7 @@ export function setSetting(key, value) {
  * the console line is for whoever is debugging why a write did not land.
  */
 export function setWorldSetting(key, value) {
-	const scope = globalThis.game?.settings?.settings?.get?.(`stonetop-pwd.${key}`)?.scope;
+	const scope = globalThis.game?.settings?.settings?.get?.(`stonetop_pwd.${key}`)?.scope;
 	if (scope === "world" && !globalThis.game?.user?.isGM) {
 		console.debug(`Stonetop | skipped world-setting write to "${key}": not a GM.`);
 		return Promise.resolve();

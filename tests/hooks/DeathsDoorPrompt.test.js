@@ -6,7 +6,7 @@ import {
 } from "../../module/hooks/DeathsDoorPrompt.js";
 import { DEATHS_DOOR_STATE } from "../../module/actors/character/deaths-door.js";
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 
 /** A user as `ownerUsers` reduces one: just the four facts the claim rules on. */
 const user = (id, { isGM = false, active = true, assigned = false } = {}) => ({ id, isGM, active, assigned });

@@ -93,7 +93,7 @@ beforeEach(() => {
 		i18n: global.game.i18n,
 		user: { isGM: true },
 		settings: {
-			settings: new Map([["stonetop-pwd.expeditionAnswers", { scope: "world" }]]),
+			settings: new Map([["stonetop_pwd.expeditionAnswers", { scope: "world" }]]),
 			get: (_ns, key) => store[key],
 			set: (_ns, key, value) => { store[key] = value; return Promise.resolve(value); },
 		},
@@ -385,11 +385,11 @@ describe("building the panel", () => {
 	it("offers the gazetteer only where the books give the place an entry", async () => {
 		const data = await dialog()._buildJourney();
 		const rows = Object.fromEntries(data.groups.flatMap(g => g.places).map(p => [p.slug, p]));
-		expect(rows.marshedge.uuid).toBe("Compendium.stonetop-pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR");
+		expect(rows.marshedge.uuid).toBe("Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uXlyry9CpXUz4ooR");
 		// The Crossroads has no entry of its own and BORROWS the road's, which is where the books
 		// describe it: The Makers' Roads carries a section headed "The Crossroads".
 		expect(rows["the-crossroads"].uuid)
-			.toBe("Compendium.stonetop-pwd.stonetop-journal.JournalEntry.ezquwGFbne6uxzJK");
+			.toBe("Compendium.stonetop_pwd.stonetop-journal.JournalEntry.ezquwGFbne6uxzJK");
 		// Tor's Fist still opens nothing, and that is the honest answer rather than an oversight:
 		// nothing in the gazetteer describes it, and a card that opens the wrong entry is worse
 		// than one that opens none.
@@ -1236,7 +1236,7 @@ describe("drawing the route on the scene", () => {
 			id: `scene-${slug}`,
 			name: name ?? (slug === "vicinity" ? "The Vicinity" : "The World's End"),
 			width, height,
-			flags: { "stonetop-pwd": slug ? { posterMap: slug } : {} },
+			flags: { "stonetop_pwd": slug ? { posterMap: slug } : {} },
 			// `update` rather than the flag helpers: the route is written and cleared through
 			// explicit `flags.<scope>.<key>` paths so it can reach a scope core would refuse to
 			// validate, which is what a rename of this package leaves behind. Dotted paths and
@@ -1358,7 +1358,7 @@ describe("drawing the route on the scene", () => {
 		const doc = scene();
 		const said = onCanvas(doc);
 		await dialog({ destination: "the-crossroads" })._putRouteOnScene();
-		expect(doc.flags["stonetop-pwd"].expeditionRoute)
+		expect(doc.flags["stonetop_pwd"].expeditionRoute)
 			.toMatchObject({ origin: "stonetop", destination: "the-crossroads" });
 		expect(said.info[0]).toContain("the Crossroads");
 		expect(said.info[0]).toContain("The Vicinity");
@@ -1370,7 +1370,7 @@ describe("drawing the route on the scene", () => {
 		const d = dialog({ destination: "the-crossroads" });
 		await d._putRouteOnScene();
 		await d._putRouteOnScene();
-		expect(doc.flags["stonetop-pwd"].expeditionRoute).toBeUndefined();
+		expect(doc.flags["stonetop_pwd"].expeditionRoute).toBeUndefined();
 		expect(said.info.at(-1)).toContain("off The Vicinity");
 	});
 
@@ -1380,7 +1380,7 @@ describe("drawing the route on the scene", () => {
 		const doc = scene(null, { name: "The Barrow", width: 4000, height: 3000 });
 		const said = onCanvas(doc, [scene("vicinity")]);
 		await dialog({ destination: "the-crossroads" })._putRouteOnScene();
-		expect(doc.flags["stonetop-pwd"].expeditionRoute).toBeUndefined();
+		expect(doc.flags["stonetop_pwd"].expeditionRoute).toBeUndefined();
 		expect(said.info).toHaveLength(0);
 		expect(said.warn[0]).toContain("The Vicinity");
 	});
@@ -1400,7 +1400,7 @@ describe("drawing the route on the scene", () => {
 		const d = dialog({ destination: "the-crossroads" });
 		d._showMapTier("vicinity");
 		await d._putRouteOnScene();
-		expect(doc.flags["stonetop-pwd"].expeditionRoute).toBeTruthy();
+		expect(doc.flags["stonetop_pwd"].expeditionRoute).toBeTruthy();
 		expect(said.info[0]).toContain("The World's End");
 	});
 
@@ -1408,7 +1408,7 @@ describe("drawing the route on the scene", () => {
 		onCanvas(scene());
 		const journey = await dialog({ destination: "the-crossroads" })._buildJourney();
 		const html = await renderTemplate(
-			"systems/stonetop-pwd/templates/dialogs/partials/expedition-journey-controls.hbs", { journey });
+			"systems/stonetop_pwd/templates/dialogs/partials/expedition-journey-controls.hbs", { journey });
 		expect(html).toContain("stonetop-journey-to-scene");
 		expect(html).toContain("Draw it on the scene");
 	});
@@ -1797,7 +1797,7 @@ describe("sites on the map", () => {
 	// The controls partial is the markup BOTH surfaces draw, which is what makes one check cover
 	// the walkthrough's own map and the popout alike.
 	it("draws the button in the markup both surfaces render, and withholds it from a player", async () => {
-		const controls = "systems/stonetop-pwd/templates/dialogs/partials/expedition-journey-controls.hbs";
+		const controls = "systems/stonetop_pwd/templates/dialogs/partials/expedition-journey-controls.hbs";
 		const journey = await dialog()._buildJourney("vicinity");
 		expect(await renderTemplate(controls, { journey })).toContain("stonetop-journey-place-site");
 
@@ -1815,7 +1815,7 @@ describe("sites on the map", () => {
 		sites.onMap = [placed("The Sunken Barrow", { tier: "vicinity", fx: 0.5, fy: 0.5 })];
 		const map = (await dialog()._buildJourney("vicinity")).map;
 		const html = await renderTemplate(
-			"systems/stonetop-pwd/templates/dialogs/partials/expedition-journey-pins.hbs", map);
+			"systems/stonetop_pwd/templates/dialogs/partials/expedition-journey-pins.hbs", map);
 		expect(html).toContain('data-site-uuid="JournalEntry.x.JournalEntryPage.The Sunken Barrow"');
 		expect(html).toContain("stonetop-journey-site");
 		// It wears its name always, unlike the book's own places, which show one only at the two
@@ -2266,7 +2266,7 @@ describe("what the route step shows while the way is being drawn", () => {
 	// The sentence has to reach the screen, and it is the SAME partial on both surfaces: the route
 	// step sets it under its map, the popout under its viewport (expedition-journey-drawhint.hbs).
 	it("puts the line in the markup both surfaces render", async () => {
-		const hint = "systems/stonetop-pwd/templates/dialogs/partials/expedition-journey-drawhint.hbs";
+		const hint = "systems/stonetop_pwd/templates/dialogs/partials/expedition-journey-drawhint.hbs";
 		// Nothing drawn: an invitation, and nothing to start over from.
 		const bare = await renderTemplate(hint, { journey: await dialog()._buildJourney("vicinity") });
 		expect(bare).toContain("Shift-click the map");

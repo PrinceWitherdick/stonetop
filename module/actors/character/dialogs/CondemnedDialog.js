@@ -44,7 +44,7 @@ export class CondemnedDialog extends RosterDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id: "stonetop-condemned-dialog",
 			title: "The Condemned",
-			template: "systems/stonetop-pwd/templates/dialogs/condemned.hbs",
+			template: "systems/stonetop_pwd/templates/dialogs/condemned.hbs",
 			// "stonetop" carries our window chrome; omitting it leaves the window half-styled,
 			// picking up our own rules over Foundry's default dark header.
 			classes: ["stonetop", "stonetop-condemned-dialog"],

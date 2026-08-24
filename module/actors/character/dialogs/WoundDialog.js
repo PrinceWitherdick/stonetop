@@ -41,7 +41,7 @@ export class WoundDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id: "stonetop-wound-dialog",
 			title: "Wound",
-			template: "systems/stonetop-pwd/templates/dialogs/wound.hbs",
+			template: "systems/stonetop_pwd/templates/dialogs/wound.hbs",
 			classes: ["stonetop", "stonetop-wound-edit-dialog"],
 			width: 620,
 			// Fixed height so switching panels doesn't resize the window: tall enough that

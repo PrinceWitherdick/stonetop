@@ -22,7 +22,7 @@ function setGame(actors = []) {
 			// `index` as well as getIndex's return value: the real getIndex resolves to the pack's
 			// own index collection, and a caller sharing the pack reads it back off the pack (see
 			// utils/pack-index.js) rather than keeping whatever its own call returned.
-			get: (id) => id === "stonetop-pwd.stonetop-bestiary"
+			get: (id) => id === "stonetop_pwd.stonetop-bestiary"
 				? { collection: "x", index: COMPENDIUM, getIndex: async () => COMPENDIUM }
 				: null,
 		},

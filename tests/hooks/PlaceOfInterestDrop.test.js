@@ -71,7 +71,7 @@ describe("PlaceOfInterestDrop", () => {
 			y: 240,
 			text: "The Cistern",
 			texture: expect.objectContaining({
-				src: "systems/stonetop-pwd/assets/icons/landmarks/landmark-c.svg",
+				src: "systems/stonetop_pwd/assets/icons/landmarks/landmark-c.svg",
 			}),
 		})]);
 		expect(globalThis.ui.controls.activate).toHaveBeenCalledWith({ control: "notes", tool: "select" });
@@ -126,7 +126,7 @@ describe("PlaceOfInterestDrop", () => {
 			id,
 			global: false,
 			_source: { author: "gm-user-id" },
-			texture: { src: `systems/stonetop-pwd/assets/icons/landmarks/landmark-${letter}.svg` },
+			texture: { src: `systems/stonetop_pwd/assets/icons/landmarks/landmark-${letter}.svg` },
 		});
 		const sceneWith = (notes) => ({ notes, updateEmbeddedDocuments: vi.fn(async () => {}) });
 
@@ -160,7 +160,7 @@ describe("PlaceOfInterestDrop", () => {
 		it("leaves notes that are not ours alone", async () => {
 			const scene = sceneWith([
 				{ id: "book", global: false, _source: {}, texture: { src: "icons/svg/book.svg" } },
-				{ id: "threat", global: true, _source: { author: "gm-user-id" }, texture: { src: "systems/stonetop-pwd/assets/icons/threat-note.svg" } },
+				{ id: "threat", global: true, _source: { author: "gm-user-id" }, texture: { src: "systems/stonetop_pwd/assets/icons/threat-note.svg" } },
 			]);
 			const { read, write } = world();
 
@@ -240,7 +240,7 @@ describe("PlaceOfInterestDrop", () => {
 		const pin = (id, letter, extra = {}) => ({
 			id,
 			entryId: null,
-			texture: { src: `systems/stonetop-pwd/assets/icons/landmarks/landmark-${letter}.svg` },
+			texture: { src: `systems/stonetop_pwd/assets/icons/landmarks/landmark-${letter}.svg` },
 			...extra,
 		});
 		const sceneWith = (notes) => ({ notes, updateEmbeddedDocuments: vi.fn(async () => {}) });
@@ -316,7 +316,7 @@ describe("PlaceOfInterestDrop", () => {
 		// letters too, so the two families sit inches apart and a size change to either leaves the
 		// other visibly stale on every table that ran the older one.
 		const disc = (id, over = {}) => ({
-			id, texture: { src: "systems/stonetop-pwd/assets/icons/landmarks/landmark-c.svg" },
+			id, texture: { src: "systems/stonetop_pwd/assets/icons/landmarks/landmark-c.svg" },
 			iconSize: MAP_PIN_ICON_SIZE, fontSize: MAP_PIN_FONT_SIZE, textColor: "#1b1009",
 			x: 100, y: 200, text: "The Public House",
 			entryId: "journal-1", ...over,
@@ -382,7 +382,7 @@ describe("PlaceOfInterestDrop", () => {
 			// folder. Resizing one here to a disc's 90 would have this pass and the marker reconcile
 			// take turns resizing the same pin on every load, forever.
 			const marker = {
-				id: "m1", texture: { src: `systems/stonetop-pwd/${PLACE_MARKER_ICON_SUFFIX}` },
+				id: "m1", texture: { src: `systems/stonetop_pwd/${PLACE_MARKER_ICON_SUFFIX}` },
 				iconSize: 70, fontSize: 45, textColor: "#1b1009",
 			};
 			const scene = sceneWith([marker]);

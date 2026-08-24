@@ -20,7 +20,7 @@ export class EndOfSessionDialog extends StonetopDialog {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-end-of-session-dialog",
-			template:  "systems/stonetop-pwd/templates/dialogs/end-of-session.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/end-of-session.hbs",
 			title:     "End of Session",
 			width:     500,
 			height:    560,

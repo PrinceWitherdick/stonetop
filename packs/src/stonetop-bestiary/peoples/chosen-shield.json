@@ -1,7 +1,7 @@
 {
   "name": "Chosen Shield",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/human-group.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/human-group.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "group, organized, brave, vicious",
     "qualities": "",
     "count": 3,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.iXs37AagGZ1bxsUt",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.iXs37AagGZ1bxsUt",
     "notes": "",
     "creatureType": "human-group"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/human-group.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/human-group.svg"
     }
   },
   "items": [

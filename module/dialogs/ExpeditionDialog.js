@@ -73,12 +73,12 @@ const ANSWERS_SETTING = "expeditionAnswers";
 // map" window's overlay. Named here because the dialog renders it directly (not only through a
 // `{{> }}` in its template), so the partial-registration sweep in stonetop.js cannot be the only
 // place the path is written down.
-const JOURNEY_PINS_TEMPLATE = "systems/stonetop-pwd/templates/dialogs/partials/expedition-journey-pins.hbs";
+const JOURNEY_PINS_TEMPLATE = "systems/stonetop_pwd/templates/dialogs/partials/expedition-journey-pins.hbs";
 
 // The Outfit step's party-load block, for the same reason: it is redrawn on its own whenever a
 // sheet under it changes (see `_refreshLoadReadout`), not only through the `{{> }}` in the
 // dialog's template.
-const LOAD_TEMPLATE = "systems/stonetop-pwd/templates/dialogs/partials/expedition-load.hbs";
+const LOAD_TEMPLATE = "systems/stonetop_pwd/templates/dialogs/partials/expedition-load.hbs";
 
 // How long the readout waits after a sheet write before rebuilding. Ticking one inventory box
 // can land as several documents updating in a row (the item, the actor's pool flag, a follower's
@@ -520,7 +520,7 @@ export class ExpeditionDialog extends StepperDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-expedition",
 			title:     "Run an Expedition",
-			template:  "systems/stonetop-pwd/templates/dialogs/expedition.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/expedition.hbs",
 			// Wider than the other steppers to seat TWO rails, the jump-to-step TOC on the
 			// left and the exploration moves on the right, and wide enough for a load row
 			// (avatar · name · nine ◇ · band pill · count) to sit on one line between them.
@@ -2990,7 +2990,7 @@ export class ExpeditionDialog extends StepperDialog {
 	}
 
 	// The Marshal's crew, if this PC has one. Its ◇ load is the sum of filled gear pips
-	// (stored at flags.stonetop-pwd.crew.gear as { slug: filledCount }); Supplies are a
+	// (stored at flags.stonetop_pwd.crew.gear as { slug: filledCount }); Supplies are a
 	// separate track and don't count. Returns null for a PC with no crew.
 	_crewRow(actor) {
 		const crew = actor.getFlag?.(SYSTEM_ID, "crew");

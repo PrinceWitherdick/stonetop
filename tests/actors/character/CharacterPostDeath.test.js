@@ -92,10 +92,10 @@ describe("CharacterPostDeath", () => {
 	// update fragment its caller can combine with one.
 	it("hands the slug write out as a fragment for a caller that must batch it", () => {
 		const flags = makeFlags();
-		flags.updateData = (key, value) => ({ [`flags.stonetop-pwd.postDeathInsert.${key}`]: value });
+		flags.updateData = (key, value) => ({ [`flags.stonetop_pwd.postDeathInsert.${key}`]: value });
 		const pd = new CharacterPostDeath(flags, new CharacterInstincts(makeFlags()), new CharacterLore(makeFlags()));
 
-		expect(pd.slugUpdateData("ghost")).toEqual({ "flags.stonetop-pwd.postDeathInsert.slug": "ghost" });
+		expect(pd.slugUpdateData("ghost")).toEqual({ "flags.stonetop_pwd.postDeathInsert.slug": "ghost" });
 	});
 });
 
