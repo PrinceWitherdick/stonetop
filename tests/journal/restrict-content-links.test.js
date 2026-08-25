@@ -189,15 +189,15 @@ describe("restrictContentLinks", () => {
 	});
 
 	it("keeps a compendium link when the user can see the pack", () => {
-		packs.set("stonetop-pwd.stonetop-items", { visible: true });
-		const link = new FakeLink("Compendium.stonetop-pwd.stonetop-items.Item.move1", "A Move");
+		packs.set("stonetop_pwd.stonetop-items", { visible: true });
+		const link = new FakeLink("Compendium.stonetop_pwd.stonetop-items.Item.move1", "A Move");
 		restrictContentLinks(rootWith([link]));
 		expect(link.replacedWith).toBeUndefined();
 	});
 
 	it("flattens a compendium link when the pack is hidden from the user", () => {
-		packs.set("stonetop-pwd.stonetop-bestiary", { visible: false });
-		const link = new FakeLink("Compendium.stonetop-pwd.stonetop-bestiary.Actor.mon1", "Cynddaraig");
+		packs.set("stonetop_pwd.stonetop-bestiary", { visible: false });
+		const link = new FakeLink("Compendium.stonetop_pwd.stonetop-bestiary.Actor.mon1", "Cynddaraig");
 		restrictContentLinks(rootWith([link]));
 		expect(link.replacedWith?.text).toBe("Cynddaraig");
 	});
@@ -205,14 +205,14 @@ describe("restrictContentLinks", () => {
 	it("flattens an arcana link — the arcana pack is GM-only", () => {
 		// Arcana ship in their own hidden compendium so players can't browse them.
 		// A lore/location entry that cross-links an arcanum must not tease it.
-		packs.set("stonetop-pwd.stonetop-arcana", { visible: false });
-		const link = new FakeLink("Compendium.stonetop-pwd.stonetop-arcana.Item.mindgem", "Mindgem");
+		packs.set("stonetop_pwd.stonetop-arcana", { visible: false });
+		const link = new FakeLink("Compendium.stonetop_pwd.stonetop-arcana.Item.mindgem", "Mindgem");
 		restrictContentLinks(rootWith([link]));
 		expect(link.replacedWith?.text).toBe("Mindgem");
 	});
 
 	it("flattens a compendium link whose pack isn't registered", () => {
-		const link = new FakeLink("Compendium.stonetop-pwd.gone.JournalEntry.x", "Lost");
+		const link = new FakeLink("Compendium.stonetop_pwd.gone.JournalEntry.x", "Lost");
 		restrictContentLinks(rootWith([link]));
 		expect(link.replacedWith?.text).toBe("Lost");
 	});

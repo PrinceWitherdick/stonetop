@@ -4,7 +4,7 @@ import { BOOK2_ART_APPLY_MANIFEST } from "../../module/book2-art/manifest.js";
 import { clearArtBrowseCache, DURABLE_ART_DIRS } from "../../module/book2-art/browse.js";
 import { managedHash } from "../../module/hooks/journal-sync-core.js";
 
-const JRN_SOURCE = (entryId) => `Compendium.stonetop-pwd.stonetop-journal.JournalEntry.${entryId}`;
+const JRN_SOURCE = (entryId) => `Compendium.stonetop_pwd.stonetop-journal.JournalEntry.${entryId}`;
 
 // Runtime re-apply of Book II art after a system update, driven WITHOUT the PDF from
 // the durable art on disk + the generated manifest. These drive the real function
@@ -67,8 +67,8 @@ function makeWorldJournal({ source, name = "World Entry", pages, stamp = false, 
 		toObject: () => ({ pages: pages.map((p) => ({ _id: p.id, name: p.name, type: p.type, system: p.system, text: p.text })) }),
 	};
 	entry._flags = flags;
-	if (stamp) flags["stonetop-pwd"] = { journalSync: { hash: managedHash(entry.toObject()), version } };
-	else if (syncHash) flags["stonetop-pwd"] = { journalSync: { hash: syncHash, version } };
+	if (stamp) flags["stonetop_pwd"] = { journalSync: { hash: managedHash(entry.toObject()), version } };
+	else if (syncHash) flags["stonetop_pwd"] = { journalSync: { hash: syncHash, version } };
 	return entry;
 }
 
@@ -167,7 +167,7 @@ function makeHarness({ isGM = true, syncVersion = "", present = "all", worldActo
 			get: (ns, key) => store[key],
 			set: async (ns, key, val) => { store[key] = val; },
 		},
-		packs: { get: (id) => (id === "stonetop-pwd.stonetop-bestiary" ? besPack : id === "stonetop-pwd.stonetop-journal" ? jrnPack : null) },
+		packs: { get: (id) => (id === "stonetop_pwd.stonetop-bestiary" ? besPack : id === "stonetop_pwd.stonetop-journal" ? jrnPack : null) },
 		actors: worldActors,
 			journal: worldJournals,
 	};
@@ -294,9 +294,9 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		const mon0 = monsters[0];
 		const worldActors = [
 			// our own broken in-system pointer -> re-pointed to the durable path
-			makeWorldActor({ source: uuidOf(mon0), img: `systems/stonetop-pwd/${mon0.out}` }),
+			makeWorldActor({ source: uuidOf(mon0), img: `systems/stonetop_pwd/${mon0.out}` }),
 			// same monster via the legacy core.sourceId flag -> re-pointed
-			makeWorldActor({ source: uuidOf(mon0), img: `systems/stonetop-pwd/${mon0.out}`, legacy: true }),
+			makeWorldActor({ source: uuidOf(mon0), img: `systems/stonetop_pwd/${mon0.out}`, legacy: true }),
 			// a GM's custom portrait -> left untouched
 			makeWorldActor({ source: uuidOf(mon0), img: "worlds/mine/custom-crinwin.png" }),
 			// not one of ours -> ignored
@@ -372,7 +372,7 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 	});
 
 	it("is idempotent: a second pass at the same version makes no further writes", async () => {
-		const worldActors = [makeWorldActor({ source: uuidOf(monsters[0]), img: `systems/stonetop-pwd/${monsters[0].out}` })];
+		const worldActors = [makeWorldActor({ source: uuidOf(monsters[0]), img: `systems/stonetop_pwd/${monsters[0].out}` })];
 		const h = makeHarness({ worldActors });
 
 		await reapplyBook2ArtOnVersionChange();
@@ -390,7 +390,7 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 
 	it("only wires art that is actually on disk (partial import)", async () => {
 		const mon0 = monsters[0];
-		const worldActors = [makeWorldActor({ source: uuidOf(mon0), img: `systems/stonetop-pwd/${mon0.out}` })];
+		const worldActors = [makeWorldActor({ source: uuidOf(mon0), img: `systems/stonetop_pwd/${mon0.out}` })];
 		const h = makeHarness({ present: [mon0.out], worldActors }); // only crinwin's bestiary art present
 
 		await reapplyBook2ArtOnVersionChange();
@@ -418,8 +418,8 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		const foreignPage = makeWorldPage({ id: "foreign", name: "Foreign", type: "location", system: { sections: [{ kind: "prose", body: "<p>x</p>" }] } });
 		const foreign = makeWorldJournal({ source: "Compendium.other.pack.JournalEntry.zzz", pages: [foreignPage], stamp: true });
 
-		const preBesHash = worldBes._flags["stonetop-pwd"].journalSync.hash;
-		const preLocHash = worldLoc._flags["stonetop-pwd"].journalSync.hash;
+		const preBesHash = worldBes._flags["stonetop_pwd"].journalSync.hash;
+		const preLocHash = worldLoc._flags["stonetop_pwd"].journalSync.hash;
 
 		const h = makeHarness({ worldJournals: [worldBes, worldLoc, foreign] });
 		await reapplyBook2ArtOnVersionChange();
@@ -429,10 +429,10 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		expect(locPage.system.sections[secIdx].body).toContain(`src="${durableOf(loc0.images[0].out)}"`);
 
 		// pristine entries re-stamped to the NEW (art-bearing) fingerprint
-		expect(worldBes._flags["stonetop-pwd"].journalSync.hash).toBe(managedHash(worldBes.toObject()));
-		expect(worldBes._flags["stonetop-pwd"].journalSync.hash).not.toBe(preBesHash);
-		expect(worldLoc._flags["stonetop-pwd"].journalSync.hash).toBe(managedHash(worldLoc.toObject()));
-		expect(worldLoc._flags["stonetop-pwd"].journalSync.hash).not.toBe(preLocHash);
+		expect(worldBes._flags["stonetop_pwd"].journalSync.hash).toBe(managedHash(worldBes.toObject()));
+		expect(worldBes._flags["stonetop_pwd"].journalSync.hash).not.toBe(preBesHash);
+		expect(worldLoc._flags["stonetop_pwd"].journalSync.hash).toBe(managedHash(worldLoc.toObject()));
+		expect(worldLoc._flags["stonetop_pwd"].journalSync.hash).not.toBe(preLocHash);
 
 		// unrelated journal untouched
 		expect(foreignPage._writes).toBe(0);
@@ -583,7 +583,7 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		expect(locPage.system.sections[0]).toMatchObject({ kind: "prose", heading: "", group: "glance", danger: false });
 		expect(locPage.system.sections[0].body).toContain(`src="${durableOf(loc0.images[0].out)}"`);
 		// pristine entry re-stamped to the new (art-bearing) fingerprint
-		expect(worldLoc._flags["stonetop-pwd"].journalSync.hash).toBe(managedHash(worldLoc.toObject()));
+		expect(worldLoc._flags["stonetop_pwd"].journalSync.hash).toBe(managedHash(worldLoc.toObject()));
 
 		// idempotent: a second pass (as a version bump would trigger) adds no second copy
 		const writesAfterFirst = locPage._writes;
@@ -612,7 +612,7 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		const soPage = makeWorldPage({ id: so0.journalPageId, name: `cmp:${so0.journalPageId}`, type: "text", system: {} });
 		soPage.text = { content: "<p>world setting prose</p>" };
 		const worldSO = makeWorldJournal({ source: JRN_SOURCE(so0.journalEntryId), name: "Setting Overview", pages: [soPage], stamp: true });
-		const preHash = worldSO._flags["stonetop-pwd"].journalSync.hash;
+		const preHash = worldSO._flags["stonetop_pwd"].journalSync.hash;
 
 		const h = makeHarness({ worldJournals: [worldSO] });
 		await reapplyBook2ArtOnVersionChange();
@@ -626,8 +626,8 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		expect(soPage.text.content).toContain(`<figure class="stonetop-map"><img src="${durable}"`);
 		expect(soPage.text.content).toContain("world setting prose");
 		// pristine entry re-stamped to the new (map-bearing) fingerprint
-		expect(worldSO._flags["stonetop-pwd"].journalSync.hash).toBe(managedHash(worldSO.toObject()));
-		expect(worldSO._flags["stonetop-pwd"].journalSync.hash).not.toBe(preHash);
+		expect(worldSO._flags["stonetop_pwd"].journalSync.hash).toBe(managedHash(worldSO.toObject()));
+		expect(worldSO._flags["stonetop_pwd"].journalSync.hash).not.toBe(preHash);
 		expect(h.store.book2ArtSyncVersion).toBe(VERSION);
 	});
 
@@ -644,7 +644,7 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		const soPage = makeWorldPage({ id: so0.journalPageId, name: `cmp:${so0.journalPageId}`, type: "text", system: {} });
 		soPage.text = { content: `<figure class="stonetop-map"><img src="${oldSrc}" alt="${so0.name}"></figure><p>world setting prose</p>` };
 		const worldSO = makeWorldJournal({ source: JRN_SOURCE(so0.journalEntryId), name: "Setting Overview", pages: [soPage], stamp: true });
-		const preHash = worldSO._flags["stonetop-pwd"].journalSync.hash;
+		const preHash = worldSO._flags["stonetop_pwd"].journalSync.hash;
 
 		const h = makeHarness({ worldJournals: [worldSO] });
 		await reapplyBook2ArtOnVersionChange();
@@ -655,8 +655,8 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		expect(soPage.text.content).toContain("world setting prose"); // the prose is not
 		expect(soPage.text.content.match(/class="stonetop-map"/g)).toHaveLength(1);
 		// pristine entry re-stamped, so the managed channel keeps delivering prose updates
-		expect(worldSO._flags["stonetop-pwd"].journalSync.hash).toBe(managedHash(worldSO.toObject()));
-		expect(worldSO._flags["stonetop-pwd"].journalSync.hash).not.toBe(preHash);
+		expect(worldSO._flags["stonetop_pwd"].journalSync.hash).toBe(managedHash(worldSO.toObject()));
+		expect(worldSO._flags["stonetop_pwd"].journalSync.hash).not.toBe(preHash);
 
 		// the compendium copy upgrades the same way
 		const cmpPage = h.pageDocs.get(`${so0.journalEntryId}::${so0.journalPageId}`);
@@ -741,7 +741,7 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 		expect(locPage.system.sections[secIdx].body).toContain(`src="${durableOf(loc0.images[0].out)}"`);
 		expect(locPage.system.sections[secIdx].body).toContain("GM edited prose");
 		// edited baseline left untouched: the managed channel keeps hands off future prose
-		expect(worldLoc._flags["stonetop-pwd"].journalSync.hash).toBe("EDITED-HASH");
+		expect(worldLoc._flags["stonetop_pwd"].journalSync.hash).toBe("EDITED-HASH");
 		expect(worldLoc._flagWrites).toBe(0);
 	});
 
@@ -776,7 +776,7 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 
 	it("re-points world-actor art/token conservatively and never reverts the GM's token fit", async () => {
 		const mon0 = monsters[0];
-		const stale = `systems/stonetop-pwd/${mon0.out}`; // the pre-durable path an update broke
+		const stale = `systems/stonetop_pwd/${mon0.out}`; // the pre-durable path an update broke
 		const durable = durableOf(mon0.out);
 		const mk = ({ img, tokenSrc, tokenFit }) => {
 			const a = {
@@ -813,8 +813,8 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 	it("does not stamp the version if an item write throws (retries next load, other docs still applied)", async () => {
 		const mon0 = monsters[0];
 		const boom = {
-			img: `systems/stonetop-pwd/${mon0.out}`,
-			prototypeToken: { texture: { src: `systems/stonetop-pwd/${mon0.out}`, fit: "cover" } },
+			img: `systems/stonetop_pwd/${mon0.out}`,
+			prototypeToken: { texture: { src: `systems/stonetop_pwd/${mon0.out}`, fit: "cover" } },
 			_stats: { compendiumSource: uuidOf(mon0) },
 			getFlag: () => undefined,
 			update: async () => { throw new Error("actor locked out"); },
@@ -859,8 +859,8 @@ describe("reapplyBook2ArtOnVersionChange", () => {
 			makeHarness({ worldActors: [a], present: allButFirst() });
 			await reapplyBook2ArtOnVersionChange();
 
-			expect(a.img).toBe("systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg");
-			expect(a.prototypeToken.texture.src).toBe("systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg");
+			expect(a.img).toBe("systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg");
+			expect(a.prototypeToken.texture.src).toBe("systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg");
 		});
 
 		it("falls back to Foundry's default when the actor has no creature type", async () => {
@@ -993,13 +993,13 @@ describe("reapplyBook2Art (scoped + self-heal modes)", () => {
 		const otherLoc = makeWorldJournal({ source: JRN_SOURCE(loc0.journalEntryId), name: loc0.name, pages: [otherPage], stamp: true });
 
 		const h = makeHarness({ worldJournals: [worldBes, otherLoc] });
-		const preHash = worldBes._flags["stonetop-pwd"].journalSync.hash;
+		const preHash = worldBes._flags["stonetop_pwd"].journalSync.hash;
 
 		const result = await reapplyBook2Art({ entries: [worldBes] });
 
 		// the scoped entry got its art and a fresh baseline
 		expect(besPage.system.description).toContain(`src="${durableOf(mon0.out)}"`);
-		expect(worldBes._flags["stonetop-pwd"].journalSync.hash).not.toBe(preHash);
+		expect(worldBes._flags["stonetop_pwd"].journalSync.hash).not.toBe(preHash);
 		// the unscoped-but-ours journal is untouched
 		expect(otherPage._writes).toBe(0);
 		expect(otherLoc._flagWrites).toBe(0);
@@ -1058,7 +1058,7 @@ describe("the steading portrait (world Stonetop sheet)", () => {
 	beforeEach(() => { vi.restoreAllMocks(); });
 
 	const S = steadings[0];
-	const PLACEHOLDER = "systems/stonetop-pwd/assets/stonetop_image.svg";
+	const PLACEHOLDER = "systems/stonetop_pwd/assets/stonetop_image.svg";
 	const makeSteadingActor = (img = PLACEHOLDER) => {
 		const a = { type: "stonetop", img, prototypeToken: { texture: { src: img, fit: "cover" } }, _writes: 0 };
 		a.update = async (upd) => { applyUpdate(a, upd); a._writes++; };
@@ -1134,7 +1134,7 @@ describe("the steading portrait (world Stonetop sheet)", () => {
 describe("world bestiary actor portraits (adopt over the creature-type placeholder)", () => {
 	beforeEach(() => { vi.restoreAllMocks(); });
 
-	const PLACEHOLDER = "systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg";
+	const PLACEHOLDER = "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg";
 
 	it("adopts the book art over the shipped creature-type icon (portrait + token + forced fit)", async () => {
 		const mon0 = monsters[0];
@@ -1408,8 +1408,8 @@ describe("compendium live-refresh after re-pointing (no F5 needed)", () => {
 		const h = makeHarness({});
 		const browser = { render: vi.fn() };            // an open Monsters compendium window
 		h.besPack.apps = [browser];
-		h.besPack.collection = "stonetop-pwd.stonetop-bestiary";
-		const sheet = { rendered: true, document: { pack: "stonetop-pwd.stonetop-bestiary" }, render: vi.fn() }; // a monster sheet opened from it
+		h.besPack.collection = "stonetop_pwd.stonetop-bestiary";
+		const sheet = { rendered: true, document: { pack: "stonetop_pwd.stonetop-bestiary" }, render: vi.fn() }; // a monster sheet opened from it
 		global.foundry.applications = { instances: new Map([["a", sheet]]) };
 
 		await reapplyBook2ArtOnVersionChange();
@@ -1420,7 +1420,7 @@ describe("compendium live-refresh after re-pointing (no F5 needed)", () => {
 
 	it("leaves an unrelated open sheet (not from our compendium) alone", async () => {
 		const h = makeHarness({});
-		h.besPack.collection = "stonetop-pwd.stonetop-bestiary";
+		h.besPack.collection = "stonetop_pwd.stonetop-bestiary";
 		const foreign = { rendered: true, document: { pack: "some.other.pack" }, render: vi.fn() };
 		global.foundry.applications = { instances: new Map([["a", foreign]]) };
 
@@ -1433,7 +1433,7 @@ describe("compendium live-refresh after re-pointing (no F5 needed)", () => {
 		const h = makeHarness({ present: "none" });
 		const browser = { render: vi.fn() };
 		h.besPack.apps = [browser];
-		h.besPack.collection = "stonetop-pwd.stonetop-bestiary";
+		h.besPack.collection = "stonetop_pwd.stonetop-bestiary";
 
 		await reapplyBook2ArtOnVersionChange();
 
@@ -1547,14 +1547,14 @@ describe("curated codex pages", () => {
 		curate([img(CRIN, "banner")]);
 		const page = stackedPage();
 		const world = makeWorldJournal({ source: JRN_SOURCE(ENTRY), pages: [page], stamp: true });
-		const preHash = world._flags["stonetop-pwd"].journalSync.hash;
+		const preHash = world._flags["stonetop_pwd"].journalSync.hash;
 		makeHarness({ worldJournals: [world] });
 
 		await reapplyBook2Art();
 
-		expect(world._flags["stonetop-pwd"].journalSync.hash).toBe(managedHash(world.toObject()));
-		expect(world._flags["stonetop-pwd"].journalSync.hash).not.toBe(preHash);
-		expect(world._flags["stonetop-pwd"].journalSync.version).toBe(VERSION);
+		expect(world._flags["stonetop_pwd"].journalSync.hash).toBe(managedHash(world.toObject()));
+		expect(world._flags["stonetop_pwd"].journalSync.hash).not.toBe(preHash);
+		expect(world._flags["stonetop_pwd"].journalSync.version).toBe(VERSION);
 	});
 
 	it("leaves a GM-edited entry's edited baseline alone", async () => {
@@ -1566,7 +1566,7 @@ describe("curated codex pages", () => {
 		await reapplyBook2Art();
 
 		expect(page.system.description).toBe(embed(CRIN) + PROSE);              // art still curated
-		expect(world._flags["stonetop-pwd"].journalSync.hash).toBe("EDITED-HASH"); // but hands off
+		expect(world._flags["stonetop_pwd"].journalSync.hash).toBe("EDITED-HASH"); // but hands off
 	});
 
 	it("is a no-op on a page that already matches", async () => {

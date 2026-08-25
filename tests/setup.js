@@ -48,7 +48,7 @@ Handlebars.registerHelper("escapeHtml", value => escHtml(value));
 const _templates = new Map();
 
 global.renderTemplate = (templatePath, data) => {
-	// "systems/stonetop-pwd/templates/…" is how Foundry addresses a system file; here it is a path
+	// "systems/stonetop_pwd/templates/…" is how Foundry addresses a system file; here it is a path
 	// relative to the repo root.
 	const file = path.join(_systemRoot, String(templatePath).replace(/^systems\/[^/]+\//, ""));
 	if (!_templates.has(file)) _templates.set(file, Handlebars.compile(fs.readFileSync(file, "utf8")));

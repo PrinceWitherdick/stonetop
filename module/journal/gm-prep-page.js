@@ -11,7 +11,7 @@ import { buildSiteCardVM, wireSiteTableRoll } from "../sites/site-view.js";
 import { STONETOP_SCOPE } from "../actors/character/StonetopFlags.js";
 import { SYSTEM_ID } from "../system-id.js";
 
-const CARD_PARTIALS = "systems/stonetop-pwd/templates/journal/partials";
+const CARD_PARTIALS = "systems/stonetop_pwd/templates/journal/partials";
 
 // ── What a kind's scene pin is drawn from ────────────────────────────────────────────────────
 // Here rather than beside the hook that writes the pins, for the reason the table below exists:

@@ -32,16 +32,16 @@ describe("StonetopItem.roll — move identity on the card", () => {
 	it("stamps the base move name, not the stat-decorated header", async () => {
 		await makeItem("Know Things", KNOW_THINGS).roll({ statOverride: "wis" });
 		const opts = rollStat.mock.calls[0][2];
-		expect(opts.messageFlags["stonetop-pwd"].move).toBe("Know Things");
+		expect(opts.messageFlags["stonetop_pwd"].move).toBe("Know Things");
 		expect(opts.moveName).toBe("Know Things with WIS");   // the header still names the stat
 	});
 
 	it("merges into an existing producer's flags rather than replacing them", async () => {
 		// The attack flow already stamps its own payload under the same scope key.
 		await makeItem("Clash", { rollType: "str" }).roll({
-			messageFlags: { "stonetop-pwd": { attack: { move: "clash" } } },
+			messageFlags: { "stonetop_pwd": { attack: { move: "clash" } } },
 		});
-		const flags = rollStat.mock.calls[0][2].messageFlags["stonetop-pwd"];
+		const flags = rollStat.mock.calls[0][2].messageFlags["stonetop_pwd"];
 		expect(flags.attack).toEqual({ move: "clash" });
 		expect(flags.move).toBe("Clash");
 	});

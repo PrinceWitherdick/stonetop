@@ -10,7 +10,7 @@ function withActors(actors) {
 
 /** A character carrying followers, shaped like the flag bag resolvedFlags reads. */
 function pcWith(name, followerFlags, img = "") {
-	return { id: name.toLowerCase(), type: "character", name, img, flags: { "stonetop-pwd": followerFlags } };
+	return { id: name.toLowerCase(), type: "character", name, img, flags: { "stonetop_pwd": followerFlags } };
 }
 
 afterEach(() => { delete global.game.actors; });
@@ -39,7 +39,7 @@ describe("usedActorPortraits", () => {
 		withActors([
 			{ id: "a", type: "npc", name: "Nobody", img: "" },
 			{ id: "b", type: "npc", name: "Also nobody", img: "icons/svg/mystery-man.svg" },
-			{ id: "c", type: "npc", name: "Still nobody", img: "systems/stonetop-pwd/assets/icons/people/default_profile.svg" },
+			{ id: "c", type: "npc", name: "Still nobody", img: "systems/stonetop_pwd/assets/icons/people/default_profile.svg" },
 		]);
 		expect(usedActorPortraits()).toEqual({});
 	});
@@ -89,7 +89,7 @@ describe("usedActorPortraits", () => {
 		// namespace that means something else there.
 		withActors([{
 			id: "n1", type: "npc", name: "Bryn", img: "",
-			flags: { "stonetop-pwd": { customFollowers: { x: { img: `${ART}/x.webp` } } } },
+			flags: { "stonetop_pwd": { customFollowers: { x: { img: `${ART}/x.webp` } } } },
 		}]);
 		expect(usedActorPortraits()).toEqual({});
 	});

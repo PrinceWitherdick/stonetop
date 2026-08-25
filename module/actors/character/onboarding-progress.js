@@ -1,6 +1,6 @@
 // ── Where a player has got to in character creation ────────────────────────────
 // The creation flow stamps its position on the character as
-// flags.stonetop-pwd.onboardingProgress (see StonetopCharacterSheet#_setOnboardingState),
+// flags.stonetop_pwd.onboardingProgress (see StonetopCharacterSheet#_setOnboardingState),
 // which is the only part of a player's local, uncommitted progress the GM can read.
 //
 // Two surfaces read it, and they must agree: the Welcome guide's player roster ("on page

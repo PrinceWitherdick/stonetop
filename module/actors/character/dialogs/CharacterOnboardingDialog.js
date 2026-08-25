@@ -1594,7 +1594,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-character-onboarding",
-			template:  "systems/stonetop-pwd/templates/dialogs/character-onboarding.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/character-onboarding.hbs",
 			width:     660,
 			height:    740,
 			resizable: true,

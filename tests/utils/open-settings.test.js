@@ -62,7 +62,7 @@ describe("jumping to a system setting", () => {
 		expect(app.render).toHaveBeenCalledWith(true);
 		// `name="<system>.<key>"` is how core's own form maps back onto settings when it is
 		// submitted, so it is the one attribute the row is certain to carry.
-		expect(element.querySelector.mock.calls[0][0]).toContain("stonetop-pwd.weatherSceneFx");
+		expect(element.querySelector.mock.calls[0][0]).toContain("stonetop_pwd.weatherSceneFx");
 	});
 
 	// A setting's name is not unique to one window. Asking the whole document for it lit whichever

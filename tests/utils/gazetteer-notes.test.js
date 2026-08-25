@@ -18,16 +18,16 @@ function worldEntry(id, source, ownership = { default: 0 }, flags = {}) {
 
 /** The same, after a previous run of this pass has opened it up once. */
 const openedBefore = (id, ownership) =>
-	worldEntry(id, "x", ownership, { "stonetop-pwd": { gazetteerPinOpened: true } });
+	worldEntry(id, "x", ownership, { "stonetop_pwd": { gazetteerPinOpened: true } });
 
 /** What one raise looks like: the ownership, and the stamp that makes it a one-time favour. */
-const raise = (id) => ({ _id: id, "ownership.default": 1, "flags.stonetop-pwd.gazetteerPinOpened": true });
+const raise = (id) => ({ _id: id, "ownership.default": 1, "flags.stonetop_pwd.gazetteerPinOpened": true });
 
 const packRef = (systemId, journalId) => `Compendium.${systemId}.stonetop-journal.JournalEntry.${journalId}`;
 
 describe("finding the world copy of a gazetteer entry", () => {
 	it("matches the stamp the journal seed leaves behind", () => {
-		const entry = worldEntry("world1", packRef("stonetop-pwd", "6yScslDfqrcCQ6CJ"));
+		const entry = worldEntry("world1", packRef("stonetop_pwd", "6yScslDfqrcCQ6CJ"));
 		const index = worldGazetteerIndex([entry]);
 		expect(worldGazetteerEntry("6yScslDfqrcCQ6CJ", index)).toBe(entry);
 	});
@@ -41,12 +41,12 @@ describe("finding the world copy of a gazetteer entry", () => {
 	});
 
 	it("reads the legacy sourceId flag as well as the modern stamp", () => {
-		const legacy = { id: "w2", ownership: { default: 0 }, flags: { core: { sourceId: packRef("stonetop-pwd", "vwP9YSr3qrc4Tq7k") } } };
+		const legacy = { id: "w2", ownership: { default: 0 }, flags: { core: { sourceId: packRef("stonetop_pwd", "vwP9YSr3qrc4Tq7k") } } };
 		expect(worldGazetteerEntry("vwP9YSr3qrc4Tq7k", worldGazetteerIndex([legacy]))).toBe(legacy);
 	});
 
 	it("answers null rather than guessing", () => {
-		const index = worldGazetteerIndex([worldEntry("w1", packRef("stonetop-pwd", "aaaaaaaaaaaaaaaa"))]);
+		const index = worldGazetteerIndex([worldEntry("w1", packRef("stonetop_pwd", "aaaaaaaaaaaaaaaa"))]);
 		expect(worldGazetteerEntry("6yScslDfqrcCQ6CJ", index)).toBe(null);
 		expect(worldGazetteerEntry(null, index)).toBe(null);
 		// A world that never imported the journals: every pin stays a plain label.
@@ -58,8 +58,8 @@ describe("finding the world copy of a gazetteer entry", () => {
 	});
 
 	it("keeps the original when a GM has duplicated an entry", () => {
-		const first = worldEntry("w1", packRef("stonetop-pwd", "6yScslDfqrcCQ6CJ"));
-		const copy = worldEntry("w2", packRef("stonetop-pwd", "6yScslDfqrcCQ6CJ"));
+		const first = worldEntry("w1", packRef("stonetop_pwd", "6yScslDfqrcCQ6CJ"));
+		const copy = worldEntry("w2", packRef("stonetop_pwd", "6yScslDfqrcCQ6CJ"));
 		expect(worldGazetteerEntry("6yScslDfqrcCQ6CJ", worldGazetteerIndex([first, copy]))).toBe(first);
 	});
 
@@ -83,7 +83,7 @@ describe("opening an entry far enough that its pin survives", () => {
 		// OBSERVER is a GM handing the table a place's write-up. The ownership is untouched; the
 		// row is the stamp alone, so the entry counts as dealt with and is never argued with.
 		const observed = worldEntry("w1", "x", { default: 2 });
-		expect(ownershipRaises([observed])).toEqual([{ _id: "w1", "flags.stonetop-pwd.gazetteerPinOpened": true }]);
+		expect(ownershipRaises([observed])).toEqual([{ _id: "w1", "flags.stonetop_pwd.gazetteerPinOpened": true }]);
 	});
 
 	it("catches up a world that ran an older pass, once, then goes quiet", async () => {
@@ -94,7 +94,7 @@ describe("opening an entry far enough that its pin survives", () => {
 		const already = worldEntry("w1", "x", { default: 1 });
 		const batches = [];
 		await openGazetteerEntriesToPlayers([already], { update: d => batches.push(d) });
-		expect(batches).toEqual([[{ _id: "w1", "flags.stonetop-pwd.gazetteerPinOpened": true }]]);
+		expect(batches).toEqual([[{ _id: "w1", "flags.stonetop_pwd.gazetteerPinOpened": true }]]);
 
 		let calls = 0;
 		await openGazetteerEntriesToPlayers([openedBefore("w1", { default: 1 })], { update: () => { calls++; } });

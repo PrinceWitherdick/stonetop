@@ -268,7 +268,7 @@ describe("pausing the weather on the canvas", () => {
 			get: (_sys, key) => (key === "weatherSceneFx" ? stored : (off.includes(key) ? false : "publicroll")),
 			set: vi.fn((_sys, key, value) => { if (key === "weatherSceneFx") stored = value; }),
 			// setWorldSetting reads the scope off the registration before it writes.
-			settings: new Map([["stonetop-pwd.weatherSceneFx", { scope: "world" }]]),
+			settings: new Map([["stonetop_pwd.weatherSceneFx", { scope: "world" }]]),
 		};
 		restore = () => { Object.assign(globalThis.game, saved); undoWorld(); };
 		return { actor, scene, settings: globalThis.game.settings };
@@ -280,7 +280,7 @@ describe("pausing the weather on the canvas", () => {
 		});
 
 		expect(await setWeatherFxPaused(true)).toBe(true);
-		expect(settings.set).toHaveBeenCalledWith("stonetop-pwd", "weatherSceneFx", false);
+		expect(settings.set).toHaveBeenCalledWith("stonetop_pwd", "weatherSceneFx", false);
 		expect(Object.keys(scene.update.mock.calls[0][0]))
 			.toEqual([`flags.${FXMASTER_ID}.effects.-=${FX_KEY_PREFIX}rain`]);
 		// The sky the world is under is not what was paused. The steading still says storm, and
@@ -296,7 +296,7 @@ describe("pausing the weather on the canvas", () => {
 		const { scene, settings } = fxWorld("blizzard", { sceneFx: false });
 
 		expect(await setWeatherFxPaused(false)).toBe(true);
-		expect(settings.set).toHaveBeenCalledWith("stonetop-pwd", "weatherSceneFx", true);
+		expect(settings.set).toHaveBeenCalledWith("stonetop_pwd", "weatherSceneFx", true);
 		expect(scene.update.mock.calls[0][0])
 			.toHaveProperty(`flags.${FXMASTER_ID}.effects.${FX_KEY_PREFIX}snowstorm`);
 	});

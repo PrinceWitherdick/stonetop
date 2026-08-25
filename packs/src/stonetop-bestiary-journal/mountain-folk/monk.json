@@ -35,8 +35,8 @@
       },
       "src": null,
       "system": {
-        "concept": "Disciplined ascetics of the Whitefangs, heirs to the <strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.oi5Mg2wPABRjvHri]{Rime Lords}</strong>' teachings.",
-        "description": "<p>The fortress-monasteries of the Whitefangs follow the half-remembered teachings of the <strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.oi5Mg2wPABRjvHri]{Rime Lords}</strong>. Consider creating custom instincts and moves for each group of monks, based on the teachings and practices of their monastery and sect — Empty Sky (ignore the suffering of others), Unmoved Mountain (push and test themselves), White Crystal (impose order), and others.</p>",
+        "concept": "Disciplined ascetics of the Whitefangs, heirs to the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.oi5Mg2wPABRjvHri]{Rime Lords}</strong>' teachings.",
+        "description": "<p>The fortress-monasteries of the Whitefangs follow the half-remembered teachings of the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.oi5Mg2wPABRjvHri]{Rime Lords}</strong>. Consider creating custom instincts and moves for each group of monks, based on the teachings and practices of their monastery and sect — Empty Sky (ignore the suffering of others), Unmoved Mountain (push and test themselves), White Crystal (impose order), and others.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",
@@ -48,7 +48,7 @@
         "dangers": [],
         "notes": "",
         "statBlocks": [
-          "Compendium.stonetop-pwd.stonetop-bestiary.Actor.EDaesIZe2McJdVG7"
+          "Compendium.stonetop_pwd.stonetop-bestiary.Actor.EDaesIZe2McJdVG7"
         ]
       },
       "sort": 100000,

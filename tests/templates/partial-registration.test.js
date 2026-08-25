@@ -19,9 +19,9 @@ import { readRepo as read } from "../fakes/css.js";
 const ROOT = path.resolve(import.meta.dirname, "../..");
 const BOOT = read("stonetop.js");
 
-// The registration map: "stonetop.name" -> "systems/stonetop-pwd/templates/….hbs".
+// The registration map: "stonetop.name" -> "systems/stonetop_pwd/templates/….hbs".
 const registered = new Map(
-	[...BOOT.matchAll(/"(stonetop\.[\w-]+)":\s*"(systems\/stonetop-pwd\/[^"]+\.hbs)"/g)]
+	[...BOOT.matchAll(/"(stonetop\.[\w-]+)":\s*"(systems\/stonetop_pwd\/[^"]+\.hbs)"/g)]
 		.map(m => [m[1], m[2]]),
 );
 
@@ -69,7 +69,7 @@ describe("Handlebars partial registration", () => {
 		expect(asked.get("stonetop.section-heading"), "plain {{> …}} form").toBeTruthy();
 		expect(asked.get("stonetop.cs-list-frame"), "block {{#> …}} form").toBeTruthy();
 		expect(registered.get("stonetop.cs-list-frame")).toBe(
-			"systems/stonetop-pwd/templates/dialogs/partials/cs-list-frame.hbs",
+			"systems/stonetop_pwd/templates/dialogs/partials/cs-list-frame.hbs",
 		);
 	});
 
@@ -81,7 +81,7 @@ describe("Handlebars partial registration", () => {
 
 	it("points every registration at a file that exists", () => {
 		const broken = [...registered]
-			.filter(([, p]) => !fs.existsSync(path.join(ROOT, p.replace("systems/stonetop-pwd/", ""))))
+			.filter(([, p]) => !fs.existsSync(path.join(ROOT, p.replace("systems/stonetop_pwd/", ""))))
 			.map(([name, p]) => `${name} -> ${p}`);
 		expect(broken, `\nRegistrations with no file:\n${broken.join("\n")}\n`).toEqual([]);
 	});

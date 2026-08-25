@@ -164,16 +164,16 @@ describe("StonetopCharacter.toggleCarriedItem", () => {
 	it("marks an item by moving its weight out of the undefined ◇ pool", async () => {
 		const actor = new FakeActorBuilder().withFlag("inventory.regularPool", 3).build();
 		await makeChar(actor).toggleCarriedItem("rope", true, { weight: 2 });
-		expect(actor.getFlag("stonetop-pwd", "inventory.checked")).toEqual({ rope: true });
-		expect(actor.getFlag("stonetop-pwd", "inventory.regularPool")).toBe(1);
+		expect(actor.getFlag("stonetop_pwd", "inventory.checked")).toEqual({ rope: true });
+		expect(actor.getFlag("stonetop_pwd", "inventory.regularPool")).toBe(1);
 	});
 
 	it("marks an item the pool can't fully cover, draining the reserve (the rest becomes load)", async () => {
 		const actor = new FakeActorBuilder().withFlag("inventory.regularPool", 1).build();
 		await makeChar(actor).toggleCarriedItem("armor", true, { weight: 3 });
 		// Item is carried; the 1 available ◇ is spent and the other 2 add to the load.
-		expect(actor.getFlag("stonetop-pwd", "inventory.checked")).toEqual({ armor: true });
-		expect(actor.getFlag("stonetop-pwd", "inventory.regularPool")).toBe(0);
+		expect(actor.getFlag("stonetop_pwd", "inventory.checked")).toEqual({ armor: true });
+		expect(actor.getFlag("stonetop_pwd", "inventory.regularPool")).toBe(0);
 	});
 
 	it("marking then un-marking an item returns exactly what was drawn (a no-op on the pool)", async () => {
@@ -181,8 +181,8 @@ describe("StonetopCharacter.toggleCarriedItem", () => {
 		const char = makeChar(actor);
 		await char.toggleCarriedItem("rope", true, { weight: 2 });   // draw 2, pool 3 → 1
 		await char.toggleCarriedItem("rope", false, { weight: 2 });  // refund 2, pool 1 → 3
-		expect(actor.getFlag("stonetop-pwd", "inventory.regularPool")).toBe(3);
-		expect(actor.getFlag("stonetop-pwd", "inventory.checked")).toEqual({ rope: false });
+		expect(actor.getFlag("stonetop_pwd", "inventory.regularPool")).toBe(3);
+		expect(actor.getFlag("stonetop_pwd", "inventory.checked")).toEqual({ rope: false });
 	});
 
 	it("un-marking an item the pool couldn't cover refunds only what was drawn, never inventing marks", async () => {
@@ -190,7 +190,7 @@ describe("StonetopCharacter.toggleCarriedItem", () => {
 		const char = makeChar(actor);
 		await char.toggleCarriedItem("armor", true, { weight: 3 });  // draw 1 (2 became loot), pool 1 → 0
 		await char.toggleCarriedItem("armor", false, { weight: 3 }); // refund only the 1 drawn
-		expect(actor.getFlag("stonetop-pwd", "inventory.regularPool")).toBe(1);
+		expect(actor.getFlag("stonetop_pwd", "inventory.regularPool")).toBe(1);
 	});
 
 	it("un-marking an item defined at Outfit (no draw recorded) drops its weight without inflating the pool", async () => {
@@ -199,15 +199,15 @@ describe("StonetopCharacter.toggleCarriedItem", () => {
 			.withFlag("inventory.checked", { rope: true })
 			.build();
 		await makeChar(actor).toggleCarriedItem("rope", false, { weight: 2 });
-		expect(actor.getFlag("stonetop-pwd", "inventory.regularPool")).toBe(1);
+		expect(actor.getFlag("stonetop_pwd", "inventory.regularPool")).toBe(1);
 	});
 
 	it("small items move a single □ to and from the small pool", async () => {
 		const actor = new FakeActorBuilder().withFlag("inventory.smallPool", 2).build();
 		const char = makeChar(actor);
 		await char.toggleCarriedItem("flint", true, { small: true });
-		expect(actor.getFlag("stonetop-pwd", "inventory.smallPool")).toBe(1);
+		expect(actor.getFlag("stonetop_pwd", "inventory.smallPool")).toBe(1);
 		await char.toggleCarriedItem("flint", false, { small: true });
-		expect(actor.getFlag("stonetop-pwd", "inventory.smallPool")).toBe(2);
+		expect(actor.getFlag("stonetop_pwd", "inventory.smallPool")).toBe(2);
 	});
 });

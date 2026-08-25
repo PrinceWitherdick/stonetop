@@ -1,7 +1,7 @@
 {
   "name": "Horned Drake (Young)",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "group, large, hardy",
     "qualities": "",
     "count": 3,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.VJDP2ETcmA8GeHdT",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.VJDP2ETcmA8GeHdT",
     "notes": "",
     "creatureType": "natural-beast"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg"
     }
   },
   "items": [

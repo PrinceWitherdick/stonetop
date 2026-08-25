@@ -1,7 +1,7 @@
 {
   "name": "Hand of Daagon",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/emanation.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/emanation.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "solitary, large, emanation, terrifying, cautious, curious",
     "qualities": "<p>Blind; tremorsense; reaches through matter like it was water. Armor 0 vs. bronze.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.m46X5auaZwdxphBl",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.m46X5auaZwdxphBl",
     "notes": "",
     "creatureType": "emanation"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/emanation.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/emanation.svg"
     }
   },
   "items": [

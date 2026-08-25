@@ -1,7 +1,7 @@
 {
   "name": "Clockwork Spider",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/construct.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/construct.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "horde, small, construct, creepy",
     "qualities": "<p>Fireproof; blind; tremorsense; active only for short periods. Armor 0 vs. crushing.</p>",
     "count": 6,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.rFt8fD3NyBuX1BJD",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.rFt8fD3NyBuX1BJD",
     "notes": "",
     "creatureType": "construct"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/construct.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/construct.svg"
     }
   },
   "items": [
