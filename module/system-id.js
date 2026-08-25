@@ -11,14 +11,14 @@
  */
 
 /** The id in system.json. Changing this changes where world data is read and written. */
-export const SYSTEM_ID = "stonetop-pwd";
+export const SYSTEM_ID = "stonetop_pwd";
 
 /**
  * The id this system is being renamed to. Used only by the bridge migration, which
  * copies world data from SYSTEM_ID into this namespace and then re-points world.json.
  * See module/migration/.
  */
-export const RENAME_TARGET_ID = null;
+export const RENAME_TARGET_ID = "stonetop-pwd";
 
 /**
  * Older ids this system shipped under, newest first. These are READ-ONLY fallback
@@ -29,7 +29,7 @@ export const RENAME_TARGET_ID = null;
  * and hover summaries live under, on purpose. Rewriting it would break the pack content
  * contract. The migration's source scope is SYSTEM_ID and nothing else.
  */
-export const LEGACY_FLAG_SCOPES = Object.freeze(["stonetop_pwd", "stonetop"]);
+export const LEGACY_FLAG_SCOPES = Object.freeze(["stonetop"]);
 
 /**
  * Scope for flags that ride along with shipped compendium content rather than with the
