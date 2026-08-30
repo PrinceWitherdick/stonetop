@@ -168,7 +168,7 @@ export function rebasePersonRows(live, replacements, additions = []) {
 
 /**
  * Distinct, non-empty names of a steading's Residents + Neighbors, for name-suggestion
- * datalists (e.g. Create-a-Follower). Reads the nested `stonetop-pwd.steading` flag where
+ * datalists (e.g. Create-a-Follower). Reads the nested `stonetop_pwd.steading` flag where
  * the people rows actually live — the flat `getFlag(…, "residents")` path is never written.
  * Best-effort: a missing/unlinked steading (or any read error) just yields [].
  *
@@ -512,7 +512,7 @@ export async function addCharacterToSteadingPlayers(actor, steading = null) {
  */
 export async function migrateSteadingPeople(steading) {
 	if (!game.user?.isGM || steading?.type !== "stonetop") return 0;
-	// The steading stores its lists nested under flags.stonetop-pwd.steading (see
+	// The steading stores its lists nested under flags.stonetop_pwd.steading (see
 	// StonetopSteading#_flags / setFlags), so read and rewrite that sub-object rather than the
 	// top-level scope. Read through a function, not into a variable: everything below the scan
 	// awaits, and the rows have to be re-read once those awaits are done.

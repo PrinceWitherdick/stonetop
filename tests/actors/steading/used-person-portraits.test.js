@@ -5,7 +5,7 @@ const ART = "worlds/mine/stonetop-art/people";
 
 /** A steading stub shaped like the flag read the helper does. */
 function steadingWith(flags) {
-	return { getFlag: (scope, key) => (scope === "stonetop-pwd" && key === "steading" ? flags : undefined) };
+	return { getFlag: (scope, key) => (scope === "stonetop_pwd" && key === "steading" ? flags : undefined) };
 }
 
 /** Stand in for game.actors, which actor-backed rows are resolved through. */
@@ -60,7 +60,7 @@ describe("usedPersonPortraits", () => {
 			residents: [
 				{ name: "Nobody", img: "" },
 				{ name: "Also nobody", img: "icons/svg/mystery-man.svg" },
-				{ name: "Still nobody", img: "systems/stonetop-pwd/assets/icons/people/default_profile.svg" },
+				{ name: "Still nobody", img: "systems/stonetop_pwd/assets/icons/people/default_profile.svg" },
 			],
 		});
 		expect(usedPersonPortraits(steading)).toEqual({});

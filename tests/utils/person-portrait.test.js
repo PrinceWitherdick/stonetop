@@ -4,8 +4,8 @@ import { isDefaultImg } from "../../module/utils/strings.js";
 
 describe("the people placeholder portraits", () => {
 	it("points at the two shipped faces under the active system id", () => {
-		expect(PERSON_DEFAULT_IMG).toBe("systems/stonetop-pwd/assets/icons/people/default_profile.svg");
-		expect(PERSON_ROSTER_IMG).toBe("systems/stonetop-pwd/assets/icons/people/empty_profile.svg");
+		expect(PERSON_DEFAULT_IMG).toBe("systems/stonetop_pwd/assets/icons/people/default_profile.svg");
+		expect(PERSON_ROSTER_IMG).toBe("systems/stonetop_pwd/assets/icons/people/empty_profile.svg");
 	});
 
 	// The actor wears one and the roster draws the other, so a person carrying either has

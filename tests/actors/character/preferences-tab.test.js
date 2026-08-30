@@ -49,7 +49,7 @@ const ALL_KEYS = PREFERENCE_GROUPS.flatMap(g => g.keys);
 describe("Preferences tab wiring", () => {
 	it("registers the panel as a loadTemplates partial", () => {
 		expect(STONETOP_JS).toContain(
-			'"stonetop.tab-preferences":     "systems/stonetop-pwd/templates/actor/partials/tab-preferences.hbs"');
+			'"stonetop.tab-preferences":     "systems/stonetop_pwd/templates/actor/partials/tab-preferences.hbs"');
 		expect(repoFileExists("templates/actor/partials/tab-preferences.hbs")).toBe(true);
 	});
 
@@ -85,7 +85,7 @@ describe("Preferences tab wiring", () => {
 		const rule = /\.stonetop-tab-rail \.item\[data-tab="preferences"\]\s*\{\s*--st-tab-icon:\s*url\('([^']+)'\)/
 			.exec(CSS);
 		expect(rule, "no rail icon row for the preferences tab").not.toBeNull();
-		expect(repoFileExists(rule[1].replace("/systems/stonetop-pwd/", ""))).toBe(true);
+		expect(repoFileExists(rule[1].replace("/systems/stonetop_pwd/", ""))).toBe(true);
 	});
 
 	// A rail glyph is worn as a MASK tinted by background-color, so the file must carry alpha
@@ -184,7 +184,7 @@ describe("Preferences tab contents", () => {
 
 // ── Building and writing ──────────────────────────────────────────────────────────────────
 
-const SYSTEM_ID = "stonetop-pwd";
+const SYSTEM_ID = "stonetop_pwd";
 
 /** A `game` with just the settings registry the module reads. */
 function fakeGame(registrations, { menus = [], throwOnGet = null, isGM = true } = {}) {

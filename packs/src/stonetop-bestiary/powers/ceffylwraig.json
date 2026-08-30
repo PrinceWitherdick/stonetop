@@ -1,7 +1,7 @@
 {
   "name": "Ceffylwraig",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/spirit.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -25,7 +25,7 @@
     "tags": "solitary, large, spirit, swift, tireless, cautious, magical, beautiful",
     "qualities": "",
     "count": 1,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.0CoKAbSZu0voBdK7",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.0CoKAbSZu0voBdK7",
     "notes": "",
     "creatureType": "spirit"
   },
@@ -34,7 +34,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/spirit.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg"
     }
   },
   "items": [

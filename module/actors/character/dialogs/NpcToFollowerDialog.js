@@ -42,7 +42,7 @@ export class NpcToFollowerDialog extends ConvertToFollowerDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-npc-to-follower",
 			title:     "Make a Follower",
-			template:  "systems/stonetop-pwd/templates/dialogs/npc-to-follower.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/npc-to-follower.hbs",
 			width:     520,
 			height:    "auto",
 			resizable: true,

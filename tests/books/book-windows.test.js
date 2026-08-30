@@ -406,7 +406,7 @@ describe("the rulebooks window", () => {
 	});
 
 	it("draws Read and Forget only for a book it actually has", async () => {
-		const html = await renderTemplate(`systems/stonetop-pwd/${SETUP_HBS}`, {
+		const html = await renderTemplate(`systems/stonetop_pwd/${SETUP_HBS}`, {
 			canBrowse: true,
 			rows: [
 				{ book: 1, icon: "fas fa-book", title: "Book I", path: "books/one.pdf", hint: "" },
@@ -424,7 +424,7 @@ describe("the rulebooks window", () => {
 	});
 
 	it("disables browsing rather than hiding it when the account cannot", async () => {
-		const html = await renderTemplate(`systems/stonetop-pwd/${SETUP_HBS}`, {
+		const html = await renderTemplate(`systems/stonetop_pwd/${SETUP_HBS}`, {
 			canBrowse: false,
 			rows: [{ book: 1, icon: "fas fa-book", title: "Book I", path: "", hint: "Find it" }],
 		});
@@ -449,7 +449,7 @@ describe("the rulebooks window", () => {
 	// The two doors, and which is which. The OS dialog is the ordinary one; the FilePicker is
 	// for a book already on the server. A row that offered only the second is what prompted this.
 	it("offers the computer's own file dialog as well as a browse of this world", async () => {
-		const html = await renderTemplate(`systems/stonetop-pwd/${SETUP_HBS}`, {
+		const html = await renderTemplate(`systems/stonetop_pwd/${SETUP_HBS}`, {
 			canStore: true, canBrowse: true, dir: "stonetop-books",
 			rows: [{ book: 1, icon: "fas fa-book", title: "Book I", path: "", hint: "Find it" }],
 		});
@@ -461,7 +461,7 @@ describe("the rulebooks window", () => {
 
 	// Separate rights, asked separately: a world can grant one without the other.
 	it("disables the two doors independently", async () => {
-		const draw = (perms) => renderTemplate(`systems/stonetop-pwd/${SETUP_HBS}`, {
+		const draw = (perms) => renderTemplate(`systems/stonetop_pwd/${SETUP_HBS}`, {
 			...perms, dir: "stonetop-books",
 			rows: [{ book: 1, icon: "fas fa-book", title: "Book I", path: "", hint: "Find it" }],
 		});

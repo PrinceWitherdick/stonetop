@@ -22,7 +22,7 @@ beforeAll(async () => {
 	const dialog = Object.create(ImprovementBuilderDialog.prototype);
 	dialog._saver = { submitLabel: "Create card", hint: "Author a reusable improvement card." };
 	dialog._activeTab = "improvement";
-	markup = await renderTemplate("systems/stonetop-pwd/templates/dialogs/improvement-builder.hbs", dialog.getData());
+	markup = await renderTemplate("systems/stonetop_pwd/templates/dialogs/improvement-builder.hbs", dialog.getData());
 });
 
 describe("the improvement builder's panels", () => {

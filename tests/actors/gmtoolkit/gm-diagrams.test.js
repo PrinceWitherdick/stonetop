@@ -33,7 +33,7 @@ const withSettings = (values, fn) => {
 	const prev = globalThis.game;
 	globalThis.game = values === null ? undefined : {
 		settings: {
-			settings: new Map(Object.keys(values).map(k => [`stonetop-pwd.${k}`, {}])),
+			settings: new Map(Object.keys(values).map(k => [`stonetop_pwd.${k}`, {}])),
 			get: (ns, key) => values[key],
 		},
 		// gm-diagrams localizes its captions; without this they come back as raw keys, which is

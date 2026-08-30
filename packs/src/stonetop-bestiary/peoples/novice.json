@@ -1,7 +1,7 @@
 {
   "name": "Novice",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/human-group.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/human-group.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -25,7 +25,7 @@
     "tags": "group, cautious, disciplined, meek",
     "qualities": "<p>Inconsistent spirit sight.</p>",
     "count": 3,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.hYf2HyXCbJa4j9Fc",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.hYf2HyXCbJa4j9Fc",
     "notes": "",
     "creatureType": "human-group"
   },
@@ -34,7 +34,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/human-group.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/human-group.svg"
     }
   },
   "items": [

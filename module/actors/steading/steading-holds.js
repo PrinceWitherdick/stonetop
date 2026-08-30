@@ -20,7 +20,7 @@
 // (due, paid, due again) rather than sitting lit forever.
 
 /** Where the tray's art lives. One un-plated game-icons drawing per row, worn as a CSS mask. */
-export const HOLD_ICON_DIR = "systems/stonetop-pwd/assets/icons/holds";
+export const HOLD_ICON_DIR = "systems/stonetop_pwd/assets/icons/holds";
 
 /**
  * The rows, in the order they appear. `tone` splits what the steading HAS from what it OWES,

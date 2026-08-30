@@ -28,7 +28,7 @@ describe("playbookSlug", () => {
 describe("playbookIconPath", () => {
 	it("maps a slug to its avatar art, underscoring the hyphens", () => {
 		expect(playbookIconPath("the-would-be-hero"))
-			.toBe("systems/stonetop-pwd/assets/icons/playbooks/the_would_be_hero_icon.webp");
+			.toBe("systems/stonetop_pwd/assets/icons/playbooks/the_would_be_hero_icon.webp");
 	});
 
 	it("returns null for a slug-less actor", () => {

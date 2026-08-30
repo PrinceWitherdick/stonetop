@@ -6,7 +6,7 @@ function makeDialog(assets) {
 	const steadingActor = {
 		name: "Stonetop",
 		system: {},
-		flags: { "stonetop-pwd": { steading: { assets } } },
+		flags: { "stonetop_pwd": { steading: { assets } } },
 		getFlag: (scope, key) => steadingActor.flags[scope]?.[key],
 		setFlag: vi.fn(),
 	};

@@ -56,7 +56,7 @@ export class CharacterTokenLinkDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-character-token-link",
 			title:     "Player tokens holding their own copy",
-			template:  "systems/stonetop-pwd/templates/dialogs/character-token-link.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/character-token-link.hbs",
 			width:     620,
 			height:    "auto",
 			resizable: true,

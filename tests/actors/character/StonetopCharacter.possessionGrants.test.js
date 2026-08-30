@@ -219,7 +219,7 @@ describe("StonetopCharacter — special possession item grants", () => {
 		const { actor, character } = makeCharacter();
 		await character.selectPossession("apiary");
 		expect(actor.setFlag).toHaveBeenCalledWith(
-			"stonetop-pwd", "possessionGrantsApplied", { apiary: true },
+			"stonetop_pwd", "possessionGrantsApplied", { apiary: true },
 		);
 	});
 });
@@ -246,7 +246,7 @@ describe("StonetopCharacter — ensurePossessionGrants back-fill", () => {
 		const [, payload] = actor.createEmbeddedDocuments.mock.calls[0];
 		expect(payload.map(p => p.name)).toEqual(["Beeswax", "Honey", "Bee smokers"]);
 		expect(actor.setFlag).toHaveBeenCalledWith(
-			"stonetop-pwd", "possessionGrantsApplied", { apiary: true },
+			"stonetop_pwd", "possessionGrantsApplied", { apiary: true },
 		);
 	});
 
@@ -267,7 +267,7 @@ describe("StonetopCharacter — ensurePossessionGrants back-fill", () => {
 		await character.ensurePossessionGrants();
 		expect(actor.createEmbeddedDocuments).not.toHaveBeenCalled();
 		expect(actor.setFlag).toHaveBeenCalledWith(
-			"stonetop-pwd", "possessionGrantsApplied", { apiary: true },
+			"stonetop_pwd", "possessionGrantsApplied", { apiary: true },
 		);
 	});
 
@@ -278,7 +278,7 @@ describe("StonetopCharacter — ensurePossessionGrants back-fill", () => {
 		await character.ensurePossessionGrants();
 		expect(actor.createEmbeddedDocuments).not.toHaveBeenCalled();
 		expect(actor.setFlag).toHaveBeenCalledWith(
-			"stonetop-pwd", "possessionGrantsApplied", { mastiffs: true },
+			"stonetop_pwd", "possessionGrantsApplied", { mastiffs: true },
 		);
 	});
 });

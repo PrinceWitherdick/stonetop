@@ -97,14 +97,14 @@ describe("system.json declares what the tree actually contains", () => {
 	});
 
 	it("keeps the compatibility range and the identity fields the installer reads", () => {
-		expect(manifest.id).toBe("stonetop-pwd");
+		expect(manifest.id).toBe("stonetop_pwd");
 		expect(manifest.compatibility?.minimum).toBeTruthy();
 		expect(manifest.compatibility?.verified).toBeTruthy();
 		// The manifest URL is what an installed world re-fetches to find an update. Pointing it
 		// at anything but this repository's latest release silently hands users someone else's
 		// package, which is the failure the release workflow's make_latest gating exists for.
 		expect(manifest.manifest).toBe(
-			"https://github.com/PrinceWitherdick/stonetop-pwd/releases/latest/download/system.json",
+			"https://github.com/PrinceWitherdick/stonetop/releases/latest/download/system.json",
 		);
 	});
 });

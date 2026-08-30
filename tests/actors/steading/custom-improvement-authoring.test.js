@@ -88,24 +88,24 @@ describe("authoring a custom steading improvement", () => {
 		const done = await steading.setImprovementCompleted("custom-roadbuilding", true);
 		const applied = actor.update.mock.calls.at(-1)[0];
 		expect(applied["system.attributes.prosperity.value"]).toBe(1);
-		expect(applied["flags.stonetop-pwd.steading.resources"].map(r => r.name))
+		expect(applied["flags.stonetop_pwd.steading.resources"].map(r => r.name))
 			.toContain("The Maker's Roads");
 		expect(done.summary).toContain("Prosperity +1");
 
 		// The record of what was applied is what the un-complete reads back, so put the
 		// steading in the state that update would have left it in and toggle it off.
-		const record = applied["flags.stonetop-pwd.steading.improvements"]["custom-roadbuilding"];
+		const record = applied["flags.stonetop_pwd.steading.improvements"]["custom-roadbuilding"];
 		actor.flags.stonetop.steading = {
 			...actor.flags.stonetop.steading,
 			system: { attributes: { prosperity: { value: 1 } } },
-			resources: applied["flags.stonetop-pwd.steading.resources"],
+			resources: applied["flags.stonetop_pwd.steading.resources"],
 			improvements: { "custom-roadbuilding": record },
 		};
 
 		const undone = await steading.setImprovementCompleted("custom-roadbuilding", false);
 		const reverted = actor.update.mock.calls.at(-1)[0];
 		expect(reverted["system.attributes.prosperity.value"]).toBe(0);
-		expect(reverted["flags.stonetop-pwd.steading.resources"].map(r => r.name))
+		expect(reverted["flags.stonetop_pwd.steading.resources"].map(r => r.name))
 			.not.toContain("The Maker's Roads");
 		expect(undone.reverted).toBe(true);
 	});
@@ -119,10 +119,10 @@ describe("authoring a custom steading improvement", () => {
 
 		await steading.setImprovementCompleted("custom-bell-tower", true);
 		const data = actor.update.mock.calls.at(-1)[0];
-		expect(data["flags.stonetop-pwd.steading.improvements"]["custom-bell-tower"].completed).toBe(true);
+		expect(data["flags.stonetop_pwd.steading.improvements"]["custom-bell-tower"].completed).toBe(true);
 		// No grants means nothing to record and nothing to reverse, so `applied` is never
 		// written at all (the `null` an emptied record leaves behind is a different thing).
-		expect(data["flags.stonetop-pwd.steading.improvements"]["custom-bell-tower"].applied).toBeUndefined();
+		expect(data["flags.stonetop_pwd.steading.improvements"]["custom-bell-tower"].applied).toBeUndefined();
 		expect(data).not.toHaveProperty("system.attributes.prosperity.value");
 	});
 
