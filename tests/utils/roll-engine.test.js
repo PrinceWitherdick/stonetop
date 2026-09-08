@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeActorBuilder } from "../fakes/FakeActorBuilder.js";
 import { rollDamage, rollFormula, rollSeasonsCard, rollStat, sign, SPRING_SEASONS_RESULT } from "../../module/utils/roll-engine.js";
+import { moveCardBody } from "../../module/utils/move-tiers.js";
+import fs from "node:fs";
+import path from "node:path";
 
 let rollMessages;
 let rollTotal;
@@ -43,6 +46,14 @@ function makeActor() {
 		.withLevel(1)
 		.build();
 }
+
+// Clash's 10+ outcome, verbatim from the shipped move. Its options live in its own prose rather
+// than in `system.pickOptions`, so the card has no declared pool to build a checklist from -- the
+// bullets are ticked up in the move's description instead (utils/chat.js#pickableMoveDescription),
+// which is a list this module never built and so never has to suppress.
+const CLASH_SUCCESS = "Your maneuver works as expected (deal your damage) and pick 1: "
+	+ "Avoid, prevent, or counter your enemy's attack / "
+	+ "Strike hard and fast, for 1d6 extra damage, but suffer your enemy's attack.";
 
 describe("sign", () => {
 	it("formats positive, zero, and negative modifiers", () => {
@@ -374,6 +385,59 @@ describe("rollStat", () => {
 		expect(flavor).toContain("stonetop-roll-result-picks");
 		expect(flavor).toContain("a hard bargain");
 		expect(flavor).toContain('data-picked-tiers="success"');
+	});
+
+	// The SHIPPED Clash, made pickable exactly as StonetopItem.roll makes it: its options are in
+	// its own prose, so the boxes go up in the description rather than into a declared pool.
+	const CLASH = JSON.parse(fs.readFileSync(
+		path.resolve("packs/src/stonetop-items/basic-moves/clash.json"), "utf8")).system;
+
+	it("prints the lead-in alone when the description already offers that tier's options", async () => {
+		rollTotal = 10;
+
+		await rollStat("str", makeActor(), {
+			noXpOnMiss: true,
+			moveResults: CLASH.moveResults,
+			moveDescription: moveCardBody(CLASH.description, CLASH.moveResults, { pickable: true }),
+			tierActions: { success: "<button>Roll your damage</button>" },
+		});
+
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain("stonetop-roll-result-lead");
+		// Said once: the boxes above are the list, so the block does not spell it out again.
+		expect(flavor).not.toContain("stonetop-roll-result-picks");
+		// ...and only for the tier that offers them. Clash's 7-9 names no pick, so a GM's Shift
+		// Down onto it must not be told its list is elsewhere.
+		expect(flavor).toContain('data-picked-tiers="success"');
+	});
+
+	// ⚠ AND THE READER WHO TURNED DESCRIPTIONS OFF MUST STILL SEE THE BOXES. The list the block
+	// above just stopped spelling out lives INSIDE `.stonetop-roll-card-description`, and the client
+	// setting hides that whole — so without an exemption a 10+ on Clash reads "...and pick 1." with
+	// nothing anywhere on the card to pick from, until the reader thinks to press the "?".
+	it("keeps that list on the card for a reader who hid descriptions", () => {
+		const css = fs.readFileSync(path.resolve("styles/stonetop.css"), "utf8");
+		// The framed box comes back when there is a live list in it...
+		expect(css).toContain(".stonetop-roll-card-description:has(.stonetop-picklist:not([hidden]))");
+		// ...and nothing else in it comes back with it.
+		expect(css).toContain(
+			".stonetop-roll-card-description > *:not(.stonetop-picklist):not(:has(.stonetop-picklist:not([hidden])))"
+		);
+	});
+
+	it("keeps the options in the block when the description carries no boxes", async () => {
+		rollTotal = 10;
+
+		await rollStat("str", makeActor(), {
+			noXpOnMiss: true,
+			moveResults: { success: { value: CLASH_SUCCESS }, partial: { value: "" }, failure: { value: "" } },
+			moveDescription: CLASH.description,
+		});
+
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain("stonetop-roll-result-picks");
+		expect(flavor).toContain("Strike hard and fast");
+		expect(flavor).not.toContain("data-picked-tiers");
 	});
 
 	it("omits the outcome line when the move has no moveResults", async () => {
