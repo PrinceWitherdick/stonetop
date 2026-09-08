@@ -71,7 +71,7 @@ function applyDotted(doc, patch) {
 function pageDoc(name, graph, {
 	id = null, sort = 0, parent = null, flags: extraFlags = null, ownership = null,
 } = {}) {
-	const flags = extraFlags ?? (graph === null ? {} : { "stonetop-pwd": { relationshipMap: graph } });
+	const flags = extraFlags ?? (graph === null ? {} : { "stonetop_pwd": { relationshipMap: graph } });
 	const doc = {
 		id: id ?? `page${++nextPageId}`,
 		name,
@@ -127,7 +127,7 @@ const entry = (name, flags = {}, extra = {}) => {
 			// ⚠ THE WHOLE FLAG OBJECT, not just the graph. The party board is told apart from every
 			// other page by a SECOND flag beside it, and a fake that dropped it would certify a
 			// lookup that can never find anything.
-			const made = rows.map(row => pageDoc(row.name, row.flags?.["stonetop-pwd"]?.relationshipMap ?? null,
+			const made = rows.map(row => pageDoc(row.name, row.flags?.["stonetop_pwd"]?.relationshipMap ?? null,
 				{
 					sort: row.sort, parent: doc, flags: row.flags ?? null,
 					// ⚠ CARRIED THROUGH, like the flags beside it. Whether a new board arrives hidden
@@ -151,7 +151,7 @@ const entry = (name, flags = {}, extra = {}) => {
 /** A map with the boards named, in the order given. Sorted apart so the strip's own ordering is
  * the thing under test rather than the order they happened to be pushed in. */
 function mapWith(name, boards) {
-	const map = entry(name, { "stonetop-pwd": { relationshipMap: { version: 2 } } });
+	const map = entry(name, { "stonetop_pwd": { relationshipMap: { version: 2 } } });
 	boards.forEach((board, i) => map.pages.contents.push(
 		pageDoc(board.name, board.graph ?? { nodes: {}, edges: {} },
 			{
@@ -231,9 +231,9 @@ describe("finding the maps in a world", () => {
 	// or renames the folder, has not stopped it being a map.
 	it("finds a map wherever it has been filed", () => {
 		journals = [
-			entry("A map", { "stonetop-pwd": { relationshipMap: { nodes: {} } } }),
+			entry("A map", { "stonetop_pwd": { relationshipMap: { nodes: {} } } }),
 			entry("Session notes", {}),
-			entry("Another map", { "stonetop-pwd": { relationshipMap: { nodes: {} } } }),
+			entry("Another map", { "stonetop_pwd": { relationshipMap: { nodes: {} } } }),
 		];
 		expect(listRelationshipMaps().map(m => m.name)).toEqual(["A map", "Another map"]);
 	});
@@ -246,7 +246,7 @@ describe("finding the maps in a world", () => {
 
 	it("reads a stored graph back through the normalizer", () => {
 		const map = entry("A map", {
-			"stonetop-pwd": { relationshipMap: { nodes: { "bad.id": { x: 1, y: 1 } } } },
+			"stonetop_pwd": { relationshipMap: { nodes: { "bad.id": { x: 1, y: 1 } } } },
 		});
 		expect(readGraph(map).nodes).toEqual({});
 	});
@@ -272,8 +272,8 @@ describe("making a new map", () => {
 	it("carries the mark and its sheet class from the very first write", async () => {
 		await createRelationshipMap("The people of Stonetop");
 		expect(created[0].flags.core.sheetClass).toBe(RELMAP_SHEET_CLASS);
-		expect(created[0].flags["stonetop-pwd"].relationshipMap).toEqual({ version: RELMAP_VERSION });
-		expect(created[0].flags["stonetop-pwd"].relationshipMap).toBeTruthy();
+		expect(created[0].flags["stonetop_pwd"].relationshipMap).toEqual({ version: RELMAP_VERSION });
+		expect(created[0].flags["stonetop_pwd"].relationshipMap).toBeTruthy();
 	});
 
 	// A map that arrives with no board at all is a window that sits blank until the first person
@@ -284,7 +284,7 @@ describe("making a new map", () => {
 		const [first] = created[0].pages;
 		expect(first.name).toBe("The people of Stonetop");
 		expect(first.sort).toBe(0);
-		expect(first.flags["stonetop-pwd"].relationshipMap).toMatchObject({ nodes: {}, edges: {} });
+		expect(first.flags["stonetop_pwd"].relationshipMap).toMatchObject({ nodes: {}, edges: {} });
 	});
 
 	it("files it in the folder", async () => {
@@ -362,7 +362,7 @@ describe("the document a board is read from and written to", () => {
 	// window reads and writes through one handle and needs no second code path anywhere.
 	it("is the ENTRY itself on a map that still has no pages", () => {
 		const legacy = entry("Old map", {
-			"stonetop-pwd": { relationshipMap: { version: 1, nodes: { a: { x: 5, y: 5 } } } },
+			"stonetop_pwd": { relationshipMap: { version: 1, nodes: { a: { x: 5, y: 5 } } } },
 		});
 		expect(mapBoardDoc(legacy, null)).toBe(legacy);
 		expect(Object.keys(readGraph(mapBoardDoc(legacy, null)).nodes)).toEqual(["a"]);
@@ -371,7 +371,7 @@ describe("the document a board is read from and written to", () => {
 
 describe("giving a version 1 map its first page", () => {
 	const legacyMap = () => entry("The people of Stonetop", {
-		"stonetop-pwd": {
+		"stonetop_pwd": {
 			relationshipMap: {
 				version: 1,
 				shape: "clusters",
@@ -396,10 +396,10 @@ describe("giving a version 1 map its first page", () => {
 		const map = legacyMap();
 		await ensureFirstMapPage(map);
 		expect(map.updates[0]).toEqual({
-			"flags.stonetop-pwd.relationshipMap.version": RELMAP_VERSION,
-			"flags.stonetop-pwd.relationshipMap.-=nodes": null,
-			"flags.stonetop-pwd.relationshipMap.-=edges": null,
-			"flags.stonetop-pwd.relationshipMap.-=shape": null,
+			"flags.stonetop_pwd.relationshipMap.version": RELMAP_VERSION,
+			"flags.stonetop_pwd.relationshipMap.-=nodes": null,
+			"flags.stonetop_pwd.relationshipMap.-=edges": null,
+			"flags.stonetop_pwd.relationshipMap.-=shape": null,
 		});
 	});
 
@@ -503,12 +503,12 @@ describe("the sheet the sidebar row opens", () => {
 
 	it("has the exact class name the stored sheet id names", () => {
 		const cls = createRelationshipMapEntrySheetClass(FakeBase);
-		expect(`stonetop-pwd.${cls.name}`).toBe(RELMAP_SHEET_CLASS);
+		expect(`stonetop_pwd.${cls.name}`).toBe(RELMAP_SHEET_CLASS);
 	});
 
 	it("opens the board instead of painting itself", async () => {
 		const cls = createRelationshipMapEntrySheetClass(FakeBase);
-		const doc = entry("A map", { "stonetop-pwd": { relationshipMap: { nodes: {} } } });
+		const doc = entry("A map", { "stonetop_pwd": { relationshipMap: { nodes: {} } } });
 		const sheet = new cls(doc);
 		sheet.close = vi.fn().mockResolvedValue(undefined);
 		// The bouncer must never call up into the base render, or the blank prose window it exists
@@ -527,7 +527,7 @@ describe("the sheet the sidebar row opens", () => {
 	// put every restored board back in the middle of the screen at its default size.
 	it("forwards the geometry it was rendered at to the board", async () => {
 		const cls = createRelationshipMapEntrySheetClass(FakeBase);
-		const doc = entry("A map", { "stonetop-pwd": { relationshipMap: { nodes: {} } } });
+		const doc = entry("A map", { "stonetop_pwd": { relationshipMap: { nodes: {} } } });
 		const sheet = new cls(doc);
 		sheet.close = vi.fn().mockResolvedValue(undefined);
 		const where = { left: 10, top: 20, width: 900, height: 700 };
@@ -542,7 +542,7 @@ describe("the sheet the sidebar row opens", () => {
 		const board = { openMinimized: vi.fn() };
 		openRelationshipMap.mockReturnValueOnce(board);
 		const cls = createRelationshipMapEntrySheetClass(FakeBase);
-		const doc = entry("A map", { "stonetop-pwd": { relationshipMap: { nodes: {} } } });
+		const doc = entry("A map", { "stonetop_pwd": { relationshipMap: { nodes: {} } } });
 		const sheet = new cls(doc);
 		sheet.close = vi.fn().mockResolvedValue(undefined);
 		await sheet._render(true, {});
@@ -557,7 +557,7 @@ describe("the sheet the sidebar row opens", () => {
 // sweeping everybody off the map.
 describe("adding a board to a map that has never had one", () => {
 	const legacyMap = () => entry("The people of Stonetop", {
-		"stonetop-pwd": {
+		"stonetop_pwd": {
 			relationshipMap: { version: 1, nodes: { a: { name: "Ordga", x: 10, y: 20 } }, edges: {} },
 		},
 	});
@@ -755,7 +755,7 @@ describe("the party board", () => {
 	// though opening it had swept everybody off.
 	it("converts a version 1 map before adding a board to it", async () => {
 		const legacy = entry("The old map", {
-			"stonetop-pwd": {
+			"stonetop_pwd": {
 				relationshipMap: {
 					version: 1,
 					nodes: { old1: { uuid: null, name: "Ordga", x: 30, y: 30 } },
@@ -814,7 +814,7 @@ describe("hiding a board from the players", () => {
 	// read as the conversion having stolen the map, and by whoever happened to open it first.
 	it("leaves a converted version 1 board shown, because it always was", async () => {
 		const legacy = entry("Old map", {
-			"stonetop-pwd": { relationshipMap: { nodes: { a: { name: "Jaspar" } }, edges: {} } },
+			"stonetop_pwd": { relationshipMap: { nodes: { a: { name: "Jaspar" } }, edges: {} } },
 		});
 		const page = await ensureFirstMapPage(legacy);
 		expect(page.ownership.default).toBe(INHERIT);

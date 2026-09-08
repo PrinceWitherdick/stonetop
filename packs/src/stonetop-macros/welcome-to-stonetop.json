@@ -1,7 +1,7 @@
 {
   "name": "Welcome to Stonetop",
   "type": "script",
-  "img": "systems/stonetop-pwd/assets/icons/macros/direction-signs.svg",
+  "img": "systems/stonetop_pwd/assets/icons/macros/direction-signs.svg",
   "scope": "global",
   "command": "game.stonetop?.openWelcome?.()",
   "folder": null,

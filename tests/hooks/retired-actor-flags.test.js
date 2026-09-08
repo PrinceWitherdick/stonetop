@@ -9,7 +9,7 @@ import { _dropRetiredActorFlags } from "../../module/hooks/Ready.js";
 // Same gate as every other onReady write (see armour-migration-gate.test.js): a player has no
 // right to update actors they don't own, and a second GM must not race the first.
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 
 /** An actor still carrying the retired flag, one carrying only live flags, one with no flags. */
 function world({ isGM = true, activeGMs = ["gm1"], selfId = "gm1", generation = 13 } = {}) {

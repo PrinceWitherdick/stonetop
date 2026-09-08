@@ -244,7 +244,7 @@ describe("maybeBeginAttack: Ambush", () => {
 
 		const begun = await maybeBeginAttack(fox("Ambush"), item("Ambush"), { stat: "dex" });
 
-		const attack = begun.messageFlags["stonetop-pwd"].attack;
+		const attack = begun.messageFlags["stonetop_pwd"].attack;
 		expect(attack.move).toBe("Ambush");
 		// `moveKey` is what the Confirm reads back to know Cheap Shot rides this roll.
 		expect(attack.moveKey).toBe("ambush");

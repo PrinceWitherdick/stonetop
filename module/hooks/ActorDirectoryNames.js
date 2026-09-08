@@ -61,7 +61,7 @@ export function decorateNameRow(li, actor) {
  * without touching it.
  *
  * ⚠ The flag bag is read with BRACKETS off SYSTEM_ID — the package id is hyphenated, so a
- * dotted `changed.flags.stonetop-pwd` parses as a subtraction and throws at runtime.
+ * dotted `changed.flags.stonetop_pwd` parses as a subtraction and throws at runtime.
  *
  * @param {Actor}  actor
  * @param {object} changed  the update that was applied

@@ -100,7 +100,7 @@ describe("minting a player's first character", () => {
 		expect(opened, "nothing to ask about — this player has no characters").toBeNull();
 		expect(actor).toBeTruthy();
 		expect(created[0].ownership).toEqual({ u1: OWNER });
-		expect(created[0].flags["stonetop-pwd"].autoOpenFor).toBe("u1");
+		expect(created[0].flags["stonetop_pwd"].autoOpenFor).toBe("u1");
 		expect(player.update).toHaveBeenCalledWith({ character: actor.id });
 	});
 });

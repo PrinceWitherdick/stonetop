@@ -105,7 +105,7 @@ function entryFor(graph, { isOwner = true, id = "map1", pen = null } = {}) {
 		name: "The people of Stonetop",
 		isOwner,
 		updates: [],
-		getFlag: (scope, key) => (scope === "stonetop-pwd" ? flags[key] ?? null : null),
+		getFlag: (scope, key) => (scope === "stonetop_pwd" ? flags[key] ?? null : null),
 		update(patch) { this.updates.push(patch); return Promise.resolve(this); },
 	};
 }
@@ -287,7 +287,7 @@ describe("the update hook", () => {
 	it("ignores a write to a different journal", () => {
 		const { app } = windowFor();
 		const listener = hookFor(app);
-		listener({ id: "someone-else" }, { flags: { "stonetop-pwd": { relationshipMap: {} } } });
+		listener({ id: "someone-else" }, { flags: { "stonetop_pwd": { relationshipMap: {} } } });
 		expect(app.sync).not.toHaveBeenCalled();
 	});
 
@@ -296,25 +296,25 @@ describe("the update hook", () => {
 		const listener = hookFor(app);
 		listener({ id: "map1" }, { name: "Renamed" });
 		listener({ id: "map1" }, { flags: { core: { sheetClass: "x" } } });
-		listener({ id: "map1" }, { flags: { "stonetop-pwd": { somethingElse: 1 } } });
+		listener({ id: "map1" }, { flags: { "stonetop_pwd": { somethingElse: 1 } } });
 		expect(app.sync).not.toHaveBeenCalled();
 	});
 
-	// ⚠ The package id is hyphenated, so a DOTTED read of it (`changed.flags.stonetop-pwd`) parses
+	// ⚠ The package id is hyphenated, so a DOTTED read of it (`changed.flags.stonetop_pwd`) parses
 	// as a subtraction and throws. This handler is registered on a GLOBAL hook, so a throw here
 	// takes down every other listener on it — a whole-world failure caused by a journal rename.
 	it("does not throw on the hyphenated flag scope, in the shape Foundry sends it", () => {
 		const { app } = windowFor();
 		const listener = hookFor(app);
 		expect(() => listener({ id: "map1" }, {
-			flags: { "stonetop-pwd": { relationshipMap: { nodes: { elena: { x: 4 } } } } },
+			flags: { "stonetop_pwd": { relationshipMap: { nodes: { elena: { x: 4 } } } } },
 		})).not.toThrow();
 	});
 
 	it("repaints on a write to the map", async () => {
 		const { app } = windowFor();
 		const listener = hookFor(app);
-		listener({ id: "map1" }, { flags: { "stonetop-pwd": { relationshipMap: { nodes: {} } } } });
+		listener({ id: "map1" }, { flags: { "stonetop_pwd": { relationshipMap: { nodes: {} } } } });
 		await new Promise(r => setTimeout(r, 80));
 		expect(app.sync).toHaveBeenCalled();
 	});
@@ -324,7 +324,7 @@ describe("the update hook", () => {
 	it("repaints on a DELETION, whose key arrives prefixed", async () => {
 		const { app } = windowFor();
 		const listener = hookFor(app);
-		listener({ id: "map1" }, { flags: { "stonetop-pwd": { "-=relationshipMap": null } } });
+		listener({ id: "map1" }, { flags: { "stonetop_pwd": { "-=relationshipMap": null } } });
 		await new Promise(r => setTimeout(r, 80));
 		expect(app.sync).toHaveBeenCalled();
 	});
@@ -1351,7 +1351,7 @@ describe("the party board's role", () => {
 		const made = windowFor(TWO_PEOPLE, { isOwner });
 		const pages = [
 			{ id: "board1", name: "The people of Stonetop", flags: {} },
-			{ id: "party1", name: "The Party", flags: { "stonetop-pwd": { relationshipPartyBoard: true } } },
+			{ id: "party1", name: "The Party", flags: { "stonetop_pwd": { relationshipPartyBoard: true } } },
 		];
 		for (const page of pages) {
 			page.getFlag = (scope, key) => page.flags[scope]?.[key] ?? null;
@@ -1359,7 +1359,7 @@ describe("the party board's role", () => {
 		}
 		// `listMapPages` keeps only pages carrying a graph, so both need one.
 		for (const page of pages) {
-			page.flags["stonetop-pwd"] = { ...page.flags["stonetop-pwd"], relationshipMap: { nodes: {}, edges: {} } };
+			page.flags["stonetop_pwd"] = { ...page.flags["stonetop_pwd"], relationshipMap: { nodes: {}, edges: {} } };
 		}
 		made.entry.pages = { contents: pages };
 		made.app._pageId = pageId;
@@ -1411,11 +1411,11 @@ describe("the village board's role", () => {
 	const on = (pageId, { isOwner = true, primary = true } = {}) => {
 		const made = windowFor(TWO_PEOPLE, { isOwner });
 		const pages = [
-			{ id: "party1", name: "The Party", flags: { "stonetop-pwd": { relationshipPartyBoard: true } } },
-			{ id: "village1", name: "Stonetop", flags: { "stonetop-pwd": { relationshipVillageBoard: { seated: [] } } } },
+			{ id: "party1", name: "The Party", flags: { "stonetop_pwd": { relationshipPartyBoard: true } } },
+			{ id: "village1", name: "Stonetop", flags: { "stonetop_pwd": { relationshipVillageBoard: { seated: [] } } } },
 		];
 		for (const page of pages) {
-			page.flags["stonetop-pwd"] = { ...page.flags["stonetop-pwd"], relationshipMap: { nodes: {}, edges: {} } };
+			page.flags["stonetop_pwd"] = { ...page.flags["stonetop_pwd"], relationshipMap: { nodes: {}, edges: {} } };
 			page.getFlag = (scope, key) => page.flags[scope]?.[key] ?? null;
 			page.sort = 0;
 		}
@@ -2267,7 +2267,7 @@ describe("picking up the pen a reader drew with", () => {
 		globalThis.game.settings = { get: () => 0, set: () => Promise.resolve() };
 	});
 
-	const PEN_PREFIX = "flags.stonetop-pwd.relationshipMapPen";
+	const PEN_PREFIX = "flags.stonetop_pwd.relationshipMapPen";
 
 	it("records a colour, a stroke and a size on the map, where everybody reads them", () => {
 		const { app, entry } = windowFor();
@@ -2384,7 +2384,7 @@ describe("rubbing a line out from the bar", () => {
 		await app._rubOutLink("link1");
 		expect(entry.updates).toHaveLength(1);
 		expect(Object.keys(entry.updates[0]))
-			.toEqual(["flags.stonetop-pwd.relationshipMap.edges.-=link1"]);
+			.toEqual(["flags.stonetop_pwd.relationshipMap.edges.-=link1"]);
 	});
 
 	// Somebody else at the table got there first. Nothing to write, and nothing to say about it:
@@ -2496,7 +2496,7 @@ function pageFor(name, graph, { id, sort, parent, ownership = null }) {
 		// `{ default: NONE }`. See relmap/relmap-doc.js.
 		ownership: ownership ?? { default: -1 },
 		getFlag: (scope, key) =>
-			(scope === "stonetop-pwd" && key === "relationshipMap" ? graph : null),
+			(scope === "stonetop_pwd" && key === "relationshipMap" ? graph : null),
 		// Core's own rule, near enough: a GM is OWNER over everything, an explicit level for this
 		// user beats the default, and INHERIT defers to the parent entry.
 		testUserPermission(user, permission) {
@@ -2530,11 +2530,11 @@ function pagedEntry(boards, { isOwner = true } = {}) {
 		updates: [],
 		pages: { get contents() { return pages; } },
 		getFlag: (scope, key) =>
-			(scope === "stonetop-pwd" && key === "relationshipMap" ? { version: 2 } : null),
+			(scope === "stonetop_pwd" && key === "relationshipMap" ? { version: 2 } : null),
 		update(patch) { entry.updates.push(patch); return Promise.resolve(entry); },
 		createEmbeddedDocuments(type, rows) {
 			const made = rows.map((row, i) => pageFor(
-				row.name, row.flags?.["stonetop-pwd"]?.relationshipMap ?? null,
+				row.name, row.flags?.["stonetop_pwd"]?.relationshipMap ?? null,
 				{ id: `made${pages.length + i + 1}`, sort: row.sort, parent: entry },
 			));
 			pages.push(...made);
@@ -2604,8 +2604,8 @@ describe("the pages of one map", () => {
 		// Still LEAF PATHS, which is the concurrency story the whole feature is built on: two
 		// people dragging two portraits on one page both survive the merge.
 		expect(Object.keys(stonetop.updates[0])).toEqual([
-			"flags.stonetop-pwd.relationshipMap.nodes.elena.x",
-			"flags.stonetop-pwd.relationshipMap.nodes.elena.y",
+			"flags.stonetop_pwd.relationshipMap.nodes.elena.x",
+			"flags.stonetop_pwd.relationshipMap.nodes.elena.y",
 		]);
 		expect(marshedge.updates).toEqual([]);
 		expect(entry.updates).toEqual([]);
@@ -2733,7 +2733,7 @@ describe("keeping up with pages being changed elsewhere", () => {
 		return on;
 	}
 
-	const GRAPH_WRITE = { flags: { "stonetop-pwd": { relationshipMap: { nodes: {} } } } };
+	const GRAPH_WRITE = { flags: { "stonetop_pwd": { relationshipMap: { nodes: {} } } } };
 
 	it("ignores a page write to a different journal entirely", () => {
 		const on = hooksOf();
@@ -2938,7 +2938,7 @@ describe("adding a board from the strip", () => {
 // and that each board keeps its own.
 
 /** The flag path prefix, spelled out once for the assertions below. */
-const FLAG = "flags.stonetop-pwd.relationshipMap";
+const FLAG = "flags.stonetop_pwd.relationshipMap";
 
 /**
  * A map whose boards actually KEEP what is written to them.
@@ -2958,7 +2958,7 @@ function livingMap(boards) {
 		updates: [],
 		pages: { get contents() { return pages; } },
 		getFlag: (scope, key) =>
-			(scope === "stonetop-pwd" && key === "relationshipMap" ? { version: 2 } : null),
+			(scope === "stonetop_pwd" && key === "relationshipMap" ? { version: 2 } : null),
 		update(patch) { entry.updates.push(patch); return Promise.resolve(entry); },
 	};
 	boards.forEach((board, i) => {
@@ -2983,7 +2983,7 @@ function livingMap(boards) {
 			get isOwner() { return page.testUserPermission(game?.user, "OWNER"); },
 			flag: foundry.utils.deepClone(board.graph ?? EMPTY_BOARD),
 			getFlag: (scope, key) =>
-				(scope === "stonetop-pwd" && key === "relationshipMap" ? page.flag : null),
+				(scope === "stonetop_pwd" && key === "relationshipMap" ? page.flag : null),
 			update(patch) {
 				page.updates.push(patch);
 				for (const [key, value] of Object.entries(patch)) {

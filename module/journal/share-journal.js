@@ -129,7 +129,7 @@ export class ShareJournalDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-share-journal-dialog",
 			title:     "Share With Players",
-			template:  "systems/stonetop-pwd/templates/dialogs/share-journal.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/share-journal.hbs",
 			width:     440,
 			height:    "auto",
 			resizable: true,

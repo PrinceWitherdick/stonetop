@@ -65,8 +65,8 @@ function steadingWith({ season = "winter", year = 1, pickerYear = year, winterDe
 	return new StonetopSteading({
 		type: "stonetop",
 		system: {},
-		flags: { "stonetop-pwd": flags },
-		getFlag: (scope, key) => (scope === "stonetop-pwd" ? flags[key] ?? null : null),
+		flags: { "stonetop_pwd": flags },
+		getFlag: (scope, key) => (scope === "stonetop_pwd" ? flags[key] ?? null : null),
 		setFlag: vi.fn(),
 		update: vi.fn(),
 	});

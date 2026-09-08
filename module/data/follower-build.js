@@ -165,7 +165,7 @@ export function normalizeTags(tags) {
 
 /**
  * Build the stored shape for a custom follower (the object kept at
- * flags.stonetop-pwd.customFollowers.<id>). Pure: the caller assigns the id and
+ * flags.stonetop_pwd.customFollowers.<id>). Pure: the caller assigns the id and
  * an `order` for stable sorting. hpCurrent defaults to full unless given.
  */
 export function buildCustomFollower(input = {}) {

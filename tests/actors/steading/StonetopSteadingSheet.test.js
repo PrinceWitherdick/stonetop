@@ -199,7 +199,7 @@ describe("StonetopSteadingSheet", () => {
 		}
 		globalThis.ImagePopout = MockImagePopout;
 		const anchor = {
-			src: "systems/stonetop-pwd/assets/icons/people/default_profile.svg",
+			src: "systems/stonetop_pwd/assets/icons/people/default_profile.svg",
 			dataset: { name: "Wren", list: "residents", index: "0" },
 		};
 		sheet._onMemberAvatarPickImage = vi.fn();
@@ -266,7 +266,7 @@ describe("StonetopSteadingSheet", () => {
 	// the open photo window showing the default portrait while the sheet row updated.
 	it("refreshes a member image popout whose options are frozen (ApplicationV2)", () => {
 		const { sheet } = makeSheet();
-		const { popout, img } = makeImagePopout("systems/stonetop-pwd/assets/icons/people/default_profile.svg", { frozen: true });
+		const { popout, img } = makeImagePopout("systems/stonetop_pwd/assets/icons/people/default_profile.svg", { frozen: true });
 
 		sheet._refreshMemberImagePopout(popout, "new.webp");
 

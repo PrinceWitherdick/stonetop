@@ -53,7 +53,7 @@ describe("StonetopCharacter._applyForeignMoveChoice", () => {
 		char.addMove = vi.fn().mockResolvedValue(foreignItem);
 		await char._applyForeignMoveChoice({ id: "cross1", name: "Versatile" }, "f1", null);
 		expect(char.addMove).toHaveBeenCalledWith("f1");
-		expect(foreignItem.setFlag).toHaveBeenCalledWith("stonetop-pwd", "grantedBy", { move: "Versatile", instanceId: "cross1" });
+		expect(foreignItem.setFlag).toHaveBeenCalledWith("stonetop_pwd", "grantedBy", { move: "Versatile", instanceId: "cross1" });
 	});
 
 	it("grants the possession when grantsPossession is set and not already owned (Initiate Sacred Pouch)", async () => {
@@ -124,8 +124,8 @@ describe("StonetopCharacter.removeMove — cross-playbook cascade", () => {
 		const actor = new FakeActorBuilder()
 			.withPlaybook("the-fox", "The Fox")
 			.addItem({ _id: "cross1", type: "move", name: "Versatile", system: { moveType: "playbook" } })
-			.addItem({ _id: "g1", type: "move", name: "Smash", system: { moveType: "playbook", playbook: "The Heavy" },  flags: { "stonetop-pwd": { grantedBy: { move: "Versatile", instanceId: "cross1" } } } })
-			.addItem({ _id: "g2", type: "move", name: "Other", system: { moveType: "playbook", playbook: "The Marshal" }, flags: { "stonetop-pwd": { grantedBy: { move: "Versatile", instanceId: "OTHER"  } } } })
+			.addItem({ _id: "g1", type: "move", name: "Smash", system: { moveType: "playbook", playbook: "The Heavy" },  flags: { "stonetop_pwd": { grantedBy: { move: "Versatile", instanceId: "cross1" } } } })
+			.addItem({ _id: "g2", type: "move", name: "Other", system: { moveType: "playbook", playbook: "The Marshal" }, flags: { "stonetop_pwd": { grantedBy: { move: "Versatile", instanceId: "OTHER"  } } } })
 			.build();
 		await new TestCharacterBuilder(actor).build().removeMove("cross1");
 		// cross1 + its grant g1; g2 belongs to a different instance and is left alone.
@@ -144,7 +144,7 @@ describe("StonetopCharacter.removeMove — cross-playbook cascade", () => {
 // stored count has to go with the move. A shipped move keys by NAME and keeps its count on
 // purpose, so re-adding it later picks up where the player left off.
 describe("StonetopCharacter.removeMove — resource-track cleanup", () => {
-	const RESOURCE_FLAG = "flags.stonetop-pwd.moves.backgroundChoices";
+	const RESOURCE_FLAG = "flags.stonetop_pwd.moves.backgroundChoices";
 
 	function actorWithTracks(item) {
 		return new FakeActorBuilder()
@@ -155,7 +155,7 @@ describe("StonetopCharacter.removeMove — resource-track cleanup", () => {
 	it("drops a custom move's stored count", async () => {
 		const actor = actorWithTracks({
 			_id: "cm1", type: "move", name: "Homebrew", system: { moveType: "other", resource: { max: 3 } },
-			flags: { "stonetop-pwd": { custom: true } },
+			flags: { "stonetop_pwd": { custom: true } },
 		});
 		await new TestCharacterBuilder(actor).build().removeMove("cm1");
 		expect(actor.update).toHaveBeenCalledWith({ [`${RESOURCE_FLAG}.-=cm1`]: null }, undefined);
@@ -174,7 +174,7 @@ describe("StonetopCharacter.removeMove — resource-track cleanup", () => {
 	it("writes nothing when the custom move never held a track", async () => {
 		const actor = actorWithTracks({
 			_id: "cm2", type: "move", name: "Trackless", system: { moveType: "other" },
-			flags: { "stonetop-pwd": { custom: true } },
+			flags: { "stonetop_pwd": { custom: true } },
 		});
 		await new TestCharacterBuilder(actor).build().removeMove("cm2");
 		expect(actor.update).not.toHaveBeenCalled();

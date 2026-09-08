@@ -17,7 +17,7 @@ const {
 const { managedHash } = await import("../../module/hooks/journal-sync-core.js");
 
 const VERSION = "9.9.9";
-const PACK = "stonetop-pwd.stonetop-journal";
+const PACK = "stonetop_pwd.stonetop-journal";
 
 let store;
 let updateDocuments;
@@ -58,7 +58,7 @@ function harness({ journals = [], packDocs = [], settings = {}, hasPack = true }
 
 	global.game = {
 		user: { isGM: true },
-		system: { id: "stonetop-pwd", version: VERSION },
+		system: { id: "stonetop_pwd", version: VERSION },
 		journal: journals,
 		settings: {
 			get: (_ns, key) => store[key],
@@ -129,7 +129,7 @@ describe("updateSeededJournalsOnVersionChange", () => {
 
 		expect(updateDocuments.mock.calls[0][0][0]).toEqual({
 			_id: "a",
-			"flags.stonetop-pwd.journalSync": { hash: expect.anything(), version: VERSION },
+			"flags.stonetop_pwd.journalSync": { hash: expect.anything(), version: VERSION },
 		});
 	});
 

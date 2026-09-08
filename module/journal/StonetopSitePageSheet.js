@@ -12,7 +12,7 @@ import { createStonetopGmPrepPageSheetClass } from "./gm-prep-page-sheet.js";
 
 export function createStonetopSitePageSheetClass(Base) {
 	return createStonetopGmPrepPageSheetClass(Base, {
-		template: "systems/stonetop-pwd/templates/journal/site-page.hbs",
+		template: "systems/stonetop_pwd/templates/journal/site-page.hbs",
 		buildCardVM: buildSiteCardVM,
 		editSelector: ".site-edit-start",
 		// Through the shared opener rather than standing the dialog up here: this is the THIRD
