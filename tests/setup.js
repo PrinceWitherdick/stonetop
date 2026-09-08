@@ -8,7 +8,23 @@ import { escHtml } from "../module/utils/strings.js";
 // that adds a header button calls `super._getHeaderButtons()` first, and core's answer for a
 // window with no document is an empty list.
 global.Application = class {
+	// Core's own table, verbatim (appv1/api/application-v1.mjs). Production code compares
+	// `this._state` against it to tell a window that is CLOSED from one that is part-way through a
+	// render — two states that both answer false to `rendered` and want opposite handling. A fake
+	// without it makes that comparison `undefined === undefined`, which is true for every closed
+	// window, so the fake would certify the exact confusion the comparison exists to prevent.
+	static RENDER_STATES = Object.freeze({
+		ERROR: -3, CLOSING: -2, CLOSED: -1, NONE: 0, RENDERING: 1, RENDERED: 2,
+	});
+
 	_getHeaderButtons() { return []; }
+	// A no-op, but present: a test that drives a handler which OPENS a window needs the
+	// window to be constructible, and needs somewhere to hang a spy asserting it opened.
+	render() { return this; }
+	// Where core actually draws, and what a window that must await something of its own first calls
+	// `super` on. It lands on RENDERED because that is the state core's `close` insists on before it
+	// will do anything — the two together are what a close arriving mid-render turns on.
+	async _render() { this._state = Application.RENDER_STATES.RENDERED; }
 	async close() {}
 };
 
