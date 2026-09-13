@@ -3275,7 +3275,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						await this._stonetopCharacter.onDirectStatRoll(roll, prompted);
 					} else {
 						// Raw formula roll (e.g. damage die "d8")
-						let label;
+						let label, attacker;
 						if (rollable.classList.contains("stonetop-follower-damage-roll")) {
 							const followerType   = rollable.dataset.followerType ?? "";
 							const followerName   = (rollable.dataset.followerName   ?? "").trim();
@@ -3283,23 +3283,14 @@ export function createStonetopCharacterSheetClass(Base) {
 							const followerPronoun = (rollable.dataset.followerPronoun ?? "").trim().toLowerCase().split(/[\s/]/)[0];
 							const damageForm     = (rollable.dataset.damageForm     ?? "").trim();
 							const possessive = { he: "his", she: "her", they: "their" }[followerPronoun] ?? "its";
-							if (followerType === "animal") {
-								const subject  = followerName || followerKind || "animal companion";
-								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
-								label = `${subject} attacks${formPart}`;
-							} else if (followerType === "initiate") {
-								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
-								label = `${this.actor.name}'s ${followerName || "initiate"} attacks${formPart}`;
-							} else if (followerType === "beast") {
-								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
-								label = `${this.actor.name}'s ${followerName || "beast"} attacks${formPart}`;
-							} else if (followerType === "custom") {
-								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
-								label = `${this.actor.name}'s ${followerName || "follower"} attacks${formPart}`;
-							} else {
-								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
-								label = `${this.actor.name}'s ${followerName || "crew"} attacks${formPart}`;
-							}
+							const formPart   = damageForm ? ` with ${possessive} ${damageForm}` : "";
+							// The follower is who swings, so it names the damage window as well as the
+							// card; the actor in hand is only the PC whose sheet this is. An animal
+							// companion goes by its own name, every other follower as the PC's.
+							attacker = followerType === "animal"
+								? (followerName || followerKind || "animal companion")
+								: `${this.actor.name}'s ${followerName || { initiate: "initiate", beast: "beast", custom: "follower" }[followerType] || "crew"}`;
+							label = `${attacker} attacks${formPart}`;
 						} else {
 							label = rollable.dataset.label ?? roll;
 						}
@@ -3307,7 +3298,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						// attack — so it gets the damage window rather than the move prompt, which
 						// asked it nothing upstream (see _resolveMoveRollPrompts). Shift on the
 						// originating click skips it, exactly as it skips the move prompt.
-						await rollDamagePrompted(roll, this.actor, { label, shiftKey: ev.shiftKey });
+						await rollDamagePrompted(roll, this.actor, { label, attacker, shiftKey: ev.shiftKey });
 					}
 				}
 			}, true);

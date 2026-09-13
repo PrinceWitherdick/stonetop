@@ -12,6 +12,14 @@ vi.mock("../../../module/actors/steading/PeopleGalleryDialog.js", () => ({
 	openPeoplePortraitPicker: gallery.open,
 }));
 
+// The damage window and the roll behind it, stood in for so a click on a damage line can be read
+// off the arguments it rolled with. Everything else in the module is the real one.
+const rollDialog = vi.hoisted(() => ({ rollDamagePrompted: vi.fn() }));
+vi.mock("../../../module/dialogs/RollDialog.js", async importOriginal => ({
+	...(await importOriginal()),
+	rollDamagePrompted: rollDialog.rollDamagePrompted,
+}));
+
 function makeItems(items) {
 	return {
 		filter: callback => items.filter(callback),
@@ -154,7 +162,7 @@ describe("StonetopMonsterSheet", () => {
 
 		const data = await makeSheet(actor).getData();
 
-		expect(data.stonetop.damageModes).toEqual([
+		expect(data.stonetop.damageModes).toMatchObject([
 			{ text: "claws, bite, hug d10+4 (hand, close, messy, 1 piercing)", formula: "d10+4", rollMode: "" },
 		]);
 		expect(data.stonetop.multiDamage).toBe(false);
@@ -170,7 +178,7 @@ describe("StonetopMonsterSheet", () => {
 
 		const data = await makeSheet(actor).getData();
 
-		expect(data.stonetop.damageModes).toEqual([
+		expect(data.stonetop.damageModes).toMatchObject([
 			{ text: "fingers d8 (close)", formula: "d8", rollMode: "" },
 			{ text: "maw d10+2 (hand, messy)", formula: "d10+2", rollMode: "" },
 		]);
@@ -190,7 +198,7 @@ describe("StonetopMonsterSheet", () => {
 
 		const data = await makeSheet(actor).getData();
 
-		expect(data.stonetop.damageModes).toEqual([
+		expect(data.stonetop.damageModes).toMatchObject([
 			{ text: "dagger d10 (hand, 1 piercing)", formula: "d10", rollMode: "" },
 			{ text: "garrote d8 (hand, grabby, ignores armor)", formula: "d8", rollMode: "" },
 		]);
@@ -210,7 +218,7 @@ describe("StonetopMonsterSheet", () => {
 		const data = await makeSheet(actor).getData();
 
 		// And it prints the book's own wording — "bite or maul", not a reconstructed "bite, maul".
-		expect(data.stonetop.damageModes).toEqual([
+		expect(data.stonetop.damageModes).toMatchObject([
 			{ text: "bite or maul d12+5 (close, hand or reach, forceful, messy)", formula: "d12+5", rollMode: "" },
 		]);
 		expect(data.stonetop.multiDamage).toBe(false);
@@ -228,7 +236,7 @@ describe("StonetopMonsterSheet", () => {
 
 		const data = await makeSheet(actor).getData();
 
-		expect(data.stonetop.damageModes).toEqual([
+		expect(data.stonetop.damageModes).toMatchObject([
 			{ text: "hair-rope net (thrown, crude, grabby)", formula: "", rollMode: "" },
 			{ text: "bite d6 (hand)", formula: "d6", rollMode: "" },
 		]);
@@ -263,9 +271,48 @@ describe("StonetopMonsterSheet", () => {
 
 		const data = await makeSheet(actor).getData();
 
-		expect(data.stonetop.damageModes).toEqual([
+		expect(data.stonetop.damageModes).toMatchObject([
 			{ text: "icy touch d6 w/disadvantage (hand, ignores armor)", formula: "d6", rollMode: "dis" },
 		]);
+	});
+
+	it("titles a damage line's card with the attack's name, its tags as the body", async () => {
+		// The Assassin, verbatim. The card's formula chip already prints the die, so the title is
+		// the blow's name alone and its tags go beside the total (utils/damage.js#damageCardText).
+		const actor = {
+			system: {
+				attributes: { damage: { value: "dagger d10 (hand, 1 piercing) or garrote d8 (hand, grabby, ignores armor)" } },
+			},
+			flags: {},
+			items: makeItems([]),
+		};
+		const sheet = makeSheet(actor);
+		const garrote = (await sheet.getData()).stonetop.damageModes[1];
+		expect(garrote).toMatchObject({ title: "Garrote", keywords: "hand, grabby, ignores armor" });
+
+		// The roll button carries both, under the names the click reads back.
+		const { readFileSync } = await import("node:fs");
+		const template = readFileSync(new URL("../../../templates/actor/monster.hbs", import.meta.url), "utf8");
+		const button = template.match(/<a class="stonetop-monster-damage-roll"[^>]*>/)?.[0] ?? "";
+		expect(button).toContain(`data-roll-label="{{title}}"`);
+		expect(button).toContain(`data-roll-keywords="{{keywords}}"`);
+
+		const handlers = [];
+		const root = {
+			addEventListener: (name, handler) => { if (name === "click") handlers.push(handler); },
+			querySelector: () => null,
+		};
+		sheet.activateListeners([root]);
+		const rollButton = {
+			dataset: { rollFormula: garrote.formula, rollLabel: garrote.title, rollKeywords: garrote.keywords, rollMode: garrote.rollMode },
+		};
+		const target = { closest: selector => selector === ".stonetop-monster-damage-roll" ? rollButton : null };
+		rollDialog.rollDamagePrompted.mockClear();
+		await handlers[0]({ target, shiftKey: false });
+
+		expect(rollDialog.rollDamagePrompted).toHaveBeenCalledWith("d8", actor, {
+			label: "Garrote", keywords: "hand, grabby, ignores armor", rollMode: "normal", shiftKey: false,
+		});
 	});
 
 	it("enriches the qualities rich-text field for display", async () => {

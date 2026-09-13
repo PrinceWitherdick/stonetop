@@ -1,5 +1,6 @@
 import {getStonetopProsperity} from "./world.js";
 import {DAMAGE_DIE_RE, isWholeDamageDie, attackSeparatorRe} from "./damage-die.js";
+import {capitalizeFirst} from "./strings.js";
 
 // The canonical damage-die grammar is DEFINED in damage-die.js (which has no Foundry in it, so
 // the Foundry-free Dangers worksheet can share it) and re-exported here, where most of the
@@ -335,14 +336,26 @@ export function parseMonsterAttacks(damageValue, rollFormula = "") {
 	// The split keeps a trailing name that never found a die, because the SHEET still has to print
 	// it. Here it is not an attack: "none" and "by weapon" are lines with nothing to roll, and an
 	// attack read out of them would be a die the book never gave this foe.
-	const attacks = _splitPrintedAttacks(damageValue)
-		.map(entry => entry.mechanical)
-		.filter(text => DAMAGE_DIE_RE.test(text) || _TAG_LIST_RE.test(text))
-		.map(_readAttack);
+	const attacks = _mechanicalAttacks(damageValue).map(_readAttack);
 	if (attacks.length) return attacks;
 
 	const fallback = String(rollFormula ?? "").trim();
 	return fallback ? [_readAttack(fallback)] : [];
+}
+
+/** Each printed attack's mechanical text, keeping only those with a die or a tag list to read. */
+function _mechanicalAttacks(damageValue) {
+	return _splitPrintedAttacks(damageValue)
+		.map(entry => entry.mechanical)
+		.filter(text => DAMAGE_DIE_RE.test(text) || _TAG_LIST_RE.test(text));
+}
+
+/** An attack's parenthesised tags, trimmed, in the case they were printed in. */
+function _attackTags(text) {
+	return Array.from(text.matchAll(/\(([^)]*)\)/g))
+		.flatMap(group => group[1].split(","))
+		.map(tag => tag.trim())
+		.filter(Boolean);
 }
 
 /**
@@ -364,6 +377,82 @@ export function parseMonsterAttacks(damageValue, rollFormula = "") {
  */
 export function splitMonsterAttackProse(damageValue) {
 	return _splitPrintedAttacks(damageValue).map(entry => entry.printed);
+}
+
+/**
+ * What a DAMAGE CARD says about a printed attack: its name as the title, and the rest of what the
+ * book printed beside the die as the body. "garrote d8 (hand, grabby, ignores armor)" is titled
+ * "Garrote", over "hand, grabby, ignores armor".
+ *
+ * The card already has a place for everything else on the line. The die is the formula chip over
+ * the total and a "w/disadvantage" is the pill under it, so a title carrying the whole printed
+ * attack said the die twice and buried the blow's name in its tags. The tags move to the body
+ * rather than off the card: whether the blow ignores armor is what the table reads the card for.
+ *
+ * `formula` picks the attack out of a line naming several, for the caller whose die is not tied to
+ * one printed attack: an NPC stat block has a single damage button, rolling its `rollFormula` beside
+ * a line the GM may have written two blows into. The attack printing that die is the one named (the
+ * first, if two print the same die). A line holding only one attack names it whatever die is rolled,
+ * because a GM who retyped the formula did not rename the blow; a line holding several, none of
+ * them at that die, names nothing rather than guess which.
+ *
+ * @param {string} damageValue One printed attack, or a whole damage line.
+ * @param {string} [formula]   The die being rolled.
+ * @returns {{title: string, keywords: string}} Either is "" when the line does not say it.
+ */
+export function damageCardText(damageValue, formula = "") {
+	// The mechanical text, not the printed: a trailing name with no die of its own is printed with
+	// the attack before it but is no part of that attack (see _splitPrintedAttacks).
+	const attacks = _mechanicalAttacks(damageValue);
+	const die = _comparableDie(formula);
+	const text = (die && attacks.find(attack => _comparableDie(dieFromDamage(attack)) === die))
+		|| (attacks.length === 1 ? attacks[0] : "");
+	if (!text) return { title: "", keywords: "" };
+
+	const tags = _attackTags(text).filter(tag => !_BARE_ADVANTAGE_RE.test(tag) && !_BARE_DIE_TAG_RE.test(tag));
+	return {
+		title: capitalizeFirst(_readAttack(text).label),
+		keywords: [tags.join(", "), _attackNote(text)].filter(Boolean).join(" · "),
+	};
+}
+
+/** A die spelled the way two stat blocks can disagree on and still mean the same: "1d8 + 2" is "d8+2". */
+function _comparableDie(die) {
+	return String(die ?? "").replace(/\s+/g, "").toLowerCase().replace(/^1d/, "d");
+}
+
+/** An advantage the tag list carries as a word of its own ("beak d10 (reach, disadvantage)"). It is
+ *  not a keyword on the card, because the pill under the total already says it, read by the same
+ *  rule (attackRollMode). */
+const _BARE_ADVANTAGE_RE = /^(?:w\/\s*)?(?:dis)?advantage$/i;
+
+/** A die printed INSIDE the tag list ("(d8+1 damage, near, grabby)"), which the formula chip says. */
+const _BARE_DIE_TAG_RE = new RegExp(`^(?:${DAMAGE_DIE_RE.source})(?:\\s+damage)?$`, "i");
+
+/**
+ * Words printed beside the die that are neither its tags nor its advantage: the five vortexes'
+ * "smash d10 (hand, close) — scales with size". Kept, because a card that dropped them would know
+ * less about the blow than the stat block line it was rolled from.
+ */
+function _attackNote(text) {
+	const at = text.search(DAMAGE_DIE_RE);
+	if (at < 0) return "";
+	// A die printed inside its tag list is followed by the rest of that list, which is tags; the
+	// words beside it start where the list closes.
+	const insideList = text.lastIndexOf("(", at) > text.lastIndexOf(")", at);
+	const close = text.indexOf(")", at);
+	const after = insideList
+		? (close < 0 ? "" : text.slice(close + 1))
+		: text.slice(at).replace(DAMAGE_DIE_RE, " ");
+	return after
+		.replace(/\([^)]*\)/g, " ")
+		.replace(/\b(?:w\/\s*|with\s+)?(?:dis)?advantage\b/gi, " ")
+		.replace(/^\s*damage\b/i, " ")
+		.replace(/\s+/g, " ")
+		// The book's own dash or comma between the tags and the words, which the card's separator
+		// replaces. `\p{Pd}` is any dash punctuation (hyphen, en, em), and spelling it that way keeps
+		// the dash characters themselves out of shipped module code (tests/copy/no-em-dashes.test.js).
+		.replace(/^[\s,;:\p{Pd}]+|[\s,;:\p{Pd}]+$/gu, "");
 }
 
 /**
@@ -545,10 +634,7 @@ function _readAttack(text) {
 	return {
 		label,
 		formula,
-		tags: Array.from(text.matchAll(/\(([^)]*)\)/g))
-			.flatMap(group => group[1].split(","))
-			.map(tag => tag.trim().toLowerCase())
-			.filter(Boolean),
+		tags: _attackTags(text).map(tag => tag.toLowerCase()),
 		piercing: Number(PIERCING_RE.exec(text)?.[1]) || 0,
 		ignoresArmor: IGNORES_ARMOR_RE.test(text),
 		rollMode: attackRollMode(text) || "normal",

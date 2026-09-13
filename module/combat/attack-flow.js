@@ -665,7 +665,7 @@ export async function maybeBeginAttack(actor, item, { stat = null, weaponSlug = 
 		// Dealing your damage without rolling means there is no card to adjust it from later, so
 		// this is the only moment it can be adjusted — and backing out of the window has to abort
 		// the attack rather than deal it unmodified, which is what "cancel" tells the caller.
-		const damage = await askDamageAdjustment(actor, { move: item.name, moveKey: move.key, weapon });
+		const damage = await askDamageAdjustment(actor, { moveKey: move.key, weapon });
 		if (!damage) return "cancel";
 		await rollAndPostDamage(actor, { move: item.name, weapon, targets, damage });
 		return "handled";
@@ -733,10 +733,10 @@ function damageLabel(move, weapon) {
  * the playbook and its damage-raising marks (see pcDamageDie), and doing that a second time
  * just to compose the same string is work the roll can skip.
  */
-async function askDamageAdjustment(actor, { move, moveKey = "", weapon, extraDice = "", shiftKey = false } = {}) {
+async function askDamageAdjustment(actor, { moveKey = "", weapon, extraDice = "", shiftKey = false } = {}) {
 	const base     = await damageFormula(actor, weapon, extraDice);
 	const rollMode = damageAdvantageFrom(actor, moveKey, weapon);
-	const adjust   = await promptDamage({ title: damageLabel(move, weapon), formula: base, shiftKey, ...(rollMode ? { rollMode } : {}) });
+	const adjust   = await promptDamage({ attacker: actor?.name, formula: base, shiftKey, ...(rollMode ? { rollMode } : {}) });
 	return adjust ? { base, ...adjust } : null;
 }
 
@@ -1204,7 +1204,7 @@ async function resolveAttackTier(message, actor, btn, root, shiftKey = false) {
 	// dead card, a depleted quiver and no damage rolled. So the question comes first, and a
 	// cancel simply hands the Confirm button back.
 	const damage = await askDamageAdjustment(actor,
-		{ move: attack.move, moveKey: attack.moveKey, weapon: attack.weapon, extraDice, shiftKey });
+		{ moveKey: attack.moveKey, weapon: attack.weapon, extraDice, shiftKey });
 	if (!damage) { btn.disabled = false; return; }
 
 	await lockAttackCard(message, root, { yourCall, targets });

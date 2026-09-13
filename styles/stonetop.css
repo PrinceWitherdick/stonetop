@@ -3747,6 +3747,20 @@ input.stonetop-name-field {
 	font-weight: bold;
 }
 
+/* The empty field's "1d6" is an EXAMPLE of what to type, and has to look like one. It inherits
+   the field's bold at --st-fs-lg above, which is the same weight and size a typed 1d6 gets, so
+   at a glance the window looked like it had already added a die to every damage roll. Lighter,
+   unbolded and italic says the field is empty, which is the same treatment the other hinted
+   fields in this system get. Muted rather than FAINT: this sits on a 5% wash over parchment,
+   where faint is about 2.4:1, and a hint nobody can read is not a lighter hint. The ink is a
+   token, so "Sheet Contrast: High" takes it to 10.86:1 with the rest of the ramp. */
+.stonetop-damage-extra-dice::placeholder {
+	color: var(--st-text-muted, #777);
+	font-weight: normal;
+	font-style: italic;
+	opacity: 1; /* Firefox dims placeholders by default, which would double the fade. */
+}
+
 /* A term the roll is going to drop. Said in the field itself, because the preview below shows
    the formula WITHOUT it and a player who mistypes "1d" otherwise sees a window that looks
    like it worked. */
@@ -4698,7 +4712,10 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	align-items: center;
 	justify-content: center;
 	margin-left: auto;
-	flex-shrink: 0;
+	/* The whole flex shorthand, not just flex-shrink: the title row is a `.flexrow`, and core's
+	   `.flexrow > *{flex:1}` GREW this button to half the row (115px on a 300px chat log), leaving
+	   the title half the room. The damage badge carries the same override for the same reason. */
+	flex: 0 0 auto;
 	width: 1.4em;
 	height: 1.4em;
 	padding: 0;
@@ -4711,6 +4728,9 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	line-height: 1;
 }
 .stonetop-roll-card-desc-toggle:hover { background: rgba(0,0,0,0.12); color: var(--st-text); }
+/* Beside a badge: a monster move rolled as damage carries its description, so a damage card can
+   show both. Once the title grows, both auto margins come to nothing and the two would touch. */
+.stonetop-roll-card-badge + .stonetop-roll-card-desc-toggle { margin-left: 6px; }
 
 /* When the global body class is active (user setting off), show the button and hide descriptions. */
 body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card-desc-toggle {
@@ -5540,8 +5560,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
    accent. A damage roll has no 2d6 hit tier, so without this cue it looks nearly
    identical to a move roll (same formula chip + total); the badge names it and the
    red edge/total set it apart from the amber/green move tiers. The badge floats to
-   the right edge of the title row (margin-left:auto), where descToggle would sit —
-   damage cards carry no description, so they never collide. */
+   the right edge of the title row (margin-left:auto). A monster move rolled as damage can
+   carry a description, and its toggle then sits just after the badge (see the toggle's rules). */
 .stonetop-roll-card-badge {
 	display: inline-flex;
 	align-items: center;

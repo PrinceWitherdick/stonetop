@@ -508,12 +508,13 @@ describe("rollDamage", () => {
 
 	it("rolls a disadvantaged die twice and keeps the lower, with a pill", async () => {
 		await rollDamage("d6", makeActor(), {
-			label: "icy touch d6 w/disadvantage (hand, ignores armor)",
+			label: "Icy touch",
+			keywords: "hand, ignores armor",
 			rollMode: "dis",
 		});
 
 		expect(rollInstances[0].formula).toBe("2d6kl1");
-		expect(rollMessages[0].flavor).toContain("icy touch d6 w/disadvantage");
+		expect(rollMessages[0].flavor).toContain("Icy touch");
 		expect(rollMessages[0].flavor).toContain("stonetop-condition-disadvantage");
 	});
 
@@ -561,6 +562,43 @@ describe("rollDamage", () => {
 		await rollDamage("d6", makeActor(), { label: "Hammer" });
 
 		expect(rollMessages[0].flavor).not.toContain("stonetop-condition-situational");
+	});
+
+	// A stat block's attack reaches the card in two halves (utils/damage.js#damageCardText): its name
+	// for the title and its tags for the body. The die is the formula chip's to print, not the title's.
+	it("prints an attack's keywords beside the total, and only its name in the title", async () => {
+		await rollDamage("d8", makeActor(), { label: "Garrote", keywords: "hand, grabby, ignores armor" });
+
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain(`<h2 class="cell__title">Garrote</h2>`);
+		const resultBody = flavor.slice(flavor.indexOf(`class="stonetop-roll-result-body"`));
+		expect(resultBody).toContain(">hand, grabby, ignores armor</span>");
+	});
+
+	it("escapes the keywords, which can be a GM's own typing", async () => {
+		await rollDamage("d6", makeActor(), { label: "Knife", keywords: "hand, <b>sneaky</b>" });
+
+		expect(rollMessages[0].flavor).toContain("hand, &lt;b&gt;sneaky&lt;/b&gt;");
+	});
+
+	it("prints no keyword line for a damage roll that has none", async () => {
+		await rollDamage("d6", makeActor(), { label: "Hammer" });
+
+		expect(rollMessages[0].flavor).not.toContain("stonetop-damage-keywords");
+	});
+
+	// A monster move that states its blow in its description (the Crinwin's "Choke with sinewy
+	// fingers") keeps that text on the damage card, behind the same toggle a move roll's card has.
+	it("carries a move's description on the damage card", async () => {
+		await rollDamage("d6", makeActor(), {
+			label: "Choke with sinewy fingers",
+			description: "<p>Clammy, too-cold fingers close around a throat.</p>",
+		});
+
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain(`<div class="stonetop-roll-card-description"><p>Clammy, too-cold fingers close around a throat.</p></div>`);
+		expect(flavor).toContain("stonetop-roll-card-desc-toggle");
+		expect(flavor).toContain("stonetop-damage-roll-card");
 	});
 });
 

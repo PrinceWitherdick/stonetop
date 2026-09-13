@@ -345,7 +345,7 @@ export function pickListsHtml(pools, activeTier, picks = null) {
 	</div>`;
 }
 
-function _rollCard({ header, result = "", resultClass = "", resultDetail = "", resultOutcomes = null, resultLegend = "", pickList = "", pickTiers = [], tierActions = null, conditionsHtml = "", noticesHtml = "", buttons = false, actions = "", total = null, formula = "", description = "", dieResults = "", badge = "", sectionClass = "", damage = false }) {
+function _rollCard({ header, result = "", resultClass = "", resultDetail = "", keywords = "", resultOutcomes = null, resultLegend = "", pickList = "", pickTiers = [], tierActions = null, conditionsHtml = "", noticesHtml = "", buttons = false, actions = "", total = null, formula = "", description = "", dieResults = "", badge = "", sectionClass = "", damage = false }) {
 	// Stash every tier's outcome on the row so a GM Shift Up/Down can swap the
 	// detail line to match the new tier (see _shiftRollCardFlavor in stonetop.js).
 	const outcomeAttrs = resultOutcomes
@@ -380,6 +380,7 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", r
 			<div class="stonetop-roll-result-body">
 				${result ? `<span class="stonetop-roll-result-label">${result}</span>` : ""}
 				<span class="stonetop-roll-result-details">${detailHtml}</span>
+				${keywords ? `<span class="stonetop-roll-result-details stonetop-damage-keywords">${escHtml(keywords)}</span>` : ""}
 			</div>
 		</div>`
 		: "";
@@ -856,6 +857,10 @@ export function damageRollFormula(formula, rollMode) {
  * @param {string} [options.rollMode]  - "adv" | "dis" | "normal" (advantage/disadvantage on the damage die)
  * @param {number} [options.bonus]     - Flat one-off damage modifier
  * @param {string|string[]} [options.extraDice] - One-off extra damage dice ("1d6")
+ * @param {string} [options.keywords] - What the card prints beside the total: a stat block attack's
+ *   tags, its name alone being the title (utils/damage.js#damageCardText). Plain text, escaped here.
+ * @param {string} [options.description] - HTML for the card's description, behind the same toggle a
+ *   move roll's card has: a monster move rolled as an attack carries its own text (item/StonetopItem.js).
  * @param {string} [options.notices] - Ready-made HTML for the card's notice slot: the fiction a
  *   weapon's tags owe the table (combat/attack-flow.js#tagNoticesHtml). Passed in rather than
  *   built here because this card is the NO-TARGET half of a pair, and the targeted half builds
@@ -874,7 +879,7 @@ export async function rollDamage(formula, actor, options = {}) {
 
 	await roll.toMessage({
 		speaker:  ChatMessage.getSpeaker({ actor }),
-		flavor:   _rollCard({ header: label, buttons: true, total: roll.total, formula: roll.formula, dieResults: dieResultsText(roll), conditionsHtml: conditionsRowHtml(conditions), noticesHtml: options.notices ?? "", badge: damageBadge(), sectionClass: "stonetop-damage-roll-card", damage: true }),
+		flavor:   _rollCard({ header: label, buttons: true, total: roll.total, formula: roll.formula, dieResults: dieResultsText(roll), conditionsHtml: conditionsRowHtml(conditions), noticesHtml: options.notices ?? "", keywords: options.keywords ?? "", description: options.description ?? "", badge: damageBadge(), sectionClass: "stonetop-damage-roll-card", damage: true }),
 		rollMode: game.settings.get("core", "rollMode"),
 	});
 

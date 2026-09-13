@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-const { parseMonsterAttacks, splitMonsterAttackProse, foeAttacks } = await import("../../module/utils/damage.js");
+const { parseMonsterAttacks, splitMonsterAttackProse, foeAttacks, damageCardText } = await import("../../module/utils/damage.js");
 
 // Every damage line quoted below is VERBATIM from a shipped bestiary stat block. The parser reads
 // prose the books wrote, so the fixtures have to be that prose and not a tidied paraphrase of it —
@@ -206,6 +206,85 @@ describe("splitMonsterAttackProse: the same attacks, as the book printed them", 
 		// at pains to carry everywhere else.
 		expect(splitMonsterAttackProse("claws d8 (close) or thrashing tail"))
 			.toEqual(["claws d8 (close) or thrashing tail"]);
+	});
+});
+
+// What a damage CARD prints for an attack: its name as the title, the rest beside the total. The
+// die is the card's formula chip and an advantage is its pill, so neither is said a second time.
+describe("damageCardText: what the damage card calls an attack", () => {
+	it("titles the card with the attack's name and moves its tags to the body", () => {
+		expect(damageCardText("garrote d8 (hand, grabby, ignores armor)"))
+			.toEqual({ title: "Garrote", keywords: "hand, grabby, ignores armor" });
+	});
+
+	it("keeps a blow named twice the way the book names it", () => {
+		expect(damageCardText("bite or maul d12+5 (close, hand, reach, forceful, grabby, messy, 1 piercing)").title)
+			.toBe("Bite or maul");
+	});
+
+	it("leaves an advantage to the pill, wherever the line prints it", () => {
+		// Frythanc and Dawa Eyegouger carry it inside the tag list; the Wind Vortex beside the die.
+		expect(damageCardText("beak d10 (reach, disadvantage)").keywords).toBe("reach");
+		expect(damageCardText("knife or fingers d8 (hand, messy, 1 piercing, advantage)").keywords)
+			.toBe("hand, messy, 1 piercing");
+		expect(damageCardText("lashing grit & debris d10 w/disadvantage (hand, close) — scales with size"))
+			.toEqual({ title: "Lashing grit & debris", keywords: "hand, close · scales with size" });
+	});
+
+	it("keeps words printed beside the die that are not tags", () => {
+		// All five vortexes. The old title carried this; a card body that dropped it would know less
+		// about the blow than the stat block line it was rolled from.
+		expect(damageCardText("smash d10 (hand, close) — scales with size").keywords)
+			.toBe("hand, close · scales with size");
+	});
+
+	it("does not read a trailing name as part of the attack it follows", () => {
+		expect(damageCardText("claws d8 (close), and 2 piercing on a charge"))
+			.toEqual({ title: "Claws", keywords: "close" });
+	});
+
+	it("says nothing for a line with no attack in it", () => {
+		expect(damageCardText("none")).toEqual({ title: "", keywords: "" });
+		expect(damageCardText(undefined)).toEqual({ title: "", keywords: "" });
+	});
+});
+
+// An NPC's stat block has ONE damage button, rolling its `rollFormula` beside a line the GM typed,
+// which may name several blows. No NPC ships with a damage line, so the lines marked as typed here
+// are a GM's, not a book's.
+describe("damageCardText: the attack a rolled die belongs to", () => {
+	const ASSASSIN = "dagger d10 (hand, 1 piercing) or garrote d8 (hand, grabby, ignores armor)";
+
+	it("names the attack that prints the die being rolled", () => {
+		expect(damageCardText(ASSASSIN, "d8").title).toBe("Garrote");
+		expect(damageCardText(ASSASSIN, "1d10")).toEqual({ title: "Dagger", keywords: "hand, 1 piercing" });
+	});
+
+	it("finds it when it is not the first attack printed", () => {
+		// Mkhalang, whose rollFormula is its second blow.
+		expect(damageCardText(
+			"trample d8+3 w/disadvantage (hand, close) or ice-tusks d8+7 w/disadvantage (reach, forceful, messy, crude, 1 piercing)",
+			"d8+7",
+		)).toEqual({ title: "Ice-tusks", keywords: "reach, forceful, messy, crude, 1 piercing" });
+	});
+
+	it("passes over a printed attack that rolls nothing", () => {
+		expect(damageCardText("hair-rope net (thrown, crude, grabby), bite d6 (hand)", "d6"))
+			.toEqual({ title: "Bite", keywords: "hand" });
+	});
+
+	it("still names a line's only attack when the formula was retyped and the line was not", () => {
+		// Typed.
+		expect(damageCardText("knife 1d4 (hand)", "d6")).toEqual({ title: "Knife", keywords: "hand" });
+	});
+
+	it("names nothing rather than guess between several attacks, none of them at that die", () => {
+		expect(damageCardText(ASSASSIN, "d6")).toEqual({ title: "", keywords: "" });
+	});
+
+	it("does not print a die typed inside the tag list as a keyword", () => {
+		// Typed, in the shape several shipped move names print a die: inside the list.
+		expect(damageCardText("knife (1d6 damage, hand)", "d6")).toEqual({ title: "Knife", keywords: "hand" });
 	});
 });
 

@@ -7,6 +7,7 @@
 // Wears the same edit/lock header chrome as the monster/bestiary sheets (shared
 // sheet-chrome helpers) so it reads as one system.
 import { rollDamagePrompted } from "../../dialogs/RollDialog.js";
+import { damageCardText } from "../../utils/damage.js";
 import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle, fitDisplayName } from "../../utils/sheet-chrome.js";
 import { isDefaultImg } from "../../utils/strings.js";
 import { headerPortraitContext, wirePortraitPopout } from "../../utils/actor-portrait-picker.js";
@@ -409,10 +410,15 @@ export function createStonetopNpcSheetClass(Base) {
 			root.addEventListener("click", async ev => {
 				const dmgRoll = ev.target.closest(".stonetop-npc-damage-roll");
 				if (dmgRoll) {
-					const formula = this.actor.system?.attributes?.damage?.rollFormula;
+					const damage  = this.actor.system?.attributes?.damage;
+					const formula = damage?.rollFormula;
 					if (!formula) return;
-					const label  = this.actor.system?.attributes?.damage?.value || "Damage";
-					await rollDamagePrompted(formula, this.actor, { label, shiftKey: ev.shiftKey });
+					// Titled with the attack's name, its tags printed beside the total, rather than
+					// the whole damage line: the die is already on the card's formula chip. The
+					// line may name more than one blow and this button rolls only the formula, so
+					// the attack printing that die is the one the card names.
+					const { title, keywords } = damageCardText(damage?.value, formula);
+					await rollDamagePrompted(formula, this.actor, { label: title || "Damage", keywords, shiftKey: ev.shiftKey });
 					return;
 				}
 				const moveRoll = ev.target.closest(".stonetop-npc-move-roll");

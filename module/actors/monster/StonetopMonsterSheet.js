@@ -1,7 +1,7 @@
 import { CREATURE_TYPE_CHOICES, creatureTypeIcon, creatureTypeLabel } from "../../bestiary/creature-types.js";
 import { hasText } from "../bestiary/codex.js";
 import { rollDamagePrompted } from "../../dialogs/RollDialog.js";
-import { dieFromDamage, attackRollMode, splitMonsterAttackProse } from "../../utils/damage.js";
+import { dieFromDamage, attackRollMode, splitMonsterAttackProse, damageCardText } from "../../utils/damage.js";
 import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle } from "../../utils/sheet-chrome.js";
 import { escHtml, isDefaultImg } from "../../utils/strings.js";
 import { headerPortraitContext, wirePortraitPopout } from "../../utils/actor-portrait-picker.js";
@@ -55,8 +55,12 @@ function _normalizeTag(value) {
  * Reading it here from the same rule is what gives the Assassin's garrote — the
  * far side of an "or" — the roll button its dagger already had.
  *
+ * Each mode also carries what its damage card says: the attack's name as the
+ * title and its tags as the body (`damageCardText`). The whole printed line used
+ * to be the title, which repeated the die the card's formula chip already shows.
+ *
  * @param {string} value
- * @returns {{ text: string, formula: string, rollMode: string }[]}
+ * @returns {{ text: string, formula: string, rollMode: string, title: string, keywords: string }[]}
  */
 function _parseDamageModes(value) {
 	return splitMonsterAttackProse(value).map(text => ({
@@ -68,6 +72,7 @@ function _parseDamageModes(value) {
 		// A mode can note "w/disadvantage" (or advantage) on its die; the roll
 		// button then rolls twice and keeps the worse/better result.
 		rollMode: attackRollMode(text),
+		...damageCardText(text),
 	}));
 }
 
@@ -418,19 +423,22 @@ export function createStonetopMonsterSheetClass(Base) {
 					// Route through the shared roll-engine so the monster's damage posts
 					// in the same Stonetop roll-card shell as character/follower damage,
 					// not a bare Foundry roll card. The speaker alias names the monster;
-					// the card header is this mode's stat-block text (e.g. "icy touch d6
-					// w/disadvantage"), and a noted dis/advantage applies to the die.
+					// the card is titled with the attack's name ("Icy touch") and prints its
+					// tags beside the total, and a noted dis/advantage applies to the die.
+					// The fighting-in-numbers rows carry a title of their own and no keywords.
 					const label    = dmgRoll.dataset.rollLabel || "Damage";
+					const keywords = dmgRoll.dataset.rollKeywords || "";
 					const rollMode = dmgRoll.dataset.rollMode  || "normal";
 					// The stat block's own noted advantage SEEDS the damage window rather than
 					// being replaced by it: skipping the window (Shift, or the setting off) still
 					// has to roll "icy touch d6 w/disadvantage" at disadvantage, as it always did.
-					await rollDamagePrompted(formula, this.actor, { label, rollMode, shiftKey: ev.shiftKey });
+					await rollDamagePrompted(formula, this.actor, { label, keywords, rollMode, shiftKey: ev.shiftKey });
 
 				} else if (ev.target.closest(".stonetop-monster-move-roll")) {
 					const li   = ev.target.closest("[data-item-id]");
 					const item = this.actor.items.get(li?.dataset?.itemId);
-					await item?.roll();
+					// Shift skips the damage window a rolling move opens, as it does on the Damage line.
+					await item?.roll({ shiftKey: ev.shiftKey });
 
 				} else if (!this._editMode && ev.target.closest(".stonetop-monster-move-name")) {
 					const li   = ev.target.closest("[data-item-id]");
@@ -448,7 +456,7 @@ export function createStonetopMonsterSheetClass(Base) {
 					} else {
 						// Otherwise, clicking the name posts the move to chat (with its
 						// roll if it has one), like move names on the character sheet.
-						await item.roll();
+						await item.roll({ shiftKey: ev.shiftKey });
 					}
 				}
 			});
