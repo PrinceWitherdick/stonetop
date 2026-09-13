@@ -16458,6 +16458,10 @@ button.stonetop-mark-sign-btn.is-active:hover {
    it is also the map-pin icon a placed site wears (journal/gm-prep-page.js). */
 .stonetop-tab-rail .item[data-tab="relationships"] { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/hearts.svg'); }
 .stonetop-tab-rail .item[data-tab="stats"]         { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/crossed-swords.svg'); }
+/* The monster's two tabs borrow glyphs already in the rail's vocabulary: its stat block is the
+   NPC's Stats tab by another name, and its write-up is the kind of page Details stands for on
+   the other sheets. */
+.stonetop-tab-rail .item[data-tab="statblock"]     { --st-tab-icon: url('/systems/stonetop-pwd/assets/icons/tabs/crossed-swords.svg'); }
 /* The village, shared with the steading's Overview tab and deliberately: the GM Toolkit's
    Homefront tab IS the village, read from the other side of the screen, and the two never appear
    in the same rail. `neighbors` and `followers` already share `three-friends.svg` on the same
@@ -26215,6 +26219,25 @@ li.question-bullet::before {
 	flex-direction: column;
 }
 
+/* The two tab panels (Stat Block, Write-up) under the header. The window still scrolls as one
+   unit through .window-content, as it did before there were tabs: nearly every creature fits
+   its window, so a scrollport per tab would buy nothing, and keeping one scroller leaves
+   _applyInitialHeight measuring the geometry it always has.
+
+   Both halves of the show/hide are stated here, unlayered, rather than borrowing the hide from
+   core's layered `.tab[data-tab]:not(.active)`, which loses intermittently to an unlayered show.
+   The active panel is a flex column because the sections it now holds used to be flex children
+   of the container, and plain block flow would start collapsing their margins. */
+.stonetop-monster-body > .tab {
+	display: none;
+	margin: 0;
+}
+
+.stonetop-monster-body > .tab.active {
+	display: flex;
+	flex-direction: column;
+}
+
 .stonetop-monster-header {
 	margin-bottom: 12px;
 }
@@ -26679,6 +26702,12 @@ li.question-bullet::before {
 	border-radius: var(--st-radius);
 }
 
+/* On the Notes tab the editor gets room to write in, below Details, rather than the 100px strip
+   it needed as the last section under the stat block. */
+.stonetop-monster-notes-tab .stonetop-monster-notes-editor {
+	min-height: 240px;
+}
+
 .stonetop-monster-notes-editor .toggle {
 	opacity: 0;
 	transition: opacity 0.12s ease;
@@ -26731,6 +26760,34 @@ li.question-bullet::before {
    caption that opens a section snug under its heading. */
 .stonetop-monster-rich-text p:has(> strong):has(+ table):not(:first-child) {
 	margin-top: var(--stonetop-section-gap);
+}
+
+/* Details, atop the Notes tab: the creature's codex prose, the one run of long-form text on a sheet that is
+   otherwise a dense grid of labelled numbers. It takes a measure instead of the full 760px
+   window, since a description set edge to edge reads as a wall. */
+.stonetop-monster-writeup-body {
+	max-width: 62ch;
+	line-height: 1.45;
+}
+
+/* The page's prose opens with a <p>, whose top margin would otherwise stack on the panel's. */
+.stonetop-monster-writeup-body > :first-child {
+	margin-top: 0;
+}
+
+/* The notes editor follows Details on the same tab; the panel is a gapless flex column, so the
+   break between the book's prose and the GM's own is stated here. */
+.stonetop-monster-writeup + .stonetop-monster-notes {
+	margin-top: var(--stonetop-section-gap);
+}
+
+/* Whose entry this is (only when it is not simply this creature's own), and the empty state,
+   which says why there is nothing to read. */
+.stonetop-monster-writeup-source,
+.stonetop-monster-writeup-empty {
+	margin: 0 0 0.6em;
+	font-style: italic;
+	color: var(--color-text-dark-secondary);
 }
 
 /* Optional intro paragraph above a prep line list (e.g. Origins). */

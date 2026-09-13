@@ -138,6 +138,12 @@
 			</div>
 		</header>
 
+		{{!-- Two tabs under the header. STAT BLOCK (the stat block and its moves) is where the
+		      sheet opens, and the window's opening height is fitted to it (see
+		      _applyInitialHeight). NOTES leads with the codex Details, then the GM's own. --}}
+		<section class="stonetop-monster-body">
+		<div class="tab stonetop-monster-tab stonetop-monster-statblock" data-group="primary" data-tab="statblock">
+
 		<section class="sheet-top stonetop-monster-top">
 			<div class="stonetop-monster-stat-block">
 				<div class="stonetop-monster-stat-line">
@@ -293,7 +299,10 @@
 						</div>
 					</li>
 					{{else}}
-					<li class="stonetop-monster-moves-empty">{{localize "stonetop.monster.noMoves"}}</li>
+					{{!-- Twenty shipped creatures (Beast Warden and the elemental spirits) have no moves
+					      and keep everything they do in Notes, which has a tab of its own, so the
+					      landing tab says where to look instead of reading as blank. --}}
+					<li class="stonetop-monster-moves-empty">{{#if stonetop.hasNotes}}{{localize "stonetop.monster.noMovesSeeNotes"}}{{else}}{{localize "stonetop.monster.noMoves"}}{{/if}}</li>
 					{{/each}}
 				</ul>
 				{{#if stonetop.editMode}}
@@ -305,14 +314,46 @@
 				{{/if}}
 			</section>
 
-			{{!-- Notes — free-form GM notes; rich text that stays editable in play
-			     mode (the edit pencil appears on hover), like the steading sheet. --}}
+		</section>
+		</div>{{!-- /statblock tab --}}
+
+		{{!-- NOTES: the creature's Details, then the GM's own notes on it.
+
+		      DETAILS is the codex prose, lifted from the bestiary page `system.entry` points at (see
+		      _resolveWriteUp). Read-only on purpose: the page stays the source of truth, and the
+		      header's "Open Bestiary Entry" button is still the way to change it. No illustration
+		      either, since that picture is already this sheet's portrait. Always rendered; when
+		      there is nothing to show it says which reason it is. The source line names the entry
+		      only when it is not this creature's own name, which is the stat blocks that share a
+		      page with their kin.
+
+		      The notes editor below stays editable in play mode (the pencil appears on hover). --}}
+		<div class="tab stonetop-monster-tab stonetop-monster-notes-tab" data-group="primary" data-tab="notes">
+			<section class="stonetop-monster-field stonetop-monster-field--full stonetop-monster-writeup">
+				{{> "stonetop.section-heading" title=(localize "stonetop.monster.details")}}
+				{{#if stonetop.writeUp}}
+				{{#if stonetop.writeUp.name}}
+				<p class="stonetop-monster-writeup-source">{{localize "stonetop.monster.writeUpFrom" name=stonetop.writeUp.name}}</p>
+				{{/if}}
+				<div class="stonetop-monster-rich-text stonetop-monster-writeup-body">{{{stonetop.writeUp.html}}}</div>
+				{{else}}
+				<p class="stonetop-monster-writeup-empty">{{#if stonetop.writeUpLinked}}{{localize "stonetop.monster.noWriteUp"}}{{else}}{{localize "stonetop.monster.noEntry"}}{{/if}}</p>
+				{{/if}}
+			</section>
 			<section class="stonetop-monster-field stonetop-monster-field--full stonetop-monster-notes">
-				{{> "stonetop.section-heading" title=(localize "stonetop.monster.notes")}}
 				<prose-mirror class="stonetop-monster-rich-editor stonetop-monster-notes-editor"
 				              data-field="notes" toggled value="{{system.notes}}">{{{stonetop.enrichedNotes}}}</prose-mirror>
 			</section>
+		</div>{{!-- /notes tab --}}
 
-		</section>
+		</section>{{!-- /stonetop-monster-body --}}
+
+		{{!-- The icon rail, rendered here and lifted onto the window frame by
+		      module/utils/tab-rail.js. Modern only: like the GM Toolkit, the monster sheet has no
+		      classic toggle. The glyphs are CSS masks keyed on each button's data-tab. --}}
+		<nav class="sheet-tabs tabs stonetop-tab-rail" data-group="primary" aria-label="{{localize "stonetop.sheet.tabs.railLabel"}}">
+			{{> "stonetop.tab-rail-item" tab="statblock" label=(localize "stonetop.monster.tabs.statBlock")}}
+				{{> "stonetop.tab-rail-item" tab="notes" label=(localize "stonetop.monster.tabs.notes")}}
+		</nav>
 	</div>
 </form>

@@ -835,8 +835,15 @@
       "tags": "Tags",
       "qualities": "Special Qualities",
       "openEntry": "Open Bestiary Entry",
+      "writeUpFrom": "From the bestiary entry for {name}",
+      "noMovesSeeNotes": "No moves. What this creature does is on the Notes tab.",
+      "noWriteUp": "Nothing is written up for this creature yet.",
+      "details": "Details",
+      "tabs": {
+        "statBlock": "Stat Block",
+        "notes": "Notes"
+      },
       "noEntry": "Not linked to a bestiary entry.",
-      "notes": "Notes",
       "moves": "Moves",
       "addMove": "Add Move",
       "deleteMove": "Delete Move",

@@ -14,6 +14,8 @@ import { postListCard } from "../../utils/chat.js";
 import { localize, format } from "../../utils/i18n.js";
 import { deletionEntry, enrichHTML, compendiumSourceOf } from "../../utils/foundry-compat.js";
 import { withSheetSizeMemory, sizeOnceOnOpen } from "../../utils/sheet-size.js";
+import { mountTabRail } from "../../utils/tab-rail.js";
+import { stripJournalArt } from "../../book2-art/world-journal-art.js";
 import { condemnedContext } from "../character/condemn.js";
 import { SYSTEM_ID } from "../../system-id.js";
 
@@ -125,7 +127,7 @@ export function createStonetopMonsterSheetClass(Base) {
 			this._editMode = getOpenSheetsInEditMode();
 
 			// A remembered height retires _applyInitialHeight: that measures the sheet and sizes
-			// the window so Notes sits just below the fold, which is a good guess for a sheet
+			// the window to fit the Stat Block tab, which is a good guess for a sheet
 			// nobody has sized and a bad one for a sheet somebody has — left armed it would fire
 			// on the next render and overwrite the size the user chose, which is the very thing
 			// the restore put back.
@@ -144,15 +146,19 @@ export function createStonetopMonsterSheetClass(Base) {
 				classes: ["stonetop", "sheet", "actor", "monster"],
 				width:   760,
 				// Numeric height keeps the window drag-resizable. The real opening
-				// height is computed per-monster in _applyInitialHeight() so the
-				// window opens with everything above Notes visible and Notes itself
-				// just below the fold (scroll/resize to reach it).
+				// height is computed per-monster in _applyInitialHeight(), fitted to
+				// the Stat Block tab the sheet opens on.
 				height:    680,
 				// Mirrors the CSS floor in stonetop.css — see the character sheet's note.
 				// This frame carries no `pbta` class, so pbta's own actor floor never reached
 				// it and core's 50px fallback was all that stood in the way of a drag.
 				minHeight: 480,
 				resizable: true,
+				// Stat Block (the stat block and its moves) is the landing tab; Notes leads with the
+				// codex Details, then the GM's own. Both always render. The body is named for this
+				// sheet rather than `.sheet-body`,
+				// which the other sheets' layout rules are written against.
+				tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".stonetop-monster-body", initial: "statblock" }],
 			});
 		}
 
@@ -161,6 +167,10 @@ export function createStonetopMonsterSheetClass(Base) {
 		}
 
 		async _render(force, options) {
+			// A caller that hands over a height has already sized the window: the window restore,
+			// reopening a sheet at the size it was left. That outranks the opening measurement
+			// exactly as a remembered size does (see the constructor).
+			if (Number.isFinite(options?.height)) this._initialHeightApplied = true;
 			await super._render(force, options);
 			this._injectHeaderToggle();
 			this._stripHeaderChrome();
@@ -170,10 +180,19 @@ export function createStonetopMonsterSheetClass(Base) {
 		}
 
 		/**
-		 * Open the window tall enough to show everything above Notes, with the
-		 * Notes section sitting just below the fold (the body scrolls, and the
-		 * window stays drag-resizable to reveal it). Runs once per sheet so it
-		 * doesn't fight the user's manual resizing on later re-renders.
+		 * Open the window tall enough to show the whole Stat Block tab, the one the sheet opens on.
+		 * Runs once per sheet so it doesn't fight the user's manual resizing on later re-renders,
+		 * and never on a tab change: moving between tabs does not resize a sheet
+		 * (tests/actors/tabbed-sheet-height.test.js), so a longer Notes tab scrolls.
+		 *
+		 * Until Notes had a tab of its own this measured down to the Notes heading, so the window
+		 * opened with Notes just below the fold. Fitting the panel is that same intent with Notes
+		 * gone from it. The panel is found by its class rather than its tab key.
+		 *
+		 * A frame with no layout box yet leaves the latch open for a later render to try again. A
+		 * frame that is showing, but on ANOTHER tab (a window restored onto Notes), closes it
+		 * unmeasured: the next render to find the Stat Block showing is whichever one follows the
+		 * reader clicking back to it, and sizing then is a tab change resizing the sheet.
 		 */
 		_applyInitialHeight() {
 			// Measured after layout settles (prose-mirror upgrades asynchronously), which is what
@@ -181,13 +200,15 @@ export function createStonetopMonsterSheetClass(Base) {
 			sizeOnceOnOpen(this, "_initialHeightApplied", () => {
 				const el = this.element[0];
 				const content = el.querySelector(".window-content");
-				const notes   = el.querySelector(".stonetop-monster-notes");
+				const panel   = el.querySelector(".stonetop-monster-statblock");
 				const header  = el.querySelector(".window-header");
-				if (!content || !notes) return false;
-				const contentTop = content.getBoundingClientRect().top;
-				const notesTop   = notes.getBoundingClientRect().top;
-				const headerH    = header ? header.getBoundingClientRect().height : 0;
-				const height = Math.ceil(headerH + (notesTop - contentTop));
+				if (!content || !panel || !el.getClientRects().length) return false;
+				if (!panel.getClientRects().length) return;
+				const contentTop  = content.getBoundingClientRect().top;
+				const panelBottom = panel.getBoundingClientRect().bottom;
+				const padBottom   = parseFloat(getComputedStyle(content).paddingBottom) || 0;
+				const headerH     = header ? header.getBoundingClientRect().height : 0;
+				const height = Math.ceil(headerH + (panelBottom - contentTop) + padBottom);
 				if (height <= 0) return false;
 				this.setPosition({ height });
 			});
@@ -210,7 +231,7 @@ export function createStonetopMonsterSheetClass(Base) {
 			// A "Journal" button (the linked bestiary entry) just before Prototype Token.
 			if (this.actor.system?.entry) {
 				const journal = {
-					label: "Journal",
+					label: localize("stonetop.monster.openEntry"),
 					class: "stonetop-open-entry",
 					icon:  "fas fa-book",
 					onclick: () => this._openEntryFromHeader(),
@@ -264,6 +285,96 @@ export function createStonetopMonsterSheetClass(Base) {
 				?? worldEntry;
 		}
 
+		/**
+		 * The creature's codex write-up, for the sheet's Write-up tab.
+		 *
+		 * READ-ONLY, and deliberately: the page stays the single source of truth, and a
+		 * compendium page is immutable by design anyway (StonetopBestiaryPageSheet forces
+		 * isEditable false inside a pack whatever the lock says), so the sheet lifts the
+		 * prose and the header button remains the way to the page itself.
+		 *
+		 * Gated on the PARENT JournalEntry's permission rather than the page's. A bestiary
+		 * page ships `ownership.default: -1` (INHERIT), so testing the page on its own
+		 * inherits nothing and would hand every player the GM's write-up.
+		 *
+		 * Memoised per entry uuid: this walks the compendium, and the sheet re-renders on
+		 * every HP change during a fight. The memo is dropped when a journal it was read from
+		 * changes (_onWriteUpSourceChanged), so a GM's edit to the page, or a change to who may
+		 * read it, reaches a sheet that is already open.
+		 */
+		async _resolveWriteUp() {
+			const uuid = this.actor.system?.entry;
+			if (!uuid) return null;
+			if (this._writeUpCache?.uuid === uuid) return this._writeUpCache.value;
+			this._watchWriteUpSources();
+			const sources = new Set();
+			const value = await this._readWriteUp(uuid, sources);
+			this._writeUpCache = { uuid, value, sources };
+			return value;
+		}
+
+		/**
+		 * `sources` collects the journal entries the answer depends on: the one `system.entry`
+		 * links, and the world copy read in its place. Filled before any early return, so a
+		 * write-up withheld or blank today still hears the permission change or the prose that
+		 * would change that.
+		 */
+		async _readWriteUp(uuid, sources = new Set()) {
+			const doc = await fromUuid(uuid).catch(() => null);
+			if (!doc) return null;
+			// `entry` may point at the page itself, at the whole JournalEntry (which is what
+			// every shipped stat block holds — the merged journal pack), or at a legacy
+			// bestiary actor, which has no pages and so has no write-up to lift.
+			const target = this._preferWorldCopy(doc);
+			const isPage = target.documentName === "JournalEntryPage";
+			const entry  = isPage ? target.parent : target;
+			const linked = doc.documentName === "JournalEntryPage" ? doc.parent : doc;
+			for (const source of [linked, entry]) if (source?.uuid) sources.add(source.uuid);
+			const page   = isPage
+				? target
+				: (entry?.pages?.find(p => p.type === "bestiary") ?? entry?.pages?.contents?.[0] ?? null);
+			if (!page) return null;
+			// Absent in a bare test double; only an explicit `false` withholds the page.
+			if (entry?.testUserPermission?.(game.user, "OBSERVER") === false) return null;
+
+			// The creature's illustration is already this sheet's portrait, so the embed the
+			// Book II art pass puts on the page comes off rather than showing the picture twice.
+			// Stripped BEFORE the emptiness test: a page holding only its picture has no write-up.
+			const description = stripJournalArt(page.system?.description);
+			if (!hasText(description)) return null;
+			return {
+				html: await enrichHTML(description),
+				name: entry?.name ?? page.name ?? "",
+			};
+		}
+
+		/**
+		 * Listen for changes to the journals a write-up is read from, once per open window
+		 * (released in close). Creation counts as well as edits: importing the entry into the
+		 * world makes the world copy the one to read.
+		 */
+		_watchWriteUpSources() {
+			if (this._writeUpHooks) return;
+			this._writeUpHooks = ["JournalEntry", "JournalEntryPage"]
+				.flatMap(name => ["create", "update", "delete"].map(verb => `${verb}${name}`))
+				.map(hook => [hook, Hooks.on(hook, doc => this._onWriteUpSourceChanged(doc))]);
+		}
+
+		_unwatchWriteUpSources() {
+			for (const [hook, id] of this._writeUpHooks ?? []) if (id != null) Hooks.off(hook, id);
+			this._writeUpHooks = null;
+		}
+
+		/** Drop the memo, and repaint, when `doc` belongs to a journal the write-up was read from. */
+		_onWriteUpSourceChanged(doc) {
+			const sources = this._writeUpCache?.sources;
+			if (!sources?.size) return;
+			const entry = doc?.documentName === "JournalEntryPage" ? doc.parent : doc;
+			if (!entry || !(sources.has(entry.uuid) || sources.has(compendiumSourceOf(entry)))) return;
+			this._writeUpCache = null;
+			if (this.rendered) this.render(false);
+		}
+
 		async getData() {
 			const context = await super.getData();
 			const system = context.system ??= this.actor.system;
@@ -271,6 +382,9 @@ export function createStonetopMonsterSheetClass(Base) {
 			const st = context.stonetop;
 
 			st.editMode    = this._editMode;
+			// Started now, awaited below: the lookup walks a compendium, and need not wait for the
+			// rich-text enrichment in between.
+			const writeUp  = this._resolveWriteUp();
 			const displayTags = _displayMonsterTags(system);
 			st.displayTags = displayTags.join(", ");
 			st.damageModes = _parseDamageModes(system?.attributes?.damage?.value);
@@ -318,6 +432,17 @@ export function createStonetopMonsterSheetClass(Base) {
 			// Empty rich text round-trips through ProseMirror as "<p></p>" etc.,
 			// so check for actual text/embeds rather than a truthy string.
 			st.hasQualities = _hasRichContent(system?.qualities);
+			// Twenty creatures have no moves and keep everything they do in Notes, which has its own
+			// tab; the empty moves line on the landing tab points there. See monster.hbs.
+			st.hasNotes = _hasRichContent(system?.notes);
+
+			// The linked codex write-up, for the Details section atop the Notes tab. The section
+			// always renders; when there is nothing to lift, it says which of the two reasons it
+			// is, because "not linked" and "linked but blank" ask different things of the GM.
+			st.writeUp = await writeUp;
+			// Copied, never mutated: the memo behind it is shared with the next render.
+			if (st.writeUp?.name === this.actor.name) st.writeUp = { ...st.writeUp, name: "" };
+			st.writeUpLinked = !!system?.entry;
 
 			// Organization label + choices for the header (organization also drives
 			// the HP/damage defaults applied by the reset-defaults button).
@@ -418,8 +543,18 @@ export function createStonetopMonsterSheetClass(Base) {
 			return context;
 		}
 
+		async close(options) {
+			this._writeUpCache = null;
+			this._unwatchWriteUpSources();
+			return super.close(options);
+		}
+
 		activateListeners(html) {
 			super.activateListeners(html);
+
+			// Hang the tab rail off the window's right edge (module/utils/tab-rail.js). Never
+			// behind a condition: it is also what sweeps a previous render's rail off the frame.
+			mountTabRail(this, html);
 
 			// Fighting-in-numbers calculators, one per rule (follower-build.js). The "+N armor"
 			// the abstraction pays is a fiction note the GM applies by hand; armor isn't

@@ -30,6 +30,7 @@ const TABBED_SHEETS = [
 	["character", "module/actors/character/StonetopCharacterSheet.js"],
 	["steading", "module/actors/steading/StonetopSteadingSheet.js"],
 	["NPC", "module/actors/npc/StonetopNpcSheet.js"],
+	["monster", "module/actors/monster/StonetopMonsterSheet.js"],
 	["GM Toolkit", "module/actors/gmtoolkit/StonetopGmToolkitSheet.js"],
 	["arcanum", "module/item/StonetopArcanumSheet.js"],
 ];
@@ -99,6 +100,9 @@ describe("...and a tab too tall for its frame scrolls instead of being cut off",
 		["steading", /\.steading-sheet \.sheet-body > \.tab\.active:not\(\.notes\):not\(\.relmap\):not\(\.timeline\)\s*\{[^}]*overflow-y:\s*auto/],
 		["NPC", /\.stonetop-npc-sheet \.sheet-body > \.tab\.active:not\(\.notes\)\s*\{[^}]*overflow-y:\s*auto/],
 		["GM Toolkit", /\.stonetop-gm-toolkit-container\s*\{[^}]*overflow-y:\s*auto/],
+		// The monster scrolls as one unit too, through .window-content: nearly every creature
+		// fits its window, so a scrollport per tab would buy nothing.
+		["monster", /\.window-app\.stonetop\.monster \.window-content\s*\{[^}]*overflow-y:\s*auto/],
 	];
 	for (const [name, rx] of SCROLLPORTS) {
 		it(`the ${name} sheet has a scrollport a tall tab cannot outgrow`, () => {

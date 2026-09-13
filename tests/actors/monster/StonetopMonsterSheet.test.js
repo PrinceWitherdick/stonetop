@@ -39,6 +39,21 @@ function makeSheet(actor, { editable = true } = {}) {
 	return new Sheet();
 }
 
+// The sheet mounts its tab rail in activateListeners, and mountTabRail only lifts a rail off a
+// REAL element, checking with instanceof HTMLElement: a global this node test environment does
+// not define. The roots handed to activateListeners below are plain doubles, so an empty stand-in
+// class makes that check answer "not an element" and the rail step do nothing, which is exactly
+// what it does for a sheet with no DOM. Restored afterwards so no other suite inherits it.
+let _savedHTMLElement;
+beforeEach(() => {
+	_savedHTMLElement = globalThis.HTMLElement;
+	globalThis.HTMLElement ??= class {};
+});
+afterEach(() => {
+	if (_savedHTMLElement === undefined) delete globalThis.HTMLElement;
+	else globalThis.HTMLElement = _savedHTMLElement;
+});
+
 describe("StonetopMonsterSheet", () => {
 	// deletionEntry only reaches for a ForcedDeletion INSTANCE on v14+ (below that it uses
 	// the "-=leaf" key form), so stub the running generation to the target version — the
