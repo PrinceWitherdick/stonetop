@@ -80,6 +80,16 @@ export function readCss(rel = "styles/stonetop.css") {
 }
 
 /**
+ * The last value declared for one property in a rule body, whitespace-collapsed, or null. Split on
+ * `;` only, so a declaration that lost its semicolon reads as swallowing the next one and fails.
+ */
+export function declared(body, prop) {
+	const found = [...body.matchAll(new RegExp(String.raw`(?:^|[;{])\s*${prop}\s*:([^;]+)`, "g"))]
+		.map(m => m[1].trim().replace(/\s+/g, " "));
+	return found.length ? found.at(-1) : null;
+}
+
+/**
  * CSS specificity as `[ids, classes, elements]`.
  *
  * Counts attribute selectors and single-colon pseudo-classes as classes, which is the cascade's

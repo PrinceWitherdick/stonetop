@@ -111,7 +111,7 @@
 						{{!-- draggable="false" for the same reason as the thumb above: the
 						      creature-type disc is an <img>, and grabbing a row by it must
 						      still drag the row. --}}
-						{{#if img}}<img src="{{img}}" alt="" draggable="false">{{else}}{{#if icon}}<i class="{{icon}}" aria-hidden="true"></i>{{/if}}{{/if}}{{label}}
+						{{#if img}}<img src="{{img}}" alt="" draggable="false">{{else}}{{#if icon}}<i class="{{icon}}" aria-hidden="true"></i>{{/if}}{{/if}}<span class="stonetop-chip-text">{{label}}</span>
 					</span>
 					{{/each}}
 					{{#if note}}<span class="stonetop-catalog-note">{{note}}</span>{{/if}}

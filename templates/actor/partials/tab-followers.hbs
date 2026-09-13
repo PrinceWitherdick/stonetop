@@ -11,7 +11,7 @@
 	      until the granting move is owned (exceptionalMet); in view mode it shows
 	      only once earned. --}}
 	{{#*inline "stonetopExceptionalChip"}}
-	{{#if exceptionalAvailable}}{{#if edit.stats}}<button type="button" class="stonetop-follower-tag stonetop-follower-tag--exceptional stonetop-exceptional-toggle{{#if exceptional}} is-selected{{/if}}{{#unless exceptionalMet}} is-locked{{/unless}}" data-ftype="{{ftype}}" data-slug="{{slug}}" data-met="{{exceptionalMet}}" data-hint="{{exceptionalHint}}"{{#unless exceptionalMet}} data-tooltip="{{exceptionalHint}}" data-tooltip-direction="UP"{{/unless}}>exceptional{{#unless exceptionalMet}} <i class="fas fa-lock"></i>{{/unless}}</button>{{else}}{{#if exceptional}}<span class="stonetop-follower-tag stonetop-follower-tag--exceptional">exceptional</span>{{/if}}{{/if}}{{/if}}
+	{{#if exceptionalAvailable}}{{#if edit.stats}}<button type="button" class="stonetop-follower-tag stonetop-follower-tag--exceptional stonetop-exceptional-toggle{{#if exceptional}} is-selected{{/if}}{{#unless exceptionalMet}} is-locked{{/unless}}" data-ftype="{{ftype}}" data-slug="{{slug}}" data-met="{{exceptionalMet}}" data-hint="{{exceptionalHint}}"{{#unless exceptionalMet}} data-tooltip="{{exceptionalHint}}" data-tooltip-direction="UP"{{/unless}}><span class="stonetop-chip-text">exceptional</span>{{#unless exceptionalMet}} <i class="fas fa-lock"></i>{{/unless}}</button>{{else}}{{#if exceptional}}<span class="stonetop-follower-tag stonetop-follower-tag--exceptional">exceptional</span>{{/if}}{{/if}}{{/if}}
 	{{/inline}}
 
 	{{!-- One roster row's face: the crew's named individuals and anonymous members, and the
@@ -151,7 +151,7 @@
 				</div>
 				{{/if}}{{/if}}
 				<span class="stonetop-follower-type">{{typeLabel}}</span>
-				{{#if dead}}<span class="stonetop-follower-dead-badge"><i class="fas fa-skull-crossbones"></i> Fallen</span>{{/if}}
+				{{#if dead}}<span class="stonetop-follower-dead-badge"><i class="fas fa-skull-crossbones"></i> <span class="stonetop-chip-text">Fallen</span></span>{{/if}}
 			</div>
 			<div class="stonetop-follower-hp-octagon">
 				<span class="stonetop-follower-hp-octagon-label">HP</span>

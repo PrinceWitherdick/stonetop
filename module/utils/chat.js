@@ -160,7 +160,9 @@ export function springRollCardBody(total, tier, label, line, formula, dieFaces =
  * @param {string} kind   Colour-modifier slug (e.g. "damage").
  */
 export function rollKindBadge(label, icon, kind = "damage") {
-	return `<span class="stonetop-roll-card-badge stonetop-roll-card-badge--${escHtml(kind)}"><i class="fas ${escHtml(icon)}"></i> ${escHtml(label)}</span>`;
+	// The label is its own element so the chip can trim it to its capitals and centre them; a bare
+	// text node in the flex badge cannot be trimmed (see .stonetop-chip-text in stonetop.css).
+	return `<span class="stonetop-roll-card-badge stonetop-roll-card-badge--${escHtml(kind)}"><i class="fas ${escHtml(icon)}"></i> <span class="stonetop-chip-text">${escHtml(label)}</span></span>`;
 }
 
 /** The "Damage" title badge — the one indicator shared by every damage-roll card. */

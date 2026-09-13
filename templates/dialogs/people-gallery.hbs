@@ -7,23 +7,23 @@
 {{#if showFilters}}
 <div class="stonetop-people-filters">
 	<div class="stonetop-people-filtergroup" role="group" aria-label="Filter by presentation">
-		<button type="button" class="stonetop-people-chip is-on" data-filter="presenting" data-value="any">All <span class="stonetop-people-count">{{counts.all}}</span></button>
-		<button type="button" class="stonetop-people-chip" data-filter="presenting" data-value="masculine">Masculine <span class="stonetop-people-count">{{counts.masculine}}</span></button>
-		<button type="button" class="stonetop-people-chip" data-filter="presenting" data-value="feminine">Feminine <span class="stonetop-people-count">{{counts.feminine}}</span></button>
-		<button type="button" class="stonetop-people-chip" data-filter="presenting" data-value="unspecified" title="Portraits left untagged: a bucket of their own, not a gap">Unspecified <span class="stonetop-people-count">{{counts.unspecified}}</span></button>
+		<button type="button" class="stonetop-people-chip is-on" data-filter="presenting" data-value="any"><span class="stonetop-chip-text">All</span> <span class="stonetop-people-count">{{counts.all}}</span></button>
+		<button type="button" class="stonetop-people-chip" data-filter="presenting" data-value="masculine"><span class="stonetop-chip-text">Masculine</span> <span class="stonetop-people-count">{{counts.masculine}}</span></button>
+		<button type="button" class="stonetop-people-chip" data-filter="presenting" data-value="feminine"><span class="stonetop-chip-text">Feminine</span> <span class="stonetop-people-count">{{counts.feminine}}</span></button>
+		<button type="button" class="stonetop-people-chip" data-filter="presenting" data-value="unspecified" title="Portraits left untagged: a bucket of their own, not a gap"><span class="stonetop-chip-text">Unspecified</span> <span class="stonetop-people-count">{{counts.unspecified}}</span></button>
 	</div>
 	{{#if hasKids}}
 	<div class="stonetop-people-filtergroup" role="group" aria-label="Filter by age">
-		<button type="button" class="stonetop-people-chip is-on" data-filter="kid" data-value="any">All ages</button>
-		<button type="button" class="stonetop-people-chip" data-filter="kid" data-value="kids">Children <span class="stonetop-people-count">{{counts.kid}}</span></button>
-		<button type="button" class="stonetop-people-chip" data-filter="kid" data-value="adults">Not children <span class="stonetop-people-count">{{counts.notKid}}</span></button>
+		<button type="button" class="stonetop-people-chip is-on" data-filter="kid" data-value="any"><span class="stonetop-chip-text">All ages</span></button>
+		<button type="button" class="stonetop-people-chip" data-filter="kid" data-value="kids"><span class="stonetop-chip-text">Children</span> <span class="stonetop-people-count">{{counts.kid}}</span></button>
+		<button type="button" class="stonetop-people-chip" data-filter="kid" data-value="adults"><span class="stonetop-chip-text">Not children</span> <span class="stonetop-people-count">{{counts.notKid}}</span></button>
 	</div>
 	{{/if}}
 	{{#if hasUsed}}
 	<div class="stonetop-people-filtergroup" role="group" aria-label="Filter by whether the portrait is already assigned">
-		<button type="button" class="stonetop-people-chip is-on" data-filter="used" data-value="any" title="Show every portrait, assigned or not">Any use</button>
-		<button type="button" class="stonetop-people-chip" data-filter="used" data-value="unused" title="Hide the portraits other people already wear">Unused <span class="stonetop-people-count">{{counts.unused}}</span></button>
-		<button type="button" class="stonetop-people-chip" data-filter="used" data-value="used" title="Only the portraits someone already wears">Assigned <span class="stonetop-people-count">{{counts.used}}</span></button>
+		<button type="button" class="stonetop-people-chip is-on" data-filter="used" data-value="any" title="Show every portrait, assigned or not"><span class="stonetop-chip-text">Any use</span></button>
+		<button type="button" class="stonetop-people-chip" data-filter="used" data-value="unused" title="Hide the portraits other people already wear"><span class="stonetop-chip-text">Unused</span> <span class="stonetop-people-count">{{counts.unused}}</span></button>
+		<button type="button" class="stonetop-people-chip" data-filter="used" data-value="used" title="Only the portraits someone already wears"><span class="stonetop-chip-text">Assigned</span> <span class="stonetop-people-count">{{counts.used}}</span></button>
 	</div>
 	{{/if}}
 </div>

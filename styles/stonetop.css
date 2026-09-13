@@ -558,6 +558,29 @@
 	   See _FONT_CAPS_NUDGE for how the numbers were arrived at. */
 	--st-caps-nudge: 0.073em;
 
+	/* ── Chip centring ─────────────────────────────────────────────────────
+	   How every chip, pill and count badge puts its label in the middle of its box. The label's
+	   line box is TRIMMED to its capitals (`text-box: trim-both cap alphabetic`), so what gets
+	   centred is the cap band itself, not a line box whose ascent and descent Blink rounds to whole
+	   pixels. That rounding moved an untrimmed label by up to 2.4px across UI font sizes 12-24px,
+	   measured from rendered pixels (chip-audit.mjs in the verify harness), and no constant nudge
+	   can follow it. Trimmed, what is left is the ±0.6px sawtooth of the pixel grid itself.
+
+	   --st-trim-top / --st-trim-bottom put the height the trim took away back as padding, so no
+	   chip changes size: (1lh - 1cap) / 2 on each side rebuilds the line box. They are NEVER
+	   resolved here: `lh`, `cap` and `em` in an unregistered custom property stay tokens and resolve
+	   on the element that reads them, against ITS line height and ITS font.
+
+	   --st-caps-trim-nudge is the one residual. Trimmed caps sit about 0.02em low in all three sheet
+	   faces and at every weight (-0.020em Signika, -0.015em Libre Caslon, -0.028em IM Fell English,
+	   averaged over five chip sizes at thirteen UI sizes), so one constant lifts them all; negative,
+	   because it lifts. It is spent INSIDE the two tokens, top smaller and bottom larger, so it moves
+	   the ink and never the box. A browser without `text-box` zeroes both tokens (see the @supports
+	   block after .stonetop-dead-tag-text) and every chip keeps its old padding. */
+	--st-caps-trim-nudge: -0.02em;
+	--st-trim-top: calc((1lh - 1cap) / 2 + var(--st-caps-trim-nudge));
+	--st-trim-bottom: calc((1lh - 1cap) / 2 - var(--st-caps-trim-nudge));
+
 	/* ── Blue "step/sequence" tint ────────────────────────────────────────
 	   Mirrors the green accent palette for ordered, numbered sequences — the
 	   circle step badges in the Welcome guide read as steps, not active states. */
@@ -3780,25 +3803,15 @@ input.stonetop-name-field {
 }
 
 .stonetop-stat-boost-chip {
-	display: inline-flex;
-	align-items: center;
 	width: fit-content;
-	/* The vertical padding is ASYMMETRIC on purpose, and the two halves still sum to 4px, so the
-	   pill is exactly the height it was. `align-items: center` centres the LINE BOX, but the label
-	   is all-caps with no descenders: its ink fills only the top of that box, so a symmetric 2px/2px
-	   left the words riding visibly high -- measured on the default face, 5.00px of paper above the
-	   caps against 7.25px below. Adding the nudge above and taking the same amount off below moves
-	   the INK down without moving the box. --st-caps-nudge is the shared, per-font answer to this
-	   (settings.js#_FONT_CAPS_NUDGE); see .stonetop-condemned-tag-text, which solves the same bug
-	   with a transform because it has a real element to move -- this chip's label is a bare text
-	   node, so padding is the only seam.
-
-	   Capped at the 2px it is subtracted from: the nudge is in `em`, so on the largest face at a
-	   raised font scale it can outgrow the padding it borrows against, and an uncapped subtraction
-	   would floor the bottom at 0 while the top kept growing -- the pill would get TALLER instead
-	   of staying put, which is the one thing this must not do. */
-	--stonetop-chip-caps-nudge: min(2px, var(--st-caps-nudge, 0.073em));
-	padding: calc(2px + var(--stonetop-chip-caps-nudge)) 7px calc(2px - var(--stonetop-chip-caps-nudge));
+	/* CENTRED BY TRIMMING, not by nudging. The label is a bare text node, so the chip trims ITSELF:
+	   inline-block rather than inline-flex, because an anonymous flex item takes no `text-box`, and
+	   the trim tokens pad the cap band back out to the line box it replaced, so the pill is exactly
+	   the height it was. This replaced an asymmetric padding pair driven by --st-caps-nudge, tuned
+	   at one UI font size and a pixel out at others; see the Chip centring tokens in :root. */
+	display: inline-block;
+	text-box: trim-both cap alphabetic;
+	padding: calc(2px + var(--st-trim-top)) 7px calc(2px + var(--st-trim-bottom));
 	border: 1px solid rgba(100,116,139,0.35);
 	border-radius: 999px;
 	background: hsl(210 12% 92%);
@@ -4217,47 +4230,35 @@ input.stonetop-name-field {
    In BOTH it is a flex item (`.stonetop-move-item` and `.stonetop-item-header` are flex rows with
    `align-items: center`), so its box is its line box and that box is centred exactly.
 
-   The vertical padding is ASYMMETRIC anyway, and the two halves still sum to 2px, so the chip is
-   exactly the height it was. Centring the BOX is not centring the INK: the label is a run of
-   capitals with no descenders, so its ink stops at the baseline and the face's whole descender
-   band is empty paper underneath it. The chip therefore reads high, and the nudge added above
-   and taken off below is what pushes the caps back down onto the box's centre.
+   CENTRED BY TRIMMING. The label is a bare text node, so the chip trims ITSELF (`text-box:
+   trim-both cap alphabetic`) down to its cap band, and the trim tokens put the rest of the line
+   box back as padding; see the Chip centring tokens in :root. This replaced an asymmetric
+   padding pair, a 0.081em nudge measured at the 20px root from a Range rect and measureText,
+   which a pixel sweep across UI font sizes 12-24px showed a pixel out at the sizes it was not
+   tuned at.
 
-   Its own constant, NOT --st-caps-nudge, and that is deliberate. That variable is the Condemned
-   pill's per-face table (settings.js#_FONT_CAPS_NUDGE), and it does not describe this chip: it
-   asks Libre Caslon for the SMALLEST correction of the three (0.016em) where this chip measures
-   it as wanting MORE than Signika. The pill's table is left alone and this rule carries what it
-   measured.
+   THE LINE BOX IS ROUNDED TO A WHOLE PIXEL. `1.2` of a rem-scaled font is a fractional height
+   (17.28px at the 20px root, so the chip was 21.28px tall), and the painter snaps a box's top and
+   bottom edges to the pixel grid SEPARATELY. A fractional box therefore paints 21px tall in one
+   row and 22px in the next, depending only on where the row's top happens to fall, which is why
+   Defend's chip and Persuade (vs. NPCs)'s came out a pixel short of their neighbours. A whole-pixel
+   height snaps both edges by the same amount, so every chip paints alike wherever it sits. The
+   plain `1.2` stays above as the fallback for a browser without `round()`.
 
-   MEASURE THIS GEOMETRICALLY, NOT BY SCANNING PIXELS. An earlier pass read the paper above and
-   below the caps off a magnified screenshot, and the rounded corners bend the border arc inward
-   far enough that the scan picks up a different border row for a wide label than for a narrow
-   one -- a whole row of drift between +CON and +DEX, which is twice the quantity being measured.
-   It under-read the error as 0.4px and set this constant to 0.028em, a THIRD of the correction
-   the chip actually wants, so the label stayed visibly high on every face. Take the baseline
-   from a Range over the label plus the face's own ascent, and the cap height from measureText at
-   100x the font size (at 14.4px its actualBoundingBox* are integer-quantised, which is far too
-   coarse for a sub-pixel question). On Signika at the 20px root that puts 3.81px of paper above
-   the caps against 5.34px below the baseline: the caps sit 0.77px high, or 0.081em including the
-   0.028em already being applied.
-
-   0.081em is the DEFAULT face's correction, and it is also the smallest of the three the sheet
-   can render in (Libre Caslon wants ~0.090em, IM Fell English ~0.116em). A single constant is
-   therefore an under-correction on the other two rather than an over-correction: every face ends
-   nearer centred than the symmetric padding left it (Signika 0.77px high to 0.16px, Libre Caslon
-   1.01px to 0.40px, IM Fell 1.49px to 0.89px), and none is pushed past it. Capped at the 1px it
-   is subtracted from -- the nudge is in `em`, so a raised font scale could otherwise outgrow the
-   padding it borrows against and floor the bottom at 0 while the top kept growing, making the
-   chip TALLER instead of leaving it put. That cap binds at roots above ~17px, which is why
-   Signika lands at 0.16px rather than 0.
-   Measured with chip-exact.mjs in the verify harness. */
+   The HEIGHT is pinned to that whole-pixel line box plus the 2px of padding and 2px of border,
+   so the trimmed cap band, whose own height is fractional, cannot make the chip fractional
+   again. */
 .stonetop-move-roll-chip {
-	--stonetop-roll-chip-caps-nudge: min(1px, 0.081em);
-	padding: calc(1px + var(--stonetop-roll-chip-caps-nudge)) 6px calc(1px - var(--stonetop-roll-chip-caps-nudge));
+	display: inline-block;
+	text-box: trim-both cap alphabetic;
+	box-sizing: border-box;
+	padding: calc(1px + var(--st-trim-top)) 6px calc(1px + var(--st-trim-bottom));
 	border: 1px solid var(--color-text-dark-secondary);
 	border-radius: var(--st-radius-sm);
 	font-size: calc(0.72rem * var(--stonetop-font-scale, 1));
 	line-height: 1.2;
+	line-height: round(calc(0.72rem * var(--stonetop-font-scale, 1) * 1.2), 1px);
+	height: calc(1lh + 4px);
 	color: var(--color-text-dark-secondary);
 	white-space: nowrap;
 	cursor: pointer;
@@ -5488,7 +5489,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	border-radius: 999px;
 	white-space: nowrap;
 }
-.stonetop-roll-card-badge i { font-size: 0.9em; }
+.stonetop-roll-card-badge i { font-size: 0.9em; font-size: round(0.9em, 1px); }
 .stonetop-roll-card-badge--damage {
 	color: #fff;
 	background: var(--st-red-text);
@@ -7737,9 +7738,10 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 .stonetop-add-item-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .stonetop-add-item-chip {
 	width: auto;
-	display: inline-flex;
-	align-items: center;
-	padding: 1px 8px;
+	/* Trimmed to its cap band, height kept; see the Chip centring tokens in :root. */
+	display: inline-block;
+	text-box: trim-both cap alphabetic;
+	padding: calc(1px + var(--st-trim-top)) 8px calc(1px + var(--st-trim-bottom));
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-xs);
 	line-height: 1.5;
@@ -10261,7 +10263,14 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	/* Detached from the sentence it follows: the appearance line is a description of a person and
 	   this is not part of it. */
 	margin: 0 0 0 0.7em;
-	padding: 0 8px;
+	/* THE CONDEMNED BRAND'S GEOMETRY, not this pill's own. The two share the appearance line
+	   whenever a dead character is also under a Judge's brand, and they are the same red: at
+	   0 / 1.7 this one stood 23.27px beside a 20.27px brand, which on two pills of one colour reads
+	   as a fault rather than as two marks. So the same pinned height and no vertical padding; the
+	   word is centred by .stonetop-dead-tag-text. See .stonetop-condemned-tag, which owns these
+	   numbers. */
+	padding: 0 0.7em;
+	min-height: calc(1.46em + 2px);
 	border: 1px solid var(--st-red-border);
 	border-radius: 999px;
 	background: var(--st-red-bg);
@@ -10269,7 +10278,8 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	font-size: var(--st-fs-xs);
 	font-style: normal;
 	font-weight: 600;
-	line-height: 1.7;
+	/* 1, so an untrimmed label (a browser without text-box) is a 1em box the pinned height centres. */
+	line-height: 1;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 	color: var(--st-red-text);
@@ -10281,6 +10291,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 
 .stonetop-dead-tag i {
 	font-size: 0.9em;
+	font-size: round(0.9em, 1px);
 }
 
 /* Only the editable copy is a button, so only it says "press me". */
@@ -10446,7 +10457,7 @@ button.stonetop-holy-light.is-lit:hover {
 	transition: background 0.12s, border-color 0.12s;
 }
 
-.stonetop-invocation-chip i { font-size: 0.95em; }
+.stonetop-invocation-chip i { font-size: 0.95em; font-size: round(0.95em, 1px); }
 
 /* The name is the one part allowed to shrink; the sun and the padding are not. Ellipsised rather
    than wrapped — the pill sits in a fixed-height row — with the full name in the tooltip. */
@@ -10523,10 +10534,10 @@ button.stonetop-invocation-chip:focus-visible {
      • min-/max- are PINNED to that same length on both axes. A bare `width`/`height` pair loses to
        any inherited `min-height` or `min-width` — core sets those on plenty of things inside a
        window — and losing on ONE axis is precisely what an ellipse is.
-     • NO PADDING. With `box-sizing: border-box` padding is harmless, but that declaration is one
-       more thing that has to win; a single asymmetric padding edge surviving on a content-box
-       element is another way to stretch one axis. The digit is centred by flex instead, which
-       needs no box space at all.
+     • NO SIDE PADDING, and only a TOP padding for the digit. Its line box is trimmed to the cap
+       band and that one edge sets it in the middle of the pinned height, which `box-sizing:
+       border-box` and the pinned height absorb, so it cannot stretch an axis. It was centred by
+       flex once; flex centres the untrimmed line box, which put the digit up to 1.25px off.
      • `aspect-ratio: 1` as the backstop: if something still beats a length, this keeps the shape
        round rather than letting it go oval unnoticed.
      • `flex: none`, in case this ever stops being absolutely positioned and becomes a real flex
@@ -10563,9 +10574,7 @@ button.stonetop-invocation-chip:focus-visible {
 	/* Sat 4px lower than the pan it marks. */
 	top: 2px;
 	right: -4px;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
+	display: block;
 	box-sizing: border-box;
 	flex: none;
 	width: var(--st-condemn-count-size);
@@ -10576,6 +10585,9 @@ button.stonetop-invocation-chip:focus-visible {
 	max-height: var(--st-condemn-count-size);
 	aspect-ratio: 1;
 	padding: 0;
+	/* Trimmed to its cap band and set in the middle of the disc; see the Chip centring tokens. */
+	padding-top: calc((var(--st-condemn-count-size) - 1cap) / 2 + var(--st-caps-trim-nudge));
+	text-box: trim-both cap alphabetic;
 	border-radius: 50%;
 	background: var(--st-red-text);
 	color: var(--st-condemned-on);
@@ -10738,13 +10750,13 @@ button.stonetop-held-advantage:hover { color: var(--st-text-body); }
 	   off the name, and the right one keeps it from touching the status badge it can follow. The
 	   character sheet, where it really does trail a sentence, restores the left gap below. */
 	margin: 3px 6px 0 0;
-	/* SYMMETRIC. This was once asymmetric (0.28em over 0.18em) to push the uppercase label down off
-	   the top of its line box — but padding on the container moves BOTH children by the same
-	   amount, and measurement showed the two need opposite corrections: with the real Libre Caslon
-	   face the word sits high in its box while the gavel hangs low in its own. One shared nudge
-	   could only ever fix one of them, and it was making the gavel worse. Each child now carries
-	   its own; see .stonetop-condemned-tag i / -text below. */
-	padding: 0.23em 0.7em;
+	/* NO VERTICAL PADDING: a PINNED height, and align-items: center does the centring. The height
+	   is the one the old symmetric 0.23em padding gave around a 1em line (1.46em, plus the border),
+	   so the pill is the size it was. Padding could never have centred the word on its own: it
+	   moves the gavel and the label by the same amount, and the two need different corrections.
+	   The label's is on .stonetop-condemned-tag-text below. */
+	padding: 0 0.7em;
+	min-height: calc(1.46em + 2px);
 	border: 1px solid var(--st-red-border);
 	border-radius: 999px;
 	background: var(--st-red-bg);
@@ -10752,9 +10764,8 @@ button.stonetop-held-advantage:hover { color: var(--st-text-body); }
 	font-size: calc(0.62rem * var(--stonetop-font-scale, 1));
 	font-style: normal;
 	font-weight: 700;
-	/* 1, so the pill's height is the padding above plus the caps plus the padding below, and the
-	   nudge above is measured against something that does not move. A 1.7 line-height would fold
-	   its own half-leading into the sum and swallow the correction. */
+	/* 1, so an untrimmed label (a browser without text-box) is a 1em box the pinned height centres,
+	   exactly as the old padding did. */
 	line-height: 1;
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
@@ -10764,19 +10775,88 @@ button.stonetop-held-advantage:hover { color: var(--st-text-body); }
 	vertical-align: middle;
 }
 
-.stonetop-condemned-tag i { font-size: 0.95em; }
+.stonetop-condemned-tag i { font-size: 0.95em; font-size: round(0.95em, 1px); }
 
-/* The label's optical centring, and the ONLY nudge left here.
-   `align-items: center` centres both children's BOXES exactly — measured at 0.000px off — so the
-   gavel needs nothing once the container's padding is symmetric; it looked low because that
-   padding was pushing it, not because of its own metrics. What remains is the label riding high
-   in its em box, which is what --st-caps-nudge answers.
-   The nudge is a VARIABLE, not a constant, because the sheet font is a user setting and the three
-   faces need corrections a factor of ten apart — see settings.js#_FONT_CAPS_NUDGE. It is in `em`,
-   so it also follows this pill's two sizes (the name row's and the character sheet's prose line).
-   A transform, not padding: a flex item is blockified so it applies, it lands sub-pixel, and it
-   moves the ink without changing the pill's height. */
-.stonetop-condemned-tag-text { transform: translateY(var(--st-caps-nudge, 0.073em)); }
+/* The three status pills' optical centring: the NPC status badge, the Condemned brand, and Dead.
+   Each pill has a PINNED height and no vertical padding, and centres its children with
+   `align-items: center`, which centres every child's BOX exactly -- so the glyph beside the word
+   needs nothing, and the word is centred as soon as its box IS its capitals. `text-box: trim-both
+   cap alphabetic` makes it so: it cuts the label's line box down to cap height over the baseline,
+   whatever the face's ascent and descent.
+
+   That replaced a per-face `em` nudge on an untrimmed 1em line box, which could not hold. Blink
+   rounds a font's ascent and descent to whole pixels, so where the caps land inside that box
+   shifts by up to a pixel from one font size to the next, and no constant follows it: a raster
+   sweep at UI font sizes 12-24px (pill-raster.mjs in the verify harness) had Signika's caps
+   0.6-1.0px LOW at the large sizes, visibly off-centre in both pills. Trimmed, the worst case is
+   0.4px for the two serifs and 0.6px for Signika, which is the pixel snapping itself.
+
+   --st-caps-trim-nudge is what trimming leaves over, one constant 0.02em lift for every face; see
+   the Chip centring tokens in :root. A transform, not padding, so it moves the WORD without
+   dragging the glyph beside it and without changing the pill's height -- which is why every label
+   is wrapped in a span of its own (a bare text node in a flex row cannot be trimmed or moved; an
+   anonymous flex item does not take `text-box`, measured 1.4px off).
+
+   A browser without `text-box` keeps the untrimmed 1em box, which the pinned height centres exactly
+   as the old symmetric padding did, and gets the old untrimmed nudge back. */
+.stonetop-npc-status-badge-text,
+.stonetop-condemned-tag-text,
+.stonetop-dead-tag-text {
+	text-box: trim-both cap alphabetic;
+	transform: translateY(var(--st-caps-trim-nudge, 0em));
+}
+@supports not (text-box: trim-both cap alphabetic) {
+	.stonetop-npc-status-badge-text,
+	.stonetop-condemned-tag-text,
+	.stonetop-dead-tag-text { transform: translateY(var(--st-caps-nudge, 0.073em)); }
+	/* Every other chip: nothing is trimmed, so there is no height to put back, and each keeps the
+	   padding it had before trimming. The count disc goes back to flex centring its line box. */
+	:root { --st-trim-top: 0px; --st-trim-bottom: 0px; }
+	.stonetop-condemn-count,
+	.stonetop-marks-count { display: inline-flex; align-items: center; justify-content: center; padding-top: 0; }
+}
+
+/* Chip labels that share their flex chip with an icon or a count. Trimmed like the status pills'
+   labels above, but keeping the chip's height: each label's own box is trimmed to its cap band and
+   the two trim tokens pad it back out to a whole line box, so the chip is as tall as it was and
+   the caps sit on its centre. `.stonetop-chip-text` is the generic wrapper for a label that used
+   to be a bare text node (an anonymous flex item takes no `text-box`, measured 1.4px off); the
+   rest already had an element of their own. See the Chip centring tokens in :root. */
+.stonetop-chip-text,
+.steading-improvement-filter > span,
+.stonetop-catalog-filter > span,
+.stonetop-invocation-chip-name,
+.stonetop .create-monster .cm-move-suggestion > span,
+.stonetop-person-picker-chip-name,
+.stonetop-timeline-entry-linked-text,
+.stonetop-expedition-dialog .stonetop-exp-load-move > span,
+.stonetop-expedition-dialog .stonetop-exp-load-chip .tick,
+.stonetop-people-gallery .stonetop-people-count,
+.stonetop-arcanum-edit .stonetop-arc-chip-label {
+	text-box: trim-both cap alphabetic;
+	padding-top: var(--st-trim-top);
+	padding-bottom: var(--st-trim-bottom);
+}
+
+/* Chip icons at a WHOLE-PIXEL size. Font Awesome's ascent and descent are rounded to whole pixels
+   as well, so a glyph at a fractional font-size wandered up to 1.4px about its chip's centre from
+   one UI font size to the next. At a whole-pixel size it keeps to the ±0.6px of the grid, and
+   centres to within 0.02em on average with no nudge. Where a chip's own icon rule already sized
+   the glyph, that rule rounds it in place, after a plain em size for a browser without round(). */
+.stonetop-order-followers-dialog .stonetop-of-tag i,
+.stonetop-follower-dead-badge i,
+.stonetop-timeline-entry-linked i,
+.stonetop .stonetop-moves-level-notice-dismiss i {
+	font-size: round(1em, 1px);
+}
+
+/* Two glyphs whose ARTWORK, not their box, sits low: the box is centred like every other icon's,
+   but the drawing inside it is not. Measured as a steady offset at every UI font size rather than
+   the grid's sawtooth (skull-and-crossbones -0.90px on average, the journey exit's double chevron
+   -0.63px at its fixed 9px), so a constant lift answers it. Per glyph, deliberately: a lift on the
+   shared icon rule above would push every other icon high. */
+.stonetop-follower-dead-badge i { transform: translateY(-0.065em); }
+.stonetop-journey-canvas .stonetop-journey-arrow i { transform: translateY(-0.07em); }
 
 /* The character sheet's copy, which DOES trail a sentence — the appearance summary — rather than
    standing under a name. It gets the left gap that detaches it from that sentence, sits on the
@@ -13047,7 +13127,9 @@ button.stonetop-mark-sign-btn.is-active:hover {
 .deaths-door-mark-chip {
 	width: auto !important;
 	flex: 0 0 auto;
-	padding: 2px 9px !important;
+	/* Trimmed to its cap band, height kept; see the Chip centring tokens in :root. */
+	text-box: trim-both cap alphabetic;
+	padding: calc(2px + var(--st-trim-top)) 9px calc(2px + var(--st-trim-bottom)) !important;
 	border: 1px solid var(--st-text-faint) !important;
 	border-radius: 999px !important;
 	background: transparent !important;
@@ -15829,7 +15911,9 @@ button.stonetop-mark-sign-btn.is-active:hover {
    Declared here, above all three, so each site's own rule (which carries only what is local
    to it — an auto margin, a flex basis) still lands after it, and so does the GM hover below. */
 .stonetop-year-chip {
-	padding: 2px 12px;
+	/* Trimmed to its cap band, height kept; see the Chip centring tokens in :root. */
+	text-box: trim-both cap alphabetic;
+	padding: calc(2px + var(--st-trim-top)) 12px calc(2px + var(--st-trim-bottom));
 	border: 1px solid var(--st-card-rule);
 	border-radius: 999px;
 	background: var(--st-card-fill);
@@ -18178,6 +18262,7 @@ a.steading-player-open:hover {
 .steading-improvement-filter > i {
 	margin-right: 0;
 	font-size: 0.9em;
+	font-size: round(0.9em, 1px);
 	opacity: 0.75;
 }
 
@@ -18368,7 +18453,10 @@ a.steading-player-open:hover {
 	color: var(--stonetop-improvement-accent);
 	border: 1px solid var(--stonetop-improvement-accent);
 	border-radius: var(--st-radius-sm);
-	padding: 0 4px;
+	/* Trimmed to its cap band, height kept; see the Chip centring tokens in :root. */
+	display: inline-block;
+	text-box: trim-both cap alphabetic;
+	padding: var(--st-trim-top) 4px var(--st-trim-bottom);
 	vertical-align: middle;
 }
 
@@ -20094,10 +20182,10 @@ a.steading-player-open:hover {
 }
 
 .stonetop-onboarding-origin-label {
-	display: inline-flex;
-	align-items: center;
-	gap: 5px;
-	padding: 4px 12px;
+	/* Trimmed to its cap band, height kept; see the Chip centring tokens in :root. */
+	display: inline-block;
+	text-box: trim-both cap alphabetic;
+	padding: calc(4px + var(--st-trim-top)) 12px calc(4px + var(--st-trim-bottom));
 	background: white;
 	border: 1.5px solid #ccc;
 	border-radius: 20px;
@@ -20185,10 +20273,11 @@ a.steading-player-open:hover {
 	/* Size to content and sit in the wrap grid like .stonetop-onboarding-move-chip
 	   and the origin pills; without this a <button> inherits Foundry core's
 	   full-width `button { display: flex }` and the chips stack vertically. */
-	display: inline-flex;
-	align-items: center;
+	/* Trimmed to its cap band, height kept; see the Chip centring tokens in :root. */
+	display: inline-block;
+	text-box: trim-both cap alphabetic;
 	width: auto;
-	padding: 3px 11px;
+	padding: calc(3px + var(--st-trim-top)) 11px calc(3px + var(--st-trim-bottom));
 	font-size: var(--st-fs-base);
 	background: white;
 	border: 1px solid #ccc;
@@ -20512,10 +20601,11 @@ a.steading-player-open:hover {
 
 .stonetop-onboarding-move-chip,
 .stonetop-levelup-move-chip {
-	display: inline-flex;
-	align-items: center;
+	/* Trimmed to its cap band, height kept; see the Chip centring tokens in :root. */
+	display: inline-block;
+	text-box: trim-both cap alphabetic;
 	width: auto;
-	padding: 3px 12px;
+	padding: calc(3px + var(--st-trim-top)) 12px calc(3px + var(--st-trim-bottom));
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-sm);
 	text-transform: uppercase;
@@ -20622,12 +20712,13 @@ a.steading-player-open:hover {
 }
 
 .stonetop-onboarding-possession-badge {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
+	/* Trimmed to its cap band, height kept; see the Chip centring tokens in :root. */
+	display: inline-block;
+	text-align: center;
+	text-box: trim-both cap alphabetic;
 	margin-left: auto;
 	min-width: 64px;
-	padding: 2px 7px;
+	padding: calc(2px + var(--st-trim-top)) 7px calc(2px + var(--st-trim-bottom));
 	font-size: var(--st-fs-2xs);
 	font-weight: 700;
 	text-transform: uppercase;
@@ -22955,7 +23046,10 @@ a.steading-player-open:hover {
 .stonetop-call-up-dialog .stonetop-cu-preview-type { font-size: var(--st-fs-xs); font-style: italic; }
 .stonetop-call-up-dialog .stonetop-cu-preview-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
 .stonetop-call-up-dialog .stonetop-cu-preview-tag {
-	padding: 1px 7px;
+	/* Trimmed to its cap band, height kept; see the Chip centring tokens in :root. */
+	display: inline-block;
+	text-box: trim-both cap alphabetic;
+	padding: calc(1px + var(--st-trim-top)) 7px calc(1px + var(--st-trim-bottom));
 	border: 1px solid var(--st-blue-border);
 	border-radius: 999px;
 	font-size: var(--st-fs-xs);
@@ -23169,7 +23263,9 @@ a.steading-player-open:hover {
 
 .stonetop-follower-tag {
 	display: inline-block;
-	padding: 1px 8px;
+	/* Trimmed to its cap band, height kept; see the Chip centring tokens in :root. */
+	text-box: trim-both cap alphabetic;
+	padding: calc(1px + var(--st-trim-top)) 8px calc(1px + var(--st-trim-bottom));
 	background: hsl(210 12% 92%);
 	border: 1px solid rgba(100,116,139,0.3);
 	border-radius: 999px;
@@ -24116,6 +24212,10 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-base);
 	line-height: 1.4;
+	/* Its label is a wrapped span that trims and pads ITSELF (it can carry a lock icon, and a flex
+	   chip cannot trim a bare text node), so the base tag's own trim and padding come off here. */
+	padding: 1px 8px;
+	text-box: none;
 }
 .stonetop-exceptional-toggle:hover { opacity: 1; }
 .stonetop-follower-tag.stonetop-exceptional-toggle.is-selected {
@@ -24125,7 +24225,7 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	color: var(--st-text-body);
 }
 .stonetop-exceptional-toggle.is-locked { border-style: dashed; opacity: 0.85; }
-.stonetop-exceptional-toggle.is-locked .fa-lock { font-size: 0.8em; opacity: 0.6; }
+.stonetop-exceptional-toggle.is-locked .fa-lock { font-size: 0.8em; font-size: round(0.8em, 1px); opacity: 0.6; }
 
 /* Pick-one option list (instinct / cost) */
 .stonetop-follower-option-list {
@@ -26475,7 +26575,9 @@ li.question-bullet::before {
    keeps the label's authored casing ("Horde (6+)"). */
 .stonetop-monster-org-pill {
 	display: inline-block;
-	padding: 0 7px;
+	/* Trimmed to its cap band, height kept; see the Chip centring tokens in :root. */
+	text-box: trim-both cap alphabetic;
+	padding: var(--st-trim-top) 7px var(--st-trim-bottom);
 	border-radius: 999px;
 	background: transparent;
 	color: #000;
@@ -29212,6 +29314,7 @@ th:has(> .stonetop-roll-table-btn) {
 	align-items: center;
 	justify-content: center;
 	font-size: var(--st-fs-sm);
+	font-size: round(var(--st-fs-sm), 1px);
 	color: var(--st-blue-text);
 	background: var(--st-blue-bg);
 	border: 1px solid var(--st-blue-border);
@@ -30601,7 +30704,7 @@ th:has(> .stonetop-roll-table-btn) {
 	font-size: var(--st-fs-sm);
 	cursor: pointer;
 }
-.stonetop-cf-chosen-tag i { font-size: 0.85em; opacity: 0.7; }
+.stonetop-cf-chosen-tag i { font-size: 0.85em; font-size: round(0.85em, 1px); opacity: 0.7; }
 .stonetop-cf-chosen-tag:hover { background: var(--st-red-bg); border-color: var(--st-red-border); color: var(--st-red-text); }
 
 .stonetop-cf-tag-add-row { display: flex; gap: 6px; align-items: center; min-width: 0; }
@@ -30621,15 +30724,16 @@ th:has(> .stonetop-roll-table-btn) {
 
 .stonetop-cf-tag,
 .stonetop-cf-chip {
-	/* inline-flex + flex:0 0 auto/width:auto so these <button> pills shrink to content
-	   and flow several per row. Without the explicit flex/width, core's `button` rules
-	   (block-level `display:flex`, `width:100%`) leak into the flex-basis and each pill
-	   claims the whole row, stacking one-per-line. Mirrors .stonetop-cf-mini-btn. */
-	display: inline-flex;
+	/* flex:0 0 auto/width:auto so these <button> pills shrink to content and flow several
+	   per row. Without the explicit flex/width, core's `button` rules (block-level
+	   `display:flex`, `width:100%`) leak into the flex-basis and each pill claims the whole
+	   row, stacking one-per-line. Mirrors .stonetop-cf-mini-btn. */
+	/* Trimmed to its cap band, height kept; see the Chip centring tokens in :root. */
+	display: inline-block;
+	text-box: trim-both cap alphabetic;
 	flex: 0 0 auto;
 	width: auto;
-	align-items: center;
-	padding: 1px 9px;
+	padding: calc(1px + var(--st-trim-top)) 9px calc(1px + var(--st-trim-bottom));
 	border: 1px solid rgba(100, 116, 139, 0.3);
 	border-radius: 999px;
 	background: hsl(210 12% 92%);
@@ -30849,7 +30953,10 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-cf-preview-type { font-size: var(--st-fs-sm); font-style: italic; color: var(--st-text-secondary); }
 .stonetop-cf-preview-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 .stonetop-cf-preview-tag {
-	padding: 0 7px;
+	/* Trimmed to its cap band, height kept; see the Chip centring tokens in :root. */
+	display: inline-block;
+	text-box: trim-both cap alphabetic;
+	padding: var(--st-trim-top) 7px var(--st-trim-bottom);
 	border: 1px solid rgba(100, 116, 139, 0.3);
 	border-radius: 999px;
 	background: hsl(210 12% 92%);
@@ -31880,7 +31987,9 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop .threat-themes__item {
 	display: inline-block;
 	margin: 0.1rem 0.3rem 0.1rem 0;
-	padding: 0.05rem 0.4rem;
+	/* Trimmed to its cap band, height kept; see the Chip centring tokens in :root. */
+	text-box: trim-both cap alphabetic;
+	padding: calc(0.05rem + var(--st-trim-top)) 0.4rem calc(0.05rem + var(--st-trim-bottom));
 	border: 1px solid color-mix(in srgb, var(--threat-accent, var(--tc-ink-soft)) 45%, transparent);
 	border-radius: 0.5rem;
 	font-size: 0.86rem;
@@ -32589,7 +32698,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop .threat-suggested__hint { margin: 0 0 0.35rem; font-size: 0.82rem; font-style: italic; opacity: 0.75; }
 .stonetop .threat-suggested__chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
 .stonetop .threat-suggested__chip {
-	width: auto; padding: 0.22rem 0.55rem;
+	width: auto; text-box: trim-both cap alphabetic; padding: calc(0.22rem + var(--st-trim-top)) 0.55rem calc(0.22rem + var(--st-trim-bottom));
 	font-size: 0.8rem; cursor: pointer;
 	background: transparent; color: inherit;
 	border: 1px solid var(--st-btn-primary-border, #4f5b66); border-radius: 999px;
@@ -32842,7 +32951,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	box-shadow: none;
 	transition: border-color 0.15s ease, background 0.15s ease;
 }
-.stonetop .create-monster .cm-move-suggestion i { font-size: 0.72em; opacity: 0.7; }
+.stonetop .create-monster .cm-move-suggestion i { font-size: 0.72em; font-size: round(0.72em, 1px); opacity: 0.7; }
 .stonetop .create-monster .cm-move-suggestion:hover {
 	border-style: solid;
 	border-color: var(--st-btn-primary-border, #4f5b66);
@@ -33294,7 +33403,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 /* band pill + ◇ count */
 .stonetop-expedition-dialog .stonetop-exp-load-pill {
 	font-family: var(--font-stonetop); text-transform: uppercase; letter-spacing: 0.06em;
-	font-size: var(--st-fs-2xs); font-weight: 700; padding: 2px 9px;
+	font-size: var(--st-fs-2xs); font-weight: 700; text-box: trim-both cap alphabetic; padding: calc(2px + var(--st-trim-top)) 9px calc(2px + var(--st-trim-bottom));
 	border-radius: 999px; border: 1px solid transparent; white-space: nowrap;
 }
 .stonetop-expedition-dialog .stonetop-exp-load-pill.light  { color: var(--st-green-text); background: var(--st-green-bg); border-color: var(--st-green-border); }
@@ -33865,7 +33974,9 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    step column and give it a horizontal scrollbar. */
 .stonetop-journey-canvas .stonetop-journey-tag {
 	position: absolute; white-space: nowrap; pointer-events: none;
-	padding: 1px 6px;
+	/* Trimmed to its cap band, height kept; see the Chip centring tokens in :root. */
+	text-box: trim-both cap alphabetic;
+	padding: calc(1px + var(--st-trim-top)) 6px calc(1px + var(--st-trim-bottom));
 	font-size: var(--st-fs-2xs); font-weight: 700; color: #1b1009;
 	background: rgba(244,236,216,0.92);
 	border: 1px solid rgba(0,0,0,0.25); border-radius: var(--st-radius-sm);
@@ -35004,14 +35115,28 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-npc-status-badge {
 	display: inline-flex;
 	align-items: center;
-	padding: 1px 8px;
+	/* GEOMETRY BORROWED WHOLESALE FROM .stonetop-condemned-tag -- the size, the line-height and the
+	   pinned height are that pill's numbers, not ones chosen here. On the NPC header the two stand
+	   side by side in the same name row, and they were 18.88px against 16.48px: the badge's old 1px
+	   padding over a 1.5 line-height made a taller pill out of the same 0.62rem word. Two status
+	   chips on one line at two heights reads as a mistake, so there is one set of numbers and this
+	   rule uses it. Change them in both places or in neither.
+
+	   No vertical padding and no nudge of its own. The label is wrapped in
+	   .stonetop-npc-status-badge-text, whose line box is trimmed to its capitals, and
+	   align-items: center puts those in the middle of the pinned height. The wrapper is in all
+	   three templates that render a badge (the NPC name row and the steading roster twice); see
+	   .stonetop-condemned-tag-text, which centres all three pills the same way. */
+	padding: 0 8px;
+	min-height: calc(1.46em + 2px);
 	border-radius: 999px;
 	font-family: var(--font-stonetop);
 	font-size: calc(0.62rem * var(--stonetop-font-scale, 1));
 	font-weight: 700;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
-	line-height: 1.5;
+	/* 1, so an untrimmed label (a browser without text-box) is a 1em box the pinned height centres. */
+	line-height: 1;
 	white-space: nowrap;
 	vertical-align: middle;
 	background: rgba(80, 90, 100, 0.14);
@@ -35023,8 +35148,23 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	border-color: var(--st-red-border);
 	color: var(--st-red-text);
 }
+/* The name row's pair sits on ONE line. The brand beside it carries `margin: 3px 6px 0 0` to lift
+   it off the name it wraps under -- and `vertical-align: middle` centres the MARGIN box, not the
+   border box, so an unmatched 3px-over-0 drops the brand by HALF of it. The two pills are the same
+   height to within 0.01px and were still landing on different lines: measured 110.06 against
+   111.55, a 1.50px step at every edge. Equal heights on unequal lines read as unequal chips, which
+   is what the height match was for. The badge takes the brand's margin so both margin boxes centre
+   together; the 6px right gap is the same one the brand keeps, so the two never touch.
+   SCOPED to the name row, not added to the rule above: the roster's --sm copy sits in a flex cell
+   that centres it already, where a top margin would push it off on its own. */
+.stonetop-npc-namewrap .stonetop-npc-status-badge { margin: 3px 6px 0 0; }
+
+/* The roster-row copy: the same badge, smaller. Only the HORIZONTAL padding is restated -- the
+   base's pinned height is in `em` and shrinks with this copy's smaller font on its own, so only the
+   sides are this rule's to change. */
 .stonetop-npc-status-badge--sm {
-	padding: 0 6px;
+	padding-left: 6px;
+	padding-right: 6px;
 	margin-left: 6px;
 	font-size: calc(0.55rem * var(--stonetop-font-scale, 1));
 }
@@ -36532,7 +36672,9 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-rel-lane-count {
 	flex: 0 0 auto;
 	min-width: 18px;
-	padding: 0 5px;
+	/* Trimmed to its cap band, height kept; see the Chip centring tokens in :root. */
+	text-box: trim-both cap alphabetic;
+	padding: var(--st-trim-top) 5px var(--st-trim-bottom);
 	border-radius: 999px;
 	background: rgba(100, 116, 139, 0.18);
 	font-size: var(--st-fs-xs, 0.75rem);
@@ -36660,6 +36802,10 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	font-weight: bold;
 	line-height: 16px;
 	color: var(--st-text-body);
+	/* The numeral's box trimmed to its cap band, so the flex centring puts the DIGIT on the heart's
+	   centre rather than a 16px line box around it; see the Chip centring tokens in :root. */
+	text-box: trim-both cap alphabetic;
+	transform: translateY(var(--st-caps-trim-nudge));
 }
 
 /* No --unrated override here on purpose. The badge is now identical on every card, so a
@@ -37889,6 +38035,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-catalog-filter > i {
 	margin-right: 0;
 	font-size: 0.9em;
+	font-size: round(0.9em, 1px);
 	opacity: 0.75;
 }
 
@@ -38149,6 +38296,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-catalog-badge > i {
 	opacity: 0.65;
 	font-size: 0.9em;
+	font-size: round(0.9em, 1px);
 }
 
 /* A badge whose icon is artwork (the creature-type discs), sized to the badge's line box
@@ -44058,6 +44206,7 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
    label's own size would read as the point of the press rather than as the way out of it. */
 .stonetop-person-picker-chip i {
 	font-size: 0.85em;
+	font-size: round(0.85em, 1px);
 	opacity: 0.8;
 }
 

@@ -41,7 +41,7 @@
         {{#if addedTags.length}}
         <div class="stonetop-cf-chosen-tags">
           {{#each addedTags}}
-          <button type="button" class="stonetop-cf-chosen-tag stonetop-mf-added-tag" data-tag="{{this}}">{{this}} <i class="fas fa-times"></i></button>
+          <button type="button" class="stonetop-cf-chosen-tag stonetop-mf-added-tag" data-tag="{{this}}"><span class="stonetop-chip-text">{{this}}</span> <i class="fas fa-times"></i></button>
           {{/each}}
         </div>
         {{else}}<span class="stonetop-cf-chosen-empty">none</span>{{/if}}

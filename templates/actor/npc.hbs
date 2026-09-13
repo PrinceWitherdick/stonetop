@@ -48,7 +48,7 @@
 						</select>
 						{{else}}
 						<span class="input--title stonetop-header-locked stonetop-name-field"><span class="stonetop-npc-name-text">{{actor.name}}</span></span>
-						{{#if stonetop.status.value}}<span class="stonetop-npc-status-badge" data-status="{{stonetop.status.value}}">{{stonetop.status.label}}</span>{{/if}}
+						{{#if stonetop.status.value}}<span class="stonetop-npc-status-badge" data-status="{{stonetop.status.value}}"><span class="stonetop-npc-status-badge-text">{{stonetop.status.label}}</span></span>{{/if}}
 						{{/if}}
 						{{!-- A Judge's Condemn brand. Rendered in BOTH modes, unlike the status badge
 						      beside it: the status is an editable field whose select replaces the badge
