@@ -107,6 +107,9 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run pack
+      # The bundle the patched manifest below points Foundry at. See scripts/bundle.js for why a
+      # release runs from one file while a checkout runs the source.
+      - run: npm run build
 
       - name: Patch manifest
         id: manifest
@@ -126,6 +129,9 @@ jobs:
             const asset = (name) => 'https://github.com/' + repo + '/releases/download/' + version + '/' + name;
             m.version = version;
             m.download = asset('stonetop.zip');
+            // A release runs from the one bundled file npm run build just wrote. The tree keeps the
+            // unbundled entry, so a checkout still runs straight from source. See scripts/bundle.js.
+            m.esmodules = ['dist/stonetop.js'];
             // While the old package id is still shipping, the released title has to
             // disambiguate it: Foundry's Setup screen shows a package's title and never its
             // id, so during the migration window a user has two tiles both reading
@@ -218,6 +224,11 @@ jobs:
             for (const p of m.packs) {
               if (!require('fs').existsSync(p.path)) { console.error('FAIL: declared pack missing: ' + p.path); process.exit(1); }
             }
+            // And the code itself: a manifest naming a bundle the build never wrote installs as a
+            // system that loads nothing at all.
+            for (const e of m.esmodules) {
+              if (!require('fs').existsSync(e)) { console.error('FAIL: declared esmodule missing: ' + e); process.exit(1); }
+            }
             console.log('manifest ok: ' + m.id + ' ' + m.version + ' \"' + m.title + '\"');
           "
 
@@ -225,9 +236,13 @@ jobs:
         # scripts/ is a build/dev directory and does NOT ship wholesale — only the one file
         # named explicitly below, which is macro BODY rather than tooling (see the verify
         # step above). Adding scripts/ here would ship the pack/gen/rename node tooling too.
+        #
+        # dist/ is the bundle the manifest loads. stonetop.js and module/ still ship beside it: the
+        # bundle's source map points at them, and the Import Book Art macro falls back to importing
+        # three of those modules by path.
         run: |
           zip -r stonetop.zip \
-            system.json stonetop.js LICENSE README.md \
+            system.json stonetop.js dist/ LICENSE README.md \
             AI-TRAINING-NOTICE.md ai.txt robots.txt CITATION.cff .well-known/ \
             module/ styles/ languages/ assets/ templates/ packs/ \
             scripts/local/create-test-characters.js \
@@ -265,6 +280,11 @@ jobs:
             }
 
             if (!entries.includes('system.json')) fail.push('system.json is not in the zip');
+            // The code Foundry is told to load, and the map that makes its stack traces readable.
+            for (const e of m.esmodules) {
+              if (!entries.includes(e)) fail.push('declared esmodule is not in the zip: ' + e);
+              if (!entries.includes(e + '.map')) fail.push('source map is not in the zip: ' + e + '.map');
+            }
             for (const p of m.packs) {
               // A directory entry alone is not enough: an empty pack still zips its folder.
               const files = entries.filter(e => e.startsWith(p.path + '/') && !e.endsWith('/'));

@@ -20,6 +20,7 @@ import { reapplyBook2Art, hasImportedBook2Art } from "../book2-art/reapply.js";
 import { clearArtBrowseCache } from "../book2-art/browse.js";
 import { BOOK2_ART_MACRO_NAME, findBook2ArtWorldMacro, loadBook2ArtMacroSource, runImportBookArtMacro } from "../book2-art/macro.js";
 import { offerDurableArtOnce } from "../book2-art/offer-once.js";
+import { MACRO_MODULES } from "../book2-art/macro-modules.js";
 import { openProgressNotification } from "../utils/progress-notification.js";
 import { stonetopChatCard, whisperGm } from "../utils/chat.js";
 import { stampWorldLayoutBaseline } from "../utils/sheet-layout.js";
@@ -322,6 +323,9 @@ export async function onReady() {
 	catch (err) { console.error("Stonetop | sheet partial preload failed", err); }
 
 	game.stonetop ??= {};
+	// The modules the Import Book Art macro borrows, so a bundled release hands it this system's own
+	// instances rather than second copies. See book2-art/macro-modules.js.
+	game.stonetop.macroModules = MACRO_MODULES;
 	game.stonetop.openEndOfSession  = () => new EndOfSessionDialog().render(true);
 	game.stonetop.openIntroductions = () => IntroductionsDialog.open();
 	// Cursor onChange dispatcher (registered on the introCursor world setting): opens/

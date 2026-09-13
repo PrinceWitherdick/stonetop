@@ -53,6 +53,11 @@ jobs:
       - run: npm run lint
       - run: npm test
 
+      # Build the release bundle, for the exit code alone: a module the bundler cannot resolve should
+      # fail the push, not the release. dist/ is gitignored and nothing here uploads it. See
+      # scripts/bundle.js for why a release runs from one file.
+      - run: npm run build
+
       # Compile the compendium packs, for the exit code alone.
       #
       # This is the one release step no test can stand in for: `npm test` asserts things ABOUT
