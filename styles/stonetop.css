@@ -1602,8 +1602,25 @@ body :is(.app, .window-app).stonetop-height-resized {
 	text-decoration: none;
 }
 
+/* THE VITALS HOVER/FOCUS ACCENT.
+
+   These three rules -- the Damage cell's readout, its box, and the HP/Armor/XP/Level boxes
+   below -- used to read `var(--color-text-hyperlink, slategrey)`, and the fallback says what
+   was wanted: slate, the same accent every other interactive surface in the system takes.
+   They never got it. Foundry declares `--color-text-hyperlink: #ff6400` on an ELEMENT --
+   `@layer variables.base { body.game .app { ... } }` -- and a value set on an ancestor element
+   beats one inherited from `:root`, whatever the layer or the specificity, so the `:root`
+   slate near the top of this file never reached the inside of a window and the hover came out
+   orange. Same trap as the focus glow repaired on our window roots, and as the NPC damage die
+   further down, which is commented there for the same reason.
+
+   Named as the slate token directly rather than by repairing --color-text-hyperlink on the
+   window root: that name is also what every @UUID cross-link in a sheet reads, and those are
+   deliberately left alone here. --st-btn-primary-border is the border half of the slate
+   palette (and already answers --input-focus-outline-color for every other field on these
+   sheets), so it re-points with the rest under the dark and high-contrast scopes. */
 .sheet-attributes-top .cell--Roll .cell__roll .rollable:hover {
-	color: var(--color-text-hyperlink, slategrey);
+	color: var(--st-btn-primary-border, slategrey);
 }
 
 .sheet-attributes-top .cell--Roll .cell__roll input.attr-value {
@@ -1619,7 +1636,7 @@ body :is(.app, .window-app).stonetop-height-resized {
 }
 
 .sheet-attributes-top .cell--Roll .cell__roll .rollable:hover input.attr-value {
-	border-color: var(--color-text-hyperlink, slategrey);
+	border-color: var(--st-btn-primary-border, slategrey);
 }
 
 /* In edit mode the input is enabled and interactive */
@@ -1791,7 +1808,7 @@ body :is(.app, .window-app).stonetop-height-resized {
 .sheet-attributes-top .cell--Number .cell__number > input:focus {
 	box-shadow: none;
 	outline: none;
-	border-color: var(--color-text-hyperlink, slategrey);
+	border-color: var(--st-btn-primary-border, slategrey);
 }
 
 /* 2:1 width ratio — HP & XP get twice the space of Damage, Armor & Level.
@@ -4784,7 +4801,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	border-left: 3px solid var(--st-notice-accent);
 	padding-left: 8px;
 }
-:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-card-notice .cell__subtitle {
+/* `.pbta-chat-card` is carried for WEIGHT, not for scope -- every notice is already inside one
+   (utils/chat.js#stonetopCardShell puts the class on every Stonetop card's section). Without it
+   this rule TIES with the card's generic subtitle rule further down the file, which paints every
+   `.cell__subtitle` in `--color-text-dark-secondary`; a tie goes to whichever sits later, and that
+   one does. So the accent reached the left-hand rule above and never the heading, and both
+   notices shipped with a grey title over a coloured edge. */
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .stonetop-card-notice .cell__subtitle {
 	color: var(--st-notice-accent);
 }
 /* The heading's glyph, which the builder emits as the subtitle's first child — matched by
@@ -6689,9 +6712,38 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 .stonetop-inv-item.stonetop-inv-treasure { flex-wrap: wrap; }
 /* Where it drops to and how far it hangs is the shared second-line rule further down, which this
    note wears alongside the artifact lines it can stack with. */
-/* Its own line has room now, so a long treasure name may wrap in the narrow small column
-   rather than being clipped to one line like ordinary small gear. */
-.stonetop-inv-item.stonetop-inv-treasure.stonetop-inv-small .stonetop-inv-label { white-space: normal; }
+/* The rules from here to the arcanum note below hold for EVERY inventory row that wraps: a treasure,
+   and an artifact write-in, whose row stacks a hint, lead or write-up under the name (the `:has()`
+   wrap rule further down, whose three classes the `:is()` here must keep naming). */
+/* Its own line has room now, so a long name may wrap in the narrow small column rather than being
+   clipped to one line like ordinary small gear. */
+.stonetop-inv-item.stonetop-inv-small:is(.stonetop-inv-treasure, :has(.stonetop-inv-artifact-hint, .stonetop-inv-artifact-lead, .stonetop-inv-artifact-lore)) .stonetop-inv-label { white-space: normal; }
+/* The name joins its markers' line and wraps there. A wrapping flex row breaks its lines on each
+   item's one-line width, before anything shrinks, so a name a word too long to fit beside its ◇s
+   used to move WHOLE onto a line of its own and strand the marks above it. From a zero basis it
+   always fits beside them, then grows back to its own text and no further, so a short name still
+   ends where its words do: the icons still follow it, and the empty space after it still selects
+   nothing (see .stonetop-inv-label below). The tag note keeps off this line on both kinds of row
+   (the shared second-line rule further down), so it never competes with the name for it. */
+.stonetop-inv-item:is(.stonetop-inv-treasure, :has(.stonetop-inv-artifact-hint, .stonetop-inv-artifact-lead, .stonetop-inv-artifact-lore)) .stonetop-inv-label { flex: 1 1 0; max-width: max-content; }
+/* A name that can take two lines would have the row's centring hang the marks and icons between
+   them, reading as though they belonged to the wrapped remainder (the chosen-weapon rows hit the
+   same thing). So the row aligns to its top, and each of them sits in a box one line tall with its
+   mark centred inside. The small column's checkbox cannot hold a centred mark, so it is dropped to
+   that line's middle instead. A one-line row lands where centring put it, to within half a pixel.
+   `1lh` is the line: inside `line-height` it resolves against the parent, so the smaller glyphs
+   get a full line too. */
+.stonetop-inv-item:is(.stonetop-inv-treasure, :has(.stonetop-inv-artifact-hint, .stonetop-inv-artifact-lead, .stonetop-inv-artifact-lore)) { align-items: flex-start; }
+.stonetop-inv-item:is(.stonetop-inv-treasure, :has(.stonetop-inv-artifact-hint, .stonetop-inv-artifact-lead, .stonetop-inv-artifact-lore)) .stonetop-inv-diamonds { min-height: 1lh; }
+.stonetop-inv-item.stonetop-inv-small:is(.stonetop-inv-treasure, :has(.stonetop-inv-artifact-hint, .stonetop-inv-artifact-lead, .stonetop-inv-artifact-lore)) .stonetop-inventory-item-check {
+	margin-top: calc((1lh - 15px * var(--stonetop-font-scale, 1)) / 2);
+}
+.stonetop-inv-item:is(.stonetop-inv-treasure, :has(.stonetop-inv-artifact-hint, .stonetop-inv-artifact-lead, .stonetop-inv-artifact-lore)) .stonetop-inv-artifact-chip,
+.stonetop-inv-item:is(.stonetop-inv-treasure, :has(.stonetop-inv-artifact-hint, .stonetop-inv-artifact-lead, .stonetop-inv-artifact-lore)) .stonetop-inv-lore-toggle,
+.stonetop-inv-item:is(.stonetop-inv-treasure, :has(.stonetop-inv-artifact-hint, .stonetop-inv-artifact-lead, .stonetop-inv-artifact-lore)) .stonetop-inv-artifact-identify,
+.stonetop-inv-item:is(.stonetop-inv-treasure, :has(.stonetop-inv-artifact-hint, .stonetop-inv-artifact-lead, .stonetop-inv-artifact-lore)) .stonetop-inv-artifact-gm,
+.stonetop-inv-item:is(.stonetop-inv-treasure, :has(.stonetop-inv-artifact-hint, .stonetop-inv-artifact-lead, .stonetop-inv-artifact-lore)) .stonetop-inv-delete,
+.stonetop-inv-item:is(.stonetop-inv-treasure, :has(.stonetop-inv-artifact-hint, .stonetop-inv-artifact-lead, .stonetop-inv-artifact-lore)) .stonetop-inv-remove-special { line-height: 1lh; }
 
 /* A weightless (◇0) arcanum has nothing to mark, so it renders no checkbox at all
    (see OutfitSnapshot.arcanaSmall) — which would hang its name a marker's width left
@@ -6805,7 +6857,11 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	opacity: 0.75;
 }
 /* EVERY second line an INVENTORY ROW can drop beneath its name: the three an artifact carries, and
-   a Book II treasure's tag/value note. Scoped to `.stonetop-inv-item` (both partials that pull in
+   the tag note of a row that stacks them, a Book II treasure or an artifact write-in (the same
+   `:is()` the name rules near the top of the Inventory section use). On the write-in the note used to
+   stay beside the name, where it competed for the markers' line: a long note squeezed the name into
+   a narrow column or pushed the icons onto a line of their own.
+   Scoped to `.stonetop-inv-item` (both partials that pull in
    inv-artifact.hbs wrap it in one) because every declaration here is a property of that flex ROW,
    not of the prose: the arcanum sheet borrows these same classes for a block card, where a hanging
    indent measured against markers that are not there is simply wrong.
@@ -6819,7 +6875,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 .stonetop-inv-item .stonetop-inv-artifact-hint,
 .stonetop-inv-item .stonetop-inv-artifact-lead,
 .stonetop-inv-item .stonetop-inv-artifact-lore,
-.stonetop-inv-item.stonetop-inv-treasure .stonetop-inv-note {
+.stonetop-inv-item:is(.stonetop-inv-treasure, :has(.stonetop-inv-artifact-hint, .stonetop-inv-artifact-lead, .stonetop-inv-artifact-lore)) .stonetop-inv-note {
 	order: 1;
 	flex-basis: 100%;
 	padding-left: calc(14px * var(--stonetop-font-scale, 1) + 4px);
@@ -10928,32 +10984,48 @@ button.stonetop-held-advantage:hover { color: var(--st-text-body); }
 }
 
 /* The Judge's mark over the move text, both centred — a title block, not a row. The image is
-   whose move this is; the prose is what it does. */
+   whose move this is; the prose is what it does.
+
+   It renders INSIDE the panel column (see condemned.hbs / blessed-marks.hbs), so that the rail
+   beside it runs from the window header to the floor the way the Welcome guide's does. The inset
+   below is for the one place it still sits on the body: the Blessed with no kinds at all, whose
+   window has no split to put it in. */
 .stonetop-condemned-heading,
 .stonetop-marks-heading {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	gap: 8px;
-	/* Its own inset, now that the body's came off for the rail's sake. `flex: none` because this
-	   block is the window's one fixed piece of furniture: whatever height is left goes to the
-	   split under it. */
 	padding: 12px 12px 0;
+	/* `flex: none` because this block is the window's one fixed piece of furniture: whatever
+	   height is left goes to the panel under it. */
 	flex: none;
 	text-align: center;
 }
+
+/* In the column, the column's own 12px is the inset — the block's would be a second one. */
+.stonetop-roster-main > :is(.stonetop-condemned-heading, .stonetop-marks-heading) { padding: 0; }
 
 /* ── The rail, and the panel column beside it ──────────────────────────────
    A roster with more than one list shows them one at a time (see RosterDialog `_railFor`), wearing
    the same `.stonetop-guide-*` chrome as every stepped sheet here. With only one list the rail is
    not rendered at all and everything below still lays out: the column is then simply the whole
    width, which is the window these have always been. */
-.stonetop-roster-main {
+/* BOTH CLASSES, and that is the whole point of the selector. The shared `.stonetop-guide-main`
+   rule sits far LATER in this file with the same one-class specificity, so a bare
+   `.stonetop-roster-main` loses the tie and every declaration below it here was dead: the column
+   was laid out with the guide dialogs' `padding: 12px 20px 16px` and `gap: 12px` instead, which is
+   how the panel came to sit 20px off the right edge and its heading 6px further down than the rail
+   entry naming the same list. Qualifying with the class the element already carries wins the tie
+   without reordering the file. Same trap as `.stonetop-x--mod` tying with `.stonetop-x`. */
+.stonetop-guide-main.stonetop-roster-main {
 	/* The shared `.stonetop-guide-main` padding assumes a rail's worth of inset on the left; here
 	   the panel supplies its own and the rail's gap is added back only when a rail is there (below),
 	   so the unrailed window keeps exactly the 12px it always had. */
 	padding: 12px;
-	gap: 0;
+	/* Between the title block and the panel under it. It reaches nothing else: the other panels
+	   are `display: none`, and a flex container puts no gap around an item that is not laid out. */
+	gap: 10px;
 	display: flex;
 	flex-direction: column;
 	/* `flex: 1 1 auto` + `min-width: 0` is what makes this the column and not just a box of rows.
@@ -11014,15 +11086,21 @@ button.stonetop-held-advantage:hover { color: var(--st-text-body); }
    it says the same thing in half the space.
 
    Keyed on the rail being there rather than on a class the templates would have to remember to
-   add: `:has(+ …)` asks about the very sibling this sits above, so the two cannot drift apart. */
-:is(.stonetop-condemned-heading, .stonetop-marks-heading):has(+ .stonetop-roster-split > .stonetop-guide-toc) {
+   add: the selector walks from the rail to the column it precedes, so the two cannot drift apart.
+
+   GENERAL sibling, so that anything ever dropped between the rail and the column — a datalist, a
+   comment node's neighbour, whatever — cannot turn the bar back into the stack. `+` held once and
+   broke once already, when blessed-marks.hbs grew its shared <datalist>: a `display: none` element
+   is still an element sibling, and the Blessed's window silently kept the 76px centred stack on a
+   frame whose height is fixed at 520px. */
+.stonetop-guide-toc ~ .stonetop-roster-main > :is(.stonetop-condemned-heading, .stonetop-marks-heading) {
 	flex-direction: row;
 	align-items: center;
 	gap: 10px;
-	padding: 10px 12px 0;
 	text-align: left;
 }
-:is(.stonetop-condemned-heading, .stonetop-marks-heading):has(+ .stonetop-roster-split > .stonetop-guide-toc)
+.stonetop-guide-toc ~ .stonetop-roster-main
+	> :is(.stonetop-condemned-heading, .stonetop-marks-heading)
 	:is(.stonetop-condemned-mark, .stonetop-marks-mark) {
 	height: 44px;
 	max-width: 44px;
@@ -11293,13 +11371,17 @@ a.stonetop-marks-name-text:hover { text-decoration: underline; }
 	justify-content: center;
 }
 
+/* Space, not a rule. The bar had carried a `border-top`, and with the list scrolling above it the
+   line landed hard against whichever row happened to be cut off at the bottom of the scrollport —
+   reading as a stray divider hanging off that person's cell rather than as the seam it was meant
+   to be. The bordered cells above already separate themselves; the gap is enough to say the bar is
+   not one of them. */
 .stonetop-condemned-add,
 .stonetop-marks-add {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding-top: 8px;
-	border-top: 1px solid var(--color-border-light-tertiary, #ddd);
+	padding-top: 10px;
 }
 
 /* The field takes the row and the button hugs its label.
@@ -11459,7 +11541,12 @@ a.stonetop-marks-name-text:hover { text-decoration: underline; }
 	margin-left: 0.5em;
 }
 
-.stonetop-mark-loyalty-pip {
+/* BOTH CLASSES: the pip wears `.stonetop-readiness-pip` for its shape and ink, and that rule sits
+   far later in this file at the same one-class specificity, so a bare `.stonetop-mark-loyalty-pip`
+   lost the tie and these shipped at the shared 16px. The size is the whole reason this rule exists
+   (see the note above), so losing it silently left the window saying the opposite of what it
+   meant. Same trap as `.stonetop-roster-main` and the follower group row. */
+.stonetop-readiness-pip.stonetop-mark-loyalty-pip {
 	width: 12px;
 	height: 12px;
 }
@@ -22649,10 +22736,19 @@ a.steading-player-open:hover {
 	font-size: var(--st-fs-xs);
 	color: var(--st-text-muted, #6b5d4f);
 }
-/* Group toggle rows in the create / convert dialogs. */
-.stonetop-cf-group-label,
-.stonetop-mf-group-label {
+/* Group toggle rows in the create / convert dialogs: the tick and the "of N members" field read as
+   one sentence, so they sit on one line and wrap together rather than stacking.
+
+   QUALIFIED BY `.stonetop-cf-label`, which every one of these labels also carries (create-follower,
+   create-hazard, monster- and npc-to-follower), and `flex-direction` stated rather than left to the
+   default. That shared rule sits later in this file at the same one-class specificity and lays a
+   label out as a COLUMN with a 4px gap, so a bare selector here lost the tie on everything the two
+   both name: the row came out stacked and centred, with "of 6 members" under the tick instead of
+   beside it, which is the arrangement this rule was written to prevent. */
+.stonetop-cf-label.stonetop-cf-group-label,
+.stonetop-cf-label.stonetop-mf-group-label {
 	display: flex;
+	flex-direction: row;
 	align-items: center;
 	flex-wrap: wrap;
 	gap: 8px;
@@ -36530,14 +36626,15 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 
 /* ── The Table / Board toggle ─────────────────────────────────────────────── */
 
-/* Left-aligned, and only the NPC \ follower sheet ever sees it: that tab drops the
-   "Relationships" heading the other two hosts carry — the tab label already says it — so the
-   strip stands in for the heading and wants the heading's left edge. The heading hosts are
+/* Right-aligned, and only the NPC \ follower sheet ever sees it: that tab drops the
+   "Relationships" heading the other two hosts carry (the tab label already says it), so the
+   strip stands alone above the table and takes the right edge the other two sheets put it
+   on, so the control sits in the same place on every sheet. The heading hosts are
    shrink-to-fit either way (absolute on the character sheet, margin-left: auto inside the
    flex h3 on the steading), so neither reads this. */
 .stonetop-rel-viewbar {
 	display: flex;
-	justify-content: flex-start;
+	justify-content: flex-end;
 }
 
 /* Every segmented strip in the system — the board's section-level Table/Board toggle, its

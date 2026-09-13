@@ -1,18 +1,5 @@
 <div class="stonetop-condemned-body">
 
-	{{!-- Whose moves these are, then what they have in common: both of the Judge's standing lists
-	      end only when the Judge ends them, and that is the clause a table forgets. Each section
-	      quotes its own move below; this line is what is true of the window.
-
-	      Above the rail rather than inside a panel, because it is true of both lists — and it is
-	      the one fixed thing here, so the split below gets whatever height is left. --}}
-	<div class="stonetop-condemned-heading">
-		{{#if playbookImg}}
-		<img class="stonetop-condemned-mark" src="{{playbookImg}}" alt="" draggable="false">
-		{{/if}}
-		<p class="stonetop-condemned-rule">{{localize "stonetop.condemn.windowRule"}}</p>
-	</div>
-
 	{{!-- One list at a time behind a left rail, once this Judge has both moves. With only one the
 	      rail is not drawn at all and `activeTab` points at the single section, so the same markup
 	      renders the plain content-hugging window it always did. See RosterDialog `_railFor`. --}}
@@ -24,6 +11,21 @@
 		{{/if}}
 
 		<div class="stonetop-guide-main stonetop-roster-main">
+
+			{{!-- Whose moves these are, then what they have in common: both of the Judge's standing lists
+			      end only when the Judge ends them, and that is the clause a table forgets. Each section
+			      quotes its own move below; this line is what is true of the window.
+
+			      Inside the panel column rather than above the split, so the rail is a full-height band
+			      running from the window header to its floor — the Welcome guide's arrangement, and what
+			      keeps the mark from sitting on top of the first rail entry. Outside the panels, because
+			      it is true of both lists; `flex: none`, because the panel below it takes the slack. --}}
+			<div class="stonetop-condemned-heading">
+				{{#if playbookImg}}
+				<img class="stonetop-condemned-mark" src="{{playbookImg}}" alt="" draggable="false">
+				{{/if}}
+				<p class="stonetop-condemned-rule">{{localize "stonetop.condemn.windowRule"}}</p>
+			</div>
 
 			{{#if showBrands}}
 			{{!-- The brands. A section rather than a bare list, because it is also the drop target for

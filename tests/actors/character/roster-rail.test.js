@@ -18,7 +18,7 @@
  *    rail is decoration on top of exactly the tall window it replaced.
  */
 import { describe, it, expect } from "vitest";
-import { readRepo as read, readCss, declarations } from "../../fakes/css.js";
+import { readRepo as read, readCss, declarations, specificity, beats } from "../../fakes/css.js";
 import { renderRoster } from "../../fakes/hbs.js";
 import { RosterDialog } from "../../../module/actors/character/dialogs/RosterDialog.js";
 
@@ -27,6 +27,10 @@ const CONDEMNED_HBS = read("templates/dialogs/condemned.hbs");
 const MARKS_HBS     = read("templates/dialogs/blessed-marks.hbs");
 const ROSTER_JS     = read("module/actors/character/dialogs/RosterDialog.js");
 const CSS           = readCss();
+
+/** The panel column's selector, as the sheet spells it: both classes, to beat the shared
+ *  `.stonetop-guide-main` rule that sits later in the file. See the padding guard below. */
+const COLUMN = ".stonetop-guide-main.stonetop-roster-main";
 
 /** Everything `_railFor` reads or writes, and nothing else. `options` and `position` are in here
  *  because settling the rail also settles the frame's height — see `_setFrameHeight`. */
@@ -234,16 +238,71 @@ describe("what the rail looks like", () => {
 		const panel = declarations(CSS, ".stonetop-roster-panel");
 		expect(panel).toMatch(/flex:\s*1 1 auto/);
 		expect(panel).toMatch(/min-height:\s*0/);
-		const main = declarations(CSS, ".stonetop-roster-main");
+		const main = declarations(CSS, COLUMN);
 		expect(main).toMatch(/min-height:\s*0/);
 		expect(main).toMatch(/overflow:\s*hidden/);
+	});
+
+	// The column wears BOTH classes, and the shared `.stonetop-guide-main` rule sits later in the
+	// sheet with the same one-class specificity, so a bare `.stonetop-roster-main` rule loses the
+	// tie and every declaration in it is dead: the column silently took the guide dialogs'
+	// `padding: 12px 20px 16px` and `gap: 12px`, which is how the panel came to sit 20px off the
+	// right edge with its heading 6px below the rail entry naming the same list. Nothing about
+	// that fails in a browser, and both rules read as if they had won.
+	it("states the column's own padding where it beats the shared guide rule", () => {
+		const shared = declarations(CSS, ".stonetop-guide-main");
+		expect(shared).toMatch(/padding:/);
+		expect(beats(specificity(COLUMN), specificity(".stonetop-guide-main"))).toBe(true);
+		expect(declarations(CSS, COLUMN)).toMatch(/padding:\s*12px/);
+	});
+
+	// The rail is a band running from the window header to the floor, which is only true while the
+	// title block renders INSIDE the panel column. Hoisted back above the split it spans the full
+	// width again, the rail starts an inch down the window, and the playbook mark sits on top of
+	// the first rail entry — which is what it did.
+	it("keeps the title block inside the column so the rail reaches the header", () => {
+		for (const hbs of [CONDEMNED_HBS, MARKS_HBS]) {
+			const column = hbs.indexOf('class="stonetop-guide-main stonetop-roster-main"');
+			const heading = hbs.search(/class="stonetop-(?:condemned|marks)-heading"/);
+			expect(column).toBeGreaterThan(-1);
+			expect(heading).toBeGreaterThan(column);
+		}
+	});
+
+	// The title block drops to a one-line bar when there is a rail beside it, and the column's own
+	// 12px is the only inset it gets there. Both rules are keyed by walking from the rail to the
+	// column it precedes, so no template has to remember a modifier class.
+	it("lays the railed title block as a bar, inset once", () => {
+		const BAR = ".stonetop-guide-toc ~ .stonetop-roster-main > "
+			+ ":is(.stonetop-condemned-heading, .stonetop-marks-heading)";
+		expect(declarations(CSS, BAR)).toMatch(/flex-direction:\s*row/);
+		expect(declarations(CSS, ".stonetop-roster-main > "
+			+ ":is(.stonetop-condemned-heading, .stonetop-marks-heading)")).toMatch(/padding:\s*0/);
+	});
+
+	// GENERAL sibling, not adjacent, between the rail and the column. Adjacent held once and broke
+	// once already, when blessed-marks.hbs grew its shared <datalist>: a display-none element is
+	// still an element sibling, and the Blessed's railed window silently kept the 76px centred
+	// stack inside a frame whose height is fixed at 520px.
+	it("does not let an invisible sibling decide the railed title bar", () => {
+		const railed = [...CSS.matchAll(/^[^\n{]*\.stonetop-roster-main[^{]*(?:condemned|marks)-heading[^{]*\{/gm)]
+			.map(m => m[0]);
+		expect(railed.length).toBeGreaterThan(0);
+		for (const prelude of railed) expect(prelude).not.toMatch(/\.stonetop-guide-toc\s*\+/);
+	});
+
+	// The column holds the title block above the panel now, so it needs a gap where it wanted none.
+	// Every other panel is display-none and a flex container puts no gap around an item it is not
+	// laying out, so this reaches exactly one seam.
+	it("parts the title block from the panel under it", () => {
+		expect(declarations(CSS, COLUMN)).toMatch(/gap:\s*(?!0)/);
 	});
 
 	// A flex item defaults to `flex: 0 1 auto`, which sizes to its CONTENT. Without this pair the
 	// column came out only as wide as its widest row, leaving a band of window backing beside the
 	// rail whose width varied with how long the names on that list happened to be.
 	it("makes the column claim the width the rail leaves", () => {
-		const main = declarations(CSS, ".stonetop-roster-main");
+		const main = declarations(CSS, COLUMN);
 		expect(main).toMatch(/flex:\s*1 1 auto/);
 		expect(main).toMatch(/min-width:\s*0/);
 	});

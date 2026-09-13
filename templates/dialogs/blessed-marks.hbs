@@ -1,16 +1,5 @@
 <div class="stonetop-marks-body">
 
-	{{!-- Whose moves these are, then what they all have in common. The clause that makes this
-	      window necessary ("so long as the mark remains") is the one a table forgets.
-
-	      Above the rail rather than inside a panel, because it is true of all five kinds. --}}
-	<div class="stonetop-marks-heading">
-		{{#if playbookImg}}
-		<img class="stonetop-marks-mark" src="{{playbookImg}}" alt="" draggable="false">
-		{{/if}}
-		<p class="stonetop-marks-rule">{{localize "stonetop.blessedMarks.rule"}}</p>
-	</div>
-
 	{{#if hasGroups}}
 	{{!-- ONE suggestion list for all five bars. Every panel offers the same world actors — the
 	      marks roster is not filtered by who is already marked, since the same woman can wear
@@ -37,6 +26,19 @@
 		{{/if}}
 
 		<div class="stonetop-guide-main stonetop-roster-main">
+
+			{{!-- Whose moves these are, then what they all have in common. The clause that makes this
+			      window necessary ("so long as the mark remains") is the one a table forgets.
+
+			      Inside the panel column rather than above the split, so the rail runs the full height of
+			      the window the way the Welcome guide's does. Outside the panels, because it is true of
+			      all five kinds. --}}
+			<div class="stonetop-marks-heading">
+				{{#if playbookImg}}
+				<img class="stonetop-marks-mark" src="{{playbookImg}}" alt="" draggable="false">
+				{{/if}}
+				<p class="stonetop-marks-rule">{{localize "stonetop.blessedMarks.rule"}}</p>
+			</div>
 
 			{{#each groups}}
 			{{!-- One panel per kind: the ones somebody wears, and the ones this Blessed could lay.
@@ -146,6 +148,14 @@
 
 	</div>
 	{{else}}
+	{{!-- No kinds at all: no split, so the heading has nowhere to sit but here. The one place this
+	      window wears it outside the panel column. --}}
+	<div class="stonetop-marks-heading">
+		{{#if playbookImg}}
+		<img class="stonetop-marks-mark" src="{{playbookImg}}" alt="" draggable="false">
+		{{/if}}
+		<p class="stonetop-marks-rule">{{localize "stonetop.blessedMarks.rule"}}</p>
+	</div>
 	<p class="stonetop-marks-empty">{{localize "stonetop.blessedMarks.none"}}</p>
 	{{/if}}
 

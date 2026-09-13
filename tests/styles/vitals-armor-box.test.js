@@ -114,3 +114,74 @@ describe("a hand-set adjustment still shows its dashed rule", () => {
 		});
 	}
 });
+
+describe("the vitals hover/focus accent is slate, not core's hyperlink orange", () => {
+	// --color-text-hyperlink reads #ff6400 inside any window: Foundry declares it on an ELEMENT
+	// (@layer variables.base { body.game .app { ... } }), and a value set on an ancestor element
+	// beats the :root slate this system asks for, whatever the layer. Every rule below wrote
+	// var(--color-text-hyperlink, slategrey) and got the orange instead, which is what the
+	// monster and NPC stat bars showed on hover -- their HP and Armor fields are never disabled,
+	// so they are hovered far more often than the character sheet's.
+	const accents = [
+		".sheet-attributes-top .cell--Roll .cell__roll .rollable:hover",
+		".sheet-attributes-top .cell--Roll .cell__roll .rollable:hover input.attr-value",
+		".sheet-attributes-top .cell--Number .cell__number > input:focus",
+		// The two the monster and NPC stat bars actually land on -- HP nests
+		// .cell__resource > .cell__value > input, Armor is a DIRECT child of the vital wrapper.
+		".sheet-attributes-top .cell--Resource .cell__resource input:hover",
+		".sheet-attributes-top .cell--Number .stonetop-vital-inner > input:hover",
+	];
+
+	for (const selector of accents) {
+		it(selector + " takes the slate token", () => {
+			const rule = declarations(CSS, selector);
+			expect(rule).toBeTruthy();
+			expect(rule).toMatch(/var\(--st-btn-primary-border/);
+			expect(rule).not.toMatch(/--color-text-hyperlink/);
+		});
+	}
+});
+
+describe("the monster and NPC stat bars nest into the shared vitals rules", () => {
+	// The hover/focus accent, the number skin and the boxed-resource skin are all written for
+	// the character sheet's shapes; the two stat bars reuse them by matching that nesting rather
+	// than restating a rule of their own. Nothing warns when that drifts -- the armor wrapper
+	// broke the direct-child skin once already, which is what the top of this file is about --
+	// so the nesting is pinned here for both sheets.
+	const hosts = [
+		["monster", stripComments(readRepo("templates/actor/monster.hbs"))],
+		["npc", stripComments(readRepo("templates/actor/npc.hbs"))],
+	];
+
+	for (const [name, html] of hosts) {
+		const bar = html.slice(html.indexOf("sheet-attributes-top"));
+		const hp = bar.slice(bar.indexOf("cell--attr-hp"));
+		const armor = bar.slice(bar.indexOf("cell--attr-armor"));
+
+		it(name + ": the stat bar carries the ancestor every vitals rule starts from", () => {
+			expect(html).toMatch(/class="sheet-attributes-top /);
+			expect(bar).toMatch(/cell cell--Resource cell--attr-hp/);
+			expect(bar).toMatch(/cell cell--Number cell--attr-armor/);
+		});
+
+		it(name + ": HP sits inside .cell__resource, which is what the boxed skin matches", () => {
+			const resource = hp.indexOf("cell__resource");
+			const value = hp.indexOf("cell__value");
+			const input = hp.indexOf("<input");
+			expect(resource).toBeGreaterThan(-1);
+			expect(value).toBeGreaterThan(resource);
+			expect(input).toBeGreaterThan(value);
+		});
+
+		it(name + ": the armor number is a DIRECT child of .stonetop-vital-inner", () => {
+			const wrapper = armor.indexOf("stonetop-vital-inner");
+			expect(wrapper).toBeGreaterThan(-1);
+			// The label is allowed between them; another wrapper element is not, because the
+			// skin and the hover accent are both written with `>`.
+			const input = armor.indexOf("<input", wrapper);
+			expect(input).toBeGreaterThan(wrapper);
+			const between = armor.slice(wrapper, input);
+			expect(between).not.toMatch(/<(span|div)\b/);
+		});
+	}
+});
