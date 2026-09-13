@@ -217,13 +217,13 @@ async function main() {
         (await readDir(path.join(src, "expedition-moves"))).map(cleanMove));
     await write("homefront-moves.json",
         (await readDir(path.join(src, "homefront-moves"))).map(cleanMove));
-    // Follower moves double as the read-only "Follower Special Moves" shown on the
-    // character sheet's Followers tab, so they're also emitted as a runtime module.
+    // Follower moves double as the read-only "Follower Moves" card on the character
+    // sheet's Followers tab, so they're also emitted as a runtime module.
     const followerMoves = (await readDir(path.join(src, "follower-moves")))
         .sort(bySort).map(cleanMove);
     await write("follower-moves.json", followerMoves);
     await writeModule("follower-moves.js", "FOLLOWER_MOVES", followerMoves,
-        `The universal "Follower Special Moves" rendered read-only on the character sheet's Followers tab.`);
+        `The "Follower Moves" card rendered read-only on the character sheet's Followers tab.`);
     await write("special-moves.json",
         (await readDir(path.join(src, "special-moves"))).map(cleanMove));
 
