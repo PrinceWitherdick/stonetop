@@ -1318,15 +1318,17 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.statsEdit       = sectionEdit("stats");
 			// A stat box takes any number anyone types and always will: nothing here rejects,
 			// clamps or rewrites a score. What it does is say so, for the stats the rules as
-			// written can't account for (stat-rules.js works out which, and what each should
-			// read). Built only while the section is being edited, because that is the one
-			// time the reader is in a position to act on it, and a caution ring around a
-			// number nobody is editing is just noise on a sheet being played from.
+			// written can't account for (stat-rules.js works out which, and why). Built only
+			// while the section is being edited, because that is the one time the reader is in
+			// a position to act on it, and a caution ring around a number nobody is editing is
+			// just noise on a sheet being played from. The items say how far each Improved /
+			// Superior Stat pick reaches; without them every pick reads as reaching +3.
 			context.stonetop.statIssues = context.stonetop.statsEdit
 				? statRuleIssues({
 					stats:     this.actor.system?.stats,
 					flags:     resolvedFlags(this.actor),
 					statsNote: context.stonetop.playbook?.statsNote ?? null,
+					items:     this.actor.items,
 				})
 				: {};
 			context.stonetop.movesEdit       = sectionEdit("moves");
