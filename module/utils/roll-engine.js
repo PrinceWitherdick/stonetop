@@ -1,4 +1,5 @@
 import { maybeRemindPotentialForGreatness } from "../actors/character/WouldBeHeroAsterisk.js";
+import { WOUND_STATUS_LABEL } from "../actors/character/wound-display.js";
 import { escHtml, formatOutcomeDetail, stripHtmlToText, sign } from "./strings.js";
 import { pickLimitsFrom } from "./move-picks.js";
 import { pickLeadText, TIER_KEYS, TIER_LABELS } from "./move-results.js";
@@ -7,6 +8,7 @@ import { stonetopCardShell, stonetopChatCard, springRollCardBody, rollFormulaChi
 import { adjustXp } from "./xp.js";
 import { composeDamageFormula, normalizeDamageBonusDice } from "./damage.js";
 import { SYSTEM_ID } from "../system-id.js";
+import { getBooleanSetting } from "../settings.js";
 
 // What a miss is worth (Book I p.209: "a tick mark that raises your total by 1"). Named because
 // the mark and the Undo that takes it back have to agree, and a card stamped by one number and
@@ -472,6 +474,78 @@ function _woundReminderHtml(actor, moveName) {
 	});
 }
 
+// Which wound statuses can still explain a bad roll. `problematic` is the book's own name for a
+// wound with live fictional consequences, and `permanent` is one that can never be dealt with --
+// the book's own example, a severed hand, is both. `stabilized` is the one that HAS been tended
+// (Recover: "the GM will say it's taken care of"), so it is waiting on time rather than
+// complicating anything, and naming it here would turn the prompt into a list of old scars.
+const JUSTIFYING_WOUND_STATUSES = new Set(["problematic", "permanent"]);
+
+// Book I p.243, "Problematic wounds in play": incorporate problematic wounds into the fiction and
+// into your GM moves, and when a player rolls a 7-9 or a 6-, maybe use the wound to justify the
+// result. The book's rule, our wording -- and one line that has to read true at BOTH tiers, since
+// a 7-9 is a success that costs rather than a failure.
+const WOUND_JUSTIFY_LEAD = "Maybe one of these explains the result. Bring the injury to the front "
+	+ "of the story, or let it complicate what happens next.";
+
+// The tiers that prompt is for, in TIER_KEYS order so the rows come out the way every other
+// per-tier block on the card does. Deliberately NOT `success`: a 10+ is the move working, and a
+// card that offered the wound as an explanation there would be inviting a GM move off a hit.
+const WOUND_JUSTIFY_TIERS = TIER_KEYS.filter(tier => tier !== "success");
+
+// The prompt's own body: the advice, then which injuries are actually in play, so a GM reaching
+// for one does not have to open the sheet to remember what they wrote down.
+//
+// Separate from the `Lasting injury` notice above, and both can sit on one card: that one echoes
+// what a wound DOES (its mechanical tag, on the move it was keyed to), this one asks what a wound
+// MEANS for the result just rolled. They name a wound by different strings for that reason -- the
+// tag there, the wound as written here -- so the same injury appearing in both is not the same
+// line said twice.
+function _woundJustifyNotice(actor) {
+	const wounds = actor?.system?.attributes?.wounds;
+	if (!Array.isArray(wounds) || !wounds.length) return "";
+	const items = wounds
+		.filter(w => w && !w.healed && JUSTIFYING_WOUND_STATUSES.has(w.status))
+		// The wound as the player wrote it, falling back to its mechanical tag for one entered as a
+		// bare rule. A wound with neither is a stub nobody can narrate, so it drops out -- and if
+		// every wound is a stub, `cardNoticeHtml` prints no block at all.
+		.map(w => ({ label: String(w.text || w.mechanicalTag || "").trim(), status: w.status }))
+		.filter(w => w.label)
+		.map(w => {
+			const tip = WOUND_STATUS_LABEL[w.status] ?? "";
+			return `<li${tip ? ` data-tooltip="${escHtml(tip)}"` : ""}>${escHtml(w.label)}</li>`;
+		});
+	return cardNoticeHtml({
+		className: "stonetop-roll-wound-justify-notice",
+		icon: "fa-droplet",
+		title: items.length === 1 ? "Problematic wound" : "Problematic wounds",
+		lead: WOUND_JUSTIFY_LEAD,
+		items,
+	});
+}
+
+// ...wrapped so it shows on a 7-9 and a 6- and nowhere else. One copy per prompted tier inside a
+// `data-active-tier` group, which is the card's established shape for anything it holds one of
+// per tier (the Requisition miss-cost button, the homefront pick lists): a GM's Shift Up/Down
+// swaps the group's active tier and the matching row alone survives, so a card shifted up onto a
+// 10+ takes the prompt back off rather than leaving a stale one under a hit.
+//
+// The hide MUST be `hidden="hidden"` (valued) for the reason _rollCard gives: Foundry v14's
+// sanitize-html strips valueless boolean attributes off the flavor HTMLField.
+function _woundJustifyHtml(actor, resultClass) {
+	// Read tolerantly and default ON: a world one build behind the one that registered the key,
+	// and a unit test that never called registerSettings, both still get the prompt rather than a
+	// thrown lookup that would take the whole card down with it.
+	if (!getBooleanSetting("chatWoundPrompt", true)) return "";
+	const notice = _woundJustifyNotice(actor);
+	if (!notice) return "";
+	return `<div class="stonetop-roll-wound-justify" data-active-tier="${escHtml(resultClass)}">
+		${WOUND_JUSTIFY_TIERS.map(tier =>
+			`<div data-tier="${escHtml(tier)}"${tier === resultClass ? "" : ` hidden="hidden"`}>${notice}</div>`
+		).join("")}
+	</div>`;
+}
+
 /**
  * The "Conditions Applied:" row a roll card wears under its result — the Advantage /
  * Forward / Situational pills.
@@ -636,7 +710,7 @@ export async function rollStat(statKey, actor, options = {}) {
 		pickTiers: pickedTierKeys,
 		tierActions: options.tierActions ?? null,
 		conditionsHtml,
-		noticesHtml: _woundReminderHtml(actor, moveName),
+		noticesHtml: _woundReminderHtml(actor, moveName) + _woundJustifyHtml(actor, result.key),
 		buttons: true,
 		total: roll.total,
 		formula: roll.formula,

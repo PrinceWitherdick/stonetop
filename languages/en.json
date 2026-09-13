@@ -721,6 +721,10 @@
         "name": "Shift Up/Down Buttons on Roll Cards",
         "hint": "Add \"Shift Up\" and \"Shift Down\" buttons to move roll cards in chat, letting the GM bump a roll's result to a higher or lower tier. Only the GM sees them. Off by default."
       },
+      "chatWoundPrompt": {
+        "name": "Problematic Wound Reminder on 9- Rolls",
+        "hint": "When a character carrying a problematic or permanent wound rolls a 7-9 or a 6-, note the injury on the roll card as something the GM might use to explain the result (Book I, page 243). A reminder only: it never changes the roll. Turn it off if it starts reading as wallpaper, since a wound that never heals will appear on most of that character's cards."
+      },
       "hoverDescriptionSettings": {
         "name": "On Hover Info",
         "label": "Configure",

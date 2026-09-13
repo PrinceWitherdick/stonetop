@@ -250,18 +250,25 @@ export async function whisperGm(content, { flags = null } = {}) {
  * Returns "" for an empty list, which is the no-op every caller wants - a card with nothing to
  * add prints no empty block.
  *
+ * `lead` is for the notice whose point is the ADVICE rather than the list - the wound prompt,
+ * whose items only say which injuries are in play and whose sentence says what to do with them.
+ * It sits between the heading and the list, and is plain text: a notice's sentence is the
+ * builder's to set, and a caller passing markup would be styling the shape from outside it.
+ *
  * @param {object} o
  * @param {string} o.className  the notice's own class, for its ink.
  * @param {string} o.icon       Font Awesome glyph class for the heading.
  * @param {string} o.title      the heading, already localized/escaped as the caller needs.
+ * @param {string} [o.lead]     one sentence under the heading, above the list. Escaped here.
  * @param {string[]} o.items    pre-built `<li>` HTML, one per line.
  * @returns {string} HTML, or "" when there is nothing to say.
  */
-export function cardNoticeHtml({ className, icon, title, items = [] }) {
+export function cardNoticeHtml({ className, icon, title, lead = "", items = [] }) {
 	if (!items.length) return "";
+	const leadHtml = lead ? `<p class="stonetop-card-notice-lead">${escHtml(lead)}</p>` : "";
 	return `<div class="row row--border stonetop-card-notice ${className}">
 		<h3 class="cell__subtitle"><i class="fas ${icon}"></i> ${title}</h3>
-		<ul>${items.join("")}</ul>
+		${leadHtml}<ul>${items.join("")}</ul>
 	</div>`;
 }
 

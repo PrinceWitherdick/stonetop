@@ -274,6 +274,23 @@ export function registerSettings() {
 		default: false,
 	});
 
+	// The problematic-wound prompt a 7-9 or a 6- roll card carries for a wounded character
+	// (Book I p.243, "Problematic wounds in play"; built in utils/roll-engine.js). ON by default,
+	// because the prompt is the book's own advice and a table that has never seen it cannot know
+	// to go looking for the switch. The switch exists because the prompt is UNCONDITIONAL on those
+	// two tiers: 9- is where most 2d6 rolls land, and a permanent injury never heals, so a
+	// character who lost a hand in session three carries this block on most of their cards for the
+	// rest of the campaign. That is exactly right for some tables and wallpaper for others.
+	// World-scoped: whether the table wants the nudge is a table-wide call, like the shift buttons.
+	game.settings.register(SYSTEM_ID, "chatWoundPrompt", {
+		name: "stonetop.settings.chatWoundPrompt.name",
+		hint: "stonetop.settings.chatWoundPrompt.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: true,
+	});
+
 	// When on (the default), only the GM may author custom moves — players don't see
 	// the "+ Custom Move" button or the edit pencils, and the create/edit handlers are
 	// no-ops for them. Existing custom moves still display and roll for everyone; this
@@ -2388,6 +2405,25 @@ export function getObjectSetting(key) {
 		return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 	} catch (_) {
 		return {};
+	}
+}
+
+/**
+ * A boolean setting, read tolerantly: `fallback` rather than a throw when the key is not
+ * registered in this world, and `fallback` rather than a surprise when the stored value is not a
+ * boolean.
+ *
+ * The same argument `getObjectSetting` makes above, for the other shape. It matters most for a
+ * setting read while BUILDING something rather than while handling a click: a chat card is
+ * composed in a unit test that never called registerSettings, and in a world one build behind the
+ * one that added the key, and neither should lose the card to a thrown setting lookup.
+ */
+export function getBooleanSetting(key, fallback = false) {
+	try {
+		const value = globalThis.game?.settings?.get?.(SYSTEM_ID, key);
+		return typeof value === "boolean" ? value : fallback;
+	} catch (_) {
+		return fallback;
 	}
 }
 

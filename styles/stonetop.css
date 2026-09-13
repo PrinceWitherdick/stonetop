@@ -4830,11 +4830,59 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	font-style: italic;
 }
 
+/* The problematic-wound prompt, which only a 7-9 or a 6- card carries (Book I p.243, "Problematic
+   wounds in play"). A PLUM rather than the caution red above it, because the two can sit on one
+   card and they ask for different things: that one states what the injury does to the ROLL, this
+   one offers it to the GM as the reason the roll went the way it did. 6.45:1 on the card's
+   parchment, which the red beside it clears at 4.58:1. */
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-wound-justify-notice {
+	--st-notice-accent: #6f4a6b;
+}
+/* The injuries in play, set as the reminder above sets its tags: italic, because these are the
+   words the player wrote for the fiction rather than a rule the card is quoting. */
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-wound-justify-notice ul {
+	font-style: italic;
+}
+
+/* A notice's LEAD sentence (utils/chat.js#cardNoticeHtml). Upright and in the card's ink, not in
+   the accent: the heading right above it already carries the colour, and a whole sentence set in
+   it reads as a second heading. The colour is DECLARED for the reason every other line on these
+   cards declares one -- the paper is pinned parchment in every theme, so ink left to core turns
+   bone-white on it the moment the user picks a dark interface. */
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-card-notice-lead {
+	margin: 2px 0 0;
+	font-size: var(--st-fs-sm);
+	line-height: 1.35;
+	color: var(--st-text-body);
+}
+
 :is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .cell--chat {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
 	padding-bottom: 8px;
+}
+
+/* A PER-TIER GROUP WITH NOTHING TO SHOW TAKES NO SPACE. Three things on a roll card hold one row
+   per tier inside a `data-active-tier` group and let a GM's Shift Up/Down reveal the row matching
+   the new tier (stonetop.js#_shiftRollCardFlavor): the tier actions (Requisition's miss cost,
+   Deploy's "mark diminished"), the homefront pick lists, and the problematic-wound prompt. None of
+   them covers every tier, so each routinely renders with EVERY row hidden -- and a wrapper left
+   alone is still a flex item of the column above, so it collects a full 8px gap for a zero-height
+   box. MEASURED on a 10+ Requisition card: 162.78px with the hidden wrapper, 154.78px without it.
+
+   `.card-buttons:empty { display: none }` further down cannot catch this: the wrapper holds a
+   hidden ELEMENT (and the whitespace around it), so it is never `:empty`.
+
+   Keyed on `[data-active-tier]` rather than on the three class names, because that attribute IS
+   the shape -- it is what the shift walks, so a fourth per-tier block gets this for free. Hiding
+   the GROUP, not dissolving it with `display: contents`: `.stonetop-roll-tier-actions` is also a
+   `.card-buttons` flex row, and dissolving it would drop that flex and stack its buttons. The
+   ROWS are left alone on purpose -- an author `display` reaching them would outrank the UA's
+   `[hidden] { display: none }` and reveal every tier at once. */
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card
+	[data-active-tier]:not(:has(> [data-tier]:not([hidden]))) {
+	display: none;
 }
 
 /* Die of Fate oracle card — traffic-light bands (1–2 bad, 3–4 mixed, 5–6 good) */
