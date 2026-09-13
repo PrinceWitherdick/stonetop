@@ -175,8 +175,12 @@
 					</ul>
 					{{/if}}
 				</div>
-				{{!-- Group fight (horde/group): No. appearing + outnumber calculator that
-				      treats the whole group as one combatant (Book I, Dangers pp.414-416). --}}
+				{{!-- Fighting in numbers (horde/group): No. appearing, plus ONE ROW PER RULE.
+				      The two bonuses answer different questions and agree only against a
+				      single target, so neither row is allowed to stand in for the other —
+				      each says which rule it is and pays out what that rule pays (the swarm
+				      rule is damage only; the group-vs-group abstraction is damage AND
+				      armor). Book I, Dangers pp.414-416. --}}
 				{{#if stonetop.isGroupOrg}}
 				<div class="stonetop-monster-stat-line stonetop-monster-stat-line--group">
 					<strong class="stonetop-monster-stat-key">No. appearing</strong>
@@ -185,18 +189,39 @@
 					       name="system.count" value="{{system.count}}" min="0" placeholder="e.g. 6">
 					{{else}}
 					<span class="stonetop-monster-group-fight-section">
-						<span class="stonetop-monster-prose">{{#if stonetop.count}}{{stonetop.count}}{{else}}—{{/if}} · fight as one combatant; damage is casualties</span>
-						<span class="stonetop-monster-outnumber-row">
-							Outnumber:
-							<input class="stonetop-monster-outnumber-yours" type="number" min="1" value="{{#if stonetop.count}}{{stonetop.count}}{{else}}1{{/if}}" title="How many of this group">
-							<span class="stonetop-outnumber-vs">vs</span>
-							<input class="stonetop-monster-outnumber-theirs" type="number" min="1" value="1" title="How many they face">
-							<span class="stonetop-monster-outnumber-result"></span>
+						<span class="stonetop-monster-prose">
+							{{#if stonetop.count}}{{stonetop.count}}{{else}}—{{/if}}
+							{{#if stonetop.casualtyNote}}· <span class="stonetop-monster-casualties">{{stonetop.casualtyNote}}</span>{{/if}}
 						</span>
-						<a class="stonetop-monster-damage-roll stonetop-monster-group-dmg-roll" data-roll-formula="{{stonetop.baseDamageFormula}}" data-base-formula="{{stonetop.baseDamageFormula}}" data-roll-label="{{name}} (group)" title="Roll group damage">
-							<i class="fas fa-dice-d6"></i>
-						</a>
-						<span class="stonetop-monster-group-dmg-label">{{stonetop.baseDamageFormula}}</span>
+
+						{{!-- Several of them onto one foe. --}}
+						<span class="stonetop-monster-numbers-row" data-rule="swarm">
+							<span class="stonetop-numbers-label"
+							      data-tooltip="Several of them on a single foe: roll ONE attacker's damage, +1 per each additional attacker. Damage only; this rule grants no armor."
+							      data-tooltip-direction="UP">Swarm one foe:</span>
+							<input class="stonetop-monster-swarm-count" data-numbers-count="attackers" type="number" min="1" value="{{stonetop.swarmCount}}" title="How many of them pile onto that one foe">
+							<span class="stonetop-outnumber-vs">attackers</span>
+							<span class="stonetop-monster-numbers-result" data-numbers-result>{{stonetop.swarmLabel}}</span>
+							<a class="stonetop-monster-damage-roll stonetop-monster-group-dmg-roll" data-numbers-roll data-roll-formula="{{stonetop.swarmFormula}}" data-base-formula="{{stonetop.baseDamageFormula}}" data-roll-label="{{name}} (swarm)" title="Roll the swarm's damage against that foe">
+								<i class="fas fa-dice-d6"></i>
+							</a>
+							<span class="stonetop-monster-group-dmg-label" data-numbers-formula>{{stonetop.swarmFormula}}</span>
+						</span>
+
+						{{!-- The optional abstraction: both sides run as one combatant. --}}
+						<span class="stonetop-monster-numbers-row" data-rule="exchange">
+							<span class="stonetop-numbers-label"
+							      data-tooltip="Abstracting group exchanges (optional): each side fights as ONE combatant, with the HP, armor and damage of a single member. The larger side gets +1 damage and +1 armor for each whole multiple it outnumbers the other by (3:1 → +2). Damage is casualties; at 0 HP the group is routed."
+							      data-tooltip-direction="UP">Group vs group:</span>
+							<input class="stonetop-monster-outnumber-yours" data-numbers-count="yours" type="number" min="1" value="{{stonetop.swarmCount}}" title="How many of this group">
+							<span class="stonetop-outnumber-vs">vs</span>
+							<input class="stonetop-monster-outnumber-theirs" data-numbers-count="theirs" type="number" min="1" value="1" title="How many they face">
+							<span class="stonetop-monster-numbers-result" data-numbers-result>{{stonetop.exchangeLabel}}</span>
+							<a class="stonetop-monster-damage-roll stonetop-monster-group-dmg-roll" data-numbers-roll data-roll-formula="{{stonetop.exchangeFormula}}" data-base-formula="{{stonetop.baseDamageFormula}}" data-roll-label="{{name}} (group)" title="Roll the group's damage in an abstracted exchange">
+								<i class="fas fa-dice-d6"></i>
+							</a>
+							<span class="stonetop-monster-group-dmg-label" data-numbers-formula>{{stonetop.exchangeFormula}}</span>
+						</span>
 					</span>
 					{{/if}}
 				</div>

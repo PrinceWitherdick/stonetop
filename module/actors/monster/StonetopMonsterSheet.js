@@ -9,7 +9,7 @@ import { updateRichTextField, updateMoveField } from "../../utils/stat-block-edi
 import { findMonsterTag } from "../../data/monster-tags.js";
 import { getHoverDescriptionSetting, getOpenSheetsInEditMode } from "../../settings.js";
 import { parseArmorBoost, armorBoostLabel } from "../../utils/monster-armor-boost.js";
-import { outnumberBonus } from "../../data/follower-build.js";
+import { outnumberBonus, pileOnBonus, casualtyNote, wireFightingInNumbers } from "../../data/follower-build.js";
 import { postListCard } from "../../utils/chat.js";
 import { localize, format } from "../../utils/i18n.js";
 import { deletionEntry, enrichHTML, compendiumSourceOf } from "../../utils/foundry-compat.js";
@@ -19,9 +19,9 @@ import { SYSTEM_ID } from "../../system-id.js";
 
 // Per-organization combat budget (Book I, "Dangers", pp.396-398).
 const ORGANIZATION_DEFAULTS = {
-	horde:    { hp: 3,  die: "d6"  },
-	group:    { hp: 6,  die: "d8"  },
-	solitary: { hp: 12, die: "d10" },
+	horde:    { hp: 3,  die: "d6",  count: 6 },
+	group:    { hp: 6,  die: "d8",  count: 3 },
+	solitary: { hp: 12, die: "d10", count: 1 },
 };
 
 const ORGANIZATION_CHOICES = {
@@ -326,14 +326,44 @@ export function createStonetopMonsterSheetClass(Base) {
 			st.organizationLabel   = ORGANIZATION_CHOICES[org] ?? "";
 			st.organizationTooltip = showTagTips ? findMonsterTag(org) : null;
 
-			// Group-fight tools (Book I, Dangers pp.414-416): a horde/group can be run
-			// as ONE combatant — HP/armor/damage as a single member, with +1 damage &
-			// +1 armor per outnumber multiplier past 1:1, and damage read as casualties.
-			// Surfaces the otherwise-dead system.count ("No. appearing") and an outnumber
-			// calculator that rewrites the group damage roll.
+			// Fighting-in-numbers tools for a horde/group (Book I, Dangers pp.414-416),
+			// hung off the otherwise-dead system.count ("No. appearing"). TWO rules, one
+			// row each, because they answer different questions and only agree when the
+			// creatures face a single target — see follower-build.js for both quoted in
+			// full. The stat block's own HP/armor/damage are already "as per a single
+			// individual member", so nothing here multiplies them.
 			st.isGroupOrg        = org === "horde" || org === "group";
 			st.count             = Math.max(0, Math.trunc(Number(system?.count) || 0));
 			st.baseDamageFormula = String(system?.attributes?.damage?.rollFormula || ORGANIZATION_DEFAULTS[org]?.die || "d6").trim();
+
+			// Both readouts are answered HERE, not left to the first keystroke. Rendering the
+			// inputs pre-filled with "6 vs 1" beside an empty result and an unmodified damage
+			// line showed the GM a state the sheet did not actually mean: the numbers said +5
+			// and the roll button said d6, and only touching a field reconciled them.
+			//
+			// Only a horde or a group has these rows at all, and the template draws none of
+			// them otherwise, so a solitary creature — the common case for a named danger —
+			// does not pay for formula rewrites nothing will read.
+			if (st.isGroupOrg) {
+				const swarmCount   = st.count || ORGANIZATION_DEFAULTS[org]?.count || 2;
+				const swarm        = pileOnBonus(swarmCount);
+				const exchange     = outnumberBonus(swarmCount, 1);
+				st.swarmCount      = swarmCount;
+				st.swarmLabel      = swarm.label;
+				st.swarmFormula    = swarm.rollFor(st.baseDamageFormula);
+				st.exchangeLabel   = exchange.label;
+				st.exchangeFormula = exchange.rollFor(st.baseDamageFormula);
+
+				// "Damage represents casualties": what the stat block's remaining HP means in
+				// bodies, once the GM is running the whole group as one combatant. The stat
+				// block's HP is already a single member's, which is exactly the pool this rule
+				// reads, so it needs no conversion. Null until a count has been recorded.
+				st.casualtyNote = casualtyNote({
+					hpMax:     system?.attributes?.hp?.max,
+					hpCurrent: system?.attributes?.hp?.value,
+					count:     st.count,
+				});
+			}
 
 			// Armor-boost moves (e.g. "Withdraw into its shell (Armor 5)") act as
 			// toggles in play mode: clicking sets the stat block's Armor to that
@@ -391,27 +421,10 @@ export function createStonetopMonsterSheetClass(Base) {
 		activateListeners(html) {
 			super.activateListeners(html);
 
-			// Group-fight outnumber calculator: rewrite the group damage formula live as
-			// the "N vs M" inputs change (+1 damage per outnumber multiplier past 1:1,
-			// Book I p.416). The "+N armor" half is a fiction note — armor isn't auto-
-			// applied to incoming damage anywhere, on the monster or follower side.
-			html[0].addEventListener("input", ev => {
-				const inp = ev.target;
-				if (!inp.classList?.contains("stonetop-monster-outnumber-yours") && !inp.classList?.contains("stonetop-monster-outnumber-theirs")) return;
-				const section = inp.closest(".stonetop-monster-group-fight-section");
-				if (!section) return;
-				const { label, rollFor } = outnumberBonus(
-					section.querySelector(".stonetop-monster-outnumber-yours")?.value,
-					section.querySelector(".stonetop-monster-outnumber-theirs")?.value,
-				);
-				const resEl  = section.querySelector(".stonetop-monster-outnumber-result");
-				if (resEl) resEl.textContent = label;
-				const dmgBtn   = section.querySelector(".stonetop-monster-group-dmg-roll");
-				const dmgLabel = section.querySelector(".stonetop-monster-group-dmg-label");
-				const roll     = rollFor(dmgBtn?.dataset.baseFormula);
-				if (dmgBtn)   dmgBtn.dataset.rollFormula = roll;
-				if (dmgLabel) dmgLabel.textContent       = roll;
-			}, true);
+			// Fighting-in-numbers calculators, one per rule (follower-build.js). The "+N armor"
+			// the abstraction pays is a fiction note the GM applies by hand; armor isn't
+			// auto-applied to incoming damage anywhere, monster or follower side.
+			wireFightingInNumbers(html[0], { rollKey: "rollFormula", baseKey: "baseFormula" });
 
 			// Rolling works even when the sheet is read-only (e.g. viewed from the
 			// compendium): roll a move or roll damage on click. Play actions, not edits.

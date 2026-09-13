@@ -7,6 +7,7 @@
 import { creatureTypeFaIcon } from "../bestiary/creature-types.js";
 import { isDefaultImg } from "../utils/strings.js";
 import { customGroupSize } from "../utils/crew.js";
+import { addDamageBonus } from "../utils/damage-die.js";
 import { documentPortraitFrame } from "../utils/portrait-frame.js";
 
 // ── Step 3: hit points (p.476–477) ───────────────────────────────────────────
@@ -273,20 +274,178 @@ export function readinessCap(hasShield = false, shieldBonus = READINESS_SHIELD_B
 // (like FOLLOWER_EXCEPTIONAL's move names) so the sheet doesn't hardcode the literal.
 export const SHIELD_WALL_MOVE = "Shield Wall";
 
-// ── Outnumber bonus (Followers in Fights / Dangers, Book I p.416) ─────────────
-// A group that outnumbers its foe gets +1 damage AND +1 armor for each whole
-// multiplier past 1:1 (3:1 → +2). The armor half is a fiction note (nothing auto-
-// applies it); only the damage rewrites the group's roll. Shared by the crew /
-// custom-group follower cards and the monster stat block's group-fight tools, so
+// ── FIGHTING IN NUMBERS: two rules, deliberately kept apart ───────────────────
+//
+// The book pays a side for having more bodies in the fight in TWO different ways,
+// and they agree on exactly one case — a single foe — which is how they get
+// conflated. Each is its own function so each readout can name the rule it is
+// applying, and so a GM reaching for one cannot silently be handed the other.
+//
+//   SWARM ONE TARGET (Followers in Fights). When a group "Clashes or Lets Fly at
+//   a single foe (or Aids a PC in doing so), roll the move once (likely with
+//   advantage) and roll ONE attacker's damage, +1 per each additional attacker."
+//   N attackers on that target → +(N-1) damage. No armor: this rule pays damage
+//   only, and it is per-TARGET, so it does not care how many the other side has.
+//
+//   ABSTRACTING GROUP EXCHANGES (Dangers — the optional group-vs-group rule).
+//   "Each group deals damage and has HP/armor as per a single individual member.
+//   Larger groups deal +1 damage and have +1 armor for each multiple they
+//   outnumber their foe by (e.g. 3:1 gets +2 damage and armor)." Both sides run
+//   as one combatant; the bonus is a RATIO, not a headcount.
+//
+// Where they part: six creatures against four PCs is +0 under the abstraction
+// (6/4 is not yet a second whole multiple) and +5 against whichever one of the
+// four they all pile onto. A single "outnumber" box answering both questions with
+// one number is wrong for one of them every time, so the sheets show both rows.
+//
+// Shared by the crew / custom-group follower cards and the monster stat block so
 // the rule, the readout string, and the roll rebuild can't drift between them.
+
+/** SWARM ONE TARGET: N attackers on one foe → one attacker's damage, +1 each extra. */
+export function pileOnBonus(attackers) {
+	const n = Math.max(1, parseInt(attackers, 10) || 1);
+	const bonus = n - 1;
+	return {
+		bonus,
+		// Damage only — the armor half belongs to the other rule, and reading it here
+		// would hand a swarming horde armor the book never gives it.
+		label:   bonus > 0 ? `+${bonus} damage` : "no bonus",
+		rollFor: (base) => addDamageBonus(base, bonus),
+	};
+}
+
+/** ABSTRACTING GROUP EXCHANGES: +1 damage AND +1 armor per whole multiple past 1:1. */
 export function outnumberBonus(yours, theirs) {
 	const y = Math.max(1, parseInt(yours, 10)  || 1);
 	const t = Math.max(1, parseInt(theirs, 10) || 1);
 	const bonus = Math.max(0, Math.floor(y / t) - 1);
 	return {
 		bonus,
+		// The armor half is a fiction note the GM applies by hand — nothing auto-applies
+		// armor to incoming damage on either the monster or the follower side — but it is
+		// half the printed rule, so the readout says it.
 		label:   bonus > 0 ? `+${bonus} damage, +${bonus} armor` : "no bonus",
-		rollFor: (base) => bonus > 0 ? `${base || "d6"}+${bonus}` : String(base || "d6"),
+		rollFor: (base) => addDamageBonus(base, bonus),
+	};
+}
+
+/**
+ * Keep each fighting-in-numbers row's readout and roll in step with its own counts as they are
+ * typed. Scoped to the ROW that owns the input, never the section: the two rules keep separate
+ * counts and separate dice, and a listener that reached across would answer one rule's question
+ * with the other's number. The rows name their parts by data attribute, so the follower cards and
+ * the monster stat block share this one listener; `rollKey` / `baseKey` are the dataset keys each
+ * sheet's roll button reads its formula from.
+ */
+export function wireFightingInNumbers(root, { rollKey, baseKey }) {
+	root.addEventListener("input", ev => {
+		if (!ev.target.dataset?.numbersCount) return;
+		const row = ev.target.closest("[data-rule]");
+		if (!row) return;
+		const count = (which) => row.querySelector(`[data-numbers-count="${which}"]`)?.value;
+		const { label, rollFor } = row.dataset.rule === "swarm"
+			? pileOnBonus(count("attackers"))
+			: outnumberBonus(count("yours"), count("theirs"));
+		const result = row.querySelector("[data-numbers-result]");
+		if (result) result.textContent = label;
+		const button = row.querySelector("[data-numbers-roll]");
+		const roll   = rollFor(button?.dataset[baseKey]);
+		if (button) button.dataset[rollKey] = roll;
+		const formula = row.querySelector("[data-numbers-formula]");
+		if (formula) formula.textContent = roll;
+	}, true);
+}
+
+/**
+ * What an abstracted group's remaining HP means in bodies.
+ *
+ * "Damage represents casualties; if a group loses half its HP, then half of its members are out
+ * of the action. At 0 HP, it's routed, massacred, or otherwise defeated." The book states one
+ * data point and it is a proportion, so casualties track the FRACTION of the pool lost (which
+ * reproduces that point exactly), rounded to the nearest body with a half going up, the way
+ * Stonetop rounds a half.
+ *
+ * Nearest, not always up: rounding every fraction up puts a body out of the action for any
+ * scratch at all, so a pair on a 6 HP pool read "1 of 2 out of the action" at 5 HP, with a sixth
+ * of the pool gone. The arithmetic stays in integers so a half lands on exactly .5.
+ */
+export function groupCasualties({ hpMax = 0, hpCurrent = 0, count = 0 } = {}) {
+	const max  = Math.max(0, Math.trunc(Number(hpMax) || 0));
+	const size = Math.max(0, Math.trunc(Number(count) || 0));
+	const hp   = Math.min(max, Math.max(0, Math.trunc(Number(hpCurrent) || 0)));
+	// size × lost / max, rounded half up: floor((2 × size × lost + max) / (2 × max)).
+	const out  = max > 0 && size > 0 ? Math.min(size, Math.floor((2 * size * (max - hp) + max) / (2 * max))) : 0;
+	return {
+		out,
+		standing: Math.max(0, size - out),
+		routed:   max > 0 && hp <= 0,
+	};
+}
+
+/**
+ * {@link groupCasualties} as the one line a card prints, so the crew, a custom warband and a
+ * monster stat block all say the same thing about the same numbers. Null when there is nothing
+ * to divide — no recorded headcount, or no HP pool to read casualties off.
+ */
+export function casualtyNote({ hpMax = 0, hpCurrent = 0, count = 0 } = {}) {
+	const size = Math.max(0, Math.trunc(Number(count) || 0));
+	const max  = Math.max(0, Math.trunc(Number(hpMax) || 0));
+	if (!size || !max) return null;
+	const { out, standing, routed } = groupCasualties({ hpMax: max, hpCurrent, count: size });
+	if (routed)  return "routed, massacred, or otherwise defeated";
+	if (out > 0) return `${out} of ${size} out of the action, ${standing} still standing`;
+	return `all ${size} still standing`;
+}
+
+/**
+ * What a group's two closed folds say about themselves: the Roster line and the Group Fight
+ * line, plus the swarm bonus the Group Fight fold offers. The crew and a custom warband are
+ * the same card with different sources, so the wording, the rounding and what counts as
+ * "down" live here rather than being written out once per caller and drifting.
+ *
+ * TWO HP PAIRS, deliberately. The roster totals (summed member by member) are what the Roster
+ * fold reports; the abstracted group pool (`groupHpCurrent`/`groupHpMax`, ONE member's HP by
+ * the rule) is what the Group Fight fold reports and what casualties are read off. They are
+ * not interchangeable and the caller supplies both.
+ *
+ * `aliveCount` is the members still on their feet: it sets the down-count and is the opening
+ * count for BOTH rows, since a member who is out of the action is not one of the attackers and
+ * not one of the side's numbers. `size` is the recorded headcount, which the casualty line divides.
+ * It is never the swarm's fallback: a crew with everyone down offering "+5 damage" beside a
+ * group-vs-group row offering nothing is two answers to one headcount.
+ */
+export function groupFightCardSummaries({
+	roster = [], aliveCount = 0, size = 0, groupHpCurrent = 0, groupHpMax = 0, damageRoll = "",
+} = {}) {
+	let hp = 0, max = 0;
+	for (const m of roster) {
+		hp  += Number(m?.hpCurrent) || 0;
+		max += Number(m?.hpMax)     || 0;
+	}
+	const down = roster.length - aliveCount;
+	const note = casualtyNote({ hpMax: groupHpMax, hpCurrent: groupHpCurrent, count: size });
+	// Floored at the input's own minimum of one attacker, which is what the group-vs-group row's
+	// `outnumberBonus` reads a zero as too.
+	const swarmCount = Math.max(1, aliveCount);
+	const swarm = pileOnBonus(swarmCount);
+	// The group-vs-group row opens at the members on their feet against one foe, and is answered here
+	// for the reason the monster sheet answers its own: "6 vs 1" beside "no bonus" and the bare die is
+	// a state the card does not mean.
+	const exchange = outnumberBonus(aliveCount, 1);
+	return {
+		rosterSummary: `${roster.length} member${roster.length === 1 ? "" : "s"}`
+			+ (max ? ` · ${hp}/${max} HP` : "")
+			+ (down > 0 ? ` · ${down} down` : ""),
+		// The pool is one member's HP, so the number alone reads like a typo beside a
+		// six-strong roster. The casualty line is what makes it legible: that pool is the
+		// whole crew's staying power in an abstracted exchange, and what it has left is a
+		// count of bodies still on their feet.
+		groupFightSummary: `${groupHpCurrent}/${groupHpMax} HP` + (note ? ` · ${note}` : ""),
+		swarmCount,
+		swarmLabel: swarm.label,
+		swarmRoll:  swarm.rollFor(damageRoll),
+		exchangeLabel: exchange.label,
+		exchangeRoll:  exchange.rollFor(damageRoll),
 	};
 }
 

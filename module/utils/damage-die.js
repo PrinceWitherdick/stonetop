@@ -125,3 +125,26 @@ export function maxDie(a, b) {
 	if (ib < 0) return a;
 	return DIE_ORDER[Math.max(ia, ib)];
 }
+
+/**
+ * Fold a flat bonus INTO a damage formula's own modifier: "d8+1" +2 → "d8+3", "d6" +2 → "d6+2",
+ * "d8 - 1" +1 → "d8", "d10+2" -2 → "d10".
+ *
+ * Appending a second term would roll the same total, so this is not about arithmetic — it is about
+ * what the GM reads off the stat block. The group-fight tools rewrite the damage line live as the
+ * counts change, and a line that grows a term per keystroke ("d8+1+2", then "d8+1+3") stops looking
+ * like a damage value and starts looking like a log of the edits. One modifier, always.
+ *
+ * A formula that is NOT a single die expression — prose, or a stat block's " or " list of two blows
+ * — is left whole with the bonus appended, because rewriting a term inside something we did not
+ * parse is how a damage line gets corrupted; appending is at worst ugly and still rolls correctly.
+ */
+export function addDamageBonus(base, bonus) {
+	const formula = String(base ?? "").trim() || "d6";
+	const n = Math.trunc(Number(bonus) || 0);
+	if (!n) return formula;
+	const m = formula.match(/^(\d*d\d+)\s*(?:([+-])\s*(\d+))?$/i);
+	if (!m) return `${formula}${n > 0 ? `+${n}` : n}`;
+	const total = (m[2] === "-" ? -Number(m[3]) : Number(m[3] ?? 0)) + n;
+	return `${m[1]}${total > 0 ? `+${total}` : total < 0 ? `${total}` : ""}`;
+}

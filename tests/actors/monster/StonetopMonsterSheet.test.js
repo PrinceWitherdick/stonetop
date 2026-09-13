@@ -133,6 +133,65 @@ describe("StonetopMonsterSheet", () => {
 		expect(st.sizeTooltip).toMatch(/human child/);
 	});
 
+	// Fighting in numbers: both readouts are answered in getData, not left to the first
+	// keystroke. Rendering the inputs pre-filled beside an empty result and an unmodified
+	// damage line showed a state the sheet did not mean — the counts said +5 and the roll
+	// button said d6, and only touching a field reconciled them.
+	describe("fighting-in-numbers tools", () => {
+		const horde = (system = {}) => ({
+			system: {
+				organization: "horde", count: 6,
+				attributes: { hp: { value: 3, max: 3 }, damage: { rollFormula: "d6" } },
+				...system,
+			},
+			items: makeItems([]),
+		});
+
+		it("answers BOTH rules on the first paint, each with its own die", async () => {
+			const st = (await makeSheet(horde()).getData()).stonetop;
+
+			expect(st.isGroupOrg).toBe(true);
+			// Swarming one foe pays damage only: 6 attackers, +1 per attacker past the first.
+			expect(st.swarmCount).toBe(6);
+			expect(st.swarmLabel).toBe("+5 damage");
+			expect(st.swarmFormula).toBe("d6+5");
+			// The abstraction pays damage AND armor, off the ratio rather than the headcount.
+			expect(st.exchangeLabel).toBe("+5 damage, +5 armor");
+			expect(st.exchangeFormula).toBe("d6+5");
+		});
+
+		it("falls back to the organization's typical headcount when none is recorded", async () => {
+			const st = (await makeSheet(horde({ count: 0 })).getData()).stonetop;
+			expect(st.swarmCount).toBe(6);        // a horde is "6 or more"
+			expect(st.casualtyNote).toBeNull();   // ...but with no count, no bodies to divide
+		});
+
+		it("reads the stat block's remaining HP back as casualties", async () => {
+			const wounded = horde({ attributes: { hp: { value: 2, max: 3 }, damage: { rollFormula: "d6" } } });
+			expect((await makeSheet(wounded).getData()).stonetop.casualtyNote)
+				.toBe("2 of 6 out of the action, 4 still standing");
+
+			const dead = horde({ attributes: { hp: { value: 0, max: 3 }, damage: { rollFormula: "d6" } } });
+			expect((await makeSheet(dead).getData()).stonetop.casualtyNote)
+				.toBe("routed, massacred, or otherwise defeated");
+		});
+
+		it("offers nothing for a solitary creature", async () => {
+			const alone = { system: { organization: "solitary", count: 1 }, items: makeItems([]) };
+			expect((await makeSheet(alone).getData()).stonetop.isGroupOrg).toBe(false);
+		});
+
+		// The stat block's HP, armor and damage are ALREADY "as per a single individual
+		// member" — the abstraction's own wording — so nothing here may scale them by the
+		// headcount. A horde of six is still a 3 HP, d6 combatant.
+		it("never multiplies the stat block by the headcount", async () => {
+			const actor = horde();
+			const st = (await makeSheet(actor).getData()).stonetop;
+			expect(st.baseDamageFormula).toBe("d6");
+			expect(actor.system.attributes.hp.max).toBe(3);
+		});
+	});
+
 	it("renders plain escaped tags and no tooltips when hover info is off", async () => {
 		const originalGame = globalThis.game;
 		globalThis.game = { ...originalGame, settings: { get: () => false } };

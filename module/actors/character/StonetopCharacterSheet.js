@@ -39,7 +39,7 @@ import {showsPreferencesTab, withPreferencesTab} from "../../utils/preferences-t
 import {injectHeaderToggle} from "../../utils/sheet-chrome.js";
 import {mountScrollFrost} from "../../utils/scroll-frost.js";
 import {withSheetSizeMemory} from "../../utils/sheet-size.js";
-import { crewExists, effectiveCrewSize, customGroupSize, crewAnonMemberLabel, crewIndividualLabel, CREW_SIZE_MAX } from "../../utils/crew.js";
+import { crewExists, effectiveCrewSize, customGroupSize, crewAnonymousCount, crewAnonMemberLabel, crewIndividualLabel, customGroupMemberLabel, CREW_SIZE_MAX } from "../../utils/crew.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
 import {createArcanumItem} from "../../item/createArcanum.js";
 import {rollStat, sign, classifyResult} from "../../utils/roll-engine.js";
@@ -70,7 +70,7 @@ import {readCurrentSeason, readCurrentYear} from "../../seasons/current-season.j
 import {openRitesOfTheLand} from "./rites-of-the-land.js";
 import {peopleNames, steadingPeopleActors, usedPersonPortraits, createPersonNpc, isActorRow, personRowActor, personRowKey, personRowIdentity, rebasePersonRows, addCharacterToSteadingPlayers} from "../steading/steading-people.js";
 import {openPeoplePortraitPicker} from "../steading/PeopleGalleryDialog.js";
-import {getHoverDescriptionSetting, getRollStatChipsSetting, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getInventoryLoreExpanded, setInventoryLoreExpanded, getSidebarCollapsed, setSidebarCollapsed, getOpenSheetsInEditMode, getAskRollModeEachRollSetting, isClassicLayout, layoutClasses, stampLayoutClass, isTimelineEnabled} from "../../settings.js";
+import {getHoverDescriptionSetting, getRollStatChipsSetting, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getFollowerCardsCollapsed, setFollowerCardsCollapsed, getInventoryLoreExpanded, setInventoryLoreExpanded, getSidebarCollapsed, setSidebarCollapsed, getOpenSheetsInEditMode, getAskRollModeEachRollSetting, isClassicLayout, layoutClasses, stampLayoutClass, isTimelineEnabled} from "../../settings.js";
 import {bringDialogToFront} from "../../utils/front-on-open.js";
 import {wireSidebarToggle} from "../../utils/sidebar-toggle.js";
 import {openLedgerDialog} from "../../utils/ledger-dialog.js";
@@ -105,7 +105,8 @@ import {buildRelationshipRows, wireRelationshipTable, wireRelationshipLinks, rel
 import {wireAvatarPreview, removeAvatarPreview} from "../../utils/avatar-preview.js";
 import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relationship-board.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
-import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, outnumberBonus, nextFollowerOrder} from "../../data/follower-build.js";
+import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, wireFightingInNumbers, groupFightCardSummaries, nextFollowerOrder} from "../../data/follower-build.js";
+import {LOAD_LEVEL_LIMITS} from "../../utils/load.js";
 import {arcanaSummonFollowers} from "../../data/arcana-summons.js";
 import {joinNames} from "../../utils/strings.js";
 import {availablePossessionFollowers} from "../../data/possession-followers.js";
@@ -833,6 +834,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			// sections they default to expanded; we track the slugs left collapsed.
 			this._collapsedArcanaCards = new Set(getArcanaCardsCollapsed(this.actor?.id));
 
+			// And the follower cards folded down to their header strip. Like the arcanum
+			// cards these default to expanded, so we track the ids left FOLDED.
+			this._collapsedFollowerCards = new Set(getFollowerCardsCollapsed(this.actor?.id));
+
 			// And the write-ups on the gear rows (a treasure's printed sidebar, a GM's artifact
 			// notes). Unlike everything above these default to FOLDED — prose that long belongs
 			// behind a caret in a one-line-per-row column — so we track the item ids left open.
@@ -862,6 +867,11 @@ export function createStonetopCharacterSheetClass(Base) {
 		// Persist which individual arcanum cards are collapsed so it survives a reopen.
 		_persistArcanaCards() {
 			setArcanaCardsCollapsed(this.actor?.id, [...(this._collapsedArcanaCards ?? [])]);
+		}
+
+		// Persist which follower cards are folded to their header strip.
+		_persistFollowerCards() {
+			setFollowerCardsCollapsed(this.actor?.id, [...(this._collapsedFollowerCards ?? [])]);
 		}
 
 		// Persist which gear rows have their write-up unfolded (these default folded).
@@ -1996,8 +2006,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			// crew as it grows (Updating followers, p.480).
 			const _crewOverride = (field) => _intOverrideOrNull(sf.crew?.details?.[field]);
 			const crewMaxHp = (_crewOverride("hpMax") ?? crewStats.memberHp ?? 6) || 1;
-			// Stash the per-member HP max so the resize/delete handlers can re-clamp
-			// the abstracted group-fight pool (crewSize × memberHp) when it shrinks.
+			// Stash the per-member HP max for the roster handlers. It is also the whole
+			// abstracted group-fight pool (ONE member's HP, whatever the crew's size), so
+			// it is the ceiling clampStoredGroupHp pulls a stored pool back under.
 			this._crewMemberHpMax = crewMaxHp;
 			const crewArmor = _crewOverride("armor") ?? crewStats.armor ?? 0;
 			const crewDamageDie = crewStats.damageDie ?? "d6";
@@ -2114,6 +2125,16 @@ export function createStonetopCharacterSheetClass(Base) {
 				card.armorSource = has(d.armorSource) ? String(d.armorSource).trim() : "";
 				return card;
 			};
+			// A group's fighting-in-numbers readouts (the crew, a custom warband). The inputs are
+			// recorded where each roster is built, but the readouts wait for finalize, after
+			// withStatOverrides: built beside the roster they rolled the rules die, so a crew whose
+			// Damage was hand-edited to d8 offered a "d6+5" button until a count was typed.
+			const groupFightInputs = new WeakMap();
+			const withGroupFight = (card) => {
+				const input = card && groupFightInputs.get(card);
+				if (input) Object.assign(card, groupFightCardSummaries({ ...input, damageRoll: card.damageRoll }));
+				return card;
+			};
 
 			// -- Animal Companion (Ranger) ------------------------------
 			let animalCompanion = null;
@@ -2216,12 +2237,17 @@ export function createStonetopCharacterSheetClass(Base) {
 				const loyaltyVal      = sf.crew?.loyalty ?? 0;
 				const gearFlags       = sf.crew?.gear ?? {};
 				const inventoryDef    = playbookDoc?.crew?.inventory?.length ? playbookDoc.crew.inventory : CREW_INVENTORY_FALLBACK;
-				// Supplies: 6 independent sets, each with (4+Prosperity) circles.
-				// smallItemLimit comes from buildSnapshot() — same value driving outfit inventory.
+				// Supplies: one set per crew member, each set being one ◇ of supplies. A ◇ holds
+				// "4 uses, but you add Stonetop's current Prosperity to that" (p.88) — the same
+				// arithmetic the small-item allotment uses (p.306), which is why smallItemLimit can
+				// stand in for it. Two separate rules that happen to agree, so keep both citations:
+				// errata to either one stops them agreeing.
 				const pipsPerSet      = smallItemLimit ?? 5;
 				const prosperity      = smallItemLimit !== null ? smallItemLimit - 4 : null;
 				const suppliesRaw     = sf.crew?.supplies;
-				const suppliesArr     = Array.isArray(suppliesRaw) ? suppliesRaw : Array(6).fill(0);
+				// A short (or absent) stored array just reads as unfilled sets — every lookup below
+				// defaults to 0 — so it never needs padding out to the roster's length here.
+				const suppliesArr     = Array.isArray(suppliesRaw) ? suppliesRaw : [];
 				// Same piercing substitution used for outfit items on the character sheet.
 				// Crew gear labels use plain "x piercing"; outfit item notes use "x <em>piercing</em>".
 				const applyPiercing   = (label) => {
@@ -2269,7 +2295,15 @@ export function createStonetopCharacterSheetClass(Base) {
 				                     + crewAnonMembers.filter(m => m.hpCurrent > 0).length;
 				// Abstracted "treat the whole group as one combatant" pool, tracked
 				// independently of per-member HP (Followers in Fights, p.409/473).
-				const crewGroupHpMax     = crewSize * crewMaxHp;
+				//
+				// ONE MEMBER'S HP, not the roster's total. "Each group deals damage and has
+				// HP/armor as per a single individual member" — the pool is small on purpose,
+				// because damage to it is read as CASUALTIES rather than as wounds: losing half
+				// of it puts half the crew out of the action, and emptying it routs them. A
+				// size x HP pool (what this used to be) is the un-abstracted total the roster
+				// below already tracks member by member, so as an "abstraction" it made the
+				// crew roughly `size` times harder to break than the rule it was named after.
+				const crewGroupHpMax     = crewMaxHp;
 				const crewGroupHpRaw     = Number(sf.crew?.groupHp);
 				const crewGroupHpCurrent = _clampHp(crewGroupHpRaw, crewGroupHpMax);
 				// Readiness held when the crew Defends (common pool, p.473). A shield in
@@ -2378,7 +2412,9 @@ export function createStonetopCharacterSheetClass(Base) {
 							pips:    Array.from({ length: weight }, (_, i) => ({ index: i, filled: i < filledCount })),
 						};
 					}),
-					supplySets: Array.from({ length: 6 }, (_, setIdx) => {
+					// One ◇ of supplies per member, so the grid tracks the roster: a crew of four
+					// shows four sets, not the Marshal's default "six or so" (Crew, p.126).
+					supplySets: Array.from({ length: crewSize }, (_, setIdx) => {
 						const filled = suppliesArr[setIdx] ?? 0;
 						return {
 							index: setIdx,
@@ -2389,6 +2425,11 @@ export function createStonetopCharacterSheetClass(Base) {
 							})),
 						};
 					}),
+					// What members have produced with Have What They Need (p.472). It reuses the
+					// free-text gear checklist every other follower card carries — crew.details.gear,
+					// which the crew otherwise leaves empty because `gear` above is its inventory pip
+					// map — so the shared toggle / rename / remove handlers act on it unchanged.
+					produced:          crewExtras.gear,
 					individuals:       crewIndividuals,
 					individualOptions: playbookDoc?.crew?.individualOptions ?? {},
 					namedCount:        crewNamedCount,
@@ -2410,6 +2451,30 @@ export function createStonetopCharacterSheetClass(Base) {
 					armor:             crewArmor,
 					rollMod:           crewRollMod,
 				};
+				// What each closed section says about itself. A fold that reports nothing is a
+				// fold players leave open to read a number off it, which is how this card grew
+				// too tall in the first place — so every summary carries its own state.
+				// Load: the Inventory subtitle's own ladder, counted in filled pips so a 2-weight
+				// item tells the truth about what it costs. The cutoffs come from the shared load
+				// caps rather than being written out again here, so a crew's subtitle can never
+				// disagree with the character's own load readout if the caps are ever errata'd.
+				const crewLoad = crew.gear.reduce((n, g) => n + g.pips.filter(pip => pip.filled).length, 0);
+				const crewBand = crewLoad <= LOAD_LEVEL_LIMITS.light  ? "light"
+					:            crewLoad <= LOAD_LEVEL_LIMITS.normal ? "normal"
+					:                                                   "heavy";
+				crew.inventorySummary = `${crewLoad} \u2713 \u00b7 ${crewBand} load`;
+				// "Clashes or Lets Fly at a single foe … roll one attacker's damage, +1 per
+				// each additional attacker." The swarm count defaults to the members still ON
+				// THEIR FEET, since a member out of the action is not one of the attackers.
+				// Read in finalize (withGroupFight), once a hand-edited Damage has replaced the
+				// rules die the bonus is folded into.
+				groupFightInputs.set(crew, {
+					roster:         [...crewIndividuals, ...crewAnonMembers],
+					aliveCount:     crewAliveCount,
+					size:           crewSize,
+					groupHpCurrent: crewGroupHpCurrent,
+					groupHpMax:     crewGroupHpMax,
+				});
 			}
 
 			// -- Initiates of Danu (Blessed + Initiate background) ------
@@ -2603,9 +2668,10 @@ export function createStonetopCharacterSheetClass(Base) {
 					// Group follower (NPCs & Followers p.470): the same shared stats as a
 					// single follower, plus a roster where every member tracks their own
 					// current HP against the shared max, an abstracted "one combatant"
-					// group-HP pool (size × per-member HP), and the outnumber calculator.
-					// The crew is the built-in example; this brings the same tools to a
-					// hired warband, an arcana-summoned group, or a converted group monster.
+					// group-HP pool (a SINGLE member's HP — see the crew's note above), and
+					// both fighting-in-numbers calculators. The crew is the built-in example;
+					// this brings the same tools to a hired warband, an arcana-summoned
+					// group, or a converted group monster.
 					if (c?.isGroup) {
 						const memberHpMax = hpMax || 1;
 						const size = customGroupSize(c);
@@ -2618,9 +2684,9 @@ export function createStonetopCharacterSheetClass(Base) {
 						const anonMembers = this._anonRosterMembers(size, {
 							hp: memberHpRaw, img: memberImgRaw, hpMax: memberHpMax,
 							editing: groupEditing,
-							labelFor: (i) => `Member ${i + 1}`,
+							labelFor: customGroupMemberLabel,
 						});
-						const groupHpMax     = size * memberHpMax;
+						const groupHpMax     = memberHpMax;
 						const groupHpCurrent = _clampHp(Number(c?.groupHp), groupHpMax);
 						card.isGroup        = true;
 						card.groupSize      = size;
@@ -2633,6 +2699,16 @@ export function createStonetopCharacterSheetClass(Base) {
 							roster:     this._openCrewSections.has(`roster:custom:${id}`),
 							groupFight: this._openCrewSections.has(`groupFight:custom:${id}`),
 						};
+						// Same self-reporting summaries the crew's folds carry, so a closed
+						// section on a warband reads as informatively as one on the crew. Built
+						// in finalize (withGroupFight), after any hand-edited Damage.
+						groupFightInputs.set(card, {
+							roster:     anonMembers,
+							aliveCount: card.memberCount,
+							size,
+							groupHpCurrent,
+							groupHpMax,
+						});
 					}
 					return card;
 				});
@@ -2692,10 +2768,17 @@ export function createStonetopCharacterSheetClass(Base) {
 					// livestock doesn't), so it gates the Order button the same way it
 					// gates the readiness stepper below — no Order action on a butcher beast.
 					card.canOrder = true;
-					// "Have what they need" (p.472) adds an item to a follower's gear on the
-					// fly. Non-crew followers carry a free-text gear checklist to append to;
-					// the crew Outfits/restocks from its Supplies section instead.
-					card.canHaveNeed = card.ftype !== "crew";
+					// "Have what they need" (p.326) adds an item to a follower's gear on the fly,
+					// reached the way any player move is: "when you direct your follower to do
+					// something that would trigger a player move, and they do it, they trigger the
+					// move" (Order Followers, p.462). Every orderable follower can, the crew included
+					// — the crew is in fact the one type the book names for it.
+					card.canHaveNeed = true;
+					// A group produces for ONE of its members, not all of them: "the PC can direct one
+					// crew member to Have What They Need and add an item to their inventory, WITHOUT
+					// the rest of the crew each producing the same item" (p.472). That holds for any
+					// group follower, not just the built-in crew, so both ask who first.
+					card.haveNeedPicksMember = card.ftype === "crew" || !!card.isGroup;
 					// Readiness circles. Only true followers — which is exactly the set
 					// that has a Loyalty track — so livestock is excluded. A borne shield
 					// raises the cap from 3 to 4 (+1 Readiness on a 7+ Defend, p.216).
@@ -2766,7 +2849,34 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 				return card;
 			};
-			const finalize = (card) => withOrderData(withExceptional(withSectionEdits(withStatOverrides(card))));
+			// Folding. A card rests as its header strip plus the live vitals band (Armor /
+			// Damage / Loyalty / Readiness — the numbers a fight touches); the reference half
+			// of the stat block (instinct, cost, moves, gear, notes) sits behind a Details
+			// fold, and the crew's Inventory / Roster / Group Fight behind their own. Folds
+			// are per card, per user, per actor, and default SHUT.
+			//
+			// A card being EDITED overrides both its fold and the card fold: no pencil ever
+			// opens onto a field the fold is hiding. That override is render-only — it never
+			// reaches the persisted set — so leaving edit mode restores what the player chose.
+			const withFolds = (card) => {
+				if (!card) return card;
+				const cardId     = `${card.ftype}:${card.slug}`;
+				const editing    = !!card.edit?.card;
+				card.foldId      = cardId;
+				card.detailsOpen = editing || this._openCrewSections.has(`details:${cardId}`);
+				// Open only because of the pencil. The template marks it, so the toggle handler
+				// does not record the pencil's doing as the player's own choice.
+				card.detailsForced = editing && !this._openCrewSections.has(`details:${cardId}`);
+				card.cardFolded  = !editing && this._collapsedFollowerCards.has(cardId);
+				// Nothing to fold away: no Details summary is drawn at all, rather than a caret
+				// onto an empty box. In edit mode it always shows — that is where the blank
+				// fields to fill in live.
+				const hasReference = !!(card.instinct || card.cost || card.movesLines?.length
+					|| card.butcher || (card.showGear && card.gear?.length) || card.notes);
+				card.hasDetails = editing || hasReference;
+				return card;
+			};
+			const finalize = (card) => withFolds(withOrderData(withExceptional(withSectionEdits(withGroupFight(withStatOverrides(card))))));
 			// Playbook possession-followers (the Would-be Hero's dog, the Ranger's Hounds,
 			// the Blessed's Mastiffs) ship as gear text; offer to materialize any the PC
 			// holds but hasn't added yet as a follower card (deduped by sourceUuid, like
@@ -4325,12 +4435,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				const { slug, followerName } = ev.currentTarget.dataset;
 				this._onSendServantsBack(slug, followerName);
 			});
-			// Have What They Need (add gear to a follower) / Outfit the crew (restock).
+			// Have What They Need (a follower produces an item) / restock the crew's Supplies.
 			html.find(".stonetop-follower-have-need").on("click", ev => {
 				const { ftype, slug, followerName } = ev.currentTarget.dataset;
 				this._onHaveWhatTheyNeed(ftype, slug ?? "", followerName);
 			});
-			html.find(".stonetop-crew-outfit").on("click", () => this._onOutfitCrew());
+			html.find(".stonetop-crew-restock").on("click", () => this._onRestockCrewSupplies());
 
 			// Crew gear pip circles. An inventory item is carried as a unit — its
 			// pips just show its load weight — so a multi-pip ("double diamond")
@@ -4351,26 +4461,29 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this.actor.setFlag(STONETOP_SCOPE, "crew.gear", gear);
 				this.render(false);
 			});
-			// Crew supplies pip circles — 6 independent sets stored as an array of counts
+			// Crew supplies pip circles — one set (one ◇ of supplies) per member, stored as an
+			// array of use counts. The array grows to reach whichever set was clicked rather than
+			// to a fixed length, so it tracks the roster the way the rendered grid does.
 			html.find(".stonetop-crew-supplies-pip").on("change", async ev => {
 				const setIdx = Number(ev.currentTarget.dataset.set);
 				const pipIdx = Number(ev.currentTarget.dataset.pip);
 				const newVal = ev.currentTarget.checked ? pipIdx + 1 : pipIdx;
 				const current = this.actor.getFlag(STONETOP_SCOPE, "crew.supplies");
-				const arr = Array.isArray(current) ? [...current] : Array(6).fill(0);
-				while (arr.length < 6) arr.push(0);
+				const arr = Array.isArray(current) ? [...current] : [];
+				while (arr.length <= setIdx) arr.push(0);
 				arr[setIdx] = newVal;
 				await this.actor.setFlag(STONETOP_SCOPE, "crew.supplies", arr);
 				this.render(false);
 			});
-			// Add a group-fight pool clamp to a pending update when the roster shrinks:
-			// the pool maxes at crewSize × per-member HP, so a smaller crew must not
-			// leave a stale over-max value stored. Only an explicitly-set value is
-			// touched — an unset groupHp tracks the full max on its own.
-			const clampStoredGroupHp = (update, crewSize) => {
+			// Clamp a stored group-fight pool that now sits over its max. The pool is ONE
+			// member's HP (the abstraction's own rule — see the crew card's note), so the
+			// roster size no longer moves the ceiling; what does move it is the per-member
+			// HP, and a pool saved under the old size × HP ceiling is over it on sight.
+			// Only an explicitly-set value is touched — an unset groupHp tracks the max.
+			const clampStoredGroupHp = (update) => {
 				const raw = Number(this.actor.getFlag(STONETOP_SCOPE, "crew.groupHp"));
 				if (!Number.isFinite(raw)) return;
-				const max = Math.max(0, crewSize) * (this._crewMemberHpMax ?? 6);
+				const max = this._crewMemberHpMax ?? 6;
 				if (raw > max) update["flags.stonetop-pwd.crew.groupHp"] = max;
 			};
 			// Delete individual crew member
@@ -4409,7 +4522,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const sizeBefore = effectiveCrewSize(this.actor.getFlag(STONETOP_SCOPE, "crew.size"), individuals.length + 1);
 				const newSize = Math.max(individuals.length, sizeBefore - 1);
 				update["flags.stonetop-pwd.crew.size"] = newSize;
-				clampStoredGroupHp(update, newSize);
+				clampStoredGroupHp(update);
 				Dialog.confirm({
 					title:   "Remove crew member",
 					content: `<p>Remove <strong>${escHtml(name)}</strong> from the crew? This can't be undone.</p>`,
@@ -4438,7 +4551,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (memberPortrait.length > anonCount) {
 					update["flags.stonetop-pwd.crew.memberPortrait"] = memberPortrait.slice(0, anonCount);
 				}
-				clampStoredGroupHp(update, clamped);
+				clampStoredGroupHp(update);
 				await this.actor.update(update);
 				this.render(false);
 			};
@@ -4525,11 +4638,13 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (Array.isArray(c.memberPortrait) && c.memberPortrait.length > size) {
 					update[`flags.stonetop-pwd.customFollowers.${slug}.memberPortrait`] = c.memberPortrait.slice(0, size);
 				}
-				// Clamp an explicitly-set group pool to the new max (unset tracks full).
+				// Clamp an explicitly-set group pool to its max (unset tracks full). The pool
+				// is ONE member's HP, so resizing the roster no longer moves that ceiling —
+				// but a pool stored under the old size × HP ceiling is over it, and this is
+				// where such a value gets brought back down.
 				const rawPool = Number(c.groupHp);
-				if (Number.isFinite(rawPool)) {
-					const max = size * memberHpMax;
-					if (rawPool > max) update[`flags.stonetop-pwd.customFollowers.${slug}.groupHp`] = max;
+				if (Number.isFinite(rawPool) && rawPool > memberHpMax) {
+					update[`flags.stonetop-pwd.customFollowers.${slug}.groupHp`] = memberHpMax;
 				}
 				await this.actor.update(update);
 				this.render(false);
@@ -4542,17 +4657,56 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-custom-group-size-input").on("change", ev =>
 				setCustomGroupSize(ev.currentTarget.dataset.slug, ev.currentTarget.value));
 
-			// Remember which collapsible crew sections are open across re-renders and,
-			// via the persisted per-actor setting, across sheet reopens. Native
-			// <details> already updates the DOM, so we only record the state (no
-			// re-render) for the next render to honour.
+			// Remember which collapsible follower sections (a card's Details fold, the
+			// crew's Inventory / Roster / Group Fight) are open across re-renders and, via
+			// the persisted per-actor setting, across sheet reopens. Native <details>
+			// already updates the DOM, so we only record the state (no re-render) for the
+			// next render to honour.
+			//
+			// Accordion: opening one fold closes the others ON THAT CARD, so a card is never
+			// taller than its header, its vitals band and one open section. Shift- / ctrl- /
+			// cmd-clicking a summary pins it instead, for the times you want the Roster and
+			// the Inventory side by side. The modifier is read on CLICK, which runs before
+			// the browser's default toggle, and consumed by the toggle below.
+			let pinFold = false;
+			html.find(".stonetop-crew-collapsible > summary").on("click", ev => {
+				pinFold = ev.shiftKey || ev.ctrlKey || ev.metaKey;
+			});
 			html.find(".stonetop-crew-collapsible").on("toggle", ev => {
-				const id = ev.currentTarget.dataset.section;
+				const fold = ev.currentTarget;
+				const id   = fold.dataset.section;
 				if (!id) return;
 				this._openCrewSections ??= new Set();
-				if (ev.currentTarget.open) this._openCrewSections.add(id);
-				else                       this._openCrewSections.delete(id);
+				// A Details fold only the pencil holds open (withFolds) fires that same parse-time
+				// toggle, but the player did not open it: recorded, it would outlive the pencil, and
+				// the accordion would shut the folds they did open, the Roster's size field included.
+				if (fold.open && "forcedOpen" in fold.dataset) return;
+				// Nothing to record when the set already agrees: a fold rendered open fires a
+				// toggle as it is parsed, and a sibling shut below has already been unregistered.
+				if (fold.open === this._openCrewSections.has(id)) return;
+				if (fold.open) this._openCrewSections.add(id);
+				else           this._openCrewSections.delete(id);
+				if (fold.open && !pinFold) {
+					const card = fold.closest(".stonetop-follower-card");
+					for (const other of card?.querySelectorAll(".stonetop-crew-collapsible[open]") ?? []) {
+						if (other === fold) continue;
+						other.open = false;
+						this._openCrewSections.delete(other.dataset.section);
+					}
+				}
+				pinFold = false;
 				this._persistCrewSections();
+			});
+
+			// And the caret that folds a whole follower card down to its header strip —
+			// portrait, name, HP, tags and the live vitals band — clamping the folds and the
+			// Order row away. Same custom toggle the arcanum cards use (cards default to
+			// expanded, so the Set holds the FOLDED ones), persisted per user, per actor.
+			this._wireCollapsible(html, {
+				summarySel:     ".stonetop-follower-card-fold",
+				collapsibleSel: ".stonetop-follower-card",
+				getSet:         () => (this._collapsedFollowerCards ??= new Set()),
+				persist:        () => this._persistFollowerCards(),
 			});
 
 			// Collapse / expand the sidebar move groups (Basic / Expedition). A custom
@@ -4808,27 +4962,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 			html.find(".stonetop-inventory-reset-btn").on("click", this._onInventoryReset.bind(this));
 
-			// -- Followers: group fight outnumber calculator --
-			html[0].addEventListener("input", ev => {
-				const inp = ev.target;
-				if (!inp.classList.contains("stonetop-outnumber-yours") && !inp.classList.contains("stonetop-outnumber-theirs")) return;
-				const row    = inp.closest(".stonetop-group-fight-outnumber-row");
-				if (!row) return;
-				const { label, rollFor } = outnumberBonus(
-					row.querySelector(".stonetop-outnumber-yours")?.value,
-					row.querySelector(".stonetop-outnumber-theirs")?.value,
-				);
-				const resultEl = row.querySelector(".stonetop-outnumber-result");
-				if (resultEl) resultEl.textContent = label;
-				const section  = row.closest(".stonetop-group-fight-section");
-				const dmgBtn   = section?.querySelector(".stonetop-group-fight-dmg-roll");
-				const dmgLabel = section?.querySelector(".stonetop-group-fight-dmg-label");
-				// Build on the crew's actual damage die (carried in data-base-roll,
-				// which honours any Damage override), not a hardcoded d6.
-				const roll     = rollFor(dmgBtn?.dataset.baseRoll);
-				if (dmgBtn)   dmgBtn.dataset.roll     = roll;
-				if (dmgLabel) dmgLabel.textContent    = roll;
-			}, true);
+			// -- Followers: fighting-in-numbers calculators, one per rule (follower-build.js) --
+			// Built on the group's actual damage die (carried in data-base-roll, which honours
+			// any Damage override), not a hardcoded d6.
+			wireFightingInNumbers(html[0], { rollKey: "roll", baseKey: "baseRoll" });
 
 			// -- Followers: Order (direct any follower to make a move, p.462) --
 			// Every way in comes through here: the per-card Order button, a named crew
@@ -8788,26 +8925,80 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 		}
 
-		// Have What They Need (p.472): a follower produces a needed item. Prompt for it
-		// and append it (checked) to their free-text gear checklist.
+		// The crew's headcount, for the Supplies restock outside _buildFollowersData. Same
+		// arithmetic the roster is drawn with, so a
+		// crew that has never had its size set still reads as the Marshal's "six or so" (p.126).
+		_crewRosterSize() {
+			const named = this.actor.getFlag(STONETOP_SCOPE, "crew.individuals");
+			return effectiveCrewSize(this.actor.getFlag(STONETOP_SCOPE, "crew.size"),
+				Array.isArray(named) ? named.length : 0);
+		}
+
+		// A GROUP follower's members, by the names their roster rows carry — the ones who have
+		// "stood out" and been named (p.470) first, then the anonymous tail, numbered the way
+		// those rows number it. Empty for a singular follower, who IS the member.
+		_followerMemberNames(ftype, slug) {
+			if (ftype === "crew") {
+				const crew  = this.actor.getFlag(STONETOP_SCOPE, "crew");
+				const named = Array.isArray(crew?.individuals) ? crew.individuals : [];
+				const list  = named.map((ind, i) => String(ind?.name ?? "").trim() || crewIndividualLabel(i));
+				// Both labellers take the NAMED count and a 0-based offset into the tail, exactly
+				// as _anonRosterMembers calls them for the roster rows, so the two agree on what
+				// "Crew member 4" means.
+				const anonCount = crewAnonymousCount(crew);
+				for (let i = 0; i < anonCount; i++) list.push(crewAnonMemberLabel(named.length, i));
+				return list;
+			}
+			// A custom group has no named individuals — every row is an anonymous slot.
+			const custom = ftype === "custom" ? this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}`) : null;
+			if (!custom?.isGroup) return [];
+			return Array.from({ length: customGroupSize(custom) }, (_, i) => customGroupMemberLabel(i));
+		}
+
+		// Have What They Need (p.326) run for a follower, per Order Followers (p.462): "when you
+		// direct your follower to do something that would trigger a player move, and they do it,
+		// they trigger the move". No roll — the move is a declaration — so this only asks what
+		// they produce and writes it down.
+		//
+		// A group is the case the book spells out, and it is emphatically NOT the whole
+		// group: "the PC can direct one crew member to Have What They Need and add an item to
+		// their inventory, WITHOUT the rest of the crew each producing the same item" (p.472). So
+		// a group picks a member first, and the item is filed under the book's own notation for
+		// it — Rhianna writes "◇ ◇ litter (Lowri)" on her crew's inventory list (p.473).
 		_onHaveWhatTheyNeed(ftype, slug, name) {
 			const base = _followerDetailBase(ftype, slug);
 			const gearPath = base ? `${base}.gear` : null;
 			if (!gearPath) return;
+			// Only a group has members to choose between; a singular follower IS the member.
+			const members = this._followerMemberNames(ftype, slug);
+			const picker  = members.length
+				? `<p class="stonetop-hwtn-who"><label>Which of them?`
+					+ `<select class="stonetop-hwtn-member stonetop-cf-input">`
+					+ members.map(m => `<option value="${escHtml(m)}">${escHtml(m)}</option>`).join("")
+					+ `</select></label></p>`
+				: "";
+			const subject = members.length ? "one of them" : escHtml(name || "they");
 			new Dialog({
 				title:   `${name || "Follower"}: Have What They Need`,
-				content: `<form class="stonetop-spend-form"><p>What does <strong>${escHtml(name || "they")}</strong> produce?</p>`
+				content: `<form class="stonetop-spend-form">${picker}`
+					+ `<p>What does <strong>${subject}</strong> produce?</p>`
 					+ `<input type="text" class="stonetop-hwtn-item stonetop-cf-input" placeholder="an item, some supplies…" style="width:100%"></form>`,
 				buttons: {
 					add: { icon: '<i class="fas fa-sack"></i>', label: "Add to their gear",
 						callback: async html => {
-							const item = String(html?.[0]?.querySelector(".stonetop-hwtn-item")?.value ?? "").trim();
+							const form = html?.[0];
+							const item = String(form?.querySelector(".stonetop-hwtn-item")?.value ?? "").trim();
 							if (!item) return;
+							// Whose it is rides in the label, because that is where the book puts it and
+							// because the row stays hand-editable afterwards ("Keeping track of this is
+							// the player's responsibility, though!", p.472).
+							const who   = String(form?.querySelector(".stonetop-hwtn-member")?.value ?? "").trim();
+							const label = who ? `${item} (${who})` : item;
 							const cur = foundry.utils.deepClone(this.actor.getFlag(STONETOP_SCOPE, gearPath) ?? []);
-							cur.push({ label: item, checked: true });
+							cur.push({ label, checked: true });
 							await this.actor.setFlag(STONETOP_SCOPE, gearPath, cur);
 							await this._postMoveCard("Have What They Need",
-								`<p><strong>${escHtml(name || "Your follower")}</strong> produces <em>${escHtml(item)}</em>: added to their gear.</p>`);
+								`<p><strong>${escHtml(who || name || "Your follower")}</strong> produces <em>${escHtml(item)}</em>: added to their gear.</p>`);
 							this.render(false);
 						} },
 					cancel: { label: "Cancel" },
@@ -8817,15 +9008,21 @@ export function createStonetopCharacterSheetClass(Base) {
 			}, { classes: this._pastDeathWindowClasses(["dialog", "stonetop"]) }).render(true);
 		}
 
-		// Outfit the crew (p.472): the group Outfits with the same gear, restocking
-		// every member's Supplies to full.
-		async _onOutfitCrew() {
-			// The Supplies-per-set count is "4 + Prosperity" — a synchronous read; no need
-			// to build the whole sheet snapshot just to pull one scalar off it.
+		// Restock the crew's Supplies: one full ◇ of supplies per member. This is ONE SLICE of
+		// Outfit, not the move — Outfit (p.306) sets a follower's whole load, the gear ◇ and the
+		// undefined ones both ("Followers need to Outfit, too!", p.307), and the crew's load lives
+		// in the pip list above this section. So the button says what it does; widening it to the
+		// whole move would mean a crew equivalent of OutfitMoveDialog, not a bigger fill() here.
+		async _onRestockCrewSupplies() {
+			// Uses per ◇ is "4 + Prosperity" (p.88) — a synchronous read; no need to build the
+			// whole sheet snapshot just to pull one scalar off it. Same value, same reasoning as
+			// the pipsPerSet the grid is drawn with.
 			const pipsPerSet = this._stonetopCharacter.getSmallItemLimit() ?? 5;
-			await this.actor.setFlag(STONETOP_SCOPE, "crew.supplies", Array(6).fill(pipsPerSet));
-			await this._postMoveCard("Outfit",
-				`<p>The crew Outfits: every member's Supplies restocked to full (${pipsPerSet} uses each).</p>`);
+			const size       = this._crewRosterSize();
+			await this.actor.setFlag(STONETOP_SCOPE, "crew.supplies", Array(size).fill(pipsPerSet));
+			const who = size === 1 ? "its one member" : `all ${size} members`;
+			await this._postMoveCard("Restock supplies",
+				`<p>The crew restocks: ${who} carry a full ◇ of Supplies (${pipsPerSet} uses each).</p>`);
 			this.render(false);
 		}
 

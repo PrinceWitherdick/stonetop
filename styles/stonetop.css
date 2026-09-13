@@ -22978,36 +22978,89 @@ a.steading-player-open:hover {
    button sat 8px right of Loyalty's instead of square under it. The track is one
    gap shorter than N advances, since the last circle isn't followed by one.
 
-   The Spend button then hugs its content, with a 12px column gap. The note spans
+   The Spend button then hugs its content, with an 8px column gap. The note spans
    the full row below. `align-items: center` sits the text label centred on the
-   round pips; the field-row default `baseline` would sit it off them. */
+   round pips; the field-row default `baseline` would sit it off them.
+
+   WRAPPING (2026-09-11). This is a wrapping flex row, not a three-track grid, because all
+   three parts are unshrinkable by construction — a fixed label slot, a pip reservation in px,
+   a button at max-content — and the Followers grid now holds two columns at every width (see
+   .stonetop-followers). On a sheet dragged to its 800px floor the card gets narrower than
+   those three add up to, and as grid tracks they had nowhere to go: they overflowed, and the
+   card's `overflow: hidden` sliced the Spend button in half. Flex puts Spend on a second line
+   instead, at exactly the width where it stops fitting.
+
+   No breakpoint, deliberately. The clip width is not a constant: the label slot and the button
+   are ems while the pips are px, so it moves with the client's UI Font Size setting. Measured
+   on a 4-pip card, the button crossed the gutter at 274px of card at a 14px root but at 294px
+   at 20px — a container query pinned to either number leaves the other font size clipping in
+   the gap. Flex asks the question at layout time and is right at every size.
+   (Contrast the header's .stonetop-follower-header-main fallback below, which IS a px
+   container query — that one guards two px-fixed boxes, so its threshold really is constant.)
+
+   If the card is narrower still the pips take the second line and Spend the third, which is
+   degradation rather than clipping; at the 800px sheet floor nothing reaches it.
+
+   TIGHTENED (2026-09-12). Wrapping is the fallback, not the goal: at the narrowest card a
+   player saw Spend drop under its pips with room nearly to spare. The column gap went 12px to
+   8px and the button's side padding 8px to 5px (icon gap 4px to 3px), 15px back in all. On a
+   4-pip card the row now needs 236px of content at a 14px root, 245px at 16px and 264px at
+   20px (was 251 / 260 / 279), so a 275px card holds one line at 14 and 16px; at 20px it still
+   wraps below about 290px of card. */
 .stonetop-follower-field-row.stonetop-follower-loyalty-row,
 .stonetop-follower-field-row.stonetop-follower-readiness-row {
 	--st-pip-advance: 23px;   /* 16px circle + 2 x 1px core margin + 5px gap */
 	--st-pip-track: calc(var(--st-follower-pip-slots, 3) * var(--st-pip-advance) - 5px);
-	display: grid;
-	grid-template-columns: 5.3em minmax(var(--st-pip-track), max-content) max-content;
+	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	column-gap: 12px;
-	row-gap: 2px;
+	column-gap: 8px;
+	row-gap: 4px;
 	min-width: 0;
 	max-width: 100%;
 }
-/* Keep the pip track at content width so the Spend button glues to the pips.
-   Pin it to content width: Foundry core's block-level `button { display: flex }`
-   otherwise lets a wrapped pip button fill its line. */
+/* The label slot, as a flex basis rather than a grid track — same shared 5.3em, so the pips
+   still start at the same x on both rows. Overrides the .stonetop-follower-field-label
+   `flex: none` (which would size it to its own text and let "Readiness" push its pips right
+   of "Loyalty"'s). */
+.stonetop-follower-loyalty-row > .stonetop-follower-field-label,
+.stonetop-follower-readiness-row > .stonetop-follower-field-label {
+	flex: 0 0 5.3em;
+}
+/* The pip reservation, as a min-width rather than a grid minmax(): the track still holds
+   --st-follower-pip-slots circles whatever this row draws, and an over-held row still grows
+   past it instead of overflowing. `width: max-content` pins it to content width so Spend
+   glues to the pips — Foundry core's block-level `button { display: flex }` would otherwise
+   let a wrapped pip button fill its line. */
 .stonetop-follower-loyalty-row > .stonetop-loyalty-pips,
 .stonetop-follower-readiness-row > .stonetop-readiness-pips {
+	flex: 0 0 auto;
+	min-width: var(--st-pip-track);
 	width: max-content;
 }
 .stonetop-follower-loyalty-row .stonetop-spend-loyalty,
 .stonetop-follower-readiness-row .stonetop-spend-readiness {
-	justify-self: start;
 	margin-left: 0;
 	flex: 0 0 auto;
 	width: max-content !important;
 	max-width: max-content;
+	/* Tighter than .stonetop-inline-btn's 8px / 4px so Spend keeps its line on a narrow card. */
+	padding-left: 5px;
+	padding-right: 5px;
+	gap: 3px;
 }
+/* Both Spend buttons wrap at the same card width. Their labels match, so the only thing that
+   could make one row wrap a few px before the other is the glyph: fa-shield is narrower than
+   fa-hand-holding-hand, which would leave Readiness on one line while Loyalty had already
+   gone to two. A shared 1em icon box makes the two buttons exactly the same width, so the
+   rows always agree about which shape they are in — the same reason the label slot and the
+   pip track are shared above. */
+.stonetop-follower-loyalty-row .stonetop-spend-loyalty > i,
+.stonetop-follower-readiness-row .stonetop-spend-readiness > i {
+	width: 1em;
+	text-align: center;
+}
+
 /* Readiness carries an explanatory note in its own block beneath the controls,
    outside the grid row, so the text wraps to the card width instead of the
    label / pips / Spend columns. */
@@ -23458,13 +23511,15 @@ a.steading-player-open:hover {
 	font-weight: normal;
 }
 
+/* Border and fill matched to the card's other small wells (the HP octagon's max, the
+   Armor number) rather than a shade of their own. */
 .stonetop-follower-pronoun-input {
 	width: 72px;
 	font-size: var(--st-fs-sm);
 	padding: 1px 4px;
-	border: 1px solid rgba(0, 0, 0, 0.2);
+	border: 1px solid rgba(0, 0, 0, 0.25);
 	border-radius: var(--st-radius-sm);
-	background: rgba(255, 255, 255, 0.5);
+	background: rgba(255, 255, 255, 0.6);
 	color: var(--st-text-muted);
 	margin-left: 4px;
 }
@@ -23577,19 +23632,212 @@ a.steading-player-open:hover {
 
 .stonetop-follower-section-summary::-webkit-details-marker { display: none; }
 
-.stonetop-follower-section-summary::before {
-	content: "";
+/* The fold control sits at the RIGHT end of the heading, not at its head. Every fold on a
+   follower card now opens from the same edge — the card fold riding the vitals band above
+   and these four below it — so the eye runs down one column of carets instead of hunting
+   one on the left and one on the right.
+   A real <i> rather than a `content:"\f0d7"` pseudo: setting the Font Awesome family in CSS
+   is how glyphs turn into codepoint boxes here (see the font-family caveat), and a child <i>
+   carries its own .fas rule safely. */
+/* Down while the section is showing, right while it is folded away — the same turn the card
+   fold above it and the gear rows' write-ups make. */
+.stonetop-follower-section-caret {
 	display: inline-block;
-	width: 0.6em;
-	height: 0.6em;
 	flex: none;
-	background: center / contain no-repeat url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon.svg');
-	transform: rotate(-90deg); /* closed: arrow points up */
-	transition: transform 0.15s;
+	margin-left: auto;
+	color: var(--color-text-dark-secondary, #666);
+	font-size: 0.9em;
+	opacity: 0.55;
+	transition: transform 0.15s, opacity 120ms ease;
 }
 
-details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::before {
-	transform: rotate(90deg); /* open: arrow points down */
+.stonetop-follower-section-summary:hover .stonetop-follower-section-caret { opacity: 1; }
+
+details.stonetop-crew-collapsible:not([open]) > .stonetop-follower-section-summary > .stonetop-follower-section-caret {
+	transform: rotate(-90deg);
+}
+
+/* The subtitle is a full-width line of its own, so it is ordered AFTER the caret: left in
+   source order it would push the caret past itself onto a second line. */
+.stonetop-follower-section-heading > .stonetop-follower-section-subtitle {
+	order: 1;
+}
+
+/* What a CLOSED section says about itself: the load it is carrying, how many members
+   it has and how hurt they are, the group's HP, which of the reference fields are
+   filled in. A fold that reports nothing is a fold players leave open just to read a
+   number off it, which is how these cards grew too tall to live with. Sits on the
+   heading's own line, so a shut fold is exactly one line. */
+.stonetop-follower-section-state {
+	font-size: var(--st-fs-sm);
+	font-weight: 400;
+	text-transform: none;
+	letter-spacing: 0;
+	color: var(--st-text-muted);
+	white-space: nowrap;
+}
+
+/* The italic subtitle is instructions for the section once it is OPEN (how load bands
+   work, what naming a member means) — two more lines under a heading nobody has asked
+   to read yet. It shows with the contents, not instead of them. The heading's own
+   bottom margin and the section's padding tighten with it, so four shut folds stack as
+   four lines rather than a ladder of gaps. */
+details.stonetop-crew-collapsible:not([open]) > .stonetop-follower-section-summary > .stonetop-follower-section-subtitle {
+	display: none;
+}
+details.stonetop-crew-collapsible:not([open]) > .stonetop-follower-section-summary {
+	margin-bottom: 0;
+}
+/* ONE top padding, open or shut. Trimming only the shut state made the heading jump 3px
+   every time a fold was toggled (measured: text 9.5px under the rule open, 6px shut). The
+   compact value is kept for both, so a shut fold stays one tight line and opening it
+   moves nothing above the contents. Only the BOTTOM differs: 5px under a lone heading,
+   the section's own 8px under contents. */
+details.stonetop-crew-collapsible {
+	padding-top: 5px;
+}
+details.stonetop-crew-collapsible:not([open]) {
+	padding-bottom: 5px;
+}
+
+/* ── The vitals band ──────────────────────────────────────────────────────
+   Reading a card, the numbers a fight touches — Armor, Damage, any ammo track,
+   Loyalty, Readiness — flow as ONE wrapping band. Each of them used to own a
+   full-width line, so every card spent four lines (five, with the readiness gloss)
+   before the first fold was even reached, and the crew's card spent them above three
+   more sections. Under the card's pencil (.is-editing) the band falls back to the
+   stacked column it was: there every one of these rows grows an input — a number
+   and a "where from" field for Armor, a text field and an ammo checkbox for Damage —
+   and needs the whole width. One set of markup, two layouts. */
+.stonetop-follower-card:not(.is-editing) .stonetop-follower-vitals {
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 5px 14px;
+}
+
+/* Each row shrink-wraps to its content instead of claiming a line. The Armor
+   statline's own `flex: 1 1 130px; min-width: 120px` is what would otherwise hold the
+   band open at one chip per line on a narrow card. */
+.stonetop-follower-card:not(.is-editing) .stonetop-follower-vitals > .stonetop-follower-field-row,
+.stonetop-follower-card:not(.is-editing) .stonetop-follower-vitals > .stonetop-follower-stat-row,
+.stonetop-follower-card:not(.is-editing) .stonetop-follower-vitals .stonetop-follower-statline {
+	flex: 0 1 auto;
+	min-width: 0;
+}
+
+/* No fill line under a chip. The dotted rule reads as "write here", which is true of a
+   row spanning the card and misleading of five runs sharing one line; the column gap is
+   what separates them instead. */
+.stonetop-follower-card:not(.is-editing) .stonetop-follower-vitals .stonetop-follower-field-value {
+	border-bottom: none;
+	flex: 0 1 auto;
+}
+
+/* The readiness gloss keeps a line of its own under the chips rather than joining them:
+   it is a sentence, not a value. It stays as text rather than folding into the pips'
+   tooltip, because a tooltip is no place for a rule somebody reads with a magnifier. */
+.stonetop-follower-card:not(.is-editing) .stonetop-follower-vitals > .stonetop-follower-readiness-note {
+	flex-basis: 100%;
+}
+
+/* ── Folding a whole card ─────────────────────────────────────────────────
+   The caret rides the end of the vitals band and clamps away everything below it —
+   the Details fold, the crew's three sections, the Order row — leaving the card as its
+   header strip plus its live numbers. The band is what stays, because those numbers are
+   the reason to keep a parked follower on the sheet at all. The hover pencils stay too:
+   a folded card is still editable, and opening its pencil unfolds it (see withFolds). */
+.stonetop-follower-card-fold {
+	flex: none;
+	margin-left: auto;
+	/* Sits on the chips' BOTTOM line, not the row's centre. Centred, its ink ended 6.5px
+	   above the chips' at a 16px root (8px at 20px), and 22px above them once the tags
+	   wrapped to two rows and it centred between them. flex-end puts the box on the last
+	   chip row; `top` then spends the glyph's own slack, which FontAwesome paints above
+	   the bottom of its line box. Measured as 4.5px at 16px and 6px at 20px -- the same
+	   0.3em of this element's font both times, so it is written in em and holds at any UI
+	   font size. `top` rather than a margin so the nudge never grows the row. */
+	align-self: flex-end;
+	position: relative;
+	top: 0.3em;
+	cursor: pointer;
+	color: var(--color-text-dark-secondary, #666);
+	/* Sized through the SAME chain as the section carets below it — 0.9em of --st-fs-sm,
+	   which their headings set — so the two draw at one size. Read straight off the band's
+	   own font-size the glyph came out ~4px wider than theirs, which in a column of four
+	   carets reads as a different control rather than the same one. */
+	font-size: var(--st-fs-sm);
+	opacity: 0.55;
+	transition: opacity 120ms ease;
+	/* A caret is a small target for a control that folds the whole card, so it carries a
+	   hit area wider than its glyph. Both numbers are chosen to cost nothing: the top padding
+	   stays inside the tags row's own height, so the row does not grow, and the negative
+	   margin spends the horizontal padding on the header's 12px gutter. No BOTTOM padding:
+	   under flex-end it would lift the glyph off the chips' line by a px amount that the
+	   em nudge above cannot track across font sizes. */
+	padding: 2px 6px 0;
+	margin-right: -6px;
+}
+.stonetop-follower-card-fold:hover { opacity: 1; }
+/* The caret points at what it opens, like the gear rows' and the arcanum cards': down
+   while the card is showing, right while it is folded away. */
+.stonetop-follower-card-fold > i {
+	display: inline-block;
+	font-size: 0.9em;
+	transition: transform 0.15s;
+}
+.stonetop-follower-card.is-collapsed .stonetop-follower-card-fold > i { transform: rotate(-90deg); }
+
+.stonetop-follower-card.is-collapsed > :not(.stonetop-follower-header):not(.stonetop-follower-body):not(.stonetop-follower-edit):not(.stonetop-follower-done),
+.stonetop-follower-card.is-collapsed > .stonetop-follower-body > :not(.stonetop-follower-vitals) {
+	display: none;
+}
+
+/* The readiness gloss goes with them. It explains a control rather than reporting a
+   value, and a folded card is one somebody has just said they want out of the way —
+   spending two lines of instruction on it is the opposite of what they asked for. */
+.stonetop-follower-card.is-collapsed .stonetop-follower-readiness-note {
+	display: none;
+}
+
+/* The Details fold's contents re-establish the body's column rhythm, since the rows
+   inside it were direct children of the body before the fold existed. The top padding
+   opens the space under the heading from 6px to 12px when the fold is open: the same
+   12px that sits above the Armor line under the card header. */
+.stonetop-follower-details-body {
+	display: flex;
+	flex-direction: column;
+	gap: 7px;
+	padding-top: 6px;
+}
+
+/* Details lives INSIDE the card body while the crew's three sections are children of the
+   card itself, so it was inset by the body's 12px gutter on top of its own — its heading,
+   its caret and its rule all sat 12px further in than the three folds directly beneath it,
+   which read as a mistake rather than a hierarchy. Cancelling the gutter puts all four
+   folds on one edge. Kept as a margin on the fold rather than by moving the markup: the
+   fold has to stay in the body, which is what the card fold clamps away. */
+/* Details' heading sits in the same 12px of whitespace, above and below, that the Armor
+   line has under the card header. Measured ink-to-ink from pixels: 12px above "Armor"
+   at both a 16px and a 20px root; the shared 5px fold padding left the shut Details
+   heading 8.3 / 7.8px from its rule and 7.8 / 9.2px from the card's edge. 9px on top
+   and 8px below put it within ~1px of 12 at both sizes, and on it at 20px.
+   The top value is the SAME open or shut, so the heading never jumps on toggle.
+   Doubled class to reach (0,2,1): the generic shut rule's `:not([open])` is that heavy,
+   and this sits after it, so it wins. The crew's other three folds keep 5px. */
+details.stonetop-follower-details-fold.stonetop-crew-collapsible {
+	padding-top: 9px;
+	padding-bottom: 8px;
+}
+
+.stonetop-follower-details-fold {
+	margin-inline: -12px;
+	/* And the same for the body's 11px BOTTOM padding, which sat under Details and nowhere
+	   else: shut, its heading had 6px above it and 17px below, where the crew's sections
+	   (children of the card, with no padding beneath them) have 5-6px either side.
+	   Details is always the body's last child when drawn, so this only ever cancels the
+	   padding it would otherwise be sitting on. */
+	margin-bottom: -11px;
 }
 
 /* Inventory */
@@ -23651,6 +23899,13 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 }
 .vtt .window-app input[type=checkbox].stonetop-crew-gear-check:checked {
 	background: center / contain no-repeat var(--stonetop-diamond-selected-icon) !important;
+}
+
+/* What individual members produced with Have What They Need (p.472). Sits between the
+   crew's shared kit and its Supplies, so the reading order on the card is: what they all
+   carry, what one of them dug out, how much food is left. */
+.stonetop-crew-produced {
+	margin-top: 12px;
 }
 
 .stonetop-crew-supplies-section {
@@ -23757,18 +24012,25 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	font-size: var(--st-fs-xs);
 }
 
-.stonetop-crew-size-input {
+/* A custom GROUP follower's "Group size" row is the same control in the same
+   .stonetop-crew-size-row, under its own class names, so it is skinned here rather than
+   left to render as a bare core number field beside a stretched stepper — which is what
+   it did, one card over from the crew's identical and fully-skinned row. */
+.stonetop-crew-size-input,
+.stonetop-custom-group-size-input {
 	width: 44px;
 	height: 24px;
 	padding: 2px 4px;
 	text-align: center;
 	font-size: var(--st-fs-base);
-	border: 1px solid #ccc;
+	border: 1px solid rgba(0, 0, 0, 0.25);
 	border-radius: var(--st-radius-sm);
+	background: rgba(255, 255, 255, 0.6);
 }
 
-/* Square mini stepper buttons for the crew-size +/- control. */
-.stonetop-crew-size-step {
+/* Square mini stepper buttons for the crew-size / group-size +/- controls. */
+.stonetop-crew-size-step,
+.stonetop-custom-group-size-step {
 	width: 22px !important;
 	height: 22px !important;
 	padding: 0 !important;
@@ -24365,11 +24627,19 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 
 /* Exceptional: a gated, selectable tag chip (edit mode). Mirrors the crew tag
    choices but keeps the amber "exceptional" tint and shows a lock until the
-   granting playbook move is owned. */
+   granting playbook move is owned.
+
+   `width: auto` because this chip is the one in the tags row that is a <button> — its
+   neighbours are <span>s and <label>s — and core's `body.game .app button { width: 100% }`
+   therefore caught it alone, stretching it into a full-width bar above a row of proper
+   chips. `flex: none` keeps the row from shrinking it back below its label once it can
+   ask for its own content width. See [[reference_app-button-core-width-100]]. */
 .stonetop-follower-tag.stonetop-exceptional-toggle {
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
+	width: auto;
+	flex: none;
 	cursor: pointer;
 	user-select: none;
 	opacity: 0.7;
@@ -24513,17 +24783,24 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	line-height: 1;
 }
 
+/* `width: auto` is what makes `justify-self: start` mean anything: core's
+   `body.game .app button { width: 100% }` fills the whole 1 / -1 grid area no matter
+   where the box is placed in it, so this small "add a row" affordance was drawing as a
+   full-width bar the size of the card's Order button. See
+   [[reference_app-button-core-width-100]]. */
 .stonetop-follower-gear-add {
 	grid-column: 1 / -1;
 	justify-self: start;
+	width: auto;
 	margin-top: 2px;
 }
 
-/* Free-text Moves / Notes inputs */
+/* Free-text Moves / Notes inputs. Border matched to the fill-line fields above
+   (0.25, not 0.2) so a card in edit mode draws one weight of edge, not two. */
 .stonetop-follower-text {
 	width: 100%;
 	box-sizing: border-box;
-	border: 1px solid rgba(0, 0, 0, 0.2);
+	border: 1px solid rgba(0, 0, 0, 0.25);
 	border-radius: var(--st-radius-sm);
 	background: rgba(255, 255, 255, 0.6);
 	font-family: var(--font-stonetop);
@@ -24531,6 +24808,50 @@ details.stonetop-crew-collapsible[open] > .stonetop-follower-section-summary::be
 	line-height: 1.35;
 	padding: 3px 6px;
 	resize: vertical;
+}
+
+/* NO SOFT RING ON A FOLLOWER'S EDIT FIELDS. Every field above declares the edge it
+   wants — a bare fill line for the inline stat values (Damage / Instinct / Cost / the
+   name / a gear label), a small box for the number wells (Armor, the HP octagon's max,
+   crew size, the outnumber pair), a 1px box for the Moves / Notes textareas — and core
+   then paints `box-shadow: var(--input-box-shadow)` over all of them, which under
+   `theme-light` (the state every AppV1 window in this system renders in) is
+   `inset 0 0 6px rgba(0, 0, 0, 0.1)`: a soft dark ring hugging all four edges.
+
+   On a bordered well that reads as a doubled, muddy edge; on a fill-line input it
+   invents a box that was never declared, which is why a card in edit mode looked like a
+   column of grey wells while the same card in view mode is quiet dotted rules under the
+   values. Killing it is the whole difference between the two modes' weight.
+
+   It has to die on the field itself rather than by re-pointing `--input-box-shadow`,
+   because core's own `:focus` / `:read-only` rules assign `box-shadow` directly too.
+   Same line the roster notes and the relationship board's note field already wear —
+   see the `.stonetop-condemned-note` block for the long version.
+
+   `:not(:focus)` IS LOAD-BEARING, and leaving it off silently removes the focus ring.
+   stonetop.css is unlayered and core's form rules live in `@layer elements.forms` /
+   `@layer compatibility`, so a bare `box-shadow: none` here beats core per-property in
+   EVERY state — including `:focus`. That matters more than it sounds, because core also
+   has `body.game .app input:focus { outline: none }`: on an AppV1 window the focus glow
+   `box-shadow: 0 0 5px var(--color-shadow-primary)` is the ONLY thing marking a focused
+   input, the outline having already been taken away. Killed unconditionally, these
+   fields took focus with no visible change at all. Excluding `:focus` lets core's glow
+   through untouched, so a follower's fields focus exactly like every other field on the
+   sheet. Checked by the focus pass in z:/tmp/foundry-verify/followers-edit-shot.mjs;
+   re-run it if you add a field to this list. */
+.stonetop-follower-name-input:not(:focus),
+.stonetop-follower-pronoun-input:not(:focus),
+.stonetop-follower-stat-input:not(:focus),
+.stonetop-follower-gear-label:not(:focus),
+.stonetop-follower-text:not(:focus),
+.stonetop-follower-hp-input:not(:focus),
+.stonetop-follower-hp-octagon-max-input:not(:focus),
+.stonetop-crew-size-input:not(:focus),
+.stonetop-custom-group-size-input:not(:focus),
+.stonetop-swarm-count:not(:focus),
+.stonetop-outnumber-yours:not(:focus),
+.stonetop-outnumber-theirs:not(:focus) {
+	box-shadow: none;
 }
 
 .stonetop-follower-notes-text {
@@ -25198,21 +25519,35 @@ li.question-bullet::before {
 	color: var(--color-text-hyperlink, slategrey);
 }
 
-.stonetop-group-fight-outnumber-row {
+/* One row per fighting-in-numbers rule, stacked. Side by side they would read as a
+   single long sum whose halves happen to carry labels, which is the exact confusion
+   the second row exists to end. */
+.stonetop-group-fight-numbers {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-bottom: 8px;
+}
+.stonetop-group-fight-numbers-row {
 	display: flex;
 	align-items: center;
 	gap: 6px;
 	font-size: var(--st-fs-sm);
-	margin-bottom: 8px;
 	flex-wrap: wrap;
 }
 
-.stonetop-group-fight-outnumber-label {
+/* Each label names its rule and carries the rule's own text as its tooltip, so the row is
+   self-explanatory without a paragraph of sheet copy beside it. Shared by the follower cards
+   and the monster stat block. */
+.stonetop-numbers-label {
 	font-weight: 600;
 	color: var(--st-quiet-ink);
 	white-space: nowrap;
+	cursor: help;
+	border-bottom: 1px dotted var(--st-text-faint);
 }
 
+.stonetop-swarm-count,
 .stonetop-outnumber-yours,
 .stonetop-outnumber-theirs {
 	width: 48px;
@@ -25220,8 +25555,9 @@ li.question-bullet::before {
 	padding: 2px 4px;
 	text-align: center;
 	font-size: var(--st-fs-base);
-	border: 1px solid #ccc;
+	border: 1px solid rgba(0, 0, 0, 0.25);
 	border-radius: var(--st-radius-sm);
+	background: rgba(255, 255, 255, 0.6);
 }
 
 .stonetop-outnumber-vs {
@@ -25295,19 +25631,26 @@ li.question-bullet::before {
 	background: rgba(112, 128, 144, 0.45) !important;
 }
 
-/* Monster-sheet group-fight tools (No. appearing + outnumber calculator). */
+/* Monster-sheet fighting-in-numbers tools (No. appearing + one row per rule).
+   A COLUMN, not a wrapping inline row: the two rules are alternatives, and side by
+   side on one line they read as one long sum whose halves happen to have labels —
+   which is the exact confusion the second row exists to end. Stacked, each rule is
+   its own line with its own inputs, bonus and die. */
 .stonetop-monster-group-fight-section {
-	display: inline-flex;
-	align-items: center;
-	gap: 8px;
-	flex-wrap: wrap;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 4px;
+	min-width: 0;
 }
-.stonetop-monster-outnumber-row {
-	display: inline-flex;
+.stonetop-monster-numbers-row {
+	display: flex;
 	align-items: center;
 	gap: 5px;
 	font-size: var(--st-fs-sm);
+	flex-wrap: wrap;
 }
+.stonetop-monster-swarm-count,
 .stonetop-monster-outnumber-yours,
 .stonetop-monster-outnumber-theirs {
 	width: 46px;
@@ -25316,8 +25659,9 @@ li.question-bullet::before {
 	line-height: 1.4;
 	text-align: center;
 }
-.stonetop-monster-outnumber-result { color: var(--st-quiet-ink); font-style: italic; white-space: nowrap; }
+.stonetop-monster-numbers-result { color: var(--st-quiet-ink); font-style: italic; white-space: nowrap; }
 .stonetop-monster-group-dmg-label { color: var(--st-quiet-ink); }
+.stonetop-monster-casualties { font-style: italic; }
 .stonetop-monster-count-input { width: 5em; }
 
 .stonetop-outnumber-result {

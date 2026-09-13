@@ -1634,6 +1634,18 @@ export function registerSettings() {
 		default: {},
 	});
 
+	// Remembers which follower CARDS each character left folded down to their header
+	// strip (portrait, name, HP, tags and the live vitals band — everything below it is
+	// clamped away). Cards default to EXPANDED, so an id present here means that card
+	// should reopen folded. Keyed "<ftype>:<slug>", which is what the card carries.
+	// Per-user (client) and per-actor: a map of actor id -> array of folded card ids.
+	game.settings.register(SYSTEM_ID, "followerCardsCollapsed", {
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {},
+	});
+
 	// Remembers which gear rows each character left with their write-up UNFOLDED. A Book II
 	// treasure arrives carrying the book's whole printed sidebar (data/treasure-catalog.js),
 	// which is several paragraphs down a column whose other rows are one line each, so the
@@ -2679,6 +2691,16 @@ export function getArcanaCardsCollapsed(actorId) {
 
 export function setArcanaCardsCollapsed(actorId, slugs) {
 	return setSectionList("arcanaCardsCollapsed", actorId, slugs);
+}
+
+// The follower cards this user folded down to their header strip. Cards default to
+// expanded, so an id ("<ftype>:<slug>") present here means that card reopens folded.
+export function getFollowerCardsCollapsed(actorId) {
+	return getSectionList("followerCardsCollapsed", actorId);
+}
+
+export function setFollowerCardsCollapsed(actorId, cardIds) {
+	return setSectionList("followerCardsCollapsed", actorId, cardIds);
 }
 
 // The gear rows whose artifact / treasure write-up this user left unfolded. Write-ups
