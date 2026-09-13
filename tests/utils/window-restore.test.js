@@ -58,6 +58,7 @@ beforeEach(async () => {
 		innerWidth: 1920,
 		innerHeight: 1080,
 		addEventListener: (name, fn) => { (listeners[name] ??= []).push(fn); },
+		removeEventListener: (name, fn) => { listeners[name] = (listeners[name] ?? []).filter((f) => f !== fn); },
 	};
 	global.fromUuid = async (uuid) => docs[uuid] ?? null;
 
@@ -162,6 +163,119 @@ describe("restoring the edit/lock mode", () => {
 		await restore();
 		expect(sheet._editMode).toBe(false);
 		expect(sheet.render).not.toHaveBeenCalled();
+	});
+});
+
+// The stagger puts 120ms between one reopened window and the next, so whichever opens last waits
+// the longest. Opening the front-most first is what gets the window a GM was looking at back on
+// screen soonest. Every render lands on top of the stack, though, so the saved stack has to be put
+// back once they have all opened, or the front window would end up at the back.
+describe("restoring the stack", () => {
+	// A window whose render reports back through the real hook, as core's does, logging when it
+	// was opened and when it was brought forward.
+	function stackedSheet(uuid, log, { reports = true } = {}) {
+		const sheet = fakeSheet({ uuid });
+		delete sheet._editMode;
+		sheet.render = vi.fn(() => {
+			log.push(`open ${uuid}`);
+			if (reports) fire("renderActorSheet", sheet);
+		});
+		sheet.bringToFront = vi.fn(() => log.push(`front ${uuid}`));
+		return sheet;
+	}
+
+	const threeDeep = () => ({
+		"Actor.back":   { left: 0, top: 0, zIndex: 101 },
+		"Actor.middle": { left: 0, top: 0, zIndex: 105 },
+		"Actor.front":  { left: 0, top: 0, zIndex: 110 },
+	});
+
+	async function restore() {
+		await restoreOpenWindows();
+		await vi.runAllTimersAsync();
+	}
+
+	it("records where each window sat in the stack", () => {
+		fire("renderActorSheet", fakeSheet({ uuid: "Actor.z", position: { left: 1, top: 2, zIndex: 107 } }));
+		vi.advanceTimersByTime(500);
+		expect(saved("Actor.z").zIndex).toBe(107);
+	});
+
+	it("opens the front-most window first", async () => {
+		const log = [];
+		for (const id of ["Actor.back", "Actor.middle", "Actor.front"]) stackedSheet(id, log);
+		settings.openWindowsState = threeDeep();
+		await restore();
+		expect(log.filter((l) => l.startsWith("open"))).toEqual(["open Actor.front", "open Actor.middle", "open Actor.back"]);
+	});
+
+	it("then brings them forward back-most first, so the front window ends in front", async () => {
+		const log = [];
+		for (const id of ["Actor.back", "Actor.middle", "Actor.front"]) stackedSheet(id, log);
+		settings.openWindowsState = threeDeep();
+		await restore();
+		expect(log.filter((l) => l.startsWith("front"))).toEqual(["front Actor.back", "front Actor.middle", "front Actor.front"]);
+		// ...and only once every window has opened, or a later render would land on top again.
+		expect(log.indexOf("front Actor.back")).toBeGreaterThan(log.indexOf("open Actor.back"));
+	});
+
+	it("keeps the saved order for a save from before the stack was recorded", async () => {
+		const log = [];
+		for (const id of ["Actor.one", "Actor.two", "Actor.three"]) stackedSheet(id, log);
+		settings.openWindowsState = {
+			"Actor.one":   { left: 0, top: 0 },
+			"Actor.two":   { left: 0, top: 0 },
+			"Actor.three": { left: 0, top: 0 },
+		};
+		await restore();
+		expect(log.filter((l) => l.startsWith("open"))).toEqual(["open Actor.one", "open Actor.two", "open Actor.three"]);
+	});
+
+	it("does not let a window that never reports its render hold the others at the back", async () => {
+		const log = [];
+		stackedSheet("Actor.back", log, { reports: false });
+		stackedSheet("Actor.middle", log);
+		stackedSheet("Actor.front", log);
+		settings.openWindowsState = threeDeep();
+		await restore();
+		expect(log.at(-1)).toBe("front Actor.front");
+	});
+
+	it("skips a window that closed before the stack was put back", async () => {
+		const log = [];
+		stackedSheet("Actor.back", log).rendered = false;
+		stackedSheet("Actor.middle", log);
+		stackedSheet("Actor.front", log);
+		settings.openWindowsState = threeDeep();
+		await restore();
+		expect(log).not.toContain("front Actor.back");
+		expect(log.at(-1)).toBe("front Actor.front");
+	});
+
+	// A slow render can hold the restack back for seconds, and the user does not wait for it. The
+	// first click puts back what has landed, before that click raises its own window, and the
+	// windows still to land simply open on top: nothing raises them all again afterwards.
+	it("hands the stack to the user at their first click, rather than burying what they chose", async () => {
+		const log = [];
+		for (const id of ["Actor.back", "Actor.middle", "Actor.front"]) {
+			const sheet = stackedSheet(id, log);
+			const open = sheet.render;
+			sheet.rendered = false;
+			sheet.render = vi.fn(() => { sheet.rendered = true; open(); });
+		}
+		settings.openWindowsState = threeDeep();
+		await restoreOpenWindows();
+		await vi.advanceTimersByTimeAsync(120);
+		expect(log).toEqual(["open Actor.front", "open Actor.middle"]);
+
+		for (const fn of listeners.pointerdown ?? []) fn({});
+		expect(log.slice(2)).toEqual(["front Actor.middle", "front Actor.front"]);
+
+		await vi.runAllTimersAsync();
+		expect(log.slice(4)).toEqual(["open Actor.back"]);
+		// ...and it stops listening once it has handed over.
+		expect(listeners.pointerdown).toEqual([]);
+		expect(listeners.keydown).toEqual([]);
 	});
 });
 

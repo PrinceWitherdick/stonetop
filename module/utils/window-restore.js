@@ -56,6 +56,14 @@ let _saveTimer = null;
 // DOM at its initial tab), which then activates the saved tab over the default.
 const _pendingTabs = new Map();
 
+// The restore in flight: which reopened windows have yet to report a render, and the order to
+// stack them in once they all have. See restoreOpenWindows for why the stack is put back last.
+let _restack = null;
+
+// How long past the last staggered render to wait for stragglers before restacking whatever did
+// open. A sheet whose render threw never fires its hook, and it must not hold the others down.
+const RESTACK_GRACE_MS = 3000;
+
 // Whether an app is a document sheet we can persist and later reopen: it must expose a
 // world document (not a compendium entry — those aren't re-openable from a stored uuid
 // the same way) with a stable uuid. This naturally excludes our FormApplication dialogs,
@@ -105,6 +113,9 @@ function _snapshotPosition(app) {
 		if (Number.isFinite(p[key])) out[key] = Math.round(p[key]);
 	}
 	if (out.left === undefined && out.top === undefined) return null;
+	// Where it sat in the stack. Both application frameworks keep this current: every render and
+	// every bring-to-front hands the window the next z-index, so a higher number is nearer the front.
+	if (Number.isFinite(p.zIndex)) out.zIndex = p.zIndex;
 	// ApplicationV2 exposes a public `minimized`; AppV1 uses the private `_minimized`.
 	if (app.minimized ?? app._minimized) out.minimized = true;
 	const tabs = _snapshotTabs(app);
@@ -194,7 +205,47 @@ function _onRender(app) {
 		_pendingTabs.delete(doc.uuid);
 		_applyTabs(app, pending);
 	}
+	_settleRestack(doc.uuid);
 	_schedulePersist();
+}
+
+// Count one reopened window as landed (rendered, or failed to), and put the stack back once the
+// last one has. Held back while `scheduling`: a render that lands while a later lookup is still
+// awaited must not read an empty wait list as "all done".
+function _settleRestack(uuid) {
+	if (_restack?.waiting.delete(uuid) && !_restack.waiting.size && !_restack.scheduling) _finishRestack();
+}
+
+// What counts as the user taking the stack back while a restore is still landing.
+const HANDOVER_EVENTS = ["pointerdown", "keydown"];
+
+// Stand the restore in flight down, leaving the stack as it is: its straggler timer and its watch
+// on the user's input both go. Hands back what was in flight, or null if nothing was.
+function _endRestack() {
+	const restack = _restack;
+	_restack = null;
+	if (!restack) return null;
+	clearTimeout(restack.timer);
+	for (const type of HANDOVER_EVENTS) window.removeEventListener(type, _onHandoverInput, true);
+	return restack;
+}
+
+// A click or key press while reopened windows are still landing. See restoreOpenWindows.
+function _onHandoverInput() {
+	_finishRestack();
+}
+
+// Put the reopened windows back in the stack they were saved in, back-most first, so the window
+// that was in front ends in front. Only a z-index write per window, never a re-render. A window
+// still to land is skipped, and opens on top when it does.
+function _finishRestack() {
+	const restack = _endRestack();
+	if (!restack) return;
+	for (const sheet of restack.order) {
+		if (sheet.rendered === false) continue;
+		try { (sheet.bringToFront ?? sheet.bringToTop)?.call(sheet); }
+		catch (_err) { /* a window mid-close keeps whatever depth it has */ }
+	}
 }
 
 function _onClose(app) {
@@ -224,11 +275,30 @@ function _clampToViewport(pos) {
 // is off or nothing was saved. Renders are staggered so a dozen sheets don't all fight
 // for focus (and layout) in the same frame, and each is permission-checked so a player
 // never trips a "you don't have permission" error on a sheet they can no longer view.
+//
+// FRONT-MOST FIRST. The stagger puts 120ms between one window and the next, so whichever opens
+// last waits the longest, and saved order is only the order the windows were first opened in.
+// A GM's big character sheet could come sixth behind five monster sheets and paint most of a
+// second late -- the window they were actually looking at, and the page's largest paint.
+// Every render lands on top of the stack, though, so opening front to back leaves the front
+// window at the BACK; once every window has rendered, _finishRestack puts the saved stack back.
+// A save from before `zIndex` was recorded has none, and keeps its saved order.
+//
+// UNLESS THE USER GETS THERE FIRST. One slow render can hold that restack back for seconds, and
+// in the meantime the user opens a journal or clicks a sheet forward; raising every restored
+// window after that buries what they just chose. So the first click or key press puts back
+// whatever has landed so far, in the capture phase, before that input raises the window it is
+// aimed at, and from then on the stack is theirs.
 export async function restoreOpenWindows() {
 	if (!getSetting(TOGGLE_SETTING)) return;
 	const state = getSetting(STATE_SETTING) ?? {};
-	const uuids = Object.keys(state);
+	const depth = (uuid) => (Number.isFinite(state[uuid]?.zIndex) ? state[uuid].zIndex : -Infinity);
+	const uuids = Object.keys(state).sort((a, b) => depth(b) - depth(a));
 	if (!uuids.length) return;
+
+	// `scheduling` holds the restack back until every window is queued (see _settleRestack).
+	const restack = _restack = { waiting: new Set(), order: [], timer: null, scheduling: true };
+	for (const type of HANDOVER_EVENTS) window.addEventListener(type, _onHandoverInput, true);
 
 	let i = 0;
 	for (const uuid of uuids) {
@@ -244,6 +314,9 @@ export async function restoreOpenWindows() {
 		const saved = state[uuid];
 		const pos = _clampToViewport(saved);
 		const delay = i++ * 120;
+		// Queued front to back, so each lands at the head of the back-to-front restack order.
+		restack.waiting.add(uuid);
+		restack.order.unshift(sheet);
 		setTimeout(() => {
 			try {
 				// Stage the saved tab so the render hook (fired once _tabs is bound) switches
@@ -265,9 +338,18 @@ export async function restoreOpenWindows() {
 				if (saved.minimized) sheet.minimize?.();
 			} catch (err) {
 				console.warn("Stonetop | Could not restore window", uuid, err);
+				_settleRestack(uuid);
 			}
 		}, delay);
 	}
+
+	restack.scheduling = false;
+	if (_restack !== restack) return;
+	if (!restack.order.length) { _endRestack(); return; }
+	if (!restack.waiting.size) { _finishRestack(); return; }
+	restack.timer = setTimeout(() => {
+		if (_restack === restack) _finishRestack();
+	}, (i - 1) * 120 + RESTACK_GRACE_MS);
 }
 
 // Wire the render/close tracking hooks and the unload flush. Called from the init hook.
