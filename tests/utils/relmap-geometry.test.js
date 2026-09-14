@@ -346,6 +346,19 @@ describe("the arrowheads that say which way a link is read", () => {
 		expect(line.to.left - head.left).toBeCloseTo((100 * HEAD_TIP_PX) / 1200, 2);
 	});
 
+	// ⚠ AND ON A BOWED LINE TOO. The stand-off is a length ALONG the curve: taken as a share of the
+	// straight run between the ends, the head sat further back the more the line bowed, and its point
+	// stopped a few pixels short of the face it was aimed at.
+	it("lands the tip on the end of a bowed line as well", () => {
+		const line = edgeCurve({
+			from: { left: 30, top: 50 }, to: { left: 70, top: 50 }, bow: 3, aspect: ASPECT, r,
+		});
+		const [head] = edgeArrowheads(line, ASPECT, "a-b", { boardWidthPx: 1200 });
+		// How far apart two board points LOOK, with the height put back into the width's units.
+		const seen = (a, b) => Math.hypot(b.left - a.left, (b.top - a.top) / ASPECT);
+		expect(seen(head, line.to)).toBeCloseTo((100 * HEAD_TIP_PX) / 1200, 1);
+	});
+
 	// And it is a PIXEL stand-off, so a bigger sheet does not push the head back down its line:
 	// the same head on a board four times as wide sits four times closer to the rim in percent.
 	it("keeps the same pixel stand-off however wide the sheet grows", () => {

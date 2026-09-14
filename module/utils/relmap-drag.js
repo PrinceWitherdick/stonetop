@@ -230,9 +230,16 @@ export function wireRelmapDrag(root, {
 	 * the line came FROM, who is not somebody it can be dropped on.
 	 */
 	function nodeUnder(clientX, clientY, exclude) {
-		return (document.elementsFromPoint?.(clientX, clientY) ?? [])
-			.map(el => el.closest?.("[data-relmap-node]"))
-			.find(el => el && el.dataset.relmapNode !== exclude) ?? null;
+		for (const el of document.elementsFromPoint?.(clientX, clientY) ?? []) {
+			// ⚠ THE FIRST THING NOT ON THIS BOARD ENDS THE SEARCH. The stack runs all the way down, so a
+			// portrait underneath another window laid over the map is still in it: taken from there, a
+			// line let go of over that window was drawn to somebody the reader could not see, and the
+			// ring promising it had lit them straight through the window as well.
+			if (view.contains?.(el) === false) return null;
+			const node = el.closest?.("[data-relmap-node]");
+			if (node && node.dataset.relmapNode !== exclude) return node;
+		}
+		return null;
 	}
 
 	/**
@@ -270,7 +277,7 @@ export function wireRelmapDrag(root, {
 	function end(committed = false) {
 		const finished = drag;
 		drag = null;
-		endCancellableDrag();
+		endCancellableDrag(cancelDrag);
 		if (frameId) { cancelAnimationFrame(frameId); frameId = 0; }
 		if (!finished) return null;
 		try { view.releasePointerCapture?.(finished.pointerId); } catch { /* already gone */ }
@@ -300,6 +307,26 @@ export function wireRelmapDrag(root, {
 		return finished;
 	}
 
+	// THIS BOARD'S OWN HANDLE on the one Escape slot the page has, so this board's exits disarm only a
+	// drag this board armed. See `endCancellableDrag`.
+	const cancelDrag = () => end();
+
+	/**
+	 * How far a carried portrait has travelled, in board percentages: where on the board the pointer is
+	 * NOW, less where on the board it was pressed.
+	 *
+	 * ⚠ TWO PLACES ON THE BOARD, AND NOT THE SCREEN TRAVEL. The wheel zooms the board under a drag --
+	 * zooming out to find where somebody is going is the obvious thing to do while carrying them -- and
+	 * pixels travelled at one scale but converted at another dropped the portrait well away from the
+	 * cursor. Two points on the board stay true whatever the scale and the pan did between them. A
+	 * surface that could not place the press falls back to the travel.
+	 */
+	function travelled(d, clientX, clientY) {
+		const now = d.grab ? surface.pointToPercent?.({ clientX, clientY }) : null;
+		if (now) return { left: now.left - d.grab.left, top: now.top - d.grab.top };
+		return surface.deltaToPercent?.(d.dx, d.dy) ?? null;
+	}
+
 	/**
 	 * All the per-sample work, once per PAINTED frame.
 	 *
@@ -311,7 +338,13 @@ export function wireRelmapDrag(root, {
 		frameId = 0;
 		if (!drag?.started) return;
 		if (drag.kind === "node" && drag.el) {
-			const { x, y } = dragTranslation({ dx: drag.dx, dy: drag.dy, scale: surface.scale });
+			// Where the drop would land, worked out the way the drop works it out (`travelled`), and only
+			// then turned back into window pixels, at the scale painted NOW, for the transform.
+			const moved = travelled(drag, drag.clientX, drag.clientY);
+			const screen = moved ? surface.percentToDelta?.(moved.left, moved.top) : null;
+			const { x, y } = dragTranslation({
+				dx: screen?.dx ?? drag.dx, dy: screen?.dy ?? drag.dy, scale: surface.scale,
+			});
 			// A transform, not left/top: it composites instead of re-laying out every node on the
 			// board on every frame of the drag.
 			writeTravel(drag.el, x, y);
@@ -323,7 +356,6 @@ export function wireRelmapDrag(root, {
 			// Deliberately in the SAME rAF as the transform: the two have to be painted in one
 			// frame or the line lags a frame behind its own portrait, which is the fault this is
 			// here to fix, only smaller.
-			const moved = surface.deltaToPercent?.(drag.dx, drag.dy);
 			if (moved) {
 				onDragMove?.(drag.id, {
 					x: drag.from.left + moved.left,
@@ -492,6 +524,8 @@ export function wireRelmapDrag(root, {
 			clientX: ev.clientX, clientY: ev.clientY,
 			dx: 0, dy: 0,
 			from: { left: spot.x, top: spot.y },
+			// Where on the BOARD the press landed, which is what the drop is measured from. See `travelled`.
+			grab: surface.pointToPercent?.({ clientX: ev.clientX, clientY: ev.clientY }) ?? null,
 			started: false,
 		};
 		// NO POINTER CAPTURE YET, and this is the whole reason the board's clicks work.
@@ -507,7 +541,8 @@ export function wireRelmapDrag(root, {
 		// not on the portrait, and the threshold is a few pixels inside a full-window viewport.
 		//
 		// A press stalling ARMED forever is not a leak either: `drag` is cleared by the pointerup,
-		// the pointercancel, or the teardown, whichever arrives.
+		// the pointercancel, the teardown, or the first move made with no button held, whichever
+		// arrives. That last one is the release that happened somewhere else; see pointermove.
 		swallowClick = false;
 	});
 
@@ -518,13 +553,20 @@ export function wireRelmapDrag(root, {
 		drag.clientX = ev.clientX;
 		drag.clientY = ev.clientY;
 		if (!drag.started) {
+			// ⚠ A PRESS WHOSE BUTTON IS NO LONGER DOWN WAS LET GO SOMEWHERE THIS BOARD NEVER HEARD. Nothing
+			// is captured while a press is merely armed (see pointerdown), so a release a pixel or two past
+			// the edge of the viewport went to whatever was there instead. Left armed, the next pass of
+			// the cursor over the board lifted the portrait with no button held and carried it about,
+			// every live update waited behind `is-dragging`, and the next click anywhere dropped it. A
+			// host that reports no `buttons` at all (the tests' fake events) compares false and carries on.
+			if (ev.buttons === 0) { end(); return; }
 			if (!isLiftedDrag(drag.dx, drag.dy)) return;
 			drag.started = true;
 			// NOW, and not at pointerdown: a fast drag has to keep being followed once the cursor
 			// leaves the window, and the pointerup has to arrive even if it happens out over the
 			// scene canvas. Taken only here, so an unmoved press keeps its own click (see above).
 			view.setPointerCapture?.(drag.pointerId);
-			beginCancellableDrag(() => end());
+			beginCancellableDrag(cancelDrag);
 			board.classList.add("is-dragging");
 			// The rubber band belongs to ONE of the three gestures. A caption being slid is marked
 			// the way a portrait being carried is -- on the element itself, for the stylesheet --
@@ -590,10 +632,10 @@ export function wireRelmapDrag(root, {
 		}
 
 		if (finished.kind === "node") {
-			// Straight from the SCREEN travel: `deltaToPercent` measures against the board's
-			// PAINTED size, so the scale is already in it. Dividing by the scale first as well
-			// would apply the correction twice and drop the portrait short.
-			const moved = surface.deltaToPercent(finished.dx, finished.dy);
+			// From the RELEASE position and the place on the board the press landed, as the preview is
+			// and for the reason `travelled` gives: the scale may no longer be the one it was pressed at.
+			const moved = travelled(finished, dropX, dropY);
+			if (!moved) return;
 			onMove?.(finished.id, {
 				x: finished.from.left + moved.left,
 				y: finished.from.top + moved.top,
@@ -773,7 +815,17 @@ export function wireRelmapDrag(root, {
 		if (!mine) return;
 		const step = ev.shiftKey ? NUDGE_FINE : NUDGE_STEP;
 		const move = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[ev.key];
-		if (ev.key !== "Delete" && !move) return;
+		if (ev.key !== "Delete" && !move) {
+			// ⚠ ENTER AND SPACE ARE KEPT FROM THE SCENE TOO, though this board does nothing with them.
+			// They are the face's, the handle's and the can's own keys -- a button activates on them,
+			// which is the keyboard's way to a sheet, a line and a removal -- and core has them as well:
+			// Space pauses the game for the whole table, and a button outside a form is not focus as far
+			// as core is concerned (the paragraph below). Stopped and NOT prevented, so the button under
+			// the key still activates. The steading sheet's panel sits inside that sheet's form and was
+			// safe already; the map's own window has no form at all.
+			if (ev.key === "Enter" || ev.key === " ") ev.stopPropagation();
+			return;
+		}
 
 		// ⚠ SWALLOWED FIRST, PERMISSION ASKED SECOND, and the order is the whole of it. Every
 		// `return` before this pair hands the key on to core's KeyboardManager, which binds keydown

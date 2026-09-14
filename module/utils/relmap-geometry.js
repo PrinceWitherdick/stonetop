@@ -869,10 +869,19 @@ export function edgeArrowheads(
 	const len = curve.length;
 	if (!(len > 0)) return [];
 	const reach = boardWidthPx > 0 ? (100 * headReach(headPx).tip) / boardWidthPx : 0;
-	const backoff = Math.min(reach, len * HEAD_BACKOFF_SHARE) / len;
+	// ⚠ STEPPED BACK ALONG THE CURVE, AND NOT ALONG ITS CHORD. A share of the straight run between the
+	// two ends, used as a place on the curve, is the right distance only on a straight line: on a bowed
+	// one the same share of the parameter is a longer stretch of line, so the head sat further back than
+	// its tip reaches and the point stopped a few pixels short of the face it was aimed at. Measured the
+	// way `curveWithGap` measures the room it leaves for the head, so the two agree about where it ends.
+	const arc = arcOf(curve, ratio);
+	const total = arc.total > 0 ? arc.total : len;
+	const stepBack = Math.min(reach, total * HEAD_BACKOFF_SHARE);
 
 	return ends.map(end => {
-		const t = end === "to" ? 1 - backoff : backoff;
+		const t = arc.total > 0
+			? arc.tAt(end === "to" ? total - stepBack : stepBack)
+			: (end === "to" ? 1 - stepBack / len : stepBack / len);
 		const point = at(a, b, c, t);
 		let alongX = quadSlope(a.left, b.left, c.left, t);
 		let alongY = quadSlope(a.top, b.top, c.top, t);
@@ -1514,9 +1523,18 @@ export function spreadLabels({
 			...entry,
 			size: captionSize(entry.text, entry.curve, { boardWidthPx, px: entry.px, basePx }),
 		}));
+	// ⚠ TIES BROKEN ON THE IDS' OWN CHARACTERS, never with `localeCompare`. Every client at the table has
+	// to seat the same captions at the same stops, and a locale-aware comparison is not one comparison:
+	// Turkish, Danish and Czech each order some pairs of plain letters differently, so two readers in two
+	// languages watched the same caption take a different place on the same board.
+	const byId = (a, b) => {
+		const x = String(a.id);
+		const y = String(b.id);
+		return x < y ? -1 : x > y ? 1 : 0;
+	};
 	const queue = measured
 		.filter(entry => !(Number(entry.seat) > 0))
-		.sort((a, b) => b.size.w - a.size.w || String(a.id).localeCompare(String(b.id)));
+		.sort((a, b) => b.size.w - a.size.w || byId(a, b));
 
 	const placed = [];
 	// THE READER'S OWN SEATS FIRST, and they are not candidates for anything: each is placed where
@@ -1524,7 +1542,7 @@ export function spreadLabels({
 	// ones asked to give way.
 	const seated = measured
 		.filter(entry => Number(entry.seat) > 0)
-		.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+		.sort(byId);
 	for (const entry of seated) {
 		// Seated on its own width, like every stop below and like the paint: which straight run a
 		// caption covers depends on how long the words are. See `edgeLabelAnchor`.

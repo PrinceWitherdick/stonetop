@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SEAT_FINE, SEAT_STEP, wireRelmapDrag } from "../../module/utils/relmap-drag.js";
-import { fakeSurface, pointerBoard } from "../fakes/pointer-board.js";
+import { SEAT_FINE, SEAT_STEP } from "../../module/utils/relmap-drag.js";
+import { fakeSurface, pointerBoard, wireBoard as wire } from "../fakes/pointer-board.js";
 
 // The LISTENER PLUMBING on a relationship map, as opposed to the arithmetic behind it, which
 // relmap-drag.test.js measures. Its own file because it needs a DOM stand-in and a set of globals
@@ -21,23 +21,6 @@ import { fakeSurface, pointerBoard } from "../fakes/pointer-board.js";
 // So the assertions are about WHEN the capture is taken, not about the retarget: no fake can
 // reproduce a browser quirk faithfully enough to be worth asserting against, but "not while merely
 // armed" is a rule the production code either keeps or does not.
-
-const wire = (board, over = {}) => {
-	const handlers = {
-		surface: fakeSurface(),
-		nodeAt: vi.fn(id => ({ x: 20, y: 30, id })),
-		onMove: vi.fn(), onNudge: vi.fn(), onDragMove: vi.fn(), onDragEnd: vi.fn(),
-		onLink: vi.fn(), onLinkFrom: vi.fn(), onOpen: vi.fn(), onPickEdge: vi.fn(),
-		onPickNone: vi.fn(), onRemove: vi.fn(), onArm: vi.fn(),
-		// The caption's own four, and the seat it is sitting at when a press arrives — which the
-		// window answers off the last paint, and which is what an abandoned slide goes back to.
-		seatAt: vi.fn(() => 0.5),
-		onSeatMove: vi.fn(), onSeat: vi.fn(), onSeatEnd: vi.fn(), onSeatNudge: vi.fn(),
-		canEdit: () => true,
-		...over,
-	};
-	return { handlers, teardown: wireRelmapDrag(board.root, handlers) };
-};
 
 /** A press, a travel and a release, followed by the click a real browser would derive from it. */
 function press(board, target, { to = null, pointerId = 1 } = {}) {
