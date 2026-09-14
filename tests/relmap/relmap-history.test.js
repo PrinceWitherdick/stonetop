@@ -421,6 +421,24 @@ describe("a burst that the reader means as one change", () => {
 		stack.record(moved());
 		expect(stack.depth).toBe(2);
 	});
+
+	// ⚠ A CHANGE AFTER AN UNDO IS A STEP OF ITS OWN. Caption a line, nudge somebody, undo the nudge,
+	// recolour the line inside the caption's breath: folded into the caption, one press would take back
+	// the caption and the colour together, where without the undo the nudge kept them two steps. And the
+	// nudge left on the redo stack would be a step the reader already took back.
+	it("never folds a change made after an undo into the step below it", () => {
+		const stack = history();
+		const caption = stack.record(typed("f"));
+		clock += 200;
+		stack.record({ ...describeWrite(graph(), nodePatch("elena", { x: 80 })), coalesce: "node:elena" });
+		stack.commitUndo();
+		expect(stack.canRedo).toBe(true);
+		clock += 200;
+		stack.record(typed("friends"));
+		expect(stack.depth).toBe(2);
+		expect(stack.peekUndo()).not.toBe(caption);
+		expect(stack.canRedo).toBe(false);
+	});
 });
 
 // One map is several named boards on several pages, and the reader flicks between them with the tab

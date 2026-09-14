@@ -131,7 +131,7 @@
 							      table and a hover bubble here would cover the rows under it. --}}
 							<a class="steading-member-open steading-member-name-text{{#if statusInactive}} is-inactive{{/if}}" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}"
 							   draggable="true" aria-label="Open {{name}}'s NPC sheet">{{name}}</a>
-							{{#if status}}<span class="stonetop-npc-status-badge stonetop-npc-status-badge--sm" data-status="{{status}}" data-tooltip="{{statusLabel}}">{{statusLabel}}</span>{{/if}}
+							{{#if status}}<span class="stonetop-npc-status-badge stonetop-npc-status-badge--sm" data-status="{{status}}" data-tooltip="{{statusLabel}}"><span class="stonetop-npc-status-badge-text">{{statusLabel}}</span></span>{{/if}}
 							{{else}}
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="name"
@@ -266,7 +266,7 @@
 							      table and a hover bubble here would cover the rows under it. --}}
 							<a class="steading-member-open steading-member-name-text{{#if statusInactive}} is-inactive{{/if}}" data-actor-uuid="{{uuid}}" data-actor-id="{{id}}"
 							   draggable="true" aria-label="Open {{name}}'s NPC sheet">{{name}}</a>
-							{{#if status}}<span class="stonetop-npc-status-badge stonetop-npc-status-badge--sm" data-status="{{status}}" data-tooltip="{{statusLabel}}">{{statusLabel}}</span>{{/if}}
+							{{#if status}}<span class="stonetop-npc-status-badge stonetop-npc-status-badge--sm" data-status="{{status}}" data-tooltip="{{statusLabel}}"><span class="stonetop-npc-status-badge-text">{{statusLabel}}</span></span>{{/if}}
 							{{else}}
 							<input type="text" class="steading-resident-input"
 							       data-index="{{@index}}" data-field="name" data-list="neighbors"

@@ -256,7 +256,7 @@ async function applyRaise(actor, name, l) {
  * lets the party read each other's sheets has several owners per PC, and a player running two
  * characters owns both.
  */
-function ownerUsers(actor) {
+export function ownerUsers(actor) {
 	const users = game.users?.contents ?? game.users ?? [];
 	return [...users]
 		.filter(u => actor?.testUserPermission?.(u, "OWNER"))

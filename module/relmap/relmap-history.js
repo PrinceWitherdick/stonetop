@@ -331,14 +331,19 @@ export class RelmapHistory {
 	 * @param {{forward: RelmapStep, back: RelmapStep, label?: string, coalesce?: string}} change
 	 *        `coalesce` is a key naming the GESTURE: a change carrying the same key as the one on
 	 *        top of the stack, within `RELMAP_COALESCE_MS` of it, folds into that one rather than
-	 *        becoming a step of its own. See that constant.
+	 *        becoming a step of its own, unless something has been undone since. See that constant.
 	 * @returns {object|null}  the entry now on top, or null when there was nothing to record.
 	 */
 	record({ forward, back, label = "", coalesce = "" } = {}) {
 		if (!forward || !back) return null;
 		const at = this._now();
 		const top = this._back[this._back.length - 1];
-		if (coalesce && top?.coalesce === coalesce && at - top.at < RELMAP_COALESCE_MS) {
+		// ⚠ NEVER INTO THE STEP BELOW AN UNDO. With something undone, the step on top is the one BELOW the
+		// step just taken back, and it can still be inside its breath: caption a line, nudge somebody, undo
+		// the nudge, recolour the line. Folded into the caption, the recolour would go back with it in one
+		// press, where without the undo in between the nudge kept them two steps. So a change made after an
+		// undo is always a step of its own, and recording it forgets what was undone, below.
+		if (coalesce && !this._forward.length && top?.coalesce === coalesce && at - top.at < RELMAP_COALESCE_MS) {
 			// ⚠ BOTH HALVES FOLD, IN OPPOSITE DIRECTIONS. One press has to get the reader back to
 			// before the burst started, so the back half keeps the EARLIEST value of every field —
 			// but a burst under one key is not one field, so the second write's back cannot simply

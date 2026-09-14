@@ -19,6 +19,7 @@
 // records instead is WHEN the capture was taken, which is the thing the code controls and the
 // thing that was wrong.
 import { vi } from "vitest";
+import { wireRelmapDrag } from "../../module/utils/relmap-drag.js";
 import { fakeClassList, matchesSelector } from "./dom.js";
 
 /**
@@ -221,14 +222,40 @@ export function pointerBoard({ nodes = ["n1", "n2"], edges = ["e1"] } = {}) {
  * board's PAINTED size, so the scale is already in it, and a fake that divided again would let a
  * double-correction in the production code pass here.
  */
-export function fakeSurface({ scale = 1, per = 10, caughtGlide = false } = {}) {
-	return {
+export function fakeSurface({ scale = 1, per = 10, off = 0, caughtGlide = false } = {}) {
+	// `per` and `off` are read off the surface at every call, so a test can change the scale and the
+	// pan mid-gesture, the way the wheel does.
+	const surface = {
 		scale,
+		per,
+		off,
 		// Whether the press now under way was made to CATCH a sliding board. The board's own
 		// gestures have to ask, because a press that meant only "stop" must not also perform one --
 		// see the right press in utils/relmap-drag.js.
 		caughtGlide,
-		deltaToPercent: vi.fn((dx, dy) => ({ left: dx / per, top: dy / per })),
-		pointToPercent: vi.fn(({ clientX, clientY }) => ({ left: clientX / per, top: clientY / per })),
 	};
+	return Object.assign(surface, {
+		deltaToPercent: vi.fn((dx, dy) => ({ left: dx / surface.per, top: dy / surface.per })),
+		pointToPercent: vi.fn(({ clientX, clientY }) => ({
+			left: (clientX - surface.off) / surface.per, top: clientY / surface.per,
+		})),
+	});
+}
+
+/** `wireRelmapDrag` on a pointer board, with every handler a spy unless `over` says otherwise. */
+export function wireBoard(board, over = {}) {
+	const handlers = {
+		surface: fakeSurface(),
+		nodeAt: vi.fn(id => ({ x: 20, y: 30, id })),
+		onMove: vi.fn(), onNudge: vi.fn(), onDragMove: vi.fn(), onDragEnd: vi.fn(),
+		onLink: vi.fn(), onLinkFrom: vi.fn(), onOpen: vi.fn(), onPickEdge: vi.fn(),
+		onPickNone: vi.fn(), onRemove: vi.fn(), onArm: vi.fn(),
+		// The caption's own four, and the seat it is sitting at when a press arrives — which the
+		// window answers off the last paint, and which is what an abandoned slide goes back to.
+		seatAt: vi.fn(() => 0.5),
+		onSeatMove: vi.fn(), onSeat: vi.fn(), onSeatEnd: vi.fn(), onSeatNudge: vi.fn(),
+		canEdit: () => true,
+		...over,
+	};
+	return { handlers, teardown: wireRelmapDrag(board.root, handlers) };
 }

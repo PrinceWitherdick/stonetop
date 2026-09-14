@@ -71,6 +71,7 @@ import {
 	RELMAP_INK_CUSTOM, RELMAP_INK_PRESETS, deepenInk, inkPaint, normalizeHex, resolveInkHex,
 } from "../relmap/relmap-ink.js";
 import { RELMAP_CAPTION_PX, curvePoints } from "./relmap-geometry.js";
+import { clipText, dropLastChar } from "./strings.js";
 
 /**
  * How long the caption field sits still before what is in it is written to the shared document.
@@ -469,6 +470,14 @@ export class RelmapTieBar {
 		 */
 		this._inkPending = "";
 		/**
+		 * ⚠ WHETHER THE READER ASKED FOR THE PICKER, with the `+`. The paint decides for itself whether a
+		 * line's colour wants the picker showing -- a colour nobody named does, one the palette offers
+		 * does not -- and a repaint asking it again mid-choice put away the picker a reader had just
+		 * opened on a named colour, focus and all, because somebody at the far end of the table moved a
+		 * portrait. Asked for, it stands until a colour is pressed or the palette it lives in goes.
+		 */
+		this._hexAsked = false;
+		/**
 		 * ⚠ WHETHER THIS BAR IS THE ONE WRITING TO THE PICKER RIGHT NOW.
 		 *
 		 * `HTMLColorPickerElement` dispatches `change` from its own `value` setter, so painting the
@@ -662,18 +671,16 @@ export class RelmapTieBar {
 		}
 		// A LETTER TYPED FROM ANYWHERE ON THE BAR GOES ON THE LINE. See `_typeInto`.
 		if (this._typeInto(ev)) return;
-		// Everything else the field takes is the field's own business, and none of it is the
-		// scene's. Only the arrows and Delete would otherwise reach the canvas, but a list of keys
-		// to stop is a list to keep in step with core; the field simply keeps what it is given.
-		if (ev.target === this.words) ev.stopPropagation();
-		// The picker's hex field is a text field like the caption, and its keys are its own.
-		else if (this.inkHex?.contains?.(ev.target)) ev.stopPropagation();
-		// ⚠ AND SO ARE THE SIZE FIELD'S, WHICH INCLUDES ITS UP AND DOWN. Those are how a number
-		// field is stepped, and they are also what `_groupKey` moves the focus with and what core
-		// pans the scene behind this window with. `_groupKey` has already let them past -- the
-		// field is not a press and carries no `data-relmap-tie` value -- so all that is left is to
-		// stop them here, or the reader nudging a size up would pan the map underneath it.
-		else if (ev.target === this.sizeNum) ev.stopPropagation();
+		// ⚠ AND EVERY OTHER KEY PRESSED ON THE BAR IS THE BAR'S, WHATEVER HAS THE FOCUS ON IT. The fields
+		// keep what they are given -- the caption's and the picker's own keys, and the size field's up and
+		// down, which are how a number is stepped -- and none of that is the scene's. Nor is a key pressed
+		// on one of the presses, and that is the half that used to leak: a button outside a form is not
+		// focus as far as core's KeyboardManager is concerned, so Delete on the trash, or on a swatch, went
+		// on to core's own binding and deleted whatever tokens the GM had selected on the scene -- with no
+		// confirmation, and the line still standing -- while the arrows on the triggers panned the scene
+		// behind the window. Stopped whole rather than key by key, because a list of keys to stop is a
+		// list to keep in step with core.
+		ev.stopPropagation();
 	}
 
 	/**
@@ -718,7 +725,8 @@ export class RelmapTieBar {
 		// assigned, so a sentence grown past it here would paint on the line and then be cut short
 		// by the store on the way to the document.
 		const cap = Number(field.maxLength) > 0 ? Number(field.maxLength) : Infinity;
-		field.value = back ? said.slice(0, -1) : `${said}${ev.key}`.slice(0, cap);
+		// A whole character either way, and never half of an emoji's pair (utils/strings.js).
+		field.value = back ? dropLastChar(said) : clipText(`${said}${ev.key}`, cap);
 		// The caret goes to the end, which is where the next letter belongs: this is the reader
 		// carrying on with a sentence, not returning to a spot in the middle of one.
 		const end = field.value.length;
@@ -794,10 +802,7 @@ export class RelmapTieBar {
 			// reader pressed one button. `close` flushes, so the pending write is dropped BEFORE it
 			// is called rather than left for it to find -- both of them: a colour chosen a moment
 			// ago is the same second change recorded against a line that is going away.
-			this._forgetWriting();
-			this._forgetInk();
-			this._forgetSize();
-			this.close();
+			this.discard();
 			this._onRub(id);
 			return;
 		}
@@ -859,6 +864,22 @@ export class RelmapTieBar {
 		this._box = null;
 		this.el.hidden = true;
 		this._onPicked("");
+	}
+
+	/**
+	 * Let go WITHOUT writing anything, for a line whose board has gone out from under the reader.
+	 *
+	 * ⚠ THE ONE WAY OFF A LINE THAT SAVES NOTHING, and it is not a second Escape. A board rubbed out
+	 * or hidden at the far end of the table takes this line with it, and every write this bar could
+	 * still make goes through the window's board handle, which by then answers for whichever board
+	 * survives, where this line's id names nothing. So what was held is thrown away first, which
+	 * leaves `close`'s own flush nothing to write.
+	 */
+	discard() {
+		this._forgetInk();
+		this._forgetSize();
+		this._forgetWriting();
+		this.close();
 	}
 
 	/** Let go and put the focus back where the reader came from. */
@@ -959,7 +980,10 @@ export class RelmapTieBar {
 			const key = button.dataset.relmapTieValue;
 			const words = said[key] ?? "";
 			if (words) {
-				button.setAttribute("data-tooltip", words);
+				// ⚠ AS TEXT, with the plain `data-tooltip` the render printed taken off. These are two
+				// people's names, which anybody at the table can type, and core draws `data-tooltip` as HTML.
+				button.setAttribute("data-tooltip-text", words);
+				button.removeAttribute?.("data-tooltip");
 				button.setAttribute("aria-label", words);
 			}
 			const glyph = icons[key];
@@ -1027,7 +1051,7 @@ export class RelmapTieBar {
 		// forty of them are a press away, that would mean the hex field springing open behind most
 		// picks and the palette growing a row taller for nothing. A colour the reader actually typed
 		// still comes back with the picker showing it, which is where they left it.
-		this._showPicker(!!hex && !this._isPreset(hex), hex);
+		this._showPicker(this._hexAsked || (!!hex && !this._isPreset(hex)), hex);
 	}
 
 	/**
@@ -1359,6 +1383,8 @@ export class RelmapTieBar {
 		for (const one of which ? [which] : TIE_POPS) {
 			const { open, pop } = this._popParts(one);
 			if (!pop) continue;
+			// The picker lives in the palette, so a palette put away takes the reader's ask with it.
+			if (one === "ink") this._hexAsked = false;
 			const was = !pop.hidden;
 			pop.hidden = true;
 			open?.setAttribute?.("aria-expanded", "false");
@@ -1376,6 +1402,7 @@ export class RelmapTieBar {
 	 */
 	_openHex() {
 		if (!this.id || !this._canEdit()) return;
+		this._hexAsked = true;
 		this._showPicker(true, this._currentHex());
 		this.inkHex?.focus?.();
 	}
@@ -1451,6 +1478,8 @@ export class RelmapTieBar {
 	 */
 	_pickInk(value) {
 		if (!this.id || !this._canEdit() || !value) return;
+		// A colour pressed is the answer, so the picker the `+` asked for is not wanted any more.
+		this._hexAsked = false;
 		this._markInk(value);
 		this._inkPending = value;
 		this._defer("ink");
@@ -1538,6 +1567,28 @@ export class RelmapTieBar {
 		this._markInk(hex);
 		this._inkPending = hex;
 		this._defer("ink");
+	}
+
+	/**
+	 * The caption this bar is floating over has been dragged along its own line: come with it.
+	 *
+	 * ⚠ NOT `refresh`, WHICH IS THE OTHER WAY THE BAR LEARNS A LINE HAS MOVED. That one is for a
+	 * REPAINT — it re-reads the tie, repaints every control on the bar, re-marks the stroke and
+	 * re-aims an open palette, all of which are right after the markup has been replaced and all of
+	 * which are far too much to do sixty times a second. A slide changes exactly one thing about
+	 * this bar: where it points. So this is the anchor and `place`, which is the same pair of steps
+	 * a pan of the whole board makes.
+	 *
+	 * ⚠ AND THE ANCHOR IS KEPT, not merely used. A pan that arrived after this would otherwise put
+	 * the bar back over the spot the caption has left.
+	 *
+	 * The id is checked because a slide is a gesture on one line and this bar may be holding
+	 * another: the reader can take hold of one line and then drag the words of a second.
+	 */
+	slideTo(id, at) {
+		if (!this.isOpen || !at || this.id !== id) return;
+		this._at = at;
+		this.place();
 	}
 
 	/**

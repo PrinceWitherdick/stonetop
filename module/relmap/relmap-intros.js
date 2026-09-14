@@ -27,7 +27,7 @@
 // matching names, whole word, and an answer that names nobody on this board simply draws no line.
 
 import { introQaPairs } from "../utils/chronicle-core.js";
-import { wholeWordPattern } from "../utils/strings.js";
+import { clipText, wholeWordPattern } from "../utils/strings.js";
 import { RELMAP_LABEL_MAX } from "./relmap-store.js";
 
 /**
@@ -348,7 +348,9 @@ export function introLine(prompt, answer, step, key = "") {
 function shorten(text) {
 	const said = String(text ?? "");
 	if (said.length <= RELMAP_LABEL_MAX) return said;
-	const room = said.slice(0, RELMAP_LABEL_MAX - 1);
+	// Never half of an emoji's pair, on the one cut here that is not made at a space: a single very long
+	// word, or an answer with no space in its first sixty units, is cut flat (utils/strings.js).
+	const room = clipText(said, RELMAP_LABEL_MAX - 1);
 	const space = room.lastIndexOf(" ");
 	// Only back to a word if that leaves a caption worth reading. A single very long word would
 	// otherwise be cut back to nothing at all.

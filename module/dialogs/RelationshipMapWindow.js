@@ -17,7 +17,7 @@
 
 import { StonetopDialog } from "../utils/stonetop-dialog.js";
 import { themedDialogClasses } from "../utils/window-theme.js";
-import { escHtml } from "../utils/strings.js";
+import { clipText, escHtml } from "../utils/strings.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
 import { openingSize } from "../utils/opening-size.js";
 import { getDragEventData, renderTemplate } from "../utils/foundry-compat.js";
@@ -29,17 +29,18 @@ import { ZoomPanSurface } from "../utils/zoom-pan-surface.js";
 import { wireRelmapDrag } from "../utils/relmap-drag.js";
 import {
 	RELMAP_BOARD_ASPECT, RELMAP_BOARD_WIDTH, RELMAP_CAPTION_FLOOR_PX, RELMAP_CAPTION_PX,
+	RELMAP_HEAD_PX,
 	ROUTE_HEAD_PATH, ROUTE_HEAD_VIEWBOX,
 	boardMetrics,
 	captionRoomPx, captionSize, clampPct, clearanceBow, curveWithGap, edgeArrowheads, edgeBow,
-	edgeCurve, edgeLabelAnchor, freeSpot, spreadLabels,
+	edgeCurve, edgeLabelAnchor, freeSpot, seatAlong, spreadLabels,
 } from "../utils/relmap-geometry.js";
 import {
 	RELMAP_DASHES, RELMAP_DASH_DEFAULT, RELMAP_DIRS, RELMAP_FLAG, RELMAP_INKS, RELMAP_LABEL_MAX,
-	RELMAP_SIZES, RELMAP_SIZE_MAX, RELMAP_SIZE_MIN,
+	RELMAP_SEAT_MIN, RELMAP_SIZES, RELMAP_SIZE_MAX, RELMAP_SIZE_MIN,
 	addEdgePatch,
 	addNodePatch, addNodesPatch, dropEdgePatch, dropNodePatch, edgePatch, fanIndexes,
-	nodePatch, seatArrivals, takenSpots,
+	nodePatch, readSeat, seatArrivals, takenSpots,
 } from "../relmap/relmap-store.js";
 import { RELMAP_INK_ACROSS, RELMAP_INK_PRESETS, inkPaint, normalizeHex }
 	from "../relmap/relmap-ink.js";
@@ -47,16 +48,18 @@ import { rememberBoard } from "../relmap/relmap-last.js";
 import { penFor, rememberPen } from "../relmap/relmap-pen.js";
 import { getLastSize, rememberSize } from "../relmap/relmap-size.js";
 import {
+	RELMAP_WEIGHTS, RELMAP_WEIGHT_BASE, RELMAP_WEIGHT_MAX, RELMAP_WEIGHT_MIN, RELMAP_WEIGHT_STEP,
+	getWeights, setWeights, weightScales,
+} from "../relmap/relmap-weights.js";
+import {
 	describeWrite, forgetHistory, historyFor, stepPatch,
 } from "../relmap/relmap-history.js";
 import { RelmapTieBar, TIE_DIR_ICONS } from "../utils/relmap-tie-bar.js";
 import { hasOwnRingArt, partyCharacters } from "../utils/playbook-actors.js";
 import {
-	applyPatch, canDeleteRelationshipMap, canEditRelationshipMap, canHideMapPages, createMapPage,
-	deleteMapPage, deleteRelationshipMap,
-	ensureFirstMapPage, getMapPage, isMapPageHidden, listMapPages, listVisibleMapPages, mapBoardDoc,
-	mapPageName, readGraph, relationshipMapName, renameMapPage, renameRelationshipMap,
-	setMapPageHidden, syncPartyPage, syncVillagePage,
+	applyPatch, canEditRelationshipMap, canHideMapPages, createMapPage, deleteMapPage,
+	ensureFirstMapPage, getMapPage, isMapPageHidden, mapPageName, moveMapPage, readGraph, renameMapPage,
+	resolveMapBoard, setMapPageHidden, syncPartyPage, syncVillagePage,
 } from "../relmap/relmap-doc.js";
 import { steadingListActors } from "../actors/steading/steading-people.js";
 import { getStonetopSteadingActor } from "../utils/world.js";
@@ -171,6 +174,30 @@ const BOARD_CONTROLS =
 const BOARD_MENUS = ".stonetop-relmap-tiebar";
 
 /**
+ * ONE GLYPH APIECE FOR THE CORNER OVER THE BOARD, and each is a picture of the thing it resizes
+ * rather than of the act of resizing it: a solid triangle, a plain rule, a letter.
+ *
+ * ⚠ SIMPLE SHAPES ON PURPOSE. These are painted at about fourteen pixels in a strip that fades
+ * under the pointer, and a busy glyph at that size reads as a smudge -- which is the one thing the
+ * corner exists to fix. Each of the three has to be recognisable at a glance and, more to the
+ * point, apart from the other two.
+ *
+ * Here rather than in `languages/en.json` for the reason every other icon in this window is: an
+ * icon is not a translation.
+ */
+const WEIGHT_ICONS = Object.freeze({
+	head: "fas fa-play",
+	// ⚠ A DIAGONAL AND NOT A RULE, which was the first answer and was wrong for a reason no
+	// amount of staring at the code would have shown: the button immediately to its right is the
+	// one that makes this weight SMALLER, and it wears a minus. A horizontal rule beside a minus
+	// sign is the same shape twice, a few pixels apart, in a strip the size of a postage stamp. A
+	// slash is unmistakably not an operator, and it is also what a line on this board actually
+	// looks like -- the strokes run corner to corner between faces, never flat.
+	line: "fas fa-slash",
+	word: "fas fa-font",
+});
+
+/**
  * WHAT EACH BUTTON ON THE BAR DOES, AND WHETHER IT IS AN EDIT.
  *
  * A TABLE RATHER THAN A CHAIN, because the permission gate used to be POSITIONAL: a tool was gated
@@ -193,6 +220,12 @@ const TOOLS = Object.freeze({
 	// sheet's tab -- a window offering to open itself would be a button that flashes and does
 	// nothing.
 	popout: { needsEdit: false, run: app => app._popOut() },
+	// ⚠ AND THE THIRD THING THAT IS NOT AN EDIT, which is the three dials on the footer: how heavily
+	// the arrowheads, the strokes and the writing are drawn FOR THIS READER. It writes to their own
+	// browser and to nothing else -- no document, no other window, nothing anybody else sees -- and
+	// the person who needs it most is once again the one who may only look, because they cannot
+	// move a portrait to get a better view of anything. See relmap/relmap-weights.js.
+	weight: { needsEdit: false, run: (app, button) => app._stepWeight(button) },
 	// ⚠ NO "BRING THE PARTY IN" AND NO "BRING THE VILLAGE IN". Both boards still fill themselves on
 	// open; what is gone is the pair of buttons that asked for the same pass out loud. They were two
 	// controls for something the map already has two plainer answers to -- drag somebody on, or press
@@ -219,7 +252,9 @@ const TOOLS = Object.freeze({
 	// was gated on purpose. Switching between pages is NOT here, because it is not a tool and not an
 	// edit: it is the strip's own value, and a reader who may only look still gets to look at every
 	// page they are allowed to (see `showPage`).
-	pagenew: { needsEdit: true, run: app => app._addPage() },
+	// ⚠ THE PLUS IS GATED ON THE COLLECTION AND NOT ON THE BOARD. A collection whose maps have all been
+	// rubbed out has no board to edit, and the plus is the one way back into it. See `canAddMap`.
+	pagenew: { needsEdit: false, needsAddMap: true, run: app => app._addPage() },
 	// ⚠ `needsEdit` IS NOT THE GATE THAT MATTERS HERE, and it is written all the same. Who may hide
 	// a board is a narrower question than who may edit one — only a GM, because core's own sanitizer
 	// refuses an ownership change from anybody else — and `_hidePage` asks it. This entry keeps the
@@ -241,11 +276,25 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// sidebar wants; the sidebar's own page rows, and a window restored across a reload, both
 		// arrive carrying one.
 		this._pageId = options.pageId ?? null;
-		// Set once the first render has made sure this map HAS a page. See `_ensurePage`.
+		// Set once the first render has carried a version 1 board onto a page, where there was one, and
+		// given the party and the village their boards. See `_ensurePage`.
 		this._pagesReady = false;
+		// Which of `resolveMapBoard`'s four shapes the last render drew, so a page arriving can tell a
+		// collection gaining its first map from one gaining another. Written by `getData`.
+		this._boardKind = null;
+		// And whether it drew that board as this reader's to edit, for the ownership hook. Written by
+		// `getData`; see `_wireSync`.
+		this._drewEditable = false;
 		// The strip as it was last written, so a repaint can tell a set of pages that has changed
 		// from one that has not and leave the reader's focus alone when it has not.
 		this._pagesSaid = null;
+		// The board whose tab is in the reader's hand, while one is. Empty at every other moment,
+		// which is also how the strip's drag handlers tell a tab being moved from an actor being
+		// dragged across the row on its way to the board. See `_onPageDragStart`.
+		this._dragPage = "";
+		// And where that tab would land if it were let go now, as `<page id>:before|after`, so the
+		// drop mark is only rewritten when it would say something different. See `_onPageDragOver`.
+		this._dragOver = "";
 		this._surface = null;
 		this._teardownDrag = null;
 		/**
@@ -276,6 +325,9 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// in the way once it is out of the way.
 		this._pendingSync = false;
 		this._root = null;
+		// Whether the reader's last press on the page landed in this window, which is what stands
+		// in for focus when Ctrl+Z arrives; see `_wireHistoryKeys`.
+		this._pointerWithin = false;
 		// The board inside `_root`, remembered by `_boardEl()`, and the root it was found in.
 		this._board = null;
 		this._boardRoot = null;
@@ -302,6 +354,13 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// who moves one face and tabs to the next inside it has two portraits waiting on the same
 		// write, and a single slot would keep whichever was touched last. See `_writeNudge`.
 		this._pendingNudge = new Map();
+		// Nudges written and not yet back from the server, by portrait. See `_writeNudge`.
+		this._landingNudge = new Map();
+		// AND THE SAME FOR A CAPTION SLID ALONG ITS LINE BY THE ARROW KEYS, keyed by the link rather
+		// than by the person. Its own map and not a second kind of entry in the one above, because
+		// the two write different patches to different halves of the graph -- and one map holding
+		// both would be one place to ask "is this a node or a line?" on every flush for ever.
+		this._pendingSeat = new Map();
 		// A LINE DRAWN A MOMENT AGO, WAITING FOR THE BOARD TO CATCH UP. The bar is placed from the
 		// last PAINT (`_drawn`), and a line drawn this instant is in the document but not yet in
 		// any paint -- so it cannot be taken hold of until the repaint the write set off arrives.
@@ -314,6 +373,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// Set while a re-measure is waiting on a webfont that had not arrived; see the same.
 		this._awaitingFonts = false;
 		this._commitNudge = foundry.utils.debounce(() => this._writeNudge(), NUDGE_COMMIT_MS);
+		this._commitSeat = foundry.utils.debounce(() => this._writeSeats(), NUDGE_COMMIT_MS);
 	}
 
 	static get defaultOptions() {
@@ -343,38 +403,19 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * from here; the two places that must reason about boards a reader cannot see say so out loud
 	 * and reach for `listMapPages` themselves. */
 	get mapPages() {
-		return listVisibleMapPages(this.entry);
+		return this._boardState.pages;
 	}
 
-	/** The page this reader is on, or the first one. Null on a map still carrying its board on the
-	 * entry, which `boardDoc` below is what answers for, and null again for a player on a map whose
-	 * every board is still the GM's own, which `noBoardForMe` is what tells the two apart.
+	/** The page this reader is on, or the first one. Null where `boardDoc` below resolves to the entry
+	 * (a map still carrying its board there) or to nothing (a player on a collection whose every map is
+	 * still the GM's own, or a collection with no maps in it); `_boardState.kind` tells those apart.
 	 *
-	 * ONE WALK OF THE STRIP, the same economy `mapBoardDoc` keeps: asking `getMapPage` and then
-	 * falling back to `this.mapPages` filtered and sorted the same pages twice per call, and this is
-	 * a getter the render pass reaches several times over. */
+	 * ⚠ OUT OF `resolveMapBoard`, AND NOT A SECOND COPY OF ITS RULE. Which page a reader is on decides
+	 * what is written (`boardDoc`), which tab is lit, which board a change repaints and which page the
+	 * strip's tools act on. Answered by two copies of "this id, or else the first", a change to either
+	 * would have lit one board and written to another. */
 	get mapPage() {
-		const pages = this.mapPages;
-		return pages.find(page => page.id === this._pageId) ?? pages[0] ?? null;
-	}
-
-	/**
-	 * THIS MAP HAS BOARDS AND NONE OF THEM IS THIS READER'S TO SEE.
-	 *
-	 * The state a player is in on a map whose every board the GM has kept back, and it has to be
-	 * told apart from the other way `mapPage` comes back null — a map still on version 1, whose one
-	 * board is on the entry and is perfectly editable. Both leave `boardDoc` resolving to the ENTRY,
-	 * and on a converted map the entry's graph is empty by design, so without this the reader would
-	 * be offered an empty board with an "add somebody" button on it, and every person they added
-	 * would be written into the entry's dead flag where nobody, themselves included, would ever see
-	 * them again.
-	 *
-	 * ⚠ `mapPage` FIRST, so the ordinary case costs one walk and stops. The second walk only happens
-	 * for a reader who has no board at all, which is the two rare shapes above and never a GM.
-	 */
-	get noBoardForMe() {
-		if (this.mapPage) return false;
-		return listMapPages(this.entry).length > 0;
+		return this._boardState.page;
 	}
 
 	/**
@@ -386,9 +427,28 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * downstream branches. `this.entry` is now only for the three questions that are genuinely
 	 * about the MAP rather than about the board: its name, who may edit it, and which document
 	 * window-restore reopens.
+	 *
+	 * ⚠ AND NULL WHERE THERE IS NO BOARD: a collection with no maps in it, or one whose every map is
+	 * hidden from this reader. Every read of null is an empty graph and every write to it is refused
+	 * (`_write`), which is the whole of what the window should do with a board that is not there. It
+	 * used to be the entry, and a nudge flushed after the last map went was written into the
+	 * collection's own flag -- which then opened as a version 1 map with a nameless face on it.
 	 */
 	get boardDoc() {
-		return mapBoardDoc(this.entry, this._pageId);
+		return this._boardState.doc;
+	}
+
+	/**
+	 * WHAT IS UNDER THIS READER, resolved in one walk of the strip: the maps they may look at, the one
+	 * they are on, the document it is read from and written to, and which of the four shapes that is.
+	 * See `resolveMapBoard`, which is the one place those shapes are told apart.
+	 *
+	 * ASKED, NEVER HELD, like everything else about pages here: somebody at the far end of the table
+	 * adds, deletes and hides maps under an open window. A pass that needs several answers resolves
+	 * it once and hands it round, which is what `getData` and `_chrome` do.
+	 */
+	get _boardState() {
+		return resolveMapBoard(this.entry, this._pageId);
 	}
 
 	/**
@@ -435,19 +495,68 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * the server throws away.
 	 *
 	 * ⚠ AND A READER WITH NO BOARD AT ALL MAY NOT EDIT ONE. A player on a map whose every board is
-	 * still the GM's own owns the entry, and `boardDoc` for them falls back to that entry: they
-	 * would have every tool enabled over a flag that is drawn nowhere. The fallthrough is told from
-	 * the other document that reaches it -- a map still on version 1, whose board really is on the
-	 * entry and really is editable -- by whether the map has any pages at all.
+	 * still the GM's own owns the entry, and so does everybody on a collection whose maps have all been
+	 * rubbed out; on both, the entry's flag is only the mark, and every tool enabled over it would
+	 * write into a flag drawn nowhere. `boardDoc` is null for both, so there is nothing here to say yes
+	 * about. The one board with no page behind it that IS editable is a version 1 map's, whose board
+	 * really is on the entry and resolves to it.
 	 *
-	 * ONE WALK OF THE STRIP in the ordinary case, which matters: this is asked several times per
-	 * render, again on every repaint, and again on every gesture. The second walk is only paid by a
-	 * reader who has no board, which is the two rare shapes above and never a GM.
+	 * ONE WALK OF THE STRIP, which matters: this is asked several times per render, again on every
+	 * repaint, and again on every gesture. A pass that needs it alongside other answers resolves the
+	 * board once and asks `_mayEdit`.
 	 */
 	get canEdit() {
-		const page = this.mapPage;
-		if (page) return canEditRelationshipMap(page);
-		return !listMapPages(this.entry).length && canEditRelationshipMap(this.entry);
+		return this._mayEdit(this._boardState);
+	}
+
+	/** `canEdit`, for a board a pass has already resolved. */
+	_mayEdit({ doc }) {
+		return !!doc && canEditRelationshipMap(doc);
+	}
+
+	/**
+	 * MAY THIS READER ADD A MAP HERE? Whoever may edit the board in front of them, and on a collection
+	 * with no maps in it at all, whoever may edit the collection: the plus is the only way in.
+	 *
+	 * ⚠ THE BOARD'S OWNERSHIP AND NOT THE COLLECTION'S, ON PURPOSE (the user's call). The public module
+	 * offers the plus to whoever owns the collection, which in a Stonetop world is every player, even
+	 * while every map in it is still the GM's own. Here a player with nothing shown to them waits for
+	 * the GM, which is what the panel over that board tells them (`stonetop.relmap.unsharedHint`).
+	 * Deleting and reordering maps are a different question: see `_mayArrangeMaps`.
+	 */
+	get canAddMap() {
+		return this._mayAddMap(this._boardState);
+	}
+
+	/** `canAddMap`, for a board a pass has already resolved. */
+	_mayAddMap(board) {
+		if (board.kind === "none") return canEditRelationshipMap(this.entry);
+		return this._mayEdit(board);
+	}
+
+	/**
+	 * MAY THIS READER PUT THE MAPS IN ORDER, AND RUB ONE OUT?
+	 *
+	 * ⚠ THE COLLECTION'S OWNERSHIP, AND NOT THE MAP'S, because that is what the document layer asks: a
+	 * map is deleted and put in order through its parent (relmap/relmap-doc.js `deleteMapPage` and
+	 * `moveMapPage` both ask the entry). Offered off the board in front of the reader alone, a player
+	 * holding a map of their own in a collection the GM had since locked saw the trash, confirmed, and
+	 * lost that map's undo history to a delete that was then refused. Both tools ask `canEdit` as well,
+	 * so a board this reader may only look at is never one they are handed the trash for.
+	 */
+	_mayArrangeMaps() {
+		return canEditRelationshipMap(this.entry);
+	}
+
+	/** Picking a tab up and rubbing a map out: an edit to this board AND arranging the collection's maps,
+	 * for a board a pass has already resolved. See `_mayArrangeMaps`. */
+	_mayArrange(board) {
+		return this._mayEdit(board) && this._mayArrangeMaps();
+	}
+
+	/** Whether the strip of tabs is shown at all, for a board a pass has already resolved. See `getData`. */
+	_showsPages(board) {
+		return this._mayAddMap(board) || board.pages.length > 1;
 	}
 
 	/** May this reader hide a board from the players, and show it again? Only a GM, and asked afresh
@@ -466,12 +575,12 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// filters the entry's whole page collection and sorts it again. Read here, they are also
 		// guaranteed to agree with each other — a page deleted at the far end of the table halfway
 		// down this function cannot leave the strip saying one thing and the panel another.
-		const pages = this.mapPages;
-		const page = this.mapPage;
+		const board = this._boardState;
+		const { pages, page } = board;
 		// THE CHROME IS DERIVED ONCE AND SPREAD, rather than spread straight into the return: the
 		// same answers are written again by `_paintChrome` after every repaint, and one derivation
 		// with two writers is what keeps the two from drifting apart.
-		const chrome = this._chrome(plan);
+		const chrome = this._chrome(plan, board);
 		// ⚠ PINNED TO A CONCRETE PAGE, on every render, and this is load-bearing rather than tidy.
 		// Null means "whichever board comes first", which is what a map opened from the sidebar
 		// starts as — and left null, the delete hook cannot tell "the page this reader was standing
@@ -479,7 +588,18 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// the page is gone and `mapPage` has already fallen through to another one. The reader would
 		// be left looking at a board that no longer exists, with every write vanishing. Resolved
 		// through `mapPage`, so it also heals an id that has gone stale.
+		//
+		// ⚠ AND ANYTHING HALF-WRITTEN ON THE BOARD IT WAS PINNED TO GOES, where this pass has landed on a
+		// different one without `_leaveBoard` being asked first. Every path that MOVES the reader asks it;
+		// this is the render that was not asked for a move and got one anyway -- the entry's ownership
+		// lowered, say, so a player can no longer see the page they were typing on. Left alone, the tie
+		// bar's flush in `activateListeners` and the nudge's own debounce wrote what was meant for that
+		// board onto this one, where its ids name nobody: a caption on no line, a nameless portrait.
+		if (this._pageId && page?.id !== this._pageId) this._dropUnwritten();
 		this._pageId = page?.id ?? null;
+		// AND WHICH OF THE FOUR SHAPES THAT WAS, for the page hooks to tell a collection gaining its
+		// first map from one gaining another. See `onPageChange` in `_wireSync`.
+		this._boardKind = board.kind;
 		// AND REMEMBERED FOR THE NEXT OPEN, so the hotbar macro lands back here rather than asking
 		// which map. Per client and skipped when nothing moved, so this stays true to what `showPage`
 		// promises a page later: which board somebody is on is theirs, and writes nothing shared.
@@ -488,28 +608,57 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// set of pages is exactly the thing somebody at the far end of the table changes while this
 		// reader is looking at it, and a repaint has to be able to tell a strip that has changed
 		// from one that has not. See `_paintPages`.
-		const pageTabs = this._pageTabs(pages, this._pageId ?? "");
+		// Asked once for the whole pass, of the board resolved above, rather than by each answer below --
+		// the strip's own markup included -- walking the strip again for itself.
+		const canEdit = this._mayEdit(board);
+		const canAddMap = this._mayAddMap(board);
+		const arrange = this._mayArrange(board);
+		const showPages = this._showsPages(board);
+		const pageTabs = this._pageTabs(pages, this._pageId ?? "", {
+			canOrder: arrange, legacy: board.kind === "legacy",
+		});
 		this._pagesSaid = pageTabs;
+		// AND REMEMBERED, for the ownership hook: a board that stops being this reader's to edit wants a
+		// different bar and footer, which only a render can draw. See `_wireSync`.
+		this._drewEditable = canEdit;
 		return {
 			// NO `title` HERE. The bar used to open with the map's name, which the window's own
 			// title bar was already saying an inch above it; the name the template still needs is
 			// the PAGE's, and that is written into the tab strip below.
-			canEdit: this.canEdit,
+			canEdit,
+			// THE PLUS, which on a collection with no maps in it is offered without the other tools.
+			canAddMap,
 			// WHICH BOARD OF THIS MAP IS UP, as a strip of named tabs under the bar.
 			//
 			// SHOWN TO A READER WHO MAY ONLY LOOK ONLY WHEN THERE IS SOMETHING TO CHOOSE BETWEEN. A
 			// single tab over a board, with no way to add a second, is a row of chrome that answers
 			// a question nobody asked; but the moment a map has two boards, knowing which one you
 			// are on is the most important thing on the window, whether or not you may write to it.
-			showPages: this.canEdit || pages.length > 1,
+			showPages,
 			// ⚠ DROPPED IN WHOLE, like the board and the person chooser, and NOT written out here
 			// as an `{{#each}}`. Pages are made, renamed and deleted under an open window, and the
 			// repaint that keeps up with that can only reach the DOM. One builder, two writers.
 			pageTabs,
+			// ⚠ AND WHETHER THERE ARE ANY TABS TO BE A TAB LIST OF. A collection whose maps have all been
+			// rubbed out gets the plus and no tab, and an empty `tablist` over a `tabpanel` labelled by a
+			// tab that does not exist is announced as though something were there. Settled by a render: a
+			// collection gaining its first map, or losing its last, renders whole (see `onPageChange`).
+			hasPageTabs: showPages && !!pageTabs,
 			// Which tab the board below is the panel FOR. Written again by `_paintPages`, because
 			// the reader can be moved off a page that has just been deleted elsewhere.
 			pagePanelId: this._pageTabId(this._pageId ?? ""),
 			pagesLabel: localize("stonetop.relmap.pages.label"),
+			// ⚠ HOW TO PUT THE BOARDS IN AN ORDER, SAID ONLY TO THE READERS WHO CANNOT SEE IT. A tab
+			// that can be dragged says so to a pointer by the hand it puts under it, and there is
+			// nothing to say to anybody else at all: the keyboard's way in (Ctrl and an arrow) is a
+			// gesture no tab looks like it has. So it is a sentence on the strip itself, read out
+			// when the reader arrives there and silent to everybody else. It hangs off `canEdit`
+			// alone, and not off there being two boards to order, because that is the one of the two
+			// that always arrives as a full render (see the ownership branch of the entry's hook) --
+			// a count that changed under a repaint would leave the sentence behind, saying the wrong
+			// thing to exactly the reader who cannot check.
+			pageOrderHint: canEdit ? localize("stonetop.relmap.pages.orderHint") : "",
+			pageOrderHintId: this._pageOrderHintId(),
 			// ⚠ THE HINTS ARE THE LABELS. The three page tools are bare glyphs, and each one's
 			// hint is both its tooltip and its `aria-label` -- there is no second, shorter string
 			// on the button for it to compete with. (`pages.new` is still localized elsewhere: it
@@ -523,15 +672,14 @@ export class RelationshipMapWindow extends StonetopDialog {
 			// separately would be two spellings of one question with the wrong one right until the
 			// next full render. See `_seenTool`.
 			...this._seenTool(page),
-			// ⚠ THE LAST BOARD MAY NOT BE RUBBED OUT, and the button is absent rather than disabled
-			// on a one-page map. A map with no pages is one whose next opener silently gives it a
-			// fresh empty board, so the delete would read as the map emptying itself.
-			canDropPage: this.canEdit && pages.length > 1,
+			// THE LAST MAP MAY BE RUBBED OUT TOO: a collection with no maps in it is an ordinary state
+			// (`resolveMapBoard`'s "none"), and nothing refills it on the next open. The collection itself stays.
+			canDropPage: arrange && pages.length > 0,
 			// ⚠ NO `showMatchIntros`, `matchIntrosLabel` OR `matchIntrosHint`. The three of them
 			// dressed one GM-only button on the party's board, and the button is gone. Named here
 			// so a key resurrected by accident is recognised as a resurrection rather than as a
 			// key the template happens not to use yet.
-			board: await this._renderBoard(plan),
+			board: await this._renderBoard(plan, canEdit),
 			addLabel: localize("stonetop.relmap.add"),
 			addHint: localize("stonetop.relmap.addHint"),
 			// ⚠ THE VISIBLE NAMES ONLY. What each of these two can actually do, and what it would
@@ -635,10 +783,81 @@ export class RelationshipMapWindow extends StonetopDialog {
 			},
 			labelsLabel: localize("stonetop.relmap.hideLabels"),
 			labelsHint: localize("stonetop.relmap.hideLabelsHint"),
+			// ── The three dials on the footer ──────────────────────────────────────────
+			// HOW HEAVILY THIS READER WANTS IT DRAWN, in three dials. See `_weightDials`, and
+			// relmap/relmap-weights.js for why this is the reader's own and not the map's.
+			weightGroup: localize("stonetop.relmap.weightGroup"),
+			weights: this._weightDials(),
+			// ⚠ AND THE SAME THREE NUMBERS AS PROPERTIES ON THE ROOT, printed by the template
+			// rather than written by `_paintWeights` after the fact. `activateListeners` measures
+			// the captions the moment this markup lands (`_fitGapsToPaint` reads a real caption's
+			// computed size off the document), so a weight that arrived a tick later would leave
+			// the whole board cut and gapped for writing of another size until the next repaint.
+			weightStyle: this._weightStyle(),
 			// EVERY PANEL THAT CAN GO OUT OF DATE UNDER AN OPEN WINDOW, from the one derivation
 			// `_paintChrome` writes back after a repaint. See `_chrome`.
 			...chrome,
 		};
+	}
+
+	/**
+	 * The three dials on the footer are built from these.
+	 *
+	 * ONE BUILDER, because there are two writers: this, for the markup a render lays down, and
+	 * `_paintWeights`, for the same three readouts after a press. They agree about the words by both
+	 * asking `stonetop.relmap.weights.<key>.name` and about the numbers by both asking `getWeights`.
+	 *
+	 * THE ORDER IS `RELMAP_WEIGHTS`' OWN, which runs from the smallest mark on the board to the
+	 * largest -- a speck at the end of one line, a hair the length of the board, then words. See
+	 * there; it is the order a reader who has just found they cannot see something reaches in.
+	 */
+	_weightDials(weights = getWeights()) {
+		return RELMAP_WEIGHTS.map(key => {
+			const pct = weights[key];
+			const name = localize(`stonetop.relmap.weights.${key}.name`);
+			return {
+				key,
+				pct,
+				name,
+				icon: WEIGHT_ICONS[key],
+				// ⚠ ONE HINT PER DIAL AND A NAME PER BUTTON. Three tooltips each explaining that
+				// this is the reader's own and touches nobody else's board would be the same
+				// paragraph three times over on one line of a footer; what each dial needs to say
+				// for itself is which of the three it is.
+				hint: localize(`stonetop.relmap.weights.${key}.hint`),
+				up: format("stonetop.relmap.weightUp", { name }),
+				down: format("stonetop.relmap.weightDown", { name }),
+				// THE READOUT IS THE WAY BACK, and it says so rather than being a number that
+				// mysteriously responds to a click. Dead at the base, where there is nowhere to go.
+				reset: format("stonetop.relmap.weightReset", { name, pct: RELMAP_WEIGHT_BASE }),
+				now: format("stonetop.relmap.weightNow", { name, pct }),
+				atBase: pct === RELMAP_WEIGHT_BASE,
+				atMax: pct === RELMAP_WEIGHT_MAX,
+				atMin: pct === RELMAP_WEIGHT_MIN,
+			};
+		});
+	}
+
+	/**
+	 * The same three as an inline `style` for the board's root: one custom property apiece, as a
+	 * MULTIPLIER rather than a percentage, which is what every `calc()` in the stylesheet wants.
+	 *
+	 * Every value here is arithmetic on a number `readWeight` has already held to its bounds, so
+	 * there is nothing in it a template could need to escape.
+	 */
+	_weightStyle(weights = getWeights()) {
+		const scales = weightScales(weights);
+		return [
+			// ⚠ THE ARROWHEAD'S BASE SIZE TRAVELS WITH THEM, and not as a convenience. The sheet
+			// sizes a head and this file stands it off its rim, and both were spelling the same
+			// number -- 22 -- in two languages, with a stylesheet comment asking whoever changed
+			// one to remember the other. A head sized by one number and positioned by another
+			// lands short of its line or out past the face it points at. So the JS constant is
+			// the source and the sheet reads it; the `22px` still in the stylesheet is only the
+			// fallback for a board rendered before this property lands.
+			`--relmap-head-px:${RELMAP_HEAD_PX}px`,
+			...RELMAP_WEIGHTS.map(key => `--relmap-${key}-scale:${scales[key]}`),
+		].join(";");
 	}
 
 	/**
@@ -667,6 +886,14 @@ export class RelationshipMapWindow extends StonetopDialog {
 			// THE SHEET GROWS WITH THE CAST, so a portrait's radius is not a constant: it is
 			// smaller, as a share of the board, on a board carrying more people.
 			board: boardMetrics(Object.keys(whole.nodes).length),
+			// ⚠ HOW HEAVILY THIS READER WANTS THE BOARD DRAWN, and it belongs in the plan for
+			// exactly the reason everything else here does: the stylesheet paints the strokes, the
+			// heads and the writing at these weights, and the arithmetic has to arrive at the same
+			// numbers, or a head sits off the end of its line and a caption floats in a hole cut
+			// for words of another size. Read fresh each pass rather than held, like the graph
+			// beside it: the reader can change it between two paints, and the press that changes it
+			// is what asks for the second one.
+			scales: weightScales(),
 		};
 	}
 
@@ -750,8 +977,8 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 *
 	 * Separate from `getData` because it is rendered on its own for every live update — see `sync`.
 	 */
-	async _renderBoard(plan) {
-		return renderTemplate(BOARD_PARTIAL, this._boardContext(plan));
+	async _renderBoard(plan, canEdit = this.canEdit) {
+		return renderTemplate(BOARD_PARTIAL, this._boardContext(plan, canEdit));
 	}
 
 	/**
@@ -767,10 +994,11 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * are on, and a ternary per question is three chances for one of them to be looking at a
 	 * different one.
 	 */
-	_boardContext({ graph, board }) {
+	_boardContext({ graph, board, scales = weightScales() }, canEdit = this.canEdit) {
 		const r = board.r;
 		const fans = fanIndexes(graph);
-		const canEdit = this.canEdit;
+		// `canEdit` is handed in by a render that has already resolved the board (`getData`), and asked of a
+		// fresh walk of the strip only by a repaint, which has resolved nothing.
 		// The right-press hint, added to whatever a face's tooltip already says -- and NOT added on
 		// a board this reader may only look at, where it would teach a gesture that does nothing.
 		// One sentence, appended rather than woven in, so the three tooltips below stay the three
@@ -849,7 +1077,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 		const labels = [];
 		const heads = [];
 		const shapes = edgeShapes(graph, {
-			r, fans, spread: true, boardWidthPx: board.width,
+			r, fans, spread: true, boardWidthPx: board.width, scales,
 		});
 		// HELD BACK for the second pass over this same markup. `_fitGapsToPaint` needs the curve, the
 		// anchor and the sheet these were worked out on, and re-deriving them from the document would
@@ -861,6 +1089,16 @@ export class RelationshipMapWindow extends StonetopDialog {
 			// read straight off it: a second copy of that number beside it was one more field to
 			// keep in step for nothing.
 			board,
+			// THE TWO PIXEL SIZES THIS PAINT WAS DRAWN AT, resolved once and kept beside the sheet
+			// they were resolved against. Four passes re-cut one of these gaps or re-measure one of
+			// these captions after the render is over -- a keystroke, a caption dragged along its
+			// line, a portrait dragged across the board, and the measuring pass itself -- and each
+			// has to use the size the markup in front of it was actually built with. Re-deriving
+			// them from the setting would be four more readings of a record the reader is allowed
+			// to change between any two of them.
+			headPx: RELMAP_HEAD_PX * scales.head,
+			basePx: RELMAP_CAPTION_PX * scales.word,
+			scales,
 			shapes: new Map(shapes.map(shape => [shape.id, shape])),
 			painted: null,
 			// Each line's markup, indexed by edge id. Walked once by `_fitGapsToPaint` and kept for
@@ -1026,6 +1264,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 				this._rememberPen(fields);
 				return this._write(edgePatch(id, fields), {
 					label: localize("stonetop.relmap.history.editedLink"), coalesce: `edge:${id}`,
+					onto: { kind: "edges", id },
 				});
 			},
 			// THE KEYSTROKES THEMSELVES, WHICH ARE NOT A WRITE. The bar has no text box on it any
@@ -1058,20 +1297,35 @@ export class RelationshipMapWindow extends StonetopDialog {
 
 		this._teardownDrag = wireRelmapDrag(root, {
 			surface: this._surface,
+			// Asked per gesture, and for the moving and the Delete key as well, which default to it in the
+			// drag layer: ownership can change under an open board, and a drag that writes to a map the
+			// reader may no longer edit is a drag that appears to work and is silently thrown away.
 			canEdit: () => this.canEdit,
-			// Asked per gesture, like `canEdit` above and for the same reason: ownership can change
-			// under an open board, and a drag that writes to a map the reader may no longer edit is
-			// a drag that appears to work and is silently thrown away.
-			canMove: () => this.canEdit,
-			canRemove: () => this.canEdit,
 			nodeAt: id => {
-				// An unwritten nudge is where the portrait actually is, so it answers first.
+				// An unwritten nudge is where the portrait actually is, so it answers first -- and then one
+				// written and not yet back from the server, which the document has not heard about either.
+				// Read off the document in that breath, the next arrow key started from where the portrait
+				// had been, and the walk jumped back a step. See `_writeNudge`.
 				if (this._pendingNudge.has(id)) return { ...this._pendingNudge.get(id) };
+				if (this._landingNudge.has(id)) return { ...this._landingNudge.get(id) };
 				const node = readGraph(this.boardDoc).nodes[id];
 				return node ? { x: node.x, y: node.y } : null;
 			},
 			onMove: (id, at) => this._moveNode(id, at),
 			onNudge: (id, at) => this._nudgeNode(id, at),
+			// ⚠ THE CAPTION'S FOUR HANDLERS, AND THE GEOMETRY IS ALL ON THIS SIDE OF THEM. The drag
+			// layer reports where the POINTER is, in board percentages, and this window turns that
+			// into a place ON the line (`seatAlong`) — because the curve, the words' width and the
+			// hole cut for them are one set of numbers, and a second module working out where a
+			// caption sits is exactly how the words and their hole come to disagree.
+			seatAt: id => this._drawn?.shapes?.get(id)?.anchor?.t ?? null,
+			onSeatMove: (id, at) => this._slideCaption(id, this._seatUnder(id, at)),
+			onSeat: (id, at) => this._seatCaptionAt(id, this._seatUnder(id, at)),
+			// A slide that was abandoned — Escape, a lost pointer, a board that stopped being this
+			// reader's to edit mid-gesture. The words have been redrawn frame by frame and nothing
+			// else is coming to put them back. Null on a real drop, whose write repaints them.
+			onSeatEnd: (id, restore) => { if (restore !== null) this._slideCaption(id, restore); },
+			onSeatNudge: (id, way) => this._nudgeSeat(id, way),
 			onDragMove: (id, at) => this._previewMove(id, at),
 			onDragEnd: (id, restore) => this._endPreview(id, restore),
 			onLink: (a, b) => this._createLink(a, b),
@@ -1107,12 +1361,20 @@ export class RelationshipMapWindow extends StonetopDialog {
 			if (tab) this.showPage(tab.dataset.relmapPage);
 		});
 		strip?.addEventListener("keydown", ev => this._onPageKey(ev));
+		// AND WHAT ORDER THEY ARE IN. Delegated from the strip for the same reason the click is:
+		// every tab in it is replaced whenever anybody at the table adds, renames or moves one.
+		strip?.addEventListener("dragstart", ev => this._onPageDragStart(ev));
+		strip?.addEventListener("dragover", ev => this._onPageDragOver(ev));
+		strip?.addEventListener("drop", ev => this._onPageDrop(ev));
+		// ⚠ AND THE ABANDONED DRAG. A tab let go of over the board, or over the desktop, never
+		// reaches a drop, and the marks it left would sit on the strip for the rest of the session.
+		// The drop clears them itself, first thing, because by the time it has repainted the strip
+		// the element `dragend` fires on has been replaced and no longer bubbles to anything.
+		strip?.addEventListener("dragend", () => this._clearPageDrag());
 
-		// CTRL+Z AND CTRL+SHIFT+Z, on the window as a whole rather than on the board. The reader's
-		// hands are wherever they last were — a tool on the bar, a portrait, a tab in the strip —
-		// and an undo bound to the board alone would be one that works only when it is focused.
-		// What it refuses to take is a keystroke inside a text field; see `_onHistoryKey`.
-		root.addEventListener("keydown", ev => this._onHistoryKey(ev));
+		// CTRL+Z, CTRL+SHIFT+Z AND CTRL+Y. On the DOCUMENT, not on this window: see
+		// `_wireHistoryKeys` for why binding them here was an undo that only sometimes worked.
+		this._wireHistoryKeys(root);
 
 		// A repaint held back while a drag or an edit was in the way, let through the moment it
 		// clears. Both on a timeout so the handlers that END the obstruction run first: the drag
@@ -1183,7 +1445,14 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// answering `isOwner`. The board would go on looking live, with every tool enabled, writing
 		// into a document that is not there.
 		on("deleteJournalEntry", doc => {
-			if (doc?.id === this._entryId) this.close();
+			if (doc?.id !== this._entryId) return;
+			// ⚠ AND WHAT WAS HALF-WRITTEN GOES WITH IT, before the close can flush it. `_leaveBoard`'s rail
+			// cannot see this one: the `entry` getter falls back to the stale copy, whose pages are all
+			// still in memory, so the board looks as present as ever -- and the flush went to a document
+			// the server no longer has, and came back as a notice telling the reader to check their
+			// permissions.
+			this._dropUnwritten();
+			this.close();
 		});
 
 		// ── And the same three questions again, one document down ────────────────────────────
@@ -1221,11 +1490,16 @@ export class RelationshipMapWindow extends StonetopDialog {
 				// is built from: has the BOARD under this reader changed, or has the strip's being
 				// there at all? Either one is a different shape, a different bar and a different
 				// fit, and the hide-the-board-I-am-standing-on case above is the first of them.
-				const pages = this.mapPages;
-				const board = this.mapPage;
-				const moved = (board?.id ?? null) !== this._pageId;
+				const board = this._boardState;
+				const moved = (board.page?.id ?? null) !== this._pageId;
 				const strip = !!this._root?.querySelector(".stonetop-relmap-pages-strip");
-				if (this.rendered && (moved || strip !== (this.canEdit || pages.length > 1))) {
+				// ⚠ AND A THIRD: WHETHER THE BOARD IS STILL THIS READER'S TO EDIT. The bar's tools, the footer
+				// and the read-only mark are drawn by the render from `canEdit`, so a GM setting this very page
+				// to Observer in core's own ownership dialog -- same board, same strip -- left every tool
+				// standing over a board whose every press was refused, and the reverse left a reader who had
+				// just been given the board with no way to draw on it until they opened the window again.
+				const rightsMoved = this._mayEdit(board) !== this._drewEditable;
+				if (this.rendered && (moved || strip !== this._showsPages(board) || rightsMoved)) {
 					// Only where the board actually changed, and for the reason the delete path
 					// drops it: the id names a board that is no longer theirs, and left standing it
 					// would pin them to nothing. A strip appearing over the SAME board is not a
@@ -1240,7 +1514,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 					this.render();
 					return;
 				}
-				this._paintPages();
+				this._paintPages(board);
 			}
 			// A graph is only this window's business when it is the graph being LOOKED AT. Two
 			// people at one table working on two pages of the same map must not repaint each other;
@@ -1264,15 +1538,16 @@ export class RelationshipMapWindow extends StonetopDialog {
 			// board the reader had shut a moment before somebody else touched the map.
 			if (!this.rendered) return;
 			// The `|| !this._pageId` is a rail rather than an ordinary case: every render pins
-			// `_pageId` to a concrete page, so an unpinned window is one that has not rendered yet,
-			// and "whichever board comes first" is a board ANY deletion may have changed.
+			// `_pageId` to the page it drew, so an unpinned window is one that has not rendered yet or
+			// had no page under it, and "whichever board comes first" is a board ANY deletion may
+			// have changed.
 			if (gone && (page.id === this._pageId || !this._pageId)) {
 				// The board under this reader has just been rubbed out at the far end of the table.
 				// `mapPage` falls through to the first surviving page, and all three of these
 				// belonged to the one that is gone — as does anything half-written, which is asked
-				// for first so that it cannot be filed against the page fallen through to. A flush
-				// aimed at the deleted document writes nothing, which is the right amount to write
-				// to a board that no longer exists. See `_leaveBoard`.
+				// for first, while `_pageId` still names the board it belongs to. It is thrown away
+				// rather than written: by now `boardDoc` answers for the page fallen through to, or
+				// for nothing once a collection's last map has gone. See `_leaveBoard`.
 				this._leaveBoard();
 				this._pageId = null;
 				this._lit = null;
@@ -1280,7 +1555,19 @@ export class RelationshipMapWindow extends StonetopDialog {
 				this.render();
 				return;
 			}
-			this._paintPages();
+			// ⚠ A COLLECTION GAINING ITS FIRST MAP IS A DIFFERENT WINDOW RATHER THAN A NEW TAB, and so is
+			// a version 1 board arriving on its page: the strip's tools, the footer and the board all
+			// hang off what the reader is standing on, and a repaint can only rewrite markup a render
+			// already put there. Asked as whether that has CHANGED since the render, and not as "was
+			// this reader on no page", which is also true of a player whose every map is hidden -- who
+			// would be rendered whole each time the GM made another hidden map, the party's included,
+			// over a window in which nothing they can see had changed.
+			const board = this._boardState;
+			if (board.kind !== this._boardKind) {
+				this.render();
+				return;
+			}
+			this._paintPages(board);
 		};
 		on("createJournalEntryPage", page => onPageChange(page, false));
 		on("deleteJournalEntryPage", page => onPageChange(page, true));
@@ -1310,20 +1597,28 @@ export class RelationshipMapWindow extends StonetopDialog {
 		if (!this.rendered) {
 			// Mid-render: hold it. The render finishing is what lets it through (`activateListeners`
 			// flushes), and a closed window keeps the old behaviour of dropping it on the floor.
-			//
-			// ⚠ THE STATE IS COMPARED ONLY WHEN THERE IS ONE TO COMPARE. `RENDER_STATES.RENDERING`
-			// is 1, and a truthy number is the whole of the guard: written as
-			// `this._state === Application.RENDER_STATES?.RENDERING` it reads `undefined ===
-			// undefined` as TRUE wherever core's table is absent — under the test harness, and on
-			// any future base class that does not carry one — so every closed window would start
-			// hoarding changes it can never paint.
-			const rendering = Application?.RENDER_STATES?.RENDERING;
-			if (rendering !== undefined && this._state === rendering) this._pendingSync = true;
+			if (this._isMidRender()) this._pendingSync = true;
 			return;
 		}
 		if (this._isBusy()) { this._pendingSync = true; return; }
 		this._pendingSync = false;
 		return this._repaintBoard();
+	}
+
+	/**
+	 * Part-way through a render: not RENDERED, and not closed either.
+	 *
+	 * ⚠ THE STATE IS COMPARED ONLY WHEN THERE IS ONE TO COMPARE. `RENDER_STATES.RENDERING` is 1, and a
+	 * truthy number is the whole of the guard: compared as `undefined === undefined` wherever the table is
+	 * absent -- under the test harness, or on a future base class that does not carry it -- every closed
+	 * window would read as mid-render and start hoarding changes it can never paint.
+	 *
+	 * OFF THE CLASS THIS WINDOW IS BUILT ON, and not the bare `Application` global, which is an alias core
+	 * keeps for AppV1 only until v16. The table is a static on that class.
+	 */
+	_isMidRender() {
+		const rendering = this.constructor.RENDER_STATES?.RENDERING;
+		return rendering !== undefined && this._state === rendering;
 	}
 
 	/**
@@ -1404,7 +1699,11 @@ export class RelationshipMapWindow extends StonetopDialog {
 		const drawn = this._drawn;
 		if (parts.words.textContent !== fit.text) parts.words.textContent = fit.text;
 		const size = captionSize(shape.edge.label, shape.curve, {
-			boardWidthPx: drawn.board.width, paintedPx: fit.width, px: shape.edge.size,
+			boardWidthPx: drawn.board.width, paintedPx: fit.width,
+			// AT THE WEIGHTS THIS PAINT WAS BUILT WITH, taken off `_drawn` rather than re-read.
+			// See there: a reader who moves the corner between two frames must not have half a
+			// board measured one way and half the other.
+			px: shape.capPx, basePx: drawn.basePx,
 		});
 		shape.size = size;
 		shape.anchor = edgeLabelAnchor(shape.curve, RELMAP_BOARD_ASPECT, shape.anchor.t, size.w)
@@ -1412,6 +1711,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 		placeCaption(parts, shape.anchor, drawn.board);
 		shape.d = curveWithGap(shape.curve, {
 			t: shape.anchor.t, span: size.w, boardWidthPx: drawn.board.width, dir: shape.edge.dir,
+			headPx: drawn.headPx,
 		});
 		parts.line?.setAttribute("d", shape.d);
 		return fit.width;
@@ -1480,7 +1780,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 			// would run a big caption on past both ends of its line and open a hole far too small
 			// for it.
 			const said = fitCaption(
-				shape.edge.label, shape.labelMax, measureAt(measure, shape.edge.size),
+				shape.edge.label, shape.labelMax, measureAt(measure, shape.capPx),
 			);
 			painted.set(id, this._seatCaption(shape, found, said));
 		}
@@ -1608,7 +1908,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// At the size THIS line is set in, as the full pass measures it: the same cut and the same
 		// gap, or the words would jump the moment the write lands. See `_fitGapsToPaint`.
 		const fit = (!tiny && drawn.measure)
-			? fitCaption(said, shape.labelMax, measureAt(drawn.measure, shape.edge.size))
+			? fitCaption(said, shape.labelMax, measureAt(drawn.measure, shape.capPx))
 			: { text: said, width: null };
 		if (tiny) {
 			if (parts.words.textContent !== fit.text) parts.words.textContent = fit.text;
@@ -1642,35 +1942,47 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * the moment the empty panel is wanted, and somebody rubbing out the last of the lines an old
 	 * import left behind is the moment this reader stops having anything to hide.
 	 */
-	_chrome(plan) {
+	_chrome(plan, board = this._boardState) {
 		const nobody = !Object.keys(plan.graph.nodes).length;
 		// ⚠ A MAP WITH BOARDS AND NOT ONE OF THEM THIS READER'S TO SEE, which is a different empty
 		// from an empty board and has to say so. Every board starts hidden from the players, so this
 		// is what a player meets on a map the GM has not shown them any of yet — and told "nobody is
 		// on this board yet, add somebody" they would reasonably conclude the map was broken, or
-		// theirs to fill in. It is also the state in which the window has nothing to write to (see
-		// `noBoardForMe`), which is why `canEdit` is already false here and the button already gone.
-		const unshared = this.noBoardForMe;
+		// theirs to fill in. It is also the state in which the window has nothing to write to (`boardDoc`
+		// is null for it), which is why `canEdit` is already false here and the button already gone.
+		const unshared = board.kind === "unshared";
+		// AND A COLLECTION WITH NO MAPS IN IT AT ALL, which is a third empty: not "nobody on this map"
+		// and not "nothing shown to you", but "there is no map here". What rubbing out the last map
+		// leaves behind, and what it offers is the way to make one, to whoever may.
+		const none = board.kind === "none";
+		const addMap = none && this._mayAddMap(board);
+		// Of the board handed in, which `getData` has already resolved and a repaint resolves once
+		// here, rather than of a fresh walk of the strip per answer. Read twice below, asked once.
+		const canEdit = this._mayEdit(board);
 		return {
-			empty: nobody || unshared,
+			empty: nobody || unshared || none,
 			// ⚠ THE HEADLINE IS DERIVED HERE TOO, though it never changes, because `_paintChrome`
 			// WRITES every part of the panel it repaints. Left in `getData` alone, as it was, this
 			// came back `undefined` on every repaint and the writer blanked the sentence outright:
 			// the empty board would appear carrying only its hint and its button until the next full
 			// render. Nothing in a panel may be settled in one of the two writers only.
 			emptyLead: localize(
-				unshared ? "stonetop.relmap.unsharedLead" : "stonetop.relmap.emptyLead",
+				none ? "stonetop.relmap.pages.noneLead"
+					: unshared ? "stonetop.relmap.unsharedLead" : "stonetop.relmap.emptyLead",
 			),
 			// ⚠ AND SO IS WHAT IT OFFERS, for the same reason and one step further on: whether the
 			// reader may add anybody is an ownership question, and ownership changes under an open
 			// window.
 			emptyHint: localize(
-				unshared ? "stonetop.relmap.unsharedHint"
-					: this.canEdit ? "stonetop.relmap.emptyHint" : "stonetop.relmap.emptyHintReadonly",
+				none ? (addMap ? "stonetop.relmap.pages.noneHint" : "stonetop.relmap.pages.noneHintReadonly")
+					: unshared ? "stonetop.relmap.unsharedHint"
+						: canEdit ? "stonetop.relmap.emptyHint" : "stonetop.relmap.emptyHintReadonly",
 			),
-			emptyAction: this.canEdit
-				? { action: "add", label: localize("stonetop.relmap.add"), icon: "fa-user-plus" }
-				: null,
+			emptyAction: addMap
+				? { action: "pagenew", label: localize("stonetop.relmap.pages.new"), icon: "fa-plus" }
+				: canEdit
+					? { action: "add", label: localize("stonetop.relmap.add"), icon: "fa-user-plus" }
+					: null,
 			// ⚠ IN THE CHROME AND NOT ONLY IN `getData`, for the reason everything else here is: a
 			// repaint that rebuilt the box from a render's context would tick it back on, or off,
 			// under a reader who had just set it the other way. See `_chrome`.
@@ -1898,21 +2210,56 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * the eye in the tools beside the strip, which is one place and not eight. (This also means the
 	 * strip's markup does not change when a board is hidden or shown, which `_paintPages` has to
 	 * know: see the note at the top of it.)
+	 *
+	 * AND A TAB CAN BE PICKED UP AND PUT DOWN SOMEWHERE ELSE, on a map with more than one board, for
+	 * a reader who may edit it. `draggable` is written here rather than set on the elements
+	 * afterwards for the reason everything else about a tab is: this markup is written twice, and an
+	 * attribute added by hand after the render would be missing from every tab a repaint replaced.
+	 * The order itself is the table's and not this reader's, so it is stored on the documents (see
+	 * `moveMapPage`); the keyboard's way to the same thing is Ctrl and an arrow, in `_onPageKey`.
 	 */
-	_pageTabs(pages = this.mapPages, chosen = this.mapPage?.id ?? "") {
+	_pageTabs(pages, chosen, { canOrder, legacy } = {}) {
+		// WHATEVER THE CALLER DID NOT HAND IN IS READ OFF THE BOARD, RESOLVED ONCE FOR ALL OF IT. A pass that
+		// has already resolved the board hands in all four; each used to default to a walk of the strip of
+		// its own, so a bare call walked it four times.
+		let resolved = null;
+		const board = () => (resolved ??= this._boardState);
+		pages ??= board().pages;
+		chosen ??= board().page?.id ?? "";
+		canOrder ??= this._mayArrange(board());
+		legacy ??= board().kind === "legacy";
 		// The system's one audited escaper (utils/strings.js), not foundry.utils.escapeHTML: same
 		// five-character map, and Foundry-free, which is what lets the tests exercise this method.
 		const esc = escHtml;
+		// ⚠ THE ONE TAB WITH NO BOARD BEHIND IT IS A VERSION 1 MAP'S ALONE, whose board really is on
+		// the entry. A collection with no maps in it gets no tab at all: a tab named after the
+		// collection would read as a map somebody made, which is exactly what nobody did.
 		const rows = pages.length
 			? pages.map(page => ({ id: page.id, name: page.name }))
-			: [{ id: "", name: this.entry?.name ?? localize("stonetop.relmap.untitled") }];
+			: legacy
+				? [{ id: "", name: this.entry?.name ?? localize("stonetop.relmap.untitled") }]
+				: [];
+		// It takes two boards to have an order, and the one tab a version 1 map gets is not a board
+		// at all -- it names the map, carries no id, and there is nowhere to put it.
+		const drag = canOrder && pages.length > 1
+			// ⚠ AND THE SENTENCE THAT SAYS HOW, ON EVERY TAB. It hung off the strip, which never takes the
+			// focus -- the tabs do, one at a time -- and a screen reader reads out the description of the
+			// thing focused and not of its parent, so the one keyboard route to reordering was never
+			// announced to the reader it was written for.
+			? ` draggable="true" aria-describedby="${esc(this._pageOrderHintId())}"`
+			: "";
 		return rows.map(row => {
 			const on = row.id === chosen;
 			return `<button type="button" class="stonetop-relmap-page${on ? " is-current" : ""}"`
 				+ ` role="tab" id="${esc(this._pageTabId(row.id))}"`
-				+ ` aria-selected="${on ? "true" : "false"}" tabindex="${on ? "0" : "-1"}"`
+				+ ` aria-selected="${on ? "true" : "false"}" tabindex="${on ? "0" : "-1"}"${drag}`
 				+ ` data-relmap-page="${esc(row.id)}">${esc(row.name)}</button>`;
 		}).join("");
+	}
+
+	/** The id of the sentence saying how the maps are put in order. See `_pageTabs`. */
+	_pageOrderHintId() {
+		return `${this.id}-page-order`;
 	}
 
 	/**
@@ -1952,7 +2299,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * the reader may have their keyboard focus on, mid arrow-key walk along the tabs. Compared as
 	 * the STRING it was built from.
 	 */
-	_paintPages() {
+	_paintPages(board = this._boardState) {
 		// ⚠ THE EYE IS WRITTEN BEFORE THE GUARD, AND THAT IS LOAD-BEARING. Hiding or showing a board
 		// leaves the strip's markup untouched — a tab says the board's name and nothing about who
 		// can see it (`_pageTabs`) — so the string comparison below returns before anything else
@@ -1963,13 +2310,16 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// `mapPages` filters the entry's pages by what this reader may see and sorts them, and
 		// `mapPage` walks that again; the eye, the tabs, the panel's label and the delete button
 		// between them were asking five times over for the same two answers, on a method that runs
-		// on every page created, deleted, renamed or shown at the table, per open board.
-		const pages = this.mapPages;
-		const page = pages.find(one => one.id === this._pageId) ?? pages[0] ?? null;
+		// on every page created, deleted, renamed or shown at the table, per open board. A caller that
+		// has just resolved the board for a question of its own hands that one in.
+		const { pages, page } = board;
+		// The third of them, asked of the board already resolved: it decides whether the tabs can be
+		// picked up AND whether there is a board to rub out (`_mayArrange`).
+		const mine = this._mayArrange(board);
 		this._paintSeen(page);
 		const strip = this._root?.querySelector(".stonetop-relmap-pages-strip");
 		if (!strip) return;
-		const tabs = this._pageTabs(pages, page?.id ?? "");
+		const tabs = this._pageTabs(pages, page?.id ?? "", { canOrder: mine, legacy: board.kind === "legacy" });
 		if (tabs === this._pagesSaid) return;
 		this._pagesSaid = tabs;
 		strip.innerHTML = tabs;
@@ -1977,10 +2327,10 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// changed without a render: somebody else deleting the page this reader was on moves them.
 		const view = this._root?.querySelector(".stonetop-relmap-view");
 		if (view) view.setAttribute("aria-labelledby", this._pageTabId(page?.id ?? ""));
-		// Whether the last board can be rubbed out depends on how many there are, which is exactly
-		// what has just changed.
+		// Whether there is a board to rub out at all depends on how many there are, which is exactly
+		// what has just changed. The last one may go too.
 		const drop = this._root?.querySelector("[data-relmap-action=\"pagedelete\"]");
-		if (drop) drop.hidden = !(this.canEdit && pages.length > 1);
+		if (drop) drop.hidden = !(mine && pages.length > 0);
 	}
 
 	/**
@@ -2024,7 +2374,12 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 */
 	showPage(id, { said = null } = {}) {
 		const want = String(id ?? "");
-		if (!want || want === this.mapPage?.id) return;
+		if (!want) return;
+		// ⚠ ALREADY UP IS NOTHING TO DO ONLY WHEN THERE IS NOTHING TO SAY. The first map added to a
+		// collection that had none is the board `mapPage` falls to the moment it exists, so `_addPage`
+		// finds it current before it gets here -- and its news, and the focus on its new tab, still
+		// have to land. A press on the tab already up stays a press that does nothing.
+		if (want === this.mapPage?.id && !said) return;
 		const page = getMapPage(this.entry, want);
 		if (!page) return;
 		// ⚠ FIRST, AND BEFORE `_pageId` MOVES. A nudge or a caption still waiting on its debounce
@@ -2047,11 +2402,19 @@ export class RelationshipMapWindow extends StonetopDialog {
 	}
 
 	/**
-	 * Move focus along the strip with the arrow keys.
+	 * Move focus along the strip with the arrow keys, and the TAB ITSELF with Ctrl and an arrow.
 	 *
 	 * MOVES FOCUS ONLY; the space bar or Enter is what actually switches board, because a `<button>`
 	 * already does that. The other spelling — selecting on every arrow key — is a render per
 	 * keypress, and each render throws away the very element the reader is arrowing from.
+	 *
+	 * ⚠ CTRL AND AN ARROW IS THE KEYBOARD'S WAY TO REORDER, and it is not a convenience. Dragging a
+	 * tab is a gesture a pointer can make and a keyboard cannot, and there is a reader at this table
+	 * working at a screen magnifier for whom a drag across a scrolling strip is the hardest thing
+	 * the window could ask for. So the drag is one way in and this is the other, both writing the
+	 * same order to the same documents. It is CTRL and not Alt, which is the browser's own back and
+	 * forward, and the tab keeps its focus across the move so a second press carries on from where
+	 * the first left off.
 	 */
 	_onPageKey(ev) {
 		const steps = { ArrowLeft: -1, ArrowRight: 1 };
@@ -2060,6 +2423,17 @@ export class RelationshipMapWindow extends StonetopDialog {
 		const tabs = Array.from(this._root?.querySelectorAll("[data-relmap-page]") ?? []);
 		const from = tabs.indexOf(ev.target);
 		if (from < 0 || tabs.length < 2) return;
+		if (step !== undefined && (ev.ctrlKey || ev.metaKey)) {
+			ev.preventDefault();
+			// One place along, said as the tab it comes to rest in FRONT of, which is the one
+			// spelling that also covers the far end (nothing to be in front of, so: null).
+			// Leftwards that is the tab it is passing; rightwards it is the one past that.
+			const to = from + step;
+			if (to < 0 || to >= tabs.length) return;
+			const before = step < 0 ? tabs[to] : tabs[to + 1];
+			this._movePage(tabs[from].dataset.relmapPage, before?.dataset?.relmapPage ?? null);
+			return;
+		}
 		ev.preventDefault();
 		const to = ev.key === "Home" ? 0
 			: ev.key === "End" ? tabs.length - 1
@@ -2067,6 +2441,178 @@ export class RelationshipMapWindow extends StonetopDialog {
 		for (const tab of tabs) tab.tabIndex = -1;
 		tabs[to].tabIndex = 0;
 		tabs[to].focus?.();
+	}
+
+	// ── Putting the boards in an order ──────────────────────────────────────
+	//
+	// TWO WAYS IN AND ONE WRITER. A tab can be dragged along the strip, or moved with Ctrl and an
+	// arrow key, and both come down to the same sentence: this board goes in front of that one.
+	// `moveMapPage` (relmap/relmap-doc.js) does the arithmetic and the write; everything here is
+	// about the gesture, the mark under the pointer, and what the reader is told afterwards.
+	//
+	// ⚠ THE ORDER IS THE TABLE'S, not this reader's. It is written to the pages themselves, so a tab
+	// dragged here moves on every open window at the table, which is the whole reason it is worth
+	// doing: two people talking about "the third tab" have to mean the same one. (Which board a
+	// reader is STANDING on stays theirs alone. See `showPage`.)
+
+	/**
+	 * Put a board somewhere else on the strip, and say where it landed.
+	 *
+	 * THE STRIP IS REPAINTED HERE RATHER THAN LEFT TO THE HOOK. The write does broadcast, and every
+	 * other client's `updateJournalEntryPage` will repaint their strip from it — but this client's
+	 * own hook fires from the same round trip, and a reader who has just dragged a tab must not
+	 * watch it snap back for the length of one. `_paintPages` is guarded on the markup, so the
+	 * hook's own pass a moment later costs a string comparison and returns.
+	 *
+	 * AND THE MOVED TAB KEEPS THE FOCUS, which is the whole of the keyboard story: the repaint
+	 * replaces every element in the strip, including the one the reader is holding with Ctrl still
+	 * down, so without this a second press would arrive at nothing.
+	 *
+	 * ⚠ AND IT ANSWERS FOR ITS OWN FAILURE, because one of its two callers cannot. The write is a
+	 * round trip to the server and can be refused — permission withdrawn mid-session, the page
+	 * deleted by someone else — and Ctrl-and-an-arrow does not wait for it (the keyboard must not
+	 * block on a network write), so a rejection there had nowhere to go but an unhandled promise,
+	 * with the reader left looking at a strip that did not move and told nothing at all. Caught
+	 * here rather than at each call site: there are two gestures and one writer, and the writer is
+	 * where the sentence "it could not be moved" belongs.
+	 */
+	async _movePage(movedId, beforeId = null) {
+		if (!movedId || !this._mayArrange(this._boardState)) return false;
+		try {
+			if (!await moveMapPage(this.entry, movedId, beforeId)) return false;
+		} catch (err) {
+			console.error("Stonetop | could not move the page", err);
+			ui.notifications?.warn?.(localize("stonetop.relmap.pages.moveFailed"));
+			// Said as well as shown: a reader on a magnifier is looking at the tab they just tried
+			// to move, not at the corner of the screen a notification appears in.
+			this._announce(localize("stonetop.relmap.pages.moveFailed"));
+			return false;
+		}
+		this._paintPages();
+		this._focusTab(movedId);
+		const pages = this.mapPages;
+		const at = pages.findIndex(page => page.id === movedId);
+		if (at < 0) return true;
+		// WHERE IT IS NOW, in the terms a reader who cannot see the strip can act on: not "moved",
+		// which says only that something happened, but which place of how many it came to rest in.
+		this._announce(format("stonetop.relmap.pages.moved", {
+			name: pages[at].name, index: at + 1, count: pages.length,
+		}));
+		return true;
+	}
+
+	/** Put the keyboard back on one tab after the strip has been rewritten, carrying the roving
+	 * tabindex with it: the moved tab is not necessarily the SELECTED one, so the single open stop
+	 * has to move to it or the reader's next Tab press would leave the strip entirely. */
+	_focusTab(id) {
+		const tabs = this._pageTabEls();
+		const want = tabs.find(tab => tab.dataset?.relmapPage === id);
+		if (!want) return;
+		for (const tab of tabs) tab.tabIndex = -1;
+		want.tabIndex = 0;
+		want.focus?.();
+	}
+
+	/**
+	 * Take hold of a tab.
+	 *
+	 * ⚠ THE ID IS REMEMBERED ON THE WINDOW as well as written into the `dataTransfer`, because the
+	 * two answer different questions. The transfer is for anybody else who might catch this drag;
+	 * the field is how the three handlers below tell OUR drag from an actor being dragged across
+	 * the strip on its way to the board, which must not be marked up as though it could be dropped
+	 * between two tabs. Something has to be written into the transfer all the same, or Firefox
+	 * declines to start the drag at all.
+	 */
+	_onPageDragStart(ev) {
+		const tab = ev.target?.closest?.("[data-relmap-page]");
+		this._dragPage = "";
+		this._dragOver = "";
+		if (!tab || tab.draggable === false || !tab.dataset?.relmapPage) return;
+		this._dragPage = tab.dataset.relmapPage;
+		if (ev.dataTransfer) {
+			ev.dataTransfer.effectAllowed = "move";
+			ev.dataTransfer.setData("text/plain", this._dragPage);
+		}
+		tab.classList?.add?.("is-dragging");
+	}
+
+	/**
+	 * Where a drop would land, marked on the tab it would land against.
+	 *
+	 * `preventDefault` is what makes the strip a drop target at all, and it is deliberately NOT
+	 * called for a drag that did not start here: an actor crossing the strip on its way to the board
+	 * belongs to the board underneath.
+	 *
+	 * ⚠ THE MARK IS ONLY REWRITTEN WHEN IT WOULD SAY SOMETHING DIFFERENT. This fires continuously
+	 * for as long as the pointer is over the strip, and the pointer spends nearly all of that time
+	 * on the same half of the same tab; a walk of every tab per event, to take off marks that were
+	 * not there and put back the one that was, is a class thrashed sixty times a second under a
+	 * reader's hand for no visible change at all.
+	 */
+	_onPageDragOver(ev) {
+		if (!this._dragPage) return;
+		const tab = ev.target?.closest?.("[data-relmap-page]");
+		if (!tab) return;
+		ev.preventDefault();
+		if (ev.dataTransfer) ev.dataTransfer.dropEffect = "move";
+		const before = this._dropIsBefore(tab, ev.clientX);
+		const spot = `${tab.dataset.relmapPage}:${before ? "before" : "after"}`;
+		if (spot === this._dragOver) return;
+		this._dragOver = spot;
+		for (const other of this._pageTabEls()) {
+			other.classList?.remove?.("is-drop-before", "is-drop-after");
+		}
+		// Nothing is marked on the tab in the reader's own hand: dropping a board onto itself is
+		// where it already is, and a mark there would promise a move that cannot happen.
+		if (tab.dataset.relmapPage === this._dragPage) return;
+		tab.classList?.add?.(before ? "is-drop-before" : "is-drop-after");
+	}
+
+	/**
+	 * Let go.
+	 *
+	 * WHICH SIDE OF THE TAB THE POINTER IS ON decides where it lands, rather than which way along
+	 * the strip it came from. A tab dropped on the left half of another goes in front of it and on
+	 * the right half behind it, which is what the mark drawn under the pointer has been promising
+	 * for the whole of the drag; deciding it by direction instead makes the same drop mean two
+	 * different things depending on where the reader started.
+	 */
+	async _onPageDrop(ev) {
+		const moved = this._dragPage;
+		const tab = ev.target?.closest?.("[data-relmap-page]");
+		this._clearPageDrag();
+		if (!moved || !tab) return;
+		ev.preventDefault();
+		const before = this._dropIsBefore(tab, ev.clientX)
+			? tab
+			: tab.nextElementSibling?.closest?.("[data-relmap-page]") ?? null;
+		await this._movePage(moved, before?.dataset?.relmapPage ?? null);
+	}
+
+	/** Is the pointer on the front half of this tab? Its middle, and not its edges: a tab is as wide
+	 * as its name, so a fixed margin either side would leave the shortest ones with no front half at
+	 * all. Rects are unavailable under the test harness, where the answer is "in front", which is
+	 * what a drop with no geometry to go on should mean. */
+	_dropIsBefore(tab, clientX) {
+		const box = tab?.getBoundingClientRect?.();
+		if (!box?.width || !Number.isFinite(clientX)) return true;
+		return clientX < box.left + (box.width / 2);
+	}
+
+	/** Every tab in the strip, as elements. */
+	_pageTabEls() {
+		return Array.from(this._root?.querySelectorAll("[data-relmap-page]") ?? []);
+	}
+
+	/** Put every mark the drag left away again. Called from the drop AND from `dragend`, because a
+	 * drag abandoned outside the strip never reaches a drop and would otherwise leave a tab faded
+	 * out for the rest of the session. */
+	_clearPageDrag() {
+		this._dragPage = "";
+		this._dragOver = "";
+		for (const tab of this._pageTabEls()) {
+			tab.classList?.remove?.("is-dragging", "is-drop-before", "is-drop-after");
+		}
 	}
 
 	/**
@@ -2125,86 +2671,25 @@ export class RelationshipMapWindow extends StonetopDialog {
 		));
 	}
 
-	/**
-	 * NAMING AND RUBBING OUT THE WHOLE MAP, in the title bar rather than on the page strip.
-	 *
-	 * ⚠ THESE TWO ARE HERE BECAUSE THE SIDEBAR IS NOT. A map is a JournalEntry, and the Journal
-	 * directory used to be where a GM renamed or deleted one; its rows are taken out of that list
-	 * now (hooks/journal-directory-maps.js), so without these the map would be a document with no
-	 * way left to name it or be rid of it.
-	 *
-	 * AND THEY ARE IN THE TITLE BAR, not beside the page tools, because that row acts on the BOARD
-	 * that is up: it already carries a pen and a trash of its own, and a second pen and trash an
-	 * inch away meaning "the whole map" is the arrangement in which somebody deletes six boards
-	 * meaning to delete one. The title bar is where an application's own document is named.
-	 *
-	 * Each is offered only to a reader who may use it: renaming to anybody who may edit the map,
-	 * deleting to a GM alone (`canDeleteRelationshipMap` says why that is stricter than the server).
+	/*
+	 * ⚠ NO TITLE-BAR BUTTONS. "Rename map" and "Delete map" stood here, acting on the whole
+	 * JournalEntry, and were removed at the user's request: a Stonetop world has one map, and the
+	 * page strip's own pen and trash (`_renamePage`, `_removePage`) are the naming and rubbing out
+	 * this window offers. With the map's rows also out of the Journal sidebar
+	 * (hooks/journal-directory-maps.js), nothing renames or deletes a whole map, on purpose.
 	 */
-	_getHeaderButtons() {
-		const buttons = super._getHeaderButtons();
-		const entry = this.entry;
-		// Unshifted in reverse, so the pen sits in front of the trash and both in front of Close.
-		if (canDeleteRelationshipMap(entry)) {
-			buttons.unshift({
-				label: localize("stonetop.relmap.maps.delete"),
-				class: "stonetop-relmap-map-delete",
-				icon: "fas fa-trash",
-				onclick: () => this._removeMap(),
-			});
-		}
-		if (canEditRelationshipMap(entry)) {
-			buttons.unshift({
-				label: localize("stonetop.relmap.maps.rename"),
-				class: "stonetop-relmap-map-rename",
-				icon: "fas fa-pen",
-				onclick: () => this._renameMap(),
-			});
-		}
-		return buttons;
-	}
-
-	/** Rename the whole map. The box opens on the name it has, the way the board's own rename does,
-	 * so a reader fixing a typo edits rather than retypes. */
-	async _renameMap() {
-		const entry = this.entry;
-		if (!entry) return;
-		const name = await this._askPageName(
-			localize("stonetop.relmap.maps.renameTitle"),
-			localize("stonetop.relmap.maps.renameGo"),
-			entry.name,
-		);
-		if (name === null) return;
-		if (await renameRelationshipMap(entry, name)) {
-			this._announce(format("stonetop.relmap.maps.renamed", { name: relationshipMapName(name) }));
-		}
-	}
 
 	/**
-	 * Delete the whole map, after asking.
+	 * The window's one "are you sure", asked twice: dropping a board, and taking somebody off one.
 	 *
-	 * ASKED WITH BOTH COUNTS IN IT, for the reason the board's own delete carries one: this is the
-	 * largest thing anybody can destroy from this window, and "Delete this map?" over a year of a
-	 * table's work understates it by every board and every face on them. The button that commits it
-	 * wears the system's destructive skin, like the board's.
-	 *
-	 * ⚠ SAID THROUGH A NOTIFICATION AND NOT THE LIVE REGION, which is the one place this parts
-	 * company with `_removePage`. That one leaves a window standing to speak into; this one closes
-	 * it (the entry's own delete hook does that, on every client), so a sentence written into the
-	 * live region here would be thrown away with the markup holding it, unread.
-	 */
-	/**
-	 * The window's one "are you sure", asked three times: dropping a map, dropping a board, and
-	 * taking somebody off one.
-	 *
-	 * ONE SHELL, because all three are the same question and the parts that must not drift are the
+	 * ONE SHELL, because both are the same question and the parts that must not drift are the
 	 * ones nobody looks at twice — the themed classes that give the dialog our chrome at all, and
 	 * `rejectClose: false`, which is what makes dismissing the window mean "no" instead of throwing.
 	 * The buttons NAME the outcome rather than answering a question the reader has to hold in their
 	 * head, and the affirmative one is first, which is this system's order everywhere.
 	 *
-	 * `danger` wears the destructive skin (styles/stonetop.css), which is for the two that destroy
-	 * work nobody can get back; removing a person is undoable and so is not red.
+	 * `danger` wears the destructive skin (styles/stonetop.css), which is for dropping a board: that
+	 * destroys work nobody can get back, while removing a person is undoable and so is not red.
 	 *
 	 * @param {{title: string, body: string, confirm: string, cancel: string, danger?: boolean}} q
 	 * @returns {Promise<boolean>} Whether the reader pressed the affirmative button.
@@ -2221,31 +2706,6 @@ export class RelationshipMapWindow extends StonetopDialog {
 			rejectClose: false,
 		});
 		return go === "go";
-	}
-
-	async _removeMap() {
-		const entry = this.entry;
-		if (!canDeleteRelationshipMap(entry)) return;
-		const boards = listMapPages(entry);
-		// Every face on the map, not only the ones on the board that is up: the same person seated
-		// on two boards is two of them, which is exactly what is about to be lost.
-		const people = boards.reduce((n, page) => n + Object.keys(readGraph(page).nodes).length, 0);
-		const ok = await this._confirm({
-			title: localize("stonetop.relmap.maps.deleteTitle"),
-			body: format("stonetop.relmap.maps.deleteBody", { name: entry.name, boards: boards.length, people }),
-			confirm: localize("stonetop.relmap.maps.deleteConfirm"),
-			cancel: localize("stonetop.relmap.maps.deleteCancel"),
-			danger: true,
-		});
-		if (!ok) return;
-		// ⚠ FORGOTTEN BEFORE THE DELETE, board by board, for the reason `_removePage` forgets one:
-		// after the delete there is no uuid left to forget a board's history by, and an undo step
-		// pointing at a page that has stopped existing writes into nothing.
-		for (const page of boards) forgetHistory(page);
-		const name = entry.name;
-		if (await deleteRelationshipMap(entry)) {
-			ui.notifications?.info(format("stonetop.relmap.maps.deleted", { name }));
-		}
 	}
 
 	/** Rename the board that is up. The box opens on the name it already has, so a reader fixing a
@@ -2274,9 +2734,13 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 */
 	async _removePage() {
 		const page = this.mapPage;
-		if (!page || this.mapPages.length <= 1) return;
+		// ⚠ ASKED BEFORE ANYTHING IS FORGOTTEN, and asked of the collection, as `deleteMapPage` will ask
+		// it. The trash is offered on the same rule (`_mayArrangeMaps`), but the collection's ownership can
+		// be lowered under an open window, and a refusal found only after `forgetHistory` below had run
+		// cost the reader this map's undo for a map that was still there.
+		if (!page || !this._mayArrangeMaps()) return;
 		const people = Object.keys(readGraph(page).nodes).length;
-		// RED: it is one of the two controls here that destroy work nobody can get back, and the
+		// RED: it is the one control here that destroys work nobody can get back, and the
 		// footer's other button is a plain "keep". The skin comes from `_confirm`'s `danger`, not a
 		// colour typed here.
 		const ok = await this._confirm({
@@ -2340,6 +2804,9 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// A nudge not written yet is the same kind of obstruction: a repaint would redraw the
 		// portrait at the spot the document still holds, undoing the keys already pressed.
 		if (this._pendingNudge.size) return true;
+		// And a caption slid along its line and not written either, which a repaint would slide
+		// back to wherever the last write left it — in front of the reader still pressing the key.
+		if (this._pendingSeat.size) return true;
 		// ⚠ AND THAT IS ALL OF IT. There used to be a third obstruction here — "a field has focus" —
 		// and it could never fire while collecting two exemptions that each undid a false positive
 		// it had created for itself. This window carries one form control, the hide-imported-lines
@@ -2395,15 +2862,30 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * @param {string} [options.coalesce]  a key naming the GESTURE, where several writes are one.
 	 *        See RELMAP_COALESCE_MS in relmap/relmap-history.js.
 	 * @param {boolean} [options.remember]  whether this is a change to remember at all.
+	 * @param {{kind: "nodes"|"edges", id: string}} [options.onto]  the one person or line a leaf write is
+	 *        about, where it is about one. See below.
 	 */
-	async _write(patch, { announce = "", label = "", coalesce = "", remember = true } = {}) {
+	async _write(patch, { announce = "", label = "", coalesce = "", remember = true, onto = null } = {}) {
 		if (!patch) return false;
 		const doc = this.boardDoc;
+		// ⚠ NO BOARD, NO WRITE, AND NOTHING SAID. A collection whose maps have all been rubbed out, or one
+		// whose every map is hidden from this reader, has nothing to write to (`boardDoc` is null), and a
+		// person added from a chooser that outlived its board was otherwise announced as added with
+		// nothing written and nothing to say so.
+		if (!doc) return false;
 		// ⚠ READ BEFORE THE WRITE. What would put a change back can only be worked out from the
 		// board as it stands now — after `applyPatch` the old values are gone. The cost is one
 		// extra normalize per edit, which is a fraction of what a repaint already does and only
 		// happens on a write the reader made by hand.
-		const change = remember ? describeWrite(readGraph(doc), patch) : null;
+		const graph = remember || onto ? readGraph(doc) : null;
+		// ⚠ A CHANGE TO SOMEBODY WHO IS NO LONGER THERE IS NOT WRITTEN. `onto` names the person or the line
+		// a leaf write is about, and a leaf written after another reader has taken them off makes them
+		// again out of that one field: `normalizeGraph` keeps a node that has nothing but coordinates, so a
+		// drag landing a moment after the removal stood a blank, nameless portrait on the board for the
+		// whole table (and a caption written onto a rubbed-out line left invisible junk and a dead undo
+		// step). Asked of the board the write is about to land on, in the same breath.
+		if (onto && !graph[onto.kind]?.[onto.id]) return false;
+		const change = remember ? describeWrite(graph, patch) : null;
 		// Announced BEFORE the write. The write repaints the board and takes the live region's
 		// neighbours with it; announcing afterwards can land on a node already replaced.
 		if (announce) this._announce(announce);
@@ -2474,12 +2956,33 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 */
 	async _stepHistory(way) {
 		if (!this.canEdit) return false;
+		// ⚠ ONE STEP AT A TIME. A step PEEKS its entry, awaits a write to the document, and only
+		// then commits it. Two of them overlapping would both peek the SAME entry, apply the same
+		// reversal twice and commit twice — taking one change back and throwing a second away
+		// unread. Two presses land that close together easily enough: a double-press on the tool,
+		// or a held key on a board whose write is waiting on the network.
+		if (this._stepping) return false;
+		this._stepping = true;
+		try {
+			return await this._stepHistoryNow(way);
+		} finally {
+			this._stepping = false;
+		}
+	}
+
+	/** The step itself, once it is this window's turn to take one. See `_stepHistory`. */
+	async _stepHistoryNow(way) {
 		// ⚠ THE TIE BAR IS FLUSHED FIRST, AWAITED, and before the step is even peeked at. It holds a
 		// caption the document has not got yet, and that caption is a change like any other:
 		// written after this it would land on top of the undo, and merely STARTED here it would
 		// record itself a microtask later — emptying the forward stack under a redo already in
 		// flight, and leaving the board right while the two stacks were wrong.
 		await this._tieBar?.flush();
+		// ⚠ AND THE ARROW KEYS' MOVES, FOR THE SAME REASON. A nudge or a caption slide is held for a breath
+		// after the last key (NUDGE_COMMIT_MS), and an undo pressed inside that breath peeked at the change
+		// BEFORE it -- took that one back instead -- and then the nudge landed, recorded itself and emptied
+		// the redo stack under the undo that had just been made.
+		await Promise.all([this._writeNudge(), this._writeSeats()]);
 		const history = this._history;
 		const entry = way === "back" ? history.peekUndo() : history.peekRedo();
 		const commit = () => (way === "back" ? history.commitUndo() : history.commitRedo());
@@ -2508,6 +3011,61 @@ export class RelationshipMapWindow extends StonetopDialog {
 	}
 
 	/**
+	 * THE KEYSTROKES, TAKEN ON THE DOCUMENT AND NOT ON THIS WINDOW.
+	 *
+	 * ⚠ WHY NOT ON THE WINDOW, which is where they were and is the obvious place for them: a
+	 * keydown only reaches an element the focus is inside of, and NOTHING IN THIS WINDOW EVER TAKES
+	 * THE FOCUS FROM A PRESS ON THE BOARD. Every press there is `preventDefault`ed — the pan
+	 * surface does it to start a drag, the drag layer does it to claim a portrait or a caption —
+	 * and a prevented press is one the browser does not move the focus for. So a reader who moved
+	 * somebody, let go, and reached for Ctrl+Z was pressing it with the focus still on whatever
+	 * they had touched BEFORE the map (the page body, most often), and the window's own handler
+	 * never ran. The undo worked after a press on a tool on the bar, or a tab in the strip, because
+	 * those are real buttons that do take focus — which is exactly the "sometimes" in the report.
+	 *
+	 * ⚠ CAPTURE, so this runs before core's KeyboardManager, which claims Ctrl+Z for its own undo
+	 * of the last canvas operation. A bubbling document listener registered at render time is
+	 * behind core's, registered at init.
+	 *
+	 * Torn down with the window and re-wired by every render — a document listener left behind by a
+	 * closed window would be one undoing a board nobody is looking at.
+	 */
+	_wireHistoryKeys(root) {
+		this._teardownHistoryKeys?.();
+		const doc = root?.ownerDocument ?? globalThis.document;
+		if (!doc?.addEventListener) return;
+		// WHICH WINDOW THE READER IS WORKING IN, since the focus can no longer be asked. The last
+		// press is the answer, and it is tracked on the document because a press that lands in
+		// another window has to clear this as surely as one in here sets it.
+		const onPoint = ev => { this._pointerWithin = !!this._root?.contains?.(ev.target); };
+		const onKey = ev => this._onHistoryKey(ev);
+		doc.addEventListener("pointerdown", onPoint, true);
+		doc.addEventListener("keydown", onKey, true);
+		this._teardownHistoryKeys = () => {
+			doc.removeEventListener("pointerdown", onPoint, true);
+			doc.removeEventListener("keydown", onKey, true);
+			this._teardownHistoryKeys = null;
+		};
+	}
+
+	/**
+	 * Whether a keystroke that landed somewhere else on the page is nonetheless this window's.
+	 *
+	 * ⚠ THE GUARD THAT KEEPS A DOCUMENT LISTENER HONEST. Bound this wide, the handler sees every
+	 * Ctrl+Z anybody presses anywhere — in a character sheet, in the chat box, in another map's
+	 * window. It may only claim one of two: a stroke that arrived INSIDE this window, or one that
+	 * arrived nowhere in particular (the body, with nothing focused) after a press in here.
+	 */
+	_ownsKeystroke(target) {
+		const root = this._root;
+		if (!root) return false;
+		if (root.contains?.(target)) return true;
+		if (!this._pointerWithin) return false;
+		const doc = root.ownerDocument ?? globalThis.document;
+		return !target || target === doc || target === doc?.body || target === doc?.documentElement;
+	}
+
+	/**
 	 * Ctrl+Z, and Ctrl+Shift+Z or Ctrl+Y the other way.
 	 *
 	 * ⚠ NEVER OUT FROM UNDER A FIELD. The tie bar carries a caption box inside this window, and
@@ -2519,6 +3077,11 @@ export class RelationshipMapWindow extends StonetopDialog {
 		if (!(ev.ctrlKey || ev.metaKey) || ev.altKey) return;
 		const key = String(ev.key ?? "").toLowerCase();
 		if (key !== "z" && key !== "y") return;
+		// ⚠ A HELD KEY IS NOT A SECOND UNDO. The board's history is a stack of reversing WRITES to
+		// a shared document, and a repeat fires every few dozen milliseconds — far faster than one
+		// of those completes. Every press is to be a press.
+		if (ev.repeat) return;
+		if (!this._ownsKeystroke(ev.target)) return;
 		if (ev.target?.closest?.("input, textarea, select, [contenteditable='true']")) return;
 		if (!this.canEdit) return;
 		ev.preventDefault();
@@ -2557,7 +3120,9 @@ export class RelationshipMapWindow extends StonetopDialog {
 		const said = can
 			? format(`stonetop.relmap.history.${way}Hint`, { what })
 			: localize(`stonetop.relmap.history.${way}Nothing`);
-		button.dataset.tooltip = said;
+		// AS TEXT: `what` is the reader's own change, and it carries names anybody at the table can type
+		// ("taking Ordga off"). Core draws a plain `data-tooltip` as HTML.
+		button.dataset.tooltipText = said;
 		button.setAttribute("aria-label", said);
 	}
 
@@ -2597,6 +3162,10 @@ export class RelationshipMapWindow extends StonetopDialog {
 		for (const shape of edgeShapes(preview.graph, {
 			r: preview.board.r, fans: preview.fans, only: id,
 			boardWidthPx: preview.board.width, painted: preview.painted,
+			// THE WEIGHTS THE STILL LINES AROUND IT WERE DRAWN AT. A dragged line is redrawn sixty
+			// times a second beside lines nobody is touching, and one drawn at a different weight
+			// would visibly change size the moment it was picked up.
+			scales: preview.scales,
 		})) {
 			const parts = preview.parts.get(shape.id);
 			// A BOARD WITH NO CAPTIONS ON IT HAS NO HOLES IN ITS LINES, and a line being dragged has
@@ -2640,6 +3209,9 @@ export class RelationshipMapWindow extends StonetopDialog {
 			// second copies of two of its numbers beside it were two more fields to keep in step for
 			// nothing.
 			board: plan.board,
+			// AND THE WEIGHTS THE STILL LINES AROUND IT WERE DRAWN AT. Off the plan, so the drag
+			// and the repaint that follows it agree; see `_previewMove`.
+			scales: plan.scales,
 			// WHAT THE CAPTIONS ON SCREEN MEASURED, from the repaint that drew them
 			// (`_fitGapsToPaint`). Read here rather than per frame, because reading an element's
 			// width forces the browser to lay the board out and doing that sixty times a second is
@@ -2648,7 +3220,8 @@ export class RelationshipMapWindow extends StonetopDialog {
 			// one whose line was too short to fit its words and is being dragged longer may break a
 			// few pixels narrow until the drop repaints. One gesture, and nothing is written wrong.
 			painted: this._drawn?.painted ?? null,
-			parts: indexEdgeParts(board),
+			// The index the last paint already walked, where there is one. See `_sayLine`.
+			parts: this._drawn?.parts ?? indexEdgeParts(board),
 		};
 		return this._preview;
 	}
@@ -2709,9 +3282,172 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// so a reader who tabs from one face to the next inside it has moved two people on one
 		// timer, and writing only the second would put the first back where the document still has
 		// it — in front of somebody who watched themselves move it.
-		for (const [id, at] of pending) this._moveNode(id, at, { coalesce: `node:${id}` });
+		//
+		// ⚠ AND EACH IS HELD AS "LANDING" UNTIL THE SERVER HAS IT. The document does not hear about a write
+		// until the round trip is over, and the next arrow key asks where the portrait is (`nodeAt`):
+		// answered off the document in that breath, a reader who paused and walked on found the portrait
+		// back where the pause had started. Let go only where no later nudge has replaced it since.
+		const landing = this._landingNudge;
+		const writes = pending.map(([id, at]) => {
+			landing.set(id, at);
+			return this._moveNode(id, at, { coalesce: `node:${id}` }).finally(() => {
+				if (landing.get(id) === at) landing.delete(id);
+			});
+		});
 		// A repaint that was held back while the keys were coming lands now.
 		this._flushPendingSync();
+		return Promise.all(writes);
+	}
+
+	// ── Sliding a caption along its own line ────────────────────────────────
+	//
+	// WHAT THE GESTURE IS. The words on a line are placed by the spreader, which puts each caption
+	// at the stop nearest the middle of its own line that is clear of everything else on the board
+	// (`spreadLabels`). That is the right answer for a board of eighty lines and the wrong one often
+	// enough — two ties running the same way, a caption sitting where a reader wants to look, a
+	// crossing the words happen to land on — that a reader has to be able to say where a particular
+	// sentence goes. So they drag it, and it stays where they put it: `edge.seat`, written once per
+	// gesture, honoured by every repaint on every client at the table.
+	//
+	// ⚠ AND IT NEVER LEAVES ITS LINE, which is the whole reason the pointer's position is turned
+	// into a share of the curve rather than into a place on the board. A caption is what its stroke
+	// SAYS; carried off the stroke it is a sentence floating between two other people's lines, and a
+	// reader would have to guess which of them it belongs to. Slid along, it is unambiguous
+	// anywhere.
+
+	/**
+	 * Where on one line the pointer is, as the share of the curve a caption would be seated at.
+	 *
+	 * OFF THE PAINT AND NOT OFF THE DOCUMENT, because it has to agree with the stroke the reader
+	 * is aiming at: `_drawn` holds the geometry the markup on screen was actually built from, and a
+	 * curve worked out afresh here would be fanned and bowed by a graph read at a different moment.
+	 */
+	_seatUnder(id, at) {
+		const shape = this._drawn?.shapes?.get(id);
+		if (!shape?.curve || !at) return null;
+		return seatAlong(shape.curve, at, RELMAP_BOARD_ASPECT);
+	}
+
+	/**
+	 * Put one caption at a seat NOW: the words, the turn, and the hole re-cut in the stroke for them.
+	 *
+	 * THE SAME THREE WRITES `_seatCaption` MAKES, and deliberately not that method: this one must
+	 * not re-measure. A slide happens once per painted frame, measuring a caption forces the browser
+	 * to lay the whole board out, and the words themselves have not changed — only where along the
+	 * line they sit. What that costs is nothing: `shape.size` is the width the last paint measured
+	 * (`_fitGapsToPaint`), which is the number the seat and the gap both come off.
+	 *
+	 * THROUGH `readSeat` SO THE PAINT AND THE WRITE AGREE. What is stored is rounded and held off
+	 * the ends of the line, and a caption painted at the raw pointer's share would step a fraction
+	 * when the write came back round. Floored at the minimum first: the store reads a zero as "no
+	 * seat at all", so a slide right to the very start of a line would otherwise read as the reader
+	 * handing the caption back to the spreader.
+	 *
+	 * @returns {number|null} the seat actually used, or null when there was nothing to seat.
+	 */
+	_slideCaption(id, t) {
+		const drawn = this._drawn;
+		const shape = drawn?.shapes?.get(id);
+		if (!shape?.curve || !shape.size || !Number.isFinite(Number(t))) return null;
+		// Found in the index the paint already walked, and walked afresh only when there is not one
+		// — the same bargain `_sayLine` strikes, and for the same reason: this runs per frame.
+		let index = drawn.parts;
+		if (!index) {
+			const board = this._boardEl();
+			if (!board) return null;
+			index = indexEdgeParts(board);
+		}
+		const parts = index.get(id);
+		if (!parts?.words) return null;
+		const seat = readSeat(Math.max(Number(t), RELMAP_SEAT_MIN));
+		const anchor = edgeLabelAnchor(shape.curve, RELMAP_BOARD_ASPECT, seat, shape.size.w);
+		if (!anchor) return null;
+		shape.anchor = anchor;
+		placeCaption(parts, anchor, drawn.board);
+		shape.d = curveWithGap(shape.curve, {
+			t: anchor.t, span: shape.size.w, boardWidthPx: drawn.board.width, dir: shape.edge.dir,
+			headPx: drawn.headPx,
+		});
+		// A BOARD WITH ITS WORDS TURNED OFF HAS NO HOLES IN ITS LINES, and this line has just had one
+		// cut. The same guard the live drag keeps (`_previewMove`): `_paintLineGaps` writes what the
+		// last repaint worked out, and this stroke has been recomputed since.
+		parts.line?.setAttribute?.("d", drawn.healed ? (shape.unbroken ?? shape.d) : shape.d);
+		// AND THE BAR COMES WITH IT, where one is open on THIS line: it floats over the caption
+		// (`_tieAt`), so a bar left behind is a bar pointing at a patch of paper the words have
+		// left. `slideTo` and not `refresh`, which repaints every control on the bar -- see there.
+		this._tieBar?.slideTo(id, anchor);
+		return seat;
+	}
+
+	/**
+	 * That is where the caption goes: paint it there and write it down.
+	 *
+	 * `coalesce` is empty for a drag, which is one gesture and one step of the undo already, and
+	 * keyed by the line for the arrow keys, which are a run of presses meaning one move. The same
+	 * split `_moveNode` makes for a portrait.
+	 */
+	async _seatCaptionAt(id, t, { coalesce = "" } = {}) {
+		const seat = this._slideCaption(id, t);
+		if (!seat) return false;
+		return this._write(edgePatch(id, { seat }), {
+			label: localize("stonetop.relmap.history.movedCaption"), coalesce, onto: { kind: "edges", id },
+		});
+	}
+
+	/**
+	 * One arrow key on a focused caption: slide it along its line NOW, and remember to write it.
+	 *
+	 * ⚠ WHICH WAY THE KEY POINTS IS ASKED OF THE LINE, not of the caption's own left and right. The
+	 * lines on this board run at every angle, so a fixed mapping would make the arrows mean
+	 * something different on every one of them — "Right moves it towards Ordga" on one line and
+	 * away on the next, with nothing on screen to say which. Laying the key's own direction against
+	 * the direction the line runs on screen means the pair of arrows that POINT along a line are the
+	 * pair that move its words, whichever pair that is.
+	 *
+	 * MEASURED IN BOARD PIXELS, because that is the space the reader's arrow key is in: the board is
+	 * taller than it is wide, so a run compared in raw percentages would answer for a line the
+	 * reader is not looking at.
+	 *
+	 * A KEY POINTING SQUARE ACROSS THE LINE DOES NOTHING, and is still swallowed (the drag layer
+	 * claims it before we are asked). There is nowhere across a line for a caption to go, and
+	 * sliding it along on a key that pointed the other way would be the board inventing an answer.
+	 */
+	_nudgeSeat(id, { dx = 0, dy = 0, step = 0 } = {}) {
+		const drawn = this._drawn;
+		const shape = drawn?.shapes?.get(id);
+		if (!shape?.curve || !step) return;
+		// Where it is RIGHT NOW, which on a line already slid this second is the unwritten seat.
+		const at = this._pendingSeat.get(id) ?? shape.anchor?.t ?? shape.mid?.t;
+		if (!Number.isFinite(Number(at))) return;
+		// The line's own direction where the caption sits, as a short run either side of it.
+		const ahead = edgeLabelAnchor(shape.curve, RELMAP_BOARD_ASPECT, Math.min(1, at + 0.01));
+		const behind = edgeLabelAnchor(shape.curve, RELMAP_BOARD_ASPECT, Math.max(0, at - 0.01));
+		if (!ahead || !behind) return;
+		const along = dx * (ahead.left - behind.left) * drawn.board.width
+			+ dy * (ahead.top - behind.top) * drawn.board.height;
+		if (!along) return;
+		const next = Math.min(1, Math.max(0, Number(at) + (along > 0 ? step : -step)));
+		const seat = this._slideCaption(id, next);
+		if (!seat) return;
+		// The same split a pointer drag makes: the board follows the keys, the document hears about
+		// it when they stop. A held arrow repeats about thirty times a second, and each repeat as
+		// its own write would be thirty broadcasts to the table and thirty steps to undo.
+		this._pendingSeat.set(id, seat);
+		this._commitSeat();
+	}
+
+	/** Write the caption slides the reader has stopped making, and let repaints back in. */
+	_writeSeats() {
+		const pending = [...this._pendingSeat];
+		if (!pending.length) return;
+		this._pendingSeat.clear();
+		// ONE STEP FOR A RUN OF ARROW KEYS, keyed by the line, for the reason `_writeNudge` gives:
+		// a reader walking a caption along its stroke pauses several times on the way, and each
+		// pause recorded separately would be a dozen undos to put one sentence back.
+		const writes = pending.map(([id, seat]) => this._seatCaptionAt(id, seat, { coalesce: `seat:${id}` }));
+		// A repaint that was held back while the keys were coming lands now.
+		this._flushPendingSync();
+		return Promise.all(writes);
 	}
 
 	/**
@@ -2725,15 +3461,45 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * "edited a link" step in the undo of a board with no such link.
 	 */
 	_leaveBoard() {
+		// ⚠ AND ONLY WHILE THAT BOARD IS STILL THERE TO WRITE TO. A board rubbed out or hidden under the
+		// reader has already gone from the strip by the time its hook calls this, so `boardDoc` has
+		// fallen through to a board that survives -- or, with a collection's last map gone, to nothing.
+		// Flushed there, a nudge would stand a nameless portrait on a map the reader never touched,
+		// under an id that names nobody on it. What was waiting is thrown away instead, which is the
+		// right amount to write to a board that no longer exists.
+		const here = this.boardDoc;
+		if (this._pageId ? here?.id !== this._pageId : !here) {
+			this._dropUnwritten();
+			return;
+		}
 		this._writeNudge();
+		// AND THE CAPTION SLIDES WITH THEM, for the same reason and with the same trap: `boardDoc`
+		// answers for whatever page the window points at NOW, so a seat flushed a line later would
+		// be filed against a link the board being ARRIVED at does not have.
+		this._writeSeats();
 		this._tieBar?.flush();
 	}
 
 	/**
-	 * No read first. `readGraph` normalizes every node and every edge to build a fresh object, and
-	 * the only thing this wanted from it was whether the node still exists — which decides nothing:
-	 * `nodePatch` clamps the coordinates itself, and a patch naming a node that has since been
-	 * removed is dropped by `normalizeGraph` on the next repaint rather than resurrecting it.
+	 * Everything half-written on a board that is no longer there, thrown away unwritten.
+	 *
+	 * The other half of `_leaveBoard`, over the same three things: the portraits and the captions the
+	 * arrow keys have moved, and whatever the tie bar is holding. The render that follows replaces
+	 * everything they were drawn on.
+	 */
+	_dropUnwritten() {
+		this._pendingNudge.clear();
+		this._landingNudge.clear();
+		this._pendingSeat.clear();
+		this._preview = null;
+		this._tieBar?.discard();
+	}
+
+	/**
+	 * ONTO SOMEBODY STILL ON THE BOARD, and nobody else (`_write`'s `onto`). A patch naming a person who
+	 * has been taken off since is NOT dropped by `normalizeGraph`, whatever this used to say here: it
+	 * keeps a node that has nothing but coordinates, and the drop brought them back as a blank, nameless
+	 * portrait for the whole table.
 	 *
 	 * ⚠ THE PORTRAIT IS PAINTED HERE, BEFORE THE AWAIT, and that placement is the whole of it.
 	 * A drag moves the portrait by the two custom properties the drag layer writes, never by its
@@ -2761,8 +3527,8 @@ export class RelationshipMapWindow extends StonetopDialog {
 			el.style.left = `${spot.x}%`;
 			el.style.top = `${spot.y}%`;
 		}
-		await this._write(nodePatch(id, spot), {
-			label: localize("stonetop.relmap.history.moved"), coalesce,
+		return this._write(nodePatch(id, spot), {
+			label: localize("stonetop.relmap.history.moved"), coalesce, onto: { kind: "nodes", id },
 		});
 	}
 
@@ -2787,7 +3553,8 @@ export class RelationshipMapWindow extends StonetopDialog {
 
 	/** The handle CLICKED rather than dragged: ask who, then draw the same line. */
 	async _linkFrom(id) {
-		const graph = readGraph(this.boardDoc);
+		const doc = this.boardDoc;
+		const graph = readGraph(doc);
 		const others = this._peopleOnMap(graph).filter(person => person.id !== id);
 		// THROUGH THE SAME READER AS THE ROWS. Built off the stored name instead, the heading called
 		// somebody by the name the map remembers while every row beneath it used the name on their
@@ -2798,7 +3565,24 @@ export class RelationshipMapWindow extends StonetopDialog {
 			return;
 		}
 		const to = await pickPersonToLink({ from, options: others });
-		if (to) await this._createLink(id, to);
+		if (to && this._stillOn(doc)) await this._createLink(id, to);
+	}
+
+	/**
+	 * Is the board a question was asked about still the one in front of this reader?
+	 *
+	 * ⚠ FOR EVERY EDIT THAT WAITS ON A DIALOG. The chooser and the confirm are not modal: while one is up
+	 * the reader can switch tab, and another client can delete or hide the board. `_write` resolves its
+	 * board when it writes, so an answer given afterwards went to whichever board was up by then -- people
+	 * seated on a map nobody chose them for, at spots worked out on a different one -- or, with no board
+	 * left at all, was announced as done with nothing written. The steading sheet's panel and a popped-out
+	 * window can be open on the same collection at once, which makes this easier to reach here than
+	 * anywhere. The answer is dropped instead, and the reader is told that it was.
+	 */
+	_stillOn(doc) {
+		if (this.boardDoc === doc) return true;
+		ui.notifications?.info?.(localize("stonetop.relmap.boardMoved"));
+		return false;
 	}
 
 	/**
@@ -2971,7 +3755,8 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * outcome rather than answering a question the reader has to hold in their head.
 	 */
 	async _removePerson(id) {
-		const graph = readGraph(this.boardDoc);
+		const doc = this.boardDoc;
+		const graph = readGraph(doc);
 		const node = graph.nodes[id];
 		if (!node) return;
 		const links = Object.values(graph.edges).filter(e => e.a === id || e.b === id).length;
@@ -2983,8 +3768,13 @@ export class RelationshipMapWindow extends StonetopDialog {
 			confirm: format("stonetop.relmap.removeConfirm", { name: node.name }),
 			cancel: localize("stonetop.relmap.removeCancel"),
 		});
-		if (!ok) return;
-		await this._write(dropNodePatch(graph, id), {
+		if (!ok || !this._stillOn(doc)) return;
+		// READ AGAIN NOW THE ANSWER IS IN, for the reason `_addPerson` gives: a line drawn to them while the
+		// question was up is one this removal has to take with it, and somebody else may have taken them
+		// off already.
+		const now = readGraph(doc);
+		if (!now.nodes[id]) return;
+		await this._write(dropNodePatch(now, id), {
 			announce: format("stonetop.relmap.removed", { name: node.name }),
 			label: format("stonetop.relmap.history.removed", { name: node.name }),
 		});
@@ -2994,13 +3784,16 @@ export class RelationshipMapWindow extends StonetopDialog {
 
 	async _onToolClick(ev) {
 		const tool = TOOLS[ev.currentTarget.dataset.relmapAction];
-		if (!tool || (tool.needsEdit && !this.canEdit)) return;
+		if (!tool || (tool.needsEdit && !this.canEdit) || (tool.needsAddMap && !this.canAddMap)) return;
 		return tool.run(this, ev.currentTarget);
 	}
 
 	async _addPerson() {
-		const graph = readGraph(this.boardDoc);
-		const already = new Set(Object.values(graph.nodes).map(n => n.uuid).filter(Boolean));
+		// Who is on a board already, by the actor they stand for: asked before the chooser and again after.
+		const uuidsOn = board => new Set(Object.values(board.nodes).map(n => n.uuid).filter(Boolean));
+		const doc = this.boardDoc;
+		const graph = readGraph(doc);
+		const already = uuidsOn(graph);
 		const actors = (game.actors?.contents ?? [])
 			.filter(actor => ["character", "npc"].includes(actor.type) && !already.has(actor.uuid));
 		if (!actors.length) {
@@ -3018,14 +3811,22 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// Keyed rather than scanned: a reader adding half the village to a board with the rest of it
 		// already on would otherwise walk the candidate list once per person they ticked.
 		const byUuid = new Map(actors.map(actor => [actor.uuid, actor]));
-		const picked = (chosen ?? []).map(uuid => byUuid.get(uuid)).filter(Boolean);
+		if (!chosen?.length || !this._stillOn(doc)) return;
+		// ⚠ READ AGAIN NOW THE ANSWER IS IN. The chooser is not modal, and the table goes on working while
+		// it is up: somebody else putting the same person on this board -- or the party's and the village's
+		// own seating, on the GM's client -- or seating somebody right where this reader's arrivals were
+		// about to go. Seated against the board as it was when the question was asked, those people
+		// arrived twice, or on each other's laps.
+		const now = readGraph(doc);
+		const onBoard = uuidsOn(now);
+		const picked = chosen.map(uuid => byUuid.get(uuid)).filter(actor => actor && !onBoard.has(actor.uuid));
 		if (!picked.length) return;
 		if (picked.length === 1) {
 			const [actor] = picked;
-			await this._addNodeFor(actor, freeSpot(takenSpots(graph), { r: this._boardSize(graph).r }));
+			await this._addNodeFor(actor, freeSpot(takenSpots(now), { r: this._boardSize(now).r }));
 			return;
 		}
-		await this._addNodesFor(graph, picked);
+		await this._addNodesFor(now, picked);
 	}
 
 	/**
@@ -3105,6 +3906,96 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// The holes in the strokes, healed or cut again. The class alone leaves a board of lines
 		// with conspicuous breaks in them for nothing.
 		this._paintLineGaps();
+	}
+
+	/**
+	 * HOW HEAVILY THIS READER WANTS THE BOARD DRAWN, moved one step, or put back to the base.
+	 *
+	 * Three of these stand on the footer beside the captions box (`.stonetop-relmap-heft`): the
+	 * arrowheads, the strokes and the writing, each a percentage of what the stylesheet sets. The
+	 * button says which one and which way in its own `data-` attributes; a step of zero is the
+	 * readout between the two, which is a press that puts that one back to 100%.
+	 *
+	 * ⚠ NOTHING HERE TOUCHES THE MAP, and that is the whole shape of this control. It writes to
+	 * this reader's browser (relmap/relmap-weights.js says at length why it is not stored on the
+	 * board) and it repaints this window. Nobody else's board moves, no history entry is made, and
+	 * there is nothing for the undo button to take back -- which is also why it is ungated: a
+	 * reader who may only look wants it more than anybody.
+	 *
+	 * ⚠ THE STYLESHEET IS TOLD FIRST AND THE BOARD IS REDRAWN SECOND, in that order, because the
+	 * redraw MEASURES. `_repaintBoard` ends in `_fitGapsToPaint`, which reads a real caption's
+	 * computed size off the document to decide how much of each sentence fits and how big a hole to
+	 * cut for it; run before the new weight is on the root, every one of those measurements would be
+	 * taken at the old size and the whole board would be cut for writing it is no longer set in.
+	 *
+	 * SAID BEFORE THE BOARD CHANGES UNDER IT, as every other announcement in this window is: a
+	 * message posted after a repaint can land on markup that has already been thrown away.
+	 */
+	async _stepWeight(button) {
+		const key = button?.dataset?.relmapWeight;
+		if (!RELMAP_WEIGHTS.includes(key)) return;
+		const step = Number(button.dataset.relmapStep) || 0;
+		const now = getWeights();
+		// A STEP OF ZERO IS THE READOUT, and the readout is the way back to the base. Written as a
+		// step rather than as a third action because it is the same question about the same one of
+		// the three, and a `weightreset` beside `weight` would be a second entry in the tools table
+		// that had to be kept in step with this one.
+		const want = step === 0 ? RELMAP_WEIGHT_BASE : now[key] + step * RELMAP_WEIGHT_STEP;
+		const next = setWeights({ [key]: want });
+		if (next[key] === now[key]) return;
+		this._announce(format("stonetop.relmap.weightNow", {
+			name: localize(`stonetop.relmap.weights.${key}.name`),
+			pct: next[key],
+		}));
+		this._paintWeights(next);
+		await this._repaintBoard();
+	}
+
+	/**
+	 * Write the three weights onto the window: what the stylesheet paints at, and what the corner
+	 * says it is painting at.
+	 *
+	 * ⚠ THE PROPERTIES GO ON THE ROOT AND NOT ON THE BOARD, though only the board is drawn from
+	 * them. `_repaintBoard` replaces the board's innerHTML but never the board element itself, so
+	 * either would survive a repaint; the root is where `--relmap-say-px` already lives, and one
+	 * element carrying every custom property this window sets is one place to look.
+	 *
+	 * ⚠ AND THE FIRST PAINT DOES NOT COME THROUGH HERE. The properties are printed onto the root by
+	 * the template (`weightStyle`), because `activateListeners` measures the captions the moment the
+	 * markup lands and anything written after that would be a board measured at one size and painted
+	 * at another. This is the writer for every press after it.
+	 */
+	_paintWeights(weights = getWeights()) {
+		const root = this._root;
+		if (!root) return;
+		const scales = weightScales(weights);
+		for (const key of RELMAP_WEIGHTS) {
+			root.style?.setProperty?.(`--relmap-${key}-scale`, String(scales[key]));
+			const pct = weights[key];
+			const step = root.querySelector(`[data-relmap-weight="${key}"][data-relmap-step="0"]`);
+			if (step) {
+				step.textContent = `${pct}%`;
+				// AT THE BASE THERE IS NOWHERE TO GO BACK TO, so the readout stops being a button
+				// and goes on being a readout. `aria-disabled` and not `disabled`: a screen reader
+				// moving through this corner should still meet the number, and a disabled button is
+				// skipped by some of them entirely.
+				step.setAttribute("aria-disabled", String(pct === RELMAP_WEIGHT_BASE));
+				step.setAttribute("aria-label", format("stonetop.relmap.weightNow", {
+					name: localize(`stonetop.relmap.weights.${key}.name`), pct,
+				}));
+			}
+			// THE TWO ARROWS GO DEAD AT THE ENDS rather than pressing to no effect. `readWeight`
+			// holds the value inside the bounds whatever arrives, so this is only ever telling the
+			// reader what that gate is about to do.
+			const dim = (dir, at) => {
+				const btn = root.querySelector(
+					`[data-relmap-weight="${key}"][data-relmap-step="${dir}"]`,
+				);
+				if (btn) btn.disabled = pct === at;
+			};
+			dim("1", RELMAP_WEIGHT_MAX);
+			dim("-1", RELMAP_WEIGHT_MIN);
+		}
 	}
 
 	/**
@@ -3246,8 +4137,9 @@ export class RelationshipMapWindow extends StonetopDialog {
 		const board = id ? this._boardEl() : null;
 		if (!board) return;
 		// Found by walking and reading `dataset`, never by a selector built out of a stored id -- see
-		// `indexEdgeParts` itself, which says why.
-		const parts = indexEdgeParts(board).get(id);
+		// `indexEdgeParts` itself, which says why -- and in the index the last paint already walked, where
+		// there is one: this runs on every repaint with a line held, straight after that walk.
+		const parts = (this._drawn?.parts ?? indexEdgeParts(board)).get(id);
 		for (const el of [parts?.line, parts?.hit, parts?.label]) {
 			if (!el) continue;
 			el.classList?.add("is-picked");
@@ -3294,7 +4186,13 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// one keeps: board pixels chosen to come out at `CAPTION_READ_PX` on screen, so the words
 		// stay the same size to read while the board shrinks under them. Above the threshold the
 		// variable goes and the caption is set like every other one.
-		const say = tiny ? `${Math.round((CAPTION_READ_PX / scale) * 10) / 10}px` : "";
+		// ⚠ AT THIS READER'S OWN WEIGHT, which is the one place the words are set from a number
+		// rather than from a declaration the stylesheet could multiply for us. `CAPTION_READ_PX` is
+		// a size ON SCREEN, chosen so the held caption stays readable while the board shrinks under
+		// it; a reader who has asked every board for heavier writing has asked for this one too,
+		// and left flat it would be the single caption on the board that ignored the corner.
+		const word = Number(this._drawn?.scales?.word) > 0 ? this._drawn.scales.word : 1;
+		const say = tiny ? `${Math.round((CAPTION_READ_PX * word / scale) * 10) / 10}px` : "";
 		// Written only when it CHANGES. This runs on every painted frame of a pan, where the scale
 		// is the one thing that has not moved.
 		if (say !== this._sayPx) {
@@ -3420,7 +4318,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 			if (!copy) continue;
 			// Everything that makes the original findable, aimable or announceable.
 			for (const el of [copy, ...(copy.querySelectorAll?.("*") ?? [])]) {
-				for (const gone of ["id", "tabindex", "role", "aria-label", "data-tooltip",
+				for (const gone of ["id", "tabindex", "role", "aria-label", "data-tooltip", "data-tooltip-text",
 					"data-relmap-edge", "data-relmap-who", "data-relmap-words"]) {
 					el.removeAttribute?.(gone);
 				}
@@ -3589,6 +4487,12 @@ export class RelationshipMapWindow extends StonetopDialog {
 			// parent, because our own `close` already ran everything it does before this line.
 			return super.close(this._closeOptions ?? {});
 		}
+		// ⚠ UNLESS THIS RENDER DREW NOTHING BECAUSE ANOTHER ONE STILL IS. AppV1 returns at once from a
+		// render asked for mid-render, and the first map added to an empty collection asks for exactly
+		// that: its own create sets off one render, and `showPage` asks for a second a breath later.
+		// Said now, its news would go into a live region about to be replaced and its focus would look
+		// for a tab the markup does not have yet; left waiting, the render still drawing says both.
+		if (!this.rendered && this._isMidRender()) return;
 		// The live region is only NOW the one the reader is on, and so is the control they pressed.
 		this._saySoFar();
 		this._takeFocusBack();
@@ -3612,6 +4516,9 @@ export class RelationshipMapWindow extends StonetopDialog {
 		this._tieBar = null;
 		this._teardownDrag?.();
 		this._teardownDrag = null;
+		// The two document-level listeners the undo keys need. A closed window that kept them would
+		// go on taking Ctrl+Z off whoever pressed it next.
+		this._teardownHistoryKeys?.();
 		// EVERY WORLD HOOK THIS WINDOW REGISTERED, from the list rather than by name: see `_hooks`.
 		// Emptied as well as unregistered, so that a window reopened on the same instance wires
 		// itself up again rather than meeting `_wireSync`'s already-wired guard and going deaf.
@@ -3648,8 +4555,16 @@ export class RelationshipMapWindow extends StonetopDialog {
  */
 function edgeShapes(graph, {
 	r, fans, only = null, spread = false, boardWidthPx = RELMAP_BOARD_WIDTH,
-	painted = null,
+	painted = null, scales = weightScales(),
 } = {}) {
+	// ⚠ THE READER'S OWN WEIGHTS, TURNED INTO THE TWO PIXEL SIZES THE ARITHMETIC BELOW SPEAKS IN,
+	// once for the whole walk. Everything in this file measures in board pixels, and both of these
+	// are what the STYLESHEET is painting at on this board -- not what it paints at by default. A
+	// walk that used the defaults would place every head at the stand-off a 22-pixel triangle wants
+	// while the sheet drew a 33-pixel one, and estimate every plain caption at sixteen while the
+	// sheet set it in twenty-four. See relmap/relmap-weights.js.
+	const headPx = RELMAP_HEAD_PX * scales.head;
+	const basePx = RELMAP_CAPTION_PX * scales.word;
 	// Every face on the board, which each line has to get past. Gathered once for the whole
 	// walk rather than per link: the list is the same for all of them, and a link's own two ends
 	// are recognised by where they are and left out by `clearanceBow` itself.
@@ -3676,25 +4591,53 @@ function edgeShapes(graph, {
 			aspect: RELMAP_BOARD_ASPECT,
 			r,
 		});
-		// WHERE THE MIDDLE OF THIS LINE IS, worked out for every line and not only the ones with
-		// something written on them. It is the caption's anchor where there IS a caption, and it is
-		// also where the tie bar floats -- which a line with nothing written on it needs just as
-		// much, since the bar is the only way to write anything on it.
+		// WHERE THIS LINE'S CAPTION BELONGS BEFORE ANY OF THEM ARE SPREAD APART: the middle of the
+		// stroke, or the spot along it the reader dragged the words to. `alongT` reads anything
+		// unset as the middle, and a stored seat of zero IS unset (`readSeat`) -- so the zero is
+		// turned back into no answer here rather than passed on as the very start of the line.
+		const seat = Number(edge.seat) > 0 ? edge.seat : undefined;
+		// WORKED OUT FOR EVERY LINE and not only the ones with something written on them. It is the
+		// caption's anchor where there IS a caption, and it is also where the tie bar floats --
+		// which a line with nothing written on it needs just as much, since the bar is the only way
+		// to write anything on it. A line whose caption was rubbed out keeps its seat, so the bar
+		// opens where the next words will appear rather than back at a middle nobody chose.
 		//
 		// ⚠ ONE CALL, TWO FIELDS, AND THE SPREADER MOVES ONLY ONE OF THEM. `anchor` is reassigned
-		// below (never mutated) when the captions are spread apart, so `mid` keeps the honest
-		// middle of the stroke while `anchor` follows the words wherever they were nudged to. Both
-		// are wanted: the bar sits over the caption a reader can see, and falls back to the middle
-		// of the line when there is no caption to sit over.
-		const middle = curve ? edgeLabelAnchor(curve, RELMAP_BOARD_ASPECT) : null;
+		// below (never mutated) when the captions are spread apart, so `mid` keeps the seat this
+		// line asked for while `anchor` follows the words wherever they were nudged to. Both are
+		// wanted: the bar sits over the caption a reader can see, and falls back to this when there
+		// is no caption to sit over.
+		const middle = curve ? edgeLabelAnchor(curve, RELMAP_BOARD_ASPECT, seat) : null;
 		// HOW LONG THIS CAPTION IS, worked out here rather than with the gap below because the
 		// caption's SEAT depends on it: the words are a straight run over a bowed line, and which
 		// straight run is the one whose two ends land on the stroke either side of them. See
 		// `edgeLabelAnchor`. Kept on the shape, so the seat, the spreader's obstacle box and the
 		// hole cut in the stroke are all measured off one number.
+		// ⚠ WHAT THIS ONE CAPTION IS ACTUALLY PAINTED IN, and zero where the sheet decides.
+		//
+		// A line's stored size is what the READER asked for on that line, and the weight is what
+		// this reader asked for on every board they open; a caption set in twenty on a board being
+		// drawn at 150% comes out at thirty, and thirty is the number every measurement of it has
+		// to be made at.
+		//
+		// ⚠ AND IT IS NOT ROUNDED, WHICH IS THE OPPOSITE OF WHAT `readSize` DOES TO THE STORED
+		// NUMBER. That one is rounded because it is what a `font-size` is written from. This is not
+		// written anywhere: the template still hands the sheet the line's own stored size and the
+		// STYLESHEET multiplies by the weight, so what is actually painted is 18 x 1.1 = 19.8.
+		// Rounded here to 20, the canvas would measure a caption a fifth of a pixel wider than the
+		// one on screen -- small, and still the wrong number in the one place whose entire job is to
+		// be the right one.
+		//
+		// ⚠ AND A PLAIN LINE STAYS ZERO rather than becoming the base times the weight, which is
+		// the one subtle line here. Zero means "whatever the sheet sets", and the measuring pass
+		// answers that by reading a real caption's computed size off the document -- which is the
+		// only reading that survives an accessibility skin having an opinion about type. Filling it
+		// in here would replace a measurement with a guess on every ordinary line on the board. The
+		// ESTIMATE, which has no document to ask, is told the same thing a different way: `basePx`.
+		const capPx = edge.size > 0 ? edge.size * scales.word : 0;
 		const size = curve && edge.label
 			? captionSize(edge.label, curve, {
-				boardWidthPx, paintedPx: painted?.get(id) ?? null, px: edge.size,
+				boardWidthPx, paintedPx: painted?.get(id) ?? null, px: capPx, basePx,
 			})
 			: null;
 		out.push({
@@ -3702,11 +4645,14 @@ function edgeShapes(graph, {
 			edge,
 			curve,
 			size,
+			capPx,
 			mid: middle,
-			anchor: size ? edgeLabelAnchor(curve, RELMAP_BOARD_ASPECT, 0.5, size.w) : null,
+			anchor: size ? edgeLabelAnchor(curve, RELMAP_BOARD_ASPECT, seat, size.w) : null,
 			// The sheet goes through because the head stands off the rim by a PIXEL distance and
 			// this board may be any width: see `RELMAP_HEAD_PX`.
-			heads: curve ? edgeArrowheads(curve, RELMAP_BOARD_ASPECT, edge.dir, { boardWidthPx }) : [],
+			heads: curve
+				? edgeArrowheads(curve, RELMAP_BOARD_ASPECT, edge.dir, { boardWidthPx, headPx })
+				: [],
 		});
 	}
 
@@ -3721,13 +4667,21 @@ function edgeShapes(graph, {
 			// more room in the pile. Left out, the spreader would measure every chip at the ordinary
 			// twelve, slide the board's quiet captions apart perfectly, and leave the one the table
 			// cares about lying across two of them.
+			// ⚠ AND THE SEAT THE READER DRAGGED IT TO, where they have. The spreader puts those down
+			// first and never moves them (`spreadLabels`); left out, the very next repaint would
+			// slide a hand-placed caption back to wherever the board preferred it -- which is the
+			// gesture being undone in front of whoever made it.
 			labels: out.filter(shape => shape.anchor).map(shape => ({
-				id: shape.id, curve: shape.curve, text: shape.edge.label, px: shape.edge.size,
+				id: shape.id, curve: shape.curve, text: shape.edge.label, px: shape.capPx,
+				seat: shape.edge.seat,
 			})),
 			nodes: faces,
 			aspect: RELMAP_BOARD_ASPECT,
 			r,
 			boardWidthPx,
+			// What a caption with no size of its own is set in on this board, which is what the
+			// spreader has to estimate every plain one at. See `capPx` above.
+			basePx,
 		});
 		for (const shape of out) {
 			if (shape.anchor) shape.anchor = anchors.get(shape.id) ?? shape.anchor;
@@ -3743,7 +4697,7 @@ function edgeShapes(graph, {
 		// THE SAME LINE WITH NO HOLE IN IT, kept beside the broken one because the reader turning
 		// the captions off puts it back (`_paintLineGaps`). It may not reach for `curve.d` -- that
 		// is the run end to end, and an end wearing an arrowhead has to stop short of it.
-		shape.unbroken = curveWithGap(shape.curve, { boardWidthPx, dir: shape.edge.dir });
+		shape.unbroken = curveWithGap(shape.curve, { boardWidthPx, dir: shape.edge.dir, headPx });
 		if (!shape.anchor) { shape.d = shape.unbroken; continue; }
 		// HOW WIDE THIS ONE CAPTION MAY GET, which is its own line's business and not the board's:
 		// a long line carries its whole sentence, a short one is still promised a few words. Sent
@@ -3759,7 +4713,7 @@ function edgeShapes(graph, {
 		// MEASURED ONCE, ABOVE, because the same number seats the caption: the hole and the words
 		// have to be the same stretch of the same line or the words sit beside their own hole.
 		shape.d = curveWithGap(shape.curve, {
-			t: shape.anchor.t, span: shape.size.w, boardWidthPx, dir: shape.edge.dir,
+			t: shape.anchor.t, span: shape.size.w, boardWidthPx, dir: shape.edge.dir, headPx,
 		});
 	}
 	return out;
@@ -4014,7 +4968,8 @@ function fitCaption(text, roomPx, measure) {
 	// which is still a mark saying there is something written here to open.
 	const room = Number.isFinite(Number(roomPx)) ? Math.max(0, Number(roomPx)) : Infinity;
 	if (full <= room) return { text: said, width: full };
-	const cutAt = n => `${said.slice(0, n).trimEnd()}${ELLIPSIS}`;
+	// A whole character either way, and never half of an emoji's pair (utils/strings.js).
+	const cutAt = n => `${clipText(said, n).trimEnd()}${ELLIPSIS}`;
 	let lo = 0;
 	let hi = said.length;
 	while (lo < hi) {

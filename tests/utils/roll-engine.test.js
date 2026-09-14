@@ -508,12 +508,13 @@ describe("rollDamage", () => {
 
 	it("rolls a disadvantaged die twice and keeps the lower, with a pill", async () => {
 		await rollDamage("d6", makeActor(), {
-			label: "icy touch d6 w/disadvantage (hand, ignores armor)",
+			label: "Icy touch",
+			keywords: "hand, ignores armor",
 			rollMode: "dis",
 		});
 
 		expect(rollInstances[0].formula).toBe("2d6kl1");
-		expect(rollMessages[0].flavor).toContain("icy touch d6 w/disadvantage");
+		expect(rollMessages[0].flavor).toContain("Icy touch");
 		expect(rollMessages[0].flavor).toContain("stonetop-condition-disadvantage");
 	});
 
@@ -561,6 +562,53 @@ describe("rollDamage", () => {
 		await rollDamage("d6", makeActor(), { label: "Hammer" });
 
 		expect(rollMessages[0].flavor).not.toContain("stonetop-condition-situational");
+	});
+
+	// A stat block's attack reaches the card in two halves (utils/damage.js#damageCardText): its name
+	// for the title and its tags for the body. The die is the formula chip's to print, not the title's.
+	it("prints an attack's keywords beside the total, and only its name in the title", async () => {
+		await rollDamage("d8", makeActor(), { label: "Garrote", keywords: "hand, grabby, ignores armor" });
+
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain(`<h2 class="cell__title">Garrote</h2>`);
+		const resultBody = flavor.slice(flavor.indexOf(`class="stonetop-roll-result-body"`));
+		expect(resultBody).toContain("stonetop-damage-keywords");
+		expect(resultBody).toContain(">hand</strong>, <strong");
+		expect(resultBody).toContain(">ignores armor</strong></span>");
+	});
+
+	it("bolds each known keyword and hovers its meaning, leaving unknown words plain", async () => {
+		await rollDamage("d8", makeActor(), { label: "Smash", keywords: "grabby, loud · scales with size" });
+
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain(`<strong class="stonetop-damage-keyword" data-tooltip="Can grapple or restrain targets.">grabby</strong>, loud · scales with size`);
+	});
+
+	it("escapes the keywords, which can be a GM's own typing", async () => {
+		await rollDamage("d6", makeActor(), { label: "Knife", keywords: "hand, <b>sneaky</b>" });
+
+		expect(rollMessages[0].flavor).toContain(">hand</strong>, &lt;b&gt;sneaky&lt;/b&gt;");
+		expect(rollMessages[0].flavor).not.toContain("<b>sneaky");
+	});
+
+	it("prints no keyword line for a damage roll that has none", async () => {
+		await rollDamage("d6", makeActor(), { label: "Hammer" });
+
+		expect(rollMessages[0].flavor).not.toContain("stonetop-damage-keywords");
+	});
+
+	// A monster move that states its blow in its description (the Crinwin's "Choke with sinewy
+	// fingers") keeps that text on the damage card, behind the same toggle a move roll's card has.
+	it("carries a move's description on the damage card", async () => {
+		await rollDamage("d6", makeActor(), {
+			label: "Choke with sinewy fingers",
+			description: "<p>Clammy, too-cold fingers close around a throat.</p>",
+		});
+
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain(`<div class="stonetop-roll-card-description"><p>Clammy, too-cold fingers close around a throat.</p></div>`);
+		expect(flavor).toContain("stonetop-roll-card-desc-toggle");
+		expect(flavor).toContain("stonetop-damage-roll-card");
 	});
 });
 
@@ -662,5 +710,181 @@ describe("rollStat lasting-injury reminder", () => {
 		]);
 		await rollStat("int", actor, { moveName: "Anything" });
 		expect(rollMessages[0].flavor).not.toContain("Lasting injury");
+	});
+});
+
+describe("rollStat problematic-wound prompt", () => {
+	function actorWithWounds(wounds) {
+		const actor = makeActor();
+		actor.system.attributes.wounds = wounds;
+		return actor;
+	}
+
+	/** The per-tier wrapper the prompt ships in, and which of its rows is visible. */
+	function justifyRows(flavor) {
+		const open = flavor.indexOf('<div class="stonetop-roll-wound-justify"');
+		if (open < 0) return null;
+		const activeTier = /data-active-tier="([^"]*)"/.exec(flavor.slice(open))?.[1] ?? null;
+		// The rows are siblings at a known depth rather than arbitrary nesting, so splitting on the
+		// row opener is enough to say which tiers were emitted and which of them carry the hide.
+		const rows = [...flavor.slice(open).matchAll(/<div data-tier="(\w+)"( hidden="hidden")?>/g)]
+			.map(m => ({ tier: m[1], hidden: !!m[2] }));
+		return { activeTier, rows };
+	}
+
+	const BLEEDING = { id: "w1", text: "Gut wound, still seeping", status: "problematic", healed: false,
+		mechanicalTag: "", reminderMove: "" };
+
+	it("prompts the GM on a miss, naming the wound and what to do with it", async () => {
+		rollTotal = 5;
+		await rollStat("str", actorWithWounds([BLEEDING]), { moveName: "Clash" });
+
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain("Problematic wound");
+		expect(flavor).toContain("Maybe one of these explains the result.");
+		expect(flavor).toContain("Gut wound, still seeping");
+	});
+
+	it("prompts on a 7-9 as well, which is the other tier the book names", async () => {
+		rollTotal = 8;
+		await rollStat("str", actorWithWounds([BLEEDING]), { moveName: "Clash" });
+
+		const { activeTier, rows } = justifyRows(rollMessages[0].flavor);
+		expect(activeTier).toBe("partial");
+		expect(rows.find(r => r.tier === "partial").hidden).toBe(false);
+	});
+
+	it("emits BOTH prompted tiers so a GM Shift Down can reveal the other one", async () => {
+		rollTotal = 5;
+		await rollStat("str", actorWithWounds([BLEEDING]), { moveName: "Clash" });
+
+		const { activeTier, rows } = justifyRows(rollMessages[0].flavor);
+		expect(activeTier).toBe("failure");
+		expect(rows.map(r => r.tier)).toEqual(["partial", "failure"]);
+		// Valued `hidden="hidden"`, never a bare one: Foundry v14 sanitizes valueless boolean
+		// attributes off the flavor HTMLField, and a stripped hide reveals every tier at once.
+		expect(rows.find(r => r.tier === "partial").hidden).toBe(true);
+	});
+
+	it("hides every row on a 10+, so a hit carries no prompt", async () => {
+		rollTotal = 11;
+		await rollStat("str", actorWithWounds([BLEEDING]), { moveName: "Clash" });
+
+		const { activeTier, rows } = justifyRows(rollMessages[0].flavor);
+		expect(activeTier).toBe("success");
+		expect(rows.every(r => r.hidden)).toBe(true);
+	});
+
+	it("names a permanent injury too, which is a problematic wound that can never heal", async () => {
+		rollTotal = 5;
+		await rollStat("dex", actorWithWounds([
+			{ id: "w1", text: "Left hand gone at the wrist", status: "permanent", healed: false },
+		]), { moveName: "Volley" });
+
+		expect(rollMessages[0].flavor).toContain("Left hand gone at the wrist");
+	});
+
+	it("stays quiet about a stabilized wound, which has already been tended", async () => {
+		rollTotal = 5;
+		await rollStat("con", actorWithWounds([
+			{ id: "w1", text: "Cracked ribs, bound up", status: "stabilized", healed: false },
+		]), { moveName: "Defy Danger" });
+
+		expect(rollMessages[0].flavor).not.toContain("stonetop-roll-wound-justify");
+	});
+
+	it("stays quiet about a healed wound", async () => {
+		rollTotal = 5;
+		await rollStat("con", actorWithWounds([
+			{ id: "w1", text: "Old break", status: "problematic", healed: true },
+		]), { moveName: "Defy Danger" });
+
+		expect(rollMessages[0].flavor).not.toContain("stonetop-roll-wound-justify");
+	});
+
+	it("says nothing at all for a character carrying no wounds", async () => {
+		rollTotal = 5;
+		await rollStat("wis", makeActor(), { moveName: "Discern Realities" });
+
+		expect(rollMessages[0].flavor).not.toContain("stonetop-roll-wound-justify");
+		expect(rollMessages[0].flavor).not.toContain("Problematic wound");
+	});
+
+	it("falls back to the mechanical tag for a wound entered as a bare rule", async () => {
+		rollTotal = 5;
+		await rollStat("str", actorWithWounds([
+			{ id: "w1", text: "", status: "problematic", healed: false,
+			  mechanicalTag: "Can't grip with the off hand", reminderMove: "Volley" },
+		]), { moveName: "Clash" });
+
+		// Escaped on the way in, as everything a player typed is: this string lands in the
+		// message flavor, which Foundry stores and re-renders as HTML.
+		expect(rollMessages[0].flavor).toContain("Can&#x27;t grip with the off hand");
+	});
+
+	it("drops a stub with nothing to narrate, and prints no block when that is all there is", async () => {
+		rollTotal = 5;
+		await rollStat("str", actorWithWounds([
+			{ id: "w1", text: "   ", status: "problematic", healed: false, mechanicalTag: "" },
+		]), { moveName: "Clash" });
+
+		expect(rollMessages[0].flavor).not.toContain("stonetop-roll-wound-justify");
+	});
+
+	it("sits alongside the lasting-injury reminder without restating it", async () => {
+		// The two notices answer different questions about one wound -- what it DOES to the roll,
+		// and whether it is why the roll went wrong -- so both belong on a 6- card, each naming the
+		// wound by its own string.
+		rollTotal = 5;
+		await rollStat("dex", actorWithWounds([
+			{ id: "w1", text: "Bad arm, barely holds a bow", status: "permanent", healed: false,
+			  mechanicalTag: "Volley at disadvantage until practiced", reminderMove: "Volley" },
+		]), { moveName: "Volley" });
+
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain("Lasting injury");
+		expect(flavor).toContain("Volley at disadvantage until practiced");
+		expect(flavor).toContain("Problematic wound");
+		expect(flavor).toContain("Bad arm, barely holds a bow");
+	});
+
+	it("goes quiet when the table turns the prompt off", async () => {
+		// 9- is where most 2d6 rolls land and a permanent injury never heals, so the prompt is
+		// unconditional on those tiers for the rest of a maimed character's campaign. The world
+		// switch is the way out (settings.js `chatWoundPrompt`).
+		global.game.settings = { get: vi.fn((ns, key) =>
+			key === "chatWoundPrompt" ? false : "publicroll") };
+		rollTotal = 5;
+		await rollStat("str", actorWithWounds([BLEEDING]), { moveName: "Clash" });
+
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).not.toContain("stonetop-roll-wound-justify");
+		// The lasting-injury reminder is NOT what this switch is for: that one fires only on the
+		// move a player deliberately keyed it to, so it is already opt-in per wound.
+		expect(flavor).toContain("stonetop-roll-card");
+	});
+
+	it("keeps prompting in a world that never registered the setting", async () => {
+		// An older world, or any caller reaching rollStat before registerSettings ran: OUR namespace
+		// throws on an unknown key while core's own settings still answer. A thrown lookup that
+		// escaped the guard would take the whole card down, not just the prompt.
+		global.game.settings = { get: vi.fn((ns, key) => {
+			if (ns === "core") return "publicroll";
+			throw new Error(`not a registered setting: ${key}`);
+		}) };
+		rollTotal = 5;
+		await rollStat("str", actorWithWounds([BLEEDING]), { moveName: "Clash" });
+
+		expect(rollMessages[0].flavor).toContain("stonetop-roll-wound-justify");
+	});
+
+	it("pluralizes the heading when more than one wound is in play", async () => {
+		rollTotal = 5;
+		await rollStat("str", actorWithWounds([
+			BLEEDING,
+			{ id: "w2", text: "Burned hands", status: "problematic", healed: false },
+		]), { moveName: "Clash" });
+
+		expect(rollMessages[0].flavor).toContain("Problematic wounds");
 	});
 });

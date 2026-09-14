@@ -35,7 +35,7 @@
           <button type="button"
                   class="stonetop-of-tag{{#if help}} is-help{{/if}}{{#if hinder}} is-hinder{{/if}}"
                   data-tag="{{tag}}">
-            {{#if help}}<i class="fas fa-arrow-up"></i> {{/if}}{{#if hinder}}<i class="fas fa-arrow-down"></i> {{/if}}{{tag}}
+            {{#if help}}<i class="fas fa-arrow-up"></i> {{/if}}{{#if hinder}}<i class="fas fa-arrow-down"></i> {{/if}}<span class="stonetop-chip-text">{{tag}}</span>
           </button>
           {{/each}}
         </div>
@@ -53,7 +53,7 @@
           <button type="button"
                   class="stonetop-of-tag stonetop-of-move-chip{{#if help}} is-help{{/if}}"
                   data-move="{{move}}">
-            {{#if help}}<i class="fas fa-arrow-up"></i> {{/if}}{{move}}
+            {{#if help}}<i class="fas fa-arrow-up"></i> {{/if}}<span class="stonetop-chip-text">{{move}}</span>
           </button>
           {{/each}}
         </div>

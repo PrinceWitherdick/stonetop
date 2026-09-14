@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
-	RELMAP_BOARD_ASPECT, RELMAP_BOARD_MAX, RELMAP_BOARD_WIDTH, RELMAP_CAPTION_PX, boardMetrics,
+	RELMAP_BOARD_ASPECT, RELMAP_BOARD_MAX, RELMAP_BOARD_WIDTH, RELMAP_CAPTION_PX, RELMAP_HEAD_PX,
+	boardMetrics,
 	clampPct, clearanceBow,
 	RELMAP_LABEL_CLEAR_PX,
 	edgeArrowheads, edgeBow, edgeCurve, edgeLabelAnchor, fanBow, freeSpot, labelSize,
 	captionRoomPx, captionSize, curvePoints, curveWithGap, nodeRadiusPct, ringsLayout,
-	spreadLabels,
+	seatAlong, spreadLabels,
 } from "../../module/utils/relmap-geometry.js";
 
 // The relationship map's arithmetic, which three renderers share: the stretched SVG that strokes
@@ -14,6 +15,14 @@ import {
 // stroke.
 
 const ASPECT = 1.25;
+
+// THE HEAD'S OWN MEASUREMENTS, taken off the constant rather than written out, so bumping the
+// arrowhead's size moves these with it instead of turning every head test red at once. Its
+// points sit at -0.4 and 0.4 of its size, so the tip reaches 0.4 of it ahead of the centre the
+// stylesheet positions by, and the triangle behind that tip is 0.8 of it long. The stroke stops
+// a pixel INSIDE that back edge, so what a head takes off its end is one less.
+const HEAD_TIP_PX = RELMAP_HEAD_PX * 0.4;
+const HEAD_CUT_PX = RELMAP_HEAD_PX * 0.8 - 1;
 
 /** The distance the EYE sees between two percentage points, which is not the distance the numbers
  * describe: a step of 1% down is a different number of pixels from a step of 1% across. */
@@ -328,12 +337,26 @@ describe("the arrowheads that say which way a link is read", () => {
 	});
 
 	// The complaint this replaced a flat percentage back-off for: the head belongs AT the end of
-	// its line, and the tip is 6.4 board pixels ahead of the centre the stylesheet positions by,
-	// so on a 1200-wide sheet the centre lands 6.4/1200 of the width short of the rim and no more.
+	// its line, and the tip is `HEAD_TIP_PX` board pixels ahead of the centre the stylesheet
+	// positions by, so on a 1200-wide sheet the centre lands that share of the width short of the
+	// rim and no more.
 	it("lands the tip of the head on the end of the line", () => {
 		const line = curve();
 		const [head] = edgeArrowheads(line, ASPECT, "a-b", { boardWidthPx: 1200 });
-		expect(line.to.left - head.left).toBeCloseTo((100 * 16 * 0.4) / 1200, 2);
+		expect(line.to.left - head.left).toBeCloseTo((100 * HEAD_TIP_PX) / 1200, 2);
+	});
+
+	// ⚠ AND ON A BOWED LINE TOO. The stand-off is a length ALONG the curve: taken as a share of the
+	// straight run between the ends, the head sat further back the more the line bowed, and its point
+	// stopped a few pixels short of the face it was aimed at.
+	it("lands the tip on the end of a bowed line as well", () => {
+		const line = edgeCurve({
+			from: { left: 30, top: 50 }, to: { left: 70, top: 50 }, bow: 3, aspect: ASPECT, r,
+		});
+		const [head] = edgeArrowheads(line, ASPECT, "a-b", { boardWidthPx: 1200 });
+		// How far apart two board points LOOK, with the height put back into the width's units.
+		const seen = (a, b) => Math.hypot(b.left - a.left, (b.top - a.top) / ASPECT);
+		expect(seen(head, line.to)).toBeCloseTo((100 * HEAD_TIP_PX) / 1200, 1);
 	});
 
 	// And it is a PIXEL stand-off, so a bigger sheet does not push the head back down its line:
@@ -341,11 +364,47 @@ describe("the arrowheads that say which way a link is read", () => {
 	it("keeps the same pixel stand-off however wide the sheet grows", () => {
 		const line = curve();
 		const [near] = edgeArrowheads(line, ASPECT, "a-b", { boardWidthPx: 4800 });
-		expect(line.to.left - near.left).toBeCloseTo((100 * 16 * 0.4) / 4800, 2);
+		expect(line.to.left - near.left).toBeCloseTo((100 * HEAD_TIP_PX) / 4800, 2);
 	});
 
 	it("has no heads to place for a link that could not be drawn", () => {
 		expect(edgeArrowheads(null, ASPECT, "both")).toEqual([]);
+	});
+
+	// ── A HEAD THIS READER HAS ASKED TO BE DRAWN BIGGER ──────────────────────────
+	//
+	// The footer's first dial scales the arrowheads by a percentage, and the stylesheet draws the
+	// triangle at that size. What must follow it is the STAND-OFF: the anchor is the head's centre,
+	// so a bigger triangle has to sit further back from the rim or its point buries itself in the
+	// portrait it is meant to be touching. See `headPx` and module/relmap/relmap-weights.js.
+
+	it("stands a bigger head further off the rim, by its own tip's reach", () => {
+		const line = curve();
+		const [big] = edgeArrowheads(line, ASPECT, "a-b", {
+			boardWidthPx: 1200, headPx: RELMAP_HEAD_PX * 2,
+		});
+		expect(line.to.left - big.left).toBeCloseTo((100 * HEAD_TIP_PX * 2) / 1200, 2);
+	});
+
+	it("draws the ordinary head when nobody has asked for another size", () => {
+		const line = curve();
+		const [said] = edgeArrowheads(line, ASPECT, "a-b", {
+			boardWidthPx: 1200, headPx: RELMAP_HEAD_PX,
+		});
+		const [quiet] = edgeArrowheads(line, ASPECT, "a-b", { boardWidthPx: 1200 });
+		expect(said).toEqual(quiet);
+	});
+
+	// A size that is not one falls back to the sheet's own rather than collapsing every head onto
+	// the rim. This is fed from browser storage through `weightScales`, and the gate there is not
+	// allowed to be the only one.
+	it("falls back to the ordinary head for a size that is not a size", () => {
+		const line = curve();
+		const [quiet] = edgeArrowheads(line, ASPECT, "a-b", { boardWidthPx: 1200 });
+		for (const junk of [0, -8, NaN, null, "big"]) {
+			const [said] = edgeArrowheads(line, ASPECT, "a-b", { boardWidthPx: 1200, headPx: junk });
+			expect(said, String(junk)).toEqual(quiet);
+		}
 	});
 });
 
@@ -1107,31 +1166,41 @@ describe("cutting the line open where its caption sits", () => {
 		});
 
 		// THE WHOLE LENGTH OF THE TRIANGLE, less the pixel of overlap that keeps the join from
-		// being a seam: a 16px head with its points at -0.4 and 0.4 is 12.8px long.
+		// being a seam: see `HEAD_CUT_PX`.
 		it("cuts the head's own length off the end it points at", () => {
 			const cut = curveWithGap(curve, { span: 0, boardWidthPx: 1200, dir: "a-b" });
-			expect(flatPx(endOf(cut), curve.to)).toBeCloseTo(11.8, 1);
+			expect(flatPx(endOf(cut), curve.to)).toBeCloseTo(HEAD_CUT_PX, 1);
 			expect(startOf(cut)).toEqual(curve.from);
 		});
 
 		it("cuts the other end instead when the arrow is read the other way", () => {
 			const cut = curveWithGap(curve, { span: 0, boardWidthPx: 1200, dir: "b-a" });
-			expect(flatPx(startOf(cut), curve.from)).toBeCloseTo(11.8, 1);
+			expect(flatPx(startOf(cut), curve.from)).toBeCloseTo(HEAD_CUT_PX, 1);
 			expect(endOf(cut)).toEqual(curve.to);
 		});
 
 		it("cuts both ends of a link read both ways", () => {
 			const cut = curveWithGap(curve, { span: 0, boardWidthPx: 1200, dir: "both" });
-			expect(flatPx(startOf(cut), curve.from)).toBeCloseTo(11.8, 1);
-			expect(flatPx(endOf(cut), curve.to)).toBeCloseTo(11.8, 1);
+			expect(flatPx(startOf(cut), curve.from)).toBeCloseTo(HEAD_CUT_PX, 1);
+			expect(flatPx(endOf(cut), curve.to)).toBeCloseTo(HEAD_CUT_PX, 1);
 		});
 
-		// A FIXED LENGTH OF LINE AND NOT A SHARE OF IT: the head is 16 board pixels whatever the
-		// sheet, so on a wider board the same head takes a smaller share of the same percentages.
+		// A FIXED LENGTH OF LINE AND NOT A SHARE OF IT: the head is the same board pixels whatever
+		// the sheet, so on a wider board the same head takes a smaller share of the same percentages.
 		it("takes the same pixels off however wide the board is", () => {
 			const wide = curveWithGap(curve, { span: 0, boardWidthPx: 2400, dir: "a-b" });
 			expect(Math.hypot(endOf(wide).left - curve.to.left, endOf(wide).top - curve.to.top) * 24)
-				.toBeCloseTo(11.8, 1);
+				.toBeCloseTo(HEAD_CUT_PX, 1);
+		});
+
+		// ⚠ AND A BIGGER HEAD TAKES MORE OFF, which is the other half of the corner over the
+		// board. The triangle's taper is longer, so the stroke has to stop further back or the
+		// line shows through both sides of the point it is meant to end at.
+		it("cuts back further for a head this reader has made bigger", () => {
+			const cut = curveWithGap(curve, {
+				span: 0, boardWidthPx: 1200, dir: "a-b", headPx: RELMAP_HEAD_PX * 2,
+			});
+			expect(flatPx(endOf(cut), curve.to)).toBeCloseTo(RELMAP_HEAD_PX * 2 * 0.8 - 1, 1);
 		});
 
 		// A link between two portraits almost touching keeps a stroke rather than losing it
@@ -1149,7 +1218,7 @@ describe("cutting the line open where its caption sits", () => {
 		it("still breaks for the caption on a line that also carries a head", () => {
 			const both = curveWithGap(curve, { t: 0.5, span: 8, boardWidthPx: 1200, dir: "a-b" });
 			expect(runs(both)).toBe(2);
-			expect(flatPx(endOf(both), curve.to)).toBeCloseTo(11.8, 1);
+			expect(flatPx(endOf(both), curve.to)).toBeCloseTo(HEAD_CUT_PX, 1);
 		});
 	});
 
@@ -1162,5 +1231,170 @@ describe("cutting the line open where its caption sits", () => {
 		for (const bad of [null, undefined, "", "x", NaN]) {
 			expect(curveWithGap(curve, { t: bad, span: 8, boardWidthPx: 1200 })).toBe(middle);
 		}
+	});
+});
+
+describe("finding the place on a line a pointer is aiming at", () => {
+	const r = nodeRadiusPct(72, 1200);
+	const opts = { aspect: ASPECT, r };
+	const curveOf = (from, to) => edgeCurve({ from, to, ...opts });
+
+	// WHAT THE WHOLE GESTURE RESTS ON. A hand dragging a caption goes NEAR the line, never along it
+	// exactly, and what the board needs from that is the one number a caption is placed by.
+	it("answers with the share of the line nearest the point, not with the point", () => {
+		const across = curveOf({ left: 10, top: 50 }, { left: 90, top: 50 });
+		// Taken from a real place on the stroke and then held a few units off it, which is where a
+		// hand dragging the words actually is. The answer is the place, not the offset.
+		for (const t of [0.25, 0.5, 0.75]) {
+			const on = edgeLabelAnchor(across, ASPECT, t);
+			expect(seatAlong(across, { left: on.left, top: on.top + 6 }, ASPECT)).toBeCloseTo(t, 2);
+		}
+	});
+
+	// ⚠ MEASURED WHERE THE READER IS LOOKING. The board is taller than it is wide, so a nearest
+	// point worked out in raw percentages is pulled along one axis: a caption dragged square across
+	// a line would creep along it, which reads as the words sliding away from the hand.
+	it("measures the distance the eye sees, not the one the numbers say", () => {
+		const down = curveOf({ left: 50, top: 15 }, { left: 50, top: 85 });
+		// Straight out sideways from the middle of a vertical line: the nearest place on it is the
+		// middle, whatever the board's proportions are.
+		expect(seatAlong(down, { left: 62, top: 50 }, ASPECT)).toBeCloseTo(0.5, 2);
+	});
+
+	// A pointer dragged past the end of a line has nowhere further to go: the caption stops at the
+	// end rather than coming back or leaving the stroke.
+	it("holds a pointer dragged off the end at the end", () => {
+		const across = curveOf({ left: 20, top: 50 }, { left: 80, top: 50 });
+		expect(seatAlong(across, { left: -400, top: 50 }, ASPECT)).toBe(0);
+		expect(seatAlong(across, { left: 400, top: 50 }, ASPECT)).toBe(1);
+	});
+
+	// It is asked once per painted frame from a live drag, off geometry the paint hands it, so
+	// there is a real chance of being asked with nothing.
+	it("has no answer where there is no line, or no point", () => {
+		const across = curveOf({ left: 20, top: 50 }, { left: 80, top: 50 });
+		expect(seatAlong(null, { left: 1, top: 1 })).toBeNull();
+		expect(seatAlong(across, null)).toBeNull();
+		expect(seatAlong(across, { left: "over there", top: 3 })).toBeNull();
+	});
+
+	// The point of the projection rather than of the nearest sample: a caption stepping down a long
+	// stroke in visible hops is what a sampled answer alone would give.
+	it("lands anywhere along the line, not on one of a handful of stops", () => {
+		const across = curveOf({ left: 10, top: 50 }, { left: 90, top: 50 });
+		const seats = [50.1, 50.2, 50.3, 50.4].map(left => seatAlong(across, { left, top: 50 }, ASPECT));
+		expect(new Set(seats).size).toBe(seats.length);
+	});
+});
+
+describe("a caption the reader has seated by hand", () => {
+	const r = nodeRadiusPct(72, 1200);
+	const opts = { aspect: ASPECT, r };
+	const curveOf = (from, to) => edgeCurve({ from, to, ...opts });
+
+	// ⚠ THE ASSERTION THE WHOLE FEATURE HANGS ON. The spreader runs on every repaint, and a repaint
+	// happens whenever anybody at the table touches the board — so a spreader that treated a
+	// hand-placed caption as one more chip to arrange would undo the gesture within seconds of it
+	// being made, and the reader would have no idea why the words would not stay put.
+	it("is left exactly where it was put, however crowded the board is", () => {
+		const across = curveOf({ left: 15, top: 50 }, { left: 85, top: 50 });
+		const down = curveOf({ left: 50, top: 12 }, { left: 50, top: 88 });
+		const text = "has never forgiven her";
+		const out = spreadLabels({
+			labels: [
+				{ id: "a", curve: across, text, seat: 0.8 },
+				{ id: "b", curve: down, text },
+			],
+			...opts,
+		});
+		const size = captionSize(text, across, { boardWidthPx: 1200 });
+		expect(out.get("a")).toEqual(edgeLabelAnchor(across, ASPECT, 0.8, size.w));
+	});
+
+	// And the rest of the board gives way to it rather than the other way round: the seated caption
+	// is put down FIRST and takes its room in the pile, so the captions that can still move are the
+	// ones asked to.
+	it("makes the captions that can still move go round it", () => {
+		const across = curveOf({ left: 15, top: 50 }, { left: 85, top: 50 });
+		const down = curveOf({ left: 50, top: 12 }, { left: 50, top: 88 });
+		const text = "has never forgiven her";
+		const out = spreadLabels({
+			labels: [
+				{ id: "a", curve: across, text, seat: 0.5 },
+				{ id: "b", curve: down, text },
+			],
+			...opts,
+		});
+		const size = captionSize(text, across, { boardWidthPx: 1200 });
+		expect(out.get("a")).toEqual(edgeLabelAnchor(across, ASPECT, 0.5, size.w));
+		// The other one has been moved off the spot they would have shared.
+		expect(out.get("b").top).not.toBeCloseTo(edgeLabelAnchor(down, ASPECT, 0.5).top, 6);
+	});
+
+	// Two clients painting one board must place every caption identically, seated or not — the same
+	// promise the queue already keeps, which an unordered pass over the seated ones would break.
+	it("gives the same board to every client, whatever order the links arrive in", () => {
+		const across = curveOf({ left: 15, top: 50 }, { left: 85, top: 50 });
+		const down = curveOf({ left: 50, top: 12 }, { left: 50, top: 88 });
+		const text = "owes her a great deal";
+		const labels = [
+			{ id: "a", curve: across, text, seat: 0.45 },
+			{ id: "b", curve: down, text, seat: 0.55 },
+			{ id: "c", curve: across, text },
+		];
+		const one = spreadLabels({ labels, ...opts });
+		const two = spreadLabels({ labels: [...labels].reverse(), ...opts });
+		expect([...two.entries()].sort()).toEqual([...one.entries()].sort());
+	});
+
+	// Zero is "wherever the board puts it" everywhere else in the feature, and it has to mean that
+	// here too: it is what every line nobody has dragged carries.
+	it("treats no seat at all as the board's own business", () => {
+		const across = curveOf({ left: 15, top: 50 }, { left: 85, top: 50 });
+		const text = "old friends";
+		const out = spreadLabels({ labels: [{ id: "a", curve: across, text, seat: 0 }], ...opts });
+		expect(out.get("a")).toEqual(edgeLabelAnchor(across, ASPECT, 0.5));
+	});
+});
+
+
+// ── THE SIZE A CAPTION WITH NONE OF ITS OWN IS SET IN ────────────────────────
+//
+// A reader can ask a whole board for heavier writing (module/relmap/relmap-weights.js), which moves
+// the size EVERY plain caption is painted in without writing a number onto a single line. The
+// estimate here has no document to read that off, so it is told: `basePx`. Left out, a board of
+// 24-pixel captions would be measured as though it were sixteen and every sentence on it cut a
+// third too long, into a hole a third too small.
+describe("a caption on a board set in a bigger base", () => {
+	const line = "a sentence of some length about two people";
+
+	it("measures a plain caption at the base it is actually painted in", () => {
+		const quiet = labelSize(line, 1200, Infinity, null, 0);
+		const heavy = labelSize(line, 1200, Infinity, null, 0, RELMAP_CAPTION_PX * 1.5);
+		expect(heavy.w).toBeGreaterThan(quiet.w);
+		expect(heavy.h).toBeCloseTo(quiet.h * 1.5, 3);
+	});
+
+	// ⚠ A LINE WITH A SIZE OF ITS OWN IGNORES THE BASE, and must: the caption the reader set to
+	// twenty is painted at twenty (times the same weight, applied by the caller before it gets
+	// here), and measuring it against the board's plain size would be measuring the wrong caption.
+	it("leaves a line with a size of its own measured at that size", () => {
+		const own = labelSize(line, 1200, Infinity, null, 24);
+		const same = labelSize(line, 1200, Infinity, null, 24, RELMAP_CAPTION_PX * 1.5);
+		expect(same).toEqual(own);
+	});
+
+	it("changes nothing at all when the base is the sheet's own", () => {
+		expect(labelSize(line, 1200, Infinity, null, 0, RELMAP_CAPTION_PX))
+			.toEqual(labelSize(line, 1200, Infinity, null, 0));
+	});
+
+	// THE MEASUREMENT STILL WINS OVER THE ESTIMATE. `paintedPx` was read off a caption already set
+	// in its own size on a board already drawn at its own weight, so it is the answer for both and
+	// scaling it again would double the whole difference.
+	it("does not scale a width that was actually measured", () => {
+		const said = labelSize(line, 1200, Infinity, 300, 0, RELMAP_CAPTION_PX * 1.5);
+		const quiet = labelSize(line, 1200, Infinity, 300, 0);
+		expect(said.w).toBe(quiet.w);
 	});
 });

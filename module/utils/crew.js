@@ -62,3 +62,12 @@ export function crewAnonMemberLabel(namedCount, index) {
 export function crewIndividualLabel(index) {
 	return `Crew member ${Number(index) + 1}`;
 }
+
+/**
+ * What to call the Nth member of a custom GROUP follower, every one of whom is anonymous. The
+ * roster rows and the Have What They Need picker both print it, and the picker writes it into
+ * saved gear ("litter (Member 2)"), so the two must not word it differently.
+ */
+export function customGroupMemberLabel(index) {
+	return `Member ${Number(index) + 1}`;
+}

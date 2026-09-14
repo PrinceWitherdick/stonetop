@@ -132,7 +132,7 @@
 						   role="link" tabindex="0"
 						   aria-label='{{localize "stonetop.relationships.open" name=name}}'>{{name}}</a>
 						{{else}}
-						<span class="stonetop-rel-card-name" data-tooltip="{{#if tooltip}}{{tooltip}}{{else}}{{name}}{{/if}}">{{name}}</span>
+						<span class="stonetop-rel-card-name" data-tooltip-text="{{#if tooltip}}{{tooltip}}{{else}}{{name}}{{/if}}">{{name}}</span>
 						{{/if}}
 						{{!-- One heart with the rating inside it, at the far right of the name's line,
 						      instead of the table's five-slot strip. Five 18px slots ate a whole row
@@ -142,7 +142,7 @@
 						      aria-label already reads the full sentence ("Vera loves Aldric"), so
 						      exposing the numeral too would say it twice. Exact values are set by
 						      dragging onto a zone or by the arrow keys. --}}
-						<span class="stonetop-rel-heart-badge" data-tooltip="{{feeling}}" aria-hidden="true">
+						<span class="stonetop-rel-heart-badge" data-tooltip-text="{{feeling}}" aria-hidden="true">
 							<span class="stonetop-rel-heart-badge-value">{{hearts}}</span>
 						</span>
 					</div>
