@@ -13,8 +13,13 @@
 		      tappable — StonetopCharacterSheet's row handler forwards a click on empty row space
 		      to this element — so what changed here is only that the die is gone.
 
-		      The "+STAT" chip follows the name, as it does on the Moves tab's cards. --}}
-		<span class="stonetop-move-name {{openClass}}{{#if (and owned rollType)}} rollable move-rollable{{/if}}"
+		      The "+STAT" chip follows the name, as it does on the Moves tab's cards.
+
+		      `../openClass`, not `openClass`: inside the `each` a bare name is looked up on the MOVE,
+		      and Foundry compiles without Handlebars' compat mode, so it never reaches the partial's
+		      own parameter. Written bare, the class came out empty and the sheet's expedition door
+		      (which keys off it) never opened Make Camp, Requisition or Outfit from this list. --}}
+		<span class="stonetop-move-name {{../openClass}}{{#if (and owned rollType)}} rollable move-rollable{{/if}}"
 		      {{#if (and owned rollType)}}data-roll="{{rollType}}" data-mod="" {{/if}}data-compendium-id="{{compendiumId}}">{{name}}</span>
 		{{#if (and @root.stonetop.showRollStatChips rollLabel)}}<span class="stonetop-move-roll-chip">+{{rollLabel}}</span>{{/if}}
 		{{#if readiness}}
