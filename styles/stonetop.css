@@ -7261,16 +7261,30 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 .stonetop-camp-meal.is-short .stonetop-camp-meal-status { color: var(--st-red-text); }
 .stonetop-camp-meal.is-paid .stonetop-camp-meal-status { color: var(--st-green-text); }
 
+/* The cards, as many to a line as the window has room for. `auto-fill` rather than `auto-fit`, so
+   the number of columns follows the window and never the party: a card keeps its width when someone
+   sits down or gets up beside it, and nobody part-way through their own card (perhaps reading it
+   through a magnifier) has it reflow under them because the fire changed. The floor is in `em`, so
+   it grows with the UI and sheet font settings along with the words a card has to hold: at the
+   default 600px that is two columns up to a 16px UI font, and one from 18px, where two columns
+   wrapped nearly every label in the card. */
 .stonetop-camp-rows {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 18em), 1fr));
+	gap: 10px;
 	margin: 0;
 	padding: 0;
 	list-style: none;
 }
 
+/* A column, so the ready tick and Go without can sit at the foot of the card (.stonetop-camp-row-foot),
+   level with the card beside it, since a grid line is as tall as its tallest card. The gap spaces
+   the parts, so they carry no margins of their own. */
 .stonetop-camp-row {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
 	margin: 0;
 	padding: 8px 12px 10px;
 	border: 1px solid var(--color-border-light-2, rgba(0, 0, 0, 0.15));
@@ -7286,6 +7300,31 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	box-shadow: inset 3px 0 0 var(--st-btn-primary-bg);
 }
 
+/* A card of sentences (somebody else's choices) keeps its own height. Stretched to the card of
+   controls beside it, it read as an empty box. Cards of controls still stretch, so two of them side
+   by side keep their feet level. */
+.stonetop-camp-row.is-readonly { align-self: start; }
+
+/* Somebody going without food (Book I p.335: no food, so no pick from the night) keeps their card at
+   the fire, marked twice so no one cue carries it alone: a dashed edge that reads across the grid at
+   a glance, and a line in the caution gold saying what it costs, in words. The edge changes only its
+   style, so the reader's own card keeps the colour that says it is theirs. The words keep the body
+   ink rather than the gold's, which is too light to carry them for a player reading through a
+   magnifier; the gold is the bar and the wash. */
+.stonetop-camp-row.is-going-without { border-style: dashed; }
+
+.stonetop-camp-without {
+	margin: 0;
+	padding: 4px 8px;
+	border-left: 3px solid var(--st-gold-border);
+	background: var(--st-gold-bg);
+	font-size: var(--st-fs-sm);
+	line-height: 1.35;
+	color: var(--st-text-body);
+}
+
+.stonetop-camp-without strong { color: var(--st-text); }
+
 .stonetop-camp-row-head {
 	display: flex;
 	align-items: center;
@@ -7299,6 +7338,29 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	object-fit: cover;
 	border: none;
 	border-radius: var(--st-radius-sm);
+}
+
+/* A face the reader may look behind is a button onto that character's sheet. Core draws a button in a
+   legacy window as a full-width flex block with a minimum height and a hover wash, so each of those
+   is undone here, and a ring on hover and on keyboard focus is what says the face can be pressed. */
+.stonetop-camp-portrait-btn {
+	display: inline-flex;
+	flex: 0 0 auto;
+	width: auto;
+	height: auto;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	border: none;
+	border-radius: var(--st-radius-sm);
+	background: none;
+	cursor: pointer;
+}
+
+.stonetop-camp-portrait-btn:hover,
+.stonetop-camp-portrait-btn:focus-visible {
+	outline: 2px solid var(--st-btn-primary-bg);
+	outline-offset: 1px;
 }
 
 .stonetop-camp-name {
@@ -7329,7 +7391,12 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	color: var(--st-green-text);
 }
 
-.stonetop-camp-part { margin: 8px 0 0; }
+.stonetop-camp-part { margin: 0; }
+
+/* The card's gap is the space between its parts, and a margin at either end of one would add to it
+   (a flex item's margins never collapse into its neighbours'). */
+.stonetop-camp-part > :first-child { margin-top: 0; }
+.stonetop-camp-part > :last-child { margin-bottom: 0; }
 
 /* The night's pick is a fieldset, so its radios are announced as one question. Core boxes a
    fieldset and gaps its legend, and a part of a row wants neither. */
@@ -7359,29 +7426,57 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 
 .stonetop-camp-check {
 	display: flex;
-	align-items: baseline;
-	gap: 6px;
+	align-items: flex-start;
+	gap: 0.5em;
 	margin: 3px 0;
 	line-height: 1.35;
 	cursor: pointer;
 	color: var(--st-text-body);
 }
 
-.stonetop-camp-check input { flex: 0 0 auto; }
+/* The control sits on the middle of its label's FIRST line, so a label that wraps (in a card one
+   column wide, most of them do) carries on under its own words instead of hanging the box between
+   its lines. `1lh` is that line, read off the input's own font size and leading, which is why both
+   are inherited from the label here. Core seats every checkbox in an app 3px 5px from its
+   neighbours and drops every radio 2px with `top`, and our unlayered rules only outrank that for
+   what they name, so both are named. The skins are the shared ones (`.stonetop-check`, and the
+   round-radio block); `color: inherit` because the radio draws its ring in currentColor, and core
+   gives an input a colour of its own. */
+.stonetop-camp-check > input {
+	flex: 0 0 auto;
+	position: relative;
+	top: 0;
+	margin: calc((1lh - 15px * var(--stonetop-font-scale, 1)) / 2) 0 0;
+	font-size: inherit;
+	line-height: inherit;
+	color: inherit;
+}
 
 /* A label's words, as ONE flex item (the template wraps them in a span): bare text beside an <em>
    would be two items, gapped apart and wrapping between them rather than between words. */
 .stonetop-camp-check > span { flex: 1 1 auto; min-width: 0; }
 
+/* An HP change reads as one figure, so a narrow card moves "18 → 26" to the next line whole rather
+   than leaving the arrow pointing at nothing. */
+.stonetop-camp-hp { white-space: nowrap; }
+
 .stonetop-camp-line select { width: auto; max-width: 100%; }
-.stonetop-camp-line-label { min-width: 11em; }
 .stonetop-camp-purse-left { color: var(--st-text-secondary); }
 
 .stonetop-camp-stepper {
 	display: inline-flex;
+	flex: none;
 	align-items: center;
 	gap: 6px;
 }
+
+/* A count and its stepper, filed after the line it modifies (one class each, so order decides).
+   The stepper keeps to the card's right edge, where the steppers above and below it line up, and
+   the words take what is left and wrap there. A wrapping line would drop the stepper to a line of
+   its own in a card one column wide. */
+.stonetop-camp-line--stepper { flex-wrap: nowrap; }
+.stonetop-camp-line--stepper .stonetop-camp-line-label { flex: 1 1 auto; min-width: 0; }
+.stonetop-camp-line--stepper .stonetop-camp-stepper { margin-left: auto; }
 
 /* The camp's two plain buttons, the steppers and the inline actions, share one skin. */
 .stonetop-camp-step,
@@ -7450,38 +7545,45 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 
 .stonetop-camp-closed { margin: 0; font-style: italic; color: var(--st-text-body); }
 
+/* On the card's bottom edge, by its auto margin in the card's column, so the ready ticks of two
+   cards side by side sit on one line however much each holds above them. The card's gap still
+   keeps it clear of the part above in the tallest card of a line. */
 .stonetop-camp-row-foot {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	flex-wrap: wrap;
 	gap: 6px 12px;
-	margin: 8px 0 0;
+	margin: auto 0 0;
 	padding: 6px 0 0;
 	border-top: 1px dashed var(--color-border-light-2, rgba(0, 0, 0, 0.15));
 }
 
-/* Later than the inline button it modifies, which is what lets one class override one class. */
-.stonetop-camp-leave {
-	margin: 0;
-	border-color: var(--st-red-border);
-	color: var(--st-red-text);
-}
+/* Go without, and Eat after all in its place once pressed. Plain, like every other button in the
+   card: each takes the other back, so neither is red, which in this window is kept for Break up the
+   camp, the one button nobody can take back. The auto margin keeps it on the right, alone in the
+   host's foot or wrapped under the ready tick in a narrow card, where the dismissive button sits in
+   every other row. */
+.stonetop-camp-eating-btn { margin: 0 0 0 auto; }
 
-.stonetop-camp-leave:hover:not(:disabled) { background: var(--st-red-bg); }
-
-.stonetop-camp-add {
+/* The GM's one line under the cards: a list of who is not at the fire and who is, then Bring them and
+   Send them away. Plain buttons both, since each is the other's undo. The list sizes to its names,
+   like the lists in the cards, so the two buttons stay on its line. */
+.stonetop-camp-roster {
 	display: flex;
 	align-items: center;
 	flex-wrap: wrap;
 	gap: 6px 10px;
 }
 
-.stonetop-camp-add .stonetop-camp-inline-btn { margin: 0; }
+.stonetop-camp-roster select { width: auto; max-width: 100%; }
+.stonetop-camp-roster .stonetop-camp-inline-btn { margin: 0; }
 
 /* The footer: what the camp is waiting on, on a line of its own above Make Camp (left) and Break up
    (right). Squeezed between the two buttons it got whatever width they left, which in a narrow
-   window was a column one word wide. */
+   window was a column one word wide. Break up wears the dialogs' shared red confirm,
+   `.stonetop-dialog-btn--danger` near the top of this file, which outranks `.stonetop-guide-nav
+   button`, so the camp paints no red of its own. */
 .stonetop-camp-window .stonetop-guide-nav {
 	flex-wrap: wrap;
 	row-gap: 6px;
@@ -7496,14 +7598,6 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	font-style: italic;
 	color: var(--st-text-secondary);
 }
-
-.stonetop-guide-nav .stonetop-camp-break {
-	border-color: var(--st-red-border);
-	background: transparent;
-	color: var(--st-red-text);
-}
-
-.stonetop-guide-nav .stonetop-camp-break:hover:not(:disabled) { background: var(--st-red-bg); }
 
 /* The join card. A chat card pins parchment in every theme, so its text names its own ink. */
 .stonetop-camp-card-text { margin: 4px 0 8px; color: var(--st-text-body); }
@@ -31557,12 +31651,14 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-cf-option.is-selected .stonetop-cf-option-val { color: var(--st-green-text); }
 
 /* Shared round-radio skin for worksheet "pick 1" controls: the create-follower
-   HP base / armor base / damage die radios, and the create-monster armor-base radio
-   (.stonetop-cm-radio). Filled dot when chosen so they read as single-select, distinct
+   HP base / armor base / damage die radios, the create-monster armor-base radio
+   (.stonetop-cm-radio), and the Make Camp window's "The night: pick 1" radios
+   (.stonetop-camp-radio). Filled dot when chosen so they read as single-select, distinct
    from the SVG checkboxes; currentColor lets the dot pick up the selected-state text
    colour like the rest of the row. Margin is left to each caller (below): the
-   create-follower radios pin margin:0, while .stonetop-cm-radio inherits core's
-   checkbox/radio margin so it seats level with its sibling .stonetop-cm-check boxes.
+   create-follower radios pin margin:0, .stonetop-cm-radio inherits core's
+   checkbox/radio margin so it seats level with its sibling .stonetop-cm-check boxes,
+   and the camp seats its radio on its label's first line (.stonetop-camp-check > input).
 
    Core nudges every AppV1 radio down with `position: relative; top: 2px`
    (@layer compatibility) and gives checkboxes no such nudge, so a radio always sat
@@ -31576,7 +31672,8 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-cf-hp-base,
 .stonetop-cf-armor-base,
 .stonetop-cf-damage,
-.stonetop-cm-radio {
+.stonetop-cm-radio,
+.stonetop-camp-radio {
 	appearance: none !important;
 	-webkit-appearance: none !important;
 	width: calc(15px * var(--stonetop-font-scale, 1)) !important;
@@ -31597,7 +31694,8 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-cf-hp-base:checked,
 .stonetop-cf-armor-base:checked,
 .stonetop-cf-damage:checked,
-.stonetop-cm-radio:checked {
+.stonetop-cm-radio:checked,
+.stonetop-camp-radio:checked {
 	background: radial-gradient(circle, currentColor 0 45%, transparent 50%) !important;
 }
 

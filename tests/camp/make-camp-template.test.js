@@ -48,10 +48,90 @@ describe("the camp window's template", () => {
 		expect(row(html, "aeliana")).not.toMatch(/data-camp-action="offer-take"[^>]*disabled/);
 	});
 
+	it("makes a face a button onto its sheet, only for a reader allowed to open that sheet", async () => {
+		const html = await render([aeliana({ img: "aeliana.webp" }), bram({ img: "bram.webp" })], { viewable: ["bram"] });
+		expect(row(html, "bram")).toMatch(/<button type="button" class="stonetop-camp-portrait-btn" data-camp-sheet="bram" aria-label="Open Bram(&#x27;|')s character sheet"[^>]*><img class="stonetop-camp-portrait" src="bram.webp" alt=""><\/button>/);
+		expect(row(html, "aeliana")).toContain('<img class="stonetop-camp-portrait" src="aeliana.webp" alt="">');
+		expect(row(html, "aeliana")).not.toContain("data-camp-sheet");
+		// A name is something a player typed, so the hover is text: core draws a plain data-tooltip as HTML.
+		expect(row(html, "bram")).toMatch(/data-tooltip-text="Open Bram(&#x27;|')s character sheet"/);
+		expect(row(html, "bram")).not.toContain("data-tooltip=");
+	});
+
 	it("gives every row its own night radios", async () => {
 		const html = await render([aeliana(), bram()], { editable: ["aeliana", "bram"] });
 		expect(row(html, "aeliana")).toContain('name="campBenefit-aeliana"');
 		expect(row(html, "bram")).toContain('name="campBenefit-bram"');
+	});
+
+	// Book I p.335: going without food costs the pick from the night, never the seat at the fire.
+	it("keeps a card going without in the window, marked, with the way back on its button", async () => {
+		const html = await render([aeliana(), bram({ choices: { eats: false } })], { editable: ["aeliana", "bram"] });
+		const bramsRow = row(html, "bram");
+		expect(html).toContain('<li class="stonetop-camp-row is-going-without" data-actor-id="bram">');
+		expect(bramsRow).toContain("<strong>Going without</strong> food tonight, so no HP back and no debility cleared.");
+		expect(bramsRow).toMatch(/data-camp-action="eat"[^>]*>Eat after all</);
+		expect(bramsRow).not.toContain('data-camp-action="go-without"');
+		// Still sharing, still bringing followers, still ticking ready; only the night is gone.
+		expect(bramsRow).toContain('data-camp-action="offer-add"');
+		expect(bramsRow).toContain('data-camp-action="followers-add"');
+		expect(bramsRow).toContain("Ready to settle in");
+		expect(bramsRow).not.toContain('name="campBenefit-bram"');
+	});
+
+	it("marks a card going without on every reader's screen, not only its own player's", async () => {
+		const bramsRow = row(await render([aeliana(), bram({ choices: { eats: false } })]), "bram");
+		expect(bramsRow).toContain("<strong>Going without</strong>");
+		expect(bramsRow).not.toContain("data-camp-action");
+	});
+
+	it("gives the host Go without, with no ready tick, and no second control for eating", async () => {
+		const hostsRow = row(await render([aeliana()]), "aeliana");
+		expect(hostsRow).toMatch(/data-camp-action="go-without"[^>]*>Go without</);
+		expect(hostsRow).not.toContain('data-camp-field="ready"');
+		expect(hostsRow).not.toContain('data-camp-field="eats"');
+		expect(hostsRow).not.toContain("Going without");
+	});
+
+	it("offers the Unliving no meal to go without", async () => {
+		const hostsRow = row(await render([aeliana({ unliving: true })]), "aeliana");
+		expect(hostsRow).not.toContain('data-camp-action="go-without"');
+		expect(hostsRow).not.toContain("Going without");
+		expect(hostsRow).not.toContain("stonetop-camp-row-foot");
+	});
+
+	it("gives a GM one line and one list to bring someone to the fire or send anyone but the host away", async () => {
+		const html = await render([aeliana(), bram()], { sendsAway: true, addable: [{ id: "cora", name: "Cora" }] });
+		expect(html.match(/class="stonetop-camp-roster"/g)).toHaveLength(1);
+		expect(html.match(/<select name="campRosterActor"/g)).toHaveLength(1);
+		expect(html).toContain('<optgroup label="Not at the fire"><option value="cora" data-camp-roster="add">Cora</option></optgroup>');
+		expect(html).toContain('<optgroup label="At the fire"><option value="bram" data-camp-roster="send-away">Bram</option></optgroup>');
+		expect(html).toMatch(/data-camp-action="send-away"[^>]*>.*Send them away</);
+		expect(html.indexOf('data-camp-action="add"')).toBeLessThan(html.indexOf('data-camp-action="send-away"'));
+		// The list opens on Cora, so Bring them starts pressable and Send them away says what it wants.
+		expect(html).not.toMatch(/data-camp-action="add"[^>]*disabled/);
+		expect(html).toMatch(/data-camp-action="send-away"[^>]*disabled data-tooltip="Pick someone at the fire to send them away\."/);
+	});
+
+	it("leaves Send them away pressable, and Bring them off the line, when nobody is left to bring", async () => {
+		const html = await render([aeliana(), bram()], { sendsAway: true });
+		expect(html).not.toContain('data-camp-action="add"');
+		expect(html).not.toContain("Not at the fire");
+		expect(html).toMatch(/data-camp-action="send-away"/);
+		expect(html).not.toMatch(/data-camp-action="send-away"[^>]*disabled/);
+	});
+
+	it("gives a player no way to send anyone away", async () => {
+		const html = await render([aeliana(), bram()], { manages: false, editable: ["bram"], mine: ["bram"] });
+		expect(html).not.toContain("campRosterActor");
+		expect(html).not.toContain('data-camp-action="send-away"');
+	});
+
+	it("says on the held Make Camp button how short the meal is, and what would fix it", async () => {
+		const held = await render([aeliana()]);
+		expect(held).toMatch(/data-camp-action="settle" disabled data-tooltip="The meal is \d+ uses? of food short\. Share more food, or press Go without on the card of anyone not eating\."/);
+		const paid = await render([aeliana({ choices: { offer: { supplies: 1 } } })]);
+		expect(paid).not.toMatch(/data-camp-action="settle"[^>]*data-tooltip/);
 	});
 
 	// Affirmative on the left, dismissive on the right, like every Stonetop window.

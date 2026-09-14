@@ -2,8 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { SYSTEM_ID } from "../../module/system-id.js";
 import { CAMP_STALE_MS, CAMP_STATUS, SETTLE_REFUSAL } from "../../module/camp/camp-rules.js";
 import {
-	applyCampShares, campMembers, campWriterId, hostCamp, joinCamp, leaveCamp, onUpdateActorCamp,
-	openCamps, partyFollowerMouths, payPendingShares, registerCampHooks, setCampChoices, settleCamp,
+	applyCampShares, breakCamp, campMembers, campWriterId, hostCamp, joinCamp, onUpdateActorCamp,
+	openCamps, partyFollowerMouths, payPendingShares, registerCampHooks, sendAwayFromCamp, setCampChoices, settleCamp,
+	takenFromCamp,
 } from "../../module/camp/camp-store.js";
 import { campCharacter, campParty, restoreCampWorld } from "../fakes/camp.js";
 
@@ -146,29 +147,77 @@ describe("choices at the fire", () => {
 	});
 });
 
-describe("getting up from the fire", () => {
-	it("takes a member out of the camp", async () => {
+describe("going without", () => {
+	// Book I p.335: going without costs the night's pick, never the seat at the fire.
+	it("keeps the character at the camp, only not eating", async () => {
 		const { aeliana, bram } = campParty();
 		const camp = await hostCamp(aeliana);
 		await joinCamp(bram, camp);
-		await leaveCamp(bram);
+		await setCampChoices(bram, { eats: false });
+		expect(campMembers(camp.campId, "aeliana").map(m => [m.actorId, m.record.eats])).toEqual([["aeliana", true], ["bram", false]]);
+	});
+});
+
+describe("sending someone away", () => {
+	it("takes a member away from the fire, choices and all", async () => {
+		const { aeliana, bram } = campParty();
+		const camp = await hostCamp(aeliana);
+		await joinCamp(bram, camp);
+		await setCampChoices(bram, { eats: false });
+		await sendAwayFromCamp(bram, camp);
 		expect(campOf(bram)).toBeUndefined();
 		expect(campMembers(camp.campId, "aeliana").map(m => m.actorId)).toEqual(["aeliana"]);
 	});
 
-	// Nobody else could settle a camp whose host has walked away from it.
-	it("breaks the camp up when its host leaves", async () => {
-		const { aeliana } = campParty();
-		await hostCamp(aeliana);
-		await leaveCamp(aeliana);
+	// A camp without its host has nobody to settle it; Break up the camp is for that.
+	it("never sends the host away", async () => {
+		const { aeliana, camp } = await readyToSettle();
+		await sendAwayFromCamp(aeliana, camp);
+		expect(campOf(aeliana)).toMatchObject({ id: camp.campId, status: CAMP_STATUS.OPEN });
+	});
+
+	it("leaves alone a character already sitting at another fire", async () => {
+		const { aeliana, bram } = campParty();
+		const first  = await hostCamp(aeliana);
+		const second = await hostCamp(bram);
+		await sendAwayFromCamp(bram, first);
+		expect(campOf(bram).id).toBe(second.campId);
+	});
+
+	// A settled camp's plan still counts them, and each share is paid against the character's own record:
+	// taken away now, their food would never leave the pack and the night would never heal them.
+	it("leaves everyone at the fire once the camp has settled", async () => {
+		const { bram, camp } = await settled();
+		await sendAwayFromCamp(bram, camp);
+		expect(campOf(bram)).toMatchObject({ id: camp.campId });
+	});
+
+	it("tells a player's window when somebody else took their character from the fire", async () => {
+		const { aeliana, bram } = campParty({ me: "player-2" });
+		const camp = await hostCamp(aeliana);
+		await joinCamp(bram, camp);
+		expect(takenFromCamp(bram, camp.campId, "gm"), "still seated").toBe(false);
+		await sendAwayFromCamp(bram, camp);
+		expect(takenFromCamp(bram, camp.campId, "gm")).toBe(true);
+		// Getting up themselves needs no telling, and nor does a character somebody else plays.
+		expect(takenFromCamp(bram, camp.campId, "player-2")).toBe(false);
+		expect(takenFromCamp(aeliana, "another-camp", "gm")).toBe(false);
+	});
+});
+
+describe("breaking the camp up", () => {
+	it("closes the camp on its host, and spends nothing anyone shared", async () => {
+		const { aeliana } = await readyToSettle();
+		await breakCamp(aeliana);
 		expect(campOf(aeliana).status).toBe(CAMP_STATUS.CANCELLED);
+		expect(aeliana.flags[SYSTEM_ID].inventory.resources.supplies).toBe(4);
 	});
 });
 
 describe("settling the camp", () => {
 	it("will not settle a camp that is over", async () => {
 		const { aeliana, camp } = await readyToSettle();
-		await leaveCamp(aeliana);
+		await breakCamp(aeliana);
 		expect(await settleCamp(camp)).toEqual({ ok: false, reason: SETTLE_REFUSAL.CLOSED });
 	});
 

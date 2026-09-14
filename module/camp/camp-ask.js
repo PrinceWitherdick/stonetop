@@ -24,8 +24,9 @@ export async function askWithButtons({ title, content, buttons, defaultKey = nul
 		content,
 		buttons: buttons.map(button => ({
 			action:  button.key,
-			// Written into the button as markup, and a label can carry a character's name.
-			label:   escHtml(button.label),
+			// Plain text: DialogV2 sets it as the button's innerText, so escaping it here would print
+			// a name like "Wren's" as "Wren&#x27;s".
+			label:   button.label,
 			default: button.key === chosen,
 			...(button.icon ? { icon: `fas ${button.icon}` } : {}),
 		})),

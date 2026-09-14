@@ -73,6 +73,15 @@ export function closedCampNotice(state, hostName) {
 	return `${campOf(hostName)} is over.`;
 }
 
+/**
+ * What a player's camp window says as it closes because somebody else took their characters from the
+ * fire: a GM sending them away, or bringing them to another camp. Without it the window just vanished.
+ */
+export function departedCampNotice(names, hostName) {
+	const camp = hostName ? `${hostName}'s camp` : "the camp";
+	return `${joinNames(names)} ${plural(names.length, "is", "are")} no longer at ${camp}.`;
+}
+
 const SETTLE_REFUSAL_TEXT = {
 	[SETTLE_REFUSAL.CLOSED]:    "That camp is no longer open.",
 	[SETTLE_REFUSAL.NOT_YOURS]: "Only the player whose character opened the camp, or the GM, can make camp.",
@@ -158,7 +167,8 @@ function rowSentences(member, offer, { eats, benefit, clearing, hpAfter }) {
 		? `${record.followers} ${plural(record.followers, "follower eats", "followers eat")}`
 		: "";
 	if (member.unliving) says.push(`Needs no food or sleep (Unliving)${others ? `, but ${others}` : ""}.`);
-	else if (!record.eats) says.push(`Going without food tonight${others ? `, though ${others}` : ""}.`);
+	// The card's own mark already says they are going without, so only who still eats is left to say.
+	else if (!record.eats) { if (others) says.push(`${others} tonight.`); }
 	else says.push(others ? `Eating tonight, and ${others} too.` : "Eating tonight.");
 	if (record.messKit && record.vitals.messKit) says.push("Cooking with a mess kit.");
 	if (!eats) return says;
@@ -174,7 +184,7 @@ function rowSentences(member, offer, { eats, benefit, clearing, hpAfter }) {
 	return says;
 }
 
-function rowView(member, at, ledger, { canEdit, isMine }) {
+function rowView(member, at, ledger, { canEdit, isMine, canOpenSheet }) {
 	const { record } = member;
 	const offer   = ledger.offers[at];
 	const kept    = ledger.spends[at];
@@ -190,6 +200,9 @@ function rowView(member, at, ledger, { canEdit, isMine }) {
 		actorId:    member.actorId,
 		name:       member.name,
 		img:        member.img ?? "",
+		// The face opens the character's sheet, for a reader allowed to see it.
+		canOpenSheet,
+		sheetLabel: `Open ${member.name}'s character sheet`,
 		isMine,
 		canEdit,
 		unliving:   member.unliving,
@@ -213,7 +226,9 @@ function rowView(member, at, ledger, { canEdit, isMine }) {
 		givesBackText: returned > 0
 			? `${returned} ${uses(returned)} shared here ${plural(returned, "stays", "stay")} in the pack: the meal is already paid for.`
 			: "",
-		eats:            record.eats,
+		// Going without food (p.335) costs the night's pick, not the seat: the card stays, marked. The
+		// Unliving have no meal to go without.
+		goesWithout:     !member.unliving && !record.eats,
 		followers:       record.followers,
 		canTakeFollower: record.followers > 0,
 		canAddFollower:  record.followers < CAMP_FOLLOWERS_MAX,
@@ -232,22 +247,34 @@ function rowView(member, at, ledger, { canEdit, isMine }) {
 		bedroll:   { carries: record.vitals.bedroll, uses: record.bedroll },
 		peaceful:  record.peaceful,
 		ready:     record.ready,
-		// The foot holds the ready tick and Leave. The host settles the camp, so the host has no
-		// ready tick to give and cannot walk out of it (breaking it up is the footer's).
-		showFoot:  !member.isHost,
+		readyLabel: eats ? "Ready to eat and rest" : "Ready to settle in",
+		// The foot holds the ready tick and Go without. The host settles the camp, so the host has no
+		// ready tick to give; an Unliving host has nothing to go without either, and no foot.
+		showReady: !member.isHost,
+		showFoot:  !member.isHost || !member.unliving,
 		says:      canEdit ? [] : rowSentences(member, offer, { eats, benefit, clearing, hpAfter }),
 	};
 }
 
+/**
+ * Why Make Camp cannot be pressed yet, and what would change that: what a held button says on hover.
+ * A disabled button answers no click, so hovering it is the only way left to ask it.
+ */
+function settleBlockedText(ledger) {
+	if (!ledger.rows.length) return "Nobody is at the fire.";
+	const { short } = ledger;
+	return `The meal is ${short} ${uses(short)} of food short. Share more food, or press Go without on the card of anyone not eating.`;
+}
+
 function navView({ isOpen, manages, ledger, hostName }) {
-	if (!isOpen) return { manages, canSettle: false, hint: "" };
+	if (!isOpen) return { manages, canSettle: false, hint: "", blocked: settleRefusalText(SETTLE_REFUSAL.CLOSED) };
 	if (!manages) {
-		return { manages, canSettle: false, hint: `${hostName || "Whoever opened the camp"} makes camp once everyone is ready.` };
+		return { manages, canSettle: false, hint: `${hostName || "Whoever opened the camp"} makes camp once everyone is ready.`, blocked: "" };
 	}
 	let hint = "Everyone is ready.";
 	if (!ledger.canSettle) hint = "Make Camp waits until everyone eating has food.";
 	else if (ledger.waitingOn.length) hint = `Still choosing: ${joinNames(ledger.waitingOn)}.`;
-	return { manages, canSettle: ledger.canSettle, hint };
+	return { manages, canSettle: ledger.canSettle, hint, blocked: ledger.canSettle ? "" : settleBlockedText(ledger) };
 }
 
 /**
@@ -258,14 +285,19 @@ function navView({ isOpen, manages, ledger, hostName }) {
  * @param {string}   o.hostName
  * @param {object}   o.ledger    camp-rules.js#campLedger
  * @param {boolean}  o.manages   the reader can settle the camp or break it up
+ * @param {boolean}  o.sendsAway the reader can send someone away from the fire (a GM)
  * @param {string[]} o.editable  actor ids of the rows the reader can change
  * @param {string[]} o.mine      actor ids of the characters the reader plays
+ * @param {string[]} o.viewable  actor ids of the characters whose sheets the reader may open
  * @param {Array<{id: string, name: string}>} o.addable  who a GM could still bring to the fire
  */
-export function campWindowView({ state, hostName = "", ledger, manages = false, editable = [], mine = [], addable = [] }) {
+export function campWindowView({ state, hostName = "", ledger, manages = false, sendsAway = false, editable = [], mine = [], viewable = [], addable = [] }) {
 	const isOpen  = state === CAMP_STATE.OPEN;
 	const canEdit = new Set(editable);
 	const plays   = new Set(mine);
+	const sees    = new Set(viewable);
+	// Never the host: a camp without its host has nobody to settle it, and Break up is for that.
+	const awayable = sendsAway ? ledger.rows.filter(m => !m.isHost).map(m => ({ id: m.actorId, name: m.name })) : [];
 	return {
 		isOpen,
 		closedText: isOpen ? "" : campCardClosedText(state, hostName),
@@ -274,8 +306,12 @@ export function campWindowView({ state, hostName = "", ledger, manages = false, 
 		rows:       ledger.rows.map((member, at) => rowView(member, at, ledger, {
 			canEdit: isOpen && canEdit.has(member.actorId),
 			isMine:  plays.has(member.actorId),
+			canOpenSheet: sees.has(member.actorId),
 		})),
 		add:        { show: isOpen && addable.length > 0, options: addable },
+		sendAway:   { show: isOpen && awayable.length > 0, options: awayable },
+		// Bring someone and Send them away share one list and one line.
+		roster:     { show: isOpen && (addable.length > 0 || awayable.length > 0) },
 		nav:        navView({ isOpen, manages, ledger, hostName }),
 	};
 }

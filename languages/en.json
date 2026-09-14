@@ -695,7 +695,7 @@
       },
       "restoreWindowsOnReload": {
         "name": "Restore Open Windows on Reload",
-        "hint": "Reopen the character, steading, monster, NPC, item, and journal sheets you had open, at the same position and size, when you reload Foundry. Personal to this browser."
+        "hint": "Reopen the character, steading, monster, NPC, item, and journal sheets you had open, and the Make Camp window while its camp is still going, at the same position and size, when you reload Foundry. Personal to this browser."
       },
       "showRollStatChips": {
         "name": "Show Roll Stat Chips",

@@ -47,12 +47,13 @@ describe("a camp's question", () => {
 		expect(wait).toHaveBeenCalledWith(expect.objectContaining({ rejectClose: false }));
 	});
 
-	it("names each button safely, in the system's dialog chrome, with Enter on the button asked for", async () => {
+	// DialogV2 writes the label as innerText, so escaping it too would print "Aeliana's" as "Aeliana&#x27;s".
+	it("names each button in plain text, in the system's dialog chrome, with Enter on the button asked for", async () => {
 		await askWithButtons({
 			title:   "Break up the camp?",
 			content: "<p>Nobody eats.</p>",
 			buttons: [
-				{ key: "break", icon: "fa-person-walking", label: "Break up <b>Aeliana</b>", value: true },
+				{ key: "break", icon: "fa-person-walking", label: "Break up Aeliana's camp", value: true },
 				{ key: "keep", label: "Keep the camp", value: false },
 			],
 			defaultKey: "keep",
@@ -61,7 +62,7 @@ describe("a camp's question", () => {
 		expect(options.classes).toEqual(expect.arrayContaining(["stonetop", "stonetop-camp-ask"]));
 		expect(options.window).toEqual({ title: "Break up the camp?" });
 		expect(options.buttons).toEqual([
-			{ action: "break", label: "Break up &lt;b&gt;Aeliana&lt;/b&gt;", default: false, icon: "fas fa-person-walking" },
+			{ action: "break", label: "Break up Aeliana's camp", default: false, icon: "fas fa-person-walking" },
 			{ action: "keep", label: "Keep the camp", default: true },
 		]);
 	});

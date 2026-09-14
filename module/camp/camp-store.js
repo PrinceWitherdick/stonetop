@@ -261,6 +261,32 @@ export async function joinCamp(actor, camp) {
 }
 
 /**
+ * Take a character away from the fire: the GM's undo for bringing the wrong one to it. Their whole
+ * record goes with them, so bringing them back seats them fresh. Never the host, whose camp would be
+ * left with nobody to settle it; breaking the camp up is its own button.
+ *
+ * ⚠ AND ONLY WHILE THE CAMP IS OPEN. A settled camp's plan counts everyone who was at the fire, and
+ * each share is paid against that character's own record (applyCampShares), so a record taken away
+ * after the settle is a share never paid: the food they were counted for never leaves their pack, and
+ * the night never heals them. The window queues this behind Make Camp, so a GM pressing both in one
+ * breath would do exactly that.
+ */
+export async function sendAwayFromCamp(actor, { campId, hostId } = {}) {
+	if (!actor || actor.id === hostId || campRecordOf(actor)?.id !== campId) return;
+	if (stateOfCamp({ campId, hostId }) !== CAMP_STATE.OPEN) return;
+	await actor.unsetFlag(SYSTEM_ID, CAMP_FLAG);
+}
+
+/**
+ * Whether an update written by somebody else's client has taken a character this user plays away
+ * from a camp: a GM sending them away, or bringing them to another fire. That player's window closes
+ * when their last character goes, and this is what lets it say why.
+ */
+export function takenFromCamp(actor, campId, userId) {
+	return !!userId && userId !== game.user?.id && playsCharacter(actor) && campRecordOf(actor)?.id !== campId;
+}
+
+/**
  * Write some of a seated character's own choices. Keys are record fields, and `offer.<slug>` for
  * one purse; anything else throws, because a typo here would write a field nothing ever reads.
  */
@@ -271,14 +297,6 @@ export async function setCampChoices(actor, patch = {}) {
 		update[`${FLAG_PATH}.${key}`] = value;
 	}
 	if (Object.keys(update).length) await actor.update(update, { stonetopLedger: true });
-}
-
-/** Get up from the fire. A host leaving their own camp breaks it up: nobody else could settle it. */
-export async function leaveCamp(actor) {
-	const record = campRecordOf(actor);
-	if (!record) return;
-	if (record.host === actor.id) return breakCamp(actor);
-	await actor.unsetFlag(SYSTEM_ID, CAMP_FLAG);
 }
 
 /** Break a camp up without anyone eating. Nothing is spent and nothing is gained. */
@@ -450,8 +468,8 @@ export function touchesCamp(changes) {
  */
 export function onUpdateActorCamp(actor, changes) {
 	if (actor?.type !== "character" || !touchesCamp(changes)) return;
-	// No record's fields when the flag was removed outright, which is somebody getting up. A removal
-	// is spelled one of two ways depending on the core (utils/foundry-compat.js#deletionTarget).
+	// No record's fields when the flag was removed outright, which is a GM sending somebody away. A
+	// removal is spelled one of two ways depending on the core (utils/foundry-compat.js#deletionTarget).
 	const delta  = changes.flags[SYSTEM_ID][CAMP_FLAG];
 	const fields = delta && typeof delta === "object" && !deletionTarget(FLAG_PATH, delta) ? delta : null;
 	if (!fields || "id" in fields || "status" in fields) refreshCampCards();

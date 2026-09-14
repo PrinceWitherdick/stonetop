@@ -107,6 +107,7 @@ import { speakerActor } from "./module/utils/speaker-actor.js";
 import { bootStep, recordBootPhase, reportBootHealth, bootReport } from "./module/utils/boot-guard.js";
 import { registerCampHooks } from "./module/camp/camp-store.js";
 import { wireCampCard } from "./module/camp/camp-flow.js";
+import { registerCampWindowRestore } from "./module/camp/CampWindow.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -1967,6 +1968,9 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 // is settled, each character's share is paid by the one client elected to pay it. See
 // module/camp/camp-store.js.
 registerCampHooks();
+// And a camp window open when this client reloaded comes back with the sheets, where it was left
+// (utils/window-restore.js, installed in the init hook).
+registerCampWindowRestore();
 
 // -- SEASONS CHANGE: "ask the most hopeful to roll" -----------
 // Wire the roll button on a spring Seasons Change prompt card (postSeasonsRollPrompt):

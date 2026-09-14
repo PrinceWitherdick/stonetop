@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { CAMP_STATE, SETTLE_REFUSAL, campLedger, freezeCampPlan } from "../../module/camp/camp-rules.js";
 import {
-	campCardClosedText, campJoinCardBody, campSummaryRows, campWindowView, closedCampNotice, settleRefusalText,
+	campCardClosedText, campJoinCardBody, campSummaryRows, campWindowView, closedCampNotice, departedCampNotice,
+	settleRefusalText,
 } from "../../module/camp/camp-view.js";
 import { seat } from "../fakes/camp.js";
 
@@ -135,8 +136,31 @@ describe("the camp window's rows", () => {
 	it("heads the host's row with the camp, and every other row with whether they are ready", () => {
 		const rows = view([aeliana(), bram({ choices: { ready: true } }), cora()]).rows;
 		expect(rows.map(r => r.stateText)).toEqual(["Making camp", "Ready", "Still choosing"]);
-		expect(rows[0]).toMatchObject({ showFoot: false });
-		expect(rows[1]).toMatchObject({ showFoot: true, stateClass: "is-ready" });
+		// The host settles the camp, so has no ready tick to give, but can still go without.
+		expect(rows[0]).toMatchObject({ showFoot: true, showReady: false });
+		expect(rows[1]).toMatchObject({ showFoot: true, showReady: true, stateClass: "is-ready" });
+	});
+
+	// Book I p.335: no food, so no pick from the night. The seat, the share and the followers stay.
+	it("keeps a row going without at the fire, marked, with no night to pick", () => {
+		const rows = view([
+			aeliana({ choices: { offer: { supplies: 2 } } }),
+			bram({ choices: { eats: false, followers: 1 } }),
+		], { editable: ["aeliana", "bram"] }).rows;
+		expect(rows[0]).toMatchObject({ goesWithout: false, readyLabel: "Ready to eat and rest", night: { show: true } });
+		expect(rows[1]).toMatchObject({ goesWithout: true, readyLabel: "Ready to settle in", night: { show: false }, showFoot: true, followers: 1 });
+	});
+
+	it("says a row is going without once, in its mark, and names only who still eats with them", () => {
+		const rows = view([aeliana(), bram({ choices: { eats: false, followers: 2 } }), cora({ choices: { eats: false } })]).rows;
+		expect(rows[1].says).toEqual(["Sharing no food yet.", "2 followers eat tonight."]);
+		expect(rows[2].says).toEqual(["Sharing no food yet."]);
+	});
+
+	it("gives the Unliving no meal to go without, and an Unliving host no foot", () => {
+		const rows = view([aeliana({ unliving: true }), bram({ unliving: true })]).rows;
+		expect(rows[0]).toMatchObject({ goesWithout: false, showFoot: false });
+		expect(rows[1]).toMatchObject({ goesWithout: false, showFoot: true, showReady: true, readyLabel: "Ready to settle in" });
 	});
 
 	it("picks healing when the debility the row chose is no longer marked", () => {
@@ -157,6 +181,31 @@ describe("the camp window's rows", () => {
 	it("gives each row its own set of night radios", () => {
 		const rows = view([aeliana(), bram()], { editable: ["aeliana", "bram"] }).rows;
 		expect(rows.map(r => r.night.radioName)).toEqual(["campBenefit-aeliana", "campBenefit-bram"]);
+	});
+});
+
+describe("the camp window's roster", () => {
+	it("lets a GM send away anyone at the fire but the host", () => {
+		expect(view([aeliana(), bram(), cora()], { sendsAway: true }).sendAway)
+			.toEqual({ show: true, options: [{ id: "bram", name: "Bram" }, { id: "cora", name: "Cora" }] });
+	});
+
+	it("offers nobody else the list, nor a camp of only its host, nor a camp that is over", () => {
+		expect(view([aeliana(), bram()]).sendAway.show).toBe(false);
+		expect(view([aeliana()], { sendsAway: true }).sendAway.show).toBe(false);
+		expect(view([aeliana(), bram()], { sendsAway: true, state: CAMP_STATE.SETTLED }).sendAway.show).toBe(false);
+	});
+
+	it("puts Bring someone and Send them away on one line, shown while either has anyone to list", () => {
+		expect(view([aeliana(), bram()], { sendsAway: true }).roster.show).toBe(true);
+		expect(view([aeliana()], { addable: [{ id: "cora", name: "Cora" }] }).roster.show).toBe(true);
+		expect(view([aeliana()], { sendsAway: true }).roster.show).toBe(false);
+		expect(view([aeliana(), bram()], { sendsAway: true, state: CAMP_STATE.SETTLED }).roster.show).toBe(false);
+	});
+
+	it("tells a player whose window closed who was taken from the fire", () => {
+		expect(departedCampNotice(["Bram"], "Aeliana")).toBe("Bram is no longer at Aeliana's camp.");
+		expect(departedCampNotice(["Bram", "Cora"], "")).toBe("Bram & Cora are no longer at the camp.");
 	});
 });
 
@@ -184,17 +233,20 @@ describe("the camp window's meal", () => {
 
 describe("the camp window's footer", () => {
 	it("holds Make Camp while anyone eating has no food", () => {
-		expect(view([aeliana()]).nav).toEqual({ manages: true, canSettle: false, hint: "Make Camp waits until everyone eating has food." });
+		expect(view([aeliana()]).nav).toEqual({
+			manages: true, canSettle: false, hint: "Make Camp waits until everyone eating has food.",
+			blocked: "The meal is 1 use of food short. Share more food, or press Go without on the card of anyone not eating.",
+		});
 	});
 
 	it("names who is still choosing", () => {
 		const nav = view([aeliana({ choices: { offer: { supplies: 3 } } }), bram(), cora()]).nav;
-		expect(nav).toEqual({ manages: true, canSettle: true, hint: "Still choosing: Bram & Cora." });
+		expect(nav).toEqual({ manages: true, canSettle: true, hint: "Still choosing: Bram & Cora.", blocked: "" });
 	});
 
 	it("tells a player who cannot settle the camp who will", () => {
 		expect(view([aeliana(), bram()], { manages: false, editable: ["bram"], mine: ["bram"] }).nav)
-			.toEqual({ manages: false, canSettle: false, hint: "Aeliana makes camp once everyone is ready." });
+			.toEqual({ manages: false, canSettle: false, hint: "Aeliana makes camp once everyone is ready.", blocked: "" });
 	});
 
 	it("draws a camp that is over as over", () => {
@@ -202,5 +254,6 @@ describe("the camp window's footer", () => {
 		expect(closed).toMatchObject({ isOpen: false, closedText: "Aeliana's camp ate and settled in for the night.", add: { show: false } });
 		expect(closed.rows[0].canEdit).toBe(false);
 		expect(closed.nav.canSettle).toBe(false);
+		expect(closed.nav.blocked).toBe("That camp is no longer open.");
 	});
 });
