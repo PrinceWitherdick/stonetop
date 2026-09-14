@@ -27,7 +27,7 @@ import {STONETOP_SCOPE} from "../actors/character/StonetopFlags.js";
 import {weaponMetaFromNote} from "../data/weapon-from-note.js";
 import {weaponMeta, isClashWeapon, isLetFlyWeapon, weaponTraitText, weaponArmorBits, grantedWeaponForMove, MOVE_GRANTED_WEAPONS, UNARMED_META} from "../data/weapons.js";
 import {escHtml} from "../utils/strings.js";
-import {stonetopChatCard, rollFormulaChip, damageMark, damageBadge, optionKey, whisperGm, cardNoticeHtml, canUserWriteCard} from "../utils/chat.js";
+import {stonetopChatCard, rollFormulaChip, damageMark, damageBadge, damageKeywordsHtml, optionKey, whisperGm, cardNoticeHtml, canUserWriteCard} from "../utils/chat.js";
 import {rollDamage, multiDieFaces, sign, damageRollFormula, damageConditionPills, conditionsRowHtml, classifyResult} from "../utils/roll-engine.js";
 import {mitigateDamage, resolvePiercing, applyDamageToActor, composeDamageFormula, foeAttacks, fictionTagsIn} from "../utils/damage.js";
 import {promptDamage} from "../dialogs/RollDialog.js";
@@ -994,7 +994,9 @@ function damageRowDetail(weapon) {
 	if (!weapon) return "";
 	// Filtered, because a weaponless attack that still ignores armor (Call the Shot bare-handed)
 	// arrives with an empty name, and an unfiltered join would print a leading " · ".
-	return [escHtml(weapon.name), ...weaponArmorBits(weapon)].filter(Boolean).join(" · ");
+	// The armor bits are tags, so they print the way the damage roll card prints its tags: bold,
+	// with their meaning on hover.
+	return [escHtml(weapon.name), ...weaponArmorBits(weapon).map(damageKeywordsHtml)].filter(Boolean).join(" · ");
 }
 
 function postDamageResultsCard(actor, { move, weapon, results, damage, selfHarm = false, notices = "" }) {

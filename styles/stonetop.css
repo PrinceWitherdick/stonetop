@@ -5587,6 +5587,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 }
 .stonetop-damage-roll-card .stonetop-roll-result { border-left-color: var(--st-red-border); background: var(--st-red-bg); }
 
+/* A tag on a damage card the gear glossary knows ("grabby", "1 piercing"): bold, and the
+   cursor says it has a hover. Built by chat.js#damageKeywordsHtml for both damage cards. */
+.stonetop-damage-keyword { font-weight: bold; cursor: help; }
+
 /* A damage line on the per-target results card: the same result block as a move roll,
    tinted red. Sits AFTER the tier rules on purpose — a `--modifier` ties with the base
    class on specificity and only wins by coming later in the file. */

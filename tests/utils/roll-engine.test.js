@@ -572,13 +572,23 @@ describe("rollDamage", () => {
 		const flavor = rollMessages[0].flavor;
 		expect(flavor).toContain(`<h2 class="cell__title">Garrote</h2>`);
 		const resultBody = flavor.slice(flavor.indexOf(`class="stonetop-roll-result-body"`));
-		expect(resultBody).toContain(">hand, grabby, ignores armor</span>");
+		expect(resultBody).toContain("stonetop-damage-keywords");
+		expect(resultBody).toContain(">hand</strong>, <strong");
+		expect(resultBody).toContain(">ignores armor</strong></span>");
+	});
+
+	it("bolds each known keyword and hovers its meaning, leaving unknown words plain", async () => {
+		await rollDamage("d8", makeActor(), { label: "Smash", keywords: "grabby, loud · scales with size" });
+
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain(`<strong class="stonetop-damage-keyword" data-tooltip="Can grapple or restrain targets.">grabby</strong>, loud · scales with size`);
 	});
 
 	it("escapes the keywords, which can be a GM's own typing", async () => {
 		await rollDamage("d6", makeActor(), { label: "Knife", keywords: "hand, <b>sneaky</b>" });
 
-		expect(rollMessages[0].flavor).toContain("hand, &lt;b&gt;sneaky&lt;/b&gt;");
+		expect(rollMessages[0].flavor).toContain(">hand</strong>, &lt;b&gt;sneaky&lt;/b&gt;");
+		expect(rollMessages[0].flavor).not.toContain("<b>sneaky");
 	});
 
 	it("prints no keyword line for a damage roll that has none", async () => {

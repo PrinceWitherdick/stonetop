@@ -4,7 +4,7 @@ import { escHtml, formatOutcomeDetail, stripHtmlToText, sign } from "./strings.j
 import { pickLimitsFrom } from "./move-picks.js";
 import { pickLeadText, TIER_KEYS, TIER_LABELS } from "./move-results.js";
 import { markRolledTier } from "./move-tiers.js";
-import { stonetopCardShell, stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber, damageMark, damageBadge, pickListItem, descriptionPickTiers, cardNoticeHtml } from "./chat.js";
+import { stonetopCardShell, stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber, damageMark, damageBadge, damageKeywordsHtml, pickListItem, descriptionPickTiers, cardNoticeHtml } from "./chat.js";
 import { adjustXp } from "./xp.js";
 import { composeDamageFormula, normalizeDamageBonusDice } from "./damage.js";
 import { SYSTEM_ID } from "../system-id.js";
@@ -380,7 +380,7 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", k
 			<div class="stonetop-roll-result-body">
 				${result ? `<span class="stonetop-roll-result-label">${result}</span>` : ""}
 				<span class="stonetop-roll-result-details">${detailHtml}</span>
-				${keywords ? `<span class="stonetop-roll-result-details stonetop-damage-keywords">${escHtml(keywords)}</span>` : ""}
+				${keywords ? `<span class="stonetop-roll-result-details stonetop-damage-keywords">${damageKeywordsHtml(keywords)}</span>` : ""}
 			</div>
 		</div>`
 		: "";
@@ -858,7 +858,8 @@ export function damageRollFormula(formula, rollMode) {
  * @param {number} [options.bonus]     - Flat one-off damage modifier
  * @param {string|string[]} [options.extraDice] - One-off extra damage dice ("1d6")
  * @param {string} [options.keywords] - What the card prints beside the total: a stat block attack's
- *   tags, its name alone being the title (utils/damage.js#damageCardText). Plain text, escaped here.
+ *   tags, its name alone being the title (utils/damage.js#damageCardText). Plain text, escaped here;
+ *   known tags print bold with their meaning on hover (utils/chat.js#damageKeywordsHtml).
  * @param {string} [options.description] - HTML for the card's description, behind the same toggle a
  *   move roll's card has: a monster move rolled as an attack carries its own text (item/StonetopItem.js).
  * @param {string} [options.notices] - Ready-made HTML for the card's notice slot: the fiction a

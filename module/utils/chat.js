@@ -1,6 +1,7 @@
 import {escHtml, stripHtmlToText, decodeEntities} from "./strings.js";
 import {isReferenceList, pickLimitsFrom, pickTiersFrom} from "./move-picks.js";
 import {MOVE_TIERS_CLASS, TIER_KEYS} from "./move-results.js";
+import {findGearTerm} from "./gear-term-tooltips.js";
 
 // The tier ladder's own `<ul>`, recognised in an attribute string — see `firstOptionList`.
 const _LADDER_CLASS_RE = new RegExp(`\\bclass="[^"]*\\b${MOVE_TIERS_CLASS}\\b`, "i");
@@ -120,6 +121,29 @@ export function rollResultNumber(total, dieFaces = "") {
  */
 export function damageMark(total, dieFaces = "") {
 	return `<span class="stonetop-damage-mark"><i class="fas fa-burst" aria-hidden="true"></i>${rollResultNumber(total, dieFaces)}</span>`;
+}
+
+/**
+ * A damage card's tag line ("hand, grabby, ignores armor · scales with size") as HTML: every tag
+ * the gear glossary knows is bold and hovers its meaning, so the table can read "grabby" off the
+ * card without opening a book. Words the glossary does not know stay plain text, so bold always
+ * means "hover me". Everything is escaped, because a GM can type these.
+ *
+ * The Prosperity clause rides only an "x piercing": a stat block's "2 piercing" is its own number.
+ *
+ * @param {string} text  Comma-separated tags, optionally followed by " · " notes.
+ * @returns {string}
+ */
+export function damageKeywordsHtml(text) {
+	return String(text ?? "").split(" · ").map(segment =>
+		segment.split(",").map(part => {
+			const [, lead, tag, trail] = part.match(/^(\s*)([\s\S]*?)(\s*)$/);
+			const tip = tag && findGearTerm(tag, { omitSteadingNote: !/^x\s*piercing$/i.test(tag) });
+			return tip
+				? `${lead}<strong class="stonetop-damage-keyword" data-tooltip="${escHtml(tip)}">${escHtml(tag)}</strong>${trail}`
+				: escHtml(part);
+		}).join(",")
+	).join(" · ");
 }
 
 /**
