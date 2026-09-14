@@ -15,6 +15,7 @@
 
 import { SYSTEM_ID } from "../system-id.js";
 import { deletionEntry } from "../utils/foundry-compat.js";
+import { clipText } from "../utils/strings.js";
 import {
 	RELMAP_BOARD_ASPECT, RELMAP_CAPTION_FLOOR_PX, RELMAP_CAPTION_PX, boardMetrics, clampPct,
 	freeSpot, ringsLayout,
@@ -430,7 +431,9 @@ export function emptyGraph() {
 
 const str = (v, max = 0) => {
 	const s = typeof v === "string" ? v : v === null || v === undefined ? "" : String(v);
-	return max ? s.slice(0, max) : s;
+	// A whole character, never half of an emoji's pair: this is what every stored name, caption and note
+	// is cut to, and half a pair written here is a broken character broadcast to the table for good.
+	return max ? clipText(s, max) : s;
 };
 
 /**
