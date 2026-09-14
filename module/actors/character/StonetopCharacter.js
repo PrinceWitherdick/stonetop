@@ -1563,7 +1563,7 @@ export class StonetopCharacter {
 	async setInventoryItemChecked(slug, isChecked) { await this._inventory.setItemChecked(slug, isChecked); }
 	async setInventoryResource(slug, count)         { await this._inventory.setResource(slug, count); }
 	// Fragment forms, for a move that changes several things at once and wants one write for the
-	// lot of them (see StonetopCharacterSheet#_applyMakeCamp).
+	// lot of them (see camp/camp-rules.js#campShareUpdate).
 	inventoryResourceData(slug, count)              { return this._inventory.resourceData(slug, count); }
 	heldAdvantageData(source)                       { return { [`flags.${STONETOP_SCOPE}.heldAdvantage`]: { source: String(source ?? "").trim() || "a promised advantage" } }; }
 	async setInventoryRegularPool(count)            { await this._inventory.setRegularPool(count); }

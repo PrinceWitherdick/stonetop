@@ -7192,13 +7192,12 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 .stonetop-inv-harvest ~ .stonetop-inv-remove-special { margin-left: 4px; }
 
 /* -- "Pay with…": the supplies purse field ---------------------- */
-/* Shared by Recover and Make Camp (StonetopCharacterSheet#_supplyPurseFieldHtml). */
+/* Recover's (StonetopCharacterSheet#_supplyPurseFieldHtml). `.stonetop-camp-extra` is the
+   option row the On the Hoof dialog borrowed from the old one-person Make Camp dialog. */
 .stonetop-supply-purses { margin: 10px 0 4px; }
 
 .stonetop-supply-purse,
-.stonetop-camp-benefit,
-.stonetop-camp-extra,
-.stonetop-camp-messkit {
+.stonetop-camp-extra {
 	display: flex;
 	align-items: baseline;
 	gap: 6px;
@@ -7221,28 +7220,294 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	color: var(--st-text-secondary);
 }
 
-/* -- Make Camp ------------------------------------------------- */
-.stonetop-camp-people {
-	display: flex;
-	align-items: baseline;
-	gap: 8px;
-	margin: 3px 0;
+/* -- Make Camp, shared (module/camp/CampWindow.js) -------------- */
+/* One row per character at the fire, inside the spring dialog's chrome (banner, scrolling body,
+   pinned footer). Everything here is what a camp adds to that. */
+.stonetop-camp-window .stonetop-guide-main { gap: 10px; }
+
+.stonetop-camp-heading {
+	margin: 0 0 2px;
+	padding: 0;
+	border: none;
+	font-size: var(--st-fs-md);
+	font-weight: 700;
+	color: var(--st-text);
 }
 
-.stonetop-camp-people input { width: 4em; }
+/* The meal: what it costs and whether it is paid for. Red while it is not, which is the one state
+   worth interrupting anybody for; the sentence says so as well, so the colour is never the only cue. */
+.stonetop-camp-meal {
+	padding: 8px 12px;
+	border: 1px solid var(--color-border-light-2, rgba(0, 0, 0, 0.15));
+	border-radius: var(--st-radius);
+	background: rgba(0, 0, 0, 0.04);
+	color: var(--st-text-body);
+}
 
-/* The running bill under the head count, repainted by _wireCampBill as the numbers change.
-   Goes red the moment the camp cannot feed itself, which is the one state worth interrupting for. */
-.stonetop-camp-bill {
-	margin: 6px 0 0;
-	font-weight: bold;
+.stonetop-camp-meal.is-short {
+	border-color: var(--st-red-border);
+	background: var(--st-red-bg);
+}
+
+.stonetop-camp-meal-line { margin: 2px 0; }
+.stonetop-camp-meal-cost { font-weight: 600; }
+
+.stonetop-camp-meal-status {
+	margin: 4px 0 0;
+	font-weight: 700;
+	color: var(--st-text);
+}
+
+.stonetop-camp-meal.is-short .stonetop-camp-meal-status { color: var(--st-red-text); }
+.stonetop-camp-meal.is-paid .stonetop-camp-meal-status { color: var(--st-green-text); }
+
+.stonetop-camp-rows {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.stonetop-camp-row {
+	margin: 0;
+	padding: 8px 12px 10px;
+	border: 1px solid var(--color-border-light-2, rgba(0, 0, 0, 0.15));
+	border-radius: var(--st-radius);
+	background: rgba(255, 255, 255, 0.35);
+	color: var(--st-text-body);
+}
+
+/* The reader's own character, picked out by its edge rather than a fill, so it still reads as one
+   of the party. */
+.stonetop-camp-row.is-mine {
+	border-color: var(--st-btn-primary-border);
+	box-shadow: inset 3px 0 0 var(--st-btn-primary-bg);
+}
+
+.stonetop-camp-row-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.stonetop-camp-portrait {
+	flex: 0 0 auto;
+	width: 32px;
+	height: 32px;
+	object-fit: cover;
+	border: none;
+	border-radius: var(--st-radius-sm);
+}
+
+.stonetop-camp-name {
+	flex: 1 1 auto;
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: none;
+	font-size: var(--st-fs-md);
+	font-weight: 700;
+	color: var(--st-text);
+}
+
+.stonetop-camp-state {
+	flex: 0 0 auto;
+	padding: 1px 8px;
+	border: 1px solid var(--color-border-light-2, rgba(0, 0, 0, 0.15));
+	border-radius: 999px;
+	font-size: var(--st-fs-xs);
+	font-weight: 600;
+	white-space: nowrap;
 	color: var(--st-text-secondary);
 }
 
-.stonetop-camp-bill.is-short { color: var(--st-red-text); }
+.stonetop-camp-state.is-ready {
+	border-color: var(--st-green-border);
+	background: var(--st-green-bg);
+	color: var(--st-green-text);
+}
 
-.stonetop-camp-benefits { margin-top: 10px; }
-.stonetop-camp-benefits select { margin-left: 4px; width: auto; }
+.stonetop-camp-part { margin: 8px 0 0; }
+
+/* The night's pick is a fieldset, so its radios are announced as one question. Core boxes a
+   fieldset and gaps its legend, and a part of a row wants neither. */
+.stonetop-camp-night {
+	min-width: 0;
+	padding: 0;
+	border: none;
+}
+
+.stonetop-camp-part-label {
+	margin: 0 0 2px;
+	padding: 0;
+	font-size: var(--st-fs-sm);
+	font-weight: 700;
+	color: var(--st-text-secondary);
+}
+
+.stonetop-camp-line {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 4px 10px;
+	margin: 3px 0;
+	line-height: 1.35;
+	color: var(--st-text-body);
+}
+
+.stonetop-camp-check {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	margin: 3px 0;
+	line-height: 1.35;
+	cursor: pointer;
+	color: var(--st-text-body);
+}
+
+.stonetop-camp-check input { flex: 0 0 auto; }
+
+/* A label's words, as ONE flex item (the template wraps them in a span): bare text beside an <em>
+   would be two items, gapped apart and wrapping between them rather than between words. */
+.stonetop-camp-check > span { flex: 1 1 auto; min-width: 0; }
+
+.stonetop-camp-line select { width: auto; max-width: 100%; }
+.stonetop-camp-line-label { min-width: 11em; }
+.stonetop-camp-purse-left { color: var(--st-text-secondary); }
+
+.stonetop-camp-stepper {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+/* The camp's two plain buttons, the steppers and the inline actions, share one skin. */
+.stonetop-camp-step,
+.stonetop-camp-inline-btn {
+	display: inline-flex;
+	align-items: center;
+	flex: 0 0 auto;
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: var(--st-radius-sm);
+	background: var(--stonetop-bg, #f5f0e8);
+	color: var(--st-text-body);
+	cursor: pointer;
+	transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.stonetop-camp-step:hover:not(:disabled),
+.stonetop-camp-inline-btn:hover:not(:disabled) { background: hsl(40 25% 85%); }
+.stonetop-camp-step:disabled,
+.stonetop-camp-inline-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Sized in em with a line-height of its own, against the two things core's compatibility layer
+   does to a button in a legacy window: `width: 100%`, which would stretch a minus sign across the
+   row, and a pinned `line-height: 28px`, which knocks its glyph off centre at every other font size.
+   The glyphs are text rather than an icon face, so they centre on the font's own metrics at any
+   size, and set large and bold because they are the whole of what the button says. */
+.stonetop-camp-step {
+	justify-content: center;
+	width: 2em;
+	height: 2em;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	line-height: 1;
+	font-size: var(--st-fs-lg);
+	font-weight: 700;
+}
+
+.stonetop-camp-count {
+	min-width: 1.5em;
+	text-align: center;
+	font-size: var(--st-fs-md);
+	font-weight: 700;
+	color: var(--st-text);
+}
+
+.stonetop-camp-inline-btn {
+	gap: 0.4em;
+	width: auto;
+	min-height: 28px;
+	margin: 4px 0 0;
+	padding: 2px 10px;
+	white-space: nowrap;
+	line-height: 1.25;
+	font-family: var(--font-stonetop);
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+}
+
+.stonetop-camp-says { margin: 3px 0; color: var(--st-text-body); }
+
+.stonetop-camp-note {
+	margin: 4px 0 0;
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	color: var(--st-text-secondary);
+}
+
+.stonetop-camp-closed { margin: 0; font-style: italic; color: var(--st-text-body); }
+
+.stonetop-camp-row-foot {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 6px 12px;
+	margin: 8px 0 0;
+	padding: 6px 0 0;
+	border-top: 1px dashed var(--color-border-light-2, rgba(0, 0, 0, 0.15));
+}
+
+/* Later than the inline button it modifies, which is what lets one class override one class. */
+.stonetop-camp-leave {
+	margin: 0;
+	border-color: var(--st-red-border);
+	color: var(--st-red-text);
+}
+
+.stonetop-camp-leave:hover:not(:disabled) { background: var(--st-red-bg); }
+
+.stonetop-camp-add {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px 10px;
+}
+
+.stonetop-camp-add .stonetop-camp-inline-btn { margin: 0; }
+
+/* The footer: what the camp is waiting on, on a line of its own above Make Camp (left) and Break up
+   (right). Squeezed between the two buttons it got whatever width they left, which in a narrow
+   window was a column one word wide. */
+.stonetop-camp-window .stonetop-guide-nav {
+	flex-wrap: wrap;
+	row-gap: 6px;
+}
+
+.stonetop-camp-nav-hint {
+	order: -1;
+	flex: 1 0 100%;
+	min-width: 0;
+	text-align: center;
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	color: var(--st-text-secondary);
+}
+
+.stonetop-guide-nav .stonetop-camp-break {
+	border-color: var(--st-red-border);
+	background: transparent;
+	color: var(--st-red-text);
+}
+
+.stonetop-guide-nav .stonetop-camp-break:hover:not(:disabled) { background: var(--st-red-bg); }
+
+/* The join card. A chat card pins parchment in every theme, so its text names its own ink. */
+.stonetop-camp-card-text { margin: 4px 0 8px; color: var(--st-text-body); }
+.stonetop-camp-card-closed { margin: 0; font-style: italic; color: var(--st-text-secondary); }
 
 .stonetop-edit-mode .stonetop-inv-delete {
 	display: inline;

@@ -105,6 +105,8 @@ import { ownedMove } from "./module/actors/character/owns-move.js";
 import { SYSTEM_ID } from "./module/system-id.js";
 import { speakerActor } from "./module/utils/speaker-actor.js";
 import { bootStep, recordBootPhase, reportBootHealth, bootReport } from "./module/utils/boot-guard.js";
+import { registerCampHooks } from "./module/camp/camp-store.js";
+import { wireCampCard } from "./module/camp/camp-flow.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -1956,7 +1958,15 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	// ...and the GM-whispered "Which attack?" card a foe with more than one printed attack posts
 	// instead of guessing which die it swung (attack-flow.js#postSufferChoiceCard).
 	wireSufferChoice(message, html);
+	// The card a new camp posts: its Join button, or how the camp ended (camp/camp-flow.js).
+	wireCampCard(message, html);
 });
+
+// -- MAKE CAMP, SHARED -----------------------------------------
+// On every client, window or no window: a camp's cards redraw when it changes state, and when one
+// is settled, each character's share is paid by the one client elected to pay it. See
+// module/camp/camp-store.js.
+registerCampHooks();
 
 // -- SEASONS CHANGE: "ask the most hopeful to roll" -----------
 // Wire the roll button on a spring Seasons Change prompt card (postSeasonsRollPrompt):
