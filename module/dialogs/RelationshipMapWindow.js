@@ -17,7 +17,7 @@
 
 import { StonetopDialog } from "../utils/stonetop-dialog.js";
 import { themedDialogClasses } from "../utils/window-theme.js";
-import { escHtml } from "../utils/strings.js";
+import { clipText, escHtml } from "../utils/strings.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
 import { openingSize } from "../utils/opening-size.js";
 import { getDragEventData, renderTemplate } from "../utils/foundry-compat.js";
@@ -58,9 +58,8 @@ import { RelmapTieBar, TIE_DIR_ICONS } from "../utils/relmap-tie-bar.js";
 import { hasOwnRingArt, partyCharacters } from "../utils/playbook-actors.js";
 import {
 	applyPatch, canEditRelationshipMap, canHideMapPages, createMapPage, deleteMapPage,
-	ensureFirstMapPage, getMapPage, isMapPageHidden, listMapPages, listVisibleMapPages, mapBoardDoc,
-	hasLegacyBoard, mapPageName, moveMapPage, readGraph, renameMapPage,
-	setMapPageHidden, syncPartyPage, syncVillagePage,
+	ensureFirstMapPage, getMapPage, isMapPageHidden, mapPageName, moveMapPage, readGraph, renameMapPage,
+	resolveMapBoard, setMapPageHidden, syncPartyPage, syncVillagePage,
 } from "../relmap/relmap-doc.js";
 import { steadingListActors } from "../actors/steading/steading-people.js";
 import { getStonetopSteadingActor } from "../utils/world.js";
@@ -277,8 +276,15 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// sidebar wants; the sidebar's own page rows, and a window restored across a reload, both
 		// arrive carrying one.
 		this._pageId = options.pageId ?? null;
-		// Set once the first render has made sure this map HAS a page. See `_ensurePage`.
+		// Set once the first render has carried a version 1 board onto a page, where there was one, and
+		// given the party and the village their boards. See `_ensurePage`.
 		this._pagesReady = false;
+		// Which of `resolveMapBoard`'s four shapes the last render drew, so a page arriving can tell a
+		// collection gaining its first map from one gaining another. Written by `getData`.
+		this._boardKind = null;
+		// And whether it drew that board as this reader's to edit, for the ownership hook. Written by
+		// `getData`; see `_wireSync`.
+		this._drewEditable = false;
 		// The strip as it was last written, so a repaint can tell a set of pages that has changed
 		// from one that has not and leave the reader's focus alone when it has not.
 		this._pagesSaid = null;
@@ -348,6 +354,8 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// who moves one face and tabs to the next inside it has two portraits waiting on the same
 		// write, and a single slot would keep whichever was touched last. See `_writeNudge`.
 		this._pendingNudge = new Map();
+		// Nudges written and not yet back from the server, by portrait. See `_writeNudge`.
+		this._landingNudge = new Map();
 		// AND THE SAME FOR A CAPTION SLID ALONG ITS LINE BY THE ARROW KEYS, keyed by the link rather
 		// than by the person. Its own map and not a second kind of entry in the one above, because
 		// the two write different patches to different halves of the graph -- and one map holding
@@ -395,38 +403,19 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * from here; the two places that must reason about boards a reader cannot see say so out loud
 	 * and reach for `listMapPages` themselves. */
 	get mapPages() {
-		return listVisibleMapPages(this.entry);
+		return this._boardState.pages;
 	}
 
-	/** The page this reader is on, or the first one. Null on a map still carrying its board on the
-	 * entry, which `boardDoc` below is what answers for, and null again for a player on a map whose
-	 * every board is still the GM's own, which `noBoardForMe` is what tells the two apart.
+	/** The page this reader is on, or the first one. Null where `boardDoc` below resolves to the entry
+	 * (a map still carrying its board there) or to nothing (a player on a collection whose every map is
+	 * still the GM's own, or a collection with no maps in it); `_boardState.kind` tells those apart.
 	 *
-	 * ONE WALK OF THE STRIP, the same economy `mapBoardDoc` keeps: asking `getMapPage` and then
-	 * falling back to `this.mapPages` filtered and sorted the same pages twice per call, and this is
-	 * a getter the render pass reaches several times over. */
+	 * ⚠ OUT OF `resolveMapBoard`, AND NOT A SECOND COPY OF ITS RULE. Which page a reader is on decides
+	 * what is written (`boardDoc`), which tab is lit, which board a change repaints and which page the
+	 * strip's tools act on. Answered by two copies of "this id, or else the first", a change to either
+	 * would have lit one board and written to another. */
 	get mapPage() {
-		const pages = this.mapPages;
-		return pages.find(page => page.id === this._pageId) ?? pages[0] ?? null;
-	}
-
-	/**
-	 * THIS MAP HAS BOARDS AND NONE OF THEM IS THIS READER'S TO SEE.
-	 *
-	 * The state a player is in on a map whose every board the GM has kept back, and it has to be
-	 * told apart from the other way `mapPage` comes back null — a map still on version 1, whose one
-	 * board is on the entry and is perfectly editable. Both leave `boardDoc` resolving to the ENTRY,
-	 * and on a converted map the entry's graph is empty by design, so without this the reader would
-	 * be offered an empty board with an "add somebody" button on it, and every person they added
-	 * would be written into the entry's dead flag where nobody, themselves included, would ever see
-	 * them again.
-	 *
-	 * ⚠ `mapPage` FIRST, so the ordinary case costs one walk and stops. The second walk only happens
-	 * for a reader who has no board at all, which is the two rare shapes above and never a GM.
-	 */
-	get noBoardForMe() {
-		if (this.mapPage) return false;
-		return listMapPages(this.entry).length > 0;
+		return this._boardState.page;
 	}
 
 	/**
@@ -438,9 +427,28 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * downstream branches. `this.entry` is now only for the three questions that are genuinely
 	 * about the MAP rather than about the board: its name, who may edit it, and which document
 	 * window-restore reopens.
+	 *
+	 * ⚠ AND NULL WHERE THERE IS NO BOARD: a collection with no maps in it, or one whose every map is
+	 * hidden from this reader. Every read of null is an empty graph and every write to it is refused
+	 * (`_write`), which is the whole of what the window should do with a board that is not there. It
+	 * used to be the entry, and a nudge flushed after the last map went was written into the
+	 * collection's own flag -- which then opened as a version 1 map with a nameless face on it.
 	 */
 	get boardDoc() {
-		return mapBoardDoc(this.entry, this._pageId);
+		return this._boardState.doc;
+	}
+
+	/**
+	 * WHAT IS UNDER THIS READER, resolved in one walk of the strip: the maps they may look at, the one
+	 * they are on, the document it is read from and written to, and which of the four shapes that is.
+	 * See `resolveMapBoard`, which is the one place those shapes are told apart.
+	 *
+	 * ASKED, NEVER HELD, like everything else about pages here: somebody at the far end of the table
+	 * adds, deletes and hides maps under an open window. A pass that needs several answers resolves
+	 * it once and hands it round, which is what `getData` and `_chrome` do.
+	 */
+	get _boardState() {
+		return resolveMapBoard(this.entry, this._pageId);
 	}
 
 	/**
@@ -487,53 +495,68 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * the server throws away.
 	 *
 	 * ⚠ AND A READER WITH NO BOARD AT ALL MAY NOT EDIT ONE. A player on a map whose every board is
-	 * still the GM's own owns the entry, and `boardDoc` for them falls back to that entry: they
-	 * would have every tool enabled over a flag that is drawn nowhere. The fallthrough is told from
-	 * the other document that reaches it -- a map still on version 1, whose board really is on the
-	 * entry and really is editable -- by whether the map has no pages AND still carries its board on
-	 * the entry (`hasLegacyBoard`). A collection whose maps have all been rubbed out has neither, and
-	 * nothing to edit.
+	 * still the GM's own owns the entry, and so does everybody on a collection whose maps have all been
+	 * rubbed out; on both, the entry's flag is only the mark, and every tool enabled over it would
+	 * write into a flag drawn nowhere. `boardDoc` is null for both, so there is nothing here to say yes
+	 * about. The one board with no page behind it that IS editable is a version 1 map's, whose board
+	 * really is on the entry and resolves to it.
 	 *
-	 * ONE WALK OF THE STRIP in the ordinary case, which matters: this is asked several times per
-	 * render, again on every repaint, and again on every gesture. The second walk is only paid by a
-	 * reader who has no board, which is the rare shapes above and never a GM on a map with boards.
+	 * ONE WALK OF THE STRIP, which matters: this is asked several times per render, again on every
+	 * repaint, and again on every gesture. A pass that needs it alongside other answers resolves the
+	 * board once and asks `_mayEdit`.
 	 */
 	get canEdit() {
-		const target = this._writeTarget();
-		return !!target && (target.isPage || hasLegacyBoard(this.entry)) && canEditRelationshipMap(target.doc);
+		return this._mayEdit(this._boardState);
 	}
 
-	/**
-	 * The document whose ownership answers "may this reader write here", or null when nothing here
-	 * is theirs to write to: the board that is up, or, on a map with no boards at all, the entry
-	 * itself (a version 1 board, or a collection whose maps have all been rubbed out). `canEdit` and
-	 * `canAddMap` differ only in whether the entry has a board on it to draw on.
-	 */
-	_writeTarget() {
-		const page = this.mapPage;
-		if (page) return { doc: page, isPage: true };
-		return listMapPages(this.entry).length ? null : { doc: this.entry, isPage: false };
-	}
-
-	/**
-	 * THIS COLLECTION HAS NO MAPS IN IT AT ALL, and no version 1 board to carry onto one.
-	 *
-	 * What rubbing out its last map leaves behind (`deleteMapPage` allows it; the collection itself is
-	 * never deleted). `boardDoc` still resolves to the entry, whose flag is only the mark, so `canEdit`
-	 * is false here and the board has nothing to write to; what is offered instead is the plus.
-	 */
-	get noMapsYet() {
-		return !listMapPages(this.entry).length && !hasLegacyBoard(this.entry);
+	/** `canEdit`, for a board a pass has already resolved. */
+	_mayEdit({ doc }) {
+		return !!doc && canEditRelationshipMap(doc);
 	}
 
 	/**
 	 * MAY THIS READER ADD A MAP HERE? Whoever may edit the board in front of them, and on a collection
-	 * with no maps in it at all, whoever may edit the collection: the plus is the only way in. That is
-	 * `canEdit` without its `hasLegacyBoard` question, which only matters once a board is to be drawn on.
+	 * with no maps in it at all, whoever may edit the collection: the plus is the only way in.
+	 *
+	 * ⚠ THE BOARD'S OWNERSHIP AND NOT THE COLLECTION'S, ON PURPOSE (the user's call). The public module
+	 * offers the plus to whoever owns the collection, which in a Stonetop world is every player, even
+	 * while every map in it is still the GM's own. Here a player with nothing shown to them waits for
+	 * the GM, which is what the panel over that board tells them (`stonetop.relmap.unsharedHint`).
+	 * Deleting and reordering maps are a different question: see `_mayArrangeMaps`.
 	 */
 	get canAddMap() {
-		const target = this._writeTarget();
-		return !!target && canEditRelationshipMap(target.doc);
+		return this._mayAddMap(this._boardState);
+	}
+
+	/** `canAddMap`, for a board a pass has already resolved. */
+	_mayAddMap(board) {
+		if (board.kind === "none") return canEditRelationshipMap(this.entry);
+		return this._mayEdit(board);
+	}
+
+	/**
+	 * MAY THIS READER PUT THE MAPS IN ORDER, AND RUB ONE OUT?
+	 *
+	 * ⚠ THE COLLECTION'S OWNERSHIP, AND NOT THE MAP'S, because that is what the document layer asks: a
+	 * map is deleted and put in order through its parent (relmap/relmap-doc.js `deleteMapPage` and
+	 * `moveMapPage` both ask the entry). Offered off the board in front of the reader alone, a player
+	 * holding a map of their own in a collection the GM had since locked saw the trash, confirmed, and
+	 * lost that map's undo history to a delete that was then refused. Both tools ask `canEdit` as well,
+	 * so a board this reader may only look at is never one they are handed the trash for.
+	 */
+	_mayArrangeMaps() {
+		return canEditRelationshipMap(this.entry);
+	}
+
+	/** Picking a tab up and rubbing a map out: an edit to this board AND arranging the collection's maps,
+	 * for a board a pass has already resolved. See `_mayArrangeMaps`. */
+	_mayArrange(board) {
+		return this._mayEdit(board) && this._mayArrangeMaps();
+	}
+
+	/** Whether the strip of tabs is shown at all, for a board a pass has already resolved. See `getData`. */
+	_showsPages(board) {
+		return this._mayAddMap(board) || board.pages.length > 1;
 	}
 
 	/** May this reader hide a board from the players, and show it again? Only a GM, and asked afresh
@@ -552,12 +575,12 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// filters the entry's whole page collection and sorts it again. Read here, they are also
 		// guaranteed to agree with each other — a page deleted at the far end of the table halfway
 		// down this function cannot leave the strip saying one thing and the panel another.
-		const pages = this.mapPages;
-		const page = this.mapPage;
+		const board = this._boardState;
+		const { pages, page } = board;
 		// THE CHROME IS DERIVED ONCE AND SPREAD, rather than spread straight into the return: the
 		// same answers are written again by `_paintChrome` after every repaint, and one derivation
 		// with two writers is what keeps the two from drifting apart.
-		const chrome = this._chrome(plan);
+		const chrome = this._chrome(plan, board);
 		// ⚠ PINNED TO A CONCRETE PAGE, on every render, and this is load-bearing rather than tidy.
 		// Null means "whichever board comes first", which is what a map opened from the sidebar
 		// starts as — and left null, the delete hook cannot tell "the page this reader was standing
@@ -565,7 +588,18 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// the page is gone and `mapPage` has already fallen through to another one. The reader would
 		// be left looking at a board that no longer exists, with every write vanishing. Resolved
 		// through `mapPage`, so it also heals an id that has gone stale.
+		//
+		// ⚠ AND ANYTHING HALF-WRITTEN ON THE BOARD IT WAS PINNED TO GOES, where this pass has landed on a
+		// different one without `_leaveBoard` being asked first. Every path that MOVES the reader asks it;
+		// this is the render that was not asked for a move and got one anyway -- the entry's ownership
+		// lowered, say, so a player can no longer see the page they were typing on. Left alone, the tie
+		// bar's flush in `activateListeners` and the nudge's own debounce wrote what was meant for that
+		// board onto this one, where its ids name nobody: a caption on no line, a nameless portrait.
+		if (this._pageId && page?.id !== this._pageId) this._dropUnwritten();
 		this._pageId = page?.id ?? null;
+		// AND WHICH OF THE FOUR SHAPES THAT WAS, for the page hooks to tell a collection gaining its
+		// first map from one gaining another. See `onPageChange` in `_wireSync`.
+		this._boardKind = board.kind;
 		// AND REMEMBERED FOR THE NEXT OPEN, so the hotbar macro lands back here rather than asking
 		// which map. Per client and skipped when nothing moved, so this stays true to what `showPage`
 		// promises a page later: which board somebody is on is theirs, and writes nothing shared.
@@ -574,26 +608,42 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// set of pages is exactly the thing somebody at the far end of the table changes while this
 		// reader is looking at it, and a repaint has to be able to tell a strip that has changed
 		// from one that has not. See `_paintPages`.
-		const pageTabs = this._pageTabs(pages, this._pageId ?? "");
+		// Asked once for the whole pass, of the board resolved above, rather than by each answer below --
+		// the strip's own markup included -- walking the strip again for itself.
+		const canEdit = this._mayEdit(board);
+		const canAddMap = this._mayAddMap(board);
+		const arrange = this._mayArrange(board);
+		const showPages = this._showsPages(board);
+		const pageTabs = this._pageTabs(pages, this._pageId ?? "", {
+			canOrder: arrange, legacy: board.kind === "legacy",
+		});
 		this._pagesSaid = pageTabs;
+		// AND REMEMBERED, for the ownership hook: a board that stops being this reader's to edit wants a
+		// different bar and footer, which only a render can draw. See `_wireSync`.
+		this._drewEditable = canEdit;
 		return {
 			// NO `title` HERE. The bar used to open with the map's name, which the window's own
 			// title bar was already saying an inch above it; the name the template still needs is
 			// the PAGE's, and that is written into the tab strip below.
-			canEdit: this.canEdit,
+			canEdit,
 			// THE PLUS, which on a collection with no maps in it is offered without the other tools.
-			canAddMap: this.canAddMap,
+			canAddMap,
 			// WHICH BOARD OF THIS MAP IS UP, as a strip of named tabs under the bar.
 			//
 			// SHOWN TO A READER WHO MAY ONLY LOOK ONLY WHEN THERE IS SOMETHING TO CHOOSE BETWEEN. A
 			// single tab over a board, with no way to add a second, is a row of chrome that answers
 			// a question nobody asked; but the moment a map has two boards, knowing which one you
 			// are on is the most important thing on the window, whether or not you may write to it.
-			showPages: this.canAddMap || pages.length > 1,
+			showPages,
 			// ⚠ DROPPED IN WHOLE, like the board and the person chooser, and NOT written out here
 			// as an `{{#each}}`. Pages are made, renamed and deleted under an open window, and the
 			// repaint that keeps up with that can only reach the DOM. One builder, two writers.
 			pageTabs,
+			// ⚠ AND WHETHER THERE ARE ANY TABS TO BE A TAB LIST OF. A collection whose maps have all been
+			// rubbed out gets the plus and no tab, and an empty `tablist` over a `tabpanel` labelled by a
+			// tab that does not exist is announced as though something were there. Settled by a render: a
+			// collection gaining its first map, or losing its last, renders whole (see `onPageChange`).
+			hasPageTabs: showPages && !!pageTabs,
 			// Which tab the board below is the panel FOR. Written again by `_paintPages`, because
 			// the reader can be moved off a page that has just been deleted elsewhere.
 			pagePanelId: this._pageTabId(this._pageId ?? ""),
@@ -607,8 +657,8 @@ export class RelationshipMapWindow extends StonetopDialog {
 			// that always arrives as a full render (see the ownership branch of the entry's hook) --
 			// a count that changed under a repaint would leave the sentence behind, saying the wrong
 			// thing to exactly the reader who cannot check.
-			pageOrderHint: this.canEdit ? localize("stonetop.relmap.pages.orderHint") : "",
-			pageOrderHintId: `${this.id}-page-order`,
+			pageOrderHint: canEdit ? localize("stonetop.relmap.pages.orderHint") : "",
+			pageOrderHintId: this._pageOrderHintId(),
 			// ⚠ THE HINTS ARE THE LABELS. The three page tools are bare glyphs, and each one's
 			// hint is both its tooltip and its `aria-label` -- there is no second, shorter string
 			// on the button for it to compete with. (`pages.new` is still localized elsewhere: it
@@ -623,13 +673,13 @@ export class RelationshipMapWindow extends StonetopDialog {
 			// next full render. See `_seenTool`.
 			...this._seenTool(page),
 			// THE LAST MAP MAY BE RUBBED OUT TOO: a collection with no maps in it is an ordinary state
-			// (see `noMapsYet`), and nothing refills it on the next open. The collection itself stays.
-			canDropPage: this.canEdit && pages.length > 0,
+			// (`resolveMapBoard`'s "none"), and nothing refills it on the next open. The collection itself stays.
+			canDropPage: arrange && pages.length > 0,
 			// ⚠ NO `showMatchIntros`, `matchIntrosLabel` OR `matchIntrosHint`. The three of them
 			// dressed one GM-only button on the party's board, and the button is gone. Named here
 			// so a key resurrected by accident is recognised as a resurrection rather than as a
 			// key the template happens not to use yet.
-			board: await this._renderBoard(plan),
+			board: await this._renderBoard(plan, canEdit),
 			addLabel: localize("stonetop.relmap.add"),
 			addHint: localize("stonetop.relmap.addHint"),
 			// ⚠ THE VISIBLE NAMES ONLY. What each of these two can actually do, and what it would
@@ -927,8 +977,8 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 *
 	 * Separate from `getData` because it is rendered on its own for every live update — see `sync`.
 	 */
-	async _renderBoard(plan) {
-		return renderTemplate(BOARD_PARTIAL, this._boardContext(plan));
+	async _renderBoard(plan, canEdit = this.canEdit) {
+		return renderTemplate(BOARD_PARTIAL, this._boardContext(plan, canEdit));
 	}
 
 	/**
@@ -944,10 +994,11 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * are on, and a ternary per question is three chances for one of them to be looking at a
 	 * different one.
 	 */
-	_boardContext({ graph, board, scales = weightScales() }) {
+	_boardContext({ graph, board, scales = weightScales() }, canEdit = this.canEdit) {
 		const r = board.r;
 		const fans = fanIndexes(graph);
-		const canEdit = this.canEdit;
+		// `canEdit` is handed in by a render that has already resolved the board (`getData`), and asked of a
+		// fresh walk of the strip only by a repaint, which has resolved nothing.
 		// The right-press hint, added to whatever a face's tooltip already says -- and NOT added on
 		// a board this reader may only look at, where it would teach a gesture that does nothing.
 		// One sentence, appended rather than woven in, so the three tooltips below stay the three
@@ -1213,6 +1264,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 				this._rememberPen(fields);
 				return this._write(edgePatch(id, fields), {
 					label: localize("stonetop.relmap.history.editedLink"), coalesce: `edge:${id}`,
+					onto: { kind: "edges", id },
 				});
 			},
 			// THE KEYSTROKES THEMSELVES, WHICH ARE NOT A WRITE. The bar has no text box on it any
@@ -1245,15 +1297,17 @@ export class RelationshipMapWindow extends StonetopDialog {
 
 		this._teardownDrag = wireRelmapDrag(root, {
 			surface: this._surface,
+			// Asked per gesture, and for the moving and the Delete key as well, which default to it in the
+			// drag layer: ownership can change under an open board, and a drag that writes to a map the
+			// reader may no longer edit is a drag that appears to work and is silently thrown away.
 			canEdit: () => this.canEdit,
-			// Asked per gesture, like `canEdit` above and for the same reason: ownership can change
-			// under an open board, and a drag that writes to a map the reader may no longer edit is
-			// a drag that appears to work and is silently thrown away.
-			canMove: () => this.canEdit,
-			canRemove: () => this.canEdit,
 			nodeAt: id => {
-				// An unwritten nudge is where the portrait actually is, so it answers first.
+				// An unwritten nudge is where the portrait actually is, so it answers first -- and then one
+				// written and not yet back from the server, which the document has not heard about either.
+				// Read off the document in that breath, the next arrow key started from where the portrait
+				// had been, and the walk jumped back a step. See `_writeNudge`.
 				if (this._pendingNudge.has(id)) return { ...this._pendingNudge.get(id) };
+				if (this._landingNudge.has(id)) return { ...this._landingNudge.get(id) };
 				const node = readGraph(this.boardDoc).nodes[id];
 				return node ? { x: node.x, y: node.y } : null;
 			},
@@ -1389,7 +1443,14 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// answering `isOwner`. The board would go on looking live, with every tool enabled, writing
 		// into a document that is not there.
 		on("deleteJournalEntry", doc => {
-			if (doc?.id === this._entryId) this.close();
+			if (doc?.id !== this._entryId) return;
+			// ⚠ AND WHAT WAS HALF-WRITTEN GOES WITH IT, before the close can flush it. `_leaveBoard`'s rail
+			// cannot see this one: the `entry` getter falls back to the stale copy, whose pages are all
+			// still in memory, so the board looks as present as ever -- and the flush went to a document
+			// the server no longer has, and came back as a notice telling the reader to check their
+			// permissions.
+			this._dropUnwritten();
+			this.close();
 		});
 
 		// ── And the same three questions again, one document down ────────────────────────────
@@ -1427,11 +1488,16 @@ export class RelationshipMapWindow extends StonetopDialog {
 				// is built from: has the BOARD under this reader changed, or has the strip's being
 				// there at all? Either one is a different shape, a different bar and a different
 				// fit, and the hide-the-board-I-am-standing-on case above is the first of them.
-				const pages = this.mapPages;
-				const board = this.mapPage;
-				const moved = (board?.id ?? null) !== this._pageId;
+				const board = this._boardState;
+				const moved = (board.page?.id ?? null) !== this._pageId;
 				const strip = !!this._root?.querySelector(".stonetop-relmap-pages-strip");
-				if (this.rendered && (moved || strip !== (this.canAddMap || pages.length > 1))) {
+				// ⚠ AND A THIRD: WHETHER THE BOARD IS STILL THIS READER'S TO EDIT. The bar's tools, the footer
+				// and the read-only mark are drawn by the render from `canEdit`, so a GM setting this very page
+				// to Observer in core's own ownership dialog -- same board, same strip -- left every tool
+				// standing over a board whose every press was refused, and the reverse left a reader who had
+				// just been given the board with no way to draw on it until they opened the window again.
+				const rightsMoved = this._mayEdit(board) !== this._drewEditable;
+				if (this.rendered && (moved || strip !== this._showsPages(board) || rightsMoved)) {
 					// Only where the board actually changed, and for the reason the delete path
 					// drops it: the id names a board that is no longer theirs, and left standing it
 					// would pin them to nothing. A strip appearing over the SAME board is not a
@@ -1446,7 +1512,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 					this.render();
 					return;
 				}
-				this._paintPages();
+				this._paintPages(board);
 			}
 			// A graph is only this window's business when it is the graph being LOOKED AT. Two
 			// people at one table working on two pages of the same map must not repaint each other;
@@ -1469,23 +1535,17 @@ export class RelationshipMapWindow extends StonetopDialog {
 			// CLOSED window as well as a mid-render one, and a `render()` from here would reopen a
 			// board the reader had shut a moment before somebody else touched the map.
 			if (!this.rendered) return;
-			// ⚠ THE FIRST MAP IN A COLLECTION THAT HAD NONE is a different window rather than a new
-			// tab: the strip's tools, the footer and the board all hang off `canEdit`, which was false
-			// with nothing to edit, and a repaint can only rewrite markup a render already put there.
-			if (!gone && !this._pageId && !hasLegacyBoard(this.entry)) {
-				this.render();
-				return;
-			}
 			// The `|| !this._pageId` is a rail rather than an ordinary case: every render pins
-			// `_pageId` to a concrete page, so an unpinned window is one that has not rendered yet,
-			// and "whichever board comes first" is a board ANY deletion may have changed.
+			// `_pageId` to the page it drew, so an unpinned window is one that has not rendered yet or
+			// had no page under it, and "whichever board comes first" is a board ANY deletion may
+			// have changed.
 			if (gone && (page.id === this._pageId || !this._pageId)) {
 				// The board under this reader has just been rubbed out at the far end of the table.
 				// `mapPage` falls through to the first surviving page, and all three of these
 				// belonged to the one that is gone — as does anything half-written, which is asked
-				// for first so that it cannot be filed against the page fallen through to. A flush
-				// aimed at the deleted document writes nothing, which is the right amount to write
-				// to a board that no longer exists. See `_leaveBoard`.
+				// for first, while `_pageId` still names the board it belongs to. It is thrown away
+				// rather than written: by now `boardDoc` answers for the page fallen through to, or
+				// for nothing once a collection's last map has gone. See `_leaveBoard`.
 				this._leaveBoard();
 				this._pageId = null;
 				this._lit = null;
@@ -1493,7 +1553,19 @@ export class RelationshipMapWindow extends StonetopDialog {
 				this.render();
 				return;
 			}
-			this._paintPages();
+			// ⚠ A COLLECTION GAINING ITS FIRST MAP IS A DIFFERENT WINDOW RATHER THAN A NEW TAB, and so is
+			// a version 1 board arriving on its page: the strip's tools, the footer and the board all
+			// hang off what the reader is standing on, and a repaint can only rewrite markup a render
+			// already put there. Asked as whether that has CHANGED since the render, and not as "was
+			// this reader on no page", which is also true of a player whose every map is hidden -- who
+			// would be rendered whole each time the GM made another hidden map, the party's included,
+			// over a window in which nothing they can see had changed.
+			const board = this._boardState;
+			if (board.kind !== this._boardKind) {
+				this.render();
+				return;
+			}
+			this._paintPages(board);
 		};
 		on("createJournalEntryPage", page => onPageChange(page, false));
 		on("deleteJournalEntryPage", page => onPageChange(page, true));
@@ -1523,20 +1595,28 @@ export class RelationshipMapWindow extends StonetopDialog {
 		if (!this.rendered) {
 			// Mid-render: hold it. The render finishing is what lets it through (`activateListeners`
 			// flushes), and a closed window keeps the old behaviour of dropping it on the floor.
-			//
-			// ⚠ THE STATE IS COMPARED ONLY WHEN THERE IS ONE TO COMPARE. `RENDER_STATES.RENDERING`
-			// is 1, and a truthy number is the whole of the guard: written as
-			// `this._state === Application.RENDER_STATES?.RENDERING` it reads `undefined ===
-			// undefined` as TRUE wherever core's table is absent — under the test harness, and on
-			// any future base class that does not carry one — so every closed window would start
-			// hoarding changes it can never paint.
-			const rendering = Application?.RENDER_STATES?.RENDERING;
-			if (rendering !== undefined && this._state === rendering) this._pendingSync = true;
+			if (this._isMidRender()) this._pendingSync = true;
 			return;
 		}
 		if (this._isBusy()) { this._pendingSync = true; return; }
 		this._pendingSync = false;
 		return this._repaintBoard();
+	}
+
+	/**
+	 * Part-way through a render: not RENDERED, and not closed either.
+	 *
+	 * ⚠ THE STATE IS COMPARED ONLY WHEN THERE IS ONE TO COMPARE. `RENDER_STATES.RENDERING` is 1, and a
+	 * truthy number is the whole of the guard: compared as `undefined === undefined` wherever the table is
+	 * absent -- under the test harness, or on a future base class that does not carry it -- every closed
+	 * window would read as mid-render and start hoarding changes it can never paint.
+	 *
+	 * OFF THE CLASS THIS WINDOW IS BUILT ON, and not the bare `Application` global, which is an alias core
+	 * keeps for AppV1 only until v16. The table is a static on that class.
+	 */
+	_isMidRender() {
+		const rendering = this.constructor.RENDER_STATES?.RENDERING;
+		return rendering !== undefined && this._state === rendering;
 	}
 
 	/**
@@ -1860,24 +1940,23 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * the moment the empty panel is wanted, and somebody rubbing out the last of the lines an old
 	 * import left behind is the moment this reader stops having anything to hide.
 	 */
-	_chrome(plan) {
+	_chrome(plan, board = this._boardState) {
 		const nobody = !Object.keys(plan.graph.nodes).length;
 		// ⚠ A MAP WITH BOARDS AND NOT ONE OF THEM THIS READER'S TO SEE, which is a different empty
 		// from an empty board and has to say so. Every board starts hidden from the players, so this
 		// is what a player meets on a map the GM has not shown them any of yet — and told "nobody is
 		// on this board yet, add somebody" they would reasonably conclude the map was broken, or
-		// theirs to fill in. It is also the state in which the window has nothing to write to (see
-		// `noBoardForMe`), which is why `canEdit` is already false here and the button already gone.
-		const unshared = this.noBoardForMe;
+		// theirs to fill in. It is also the state in which the window has nothing to write to (`boardDoc`
+		// is null for it), which is why `canEdit` is already false here and the button already gone.
+		const unshared = board.kind === "unshared";
 		// AND A COLLECTION WITH NO MAPS IN IT AT ALL, which is a third empty: not "nobody on this map"
 		// and not "nothing shown to you", but "there is no map here". What rubbing out the last map
 		// leaves behind, and what it offers is the way to make one, to whoever may.
-		const none = this.noMapsYet;
-		// `canAddMap`, answered for the one case it is asked in here: with no maps at all the
-		// collection is the only thing there is to write to, so this needs no second walk of the strip.
-		const addMap = none && canEditRelationshipMap(this.entry);
-		// Read twice below, asked once.
-		const canEdit = this.canEdit;
+		const none = board.kind === "none";
+		const addMap = none && this._mayAddMap(board);
+		// Of the board handed in, which `getData` has already resolved and a repaint resolves once
+		// here, rather than of a fresh walk of the strip per answer. Read twice below, asked once.
+		const canEdit = this._mayEdit(board);
 		return {
 			empty: nobody || unshared || none,
 			// ⚠ THE HEADLINE IS DERIVED HERE TOO, though it never changes, because `_paintChrome`
@@ -2137,10 +2216,16 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * The order itself is the table's and not this reader's, so it is stored on the documents (see
 	 * `moveMapPage`); the keyboard's way to the same thing is Ctrl and an arrow, in `_onPageKey`.
 	 */
-	_pageTabs(pages = this.mapPages, chosen = this.mapPage?.id ?? "") {
-		// Reordering is exactly the edit right, read here rather than passed: every caller was
-		// handing in `this.canEdit` anyway.
-		const canOrder = this.canEdit;
+	_pageTabs(pages, chosen, { canOrder, legacy } = {}) {
+		// WHATEVER THE CALLER DID NOT HAND IN IS READ OFF THE BOARD, RESOLVED ONCE FOR ALL OF IT. A pass that
+		// has already resolved the board hands in all four; each used to default to a walk of the strip of
+		// its own, so a bare call walked it four times.
+		let resolved = null;
+		const board = () => (resolved ??= this._boardState);
+		pages ??= board().pages;
+		chosen ??= board().page?.id ?? "";
+		canOrder ??= this._mayArrange(board());
+		legacy ??= board().kind === "legacy";
 		// The system's one audited escaper (utils/strings.js), not foundry.utils.escapeHTML: same
 		// five-character map, and Foundry-free, which is what lets the tests exercise this method.
 		const esc = escHtml;
@@ -2149,12 +2234,18 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// collection would read as a map somebody made, which is exactly what nobody did.
 		const rows = pages.length
 			? pages.map(page => ({ id: page.id, name: page.name }))
-			: hasLegacyBoard(this.entry)
+			: legacy
 				? [{ id: "", name: this.entry?.name ?? localize("stonetop.relmap.untitled") }]
 				: [];
 		// It takes two boards to have an order, and the one tab a version 1 map gets is not a board
 		// at all -- it names the map, carries no id, and there is nowhere to put it.
-		const drag = canOrder && pages.length > 1 ? " draggable=\"true\"" : "";
+		const drag = canOrder && pages.length > 1
+			// ⚠ AND THE SENTENCE THAT SAYS HOW, ON EVERY TAB. It hung off the strip, which never takes the
+			// focus -- the tabs do, one at a time -- and a screen reader reads out the description of the
+			// thing focused and not of its parent, so the one keyboard route to reordering was never
+			// announced to the reader it was written for.
+			? ` draggable="true" aria-describedby="${esc(this._pageOrderHintId())}"`
+			: "";
 		return rows.map(row => {
 			const on = row.id === chosen;
 			return `<button type="button" class="stonetop-relmap-page${on ? " is-current" : ""}"`
@@ -2162,6 +2253,11 @@ export class RelationshipMapWindow extends StonetopDialog {
 				+ ` aria-selected="${on ? "true" : "false"}" tabindex="${on ? "0" : "-1"}"${drag}`
 				+ ` data-relmap-page="${esc(row.id)}">${esc(row.name)}</button>`;
 		}).join("");
+	}
+
+	/** The id of the sentence saying how the maps are put in order. See `_pageTabs`. */
+	_pageOrderHintId() {
+		return `${this.id}-page-order`;
 	}
 
 	/**
@@ -2201,7 +2297,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * the reader may have their keyboard focus on, mid arrow-key walk along the tabs. Compared as
 	 * the STRING it was built from.
 	 */
-	_paintPages() {
+	_paintPages(board = this._boardState) {
 		// ⚠ THE EYE IS WRITTEN BEFORE THE GUARD, AND THAT IS LOAD-BEARING. Hiding or showing a board
 		// leaves the strip's markup untouched — a tab says the board's name and nothing about who
 		// can see it (`_pageTabs`) — so the string comparison below returns before anything else
@@ -2212,16 +2308,16 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// `mapPages` filters the entry's pages by what this reader may see and sorts them, and
 		// `mapPage` walks that again; the eye, the tabs, the panel's label and the delete button
 		// between them were asking five times over for the same two answers, on a method that runs
-		// on every page created, deleted, renamed or shown at the table, per open board.
-		const pages = this.mapPages;
-		const page = pages.find(one => one.id === this._pageId) ?? pages[0] ?? null;
-		// The third of them, asked once for the same reason: it decides whether the tabs can be
-		// picked up AND whether there is a board to rub out, and `canEdit` walks the strip too.
-		const mine = this.canEdit;
+		// on every page created, deleted, renamed or shown at the table, per open board. A caller that
+		// has just resolved the board for a question of its own hands that one in.
+		const { pages, page } = board;
+		// The third of them, asked of the board already resolved: it decides whether the tabs can be
+		// picked up AND whether there is a board to rub out (`_mayArrange`).
+		const mine = this._mayArrange(board);
 		this._paintSeen(page);
 		const strip = this._root?.querySelector(".stonetop-relmap-pages-strip");
 		if (!strip) return;
-		const tabs = this._pageTabs(pages, page?.id ?? "");
+		const tabs = this._pageTabs(pages, page?.id ?? "", { canOrder: mine, legacy: board.kind === "legacy" });
 		if (tabs === this._pagesSaid) return;
 		this._pagesSaid = tabs;
 		strip.innerHTML = tabs;
@@ -2276,7 +2372,12 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 */
 	showPage(id, { said = null } = {}) {
 		const want = String(id ?? "");
-		if (!want || want === this.mapPage?.id) return;
+		if (!want) return;
+		// ⚠ ALREADY UP IS NOTHING TO DO ONLY WHEN THERE IS NOTHING TO SAY. The first map added to a
+		// collection that had none is the board `mapPage` falls to the moment it exists, so `_addPage`
+		// finds it current before it gets here -- and its news, and the focus on its new tab, still
+		// have to land. A press on the tab already up stays a press that does nothing.
+		if (want === this.mapPage?.id && !said) return;
 		const page = getMapPage(this.entry, want);
 		if (!page) return;
 		// ⚠ FIRST, AND BEFORE `_pageId` MOVES. A nudge or a caption still waiting on its debounce
@@ -2374,7 +2475,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * where the sentence "it could not be moved" belongs.
 	 */
 	async _movePage(movedId, beforeId = null) {
-		if (!movedId || !this.canEdit) return false;
+		if (!movedId || !this._mayArrange(this._boardState)) return false;
 		try {
 			if (!await moveMapPage(this.entry, movedId, beforeId)) return false;
 		} catch (err) {
@@ -2631,7 +2732,11 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 */
 	async _removePage() {
 		const page = this.mapPage;
-		if (!page) return;
+		// ⚠ ASKED BEFORE ANYTHING IS FORGOTTEN, and asked of the collection, as `deleteMapPage` will ask
+		// it. The trash is offered on the same rule (`_mayArrangeMaps`), but the collection's ownership can
+		// be lowered under an open window, and a refusal found only after `forgetHistory` below had run
+		// cost the reader this map's undo for a map that was still there.
+		if (!page || !this._mayArrangeMaps()) return;
 		const people = Object.keys(readGraph(page).nodes).length;
 		// RED: it is the one control here that destroys work nobody can get back, and the
 		// footer's other button is a plain "keep". The skin comes from `_confirm`'s `danger`, not a
@@ -2755,15 +2860,30 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * @param {string} [options.coalesce]  a key naming the GESTURE, where several writes are one.
 	 *        See RELMAP_COALESCE_MS in relmap/relmap-history.js.
 	 * @param {boolean} [options.remember]  whether this is a change to remember at all.
+	 * @param {{kind: "nodes"|"edges", id: string}} [options.onto]  the one person or line a leaf write is
+	 *        about, where it is about one. See below.
 	 */
-	async _write(patch, { announce = "", label = "", coalesce = "", remember = true } = {}) {
+	async _write(patch, { announce = "", label = "", coalesce = "", remember = true, onto = null } = {}) {
 		if (!patch) return false;
 		const doc = this.boardDoc;
+		// ⚠ NO BOARD, NO WRITE, AND NOTHING SAID. A collection whose maps have all been rubbed out, or one
+		// whose every map is hidden from this reader, has nothing to write to (`boardDoc` is null), and a
+		// person added from a chooser that outlived its board was otherwise announced as added with
+		// nothing written and nothing to say so.
+		if (!doc) return false;
 		// ⚠ READ BEFORE THE WRITE. What would put a change back can only be worked out from the
 		// board as it stands now — after `applyPatch` the old values are gone. The cost is one
 		// extra normalize per edit, which is a fraction of what a repaint already does and only
 		// happens on a write the reader made by hand.
-		const change = remember ? describeWrite(readGraph(doc), patch) : null;
+		const graph = remember || onto ? readGraph(doc) : null;
+		// ⚠ A CHANGE TO SOMEBODY WHO IS NO LONGER THERE IS NOT WRITTEN. `onto` names the person or the line
+		// a leaf write is about, and a leaf written after another reader has taken them off makes them
+		// again out of that one field: `normalizeGraph` keeps a node that has nothing but coordinates, so a
+		// drag landing a moment after the removal stood a blank, nameless portrait on the board for the
+		// whole table (and a caption written onto a rubbed-out line left invisible junk and a dead undo
+		// step). Asked of the board the write is about to land on, in the same breath.
+		if (onto && !graph[onto.kind]?.[onto.id]) return false;
+		const change = remember ? describeWrite(graph, patch) : null;
 		// Announced BEFORE the write. The write repaints the board and takes the live region's
 		// neighbours with it; announcing afterwards can land on a node already replaced.
 		if (announce) this._announce(announce);
@@ -2856,6 +2976,11 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// record itself a microtask later — emptying the forward stack under a redo already in
 		// flight, and leaving the board right while the two stacks were wrong.
 		await this._tieBar?.flush();
+		// ⚠ AND THE ARROW KEYS' MOVES, FOR THE SAME REASON. A nudge or a caption slide is held for a breath
+		// after the last key (NUDGE_COMMIT_MS), and an undo pressed inside that breath peeked at the change
+		// BEFORE it -- took that one back instead -- and then the nudge landed, recorded itself and emptied
+		// the redo stack under the undo that had just been made.
+		await Promise.all([this._writeNudge(), this._writeSeats()]);
 		const history = this._history;
 		const entry = way === "back" ? history.peekUndo() : history.peekRedo();
 		const commit = () => (way === "back" ? history.commitUndo() : history.commitRedo());
@@ -2993,7 +3118,9 @@ export class RelationshipMapWindow extends StonetopDialog {
 		const said = can
 			? format(`stonetop.relmap.history.${way}Hint`, { what })
 			: localize(`stonetop.relmap.history.${way}Nothing`);
-		button.dataset.tooltip = said;
+		// AS TEXT: `what` is the reader's own change, and it carries names anybody at the table can type
+		// ("taking Ordga off"). Core draws a plain `data-tooltip` as HTML.
+		button.dataset.tooltipText = said;
 		button.setAttribute("aria-label", said);
 	}
 
@@ -3091,7 +3218,8 @@ export class RelationshipMapWindow extends StonetopDialog {
 			// one whose line was too short to fit its words and is being dragged longer may break a
 			// few pixels narrow until the drop repaints. One gesture, and nothing is written wrong.
 			painted: this._drawn?.painted ?? null,
-			parts: indexEdgeParts(board),
+			// The index the last paint already walked, where there is one. See `_sayLine`.
+			parts: this._drawn?.parts ?? indexEdgeParts(board),
 		};
 		return this._preview;
 	}
@@ -3152,9 +3280,21 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// so a reader who tabs from one face to the next inside it has moved two people on one
 		// timer, and writing only the second would put the first back where the document still has
 		// it — in front of somebody who watched themselves move it.
-		for (const [id, at] of pending) this._moveNode(id, at, { coalesce: `node:${id}` });
+		//
+		// ⚠ AND EACH IS HELD AS "LANDING" UNTIL THE SERVER HAS IT. The document does not hear about a write
+		// until the round trip is over, and the next arrow key asks where the portrait is (`nodeAt`):
+		// answered off the document in that breath, a reader who paused and walked on found the portrait
+		// back where the pause had started. Let go only where no later nudge has replaced it since.
+		const landing = this._landingNudge;
+		const writes = pending.map(([id, at]) => {
+			landing.set(id, at);
+			return this._moveNode(id, at, { coalesce: `node:${id}` }).finally(() => {
+				if (landing.get(id) === at) landing.delete(id);
+			});
+		});
 		// A repaint that was held back while the keys were coming lands now.
 		this._flushPendingSync();
+		return Promise.all(writes);
 	}
 
 	// ── Sliding a caption along its own line ────────────────────────────────
@@ -3248,7 +3388,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 		const seat = this._slideCaption(id, t);
 		if (!seat) return false;
 		return this._write(edgePatch(id, { seat }), {
-			label: localize("stonetop.relmap.history.movedCaption"), coalesce,
+			label: localize("stonetop.relmap.history.movedCaption"), coalesce, onto: { kind: "edges", id },
 		});
 	}
 
@@ -3302,11 +3442,10 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// ONE STEP FOR A RUN OF ARROW KEYS, keyed by the line, for the reason `_writeNudge` gives:
 		// a reader walking a caption along its stroke pauses several times on the way, and each
 		// pause recorded separately would be a dozen undos to put one sentence back.
-		for (const [id, seat] of pending) {
-			this._seatCaptionAt(id, seat, { coalesce: `seat:${id}` });
-		}
+		const writes = pending.map(([id, seat]) => this._seatCaptionAt(id, seat, { coalesce: `seat:${id}` }));
 		// A repaint that was held back while the keys were coming lands now.
 		this._flushPendingSync();
+		return Promise.all(writes);
 	}
 
 	/**
@@ -3320,6 +3459,17 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * "edited a link" step in the undo of a board with no such link.
 	 */
 	_leaveBoard() {
+		// ⚠ AND ONLY WHILE THAT BOARD IS STILL THERE TO WRITE TO. A board rubbed out or hidden under the
+		// reader has already gone from the strip by the time its hook calls this, so `boardDoc` has
+		// fallen through to a board that survives -- or, with a collection's last map gone, to nothing.
+		// Flushed there, a nudge would stand a nameless portrait on a map the reader never touched,
+		// under an id that names nobody on it. What was waiting is thrown away instead, which is the
+		// right amount to write to a board that no longer exists.
+		const here = this.boardDoc;
+		if (this._pageId ? here?.id !== this._pageId : !here) {
+			this._dropUnwritten();
+			return;
+		}
 		this._writeNudge();
 		// AND THE CAPTION SLIDES WITH THEM, for the same reason and with the same trap: `boardDoc`
 		// answers for whatever page the window points at NOW, so a seat flushed a line later would
@@ -3329,10 +3479,25 @@ export class RelationshipMapWindow extends StonetopDialog {
 	}
 
 	/**
-	 * No read first. `readGraph` normalizes every node and every edge to build a fresh object, and
-	 * the only thing this wanted from it was whether the node still exists — which decides nothing:
-	 * `nodePatch` clamps the coordinates itself, and a patch naming a node that has since been
-	 * removed is dropped by `normalizeGraph` on the next repaint rather than resurrecting it.
+	 * Everything half-written on a board that is no longer there, thrown away unwritten.
+	 *
+	 * The other half of `_leaveBoard`, over the same three things: the portraits and the captions the
+	 * arrow keys have moved, and whatever the tie bar is holding. The render that follows replaces
+	 * everything they were drawn on.
+	 */
+	_dropUnwritten() {
+		this._pendingNudge.clear();
+		this._landingNudge.clear();
+		this._pendingSeat.clear();
+		this._preview = null;
+		this._tieBar?.discard();
+	}
+
+	/**
+	 * ONTO SOMEBODY STILL ON THE BOARD, and nobody else (`_write`'s `onto`). A patch naming a person who
+	 * has been taken off since is NOT dropped by `normalizeGraph`, whatever this used to say here: it
+	 * keeps a node that has nothing but coordinates, and the drop brought them back as a blank, nameless
+	 * portrait for the whole table.
 	 *
 	 * ⚠ THE PORTRAIT IS PAINTED HERE, BEFORE THE AWAIT, and that placement is the whole of it.
 	 * A drag moves the portrait by the two custom properties the drag layer writes, never by its
@@ -3360,8 +3525,8 @@ export class RelationshipMapWindow extends StonetopDialog {
 			el.style.left = `${spot.x}%`;
 			el.style.top = `${spot.y}%`;
 		}
-		await this._write(nodePatch(id, spot), {
-			label: localize("stonetop.relmap.history.moved"), coalesce,
+		return this._write(nodePatch(id, spot), {
+			label: localize("stonetop.relmap.history.moved"), coalesce, onto: { kind: "nodes", id },
 		});
 	}
 
@@ -3386,7 +3551,8 @@ export class RelationshipMapWindow extends StonetopDialog {
 
 	/** The handle CLICKED rather than dragged: ask who, then draw the same line. */
 	async _linkFrom(id) {
-		const graph = readGraph(this.boardDoc);
+		const doc = this.boardDoc;
+		const graph = readGraph(doc);
 		const others = this._peopleOnMap(graph).filter(person => person.id !== id);
 		// THROUGH THE SAME READER AS THE ROWS. Built off the stored name instead, the heading called
 		// somebody by the name the map remembers while every row beneath it used the name on their
@@ -3397,7 +3563,24 @@ export class RelationshipMapWindow extends StonetopDialog {
 			return;
 		}
 		const to = await pickPersonToLink({ from, options: others });
-		if (to) await this._createLink(id, to);
+		if (to && this._stillOn(doc)) await this._createLink(id, to);
+	}
+
+	/**
+	 * Is the board a question was asked about still the one in front of this reader?
+	 *
+	 * ⚠ FOR EVERY EDIT THAT WAITS ON A DIALOG. The chooser and the confirm are not modal: while one is up
+	 * the reader can switch tab, and another client can delete or hide the board. `_write` resolves its
+	 * board when it writes, so an answer given afterwards went to whichever board was up by then -- people
+	 * seated on a map nobody chose them for, at spots worked out on a different one -- or, with no board
+	 * left at all, was announced as done with nothing written. The steading sheet's panel and a popped-out
+	 * window can be open on the same collection at once, which makes this easier to reach here than
+	 * anywhere. The answer is dropped instead, and the reader is told that it was.
+	 */
+	_stillOn(doc) {
+		if (this.boardDoc === doc) return true;
+		ui.notifications?.info?.(localize("stonetop.relmap.boardMoved"));
+		return false;
 	}
 
 	/**
@@ -3570,7 +3753,8 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * outcome rather than answering a question the reader has to hold in their head.
 	 */
 	async _removePerson(id) {
-		const graph = readGraph(this.boardDoc);
+		const doc = this.boardDoc;
+		const graph = readGraph(doc);
 		const node = graph.nodes[id];
 		if (!node) return;
 		const links = Object.values(graph.edges).filter(e => e.a === id || e.b === id).length;
@@ -3582,8 +3766,13 @@ export class RelationshipMapWindow extends StonetopDialog {
 			confirm: format("stonetop.relmap.removeConfirm", { name: node.name }),
 			cancel: localize("stonetop.relmap.removeCancel"),
 		});
-		if (!ok) return;
-		await this._write(dropNodePatch(graph, id), {
+		if (!ok || !this._stillOn(doc)) return;
+		// READ AGAIN NOW THE ANSWER IS IN, for the reason `_addPerson` gives: a line drawn to them while the
+		// question was up is one this removal has to take with it, and somebody else may have taken them
+		// off already.
+		const now = readGraph(doc);
+		if (!now.nodes[id]) return;
+		await this._write(dropNodePatch(now, id), {
 			announce: format("stonetop.relmap.removed", { name: node.name }),
 			label: format("stonetop.relmap.history.removed", { name: node.name }),
 		});
@@ -3598,8 +3787,11 @@ export class RelationshipMapWindow extends StonetopDialog {
 	}
 
 	async _addPerson() {
-		const graph = readGraph(this.boardDoc);
-		const already = new Set(Object.values(graph.nodes).map(n => n.uuid).filter(Boolean));
+		// Who is on a board already, by the actor they stand for: asked before the chooser and again after.
+		const uuidsOn = board => new Set(Object.values(board.nodes).map(n => n.uuid).filter(Boolean));
+		const doc = this.boardDoc;
+		const graph = readGraph(doc);
+		const already = uuidsOn(graph);
 		const actors = (game.actors?.contents ?? [])
 			.filter(actor => ["character", "npc"].includes(actor.type) && !already.has(actor.uuid));
 		if (!actors.length) {
@@ -3617,14 +3809,22 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// Keyed rather than scanned: a reader adding half the village to a board with the rest of it
 		// already on would otherwise walk the candidate list once per person they ticked.
 		const byUuid = new Map(actors.map(actor => [actor.uuid, actor]));
-		const picked = (chosen ?? []).map(uuid => byUuid.get(uuid)).filter(Boolean);
+		if (!chosen?.length || !this._stillOn(doc)) return;
+		// ⚠ READ AGAIN NOW THE ANSWER IS IN. The chooser is not modal, and the table goes on working while
+		// it is up: somebody else putting the same person on this board -- or the party's and the village's
+		// own seating, on the GM's client -- or seating somebody right where this reader's arrivals were
+		// about to go. Seated against the board as it was when the question was asked, those people
+		// arrived twice, or on each other's laps.
+		const now = readGraph(doc);
+		const onBoard = uuidsOn(now);
+		const picked = chosen.map(uuid => byUuid.get(uuid)).filter(actor => actor && !onBoard.has(actor.uuid));
 		if (!picked.length) return;
 		if (picked.length === 1) {
 			const [actor] = picked;
-			await this._addNodeFor(actor, freeSpot(takenSpots(graph), { r: this._boardSize(graph).r }));
+			await this._addNodeFor(actor, freeSpot(takenSpots(now), { r: this._boardSize(now).r }));
 			return;
 		}
-		await this._addNodesFor(graph, picked);
+		await this._addNodesFor(now, picked);
 	}
 
 	/**
@@ -3935,8 +4135,9 @@ export class RelationshipMapWindow extends StonetopDialog {
 		const board = id ? this._boardEl() : null;
 		if (!board) return;
 		// Found by walking and reading `dataset`, never by a selector built out of a stored id -- see
-		// `indexEdgeParts` itself, which says why.
-		const parts = indexEdgeParts(board).get(id);
+		// `indexEdgeParts` itself, which says why -- and in the index the last paint already walked, where
+		// there is one: this runs on every repaint with a line held, straight after that walk.
+		const parts = (this._drawn?.parts ?? indexEdgeParts(board)).get(id);
 		for (const el of [parts?.line, parts?.hit, parts?.label]) {
 			if (!el) continue;
 			el.classList?.add("is-picked");
@@ -4115,7 +4316,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 			if (!copy) continue;
 			// Everything that makes the original findable, aimable or announceable.
 			for (const el of [copy, ...(copy.querySelectorAll?.("*") ?? [])]) {
-				for (const gone of ["id", "tabindex", "role", "aria-label", "data-tooltip",
+				for (const gone of ["id", "tabindex", "role", "aria-label", "data-tooltip", "data-tooltip-text",
 					"data-relmap-edge", "data-relmap-who", "data-relmap-words"]) {
 					el.removeAttribute?.(gone);
 				}
@@ -4284,6 +4485,12 @@ export class RelationshipMapWindow extends StonetopDialog {
 			// parent, because our own `close` already ran everything it does before this line.
 			return super.close(this._closeOptions ?? {});
 		}
+		// ⚠ UNLESS THIS RENDER DREW NOTHING BECAUSE ANOTHER ONE STILL IS. AppV1 returns at once from a
+		// render asked for mid-render, and the first map added to an empty collection asks for exactly
+		// that: its own create sets off one render, and `showPage` asks for a second a breath later.
+		// Said now, its news would go into a live region about to be replaced and its focus would look
+		// for a tab the markup does not have yet; left waiting, the render still drawing says both.
+		if (!this.rendered && this._isMidRender()) return;
 		// The live region is only NOW the one the reader is on, and so is the control they pressed.
 		this._saySoFar();
 		this._takeFocusBack();
@@ -4759,7 +4966,8 @@ function fitCaption(text, roomPx, measure) {
 	// which is still a mark saying there is something written here to open.
 	const room = Number.isFinite(Number(roomPx)) ? Math.max(0, Number(roomPx)) : Infinity;
 	if (full <= room) return { text: said, width: full };
-	const cutAt = n => `${said.slice(0, n).trimEnd()}${ELLIPSIS}`;
+	// A whole character either way, and never half of an emoji's pair (utils/strings.js).
+	const cutAt = n => `${clipText(said, n).trimEnd()}${ELLIPSIS}`;
 	let lo = 0;
 	let hi = said.length;
 	while (lo < hi) {

@@ -21,7 +21,7 @@
 	<ul class="steading-residents-list">
 		{{#each rows}}
 		<li class="steading-residents-row stonetop-rel-row" data-rel-id="{{id}}">
-			<div class="steading-residents-col steading-residents-col-name stonetop-rel-namecell{{#unless shown}} stonetop-rel-row--hidden{{/unless}}" data-tooltip="{{#if tooltip}}{{tooltip}}{{else}}{{name}}{{/if}}">
+			<div class="steading-residents-col steading-residents-col-name stonetop-rel-namecell{{#unless shown}} stonetop-rel-row--hidden{{/unless}}" data-tooltip-text="{{#if tooltip}}{{tooltip}}{{else}}{{name}}{{/if}}">
 				{{#if ../canToggle}}
 				<input type="checkbox" class="stonetop-rel-show-check" data-rel-id="{{id}}"
 				       {{#if shown}}checked{{/if}}
@@ -69,7 +69,7 @@
 				{{!-- Hidden numeric value the sort util reads (via textContent) to order by rating. --}}
 				<span class="stonetop-rel-hearts-sortkey" aria-hidden="true">{{hearts}}</span>
 				<span class="stonetop-rel-hearts{{#unless ../canRate}} stonetop-rel-hearts--readonly{{/unless}}"
-				      role="img" aria-label="{{feeling}}" data-tooltip="{{feeling}}">
+				      role="img" aria-label="{{feeling}}" data-tooltip-text="{{feeling}}">
 					{{#each heartSlots}}
 					<span class="stonetop-rel-heart{{#if filled}} is-filled{{/if}}" data-position="{{position}}"></span>
 					{{/each}}

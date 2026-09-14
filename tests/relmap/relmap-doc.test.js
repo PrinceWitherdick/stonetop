@@ -12,7 +12,7 @@ import {
 	canHideMapPages, canSeeMapPage, createMapPage, createRelationshipMap, deleteMapPage,
 	ensureFirstMapPage, ensureRelationshipMapFolder, findRelationshipMapFolder, getMapPage, hasLegacyBoard,
 	getRelationshipMap, getPartyPage, hadPartyPage, isMapPageHidden, listMapPages,
-	listRelationshipMaps, listVisibleMapPages, mapBoardDoc, mapPageName,
+	listRelationshipMaps, listVisibleMapPages, mapBoardDoc, mapPageName, resolveMapBoard,
 	mapPagesArranged, moveMapPage, planPageMove,
 	readGraph, renameMapPage, setMapPageHidden, syncPartyPage,
 } from "../../module/relmap/relmap-doc.js";
@@ -380,6 +380,24 @@ describe("the document a board is read from and written to", () => {
 		});
 		expect(mapBoardDoc(legacy, null)).toBe(legacy);
 		expect(Object.keys(readGraph(mapBoardDoc(legacy, null)).nodes)).toEqual(["a"]);
+		expect(resolveMapBoard(legacy).kind).toBe("legacy");
+	});
+
+	// ⚠ AND NOTHING AT ALL WHERE THERE IS NO BOARD. On a collection whose maps have all been rubbed out
+	// the entry's flag is only the mark (and the party's and the village's own marks), and resolved to
+	// it, every write in the window would land there: a nudge still waiting when the last map went would
+	// reopen the collection as a version 1 map, and the next open would carry that face onto a page.
+	it("is nothing at all on a collection with no maps in it", () => {
+		const empty = mapWith("Stonetop", []);
+		expect(mapBoardDoc(empty, null)).toBeNull();
+		expect(resolveMapBoard(empty).kind).toBe("none");
+	});
+
+	it("is nothing at all for a reader whose every map is hidden", () => {
+		globalThis.game.user = { id: "u1", isGM: false };
+		const map = mapWith("Stonetop", [{ id: "p1", name: "Stonetop", hidden: true }]);
+		expect(mapBoardDoc(map, "p1")).toBeNull();
+		expect(resolveMapBoard(map, "p1").kind).toBe("unshared");
 	});
 });
 

@@ -111,7 +111,7 @@ describe("the board template", () => {
 		const html = render(boardContext());
 		expect(html).toContain('data-relmap-remove="n1"');
 		expect(html).toContain('data-relmap-remove="n2"');
-		expect(html).toContain('data-tooltip="Take Elena off this map" aria-label="Take Elena off this map"');
+		expect(html).toContain('data-tooltip-text="Take Elena off this map" aria-label="Take Elena off this map"');
 	});
 
 	// ⚠ AND NOT ONE ON A BOARD THIS READER MAY ONLY LOOK AT. Same gate as the handle, and the more
@@ -921,8 +921,10 @@ describe("what a caption says when you rest on it", () => {
 	// instruction repeated on eighty lines buries that under something the reader learned once.
 	it("shows the caption, not an instruction about clicking it", () => {
 		const html = render(boardContext());
-		expect(html).toContain('data-tooltip="exes"');
-		expect(html).not.toContain('data-tooltip="exes. Click');
+		// AS TEXT: a caption is whatever somebody typed, and core draws a plain `data-tooltip` as HTML.
+		expect(html).toContain('data-tooltip-text="exes"');
+		expect(html).not.toContain('data-tooltip="exes');
+		expect(html).not.toContain('data-tooltip-text="exes. Click');
 	});
 
 	// A screen reader announces a button by its accessible name and gets no other clue that it is
@@ -958,6 +960,7 @@ describe("the page strip", () => {
 		hideLabels: false,
 		// The strip's own context.
 		showPages: true,
+		hasPageTabs: true,
 		pageTabs: '<button data-relmap-page="p1" class="stonetop-relmap-page is-current">Stonetop</button>',
 		pagePanelId: "stonetop-relmap-map1-page-p1",
 		pagesLabel: "Pages of this map",
@@ -996,6 +999,16 @@ describe("the page strip", () => {
 		const html = render(context());
 		expect(html).toContain('role="tabpanel"');
 		expect(html).toContain('aria-labelledby="stonetop-relmap-map1-page-p1"');
+	});
+
+	// And no tab roles where there are no tabs. A tab list with nothing in it, over a panel labelled by a
+	// tab that does not exist, is announced to a screen reader as though something were there.
+	it("claims no tab list and no tab panel on a collection with no maps in it", () => {
+		const html = render(context({ canEdit: false, canAddMap: true, pageTabs: "", hasPageTabs: false }));
+		expect(html).toContain("stonetop-relmap-pages-strip");
+		expect(html).not.toContain('role="tablist"');
+		expect(html).not.toContain('role="tabpanel"');
+		expect(html).not.toContain("aria-labelledby");
 	});
 
 	// All four make, show, rename or destroy a document, so the whole group is behind the gate. The

@@ -142,7 +142,7 @@
   {{#each labels}}
   <g class="stonetop-relmap-label" data-relmap-edge="{{id}}" data-relmap-who="{{a}} {{b}}">
     <text class="stonetop-relmap-label-text" role="button" tabindex="0"
-          data-relmap-words="{{id}}" data-tooltip="{{tooltip}}" aria-label="{{ariaLabel}}"
+          data-relmap-words="{{id}}" data-tooltip-text="{{tooltip}}" aria-label="{{ariaLabel}}"
           {{#if px}}style="--relmap-caption-px: {{px}}px"{{/if}}
           x="{{x}}" y="{{y}}" transform="rotate({{angle}} {{x}} {{y}})">{{text}}</text>
   </g>
@@ -172,7 +172,7 @@
 <div class="stonetop-relmap-node{{#if missing}} is-missing{{/if}}{{#if ownRing}} is-own-ring{{/if}}"
      data-relmap-node="{{id}}" style="left:{{left}}%;top:{{top}}%">
   <button type="button" class="stonetop-relmap-face" data-relmap-open="{{id}}"
-          data-tooltip="{{tooltip}}" aria-label="{{tooltip}}">
+          data-tooltip-text="{{tooltip}}" aria-label="{{tooltip}}">
     <span class="stonetop-relmap-portrait">
       {{#if img}}
       <img src="{{img}}" alt="" draggable="false" style="{{imgStyle}}">
@@ -211,7 +211,7 @@
         the person and counts the lines going with them -- see RelationshipMapWindow#_removePerson
         for why that one asks where rubbing out a LINE does not. --}}
   <button type="button" class="stonetop-relmap-bin" data-relmap-remove="{{id}}"
-          data-tooltip="{{removeLabel}}" aria-label="{{removeLabel}}">
+          data-tooltip-text="{{removeLabel}}" aria-label="{{removeLabel}}">
     <i class="fas fa-trash"></i>
   </button>
   {{/if}}

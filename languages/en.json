@@ -1465,6 +1465,7 @@
       "addedCount": "{count} people have been added to the map.",
       "alreadyHere": "{name} is already on this map.",
       "everyoneAdded": "Everyone in this world is already on the map.",
+      "boardMoved": "The map changed while you were answering, so nothing was changed.",
       "linkHint": "Drag to another person to draw a line, or click to choose one.",
       "linkFrom": "Draw a line from {name}",
       "linkFromTitle": "Draw a line from {name} to whom?",
@@ -1633,7 +1634,7 @@
         "saved": "{count} answer(s) now say who they are about."
       },
       "hideLabels": "Hide labels",
-      "hideLabelsHint": "Take the writing off every line on this map, leaving the faces and the lines between them. On a map with a village on it the words are what makes it hard to read: it is the shape of who knows whom that gets buried. Nothing is deleted or changed, nobody else's window is touched, and unticking this brings every word straight back. Click a line and its own words come back while you have it, so you can still read and write on one.",
+      "hideLabelsHint": "Hide the words on the lines so a crowded map is easier to read; clicking a line shows its words.",
       "labelsNow": {
         "on": "The words along the lines are hidden. The lines and everybody on the map are still there.",
         "off": "The words along the lines are showing again."

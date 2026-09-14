@@ -66,11 +66,13 @@
         and the board for every reader who moves by keyboard. --}}
   {{#if showPages}}
   <div class="stonetop-relmap-pages">
-    <div class="stonetop-relmap-pages-strip" role="tablist"
-         aria-label="{{pagesLabel}}"
-         {{#if pageOrderHint}}aria-describedby="{{pageOrderHintId}}"{{/if}}>{{{pageTabs}}}</div>
+    {{!-- ⚠ A TAB LIST ONLY WHEN THERE ARE TABS. A collection with no maps in it has the plus beside
+          this and nothing inside it, and an empty `tablist` is announced as a list of nothing. --}}
+    <div class="stonetop-relmap-pages-strip"
+         {{#if hasPageTabs}}role="tablist" aria-label="{{pagesLabel}}"{{/if}}>{{{pageTabs}}}</div>
     {{!-- HOW THE BOARDS ARE PUT IN AN ORDER, for the readers a `cursor: grab` never reaches. Read
-          out when the strip takes focus and invisible to everybody else, which is the only shape
+          out when a tab takes focus (every tab that can be moved points at it; see `_pageTabs`) and
+          invisible to everybody else, which is the only shape
           this can take: the row's whole job is to say WHICH BOARD IS UP, and a line of instructions
           printed across it would be competing with the answer. See `pageOrderHint`. --}}
     {{#if pageOrderHint}}
@@ -175,7 +177,9 @@
         half: a `role="tab"` with nothing saying what it controls is a tab in name only. The label
         is rewritten by `_paintPages`, because which tab is selected can change without a render —
         somebody else deleting the board this reader was standing on moves them to another. --}}
-  <div class="stonetop-relmap-view" {{#if showPages}}role="tabpanel"
+  {{!-- Not a tab panel on a collection whose maps have all been rubbed out, where there is no tab for it
+        to be labelled by. --}}
+  <div class="stonetop-relmap-view" {{#if hasPageTabs}}role="tabpanel"
        aria-labelledby="{{pagePanelId}}"{{/if}}>
     <div class="stonetop-relmap-board">{{{board}}}</div>
 
@@ -814,11 +818,11 @@
             saved copy of the board, and why the table does not share one stack. --}}
       <span class="stonetop-relmap-history">
         <button type="button" class="stonetop-relmap-tool" data-relmap-action="undo" disabled
-                data-tooltip="{{undoNothing}}" aria-label="{{undoNothing}}">
+                data-tooltip-text="{{undoNothing}}" aria-label="{{undoNothing}}">
           <i class="fas fa-rotate-left"></i>
         </button>
         <button type="button" class="stonetop-relmap-tool" data-relmap-action="redo" disabled
-                data-tooltip="{{redoNothing}}" aria-label="{{redoNothing}}">
+                data-tooltip-text="{{redoNothing}}" aria-label="{{redoNothing}}">
           <i class="fas fa-rotate-right"></i>
         </button>
       </span>
