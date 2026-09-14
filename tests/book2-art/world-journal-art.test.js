@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
 	artEmbed,
+	stripJournalArt,
 	bestiaryDescriptionWithArt,
 	codexFieldWithArt,
 	locationSectionsWithArt,
@@ -563,5 +564,32 @@ describe("matchWorldPage", () => {
 	it("tolerates null/undefined page lists", () => {
 		expect(matchWorldPage(null, "aaa")).toBeNull();
 		expect(matchWorldPage(undefined, "aaa")).toBeNull();
+	});
+});
+
+describe("stripJournalArt", () => {
+	it("takes the managed embed off and leaves the prose", () => {
+		const body = `${artEmbed(SRC, "The Flats")}<p>Grass to the horizon.</p>`;
+		expect(stripJournalArt(body)).toBe("<p>Grass to the horizon.</p>");
+	});
+
+	it("takes every embed off, whatever picture each one carries", () => {
+		const body = `${artEmbed(SRC, "a")}<p>Prose.</p>${artEmbed(SRC2, "b")}`;
+		expect(stripJournalArt(body)).toBe("<p>Prose.</p>");
+	});
+
+	it("takes a bare embed off too, in case an editor unwrapped it", () => {
+		const body = `<p>Before <img class="stonetop-journal-art" src="${SRC}" alt="x"> after</p>`;
+		expect(stripJournalArt(body)).toBe("<p>Before  after</p>");
+	});
+
+	// Keyed on the class, so a picture a GM placed by hand on their own page stays put.
+	it("leaves a picture the GM placed themselves", () => {
+		const body = `<p><img src="${SRC}" alt="mine"></p><p>Prose.</p>`;
+		expect(stripJournalArt(body)).toBe(body);
+	});
+
+	it("reads a missing body as empty", () => {
+		expect(stripJournalArt(undefined)).toBe("");
 	});
 });

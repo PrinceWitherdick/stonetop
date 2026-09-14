@@ -40,6 +40,7 @@
         "improvements": "Improvements",
         "moves": "Homefront Moves",
         "relmap": "Relationship Map",
+        "timeline": "Timeline",
         "notes": "Notes"
       }
     },
@@ -54,6 +55,7 @@
         "postDeath": "Post-Death",
         "specialMoves": "Special Moves",
         "notes": "Notes",
+        "timeline": "Timeline",
         "preferences": "Preferences",
         "railLabel": "Sheet sections"
       },
@@ -519,6 +521,8 @@
       "addItemWeight": "Weight (◇)",
       "addItemWeightHint": "◇ counts toward your load. Armor subtracts from damage you take (worn items only).",
       "addItemArmor": "Armor",
+      "addItemArmorWorn": "Worn armor",
+      "addItemArmorWornHint": "Tick for body armor (mail, hides, a cuirass): the best worn armor counts, they don't stack. Leave clear for a shield or a bonus, which adds on top.",
       "addItemTags": "Tags / notes",
       "addItemTagsPlaceholder": "e.g. near, +1 damage, reload",
       "addItemTagsHint": "Shown in parentheses after the name. Click a tag to add it, or type your own.",
@@ -691,7 +695,7 @@
       },
       "restoreWindowsOnReload": {
         "name": "Restore Open Windows on Reload",
-        "hint": "Reopen the character, steading, monster, NPC, item, and journal sheets you had open, at the same position and size, when you reload Foundry. Personal to this browser."
+        "hint": "Reopen the character, steading, monster, NPC, item, and journal sheets you had open, and the Make Camp window while its camp is still going, at the same position and size, when you reload Foundry. Personal to this browser."
       },
       "showRollStatChips": {
         "name": "Show Roll Stat Chips",
@@ -716,6 +720,10 @@
       "chatShiftButtons": {
         "name": "Shift Up/Down Buttons on Roll Cards",
         "hint": "Add \"Shift Up\" and \"Shift Down\" buttons to move roll cards in chat, letting the GM bump a roll's result to a higher or lower tier. Only the GM sees them. Off by default."
+      },
+      "chatWoundPrompt": {
+        "name": "Problematic Wound Reminder on 9- Rolls",
+        "hint": "When a character carrying a problematic or permanent wound rolls a 7-9 or a 6-, note the injury on the roll card as something the GM might use to explain the result (Book I, page 243). A reminder only: it never changes the roll. Turn it off if it starts reading as wallpaper, since a wound that never heals will appear on most of that character's cards."
       },
       "hoverDescriptionSettings": {
         "name": "On Hover Info",
@@ -813,6 +821,10 @@
       "conceptPlaceholder": "Concept, look, or role",
       "stats": "Stats",
       "hitPoints": "Hit Points",
+      "groupHitPoints": "Group HP",
+      "groupHitPointsHint": "One member's HP, standing for the whole group. Lose half of it and about half of them are out of the action; at 0 the group is routed.",
+      "fightAsGroup": "Group fight",
+      "fightAsGroupHint": "Optional (Book I p.416): run the whole group as one combatant. Hit Points becomes the group's pool, damage to it is casualties, and Group size and the two fighting-in-numbers rows appear, counting only those still standing. Leave it off while each token is one creature with its own HP.",
       "armor": "Armor",
       "damage": "Damage",
       "instinct": "Instinct",
@@ -827,8 +839,15 @@
       "tags": "Tags",
       "qualities": "Special Qualities",
       "openEntry": "Open Bestiary Entry",
+      "writeUpFrom": "From the bestiary entry for {name}",
+      "noMovesSeeNotes": "No moves. What this creature does is on the Notes tab.",
+      "noWriteUp": "Nothing is written up for this creature yet.",
+      "details": "Details",
+      "tabs": {
+        "statBlock": "Stats",
+        "notes": "Notes"
+      },
       "noEntry": "Not linked to a bestiary entry.",
-      "notes": "Notes",
       "moves": "Moves",
       "addMove": "Add Move",
       "deleteMove": "Delete Move",
@@ -1311,18 +1330,18 @@
       "someTooltip": "{count} standing. Click to open the roster.",
       "rule": "Each of these was bought with Stock and stands until you end it, the mark is spent, or the moment it was made for arrives.",
       "none": "You have laid no marks.",
+      "noneOfKind": "None of these are standing.",
       "kindLabel": "Which mark",
       "signLabel": "Ward or binding",
       "signTooltip": "Ward or binding: whether the affected beings are repelled by the signs or trapped by them. Click to say which.",
       "signUnset": "Nobody has said whether these signs repel or trap. Click to say which.",
       "add": "Mark",
       "addPlaceholder": "Name who or what is marked…",
-      "dropHint": "Or drop a person or beast onto this window.",
+      "dropHint": "Or drop a person or beast onto this section.",
       "liftLabel": "Lift the mark on {name}",
       "loyaltyTooltip": "Loyalty. Spend it to direct the beast; when the last one goes, the mark ends. Click a circle to set how much is left.",
       "loyaltySet": "Set Loyalty",
       "loyaltySpent": "{name} spent their last Loyalty, so that mark has ended.",
-      "noKind": "Pick which mark you are laying first.",
       "needName": "Name who or what is being marked first.",
       "ambiguous": "Several match \"{name}\": {names}. Type the full name, or drop the right one onto this window.",
       "sameName": "More than one {name} in the world; the first was marked. Drop the right one onto this window to be certain.",
@@ -1423,12 +1442,12 @@
       "noun": "relationship map",
       "untitled": "Relationship Map",
       "windowTitle": "Relationship maps",
-      "popOut": "Open this board in a window",
+      "popOut": "Open this map in a window",
       "someone": "Someone",
       "add": "Add someone",
       "addHint": "Put people on the map.",
       "addTitle": "Who goes on the map?",
-      "addPickHint": "Tick everyone who should go on this board. They are all seated in one go.",
+      "addPickHint": "Tick everyone who should go on this map. They are all seated in one go.",
       "addNamed": "Add {name}",
       "addNamedCount": "Add {count} people",
       "choose": "Add",
@@ -1436,9 +1455,9 @@
       "emptyLead": "Nobody is on this map yet.",
       "emptyHint": "Drag a character or an NPC in from the sidebar, or use Add someone.",
       "emptyHintReadonly": "Whoever keeps this map has not put anyone on it yet.",
-      "unsharedLead": "There is nothing on this map for you to see yet.",
-      "unsharedHint": "Every page of a relationship map starts out the GM's own. When they show you one, it appears here.",
-      "openSheet": "{name}. Click to open their sheet, drag to move them.",
+      "unsharedLead": "There is nothing in this collection for you to see yet.",
+      "unsharedHint": "Every map in a collection starts out the GM's own. When they show you one, it appears here.",
+      "openSheet": "{name}. Double-click to open their sheet, drag to move them.",
       "noSheet": "{name} has no character sheet in this world.",
       "gone": "That person's sheet is no longer in this world.",
       "deletedActor": "{name} (deleted actor). Their sheet is no longer in this world.",
@@ -1446,6 +1465,7 @@
       "addedCount": "{count} people have been added to the map.",
       "alreadyHere": "{name} is already on this map.",
       "everyoneAdded": "Everyone in this world is already on the map.",
+      "boardMoved": "The map changed while you were answering, so nothing was changed.",
       "linkHint": "Drag to another person to draw a line, or click to choose one.",
       "linkFrom": "Draw a line from {name}",
       "linkFromTitle": "Draw a line from {name} to whom?",
@@ -1454,7 +1474,7 @@
       "nobodyToLink": "There is nobody else on this map to draw a line to yet.",
       "linked": "{a} and {b} are now linked.",
       "unlinked": "That line has been deleted.",
-      "editLink": "{label}. Click to change or delete this line.",
+      "editLink": "{label}. Click to change or delete this line. Drag it, or use the arrow keys, to move these words along the line.",
       "labelField": "What it says",
       "inkField": "Colour",
       "dirField": "Which way it is read",
@@ -1490,10 +1510,10 @@
       "removeLabel": "Take {name} off this map",
       "removeGesture": "Right-click to see the delete button.",
       "inkNamed": "Colour: {name}",
-      "inkCustomHeading": "Already on this board",
-      "inkCustomNamed": "The colour {name}, already on this board",
+      "inkCustomHeading": "Already on this map",
+      "inkCustomNamed": "The colour {name}, already on this map",
       "inkCustomField": "A colour of your own",
-      "inkDeepened": "{chose} was too pale to follow on this board, so this line is drawn in {used}.",
+      "inkDeepened": "{chose} was too pale to follow on this map, so this line is drawn in {used}.",
       "inks": {
         "rose": "Rose",
         "green": "Green",
@@ -1553,61 +1573,58 @@
         "both": "Both ways, marked at each end"
       },
       "tab": {
-        "emptyLead": "There is no relationship map in this world.",
-        "emptyHint": "Make one and the party will seat themselves on it, with the people of Stonetop on a board of their own.",
-        "makeMap": "Make the map"
+        "emptyLead": "There are no relationship maps in this world.",
+        "emptyHint": "Make a collection and the party will seat themselves on a map of their own, with the people of Stonetop on another.",
+        "makeMap": "Make the collection"
+      },
+      "directory": {
+        "open": "Relationship Map"
       },
       "maps": {
         "seedName": "Stonetop",
-        "newTitle": "What is this map called?",
-        "newGo": "Make the map",
-        "namePlaceholder": "Stonetop, the Hillfolk, who owes whom",
-        "cannotCreate": "Ask your GM to make a relationship map. Making one needs a trusted-player role; once it exists you can edit it.",
-        "rename": "Rename map",
-        "renameHint": "Rename this whole map. Its boards, the people on them and every line drawn keep exactly as they are.",
+        "newTitle": "What is this collection called?",
+        "newGo": "Make the collection",
+        "namePlaceholder": "Stonetop, the Hillfolk, the Manmarch",
+        "cannotCreate": "Ask your GM to make a collection of relationship maps. Making one needs the Trusted Player role; once it exists, you can draw on its maps."
+      },
+      "pages": {
+        "label": "Maps in this collection",
+        "untitled": "New map",
+        "placeholder": "The Millers, Marshedge, who owes whom",
+        "new": "New map",
+        "newHint": "Start another map in this collection, with nobody on it yet. Each map has its own people, its own lines and its own layout, and starts out hidden from the players until the GM shows it.",
+        "newTitle": "Name the new map",
+        "added": "{name} has been added, and is the map you are on.",
+        "hideHint": "Hide this map from your players. Nothing on it is lost or changed: the people, the lines and the layout stay exactly as they are, and only you can see them until you show the map again.",
+        "showHint": "Show this map to your players. They will be able to see it, and to move people and draw lines on it, as they can on every map you have shown them.",
+        "hidden": "{name} is hidden from your players.",
+        "shown": "{name} is now shown to your players.",
+        "renameHint": "Rename the map you are on.",
         "renameTitle": "Rename this map",
         "renameGo": "Rename it",
         "renamed": "This map is now called {name}.",
-        "delete": "Delete map",
-        "deleteHint": "Delete this whole map, every board on it and every line drawn. Nobody's character sheet is touched.",
+        "deleteHint": "Delete the map you are on, and everyone on it. The other maps in this collection are untouched.",
         "deleteTitle": "Delete this map?",
-        "deleteBody": "{name} will be deleted, along with all {boards} of its board(s) and the {people} person(s) standing on them. Nobody's character sheet is touched, and this cannot be undone.",
-        "deleteConfirm": "Delete the map",
-        "deleteCancel": "Keep this map",
-        "deleted": "The relationship map {name} has been deleted."
-      },
-      "pages": {
-        "label": "Pages of this map",
-        "untitled": "New page",
-        "placeholder": "The Millers, Marshedge, who owes whom",
-        "new": "New page",
-        "newHint": "Start another board on this map, with nobody on it yet. Each page has its own people, its own lines and its own layout, and starts out hidden from the players until the GM shows it.",
-        "newTitle": "Name the new page",
-        "added": "{name} has been added, and is the page you are on.",
-        "hideHint": "Hide this page from your players. Nothing on it is lost or changed: the people, the lines and the layout stay exactly as they are, and only you can see them until you show the page again.",
-        "showHint": "Show this page to your players. They will be able to see it, and to move people and draw lines on it, as they can on every page you have shown them.",
-        "hidden": "{name} is hidden from your players.",
-        "shown": "{name} is now shown to your players.",
-        "renameHint": "Rename the page you are on.",
-        "renameTitle": "Rename this page",
-        "renameGo": "Rename it",
-        "renamed": "This page is now called {name}.",
-        "deleteHint": "Delete the page you are on, and everyone on it. The other pages of this map are untouched.",
-        "deleteTitle": "Delete this page?",
-        "deleteBody": "{name} will be deleted. Nobody is on it, and the other pages of this map are untouched.",
-        "deleteBodyPeople": "{name} will be deleted, along with the {count} person(s) on it and every line drawn between them. Their character sheets are not touched, and neither are the other pages of this map.",
+        "deleteBody": "{name} will be deleted. Nobody is on it, and the other maps in this collection are untouched.",
+        "deleteBodyPeople": "{name} will be deleted, along with the {count} person(s) on it and every line drawn between them. Their character sheets are not touched, and neither are the other maps in this collection.",
         "deleteConfirm": "Delete",
-        "deleteCancel": "Keep this page",
+        "deleteCancel": "Keep this map",
         "deleted": "{name} has been deleted.",
         "now": "Showing {name}.",
-        "failed": "That page could not be made. You may no longer have permission to change this map.",
+        "moved": "{name} is now map {index} of {count}.",
+        "orderHint": "Drag a map along the strip to put it in a different order, or hold Ctrl and press the left or right arrow key. The order is the whole table's: everyone sees these maps in the order you leave them in.",
+        "failed": "That map could not be made. You may no longer have permission to change this collection.",
+        "moveFailed": "That map could not be moved. You may no longer have permission to change this collection.",
+        "noneLead": "This collection has no maps yet.",
+        "noneHint": "Add the first one with New map, or with the + beside the tabs.",
+        "noneHintReadonly": "Whoever keeps this collection has not added a map to it yet.",
         "party": "The Party",
         "partySeeded": "{name}: added {people} player character(s) and {lines} line(s) from the introductions.",
         "villageSeeded": "{people} resident(s) of Stonetop are now on {name}."
       },
       "match": {
         "title": "Who did they mean?",
-        "intro": "Every answer your table recorded during the introductions. Where the writing names somebody, they are already chosen and marked as a guess: read it, correct what is wrong, and leave the answers about people outside the party on \"nobody at this table\". The party board draws an arrow for each one you match.",
+        "intro": "Every answer your table recorded during the introductions. Where the writing names somebody, they are already chosen and marked as a guess: read it, correct what is wrong, and leave the answers about people outside the party on \"nobody at this table\". The Party map draws an arrow for each one you match.",
         "about": "About",
         "none": "Nobody at this table",
         "guessed": "guessed from the writing",
@@ -1617,9 +1634,9 @@
         "saved": "{count} answer(s) now say who they are about."
       },
       "hideLabels": "Hide labels",
-      "hideLabelsHint": "Take the writing off every line on this board, leaving the faces and the lines between them. On a board with a village on it the words are what makes it hard to read: it is the shape of who knows whom that gets buried. Nothing is deleted or changed, nobody else's window is touched, and unticking this brings every word straight back. Click a line and its own words come back while you have it, so you can still read and write on one.",
+      "hideLabelsHint": "Hide the words on the lines so a crowded map is easier to read; clicking a line shows its words.",
       "labelsNow": {
-        "on": "The words along the lines are hidden. The lines and everybody on the board are still there.",
+        "on": "The words along the lines are hidden. The lines and everybody on the map are still there.",
         "off": "The words along the lines are showing again."
       },
       "introLine": "{question} {answer}",
@@ -1632,13 +1649,33 @@
         "linked": "drawing a line",
         "unlinked": "deleting a line",
         "editedLink": "changing a line",
-        "backHint": "Take back {what}. Yours alone: it takes back what you did on this board, and never what anyone else at the table did. Ctrl+Z.",
+        "movedCaption": "moving what a line says",
+        "backHint": "Take back {what}. Yours alone: it takes back what you did on this map, and never what anyone else at the table did. Ctrl+Z.",
         "forwardHint": "Do {what} again. Ctrl+Shift+Z.",
-        "backNothing": "There is nothing of yours on this board to take back.",
+        "backNothing": "There is nothing of yours on this map to take back.",
         "forwardNothing": "There is nothing to do again.",
         "backDone": "Taken back: {what}.",
         "forwardDone": "Done again: {what}.",
-        "gone": "That cannot be taken back any more: everyone it was about has since been taken off this board."
+        "gone": "That cannot be taken back any more: everyone it was about has since been taken off this map."
+      },
+      "weightGroup": "How heavily this map is drawn, for you",
+      "weightUp": "{name}, heavier",
+      "weightDown": "{name}, lighter",
+      "weightReset": "Put {name} back to {pct}%",
+      "weightNow": "{name}: {pct}%",
+      "weights": {
+        "head": {
+          "name": "Arrowheads",
+          "hint": "How big the arrowheads on the lines are drawn, as a percentage. Only lines that say which way they are read carry one, and on a map with a lot of people on it they are small. This is yours alone: it changes every map you open and nobody else's window, and nothing on the map itself is altered."
+        },
+        "line": {
+          "name": "Lines",
+          "hint": "How thick the lines between people are drawn, as a percentage. Broken and dotted lines open up to match, so a dotted line still reads as dotted at any weight. This is yours alone: it changes every map you open and nobody else's window, and nothing on the map itself is altered."
+        },
+        "word": {
+          "name": "Words",
+          "hint": "How big the writing along the lines is set, as a percentage. Any line you have given a size of its own grows by the same share, so the loud ones stay louder than the quiet ones. This is yours alone: it changes every map you open and nobody else's window, and nothing on the map itself is altered."
+        }
       }
     },
     "people": {
@@ -1673,6 +1710,64 @@
       "showTooltip": "Show the place names on this map, instead of only on hover. Only on your screen.",
       "followHint": "Right-click to follow the world setting for this map again.",
       "followed": "This map's pin names follow the world setting again."
+    },
+    "timeline": {
+      "windowTitle": "The Timeline",
+      "trackTitle": "{name}: the timeline",
+      "beforeRecord": "Before the record",
+      "newEntry": "New Entry",
+      "newEntryTooltip": "Write down something that happened, and when",
+      "openFull": "Open the full timeline",
+      "openFullTooltip": "Every thread on one timeline: Stonetop and each character",
+      "editEntry": "Edit this entry",
+      "removeEntry": "Remove this entry",
+      "moveEarlier": "Move earlier in the season",
+      "moveLater": "Move later in the season",
+      "entryCount": "{count} entries",
+      "empty": {
+        "lead": "Nothing has been written down here yet.",
+        "hint": "Press New Entry to record what happened, and the season it happened in.",
+        "readOnly": "Nothing has been written down here yet."
+      },
+      "noTrack": {
+        "lead": "This thread has no page yet.",
+        "hint": "Your GM opening the world once will make one."
+      },
+      "dialog": {
+        "titleNew": "New timeline entry",
+        "titleEdit": "Edit timeline entry",
+        "when": "When",
+        "whenHint": "The season and year this happened in.",
+        "entryTitle": "What happened",
+        "entryTitlePlaceholder": "A line to remember it by",
+        "place": "Where",
+        "placePlaceholder": "A place, named however your table names it",
+        "placeDropHint": "Drop a place, a scene or a person here to link it. Typing your own name is fine too.",
+        "placeLinked": "Linked",
+        "placeLinkedTooltip": "This place links to a document. Editing the name breaks the link; drop again to remake it.",
+        "bodyDropHint": "Drop a person, place or creature into the text to link it.",
+        "body": "The account",
+        "bodyPlaceholder": "As much or as little as you want to write down.",
+        "save": "Save the entry",
+        "cancel": "Cancel"
+      },
+      "remove": {
+        "title": "Remove this entry?",
+        "body": "This takes the entry off the timeline for everyone. The journal keeps its own version history.",
+        "untitled": "This entry has no title.",
+        "confirm": "Remove the entry",
+        "cancel": "Keep it"
+      },
+      "whichTrack": {
+        "title": "Whose thread?",
+        "confirm": "Write on this thread"
+      },
+      "auto": {
+        "show": "Show what the system recorded",
+        "hide": "Hide what the system recorded",
+        "tooltip": "Fold in level-ups, moves gained and the seasons as they turned. Only you see this choice.",
+        "badge": "Recorded"
+      }
     }
   }
 }

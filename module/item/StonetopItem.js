@@ -1,5 +1,7 @@
 import {StonetopPlaybook} from "./StonetopPlaybook.js";
 import {rollFormula, rollStat} from "../utils/roll-engine.js";
+import {rollDamagePrompted} from "../dialogs/RollDialog.js";
+import {damageCardText, attackRollMode} from "../utils/damage.js";
 import {normalizeRollType} from "../utils/roll-types.js";
 import {filterStatOptionLines, escHtml} from "../utils/strings.js";
 import {moveCardBody} from "../utils/move-tiers.js";
@@ -208,12 +210,27 @@ export function createStonetopItemClass(BaseItem) {
 				// 10+ / 7-9 / 6- as labelled rows (utils/move-tiers.js), so a card that posted the
 				// book's run-on paragraph instead was the one surface still leaving the outcomes
 				// buried in the sentence.
+				const body = moveCardBody(this.system?.description ?? "", this.system?.moveResults);
+
+				// A MONSTER's move is its name. The book prints each one as a single line ("Block their
+				// path"), and 723 of the 730 shipped moves carry no description, so a heading that named
+				// the move held the whole of it over an empty card. A monster's card is headed "Move"
+				// instead, and the move's own words open the body.
+				//
+				// The name is stamped on the message as well, as a rolled card's is below. A ticked
+				// option that deals damage labels its roll with it (stonetop.js#_chatWireOptionDamage),
+				// reading the heading only when the stamp is missing, and a monster's heading no longer
+				// names the move.
+				const monster = this.type === "monsterMove";
+				const title   = monster ? "Move" : this.name;
+				const lead    = monster ? `<p>${escHtml(this.name)}</p>` : "";
 				return ChatMessage.create({
 					content: `<div class="stonetop-chat-move">
-						<h3 class="stonetop-chat-move-name">${escHtml(this.name)}</h3>
-						<div class="stonetop-chat-move-description">${moveCardBody(this.system?.description ?? "", this.system?.moveResults)}${signoff}</div>
+						<h3 class="stonetop-chat-move-name">${escHtml(title)}</h3>
+						<div class="stonetop-chat-move-description">${lead}${body}${signoff}</div>
 					</div>`,
 					speaker: ChatMessage.getSpeaker({ actor }),
+					flags: { [STONETOP_SCOPE]: { move: this.name } },
 				});
 			}
 
@@ -291,6 +308,26 @@ export function createStonetopItemClass(BaseItem) {
 				// Last, so Never at a Loss's deferred-XP override beats the item's own default.
 				...(knowThings ?? {}),
 			});
+
+			// A MONSTER's rolling move is an attack, and rolls on the same damage card as its Damage
+			// line. The book gives a monster one damage value and routes any other blow through a move
+			// with its own die, which is how the Clash counter-attack already reads them
+			// (utils/damage.js#foeAttacks). So Draventao's "Breathe sticky fire, d10+3 damage (near,
+			// area, grabby, messy, reload, ignores armor)" is titled "Breathe sticky fire" with its
+			// tags beside the total, gets the damage window, and rolls the "w/advantage" that three of
+			// these moves print, which the plain formula card below never applied.
+			// An NPC's move keeps that plain card: a GM types those, and one may roll something other
+			// than damage.
+			if (this.type === "monsterMove") {
+				const { title, keywords } = damageCardText(this.name, rawFormula);
+				return rollDamagePrompted(rawFormula, actor, {
+					label: title || this.name,
+					keywords,
+					description: cardDescription,
+					rollMode: attackRollMode(this.name),
+					shiftKey: options.shiftKey,
+				});
+			}
 
 			// Raw formula path — used by npcMove items. `cardDescription`, not the raw text, so
 			// the last way a move can reach chat obeys the same rule as the other three: no

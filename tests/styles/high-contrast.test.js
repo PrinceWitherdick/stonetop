@@ -615,7 +615,9 @@ describe("every selector in the block points at something real", () => {
 	let corpus = null;
 	const CORPUS = () => (corpus ??= (() => {
 		const root = path.resolve(__dirname, "../..");
-		const skip = new Set(["node_modules", ".git", "packs", "tests"]);
+		// dist/ holds the built bundle: a copy of module/ that lags it until the next build, so a
+		// class deleted from the source would still be found there.
+		const skip = new Set(["node_modules", ".git", "packs", "tests", "dist"]);
 		let text = "";
 		(function walk(dir) {
 			for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

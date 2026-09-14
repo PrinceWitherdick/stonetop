@@ -33,12 +33,13 @@ import {CharacterLedger} from "./CharacterLedger.js";
 import {wireTabSearch} from "../../utils/tab-search.js";
 import {createPacker, fitColumns, makeColumns, packShortest, wireMasonry} from "../../utils/masonry.js";
 import {mountTabRail} from "../../utils/tab-rail.js";
+import { closeTimelineTab, detachTimelineTab, syncTimelineTab, TIMELINE_TAB } from "../../timeline/timeline-tab.js";
 import {buildPreferenceGroups} from "../../utils/sheet-preferences.js";
 import {showsPreferencesTab, withPreferencesTab} from "../../utils/preferences-tab.js";
 import {injectHeaderToggle} from "../../utils/sheet-chrome.js";
 import {mountScrollFrost} from "../../utils/scroll-frost.js";
 import {withSheetSizeMemory} from "../../utils/sheet-size.js";
-import { crewExists, effectiveCrewSize, customGroupSize, crewAnonMemberLabel, crewIndividualLabel, CREW_SIZE_MAX } from "../../utils/crew.js";
+import { crewExists, effectiveCrewSize, customGroupSize, crewAnonymousCount, crewAnonMemberLabel, crewIndividualLabel, customGroupMemberLabel, CREW_SIZE_MAX } from "../../utils/crew.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
 import {createArcanumItem} from "../../item/createArcanum.js";
 import {rollStat, sign, classifyResult} from "../../utils/roll-engine.js";
@@ -53,10 +54,12 @@ import {moveBodyHtml, moveCardBody} from "../../utils/move-tiers.js";
 import {statApproaches} from "../../utils/stat-approaches.js";
 import {wirePickTally} from "../../utils/pick-tally.js";
 import {stockSourcesForFlags, canPayStock, defaultStockSource, stockCostFromDescription, SACRED_POUCH_SLUG, RITES_OF_THE_LAND} from "./stock-cost.js";
-import {supplyPursesFor, defaultSupplyPurse, spendSupplies, campUsesNeeded, SUPPLY_PURPOSE} from "./supply-cost.js";
+import {supplyPursesFor, defaultSupplyPurse, SUPPLY_PURPOSE} from "./supply-cost.js";
+import {openMakeCamp} from "../../camp/camp-flow.js";
 import {rollProvisions, ON_THE_HOOF} from "./provisions.js";
 import {buildMoveTierResults} from "../../utils/move-results.js";
 import {knowThingsRollChoices, withAdvantage, KNOW_THINGS_STAT} from "./arcana-identify.js";
+import {statRuleIssues} from "./stat-rules.js";
 import {ARTIFACT_STATE, artifactStateForTier, knowThingsArtifactResults, seekInsightArtifactResults,
 	ARTIFACT_INSIGHT_QUESTIONS, ARTIFACT_LEAD_SUGGESTIONS} from "./artifact-identify.js";
 import {knowThingsRollOptions} from "./know-things.js";
@@ -68,7 +71,7 @@ import {readCurrentSeason, readCurrentYear} from "../../seasons/current-season.j
 import {openRitesOfTheLand} from "./rites-of-the-land.js";
 import {peopleNames, steadingPeopleActors, usedPersonPortraits, createPersonNpc, isActorRow, personRowActor, personRowKey, personRowIdentity, rebasePersonRows, addCharacterToSteadingPlayers} from "../steading/steading-people.js";
 import {openPeoplePortraitPicker} from "../steading/PeopleGalleryDialog.js";
-import {getHoverDescriptionSetting, getRollStatChipsSetting, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getInventoryLoreExpanded, setInventoryLoreExpanded, getSidebarCollapsed, setSidebarCollapsed, getOpenSheetsInEditMode, getAskRollModeEachRollSetting, isClassicLayout, layoutClasses, stampLayoutClass} from "../../settings.js";
+import {getHoverDescriptionSetting, getRollStatChipsSetting, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getFollowerCardsCollapsed, setFollowerCardsCollapsed, getInventoryLoreExpanded, setInventoryLoreExpanded, getSidebarCollapsed, setSidebarCollapsed, getOpenSheetsInEditMode, getAskRollModeEachRollSetting, isClassicLayout, layoutClasses, stampLayoutClass, isTimelineEnabled} from "../../settings.js";
 import {bringDialogToFront} from "../../utils/front-on-open.js";
 import {wireSidebarToggle} from "../../utils/sidebar-toggle.js";
 import {openLedgerDialog} from "../../utils/ledger-dialog.js";
@@ -103,7 +106,8 @@ import {buildRelationshipRows, wireRelationshipTable, wireRelationshipLinks, rel
 import {wireAvatarPreview, removeAvatarPreview} from "../../utils/avatar-preview.js";
 import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relationship-board.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
-import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, outnumberBonus, nextFollowerOrder} from "../../data/follower-build.js";
+import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, wireFightingInNumbers, groupFightCardSummaries, nextFollowerOrder} from "../../data/follower-build.js";
+import {LOAD_LEVEL_LIMITS} from "../../utils/load.js";
 import {arcanaSummonFollowers} from "../../data/arcana-summons.js";
 import {joinNames} from "../../utils/strings.js";
 import {availablePossessionFollowers} from "../../data/possession-followers.js";
@@ -405,32 +409,6 @@ function _supplyPurseFieldHtml(purses, legend) {
 function _chosenSupplyPurse(html, purses) {
 	const slug = html?.find?.('input[name="supplyPurse"]:checked')?.val();
 	return purses.eligible.find(p => p.slug === slug) ?? null;
-}
-
-/**
- * Keep the camp's bill under the head count as the player changes it. Written live rather than
- * left to the confirm step because "we're five, we have a mess kit" is arithmetic the table would
- * otherwise do out loud, and because seeing the bill go red is what prompts someone to Forage
- * before the night rather than after it.
- */
-function _wireCampBill(html, purses) {
-	const root  = html[0] ?? html;
-	const out   = root.querySelector("[data-camp-bill]");
-	const stock = purses.eligible.reduce((sum, p) => sum + p.remaining, 0);
-	if (!out) return;
-	const paint = () => {
-		const people  = root.querySelector('[name="people"]')?.value;
-		const messKit = !!root.querySelector('[name="messKit"]')?.checked;
-		const needed  = campUsesNeeded(people, messKit);
-		const short   = Math.max(0, needed - stock);
-		out.textContent = short
-			? `Needs ${needed}; you have ${stock}. ${short} short: someone goes hungry.`
-			: `Needs ${needed} of the ${stock} you can spend.`;
-		out.classList.toggle("is-short", short > 0);
-	};
-	root.querySelector('[name="people"]')?.addEventListener("input", paint);
-	root.querySelector('[name="messKit"]')?.addEventListener("change", paint);
-	paint();
 }
 
 // The GM's artifact control (_onArtifactGmControl). The rungs in ladder order, weakest first,
@@ -831,6 +809,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			// sections they default to expanded; we track the slugs left collapsed.
 			this._collapsedArcanaCards = new Set(getArcanaCardsCollapsed(this.actor?.id));
 
+			// And the follower cards folded down to their header strip. Like the arcanum
+			// cards these default to expanded, so we track the ids left FOLDED.
+			this._collapsedFollowerCards = new Set(getFollowerCardsCollapsed(this.actor?.id));
+
 			// And the write-ups on the gear rows (a treasure's printed sidebar, a GM's artifact
 			// notes). Unlike everything above these default to FOLDED — prose that long belongs
 			// behind a caret in a one-line-per-row column — so we track the item ids left open.
@@ -860,6 +842,11 @@ export function createStonetopCharacterSheetClass(Base) {
 		// Persist which individual arcanum cards are collapsed so it survives a reopen.
 		_persistArcanaCards() {
 			setArcanaCardsCollapsed(this.actor?.id, [...(this._collapsedArcanaCards ?? [])]);
+		}
+
+		// Persist which follower cards are folded to their header strip.
+		_persistFollowerCards() {
+			setFollowerCardsCollapsed(this.actor?.id, [...(this._collapsedFollowerCards ?? [])]);
 		}
 
 		// Persist which gear rows have their write-up unfolded (these default folded).
@@ -968,6 +955,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			// cursor is over a card's art tears out the anchor without firing mouseleave —
 			// clear it up front so no orphaned floating preview is left stuck on screen.
 			removeAvatarPreview();
+			// The timeline comes OUT before the body is replaced and goes back in at the foot of this
+			// method, the same element across a re-render. Rebuilding it would throw away where the
+			// reader had scrolled to in a campaign's worth of entries, on every write to this actor.
+			// See timeline/timeline-tab.js.
+			detachTimelineTab(this);
 			await super._render(force, options);
 			const newImg = portraitOf(this.element?.[0]);
 			if (oldImg && newImg
@@ -990,6 +982,27 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._activateTabOnRender = null;
 				this._tabs?.[0]?.activate?.(tab);
 			}
+			// ⚠ HERE AND NOT IN `activateListeners`, WHICH IS TOO EARLY. Whether the timeline is
+			// wanted depends on which tab is showing, and a sheet reopened after a reload does not
+			// know that yet at listener time: utils/window-restore.js puts the reader back on the tab
+			// they left from the RENDER hook, which core fires after `activateListeners` has run.
+			// It also has to come after the one-shot activate above, which is the other way this sheet
+			// arrives on a tab nobody clicked. Cheap and idempotent otherwise: a panel already mounted
+			// is moved into the tab this render built, and one never opened is not built now either.
+			syncTimelineTab(this, this.element?.[0]);
+		}
+
+		/**
+		 * ⚠ `super` FIRST AND NOTHING ELSE ABOUT SIZE. What is added is the one thing a tab
+		 * change can mean here: a reader arriving on the timeline for the first time, which is when
+		 * it is built rather than on every render.
+		 *
+		 * Nothing here resizes the sheet, and nothing here may: moving between tabs never changes a
+		 * window's size in this system (tests/actors/tabbed-sheet-height.test.js).
+		 */
+		_onChangeTab(event, tabs, active) {
+			super._onChangeTab(event, tabs, active);
+			if (active === TIMELINE_TAB) syncTimelineTab(this, this.element?.[0]);
 		}
 
 		/**
@@ -1052,6 +1065,10 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		async close(options) {
+			// ⚠ THE TIMELINE REGISTERS THREE GLOBAL JOURNAL HOOKS AND ONLY ITS OWN `close` TAKES
+			// THEM OFF. Left registered they fire on every journal write at the table for the rest of
+			// the session, once for every character sheet anybody ever opened on that tab.
+			closeTimelineTab(this);
 			this._masonries?.forEach(m => m.disconnect());
 			this._movePanel?.remove();
 			this._movePanel = null;
@@ -1222,6 +1239,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			// off whichever sheet's context it lands in, which is why all three sheets name it
 			// `stonetop.classicLayout` with no sheet suffix.
 			context.stonetop.classicLayout = isClassicLayout("character");
+			// Is the narrative timeline part of this world at all? Unreleased, and off in every
+			// shipped world, so this is normally false and the tab below is simply not drawn. The
+			// guard sits in the TEMPLATE rather than in the tab lifecycle because that is already
+			// how classic layout withholds this tab: with no mount in the markup, `syncTimelineTab`
+			// finds nothing and builds nothing. See `isTimelineEnabled` in module/settings.js.
+			context.stonetop.timelineEnabled = isTimelineEnabled();
 			context.stonetop.hideUnselected = this.actor.getFlag(STONETOP_SCOPE, "hideUnselected") ?? true;
 			// "Organize by category": whether the Playbook Moves section heads each of the
 			// playbook's three onboarding clusters, or draws one flat owned / un-owned list.
@@ -1278,6 +1301,21 @@ export function createStonetopCharacterSheetClass(Base) {
 			// column widths — a reading preference, not world data.
 			context.stonetop.rel = relationshipViewContext("characterRelationships", context.stonetop.relationships);
 			context.stonetop.statsEdit       = sectionEdit("stats");
+			// A stat box takes any number anyone types and always will: nothing here rejects,
+			// clamps or rewrites a score. What it does is say so, for the stats the rules as
+			// written can't account for (stat-rules.js works out which, and why). Built only
+			// while the section is being edited, because that is the one time the reader is in
+			// a position to act on it, and a caution ring around a number nobody is editing is
+			// just noise on a sheet being played from. The items say how far each Improved /
+			// Superior Stat pick reaches; without them every pick reads as reaching +3.
+			context.stonetop.statIssues = context.stonetop.statsEdit
+				? statRuleIssues({
+					stats:     this.actor.system?.stats,
+					flags:     resolvedFlags(this.actor),
+					statsNote: context.stonetop.playbook?.statsNote ?? null,
+					items:     this.actor.items,
+				})
+				: {};
 			context.stonetop.movesEdit       = sectionEdit("moves");
 			context.stonetop.possessionsEdit = sectionEdit("possessions");
 			context.stonetop.invocationsEdit = sectionEdit("invocations");
@@ -1407,10 +1445,20 @@ export function createStonetopCharacterSheetClass(Base) {
 			for (const [path, value] of Object.entries(vitalsToSystem)) {
 				foundry.utils.setProperty(context.system, path, value);
 			}
-			// Kept for the post-render mirror (_syncStoredMaxHp). That write needs the computed max
+			// Kept for the post-render mirror (_syncStoredDerived). That write needs the computed max
 			// and this is the one place it has already been worked out — asking for it again would
 			// rebuild the whole snapshot on every render. 0 means "no playbook, nothing to mirror".
 			this._computedMaxHp = context.stonetop.playbook ? v.hp.max : 0;
+			// Same deal for armor (the same mirror), and for a sharper reason: the setProperty
+			// above writes the LIVE actor.system DataModel (getData leaves `context.system` unset,
+			// so line ~1187 aliases it to the document's own), which persists nothing and is only
+			// ever true on a client that has rendered this sheet. The combat flow reads the STORED
+			// `attributes.armor.value` off the document — on the GM's client, who has never opened
+			// the player's sheet, that was the schema initial of 0, so a PC in mail and a shield
+			// soaked nothing. Unlike max HP, 0 is a legitimate computed armor (unarmored), so this
+			// carries `null` for "no snapshot, nothing to mirror" rather than overloading 0.
+			this._computedArmor = Number.isFinite(Number(v.armor)) ? Number(v.armor) : null;
+			this._computedUnpierceable = Number(v.unpierceableArmor) || 0;
 			// A permanent max-HP change (an arcanum's soul-wound, a Mark's boon) is otherwise
 			// invisible once applied — the field just shows a number that disagrees with the
 			// playbook. Marked and spelled out here so a GM reading the sheet months later can
@@ -1420,6 +1468,17 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.hpMaxNote = hpAdjust
 				? `Max HP ${hpAdjust > 0 ? "+" : "−"}${Math.abs(hpAdjust)} permanently (your playbook gives ${v.hpBase}). Type a new max to change it, or ${v.hpBase} to clear it.`
 				: (context.stonetop.editMode ? "Type a new max to change it permanently. The difference is kept as you level." : "");
+			// Same for a hand-set armor adjustment. Spelled out rather than left as a number
+			// that silently disagrees with the gear listed on the sheet.
+			const armorAdjust = this._stonetopCharacter.armorAdjustment;
+			// Off the snapshot's own derived number rather than the clamped total minus the
+			// adjustment: see VitalsSnapshot#armorBase. The note names the number the player types
+			// to clear the adjustment, so getting it wrong hands them a number that doesn't clear.
+			const armorDerived = Number(v.armorBase) || 0;
+			context.stonetop.armorAdjusted = armorAdjust !== 0;
+			context.stonetop.armorNote = armorAdjust
+				? `Armor ${armorAdjust > 0 ? "+" : "−"}${Math.abs(armorAdjust)} by hand (your gear and moves give ${armorDerived}). Type a new total to change it, or ${armorDerived} to clear it.`
+				: (context.stonetop.editMode ? "Type a new total to set it by hand. The difference is kept as your gear changes." : "");
 			// Followers tab — build data from flags + playbook definition.
 			// Pass smallItemLimit from the already-computed snapshot so crew gear
 			// uses the exact same prosperity value as outfit inventory items.
@@ -1922,8 +1981,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			// crew as it grows (Updating followers, p.480).
 			const _crewOverride = (field) => _intOverrideOrNull(sf.crew?.details?.[field]);
 			const crewMaxHp = (_crewOverride("hpMax") ?? crewStats.memberHp ?? 6) || 1;
-			// Stash the per-member HP max so the resize/delete handlers can re-clamp
-			// the abstracted group-fight pool (crewSize × memberHp) when it shrinks.
+			// Stash the per-member HP max for the roster handlers. It is also the whole
+			// abstracted group-fight pool (ONE member's HP, whatever the crew's size), so
+			// it is the ceiling clampStoredGroupHp pulls a stored pool back under.
 			this._crewMemberHpMax = crewMaxHp;
 			const crewArmor = _crewOverride("armor") ?? crewStats.armor ?? 0;
 			const crewDamageDie = crewStats.damageDie ?? "d6";
@@ -2040,6 +2100,16 @@ export function createStonetopCharacterSheetClass(Base) {
 				card.armorSource = has(d.armorSource) ? String(d.armorSource).trim() : "";
 				return card;
 			};
+			// A group's fighting-in-numbers readouts (the crew, a custom warband). The inputs are
+			// recorded where each roster is built, but the readouts wait for finalize, after
+			// withStatOverrides: built beside the roster they rolled the rules die, so a crew whose
+			// Damage was hand-edited to d8 offered a "d6+5" button until a count was typed.
+			const groupFightInputs = new WeakMap();
+			const withGroupFight = (card) => {
+				const input = card && groupFightInputs.get(card);
+				if (input) Object.assign(card, groupFightCardSummaries({ ...input, damageRoll: card.damageRoll }));
+				return card;
+			};
 
 			// -- Animal Companion (Ranger) ------------------------------
 			let animalCompanion = null;
@@ -2142,12 +2212,17 @@ export function createStonetopCharacterSheetClass(Base) {
 				const loyaltyVal      = sf.crew?.loyalty ?? 0;
 				const gearFlags       = sf.crew?.gear ?? {};
 				const inventoryDef    = playbookDoc?.crew?.inventory?.length ? playbookDoc.crew.inventory : CREW_INVENTORY_FALLBACK;
-				// Supplies: 6 independent sets, each with (4+Prosperity) circles.
-				// smallItemLimit comes from buildSnapshot() — same value driving outfit inventory.
+				// Supplies: one set per crew member, each set being one ◇ of supplies. A ◇ holds
+				// "4 uses, but you add Stonetop's current Prosperity to that" (p.88) — the same
+				// arithmetic the small-item allotment uses (p.306), which is why smallItemLimit can
+				// stand in for it. Two separate rules that happen to agree, so keep both citations:
+				// errata to either one stops them agreeing.
 				const pipsPerSet      = smallItemLimit ?? 5;
 				const prosperity      = smallItemLimit !== null ? smallItemLimit - 4 : null;
 				const suppliesRaw     = sf.crew?.supplies;
-				const suppliesArr     = Array.isArray(suppliesRaw) ? suppliesRaw : Array(6).fill(0);
+				// A short (or absent) stored array just reads as unfilled sets — every lookup below
+				// defaults to 0 — so it never needs padding out to the roster's length here.
+				const suppliesArr     = Array.isArray(suppliesRaw) ? suppliesRaw : [];
 				// Same piercing substitution used for outfit items on the character sheet.
 				// Crew gear labels use plain "x piercing"; outfit item notes use "x <em>piercing</em>".
 				const applyPiercing   = (label) => {
@@ -2195,7 +2270,15 @@ export function createStonetopCharacterSheetClass(Base) {
 				                     + crewAnonMembers.filter(m => m.hpCurrent > 0).length;
 				// Abstracted "treat the whole group as one combatant" pool, tracked
 				// independently of per-member HP (Followers in Fights, p.409/473).
-				const crewGroupHpMax     = crewSize * crewMaxHp;
+				//
+				// ONE MEMBER'S HP, not the roster's total. "Each group deals damage and has
+				// HP/armor as per a single individual member" — the pool is small on purpose,
+				// because damage to it is read as CASUALTIES rather than as wounds: losing half
+				// of it puts half the crew out of the action, and emptying it routs them. A
+				// size x HP pool (what this used to be) is the un-abstracted total the roster
+				// below already tracks member by member, so as an "abstraction" it made the
+				// crew roughly `size` times harder to break than the rule it was named after.
+				const crewGroupHpMax     = crewMaxHp;
 				const crewGroupHpRaw     = Number(sf.crew?.groupHp);
 				const crewGroupHpCurrent = _clampHp(crewGroupHpRaw, crewGroupHpMax);
 				// Readiness held when the crew Defends (common pool, p.473). A shield in
@@ -2304,7 +2387,9 @@ export function createStonetopCharacterSheetClass(Base) {
 							pips:    Array.from({ length: weight }, (_, i) => ({ index: i, filled: i < filledCount })),
 						};
 					}),
-					supplySets: Array.from({ length: 6 }, (_, setIdx) => {
+					// One ◇ of supplies per member, so the grid tracks the roster: a crew of four
+					// shows four sets, not the Marshal's default "six or so" (Crew, p.126).
+					supplySets: Array.from({ length: crewSize }, (_, setIdx) => {
 						const filled = suppliesArr[setIdx] ?? 0;
 						return {
 							index: setIdx,
@@ -2315,6 +2400,11 @@ export function createStonetopCharacterSheetClass(Base) {
 							})),
 						};
 					}),
+					// What members have produced with Have What They Need (p.472). It reuses the
+					// free-text gear checklist every other follower card carries — crew.details.gear,
+					// which the crew otherwise leaves empty because `gear` above is its inventory pip
+					// map — so the shared toggle / rename / remove handlers act on it unchanged.
+					produced:          crewExtras.gear,
 					individuals:       crewIndividuals,
 					individualOptions: playbookDoc?.crew?.individualOptions ?? {},
 					namedCount:        crewNamedCount,
@@ -2336,6 +2426,30 @@ export function createStonetopCharacterSheetClass(Base) {
 					armor:             crewArmor,
 					rollMod:           crewRollMod,
 				};
+				// What each closed section says about itself. A fold that reports nothing is a
+				// fold players leave open to read a number off it, which is how this card grew
+				// too tall in the first place — so every summary carries its own state.
+				// Load: the Inventory subtitle's own ladder, counted in filled pips so a 2-weight
+				// item tells the truth about what it costs. The cutoffs come from the shared load
+				// caps rather than being written out again here, so a crew's subtitle can never
+				// disagree with the character's own load readout if the caps are ever errata'd.
+				const crewLoad = crew.gear.reduce((n, g) => n + g.pips.filter(pip => pip.filled).length, 0);
+				const crewBand = crewLoad <= LOAD_LEVEL_LIMITS.light  ? "light"
+					:            crewLoad <= LOAD_LEVEL_LIMITS.normal ? "normal"
+					:                                                   "heavy";
+				crew.inventorySummary = `${crewLoad} \u2713 \u00b7 ${crewBand} load`;
+				// "Clashes or Lets Fly at a single foe … roll one attacker's damage, +1 per
+				// each additional attacker." The swarm count defaults to the members still ON
+				// THEIR FEET, since a member out of the action is not one of the attackers.
+				// Read in finalize (withGroupFight), once a hand-edited Damage has replaced the
+				// rules die the bonus is folded into.
+				groupFightInputs.set(crew, {
+					roster:         [...crewIndividuals, ...crewAnonMembers],
+					aliveCount:     crewAliveCount,
+					size:           crewSize,
+					groupHpCurrent: crewGroupHpCurrent,
+					groupHpMax:     crewGroupHpMax,
+				});
 			}
 
 			// -- Initiates of Danu (Blessed + Initiate background) ------
@@ -2529,9 +2643,10 @@ export function createStonetopCharacterSheetClass(Base) {
 					// Group follower (NPCs & Followers p.470): the same shared stats as a
 					// single follower, plus a roster where every member tracks their own
 					// current HP against the shared max, an abstracted "one combatant"
-					// group-HP pool (size × per-member HP), and the outnumber calculator.
-					// The crew is the built-in example; this brings the same tools to a
-					// hired warband, an arcana-summoned group, or a converted group monster.
+					// group-HP pool (a SINGLE member's HP — see the crew's note above), and
+					// both fighting-in-numbers calculators. The crew is the built-in example;
+					// this brings the same tools to a hired warband, an arcana-summoned
+					// group, or a converted group monster.
 					if (c?.isGroup) {
 						const memberHpMax = hpMax || 1;
 						const size = customGroupSize(c);
@@ -2544,9 +2659,9 @@ export function createStonetopCharacterSheetClass(Base) {
 						const anonMembers = this._anonRosterMembers(size, {
 							hp: memberHpRaw, img: memberImgRaw, hpMax: memberHpMax,
 							editing: groupEditing,
-							labelFor: (i) => `Member ${i + 1}`,
+							labelFor: customGroupMemberLabel,
 						});
-						const groupHpMax     = size * memberHpMax;
+						const groupHpMax     = memberHpMax;
 						const groupHpCurrent = _clampHp(Number(c?.groupHp), groupHpMax);
 						card.isGroup        = true;
 						card.groupSize      = size;
@@ -2559,6 +2674,16 @@ export function createStonetopCharacterSheetClass(Base) {
 							roster:     this._openCrewSections.has(`roster:custom:${id}`),
 							groupFight: this._openCrewSections.has(`groupFight:custom:${id}`),
 						};
+						// Same self-reporting summaries the crew's folds carry, so a closed
+						// section on a warband reads as informatively as one on the crew. Built
+						// in finalize (withGroupFight), after any hand-edited Damage.
+						groupFightInputs.set(card, {
+							roster:     anonMembers,
+							aliveCount: card.memberCount,
+							size,
+							groupHpCurrent,
+							groupHpMax,
+						});
 					}
 					return card;
 				});
@@ -2618,10 +2743,17 @@ export function createStonetopCharacterSheetClass(Base) {
 					// livestock doesn't), so it gates the Order button the same way it
 					// gates the readiness stepper below — no Order action on a butcher beast.
 					card.canOrder = true;
-					// "Have what they need" (p.472) adds an item to a follower's gear on the
-					// fly. Non-crew followers carry a free-text gear checklist to append to;
-					// the crew Outfits/restocks from its Supplies section instead.
-					card.canHaveNeed = card.ftype !== "crew";
+					// "Have what they need" (p.326) adds an item to a follower's gear on the fly,
+					// reached the way any player move is: "when you direct your follower to do
+					// something that would trigger a player move, and they do it, they trigger the
+					// move" (Order Followers, p.462). Every orderable follower can, the crew included
+					// — the crew is in fact the one type the book names for it.
+					card.canHaveNeed = true;
+					// A group produces for ONE of its members, not all of them: "the PC can direct one
+					// crew member to Have What They Need and add an item to their inventory, WITHOUT
+					// the rest of the crew each producing the same item" (p.472). That holds for any
+					// group follower, not just the built-in crew, so both ask who first.
+					card.haveNeedPicksMember = card.ftype === "crew" || !!card.isGroup;
 					// Readiness circles. Only true followers — which is exactly the set
 					// that has a Loyalty track — so livestock is excluded. A borne shield
 					// raises the cap from 3 to 4 (+1 Readiness on a 7+ Defend, p.216).
@@ -2692,7 +2824,34 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 				return card;
 			};
-			const finalize = (card) => withOrderData(withExceptional(withSectionEdits(withStatOverrides(card))));
+			// Folding. A card rests as its header strip plus the live vitals band (Armor /
+			// Damage / Loyalty / Readiness — the numbers a fight touches); the reference half
+			// of the stat block (instinct, cost, moves, gear, notes) sits behind a Details
+			// fold, and the crew's Inventory / Roster / Group Fight behind their own. Folds
+			// are per card, per user, per actor, and default SHUT.
+			//
+			// A card being EDITED overrides both its fold and the card fold: no pencil ever
+			// opens onto a field the fold is hiding. That override is render-only — it never
+			// reaches the persisted set — so leaving edit mode restores what the player chose.
+			const withFolds = (card) => {
+				if (!card) return card;
+				const cardId     = `${card.ftype}:${card.slug}`;
+				const editing    = !!card.edit?.card;
+				card.foldId      = cardId;
+				card.detailsOpen = editing || this._openCrewSections.has(`details:${cardId}`);
+				// Open only because of the pencil. The template marks it, so the toggle handler
+				// does not record the pencil's doing as the player's own choice.
+				card.detailsForced = editing && !this._openCrewSections.has(`details:${cardId}`);
+				card.cardFolded  = !editing && this._collapsedFollowerCards.has(cardId);
+				// Nothing to fold away: no Details summary is drawn at all, rather than a caret
+				// onto an empty box. In edit mode it always shows — that is where the blank
+				// fields to fill in live.
+				const hasReference = !!(card.instinct || card.cost || card.movesLines?.length
+					|| card.butcher || (card.showGear && card.gear?.length) || card.notes);
+				card.hasDetails = editing || hasReference;
+				return card;
+			};
+			const finalize = (card) => withFolds(withOrderData(withExceptional(withSectionEdits(withGroupFight(withStatOverrides(card))))));
 			// Playbook possession-followers (the Would-be Hero's dog, the Ranger's Hounds,
 			// the Blessed's Mastiffs) ship as gear text; offer to materialize any the PC
 			// holds but hasn't added yet as a follower card (deduped by sourceUuid, like
@@ -3201,7 +3360,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						await this._stonetopCharacter.onDirectStatRoll(roll, prompted);
 					} else {
 						// Raw formula roll (e.g. damage die "d8")
-						let label;
+						let label, attacker;
 						if (rollable.classList.contains("stonetop-follower-damage-roll")) {
 							const followerType   = rollable.dataset.followerType ?? "";
 							const followerName   = (rollable.dataset.followerName   ?? "").trim();
@@ -3209,23 +3368,14 @@ export function createStonetopCharacterSheetClass(Base) {
 							const followerPronoun = (rollable.dataset.followerPronoun ?? "").trim().toLowerCase().split(/[\s/]/)[0];
 							const damageForm     = (rollable.dataset.damageForm     ?? "").trim();
 							const possessive = { he: "his", she: "her", they: "their" }[followerPronoun] ?? "its";
-							if (followerType === "animal") {
-								const subject  = followerName || followerKind || "animal companion";
-								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
-								label = `${subject} attacks${formPart}`;
-							} else if (followerType === "initiate") {
-								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
-								label = `${this.actor.name}'s ${followerName || "initiate"} attacks${formPart}`;
-							} else if (followerType === "beast") {
-								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
-								label = `${this.actor.name}'s ${followerName || "beast"} attacks${formPart}`;
-							} else if (followerType === "custom") {
-								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
-								label = `${this.actor.name}'s ${followerName || "follower"} attacks${formPart}`;
-							} else {
-								const formPart = damageForm ? ` with ${possessive} ${damageForm}` : "";
-								label = `${this.actor.name}'s ${followerName || "crew"} attacks${formPart}`;
-							}
+							const formPart   = damageForm ? ` with ${possessive} ${damageForm}` : "";
+							// The follower is who swings, so it names the damage window as well as the
+							// card; the actor in hand is only the PC whose sheet this is. An animal
+							// companion goes by its own name, every other follower as the PC's.
+							attacker = followerType === "animal"
+								? (followerName || followerKind || "animal companion")
+								: `${this.actor.name}'s ${followerName || { initiate: "initiate", beast: "beast", custom: "follower" }[followerType] || "crew"}`;
+							label = `${attacker} attacks${formPart}`;
 						} else {
 							label = rollable.dataset.label ?? roll;
 						}
@@ -3233,7 +3383,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						// attack — so it gets the damage window rather than the move prompt, which
 						// asked it nothing upstream (see _resolveMoveRollPrompts). Shift on the
 						// originating click skips it, exactly as it skips the move prompt.
-						await rollDamagePrompted(roll, this.actor, { label, shiftKey: ev.shiftKey });
+						await rollDamagePrompted(roll, this.actor, { label, attacker, shiftKey: ev.shiftKey });
 					}
 				}
 			}, true);
@@ -3743,12 +3893,16 @@ export function createStonetopCharacterSheetClass(Base) {
 			syncFollowerActors(this.actor, followerSnapshots)
 				.catch(err => console.error("Stonetop | follower actor sync failed", err));
 
-			// The token's HP bar reads the PERSISTED max, which the sheet itself never does. Same
-			// call site and the same fire-and-forget shape as the follower sweeps above, for the
-			// same reason: every route that can move a character's max HP (a level, a Marshal's
-			// marked move, a Thrall's Marks, an insert's penalty) ends in a render of this sheet.
-			this._syncStoredMaxHp()
-				.catch(err => console.error("Stonetop | max HP mirror failed", err));
+			// The token's HP bar reads the PERSISTED max and combat reads the PERSISTED armor,
+			// neither of which the sheet itself ever does. Same call site and the same
+			// fire-and-forget shape as the follower sweeps above, for the same reason: every route
+			// that can move either number (a level, a Marshal's marked move, a Thrall's Marks, an
+			// insert's penalty; equipping a shield, an arcanum's cloak, a move's bonus) ends in a
+			// render of this sheet. ONE write for both: they go stale together on the first open
+			// of an existing character, and two updates would mean two broadcasts and two more
+			// renders racing on the same document.
+			this._syncStoredDerived()
+				.catch(err => console.error("Stonetop | derived vitals mirror failed", err));
 
 			// Followers tab: drag a card onto the canvas to put that follower on the map as a
 			// token (module/hooks/FollowerDrop.js turns the payload below into an Actor).
@@ -4011,6 +4165,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			// as a permanent adjustment instead of being written straight to the stale field.
 			html.find("[data-hp-max]").on("change", this._onMaxHpEdit.bind(this));
 
+			// Armor, same story again: derived from carried gear + move bonuses, so a hand-typed
+			// total is banked as a signed adjustment rather than pinning the derived number.
+			html.find("[data-armor]").on("change", this._onArmorEdit.bind(this));
+
 			// -- Followers tab: shared follower-card fields ----------------
 			// Common, hand-editable fields on every follower card (name,
 			// exceptional/group toggles, free-text Moves/Notes, diamond Gear
@@ -4252,12 +4410,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				const { slug, followerName } = ev.currentTarget.dataset;
 				this._onSendServantsBack(slug, followerName);
 			});
-			// Have What They Need (add gear to a follower) / Outfit the crew (restock).
+			// Have What They Need (a follower produces an item) / restock the crew's Supplies.
 			html.find(".stonetop-follower-have-need").on("click", ev => {
 				const { ftype, slug, followerName } = ev.currentTarget.dataset;
 				this._onHaveWhatTheyNeed(ftype, slug ?? "", followerName);
 			});
-			html.find(".stonetop-crew-outfit").on("click", () => this._onOutfitCrew());
+			html.find(".stonetop-crew-restock").on("click", () => this._onRestockCrewSupplies());
 
 			// Crew gear pip circles. An inventory item is carried as a unit — its
 			// pips just show its load weight — so a multi-pip ("double diamond")
@@ -4278,26 +4436,29 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this.actor.setFlag(STONETOP_SCOPE, "crew.gear", gear);
 				this.render(false);
 			});
-			// Crew supplies pip circles — 6 independent sets stored as an array of counts
+			// Crew supplies pip circles — one set (one ◇ of supplies) per member, stored as an
+			// array of use counts. The array grows to reach whichever set was clicked rather than
+			// to a fixed length, so it tracks the roster the way the rendered grid does.
 			html.find(".stonetop-crew-supplies-pip").on("change", async ev => {
 				const setIdx = Number(ev.currentTarget.dataset.set);
 				const pipIdx = Number(ev.currentTarget.dataset.pip);
 				const newVal = ev.currentTarget.checked ? pipIdx + 1 : pipIdx;
 				const current = this.actor.getFlag(STONETOP_SCOPE, "crew.supplies");
-				const arr = Array.isArray(current) ? [...current] : Array(6).fill(0);
-				while (arr.length < 6) arr.push(0);
+				const arr = Array.isArray(current) ? [...current] : [];
+				while (arr.length <= setIdx) arr.push(0);
 				arr[setIdx] = newVal;
 				await this.actor.setFlag(STONETOP_SCOPE, "crew.supplies", arr);
 				this.render(false);
 			});
-			// Add a group-fight pool clamp to a pending update when the roster shrinks:
-			// the pool maxes at crewSize × per-member HP, so a smaller crew must not
-			// leave a stale over-max value stored. Only an explicitly-set value is
-			// touched — an unset groupHp tracks the full max on its own.
-			const clampStoredGroupHp = (update, crewSize) => {
+			// Clamp a stored group-fight pool that now sits over its max. The pool is ONE
+			// member's HP (the abstraction's own rule — see the crew card's note), so the
+			// roster size no longer moves the ceiling; what does move it is the per-member
+			// HP, and a pool saved under the old size × HP ceiling is over it on sight.
+			// Only an explicitly-set value is touched — an unset groupHp tracks the max.
+			const clampStoredGroupHp = (update) => {
 				const raw = Number(this.actor.getFlag(STONETOP_SCOPE, "crew.groupHp"));
 				if (!Number.isFinite(raw)) return;
-				const max = Math.max(0, crewSize) * (this._crewMemberHpMax ?? 6);
+				const max = this._crewMemberHpMax ?? 6;
 				if (raw > max) update["flags.stonetop_pwd.crew.groupHp"] = max;
 			};
 			// Delete individual crew member
@@ -4336,7 +4497,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const sizeBefore = effectiveCrewSize(this.actor.getFlag(STONETOP_SCOPE, "crew.size"), individuals.length + 1);
 				const newSize = Math.max(individuals.length, sizeBefore - 1);
 				update["flags.stonetop_pwd.crew.size"] = newSize;
-				clampStoredGroupHp(update, newSize);
+				clampStoredGroupHp(update);
 				Dialog.confirm({
 					title:   "Remove crew member",
 					content: `<p>Remove <strong>${escHtml(name)}</strong> from the crew? This can't be undone.</p>`,
@@ -4365,7 +4526,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (memberPortrait.length > anonCount) {
 					update["flags.stonetop_pwd.crew.memberPortrait"] = memberPortrait.slice(0, anonCount);
 				}
-				clampStoredGroupHp(update, clamped);
+				clampStoredGroupHp(update);
 				await this.actor.update(update);
 				this.render(false);
 			};
@@ -4452,11 +4613,13 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (Array.isArray(c.memberPortrait) && c.memberPortrait.length > size) {
 					update[`flags.stonetop_pwd.customFollowers.${slug}.memberPortrait`] = c.memberPortrait.slice(0, size);
 				}
-				// Clamp an explicitly-set group pool to the new max (unset tracks full).
+				// Clamp an explicitly-set group pool to its max (unset tracks full). The pool
+				// is ONE member's HP, so resizing the roster no longer moves that ceiling —
+				// but a pool stored under the old size × HP ceiling is over it, and this is
+				// where such a value gets brought back down.
 				const rawPool = Number(c.groupHp);
-				if (Number.isFinite(rawPool)) {
-					const max = size * memberHpMax;
-					if (rawPool > max) update[`flags.stonetop_pwd.customFollowers.${slug}.groupHp`] = max;
+				if (Number.isFinite(rawPool) && rawPool > memberHpMax) {
+					update[`flags.stonetop_pwd.customFollowers.${slug}.groupHp`] = memberHpMax;
 				}
 				await this.actor.update(update);
 				this.render(false);
@@ -4469,17 +4632,56 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-custom-group-size-input").on("change", ev =>
 				setCustomGroupSize(ev.currentTarget.dataset.slug, ev.currentTarget.value));
 
-			// Remember which collapsible crew sections are open across re-renders and,
-			// via the persisted per-actor setting, across sheet reopens. Native
-			// <details> already updates the DOM, so we only record the state (no
-			// re-render) for the next render to honour.
+			// Remember which collapsible follower sections (a card's Details fold, the
+			// crew's Inventory / Roster / Group Fight) are open across re-renders and, via
+			// the persisted per-actor setting, across sheet reopens. Native <details>
+			// already updates the DOM, so we only record the state (no re-render) for the
+			// next render to honour.
+			//
+			// Accordion: opening one fold closes the others ON THAT CARD, so a card is never
+			// taller than its header, its vitals band and one open section. Shift- / ctrl- /
+			// cmd-clicking a summary pins it instead, for the times you want the Roster and
+			// the Inventory side by side. The modifier is read on CLICK, which runs before
+			// the browser's default toggle, and consumed by the toggle below.
+			let pinFold = false;
+			html.find(".stonetop-crew-collapsible > summary").on("click", ev => {
+				pinFold = ev.shiftKey || ev.ctrlKey || ev.metaKey;
+			});
 			html.find(".stonetop-crew-collapsible").on("toggle", ev => {
-				const id = ev.currentTarget.dataset.section;
+				const fold = ev.currentTarget;
+				const id   = fold.dataset.section;
 				if (!id) return;
 				this._openCrewSections ??= new Set();
-				if (ev.currentTarget.open) this._openCrewSections.add(id);
-				else                       this._openCrewSections.delete(id);
+				// A Details fold only the pencil holds open (withFolds) fires that same parse-time
+				// toggle, but the player did not open it: recorded, it would outlive the pencil, and
+				// the accordion would shut the folds they did open, the Roster's size field included.
+				if (fold.open && "forcedOpen" in fold.dataset) return;
+				// Nothing to record when the set already agrees: a fold rendered open fires a
+				// toggle as it is parsed, and a sibling shut below has already been unregistered.
+				if (fold.open === this._openCrewSections.has(id)) return;
+				if (fold.open) this._openCrewSections.add(id);
+				else           this._openCrewSections.delete(id);
+				if (fold.open && !pinFold) {
+					const card = fold.closest(".stonetop-follower-card");
+					for (const other of card?.querySelectorAll(".stonetop-crew-collapsible[open]") ?? []) {
+						if (other === fold) continue;
+						other.open = false;
+						this._openCrewSections.delete(other.dataset.section);
+					}
+				}
+				pinFold = false;
 				this._persistCrewSections();
+			});
+
+			// And the caret that folds a whole follower card down to its header strip —
+			// portrait, name, HP, tags and the live vitals band — clamping the folds and the
+			// Order row away. Same custom toggle the arcanum cards use (cards default to
+			// expanded, so the Set holds the FOLDED ones), persisted per user, per actor.
+			this._wireCollapsible(html, {
+				summarySel:     ".stonetop-follower-card-fold",
+				collapsibleSel: ".stonetop-follower-card",
+				getSet:         () => (this._collapsedFollowerCards ??= new Set()),
+				persist:        () => this._persistFollowerCards(),
 			});
 
 			// Collapse / expand the sidebar move groups (Basic / Expedition). A custom
@@ -4735,27 +4937,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 			html.find(".stonetop-inventory-reset-btn").on("click", this._onInventoryReset.bind(this));
 
-			// -- Followers: group fight outnumber calculator --
-			html[0].addEventListener("input", ev => {
-				const inp = ev.target;
-				if (!inp.classList.contains("stonetop-outnumber-yours") && !inp.classList.contains("stonetop-outnumber-theirs")) return;
-				const row    = inp.closest(".stonetop-group-fight-outnumber-row");
-				if (!row) return;
-				const { label, rollFor } = outnumberBonus(
-					row.querySelector(".stonetop-outnumber-yours")?.value,
-					row.querySelector(".stonetop-outnumber-theirs")?.value,
-				);
-				const resultEl = row.querySelector(".stonetop-outnumber-result");
-				if (resultEl) resultEl.textContent = label;
-				const section  = row.closest(".stonetop-group-fight-section");
-				const dmgBtn   = section?.querySelector(".stonetop-group-fight-dmg-roll");
-				const dmgLabel = section?.querySelector(".stonetop-group-fight-dmg-label");
-				// Build on the crew's actual damage die (carried in data-base-roll,
-				// which honours any Damage override), not a hardcoded d6.
-				const roll     = rollFor(dmgBtn?.dataset.baseRoll);
-				if (dmgBtn)   dmgBtn.dataset.roll     = roll;
-				if (dmgLabel) dmgLabel.textContent    = roll;
-			}, true);
+			// -- Followers: fighting-in-numbers calculators, one per rule (follower-build.js) --
+			// Built on the group's actual damage die (carried in data-base-roll, which honours
+			// any Damage override), not a hardcoded d6.
+			wireFightingInNumbers(html[0], { rollKey: "roll", baseKey: "baseRoll" });
 
 			// -- Followers: Order (direct any follower to make a move, p.462) --
 			// Every way in comes through here: the per-card Order button, a named crew
@@ -8715,26 +8900,80 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 		}
 
-		// Have What They Need (p.472): a follower produces a needed item. Prompt for it
-		// and append it (checked) to their free-text gear checklist.
+		// The crew's headcount, for the Supplies restock outside _buildFollowersData. Same
+		// arithmetic the roster is drawn with, so a
+		// crew that has never had its size set still reads as the Marshal's "six or so" (p.126).
+		_crewRosterSize() {
+			const named = this.actor.getFlag(STONETOP_SCOPE, "crew.individuals");
+			return effectiveCrewSize(this.actor.getFlag(STONETOP_SCOPE, "crew.size"),
+				Array.isArray(named) ? named.length : 0);
+		}
+
+		// A GROUP follower's members, by the names their roster rows carry — the ones who have
+		// "stood out" and been named (p.470) first, then the anonymous tail, numbered the way
+		// those rows number it. Empty for a singular follower, who IS the member.
+		_followerMemberNames(ftype, slug) {
+			if (ftype === "crew") {
+				const crew  = this.actor.getFlag(STONETOP_SCOPE, "crew");
+				const named = Array.isArray(crew?.individuals) ? crew.individuals : [];
+				const list  = named.map((ind, i) => String(ind?.name ?? "").trim() || crewIndividualLabel(i));
+				// Both labellers take the NAMED count and a 0-based offset into the tail, exactly
+				// as _anonRosterMembers calls them for the roster rows, so the two agree on what
+				// "Crew member 4" means.
+				const anonCount = crewAnonymousCount(crew);
+				for (let i = 0; i < anonCount; i++) list.push(crewAnonMemberLabel(named.length, i));
+				return list;
+			}
+			// A custom group has no named individuals — every row is an anonymous slot.
+			const custom = ftype === "custom" ? this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}`) : null;
+			if (!custom?.isGroup) return [];
+			return Array.from({ length: customGroupSize(custom) }, (_, i) => customGroupMemberLabel(i));
+		}
+
+		// Have What They Need (p.326) run for a follower, per Order Followers (p.462): "when you
+		// direct your follower to do something that would trigger a player move, and they do it,
+		// they trigger the move". No roll — the move is a declaration — so this only asks what
+		// they produce and writes it down.
+		//
+		// A group is the case the book spells out, and it is emphatically NOT the whole
+		// group: "the PC can direct one crew member to Have What They Need and add an item to
+		// their inventory, WITHOUT the rest of the crew each producing the same item" (p.472). So
+		// a group picks a member first, and the item is filed under the book's own notation for
+		// it — Rhianna writes "◇ ◇ litter (Lowri)" on her crew's inventory list (p.473).
 		_onHaveWhatTheyNeed(ftype, slug, name) {
 			const base = _followerDetailBase(ftype, slug);
 			const gearPath = base ? `${base}.gear` : null;
 			if (!gearPath) return;
+			// Only a group has members to choose between; a singular follower IS the member.
+			const members = this._followerMemberNames(ftype, slug);
+			const picker  = members.length
+				? `<p class="stonetop-hwtn-who"><label>Which of them?`
+					+ `<select class="stonetop-hwtn-member stonetop-cf-input">`
+					+ members.map(m => `<option value="${escHtml(m)}">${escHtml(m)}</option>`).join("")
+					+ `</select></label></p>`
+				: "";
+			const subject = members.length ? "one of them" : escHtml(name || "they");
 			new Dialog({
 				title:   `${name || "Follower"}: Have What They Need`,
-				content: `<form class="stonetop-spend-form"><p>What does <strong>${escHtml(name || "they")}</strong> produce?</p>`
+				content: `<form class="stonetop-spend-form">${picker}`
+					+ `<p>What does <strong>${subject}</strong> produce?</p>`
 					+ `<input type="text" class="stonetop-hwtn-item stonetop-cf-input" placeholder="an item, some supplies…" style="width:100%"></form>`,
 				buttons: {
 					add: { icon: '<i class="fas fa-sack"></i>', label: "Add to their gear",
 						callback: async html => {
-							const item = String(html?.[0]?.querySelector(".stonetop-hwtn-item")?.value ?? "").trim();
+							const form = html?.[0];
+							const item = String(form?.querySelector(".stonetop-hwtn-item")?.value ?? "").trim();
 							if (!item) return;
+							// Whose it is rides in the label, because that is where the book puts it and
+							// because the row stays hand-editable afterwards ("Keeping track of this is
+							// the player's responsibility, though!", p.472).
+							const who   = String(form?.querySelector(".stonetop-hwtn-member")?.value ?? "").trim();
+							const label = who ? `${item} (${who})` : item;
 							const cur = foundry.utils.deepClone(this.actor.getFlag(STONETOP_SCOPE, gearPath) ?? []);
-							cur.push({ label: item, checked: true });
+							cur.push({ label, checked: true });
 							await this.actor.setFlag(STONETOP_SCOPE, gearPath, cur);
 							await this._postMoveCard("Have What They Need",
-								`<p><strong>${escHtml(name || "Your follower")}</strong> produces <em>${escHtml(item)}</em>: added to their gear.</p>`);
+								`<p><strong>${escHtml(who || name || "Your follower")}</strong> produces <em>${escHtml(item)}</em>: added to their gear.</p>`);
 							this.render(false);
 						} },
 					cancel: { label: "Cancel" },
@@ -8744,15 +8983,21 @@ export function createStonetopCharacterSheetClass(Base) {
 			}, { classes: this._pastDeathWindowClasses(["dialog", "stonetop"]) }).render(true);
 		}
 
-		// Outfit the crew (p.472): the group Outfits with the same gear, restocking
-		// every member's Supplies to full.
-		async _onOutfitCrew() {
-			// The Supplies-per-set count is "4 + Prosperity" — a synchronous read; no need
-			// to build the whole sheet snapshot just to pull one scalar off it.
+		// Restock the crew's Supplies: one full ◇ of supplies per member. This is ONE SLICE of
+		// Outfit, not the move — Outfit (p.306) sets a follower's whole load, the gear ◇ and the
+		// undefined ones both ("Followers need to Outfit, too!", p.307), and the crew's load lives
+		// in the pip list above this section. So the button says what it does; widening it to the
+		// whole move would mean a crew equivalent of OutfitMoveDialog, not a bigger fill() here.
+		async _onRestockCrewSupplies() {
+			// Uses per ◇ is "4 + Prosperity" (p.88) — a synchronous read; no need to build the
+			// whole sheet snapshot just to pull one scalar off it. Same value, same reasoning as
+			// the pipsPerSet the grid is drawn with.
 			const pipsPerSet = this._stonetopCharacter.getSmallItemLimit() ?? 5;
-			await this.actor.setFlag(STONETOP_SCOPE, "crew.supplies", Array(6).fill(pipsPerSet));
-			await this._postMoveCard("Outfit",
-				`<p>The crew Outfits: every member's Supplies restocked to full (${pipsPerSet} uses each).</p>`);
+			const size       = this._crewRosterSize();
+			await this.actor.setFlag(STONETOP_SCOPE, "crew.supplies", Array(size).fill(pipsPerSet));
+			const who = size === 1 ? "its one member" : `all ${size} members`;
+			await this._postMoveCard("Restock supplies",
+				`<p>The crew restocks: ${who} carry a full ◇ of Supplies (${pipsPerSet} uses each).</p>`);
 			this.render(false);
 		}
 
@@ -9125,166 +9370,15 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		/**
-		 * MAKE CAMP (expedition move, Book I p.334) — the move provisions exist for.
+		 * MAKE CAMP (expedition move, Book I p.334), made around one fire by everyone sitting at it.
 		 *
-		 * "Each member of the party must consume 1 use of supplies or provisions; if you use a
-		 * mess kit (requires fire & water), then 1 use can provide for up to four people." So the
-		 * bill is people ÷ (mess kit ? 4 : 1), rounded up, and it may be paid out of any mix of
-		 * the printed supplies rows and the larder (supply-cost.js#spendSupplies spills across
-		 * them). Only the character running the dialog pays: the move is written per-PC, and one
-		 * player reaching into another's pack is not something a sheet should do quietly.
-		 *
-		 * Then "pick 1: regain HP equal to ½ your max, or clear a debility" — offered only when
-		 * the camp was actually fed, because deprivation's first cost is exactly that you get no
-		 * choice (p.335). A carried bedroll adds its printed 1d6, and a peaceful night can set the
-		 * sheet's advantage toggle.
+		 * The camp is shared: its window is open on every client at the fire, each player shares food
+		 * from their own pack and picks their own night, and whoever opened the camp settles it for
+		 * everyone. All of that lives in module/camp/, with camp-flow.js as the way in; the sheet only
+		 * says whose Make Camp this is.
 		 */
-		async _onMakeCampOpen() {
-			const snapshot = await this._stonetopCharacter.buildSnapshot();
-			const hp        = snapshot.vitals.hp;
-			const resources = this.actor.getFlag(STONETOP_SCOPE, "inventory.resources") ?? {};
-			const purses    = supplyPursesFor(resources, SUPPLY_PURPOSE.CAMP);
-			const carried   = slug => !!(snapshot.inventory?.outfit?.regularItems ?? []).find(i => i.slug === slug)?.checked;
-			const hasMessKit = carried("mess-kit");
-			const hasBedroll = carried("bedroll");
-			const debilities = (snapshot.debilities ?? []).filter(d => d.active);
-			// Halves round UP throughout Stonetop, so a 15 HP character regains 8, not 7.
-			const halfMax    = Math.ceil(hp.max / 2);
-
-			const messKitRow = hasMessKit
-				? `<label class="stonetop-camp-messkit"><input type="checkbox" name="messKit" checked>
-						<span>Use the mess kit: 1 use feeds up to 4 <em>(requires fire &amp; water)</em></span></label>`
-				: `<p class="stonetop-homestead-note">No mess kit carried, so 1 use feeds 1 person.</p>`;
-			const benefitRows = [
-				`<label class="stonetop-camp-benefit"><input type="radio" name="benefit" value="hp" checked>
-					<span>Regain HP equal to ½ your max: <strong>${hp.value} &rarr; ${Math.min(hp.value + halfMax, hp.max)}</strong> (+${halfMax})</span></label>`,
-				debilities.length
-					? `<label class="stonetop-camp-benefit"><input type="radio" name="benefit" value="debility">
-							<span>Clear a debility:</span>
-							<select name="debility">${debilities.map(d => `<option value="${_esc(d.key)}">${_esc(d.name)}</option>`).join("")}</select>
-						</label>`
-					: `<p class="stonetop-homestead-note">No debilities marked.</p>`,
-			].join("");
-
-			new Dialog({
-				title: "Make Camp",
-				content: `<form class="stonetop-homestead-dialog stonetop-camp-dialog">
-					<p class="stonetop-homestead-trigger"><em>When you settle in to rest in an unsafe area, answer the GM's questions about your campsite.</em></p>
-					<div class="stonetop-camp-feed">
-						<p class="stonetop-homestead-subhead">Feed the camp</p>
-						<label class="stonetop-camp-people">People fed from your pack
-							<input type="number" name="people" value="1" min="0" max="20" step="1"></label>
-						${messKitRow}
-						<p class="stonetop-camp-bill" data-camp-bill></p>
-					</div>
-					${_supplyPurseFieldHtml(purses, "Pay with")}
-					<div class="stonetop-camp-benefits">
-						<p class="stonetop-homestead-subhead">Eat and drink your fill, get a few hours' sleep, then pick 1</p>
-						${benefitRows}
-						${hasBedroll ? `<label class="stonetop-camp-extra"><input type="checkbox" name="bedroll" checked>
-							<span>Bedroll: regain <strong>1d6</strong> extra HP</span></label>` : ""}
-						<label class="stonetop-camp-extra"><input type="checkbox" name="peaceful">
-							<span>The rest was peaceful, comfortable or enjoyable: take <strong>advantage</strong> on your next roll</span></label>
-					</div>
-					<p class="stonetop-homestead-note">If the camp goes unfed, take no benefit: deprivation's first cost is that you get no choice here (Book I p.335).</p>
-				</form>`,
-				buttons: {
-					cancel: { label: "Cancel" },
-					camp:   {
-						// Read the form here and hand _applyMakeCamp plain values, the way
-						// _applyConvalesce is called: what the move DOES is then a function of
-						// numbers and choices rather than of a live dialog, and can be tested
-						// as one.
-						label: "Make Camp",
-						callback: (html) => this._applyMakeCamp({
-							halfMax, maxHp: hp.max, debilities,
-							people:    html.find('[name="people"]').val(),
-							messKit:   html.find('[name="messKit"]').is(":checked"),
-							preferred: _chosenSupplyPurse(html, purses)?.slug ?? null,
-							benefit:   html.find('[name="benefit"]:checked').val() ?? "hp",
-							debility:  html.find('[name="debility"]').val() ?? null,
-							bedroll:   html.find('[name="bedroll"]').is(":checked"),
-							peaceful:  html.find('[name="peaceful"]').is(":checked"),
-						}),
-					},
-				},
-				default: "camp",
-				render: (html) => { bringDialogToFront(html); _wireCampBill(html, purses); },
-			}, { width: 500, classes: this._pastDeathWindowClasses(["dialog", "stonetop", "stonetop-camp-dialog"]) }).render(true);
-		}
-
-		async _applyMakeCamp({ maxHp, halfMax, debilities = [], people, messKit = false,
-		                       preferred = null, benefit = "hp", debility = null,
-		                       bedroll = false, peaceful = false }) {
-			// The dialog hands over CHOICES; the volatile state is read HERE, live, the way the
-			// steading's spendSurplus re-reads its Surplus. The sheet behind this window stays
-			// interactive: a Recover, a Forage payout, or another client touching the same
-			// character between opening and confirming would otherwise be silently undone, because
-			// what lands below is an ABSOLUTE remaining count and an absolute HP, not a delta.
-			//
-			// `maxHp` is not volatile and is NOT re-read: it is the COMPUTED max off the snapshot
-			// this dialog was built from, and the persisted `hp.max` field is stale by design.
-			const resources = this.actor.getFlag(STONETOP_SCOPE, "inventory.resources") ?? {};
-			const purses    = supplyPursesFor(resources, SUPPLY_PURPOSE.CAMP);
-			const hpValue   = Math.trunc(Number(this.actor.system?.attributes?.hp?.value) || 0);
-
-			const needed = campUsesNeeded(people, messKit);
-			const { spends, short } = spendSupplies(purses, needed, preferred);
-
-			// Everything this move changes goes into ONE update at the bottom: a meal spilling
-			// across three purses, the HP or the cleared debility, and the peaceful night's
-			// advantage are one act at the table, and writing them one at a time is a document
-			// write and a full sheet rebuild apiece.
-			const update = {};
-			for (const s of spends) Object.assign(update, this._stonetopCharacter.inventoryResourceData(s.slug, s.left));
-
-			const rows = spends.length
-				? spends.map(s => ({ label: s.label, value: `Expended ${s.spend} ${s.spend === 1 ? "use" : "uses"} (${s.left} left)` }))
-				: [{ label: "Rations", value: "Nothing consumed" }];
-			if (short > 0) rows.push({ label: "Short", value: `${short} ${short === 1 ? "use" : "uses"}; someone goes hungry (deprivation, p.335)` });
-
-			// Fed means fed: the benefit is what eating and sleeping buys, so a camp that came up
-			// short of its own bill takes none of it. `needed` of 0 (nobody eating from this pack)
-			// is not the same as going short, and still rests.
-			const fed = short === 0;
-			let newHp = hpValue;
-			if (fed) {
-				if (benefit === "debility") {
-					const cleared = debilities.find(d => d.key === debility);
-					if (cleared) {
-						update[`system.attributes.debilities.options.${cleared.key}.value`] = false;
-						rows.push({ label: "Debility", value: `Cleared ${cleared.name}` });
-					}
-				} else {
-					newHp = Math.min(hpValue + halfMax, maxHp);
-					rows.push({ label: "HP", value: `${hpValue} → ${newHp} (+${newHp - hpValue}, ½ max)` });
-				}
-				// The bedroll's own 1d6 is rolled to chat: it is a die the table can see, and it
-				// stacks on whichever benefit was taken (its text says "extra HP when you Make
-				// Camp", not "instead of").
-				if (bedroll) {
-					const roll = await new Roll("1d6").evaluate();
-					await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: this.actor }), flavor: "Bedroll (1d6 extra HP)" });
-					const before = newHp;
-					newHp = Math.min(newHp + Math.max(0, roll.total), maxHp);
-					rows.push({ label: "Bedroll", value: `${before} → ${newHp} (+${newHp - before})` });
-				}
-				if (newHp !== hpValue) update["system.attributes.hp.value"] = newHp;
-
-				if (peaceful) {
-					// A HELD advantage, not the sticky selector. "Take advantage on your NEXT roll"
-					// is a promise about one roll: parked on the selector it would be overruled by
-					// the pre-roll window on any client with "Ask How to Roll Each Time" on (which
-					// hides that selector), and never spent on the ones without it. See
-					// StonetopCharacter#heldAdvantage.
-					Object.assign(update, this._stonetopCharacter.heldAdvantageData("A peaceful night's rest"));
-					rows.push({ label: "Advantage", value: "A peaceful night; held for your next roll" });
-				}
-			}
-
-			if (Object.keys(update).length) await this.actor.update(update, { stonetopMove: "Make Camp" });
-			postMoveToChat(this.actor, "Make Camp", rows);
-			this.render(false);
+		_onMakeCampOpen() {
+			return openMakeCamp(this.actor);
 		}
 
 		// ── Damage die ─────────────────────────────────────────────────────────────
@@ -9341,6 +9435,29 @@ export function createStonetopCharacterSheetClass(Base) {
 			this.render(false);
 		}
 
+		// ── Armor ──────────────────────────────
+		// Hand-editing the armor field, on exactly the terms the max-HP field above uses: the
+		// number in the box is derived from carried gear and move bonuses, so what gets stored
+		// is the DIFFERENCE between it and what was typed. That way a boon or a curse keeps its
+		// size when the gear underneath it changes, instead of pinning a total the next equip
+		// would fight. Typing the derived number back in clears the adjustment; blank or
+		// nonsense puts the rendered value back rather than half-saving.
+		async _onArmorEdit(ev) {
+			const el = ev.currentTarget;
+			if (!this.isEditable) return;
+			const raw = String(el.value ?? "").trim();
+			const typed = Number(raw);
+			if (!Number.isFinite(typed) || raw === "" || typed < 0) {
+				if (raw !== "") ui.notifications?.warn("Armor has to be a whole number of 0 or more.");
+				// `defaultValue` is what this field was RENDERED with, which is the derived total;
+				// the persisted field is only a mirror of it and can lag a render behind.
+				el.value = el.defaultValue || "0";
+				return;
+			}
+			await this._stonetopCharacter.setArmor(typed);
+			this.render(false);
+		}
+
 		/**
 		 * Mirror the computed max HP onto the persisted `hp.max`.
 		 *
@@ -9361,9 +9478,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * files. Writes only on a genuine difference, so it settles in one pass and costs a
 		 * comparison on every render after that.
 		 */
-		async _syncStoredMaxHp() {
-			const computed = Number(this._computedMaxHp) || 0;
-			if (computed <= 0) return;
+		async _syncStoredDerived() {
 			// `isEditable` as well as ownership. Ownership alone is true in two places this must
 			// not write: a character previewed inside a LOCKED compendium, where the update throws
 			// and leaves one console error per render forever; and an unlinked token's sheet,
@@ -9371,8 +9486,27 @@ export function createStonetopCharacterSheetClass(Base) {
 			// field the token was reading off the actor perfectly well. isEditable is the sheet's
 			// own answer to "may this be written", and it already accounts for both.
 			if (!this.actor?.isOwner || !this.isEditable) return;
-			if (Number(this.actor.system?.attributes?.hp?.max) === computed) return;
-			await this.actor.update({ "system.attributes.hp.max": computed }, { stonetopLedger: true });
+
+			const update = {};
+			const maxHp = Number(this._computedMaxHp) || 0;
+			if (maxHp > 0 && Number(this.actor.system?.attributes?.hp?.max) !== maxHp) {
+				update["system.attributes.hp.max"] = maxHp;
+			}
+			// null means the snapshot had no armor to mirror. 0 does NOT — an unarmored character
+			// is a real computed value and must still overwrite a stale stored number.
+			const armor = this._computedArmor;
+			if (armor != null) {
+				const floor = Number(this._computedUnpierceable) || 0;
+				const attrs = this.actor.system?.attributes?.armor;
+				// The two move together: a floor is part of the total above it, so a disagreement
+				// in either is settled by writing both rather than leaving half the pair stale.
+				if (Number(attrs?.value) !== armor || (Number(attrs?.unpierceable) || 0) !== floor) {
+					update["system.attributes.armor.value"] = armor;
+					update["system.attributes.armor.unpierceable"] = floor;
+				}
+			}
+			if (!Object.keys(update).length) return;
+			await this.actor.update(update, { stonetopLedger: true });
 		}
 
 		// ── Wounds (4th harm track) ────────────────────────────────────────────────

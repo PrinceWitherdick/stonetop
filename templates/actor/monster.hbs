@@ -89,7 +89,12 @@
 					<div class="cell--attributes-top flexrow">
 						<div class="cell cell--Resource cell--attr-hp">
 							<div class="stonetop-vital-inner">
+								{{!-- Run as one group, this box is the group's pool (one member's HP), not a creature's. --}}
+								{{#if stonetop.fightAsGroup}}
+								<label class="cell__title" data-tooltip='{{localize "stonetop.monster.groupHitPointsHint"}}' data-tooltip-direction="DOWN">{{localize "stonetop.monster.groupHitPoints"}}</label>
+								{{else}}
 								<label class="cell__title">{{localize "stonetop.monster.hitPoints"}}</label>
+								{{/if}}
 								<div class="cell__resource">
 									<span class="cell__value">
 										<input class="attr-value" type="number"
@@ -138,8 +143,18 @@
 			</div>
 		</header>
 
+		{{!-- Two tabs under the header. STAT BLOCK (the stat block and its moves) is where the
+		      sheet opens, and the window's opening height is fitted to it (see
+		      _applyInitialHeight). NOTES leads with the codex Details, then the GM's own. --}}
+		<section class="stonetop-monster-body">
+		<div class="tab stonetop-monster-tab stonetop-monster-statblock" data-group="primary" data-tab="statblock">
+
 		<section class="sheet-top stonetop-monster-top">
 			<div class="stonetop-monster-stat-block">
+				{{!-- The top splits into two equal columns: every stat line left (Qualities and
+				      Instinct included), the fighting-in-numbers rows right. --}}
+				<div class="stonetop-monster-stat-split">
+				<div class="stonetop-monster-stat-split__main">
 				<div class="stonetop-monster-stat-line">
 					<strong class="stonetop-monster-stat-key">{{localize "stonetop.monster.creatureType"}}</strong>
 					{{#if stonetop.editMode}}
@@ -165,7 +180,7 @@
 						{{#each stonetop.damageModes}}
 						<li class="stonetop-monster-damage-mode">
 							{{#if formula}}
-							<a class="stonetop-monster-damage-roll" data-roll-formula="{{formula}}" data-roll-label="{{text}}" data-roll-mode="{{rollMode}}" title="Roll damage ({{formula}})">
+							<a class="stonetop-monster-damage-roll" data-roll-formula="{{formula}}" data-roll-label="{{title}}" data-roll-keywords="{{keywords}}" data-roll-mode="{{rollMode}}" title="Roll damage ({{formula}})">
 								<i class="fas fa-dice-d6"></i>
 							</a>
 							{{/if}}
@@ -175,32 +190,6 @@
 					</ul>
 					{{/if}}
 				</div>
-				{{!-- Group fight (horde/group): No. appearing + outnumber calculator that
-				      treats the whole group as one combatant (Book I, Dangers pp.414-416). --}}
-				{{#if stonetop.isGroupOrg}}
-				<div class="stonetop-monster-stat-line stonetop-monster-stat-line--group">
-					<strong class="stonetop-monster-stat-key">No. appearing</strong>
-					{{#if stonetop.editMode}}
-					<input class="stonetop-monster-stat-input stonetop-monster-count-input" type="number"
-					       name="system.count" value="{{system.count}}" min="0" placeholder="e.g. 6">
-					{{else}}
-					<span class="stonetop-monster-group-fight-section">
-						<span class="stonetop-monster-prose">{{#if stonetop.count}}{{stonetop.count}}{{else}}—{{/if}} · fight as one combatant; damage is casualties</span>
-						<span class="stonetop-monster-outnumber-row">
-							Outnumber:
-							<input class="stonetop-monster-outnumber-yours" type="number" min="1" value="{{#if stonetop.count}}{{stonetop.count}}{{else}}1{{/if}}" title="How many of this group">
-							<span class="stonetop-outnumber-vs">vs</span>
-							<input class="stonetop-monster-outnumber-theirs" type="number" min="1" value="1" title="How many they face">
-							<span class="stonetop-monster-outnumber-result"></span>
-						</span>
-						<a class="stonetop-monster-damage-roll stonetop-monster-group-dmg-roll" data-roll-formula="{{stonetop.baseDamageFormula}}" data-base-formula="{{stonetop.baseDamageFormula}}" data-roll-label="{{name}} (group)" title="Roll group damage">
-							<i class="fas fa-dice-d6"></i>
-						</a>
-						<span class="stonetop-monster-group-dmg-label">{{stonetop.baseDamageFormula}}</span>
-					</span>
-					{{/if}}
-				</div>
-				{{/if}}
 				{{#if (or stonetop.editMode stonetop.hasQualities)}}
 				<div class="stonetop-monster-stat-line stonetop-monster-stat-line--qualities">
 					<strong class="stonetop-monster-stat-key">{{localize "stonetop.monster.qualities"}}</strong>
@@ -220,6 +209,96 @@
 					{{else}}
 					<span class="stonetop-monster-prose">{{system.attributes.instinct.value}}</span>
 					{{/if}}
+				</div>
+				</div>
+
+				{{!-- Fighting in numbers (horde/group), the right-hand column: the Group fight switch
+				      on top, then Group size, then ONE ROW PER RULE. The two bonuses answer
+				      different questions and agree only against a single target, so neither row is
+				      allowed to stand in for the other — each says which rule it is and pays out what
+				      that rule pays (the swarm rule is damage only; the group-vs-group abstraction is
+				      damage AND armor). Book I, Dangers pp.414-416. The rows are play tools for a group
+				      run as one, so they show only in play with Group fight on; edit mode keeps the
+				      switch and the headcount input. --}}
+				{{#if stonetop.isGroupOrg}}
+				<div class="stonetop-monster-group-fight-section">
+						{{!-- Which scale the HP box is read at: one creature (off), or the whole group run
+						      as one combatant (on). First, since it decides what the rest of the column
+						      means; in both modes, since a token is switched in play. Laid out like every other
+						      line in the column: its title is a stat key in the label track, and its box sits in
+						      the fields track with the boxes below it. The <label> has no box of its own, and a
+						      click on the title still ticks it. Having no box is also why the hint hangs on the
+						      title and the checkbox, not the label: a tooltip anchors to its element's rect, and
+						      a boxless element's rect is 0x0 at the screen's top-left corner. --}}
+						<label class="stonetop-monster-group-toggle">
+							<span class="stonetop-monster-stat-key" data-tooltip='{{localize "stonetop.monster.fightAsGroupHint"}}' data-tooltip-direction="UP">{{localize "stonetop.monster.fightAsGroup"}}</span>
+							<span class="stonetop-monster-numbers-fields"><input class="stonetop-monster-group-toggle-check" type="checkbox" name="system.fightAsGroup" {{checked system.fightAsGroup}} data-tooltip='{{localize "stonetop.monster.fightAsGroupHint"}}' data-tooltip-direction="UP"></span>
+						</label>
+						{{!-- A hidden copy of the two rows' labels, sharing the switch's cell. The label track is
+						      as wide as its longest label, and the rows are drawn only with Group fight on, so
+						      without this ticking the box widened the track and slid the checkbox right. Drawn in
+						      both modes, so the checkbox holds one x everywhere. Keep it in step with the row
+						      labels below. --}}
+						<span class="stonetop-monster-group-label-sizer" aria-hidden="true"><span class="stonetop-numbers-label">Swarm one foe:</span><span class="stonetop-numbers-label">Group vs group:</span></span>
+
+						{{!-- Always in edit mode, where the count the group mode reads is set. In play, only
+						      while run as one group: on one creature's sheet it is a fact about other tokens. --}}
+						{{#if (or stonetop.editMode stonetop.fightAsGroup)}}
+						{{!-- Every labelled line in this column is a label, then ONE fields span holding the
+						      rest, so the section's grid can start each line's first box at the same x. --}}
+						<div class="stonetop-monster-group-size">
+							<strong class="stonetop-monster-stat-key">Group size</strong>
+							<span class="stonetop-monster-numbers-fields">
+								{{#if stonetop.editMode}}
+								<input class="stonetop-monster-stat-input stonetop-monster-count-input" type="number"
+								       name="system.count" value="{{system.count}}" min="0" placeholder="e.g. 6">
+								{{else}}
+								{{!-- In play it stays a box, saved to the token like HP: the GM settles how many
+								      showed up when the fight starts, and the group gains or loses members mid-fight
+								      in ways HP does not track ("foes that are engaged by individual PCs aren't really
+								      part of a group", p.416). Sized like the rows' count boxes below it. Once they
+								      are hurt, the bodies still on their feet sit beside it. --}}
+								<input class="stonetop-monster-group-count" type="number" name="system.count" value="{{system.count}}" min="0" title="How many are in this group">
+								{{#if stonetop.casualtyNote}}<span class="stonetop-monster-casualties">{{stonetop.casualtyNote}}</span>{{/if}}
+								{{/if}}
+							</span>
+						</div>
+						{{/if}}
+
+						{{#unless stonetop.editMode}}
+						{{!-- Both rules count a group's bodies, so only a group being run as one draws them.
+						      With Group fight off the sheet is one creature, and how many pile onto a foe is
+						      not a question its own sheet can answer. --}}
+						{{#if stonetop.fightAsGroup}}
+						{{!-- Several of them onto one foe. --}}
+						<span class="stonetop-monster-numbers-row" data-rule="swarm">
+							<span class="stonetop-numbers-label"
+							      data-tooltip="Several of them on a single foe: roll ONE attacker's damage, +1 per each additional attacker. Damage only; this rule grants no armor."
+							      data-tooltip-direction="UP">Swarm one foe:</span>
+							{{!-- The fields wrap like text, not like flex items: a count stays with its word, a
+							      readout breaks only between its clauses, and the die stays with its formula. --}}
+							<span class="stonetop-monster-numbers-fields">
+								<span class="stonetop-monster-numbers-nowrap"><input class="stonetop-monster-swarm-count" data-numbers-count="attackers" type="number" min="1" value="{{stonetop.swarmCount}}" title="How many of them pile onto that one foe"> <span class="stonetop-outnumber-vs">attackers</span></span>
+								<span class="stonetop-monster-numbers-result" data-numbers-result data-numbers-clauses>{{#each stonetop.swarmClauses}}{{#unless @first}} {{/unless}}<span class="stonetop-numbers-clause">{{this}}</span>{{/each}}</span>
+								<span class="stonetop-monster-numbers-nowrap"><a class="stonetop-monster-damage-roll stonetop-monster-group-dmg-roll" data-numbers-roll data-roll-formula="{{stonetop.swarmFormula}}" data-base-formula="{{stonetop.baseDamageFormula}}" data-roll-label="{{name}} (swarm)" title="Roll the swarm's damage against that foe"><i class="fas fa-dice-d6"></i></a> <span class="stonetop-monster-group-dmg-label" data-numbers-formula>{{stonetop.swarmFormula}}</span></span>
+							</span>
+						</span>
+
+						{{!-- The optional abstraction: both sides run as one combatant. --}}
+						<span class="stonetop-monster-numbers-row" data-rule="exchange">
+							<span class="stonetop-numbers-label"
+							      data-tooltip="Abstracting group exchanges (optional): each side fights as ONE combatant, with the HP, armor and damage of a single member. The larger side gets +1 damage and +1 armor for each whole multiple it outnumbers the other by (3:1 → +2). Damage is casualties; at 0 HP the group is routed."
+							      data-tooltip-direction="UP">Group vs group:</span>
+							<span class="stonetop-monster-numbers-fields">
+								<span class="stonetop-monster-numbers-nowrap"><input class="stonetop-monster-outnumber-yours" data-numbers-count="yours" type="number" min="1" value="{{stonetop.swarmCount}}" title="How many of this group"> <span class="stonetop-outnumber-vs">vs</span> <input class="stonetop-monster-outnumber-theirs" data-numbers-count="theirs" type="number" min="1" value="1" title="How many they face"></span>
+								<span class="stonetop-monster-numbers-result" data-numbers-result data-numbers-clauses>{{#each stonetop.exchangeClauses}}{{#unless @first}} {{/unless}}<span class="stonetop-numbers-clause">{{this}}</span>{{/each}}</span>
+								<span class="stonetop-monster-numbers-nowrap"><a class="stonetop-monster-damage-roll stonetop-monster-group-dmg-roll" data-numbers-roll data-roll-formula="{{stonetop.exchangeFormula}}" data-base-formula="{{stonetop.baseDamageFormula}}" data-roll-label="{{name}} (group)" title="Roll the group's damage in an abstracted exchange"><i class="fas fa-dice-d6"></i></a> <span class="stonetop-monster-group-dmg-label" data-numbers-formula>{{stonetop.exchangeFormula}}</span></span>
+							</span>
+						</span>
+						{{/if}}
+						{{/unless}}
+				</div>
+				{{/if}}
 				</div>
 			</div>
 		</section>
@@ -268,7 +347,10 @@
 						</div>
 					</li>
 					{{else}}
-					<li class="stonetop-monster-moves-empty">{{localize "stonetop.monster.noMoves"}}</li>
+					{{!-- Twenty shipped creatures (Beast Warden and the elemental spirits) have no moves
+					      and keep everything they do in Notes, which has a tab of its own, so the
+					      landing tab says where to look instead of reading as blank. --}}
+					<li class="stonetop-monster-moves-empty">{{#if stonetop.hasNotes}}{{localize "stonetop.monster.noMovesSeeNotes"}}{{else}}{{localize "stonetop.monster.noMoves"}}{{/if}}</li>
 					{{/each}}
 				</ul>
 				{{#if stonetop.editMode}}
@@ -280,14 +362,46 @@
 				{{/if}}
 			</section>
 
-			{{!-- Notes — free-form GM notes; rich text that stays editable in play
-			     mode (the edit pencil appears on hover), like the steading sheet. --}}
+		</section>
+		</div>{{!-- /statblock tab --}}
+
+		{{!-- NOTES: the creature's Details, then the GM's own notes on it.
+
+		      DETAILS is the codex prose, lifted from the bestiary page `system.entry` points at (see
+		      _resolveWriteUp). Read-only on purpose: the page stays the source of truth, and the
+		      header's "Open Bestiary Entry" button is still the way to change it. No illustration
+		      either, since that picture is already this sheet's portrait. Always rendered; when
+		      there is nothing to show it says which reason it is. The source line names the entry
+		      only when it is not this creature's own name, which is the stat blocks that share a
+		      page with their kin.
+
+		      The notes editor below stays editable in play mode (the pencil appears on hover). --}}
+		<div class="tab stonetop-monster-tab stonetop-monster-notes-tab" data-group="primary" data-tab="notes">
+			<section class="stonetop-monster-field stonetop-monster-field--full stonetop-monster-writeup">
+				{{> "stonetop.section-heading" title=(localize "stonetop.monster.details")}}
+				{{#if stonetop.writeUp}}
+				{{#if stonetop.writeUp.name}}
+				<p class="stonetop-monster-writeup-source">{{localize "stonetop.monster.writeUpFrom" name=stonetop.writeUp.name}}</p>
+				{{/if}}
+				<div class="stonetop-monster-rich-text stonetop-monster-writeup-body">{{{stonetop.writeUp.html}}}</div>
+				{{else}}
+				<p class="stonetop-monster-writeup-empty">{{#if stonetop.writeUpLinked}}{{localize "stonetop.monster.noWriteUp"}}{{else}}{{localize "stonetop.monster.noEntry"}}{{/if}}</p>
+				{{/if}}
+			</section>
 			<section class="stonetop-monster-field stonetop-monster-field--full stonetop-monster-notes">
-				{{> "stonetop.section-heading" title=(localize "stonetop.monster.notes")}}
 				<prose-mirror class="stonetop-monster-rich-editor stonetop-monster-notes-editor"
 				              data-field="notes" toggled value="{{system.notes}}">{{{stonetop.enrichedNotes}}}</prose-mirror>
 			</section>
+		</div>{{!-- /notes tab --}}
 
-		</section>
+		</section>{{!-- /stonetop-monster-body --}}
+
+		{{!-- The icon rail, rendered here and lifted onto the window frame by
+		      module/utils/tab-rail.js. Modern only: like the GM Toolkit, the monster sheet has no
+		      classic toggle. The glyphs are CSS masks keyed on each button's data-tab. --}}
+		<nav class="sheet-tabs tabs stonetop-tab-rail" data-group="primary" aria-label="{{localize "stonetop.sheet.tabs.railLabel"}}">
+			{{> "stonetop.tab-rail-item" tab="statblock" label=(localize "stonetop.monster.tabs.statBlock")}}
+				{{> "stonetop.tab-rail-item" tab="notes" label=(localize "stonetop.monster.tabs.notes")}}
+		</nav>
 	</div>
 </form>

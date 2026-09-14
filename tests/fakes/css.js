@@ -80,6 +80,41 @@ export function readCss(rel = "styles/stonetop.css") {
 }
 
 /**
+ * The last value declared for one property in a rule body, whitespace-collapsed, or null. Split on
+ * `;` only, so a declaration that lost its semicolon reads as swallowing the next one and fails.
+ */
+export function declared(body, prop) {
+	const found = [...body.matchAll(new RegExp(String.raw`(?:^|[;{])\s*${prop}\s*:([^;]+)`, "g"))]
+		.map(m => m[1].trim().replace(/\s+/g, " "));
+	return found.length ? found.at(-1) : null;
+}
+
+/**
+ * CSS specificity as `[ids, classes, elements]`.
+ *
+ * Counts attribute selectors and single-colon pseudo-classes as classes, which is the cascade's
+ * own reading. An APPROXIMATION in one respect, carried over unchanged from the three identical
+ * copies this replaces (each of which carried a comment pointing at one of the others): a `::`
+ * pseudo-element is stripped rather than counted as an element. Every selector these suites
+ * compare is distinguished well before that digit, so it has never been the deciding one.
+ */
+export function specificity(selector) {
+	const ids = (selector.match(/#[\w-]+/g) || []).length;
+	const classes = (selector.match(/\.[\w-]+/g) || []).length
+		+ (selector.match(/\[[^\]]*\]/g) || []).length
+		+ (selector.match(/(?<!:):(?!:)[\w-]+/g) || []).length;
+	const elements = (selector
+		.replace(/[.#][\w-]+/g, "")
+		.replace(/\[[^\]]*\]/g, "")
+		.replace(/::?[\w-]+/g, "")
+		.match(/\b[a-zA-Z][\w-]*/g) || []).length;
+	return [ids, classes, elements];
+}
+
+/** Whether specificity `a` wins over `b` outright (ties are NOT a win — source order settles those). */
+export const beats = (a, b) => (a[0] - b[0] || a[1] - b[1] || a[2] - b[2]) > 0;
+
+/**
  * Split a selector list on the commas that SEPARATE its entries, stepping over the ones inside
  * `:is(…)` / `:where(…)` / `:not(…)`.
  *

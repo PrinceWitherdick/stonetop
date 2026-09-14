@@ -274,6 +274,23 @@ export function registerSettings() {
 		default: false,
 	});
 
+	// The problematic-wound prompt a 7-9 or a 6- roll card carries for a wounded character
+	// (Book I p.243, "Problematic wounds in play"; built in utils/roll-engine.js). ON by default,
+	// because the prompt is the book's own advice and a table that has never seen it cannot know
+	// to go looking for the switch. The switch exists because the prompt is UNCONDITIONAL on those
+	// two tiers: 9- is where most 2d6 rolls land, and a permanent injury never heals, so a
+	// character who lost a hand in session three carries this block on most of their cards for the
+	// rest of the campaign. That is exactly right for some tables and wallpaper for others.
+	// World-scoped: whether the table wants the nudge is a table-wide call, like the shift buttons.
+	game.settings.register(SYSTEM_ID, "chatWoundPrompt", {
+		name: "stonetop.settings.chatWoundPrompt.name",
+		hint: "stonetop.settings.chatWoundPrompt.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: true,
+	});
+
 	// When on (the default), only the GM may author custom moves — players don't see
 	// the "+ Custom Move" button or the edit pencils, and the create/edit handlers are
 	// no-ops for them. Existing custom moves still display and roll for everyone; this
@@ -1416,6 +1433,54 @@ export function registerSettings() {
 		default: false,
 	});
 
+	// IS THE NARRATIVE TIMELINE PART OF THIS WORLD AT ALL? Off, and shipped off.
+	//
+	// The timeline is built and tested but has not been released, and it is not meant to be seen in
+	// 0.9.x. This is the one switch that decides: with it off, neither sheet grows a Timeline tab,
+	// WorldSetup mints no track pages, the Seasons Change move writes no row, the journal page type
+	// registers no model and no sheet, and `game.stonetop.openTimeline` is not defined.
+	// `isTimelineEnabled` below lists every door that reads it.
+	//
+	// WORLD scope, not client: the feature is a set of shared journal pages, so one player seeing a
+	// tab that another does not would be a bug rather than a preference. `config: false` because
+	// nobody at a table should be able to switch on an unfinished feature by browsing the settings
+	// window; this is a developer's switch, thrown from the console:
+	//
+	//     game.settings.set("stonetop_pwd", "timelineEnabled", true)
+	//
+	// AND ONE THING THE SWITCH CANNOT DO. The `timeline` JournalEntryPage subtype has to be declared
+	// in the MANIFEST, which is read long before any setting exists, so it was taken back out of
+	// `system.json` (`documentTypes.JournalEntryPage`) along with its `TYPES.JournalEntryPage` label
+	// in `languages/en.json`. Turning the feature on for development means putting those two lines
+	// back and RELAUNCHING the world, since a new subtype is not picked up by a reload. Until they
+	// are back the track pages cannot be created, and the tab says for itself that it has no page.
+	game.settings.register(SYSTEM_ID, "timelineEnabled", {
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false,
+	});
+
+	// Fold what the system already recorded into the timeline: levels gained, moves learned, the
+	// seasons as they turned. Per client, because it is a way of READING the record rather than a
+	// fact about it -- one player wants their character's whole history, another wants only what
+	// the table wrote down, and neither should change what the other sees.
+	//
+	// OFF BY DEFAULT. These rows are derived and can be numerous (the ledger holds up to 300 per
+	// actor), and a timeline that opens full of bookkeeping buries the one line somebody actually
+	// wrote about that season. Turning them on is one click in the timeline's own toolbar, which
+	// is where the choice is made rather than here -- this registration is only where it lives.
+	//
+	// `config: false` for that reason: a setting whose control sits on the thing it affects does
+	// not also want a row in the settings window, where it would read as a second, disagreeing
+	// switch. See utils/timeline-auto-rows.js for what is actually folded in.
+	game.settings.register(SYSTEM_ID, "timelineAutoRows", {
+		scope: "client",
+		config: false,
+		type: Boolean,
+		default: false,
+	});
+
 	// Reopen the document sheets (characters, steadings, monsters, NPCs, items, journals)
 	// this user had open when they reload, at the same position and size. Per-client
 	// because window layout is personal, not shared world state. Defaults on. The
@@ -1433,7 +1498,9 @@ export function registerSettings() {
 	// uuid -> { left, top, width, height, minimized, tabs, editMode } (see
 	// utils/window-restore.js).
 	// Internal (not shown in the settings menu); rewritten continuously as windows
-	// open, close, and move.
+	// open, close, and move. Nested by world id for the reason `lastRelationshipBoard` below
+	// is. Shape: { "<worldId>": { "<document uuid>": snapshot } }; a flat record from before
+	// that is read as the current world's.
 	game.settings.register(SYSTEM_ID, "openWindowsState", {
 		scope: "client",
 		config: false,
@@ -1462,6 +1529,19 @@ export function registerSettings() {
 		config: false,
 		type: Number,
 		default: 0,
+	});
+
+	// How heavily this client wants a relationship board drawn: the arrowheads, the strokes and the
+	// writing, each as a whole percentage of what the stylesheet sets. Internal, per client (how
+	// much magnification one pair of eyes needs is not a fact about the map, and storing it on the
+	// board would have one reader rewriting another's window), and NOT nested by world: it holds
+	// three numbers rather than an id, and that need is the same in every world they open. Shape:
+	// { head, line, word }. See relmap/relmap-weights.js.
+	game.settings.register(SYSTEM_ID, "relmapWeights", {
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {},
 	});
 
 	// Strip the decorative animations, transitions, and hover-zoom image popups
@@ -1550,6 +1630,18 @@ export function registerSettings() {
 	// a card id (its slug) present here means that card should reopen collapsed. Per-user
 	// (client) and per-actor: a map of actor id -> array of collapsed card slugs. Internal.
 	game.settings.register(SYSTEM_ID, "arcanaCardsCollapsed", {
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {},
+	});
+
+	// Remembers which follower CARDS each character left folded down to their header
+	// strip (portrait, name, HP, tags and the live vitals band — everything below it is
+	// clamped away). Cards default to EXPANDED, so an id present here means that card
+	// should reopen folded. Keyed "<ftype>:<slug>", which is what the card carries.
+	// Per-user (client) and per-actor: a map of actor id -> array of folded card ids.
+	game.settings.register(SYSTEM_ID, "followerCardsCollapsed", {
 		scope: "client",
 		config: false,
 		type: Object,
@@ -1991,6 +2083,36 @@ export function getOpenSheetsInEditMode() {
 }
 
 /**
+ * Is the narrative timeline switched on in this world? Defaults to NO, and NO is what ships.
+ *
+ * Read by every door the feature has: both sheets' `getData` (which is what draws or withholds the
+ * tab) and their tab lifecycle, `stonetop.js` (the page model and sheet registration), the
+ * WorldSetup lane that mints track pages, the Seasons Change row in `seasons/seasons-chronicle.js`,
+ * and `game.stonetop.openTimeline` in `hooks/Ready.js`.
+ *
+ * Tolerant of an unregistered key, like its neighbours here: a sheet rendered in a test that never
+ * called `registerSettings` gets the shipped answer rather than a throw.
+ *
+ * NOT read by `seasons/current-season.js`, which keeps logging when each season began whatever this
+ * says. That log is an invisible flag, it is the only record of WHEN a season turned, and it can
+ * only be collected as it happens: a world that played a year with the switch off and then turned
+ * it on would otherwise have no way to place its own history. See timeline/timeline-seasons.js.
+ */
+export function isTimelineEnabled() {
+	return globalThis.game?.settings?.get?.(SYSTEM_ID, "timelineEnabled") ?? false;
+}
+
+/** Does this reader want the timeline to fold in what the system recorded? Defaults to no. */
+export function getTimelineAutoRows() {
+	return globalThis.game?.settings?.get?.(SYSTEM_ID, "timelineAutoRows") ?? false;
+}
+
+/** Remember this reader's answer. Client-scoped, so it never reaches anybody else at the table. */
+export function setTimelineAutoRows(on) {
+	return globalThis.game?.settings?.set?.(SYSTEM_ID, "timelineAutoRows", !!on);
+}
+
+/**
  * Which sheets have a CLASSIC toggle, and what each one's setting is called.
  *
  * Spelled out rather than built from the argument: the settings suite proves every
@@ -2301,6 +2423,25 @@ export function getObjectSetting(key) {
 }
 
 /**
+ * A boolean setting, read tolerantly: `fallback` rather than a throw when the key is not
+ * registered in this world, and `fallback` rather than a surprise when the stored value is not a
+ * boolean.
+ *
+ * The same argument `getObjectSetting` makes above, for the other shape. It matters most for a
+ * setting read while BUILDING something rather than while handling a click: a chat card is
+ * composed in a unit test that never called registerSettings, and in a world one build behind the
+ * one that added the key, and neither should lose the card to a thrown setting lookup.
+ */
+export function getBooleanSetting(key, fallback = false) {
+	try {
+		const value = globalThis.game?.settings?.get?.(SYSTEM_ID, key);
+		return typeof value === "boolean" ? value : fallback;
+	} catch (_) {
+		return fallback;
+	}
+}
+
+/**
  * The key a world-keyed setting stores its records under.
  *
  * Client settings live in browser localStorage under `namespace.key` alone, with no world in
@@ -2552,6 +2693,16 @@ export function getArcanaCardsCollapsed(actorId) {
 
 export function setArcanaCardsCollapsed(actorId, slugs) {
 	return setSectionList("arcanaCardsCollapsed", actorId, slugs);
+}
+
+// The follower cards this user folded down to their header strip. Cards default to
+// expanded, so an id ("<ftype>:<slug>") present here means that card reopens folded.
+export function getFollowerCardsCollapsed(actorId) {
+	return getSectionList("followerCardsCollapsed", actorId);
+}
+
+export function setFollowerCardsCollapsed(actorId, cardIds) {
+	return setSectionList("followerCardsCollapsed", actorId, cardIds);
 }
 
 // The gear rows whose artifact / treasure write-up this user left unfolded. Write-ups

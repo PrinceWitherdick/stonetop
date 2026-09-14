@@ -32,6 +32,10 @@ export class MonsterModel extends foundry.abstract.TypeDataModel {
 			qualities:    new fields.HTMLField({ required: true, blank: true }),
 			notes:        new fields.HTMLField({ required: true, blank: true }),
 			count:        new fields.NumberField({ required: true, integer: true, initial: 0 }),
+			// Whether a horde/group is being run as ONE combatant (Book I p.416, "Abstracting
+			// groups"), which makes its HP the group's pool, read back as casualties. Off, the stat
+			// block is one creature. Monster tokens are unlinked, so each token keeps its own.
+			fightAsGroup: new fields.BooleanField({ required: true, initial: false }),
 			// UUID of the bestiary codex JournalEntry/page this stat block belongs to.
 			entry:        new fields.StringField({ required: true, blank: true }),
 		};

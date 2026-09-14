@@ -48,7 +48,7 @@
 						</select>
 						{{else}}
 						<span class="input--title stonetop-header-locked stonetop-name-field"><span class="stonetop-npc-name-text">{{actor.name}}</span></span>
-						{{#if stonetop.status.value}}<span class="stonetop-npc-status-badge" data-status="{{stonetop.status.value}}">{{stonetop.status.label}}</span>{{/if}}
+						{{#if stonetop.status.value}}<span class="stonetop-npc-status-badge" data-status="{{stonetop.status.value}}"><span class="stonetop-npc-status-badge-text">{{stonetop.status.label}}</span></span>{{/if}}
 						{{/if}}
 						{{!-- A Judge's Condemn brand. Rendered in BOTH modes, unlike the status badge
 						      beside it: the status is an editable field whose select replaces the badge
@@ -360,9 +360,9 @@
 
 			{{!-- MODERN layout: the icon rail, rendered here and then lifted onto the window
 			     frame. CLASSIC renders the same partial as a horizontal strip above .sheet-body
-			     instead. Details is always the landing tab; Relationships appears once there are
-			     PCs to rate (or in edit mode); Stats appears only when the NPC has game stats;
-			     Notes is always present. --}}
+			     instead. Details is always the landing tab; Stats heads the nav, but appears only
+			     when the NPC has game stats; Relationships appears once there are PCs to rate (or
+			     in edit mode); Notes is always present. --}}
 			{{#unless stonetop.classicLayout}}{{> "stonetop.npc-tab-nav"}}{{/unless}}
 
 		</section>

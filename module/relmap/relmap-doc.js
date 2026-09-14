@@ -38,7 +38,9 @@
 
 import { SYSTEM_ID } from "../system-id.js";
 import { localize } from "../utils/i18n.js";
+import { clipText } from "../utils/strings.js";
 import { deletionEntry } from "../utils/foundry-compat.js";
+import { moveWithin, insertionIndexIn } from "../utils/list-reorder.js";
 import {
 	RELMAP_FLAG, RELMAP_VERSION, addEdgesPatch, addNodesPatch, edgePatch, emptyGraph, normalizeGraph,
 	relmapFlagPath, relmapPath,
@@ -170,65 +172,13 @@ export async function createRelationshipMap(name) {
 	}) ?? null;
 }
 
-/**
- * The longest a MAP may be named.
- *
- * Its own bound rather than the pages' (`RELMAP_PAGE_NAME_MAX`), because the two names are read in
- * different places and cut for different reasons: a board's name is a TAB in a strip that has to
- * hold several across one window, while a map's is a window title with a whole title bar to itself.
- * Trimmed on the way in rather than refused, as every name in this feature is: silently losing the
- * tail of a name is kinder than rejecting somebody's save.
+/*
+ * ⚠ A WHOLE MAP IS NEVER RENAMED OR DELETED FROM HERE, and there is deliberately no call for either.
+ * A Stonetop world has ONE map, made during setup (relmap/relmap-make.js), and the table works in
+ * its pages, which the strip's own pen and trash name and rub out (`renameMapPage`,
+ * `deleteMapPage`). The title-bar buttons that once did it for the whole map were taken out at the
+ * user's request, because a second map is not something this system offers.
  */
-export const RELMAP_MAP_NAME_MAX = 60;
-
-/** A map's name, made safe to store: trimmed, shortened, and never blank, since core's `name` field
- * refuses an empty one outright and would throw rather than answer. */
-export function relationshipMapName(raw) {
-	const want = String(raw ?? "").trim().slice(0, RELMAP_MAP_NAME_MAX).trim();
-	return want || localize("stonetop.relmap.untitled");
-}
-
-/**
- * Rename a whole map.
- *
- * Gated on OWNER like every other write here, so the table can rename the map they all draw on.
- * Nothing is written for a name that came back the same, so a reader who opens the box and saves
- * without typing does not broadcast a change to everybody — the rule `renameMapPage` keeps.
- *
- * ⚠ THIS AND THE DELETE BELOW ARE HERE BECAUSE THE SIDEBAR NO LONGER OFFERS THEM. Map rows are
- * taken out of the Journal directory (hooks/journal-directory-maps.js), and renaming or deleting a
- * whole map was the one thing that list was still good for; without these two the map window would
- * be a window onto a document with no way left to name or be rid of it.
- */
-export async function renameRelationshipMap(entry, name) {
-	if (!entry || !canEditRelationshipMap(entry)) return false;
-	const want = relationshipMapName(name);
-	if (want === entry.name) return false;
-	await entry.update({ name: want });
-	return true;
-}
-
-/**
- * May this reader rub out a whole map?
- *
- * ⚠ A GM ALONE, AND THAT IS STRICTER THAN THE SERVER. A map is owned by the whole table so that
- * anybody may draw on it, and core's own rule for deleting a JournalEntry is that same OWNER — so
- * the server would take this delete from any player at the table. That is a fine rule for a
- * document one person made and a poor one for the shared board everybody has been drawing on all
- * campaign: one mis-aimed click by anybody, and the map every other player is looking at is gone.
- * The same asymmetry the eye keeps (`canHideMapPages`), for the same reason.
- */
-export function canDeleteRelationshipMap(entry) {
-	return !!entry && !!game?.user?.isGM;
-}
-
-/** Rub out a whole map, boards and all. The caller confirms with the reader; this is the rule
- * underneath that, because the confirm dialog is UI and this is not. */
-export async function deleteRelationshipMap(entry) {
-	if (!canDeleteRelationshipMap(entry)) return false;
-	await entry.delete();
-	return true;
-}
 
 // ── The pages a map is made of ──────────────────────────────────────────────────────────────────
 
@@ -340,8 +290,7 @@ export function canSeeMapPage(page, user = undefined) {
  * whole feature. Everything a reader SEES goes through this one; everything the document layer
  * REASONS about goes through the raw one. `ensureFirstMapPage` asking this would find no pages on a
  * map whose every board is hidden, helpfully make a fresh one, and sweep the entry's flags on the
- * way past; `deleteMapPage`'s "never the last one" rail asking this would let the last board on a
- * map be rubbed out because the reader happened to see only one of four.
+ * way past.
  */
 export function listVisibleMapPages(entry) {
 	return listMapPages(entry).filter(page => canSeeMapPage(page));
@@ -380,12 +329,17 @@ export function getMapPage(entry, pageId) {
 }
 
 /**
- * THE DOCUMENT WHOSE FLAG HOLDS THE BOARD IN FRONT OF THE READER.
+ * WHAT A READER IS STANDING ON IN ONE COLLECTION, and the one place its four shapes are told apart.
  *
- * The one function the window asks, and the whole of what it has to know about pages existing: on
- * a converted map it is a page, and on a map still on version 1 it is the ENTRY itself, whose flag
- * is still a perfectly good graph. So every read and every write in the window goes through one
- * handle that is always a document, and the legacy shape needs no second code path anywhere.
+ * `{ pages, page, doc, kind }`: the maps this reader may look at, the one they are on, the document
+ * that board is read from and written to, and which shape this is --
+ *
+ *  • "page": an ordinary map. `doc` is its page.
+ *  • "legacy": a map still on version 1, whose whole board is the entry's own flag and is perfectly
+ *    readable and editable. `doc` is the ENTRY, and the flag is the same shape there, so the legacy
+ *    board needs no second code path anywhere.
+ *  • "unshared": the collection has maps and none of them is this reader's to see. `doc` is null.
+ *  • "none": the collection has no maps in it at all. `doc` is null.
  *
  * Falls back to the first page when the id names nothing, which is the honest answer to a page
  * being deleted at the far end of the table while this reader was looking at it.
@@ -394,22 +348,54 @@ export function getMapPage(entry, pageId) {
  * visible strip: a player whose GM has just hidden the board under them falls through to the next
  * one they can see, exactly as they would if it had been deleted, rather than to a board that is
  * not theirs to read.
+ *
+ * ⚠ NULL WHERE THERE IS NO BOARD, AND NEVER THE ENTRY. On anything but a version 1 map the entry's
+ * flag is only the mark that says it is a collection, and carries the party's and the village's own
+ * marks beside it. A board resolving to it is a board every write in the window lands on: a portrait
+ * nudged a moment before the last map was rubbed out, or before the GM hid the only map a player could
+ * see, was written into that flag, `hasLegacyBoard` turned true, and the next open carried a nameless
+ * face onto a fresh page every player could see. With nothing to resolve to, a write has nowhere to go.
+ *
+ * ONE WALK OF THE STRIP. This is what every read and every write in the window goes through, so it
+ * is asked several times per render and again on every repaint; the entry's own flag is only read
+ * for a reader with no page at all.
  */
+export function resolveMapBoard(entry, pageId = null) {
+	if (!entry) return { pages: [], page: null, doc: null, kind: "none" };
+	const all = listMapPages(entry);
+	const pages = all.filter(page => canSeeMapPage(page));
+	const page = pages.find(one => one.id === pageId) ?? pages[0] ?? null;
+	if (page) return { pages, page, doc: page, kind: "page" };
+	if (all.length) return { pages, page: null, doc: null, kind: "unshared" };
+	if (hasLegacyBoard(entry)) return { pages, page: null, doc: entry, kind: "legacy" };
+	return { pages, page: null, doc: null, kind: "none" };
+}
+
+/** The document whose flag holds the board in front of the reader, or null where there is none. See
+ * `resolveMapBoard`, which is the rule; this is the one answer out of it most callers want. */
 export function mapBoardDoc(entry, pageId = null) {
-	if (!entry) return null;
-	// ONE WALK OF THE STRIP, not two. This is the handle every read and every write in the window
-	// goes through, so it is asked several times per render and again on every repaint — and asking
-	// `getMapPage` and then falling back to `listVisibleMapPages[0]` filtered and sorted the same
-	// pages twice over each time.
-	const pages = listVisibleMapPages(entry);
-	return pages.find(page => page.id === pageId) ?? pages[0] ?? entry;
+	return resolveMapBoard(entry, pageId).doc;
+}
+
+/**
+ * Does this map still carry its board ON THE ENTRY, from before boards were pages?
+ *
+ * The one way to tell a version 1 map, whose whole board is the entry's own flag and is perfectly
+ * readable and editable, from a collection whose maps have all been rubbed out. Neither has a page;
+ * only the first has anything on the entry to draw on or to carry onto a page (`ensureFirstMapPage`),
+ * and only the first resolves to a board (`resolveMapBoard`). A converted or newly made collection
+ * carries the mark and its `partyBoard`/`villageBoard`/`arranged` answers, and never `nodes` or `edges`.
+ */
+export function hasLegacyBoard(entry) {
+	const flag = entry?.getFlag?.(SYSTEM_ID, RELMAP_FLAG);
+	return !!flag && typeof flag === "object" && (flag.nodes != null || flag.edges != null);
 }
 
 /** A page's name, made safe to store: trimmed, shortened, and never blank — core's `name` field
  * refuses a blank one outright, so a caller handing us an empty string would throw rather than
  * being told no. */
 export function mapPageName(raw) {
-	const want = String(raw ?? "").trim().slice(0, RELMAP_PAGE_NAME_MAX).trim();
+	const want = clipText(String(raw ?? "").trim(), RELMAP_PAGE_NAME_MAX).trim();
 	return want || localize("stonetop.relmap.pages.untitled");
 }
 
@@ -486,6 +472,11 @@ export async function ensureFirstMapPage(entry) {
 	const already = listMapPages(entry);
 	if (already.length) return already[0];
 	if (!canEditRelationshipMap(entry)) return null;
+	// ⚠ A COLLECTION WITH NO MAPS IN IT IS LEFT THAT WAY. The last map may be rubbed out
+	// (`deleteMapPage`), and a collection that grew a fresh empty one on the next open would be a
+	// map nobody could be rid of. Only a version 1 map has a board to carry onto a page. This is
+	// also what keeps the village's adoption (`syncVillagePage`) from conjuring one.
+	if (!hasLegacyBoard(entry)) return null;
 
 	const carried = normalizeGraph(entry.getFlag?.(SYSTEM_ID, RELMAP_FLAG));
 	// ⚠ SHOWN, AND THE ONLY BOARD IN THE SYSTEM THAT IS MADE THAT WAY. Every new board starts hidden
@@ -552,16 +543,126 @@ export async function renameMapPage(page, name) {
 /**
  * Rub out one board, and everything on it.
  *
- * ⚠ NEVER THE LAST ONE. A map with no pages is a map whose next opener silently converts it from
- * its own long-dead entry graph — which is empty — so deleting the last page reads as "the map
- * emptied itself". The caller confirms with the reader; this is the rail underneath that, because
- * the confirm dialog is UI and this is the rule.
+ * THE LAST ONE TOO (user, 2026-09-13: "you should be able to delete the last map, but not the
+ * collection itself"). Only the page goes; the entry stays, as a collection with no maps in it.
+ * No blank map refills it on the next open, because `ensureFirstMapPage` only carries a version 1
+ * board. The system's own boards keep their own rules: The Party still arrives the first time there
+ * is a party, on a collection that has never had one, and a deleted party or village board stays
+ * deleted by its mark on the entry. The caller confirms with the reader; this is the ownership rail
+ * underneath that, because the confirm dialog is UI and this is the rule.
  */
 export async function deleteMapPage(page) {
 	const entry = page?.parent ?? null;
 	if (!entry || !canEditRelationshipMap(entry)) return false;
-	if (listMapPages(entry).length <= 1) return false;
 	await entry.deleteEmbeddedDocuments?.("JournalEntryPage", [page.id]);
+	return true;
+}
+
+// ── Putting the strip in an order ───────────────────────────────────────────────────────────────
+//
+// WHAT ORDER THE BOARDS ARE IN IS THE TABLE'S, and it is stored where every other thing about a
+// board is: on the document, as core's own `sort`. Not per reader. Two people talking to each other
+// about "the third tab" have to be looking at the same third tab, which is the same reason
+// `listMapPages` breaks a tie on the name rather than leaving object order to decide it.
+//
+// ⚠ AND IT IS AN EDIT LIKE ANY OTHER, gated on OWNER and not on being the GM. A player who can add,
+// rename and delete the boards of a map (see the ownership section at the top of this file) can put
+// them in an order too; a strip only the GM could arrange would be the one page tool that stopped
+// working for the table the rest of them were built for.
+
+/**
+ * The mark on the ENTRY that says this strip has been put in an order by hand.
+ *
+ * ⚠ IT EXISTS TO STOP THE PARTY BOARD BEING DRAGGED BACK TO THE FRONT. `liftPartyPage` puts that
+ * one first on every open, which was safe for exactly as long as nothing could order the strip;
+ * once a reader can drag a tab, an unconditional lift is an arrangement undone by the next person
+ * to open the map, silently and for everybody. So the first hand-made order writes this, and the
+ * lift stands down from then on. It is written for a map the moment its strip is arranged and never
+ * cleared: what it records is that the table has an opinion, and dragging the party board back to
+ * the front by hand does not make that untrue.
+ */
+export const RELMAP_ARRANGED_MARK = "pagesArranged";
+
+/** Has this map's strip been put in an order by hand? Read off the ENTRY, so it survives any one
+ * page being deleted. */
+export function mapPagesArranged(entry) {
+	return !!entry?.getFlag?.(SYSTEM_ID, RELMAP_FLAG)?.[RELMAP_ARRANGED_MARK];
+}
+
+/**
+ * WHERE ONE BOARD LANDS when it is dropped somewhere else on the strip, as `sort` numbers.
+ *
+ * Pure, and separate from the write, because the arithmetic is the half that can be got wrong and
+ * the half a test can hold still.
+ *
+ * ONE PAGE MOVES AND THE REST ARE LEFT ALONE, which is what the gap between two sorts is for
+ * (`PAGE_SORT_STEP`): a board dropped between two others takes the number halfway between them and
+ * nothing else on the strip is rewritten. Only when that halfway point has run out of room, which
+ * takes seventeen drops into the same gap, is the whole strip renumbered by the step. The other
+ * spelling, renumbering every time, is a write per board on every drop, broadcast to every client
+ * at the table, for a change that moved one tab.
+ *
+ * ⚠ THE PAGES HANDED IN ARE THE ONES THE READER CAN SEE, never `listMapPages`. A player cannot
+ * write a board the GM has kept back, so a plan that renumbered one would be a drop that half
+ * failed. It does mean a hidden board keeps its old number and can end up between two boards a
+ * player has just put next to each other, which the GM sees and the player never does; that is the
+ * honest cost of boards the two of them are looking at different sets of.
+ *
+ * @param {Array<JournalEntryPage>} pages  the strip as it stands, in the order it is drawn.
+ * @param {string} movedId  the board being dropped.
+ * @param {string|null} beforeId  the board it is dropped in FRONT of, or null for the far end.
+ * @returns {Array<{page, sort}>}  what to write. Empty when nothing would move.
+ */
+export function planPageMove(pages, movedId, beforeId = null) {
+	const strip = (pages ?? []).filter(page => page?.id);
+	const moved = strip.find(page => page.id === movedId);
+	if (!moved || movedId === beforeId) return [];
+	// Through the system's two reorder primitives, including moveWithin's no-op contract, rather
+	// than a third hand-written splice: the destination is computed against a list the board has
+	// already been taken OUT of (aiming at the original would land every forward drop one place
+	// short), and moveWithin then does the removal itself from the original index.
+	const from = strip.findIndex(page => page.id === movedId);
+	const without = strip.filter((_, i) => i !== from);
+	const index = insertionIndexIn(without, beforeId, without.length);
+	// Dropped back where it already was: the two ends of the tab it came from both name it.
+	const order = moveWithin(strip, from, index);
+	if (!order) return [];
+
+	const sortOf = page => (Number(page?.sort) || 0);
+	const before = index > 0 ? sortOf(order[index - 1]) : null;
+	const after = index < order.length - 1 ? sortOf(order[index + 1]) : null;
+	if (before === null && after === null) return [{ page: moved, sort: 0 }];
+	if (before === null) return [{ page: moved, sort: after - PAGE_SORT_STEP }];
+	if (after === null) return [{ page: moved, sort: before + PAGE_SORT_STEP }];
+	// A gap of two or more has a whole number strictly inside it. A gap of one, of none, or of a
+	// pair that only sorted in that order because their names broke the tie, has not.
+	if (after - before >= 2) return [{ page: moved, sort: Math.floor((before + after) / 2) }];
+	return order
+		.map((page, i) => ({ page, sort: i * PAGE_SORT_STEP }))
+		.filter(row => sortOf(row.page) !== row.sort);
+}
+
+/**
+ * Put one board somewhere else on the strip.
+ *
+ * ONE WRITE FOR THE WHOLE MOVE, through the parent rather than page by page: a renumbered strip
+ * arriving as eight separate updates is eight repaints at the far end of the table, with the order
+ * visibly wrong in between. `updateEmbeddedDocuments` is one round trip and one broadcast.
+ *
+ * THE MARK IS WRITTEN AFTER THE MOVE LANDS, the same order `ensureFirstMapPage` keeps: a map marked
+ * as arranged by a move that then failed would have lost its party lift for nothing.
+ *
+ * @returns {Promise<boolean>} whether anything moved.
+ */
+export async function moveMapPage(entry, movedId, beforeId = null) {
+	if (!entry || !canEditRelationshipMap(entry)) return false;
+	const rows = planPageMove(listVisibleMapPages(entry), movedId, beforeId);
+	if (!rows.length) return false;
+	await entry.updateEmbeddedDocuments?.("JournalEntryPage",
+		rows.map(row => ({ _id: row.page.id, sort: row.sort })));
+	if (!mapPagesArranged(entry)) {
+		await entry.update({ [relmapPath(RELMAP_ARRANGED_MARK)]: true });
+	}
 	return true;
 }
 
@@ -725,14 +826,19 @@ function partySort(pages) {
  * made before it. Without this, "the party board is the first tab" would be true of new maps only,
  * and the table that has been using this since the spring would be the one it was never true for.
  *
- * IT IS NOT UNDOING AN ARRANGEMENT, which is the rule everything else about this board keeps.
- * Nothing can order the strip: `sort` is a number this file assigns at creation and there is no
- * way for a reader to drag a tab, so there is no order of anybody's to lose. If pages ever become
- * draggable, this has to go.
+ * ⚠ IT IS NOT UNDOING AN ARRANGEMENT, which is the rule everything else about this board keeps,
+ * and since tabs became draggable that rule needs a guard rather than an observation. It used to
+ * read "nothing can order the strip, so there is no order of anybody's to lose"; a reader can now
+ * drag the party board to the middle, and a lift that ran anyway would put it back on the next
+ * open, on somebody else's client, with nothing on screen to explain it. So the first hand-made
+ * order marks the map (`RELMAP_ARRANGED_MARK`) and this stands down for good on that map. What is
+ * left is exactly what it was written for: the maps made before the board had a place, whose strips
+ * nobody has ever arranged.
  *
  * Writes only when the board is not already first, so the ordinary open costs one comparison.
  */
 async function liftPartyPage(entry, page) {
+	if (mapPagesArranged(entry)) return false;
 	const pages = listMapPages(entry);
 	if (!page || pages[0]?.id === page.id) return false;
 	await page.update({ sort: partySort(pages) });

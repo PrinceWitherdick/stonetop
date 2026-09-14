@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { declarations, readCss, splitSelectorList } from "../fakes/css.js";
+import { beats, declarations, readCss, specificity, splitSelectorList } from "../fakes/css.js";
 
 /**
  * Overrides that are outranked by the rule they were written to beat.
@@ -8,38 +8,29 @@ import { declarations, readCss, splitSelectorList } from "../fakes/css.js";
  * override were in force, nothing is logged, the element renders — it just renders in the other
  * rule's colour. `tests/styles/dialog-button-specificity.test.js` makes the same argument for one
  * family (a per-dialog footer button rule under the shared `.stonetop.dialog` one) and does it with
- * a scan. This file is the two cases that are not about dialog footers, each pinned by name,
- * because both were shipped broken and neither is derivable from a pattern:
+ * a scan. This file is the cases that are not about dialog footers, each pinned by name, because
+ * each was shipped broken and none is derivable from a pattern:
  *
  *   - A bare `.x-remove:hover` under a `.x-btns button:hover` that carries an element and therefore
  *     outranks it. The red never lands and the trash icon greys like its neighbours.
  *   - An author `display` on a panel that JS hides with the `hidden` ATTRIBUTE. Author beats UA
  *     whatever the specificity, so `[hidden]` does nothing until the sheet says so itself.
+ *   - A chat card notice's heading, painted in the generic `.cell__subtitle` grey the card sets
+ *     ~800 lines further down at the same weight. The accent still reached the notice's left-hand
+ *     rule, so the block rendered with a coloured edge and a grey title and read as intentional.
+ *   - A TIE, settled by source order. An element wearing two of our classes gets the rule that sits
+ *     LATER in the sheet for anything both declare, so a component's own rule written above the
+ *     shared chrome it means to override is dead. Both surfaces below shipped that way for a
+ *     release, and in each the rule's own comment says what it was supposed to do.
  */
 
 const CSS = readCss();
-
-/** CSS specificity as [ids, classes, elements]. Same reading as dialog-button-specificity.js. */
-function specificity(selector) {
-	const ids = (selector.match(/#[\w-]+/g) || []).length;
-	const classes = (selector.match(/\.[\w-]+/g) || []).length
-		+ (selector.match(/\[[^\]]*\]/g) || []).length
-		+ (selector.match(/(?<!:):(?!:)[\w-]+/g) || []).length;
-	const elements = (selector
-		.replace(/[.#][\w-]+/g, "")
-		.replace(/\[[^\]]*\]/g, "")
-		.replace(/::?[\w-]+/g, "")
-		.match(/\b[a-zA-Z][\w-]*/g) || []).length;
-	return [ids, classes, elements];
-}
-
-const beats = (a, b) => (a[0] - b[0] || a[1] - b[1] || a[2] - b[2]) > 0;
 
 /** Every rule in the stylesheet, one entry per comma-separated selector, in source order. */
 const RULES = [];
 for (const [, prelude, body] of CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
 	const props = [...body.matchAll(/(^|[;\s])([-\w]+)\s*:/g)].map(m => m[2]);
-	for (const selector of splitSelectorList(prelude)) RULES.push({ selector, props, spec: specificity(selector) });
+	for (const selector of splitSelectorList(prelude)) RULES.push({ selector, props, body, spec: specificity(selector) });
 }
 
 /**
@@ -56,6 +47,58 @@ function rivalsFor(prop, on) {
 		return classes.length > 0 && classes.every(c => on.includes(c));
 	});
 }
+
+/**
+ * Which rule actually settles `prop` on an element carrying `on`, by the cascade these rules live
+ * under: more specific wins, and an equal specificity is settled by whichever comes LATER. RULES is
+ * in source order, so walking it forwards and keeping the last rule the incumbent does not outrank
+ * is exactly that reading. No `!important` anywhere in these families, which is why it need not be
+ * weighed here.
+ */
+function settles(prop, on) {
+	let best = null;
+	for (const r of rivalsFor(prop, on)) if (!best || !beats(best.spec, r.spec)) best = r;
+	return best;
+}
+
+describe("a rule that ties with shared chrome is the one that wins", () => {
+	// Each case: the element's classes, the property, the class whose rule must settle it, and the
+	// value it must land on. The value matters as much as the winner: qualifying a selector to win
+	// a tie is easy to do and easy to undo by moving a declaration, and only the value says whether
+	// the surface still looks like what the comment beside it describes.
+	const CASES = [
+		// The Blessed's Shared Souls pips, in running text beside the beast's name. They wear the
+		// shared readiness-pip shape, whose rule sits ~12,000 lines later: at 16px they read as a
+		// control bar rather than as punctuation, which is what the rule beside them exists to say.
+		{ what: "Shared Souls' loyalty pips", on: ["stonetop-readiness-pip", "stonetop-mark-loyalty-pip"],
+		  prop: "width", owner: "stonetop-mark-loyalty-pip", value: /12px/ },
+		{ what: "Shared Souls' loyalty pips", on: ["stonetop-readiness-pip", "stonetop-mark-loyalty-pip"],
+		  prop: "height", owner: "stonetop-mark-loyalty-pip", value: /12px/ },
+		// The group toggle in Create Follower, Create Hazard and the two Convert to Follower
+		// dialogs. `.stonetop-cf-label` lays a label out as a column, so losing this tie stacked
+		// "of N members" under the tick and centred it.
+		{ what: "the follower group toggle row", on: ["stonetop-cf-label", "stonetop-cf-group-label"],
+		  prop: "flex-direction", owner: "stonetop-cf-group-label", value: /row/ },
+		{ what: "the follower group toggle row", on: ["stonetop-cf-label", "stonetop-cf-group-label"],
+		  prop: "gap", owner: "stonetop-cf-group-label", value: /8px/ },
+		{ what: "the converted group toggle row", on: ["stonetop-cf-label", "stonetop-mf-group-label"],
+		  prop: "flex-direction", owner: "stonetop-mf-group-label", value: /row/ },
+		// A chat-card notice's heading (the lasting-injury reminder, the weapon-tag notes, the
+		// problematic-wound prompt). Each notice sets its ink as `--st-notice-accent` and the shared
+		// shape spends it here; the card's own `.cell__subtitle` rule sits later in the file and used
+		// to tie, so every notice shipped with a coloured left edge over a grey title.
+		{ what: "a card notice's heading", prop: "color", owner: "stonetop-card-notice",
+		  on: ["message", "pbta-chat-card", "stonetop-card-notice", "cell__subtitle"],
+		  value: /--st-notice-accent/ },
+	];
+
+	it.each(CASES)("$what: $prop is settled by .$owner", ({ on, prop, owner, value }) => {
+		const winner = settles(prop, on);
+		expect(winner, `nothing declares ${prop} for .${on.join(".")}`).toBeTruthy();
+		expect(winner.selector, `.${owner} loses the tie, so its ${prop} is dead`).toContain(owner);
+		expect(new RegExp(`${prop}\\s*:\\s*[^;]*`).exec(winner.body)?.[0] ?? "").toMatch(value);
+	});
+});
 
 describe("the improvement builder's remove buttons keep their red", () => {
 	// Both remove buttons sit inside the -btns span that carries the shared bare-glyph look, so

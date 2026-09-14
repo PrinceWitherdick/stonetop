@@ -87,14 +87,30 @@ export async function seedRelationshipMapOnce() {
  * dialog that rejects the save over a blank field is a dialog that has to explain itself, for a
  * mistake that costs one rename to fix.
  *
+ * ⚠ ONE BOX PER PRESS, HOWEVER MANY PRESSES. The box is not modal, so two presses on the Journal
+ * tab's button, or the macro and the steading tab, in a world with no collection yet would each open
+ * one, and each could make a collection -- a second collection in a world meant to have one, which
+ * nothing in the system can delete. A press made while the box is up, or while the collection it
+ * named is still being made, gets the first press's answer. (Both presses then open that collection,
+ * which utils/open-or-focus.js turns into one window.)
+ *
  * @returns {Promise<JournalEntry|null>}  the new map, or null when the reader dismissed the box or
  *          may not make one.
  */
-export async function promptForNewRelationshipMap() {
+export function promptForNewRelationshipMap() {
 	// Asked BEFORE the box opens, not only inside `createRelationshipMap`, so a reader who may not
 	// make a map is never asked to name one. Silent: both callers already say who can — the
 	// steading tab in the line under its invitation, the macro in a notification of its own.
-	if (!canCreateRelationshipMap()) return null;
+	if (!canCreateRelationshipMap()) return Promise.resolve(null);
+	asking ??= askForNewRelationshipMap().finally(() => { asking = null; });
+	return asking;
+}
+
+/** The name box and the create behind it while they are out, so a second press joins them. */
+let asking = null;
+
+/** The box itself, and the create behind it. See `promptForNewRelationshipMap`. */
+async function askForNewRelationshipMap() {
 	const name = await promptForText({
 		title: localize("stonetop.relmap.maps.newTitle"),
 		buttonLabel: localize("stonetop.relmap.maps.newGo"),

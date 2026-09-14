@@ -209,11 +209,40 @@ describe("the pre-roll damage window", () => {
 	});
 
 	it("is a Stonetop-skinned window whose default button rolls", () => {
-		const { data, options } = open({ title: "Clash: hafted spear" });
-		expect(data.title).toBe("Clash: hafted spear");
+		const { data, options } = open({ attacker: "Kiran" });
 		expect(data.default).toBe("roll");
 		expect(Object.keys(data.buttons)).toEqual(["roll", "cancel"]);
 		expect(options.classes).toContain("stonetop");
+	});
+
+	// The header says WHOSE roll this is. Every surface has a label for the CARD, and those
+	// labels are the source's own damage line — "d8+2 (close, forceful)" off a stat block —
+	// which as a title names nobody and restates the formula the preview already shows.
+	it("names the attacker in the header rather than restating the formula", () => {
+		expect(open({ attacker: "Ancient Ash-Wolf", formula: "d8+2" }).data.title)
+			.toBe("Rolling damage for Ancient Ash-Wolf");
+		// A nameless source still gets a header that reads as one, not "undefined".
+		expect(open({ formula: "d8+2" }).data.title).toBe("Rolling damage");
+	});
+
+	// Composed in the window, not by its callers: the two that ask both have the actor in hand
+	// and both used to hand over the card's label, which is how the formula reached the header.
+	it("is handed a name by every surface that asks, never a card label", () => {
+		for (const [file, src] of [["RollDialog.js", ROLL_DIALOG_JS], ["attack-flow.js", ATTACK_FLOW_JS]]) {
+			const calls = src.match(/await promptDamage\(\{[^}]*\}/g) ?? [];
+			expect(calls, `${file} asks the window nowhere`).toHaveLength(1);
+			expect(calls[0], file).toMatch(/attacker: (attacker \|\| )?actor\?\.name/);
+			expect(calls[0], file).not.toContain("title:");
+		}
+	});
+
+	// A follower rolls off its PC's sheet, so the actor in hand is the PC. The window names the
+	// follower who is swinging: "Rolling damage for Rhianna's crew", not "for Rhianna".
+	it("names a follower rather than the PC whose sheet it rolled from", () => {
+		expect(ROLL_DIALOG_JS).toContain("attacker: attacker || actor?.name");
+		const sheet = read("module/actors/character/StonetopCharacterSheet.js");
+		expect(sheet).toContain("rollDamagePrompted(roll, this.actor, { label, attacker, shiftKey: ev.shiftKey })");
+		expect(sheet).toMatch(/label\s*=\s*`\$\{attacker\} attacks\$\{formPart\}`/);
 	});
 });
 
@@ -254,6 +283,7 @@ describe("the damage window's reach", () => {
 		"the character sheet's damage die":  "module/actors/character/StonetopCharacterSheet.js",
 		"the monster stat block":            "module/actors/monster/StonetopMonsterSheet.js",
 		"the NPC stat block":                "module/actors/npc/StonetopNpcSheet.js",
+		"a monster's rolling move":          "module/item/StonetopItem.js",
 	};
 
 	for (const [what, file] of Object.entries(SURFACES)) {
@@ -321,6 +351,19 @@ describe("the damage window's own chrome", () => {
 		expect(classes.length).toBeGreaterThan(2);
 		for (const cls of new Set(classes)) expect(CSS, cls).toContain(`.${cls}`);
 		expect(CSS).toContain(".stonetop-damage-extra-dice.is-invalid");
+	});
+
+	// The field is bold at --st-fs-lg, so an unstyled placeholder is typeset exactly like a
+	// typed value: the window looked like it was adding a die to every damage roll before the
+	// player touched it. Ink from the ramp, so "Sheet Contrast: High" lifts it back — and MUTED
+	// rather than faint, which on this field's wash over parchment is about 2.4:1.
+	it("typesets the extra-dice placeholder as a hint, not as a value", () => {
+		const block = /\.stonetop-damage-extra-dice::placeholder \{([\s\S]*?)\}/.exec(CSS);
+		expect(block, ".stonetop-damage-extra-dice::placeholder has no rule").not.toBeNull();
+		expect(block[1]).toMatch(/color:\s*var\(--st-text-muted/);
+		expect(block[1]).toMatch(/font-weight:\s*normal/);
+		// Firefox's own 0.54 default would compound with the faint ink.
+		expect(block[1]).toMatch(/opacity:\s*1/);
 	});
 
 	// The stepper's buttons take their font size from core in PIXELS while everything around

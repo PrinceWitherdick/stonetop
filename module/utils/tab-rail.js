@@ -96,8 +96,8 @@ const RAIL_HEADER_GAP = 16;
  *
  * `scrolledBy` is added back AFTER the divide, not before: it is already an untransformed number
  * (`scrollTop` always is), where the two rects are not. It is zero on every sheet whose header is
- * pinned, which is all of them but the GM Toolkit — that frame scrolls as a single unit with its
- * banner inside the scroll, and the rail is mounted on the window FRAME, outside it. Without this
+ * pinned, which is all of them but the GM Toolkit and the monster stat block. Those frames scroll
+ * as a single unit with the banner inside the scroll, and the rail is mounted on the window FRAME, outside it. Without this
  * term a re-render landing while the sheet is scrolled measures the banner where it has ridden up
  * to and stamps the rail there with it; on the toolkit that is every threat, hazard and site
  * write. Reading the anchor's at-rest position instead makes the stamp the same number at any
