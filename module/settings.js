@@ -1498,7 +1498,9 @@ export function registerSettings() {
 	// uuid -> { left, top, width, height, minimized, tabs, editMode } (see
 	// utils/window-restore.js).
 	// Internal (not shown in the settings menu); rewritten continuously as windows
-	// open, close, and move.
+	// open, close, and move. Nested by world id for the reason `lastRelationshipBoard` below
+	// is. Shape: { "<worldId>": { "<document uuid>": snapshot } }; a flat record from before
+	// that is read as the current world's.
 	game.settings.register(SYSTEM_ID, "openWindowsState", {
 		scope: "client",
 		config: false,

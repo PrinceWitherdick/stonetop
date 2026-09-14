@@ -5,16 +5,25 @@
 // per-client setting, and re-render each one on ready from that snapshot.
 //
 // Scope is deliberately narrow: only windows over a document (things resolvable by uuid
-// and re-openable via `doc.sheet`). Transient dialogs — the level-up wizard, the
-// introductions walkthrough, pickers — are NOT tracked here: reopening a half-finished
-// wizard is worse than not, and the session-zero walkthroughs already have their own
-// reload-resume path (dialogs/walkthrough-resume.js).
+// and re-openable via `doc.sheet`), plus the few windows over something else that register
+// a kind of their own (registerRestorableWindow, below). Transient dialogs — the level-up
+// wizard, the introductions walkthrough, pickers — are NOT tracked here: reopening a
+// half-finished wizard is worse than not, and the session-zero walkthroughs already have
+// their own reload-resume path (dialogs/walkthrough-resume.js).
 //
 // Per-client on purpose: window layout is personal, not shared world state (mirrors the
 // existing `characterSheetWidths` client setting). Defaults on; the "Restore Open
 // Windows on Reload" client setting turns it off.
+//
+// ⚠ AND NESTED UNDER THE WORLD ID, which a client setting has to do for itself (relmap/relmap-last.js
+// says why): it lives in localStorage under `namespace.key` alone, shared by every world this browser
+// opens, and every save writes the whole record. Kept flat, a GM who left sheets open in one world and
+// spent an evening in another came back to nothing, because the second world's first save wrote its
+// own list over the first world's -- and a world copied from another, with the same document ids,
+// reopened the other world's windows. The snapshot for each window is unchanged; only the record
+// holding them is keyed by world.
 
-import { getSetting } from "../settings.js";
+import { getObjectSetting, getSetting, worldKey } from "../settings.js";
 import { SYSTEM_ID } from "../system-id.js";
 
 const STATE_SETTING = "openWindowsState";
@@ -37,6 +46,7 @@ const TOGGLE_SETTING = "restoreWindowsOnReload";
 // with no error anywhere (tests/utils/window-restore.test.js holds the two together).
 export const RELMAP_WINDOW_CLASS = "RelationshipMapWindow";
 
+// Every pair registered by kind (registerRestorableWindow) joins this list.
 const HOOK_PAIRS = [
 	["renderActorSheet",        "closeActorSheet"],
 	["renderItemSheet",         "closeItemSheet"],
@@ -45,13 +55,41 @@ const HOOK_PAIRS = [
 	[`render${RELMAP_WINDOW_CLASS}`, `close${RELMAP_WINDOW_CLASS}`],
 ];
 
-// Live registry of currently-open tracked sheets, keyed by document uuid → app. We read
-// each app's LIVE position at persist time (a window that's been dragged/resized never
+// WINDOWS OVER NO DOCUMENT, reopened by a kind of their own. The shared Make Camp window is one: its
+// camp lives in a flag on every character at the fire, not in any document a uuid could name, and a
+// table keeps it open through a whole scene. Such a window says its own key by name (`restoreKey`,
+// "<kind>:<rest>"), the way the board says its page, and the module that owns the window registers
+// the kind with the function that mints the window again from that key. Registered rather than
+// imported, so this file never reaches into the modules whose windows it restores.
+//
+// A uuid never holds a colon, so a key that does is a kind's, and one that does not is a uuid.
+const _reopeners = new Map();   // kind -> (key) => an unrendered window to reopen, or null
+let _installed = false;
+
+function _kindOf(key) {
+	const at = key.indexOf(":");
+	return at > 0 ? key.slice(0, at) : null;
+}
+
+// Restore the windows of `windowClass` from a key rather than a document: watch the class's own
+// render and close hooks, and on the next ready hand each saved key of `kind` to `reopen`, which
+// answers with the window to render where it was, or null for one that should not come back. The
+// class itself is passed, never a spelling of its name, because AppV1 names the hooks after
+// `constructor.name`. Safe to call before or after installWindowRestore.
+export function registerRestorableWindow(windowClass, kind, reopen) {
+	_reopeners.set(kind, reopen);
+	const pair = [`render${windowClass.name}`, `close${windowClass.name}`];
+	HOOK_PAIRS.push(pair);
+	if (_installed) _watchPair(pair);
+}
+
+// Live registry of currently-open tracked windows, keyed by document uuid (or a kind's own key) →
+// app. We read each app's LIVE position at persist time (a window that's been dragged/resized never
 // re-renders, so the render-time position would be stale).
 const _openApps = new Map();
 let _saveTimer = null;
 
-// uuid → saved active-tab array, staged by restoreOpenWindows just before it re-renders a
+// key → saved active-tab array, staged by restoreOpenWindows just before it re-renders a
 // sheet. Consumed once by _onRender (the render hook fires after `_tabs` is bound to the
 // DOM at its initial tab), which then activates the saved tab over the default.
 const _pendingTabs = new Map();
@@ -64,11 +102,12 @@ let _restack = null;
 // open. A sheet whose render threw never fires its hook, and it must not hold the others down.
 const RESTACK_GRACE_MS = 3000;
 
-// Whether an app is a document sheet we can persist and later reopen: it must expose a
-// world document (not a compendium entry — those aren't re-openable from a stored uuid
-// the same way) with a stable uuid. This naturally excludes our FormApplication dialogs,
-// which have no `.document`.
-function _trackedDoc(app) {
+// The key an app is persisted and later reopened under, or null for a window this does not restore.
+// A window of a registered kind names its own. A document sheet is keyed by its document's uuid: it
+// must expose a world document (not a compendium entry — those aren't re-openable from a stored uuid
+// the same way) with a stable uuid. This naturally excludes our FormApplication dialogs, which have
+// neither.
+function _trackKey(app) {
 	// ⚠ AND NOT A BOARD MOUNTED INSIDE SOMEBODY ELSE'S SHEET. AppV1 builds its render hook out of
 	// every class name in the inheritance chain, so a frameless subclass of a tracked window fires
 	// the parent's hook too: the relationship map's steading-sheet panel
@@ -78,10 +117,12 @@ function _trackedDoc(app) {
 	// for. There is nothing to restore about a panel in any case: where it was is wherever its host
 	// sheet is, and the host is restored on its own account.
 	if (app?.popOut === false) return null;
+	const key = app?.restoreKey;
+	if (typeof key === "string" && _reopeners.has(_kindOf(key))) return key;
 	const doc = app?.document;
 	if (!doc?.uuid) return null;
 	if (doc.pack) return null;            // compendium entry — skip
-	return doc;
+	return doc.uuid;
 }
 
 // The active tab name(s) of an AppV1 sheet, in `_tabs` order, or null if it has no tab
@@ -152,15 +193,48 @@ function _isAppV2(app) {
 	return !!(V2 && app instanceof V2);
 }
 
-// Build the full persisted map from the live registry: uuid → geometry for every open
-// tracked sheet. Drops any that have since lost their document or position.
+// Build the full persisted map from the live registry: key → geometry for every open
+// tracked window. Drops any that have since lost their document or position.
 function _collectState() {
 	const state = {};
-	for (const [uuid, app] of _openApps) {
+	for (const [key, app] of _openApps) {
 		const pos = _snapshotPosition(app);
-		if (pos) state[uuid] = pos;
+		if (pos) state[key] = pos;
 	}
 	return state;
+}
+
+// A record saved before worlds were kept apart: the windows themselves, keyed by uuid. A uuid always
+// has a dot in it and a world id never does, which is the whole of how the two are told apart.
+const _isFlatKey = (key) => key.includes(".");
+
+// Whether this world has taken a flat record as its own, by reopening a window from it.
+//
+// ⚠ UNTIL IT HAS, EVERY SAVE LEAVES THAT RECORD WHERE IT IS. It belongs to whichever world was open when
+// it was written, and nothing in it says which. Dropped on the first save in any world, a GM who
+// updated and then opened a different world first lost the first world's windows to that save, which
+// is the very loss keying the record by world is for. A world that reopens nothing from it leaves it
+// for the world it came from.
+let _claimedFlat = false;
+
+// This world's saved windows, and whether they came out of a flat record. A flat record is read as this
+// world's own: any window in it that belonged to another world resolves to no document on the way back
+// in, which `restoreOpenWindows` already steps over.
+function _savedHere() {
+	const all = getObjectSetting(STATE_SETTING);
+	const mine = all[worldKey()];
+	if (mine && typeof mine === "object" && !Array.isArray(mine)) return { state: mine, flat: false };
+	return { state: Object.fromEntries(Object.entries(all).filter(([key]) => _isFlatKey(key))), flat: true };
+}
+
+// The whole record to write: every other world's windows as they were, and this world's as they are.
+function _recordWithThisWorld() {
+	const all = {};
+	for (const [key, value] of Object.entries(getObjectSetting(STATE_SETTING))) {
+		if (!_claimedFlat || !_isFlatKey(key)) all[key] = value;
+	}
+	all[worldKey()] = _collectState();
+	return all;
 }
 
 // Persist the current registry to the client setting. Debounced: dragging/resizing and
@@ -170,7 +244,7 @@ function _schedulePersist() {
 	if (!getSetting(TOGGLE_SETTING)) return;
 	clearTimeout(_saveTimer);
 	_saveTimer = setTimeout(() => {
-		game.settings.set(SYSTEM_ID, STATE_SETTING, _collectState()).catch(() => {});
+		game.settings.set(SYSTEM_ID, STATE_SETTING, _recordWithThisWorld()).catch(() => {});
 	}, 500);
 }
 
@@ -179,7 +253,7 @@ function _schedulePersist() {
 function _flushNow() {
 	if (!getSetting(TOGGLE_SETTING)) return;
 	try {
-		game.settings.set(SYSTEM_ID, STATE_SETTING, _collectState());
+		game.settings.set(SYSTEM_ID, STATE_SETTING, _recordWithThisWorld());
 	} catch (_err) { /* nothing we can do mid-unload */ }
 }
 
@@ -197,23 +271,23 @@ function _applyTabs(app, tabs) {
 }
 
 function _onRender(app) {
-	const doc = _trackedDoc(app);
-	if (!doc) return;
-	_openApps.set(doc.uuid, app);
-	const pending = _pendingTabs.get(doc.uuid);
+	const key = _trackKey(app);
+	if (!key) return;
+	_openApps.set(key, app);
+	const pending = _pendingTabs.get(key);
 	if (pending) {
-		_pendingTabs.delete(doc.uuid);
+		_pendingTabs.delete(key);
 		_applyTabs(app, pending);
 	}
-	_settleRestack(doc.uuid);
+	_settleRestack(key);
 	_schedulePersist();
 }
 
 // Count one reopened window as landed (rendered, or failed to), and put the stack back once the
 // last one has. Held back while `scheduling`: a render that lands while a later lookup is still
 // awaited must not read an empty wait list as "all done".
-function _settleRestack(uuid) {
-	if (_restack?.waiting.delete(uuid) && !_restack.waiting.size && !_restack.scheduling) _finishRestack();
+function _settleRestack(key) {
+	if (_restack?.waiting.delete(key) && !_restack.waiting.size && !_restack.scheduling) _finishRestack();
 }
 
 // What counts as the user taking the stack back while a restore is still landing.
@@ -249,9 +323,9 @@ function _finishRestack() {
 }
 
 function _onClose(app) {
-	const doc = _trackedDoc(app);
-	if (!doc) return;
-	_openApps.delete(doc.uuid);
+	const key = _trackKey(app);
+	if (!key) return;
+	_openApps.delete(key);
 	_schedulePersist();
 }
 
@@ -271,10 +345,32 @@ function _clampToViewport(pos) {
 	return out;
 }
 
-// Reopen every saved sheet at its stored geometry. Runs on ready; no-op when the toggle
+// The window a saved key reopens, or null. A registered kind mints its own and decides for itself
+// whether it should come back. Anything else is a document's uuid, reopened through `doc.sheet`
+// when this user may still view it, so a player never trips a "you don't have permission" error on
+// a sheet they can no longer see.
+async function _windowFor(key) {
+	const reopen = _reopeners.get(_kindOf(key));
+	if (reopen) {
+		try { return (await reopen(key)) ?? null; }
+		catch (err) {
+			console.warn("Stonetop | Could not restore window", key, err);
+			return null;
+		}
+	}
+	let doc;
+	try { doc = await fromUuid(key); }
+	catch (_err) { doc = null; }
+	if (!doc) return null;
+	// Need at least limited view permission to open a sheet.
+	if (doc.testUserPermission && !doc.testUserPermission(game.user, "LIMITED")) return null;
+	return doc.sheet ?? null;
+}
+
+// Reopen every saved window at its stored geometry. Runs on ready; no-op when the toggle
 // is off or nothing was saved. Renders are staggered so a dozen sheets don't all fight
-// for focus (and layout) in the same frame, and each is permission-checked so a player
-// never trips a "you don't have permission" error on a sheet they can no longer view.
+// for focus (and layout) in the same frame, and each is checked first (_windowFor) so
+// nothing reopens that this user can no longer see, or that has no reason to come back.
 //
 // FRONT-MOST FIRST. The stagger puts 120ms between one window and the next, so whichever opens
 // last waits the longest, and saved order is only the order the windows were first opened in.
@@ -291,38 +387,34 @@ function _clampToViewport(pos) {
 // aimed at, and from then on the stack is theirs.
 export async function restoreOpenWindows() {
 	if (!getSetting(TOGGLE_SETTING)) return;
-	const state = getSetting(STATE_SETTING) ?? {};
-	const depth = (uuid) => (Number.isFinite(state[uuid]?.zIndex) ? state[uuid].zIndex : -Infinity);
-	const uuids = Object.keys(state).sort((a, b) => depth(b) - depth(a));
-	if (!uuids.length) return;
+	const { state, flat } = _savedHere();
+	const depth = (key) => (Number.isFinite(state[key]?.zIndex) ? state[key].zIndex : -Infinity);
+	const keys = Object.keys(state).sort((a, b) => depth(b) - depth(a));
+	if (!keys.length) return;
 
 	// `scheduling` holds the restack back until every window is queued (see _settleRestack).
 	const restack = _restack = { waiting: new Set(), order: [], timer: null, scheduling: true };
 	for (const type of HANDOVER_EVENTS) window.addEventListener(type, _onHandoverInput, true);
 
 	let i = 0;
-	for (const uuid of uuids) {
-		let doc;
-		try { doc = await fromUuid(uuid); }
-		catch (_err) { doc = null; }
-		if (!doc) continue;
-		// Need at least limited view permission to open a sheet.
-		if (doc.testUserPermission && !doc.testUserPermission(game.user, "LIMITED")) continue;
-		const sheet = doc.sheet;
+	for (const key of keys) {
+		const sheet = await _windowFor(key);
 		if (!sheet) continue;
+		// A window reopened out of a flat record says whose that record was: this world's. See `_claimedFlat`.
+		if (flat) _claimedFlat = true;
 
-		const saved = state[uuid];
+		const saved = state[key];
 		const pos = _clampToViewport(saved);
 		const delay = i++ * 120;
 		// Queued front to back, so each lands at the head of the back-to-front restack order.
-		restack.waiting.add(uuid);
+		restack.waiting.add(key);
 		restack.order.unshift(sheet);
 		setTimeout(() => {
 			try {
 				// Stage the saved tab so the render hook (fired once _tabs is bound) switches
 				// off the sheet's default tab. Set right before render so it's live when the
 				// hook lands, and consumed once so a later data re-render can't re-force it.
-				if (Array.isArray(saved.tabs)) _pendingTabs.set(uuid, saved.tabs);
+				if (Array.isArray(saved.tabs)) _pendingTabs.set(key, saved.tabs);
 				_applyEditMode(sheet, saved.editMode);
 				const geom = { left: pos.left, top: pos.top, width: pos.width, height: pos.height };
 				// The page a multi-page window was left on travels back in the SAME render
@@ -337,8 +429,8 @@ export async function restoreOpenWindows() {
 				else sheet.render(true, geom);
 				if (saved.minimized) sheet.minimize?.();
 			} catch (err) {
-				console.warn("Stonetop | Could not restore window", uuid, err);
-				_settleRestack(uuid);
+				console.warn("Stonetop | Could not restore window", key, err);
+				_settleRestack(key);
 			}
 		}, delay);
 	}
@@ -352,14 +444,17 @@ export async function restoreOpenWindows() {
 	}, (i - 1) * 120 + RESTACK_GRACE_MS);
 }
 
+function _watchPair([renderHook, closeHook]) {
+	Hooks.on(renderHook, (app) => _onRender(app));
+	Hooks.on(closeHook,  (app) => _onClose(app));
+}
+
 // Wire the render/close tracking hooks and the unload flush. Called from the init hook.
 // Restoration itself is registered here as a one-shot ready hook so this stays a single
-// self-contained install call.
+// self-contained install call. A kind registered later has its hooks wired as it arrives.
 export function installWindowRestore() {
-	for (const [renderHook, closeHook] of HOOK_PAIRS) {
-		Hooks.on(renderHook, (app) => _onRender(app));
-		Hooks.on(closeHook,  (app) => _onClose(app));
-	}
+	_installed = true;
+	for (const pair of HOOK_PAIRS) _watchPair(pair);
 	window.addEventListener("beforeunload", _flushNow);
 	Hooks.once("ready", () => restoreOpenWindows());
 }
