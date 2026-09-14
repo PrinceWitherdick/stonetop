@@ -286,8 +286,15 @@ function previewFormula(base, { rollMode, bonus, extraDice }) {
  * click skips it — the same bargain promptRoll strikes, so a table that wants the dice and
  * nothing else never sees either window.
  *
+ * The header names WHO is swinging, and is composed here rather than by the caller. Every
+ * surface already has a label for the CARD — a stat block's own damage line ("d8+2 (close,
+ * forceful)"), a move and weapon ("Clash: hafted spear") — and that label read as a title
+ * says nothing about whose window this is while telling the player a formula the preview
+ * line below already shows. One rule in one place also means no caller can put prose in the
+ * header by passing the card's label twice.
+ *
  * @param {object} [opts]
- * @param {string}  [opts.title]     Dialog title — usually the move and weapon being rolled.
+ * @param {string}  [opts.attacker]  Name of whoever is rolling, for the header.
  * @param {string}  [opts.formula]   The base damage formula, shown in the live preview.
  * @param {string}  [opts.rollMode]  Mode to start on (a stat block's noted advantage).
  * @param {boolean} [opts.shiftKey]  Skip the window entirely.
@@ -295,7 +302,7 @@ function previewFormula(base, { rollMode, bonus, extraDice }) {
  * @returns {Promise<{rollMode: string, bonus: number, extraDice: string}|null>}
  */
 export function promptDamage({
-	title = "Damage",
+	attacker = "",
 	formula = "",
 	rollMode = DEFAULT_ROLL_MODE,
 	shiftKey = false,
@@ -316,7 +323,7 @@ export function promptDamage({
 		});
 
 		const dialog = new Dialog({
-			title,
+			title: attacker ? `Rolling damage for ${attacker}` : "Rolling damage",
 			content: `<form class="stonetop-roll-form stonetop-damage-form">
 				${modePickerHtml("How are you rolling this damage?", start)}
 				<p class="stonetop-roll-prompt">Add to the damage (an arcanum's +1, a move's extra dice, a GM's call).</p>
@@ -394,15 +401,20 @@ export function promptDamage({
  * @param {Actor} actor
  * @param {object} opts
  * @param {string} opts.label      what the card calls this damage
+ * @param {string} [opts.keywords] what the card prints beside the total: a stat block attack's
+ *   tags, which its title no longer carries (utils/damage.js#damageCardText)
+ * @param {string} [opts.description] the card's description HTML: a monster move's own text
  * @param {string} [opts.rollMode] a mode the SOURCE already notes (a stat block's "w/
  *   disadvantage"), which SEEDS the window rather than being replaced by it - so skipping the
  *   window still rolls the way the source says.
+ * @param {string} [opts.attacker] who is swinging, for the window's header, when that is not the
+ *   actor itself: a follower rolling off its PC's sheet. Defaults to the actor's name.
  * @param {boolean} [opts.shiftKey] skip the window
  * @returns {Promise<boolean>} whether damage was actually rolled
  */
-export async function rollDamagePrompted(formula, actor, { label, rollMode, shiftKey = false } = {}) {
-	const adjust = await promptDamage({ title: label, formula, ...(rollMode ? { rollMode } : {}), shiftKey });
+export async function rollDamagePrompted(formula, actor, { label, keywords, description, rollMode, attacker, shiftKey = false } = {}) {
+	const adjust = await promptDamage({ attacker: attacker || actor?.name, formula, ...(rollMode ? { rollMode } : {}), shiftKey });
 	if (!adjust) return false;
-	await rollDamage(formula, actor, { label, ...adjust });
+	await rollDamage(formula, actor, { label, keywords, description, ...adjust });
 	return true;
 }

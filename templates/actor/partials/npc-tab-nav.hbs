@@ -21,8 +21,8 @@
       visually wrong, not data-corrupting; it is still guarded on both sides. --}}
 <nav class="sheet-tabs tabs {{#if stonetop.classicLayout}}stonetop-npc-tabs{{else}}stonetop-tab-rail{{/if}}"
      data-group="primary" aria-label="{{localize "stonetop.sheet.tabs.railLabel"}}">
+	{{#if system.hasStats}}{{> "stonetop.tab-nav-item" tab="stats" label=(localize "stonetop.npc.tabs.stats")}}{{/if}}
 	{{> "stonetop.tab-nav-item" tab="details" label=(localize "stonetop.npc.tabs.details")}}
 	{{#if stonetop.showRelationships}}{{> "stonetop.tab-nav-item" tab="relationships" label=(localize "stonetop.npc.tabs.relationships")}}{{/if}}
-	{{#if system.hasStats}}{{> "stonetop.tab-nav-item" tab="stats" label=(localize "stonetop.npc.tabs.stats")}}{{/if}}
 	{{> "stonetop.tab-nav-item" tab="notes" label=(localize "stonetop.npc.tabs.notes")}}
 </nav>

@@ -148,8 +148,8 @@ describe("the map somebody asks for", () => {
 		const asked = box.asked[0];
 		expect(asked.value ?? "").toBe("");
 		expect(asked.placeholder).not.toBe("Stonetop");
-		expect(asked.title).toBe("What is this map called?");
-		expect(asked.buttonLabel).toBe("Make the map");
+		expect(asked.title).toBe("What is this collection called?");
+		expect(asked.buttonLabel).toBe("Make the collection");
 	});
 
 	// Taken rather than refused, exactly as an empty board name is: the map is renameable from the
@@ -173,5 +173,23 @@ describe("the map somebody asks for", () => {
 		expect(await promptForNewRelationshipMap()).toBeNull();
 		expect(canCreateRelationshipMap).toHaveBeenCalled();
 		expect(promptForText).not.toHaveBeenCalled();
+	});
+
+	// The box is not modal. Two presses in a world with no collection yet -- the Journal tab's button and
+	// the macro, or one of them twice -- would each open one, and each could make a collection: a second
+	// collection in a world meant to have one, which nothing in the system can delete.
+	it("opens one box, and makes one collection, however often it is asked for while that box is up", async () => {
+		const [first, second] = await Promise.all([
+			promptForNewRelationshipMap(), promptForNewRelationshipMap(),
+		]);
+		expect(promptForText).toHaveBeenCalledTimes(1);
+		expect(createRelationshipMap).toHaveBeenCalledTimes(1);
+		expect(second).toBe(first);
+	});
+
+	it("asks again once the first box has been answered", async () => {
+		await promptForNewRelationshipMap();
+		await promptForNewRelationshipMap();
+		expect(promptForText).toHaveBeenCalledTimes(2);
 	});
 });

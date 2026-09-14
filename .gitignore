@@ -17,6 +17,8 @@ scripts/local/*
 /free pdfs
 
 # Build artifacts and dev scratch files
+# The release bundle, written by `npm run build` (scripts/bundle.js). A checkout runs the source.
+/dist/
 *.lnk
 stonetop_pwd.zip
 extracted_text.txt

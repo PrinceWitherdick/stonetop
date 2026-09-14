@@ -55,22 +55,29 @@ function hoverKeys() {
 	return [...block[1].matchAll(/"([A-Za-z0-9_]+)"/g)].map(m => m[1]);
 }
 
-/** Repo files that could reference a setting key, excluding settings.js itself. */
+/**
+ * The code that could read a setting key, excluding settings.js itself: the entry point Foundry
+ * loads, the module tree it imports, and the templates it renders.
+ *
+ * Named roots, not a walk of the repo root, which is what this was. The root also holds dist/,
+ * whose bundle repeats every one of settings.js's register calls, so once a build had run every key
+ * counted as read and the dead-key check below could not fail. It holds tests/ too, which names
+ * keys without reading them.
+ */
 function searchCorpus() {
 	const out = [];
-	const skip = new Set(["node_modules", ".git", "packs"]);
-	(function walk(dir) {
-		for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-			if (skip.has(entry.name)) continue;
-			const full = path.join(dir, entry.name);
-			if (entry.isDirectory()) walk(full);
-			else if (/\.(js|hbs)$/.test(entry.name)) {
-				const rel = path.relative(ROOT, full);
-				if (rel.replace(/\\/g, "/") === "module/settings.js") continue;
-				out.push(fs.readFileSync(full, "utf8"));
+	const walk = (dir) => {
+		for (const entry of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+			const rel = `${dir}/${entry.name}`;
+			if (entry.isDirectory()) walk(rel);
+			else if (/\.(js|hbs)$/.test(entry.name) && rel !== "module/settings.js") {
+				out.push({ file: rel, src: fs.readFileSync(path.join(ROOT, rel), "utf8") });
 			}
 		}
-	})(ROOT);
+	};
+	walk("module");
+	walk("templates");
+	out.push({ file: "stonetop.js", src: fs.readFileSync(path.join(ROOT, "stonetop.js"), "utf8") });
 	return out;
 }
 
@@ -89,11 +96,22 @@ const HOVER_KEYS = hoverKeys();
 // literal at a time, so the scan above cannot see them: the register call names `part.setting`.
 // Imported rather than parsed back out of settings.js, since the table is a plain leaf module.
 const WEATHER_FX_KEYS = WEATHER_FX_PARTS.map(part => part.setting);
+const CORPUS = searchCorpus();
 
 describe("settings registration", () => {
 	it("parses the registrations at all (guards the scan itself)", () => {
 		expect(REGISTRATIONS.length).toBeGreaterThan(30);
 		expect(HOVER_KEYS.length).toBeGreaterThan(10);
+	});
+
+	// The dead-key check counts a key as read when any corpus file quotes it, so nothing in the
+	// corpus may repeat settings.js's own register calls. A register call found here means the
+	// corpus has taken in a copy of settings.js (the dist/ bundle is one), or a setting is being
+	// registered outside settings.js, where none of these checks can see it.
+	it("searches code that registers no settings itself (guards the dead-key scan)", () => {
+		expect(CORPUS.length, "the corpus found no source to search").toBeGreaterThan(100);
+		const registering = CORPUS.filter(({ src }) => /\.settings\.register\(/.test(src)).map(({ file }) => file);
+		expect(registering, `corpus files that register settings:\n  ${registering.join("\n  ")}`).toEqual([]);
 	});
 
 	it("localizes every setting shown in the config menu", () => {
@@ -168,7 +186,6 @@ describe("settings registration", () => {
 		// so it is now simply unregistered (Foundry ignores a stored value whose key it does
 		// not know); settings.js names the retired key in a comment so it is not reused.
 		const KEPT = new Set([]);
-		const corpus = searchCorpus();
 		// settings.js's own exported accessors (getSheetSize, getCrewSectionsOpen,
 		// …) name their key rather than going through getSetting, so the accessor region —
 		// everything after registerSettings() closes — counts as a reference too.
@@ -177,7 +194,7 @@ describe("settings registration", () => {
 		const unused = [];
 		for (const { key } of REGISTRATIONS) {
 			if (KEPT.has(key)) continue;
-			const referenced = corpus.some(src => src.includes(`"${key}"`)) || accessorRegion.includes(`"${key}"`);
+			const referenced = CORPUS.some(({ src }) => src.includes(`"${key}"`)) || accessorRegion.includes(`"${key}"`);
 			if (!referenced) unused.push(key);
 		}
 		expect(unused, `Registered settings nothing reads:\n  ${unused.join("\n  ")}`).toEqual([]);

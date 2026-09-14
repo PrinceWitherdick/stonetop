@@ -351,6 +351,33 @@ function make(dom, over = {}) {
 	return { handlers, bar: new RelmapTieBar(dom.root, handlers) };
 }
 
+describe("letting go of a line whose board has gone", () => {
+	// ⚠ THE ONE WAY OFF A LINE THAT WRITES NOTHING. The board this line was on has been rubbed out or
+	// hidden, and every write the bar could still make would land on whichever board survives.
+	it("throws away what was being written, puts the words back, and closes", () => {
+		const dom = barDom();
+		const { bar, handlers } = make(dom);
+		bar.open("e1");
+		dom.words.value = "were never a thing";
+		bar.discard();
+		expect(handlers.onField).not.toHaveBeenCalled();
+		expect(dom.words.value).toBe("were once a thing");
+		expect(dom.bar.hidden).toBe(true);
+		expect(bar.id).toBe("");
+	});
+
+	// Beside its mirror image, so that the test above cannot pass against a bar that writes nothing
+	// on the way off a line at all.
+	it("is not what closing does, which writes it", () => {
+		const dom = barDom();
+		const { bar, handlers } = make(dom);
+		bar.open("e1");
+		dom.words.value = "were never a thing";
+		bar.close();
+		expect(handlers.onField).toHaveBeenCalledWith("e1", { label: "were never a thing" });
+	});
+});
+
 describe("opening the bar on a line", () => {
 	let dom;
 	beforeEach(() => { dom = barDom(); });
@@ -1119,6 +1146,20 @@ describe("what is typed into the caption", () => {
 		}
 	});
 
+	// ⚠ AND FROM THE PRESSES, WHICH CORE DOES NOT COUNT AS FOCUS. A button outside a form is no focus to
+	// core's KeyboardManager, so Delete on the trash went on to its own binding and deleted the GM's
+	// selected tokens, and the arrows on a trigger panned the scene behind the window.
+	it("keeps its keys away from the scene from the presses as well", () => {
+		const { bar } = make(dom);
+		bar.open("e1");
+		for (const target of [dom.rub, dom.trigger, dom.more]) {
+			for (const key of ["Delete", "ArrowLeft"]) {
+				const ev = dom.bar.emit("keydown", target, { key });
+				expect(ev.propagationStopped).toBe(true);
+			}
+		}
+	});
+
 	// Clicking straight from one line to another must not throw the sentence away silently.
 	it("writes what was typed before moving to another line", () => {
 		const { bar, handlers } = make(dom);
@@ -1623,6 +1664,19 @@ describe("a repaint underneath the bar", () => {
 		expect(dom.words.value).toBe("half a sen");
 	});
 
+	// ⚠ A COLOUR BEING CHOSEN IS NOT PUT AWAY BY SOMEBODY ELSE'S EDIT. The line is drawn in one of the
+	// named colours, for which the paint on its own says "no picker": asked again by a repaint, it hid
+	// the picker the reader had just opened with the `+`, focus and all.
+	it("leaves standing the picker the reader has just opened", () => {
+		const { bar } = make(dom);
+		bar.open("e1");
+		openPop(dom);
+		dom.more.emit("click", dom.more);
+		expect(dom.picker.hidden).toBe(false);
+		bar.refresh();
+		expect(dom.picker.hidden).toBe(false);
+	});
+
 	it("lets go of a line somebody else has rubbed out", () => {
 		const gone = vi.fn().mockReturnValueOnce(structuredClone(TIE)).mockReturnValue(null);
 		const { bar } = make(dom, { tieAt: gone });
@@ -2073,5 +2127,51 @@ describe("how big the writing on a line is", () => {
 		expect(dom.sizePop.hidden).toBe(true);
 		chooseSize(dom, 18);
 		expect(handlers.onField).not.toHaveBeenCalled();
+	});
+});
+
+// ⚠ THE CAPTION CAN BE DRAGGED ALONG ITS LINE while this bar is floating over it, and the bar is
+// chrome in the viewport rather than a thing on the board — so nothing moves it unless it is told
+// to. Left behind, it points at a patch of paper the words have left, and its arrow still says it
+// belongs to that line.
+describe("a caption slid out from under the bar", () => {
+	let dom;
+	beforeEach(() => {
+		dom = barDom();
+		dom.view.rect = { left: 0, top: 0, width: 800, height: 600 };
+		dom.bar.rect = { left: 0, top: 0, width: 400, height: 30 };
+	});
+
+	it("moves the bar to where the words have got to", () => {
+		const { bar } = make(dom);
+		bar.open("e1");
+		expect(dom.bar.style.left).toBe("300px");
+		bar.slideTo("e1", { left: 30, top: 40 });
+		// 30% of a 1000px board is 300, less half the bar's 400.
+		expect(dom.bar.style.left).toBe("100px");
+	});
+
+	// ⚠ AND THE ANCHOR IS KEPT, not merely used for one placement: the reader pans the board with
+	// the bar open all the time, and a pan re-places it from the anchor it holds.
+	it("keeps the new spot, so a pan afterwards does not put it back", () => {
+		const { bar } = make(dom);
+		bar.open("e1");
+		bar.slideTo("e1", { left: 30, top: 40 });
+		bar.place();
+		expect(dom.bar.style.left).toBe("100px");
+	});
+
+	// A reader can take hold of one line and then drag the words of another. The bar belongs to the
+	// line it was opened on, and a slide somewhere else on the board is not about it.
+	it("ignores a slide on a line it is not holding", () => {
+		const { bar } = make(dom);
+		bar.open("e1");
+		bar.slideTo("e2", { left: 30, top: 40 });
+		expect(dom.bar.style.left).toBe("300px");
+	});
+
+	it("has nothing to do when no line is held at all", () => {
+		const { bar } = make(dom);
+		expect(() => bar.slideTo("e1", { left: 30, top: 40 })).not.toThrow();
 	});
 });

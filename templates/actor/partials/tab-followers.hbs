@@ -11,7 +11,7 @@
 	      until the granting move is owned (exceptionalMet); in view mode it shows
 	      only once earned. --}}
 	{{#*inline "stonetopExceptionalChip"}}
-	{{#if exceptionalAvailable}}{{#if edit.stats}}<button type="button" class="stonetop-follower-tag stonetop-follower-tag--exceptional stonetop-exceptional-toggle{{#if exceptional}} is-selected{{/if}}{{#unless exceptionalMet}} is-locked{{/unless}}" data-ftype="{{ftype}}" data-slug="{{slug}}" data-met="{{exceptionalMet}}" data-hint="{{exceptionalHint}}"{{#unless exceptionalMet}} data-tooltip="{{exceptionalHint}}" data-tooltip-direction="UP"{{/unless}}>exceptional{{#unless exceptionalMet}} <i class="fas fa-lock"></i>{{/unless}}</button>{{else}}{{#if exceptional}}<span class="stonetop-follower-tag stonetop-follower-tag--exceptional">exceptional</span>{{/if}}{{/if}}{{/if}}
+	{{#if exceptionalAvailable}}{{#if edit.stats}}<button type="button" class="stonetop-follower-tag stonetop-follower-tag--exceptional stonetop-exceptional-toggle{{#if exceptional}} is-selected{{/if}}{{#unless exceptionalMet}} is-locked{{/unless}}" data-ftype="{{ftype}}" data-slug="{{slug}}" data-met="{{exceptionalMet}}" data-hint="{{exceptionalHint}}"{{#unless exceptionalMet}} data-tooltip="{{exceptionalHint}}" data-tooltip-direction="UP"{{/unless}}><span class="stonetop-chip-text">exceptional</span>{{#unless exceptionalMet}} <i class="fas fa-lock"></i>{{/unless}}</button>{{else}}{{#if exceptional}}<span class="stonetop-follower-tag stonetop-follower-tag--exceptional">exceptional</span>{{/if}}{{/if}}{{/if}}
 	{{/inline}}
 
 	{{!-- One roster row's face: the crew's named individuals and anonymous members, and the
@@ -59,10 +59,74 @@
 	</button>
 	{{/inline}}
 
+	{{!-- ═══ Fighting in numbers: ONE ROW PER RULE ══════════════════════════════
+	      The book pays a group for having more bodies in two different ways, and
+	      they agree only against a single foe — so neither row may stand in for the
+	      other. Each names its rule, takes its own counts, and pays what that rule
+	      pays: the swarm rule is damage only; the group-vs-group abstraction is
+	      damage AND armor (applied by hand — nothing auto-applies armor). The
+	      arithmetic for both lives in data/follower-build.js. Shared by the crew and
+	      every custom group so the two cards can't drift. --}}
+	{{#*inline "stonetopFightingInNumbers"}}
+	<div class="stonetop-group-fight-numbers-row" data-rule="swarm">
+		<span class="stonetop-numbers-label"
+		      data-tooltip="Several of them on a single foe: roll the move once (likely with advantage) and roll ONE attacker's damage, +1 per each additional attacker. Damage only; this rule grants no armor."
+		      data-tooltip-direction="UP">Swarm one foe:</span>
+		<input class="stonetop-swarm-count" data-numbers-count="attackers" type="number" min="1" value="{{#if swarmCount}}{{swarmCount}}{{else}}1{{/if}}">
+		<span class="stonetop-outnumber-vs">attackers</span>
+		<span class="stonetop-outnumber-result" data-numbers-result>{{swarmLabel}}</span>
+		{{#if damageRoll}}
+		<a class="rollable stonetop-follower-damage-roll stonetop-numbers-dmg-roll" data-numbers-roll
+		   data-roll="{{swarmRoll}}" data-base-roll="{{damageRoll}}"
+		   data-follower-type="{{ftypeAttr}}" data-slug="{{slug}}"
+		   data-follower-name="{{#if name}}{{name}}{{else}}{{fallbackName}}{{/if}}"
+		   data-follower-pronoun="they" data-damage-form="{{damageForm}}"
+		   title="Roll the swarm's damage against that one foe">
+			<i class="fas fa-dice-d6"></i>
+		</a>
+		<span class="stonetop-group-fight-dmg-label" data-numbers-formula>{{swarmRoll}}</span>
+		{{/if}}
+	</div>
+	<div class="stonetop-group-fight-numbers-row" data-rule="exchange">
+		<span class="stonetop-numbers-label"
+		      data-tooltip="Abstracting group exchanges (optional): each side fights as ONE combatant, with the HP, armor and damage of a single member. The larger side gets +1 damage and +1 armor for each whole multiple it outnumbers the other by (3:1 → +2). Damage is casualties; at 0 HP the group is routed."
+		      data-tooltip-direction="UP">Group vs group:</span>
+		<input class="stonetop-outnumber-yours" data-numbers-count="yours" type="number" min="1"
+		       value="{{#if memberCount}}{{memberCount}}{{else}}1{{/if}}">
+		<span class="stonetop-outnumber-vs">vs</span>
+		<input class="stonetop-outnumber-theirs" data-numbers-count="theirs" type="number" min="1" value="1">
+		<span class="stonetop-outnumber-result" data-numbers-result>{{exchangeLabel}}</span>
+		{{#if damageRoll}}
+		<a class="rollable stonetop-follower-damage-roll stonetop-numbers-dmg-roll" data-numbers-roll
+		   data-roll="{{exchangeRoll}}" data-base-roll="{{damageRoll}}"
+		   data-follower-type="{{ftypeAttr}}" data-slug="{{slug}}"
+		   data-follower-name="{{#if name}}{{name}}{{else}}{{fallbackName}}{{/if}}"
+		   data-follower-pronoun="they" data-damage-form="{{damageForm}}"
+		   title="Roll the group's damage in an abstracted exchange">
+			<i class="fas fa-dice-d6"></i>
+		</a>
+		<span class="stonetop-group-fight-dmg-label" data-numbers-formula>{{exchangeRoll}}</span>
+		{{/if}}
+	</div>
+	{{/inline}}
+
 	{{!-- ═══ Shared follower-card body (rulebook "Follower" card layout) ═══════
 	      Rendered for every follower type. Type-specific extras (crew inventory,
 	      individuals, group fight) are appended by the caller inside the same
-	      .stonetop-follower-card wrapper. --}}
+	      .stonetop-follower-card wrapper.
+
+	      EVERY CALL SITE BELOW MUST KEEP `{{> stonetopFollowerCardBody}}` ON THE SAME
+	      LINE AS THE CARD'S OPENING <div>, never alone on an indented line of its own.
+	      Handlebars re-indents a STANDALONE partial call's whole rendered output by the
+	      call's own leading whitespace — and it does that to the output STRING, so the
+	      indent lands inside interpolated values too, not just between tags. Everywhere
+	      in this card that is invisible (HTML collapses it) except inside a <textarea>,
+	      where whitespace is content: the Moves and Notes fields came back with two tabs
+	      in front of every line after the first. Worse, the change handler saves
+	      `el.value` (trimmed only at the ends), so a single edit wrote those tabs into
+	      the actor and the next render added two more — indentation that grew on each
+	      pass. Joining the call to the previous line makes it non-standalone, which
+	      turns the re-indent off. --}}
 	{{#*inline "stonetopFollowerCardBody"}}
 	{{!-- One card-level edit pencil (top-right corner, may overlay the HP box)
 	      makes the whole body editable at once. The crew Roster keeps its own
@@ -151,7 +215,7 @@
 				</div>
 				{{/if}}{{/if}}
 				<span class="stonetop-follower-type">{{typeLabel}}</span>
-				{{#if dead}}<span class="stonetop-follower-dead-badge"><i class="fas fa-skull-crossbones"></i> Fallen</span>{{/if}}
+				{{#if dead}}<span class="stonetop-follower-dead-badge"><i class="fas fa-skull-crossbones"></i> <span class="stonetop-chip-text">Fallen</span></span>{{/if}}
 			</div>
 			<div class="stonetop-follower-hp-octagon">
 				<span class="stonetop-follower-hp-octagon-label">HP</span>
@@ -242,6 +306,23 @@
 			</div>
 			{{else}}<span class="stonetop-follower-fill-line"></span>{{/if}}
 			{{/if}}
+			{{!-- The card's own fold control. It clamps everything below the vitals band away
+			      (the Details fold, the crew's sections, the Order row) and leaves the card as
+			      its header strip plus its live numbers — which is exactly the card a parked
+			      follower wants. It rides the END of the tags row rather than the band: down in
+			      the band it had to wrap onto a line of its own whenever the Readiness row filled
+			      the one it was on, which on a large UI font is always, leaving 40px of empty
+			      card under a folded follower. Up here the row exists either way and has room to
+			      spare at its right, so the control costs no height at all — and it sits in the
+			      part of the card that never folds, which is where a control that unfolds it
+			      belongs. Never drawn under the pencil, where folding would hide the fields
+			      being edited. --}}
+			{{#unless edit.card}}
+			<a class="stonetop-follower-card-fold" role="button" tabindex="0"
+			   aria-expanded="{{#if cardFolded}}false{{else}}true{{/if}}"
+			   aria-label="Fold this follower down to its header"
+			   data-tooltip="Fold this follower down to its header" data-tooltip-direction="UP"><i class="fas fa-caret-down"></i></a>
+			{{/unless}}
 		</div>
 	</div>
 
@@ -252,8 +333,17 @@
 	<div class="stonetop-follower-body"{{#if pipSlots}} style="--st-follower-pip-slots: {{pipSlots}};"{{/if}}>
 		{{!-- Stat block: Max HP through Cost/Loyalty, edited as one section. The
 		      exceptional tag lives up in the chips row, not here. --}}
-		<div class="stonetop-follower-stats-section">
+		{{!-- The vitals band: what a fight touches — Armor, Damage, any ammo track, Loyalty,
+		      Readiness. Four short label/value pairs that each used to own a full-width line;
+		      reading the card they flow as one wrapping band instead, and only under the
+		      card's pencil do they fall back to a stacked column, where every one of them
+		      grows an input and needs the room. The class stays .stonetop-follower-stats-section
+		      so the section keeps its gap and its pencil anchor; .stonetop-follower-vitals is
+		      what the band layout hangs off (see the CSS, which keys off .is-editing).
 
+		      Everything that does NOT change in a fight — instinct, cost, moves, gear, notes —
+		      moved into the Details fold below it. --}}
+		<div class="stonetop-follower-stats-section stonetop-follower-vitals">
 		{{!-- Armor (Max. HP lives in the octagonal HP box up in the header). Editable
 		      in edit mode for every follower type — stored as a stat override. --}}
 		<div class="stonetop-follower-stat-row">
@@ -262,7 +352,12 @@
 				{{#if edit.stats}}
 				<div class="stonetop-follower-armor-edit">
 					<input class="stonetop-follower-stat-input stonetop-follower-stat-input--num" type="number" min="0" data-ftype="{{ftype}}" data-slug="{{slug}}" data-field="armor" value="{{armorInput}}">
-					<input class="stonetop-follower-text stonetop-follower-armor-source-input" type="text" data-ftype="{{ftype}}" data-slug="{{slug}}" data-field="armorSource" value="{{armorSource}}" placeholder="from… (leather, shield…)" data-tooltip="Where their armor comes from: leather, a shield, thick hides. Optional, and it never changes the number." data-tooltip-direction="UP">
+					{{!-- stonetop-follower-stat-input, not -text: this is an inline stat value on the
+					      Armor line, so it wears the same fill line as Damage / Instinct / Cost below
+					      it rather than the boxed skin the multi-line Moves / Notes fields use. Both
+					      classes are in the change handler's selector list, so the swap is
+					      style-only. --}}
+					<input class="stonetop-follower-stat-input stonetop-follower-armor-source-input" type="text" data-ftype="{{ftype}}" data-slug="{{slug}}" data-field="armorSource" value="{{armorSource}}" placeholder="from… (leather, shield…)" data-tooltip="Where their armor comes from: leather, a shield, thick hides. Optional, and it never changes the number." data-tooltip-direction="UP">
 				</div>
 				{{else}}
 				<span class="stonetop-follower-field-value">{{armor}}{{#if armorSource}} <span class="stonetop-follower-armor-source">({{armorSource}})</span>{{/if}}</span>
@@ -307,71 +402,7 @@
 		</div>
 		{{/if}}
 
-		{{!-- Instinct --}}
-		{{#if (or instinct edit.stats)}}
-		<div class="stonetop-follower-field-row{{#if (and edit.stats instinctOptions)}} stonetop-follower-field-row--block{{/if}}">
-			<span class="stonetop-follower-field-label">Instinct</span>
-			{{#if edit.stats}}
-			{{#if instinctOptions}}
-			<div class="stonetop-follower-field-value stonetop-follower-option-list">
-				{{#each instinctOptions}}
-				<label class="stonetop-follower-option{{#if selected}} is-selected{{/if}}">
-					<input type="radio" class="stonetop-crew-instinct-option" value="{{value}}" {{#if selected}}checked{{/if}}>
-					<span>{{value}}</span>
-				</label>
-				{{/each}}
-				<input type="text" class="stonetop-follower-text stonetop-crew-instinct-custom" value="{{instinctCustom}}" placeholder="or write your own…">
-			</div>
-			{{else}}
-			<input class="stonetop-follower-stat-input" type="text" data-ftype="{{ftype}}" data-slug="{{slug}}" data-field="instinct" value="{{instinct}}" placeholder="instinct…">
-			{{/if}}
-			{{else}}
-			<span class="stonetop-follower-field-value">{{instinct}}</span>
-			{{/if}}
-		</div>
-		{{/if}}
-
-		{{!-- Moves (hidden when empty outside edit mode) --}}
-		{{#if (or movesLines.length edit.moves)}}
-		<div class="stonetop-follower-field-row stonetop-follower-field-row--block">
-			<span class="stonetop-follower-field-label">Moves</span>
-			<div class="stonetop-follower-field-value stonetop-follower-moves">
-				{{#if edit.moves}}
-				<textarea class="stonetop-follower-text stonetop-follower-moves-input" data-ftype="{{ftype}}" data-slug="{{slug}}" data-field="moves" rows="3" placeholder="one move per line…">{{moves}}</textarea>
-				{{else}}
-				<ul class="stonetop-follower-moves-list">{{#each movesLines}}<li>{{this}}</li>{{/each}}</ul>
-				{{/if}}
-			</div>
-		</div>
-		{{/if}}
-
-		{{!-- Cost — its own fill line now (Loyalty drops to the row below), so it
-		      reads like Armor / Damage / Instinct above. Crew shows its playbook
-		      cost list as radio options in edit mode. --}}
-		<div class="stonetop-follower-stat-row">
-			<div class="stonetop-follower-statline{{#if (and edit.stats costOptions)}} stonetop-follower-statline--options{{/if}}">
-				<span class="stonetop-follower-field-label">Cost</span>
-				{{#if edit.stats}}
-				{{#if costOptions}}
-				<div class="stonetop-follower-field-value stonetop-follower-option-list">
-					{{#each costOptions}}
-					<label class="stonetop-follower-option{{#if selected}} is-selected{{/if}}">
-						<input type="radio" class="stonetop-crew-cost-option" value="{{value}}" {{#if selected}}checked{{/if}}>
-						<span>{{value}}</span>
-					</label>
-					{{/each}}
-					<input type="text" class="stonetop-follower-text stonetop-crew-cost-custom" value="{{costCustom}}" placeholder="or write your own…">
-				</div>
-				{{else}}
-				<input class="stonetop-follower-stat-input" type="text" data-ftype="{{ftype}}" data-slug="{{slug}}" data-field="cost" value="{{cost}}" placeholder="cost…">
-				{{/if}}
-				{{else}}
-				<span class="stonetop-follower-field-value">{{#if cost}}{{cost}}{{else}}—{{/if}}</span>
-				{{/if}}
-			</div>
-		</div>
-
-		{{!-- Loyalty — its own line below Cost (mirrors the Readiness row). Always
+		{{!-- Loyalty, a row of the vitals band beside Readiness, which it mirrors. Always
 		      click-editable, even outside edit mode: a single click fills/clears up
 		      to the pip (handler keys off the data-loyalty ftype). --}}
 		{{#if loyalty}}
@@ -396,7 +427,6 @@
 			{{/unless}}
 		</div>
 		{{/if}}
-		</div>{{!-- /stonetop-follower-stats-section --}}
 
 		{{!-- Readiness: held when they Defend; spend to suffer an attack for a ward or
 		      draw all attention (p.469). A group holds ONE common pool for the whole
@@ -418,56 +448,7 @@
 		</div>
 		<div class="stonetop-follower-readiness-note">held when {{#if readinessIsPool}}the crew Defends{{else}}they Defend{{/if}}; spend to suffer an attack for a ward or draw all attention</div>
 		{{/unless}}{{/if}}
-
-		{{!-- Butcher (livestock) --}}
-		{{#if butcher}}
-		<div class="stonetop-follower-field-row">
-			<span class="stonetop-follower-field-label">Butcher</span>
-			<span class="stonetop-follower-field-value">{{butcher}}</span>
-		</div>
-		{{/if}}
-
-		{{!-- Gear --}}
-		{{#if showGear}}
-		<div class="stonetop-follower-field-row stonetop-follower-field-row--block">
-			<span class="stonetop-follower-field-label">Gear</span>
-			<div class="stonetop-follower-field-value">
-				<div class="stonetop-follower-gear-list">
-					{{#each gear}}
-					<div class="stonetop-follower-gear-item{{#if checked}} is-checked{{/if}}">
-						{{#if ../edit.gear}}
-						<input type="checkbox" class="stonetop-follower-gear-check" data-ftype="{{../ftype}}" data-slug="{{../slug}}" data-index="{{index}}" {{#if checked}}checked{{/if}}>
-						<input type="text" class="stonetop-follower-gear-label" data-ftype="{{../ftype}}" data-slug="{{../slug}}" data-index="{{index}}" value="{{label}}" placeholder="gear…">
-						<button type="button" class="stonetop-follower-gear-remove stonetop-inline-btn stonetop-inline-btn--danger" data-ftype="{{../ftype}}" data-slug="{{../slug}}" data-index="{{index}}" title="Remove"><i class="fas fa-times"></i></button>
-						{{else}}
-						<label class="stonetop-follower-gear-toggle">
-							<input type="checkbox" class="stonetop-follower-gear-check" data-ftype="{{../ftype}}" data-slug="{{../slug}}" data-index="{{index}}" {{#if checked}}checked{{/if}}>
-							<span class="stonetop-follower-gear-name">{{label}}</span>
-						</label>
-						{{/if}}
-					</div>
-					{{/each}}
-					{{#if edit.gear}}
-					<button type="button" class="stonetop-follower-gear-add stonetop-inline-btn" data-ftype="{{ftype}}" data-slug="{{slug}}"><i class="fas fa-plus"></i> Add gear</button>
-					{{else}}{{#unless gear.length}}<span class="stonetop-follower-empty">—</span>{{/unless}}{{/if}}
-				</div>
-			</div>
-		</div>
-		{{/if}}
-
-		{{!-- Notes (hidden when empty outside edit mode) --}}
-		{{#if (or notes edit.notes)}}
-		<div class="stonetop-follower-field-row stonetop-follower-field-row--block">
-			<span class="stonetop-follower-field-label">Notes</span>
-			<div class="stonetop-follower-field-value">
-				{{#if edit.notes}}
-				<textarea class="stonetop-follower-text" data-ftype="{{ftype}}" data-slug="{{slug}}" data-field="notes" rows="2" placeholder="notes…">{{notes}}</textarea>
-				{{else}}
-				<div class="stonetop-follower-notes-text">{{notes}}</div>
-				{{/if}}
-			</div>
-		</div>
-		{{/if}}
+		</div>{{!-- /stonetop-follower-stats-section --}}
 		{{!-- Order Followers (p.462): direct them to make a move. View mode only —
 		      in edit mode you're configuring the follower, not playing them. Crew
 		      attacks also have the Group Fight buttons; this covers every other move
@@ -479,12 +460,142 @@
 			{{#if canHaveNeed}}
 			<button type="button" class="stonetop-follower-have-need stonetop-inline-btn"
 			        data-ftype="{{ftype}}" data-slug="{{slug}}" data-follower-name="{{orderName}}"
-			        data-tooltip="Have what they need: they produce a needed item; adds it to their gear (p.472)." data-tooltip-direction="UP">
+			        data-tooltip="{{#if haveNeedPicksMember}}Have what they need: ONE member produces a needed item, not all of them (p.472).{{else}}Have what they need: they produce a needed item, and it is added to their gear (p.326, via Order Followers p.462).{{/if}}" data-tooltip-direction="UP">
 				<i class="fas fa-sack"></i> Have what they need
 			</button>
 			{{/if}}
 		</div>
 		{{/unless}}{{/if}}
+
+		{{!-- Details: the reference half of the stat block, folded away by default. Its
+		      summary is the word and the caret, nothing else: unlike the crew's sections,
+		      whose summaries carry a number worth reading shut, a list of which reference
+		      fields are filled in only pushed the caret onto a second line. Forced open
+		      under the card's pencil (a pencil must never open onto a hidden field), and
+		      marked data-forced-open while only the pencil holds it open, so the toggle
+		      handler does not record the pencil's doing as the player's choice. Absent
+		      entirely when the card carries none of these fields and isn't being edited. --}}
+		{{#if hasDetails}}
+		<details class="stonetop-follower-section stonetop-follower-details-fold stonetop-crew-collapsible" data-section="details:{{foldId}}"{{#if detailsOpen}} open{{/if}}{{#if detailsForced}} data-forced-open{{/if}}>
+			<summary class="stonetop-follower-section-heading stonetop-follower-section-summary">Details
+				<i class="fas fa-caret-down stonetop-follower-section-caret"></i>
+			</summary>
+			<div class="stonetop-follower-details-body">
+			{{!-- Instinct --}}
+			{{#if (or instinct edit.stats)}}
+			<div class="stonetop-follower-field-row{{#if (and edit.stats instinctOptions)}} stonetop-follower-field-row--block{{/if}}">
+				<span class="stonetop-follower-field-label">Instinct</span>
+				{{#if edit.stats}}
+				{{#if instinctOptions}}
+				<div class="stonetop-follower-field-value stonetop-follower-option-list">
+					{{#each instinctOptions}}
+					<label class="stonetop-follower-option{{#if selected}} is-selected{{/if}}">
+						<input type="radio" class="stonetop-crew-instinct-option" value="{{value}}" {{#if selected}}checked{{/if}}>
+						<span>{{value}}</span>
+					</label>
+					{{/each}}
+					<input type="text" class="stonetop-follower-text stonetop-crew-instinct-custom" value="{{instinctCustom}}" placeholder="or write your own…">
+				</div>
+				{{else}}
+				<input class="stonetop-follower-stat-input" type="text" data-ftype="{{ftype}}" data-slug="{{slug}}" data-field="instinct" value="{{instinct}}" placeholder="instinct…">
+				{{/if}}
+				{{else}}
+				<span class="stonetop-follower-field-value">{{instinct}}</span>
+				{{/if}}
+			</div>
+			{{/if}}
+
+			{{!-- Moves (hidden when empty outside edit mode) --}}
+			{{#if (or movesLines.length edit.moves)}}
+			<div class="stonetop-follower-field-row stonetop-follower-field-row--block">
+				<span class="stonetop-follower-field-label">Moves</span>
+				<div class="stonetop-follower-field-value stonetop-follower-moves">
+					{{#if edit.moves}}
+					<textarea class="stonetop-follower-text stonetop-follower-moves-input" data-ftype="{{ftype}}" data-slug="{{slug}}" data-field="moves" rows="3" placeholder="one move per line…">{{moves}}</textarea>
+					{{else}}
+					<ul class="stonetop-follower-moves-list">{{#each movesLines}}<li>{{this}}</li>{{/each}}</ul>
+					{{/if}}
+				</div>
+			</div>
+			{{/if}}
+
+			{{!-- Cost, a fill line of its own in the Details fold that reads like Instinct
+			      above it. Crew shows its playbook cost list as radio options in edit mode. --}}
+			<div class="stonetop-follower-stat-row">
+				<div class="stonetop-follower-statline{{#if (and edit.stats costOptions)}} stonetop-follower-statline--options{{/if}}">
+					<span class="stonetop-follower-field-label">Cost</span>
+					{{#if edit.stats}}
+					{{#if costOptions}}
+					<div class="stonetop-follower-field-value stonetop-follower-option-list">
+						{{#each costOptions}}
+						<label class="stonetop-follower-option{{#if selected}} is-selected{{/if}}">
+							<input type="radio" class="stonetop-crew-cost-option" value="{{value}}" {{#if selected}}checked{{/if}}>
+							<span>{{value}}</span>
+						</label>
+						{{/each}}
+						<input type="text" class="stonetop-follower-text stonetop-crew-cost-custom" value="{{costCustom}}" placeholder="or write your own…">
+					</div>
+					{{else}}
+					<input class="stonetop-follower-stat-input" type="text" data-ftype="{{ftype}}" data-slug="{{slug}}" data-field="cost" value="{{cost}}" placeholder="cost…">
+					{{/if}}
+					{{else}}
+					<span class="stonetop-follower-field-value">{{#if cost}}{{cost}}{{else}}—{{/if}}</span>
+					{{/if}}
+				</div>
+			</div>
+
+			{{!-- Butcher (livestock) --}}
+			{{#if butcher}}
+			<div class="stonetop-follower-field-row">
+				<span class="stonetop-follower-field-label">Butcher</span>
+				<span class="stonetop-follower-field-value">{{butcher}}</span>
+			</div>
+			{{/if}}
+
+			{{!-- Gear --}}
+			{{#if showGear}}
+			<div class="stonetop-follower-field-row stonetop-follower-field-row--block">
+				<span class="stonetop-follower-field-label">Gear</span>
+				<div class="stonetop-follower-field-value">
+					<div class="stonetop-follower-gear-list">
+						{{#each gear}}
+						<div class="stonetop-follower-gear-item{{#if checked}} is-checked{{/if}}">
+							{{#if ../edit.gear}}
+							<input type="checkbox" class="stonetop-follower-gear-check" data-ftype="{{../ftype}}" data-slug="{{../slug}}" data-index="{{index}}" {{#if checked}}checked{{/if}}>
+							<input type="text" class="stonetop-follower-gear-label" data-ftype="{{../ftype}}" data-slug="{{../slug}}" data-index="{{index}}" value="{{label}}" placeholder="gear…">
+							<button type="button" class="stonetop-follower-gear-remove stonetop-inline-btn stonetop-inline-btn--danger" data-ftype="{{../ftype}}" data-slug="{{../slug}}" data-index="{{index}}" title="Remove"><i class="fas fa-times"></i></button>
+							{{else}}
+							<label class="stonetop-follower-gear-toggle">
+								<input type="checkbox" class="stonetop-follower-gear-check" data-ftype="{{../ftype}}" data-slug="{{../slug}}" data-index="{{index}}" {{#if checked}}checked{{/if}}>
+								<span class="stonetop-follower-gear-name">{{label}}</span>
+							</label>
+							{{/if}}
+						</div>
+						{{/each}}
+						{{#if edit.gear}}
+						<button type="button" class="stonetop-follower-gear-add stonetop-inline-btn" data-ftype="{{ftype}}" data-slug="{{slug}}"><i class="fas fa-plus"></i> Add gear</button>
+						{{else}}{{#unless gear.length}}<span class="stonetop-follower-empty">—</span>{{/unless}}{{/if}}
+					</div>
+				</div>
+			</div>
+			{{/if}}
+
+			{{!-- Notes (hidden when empty outside edit mode) --}}
+			{{#if (or notes edit.notes)}}
+			<div class="stonetop-follower-field-row stonetop-follower-field-row--block">
+				<span class="stonetop-follower-field-label">Notes</span>
+				<div class="stonetop-follower-field-value">
+					{{#if edit.notes}}
+					<textarea class="stonetop-follower-text" data-ftype="{{ftype}}" data-slug="{{slug}}" data-field="notes" rows="2" placeholder="notes…">{{notes}}</textarea>
+					{{else}}
+					<div class="stonetop-follower-notes-text">{{notes}}</div>
+					{{/if}}
+				</div>
+			</div>
+			{{/if}}
+			</div>
+		</details>
+		{{/if}}
 	</div>
 	{{/inline}}
 
@@ -503,8 +614,7 @@
 	{{!-- ── Animal Companion (Ranger) ──────────────────────────── --}}
 	{{#if stonetop.followers.animalCompanion}}
 	{{#with stonetop.followers.animalCompanion}}
-	<div class="stonetop-follower-card" draggable="true" data-ftype="{{ftype}}" data-slug="{{slug}}">
-		{{> stonetopFollowerCardBody}}
+	<div class="stonetop-follower-card{{#if edit.card}} is-editing{{/if}}{{#if cardFolded}} is-collapsed{{/if}}" draggable="true" data-ftype="{{ftype}}" data-slug="{{slug}}" data-section="{{foldId}}">{{> stonetopFollowerCardBody}}
 	</div>
 	{{/with}}
 	{{/if}}
@@ -512,8 +622,7 @@
 	{{!-- ── Crew (Marshal) ────────────────────────────────────── --}}
 	{{#if stonetop.followers.crew}}
 	{{#with stonetop.followers.crew}}
-	<div class="stonetop-follower-card stonetop-follower-card--crew" draggable="true" data-ftype="{{ftype}}" data-slug="{{slug}}">
-		{{> stonetopFollowerCardBody}}
+	<div class="stonetop-follower-card stonetop-follower-card--crew{{#if edit.card}} is-editing{{/if}}{{#if cardFolded}} is-collapsed{{/if}}" draggable="true" data-ftype="{{ftype}}" data-slug="{{slug}}" data-section="{{foldId}}">{{> stonetopFollowerCardBody}}
 
 		{{!-- Inventory. The pips here (and the Supplies pips below) are deliberately NOT
 		      under the card's pencil: what the crew is carrying and how much of their
@@ -521,7 +630,11 @@
 		      sheet is editable — same as a follower's own gear ticks. --}}
 		{{#if gear.length}}
 		<details class="stonetop-follower-section stonetop-crew-collapsible" data-section="inventory" {{#if sectionsOpen.inventory}}open{{/if}}>
-			<summary class="stonetop-follower-section-heading stonetop-follower-section-summary">Inventory <span class="stonetop-follower-section-subtitle">3 ✓ or fewer is a light load; 4–6 ✓ is a normal load; 7–9 ✓ is a heavy load.</span></summary>
+			<summary class="stonetop-follower-section-heading stonetop-follower-section-summary">Inventory
+				<span class="stonetop-follower-section-state">{{inventorySummary}}</span>
+				<span class="stonetop-follower-section-subtitle">3 ✓ or fewer is a light load; 4–6 ✓ is a normal load; 7–9 ✓ is a heavy load.</span>
+				<i class="fas fa-caret-down stonetop-follower-section-caret"></i>
+			</summary>
 			<div class="stonetop-crew-gear-list">
 				{{#each gear}}
 				<label class="stonetop-crew-gear-item{{#if checked}} is-checked{{/if}}">
@@ -535,12 +648,41 @@
 				</label>
 				{{/each}}
 			</div>
+			{{!-- Have What They Need, run for ONE member (p.472): what they produced is theirs,
+			      not the whole crew's, so it sits in its own list under the shared kit rather than
+			      as another diamond above. The label carries whose it is, the way the book writes
+			      it ("◇ ◇ litter (Lowri)", p.473), and stays hand-editable because keeping track
+			      of this is the player's job (p.472), on the same terms as every other follower's
+			      gear: renaming and removing sit under the card's pencil, and reading the card
+			      leaves only the tick, so a stray click cannot delete an item. --}}
+			{{#if produced.length}}
+			<div class="stonetop-crew-produced">
+				<p class="stonetop-follower-section-heading">Carried by individuals</p>
+				<div class="stonetop-follower-gear-list">
+					{{#each produced}}
+					<div class="stonetop-follower-gear-item{{#if checked}} is-checked{{/if}}">
+						{{#if ../edit.gear}}
+						<input type="checkbox" class="stonetop-follower-gear-check" data-ftype="crew" data-slug="" data-index="{{index}}" {{#if checked}}checked{{/if}}>
+						<input type="text" class="stonetop-follower-gear-label" data-ftype="crew" data-slug="" data-index="{{index}}" value="{{label}}" placeholder="gear…">
+						<button type="button" class="stonetop-follower-gear-remove stonetop-inline-btn stonetop-inline-btn--danger" data-ftype="crew" data-slug="" data-index="{{index}}" title="Remove"><i class="fas fa-times"></i></button>
+						{{else}}
+						<label class="stonetop-follower-gear-toggle">
+							<input type="checkbox" class="stonetop-follower-gear-check" data-ftype="crew" data-slug="" data-index="{{index}}" {{#if checked}}checked{{/if}}>
+							<span class="stonetop-follower-gear-name">{{label}}</span>
+						</label>
+						{{/if}}
+					</div>
+					{{/each}}
+				</div>
+			</div>
+			{{/if}}
 			<div class="stonetop-crew-supplies-section">
 				<p class="stonetop-follower-section-heading">Supplies
-					{{!-- Outfit the crew (p.472): members Outfit with the same gear — restock
-					      all their Supplies to full. --}}
-					<button type="button" class="stonetop-crew-outfit stonetop-inline-btn" data-tooltip="Outfit the crew: restock every member's Supplies to full (p.472)." data-tooltip-direction="UP">
-						<i class="fas fa-sack"></i> Outfit crew
+					{{!-- One full ◇ of supplies per member. Named "Restock", not "Outfit": Outfit
+					      (p.306) sets a follower's whole load, and the crew's load is the diamond
+					      list above — this only refills the row of Supplies below. --}}
+					<button type="button" class="stonetop-crew-restock stonetop-inline-btn" data-tooltip="Restock supplies: every member carries a full ◇ of Supplies, worth 4+Prosperity uses (p.88)." data-tooltip-direction="UP">
+						<i class="fas fa-sack"></i> Restock supplies
 					</button>
 				</p>
 				<div class="stonetop-crew-supplies-grid">
@@ -562,7 +704,9 @@
 		      traits, the rest are anonymous members (NPCs & Followers p.470–472). --}}
 		<details class="stonetop-follower-section stonetop-crew-collapsible" data-section="roster" {{#if sectionsOpen.roster}}open{{/if}}>
 			<summary class="stonetop-follower-section-heading stonetop-follower-section-summary">Roster
+				<span class="stonetop-follower-section-state">{{rosterSummary}}</span>
 				<span class="stonetop-follower-section-subtitle">each member has their own HP; name those who stand out</span>
+				<i class="fas fa-caret-down stonetop-follower-section-caret"></i>
 			</summary>
 			{{> "stonetop.follower-section-edit" section="individuals" editing=edit.individuals}}
 
@@ -672,7 +816,9 @@
 		{{!-- Group Fight --}}
 		<details class="stonetop-follower-section stonetop-group-fight-section stonetop-crew-collapsible" data-section="groupFight" {{#if sectionsOpen.groupFight}}open{{/if}}>
 			<summary class="stonetop-follower-section-heading stonetop-follower-section-summary">Group Fight
+				<span class="stonetop-follower-section-state">{{groupFightSummary}}</span>
 				<span class="stonetop-follower-section-subtitle">treat the whole group as one combatant</span>
+				<i class="fas fa-caret-down stonetop-follower-section-caret"></i>
 			</summary>
 			<div class="stonetop-group-fight-stats-row">
 				<span class="stonetop-group-fight-stat stonetop-group-fight-hp">
@@ -701,14 +847,7 @@
 			</div>
 			{{!-- Readiness is NOT here: the crew's common pool sits under Loyalty in the
 			      card body, where every other follower keeps theirs. --}}
-			<div class="stonetop-group-fight-outnumber-row">
-				<span class="stonetop-group-fight-outnumber-label">Outnumber:</span>
-				<input class="stonetop-outnumber-yours" type="number" min="1"
-				       value="{{#if memberCount}}{{memberCount}}{{else}}1{{/if}}">
-				<span class="stonetop-outnumber-vs">vs</span>
-				<input class="stonetop-outnumber-theirs" type="number" min="1" value="1">
-				<span class="stonetop-outnumber-result"></span>
-			</div>
+			<div class="stonetop-group-fight-numbers">{{> stonetopFightingInNumbers ftypeAttr="crew" fallbackName="Crew"}}</div>
 			{{!-- Order Followers roll (p.462): the crew rolls its OWN bonus, not the PC's
 			      +STAT. Opens the Order dialog with the crew's shared tags and moves, the
 			      same as a named member's button and the custom groups below — the
@@ -727,16 +866,14 @@
 	{{!-- ── Initiates of Danu (Blessed) ───────────────────────── --}}
 	{{#if stonetop.followers.initiates.length}}
 	{{#each stonetop.followers.initiates}}
-	<div class="stonetop-follower-card stonetop-follower-card--initiate" draggable="true" data-ftype="{{ftype}}" data-slug="{{slug}}">
-		{{> stonetopFollowerCardBody}}
+	<div class="stonetop-follower-card stonetop-follower-card--initiate{{#if edit.card}} is-editing{{/if}}{{#if cardFolded}} is-collapsed{{/if}}" draggable="true" data-ftype="{{ftype}}" data-slug="{{slug}}" data-section="{{foldId}}">{{> stonetopFollowerCardBody}}
 	</div>
 	{{/each}}
 	{{/if}}
 
 	{{!-- ── Livestock & Beasts (added via the inventory's special items) ── --}}
 	{{#each stonetop.followers.beasts}}
-	<div class="stonetop-follower-card stonetop-follower-card--beast{{#unless isFollower}} stonetop-follower-card--livestock{{/unless}}" draggable="true" data-ftype="{{ftype}}" data-slug="{{slug}}">
-		{{> stonetopFollowerCardBody}}
+	<div class="stonetop-follower-card stonetop-follower-card--beast{{#unless isFollower}} stonetop-follower-card--livestock{{/unless}}{{#if edit.card}} is-editing{{/if}}{{#if cardFolded}} is-collapsed{{/if}}" draggable="true" data-ftype="{{ftype}}" data-slug="{{slug}}" data-section="{{foldId}}">{{> stonetopFollowerCardBody}}
 	</div>
 	{{/each}}
 
@@ -744,8 +881,7 @@
 	      monster). Same card body as the others; a Remove button appears with the
 	      card's edit pencil since these are wholly player-made. ── --}}
 	{{#each stonetop.followers.custom}}
-	<div class="stonetop-follower-card stonetop-follower-card--custom{{#if isGroup}} stonetop-follower-card--crew{{/if}}{{#if dead}} is-dead{{/if}}" draggable="true" data-ftype="{{ftype}}" data-slug="{{slug}}">
-		{{> stonetopFollowerCardBody}}
+	<div class="stonetop-follower-card stonetop-follower-card--custom{{#if isGroup}} stonetop-follower-card--crew{{/if}}{{#if dead}} is-dead{{/if}}{{#if edit.card}} is-editing{{/if}}{{#if cardFolded}} is-collapsed{{/if}}" draggable="true" data-ftype="{{ftype}}" data-slug="{{slug}}" data-section="{{foldId}}">{{> stonetopFollowerCardBody}}
 
 		{{!-- ── Group follower: roster + group-fight tools (p.470). Only rendered
 		      for a custom follower flagged as a group (a warband, posse, arcana
@@ -753,7 +889,9 @@
 		{{#if isGroup}}
 		<details class="stonetop-follower-section stonetop-crew-collapsible" data-section="roster:custom:{{slug}}" {{#if groupSectionsOpen.roster}}open{{/if}}>
 			<summary class="stonetop-follower-section-heading stonetop-follower-section-summary">Roster
+				<span class="stonetop-follower-section-state">{{rosterSummary}}</span>
 				<span class="stonetop-follower-section-subtitle">each member tracks their own HP against the shared max</span>
+				<i class="fas fa-caret-down stonetop-follower-section-caret"></i>
 			</summary>
 			{{#if edit.card}}
 			<div class="stonetop-crew-size-row">
@@ -784,7 +922,9 @@
 
 		<details class="stonetop-follower-section stonetop-group-fight-section stonetop-crew-collapsible" data-section="groupFight:custom:{{slug}}" {{#if groupSectionsOpen.groupFight}}open{{/if}}>
 			<summary class="stonetop-follower-section-heading stonetop-follower-section-summary">Group Fight
+				<span class="stonetop-follower-section-state">{{groupFightSummary}}</span>
 				<span class="stonetop-follower-section-subtitle">treat the whole group as one combatant</span>
+				<i class="fas fa-caret-down stonetop-follower-section-caret"></i>
 			</summary>
 			<div class="stonetop-group-fight-stats-row">
 				<span class="stonetop-group-fight-stat stonetop-group-fight-hp">
@@ -812,17 +952,9 @@
 				</span>
 				{{/if}}
 			</div>
-			<div class="stonetop-group-fight-outnumber-row">
-				<span class="stonetop-group-fight-outnumber-label">Outnumber:</span>
-				<input class="stonetop-outnumber-yours" type="number" min="1"
-				       value="{{#if memberCount}}{{memberCount}}{{else}}1{{/if}}">
-				<span class="stonetop-outnumber-vs">vs</span>
-				<input class="stonetop-outnumber-theirs" type="number" min="1" value="1">
-				<span class="stonetop-outnumber-result"></span>
-			</div>
+			<div class="stonetop-group-fight-numbers">{{> stonetopFightingInNumbers ftypeAttr="custom" fallbackName="Group"}}</div>
 			{{!-- Clash / Let Fly for the whole group open the Order dialog with the
-			      group's tags (p.471); the outnumber bonus above rewrites the group
-			      damage roll. --}}
+			      group's tags (p.471); each rule row above carries its own damage roll. --}}
 			<div class="stonetop-group-fight-roll-row">
 				{{> stonetopOrderButton ftype="custom" moveKey="clash"   icon="fa-dice-d6" caption="Clash"}}
 				{{> stonetopOrderButton ftype="custom" moveKey="let-fly" icon="fa-dice-d6" caption="Let Fly"}}
@@ -920,7 +1052,7 @@
 	{{!-- Follower special moves shared across all followers --}}
 	<div class="stonetop-follower-card stonetop-follower-card--rules">
 		<div class="stonetop-follower-rules-header">
-			<h3 class="stonetop-follower-rules-title">Follower Special Moves</h3>
+			<h3 class="stonetop-follower-rules-title">Follower Moves</h3>
 			<button type="button" class="stonetop-follower-rules-toggle" aria-expanded="false" title="Expand or collapse all moves">
 				<i class="fas fa-chevron-up"></i>
 			</button>

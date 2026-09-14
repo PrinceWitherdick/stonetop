@@ -7,16 +7,19 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "pack": "node scripts/pack.js",
+    "build": "node scripts/build.js",
     "unpack": "node scripts/unpack.js",
     "gen:ai-signals": "node scripts/gen-ai-signals.js",
     "reorganize-packs": "node scripts/reorganize-playbook-moves.js"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@foundryvtt/foundryvtt-cli": "^3.0.4",
-    "eslint": "^9.39.5",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.10.0",
     "eslint-plugin-promise": "^7.3.0",
     "globals": "^17.11.0",
     "handlebars": "^4.7.9",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }

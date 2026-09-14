@@ -27,6 +27,25 @@ export function artEmbed(src, name) {
 	return `<p><img class="${ART_CLASS}" src="${src}" alt="${esc(name)}"></p>`;
 }
 
+// `body` with every managed art embed taken off, whatever picture each carries: the <p> wrapper
+// artEmbed writes, and a bare <img> in case an editor has unwrapped one. For a reader that already
+// shows the creature's picture somewhere else (the monster sheet's portrait), so it wants the
+// prose and not the art. Keyed on the class rather than on a src, so it holds for pictures this
+// build has never heard of, and a picture a GM placed by hand is left alone.
+export function stripJournalArt(body) {
+	return stripImgEmbeds(body, `class="[^"]*\\b${ART_CLASS}\\b[^"]*"`);
+}
+
+// `body` with every <img> carrying `attr` (a regex source for one attribute) removed, plus its
+// wrapping <p> when the <img> is that paragraph's sole content, so a strip leaves no empty
+// paragraph behind. The one shape both strippers take off, whether they key on class or on src.
+function stripImgEmbeds(body, attr) {
+	const img = `<img\\b[^>]*\\s${attr}[^>]*>`;
+	return String(body ?? "")
+		.replace(new RegExp(`<p\\b[^>]*>\\s*${img}\\s*</p>`, "gi"), "")
+		.replace(new RegExp(img, "gi"), "");
+}
+
 // New bestiary-page description with the art embed prepended, or null if this src is
 // already embedded and there is nothing stale to clear. Idempotent on the src path (not
 // the whole embed), so re-running with a different alt never double-adds.
@@ -98,10 +117,7 @@ function bodyHasSrc(body, src) {
 // wrapping <p> when the <img> is that paragraph's sole content (so relocation leaves no
 // empty paragraph behind). Any other art is left intact.
 function stripSrcEmbed(body, src) {
-	const s = escapeRegExp(src);
-	return String(body ?? "")
-		.replace(new RegExp(`<p\\b[^>]*>\\s*<img\\b[^>]*\\ssrc="${s}"[^>]*>\\s*</p>`, "gi"), "")
-		.replace(imgTagForSrc(src), "");
+	return stripImgEmbeds(body, `src="${escapeRegExp(src)}"`);
 }
 
 // New location `sections` array that places this row's art in the manifest's target

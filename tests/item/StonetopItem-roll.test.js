@@ -1,4 +1,4 @@
-import { beforeEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { createStonetopItemClass } from "../../module/item/StonetopItem.js";
 
 // A roll card used to carry no identity at all — the move's name survived only as escaped text in
@@ -6,10 +6,16 @@ import { createStonetopItemClass } from "../../module/item/StonetopItem.js";
 // flag stamped here is what lets a chat handler recognise WHICH move a card came from.
 
 const rollStat = vi.hoisted(() => vi.fn(async () => ({ total: 7 })));
+const rollFormula = vi.hoisted(() => vi.fn(async () => ({ total: 0 })));
 vi.mock("../../module/utils/roll-engine.js", () => ({
 	rollStat,
-	rollFormula: vi.fn(async () => ({ total: 0 })),
+	rollFormula,
 }));
+
+// A monster's rolling move goes through the damage window and card (dialogs/RollDialog.js), stood in
+// for here so a test can read the title, keywords and mode the move asked to be rolled with.
+const rollDamagePrompted = vi.hoisted(() => vi.fn(async () => true));
+vi.mock("../../module/dialogs/RollDialog.js", () => ({ rollDamagePrompted }));
 
 const move = (name, system = {}) => ({ type: "move", name, system });
 
@@ -75,5 +81,134 @@ describe("StonetopItem.roll — Never at a Loss", () => {
 		const item = makeItem("Seek Insight", { rollType: "wis" }, [move("Never at a Loss")]);
 		await item.roll();
 		expect(rollStat.mock.calls[0][2].noXpOnMiss).toBe(false);
+	});
+});
+
+// A move on a stat block: a monster's, or an NPC's.
+function statBlockMove(type, name, system) {
+	const Base = class {
+		constructor() {
+			this.type = type;
+			this.name = name;
+			this.system = system;
+			this.parent = { type: type === "npcMove" ? "npc" : "monster", name: "Stat block", items: [] };
+		}
+	};
+	return new (createStonetopItemClass(Base))();
+}
+
+// A monster's move is its name ("Block their path"), and almost none carry a description, so a card
+// headed with the name held the whole move over an empty body. It is headed "Move" instead.
+describe("StonetopItem.roll: a monster's move posted without a roll", () => {
+	const realChatMessage = globalThis.ChatMessage;
+	const heading = content => /<h3 class="stonetop-chat-move-name">([^<]*)<\/h3>/.exec(content)?.[1];
+
+	beforeEach(() => {
+		rollFormula.mockClear();
+		rollDamagePrompted.mockClear();
+		// Hands back what was posted, so a test reads the card it made.
+		globalThis.ChatMessage = { create: vi.fn(async data => data), getSpeaker: vi.fn(() => ({ alias: "Stat block" })) };
+	});
+	afterEach(() => { globalThis.ChatMessage = realChatMessage; });
+
+	it("heads the card \"Move\" and opens the body with the move's words", async () => {
+		// The Bronze Colossus, verbatim.
+		const posted = await statBlockMove("monsterMove", "Block their path", { description: "", rollFormula: "" }).roll();
+
+		expect(rollFormula).not.toHaveBeenCalled();
+		expect(rollDamagePrompted).not.toHaveBeenCalled();
+		expect(heading(posted.content)).toBe("Move");
+		expect(posted.content).toContain('<div class="stonetop-chat-move-description"><p>Block their path</p>');
+	});
+
+	it("keeps a description, under the move's words", async () => {
+		// The Crinwin's, verbatim.
+		const posted = await statBlockMove("monsterMove", "Hide or vanish into the trees", {
+			description: "<p>It scurries, leaps, and swings up into the boughs and is simply gone.</p>",
+			rollFormula: "",
+		}).roll();
+
+		expect(posted.content).toContain("<p>Hide or vanish into the trees</p><p>It scurries, leaps,");
+	});
+
+	it("stamps the move's name on the message, since the heading no longer carries it", async () => {
+		const posted = await statBlockMove("monsterMove", "Block their path", { description: "", rollFormula: "" }).roll();
+
+		expect(posted.flags["stonetop_pwd"].move).toBe("Block their path");
+	});
+
+	it("escapes the name, which a GM can edit on the stat block", async () => {
+		const posted = await statBlockMove("monsterMove", "Screech <b>loudly</b>", { description: "", rollFormula: "" }).roll();
+
+		expect(posted.content).not.toContain("<b>");
+		expect(posted.content).toContain("<p>Screech &lt;b&gt;loudly");
+	});
+
+	it("leaves an NPC's move headed with its own name", async () => {
+		const posted = await statBlockMove("npcMove", "Call the watch", { description: "", rollFormula: "" }).roll();
+
+		expect(heading(posted.content)).toBe("Call the watch");
+		expect(posted.content).not.toContain("<p>Call the watch</p>");
+	});
+});
+
+// A monster's move that rolls dice is an attack (utils/damage.js#foeAttacks), so it rolls on the
+// damage card: titled with the blow's name, its tags beside the total, its printed advantage on the die.
+describe("StonetopItem.roll: a monster's rolling move", () => {
+	beforeEach(() => { rollFormula.mockClear(); rollDamagePrompted.mockClear(); });
+
+	it("rolls on the damage card, titled with the blow's name and its tags as the body", async () => {
+		// Draventao, verbatim.
+		const item = statBlockMove("monsterMove",
+			"Breathe sticky fire, d10+3 damage (near, area, grabby, messy, reload, ignores armor)",
+			{ description: "", rollFormula: "d10+3" });
+		await item.roll();
+
+		expect(rollFormula).not.toHaveBeenCalled();
+		expect(rollDamagePrompted).toHaveBeenCalledWith("d10+3", item.parent, expect.objectContaining({
+			label: "Breathe sticky fire",
+			keywords: "near, area, grabby, messy, reload, ignores armor",
+			description: "",
+		}));
+	});
+
+	it("rolls the advantage its name prints, which the plain formula card never applied", async () => {
+		// Ulliam Unlucky, verbatim.
+		await statBlockMove("monsterMove",
+			"Lose his temper and drain heat from someone, d10 damage w/advantage (hand, close, reach, ignores armor)",
+			{ description: "", rollFormula: "d10" }).roll();
+
+		expect(rollDamagePrompted.mock.calls[0][2]).toMatchObject({
+			label: "Lose his temper and drain heat from someone",
+			rollMode: "adv",
+		});
+	});
+
+	it("keeps a plain name as the title, and its description on the card", async () => {
+		// The Crinwin's, verbatim: this blow is stated in the description rather than the name.
+		await statBlockMove("monsterMove", "Choke with sinewy fingers", {
+			description: "<p>Clammy, too-cold fingers close around a throat. Claws, rocks, choking: d6 damage (hand).</p>",
+			rollFormula: "d6",
+		}).roll();
+
+		const opts = rollDamagePrompted.mock.calls[0][2];
+		expect(opts).toMatchObject({ label: "Choke with sinewy fingers", keywords: "", rollMode: "" });
+		expect(opts.description).toContain("Clammy, too-cold fingers close around a throat.");
+	});
+
+	it("lets Shift skip the damage window", async () => {
+		// The Caribou, verbatim.
+		await statBlockMove("monsterMove", "Stampede, d6+4 damage (hand, area, messy, forceful, 1 piercing)",
+			{ description: "", rollFormula: "d6+4" }).roll({ shiftKey: true });
+
+		expect(rollDamagePrompted.mock.calls[0][2].shiftKey).toBe(true);
+	});
+
+	it("leaves an NPC's rolling move on the plain formula card", async () => {
+		// Typed: a GM writes these, and one may roll something other than damage.
+		await statBlockMove("npcMove", "Call the watch", { description: "", rollFormula: "d4" }).roll();
+
+		expect(rollDamagePrompted).not.toHaveBeenCalled();
+		expect(rollFormula).toHaveBeenCalledWith("d4", expect.anything(), expect.objectContaining({ label: "Call the watch" }));
 	});
 });

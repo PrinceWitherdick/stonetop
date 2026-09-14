@@ -32,6 +32,26 @@ export function escHtml(v) {
 }
 
 /**
+ * At most `max` UTF-16 units of `value`, never cutting a character in half.
+ *
+ * ⚠ WHY NOT A PLAIN `slice`. Everything past the Basic Multilingual Plane -- every emoji, for a start --
+ * is TWO units, and a cut that lands between them keeps the first of the pair alone: a broken
+ * character that is stored, broadcast to the table and drawn as a replacement box for good. Every
+ * length rule this is used for is counted in units, so the bound is kept and only the stray half goes.
+ */
+export function clipText(value, max) {
+	const text = String(value ?? "");
+	if (!(max >= 0) || text.length <= max) return text;
+	const cut = text.slice(0, max);
+	return /[\uD800-\uDBFF]$/.test(cut) ? cut.slice(0, -1) : cut;
+}
+
+/** `value` with its last character taken off, all of it: two units where that character is two. */
+export function dropLastChar(value) {
+	return String(value ?? "").replace(/(?:[\uD800-\uDBFF][\uDC00-\uDFFF]|[\s\S])$/, "");
+}
+
+/**
  * Escape a value for literal use inside a RegExp. The one regex-escaper for the system —
  * pure, so Foundry-free modules can import it; do NOT add ad-hoc copies elsewhere.
  * `-` is escaped too, so the result is also safe to drop inside a character class.
@@ -43,6 +63,16 @@ export function escHtml(v) {
 export function escapeRegExp(v) {
 	return String(v ?? "").replace(/[.*+?^${}()|[\]\\-]/g, "\\$&");
 }
+
+/**
+ * A signed number as the book prints it: "+2", "+0", "-1".
+ *
+ * Here rather than beside the roll code because it is not a roll's business: a stat score on the
+ * sheet, a modifier on a chat card and a seasonal swing in the chronicle all print the same way,
+ * and the one place they can all reach without dragging in the chat/Foundry half of the system is
+ * this module. `roll-engine.js` re-exports it under its old name for the callers that had it.
+ */
+export function sign(n) { return n >= 0 ? `+${n}` : `${n}`; }
 
 /**
  * A pattern that matches `word` ONLY as a whole word, under Unicode letter boundaries.

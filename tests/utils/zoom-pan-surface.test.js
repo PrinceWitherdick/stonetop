@@ -98,6 +98,18 @@ describe("ZoomPanSurface pan batching", () => {
 		expect(surface.offset.x).toBe(surface._pan.offsetX + 90);
 	});
 
+	// ⚠ A WHEEL NOTCH MID-PAN. The zoom holds the point under the cursor, and the next move has to carry
+	// on from the board as the zoom left it, not from the offset the pan was pressed at.
+	it("carries a pan on from where a zoom in the middle of it left the board", () => {
+		pan([[40, 0]]);
+		paint();
+		surface.zoomTo(1.5, { x: 40, y: 0 });
+		const after = surface.offset.x;
+		view.emit("pointermove", { pointerId: 1, clientX: 50, clientY: 0 });
+		paint();
+		expect(surface.offset.x).toBe(after + 10);
+	});
+
 	it("asks for a new frame once the pending one has been painted", () => {
 		pan([[10, 0]]);
 		paint();
