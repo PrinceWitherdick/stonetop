@@ -360,9 +360,9 @@
 
 			{{!-- MODERN layout: the icon rail, rendered here and then lifted onto the window
 			     frame. CLASSIC renders the same partial as a horizontal strip above .sheet-body
-			     instead. Details is always the landing tab; Relationships appears once there are
-			     PCs to rate (or in edit mode); Stats appears only when the NPC has game stats;
-			     Notes is always present. --}}
+			     instead. Details is always the landing tab; Stats heads the nav, but appears only
+			     when the NPC has game stats; Relationships appears once there are PCs to rate (or
+			     in edit mode); Notes is always present. --}}
 			{{#unless stonetop.classicLayout}}{{> "stonetop.npc-tab-nav"}}{{/unless}}
 
 		</section>
