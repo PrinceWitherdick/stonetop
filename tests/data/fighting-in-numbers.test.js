@@ -13,8 +13,49 @@
 //    of its members are out of the action. At 0 HP, it's routed, massacred, or otherwise
 //    defeated."
 import { describe, it, expect } from "vitest";
-import { pileOnBonus, outnumberBonus, groupCasualties, casualtyNote, groupFightCardSummaries } from "../../module/data/follower-build.js";
+import { pileOnBonus, outnumberBonus, numbersClauses, groupCasualties, casualtyNote, groupFightCardSummaries, wireFightingInNumbers } from "../../module/data/follower-build.js";
 import { addDamageBonus } from "../../module/utils/damage-die.js";
+
+describe("a readout breaks between its clauses, never inside one", () => {
+	it("splits a readout into whole clauses, each keeping its comma", () => {
+		expect(numbersClauses("+5 damage, +5 armor")).toEqual(["+5 damage,", "+5 armor"]);
+		expect(numbersClauses("+5 damage")).toEqual(["+5 damage"]);
+		expect(numbersClauses("no bonus")).toEqual(["no bonus"]);
+	});
+
+	// Typing a count rewrites the readout. One that asks for clauses gets the same spans its template
+	// drew on first paint; any other (the follower cards) keeps getting plain text.
+	it("rewrites a clause readout as clause spans, and a plain one as text", () => {
+		const readout = (dataset) => ({
+			dataset, textContent: "", children: null,
+			ownerDocument: { createElement: () => ({ className: "", textContent: "" }) },
+			replaceChildren(...nodes) { this.children = nodes; },
+		});
+		const row = (result) => {
+			const parts = {
+				'[data-numbers-count="yours"]':  { value: "6" },
+				'[data-numbers-count="theirs"]': { value: "1" },
+				"[data-numbers-result]":         result,
+				"[data-numbers-roll]":           { dataset: { baseRoll: "d6" } },
+			};
+			return { dataset: { rule: "exchange" }, querySelector: (selector) => parts[selector] ?? null };
+		};
+		let onInput;
+		wireFightingInNumbers({ addEventListener: (_name, handler) => { onInput = handler; } }, { rollKey: "roll", baseKey: "baseRoll" });
+
+		const clauses = readout({ numbersClauses: "" });
+		const plain   = readout({});
+		for (const result of [clauses, plain]) {
+			const owner = row(result);
+			onInput({ target: { dataset: { numbersCount: "yours" }, closest: () => owner } });
+		}
+
+		expect(clauses.children.map(node => (typeof node === "string" ? node : `${node.className}: ${node.textContent}`)))
+			.toEqual(["stonetop-numbers-clause: +5 damage,", " ", "stonetop-numbers-clause: +5 armor"]);
+		expect(plain.textContent).toBe("+5 damage, +5 armor");
+		expect(plain.children).toBeNull();
+	});
+});
 
 describe("swarm one foe: +1 per each additional attacker", () => {
 	it("pays one attacker's damage and nothing more for a lone attacker", () => {
@@ -131,7 +172,8 @@ describe("damage represents casualties", () => {
 
 	it("reads the remaining pool back as bodies", () => {
 		expect(casualtyNote({ hpMax: 6, hpCurrent: 6, count: 6 })).toBe("all 6 still standing");
-		expect(casualtyNote({ hpMax: 6, hpCurrent: 3, count: 6 })).toBe("3 of 6 out of the action, 3 still standing");
+		expect(casualtyNote({ hpMax: 6, hpCurrent: 3, count: 6 })).toBe("3 of 6 still standing");
+		expect(casualtyNote({ hpMax: 6, hpCurrent: 4, count: 6 })).toBe("4 of 6 still standing");
 		expect(casualtyNote({ hpMax: 6, hpCurrent: 0, count: 6 })).toBe("routed, massacred, or otherwise defeated");
 	});
 });

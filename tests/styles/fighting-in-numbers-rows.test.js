@@ -33,6 +33,23 @@ describe("both rules get their own row", () => {
 		expect(MONSTER).toContain("Group vs group:");
 	});
 
+	// Group size sits in the right-hand column, above both rows, rather than closing the left one:
+	// the headcount is what both rows open at, so it sits with them. Only the Group fight
+	// switch comes before it, since that decides whether the headcount is a group's at all.
+	it("puts Group size in the monster's right-hand column, under the switch and above both rows", () => {
+		const left   = MONSTER.indexOf('<div class="stonetop-monster-stat-split__main">');
+		const column = MONSTER.indexOf('<div class="stonetop-monster-group-fight-section">');
+		const toggle = MONSTER.indexOf('<label class="stonetop-monster-group-toggle"');
+		const count  = MONSTER.indexOf(">Group size<");
+		const swarm  = MONSTER.indexOf('data-rule="swarm"');
+		expect(MONSTER.match(/>Group size</g)).toHaveLength(1);
+		expect(left).toBeGreaterThan(-1);
+		expect(column).toBeGreaterThan(left);
+		expect(toggle).toBeGreaterThan(column);
+		expect(count).toBeGreaterThan(toggle);
+		expect(swarm).toBeGreaterThan(count);
+	});
+
 	it("gives the crew and every custom group the same pair, from one shared partial", () => {
 		expect(FOLLOWER).toContain('{{#*inline "stonetopFightingInNumbers"}}');
 		// Rendered once for the crew and once for a custom group; defined once.
@@ -120,5 +137,64 @@ describe("the abstracted pool is ONE member's HP", () => {
 	it("builds the readouts after a hand-edited Damage has replaced the rules die", () => {
 		const finalize = SHEET.match(/const finalize = \(card\) => ([^;]*);/)?.[1] ?? "";
 		expect(finalize).toMatch(/withGroupFight\(withStatOverrides\(card\)\)/);
+	});
+});
+
+describe("the monster's column lines up, and wraps like text", () => {
+	// A label, then ONE fields span, on every labelled line: the section's grid puts each label in its
+	// first track, so Group size's box and both rules' first count box start at one x.
+	it("gives every labelled line one fields span after its label", () => {
+		const column = MONSTER.slice(MONSTER.indexOf('<div class="stonetop-monster-group-fight-section">'));
+		expect(column.match(/>Group size<\/strong>\s*<span class="stonetop-monster-numbers-fields">/g)).toHaveLength(1);
+		// The Group fight switch too: a stat-key title, then its checkbox in the fields track.
+		expect(column.match(/<span class="stonetop-monster-stat-key"[^>]*>\{\{localize "stonetop\.monster\.fightAsGroup"\}\}<\/span>\s*<span class="stonetop-monster-numbers-fields"><input class="stonetop-monster-group-toggle-check"/g)).toHaveLength(1);
+		expect(column.match(/>(Swarm one foe|Group vs group):<\/span>\s*(\{\{!--[\s\S]*?--\}\}\s*)?<span class="stonetop-monster-numbers-fields">/g)).toHaveLength(2);
+	});
+
+	// The switch's <label> is `display: contents`, so it has no box. A tooltip anchors to its
+	// element's rect, and a boxless element's rect is 0x0: hung on the label, the hint opened in the
+	// top-left corner of the screen. It hangs on the title and the checkbox, which have boxes.
+	it("hangs the Group fight hint on the title and the checkbox, never the boxless label", () => {
+		const label = MONSTER.match(/<label class="stonetop-monster-group-toggle"[^>]*>([\s\S]*?)<\/label>/);
+		expect(label).not.toBeNull();
+		expect(label[0]).not.toMatch(/^<label[^>]*data-tooltip/);
+		expect(label[1].match(/<span class="stonetop-monster-stat-key" data-tooltip='\{\{localize "stonetop\.monster\.fightAsGroupHint"\}\}'/g)).toHaveLength(1);
+		expect(label[1].match(/<input class="stonetop-monster-group-toggle-check"[^>]*data-tooltip='\{\{localize "stonetop\.monster\.fightAsGroupHint"\}\}'/g)).toHaveLength(1);
+	});
+
+	// The label track is as wide as the longest label DRAWN, and the rows are drawn only with Group
+	// fight on, so ticking the box widened the track and slid the checkbox right. A hidden copy of
+	// the row labels shares the switch's cell in every mode and state, so the checkbox holds one x.
+	it("sizes the label track for the rows' labels before the rows are drawn", () => {
+		const CSS      = readRepo("styles/stonetop.css");
+		const section  = MONSTER.indexOf('<div class="stonetop-monster-group-fight-section">');
+		const labelEnd = MONSTER.indexOf("</label>", section);
+		const sizerAt  = MONSTER.indexOf('<span class="stonetop-monster-group-label-sizer" aria-hidden="true">');
+		const countIf  = MONSTER.indexOf("{{#if (or stonetop.editMode stonetop.fightAsGroup)}}", section);
+		// Straight after the switch, with no block helper opened or closed in between.
+		expect(sizerAt).toBeGreaterThan(labelEnd);
+		expect(sizerAt).toBeLessThan(countIf);
+		expect(MONSTER.slice(labelEnd, sizerAt)).not.toMatch(/\{\{[#/]/);
+
+		// Every row label, in the rows' own class, so the copy measures in their font.
+		const sizer  = MONSTER.slice(sizerAt, MONSTER.indexOf("\n", sizerAt));
+		const labels = [...MONSTER.slice(countIf).matchAll(/<span class="stonetop-numbers-label"[^>]*>([^<]+)<\/span>/g)].map(m => m[1]);
+		expect(labels).toEqual(["Swarm one foe:", "Group vs group:"]);
+		for (const text of labels) expect(sizer).toContain(`<span class="stonetop-numbers-label">${text}</span>`);
+
+		// It shares the title's cell, adds no height, and stays out of the row's baseline.
+		expect(CSS).toMatch(/\.stonetop-monster-group-toggle > \.stonetop-monster-stat-key,\s*\.stonetop-monster-group-label-sizer \{\s*grid-area: 1 \/ 1;/);
+		expect(CSS).toMatch(/\.stonetop-monster-group-toggle > \.stonetop-monster-numbers-fields \{\s*grid-area: 1 \/ 2;/);
+		const rule = CSS.match(/\}\s*\.stonetop-monster-group-label-sizer \{([^}]*)\}/)?.[1] ?? "";
+		for (const decl of ["align-self: start;", "height: 0;", "visibility: hidden;"]) expect(rule).toContain(decl);
+	});
+
+	// Wrapping as one flex item, "+5 damage, +5 armor" dropped whole with room for half of it above.
+	// As clause spans it breaks between them, on first paint and after a count is typed alike.
+	it("draws both readouts as clause spans, which the listener rewrites in kind", () => {
+		for (const rule of ["swarm", "exchange"]) {
+			expect(MONSTER).toContain(`data-numbers-result data-numbers-clauses>{{#each stonetop.${rule}Clauses}}`);
+		}
+		expect(BUILD).toContain('"numbersClauses" in (el.dataset ?? {})');
 	});
 });

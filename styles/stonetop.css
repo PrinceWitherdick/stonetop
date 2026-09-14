@@ -4047,6 +4047,7 @@ input.stonetop-name-field {
 .ct-suggested-check,
 .threat-list-done,
 .stonetop-npc-hasstats-check,
+.stonetop-monster-group-toggle-check,
 .stonetop-rel-show-check,
 .stonetop-spend-unwilling,
 .stonetop-pdc-pick,
@@ -4112,6 +4113,7 @@ input.stonetop-name-field {
 .ct-suggested-check:checked,
 .threat-list-done:checked,
 .stonetop-npc-hasstats-check:checked,
+.stonetop-monster-group-toggle-check:checked,
 .stonetop-rel-show-check:checked,
 .stonetop-spend-unwilling:checked,
 .stonetop-pdc-pick:checked,
@@ -25639,38 +25641,133 @@ li.question-bullet::before {
 	background: rgba(112, 128, 144, 0.45) !important;
 }
 
-/* Monster-sheet fighting-in-numbers tools (No. appearing + one row per rule).
+/* The top of the monster stat block splits into two EQUAL columns: Type, Damage, Special
+   Qualities and Instinct on the left; the Group fight switch, Group size and the
+   fighting-in-numbers rows on the right. Qualities live in the left column rather than full
+   width below the split: below it, they started under whichever column was taller, which
+   left a hole under Damage and then ran the prose under the right column. Both columns share
+   one flex basis and grow alike, so they split the width evenly. A wrap, not a breakpoint:
+   when the sheet is too narrow for both, the right column drops under Instinct. A monster
+   with no group column gets the left one at full width. */
+.stonetop-monster-stat-split {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	column-gap: 24px;
+	row-gap: 3px;
+}
+.stonetop-monster-stat-split__main {
+	flex: 1 1 18em;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+/* Monster-sheet fighting-in-numbers tools (one row per rule).
    A COLUMN, not a wrapping inline row: the two rules are alternatives, and side by
    side on one line they read as one long sum whose halves happen to have labels —
    which is the exact confusion the second row exists to end. Stacked, each rule is
-   its own line with its own inputs, bonus and die. */
+   its own line with its own inputs, bonus and die. Sized like a stat line, since it
+   no longer sits inside one.
+
+   A two-track GRID rather than a flex column, so the lines line up: each labelled line
+   hands its label to the first track, as wide as the longest label, and its fields to
+   the second, so Group size's box and each rule's first count box start at one x.
+   The Group fight switch is laid out the same way: title, then its checkbox. */
 .stonetop-monster-group-fight-section {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	gap: 4px;
+	flex: 1 1 18em;
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	align-items: baseline;
+	column-gap: 4px;
+	row-gap: 3px;
 	min-width: 0;
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
 }
-.stonetop-monster-numbers-row {
-	display: flex;
-	align-items: center;
-	gap: 5px;
-	font-size: var(--st-fs-sm);
-	flex-wrap: wrap;
+/* The labelled lines drop their own box, so their label and fields land in the grid's
+   tracks. Group size is a row of this grid and not a stat line, so the edit-mode flex rule
+   for stat lines never reaches it. */
+.stonetop-monster-group-fight-section > .stonetop-monster-group-size,
+.stonetop-monster-group-fight-section > .stonetop-monster-numbers-row {
+	display: contents;
 }
+/* The fields after a label wrap like TEXT, not like flex items. A wrapping flex row moves a
+   whole item down a line, so "+5 damage, +5 armor" dropped as one piece with room for half
+   of it above. Here a count stays with its word and the die with its formula (nowrap
+   groups), and a readout breaks only between its clauses. Inputs sit on the text's middle,
+   no taller than the text around them. */
+.stonetop-monster-numbers-fields {
+	min-width: 0;
+	line-height: 1.6;
+}
+.stonetop-monster-numbers-fields input,
+.stonetop-monster-numbers-fields .stonetop-monster-damage-roll {
+	vertical-align: middle;
+}
+.stonetop-monster-numbers-nowrap,
+.stonetop-monster-numbers-fields .stonetop-numbers-clause {
+	white-space: nowrap;
+}
+.stonetop-monster-group-count,
 .stonetop-monster-swarm-count,
 .stonetop-monster-outnumber-yours,
 .stonetop-monster-outnumber-theirs {
 	width: 46px;
-	height: 1.5em;
+	height: 1.25em;
 	padding: 0 3px;
-	line-height: 1.4;
+	line-height: 1.2;
 	text-align: center;
 }
-.stonetop-monster-numbers-result { color: var(--st-quiet-ink); font-style: italic; white-space: nowrap; }
-.stonetop-monster-group-dmg-label { color: var(--st-quiet-ink); }
+/* The numbers rows read in the sheet's body ink, not a quiet grey. The row labels and the
+   "attackers"/"vs" word are follower-card classes that stay quiet there, so they are re-inked
+   only here: each label in the stat keys' bold with no underline, matching "Group size" in the
+   same track. Scoped to the section, which also reaches the hidden label sizer, so the copy it
+   measures is set in the same weight as the labels it stands in for. */
+.stonetop-monster-numbers-result { font-style: italic; }
+.stonetop-monster-numbers-row .stonetop-outnumber-vs { color: inherit; }
+.stonetop-monster-group-fight-section .stonetop-numbers-label {
+	font-weight: bold;
+	color: inherit;
+	border-bottom: 0;
+}
 .stonetop-monster-casualties { font-style: italic; }
 .stonetop-monster-count-input { width: 5em; }
+/* "Group fight": a label wrapping a stat-key title and its checkbox (skinned in the master
+   checkbox block). It drops its own box like the section's other lines, so the title sits in
+   the label track in the same bold as "Group size:" and the checkbox in the fields track, lined
+   up with the boxes below. A click on the title still ticks it: a label's activation follows
+   the DOM, not its box. */
+.stonetop-monster-group-toggle {
+	display: contents;
+	cursor: pointer;
+}
+.stonetop-monster-group-toggle > * {
+	cursor: pointer;
+}
+/* The label track is sized for the rows' labels before the rows are drawn. With Group fight
+   off the switch's title was the only label, so ticking the box (which draws the rows) widened
+   the track and slid the checkbox right. A hidden copy of the row labels shares the title's
+   cell, so the track is that wide from the first paint. It has no height and sits at the cell's
+   top, out of the row's baseline alignment, so the row stays as tall as the switch alone.
+   Both are placed explicitly: an auto-placed title skips an occupied cell and would land in
+   the fields track. */
+.stonetop-monster-group-toggle > .stonetop-monster-stat-key,
+.stonetop-monster-group-label-sizer {
+	grid-area: 1 / 1;
+}
+.stonetop-monster-group-toggle > .stonetop-monster-numbers-fields {
+	grid-area: 1 / 2;
+}
+.stonetop-monster-group-label-sizer {
+	align-self: start;
+	height: 0;
+	overflow: hidden;
+	visibility: hidden;
+}
+.stonetop-monster-group-label-sizer > * {
+	display: block;
+}
 
 .stonetop-outnumber-result {
 	font-style: italic;
@@ -26583,12 +26680,17 @@ li.question-bullet::before {
 	min-width: 0;
 }
 
-/* 2+ modes: drop the whole list onto its own line below the "Damage:" header. In
-   view mode the base rule's flex column is already a block-level box, so it breaks
-   the line on its own; `flex: 0 0 100%` still does the work in edit mode. */
-.stonetop-monster-damage-modes--stacked {
-	flex: 0 0 100%;
-	margin-top: 2px;
+/* 2+ modes: the first stays on the "Damage:" line like any other value, and the rest
+   stack beneath it, each on its own line and lined up with the first rather than
+   with the label. The line becomes a flex row so the list (the base rule's flex
+   column, `flex: 1`) takes the column right of the label; `baseline` seats the label
+   on the first mode's line, since a flex column's baseline is its first item's. The
+   list only renders in view mode, so this never reaches the edit-mode inputs. */
+.stonetop-monster-stat-line--damage:has(> .stonetop-monster-damage-modes--stacked) {
+	display: flex;
+	flex-direction: row;
+	align-items: baseline;
+	gap: 4px;
 }
 
 /* A single mode is one short phrase, so it flows inline after "Damage:" like every
@@ -26766,11 +26868,10 @@ li.question-bullet::before {
 	margin-top: var(--stonetop-section-gap);
 }
 
-/* Details, atop the Notes tab: the creature's codex prose, the one run of long-form text on a sheet that is
-   otherwise a dense grid of labelled numbers. It takes a measure instead of the full 760px
-   window, since a description set edge to edge reads as a wall. */
+/* Details, atop the Notes tab: the creature's codex prose. It runs the full width of the panel, with
+   no measure: a line capped short of the edge wraps mid-sentence beside empty room and reads as a
+   break the book never made. The only early breaks are the page's own, like a verse's <br>s. */
 .stonetop-monster-writeup-body {
-	max-width: 62ch;
 	line-height: 1.45;
 }
 

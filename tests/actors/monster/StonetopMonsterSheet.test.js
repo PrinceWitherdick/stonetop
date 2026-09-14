@@ -162,38 +162,119 @@ describe("StonetopMonsterSheet", () => {
 			items: makeItems([]),
 		});
 
+		// The same horde, being run as ONE combatant (Book I p.416, "Abstracting groups").
+		const asGroup = (system = {}) => horde({ fightAsGroup: true, ...system });
+		const hurt    = (value, system = {}) => ({ attributes: { hp: { value, max: 3 }, damage: { rollFormula: "d6" } }, ...system });
+
 		it("answers BOTH rules on the first paint, each with its own die", async () => {
-			const st = (await makeSheet(horde()).getData()).stonetop;
+			const st = (await makeSheet(asGroup()).getData()).stonetop;
 
 			expect(st.isGroupOrg).toBe(true);
-			// Swarming one foe pays damage only: 6 attackers, +1 per attacker past the first.
+			expect(st.fightAsGroup).toBe(true);
+			// Swarming one foe pays damage only: 6 attackers, +1 per attacker past the first. Each
+			// readout is drawn one span per clause, so a narrow row breaks between them and never inside one.
 			expect(st.swarmCount).toBe(6);
-			expect(st.swarmLabel).toBe("+5 damage");
+			expect(st.swarmClauses).toEqual(["+5 damage"]);
 			expect(st.swarmFormula).toBe("d6+5");
 			// The abstraction pays damage AND armor, off the ratio rather than the headcount.
-			expect(st.exchangeLabel).toBe("+5 damage, +5 armor");
+			expect(st.exchangeClauses).toEqual(["+5 damage,", "+5 armor"]);
 			expect(st.exchangeFormula).toBe("d6+5");
 		});
 
-		it("falls back to the organization's typical headcount when none is recorded", async () => {
-			const st = (await makeSheet(horde({ count: 0 })).getData()).stonetop;
-			expect(st.swarmCount).toBe(6);        // a horde is "6 or more"
-			expect(st.casualtyNote).toBeNull();   // ...but with no count, no bodies to divide
+		// Off, the sheet is one creature. Both rules count a group's bodies, so neither row is offered.
+		it("offers neither row while the sheet is one creature", async () => {
+			const st = (await makeSheet(horde()).getData()).stonetop;
+			expect(st.fightAsGroup).toBe(false);
+			expect(st.swarmCount).toBeUndefined();
+			expect(st.swarmFormula).toBeUndefined();
+			expect(st.exchangeClauses).toBeUndefined();
+			expect(st.exchangeFormula).toBeUndefined();
 		});
 
-		it("reads the stat block's remaining HP back as casualties", async () => {
-			const wounded = horde({ attributes: { hp: { value: 2, max: 3 }, damage: { rollFormula: "d6" } } });
-			expect((await makeSheet(wounded).getData()).stonetop.casualtyNote)
-				.toBe("2 of 6 out of the action, 4 still standing");
+		// A lone member of a group is in the book (a lone suarachan), so an unrecorded group size is
+		// not read as a horde's typical six and a +5 nobody asked for.
+		it("opens both rows at one when no group size is recorded", async () => {
+			const st = (await makeSheet(asGroup({ count: 0 })).getData()).stonetop;
+			expect(st.swarmCount).toBe(1);
+			expect(st.swarmClauses).toEqual(["no bonus"]);
+			expect(st.exchangeClauses).toEqual(["no bonus"]);
+			expect(st.casualtyNote).toBeNull();   // with no count, no bodies to divide
+		});
 
-			const dead = horde({ attributes: { hp: { value: 0, max: 3 }, damage: { rollFormula: "d6" } } });
-			expect((await makeSheet(dead).getData()).stonetop.casualtyNote)
+		// Unhurt, Group size is the bare headcount: "all 6 still standing" is just "6", longer.
+		it("adds no casualty line while nobody is down", async () => {
+			const st = (await makeSheet(asGroup()).getData()).stonetop;
+			expect(st.count).toBe(6);
+			expect(st.casualtyNote).toBeNull();
+		});
+
+		it("reads the group's remaining HP back as casualties", async () => {
+			expect((await makeSheet(asGroup(hurt(2))).getData()).stonetop.casualtyNote)
+				.toBe("4 of 6 still standing");
+			expect((await makeSheet(asGroup(hurt(0))).getData()).stonetop.casualtyNote)
 				.toBe("routed, massacred, or otherwise defeated");
 		});
 
+		// One crinwin's token at 1 of 3 HP is one hurt crinwin. Read as the group's pool, it said
+		// "2 of 6 still standing" about five others who were never in its fight.
+		it("reads no casualties off one creature's wounds", async () => {
+			const st = (await makeSheet(horde(hurt(1))).getData()).stonetop;
+			expect(st.casualtyNote).toBeNull();
+			expect(st.swarmCount).toBeUndefined();
+		});
+
+		// "Adjust the bonuses to damage and armor accordingly!" A member out of the action is neither
+		// an attacker nor one of the side's numbers, so both rows open at those still standing.
+		it("opens both rows at the members still standing", async () => {
+			const st = (await makeSheet(asGroup(hurt(2))).getData()).stonetop;
+			expect(st.swarmCount).toBe(4);
+			expect(st.swarmFormula).toBe("d6+3");
+			expect(st.exchangeClauses).toEqual(["+3 damage,", "+3 armor"]);
+
+			// Routed leaves nobody standing; the rows floor at their inputs' minimum of one.
+			const routed = (await makeSheet(asGroup(hurt(0))).getData()).stonetop;
+			expect(routed.swarmCount).toBe(1);
+			expect(routed.exchangeClauses).toEqual(["no bonus"]);
+		});
+
 		it("offers nothing for a solitary creature", async () => {
-			const alone = { system: { organization: "solitary", count: 1 }, items: makeItems([]) };
-			expect((await makeSheet(alone).getData()).stonetop.isGroupOrg).toBe(false);
+			const alone = { system: { organization: "solitary", count: 1, fightAsGroup: true }, items: makeItems([]) };
+			const st = (await makeSheet(alone).getData()).stonetop;
+			expect(st.isGroupOrg).toBe(false);
+			expect(st.fightAsGroup).toBe(false);
+		});
+
+		// The switch is a real field, and both rows and the HP box's title follow it.
+		it("draws the switch, and hangs both rows and the Group HP title off it", async () => {
+			const { readFileSync } = await import("node:fs");
+			const hbs = readFileSync(new URL("../../../templates/actor/monster.hbs", import.meta.url), "utf8");
+			expect(hbs).toContain('<input class="stonetop-monster-group-toggle-check" type="checkbox" name="system.fightAsGroup" {{checked system.fightAsGroup}}');
+
+			// In play, Group size is a group's number, so one creature's sheet does not draw it.
+			// Edit mode always does: it is where the count the group mode reads gets set.
+			const toggleAt = hbs.indexOf('<label class="stonetop-monster-group-toggle"');
+			const countAt  = hbs.indexOf(">Group size<");
+			expect(hbs.slice(toggleAt, countAt)).toContain("{{#if (or stonetop.editMode stonetop.fightAsGroup)}}");
+
+			// And in play it is a box that saves, not a readout: how many are in the group is settled
+			// at the table and changes mid-fight (p.416). The casualty line sits beside it.
+			const line = hbs.slice(countAt, hbs.indexOf("</div>", countAt));
+			const play = line.slice(line.indexOf("{{else}}"));
+			expect(play).toMatch(/<input class="stonetop-monster-group-count" type="number" name="system\.count"/);
+			expect(play).toContain("{{stonetop.casualtyNote}}");
+
+			// Both rows under ONE switch: it opens after Group size and before the swarm row, and nothing
+			// between it and the exchange row closes it. A sheet with Group fight off draws neither.
+			const swarmAt    = hbs.indexOf('data-rule="swarm"');
+			const exchangeAt = hbs.indexOf('data-rule="exchange"');
+			const rowsIf     = hbs.lastIndexOf("{{#if stonetop.fightAsGroup}}", swarmAt);
+			expect(rowsIf).toBeGreaterThan(countAt);
+			expect(hbs.slice(rowsIf, exchangeAt)).not.toContain("{{/if}}");
+			expect(hbs.slice(rowsIf + 1, exchangeAt)).not.toContain("{{#if stonetop.fightAsGroup}}");
+
+			const title = hbs.slice(hbs.indexOf('<div class="cell cell--Resource cell--attr-hp">'), hbs.indexOf('name="system.attributes.hp.value"'));
+			expect(title).toContain("{{#if stonetop.fightAsGroup}}");
+			expect(title).toContain('{{localize "stonetop.monster.groupHitPoints"}}');
 		});
 
 		// The stat block's HP, armor and damage are ALREADY "as per a single individual
@@ -237,7 +318,7 @@ describe("StonetopMonsterSheet", () => {
 		const data = await makeSheet(actor).getData();
 
 		expect(data.stonetop.damageModes).toMatchObject([
-			{ text: "claws, bite, hug d10+4 (hand, close, messy, 1 piercing)", formula: "d10+4", rollMode: "" },
+			{ text: "Claws, bite, hug d10+4 (hand, close, messy, 1 piercing)", formula: "d10+4", rollMode: "" },
 		]);
 		expect(data.stonetop.multiDamage).toBe(false);
 	});
@@ -253,8 +334,8 @@ describe("StonetopMonsterSheet", () => {
 		const data = await makeSheet(actor).getData();
 
 		expect(data.stonetop.damageModes).toMatchObject([
-			{ text: "fingers d8 (close)", formula: "d8", rollMode: "" },
-			{ text: "maw d10+2 (hand, messy)", formula: "d10+2", rollMode: "" },
+			{ text: "Fingers d8 (close)", formula: "d8", rollMode: "" },
+			{ text: "Maw d10+2 (hand, messy)", formula: "d10+2", rollMode: "" },
 		]);
 		expect(data.stonetop.multiDamage).toBe(true);
 	});
@@ -273,8 +354,8 @@ describe("StonetopMonsterSheet", () => {
 		const data = await makeSheet(actor).getData();
 
 		expect(data.stonetop.damageModes).toMatchObject([
-			{ text: "dagger d10 (hand, 1 piercing)", formula: "d10", rollMode: "" },
-			{ text: "garrote d8 (hand, grabby, ignores armor)", formula: "d8", rollMode: "" },
+			{ text: "Dagger d10 (hand, 1 piercing)", formula: "d10", rollMode: "" },
+			{ text: "Garrote d8 (hand, grabby, ignores armor)", formula: "d8", rollMode: "" },
 		]);
 		expect(data.stonetop.multiDamage).toBe(true);
 	});
@@ -293,7 +374,7 @@ describe("StonetopMonsterSheet", () => {
 
 		// And it prints the book's own wording — "bite or maul", not a reconstructed "bite, maul".
 		expect(data.stonetop.damageModes).toMatchObject([
-			{ text: "bite or maul d12+5 (close, hand or reach, forceful, messy)", formula: "d12+5", rollMode: "" },
+			{ text: "Bite or maul d12+5 (close, hand or reach, forceful, messy)", formula: "d12+5", rollMode: "" },
 		]);
 		expect(data.stonetop.multiDamage).toBe(false);
 	});
@@ -311,8 +392,8 @@ describe("StonetopMonsterSheet", () => {
 		const data = await makeSheet(actor).getData();
 
 		expect(data.stonetop.damageModes).toMatchObject([
-			{ text: "hair-rope net (thrown, crude, grabby)", formula: "", rollMode: "" },
-			{ text: "bite d6 (hand)", formula: "d6", rollMode: "" },
+			{ text: "Hair-rope net (thrown, crude, grabby)", formula: "", rollMode: "" },
+			{ text: "Bite d6 (hand)", formula: "d6", rollMode: "" },
 		]);
 	});
 
@@ -346,7 +427,7 @@ describe("StonetopMonsterSheet", () => {
 		const data = await makeSheet(actor).getData();
 
 		expect(data.stonetop.damageModes).toMatchObject([
-			{ text: "icy touch d6 w/disadvantage (hand, ignores armor)", formula: "d6", rollMode: "dis" },
+			{ text: "Icy touch d6 w/disadvantage (hand, ignores armor)", formula: "d6", rollMode: "dis" },
 		]);
 	});
 

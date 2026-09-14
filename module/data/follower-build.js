@@ -330,6 +330,31 @@ export function outnumberBonus(yours, theirs) {
 }
 
 /**
+ * A readout's clauses, each kept whole: "+5 damage, +5 armor" is ["+5 damage,", "+5 armor"]. A row
+ * that runs out of room then breaks BETWEEN them, "+5 damage," above and "+5 armor" below, rather
+ * than stranding "+5" above "damage" or carrying the whole readout down a line.
+ */
+export function numbersClauses(label) {
+	const parts = String(label ?? "").split(", ");
+	return parts.map((part, i) => (i < parts.length - 1 ? `${part},` : part));
+}
+
+// A readout that asks for clauses (`data-numbers-clauses`) gets one span per clause, the same markup
+// its template drew on first paint; any other readout keeps its plain text.
+function writeNumbersResult(el, label) {
+	if (!("numbersClauses" in (el.dataset ?? {}))) {
+		el.textContent = label;
+		return;
+	}
+	el.replaceChildren(...numbersClauses(label).flatMap((clause, i) => {
+		const span = el.ownerDocument.createElement("span");
+		span.className = "stonetop-numbers-clause";
+		span.textContent = clause;
+		return i ? [" ", span] : [span];
+	}));
+}
+
+/**
  * Keep each fighting-in-numbers row's readout and roll in step with its own counts as they are
  * typed. Scoped to the ROW that owns the input, never the section: the two rules keep separate
  * counts and separate dice, and a listener that reached across would answer one rule's question
@@ -347,7 +372,7 @@ export function wireFightingInNumbers(root, { rollKey, baseKey }) {
 			? pileOnBonus(count("attackers"))
 			: outnumberBonus(count("yours"), count("theirs"));
 		const result = row.querySelector("[data-numbers-result]");
-		if (result) result.textContent = label;
+		if (result) writeNumbersResult(result, label);
 		const button = row.querySelector("[data-numbers-roll]");
 		const roll   = rollFor(button?.dataset[baseKey]);
 		if (button) button.dataset[rollKey] = roll;
@@ -393,7 +418,7 @@ export function casualtyNote({ hpMax = 0, hpCurrent = 0, count = 0 } = {}) {
 	if (!size || !max) return null;
 	const { out, standing, routed } = groupCasualties({ hpMax: max, hpCurrent, count: size });
 	if (routed)  return "routed, massacred, or otherwise defeated";
-	if (out > 0) return `${out} of ${size} out of the action, ${standing} still standing`;
+	if (out > 0) return `${standing} of ${size} still standing`;
 	return `all ${size} still standing`;
 }
 

@@ -821,6 +821,10 @@
       "conceptPlaceholder": "Concept, look, or role",
       "stats": "Stats",
       "hitPoints": "Hit Points",
+      "groupHitPoints": "Group HP",
+      "groupHitPointsHint": "One member's HP, standing for the whole group. Lose half of it and about half of them are out of the action; at 0 the group is routed.",
+      "fightAsGroup": "Group fight",
+      "fightAsGroupHint": "Optional (Book I p.416): run the whole group as one combatant. Hit Points becomes the group's pool, damage to it is casualties, and Group size and the two fighting-in-numbers rows appear, counting only those still standing. Leave it off while each token is one creature with its own HP.",
       "armor": "Armor",
       "damage": "Damage",
       "instinct": "Instinct",
@@ -840,7 +844,7 @@
       "noWriteUp": "Nothing is written up for this creature yet.",
       "details": "Details",
       "tabs": {
-        "statBlock": "Stat Block",
+        "statBlock": "Stats",
         "notes": "Notes"
       },
       "noEntry": "Not linked to a bestiary entry.",

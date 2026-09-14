@@ -3,13 +3,13 @@ import { hasText } from "../bestiary/codex.js";
 import { rollDamagePrompted } from "../../dialogs/RollDialog.js";
 import { dieFromDamage, attackRollMode, splitMonsterAttackProse, damageCardText } from "../../utils/damage.js";
 import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle } from "../../utils/sheet-chrome.js";
-import { escHtml, isDefaultImg } from "../../utils/strings.js";
+import { capitalizeFirst, escHtml, isDefaultImg } from "../../utils/strings.js";
 import { headerPortraitContext, wirePortraitPopout } from "../../utils/actor-portrait-picker.js";
 import { updateRichTextField, updateMoveField } from "../../utils/stat-block-edit.js";
 import { findMonsterTag } from "../../data/monster-tags.js";
 import { getHoverDescriptionSetting, getOpenSheetsInEditMode } from "../../settings.js";
 import { parseArmorBoost, armorBoostLabel } from "../../utils/monster-armor-boost.js";
-import { outnumberBonus, pileOnBonus, casualtyNote, wireFightingInNumbers } from "../../data/follower-build.js";
+import { outnumberBonus, pileOnBonus, numbersClauses, groupCasualties, casualtyNote, wireFightingInNumbers } from "../../data/follower-build.js";
 import { postListCard } from "../../utils/chat.js";
 import { localize, format } from "../../utils/i18n.js";
 import { deletionEntry, enrichHTML, compendiumSourceOf } from "../../utils/foundry-compat.js";
@@ -21,9 +21,9 @@ import { SYSTEM_ID } from "../../system-id.js";
 
 // Per-organization combat budget (Book I, "Dangers", pp.396-398).
 const ORGANIZATION_DEFAULTS = {
-	horde:    { hp: 3,  die: "d6",  count: 6 },
-	group:    { hp: 6,  die: "d8",  count: 3 },
-	solitary: { hp: 12, die: "d10", count: 1 },
+	horde:    { hp: 3,  die: "d6" },
+	group:    { hp: 6,  die: "d8" },
+	solitary: { hp: 12, die: "d10" },
 };
 
 const ORGANIZATION_CHOICES = {
@@ -66,7 +66,10 @@ function _normalizeTag(value) {
  */
 function _parseDamageModes(value) {
 	return splitMonsterAttackProse(value).map(text => ({
-		text,
+		// Each mode opens its own line on the sheet, so it opens with a capital, as the
+		// damage card's title does: "Antler of jagged bone d10+2 (close, messy, 1 piercing)".
+		// Display only; the die, roll mode and card text below all read the prose as written.
+		text: capitalizeFirst(text),
 		// The die read by the shared reader too, not a second expression over the same
 		// prose: a fix to how a formula is recognised ("2 d 6", a bare "d8") has to reach
 		// the sheet's roll button and the blow a PC suffers alike.
@@ -452,12 +455,19 @@ export function createStonetopMonsterSheetClass(Base) {
 			st.organizationTooltip = showTagTips ? findMonsterTag(org) : null;
 
 			// Fighting-in-numbers tools for a horde/group (Book I, Dangers pp.414-416),
-			// hung off the otherwise-dead system.count ("No. appearing"). TWO rules, one
+			// hung off the otherwise-dead system.count ("Group size"). TWO rules, one
 			// row each, because they answer different questions and only agree when the
 			// creatures face a single target — see follower-build.js for both quoted in
 			// full. The stat block's own HP/armor/damage are already "as per a single
 			// individual member", so nothing here multiplies them.
+			//
+			// That one HP box is read at two scales, and `fightAsGroup` says which. Off (the
+			// default), the sheet is one creature: an unlinked token with its own HP, where a
+			// wound is a wound, and neither row is drawn, since both count a group's bodies. On,
+			// the GM is running the whole group as one combatant (p.416), the box is the group's
+			// pool, and Group size, its casualties and both rows apply.
 			st.isGroupOrg        = org === "horde" || org === "group";
+			st.fightAsGroup      = st.isGroupOrg && !!system?.fightAsGroup;
 			st.count             = Math.max(0, Math.trunc(Number(system?.count) || 0));
 			st.baseDamageFormula = String(system?.attributes?.damage?.rollFormula || ORGANIZATION_DEFAULTS[org]?.die || "d6").trim();
 
@@ -466,28 +476,43 @@ export function createStonetopMonsterSheetClass(Base) {
 			// line showed the GM a state the sheet did not actually mean: the numbers said +5
 			// and the roll button said d6, and only touching a field reconciled them.
 			//
-			// Only a horde or a group has these rows at all, and the template draws none of
+			// Only a horde or a group has these tools at all, and the template draws none of
 			// them otherwise, so a solitary creature — the common case for a named danger —
 			// does not pay for formula rewrites nothing will read.
 			if (st.isGroupOrg) {
-				const swarmCount   = st.count || ORGANIZATION_DEFAULTS[org]?.count || 2;
-				const swarm        = pileOnBonus(swarmCount);
-				const exchange     = outnumberBonus(swarmCount, 1);
-				st.swarmCount      = swarmCount;
-				st.swarmLabel      = swarm.label;
-				st.swarmFormula    = swarm.rollFor(st.baseDamageFormula);
-				st.exchangeLabel   = exchange.label;
-				st.exchangeFormula = exchange.rollFor(st.baseDamageFormula);
-
 				// "Damage represents casualties": what the stat block's remaining HP means in
 				// bodies, once the GM is running the whole group as one combatant. The stat
 				// block's HP is already a single member's, which is exactly the pool this rule
-				// reads, so it needs no conversion. Null until a count has been recorded.
-				st.casualtyNote = casualtyNote({
+				// reads, so it needs no conversion. Only then, though: read off one creature's
+				// token, a crinwin at 1 of 3 HP said "2 of 6 still standing" about a fight it was
+				// never part of. Null until a count has been recorded, and null while nobody is
+				// down: Group size's own box already gives the headcount, and "all 6 still
+				// standing" says nothing it doesn't.
+				const pool = {
 					hpMax:     system?.attributes?.hp?.max,
 					hpCurrent: system?.attributes?.hp?.value,
 					count:     st.count,
-				});
+				};
+				const { out, standing, routed } = groupCasualties(pool);
+				st.casualtyNote = st.fightAsGroup && (out > 0 || routed) ? casualtyNote(pool) : null;
+
+				// Both rows, only for a group being run as one. They open at the bodies still in the
+				// fight, as the follower cards do: "adjust the bonuses to damage and armor
+				// accordingly!" A member out of the action is not an attacker, nor one of the side's
+				// numbers. With no group size recorded they open at one rather than a horde's typical
+				// six, since a lone member of a group is in the book too (a lone suarachan); one is
+				// also the inputs' own minimum.
+				if (st.fightAsGroup) {
+					const swarmCount   = Math.max(1, standing);
+					const swarm        = pileOnBonus(swarmCount);
+					const exchange     = outnumberBonus(swarmCount, 1);
+					st.swarmCount      = swarmCount;
+					// Each readout as the template draws it, one span per clause (see numbersClauses).
+					st.swarmClauses    = numbersClauses(swarm.label);
+					st.swarmFormula    = swarm.rollFor(st.baseDamageFormula);
+					st.exchangeClauses = numbersClauses(exchange.label);
+					st.exchangeFormula = exchange.rollFor(st.baseDamageFormula);
+				}
 			}
 
 			// Armor-boost moves (e.g. "Withdraw into its shell (Armor 5)") act as
