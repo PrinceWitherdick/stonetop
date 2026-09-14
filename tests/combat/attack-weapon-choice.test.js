@@ -111,7 +111,7 @@ describe("maybeBeginAttack with a weapon already chosen", () => {
 			stat: "wis", weaponSlug: "purifying-flames-holy-light",
 		});
 
-		const attack = begun.messageFlags["stonetop-pwd"].attack;
+		const attack = begun.messageFlags["stonetop_pwd"].attack;
 		expect(attack.move).toBe("Clash");
 		expect(attack.weapon.name).toBe("Holy light");
 		// The d10 that replaces the PC's own die, and the piercing the damage card reads back.

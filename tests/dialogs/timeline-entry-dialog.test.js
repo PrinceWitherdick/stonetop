@@ -124,7 +124,7 @@ describe("the markup and the wiring agree", () => {
 	it("gives every field the class the save path reads", async () => {
 		const dialog = makeDialog();
 		const html = await renderTemplate(
-			"systems/stonetop-pwd/templates/dialogs/timeline-entry.hbs", dialog.getData());
+			"systems/stonetop_pwd/templates/dialogs/timeline-entry.hbs", dialog.getData());
 
 		for (const cls of [TITLE, PLACE, BODY]) {
 			expect(html, `${cls} is not in the template`).toContain(cls.slice(1));
@@ -138,7 +138,7 @@ describe("the markup and the wiring agree", () => {
 	it("asks for the date with the picker the season change already uses", async () => {
 		const dialog = makeDialog({ season: "autumn", year: 2 });
 		const html = await renderTemplate(
-			"systems/stonetop-pwd/templates/dialogs/timeline-entry.hbs", dialog.getData());
+			"systems/stonetop_pwd/templates/dialogs/timeline-entry.hbs", dialog.getData());
 
 		expect(html).toContain("stonetop-season-card");
 		expect(html).toContain("stonetop-season-year-input");
@@ -150,7 +150,7 @@ describe("the markup and the wiring agree", () => {
 	it("offers the world's places without limiting the field to them", async () => {
 		const dialog = makeDialog();
 		const html = await renderTemplate(
-			"systems/stonetop-pwd/templates/dialogs/timeline-entry.hbs", dialog.getData());
+			"systems/stonetop_pwd/templates/dialogs/timeline-entry.hbs", dialog.getData());
 
 		expect(html).toContain("<datalist");
 		expect(html).toContain("The Stone");

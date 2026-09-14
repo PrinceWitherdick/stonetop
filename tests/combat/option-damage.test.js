@@ -107,7 +107,7 @@ describe("readOptionDamage: the bullets that owe a damage roll", () => {
 
 // -- Rolling it onto the shared damage card -----------------------------------
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 
 let created;
 const actor = { name: "Pim", id: "pim", uuid: "Actor.pim", type: "character", system: {} };

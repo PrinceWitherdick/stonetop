@@ -15,7 +15,7 @@ import { campWindowView } from "../../module/camp/camp-view.js";
  */
 
 const CSS = readCss();
-const TEMPLATE_PATH = "systems/stonetop-pwd/templates/dialogs/make-camp.hbs";
+const TEMPLATE_PATH = "systems/stonetop_pwd/templates/dialogs/make-camp.hbs";
 const TEMPLATE = stripComments(readRepo("templates/dialogs/make-camp.hbs"));
 
 const inputs = type => [...TEMPLATE.matchAll(new RegExp(`<input type="${type}"[^>]*>`, "g"))].map(m => m[0]);

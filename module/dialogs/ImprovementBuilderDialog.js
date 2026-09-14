@@ -254,7 +254,7 @@ export class ImprovementBuilderDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			// No fixed id: two of these may be open at once (one per steading, or one of
 			// each kind), and a shared DOM id would have the second paint into the first.
-			template: "systems/stonetop-pwd/templates/dialogs/improvement-builder.hbs",
+			template: "systems/stonetop_pwd/templates/dialogs/improvement-builder.hbs",
 			width: 660,
 			height: 560,
 			resizable: true,

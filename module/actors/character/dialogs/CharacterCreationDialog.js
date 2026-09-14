@@ -44,7 +44,7 @@ export class CharacterCreationDialog extends Application {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:       "stonetop-character-creation",
-			template: "systems/stonetop-pwd/templates/dialogs/character-creation.hbs",
+			template: "systems/stonetop_pwd/templates/dialogs/character-creation.hbs",
 			title:    "Create Your Character",
 			width:    480,
 			height:   "auto",

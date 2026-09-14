@@ -8,7 +8,7 @@ import { isStonetopJournalEntry } from "../../module/utils/journal-spiral-bullet
 // compiled pack's documents straight in) must still be recognised — via the baked
 // `flags.stonetop` marker the gazetteer writes into every shipped entry.
 
-const PACK = "stonetop-pwd.stonetop-journal";
+const PACK = "stonetop_pwd.stonetop-journal";
 const SRC = `Compendium.${PACK}.JournalEntry.abc123`;
 
 describe("isStonetopJournalEntry", () => {

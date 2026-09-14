@@ -32,7 +32,7 @@ function makeCharacter(links = {}, extra = {}) {
 		uuid: "Actor.pc1",
 		isOwner: true,
 		ownership: { default: 0, user1: 3 },
-		flags: { "stonetop-pwd": { customFollowers } },
+		flags: { "stonetop_pwd": { customFollowers } },
 		update: vi.fn(async () => {}),
 		testUserPermission: () => true,
 		...extra,
@@ -101,7 +101,7 @@ describe("createFollowerActor", () => {
 		await createFollowerActor(snapshot("f1"), character, { folder: "fold1" });
 
 		expect(created[0].ownership).toEqual({ default: 0, user1: 3 });
-		expect(created[0].flags["stonetop-pwd"].followerOrigin)
+		expect(created[0].flags["stonetop_pwd"].followerOrigin)
 			.toEqual({ characterUuid: "Actor.pc1", ftype: "custom", slug: "f1" });
 	});
 
@@ -132,8 +132,8 @@ describe("ensureFollowerActors", () => {
 		expect(globalThis.Actor.create).toHaveBeenCalledTimes(2);
 		expect(character.update).toHaveBeenCalledTimes(1);
 		expect(character.update).toHaveBeenCalledWith({
-			"flags.stonetop-pwd.customFollowers.f1.actorUuid": "Actor.new0",
-			"flags.stonetop-pwd.customFollowers.f2.actorUuid": "Actor.new1",
+			"flags.stonetop_pwd.customFollowers.f1.actorUuid": "Actor.new0",
+			"flags.stonetop_pwd.customFollowers.f2.actorUuid": "Actor.new1",
 		});
 	});
 
@@ -176,7 +176,7 @@ describe("ensureFollowerActors", () => {
 		character = makeCharacter();
 		globalThis.Actor.create = vi.fn(async (data) => {
 			// The other client's write lands while this one is mid-create.
-			character.flags["stonetop-pwd"].customFollowers.f2 = { actorUuid: "Actor.theirs" };
+			character.flags["stonetop_pwd"].customFollowers.f2 = { actorUuid: "Actor.theirs" };
 			const actor = { ...data, documentName: "Actor", uuid: `Actor.new${created.length}` };
 			created.push(actor);
 			return actor;
@@ -184,7 +184,7 @@ describe("ensureFollowerActors", () => {
 
 		expect(await ensureFollowerActors(character, [snapshot("f1"), snapshot("f2")])).toBe(1);
 		expect(character.update).toHaveBeenCalledWith({
-			"flags.stonetop-pwd.customFollowers.f1.actorUuid": "Actor.new0",
+			"flags.stonetop_pwd.customFollowers.f1.actorUuid": "Actor.new0",
 		});
 	});
 
@@ -201,14 +201,14 @@ describe("ensureFollowerActors", () => {
 			};
 			created.push(actor);
 			// Their write for THIS follower lands just after ours was made.
-			if (created.length === 1) character.flags["stonetop-pwd"].customFollowers.f1 = { actorUuid: "Actor.theirs" };
+			if (created.length === 1) character.flags["stonetop_pwd"].customFollowers.f1 = { actorUuid: "Actor.theirs" };
 			return actor;
 		});
 
 		expect(await ensureFollowerActors(character, [snapshot("f1"), snapshot("f2")])).toBe(1);
 		expect(deleted).toEqual(["Actor.new0"]);
 		expect(character.update).toHaveBeenCalledWith({
-			"flags.stonetop-pwd.customFollowers.f2.actorUuid": "Actor.new1",
+			"flags.stonetop_pwd.customFollowers.f2.actorUuid": "Actor.new1",
 		});
 	});
 
@@ -224,8 +224,8 @@ describe("ensureFollowerActors", () => {
 // existed went on wearing the name, face and numbers it was born with — most visibly as the token
 // dropped onto a scene.
 describe("syncFollowerActors", () => {
-	const MARK = "systems/stonetop-pwd/assets/icons/bestiary/human-individual.svg";
-	const BEAST = "systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg";
+	const MARK = "systems/stonetop_pwd/assets/icons/bestiary/human-individual.svg";
+	const BEAST = "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg";
 
 	// One card, and an actor built from it: the steady state every test drifts one thing away from.
 	const CARD = {
@@ -309,11 +309,11 @@ describe("syncFollowerActors", () => {
 		const F1 = { src: SRC, rect: [0.1, 0.1, 0.6, 0.6] };
 		const F2 = { src: SRC, rect: [0.2, 0.2, 0.8, 0.8] };
 		const npc = makeFollowerActor("Actor.a", card({ img: SRC, portraitFrame: F1 }));
-		npc.flags["stonetop-pwd"].portraitFrame = F1;
+		npc.flags["stonetop_pwd"].portraitFrame = F1;
 		character = makeCharacter({ f1: "Actor.a" });
 
 		expect(await syncFollowerActors(character, [snap({ img: SRC, portraitFrame: F2 })])).toBe(1);
-		expect(wrote(npc)["flags.stonetop-pwd.portraitFrame"]).toEqual(F2);
+		expect(wrote(npc)["flags.stonetop_pwd.portraitFrame"]).toEqual(F2);
 		// The picture itself never moved, so nothing should be rewriting it.
 		expect(wrote(npc).img).toBeUndefined();
 	});
@@ -466,7 +466,7 @@ describe("syncFollowerActors", () => {
 
 		expect(wrote(npc)["system.instinct"]).toBe("To flee");
 		expect(wrote(npc)["system.attributes.damage.value"]).toBeUndefined();
-		expect(wrote(npc)["flags.stonetop-pwd.followerCard"].fields.damage).toBe("d8 (close)");
+		expect(wrote(npc)["flags.stonetop_pwd.followerCard"].fields.damage).toBe("d8 (close)");
 	});
 
 	it("takes the frame with the picture, and takes the old rect away with it", async () => {
@@ -482,9 +482,9 @@ describe("syncFollowerActors", () => {
 			{ ...snap({ img: "" }, "Actor.b"), slug: "f2", detailBase: "customFollowers.f2" },
 		]);
 
-		expect(wrote(withArt)["flags.stonetop-pwd.portraitFrame"]).toEqual(frame);
+		expect(wrote(withArt)["flags.stonetop_pwd.portraitFrame"]).toEqual(frame);
 		expect(wrote(cleared).img).toBe(MARK);
-		expect(wrote(cleared)["flags.stonetop-pwd.-=portraitFrame"]).toBeNull();
+		expect(wrote(cleared)["flags.stonetop_pwd.-=portraitFrame"]).toBeNull();
 	});
 
 	it("adds a move the card gained and removes one it lost", async () => {
@@ -567,8 +567,8 @@ describe("syncFollowerActors", () => {
 		// The first client's write lands while this one is still waiting its turn.
 		setTimeout(() => {
 			npc.items.push({ id: "theirs", name: "Stand fast", type: "npcMove" });
-			npc.flags["stonetop-pwd"].followerCard =
-				followerNpcActorData(card({ moves: ["Stand fast"] })).flags["stonetop-pwd"].followerCard;
+			npc.flags["stonetop_pwd"].followerCard =
+				followerNpcActorData(card({ moves: ["Stand fast"] })).flags["stonetop_pwd"].followerCard;
 		}, 0);
 
 		expect(await syncFollowerActors(character, [snap({ moves: ["Stand fast"] })])).toBe(0);

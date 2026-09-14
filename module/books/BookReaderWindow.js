@@ -27,7 +27,7 @@ import { showBookToPlayers } from "./book-broadcast.js";
 import { markBookReaderOpen, markBookReaderClosed } from "./reader-resume.js";
 import { mountBookmarksTab } from "./reader-bookmarks-tab.js";
 
-const TEMPLATE = "systems/stonetop-pwd/templates/dialogs/book-reader.hbs";
+const TEMPLATE = "systems/stonetop_pwd/templates/dialogs/book-reader.hbs";
 
 const READER_ID_PREFIX = "stonetop-book-reader";
 

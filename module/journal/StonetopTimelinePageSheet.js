@@ -22,7 +22,7 @@ export function createStonetopTimelinePageSheetClass(Base) {
 		}
 
 		get template() {
-			return "systems/stonetop-pwd/templates/journal/timeline-page.hbs";
+			return "systems/stonetop_pwd/templates/journal/timeline-page.hbs";
 		}
 
 		// Rendered with `editable: false` in the embedded view, and there is nothing to disable

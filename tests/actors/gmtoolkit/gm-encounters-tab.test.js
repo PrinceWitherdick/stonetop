@@ -1459,15 +1459,15 @@ describe("the Encounters tab: deploying to the map", () => {
 	// would mint another copy of a monster the world already has, for the life of the campaign.
 	it("prefers a world copy of a pack actor over importing a second one", async () => {
 		const { host } = makeHost([{ id: "e1", name: "C", entries: [
-			{ id: "x1", uuid: "Compendium.stonetop-pwd.bestiary.Actor.rh", type: "Actor", name: "Rust-Hound", note: "" },
+			{ id: "x1", uuid: "Compendium.stonetop_pwd.bestiary.Actor.rh", type: "Actor", name: "Rust-Hound", note: "" },
 		] }]);
 		const placed = fakeCanvas();
 		globalThis.fromUuid = vi.fn(async () => ({
-			documentName: "Actor", uuid: "Compendium.stonetop-pwd.bestiary.Actor.rh", pack: "stonetop-pwd.bestiary", name: "Rust-Hound",
+			documentName: "Actor", uuid: "Compendium.stonetop_pwd.bestiary.Actor.rh", pack: "stonetop_pwd.bestiary", name: "Rust-Hound",
 		}));
 		global.game.actors = [{
 			uuid: "Actor.world1", name: "Rust-Hound",
-			_stats: { compendiumSource: "Compendium.stonetop-pwd.bestiary.Actor.rh" },
+			_stats: { compendiumSource: "Compendium.stonetop_pwd.bestiary.Actor.rh" },
 		}];
 		globalThis.Actor = { create: vi.fn(), canUserCreate: () => true };
 		await host._deployEncounter("e1");
@@ -1479,11 +1479,11 @@ describe("the Encounters tab: deploying to the map", () => {
 	// still counts as having the monster.
 	it("matches that copy across a system-id rename", async () => {
 		const { host } = makeHost([{ id: "e1", name: "C", entries: [
-			{ id: "x1", uuid: "Compendium.stonetop-pwd.bestiary.Actor.rh", type: "Actor", name: "Rust-Hound", note: "" },
+			{ id: "x1", uuid: "Compendium.stonetop_pwd.bestiary.Actor.rh", type: "Actor", name: "Rust-Hound", note: "" },
 		] }]);
 		const placed = fakeCanvas();
 		globalThis.fromUuid = vi.fn(async () => ({
-			documentName: "Actor", uuid: "Compendium.stonetop-pwd.bestiary.Actor.rh", pack: "stonetop-pwd.bestiary", name: "Rust-Hound",
+			documentName: "Actor", uuid: "Compendium.stonetop_pwd.bestiary.Actor.rh", pack: "stonetop_pwd.bestiary", name: "Rust-Hound",
 		}));
 		global.game.actors = [{
 			uuid: "Actor.world1", name: "Rust-Hound",

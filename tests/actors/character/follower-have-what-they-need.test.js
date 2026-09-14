@@ -34,7 +34,7 @@ import { FakeActorBuilder } from "../../fakes/FakeActorBuilder.js";
  *     diamond list above that section, which this button has never touched.
  */
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 
 function makeSheet(flags = {}) {
 	const actor = new FakeActorBuilder().withFlags(flags).build();

@@ -12,7 +12,7 @@ import { RELMAP_CAPTION_PX } from "../../module/utils/relmap-geometry.js";
 // The map's data layer: the only place in the feature that writes a flag path string, and the
 // guard that stops an id from destroying the map it is stored in.
 
-const PREFIX = "flags.stonetop-pwd.relationshipMap";
+const PREFIX = "flags.stonetop_pwd.relationshipMap";
 
 /** A graph with two people and one link between them. */
 function graph() {

@@ -1,7 +1,7 @@
 {
   "name": "Die of Fate",
   "type": "script",
-  "img": "systems/stonetop-pwd/assets/icons/macros/die-of-fate.svg",
+  "img": "systems/stonetop_pwd/assets/icons/macros/die-of-fate.svg",
   "scope": "global",
   "command": "game.stonetop?.rollDieOfFate?.()",
   "folder": null,

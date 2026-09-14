@@ -18,7 +18,7 @@ class FakeWindow {
 	static get defaultOptions() {
 		return {
 			classes: ["stonetop", "stonetop-relmap-app"],
-			template: "systems/stonetop-pwd/templates/dialogs/relationship-map.hbs",
+			template: "systems/stonetop_pwd/templates/dialogs/relationship-map.hbs",
 			width: 900,
 			height: 800,
 			// The window is resizable; the panel must turn that off, and this is what it turns off.
