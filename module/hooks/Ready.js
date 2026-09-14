@@ -1,6 +1,7 @@
 import { runStartupMigrations } from "./PbtaSheetConfig.js";
 import { theGmToolkit, createGmToolkit, isGmToolkitData, GM_TOOLKIT_DEFAULT_IMG } from "../actors/gmtoolkit/gm-toolkit-actor.js";
 import { openRelationshipMap } from "../dialogs/RelationshipMapWindow.js";
+import { openTimelineWindow } from "../dialogs/TimelineWindow.js";
 import { canCreateRelationshipMap, ensureRelationshipMapFolder, listRelationshipMaps } from "../relmap/relmap-doc.js";
 import { promptForNewRelationshipMap } from "../relmap/relmap-make.js";
 import { defaultBoard } from "../relmap/relmap-last.js";
@@ -19,10 +20,11 @@ import { reapplyBook2Art, hasImportedBook2Art } from "../book2-art/reapply.js";
 import { clearArtBrowseCache } from "../book2-art/browse.js";
 import { BOOK2_ART_MACRO_NAME, findBook2ArtWorldMacro, loadBook2ArtMacroSource, runImportBookArtMacro } from "../book2-art/macro.js";
 import { offerDurableArtOnce } from "../book2-art/offer-once.js";
+import { MACRO_MODULES } from "../book2-art/macro-modules.js";
 import { openProgressNotification } from "../utils/progress-notification.js";
 import { stonetopChatCard, whisperGm } from "../utils/chat.js";
 import { stampWorldLayoutBaseline } from "../utils/sheet-layout.js";
-import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyReduceMotion, applySheetContrast, applySheetTexture, applyNoItalics, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown, adoptClassicLayoutScope } from "../settings.js";
+import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyReduceMotion, applySheetContrast, applySheetTexture, applyNoItalics, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown, adoptClassicLayoutScope, isTimelineEnabled } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
 import { SpringBurstDialog } from "../dialogs/SpringBurstDialog.js";
@@ -321,6 +323,9 @@ export async function onReady() {
 	catch (err) { console.error("Stonetop | sheet partial preload failed", err); }
 
 	game.stonetop ??= {};
+	// The modules the Import Book Art macro borrows, so a bundled release hands it this system's own
+	// instances rather than second copies. See book2-art/macro-modules.js.
+	game.stonetop.macroModules = MACRO_MODULES;
 	game.stonetop.openEndOfSession  = () => new EndOfSessionDialog().render(true);
 	game.stonetop.openIntroductions = () => IntroductionsDialog.open();
 	// Cursor onChange dispatcher (registered on the introCursor world setting): opens/
@@ -416,6 +421,18 @@ export async function onReady() {
 	// asks which one; pass a name or an id to go straight there.
 	//   game.stonetop.openRelationshipMap("The people of Stonetop")
 	game.stonetop.openRelationshipMap = (which) => _openRelationshipMap(which);
+	// The whole campaign on one timeline: Stonetop's thread and every character's, side by side
+	// under one column of seasons. OUTSIDE any GM gate, on the same reading as the map above it --
+	// the record is the table's, not the GM's.
+	//
+	// NO HOTBAR MACRO GOES WITH THIS, and that is a decision rather than an omission: slots 1-10
+	// are all spoken for, and the timeline already has two doors that the macros do not (a tab on
+	// the steading sheet and one on every character sheet, each with a button through to here).
+	// This entry is what lets a GM who wants it on the bar make their own.
+	//
+	// BEHIND THE FEATURE FLAG: unreleased, so in a shipped world the property is simply absent
+	// rather than present and broken. See `isTimelineEnabled` in module/settings.js.
+	if (isTimelineEnabled()) game.stonetop.openTimeline = () => openTimelineWindow();
 	// Create a blank homebrew arcanum world Item and open its editor. Minor by default;
 	// pass { major: true } for a major. Callable from a macro/console/hotbar:
 	//   game.stonetop.createArcanum({ name: "My Charm" })

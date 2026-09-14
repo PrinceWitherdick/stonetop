@@ -91,6 +91,8 @@ export default [
 		ignores: [
 			"node_modules/**",
 			"packs/**",
+			// The release bundle `npm run build` writes (scripts/bundle.js): generated, and gitignored.
+			"dist/**",
 			// Generated from the Book II art pipeline; header says "Do NOT edit by hand".
 			"module/book2-art/manifest.js",
 		],

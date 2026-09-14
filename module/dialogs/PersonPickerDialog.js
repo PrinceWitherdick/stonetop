@@ -382,7 +382,8 @@ export class PersonPickerDialog extends StonetopDialog {
 			chip.type = "button";
 			chip.className = "stonetop-person-picker-chip";
 			chip.dataset.unpick = id;
-			chip.dataset.tooltip = drop;
+			// As TEXT: a person's name is whatever somebody typed, and core draws `data-tooltip` as HTML.
+			chip.dataset.tooltipText = drop;
 			chip.setAttribute("aria-label", drop);
 			const text = document.createElement("span");
 			text.className = "stonetop-person-picker-chip-name";
@@ -433,7 +434,15 @@ export function pickPerson({
 	multiple = false, formatManyLabel = null,
 } = {}) {
 	if (!groups.some(group => group.people?.length)) return Promise.resolve(null);
+	// ⚠ ITS OWN WINDOW ID EVERY TIME. AppV1 finds a window's frame by its id, so two pickers sharing the
+	// one in `defaultOptions` both resolved to the FIRST one's frame: the second painted over the first,
+	// whose question then never got an answer, and a pick made there went to whichever caller asked last
+	// -- people meant for one map landing on another. Two are easy to have up at once: "Add someone" and
+	// a portrait's link handle, or the same button on the steading sheet's map and on its popped-out window.
 	return new PersonPickerDialog({
 		title, groups, buttonLabel, formatLabel, icon, hint, multiple, formatManyLabel,
-	}).promise();
+	}, { id: `stonetop-person-picker-${++pickersOpened}` }).promise();
 }
+
+/** How many pickers this client has opened, which is what keeps each one's window id its own. */
+let pickersOpened = 0;

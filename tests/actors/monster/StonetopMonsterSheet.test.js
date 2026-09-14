@@ -12,6 +12,14 @@ vi.mock("../../../module/actors/steading/PeopleGalleryDialog.js", () => ({
 	openPeoplePortraitPicker: gallery.open,
 }));
 
+// The damage window and the roll behind it, stood in for so a click on a damage line can be read
+// off the arguments it rolled with. Everything else in the module is the real one.
+const rollDialog = vi.hoisted(() => ({ rollDamagePrompted: vi.fn() }));
+vi.mock("../../../module/dialogs/RollDialog.js", async importOriginal => ({
+	...(await importOriginal()),
+	rollDamagePrompted: rollDialog.rollDamagePrompted,
+}));
+
 function makeItems(items) {
 	return {
 		filter: callback => items.filter(callback),
@@ -30,6 +38,21 @@ function makeSheet(actor, { editable = true } = {}) {
 	const Sheet = createStonetopMonsterSheetClass(Base);
 	return new Sheet();
 }
+
+// The sheet mounts its tab rail in activateListeners, and mountTabRail only lifts a rail off a
+// REAL element, checking with instanceof HTMLElement: a global this node test environment does
+// not define. The roots handed to activateListeners below are plain doubles, so an empty stand-in
+// class makes that check answer "not an element" and the rail step do nothing, which is exactly
+// what it does for a sheet with no DOM. Restored afterwards so no other suite inherits it.
+let _savedHTMLElement;
+beforeEach(() => {
+	_savedHTMLElement = globalThis.HTMLElement;
+	globalThis.HTMLElement ??= class {};
+});
+afterEach(() => {
+	if (_savedHTMLElement === undefined) delete globalThis.HTMLElement;
+	else globalThis.HTMLElement = _savedHTMLElement;
+});
 
 describe("StonetopMonsterSheet", () => {
 	// deletionEntry only reaches for a ForcedDeletion INSTANCE on v14+ (below that it uses
@@ -125,6 +148,146 @@ describe("StonetopMonsterSheet", () => {
 		expect(st.sizeTooltip).toMatch(/human child/);
 	});
 
+	// Fighting in numbers: both readouts are answered in getData, not left to the first
+	// keystroke. Rendering the inputs pre-filled beside an empty result and an unmodified
+	// damage line showed a state the sheet did not mean — the counts said +5 and the roll
+	// button said d6, and only touching a field reconciled them.
+	describe("fighting-in-numbers tools", () => {
+		const horde = (system = {}) => ({
+			system: {
+				organization: "horde", count: 6,
+				attributes: { hp: { value: 3, max: 3 }, damage: { rollFormula: "d6" } },
+				...system,
+			},
+			items: makeItems([]),
+		});
+
+		// The same horde, being run as ONE combatant (Book I p.416, "Abstracting groups").
+		const asGroup = (system = {}) => horde({ fightAsGroup: true, ...system });
+		const hurt    = (value, system = {}) => ({ attributes: { hp: { value, max: 3 }, damage: { rollFormula: "d6" } }, ...system });
+
+		it("answers BOTH rules on the first paint, each with its own die", async () => {
+			const st = (await makeSheet(asGroup()).getData()).stonetop;
+
+			expect(st.isGroupOrg).toBe(true);
+			expect(st.fightAsGroup).toBe(true);
+			// Swarming one foe pays damage only: 6 attackers, +1 per attacker past the first. Each
+			// readout is drawn one span per clause, so a narrow row breaks between them and never inside one.
+			expect(st.swarmCount).toBe(6);
+			expect(st.swarmClauses).toEqual(["+5 damage"]);
+			expect(st.swarmFormula).toBe("d6+5");
+			// The abstraction pays damage AND armor, off the ratio rather than the headcount.
+			expect(st.exchangeClauses).toEqual(["+5 damage,", "+5 armor"]);
+			expect(st.exchangeFormula).toBe("d6+5");
+		});
+
+		// Off, the sheet is one creature. Both rules count a group's bodies, so neither row is offered.
+		it("offers neither row while the sheet is one creature", async () => {
+			const st = (await makeSheet(horde()).getData()).stonetop;
+			expect(st.fightAsGroup).toBe(false);
+			expect(st.swarmCount).toBeUndefined();
+			expect(st.swarmFormula).toBeUndefined();
+			expect(st.exchangeClauses).toBeUndefined();
+			expect(st.exchangeFormula).toBeUndefined();
+		});
+
+		// A lone member of a group is in the book (a lone suarachan), so an unrecorded group size is
+		// not read as a horde's typical six and a +5 nobody asked for.
+		it("opens both rows at one when no group size is recorded", async () => {
+			const st = (await makeSheet(asGroup({ count: 0 })).getData()).stonetop;
+			expect(st.swarmCount).toBe(1);
+			expect(st.swarmClauses).toEqual(["no bonus"]);
+			expect(st.exchangeClauses).toEqual(["no bonus"]);
+			expect(st.casualtyNote).toBeNull();   // with no count, no bodies to divide
+		});
+
+		// Unhurt, Group size is the bare headcount: "all 6 still standing" is just "6", longer.
+		it("adds no casualty line while nobody is down", async () => {
+			const st = (await makeSheet(asGroup()).getData()).stonetop;
+			expect(st.count).toBe(6);
+			expect(st.casualtyNote).toBeNull();
+		});
+
+		it("reads the group's remaining HP back as casualties", async () => {
+			expect((await makeSheet(asGroup(hurt(2))).getData()).stonetop.casualtyNote)
+				.toBe("4 of 6 still standing");
+			expect((await makeSheet(asGroup(hurt(0))).getData()).stonetop.casualtyNote)
+				.toBe("routed, massacred, or otherwise defeated");
+		});
+
+		// One crinwin's token at 1 of 3 HP is one hurt crinwin. Read as the group's pool, it said
+		// "2 of 6 still standing" about five others who were never in its fight.
+		it("reads no casualties off one creature's wounds", async () => {
+			const st = (await makeSheet(horde(hurt(1))).getData()).stonetop;
+			expect(st.casualtyNote).toBeNull();
+			expect(st.swarmCount).toBeUndefined();
+		});
+
+		// "Adjust the bonuses to damage and armor accordingly!" A member out of the action is neither
+		// an attacker nor one of the side's numbers, so both rows open at those still standing.
+		it("opens both rows at the members still standing", async () => {
+			const st = (await makeSheet(asGroup(hurt(2))).getData()).stonetop;
+			expect(st.swarmCount).toBe(4);
+			expect(st.swarmFormula).toBe("d6+3");
+			expect(st.exchangeClauses).toEqual(["+3 damage,", "+3 armor"]);
+
+			// Routed leaves nobody standing; the rows floor at their inputs' minimum of one.
+			const routed = (await makeSheet(asGroup(hurt(0))).getData()).stonetop;
+			expect(routed.swarmCount).toBe(1);
+			expect(routed.exchangeClauses).toEqual(["no bonus"]);
+		});
+
+		it("offers nothing for a solitary creature", async () => {
+			const alone = { system: { organization: "solitary", count: 1, fightAsGroup: true }, items: makeItems([]) };
+			const st = (await makeSheet(alone).getData()).stonetop;
+			expect(st.isGroupOrg).toBe(false);
+			expect(st.fightAsGroup).toBe(false);
+		});
+
+		// The switch is a real field, and both rows and the HP box's title follow it.
+		it("draws the switch, and hangs both rows and the Group HP title off it", async () => {
+			const { readFileSync } = await import("node:fs");
+			const hbs = readFileSync(new URL("../../../templates/actor/monster.hbs", import.meta.url), "utf8");
+			expect(hbs).toContain('<input class="stonetop-monster-group-toggle-check" type="checkbox" name="system.fightAsGroup" {{checked system.fightAsGroup}}');
+
+			// In play, Group size is a group's number, so one creature's sheet does not draw it.
+			// Edit mode always does: it is where the count the group mode reads gets set.
+			const toggleAt = hbs.indexOf('<label class="stonetop-monster-group-toggle"');
+			const countAt  = hbs.indexOf(">Group size<");
+			expect(hbs.slice(toggleAt, countAt)).toContain("{{#if (or stonetop.editMode stonetop.fightAsGroup)}}");
+
+			// And in play it is a box that saves, not a readout: how many are in the group is settled
+			// at the table and changes mid-fight (p.416). The casualty line sits beside it.
+			const line = hbs.slice(countAt, hbs.indexOf("</div>", countAt));
+			const play = line.slice(line.indexOf("{{else}}"));
+			expect(play).toMatch(/<input class="stonetop-monster-group-count" type="number" name="system\.count"/);
+			expect(play).toContain("{{stonetop.casualtyNote}}");
+
+			// Both rows under ONE switch: it opens after Group size and before the swarm row, and nothing
+			// between it and the exchange row closes it. A sheet with Group fight off draws neither.
+			const swarmAt    = hbs.indexOf('data-rule="swarm"');
+			const exchangeAt = hbs.indexOf('data-rule="exchange"');
+			const rowsIf     = hbs.lastIndexOf("{{#if stonetop.fightAsGroup}}", swarmAt);
+			expect(rowsIf).toBeGreaterThan(countAt);
+			expect(hbs.slice(rowsIf, exchangeAt)).not.toContain("{{/if}}");
+			expect(hbs.slice(rowsIf + 1, exchangeAt)).not.toContain("{{#if stonetop.fightAsGroup}}");
+
+			const title = hbs.slice(hbs.indexOf('<div class="cell cell--Resource cell--attr-hp">'), hbs.indexOf('name="system.attributes.hp.value"'));
+			expect(title).toContain("{{#if stonetop.fightAsGroup}}");
+			expect(title).toContain('{{localize "stonetop.monster.groupHitPoints"}}');
+		});
+
+		// The stat block's HP, armor and damage are ALREADY "as per a single individual
+		// member" — the abstraction's own wording — so nothing here may scale them by the
+		// headcount. A horde of six is still a 3 HP, d6 combatant.
+		it("never multiplies the stat block by the headcount", async () => {
+			const actor = horde();
+			const st = (await makeSheet(actor).getData()).stonetop;
+			expect(st.baseDamageFormula).toBe("d6");
+			expect(actor.system.attributes.hp.max).toBe(3);
+		});
+	});
+
 	it("renders plain escaped tags and no tooltips when hover info is off", async () => {
 		const originalGame = globalThis.game;
 		globalThis.game = { ...originalGame, settings: { get: () => false } };
@@ -154,8 +317,8 @@ describe("StonetopMonsterSheet", () => {
 
 		const data = await makeSheet(actor).getData();
 
-		expect(data.stonetop.damageModes).toEqual([
-			{ text: "claws, bite, hug d10+4 (hand, close, messy, 1 piercing)", formula: "d10+4", rollMode: "" },
+		expect(data.stonetop.damageModes).toMatchObject([
+			{ text: "Claws, bite, hug d10+4 (hand, close, messy, 1 piercing)", formula: "d10+4", rollMode: "" },
 		]);
 		expect(data.stonetop.multiDamage).toBe(false);
 	});
@@ -170,11 +333,87 @@ describe("StonetopMonsterSheet", () => {
 
 		const data = await makeSheet(actor).getData();
 
-		expect(data.stonetop.damageModes).toEqual([
-			{ text: "fingers d8 (close)", formula: "d8", rollMode: "" },
-			{ text: "maw d10+2 (hand, messy)", formula: "d10+2", rollMode: "" },
+		expect(data.stonetop.damageModes).toMatchObject([
+			{ text: "Fingers d8 (close)", formula: "d8", rollMode: "" },
+			{ text: "Maw d10+2 (hand, messy)", formula: "d10+2", rollMode: "" },
 		]);
 		expect(data.stonetop.multiDamage).toBe(true);
+	});
+
+	it("gives the far side of an 'or' its own mode, and its own die to roll", async () => {
+		// The Assassin, verbatim. The garrote is a second printed attack — a different die, and it
+		// ignores armor — but the sheet's own comma-only split read the whole line as ONE mode, so
+		// the dagger got the only roll button and the garrote could not be rolled at all.
+		const actor = {
+			system: {
+				attributes: { damage: { value: "dagger d10 (hand, 1 piercing) or garrote d8 (hand, grabby, ignores armor)" } },
+			},
+			items: makeItems([]),
+		};
+
+		const data = await makeSheet(actor).getData();
+
+		expect(data.stonetop.damageModes).toMatchObject([
+			{ text: "Dagger d10 (hand, 1 piercing)", formula: "d10", rollMode: "" },
+			{ text: "Garrote d8 (hand, grabby, ignores armor)", formula: "d8", rollMode: "" },
+		]);
+		expect(data.stonetop.multiDamage).toBe(true);
+	});
+
+	it("keeps an 'or' that only names one blow twice as a single mode", async () => {
+		// The Bear of Winter: one attack under two names, and the "or" inside the tag list is not a
+		// separator either. Splitting here would invent a die-less mode and halve the real one.
+		const actor = {
+			system: {
+				attributes: { damage: { value: "bite or maul d12+5 (close, hand or reach, forceful, messy)" } },
+			},
+			items: makeItems([]),
+		};
+
+		const data = await makeSheet(actor).getData();
+
+		// And it prints the book's own wording — "bite or maul", not a reconstructed "bite, maul".
+		expect(data.stonetop.damageModes).toMatchObject([
+			{ text: "Bite or maul d12+5 (close, hand or reach, forceful, messy)", formula: "d12+5", rollMode: "" },
+		]);
+		expect(data.stonetop.multiDamage).toBe(false);
+	});
+
+	it("lists a printed attack that rolls nothing, with no roll button of its own", async () => {
+		// The Thraulgwyn Raider's net: it is thrown, it grabs, and it deals no damage. A blank
+		// formula is what drops the die icon in the template, so the line shows without one.
+		const actor = {
+			system: {
+				attributes: { damage: { value: "hair-rope net (thrown, crude, grabby), bite d6 (hand)" } },
+			},
+			items: makeItems([]),
+		};
+
+		const data = await makeSheet(actor).getData();
+
+		expect(data.stonetop.damageModes).toMatchObject([
+			{ text: "Hair-rope net (thrown, crude, grabby)", formula: "", rollMode: "" },
+			{ text: "Bite d6 (hand)", formula: "d6", rollMode: "" },
+		]);
+	});
+
+	it("carries each mode's own advantage, not the first one's", async () => {
+		// Mkhalang, verbatim: both blows roll at disadvantage, and each button has to know it.
+		const actor = {
+			system: {
+				attributes: {
+					damage: {
+						value: "trample d8+3 w/disadvantage (hand, close) or ice-tusks d8+7 w/disadvantage (reach, forceful, messy, crude, 1 piercing)",
+					},
+				},
+			},
+			items: makeItems([]),
+		};
+
+		const data = await makeSheet(actor).getData();
+
+		expect(data.stonetop.damageModes.map(mode => `${mode.formula} ${mode.rollMode}`))
+			.toEqual(["d8+3 dis", "d8+7 dis"]);
 	});
 
 	it("flags a damage mode that notes disadvantage on its die", async () => {
@@ -187,9 +426,48 @@ describe("StonetopMonsterSheet", () => {
 
 		const data = await makeSheet(actor).getData();
 
-		expect(data.stonetop.damageModes).toEqual([
-			{ text: "icy touch d6 w/disadvantage (hand, ignores armor)", formula: "d6", rollMode: "dis" },
+		expect(data.stonetop.damageModes).toMatchObject([
+			{ text: "Icy touch d6 w/disadvantage (hand, ignores armor)", formula: "d6", rollMode: "dis" },
 		]);
+	});
+
+	it("titles a damage line's card with the attack's name, its tags as the body", async () => {
+		// The Assassin, verbatim. The card's formula chip already prints the die, so the title is
+		// the blow's name alone and its tags go beside the total (utils/damage.js#damageCardText).
+		const actor = {
+			system: {
+				attributes: { damage: { value: "dagger d10 (hand, 1 piercing) or garrote d8 (hand, grabby, ignores armor)" } },
+			},
+			flags: {},
+			items: makeItems([]),
+		};
+		const sheet = makeSheet(actor);
+		const garrote = (await sheet.getData()).stonetop.damageModes[1];
+		expect(garrote).toMatchObject({ title: "Garrote", keywords: "hand, grabby, ignores armor" });
+
+		// The roll button carries both, under the names the click reads back.
+		const { readFileSync } = await import("node:fs");
+		const template = readFileSync(new URL("../../../templates/actor/monster.hbs", import.meta.url), "utf8");
+		const button = template.match(/<a class="stonetop-monster-damage-roll"[^>]*>/)?.[0] ?? "";
+		expect(button).toContain(`data-roll-label="{{title}}"`);
+		expect(button).toContain(`data-roll-keywords="{{keywords}}"`);
+
+		const handlers = [];
+		const root = {
+			addEventListener: (name, handler) => { if (name === "click") handlers.push(handler); },
+			querySelector: () => null,
+		};
+		sheet.activateListeners([root]);
+		const rollButton = {
+			dataset: { rollFormula: garrote.formula, rollLabel: garrote.title, rollKeywords: garrote.keywords, rollMode: garrote.rollMode },
+		};
+		const target = { closest: selector => selector === ".stonetop-monster-damage-roll" ? rollButton : null };
+		rollDialog.rollDamagePrompted.mockClear();
+		await handlers[0]({ target, shiftKey: false });
+
+		expect(rollDialog.rollDamagePrompted).toHaveBeenCalledWith("d8", actor, {
+			label: "Garrote", keywords: "hand, grabby, ignores armor", rollMode: "normal", shiftKey: false,
+		});
 	});
 
 	it("enriches the qualities rich-text field for display", async () => {

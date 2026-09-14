@@ -2,18 +2,17 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { promises as fs } from "fs";
 import path from "path";
 
-// The lore generator (scripts/local/lore/build.mjs) materializes each Book II
-// topic (gods, factions, world-reference) as a JournalEntry holding ONE
-// structured `location` page whose system.sections[] drive the
-// StonetopLocationPageSheet — the same shape the locations pack uses. This
-// guards that:
+// The locations and lore generators (scripts/local/locations/build.mjs and
+// scripts/local/lore/build.mjs) materialize each Book II place, and each topic (gods,
+// factions, world-reference), as a JournalEntry holding ONE structured `location` page
+// whose system.sections[] drive the StonetopLocationPageSheet. The two source dirs share
+// that shape, so the same guards run over each:
 //   • exactly one `location` page per entry
 //   • every section is a valid kind with the matching payload
 //   • the gazetteer "Questions" section is a `qa` section with prompts
 //   • the old `.stonetop-location-body` prose wrapper is gone
 
 const SRC = path.resolve("packs/src");
-const LORE_DIR = path.join(SRC, "stonetop-lore");
 
 async function readDocs(dir) {
 	const out = [];
@@ -29,14 +28,24 @@ async function readDocs(dir) {
 	return out;
 }
 
-let entries;
+// One read per source dir, shared by every block that asks for it.
+const loaded = new Map();
+const docsIn = (dir) => {
+	if (!loaded.has(dir)) loaded.set(dir, readDocs(path.join(SRC, dir)));
+	return loaded.get(dir);
+};
 
-beforeAll(async () => {
-	entries = await readDocs(LORE_DIR);
-});
+describe.each([
+	["locations", "stonetop-locations"],
+	["lore", "stonetop-lore"],
+])("%s journal: structured location pages", (_journal, dir) => {
+	let entries;
 
-describe("lore journal — structured location pages", () => {
-	it("found lore entries", () => {
+	beforeAll(async () => {
+		entries = await docsIn(dir);
+	});
+
+	it("found entries", () => {
 		expect(entries.length).toBeGreaterThan(0);
 	});
 
@@ -75,7 +84,7 @@ describe("lore journal — structured location pages", () => {
 		const bad = [];
 		for (const { file, doc } of entries) {
 			const q = (doc.pages?.[0]?.system?.sections ?? []).find(s => s.heading === "Questions");
-			if (!q) continue; // not every topic has Questions
+			if (!q) continue; // not every place or topic has Questions
 			if (q.kind !== "qa") bad.push(`${file}: Questions is ${q.kind}, not qa`);
 			else if (!(q.pairs ?? []).some(p => p.prompt?.trim())) bad.push(`${file}: Questions has no prompts`);
 		}
@@ -87,5 +96,40 @@ describe("lore journal — structured location pages", () => {
 			(doc.pages?.[0]?.system?.sections ?? []).some(s => (s.body ?? "").includes("stonetop-location-body"))
 		);
 		expect(bad.map(b => b.file)).toEqual([]);
+	});
+});
+
+describe("locations journal: the Dangers section", () => {
+	let entries;
+
+	beforeAll(async () => {
+		entries = await docsIn("stonetop-locations");
+	});
+
+	// The "Dangers" section lists danger references under Hazards / Monsters /
+	// People sub-labels and THEN dumps the region's creature stat-block catalog. We
+	// keep the reference lists and cut only the catalog, so the gazetteer's Monsters
+	// list survives (a past bug cut it along with the catalog), and no Dangers
+	// section ever leaks a stat block (an "HP <n>" descriptor).
+	const dangersOf = (name) => {
+		const e = entries.find(x => x.doc.name === name);
+		return (e?.doc.pages?.[0]?.system?.sections ?? []).find(s => s.heading === "Dangers");
+	};
+
+	it("keeps the gazetteer Monsters reference list in Dangers", () => {
+		for (const name of ["North Manmarch", "South Manmarch"]) {
+			const d = dangersOf(name);
+			expect(d, `${name} has a Dangers section`).toBeTruthy();
+			expect(d.kind, `${name} Dangers is a groups section`).toBe("groups");
+			expect((d.groups ?? []).map(g => g.heading), `${name} Dangers keeps its Monsters entry`).toContain("Monsters");
+		}
+	});
+
+	it("cuts the creature catalog: no Dangers section leaks a stat block", () => {
+		const bad = entries
+			.filter(({ doc }) => (doc.pages?.[0]?.system?.sections ?? [])
+				.some(s => s.heading === "Dangers" && (s.groups ?? []).some(g => /HP\s*\d/.test(g.body ?? ""))))
+			.map(b => b.file);
+		expect(bad).toEqual([]);
 	});
 });

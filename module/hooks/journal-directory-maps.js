@@ -2,6 +2,7 @@ import { SYSTEM_ID } from "../system-id.js";
 import { RELMAP_FLAG } from "../relmap/relmap-store.js";
 import { RELMAP_FOLDER_NAME } from "../relmap/relmap-doc.js";
 import { DIRECTORY_ROW_SELECTOR, isWorldDirectory } from "./actor-directory-rows.js";
+import { localize } from "../utils/i18n.js";
 
 /**
  * KEEP THE RELATIONSHIP MAPS OUT OF THE JOURNAL SIDEBAR.
@@ -15,7 +16,8 @@ import { DIRECTORY_ROW_SELECTOR, isWorldDirectory } from "./actor-directory-rows
  * with a "Relationship Maps" folder holding a "Stonetop" nobody asked for, in the same list as the
  * gazetteer and the Chronicle and everything else a table actually browses, and every map made
  * afterwards lands there too. The map is not read as a journal entry by anyone: it is opened from
- * the steading sheet's own tab and from the hotbar macro, both of which go straight to the board.
+ * the steading sheet's own tab, from the hotbar macro, and from the one button this file puts at the
+ * top of the Journal tab, all of which go straight to the board.
  *
  * SO THE ROWS ARE TAKEN OUT OF THE RENDER, and nothing about the document changes. Ownership,
  * editing, broadcast, `@UUID` links, the sheet class, the folder itself -- all exactly as they
@@ -27,9 +29,10 @@ import { DIRECTORY_ROW_SELECTOR, isWorldDirectory } from "./actor-directory-rows
  * boards. Foundry ships every world JournalEntry to every client; this hides what is DRAWN. Nothing
  * here is a secret being kept -- the map is meant to be opened, just not from this list.
  *
- * ⚠ THE ONE THING THE SIDEBAR WAS STILL FOR was renaming and deleting a whole map, which no other
- * surface offered. Both moved onto the map window's own header menu in the same change
- * (dialogs/RelationshipMapWindow.js), so this takes nothing away with it.
+ * ⚠ A WHOLE MAP CANNOT BE RENAMED OR DELETED ANYWHERE ONCE ITS ROW IS GONE, and that is on purpose.
+ * This list was the last place that offered either; the map window's title-bar buttons that took
+ * over were removed at the user's request, because a Stonetop world has one map and the table works
+ * in its pages (which the page strip's own pen and trash still rename and delete).
  */
 
 /** Row selectors, matching core's own directory partials (templates/sidebar/partials/). The
@@ -98,4 +101,48 @@ export function hideRelationshipMapRows(app, element) {
 	for (const li of root.querySelectorAll(FOLDER_ROW)) {
 		if (isRelationshipMapFolder(game.folders?.get(li.dataset.folderId))) li.remove();
 	}
+}
+
+/**
+ * Put the "Relationship Map" button into one rendered Journal directory, under core's own create
+ * buttons.
+ *
+ * THE WAY IN FROM THE JOURNAL TAB, now that the map's own rows are taken out of it. What a press does
+ * is the caller's (stonetop.js hands it the hotbar macro's own `game.stonetop.openRelationshipMap`),
+ * so the button and the macro can never land a reader on different boards.
+ *
+ * A ROW OF ITS OWN rather than a third button squeezed into core's row: that row is sized for two, and
+ * a third would cut every label short. Written once per render and never twice, since a directory
+ * re-renders on every change to any journal entry.
+ *
+ * @param {Application} app
+ * @param {HTMLElement|jQuery} element
+ * @param {Function} onOpen  what a press does.
+ */
+export function addOpenMapButton(app, element, onOpen) {
+	if (!isJournalDirectory(app)) return;
+	const root = element?.jquery ? element[0] : element;
+	const header = root?.querySelector?.(".directory-header");
+	if (!header || header.querySelector("[data-relmap-open-map]")) return;
+
+	const row = document.createElement("div");
+	row.className = "header-actions action-buttons flexrow stonetop-relmap-directory-actions";
+	const button = document.createElement("button");
+	button.type = "button";
+	button.dataset.relmapOpenMap = "";
+	const icon = document.createElement("i");
+	icon.className = "fa-solid fa-diagram-project";
+	icon.setAttribute("inert", "");
+	const label = document.createElement("span");
+	label.textContent = localize("stonetop.relmap.directory.open");
+	button.append(icon, label);
+	button.addEventListener("click", ev => {
+		ev.preventDefault();
+		onOpen?.();
+	});
+	row.append(button);
+
+	const actions = header.querySelector(".header-actions");
+	if (actions) actions.after(row);
+	else header.prepend(row);
 }

@@ -3,6 +3,7 @@ import { sign } from "../utils/roll-engine.js";
 import { ensureChronicleFolder, ensureChronicleJournal } from "../utils/chronicle-journals.js";
 import { seasonLabel, SEASON_IDS } from "./seasons-change-reminders.js";
 import { SYSTEM_ID } from "../system-id.js";
+import { isTimelineEnabled } from "../settings.js";
 
 // ── Seasons Change chronicle ───────────────────────────────────────────────────
 // Records each Seasons Change move (the steading flow's "Done") into a "Seasons Change"
@@ -143,6 +144,35 @@ export async function recordSeasonsChange({ seasonId, year = 1, gainNames = [], 
 			text:  { content: block, format: CONST.JOURNAL_ENTRY_PAGE_FORMATS.HTML },
 			flags: { [SYSTEM_ID]: { chronicleYear: yr } },
 		}]);
+	}
+
+	// AND ONE ROW ON STONETOP'S OWN TIMELINE.
+	//
+	// The season page above is the full record, written the way the move itself is played; this is
+	// the line a reader scanning the campaign sees. A STORED entry rather than a derived one, unlike
+	// the ledger rows: what happened in a season is the table's own history and a GM should be able
+	// to edit or delete it, which nothing derived allows.
+	//
+	// Best-effort, and deliberately after the notification: a world that cannot write the timeline
+	// (no Chronicle folder rights, a deleted journal) has still recorded its Seasons Change, and
+	// failing the move over its own footnote would be the wrong trade.
+	//
+	// IMPORTED AT CALL TIME, and not for laziness: a static import here closes a cycle. This module
+	// owns `yearLabel`, which `seasons/current-season.js` imports; the timeline's core imports the
+	// clock for `seasonRank`; and the timeline entry writer imports that core. Statically, the four
+	// form a ring, and the symptom is not a warning but a const read before its initializer runs,
+	// in whichever of them the loader happens to enter first.
+	//
+	// BEHIND THE FEATURE FLAG as well, inside the same try: a world with the timeline off has no
+	// track page to write this row onto, and the season page above is the whole record there. See
+	// `isTimelineEnabled` in module/settings.js.
+	try {
+		if (isTimelineEnabled()) {
+			const { recordSeasonOnTimeline } = await import("../timeline/timeline-season-entry.js");
+			await recordSeasonOnTimeline({ seasonId, year: yr, gainNames, surplusChange, notes });
+		}
+	} catch (err) {
+		console.error("Stonetop | could not add this season to the timeline", err);
 	}
 
 	ui.notifications?.info?.(`Recorded ${seasonLabel(seasonId)} in “${yearName}” of the Seasons Change journal.`);

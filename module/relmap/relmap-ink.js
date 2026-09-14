@@ -323,7 +323,9 @@ export function deepenInk(hex, { grounds = boardGrounds(), floor = RELMAP_INK_FL
 	let best = rgb;
 	let ratio = was;
 	for (let at = l + step; at >= 0 && at <= 1; at += step) {
-		best = hslToRgb(h, s, at);
+		// MEASURED AS THE HEX IT WILL BE DRAWN AS. Rounding each channel to a whole number can cost a hair of
+		// contrast, and a colour that cleared the floor only before rounding does not clear it on the board.
+		best = parseColour(rgbToHex(hslToRgb(h, s, at)));
 		ratio = worst(best);
 		if (ratio >= floor) break;
 	}

@@ -1,4 +1,4 @@
-import { registerSettings, getSetting, applyMoveDescriptionBodyClass } from "./module/settings.js";
+import { registerSettings, getSetting, isTimelineEnabled, applyMoveDescriptionBodyClass } from "./module/settings.js";
 import { createStonetopActorClass } from "./module/actors/StonetopActor.js";
 import { createStonetopItemClass } from "./module/item/StonetopItem.js";
 import { createStonetopArcanumSheetClass } from "./module/item/StonetopArcanumSheet.js";
@@ -26,6 +26,8 @@ import { HazardPageModel } from "./module/journal/HazardPageModel.js";
 import { createStonetopHazardPageSheetClass } from "./module/journal/StonetopHazardPageSheet.js";
 import { SitePageModel } from "./module/journal/SitePageModel.js";
 import { createStonetopSitePageSheetClass } from "./module/journal/StonetopSitePageSheet.js";
+import { TimelinePageModel } from "./module/journal/TimelinePageModel.js";
+import { createStonetopTimelinePageSheetClass } from "./module/journal/StonetopTimelinePageSheet.js";
 import { createRelationshipMapEntrySheetClass } from "./module/journal/RelationshipMapEntrySheet.js";
 import { RELMAP_SHEET_CLASS } from "./module/relmap/relmap-doc.js";
 import { ThreatBoard } from "./module/threats/threat-board.js";
@@ -56,7 +58,7 @@ import { onRenderCompendiumItemIcons } from "./module/hooks/CompendiumItemIcons.
 import { decoratePortraitRow, onUpdateActorPortraitFrame } from "./module/hooks/ActorDirectoryPortraits.js";
 import { decorateNameRow, onUpdateActorPlaybookName } from "./module/hooks/ActorDirectoryNames.js";
 import { decorateActorDirectoryRows } from "./module/hooks/actor-directory-rows.js";
-import { hideRelationshipMapRows } from "./module/hooks/journal-directory-maps.js";
+import { addOpenMapButton, hideRelationshipMapRows } from "./module/hooks/journal-directory-maps.js";
 import { onUpdateCondemned } from "./module/hooks/CondemnedTag.js";
 import { characterFullName } from "./module/utils/playbook-actors.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
@@ -73,7 +75,7 @@ import { grantsWholeList, paintPickTally, pickLimitFor, releaseOverLimit, tierOf
 import { wireUndoXpMark } from "./module/utils/undo-xp-mark.js";
 import { isKnowThings, logbookUses, LOGBOOK, STRONG_HIT_TOTAL } from "./module/actors/character/know-things.js";
 import { artifactStateForTier } from "./module/actors/character/artifact-identify.js";
-import { wireAttackConfirm, wireApplyDamage, wireSufferAttack } from "./module/combat/attack-flow.js";
+import { wireAttackConfirm, wireApplyDamage, wireSufferAmount, wireSufferChoice, rollOptionDamage } from "./module/combat/attack-flow.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
 import { wrapGlyphTextContainers } from "./module/utils/glyphs.js";
 import { applyJournalSpiralBullets, resolveEntry } from "./module/utils/journal-spiral-bullets.js";
@@ -97,10 +99,15 @@ import { StonetopFlags } from "./module/actors/character/StonetopFlags.js";
 import { CharacterPossessions } from "./module/actors/character/CharacterPossessions.js";
 import { stockSourcesForFlags, defaultStockSource, SACRED_POUCH_SLUG, RITES_OF_THE_LAND } from "./module/actors/character/stock-cost.js";
 import { readProvisionsYield, rollProvisions } from "./module/actors/character/provisions.js";
+import { belongsToMessage, wirePickedOptionButton } from "./module/utils/picked-option-button.js";
+import { readOptionDamage } from "./module/utils/damage.js";
 import { ownedMove } from "./module/actors/character/owns-move.js";
 import { SYSTEM_ID } from "./module/system-id.js";
 import { speakerActor } from "./module/utils/speaker-actor.js";
 import { bootStep, recordBootPhase, reportBootHealth, bootReport } from "./module/utils/boot-guard.js";
+import { registerCampHooks } from "./module/camp/camp-store.js";
+import { wireCampCard } from "./module/camp/camp-flow.js";
+import { registerCampWindowRestore } from "./module/camp/CampWindow.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -392,6 +399,27 @@ Hooks.once("init", () => {
 		label:       "Stonetop Site Page",
 	});
 
+	// One track of the narrative timeline: Stonetop's own thread, or one character's. Unlike the
+	// three GM-prep types above, these pages are MEANT to be read in the sidebar -- the timeline the
+	// sheet draws is the good version, but a journal page is what a table can share and print, and
+	// keeping the record legible outside our own UI is half of what makes it a chronicle. The sheet
+	// is read-only: everything that writes goes through the entry dialog. See module/timeline/.
+	//
+	// BEHIND THE FEATURE FLAG, and off in every shipped world. `registerSettings` ran at the top of
+	// this same hook, so the switch can be read here. Registering the model and the sheet for a
+	// subtype the manifest does not declare would be dead weight at best and a warning at worst, so
+	// the whole block stands or falls with `timelineEnabled`. See `isTimelineEnabled` in
+	// module/settings.js, which also says what has to go back into system.json to develop this.
+	if (isTimelineEnabled()) {
+		CONFIG.JournalEntryPage.dataModels["timeline"] = TimelinePageModel;
+		const StonetopTimelinePageSheet = createStonetopTimelinePageSheetClass(JournalPageSheetV1);
+		foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, SYSTEM_ID, StonetopTimelinePageSheet, {
+			types:       ["timeline"],
+			makeDefault: true,
+			label:       "Stonetop Timeline Page",
+		});
+	}
+
 	// A relationship map is a JournalEntry, so it has a row in every player's Journal sidebar.
 	// Clicking that row must open the BOARD, not Foundry's prose editor on an entry whose only
 	// content is a flag, which is a blank window that reads as the map being broken. Each map
@@ -444,6 +472,7 @@ Hooks.once("init", () => {
 		"stonetop.tab-post-death":      "systems/stonetop-pwd/templates/actor/partials/tab-post-death.hbs",
 		"stonetop.tab-special-moves":   "systems/stonetop-pwd/templates/actor/partials/tab-special-moves.hbs",
 		"stonetop.tab-notes":           "systems/stonetop-pwd/templates/actor/partials/tab-notes.hbs",
+		"stonetop.tab-timeline":        "systems/stonetop-pwd/templates/actor/partials/tab-timeline.hbs",
 		"stonetop.tab-preferences":     "systems/stonetop-pwd/templates/actor/partials/tab-preferences.hbs",
 		"stonetop.tab-rail-item":       "systems/stonetop-pwd/templates/actor/partials/tab-rail-item.hbs",
 		"stonetop.tab-nav-item":        "systems/stonetop-pwd/templates/actor/partials/tab-nav-item.hbs",
@@ -497,6 +526,7 @@ Hooks.once("init", () => {
 		"stonetop.steading-tab-improvements": "systems/stonetop-pwd/templates/actor/partials/steading-tab-improvements.hbs",
 		"stonetop.steading-tab-moves":        "systems/stonetop-pwd/templates/actor/partials/steading-tab-moves.hbs",
 		"stonetop.steading-tab-relmap":       "systems/stonetop-pwd/templates/actor/partials/steading-tab-relmap.hbs",
+		"stonetop.steading-tab-timeline":     "systems/stonetop-pwd/templates/actor/partials/steading-tab-timeline.hbs",
 		"stonetop.steading-tab-notes":        "systems/stonetop-pwd/templates/actor/partials/steading-tab-notes.hbs",
 		"stonetop.gm-toolkit-tab-moves":      "systems/stonetop-pwd/templates/actor/partials/gm-toolkit-tab-moves.hbs",
 		"stonetop.gm-toolkit-tab-loop":       "systems/stonetop-pwd/templates/actor/partials/gm-toolkit-tab-loop.hbs",
@@ -532,6 +562,7 @@ Hooks.once("init", () => {
 		"stonetop.bestiary-group-section":    "systems/stonetop-pwd/templates/journal/partials/bestiary-group-section.hbs",
 		"stonetop.introductions-dialog":      "systems/stonetop-pwd/templates/dialogs/introductions.hbs",
 		"stonetop.guide-toc":                 "systems/stonetop-pwd/templates/dialogs/partials/guide-toc.hbs",
+		"stonetop.guide-tabs":                "systems/stonetop-pwd/templates/dialogs/partials/guide-tabs.hbs",
 		"stonetop.expedition-load":           "systems/stonetop-pwd/templates/dialogs/partials/expedition-load.hbs",
 		"stonetop.expedition-journey":        "systems/stonetop-pwd/templates/dialogs/partials/expedition-journey.hbs",
 		"stonetop.expedition-journey-pins":   "systems/stonetop-pwd/templates/dialogs/partials/expedition-journey-pins.hbs",
@@ -548,6 +579,9 @@ Hooks.once("init", () => {
 		"stonetop.settings-save-footer":      "systems/stonetop-pwd/templates/settings/partials/settings-save-footer.hbs",
 		"stonetop.roster-row":                "systems/stonetop-pwd/templates/dialogs/partials/roster-row.hbs",
 		"stonetop.roster-add":                "systems/stonetop-pwd/templates/dialogs/partials/roster-add.hbs",
+		"stonetop.timeline-card":             "systems/stonetop-pwd/templates/dialogs/partials/timeline-card.hbs",
+		"stonetop.timeline-period":           "systems/stonetop-pwd/templates/dialogs/partials/timeline-period.hbs",
+		"stonetop.timeline-period-head":      "systems/stonetop-pwd/templates/dialogs/partials/timeline-period-head.hbs",
 		"stonetop.deaths-door-outcomes":      "systems/stonetop-pwd/templates/dialogs/partials/deaths-door-outcomes.hbs",
 		"stonetop.artifact-gm":              "systems/stonetop-pwd/templates/dialogs/artifact-gm.hbs",
 		"stonetop.header-toggle-glyph":       "systems/stonetop-pwd/templates/actor/partials/header-toggle-glyph.hbs",
@@ -599,9 +633,13 @@ Hooks.on("renderDocumentDirectory", (app, element) =>
 // A relationship map is a JournalEntry because that is the only storage a player may write, but it
 // is never READ as one: it opens from the steading sheet's own tab and from the hotbar macro,
 // straight onto the board. So its rows come out of the Journal sidebar, and the "Relationship Maps"
-// folder with them while nothing else is in it. Nothing about the document changes.
-// See module/hooks/journal-directory-maps.js.
-Hooks.on("renderDocumentDirectory", hideRelationshipMapRows);
+// folder with them while nothing else is in it, and one "Relationship Map" button goes at the top of
+// the tab in their place, opening the map exactly as the macro does. Nothing about the document
+// changes. See module/hooks/journal-directory-maps.js.
+Hooks.on("renderDocumentDirectory", (app, element) => {
+	hideRelationshipMapRows(app, element);
+	addOpenMapButton(app, element, () => game.stonetop?.openRelationshipMap?.());
+});
 Hooks.on("updateActor", onUpdateActorPortraitFrame);
 Hooks.on("updateActor", onUpdateActorPlaybookName);
 
@@ -1637,14 +1675,9 @@ function _paintPickCount(list) {
  * Shared by both passes over a card's pick list — the ticks and the provisions buttons run over
  * the same nodes, so one guard rather than two copies of it.
  */
-function _belongsToMessage(el, message) {
-	const owner = el.closest("[data-message-id]");
-	return !owner || owner.dataset.messageId === message.id;
-}
-
 function _chatWireRollCardPicks(message, html) {
 	const boxes = [...html.querySelectorAll(".stonetop-picklist-check")]
-		.filter(box => _belongsToMessage(box, message));
+		.filter(box => belongsToMessage(box, message));
 	if (!boxes.length) return;
 
 	const saved   = message.getFlag(SYSTEM_ID, "pickChecked") ?? [];
@@ -1732,53 +1765,19 @@ function _chatWireRollCardPicks(message, html) {
  * second tops up a pack that is already being carried.
  */
 function _chatWireProvisionsPicks(message, html) {
-	const items = [...html.querySelectorAll(".stonetop-picklist-item")]
-		.filter(item => _belongsToMessage(item, message));
-	if (!items.length) return;
-
-	const rolled = message.getFlag(SYSTEM_ID, "provisionsRolled") ?? {};
-
-	for (const item of items) {
-		const box  = item.querySelector(".stonetop-picklist-check");
-		// Read before anything of ours is in the row, so a re-render cannot match on our own
-		// "+4 uses" readout instead of the option's text.
-		const pick = readProvisionsYield(item.textContent);
-		item.querySelectorAll(".stonetop-provisions-roll, .stonetop-provisions-paid")
-			.forEach(el => el.remove());
-		if (!box || !pick) continue;
-		const index = box.dataset.index;
-
-		// Already paid out: the card carries the number, not a second chance at it. Stamped on
-		// the MESSAGE, so every client shows the same haul and no one can roll it twice.
-		const paid = rolled[index];
-		if (paid) {
-			item.appendChild(_provisionsPaidEl(paid.uses));
-			continue;
-		}
-
-		const btn = document.createElement("button");
-		btn.type = "button";
-		btn.className = "stonetop-provisions-roll";
-		const die = document.createElement("i");
+	wirePickedOptionButton(message, html, {
+		flagKey:      "provisionsRolled",
+		wiredKey:     "provisionsWired",
+		buttonClass:  "stonetop-provisions-roll",
+		readoutClass: "stonetop-provisions-paid",
+		read:         readProvisionsYield,
 		// An option that names a flat number has nothing to throw — the icon and the verb both
 		// say so, rather than offering to "roll" a 6.
-		die.className = pick.isRoll ? "fas fa-dice-d6" : "fas fa-basket-shopping";
-		btn.append(die, pick.isRoll ? ` Roll ${pick.formula} uses` : ` Take ${pick.formula} uses`);
-		btn.hidden = !box.checked;
-		item.appendChild(btn);
-
-		// Bound once per element, for the same reason the pick boxes are: a message re-renders
-		// whenever its flag is written, and Foundry may patch the log in place.
-		if (item.dataset.provisionsWired !== "1") {
-			item.dataset.provisionsWired = "1";
-			box.addEventListener("change", () => {
-				const live = item.querySelector(".stonetop-provisions-roll");
-				if (live) live.hidden = !box.checked;
-			});
-		}
-
-		btn.addEventListener("click", () => _onRollProvisions(message, btn, index, pick));
-	}
+		icon:    pick => (pick.isRoll ? "fas fa-dice-d6" : "fas fa-basket-shopping"),
+		label:   pick => (pick.isRoll ? ` Roll ${pick.formula} uses` : ` Take ${pick.formula} uses`),
+		readout: paid => _provisionsPaidEl(paid.uses),
+		onPress: (btn, index, pick) => _onRollProvisions(message, btn, index, pick),
+	});
 }
 
 /** The static readout a rolled option wears from then on. */
@@ -1823,6 +1822,93 @@ async function _onRollProvisions(message, btn, index, pick) {
 	}
 }
 
+// -- A MOVE OPTION THAT DEALS DAMAGE ---------------------------
+/**
+ * Danu's Grasp binds a spirit and offers two things it may pick, and one of them is "They take
+ * 2d4 damage (ignores armor)". That is a whole damage roll the move owes, stated in the move's
+ * own text: no weapon, no damage die, nothing the attack flow knows about. Until this the only
+ * way to pay it was to roll a d4 twice somewhere off-card and hand-edit the target's HP, which
+ * leaves no record of the blow anywhere the table can see.
+ *
+ * So a ticked option that names its own damage grows a button, exactly the way a ticked Forage
+ * option grows the die it owes (_chatWireProvisionsPicks above, whose shape this follows to the
+ * letter). Pressing it rolls onto the shared damage card, with the per-target totals, the armor
+ * fine print and the one Apply button every other damage roll in the system already lands on
+ * (combat/attack-flow.js#rollOptionDamage).
+ *
+ * WHICH OPTIONS QUALIFY IS READ OFF THEIR TEXT (utils/damage.js#readOptionDamage) rather than
+ * listed here, so the Red Scepter's "suffer painful burns (2d4 damage, ignores armor)", the
+ * cracked femur's "take 2d4 damage", and a move a world wrote that burns someone for 1d6 all get
+ * the same button with nobody wiring them up one at a time. What that reader REFUSES is the other
+ * half of the rule: a "+1d4" or a "1d6 extra damage" rides a damage roll you are already making,
+ * and the five attack moves fold theirs into the single Confirm their card carries
+ * (attack-flow.js#PICK_EFFECTS). A second button beside those bullets would be the two-list
+ * miscount over again, in dice this time.
+ *
+ * The button appears only while its option is ticked, because an untaken option owes nothing, and
+ * once thrown it stays put showing what it dealt, whatever happens to the tick afterwards. Untaking
+ * the option does not un-hit anybody: the damage card below it is the record, and its own Apply
+ * button is where HP actually moves.
+ */
+function _chatWireOptionDamage(message, html) {
+	const move = message.getFlag(SYSTEM_ID, "move")
+		|| html.querySelector(".stonetop-chat-move-name")?.textContent?.trim()
+		|| "";
+
+	wirePickedOptionButton(message, html, {
+		flagKey:      "optionDamageRolled",
+		wiredKey:     "optionDamageWired",
+		buttonClass:  "stonetop-option-damage-roll",
+		readoutClass: "stonetop-option-damage-dealt",
+		read:         readOptionDamage,
+		// An option that names a flat number has nothing to throw, and the icon and the verb both
+		// say so rather than offering to "roll" a 3.
+		icon:    dealt => (dealt.isRoll ? "fas fa-dice-d6" : "fas fa-burst"),
+		label:   dealt => `${dealt.isRoll ? " Roll" : " Deal"} ${dealt.formula} damage`,
+		readout: paid => _optionDamageDealtEl(paid.totals),
+		onPress: (btn, index, dealt) => _onRollOptionDamage(message, btn, index, { move, dealt }),
+	});
+}
+
+/** The static readout a rolled option wears from then on: what the blow came to, per target. */
+function _optionDamageDealtEl(totals) {
+	const el = document.createElement("span");
+	el.className = "stonetop-option-damage-dealt";
+	const nums = (Array.isArray(totals) ? totals : [totals]).filter(n => Number.isFinite(Number(n)));
+	el.textContent = `${nums.join(", ") || "0"} damage`;
+	return el;
+}
+
+async function _onRollOptionDamage(message, btn, index, { move, dealt }) {
+	btn.disabled = true;
+	try {
+		const actor = speakerActor(message);
+		if (!actor) {
+			ui.notifications.warn("This card has no character behind it to roll damage for.");
+			btn.disabled = false;
+			return;
+		}
+
+		const results = await rollOptionDamage(actor, { move: move || "Damage", damage: dealt });
+		const totals = (results ?? []).map(r => r.raw);
+		btn.replaceWith(_optionDamageDealtEl(totals));
+
+		// Stamped last: the card that carries the blow is the thing that had to land, and a stamp
+		// written before it would lock out the retry if the post failed. A player who does not own
+		// the message still rolled it; the stamp simply does not stick for them, and the button
+		// comes back on the next render rather than the roll being lost.
+		const done = { ...(message.getFlag(SYSTEM_ID, "optionDamageRolled") ?? {}), [index]: { totals, formula: dealt.formula } };
+		try {
+			await message.setFlag(SYSTEM_ID, "optionDamageRolled", done);
+		} catch (err) {
+			console.warn("Stonetop | could not record the option's damage roll on the card:", err);
+		}
+	} catch (err) {
+		console.error("Stonetop | Error rolling a move option's damage:", err);
+		btn.disabled = false;
+	}
+}
+
 // -- WOULD-BE HERO: BECOME A HERO ------------------------------
 // The first time a Would-Be Hero gains a hero-making (asterisked) move, cross off
 // "Would-be" and announce it once. The playbook header already derives "The Hero"
@@ -1862,11 +1948,29 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	// After the picks pass, which is what restores each box's ticked state — the provisions
 	// button is shown or hidden by exactly that.
 	_chatWireProvisionsPicks(message, html);
+	// ...and beside it, on the same ticked bullets and for the same reason: a move option that
+	// states a damage roll is a number the card owes, and a table with no button for it reaches
+	// for a calculator and the target's HP field.
+	_chatWireOptionDamage(message, html);
 	wireDyingPrompt(message, html);
 	wireAttackConfirm(message, html);
 	wireApplyDamage(message, html);
-	wireSufferAttack(message, html);
+	wireSufferAmount(message, html);
+	// ...and the GM-whispered "Which attack?" card a foe with more than one printed attack posts
+	// instead of guessing which die it swung (attack-flow.js#postSufferChoiceCard).
+	wireSufferChoice(message, html);
+	// The card a new camp posts: its Join button, or how the camp ended (camp/camp-flow.js).
+	wireCampCard(message, html);
 });
+
+// -- MAKE CAMP, SHARED -----------------------------------------
+// On every client, window or no window: a camp's cards redraw when it changes state, and when one
+// is settled, each character's share is paid by the one client elected to pay it. See
+// module/camp/camp-store.js.
+registerCampHooks();
+// And a camp window open when this client reloaded comes back with the sheets, where it was left
+// (utils/window-restore.js, installed in the init hook).
+registerCampWindowRestore();
 
 // -- SEASONS CHANGE: "ask the most hopeful to roll" -----------
 // Wire the roll button on a spring Seasons Change prompt card (postSeasonsRollPrompt):

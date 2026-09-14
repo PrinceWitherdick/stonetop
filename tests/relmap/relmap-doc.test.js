@@ -10,11 +10,10 @@ import { openRelationshipMap } from "../../module/dialogs/RelationshipMapWindow.
 import {
 	RELMAP_FOLDER_NAME, RELMAP_PAGE_NAME_MAX, RELMAP_SHEET_CLASS, canCreateRelationshipMap,
 	canHideMapPages, canSeeMapPage, createMapPage, createRelationshipMap, deleteMapPage,
-	ensureFirstMapPage, ensureRelationshipMapFolder, findRelationshipMapFolder, getMapPage,
+	ensureFirstMapPage, ensureRelationshipMapFolder, findRelationshipMapFolder, getMapPage, hasLegacyBoard,
 	getRelationshipMap, getPartyPage, hadPartyPage, isMapPageHidden, listMapPages,
-	listRelationshipMaps, listVisibleMapPages, mapBoardDoc, mapPageName,
-	RELMAP_MAP_NAME_MAX, canDeleteRelationshipMap, deleteRelationshipMap, relationshipMapName,
-	renameRelationshipMap,
+	listRelationshipMaps, listVisibleMapPages, mapBoardDoc, mapPageName, resolveMapBoard,
+	mapPagesArranged, moveMapPage, planPageMove,
 	readGraph, renameMapPage, setMapPageHidden, syncPartyPage,
 } from "../../module/relmap/relmap-doc.js";
 import { RELMAP_VERSION } from "../../module/relmap/relmap-store.js";
@@ -137,6 +136,21 @@ const entry = (name, flags = {}, extra = {}) => {
 				}));
 			pages.push(...made);
 			return Promise.resolve(made);
+		},
+		// ONE CALL FOR SEVERAL PAGES, which is how the strip is reordered: a renumbered strip
+		// arriving as one write is one broadcast, where page-by-page it is one per board with the
+		// order visibly wrong in between. Each row still goes through the page's own `update`, so
+		// what a page records of having been written to is the same either way.
+		updateEmbeddedDocuments(type, rows) {
+			const done = [];
+			for (const row of rows ?? []) {
+				const page = pages.find(p => p.id === row._id);
+				if (!page) continue;
+				const { _id, ...patch } = row;
+				page.update(patch);
+				done.push(page);
+			}
+			return Promise.resolve(done);
 		},
 		deleteEmbeddedDocuments(type, ids) {
 			const gone = pages.filter(p => ids.includes(p.id));
@@ -366,6 +380,24 @@ describe("the document a board is read from and written to", () => {
 		});
 		expect(mapBoardDoc(legacy, null)).toBe(legacy);
 		expect(Object.keys(readGraph(mapBoardDoc(legacy, null)).nodes)).toEqual(["a"]);
+		expect(resolveMapBoard(legacy).kind).toBe("legacy");
+	});
+
+	// ⚠ AND NOTHING AT ALL WHERE THERE IS NO BOARD. On a collection whose maps have all been rubbed out
+	// the entry's flag is only the mark (and the party's and the village's own marks), and resolved to
+	// it, every write in the window would land there: a nudge still waiting when the last map went would
+	// reopen the collection as a version 1 map, and the next open would carry that face onto a page.
+	it("is nothing at all on a collection with no maps in it", () => {
+		const empty = mapWith("Stonetop", []);
+		expect(mapBoardDoc(empty, null)).toBeNull();
+		expect(resolveMapBoard(empty).kind).toBe("none");
+	});
+
+	it("is nothing at all for a reader whose every map is hidden", () => {
+		globalThis.game.user = { id: "u1", isGM: false };
+		const map = mapWith("Stonetop", [{ id: "p1", name: "Stonetop", hidden: true }]);
+		expect(mapBoardDoc(map, "p1")).toBeNull();
+		expect(resolveMapBoard(map, "p1").kind).toBe("unshared");
 	});
 });
 
@@ -423,6 +455,18 @@ describe("giving a version 1 map its first page", () => {
 		expect(listMapPages(map)).toEqual([]);
 		expect(map.updates).toEqual([]);
 	});
+
+	// ⚠ A COLLECTION WITH NO MAPS IN IT IS NOT A VERSION 1 MAP. Both have no pages; only the old one
+	// has a board on the entry to carry. Converting the other would put back a map somebody had just
+	// rubbed out, every time the collection was opened.
+	it("tells a version 1 map from a collection with no maps in it, and leaves the second alone", async () => {
+		expect(hasLegacyBoard(legacyMap())).toBe(true);
+		const bare = mapWith("Stonetop", []);
+		expect(hasLegacyBoard(bare)).toBe(false);
+		expect(await ensureFirstMapPage(bare)).toBeNull();
+		expect(listMapPages(bare)).toEqual([]);
+		expect(bare.updates).toEqual([]);
+	});
 });
 
 describe("adding, renaming and rubbing out a board", () => {
@@ -476,12 +520,17 @@ describe("adding, renaming and rubbing out a board", () => {
 		expect(listMapPages(map).map(p => p.name)).toEqual(["Stonetop"]);
 	});
 
-	// ⚠ NEVER THE LAST ONE. A map with no pages is one whose next opener silently converts it from
-	// its own long-dead entry graph, which is empty — so this would read as the map emptying itself.
-	it("refuses to rub out the last board", async () => {
+	// THE LAST ONE TOO, and the collection stays. Nothing refills an empty collection on the next
+	// open (`ensureFirstMapPage` only carries a version 1 board), so the map stays rubbed out.
+	it("rubs out the last board too, and leaves the collection standing", async () => {
 		const map = mapWith("A map", [{ name: "Stonetop", id: "p1" }]);
-		expect(await deleteMapPage(getMapPage(map, "p1"))).toBe(false);
-		expect(listMapPages(map)).toHaveLength(1);
+		map.deleted = false;
+		map.delete = () => { map.deleted = true; return Promise.resolve(map); };
+		expect(await deleteMapPage(getMapPage(map, "p1"))).toBe(true);
+		expect(listMapPages(map)).toEqual([]);
+		expect(map.deleted).toBe(false);
+		expect(await ensureFirstMapPage(map)).toBeNull();
+		expect(listMapPages(map)).toEqual([]);
 	});
 
 	it("refuses to rub one out for a reader who may not edit the map", async () => {
@@ -489,6 +538,140 @@ describe("adding, renaming and rubbing out a board", () => {
 		map.isOwner = false;
 		expect(await deleteMapPage(getMapPage(map, "p2"))).toBe(false);
 		expect(listMapPages(map)).toHaveLength(2);
+	});
+});
+
+// ── Putting the strip in an order ───────────────────────────────────────────────────────────────
+//
+// The order is the TABLE'S: it is written to the pages as core's own `sort`, so a tab dragged on
+// one client moves on every other. What is proved here is the arithmetic (one write for an ordinary
+// move, a renumber only when the gap has run out), the gate, and the mark that stops the party
+// board being lifted back over an order somebody has made by hand.
+
+describe("putting the boards in an order", () => {
+	const NAMES = map => listMapPages(map).map(page => page.name);
+	const strip = () => mapWith("A map", [
+		{ name: "Stonetop", id: "p1" }, { name: "Marshedge", id: "p2" }, { name: "The Millers", id: "p3" },
+	]);
+
+	it("puts one board in front of another, and writes only that one", async () => {
+		const map = strip();
+		expect(await moveMapPage(map, "p3", "p2")).toBe(true);
+		expect(NAMES(map)).toEqual(["Stonetop", "The Millers", "Marshedge"]);
+		// ONE PAGE MOVED AND THE REST LEFT ALONE, which is what the gap between two sorts is for:
+		// the whole strip renumbered on every drop is a write per board, broadcast to the table.
+		const [p1, p2, p3] = listMapPages(map);
+		expect(p1.updates).toEqual([]);
+		expect(p3.updates).toEqual([]);
+		expect(p2.updates).toEqual([{ sort: 50000 }]);
+	});
+
+	it("puts one board on the far end when it is dropped past the last tab", async () => {
+		const map = strip();
+		expect(await moveMapPage(map, "p1", null)).toBe(true);
+		expect(NAMES(map)).toEqual(["Marshedge", "The Millers", "Stonetop"]);
+	});
+
+	it("puts one board at the front when it is dropped in front of the first tab", async () => {
+		const map = strip();
+		expect(await moveMapPage(map, "p3", "p1")).toBe(true);
+		expect(NAMES(map)).toEqual(["The Millers", "Stonetop", "Marshedge"]);
+	});
+
+	// Seventeen drops into the same gap is where halving runs out of whole numbers. The renumber is
+	// the rail under that, and it must write every board whose number actually changed and no other.
+	it("renumbers the strip when the gap it is dropped into has no room left", async () => {
+		const map = mapWith("A map", [
+			{ name: "Stonetop", id: "p1", sort: 0 },
+			{ name: "Marshedge", id: "p2", sort: 1 },
+			{ name: "The Millers", id: "p3", sort: 2 },
+		]);
+		expect(await moveMapPage(map, "p3", "p2")).toBe(true);
+		expect(NAMES(map)).toEqual(["Stonetop", "The Millers", "Marshedge"]);
+		expect(listMapPages(map).map(page => page.sort)).toEqual([0, 100000, 200000]);
+		// Stonetop was already where the renumber wanted it, so nothing was written to it.
+		expect(getMapPage(map, "p1").updates).toEqual([]);
+	});
+
+	it("writes nothing at all when a board is dropped where it already is", async () => {
+		const map = strip();
+		expect(await moveMapPage(map, "p2", "p2")).toBe(false);
+		expect(await moveMapPage(map, "p2", "p3")).toBe(false);
+		expect(map.updates).toEqual([]);
+		expect(listMapPages(map).flatMap(page => page.updates)).toEqual([]);
+	});
+
+	it("is refused for a reader who may not edit the map", async () => {
+		const map = strip();
+		map.isOwner = false;
+		expect(await moveMapPage(map, "p3", "p1")).toBe(false);
+		expect(NAMES(map)).toEqual(["Stonetop", "Marshedge", "The Millers"]);
+	});
+
+	// ⚠ A PLAYER CANNOT WRITE A BOARD THE GM HAS KEPT BACK, so the plan is made from the boards the
+	// reader can SEE. A drop that tried to renumber a hidden one would half fail on the server.
+	it("leaves a board this reader cannot see out of the arithmetic", async () => {
+		const map = mapWith("A map", [
+			{ name: "Stonetop", id: "p1" },
+			{ name: "The GM's own", id: "p2", hidden: true },
+			{ name: "Marshedge", id: "p3" },
+		]);
+		game.user = { id: "u1" };
+		expect(await moveMapPage(map, "p3", "p1")).toBe(true);
+		expect(listMapPages(map).find(page => page.id === "p2").updates).toEqual([]);
+		expect(listVisibleMapPages(map).map(page => page.name)).toEqual(["Marshedge", "Stonetop"]);
+	});
+
+	it("plans nothing for a board that is not on the strip", () => {
+		expect(planPageMove(listMapPages(strip()), "nobody", "p1")).toEqual([]);
+	});
+});
+
+describe("the mark that says a strip has been arranged by hand", () => {
+	it("is not on a map nobody has ever reordered", () => {
+		expect(mapPagesArranged(mapWith("A map", [{ name: "Stonetop", id: "p1" }]))).toBe(false);
+	});
+
+	it("is written by the first move, and only once", async () => {
+		const map = mapWith("A map", [{ name: "Stonetop", id: "p1" }, { name: "Marshedge", id: "p2" }]);
+		await moveMapPage(map, "p2", "p1");
+		expect(mapPagesArranged(map)).toBe(true);
+		expect(map.updates).toEqual([
+			{ "flags.stonetop-pwd.relationshipMap.pagesArranged": true },
+		]);
+		await moveMapPage(map, "p1", "p2");
+		expect(map.updates).toHaveLength(1);
+	});
+
+	// ⚠ THE POINT OF THE MARK. `syncPartyPage` lifts the party board to the front of the strip on
+	// every open, which was written when nothing could order the strip. Left unguarded it would put
+	// that board back in front on somebody else's next open, undoing an arrangement the table made.
+	it("stops the party board being lifted back to the front", async () => {
+		const map = mapWith("A map", [
+			{ name: "The Party", id: "p1" },
+			{ name: "Stonetop", id: "p2" },
+		]);
+		const party = getMapPage(map, "p1");
+		party.flags["stonetop-pwd"].relationshipPartyBoard = true;
+		// Dragged off the front, which is the arrangement the lift would otherwise undo.
+		await moveMapPage(map, "p1", null);
+		party.updates.length = 0;
+		await syncPartyPage(map, [], new Map());
+		expect(party.updates).toEqual([]);
+		expect(listMapPages(map).map(page => page.name)).toEqual(["Stonetop", "The Party"]);
+	});
+
+	// And the maps it was written for are untouched: a strip nobody has arranged still gets the
+	// party board put in front of it, which is every map made before that board had a place.
+	it("leaves the lift alone on a map nobody has arranged", async () => {
+		const map = mapWith("A map", [
+			{ name: "Stonetop", id: "p1" },
+			{ name: "The Party", id: "p2" },
+		]);
+		const party = getMapPage(map, "p2");
+		party.flags["stonetop-pwd"].relationshipPartyBoard = true;
+		await syncPartyPage(map, [], new Map());
+		expect(listMapPages(map).map(page => page.name)).toEqual(["The Party", "Stonetop"]);
 	});
 });
 
@@ -891,9 +1074,8 @@ describe("hiding a board from the players", () => {
 		expect(page.updates).toEqual([]);
 	});
 
-	// ⚠ THE TWO PLACES THAT MUST NOT ASK THE VISIBLE LIST. A conversion that found no pages on a map
-	// whose every board is hidden would helpfully make a fresh one and sweep the entry's flags past
-	// it; a delete rail that counted only what this reader can see would let the last board go.
+	// ⚠ THE PLACE THAT MUST NOT ASK THE VISIBLE LIST. A conversion that found no pages on a map whose
+	// every board is hidden would helpfully make a fresh one and sweep the entry's flags past it.
 	it("reasons about every board, and not only the ones in front of the reader", async () => {
 		asPlayer();
 		const map = mapWith("Stonetop", [
@@ -902,84 +1084,5 @@ describe("hiding a board from the players", () => {
 		]);
 		expect(await ensureFirstMapPage(map)).toBe(listMapPages(map)[0]);
 		expect(listMapPages(map)).toHaveLength(2);
-
-		const one = mapWith("Marshedge", [
-			{ id: "q1", name: "Marshedge" },
-			{ id: "q2", name: "Gordin's Delve", hidden: true },
-		]);
-		expect(await deleteMapPage(listMapPages(one)[0])).toBe(true);
-		expect(await deleteMapPage(listMapPages(one)[0])).toBe(false);
-	});
-});
-
-// ── Naming and rubbing out a whole map ───────────────────────────────────────────
-//
-// The map's rows are taken out of the Journal sidebar (hooks/journal-directory-maps.js), which is
-// where a GM used to rename and delete one. These two are what replaced that list, so the rules
-// they keep are the whole of what is left guarding a map.
-
-describe("naming and rubbing out a whole map", () => {
-	const asGM = () => { globalThis.game.user = { id: "gm1", isGM: true }; };
-	const asPlayer = () => { globalThis.game.user = { id: "u1", isGM: false }; };
-	/** A map that can be deleted, which the shared fake has no call for otherwise. */
-	const deletableMap = (name = "Stonetop") => {
-		const map = mapWith(name, [{ id: "p1", name }]);
-		map.deleted = false;
-		map.delete = () => { map.deleted = true; return Promise.resolve(map); };
-		return map;
-	};
-
-	it("trims a name, holds it to the bound, and never stores a blank one", () => {
-		expect(relationshipMapName("  The people of Stonetop  ")).toBe("The people of Stonetop");
-		expect(relationshipMapName("x".repeat(RELMAP_MAP_NAME_MAX + 20))).toHaveLength(RELMAP_MAP_NAME_MAX);
-		// Core's `name` field refuses an empty string outright, so a blank has to become something.
-		expect(relationshipMapName("   ")).toBe("Relationship Map");
-		expect(relationshipMapName(null)).toBe("Relationship Map");
-	});
-
-	it("renames the map for anybody who may edit it", async () => {
-		const map = deletableMap();
-		expect(await renameRelationshipMap(map, "  Who owes whom  ")).toBe(true);
-		expect(map.name).toBe("Who owes whom");
-	});
-
-	// The rule `renameMapPage` keeps, for the same reason: a reader who opens the box and saves
-	// without typing must not broadcast a change to the whole table.
-	it("writes nothing for a name that came back the same", async () => {
-		const map = deletableMap();
-		map.updates.length = 0;
-		expect(await renameRelationshipMap(map, "Stonetop")).toBe(false);
-		expect(map.updates).toEqual([]);
-	});
-
-	it("is refused to a reader who may not edit the map", async () => {
-		const map = deletableMap();
-		map.isOwner = false;
-		expect(await renameRelationshipMap(map, "Mine now")).toBe(false);
-		expect(map.name).toBe("Stonetop");
-	});
-
-	// ⚠ STRICTER THAN THE SERVER, and deliberately: core would take this delete from any player at
-	// the table, because the map is owned by everybody so that everybody can draw on it.
-	it("is a GM alone who may delete one, though every player owns it", () => {
-		asPlayer();
-		const map = deletableMap();
-		expect(map.isOwner).toBe(true);
-		expect(canDeleteRelationshipMap(map)).toBe(false);
-		asGM();
-		expect(canDeleteRelationshipMap(map)).toBe(true);
-		expect(canDeleteRelationshipMap(null)).toBe(false);
-	});
-
-	it("deletes for a GM and refuses everybody else", async () => {
-		asPlayer();
-		const mine = deletableMap();
-		expect(await deleteRelationshipMap(mine)).toBe(false);
-		expect(mine.deleted).toBe(false);
-
-		asGM();
-		const theirs = deletableMap();
-		expect(await deleteRelationshipMap(theirs)).toBe(true);
-		expect(theirs.deleted).toBe(true);
 	});
 });

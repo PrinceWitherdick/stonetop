@@ -274,6 +274,17 @@ export class ZoomPanSurface {
 			y: anchoredOffset({ offset: this._offset.y, pointer: y, from, to }),
 		};
 		this.apply();
+		// ⚠ AND A PAN UNDER WAY STARTS AGAIN FROM HERE. A pan rebuilds the offset from the one it was
+		// pressed at plus the travel since (`_onPanMove` says why), so a zoom in the middle of one, which
+		// has just moved the offset to hold a point under the cursor, was thrown away by the very next
+		// move and the board jumped. Re-based on where the pointer last was, the next move carries on
+		// from the board as the zoom left it.
+		if (this._pan) {
+			this._pan.x = this._pan.lastX;
+			this._pan.y = this._pan.lastY;
+			this._pan.offsetX = this._offset.x;
+			this._pan.offsetY = this._offset.y;
+		}
 	}
 
 	/** Paint the current scale and position. */
@@ -333,6 +344,12 @@ export class ZoomPanSurface {
 		const { width, height } = this.painted();
 		if (!(width > 0) || !(height > 0)) return { left: 0, top: 0 };
 		return { left: (dx / width) * 100, top: (dy / height) * 100 };
+	}
+
+	/** The other way round: how many window pixels a travel in board percentages is, at the scale painted now. */
+	percentToDelta(left, top) {
+		const { width, height } = this.painted();
+		return { dx: (left / 100) * width, dy: (top / 100) * height };
 	}
 
 	/** Where a pointer event landed, relative to the viewport's own top-left. */
@@ -418,6 +435,9 @@ export class ZoomPanSurface {
 			y: ev.clientY,
 			offsetX: this._offset.x,
 			offsetY: this._offset.y,
+			// Where the pointer last was, for a zoom that has to re-base the pan on it. See `zoomTo`.
+			lastX: ev.clientX,
+			lastY: ev.clientY,
 		};
 		// The trail starts at the press, so a flick made of a single move still has two points to
 		// take a speed from. Every earlier drag's marks go with it.
@@ -435,6 +455,8 @@ export class ZoomPanSurface {
 		if (!this._pan || ev.pointerId !== this._pan.id) return;
 		const dx = ev.clientX - this._pan.x;
 		const dy = ev.clientY - this._pan.y;
+		this._pan.lastX = ev.clientX;
+		this._pan.lastY = ev.clientY;
 		// A press that never moved is not a placement: it leaves the board fitted, so a window
 		// resized afterwards still re-fits rather than being stuck where a stray click left it.
 		if (dx || dy) this._fitting = false;

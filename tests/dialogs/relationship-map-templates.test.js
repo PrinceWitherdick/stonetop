@@ -111,7 +111,7 @@ describe("the board template", () => {
 		const html = render(boardContext());
 		expect(html).toContain('data-relmap-remove="n1"');
 		expect(html).toContain('data-relmap-remove="n2"');
-		expect(html).toContain('data-tooltip="Take Elena off this map" aria-label="Take Elena off this map"');
+		expect(html).toContain('data-tooltip-text="Take Elena off this map" aria-label="Take Elena off this map"');
 	});
 
 	// ⚠ AND NOT ONE ON A BOARD THIS READER MAY ONLY LOOK AT. Same gate as the handle, and the more
@@ -921,8 +921,10 @@ describe("what a caption says when you rest on it", () => {
 	// instruction repeated on eighty lines buries that under something the reader learned once.
 	it("shows the caption, not an instruction about clicking it", () => {
 		const html = render(boardContext());
-		expect(html).toContain('data-tooltip="exes"');
-		expect(html).not.toContain('data-tooltip="exes. Click');
+		// AS TEXT: a caption is whatever somebody typed, and core draws a plain `data-tooltip` as HTML.
+		expect(html).toContain('data-tooltip-text="exes"');
+		expect(html).not.toContain('data-tooltip="exes');
+		expect(html).not.toContain('data-tooltip-text="exes. Click');
 	});
 
 	// A screen reader announces a button by its accessible name and gets no other clue that it is
@@ -945,7 +947,7 @@ describe("what a caption says when you rest on it", () => {
 describe("the page strip", () => {
 	const render = compile(WINDOW);
 	const context = (over = {}) => ({
-		title: "The people of Stonetop", canEdit: true, showBoardTools: true,
+		title: "The people of Stonetop", canEdit: true, canAddMap: true, showBoardTools: true,
 		empty: false, captions: true, showFindKin: false, showFocusPick: false,
 		views: [{ id: "everyone", label: "Everyone on the map", chosen: true }],
 		viewLabel: "Showing", viewHint: "h",
@@ -958,6 +960,7 @@ describe("the page strip", () => {
 		hideLabels: false,
 		// The strip's own context.
 		showPages: true,
+		hasPageTabs: true,
 		pageTabs: '<button data-relmap-page="p1" class="stonetop-relmap-page is-current">Stonetop</button>',
 		pagePanelId: "stonetop-relmap-map1-page-p1",
 		pagesLabel: "Pages of this map",
@@ -998,10 +1001,21 @@ describe("the page strip", () => {
 		expect(html).toContain('aria-labelledby="stonetop-relmap-map1-page-p1"');
 	});
 
+	// And no tab roles where there are no tabs. A tab list with nothing in it, over a panel labelled by a
+	// tab that does not exist, is announced to a screen reader as though something were there.
+	it("claims no tab list and no tab panel on a collection with no maps in it", () => {
+		const html = render(context({ canEdit: false, canAddMap: true, pageTabs: "", hasPageTabs: false }));
+		expect(html).toContain("stonetop-relmap-pages-strip");
+		expect(html).not.toContain('role="tablist"');
+		expect(html).not.toContain('role="tabpanel"');
+		expect(html).not.toContain("aria-labelledby");
+	});
+
 	// All four make, show, rename or destroy a document, so the whole group is behind the gate. The
 	// strip itself is not: a reader who may only look still gets to look at every board.
 	it("offers no page tools at all to a reader who may only look", () => {
-		const html = render(context({ canEdit: false }));
+		// Neither gate: a reader who may only look may not edit the board or add a map to the collection.
+		const html = render(context({ canEdit: false, canAddMap: false }));
 		expect(html).toContain("stonetop-relmap-pages-strip");
 		expect(html).not.toContain('data-relmap-action="pagenew"');
 		expect(html).not.toContain('data-relmap-action="pagedelete"');
@@ -1073,20 +1087,32 @@ describe("the page strip", () => {
 		expect(dark).toContain("is-hidden-board");
 	});
 
-	// ⚠ RENDERED AND HIDDEN, never behind an `{{#if}}`. Whether the last board may be rubbed out
-	// changes whenever anybody at the table adds or removes one, and `_paintPages` can only write
-	// onto markup a repaint left standing: behind a condition, a reader who adds a second page
-	// would have no way to remove it again until they reopened the window.
-	it("keeps the delete in the markup on a one-page map, merely hidden", () => {
+	// ⚠ RENDERED AND HIDDEN, never behind an `{{#if}}`. Whether there is a board to rub out changes
+	// whenever anybody at the table adds or removes one, and `_paintPages` can only write onto markup
+	// a repaint left standing: behind a condition, a reader who adds a map to an empty strip would
+	// have no way to remove it again until they reopened the window.
+	it("keeps the delete in the markup with no board to delete, merely hidden", () => {
 		const html = render(context({ canDropPage: false }));
 		const button = html.match(/<button[^>]*data-relmap-action="pagedelete"[^>]*>/)[0];
 		expect(button).toContain("hidden");
 	});
 
-	it("shows the delete once there is more than one board", () => {
+	it("shows the delete while there is a board to delete", () => {
 		const html = render(context({ canDropPage: true }));
 		const button = html.match(/<button[^>]*data-relmap-action="pagedelete"[^>]*>/)[0];
 		expect(button).not.toContain("hidden");
+	});
+
+	// A collection whose maps have all been rubbed out has no board to hide, rename or delete, and
+	// the plus is the one way back into it, so it stands without the other three.
+	it("offers the plus alone on a collection with no maps in it", () => {
+		const html = render(context({
+			canEdit: false, canAddMap: true, pageTabs: "", canDropPage: false, pageHideOn: false,
+		}));
+		expect(html).toContain('data-relmap-action="pagenew"');
+		expect(html).not.toContain('data-relmap-action="pagehide"');
+		expect(html).not.toContain('data-relmap-action="pagerename"');
+		expect(html).not.toContain('data-relmap-action="pagedelete"');
 	});
 
 	// ⚠ THE PLUS STANDS AT THE END OF THE TABS, not in the corner with the other two. It makes

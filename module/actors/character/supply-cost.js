@@ -49,6 +49,18 @@ const PURSES = [
  */
 export const SUPPLY_SLUGS = PURSES.filter(p => p.purposes === null).map(p => p.slug);
 
+/**
+ * Every purse that can pay for `purpose`, empty or not, in the order a spend drains them.
+ *
+ * supplyPursesFor answers "what can this character spend right now", so it leaves empty rows out.
+ * This answers "which rows is this purpose paid from at all", which a record naming each of them
+ * needs whether or not any are full: a camp offer writes a count for every one, so that writing a
+ * fresh offer over an old one resets them all.
+ */
+export function supplyPurseSlugsFor(purpose) {
+	return PURSES.filter(p => p.purposes === null || p.purposes.includes(purpose)).map(p => p.slug);
+}
+
 function _remaining(resources, slug) {
 	return Math.max(0, Math.trunc(Number(resources?.[slug]) || 0));
 }
@@ -100,41 +112,4 @@ export function defaultSupplyPurse(purses) {
 export function campUsesNeeded(people, messKit = false) {
 	const heads = Math.max(0, Math.trunc(Number(people) || 0));
 	return Math.ceil(heads / (messKit ? 4 : 1));
-}
-
-/**
- * Work out which purses a spend of `amount` uses actually comes out of.
- *
- * A camp of four eats four uses and one row rarely holds four, so a spend SPILLS: the purse the
- * player chose goes first and empties, then the rest in table order until the bill is paid. It
- * spills rather than refusing because refusing would be wrong — the food is there, it is just
- * spread across three rows of the same insert — and it starts where the player pointed because
- * "pay with provisions" should mean the larder empties before the supplies do, even when the
- * larder cannot cover the whole night.
- *
- * Returns what is short rather than throwing: a party can absolutely try to Make Camp with two
- * uses between five of them, and the move's own answer to that is deprivation (Book I p.335), not
- * a refused dialog.
- *
- * @param {object} purses  from supplyPursesFor
- * @param {number} amount  uses to spend
- * @param {string} [preferredSlug]  the purse the player picked; ignored if it cannot pay
- * @returns {{spends: Array<{slug: string, label: string, spend: number, left: number}>,
- *           spent: number, short: number}}
- */
-export function spendSupplies(purses, amount, preferredSlug = null) {
-	const want = Math.max(0, Math.trunc(Number(amount) || 0));
-	const preferred = purses.eligible.filter(p => p.slug === preferredSlug);
-	const order = [...preferred, ...purses.eligible.filter(p => p.slug !== preferredSlug)];
-
-	const spends = [];
-	let left = want;
-	for (const purse of order) {
-		if (left <= 0) break;
-		const spend = Math.min(left, purse.remaining);
-		if (!spend) continue;
-		spends.push({ slug: purse.slug, label: purse.label, spend, left: purse.remaining - spend });
-		left -= spend;
-	}
-	return { spends, spent: want - left, short: left };
 }
