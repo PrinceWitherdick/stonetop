@@ -153,8 +153,8 @@ function windowFor(graph = TWO_PEOPLE, {
 	empty.children[".stonetop-relmap-empty-cast"] = emptyCta;
 	root.children[".stonetop-relmap-foot"] = foot;
 	// The page strip, and the two things `_paintPages` writes outside it: the board is the tab
-	// panel, so it carries the label naming whichever tab is up, and whether the last board can be
-	// rubbed out depends on how many there are. Registered here rather than per-test for the reason
+	// panel, so it carries the label naming whichever tab is up, and whether there is a board to
+	// rub out depends on how many there are. Registered here rather than per-test for the reason
 	// the panels above are: without them those branches are silent no-ops and every assertion about
 	// them would pass against a window that never touched them.
 	const strip = el();
@@ -2719,17 +2719,17 @@ describe("the pages of one map", () => {
 		expect(view.attrs["aria-labelledby"]).toBe("stonetop-relmap-map1-page-p2");
 	});
 
-	// ⚠ ALWAYS RENDERED AND HIDDEN, never behind a condition: whether the last board may be rubbed
-	// out changes whenever anybody at the table adds or removes one, and `_paintPages` can only
-	// write onto markup a repaint left standing.
-	it("offers the delete only while there is more than one board", () => {
+	// ⚠ ALWAYS RENDERED AND HIDDEN, never behind a condition: whether there is a board to rub out
+	// changes whenever anybody at the table adds or removes one, and `_paintPages` can only write
+	// onto markup a repaint left standing. The LAST board may go too; only an empty strip hides it.
+	it("offers the delete whenever there is a board, the last one included", () => {
 		const entry = pagedEntry([{ id: "p1", name: "Stonetop" }]);
 		const { app, dropTool } = windowFor(null, { entry, pageId: "p1" });
 		app._paintPages();
-		expect(dropTool.hidden).toBe(true);
-		entry.pages.contents.push(pageFor("Marshedge", EMPTY_BOARD, { id: "p2", sort: 1, parent: entry }));
-		app._paintPages();
 		expect(dropTool.hidden).toBe(false);
+		entry.pages.contents.length = 0;
+		app._paintPages();
+		expect(dropTool.hidden).toBe(true);
 	});
 
 	// A map written before pages existed keeps its whole board on the entry. It gets one tab named
@@ -2746,6 +2746,47 @@ describe("the pages of one map", () => {
 	it("tells window-restore which board to come back to", () => {
 		const { app } = windowFor(null, { entry: TWO_BOARDS(), pageId: "p2" });
 		expect(app.restorePageId).toBe("p2");
+	});
+});
+
+// ── A collection with no maps in it ─────────────────────────────────────────
+//
+// What rubbing out the last map leaves behind: the collection stays, with nothing on its strip. Not
+// "nobody on this map" and not "nothing shown to you" -- there is no map here at all, and the one
+// thing to offer is the way to make one.
+describe("a collection with no maps in it", () => {
+	beforeEach(() => { globalThis.game.i18n = TABLE; });
+	const plan = { graph: { nodes: {}, edges: {} } };
+
+	it("has nothing to edit, no tab, and the plus for whoever may edit the collection", () => {
+		const { app } = windowFor(null, { entry: pagedEntry([]) });
+		expect(app.noMapsYet).toBe(true);
+		expect(app.canEdit).toBe(false);
+		expect(app.canAddMap).toBe(true);
+		expect(app._pageTabs()).toBe("");
+	});
+
+	it("says so on the board, with New map as its one button", () => {
+		const { app } = windowFor(null, { entry: pagedEntry([]) });
+		const said = app._chrome(plan);
+		expect(said.empty).toBe(true);
+		expect(said.emptyLead).toBe("This collection has no maps yet.");
+		expect(said.emptyAction).toMatchObject({ action: "pagenew", label: "New map" });
+	});
+
+	it("offers nothing to a reader who may not edit the collection", () => {
+		const { app } = windowFor(null, { entry: pagedEntry([], { isOwner: false }) });
+		expect(app.canAddMap).toBe(false);
+		const said = app._chrome(plan);
+		expect(said.emptyHint).toBe("Whoever keeps this collection has not added a map to it yet.");
+		expect(said.emptyAction).toBeNull();
+	});
+
+	// A version 1 map has no pages either, and the board on its entry is perfectly editable.
+	it("is not what a version 1 map is", () => {
+		const { app } = windowFor(TWO_PEOPLE);
+		expect(app.noMapsYet).toBe(false);
+		expect(app.canEdit).toBe(true);
 	});
 });
 

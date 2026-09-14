@@ -98,7 +98,7 @@ describe("the one control that exists only here", () => {
 		expect(context.canPopOut).toBe(true);
 		// ONE string. The control is a glyph in the board's corner with no words on it, so this is
 		// both what it is called and what its tooltip says.
-		expect(context.popOutLabel).toBe("Open this board in a window");
+		expect(context.popOutLabel).toBe("Open this map in a window");
 		expect(context.popOutHint).toBeUndefined();
 	});
 

@@ -249,6 +249,16 @@ describe("when it does nothing at all", () => {
 		expect(await syncVillagePage(map, VILLAGE)).toBe(null);
 		expect(namesOn(listMapPages(map)[0])).toEqual([]);
 	});
+
+	// ⚠ A COLLECTION WHOSE MAPS HAVE ALL BEEN RUBBED OUT GETS NO BOARD MADE FOR IT. The last map may
+	// be deleted on purpose, and a village that conjured a fresh one on the next open would be a map
+	// nobody could be rid of.
+	it("makes no board on a collection with no maps in it", async () => {
+		const map = entry("Stonetop", { "stonetop-pwd": { relationshipMap: { version: 2 } } });
+		expect(await syncVillagePage(map, VILLAGE)).toBe(null);
+		expect(listMapPages(map)).toHaveLength(0);
+		expect(hadVillagePage(map)).toBe(false);
+	});
 });
 
 describe("the plan itself", () => {

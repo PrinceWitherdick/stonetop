@@ -148,8 +148,8 @@ describe("the map somebody asks for", () => {
 		const asked = box.asked[0];
 		expect(asked.value ?? "").toBe("");
 		expect(asked.placeholder).not.toBe("Stonetop");
-		expect(asked.title).toBe("What is this map called?");
-		expect(asked.buttonLabel).toBe("Make the map");
+		expect(asked.title).toBe("What is this collection called?");
+		expect(asked.buttonLabel).toBe("Make the collection");
 	});
 
 	// Taken rather than refused, exactly as an empty board name is: the map is renameable from the

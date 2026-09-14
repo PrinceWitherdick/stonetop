@@ -10,11 +10,9 @@ import { openRelationshipMap } from "../../module/dialogs/RelationshipMapWindow.
 import {
 	RELMAP_FOLDER_NAME, RELMAP_PAGE_NAME_MAX, RELMAP_SHEET_CLASS, canCreateRelationshipMap,
 	canHideMapPages, canSeeMapPage, createMapPage, createRelationshipMap, deleteMapPage,
-	ensureFirstMapPage, ensureRelationshipMapFolder, findRelationshipMapFolder, getMapPage,
+	ensureFirstMapPage, ensureRelationshipMapFolder, findRelationshipMapFolder, getMapPage, hasLegacyBoard,
 	getRelationshipMap, getPartyPage, hadPartyPage, isMapPageHidden, listMapPages,
 	listRelationshipMaps, listVisibleMapPages, mapBoardDoc, mapPageName,
-	RELMAP_MAP_NAME_MAX, canDeleteRelationshipMap, deleteRelationshipMap, relationshipMapName,
-	renameRelationshipMap,
 	mapPagesArranged, moveMapPage, planPageMove,
 	readGraph, renameMapPage, setMapPageHidden, syncPartyPage,
 } from "../../module/relmap/relmap-doc.js";
@@ -439,6 +437,18 @@ describe("giving a version 1 map its first page", () => {
 		expect(listMapPages(map)).toEqual([]);
 		expect(map.updates).toEqual([]);
 	});
+
+	// ⚠ A COLLECTION WITH NO MAPS IN IT IS NOT A VERSION 1 MAP. Both have no pages; only the old one
+	// has a board on the entry to carry. Converting the other would put back a map somebody had just
+	// rubbed out, every time the collection was opened.
+	it("tells a version 1 map from a collection with no maps in it, and leaves the second alone", async () => {
+		expect(hasLegacyBoard(legacyMap())).toBe(true);
+		const bare = mapWith("Stonetop", []);
+		expect(hasLegacyBoard(bare)).toBe(false);
+		expect(await ensureFirstMapPage(bare)).toBeNull();
+		expect(listMapPages(bare)).toEqual([]);
+		expect(bare.updates).toEqual([]);
+	});
 });
 
 describe("adding, renaming and rubbing out a board", () => {
@@ -492,12 +502,17 @@ describe("adding, renaming and rubbing out a board", () => {
 		expect(listMapPages(map).map(p => p.name)).toEqual(["Stonetop"]);
 	});
 
-	// ⚠ NEVER THE LAST ONE. A map with no pages is one whose next opener silently converts it from
-	// its own long-dead entry graph, which is empty — so this would read as the map emptying itself.
-	it("refuses to rub out the last board", async () => {
+	// THE LAST ONE TOO, and the collection stays. Nothing refills an empty collection on the next
+	// open (`ensureFirstMapPage` only carries a version 1 board), so the map stays rubbed out.
+	it("rubs out the last board too, and leaves the collection standing", async () => {
 		const map = mapWith("A map", [{ name: "Stonetop", id: "p1" }]);
-		expect(await deleteMapPage(getMapPage(map, "p1"))).toBe(false);
-		expect(listMapPages(map)).toHaveLength(1);
+		map.deleted = false;
+		map.delete = () => { map.deleted = true; return Promise.resolve(map); };
+		expect(await deleteMapPage(getMapPage(map, "p1"))).toBe(true);
+		expect(listMapPages(map)).toEqual([]);
+		expect(map.deleted).toBe(false);
+		expect(await ensureFirstMapPage(map)).toBeNull();
+		expect(listMapPages(map)).toEqual([]);
 	});
 
 	it("refuses to rub one out for a reader who may not edit the map", async () => {
@@ -1041,9 +1056,8 @@ describe("hiding a board from the players", () => {
 		expect(page.updates).toEqual([]);
 	});
 
-	// ⚠ THE TWO PLACES THAT MUST NOT ASK THE VISIBLE LIST. A conversion that found no pages on a map
-	// whose every board is hidden would helpfully make a fresh one and sweep the entry's flags past
-	// it; a delete rail that counted only what this reader can see would let the last board go.
+	// ⚠ THE PLACE THAT MUST NOT ASK THE VISIBLE LIST. A conversion that found no pages on a map whose
+	// every board is hidden would helpfully make a fresh one and sweep the entry's flags past it.
 	it("reasons about every board, and not only the ones in front of the reader", async () => {
 		asPlayer();
 		const map = mapWith("Stonetop", [
@@ -1052,84 +1066,5 @@ describe("hiding a board from the players", () => {
 		]);
 		expect(await ensureFirstMapPage(map)).toBe(listMapPages(map)[0]);
 		expect(listMapPages(map)).toHaveLength(2);
-
-		const one = mapWith("Marshedge", [
-			{ id: "q1", name: "Marshedge" },
-			{ id: "q2", name: "Gordin's Delve", hidden: true },
-		]);
-		expect(await deleteMapPage(listMapPages(one)[0])).toBe(true);
-		expect(await deleteMapPage(listMapPages(one)[0])).toBe(false);
-	});
-});
-
-// ── Naming and rubbing out a whole map ───────────────────────────────────────────
-//
-// The map's rows are taken out of the Journal sidebar (hooks/journal-directory-maps.js), which is
-// where a GM used to rename and delete one. These two are what replaced that list, so the rules
-// they keep are the whole of what is left guarding a map.
-
-describe("naming and rubbing out a whole map", () => {
-	const asGM = () => { globalThis.game.user = { id: "gm1", isGM: true }; };
-	const asPlayer = () => { globalThis.game.user = { id: "u1", isGM: false }; };
-	/** A map that can be deleted, which the shared fake has no call for otherwise. */
-	const deletableMap = (name = "Stonetop") => {
-		const map = mapWith(name, [{ id: "p1", name }]);
-		map.deleted = false;
-		map.delete = () => { map.deleted = true; return Promise.resolve(map); };
-		return map;
-	};
-
-	it("trims a name, holds it to the bound, and never stores a blank one", () => {
-		expect(relationshipMapName("  The people of Stonetop  ")).toBe("The people of Stonetop");
-		expect(relationshipMapName("x".repeat(RELMAP_MAP_NAME_MAX + 20))).toHaveLength(RELMAP_MAP_NAME_MAX);
-		// Core's `name` field refuses an empty string outright, so a blank has to become something.
-		expect(relationshipMapName("   ")).toBe("Relationship Map");
-		expect(relationshipMapName(null)).toBe("Relationship Map");
-	});
-
-	it("renames the map for anybody who may edit it", async () => {
-		const map = deletableMap();
-		expect(await renameRelationshipMap(map, "  Who owes whom  ")).toBe(true);
-		expect(map.name).toBe("Who owes whom");
-	});
-
-	// The rule `renameMapPage` keeps, for the same reason: a reader who opens the box and saves
-	// without typing must not broadcast a change to the whole table.
-	it("writes nothing for a name that came back the same", async () => {
-		const map = deletableMap();
-		map.updates.length = 0;
-		expect(await renameRelationshipMap(map, "Stonetop")).toBe(false);
-		expect(map.updates).toEqual([]);
-	});
-
-	it("is refused to a reader who may not edit the map", async () => {
-		const map = deletableMap();
-		map.isOwner = false;
-		expect(await renameRelationshipMap(map, "Mine now")).toBe(false);
-		expect(map.name).toBe("Stonetop");
-	});
-
-	// ⚠ STRICTER THAN THE SERVER, and deliberately: core would take this delete from any player at
-	// the table, because the map is owned by everybody so that everybody can draw on it.
-	it("is a GM alone who may delete one, though every player owns it", () => {
-		asPlayer();
-		const map = deletableMap();
-		expect(map.isOwner).toBe(true);
-		expect(canDeleteRelationshipMap(map)).toBe(false);
-		asGM();
-		expect(canDeleteRelationshipMap(map)).toBe(true);
-		expect(canDeleteRelationshipMap(null)).toBe(false);
-	});
-
-	it("deletes for a GM and refuses everybody else", async () => {
-		asPlayer();
-		const mine = deletableMap();
-		expect(await deleteRelationshipMap(mine)).toBe(false);
-		expect(mine.deleted).toBe(false);
-
-		asGM();
-		const theirs = deletableMap();
-		expect(await deleteRelationshipMap(theirs)).toBe(true);
-		expect(theirs.deleted).toBe(true);
 	});
 });

@@ -93,7 +93,10 @@
           span: `aria-label` overrode it then and carries the same full sentence now, which is the
           text `data-tooltip` shows on hover. The words are one hover, or one screen reader, away
           exactly as they were. --}}
-    {{#if canEdit}}
+    {{!-- ⚠ THE PLUS HAS A GATE OF ITS OWN (`canAddMap`), because a collection whose maps have all
+          been rubbed out has no board to edit and the plus is the one way back into it. The eye,
+          the pen and the trash stay behind `canEdit` below: there is nothing for them to act on. --}}
+    {{#if canAddMap}}
     {{!-- ⚠ NEW PAGE SITS AT THE END OF THE TABS AND NOT WITH THE OTHER TWO, which is the one thing
           on this row that is placed by what it makes rather than by what it acts on. It makes
           ANOTHER TAB, and the place a new tab appears is after the last one — the same spot every
@@ -111,6 +114,7 @@
             data-tooltip="{{pageNewHint}}" aria-label="{{pageNewHint}}">
       <i class="fas fa-plus"></i>
     </button>
+    {{/if}}
 
     {{!-- THE EYE, THE PEN AND THE TRASH ACT ON THE BOARD THAT IS UP, and they are pinned to the
           row's right-hand end rather than trailing the tabs: their target is the current tab, which
@@ -118,6 +122,7 @@
           reliably reached for. Two of the three change what somebody else can see or destroy
           something outright, and standing them apart from the plus is what keeps a mis-aimed click
           on "another board" from being a click on "lose this one". --}}
+    {{#if canEdit}}
     <div class="stonetop-relmap-pages-tools">
       {{!-- WHO AT THIS TABLE MAY LOOK AT THIS BOARD, and it is the first of the three because it is
             the only one whose state a GM reads rather than presses. Every board starts hidden from

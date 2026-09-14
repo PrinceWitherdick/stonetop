@@ -142,14 +142,14 @@
                 placeholder="{{capture.placeholder}}">{{capture.draftAnswer}}</textarea>
       {{!-- Who at this table the answer is about. Optional, and blank by default: plenty of
             answers are about somebody outside the party, and nobody should have to name a
-            player character to record one. What it buys is the arrow on The Party board of the
-            relationship map, which otherwise has only the names in the writing to go on. --}}
+            player character to record one. What it buys is the arrow on The Party map of the
+            relationship maps, which otherwise has only the names in the writing to go on. --}}
       {{#if capture.hasAbout}}
       <label class="stonetop-intros-about">
         <span class="stonetop-intros-about-label">{{#if capture.isAsk}}Who did you ask?{{else}}Who is this about?{{/if}}</span>
         <select class="stonetop-intros-about-pick"
                 data-actor-id="{{capture.actorId}}" data-step-key="{{capture.stepKey}}"
-                data-tooltip="Naming somebody here draws the arrow to them on The Party board of the relationship map. Leave it blank when the answer is about someone outside the party.">
+                data-tooltip="Naming somebody here draws the arrow to them on The Party map of the relationship maps. Leave it blank when the answer is about someone outside the party.">
           <option value="">Nobody at this table</option>
           {{#each capture.about}}
           <option value="{{this.id}}" {{#if this.isSelected}}selected{{/if}}>{{this.name}}</option>

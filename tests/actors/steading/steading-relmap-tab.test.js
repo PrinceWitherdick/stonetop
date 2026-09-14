@@ -465,7 +465,7 @@ describe("the tab's markup", () => {
 		expect(TAB_HBS).toContain('{{localize "stonetop.relmap.maps.cannotCreate"}}');
 		// MAKING A MAP AND EDITING ONE ARE DIFFERENT RIGHTS, and the tab has to say so rather than
 		// show a button that refuses. The wording is the same one the hotbar macro uses.
-		expect(EN.stonetop.relmap.maps.cannotCreate).toContain("trusted-player role");
+		expect(EN.stonetop.relmap.maps.cannotCreate).toContain("Trusted Player role");
 	});
 
 	// House style for this sheet's templates: complementary guards, never `{{else}}`, so each

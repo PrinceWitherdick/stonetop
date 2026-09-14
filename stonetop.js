@@ -58,7 +58,7 @@ import { onRenderCompendiumItemIcons } from "./module/hooks/CompendiumItemIcons.
 import { decoratePortraitRow, onUpdateActorPortraitFrame } from "./module/hooks/ActorDirectoryPortraits.js";
 import { decorateNameRow, onUpdateActorPlaybookName } from "./module/hooks/ActorDirectoryNames.js";
 import { decorateActorDirectoryRows } from "./module/hooks/actor-directory-rows.js";
-import { hideRelationshipMapRows } from "./module/hooks/journal-directory-maps.js";
+import { addOpenMapButton, hideRelationshipMapRows } from "./module/hooks/journal-directory-maps.js";
 import { onUpdateCondemned } from "./module/hooks/CondemnedTag.js";
 import { characterFullName } from "./module/utils/playbook-actors.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
@@ -630,9 +630,13 @@ Hooks.on("renderDocumentDirectory", (app, element) =>
 // A relationship map is a JournalEntry because that is the only storage a player may write, but it
 // is never READ as one: it opens from the steading sheet's own tab and from the hotbar macro,
 // straight onto the board. So its rows come out of the Journal sidebar, and the "Relationship Maps"
-// folder with them while nothing else is in it. Nothing about the document changes.
-// See module/hooks/journal-directory-maps.js.
-Hooks.on("renderDocumentDirectory", hideRelationshipMapRows);
+// folder with them while nothing else is in it, and one "Relationship Map" button goes at the top of
+// the tab in their place, opening the map exactly as the macro does. Nothing about the document
+// changes. See module/hooks/journal-directory-maps.js.
+Hooks.on("renderDocumentDirectory", (app, element) => {
+	hideRelationshipMapRows(app, element);
+	addOpenMapButton(app, element, () => game.stonetop?.openRelationshipMap?.());
+});
 Hooks.on("updateActor", onUpdateActorPortraitFrame);
 Hooks.on("updateActor", onUpdateActorPlaybookName);
 

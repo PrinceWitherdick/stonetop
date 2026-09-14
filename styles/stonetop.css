@@ -41882,6 +41882,22 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    zooming out to see the whole web actually show the whole web instead of a heap of
    full-size faces. */
 
+/* ⚠ THE POPPED-OUT WINDOW HAS NO PADDING. Core pads a V1 content well by 8px, which framed the page
+   strip, the board and the footer in a band of parchment between them and the window around them;
+   the map now runs edge to edge inside the frame. Both root classes are named, as the book reader's
+   are, so this clears core's `.window-app .window-content` on specificity as well as on order.
+   Nothing else is touched by it: the steading sheet's panel skips the frame (utils/frameless-panel.js)
+   and has no `.window-content` at all, and the map's own dialogs do not wear `.stonetop-relmap-app`. */
+.stonetop.stonetop-relmap-app .window-content {
+	padding: 0;
+}
+
+/* The "Relationship Map" button at the top of the Journal tab (hooks/journal-directory-maps.js): a
+   row of its own under core's create buttons, which core already lays out and paints. */
+.stonetop-relmap-directory-actions {
+	margin-top: 0.25rem;
+}
+
 .stonetop-relmap {
 	display: grid;
 	/* A ROW EACH, and the viewport takes what is left. `1fr` and not `auto` on the viewport's row:

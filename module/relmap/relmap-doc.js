@@ -171,65 +171,13 @@ export async function createRelationshipMap(name) {
 	}) ?? null;
 }
 
-/**
- * The longest a MAP may be named.
- *
- * Its own bound rather than the pages' (`RELMAP_PAGE_NAME_MAX`), because the two names are read in
- * different places and cut for different reasons: a board's name is a TAB in a strip that has to
- * hold several across one window, while a map's is a window title with a whole title bar to itself.
- * Trimmed on the way in rather than refused, as every name in this feature is: silently losing the
- * tail of a name is kinder than rejecting somebody's save.
+/*
+ * ⚠ A WHOLE MAP IS NEVER RENAMED OR DELETED FROM HERE, and there is deliberately no call for either.
+ * A Stonetop world has ONE map, made during setup (relmap/relmap-make.js), and the table works in
+ * its pages, which the strip's own pen and trash name and rub out (`renameMapPage`,
+ * `deleteMapPage`). The title-bar buttons that once did it for the whole map were taken out at the
+ * user's request, because a second map is not something this system offers.
  */
-export const RELMAP_MAP_NAME_MAX = 60;
-
-/** A map's name, made safe to store: trimmed, shortened, and never blank, since core's `name` field
- * refuses an empty one outright and would throw rather than answer. */
-export function relationshipMapName(raw) {
-	const want = String(raw ?? "").trim().slice(0, RELMAP_MAP_NAME_MAX).trim();
-	return want || localize("stonetop.relmap.untitled");
-}
-
-/**
- * Rename a whole map.
- *
- * Gated on OWNER like every other write here, so the table can rename the map they all draw on.
- * Nothing is written for a name that came back the same, so a reader who opens the box and saves
- * without typing does not broadcast a change to everybody — the rule `renameMapPage` keeps.
- *
- * ⚠ THIS AND THE DELETE BELOW ARE HERE BECAUSE THE SIDEBAR NO LONGER OFFERS THEM. Map rows are
- * taken out of the Journal directory (hooks/journal-directory-maps.js), and renaming or deleting a
- * whole map was the one thing that list was still good for; without these two the map window would
- * be a window onto a document with no way left to name or be rid of it.
- */
-export async function renameRelationshipMap(entry, name) {
-	if (!entry || !canEditRelationshipMap(entry)) return false;
-	const want = relationshipMapName(name);
-	if (want === entry.name) return false;
-	await entry.update({ name: want });
-	return true;
-}
-
-/**
- * May this reader rub out a whole map?
- *
- * ⚠ A GM ALONE, AND THAT IS STRICTER THAN THE SERVER. A map is owned by the whole table so that
- * anybody may draw on it, and core's own rule for deleting a JournalEntry is that same OWNER — so
- * the server would take this delete from any player at the table. That is a fine rule for a
- * document one person made and a poor one for the shared board everybody has been drawing on all
- * campaign: one mis-aimed click by anybody, and the map every other player is looking at is gone.
- * The same asymmetry the eye keeps (`canHideMapPages`), for the same reason.
- */
-export function canDeleteRelationshipMap(entry) {
-	return !!entry && !!game?.user?.isGM;
-}
-
-/** Rub out a whole map, boards and all. The caller confirms with the reader; this is the rule
- * underneath that, because the confirm dialog is UI and this is not. */
-export async function deleteRelationshipMap(entry) {
-	if (!canDeleteRelationshipMap(entry)) return false;
-	await entry.delete();
-	return true;
-}
 
 // ── The pages a map is made of ──────────────────────────────────────────────────────────────────
 
@@ -341,8 +289,7 @@ export function canSeeMapPage(page, user = undefined) {
  * whole feature. Everything a reader SEES goes through this one; everything the document layer
  * REASONS about goes through the raw one. `ensureFirstMapPage` asking this would find no pages on a
  * map whose every board is hidden, helpfully make a fresh one, and sweep the entry's flags on the
- * way past; `deleteMapPage`'s "never the last one" rail asking this would let the last board on a
- * map be rubbed out because the reader happened to see only one of four.
+ * way past.
  */
 export function listVisibleMapPages(entry) {
 	return listMapPages(entry).filter(page => canSeeMapPage(page));
@@ -404,6 +351,20 @@ export function mapBoardDoc(entry, pageId = null) {
 	// pages twice over each time.
 	const pages = listVisibleMapPages(entry);
 	return pages.find(page => page.id === pageId) ?? pages[0] ?? entry;
+}
+
+/**
+ * Does this map still carry its board ON THE ENTRY, from before boards were pages?
+ *
+ * The one way to tell a version 1 map, whose whole board is the entry's own flag and is perfectly
+ * readable and editable, from a collection whose maps have all been rubbed out. Both have no pages,
+ * and both leave `mapBoardDoc` resolving to the entry; only the first has anything there to draw on
+ * or to carry onto a page (`ensureFirstMapPage`). A converted or newly made collection carries the
+ * mark and its `partyBoard`/`villageBoard`/`arranged` answers, and never `nodes` or `edges`.
+ */
+export function hasLegacyBoard(entry) {
+	const flag = entry?.getFlag?.(SYSTEM_ID, RELMAP_FLAG);
+	return !!flag && typeof flag === "object" && (flag.nodes != null || flag.edges != null);
 }
 
 /** A page's name, made safe to store: trimmed, shortened, and never blank — core's `name` field
@@ -487,6 +448,11 @@ export async function ensureFirstMapPage(entry) {
 	const already = listMapPages(entry);
 	if (already.length) return already[0];
 	if (!canEditRelationshipMap(entry)) return null;
+	// ⚠ A COLLECTION WITH NO MAPS IN IT IS LEFT THAT WAY. The last map may be rubbed out
+	// (`deleteMapPage`), and a collection that grew a fresh empty one on the next open would be a
+	// map nobody could be rid of. Only a version 1 map has a board to carry onto a page. This is
+	// also what keeps the village's adoption (`syncVillagePage`) from conjuring one.
+	if (!hasLegacyBoard(entry)) return null;
 
 	const carried = normalizeGraph(entry.getFlag?.(SYSTEM_ID, RELMAP_FLAG));
 	// ⚠ SHOWN, AND THE ONLY BOARD IN THE SYSTEM THAT IS MADE THAT WAY. Every new board starts hidden
@@ -553,15 +519,17 @@ export async function renameMapPage(page, name) {
 /**
  * Rub out one board, and everything on it.
  *
- * ⚠ NEVER THE LAST ONE. A map with no pages is a map whose next opener silently converts it from
- * its own long-dead entry graph — which is empty — so deleting the last page reads as "the map
- * emptied itself". The caller confirms with the reader; this is the rail underneath that, because
- * the confirm dialog is UI and this is the rule.
+ * THE LAST ONE TOO (user, 2026-09-13: "you should be able to delete the last map, but not the
+ * collection itself"). Only the page goes; the entry stays, as a collection with no maps in it.
+ * No blank map refills it on the next open, because `ensureFirstMapPage` only carries a version 1
+ * board. The system's own boards keep their own rules: The Party still arrives the first time there
+ * is a party, on a collection that has never had one, and a deleted party or village board stays
+ * deleted by its mark on the entry. The caller confirms with the reader; this is the ownership rail
+ * underneath that, because the confirm dialog is UI and this is the rule.
  */
 export async function deleteMapPage(page) {
 	const entry = page?.parent ?? null;
 	if (!entry || !canEditRelationshipMap(entry)) return false;
-	if (listMapPages(entry).length <= 1) return false;
 	await entry.deleteEmbeddedDocuments?.("JournalEntryPage", [page.id]);
 	return true;
 }
