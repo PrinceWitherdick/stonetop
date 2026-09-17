@@ -81,7 +81,7 @@ export function touching(a, b, grid = {}) {
 }
 
 /** A small union-find over ids, for grouping linked fighters into engagements. */
-function unionFind(ids) {
+export function unionFind(ids) {
 	const parent = new Map(ids.map(id => [id, id]));
 	const find = id => {
 		let root = id;

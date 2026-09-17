@@ -35,7 +35,7 @@ import { compendiumRefTail } from "../migration/compat.js";
 import { HEROES, FOES } from "./engagements.js";
 import { classifySide } from "./fight-sides.js";
 import { followerMasterIndex } from "../actors/character/follower-masters.js";
-import { combatantSide, fightOnScene, isFight, sideInfoFor, sceneRectOf, SIDE_FLAG, LAST_LINE_UP_FLAG } from "./fight-state.js";
+import { combatantBodies, combatantSide, fightOnScene, gridOf, isFight, sideInfoFor, sceneRectOf, tokenLevel, SIDE_FLAG, LAST_LINE_UP_FLAG } from "./fight-state.js";
 import { fightWindowWillShow } from "./fight-window.js";
 import { askGroupSize, groupSizeQuestions } from "./group-size.js";
 import { gatherAround, makeGroupToken, settleNewcomers } from "./group-scale.js";
@@ -468,8 +468,10 @@ export async function startFight({ scene, combat = null, picks = [], lineUp = fa
 }
 
 /**
- * Heroes in columns on the left of the GM's view, foes on the right, in one move, remembering where
- * everyone stood. Only for a fight on the canvas scene, where there is a view to line up in.
+ * Everyone in the fight lined up in one move, remembering where they stood. The fights already
+ * going on are kept as they stand and only shifted about (line-up.js); the fighters nobody is up
+ * against go into columns, heroes on the left of the GM's view and foes on the right. Only for a
+ * fight on the canvas scene, where there is a view to line up in.
  */
 export async function lineUpFight(combat, { scene = globalThis.canvas?.scene } = {}) {
 	const game = globalThis.game;
@@ -478,15 +480,22 @@ export async function lineUpFight(combat, { scene = globalThis.canvas?.scene } =
 	const size = canvas.dimensions?.size ?? scene.grid?.size ?? 100;
 	const fighters = [...(combat.combatants ?? [])]
 		.filter(c => c.sceneId === scene.id && c.token)
-		.map(c => ({ combatant: c, token: c.token, side: combatantSide(c) }))
+		.map(c => ({ combatant: c, token: c.token, side: combatantSide(c), out: combatantBodies(c).out }))
 		.filter(f => f.side)
 		.sort((a, b) => (a.token._source.y - b.token._source.y) || (a.token._source.x - b.token._source.x));
 	if (!fighters.length) return false;
-	const entry = f => ({ id: f.token.id, w: f.token._source.width ?? 1, h: f.token._source.height ?? 1 });
+	const entry = f => ({
+		id: f.token.id,
+		w: f.token._source.width ?? 1, h: f.token._source.height ?? 1,
+		x: f.token._source.x, y: f.token._source.y,
+		level: tokenLevel(f.token),
+		out: f.out,
+	});
 	const positions = lineUpPositions({
 		view: viewRectWorld(canvas),
 		size,
 		sceneRect: sceneRectOf(canvas),
+		gridKind: gridOf(scene).kind,
 		heroes: fighters.filter(f => f.side === HEROES).map(entry),
 		foes: fighters.filter(f => f.side === FOES).map(entry),
 	});
@@ -495,12 +504,24 @@ export async function lineUpFight(combat, { scene = globalThis.canvas?.scene } =
 	// a map would keep every token an earlier line-up moved and "Put everyone back" would move them
 	// too; an array is replaced whole.
 	const before = [];
+	// A SCRUM IS SNAPPED ONCE. Everyone already fighting moves as one piece, so snapping each of them
+	// to the grid on their own could pull two of them apart and end the fight between them: the first
+	// one of a scrum to be snapped sets the correction the rest of that scrum takes.
+	const corrections = new Map();
 	for (const { token } of fighters) {
 		const target = positions.get(token.id);
 		if (!target) continue;
-		const snapped = typeof token.getSnappedPosition === "function"
-			? token.getSnappedPosition({ x: target.x, y: target.y })
-			: target;
+		// Everyone takes a delta off the place line-up.js put them; a scrum's first member works theirs
+		// out by snapping and the rest of that scrum reuse it, so the scrum lands as one piece.
+		let delta = target.group ? corrections.get(target.group) : null;
+		if (!delta) {
+			const fixed = typeof token.getSnappedPosition === "function"
+				? token.getSnappedPosition({ x: target.x, y: target.y })
+				: target;
+			delta = { x: fixed.x - target.x, y: fixed.y - target.y };
+			if (target.group) corrections.set(target.group, delta);
+		}
+		const snapped = { x: target.x + delta.x, y: target.y + delta.y };
 		if (snapped.x === token._source.x && snapped.y === token._source.y) continue;
 		before.push({ id: token.id, x: token._source.x, y: token._source.y });
 		moves.push({ id: token.id, x: snapped.x, y: snapped.y });

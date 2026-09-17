@@ -474,6 +474,35 @@ describe("lining up and putting back", () => {
 		const { scene, combat } = fightWith();
 		expect(await putBackFight(combat, { scene })).toBe(false);
 	});
+
+	it("keeps a fight already going on: the two in it move as one piece, still up against each other", async () => {
+		const { scene, combat, tBram, tCrin } = fightWith();
+		// Crinwin steps up against Bram, so the two of them are fighting.
+		tCrin._source.x = tBram._source.x + GRID;
+		tCrin._source.y = tBram._source.y;
+		expect(await lineUpFight(combat, { scene })).toBe(true);
+		const moved = scene.moveTokens.mock.calls[0][0];
+		const at = (id, token) => moved[id]?.waypoints[0] ?? { x: token._source.x, y: token._source.y };
+		const bram = at("tBram", tBram);
+		const crin = at("tCrin", tCrin);
+		expect({ x: crin.x - bram.x, y: crin.y - bram.y }).toEqual({ x: GRID, y: 0 });
+	});
+
+	it("snaps a fight already going on once, so the grid cannot pull it apart", async () => {
+		const { scene, combat, tBram, tCrin } = fightWith();
+		for (const t of [tBram, tCrin]) {
+			t.getSnappedPosition = ({ x, y }) => ({ x: Math.round(x / GRID) * GRID, y: Math.round(y / GRID) * GRID });
+		}
+		// Standing against each other, but not squarely: snapping each on its own would open a gap.
+		tBram._source.x = 1250;
+		tBram._source.y = 1250;
+		tCrin._source.x = 1330;
+		tCrin._source.y = 1250;
+		expect(await lineUpFight(combat, { scene })).toBe(true);
+		const moved = scene.moveTokens.mock.calls[0][0];
+		expect(moved.tCrin.waypoints[0].x - moved.tBram.waypoints[0].x).toBe(80);
+		expect(moved.tCrin.waypoints[0].y - moved.tBram.waypoints[0].y).toBe(0);
+	});
 });
 
 describe("viewRectWorld", () => {
