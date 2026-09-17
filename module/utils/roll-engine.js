@@ -812,9 +812,10 @@ export function damageConditionPills({ rollMode = "normal", bonus = 0, extraDice
 	for (const term of (Array.isArray(extraDice) ? extraDice : [extraDice]).map(normalizeDamageBonusDice)) {
 		if (term) pills.push(`<li class="stonetop-condition-situational">Extra ${escHtml(term.startsWith("-") ? term : `+${term}`)}</li>`);
 	}
-	// The fight's +N for several attackers (fight/damage-seed.js), named apart from the roller's own
-	// bonus, and still named when it was left off, so the card says what was waived.
-	if (seedBonus(seed) > 0) {
+	// The fight's +N for several attackers, or a group's for outnumbering (fight/damage-seed.js), named
+	// apart from the roller's own bonus, and still named when it was left off, so the card says what
+	// was waived.
+	if (seedBonus(seed) !== 0) {
 		const leftOff = seed.applied === false;
 		pills.push(`<li class="stonetop-condition-situational stonetop-condition-numbers${leftOff ? " is-left-off" : ""}">${escHtml(leftOff ? seed.pillLeftOff : seed.pill)}</li>`);
 	}

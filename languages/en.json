@@ -1837,6 +1837,15 @@
       "rules": {
         "summary": "What the book says"
       },
+      "targets": {
+        "title": "{name}: who does this hit?",
+        "body": "{name} is fighting more than one.",
+        "hint": "Tick more than one only when this attack could hurt them all: an area attack, followers joining in, or the way it is described. Damage is rolled separately against each (Book I, page 414).",
+        "confirm": "Attack {names}",
+        "confirmNone": "Tick who this hits",
+        "cancel": "Don't roll",
+        "several": "{move} hit more than one: damage is rolled separately against each, for an attack that could hurt them all (Book I, page 414)."
+      },
       "row": {
         "hide": "Hide from players",
         "show": "Show to players",
@@ -1900,9 +1909,14 @@
         "pillOnHero": "+{bonus} for {count} foes",
         "leftOff": "{pill}, left off",
         "cite": "Book I, page 414",
-        "leaveOff": "Leave off the +{bonus}",
-        "addBack": "Add the +{bonus} back",
-        "alreadyApplied": "The damage has already been applied"
+        "leaveOff": "Leave off the {bonus}",
+        "addBack": "Add the {bonus} back",
+        "alreadyApplied": "The damage has already been applied",
+        "groupAhead": "+{bonus}: group against group, {yours} outnumber {theirs}",
+        "groupBehind": "-{bonus}: group against group, {theirs} outnumber {yours}, so their armor is +{bonus}",
+        "pillAhead": "+{bonus} for {yours} against {theirs}",
+        "pillBehind": "-{bonus} for their armor, {theirs} against {yours}",
+        "citeGroups": "Book I, page 416"
       }
     }
   }

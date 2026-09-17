@@ -143,16 +143,17 @@ function renderedCard(flag) {
 }
 
 describe("an attack's own damage windows", () => {
-	// Both places an attack asks about its damage (a tier's Confirm, and Let Fly's easy shot) hand the
-	// window the fight's seed for a lone target. Read off the source: standing up a rolled attack card
-	// to prove a one-argument hand-off would test the card, not the hand-off.
+	// Every place damage is asked about against targets (a tier's Confirm, Let Fly's easy shot, and a
+	// damage roll at whoever the roller is fighting) hands the window the fight's seed for those targets.
+	// Read off the source: standing up a rolled attack card to prove a one-argument hand-off would test
+	// the card, not the hand-off.
 	it("are offered the +N for a foe others are fighting", async () => {
 		const fs = await import("node:fs");
 		const path = await import("node:path");
 		const src = fs.readFileSync(path.resolve(import.meta.dirname, "../../module/combat/attack-flow.js"), "utf8");
 		const calls = src.match(/await askDamageAdjustment\([\s\S]*?\);/g) ?? [];
-		expect(calls).toHaveLength(2);
-		for (const call of calls) expect(call).toContain("seed: seedForTargets(actor, targets)");
+		expect(calls).toHaveLength(3);
+		for (const call of calls) expect(call).toContain("seedForTargets(actor, targets)");
 	});
 });
 
@@ -190,6 +191,26 @@ describe("leaving the +N off a damage card", () => {
 		expect(redrawn.pill.textContent).toBe("+1 for 2 foes, left off");
 		expect(redrawn.pillClasses.has("is-left-off")).toBe(true);
 		expect(redrawn.toggle.innerHTML).toContain("Add the +1 back");
+	});
+
+	it("offers a group's -N the same way, since the other side's armor is the table's to waive too", async () => {
+		const flags = { damage: {
+			move: "Bite", results: [{ uuid: "Scene.scene1.Token.tPim", name: "Pim", raw: 3, formula: "d6-2" }], applied: [],
+			seed: { bonus: -2, direction: "groupBehind", pill: "-2 for their armor, 9 against 3", pillLeftOff: "-2 for their armor, 9 against 3, left off", applied: true, rolled: true },
+		} };
+		const message = makeMessage(flags);
+		message.canUserModify = () => true;
+		const card = renderedCard(flags.damage);
+		wireDamageSeed(message, card.root);
+		expect(card.toggle.innerHTML).toContain("Leave off the -2");
+		await card.listeners.toggle[0]();
+		expect(flags.damage.seed.applied).toBe(false);
+
+		const redrawn = renderedCard(flags.damage);
+		wireDamageSeed(message, redrawn.root);
+		expect(redrawn.number.textContent).toBe("5");
+		expect(redrawn.pill.textContent).toBe("-2 for their armor, 9 against 3, left off");
+		expect(redrawn.toggle.innerHTML).toContain("Add the -2 back");
 	});
 
 	it("takes the left-off +1 back out when the damage is applied", async () => {

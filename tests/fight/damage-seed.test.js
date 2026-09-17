@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { makeSeed, outgoingSeed, incomingSeed, sheetSeed, engagedFoeTargets } from "../../module/fight/damage-seed.js";
+import { makeSeed, incomingSeed, sheetSeed, engagedFoeTargets, seedForRoll, rollerCombatant } from "../../module/fight/damage-seed.js";
 import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection } from "../fakes/fight.js";
 
 // The fight's +N for several attackers (Book I p.414), offered to damage rolls.
@@ -74,36 +74,36 @@ describe("makeSeed", () => {
 	});
 });
 
-describe("outgoingSeed", () => {
+describe("seedForRoll: a hero's pile-on on one foe", () => {
 	it("counts everyone on the targeted foe, the roller included", () => {
 		const { bramActor, tokens } = fight();
-		expect(outgoingSeed({ attacker: bramActor, target: { uuid: tokens.crinwin.uuid } }))
+		expect(seedForRoll({ attacker: bramActor, targets: [{ uuid: tokens.crinwin.uuid }] }))
 			.toMatchObject({ bonus: 1, count: 2, direction: "onFoe", target: "Crinwin", names: ["Bram", "Aeliana"] });
 	});
 
 	it("counts a roller who is not in contact, once", () => {
 		const { tokens } = fight();
 		const archer = fakeActor({ id: "archer", name: "Archer", type: "character" });
-		expect(outgoingSeed({ attacker: archer, target: { uuid: tokens.crinwin.uuid } }))
+		expect(seedForRoll({ attacker: archer, targets: [{ uuid: tokens.crinwin.uuid }] }))
 			.toMatchObject({ bonus: 2, count: 3, names: ["Archer", "Bram", "Aeliana"] });
 	});
 
 	it("offers nothing on a foe nobody else is fighting", () => {
 		const { cadiActor, tokens } = fight();
-		expect(outgoingSeed({ attacker: cadiActor, target: { uuid: tokens.wolf1.uuid } })).toBeNull();
+		expect(seedForRoll({ attacker: cadiActor, targets: [{ uuid: tokens.wolf1.uuid }] })).toBeNull();
 	});
 
 	it("offers nothing with the Fight tab off, or for a target that is not a token in the fight", () => {
 		const { bramActor, tokens } = fight();
-		expect(outgoingSeed({ attacker: bramActor, target: { uuid: "Actor.somebody" } })).toBeNull();
+		expect(seedForRoll({ attacker: bramActor, targets: [{ uuid: "Actor.somebody" }] })).toBeNull();
 		fightTabOn = false;
-		expect(outgoingSeed({ attacker: bramActor, target: { uuid: tokens.crinwin.uuid } })).toBeNull();
+		expect(seedForRoll({ attacker: bramActor, targets: [{ uuid: tokens.crinwin.uuid }] })).toBeNull();
 	});
 
 	it("offers nothing against a token standing for several foes", () => {
 		const { bramActor, tokens, combat } = fight();
 		combat.combatants.get("cCrin").flags["stonetop-pwd"].count = 6;
-		expect(outgoingSeed({ attacker: bramActor, target: { uuid: tokens.crinwin.uuid } })).toBeNull();
+		expect(seedForRoll({ attacker: bramActor, targets: [{ uuid: tokens.crinwin.uuid }] })).toBeNull();
 	});
 });
 
@@ -140,11 +140,109 @@ describe("sheetSeed", () => {
 		expect(sheetSeed({ actor: { ...tokens.aeliana.actor, token: tokens.aeliana } })).toMatchObject({ bonus: 1, direction: "onFoe", target: "Crinwin" });
 	});
 
+	describe("group against group (p.416)", () => {
+		/** The Marshal's crew of `crew` against a horde of `horde` crinwin fighting as one token, in contact. */
+		function groups({ crew = 5, horde = 12, hp = 3 } = {}) {
+			const hordeActor = fakeActor({ id: "horde", name: "Crinwin", type: "monster", system: { organization: "horde", fightAsGroup: true, count: horde, attributes: { hp: { value: hp, max: 3 } } } });
+			const crewActor = fakeActor({ id: "crew", name: "Crew", type: "npc" });
+			const token = (id, col, a) => Object.assign(fakeToken({ id, col, row: 0, actor: a }), { uuid: `Scene.scene1.Token.${id}`, documentName: "Token" });
+			const tHorde = token("tHorde", 1, hordeActor);
+			const tCrew = token("tCrew", 0, crewActor);
+			const scene = fakeScene({ tokens: [tHorde, tCrew] });
+			const combat = fakeCombat({ scene, combatants: [
+				fakeCombatant({ id: "cCrew", token: tCrew, scene, side: "heroes", count: crew }),
+				fakeCombatant({ id: "cHorde", token: tHorde, scene }),
+			] });
+			globalThis.game = { ...saved.game, user: { id: "gm", isGM: true }, users: collection([]), combats: collection([combat]),
+				settings: { get: (scope, key) => (key === "fightTab" ? fightTabOn : undefined) } };
+			globalThis.ui = { combat: { viewed: combat } };
+			globalThis.canvas = { scene };
+			return { hordeActor: { ...hordeActor, token: tHorde }, crewActor: { ...crewActor, token: tCrew } };
+		}
+
+		it("gives the bigger group +1 damage for each multiple past the first", () => {
+			const { hordeActor } = groups();
+			expect(sheetSeed({ actor: hordeActor })).toMatchObject({
+				bonus: 1, direction: "groupAhead", applied: true,
+				label: "+1: group against group, 12 outnumber 5",
+				pill: "+1 for 12 against 5",
+				cite: "Book I, page 416",
+			});
+		});
+
+		it("takes the bigger group's +1 armor off the smaller group's roll", () => {
+			const { crewActor } = groups();
+			expect(sheetSeed({ actor: crewActor })).toMatchObject({
+				bonus: -1, direction: "groupBehind",
+				label: "-1: group against group, 12 outnumber 5, so their armor is +1",
+				pill: "-1 for their armor, 12 against 5",
+			});
+		});
+
+		it("gives a group token its group seed whoever its roll hits, and never a pile-on", () => {
+			const { hordeActor } = groups();
+			const crew = { uuid: "Scene.scene1.Token.tCrew" };
+			expect(seedForRoll({ attacker: hordeActor, targets: [crew] })).toMatchObject({ bonus: 1, direction: "groupAhead" });
+			expect(seedForRoll({ attacker: hordeActor, targets: [crew, { uuid: "Scene.scene1.Token.other" }] })).toMatchObject({ bonus: 1 });
+		});
+
+		it("counts a group's casualties, and offers nothing when neither side outnumbers the other", () => {
+			// Half the horde's pool gone: 6 of 12 standing, against 5.
+			expect(sheetSeed({ actor: groups({ hp: 1.5 }).hordeActor })).toBeNull();
+			expect(sheetSeed({ actor: groups({ crew: 6, horde: 6 }).hordeActor })).toBeNull();
+		});
+	});
+
 	it("finds a linked actor's one token on the canvas scene, and gives up on several", () => {
 		const { tokens, wolfActor } = fight();
 		const linked = { ...tokens.aeliana.actor, getActiveTokens: () => [tokens.aeliana] };
 		expect(sheetSeed({ actor: linked })).toMatchObject({ bonus: 1, target: "Crinwin" });
 		const many = { ...wolfActor, getActiveTokens: () => [tokens.wolf1, tokens.wolf2] };
 		expect(sheetSeed({ actor: many })).toBeNull();
+	});
+});
+
+describe("seedForRoll", () => {
+	it("counts the wolves on Cadi when one of them rolls its damage at her", () => {
+		const { tokens } = fight();
+		const wolf = { ...tokens.wolf1.actor, token: tokens.wolf1 };
+		expect(seedForRoll({ attacker: wolf, targets: [{ uuid: tokens.cadi.uuid }] }))
+			.toMatchObject({ bonus: 1, count: 2, direction: "onHero", target: "Cadi", names: ["Wolf", "Wolf"] });
+	});
+
+	it("counts everyone on a foe a character rolls at, as the attack flow always did", () => {
+		const { bramActor, tokens } = fight();
+		expect(seedForRoll({ attacker: bramActor, targets: [{ uuid: tokens.crinwin.uuid }] }))
+			.toMatchObject({ bonus: 1, direction: "onFoe", target: "Crinwin", names: ["Bram", "Aeliana"] });
+	});
+
+	it("counts a character outside the fight as one more on the foe", () => {
+		const { tokens } = fight();
+		const archer = fakeActor({ id: "archer", name: "Archer", type: "character" });
+		expect(seedForRoll({ attacker: archer, targets: [{ uuid: tokens.crinwin.uuid }] })).toMatchObject({ bonus: 2, count: 3 });
+	});
+
+	it("offers nothing against several targets, one the roller's own side, or nobody", () => {
+		const { bramActor, tokens } = fight();
+		expect(seedForRoll({ attacker: bramActor, targets: [{ uuid: tokens.crinwin.uuid }, { uuid: tokens.wolf1.uuid }] })).toBeNull();
+		expect(seedForRoll({ attacker: bramActor, targets: [{ uuid: tokens.aeliana.uuid }] })).toBeNull();
+		expect(seedForRoll({ attacker: bramActor, targets: [] })).toBeNull();
+		fightTabOn = false;
+		expect(seedForRoll({ attacker: bramActor, targets: [{ uuid: tokens.crinwin.uuid }] })).toBeNull();
+	});
+});
+
+describe("rollerCombatant", () => {
+	it("finds a token's own combatant, and a linked actor's only one", () => {
+		const { combat, scene, tokens, bramActor } = fight();
+		expect(rollerCombatant(combat, scene, { ...tokens.wolf2.actor, token: tokens.wolf2 })?.id).toBe("cW2");
+		expect(rollerCombatant(combat, scene, bramActor)?.id).toBe("cBram");
+	});
+
+	it("gives up on an actor with several tokens in the fight, or none", () => {
+		const { combat, scene, wolfActor } = fight();
+		expect(rollerCombatant(combat, scene, wolfActor)).toBeNull();
+		expect(rollerCombatant(combat, scene, fakeActor({ id: "nobody" }))).toBeNull();
+		expect(rollerCombatant(null, scene, wolfActor)).toBeNull();
 	});
 });

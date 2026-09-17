@@ -46,9 +46,13 @@ export function damageSeedBonus(seed) {
 /**
  * The +N a fight's seed carries, whether or not it is applied: 0 for no seed, or one with nothing
  * to add. THE ONE TEST of whether a seed is worth showing at all (the window, the pills, the card).
+ *
+ * NEGATIVE ONLY FOR A GROUP HITTING A BIGGER GROUP (p.416): the bigger group's +N armor, taken off the
+ * roll, since a stat block's damage card has no Apply that would read armor. The attack card, which
+ * does, only ever carries a pile-on's positive +N and ignores anything else.
  */
 export function seedBonus(seed) {
-	return Math.max(0, Math.trunc(Number(seed?.bonus)) || 0);
+	return Math.trunc(Number(seed?.bonus)) || 0;
 }
 
 /**
@@ -622,11 +626,74 @@ export function foeAttacks(actor) {
 	const printed = parseMonsterAttacks(damage.value, damage.rollFormula);
 	const moves = actor?.items?.filter?.(item =>
 		_MOVE_ITEM_TYPES.has(item?.type) && String(item?.system?.rollFormula ?? "").trim()) ?? [];
-	return [...printed, ...moves.map(_readMoveAttack)];
+	return [...printed, ...moves.map(readMoveAttack)];
+}
+
+/**
+ * The printed attack on a damage line that rolls `formula`, or the line's only attack, or null: the
+ * blow an NPC's single damage button is rolling, for the armor clause it carries. Chosen by the same
+ * rule as the card's title (damageCardText), so the card names the blow whose clause it applies.
+ *
+ * @param {string} damageValue
+ * @param {string} [formula]
+ */
+export function attackRolling(damageValue, formula = "") {
+	const attacks = parseMonsterAttacks(damageValue, formula);
+	const die = _comparableDie(formula);
+	return (die && attacks.find(attack => _comparableDie(attack.formula) === die))
+		|| (attacks.length === 1 ? attacks[0] : null);
+}
+
+/**
+ * A printed attack as a damage card's WEAPON: the record Apply damage reads armor from
+ * (combat/attack-flow.js#wireApplyDamage), exactly as a foe's counter-attack already rides in. Nameless,
+ * because the card is titled with the blow already. Null for no attack.
+ *
+ * @param {ReturnType<typeof parseMonsterAttacks>[number]|null} attack
+ */
+export function attackWeapon(attack) {
+	if (!attack) return null;
+	const tags = Array.isArray(attack.tags) ? [...attack.tags] : [];
+	return {
+		name: "",
+		range: [],
+		piercing: attack.piercing ?? 0,
+		ignoresArmor: !!attack.ignoresArmor,
+		tags,
+		area: tags.includes("area"),
+	};
+}
+
+/**
+ * The armor clause of the blow on a damage line that rolls `formula` (attackRolling), as a damage
+ * card's weapon: what an NPC's single damage button hands Apply. Null when no one blow is meant.
+ *
+ * @param {string} damageValue
+ * @param {string} [formula]
+ */
+export function blowWeapon(damageValue, formula = "") {
+	return attackWeapon(attackRolling(damageValue, formula));
+}
+
+/**
+ * A monster's damage line as the blows its roll buttons roll, one per printed attack: the verbatim
+ * text, its die (no spaces), a noted "w/disadvantage" (attackRollMode), what its card says
+ * (damageCardText), and its armor clause for Apply (blowWeapon). The stat block's buttons and the
+ * fight ring both read a line through this, so neither can roll a blow the other reads differently.
+ * A fragment with no die keeps `formula: ""`; a caller offering a button skips it.
+ *
+ * @param {string} damageValue
+ * @returns {{text: string, formula: string, rollMode: string, title: string, keywords: string, weapon: object|null}[]}
+ */
+export function damageBlows(damageValue) {
+	return splitMonsterAttackProse(damageValue).map(text => {
+		const formula = (dieFromDamage(text) ?? "").replace(/\s+/g, "");
+		return { text, formula, rollMode: attackRollMode(text), ...damageCardText(text), weapon: formula ? blowWeapon(text, formula) : null };
+	});
 }
 
 /** One attack a MOVE rolls: read out of its name, at the die its own field carries. */
-function _readMoveAttack(item) {
+export function readMoveAttack(item) {
 	const name = String(item?.name ?? "");
 	const attack = _readAttack(name);
 	return {

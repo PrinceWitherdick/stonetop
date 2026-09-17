@@ -322,7 +322,7 @@ export function promptDamage({
 	seed = null,
 } = {}) {
 	const start = normalizeRollMode(rollMode);
-	const seeded = seedBonus(seed) > 0 ? { ...seed, applied: true } : null;
+	const seeded = seedBonus(seed) !== 0 ? { ...seed, applied: true } : null;
 	if (shiftKey || !ask) return Promise.resolve(withSeed(unpromptedDamage(start), seeded));
 
 	return new Promise(resolve => {

@@ -16,7 +16,10 @@ describe("the seed in a damage formula", () => {
 		expect(damageSeedBonus(seed())).toBe(1);
 		expect(damageSeedBonus(seed({ applied: false }))).toBe(0);
 		expect(damageSeedBonus(null)).toBe(0);
-		expect(damageSeedBonus(seed({ bonus: -3 }))).toBe(0);
+		// A group hitting a bigger group carries the bigger group's armor as a negative seed.
+		expect(damageSeedBonus(seed({ bonus: -1 }))).toBe(-1);
+		expect(damageSeedBonus(seed({ bonus: -1, applied: false }))).toBe(0);
+		expect(composeDamageFormula("d6", { seed: seed({ bonus: -1 }) })).toBe("d6-1");
 	});
 
 	it("joins the roller's own flat bonus as one term, the base die first", () => {

@@ -6484,6 +6484,27 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	color: var(--st-text-secondary);
 }
 
+/* "Who does this hit?" (module/fight/fight-targets.js): a roller fighting more than one ticks who a blow
+   lands on. One opponent per line, the hint under them in the quieter ink. */
+.stonetop-fight-targets p { margin: 0 0 6px; }
+.stonetop-fight-targets-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0 0 8px;
+	padding: 0;
+	list-style: none;
+}
+.stonetop-fight-targets-option {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+.stonetop-fight-targets .stonetop-fight-targets-hint {
+	margin: 0;
+	color: var(--st-text-secondary);
+}
+
 .stonetop-fight-headcount {
 	display: flex;
 	flex-direction: column;

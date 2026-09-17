@@ -25,7 +25,7 @@ import {FollowerFateDialog} from "./dialogs/FollowerFateDialog.js";
 import {CallUpDeepOnesDialog} from "./dialogs/CallUpDeepOnesDialog.js";
 import {RING_SOURCE_UUID, SERVANT_SOURCE_UUID, buildServantFollower} from "../../data/servant-of-daagon.js";
 import {grantedWeaponForMove, weaponTraitText} from "../../data/weapons.js";
-import {grantedWeaponAttackFor} from "../../combat/attack-flow.js";
+import {grantedWeaponAttackFor, rollDamageAt} from "../../combat/attack-flow.js";
 import {ALT_STAT_GRANTS} from "../../data/alt-stat-grants.js";
 import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
 import {trackCreationFlow} from "./creation-flow.js";
@@ -3358,6 +3358,12 @@ export function createStonetopCharacterSheetClass(Base) {
 					if (_STAT_KEYS.has(roll)) {
 						// Stat roll (STR, DEX, etc.)
 						await this._stonetopCharacter.onDirectStatRoll(roll, prompted);
+					} else if ("ownDamage" in rollable.dataset) {
+						// The character's own damage die: at their targets, or whoever they are fighting on
+						// the map, on the damage card whose Apply takes the foe's armor off
+						// (combat/attack-flow.js#rollDamageAt). The follower rows below roll as the PC's actor
+						// and are not the character's blow, so they keep the plain card.
+						await rollDamageAt(this.actor, { formula: roll, label: rollable.dataset.label ?? "Damage", shiftKey: ev.shiftKey });
 					} else {
 						// Raw formula roll (e.g. damage die "d8")
 						let label, attacker;

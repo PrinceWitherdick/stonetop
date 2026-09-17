@@ -293,11 +293,24 @@ describe("the damage window's reach", () => {
 			// `rollDamagePrompted`, which IS that pair — asking and aborting are only correct
 			// together, so the helper bundles them and the surface cannot get one without the
 			// other. What must never appear is a bare `rollDamage` with no window in sight.
-			const viaHelper = src.includes("rollDamagePrompted");
+			// `rollDamageAt` is the third way in: the same pair, aimed at whoever the roller is fighting.
+			const viaHelper = src.includes("rollDamagePrompted") || src.includes("rollDamageAt(");
 			const viaPair = src.includes("promptDamage") && /if \(!adjust\)|if \(!damage\)/.test(src);
 			expect(viaHelper || viaPair, `${what} rolls damage without offering the window`).toBe(true);
 		});
 	}
+
+	// Both of its branches ask: the plain card through the helper, the targeted card through the attack
+	// flow's own window, and a dismissed window rolls nothing either way.
+	it("asks on both branches of a damage roll aimed at whoever the roller is fighting", () => {
+		const at = ATTACK_FLOW_JS.indexOf("export async function rollDamageAt");
+		expect(at, "rollDamageAt is gone").toBeGreaterThan(-1);
+		const body = ATTACK_FLOW_JS.slice(at, ATTACK_FLOW_JS.indexOf("\n}\n", at));
+		expect(body).toContain("return rollDamagePrompted(");
+		expect(body).toContain("await askDamageAdjustment(");
+		expect(body).toContain("if (!damage) return false;");
+		expect(body.indexOf("if (!damage) return false;")).toBeLessThan(body.indexOf("rollAndPostDamage("));
+	});
 
 	// The helper three of those four surfaces lean on has to carry the guard itself, or it
 	// hands each of them a cancelled roll instead of no roll.

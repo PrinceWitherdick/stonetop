@@ -124,7 +124,7 @@ describe("the stat and damage rolls", () => {
 		expect(stripComments(read("templates/actor/partials/actor-stats.hbs")))
 			.toMatch(/<li class="stat cell--stat rollable" data-stat="\{\{@key\}\}" data-roll="\{\{@key\}\}">/);
 		expect(stripComments(read("templates/actor/partials/actor-vitals.hbs")))
-			.toMatch(/<a class="rollable" data-roll="\{\{system\.attributes\.damage\.value\}\}" data-label="Damage">/);
+			.toMatch(/<a class="rollable" data-roll="\{\{system\.attributes\.damage\.value\}\}" data-label="Damage" data-own-damage>/);
 	});
 
 	// The damage readout is INSIDE that anchor and mouse-dead in play mode, which is what makes

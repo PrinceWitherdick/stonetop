@@ -465,8 +465,10 @@ describe("StonetopMonsterSheet", () => {
 		rollDialog.rollDamagePrompted.mockClear();
 		await handlers[0]({ target, shiftKey: false });
 
+		// Nobody to hit (no fight, nothing targeted), so the plain card, through the targeted roll's own
+		// fallback (combat/attack-flow.js#rollDamageAt).
 		expect(rollDialog.rollDamagePrompted).toHaveBeenCalledWith("d8", actor, {
-			label: "Garrote", keywords: "hand, grabby, ignores armor", rollMode: "normal", shiftKey: false,
+			label: "Garrote", keywords: "hand, grabby, ignores armor", description: "", rollMode: "normal", shiftKey: false,
 		});
 	});
 

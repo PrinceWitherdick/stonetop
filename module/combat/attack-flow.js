@@ -30,10 +30,12 @@ import {escHtml, joinNames} from "../utils/strings.js";
 import {stonetopChatCard, rollFormulaChip, damageMark, damageBadge, damageKeywordsHtml, optionKey, whisperGm, cardNoticeHtml, canUserWriteCard} from "../utils/chat.js";
 import {rollDamage, multiDieFaces, sign, damageRollFormula, damageConditionPills, conditionsRowHtml, classifyResult} from "../utils/roll-engine.js";
 import {mitigateDamage, resolvePiercing, applyDamageToActor, composeDamageFormula, seedBonus, foeAttacks, fictionTagsIn} from "../utils/damage.js";
-import {promptDamage} from "../dialogs/RollDialog.js";
+import {promptDamage, rollDamagePrompted} from "../dialogs/RollDialog.js";
 // The fight's +N for several attackers (Book I p.414), offered to the damage rolls below. Every builder
 // answers null with the Fight tab off or no fight on the map, so none of this changes a roll then.
-import {outgoingSeed, incomingSeed, engagedFoeTargets, pcEngagement} from "../fight/damage-seed.js";
+import {incomingSeed, engagedFoeTargets, pcEngagement, seedForRoll, sheetSeed} from "../fight/damage-seed.js";
+// Who a roll hits when nobody targeted anyone by hand: whoever the roller is fighting on the map.
+import {rollTargets} from "../fight/fight-targets.js";
 import {format} from "../utils/i18n.js";
 import {bringDialogToFront} from "../utils/front-on-open.js";
 import {isPrimaryGM, anyActiveGM} from "../utils/primary-gm.js";
@@ -660,7 +662,11 @@ export async function maybeBeginAttack(actor, item, { stat = null, weaponSlug = 
 	if (picked === "cancel") return "cancel";
 	const weapon = picked.weapon ? serializeWeapon(picked.weapon) : null;
 
-	const targets = snapshotTargets();
+	// Who it hits: the foes targeted by hand, else whoever the character is fighting on the map, with
+	// "Who does this hit?" when that is more than one (fight/fight-targets.js). Frozen here like any
+	// hand target, so every later step reads the same list.
+	const targets = await rollTargets(actor, { handTargets: snapshotTargets() });
+	if (targets === null) return "cancel";
 	if (targets.length === 0 && !unrolled) {
 		ui.notifications?.info("No foe targeted: you can still target one with T before rolling damage.");
 	}
@@ -697,7 +703,8 @@ const attackFlagsOf = extra => extra?.messageFlags?.[SCOPE]?.attack ?? null;
 // otherwise keep rolling at its old size. Asked of the actor's OWN StonetopCharacter
 // (cached on the document, with its compendium repositories already warm) rather than a
 // throwaway one, so a damage roll doesn't re-index the items pack.
-async function pcDamageDie(actor) {
+// Exported for the fight ring (fight/fight-ring.js), whose Damage button rolls this same die.
+export async function pcDamageDie(actor) {
 	const stored = String(actor?.system?.attributes?.damage?.value ?? "").trim();
 	if (actor?.type !== "character") return stored;
 	// computedDamageDie, not buildSnapshot: the same answer, without building a whole sheet for one
@@ -737,21 +744,71 @@ function damageLabel(move, weapon) {
  * the playbook and its damage-raising marks (see pcDamageDie), and doing that a second time
  * just to compose the same string is work the roll can skip.
  */
-async function askDamageAdjustment(actor, { moveKey = "", weapon, extraDice = "", shiftKey = false, seed = null } = {}) {
-	const base     = await damageFormula(actor, weapon, extraDice);
-	const rollMode = damageAdvantageFrom(actor, moveKey, weapon);
+async function askDamageAdjustment(actor, { moveKey = "", weapon, extraDice = "", shiftKey = false, seed = null, formula = "", rollMode: noted = "" } = {}) {
+	// A stat block's blow brings its own die and its own "w/disadvantage" (rollDamageAt); an attack
+	// move works both out from the character.
+	const base     = formula || await damageFormula(actor, weapon, extraDice);
+	const rollMode = noted || damageAdvantageFrom(actor, moveKey, weapon);
 	const adjust   = await promptDamage({ attacker: actor?.name, formula: base, shiftKey, ...(rollMode ? { rollMode } : {}), seed });
 	return adjust ? { base, ...adjust } : null;
 }
 
 /**
- * The fight's +N for an attack on ONE foe others are fighting too, or null. One applyable target only:
- * an attack that hurts several foes rolls damage separately against each (p.414), and the swarm rule
- * is about damage to a single foe.
+ * The fight's +N for damage about to hit `targets`, or null (fight/damage-seed.js#seedForRoll): the
+ * pile-on against ONE target, since an attack that hurts several rolls damage separately against each
+ * (p.414), or a group token's group-against-group bonus.
  */
 function seedForTargets(actor, targets) {
-	const applyable = (targets ?? []).filter(t => t.hasActor !== false && t.uuid);
-	return applyable.length === 1 ? outgoingSeed({ attacker: actor, target: applyable[0] }) : null;
+	return seedForRoll({ attacker: actor, targets });
+}
+
+/**
+ * Roll damage at whoever the roller is fighting, for the controls that roll damage outside an attack
+ * move: a character's Damage die, a stat block's blows and its rolling moves, and the fight ring.
+ *
+ * WITH A TARGET, it is the attack flow's own damage card: a total per target, and one Apply that takes
+ * each target's armor off with the blow's own piercing or "ignores armor". A monster's bite reaches a
+ * character's HP through the same arithmetic a character's axe reaches a monster's, which is how a foe's
+ * counter-attack has always arrived (postIncomingDamage).
+ *
+ * WITH NOBODY TO HIT (no hand target, not fighting anyone, or the Fight tab off), it is the plain damage
+ * card the control always posted, tags, description and all.
+ *
+ * @param {Actor} actor
+ * @param {object} options
+ * @param {string} options.formula      the die, carrying any +N of its own
+ * @param {string} options.label        the card's title: the blow's name, or "Damage"
+ * @param {string} [options.keywords]   the blow's tags, printed beside each total
+ * @param {string} [options.description] a monster move's text, on the plain card
+ * @param {string} [options.rollMode]   the stat block's own advantage on this die
+ * @param {object} [options.weapon]     utils/damage.js#attackWeapon, for the armor Apply takes off
+ * @param {boolean} [options.seeded]    offer the fight's +N (off for a row whose formula has its own)
+ * @param {boolean} [options.shiftKey]  skip the damage window
+ * @returns {Promise<boolean>} whether damage was rolled
+ */
+export async function rollDamageAt(actor, { formula, label, keywords = "", description = "", rollMode = "", weapon = null, seeded = true, shiftKey = false } = {}) {
+	if (!actor || !formula) return false;
+	const targets = await rollTargets(actor, { handTargets: snapshotTargets() });
+	if (targets === null) return false;
+
+	if (!targets.some(t => t.hasActor !== false && t.uuid)) {
+		const seed = seeded ? sheetSeed({ actor }) : null;
+		return rollDamagePrompted(formula, actor, {
+			label, keywords, description, rollMode, shiftKey,
+			...(seed ? { seed } : {}),
+		});
+	}
+
+	const damage = await askDamageAdjustment(actor, { formula, rollMode, shiftKey, seed: seeded ? seedForTargets(actor, targets) : null });
+	if (!damage) return false;
+	await rollAndPostDamage(actor, {
+		move: label,
+		// The tags ride the weapon to each row's fine print; nothing is stored from them (see damageRowDetail).
+		weapon: { ...(weapon ?? { name: "", range: [] }), keywords },
+		targets,
+		damage,
+	});
+	return true;
 }
 
 /**
@@ -1009,14 +1066,17 @@ function damageRowDetail(weapon) {
 	// Filtered, because a weaponless attack that still ignores armor (Call the Shot bare-handed)
 	// arrives with an empty name, and an unfiltered join would print a leading " · ".
 	// The armor bits are tags, so they print the way the damage roll card prints its tags: bold,
-	// with their meaning on hover.
-	return [escHtml(weapon.name), ...weaponArmorBits(weapon).map(damageKeywordsHtml)].filter(Boolean).join(" · ");
+	// with their meaning on hover. A stat block's blow brings its whole printed tag list instead
+	// (rollDamageAt), which already says its piercing and whether it ignores armor.
+	const tags = weapon.keywords ? [damageKeywordsHtml(weapon.keywords)] : weaponArmorBits(weapon).map(damageKeywordsHtml);
+	return [escHtml(weapon.name), ...tags].filter(Boolean).join(" · ");
 }
 
-/** The seed toggle's face: leave the +N off while it is on, add it back once it is off. */
+/** The seed toggle's face: leave the +N (or a group's -N) off while it is on, add it back once it is off. */
 function seedToggleLabel(seed) {
 	const on = seed.applied !== false;
-	const text = format(`stonetop.fight.seed.${on ? "leaveOff" : "addBack"}`, { bonus: seed.bonus });
+	const bonus = seedBonus(seed);
+	const text = format(`stonetop.fight.seed.${on ? "leaveOff" : "addBack"}`, { bonus: bonus < 0 ? String(bonus) : `+${bonus}` });
 	return `<i class="fas ${on ? "fa-minus" : "fa-plus"}"></i> ${escHtml(text)}`;
 }
 
@@ -1031,8 +1091,10 @@ export function seedAdjustment(seed) {
 }
 
 function postDamageResultsCard(actor, { move, weapon, results, damage, selfHarm = false, notices = "" }) {
+	// Several targets is the book's own rule now that the roller is asked who a blow hits
+	// (fight/fight-targets.js), so the note says when it applies rather than calling it an abstraction.
 	const multiWarn = results.length > 1 && !weapon?.area
-		? `<p class="stonetop-attack-warn"><i class="fas fa-triangle-exclamation"></i> ${escHtml(move)} is a single-foe move: applying to multiple targets is a GM abstraction.</p>`
+		? `<p class="stonetop-attack-warn"><i class="fas fa-triangle-exclamation"></i> ${escHtml(format("stonetop.fight.targets.several", { move }))}</p>`
 		: "";
 
 	// Each target gets the shared roll-result block (big total + label + fine print) rather
@@ -1079,7 +1141,9 @@ function postDamageResultsCard(actor, { move, weapon, results, damage, selfHarm 
 	// (Book I p.415), and that is only known once the dice are down. `rolled` records whether the
 	// totals below already include it (the roller may have unticked it in the damage window), so a
 	// later toggle adjusts by the difference and never twice.
-	const seed = seedBonus(damage?.seed) > 0
+	// A group's seed too, from a stat block's damage row (rollDamageAt): negative when the other side
+	// outnumbers it, which is their armor, and just as much the table's to leave off.
+	const seed = seedBonus(damage?.seed) !== 0
 		? { ...damage.seed, applied: damage.seed.applied !== false, rolled: damage.seed.applied !== false }
 		: null;
 	const seedToggle = hasApplyable && seed
@@ -1574,7 +1638,7 @@ export function wireDamageSeed(message, html, gateFor = applyGateOnce(message)) 
 	const root = html?.[0] ?? html;
 	const damage = message.getFlag(SCOPE, "damage");
 	const seed = damage?.seed;
-	if (!(seedBonus(seed) > 0)) return;
+	if (seedBonus(seed) === 0) return;
 
 	const adjustment = seedAdjustment(seed);
 	for (const row of root.querySelectorAll(".stonetop-damage-row[data-uuid]")) {

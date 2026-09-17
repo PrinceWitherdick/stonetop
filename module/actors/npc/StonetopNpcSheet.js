@@ -6,9 +6,8 @@
 //
 // Wears the same edit/lock header chrome as the monster/bestiary sheets (shared
 // sheet-chrome helpers) so it reads as one system.
-import { rollDamagePrompted } from "../../dialogs/RollDialog.js";
-import { sheetSeed } from "../../fight/damage-seed.js";
-import { damageCardText } from "../../utils/damage.js";
+import { rollDamageAt } from "../../combat/attack-flow.js";
+import { damageCardText, blowWeapon } from "../../utils/damage.js";
 import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle, fitDisplayName } from "../../utils/sheet-chrome.js";
 import { isDefaultImg } from "../../utils/strings.js";
 import { headerPortraitContext, wirePortraitPopout } from "../../utils/actor-portrait-picker.js";
@@ -419,10 +418,15 @@ export function createStonetopNpcSheetClass(Base) {
 					// line may name more than one blow and this button rolls only the formula, so
 					// the attack printing that die is the one the card names.
 					const { title, keywords } = damageCardText(damage?.value, formula);
-					// The fight's +N for several attackers on one foe, when this token is fighting
-					// exactly one (fight/damage-seed.js).
-					const seed = sheetSeed({ actor: this.actor });
-					await rollDamagePrompted(formula, this.actor, { label: title || "Damage", keywords, shiftKey: ev.shiftKey, ...(seed ? { seed } : {}) });
+					// Aimed at whoever this NPC is fighting on the map, or the roller's own targets
+					// (fight/fight-targets.js), with that blow's armor clause for Apply, and the fight's +N
+					// for several attackers on one target (fight/damage-seed.js). A plain card, as before,
+					// when there is nobody to hit.
+					await rollDamageAt(this.actor, {
+						formula, label: title || "Damage", keywords,
+						weapon: blowWeapon(damage?.value, formula),
+						shiftKey: ev.shiftKey,
+					});
 					return;
 				}
 				const moveRoll = ev.target.closest(".stonetop-npc-move-roll");
