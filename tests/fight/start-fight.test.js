@@ -1,0 +1,324 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import {
+	startWindowModel, startFight, lineUpFight, putBackFight, viewRectWorld, LAST_LINE_UP_FLAG,
+} from "../../module/fight/start-fight.js";
+import { SYSTEM_ID } from "../../module/system-id.js";
+import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection, GRID } from "../fakes/fight.js";
+
+// Starting a fight, adding to one, lining everyone up and putting them back.
+
+const format = (key, data) => globalThis.game.i18n.format(key, data);
+
+describe("startWindowModel", () => {
+	const token = (id, actorType, extra = {}) => ({
+		id, name: id, img: "", type: actorType, hasPlayerOwner: actorType === "character",
+		isFollower: false, disposition: -1, hidden: false, inFight: false, ...extra,
+	});
+	const scene = [
+		token("aeliana", "character"),
+		token("crinwin", "monster"),
+		token("lurker", "monster", { hidden: true }),
+		token("miller", "npc"),
+		token("hound", "npc", { isFollower: true }),
+		token("steading", "stonetop"),
+	];
+
+	it("files the map's tokens as heroes, foes and others, and never the steading", () => {
+		const { groups, sides } = startWindowModel({ sceneTokens: scene, format });
+		const byKey = Object.fromEntries(groups.map(g => [g.key, g.people.map(p => p.id)]));
+		expect(byKey).toEqual({
+			heroesHere: ["token:aeliana", "token:hound"],
+			foesHere: ["token:crinwin", "token:lurker"],
+			othersHere: ["token:miller"],
+		});
+		expect(sides.get("token:miller")).toBe("foes");
+		expect(sides.has("token:steading")).toBe(false);
+	});
+
+	it("says which tokens are hidden from players", () => {
+		const { groups } = startWindowModel({ sceneTokens: scene, format });
+		const lurker = groups.find(g => g.key === "foesHere").people.find(p => p.id === "token:lurker");
+		expect(lurker.hint).toBe("Hidden from players");
+	});
+
+	it("ticks the party and the monsters players can see, when nothing is selected", () => {
+		expect(startWindowModel({ sceneTokens: scene, format }).selected.sort())
+			.toEqual(["token:aeliana", "token:crinwin"]);
+	});
+
+	it("ticks the GM's selection instead, when there is one", () => {
+		expect(startWindowModel({ sceneTokens: scene, controlled: ["miller", "lurker", "ghost"], format }).selected.sort())
+			.toEqual(["token:lurker", "token:miller"]);
+	});
+
+	it("ticks exactly what it was handed, plus the party when asked (Deploy and fight)", () => {
+		const model = startWindowModel({ sceneTokens: scene, controlled: ["miller"], preselect: ["crinwin"], preselectPcs: true, format });
+		expect(model.selected.sort()).toEqual(["token:aeliana", "token:crinwin"]);
+	});
+
+	it("files a token handed in as a foe with the foes, whatever it is", () => {
+		const model = startWindowModel({ sceneTokens: scene, forceFoes: ["hound"], format });
+		expect(model.sides.get("token:hound")).toBe("foes");
+		expect(model.groups.find(g => g.key === "foesHere").people.map(p => p.id)).toContain("token:hound");
+	});
+
+	it("leaves out, when adding, whoever is already in the fight, and ticks nobody by default", () => {
+		const model = startWindowModel({ sceneTokens: [...scene, token("bram", "character", { inFight: true })], mode: "add", format });
+		const ids = model.groups.flatMap(g => g.people.map(p => p.id));
+		expect(ids).not.toContain("token:bram");
+		expect(model.selected).toEqual([]);
+	});
+
+	it("offers who is not on the map yet, on their own lists and sides", () => {
+		const model = startWindowModel({
+			sceneTokens: [],
+			pcsElsewhere: [{ uuid: "Actor.pim", name: "Pim" }],
+			people: [{ uuid: "Actor.maeve", name: "Maeve", disposition: 1 }, { uuid: "Actor.tovia", name: "Tovia", disposition: 0 }],
+			monsters: [{ uuid: "Compendium.stonetop-pwd.stonetop-bestiary.Actor.x", name: "Rime Lord", fromPack: true }],
+			format,
+		});
+		expect(model.groups.map(g => g.key)).toEqual(["pcsElsewhere", "people", "monsters"]);
+		expect(model.sides.get("actor:Actor.pim")).toBe("heroes");
+		expect(model.sides.get("actor:Actor.maeve")).toBe("heroes");
+		expect(model.sides.get("actor:Actor.tovia")).toBe("foes");
+		expect(model.sides.get("actor:Compendium.stonetop-pwd.stonetop-bestiary.Actor.x")).toBe("foes");
+		expect(model.groups[2].people[0].hint).toBe("From the bestiary");
+		expect(model.selected).toEqual([]);
+	});
+});
+
+// ── The flows, over a stand-in world ──────────────────────────────────────────
+
+let saved;
+beforeEach(() => {
+	saved = { game: globalThis.game, canvas: globalThis.canvas, ui: globalThis.ui, getDocumentClass: globalThis.getDocumentClass, fromUuid: globalThis.fromUuid, Actor: globalThis.Actor, CONST: globalThis.CONST };
+});
+afterEach(() => { Object.assign(globalThis, saved); });
+
+function world({ isGM = true } = {}) {
+	const bram = fakeActor({ id: "bram", type: "character" });
+	const crinwin = fakeActor({ id: "crinwin", type: "monster" });
+	const tBram = fakeToken({ id: "tBram", col: 30, row: 12, actor: bram });
+	const tCrin = fakeToken({ id: "tCrin", col: 2, row: 3, actor: crinwin, hidden: true });
+	const scene = fakeScene({ tokens: [tBram, tCrin] });
+	scene.moveTokens = vi.fn(async () => ({}));
+	for (const t of [tBram, tCrin]) {
+		t.getSnappedPosition = ({ x, y }) => ({ x, y });
+		t.actorId = t.actor.id;
+	}
+	const created = [];
+	const combatants = [];
+	const combat = fakeCombat({ scene, combatants });
+	combat.createEmbeddedDocuments = vi.fn(async (type, data) => { created.push(...data); return data; });
+	// Both cores' spellings of a deletion: v14's ForcedDeletion value, v13's `-=` key. A write MERGES
+	// into what is saved, objects key by key and arrays whole, as core's update does.
+	const merge = (into, from) => {
+		if (!from || typeof from !== "object" || Array.isArray(from) || !into || typeof into !== "object" || Array.isArray(into)) return from;
+		const out = { ...into };
+		for (const [k, v] of Object.entries(from)) out[k] = merge(into[k], v);
+		return out;
+	};
+	combat.update = vi.fn(async changes => {
+		const ForcedDeletion = globalThis.foundry?.data?.operators?.ForcedDeletion;
+		const ours = combat.flags[SYSTEM_ID] ?? {};
+		for (const [key, value] of Object.entries(changes)) {
+			const deletes = key.includes("-=") || (ForcedDeletion && value instanceof ForcedDeletion);
+			if (deletes) delete ours[LAST_LINE_UP_FLAG];
+			else if (key === `flags.${SYSTEM_ID}.${LAST_LINE_UP_FLAG}`) ours[LAST_LINE_UP_FLAG] = merge(ours[LAST_LINE_UP_FLAG], value);
+		}
+		combat.flags = { ...combat.flags, [SYSTEM_ID]: ours };
+	});
+	const CombatClass = { create: vi.fn(async data => Object.assign(combat, { created: data })) };
+	globalThis.getDocumentClass = name => (name === "Combat" ? CombatClass : null);
+	globalThis.CONST = { GRID_TYPES: { GRIDLESS: 0, SQUARE: 1 } };
+	globalThis.game = {
+		...saved.game,
+		user: { id: "gm", isGM },
+		users: collection([]),
+		combats: collection([]),
+		actors: collection([bram, crinwin]),
+		release: { generation: 14 },
+	};
+	globalThis.ui = { combat: { viewed: null }, sidebar: { changeTab: vi.fn() }, notifications: { info: vi.fn(), warn: vi.fn() } };
+	const placed = [];
+	globalThis.canvas = {
+		ready: true,
+		scene,
+		dimensions: { size: GRID, sceneRect: { x: 0, y: 0, width: 4000, height: 3000 }, rect: { contains: () => true } },
+		grid: { size: GRID },
+		stage: { worldTransform: { applyInverse: ({ x, y }) => ({ x: x + 1000, y: y + 500 }) } },
+		tokens: {
+			_onDropActorData: vi.fn(async (event, data) => {
+				const t = fakeToken({ id: `new${placed.length}`, actor: fakeActor({ id: data.uuid }) });
+				t.documentName = "Token";
+				t.actorId = data.uuid;
+				placed.push({ data, token: t });
+				return t;
+			}),
+		},
+	};
+	return { scene, combat, CombatClass, created, placed, tBram, tCrin };
+}
+
+describe("startFight", () => {
+	it("starts a fight on the scene and puts the picks in it, sides and hiding kept", async () => {
+		const { scene, CombatClass, created } = world();
+		const result = await startFight({ scene, picks: [{ id: "token:tBram", side: "heroes" }, { id: "token:tCrin", side: "foes" }] });
+		expect(CombatClass.create).toHaveBeenCalledWith({ scene: "scene1", active: true });
+		expect(created).toEqual([
+			{ tokenId: "tBram", sceneId: "scene1", actorId: "bram", hidden: false, flags: { [SYSTEM_ID]: { side: "heroes" } } },
+			{ tokenId: "tCrin", sceneId: "scene1", actorId: "crinwin", hidden: true, flags: { [SYSTEM_ID]: { side: "foes" } } },
+		]);
+		expect(result.added).toBe(2);
+		expect(globalThis.ui.sidebar.changeTab).toHaveBeenCalledWith("combat", "primary");
+	});
+
+	it("adds to the fight already on the map, skipping whoever is in it", async () => {
+		const { scene, combat, CombatClass, created, tBram } = world();
+		combat.combatants = collection([fakeCombatant({ id: "cBram", token: tBram, scene })]);
+		globalThis.game.combats = collection([combat]);
+		await startFight({ scene, picks: [{ id: "token:tBram", side: "heroes" }, { id: "token:tCrin", side: "foes" }] });
+		expect(CombatClass.create).not.toHaveBeenCalled();
+		expect(created.map(c => c.tokenId)).toEqual(["tCrin"]);
+	});
+
+	it("puts arrivals on the map one at a time, heroes left of the view's middle and foes right", async () => {
+		const { scene, created, placed } = world();
+		globalThis.fromUuid = vi.fn(async uuid => ({ documentName: "Actor", uuid, name: uuid, prototypeToken: { width: 1, height: 1 } }));
+		await startFight({ scene, picks: [{ id: "actor:Actor.pim", side: "heroes", name: "Pim" }, { id: "actor:Actor.wolf", side: "foes", name: "Wolf" }] });
+		expect(placed.map(p => p.data.uuid)).toEqual(["Actor.pim", "Actor.wolf"]);
+		const [pim, wolf] = placed.map(p => p.data);
+		expect(pim.x).toBeLessThan(wolf.x);
+		expect(created.map(c => c.flags[SYSTEM_ID].side)).toEqual(["heroes", "foes"]);
+	});
+
+	it("imports a bestiary monster once, however many times it is picked", async () => {
+		const { scene } = world();
+		const packDoc = { documentName: "Actor", uuid: "Compendium.stonetop-pwd.stonetop-bestiary.Actor.rime", pack: "stonetop-pwd.stonetop-bestiary", name: "Rime Lord" };
+		globalThis.fromUuid = vi.fn(async () => packDoc);
+		let made = 0;
+		globalThis.Actor = {
+			canUserCreate: () => true,
+			create: vi.fn(async () => ({ documentName: "Actor", uuid: `Actor.rime${++made}`, name: "Rime Lord", prototypeToken: {} })),
+		};
+		globalThis.game.actors.fromCompendium = doc => ({ name: doc.name });
+		const result = await startFight({ scene, picks: [
+			{ id: `actor:${packDoc.uuid}`, side: "foes", name: "Rime Lord" },
+			{ id: `actor:${packDoc.uuid}`, side: "foes", name: "Rime Lord" },
+		] });
+		expect(globalThis.Actor.create).toHaveBeenCalledTimes(1);
+		expect(result.imported).toBe(1);
+		expect(result.placed).toBe(2);
+	});
+
+	it("starts a new fight rather than add to a combat that was never one", async () => {
+		const { scene, CombatClass, created } = world();
+		const roster = { id: "roster", flags: {}, active: true, createEmbeddedDocuments: vi.fn() };
+		const result = await startFight({ scene, combat: roster, picks: [{ id: "token:tBram", side: "heroes" }] });
+		expect(CombatClass.create).toHaveBeenCalledWith({ scene: "scene1", active: true });
+		expect(roster.createEmbeddedDocuments).not.toHaveBeenCalled();
+		expect(result.combat).not.toBe(roster);
+		expect(created).toHaveLength(1);
+	});
+
+	it("says who it could not place, and does nothing at all for a player", async () => {
+		const { scene } = world();
+		globalThis.fromUuid = vi.fn(async () => null);
+		const result = await startFight({ scene, picks: [{ id: "actor:Actor.gone", side: "foes", name: "Gone" }] });
+		expect(result.missed).toEqual(["Gone"]);
+		expect(globalThis.ui.notifications.warn).toHaveBeenCalled();
+		world({ isGM: false });
+		expect((await startFight({ scene, picks: [{ id: "token:tBram", side: "heroes" }] })).added).toBe(0);
+	});
+});
+
+describe("lining up and putting back", () => {
+	function fightWith(extra = {}) {
+		const w = world(extra);
+		w.combat.combatants = collection([
+			fakeCombatant({ id: "cBram", token: w.tBram, scene: w.scene, side: "heroes" }),
+			fakeCombatant({ id: "cCrin", token: w.tCrin, scene: w.scene, side: "foes" }),
+		]);
+		return w;
+	}
+
+	it("moves everyone in one write, heroes left of the foes, and remembers where they stood", async () => {
+		const { scene, combat } = fightWith();
+		expect(await lineUpFight(combat, { scene })).toBe(true);
+		expect(scene.moveTokens).toHaveBeenCalledTimes(1);
+		const instructions = scene.moveTokens.mock.calls[0][0];
+		expect(instructions.tBram.waypoints[0].x).toBeLessThan(instructions.tCrin.waypoints[0].x);
+		expect(instructions.tBram.waypoints[0].action).toBe("displace");
+		expect(combat.flags[SYSTEM_ID][LAST_LINE_UP_FLAG]).toEqual({
+			sceneId: "scene1",
+			positions: [{ id: "tCrin", x: 200, y: 300 }, { id: "tBram", x: 3000, y: 1200 }],
+		});
+	});
+
+	it("forgets, at the next line-up, whoever that line-up does not move", async () => {
+		const { scene, combat, tBram, tCrin } = fightWith();
+		await lineUpFight(combat, { scene });
+		// The GM drags Bram off by hand; Crinwin still stands where the line-up put him.
+		const crinAt = scene.moveTokens.mock.calls[0][0].tCrin.waypoints[0];
+		tCrin._source.x = crinAt.x;
+		tCrin._source.y = crinAt.y;
+		tBram._source.x = 3500;
+		tBram._source.y = 2500;
+		scene.moveTokens.mockClear();
+		expect(await lineUpFight(combat, { scene })).toBe(true);
+		expect(combat.flags[SYSTEM_ID][LAST_LINE_UP_FLAG].positions).toEqual([{ id: "tBram", x: 3500, y: 2500 }]);
+		scene.moveTokens.mockClear();
+		await putBackFight(combat, { scene });
+		expect(Object.keys(scene.moveTokens.mock.calls[0][0])).toEqual(["tBram"]);
+	});
+
+	it("puts everyone back where they stood, and forgets it", async () => {
+		const { scene, combat } = fightWith();
+		await lineUpFight(combat, { scene });
+		scene.moveTokens.mockClear();
+		expect(await putBackFight(combat, { scene })).toBe(true);
+		expect(scene.moveTokens.mock.calls[0][0]).toMatchObject({
+			tBram: { waypoints: [{ x: 3000, y: 1200 }] },
+			tCrin: { waypoints: [{ x: 200, y: 300 }] },
+		});
+		expect(combat.flags[SYSTEM_ID][LAST_LINE_UP_FLAG]).toBeUndefined();
+	});
+
+	it("leaves the map alone for a player, or for a fight on a scene nobody is looking at", async () => {
+		const player = fightWith({ isGM: false });
+		expect(await lineUpFight(player.combat, { scene: player.scene })).toBe(false);
+		const elsewhere = fightWith();
+		globalThis.canvas.scene = { id: "other" };
+		expect(await lineUpFight(elsewhere.combat, { scene: elsewhere.scene })).toBe(false);
+		expect(elsewhere.scene.moveTokens).not.toHaveBeenCalled();
+	});
+
+	it("has nothing to put back without a line-up on this scene", async () => {
+		const { scene, combat } = fightWith();
+		expect(await putBackFight(combat, { scene })).toBe(false);
+	});
+});
+
+describe("viewRectWorld", () => {
+	it("is the window between the scene controls and the sidebar, in scene pixels", () => {
+		const savedDoc = globalThis.document;
+		const savedW = globalThis.innerWidth;
+		const savedH = globalThis.innerHeight;
+		globalThis.document = {
+			getElementById: id => ({
+				"ui-left": { getBoundingClientRect: () => ({ width: 60, right: 60 }) },
+				sidebar: { getBoundingClientRect: () => ({ width: 300, left: 1620 }) },
+			})[id] ?? null,
+		};
+		globalThis.innerWidth = 1920;
+		globalThis.innerHeight = 1080;
+		try {
+			const canvas = { stage: { worldTransform: { applyInverse: ({ x, y }) => ({ x: x * 2, y: y * 2 }) } } };
+			expect(viewRectWorld(canvas)).toEqual({ x: 120, y: 0, w: 3120, h: 2160 });
+		} finally {
+			globalThis.document = savedDoc;
+			globalThis.innerWidth = savedW;
+			globalThis.innerHeight = savedH;
+		}
+	});
+});

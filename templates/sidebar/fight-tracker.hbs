@@ -1,0 +1,87 @@
+{{!-- The Fight tab's body (module/fight/FightTracker.js, view built by module/fight/fight-view.js).
+
+      One card per engagement (Book I p.414's "smaller engagements"): heroes on the left, foes on
+      the right, our short computed lines under them, and the book's own words folded away beneath.
+      Then everyone nobody is engaged with, anyone out of the fight, and anyone whose token is on
+      another map. Everything the map overlay draws is also said here, as text.
+
+      The root keeps core's `combat-tracker` class: it is the tab's scroller, and core's own render
+      step looks for it. Rows keep core's `combatant` class, `data-combatant-id` and the
+      `activateCombatant` action, so hovering a row lights its token and clicking one pans to it. --}}
+<div class="combat-tracker stonetop-fight-tracker">
+  {{#if fight}}
+
+    {{#if fight.clusters.length}}
+    <ol class="stonetop-fight-cards plain" aria-label="{{localize "stonetop.fight.aria.engagements"}}">
+      {{#each fight.clusters}}
+      <li class="stonetop-fight-card" data-cluster-id="{{id}}">
+        <div class="stonetop-fight-sides">
+          <ul class="stonetop-fight-side stonetop-fight-side--heroes plain" aria-label="{{localize "stonetop.fight.aria.heroes"}}">
+            {{#each heroes}}{{> "stonetop.fight-row" row=this gm=../../fight.isGM}}{{/each}}
+          </ul>
+          <ul class="stonetop-fight-side stonetop-fight-side--foes plain" aria-label="{{localize "stonetop.fight.aria.foes"}}">
+            {{#each foes}}{{> "stonetop.fight-row" row=this gm=../../fight.isGM}}{{/each}}
+          </ul>
+        </div>
+        {{#if facts.length}}
+        <ul class="stonetop-fight-facts plain">
+          {{#each facts}}<li class="stonetop-fight-fact">{{this}}</li>{{/each}}
+        </ul>
+        {{/if}}
+        {{#if quotes.length}}{{> "stonetop.fight-rules" rules=this}}{{/if}}
+      </li>
+      {{/each}}
+    </ol>
+    {{else}}
+      {{#if fight.hasAnyone}}<p class="stonetop-fight-note">{{localize "stonetop.fight.noEngagements"}}</p>{{/if}}
+    {{/if}}
+
+    {{#if fight.unengaged.foes.length}}
+    <section class="stonetop-fight-section stonetop-fight-section--foes">
+      <h3 class="stonetop-fight-section-title">{{localize "stonetop.fight.section.unengagedFoes"}}</h3>
+      <ul class="stonetop-fight-list plain">
+        {{#each fight.unengaged.foes}}{{> "stonetop.fight-row" row=this gm=../fight.isGM}}{{/each}}
+      </ul>
+      {{#if fight.unengaged.quotes.length}}{{> "stonetop.fight-rules" rules=fight.unengaged}}{{/if}}
+    </section>
+    {{/if}}
+
+    {{#if fight.unengaged.heroes.length}}
+    <section class="stonetop-fight-section stonetop-fight-section--heroes">
+      <h3 class="stonetop-fight-section-title">{{localize "stonetop.fight.section.unengagedHeroes"}}</h3>
+      <ul class="stonetop-fight-list plain">
+        {{#each fight.unengaged.heroes}}{{> "stonetop.fight-row" row=this gm=../fight.isGM}}{{/each}}
+      </ul>
+    </section>
+    {{/if}}
+
+    {{#if fight.out.length}}
+    <section class="stonetop-fight-section stonetop-fight-section--out">
+      <h3 class="stonetop-fight-section-title">{{localize "stonetop.fight.section.out"}}</h3>
+      <ul class="stonetop-fight-list plain">
+        {{#each fight.out}}{{> "stonetop.fight-row" row=this gm=../fight.isGM}}{{/each}}
+      </ul>
+    </section>
+    {{/if}}
+
+    {{#if fight.elsewhere.length}}
+    <section class="stonetop-fight-section stonetop-fight-section--elsewhere">
+      <h3 class="stonetop-fight-section-title">{{localize "stonetop.fight.section.elsewhere"}}</h3>
+      <ul class="stonetop-fight-list plain">
+        {{#each fight.elsewhere}}{{> "stonetop.fight-row" row=this gm=../fight.isGM}}{{/each}}
+      </ul>
+    </section>
+    {{/if}}
+
+    {{#unless fight.hasAnyone}}
+    <p class="stonetop-fight-note">{{#if fight.isGM}}{{localize "stonetop.fight.emptyGM"}}{{else}}{{localize "stonetop.fight.empty"}}{{/if}}</p>
+    {{/unless}}
+
+    {{#if fight.general.quotes.length}}
+    <div class="stonetop-fight-general">{{> "stonetop.fight-rules" rules=fight.general}}</div>
+    {{/if}}
+
+  {{else}}
+    <p class="stonetop-fight-note">{{#if isGM}}{{localize "stonetop.fight.noneGM"}}{{else}}{{localize "stonetop.fight.none"}}{{/if}}</p>
+  {{/if}}
+</div>

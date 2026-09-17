@@ -602,3 +602,42 @@ describe("the markup it renders", () => {
 		expect(html).toContain('value="pim"');
 	});
 });
+
+describe("opening already answered, and options about the whole answer", () => {
+	const render = (groups = GROUPS) => template(makeDialog(groups).getData());
+
+	// A window that can guess who is meant (the tokens a GM selected) opens with them ticked. Nothing
+	// changes for a caller that passes neither option, which is every caller but the fight's.
+	it("ticks what it was handed, and only that", () => {
+		const html = template(new PersonPickerDialog({ groups: GROUPS, multiple: true, selected: ["maeve", "quill", "nobody"] }).getData());
+		expect(html).toMatch(/value="maeve" checked/);
+		expect(html).toMatch(/value="quill" checked/);
+		expect(html).not.toMatch(/value="pim" checked/);
+	});
+
+	it("takes the first pre-tick only on a question with one answer", () => {
+		const data = new PersonPickerDialog({ groups: GROUPS, selected: ["tovia", "pim"] }).getData();
+		const checked = data.groups.flatMap(g => g.people).filter(p => p.checked).map(p => p.id);
+		expect(checked).toEqual(["tovia"]);
+	});
+
+	it("draws no options row, and ticks nobody, when not asked to", () => {
+		const html = render();
+		expect(html).not.toContain("stonetop-person-picker-toggles");
+		expect(html).not.toContain(" checked");
+	});
+
+	it("draws each option above the buttons, and reads them back", () => {
+		const dialog = new PersonPickerDialog({
+			groups: GROUPS, multiple: true,
+			toggles: [{ key: "lineUp", label: "Line everyone up", hint: "Heroes left, foes right", checked: true }, { key: "", label: "dropped" }],
+		});
+		const html = template(dialog.getData());
+		expect(html).toContain('data-toggle="lineUp" checked');
+		expect(html).toContain("Line everyone up");
+		expect(html).not.toContain("dropped");
+		expect(html.indexOf("stonetop-person-picker-toggles")).toBeLessThan(html.indexOf("stonetop-person-picker-foot"));
+		const root = { querySelector: sel => (sel === '[data-toggle="lineUp"]' ? { checked: false } : null) };
+		expect(dialog._toggleValues(root)).toEqual({ lineUp: false });
+	});
+});

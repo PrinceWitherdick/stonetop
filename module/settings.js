@@ -377,6 +377,32 @@ export function registerSettings() {
 		onChange: () => game.stonetop?.threatBoard?.refresh?.(),
 	});
 
+	// Foundry's Combat tab becomes the Fight tab: no initiative, rounds or turns, and each
+	// engagement shown with the rule that applies (module/fight/). Read ONCE, at init, where it
+	// decides which class the sidebar builds its tab from, so changing it needs a reload.
+	// Off switches everything the Fight tab brings (the map lines, the damage pre-fill, Deploy
+	// and fight) back to core's own tracker for a table that runs an initiative module.
+	game.settings.register(SYSTEM_ID, "fightTab", {
+		name: "stonetop.settings.fightTab.name",
+		hint: "stonetop.settings.fightTab.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: true,
+		requiresReload: true,
+	});
+
+	// Whether this reader wants the fight's lines drawn on the map (module/fight/fight-overlay.js).
+	// Per client: the tab says everything the lines do, so a player who finds them busy can
+	// switch them off without switching them off for the table. Toggled from the Fight tab.
+	game.settings.register(SYSTEM_ID, "fightOverlay", {
+		scope: "client",
+		config: false,
+		type: Boolean,
+		default: true,
+		onChange: () => game.stonetop?.fight?.refreshOverlay?.(),
+	});
+
 	// Whether the one-time "Welcome to Stonetop" fresh-start CHAT card has been posted in
 	// this world (hooks/Ready.js _postStartupWelcomeMessageOnce). Distinct from
 	// `gmWelcomeShown` above despite the similar name: that one records that the GM
@@ -2080,6 +2106,24 @@ export function getPromptDamageModifierSetting() {
 // Whether actor sheets should open in Edit mode rather than Play mode.
 export function getOpenSheetsInEditMode() {
 	return globalThis.game?.settings?.get?.(SYSTEM_ID, "openSheetsInEditMode") ?? false;
+}
+
+/**
+ * Is the Fight tab on in this world? Read once, at init (module/fight/fight-boot.js). Tolerates an
+ * unregistered key, so a test that never registered settings reads it as off.
+ */
+export function isFightTabEnabled() {
+	return getBooleanSetting("fightTab", false);
+}
+
+/** Does this reader want the fight's lines drawn on the map? Defaults to yes. */
+export function isFightOverlayShown() {
+	return getBooleanSetting("fightOverlay", true);
+}
+
+/** Switch this reader's fight lines on or off. */
+export function setFightOverlayShown(shown) {
+	return setSetting("fightOverlay", !!shown);
 }
 
 /**

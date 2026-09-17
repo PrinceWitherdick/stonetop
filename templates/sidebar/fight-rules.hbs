@@ -1,0 +1,13 @@
+{{!-- "What the book says": the passages that apply, in the book's own words (module/fight/fight-rules.js),
+      each with a citation that opens the GM's copy at that page. Called with `rules`, which carries
+      `quotes`, `ruleKey` (so the tab can remember the fold was left open across redraws) and
+      `rulesOpen`. Folded by default: the computed lines above it are what a table reads mid-fight. --}}
+<details class="stonetop-fight-rules" data-rules-key="{{rules.ruleKey}}"{{#if rules.rulesOpen}} open{{/if}}>
+  <summary class="stonetop-fight-rules-summary">{{localize "stonetop.fight.rules.summary"}}</summary>
+  {{#each rules.quotes}}
+  <blockquote class="stonetop-fight-quote">
+    <p class="stonetop-fight-quote-text">{{text}}</p>
+    <footer class="stonetop-fight-quote-cite">{{> "stonetop.book-page-cite" cites=cites}}</footer>
+  </blockquote>
+  {{/each}}
+</details>

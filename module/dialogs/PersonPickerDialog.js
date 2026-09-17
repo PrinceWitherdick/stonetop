@@ -62,10 +62,17 @@ export class PersonPickerDialog extends StonetopDialog {
 	 * @param {boolean} [p.multiple]   take more than one answer; settles on an array of ids.
 	 * @param {Function|null} [p.formatManyLabel]  `(count) => string`, what the button says once
 	 *                                 several are picked. Only reached when `multiple`.
+	 * @param {string[]} [p.selected]  ids ticked before the reader touches anything. A window that
+	 *                                 can guess who is meant (the tokens a GM has selected) opens with
+	 *                                 them ticked, and says so in the chips and on the button.
+	 * @param {Array<{key: string, label: string, hint?: string, checked?: boolean}>} [p.toggles]
+	 *                                 options about the whole answer, drawn as checkboxes above the
+	 *                                 buttons (`data-toggle="<key>"`). The base window only draws them;
+	 *                                 a subclass reads them into its answer (see `_toggleValues`).
 	 */
 	constructor({
 		title = "", groups = [], buttonLabel = "", formatLabel = null, icon = "", hint = "",
-		multiple = false, formatManyLabel = null,
+		multiple = false, formatManyLabel = null, selected = [], toggles = [],
 	} = {}, options = {}) {
 		// The title arrives as text rather than as a key (each caller phrases its own question, and
 		// some of them put a name in it). AppV1 runs `this.options.title` through `localize`, which
@@ -85,6 +92,9 @@ export class PersonPickerDialog extends StonetopDialog {
 		// id -> name, for the button's label. Read from here rather than out of the row's markup:
 		// the pick that button is about may be on a list that is not on screen.
 		this._names = new Map(groups.flatMap(g => (g.people ?? []).map(p => [p.id, p.name])));
+		// Ticked at the first draw. A question taking one answer takes the first of them only.
+		this._selected = new Set((Array.isArray(selected) ? selected : []).slice(0, multiple ? undefined : 1));
+		this._toggles = Array.isArray(toggles) ? toggles.filter(t => t?.key) : [];
 	}
 
 	static get defaultOptions() {
@@ -127,6 +137,7 @@ export class PersonPickerDialog extends StonetopDialog {
 			chooseLabel: this._buttonLabel,
 			chooseIcon: this._icon,
 			cancelLabel: localize("stonetop.people.cancel"),
+			toggles: this._toggles.map(t => ({ key: t.key, label: t.label ?? "", hint: t.hint ?? "", checked: !!t.checked })),
 			groups: this._groups.map(group => ({
 				key: group.key,
 				label: group.label,
@@ -140,6 +151,7 @@ export class PersonPickerDialog extends StonetopDialog {
 					hint: person.hint ?? "",
 					img: person.img ?? "",
 					imgStyle: person.imgStyle ?? "",
+					checked: this._selected.has(person.id),
 					// What the find box matches against, folded once here rather than per keystroke
 					// per row. The note is searchable too, so "Marshedge" finds everybody from it.
 					search: `${person.name ?? ""} ${person.hint ?? ""}`.toLowerCase(),
@@ -343,6 +355,15 @@ export class PersonPickerDialog extends StonetopDialog {
 		return this._formatManyLabel
 			? this._formatManyLabel(picked.length)
 			: format("stonetop.people.chosenCount", { count: picked.length });
+	}
+
+	/** The whole-answer options (`toggles`) as they stand: `{key: checked}`. For a subclass's answer. */
+	_toggleValues(root) {
+		const values = {};
+		for (const toggle of this._toggles) {
+			values[toggle.key] = !!root?.querySelector?.(`[data-toggle="${toggle.key}"]`)?.checked;
+		}
+		return values;
 	}
 
 	/** Put the pick in the button: whether it can be pressed, and whose name is on it. */

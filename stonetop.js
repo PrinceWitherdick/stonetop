@@ -108,6 +108,7 @@ import { bootStep, recordBootPhase, reportBootHealth, bootReport } from "./modul
 import { registerCampHooks } from "./module/camp/camp-store.js";
 import { wireCampCard } from "./module/camp/camp-flow.js";
 import { registerCampWindowRestore } from "./module/camp/CampWindow.js";
+import { registerFightTab } from "./module/fight/fight-boot.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -131,6 +132,13 @@ Hooks.once("init", () => {
 
 	bootStep("registerSettings", registerSettings);
 	registerStonetopSingletonHooks();
+
+	// The Fight tab in place of core's Combat tab, when the world has it on. Right after the settings,
+	// because it reads one, and before the interface is drawn, which is when core builds its sidebar
+	// tabs from CONFIG.ui. Caught rather than a bootStep: a failure here should leave core's own
+	// tracker working, not stop init.
+	try { registerFightTab(); }
+	catch (err) { console.error("Stonetop | the Fight tab could not be set up; using Foundry's Combat tab", err); }
 
 	// Every window and modal in the system is drag-resizable; the ad-hoc
 	// Dialog popups we spawn from sheets default to resizable too. The companion
@@ -504,6 +512,9 @@ Hooks.once("init", () => {
 		"stonetop.relationships-viewbar": "systems/stonetop-pwd/templates/actor/partials/relationships-viewbar.hbs",
 		// The clickable page citation, shared by every GM Toolkit surface that cites the book.
 		"stonetop.book-page-cite":  "systems/stonetop-pwd/templates/actor/partials/book-page-cite.hbs",
+		// The Fight tab's rows and its "What the book says" folds (module/fight/FightTracker.js).
+		"stonetop.fight-row":   "systems/stonetop-pwd/templates/sidebar/fight-row.hbs",
+		"stonetop.fight-rules": "systems/stonetop-pwd/templates/sidebar/fight-rules.hbs",
 		"stonetop.section-heading":  "systems/stonetop-pwd/templates/actor/partials/section-heading.hbs",
 		"stonetop.section-collapse": "systems/stonetop-pwd/templates/actor/partials/section-collapse.hbs",
 		"stonetop.section-randomize": "systems/stonetop-pwd/templates/actor/partials/section-randomize.hbs",

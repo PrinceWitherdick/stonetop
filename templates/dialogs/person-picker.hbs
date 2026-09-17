@@ -77,7 +77,7 @@
                       the dialog reads. The CLASS follows the type because the two are skinned
                       apart: the checkbox joins the system's SVG master block (a checkbox left off
                       it renders as a native browser box), and the radio is pinned to slate. --}}
-                <input type="{{../../inputType}}" class="{{../../inputClass}}" name="person" value="{{id}}">
+                <input type="{{../../inputType}}" class="{{../../inputClass}}" name="person" value="{{id}}"{{#if checked}} checked{{/if}}>
                 <span class="stonetop-person-picker-face">
                   {{#if img}}<img class="stonetop-person-picker-face-img" src="{{img}}" alt="" draggable="false"{{#if imgStyle}} style="{{imgStyle}}"{{/if}}>
                   {{else}}<i class="fas fa-user" aria-hidden="true"></i>{{/if}}
@@ -97,6 +97,19 @@
 
     </div>
   </div>
+
+  {{!-- Options about the whole answer rather than about any one name ("Line everyone up"). Only a
+        window that asks for them draws them; the base picker never reads them. --}}
+  {{#if toggles.length}}
+  <div class="stonetop-person-picker-toggles">
+    {{#each toggles}}
+    <label class="stonetop-person-picker-toggle"{{#if hint}} data-tooltip="{{hint}}"{{/if}}>
+      <input type="checkbox" class="stonetop-check stonetop-person-picker-toggle-check" data-toggle="{{key}}"{{#if checked}} checked{{/if}}>
+      <span class="stonetop-person-picker-toggle-text">{{label}}</span>
+    </label>
+    {{/each}}
+  </div>
+  {{/if}}
 
   {{!-- Affirmative on the left, as everywhere else in the system. It opens dead and unnamed:
         there is no default person, and a button that said "Add" over a list nobody had answered

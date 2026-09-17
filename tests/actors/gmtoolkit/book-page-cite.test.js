@@ -183,10 +183,14 @@ describe("the citation partial", () => {
 });
 
 describe("how a citation is drawn", () => {
+	// Rules found by what their selector LISTS name, not by their text: a surface added to a list
+	// changes the text of the rule without changing what it does.
+	const BLOCKS = [...CSS.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+		.map(([, selectors, body]) => ({ selectors: selectors.split(",").map(s => s.trim()), body }));
 	const rule = (selector) => {
-		const at = CSS.indexOf(selector);
-		expect(at, selector).toBeGreaterThan(-1);
-		return CSS.slice(at, CSS.indexOf("}", at));
+		const found = BLOCKS.filter(block => block.selectors.includes(selector));
+		expect(found.length, selector).toBeGreaterThan(0);
+		return found.map(block => block.body).join("\n");
 	};
 
 	// Core anchors a BUTTON's font-size in pixels while the prose around it is set in em off the
@@ -194,7 +198,7 @@ describe("how a citation is drawn", () => {
 	// its own sentence at every setting but the default. Core also gives buttons a block box and
 	// a full-width stretch, either of which breaks it out of the line it belongs to.
 	it("takes its type and its box from the sentence it sits in", () => {
-		const base = rule(".stonetop .stonetop-book-cite {");
+		const base = rule(".stonetop .stonetop-book-cite");
 		expect(base).toContain("font: inherit");
 		expect(base).toContain("color: inherit");
 		expect(base).toContain("display: inline");
@@ -206,14 +210,26 @@ describe("how a citation is drawn", () => {
 	// Core paints a background on button hover, which over a run of text inside a paragraph reads
 	// as a highlighter mark.
 	it("answers the pointer with ink and an underline, not with a filled box", () => {
-		expect(rule(".stonetop .stonetop-book-cite:hover,")).toContain("background: none");
-		const hover = rule(".stonetop .stonetop-book-cite:hover {");
+		expect(rule(".stonetop .stonetop-book-cite:focus")).toContain("background: none");
+		const hover = rule(".stonetop .stonetop-book-cite:hover");
+		expect(hover).toContain("background: none");
 		expect(hover).toContain("color: var(--st-text)");
 		expect(hover).toContain("text-decoration: underline solid");
 	});
 
 	// It is reachable by keyboard, so it has to be visible when it is reached.
 	it("shows a focus ring", () => {
-		expect(rule(".stonetop .stonetop-book-cite:focus-visible {")).toContain("outline: 2px solid");
+		expect(rule(".stonetop .stonetop-book-cite:focus-visible")).toContain("outline: 2px solid");
+	});
+
+	// The Fight tab quotes the book in the sidebar, which is core chrome with no .stonetop window
+	// around it. Scoped to .stonetop alone, its citations fell back to core's button: a grey box
+	// with the text at 1.42:1. Every citation rule has to name the tab as well.
+	it("draws the same in the Fight tab, which has no .stonetop window around it", () => {
+		for (const state of ["", ":hover", ":focus", ":focus-visible"]) {
+			const blocks = BLOCKS.filter(block => block.selectors.includes(`.stonetop .stonetop-book-cite${state}`));
+			expect(blocks.length, state).toBeGreaterThan(0);
+			for (const block of blocks) expect(block.selectors, state).toContain(`.stonetop-fight-tracker .stonetop-book-cite${state}`);
+		}
 	});
 });

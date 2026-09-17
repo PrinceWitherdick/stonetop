@@ -1,0 +1,70 @@
+{{!-- The Fight tab's header (module/fight/FightTracker.js). Core's Combat tab header, with every
+      initiative, round and turn control taken out: Stonetop has no turn order (Book I p.417).
+
+      `combat-tracker-header` is core's own class, kept for its padding and column layout. The
+      buttons are core's plain buttons, so they follow the sidebar's theme. Affirmative actions
+      first; "End the fight" last.
+
+      The map-lines toggle is ONE button that says what it is and reports its state through
+      aria-pressed, rather than a label that flips between "show" and "hide", and it is never
+      hidden by its own state. --}}
+<header class="combat-tracker-header stonetop-fight-header">
+  {{#if hasCombat}}
+
+    {{#if cycle}}
+    <nav class="stonetop-fight-cycle" aria-label="{{localize "stonetop.fight.cycle.label"}}">
+      <button type="button" class="inline-control icon fa-solid fa-caret-left" data-action="cycleCombat"
+              {{#if cycle.previousId}}data-combat-id="{{cycle.previousId}}"{{else}}disabled{{/if}}
+              data-tooltip="{{localize "stonetop.fight.cycle.previous"}}" aria-label="{{localize "stonetop.fight.cycle.previous"}}"></button>
+      <span class="stonetop-fight-cycle-count">{{cycle.text}}</span>
+      <button type="button" class="inline-control icon fa-solid fa-caret-right" data-action="cycleCombat"
+              {{#if cycle.nextId}}data-combat-id="{{cycle.nextId}}"{{else}}disabled{{/if}}
+              data-tooltip="{{localize "stonetop.fight.cycle.next"}}" aria-label="{{localize "stonetop.fight.cycle.next"}}"></button>
+    </nav>
+    {{/if}}
+
+    {{#if combat.name}}<h2 class="encounter-name">{{combat.name}}</h2>{{/if}}
+
+    <div class="stonetop-fight-actions">
+      {{#if isGM}}
+      <button type="button" class="stonetop-fight-btn" data-action="addToFight">
+        <i class="fa-solid fa-user-plus" inert></i><span>{{localize "stonetop.fight.add"}}</span>
+      </button>
+      <button type="button" class="stonetop-fight-btn" data-action="lineUpFight" data-tooltip="{{localize "stonetop.fight.lineUpHint"}}">
+        <i class="fa-solid fa-arrows-left-right-to-line" inert></i><span>{{localize "stonetop.fight.lineUp"}}</span>
+      </button>
+      {{#if canPutBack}}
+      <button type="button" class="stonetop-fight-btn" data-action="putBackFight" data-tooltip="{{localize "stonetop.fight.putBackHint"}}">
+        <i class="fa-solid fa-rotate-left" inert></i><span>{{localize "stonetop.fight.putBack"}}</span>
+      </button>
+      {{/if}}
+      {{/if}}
+      <button type="button" class="stonetop-fight-btn stonetop-fight-lines" data-action="toggleFightOverlay"
+              aria-pressed="{{#if overlayShown}}true{{else}}false{{/if}}" data-tooltip="{{localize "stonetop.fight.linesHint"}}">
+        <i class="fa-solid {{#if overlayShown}}fa-eye{{else}}fa-eye-slash{{/if}}" inert></i><span>{{localize "stonetop.fight.lines"}}</span>
+      </button>
+      {{#if isGM}}
+      <button type="button" class="stonetop-fight-btn stonetop-fight-end" data-action="endFight">
+        <i class="fa-solid fa-flag" inert></i><span>{{localize "stonetop.fight.endFight"}}</span>
+      </button>
+      {{/if}}
+    </div>
+
+    {{#if roundsStarted}}{{#if isGM}}
+    <p class="stonetop-fight-rounds">
+      <span>{{localize "stonetop.fight.roundsNote"}}</span>
+      <button type="button" class="stonetop-fight-btn" data-action="stopRounds">{{localize "stonetop.fight.stopRounds"}}</button>
+    </p>
+    {{/if}}{{/if}}
+
+  {{else}}
+
+    {{#if isGM}}
+    <button type="button" class="stonetop-fight-btn stonetop-fight-start" data-action="startFight">
+      <i class="fa-solid fa-swords" inert></i><span>{{localize "stonetop.fight.start"}}</span>
+    </button>
+    <p class="stonetop-fight-note">{{localize "stonetop.fight.startHint"}}</p>
+    {{/if}}
+
+  {{/if}}
+</header>

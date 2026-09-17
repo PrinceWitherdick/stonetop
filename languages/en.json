@@ -794,6 +794,10 @@
       "artifactsStartUnidentified": {
         "name": "Artifacts Arrive Unidentified",
         "hint": "Book I, Discoveries pp.430-431. When on, a Book II treasure dropped onto a character sheet arrives with its tags, Value and uses withheld: the player sees only what's obvious at a glance, and has to Know Things or Seek Insight about it to learn more. Off by default, so treasure lands fully described as it always has. Either way you can hide or hand over any single artifact from the mask icon on its gear row."
+      },
+      "fightTab": {
+        "name": "Fight tab (replaces the Combat tracker)",
+        "hint": "Stonetop has no initiative. The Combat tab becomes a Fight tab showing who is fighting whom and the group rules that apply, with lines on the map and the extra damage for several attackers filled into damage rolls. Turn it off to get Foundry's Combat tracker back, for example to use an initiative module. Takes a reload."
       }
     },
     "newCharacter": {
@@ -1767,6 +1771,137 @@
         "hide": "Hide what the system recorded",
         "tooltip": "Fold in level-ups, moves gained and the seasons as they turned. Only you see this choice.",
         "badge": "Recorded"
+      }
+    },
+    "fight": {
+      "tab": "Fight",
+      "names": {
+        "andOthers": "{names} & {count} others"
+      },
+      "readout": {
+        "fighting": "fighting {names}",
+        "shootingAt": "shooting at {names}",
+        "foughtBy": "fought by {names}",
+        "shotBy": "shot at by {names}",
+        "joiner": "; ",
+        "standing": "{standing} of {size} standing",
+        "together": "{count} together"
+      },
+      "badge": {
+        "foughtBy": "Fought by {count}",
+        "facing": "Facing {count} in melee"
+      },
+      "fact": {
+        "onFoe": "+{bonus} damage on {name} ({count} attackers)",
+        "onHero": "+{bonus} damage on {name} ({count} foes)",
+        "groups": "Group against group, {heroes} to {foes}: +{bonus} damage and armor for {side}",
+        "groupsEven": "Group against group, {heroes} to {foes}: neither side outnumbers the other",
+        "sideHeroes": "the heroes",
+        "sideFoes": "the foes"
+      },
+      "start": "Start a fight",
+      "startHint": "Pick who is fighting, then drag tokens next to whoever they are fighting.",
+      "add": "Add to the fight",
+      "lineUp": "Line everyone up",
+      "lineUpHint": "Heroes in a column on the left of your view, foes on the right, a few squares apart",
+      "putBack": "Put everyone back",
+      "putBackHint": "Return the tokens to where they stood before the last line-up",
+      "lines": "Lines on the map",
+      "linesHint": "Draw who is fighting whom on the map. Only changes what you see.",
+      "endFight": "End the fight",
+      "none": "No fight on this scene.",
+      "noneGM": "No fight on this scene. Start one to see who is fighting whom.",
+      "empty": "Nobody is in this fight yet.",
+      "emptyGM": "Nobody is in this fight yet. Add them, or select tokens and use the combat toggle on a token's HUD.",
+      "noEngagements": "Nobody is engaged. Move a token next to a foe, or target one from range.",
+      "roundsNote": "This fight was started in Foundry's tracker, which counts rounds and turns. Stonetop does not take turns.",
+      "stopRounds": "Stop counting rounds",
+      "cycle": {
+        "label": "Fights on this scene",
+        "count": "Fight {index} of {count}",
+        "previous": "Previous fight",
+        "next": "Next fight"
+      },
+      "section": {
+        "unengagedFoes": "Foes not engaged",
+        "unengagedHeroes": "Heroes not engaged",
+        "out": "Out of the fight",
+        "elsewhere": "Not on this map"
+      },
+      "aria": {
+        "engagements": "Engagements",
+        "heroes": "Heroes",
+        "foes": "Foes"
+      },
+      "rules": {
+        "summary": "What the book says"
+      },
+      "row": {
+        "hide": "Hide from players",
+        "show": "Show to players",
+        "out": "Mark out of the fight",
+        "backIn": "Back in the fight",
+        "ping": "Point this out on the map"
+      },
+      "menu": {
+        "switchSide": "Move to the other side",
+        "headcount": "How many are in this token",
+        "openSheet": "Open sheet",
+        "remove": "Remove from the fight"
+      },
+      "headcount": {
+        "title": "How many are in {name}?",
+        "label": "People in this token",
+        "hint": "A crew or a warband on one token counts as this many attackers. One person is 1.",
+        "confirm": "Set how many"
+      },
+      "end": {
+        "title": "End the fight?",
+        "body": "This takes everyone out of the fight, for every player. Tokens stay where they are.",
+        "confirm": "End the fight",
+        "cancel": "Keep fighting"
+      },
+      "startWindow": {
+        "titleStart": "Start a fight",
+        "titleAdd": "Add to the fight",
+        "hintStart": "Tick everyone in the fight. Anyone not on this map is put near the middle of your view: heroes to the left, foes to the right.",
+        "hintAdd": "Tick who joins the fight. Anyone not on this map is put near the middle of your view.",
+        "buttonStart": "Start the fight",
+        "buttonAdd": "Add to the fight",
+        "confirmStart": "Start the fight: {who}",
+        "confirmAdd": "Add to the fight: {who}",
+        "hero": "{count} hero",
+        "heroes": "{count} heroes",
+        "foe": "{count} foe",
+        "foes": "{count} foes",
+        "hidden": "Hidden from players",
+        "fromBestiary": "From the bestiary",
+        "lists": {
+          "heroesHere": "Heroes on this map",
+          "foesHere": "Foes on this map",
+          "othersHere": "Others on this map",
+          "othersHint": "Anyone else on the map. Ticked, they join as foes; move them to the heroes from the tab.",
+          "pcsElsewhere": "Characters not on this map",
+          "people": "People",
+          "monsters": "Monsters"
+        },
+        "noScene": "Open a map first: a fight happens on a scene.",
+        "nobody": "There is nobody to add to this fight.",
+        "joined": "{count} joined the fight.",
+        "imported": "Brought {count} from the bestiary into the world's Actors.",
+        "missed": "Couldn't put these in the fight: {names}"
+      },
+      "seed": {
+        "onFoeTwo": "+{bonus}: {names} are both fighting {target}",
+        "onFoe": "+{bonus}: {names} are all fighting {target}",
+        "onHero": "+{bonus}: {target} is fighting {names}",
+        "pillOnFoe": "+{bonus} for {count} attackers",
+        "pillOnHero": "+{bonus} for {count} foes",
+        "leftOff": "{pill}, left off",
+        "cite": "Book I, page 414",
+        "leaveOff": "Leave off the +{bonus}",
+        "addBack": "Add the +{bonus} back",
+        "alreadyApplied": "The damage has already been applied"
       }
     }
   }
