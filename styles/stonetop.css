@@ -41698,7 +41698,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	line-height: 1;
 }
 
-.stonetop-gm-encounter-deploy:hover {
+.stonetop-gm-encounter-deploy:hover,
+.stonetop-gm-encounter-fight:hover {
 	color: var(--st-blue-text);
 }
 
@@ -41799,7 +41800,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    spaces its caps out, and 0.04em after a one-character run pushes the glyph off its own centre.
    The blue hover comes from the shared `.stonetop-gm-encounter-deploy:hover` rule further up, which
    is keyed on the class and so followed the button here. */
-.stonetop-gm-entry-card-head > .stonetop-gm-encounter-deploy {
+.stonetop-gm-entry-card-head > .stonetop-gm-encounter-deploy,
+.stonetop-gm-entry-card-head > .stonetop-gm-encounter-fight {
 	flex: 0 0 auto;
 	display: inline-flex;
 	align-items: center;
@@ -41818,9 +41820,17 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	line-height: 1;
 }
 
-.stonetop-gm-entry-card-head > .stonetop-gm-encounter-deploy:hover {
+.stonetop-gm-entry-card-head > .stonetop-gm-encounter-deploy:hover,
+.stonetop-gm-entry-card-head > .stonetop-gm-encounter-fight:hover {
 	background: var(--st-warm-hover-bg);
 	box-shadow: none;
+}
+/* Deploy and fight's glyph is Font Awesome, sized to the same 16px the Deploy mask draws at. Core
+   margins a button's icon away from a label this button does not have. */
+.stonetop-gm-entry-card-head > .stonetop-gm-encounter-fight > i {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1;
 }
 
 /* The glyph itself: a figure going down, masked out of one SVG so it takes the button's ink in

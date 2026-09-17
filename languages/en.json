@@ -261,7 +261,8 @@
             "macro": "macros",
             "unknown": "things of a kind this build doesn't know"
           }
-        }
+        },
+        "deployAndFight": "Put every monster in this encounter on the map and start a fight with them"
       },
       "expeditions": {
         "sites": "Sites",
