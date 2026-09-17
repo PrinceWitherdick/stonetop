@@ -29605,27 +29605,40 @@ th:has(> .stonetop-roll-table-btn) {
 	padding: 0;
 }
 
-/* Spiral bullets for the warning's PC list (matching the rest of the system's prose);
-   any <ol> here keeps its numbers. */
-.stonetop-intros-notice ul {
-	list-style: none;
-	margin-left: 0;
-	padding-left: 14px;
+/* The turn order, one PC per row, with a GM's move-earlier / move-later arrows at the row's end
+   (dialogs/introductions-order.js). The row is a flex box INSIDE the <li>, so the <li> stays a
+   list item and keeps its number. */
+.stonetop-intros-order-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 1px 0;
 }
-.stonetop-intros-notice ul > li {
-	position: relative;
-	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+.stonetop-intros-order-name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.stonetop-intros-order-moves { flex: 0 0 auto; display: inline-flex; gap: 4px; }
+.stonetop-intros-move {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: auto;
+	min-width: 26px;
+	height: 24px;
+	padding: 0 6px;
+	margin: 0;
+	line-height: 1;
+	font-size: calc(0.78rem * var(--stonetop-font-scale, 1));
+	cursor: pointer;
+	border: 1px solid var(--st-green-border);
+	border-radius: var(--st-radius-sm);
+	background: rgba(255, 255, 255, 0.55);
+	color: var(--st-green-text);
+	transition: background 0.15s;
 }
-.stonetop-intros-notice ul > li::before {
-	content: "";
-	position: absolute;
-	left: 0;
-	top: 0.2em;
-	width: var(--stonetop-bullet-size, 10px);
-	height: var(--stonetop-bullet-size, 10px);
-	background: var(--stonetop-spiral-icon) no-repeat center / contain;
-	opacity: 0.55;
-}
+/* Core spaces a button's icon from a label this button does not have. */
+.stonetop-intros-move > i { margin: 0; }
+.stonetop-intros-move:hover:not(:disabled) { background: var(--st-green-bg-hover); }
+.stonetop-intros-move:disabled { opacity: 0.35; cursor: default; }
 
 .stonetop-intros-reminder {
 	margin: 0;

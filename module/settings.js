@@ -886,8 +886,8 @@ export function registerSettings() {
 	// and player, on the first write too — unlike Hooks.on("updateSetting")) to open/focus/
 	// close the dialog on the active player's screen. `nonce` bumps on every write so a
 	// Back-to-the-same-step still fires onChange (Foundry suppresses equal-value writes).
-	// `pcOrder` is the GM-authored turn order (actor ids) so players seed their roster from
-	// the cursor rather than their own scene-scoped game.combat. Shape:
+	// `pcOrder` is the turn order the running session began with (actor ids), so every client
+	// follows the same table even if the saved order below is edited mid-session. Shape:
 	//   { active: <bool>, phase: <0-6>, activeActorId: "<id>",
 	//     activeUserId: "<owning player's user id>", pcOrder: [ "<id>", … ], nonce: <int> }.
 	game.settings.register(SYSTEM_ID, "introCursor", {
@@ -897,6 +897,21 @@ export function registerSettings() {
 		type: Object,
 		default: { active: false, phase: 0, activeActorId: "", activeUserId: "", pcOrder: [], nonce: 0 },
 		onChange: value => game.stonetop?.onIntroCursor?.(value),
+	});
+
+	// The order Character Introductions go around the table in, set on the pre-check screen
+	// (Randomize, or move someone up or down). A GM writes it; everyone reads it, and the
+	// onChange redraws an open pre-check on every client. `adopted` records that the world's
+	// old Combat-tracker order has been copied across ("combat") or that there was none
+	// ("none"), so that copy happens once. See utils/introductions-order.js. Shape:
+	//   { ids: [ "<actor id>", … ], adopted: "combat" | "none" }.
+	game.settings.register(SYSTEM_ID, "introductionsOrder", {
+		name: "Character Introductions Order",
+		scope: "world",
+		config: false,
+		type: Object,
+		default: { ids: [] },
+		onChange: value => game.stonetop?.onIntroductionsOrder?.(value),
 	});
 
 	// Notes the GM records in the Expedition walkthrough (see dialogs/ExpeditionDialog.js).

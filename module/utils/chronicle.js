@@ -18,7 +18,8 @@
 
 import { getSetting } from "../settings.js";
 import { writePlacesOfInterest } from "./places-chronicle.js";
-import { getPlayerCharacters, playbookSlug, orderByCombatTurns } from "./playbook-actors.js";
+import { playbookSlug } from "./playbook-actors.js";
+import { introductionsRoster } from "./introductions-order.js";
 import { ensureChronicleFolder, ensureChronicleJournal, seedChroniclePages, findChronicleFolder } from "./chronicle-journals.js";
 import { SYSTEM_ID } from "../system-id.js";
 import {
@@ -28,22 +29,11 @@ import {
 	EXPEDITION_PAGE_KEY_PREFIX,
 } from "./chronicle-core.js";
 
-// Player characters in the introductions' turn order when a combat is set up
-// (honouring how the GM arranged the table), else the world roster. Any PC not in
-// the tracker is appended in roster order.
-function orderedPlayerCharacters() {
-	const all     = getPlayerCharacters();
-	const ordered = orderByCombatTurns(all);
-	if (!ordered.length) return all;
-	// Any PC not on the tracker is appended in roster order, so every PC gets a page.
-	const seen = new Set(ordered.map(a => a.id));
-	for (const actor of all) if (!seen.has(actor.id)) ordered.push(actor);
-	return ordered;
-}
-
-// Shape the roster for the compiler.
+// Shape the roster for the compiler: player characters in the order the introductions went
+// around the table, with any PC that order does not mention appended in roster order, so every
+// PC gets a page. See utils/introductions-order.js.
 function chroniclePcs() {
-	return orderedPlayerCharacters().map(a => ({
+	return introductionsRoster().map(a => ({
 		id:           a.id,
 		name:         a.name,
 		playbookName: a.system?.playbook?.name ?? "",

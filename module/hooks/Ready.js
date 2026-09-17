@@ -332,6 +332,9 @@ export async function onReady() {
 	// focuses/closes the Introductions dialog on the active player's client as the GM
 	// drives the round-robin. See dialogs/IntroductionsDialog.js.
 	game.stonetop.onIntroCursor     = cursor => IntroductionsDialog.handleIntroCursor(cursor);
+	// Order onChange dispatcher (the introductionsOrder world setting): redraws an open
+	// pre-check on every client when a GM randomizes or moves someone.
+	game.stonetop.onIntroductionsOrder = () => IntroductionsDialog.onOrderChanged();
 	game.stonetop.openSpringBurst   = () => SpringBurstDialog.open();
 	// Run the steading's Seasons Change homefront move from the hotbar: launch the
 	// season-picker → roll flow (the same one the sheet's Seasons Change move uses)

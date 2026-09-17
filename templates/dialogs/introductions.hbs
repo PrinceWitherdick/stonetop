@@ -5,7 +5,7 @@
   <div class="stonetop-intros-precheck">
 
     <p class="stonetop-intros-preamble">
-      Introductions go around the table in turn order. Set the order you want by randomizing it below, or by rolling or setting initiative in the Combat Tracker. Then begin.
+      Introductions go around the table in this order.{{#if canReorder}} Randomize it, or move someone up or down, then begin.{{/if}}
     </p>
 
     {{#if hasNone}}
@@ -13,33 +13,43 @@
       <i class="fas fa-exclamation-triangle"></i>
       <span>No characters with a playbook were found. Create your player characters first.</span>
     </div>
-    {{else if noneInCombat}}
-    <div class="stonetop-intros-notice stonetop-intros-notice--warn">
-      <i class="fas fa-exclamation-triangle"></i>
-      <span>No player characters are in the Combat Tracker yet.{{#if isGM}} Add them to the Combat Tracker and they'll appear here.{{else}} Ask your GM to open this.{{/if}}</span>
-    </div>
     {{else}}
     <div class="stonetop-intros-notice stonetop-intros-notice--ok">
       <i class="fas fa-check-circle"></i>
       <div class="stonetop-intros-ok-body">
         <p>All {{pcCount}} player characters are ready, in order:</p>
-        <ol>{{#each pcNames}}<li>{{this}}</li>{{/each}}</ol>
+        {{!-- The order is the introductions' own setting (dialogs/introductions-order.js). A GM
+              moves a name one place at a time; the arrow that would move it off either end is
+              disabled rather than hidden, so every row's arrows line up. Labels carry the name,
+              a player-typed string, so the hover text is data-tooltip-text (plain text). --}}
+        <ol class="stonetop-intros-order">
+          {{#each pcs}}
+          <li class="stonetop-intros-order-item">
+            <div class="stonetop-intros-order-row">
+              <span class="stonetop-intros-order-name">{{name}}</span>
+              {{#if ../canReorder}}
+              <span class="stonetop-intros-order-moves">
+                <button type="button" class="stonetop-intros-move" data-actor-id="{{id}}" data-delta="-1"
+                        aria-label="{{upLabel}}" data-tooltip-text="{{upLabel}}"{{#if first}} disabled{{/if}}>
+                  <i class="fas fa-arrow-up" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="stonetop-intros-move" data-actor-id="{{id}}" data-delta="1"
+                        aria-label="{{downLabel}}" data-tooltip-text="{{downLabel}}"{{#if last}} disabled{{/if}}>
+                  <i class="fas fa-arrow-down" aria-hidden="true"></i>
+                </button>
+              </span>
+              {{/if}}
+            </div>
+          </li>
+          {{/each}}
+        </ol>
       </div>
-      {{#if canShuffle}}
+      {{#if canReorder}}
       <button type="button" class="stonetop-intros-shuffle" title="Randomize the order">
         <i class="fas fa-shuffle"></i> Randomize
       </button>
       {{/if}}
     </div>
-    {{#if hasMissing}}
-    <div class="stonetop-intros-notice stonetop-intros-notice--warn">
-      <i class="fas fa-exclamation-triangle"></i>
-      <div>
-        <p>Not yet in the Combat Tracker:</p>
-        <ul>{{#each missingPcs}}<li>{{this}}</li>{{/each}}</ul>
-      </div>
-    </div>
-    {{/if}}
     {{/if}}
 
     <p class="stonetop-intros-reminder">
