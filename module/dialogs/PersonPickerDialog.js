@@ -39,6 +39,11 @@
 //    instead of six. Per list and not per window, because a board is set up one household or one
 //    village at a time, and it reads back as well as sets — part of a list ticked leaves it
 //    part-way rather than claiming everyone is going.
+//
+// A ROW CAN SIT UNDER ANOTHER (`parent`), indented, with a tick of its own: a follower under their
+// character in "Start a fight". The find box keeps the row it sits under in view when only the
+// follower matches, so an indented name is never left under nobody. A row that only heads others
+// (`header`) has no tick at all: it is there to say whose they are.
 
 import { StonetopDialog } from "../utils/stonetop-dialog.js";
 import { applyGuideRail } from "../utils/guide-rail.js";
@@ -54,7 +59,9 @@ export class PersonPickerDialog extends StonetopDialog {
 	 * @param {object} p
 	 * @param {string} p.title         window title, already localized.
 	 * @param {Array} p.groups         the lists, from `groupPeople`; each `{key, label, hint, icon,
-	 *                                 people: [{id, name, hint, img, imgStyle}]}`.
+	 *                                 people: [{id, name, hint, img, imgStyle, parent?, header?}]}`.
+ *                                 `parent` is the id of the row this one sits under; `header` is a
+ *                                 row with no tick, heading the rows under it.
 	 * @param {string} p.buttonLabel   what the confirm button says before anybody is picked.
 	 * @param {Function|null} [p.formatLabel]  `(name) => string`, what it says once somebody is.
 	 * @param {string} [p.icon]        the confirm button's glyph.
@@ -143,7 +150,7 @@ export class PersonPickerDialog extends StonetopDialog {
 				label: group.label,
 				hint: group.hint ?? "",
 				icon: group.icon ?? "fa-user",
-				count: (group.people ?? []).length,
+				count: (group.people ?? []).filter(person => !person.header).length,
 				selected: group.key === this._group,
 				people: (group.people ?? []).map(person => ({
 					id: person.id,
@@ -151,7 +158,9 @@ export class PersonPickerDialog extends StonetopDialog {
 					hint: person.hint ?? "",
 					img: person.img ?? "",
 					imgStyle: person.imgStyle ?? "",
-					checked: this._selected.has(person.id),
+					parent: person.parent ?? "",
+					header: !!person.header,
+					checked: !person.header && this._selected.has(person.id),
 					// What the find box matches against, folded once here rather than per keystroke
 					// per row. The note is searchable too, so "Marshedge" finds everybody from it.
 					search: `${person.name ?? ""} ${person.hint ?? ""}`.toLowerCase(),
@@ -239,12 +248,15 @@ export class PersonPickerDialog extends StonetopDialog {
 		const text = (root.querySelector(".stonetop-person-picker-find-input")?.value ?? "")
 			.trim().toLowerCase();
 		for (const section of root.querySelectorAll(".stonetop-person-picker-group")) {
-			let showing = 0;
-			for (const item of section.querySelectorAll(".stonetop-person-picker-item")) {
-				const match = !text || (item.dataset.search ?? "").includes(text);
-				item.hidden = !match;
-				if (match) showing++;
+			const items = [...section.querySelectorAll(".stonetop-person-picker-item")];
+			for (const item of items) item.hidden = !(!text || (item.dataset.search ?? "").includes(text));
+			// A row showing keeps the one it sits under in view.
+			for (const item of items) {
+				if (item.hidden || !item.dataset.parent) continue;
+				const above = items.find(other => other.dataset.personId === item.dataset.parent);
+				if (above) above.hidden = false;
 			}
+			const showing = items.filter(item => !item.hidden && !("header" in item.dataset)).length;
 			const none = section.querySelector(".stonetop-person-picker-none");
 			if (none) none.hidden = showing > 0;
 			const count = root.querySelector(`[data-count-for="${section.dataset.group}"]`);

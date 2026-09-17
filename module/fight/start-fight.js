@@ -7,8 +7,18 @@
 // a monster from the bestiary. Those are put on the map as they join, heroes to the left of the middle
 // of the view and foes to the right.
 //
+// A FOLLOWER IS LISTED UNDER THEIR CHARACTER, indented, with a tick of their own: wherever the character
+// is listed (on this map, or not), and on no other list. A character who cannot be ticked (already in
+// the fight) still heads their followers, as a row with no tick. Starting a fight with nothing
+// selected ticks the followers on the map of every character it ticks.
+//
 // A BYSTANDER IS NEVER TICKED FOR BEING ON THE MAP. An NPC who is neither a follower nor marked friendly
 // is listed under "Others", unticked; ticked, they join as a foe, and the tab moves them across.
+//
+// A MONSTER THAT COMES IN NUMBERS IS ASKED ABOUT. Once the GM has said who is fighting, each group or
+// horde monster among them is asked "how many?" and at which scale (group-size.js): that many tokens
+// join, new ones beside a token already on the map or all of them among the arrivals, or one token
+// fighting as a group of that many (group-scale.js).
 //
 // LINING UP moves every token in the fight in one write, straight to its place (core's "displace"
 // movement: through walls, no animation along the way), and remembers where everyone stood so "Put
@@ -24,8 +34,11 @@ import { worldActorsBySource, resolveDeployableActor } from "../utils/deployable
 import { compendiumRefTail } from "../migration/compat.js";
 import { HEROES, FOES } from "./engagements.js";
 import { classifySide } from "./fight-sides.js";
-import { combatantSide, fightOnScene, isFight, sideInfoFor, SIDE_FLAG, LAST_LINE_UP_FLAG } from "./fight-state.js";
+import { followerMasterIndex } from "../actors/character/follower-masters.js";
+import { combatantSide, fightOnScene, isFight, sideInfoFor, sceneRectOf, SIDE_FLAG, LAST_LINE_UP_FLAG } from "./fight-state.js";
 import { fightWindowWillShow } from "./fight-window.js";
+import { askGroupSize, groupSizeQuestions } from "./group-size.js";
+import { gatherAround, makeGroupToken, settleNewcomers } from "./group-scale.js";
 import { lineUpPositions } from "./line-up.js";
 import { StartFightDialog } from "./StartFightDialog.js";
 
@@ -39,9 +52,10 @@ const ACTOR = "actor:";
  * in the world. PURE.
  *
  * @param {object} p
- * @param {Array<{id, name, img, type, hasPlayerOwner, isFollower, disposition, hidden, inFight}>} p.sceneTokens
- * @param {Array<{uuid, name, img}>} [p.pcsElsewhere]   player characters with no token on this map
- * @param {Array<{uuid, name, img, disposition}>} [p.people]  world NPCs with no token on this map
+ * @param {Array<{id, actorId, name, img, type, hasPlayerOwner, isFollower, disposition, hidden, inFight, master}>} p.sceneTokens
+ *   `master` is the character a follower follows, `{id, name, img}`, else null
+ * @param {Array<{uuid, actorId, name, img}>} [p.pcsElsewhere]   player characters with no token on this map
+ * @param {Array<{uuid, name, img, disposition, master}>} [p.people]  world NPCs with no token on this map
  * @param {Array<{uuid, name, img, fromPack}>} [p.monsters]
  * @param {string[]} [p.controlled]     token ids the GM has selected
  * @param {string[]|null} [p.preselect] token ids to tick instead of the selection (Deploy and fight)
@@ -50,15 +64,21 @@ const ACTOR = "actor:";
  * @param {"start"|"add"} [p.mode]
  * @param {(key: string, data?: object) => string} p.format
  * @returns {{groups: Array, selected: string[], sides: Map<string, string>}}
+ *   a follower's row carries `parent`, the id of the row it sits under; a character's row that cannot
+ *   be ticked carries `header`
  */
 export function startWindowModel({
 	sceneTokens = [], pcsElsewhere = [], people = [], monsters = [],
 	controlled = [], preselect = null, preselectPcs = false, forceFoes = [], mode = "start", format: say,
 }) {
 	const sides = new Map();
-	const lists = { heroes: [], foes: [], others: [] };
+	const lists = { heroes: [], foes: [], others: [], pcsElsewhere: [], people: [], monsters: [] };
 	const forced = new Set(forceFoes);
 	const tokenRows = [];
+	// Followers, and the row of the character each one goes under, by the character's actor id.
+	const followers = [];
+	const masterRows = new Map();
+
 	for (const token of sceneTokens) {
 		if (mode === "add" && token.inFight) continue;
 		const placed = forced.has(token.id)
@@ -66,35 +86,71 @@ export function startWindowModel({
 			: classifySide(token);
 		if (!placed) continue;
 		const id = `${TOKEN}${token.id}`;
-		sides.set(id, placed.side);
 		const row = { id, name: token.name, img: token.img ?? "", hint: token.hidden ? say(`${KEY}.hidden`) : "" };
+		// A follower fights beside their character, whatever their token's disposition says.
+		const master = forced.has(token.id) ? null : (token.master ?? null);
+		sides.set(id, master ? HEROES : placed.side);
+		tokenRows.push({ token, id, row, master, list: master ? HEROES : placed.list });
+		if (master) { followers.push({ row, master }); continue; }
 		lists[placed.list].push(row);
-		tokenRows.push({ token, id, list: placed.list });
+		if (placed.list === HEROES && token.actorId && !masterRows.has(token.actorId)) masterRows.set(token.actorId, row);
 	}
 
-	const actorRows = (items, side, hint = () => "") => items.map(item => {
+	const actorRow = (item, side, hint = "") => {
 		const id = `${ACTOR}${item.uuid}`;
-		sides.set(id, typeof side === "function" ? side(item) : side);
-		return { id, name: item.name, img: item.img ?? "", hint: hint(item) };
-	});
+		sides.set(id, side);
+		return { id, name: item.name, img: item.img ?? "", hint };
+	};
+	for (const item of pcsElsewhere) {
+		const row = actorRow(item, HEROES);
+		lists.pcsElsewhere.push(row);
+		if (item.actorId && !masterRows.has(item.actorId)) masterRows.set(item.actorId, row);
+	}
+	for (const item of people) {
+		if (item.master) {
+			followers.push({ row: actorRow(item, HEROES, say(`${KEY}.notHere`)), master: item.master });
+			continue;
+		}
+		lists.people.push(actorRow(item, classifySide({ type: "npc", disposition: item.disposition })?.side ?? FOES));
+	}
+	for (const item of monsters) lists.monsters.push(actorRow(item, FOES, item.fromPack ? say(`${KEY}.fromBestiary`) : ""));
+
+	// Each follower under their character's row, else under a row naming the character that cannot be
+	// ticked: one already fighting, or one who is not a player character.
+	const children = new Map();
+	for (const { row, master } of followers) {
+		let home = masterRows.get(master.id);
+		if (!home) {
+			const token = sceneTokens.find(t => t.actorId === master.id);
+			home = { id: `master:${master.id}`, name: master.name, img: master.img ?? "", hint: token?.inFight ? say(`${KEY}.inFight`) : "", header: true };
+			lists[token ? "heroes" : "pcsElsewhere"].push(home);
+			masterRows.set(master.id, home);
+		}
+		row.parent = home.id;
+		row.hint = [say(`${KEY}.followerOf`, { name: master.name }), row.hint].filter(Boolean).join(" · ");
+		if (!children.has(row.parent)) children.set(row.parent, []);
+		children.get(row.parent).push(row);
+	}
+	for (const key of ["heroes", "pcsElsewhere"]) lists[key] = lists[key].flatMap(row => [row, ...(children.get(row.id) ?? [])]);
+
 	const groups = [
 		{ key: "heroesHere", icon: "fa-shield-halved", label: say(`${KEY}.lists.heroesHere`), people: lists.heroes },
 		{ key: "foesHere", icon: "fa-skull", label: say(`${KEY}.lists.foesHere`), people: lists.foes },
 		{ key: "othersHere", icon: "fa-user", label: say(`${KEY}.lists.othersHere`), hint: say(`${KEY}.lists.othersHint`), people: lists.others },
-		{ key: "pcsElsewhere", icon: "fa-user-group", label: say(`${KEY}.lists.pcsElsewhere`), people: actorRows(pcsElsewhere, HEROES) },
-		{ key: "people", icon: "fa-users", label: say(`${KEY}.lists.people`),
-			people: actorRows(people, item => classifySide({ type: "npc", disposition: item.disposition })?.side ?? FOES) },
-		{ key: "monsters", icon: "fa-dragon", label: say(`${KEY}.lists.monsters`),
-			people: actorRows(monsters, FOES, item => (item.fromPack ? say(`${KEY}.fromBestiary`) : "")) },
+		{ key: "pcsElsewhere", icon: "fa-user-group", label: say(`${KEY}.lists.pcsElsewhere`), people: lists.pcsElsewhere },
+		{ key: "people", icon: "fa-users", label: say(`${KEY}.lists.people`), people: lists.people },
+		{ key: "monsters", icon: "fa-dragon", label: say(`${KEY}.lists.monsters`), people: lists.monsters },
 	].filter(group => group.people.length);
 
 	// Who is ticked: whoever Deploy placed, else the GM's selection, else (starting a fight with
-	// nothing selected) the party and every monster a player could see.
+	// nothing selected) the party and every monster a player could see. The party brings the
+	// followers they have on the map.
 	const ticked = new Set();
 	const tick = ids => { for (const id of ids) if (sides.has(`${TOKEN}${id}`)) ticked.add(`${TOKEN}${id}`); };
+	const party = !Array.isArray(preselect) && !controlled.length && mode === "start";
 	if (Array.isArray(preselect)) tick(preselect);
 	else if (controlled.length) tick(controlled);
-	else if (mode === "start") {
+	else if (party) {
 		for (const { token, id, list } of tokenRows) {
 			if (token.type === "character" || (list === FOES && token.type === "monster" && !token.hidden)) ticked.add(id);
 		}
@@ -102,43 +158,64 @@ export function startWindowModel({
 	if (preselectPcs) {
 		for (const { token, id } of tokenRows) if (token.type === "character") ticked.add(id);
 	}
+	if (party || preselectPcs) {
+		for (const { id, row, master } of tokenRows) if (master && ticked.has(row.parent)) ticked.add(id);
+	}
 	return { groups, selected: [...ticked], sides };
 }
 
-/** What is on the map and in the world, as startWindowModel reads it. */
+/** What group-size.js needs to know about a monster, and the key shared by every copy of it. */
+function groupInfoOf(kind, type, system) {
+	if (type !== "monster" || !kind) return null;
+	return { kind, organization: system?.organization ?? "", count: system?.count ?? 0, fightAsGroup: !!system?.fightAsGroup };
+}
+
+/**
+ * What is on the map and in the world, as startWindowModel reads it. Monsters also carry `group`,
+ * what group-size.js asks about them, which the window itself does not read.
+ */
 export async function gatherStartWindow(scene, combat) {
 	const game = globalThis.game;
 	const inFight = new Set([...(combat?.combatants ?? [])].filter(c => c.sceneId === scene.id).map(c => c.tokenId));
 	const tokens = [...(scene.tokens ?? [])].filter(t => t.actor);
+	const actors = [...(game.actors ?? [])];
+	const masters = followerMasterIndex({ characters: actors.filter(a => a.type === "character"), actors });
+	const masterOf = actorId => {
+		const master = masters.get(actorId);
+		return master ? { id: master.id, name: master.name, img: master.img ?? "" } : null;
+	};
 	const sceneTokens = tokens.map(t => ({
 		id: t.id,
+		actorId: t.actorId,
+		master: masterOf(t.actorId),
 		name: t.name || t.actor.name,
 		img: t.texture?.src || t.actor.img || "",
 		...sideInfoFor(t.actor, t),
 		hidden: !!t.hidden,
 		inFight: inFight.has(t.id),
+		group: groupInfoOf(`Actor.${t.actorId}`, t.actor.type, t.actor.system),
 	}));
 	const here = new Set(tokens.map(t => t.actorId));
 	const pcsElsewhere = getPlayerCharacters()
 		.filter(a => !here.has(a.id))
-		.map(a => ({ uuid: a.uuid, name: a.name, img: a.img }));
-	const people = [...(game.actors ?? [])]
+		.map(a => ({ uuid: a.uuid, actorId: a.id, name: a.name, img: a.img }));
+	const people = actors
 		.filter(a => a.type === "npc" && !here.has(a.id))
-		.map(a => ({ uuid: a.uuid, name: a.name, img: a.img, disposition: a.prototypeToken?.disposition ?? null }))
+		.map(a => ({ uuid: a.uuid, name: a.name, img: a.img, disposition: a.prototypeToken?.disposition ?? null, master: masterOf(a.id) }))
 		.sort((a, b) => a.name.localeCompare(b.name));
 	const worldMonsters = [...(game.actors ?? [])].filter(a => a.type === "monster");
-	const monsters = worldMonsters.map(a => ({ uuid: a.uuid, name: a.name, img: a.img, fromPack: false }));
+	const monsters = worldMonsters.map(a => ({ uuid: a.uuid, name: a.name, img: a.img, fromPack: false, group: groupInfoOf(a.uuid, a.type, a.system) }));
 	// The bestiary entries the world has no copy of. The index is enough to list them; a pick is
 	// imported only if it is chosen (utils/deployable-actor.js), and never twice.
 	const pack = game.packs?.get?.(BESTIARY_PACK);
 	if (pack) {
 		const worldCopy = worldActorsBySource();
-		const index = await pack.getIndex({ fields: ["img", "type"] }).catch(() => []);
+		const index = await pack.getIndex({ fields: ["img", "type", "system.organization", "system.count", "system.fightAsGroup"] }).catch(() => []);
 		for (const entry of index) {
 			if (entry.type && entry.type !== "monster") continue;
 			const uuid = entry.uuid ?? `Compendium.${pack.collection}.Actor.${entry._id}`;
 			if (worldCopy(compendiumRefTail(uuid))) continue;
-			monsters.push({ uuid, name: entry.name, img: entry.img, fromPack: true });
+			monsters.push({ uuid, name: entry.name, img: entry.img, fromPack: true, group: groupInfoOf(uuid, "monster", entry.system) });
 		}
 	}
 	monsters.sort((a, b) => a.name.localeCompare(b.name));
@@ -170,8 +247,9 @@ export async function openStartFight({ combat = null, preselect = null, preselec
 	if (combat && !isFight(combat)) combat = null;
 	combat ??= fightOnScene(scene);
 	const mode = combat ? "add" : "start";
+	const gathered = await gatherStartWindow(scene, combat);
 	const model = startWindowModel({
-		...(await gatherStartWindow(scene, combat)),
+		...gathered,
 		controlled: (canvas.tokens?.controlled ?? []).map(t => t.document?.id ?? t.id),
 		preselect, preselectPcs, forceFoes, mode, format,
 	});
@@ -192,8 +270,50 @@ export async function openStartFight({ combat = null, preselect = null, preselec
 	}, { id: `stonetop-start-fight-${++windowsOpened}` });
 	const answer = await dialog.promise();
 	if (!answer) return null;
-	return startFight({ scene, combat, picks: answer.picks, lineUp: answer.lineUp });
+	const groups = new Map([
+		...gathered.sceneTokens.filter(t => t.group).map(t => [`${TOKEN}${t.id}`, t.group]),
+		...gathered.monsters.filter(m => m.group).map(m => [`${ACTOR}${m.uuid}`, m.group]),
+	]);
+	// A monster already fighting here has had its numbers settled; one more of it is just one more.
+	const fighting = new Set([...(combat?.combatants ?? [])].filter(c => c.sceneId === scene.id).map(c => `Actor.${c.actorId}`));
+	const picks = await withGroupSizes(answer.picks, pick => {
+		const group = groups.get(pick.id);
+		return group && !fighting.has(group.kind) ? group : null;
+	});
+	return startFight({ scene, combat, picks, lineUp: answer.lineUp });
 }
+
+/**
+ * Ask how many of each monster that comes in numbers, one monster at a time, and write the answer on
+ * that monster's pick: `size`, and `asGroup` when they fight as one group token. A question closed
+ * without an answer leaves its pick as it was.
+ *
+ * @param {Array<{id: string, name: string, side: string}>} picks
+ * @param {(pick) => object|null} infoFor  see group-size.js#groupSizeQuestions
+ * @param {(question) => Promise<{size: number, asGroup: boolean}|null>} [ask]
+ */
+export async function withGroupSizes(picks, infoFor, ask = askGroupSize) {
+	const answers = new Map();
+	for (const question of groupSizeQuestions(picks, infoFor)) {
+		const answer = await ask(question);
+		if (answer?.size > 1) answers.set(question.pickId, { size: answer.size, asGroup: !!answer.asGroup });
+	}
+	return picks.map(pick => (answers.has(pick.id) ? { ...pick, ...answers.get(pick.id) } : pick));
+}
+
+/**
+ * A pick as it can actually be placed. A LINKED token cannot stand for a group (group-scale.js#makeGroupToken
+ * writes the group onto the token's own actor, and a linked token has none), so a group answer on one
+ * becomes that many tokens, and its name goes on `ungrouped` for the GM to be told.
+ */
+function placeablePick(pick, linked, ungrouped) {
+	if (!pick.asGroup || !linked) return pick;
+	ungrouped.push(pick.name);
+	return { ...pick, asGroup: false };
+}
+
+/** How many tokens a pick puts on the map: one for a group fighting as one token. */
+const copiesOf = pick => (pick?.asGroup ? 1 : Math.max(1, Math.trunc(Number(pick?.size) || 1)));
 
 /**
  * Where arriving tokens are dropped: their line-up places, as the CENTRE points core's drop takes.
@@ -215,12 +335,6 @@ function arrivalPoints(canvas, arrivals) {
 		const at = positions.get(s.id);
 		return at ? { x: at.x + (s.w * size) / 2, y: at.y + (s.h * size) / 2 } : null;
 	});
-}
-
-/** The scene rectangle, as `{x, y, w, h}`. */
-function sceneRectOf(canvas) {
-	const rect = canvas.dimensions?.sceneRect ?? canvas.dimensions?.rect ?? null;
-	return rect ? { x: rect.x, y: rect.y, w: rect.width, h: rect.height } : null;
 }
 
 /**
@@ -275,28 +389,44 @@ export async function startFight({ scene, combat = null, picks = [], lineUp = fa
 	const joiners = [];
 	const arrivals = [];
 	const worldCopy = worldActorsBySource();
-	for (const pick of picks.filter(p => p.id.startsWith(ACTOR))) {
-		const found = await resolveDeployableActor(pick.id.slice(ACTOR.length), worldCopy);
-		if (!found) { result.missed.push(pick.name); continue; }
+	const ungrouped = [];
+	for (const asked of picks.filter(p => p.id.startsWith(ACTOR))) {
+		const found = await resolveDeployableActor(asked.id.slice(ACTOR.length), worldCopy);
+		if (!found) { result.missed.push(asked.name); continue; }
 		if (found.imported) result.imported += 1;
-		arrivals.push({ actor: found.actor, side: pick.side, name: pick.name });
+		const pick = placeablePick(asked, !!found.actor?.prototypeToken?.actorLink, ungrouped);
+		for (let n = copiesOf(pick); n > 0; n -= 1) arrivals.push({ actor: found.actor, side: pick.side, name: pick.name, pick });
 	}
 	if (arrivals.length && canvas?.scene?.id === scene.id) {
 		const points = arrivalPoints(canvas, arrivals);
 		const drop = await placeActors(canvas, arrivals.map(a => a.actor), i => points[i]);
 		result.missed.push(...drop.missed);
+		const groupsPlaced = new Map();
 		for (const { i, actor, token } of drop.dropped) {
 			if (token?.documentName !== "Token") { result.missed.push(actor.name); continue; }
 			joiners.push({ token, side: arrivals[i].side });
 			result.placed += 1;
+			const { pick } = arrivals[i];
+			if (pick.asGroup) await makeGroupToken(token, pick.size);
+			if (copiesOf(pick) < 2) continue;
+			if (!groupsPlaced.has(pick)) groupsPlaced.set(pick, { actor, tokens: [] });
+			groupsPlaced.get(pick).tokens.push(token);
 		}
+		for (const { actor, tokens } of groupsPlaced.values()) await settleNewcomers(scene, actor, tokens);
 	} else {
 		for (const arrival of arrivals) result.missed.push(arrival.actor.name);
 	}
-	for (const pick of picks.filter(p => p.id.startsWith(TOKEN))) {
-		const token = scene.tokens?.get?.(pick.id.slice(TOKEN.length));
-		if (token) joiners.push({ token, side: pick.side });
-		else result.missed.push(pick.name);
+	for (const asked of picks.filter(p => p.id.startsWith(TOKEN))) {
+		const token = scene.tokens?.get?.(asked.id.slice(TOKEN.length));
+		if (!token) { result.missed.push(asked.name); continue; }
+		const pick = placeablePick(asked, !!token.actorLink, ungrouped);
+		joiners.push({ token, side: pick.side });
+		if (pick.asGroup) await makeGroupToken(token, pick.size);
+		if (copiesOf(pick) < 2) continue;
+		const more = await gatherAround(canvas, scene, token, copiesOf(pick) - 1);
+		for (const extra of more.tokens) joiners.push({ token: extra, side: pick.side });
+		result.placed += more.tokens.length;
+		result.missed.push(...more.missed);
 	}
 
 	// The fight: the one on this map, or a new one.
@@ -333,6 +463,7 @@ export async function startFight({ scene, combat = null, picks = [], lineUp = fa
 	if (result.added) notify?.info(format(`${KEY}.joined`, { count: result.added }));
 	if (result.imported) notify?.info(format(`${KEY}.imported`, { count: result.imported }));
 	if (result.missed.length) notify?.warn(format(`${KEY}.missed`, { names: joinNames(result.missed) }));
+	if (ungrouped.length) notify?.warn(format(`${KEY}.ungrouped`, { names: joinNames(ungrouped) }));
 	return result;
 }
 

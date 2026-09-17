@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
-	startWindowModel, startFight, lineUpFight, putBackFight, viewRectWorld, LAST_LINE_UP_FLAG,
+	startWindowModel, startFight, lineUpFight, putBackFight, viewRectWorld, withGroupSizes, LAST_LINE_UP_FLAG,
 } from "../../module/fight/start-fight.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
 import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection, GRID } from "../fakes/fight.js";
@@ -67,6 +67,64 @@ describe("startWindowModel", () => {
 		const ids = model.groups.flatMap(g => g.people.map(p => p.id));
 		expect(ids).not.toContain("token:bram");
 		expect(model.selected).toEqual([]);
+	});
+
+	describe("followers", () => {
+		const bram = { id: "bram", name: "Bram", img: "" };
+		const followerToken = (id, extra = {}) => token(id, "npc", { actorId: id, master: bram, disposition: -1, ...extra });
+
+		it("puts a follower on the map under their character there, a hero with a tick of their own, and ticks them with the party", () => {
+			const model = startWindowModel({
+				sceneTokens: [token("bram", "character", { actorId: "bram" }), token("cadi", "character", { actorId: "cadi" }), followerToken("hound")],
+				format,
+			});
+			const heroes = model.groups.find(g => g.key === "heroesHere").people;
+			expect(heroes.map(r => [r.id, r.parent ?? null])).toEqual([["token:bram", null], ["token:hound", "token:bram"], ["token:cadi", null]]);
+			expect(heroes[1].hint).toBe("Bram's follower");
+			expect(model.sides.get("token:hound")).toBe("heroes");
+			expect(model.groups.map(g => g.key)).toEqual(["heroesHere"]);
+			expect(model.selected.sort()).toEqual(["token:bram", "token:cadi", "token:hound"]);
+		});
+
+		it("takes followers off the People list and puts them under their character, wherever the character is listed", () => {
+			const model = startWindowModel({
+				sceneTokens: [],
+				pcsElsewhere: [{ uuid: "Actor.bram", actorId: "bram", name: "Bram" }],
+				people: [{ uuid: "Actor.hound", name: "Hound", master: bram }, { uuid: "Actor.tovia", name: "Tovia", disposition: 0 }],
+				format,
+			});
+			const elsewhere = model.groups.find(g => g.key === "pcsElsewhere").people;
+			expect(elsewhere.map(r => [r.id, r.parent ?? null, r.hint])).toEqual([
+				["actor:Actor.bram", null, ""],
+				["actor:Actor.hound", "actor:Actor.bram", "Bram's follower · Not on this map"],
+			]);
+			expect(model.groups.find(g => g.key === "people").people.map(r => r.id)).toEqual(["actor:Actor.tovia"]);
+			expect(model.sides.get("actor:Actor.hound")).toBe("heroes");
+		});
+
+		it("heads followers with their character, untickable, when the character is already in the fight", () => {
+			const model = startWindowModel({
+				sceneTokens: [token("bram", "character", { actorId: "bram", inFight: true })],
+				people: [{ uuid: "Actor.hound", name: "Hound", master: bram }],
+				mode: "add",
+				format,
+			});
+			expect(model.groups.find(g => g.key === "heroesHere").people).toEqual([
+				{ id: "master:bram", name: "Bram", img: "", hint: "Already in the fight", header: true },
+				{ id: "actor:Actor.hound", name: "Hound", img: "", hint: "Bram's follower · Not on this map", parent: "master:bram" },
+			]);
+			expect(model.selected).toEqual([]);
+		});
+
+		it("leaves a follower handed in as a foe with the foes", () => {
+			const model = startWindowModel({
+				sceneTokens: [token("bram", "character", { actorId: "bram" }), followerToken("hound")],
+				forceFoes: ["hound"],
+				format,
+			});
+			expect(model.groups.find(g => g.key === "foesHere").people.map(r => r.id)).toEqual(["token:hound"]);
+			expect(model.sides.get("token:hound")).toBe("foes");
+		});
 	});
 
 	it("offers who is not on the map yet, on their own lists and sides", () => {
@@ -234,6 +292,70 @@ describe("startFight", () => {
 		expect(result.placed).toBe(2);
 	});
 
+	it("puts every one of a group asked for among the arrivals, numbered, each in the fight", async () => {
+		const { scene, created, placed } = world();
+		scene.updateEmbeddedDocuments = vi.fn(async () => []);
+		globalThis.fromUuid = vi.fn(async uuid => ({ documentName: "Actor", id: "crinwin2", uuid, name: "Crinwin", prototypeToken: { name: "Crinwin", width: 1, height: 1 } }));
+		const result = await startFight({ scene, picks: [{ id: "actor:Actor.crinwin2", side: "foes", name: "Crinwin", size: 3 }] });
+		expect(placed).toHaveLength(3);
+		expect(result.placed).toBe(3);
+		expect(created).toHaveLength(3);
+		expect(new Set(placed.map(p => `${p.data.x},${p.data.y}`)).size).toBe(3);
+		expect(scene.updateEmbeddedDocuments).toHaveBeenCalledWith("Token", [
+			{ _id: "new0", name: "Crinwin (1)" }, { _id: "new1", name: "Crinwin (2)" }, { _id: "new2", name: "Crinwin (3)" },
+		]);
+	});
+
+	it("makes one arrival fight as the whole group, when that is the scale asked for", async () => {
+		const { scene, created, placed } = world();
+		const update = vi.fn(async () => ({}));
+		globalThis.canvas.tokens._onDropActorData = vi.fn(async (event, data) => {
+			const t = fakeToken({ id: `new${placed.length}`, actor: { type: "monster", system: { attributes: { hp: { value: 3, max: 3 } } }, update } });
+			t.documentName = "Token";
+			placed.push({ data, token: t });
+			return t;
+		});
+		globalThis.fromUuid = vi.fn(async uuid => ({ documentName: "Actor", id: "crinwin2", uuid, name: "Crinwin", prototypeToken: { name: "Crinwin" } }));
+		const result = await startFight({ scene, picks: [{ id: "actor:Actor.crinwin2", side: "foes", name: "Crinwin", size: 6, asGroup: true }] });
+		expect(placed).toHaveLength(1);
+		expect(result.placed).toBe(1);
+		expect(created).toHaveLength(1);
+		expect(update).toHaveBeenCalledWith({ "system.fightAsGroup": true, "system.count": 6, "system.attributes.hp.value": 3 });
+	});
+
+	it("brings a linked monster asked for as a group in as that many tokens, and says so", async () => {
+		const { scene, placed } = world();
+		scene.updateEmbeddedDocuments = vi.fn(async () => []);
+		const update = vi.fn(async () => ({}));
+		globalThis.fromUuid = vi.fn(async uuid => ({ documentName: "Actor", id: "crinwin2", uuid, name: "Crinwin", update, prototypeToken: { name: "Crinwin", width: 1, height: 1, actorLink: true } }));
+		const result = await startFight({ scene, picks: [{ id: "actor:Actor.crinwin2", side: "foes", name: "Crinwin", size: 3, asGroup: true }] });
+		expect(placed).toHaveLength(3);
+		expect(result.placed).toBe(3);
+		expect(update).not.toHaveBeenCalled();
+		expect(globalThis.ui.notifications.warn).toHaveBeenCalledWith(expect.stringContaining("Crinwin"));
+	});
+
+	it("gathers the rest of a group around a token already on the map, hidden when it is", async () => {
+		const { scene, created, placed, tCrin } = world();
+		scene.updateEmbeddedDocuments = vi.fn(async () => []);
+		const crinwin = globalThis.game.actors.get("crinwin");
+		crinwin.uuid = "Actor.crinwin";
+		crinwin.prototypeToken = { name: "Crinwin" };
+		tCrin.name = "Crinwin";
+		const result = await startFight({ scene, picks: [{ id: "token:tCrin", side: "foes", name: "Crinwin", size: 4 }] });
+		expect(result.placed).toBe(3);
+		expect(placed.map(p => p.data.uuid)).toEqual(["Actor.crinwin", "Actor.crinwin", "Actor.crinwin"]);
+		// Centres one square from the crinwin already there (its centre is 250, 350).
+		for (const { data } of placed) expect(Math.max(Math.abs(data.x - 250), Math.abs(data.y - 350))).toBe(GRID);
+		expect(created.map(c => c.tokenId)).toEqual(["tCrin", "new0", "new1", "new2"]);
+		expect(created.every(c => c.flags[SYSTEM_ID].side === "foes")).toBe(true);
+		expect(scene.updateEmbeddedDocuments).toHaveBeenCalledWith("Token", [
+			{ _id: "new0", name: "Crinwin (2)", hidden: true },
+			{ _id: "new1", name: "Crinwin (3)", hidden: true },
+			{ _id: "new2", name: "Crinwin (4)", hidden: true },
+		]);
+	});
+
 	it("starts a new fight rather than add to a combat that was never one", async () => {
 		const { scene, CombatClass, created } = world();
 		const roster = { id: "roster", flags: {}, active: true, createEmbeddedDocuments: vi.fn() };
@@ -252,6 +374,38 @@ describe("startFight", () => {
 		expect(globalThis.ui.notifications.warn).toHaveBeenCalled();
 		world({ isGM: false });
 		expect((await startFight({ scene, picks: [{ id: "token:tBram", side: "heroes" }] })).added).toBe(0);
+	});
+});
+
+describe("withGroupSizes", () => {
+	const infoFor = pick => ({
+		"token:tCrin": { kind: "Actor.crinwin", organization: "horde", count: 6 },
+		"actor:Actor.bandit": { kind: "Actor.bandit", organization: "group", count: 3 },
+		"actor:Actor.chief": { kind: "Actor.chief", organization: "group", count: 1 },
+	})[pick.id] ?? null;
+
+	it("asks about each monster that comes in numbers, one at a time, and writes the size on its pick", async () => {
+		const asked = [];
+		const answers = { Crinwin: { size: 8, asGroup: false }, Bandit: { size: 1, asGroup: false } };
+		const picks = await withGroupSizes([
+			{ id: "token:tBram", name: "Bram", side: "heroes" },
+			{ id: "token:tCrin", name: "Crinwin", side: "foes" },
+			{ id: "actor:Actor.bandit", name: "Bandit", side: "foes" },
+			{ id: "actor:Actor.chief", name: "Bandit Chief", side: "foes" },
+		], infoFor, async question => { asked.push(question.name); return answers[question.name]; });
+		expect(asked).toEqual(["Crinwin", "Bandit"]);
+		expect(picks.map(p => p.size ?? null)).toEqual([null, 8, null, null]);
+		expect(picks[1].asGroup).toBe(false);
+	});
+
+	it("carries the choice to fight as one group token", async () => {
+		const picks = await withGroupSizes([{ id: "token:tCrin", name: "Crinwin", side: "foes" }], infoFor, async () => ({ size: 6, asGroup: true }));
+		expect(picks[0]).toMatchObject({ size: 6, asGroup: true });
+	});
+
+	it("leaves a pick as it was when its question is closed unanswered", async () => {
+		const picks = [{ id: "token:tCrin", name: "Crinwin", side: "foes" }];
+		expect(await withGroupSizes(picks, infoFor, async () => null)).toEqual(picks);
 	});
 });
 

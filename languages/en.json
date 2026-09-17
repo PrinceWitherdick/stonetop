@@ -1916,6 +1916,9 @@
         "foes": "{count} foes",
         "hidden": "Hidden from players",
         "fromBestiary": "From the bestiary",
+        "followerOf": "{name}'s follower",
+        "notHere": "Not on this map",
+        "inFight": "Already in the fight",
         "lists": {
           "heroesHere": "Heroes on this map",
           "foesHere": "Foes on this map",
@@ -1929,7 +1932,29 @@
         "nobody": "There is nobody to add to this fight.",
         "joined": "{count} joined the fight.",
         "imported": "Brought {count} from the bestiary into the world's Actors.",
-        "missed": "Couldn't put these in the fight: {names}"
+        "missed": "Couldn't put these in the fight: {names}",
+        "ungrouped": "A linked token can't fight as one group, so these came in as separate tokens: {names}"
+      },
+      "groupSize": {
+        "title": "{name}: how many?",
+        "body": {
+          "group": "{name} is a group monster, found 2 to 5 at a time.",
+          "horde": "{name} is a horde monster, found 6 or more at a time."
+        },
+        "usual": "Its stat block says {count}.",
+        "justOne": "Just one",
+        "scale": {
+          "legend": "On the map",
+          "tokens": "A token for each one, each with its own HP",
+          "group": "One token for the whole group, fighting as one (Book I p.416, for a fight against another group)"
+        }
+      },
+      "scale": {
+        "menuMerge": "Merge into one group",
+        "menuSplit": "Split into separate tokens",
+        "merged": "{name}: {count} now fight as one group.",
+        "split": "{name}: the group is now {count} separate tokens.",
+        "splitShort": "{name}: only room for {count} of the {wanted} still standing."
       },
       "seed": {
         "onFoeTwo": "+{bonus}: {names} are both fighting {target}",

@@ -35,6 +35,7 @@ import { snapshotFight, combatantBodies, combatantSide, COUNT_FLAG, SIDE_FLAG, L
 import { FIGHT_OVER, fightWindowPosition, noteFightWindowClosed, openFightWindow, rememberFightWindowPosition } from "./fight-window.js";
 import { fightTrackerView } from "./fight-view.js";
 import { canReadFoeVitals, combatantVitals, fightVitalsKey, followerRoster } from "./fight-vitals.js";
+import { canSplit, mergeCandidates, mergeIntoGroup, splitGroup } from "./group-scale.js";
 import { otherSide, fightsAsGroup } from "./fight-sides.js";
 import { SYSTEM_ID } from "../system-id.js";
 import { contextMenuEntry } from "../utils/foundry-compat.js";
@@ -297,6 +298,18 @@ export function createFightTrackerClass(Base) {
 					icon: "fa-solid fa-people-group",
 					visible: target => gm() && headcountIsOurs(combatantOf(target)),
 					run: target => this._askHeadcount(combatantOf(target)),
+				}),
+				contextMenuEntry({
+					label: "stonetop.fight.scale.menuMerge",
+					icon: "fa-solid fa-object-group",
+					visible: target => gm() && mergeCandidates(this.viewed, combatantOf(target)).length >= 2,
+					run: target => mergeIntoGroup(this.viewed, combatantOf(target)),
+				}),
+				contextMenuEntry({
+					label: "stonetop.fight.scale.menuSplit",
+					icon: "fa-solid fa-object-ungroup",
+					visible: target => gm() && canSplit(combatantOf(target)),
+					run: target => splitGroup(this.viewed, combatantOf(target)),
 				}),
 				contextMenuEntry({
 					label: "stonetop.fight.menu.openSheet",

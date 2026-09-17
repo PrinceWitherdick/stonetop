@@ -6510,6 +6510,24 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	color: var(--st-text-secondary);
 }
 
+/* "Crinwin: how many?" (fight/group-size.js): "Just one" and a button per size. A long row of sizes
+   wraps onto a second line rather than squeezing each number to nothing. */
+.stonetop-fight-group-size-app .form-footer { flex-wrap: wrap; }
+.stonetop-fight-group-size-app .form-footer button { flex: 1 0 auto; min-width: 3em; }
+.stonetop-fight-group-size p { margin: 0 0 6px; }
+/* The two scales (separate tokens, or one group token), one per line. */
+.stonetop-fight-group-size-scales {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0 0 6px;
+}
+.stonetop-fight-group-size-scale {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
 /* "Who does this hit?" (module/fight/fight-targets.js): a roller fighting more than one ticks who a blow
    lands on. One opponent per line, the hint under them in the quieter ink. */
 .stonetop-fight-targets p { margin: 0 0 6px; }
@@ -45664,6 +45682,20 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 
 .stonetop-person-picker-row:hover {
 	background: color-mix(in srgb, currentColor 6%, transparent);
+}
+
+/* A row under another (a follower under their character): indented, with a rule down the left that
+   ties it to the row above. A heading row has no tick, so it holds the tick's width empty to keep
+   its face in the column every other face is in, and does not light up under the pointer. */
+.stonetop-person-picker-item--nested {
+	margin-left: 1.5em;
+	padding-left: 4px;
+	border-left: 2px solid var(--st-quiet-ink, rgba(0, 0, 0, 0.3));
+}
+.stonetop-person-picker-row--header { cursor: default; }
+.stonetop-person-picker-row--header:hover { background: none; }
+.stonetop-person-picker-nocheck {
+	flex: 0 0 calc(15px * var(--stonetop-font-scale, 1));
 }
 
 /* The picked row, marked as the content picker marks its own: an accented edge and a filled

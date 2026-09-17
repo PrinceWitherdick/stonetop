@@ -124,11 +124,15 @@ function makeRoot(dialog) {
 					get checked() { return boxes.picked === person.id; },
 					set checked(on) { if (on) boxes.picked = person.id; },
 				};
-			boxes.push(box);
+			if (!person.header) boxes.push(box);
 			return {
 				hidden: false,
-				dataset: { search: person.search },
-				querySelector: sel => (sel.includes("input[name='person']") ? box : null),
+				dataset: {
+					search: person.search, personId: person.id,
+					...(person.parent ? { parent: person.parent } : {}),
+					...(person.header ? { header: "" } : {}),
+				},
+				querySelector: sel => (sel.includes("input[name='person']") && !person.header ? box : null),
 				radio: box,
 			};
 		});
@@ -239,6 +243,23 @@ describe("the find box", () => {
 	// ⚠ EVERY LIST, NOT THE ONE SHOWING. This is what the counts on the rail are for: a reader
 	// looking for Maeve under Residents can see that the one Maeve in this world is a player
 	// without going and checking each list by hand.
+	it("keeps a follower's character in view when only the follower matches, and counts no heading", () => {
+		const groups = [{
+			key: "heroes", label: "Heroes", icon: "fa-users",
+			people: [
+				{ id: "master:bram", name: "Bram", header: true, hint: "Already in the fight" },
+				{ id: "hound", name: "Hound", hint: "Bram's follower", parent: "master:bram" },
+				{ id: "cadi", name: "Cadi" },
+			],
+		}];
+		const dialog = makeMultiDialog(groups);
+		expect(dialog.getData().groups[0].count).toBe(2);
+		const root = makeRoot(dialog);
+		type(dialog, root, "hou");
+		expect(root.section("heroes").items.map(item => item.hidden)).toEqual([false, false, true]);
+		expect(root.count("heroes")).toBe("1");
+	});
+
 	it("says how many are left on every other list too", () => {
 		const dialog = makeDialog();
 		const root = makeRoot(dialog);
@@ -539,6 +560,20 @@ describe("the markup it renders", () => {
 		expect(html).toContain('value="pim"');
 		expect(html).toContain("The Lightbearer");
 		expect(html).toContain('value="tovia"');
+	});
+
+	it("indents a row under the one it follows, and gives a heading row no tick", () => {
+		const html = render([{
+			key: "heroes", label: "Heroes", icon: "fa-users",
+			people: [
+				{ id: "master:bram", name: "Bram", header: true },
+				{ id: "hound", name: "Hound", parent: "master:bram" },
+			],
+		}]);
+		expect(html).toMatch(/class="stonetop-person-picker-item"\s+data-search="bram\s*" data-person-id="master:bram" data-header>/);
+		expect(html).toMatch(/class="stonetop-person-picker-item stonetop-person-picker-item--nested"\s+data-search="hound\s*" data-person-id="hound" data-parent="master:bram">/);
+		expect(html).not.toContain('value="master:bram"');
+		expect(html).toContain('value="hound"');
 	});
 
 	it("folds each row's searchable text to lower case at render", () => {
