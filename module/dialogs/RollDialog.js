@@ -1,7 +1,7 @@
 import { bringDialogToFront } from "../utils/front-on-open.js";
 import { localize } from "../utils/i18n.js";
 import { escHtml } from "../utils/strings.js";
-import { composeDamageFormula, normalizeDamageBonusDice } from "../utils/damage.js";
+import { composeDamageFormula, normalizeDamageBonusDice, seedBonus } from "../utils/damage.js";
 import { damageRollFormula, rollDamage } from "../utils/roll-engine.js";
 import { getAskRollModeEachRollSetting, getPromptRollModifierSetting, getPromptDamageModifierSetting } from "../settings.js";
 
@@ -264,9 +264,17 @@ function unpromptedDamage(rollMode) {
 	return { rollMode: normalizeRollMode(rollMode), bonus: 0, extraDice: "" };
 }
 
+/**
+ * An answer with the fight's seed on it, when there is one. ONLY then: an answer with no seed keeps
+ * exactly the three keys it always had, so every caller that never heard of fights reads it unchanged.
+ */
+function withSeed(answer, seed) {
+	return seed ? { ...answer, seed } : answer;
+}
+
 /** The composed formula a set of answers would actually roll, for the window's preview line. */
-function previewFormula(base, { rollMode, bonus, extraDice }) {
-	return damageRollFormula(composeDamageFormula(base, { bonus, extraDice }), rollMode);
+function previewFormula(base, { rollMode, bonus, extraDice, seed }) {
+	return damageRollFormula(composeDamageFormula(base, { bonus, extraDice, seed }), rollMode);
 }
 
 /**
@@ -299,7 +307,11 @@ function previewFormula(base, { rollMode, bonus, extraDice }) {
  * @param {string}  [opts.rollMode]  Mode to start on (a stat block's noted advantage).
  * @param {boolean} [opts.shiftKey]  Skip the window entirely.
  * @param {boolean} [opts.ask]       Override the client setting (tests).
- * @returns {Promise<{rollMode: string, bonus: number, extraDice: string}|null>}
+ * @param {object}  [opts.seed]      The fight's +N for several attackers (fight/damage-seed.js). Shown
+ *   as its OWN ticked line above the player's adjustment, never folded into it, so unticking it takes
+ *   off exactly what the fight added. A window that does not open still applies it: it is the book's
+ *   rule, not a one-off the player declared, and the card names it either way.
+ * @returns {Promise<{rollMode: string, bonus: number, extraDice: string, seed?: object}|null>}
  */
 export function promptDamage({
 	attacker = "",
@@ -307,25 +319,39 @@ export function promptDamage({
 	rollMode = DEFAULT_ROLL_MODE,
 	shiftKey = false,
 	ask = getPromptDamageModifierSetting(),
+	seed = null,
 } = {}) {
 	const start = normalizeRollMode(rollMode);
-	if (shiftKey || !ask) return Promise.resolve(unpromptedDamage(start));
+	const seeded = seedBonus(seed) > 0 ? { ...seed, applied: true } : null;
+	if (shiftKey || !ask) return Promise.resolve(withSeed(unpromptedDamage(start), seeded));
 
 	return new Promise(resolve => {
 		const settle = settler(resolve);
 
-		const readAnswer = root => ({
-			rollMode: readActiveMode(root),
-			bonus: readModifier(root),
-			// Normalized on the way OUT, not just in the preview: a half-typed "1d" must reach
-			// the roll as nothing at all rather than as a formula that throws.
-			extraDice: normalizeDamageBonusDice(root?.querySelector?.('[name="extraDice"]')?.value),
-		});
+		const readAnswer = root => {
+			const seedBox = root?.querySelector?.('[name="seedApplied"]');
+			return withSeed({
+				rollMode: readActiveMode(root),
+				bonus: readModifier(root),
+				// Normalized on the way OUT, not just in the preview: a half-typed "1d" must reach
+				// the roll as nothing at all rather than as a formula that throws.
+				extraDice: normalizeDamageBonusDice(root?.querySelector?.('[name="extraDice"]')?.value),
+			}, seeded && { ...seeded, applied: seedBox ? !!seedBox.checked : true });
+		};
+
+		// The fight's line: ticked, with the book's page beside it. Its own control, apart from the
+		// stepper, so the two numbers never blur into one.
+		const seedLine = seeded ? `
+				<label class="stonetop-damage-seed">
+					<input type="checkbox" class="stonetop-check stonetop-damage-seed-check" name="seedApplied" checked>
+					<span class="stonetop-damage-seed-text">${escHtml(seeded.label ?? "")}</span>
+					<span class="stonetop-damage-seed-cite">${escHtml(seeded.cite ?? "")}</span>
+				</label>` : "";
 
 		const dialog = new Dialog({
 			title: attacker ? `Rolling damage for ${attacker}` : "Rolling damage",
 			content: `<form class="stonetop-roll-form stonetop-damage-form">
-				${modePickerHtml("How are you rolling this damage?", start)}
+				${modePickerHtml("How are you rolling this damage?", start)}${seedLine}
 				<p class="stonetop-roll-prompt">Add to the damage (an arcanum's +1, a move's extra dice, a GM's call).</p>
 				<!-- Two labels then two controls, in that order: the row is a 2x2 grid, so the labels
 				     share a line and the controls share a line whatever either one measures. The
@@ -339,7 +365,7 @@ export function promptDamage({
 					<input type="text" name="extraDice" class="stonetop-damage-extra-dice" value="" placeholder="1d6"
 					       aria-label="Extra dice" autocomplete="off" spellcheck="false">
 				</div>
-				<p class="stonetop-damage-preview" aria-live="polite">Rolling <strong>${escHtml(previewFormula(formula, unpromptedDamage(start)))}</strong></p>
+				<p class="stonetop-damage-preview" aria-live="polite">Rolling <strong>${escHtml(previewFormula(formula, withSeed(unpromptedDamage(start), seeded)))}</strong></p>
 			</form>`,
 			buttons: rollDialogButtons("Roll damage", settle, readAnswer),
 			default: "roll",
@@ -368,6 +394,7 @@ export function promptDamage({
 				const input = wireStepper(root, repaint);
 				input?.addEventListener("input", repaint);
 				extra?.addEventListener("input", repaint);
+				root.querySelector?.('[name="seedApplied"]')?.addEventListener("change", repaint);
 				// Painted once from the rendered controls as well as baked into the content
 				// above, so the line is always what THIS DOM would roll rather than a seed that
 				// could drift from the fields beside it.
@@ -412,8 +439,8 @@ export function promptDamage({
  * @param {boolean} [opts.shiftKey] skip the window
  * @returns {Promise<boolean>} whether damage was actually rolled
  */
-export async function rollDamagePrompted(formula, actor, { label, keywords, description, rollMode, attacker, shiftKey = false } = {}) {
-	const adjust = await promptDamage({ attacker: attacker || actor?.name, formula, ...(rollMode ? { rollMode } : {}), shiftKey });
+export async function rollDamagePrompted(formula, actor, { label, keywords, description, rollMode, attacker, seed, shiftKey = false } = {}) {
+	const adjust = await promptDamage({ attacker: attacker || actor?.name, formula, ...(rollMode ? { rollMode } : {}), seed, shiftKey });
 	if (!adjust) return false;
 	await rollDamage(formula, actor, { label, keywords, description, ...adjust });
 	return true;

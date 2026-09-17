@@ -3796,6 +3796,44 @@ input.stonetop-name-field {
 	color: var(--st-text, #2f2a24);
 }
 
+/* The fight's +N for several attackers (fight/damage-seed.js): its own ticked line above the
+   player's adjustment, with the book's page beside it. The label words sit in one span so a
+   wrapped line keeps the checkbox on its first row. */
+.stonetop-damage-seed {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	column-gap: 0.6em;
+	align-items: start;
+	margin: 12px 0 0;
+	padding: 6px 8px;
+	border: 1px solid var(--st-quiet-ink, rgba(0, 0, 0, 0.3));
+	border-radius: var(--st-radius-sm);
+	color: var(--st-text-body);
+	font-size: var(--st-fs-sm);
+	cursor: pointer;
+}
+.stonetop-damage-seed-check {
+	grid-row: span 2;
+	margin: 0;
+}
+.stonetop-damage-seed-text {
+	color: var(--st-text);
+	font-weight: 600;
+}
+.stonetop-damage-seed-cite {
+	grid-column: 2;
+	color: var(--st-text-muted);
+	font-size: var(--st-fs-xs);
+}
+
+/* The same +N named on the damage card, struck through once left off. */
+.stonetop-condition-numbers.is-left-off {
+	text-decoration: line-through;
+}
+.stonetop-damage-row.is-seed-left-off .stonetop-roll-result-number {
+	text-decoration: underline dotted;
+}
+
 /* Basic move hover panel */
 .stonetop-basic-move-panel {
 	position: fixed;
@@ -5924,6 +5962,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 :is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons button.stonetop-suffer-deal:hover:not(:disabled) {
 	background: var(--st-btn-primary-bg-hover, var(--st-btn-primary-bg));
 }
+/* "Leave off the +1" beside Apply stays a plain button: Apply is the card's one primary action, and
+   this only changes the number Apply will use. It may wrap, since it sits beside a wide CTA. */
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons button.stonetop-damage-seed-toggle {
+	white-space: normal;
+}
 
 /* Per-target damage list on the results card: one roll-result block per target (stacked,
    not the old hairline-separated single-line rows), so each number carries the weight of
@@ -6003,6 +6046,18 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	font-style: italic;
 	opacity: 0.75;
 	font-size: 0.9em;
+}
+/* The fight's +N for several foes on one character (fight/damage-seed.js), said on the GM's card
+   before a blow is picked or priced, so the number that follows is no surprise. */
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .stonetop-suffer-seed {
+	color: var(--st-text);
+	font-weight: 600;
+	font-size: 0.9em;
+}
+/* Whose blow a row is, on a card holding several foes' attacks. */
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .stonetop-suffer-choice-foe {
+	color: var(--st-text-secondary);
+	font-weight: normal;
 }
 
 /* ── "Name the enemy's damage": the GM's number for a foe with none ─────────── */

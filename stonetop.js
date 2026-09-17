@@ -75,7 +75,7 @@ import { grantsWholeList, paintPickTally, pickLimitFor, releaseOverLimit, tierOf
 import { wireUndoXpMark } from "./module/utils/undo-xp-mark.js";
 import { isKnowThings, logbookUses, LOGBOOK, STRONG_HIT_TOTAL } from "./module/actors/character/know-things.js";
 import { artifactStateForTier } from "./module/actors/character/artifact-identify.js";
-import { wireAttackConfirm, wireApplyDamage, wireSufferAmount, wireSufferChoice, rollOptionDamage } from "./module/combat/attack-flow.js";
+import { wireAttackConfirm, applyGateOnce, wireApplyDamage, wireDamageSeed, wireSufferAmount, wireSufferChoice, rollOptionDamage } from "./module/combat/attack-flow.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
 import { wrapGlyphTextContainers } from "./module/utils/glyphs.js";
 import { applyJournalSpiralBullets, resolveEntry } from "./module/utils/journal-spiral-bullets.js";
@@ -1965,7 +1965,11 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatWireOptionDamage(message, html);
 	wireDyingPrompt(message, html);
 	wireAttackConfirm(message, html);
-	wireApplyDamage(message, html);
+	const damageGate = applyGateOnce(message);
+	wireApplyDamage(message, html, damageGate);
+	// ...and beside Apply, the fight's "Leave off the +N" for several attackers, which also repaints the
+	// card's totals from its flag on every client (attack-flow.js#wireDamageSeed).
+	wireDamageSeed(message, html, damageGate);
 	wireSufferAmount(message, html);
 	// ...and the GM-whispered "Which attack?" card a foe with more than one printed attack posts
 	// instead of guessing which die it swung (attack-flow.js#postSufferChoiceCard).

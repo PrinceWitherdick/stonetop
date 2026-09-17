@@ -7,6 +7,7 @@
 // Wears the same edit/lock header chrome as the monster/bestiary sheets (shared
 // sheet-chrome helpers) so it reads as one system.
 import { rollDamagePrompted } from "../../dialogs/RollDialog.js";
+import { sheetSeed } from "../../fight/damage-seed.js";
 import { damageCardText } from "../../utils/damage.js";
 import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle, fitDisplayName } from "../../utils/sheet-chrome.js";
 import { isDefaultImg } from "../../utils/strings.js";
@@ -418,7 +419,10 @@ export function createStonetopNpcSheetClass(Base) {
 					// line may name more than one blow and this button rolls only the formula, so
 					// the attack printing that die is the one the card names.
 					const { title, keywords } = damageCardText(damage?.value, formula);
-					await rollDamagePrompted(formula, this.actor, { label: title || "Damage", keywords, shiftKey: ev.shiftKey });
+					// The fight's +N for several attackers on one foe, when this token is fighting
+					// exactly one (fight/damage-seed.js).
+					const seed = sheetSeed({ actor: this.actor });
+					await rollDamagePrompted(formula, this.actor, { label: title || "Damage", keywords, shiftKey: ev.shiftKey, ...(seed ? { seed } : {}) });
 					return;
 				}
 				const moveRoll = ev.target.closest(".stonetop-npc-move-roll");

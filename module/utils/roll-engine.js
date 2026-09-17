@@ -6,7 +6,7 @@ import { pickLeadText, TIER_KEYS, TIER_LABELS } from "./move-results.js";
 import { markRolledTier } from "./move-tiers.js";
 import { stonetopCardShell, stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber, damageMark, damageBadge, damageKeywordsHtml, pickListItem, descriptionPickTiers, cardNoticeHtml } from "./chat.js";
 import { adjustXp } from "./xp.js";
-import { composeDamageFormula, normalizeDamageBonusDice } from "./damage.js";
+import { composeDamageFormula, normalizeDamageBonusDice, seedBonus } from "./damage.js";
 import { SYSTEM_ID } from "../system-id.js";
 import { getBooleanSetting } from "../settings.js";
 
@@ -805,12 +805,18 @@ function advDisConditionPills(rollMode) {
  * Exported for the attack flow, which rolls once per target and builds its own results card;
  * both surfaces report an adjusted damage roll in the same words.
  */
-export function damageConditionPills({ rollMode = "normal", bonus = 0, extraDice = "" } = {}) {
+export function damageConditionPills({ rollMode = "normal", bonus = 0, extraDice = "", seed = null } = {}) {
 	const pills = advDisConditionPills(rollMode);
 	const flat = Math.trunc(Number(bonus)) || 0;
 	if (flat !== 0) pills.push(`<li class="stonetop-condition-situational">Damage ${sign(flat)}</li>`);
 	for (const term of (Array.isArray(extraDice) ? extraDice : [extraDice]).map(normalizeDamageBonusDice)) {
 		if (term) pills.push(`<li class="stonetop-condition-situational">Extra ${escHtml(term.startsWith("-") ? term : `+${term}`)}</li>`);
+	}
+	// The fight's +N for several attackers (fight/damage-seed.js), named apart from the roller's own
+	// bonus, and still named when it was left off, so the card says what was waived.
+	if (seedBonus(seed) > 0) {
+		const leftOff = seed.applied === false;
+		pills.push(`<li class="stonetop-condition-situational stonetop-condition-numbers${leftOff ? " is-left-off" : ""}">${escHtml(leftOff ? seed.pillLeftOff : seed.pill)}</li>`);
 	}
 	return pills;
 }
@@ -857,6 +863,8 @@ export function damageRollFormula(formula, rollMode) {
  * @param {string} [options.rollMode]  - "adv" | "dis" | "normal" (advantage/disadvantage on the damage die)
  * @param {number} [options.bonus]     - Flat one-off damage modifier
  * @param {string|string[]} [options.extraDice] - One-off extra damage dice ("1d6")
+ * @param {object} [options.seed] - The fight's +N for several attackers (fight/damage-seed.js), added
+ *   while it is applied and named on the card either way
  * @param {string} [options.keywords] - What the card prints beside the total: a stat block attack's
  *   tags, its name alone being the title (utils/damage.js#damageCardText). Plain text, escaped here;
  *   known tags print bold with their meaning on hover (utils/chat.js#damageKeywordsHtml).
@@ -872,11 +880,12 @@ export async function rollDamage(formula, actor, options = {}) {
 	const rollMode = options.rollMode ?? "normal";
 	const bonus     = Math.trunc(Number(options.bonus)) || 0;
 	const extraDice = options.extraDice ?? "";
-	const adjusted  = composeDamageFormula(formula, { bonus, extraDice });
+	const seed      = options.seed ?? null;
+	const adjusted  = composeDamageFormula(formula, { bonus, extraDice, seed });
 	const roll = await new Roll(damageRollFormula(adjusted, rollMode)).evaluate();
 	const label = options.label ?? "Damage";
 
-	const conditions = damageConditionPills({ rollMode, bonus, extraDice });
+	const conditions = damageConditionPills({ rollMode, bonus, extraDice, seed });
 
 	await roll.toMessage({
 		speaker:  ChatMessage.getSpeaker({ actor }),

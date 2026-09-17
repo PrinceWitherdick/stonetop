@@ -36,6 +36,22 @@ export function normalizeDamageBonusDice(input) {
 }
 
 /**
+ * What a fight's extra-attackers seed adds to a damage roll: its bonus while it is applied, nothing
+ * once it has been left off, and nothing for no seed at all. See fight/damage-seed.js.
+ */
+export function damageSeedBonus(seed) {
+	return seed?.applied === false ? 0 : seedBonus(seed);
+}
+
+/**
+ * The +N a fight's seed carries, whether or not it is applied: 0 for no seed, or one with nothing
+ * to add. THE ONE TEST of whether a seed is worth showing at all (the window, the pills, the card).
+ */
+export function seedBonus(seed) {
+	return Math.max(0, Math.trunc(Number(seed?.bonus)) || 0);
+}
+
+/**
  * A damage formula with a one-off adjustment folded in: the base die (already carrying the
  * weapon's own `+N`) plus any extra dice and a flat bonus.
  *
@@ -52,14 +68,16 @@ export function normalizeDamageBonusDice(input) {
  * disadvantage on damage doubles the formula's first dice term (see `damageRollFormula`),
  * and "roll damage twice, take the higher" means the damage die — not the bonus dice.
  */
-export function composeDamageFormula(base, { bonus = 0, extraDice = "" } = {}) {
+export function composeDamageFormula(base, { bonus = 0, extraDice = "", seed = null } = {}) {
 	const terms = [];
 	const first = String(base ?? "").trim();
 	if (first) terms.push(first);
 	for (const term of (Array.isArray(extraDice) ? extraDice : [extraDice]).map(normalizeDamageBonusDice)) {
 		if (term) terms.push(term.startsWith("-") ? term : `+${term}`);
 	}
-	const flat = Math.trunc(Number(bonus)) || 0;
+	// The fight's +N for several attackers (fight/damage-seed.js) joins the flat bonus: one term on the
+	// formula, told apart from the roller's own +N by its pill.
+	const flat = (Math.trunc(Number(bonus)) || 0) + damageSeedBonus(seed);
 	if (flat) terms.push(flat > 0 ? `+${flat}` : String(flat));
 	// A bonus with no base leaves the leading sign stranded at the head of the formula, which
 	// Roll rejects. Nothing at all rolls a flat 0 rather than throwing on an empty formula.

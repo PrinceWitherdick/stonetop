@@ -1,6 +1,7 @@
 import { CREATURE_TYPE_CHOICES, creatureTypeIcon, creatureTypeLabel } from "../../bestiary/creature-types.js";
 import { hasText } from "../bestiary/codex.js";
 import { rollDamagePrompted } from "../../dialogs/RollDialog.js";
+import { sheetSeed } from "../../fight/damage-seed.js";
 import { dieFromDamage, attackRollMode, splitMonsterAttackProse, damageCardText } from "../../utils/damage.js";
 import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle } from "../../utils/sheet-chrome.js";
 import { capitalizeFirst, escHtml, isDefaultImg } from "../../utils/strings.js";
@@ -605,7 +606,12 @@ export function createStonetopMonsterSheetClass(Base) {
 					// The stat block's own noted advantage SEEDS the damage window rather than
 					// being replaced by it: skipping the window (Shift, or the setting off) still
 					// has to roll "icy touch d6 w/disadvantage" at disadvantage, as it always did.
-					await rollDamagePrompted(formula, this.actor, { label, keywords, rollMode, shiftKey: ev.shiftKey });
+					//
+					// The fight's +N for several attackers on one foe (fight/damage-seed.js), when this
+					// token is fighting exactly one. Not on the swarm and group rows, whose formulas
+					// already carry their own numbers.
+					const seed = "numbersRoll" in dmgRoll.dataset ? null : sheetSeed({ actor: this.actor });
+					await rollDamagePrompted(formula, this.actor, { label, keywords, rollMode, shiftKey: ev.shiftKey, ...(seed ? { seed } : {}) });
 
 				} else if (ev.target.closest(".stonetop-monster-move-roll")) {
 					const li   = ev.target.closest("[data-item-id]");
