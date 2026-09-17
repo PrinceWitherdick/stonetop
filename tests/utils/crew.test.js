@@ -5,7 +5,30 @@ import {
 	crewExists,
 	customGroupSize,
 	effectiveCrewSize,
+	groupFollowerStanding,
 } from "../../module/utils/crew.js";
+
+describe("how many of a group follower are still standing", () => {
+	it("counts the crew's named individuals and anonymous tail, a missing HP as full", () => {
+		const flags = { crew: { size: 6, individuals: [{ name: "Lowri" }, { name: "Bran" }], individualsHp: { 0: 0, 1: 4 }, memberHp: [6, 0, null] } };
+		expect(groupFollowerStanding(flags, { ftype: "crew" })).toEqual({ standing: 4, size: 6 });
+	});
+
+	it("reads a crew with no size stored as the book's half-dozen", () => {
+		expect(groupFollowerStanding({ crew: { name: "The Crew" } }, { ftype: "crew" })).toEqual({ standing: 6, size: 6 });
+	});
+
+	it("counts a custom group's members, and ignores a custom follower who is not a group", () => {
+		const flags = { customFollowers: { warband: { isGroup: true, size: 4, memberHp: [0, 2, 0] }, enfys: { name: "Enfys" } } };
+		expect(groupFollowerStanding(flags, { ftype: "custom", slug: "warband" })).toEqual({ standing: 2, size: 4 });
+		expect(groupFollowerStanding(flags, { ftype: "custom", slug: "enfys" })).toBeNull();
+	});
+
+	it("has nothing to say about any other follower", () => {
+		expect(groupFollowerStanding({ animalCompanion: {} }, { ftype: "animal-companion" })).toBeNull();
+		expect(groupFollowerStanding({}, { ftype: "crew" })).toBeNull();
+	});
+});
 
 // This arithmetic decides three separate things that must agree: how many rows the Roster draws,
 // how far the size stepper trims the parallel HP / portrait arrays, and — since the portrait store

@@ -20,9 +20,15 @@
 // ⚠ NO `stonetop` CLASS ON THE ROOT. The sidebar tab is core chrome and follows core's theme;
 // utils/window-theme.js pins any ApplicationV2 carrying a `stonetop` class to the light theme, which
 // here would repaint the whole sidebar. The fight's cards carry their own paper and ink instead.
+//
+// DRAG A FOE ONTO A HERO. A GM's foe rows are draggable and hero rows take the drop, which moves the
+// foe's token next to the hero's (send-against.js). Native drag and drop, delegated from the frame so
+// it survives every redraw, and carrying only our own data type: dropped on the map or a sheet, the
+// row is nothing anybody else reads.
 
 import { snapshotFight, combatantBodies, combatantSide, COUNT_FLAG, SIDE_FLAG, LAST_LINE_UP_FLAG } from "./fight-state.js";
 import { fightTrackerView } from "./fight-view.js";
+import { canReadFoeVitals, combatantVitals, fightVitalsKey, followerRoster } from "./fight-vitals.js";
 import { otherSide, fightsAsGroup } from "./fight-sides.js";
 import { SYSTEM_ID } from "../system-id.js";
 import { contextMenuEntry } from "../utils/foundry-compat.js";
@@ -37,6 +43,11 @@ import { isFightOverlayShown, setFightOverlayShown } from "../settings.js";
 // searching the source for them.
 const HEADER_TEMPLATE = "systems/stonetop-pwd/templates/sidebar/fight-header.hbs";
 const TRACKER_TEMPLATE = "systems/stonetop-pwd/templates/sidebar/fight-tracker.hbs";
+
+/** The drag data type a foe's row carries: its combatant id. */
+export const FIGHTER_DRAG_TYPE = "application/x-stonetop-fighter";
+const DROP_CLASS = "is-drop-target";
+const DRAG_CLASS = "is-dragging";
 
 /** Whether a combatant's headcount is the GM's to set here, rather than read off a group monster. */
 function headcountIsOurs(combatant) {
@@ -72,6 +83,9 @@ export function createFightTrackerClass(Base) {
 
 		/** The engagements this tab last drew, so the watcher can skip a redraw that changes nothing. */
 		fightSignature = null;
+
+		/** Everyone's HP and armor as this tab last drew them, for the same skip. */
+		fightVitals = null;
 
 		/** @override */
 		async _preFirstRender(context, options) {
@@ -122,18 +136,28 @@ export function createFightTrackerClass(Base) {
 				snapshot, rows, isGM: !!user?.isGM, format, cites: bookPageCites, openRules: this._openRules,
 			});
 			this.fightSignature = snapshot.result.signature;
+			this.fightVitals = fightVitalsKey(combat);
 		}
 
 		/** What one combatant's row needs beyond the engagements. */
 		async _fightRow(combatant) {
 			const user = globalThis.game?.user;
+			const onCanvas = !!combatant.sceneId && combatant.sceneId === globalThis.canvas?.scene?.id;
 			const bodies = combatantBodies(combatant);
+			// A crew or a custom group says how many of its roster are still up, in place of the
+			// headcount the GM set: that number is for the engagement arithmetic, and does not fall.
+			const roster = followerRoster(combatant);
+			if (roster) Object.assign(bodies, { group: true, standing: roster.standing, size: roster.size });
 			return {
 				name: combatant.name ?? "",
 				img: await this._getCombatantThumbnail(combatant),
 				hidden: !!combatant.hidden,
 				defeated: !!combatant.isDefeated,
-				canPing: combatant.sceneId === globalThis.canvas?.scene?.id && !!user?.hasPermission?.("PING_CANVAS"),
+				vitals: combatantVitals(combatant),
+				seesFoeVitals: canReadFoeVitals(combatant, user),
+				side: combatantSide(combatant),
+				canPing: onCanvas && !!user?.hasPermission?.("PING_CANVAS"),
+				onCanvas,
 				group: bodies.group,
 				standing: bodies.standing,
 				size: bodies.size,
@@ -155,6 +179,51 @@ export function createFightTrackerClass(Base) {
 				if (event.target.open) this._openRules.add(key);
 				else this._openRules.delete(key);
 			}, true);
+			this.element.addEventListener("dragstart", event => this._onFightDragStart(event));
+			this.element.addEventListener("dragend", event => this._onFightDragEnd(event));
+			this.element.addEventListener("dragover", event => this._onFightDragOver(event));
+			this.element.addEventListener("dragleave", event => this._onFightDragLeave(event));
+			this.element.addEventListener("drop", event => this._onFightDrop(event));
+		}
+
+		/** A GM picks up a foe's row. */
+		_onFightDragStart(event) {
+			const row = event.target?.closest?.("[data-fight-drag]");
+			const id = row?.dataset?.combatantId;
+			if (!id || !event.dataTransfer) return;
+			event.dataTransfer.setData(FIGHTER_DRAG_TYPE, id);
+			event.dataTransfer.effectAllowed = "move";
+			row.classList.add(DRAG_CLASS);
+		}
+
+		_onFightDragEnd(event) {
+			event.target?.closest?.("[data-fight-drag]")?.classList.remove(DRAG_CLASS);
+			// The drop may have landed in the other copy of the tab (window or sidebar); clear this one.
+			for (const lit of this.element?.querySelectorAll?.(`.${DROP_CLASS}`) ?? []) lit.classList.remove(DROP_CLASS);
+		}
+
+		/** A hero's row under a dragged foe says it will take it. Only the type is readable mid-drag. */
+		_onFightDragOver(event) {
+			const row = event.target?.closest?.("[data-fight-drop]");
+			if (!row || ![...(event.dataTransfer?.types ?? [])].includes(FIGHTER_DRAG_TYPE)) return;
+			event.preventDefault();
+			event.dataTransfer.dropEffect = "move";
+			row.classList.add(DROP_CLASS);
+		}
+
+		_onFightDragLeave(event) {
+			const row = event.target?.closest?.("[data-fight-drop]");
+			if (row && !row.contains(event.relatedTarget)) row.classList.remove(DROP_CLASS);
+		}
+
+		/** A foe dropped on a hero: move the foe's token up against the hero's. */
+		_onFightDrop(event) {
+			const row = event.target?.closest?.("[data-fight-drop]");
+			const foeId = event.dataTransfer?.getData?.(FIGHTER_DRAG_TYPE);
+			if (!row || !foeId) return;
+			event.preventDefault();
+			row.classList.remove(DROP_CLASS);
+			return globalThis.game?.stonetop?.fight?.sendAgainst?.(this.viewed, foeId, row.dataset.combatantId);
 		}
 
 		/** @override: GM tools for one combatant; nothing about initiative. */

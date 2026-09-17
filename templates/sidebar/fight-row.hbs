@@ -10,13 +10,19 @@
       hover, and the number is printed, so the tab says who is being ganged up on without anyone
       having to see the map.
 
-      Source order is reading order: name, what they are doing, the badge, then the buttons. The
+      `data-fight-drag` marks a foe a GM can drag onto a hero, and `data-fight-drop` a hero that takes
+      one (FightTracker.js#_onFightDrop).
+
+      The line under the name is HP and Armor; who they are fighting is the name's tooltip, and is read
+      out with it.
+
+      Source order is reading order: name, HP and Armor, the badge, then the buttons. The
       stylesheet lifts the badge and the buttons up beside the name, so a row costs no extra line. --}}
-<li class="combatant stonetop-fight-row {{row.css}}" data-combatant-id="{{row.id}}" data-action="activateCombatant">
-  {{#if row.img}}<img class="stonetop-fight-face" src="{{row.img}}" alt="" loading="lazy">{{/if}}
+<li class="combatant stonetop-fight-row {{row.css}}" data-combatant-id="{{row.id}}" data-action="activateCombatant"{{#if row.draggable}} draggable="true" data-fight-drag{{/if}}{{#if row.dropTarget}} data-fight-drop{{/if}}>
+  {{#if row.img}}<img class="stonetop-fight-face" src="{{row.img}}" alt="" loading="lazy" draggable="false">{{/if}}
   <div class="stonetop-fight-row-text">
-    <strong class="name stonetop-fight-name">{{row.name}}</strong>
-    {{#if row.readout}}<span class="stonetop-fight-readout">{{row.readout}}</span>{{/if}}
+    <strong class="name stonetop-fight-name"{{#if row.readout}} data-tooltip-text="{{row.readout}}" aria-description="{{row.readout}}"{{/if}}>{{row.name}}</strong>
+    {{#if row.vitals}}<span class="stonetop-fight-readout stonetop-fight-vitals">{{row.vitals}}</span>{{/if}}
     {{#if row.standing}}<span class="stonetop-fight-standing">{{row.standing}}</span>{{/if}}
     {{#if row.badge}}
     <span class="stonetop-fight-badge" role="img" aria-label="{{row.badge.label}}" data-tooltip-text="{{row.badge.label}}">&times;{{row.badge.count}}</span>

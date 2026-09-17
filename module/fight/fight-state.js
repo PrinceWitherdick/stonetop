@@ -112,6 +112,21 @@ export function tokenRect(tokenDoc) {
 	return { x: Number(src.x) || 0, y: Number(src.y) || 0, w: size.width, h: size.height };
 }
 
+/** The level a token stands on, from its saved data, or null on a map without levels. */
+export const tokenLevel = tokenDoc => tokenDoc?._source?.level ?? null;
+
+/** The canvas's scene rectangle, as `{x, y, w, h}`, or null. */
+export function sceneRectOf(canvas) {
+	const rect = canvas?.dimensions?.sceneRect ?? canvas?.dimensions?.rect ?? null;
+	return rect ? { x: rect.x, y: rect.y, w: rect.width, h: rect.height } : null;
+}
+
+/** Whether rectangle `at` lies wholly inside `bounds`; anything does when there are no bounds. */
+export function insideRect(at, bounds) {
+	return !bounds || (at.x >= bounds.x && at.y >= bounds.y
+		&& at.x + at.w <= bounds.x + bounds.w && at.y + at.h <= bounds.y + bounds.h);
+}
+
 /**
  * One combatant as a fighter on `scene`, or null when their token is not on it.
  *
@@ -132,7 +147,7 @@ export function fighterOf(combatant, { scene, viewer = globalThis.game?.user } =
 		side,
 		name: combatant.name || token.name || combatant.actor?.name || "",
 		rect: tokenRect(token),
-		level: token._source?.level ?? null,
+		level: tokenLevel(token),
 		bodies,
 		out,
 		visible,

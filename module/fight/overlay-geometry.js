@@ -8,6 +8,14 @@ export function rectCenter(r) {
 	return { x: r.x + r.w / 2, y: r.y + r.h / 2 };
 }
 
+/** The share of the smaller of two rectangles that they have in common. */
+export function overlapShare(a, b) {
+	const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+	const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+	if (w <= 0 || h <= 0) return 0;
+	return (w * h) / Math.max(1, Math.min(a.w * a.h, b.w * b.h));
+}
+
 /** The point of rectangle `r` nearest to point `p`. */
 function nearestPoint(r, p) {
 	return {

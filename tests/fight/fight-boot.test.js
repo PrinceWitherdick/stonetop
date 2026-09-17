@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { registerFightTab, stampFight, stampSide, refreshFightTab } from "../../module/fight/fight-boot.js";
 import { snapshotFight } from "../../module/fight/fight-state.js";
+import { fightVitalsKey } from "../../module/fight/fight-vitals.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
 import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection } from "../fakes/fight.js";
 
@@ -68,6 +69,7 @@ describe("registerFightTab", () => {
 			expect(hooks.registered.has(name), name).toBe(true);
 		}
 		expect(typeof globalThis.game.stonetop.fight.refreshOverlay).toBe("function");
+		expect(typeof globalThis.game.stonetop.fight.sendAgainst).toBe("function");
 	});
 
 	it("does nothing without core's tracker class to build on", () => {
@@ -149,8 +151,17 @@ describe("refreshFightTab", () => {
 	it("skips a redraw that would change nothing", () => {
 		const tab = tabWithFight(null);
 		tab.fightSignature = snapshotFight(tab.viewed, { scene: tab.viewed.scene }).result.signature;
+		tab.fightVitals = fightVitalsKey(tab.viewed);
 		refreshFightTab(tab);
 		expect(tab.render).not.toHaveBeenCalled();
+	});
+
+	it("redraws when someone's HP or armor changed though the engagements did not", () => {
+		const tab = tabWithFight(null);
+		tab.fightSignature = snapshotFight(tab.viewed, { scene: tab.viewed.scene }).result.signature;
+		tab.fightVitals = "stale";
+		refreshFightTab(tab);
+		expect(tab.render).toHaveBeenCalledWith({ parts: ["tracker"] });
 	});
 
 	it("leaves an undrawn tab, or a tab with no fight, alone", () => {

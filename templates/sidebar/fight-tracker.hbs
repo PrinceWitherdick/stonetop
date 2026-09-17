@@ -1,7 +1,7 @@
 {{!-- The Fight tab's body (module/fight/FightTracker.js, view built by module/fight/fight-view.js).
 
-      One card per engagement (Book I p.414's "smaller engagements"): heroes on the left, foes on
-      the right, our short computed lines under them, and the book's own words folded away beneath.
+      One card per engagement (Book I p.414's "smaller engagements"): each hero with the foes they
+      fight indented under them, our short computed lines after, and the book's own words folded away beneath.
       Then everyone nobody is engaged with, anyone out of the fight, and anyone whose token is on
       another map. Everything the map overlay draws is also said here, as text.
 
@@ -15,13 +15,17 @@
     <ol class="stonetop-fight-cards plain" aria-label="{{localize "stonetop.fight.aria.engagements"}}">
       {{#each fight.clusters}}
       <li class="stonetop-fight-card" data-cluster-id="{{id}}">
-        <div class="stonetop-fight-sides">
-          <ul class="stonetop-fight-side stonetop-fight-side--heroes plain" aria-label="{{localize "stonetop.fight.aria.heroes"}}">
-            {{#each heroes}}{{> "stonetop.fight-row" row=this gm=../../fight.isGM}}{{/each}}
-          </ul>
-          <ul class="stonetop-fight-side stonetop-fight-side--foes plain" aria-label="{{localize "stonetop.fight.aria.foes"}}">
-            {{#each foes}}{{> "stonetop.fight-row" row=this gm=../../fight.isGM}}{{/each}}
-          </ul>
+        <div class="stonetop-fight-pairs">
+          {{#each pairs}}
+          <div class="stonetop-fight-pair">
+            <ul class="stonetop-fight-side stonetop-fight-side--heroes plain">{{> "stonetop.fight-row" row=hero gm=@root.fight.isGM}}</ul>
+            {{#if foes.length}}
+            <ul class="stonetop-fight-side stonetop-fight-side--foes stonetop-fight-attached plain" aria-label="{{label}}">
+              {{#each foes}}{{> "stonetop.fight-row" row=this gm=@root.fight.isGM}}{{/each}}
+            </ul>
+            {{/if}}
+          </div>
+          {{/each}}
         </div>
         {{#if facts.length}}
         <ul class="stonetop-fight-facts plain">
@@ -39,6 +43,7 @@
     {{#if fight.unengaged.foes.length}}
     <section class="stonetop-fight-section stonetop-fight-section--foes">
       <h3 class="stonetop-fight-section-title">{{localize "stonetop.fight.section.unengagedFoes"}}</h3>
+      {{#if fight.dragHint}}<p class="stonetop-fight-note stonetop-fight-drag-hint">{{localize "stonetop.fight.dragHint"}}</p>{{/if}}
       <ul class="stonetop-fight-list plain">
         {{#each fight.unengaged.foes}}{{> "stonetop.fight-row" row=this gm=../fight.isGM}}{{/each}}
       </ul>

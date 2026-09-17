@@ -10,12 +10,19 @@
 //    map mid-animation, the canvas zooming). The overlay redraws; the tab does not care.
 
 import { coalesceFrame } from "../utils/coalesce.js";
+import { SYSTEM_ID } from "../system-id.js";
 
 /** Token fields that can change contact, visibility or which actor stands behind the token. */
 const TOKEN_KEYS = ["x", "y", "width", "height", "hidden", "elevation", "level", "shape", "actorId", "actorLink", "disposition"];
 
-/** Actor fields that change how many bodies a token stands for. */
-const ACTOR_PATHS = ["system.attributes.hp", "system.count", "system.fightAsGroup", "system.organization"];
+/**
+ * Actor fields that change how many bodies a token stands for, or the numbers a row shows: HP, armor,
+ * and a character's crew and custom followers, whose rosters say how many of a group are standing.
+ */
+const ACTOR_PATHS = [
+	"system.attributes.hp", "system.attributes.armor", "system.count", "system.fightAsGroup", "system.organization",
+	`flags.${SYSTEM_ID}.crew`, `flags.${SYSTEM_ID}.customFollowers`,
+];
 
 /** Whether an update's (expanded) change object reaches `path`. */
 function touchesPath(changes, path) {
@@ -27,7 +34,7 @@ function touchesPath(changes, path) {
 	return true;
 }
 
-/** Whether an actor update changed anything that decides bodies. */
+/** Whether an actor update changed anything that decides bodies or a row's numbers. */
 export function actorChangeCountsBodies(changes = {}) {
 	const flat = Object.keys(changes ?? {});
 	return ACTOR_PATHS.some(path => touchesPath(changes, path) || flat.some(key => key === path || key.startsWith(`${path}.`)));

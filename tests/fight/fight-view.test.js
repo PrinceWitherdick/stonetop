@@ -4,6 +4,7 @@ import path from "node:path";
 import Handlebars from "handlebars";
 import { fightTrackerView } from "../../module/fight/fight-view.js";
 import { snapshotFight } from "../../module/fight/fight-state.js";
+import { combatantVitals } from "../../module/fight/fight-vitals.js";
 import { bookPageCites } from "../../module/gm-toolkit/book-ref.js";
 import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat } from "../fakes/fight.js";
 
@@ -30,9 +31,9 @@ afterEach(() => { globalThis.game.user = saved.user; });
 function fight() {
 	const actor = (id, type, system = {}) => fakeActor({ id, name: id[0].toUpperCase() + id.slice(1), type, system });
 	const tokens = {
-		bram: fakeToken({ id: "tBram", col: 0, row: 1, actor: actor("bram", "character") }),
+		bram: fakeToken({ id: "tBram", col: 0, row: 1, actor: actor("bram", "character", { attributes: { hp: { value: 7, max: 10 }, armor: { value: 2 } } }) }),
 		aeliana: fakeToken({ id: "tAel", col: 0, row: 3, actor: actor("aeliana", "character") }),
-		crinwin: fakeToken({ id: "tCrin", col: 0, row: 2, actor: actor("crinwin", "monster") }),
+		crinwin: fakeToken({ id: "tCrin", col: 0, row: 2, actor: actor("crinwin", "monster", { attributes: { hp: { value: 5, max: 9 }, armor: { value: 1 } } }) }),
 		cadi: fakeToken({ id: "tCadi", col: 6, row: 1, actor: actor("cadi", "character") }),
 		wolf1: fakeToken({ id: "tW1", col: 5, row: 1, actor: actor("wolf", "monster") }),
 		wolf2: fakeToken({ id: "tW2", col: 7, row: 1, actor: actor("wolf", "monster") }),
@@ -53,14 +54,14 @@ function fight() {
 	return { scene, combat };
 }
 
-function view(isGM) {
+function view(isGM, { seesFoeVitals = false } = {}) {
 	const { scene, combat } = fight();
 	const viewer = { id: isGM ? "gm" : "player", isGM };
 	globalThis.game.user = viewer;
 	const snapshot = snapshotFight(combat, { scene, viewer, users: [], canvasScene: scene });
 	const rows = new Map([...combat.combatants].map(cb => {
 		const bodies = cb.id === "cHorde" ? { group: true, standing: 3, size: 6 } : {};
-		return [cb.id, { name: cb.actor.name, img: `art/${cb.id}.webp`, hidden: cb.hidden, defeated: false, canPing: true, ...bodies }];
+		return [cb.id, { name: cb.actor.name, img: `art/${cb.id}.webp`, hidden: cb.hidden, defeated: false, canPing: true, onCanvas: true, vitals: combatantVitals(cb), seesFoeVitals, ...bodies }];
 	}));
 	return fightTrackerView({ snapshot, rows, isGM, format, cites: bookPageCites });
 }
@@ -74,6 +75,28 @@ describe("fightTrackerView", () => {
 		]);
 	});
 
+	it("puts each foe under the first hero fighting it, once", () => {
+		const v = view(true);
+		const pairs = v.clusters.map(c => c.pairs.map(p => [p.hero.name, p.foes.map(r => r.name)]));
+		expect(pairs).toEqual([
+			[["Bram", ["Crinwin"]], ["Aeliana", []]],
+			[["Cadi", ["Wolf", "Wolf"]]],
+		]);
+		expect(v.clusters[1].pairs[0].label).toBe("Against Cadi");
+	});
+
+	it("lets a GM drag capable foes on this map onto capable heroes, and a player neither", () => {
+		const gm = view(true);
+		expect(gm.clusters[0].foes[0]).toMatchObject({ draggable: true, dropTarget: false });
+		expect(gm.clusters[0].heroes[0]).toMatchObject({ draggable: false, dropTarget: true });
+		expect(gm.unengaged.foes.every(r => r.draggable)).toBe(true);
+		expect(gm.out[0]).toMatchObject({ draggable: false, dropTarget: false });
+		expect(gm.dragHint).toBe(true);
+		const player = view(false);
+		expect([...player.clusters.flatMap(c => [...c.heroes, ...c.foes]), ...player.unengaged.foes].some(r => r.draggable || r.dropTarget)).toBe(false);
+		expect(player.dragHint).toBe(false);
+	});
+
 	it("says what each row is doing, and badges whoever is ganged up on", () => {
 		const v = view(true);
 		const [first, second] = v.clusters;
@@ -82,6 +105,28 @@ describe("fightTrackerView", () => {
 		expect(second.heroes[0]).toMatchObject({ readout: "fighting Wolf & Wolf", badge: { count: 2, label: "Facing 2 in melee" } });
 		expect(first.facts).toEqual(["+1 damage on Crinwin (2 attackers)"]);
 		expect(second.facts).toEqual(["+1 damage on Cadi (2 foes)"]);
+	});
+
+	it("shows HP and armor under each name, a foe's only to a GM or a player who can observe it", () => {
+		const gm = view(true);
+		expect(gm.clusters[0].heroes[0].vitals).toBe("HP 7/10 · Armor 2");
+		expect(gm.clusters[0].foes[0].vitals).toBe("HP 5/9 · Armor 1");
+		expect(gm.clusters[0].heroes[1].vitals).toBe("");
+		const player = view(false);
+		expect(player.clusters[0].heroes[0].vitals).toBe("HP 7/10 · Armor 2");
+		expect(player.clusters[0].foes[0].vitals).toBe("");
+		expect(view(false, { seesFoeVitals: true }).clusters[0].foes[0].vitals).toBe("HP 5/9 · Armor 1");
+	});
+
+	it("hides a foe's HP on another map from a player, and still shows a hero's", () => {
+		const { scene, combat } = fight();
+		const viewer = { id: "player", isGM: false };
+		globalThis.game.user = viewer;
+		const snapshot = snapshotFight(combat, { scene, viewer, users: [], canvasScene: scene });
+		const away = [{ id: "cGone", side: "foes" }, { id: "cFar", side: "heroes" }, { id: "cWho", side: null }];
+		const rows = new Map(away.map(({ id, side }) => [id, { name: id, vitals: { hp: 4, hpMax: 6, armor: 1 }, seesFoeVitals: false, side }]));
+		const v = fightTrackerView({ snapshot: { ...snapshot, elsewhere: away.map(({ id }) => ({ id })) }, rows, isGM: false, format, cites: bookPageCites });
+		expect(v.elsewhere.map(r => [r.id, r.vitals])).toEqual([["cGone", ""], ["cFar", "HP 4/6 · Armor 1"], ["cWho", ""]]);
 	});
 
 	it("quotes the book with a page to open", () => {
@@ -129,6 +174,16 @@ describe("the Fight tab's templates", () => {
 		expect(html).toContain('data-combatant-id="cBram" data-action="activateCombatant"');
 	});
 
+	it("indent each hero's foes under them, marked for dragging, with the hint where the loose foes are", () => {
+		const html = tracker({ fight: view(true), isGM: true });
+		expect(html).toMatch(/data-combatant-id="cCadi"[^>]*data-fight-drop[\s\S]*?<ul class="stonetop-fight-side stonetop-fight-side--foes stonetop-fight-attached plain" aria-label="Against Cadi">[\s\S]*?data-combatant-id="cW1"[^>]*draggable="true" data-fight-drag/);
+		expect(html).toContain("Drag a foe onto a hero");
+		const player = tracker({ fight: view(false), isGM: false });
+		expect(player).not.toContain("data-fight-drag");
+		expect(player).not.toContain("data-fight-drop");
+		expect(player).not.toContain("Drag a foe onto a hero");
+	});
+
 	it("give a GM the hide and out controls, and a player neither", () => {
 		const gm = tracker({ fight: view(true), isGM: true });
 		expect(gm).toContain('data-action="toggleHidden"');
@@ -137,6 +192,13 @@ describe("the Fight tab's templates", () => {
 		expect(player).not.toContain('data-action="toggleHidden"');
 		expect(player).not.toContain('data-action="toggleDefeated"');
 		expect(player).toContain('data-action="pingCombatant"');
+	});
+
+	it("print HP and armor under the name, and who they are fighting on the name's tooltip", () => {
+		const html = tracker({ fight: view(true), isGM: true });
+		expect(html).toContain('<strong class="name stonetop-fight-name" data-tooltip-text="fought by Bram &amp; Aeliana" aria-description="fought by Bram &amp; Aeliana">Crinwin</strong>');
+		expect(html).toContain('<span class="stonetop-fight-readout stonetop-fight-vitals">HP 5/9 · Armor 1</span>');
+		expect(html).not.toContain(">fought by Bram");
 	});
 
 	it("print the count on a badge with a label a screen reader says", () => {

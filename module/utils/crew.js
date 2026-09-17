@@ -44,6 +44,50 @@ export function customGroupSize(follower) {
 }
 
 /**
+ * Whether a roster slot's stored HP leaves that member standing, on the sheet's own terms
+ * (`_clampHp`): nothing stored is full HP, and anything that reads as a number counts at that number.
+ */
+function memberStanding(raw) {
+	return raw == null || !Number.isFinite(Number(raw)) || Number(raw) > 0;
+}
+
+/**
+ * How many of a group follower's members are still standing, read off the character's flags: the
+ * crew (named individuals, then the anonymous tail) or a custom GROUP follower. Null for any other
+ * follower, or a custom one that is not a group.
+ *
+ * @param {object} flags  the character's system flags
+ * @param {{ftype: string, slug?: string}} which  the card, as a follower actor's `followerOrigin` names it
+ * @returns {{standing: number, size: number}|null}
+ */
+/** How many of the first `count` HP entries are a member still standing. */
+function countStanding(hp, count) {
+	let standing = 0;
+	for (let i = 0; i < count; i += 1) if (memberStanding(hp[i])) standing += 1;
+	return standing;
+}
+
+export function groupFollowerStanding(flags, { ftype, slug = "" } = {}) {
+	if (ftype === "crew") {
+		const crew = flags?.crew;
+		if (!crew) return null;
+		const named = Array.isArray(crew.individuals) ? crew.individuals.length : 0;
+		const size = effectiveCrewSize(crew.size, named);
+		const individualsHp = crew.individualsHp ?? {};
+		const memberHp = Array.isArray(crew.memberHp) ? crew.memberHp : [];
+		return { standing: countStanding(individualsHp, named) + countStanding(memberHp, size - named), size };
+	}
+	if (ftype === "custom") {
+		const follower = flags?.customFollowers?.[slug];
+		if (!follower?.isGroup) return null;
+		const size = customGroupSize(follower);
+		const memberHp = Array.isArray(follower.memberHp) ? follower.memberHp : [];
+		return { standing: countStanding(memberHp, size), size };
+	}
+	return null;
+}
+
+/**
  * What to call the Nth ANONYMOUS crew member — the unnamed tail that starts where the named
  * individuals stop, so the roster numbers read straight down past them.
  *

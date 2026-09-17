@@ -15,6 +15,8 @@ import { installFightWatcher } from "./fight-watcher.js";
 import { combatantSide, snapshotFight, FIGHT_FLAG, SIDE_FLAG } from "./fight-state.js";
 import { refreshFightOverlay, invalidateFightOverlay, teardownFightOverlay } from "./fight-overlay.js";
 import { openStartFight, lineUpFight, putBackFight } from "./start-fight.js";
+import { sendAgainst } from "./send-against.js";
+import { fightVitalsKey } from "./fight-vitals.js";
 
 /**
  * `preCreateCombat`: mark a new Combat as a fight, and tie it to the scene it is started on.
@@ -43,15 +45,15 @@ export function stampSide(combatant, data = {}) {
 }
 
 /**
- * Redraw the Fight tab's body when the engagements it shows have changed, and not otherwise: a token
- * sliding one square along a wall changes nothing the tab says.
+ * Redraw the Fight tab's body when the engagements or anyone's HP or armor have changed, and not
+ * otherwise: a token sliding one square along a wall changes nothing the tab says.
  */
 export function refreshFightTab(tab = globalThis.ui?.combat) {
 	const combat = tab?.viewed;
 	if (!tab?.rendered || !combat) return;
 	const scene = combat.scene ?? globalThis.canvas?.scene ?? null;
 	const signature = snapshotFight(combat, { scene })?.result.signature ?? null;
-	if (signature !== tab.fightSignature) tab.render({ parts: ["tracker"] });
+	if (signature !== tab.fightSignature || fightVitalsKey(combat) !== tab.fightVitals) tab.render({ parts: ["tracker"] });
 }
 
 /**
@@ -80,6 +82,7 @@ export function registerFightTab({ config = globalThis.CONFIG, hooks = globalThi
 			openStart: options => openStartFight(options),
 			lineUp: combat => lineUpFight(combat),
 			putBack: combat => putBackFight(combat),
+			sendAgainst: (combat, foeId, heroId) => sendAgainst(combat, foeId, heroId),
 		};
 	}
 	installFightWatcher({

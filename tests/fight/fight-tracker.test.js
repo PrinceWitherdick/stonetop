@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { createFightTrackerClass } from "../../module/fight/FightTracker.js";
+import { createFightTrackerClass, FIGHTER_DRAG_TYPE } from "../../module/fight/FightTracker.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
 import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection } from "../fakes/fight.js";
 
@@ -212,6 +212,62 @@ describe("the Fight tab class", () => {
 		tab.viewed = combat;
 		await FightTracker.DEFAULT_OPTIONS.actions.stopRounds.call(tab);
 		expect(combat.update).toHaveBeenCalledWith({ round: 0, turn: null });
+	});
+
+	describe("dragging a foe onto a hero", () => {
+		/** A row as far as the handlers read it. */
+		const fakeRow = (id, attr) => {
+			const classes = new Set();
+			const row = {
+				dataset: { combatantId: id },
+				classList: { add: c => classes.add(c), remove: c => classes.delete(c), contains: c => classes.has(c) },
+				contains: node => node === row,
+				closest: selector => (selector === `[${attr}]` ? row : null),
+			};
+			return row;
+		};
+		const transfer = () => {
+			const data = new Map();
+			return { setData: (t, v) => data.set(t, v), getData: t => data.get(t) ?? "", get types() { return [...data.keys()]; } };
+		};
+
+		it("carries the foe's id, lights the hero it is over, and sends the foe on the drop", async () => {
+			const { combat } = oneFight();
+			const sendAgainst = vi.fn();
+			globalThis.game.stonetop = { fight: { sendAgainst } };
+			const tab = new FightTracker();
+			tab.viewed = combat;
+			const foe = fakeRow("cCrin", "data-fight-drag");
+			const hero = fakeRow("cBram", "data-fight-drop");
+			const dataTransfer = transfer();
+
+			tab._onFightDragStart({ target: foe, dataTransfer });
+			expect(dataTransfer.getData(FIGHTER_DRAG_TYPE)).toBe("cCrin");
+			expect(foe.classList.contains("is-dragging")).toBe(true);
+
+			const over = { target: hero, dataTransfer, preventDefault: vi.fn() };
+			tab._onFightDragOver(over);
+			expect(over.preventDefault).toHaveBeenCalled();
+			expect(hero.classList.contains("is-drop-target")).toBe(true);
+
+			const drop = { target: hero, dataTransfer, preventDefault: vi.fn() };
+			tab._onFightDrop(drop);
+			expect(sendAgainst).toHaveBeenCalledWith(combat, "cCrin", "cBram");
+			expect(hero.classList.contains("is-drop-target")).toBe(false);
+		});
+
+		it("takes no drop that is not a foe's row, and nothing onto a row that is not a hero", () => {
+			const tab = new FightTracker();
+			const hero = fakeRow("cBram", "data-fight-drop");
+			const foreign = { target: hero, dataTransfer: { types: ["text/plain"] }, preventDefault: vi.fn() };
+			tab._onFightDragOver(foreign);
+			expect(foreign.preventDefault).not.toHaveBeenCalled();
+			const dataTransfer = transfer();
+			dataTransfer.setData(FIGHTER_DRAG_TYPE, "cCrin");
+			const onFoe = { target: fakeRow("cW", "data-fight-drag"), dataTransfer, preventDefault: vi.fn() };
+			tab._onFightDragOver(onFoe);
+			expect(onFoe.preventDefault).not.toHaveBeenCalled();
+		});
 	});
 
 	it("hands Start, Add and Line up to the fight's own functions", () => {

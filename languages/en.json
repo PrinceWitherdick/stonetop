@@ -1786,7 +1786,10 @@
         "shotBy": "shot at by {names}",
         "joiner": "; ",
         "standing": "{standing} of {size} standing",
-        "together": "{count} together"
+        "together": "{count} together",
+        "hp": "HP {hp}",
+        "hpOf": "HP {hp}/{max}",
+        "vitals": "{hp} · Armor {armor}"
       },
       "badge": {
         "foughtBy": "Fought by {count}",
@@ -1815,6 +1818,10 @@
       "empty": "Nobody is in this fight yet.",
       "emptyGM": "Nobody is in this fight yet. Add them, or select tokens and use the combat toggle on a token's HUD.",
       "noEngagements": "Nobody is engaged. Move a token next to a foe, or target one from range.",
+      "dragHint": "Drag a foe onto a hero to put it next to them on the map.",
+      "send": {
+        "noRoom": "There is no free space next to {name}."
+      },
       "roundsNote": "This fight was started in Foundry's tracker, which counts rounds and turns. Stonetop does not take turns.",
       "stopRounds": "Stop counting rounds",
       "cycle": {
@@ -1831,8 +1838,7 @@
       },
       "aria": {
         "engagements": "Engagements",
-        "heroes": "Heroes",
-        "foes": "Foes"
+        "against": "Against {name}"
       },
       "rules": {
         "summary": "What the book says"

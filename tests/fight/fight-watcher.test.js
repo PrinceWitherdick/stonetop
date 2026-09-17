@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { installFightWatcher, tokenChangeCountsContact, actorChangeCountsBodies } from "../../module/fight/fight-watcher.js";
+import { SYSTEM_ID } from "../../module/system-id.js";
 
 // What makes the fight on the map need recomputing, and what only needs redrawing.
 
@@ -24,13 +25,20 @@ describe("which changes count", () => {
 		expect(tokenChangeCountsContact({ name: "Renamed", texture: {} })).toBe(false);
 	});
 
-	it("counts an actor's HP or group numbers, however the change is spelled", () => {
+	it("counts an actor's HP, armor or group numbers, however the change is spelled", () => {
 		expect(actorChangeCountsBodies({ system: { attributes: { hp: { value: 2 } } } })).toBe(true);
 		expect(actorChangeCountsBodies({ system: { count: 6 } })).toBe(true);
 		expect(actorChangeCountsBodies({ "system.fightAsGroup": true })).toBe(true);
 		expect(actorChangeCountsBodies({ "system.attributes.hp.value": 1 })).toBe(true);
-		expect(actorChangeCountsBodies({ system: { attributes: { armor: { value: 2 } } } })).toBe(false);
+		expect(actorChangeCountsBodies({ system: { attributes: { armor: { value: 2 } } } })).toBe(true);
+		expect(actorChangeCountsBodies({ system: { attributes: { stats: { str: 2 } } } })).toBe(false);
 		expect(actorChangeCountsBodies({ name: "x" })).toBe(false);
+	});
+
+	it("counts a character's crew or custom follower roster changing, and not their other flags", () => {
+		expect(actorChangeCountsBodies({ flags: { [SYSTEM_ID]: { crew: { memberHp: [0, 6] } } } })).toBe(true);
+		expect(actorChangeCountsBodies({ [`flags.${SYSTEM_ID}.customFollowers.warband.memberHp`]: [3] })).toBe(true);
+		expect(actorChangeCountsBodies({ flags: { [SYSTEM_ID]: { notes: "x" } } })).toBe(false);
 	});
 });
 

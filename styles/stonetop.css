@@ -6295,15 +6295,20 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	color: var(--st-text-body);
 }
 
-/* Heroes and foes side by side while the tab is wide enough, one above the other when it is not.
-   "Wide enough" is a column that holds a GM's row whole: face, a 5em name, the count badge and
-   three buttons on one line. The font size here is the rows' own, scale included, so the 19.5em
-   grows with the reader's text size (the row needs 19.2em at a text size of 0.9, 15em at 1.4). */
-.stonetop-fight-sides {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(min(100%, 19.5em), 1fr));
+/* Each hero, with the foes they fight indented under them and tied to them by a rule down the left:
+   the tab's picture of the line on the map. The indent is in the rows' own ems, so it grows with the
+   reader's text size. */
+.stonetop-fight-pairs,
+.stonetop-fight-pair {
+	display: flex;
+	flex-direction: column;
 	gap: 6px;
 	font-size: calc(0.8rem * var(--stonetop-font-scale, 1));
+}
+.stonetop-fight-pair { gap: 2px; }
+.stonetop-fight-attached {
+	margin-left: 1.5em;
+	border-left: 3px solid var(--st-red-border);
 }
 
 .stonetop-fight-side,
@@ -6333,6 +6338,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 .stonetop-fight-tracker .combatant.stonetop-fight-row:hover,
 .stonetop-fight-tracker .combatant.stonetop-fight-row.hover {
 	background: color-mix(in srgb, var(--st-text) 8%, transparent);
+}
+
+/* Dragging a foe onto a hero (FightTracker.js): the foe picked up fades, the hero it would go to is
+   ringed. A dashed ring, not a tint alone, so the target reads without telling colours apart. */
+.stonetop-fight-tracker .combatant.stonetop-fight-row[draggable="true"] { cursor: grab; }
+.stonetop-fight-tracker .combatant.stonetop-fight-row.is-dragging { opacity: 0.5; }
+.stonetop-fight-tracker .combatant.stonetop-fight-row.is-drop-target {
+	outline: 2px dashed var(--st-text);
+	outline-offset: -2px;
+	background: color-mix(in srgb, var(--st-text) 12%, transparent);
 }
 
 /* A dark plate behind the face: core's placeholder art (mystery-man, token rings) is white on
