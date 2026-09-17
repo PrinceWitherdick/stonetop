@@ -803,6 +803,10 @@
       "fightWindowAuto": {
         "name": "Open the Fight window when a fight starts",
         "hint": "When a fight starts on the map you are looking at, the Fight tab opens in a window of its own, and the window closes when the fight ends. If you close it, it stays closed until the next fight. Turn this off to keep fights in the sidebar: the Fight tab's Open in a window button still opens it."
+      },
+      "fightRing": {
+        "name": "Fight buttons when you click a token",
+        "hint": "During a fight, clicking a token you control puts buttons around it: Clash, Let Fly and the damage die for a character, and a button for each attack a monster has. Click the token again, or anywhere on the map, to put them away. Right-clicking still opens Foundry's token controls."
       }
     },
     "newCharacter": {
@@ -1849,6 +1853,14 @@
       },
       "rules": {
         "summary": "What the book says"
+      },
+      "ring": {
+        "label": "{name} in the fight",
+        "moves": "Moves",
+        "damageGroup": "Damage rolls",
+        "damage": "Damage",
+        "rollMove": "Roll {move}",
+        "rollDamage": "Roll damage: {label}, {formula}"
       },
       "targets": {
         "title": "{name}: who does this hit?",

@@ -20,6 +20,7 @@ import { sendAgainst } from "./send-against.js";
 import { installFightWindow, openFightWindow, syncFightWindow } from "./fight-window.js";
 import { fightVitalsKey } from "./fight-vitals.js";
 import { openFightBook } from "./FightBookWindow.js";
+import { createFightTokenClass, installFightRing, syncFightRing } from "./fight-ring.js";
 
 /**
  * `preCreateCombat`: mark a new Combat as a fight, and tie it to the scene it is started on.
@@ -72,6 +73,9 @@ export function registerFightTab({ config = globalThis.CONFIG, hooks = globalThi
 	config.ui.combat = createFightTrackerClass(Base);
 	const combatTab = config.ui.sidebar?.TABS?.combat;
 	if (combatTab) combatTab.tooltip = "stonetop.fight.tab";
+	// A click on a token in the fight puts its moves and damage dice round it (fight-ring.js). Built on
+	// whatever token class is configured by now, so a module that got there first keeps its changes.
+	if (config.Token?.objectClass) config.Token.objectClass = createFightTokenClass(config.Token.objectClass);
 
 	hooks.on("preCreateCombat", stampFight);
 	hooks.on("preCreateCombatant", stampSide);
@@ -95,10 +99,11 @@ export function registerFightTab({ config = globalThis.CONFIG, hooks = globalThi
 		// The watcher follows an engagement change with a geometry run, which then paints afresh.
 		// Everything that can start, end or reveal a fight is an engagement change, so the Fight
 		// window (fight-window.js) opens and closes from here too.
-		onEngagement: () => { invalidateFightOverlay(); refreshFightTab(); syncFightWindow(); },
+		onEngagement: () => { invalidateFightOverlay(); refreshFightTab(); syncFightWindow(); syncFightRing(); },
 		onGeometry: () => refreshFightOverlay({ reuse: true }),
 	});
 	installFightWindow({ hooks });
+	installFightRing({ hooks });
 	// The canvas destroys the overlay with its interface group; drop the handles to it.
 	hooks.on("canvasTearDown", teardownFightOverlay);
 	// A reader switching high contrast on or off gets the lines repainted in that mode's ink.

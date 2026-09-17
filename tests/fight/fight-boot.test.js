@@ -74,6 +74,25 @@ describe("registerFightTab", () => {
 		expect(typeof globalThis.game.stonetop.fight.sendAgainst).toBe("function");
 	});
 
+	it("builds the token class on whatever token class is configured, so a click can put the fight ring up", () => {
+		settings.set("fightTab", true);
+		class ModuleToken { _onUnclickLeft() {} }
+		const config = { ui: { combat: CombatTracker }, Token: { objectClass: ModuleToken } };
+		const hooks = fakeHooks();
+		expect(registerFightTab({ config, hooks, foundryNs: { applications: { sidebar: { tabs: { CombatTracker } } } }, game: globalThis.game })).toBe(true);
+		expect(config.Token.objectClass.prototype).toBeInstanceOf(ModuleToken);
+		expect(config.Token.objectClass.name).toBe("StonetopToken");
+		for (const name of ["canvasReady", "controlToken", "deleteToken"]) expect(hooks.registered.has(name), name).toBe(true);
+	});
+
+	it("leaves the token class alone with the Fight tab off", () => {
+		settings.set("fightTab", false);
+		class CoreToken {}
+		const config = { ui: { combat: CombatTracker }, Token: { objectClass: CoreToken } };
+		registerFightTab({ config, hooks: fakeHooks(), foundryNs: { applications: { sidebar: { tabs: { CombatTracker } } } } });
+		expect(config.Token.objectClass).toBe(CoreToken);
+	});
+
 	it("does nothing without core's tracker class to build on", () => {
 		settings.set("fightTab", true);
 		const config = { ui: { combat: CombatTracker } };

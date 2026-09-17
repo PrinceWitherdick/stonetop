@@ -515,6 +515,9 @@ Hooks.once("init", () => {
 		// The Fight tab's rows and its "What the book says" folds (module/fight/FightTracker.js).
 		"stonetop.fight-row":   "systems/stonetop-pwd/templates/sidebar/fight-row.hbs",
 		"stonetop.fight-rules": "systems/stonetop-pwd/templates/sidebar/fight-rules.hbs",
+		// The buttons a click puts round a token in the fight (module/fight/fight-ring.js), cached so
+		// the first click of the evening does not wait on a fetch.
+		"stonetop.fight-ring":  "systems/stonetop-pwd/templates/hud/fight-ring.hbs",
 		"stonetop.section-heading":  "systems/stonetop-pwd/templates/actor/partials/section-heading.hbs",
 		"stonetop.section-collapse": "systems/stonetop-pwd/templates/actor/partials/section-collapse.hbs",
 		"stonetop.section-randomize": "systems/stonetop-pwd/templates/actor/partials/section-randomize.hbs",

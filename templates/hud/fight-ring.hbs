@@ -1,0 +1,24 @@
+{{!-- The fight ring (module/fight/fight-ring.js): a token's moves on its left, its damage rolls on its
+     right, placed round the token the way core's token HUD places its columns.
+     BOTH COLUMNS ALWAYS RENDER, even empty. This is a root part, and core unwraps a root template that
+     renders a single element (HandlebarsApplicationMixin#_replaceHTML puts its CHILDREN in the window),
+     so a monster's lone damage column would lose its box and its place beside the token. --}}
+<div class="col left stonetop-fight-ring-col" role="group" aria-label="{{ringLabel}}: {{movesLabel}}">
+	{{#each moves}}
+	<button type="button" class="stonetop-fight-ring-button" data-action="ringRoll" data-index="{{index}}"
+	        aria-label="{{aria}}" data-tooltip="{{aria}}" data-tooltip-direction="LEFT">
+		<i class="{{icon}}" inert></i>
+		<span class="stonetop-fight-ring-label">{{label}}</span>
+	</button>
+	{{/each}}
+</div>
+<div class="col right stonetop-fight-ring-col" role="group" aria-label="{{ringLabel}}: {{damageLabel}}">
+	{{#each damage}}
+	<button type="button" class="stonetop-fight-ring-button" data-action="ringRoll" data-index="{{index}}"
+	        aria-label="{{aria}}" data-tooltip="{{aria}}" data-tooltip-direction="RIGHT">
+		<i class="{{icon}}" inert></i>
+		<span class="stonetop-fight-ring-label">{{label}}</span>
+		<span class="stonetop-fight-ring-formula">{{formula}}</span>
+	</button>
+	{{/each}}
+</div>

@@ -426,6 +426,18 @@ export function registerSettings() {
 		default: {},
 	});
 
+	// Whether a plain click on a token in the fight puts its moves and damage dice round it
+	// (module/fight/fight-ring.js). Per client: a GM who clicks tokens all evening to move them may
+	// want it off while the players keep it. Listed only with the Fight tab on, like the one above.
+	game.settings.register(SYSTEM_ID, "fightRing", {
+		name: "stonetop.settings.fightRing.name",
+		hint: "stonetop.settings.fightRing.hint",
+		scope: "client",
+		config: isFightTabEnabled(),
+		type: Boolean,
+		default: true,
+	});
+
 	// Whether the one-time "Welcome to Stonetop" fresh-start CHAT card has been posted in
 	// this world (hooks/Ready.js _postStartupWelcomeMessageOnce). Distinct from
 	// `gmWelcomeShown` above despite the similar name: that one records that the GM
@@ -2167,6 +2179,11 @@ export function setFightOverlayShown(shown) {
 /** Does this reader want the Fight window to open by itself when a fight starts? Defaults to yes. */
 export function isFightWindowAuto() {
 	return getBooleanSetting("fightWindowAuto", true);
+}
+
+/** Does a click on a token in the fight put its fight buttons round it, for this reader? Defaults to yes. */
+export function isFightRingOn() {
+	return getBooleanSetting("fightRing", true);
 }
 
 /**
