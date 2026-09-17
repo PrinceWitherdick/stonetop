@@ -4949,19 +4949,22 @@ export function createStonetopCharacterSheetClass(Base) {
 			wireFightingInNumbers(html[0], { rollKey: "roll", baseKey: "baseRoll" });
 
 			// -- Followers: Order (direct any follower to make a move, p.462) --
-			// Every way in comes through here: the per-card Order button, a named crew
+			// Every card button comes through here: the per-card Order button, a named crew
 			// member's own button, and both groups' Clash / Let Fly. The crew's
 			// group-fight buttons used to shortcut straight to a roll on the pre-baked
 			// `rollMod` the card shows, which meant a group could never come out with
 			// disadvantage even when a shared tag was plainly in the way — and that
 			// modifier is only ever "+1 if a tag applies, +2 if exceptional", which is
 			// exactly what the dialog derives anyway.
+			//
+			// This reads the card's own dataset and hands it to `orderFollower`, which is where the
+			// dialog is actually opened — a follower's token on the map reaches the same method.
 			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".stonetop-follower-order");
 				if (!btn) return;
 				ev.stopPropagation();
 				const pipeList = (raw) => (raw || "").split("|").map(s => s.trim()).filter(Boolean);
-				const follower = {
+				this.orderFollower({
 					name:        btn.dataset.followerName || "Follower",
 					tags:        pipeList(btn.dataset.tags),
 					// Their moves count toward the same bonus as their tags (p.462).
@@ -4970,15 +4973,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					// A group-fight Clash/Let Fly button pre-selects that move; the plain
 					// Order button leaves it at the default (Defy Danger).
 					moveKey:     btn.dataset.moveKey || null,
-				};
-				const ftype = btn.dataset.ftype, slug = btn.dataset.slug ?? "";
-				new OrderFollowersDialog(this.actor, follower,
-					async (result) => {
-						const roll = await this._stonetopCharacter.onOrderFollowersRoll(result);
-						await this._maybeHoldReadinessOnDefend(ftype, slug, result, roll);
-					},
-					{ classes: this._pastDeathWindowClasses(OrderFollowersDialog.defaultOptions.classes) },
-				).render(true);
+				}, { ftype: btn.dataset.ftype, slug: btn.dataset.slug ?? "" });
 			}, true);
 
 			html.find(".stonetop-invocation-check").on("change", async ev => {
@@ -9019,6 +9014,28 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 			const detail = this.actor.getFlag(STONETOP_SCOPE, _followerDetailBase(ftype, slug));
 			return _followerBearsShield(detail?.gear);
+		}
+
+		/**
+		 * Direct one follower to make a move, and roll what the dialog decides (p.462).
+		 *
+		 * THE ONE DOOR IN. The Followers tab's buttons come through here, and so does a follower's
+		 * own token on the map (fight/follower-fight.js), so a follower ordered from the map is
+		 * ordered exactly as they are from their card — the same tag chips, the same +1/+2, and the
+		 * same Readiness held when a Defend lands.
+		 *
+		 * @param {{name: string, tags: string[], moves: string[], exceptional: boolean, moveKey: ?string}} follower
+		 *   what the dialog weighs; `moveKey` starts it on a move, or null for its own default
+		 * @param {{ftype: string, slug: string}} card  whose Readiness a Defend writes to
+		 */
+		async orderFollower(follower, { ftype = "", slug = "" } = {}) {
+			new OrderFollowersDialog(this.actor, follower,
+				async (result) => {
+					const roll = await this._stonetopCharacter.onOrderFollowersRoll(result);
+					await this._maybeHoldReadinessOnDefend(ftype, slug, result, roll);
+				},
+				{ classes: this._pastDeathWindowClasses(OrderFollowersDialog.defaultOptions.classes) },
+			).render(true);
 		}
 
 		// When a follower is Ordered to Defend and rolls 7+, they hold Readiness (p.469):

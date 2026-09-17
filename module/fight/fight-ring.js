@@ -6,15 +6,19 @@
 //  • a character: Clash and Let Fly on the left, their damage die on the right;
 //  • a monster: one button per blow its stat block rolls, on the right. The Gwyllgi offers its claws,
 //    its bite, and the baleful cloud its move breathes;
-//  • an NPC, followers included: its damage, on the right.
-// Monsters and NPCs get no Clash or Let Fly: those are the players' moves, and the GM does not roll them.
+//  • a follower: Clash, Let Fly and Order on the left, their damage on the right;
+//  • any other NPC: its damage, on the right.
+// A monster gets no Clash or Let Fly: those are the players' moves, and the GM does not roll them. A
+// follower does get them, because a follower ordered to Clash triggers the player move and their
+// character rolls it for them (Order Followers, Book I p.462) — see fight/follower-fight.js.
 //
 // EVERY BUTTON IS A CLICK THE SHEET ALREADY HAS. Clash and Let Fly go through the character sheet's
 // `rollMoveById`, the door a move on the hotbar uses, so the weapon pick, targets, damage window and
-// counter-attack all happen exactly as from the Moves tab. A damage button makes the same call as that
-// stat block's own die (combat/attack-flow.js#rollDamageAt): the same card title, tags, advantage, fight
-// pre-fill, and target, which is whoever the token is fighting. The ring cannot roll something the sheet
-// would not.
+// counter-attack all happen exactly as from the Moves tab. A follower's three go through that same
+// sheet's `orderFollower`, the door its Followers tab uses. A damage button makes the same call as
+// that stat block's own die (combat/attack-flow.js#rollDamageAt): the same card title, tags,
+// advantage, fight pre-fill, and target, which is whoever the token is fighting. The ring cannot roll
+// something the sheet would not.
 //
 // WHO GETS IT: whoever just selected the token, which is core's rule for who may (a player their
 // character and followers, the GM everyone), with the Select tool, and without Shift, Ctrl, Alt or
@@ -32,16 +36,23 @@ import { isFightTabEnabled, isFightRingOn } from "../settings.js";
 import { fightOnScene } from "./fight-state.js";
 import { damageBlows, damageCardText, blowWeapon } from "../utils/damage.js";
 import { pcDamageDie, rollDamageAt } from "../combat/attack-flow.js";
+import { followerRingInfo, openFollowerOrder } from "./follower-fight.js";
 import { format, localize } from "../utils/i18n.js";
 
 // A plain literal, not built from SYSTEM_ID: the precache check in tests finds template paths by it.
 const RING_TEMPLATE = "systems/stonetop-pwd/templates/hud/fight-ring.hbs";
 
-/** The moves a character's ring offers, by move name, left column top to bottom. */
+/**
+ * The moves a ring offers, left column top to bottom. A character rolls the move item of that name;
+ * a follower is ORDERED to it, so the same row carries the key the Order dialog knows it by.
+ */
 export const RING_MOVES = [
-	{ name: "Clash", icon: "fa-solid fa-swords" },
-	{ name: "Let Fly", icon: "fa-solid fa-bow-arrow" },
+	{ name: "Clash", icon: "fa-solid fa-swords", orderKey: "clash" },
+	{ name: "Let Fly", icon: "fa-solid fa-bow-arrow", orderKey: "let-fly" },
 ];
+
+/** The glyph on a follower's plain Order button, which opens the dialog on no particular move. */
+const ORDER_ICON = "fa-solid fa-hand-point-right";
 
 /** Tools a click on a token means something else under: aiming, and measuring. */
 const OTHER_TOOLS = new Set(["target", "ruler"]);
@@ -66,8 +77,8 @@ const tidy = formula => String(formula ?? "").replace(/\s+/g, "");
 
 /**
  * @typedef {object} RingButton
- * @property {"move"|"damage"|"item"} run  roll a character's move through their sheet, roll a damage
- *   formula, or roll a stat block's move item
+ * @property {"move"|"damage"|"item"|"order"} run  roll a character's move through their sheet, roll a
+ *   damage formula, roll a stat block's move item, or order a follower to a move
  * @property {string} label       the button's text, and a damage card's title
  * @property {string} icon        Font Awesome classes
  * @property {string} [itemId]    the move ("move", "item")
@@ -75,6 +86,9 @@ const tidy = formula => String(formula ?? "").replace(/\s+/g, "");
  * @property {string} [keywords]  what a damage card prints beside the total: the blow's tags
  * @property {string} [rollMode]  "adv"/"dis"/"normal", as the stat block's own button passes it
  * @property {object|null} [weapon]  the blow's armor clause for Apply (utils/damage.js#attackWeapon)
+ * @property {object} [order]     whose follower this is, and what the Order dialog weighs ("order")
+ * @property {string|null} [moveKey]  the move that dialog starts on, or null for its default ("order")
+ * @property {string} [aria]      this button's own spoken name, where the usual wording will not do
  */
 
 /**
@@ -84,9 +98,13 @@ const tidy = formula => String(formula ?? "").replace(/\s+/g, "");
  * @param {object} [p]
  * @param {string} [p.die]      a character's damage die (combat/attack-flow.js#pcDamageDie), which
  *   takes a lookup to work out and so is asked for by the caller
+ * @param {object|null} [p.order]  for a follower, fight/follower-fight.js#followerOrderInfo — also a
+ *   lookup (whose follower is this?), so it too is asked for by the caller
+ * @param {object|null} [p.swarm]  for a group follower, fight/follower-fight.js#followerSwarm — the
+ *   same lookup, which is why ringButtonsFor gets both from followerRingInfo at once
  * @returns {{moves: RingButton[], damage: RingButton[]}}
  */
-export function ringButtons(actor, { die = "" } = {}) {
+export function ringButtons(actor, { die = "", order = null, swarm = null } = {}) {
 	const moves = [];
 	const damage = [];
 	const system = actor?.system ?? {};
@@ -125,22 +143,43 @@ export function ringButtons(actor, { die = "" } = {}) {
 	}
 
 	else if (actor?.type === "npc") {
+		// A follower takes orders, and in a fight the two they most often take are Clash and Let Fly
+		// (Book I p.473). Their character rolls all three (p.462), through the same dialog their card
+		// opens; Order is last because it is the one that asks which move rather than saying.
+		if (order) {
+			const offered = [...RING_MOVES, { name: localize("stonetop.fight.ring.order"), icon: ORDER_ICON, orderKey: null }];
+			for (const { name, icon, orderKey } of offered) {
+				moves.push({ run: "order", moveKey: orderKey, label: name, icon, order });
+			}
+		}
 		// The NPC sheet's one damage button: its formula, titled with the blow that prints that die. Its
 		// moves stay off: a GM types those, and one may roll something other than damage.
 		const formula = tidy(printed.rollFormula);
 		if (formula) {
 			const { title, keywords } = damageCardText(printed.value, formula);
-			damage.push({ run: "damage", label: title || damageText, formula, keywords, weapon: blowWeapon(printed.value, formula), icon: dieIcon(formula) });
+			const weapon = blowWeapon(printed.value, formula);
+			damage.push({ run: "damage", label: title || damageText, formula, keywords, weapon, icon: dieIcon(formula) });
+			// And, for a group, all of them on one foe. BESIDE the plain die, not instead of it: one
+			// crewman's blow is still a blow, and it is what the group takes when the fight is run as
+			// the abstracted exchange. The blow is the same one, so its tags and armor clause ride along.
+			if (swarm) {
+				damage.push({
+					run: "damage", label: localize("stonetop.fight.ring.swarm"), formula: swarm.formula,
+					keywords, weapon, icon: dieIcon(swarm.formula),
+					aria: format("stonetop.fight.ring.swarmAria", { count: swarm.standing, formula: swarm.formula }),
+				});
+			}
 		}
 	}
 
 	return { moves, damage };
 }
 
-/** An actor's ring, with the character's damage die looked up. */
+/** An actor's ring, with the character's damage die, or a follower's character and roster, looked up. */
 export async function ringButtonsFor(actor) {
 	const die = actor?.type === "character" ? await pcDamageDie(actor) : "";
-	return ringButtons(actor, { die });
+	const { order, swarm } = followerRingInfo(actor);
+	return ringButtons(actor, { die, order, swarm });
 }
 
 /** Whether a ring has anything on it. */
@@ -160,6 +199,9 @@ export async function runRingButton(button, actor, { shiftKey = false } = {}) {
 		if (typeof sheet?.rollMoveById === "function") return sheet.rollMoveById(button.itemId, { shiftKey });
 		return actor.items?.get?.(button.itemId)?.roll?.();
 	}
+	// Shift is deliberately not passed on: it skips the windows a roll would otherwise open, and the
+	// Order dialog is not one of those — it IS the roll, the place the tags in play are weighed.
+	if (button.run === "order") return openFollowerOrder(button.order, button.moveKey);
 	if (button.run === "item") return actor.items?.get?.(button.itemId)?.roll?.({ shiftKey });
 	return rollDamageAt(actor, {
 		formula: button.formula,
@@ -286,13 +328,25 @@ export function createFightRingClass(foundryNs = globalThis.foundry) {
 export function ringContext(buttons, { name = "" } = {}) {
 	const moves = buttons?.moves ?? [];
 	const damage = buttons?.damage ?? [];
-	const spoken = button => (button.run === "move"
-		? format("stonetop.fight.ring.rollMove", { move: button.label })
-		: format("stonetop.fight.ring.rollDamage", { label: button.label, formula: button.formula }));
+	// An order is spoken as one — "Order Enfys to Clash" — because the roll it opens is the
+	// character's, made on their follower's behalf, and not the follower rolling a move of their own.
+	// A button carrying its own wording keeps it: the swarm die says how many of them are piling on.
+	const spoken = (button) => {
+		if (button.aria) return button.aria;
+		if (button.run === "order") {
+			return button.moveKey
+				? format("stonetop.fight.ring.orderMove", { name, move: button.label })
+				: format("stonetop.fight.ring.orderAria", { name });
+		}
+		return button.run === "move"
+			? format("stonetop.fight.ring.rollMove", { move: button.label })
+			: format("stonetop.fight.ring.rollDamage", { label: button.label, formula: button.formula });
+	};
 	const view = (button, index) => ({
 		index,
 		label: button.label,
-		formula: button.run === "move" ? "" : button.formula,
+		// Only a damage button carries one; a move or an order has none to print.
+		formula: button.formula ?? "",
 		icon: button.icon,
 		aria: spoken(button),
 	});

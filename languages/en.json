@@ -806,7 +806,7 @@
       },
       "fightRing": {
         "name": "Fight buttons when you click a token",
-        "hint": "During a fight, clicking a token you control puts buttons around it: Clash, Let Fly and the damage die for a character, and a button for each attack a monster has. Click the token again, or anywhere on the map, to put them away. Right-clicking still opens Foundry's token controls."
+        "hint": "During a fight, clicking a token you control puts buttons around it: Clash, Let Fly and the damage die for a character, a button for each attack a monster has, and Clash, Let Fly and Order for a follower, which their character rolls for them. Click the token again, or anywhere on the map, to put them away. Right-clicking still opens Foundry's token controls."
       }
     },
     "newCharacter": {
@@ -1863,7 +1863,12 @@
         "damageGroup": "Damage rolls",
         "damage": "Damage",
         "rollMove": "Roll {move}",
-        "rollDamage": "Roll damage: {label}, {formula}"
+        "rollDamage": "Roll damage: {label}, {formula}",
+        "order": "Order",
+        "orderAria": "Order {name}",
+        "orderMove": "Order {name} to {move}",
+        "swarm": "Swarm",
+        "swarmAria": "Roll damage: all {count} of them on one foe, {formula}"
       },
       "targets": {
         "title": "{name}: who does this hit?",

@@ -129,6 +129,45 @@ describe("ringButtons", () => {
 		});
 	});
 
+	it("gives a follower the two fight moves and Order, all of them their character's to roll", () => {
+		const actor = fakeActor({ id: "enfys", type: "npc", system: { attributes: { damage: { value: "staff d6 (close)", rollFormula: "d6" } } } });
+		const order = { character: { id: "cadi" }, ftype: "initiate", slug: "enfys", follower: { name: "Enfys" } };
+		const { moves, damage } = ringButtons(actor, { order });
+		expect(moves).toEqual([
+			{ run: "order", moveKey: "clash", label: "Clash", icon: "fa-solid fa-swords", order },
+			{ run: "order", moveKey: "let-fly", label: "Let Fly", icon: "fa-solid fa-bow-arrow", order },
+			{ run: "order", moveKey: null, label: "Order", icon: "fa-solid fa-hand-point-right", order },
+		]);
+		// Their damage is untouched: still the NPC sheet's one button.
+		expect(damage).toEqual([{ run: "damage", label: "Staff", formula: "d6", keywords: "close", weapon: weapon(["close"]), icon: "fa-solid fa-dice-d6" }]);
+	});
+
+	it("puts all of a group on one foe beside one member's die, same blow, same tags", () => {
+		const actor = fakeActor({ id: "crew", type: "npc", system: { attributes: { damage: { value: "spears d6 (close, forceful)", rollFormula: "d6" } } } });
+		const { damage } = ringButtons(actor, { swarm: { formula: "d6+5", standing: 6, bonus: 5 } });
+		expect(damage).toEqual([
+			{ run: "damage", label: "Spears", formula: "d6", keywords: "close, forceful", weapon: weapon(["close", "forceful"]), icon: "fa-solid fa-dice-d6" },
+			{ run: "damage", label: "Swarm", formula: "d6+5", keywords: "close, forceful", weapon: weapon(["close", "forceful"]), icon: "fa-solid fa-dice-d6", aria: "Roll damage: all 6 of them on one foe, d6+5" },
+		]);
+	});
+
+	it("says how many are piling on rather than reading the swarm button's name back", () => {
+		const swarm = { run: "damage", label: "Swarm", formula: "d6+5", aria: "Roll damage: all 6 of them on one foe, d6+5" };
+		expect(ringContext({ moves: [], damage: [swarm] }).damage[0].aria).toBe("Roll damage: all 6 of them on one foe, d6+5");
+	});
+
+	it("leaves a plain NPC with no orders to take exactly as it was", () => {
+		const actor = fakeActor({ id: "n", type: "npc", system: { attributes: { damage: { value: "spear d8", rollFormula: "d8" } } } });
+		expect(ringButtons(actor, { order: null }).moves).toEqual([]);
+	});
+
+	it("orders a follower even when they have no die to roll", () => {
+		const actor = fakeActor({ id: "n", type: "npc", system: { attributes: { damage: { value: "" } } } });
+		const buttons = ringButtons(actor, { order: { character: {}, ftype: "crew", slug: "", follower: {} } });
+		expect(buttons.moves.map(b => b.label)).toEqual(["Clash", "Let Fly", "Order"]);
+		expect(buttons.damage).toEqual([]);
+	});
+
 	it("has nothing for an NPC with no formula, or anything that is not a fighter", () => {
 		expect(ringButtons(fakeActor({ id: "n", type: "npc", system: { attributes: { damage: { value: "fists" } } } }))).toEqual({ moves: [], damage: [] });
 		expect(ringButtons(fakeActor({ id: "s", type: "stonetop" }))).toEqual({ moves: [], damage: [] });
@@ -137,6 +176,29 @@ describe("ringButtons", () => {
 
 	it("looks the character's die up the way the attack flow does", async () => {
 		expect((await ringButtonsFor(bram({ die: "d10" }))).damage[0].formula).toBe("d10");
+	});
+
+	it("looks a follower's character up for them, so their token can be ordered", async () => {
+		const cadi = fakeActor({ id: "cadi", type: "character", name: "Cadi", flags: { [SYSTEM_ID]: { crew: { details: { exceptional: true } } } } });
+		cadi.uuid = "Actor.cadi";
+		const crew = fakeActor({
+			id: "crew", type: "npc", name: "The Crew",
+			system: { tags: "warrior, organized", attributes: { damage: { value: "" } } },
+			flags: { [SYSTEM_ID]: { followerOrigin: { characterUuid: "Actor.cadi", ftype: "crew", slug: "" } } },
+		});
+		crew.items = collection([]);
+		const actors = globalThis.game.actors;
+		globalThis.game.actors = collection([cadi, crew]);
+		try {
+			const { moves } = await ringButtonsFor(crew);
+			expect(moves.map(b => b.label)).toEqual(["Clash", "Let Fly", "Order"]);
+			expect(moves[0].order).toMatchObject({
+				character: cadi, ftype: "crew", slug: "",
+				follower: { name: "The Crew", tags: ["warrior", "organized"], moves: [], exceptional: true },
+			});
+		} finally {
+			globalThis.game.actors = actors;
+		}
 	});
 
 	it("offers exactly the two basic attacks", () => {
@@ -188,6 +250,18 @@ describe("runRingButton", () => {
 		const actor = bram();
 		await runRingButton(ringButtons(actor, { die: "d8" }).damage[0], actor, { shiftKey: true });
 		expect(rollDamageAt).toHaveBeenCalledWith(actor, { formula: "d8", label: "Damage", weapon: null, shiftKey: true });
+	});
+
+	it("orders a follower through their character's sheet, and never on Shift's shortcut", async () => {
+		const sheet = { orderFollower: vi.fn(async () => {}) };
+		const order = { character: { sheet }, ftype: "crew", slug: "", follower: { name: "The Crew", tags: ["warrior"], moves: [], exceptional: true } };
+		const actor = fakeActor({ id: "crew", type: "npc" });
+		await runRingButton({ run: "order", moveKey: "let-fly", order }, actor, { shiftKey: true });
+		expect(sheet.orderFollower).toHaveBeenCalledWith(
+			{ name: "The Crew", tags: ["warrior"], moves: [], exceptional: true, moveKey: "let-fly" },
+			{ ftype: "crew", slug: "" },
+		);
+		expect(rollDamageAt).not.toHaveBeenCalled();
 	});
 
 	it("does nothing without a button or an actor", async () => {
