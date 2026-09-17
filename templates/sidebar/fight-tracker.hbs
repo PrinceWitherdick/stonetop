@@ -43,7 +43,7 @@
     {{#if fight.unengaged.foes.length}}
     <section class="stonetop-fight-section stonetop-fight-section--foes">
       <h3 class="stonetop-fight-section-title">{{localize "stonetop.fight.section.unengagedFoes"}}</h3>
-      {{#if fight.dragHint}}<p class="stonetop-fight-note stonetop-fight-drag-hint">{{localize "stonetop.fight.dragHint"}}</p>{{/if}}
+      {{#if fight.dragHints.foes}}<p class="stonetop-fight-note stonetop-fight-drag-hint">{{localize "stonetop.fight.dragHint.foes"}}</p>{{/if}}
       <ul class="stonetop-fight-list plain">
         {{#each fight.unengaged.foes}}{{> "stonetop.fight-row" row=this gm=../fight.isGM}}{{/each}}
       </ul>
@@ -54,6 +54,7 @@
     {{#if fight.unengaged.heroes.length}}
     <section class="stonetop-fight-section stonetop-fight-section--heroes">
       <h3 class="stonetop-fight-section-title">{{localize "stonetop.fight.section.unengagedHeroes"}}</h3>
+      {{#if fight.dragHints.heroes}}<p class="stonetop-fight-note stonetop-fight-drag-hint">{{localize "stonetop.fight.dragHint.heroes"}}</p>{{/if}}
       <ul class="stonetop-fight-list plain">
         {{#each fight.unengaged.heroes}}{{> "stonetop.fight-row" row=this gm=../fight.isGM}}{{/each}}
       </ul>

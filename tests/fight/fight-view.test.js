@@ -59,10 +59,23 @@ function view(isGM, { seesFoeVitals = false } = {}) {
 	const viewer = { id: isGM ? "gm" : "player", isGM };
 	globalThis.game.user = viewer;
 	const snapshot = snapshotFight(combat, { scene, viewer, users: [], canvasScene: scene });
+	// The player at this table plays Bram, and so is the only one with anyone of their own to send.
 	const rows = new Map([...combat.combatants].map(cb => {
 		const bodies = cb.id === "cHorde" ? { group: true, standing: 3, size: 6 } : {};
-		return [cb.id, { name: cb.actor.name, img: `art/${cb.id}.webp`, hidden: cb.hidden, defeated: false, canPing: true, onCanvas: true, vitals: combatantVitals(cb), seesFoeVitals, ...bodies }];
+		return [cb.id, { name: cb.actor.name, img: `art/${cb.id}.webp`, hidden: cb.hidden, defeated: false, canPing: true, onCanvas: true, canSend: isGM || cb.id === "cBram", vitals: combatantVitals(cb), seesFoeVitals, ...bodies }];
 	}));
+	return fightTrackerView({ snapshot, rows, isGM, format, cites: bookPageCites });
+}
+
+/** A fight nobody has closed with yet: one hero and one foe, both loose, both on this map. */
+function loose(isGM, { mine = [] } = {}) {
+	globalThis.game.user = { id: isGM ? "gm" : "player", isGM };
+	const snapshot = {
+		result: { clusters: [], unengaged: { heroes: ["h"], foes: ["f"] }, out: { heroes: [], foes: [] }, byFighter: {} },
+		fighters: [{ id: "h", side: "heroes" }, { id: "f", side: "foes" }],
+	};
+	const row = (id, name) => ({ name, img: "", onCanvas: true, canPing: true, canSend: mine.includes(id) });
+	const rows = new Map([["h", row("h", "Hero")], ["f", row("f", "Foe")]]);
 	return fightTrackerView({ snapshot, rows, isGM, format, cites: bookPageCites });
 }
 
@@ -85,16 +98,31 @@ describe("fightTrackerView", () => {
 		expect(v.clusters[1].pairs[0].label).toBe("Against Cadi");
 	});
 
-	it("lets a GM drag capable foes on this map onto capable heroes, and a player neither", () => {
+	it("lets a GM drag any capable fighter on this map onto any other, either way about", () => {
 		const gm = view(true);
-		expect(gm.clusters[0].foes[0]).toMatchObject({ draggable: true, dropTarget: false });
-		expect(gm.clusters[0].heroes[0]).toMatchObject({ draggable: false, dropTarget: true });
-		expect(gm.unengaged.foes.every(r => r.draggable)).toBe(true);
+		expect(gm.clusters[0].foes[0]).toMatchObject({ side: "foes", draggable: true, dropTarget: true });
+		expect(gm.clusters[0].heroes[0]).toMatchObject({ side: "heroes", draggable: true, dropTarget: true });
+		expect(gm.unengaged.foes.every(r => r.draggable && r.dropTarget)).toBe(true);
 		expect(gm.out[0]).toMatchObject({ draggable: false, dropTarget: false });
-		expect(gm.dragHint).toBe(true);
+	});
+
+	it("gives a player their own character to throw and the foes to throw them at, and no hold on anyone else", () => {
 		const player = view(false);
-		expect([...player.clusters.flatMap(c => [...c.heroes, ...c.foes]), ...player.unengaged.foes].some(r => r.draggable || r.dropTarget)).toBe(false);
-		expect(player.dragHint).toBe(false);
+		const [bram, aeliana] = player.clusters[0].heroes;
+		expect(bram).toMatchObject({ name: "Bram", draggable: true, dropTarget: false });
+		expect(aeliana).toMatchObject({ name: "Aeliana", draggable: false, dropTarget: false });
+		expect(player.clusters[0].foes[0]).toMatchObject({ name: "Crinwin", draggable: false, dropTarget: true });
+		expect(player.unengaged.foes.every(r => !r.draggable && r.dropTarget)).toBe(true);
+		expect(player.out[0]).toMatchObject({ draggable: false, dropTarget: false });
+	});
+
+	it("hints over whichever loose fighters have somewhere to be sent, naming that direction", () => {
+		// Everyone loose in that fight is a foe, so only the foes' hint has anything to say.
+		expect(view(true).dragHints).toEqual({ foes: true, heroes: false });
+		expect(view(false).dragHints).toEqual({ foes: false, heroes: false });
+		expect(loose(true).dragHints).toEqual({ foes: true, heroes: true });
+		expect(loose(false, { mine: ["h"] }).dragHints).toEqual({ foes: false, heroes: true });
+		expect(loose(false).dragHints).toEqual({ foes: false, heroes: false });
 	});
 
 	it("says what each row is doing, and badges whoever is ganged up on", () => {
@@ -181,14 +209,21 @@ describe("the Fight tab's templates", () => {
 		expect(html).toContain('data-combatant-id="cBram" data-action="activateCombatant"');
 	});
 
-	it("indent each hero's foes under them, marked for dragging, with the hint where the loose foes are", () => {
+	it("indent each hero's foes under them, every row marked with its own side, and hint where the loose fighters are", () => {
 		const html = tracker({ fight: view(true), isGM: true });
-		expect(html).toMatch(/data-combatant-id="cCadi"[^>]*data-fight-drop[\s\S]*?<ul class="stonetop-fight-side stonetop-fight-side--foes stonetop-fight-attached plain" aria-label="Against Cadi">[\s\S]*?data-combatant-id="cW1"[^>]*draggable="true" data-fight-drag/);
+		expect(html).toMatch(/data-combatant-id="cCadi"[^>]*data-fight-drop="heroes"[\s\S]*?<ul class="stonetop-fight-side stonetop-fight-side--foes stonetop-fight-attached plain" aria-label="Against Cadi">[\s\S]*?data-combatant-id="cW1"[^>]*draggable="true" data-fight-drag="foes"/);
 		expect(html).toContain("Drag a foe onto a hero");
-		const player = tracker({ fight: view(false), isGM: false });
-		expect(player).not.toContain("data-fight-drag");
-		expect(player).not.toContain("data-fight-drop");
+		const both = tracker({ fight: loose(true), isGM: true });
+		expect(both).toContain("Drag a foe onto a hero");
+		expect(both).toContain("Drag a hero onto a foe");
+		// A player is told only about the one they can do, and picks up only their own.
+		const player = tracker({ fight: loose(false, { mine: ["h"] }), isGM: false });
+		expect(player).toMatch(/data-combatant-id="h"[^>]*draggable="true" data-fight-drag="heroes"/);
+		expect(player).toMatch(/data-combatant-id="f"[^>]*data-fight-drop="foes"/);
+		expect(player).not.toContain('data-fight-drag="foes"');
+		expect(player).not.toContain('data-fight-drop="heroes"');
 		expect(player).not.toContain("Drag a foe onto a hero");
+		expect(player).toContain("Drag a hero onto a foe");
 	});
 
 	it("give a GM the hide and out controls, and a player neither", () => {

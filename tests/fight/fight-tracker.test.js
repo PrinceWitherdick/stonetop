@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { createFightTrackerClass, FIGHTER_DRAG_TYPE } from "../../module/fight/FightTracker.js";
+import { createFightTrackerClass, fighterDragType } from "../../module/fight/FightTracker.js";
 import { FIGHT_OVER, FIGHT_WINDOW_WIDTH, noteFightWindowClosed, openFightWindow, rememberFightWindowPosition } from "../../module/fight/fight-window.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
 import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection } from "../fakes/fight.js";
@@ -136,6 +136,20 @@ describe("the Fight tab class", () => {
 		expect(tab.fightSignature).toContain("cBram");
 	});
 
+	it("gives a player a hold on whoever is theirs to move, and the other side to send them at", async () => {
+		const { combat, cBram } = oneFight();
+		cBram.isOwner = true;
+		globalThis.canvas = { scene: combat.scene, tokens: { controlled: [] } };
+		globalThis.game.user = { id: "player", isGM: false, hasPermission: () => true };
+		const tab = new FightTracker();
+		tab.viewed = combat;
+		const context = {};
+		await tab._prepareTrackerContext(context, {});
+		const [pair] = context.fight.clusters[0].pairs;
+		expect(pair.hero).toMatchObject({ id: "cBram", draggable: true, dropTarget: false });
+		expect(pair.foes[0]).toMatchObject({ id: "cCrin", draggable: false, dropTarget: true });
+	});
+
 	it("has nothing to draw with no fight", async () => {
 		const tab = new FightTracker();
 		const context = {};
@@ -263,15 +277,15 @@ describe("the Fight tab class", () => {
 		expect(combat.update).toHaveBeenCalledWith({ round: 0, turn: null });
 	});
 
-	describe("dragging a foe onto a hero", () => {
-		/** A row as far as the handlers read it. */
-		const fakeRow = (id, attr) => {
+	describe("dragging a fighter onto one on the other side", () => {
+		/** A row as far as the handlers read it: both a drag source and a drop target, as the tab's are. */
+		const fakeRow = (id, side) => {
 			const classes = new Set();
 			const row = {
-				dataset: { combatantId: id },
+				dataset: { combatantId: id, fightDrag: side, fightDrop: side },
 				classList: { add: c => classes.add(c), remove: c => classes.delete(c), contains: c => classes.has(c) },
 				contains: node => node === row,
-				closest: selector => (selector === `[${attr}]` ? row : null),
+				closest: selector => (["[data-fight-drag]", "[data-fight-drop]"].includes(selector) ? row : null),
 			};
 			return row;
 		};
@@ -280,42 +294,52 @@ describe("the Fight tab class", () => {
 			return { setData: (t, v) => data.set(t, v), getData: t => data.get(t) ?? "", get types() { return [...data.keys()]; } };
 		};
 
-		it("carries the foe's id, lights the hero it is over, and sends the foe on the drop", async () => {
+		/** Drag one row onto another, all the way through, and say what the target did about it. */
+		const dragOnto = (tab, from, onto) => {
+			const dataTransfer = transfer();
+			tab._onFightDragStart({ target: from, dataTransfer });
+			const over = { target: onto, dataTransfer, preventDefault: vi.fn() };
+			tab._onFightDragOver(over);
+			const lit = onto.classList.contains("is-drop-target");
+			const drop = { target: onto, dataTransfer, preventDefault: vi.fn() };
+			tab._onFightDrop(drop);
+			return { dataTransfer, lit, tookIt: over.preventDefault.mock.calls.length > 0 };
+		};
+
+		it("carries the dragged row's id, lights the row it is over, and sends it on the drop, either way about", async () => {
 			const { combat } = oneFight();
 			const sendAgainst = vi.fn();
 			globalThis.game.stonetop = { fight: { sendAgainst } };
 			const tab = new FightTracker();
 			tab.viewed = combat;
-			const foe = fakeRow("cCrin", "data-fight-drag");
-			const hero = fakeRow("cBram", "data-fight-drop");
-			const dataTransfer = transfer();
+			const foe = fakeRow("cCrin", "foes");
+			const hero = fakeRow("cBram", "heroes");
 
-			tab._onFightDragStart({ target: foe, dataTransfer });
-			expect(dataTransfer.getData(FIGHTER_DRAG_TYPE)).toBe("cCrin");
+			const sent = dragOnto(tab, foe, hero);
+			// Under the dragged row's own side, which is the only type a row on the other side reads.
+			expect(sent.dataTransfer.getData(fighterDragType("foes"))).toBe("cCrin");
 			expect(foe.classList.contains("is-dragging")).toBe(true);
-
-			const over = { target: hero, dataTransfer, preventDefault: vi.fn() };
-			tab._onFightDragOver(over);
-			expect(over.preventDefault).toHaveBeenCalled();
-			expect(hero.classList.contains("is-drop-target")).toBe(true);
-
-			const drop = { target: hero, dataTransfer, preventDefault: vi.fn() };
-			tab._onFightDrop(drop);
-			expect(sendAgainst).toHaveBeenCalledWith(combat, "cCrin", "cBram");
+			expect(sent).toMatchObject({ lit: true, tookIt: true });
 			expect(hero.classList.contains("is-drop-target")).toBe(false);
+			expect(sendAgainst).toHaveBeenLastCalledWith(combat, "cCrin", "cBram");
+
+			// And the other way: the hero picked up is the one that moves.
+			expect(dragOnto(tab, hero, foe)).toMatchObject({ lit: true, tookIt: true });
+			expect(sendAgainst).toHaveBeenLastCalledWith(combat, "cBram", "cCrin");
 		});
 
-		it("takes no drop that is not a foe's row, and nothing onto a row that is not a hero", () => {
+		it("takes no drag that is not a fighter's row, and none onto its own side", () => {
+			const sendAgainst = vi.fn();
+			globalThis.game.stonetop = { fight: { sendAgainst } };
 			const tab = new FightTracker();
-			const hero = fakeRow("cBram", "data-fight-drop");
+			const hero = fakeRow("cBram", "heroes");
 			const foreign = { target: hero, dataTransfer: { types: ["text/plain"] }, preventDefault: vi.fn() };
 			tab._onFightDragOver(foreign);
 			expect(foreign.preventDefault).not.toHaveBeenCalled();
-			const dataTransfer = transfer();
-			dataTransfer.setData(FIGHTER_DRAG_TYPE, "cCrin");
-			const onFoe = { target: fakeRow("cW", "data-fight-drag"), dataTransfer, preventDefault: vi.fn() };
-			tab._onFightDragOver(onFoe);
-			expect(onFoe.preventDefault).not.toHaveBeenCalled();
+
+			expect(dragOnto(tab, fakeRow("cW1", "foes"), fakeRow("cW2", "foes"))).toMatchObject({ lit: false, tookIt: false });
+			expect(dragOnto(tab, hero, fakeRow("cAel", "heroes"))).toMatchObject({ lit: false, tookIt: false });
+			expect(sendAgainst).not.toHaveBeenCalled();
 		});
 	});
 

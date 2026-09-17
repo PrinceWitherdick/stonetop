@@ -11,8 +11,12 @@
 // card; the words for it ("fought by Bram & Aeliana") are the name's tooltip.
 //
 // EACH HERO'S FOES SIT INDENTED UNDER THEM. A foe fought by several heroes is listed once, under the
-// first of them, and its own line names the rest. A GM can drag a foe's row onto any hero's row to send
-// it at them (send-against.js); `draggable` and `dropTarget` say which rows take part.
+// first of them, and its own line names the rest. A fighter's row can be dragged onto anyone on the
+// other side to send them at each other (send-against.js), either way about: a foe onto a hero to
+// bring it at them, a hero onto a foe to close with it. A row is a reader's to pick up when the token
+// is theirs to move, so a GM may send anyone and a player only their own; a row takes a drop when the
+// reader has someone to send from the other side (`draggable`, `dropTarget`), and `side` is what keeps
+// a drag from landing on the side it came from.
 //
 // THE TAB CARRIES EVERYTHING THE MAP OVERLAY DRAWS. A reader using a screen magnifier, or one who has
 // switched the lines off, gets every engagement and every count here as text.
@@ -20,6 +24,7 @@
 import { fighterReadout, gangedBadge, clusterFacts, clusterRuleKeys } from "./fight-copy.js";
 import { fightRuleQuotes } from "./fight-rules.js";
 import { HEROES, FOES } from "./engagements.js";
+import { otherSide } from "./fight-sides.js";
 import { vitalsLine } from "./fight-vitals.js";
 
 /**
@@ -44,6 +49,19 @@ export function fightTrackerView({ snapshot, rows, isGM = false, format, cites, 
 	const isOut = new Set([...result.out.heroes, ...result.out.foes]);
 	const quotes = keys => ruleQuotesView(keys, { isGM, cites });
 
+	// Who may be sent at whom. A fighter is in play while their token is on this map and they are still
+	// in the fight; of those, a reader may pick up whoever is theirs to move (`canSend`, a GM anyone),
+	// and may drop onto anyone in play whose side they have someone to send from, which is `dragFrom`.
+	const inPlay = id => {
+		const info = rows.get(id) ?? {};
+		return !!info.onCanvas && !isOut.has(id);
+	};
+	const canPickUp = id => inPlay(id) && (isGM || !!rows.get(id)?.canSend);
+	const dragFrom = new Set(fighters.filter(f => f.side && f.visible !== false && canPickUp(f.id)).map(f => f.side));
+	// Whether one side has anybody on the map to be closed with, which is what a drag hint needs to
+	// know about the OTHER side; asked of the fighters themselves, so no roster has to be built up.
+	const sideInPlay = side => fighters.some(f => f.side === side && f.visible !== false && inPlay(f.id));
+
 	const row = id => {
 		const info = rows.get(id) ?? {};
 		const side = sideOf.get(id) ?? null;
@@ -51,6 +69,7 @@ export function fightTrackerView({ snapshot, rows, isGM = false, format, cites, 
 		const badge = side ? gangedBadge(entry, side, format) : null;
 		return {
 			id,
+			side,
 			name: info.name ?? "",
 			img: info.img ?? "",
 			readout: side ? fighterReadout(entry, side, nameOf, format) : "",
@@ -66,8 +85,8 @@ export function fightTrackerView({ snapshot, rows, isGM = false, format, cites, 
 			hidden: !!info.hidden,
 			defeated: !!info.defeated,
 			canPing: !!info.canPing,
-			draggable: isGM && side === FOES && !!info.onCanvas && !isOut.has(id),
-			dropTarget: isGM && side === HEROES && !!info.onCanvas && !isOut.has(id),
+			draggable: !!side && canPickUp(id),
+			dropTarget: !!side && inPlay(id) && dragFrom.has(otherSide(side)),
 			css: [info.hidden ? "hide" : "", info.defeated ? "defeated" : "", badge ? "is-ganged" : ""].filter(Boolean).join(" "),
 		};
 	};
@@ -97,7 +116,11 @@ export function fightTrackerView({ snapshot, rows, isGM = false, format, cites, 
 
 	return {
 		isGM,
-		dragHint: isGM && unengagedFoes.some(r => r.draggable) && [...clusters.flatMap(c => c.heroes), ...unengagedHeroes].some(r => r.dropTarget),
+		// Each hint sits over whichever loose fighters could be sent somewhere, and names that direction.
+		dragHints: {
+			foes: unengagedFoes.some(r => r.draggable) && sideInPlay(HEROES),
+			heroes: unengagedHeroes.some(r => r.draggable) && sideInPlay(FOES),
+		},
 		hasAnyone: fighters.some(f => f.visible !== false) || away.length > 0,
 		clusters,
 		unengaged: {

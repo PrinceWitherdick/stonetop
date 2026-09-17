@@ -49,11 +49,12 @@ describe("sendAgainst", () => {
 		const tRock = fakeToken({ id: "tRock", col: 6, row: 5, actor: fakeActor({ id: "rock", type: "npc" }) });
 		const scene = fakeScene({ tokens: [tBram, tWolf, tRock] });
 		scene.moveTokens = vi.fn(async () => ({}));
+		// The player plays Bram and owns nothing else; the GM owns everyone.
 		const combat = fakeCombat({
 			scene,
 			combatants: [
-				fakeCombatant({ id: "cBram", token: tBram, scene, side: "heroes" }),
-				fakeCombatant({ id: "cWolf", token: tWolf, scene, side: "foes" }),
+				fakeCombatant({ id: "cBram", token: tBram, scene, side: "heroes", isOwner: true }),
+				fakeCombatant({ id: "cWolf", token: tWolf, scene, side: "foes", isOwner: isGM }),
 			],
 		});
 		globalThis.game = { ...saved.game, user: { id: "gm", isGM } };
@@ -70,6 +71,15 @@ describe("sendAgainst", () => {
 		expect([{ x: 600, y: 400 }, { x: 600, y: 600 }]).toContainEqual({ x: move.x, y: move.y });
 	});
 
+	it("moves the hero instead when it is the hero who was sent", async () => {
+		const { scene, combat } = setup();
+		expect(await sendAgainst(combat, "cBram", "cWolf", { scene })).toBe("moved");
+		const moved = scene.moveTokens.mock.calls[0][0];
+		expect(Object.keys(moved)).toEqual(["tBram"]);
+		// Bram comes from the west, so he arrives on the wolf's west side.
+		expect(moved.tBram.waypoints[0]).toMatchObject({ action: "displace", x: 1100, y: 500 });
+	});
+
 	it("leaves a foe already in contact where it is", async () => {
 		const { scene, combat, tWolf } = setup();
 		tWolf._source.x = 400;
@@ -77,9 +87,16 @@ describe("sendAgainst", () => {
 		expect(scene.moveTokens).not.toHaveBeenCalled();
 	});
 
-	it("does nothing for a player, or between two fighters on one side", async () => {
+	it("lets a player throw their own character at a foe", async () => {
+		const { scene, combat } = setup({ isGM: false });
+		expect(await sendAgainst(combat, "cBram", "cWolf", { scene })).toBe("moved");
+		expect(Object.keys(scene.moveTokens.mock.calls[0][0])).toEqual(["tBram"]);
+	});
+
+	it("moves nobody who is not the reader's to move, and nobody at their own side", async () => {
 		const player = setup({ isGM: false });
 		expect(await sendAgainst(player.combat, "cWolf", "cBram", { scene: player.scene })).toBe(false);
+		expect(player.scene.moveTokens).not.toHaveBeenCalled();
 		const gm = setup();
 		gm.combat.combatants.get("cWolf").flags[SYSTEM_ID].side = "heroes";
 		expect(await sendAgainst(gm.combat, "cWolf", "cBram", { scene: gm.scene })).toBe(false);

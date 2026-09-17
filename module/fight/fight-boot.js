@@ -89,7 +89,7 @@ export function registerFightTab({ config = globalThis.CONFIG, hooks = globalThi
 			openStart: options => openStartFight(options),
 			lineUp: combat => lineUpFight(combat),
 			putBack: combat => putBackFight(combat),
-			sendAgainst: (combat, foeId, heroId) => sendAgainst(combat, foeId, heroId),
+			sendAgainst: (combat, moverId, targetId) => sendAgainst(combat, moverId, targetId),
 			openWindow: () => openFightWindow({ byHand: true }),
 			openBook: () => openFightBook(),
 		};

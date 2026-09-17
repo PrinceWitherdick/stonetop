@@ -1829,7 +1829,10 @@
       "empty": "Nobody is in this fight yet.",
       "emptyGM": "Nobody is in this fight yet. Add them, or select tokens and use the combat toggle on a token's HUD.",
       "noEngagements": "Nobody is engaged. Move a token next to a foe, or target one from range.",
-      "dragHint": "Drag a foe onto a hero to put it next to them on the map.",
+      "dragHint": {
+        "foes": "Drag a foe onto a hero to put it next to them on the map.",
+        "heroes": "Drag a hero onto a foe to put them next to it on the map."
+      },
       "send": {
         "noRoom": "There is no free space next to {name}."
       },

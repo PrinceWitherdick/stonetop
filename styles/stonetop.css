@@ -6350,8 +6350,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	background: color-mix(in srgb, var(--st-text) 8%, transparent);
 }
 
-/* Dragging a foe onto a hero (FightTracker.js): the foe picked up fades, the hero it would go to is
-   ringed. A dashed ring, not a tint alone, so the target reads without telling colours apart. */
+/* Dragging a fighter onto one on the other side (FightTracker.js): the row picked up fades, the row it
+   would go to is ringed. A dashed ring, not a tint alone, so the target reads without telling colours
+   apart. */
 .stonetop-fight-tracker .combatant.stonetop-fight-row[draggable="true"] { cursor: grab; }
 .stonetop-fight-tracker .combatant.stonetop-fight-row.is-dragging { opacity: 0.5; }
 .stonetop-fight-tracker .combatant.stonetop-fight-row.is-drop-target {

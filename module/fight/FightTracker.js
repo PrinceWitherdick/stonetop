@@ -21,10 +21,12 @@
 // utils/window-theme.js pins any ApplicationV2 carrying a `stonetop` class to the light theme, which
 // here would repaint the whole sidebar. The fight's cards carry their own paper and ink instead.
 //
-// DRAG A FOE ONTO A HERO. A GM's foe rows are draggable and hero rows take the drop, which moves the
-// foe's token next to the hero's (send-against.js). Native drag and drop, delegated from the frame so
-// it survives every redraw, and carrying only our own data type: dropped on the map or a sheet, the
-// row is nothing anybody else reads.
+// DRAG A FIGHTER ONTO ONE ON THE OTHER SIDE. A foe goes onto a hero and a hero onto a foe alike;
+// either way the row picked up is the token that moves, up against the one it was dropped on
+// (send-against.js). What a reader may pick up is whoever is theirs to move, so a GM may send anyone
+// and a player may throw their own character at a foe. Native drag and drop, delegated from the frame
+// so it survives every redraw, and carrying only our own data types: dropped on the map or a sheet,
+// the row is nothing anybody else reads.
 //
 // THE POP-OUT IS THE FIGHT WINDOW. Core pops a sidebar tab out by making a second instance of this
 // class inside a frame (`isPopout`), and fight-window.js opens that when a fight starts. The same
@@ -51,8 +53,15 @@ import { isFightOverlayShown, setFightOverlayShown } from "../settings.js";
 const HEADER_TEMPLATE = "systems/stonetop-pwd/templates/sidebar/fight-header.hbs";
 const TRACKER_TEMPLATE = "systems/stonetop-pwd/templates/sidebar/fight-tracker.hbs";
 
-/** The drag data type a foe's row carries: its combatant id. */
+/** The prefix every fighter-row drag type is built on. */
 export const FIGHTER_DRAG_TYPE = "application/x-stonetop-fighter";
+/**
+ * The drag data type a fighter's row carries: its combatant id, under the row's OWN side. A dragover
+ * may read the TYPES on a drag but never their values, so the side has to be part of the type for a
+ * row to tell, while the drag is still in the air, whether the drag is one it takes -- and a row only
+ * ever takes the other side's, so both handlers ask for exactly one type: otherSide's.
+ */
+export const fighterDragType = side => `${FIGHTER_DRAG_TYPE}+${side}`;
 const DROP_CLASS = "is-drop-target";
 const DRAG_CLASS = "is-dragging";
 
@@ -186,6 +195,9 @@ export function createFightTrackerClass(Base) {
 				seesFoeVitals: canReadFoeVitals(combatant, user),
 				side: combatantSide(combatant),
 				canPing: onCanvas && !!user?.hasPermission?.("PING_CANVAS"),
+				// Theirs to move, and so theirs to send at someone: a combatant's ownership is its
+				// actor's, and a GM owns everyone.
+				canSend: !!combatant.isOwner,
 				onCanvas,
 				group: bodies.group,
 				standing: bodies.standing,
@@ -215,12 +227,13 @@ export function createFightTrackerClass(Base) {
 			this.element.addEventListener("drop", event => this._onFightDrop(event));
 		}
 
-		/** A GM picks up a foe's row. */
+		/** A GM picks up a fighter's row. */
 		_onFightDragStart(event) {
 			const row = event.target?.closest?.("[data-fight-drag]");
 			const id = row?.dataset?.combatantId;
-			if (!id || !event.dataTransfer) return;
-			event.dataTransfer.setData(FIGHTER_DRAG_TYPE, id);
+			const side = row?.dataset?.fightDrag;
+			if (!id || !side || !event.dataTransfer) return;
+			event.dataTransfer.setData(fighterDragType(side), id);
 			event.dataTransfer.effectAllowed = "move";
 			row.classList.add(DRAG_CLASS);
 		}
@@ -231,10 +244,14 @@ export function createFightTrackerClass(Base) {
 			for (const lit of this.element?.querySelectorAll?.(`.${DROP_CLASS}`) ?? []) lit.classList.remove(DROP_CLASS);
 		}
 
-		/** A hero's row under a dragged foe says it will take it. Only the type is readable mid-drag. */
+		/**
+		 * A row under a fighter dragged from the other side says it will take them. Only the types are
+		 * readable mid-drag, and the one this row takes is the other side's, so its presence is the answer.
+		 */
 		_onFightDragOver(event) {
 			const row = event.target?.closest?.("[data-fight-drop]");
-			if (!row || ![...(event.dataTransfer?.types ?? [])].includes(FIGHTER_DRAG_TYPE)) return;
+			const side = row?.dataset?.fightDrop;
+			if (!side || ![...(event.dataTransfer?.types ?? [])].includes(fighterDragType(otherSide(side)))) return;
 			event.preventDefault();
 			event.dataTransfer.dropEffect = "move";
 			row.classList.add(DROP_CLASS);
@@ -245,14 +262,15 @@ export function createFightTrackerClass(Base) {
 			if (row && !row.contains(event.relatedTarget)) row.classList.remove(DROP_CLASS);
 		}
 
-		/** A foe dropped on a hero: move the foe's token up against the hero's. */
+		/** A fighter dropped on one from the other side: move their token up against that one's. */
 		_onFightDrop(event) {
 			const row = event.target?.closest?.("[data-fight-drop]");
-			const foeId = event.dataTransfer?.getData?.(FIGHTER_DRAG_TYPE);
-			if (!row || !foeId) return;
+			const side = row?.dataset?.fightDrop;
+			const moverId = side ? event.dataTransfer?.getData?.(fighterDragType(otherSide(side))) : "";
+			if (!moverId) return;
 			event.preventDefault();
 			row.classList.remove(DROP_CLASS);
-			return globalThis.game?.stonetop?.fight?.sendAgainst?.(this.viewed, foeId, row.dataset.combatantId);
+			return globalThis.game?.stonetop?.fight?.sendAgainst?.(this.viewed, moverId, row.dataset.combatantId);
 		}
 
 		/**
