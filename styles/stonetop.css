@@ -6468,16 +6468,17 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	color: var(--st-text-body);
 	font-size: calc(0.78rem * var(--stonetop-font-scale, 1));
 }
-.stonetop-fight-general .stonetop-fight-rules {
-	padding: 6px;
-	border: 1px solid var(--st-quiet-ink, rgba(0, 0, 0, 0.3));
-	border-radius: var(--st-radius);
-	background: var(--st-page);
-}
 .stonetop-fight-rules-summary {
 	color: var(--st-text-secondary);
 	cursor: pointer;
 }
+/* "What the book says about fights" (fight/FightBookWindow.js): the same quotes, on its own page. */
+.stonetop-fight-book {
+	color: var(--st-text-body);
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+}
+.stonetop-fight-book .stonetop-fight-quote:first-child { margin-top: 0; }
+.stonetop-fight-book .stonetop-fight-quote + .stonetop-fight-quote { margin-top: 12px; }
 /* Upright and in the page's own serif: core sets blockquotes in italic sans, and italics are the
    hardest face in the tab to read at a distance. */
 .stonetop-fight-quote {
@@ -6536,6 +6537,21 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	margin: 0;
 	color: var(--st-text-secondary);
 	font-size: calc(0.8rem * var(--stonetop-font-scale, 1));
+}
+
+/* The Fight window (module/fight/fight-window.js) is the tab popped out, in core's pop-out frame.
+   Core lets a drag squeeze a pop-out to nothing; the floor here is the sidebar's width, which the
+   tab's rows are laid out for. Scoped to a pop-out holding the Fight tab, so a world that switched
+   back to core's tracker keeps core's pop-out as it was. */
+.combat-sidebar.sidebar-popout:has(.stonetop-fight-tracker) {
+	min-width: var(--sidebar-width, 300px);
+	/* No taller than the room between where the window stands (FightTracker#_updatePosition) and the
+	   foot of the screen, less the margin fight-window.js keeps at the top. Core measures a
+	   content-fitted pop-out against this, so a long fight scrolls its list inside the window rather
+	   than pushing the window up the screen. The header's buttons stay in view above the list.
+	   The floor keeps a window dragged to the foot of the screen from folding to its title bar:
+	   core slides that one back up instead. */
+	max-height: max(240px, calc(100vh - var(--stonetop-fight-top, 16px) - 16px));
 }
 
 /* ── Item source ──────────────────────────────────────────────────────────── */

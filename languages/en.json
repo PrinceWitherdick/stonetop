@@ -799,6 +799,10 @@
       "fightTab": {
         "name": "Fight tab (replaces the Combat tracker)",
         "hint": "Stonetop has no initiative. The Combat tab becomes a Fight tab showing who is fighting whom and the group rules that apply, with lines on the map and the extra damage for several attackers filled into damage rolls. Turn it off to get Foundry's Combat tracker back, for example to use an initiative module. Takes a reload."
+      },
+      "fightWindowAuto": {
+        "name": "Open the Fight window when a fight starts",
+        "hint": "When a fight starts on the map you are looking at, the Fight tab opens in a window of its own, and the window closes when the fight ends. If you close it, it stays closed until the next fight. Turn this off to keep fights in the sidebar: the Fight tab's Open in a window button still opens it."
       }
     },
     "newCharacter": {
@@ -1776,6 +1780,7 @@
     },
     "fight": {
       "tab": "Fight",
+      "window": "Combat",
       "names": {
         "andOthers": "{names} & {count} others"
       },
@@ -1812,6 +1817,8 @@
       "putBackHint": "Return the tokens to where they stood before the last line-up",
       "lines": "Lines on the map",
       "linesHint": "Draw who is fighting whom on the map. Only changes what you see.",
+      "openWindow": "Open in a window",
+      "openWindowHint": "Show this fight in a window you can move and resize, so it stays in view while the sidebar is on Chat",
       "endFight": "End the fight",
       "none": "No fight on this scene.",
       "noneGM": "No fight on this scene. Start one to see who is fighting whom.",
@@ -1851,6 +1858,11 @@
         "confirmNone": "Tick who this hits",
         "cancel": "Don't roll",
         "several": "{move} hit more than one: damage is rolled separately against each, for an attack that could hurt them all (Book I, page 414)."
+      },
+      "book": {
+        "open": "What the book says",
+        "hint": "The book's advice on running a fight, in its own words",
+        "title": "What the book says about fights"
       },
       "row": {
         "hide": "Hide from players",

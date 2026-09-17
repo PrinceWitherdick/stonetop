@@ -82,10 +82,6 @@
     <p class="stonetop-fight-note">{{#if fight.isGM}}{{localize "stonetop.fight.emptyGM"}}{{else}}{{localize "stonetop.fight.empty"}}{{/if}}</p>
     {{/unless}}
 
-    {{#if fight.general.quotes.length}}
-    <div class="stonetop-fight-general">{{> "stonetop.fight-rules" rules=fight.general}}</div>
-    {{/if}}
-
   {{else}}
     <p class="stonetop-fight-note">{{#if isGM}}{{localize "stonetop.fight.noneGM"}}{{else}}{{localize "stonetop.fight.none"}}{{/if}}</p>
   {{/if}}

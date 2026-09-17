@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import Handlebars from "handlebars";
-import { fightTrackerView } from "../../module/fight/fight-view.js";
+import { fightTrackerView, fightBookView } from "../../module/fight/fight-view.js";
 import { snapshotFight } from "../../module/fight/fight-state.js";
 import { combatantVitals } from "../../module/fight/fight-vitals.js";
 import { bookPageCites } from "../../module/gm-toolkit/book-ref.js";
@@ -149,7 +149,14 @@ describe("fightTrackerView", () => {
 		expect(v.unengaged.foes.map(r => r.name)).toEqual(["Horde"]);
 		expect(v.unengaged.quotes).toEqual([]);
 		expect(v.clusters[1].quotes.map(q => q.key)).not.toContain("engagesMultiple");
-		expect(v.general.quotes.map(q => q.key)).toEqual(["noTurns"]);
+	});
+
+	it("keeps the book's advice on fights as a whole out of the tab, for its own window", () => {
+		expect(view(true)).not.toHaveProperty("general");
+		const gm = fightBookView({ isGM: true, cites: bookPageCites });
+		expect(gm.quotes.map(q => q.key)).toEqual(["smallerEngagements", "noTurns", "mapsFocus"]);
+		expect(gm.quotes[1].cites).toEqual([expect.objectContaining({ book: 1, page: 417 })]);
+		expect(fightBookView({ isGM: false, cites: bookPageCites }).quotes.map(q => q.key)).toEqual(["noTurns"]);
 	});
 
 	it("remembers which folds the reader left open", () => {
@@ -158,11 +165,11 @@ describe("fightTrackerView", () => {
 		const snapshot = snapshotFight(combat, { scene, viewer: globalThis.game.user, users: [], canvasScene: scene });
 		const rows = new Map([...combat.combatants].map(cb => [cb.id, { name: cb.actor.name }]));
 		const first = fightTrackerView({ snapshot, rows, isGM: true, format, cites: bookPageCites });
-		const open = new Set([first.clusters[0].ruleKey, "general"]);
+		const open = new Set([first.clusters[0].ruleKey, "unengaged"]);
 		const again = fightTrackerView({ snapshot, rows, isGM: true, format, cites: bookPageCites, openRules: open });
 		expect(again.clusters[0].rulesOpen).toBe(true);
 		expect(again.clusters[1].rulesOpen).toBe(false);
-		expect(again.general.rulesOpen).toBe(true);
+		expect(again.unengaged.rulesOpen).toBe(true);
 	});
 });
 
@@ -211,6 +218,15 @@ describe("the Fight tab's templates", () => {
 		expect(html).toContain('<details class="stonetop-fight-rules"');
 		expect(html).toContain("What the book says");
 		expect(html).toContain('class="stonetop-book-cite" data-book="1" data-page="414"');
+		expect(html).not.toContain("Be careful, though, not to let the map dominate the game");
+	});
+
+	it("offer everyone the book's advice on fights from the header", () => {
+		for (const isGM of [true, false]) {
+			const html = header({ hasCombat: true, isGM, combat: { name: "" } });
+			expect(html).toContain('data-action="openFightBook"');
+			expect(html).toContain("What the book says");
+		}
 	});
 
 	it("say there is no fight when there is none", () => {
@@ -241,6 +257,17 @@ describe("the Fight tab's templates", () => {
 		expect(off).toContain('data-action="toggleFightOverlay"');
 		expect(off).toContain('aria-pressed="false"');
 		expect(off).not.toContain('data-action="endFight"');
+	});
+
+	it("offer everyone the Fight window from the tab, before the lines and End, and nothing to open inside the window", () => {
+		const gm = header({ hasCombat: true, isGM: true, combat: {}, overlayShown: true });
+		expect(gm).toContain('data-action="openFightWindow"');
+		expect(gm).toContain("Open in a window");
+		const order = ["addToFight", "lineUpFight", "openFightWindow", "toggleFightOverlay", "endFight"].map(a => gm.indexOf(`data-action="${a}"`));
+		expect(order).toEqual([...order].sort((a, b) => a - b));
+		expect(header({ hasCombat: true, isGM: false, combat: {}, overlayShown: true })).toContain('data-action="openFightWindow"');
+		expect(header({ hasCombat: true, isGM: true, combat: {}, overlayShown: true, isPopout: true })).not.toContain("openFightWindow");
+		expect(header({ hasCombat: false, isGM: true })).not.toContain("openFightWindow");
 	});
 
 	it("tell a GM about rounds only when core's tracker started some", () => {

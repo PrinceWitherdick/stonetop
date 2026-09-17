@@ -42,7 +42,7 @@ export function fightTrackerView({ snapshot, rows, isGM = false, format, cites, 
 	const sideOf = new Map(fighters.map(f => [f.id, f.side]));
 	const nameOf = id => rows.get(id)?.name ?? fighters.find(f => f.id === id)?.name ?? "";
 	const isOut = new Set([...result.out.heroes, ...result.out.foes]);
-	const quotes = keys => fightRuleQuotes(keys, { isGM }).map(q => ({ key: q.key, text: q.text, cites: cites(q) }));
+	const quotes = keys => ruleQuotesView(keys, { isGM, cites });
 
 	const row = id => {
 		const info = rows.get(id) ?? {};
@@ -94,7 +94,6 @@ export function fightTrackerView({ snapshot, rows, isGM = false, format, cites, 
 	const unengagedQuotes = unengagedFoes.length ? quotes(["unengagedFoes"]) : [];
 	const out = [...result.out.heroes, ...result.out.foes].map(row);
 	const away = elsewhere.map(combatant => ({ ...row(combatant.id), readout: "" }));
-	const generalQuotes = quotes(["smallerEngagements", "noTurns", "mapsFocus"]);
 
 	return {
 		isGM,
@@ -110,8 +109,26 @@ export function fightTrackerView({ snapshot, rows, isGM = false, format, cites, 
 		},
 		out,
 		elsewhere: away,
-		general: { quotes: generalQuotes, ruleKey: "general", rulesOpen: openRules.has("general") },
 	};
+}
+
+/** Book passages as the tab and the book window both print them: the words, and each one's citation. */
+function ruleQuotesView(keys, { isGM, cites }) {
+	return fightRuleQuotes(keys, { isGM }).map(q => ({ key: q.key, text: q.text, cites: cites(q) }));
+}
+
+/** The book's advice on fights as a whole, which holds for every fight and so is not in the tab: the book window (FightBookWindow.js) shows it. */
+export const FIGHT_BOOK_RULES = Object.freeze(["smallerEngagements", "noTurns", "mapsFocus"]);
+
+/**
+ * What the book window shows this reader: the passages, each with its citation.
+ *
+ * @param {object} p
+ * @param {boolean} p.isGM
+ * @param {(entry: {page: number, book: number}) => Array} p.cites  gm-toolkit/book-ref.js#bookPageCites
+ */
+export function fightBookView({ isGM = false, cites }) {
+	return { quotes: ruleQuotesView(FIGHT_BOOK_RULES, { isGM, cites }) };
 }
 
 /**

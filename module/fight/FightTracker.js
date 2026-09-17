@@ -25,8 +25,14 @@
 // foe's token next to the hero's (send-against.js). Native drag and drop, delegated from the frame so
 // it survives every redraw, and carrying only our own data type: dropped on the map or a sheet, the
 // row is nothing anybody else reads.
+//
+// THE POP-OUT IS THE FIGHT WINDOW. Core pops a sidebar tab out by making a second instance of this
+// class inside a frame (`isPopout`), and fight-window.js opens that when a fight starts. The same
+// rule holds for it: core's pop-out look, no `stonetop` class. What differs is only where it opens,
+// that it resizes, and that it remembers both.
 
 import { snapshotFight, combatantBodies, combatantSide, COUNT_FLAG, SIDE_FLAG, LAST_LINE_UP_FLAG } from "./fight-state.js";
+import { FIGHT_OVER, fightWindowPosition, noteFightWindowClosed, openFightWindow, rememberFightWindowPosition } from "./fight-window.js";
 import { fightTrackerView } from "./fight-view.js";
 import { canReadFoeVitals, combatantVitals, fightVitalsKey, followerRoster } from "./fight-vitals.js";
 import { otherSide, fightsAsGroup } from "./fight-sides.js";
@@ -61,7 +67,7 @@ function headcountIsOurs(combatant) {
 export function createFightTrackerClass(Base) {
 	return class FightTracker extends Base {
 		static DEFAULT_OPTIONS = {
-			window: { title: "stonetop.fight.tab" },
+			window: { title: "stonetop.fight.window" },
 			actions: {
 				startFight: FightTracker.#onStartFight,
 				addToFight: FightTracker.#onAddToFight,
@@ -70,6 +76,8 @@ export function createFightTrackerClass(Base) {
 				endFight: FightTracker.#onEndFight,
 				toggleFightOverlay: FightTracker.#onToggleOverlay,
 				stopRounds: FightTracker.#onStopRounds,
+				openFightWindow: FightTracker.#onOpenWindow,
+				openFightBook: FightTracker.#onOpenBook,
 			},
 		};
 
@@ -86,6 +94,25 @@ export function createFightTrackerClass(Base) {
 
 		/** Everyone's HP and armor as this tab last drew them, for the same skip. */
 		fightVitals = null;
+
+		/**
+		 * @inheritDoc: the pop-out opens where the reader left it (else beside the sidebar) and resizes.
+		 *
+		 * Core builds the pop-out's options from the tab's own, so it would inherit the tab's `active`
+		 * class had the Fight tab been the open one when the interface was built. Core always builds on
+		 * Chat, but a module that opens the sidebar elsewhere would hand it over, and core's
+		 * `.combat-sidebar.active` rule gives that height 0: the window shrinks to its title bar
+		 * (measured offline, 52px). Dropped here, on the pop-out only.
+		 */
+		_initializeApplicationOptions(options) {
+			const initialized = super._initializeApplicationOptions(options);
+			if (!initialized.window?.frame) return initialized;
+			initialized.window.resizable = true;
+			initialized.window.icon ||= "fa-solid fa-swords";
+			initialized.classes = initialized.classes.filter(name => name !== "active");
+			initialized.position = { ...initialized.position, ...fightWindowPosition() };
+			return initialized;
+		}
 
 		/** @override */
 		async _preFirstRender(context, options) {
@@ -113,6 +140,7 @@ export function createFightTrackerClass(Base) {
 					nextId: combats[index + 1]?.id ?? "",
 				} : null,
 				overlayShown: isFightOverlayShown(),
+				isPopout: !!this.isPopout,
 				roundsStarted: (combat?.round ?? 0) > 0,
 				canPutBack: !!combat?.flags?.[SYSTEM_ID]?.[LAST_LINE_UP_FLAG],
 			});
@@ -226,6 +254,33 @@ export function createFightTrackerClass(Base) {
 			return globalThis.game?.stonetop?.fight?.sendAgainst?.(this.viewed, foeId, row.dataset.combatantId);
 		}
 
+		/**
+		 * @inheritDoc: the Fight window never grows past the foot of the screen.
+		 *
+		 * Left to itself, core fits a pop-out to its content, and when that is taller than the room
+		 * below the window it slides the window UP to make space, until the frame is the screen's
+		 * whole height. Here the frame is held to the room below where it stands (the stylesheet
+		 * reads `--stonetop-fight-top`), so its top edge stays put and the list of fighters scrolls
+		 * inside it, under the header's buttons.
+		 */
+		_updatePosition(position) {
+			const top = Number(position?.top);
+			if (this.isPopout && Number.isFinite(top)) this.element?.style?.setProperty?.("--stonetop-fight-top", `${Math.max(0, Math.round(top))}px`);
+			return super._updatePosition(position);
+		}
+
+		/** @inheritDoc: a moved or resized Fight window opens there next time. A minimized one says nothing about that. */
+		_onPosition(position) {
+			super._onPosition?.(position);
+			if (this.isPopout && !this.minimized) rememberFightWindowPosition(this.position);
+		}
+
+		/** @inheritDoc: the reader closing the Fight window keeps it shut for this fight; the fight ending does not. */
+		_onClose(options) {
+			super._onClose?.(options);
+			if (this.isPopout && !options?.[FIGHT_OVER]) noteFightWindowClosed();
+		}
+
 		/** @override: GM tools for one combatant; nothing about initiative. */
 		_getEntryContextOptions() {
 			const combatantOf = target => this.viewed?.combatants?.get(target?.dataset?.combatantId) ?? null;
@@ -324,7 +379,17 @@ export function createFightTrackerClass(Base) {
 
 		static async #onToggleOverlay() {
 			await setFightOverlayShown(!isFightOverlayShown());
-			this.render({ parts: ["header"] });
+			// Through the sidebar tab, which hands the redraw on to the window: pressed in the window,
+			// `this` would redraw only itself and leave the tab's button saying the old state.
+			(globalThis.ui?.combat ?? this).render({ parts: ["header"] });
+		}
+
+		static #onOpenWindow() {
+			return openFightWindow({ byHand: true });
+		}
+
+		static #onOpenBook() {
+			return globalThis.game?.stonetop?.fight?.openBook?.();
 		}
 
 		static async #onStopRounds() {

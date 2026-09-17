@@ -49,11 +49,18 @@ export function combatTouchesScene(combat, scene) {
  * The fight on a scene: the one the Fight tab is showing when it is fought here, else the active one,
  * else the most recently changed. Only a Combat stamped as a fight counts: a world that ran the old
  * Introductions still has its active, tokenless roster Combat, and that is nobody's fight.
+ *
+ * ⚠ THE TAB CAN BE SHOWING A FIGHT THAT IS OVER. Core takes a deleted Combat out of `game.combats`
+ * before the delete hooks run, but the tab only lets go of it when its redraw lands, a render later.
+ * Anything asking in between (the Fight window closing at the end of a fight) would be handed the
+ * fight that just ended, so the tab's choice counts only while the world still holds it.
  */
 export function fightOnScene(scene) {
 	if (!scene) return null;
 	const viewed = globalThis.ui?.combat?.viewed ?? null;
-	if (isFight(viewed) && combatTouchesScene(viewed, scene)) return viewed;
+	const combats = globalThis.game?.combats;
+	const stillHeld = typeof combats?.get !== "function" || combats.get(viewed?.id) === viewed;
+	if (isFight(viewed) && stillHeld && combatTouchesScene(viewed, scene)) return viewed;
 	const here = each(globalThis.game?.combats).filter(c => isFight(c) && combatTouchesScene(c, scene));
 	here.sort((a, b) => (Number(!!b.active) - Number(!!a.active))
 		|| ((b._stats?.modifiedTime ?? 0) - (a._stats?.modifiedTime ?? 0)));

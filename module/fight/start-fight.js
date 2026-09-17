@@ -25,6 +25,7 @@ import { compendiumRefTail } from "../migration/compat.js";
 import { HEROES, FOES } from "./engagements.js";
 import { classifySide } from "./fight-sides.js";
 import { combatantSide, fightOnScene, isFight, sideInfoFor, SIDE_FLAG, LAST_LINE_UP_FLAG } from "./fight-state.js";
+import { fightWindowWillShow } from "./fight-window.js";
 import { lineUpPositions } from "./line-up.js";
 import { StartFightDialog } from "./StartFightDialog.js";
 
@@ -224,7 +225,11 @@ function sceneRectOf(canvas) {
 
 /**
  * The part of the scene the GM can see, in scene pixels: the window, less the scene controls on the
- * left and the sidebar on the right.
+ * left, the sidebar on the right, and the Fight window on whichever side of the view it stands.
+ *
+ * The Fight window is left out only while that keeps at least half of the view's width: a GM who has
+ * dragged it wide across the middle of the map still gets the fight in front of them, not squeezed
+ * into a strip beside it.
  */
 export function viewRectWorld(canvas = globalThis.canvas) {
 	const doc = globalThis.document;
@@ -236,6 +241,13 @@ export function viewRectWorld(canvas = globalThis.canvas) {
 	if (controls?.width) left = Math.max(left, controls.right);
 	const sidebar = doc?.getElementById?.("sidebar")?.getBoundingClientRect?.();
 	if (sidebar?.width) right = Math.min(right, sidebar.left);
+	const fightWindow = globalThis.ui?.combat?.popout;
+	const box = fightWindow?.rendered && !fightWindow.minimized ? fightWindow.element?.getBoundingClientRect?.() : null;
+	if (box?.width) {
+		const onRight = box.left + box.width / 2 >= (left + right) / 2;
+		const narrowed = onRight ? [left, Math.min(right, box.left)] : [Math.max(left, box.right), right];
+		if (narrowed[1] - narrowed[0] >= (right - left) / 2) [left, right] = narrowed;
+	}
 	const transform = canvas?.stage?.worldTransform;
 	if (!transform?.applyInverse) {
 		const rect = sceneRectOf(canvas);
@@ -290,6 +302,7 @@ export async function startFight({ scene, combat = null, picks = [], lineUp = fa
 	// The fight: the one on this map, or a new one.
 	if (combat && !isFight(combat)) combat = null;
 	combat ??= fightOnScene(scene);
+	const started = !combat;
 	if (!combat) {
 		const CombatClass = globalThis.getDocumentClass?.("Combat") ?? globalThis.CONFIG?.Combat?.documentClass;
 		combat = await CombatClass.create({ scene: scene.id, active: true });
@@ -313,7 +326,9 @@ export async function startFight({ scene, combat = null, picks = [], lineUp = fa
 	result.added = data.length;
 
 	if (lineUp) await lineUpFight(combat, { scene });
-	globalThis.ui?.sidebar?.changeTab?.("combat", "primary");
+	// Show the GM the fight: in the Fight window when that is open or opening for it, which leaves their
+	// sidebar on Chat where the rolls land; else in the tab, as before there was a window.
+	if (!fightWindowWillShow({ started })) globalThis.ui?.sidebar?.changeTab?.("combat", "primary");
 
 	if (result.added) notify?.info(format(`${KEY}.joined`, { count: result.added }));
 	if (result.imported) notify?.info(format(`${KEY}.imported`, { count: result.imported }));

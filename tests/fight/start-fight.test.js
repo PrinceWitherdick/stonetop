@@ -170,6 +170,29 @@ describe("startFight", () => {
 			{ tokenId: "tCrin", sceneId: "scene1", actorId: "crinwin", hidden: true, flags: { [SYSTEM_ID]: { side: "foes" } } },
 		]);
 		expect(result.added).toBe(2);
+		// The Fight window opens for a fight this GM just started, so their sidebar stays on Chat.
+		expect(globalThis.ui.sidebar.changeTab).not.toHaveBeenCalled();
+	});
+
+	it("shows the fight in the sidebar's Fight tab when this GM keeps the window from opening by itself", async () => {
+		const { scene } = world();
+		globalThis.game.settings = { get: (scope, key) => (key === "fightWindowAuto" ? false : undefined) };
+		await startFight({ scene, picks: [{ id: "token:tBram", side: "heroes" }] });
+		expect(globalThis.ui.sidebar.changeTab).toHaveBeenCalledWith("combat", "primary");
+	});
+
+	it("leaves the sidebar alone when the Fight window is already showing the fight added to", async () => {
+		const { scene, combat } = world();
+		globalThis.game.combats = collection([combat]);
+		globalThis.ui.combat.popout = { rendered: true };
+		await startFight({ scene, picks: [{ id: "token:tCrin", side: "foes" }] });
+		expect(globalThis.ui.sidebar.changeTab).not.toHaveBeenCalled();
+	});
+
+	it("shows a fight added to in the Fight tab when its window was closed", async () => {
+		const { scene, combat } = world();
+		globalThis.game.combats = collection([combat]);
+		await startFight({ scene, picks: [{ id: "token:tCrin", side: "foes" }] });
 		expect(globalThis.ui.sidebar.changeTab).toHaveBeenCalledWith("combat", "primary");
 	});
 
@@ -320,5 +343,47 @@ describe("viewRectWorld", () => {
 			globalThis.innerWidth = savedW;
 			globalThis.innerHeight = savedH;
 		}
+	});
+
+	describe("with the Fight window open", () => {
+		let savedGlobals;
+		const canvas = { stage: { worldTransform: { applyInverse: ({ x, y }) => ({ x, y }) } } };
+		beforeEach(() => {
+			savedGlobals = { document: globalThis.document, innerWidth: globalThis.innerWidth, innerHeight: globalThis.innerHeight, ui: globalThis.ui };
+			globalThis.document = {
+				getElementById: id => ({
+					"ui-left": { getBoundingClientRect: () => ({ width: 60, right: 60 }) },
+					sidebar: { getBoundingClientRect: () => ({ width: 300, left: 1620 }) },
+				})[id] ?? null,
+			};
+			globalThis.innerWidth = 1920;
+			globalThis.innerHeight = 1080;
+		});
+		afterEach(() => { Object.assign(globalThis, savedGlobals); });
+		const withWindow = (box, extra = {}) => {
+			globalThis.ui = { combat: { popout: { rendered: true, minimized: false, element: { getBoundingClientRect: () => box }, ...extra } } };
+		};
+
+		it("keeps the view left of a window standing on the right", () => {
+			withWindow({ left: 1224, right: 1604, width: 380 });
+			expect(viewRectWorld(canvas)).toEqual({ x: 60, y: 0, w: 1164, h: 1080 });
+		});
+
+		it("keeps the view right of a window moved to the left", () => {
+			withWindow({ left: 80, right: 460, width: 380 });
+			expect(viewRectWorld(canvas)).toEqual({ x: 460, y: 0, w: 1160, h: 1080 });
+		});
+
+		it("ignores a window dragged so wide that leaving it out would leave less than half the view", () => {
+			withWindow({ left: 500, right: 1500, width: 1000 });
+			expect(viewRectWorld(canvas)).toEqual({ x: 60, y: 0, w: 1560, h: 1080 });
+		});
+
+		it("ignores a minimized window, and one that has closed", () => {
+			withWindow({ left: 1224, right: 1604, width: 380 }, { minimized: true });
+			expect(viewRectWorld(canvas).w).toBe(1560);
+			withWindow({ left: 1224, right: 1604, width: 380 }, { rendered: false });
+			expect(viewRectWorld(canvas).w).toBe(1560);
+		});
 	});
 });

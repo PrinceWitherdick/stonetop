@@ -3,7 +3,8 @@
 // ONE DECISION, MADE ONCE. Core builds its sidebar tabs from `CONFIG.ui` when the interface is first
 // drawn, so which class the Combat tab is made from has to be settled at init, from the world setting
 // `fightTab`. That is why the setting takes a reload, and why switching it off hands back core's own
-// tracker with nothing of ours left running: no stamps, no watcher, no map lines, no damage pre-fill.
+// tracker with nothing of ours left running: no stamps, no watcher, no map lines, no Fight window
+// opening by itself, no damage pre-fill.
 //
 // Wired in stonetop.js right after the settings are registered (a setting cannot be read before).
 
@@ -16,7 +17,9 @@ import { combatantSide, snapshotFight, FIGHT_FLAG, SIDE_FLAG } from "./fight-sta
 import { refreshFightOverlay, invalidateFightOverlay, teardownFightOverlay } from "./fight-overlay.js";
 import { openStartFight, lineUpFight, putBackFight } from "./start-fight.js";
 import { sendAgainst } from "./send-against.js";
+import { installFightWindow, openFightWindow, syncFightWindow } from "./fight-window.js";
 import { fightVitalsKey } from "./fight-vitals.js";
+import { openFightBook } from "./FightBookWindow.js";
 
 /**
  * `preCreateCombat`: mark a new Combat as a fight, and tie it to the scene it is started on.
@@ -83,14 +86,19 @@ export function registerFightTab({ config = globalThis.CONFIG, hooks = globalThi
 			lineUp: combat => lineUpFight(combat),
 			putBack: combat => putBackFight(combat),
 			sendAgainst: (combat, foeId, heroId) => sendAgainst(combat, foeId, heroId),
+			openWindow: () => openFightWindow({ byHand: true }),
+			openBook: () => openFightBook(),
 		};
 	}
 	installFightWatcher({
 		hooks,
 		// The watcher follows an engagement change with a geometry run, which then paints afresh.
-		onEngagement: () => { invalidateFightOverlay(); refreshFightTab(); },
+		// Everything that can start, end or reveal a fight is an engagement change, so the Fight
+		// window (fight-window.js) opens and closes from here too.
+		onEngagement: () => { invalidateFightOverlay(); refreshFightTab(); syncFightWindow(); },
 		onGeometry: () => refreshFightOverlay({ reuse: true }),
 	});
+	installFightWindow({ hooks });
 	// The canvas destroys the overlay with its interface group; drop the handles to it.
 	hooks.on("canvasTearDown", teardownFightOverlay);
 	// A reader switching high contrast on or off gets the lines repainted in that mode's ink.

@@ -403,6 +403,29 @@ export function registerSettings() {
 		onChange: () => game.stonetop?.fight?.refreshOverlay?.(),
 	});
 
+	// Whether the Fight tab pops out into a window of its own when a fight starts on the map this
+	// reader is looking at, and closes when it ends (module/fight/fight-window.js). Per client: a GM
+	// on a wide monitor and a player on a laptop want different things. Listed only in a world with
+	// the Fight tab on, where it does anything; `fightTab` is registered above and a world setting
+	// reads fine at init.
+	game.settings.register(SYSTEM_ID, "fightWindowAuto", {
+		name: "stonetop.settings.fightWindowAuto.name",
+		hint: "stonetop.settings.fightWindowAuto.hint",
+		scope: "client",
+		config: isFightTabEnabled(),
+		type: Boolean,
+		default: true,
+	});
+
+	// Where this reader last left the Fight window, and the fight they closed it on, so it stays shut
+	// for that fight across a reload (module/fight/fight-window.js). Never shown.
+	game.settings.register(SYSTEM_ID, "fightWindow", {
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {},
+	});
+
 	// Whether the one-time "Welcome to Stonetop" fresh-start CHAT card has been posted in
 	// this world (hooks/Ready.js _postStartupWelcomeMessageOnce). Distinct from
 	// `gmWelcomeShown` above despite the similar name: that one records that the GM
@@ -2139,6 +2162,11 @@ export function isFightOverlayShown() {
 /** Switch this reader's fight lines on or off. */
 export function setFightOverlayShown(shown) {
 	return setSetting("fightOverlay", !!shown);
+}
+
+/** Does this reader want the Fight window to open by itself when a fight starts? Defaults to yes. */
+export function isFightWindowAuto() {
+	return getBooleanSetting("fightWindowAuto", true);
 }
 
 /**

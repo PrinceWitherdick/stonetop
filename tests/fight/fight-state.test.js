@@ -205,6 +205,15 @@ describe("finding the fight", () => {
 		expect(fightOnScene(scene)).toBeNull();
 	});
 
+	it("passes over a fight the tab is still showing after the world deleted it", () => {
+		const { scene, combat } = table();
+		const next = fakeCombat({ id: "next", scene, active: false, modified: 1 });
+		world({ user: { id: "gm", isGM: true }, combats: [next], viewed: combat });
+		expect(fightOnScene(scene)).toBe(next);
+		world({ user: { id: "gm", isGM: true }, combats: [], viewed: combat });
+		expect(fightOnScene(scene)).toBeNull();
+	});
+
 	it("counts an unlinked combat as fought wherever its combatants stand", () => {
 		const { scene, cBram } = table();
 		const unlinked = fakeCombat({ id: "u", scene: null, combatants: [cBram] });

@@ -1,0 +1,11 @@
+{{!-- "What the book says about fights" (module/fight/FightBookWindow.js): Book I's advice on fights
+      as a whole, each passage with a citation that opens the GM's copy at that page. Same quote
+      markup as the Fight tab's folds (templates/sidebar/fight-rules.hbs), so both read alike. --}}
+<div class="stonetop-fight-book">
+  {{#each quotes}}
+  <blockquote class="stonetop-fight-quote">
+    <p class="stonetop-fight-quote-text">{{text}}</p>
+    <footer class="stonetop-fight-quote-cite">{{> "stonetop.book-page-cite" cites=cites}}</footer>
+  </blockquote>
+  {{/each}}
+</div>

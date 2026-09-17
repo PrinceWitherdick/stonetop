@@ -2,20 +2,47 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { createFightTrackerClass, FIGHTER_DRAG_TYPE } from "../../module/fight/FightTracker.js";
+import { FIGHT_OVER, FIGHT_WINDOW_WIDTH, noteFightWindowClosed, openFightWindow, rememberFightWindowPosition } from "../../module/fight/fight-window.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
 import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection } from "../fakes/fight.js";
 
 // The Fight tab's class, over a stand-in for core's CombatTracker.
+
+// What the window does with a close, a move and a press of "Open in a window" is fight-window.js's
+// business, tested there; here only that the class hands each one over.
+vi.mock("../../module/fight/fight-window.js", async importOriginal => ({
+	...(await importOriginal()),
+	noteFightWindowClosed: vi.fn(),
+	rememberFightWindowPosition: vi.fn(),
+	openFightWindow: vi.fn(),
+}));
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 
 class FakeCombatTracker {
 	static DEFAULT_OPTIONS = { actions: { activateCombatant: () => {}, toggleHidden: () => {} } };
 	static PARTS = { header: {}, tracker: {}, footer: {} };
-	constructor() { this.viewed = null; this.combats = []; this.renders = []; this.rendered = true; }
+	constructor(options = {}) {
+		this.options = this._initializeApplicationOptions(options);
+		this.position = { ...this.options.position };
+		this.minimized = false;
+		this.viewed = null; this.combats = []; this.renders = []; this.rendered = true; this.closes = [];
+	}
+	/** Core's merge, as far as this class reads it: the sidebar tab's own options, framed when popped out. */
+	_initializeApplicationOptions(options) {
+		return {
+			classes: ["tab", "sidebar-tab", "combat-sidebar", ...(options.classes ?? [])],
+			window: { frame: false, ...options.window },
+			position: { width: "auto", height: "auto", ...options.position },
+		};
+	}
+	get isPopout() { return !!this.options.window.frame; }
 	async _getCombatantThumbnail(combatant) { return combatant.img || "icons/svg/mystery-man.svg"; }
 	async _preFirstRender() { this.preFirst = true; }
 	_attachFrameListeners() {}
+	_onPosition() {}
+	_updatePosition(position) { return position; }
+	_onClose(options) { this.closes.push(options); }
 	render(options) { this.renders.push(options); }
 }
 
@@ -68,7 +95,7 @@ describe("the Fight tab class", () => {
 
 	it("adds its own actions and leaves core's to the merge", () => {
 		expect(Object.keys(FightTracker.DEFAULT_OPTIONS.actions).sort()).toEqual(
-			["addToFight", "endFight", "lineUpFight", "putBackFight", "startFight", "stopRounds", "toggleFightOverlay"],
+			["addToFight", "endFight", "lineUpFight", "openFightBook", "openFightWindow", "putBackFight", "startFight", "stopRounds", "toggleFightOverlay"],
 		);
 		expect(FightTracker.name).toBe("FightTracker");
 	});
@@ -93,7 +120,7 @@ describe("the Fight tab class", () => {
 		settings.set("fightOverlay", false);
 		const context = {};
 		await tab._prepareCombatContext(context, {});
-		expect(context).toMatchObject({ hasCombat: true, isGM: true, overlayShown: false, roundsStarted: false, canPutBack: false });
+		expect(context).toMatchObject({ hasCombat: true, isGM: true, overlayShown: false, isPopout: false, roundsStarted: false, canPutBack: false });
 		expect(context.cycle).toEqual({ text: "Fight 1 of 2", previousId: "", nextId: "second" });
 		for (const key of ["turns", "initiativeIcon", "control", "hasDecimals"]) expect(context).not.toHaveProperty(key);
 	});
@@ -206,6 +233,21 @@ describe("the Fight tab class", () => {
 		expect(tab.renders).toEqual([{ parts: ["header"] }]);
 	});
 
+	it("redraws the map-lines button through the sidebar tab when it is pressed in the window, so both say the same", async () => {
+		settings.set("fightOverlay", true);
+		const savedUi = globalThis.ui;
+		const tab = new FightTracker();
+		globalThis.ui = { ...savedUi, combat: tab };
+		try {
+			const popout = new FightTracker({ window: { frame: true } });
+			await FightTracker.DEFAULT_OPTIONS.actions.toggleFightOverlay.call(popout);
+			expect(tab.renders).toEqual([{ parts: ["header"] }]);
+			expect(popout.renders).toEqual([]);
+		} finally {
+			globalThis.ui = savedUi;
+		}
+	});
+
 	it("stops a combat started in core's tracker from counting rounds", async () => {
 		const { combat } = oneFight();
 		const tab = new FightTracker();
@@ -282,6 +324,97 @@ describe("the Fight tab class", () => {
 		FightTracker.DEFAULT_OPTIONS.actions.lineUpFight.call(tab);
 		expect(openStart.mock.calls).toEqual([[], [{ combat }]]);
 		expect(lineUp).toHaveBeenCalledWith(combat);
+	});
+});
+
+describe("the Fight window, the tab popped out", () => {
+	let savedWindow;
+	beforeEach(() => {
+		savedWindow = { document: globalThis.document, innerWidth: globalThis.innerWidth, innerHeight: globalThis.innerHeight };
+		globalThis.innerWidth = 1920;
+		globalThis.innerHeight = 1080;
+		globalThis.document = { getElementById: id => (id === "sidebar" ? { getBoundingClientRect: () => ({ width: 300, left: 1620 }) } : null) };
+		vi.mocked(noteFightWindowClosed).mockClear();
+		vi.mocked(rememberFightWindowPosition).mockClear();
+		vi.mocked(openFightWindow).mockClear();
+	});
+	afterEach(() => Object.assign(globalThis, savedWindow));
+
+	/** What core's renderPopout builds from the tab's options, when the Fight tab was the open one. */
+	const popOut = () => new FightTracker({
+		id: "combat-popout", classes: ["active", "sidebar-popout"], window: { frame: true, positioned: true, minimizable: true },
+	});
+
+	it("opens beside the sidebar, resizable, with a swords icon", () => {
+		const popout = popOut();
+		expect(popout.isPopout).toBe(true);
+		expect(popout.options.window).toMatchObject({ frame: true, resizable: true, icon: "fa-solid fa-swords" });
+		expect(popout.options.position).toEqual({ width: FIGHT_WINDOW_WIDTH, height: "auto", left: 1620 - FIGHT_WINDOW_WIDTH - 16, top: 16 });
+	});
+
+	it("drops the tab's `active` class, which core's CSS gives no height, and adds no stonetop class", () => {
+		const classes = popOut().options.classes;
+		expect(classes).toContain("sidebar-popout");
+		expect(classes).not.toContain("active");
+		expect(classes.filter(name => name.startsWith("stonetop"))).toEqual([]);
+	});
+
+	it("leaves the sidebar tab's own options as core made them", () => {
+		const tab = new FightTracker({ classes: ["active"] });
+		expect(tab.options.window).toEqual({ frame: false });
+		expect(tab.options.classes).toContain("active");
+		expect(tab.options.position).toEqual({ width: "auto", height: "auto" });
+	});
+
+	it("remembers where the window is moved, but not where a minimized window or the tab reports", () => {
+		const popout = popOut();
+		popout.position = { left: 30, top: 40, width: 400, height: "auto" };
+		popout._onPosition(popout.position);
+		expect(rememberFightWindowPosition).toHaveBeenCalledWith({ left: 30, top: 40, width: 400, height: "auto" });
+		popout.minimized = true;
+		popout._onPosition(popout.position);
+		new FightTracker()._onPosition({});
+		expect(rememberFightWindowPosition).toHaveBeenCalledTimes(1);
+	});
+
+	it("keeps the window shut for this fight when the reader closes it, but not when the fight ended", () => {
+		const popout = popOut();
+		popout._onClose({});
+		expect(noteFightWindowClosed).toHaveBeenCalledTimes(1);
+		popout._onClose({ [FIGHT_OVER]: true });
+		expect(noteFightWindowClosed).toHaveBeenCalledTimes(1);
+		expect(popout.closes).toEqual([{}, { [FIGHT_OVER]: true }]);
+	});
+
+	it("tells the header it is the window, which has no button to open itself", async () => {
+		const context = {};
+		await popOut()._prepareCombatContext(context, {});
+		expect(context.isPopout).toBe(true);
+	});
+
+	it("holds the window to the room below where it stands, so a long fight scrolls inside it", () => {
+		const popout = popOut();
+		const vars = new Map();
+		popout.element = { style: { setProperty: (name, value) => vars.set(name, value) } };
+		expect(popout._updatePosition({ top: 120.4, height: "auto" })).toEqual({ top: 120.4, height: "auto" });
+		expect(vars.get("--stonetop-fight-top")).toBe("120px");
+		const tab = new FightTracker();
+		const tabVars = new Map();
+		tab.element = { style: { setProperty: (name, value) => tabVars.set(name, value) } };
+		tab._updatePosition({ top: 50 });
+		expect(tabVars.size).toBe(0);
+	});
+
+	it("opens the book's advice on fights from the header's button", () => {
+		const openBook = vi.fn();
+		globalThis.game.stonetop = { fight: { openBook } };
+		FightTracker.DEFAULT_OPTIONS.actions.openFightBook.call(new FightTracker());
+		expect(openBook).toHaveBeenCalledTimes(1);
+	});
+
+	it("opens from the tab's button as the reader's own choice", () => {
+		FightTracker.DEFAULT_OPTIONS.actions.openFightWindow.call(new FightTracker());
+		expect(openFightWindow).toHaveBeenCalledWith({ byHand: true });
 	});
 });
 
