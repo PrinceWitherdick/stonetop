@@ -24,7 +24,7 @@ import { MACRO_MODULES } from "../book2-art/macro-modules.js";
 import { openProgressNotification } from "../utils/progress-notification.js";
 import { stonetopChatCard, whisperGm } from "../utils/chat.js";
 import { stampWorldLayoutBaseline } from "../utils/sheet-layout.js";
-import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyReduceMotion, applySheetContrast, applySheetTexture, applyNoItalics, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown, adoptClassicLayoutScope, isTimelineEnabled } from "../settings.js";
+import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyReduceMotion, applySheetContrast, applySheetTexture, applyNoItalics, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown, adoptClassicLayoutScope, isTimelineEnabled, isFightTabEnabled } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
 import { SpringBurstDialog } from "../dialogs/SpringBurstDialog.js";
@@ -180,6 +180,10 @@ export async function onReady() {
 	// _RETIRED_ACTOR_FLAGS). Self-gated to the primary GM, and a no-op in a clean world.
 	try { await _dropRetiredActorFlags(); }
 	catch (err) { console.error("Stonetop | retired actor-flag sweep failed", err); }
+	// Untick Group fight on sidebar monsters while the Fight tab is on, which picks a group's scale
+	// token by token (see _untickWorldGroupFights). Self-gated like the sweep above.
+	try { await _untickWorldGroupFights(); }
+	catch (err) { console.error("Stonetop | world Group fight untick failed", err); }
 	await _migrateGmPrepPagesToSingleJournal();
 	// Convert each steading's plain-text Residents/Neighbors rows into linked NPC actors
 	// (idempotent; primary-GM only so two connected GMs can't double-create). Swept every
@@ -1548,6 +1552,26 @@ export async function _dropRetiredActorFlags() {
 		"retired flag sweep",
 	);
 	return staleKeys.size;
+}
+
+// Untick the monster sheet's Group fight switch (`system.fightAsGroup`) on WORLD monsters while the
+// Fight tab is on.
+//
+// With the tab on, a group's scale is chosen for each TOKEN: as it joins a fight (the "how many?"
+// window) and from the tab after that (Merge, Split: fight/group-scale.js), and the sheet no longer
+// draws the switch. A sidebar monster ticked before then, or while the tab was switched off, hands
+// the switch to every token dragged out of it, is never asked "how many?", and has no box left to
+// untick. Tokens keep theirs: each is the scale its own fight settled on.
+//
+// Every load rather than once per version, because switching the tab off brings the switch back, so
+// a monster can be ticked again and the tab switched on again at any time. Idempotent, and in a tidy
+// world a filter over the Actors sidebar that finds nothing. PRIMARY-GM ONLY, like every other write
+// in onReady, and batched with the same per-actor retry (see _updateActorsBatched).
+export async function _untickWorldGroupFights() {
+	if (!game.user?.isGM || !isPrimaryGM() || !isFightTabEnabled()) return 0;
+	const ticked = (game.actors ?? []).filter(actor => actor.type === "monster" && actor.system?.fightAsGroup);
+	if (!ticked.length) return 0;
+	return _updateActorsBatched(ticked, () => ({ "system.fightAsGroup": false }), "Group fight untick");
 }
 
 // Give a slug to any arcanum card in the world that has none.

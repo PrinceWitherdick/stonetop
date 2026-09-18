@@ -219,9 +219,14 @@
 				      that rule pays (the swarm rule is damage only; the group-vs-group abstraction is
 				      damage AND armor). Book I, Dangers pp.414-416. The rows are play tools for a group
 				      run as one, so they show only in play with Group fight on; edit mode keeps the
-				      switch and the headcount input. --}}
-				{{#if stonetop.isGroupOrg}}
+				      switch and the headcount input.
+				      With the Fight tab on, the switch and both rows are the fight's (the "how many?"
+				      window, Merge and Split, and the bonuses it adds to the Damage roll), so the column
+				      keeps only Group size and a group token's casualties, and a creature fought on its
+				      own draws no column in play at all. See getData. --}}
+				{{#if stonetop.groupColumn}}
 				<div class="stonetop-monster-group-fight-section">
+						{{#unless stonetop.fightTab}}
 						{{!-- Which scale the HP box is read at: one creature (off), or the whole group run
 						      as one combatant (on). First, since it decides what the rest of the column
 						      means; in both modes, since a token is switched in play. Laid out like every other
@@ -240,9 +245,12 @@
 						      both modes, so the checkbox holds one x everywhere. Keep it in step with the row
 						      labels below. --}}
 						<span class="stonetop-monster-group-label-sizer" aria-hidden="true"><span class="stonetop-numbers-label">Swarm one foe:</span><span class="stonetop-numbers-label">Group vs group:</span></span>
+						{{/unless}}
 
-						{{!-- Always in edit mode, where the count the group mode reads is set. In play, only
-						      while run as one group: on one creature's sheet it is a fact about other tokens. --}}
+						{{!-- Always in edit mode, where the count the group mode reads is set, and the size the
+						      Fight tab's "how many?" window offers first when this monster joins a fight. In
+						      play, only while run as one group: on one creature's sheet it is a fact about
+						      other tokens. --}}
 						{{#if (or stonetop.editMode stonetop.fightAsGroup)}}
 						{{!-- Every labelled line in this column is a label, then ONE fields span holding the
 						      rest, so the section's grid can start each line's first box at the same x. --}}
@@ -268,8 +276,9 @@
 						{{#unless stonetop.editMode}}
 						{{!-- Both rules count a group's bodies, so only a group being run as one draws them.
 						      With Group fight off the sheet is one creature, and how many pile onto a foe is
-						      not a question its own sheet can answer. --}}
-						{{#if stonetop.fightAsGroup}}
+						      not a question its own sheet can answer. With the Fight tab on, the fight
+						      answers both on the Damage roll, and neither row is drawn. --}}
+						{{#if stonetop.numbersRows}}
 						{{!-- Several of them onto one foe. --}}
 						<span class="stonetop-monster-numbers-row" data-rule="swarm">
 							<span class="stonetop-numbers-label"

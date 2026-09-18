@@ -7,7 +7,7 @@ import { capitalizeFirst, escHtml, isDefaultImg } from "../../utils/strings.js";
 import { headerPortraitContext, wirePortraitPopout } from "../../utils/actor-portrait-picker.js";
 import { updateRichTextField, updateMoveField } from "../../utils/stat-block-edit.js";
 import { findMonsterTag } from "../../data/monster-tags.js";
-import { getHoverDescriptionSetting, getOpenSheetsInEditMode } from "../../settings.js";
+import { getHoverDescriptionSetting, getOpenSheetsInEditMode, isFightTabEnabled } from "../../settings.js";
 import { parseArmorBoost, armorBoostLabel } from "../../utils/monster-armor-boost.js";
 import { outnumberBonus, pileOnBonus, numbersClauses, groupCasualties, casualtyNote, wireFightingInNumbers } from "../../data/follower-build.js";
 import { postListCard } from "../../utils/chat.js";
@@ -456,8 +456,21 @@ export function createStonetopMonsterSheetClass(Base) {
 			// wound is a wound, and neither row is drawn, since both count a group's bodies. On,
 			// the GM is running the whole group as one combatant (p.416), the box is the group's
 			// pool, and Group size, its casualties and both rows apply.
+			//
+			// WITH THE FIGHT TAB ON, the switch and both rows are the fight's to do. A token's
+			// scale is chosen as it joins a fight ("how many?") and changed from the tab (Merge,
+			// Split: fight/group-scale.js), which also settle the pool, the headcount and the other
+			// tokens that a bare checkbox left as they were. And the fight adds both rules' bonuses
+			// to the ordinary Damage roll from who is actually fighting whom (fight/damage-seed.js),
+			// where the rows, typed by hand and rolled unseeded, could only repeat that or disagree
+			// with it. So the column keeps just what the tab reads: Group size, and the casualties
+			// of a token fighting as a group. With the tab off, nothing else offers any of it, and
+			// the switch and rows stay.
 			st.isGroupOrg        = org === "horde" || org === "group";
 			st.fightAsGroup      = st.isGroupOrg && !!system?.fightAsGroup;
+			st.fightTab          = isFightTabEnabled();
+			st.numbersRows       = st.fightAsGroup && !st.fightTab;
+			st.groupColumn       = st.isGroupOrg && (!st.fightTab || st.editMode || st.fightAsGroup);
 			st.count             = Math.max(0, Math.trunc(Number(system?.count) || 0));
 			st.baseDamageFormula = String(system?.attributes?.damage?.rollFormula || ORGANIZATION_DEFAULTS[org]?.die || "d6").trim();
 
@@ -486,13 +499,13 @@ export function createStonetopMonsterSheetClass(Base) {
 				const { out, standing, routed } = groupCasualties(pool);
 				st.casualtyNote = st.fightAsGroup && (out > 0 || routed) ? casualtyNote(pool) : null;
 
-				// Both rows, only for a group being run as one. They open at the bodies still in the
-				// fight, as the follower cards do: "adjust the bonuses to damage and armor
-				// accordingly!" A member out of the action is not an attacker, nor one of the side's
-				// numbers. With no group size recorded they open at one rather than a horde's typical
-				// six, since a lone member of a group is in the book too (a lone suarachan); one is
-				// also the inputs' own minimum.
-				if (st.fightAsGroup) {
+				// Both rows, only for a group being run as one, and only with the Fight tab off (see
+				// above). They open at the bodies still in the fight, as the follower cards do:
+				// "adjust the bonuses to damage and armor accordingly!" A member out of the action is
+				// not an attacker, nor one of the side's numbers. With no group size recorded they
+				// open at one rather than a horde's typical six, since a lone member of a group is in
+				// the book too (a lone suarachan); one is also the inputs' own minimum.
+				if (st.numbersRows) {
 					const swarmCount   = Math.max(1, standing);
 					const swarm        = pileOnBonus(swarmCount);
 					const exchange     = outnumberBonus(swarmCount, 1);

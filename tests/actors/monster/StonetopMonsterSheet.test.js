@@ -242,6 +242,51 @@ describe("StonetopMonsterSheet", () => {
 			const st = (await makeSheet(alone).getData()).stonetop;
 			expect(st.isGroupOrg).toBe(false);
 			expect(st.fightAsGroup).toBe(false);
+			expect(st.groupColumn).toBe(false);
+		});
+
+		// With the Fight tab off (a test registers no settings, so it reads as off), nothing else picks a
+		// group's scale or pays its numbers, and the sheet's own switch and rows are the table's tools.
+		it("keeps the switch's column and both rows while the Fight tab is off", async () => {
+			const st = (await makeSheet(asGroup()).getData()).stonetop;
+			expect(st.fightTab).toBe(false);
+			expect(st.numbersRows).toBe(true);
+			expect(st.groupColumn).toBe(true);
+			expect((await makeSheet(horde()).getData()).stonetop.groupColumn).toBe(true);
+		});
+
+		// With it on, the fight picks a token's scale (the "how many?" window, Merge, Split) and adds both
+		// rules' bonuses to the Damage roll (fight/damage-seed.js), so the sheet keeps only what the tab
+		// reads: Group size, and a group token's casualties.
+		describe("with the Fight tab on", () => {
+			let savedGame;
+			beforeEach(() => {
+				savedGame = globalThis.game;
+				const prior = savedGame?.settings;
+				globalThis.game = { ...savedGame, settings: { get: (scope, key) => (key === "fightTab" ? true : prior?.get?.(scope, key)) } };
+			});
+			afterEach(() => { globalThis.game = savedGame; });
+
+			it("draws neither row on a group token, and keeps its Group size and casualties", async () => {
+				const st = (await makeSheet(asGroup(hurt(2))).getData()).stonetop;
+				expect(st.fightTab).toBe(true);
+				expect(st.fightAsGroup).toBe(true);
+				expect(st.numbersRows).toBe(false);
+				expect(st.swarmCount).toBeUndefined();
+				expect(st.swarmFormula).toBeUndefined();
+				expect(st.exchangeClauses).toBeUndefined();
+				expect(st.groupColumn).toBe(true);
+				expect(st.casualtyNote).toBe("4 of 6 still standing");
+			});
+
+			// Nothing is left in the column for one creature in play, so it is not drawn and Type, Damage and
+			// Instinct take the whole width. Edit mode keeps it, for Group size.
+			it("draws no column in play for one creature, and Group size in edit mode", async () => {
+				expect((await makeSheet(horde()).getData()).stonetop.groupColumn).toBe(false);
+				const editing = makeSheet(horde());
+				editing._editMode = true;
+				expect((await editing.getData()).stonetop.groupColumn).toBe(true);
+			});
 		});
 
 		// The switch is a real field, and both rows and the HP box's title follow it.
@@ -249,6 +294,17 @@ describe("StonetopMonsterSheet", () => {
 			const { readFileSync } = await import("node:fs");
 			const hbs = readFileSync(new URL("../../../templates/actor/monster.hbs", import.meta.url), "utf8");
 			expect(hbs).toContain('<input class="stonetop-monster-group-toggle-check" type="checkbox" name="system.fightAsGroup" {{checked system.fightAsGroup}}');
+
+			// The column, and the switch with its label sizer, only where getData says: the switch is the
+			// Fight tab's to work while it is on, so it sits in an {{#unless}} that closes after the sizer.
+			const column = hbs.indexOf('<div class="stonetop-monster-group-fight-section">');
+			expect(hbs.lastIndexOf("{{#if stonetop.groupColumn}}", column)).toBeGreaterThan(-1);
+			const switchIf = hbs.indexOf("{{#unless stonetop.fightTab}}", column);
+			const sizerAt  = hbs.indexOf('<span class="stonetop-monster-group-label-sizer"', column);
+			expect(switchIf).toBeGreaterThan(column);
+			expect(switchIf).toBeLessThan(hbs.indexOf('<label class="stonetop-monster-group-toggle"'));
+			expect(hbs.slice(switchIf, sizerAt)).not.toMatch(/\{\{\/unless\}\}/);
+			expect(hbs.indexOf("{{/unless}}", sizerAt)).toBeLessThan(hbs.indexOf(">Group size<"));
 
 			// In play, Group size is a group's number, so one creature's sheet does not draw it.
 			// Edit mode always does: it is where the count the group mode reads gets set.
@@ -263,14 +319,15 @@ describe("StonetopMonsterSheet", () => {
 			expect(play).toMatch(/<input class="stonetop-monster-group-count" type="number" name="system\.count"/);
 			expect(play).toContain("{{stonetop.casualtyNote}}");
 
-			// Both rows under ONE switch: it opens after Group size and before the swarm row, and nothing
-			// between it and the exchange row closes it. A sheet with Group fight off draws neither.
+			// Both rows under ONE condition: it opens after Group size and before the swarm row, and nothing
+			// between it and the exchange row closes it. A sheet with Group fight off, or with the Fight tab
+			// on, draws neither (numbersRows, from getData).
 			const swarmAt    = hbs.indexOf('data-rule="swarm"');
 			const exchangeAt = hbs.indexOf('data-rule="exchange"');
-			const rowsIf     = hbs.lastIndexOf("{{#if stonetop.fightAsGroup}}", swarmAt);
+			const rowsIf     = hbs.lastIndexOf("{{#if stonetop.numbersRows}}", swarmAt);
 			expect(rowsIf).toBeGreaterThan(countAt);
 			expect(hbs.slice(rowsIf, exchangeAt)).not.toContain("{{/if}}");
-			expect(hbs.slice(rowsIf + 1, exchangeAt)).not.toContain("{{#if stonetop.fightAsGroup}}");
+			expect(hbs.slice(rowsIf + 1, exchangeAt)).not.toContain("{{#if stonetop.numbersRows}}");
 
 			const title = hbs.slice(hbs.indexOf('<div class="cell cell--Resource cell--attr-hp">'), hbs.indexOf('name="system.attributes.hp.value"'));
 			expect(title).toContain("{{#if stonetop.fightAsGroup}}");
