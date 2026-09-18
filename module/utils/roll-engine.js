@@ -897,7 +897,10 @@ export async function rollDamage(formula, actor, options = {}) {
 
 	await roll.toMessage({
 		speaker:  ChatMessage.getSpeaker({ actor }),
-		flavor:   _rollCard({ header: label, buttons: true, total: roll.total, formula: roll.formula, dieResults: dieResultsText(roll), conditionsHtml: conditionsRowHtml(conditions), noticesHtml: options.notices ?? "", keywords: options.keywords ?? "", description: options.description ?? "", badge: damageBadge(), sectionClass: "stonetop-damage-roll-card", damage: true }),
+		// Never below 0: a group's -N for the bigger side's armor (fight/damage-seed.js) can take a d4 under it.
+		// The Roll itself keeps the dice's arithmetic, so a caller reading its total clamps it the same way
+		// (combat/attack-flow.js#rollAndPostDamage).
+		flavor:   _rollCard({ header: label, buttons: true, total: Math.max(0, roll.total), formula: roll.formula, dieResults: dieResultsText(roll), conditionsHtml: conditionsRowHtml(conditions), noticesHtml: options.notices ?? "", keywords: options.keywords ?? "", description: options.description ?? "", badge: damageBadge(), sectionClass: "stonetop-damage-roll-card", damage: true }),
 		rollMode: game.settings.get("core", "rollMode"),
 	});
 

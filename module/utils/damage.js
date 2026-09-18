@@ -48,8 +48,8 @@ export function damageSeedBonus(seed) {
  * to add. THE ONE TEST of whether a seed is worth showing at all (the window, the pills, the card).
  *
  * NEGATIVE ONLY FOR A GROUP HITTING A BIGGER GROUP (p.416): the bigger group's +N armor, taken off the
- * roll, since a stat block's damage card has no Apply that would read armor. The attack card, which
- * does, only ever carries a pile-on's positive +N and ignores anything else.
+ * roll where there is nobody to Apply it to. A card with an Apply puts it back and adds it to the
+ * target's armor instead (combat/attack-flow.js#seedArmor), so piercing can reach it.
  */
 export function seedBonus(seed) {
 	return Math.trunc(Number(seed?.bonus)) || 0;

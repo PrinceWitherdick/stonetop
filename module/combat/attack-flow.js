@@ -29,7 +29,7 @@ import {weaponMeta, isClashWeapon, isLetFlyWeapon, weaponTraitText, weaponArmorB
 import {escHtml, joinNames} from "../utils/strings.js";
 import {stonetopChatCard, rollFormulaChip, damageMark, damageBadge, damageKeywordsHtml, optionKey, whisperGm, cardNoticeHtml, canUserWriteCard} from "../utils/chat.js";
 import {rollDamage, multiDieFaces, sign, damageRollFormula, damageConditionPills, conditionsRowHtml, classifyResult} from "../utils/roll-engine.js";
-import {mitigateDamage, resolvePiercing, applyDamageToActor, damageRowActor, composeDamageFormula, seedBonus, foeAttacks, fictionTagsIn, hardestAttackIndex} from "../utils/damage.js";
+import {mitigateDamage, resolvePiercing, applyDamageToActor, damageRowActor, composeDamageFormula, seedBonus, damageSeedBonus, foeAttacks, fictionTagsIn, hardestAttackIndex} from "../utils/damage.js";
 import {promptDamage, rollDamagePrompted} from "../dialogs/RollDialog.js";
 // The fight's +N for several attackers (Book I p.414), offered to the damage rolls below. Every builder
 // answers null with the Fight tab off or no fight on the map, so none of this changes a roll then.
@@ -1016,6 +1016,9 @@ async function rollAndPostDamage(actor, { move, weapon, targets, damage, ignores
 	// what was added; the branches that build their own Rolls compose here and pass the same
 	// pills to the results card, so all three report the adjustment identically.
 	const { base, rollMode, bonus, extraDice, seed = null } = damage;
+	// The weapon's OWN piercing, kept for Apply: the other attackers' merged in below counts only while
+	// their +N does (seedPiercing), and the card's +N can be left off after the roll.
+	const ownPiercing = weapon?.piercing ?? 0;
 	weapon = withSeedTags(weapon, seed);
 	const formula   = damageRollFormula(composeDamageFormula(base, { bonus, extraDice, seed }), rollMode);
 	const applyable = (targets ?? []).filter(t => t.hasActor !== false && t.uuid);
@@ -1029,7 +1032,8 @@ async function rollAndPostDamage(actor, { move, weapon, targets, damage, ignores
 	let results = [];
 	if (applyable.length === 0) {
 		const roll = await rollDamage(base, actor, { label: damageLabel(move, weapon), rollMode, bonus, extraDice, seed, notices });
-		results = [{ raw: roll.total, formula: roll.formula, faces: multiDieFaces(roll) }];
+		// The number the card shows, which never goes below 0 (a group's -N can take a d4 under it).
+		results = [{ raw: Math.max(0, roll.total), formula: roll.formula, faces: multiDieFaces(roll) }];
 	} else {
 		// One damage roll per target — independent, so evaluate them concurrently; they're
 		// aggregated into a single results card, and mapping by index preserves order.
@@ -1038,7 +1042,7 @@ async function rollAndPostDamage(actor, { move, weapon, targets, damage, ignores
 			uuid: t.uuid, name: t.name, actorId: t.actorId, disposition: t.disposition,
 			raw: rolls[i].total, formula: rolls[i].formula, faces: multiDieFaces(rolls[i]),
 		}));
-		await postDamageResultsCard(actor, { move, weapon, results, damage, selfHarm, notices, foeUuid });
+		await postDamageResultsCard(actor, { move, weapon, ownPiercing, results, damage, selfHarm, notices, foeUuid });
 		// A blow at somebody the roller is not standing against is a shot, and the fight keeps it; a
 		// character's own hit is not a shot at anyone.
 		if (!selfHarm) {
@@ -1152,14 +1156,23 @@ function selfTarget(actor) {
 // The fine print a bare number can't carry: which weapon rolled it, and whether armor
 // will bite when the GM applies it. Sits under the target name in each damage block. The
 // armor bits come from module/data/weapons.js, so the picker and the card can't drift.
-function damageRowDetail(weapon) {
+//
+// The weapon's OWN piercing: the other attackers' counts only while their +N is on, which can change
+// after the roll (seedPiercing), so it is said with that condition attached rather than as the blow's.
+function damageRowDetail(weapon, { ownPiercing = weapon?.piercing, seed = null } = {}) {
 	if (!weapon) return "";
 	// Filtered, because a weaponless attack that still ignores armor (Call the Shot bare-handed)
 	// arrives with an empty name, and an unfiltered join would print a leading " · ".
 	// The armor bits are tags, so they print the way the damage roll card prints its tags: bold,
 	// with their meaning on hover. A stat block's blow brings its whole printed tag list instead
 	// (rollDamageAt), which already says its piercing and whether it ignores armor.
-	const tags = weapon.keywords ? [damageKeywordsHtml(weapon.keywords)] : weaponArmorBits(weapon).map(damageKeywordsHtml);
+	const own = { ...weapon, piercing: ownPiercing };
+	const tags = own.keywords ? [damageKeywordsHtml(own.keywords)] : weaponArmorBits(own).map(damageKeywordsHtml);
+	const bonus = seedBonus(seed);
+	const theirs = bonus > 0 && !own.ignoresArmor ? Math.max(0, Math.trunc(Number(seed.piercing) || 0)) : 0;
+	if (theirs > resolvePiercing(ownPiercing)) {
+		tags.push(`${damageKeywordsHtml(`${theirs} piercing`)} ${escHtml(format("stonetop.fight.seed.piercingWhile", { bonus }))}`);
+	}
 	return [escHtml(weapon.name), ...tags].filter(Boolean).join(" · ");
 }
 
@@ -1181,7 +1194,35 @@ export function seedAdjustment(seed) {
 	return (seed.applied === false ? 0 : bonus) - (seed.rolled === false ? 0 : bonus);
 }
 
-function postDamageResultsCard(actor, { move, weapon, results, damage, selfHarm = false, notices = "", foeUuid = "" }) {
+/**
+ * The other attackers' piercing a damage card carries, while their +N is on (withSeedTags rolled it in
+ * only then): leaving the +N off afterwards takes their piercing off with it, and adding it back brings it.
+ */
+export function seedPiercing(seed) {
+	if (damageSeedBonus(seed) <= 0) return 0;
+	return Math.max(0, Math.trunc(Number(seed.piercing) || 0));
+}
+
+/**
+ * A smaller group's -N as the bigger group's +N ARMOR (Book I p.416 "+1 bonus to damage and armor"), while
+ * it is on: Apply adds this to the target's armor and back onto the roll, so piercing and "ignores armor"
+ * reach it the way they reach any armor. 0 for any other seed.
+ */
+export function seedArmor(seed) {
+	return Math.max(0, -damageSeedBonus(seed));
+}
+
+/**
+ * The armor a damage row is taken against: the stored number, the one the Fight tab and the token show.
+ * A character's is derived from what they carry, and actors/character/vitals-mirror.js keeps it current
+ * whatever changed it and whether or not their sheet is open.
+ */
+function wornArmor(actor) {
+	const stored = actor?.system?.attributes?.armor ?? {};
+	return { armor: Number(stored.value) || 0, unpierceable: Number(stored.unpierceable) || 0 };
+}
+
+function postDamageResultsCard(actor, { move, weapon, ownPiercing, results, damage, selfHarm = false, notices = "", foeUuid = "", groupBlow = false }) {
 	// Several targets is the book's own rule now that the roller is asked who a blow hits
 	// (fight/fight-targets.js), so the note says when it applies rather than calling it an abstraction.
 	const multiWarn = results.length > 1 && !weapon?.area
@@ -1194,7 +1235,7 @@ function postDamageResultsCard(actor, { move, weapon, results, damage, selfHarm 
 	// burst and red total say "damage" without re-reading the title. Each total carries its
 	// own die-faces tooltip: the targets are rolled independently, so the shared formula
 	// chip above can only speak for one of them.
-	const detail = damageRowDetail(weapon);
+	const detail = damageRowDetail(weapon, { ownPiercing, seed: damage?.seed });
 	const rows = results.map(r => {
 		const friendly = Boolean(r.uuid) && isFriendly(r.disposition);
 		const label = r.uuid
@@ -1256,7 +1297,7 @@ function postDamageResultsCard(actor, { move, weapon, results, damage, selfHarm 
 		content: stonetopChatCard(`${move}: damage`, body, "stonetop-attack-damage-card", damageBadge()),
 		flags: { [SCOPE]: { damage: {
 			move, attackerUuid: actor.uuid,
-			weapon: weapon ? { name: weapon.name, piercing: weapon.piercing, ignoresArmor: weapon.ignoresArmor } : null,
+			weapon: weapon ? { name: weapon.name, piercing: ownPiercing, ignoresArmor: weapon.ignoresArmor } : null,
 			// `applied` is an ARRAY, not a uuid-keyed object: a token uuid ("Scene.x.Token.y")
 			// used as a flag key would be dot-expanded into nested objects by setFlag, breaking
 			// the idempotency lookup so a second click re-subtracts HP.
@@ -1612,7 +1653,10 @@ function applyGate(message, damage) {
 	const owed = pending.length ? pending : damage.results;
 	// ONE resolution pass for both questions below. Each row's uuid used to be looked up twice per
 	// render, and chat re-renders on every flag write anywhere in the log.
-	const owedActors = resolveDamageActors(owed);
+	// A row a defender took in the ward's place (fight/defend-spend.js) writes the DEFENDER's HP, so it is
+	// the defender's owner who may press, not the ward's.
+	const { standIns } = spentOn(damage);
+	const owedActors = resolveDamageActors(owed.map(r => (standIns.has(r.uuid) ? { ...r, uuid: standIns.get(r.uuid).by } : r)));
 	const applier = electedApplier(owedActors, message);
 
 	if (!game.user.isGM) {
@@ -1668,72 +1712,106 @@ export function wireApplyDamage(message, html, gateFor = applyGateOnce(message))
 	}
 
 	btn.addEventListener("click", async () => {
-		const current = message.getFlag(SCOPE, "damage") ?? damage;
-		const nextApplied = Array.isArray(current.applied) ? [...current.applied] : [];
-		const doneUuids = new Set(nextApplied.map(a => a.uuid));
-		const piercing = resolvePiercing(current.weapon?.piercing);
-		// The fight's +N as it stands now, against what was rolled (see seedAdjustment).
-		const adjustment = seedAdjustment(current.seed);
-		// Who struck, to tell a lone attacker's blow on a group from a group's (fight/group-hits.js).
-		const attacker = current.attackerUuid ? await fromUuid(current.attackerUuid).catch(() => null) : null;
-		// Defend's Readiness, spent on a blow from this card (fight/defend-spend.js): halved before armor,
-		// or taken by a defender in the ward's place, against the defender's own armor.
-		const { halved, standIns, ignored } = spentOn(current);
-		const lines = [];
-		for (const r of current.results) {
-			if (doneUuids.has(r.uuid)) continue;
-			const td = await fromUuid(r.uuid);
-			const standIn = standIns.get(r.uuid);
-			const defender = standIn ? damageRowActor(await fromUuid(standIn.by).catch(() => null)) : null;
-			const targetActor = defender ?? damageRowActor(td);
-			const rowName = defender ? format("stonetop.fight.defend.rowFor", { defender: defender.name, ward: r.name }) : r.name;
-			if (!targetActor) { lines.push(`<li><strong>${escHtml(r.name)}</strong>: no longer on the map</li>`); continue; }
-			// A Mighty Rampart: "completely ignore the effects/damage of an attack that you suffer".
-			if (ignored.has(r.uuid)) {
-				nextApplied.push({ uuid: r.uuid, effective: 0, ignored: true, ...(defender ? { by: standIn.by } : {}) });
-				lines.push(`<li><strong>${escHtml(rowName)}</strong>: ${escHtml(format("stonetop.fight.defend.ignoredLine", {}))}</li>`);
+		// One press at a time. The rows are applied one after another, and a second press that read the
+		// card before the first wrote `applied` would take every row's HP twice.
+		if (btn.disabled) return;
+		btn.disabled = true;
+		let landed = false;
+		try {
+			landed = await applyOwedDamage(message, damage);
+		} catch (err) {
+			console.error("Stonetop | applying damage failed", err);
+		} finally {
+			// A press that landed redraws the card with the button settled; one that landed nothing (every row
+			// off the map, or without HP) can be pressed again.
+			if (!landed) btn.disabled = false;
+		}
+	});
+}
+
+/**
+ * Apply every row of a damage card not yet applied, and post what each took. Returns whether any row
+ * was recorded as applied.
+ */
+async function applyOwedDamage(message, damage) {
+	const current = message.getFlag(SCOPE, "damage") ?? damage;
+	const nextApplied = Array.isArray(current.applied) ? [...current.applied] : [];
+	const before = nextApplied.length;
+	const doneUuids = new Set(nextApplied.map(a => a.uuid));
+	// The other attackers' piercing counts only while their +N does (seedPiercing).
+	const piercing = Math.max(resolvePiercing(current.weapon?.piercing), seedPiercing(current.seed));
+	// The fight's +N as it stands now, against what was rolled (see seedAdjustment). A group's -N is the
+	// bigger group's ARMOR (p.416), so it is taken back off the roll and added to armor instead,
+	// where piercing and "ignores armor" can reach it (seedArmor).
+	const adjustment = seedAdjustment(current.seed);
+	const groupArmor = seedArmor(current.seed);
+	// Who struck, to tell a lone attacker's blow on a group from a group's (fight/group-hits.js).
+	const attacker = current.attackerUuid ? await fromUuid(current.attackerUuid).catch(() => null) : null;
+	// Defend's Readiness, spent on a blow from this card (fight/defend-spend.js): halved before armor,
+	// or taken by a defender in the ward's place, against the defender's own armor.
+	const { halved, standIns, ignored } = spentOn(current);
+	const lines = [];
+	for (const r of current.results) {
+		if (doneUuids.has(r.uuid)) continue;
+		const td = await fromUuid(r.uuid);
+		const standIn = standIns.get(r.uuid);
+		const defender = standIn ? damageRowActor(await fromUuid(standIn.by).catch(() => null)) : null;
+		const targetActor = defender ?? damageRowActor(td);
+		const rowName = defender ? format("stonetop.fight.defend.rowFor", { defender: defender.name, ward: r.name }) : r.name;
+		if (!targetActor) { lines.push(`<li><strong>${escHtml(r.name)}</strong>: no longer on the map</li>`); continue; }
+		// A Mighty Rampart: "completely ignore the effects/damage of an attack that you suffer".
+		if (ignored.has(r.uuid)) {
+			nextApplied.push({ uuid: r.uuid, effective: 0, ignored: true, ...(defender ? { by: standIn.by } : {}) });
+			lines.push(`<li><strong>${escHtml(rowName)}</strong>: ${escHtml(format("stonetop.fight.defend.ignoredLine", {}))}</li>`);
+			continue;
+		}
+		// Undaunted: "+1 armor" while outnumbered or facing a foe bigger than them.
+		const undaunted = targetActor.type === "character" && !!undauntedNow(targetActor);
+		const worn = wornArmor(targetActor);
+		const armor = worn.armor + (undaunted ? 1 : 0) + groupArmor;
+		const unpierceable = worn.unpierceable;
+		const rolled = Math.max(0, r.raw + adjustment + groupArmor);
+		// The card shows its total with a group's -N taken off (wireDamageSeed): said beside the number
+		// Apply starts from, so the table can see where the difference went.
+		const shown = Math.max(0, r.raw + adjustment);
+		const back = groupArmor && shown !== rolled
+			? ` <span class="stonetop-damage-mitigated">(${escHtml(format("stonetop.fight.seed.armorBack", { shown, rolled, armor: groupArmor }))})</span>`
+			: "";
+		const raw = halved.has(r.uuid) ? halveDamage(rolled) : rolled;
+		const effective = mitigateDamage(raw, { armor, piercing, unpierceable, ignoresArmor: current.weapon?.ignoresArmor });
+		// Through `mitigationDetail`, the one place the subtraction is put into words: this
+		// used to restate `armor - piercing` inline, which stopped matching the moment
+		// mitigateDamage learned about an unpierceable floor, and printed armor the
+		// arithmetic had not applied.
+		const detail = mitigationDetail({ armor, piercing, unpierceable, ignoresArmor: current.weapon?.ignoresArmor });
+		const mitigated = effective !== raw ? ` <span class="stonetop-damage-mitigated">(${raw}${detail})</span>` : "";
+		// ONE MEMBER OF A GROUP, for one attacker's blow: see fight/group-hits.js.
+		if (!current.selfHarm && !current.groupBlow && isLoneBlowOnGroup(targetActor, attacker, td?.parent ?? null)) {
+			const hit = await applyMemberHit(targetActor, effective);
+			if (hit) {
+				nextApplied.push({ uuid: r.uuid, effective, member: true, down: hit.down, before: hit.before, after: hit.after });
+				const said = format(`stonetop.fight.groupHit.${hit.down ? "down" : "hurt"}`, { after: hit.after, memberHp: hit.memberHp, hpMax: hit.hpMax });
+				lines.push(`<li><strong>${escHtml(r.name)}</strong>: ${effective} damage${back}${mitigated}: ${escHtml(said)}</li>`);
 				continue;
 			}
-			// Undaunted: "+1 armor" while outnumbered or facing a foe bigger than them.
-			const undaunted = targetActor.type === "character" && !!undauntedNow(targetActor);
-			const armor = (Number(targetActor.system?.attributes?.armor?.value) || 0) + (undaunted ? 1 : 0);
-			const unpierceable = Number(targetActor.system?.attributes?.armor?.unpierceable) || 0;
-			const rolled = Math.max(0, r.raw + adjustment);
-			const raw = halved.has(r.uuid) ? halveDamage(rolled) : rolled;
-			const effective = mitigateDamage(raw, { armor, piercing, unpierceable, ignoresArmor: current.weapon?.ignoresArmor });
-			// Through `mitigationDetail`, the one place the subtraction is put into words: this
-			// used to restate `armor - piercing` inline, which stopped matching the moment
-			// mitigateDamage learned about an unpierceable floor, and printed armor the
-			// arithmetic had not applied.
-			const detail = mitigationDetail({ armor, piercing, unpierceable, ignoresArmor: current.weapon?.ignoresArmor });
-			const mitigated = effective !== raw ? ` <span class="stonetop-damage-mitigated">(${raw}${detail})</span>` : "";
-			// ONE MEMBER OF A GROUP, for one attacker's blow: see fight/group-hits.js.
-			if (!current.selfHarm && isLoneBlowOnGroup(targetActor, attacker, td?.parent ?? null)) {
-				const hit = await applyMemberHit(targetActor, effective);
-				if (hit) {
-					nextApplied.push({ uuid: r.uuid, effective, member: true, down: hit.down, before: hit.before, after: hit.after });
-					const said = format(`stonetop.fight.groupHit.${hit.down ? "down" : "hurt"}`, { after: hit.after, memberHp: hit.memberHp, hpMax: hit.hpMax });
-					lines.push(`<li><strong>${escHtml(r.name)}</strong>: ${effective} damage${mitigated}: ${escHtml(said)}</li>`);
-					continue;
-				}
-			}
-			const t = await applyDamageToActor(targetActor, effective);
-			// A target actor with no hp attribute (e.g. a steading token) yields null. Skip it
-			// without recording it as applied, so it can be retried if the actor is fixed —
-			// rather than rendering "undefined → undefined HP" and marking it done forever.
-			if (!t) { lines.push(`<li><strong>${escHtml(r.name)}</strong>: has no HP to damage</li>`); continue; }
-			nextApplied.push({ uuid: r.uuid, effective, oldHp: t.oldHp, newHp: t.newHp, ...(defender ? { by: standIn.by } : {}) });
-			const dead = t.newHp === 0 ? " <em>(0 HP)</em>" : "";
-			const half = raw !== rolled ? ` <span class="stonetop-damage-mitigated">(${escHtml(format("stonetop.fight.defend.halvedFrom", { rolled }))})</span>` : "";
-			const brave = undaunted ? ` <span class="stonetop-damage-mitigated">(${escHtml(format("stonetop.fight.heroMoves.undaunted.armorNote", {}))})</span>` : "";
-			lines.push(`<li><strong>${escHtml(rowName)}</strong>: ${effective} damage${half}${mitigated}${brave}: ${t.oldHp} &rarr; ${t.newHp} HP${dead}</li>`);
 		}
-		await message.setFlag(SCOPE, "damage", { ...current, applied: nextApplied });
-		await ChatMessage.create({
-			content: stonetopChatCard(`${current.move}: damage applied`, `<div class="card-content"><ul class="stonetop-homestead-chat-list">${lines.join("")}</ul></div>`, "stonetop-attack-applied-card"),
-			speaker: { alias: "Stonetop" },
-		});
+		const t = await applyDamageToActor(targetActor, effective);
+		// A target actor with no hp attribute (e.g. a steading token) yields null. Skip it
+		// without recording it as applied, so it can be retried if the actor is fixed —
+		// rather than rendering "undefined → undefined HP" and marking it done forever.
+		if (!t) { lines.push(`<li><strong>${escHtml(r.name)}</strong>: has no HP to damage</li>`); continue; }
+		nextApplied.push({ uuid: r.uuid, effective, oldHp: t.oldHp, newHp: t.newHp, ...(defender ? { by: standIn.by } : {}) });
+		const dead = t.newHp === 0 ? " <em>(0 HP)</em>" : "";
+		const half = raw !== rolled ? ` <span class="stonetop-damage-mitigated">(${escHtml(format("stonetop.fight.defend.halvedFrom", { rolled }))})</span>` : "";
+		const brave = undaunted ? ` <span class="stonetop-damage-mitigated">(${escHtml(format("stonetop.fight.heroMoves.undaunted.armorNote", {}))})</span>` : "";
+		lines.push(`<li><strong>${escHtml(rowName)}</strong>: ${effective} damage${back}${half}${mitigated}${brave}: ${t.oldHp} &rarr; ${t.newHp} HP${dead}</li>`);
+	}
+	await message.setFlag(SCOPE, "damage", { ...current, applied: nextApplied });
+	await ChatMessage.create({
+		content: stonetopChatCard(`${current.move}: damage applied`, `<div class="card-content"><ul class="stonetop-homestead-chat-list">${lines.join("")}</ul></div>`, "stonetop-attack-applied-card"),
+		speaker: { alias: "Stonetop" },
 	});
+	return nextApplied.length > before;
 }
 
 /**
@@ -2186,7 +2264,11 @@ export async function resolveSufferChoice(message, index) {
  * blow in this file — said out loud under the field, so the number is typed knowing it.
  */
 async function postSufferAmountCard({ pc, foeName, foeText, attack = null, seed = null }) {
-	const armor = Number(pc.system?.attributes?.armor?.value) || 0;
+	// The blow as its damage card will carry it (postIncomingDamage): the other foes' piercing rides it
+	// while their +N is on, and Undaunted adds its armor at Apply.
+	const incoming = seed ? seedWithoutStriker(seed, attack?.foeUuid ?? "") : null;
+	const blow = { ...(attack ?? {}), piercing: Math.max(resolvePiercing(attack?.piercing ?? 0), seedPiercing(incoming)) };
+	const armorLine = sufferArmorLine(pc.name, wornArmor(pc), blow, { undaunted: pc.type === "character" && !!undauntedNow(pc) });
 	// A named blow arrives here when the stat block printed the attack but no die for it — the
 	// raider's net. Saying which one is being priced is the difference between "name a number"
 	// and "name a number for THIS", and the tags below it are why the number might not be 0.
@@ -2199,9 +2281,7 @@ async function postSufferAmountCard({ pc, foeName, foeText, attack = null, seed 
 		<label class="stonetop-suffer-field">Damage the blow deals
 			<input type="number" class="stonetop-suffer-amount" value="0" min="0" step="1">
 		</label>
-		<p class="stonetop-suffer-detail">${armor
-			? `${escHtml(pc.name)}'s ${armor} armor comes off it when the damage is taken.`
-			: `${escHtml(pc.name)} wears no armor, so all of it lands.`}</p>
+		<p class="stonetop-suffer-detail">${escHtml(armorLine)}</p>
 		<div class="card-buttons stonetop-card-buttons stonetop-attack-actions">
 			<button type="button" class="stonetop-attack-btn stonetop-suffer-deal">
 				<i class="fas fa-hand-fist"></i> Deal it
@@ -2211,6 +2291,28 @@ async function postSufferAmountCard({ pc, foeName, foeText, attack = null, seed 
 	return whisperGm(stonetopChatCard("Name the enemy's damage", body, "stonetop-suffer-amount-card"), {
 		flags: { [SCOPE]: { sufferAmount: { pcUuid: pc.uuid, foeName, attack, dealt: null, ...(seed ? { seed } : {}) } } },
 	});
+}
+
+/**
+ * What armor will do to the number the GM names, in the arithmetic Apply uses (mitigateDamage): the blow's
+ * piercing and "ignores armor" included, so a blow that goes straight through never promises armor, and
+ * Undaunted's +1 armor while it holds.
+ *
+ * @param {string} name
+ * @param {{armor: number, unpierceable: number}} worn  wornArmor
+ * @param {{piercing?: number, ignoresArmor?: boolean}|null} attack  with the other foes' piercing merged in
+ * @param {object} [options]
+ * @param {boolean} [options.undaunted]  fight/hero-moves.js#undauntedNow
+ */
+export function sufferArmorLine(name, { armor: worn = 0, unpierceable = 0 } = {}, attack = null, { undaunted = false } = {}) {
+	const armor = worn + (undaunted ? 1 : 0);
+	const brave = undaunted ? ` (${format("stonetop.fight.heroMoves.undaunted.armorNote", {})})` : "";
+	if (!armor) return `${name} wears no armor, so all of it lands.`;
+	const soaks = Math.max(0, armor - mitigateDamage(armor, { armor, piercing: resolvePiercing(attack?.piercing ?? 0), ignoresArmor: !!attack?.ignoresArmor, unpierceable }));
+	if (!soaks) return `It ${attack?.ignoresArmor ? "ignores" : "pierces"} ${name}'s armor, so all of it lands.`;
+	return soaks === armor
+		? `${name}'s ${armor} armor${brave} comes off it when the damage is taken.`
+		: `${soaks} of ${name}'s ${armor} armor${brave} comes off it when the damage is taken; the rest is ${attack?.ignoresArmor ? "ignored" : "pierced"}.`;
 }
 
 /**

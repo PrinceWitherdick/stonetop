@@ -1988,7 +1988,9 @@
         "together": "{label}, if you strike together",
         "bestDie": "Roll {name}'s {formula} instead, the hardest-hitting die among you",
         "bestPill": "{name}'s {formula}",
-        "hardest": "hardest-hitting"
+        "hardest": "hardest-hitting",
+        "piercingWhile": "while the +{bonus} is on",
+        "armorBack": "{shown} on the card, {rolled} before their {armor} armor"
       },
       "groupHit": {
         "down": "one of them goes down, {after} still standing",
