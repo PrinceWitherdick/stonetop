@@ -457,10 +457,11 @@ export class StonetopCharacter {
 		// moves that require being unarmored (Uncanny Reflexes); 0 means unarmored. Same base
 		// selection as calculateArmor — CharacterInventory owns the rule. Computed once and
 		// handed to calculateArmor so the base filter doesn't run twice per render.
-		const wornArmorBase = this._inventory.wornArmorBase(gear.items, gear.marks);
-		// Armor that shrugs off piercing and "ignores armor" outright. Carried separately all the
-		// way to the damage math, because it is a FLOOR under the mitigation rather than a bonus.
-		const unpierceableArmor = this._inventory.unpierceableArmor(gear.items, gear.marks);
+		//
+		// Unpierceable armor shrugs off piercing and "ignores armor" outright. Carried separately
+		// all the way to the damage math, because it is a FLOOR under the mitigation rather than
+		// a bonus.
+		//
 		// `armorAdjustment` is the GM/player's hand-set delta on top of everything derived — the
 		// same shape as hp.adjustment, and for the same reason: a lasting change the sheet can't
 		// derive (an arcanum's boon, a curse, a ruling) has to survive the next render.
@@ -472,10 +473,7 @@ export class StonetopCharacter {
 		// the clamp is not biting: under an adjustment deep enough to bottom the total out, they
 		// read the derived armor as the size of the adjustment instead, and a typed 2 banked a
 		// delta that landed back on 0.
-		const armorBase = Math.max(0,
-			this._inventory.calculateArmor(gear.items, wornArmorBase, gear.marks)
-			+ moveBonuses.armor);
-		const armor = Math.max(0, armorBase + this.armorAdjustment);
+		const { worn: wornArmorBase, base: armorBase, armor, unpierceable: unpierceableArmor } = this._armorFrom(gear, moveBonuses);
 		const arcanaLore = (playbookData?.lore ?? []).some(e => e.arcanaImage || (e.options ?? []).some(o => o.arcanaRole))
 			? await this._arcana.buildLoreDisplay()
 			: null;
@@ -2460,6 +2458,83 @@ export class StonetopCharacter {
 	}
 
 	/**
+	 * The derived vitals everything outside the sheet reads off the STORED fields, `{armor, unpierceable,
+	 * maxHp}`: buildSnapshot's arithmetic without building a sheet. `maxHp` is 0 with no playbook, which
+	 * is "nothing to say", not a max of 0 (see computedMaxHp).
+	 *
+	 * The stored armor is what the damage card's Apply takes off (combat/attack-flow.js#wornArmor), so a
+	 * shield handed over mid-fight with the sheet closed has to reach it: actors/character/vitals-mirror.js.
+	 */
+	async computedVitals() {
+		const [{ playbookData, gear, moveBonuses }, hpPenalty] = await Promise.all([
+			this._derivedInputs(),
+			this._postDeath.hpPenalty(),
+		]);
+		const { armor, unpierceable } = this._armorFrom(gear, moveBonuses);
+		return { armor, unpierceable, maxHp: playbookData ? _hpFrom(this._actor, playbookData, moveBonuses, hpPenalty).hpMax : 0 };
+	}
+
+	/** What the derived vitals are worked out from: the playbook, the carried gear and the move bonuses. */
+	async _derivedInputs() {
+		const playbook = this.playbook();
+		const [playbookData, allOutfitItems, arcanaCarried, moveBonuses] = await Promise.all([
+			playbook,
+			this._inventoryRepo.getAll(),
+			this._arcana.weightedInventoryItems(),
+			playbook.then(pb => this._ownedMoveBonuses(pb, this._buildOwnedMovesMap())),
+		]);
+		return { playbookData, gear: this._gearSources(playbookData, allOutfitItems, arcanaCarried), moveBonuses };
+	}
+
+	/**
+	 * Write the derived vitals onto the stored armor and max HP where they differ, for everything that
+	 * reads the stored fields: the token bar, the Fight tab, Apply, the ledger. THE ONE WRITER of them:
+	 * actors/character/vitals-mirror.js calls it on a change made with the sheet closed, and the sheet
+	 * after each render (StonetopCharacterSheet#_syncStoredDerived), handing in the numbers its snapshot
+	 * already worked out rather than working them out again.
+	 *
+	 * The two armor numbers move together: a floor is part of the total above it, so a disagreement in
+	 * either writes both. A non-finite armor (nothing worked out, or a move bonus that is not a number)
+	 * writes neither, where 0 is real (unarmored) and must overwrite a stale number. Max HP only with a
+	 * playbook to derive it from (0 says there is none). Ledger-silenced: the real change was the gear,
+	 * the level or the Mark, which the ledger already files. Returns whether it wrote.
+	 *
+	 * @param {{armor: number|null, unpierceable: number, maxHp: number}} [vitals]  computedVitals' answer
+	 */
+	async syncStoredVitals(vitals = null) {
+		const { armor, unpierceable, maxHp } = vitals ?? await this.computedVitals();
+		const attrs = this._actor.system?.attributes ?? {};
+		const update = {};
+		const floor = Number(unpierceable) || 0;
+		if (armor !== null && Number.isFinite(Number(armor))
+			&& (Number(attrs.armor?.value) !== Number(armor) || (Number(attrs.armor?.unpierceable) || 0) !== floor)) {
+			update["system.attributes.armor.value"] = Number(armor);
+			update["system.attributes.armor.unpierceable"] = floor;
+		}
+		const hpMax = Number(maxHp) || 0;
+		if (hpMax > 0 && Number(attrs.hp?.max) !== hpMax) update["system.attributes.hp.max"] = hpMax;
+		if (!Object.keys(update).length) return false;
+		await this._actor.update(update, { stonetopLedger: true });
+		return true;
+	}
+
+	/**
+	 * The armor arithmetic shared by buildSnapshot, computedVitals and setArmor, so the number Apply
+	 * subtracts and the number the sheet shows cannot drift apart. `base` is the derived armor
+	 * before the hand-set adjustment, kept apart because the total is clamped (see buildSnapshot).
+	 */
+	_armorFrom(gear, moveBonuses) {
+		const worn = this._inventory.wornArmorBase(gear.items, gear.marks);
+		const base = Math.max(0, this._inventory.calculateArmor(gear.items, worn, gear.marks) + moveBonuses.armor);
+		return {
+			worn,
+			base,
+			armor: Math.max(0, base + this.armorAdjustment),
+			unpierceable: this._inventory.unpierceableArmor(gear.items, gear.marks),
+		};
+	}
+
+	/**
 	 * Bank a hand-typed armor total as the delta that reaches it. Mirrors setMaxHp: the typed
 	 * number is what the player wants to SEE, so the stored adjustment is that minus everything
 	 * currently derived. Typing the derived number back in clears the adjustment to 0.
@@ -2475,7 +2550,9 @@ export class StonetopCharacter {
 		// `armorBase` and NOT `armor` minus the adjustment: the total is clamped at 0, so once a
 		// negative adjustment has bottomed it out the subtraction gives back the adjustment's own
 		// size instead of the derived armor, and the delta banked from it lands somewhere else.
-		const derived = (await this.buildSnapshot()).vitals.armorBase;
+		// _derivedInputs, not buildSnapshot: the one number, without building a whole sheet for it.
+		const { gear, moveBonuses } = await this._derivedInputs();
+		const derived = this._armorFrom(gear, moveBonuses).base;
 		await this._actor.update({ "system.attributes.armor.adjustment": target - derived });
 		return target;
 	}
@@ -3079,14 +3156,12 @@ export class StonetopCharacter {
 	 * HP" has to ask for the computed value or it will quietly use the level-1 number.
 	 */
 	async computedMaxHp() {
-		const snapshot = await this.buildSnapshot();
-		// 0 is the vitals section's way of saying "there is no computed max": without a playbook it
-		// emits `new ValueMax(0, 0)`. That is not nullish, so a bare `??` never reached the fallback
-		// below and this handed back a max of 0 — and every caller doing arithmetic on it inherited
-		// the zero. UndeathDialog's "reform with half your max HP" floored to 1 HP for a Ghost whose
-		// playbook slug no longer resolved in the pack, which is the one moment it most matters.
-		const computed = Number(snapshot.vitals?.hp?.max);
-		return Number.isFinite(computed) && computed > 0 ? computed : this.storedMaxHp;
+		// 0 is computedVitals' way of saying "there is no computed max" (no playbook). A bare `??` would
+		// hand back a max of 0, and every caller doing arithmetic on it inherited the zero:
+		// UndeathDialog's "reform with half your max HP" floored to 1 HP for a Ghost whose playbook slug
+		// no longer resolved in the pack, which is the one moment it most matters.
+		const { maxHp } = await this.computedVitals();
+		return maxHp > 0 ? maxHp : this.storedMaxHp;
 	}
 
 	/** The persisted field — stale by design; see computedMaxHp. Only for a last-resort fallback. */
@@ -3727,9 +3802,12 @@ function _derivedDamageDie(playbookData, moveBonuses = {}) {
 	return moveBonuses.damageDie ? maxDie(playbookData.damage, moveBonuses.damageDie) : playbookData.damage;
 }
 
-function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, wornArmorBase = 0, insertHpPenalty = 0, unpierceableArmor = 0, armorBase = null) {
+/**
+ * Max HP from the playbook, move bonuses, an insert's Marks and the hand-set delta, `{hpBase, hpMax}`:
+ * the one arithmetic behind the sheet's vitals and StonetopCharacter#computedVitals.
+ */
+function _hpFrom(actor, playbookData, moveBonuses = {}, insertHpPenalty = 0) {
 	const attrs = actor.system?.attributes ?? {};
-	const level = attrs.level?.value ?? 1;
 	// Floored at 1: a Thrall who collects enough max-HP Marks would otherwise arrive at 0 max HP
 	// and be permanently dying, which is Unholy Vessel's job to end, not arithmetic's. The same
 	// floor covers a permanent adjustment deep enough to do it the other way round.
@@ -3746,6 +3824,13 @@ function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, 
 	// max off derivedHp then landed somewhere else entirely. The floor still holds, since hpBase
 	// is already at least 1 wherever a playbook exists.
 	const hpMax = Math.max(1, hpBase + hpAdjust);
+	return { hpBase, hpMax };
+}
+
+function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, wornArmorBase = 0, insertHpPenalty = 0, unpierceableArmor = 0, armorBase = null) {
+	const attrs = actor.system?.attributes ?? {};
+	const level = attrs.level?.value ?? 1;
+	const { hpBase, hpMax } = _hpFrom(actor, playbookData, moveBonuses, insertHpPenalty);
 	const damageBase = _derivedDamageDie(playbookData, moveBonuses);
 	// A die typed into the sheet's Damage field wins outright: it is the player saying "this
 	// character's die is X", which the playbook has no business overwriting on the next render.

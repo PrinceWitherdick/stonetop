@@ -27,7 +27,7 @@ export class CharacterModel extends foundry.abstract.TypeDataModel {
 				}),
 				xp:      valueMaxField(0, 8),
 				level:   valueField(1),
-				// `value` is DERIVED — mirrored from the snapshot by the sheet's _syncStoredArmor
+				// `value` is DERIVED — mirrored by the sheet's _syncStoredDerived and actors/character/vitals-mirror.js
 				// so combat, which reads this document rather than the render context, sees the
 				// real number. Never hand-edit it; type in the sheet's Armor box instead, which
 				// banks the difference as `adjustment`.

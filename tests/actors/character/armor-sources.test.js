@@ -5,6 +5,7 @@ import { FakeInventoryRepository } from "../../fakes/FakeInventoryRepository.js"
 import { FakeArcanaRepository } from "../../fakes/FakeArcanaRepository.js";
 import { OutfitItemBuilder } from "../../../module/model/OutfitItem.js";
 import { createStonetopCharacterSheetClass } from "../../../module/actors/character/StonetopCharacterSheet.js";
+import { StonetopCharacter } from "../../../module/actors/character/StonetopCharacter.js";
 
 // Every way a character can come by armor has to actually reach the armor total. Four of them
 // did not: a gear-choice on a special possession (the Judge's Makerglass shield) whose carried
@@ -226,17 +227,25 @@ describe("StonetopCharacterSheet._syncStoredDerived", () => {
 
 	function ctx({ computed, stored = 0, isOwner = true, isEditable = true, maxHp = 0, storedMaxHp = 0 }) {
 		const update = vi.fn(async () => {});
+		const actor = {
+			isOwner,
+			system: { attributes: { armor: { value: stored, unpierceable: 0 }, hp: { max: storedMaxHp } } },
+			update,
+		};
+		// The write is the character's own (StonetopCharacter#syncStoredVitals), handed the render's numbers.
+		const character = {
+			_actor: actor,
+			syncStoredVitals: StonetopCharacter.prototype.syncStoredVitals,
+			computedVitals: vi.fn(async () => { throw new Error("the render's numbers are handed in"); }),
+		};
 		return {
 			self: {
 				_computedArmor: computed,
 				_computedMaxHp: maxHp,
 				isEditable,
 				_computedUnpierceable: 0,
-				actor: {
-					isOwner,
-					system: { attributes: { armor: { value: stored, unpierceable: 0 }, hp: { max: storedMaxHp } } },
-					update,
-				},
+				_stonetopCharacter: character,
+				actor,
 			},
 			update,
 		};

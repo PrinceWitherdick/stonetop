@@ -9493,7 +9493,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		/**
-		 * Mirror the computed max HP onto the persisted `hp.max`.
+		 * Mirror the computed max HP and armor onto the persisted `hp.max` and `armor`.
 		 *
 		 * The stored field is stale by design (StonetopCharacter#computedMaxHp sets out why) and
 		 * this sheet never reads it — getData mirrors the computed number into the render context
@@ -9508,8 +9508,9 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * there banks a permanent adjustment rather than pinning the number — took that away and
 		 * put nothing in its place.
 		 *
-		 * Ledger-silenced: the real change was the level or the Mark, which the ledger already
-		 * files. Writes only on a genuine difference, so it settles in one pass and costs a
+		 * The write itself is StonetopCharacter#syncStoredVitals, the one writer of these fields
+		 * (actors/character/vitals-mirror.js calls it too), handed the numbers this render already
+		 * worked out. It writes only on a genuine difference, so it settles in one pass and costs a
 		 * comparison on every render after that.
 		 */
 		async _syncStoredDerived() {
@@ -9520,27 +9521,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			// field the token was reading off the actor perfectly well. isEditable is the sheet's
 			// own answer to "may this be written", and it already accounts for both.
 			if (!this.actor?.isOwner || !this.isEditable) return;
-
-			const update = {};
-			const maxHp = Number(this._computedMaxHp) || 0;
-			if (maxHp > 0 && Number(this.actor.system?.attributes?.hp?.max) !== maxHp) {
-				update["system.attributes.hp.max"] = maxHp;
-			}
-			// null means the snapshot had no armor to mirror. 0 does NOT — an unarmored character
-			// is a real computed value and must still overwrite a stale stored number.
-			const armor = this._computedArmor;
-			if (armor != null) {
-				const floor = Number(this._computedUnpierceable) || 0;
-				const attrs = this.actor.system?.attributes?.armor;
-				// The two move together: a floor is part of the total above it, so a disagreement
-				// in either is settled by writing both rather than leaving half the pair stale.
-				if (Number(attrs?.value) !== armor || (Number(attrs?.unpierceable) || 0) !== floor) {
-					update["system.attributes.armor.value"] = armor;
-					update["system.attributes.armor.unpierceable"] = floor;
-				}
-			}
-			if (!Object.keys(update).length) return;
-			await this.actor.update(update, { stonetopLedger: true });
+			// null armor means the snapshot had none to mirror; 0 max HP, no playbook.
+			await this._stonetopCharacter.syncStoredVitals({
+				armor: this._computedArmor,
+				unpierceable: this._computedUnpierceable,
+				maxHp: this._computedMaxHp,
+			});
 		}
 
 		// ── Wounds (4th harm track) ────────────────────────────────────────────────

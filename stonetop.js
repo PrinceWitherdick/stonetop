@@ -107,6 +107,7 @@ import { SYSTEM_ID } from "./module/system-id.js";
 import { speakerActor } from "./module/utils/speaker-actor.js";
 import { bootStep, recordBootPhase, reportBootHealth, bootReport } from "./module/utils/boot-guard.js";
 import { registerCampHooks } from "./module/camp/camp-store.js";
+import { registerVitalsMirrorHooks } from "./module/actors/character/vitals-mirror.js";
 import { wireCampCard } from "./module/camp/camp-flow.js";
 import { registerCampWindowRestore } from "./module/camp/CampWindow.js";
 import { registerFightTab } from "./module/fight/fight-boot.js";
@@ -1990,6 +1991,8 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 // is settled, each character's share is paid by the one client elected to pay it. See
 // module/camp/camp-store.js.
 registerCampHooks();
+// A character's stored armor and max HP, re-mirrored whenever they or their gear change, sheet open or not.
+registerVitalsMirrorHooks();
 // And a camp window open when this client reloaded comes back with the sheets, where it was left
 // (utils/window-restore.js, installed in the init hook).
 registerCampWindowRestore();
