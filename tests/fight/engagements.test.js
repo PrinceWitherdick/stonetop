@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { touching, engage, HEROES, FOES } from "../../module/fight/engagements.js";
+import { touching, engage, reachAround, HEROES, FOES } from "../../module/fight/engagements.js";
 
 // Who is fighting whom, out of where the tokens stand (Book I p.414's "smaller engagements").
 
@@ -104,7 +104,7 @@ describe("engage", () => {
 		expect(result.byFighter.wolf.attackerBodies).toBe(1);
 	});
 
-	it("counts ranged attackers on a foe, but not ranged foes on a hero", () => {
+	it("counts ranged attackers on a foe", () => {
 		const onFoe = engage({
 			grid,
 			fighters: [hero("bram", 0, 0), hero("archer", 5, 5), foe("crinwin", 1, 0)],
@@ -113,6 +113,42 @@ describe("engage", () => {
 		expect(onFoe.byFighter.crinwin).toMatchObject({ melee: ["bram"], attackers: ["bram", "archer"], attackerBodies: 2, ganged: true, pileOn: 1 });
 		expect(onFoe.clusters).toHaveLength(1);
 		expect(onFoe.clusters[0].heroIds).toEqual(["bram", "archer"]);
+	});
+
+	it("counts foes shooting a hero among the hero's attackers (p.414 counts every attacker)", () => {
+		const result = engage({
+			grid,
+			fighters: [hero("cadi", 0, 0), foe("wolf", 1, 0), foe("archer", 6, 0)],
+			ranged: [{ from: "archer", to: "cadi", recorded: true }],
+		});
+		expect(result.byFighter.cadi).toMatchObject({ melee: ["wolf"], shotBy: ["archer"], attackers: ["wolf", "archer"], attackerBodies: 2, ganged: true, pileOn: 1 });
+		expect(result.byFighter.archer.shootingAt).toEqual(["cadi"]);
+	});
+
+	it("lets a shot on record lapse while its shooter is in melee with anybody, but never a live target", () => {
+		const fighters = [hero("bram", 0, 0), foe("wolf", 1, 0), foe("far", 8, 0)];
+		const recorded = engage({ grid, fighters, ranged: [{ from: "bram", to: "far", recorded: true }] });
+		expect(recorded.byFighter.bram.shootingAt).toEqual([]);
+		const live = engage({ grid, fighters, ranged: [{ from: "bram", to: "far" }] });
+		expect(live.byFighter.bram.shootingAt).toEqual(["far"]);
+	});
+
+	it("counts no more in contact with one fighter than fit round it, and says how many there were", () => {
+		const result = engage({ grid, fighters: [hero("bram", 0, 0), foe("horde", 1, 0, { bodies: 12 })] });
+		expect(result.byFighter.bram).toMatchObject({ reach: 8, attackerBodies: 8, attackerBodiesAll: 12, ganged: true, pileOn: 7 });
+		const shot = engage({
+			grid,
+			fighters: [hero("bram", 0, 0), foe("horde", 1, 0, { bodies: 12 }), foe("archers", 9, 0, { bodies: 3 })],
+			ranged: [{ from: "archers", to: "bram", recorded: true }],
+		});
+		// Shooters need no room beside the target.
+		expect(shot.byFighter.bram).toMatchObject({ attackerBodies: 11, attackerBodiesAll: 15 });
+	});
+
+	it("gives a bigger token more room round it", () => {
+		expect(reachAround(hero("a", 0, 0), grid)).toBe(8);
+		expect(reachAround(foe("giant", 0, 0, { w: 2, h: 2 }), grid)).toBe(12);
+		expect(reachAround(foe("huge", 0, 0, { w: 3, h: 3 }), grid)).toBe(16);
 	});
 
 	it("lets contact win over a target on the same pair", () => {

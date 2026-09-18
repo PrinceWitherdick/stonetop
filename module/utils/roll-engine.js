@@ -6,7 +6,7 @@ import { pickLeadText, TIER_KEYS, TIER_LABELS } from "./move-results.js";
 import { markRolledTier } from "./move-tiers.js";
 import { stonetopCardShell, stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber, damageMark, damageBadge, damageKeywordsHtml, pickListItem, descriptionPickTiers, cardNoticeHtml } from "./chat.js";
 import { adjustXp } from "./xp.js";
-import { composeDamageFormula, normalizeDamageBonusDice, seedBonus } from "./damage.js";
+import { composeDamageFormula, normalizeDamageBonusDice, seedBonus, extraDiceTerm } from "./damage.js";
 import { SYSTEM_ID } from "../system-id.js";
 import { getBooleanSetting } from "../settings.js";
 
@@ -809,8 +809,12 @@ export function damageConditionPills({ rollMode = "normal", bonus = 0, extraDice
 	const pills = advDisConditionPills(rollMode);
 	const flat = Math.trunc(Number(bonus)) || 0;
 	if (flat !== 0) pills.push(`<li class="stonetop-condition-situational">Damage ${sign(flat)}</li>`);
-	for (const term of (Array.isArray(extraDice) ? extraDice : [extraDice]).map(normalizeDamageBonusDice)) {
-		if (term) pills.push(`<li class="stonetop-condition-situational">Extra ${escHtml(term.startsWith("-") ? term : `+${term}`)}</li>`);
+	for (const entry of (Array.isArray(extraDice) ? extraDice : [extraDice])) {
+		const term = normalizeDamageBonusDice(extraDiceTerm(entry));
+		if (!term) continue;
+		// A move's own extra dice (Undaunted) are named for the move; typed ones say only what they add.
+		const named = entry && typeof entry === "object" && entry.pill;
+		pills.push(`<li class="stonetop-condition-situational">${escHtml(named || `Extra ${term.startsWith("-") ? term : `+${term}`}`)}</li>`);
 	}
 	// The fight's +N for several attackers, or a group's for outnumbering (fight/damage-seed.js), named
 	// apart from the roller's own bonus, and still named when it was left off, so the card says what
@@ -818,6 +822,9 @@ export function damageConditionPills({ rollMode = "normal", bonus = 0, extraDice
 	if (seedBonus(seed) !== 0) {
 		const leftOff = seed.applied === false;
 		pills.push(`<li class="stonetop-condition-situational stonetop-condition-numbers${leftOff ? " is-left-off" : ""}">${escHtml(leftOff ? seed.pillLeftOff : seed.pill)}</li>`);
+		// The other attacker's die, when it was rolled in place of the roller's own (p.414 "usually the
+		// best one"). It stays named if the +N is left off later: the die is already on the table.
+		if (seed.useBest && seed.best?.pill) pills.push(`<li class="stonetop-condition-situational">${escHtml(seed.best.pill)}</li>`);
 	}
 	return pills;
 }

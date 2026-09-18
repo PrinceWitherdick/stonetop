@@ -152,8 +152,12 @@ describe("an attack's own damage windows", () => {
 		const path = await import("node:path");
 		const src = fs.readFileSync(path.resolve(import.meta.dirname, "../../module/combat/attack-flow.js"), "utf8");
 		const calls = src.match(/await askDamageAdjustment\([\s\S]*?\);/g) ?? [];
-		expect(calls).toHaveLength(3);
-		for (const call of calls) expect(call).toContain("seedForTargets(actor, targets)");
+		// Defend's strike back from a parry (strikeBackAt) is one attacker's blow at the one who struck, and
+		// takes no pile-on; every other window is offered it.
+		const aimed = calls.filter(call => !call.includes('rollMode: "dis", seed: null'));
+		expect(calls).toHaveLength(4);
+		expect(aimed).toHaveLength(3);
+		for (const call of aimed) expect(call).toContain("seedForTargets(actor, targets)");
 	});
 });
 

@@ -1,7 +1,7 @@
 import { bringDialogToFront } from "../utils/front-on-open.js";
-import { localize } from "../utils/i18n.js";
+import { format, localize } from "../utils/i18n.js";
 import { escHtml } from "../utils/strings.js";
-import { composeDamageFormula, normalizeDamageBonusDice, seedBonus } from "../utils/damage.js";
+import { composeDamageFormula, normalizeDamageBonusDice, seedBonus, settleBestDie } from "../utils/damage.js";
 import { damageRollFormula, rollDamage } from "../utils/roll-engine.js";
 import { getAskRollModeEachRollSetting, getPromptRollModifierSetting, getPromptDamageModifierSetting } from "../settings.js";
 
@@ -272,6 +272,36 @@ function withSeed(answer, seed) {
 	return seed ? { ...answer, seed } : answer;
 }
 
+/**
+ * The fight's seed as the window offers it: ticked as the seed says (a pile-on that another character
+ * shares opens unticked, fight/damage-seed.js), with the other attackers' best die settled against the
+ * roller's own formula and worded for the window and the card. `useBest` is what a window that does not
+ * open answers: the best die, whenever the +N is on.
+ */
+function offeredSeed(seed, formula) {
+	if (seedBonus(seed) === 0) return null;
+	const settled = settleBestDie({ ...seed, applied: seed.applied !== false }, formula);
+	if (!settled.best) return { ...settled, useBest: false };
+	const data = { name: settled.best.name, formula: settled.best.formula };
+	return {
+		...settled,
+		best: { ...settled.best, label: format("stonetop.fight.seed.bestDie", data), pill: format("stonetop.fight.seed.bestPill", data) },
+		useBest: settled.applied,
+	};
+}
+
+/**
+ * An answer with a move's own extra dice folded in, one entry each, named: Undaunted's "+1d6 damage"
+ * (fight/hero-moves.js). They join the player's typed dice as `{dice, pill}` entries, which the formula
+ * reads as their dice and the card names by their pill (utils/damage.js#extraDiceTerm). An answer with none
+ * keeps the string it always had.
+ */
+function withOffers(answer, ticked) {
+	if (!ticked.length) return answer;
+	const typed = answer.extraDice ? [answer.extraDice] : [];
+	return { ...answer, extraDice: [...typed, ...ticked.map(offer => ({ dice: offer.dice, pill: offer.pill }))] };
+}
+
 /** The composed formula a set of answers would actually roll, for the window's preview line. */
 function previewFormula(base, { rollMode, bonus, extraDice, seed }) {
 	return damageRollFormula(composeDamageFormula(base, { bonus, extraDice, seed }), rollMode);
@@ -307,6 +337,8 @@ function previewFormula(base, { rollMode, bonus, extraDice, seed }) {
  * @param {string}  [opts.rollMode]  Mode to start on (a stat block's noted advantage).
  * @param {boolean} [opts.shiftKey]  Skip the window entirely.
  * @param {boolean} [opts.ask]       Override the client setting (tests).
+ * @param {Array<{key: string, dice: string, label: string, pill: string, applied?: boolean}>} [opts.offers]
+ *   A move's own extra dice that the fight says are on (Undaunted's +1d6), each its own ticked line.
  * @param {object}  [opts.seed]      The fight's +N for several attackers (fight/damage-seed.js). Shown
  *   as its OWN ticked line above the player's adjustment, never folded into it, so unticking it takes
  *   off exactly what the fight added. A window that does not open still applies it: it is the book's
@@ -320,38 +352,61 @@ export function promptDamage({
 	shiftKey = false,
 	ask = getPromptDamageModifierSetting(),
 	seed = null,
+	offers = [],
 } = {}) {
 	const start = normalizeRollMode(rollMode);
-	const seeded = seedBonus(seed) !== 0 ? { ...seed, applied: true } : null;
-	if (shiftKey || !ask) return Promise.resolve(withSeed(unpromptedDamage(start), seeded));
+	const seeded = offeredSeed(seed, formula);
+	const extras = (Array.isArray(offers) ? offers : []).filter(offer => offer?.key && normalizeDamageBonusDice(offer.dice));
+	// What the roll is with nothing touched: the answer when no window is asked, and the window's first preview.
+	const untouched = withSeed(withOffers(unpromptedDamage(start), extras.filter(o => o.applied !== false)), seeded);
+	if (shiftKey || !ask) return Promise.resolve(untouched);
 
 	return new Promise(resolve => {
 		const settle = settler(resolve);
 
 		const readAnswer = root => {
 			const seedBox = root?.querySelector?.('[name="seedApplied"]');
-			return withSeed({
+			const bestBox = root?.querySelector?.('[name="seedBest"]');
+			const applied = seedBox ? !!seedBox.checked : !!seeded?.applied;
+			// The best die is part of striking together: it goes with the +N, and its box with it.
+			if (bestBox) bestBox.disabled = !applied;
+			const ticked = extras.filter(offer => {
+				const box = root?.querySelector?.(`[name="offer-${offer.key}"]`);
+				return box ? !!box.checked : offer.applied !== false;
+			});
+			return withSeed(withOffers({
 				rollMode: readActiveMode(root),
 				bonus: readModifier(root),
 				// Normalized on the way OUT, not just in the preview: a half-typed "1d" must reach
 				// the roll as nothing at all rather than as a formula that throws.
 				extraDice: normalizeDamageBonusDice(root?.querySelector?.('[name="extraDice"]')?.value),
-			}, seeded && { ...seeded, applied: seedBox ? !!seedBox.checked : true });
+			}, ticked), seeded && { ...seeded, applied, useBest: applied && !!seeded.best && (bestBox ? !!bestBox.checked : true) });
 		};
 
 		// The fight's line: ticked, with the book's page beside it. Its own control, apart from the
 		// stepper, so the two numbers never blur into one.
 		const seedLine = seeded ? `
 				<label class="stonetop-damage-seed">
-					<input type="checkbox" class="stonetop-check stonetop-damage-seed-check" name="seedApplied" checked>
+					<input type="checkbox" class="stonetop-check stonetop-damage-seed-check" name="seedApplied"${seeded.applied ? " checked" : ""}>
 					<span class="stonetop-damage-seed-text">${escHtml(seeded.label ?? "")}</span>
 					<span class="stonetop-damage-seed-cite">${escHtml(seeded.cite ?? "")}</span>
-				</label>` : "";
+				</label>${seeded.best ? `
+				<label class="stonetop-damage-seed stonetop-damage-seed--best">
+					<input type="checkbox" class="stonetop-check stonetop-damage-seed-check" name="seedBest"${seeded.useBest ? " checked" : ""}${seeded.applied ? "" : " disabled"}>
+					<span class="stonetop-damage-seed-text">${escHtml(seeded.best.label)}</span>
+					<span class="stonetop-damage-seed-cite">${escHtml(seeded.cite ?? "")}</span>
+				</label>` : ""}` : "";
+		// A move's own extra dice (Undaunted), each ticked on its own line under the fight's.
+		const offerLines = extras.map(offer => `
+				<label class="stonetop-damage-seed stonetop-damage-seed--move">
+					<input type="checkbox" class="stonetop-check stonetop-damage-seed-check" name="offer-${escHtml(offer.key)}"${offer.applied === false ? "" : " checked"}>
+					<span class="stonetop-damage-seed-text">${escHtml(offer.label)}</span>
+				</label>`).join("");
 
 		const dialog = new Dialog({
 			title: attacker ? `Rolling damage for ${attacker}` : "Rolling damage",
 			content: `<form class="stonetop-roll-form stonetop-damage-form">
-				${modePickerHtml("How are you rolling this damage?", start)}${seedLine}
+				${modePickerHtml("How are you rolling this damage?", start)}${seedLine}${offerLines}
 				<p class="stonetop-roll-prompt">Add to the damage (an arcanum's +1, a move's extra dice, a GM's call).</p>
 				<!-- Two labels then two controls, in that order: the row is a 2x2 grid, so the labels
 				     share a line and the controls share a line whatever either one measures. The
@@ -365,7 +420,7 @@ export function promptDamage({
 					<input type="text" name="extraDice" class="stonetop-damage-extra-dice" value="" placeholder="1d6"
 					       aria-label="Extra dice" autocomplete="off" spellcheck="false">
 				</div>
-				<p class="stonetop-damage-preview" aria-live="polite">Rolling <strong>${escHtml(previewFormula(formula, withSeed(unpromptedDamage(start), seeded)))}</strong></p>
+				<p class="stonetop-damage-preview" aria-live="polite">Rolling <strong>${escHtml(previewFormula(formula, untouched))}</strong></p>
 			</form>`,
 			buttons: rollDialogButtons("Roll damage", settle, readAnswer),
 			default: "roll",
@@ -387,7 +442,7 @@ export function promptDamage({
 					// Said, not swallowed: a field holding text the roll will drop looks exactly
 					// like one that worked, and the player finds out when the damage is short.
 					const typed = String(extra?.value ?? "").trim();
-					extra?.classList?.toggle("is-invalid", Boolean(typed) && !answer.extraDice);
+					extra?.classList?.toggle("is-invalid", Boolean(typed) && !normalizeDamageBonusDice(typed));
 				};
 
 				wireModePicker(root, repaint);
@@ -395,6 +450,8 @@ export function promptDamage({
 				input?.addEventListener("input", repaint);
 				extra?.addEventListener("input", repaint);
 				root.querySelector?.('[name="seedApplied"]')?.addEventListener("change", repaint);
+				root.querySelector?.('[name="seedBest"]')?.addEventListener("change", repaint);
+				for (const box of root.querySelectorAll?.('[name^="offer-"]') ?? []) box.addEventListener("change", repaint);
 				// Painted once from the rendered controls as well as baked into the content
 				// above, so the line is always what THIS DOM would roll rather than a seed that
 				// could drift from the fields beside it.
@@ -439,8 +496,8 @@ export function promptDamage({
  * @param {boolean} [opts.shiftKey] skip the window
  * @returns {Promise<boolean>} whether damage was actually rolled
  */
-export async function rollDamagePrompted(formula, actor, { label, keywords, description, rollMode, attacker, seed, shiftKey = false } = {}) {
-	const adjust = await promptDamage({ attacker: attacker || actor?.name, formula, ...(rollMode ? { rollMode } : {}), seed, shiftKey });
+export async function rollDamagePrompted(formula, actor, { label, keywords, description, rollMode, attacker, seed, offers = [], shiftKey = false } = {}) {
+	const adjust = await promptDamage({ attacker: attacker || actor?.name, formula, ...(rollMode ? { rollMode } : {}), seed, offers, shiftKey });
 	if (!adjust) return false;
 	await rollDamage(formula, actor, { label, keywords, description, ...adjust });
 	return true;

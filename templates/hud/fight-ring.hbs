@@ -2,7 +2,15 @@
      right, placed round the token the way core's token HUD places its columns.
      BOTH COLUMNS ALWAYS RENDER, even empty. This is a root part, and core unwraps a root template that
      renders a single element (HandlebarsApplicationMixin#_replaceHTML puts its CHILDREN in the window),
-     so a monster's lone damage column would lose its box and its place beside the token. --}}
+     so a monster's lone damage column would lose its box and its place beside the token.
+     A character's held Readiness (Defend, p.216) sits over the token as a pill of shields and its count, so
+     the table sees what there is to spend on a blow. --}}
+{{#if readiness}}
+<div class="stonetop-fight-ring-readiness" role="status" aria-label="{{readiness.label}}" data-tooltip="{{readiness.label}}">
+	<span class="stonetop-fight-ring-readiness-pips" inert>{{#each readiness.pips}}<i class="fa-solid fa-shield"></i>{{/each}}</span>
+	<span class="stonetop-fight-ring-readiness-text">{{readiness.count}}</span>
+</div>
+{{/if}}
 <div class="col left stonetop-fight-ring-col" role="group" aria-label="{{ringLabel}}: {{movesLabel}}">
 	{{#each moves}}
 	<button type="button" class="stonetop-fight-ring-button" data-action="ringRoll" data-index="{{index}}"

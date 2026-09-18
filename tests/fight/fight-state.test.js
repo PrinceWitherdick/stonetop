@@ -87,6 +87,20 @@ describe("reading a fight", () => {
 		expect(combatantBodies(fakeCombatant({ id: "c2", token: fakeToken({ id: "t2", actor: crew }), scene, count: 6 }))).toMatchObject({ bodies: 6 });
 	});
 
+	it("counts a crew by the members its character's roster has standing, not by a headcount that does not fall", () => {
+		const scene = fakeScene();
+		const rhianna = { uuid: "Actor.rhianna", flags: { [SYSTEM_ID]: { crew: { size: 6, memberHp: [0, 0] } } } };
+		const savedResolve = globalThis.fromUuidSync;
+		globalThis.fromUuidSync = uuid => (uuid === rhianna.uuid ? rhianna : null);
+		try {
+			const crew = fakeActor({ id: "crew", type: "npc", flags: { [SYSTEM_ID]: { followerOrigin: { characterUuid: "Actor.rhianna", ftype: "crew" } } } });
+			const bodies = combatantBodies(fakeCombatant({ id: "c", token: fakeToken({ id: "t", actor: crew }), scene, count: 6 }));
+			expect(bodies).toMatchObject({ bodies: 4, group: true, standing: 4, size: 6 });
+		} finally {
+			globalThis.fromUuidSync = savedResolve;
+		}
+	});
+
 	it("counts nobody who is out", () => {
 		const scene = fakeScene();
 		const actor = fakeActor({ id: "a", type: "monster", system: { attributes: { hp: { value: 0, max: 6 } } } });
@@ -164,6 +178,15 @@ describe("ranged engagements from players' targets", () => {
 		expect(rangedPairs(combat, scene, { users: all, canvasScene: { id: "elsewhere" } })).toEqual([]);
 		player.active = false;
 		expect(rangedPairs(combat, scene, { users: all, canvasScene: scene })).toEqual([]);
+	});
+
+	it("reads a fighter's shots on record, on any scene, from anyone to anyone else in the fight", () => {
+		const { scene, combat, cBram, cWolf, cCrin } = table();
+		cWolf.flags[SYSTEM_ID].shots = ["cBram", "gone", "cWolf"];
+		cBram.flags[SYSTEM_ID].shots = [];
+		expect(rangedPairs(combat, scene, { users: [], canvasScene: { id: "elsewhere" } })).toEqual([{ from: "cWolf", to: "cBram", recorded: true }]);
+		cCrin.flags[SYSTEM_ID].shots = "cBram";
+		expect(rangedPairs(combat, scene, { users: [], canvasScene: scene })).toEqual([{ from: "cWolf", to: "cBram", recorded: true }]);
 	});
 
 	it("feeds the engagements", () => {

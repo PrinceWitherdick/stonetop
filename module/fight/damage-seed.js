@@ -22,10 +22,35 @@
 // since a stat block's damage card has nothing that applies armor. Both are counted over the groups in
 // the engagement only: "Foes that are engaged by individual PCs aren't really part of a group."
 //
+// A MONSTER GROUP WITH NO GROUP TO FIGHT piles on like anyone else, with every body it stands for: a
+// horde of six on a lone hero is six attackers and +5 (p.414 counts attackers, not tokens), which is
+// what the tab's badge and that hero's own counter-blow already say. With the Fight tab on, its stat
+// block draws no swarm row (StonetopMonsterSheet), so this is where that number comes from. Any other
+// group keeps to the group seed: a follower group's own Swarm die (fight/follower-fight.js) carries its
+// pile-on, beside a plain die that is one member's, and a seed on either would count the crew twice or
+// undo that split.
+//
+// THE OTHER ATTACKERS' DICE AND TAGS RIDE ALONG. The book rolls "one combatant's damage (usually the best
+// one)" and applies "tags from all the attackers as they make sense" (p.414; p.239 "roll the single highest
+// damage die among them... The tags from all the combatants apply"). So a pile-on seed carries every other
+// attacker's die (`dice`), which the damage window turns into an offer to roll the best of them in place
+// of the roller's own (utils/damage.js#settleBestDie), and their tags and piercing, which the damage card
+// adds to the blow's own (combat/attack-flow.js#withSeedTags). A character's die is read off their sheet;
+// the tags of whatever weapon they would swing are theirs to say, so only a stat block's are carried.
+//
+// SEPARATE ROLLS ARE NOT ONE ATTACK. "When multiple PCs and/or followers attack a foe at once, one of them
+// rolls Clash or Let Fly and the others Aid" (p.414): the +N is for attacking together. Two characters in
+// contact with one foe usually take their swings in turn, each rolling their own damage, and a +1 ticked on
+// both is the same extra body counted twice. So when another CHARACTER is among the attackers the seed
+// opens unticked, worded as an offer, and the roller ticks it when they are striking together. Followers and
+// monsters do not roll their own damage beside the roller's, so a seed made of them opens ticked.
+//
 // The seed is plain data, carried through the damage window, the roll and the card's flags:
-//   { bonus, count, direction: "onFoe"|"onHero", target, names, label, pill, pillLeftOff, cite, applied }
+//   { bonus, count, direction: "onFoe"|"onHero", target, names, label, pill, pillLeftOff, cite, applied,
+//     dice, tags, piercing, best?, useBest? }
 
 import { outnumberBonus, pileOnBonus } from "../data/follower-build.js";
+import { hardestAttackIndex, foeAttacks, resolvePiercing, IGNORES_ARMOR_RE, PIERCING_RE } from "../utils/damage.js";
 import { isFightTabEnabled } from "../settings.js";
 import { format, localize } from "../utils/i18n.js";
 import { HEROES, FOES } from "./engagements.js";
@@ -43,14 +68,19 @@ const KEY = "stonetop.fight.seed";
  * @param {"onFoe"|"onHero"} p.direction  a party hitting a foe, or foes hitting a party member
  * @param {string} p.target       who is being hit
  * @param {string[]} p.names      who is doing the hitting
+ * @param {Array<{name: string, formula: string}>} [p.dice]  the OTHER attackers' dice
+ * @param {string[]} [p.tags]     the other attackers' tags
+ * @param {number} [p.piercing]   the most piercing among the other attackers' blows
+ * @param {boolean} [p.together]  false when another character rolls their own damage (see the note)
  */
-export function makeSeed({ count, direction, target, names }) {
+export function makeSeed({ count, direction, target, names, dice = [], tags = [], piercing = 0, together = true }) {
 	const bonus = pileOnBonus(count).bonus;
 	if (bonus < 1) return null;
 	const who = namesPhrase(names, format);
-	const label = direction === "onHero"
+	const said = direction === "onHero"
 		? format(`${KEY}.onHero`, { bonus, target, names: who })
 		: format(`${KEY}.${count === 2 ? "onFoeTwo" : "onFoe"}`, { bonus, target, names: who });
+	const label = together ? said : format(`${KEY}.together`, { label: said });
 	const pill = format(`${KEY}.${direction === "onHero" ? "pillOnHero" : "pillOnFoe"}`, { bonus, count });
 	return {
 		bonus, count, direction, target, names: [...names],
@@ -58,7 +88,48 @@ export function makeSeed({ count, direction, target, names }) {
 		pill,
 		pillLeftOff: format(`${KEY}.leftOff`, { pill }),
 		cite: localize(`${KEY}.cite`),
-		applied: true,
+		applied: !!together,
+		dice: dice.filter(d => d?.formula).map(d => ({ name: String(d.name ?? ""), formula: String(d.formula) })),
+		tags: [...new Set(tags.filter(Boolean).map(String))],
+		piercing: Math.max(0, Math.trunc(Number(piercing) || 0)),
+	};
+}
+
+/**
+ * What one attacker brings to a pile-on besides their body: their damage die, their blow's tags and its
+ * piercing. A character's die is the one on their sheet (their weapon's tags are theirs to say); anyone
+ * else's is their hardest-hitting printed attack.
+ *
+ * @param {object} combatant
+ * @returns {{name: string, formula: string, tags: string[], piercing: number, character: boolean}}
+ */
+export function attackerProfile(combatant) {
+	const actor = combatant?.actor ?? null;
+	const name = combatant?.name || actor?.name || "";
+	if (actor?.type === "character") {
+		const formula = String(actor.system?.attributes?.damage?.value ?? "").replace(/\s+/g, "");
+		return { name, formula, tags: [], piercing: 0, character: true };
+	}
+	const attacks = foeAttacks(actor);
+	const best = attacks[hardestAttackIndex(attacks)] ?? null;
+	const fallback = String(actor?.system?.attributes?.damage?.rollFormula ?? "").replace(/\s+/g, "");
+	return {
+		name,
+		formula: best?.formula ?? fallback,
+		tags: (best?.tags ?? []).filter(tag => !PIERCING_RE.test(String(tag)) && !IGNORES_ARMOR_RE.test(String(tag))),
+		piercing: resolvePiercing(best?.piercing ?? 0),
+		character: false,
+	};
+}
+
+/** The seed fields the other attackers bring: their dice, tags, piercing, and whether any rolls their own. */
+function othersOf(found, ids) {
+	const profiles = ids.map(id => found.combatants?.get?.(id)).filter(Boolean).map(attackerProfile);
+	return {
+		dice: profiles.map(p => ({ name: p.name, formula: p.formula })),
+		tags: profiles.flatMap(p => p.tags),
+		piercing: Math.max(0, ...profiles.map(p => p.piercing)),
+		together: !profiles.some(p => p.character),
 	};
 }
 
@@ -87,10 +158,23 @@ export function makeGroupSeed({ yours, theirs }) {
 	};
 }
 
+/** The group-against-group exchange a fighter's engagement is, or null when it is not one. */
+function exchangeOf(found, self) {
+	const cluster = found?.result?.clusters?.find(c => c.heroIds.includes(self.id) || c.foeIds.includes(self.id));
+	return cluster?.groups ?? null;
+}
+
+/**
+ * Whether a fighter takes the group-against-group seed rather than a pile-on: a group in an exchange,
+ * and any group but a monster's outside one. See the note at the top.
+ */
+function takesGroupSeed(found, self, actor) {
+	return self?.bodies > 1 && (!!exchangeOf(found, self) || actor?.type !== "monster");
+}
+
 /** The group-against-group seed for a fighter in a snapshot, or null. See the note at the top. */
 function groupSeedFor(found, self) {
-	const cluster = found.result.clusters.find(c => c.heroIds.includes(self.id) || c.foeIds.includes(self.id));
-	const groups = cluster?.groups;
+	const groups = exchangeOf(found, self);
 	if (!groups) return null;
 	const [yours, theirs] = self.side === HEROES
 		? [groups.heroGroupBodies, groups.foeGroupBodies]
@@ -100,9 +184,6 @@ function groupSeedFor(found, self) {
 
 /** The fighter a snapshot has for a combatant id, or null. */
 const fighterIn = (snapshot, id) => snapshot?.fighters?.find(f => f.id === id) ?? null;
-
-/** Sum of bodies over fighter ids, from a snapshot. */
-const bodiesOf = (snapshot, ids) => ids.reduce((sum, id) => sum + (fighterIn(snapshot, id)?.bodies ?? 0), 0);
 
 /** Names over fighter ids, from a snapshot. */
 const namesOf = (snapshot, ids) => ids.map(id => fighterIn(snapshot, id)?.name).filter(Boolean);
@@ -131,11 +212,19 @@ export function rollerCombatant(combat, scene, actor) {
 	return mine.length === 1 ? mine[0] : null;
 }
 
+/** A roller's place in the fight on `scene` (the canvas scene by default), as engagementOf gives it, or null. */
+export function rollerEngagement(actor, { scene = globalThis.canvas?.scene ?? null } = {}) {
+	if (!isFightTabEnabled() || !actor || !scene) return null;
+	const combat = fightOnScene(scene);
+	return engagementOf(combat, scene, rollerCombatant(combat, scene, actor));
+}
+
 /**
  * Everyone else attacking one fighter, and the roller: the p.414 pile-on on that one target.
  *
- * The roller counts once whether or not their own token is in the fight (a Clash rolled from the sheet
- * with a foe targeted is still an attack on that foe), and a target fought by nobody else gets no seed.
+ * The roller counts whether or not their own token is in contact (a Clash rolled from the sheet with a
+ * foe targeted is still an attack on that foe): once, or as every body a monster group stands for. A
+ * target fought by nobody else gets no seed.
  *
  * @param {object} p
  * @param {Actor} p.attacker
@@ -154,20 +243,24 @@ function pileOnSeed({ attacker, target, against }) {
 	const roller = combatantForActor(found.combat, found.scene, attacker);
 	const attackers = found.entry.attackers;
 	const rollerIn = roller && attackers.includes(roller.id);
-	const count = bodiesOf(found, attackers) + (rollerIn ? 0 : 1);
+	const rollerBodies = (roller && fighterIn(found, roller.id)?.bodies) || 1;
+	// The engagement's own count, held to how many can reach the target (engagements.js#reachAround).
+	const count = found.entry.attackerBodies + (rollerIn ? 0 : rollerBodies);
 	if (count < 2) return null;
 	const names = namesOf(found, attackers);
 	if (!rollerIn) names.unshift(attacker.name);
-	return makeSeed({ count, direction: against === HEROES ? "onHero" : "onFoe", target: victim.name, names });
+	const others = othersOf(found, attackers.filter(id => id !== roller?.id));
+	return makeSeed({ count, direction: against === HEROES ? "onHero" : "onFoe", target: victim.name, names, ...others });
 }
 
 /**
  * The fight's +N for a damage roll about to hit `targets`, whichever side is rolling it, or null.
  *
- * A GROUP TOKEN takes the group-against-group seed (p.416) whoever it hits, and never a pile-on, exactly
- * as its sheet always has (see sheetSeed). Anyone else gets the pile-on (p.414) against ONE target: a
- * foe for a hero, a hero for a foe. Several targets get none, because the damage against each is rolled
- * separately and one card carries one +N.
+ * A GROUP TOKEN in a group-against-group exchange takes that seed (p.416) whoever it hits, and never a
+ * pile-on, exactly as its sheet does (see sheetSeed). Outside one, a monster group piles on with every
+ * body it stands for, and any other group gets nothing (see the note at the top). Anyone else gets the
+ * pile-on (p.414) against ONE target: a foe for a hero, a hero for a foe. Several targets get none,
+ * because the damage against each is rolled separately and one card carries one +N.
  *
  * @param {object} p
  * @param {Actor} p.attacker
@@ -179,11 +272,12 @@ export function seedForRoll({ attacker, targets = [] }) {
 	const scene = globalThis.canvas?.scene ?? null;
 	const combat = fightOnScene(scene);
 	const roller = rollerCombatant(combat, scene, attacker);
-	// Only a group token needs the fight worked out here; everyone else's seed reads the target's.
+	// A group token's own engagement says whether it takes the group seed. Everyone else's seed, a monster
+	// group's pile-on included, reads the target's.
 	if (roller && combatantBodies(roller).bodies > 1) {
 		const found = engagementOf(combat, scene, roller);
 		const self = fighterIn(found, roller.id);
-		if (self?.bodies > 1) return groupSeedFor(found, self);
+		if (takesGroupSeed(found, self, attacker)) return groupSeedFor(found, self);
 	}
 	const applyable = (targets ?? []).filter(t => t?.hasActor !== false && t?.uuid);
 	if (applyable.length !== 1) return null;
@@ -193,9 +287,9 @@ export function seedForRoll({ attacker, targets = [] }) {
 }
 
 /**
- * Foes striking one party member: every foe in contact with them. Foes do not target, so contact is
- * all the fight can know about who is hitting a character, and the foe the character clashed with is
- * in contact already.
+ * Foes striking one party member: every foe in contact with them, and every one with a shot on record at
+ * them (fight-shots.js). The foe the character clashed with is in contact already, and its blow is the
+ * one rolled, so the others' tags and piercing ride on it (p.414 "Apply tags from all the attackers").
  *
  * @param {object} p
  * @param {Actor} p.pc
@@ -208,7 +302,35 @@ export function incomingSeed({ pc, found = pcEngagement(pc) }) {
 	if (hero?.side !== HEROES || hero.bodies !== 1) return null;
 	const count = found.entry.attackerBodies;
 	if (count < 2) return null;
-	return makeSeed({ count, direction: "onHero", target: hero.name, names: namesOf(found, found.entry.attackers) });
+	const { tags, piercing } = othersOf(found, found.entry.attackers);
+	const seed = makeSeed({ count, direction: "onHero", target: hero.name, names: namesOf(found, found.entry.attackers), tags, piercing });
+	if (!seed) return null;
+	// Which foe struck is not known until the blow is picked, so each foe's share is kept by token: the
+	// striker's own is taken back out then (seedWithoutStriker).
+	seed.sources = found.entry.attackers
+		.map(id => found.combatants?.get?.(id))
+		.filter(c => c?.token?.uuid)
+		.map(c => { const { tags, piercing } = attackerProfile(c); return { uuid: c.token.uuid, tags, piercing }; });
+	return seed;
+}
+
+/**
+ * An incoming seed with the striking foe's own tags and piercing taken back out: they are its hardest
+ * attack's, not the blow it made, and only the OTHER attackers' ride on that blow (p.414). A seed with no
+ * per-foe record, or a striker not among them, is returned as it was.
+ *
+ * @param {object|null} seed      incomingSeed
+ * @param {string} strikerUuid    the striking foe's token uuid
+ */
+export function seedWithoutStriker(seed, strikerUuid) {
+	if (!seed || !strikerUuid || !Array.isArray(seed.sources)) return seed;
+	if (!seed.sources.some(s => s?.uuid === strikerUuid)) return seed;
+	const rest = seed.sources.filter(s => s?.uuid !== strikerUuid);
+	return {
+		...seed,
+		tags: [...new Set(rest.flatMap(s => s.tags ?? []).filter(Boolean).map(String))],
+		piercing: Math.max(0, ...rest.map(s => Math.trunc(Number(s.piercing) || 0))),
+	};
 }
 
 /** A character's place in the fight on the canvas scene, or null. */
@@ -235,8 +357,9 @@ export function engagedFoeTargets(pc, found = pcEngagement(pc)) {
 
 /**
  * A monster's or NPC's damage, rolled from its token's sheet, when that token is fighting exactly one
- * opponent: the other fighters on its side attacking that same opponent, and itself. A token standing
- * for a group gets the group-against-group seed instead, when its engagement is one.
+ * opponent: the other fighters on its side attacking that same opponent, and itself (every body of a
+ * monster group). A token standing for a group gets the group-against-group seed instead when its
+ * engagement is one, and a group that is not a monster's never gets a pile-on (see the note at the top).
  *
  * @param {object} p
  * @param {Actor} p.actor  the sheet's actor (a token's own actor, for an unlinked token)
@@ -252,8 +375,9 @@ export function sheetSeed({ actor }) {
 	const found = engagementFor(tokenDoc);
 	if (!found) return null;
 	const self = fighterIn(found, found.combatant.id);
-	// A group in a group-against-group exchange takes that rule's seed, and never a pile-on's.
-	if (self?.bodies > 1) return groupSeedFor(found, self);
+	// A group in a group-against-group exchange takes that rule's seed, and never a pile-on's. So does any
+	// group but a monster's outside one: a follower group's own Swarm die is its pile-on.
+	if (takesGroupSeed(found, self, actor)) return groupSeedFor(found, self);
 	const opponents = [...new Set([...found.entry.melee, ...found.entry.shootingAt])];
 	if (!self || opponents.length !== 1) return null;
 	const opponent = fighterIn(found, opponents[0]);
@@ -265,5 +389,6 @@ export function sheetSeed({ actor }) {
 		direction: opponent.side === HEROES ? "onHero" : "onFoe",
 		target: opponent.name,
 		names: namesOf(found, attackers),
+		...othersOf(found, attackers.filter(id => id !== found.combatant.id)),
 	});
 }

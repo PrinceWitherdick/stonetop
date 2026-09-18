@@ -162,7 +162,7 @@ describe("the Fight tab class", () => {
 		tab.viewed = combat;
 		const entries = tab._getEntryContextOptions();
 		expect(entries.map(e => e.label)).toEqual([
-			"stonetop.fight.menu.switchSide", "stonetop.fight.menu.headcount",
+			"stonetop.fight.menu.switchSide", "stonetop.fight.menu.headcount", "stonetop.fight.menu.stopShooting",
 			"stonetop.fight.scale.menuMerge", "stonetop.fight.scale.menuSplit",
 			"stonetop.fight.menu.openSheet", "stonetop.fight.menu.remove",
 		]);
@@ -176,12 +176,16 @@ describe("the Fight tab class", () => {
 		expect(entries[0].visible(li)).toBe(true);
 		globalThis.game.user = { id: "player", isGM: false };
 		expect(entries[0].visible(li)).toBe(false);
-		expect(entries[5].visible(li)).toBe(false);
-		// One crinwin, fighting as itself: nothing to merge it with, and no group to split.
+		expect(entries[6].visible(li)).toBe(false);
+		// One crinwin, fighting as itself, with no shot on record: nothing to stop, nothing to merge it
+		// with, and no group to split.
 		globalThis.game.user = { id: "gm", isGM: true };
 		globalThis.canvas = { scene: combat.scene, tokens: { controlled: [] } };
 		expect(entries[2].visible(li)).toBe(false);
 		expect(entries[3].visible(li)).toBe(false);
+		expect(entries[4].visible(li)).toBe(false);
+		cCrin.flags[SYSTEM_ID].shots = ["cBram"];
+		expect(entries[2].visible(li)).toBe(true);
 		expect(tab._getCombatContextOptions()).toEqual([]);
 		expect(cCrin).toBeTruthy();
 	});

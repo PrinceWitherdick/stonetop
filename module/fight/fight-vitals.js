@@ -1,5 +1,6 @@
-// HP and Armor on a Fight tab row: "HP 7/10 · Armor 2". And for a group follower, how many of its
-// roster are still standing ("4 of 6 standing").
+// HP and Armor on a Fight tab row: "HP 7/10 · Armor 2", and a character's Defend Readiness while they
+// hold any ("· Readiness 2", p.216). And for a group follower, how many of its roster are still standing
+// ("4 of 6 standing").
 //
 // READ FROM THE STORED FIELDS, the same ones the token bar and the damage button read. A character's
 // sheet mirrors its derived max HP and armor into them (derived vitals are otherwise sheet-only).
@@ -9,6 +10,7 @@
 // else at the table.
 
 import { SYSTEM_ID } from "../system-id.js";
+import { heldReadiness } from "../combat/defend-readiness.js";
 import { groupFollowerStanding } from "../utils/crew.js";
 import { readableFlags } from "../actors/character/StonetopFlags.js";
 
@@ -16,15 +18,17 @@ import { readableFlags } from "../actors/character/StonetopFlags.js";
 const numberOr = value => (value === "" || value === null || value === undefined || !Number.isFinite(Number(value)) ? null : Number(value));
 
 /**
- * The HP and armor a combatant's actor carries.
- * @returns {{hp: number|null, hpMax: number|null, armor: number|null}}
+ * The HP and armor a combatant's actor carries, and a character's held Readiness (0 for anyone else).
+ * @returns {{hp: number|null, hpMax: number|null, armor: number|null, readiness: number}}
  */
 export function combatantVitals(combatant) {
-	const attributes = combatant?.actor?.system?.attributes ?? {};
+	const actor = combatant?.actor;
+	const attributes = actor?.system?.attributes ?? {};
 	return {
 		hp: numberOr(attributes.hp?.value),
 		hpMax: numberOr(attributes.hp?.max),
 		armor: numberOr(attributes.armor?.value),
+		readiness: heldReadiness(actor),
 	};
 }
 
@@ -55,15 +59,16 @@ export function canReadFoeVitals(combatant, user = globalThis.game?.user) {
 /**
  * The line a row shows. PURE. Empty when the actor carries no HP (a combatant with no actor).
  *
- * @param {{hp: number|null, hpMax: number|null, armor: number|null}} vitals
+ * @param {{hp: number|null, hpMax: number|null, armor: number|null, readiness?: number}} vitals
  * @param {(key: string, data?: object) => string} format
  */
-export function vitalsLine({ hp = null, hpMax = null, armor = null } = {}, format) {
+export function vitalsLine({ hp = null, hpMax = null, armor = null, readiness = 0 } = {}, format) {
 	if (hp === null) return "";
 	const hpText = hpMax === null
 		? format("stonetop.fight.readout.hp", { hp })
 		: format("stonetop.fight.readout.hpOf", { hp, max: hpMax });
-	return armor === null ? hpText : format("stonetop.fight.readout.vitals", { hp: hpText, armor });
+	const line = armor === null ? hpText : format("stonetop.fight.readout.vitals", { hp: hpText, armor });
+	return readiness > 0 ? format("stonetop.fight.readout.readiness", { line, readiness }) : line;
 }
 
 /**
@@ -73,9 +78,9 @@ export function vitalsLine({ hp = null, hpMax = null, armor = null } = {}, forma
 export function fightVitalsKey(combat, options) {
 	return [...(combat?.combatants ?? [])]
 		.map(combatant => {
-			const { hp, hpMax, armor } = combatantVitals(combatant);
+			const { hp, hpMax, armor, readiness } = combatantVitals(combatant);
 			const roster = followerRoster(combatant, options);
-			return `${combatant.id}:${hp}/${hpMax}/${armor}/${roster ? `${roster.standing}of${roster.size}` : ""}`;
+			return `${combatant.id}:${hp}/${hpMax}/${armor}/${readiness}/${roster ? `${roster.standing}of${roster.size}` : ""}`;
 		})
 		.join("|");
 }

@@ -8,8 +8,9 @@
 // only way to aim a monster at somebody it is not touching.
 //
 // A HERO hits the foes they are in melee with, then any they are shooting at. A FOE hits the heroes in
-// melee with it, and only when there are none, the heroes shooting at it: foes do not target, and a
-// monster with a character in its face is not swinging at the archer behind them.
+// melee with it, and only when there are none, the heroes it has a shot on record at (fight-shots.js),
+// then the heroes shooting at it: a monster with a character in its face is not swinging at the archer
+// behind them.
 //
 // SEVERAL IS A QUESTION, NOT A DEFAULT. Clash and Let Fly are written against one foe. Book I p.414 (and
 // Clash's own notes, p.215): "When a PC or follower's attack could feasibly hurt multiple foes—because of
@@ -18,14 +19,12 @@
 // roll damage separately against each foe." Only the roller knows which of those this is, so a roller
 // fighting more than one is asked, with the first ticked.
 
-import { isFightTabEnabled } from "../settings.js";
 import { escHtml } from "../utils/strings.js";
 import { format, localize } from "../utils/i18n.js";
 import { themedDialogClasses } from "../utils/window-theme.js";
 import { contentElement } from "../dialogs/content-picker.js";
 import { HEROES } from "./engagements.js";
-import { fightOnScene, engagementOf } from "./fight-state.js";
-import { rollerCombatant } from "./damage-seed.js";
+import { rollerEngagement } from "./damage-seed.js";
 import { namesPhrase } from "./fight-copy.js";
 
 const KEY = "stonetop.fight.targets";
@@ -49,15 +48,13 @@ function asTarget(combatant) {
  * @param {Actor} actor  the roller (an unlinked token's own actor, for a monster)
  */
 export function engagedOpponents(actor, { scene = globalThis.canvas?.scene ?? null } = {}) {
-	if (!isFightTabEnabled() || !actor || !scene) return [];
-	const combat = fightOnScene(scene);
-	const found = engagementOf(combat, scene, rollerCombatant(combat, scene, actor));
+	const found = rollerEngagement(actor, { scene });
 	if (!found) return [];
 	const self = found.fighters.find(f => f.id === found.combatant.id);
 	const { melee = [], shootingAt = [], shotBy = [] } = found.entry;
 	const ids = self?.side === HEROES
 		? [...new Set([...melee, ...shootingAt])]
-		: (melee.length ? melee : shotBy);
+		: (melee.length ? melee : [...new Set([...shootingAt, ...shotBy])]);
 	return ids.map(id => found.combatants.get(id)).filter(c => c?.token).map(asTarget);
 }
 

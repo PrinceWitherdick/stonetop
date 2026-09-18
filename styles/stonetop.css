@@ -3835,6 +3835,15 @@ input.stonetop-name-field {
 	color: var(--st-text-muted);
 	font-size: var(--st-fs-xs);
 }
+/* The other attacker's harder-hitting die (utils/damage.js#settleBestDie), right under the +N it goes
+   with and greyed with it while the +N is off. */
+.stonetop-damage-seed--best {
+	margin-top: 6px;
+}
+.stonetop-damage-seed:has(.stonetop-damage-seed-check:disabled) {
+	opacity: 0.6;
+	cursor: default;
+}
 
 /* The same +N named on the damage card, struck through once left off. */
 .stonetop-condition-numbers.is-left-off {
@@ -5974,8 +5983,16 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 }
 /* "Leave off the +1" beside Apply stays a plain button: Apply is the card's one primary action, and
    this only changes the number Apply will use. It may wrap, since it sits beside a wide CTA. */
-:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons button.stonetop-damage-seed-toggle {
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons button.stonetop-damage-seed-toggle,
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons button.stonetop-damage-defend {
 	white-space: normal;
+}
+/* Defend's Readiness spent on this blow (fight/defend-spend.js), said under the totals it changes. */
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .stonetop-damage-defend-note {
+	margin: 4px 0;
+	color: var(--st-text);
+	font-weight: 600;
+	font-size: 0.9em;
 }
 
 /* Per-target damage list on the results card: one roll-result block per target (stacked,
@@ -6064,8 +6081,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	font-weight: 600;
 	font-size: 0.9em;
 }
-/* Whose blow a row is, on a card holding several foes' attacks. */
-:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .stonetop-suffer-choice-foe {
+/* Whose blow a row is, on a card holding several foes' attacks; and the hardest-hitting of them, the
+   one the book rolls (p.239). */
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card :is(.stonetop-suffer-choice-foe, .stonetop-suffer-choice-best) {
 	color: var(--st-text-secondary);
 	font-weight: normal;
 }
@@ -6654,6 +6672,35 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 
 #stonetop-fight-ring .stonetop-fight-ring-formula:empty {
 	display: none;
+}
+
+/* A character's held Readiness, over the token: a pill in the ring's own paper, centred above it. The
+   count is printed as well as drawn, so it reads at a glance and to a screen reader alike. */
+#stonetop-fight-ring .stonetop-fight-ring-readiness {
+	position: absolute;
+	left: 50%;
+	bottom: 100%;
+	transform: translate(-50%, -8px);
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 12px;
+	background: var(--stonetop-fight-ring-paper);
+	border: var(--stonetop-fight-ring-edge-width) solid var(--stonetop-fight-ring-edge);
+	border-radius: 999px;
+	box-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
+	color: var(--stonetop-fight-ring-lettering);
+	font-family: var(--font-sans, "Signika", sans-serif);
+	font-size: var(--font-size-16, 1rem);
+	font-weight: 700;
+	line-height: 1.2;
+	white-space: nowrap;
+	pointer-events: auto;
+}
+#stonetop-fight-ring .stonetop-fight-ring-readiness-pips {
+	display: flex;
+	gap: 3px;
+	color: var(--stonetop-fight-ring-die);
 }
 
 /* ── Item source ──────────────────────────────────────────────────────────── */

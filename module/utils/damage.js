@@ -56,6 +56,83 @@ export function seedBonus(seed) {
 }
 
 /**
+ * One entry of `extraDice` as its dice: a typed string as it is, or a move's named extra (`{dice, pill}`,
+ * dialogs/RollDialog.js#withOffers) as its dice. The card names the latter by its pill.
+ */
+export function extraDiceTerm(entry) {
+	return entry && typeof entry === "object" ? String(entry.dice ?? "") : entry;
+}
+
+/**
+ * What a damage formula averages: each `NdX` at N*(X+1)/2, each flat number as itself. Only for telling
+ * which of two dice hits harder, so anything it cannot read counts as nothing.
+ *
+ * @param {string} formula
+ */
+export function averageDamage(formula) {
+	const text = String(formula ?? "").replace(/\s+/g, "").toLowerCase();
+	let total = 0;
+	for (const [, sign, count, faces, flat] of text.matchAll(/([+-]?)(?:(\d*)d(\d+)|(\d+))/g)) {
+		const value = faces ? (Number(count) || 1) * (Number(faces) + 1) / 2 : Number(flat) || 0;
+		total += sign === "-" ? -value : value;
+	}
+	return total;
+}
+
+/** Which of several attacks hits hardest on average (the first of equals), or -1 when none rolls a die. */
+export function hardestAttackIndex(attacks) {
+	let best = -1;
+	let bestAverage = 0;
+	(attacks ?? []).forEach((attack, index) => {
+		if (!attack?.formula) return;
+		const average = averageDamage(attack.formula);
+		if (best < 0 || average > bestAverage) [best, bestAverage] = [index, average];
+	});
+	return best;
+}
+
+/** The first dice term of a formula with any flat number stuck to it ("d8+2" of "d8+2+1d6"), or "". */
+export function leadDie(formula) {
+	const text = String(formula ?? "").replace(/\s+/g, "");
+	return text.match(/^\d*d\d+(?:[+-]\d+(?![d\d]))*/i)?.[0] ?? "";
+}
+
+/**
+ * The best die among the other attackers in a pile-on, when it beats the roller's own: "roll one
+ * combatant's damage (usually the best one)" (Book I p.414), "roll the single highest damage die among
+ * them" (p.239). The seed carries every other attacker's die as `dice`; this keeps the strongest of
+ * them as `best` only if it averages more than the lead die of `base`. PURE.
+ *
+ * @param {object|null} seed
+ * @param {string} base  the roller's formula
+ * @returns {object|null} the seed, with `best` set or removed
+ */
+export function settleBestDie(seed, base) {
+	if (!seed) return seed;
+	const { best: _drop, ...rest } = seed;
+	const own = averageDamage(leadDie(base) || base);
+	let best = null;
+	for (const die of Array.isArray(seed.dice) ? seed.dice : []) {
+		const formula = String(die?.formula ?? "").replace(/\s+/g, "");
+		if (!leadDie(formula)) continue;
+		const average = averageDamage(formula);
+		if (average > own && (!best || average > best.average)) best = { name: String(die.name ?? ""), formula, average };
+	}
+	return best ? { ...rest, best: { name: best.name, formula: best.formula } } : rest;
+}
+
+/**
+ * `base` with its lead die swapped for the seed's best die, when the roller chose to roll that
+ * (`seed.useBest`). Only the lead die goes: the roller's own extra dice (strike hard's 1d6) stay on.
+ */
+export function withBestDie(base, seed) {
+	const best = seed?.useBest ? String(seed.best?.formula ?? "") : "";
+	const lead = leadDie(base);
+	if (!best || !lead) return base;
+	return best + base.slice(lead.length);
+}
+
+/**
  * A damage formula with a one-off adjustment folded in: the base die (already carrying the
  * weapon's own `+N`) plus any extra dice and a flat bonus.
  *
@@ -74,9 +151,9 @@ export function seedBonus(seed) {
  */
 export function composeDamageFormula(base, { bonus = 0, extraDice = "", seed = null } = {}) {
 	const terms = [];
-	const first = String(base ?? "").trim();
+	const first = withBestDie(String(base ?? "").trim(), seed);
 	if (first) terms.push(first);
-	for (const term of (Array.isArray(extraDice) ? extraDice : [extraDice]).map(normalizeDamageBonusDice)) {
+	for (const term of (Array.isArray(extraDice) ? extraDice : [extraDice]).map(extraDiceTerm).map(normalizeDamageBonusDice)) {
 		if (term) terms.push(term.startsWith("-") ? term : `+${term}`);
 	}
 	// The fight's +N for several attackers (fight/damage-seed.js) joins the flat bonus: one term on the
@@ -119,6 +196,20 @@ export function mitigateDamage(raw, { armor = 0, piercing = 0, ignoresArmor = fa
 	if (ignoresArmor) return Math.max(0, dmg - floor);
 	const effectiveArmor = Math.max(floor, (Number(armor) || 0) - (Number(piercing) || 0));
 	return Math.max(0, dmg - effectiveArmor);
+}
+
+/**
+ * The actor a damage row is aimed at, off the uuid the card froze at roll time.
+ *
+ * TWO SHAPES, because the two things that produce this card point at different documents. An
+ * attack targets TOKENS (an unlinked monster has to hit its own synthetic actor, not the shared
+ * prototype it was stamped from), while a move option that burns the person who picked it points
+ * at the CHARACTER, who may have no token on the scene anyone is currently looking at. A reader
+ * that only unwrapped a token document answered null for the second and left the button on a card
+ * it could never enact.
+ */
+export function damageRowActor(doc) {
+	return doc?.documentName === "Actor" ? doc : (doc?.actor ?? null);
 }
 
 /**

@@ -5,6 +5,25 @@ const HOSTILE = -1;
 const NEUTRAL = 0;
 const FRIENDLY = 1;
 
+describe("bodiesFor a group follower", () => {
+	it("counts the members its character's roster has still standing, and routs it at none", () => {
+		expect(bodiesFor({ type: "npc", roster: { standing: 4, size: 6 } })).toEqual({ bodies: 4, out: false, group: true, standing: 4, size: 6, routed: false });
+		expect(bodiesFor({ type: "npc", roster: { standing: 0, size: 6 } })).toMatchObject({ bodies: 0, out: true, routed: true });
+	});
+
+	it("reads the roster over any headcount the GM set", () => {
+		expect(bodiesFor({ type: "npc", headcount: 9, roster: { standing: 5, size: 6 } }).bodies).toBe(5);
+	});
+
+	it("routs it when the pool on its token is empty", () => {
+		expect(bodiesFor({ type: "npc", hp: { value: 0, max: 8 }, roster: { standing: 5, size: 6 } })).toMatchObject({ bodies: 0, out: true });
+	});
+
+	it("is one body for a follower who is one person", () => {
+		expect(bodiesFor({ type: "npc", roster: null }).bodies).toBe(1);
+	});
+});
+
 describe("classifySide", () => {
 	it("puts characters and anything a player owns with the heroes", () => {
 		expect(classifySide({ type: "character" })).toEqual({ side: "heroes", list: "heroes" });

@@ -12,8 +12,16 @@
 //
 // WHAT COUNTS:
 //  • Two fighters on OPPOSITE sides whose tokens touch (diagonals included) are in melee.
-//  • A ranged link is a player's target: their fighter shooting at a fighter on the other side.
-//    Melee wins when both hold, since standing in contact is the stronger claim.
+//  • A ranged link is a shot: a player's target (their fighter shooting at a fighter on the other
+//    side), or a shot on record from the last damage a fighter rolled at range (fight-shots.js).
+//    Melee wins when both hold, since standing in contact is the stronger claim, and a shot on
+//    record lapses while its shooter is in melee with anybody: they are fighting hand to hand now.
+//  • EVERYONE HITTING A FIGHTER IS ATTACKING IT, near or far, whichever side it is on: an archer
+//    shooting a character is one more on them, as a character's arrow is one more on a foe.
+//  • NO MORE CAN CLOSE WITH ONE FIGHTER THAN FIT ROUND IT. A horde token of twelve touching a lone
+//    hero counts only as many as there are squares around the hero (8 round a man-sized token).
+//    "Holding a chokepoint reduces the number of foes they have to fight at once" (p.414) is still
+//    the table's to say: the seed that carries the count is theirs to leave off.
 //  • A fighter who is out (defeated, 0 HP, a routed group) or has no bodies left is not a "capable
 //    attacker" (p.414) and is never linked or counted.
 //  • A fighter this client may not see is not there at all, so a hidden foe never changes what a
@@ -102,14 +110,16 @@ const sum = (ids, byId) => ids.reduce((total, id) => total + bodiesOf(byId.get(i
  * @param {object} p
  * @param {Fighter[]} p.fighters  in the order the fight lists them (clusters keep that order)
  * @param {{size?: number, kind?: string}} [p.grid]
- * @param {Array<{from: string, to: string}>} [p.ranged]  a fighter shooting at another
+ * @param {Array<{from: string, to: string, recorded?: boolean}>} [p.ranged]  a fighter shooting at
+ *   another; `recorded` for a shot on record rather than a live target
  * @returns {{
  *   links: Array<{hero: string, foe: string, kind: "melee"|"ranged", from?: string}>,
  *   clusters: Array<{id: string, heroIds: string[], foeIds: string[],
  *     groups: null|{heroGroupBodies: number, foeGroupBodies: number,
  *     bigger: "heroes"|"foes"|null, bonus: number, individuals: boolean}}>,
  *   byFighter: Object<string, {melee: string[], shootingAt: string[], shotBy: string[],
- *     attackers: string[], attackerBodies: number, ganged: boolean, pileOn: number}>,
+ *     attackers: string[], attackerBodies: number, attackerBodiesAll: number, reach: number,
+ *     ganged: boolean, pileOn: number}>,
  *   unengaged: {heroes: string[], foes: string[]},
  *   out: {heroes: string[], foes: string[]},
  *   signature: string,
@@ -143,12 +153,15 @@ export function engage({ fighters = [], grid = {}, ranged = [] } = {}) {
 		}
 	}
 
-	// Ranged: a shot between two capable fighters on opposite sides that are not already in contact.
+	// Ranged: a shot between two capable fighters on opposite sides that are not already in contact. A
+	// shot on record lapses while its shooter is in melee with anyone.
+	const inMelee = new Set(links.flatMap(link => [link.hero, link.foe]));
 	const rangedPairs = new Set();
 	for (const shot of Array.isArray(ranged) ? ranged : []) {
 		const from = byId.get(shot?.from);
 		const to = byId.get(shot?.to);
 		if (!from || !to || from.side === to.side) continue;
+		if (shot.recorded && inMelee.has(from.id)) continue;
 		if (from.out || to.out || !bodiesOf(from) || !bodiesOf(to)) continue;
 		const hero = from.side === HEROES ? from.id : to.id;
 		const foe = from.side === FOES ? from.id : to.id;
@@ -163,7 +176,7 @@ export function engage({ fighters = [], grid = {}, ranged = [] } = {}) {
 	for (const fighter of present) {
 		byFighter[fighter.id] = {
 			melee: [], shootingAt: [], shotBy: [],
-			attackers: [], attackerBodies: 0, ganged: false, pileOn: 0,
+			attackers: [], attackerBodies: 0, attackerBodiesAll: 0, reach: 0, ganged: false, pileOn: 0,
 		};
 	}
 	for (const link of links) {
@@ -179,12 +192,14 @@ export function engage({ fighters = [], grid = {}, ranged = [] } = {}) {
 	for (const fighter of present) {
 		const entry = byFighter[fighter.id];
 		for (const list of [entry.melee, entry.shootingAt, entry.shotBy]) list.sort((a, b) => order.get(a) - order.get(b));
-		// A foe is attacked by everyone fighting it, near or far. A hero is by the foes in contact with
-		// them: foes do not target, so melee is all this can know about who is hitting a PC.
-		entry.attackers = fighter.side === FOES
-			? [...new Set([...entry.melee, ...entry.shotBy])].sort((a, b) => order.get(a) - order.get(b))
-			: [...entry.melee];
-		entry.attackerBodies = sum(entry.attackers, byId);
+		// Everyone fighting a fighter is attacking it, near or far, on either side. Those in contact count
+		// only as many bodies as fit round it; those shooting count in full.
+		entry.attackers = [...new Set([...entry.melee, ...entry.shotBy])].sort((a, b) => order.get(a) - order.get(b));
+		entry.reach = reachAround(fighter, grid);
+		const meleeBodies = sum(entry.melee, byId);
+		const shootingBodies = sum(entry.shotBy, byId);
+		entry.attackerBodiesAll = meleeBodies + shootingBodies;
+		entry.attackerBodies = Math.min(meleeBodies, entry.reach) + shootingBodies;
 		//
 		// ONLY A SINGLE FIGHTER CAN BE GANGED UP ON. p.414's "+1 extra damage for each capable
 		// attacker after the first" is for damage dealt "to a single foe"; a token standing for a
@@ -240,6 +255,18 @@ export function engage({ fighters = [], grid = {}, ranged = [] } = {}) {
 	});
 
 	return { links, clusters, byFighter, unengaged, out, signature };
+}
+
+/**
+ * How many attackers can stand in contact with a fighter: the squares round its footprint, eight round
+ * a one-square token and twelve round a two-square one. Hex and gridless maps count the same squares:
+ * it is a ceiling on a crowd, not a measurement.
+ */
+export function reachAround(fighter, grid = {}) {
+	const size = Number(grid.size) > 0 ? Number(grid.size) : 100;
+	const w = Math.max(1, Math.round((Number(fighter?.rect?.w) || size) / size));
+	const h = Math.max(1, Math.round((Number(fighter?.rect?.h) || size) / size));
+	return 2 * (w + h) + 4;
 }
 
 /**

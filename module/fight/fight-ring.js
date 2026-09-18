@@ -3,10 +3,13 @@
 // Core puts its token HUD round a token on a RIGHT-click (visibility, effects, configuration). A plain
 // LEFT-click on a token in the fight puts this one there instead, laid out the same way, so a player can
 // act without opening a sheet:
-//  • a character: Clash and Let Fly on the left, their damage die on the right;
+//  • a character: Clash, Let Fly and Defend on the left, their damage die on the right, and while they
+//    hold Readiness, Defend's "strike back at an attacker (deal your damage, with disadvantage)" (p.216),
+//    Big Damn Hero's "lock eyes with an attacker" for a Would-Be Hero who has it, and the Readiness they
+//    hold, shown over the token so the table can see what they have to spend;
 //  • a monster: one button per blow its stat block rolls, on the right. The Gwyllgi offers its claws,
 //    its bite, and the baleful cloud its move breathes;
-//  • a follower: Clash, Let Fly and Order on the left, their damage on the right;
+//  • a follower: Clash, Let Fly, Defend and Order on the left, their damage on the right;
 //  • any other NPC: its damage, on the right.
 // A monster gets no Clash or Let Fly: those are the players' moves, and the GM does not roll them. A
 // follower does get them, because a follower ordered to Clash triggers the player move and their
@@ -37,6 +40,12 @@ import { fightOnScene } from "./fight-state.js";
 import { damageBlows, damageCardText, blowWeapon } from "../utils/damage.js";
 import { pcDamageDie, rollDamageAt } from "../combat/attack-flow.js";
 import { followerRingInfo, openFollowerOrder } from "./follower-fight.js";
+import { heldReadiness } from "../combat/defend-readiness.js";
+import { spendReadiness, pickOne } from "./defend-spend.js";
+import { HERO_MOVES, lockEyesCandidates, lockEyes } from "./hero-moves.js";
+import { ownsMoveNamed } from "../actors/character/owns-move.js";
+import { escHtml } from "../utils/strings.js";
+import { stonetopChatCard } from "../utils/chat.js";
 import { format, localize } from "../utils/i18n.js";
 
 // A plain literal, not built from SYSTEM_ID: the precache check in tests finds template paths by it.
@@ -49,7 +58,15 @@ const RING_TEMPLATE = "systems/stonetop-pwd/templates/hud/fight-ring.hbs";
 export const RING_MOVES = [
 	{ name: "Clash", icon: "fa-solid fa-swords", orderKey: "clash" },
 	{ name: "Let Fly", icon: "fa-solid fa-bow-arrow", orderKey: "let-fly" },
+	// The third fighting move (p.216): holding a position, or jumping in for someone.
+	{ name: "Defend", icon: "fa-solid fa-shield", orderKey: "defend" },
 ];
+
+/** The glyph on Defend's strike back, the one spend of Readiness that is a roll of its own. */
+const STRIKE_BACK_ICON = "fa-solid fa-shield-halved";
+
+/** The glyph on Big Damn Hero's lock eyes. */
+const LOCK_EYES_ICON = "fa-solid fa-eye";
 
 /** The glyph on a follower's plain Order button, which opens the dialog on no particular move. */
 const ORDER_ICON = "fa-solid fa-hand-point-right";
@@ -77,8 +94,9 @@ const tidy = formula => String(formula ?? "").replace(/\s+/g, "");
 
 /**
  * @typedef {object} RingButton
- * @property {"move"|"damage"|"item"|"order"} run  roll a character's move through their sheet, roll a
- *   damage formula, roll a stat block's move item, or order a follower to a move
+ * @property {"move"|"damage"|"item"|"order"|"strikeBack"|"lockEyes"} run  roll a character's move through
+ *   their sheet, roll a damage formula, roll a stat block's move item, order a follower to a move, spend a
+ *   Readiness to strike back, or spend one to lock eyes with a foe (Big Damn Hero)
  * @property {string} label       the button's text, and a damage card's title
  * @property {string} icon        Font Awesome classes
  * @property {string} [itemId]    the move ("move", "item")
@@ -102,9 +120,11 @@ const tidy = formula => String(formula ?? "").replace(/\s+/g, "");
  *   lookup (whose follower is this?), so it too is asked for by the caller
  * @param {object|null} [p.swarm]  for a group follower, fight/follower-fight.js#followerSwarm — the
  *   same lookup, which is why ringButtonsFor gets both from followerRingInfo at once
- * @returns {{moves: RingButton[], damage: RingButton[]}}
+ * @param {number} [p.readiness]  a character's held Defend Readiness
+ * @param {boolean} [p.canLockEyes]  a foe in the fight they could lock eyes with (Big Damn Hero)
+ * @returns {{moves: RingButton[], damage: RingButton[], readiness: number}}
  */
-export function ringButtons(actor, { die = "", order = null, swarm = null } = {}) {
+export function ringButtons(actor, { die = "", order = null, swarm = null, readiness = 0, canLockEyes = false } = {}) {
 	const moves = [];
 	const damage = [];
 	const system = actor?.system ?? {};
@@ -117,9 +137,21 @@ export function ringButtons(actor, { die = "", order = null, swarm = null } = {}
 			const item = items.find(i => i?.type === "move" && i.name === name);
 			if (item) moves.push({ run: "move", itemId: item.id, label: item.name, icon });
 		}
+		// Big Damn Hero: "When you Defend, you can spend 1 Readiness to lock eyes with an attacker".
+		if (readiness > 0 && canLockEyes && ownsMoveNamed(actor, HERO_MOVES.BIG_DAMN_HERO)) {
+			moves.push({ run: "lockEyes", label: localize("stonetop.fight.ring.lockEyes"), icon: LOCK_EYES_ICON, aria: format("stonetop.fight.ring.lockEyesAria", { readiness }) });
+		}
 		// The sheet's Damage button: the die, titled "Damage", carrying no armor clause of its own.
 		const formula = tidy(die);
 		if (formula) damage.push({ run: "damage", label: damageText, formula, weapon: null, icon: dieIcon(formula) });
+		// Held Readiness can be spent to "strike back at an attacker (deal your damage, with disadvantage)"
+		// (p.216): the same die, rolled twice for the lower, and one Readiness gone.
+		if (formula && readiness > 0) {
+			damage.push({
+				run: "strikeBack", label: localize("stonetop.fight.ring.strikeBack"), formula, rollMode: "dis", weapon: null,
+				icon: STRIKE_BACK_ICON, aria: format("stonetop.fight.ring.strikeBackAria", { formula, readiness }),
+			});
+		}
 	}
 
 	else if (actor?.type === "monster") {
@@ -172,14 +204,39 @@ export function ringButtons(actor, { die = "", order = null, swarm = null } = {}
 		}
 	}
 
-	return { moves, damage };
+	return { moves, damage, readiness: actor?.type === "character" ? Math.max(0, Math.trunc(Number(readiness) || 0)) : 0 };
 }
 
 /** An actor's ring, with the character's damage die, or a follower's character and roster, looked up. */
 export async function ringButtonsFor(actor) {
-	const die = actor?.type === "character" ? await pcDamageDie(actor) : "";
+	const isCharacter = actor?.type === "character";
+	const die = isCharacter ? await pcDamageDie(actor) : "";
 	const { order, swarm } = followerRingInfo(actor);
-	return ringButtons(actor, { die, order, swarm });
+	const readiness = heldReadiness(actor);
+	// Working out who they could lock eyes with takes the whole fight, so only for someone who could spend on it.
+	const canLockEyes = isCharacter && readiness > 0 && ownsMoveNamed(actor, HERO_MOVES.BIG_DAMN_HERO) && lockEyesCandidates(actor).length > 0;
+	return ringButtons(actor, { die, order, swarm, readiness, canLockEyes });
+}
+
+/**
+ * Big Damn Hero from the ring: pick the foe (asked only when there is more than one), spend the Readiness,
+ * and say so. Returns whether eyes were locked.
+ */
+export async function lockEyesFromRing(actor, { DialogV2 = globalThis.foundry?.applications?.api?.DialogV2 } = {}) {
+	if (heldReadiness(actor) < 1) return false;
+	const foe = await pickOne(lockEyesCandidates(actor), {
+		title: localize("stonetop.fight.ring.lockEyes"),
+		question: format("stonetop.fight.ring.lockEyesAsk", { name: actor.name }),
+		labelOf: c => c.name || c.token?.name || "",
+		DialogV2,
+	});
+	if (!foe || !(await lockEyes(actor, foe.id))) return false;
+	await spendReadiness(actor);
+	await globalThis.ChatMessage?.create?.({
+		content: stonetopChatCard(HERO_MOVES.BIG_DAMN_HERO, `<div class="card-content"><p>${escHtml(format("stonetop.fight.ring.lockEyesSaid", { name: actor.name, foe: foe.name || foe.token?.name || "" }))}</p></div>`, "stonetop-lock-eyes-card"),
+		speaker: globalThis.ChatMessage?.getSpeaker?.({ actor }),
+	});
+	return true;
 }
 
 /** Whether a ring has anything on it. */
@@ -203,7 +260,11 @@ export async function runRingButton(button, actor, { shiftKey = false } = {}) {
 	// Order dialog is not one of those — it IS the roll, the place the tags in play are weighed.
 	if (button.run === "order") return openFollowerOrder(button.order, button.moveKey);
 	if (button.run === "item") return actor.items?.get?.(button.itemId)?.roll?.({ shiftKey });
-	return rollDamageAt(actor, {
+	if (button.run === "lockEyes") return lockEyesFromRing(actor);
+	// Strike back is the damage button's roll, at its disadvantage, and costs a Readiness once it is rolled.
+	const strikeBack = button.run === "strikeBack";
+	if (strikeBack && heldReadiness(actor) < 1) return;
+	const rolled = await rollDamageAt(actor, {
 		formula: button.formula,
 		label: button.label,
 		keywords: button.keywords,
@@ -211,6 +272,8 @@ export async function runRingButton(button, actor, { shiftKey = false } = {}) {
 		weapon: button.weapon,
 		shiftKey,
 	});
+	if (strikeBack && rolled) await spendReadiness(actor);
+	return rolled;
 }
 
 /**
@@ -350,10 +413,13 @@ export function ringContext(buttons, { name = "" } = {}) {
 		icon: button.icon,
 		aria: spoken(button),
 	});
+	// The Readiness a character holds, over the token: what they have to spend on a blow (Defend, p.216).
+	const held = Math.max(0, Math.trunc(Number(buttons?.readiness) || 0));
 	return {
 		ringLabel: format("stonetop.fight.ring.label", { name }),
 		movesLabel: localize("stonetop.fight.ring.moves"),
 		damageLabel: localize("stonetop.fight.ring.damageGroup"),
+		readiness: held > 0 ? { count: held, label: format("stonetop.fight.ring.readiness", { name, count: held }), pips: Array.from({ length: held }, (_, i) => i) } : null,
 		moves: moves.map((button, i) => view(button, i)),
 		damage: damage.map((button, i) => view(button, moves.length + i)),
 	};

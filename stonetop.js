@@ -76,6 +76,7 @@ import { wireUndoXpMark } from "./module/utils/undo-xp-mark.js";
 import { isKnowThings, logbookUses, LOGBOOK, STRONG_HIT_TOTAL } from "./module/actors/character/know-things.js";
 import { artifactStateForTier } from "./module/actors/character/artifact-identify.js";
 import { wireAttackConfirm, applyGateOnce, wireApplyDamage, wireDamageSeed, wireSufferAmount, wireSufferChoice, rollOptionDamage } from "./module/combat/attack-flow.js";
+import { wireDefendSpends } from "./module/fight/defend-spend.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
 import { wrapGlyphTextContainers } from "./module/utils/glyphs.js";
 import { applyJournalSpiralBullets, resolveEntry } from "./module/utils/journal-spiral-bullets.js";
@@ -1973,6 +1974,9 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	// ...and beside Apply, the fight's "Leave off the +N" for several attackers, which also repaints the
 	// card's totals from its flag on every client (attack-flow.js#wireDamageSeed).
 	wireDamageSeed(message, html, damageGate);
+	// Defend's Readiness, spent on the blow before it lands: halve it, or take it for your ward
+	// (fight/defend-spend.js). Pressed by anyone who can write the card, for a defender of theirs.
+	wireDefendSpends(message, html);
 	wireSufferAmount(message, html);
 	// ...and the GM-whispered "Which attack?" card a foe with more than one printed attack posts
 	// instead of guessing which die it swung (attack-flow.js#postSufferChoiceCard).

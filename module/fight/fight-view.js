@@ -47,6 +47,7 @@ export function fightTrackerView({ snapshot, rows, isGM = false, format, cites, 
 	const sideOf = new Map(fighters.map(f => [f.id, f.side]));
 	const nameOf = id => rows.get(id)?.name ?? fighters.find(f => f.id === id)?.name ?? "";
 	const isOut = new Set([...result.out.heroes, ...result.out.foes]);
+	const bodiesOf = id => fighters.find(f => f.id === id)?.bodies ?? 0;
 	const quotes = keys => ruleQuotesView(keys, { isGM, cites });
 
 	// Who may be sent at whom. A fighter is in play while their token is on this map and they are still
@@ -93,7 +94,7 @@ export function fightTrackerView({ snapshot, rows, isGM = false, format, cites, 
 
 	const clusters = result.clusters.map(cluster => {
 		const ruleKey = `cluster:${[...cluster.heroIds, ...cluster.foeIds].sort().join(",")}`;
-		const clusterQuotes = quotes(clusterRuleKeys(cluster, result.byFighter));
+		const clusterQuotes = quotes(clusterRuleKeys(cluster, result.byFighter, bodiesOf));
 		const heroes = cluster.heroIds.map(row);
 		const foes = cluster.foeIds.map(row);
 		return {
@@ -101,7 +102,7 @@ export function fightTrackerView({ snapshot, rows, isGM = false, format, cites, 
 			heroes,
 			foes,
 			pairs: pairUp(heroes, foes, result.byFighter, name => format("stonetop.fight.aria.against", { name })),
-			facts: clusterFacts(cluster, result.byFighter, nameOf, format),
+			facts: clusterFacts(cluster, result.byFighter, nameOf, format, bodiesOf),
 			quotes: clusterQuotes,
 			ruleKey,
 			rulesOpen: openRules.has(ruleKey),

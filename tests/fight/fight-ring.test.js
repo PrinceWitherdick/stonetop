@@ -126,16 +126,18 @@ describe("ringButtons", () => {
 		expect(ringButtons(actor)).toEqual({
 			moves: [],
 			damage: [{ run: "damage", label: "Spear", formula: "d8", keywords: "close, reach", weapon: weapon(["close", "reach"]), icon: "fa-solid fa-dice-d8" }],
+			readiness: 0,
 		});
 	});
 
-	it("gives a follower the two fight moves and Order, all of them their character's to roll", () => {
+	it("gives a follower the three fight moves and Order, all of them their character's to roll", () => {
 		const actor = fakeActor({ id: "enfys", type: "npc", system: { attributes: { damage: { value: "staff d6 (close)", rollFormula: "d6" } } } });
 		const order = { character: { id: "cadi" }, ftype: "initiate", slug: "enfys", follower: { name: "Enfys" } };
 		const { moves, damage } = ringButtons(actor, { order });
 		expect(moves).toEqual([
 			{ run: "order", moveKey: "clash", label: "Clash", icon: "fa-solid fa-swords", order },
 			{ run: "order", moveKey: "let-fly", label: "Let Fly", icon: "fa-solid fa-bow-arrow", order },
+			{ run: "order", moveKey: "defend", label: "Defend", icon: "fa-solid fa-shield", order },
 			{ run: "order", moveKey: null, label: "Order", icon: "fa-solid fa-hand-point-right", order },
 		]);
 		// Their damage is untouched: still the NPC sheet's one button.
@@ -164,14 +166,15 @@ describe("ringButtons", () => {
 	it("orders a follower even when they have no die to roll", () => {
 		const actor = fakeActor({ id: "n", type: "npc", system: { attributes: { damage: { value: "" } } } });
 		const buttons = ringButtons(actor, { order: { character: {}, ftype: "crew", slug: "", follower: {} } });
-		expect(buttons.moves.map(b => b.label)).toEqual(["Clash", "Let Fly", "Order"]);
+		expect(buttons.moves.map(b => b.label)).toEqual(["Clash", "Let Fly", "Defend", "Order"]);
 		expect(buttons.damage).toEqual([]);
 	});
 
 	it("has nothing for an NPC with no formula, or anything that is not a fighter", () => {
-		expect(ringButtons(fakeActor({ id: "n", type: "npc", system: { attributes: { damage: { value: "fists" } } } }))).toEqual({ moves: [], damage: [] });
-		expect(ringButtons(fakeActor({ id: "s", type: "stonetop" }))).toEqual({ moves: [], damage: [] });
-		expect(ringButtons(null)).toEqual({ moves: [], damage: [] });
+		const nothing = { moves: [], damage: [], readiness: 0 };
+		expect(ringButtons(fakeActor({ id: "n", type: "npc", system: { attributes: { damage: { value: "fists" } } } }))).toEqual(nothing);
+		expect(ringButtons(fakeActor({ id: "s", type: "stonetop" }))).toEqual(nothing);
+		expect(ringButtons(null)).toEqual(nothing);
 	});
 
 	it("looks the character's die up the way the attack flow does", async () => {
@@ -191,7 +194,7 @@ describe("ringButtons", () => {
 		globalThis.game.actors = collection([cadi, crew]);
 		try {
 			const { moves } = await ringButtonsFor(crew);
-			expect(moves.map(b => b.label)).toEqual(["Clash", "Let Fly", "Order"]);
+			expect(moves.map(b => b.label)).toEqual(["Clash", "Let Fly", "Defend", "Order"]);
 			expect(moves[0].order).toMatchObject({
 				character: cadi, ftype: "crew", slug: "",
 				follower: { name: "The Crew", tags: ["warrior", "organized"], moves: [], exceptional: true },
@@ -201,8 +204,30 @@ describe("ringButtons", () => {
 		}
 	});
 
-	it("offers exactly the two basic attacks", () => {
-		expect(RING_MOVES.map(m => m.name)).toEqual(["Clash", "Let Fly"]);
+	it("offers the three fighting moves: the two basic attacks and Defend", () => {
+		expect(RING_MOVES.map(m => m.name)).toEqual(["Clash", "Let Fly", "Defend"]);
+	});
+
+	it("shows the Readiness a character holds over their token, and nothing when they hold none", () => {
+		expect(ringContext({ moves: [], damage: [], readiness: 2 }, { name: "Bram" }).readiness)
+			.toEqual({ count: 2, label: "Bram holds 2 Readiness", pips: [0, 1] });
+		expect(ringContext({ moves: [], damage: [], readiness: 0 }, { name: "Bram" }).readiness).toBeNull();
+	});
+
+	it("offers Big Damn Hero's lock eyes to a Would-Be Hero holding Readiness with a foe to face", () => {
+		const actor = fakeActor({ id: "pim", type: "character" });
+		actor.items = collection([item("bdh", "move", "Big Damn Hero")]);
+		expect(ringButtons(actor, { die: "d6", readiness: 1, canLockEyes: true }).moves.map(b => b.run)).toEqual(["lockEyes"]);
+		expect(ringButtons(actor, { die: "d6", readiness: 0, canLockEyes: true }).moves).toEqual([]);
+		expect(ringButtons(actor, { die: "d6", readiness: 1, canLockEyes: false }).moves).toEqual([]);
+	});
+
+	it("offers Defend's strike back while a character holds Readiness, at their die with disadvantage", () => {
+		const actor = fakeActor({ id: "bram", type: "character" });
+		actor.items = collection([]);
+		expect(ringButtons(actor, { die: "d8", readiness: 0 }).damage.map(b => b.run)).toEqual(["damage"]);
+		const [, strike] = ringButtons(actor, { die: "d8", readiness: 2 }).damage;
+		expect(strike).toMatchObject({ run: "strikeBack", label: "Strike back", formula: "d8", rollMode: "dis", aria: "Spend 1 of 2 Readiness to strike back: d8, with disadvantage" });
 	});
 });
 

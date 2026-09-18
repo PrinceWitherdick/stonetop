@@ -130,7 +130,7 @@ describe("fightTrackerView", () => {
 		const [first, second] = v.clusters;
 		expect(first.foes[0]).toMatchObject({ readout: "fought by Bram & Aeliana", badge: { count: 2, label: "Fought by 2" } });
 		expect(first.heroes[0]).toMatchObject({ readout: "fighting Crinwin", badge: null });
-		expect(second.heroes[0]).toMatchObject({ readout: "fighting Wolf & Wolf", badge: { count: 2, label: "Facing 2 in melee" } });
+		expect(second.heroes[0]).toMatchObject({ readout: "fighting Wolf & Wolf", badge: { count: 2, label: "Facing 2" } });
 		expect(first.facts).toEqual(["+1 damage on Crinwin (2 attackers)"]);
 		expect(second.facts).toEqual(["+1 damage on Cadi (2 foes)"]);
 	});

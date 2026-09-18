@@ -58,7 +58,7 @@ import {CharacterPossessions} from "./CharacterPossessions.js";
 import {grantsToCreate, grantSourceMap, grantAdoptionKeys, itemGrantKey} from "./possession-grants.js";
 import {CharacterInventory} from "./CharacterInventory.js";
 import {maybeBeginAttack, maybeCounterOnMiss, attackMoveFor} from "../../combat/attack-flow.js";
-import {defendReadinessHold, defendReadinessCap} from "../../combat/defend-readiness.js";
+import {defendReadinessHold, defendReadinessCap, readinessCount, READINESS_FLAG} from "../../combat/defend-readiness.js";
 import {classifyResult} from "../../utils/roll-engine.js";
 import {xpToLevelUp, withXpLock} from "../../utils/xp.js";
 import {CharacterArcana} from "./CharacterArcana.js";
@@ -263,9 +263,8 @@ function _ownedLoadBonus(actor) {
 // circle of its own — it just adds one to Defend's track).
 const _DEFEND_MOVE_NAME = "Defend";
 const _GUARDIAN_MOVE_NAME = "Guardian";
-// Where a character's held Defend Readiness lives (a flag on the actor, mirroring how
-// followers store theirs under readiness paths in _FOLLOWER_FLAGS).
-const _DEFEND_READINESS_FLAG = "readiness";
+// Held Defend Readiness lives in a flag on the actor (READINESS_FLAG, combat/defend-readiness.js),
+// mirroring how followers store theirs under readiness paths in _FOLLOWER_FLAGS.
 
 // The Armored move ("carry a shield, mark only ◆ instead of ◆◆") drops a carried shield's
 // ◇ load by its `shieldLoadReduction`. Like loadBonus, the mechanic lives in the move's data
@@ -2487,7 +2486,7 @@ export class StonetopCharacter {
 	}
 
 	get defendReadiness() {
-		return Math.max(0, Math.trunc(Number(this._actor.getFlag(STONETOP_SCOPE, _DEFEND_READINESS_FLAG)) || 0));
+		return readinessCount(this._actor.getFlag(STONETOP_SCOPE, READINESS_FLAG));
 	}
 
 	/** The view model the sheet renders as circles beside the Defend move. Async only because
@@ -2509,9 +2508,9 @@ export class StonetopCharacter {
 	}
 
 	async setDefendReadiness(n) {
-		const next = Math.max(0, Math.trunc(Number(n) || 0));
+		const next = readinessCount(n);
 		if (next === this.defendReadiness) return;
-		await this._actor.setFlag(STONETOP_SCOPE, _DEFEND_READINESS_FLAG, next);
+		await this._actor.setFlag(STONETOP_SCOPE, READINESS_FLAG, next);
 	}
 
 	/**

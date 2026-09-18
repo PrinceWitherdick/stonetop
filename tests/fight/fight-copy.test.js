@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { namesPhrase, fighterReadout, gangedBadge, clusterFacts, clusterRuleKeys } from "../../module/fight/fight-copy.js";
+import { namesPhrase, fighterReadout, gangedBadge, clusterFacts, clusterRuleKeys, aidsItselfAgainst } from "../../module/fight/fight-copy.js";
 import { engage, HEROES, FOES } from "../../module/fight/engagements.js";
 import { FIGHT_RULES } from "../../module/fight/fight-rules.js";
 
@@ -22,6 +22,28 @@ const grid = { size: SIZE };
 const at = (id, side, col, row, extra = {}) => ({ id, side, name: id, bodies: 1, rect: { x: col * SIZE, y: row * SIZE, w: SIZE, h: SIZE }, ...extra });
 const NAMES = { bram: "Bram", aeliana: "Aeliana", cadi: "Cadi", crinwin: "Crinwin", wolf: "Wolf", crew: "Rhianna's crew", horde: "Crinwin horde" };
 const nameOf = id => NAMES[id] ?? id;
+
+describe("a crowd, and a group of followers aiding itself (p.414)", () => {
+	it("says when more are on one fighter than can reach them", () => {
+		const result = engage({ grid, fighters: [at("bram", HEROES, 0, 0), at("horde", FOES, 1, 0, { bodies: 12 })] });
+		expect(clusterFacts(result.clusters[0], result.byFighter, nameOf, format)).toContain("+7 damage on Bram (8 of 12 foes can reach)");
+	});
+
+	it("says a group of followers on a single foe, or on a group half its size, aids itself", () => {
+		const bodies = { crew: 6, crinwin: 1, horde: 3, big: 4 };
+		const bodiesOf = id => bodies[id] ?? 1;
+		const onOne = engage({ grid, fighters: [at("crew", HEROES, 0, 0, { bodies: 6 }), at("crinwin", FOES, 1, 0)] });
+		expect(aidsItselfAgainst(onOne.byFighter.crew, 6, bodiesOf)).toEqual(["crinwin"]);
+		expect(clusterFacts(onOne.clusters[0], onOne.byFighter, nameOf, format, bodiesOf))
+			.toContain("Rhianna's crew outnumbers Crinwin: they aid themselves, and the GM picks advantage or more done");
+		expect(clusterRuleKeys(onOne.clusters[0], onOne.byFighter, bodiesOf)).toContain("oneRollsOthersAid");
+		const onHalf = engage({ grid, fighters: [at("crew", HEROES, 0, 0, { bodies: 6 }), at("horde", FOES, 1, 0, { bodies: 3 })] });
+		expect(aidsItselfAgainst(onHalf.byFighter.crew, 6, bodiesOf)).toEqual(["horde"]);
+		const onMore = engage({ grid, fighters: [at("crew", HEROES, 0, 0, { bodies: 6 }), at("big", FOES, 1, 0, { bodies: 4 })] });
+		expect(aidsItselfAgainst(onMore.byFighter.crew, 6, bodiesOf)).toBeNull();
+		expect(aidsItselfAgainst(onOne.byFighter.crinwin, 1, bodiesOf)).toBeNull();
+	});
+});
 
 describe("namesPhrase", () => {
 	it("joins a few names the house way", () => {
@@ -62,9 +84,9 @@ describe("fighter readouts and badges", () => {
 		expect(fighterReadout(undefined, HEROES, nameOf, format)).toBe("");
 	});
 
-	it("badges a foe by everyone attacking it, and a hero by the foes in contact", () => {
+	it("badges a foe, and a hero, by everyone attacking them", () => {
 		expect(gangedBadge(result.byFighter.crinwin, FOES, format)).toEqual({ count: 3, label: "Fought by 3" });
-		expect(gangedBadge(result.byFighter.bram, HEROES, format)).toEqual({ count: 2, label: "Facing 2 in melee" });
+		expect(gangedBadge(result.byFighter.bram, HEROES, format)).toEqual({ count: 2, label: "Facing 2" });
 		expect(gangedBadge(result.byFighter.aeliana, HEROES, format)).toBeNull();
 	});
 });

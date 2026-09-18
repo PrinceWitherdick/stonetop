@@ -3,9 +3,11 @@
 // THE ONLY PLACE THAT TOUCHES DOCUMENTS for the fight's arithmetic: the Fight tab, the map overlay
 // and the damage pre-fill all come through here, so they cannot disagree about who is fighting whom.
 //
-// THE RECORD IS CORE'S. A fight is a Combat; its Combatants carry two flags of ours, `side`
-// ("heroes"|"foes", stamped when they join) and `count` (a headcount the GM set on a crew's token).
-// Nothing about who is engaged is ever stored: it is worked out from where the tokens stand.
+// THE RECORD IS CORE'S. A fight is a Combat; its Combatants carry three flags of ours: `side`
+// ("heroes"|"foes", stamped when they join), `count` (a headcount the GM set on a token standing for
+// several plain NPCs; a follower group's bodies come from its character's roster instead) and `shots`
+// (who a fighter last rolled damage at from range, fight-shots.js). Melee is never stored: it is worked
+// out from where the tokens stand.
 //
 // Three things about the documents that are easy to get wrong:
 //  • A TOKEN MID-ANIMATION IS NOT WHERE IT IS GOING. Core merges each animation frame into the token
@@ -14,15 +16,18 @@
 //  • MONSTER TOKENS ARE UNLINKED. Their HP, group size and "fight as a group" switch live on the
 //    token's own actor (`combatant.actor` is `token.actor`), never on the sidebar actor.
 //  • A PLAYER'S TARGETS ONLY EXIST ON THE CANVAS SCENE. Core keeps every user's targets in sync, but
-//    only for the scene on screen, so a scene nobody is looking at has melee and nothing else.
+//    only for the scene on screen, so a scene nobody is looking at has melee and recorded shots only.
 
 import { SYSTEM_ID } from "../system-id.js";
 import { engage, HEROES, FOES } from "./engagements.js";
 import { classifySide, bodiesFor } from "./fight-sides.js";
+import { followerRoster } from "./fight-vitals.js";
 
 export const FIGHT_FLAG = "fight";
 export const SIDE_FLAG = "side";
 export const COUNT_FLAG = "count";
+/** The combatant ids a fighter was last seen shooting at (fight-shots.js). */
+export const SHOTS_FLAG = "shots";
 
 /** Core's OWNER ownership level, which a module read in tests cannot reach through CONST. */
 const OWNER = 3;
@@ -94,6 +99,7 @@ export function combatantBodies(combatant) {
 		hp: system.attributes?.hp ?? {},
 		count: system.count ?? 0,
 		headcount: ours(combatant)[COUNT_FLAG] ?? null,
+		roster: followerRoster(combatant),
 	});
 }
 
@@ -177,11 +183,27 @@ export function userFighterId(user, combat, scene) {
 	return owned.length === 1 ? owned[0].id : null;
 }
 
-/** Every player's targets on this scene, as shots from their fighter. */
+/**
+ * Every shot on this scene: each player's live targets, from their fighter, and every shot a fighter
+ * has on record (SHOTS_FLAG, fight-shots.js), marked `recorded`.
+ *
+ * A player's targets only exist on the canvas scene (see the note at the top). A recorded shot is on
+ * the combatant itself, so it holds on any scene and for any fighter: a crew loosing a volley, a
+ * monster spitting at a character, anyone whose shots nobody is aiming with T.
+ */
 export function rangedPairs(combat, scene, { users = globalThis.game?.users, canvasScene = globalThis.canvas?.scene } = {}) {
-	if (!combat || !scene || canvasScene?.id !== scene.id) return [];
-	const byToken = new Map(each(combat.combatants).filter(c => c.sceneId === scene.id).map(c => [c.tokenId, c]));
+	if (!combat || !scene) return [];
+	const here = each(combat.combatants).filter(c => c.sceneId === scene.id);
+	const ids = new Set(here.map(c => c.id));
 	const pairs = [];
+	for (const combatant of here) {
+		const shots = ours(combatant)[SHOTS_FLAG];
+		for (const to of Array.isArray(shots) ? shots : []) {
+			if (typeof to === "string" && to !== combatant.id && ids.has(to)) pairs.push({ from: combatant.id, to, recorded: true });
+		}
+	}
+	if (canvasScene?.id !== scene.id) return pairs;
+	const byToken = new Map(here.map(c => [c.tokenId, c]));
 	for (const user of each(users)) {
 		if (!user?.active || user.isGM) continue;
 		const from = userFighterId(user, combat, scene);

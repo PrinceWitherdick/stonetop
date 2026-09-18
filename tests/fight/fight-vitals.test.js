@@ -16,9 +16,10 @@ const resolve = uuid => (uuid === rhianna.uuid ? rhianna : null);
 describe("fight row numbers", () => {
 	it("reads HP and armor, and prints them", () => {
 		const vitals = combatantVitals(crewToken());
-		expect(vitals).toEqual({ hp: 3, hpMax: 6, armor: 1 });
+		expect(vitals).toEqual({ hp: 3, hpMax: 6, armor: 1, readiness: 0 });
 		expect(vitalsLine(vitals, format)).toBe("HP 3/6 · Armor 1");
 		expect(vitalsLine({ hp: 3, hpMax: null, armor: null }, format)).toBe("HP 3");
+		expect(vitalsLine({ hp: 7, hpMax: 10, armor: 2, readiness: 2 }, format)).toBe("HP 7/10 · Armor 2 · Readiness 2");
 		expect(vitalsLine({}, format)).toBe("");
 	});
 

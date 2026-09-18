@@ -303,7 +303,7 @@ describe("startFight", () => {
 		expect(placed).toHaveLength(1);
 		expect(result.placed).toBe(1);
 		expect(created).toHaveLength(1);
-		expect(update).toHaveBeenCalledWith({ "system.fightAsGroup": true, "system.count": 6, "system.attributes.hp.value": 3 });
+		expect(update).toHaveBeenCalledWith({ "system.fightAsGroup": true, "system.count": 6, "system.attributes.hp.value": 3, [`flags.${SYSTEM_ID}.groupWound`]: 0 });
 	});
 
 	it("brings a linked monster asked for as a group in as that many tokens, and says so", async () => {

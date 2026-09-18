@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { makeSeed, incomingSeed, sheetSeed, engagedFoeTargets, seedForRoll, rollerCombatant } from "../../module/fight/damage-seed.js";
+import { makeSeed, incomingSeed, seedWithoutStriker, sheetSeed, engagedFoeTargets, seedForRoll, rollerCombatant } from "../../module/fight/damage-seed.js";
 import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection } from "../fakes/fight.js";
 
 // The fight's +N for several attackers (Book I p.414), offered to damage rolls.
@@ -202,6 +202,71 @@ describe("sheetSeed", () => {
 	});
 });
 
+describe("a group with no group to fight", () => {
+	/** Put a fight on the map: every token a combatant, on the side it would take unless `sides` says. */
+	function stage(tokens, { sides = {}, counts = {} } = {}) {
+		const scene = fakeScene({ tokens: Object.values(tokens) });
+		const combat = fakeCombat({ scene, combatants: Object.entries(tokens).map(([key, t]) =>
+			fakeCombatant({ id: `c${t.id}`, token: t, scene, side: sides[key], count: counts[key] })) });
+		globalThis.game = { ...saved.game, user: { id: "gm", isGM: true }, users: collection([]), combats: collection([combat]),
+			settings: { get: (scope, key) => (key === "fightTab" ? fightTabOn : undefined) } };
+		globalThis.ui = { combat: { viewed: combat } };
+		globalThis.canvas = { scene };
+		const byUuid = new Map(Object.values(tokens).map(t => [t.uuid, t]));
+		globalThis.fromUuidSync = uuid => byUuid.get(uuid) ?? null;
+	}
+	const token = (id, col, row, a) => Object.assign(fakeToken({ id, col, row, actor: a }), { uuid: `Scene.scene1.Token.${id}`, documentName: "Token" });
+
+	/** A horde of crinwin fighting as ONE token beside Cadi, who has nobody with her. `apart` stands it off while a wolf fights her. */
+	function hordeOnCadi({ horde = 6, hp = 3, apart = false } = {}) {
+		const hordeActor = fakeActor({ id: "horde", name: "Crinwin", type: "monster", system: { organization: "horde", fightAsGroup: true, count: horde, attributes: { hp: { value: hp, max: 3 } } } });
+		const tokens = {
+			cadi: token("tCadi", 0, 0, fakeActor({ id: "cadi", name: "Cadi", type: "character" })),
+			horde: token("tHorde", apart ? 5 : 1, 0, hordeActor),
+			...(apart ? { wolf: token("tWolf", 0, 1, fakeActor({ id: "wolf", name: "Wolf", type: "monster" })) } : {}),
+		};
+		stage(tokens);
+		return { tokens, hordeActor: { ...hordeActor, token: tokens.horde } };
+	}
+
+	// p.414 counts attackers, not tokens: six crinwin on a lone hero are six attackers, whichever scale
+	// they are fought at. The tab's badge and Cadi's own counter-blow always said so; now her attacker's
+	// Damage line does too, with the stat block's swarm row gone while the Fight tab is on.
+	it("piles a monster group on a lone hero with every body it stands for", () => {
+		const { hordeActor, tokens } = hordeOnCadi();
+		expect(sheetSeed({ actor: hordeActor })).toMatchObject({
+			bonus: 5, count: 6, direction: "onHero", target: "Cadi", names: ["Crinwin"],
+			label: "+5: Cadi is fighting Crinwin", pill: "+5 for 6 foes", cite: "Book I, page 414",
+		});
+		expect(seedForRoll({ attacker: hordeActor, targets: [{ uuid: tokens.cadi.uuid }] })).toMatchObject({ bonus: 5, count: 6, target: "Cadi" });
+		expect(incomingSeed({ pc: tokens.cadi.actor })).toMatchObject({ bonus: 5, count: 6 });
+	});
+
+	it("counts only the members still standing", () => {
+		// 2 of the pool's 3 HP left: 4 of the 6 on their feet.
+		expect(sheetSeed({ actor: hordeOnCadi({ hp: 2 }).hordeActor })).toMatchObject({ bonus: 3, count: 4 });
+	});
+
+	it("counts every body of a horde rolled at a hero it is not touching", () => {
+		const { hordeActor, tokens } = hordeOnCadi({ apart: true });
+		expect(seedForRoll({ attacker: hordeActor, targets: [{ uuid: tokens.cadi.uuid }] }))
+			.toMatchObject({ bonus: 6, count: 7, names: ["Crinwin", "Wolf"] });
+	});
+
+	// A follower group's Swarm die (fight/follower-fight.js) carries its pile-on, beside a plain die that is
+	// one member's. The fight ring rolls both seeded, so a pile-on here would count the crew twice.
+	it("leaves any other group to its own Swarm die", () => {
+		const tokens = {
+			crew: token("tCrew", 0, 0, fakeActor({ id: "crew", name: "Crew", type: "npc" })),
+			wolf: token("tWolf", 1, 0, fakeActor({ id: "wolf", name: "Wolf", type: "monster" })),
+		};
+		stage(tokens, { sides: { crew: "heroes" }, counts: { crew: 5 } });
+		const crewActor = { ...tokens.crew.actor, token: tokens.crew };
+		expect(sheetSeed({ actor: crewActor })).toBeNull();
+		expect(seedForRoll({ attacker: crewActor, targets: [{ uuid: tokens.wolf.uuid }] })).toBeNull();
+	});
+});
+
 describe("seedForRoll", () => {
 	it("counts the wolves on Cadi when one of them rolls its damage at her", () => {
 		const { tokens } = fight();
@@ -229,6 +294,45 @@ describe("seedForRoll", () => {
 		expect(seedForRoll({ attacker: bramActor, targets: [] })).toBeNull();
 		fightTabOn = false;
 		expect(seedForRoll({ attacker: bramActor, targets: [{ uuid: tokens.crinwin.uuid }] })).toBeNull();
+	});
+});
+
+describe("what the other attackers bring (p.414: the best die, and every attacker's tags)", () => {
+	it("opens as an offer, unticked, when another character is on the foe and rolls their own damage", () => {
+		const { bramActor, tokens } = fight();
+		const seed = seedForRoll({ attacker: bramActor, targets: [{ uuid: tokens.crinwin.uuid }] });
+		expect(seed.applied).toBe(false);
+		expect(seed.label).toBe("+1: Bram & Aeliana are both fighting Crinwin, if you strike together");
+	});
+
+	it("opens ticked when the others are foes or followers, who do not roll beside the roller", () => {
+		const { tokens } = fight();
+		const wolf = { ...tokens.wolf1.actor, token: tokens.wolf1 };
+		expect(seedForRoll({ attacker: wolf, targets: [{ uuid: tokens.cadi.uuid }] }).applied).toBe(true);
+	});
+
+	it("carries the other attackers' dice, and a character's die off their sheet", () => {
+		const { tokens } = fight();
+		tokens.aeliana.actor.system = { attributes: { damage: { value: "d10" } } };
+		const seed = seedForRoll({ attacker: tokens.bram.actor, targets: [{ uuid: tokens.crinwin.uuid }] });
+		expect(seed.dice).toEqual([{ name: "Aeliana", formula: "d10" }]);
+	});
+
+	it("carries the other foes' tags and piercing onto a counter-blow on one character", () => {
+		const { cadiActor, wolfActor } = fight();
+		wolfActor.system = { attributes: { damage: { value: "bite d6 (1 piercing, messy)", rollFormula: "d6" } } };
+		const seed = incomingSeed({ pc: cadiActor });
+		expect(seed).toMatchObject({ piercing: 1, tags: ["messy"] });
+	});
+
+	it("takes the striking foe's own tags and piercing back out of its blow, keeping the others'", () => {
+		const seed = {
+			bonus: 1, tags: ["messy", "grabby"], piercing: 2,
+			sources: [{ uuid: "Scene.s.Token.a", tags: ["messy"], piercing: 2 }, { uuid: "Scene.s.Token.b", tags: ["grabby"], piercing: 0 }],
+		};
+		expect(seedWithoutStriker(seed, "Scene.s.Token.a")).toMatchObject({ bonus: 1, tags: ["grabby"], piercing: 0 });
+		expect(seedWithoutStriker(seed, "Scene.s.Token.elsewhere")).toBe(seed);
+		expect(seedWithoutStriker(null, "Scene.s.Token.a")).toBeNull();
 	});
 });
 

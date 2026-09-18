@@ -1798,15 +1798,19 @@
         "together": "{count} together",
         "hp": "HP {hp}",
         "hpOf": "HP {hp}/{max}",
-        "vitals": "{hp} · Armor {armor}"
+        "vitals": "{hp} · Armor {armor}",
+        "readiness": "{line} · Readiness {readiness}"
       },
       "badge": {
         "foughtBy": "Fought by {count}",
-        "facing": "Facing {count} in melee"
+        "facing": "Facing {count}"
       },
       "fact": {
         "onFoe": "+{bonus} damage on {name} ({count} attackers)",
         "onHero": "+{bonus} damage on {name} ({count} foes)",
+        "onFoeCrowd": "+{bonus} damage on {name} ({count} of {all} attackers can reach)",
+        "onHeroCrowd": "+{bonus} damage on {name} ({count} of {all} foes can reach)",
+        "aidsItself": "{name} outnumbers {against}: they aid themselves, and the GM picks advantage or more done",
         "groups": "Group against group, {heroes} to {foes}: +{bonus} damage and armor for {side}",
         "groupsEven": "Group against group, {heroes} to {foes}: neither side outnumbers the other",
         "sideHeroes": "the heroes",
@@ -1866,7 +1870,14 @@
         "orderAria": "Order {name}",
         "orderMove": "Order {name} to {move}",
         "swarm": "Swarm",
-        "swarmAria": "Roll damage: all {count} of them on one foe, {formula}"
+        "swarmAria": "Roll damage: all {count} of them on one foe, {formula}",
+        "strikeBack": "Strike back",
+        "strikeBackAria": "Spend 1 of {readiness} Readiness to strike back: {formula}, with disadvantage",
+        "lockEyes": "Lock eyes",
+        "lockEyesAria": "Spend 1 of {readiness} Readiness to lock eyes with a foe",
+        "lockEyesAsk": "Who does {name} lock eyes with?",
+        "lockEyesSaid": "{name} locks eyes with {foe}. It rolls damage against {name} and their ward with disadvantage for the rest of the fight.",
+        "readiness": "{name} holds {count} Readiness"
       },
       "targets": {
         "title": "{name}: who does this hit?",
@@ -1888,7 +1899,8 @@
         "switchSide": "Move to the other side",
         "headcount": "How many are in this token",
         "openSheet": "Open sheet",
-        "remove": "Remove from the fight"
+        "remove": "Remove from the fight",
+        "stopShooting": "Stop shooting"
       },
       "headcount": {
         "title": "How many are in {name}?",
@@ -1972,7 +1984,50 @@
         "groupBehind": "-{bonus}: group against group, {theirs} outnumber {yours}, so their armor is +{bonus}",
         "pillAhead": "+{bonus} for {yours} against {theirs}",
         "pillBehind": "-{bonus} for their armor, {theirs} against {yours}",
-        "citeGroups": "Book I, page 416"
+        "citeGroups": "Book I, page 416",
+        "together": "{label}, if you strike together",
+        "bestDie": "Roll {name}'s {formula} instead, the hardest-hitting die among you",
+        "bestPill": "{name}'s {formula}",
+        "hardest": "hardest-hitting"
+      },
+      "groupHit": {
+        "down": "one of them goes down, {after} still standing",
+        "hurt": "one of them is hurt ({memberHp} of {hpMax} HP left), {after} still standing"
+      },
+      "defend": {
+        "halve": "Halve it (Readiness)",
+        "halveOne": "{defender} halves it (1 Readiness)",
+        "standIn": "Take it for them (Readiness)",
+        "standInOne": "{defender} takes it for {ward} (1 Readiness)",
+        "halveChoice": "{defender} halves the blow on {ward}",
+        "standInChoice": "{defender} takes the blow for {ward}",
+        "ask": "Who spends Readiness, and on which blow?",
+        "cancel": "Don't spend",
+        "noteHalve": "{defender} spent Readiness to halve the blow on {ward}.",
+        "noteStandIn": "{defender} spent Readiness to take the blow for {ward}.",
+        "rowFor": "{defender} (for {ward})",
+        "halvedFrom": "halved from {rolled}",
+        "parry": "Parry & riposte (Readiness)",
+        "parryOne": "{defender} parries and ripostes (1 Readiness)",
+        "parryChoice": "{defender} parries the blow on {ward}",
+        "parryStrike": "Parry & riposte",
+        "noteParry": "{defender} spent Readiness to parry the blow on {ward} and strike back.",
+        "standInFreeOne": "{defender} takes it for {ward} (free: Steadfast Guardian)",
+        "noteStandInFree": "{defender} took the blow for {ward} (Steadfast Guardian, no Readiness spent).",
+        "ignore": "Ignore it (Readiness)",
+        "ignoreOne": "{defender} ignores it (1 Readiness)",
+        "ignoreChoice": "{defender} ignores the blow on {ward}",
+        "noteIgnore": "{defender} spent Readiness to ignore the blow (A Mighty Rampart).",
+        "ignoredLine": "ignored it (A Mighty Rampart), no damage",
+        "secondIntent": "{name} parried: also pick 1 option from the Ambush list."
+      },
+      "heroMoves": {
+        "undaunted": {
+          "outnumbered": "Undaunted: +1d6 damage, while you are outnumbered",
+          "bigger": "Undaunted: +1d6 damage, facing a foe bigger than you",
+          "pill": "Undaunted +1d6",
+          "armorNote": "+1 armor, Undaunted"
+        }
       }
     }
   }

@@ -42,8 +42,8 @@ export function fighterReadout(entry, side, nameOf, format) {
 }
 
 /**
- * The count badge on a fighter being ganged up on, or null. A foe counts everyone attacking it; a
- * hero counts the foes in contact with them (foes do not target, so contact is all there is to go on).
+ * The count badge on a fighter being ganged up on, or null: everyone attacking them, in contact (as many
+ * as can reach) or shooting.
  *
  * @returns {{count: number, label: string}|null}
  */
@@ -55,21 +55,35 @@ export function gangedBadge(entry, side, format) {
 
 /**
  * The computed lines for one engagement: the damage bonus on each fighter being ganged up on
- * (p.414), and the group-against-group numbers when both sides bring a group (p.416).
+ * (p.414), a group of followers aiding itself (p.414), and the group-against-group numbers when both
+ * sides bring a group (p.416).
+ *
+ * A crowd bigger than can reach one fighter says so ("8 of 12 can reach", engagements.js#reachAround),
+ * so the table sees the number was held down and why.
  *
  * @param {object} cluster                       engage().clusters[i]
  * @param {object} byFighter                      engage().byFighter
  * @param {(id: string) => string} nameOf
+ * @param {(key: string, data?: object) => string} format
+ * @param {(id: string) => number} [bodiesOf]     how many bodies a fighter stands for
  * @returns {string[]}
  */
-export function clusterFacts(cluster, byFighter, nameOf, format) {
+export function clusterFacts(cluster, byFighter, nameOf, format, bodiesOf = () => 1) {
 	if (!cluster) return [];
 	const facts = [];
 	for (const [ids, key] of [[cluster.foeIds, "onFoe"], [cluster.heroIds, "onHero"]]) {
 		for (const id of ids ?? []) {
 			const entry = byFighter?.[id];
-			if (entry?.ganged) facts.push(format(`${KEY}.fact.${key}`, { bonus: entry.pileOn, name: nameOf(id), count: entry.attackerBodies }));
+			if (!entry?.ganged) continue;
+			const crowded = entry.attackerBodiesAll > entry.attackerBodies;
+			facts.push(format(`${KEY}.fact.${key}${crowded ? "Crowd" : ""}`, {
+				bonus: entry.pileOn, name: nameOf(id), count: entry.attackerBodies, all: entry.attackerBodiesAll,
+			}));
 		}
+	}
+	for (const id of cluster.heroIds ?? []) {
+		const against = aidsItselfAgainst(byFighter?.[id], bodiesOf(id), bodiesOf);
+		if (against) facts.push(format(`${KEY}.fact.aidsItself`, { name: nameOf(id), against: namesPhrase(against.map(nameOf), format) }));
 	}
 	const groups = cluster.groups;
 	if (groups) {
@@ -82,12 +96,31 @@ export function clusterFacts(cluster, byFighter, nameOf, format) {
 }
 
 /**
+ * The foes a group on the heroes' side is fighting, when it "effectively Aid[s] themselves" (p.414): "If a
+ * group of followers attacks a single foe (or a significantly smaller group)". Significantly smaller is
+ * taken as half their number or fewer. Null when it does not.
+ *
+ * @param {object} entry     engage().byFighter[id] for the group
+ * @param {number} bodies    the group's bodies
+ * @param {(id: string) => number} bodiesOf
+ * @returns {string[]|null}
+ */
+export function aidsItselfAgainst(entry, bodies, bodiesOf) {
+	if (!entry || !(bodies > 1)) return null;
+	const against = [...new Set([...(entry.melee ?? []), ...(entry.shootingAt ?? [])])];
+	if (!against.length) return null;
+	const theirs = against.reduce((total, id) => total + (Number(bodiesOf(id)) || 0), 0);
+	return theirs === 1 || bodies >= 2 * theirs ? against : null;
+}
+
+/**
  * Which of the book's passages (fight-rules.js) speak to this engagement, in reading order.
  * Duplicates are fine: fightRuleQuotes keeps the first.
  */
-export function clusterRuleKeys(cluster, byFighter) {
+export function clusterRuleKeys(cluster, byFighter, bodiesOf = () => 1) {
 	if (!cluster) return [];
 	const keys = [];
+	if ((cluster.heroIds ?? []).some(id => aidsItselfAgainst(byFighter?.[id], bodiesOf(id), bodiesOf))) keys.push("oneRollsOthersAid");
 	if ((cluster.foeIds ?? []).some(id => byFighter?.[id]?.ganged)) keys.push("oneRollsOthersAid", "pileOnDamage");
 	if ((cluster.heroIds ?? []).some(id => byFighter?.[id]?.ganged)) keys.push("engagesMultiple", "pileOnDamage", "hurtMultiple");
 	const groups = cluster.groups;

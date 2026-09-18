@@ -77,8 +77,20 @@ describe("the damage window with a seed", () => {
 	});
 
 	it("applies the seed when the window does not open (Shift, or the setting off)", async () => {
-		expect(await promptDamage({ shiftKey: true, seed: seed() })).toEqual({ rollMode: "normal", bonus: 0, extraDice: "", seed: seed() });
-		expect((await promptDamage({ ask: false, seed: seed({ applied: false }) })).seed.applied).toBe(true);
+		expect(await promptDamage({ shiftKey: true, seed: seed() })).toEqual({ rollMode: "normal", bonus: 0, extraDice: "", seed: { ...seed(), useBest: false } });
+	});
+
+	it("folds a move's own extra dice in, named, and leaves an answer with none as it was", async () => {
+		const offers = [{ key: "undaunted", dice: "1d6", label: "Undaunted: +1d6 damage", pill: "Undaunted +1d6", applied: true }];
+		const answer = await promptDamage({ shiftKey: true, formula: "d8", offers });
+		expect(answer.extraDice).toEqual([{ dice: "1d6", pill: "Undaunted +1d6" }]);
+		expect(composeDamageFormula("d8", answer)).toBe("d8+1d6");
+		expect(damageConditionPills(answer)).toContain('<li class="stonetop-condition-situational">Undaunted +1d6</li>');
+		expect((await promptDamage({ shiftKey: true, formula: "d8", offers: [] })).extraDice).toBe("");
+	});
+
+	it("leaves off a seed made as an offer (another character rolls their own), when the window does not open", async () => {
+		expect((await promptDamage({ ask: false, seed: seed({ applied: false }) })).seed.applied).toBe(false);
 	});
 
 	it("draws the seed as its own ticked line with the book's page, above the player's adjustment", () => {

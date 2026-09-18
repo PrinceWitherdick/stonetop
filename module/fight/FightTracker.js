@@ -40,6 +40,7 @@ import { canReadFoeVitals, combatantVitals, fightVitalsKey, followerRoster } fro
 import { canSplit, mergeCandidates, mergeIntoGroup, splitGroup } from "./group-scale.js";
 import { otherSide, fightsAsGroup } from "./fight-sides.js";
 import { mayMove } from "./send-against.js";
+import { clearShots, hasShots } from "./fight-shots.js";
 import { SYSTEM_ID } from "../system-id.js";
 import { contextMenuEntry } from "../utils/foundry-compat.js";
 import { bookPageCites } from "../gm-toolkit/book-ref.js";
@@ -65,9 +66,13 @@ export const fighterDragType = side => `${FIGHTER_DRAG_TYPE}+${side}`;
 const DROP_CLASS = "is-drop-target";
 const DRAG_CLASS = "is-dragging";
 
-/** Whether a combatant's headcount is the GM's to set here, rather than read off a group monster. */
+/**
+ * Whether a combatant's headcount is the GM's to set here, rather than read off a group monster or a
+ * group follower's roster (fight-sides.js#bodiesFor).
+ */
 function headcountIsOurs(combatant) {
 	const actor = combatant?.actor;
+	if (followerRoster(combatant)) return false;
 	return !fightsAsGroup({ type: actor?.type, fightAsGroup: actor?.system?.fightAsGroup, organization: actor?.system?.organization });
 }
 
@@ -177,10 +182,6 @@ export function createFightTrackerClass(Base) {
 			const user = globalThis.game?.user;
 			const onCanvas = !!combatant.sceneId && combatant.sceneId === globalThis.canvas?.scene?.id;
 			const bodies = combatantBodies(combatant);
-			// A crew or a custom group says how many of its roster are still up, in place of the
-			// headcount the GM set: that number is for the engagement arithmetic, and does not fall.
-			const roster = followerRoster(combatant);
-			if (roster) Object.assign(bodies, { group: true, standing: roster.standing, size: roster.size });
 			return {
 				name: combatant.name ?? "",
 				img: await this._getCombatantThumbnail(combatant),
@@ -310,6 +311,14 @@ export function createFightTrackerClass(Base) {
 					icon: "fa-solid fa-people-group",
 					visible: target => gm() && headcountIsOurs(combatantOf(target)),
 					run: target => this._askHeadcount(combatantOf(target)),
+				}),
+				// A shot on record (fight-shots.js) stays until the shooter closes with somebody or shoots
+				// elsewhere; the GM can end it sooner, when the archer has turned to something else.
+				contextMenuEntry({
+					label: "stonetop.fight.menu.stopShooting",
+					icon: "fa-solid fa-bow-arrow",
+					visible: target => gm() && hasShots(combatantOf(target)),
+					run: target => clearShots(combatantOf(target)),
 				}),
 				contextMenuEntry({
 					label: "stonetop.fight.scale.menuMerge",

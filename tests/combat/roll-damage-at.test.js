@@ -10,7 +10,7 @@ vi.mock("../../module/dialogs/RollDialog.js", async importOriginal => ({
 	rollDamagePrompted: vi.fn(async () => true),
 }));
 const { rollDamagePrompted } = await import("../../module/dialogs/RollDialog.js");
-const { rollDamageAt, maybeBeginAttack, wireApplyDamage } = await import("../../module/combat/attack-flow.js");
+const { rollDamageAt, maybeBeginAttack, wireApplyDamage, withSeedTags } = await import("../../module/combat/attack-flow.js");
 
 // Rolls aimed by the fight: a monster's damage at the character it is fighting, a character's at the
 // foe, the "Who does this hit?" question when there are several, and the plain card when nobody is there.
@@ -102,6 +102,90 @@ async function apply(flag) {
 	await listeners[0]();
 }
 
+describe("Apply damage and the fight's rules", () => {
+	/** A horde of twelve crinwin fighting as one token, one crinwin's 3 HP for its pool. */
+	const horde = () => ({
+		...fakeActor({ id: "horde", name: "Crinwin horde", type: "monster" }),
+		flags: {},
+		system: { organization: "horde", fightAsGroup: true, count: 12, attributes: { armor: { value: 1 }, hp: { value: 3, max: 3 } } },
+		update: vi.fn(async function (changes) {
+			if ("system.count" in changes) this.system.count = changes["system.count"];
+			if ("system.attributes.hp.value" in changes) this.system.attributes.hp.value = changes["system.attributes.hp.value"];
+		}),
+	});
+
+	it("drops one member of a horde token for a lone character's blow, and leaves its pool alone (p.416)", async () => {
+		const bram = hero("bram", "Bram");
+		const crowd = horde();
+		const { tokens } = fightInARow([["bram", bram], ["horde", crowd]]);
+		await apply({ move: "Clash", attackerUuid: bram.uuid, weapon: null, results: [{ uuid: tokens.horde.uuid, name: "Crinwin horde", raw: 5 }], applied: [] });
+		expect(crowd.system.count).toBe(11);
+		expect(crowd.system.attributes.hp.value).toBe(3);
+		expect(posted.at(-1).content).toContain("one of them goes down, 11 still standing");
+	});
+
+	it("halves a blow before armor when Readiness was spent on it (p.216)", async () => {
+		const pim = hero("pim", "Pim");
+		const { tokens } = fightInARow([["pim", pim]]);
+		await apply({ move: "Bite", weapon: null, results: [{ uuid: tokens.pim.uuid, name: "Pim", raw: 9 }], applied: [], halvedBy: [{ uuid: tokens.pim.uuid, name: "Pim", how: "halve" }] });
+		// 9 halved, rounded up, to 5; less Pim's 2 armor.
+		expect(pim.system.attributes.hp.value).toBe(7);
+	});
+
+	it("hands a blow to the defender who took it for their ward, against the defender's armor", async () => {
+		const pim = hero("pim", "Pim");
+		const aeliana = hero("aeliana", "Aeliana");
+		const { tokens } = fightInARow([["pim", pim], ["aeliana", aeliana]]);
+		const byToken = globalThis.fromUuid;
+		globalThis.fromUuid = async uuid => (uuid === aeliana.uuid ? aeliana : byToken(uuid));
+		await apply({ move: "Bite", weapon: null, results: [{ uuid: tokens.pim.uuid, name: "Pim", raw: 6 }], applied: [], standIns: [{ uuid: tokens.pim.uuid, by: aeliana.uuid, name: "Aeliana" }] });
+		expect(pim.system.attributes.hp.value).toBe(10);
+		expect(aeliana.system.attributes.hp.value).toBe(6);
+		expect(posted.at(-1).content).toContain("Aeliana (for Pim)");
+	});
+
+	it("lets a blow pass for A Mighty Rampart", async () => {
+		const pim = hero("pim", "Pim");
+		const { tokens } = fightInARow([["pim", pim]]);
+		await apply({ move: "Bite", weapon: null, results: [{ uuid: tokens.pim.uuid, name: "Pim", raw: 9 }], applied: [], ignoredBy: [{ uuid: tokens.pim.uuid, name: "Pim", how: "ignore" }] });
+		expect(pim.system.attributes.hp.value).toBe(10);
+		expect(posted.at(-1).content).toContain("ignored it (A Mighty Rampart)");
+	});
+
+	it("gives an Undaunted hero +1 armor while they are outnumbered", async () => {
+		const pim = Object.assign(hero("pim", "Pim"), { items: [{ type: "move", name: "Undaunted" }] });
+		const { tokens } = fightInARow([["crin", crinwin("crinwin")], ["pim", pim], ["crin2", crinwin("crinwin2")]]);
+		await apply({ move: "Bite", weapon: null, results: [{ uuid: tokens.pim.uuid, name: "Pim", raw: 9 }], applied: [] });
+		// 9 less 2 armor and Undaunted's 1.
+		expect(pim.system.attributes.hp.value).toBe(4);
+		expect(posted.at(-1).content).toContain("+1 armor, Undaunted");
+	});
+
+	it("rolls a foe's damage at disadvantage against a hero who locked eyes with it (Big Damn Hero)", async () => {
+		const pim = hero("pim", "Pim");
+		const { tokenActor, combat } = fightInARow([["crin", crinwin("crinwin")], ["pim", pim]]);
+		combat.combatants.get("cpim").flags["stonetop-pwd"].lockedEyes = ["ccrin"];
+		await rollDamageAt(tokenActor("crin"), { formula: "d6", label: "Bite", shiftKey: true });
+		expect(damageFlag().results[0].formula).toBe("2d6kl1");
+	});
+
+	it("rolls straight when the foe's blow already had advantage: locked eyes cancels it (p.230)", async () => {
+		const pim = hero("pim", "Pim");
+		const { tokenActor, combat } = fightInARow([["crin", crinwin("crinwin")], ["pim", pim]]);
+		combat.combatants.get("cpim").flags["stonetop-pwd"].lockedEyes = ["ccrin"];
+		await rollDamageAt(tokenActor("crin"), { formula: "d6", label: "Bite", rollMode: "adv", shiftKey: true });
+		expect(damageFlag().results[0].formula).toBe("d6");
+	});
+
+	it("adds the other attackers' tags and piercing to the blow while the +N is on", () => {
+		const weapon = { name: "Sword", range: ["close"], piercing: 0, tags: ["close"] };
+		expect(withSeedTags(weapon, { bonus: 1, applied: true, tags: ["forceful"], piercing: 1 }))
+			.toEqual({ name: "Sword", range: ["close"], piercing: 1, tags: ["close", "forceful"] });
+		expect(withSeedTags(weapon, { bonus: 1, applied: false, tags: ["forceful"], piercing: 1 })).toBe(weapon);
+		expect(withSeedTags(weapon, { bonus: 1, applied: true, tags: [], piercing: 0 })).toBe(weapon);
+	});
+});
+
 describe("a stat block's damage, aimed by the fight", () => {
 	it("lands on the character the monster is fighting, and Apply takes their armor off less its piercing", async () => {
 		const pim = hero("pim", "Pim");
@@ -154,7 +238,7 @@ describe("a stat block's damage, aimed by the fight", () => {
 		globalThis.game.combats = collection([]);
 		expect(await rollDamageAt(loner, { formula: "d6", label: "Bite", keywords: "close", rollMode: "dis", shiftKey: true })).toBe(true);
 		expect(rollDamagePrompted).toHaveBeenCalledWith("d6", loner, {
-			label: "Bite", keywords: "close", description: "", rollMode: "dis", shiftKey: true,
+			label: "Bite", keywords: "close", description: "", rollMode: "dis", shiftKey: true, offers: [],
 		});
 		expect(damageFlag()).toBeUndefined();
 	});

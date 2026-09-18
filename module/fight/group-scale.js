@@ -28,6 +28,7 @@ import { placeActors } from "../utils/token-drop.js";
 import { combatantBodies, combatantSide, tokenRect, tokenLevel, sceneRectOf, SIDE_FLAG } from "./fight-state.js";
 import { fightsAsGroup } from "./fight-sides.js";
 import { numberedNames, spotsAround } from "./group-size.js";
+import { GROUP_WOUND_FLAG, groupWound } from "./group-hits.js";
 
 const KEY = "stonetop.fight.scale";
 
@@ -56,12 +57,16 @@ function fullHp(actor) {
 	return max > 0 ? { "system.attributes.hp.value": max } : {};
 }
 
-/** What a token's actor turns into to fight as a group of `size`: the switch, the size and a full pool. */
+/**
+ * What a token's actor turns into to fight as a group of `size`: the switch, the size, a full pool, and
+ * no member left hurt by a lone blow (fight/group-hits.js).
+ */
 export function groupChanges(actor, size) {
 	return {
 		"system.fightAsGroup": true,
 		"system.count": Math.max(1, Math.trunc(size)),
 		...fullHp(actor),
+		[`flags.${SYSTEM_ID}.${GROUP_WOUND_FLAG}`]: 0,
 	};
 }
 
@@ -124,7 +129,11 @@ export async function splitGroup(combat, combatant, { scene = globalThis.canvas?
 	const standing = combatantBodies(combatant).bodies;
 	const token = combatant.token;
 	const actor = token.actor;
-	await actor.update({ "system.fightAsGroup": false, ...fullHp(actor) });
+	// The member a lone blow left hurt (fight/group-hits.js) is the token that stays: it keeps its wound.
+	const wound = groupWound(actor);
+	const hp = fullHp(actor);
+	if (wound && "system.attributes.hp.value" in hp) hp["system.attributes.hp.value"] = Math.max(1, hp["system.attributes.hp.value"] - wound);
+	await actor.update({ "system.fightAsGroup": false, ...hp, [`flags.${SYSTEM_ID}.${GROUP_WOUND_FLAG}`]: 0 });
 
 	const more = await gatherAround(globalThis.canvas, scene, token, standing - 1);
 	// A world actor switched to fight as a group hands that to every token made from it.

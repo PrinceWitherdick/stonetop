@@ -54,8 +54,11 @@ export function fightsAsGroup({ type = "", fightAsGroup = false, organization = 
  *    read off its HP pool as casualties; routed at 0 HP is out; a group with no headcount
  *    recorded stands for one, as the monster sheet's rows do
  *  • Anything else at 0 HP (with an HP maximum to be at 0 of) . none, out
+ *  • A group follower (the crew, a custom group) .............. the members its character's roster
+ *    has still standing; none left is routed. The roster is who is really up, and it falls as they
+ *    do, so the group's bonuses shrink with its casualties (p.416 "Adjust the bonuses")
  *  • Anything else ............................................ the headcount the GM set on the
- *    combatant (a crew token), else one
+ *    combatant (a warband of plain NPCs), else one
  *
  * @param {object} info
  * @param {boolean} [info.defeated]
@@ -65,16 +68,25 @@ export function fightsAsGroup({ type = "", fightAsGroup = false, organization = 
  * @param {{value?: number, max?: number}} [info.hp]
  * @param {number}  [info.count]         a monster's group size
  * @param {number}  [info.headcount]     the combatant's own headcount
+ * @param {{standing: number, size: number}|null} [info.roster]  a group follower's roster
  * @returns {{bodies: number, out: boolean, group: boolean, standing: number|null, size: number|null, routed: boolean}}
  */
 export function bodiesFor({
-	defeated = false, type = "", fightAsGroup = false, organization = "", hp = {}, count = 0, headcount = null,
+	defeated = false, type = "", fightAsGroup = false, organization = "", hp = {}, count = 0, headcount = null, roster = null,
 } = {}) {
 	const none = { bodies: 0, out: true, group: false, standing: null, size: null, routed: false };
 	if (defeated) return none;
 
 	const max = Math.max(0, Math.trunc(Number(hp?.max) || 0));
 	const value = Number(hp?.value);
+
+	const rosterSize = Math.max(0, Math.trunc(Number(roster?.size) || 0));
+	if (rosterSize > 0) {
+		const standing = Math.max(0, Math.min(rosterSize, Math.trunc(Number(roster.standing) || 0)));
+		const pooled = max > 0 && Number.isFinite(value) && value <= 0;
+		if (standing === 0 || pooled) return { ...none, group: rosterSize > 1, standing: 0, size: rosterSize, routed: true };
+		return { bodies: standing, out: false, group: rosterSize > 1, standing, size: rosterSize, routed: false };
+	}
 
 	if (fightsAsGroup({ type, fightAsGroup, organization })) {
 		const size = Math.max(0, Math.trunc(Number(count) || 0));
