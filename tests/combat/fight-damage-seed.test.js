@@ -5,7 +5,7 @@ import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection 
 // The fight's +N for several attackers (Book I p.414) on the incoming side of the attack flow, and
 // the "Leave off the +N" control every seeded damage card carries.
 
-const { sufferEnemyAttack, resolveSufferChoice, wireDamageSeed, wireApplyDamage, seedAdjustment } =
+const { sufferEnemyAttack, resolveSufferChoice, wireDamageSeed, wireApplyDamage, seedAdjustment, sufferArmorLine } =
 	await import("../../module/combat/attack-flow.js");
 
 // The chat fakes take `game` down after each test, i18n with it; the seed's words need it back.
@@ -153,9 +153,12 @@ describe("an attack's own damage windows", () => {
 		const src = fs.readFileSync(path.resolve(import.meta.dirname, "../../module/combat/attack-flow.js"), "utf8");
 		const calls = src.match(/await askDamageAdjustment\([\s\S]*?\);/g) ?? [];
 		// Defend's strike back from a parry (strikeBackAt) is one attacker's blow at the one who struck, and
-		// takes no pile-on; every other window is offered it.
+		// takes no pile-on. Neither does a follower off the map (rollDamageAt's `striker`, which turns
+		// `seeded` off): the fight counts the bodies on the map, and they are not one. Every other window is
+		// offered it.
 		const aimed = calls.filter(call => !call.includes('rollMode: "dis", seed: null'));
 		expect(calls).toHaveLength(4);
+		expect(src).toContain("seeded = seeded && !striker;");
 		expect(aimed).toHaveLength(3);
 		for (const call of aimed) expect(call).toContain("seedForTargets(actor, targets)");
 	});
@@ -251,6 +254,72 @@ describe("leaving the +N off a damage card", () => {
 		wireDamageSeed(message, card.root);
 		expect(card.toggle.disabled).toBe(true);
 		expect(card.toggle.title).toBe("Another GM will apply this damage");
+	});
+
+	/** Apply on a hand-built card aimed at Pim, and the damage Pim took. */
+	async function applyTo(pim, damage) {
+		fightAround(pim, []);
+		const flags = { damage: { move: "Blow", applied: [], results: [{ uuid: "Actor.pim", name: "Pim", raw: damage.raw, formula: "d6" }], ...damage } };
+		const message = makeMessage(flags);
+		message.canUserModify = () => true;
+		const card = renderedCard(flags.damage);
+		wireApplyDamage(message, card.root);
+		await card.listeners.apply[0]();
+		return 10 - pim.system.attributes.hp.value;
+	}
+
+	it("takes the other attackers' piercing off with their +1, and brings it back with it", async () => {
+		const seed = { bonus: 1, piercing: 2, pill: "+1", pillLeftOff: "+1, left off", rolled: true };
+		const armored = () => { const pim = makePim(); pim.system.attributes.armor.value = 2; return pim; };
+		// 6 rolled with the +1 in it: on, their 2 piercing takes all of Pim's 2 armor.
+		expect(await applyTo(armored(), { raw: 6, weapon: { name: "", piercing: 0 }, seed: { ...seed, applied: true } })).toBe(6);
+		// Left off: 5, against the whole 2 armor.
+		expect(await applyTo(armored(), { raw: 6, weapon: { name: "", piercing: 0 }, seed: { ...seed, applied: false } })).toBe(3);
+		// The blow's own piercing stays whatever happens to the +1.
+		expect(await applyTo(armored(), { raw: 6, weapon: { name: "", piercing: 1 }, seed: { ...seed, applied: false } })).toBe(4);
+	});
+
+	it("counts a smaller group's -1 as the bigger group's armor, which piercing reaches (p.416)", async () => {
+		const seed = { bonus: -1, direction: "groupBehind", pill: "-1", pillLeftOff: "-1, left off", rolled: true };
+		// 5 rolled, 4 on the card: armor 0+1 against 1 piercing is nothing, so all 5 land.
+		expect(await applyTo(makePim(), { raw: 4, weapon: { name: "", piercing: 1 }, seed: { ...seed, applied: true } })).toBe(5);
+		// No piercing: the +1 armor takes one off, as the -1 did.
+		expect(await applyTo(makePim(), { raw: 4, weapon: { name: "", piercing: 0 }, seed: { ...seed, applied: true } })).toBe(4);
+		// "Ignores armor" ignores it too.
+		expect(await applyTo(makePim(), { raw: 4, weapon: { name: "", ignoresArmor: true }, seed: { ...seed, applied: true } })).toBe(5);
+		// Left off: the whole 5, no armor added.
+		expect(await applyTo(makePim(), { raw: 4, weapon: { name: "", piercing: 0 }, seed: { ...seed, applied: false } })).toBe(5);
+		// Unticked at the roll and added back on the card: 5 rolled, +1 armor.
+		expect(await applyTo(makePim(), { raw: 5, weapon: { name: "", piercing: 0 }, seed: { ...seed, applied: true, rolled: false } })).toBe(4);
+	});
+
+	it("says where a group's -1 went when Apply starts from more than the card showed", async () => {
+		const seed = { bonus: -1, direction: "groupBehind", pill: "-1", pillLeftOff: "-1, left off", rolled: true, applied: true };
+		const pim = makePim();
+		pim.system.attributes.armor.value = 2;
+		// 4 rolled, 3 on the card: 4 against 2 armor and their 1.
+		expect(await applyTo(pim, { raw: 3, weapon: { name: "", piercing: 0 }, seed })).toBe(1);
+		expect(posted.at(-1).content).toContain("3 on the card, 4 before their 1 armor");
+		expect(posted.at(-1).content).toContain("4 − 3 armor");
+	});
+
+	it("takes a character's armor off as it is stored, which the vitals mirror keeps current", async () => {
+		const pim = makePim();
+		pim.system.attributes.armor.value = 2;
+		pim.typedActor = { computedVitals: vi.fn(async () => ({ armor: 0, unpierceable: 0, maxHp: 10 })) };
+		expect(await applyTo(pim, { raw: 5, weapon: null })).toBe(3);
+		expect(pim.typedActor.computedVitals).not.toHaveBeenCalled();
+	});
+
+	it("says what armor does to a named blow in Apply's own arithmetic", () => {
+		expect(sufferArmorLine("Pim", { armor: 0 })).toBe("Pim wears no armor, so all of it lands.");
+		expect(sufferArmorLine("Pim", { armor: 2 })).toBe("Pim's 2 armor comes off it when the damage is taken.");
+		expect(sufferArmorLine("Pim", { armor: 2 }, { ignoresArmor: true })).toBe("It ignores Pim's armor, so all of it lands.");
+		expect(sufferArmorLine("Pim", { armor: 3 }, { piercing: 1 })).toBe("2 of Pim's 3 armor comes off it when the damage is taken; the rest is pierced.");
+		expect(sufferArmorLine("Pim", { armor: 3, unpierceable: 3 }, { ignoresArmor: true })).toBe("Pim's 3 armor comes off it when the damage is taken.");
+		// Undaunted's +1 counts as Apply counts it, and says so.
+		expect(sufferArmorLine("Pim", { armor: 2 }, null, { undaunted: true })).toBe("Pim's 3 armor (+1 armor, Undaunted) comes off it when the damage is taken.");
+		expect(sufferArmorLine("Pim", { armor: 0 }, null, { undaunted: true })).toBe("Pim's 1 armor (+1 armor, Undaunted) comes off it when the damage is taken.");
 	});
 
 	it("does nothing on a card with no seed", () => {

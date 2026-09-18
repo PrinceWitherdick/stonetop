@@ -10,7 +10,7 @@ vi.mock("../../module/dialogs/RollDialog.js", async importOriginal => ({
 	rollDamagePrompted: vi.fn(async () => true),
 }));
 const { rollDamagePrompted } = await import("../../module/dialogs/RollDialog.js");
-const { rollDamageAt, maybeBeginAttack, wireApplyDamage, withSeedTags } = await import("../../module/combat/attack-flow.js");
+const { rollDamageAt, maybeBeginAttack, wireApplyDamage, withSeedTags, rollCharacterDamageAt, strikeBackAt, rollFollowerDamageAt, wireAttackConfirm } = await import("../../module/combat/attack-flow.js");
 
 // Rolls aimed by the fight: a monster's damage at the character it is fighting, a character's at the
 // foe, the "Who does this hit?" question when there are several, and the plain card when nobody is there.
@@ -124,6 +124,20 @@ describe("Apply damage and the fight's rules", () => {
 		expect(posted.at(-1).content).toContain("one of them goes down, 11 still standing");
 	});
 
+	it("applies a blow once however fast Apply is pressed twice", async () => {
+		const pim = hero("pim", "Pim");
+		const { tokens } = fightInARow([["pim", pim]]);
+		const listeners = [];
+		const button = { disabled: false, title: "", innerHTML: "", style: {}, addEventListener: (type, fn) => listeners.push(fn) };
+		const message = makeMessage({ damage: { move: "Bite", weapon: null, results: [{ uuid: tokens.pim.uuid, name: "Pim", raw: 5 }], applied: [] } });
+		message.canUserModify = () => true;
+		wireApplyDamage(message, { querySelector: sel => (sel === ".stonetop-apply-damage" ? button : null) });
+		await Promise.all([listeners[0](), listeners[0]()]);
+		// 5 less Pim's 2 armor, taken once.
+		expect(pim.system.attributes.hp.value).toBe(7);
+		expect(button.disabled).toBe(true);
+	});
+
 	it("halves a blow before armor when Readiness was spent on it (p.216)", async () => {
 		const pim = hero("pim", "Pim");
 		const { tokens } = fightInARow([["pim", pim]]);
@@ -142,6 +156,28 @@ describe("Apply damage and the fight's rules", () => {
 		expect(pim.system.attributes.hp.value).toBe(10);
 		expect(aeliana.system.attributes.hp.value).toBe(6);
 		expect(posted.at(-1).content).toContain("Aeliana (for Pim)");
+	});
+
+	it("lets the defender's player press Apply for the blow they took, not the ward's", async () => {
+		const owners = { pim: "u-pim", aeliana: "u-ael" };
+		const player = (id, key) => Object.assign(hero(key, key), { testUserPermission: user => user.id === owners[key] });
+		const pim = player("u-pim", "pim");
+		const aeliana = player("u-ael", "aeliana");
+		const { tokens } = fightInARow([["pim", pim], ["aeliana", aeliana]]);
+		globalThis.fromUuidSync = uuid => (uuid === aeliana.uuid ? aeliana : uuid === tokens.pim.uuid ? tokens.pim : null);
+		globalThis.game.users = {
+			...globalThis.game.users,
+			players: [{ id: "u-pim", active: true }, { id: "u-ael", active: true }],
+			get: id => ({ id, name: id === "u-ael" ? "Aeliana's player" : "Pim's player" }),
+		};
+		const flag = { move: "Bite", weapon: null, results: [{ uuid: tokens.pim.uuid, name: "Pim", raw: 6 }], applied: [], standIns: [{ uuid: tokens.pim.uuid, by: aeliana.uuid, name: "Aeliana" }] };
+		const button = { disabled: false, title: "", innerHTML: "", style: {}, addEventListener: () => {} };
+		const message = makeMessage({ damage: flag });
+		message.canUserModify = () => true;
+		wireApplyDamage(message, { querySelector: sel => (sel === ".stonetop-apply-damage" ? button : null) });
+		// The GM's copy stands down for the player whose character takes the blow.
+		expect(button.disabled).toBe(true);
+		expect(button.title).toBe("Aeliana's player will take this damage");
 	});
 
 	it("lets a blow pass for A Mighty Rampart", async () => {
@@ -186,6 +222,71 @@ describe("Apply damage and the fight's rules", () => {
 	});
 });
 
+describe("a character's own damage, with the weapon in hand", () => {
+	/** Pim carrying one catalog weapon, so nothing needs asking. */
+	const armed = slug => Object.assign(hero("pim", "Pim"), {
+		typedActor: {
+			carriedWeaponGear: async () => [{ slug, weaponSlug: slug, catalog: true }],
+			computedDamageDie: async () => "d8",
+		},
+	});
+
+	it("rolls a sword's +1 at the foe in contact (the sheet's Damage cell and the ring's Damage)", async () => {
+		const pim = armed("sword");
+		const { tokens } = fightInARow([["pim", pim], ["crin", crinwin("crinwin")]]);
+		expect(await rollCharacterDamageAt(pim, { label: "Damage", shiftKey: true })).toBe(true);
+		const flag = damageFlag();
+		expect(flag.move).toBe("Damage: Sword");
+		expect(flag.results).toEqual([expect.objectContaining({ uuid: tokens.crin.uuid, formula: "d8+1" })]);
+	});
+
+	it("carries a warhammer's 2 piercing to Apply", async () => {
+		const pim = armed("warhammer");
+		fightInARow([["pim", pim], ["crin", crinwin("crinwin")]]);
+		await rollCharacterDamageAt(pim, { label: "Damage", shiftKey: true });
+		expect(damageFlag().weapon).toMatchObject({ name: "Warhammer", piercing: 2 });
+	});
+
+	it("rolls naphtha's own d8, ignoring armor", async () => {
+		const pim = armed("naphtha");
+		fightInARow([["pim", pim], ["crin", crinwin("crinwin")]]);
+		await rollCharacterDamageAt(pim, { label: "Damage", shiftKey: true });
+		expect(damageFlag().results[0].formula).toBe("d8");
+		expect(damageFlag().weapon).toMatchObject({ ignoresArmor: true });
+	});
+
+	it("prints the weapon's fiction on the plain card when there is nobody to hit, as Clash does", async () => {
+		const pim = armed("battleaxe");
+		globalThis.game.combats = collection([]);
+		expect(await rollCharacterDamageAt(pim, { label: "Damage", shiftKey: true })).toBe(true);
+		const [formula, , options] = vi.mocked(rollDamagePrompted).mock.calls[0];
+		expect(formula).toBe("d8");
+		expect(options.label).toBe("Damage: Battleaxe");
+		expect(options.notices).toContain("Messy.");
+	});
+
+	it("strikes nothing back with no damage die, though the parry is still paid for", async () => {
+		const pim = Object.assign(hero("pim", "Pim"), { typedActor: { carriedWeaponGear: async () => [], computedDamageDie: async () => "" } });
+		pim.system.attributes.damage.value = "";
+		const commit = vi.fn(async () => true);
+		expect(await strikeBackAt(pim, "", "Parry", { commit })).toBe(false);
+		expect(commit).toHaveBeenCalledTimes(1);
+		expect(posted).toEqual([]);
+	});
+
+	it("strikes back from a parry with the weapon too (p.216 \"deal your damage\")", async () => {
+		const pim = armed("sword");
+		const { tokens } = fightInARow([["pim", pim], ["crin", crinwin("crinwin")]]);
+		globalThis.fromUuid = async uuid => (uuid === tokens.crin.uuid ? tokens.crin : null);
+		globalThis.game.settings = { get: (scope, key) => (key === "promptDamageModifier" ? false : key === "fightTab") };
+		expect(await strikeBackAt(pim, tokens.crin.uuid, "Parry")).toBe(true);
+		const flag = damageFlag();
+		expect(flag.move).toBe("Parry: Sword");
+		expect(flag.results[0].formula).toContain("+1");
+		expect(flag.results[0].formula).toContain("d8");
+	});
+});
+
 describe("a stat block's damage, aimed by the fight", () => {
 	it("lands on the character the monster is fighting, and Apply takes their armor off less its piercing", async () => {
 		const pim = hero("pim", "Pim");
@@ -218,6 +319,14 @@ describe("a stat block's damage, aimed by the fight", () => {
 		expect(damageFlag().results[0].formula).toBe("d6+1");
 	});
 
+	it("says another foe's piercing counts only while the +1 does, and keeps the blow's own for Apply", async () => {
+		const pim = hero("pim", "Pim");
+		const { tokenActor } = fightInARow([["crin", crinwin("crinwin")], ["pim", pim], ["crin2", crinwin("crinwin2")]]);
+		await rollDamageAt(tokenActor("crin"), { formula: "d6", label: "Bite", weapon: { name: "", range: [], piercing: 0 }, shiftKey: true });
+		expect(damageFlag().weapon.piercing).toBe(0);
+		expect(cardWithFlag(posted, "damage").content).toContain("while the +1 is on");
+	});
+
 	it("leaves the fight's +N off a row whose formula already has it", async () => {
 		const pim = hero("pim", "Pim");
 		const { tokenActor } = fightInARow([["crin", crinwin("crinwin")], ["pim", pim], ["crin2", crinwin("crinwin2")]]);
@@ -238,7 +347,7 @@ describe("a stat block's damage, aimed by the fight", () => {
 		globalThis.game.combats = collection([]);
 		expect(await rollDamageAt(loner, { formula: "d6", label: "Bite", keywords: "close", rollMode: "dis", shiftKey: true })).toBe(true);
 		expect(rollDamagePrompted).toHaveBeenCalledWith("d6", loner, {
-			label: "Bite", keywords: "close", description: "", rollMode: "dis", shiftKey: true, offers: [],
+			label: "Bite", keywords: "close", description: "", rollMode: "dis", attacker: "", shiftKey: true, offers: [],
 		});
 		expect(damageFlag()).toBeUndefined();
 	});
@@ -300,5 +409,131 @@ describe("a Clash with nothing targeted", () => {
 		const begun = await maybeBeginAttack(pim, { name: "Clash" });
 		expect(begun.messageFlags[SCOPE].attack.targets).toEqual([]);
 		expect(globalThis.ui.notifications.info).toHaveBeenCalled();
+	});
+});
+
+describe("a follower's damage from their card", () => {
+	/** An NPC follower, as the card's own damage line made it. */
+	const hound = () => ({
+		...fakeActor({ id: "hound", name: "Gwyn", type: "npc" }),
+		system: { attributes: { damage: { value: "d6 (hand, messy)", rollFormula: "d6" }, armor: { value: 0 }, hp: { value: 6, max: 6 } } },
+	});
+	const crewBlow = (extra = {}) => ({ formula: "d6", label: "Pim's crew attacks", attacker: "Pim's crew", shiftKey: true, ...extra });
+
+	it("swings as the follower's own token when it has one in the fight, at the foe the follower is fighting", async () => {
+		const pim = hero("pim", "Pim");
+		const { tokens, tokenActor, combat } = fightInARow([
+			["crin", crinwin("crinwin")], ["pim", pim], ["ally", hero("ally", "Ally")], ["hound", hound()], ["crin2", crinwin("crinwin2")],
+		]);
+		combat.combatants.get("chound").flags["stonetop-pwd"].side = "heroes";
+		expect(await rollFollowerDamageAt(pim, crewBlow({ fighter: tokenActor("hound"), label: "Gwyn attacks", attacker: "Gwyn" }))).toBe(true);
+		expect(damageFlag().results.map(r => r.uuid)).toEqual([tokens.crin2.uuid]);
+	});
+
+	it("is aimed by the character's fight when the follower is off the map, without the character's +N", async () => {
+		const pim = hero("pim", "Pim");
+		const { tokens } = fightInARow([["cadi", hero("cadi", "Cadi")], ["crin", crinwin("crinwin")], ["pim", pim]]);
+		expect(await rollFollowerDamageAt(pim, crewBlow())).toBe(true);
+		const flag = damageFlag();
+		expect(flag.move).toBe("Pim's crew attacks");
+		expect(flag.results.map(r => r.uuid)).toEqual([tokens.crin.uuid]);
+		expect(flag).not.toHaveProperty("seed");
+		expect(flag).not.toHaveProperty("groupBlow");
+	});
+
+	it("records no shot in the character's name for a blow they did not strike", async () => {
+		const pim = hero("pim", "Pim");
+		const { tokens, combat } = fightInARow([["pim", pim], ["ally", hero("ally", "Ally")], ["far", crinwin("far")]]);
+		const update = vi.fn(async () => {});
+		Object.assign(combat.combatants.get("cpim"), { canUserModify: () => true, update });
+		globalThis.game.user.targets = new Set([{ document: tokens.far, actor: tokens.far.actor }]);
+
+		await rollFollowerDamageAt(pim, crewBlow());
+		expect(damageFlag().results.map(r => r.uuid)).toEqual([tokens.far.uuid]);
+		expect(update).not.toHaveBeenCalled();
+
+		// The character's own blow at the same foe is a shot, which is what the follower's must not be.
+		await rollDamageAt(pim, { formula: "d8", label: "Damage", shiftKey: true });
+		expect(update).toHaveBeenCalledWith({ "flags.stonetop-pwd.shots": ["cfar"] });
+	});
+
+	it("names the follower when it asks who the blow hits", async () => {
+		const pim = hero("pim", "Pim");
+		fightInARow([["crin", crinwin("crinwin")], ["pim", pim], ["crin2", crinwin("crinwin2")]]);
+		const wait = answerWhoItHits([true, false]);
+		await rollFollowerDamageAt(pim, crewBlow());
+		expect(wait.mock.calls[0][0].window.title).toContain("Pim's crew");
+	});
+
+	it("posts the plain card, naming the follower, when there is nobody to hit", async () => {
+		const pim = hero("pim", "Pim");
+		globalThis.game.combats = collection([]);
+		expect(await rollFollowerDamageAt(pim, crewBlow({ keywords: "messy" }))).toBe(true);
+		expect(rollDamagePrompted).toHaveBeenCalledWith("d6", pim, {
+			label: "Pim's crew attacks", keywords: "messy", description: "", rollMode: "", attacker: "Pim's crew", shiftKey: true, offers: [],
+		});
+		expect(damageFlag()).toBeUndefined();
+	});
+
+	it("tells Apply a group's blow is the group's, so a horde's pool takes it rather than one member", async () => {
+		const pim = hero("pim", "Pim");
+		const crowd = {
+			...fakeActor({ id: "horde", name: "Crinwin horde", type: "monster" }),
+			flags: {},
+			system: { organization: "horde", fightAsGroup: true, count: 12, attributes: { armor: { value: 1 }, hp: { value: 3, max: 3 } } },
+			update: vi.fn(async function (changes) {
+				if ("system.count" in changes) this.system.count = changes["system.count"];
+				if ("system.attributes.hp.value" in changes) this.system.attributes.hp.value = changes["system.attributes.hp.value"];
+			}),
+		};
+		fightInARow([["pim", pim], ["horde", crowd]]);
+		await rollFollowerDamageAt(pim, crewBlow({ group: true }));
+		const flag = damageFlag();
+		expect(flag.groupBlow).toBe(true);
+		await apply(flag);
+		expect(crowd.system.count).toBe(12);
+		expect(crowd.system.attributes.hp.value).toBe(0);
+	});
+});
+
+describe("a Clash confirmed after the dice", () => {
+	/** Press the card's Confirm, as the attacking player, on a Clash rolled with `targets` frozen. */
+	async function confirmClash(pim, targets = []) {
+		const listeners = [];
+		const btn = { disabled: false, title: "", innerHTML: "", dataset: {}, addEventListener: (type, fn) => listeners.push(fn) };
+		const root = { querySelectorAll: sel => (sel === ".stonetop-attack-confirm" ? [btn] : []), querySelector: () => null };
+		const message = makeMessage({ attack: { move: "Clash", moveKey: "clash", attackerUuid: pim.uuid, weapon: null, targets } });
+		const byToken = globalThis.fromUuid;
+		globalThis.fromUuid = async uuid => (uuid === pim.uuid ? pim : byToken(uuid));
+		wireAttackConfirm(message, root);
+		await new Promise(resolve => setTimeout(resolve, 0));
+		await listeners[0]({ shiftKey: true });
+		return { message, btn };
+	}
+
+	it("hits the foe the character has stepped into contact with since, when nobody was there at the roll", async () => {
+		const pim = hero("pim", "Pim");
+		const { tokens } = fightInARow([["pim", pim], ["crin", crinwin("crinwin")]]);
+		const { message } = await confirmClash(pim);
+		expect(damageFlag().results.map(r => r.uuid)).toEqual([tokens.crin.uuid]);
+		expect(message.flags.attack).toMatchObject({ resolved: true, targets: [expect.objectContaining({ uuid: tokens.crin.uuid })] });
+	});
+
+	it("hands the Confirm back when the player backs out of who it hits", async () => {
+		const pim = hero("pim", "Pim");
+		fightInARow([["crin", crinwin("crinwin")], ["pim", pim], ["crin2", crinwin("crinwin2")]]);
+		answerWhoItHits(null);
+		const { message, btn } = await confirmClash(pim);
+		expect(btn.disabled).toBe(false);
+		expect(message.flags.attack.resolved).toBeUndefined();
+		expect(posted).toEqual([]);
+	});
+
+	it("keeps the foe frozen at the roll, whoever the character is fighting now", async () => {
+		const pim = hero("pim", "Pim");
+		const { tokens } = fightInARow([["crin", crinwin("crinwin")], ["pim", pim], ["gap", hero("ally", "Ally")], ["far", crinwin("far")]]);
+		const frozen = { uuid: tokens.far.uuid, name: "Crinwin", actorId: "far", disposition: -1, hasActor: true };
+		await confirmClash(pim, [frozen]);
+		expect(damageFlag().results.map(r => r.uuid)).toEqual([tokens.far.uuid]);
 	});
 });

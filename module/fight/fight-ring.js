@@ -37,8 +37,8 @@
 import { SYSTEM_ID } from "../system-id.js";
 import { isFightTabEnabled, isFightRingOn } from "../settings.js";
 import { fightOnScene } from "./fight-state.js";
-import { damageBlows, damageCardText, blowWeapon } from "../utils/damage.js";
-import { pcDamageDie, rollDamageAt } from "../combat/attack-flow.js";
+import { damageBlows, damageCardText, printedBlow } from "../utils/damage.js";
+import { pcDamageDie, rollDamageAt, rollCharacterDamageAt } from "../combat/attack-flow.js";
 import { followerRingInfo, openFollowerOrder } from "./follower-fight.js";
 import { heldReadiness } from "../combat/defend-readiness.js";
 import { spendReadiness, pickOne } from "./defend-spend.js";
@@ -143,12 +143,14 @@ export function ringButtons(actor, { die = "", order = null, swarm = null, readi
 		}
 		// The sheet's Damage button: the die, titled "Damage", carrying no armor clause of its own.
 		const formula = tidy(die);
-		if (formula) damage.push({ run: "damage", label: damageText, formula, weapon: null, icon: dieIcon(formula) });
+		// The die is the button's face only: the roll asks which weapon is in hand and rolls ITS die
+		// (combat/attack-flow.js#rollCharacterDamageAt).
+		if (formula) damage.push({ run: "damage", label: damageText, formula, icon: dieIcon(formula) });
 		// Held Readiness can be spent to "strike back at an attacker (deal your damage, with disadvantage)"
-		// (p.216): the same die, rolled twice for the lower, and one Readiness gone.
+		// (p.216): the same roll, with disadvantage, and one Readiness gone.
 		if (formula && readiness > 0) {
 			damage.push({
-				run: "strikeBack", label: localize("stonetop.fight.ring.strikeBack"), formula, rollMode: "dis", weapon: null,
+				run: "strikeBack", label: localize("stonetop.fight.ring.strikeBack"), formula, rollMode: "dis",
 				icon: STRIKE_BACK_ICON, aria: format("stonetop.fight.ring.strikeBackAria", { formula, readiness }),
 			});
 		}
@@ -188,16 +190,17 @@ export function ringButtons(actor, { die = "", order = null, swarm = null, readi
 		// moves stay off: a GM types those, and one may roll something other than damage.
 		const formula = tidy(printed.rollFormula);
 		if (formula) {
-			const { title, keywords } = damageCardText(printed.value, formula);
-			const weapon = blowWeapon(printed.value, formula);
-			damage.push({ run: "damage", label: title || damageText, formula, keywords, weapon, icon: dieIcon(formula) });
+			// The blow's printed "w/disadvantage" (a Mighty Servant's stone fists), as a monster's buttons keep theirs.
+			const { title, keywords, weapon, rollMode: printedMode } = printedBlow(printed.value, formula);
+			const rollMode = printedMode || "normal";
+			damage.push({ run: "damage", label: title || damageText, formula, keywords, rollMode, weapon, icon: dieIcon(formula) });
 			// And, for a group, all of them on one foe. BESIDE the plain die, not instead of it: one
 			// crewman's blow is still a blow, and it is what the group takes when the fight is run as
 			// the abstracted exchange. The blow is the same one, so its tags and armor clause ride along.
 			if (swarm) {
 				damage.push({
 					run: "damage", label: localize("stonetop.fight.ring.swarm"), formula: swarm.formula,
-					keywords, weapon, icon: dieIcon(swarm.formula),
+					keywords, rollMode, weapon, icon: dieIcon(swarm.formula),
 					aria: format("stonetop.fight.ring.swarmAria", { count: swarm.standing, formula: swarm.formula }),
 				});
 			}
@@ -264,7 +267,14 @@ export async function runRingButton(button, actor, { shiftKey = false } = {}) {
 	// Strike back is the damage button's roll, at its disadvantage, and costs a Readiness once it is rolled.
 	const strikeBack = button.run === "strikeBack";
 	if (strikeBack && heldReadiness(actor) < 1) return;
-	const rolled = await rollDamageAt(actor, {
+	// A character's own damage is dealt with the weapon in hand (asked as Clash asks), its +N, die, piercing
+	// and tags riding along; a strike back is one defender's blow, so no fight +N.
+	const rolled = actor.type === "character" ? await rollCharacterDamageAt(actor, {
+		label: button.label,
+		rollMode: button.rollMode,
+		seeded: !strikeBack,
+		shiftKey,
+	}) : await rollDamageAt(actor, {
 		formula: button.formula,
 		label: button.label,
 		keywords: button.keywords,

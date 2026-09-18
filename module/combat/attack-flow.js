@@ -724,9 +724,11 @@ export async function pcDamageDie(actor) {
 }
 
 // The damage formula for one attack: the PC die (or the weapon's own die), plus the
-// weapon's +N damage, plus any extra dice (Clash 10+ strike-hard's +1d6).
-async function damageFormula(actor, weapon, extraDice) {
-	const die   = weapon?.damageDie || await pcDamageDie(actor) || "d6";
+// weapon's +N damage, plus any extra dice (Clash 10+ strike-hard's +1d6). `fallback` is the die
+// rolled when neither has one; "" answers "" there instead (characterBlow).
+async function damageFormula(actor, weapon, extraDice, { fallback = "d6" } = {}) {
+	const die   = weapon?.damageDie || await pcDamageDie(actor) || fallback;
+	if (!die) return "";
 	const bonus = weapon?.damageBonus ? sign(weapon.damageBonus) : "";
 	return composeDamageFormula(`${die}${bonus}`, { extraDice });
 }
@@ -753,12 +755,13 @@ function damageLabel(move, weapon) {
  * the playbook and its damage-raising marks (see pcDamageDie), and doing that a second time
  * just to compose the same string is work the roll can skip.
  */
-async function askDamageAdjustment(actor, { moveKey = "", weapon, extraDice = "", shiftKey = false, seed = null, formula = "", rollMode: noted = "", offers = heroOffers(actor) } = {}) {
+async function askDamageAdjustment(actor, { moveKey = "", weapon, extraDice = "", shiftKey = false, seed = null, formula = "", rollMode: noted = "", offers = heroOffers(actor), attacker = "" } = {}) {
 	// A stat block's blow brings its own die and its own "w/disadvantage" (rollDamageAt); an attack
 	// move works both out from the character.
 	const base     = formula || await damageFormula(actor, weapon, extraDice);
 	const rollMode = noted || damageAdvantageFrom(actor, moveKey, weapon);
-	const adjust   = await promptDamage({ attacker: actor?.name, formula: base, shiftKey, ...(rollMode ? { rollMode } : {}), seed, offers });
+	// `attacker` names a follower swinging from their character's sheet (rollFollowerDamageAt).
+	const adjust   = await promptDamage({ attacker: attacker || actor?.name, formula: base, shiftKey, ...(rollMode ? { rollMode } : {}), seed, offers });
 	return adjust ? { base, ...adjust } : null;
 }
 
@@ -783,14 +786,24 @@ function lockedEyesMode(actor, targets, rollMode) {
  * the attacker (deal your damage with disadvantage)". The attacker is the card's roller, as a target, so
  * Apply takes their armor off; with nobody to find, the plain damage card.
  *
+ * `commit` takes the strike back's cost (defend-spend.js#spendOnBlow), called once every question is
+ * answered and before anything is rolled, so backing out of the weapon or the damage window costs
+ * nothing. With no damage die to strike with there is no strike back, but the cost is still taken: a
+ * Parry & Riposte halves the blow either way.
+ *
  * @param {Actor} actor         the defender
  * @param {string} attackerUuid the card's attacker (an actor's uuid, a token's actor for a monster, or a foe's token)
  * @param {string} label        the card's title
+ * @param {object} [options]
+ * @param {() => Promise<boolean>} [options.commit]  false stops the strike back unrolled
+ * @returns {Promise<boolean>} whether a strike back was rolled
  */
-export async function strikeBackAt(actor, attackerUuid, label) {
+export async function strikeBackAt(actor, attackerUuid, label, { commit = async () => true } = {}) {
 	if (!actor) return false;
-	const formula = await pcDamageDie(actor);
-	if (!formula) return false;
+	// "Deal your damage": with the weapon in hand, its +N, die, piercing and tags and all.
+	const blow = await characterBlow(actor, label);
+	if (!blow) return false;
+	if (!blow.formula) { await commit(); return false; }
 	const doc = attackerUuid ? await fromUuid(attackerUuid).catch(() => null) : null;
 	// A foe's blow names its token; an attack card names its roller's actor.
 	const isToken = doc?.documentName === "Token";
@@ -799,9 +812,9 @@ export async function strikeBackAt(actor, attackerUuid, label) {
 	const token = (isToken ? doc : null) ?? attacker?.token
 		?? (attacker?.getActiveTokens?.(false, true) ?? []).find(t => t?.parent?.id === scene?.id) ?? null;
 	const targets = token ? [{ uuid: token.uuid, name: token.name ?? attacker.name, actorId: attacker?.id ?? null, disposition: token.disposition ?? 0, hasActor: true }] : [];
-	const damage = await askDamageAdjustment(actor, { formula, rollMode: "dis", seed: null });
-	if (!damage) return false;
-	await rollAndPostDamage(actor, { move: label, weapon: null, targets, damage });
+	const damage = await askDamageAdjustment(actor, { formula: blow.formula, rollMode: "dis", seed: null });
+	if (!damage || !await commit()) return false;
+	await rollAndPostDamage(actor, { move: blow.move, weapon: blow.weapon, targets, damage });
 	return true;
 }
 
@@ -836,23 +849,32 @@ function seedForTargets(actor, targets) {
  * @param {object} [options.weapon]     utils/damage.js#attackWeapon, for the armor Apply takes off
  * @param {boolean} [options.seeded]    offer the fight's +N (off for a row whose formula has its own)
  * @param {boolean} [options.shiftKey]  skip the damage window
+ * @param {{name: string, group: boolean}|null} [options.striker]  a follower off the map striking beside
+ *   `actor`, who aims the blow (rollFollowerDamageAt): the windows name them, and the blow takes none of the
+ *   actor's +N, damage moves or shot record
  * @returns {Promise<boolean>} whether damage was rolled
  */
-export async function rollDamageAt(actor, { formula, label, keywords = "", description = "", rollMode = "", weapon = null, seeded = true, shiftKey = false } = {}) {
+export async function rollDamageAt(actor, { formula, label, keywords = "", description = "", rollMode = "", weapon = null, seeded = true, shiftKey = false, striker = null } = {}) {
 	if (!actor || !formula) return false;
-	const targets = await rollTargets(actor, { handTargets: snapshotTargets() });
+	const attacker = striker?.name ?? "";
+	const offers = striker ? [] : heroOffers(actor);
+	seeded = seeded && !striker;
+	const targets = await rollTargets(actor, { handTargets: snapshotTargets(), roller: attacker });
 	if (targets === null) return false;
 
 	if (!targets.some(t => t.hasActor !== false && t.uuid)) {
 		const seed = seeded ? sheetSeed({ actor }) : null;
+		// The fiction the weapon's tags owe, as a Clash with nobody targeted prints it (rollAndPostDamage).
+		const notices = tagNoticesHtml(weapon);
 		return rollDamagePrompted(formula, actor, {
-			label, keywords, description, rollMode, shiftKey, offers: heroOffers(actor),
+			label, keywords, description, rollMode, attacker, shiftKey, offers,
 			...(seed ? { seed } : {}),
+			...(notices ? { notices } : {}),
 		});
 	}
 
 	const damage = await askDamageAdjustment(actor, {
-		formula, rollMode: lockedEyesMode(actor, targets, rollMode), shiftKey, seed: seeded ? seedForTargets(actor, targets) : null,
+		formula, rollMode: lockedEyesMode(actor, targets, rollMode), shiftKey, seed: seeded ? seedForTargets(actor, targets) : null, offers, attacker,
 	});
 	if (!damage) return false;
 	await rollAndPostDamage(actor, {
@@ -861,8 +883,93 @@ export async function rollDamageAt(actor, { formula, label, keywords = "", descr
 		weapon: { ...(weapon ?? { name: "", range: [] }), keywords },
 		targets,
 		damage,
+		shots: !striker,
+		groupBlow: !!striker?.group,
 	});
 	return true;
+}
+
+/**
+ * Which weapon a character's own damage roll is dealt with, outside an attack move: asked the way Clash
+ * asks (promptWeaponChoice: nothing to ask with one weapon or none), from anything they could swing or
+ * loose. Returns the serialized weapon, null for none, or "cancel".
+ *
+ * @param {Actor} actor
+ * @param {string} title  the window's title
+ */
+export async function chooseDamageWeapon(actor, title) {
+	if (actor?.type !== "character") return null;
+	const candidates = await carriedAttackWeapons(actor, { filter: isAnyAttackWeapon });
+	const picked = await promptWeaponChoice(candidates, title);
+	if (picked === "cancel") return "cancel";
+	return picked.weapon ? serializeWeapon(picked.weapon) : null;
+}
+
+/**
+ * A character's damage with the weapon in their hand, at whoever they are fighting: the sheet's Damage
+ * cell and the fight ring's Damage and Strike back. The weapon's +N, its own die, piercing, "ignores
+ * armor" and tags ride the roll exactly as they do on Clash (damageFormula, rollAndPostDamage).
+ *
+ * @param {Actor} actor
+ * @param {object} [options]
+ * @param {string} [options.label]     the card's title
+ * @param {string} [options.rollMode]  "dis" for a strike back
+ * @param {boolean} [options.seeded]   offer the fight's +N (off for a strike back: one defender's blow)
+ * @param {boolean} [options.shiftKey] skip the damage window
+ * @returns {Promise<boolean>} whether damage was rolled
+ */
+export async function rollCharacterDamageAt(actor, { label = "Damage", rollMode = "", seeded = true, shiftKey = false } = {}) {
+	if (!actor) return false;
+	const blow = await characterBlow(actor, label);
+	if (!blow) return false;
+	return rollDamageAt(actor, { formula: blow.formula, label: blow.move, rollMode, weapon: blow.weapon, seeded, shiftKey });
+}
+
+/**
+ * "Deal your damage" outside an attack move, as far as the roll: the weapon in hand (chooseDamageWeapon),
+ * its formula, and the card title naming it. Null when the player backed out of choosing. The formula is
+ * "" when neither the weapon nor the character has a die: unlike Clash, nothing here invents a d6, and
+ * the sheet and the ring draw no Damage button for a character without one.
+ */
+async function characterBlow(actor, label) {
+	const weapon = await chooseDamageWeapon(actor, label);
+	if (weapon === "cancel") return null;
+	return { weapon, formula: await damageFormula(actor, weapon, "", { fallback: "" }), move: damageLabel(label, weapon) };
+}
+
+/**
+ * A follower's damage from their card on the character's sheet (its Damage, a group's Damage, and the
+ * Swarm and Group-vs-group rows), aimed like every other damage roll.
+ *
+ * A FOLLOWER WITH A TOKEN IN THE FIGHT rolls as that token: the roll its fight ring button makes
+ * (rollDamageAt), so it hits whoever the follower is standing against, takes the fight's +N from where
+ * the follower stands, and any shot it fires is on record as the follower's.
+ *
+ * A FOLLOWER OFF THE MAP fights beside their character, so the blow is aimed by the character's fight.
+ * It is still not the character's blow: no +N (the fight counts the bodies on the map, and the follower
+ * is not one of them), none of the character's own damage moves, and no shot recorded in the
+ * character's name. A GROUP's blow says so on the card, or Apply would read the character's lone body
+ * and drop one member of a horde where the group's blow belongs on its pool (fight/group-hits.js).
+ * Nobody to hit is the plain card, as the sheet always posted.
+ *
+ * @param {Actor} character
+ * @param {object} options
+ * @param {Actor|null} [options.fighter]  the follower's own actor, when they have a token in the fight
+ *   (fight/follower-fight.js#followerInFight)
+ * @param {string} options.formula    the die, carrying any +N of its own
+ * @param {string} options.label      the card's title: "Rhianna's crew attacks with their spears"
+ * @param {string} [options.attacker] who the windows name: "Rhianna's crew"
+ * @param {string} [options.keywords] the blow's tags, printed beside each total
+ * @param {string} [options.rollMode] the follower's own advantage on this die
+ * @param {object} [options.weapon]   utils/damage.js#attackWeapon, for the armor Apply takes off
+ * @param {boolean} [options.seeded]  offer the fight's +N (off for a row whose formula has its own)
+ * @param {boolean} [options.group]   a group with more than one standing (utils/crew.js#groupFollowerStanding)
+ * @param {boolean} [options.shiftKey] skip the damage window
+ * @returns {Promise<boolean>} whether damage was rolled
+ */
+export async function rollFollowerDamageAt(character, { fighter = null, formula, label, attacker = "", keywords = "", rollMode = "", weapon = null, seeded = true, group = false, shiftKey = false } = {}) {
+	if (fighter) return rollDamageAt(fighter, { formula, label, keywords, rollMode, weapon, seeded, shiftKey });
+	return rollDamageAt(character, { formula, label, keywords, rollMode, weapon, shiftKey, striker: { name: attacker, group } });
 }
 
 /**
@@ -1003,7 +1110,7 @@ export function tagNoticesHtml(weapon) {
 // no-target Clash needed a whole extra branch here just to have somewhere to put that button.
 // The tier fires the counter itself now, straight after this returns (resolveAttackTier), and it
 // comes back through this same function as a damage card of its own (postIncomingDamage).
-async function rollAndPostDamage(actor, { move, weapon, targets, damage, ignoresArmor = false, selfHarm = false, foeUuid = "" }) {
+async function rollAndPostDamage(actor, { move, weapon, targets, damage, ignoresArmor = false, selfHarm = false, foeUuid = "", shots = true, groupBlow = false }) {
 	// A tier control that ignores armor (Call the Shot's "your call", The Hammer and the Book)
 	// records it ON THE WEAPON the card carries rather than as a second field beside it: the
 	// weapon is the one thing Apply damage reads for armor (wireApplyDamage) and the one thing the
@@ -1042,10 +1149,11 @@ async function rollAndPostDamage(actor, { move, weapon, targets, damage, ignores
 			uuid: t.uuid, name: t.name, actorId: t.actorId, disposition: t.disposition,
 			raw: rolls[i].total, formula: rolls[i].formula, faces: multiDieFaces(rolls[i]),
 		}));
-		await postDamageResultsCard(actor, { move, weapon, ownPiercing, results, damage, selfHarm, notices, foeUuid });
+		await postDamageResultsCard(actor, { move, weapon, ownPiercing, results, damage, selfHarm, notices, foeUuid, groupBlow });
 		// A blow at somebody the roller is not standing against is a shot, and the fight keeps it; a
-		// character's own hit is not a shot at anyone.
-		if (!selfHarm) {
+		// character's own hit is not a shot at anyone, and neither is a blow the card's speaker did not
+		// strike (a follower off the map, rollFollowerDamageAt).
+		if (!selfHarm && shots) {
 			// Targets are let go only once a shot at them is on record: a blow in contact records none, and a
 			// hand target is then still what aims the next roll (or the archer's only line to their mark).
 			await recordShots(actor, applyable);
@@ -1305,6 +1413,9 @@ function postDamageResultsCard(actor, { move, weapon, ownPiercing, results, dama
 			// On a blow a character takes, `attackerUuid` is the character: the foe who struck (a token's
 			// uuid) is kept beside it, for a Parry & Riposte to strike back at (defend-spend.js#spendOnBlow).
 			...(selfHarm && foeUuid ? { foeUuid } : {}),
+			// A group follower off the map striking (rollFollowerDamageAt): the card's speaker is their
+			// character, a lone body, so Apply is told the blow is a group's (fight/group-hits.js).
+			...(groupBlow ? { groupBlow: true } : {}),
 			// The fight's +N, with whether it was rolled INTO the results above: leaving it off (or
 			// adding it back) adjusts each one at apply time (wireApplyDamage) and redraws the totals
 			// on every client (wireDamageSeed). Only on a card that has one.

@@ -488,6 +488,8 @@ export function promptDamage({
  * @param {string} [opts.keywords] what the card prints beside the total: a stat block attack's
  *   tags, which its title no longer carries (utils/damage.js#damageCardText)
  * @param {string} [opts.description] the card's description HTML: a monster move's own text
+ * @param {string} [opts.notices] the card's notice HTML: the fiction a weapon's tags owe
+ *   (combat/attack-flow.js#tagNoticesHtml)
  * @param {string} [opts.rollMode] a mode the SOURCE already notes (a stat block's "w/
  *   disadvantage"), which SEEDS the window rather than being replaced by it - so skipping the
  *   window still rolls the way the source says.
@@ -496,9 +498,9 @@ export function promptDamage({
  * @param {boolean} [opts.shiftKey] skip the window
  * @returns {Promise<boolean>} whether damage was actually rolled
  */
-export async function rollDamagePrompted(formula, actor, { label, keywords, description, rollMode, attacker, seed, offers = [], shiftKey = false } = {}) {
+export async function rollDamagePrompted(formula, actor, { label, keywords, description, notices, rollMode, attacker, seed, offers = [], shiftKey = false } = {}) {
 	const adjust = await promptDamage({ attacker: attacker || actor?.name, formula, ...(rollMode ? { rollMode } : {}), seed, offers, shiftKey });
 	if (!adjust) return false;
-	await rollDamage(formula, actor, { label, keywords, description, ...adjust });
+	await rollDamage(formula, actor, { label, keywords, description, notices, ...adjust });
 	return true;
 }

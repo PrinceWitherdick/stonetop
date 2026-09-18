@@ -137,12 +137,14 @@ export async function askWhoItHits(question, { DialogV2 = globalThis.foundry?.ap
  * @param {Actor} actor
  * @param {object} [options]
  * @param {object[]} [options.handTargets]  the roller's own targets, frozen
+ * @param {string} [options.roller]  who the question names, when that is not `actor`: a follower
+ *   off the map, fighting beside the character it is aimed by
  * @param {typeof askWhoItHits} [options.ask]
  * @returns {Promise<object[]|null>}
  */
-export async function rollTargets(actor, { handTargets = [], ask = askWhoItHits } = {}) {
+export async function rollTargets(actor, { handTargets = [], roller = "", ask = askWhoItHits } = {}) {
 	if (handTargets?.length) return handTargets;
 	const engaged = engagedOpponents(actor);
 	if (engaged.length < 2) return engaged;
-	return ask({ roller: actor?.name ?? "", candidates: engaged });
+	return ask({ roller: roller || actor?.name || "", candidates: engaged });
 }

@@ -241,8 +241,20 @@ describe("the pre-roll damage window", () => {
 	it("names a follower rather than the PC whose sheet it rolled from", () => {
 		expect(ROLL_DIALOG_JS).toContain("attacker: attacker || actor?.name");
 		const sheet = read("module/actors/character/StonetopCharacterSheet.js");
-		expect(sheet).toContain("rollDamagePrompted(roll, this.actor, { label, attacker, shiftKey: ev.shiftKey })");
+		expect(sheet).toMatch(/rollFollowerDamageAt\(this\.actor, \{[\s\S]*?formula: roll, label, attacker,/);
 		expect(sheet).toMatch(/label\s*=\s*`\$\{attacker\} attacks\$\{formPart\}`/);
+		// Whichever window the follower's roll opens, the name goes with it: the plain card's, the aimed
+		// card's, and "Who does this hit?".
+		const at = ATTACK_FLOW_JS.indexOf("export async function rollFollowerDamageAt");
+		expect(at, "rollFollowerDamageAt is gone").toBeGreaterThan(-1);
+		const follower = ATTACK_FLOW_JS.slice(at, ATTACK_FLOW_JS.indexOf("\n}\n", at));
+		expect(follower).toContain("striker: { name: attacker, group }");
+		const from = ATTACK_FLOW_JS.indexOf("export async function rollDamageAt");
+		const body = ATTACK_FLOW_JS.slice(from, ATTACK_FLOW_JS.indexOf("\n}\n", from));
+		expect(body).toContain("const attacker = striker?.name");
+		expect(body).toMatch(/rollDamagePrompted\(formula, actor, \{[^}]*\battacker,/);
+		expect(body).toMatch(/askDamageAdjustment\(actor, \{[^}]*\battacker,/);
+		expect(body).toContain("roller: attacker");
 	});
 });
 

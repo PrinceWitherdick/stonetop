@@ -25,7 +25,8 @@ import {FollowerFateDialog} from "./dialogs/FollowerFateDialog.js";
 import {CallUpDeepOnesDialog} from "./dialogs/CallUpDeepOnesDialog.js";
 import {RING_SOURCE_UUID, SERVANT_SOURCE_UUID, buildServantFollower} from "../../data/servant-of-daagon.js";
 import {grantedWeaponForMove, weaponTraitText} from "../../data/weapons.js";
-import {grantedWeaponAttackFor, rollDamageAt} from "../../combat/attack-flow.js";
+import {grantedWeaponAttackFor, rollCharacterDamageAt, rollFollowerDamageAt} from "../../combat/attack-flow.js";
+import {followerInFight} from "../../fight/follower-fight.js";
 import {ALT_STAT_GRANTS} from "../../data/alt-stat-grants.js";
 import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
 import {trackCreationFlow} from "./creation-flow.js";
@@ -39,12 +40,12 @@ import {showsPreferencesTab, withPreferencesTab} from "../../utils/preferences-t
 import {injectHeaderToggle} from "../../utils/sheet-chrome.js";
 import {mountScrollFrost} from "../../utils/scroll-frost.js";
 import {withSheetSizeMemory} from "../../utils/sheet-size.js";
-import { crewExists, effectiveCrewSize, customGroupSize, crewAnonymousCount, crewAnonMemberLabel, crewIndividualLabel, customGroupMemberLabel, groupFollowerMembers, CREW_SIZE_MAX } from "../../utils/crew.js";
+import { crewExists, effectiveCrewSize, customGroupSize, crewAnonymousCount, crewAnonMemberLabel, crewIndividualLabel, customGroupMemberLabel, groupFollowerMembers, groupFollowerStanding, CREW_SIZE_MAX } from "../../utils/crew.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
 import {createArcanumItem} from "../../item/createArcanum.js";
 import {rollStat, sign, classifyResult} from "../../utils/roll-engine.js";
 import {defendReadinessHold} from "../../combat/defend-readiness.js";
-import {dieFromDamage} from "../../utils/damage.js";
+import {dieFromDamage, printedBlow} from "../../utils/damage.js";
 import {normalizeDamageDie} from "../../utils/damage-die.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
 import {escHtml, isDefaultImg, normalizePlaybookGlyphs, composeInstinct} from "../../utils/strings.js";
@@ -3359,37 +3360,47 @@ export function createStonetopCharacterSheetClass(Base) {
 						// Stat roll (STR, DEX, etc.)
 						await this._stonetopCharacter.onDirectStatRoll(roll, prompted);
 					} else if ("ownDamage" in rollable.dataset) {
-						// The character's own damage die: at their targets, or whoever they are fighting on
-						// the map, on the damage card whose Apply takes the foe's armor off
-						// (combat/attack-flow.js#rollDamageAt). The follower rows below roll as the PC's actor
-						// and are not the character's blow, so they keep the plain card.
-						await rollDamageAt(this.actor, { formula: roll, label: rollable.dataset.label ?? "Damage", shiftKey: ev.shiftKey });
+						// The character's own damage, with the weapon in hand (asked as Clash asks): at their
+						// targets, or whoever they are fighting on the map, on the damage card whose Apply takes
+						// the foe's armor off (combat/attack-flow.js#rollCharacterDamageAt).
+						await rollCharacterDamageAt(this.actor, { label: rollable.dataset.label ?? "Damage", shiftKey: ev.shiftKey });
+					} else if (rollable.classList.contains("stonetop-follower-damage-roll")) {
+						const followerType   = rollable.dataset.followerType ?? "";
+						const followerName   = (rollable.dataset.followerName   ?? "").trim();
+						const followerKind   = (rollable.dataset.followerKind   ?? "").trim();
+						const followerPronoun = (rollable.dataset.followerPronoun ?? "").trim().toLowerCase().split(/[\s/]/)[0];
+						const damageForm     = (rollable.dataset.damageForm     ?? "").trim();
+						const possessive = { he: "his", she: "her", they: "their" }[followerPronoun] ?? "its";
+						const formPart   = damageForm ? ` with ${possessive} ${damageForm}` : "";
+						// The follower is who swings, so it names the damage window as well as the
+						// card; the actor in hand is only the PC whose sheet this is. An animal
+						// companion goes by its own name, every other follower as the PC's.
+						const attacker = followerType === "animal"
+							? (followerName || followerKind || "animal companion")
+							: `${this.actor.name}'s ${followerName || { initiate: "initiate", beast: "beast", custom: "follower" }[followerType] || "crew"}`;
+						const label = `${attacker} attacks${formPart}`;
+						// Aimed like every other damage roll: as the follower's own token when they have one
+						// in the fight, else by this character's fight (combat/attack-flow.js#rollFollowerDamageAt).
+						// The tags and armor clause come off the card's own damage line, read as an NPC's is.
+						const card = rollable.closest(".stonetop-follower-card");
+						const which = { ftype: card?.dataset.ftype ?? "", slug: card?.dataset.slug ?? "" };
+						const printed = this._followerDragData?.get(`${which.ftype}:${which.slug}`)?.follower?.damage ?? "";
+						const { keywords, weapon, rollMode } = printedBlow(printed, rollable.dataset.baseRoll || roll);
+						await rollFollowerDamageAt(this.actor, {
+							fighter: followerInFight(this.actor, which),
+							formula: roll, label, attacker,
+							keywords, weapon, rollMode,
+							// The Swarm and Group-vs-group rows carry their own +N in the formula.
+							seeded: !("numbersRoll" in rollable.dataset),
+							group: (groupFollowerStanding(resolvedFlags(this.actor), which)?.standing ?? 0) > 1,
+							shiftKey: ev.shiftKey,
+						});
 					} else {
-						// Raw formula roll (e.g. damage die "d8")
-						let label, attacker;
-						if (rollable.classList.contains("stonetop-follower-damage-roll")) {
-							const followerType   = rollable.dataset.followerType ?? "";
-							const followerName   = (rollable.dataset.followerName   ?? "").trim();
-							const followerKind   = (rollable.dataset.followerKind   ?? "").trim();
-							const followerPronoun = (rollable.dataset.followerPronoun ?? "").trim().toLowerCase().split(/[\s/]/)[0];
-							const damageForm     = (rollable.dataset.damageForm     ?? "").trim();
-							const possessive = { he: "his", she: "her", they: "their" }[followerPronoun] ?? "its";
-							const formPart   = damageForm ? ` with ${possessive} ${damageForm}` : "";
-							// The follower is who swings, so it names the damage window as well as the
-							// card; the actor in hand is only the PC whose sheet this is. An animal
-							// companion goes by its own name, every other follower as the PC's.
-							attacker = followerType === "animal"
-								? (followerName || followerKind || "animal companion")
-								: `${this.actor.name}'s ${followerName || { initiate: "initiate", beast: "beast", custom: "follower" }[followerType] || "crew"}`;
-							label = `${attacker} attacks${formPart}`;
-						} else {
-							label = rollable.dataset.label ?? roll;
-						}
-						// A raw formula IS a damage roll — the character's own die, a follower's
-						// attack — so it gets the damage window rather than the move prompt, which
-						// asked it nothing upstream (see _resolveMoveRollPrompts). Shift on the
-						// originating click skips it, exactly as it skips the move prompt.
-						await rollDamagePrompted(roll, this.actor, { label, attacker, shiftKey: ev.shiftKey });
+						// A raw formula IS a damage roll (e.g. damage die "d8"), so it gets the damage
+						// window rather than the move prompt, which asked it nothing upstream (see
+						// _resolveMoveRollPrompts). Shift on the originating click skips it, exactly as it
+						// skips the move prompt.
+						await rollDamagePrompted(roll, this.actor, { label: rollable.dataset.label ?? roll, shiftKey: ev.shiftKey });
 					}
 				}
 			}, true);

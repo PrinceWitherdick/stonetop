@@ -6,6 +6,7 @@ import Handlebars from "handlebars";
 vi.mock("../../module/combat/attack-flow.js", () => ({
 	pcDamageDie: vi.fn(async actor => String(actor?.system?.attributes?.damage?.value ?? "")),
 	rollDamageAt: vi.fn(async () => true),
+	rollCharacterDamageAt: vi.fn(async () => true),
 }));
 
 import {
@@ -13,7 +14,7 @@ import {
 	createFightRingClass, createFightTokenClass, openRingOnClick, onBoardPress, closeFightRing, syncFightRing,
 	installFightRing, currentFightRing, RING_MOVES,
 } from "../../module/fight/fight-ring.js";
-import { rollDamageAt } from "../../module/combat/attack-flow.js";
+import { rollDamageAt, rollCharacterDamageAt } from "../../module/combat/attack-flow.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
 import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection } from "../fakes/fight.js";
 
@@ -61,6 +62,7 @@ beforeEach(() => {
 	globalThis.game.user = { id: "player", isGM: false };
 	globalThis.game.activeTool = "select";
 	vi.mocked(rollDamageAt).mockClear();
+	vi.mocked(rollCharacterDamageAt).mockClear();
 });
 afterEach(() => {
 	globalThis.game.settings = saved.settings;
@@ -79,7 +81,7 @@ describe("ringButtons", () => {
 			{ run: "move", itemId: "clash", label: "Clash", icon: "fa-solid fa-swords" },
 			{ run: "move", itemId: "letfly", label: "Let Fly", icon: "fa-solid fa-bow-arrow" },
 		]);
-		expect(damage).toEqual([{ run: "damage", label: "Damage", formula: "d8", weapon: null, icon: "fa-solid fa-dice-d8" }]);
+		expect(damage).toEqual([{ run: "damage", label: "Damage", formula: "d8", icon: "fa-solid fa-dice-d8" }]);
 	});
 
 	it("leaves off a move the character does not have, and a namesake that is not a move", () => {
@@ -125,7 +127,7 @@ describe("ringButtons", () => {
 		actor.items = collection([item("x", "npcMove", "Shout for help", { rollFormula: "d6" })]);
 		expect(ringButtons(actor)).toEqual({
 			moves: [],
-			damage: [{ run: "damage", label: "Spear", formula: "d8", keywords: "close, reach", weapon: weapon(["close", "reach"]), icon: "fa-solid fa-dice-d8" }],
+			damage: [{ run: "damage", label: "Spear", formula: "d8", keywords: "close, reach", rollMode: "normal", weapon: weapon(["close", "reach"]), icon: "fa-solid fa-dice-d8" }],
 			readiness: 0,
 		});
 	});
@@ -141,21 +143,27 @@ describe("ringButtons", () => {
 			{ run: "order", moveKey: null, label: "Order", icon: "fa-solid fa-hand-point-right", order },
 		]);
 		// Their damage is untouched: still the NPC sheet's one button.
-		expect(damage).toEqual([{ run: "damage", label: "Staff", formula: "d6", keywords: "close", weapon: weapon(["close"]), icon: "fa-solid fa-dice-d6" }]);
+		expect(damage).toEqual([{ run: "damage", label: "Staff", formula: "d6", keywords: "close", rollMode: "normal", weapon: weapon(["close"]), icon: "fa-solid fa-dice-d6" }]);
 	});
 
 	it("puts all of a group on one foe beside one member's die, same blow, same tags", () => {
 		const actor = fakeActor({ id: "crew", type: "npc", system: { attributes: { damage: { value: "spears d6 (close, forceful)", rollFormula: "d6" } } } });
 		const { damage } = ringButtons(actor, { swarm: { formula: "d6+5", standing: 6, bonus: 5 } });
 		expect(damage).toEqual([
-			{ run: "damage", label: "Spears", formula: "d6", keywords: "close, forceful", weapon: weapon(["close", "forceful"]), icon: "fa-solid fa-dice-d6" },
-			{ run: "damage", label: "Swarm", formula: "d6+5", keywords: "close, forceful", weapon: weapon(["close", "forceful"]), icon: "fa-solid fa-dice-d6", aria: "Roll damage: all 6 of them on one foe, d6+5" },
+			{ run: "damage", label: "Spears", formula: "d6", keywords: "close, forceful", rollMode: "normal", weapon: weapon(["close", "forceful"]), icon: "fa-solid fa-dice-d6" },
+			{ run: "damage", label: "Swarm", formula: "d6+5", keywords: "close, forceful", rollMode: "normal", weapon: weapon(["close", "forceful"]), icon: "fa-solid fa-dice-d6", aria: "Roll damage: all 6 of them on one foe, d6+5" },
 		]);
 	});
 
 	it("says how many are piling on rather than reading the swarm button's name back", () => {
 		const swarm = { run: "damage", label: "Swarm", formula: "d6+5", aria: "Roll damage: all 6 of them on one foe, d6+5" };
 		expect(ringContext({ moves: [], damage: [swarm] }).damage[0].aria).toBe("Roll damage: all 6 of them on one foe, d6+5");
+	});
+
+	it("keeps an NPC blow's printed disadvantage, on its own die and the group's", () => {
+		const actor = fakeActor({ id: "s", type: "npc", system: { attributes: { damage: { value: "stone fists d10+1 (hand, close, disadvantage)", rollFormula: "d10+1" } } } });
+		const { damage } = ringButtons(actor, { swarm: { formula: "d10+3", standing: 3, bonus: 2 } });
+		expect(damage.map(b => b.rollMode)).toEqual(["dis", "dis"]);
 	});
 
 	it("leaves a plain NPC with no orders to take exactly as it was", () => {
@@ -271,10 +279,20 @@ describe("runRingButton", () => {
 		});
 	});
 
-	it("rolls a character's damage as the sheet's Damage button does, Shift and all", async () => {
+	it("rolls a character's damage with the weapon in hand, as the sheet's Damage button does, Shift and all", async () => {
 		const actor = bram();
 		await runRingButton(ringButtons(actor, { die: "d8" }).damage[0], actor, { shiftKey: true });
-		expect(rollDamageAt).toHaveBeenCalledWith(actor, { formula: "d8", label: "Damage", weapon: null, shiftKey: true });
+		expect(rollCharacterDamageAt).toHaveBeenCalledWith(actor, { label: "Damage", rollMode: undefined, seeded: true, shiftKey: true });
+		expect(rollDamageAt).not.toHaveBeenCalled();
+	});
+
+	it("strikes back with disadvantage and no fight +N: one defender's blow", async () => {
+		const actor = bram();
+		actor.flags = { [SYSTEM_ID]: { readiness: 2 } };
+		actor.setFlag = vi.fn(async () => {});
+		await runRingButton({ run: "strikeBack", label: "Strike back", formula: "d8", rollMode: "dis", weapon: null }, actor);
+		expect(rollCharacterDamageAt).toHaveBeenCalledWith(actor, { label: "Strike back", rollMode: "dis", seeded: false, shiftKey: false });
+		expect(actor.setFlag).toHaveBeenCalledWith(expect.any(String), expect.any(String), 1);
 	});
 
 	it("orders a follower through their character's sheet, and never on Shift's shortcut", async () => {
@@ -462,7 +480,7 @@ describe("the ring window", () => {
 		expect(actor.sheet.rollMoveById).toHaveBeenCalledWith("letfly", { shiftKey: false });
 		await ring.render({ object: token });
 		await Ring.DEFAULT_OPTIONS.actions.ringRoll.call(ring, { shiftKey: true }, { dataset: { index: "2" } });
-		expect(rollDamageAt).toHaveBeenCalledWith(actor, { formula: "d8", label: "Damage", weapon: null, shiftKey: true });
+		expect(rollCharacterDamageAt).toHaveBeenCalledWith(actor, { label: "Damage", rollMode: undefined, seeded: true, shiftKey: true });
 	});
 });
 

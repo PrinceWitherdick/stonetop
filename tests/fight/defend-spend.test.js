@@ -85,23 +85,45 @@ describe("spendOnBlow", () => {
 		expect(defendNotes(card.flag)).toEqual(["bram spent Readiness to halve the blow on Bram."]);
 	});
 
+	/** A strike back that settles its questions and pays (strikeBackAt), or one the player backs out of. */
+	const striking = vi.fn(async (_defender, _attacker, _label, { commit }) => commit());
+	const backedOut = vi.fn(async () => false);
+
 	it("parries: one Readiness halves the blow and strikes back at whoever struck", async () => {
 		const fox = character("fox", 2, ["Parry & Riposte"]);
 		const card = message({ attackerUuid: "Scene.s.Token.t.Actor.wolf", results: [{ uuid: "Token.bram", name: "Bram" }] });
-		const strikeBack = vi.fn(async () => true);
-		expect(await spendOnBlow(card, "parry", { row: card.flag.results[0], defender: fox, cost: 1 }, { strikeBack })).toBe(true);
+		expect(await spendOnBlow(card, "parry", { row: card.flag.results[0], defender: fox, cost: 1 }, { strikeBack: striking })).toBe(true);
 		expect(fox.flags[SYSTEM_ID][READINESS_FLAG]).toBe(1);
 		expect([...spentOn(card.flag).halved]).toEqual(["Token.bram"]);
-		expect(strikeBack).toHaveBeenCalledWith(fox, "Scene.s.Token.t.Actor.wolf", "Parry & riposte");
+		expect(striking).toHaveBeenCalledWith(fox, "Scene.s.Token.t.Actor.wolf", "Parry & riposte", expect.objectContaining({ commit: expect.any(Function) }));
 		expect(defendNotes(card.flag)).toEqual(["fox spent Readiness to parry the blow on Bram and strike back."]);
 	});
 
 	it("parries a blow a character takes by striking back at the foe, never at the character", async () => {
 		const fox = character("fox", 2, ["Parry & Riposte"]);
 		const card = message({ attackerUuid: "Actor.bram", selfHarm: true, foeUuid: "Scene.s.Token.wolf", results: [{ uuid: "Token.bram", name: "Bram" }] });
-		const strikeBack = vi.fn(async () => true);
-		expect(await spendOnBlow(card, "parry", { row: card.flag.results[0], defender: fox, cost: 1 }, { strikeBack })).toBe(true);
-		expect(strikeBack).toHaveBeenCalledWith(fox, "Scene.s.Token.wolf", "Parry & riposte");
+		expect(await spendOnBlow(card, "parry", { row: card.flag.results[0], defender: fox, cost: 1 }, { strikeBack: striking })).toBe(true);
+		expect(striking).toHaveBeenLastCalledWith(fox, "Scene.s.Token.wolf", "Parry & riposte", expect.anything());
+	});
+
+	it("costs nothing and halves nothing when the player backs out of the strike back's weapon or damage window", async () => {
+		const fox = character("fox", 2, ["Parry & Riposte"]);
+		const card = message({ attackerUuid: "Scene.s.Token.wolf", results: [{ uuid: "Token.bram", name: "Bram" }] });
+		expect(await spendOnBlow(card, "parry", { row: card.flag.results[0], defender: fox, cost: 1 }, { strikeBack: backedOut })).toBe(false);
+		expect(fox.flags[SYSTEM_ID][READINESS_FLAG]).toBe(2);
+		expect(fox.setFlag).not.toHaveBeenCalled();
+		expect(card.setFlag).not.toHaveBeenCalled();
+	});
+
+	it("takes nothing for a parry on a blow applied while the strike back was being settled", async () => {
+		const fox = character("fox", 2, ["Parry & Riposte"]);
+		const card = message({ attackerUuid: "Scene.s.Token.wolf", results: [{ uuid: "Token.bram", name: "Bram" }] });
+		const applyFirst = vi.fn(async (_d, _a, _l, { commit }) => {
+			card.flag = { ...card.flag, applied: [{ uuid: "Token.bram", effective: 4 }] };
+			return commit();
+		});
+		expect(await spendOnBlow(card, "parry", { row: card.flag.results[0], defender: fox, cost: 1 }, { strikeBack: applyFirst })).toBe(false);
+		expect(fox.flags[SYSTEM_ID][READINESS_FLAG]).toBe(2);
 	});
 
 	it("takes a blow for free for a Steadfast Guardian, and ignores one for A Mighty Rampart", async () => {

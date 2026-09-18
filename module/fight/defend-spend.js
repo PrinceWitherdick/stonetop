@@ -197,30 +197,43 @@ function pickOffer(offers, kind) {
 /**
  * Take one spend: its Readiness off the defender (none for a Steadfast Guardian taking a blow, though they
  * must still hold some), and the card's flag told, so apply-time arithmetic (attack-flow.js#wireApplyDamage)
- * halves the blow, hands it to the defender, or lets it pass. A parry then strikes back at the attacker.
+ * halves the blow, hands it to the defender, or lets it pass.
+ *
+ * A PARRY STRIKES BACK AT THE ATTACKER, and pays only once that strike back is settled: its weapon chosen
+ * and its damage window answered (combat/attack-flow.js#strikeBackAt calls `commit`). Backing out of either
+ * spends nothing and halves nothing. The card and the Readiness are read again then, since the questions
+ * took time.
  *
  * @param {object} [deps]
- * @param {(defender: Actor, attackerUuid: string, label: string) => Promise<unknown>} [deps.strikeBack]
+ * @param {(defender: Actor, attackerUuid: string, label: string, options: {commit: () => Promise<boolean>}) => Promise<unknown>} [deps.strikeBack]
+ * @returns {Promise<boolean>} whether the spend was taken
  */
 export async function spendOnBlow(message, kind, offer, { scope = SYSTEM_ID, strikeBack = null } = {}) {
 	const current = message.getFlag(scope, "damage");
 	if (!current || !offer) return false;
-	const held = heldReadiness(offer.defender);
 	const cost = Number.isFinite(offer.cost) ? offer.cost : 1;
-	if (held < Math.max(1, cost)) return false;
-	if (cost > 0) await spendReadiness(offer.defender, cost);
-	const spend = { uuid: offer.row.uuid, name: offer.defender.name, how: kind };
+	if (heldReadiness(offer.defender) < Math.max(1, cost)) return false;
 	// Each kept as a list of who spent what, which is all spentOn and defendNotes read.
 	const list = kind === "halve" || kind === "parry" ? "halvedBy" : kind === "ignore" ? "ignoredBy" : "standIns";
-	const entry = list === "standIns" ? { ...spend, by: offer.defender.uuid, free: cost === 0 } : spend;
-	await message.setFlag(scope, "damage", { ...current, [list]: [...(current[list] ?? []), entry] });
-	if (kind === "parry") {
-		const strike = strikeBack ?? (await import("../combat/attack-flow.js")).strikeBackAt;
-		// On a blow a character takes, the card's attacker IS that character: the foe is `foeUuid`.
-		const attacker = current.selfHarm ? (current.foeUuid ?? "") : (current.attackerUuid ?? "");
-		await strike(offer.defender, attacker, format(`${KEY}.parryStrike`, {}));
-		if (ownsMoveNamed(offer.defender, HERO_MOVES.SECOND_INTENT)) await postSecondIntent(offer.defender);
-	}
+	const take = async () => {
+		const now = message.getFlag(scope, "damage");
+		if (!now || (now.applied ?? []).some(a => a.uuid === offer.row.uuid)) return false;
+		if (heldReadiness(offer.defender) < Math.max(1, cost)) return false;
+		if (cost > 0) await spendReadiness(offer.defender, cost);
+		const spend = { uuid: offer.row.uuid, name: offer.defender.name, how: kind };
+		const entry = list === "standIns" ? { ...spend, by: offer.defender.uuid, free: cost === 0 } : spend;
+		await message.setFlag(scope, "damage", { ...now, [list]: [...(now[list] ?? []), entry] });
+		return true;
+	};
+	if (kind !== "parry") return take();
+
+	const strike = strikeBack ?? (await import("../combat/attack-flow.js")).strikeBackAt;
+	// On a blow a character takes, the card's attacker IS that character: the foe is `foeUuid`.
+	const attacker = current.selfHarm ? (current.foeUuid ?? "") : (current.attackerUuid ?? "");
+	let taken = false;
+	await strike(offer.defender, attacker, format(`${KEY}.parryStrike`, {}), { commit: async () => (taken = await take()) });
+	if (!taken) return false;
+	if (ownsMoveNamed(offer.defender, HERO_MOVES.SECOND_INTENT)) await postSecondIntent(offer.defender);
 	return true;
 }
 

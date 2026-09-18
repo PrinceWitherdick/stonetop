@@ -1,6 +1,7 @@
 // What a follower's token offers in a fight: the orders their character rolls for them, and the
 // swarm die their numbers earn. Both need the same answer first — whose follower is this, and which
-// of their cards does it stand for (actors/character/follower-masters.js) — so both live here.
+// of their cards does it stand for (actors/character/follower-masters.js) — so both live here, with
+// the same answer read the other way: which token in the fight a card stands for.
 //
 // ── ORDERS ──────────────────────────────────────────────────────────────────────────────────────
 // A follower has no moves of their own to roll. When a character directs one to do something that
@@ -25,6 +26,8 @@
 
 import { followerCardFor, followerDetailBase } from "../actors/character/follower-masters.js";
 import { readableFlags } from "../actors/character/StonetopFlags.js";
+import { isFightTabEnabled } from "../settings.js";
+import { fightOnScene } from "./fight-state.js";
 import { groupFollowerStanding } from "../utils/crew.js";
 import { normalizeTags, pileOnBonus } from "../data/follower-build.js";
 import { BEAST_CATALOG } from "../data/beasts.js";
@@ -151,4 +154,33 @@ export function followerRingInfo(actor, options = {}) {
 	const card = followerCardFor(actor, options);
 	if (!card) return { order: null, swarm: null };
 	return { order: followerOrderInfo(actor, card), swarm: followerSwarm(actor, card) };
+}
+
+// ── THE CARD'S TOKEN ────────────────────────────────────────────────────────────────────────────
+// The way back: a card's damage rolled from the character's sheet swings as the follower's token when
+// there is one in the fight (combat/attack-flow.js#rollFollowerDamageAt), so it is aimed, seeded and
+// recorded exactly as the same blow from the token's own ring.
+
+/**
+ * The follower's own actor, when the card has exactly one token in the fight on the canvas scene, else
+ * null: no fight, the Fight tab off, the follower not in it, or a group split into several tokens, where
+ * which of them swung is anybody's guess.
+ *
+ * @param {Actor} character  whose card it is
+ * @param {{ftype: string, slug?: string}} card
+ * @param {object} [options]
+ * @param {Scene|null} [options.scene]
+ * @param {Function} [options.cardFor]  followerCardFor (injectable for tests)
+ * @returns {Actor|null}  the token's actor (its own, for an unlinked token)
+ */
+export function followerInFight(character, { ftype = "", slug = "" } = {}, { scene = globalThis.canvas?.scene ?? null, cardFor = followerCardFor } = {}) {
+	if (!isFightTabEnabled() || !character?.uuid || !ftype || !scene) return null;
+	const combat = fightOnScene(scene);
+	if (!combat) return null;
+	const mine = [...(combat.combatants ?? [])].filter(c => {
+		if (c?.sceneId !== scene.id || c.actor?.type !== "npc") return false;
+		const card = cardFor(c.actor, { characters: [character] });
+		return card?.character?.uuid === character.uuid && card.ftype === ftype && (card.slug ?? "") === (slug ?? "");
+	});
+	return mine.length === 1 ? mine[0].actor : null;
 }

@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { followerOrderInfo, openFollowerOrder, followerTakesOrders, followerTags, followerSwarm, followerRingInfo } from "../../module/fight/follower-fight.js";
+import { followerOrderInfo, openFollowerOrder, followerTakesOrders, followerTags, followerSwarm, followerRingInfo, followerInFight } from "../../module/fight/follower-fight.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
 import { followerCardFor } from "../../module/actors/character/follower-masters.js";
-import { fakeActor, collection } from "../fakes/fight.js";
+import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection } from "../fakes/fight.js";
 
 // Ordering a follower from their token: whose follower it is, what the Order dialog is handed, and
 // who is refused a button.
@@ -232,5 +232,61 @@ describe("followerRingInfo", () => {
 	it("answers nothing for anyone who is not a follower", () => {
 		expect(followerRingInfo(follower({ id: "stranger" }), { characters: [] })).toEqual({ order: null, swarm: null });
 		expect(followerRingInfo(fakeActor({ id: "b", type: "character" }))).toEqual({ order: null, swarm: null });
+	});
+});
+
+describe("followerInFight", () => {
+	let held;
+	beforeEach(() => {
+		held = { combats: globalThis.game.combats, settings: globalThis.game.settings, combat: globalThis.ui?.combat };
+	});
+	afterEach(() => {
+		globalThis.game.combats = held.combats;
+		globalThis.game.settings = held.settings;
+		if (globalThis.ui) globalThis.ui.combat = held.combat;
+	});
+
+	/** A fight on one scene with a token for each actor, far enough apart that nobody touches. */
+	function fightWith(actors, { fightTab = true } = {}) {
+		const tokens = actors.map((actor, i) => fakeToken({ id: `t${i}`, col: i * 3, actor }));
+		const scene = fakeScene({ tokens });
+		const combat = fakeCombat({ scene, combatants: tokens.map((token, i) => fakeCombatant({ id: `c${i}`, token, scene })) });
+		globalThis.game.combats = collection([combat]);
+		globalThis.game.settings = { get: (scope, key) => (key === "fightTab" ? fightTab : undefined) };
+		globalThis.ui ??= {};
+		globalThis.ui.combat = { viewed: combat };
+		return scene;
+	}
+	const rhianna = () => character("rhianna", { crew: { size: 6 }, customFollowers: { hari: { name: "Hari", sourceUuid: "Actor.hari" } } });
+	const crewOf = (id = "crew") => follower({ id, name: "The Crew", origin: { characterUuid: "Actor.rhianna", ftype: "crew", slug: "" } });
+
+	it("finds the token a card stands for, made for the card or recruited", () => {
+		const owner = rhianna();
+		const crew = crewOf();
+		const hari = follower({ id: "hari", name: "Hari" });
+		const scene = fightWith([owner, crew, hari]);
+		expect(followerInFight(owner, { ftype: "crew", slug: "" }, { scene })).toBe(crew);
+		expect(followerInFight(owner, { ftype: "custom", slug: "hari" }, { scene })).toBe(hari);
+	});
+
+	it("finds nobody for another card, or another character's follower", () => {
+		const owner = rhianna();
+		const scene = fightWith([owner, crewOf()]);
+		expect(followerInFight(owner, { ftype: "custom", slug: "hari" }, { scene })).toBe(null);
+		expect(followerInFight(character("bram"), { ftype: "crew", slug: "" }, { scene })).toBe(null);
+	});
+
+	it("finds nobody when the group is split into several tokens: which of them swung is anybody's guess", () => {
+		const owner = rhianna();
+		const scene = fightWith([owner, crewOf("crew"), crewOf("crew")]);
+		expect(followerInFight(owner, { ftype: "crew", slug: "" }, { scene })).toBe(null);
+	});
+
+	it("finds nobody with the Fight tab off, or with the follower out of the fight", () => {
+		const owner = rhianna();
+		let scene = fightWith([owner, crewOf()], { fightTab: false });
+		expect(followerInFight(owner, { ftype: "crew", slug: "" }, { scene })).toBe(null);
+		scene = fightWith([owner]);
+		expect(followerInFight(owner, { ftype: "crew", slug: "" }, { scene })).toBe(null);
 	});
 });

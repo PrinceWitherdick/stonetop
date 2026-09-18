@@ -525,7 +525,7 @@ describe("StonetopMonsterSheet", () => {
 		// Nobody to hit (no fight, nothing targeted), so the plain card, through the targeted roll's own
 		// fallback (combat/attack-flow.js#rollDamageAt).
 		expect(rollDialog.rollDamagePrompted).toHaveBeenCalledWith("d8", actor, {
-			label: "Garrote", keywords: "hand, grabby, ignores armor", description: "", rollMode: "normal", shiftKey: false, offers: [],
+			label: "Garrote", keywords: "hand, grabby, ignores armor", description: "", rollMode: "normal", attacker: "", shiftKey: false, offers: [],
 		});
 	});
 
