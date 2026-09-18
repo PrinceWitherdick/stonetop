@@ -68,7 +68,6 @@ describe("registerFightTab", () => {
 		for (const name of ["updateToken", "targetToken", "updateActor", "refreshToken", "canvasPan", "canvasTearDown", "clientSettingChanged", "ready"]) {
 			expect(hooks.registered.has(name), name).toBe(true);
 		}
-		expect(typeof globalThis.game.stonetop.fight.openWindow).toBe("function");
 		expect(typeof globalThis.game.stonetop.fight.sendAgainst).toBe("function");
 	});
 

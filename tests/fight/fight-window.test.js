@@ -206,6 +206,38 @@ describe("the Fight window at the table", () => {
 		expect(tab.renderPopout).toHaveBeenCalledTimes(2);
 	});
 
+	it("switches an open window to another fight and hands back the window's own draw", async () => {
+		const { tab } = table();
+		await win.syncFightWindow();
+		const other = { id: "combat2" };
+		const drawn = win.openFightWindow({ fight: other });
+		expect(tab.viewed).toBe(other);
+		expect(tab.render).toHaveBeenLastCalledWith();
+		expect(tab.renderPopout).toHaveBeenCalledTimes(2);
+		expect(await drawn).toBe(tab.popout);
+	});
+
+	it("reports a window that fails to draw while switching to a new fight", async () => {
+		const { scene, tab } = table();
+		await win.syncFightWindow();
+		// A second fight starts on the same map while the window is open.
+		const next = fakeCombat({ id: "combat2", scene, combatants: [] });
+		globalThis.game.combats = collection([next]);
+		const error = vi.spyOn(console, "error").mockImplementation(() => {});
+		tab.renderPopout.mockRejectedValueOnce(new Error("boom"));
+		await win.syncFightWindow();
+		expect(tab.viewed).toBe(next);
+		expect(error).toHaveBeenCalledWith("Stonetop | Fight window:", expect.any(Error));
+		error.mockRestore();
+	});
+
+	it("opens nothing when a module's combat tracker has no pop-out", () => {
+		table();
+		globalThis.ui = { ...globalThis.ui, combat: { viewed: null, render: vi.fn() } };
+		expect(win.openFightWindow()).toBeNull();
+		expect(() => win.syncFightWindow()).not.toThrow();
+	});
+
 	it("stays shut for a fight the reader closed it on, across a reload, and opens by hand", async () => {
 		const { tab } = table();
 		await win.syncFightWindow();
@@ -271,10 +303,23 @@ describe("the Fight window at the table", () => {
 
 	it("checks for a fight already on the map at ready", async () => {
 		const handlers = new Map();
-		win.installFightWindow({ hooks: { on: (name, fn) => handlers.set(name, fn) } });
+		win.installFightWindow({ hooks: { on: (name, fn) => handlers.set(name, fn) }, page: {} });
 		const { tab } = table();
 		await handlers.get("ready")();
 		expect(tab.renderPopout).toHaveBeenCalledTimes(1);
+	});
+
+	it("writes down a place still waiting on its delay as the page unloads, and only once", () => {
+		vi.useFakeTimers();
+		const listeners = new Map();
+		win.installFightWindow({ hooks: { on: () => {} }, page: { addEventListener: (name, fn) => listeners.set(name, fn) } });
+		table();
+		win.rememberFightWindowPosition({ left: 10, top: 20, width: 380, height: 640 });
+		listeners.get("beforeunload")();
+		expect(store.get("fightWindow")).toEqual({ position: { left: 10, top: 20, width: 380, height: 640 } });
+		vi.advanceTimersByTime(500);
+		listeners.get("beforeunload")();
+		expect(globalThis.game.settings.set).toHaveBeenCalledTimes(1);
 	});
 
 	it("reports a window that fails to draw, rather than leaving an unhandled rejection", async () => {

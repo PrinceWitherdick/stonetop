@@ -48,6 +48,21 @@ class FakeCombatTracker {
 
 const FightTracker = createFightTrackerClass(FakeCombatTracker);
 
+/** What marks a Fight window with a height in numbers, which the stylesheet's room-below cap leaves alone. */
+const SIZED = "data-stonetop-fight-sized";
+
+/** The pop-out's frame, as far as the position code touches it: its style's custom properties and its attributes. */
+function fakeFrame() {
+	const vars = new Map();
+	const attributes = new Set();
+	return {
+		vars,
+		style: { setProperty: (name, value) => vars.set(name, value) },
+		toggleAttribute: (name, on) => { if (on) attributes.add(name); else attributes.delete(name); return on; },
+		hasAttribute: name => attributes.has(name),
+	};
+}
+
 let saved;
 let settings;
 beforeEach(() => {
@@ -403,17 +418,105 @@ describe("the Fight window, the tab popped out", () => {
 		expect(context.isPopout).toBe(true);
 	});
 
-	it("holds the window to the room below where it stands, so a long fight scrolls inside it", () => {
+	it("goes back to fitting its content when restored from minimized, unless the reader sized it", async () => {
+		/** Core's maximize: the window back at the height it had, in numbers (ApplicationV2#maximize). */
+		class Restoring extends FakeCombatTracker {
+			async maximize() { this.minimized = false; this.setPosition({ width: 400, height: 512 }); }
+			setPosition(position) { this.moves = [...(this.moves ?? []), position]; Object.assign(this.position, position); }
+		}
+		const Tracker = createFightTrackerClass(Restoring);
+		const open = () => Object.assign(new Tracker({ id: "combat-popout", window: { frame: true, positioned: true } }), { minimized: true });
+		const fitting = open();
+		await fitting.maximize();
+		expect(fitting.moves.at(-1)).toEqual({ height: "auto" });
+		const sized = open();
+		sized.options.position.height = 512;
+		await sized.maximize();
+		expect(sized.moves).toEqual([{ width: 400, height: 512 }]);
+	});
+
+	it("keeps no height for a window fitting its content, though core hands one back when it is restored from minimized", () => {
 		const popout = popOut();
-		const vars = new Map();
-		popout.element = { style: { setProperty: (name, value) => vars.set(name, value) } };
+		popout.position = { left: 30, top: 40, width: 400, height: 512 };
+		popout._onPosition(popout.position);
+		expect(rememberFightWindowPosition).toHaveBeenLastCalledWith({ left: 30, top: 40, width: 400, height: "auto" });
+		// The reader drags it to a size: core writes the height into the options as the drag starts.
+		popout.options.position.height = 512;
+		popout._onPosition(popout.position);
+		expect(rememberFightWindowPosition).toHaveBeenLastCalledWith({ left: 30, top: 40, width: 400, height: 512 });
+	});
+
+	it("holds a window fitting its content to the room below where it stands, and marks one the reader sized", () => {
+		const popout = popOut();
+		popout.element = fakeFrame();
 		expect(popout._updatePosition({ top: 120.4, height: "auto" })).toEqual({ top: 120.4, height: "auto" });
-		expect(vars.get("--stonetop-fight-top")).toBe("120px");
+		expect(popout.element.vars.get("--stonetop-fight-top")).toBe("120px");
+		expect(popout.element.hasAttribute(SIZED)).toBe(false);
+		// A height in numbers the reader never gave it (core's restore from minimized) is not a size.
+		popout._updatePosition({ top: 120, height: 600 });
+		expect(popout.element.hasAttribute(SIZED)).toBe(false);
+		popout.options.position.height = 600;
+		popout._updatePosition({ top: 120, height: 600 });
+		expect(popout.element.hasAttribute(SIZED)).toBe(true);
 		const tab = new FightTracker();
-		const tabVars = new Map();
-		tab.element = { style: { setProperty: (name, value) => tabVars.set(name, value) } };
-		tab._updatePosition({ top: 50 });
-		expect(tabVars.size).toBe(0);
+		tab.element = fakeFrame();
+		tab._updatePosition({ top: 50, height: 300 });
+		expect(tab.element.vars.size).toBe(0);
+		expect(tab.element.hasAttribute(SIZED)).toBe(false);
+	});
+
+	describe("dragged toward the foot of the screen", () => {
+		/**
+		 * Core's setPosition and height clamp (ApplicationV2, v13 and v14 alike) on a 1080px screen, with
+		 * the stylesheet's room-below cap standing in for getComputedStyle: it applies to a frame not
+		 * marked sized, as styles/stonetop.css scopes it.
+		 */
+		class CoreClamp extends FakeCombatTracker {
+			contentHeight = 900;
+			setPosition(position) {
+				position = Object.assign(this.position, position);
+				Object.assign(this.position, this._updatePosition(position));
+				this._onPosition(position);
+				return position;
+			}
+			_updatePosition(position) {
+				const screen = 1080;
+				const standsAt = Number.parseInt(this.element.vars.get("--stonetop-fight-top") ?? "16", 10);
+				const cap = this.element.hasAttribute(SIZED) ? screen : Math.max(240, screen - standsAt - 16);
+				let { height, top } = position;
+				if (height !== "auto") height = Math.min(height, cap);
+				const shown = height === "auto" ? Math.min(this.contentHeight, cap) : height;
+				top = Math.min(Math.max(0, top), Math.max(0, screen - shown));
+				return { ...position, height, top };
+			}
+		}
+		const Clamped = createFightTrackerClass(CoreClamp);
+		const clampedPopOut = () => {
+			const popout = new Clamped({ id: "combat-popout", classes: ["sidebar-popout"], window: { frame: true, positioned: true } });
+			popout.element = fakeFrame();
+			return popout;
+		};
+
+		it("keeps a height the reader chose, going down and coming back up, and saves that height", () => {
+			const popout = clampedPopOut();
+			popout.options.position.height = 700;
+			popout.setPosition({ top: 16, height: 700 });
+			// Each frame of a drag asks for the height the drag started with; core slides the window up to fit.
+			popout.setPosition({ top: 616, height: popout.position.height });
+			expect(popout.position).toMatchObject({ top: 380, height: 700 });
+			popout.setPosition({ top: 16, height: popout.position.height });
+			expect(popout.position).toMatchObject({ top: 16, height: 700 });
+			expect(rememberFightWindowPosition).toHaveBeenLastCalledWith(expect.objectContaining({ top: 16, height: 700 }));
+		});
+
+		it("lets a window fitting its content shrink with the room and grow back, saving no height", () => {
+			const popout = clampedPopOut();
+			popout.setPosition({ top: 900, height: "auto" });
+			expect(popout.position).toMatchObject({ top: 840, height: "auto" });
+			popout.setPosition({ top: 16, height: "auto" });
+			expect(popout.position).toMatchObject({ top: 16, height: "auto" });
+			expect(rememberFightWindowPosition).toHaveBeenLastCalledWith(expect.objectContaining({ top: 16, height: "auto" }));
+		});
 	});
 
 	it("opens from the tab's button as the reader's own choice", () => {
@@ -427,5 +530,12 @@ describe("the Fight tab source", () => {
 		const src = fs.readFileSync(path.join(ROOT, "module/fight/FightTracker.js"), "utf8");
 		const options = src.slice(src.indexOf("static DEFAULT_OPTIONS"), src.indexOf("static PARTS"));
 		expect(options).not.toMatch(/classes/);
+	});
+
+	it("holds only a Fight window fitting its content to the room below it", () => {
+		const css = fs.readFileSync(path.join(ROOT, "styles/stonetop.css"), "utf8");
+		const at = css.indexOf("var(--stonetop-fight-top");
+		const selector = css.slice(css.lastIndexOf("*/", at), css.lastIndexOf("{", at));
+		expect(selector).toContain(`:not([${SIZED}])`);
 	});
 });

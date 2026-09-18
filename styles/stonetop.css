@@ -6585,12 +6585,19 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
    back to core's tracker keeps core's pop-out as it was. */
 .combat-sidebar.sidebar-popout:has(.stonetop-fight-tracker) {
 	min-width: var(--sidebar-width, 300px);
-	/* No taller than the room between where the window stands (FightTracker#_updatePosition) and the
-	   foot of the screen, less the margin fight-window.js keeps at the top. Core measures a
-	   content-fitted pop-out against this, so a long fight scrolls its list inside the window rather
-	   than pushing the window up the screen. The header's buttons stay in view above the list.
-	   The floor keeps a window dragged to the foot of the screen from folding to its title bar:
-	   core slides that one back up instead. */
+}
+
+/* No taller than the room between where the window stands (FightTracker#_updatePosition) and the
+   foot of the screen, less the margin fight-window.js keeps at the top. Core measures a
+   content-fitted pop-out against this, so a long fight scrolls its list inside the window rather
+   than pushing the window up the screen. The header's buttons stay in view above the list.
+   The floor keeps a window dragged to the foot of the screen from folding to its title bar:
+   core slides that one back up instead.
+   ONLY WHILE IT FITS ITS CONTENT. Core holds a height given in numbers (dragged to a size, or saved)
+   to any max-height too, and keeps what it clamped to as the window's own: a sized window dragged
+   toward the foot of the screen came back up shorter, and was saved that way. A sized window is
+   held to the screen by core, which slides it up to fit. */
+.combat-sidebar.sidebar-popout:has(.stonetop-fight-tracker):not([data-stonetop-fight-sized]) {
 	max-height: max(240px, calc(100vh - var(--stonetop-fight-top, 16px) - 16px));
 }
 

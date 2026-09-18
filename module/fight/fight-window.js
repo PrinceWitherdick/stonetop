@@ -23,6 +23,7 @@
 
 import { fightOnScene, fighterOf } from "./fight-state.js";
 import { getObjectSetting, isFightWindowAuto, setSettingQuietly } from "../settings.js";
+import { finitePlace } from "../utils/window-restore.js";
 
 /**
  * The client setting holding where this reader left the window and the fight they closed it on.
@@ -55,7 +56,7 @@ const REMEMBER_DELAY_MS = 400;
  * @returns {{decided: string|null, action: "open"|"close"|null}}
  */
 export function fightWindowStep(decided, { fightId, canSeeSomeone, auto, closedId = null }) {
-	if (fightId && fightId === decided) return { decided, action: null };
+	if (fightId === decided) return { decided, action: null };
 	if (!fightId || !canSeeSomeone) return { decided: null, action: decided ? "close" : null };
 	return { decided: fightId, action: auto && closedId !== fightId ? "open" : null };
 }
@@ -107,13 +108,16 @@ let decided = null;
 
 let rememberTimer = null;
 
+/** Where the window was last left, while it waits on REMEMBER_DELAY_MS to be written down. */
+let placeToWrite = null;
+
 /**
  * Whether this reader can see anyone in a fight on `scene`, by the tab's own rule (a hidden token or a
  * hidden combatant is nobody, to a player), never the canvas's line of sight.
  */
-export function canSeeSomeoneIn(combat, scene, user = globalThis.game?.user) {
+function canSeeSomeoneIn(combat, scene, user) {
 	if (user?.isGM) return true;
-	return [...(combat?.combatants ?? [])].some(combatant => fighterOf(combatant, { scene, viewer: user })?.visible);
+	return [...combat.combatants].some(combatant => fighterOf(combatant, { scene, viewer: user })?.visible);
 }
 
 /**
@@ -127,13 +131,16 @@ export function syncFightWindow() {
 	if (!game?.ready || !globalThis.ui?.combat) return null;
 	const scene = globalThis.canvas?.scene ?? null;
 	const fight = fightOnScene(scene);
+	const fightId = fight?.id ?? null;
 	// Most calls are a token moving in a fight already decided about: nothing to read or do.
-	if ((fight?.id ?? null) === decided) return null;
+	if (fightId === decided) return null;
+	// A fight nobody here can see yet decides nothing, so its settings are not read.
+	const canSeeSomeone = !!fight && canSeeSomeoneIn(fight, scene, game.user);
 	const step = fightWindowStep(decided, {
-		fightId: fight?.id ?? null,
-		canSeeSomeone: !!fight && canSeeSomeoneIn(fight, scene, game.user),
-		auto: isFightWindowAuto(),
-		closedId: readRecord().closed ?? null,
+		fightId,
+		canSeeSomeone,
+		auto: canSeeSomeone && isFightWindowAuto(),
+		closedId: canSeeSomeone ? readRecord().closed : null,
 	});
 	decided = step.decided;
 	const work = step.action === "open" ? openFightWindow({ fight })
@@ -152,6 +159,7 @@ export function syncFightWindow() {
  */
 export function openFightWindow({ fight = null, byHand = false } = {}) {
 	const tab = globalThis.ui?.combat;
+	// A module that swaps in its own combat tracker may have no pop-out to open.
 	if (typeof tab?.renderPopout !== "function") return null;
 	if (byHand && readRecord().closed) writeRecord({ closed: null });
 	// The window shows whatever the tab is viewing, so a new fight has to be the tab's first. Assigning
@@ -160,11 +168,13 @@ export function openFightWindow({ fight = null, byHand = false } = {}) {
 		tab.viewed = fight;
 		tab.render();
 	}
+	// An open window redraws with the tab too (AbstractSidebarTab#render), but core does not hand back
+	// that draw, so a window switching fights draws once more here: this is the draw a caller can catch.
 	return tab.renderPopout();
 }
 
 /** Close the window because this map has no fight on it any more. */
-export function closeFightWindow() {
+function closeFightWindow() {
 	const popout = globalThis.ui?.combat?.popout;
 	if (!popout?.rendered) return null;
 	return popout.close({ [FIGHT_OVER]: true });
@@ -193,13 +203,24 @@ export function fightWindowPosition() {
  * still fitting its content reports its height as "auto", and must go on fitting it next time.
  */
 export function rememberFightWindowPosition(position) {
-	const place = {};
-	for (const key of ["left", "top", "width", "height"]) {
-		if (Number.isFinite(position?.[key])) place[key] = Math.round(position[key]);
-	}
+	const place = finitePlace(position);
 	if (!("left" in place) || !("top" in place)) return;
+	placeToWrite = place;
 	clearTimeout(rememberTimer);
-	rememberTimer = setTimeout(() => writeRecord({ position: place }), REMEMBER_DELAY_MS);
+	rememberTimer = setTimeout(writeFightWindowPosition, REMEMBER_DELAY_MS);
+}
+
+/**
+ * Write down the place still waiting on the delay. Also run as the page unloads, so a window moved
+ * just before a reload is not lost: a client setting lands in localStorage before the page goes.
+ */
+function writeFightWindowPosition() {
+	clearTimeout(rememberTimer);
+	rememberTimer = null;
+	if (!placeToWrite) return;
+	const place = placeToWrite;
+	placeToWrite = null;
+	writeRecord({ position: place });
 }
 
 /**
@@ -213,7 +234,11 @@ export function fightWindowWillShow({ started = false } = {}) {
 	return !!globalThis.ui?.combat?.popout?.rendered || (started && isFightWindowAuto());
 }
 
-/** Open the window for a fight already on the map at ready (a reload in the middle of one). */
-export function installFightWindow({ hooks = globalThis.Hooks } = {}) {
+/**
+ * Open the window for a fight already on the map at ready (a reload in the middle of one), and write
+ * down a place still waiting on its delay as the page unloads.
+ */
+export function installFightWindow({ hooks = globalThis.Hooks, page = globalThis } = {}) {
 	hooks.on("ready", () => { syncFightWindow(); });
+	page.addEventListener?.("beforeunload", writeFightWindowPosition);
 }

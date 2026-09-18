@@ -276,22 +276,53 @@ export function createFightTrackerClass(Base) {
 		 * whole height. Here the frame is held to the room below where it stands (the stylesheet
 		 * reads `--stonetop-fight-top`), so its top edge stays put and the list of fighters scrolls
 		 * inside it, under the header's buttons.
+		 *
+		 * Only while the window fits its content. A window the reader has sized (_fightSized) is marked
+		 * `data-stonetop-fight-sized`, which lifts that hold: core keeps the height it clamps to as the
+		 * window's own, so the hold would shrink a sized window dragged low for good. Set before core reads
+		 * the frame's style.
 		 */
 		_updatePosition(position) {
-			const top = Number(position?.top);
-			if (this.isPopout && Number.isFinite(top)) this.element?.style?.setProperty?.("--stonetop-fight-top", `${Math.max(0, Math.round(top))}px`);
+			if (this.isPopout && this.element) {
+				const top = Number(position?.top);
+				if (Number.isFinite(top)) this.element.style.setProperty("--stonetop-fight-top", `${Math.max(0, Math.round(top))}px`);
+				this.element.toggleAttribute("data-stonetop-fight-sized", this._fightSized());
+			}
 			return super._updatePosition(position);
 		}
 
-		/** @inheritDoc: a moved or resized Fight window opens there next time. A minimized one says nothing about that. */
+		/**
+		 * Whether the reader has given the Fight window a height: core writes it into the options when they
+		 * start dragging it to a size, and a saved one opens there. The one test for it. The position's own
+		 * height says nothing: restoring a window from minimized hands it back in numbers.
+		 */
+		_fightSized() {
+			return Number.isFinite(this.options.position?.height);
+		}
+
+		/**
+		 * @inheritDoc: a window still fitting its content goes on fitting it once it is restored. Core
+		 * restores it at the height it had when it was minimized, in numbers, which would pin it there: new
+		 * fighters would scroll rather than grow it.
+		 */
+		async maximize() {
+			await super.maximize();
+			if (this.isPopout && !this.minimized && !this._fightSized()) this.setPosition({ height: "auto" });
+		}
+
+		/**
+		 * @inheritDoc: a moved or resized Fight window opens there next time. A minimized one says nothing about that.
+		 * The height is kept only once the reader has given the window one (_fightSized).
+		 */
 		_onPosition(position) {
-			super._onPosition?.(position);
-			if (this.isPopout && !this.minimized) rememberFightWindowPosition(this.position);
+			super._onPosition(position);
+			if (!this.isPopout || this.minimized) return;
+			rememberFightWindowPosition(this._fightSized() ? this.position : { ...this.position, height: "auto" });
 		}
 
 		/** @inheritDoc: the reader closing the Fight window keeps it shut for this fight; the fight ending does not. */
 		_onClose(options) {
-			super._onClose?.(options);
+			super._onClose(options);
 			if (this.isPopout && !options?.[FIGHT_OVER]) noteFightWindowClosed();
 		}
 
