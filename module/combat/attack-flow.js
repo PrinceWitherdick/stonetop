@@ -1369,11 +1369,7 @@ async function resolveAttackTier(message, actor, btn, root, shiftKey = false) {
 	if (btn.disabled || message.getFlag(SCOPE, "attack")?.resolved) return;
 	btn.disabled = true;
 	const attack = message.getFlag(SCOPE, "attack");
-
-	// No foe targeted before the roll? Honor one targeted afterward (T, then Confirm). This runs
-	// on the attacker's client, so game.user.targets is theirs; persist it so the card records
-	// what was actually hit.
-	const targets = attack.targets?.length ? attack.targets : snapshotTargets();
+	const frozen = attack.targets ?? [];
 
 	// Whatever the move's OWN ticked bullets add, stacked on top of the tier's own
 	// unconditional numbers (Clash's 7-9 suffers the enemy's attack whether or not anything is
@@ -1391,9 +1387,16 @@ async function resolveAttackTier(message, actor, btn, root, shiftKey = false) {
 	// are thrown (what was ticked is already on the card). Nothing else on the tier can survive it, which
 	// is why it is answered before the dice and before the quiver.
 	if (fx.addons.includes(NO_HARM)) {
-		await lockAttackCard(message, root, { targets });
+		await lockAttackCard(message, root, { targets: frozen.length ? frozen : snapshotTargets() });
 		return;
 	}
+
+	// Nobody to hit when the dice were thrown? Whoever the character is fighting NOW: a foe targeted
+	// since (T, then Confirm), or one they have stepped into contact with, asked when that is more than
+	// one (fight/fight-targets.js), exactly as the roll itself would have. This runs on the attacker's
+	// client, so game.user.targets is theirs; the card records what was actually hit.
+	const targets = frozen.length ? frozen : await rollTargets(actor, { handTargets: snapshotTargets() });
+	if (targets === null) { btn.disabled = false; return; }
 
 	// Call the Shot's first bullet is "Ignore armor or deal +1d4 damage (your call)", so ticking
 	// it asks which — the move's own question, put to the only person entitled to answer it. Asked
