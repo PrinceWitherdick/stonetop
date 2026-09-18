@@ -1,6 +1,6 @@
-// "Line everyone up": the fights already going on kept exactly as they stand and spread across what
-// the GM is looking at, and everyone not yet fighting anybody in a column of their own side, heroes
-// to the left and foes to the right.
+// "Line everyone up": the fights already going on kept exactly as they stand and set side by side
+// where everybody already is, and everyone not yet fighting anybody in a column of their own side,
+// heroes to the left and foes to the right.
 //
 // A LINE-UP NEVER BREAKS A FIGHT. Engagements are read off the map (engagements.js), so marching
 // everybody into two tidy columns would tell every scrum on the board that it is over. So the
@@ -13,10 +13,12 @@
 // targeting somebody across the room, and a target survives any move; only standing against
 // somebody is a claim a line-up could take away.
 //
-// AROUND THE VIEW, NOT THE SCENE'S EDGES. A fight happens in the part of the map in front of the
-// table; lining up against the scene's own left and right edges would put the two sides a map apart
-// on a large scene, often somewhere nobody is looking. (token-drop.js#clusterPoint centres a deploy
-// on the view for the same reason.)
+// AROUND WHERE THEY STAND, NOT THE SCENE'S EDGES. The formation is centred on the middle of the
+// fighters' own footprint, so a line-up tidies them up in place instead of marching everybody across
+// the map; lining up against the scene's own left and right edges would put the two sides a map
+// apart. Only when nobody stands on the map yet (a fight's arrivals) is it centred on the view, as
+// token-drop.js#clusterPoint centres a deploy. The view still sets how tall a column may grow and
+// how wide a row of scrums. Pressing it twice moves nobody the second time.
 //
 // NOBODY NEW STARTS ENGAGED. The scrums stand `gap` whole squares apart from each other and from
 // the two columns, and the columns `gap` apart from each other, so a line-up never puts two tokens
@@ -115,6 +117,14 @@ function blobOf(ids, byId, grid) {
 	};
 }
 
+/** The box around some rects in scene pixels, as its left, right, top and bottom edges. */
+function boundsOf(items) {
+	return {
+		x0: Math.min(...items.map(i => i.x)), x1: Math.max(...items.map(i => i.x + i.w)),
+		y0: Math.min(...items.map(i => i.y)), y1: Math.max(...items.map(i => i.y + i.h)),
+	};
+}
+
 /** Stand the scrums side by side in rows no wider than `cols` squares, `space` squares apart. */
 function shelve(blobs, cols, space) {
 	const shelves = [];
@@ -158,9 +168,17 @@ export function lineUpPositions({ view, size, sceneRect, heroes = [], foes = [],
 	const seen = view ?? scene;
 	if (!heroes.length && !foes.length) return positions;
 
-	// Everything below works in whole squares counted from the scene rectangle's corner.
-	const midCol = Math.round((seen.x + seen.w / 2 - scene.x) / grid);
-	const midRow = Math.round((seen.y + seen.h / 2 - scene.y) / grid);
+	// Everything below works in whole squares counted from the scene rectangle's corner, around the
+	// middle of where the fighters stand now, or of the view when none of them stands anywhere yet.
+	const standing = [...heroes, ...foes].filter(stands).map(t => ({
+		x: Number(t.x), y: Number(t.y), w: squares(t.w) * grid, h: squares(t.h) * grid,
+	}));
+	const footprint = standing.length ? boundsOf(standing) : null;
+	const middle = footprint
+		? { x: (footprint.x0 + footprint.x1) / 2, y: (footprint.y0 + footprint.y1) / 2 }
+		: { x: seen.x + seen.w / 2, y: seen.y + seen.h / 2 };
+	const midCol = Math.round((middle.x - scene.x) / grid);
+	const midRow = Math.round((middle.y - scene.y) / grid);
 	const clear = Math.max(0, margin);
 	const rows = Math.max(1, Math.floor(seen.h / grid) - 2 * clear);
 	const cols = Math.max(1, Math.floor(seen.w / grid) - 2 * clear);
@@ -172,7 +190,7 @@ export function lineUpPositions({ view, size, sceneRect, heroes = [], foes = [],
 	const sets = scrumsOf(heroes, foes, { size: grid, kind: gridKind });
 	const inScrum = new Set([...sets.values()].flat());
 
-	// The scrums take the middle of the view, each as it stands, left to right in the order the
+	// The scrums take the middle, each as it stands, left to right in the order the
 	// fight lists their first member.
 	const blobs = [...sets.values()]
 		.map(ids => [...ids].sort((a, b) => order.get(a) - order.get(b)))
@@ -223,12 +241,20 @@ export function lineUpPositions({ view, size, sceneRect, heroes = [], foes = [],
 	place(stackColumns(waiting(foes), rows), 1);
 	if (!units.length) return positions;
 
+	// A formation built around the fighters is centred on them exactly, to the nearest square: laying
+	// it out on `midCol`/`midRow` alone can land it half a square off, and pressing the button again
+	// would then walk everybody a square further every time. A half square is no reason to move, so
+	// a tie leaves it where it is.
+	if (footprint) {
+		const built = boundsOf(units.flat());
+		const toward = v => Math.sign(v) * Math.ceil(Math.abs(v) - 0.5);
+		const sx = toward((middle.x - (built.x0 + built.x1) / 2) / grid) * grid;
+		const sy = toward((middle.y - (built.y0 + built.y1) / 2) / grid) * grid;
+		for (const unit of units) for (const i of unit) { i.x += sx; i.y += sy; }
+	}
+
 	// Slide the whole formation back onto the scene if it hangs off an edge (it keeps its shape
 	// whenever it fits), then hold each lone token, and each scrum WHOLE, inside on its own.
-	const boundsOf = items => ({
-		x0: Math.min(...items.map(i => i.x)), x1: Math.max(...items.map(i => i.x + i.w)),
-		y0: Math.min(...items.map(i => i.y)), y1: Math.max(...items.map(i => i.y + i.h)),
-	});
 	const nudge = (lo, hi, min, max) => {
 		if (lo < min) return Math.ceil((min - lo) / grid) * grid;
 		if (hi > max) return -Math.min(Math.ceil((hi - max) / grid), Math.max(0, Math.floor((lo - min) / grid))) * grid;

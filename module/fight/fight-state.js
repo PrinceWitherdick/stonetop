@@ -23,8 +23,6 @@ import { classifySide, bodiesFor } from "./fight-sides.js";
 export const FIGHT_FLAG = "fight";
 export const SIDE_FLAG = "side";
 export const COUNT_FLAG = "count";
-/** Where everyone stood before the last line-up, for "Put everyone back" (start-fight.js). */
-export const LAST_LINE_UP_FLAG = "lastLineUp";
 
 /** Core's OWNER ownership level, which a module read in tests cannot reach through CONST. */
 const OWNER = 3;

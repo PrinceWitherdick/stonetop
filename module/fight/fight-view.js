@@ -135,23 +135,9 @@ export function fightTrackerView({ snapshot, rows, isGM = false, format, cites, 
 	};
 }
 
-/** Book passages as the tab and the book window both print them: the words, and each one's citation. */
+/** Book passages as the tab prints them: the words, and each one's citation. */
 function ruleQuotesView(keys, { isGM, cites }) {
 	return fightRuleQuotes(keys, { isGM }).map(q => ({ key: q.key, text: q.text, cites: cites(q) }));
-}
-
-/** The book's advice on fights as a whole, which holds for every fight and so is not in the tab: the book window (FightBookWindow.js) shows it. */
-export const FIGHT_BOOK_RULES = Object.freeze(["smallerEngagements", "noTurns", "mapsFocus"]);
-
-/**
- * What the book window shows this reader: the passages, each with its citation.
- *
- * @param {object} p
- * @param {boolean} p.isGM
- * @param {(entry: {page: number, book: number}) => Array} p.cites  gm-toolkit/book-ref.js#bookPageCites
- */
-export function fightBookView({ isGM = false, cites }) {
-	return { quotes: ruleQuotesView(FIGHT_BOOK_RULES, { isGM, cites }) };
 }
 
 /**

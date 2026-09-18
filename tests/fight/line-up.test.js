@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import { lineUpPositions } from "../../module/fight/line-up.js";
 import { touching } from "../../module/fight/engagements.js";
 
-// "Line everyone up": heroes left of the view's middle, foes right, a few squares apart.
+// "Line everyone up": heroes left of the middle, foes right, a few squares apart. The middle is
+// where the fighters stand, or the view's when none of them stands on the map yet.
 
 const SIZE = 100;
 const scene = { x: 0, y: 0, w: 4000, h: 3000 };
@@ -84,6 +85,23 @@ describe("lineUpPositions", () => {
 		expect(square(onlyFoes.get("f0")).col).toBe(21);
 		expect(lineUpPositions({ view, size: SIZE, sceneRect: scene }).size).toBe(0);
 	});
+
+	it("lines up around where the fighters stand, not the middle of the view", () => {
+		// Well off to the bottom left of the view: the middle of the two is square (7, 25).
+		const positions = lineUpPositions({
+			view, size: SIZE, sceneRect: scene,
+			heroes: [{ id: "h", w: 1, h: 1, x: 300, y: 2400 }], foes: [{ id: "f", w: 1, h: 1, x: 900, y: 2500 }],
+		});
+		expect(square(positions.get("h"))).toEqual({ col: 4, row: 25 });
+		expect(square(positions.get("f"))).toEqual({ col: 8, row: 25 });
+	});
+
+	it("moves nobody when pressed again", () => {
+		const first = lineUpPositions({ view, size: SIZE, sceneRect: scene, heroes: tokens("h", 3), foes: tokens("f", 2) });
+		const standing = (prefix, n) => tokens(prefix, n).map(t => ({ ...t, ...first.get(t.id) }));
+		const again = lineUpPositions({ view, size: SIZE, sceneRect: scene, heroes: standing("h", 3), foes: standing("f", 2) });
+		for (const [id, at] of first) expect({ x: again.get(id).x, y: again.get(id).y }).toEqual({ x: at.x, y: at.y });
+	});
 });
 
 // A line-up must not break up the fights already going on: engagements are read off the map, so
@@ -121,20 +139,21 @@ describe("lineUpPositions with fights already going on", () => {
 		expect(positions.get("fC").group).toBeNull();
 	});
 
-	it("stands the scrums side by side in the middle of the view, a few squares apart", () => {
+	it("stands the scrums side by side around the middle of where everyone stands, a few squares apart", () => {
 		const positions = lineUp();
-		expect(square(positions.get("hA"))).toEqual({ col: 17, row: 14 });
-		expect(square(positions.get("fA"))).toEqual({ col: 18, row: 14 });
-		expect(square(positions.get("hB"))).toEqual({ col: 22, row: 14 });
-		expect(square(positions.get("fB2"))).toEqual({ col: 23, row: 15 });
-		// Squares 19, 20 and 21 stand empty between the two of them.
-		expect(22 - (18 + 1)).toBe(3);
+		// Everyone spans squares 1 to 35 across and 1 to 25 down.
+		expect(square(positions.get("hA"))).toEqual({ col: 15, row: 13 });
+		expect(square(positions.get("fA"))).toEqual({ col: 16, row: 13 });
+		expect(square(positions.get("hB"))).toEqual({ col: 20, row: 13 });
+		expect(square(positions.get("fB2"))).toEqual({ col: 21, row: 14 });
+		// Squares 17, 18 and 19 stand empty between the two of them.
+		expect(20 - (16 + 1)).toBe(3);
 	});
 
 	it("lines up only the fighters nobody is up against, clear of the scrums", () => {
 		const positions = lineUp();
-		expect(square(positions.get("hC"))).toEqual({ col: 13, row: 15 });
-		expect(square(positions.get("fC"))).toEqual({ col: 27, row: 15 });
+		expect(square(positions.get("hC"))).toEqual({ col: 11, row: 14 });
+		expect(square(positions.get("fC"))).toEqual({ col: 25, row: 14 });
 	});
 
 	it("brings nobody new into contact, and takes nobody out of it", () => {
@@ -163,16 +182,17 @@ describe("lineUpPositions with fights already going on", () => {
 		});
 		expect(positions.get("hA").group).toBeNull();
 		expect(positions.get("fA").group).toBeNull();
-		expect(square(positions.get("hA"))).toEqual({ col: 17, row: 15 });
-		expect(square(positions.get("fA"))).toEqual({ col: 21, row: 15 });
+		// The two of them stand on squares 5 and 6 of row 5, and still do, three squares apart.
+		expect(square(positions.get("hA"))).toEqual({ col: 3, row: 5 });
+		expect(square(positions.get("fA"))).toEqual({ col: 7, row: 5 });
 	});
 
 	it("opens another row of scrums when they do not fit across the view", () => {
 		// A view 8 squares wide holds one of these two scrums in a row, not both.
 		const narrow = { x: 1200, y: 1000, w: 800, h: 1000 };
 		const positions = lineUpPositions({ view: narrow, size: SIZE, sceneRect: scene, heroes: [hA, hB], foes: [fA, fB, fB2] });
-		expect(square(positions.get("hA"))).toEqual({ col: 15, row: 12 });
-		expect(square(positions.get("hB"))).toEqual({ col: 15, row: 16 });
+		expect(square(positions.get("hA"))).toEqual({ col: 13, row: 11 });
+		expect(square(positions.get("hB"))).toEqual({ col: 13, row: 15 });
 		const a = asFighter(fA, "foes", positions.get("fA"));
 		expect(touching(asFighter(hB, "heroes", positions.get("hB")), a, { size: SIZE })).toBe(false);
 	});

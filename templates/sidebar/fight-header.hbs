@@ -5,14 +5,6 @@
       buttons are core's plain buttons, so they follow the sidebar's theme. Affirmative actions
       first; "End the fight" last.
 
-      The map-lines toggle is ONE button that says what it is and reports its state through
-      aria-pressed, rather than a label that flips between "show" and "hide", and it is never
-      hidden by its own state.
-
-      "What the book says" opens the book's advice on fights as a whole in a window of its own
-      (module/fight/FightBookWindow.js). It is the same for every fight, so it has no place in a
-      column that is already as tall as the fight is big.
-
       The same header draws the Fight window (the tab popped out, module/fight/fight-window.js),
       which has no use for a button that opens itself: `isPopout` leaves it out there. --}}
 <header class="combat-tracker-header stonetop-fight-header">
@@ -40,24 +32,12 @@
       <button type="button" class="stonetop-fight-btn" data-action="lineUpFight" data-tooltip="{{localize "stonetop.fight.lineUpHint"}}">
         <i class="fa-solid fa-arrows-left-right-to-line" inert></i><span>{{localize "stonetop.fight.lineUp"}}</span>
       </button>
-      {{#if canPutBack}}
-      <button type="button" class="stonetop-fight-btn" data-action="putBackFight" data-tooltip="{{localize "stonetop.fight.putBackHint"}}">
-        <i class="fa-solid fa-rotate-left" inert></i><span>{{localize "stonetop.fight.putBack"}}</span>
-      </button>
-      {{/if}}
       {{/if}}
       {{#unless isPopout}}
       <button type="button" class="stonetop-fight-btn stonetop-fight-open-window" data-action="openFightWindow" data-tooltip="{{localize "stonetop.fight.openWindowHint"}}">
         <i class="fa-solid fa-arrow-up-right-from-square" inert></i><span>{{localize "stonetop.fight.openWindow"}}</span>
       </button>
       {{/unless}}
-      <button type="button" class="stonetop-fight-btn stonetop-fight-lines" data-action="toggleFightOverlay"
-              aria-pressed="{{#if overlayShown}}true{{else}}false{{/if}}" data-tooltip="{{localize "stonetop.fight.linesHint"}}">
-        <i class="fa-solid {{#if overlayShown}}fa-eye{{else}}fa-eye-slash{{/if}}" inert></i><span>{{localize "stonetop.fight.lines"}}</span>
-      </button>
-      <button type="button" class="stonetop-fight-btn stonetop-fight-book" data-action="openFightBook" data-tooltip="{{localize "stonetop.fight.book.hint"}}">
-        <i class="fa-solid fa-book-open" inert></i><span>{{localize "stonetop.fight.book.open"}}</span>
-      </button>
       {{#if isGM}}
       <button type="button" class="stonetop-fight-btn stonetop-fight-end" data-action="endFight">
         <i class="fa-solid fa-flag" inert></i><span>{{localize "stonetop.fight.endFight"}}</span>

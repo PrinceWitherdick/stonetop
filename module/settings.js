@@ -392,17 +392,6 @@ export function registerSettings() {
 		requiresReload: true,
 	});
 
-	// Whether this reader wants the fight's lines drawn on the map (module/fight/fight-overlay.js).
-	// Per client: the tab says everything the lines do, so a player who finds them busy can
-	// switch them off without switching them off for the table. Toggled from the Fight tab.
-	game.settings.register(SYSTEM_ID, "fightOverlay", {
-		scope: "client",
-		config: false,
-		type: Boolean,
-		default: true,
-		onChange: () => game.stonetop?.fight?.refreshOverlay?.(),
-	});
-
 	// Whether the Fight tab pops out into a window of its own when a fight starts on the map this
 	// reader is looking at, and closes when it ends (module/fight/fight-window.js). Per client: a GM
 	// on a wide monitor and a player on a laptop want different things. Listed only in a world with
@@ -2164,16 +2153,6 @@ export function getOpenSheetsInEditMode() {
  */
 export function isFightTabEnabled() {
 	return getBooleanSetting("fightTab", false);
-}
-
-/** Does this reader want the fight's lines drawn on the map? Defaults to yes. */
-export function isFightOverlayShown() {
-	return getBooleanSetting("fightOverlay", true);
-}
-
-/** Switch this reader's fight lines on or off. */
-export function setFightOverlayShown(shown) {
-	return setSetting("fightOverlay", !!shown);
 }
 
 /** Does this reader want the Fight window to open by itself when a fight starts? Defaults to yes. */

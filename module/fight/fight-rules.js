@@ -1,4 +1,4 @@
-// Book I on fights with several combatants, quoted as printed (pp.414-418).
+// Book I on fights with several combatants, quoted as printed (pp.414-416).
 //
 // TRANSCRIPTION, NOT COPY. Every text here is the book's own words and punctuation, extracted from
 // the PDF's text layer, which is why this file is waived in tests/copy/no-em-dashes.test.js. The
@@ -13,12 +13,6 @@
 
 /** @type {Record<string, {page: number, book: number, gmOnly: boolean, text: string}>} */
 export const FIGHT_RULES = Object.freeze({
-	smallerEngagements: Object.freeze({
-		book: 1,
-		page: 414,
-		gmOnly: true,
-		text: "When the PCs face multiple foes (and they often will), break up the action into multiple smaller engagements—the Ranger fights one crinwin, the Fox fights another, the Marshal and his crew deal with the rest of them. This isn’t anything formal. It’s just a natural way to manage the scene.",
-	}),
 	unengagedFoes: Object.freeze({
 		book: 1,
 		page: 414,
@@ -78,18 +72,6 @@ export const FIGHT_RULES = Object.freeze({
 		page: 416,
 		gmOnly: false,
 		text: "A group reduced to 0 HP is routed, massacred, or otherwise defeated. The fate of individuals within each group is up to you.",
-	}),
-	noTurns: Object.freeze({
-		book: 1,
-		page: 417,
-		gmOnly: false,
-		text: "Players shouldn’t get bored waiting for “their turn,” and the outcome should never be entirely certain.",
-	}),
-	mapsFocus: Object.freeze({
-		book: 1,
-		page: 418,
-		gmOnly: true,
-		text: "Be careful, though, not to let the map dominate the game. Use the map to visualize and communicate, but keep the focus on the conversation.",
 	}),
 });
 

@@ -21,21 +21,20 @@
 // fighting as a group of that many (group-scale.js).
 //
 // LINING UP moves every token in the fight in one write, straight to its place (core's "displace"
-// movement: through walls, no animation along the way), and remembers where everyone stood so "Put
-// everyone back" can undo it.
+// movement: through walls, no animation along the way).
 
 import { SYSTEM_ID, BESTIARY_PACK } from "../system-id.js";
 import { format, localize } from "../utils/i18n.js";
 import { joinNames } from "../utils/strings.js";
 import { getPlayerCharacters } from "../utils/playbook-actors.js";
 import { placeActors } from "../utils/token-drop.js";
-import { displaceTokens, deletionEntry } from "../utils/foundry-compat.js";
+import { displaceTokens } from "../utils/foundry-compat.js";
 import { worldActorsBySource, resolveDeployableActor } from "../utils/deployable-actor.js";
 import { compendiumRefTail } from "../migration/compat.js";
 import { HEROES, FOES } from "./engagements.js";
 import { classifySide } from "./fight-sides.js";
 import { followerMasterIndex } from "../actors/character/follower-masters.js";
-import { combatantBodies, combatantSide, fightOnScene, gridOf, isFight, sideInfoFor, sceneRectOf, tokenLevel, SIDE_FLAG, LAST_LINE_UP_FLAG } from "./fight-state.js";
+import { combatantBodies, combatantSide, fightOnScene, gridOf, isFight, sideInfoFor, sceneRectOf, tokenLevel, SIDE_FLAG } from "./fight-state.js";
 import { fightWindowWillShow } from "./fight-window.js";
 import { askGroupSize, groupSizeQuestions } from "./group-size.js";
 import { gatherAround, makeGroupToken, settleNewcomers } from "./group-scale.js";
@@ -43,7 +42,6 @@ import { lineUpPositions } from "./line-up.js";
 import { StartFightDialog } from "./StartFightDialog.js";
 
 const KEY = "stonetop.fight.startWindow";
-export { LAST_LINE_UP_FLAG };
 const TOKEN = "token:";
 const ACTOR = "actor:";
 
@@ -468,9 +466,9 @@ export async function startFight({ scene, combat = null, picks = [], lineUp = fa
 }
 
 /**
- * Everyone in the fight lined up in one move, remembering where they stood. The fights already
+ * Everyone in the fight lined up in one move. The fights already
  * going on are kept as they stand and only shifted about (line-up.js); the fighters nobody is up
- * against go into columns, heroes on the left of the GM's view and foes on the right. Only for a
+ * against go into columns, heroes on the left and foes on the right, around where they all stand. Only for a
  * fight on the canvas scene, where there is a view to line up in.
  */
 export async function lineUpFight(combat, { scene = globalThis.canvas?.scene } = {}) {
@@ -500,10 +498,6 @@ export async function lineUpFight(combat, { scene = globalThis.canvas?.scene } =
 		foes: fighters.filter(f => f.side === FOES).map(entry),
 	});
 	const moves = [];
-	// A LIST, NOT A MAP BY TOKEN ID. Core merges an update's objects into the flag already saved, so
-	// a map would keep every token an earlier line-up moved and "Put everyone back" would move them
-	// too; an array is replaced whole.
-	const before = [];
 	// A SCRUM IS SNAPPED ONCE. Everyone already fighting moves as one piece, so snapping each of them
 	// to the grid on their own could pull two of them apart and end the fight between them: the first
 	// one of a scrum to be snapped sets the correction the rest of that scrum takes.
@@ -523,25 +517,10 @@ export async function lineUpFight(combat, { scene = globalThis.canvas?.scene } =
 		}
 		const snapped = { x: target.x + delta.x, y: target.y + delta.y };
 		if (snapped.x === token._source.x && snapped.y === token._source.y) continue;
-		before.push({ id: token.id, x: token._source.x, y: token._source.y });
 		moves.push({ id: token.id, x: snapped.x, y: snapped.y });
 	}
 	if (!moves.length) return false;
-	await combat.update({ [`flags.${SYSTEM_ID}.${LAST_LINE_UP_FLAG}`]: { sceneId: scene.id, positions: before } });
 	await displaceTokens(scene, moves);
 	return true;
 }
 
-/** Undo the last line-up: everyone it moved goes back to where they stood, if they are still there. */
-export async function putBackFight(combat, { scene = globalThis.canvas?.scene } = {}) {
-	const game = globalThis.game;
-	const saved = combat?.flags?.[SYSTEM_ID]?.[LAST_LINE_UP_FLAG];
-	if (!game?.user?.isGM || !saved || !scene || saved.sceneId !== scene.id) return false;
-	const moves = (Array.isArray(saved.positions) ? saved.positions : [])
-		.filter(at => scene.tokens?.get?.(at.id))
-		.map(({ id, x, y }) => ({ id, x, y }));
-	const [key, value] = deletionEntry(`flags.${SYSTEM_ID}.${LAST_LINE_UP_FLAG}`);
-	await combat.update({ [key]: value });
-	if (moves.length) await displaceTokens(scene, moves);
-	return moves.length > 0;
-}

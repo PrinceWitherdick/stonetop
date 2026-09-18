@@ -95,7 +95,7 @@ describe("the Fight tab class", () => {
 
 	it("adds its own actions and leaves core's to the merge", () => {
 		expect(Object.keys(FightTracker.DEFAULT_OPTIONS.actions).sort()).toEqual(
-			["addToFight", "endFight", "lineUpFight", "openFightBook", "openFightWindow", "putBackFight", "startFight", "stopRounds", "toggleFightOverlay"],
+			["addToFight", "endFight", "lineUpFight", "openFightWindow", "startFight", "stopRounds"],
 		);
 		expect(FightTracker.name).toBe("FightTracker");
 	});
@@ -117,10 +117,9 @@ describe("the Fight tab class", () => {
 		const tab = new FightTracker();
 		tab.viewed = combat;
 		tab.combats = [combat, fakeCombat({ id: "second" })];
-		settings.set("fightOverlay", false);
 		const context = {};
 		await tab._prepareCombatContext(context, {});
-		expect(context).toMatchObject({ hasCombat: true, isGM: true, overlayShown: false, isPopout: false, roundsStarted: false, canPutBack: false });
+		expect(context).toMatchObject({ hasCombat: true, isGM: true, isPopout: false, roundsStarted: false });
 		expect(context.cycle).toEqual({ text: "Fight 1 of 2", previousId: "", nextId: "second" });
 		for (const key of ["turns", "initiativeIcon", "control", "hasDecimals"]) expect(context).not.toHaveProperty(key);
 	});
@@ -244,29 +243,6 @@ describe("the Fight tab class", () => {
 		await FightTracker.DEFAULT_OPTIONS.actions.endFight.call(tab);
 		expect(confirm).not.toHaveBeenCalled();
 		expect(combat.delete).not.toHaveBeenCalled();
-	});
-
-	it("switches this reader's map lines and redraws the header", async () => {
-		settings.set("fightOverlay", true);
-		const tab = new FightTracker();
-		await FightTracker.DEFAULT_OPTIONS.actions.toggleFightOverlay.call(tab);
-		expect(settings.get("fightOverlay")).toBe(false);
-		expect(tab.renders).toEqual([{ parts: ["header"] }]);
-	});
-
-	it("redraws the map-lines button through the sidebar tab when it is pressed in the window, so both say the same", async () => {
-		settings.set("fightOverlay", true);
-		const savedUi = globalThis.ui;
-		const tab = new FightTracker();
-		globalThis.ui = { ...savedUi, combat: tab };
-		try {
-			const popout = new FightTracker({ window: { frame: true } });
-			await FightTracker.DEFAULT_OPTIONS.actions.toggleFightOverlay.call(popout);
-			expect(tab.renders).toEqual([{ parts: ["header"] }]);
-			expect(popout.renders).toEqual([]);
-		} finally {
-			globalThis.ui = savedUi;
-		}
 	});
 
 	it("stops a combat started in core's tracker from counting rounds", async () => {
@@ -434,13 +410,6 @@ describe("the Fight window, the tab popped out", () => {
 		tab.element = { style: { setProperty: (name, value) => tabVars.set(name, value) } };
 		tab._updatePosition({ top: 50 });
 		expect(tabVars.size).toBe(0);
-	});
-
-	it("opens the book's advice on fights from the header's button", () => {
-		const openBook = vi.fn();
-		globalThis.game.stonetop = { fight: { openBook } };
-		FightTracker.DEFAULT_OPTIONS.actions.openFightBook.call(new FightTracker());
-		expect(openBook).toHaveBeenCalledTimes(1);
 	});
 
 	it("opens from the tab's button as the reader's own choice", () => {

@@ -1816,11 +1816,7 @@
       "startHint": "Pick who is fighting, then drag tokens next to whoever they are fighting.",
       "add": "Add to the fight",
       "lineUp": "Line everyone up",
-      "lineUpHint": "Fights already going on are kept as they stand; everyone not fighting anybody yet lines up, heroes on the left of your view and foes on the right",
-      "putBack": "Put everyone back",
-      "putBackHint": "Return the tokens to where they stood before the last line-up",
-      "lines": "Lines on the map",
-      "linesHint": "Draw who is fighting whom on the map. Only changes what you see.",
+      "lineUpHint": "Fights already going on are kept as they stand; everyone not fighting anybody yet lines up, heroes on the left and foes on the right, right where everyone already is",
       "openWindow": "Open in a window",
       "openWindowHint": "Show this fight in a window you can move and resize, so it stays in view while the sidebar is on Chat",
       "endFight": "End the fight",
@@ -1878,11 +1874,6 @@
         "confirmNone": "Tick who this hits",
         "cancel": "Don't roll",
         "several": "{move} hit more than one: damage is rolled separately against each, for an attack that could hurt them all (Book I, page 414)."
-      },
-      "book": {
-        "open": "What the book says",
-        "hint": "The book's advice on running a fight, in its own words",
-        "title": "What the book says about fights"
       },
       "row": {
         "hide": "Hide from players",

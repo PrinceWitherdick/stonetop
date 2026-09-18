@@ -15,11 +15,10 @@ import { createFightTrackerClass } from "./FightTracker.js";
 import { installFightWatcher } from "./fight-watcher.js";
 import { combatantSide, snapshotFight, FIGHT_FLAG, SIDE_FLAG } from "./fight-state.js";
 import { refreshFightOverlay, invalidateFightOverlay, teardownFightOverlay } from "./fight-overlay.js";
-import { openStartFight, lineUpFight, putBackFight } from "./start-fight.js";
+import { openStartFight, lineUpFight } from "./start-fight.js";
 import { sendAgainst } from "./send-against.js";
 import { installFightWindow, openFightWindow, syncFightWindow } from "./fight-window.js";
 import { fightVitalsKey } from "./fight-vitals.js";
-import { openFightBook } from "./FightBookWindow.js";
 import { createFightTokenClass, installFightRing, syncFightRing } from "./fight-ring.js";
 
 /**
@@ -80,18 +79,15 @@ export function registerFightTab({ config = globalThis.CONFIG, hooks = globalThi
 	hooks.on("preCreateCombat", stampFight);
 	hooks.on("preCreateCombatant", stampSide);
 
-	// What the tab's buttons and the settings' onChange handlers call.
+	// What the tab's buttons call.
 	if (game) {
 		game.stonetop ??= {};
 		game.stonetop.fight = {
 			...(game.stonetop.fight ?? {}),
-			refreshOverlay: () => refreshFightOverlay(),
 			openStart: options => openStartFight(options),
 			lineUp: combat => lineUpFight(combat),
-			putBack: combat => putBackFight(combat),
 			sendAgainst: (combat, moverId, targetId) => sendAgainst(combat, moverId, targetId),
 			openWindow: () => openFightWindow({ byHand: true }),
-			openBook: () => openFightBook(),
 		};
 	}
 	installFightWatcher({

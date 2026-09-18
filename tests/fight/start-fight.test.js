@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
-	startWindowModel, startFight, lineUpFight, putBackFight, viewRectWorld, withGroupSizes, LAST_LINE_UP_FLAG,
+	startWindowModel, startFight, lineUpFight, viewRectWorld, withGroupSizes,
 } from "../../module/fight/start-fight.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
 import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection, GRID } from "../fakes/fight.js";
 
-// Starting a fight, adding to one, lining everyone up and putting them back.
+// Starting a fight, adding to one, and lining everyone up.
 
 const format = (key, data) => globalThis.game.i18n.format(key, data);
 
@@ -168,24 +168,7 @@ function world({ isGM = true } = {}) {
 	const combatants = [];
 	const combat = fakeCombat({ scene, combatants });
 	combat.createEmbeddedDocuments = vi.fn(async (type, data) => { created.push(...data); return data; });
-	// Both cores' spellings of a deletion: v14's ForcedDeletion value, v13's `-=` key. A write MERGES
-	// into what is saved, objects key by key and arrays whole, as core's update does.
-	const merge = (into, from) => {
-		if (!from || typeof from !== "object" || Array.isArray(from) || !into || typeof into !== "object" || Array.isArray(into)) return from;
-		const out = { ...into };
-		for (const [k, v] of Object.entries(from)) out[k] = merge(into[k], v);
-		return out;
-	};
-	combat.update = vi.fn(async changes => {
-		const ForcedDeletion = globalThis.foundry?.data?.operators?.ForcedDeletion;
-		const ours = combat.flags[SYSTEM_ID] ?? {};
-		for (const [key, value] of Object.entries(changes)) {
-			const deletes = key.includes("-=") || (ForcedDeletion && value instanceof ForcedDeletion);
-			if (deletes) delete ours[LAST_LINE_UP_FLAG];
-			else if (key === `flags.${SYSTEM_ID}.${LAST_LINE_UP_FLAG}`) ours[LAST_LINE_UP_FLAG] = merge(ours[LAST_LINE_UP_FLAG], value);
-		}
-		combat.flags = { ...combat.flags, [SYSTEM_ID]: ours };
-	});
+	combat.update = vi.fn(async () => {});
 	const CombatClass = { create: vi.fn(async data => Object.assign(combat, { created: data })) };
 	globalThis.getDocumentClass = name => (name === "Combat" ? CombatClass : null);
 	globalThis.CONST = { GRID_TYPES: { GRIDLESS: 0, SQUARE: 1 } };
@@ -409,7 +392,7 @@ describe("withGroupSizes", () => {
 	});
 });
 
-describe("lining up and putting back", () => {
+describe("lining up", () => {
 	function fightWith(extra = {}) {
 		const w = world(extra);
 		w.combat.combatants = collection([
@@ -419,46 +402,13 @@ describe("lining up and putting back", () => {
 		return w;
 	}
 
-	it("moves everyone in one write, heroes left of the foes, and remembers where they stood", async () => {
+	it("moves everyone in one write, heroes left of the foes", async () => {
 		const { scene, combat } = fightWith();
 		expect(await lineUpFight(combat, { scene })).toBe(true);
 		expect(scene.moveTokens).toHaveBeenCalledTimes(1);
 		const instructions = scene.moveTokens.mock.calls[0][0];
 		expect(instructions.tBram.waypoints[0].x).toBeLessThan(instructions.tCrin.waypoints[0].x);
 		expect(instructions.tBram.waypoints[0].action).toBe("displace");
-		expect(combat.flags[SYSTEM_ID][LAST_LINE_UP_FLAG]).toEqual({
-			sceneId: "scene1",
-			positions: [{ id: "tCrin", x: 200, y: 300 }, { id: "tBram", x: 3000, y: 1200 }],
-		});
-	});
-
-	it("forgets, at the next line-up, whoever that line-up does not move", async () => {
-		const { scene, combat, tBram, tCrin } = fightWith();
-		await lineUpFight(combat, { scene });
-		// The GM drags Bram off by hand; Crinwin still stands where the line-up put him.
-		const crinAt = scene.moveTokens.mock.calls[0][0].tCrin.waypoints[0];
-		tCrin._source.x = crinAt.x;
-		tCrin._source.y = crinAt.y;
-		tBram._source.x = 3500;
-		tBram._source.y = 2500;
-		scene.moveTokens.mockClear();
-		expect(await lineUpFight(combat, { scene })).toBe(true);
-		expect(combat.flags[SYSTEM_ID][LAST_LINE_UP_FLAG].positions).toEqual([{ id: "tBram", x: 3500, y: 2500 }]);
-		scene.moveTokens.mockClear();
-		await putBackFight(combat, { scene });
-		expect(Object.keys(scene.moveTokens.mock.calls[0][0])).toEqual(["tBram"]);
-	});
-
-	it("puts everyone back where they stood, and forgets it", async () => {
-		const { scene, combat } = fightWith();
-		await lineUpFight(combat, { scene });
-		scene.moveTokens.mockClear();
-		expect(await putBackFight(combat, { scene })).toBe(true);
-		expect(scene.moveTokens.mock.calls[0][0]).toMatchObject({
-			tBram: { waypoints: [{ x: 3000, y: 1200 }] },
-			tCrin: { waypoints: [{ x: 200, y: 300 }] },
-		});
-		expect(combat.flags[SYSTEM_ID][LAST_LINE_UP_FLAG]).toBeUndefined();
 	});
 
 	it("leaves the map alone for a player, or for a fight on a scene nobody is looking at", async () => {
@@ -470,18 +420,14 @@ describe("lining up and putting back", () => {
 		expect(elsewhere.scene.moveTokens).not.toHaveBeenCalled();
 	});
 
-	it("has nothing to put back without a line-up on this scene", async () => {
-		const { scene, combat } = fightWith();
-		expect(await putBackFight(combat, { scene })).toBe(false);
-	});
-
-	it("keeps a fight already going on: the two in it move as one piece, still up against each other", async () => {
+	it("keeps a fight already going on: the two in it stay up against each other, right where they are", async () => {
 		const { scene, combat, tBram, tCrin } = fightWith();
 		// Crinwin steps up against Bram, so the two of them are fighting.
 		tCrin._source.x = tBram._source.x + GRID;
 		tCrin._source.y = tBram._source.y;
-		expect(await lineUpFight(combat, { scene })).toBe(true);
-		const moved = scene.moveTokens.mock.calls[0][0];
+		// Nobody else is in the fight, so it is already lined up around itself.
+		expect(await lineUpFight(combat, { scene })).toBe(false);
+		const moved = scene.moveTokens.mock.calls[0]?.[0] ?? {};
 		const at = (id, token) => moved[id]?.waypoints[0] ?? { x: token._source.x, y: token._source.y };
 		const bram = at("tBram", tBram);
 		const crin = at("tCrin", tCrin);

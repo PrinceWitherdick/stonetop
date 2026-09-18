@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import Handlebars from "handlebars";
-import { fightTrackerView, fightBookView } from "../../module/fight/fight-view.js";
+import { fightTrackerView } from "../../module/fight/fight-view.js";
 import { snapshotFight } from "../../module/fight/fight-state.js";
 import { combatantVitals } from "../../module/fight/fight-vitals.js";
 import { bookPageCites } from "../../module/gm-toolkit/book-ref.js";
@@ -179,14 +179,6 @@ describe("fightTrackerView", () => {
 		expect(v.clusters[1].quotes.map(q => q.key)).not.toContain("engagesMultiple");
 	});
 
-	it("keeps the book's advice on fights as a whole out of the tab, for its own window", () => {
-		expect(view(true)).not.toHaveProperty("general");
-		const gm = fightBookView({ isGM: true, cites: bookPageCites });
-		expect(gm.quotes.map(q => q.key)).toEqual(["smallerEngagements", "noTurns", "mapsFocus"]);
-		expect(gm.quotes[1].cites).toEqual([expect.objectContaining({ book: 1, page: 417 })]);
-		expect(fightBookView({ isGM: false, cites: bookPageCites }).quotes.map(q => q.key)).toEqual(["noTurns"]);
-	});
-
 	it("remembers which folds the reader left open", () => {
 		const { scene, combat } = fight();
 		globalThis.game.user = { id: "gm", isGM: true };
@@ -253,15 +245,6 @@ describe("the Fight tab's templates", () => {
 		expect(html).toContain('<details class="stonetop-fight-rules"');
 		expect(html).toContain("What the book says");
 		expect(html).toContain('class="stonetop-book-cite" data-book="1" data-page="414"');
-		expect(html).not.toContain("Be careful, though, not to let the map dominate the game");
-	});
-
-	it("offer everyone the book's advice on fights from the header", () => {
-		for (const isGM of [true, false]) {
-			const html = header({ hasCombat: true, isGM, combat: { name: "" } });
-			expect(html).toContain('data-action="openFightBook"');
-			expect(html).toContain("What the book says");
-		}
 	});
 
 	it("say there is no fight when there is none", () => {
@@ -277,31 +260,27 @@ describe("the Fight tab's templates", () => {
 	});
 
 	it("never offer initiative, rounds or turns", () => {
-		const html = header({ hasCombat: true, isGM: true, combat: { name: "" }, overlayShown: true }).toLowerCase();
+		const html = header({ hasCombat: true, isGM: true, combat: { name: "" } }).toLowerCase();
 		for (const word of ["initiative", "rollall", "nextturn", "begincombat", "startcombat", "round"]) expect(html).not.toContain(word);
-		for (const action of ["addToFight", "lineUpFight", "toggleFightOverlay", "endFight"]) {
+		for (const action of ["addToFight", "lineUpFight", "endFight"]) {
 			expect(html).toContain(`data-action="${action.toLowerCase()}"`);
 		}
 	});
 
-	it("keep the map-lines toggle on screen whatever its state, reporting it through aria-pressed", () => {
-		const on = header({ hasCombat: true, isGM: false, combat: {}, overlayShown: true });
-		const off = header({ hasCombat: true, isGM: false, combat: {}, overlayShown: false });
-		expect(on).toContain('data-action="toggleFightOverlay"');
-		expect(on).toContain('aria-pressed="true"');
-		expect(off).toContain('data-action="toggleFightOverlay"');
-		expect(off).toContain('aria-pressed="false"');
-		expect(off).not.toContain('data-action="endFight"');
+	it("offer no Put back, map-lines or book buttons, and a player no End", () => {
+		const gm = header({ hasCombat: true, isGM: true, combat: {} });
+		for (const action of ["putBackFight", "toggleFightOverlay", "openFightBook"]) expect(gm).not.toContain(`data-action="${action}"`);
+		expect(header({ hasCombat: true, isGM: false, combat: {} })).not.toContain('data-action="endFight"');
 	});
 
-	it("offer everyone the Fight window from the tab, before the lines and End, and nothing to open inside the window", () => {
-		const gm = header({ hasCombat: true, isGM: true, combat: {}, overlayShown: true });
+	it("offer everyone the Fight window from the tab, before End, and nothing to open inside the window", () => {
+		const gm = header({ hasCombat: true, isGM: true, combat: {} });
 		expect(gm).toContain('data-action="openFightWindow"');
 		expect(gm).toContain("Open in a window");
-		const order = ["addToFight", "lineUpFight", "openFightWindow", "toggleFightOverlay", "endFight"].map(a => gm.indexOf(`data-action="${a}"`));
+		const order = ["addToFight", "lineUpFight", "openFightWindow", "endFight"].map(a => gm.indexOf(`data-action="${a}"`));
 		expect(order).toEqual([...order].sort((a, b) => a - b));
-		expect(header({ hasCombat: true, isGM: false, combat: {}, overlayShown: true })).toContain('data-action="openFightWindow"');
-		expect(header({ hasCombat: true, isGM: true, combat: {}, overlayShown: true, isPopout: true })).not.toContain("openFightWindow");
+		expect(header({ hasCombat: true, isGM: false, combat: {} })).toContain('data-action="openFightWindow"');
+		expect(header({ hasCombat: true, isGM: true, combat: {}, isPopout: true })).not.toContain("openFightWindow");
 		expect(header({ hasCombat: false, isGM: true })).not.toContain("openFightWindow");
 	});
 

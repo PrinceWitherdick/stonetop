@@ -33,7 +33,7 @@
 // rule holds for it: core's pop-out look, no `stonetop` class. What differs is only where it opens,
 // that it resizes, and that it remembers both.
 
-import { snapshotFight, combatantBodies, combatantSide, COUNT_FLAG, SIDE_FLAG, LAST_LINE_UP_FLAG } from "./fight-state.js";
+import { snapshotFight, combatantBodies, combatantSide, COUNT_FLAG, SIDE_FLAG } from "./fight-state.js";
 import { FIGHT_OVER, fightWindowPosition, noteFightWindowClosed, openFightWindow, rememberFightWindowPosition } from "./fight-window.js";
 import { fightTrackerView } from "./fight-view.js";
 import { canReadFoeVitals, combatantVitals, fightVitalsKey, followerRoster } from "./fight-vitals.js";
@@ -46,7 +46,6 @@ import { followBookCite } from "../books/rulebook-icons.js";
 import { format, localize } from "../utils/i18n.js";
 import { escHtml } from "../utils/strings.js";
 import { themedDialogClasses } from "../utils/window-theme.js";
-import { isFightOverlayShown, setFightOverlayShown } from "../settings.js";
 
 // Plain literals, not built from SYSTEM_ID: the precache check in tests finds template paths by
 // searching the source for them.
@@ -82,12 +81,9 @@ export function createFightTrackerClass(Base) {
 				startFight: FightTracker.#onStartFight,
 				addToFight: FightTracker.#onAddToFight,
 				lineUpFight: FightTracker.#onLineUp,
-				putBackFight: FightTracker.#onPutBack,
 				endFight: FightTracker.#onEndFight,
-				toggleFightOverlay: FightTracker.#onToggleOverlay,
 				stopRounds: FightTracker.#onStopRounds,
 				openFightWindow: FightTracker.#onOpenWindow,
-				openFightBook: FightTracker.#onOpenBook,
 			},
 		};
 
@@ -149,10 +145,8 @@ export function createFightTrackerClass(Base) {
 					previousId: combats[index - 1]?.id ?? "",
 					nextId: combats[index + 1]?.id ?? "",
 				} : null,
-				overlayShown: isFightOverlayShown(),
 				isPopout: !!this.isPopout,
 				roundsStarted: (combat?.round ?? 0) > 0,
-				canPutBack: !!combat?.flags?.[SYSTEM_ID]?.[LAST_LINE_UP_FLAG],
 			});
 		}
 
@@ -404,23 +398,8 @@ export function createFightTrackerClass(Base) {
 			return globalThis.game?.stonetop?.fight?.lineUp?.(this.viewed);
 		}
 
-		static #onPutBack() {
-			return globalThis.game?.stonetop?.fight?.putBack?.(this.viewed);
-		}
-
-		static async #onToggleOverlay() {
-			await setFightOverlayShown(!isFightOverlayShown());
-			// Through the sidebar tab, which hands the redraw on to the window: pressed in the window,
-			// `this` would redraw only itself and leave the tab's button saying the old state.
-			(globalThis.ui?.combat ?? this).render({ parts: ["header"] });
-		}
-
 		static #onOpenWindow() {
 			return openFightWindow({ byHand: true });
-		}
-
-		static #onOpenBook() {
-			return globalThis.game?.stonetop?.fight?.openBook?.();
 		}
 
 		static async #onStopRounds() {

@@ -29,11 +29,9 @@ class FakeText extends FakeDisplayObject {
 FakeText.made = 0;
 
 let saved;
-let settings;
 beforeEach(() => {
 	saved = { PIXI: globalThis.PIXI, canvas: globalThis.canvas, game: globalThis.game, ui: globalThis.ui, foundry: globalThis.foundry };
 	globalThis.PIXI = { Container: FakeDisplayObject, Graphics: FakeGraphics, Text: FakeText, LINE_CAP: { ROUND: "round" }, LINE_JOIN: { ROUND: "round" } };
-	settings = new Map([["fightOverlay", true]]);
 	FakeText.made = 0;
 });
 afterEach(() => {
@@ -77,7 +75,7 @@ function scene({ ambusherVisible = false } = {}) {
 		user: { id: "gm", isGM: true },
 		users: collection([{ id: "p", isGM: false, active: true, character: cadi.actor, targets: new Set([{ document: { id: "tWolf" } }]) }]),
 		combats: collection([combat]),
-		settings: { get: (scope, key) => settings.get(key), set: async (scope, key, value) => settings.set(key, value) },
+		settings: { get: () => undefined },
 	};
 	globalThis.ui = { combat: { viewed: combat } };
 	const canvas = {
@@ -188,14 +186,9 @@ describe("the fight on the map", () => {
 		expect(ink.width * 0.1).toBeGreaterThanOrEqual(3);
 	});
 
-	it("draws nothing for a reader who switched the lines off, or with no fight on the scene", () => {
+	it("draws nothing with no fight on the scene", () => {
 		const { canvas } = scene();
 		refreshFightOverlay();
-		settings.set("fightOverlay", false);
-		refreshFightOverlay();
-		expect(linesOf(canvas).calls).toEqual([]);
-		expect(layerOf(canvas).children.slice(1)).toHaveLength(0);
-		settings.set("fightOverlay", true);
 		globalThis.game.combats = collection([]);
 		globalThis.ui.combat.viewed = null;
 		refreshFightOverlay();

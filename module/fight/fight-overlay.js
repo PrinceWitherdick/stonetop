@@ -23,7 +23,6 @@
 
 import { fightOnScene, snapshotFight } from "./fight-state.js";
 import { meleeTie, rangedSegment, dashes, arrowHead, badgeCircle, screenFloor } from "./overlay-geometry.js";
-import { isFightOverlayShown } from "../settings.js";
 import { bodyStyleTokens } from "../utils/css-tokens.js";
 
 /** Above the tokens layer (200), below templates (400). The same in Foundry 13 and 14. */
@@ -238,7 +237,7 @@ export function paintFight(snapshot, canvas, ink = fightInk()) {
 export function refreshFightOverlay({ canvas = globalThis.canvas, reuse = false } = {}) {
 	if (!canvas?.ready || !canvas.interface) return;
 	const kept = reuse && painted.snapshot && painted.layer?.parent === canvas.interface && !painted.layer.destroyed;
-	const combat = kept ? null : isFightOverlayShown() ? fightOnScene(canvas.scene) : null;
+	const combat = kept ? null : fightOnScene(canvas.scene);
 	if (!kept && !combat) {
 		clearFightOverlay();
 		return;
