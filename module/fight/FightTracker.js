@@ -23,8 +23,8 @@
 //
 // DRAG A FIGHTER ONTO ONE ON THE OTHER SIDE. A foe goes onto a hero and a hero onto a foe alike;
 // either way the row picked up is the token that moves, up against the one it was dropped on
-// (send-against.js). What a reader may pick up is whoever is theirs to move, so a GM may send anyone
-// and a player may throw their own character at a foe. Native drag and drop, delegated from the frame
+// (send-against.js). A reader may pick up anyone but another player's character, so a GM may send
+// anyone and a player their own character, any monster or any NPC. Native drag and drop, delegated from the frame
 // so it survives every redraw, and carrying only our own data types: dropped on the map or a sheet,
 // the row is nothing anybody else reads.
 //
@@ -39,6 +39,7 @@ import { fightTrackerView } from "./fight-view.js";
 import { canReadFoeVitals, combatantVitals, fightVitalsKey, followerRoster } from "./fight-vitals.js";
 import { canSplit, mergeCandidates, mergeIntoGroup, splitGroup } from "./group-scale.js";
 import { otherSide, fightsAsGroup } from "./fight-sides.js";
+import { mayMove } from "./send-against.js";
 import { SYSTEM_ID } from "../system-id.js";
 import { contextMenuEntry } from "../utils/foundry-compat.js";
 import { bookPageCites } from "../gm-toolkit/book-ref.js";
@@ -189,9 +190,8 @@ export function createFightTrackerClass(Base) {
 				seesFoeVitals: canReadFoeVitals(combatant, user),
 				side: combatantSide(combatant),
 				canPing: onCanvas && !!user?.hasPermission?.("PING_CANVAS"),
-				// Theirs to move, and so theirs to send at someone: a combatant's ownership is its
-				// actor's, and a GM owns everyone.
-				canSend: !!combatant.isOwner,
+				// Anyone but another player's character may be sent at someone (send-against.js#mayMove).
+				canSend: mayMove(combatant),
 				onCanvas,
 				group: bodies.group,
 				standing: bodies.standing,

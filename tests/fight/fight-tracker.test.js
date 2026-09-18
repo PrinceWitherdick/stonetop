@@ -135,7 +135,7 @@ describe("the Fight tab class", () => {
 		expect(tab.fightSignature).toContain("cBram");
 	});
 
-	it("gives a player a hold on whoever is theirs to move, and the other side to send them at", async () => {
+	it("gives a player a hold on their own character and on any monster, each to send at the other side", async () => {
 		const { combat, cBram } = oneFight();
 		cBram.isOwner = true;
 		globalThis.canvas = { scene: combat.scene, tokens: { controlled: [] } };
@@ -145,8 +145,8 @@ describe("the Fight tab class", () => {
 		const context = {};
 		await tab._prepareTrackerContext(context, {});
 		const [pair] = context.fight.clusters[0].pairs;
-		expect(pair.hero).toMatchObject({ id: "cBram", draggable: true, dropTarget: false });
-		expect(pair.foes[0]).toMatchObject({ id: "cCrin", draggable: false, dropTarget: true });
+		expect(pair.hero).toMatchObject({ id: "cBram", draggable: true, dropTarget: true });
+		expect(pair.foes[0]).toMatchObject({ id: "cCrin", draggable: true, dropTarget: true });
 	});
 
 	it("has nothing to draw with no fight", async () => {

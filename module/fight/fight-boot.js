@@ -16,7 +16,7 @@ import { installFightWatcher } from "./fight-watcher.js";
 import { combatantSide, snapshotFight, FIGHT_FLAG, SIDE_FLAG } from "./fight-state.js";
 import { refreshFightOverlay, invalidateFightOverlay, teardownFightOverlay } from "./fight-overlay.js";
 import { openStartFight, lineUpFight } from "./start-fight.js";
-import { sendAgainst } from "./send-against.js";
+import { sendAgainst, handleSendQuery, SEND_QUERY } from "./send-against.js";
 import { installFightWindow, openFightWindow, syncFightWindow } from "./fight-window.js";
 import { fightVitalsKey } from "./fight-vitals.js";
 import { createFightTokenClass, installFightRing, syncFightRing } from "./fight-ring.js";
@@ -90,6 +90,8 @@ export function registerFightTab({ config = globalThis.CONFIG, hooks = globalThi
 			openWindow: () => openFightWindow({ byHand: true }),
 		};
 	}
+	// A player sending a monster or NPC asks the GM's client to move it (send-against.js).
+	if (config.queries) config.queries[SEND_QUERY] = (data, context) => handleSendQuery(data, context);
 	installFightWatcher({
 		hooks,
 		// The watcher follows an engagement change with a geometry run, which then paints afresh.

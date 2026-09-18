@@ -1830,7 +1830,9 @@
         "heroes": "Drag a hero onto a foe to put them next to it on the map."
       },
       "send": {
-        "noRoom": "There is no free space next to {name}."
+        "noRoom": "There is no free space next to {name}.",
+        "noGM": "Only the GM can move {name}, and no GM is connected.",
+        "refused": "The GM's client did not move {name}."
       },
       "roundsNote": "This fight was started in Foundry's tracker, which counts rounds and turns. Stonetop does not take turns.",
       "stopRounds": "Stop counting rounds",
