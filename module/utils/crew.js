@@ -87,6 +87,60 @@ export function groupFollowerStanding(flags, { ftype, slug = "" } = {}) {
 	return null;
 }
 
+/** A named crew member's own tags: their extra tag and their traits, as the card's own Order button counts them. */
+function ownTags(individual) {
+	const traits = Array.isArray(individual?.traits) ? individual.traits : [];
+	return [individual?.tag, ...traits].map(t => String(t ?? "").trim()).filter(Boolean);
+}
+
+/**
+ * A group follower's members who are still standing, in roster order, as someone ordering one of them
+ * picks them: a key, the name their roster row carries, and the tags that are theirs alone.
+ *
+ * The book lets a group be split this way: "When a PC directs an individual member of a group, they can
+ * trigger moves as if they were a follower themselves. The group's tags and moves apply, plus any unique
+ * tags or moves they have as an individual" (Book I p.471). So `tags` here is only the member's OWN; the
+ * group's are the caller's to add. A member at 0 HP is out of the action (p.469) and is not offered.
+ *
+ * Named by the same labellers the roster rows use, so "Crew member 4" here is the row that says so. The
+ * character sheet's `_followerMemberNames` walks the same roster for Have What They Need, where a downed
+ * member still counts.
+ *
+ * @param {object} flags  the character's system flags
+ * @param {{ftype: string, slug?: string}} which  the card
+ * @returns {Array<{key: string, name: string, tags: string[]}>}  empty for anyone but a group
+ */
+export function groupFollowerMembers(flags, { ftype, slug = "" } = {}) {
+	const members = [];
+	if (ftype === "crew") {
+		const crew = flags?.crew;
+		if (!crew) return members;
+		const named = Array.isArray(crew.individuals) ? crew.individuals : [];
+		const individualsHp = crew.individualsHp ?? {};
+		named.forEach((individual, i) => {
+			if (!memberStanding(individualsHp[i])) return;
+			const name = String(individual?.name ?? "").trim() || crewIndividualLabel(i);
+			members.push({ key: `named:${i}`, name, tags: ownTags(individual) });
+		});
+		const memberHp = Array.isArray(crew.memberHp) ? crew.memberHp : [];
+		const anonymous = crewAnonymousCount(crew);
+		for (let i = 0; i < anonymous; i += 1) {
+			if (memberStanding(memberHp[i])) members.push({ key: `anon:${i}`, name: crewAnonMemberLabel(named.length, i), tags: [] });
+		}
+		return members;
+	}
+	if (ftype === "custom") {
+		const follower = flags?.customFollowers?.[slug];
+		if (!follower?.isGroup) return members;
+		const memberHp = Array.isArray(follower.memberHp) ? follower.memberHp : [];
+		const size = customGroupSize(follower);
+		for (let i = 0; i < size; i += 1) {
+			if (memberStanding(memberHp[i])) members.push({ key: `member:${i}`, name: customGroupMemberLabel(i), tags: [] });
+		}
+	}
+	return members;
+}
+
 /**
  * What to call the Nth ANONYMOUS crew member — the unnamed tail that starts where the named
  * individuals stop, so the roster numbers read straight down past them.

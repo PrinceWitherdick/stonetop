@@ -39,7 +39,7 @@ import {showsPreferencesTab, withPreferencesTab} from "../../utils/preferences-t
 import {injectHeaderToggle} from "../../utils/sheet-chrome.js";
 import {mountScrollFrost} from "../../utils/scroll-frost.js";
 import {withSheetSizeMemory} from "../../utils/sheet-size.js";
-import { crewExists, effectiveCrewSize, customGroupSize, crewAnonymousCount, crewAnonMemberLabel, crewIndividualLabel, customGroupMemberLabel, CREW_SIZE_MAX } from "../../utils/crew.js";
+import { crewExists, effectiveCrewSize, customGroupSize, crewAnonymousCount, crewAnonMemberLabel, crewIndividualLabel, customGroupMemberLabel, groupFollowerMembers, CREW_SIZE_MAX } from "../../utils/crew.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
 import {createArcanumItem} from "../../item/createArcanum.js";
 import {rollStat, sign, classifyResult} from "../../utils/roll-engine.js";
@@ -4973,6 +4973,9 @@ export function createStonetopCharacterSheetClass(Base) {
 					// A group-fight Clash/Let Fly button pre-selects that move; the plain
 					// Order button leaves it at the default (Defy Danger).
 					moveKey:     btn.dataset.moveKey || null,
+					// A crew individual's own button is already one member's order, so the
+					// dialog does not offer to pick a member (its tags are theirs already).
+					member:      btn.dataset.member || null,
 				}, { ftype: btn.dataset.ftype, slug: btn.dataset.slug ?? "" });
 			}, true);
 
@@ -9024,11 +9027,19 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * ordered exactly as they are from their card — the same tag chips, the same +1/+2, and the
 		 * same Readiness held when a Defend lands.
 		 *
-		 * @param {{name: string, tags: string[], moves: string[], exceptional: boolean, moveKey: ?string}} follower
-		 *   what the dialog weighs; `moveKey` starts it on a move, or null for its own default
+		 * A GROUP ordered as a whole is offered its members too, so one of them can be directed on
+		 * their own (p.471): the crew's token on the map, and the crew's and a custom group's buttons
+		 * on the card, all get the Who row from here. An order that already names one member (a
+		 * crew individual's own button) does not.
+		 *
+		 * @param {{name: string, tags: string[], moves: string[], exceptional: boolean, moveKey: ?string, member?: ?string}} follower
+		 *   what the dialog weighs; `moveKey` starts it on a move, or null for its own default;
+		 *   `member` is set when the order is already one member's
 		 * @param {{ftype: string, slug: string}} card  whose Readiness a Defend writes to
 		 */
 		async orderFollower(follower, { ftype = "", slug = "" } = {}) {
+			const members = follower?.member ? [] : groupFollowerMembers(resolvedFlags(this.actor), { ftype, slug });
+			if (members.length) follower = { ...follower, members };
 			new OrderFollowersDialog(this.actor, follower,
 				async (result) => {
 					const roll = await this._stonetopCharacter.onOrderFollowersRoll(result);

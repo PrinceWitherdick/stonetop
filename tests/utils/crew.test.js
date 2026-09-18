@@ -6,6 +6,7 @@ import {
 	customGroupSize,
 	effectiveCrewSize,
 	groupFollowerStanding,
+	groupFollowerMembers,
 } from "../../module/utils/crew.js";
 
 describe("how many of a group follower are still standing", () => {
@@ -27,6 +28,48 @@ describe("how many of a group follower are still standing", () => {
 	it("has nothing to say about any other follower", () => {
 		expect(groupFollowerStanding({ animalCompanion: {} }, { ftype: "animal-companion" })).toBeNull();
 		expect(groupFollowerStanding({}, { ftype: "crew" })).toBeNull();
+	});
+});
+
+// Book I p.471: "When a PC directs an individual member of a group, they can trigger moves as if they
+// were a follower themselves. The group's tags and moves apply, plus any unique tags or moves they have
+// as an individual." These are the members the Order dialog offers to direct that way.
+describe("a group follower's members, to direct one of them on their own", () => {
+	it("lists the crew's named individuals first with their own tag and traits, then the anonymous tail", () => {
+		const flags = { crew: {
+			size: 4,
+			individuals: [{ name: "Glaw", tag: "small", traits: ["too serious"] }, { name: "Hari", tag: "", traits: [] }],
+		} };
+		expect(groupFollowerMembers(flags, { ftype: "crew" })).toEqual([
+			{ key: "named:0", name: "Glaw", tags: ["small", "too serious"] },
+			{ key: "named:1", name: "Hari", tags: [] },
+			{ key: "anon:0", name: "Crew member 3", tags: [] },
+			{ key: "anon:1", name: "Crew member 4", tags: [] },
+		]);
+	});
+
+	it("leaves out anyone at 0 HP, who is out of the action", () => {
+		const flags = { crew: { size: 4, individuals: [{ name: "Glaw" }, { name: "Hari" }], individualsHp: { 0: 0 }, memberHp: [5, 0] } };
+		expect(groupFollowerMembers(flags, { ftype: "crew" }).map(m => m.name)).toEqual(["Hari", "Crew member 3"]);
+	});
+
+	it("names an individual who has not been named yet by their roster row", () => {
+		const flags = { crew: { size: 1, individuals: [{ name: " ", tag: "eager" }] } };
+		expect(groupFollowerMembers(flags, { ftype: "crew" })).toEqual([{ key: "named:0", name: "Crew member 1", tags: ["eager"] }]);
+	});
+
+	it("numbers a custom group's members, none of whom have tags of their own", () => {
+		const flags = { customFollowers: { posse: { isGroup: true, size: 3, memberHp: [4, 0] } } };
+		expect(groupFollowerMembers(flags, { ftype: "custom", slug: "posse" })).toEqual([
+			{ key: "member:0", name: "Member 1", tags: [] },
+			{ key: "member:2", name: "Member 3", tags: [] },
+		]);
+	});
+
+	it("has no members for a follower who is one person, or a crew that is not there", () => {
+		expect(groupFollowerMembers({ customFollowers: { enfys: { name: "Enfys" } } }, { ftype: "custom", slug: "enfys" })).toEqual([]);
+		expect(groupFollowerMembers({ animalCompanion: {} }, { ftype: "animal-companion" })).toEqual([]);
+		expect(groupFollowerMembers({}, { ftype: "crew" })).toEqual([]);
 	});
 });
 

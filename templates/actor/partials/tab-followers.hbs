@@ -45,16 +45,18 @@
 	      handler reads to build the roll. Written once so an attribute added to the dialog's
 	      contract lands on all of them at once rather than on five of six.
 
-	      `ftype` / `slug` / `moveKey` / `icon` / `caption` / `extraClass` are the only things that
-	      vary; everything else is read from the surrounding card context. Omit `moveKey` for the
-	      plain Order button — the dialog opens on no particular move. --}}
+	      `ftype` / `slug` / `moveKey` / `member` / `icon` / `caption` / `extraClass` are the only
+	      things that vary; everything else is read from the surrounding card context. Omit
+	      `moveKey` for the plain Order button — the dialog opens on no particular move. Pass
+	      `member` only on a crew individual's own button: it marks the order as one member's
+	      already, so the dialog offers no Who row (a group's own buttons get one, p.471). --}}
 	{{#*inline "stonetopOrderButton"}}
 	<button type="button" class="stonetop-follower-order{{#if extraClass}} {{extraClass}}{{/if}}"
 	        data-ftype="{{ftype}}" data-slug="{{slug}}"
 	        data-follower-name="{{orderName}}"
 	        data-exceptional="{{#if exceptional}}true{{else}}false{{/if}}"
 	        data-tags="{{orderTagsCsv}}"
-	        data-moves="{{orderMovesCsv}}"{{#if moveKey}} data-move-key="{{moveKey}}"{{/if}}>
+	        data-moves="{{orderMovesCsv}}"{{#if moveKey}} data-move-key="{{moveKey}}"{{/if}}{{#if member}} data-member="{{member}}"{{/if}}>
 		<i class="fas {{icon}}"></i> {{caption}}
 	</button>
 	{{/inline}}
@@ -770,9 +772,10 @@
 					</div>
 					{{/if}}
 					{{!-- Direct this member on their own (p.471): their unique tag + traits
-					      apply on top of the crew's shared tags. Opens the Order dialog. --}}
+					      apply on top of the crew's shared tags. Opens the Order dialog, naming
+					      the member so it does not offer to pick one. --}}
 					<div class="stonetop-crew-individual-order">
-						{{> stonetopOrderButton ftype="crew" slug="" extraClass="stonetop-inline-btn" icon="fa-hand-point-right" caption=(concat "Order " name)}}
+						{{> stonetopOrderButton ftype="crew" slug="" member=orderName extraClass="stonetop-inline-btn" icon="fa-hand-point-right" caption=(concat "Order " name)}}
 					</div>
 					{{/if}}
 				</div>
