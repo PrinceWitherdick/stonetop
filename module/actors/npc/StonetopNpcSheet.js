@@ -7,7 +7,7 @@
 // Wears the same edit/lock header chrome as the monster/bestiary sheets (shared
 // sheet-chrome helpers) so it reads as one system.
 import { rollDamageAt } from "../../combat/attack-flow.js";
-import { damageCardText, blowWeapon } from "../../utils/damage.js";
+import { printedBlow } from "../../utils/damage.js";
 import { hideBrokenPortrait, stripHeaderChrome, injectHeaderToggle, fitDisplayName } from "../../utils/sheet-chrome.js";
 import { isDefaultImg } from "../../utils/strings.js";
 import { headerPortraitContext, wirePortraitPopout } from "../../utils/actor-portrait-picker.js";
@@ -417,14 +417,15 @@ export function createStonetopNpcSheetClass(Base) {
 					// the whole damage line: the die is already on the card's formula chip. The
 					// line may name more than one blow and this button rolls only the formula, so
 					// the attack printing that die is the one the card names.
-					const { title, keywords } = damageCardText(damage?.value, formula);
+					const { title, keywords, weapon, rollMode } = printedBlow(damage?.value, formula);
 					// Aimed at whoever this NPC is fighting on the map, or the roller's own targets
 					// (fight/fight-targets.js), with that blow's armor clause for Apply, and the fight's +N
 					// for several attackers on one target (fight/damage-seed.js). A plain card, as before,
 					// when there is nobody to hit.
 					await rollDamageAt(this.actor, {
-						formula, label: title || "Damage", keywords,
-						weapon: blowWeapon(damage?.value, formula),
+						formula, label: title || "Damage", keywords, weapon,
+						// The blow's own printed "w/disadvantage", as the monster sheet's buttons keep theirs.
+						rollMode,
 						shiftKey: ev.shiftKey,
 					});
 					return;

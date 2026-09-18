@@ -767,6 +767,20 @@ export function blowWeapon(damageValue, formula = "") {
 }
 
 /**
+ * The one blow a single damage button rolls, read once: what its card says (damageCardText), its armor
+ * clause (attackWeapon) and its printed "w/disadvantage" ("" for none). The one-die counterpart of
+ * damageBlows, for an NPC's button, a follower's card and the NPC's fight ring.
+ *
+ * @param {string} damageValue
+ * @param {string} [formula]
+ * @returns {{title: string, keywords: string, weapon: object|null, rollMode: string}}
+ */
+export function printedBlow(damageValue, formula = "") {
+	const attack = attackRolling(damageValue, formula);
+	return { ...damageCardText(damageValue, formula), weapon: attackWeapon(attack), rollMode: attack?.rollMode ?? "" };
+}
+
+/**
  * A monster's damage line as the blows its roll buttons roll, one per printed attack: the verbatim
  * text, its die (no spaces), a noted "w/disadvantage" (attackRollMode), what its card says
  * (damageCardText), and its armor clause for Apply (blowWeapon). The stat block's buttons and the
