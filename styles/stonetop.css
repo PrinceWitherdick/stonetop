@@ -4915,6 +4915,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	margin: 3px 0 0;
 	padding-left: 2px;
 }
+/* A notice printed right above its card's buttons (a damage card's Apply) would otherwise sit
+   flush on them: the button row carries `margin: 0`, and the notice's last line ends at its
+   rule's foot. `.pbta-chat-card` is weight, to outrank that margin rule wherever it sits. */
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .stonetop-card-notice + .card-buttons {
+	margin-top: 8px;
+}
 
 /* Lasting-injury reminder on a move's roll card (echoed from a wound's tag). A
    reminder only — it doesn't change the roll — so it reads as a warm caution note. */
