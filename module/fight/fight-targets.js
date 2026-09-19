@@ -107,6 +107,8 @@ export async function askWhoItHits(question, { DialogV2 = globalThis.foundry?.ap
 	return DialogV2.wait({
 		classes: themedDialogClasses("stonetop-fight-targets-app"),
 		window: { title: view.title },
+		// Sized, or core fits the window to the hint's one long line and it spans the whole screen.
+		position: { width: 440 },
 		content,
 		buttons: [
 			{ action: "hit", label: view.confirm, default: true, callback: (_event, button) => ticked(button?.form) },

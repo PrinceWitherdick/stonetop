@@ -235,6 +235,21 @@ export function fightWindowWillShow({ started = false } = {}) {
 }
 
 /**
+ * Where the window is about to open for a fight a GM is starting, before it is there: its place from
+ * `fightWindowPosition`, or null when it will not open (the reader turned the opening off) or is open
+ * already (the caller measures the real one). Tokens dropped for the new fight keep clear of it.
+ *
+ * @param {object} [p]
+ * @param {boolean} [p.started]  a fight is being started now
+ * @returns {{left: number, right: number, width: number}|null}
+ */
+export function fightWindowComing({ started = false } = {}) {
+	if (!started || globalThis.ui?.combat?.popout?.rendered || !isFightWindowAuto()) return null;
+	const { left, width } = fightWindowPosition();
+	return { left, right: left + width, width };
+}
+
+/**
  * Open the window for a fight already on the map at ready (a reload in the middle of one), and write
  * down a place still waiting on its delay as the page unloads.
  */

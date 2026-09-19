@@ -35,7 +35,7 @@ import { HEROES, FOES } from "./engagements.js";
 import { classifySide } from "./fight-sides.js";
 import { followerMasterIndex } from "../actors/character/follower-masters.js";
 import { combatantBodies, combatantSide, fightOnScene, gridOf, isFight, sideInfoFor, sceneRectOf, tokenLevel, SIDE_FLAG } from "./fight-state.js";
-import { fightWindowWillShow } from "./fight-window.js";
+import { fightWindowComing, fightWindowWillShow } from "./fight-window.js";
 import { askGroupSize, groupSizeQuestions } from "./group-size.js";
 import { gatherAround, makeGroupToken, settleNewcomers } from "./group-scale.js";
 import { lineUpPositions } from "./line-up.js";
@@ -316,14 +316,14 @@ const copiesOf = pick => (pick?.asGroup ? 1 : Math.max(1, Math.trunc(Number(pick
 /**
  * Where arriving tokens are dropped: their line-up places, as the CENTRE points core's drop takes.
  */
-function arrivalPoints(canvas, arrivals) {
+function arrivalPoints(canvas, arrivals, { starting = false } = {}) {
 	const size = canvas.dimensions?.size ?? canvas.grid?.size ?? 100;
 	const sized = arrivals.map((a, i) => ({
 		id: String(i), side: a.side,
 		w: a.actor.prototypeToken?.width ?? 1, h: a.actor.prototypeToken?.height ?? 1,
 	}));
 	const positions = lineUpPositions({
-		view: viewRectWorld(canvas),
+		view: viewRectWorld(canvas, { coming: fightWindowComing({ started: starting }) }),
 		size,
 		sceneRect: sceneRectOf(canvas),
 		heroes: sized.filter(s => s.side === HEROES),
@@ -341,9 +341,13 @@ function arrivalPoints(canvas, arrivals) {
  *
  * The Fight window is left out only while that keeps at least half of the view's width: a GM who has
  * dragged it wide across the middle of the map still gets the fight in front of them, not squeezed
- * into a strip beside it.
+ * into a strip beside it. A window not open yet but about to open for a fight being started (`coming`,
+ * fight-window.js#fightWindowComing) is left out the same way, so the arrivals do not land under it.
+ *
+ * @param {object} [canvas]
+ * @param {{coming?: {left: number, right: number, width: number}|null}} [options]
  */
-export function viewRectWorld(canvas = globalThis.canvas) {
+export function viewRectWorld(canvas = globalThis.canvas, { coming = null } = {}) {
 	const doc = globalThis.document;
 	const width = globalThis.innerWidth ?? 1920;
 	const height = globalThis.innerHeight ?? 1080;
@@ -354,7 +358,7 @@ export function viewRectWorld(canvas = globalThis.canvas) {
 	const sidebar = doc?.getElementById?.("sidebar")?.getBoundingClientRect?.();
 	if (sidebar?.width) right = Math.min(right, sidebar.left);
 	const fightWindow = globalThis.ui?.combat?.popout;
-	const box = fightWindow?.rendered && !fightWindow.minimized ? fightWindow.element?.getBoundingClientRect?.() : null;
+	const box = fightWindow?.rendered ? (fightWindow.minimized ? null : fightWindow.element?.getBoundingClientRect?.()) : coming;
 	if (box?.width) {
 		const onRight = box.left + box.width / 2 >= (left + right) / 2;
 		const narrowed = onRight ? [left, Math.min(right, box.left)] : [Math.max(left, box.right), right];
@@ -396,7 +400,9 @@ export async function startFight({ scene, combat = null, picks = [], lineUp = fa
 		for (let n = copiesOf(pick); n > 0; n -= 1) arrivals.push({ actor: found.actor, side: pick.side, name: pick.name, pick });
 	}
 	if (arrivals.length && canvas?.scene?.id === scene.id) {
-		const points = arrivalPoints(canvas, arrivals);
+		// A fight starting here opens its window as it starts: the arrivals keep clear of where it will be.
+		const starting = !(combat && isFight(combat)) && !fightOnScene(scene);
+		const points = arrivalPoints(canvas, arrivals, { starting });
 		const drop = await placeActors(canvas, arrivals.map(a => a.actor), i => points[i]);
 		result.missed.push(...drop.missed);
 		const groupsPlaced = new Map();

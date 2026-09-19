@@ -6290,6 +6290,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	font-size: calc(0.8rem * var(--stonetop-font-scale, 1));
 	line-height: 1.4;
 }
+/* A note inside a card sits on the card's light page, so it takes the page's ink, not core's sidebar ink
+   (pale orange under the dark theme, unreadable on white). */
+.stonetop-fight-card .stonetop-fight-note,
+.stonetop-fight-section .stonetop-fight-note { color: var(--st-text-secondary); }
 .stonetop-fight-rounds {
 	display: flex;
 	flex-direction: column;

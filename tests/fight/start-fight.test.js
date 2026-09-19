@@ -303,7 +303,7 @@ describe("startFight", () => {
 		expect(placed).toHaveLength(1);
 		expect(result.placed).toBe(1);
 		expect(created).toHaveLength(1);
-		expect(update).toHaveBeenCalledWith({ "system.fightAsGroup": true, "system.count": 6, "system.attributes.hp.value": 3, [`flags.${SYSTEM_ID}.groupWound`]: 0 });
+		expect(update).toHaveBeenCalledWith({ "system.fightAsGroup": true, "system.count": 6, "system.attributes.hp.value": 3, [`flags.${SYSTEM_ID}.groupWound`]: 0, [`flags.${SYSTEM_ID}.groupSize`]: 0 });
 	});
 
 	it("brings a linked monster asked for as a group in as that many tokens, and says so", async () => {
@@ -513,6 +513,19 @@ describe("viewRectWorld", () => {
 			expect(viewRectWorld(canvas).w).toBe(1560);
 			withWindow({ left: 1224, right: 1604, width: 380 }, { rendered: false });
 			expect(viewRectWorld(canvas).w).toBe(1560);
+		});
+
+		it("keeps clear of where a window about to open for a new fight will stand", () => {
+			globalThis.ui = { combat: { popout: null } };
+			const coming = { left: 1224, right: 1604, width: 380 };
+			expect(viewRectWorld(canvas, { coming })).toEqual({ x: 60, y: 0, w: 1164, h: 1080 });
+		});
+
+		it("measures the open window rather than where one was about to open", () => {
+			withWindow({ left: 80, right: 460, width: 380 });
+			expect(viewRectWorld(canvas, { coming: { left: 1224, right: 1604, width: 380 } })).toEqual({ x: 460, y: 0, w: 1160, h: 1080 });
+			withWindow({ left: 80, right: 460, width: 380 }, { minimized: true });
+			expect(viewRectWorld(canvas, { coming: { left: 1224, right: 1604, width: 380 } }).w).toBe(1560);
 		});
 	});
 });

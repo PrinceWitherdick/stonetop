@@ -1745,11 +1745,27 @@ function electedApplier(actors, message = null) {
 	return owners[0] ?? null;
 }
 
+/**
+ * Which one of the connected players owning every row presses a card relayed through the GM
+ * (`applyGate`'s `relay`): the lowest user id, so every client picks the same one. Unlike
+ * `electedApplier`, whether they can write the card does not matter: the GM's client writes it.
+ *
+ * @returns {string|null}
+ */
+function electedOwner(actors) {
+	const owners = (game.users?.players ?? [])
+		.filter(u => u.active && actors.every(a => a.testUserPermission?.(u, "OWNER")))
+		.map(u => u.id)
+		.sort();
+	return owners[0] ?? null;
+}
+
 // "Apply damage" on the results card. Writes each target's HP, mitigating by armor/piercing at
 // apply time. Idempotent: an `applied` map keyed by token uuid means a second click only fills
-// targets not yet done. The GM presses it for damage dealt to foes; a player presses it for an
-// option that damages their own character (see ownsEveryTarget). Exactly one of them has a live
-// button at a time, which is `electedApplier`'s business and not the latch's.
+// targets not yet done. The GM presses it for damage dealt to foes; a player presses it for damage
+// to their own character (see ownsEveryTarget). On a card they wrote, exactly one of them has a live
+// button at a time, which is `electedApplier`'s business and not the latch's. On a card the GM wrote,
+// both do: the player's press is applied by the GM's client (APPLY_QUERY), in turn with the GM's own.
 /**
  * Whether THIS client's press on a damage card counts, and if not, why: the one gate Apply and the
  * fight's "Leave off the +N" share, so the person who may apply the damage is the person who may
@@ -1772,10 +1788,17 @@ function applyGate(message, damage) {
 
 	if (!game.user.isGM) {
 		if (!ownsEveryTarget(owedActors)) return { pending, hide: true };
-		// The latch that stops the same damage being taken twice lives on the MESSAGE, and a player
-		// does not own a card the GM authored. Say so rather than letting the click write HP and
-		// then fail to record that it did (the same affordance the Suffer button wears).
-		if (!message.isOwner) return { pending, refused: "Ask the GM to apply this damage" };
+		// A card the GM authored (a monster's blow, a counter-attack): the latch that stops the same damage
+		// being taken twice lives on the MESSAGE, which the player cannot write. So the press goes to the
+		// GM's client (APPLY_QUERY), which applies it in line with the GM's own presses (applyInTurn).
+		// With no GM there, nothing could record it: say so rather than write HP and lose the latch.
+		if (!message.isOwner) {
+			if (!game.users?.activeGM) return { pending, refused: "Ask the GM to apply this damage" };
+			// A co-owned character: one of the owners, the same one on every screen.
+			const owner = electedOwner(owedActors);
+			if (owner && owner !== game.user.id) return { pending, refused: "Another player will take this damage" };
+			return { pending, relay: true };
+		}
 		// A co-owned character: both players own every row, and both buttons would subtract.
 		if (applier && applier !== game.user.id) return { pending, refused: "Another player will take this damage" };
 	} else if (!isPrimaryGM()) {
@@ -1829,7 +1852,7 @@ export function wireApplyDamage(message, html, gateFor = applyGateOnce(message))
 		btn.disabled = true;
 		let landed = false;
 		try {
-			landed = await applyOwedDamage(message, damage);
+			landed = gate.relay ? await askGMToApply(message) : await applyInTurn(message, damage);
 		} catch (err) {
 			console.error("Stonetop | applying damage failed", err);
 		} finally {
@@ -1838,6 +1861,71 @@ export function wireApplyDamage(message, html, gateFor = applyGateOnce(message))
 			if (!landed) btn.disabled = false;
 		}
 	});
+}
+
+/** The User query a player's Apply goes through on a card the GM authored (`applyGate`'s `relay`). */
+export const APPLY_QUERY = "stonetop.applyDamage";
+
+/** Each card's applies on this client, one after another: message id -> the last one's promise. */
+const applyQueue = new Map();
+
+/**
+ * Apply a card's owed damage once any apply already running for it on this client has finished, so the
+ * second reads the `applied` latch the first wrote and takes nothing twice. On the GM's client this
+ * lines up the GM's own press with a player's relayed one (`handleApplyQuery`).
+ */
+function applyInTurn(message, damage) {
+	const id = message?.id ?? null;
+	const before = applyQueue.get(id) ?? Promise.resolve();
+	const run = before.catch(() => {}).then(() => applyOwedDamage(message, damage));
+	applyQueue.set(id, run);
+	// The last in line lets go of the card; one queued behind it keeps the entry.
+	const settle = () => { if (applyQueue.get(id) === run) applyQueue.delete(id); };
+	return run.finally(settle);
+}
+
+/** A player's press on a card the GM authored: the GM's client applies it. Whether any row landed. */
+async function askGMToApply(message) {
+	const gm = game.users?.activeGM;
+	if (!gm) { ui.notifications?.warn("Ask the GM to apply this damage"); return false; }
+	try {
+		// Who asked rides in the data: v14 names the asker in the query's context, v13 does not.
+		return !!(await gm.query(APPLY_QUERY, { messageId: message.id, userId: game.user?.id ?? null }, { timeout: 10000 }));
+	} catch (err) {
+		console.warn("Stonetop | the GM's client could not apply the damage", err);
+		ui.notifications?.warn("The GM's client did not apply the damage. Ask the GM to press it.");
+		return false;
+	}
+}
+
+/**
+ * The GM's side of `APPLY_QUERY`: apply a card for the player who pressed it, if that player owns every
+ * row still owed. Only the primary GM's client answers, as only its own press counts (`applyGate`).
+ *
+ * WHO ASKED: as send-against.js#handleSendQuery. v13 names nobody in the context, so the id in the data
+ * is read instead, and never taken for a GM's.
+ *
+ * @param {{messageId: string, userId?: string}} data
+ * @param {{user?: object}} context
+ * @returns {Promise<boolean>}  whether any row was applied
+ */
+export async function handleApplyQuery(data, { user } = {}, { messages = game.messages, users = game.users } = {}) {
+	if (!game.user?.isGM || !isPrimaryGM()) return false;
+	if (!user) {
+		const claimed = typeof data?.userId === "string" ? users?.get?.(data.userId) : null;
+		user = claimed && !claimed.isGM ? claimed : null;
+	}
+	const message = messages?.get?.(data?.messageId);
+	const damage = message?.getFlag?.(SCOPE, "damage");
+	if (!user || !damage?.results?.length) return false;
+	const applied = new Set((damage.applied ?? []).map(a => a.uuid));
+	const owed = damage.results.filter(r => !applied.has(r.uuid));
+	if (!owed.length) return false;
+	// The same rows the player's own gate read, stand-ins included: every one theirs to take.
+	const { standIns } = spentOn(damage);
+	const actors = resolveDamageActors(owed.map(r => (standIns.has(r.uuid) ? { ...r, uuid: standIns.get(r.uuid).by } : r)));
+	if (!actors?.every(a => a.testUserPermission?.(user, "OWNER"))) return false;
+	return applyInTurn(message, damage);
 }
 
 /**
@@ -1849,6 +1937,8 @@ async function applyOwedDamage(message, damage) {
 	const nextApplied = Array.isArray(current.applied) ? [...current.applied] : [];
 	const before = nextApplied.length;
 	const doneUuids = new Set(nextApplied.map(a => a.uuid));
+	// A press that waited its turn behind one that took everything (applyInTurn): nothing to write or say.
+	if (!current.results.some(r => !doneUuids.has(r.uuid))) return false;
 	// The other attackers' piercing counts only while their +N does (seedPiercing).
 	const piercing = Math.max(resolvePiercing(current.weapon?.piercing), seedPiercing(current.seed));
 	// The fight's +N as it stands now, against what was rolled (see seedAdjustment). A group's -N is the
@@ -1901,7 +1991,7 @@ async function applyOwedDamage(message, damage) {
 			const hit = await applyMemberHit(targetActor, effective);
 			if (hit) {
 				nextApplied.push({ uuid: r.uuid, effective, member: true, down: hit.down, before: hit.before, after: hit.after });
-				const said = format(`stonetop.fight.groupHit.${hit.down ? "down" : "hurt"}`, { after: hit.after, memberHp: hit.memberHp, hpMax: hit.hpMax });
+				const said = format(`stonetop.fight.groupHit.${hit.down ? "down" : hit.harmed ? "hurt" : "unhurt"}`, { after: hit.after, memberHp: hit.memberHp, hpMax: hit.hpMax });
 				lines.push(`<li><strong>${escHtml(r.name)}</strong>: ${effective} damage${back}${mitigated}: ${escHtml(said)}</li>`);
 				continue;
 			}
@@ -1933,7 +2023,8 @@ async function applyOwedDamage(message, damage) {
  * seat, and nothing about the stored card content has to change.
  *
  * PRESSED BY WHOEVER MAY PRESS APPLY (`applyGate`), and only until damage has been applied: after that
- * the HP is written and the number on the card is history.
+ * the HP is written and the number on the card is history. A player whose press is relayed through the
+ * GM (a card the GM wrote) may not: the toggle writes the card, and only its author's client can.
  */
 export function wireDamageSeed(message, html, gateFor = applyGateOnce(message)) {
 	const root = html?.[0] ?? html;
@@ -1960,6 +2051,8 @@ export function wireDamageSeed(message, html, gateFor = applyGateOnce(message)) 
 	const gate = gateFor(damage);
 	if (gate.hide) { btn.style.display = "none"; return; }
 	if (gate.refused) { btn.disabled = true; btn.title = gate.refused; return; }
+	// A card the GM wrote: the player may have it applied (through the GM's client) but not rewrite it.
+	if (gate.relay) { btn.disabled = true; btn.title = "Ask the GM to change this"; return; }
 	if ((damage.applied ?? []).length) {
 		btn.disabled = true;
 		btn.title = format("stonetop.fight.seed.alreadyApplied", {});

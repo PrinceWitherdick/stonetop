@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { halveDamage, defendOffers, defendNotes, spendOnBlow, spentOn } from "../../module/fight/defend-spend.js";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { halveDamage, defendOffers, defendNotes, spendOnBlow, spentOn, handleSpendQuery, SPEND_QUERY } from "../../module/fight/defend-spend.js";
 import { heldReadiness, READINESS_FLAG } from "../../module/combat/defend-readiness.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
 
@@ -147,5 +147,84 @@ describe("spendOnBlow", () => {
 		expect(await spendOnBlow(card, "standIn", { row: card.flag.results[0], defender: aeliana })).toBe(true);
 		expect(card.flag.standIns).toEqual([{ uuid: "Token.bram", by: "Actor.aeliana", name: "aeliana", how: "standIn", free: false }]);
 		expect(await spendOnBlow(card, "halve", { row: card.flag.results[0], defender: aeliana })).toBe(false);
+	});
+});
+
+// A card the GM wrote (a monster's blow): a player cannot write it, so their spend is recorded by the GM's
+// client, and a parry's strike back is still theirs to roll.
+describe("a player's spend on a card the GM wrote", () => {
+	const GM = { id: "gm", isGM: true, active: true };
+	const PIM = { id: "pim", isGM: false, active: true };
+	const BOB = { id: "bob", isGM: false, active: true };
+	let saved;
+	beforeEach(() => { saved = globalThis.game; });
+	afterEach(() => { globalThis.game = saved; });
+
+	const card = flag => ({
+		id: "m1", flag,
+		getFlag() { return this.flag; },
+		setFlag: vi.fn(async function (_scope, _key, value) { this.flag = value; }),
+	});
+	const owned = (name, readiness, ownerId, moves = []) => ({
+		...character(name, readiness, moves),
+		testUserPermission: user => user.id === ownerId,
+	});
+	const users = list => ({ get: id => list.find(u => u.id === id) ?? null, activeGM: list.find(u => u.isGM) ?? null });
+
+	it("asks the GM's client to record it, writing nothing itself", async () => {
+		const query = vi.fn(async () => true);
+		globalThis.game = { user: PIM, users: { activeGM: { ...GM, query } } };
+		const bram = owned("bram", 2, "pim");
+		const blow = card({ results: [{ uuid: "Token.bram", name: "Bram" }] });
+		expect(await spendOnBlow(blow, "halve", { row: blow.flag.results[0], defender: bram }, { relay: true })).toBe(true);
+		expect(query).toHaveBeenCalledWith(SPEND_QUERY, { messageId: "m1", kind: "halve", rowUuid: "Token.bram", defenderUuid: "Actor.bram", userId: "pim" }, { timeout: 10000 });
+		expect(blow.setFlag).not.toHaveBeenCalled();
+		expect(bram.setFlag).not.toHaveBeenCalled();
+	});
+
+	it("rolls a parry's strike back on the player's own screen, and has the GM take the Readiness once it is settled", async () => {
+		const query = vi.fn(async () => true);
+		globalThis.game = { user: PIM, users: { activeGM: { ...GM, query } } };
+		const fox = owned("fox", 2, "pim", ["Parry & Riposte"]);
+		const blow = card({ attackerUuid: "Scene.s.Token.wolf", results: [{ uuid: "Token.fox", name: "Fox" }] });
+		const strike = vi.fn(async (_d, _a, _l, { commit }) => commit());
+		expect(await spendOnBlow(blow, "parry", { row: blow.flag.results[0], defender: fox, cost: 1 }, { relay: true, strikeBack: strike })).toBe(true);
+		expect(strike).toHaveBeenCalledTimes(1);
+		expect(query).toHaveBeenCalledWith(SPEND_QUERY, expect.objectContaining({ kind: "parry", defenderUuid: "Actor.fox" }), { timeout: 10000 });
+	});
+
+	describe("handleSpendQuery", () => {
+		function gmSide() {
+			const bram = owned("bram", 2, "pim");
+			const blow = card({ results: [{ uuid: "Token.bram", name: "Bram" }] });
+			globalThis.game = { user: GM, users: users([GM, PIM, BOB]) };
+			const deps = { messages: { get: id => (id === "m1" ? blow : null) }, users: users([GM, PIM, BOB]), offersOf: damage => defendOffers(damage, () => ({ self: bram, allies: [] })) };
+			return { bram, blow, deps };
+		}
+		const ask = (user, extra = {}) => [{ messageId: "m1", kind: "halve", rowUuid: "Token.bram", defenderUuid: "Actor.bram", ...extra }, { user }];
+
+		it("records the spend for the player who owns the defender, once however often it is asked", async () => {
+			const { bram, blow, deps } = gmSide();
+			const [first, second] = await Promise.all([handleSpendQuery(...ask(PIM), deps), handleSpendQuery(...ask(PIM), deps)]);
+			expect([first, second]).toEqual([true, false]);
+			expect(bram.flags[SYSTEM_ID][READINESS_FLAG]).toBe(1);
+			expect([...spentOn(blow.flag).halved]).toEqual(["Token.bram"]);
+		});
+
+		it("refuses a player who does not own the defender, and a spend the card does not offer", async () => {
+			const { bram, deps } = gmSide();
+			expect(await handleSpendQuery(...ask(BOB), deps)).toBe(false);
+			expect(await handleSpendQuery(...ask(PIM, { kind: "standIn" }), deps)).toBe(false);
+			expect(await handleSpendQuery(...ask(PIM, { kind: "lunge" }), deps)).toBe(false);
+			expect(bram.flags[SYSTEM_ID][READINESS_FLAG]).toBe(2);
+		});
+
+		it("reads the asker from the data on v13, but never takes it for a GM", async () => {
+			const { bram, deps } = gmSide();
+			const [data] = ask(null);
+			expect(await handleSpendQuery({ ...data, userId: "gm" }, { timeout: 10000 }, deps)).toBe(false);
+			expect(bram.flags[SYSTEM_ID][READINESS_FLAG]).toBe(2);
+			expect(await handleSpendQuery({ ...data, userId: "pim" }, { timeout: 10000 }, deps)).toBe(true);
+		});
 	});
 });

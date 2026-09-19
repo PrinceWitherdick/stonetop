@@ -69,10 +69,12 @@ export function fightsAsGroup({ type = "", fightAsGroup = false, organization = 
  * @param {number}  [info.count]         a monster's group size
  * @param {number}  [info.headcount]     the combatant's own headcount
  * @param {{standing: number, size: number}|null} [info.roster]  a group follower's roster
+ * @param {number}  [info.startSize]     the size a monster group started at before lone blows dropped
+ *   members (fight/group-hits.js#GROUP_SIZE_FLAG); only the `size` it reports reads it
  * @returns {{bodies: number, out: boolean, group: boolean, standing: number|null, size: number|null, routed: boolean}}
  */
 export function bodiesFor({
-	defeated = false, type = "", fightAsGroup = false, organization = "", hp = {}, count = 0, headcount = null, roster = null,
+	defeated = false, type = "", fightAsGroup = false, organization = "", hp = {}, count = 0, headcount = null, roster = null, startSize = 0,
 } = {}) {
 	const none = { bodies: 0, out: true, group: false, standing: null, size: null, routed: false };
 	if (defeated) return none;
@@ -92,8 +94,10 @@ export function bodiesFor({
 		const size = Math.max(0, Math.trunc(Number(count) || 0));
 		if (size > 0 && max > 0) {
 			const { standing, routed } = groupCasualties({ hpMax: max, hpCurrent: Number.isFinite(value) ? value : max, count: size });
-			if (routed) return { ...none, group: true, standing: 0, size, routed: true };
-			return { bodies: Math.max(1, standing), out: false, group: true, standing, size, routed: false };
+			// Said as "5 of 6": the size it started at, when lone blows have dropped some (never less than now).
+			const shown = Math.max(size, Math.trunc(Number(startSize) || 0));
+			if (routed) return { ...none, group: true, standing: 0, size: shown, routed: true };
+			return { bodies: Math.max(1, standing), out: false, group: true, standing, size: shown, routed: false };
 		}
 	}
 

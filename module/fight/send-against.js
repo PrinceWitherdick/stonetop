@@ -3,12 +3,12 @@
 // It goes either way about, a foe sent at a hero or a hero sent at a foe; the row picked up is always
 // the token that moves.
 //
-// ANYONE BUT ANOTHER PLAYER'S CHARACTER. Where a token stands matters little in Stonetop beyond who
-// it is fighting, so a player may send their own character, any monster and any NPC (anything no
-// player owns) at someone, and have the target's packmates step aside (`mayMove`). Only a character
-// or follower another player owns is theirs alone. Core lets a player move only tokens they own, so
-// whatever else they send is handed to the active GM's client (`SEND_QUERY`), which checks the same
-// rule against the asking user before it moves anything. With no GM connected, nothing moves.
+// ANYONE IN THE FIGHT. Where a token stands matters little in Stonetop beyond who it is fighting, so a
+// player may send anyone in the fight at someone, their own character, another player's, a monster or
+// an NPC, and have the target's packmates step aside (`mayMove`). Only a hidden fighter stays put for a
+// player: moving it would show where it lies in wait. Core lets a player move only tokens they own, so
+// whatever else they send is handed to the active GM's client (`SEND_QUERY`), which checks the asking
+// user again (in the fight, not hidden) before it moves anything. With no GM connected, nothing moves.
 //
 // NOTHING IS RECORDED. The engagement, its line on the map and the foe's place under the hero in the
 // tab all follow from the two tokens touching (engagements.js#touching), exactly as if the GM had
@@ -23,8 +23,7 @@
 // would pull the mover into a fight with all of them. A spot touching none of them always wins over
 // a nearer one that touches some. When every spot touches one (the target stands in a pack of its
 // own side), the fewest-touching spot is taken and the allies touching it step aside into the
-// nearest free space clear of it (`stepAside`), in the same displace. One the reader may not move
-// (another player's character) stays put.
+// nearest free space clear of it (`stepAside`), in the same displace. One hidden from a player stays put.
 //
 // The candidates are PURE (`spotBeside`); `sendAgainst` reads the documents and moves the token in
 // core's "displace" movement, as a line-up does: straight there, through walls, no walk along the way.
@@ -32,25 +31,26 @@
 import { format } from "../utils/i18n.js";
 import { displaceTokens } from "../utils/foundry-compat.js";
 import { touching } from "./engagements.js";
-import { combatantSide, combatantBodies, gridOf, tokenRect, tokenLevel, sceneRectOf, insideRect } from "./fight-state.js";
+import { combatantSide, combatantBodies, gridOf, tokenRect, tokenLevel, sceneRectOf, insideRect, fightOnScene } from "./fight-state.js";
 import { overlapShare, rectCenter } from "./overlay-geometry.js";
 
 /** The User query a player's send goes through when it moves a token they do not own. */
 export const SEND_QUERY = "stonetop.sendAgainst";
 
-/**
- * Whether a reader may send (or step aside) a fighter: theirs to move, or nobody's character. A
- * combatant's `isOwner` is its actor's (core's Combatant#getUserLevel), and true for a GM.
- *
- * @param {{isOwner?: boolean, actor?: {hasPlayerOwner?: boolean}|null}|null} combatant
- */
-export function mayMove(combatant) {
-	return !!combatant && (!!combatant.isOwner || !combatant.actor?.hasPlayerOwner);
-}
-
 /** Whether a fighter is hidden from players: its token, or its row in the fight. */
 function isHidden(combatant) {
 	return !!(combatant?.token?.hidden || combatant?.hidden);
+}
+
+/**
+ * Whether a reader may send (or step aside) a fighter: anyone in the fight, but a hidden one only for
+ * a GM, since moving it would show a player where it lies in wait.
+ *
+ * @param {{hidden?: boolean, token?: {hidden?: boolean}|null}|null} combatant
+ * @param {{isGM?: boolean}|null} [user]
+ */
+export function mayMove(combatant, user = globalThis.game?.user) {
+	return !!combatant && (!!user?.isGM || !isHidden(combatant));
 }
 
 /** How much of the smaller footprint two tokens may share before one is standing on the other. */
@@ -160,8 +160,8 @@ export function stepAside({ token, clear, avoid = [], others = [], grid = {}, sc
 }
 
 /**
- * Move one fighter's token up against a fighter on the other side: anyone's to do but another
- * player's character (`mayMove`), and only on the scene on the canvas, where the move can be seen.
+ * Move one fighter's token up against a fighter on the other side: anyone in the fight, a hidden one
+ * only for a GM (`mayMove`), and only on the scene on the canvas, where the move can be seen.
  *
  * @returns {Promise<"moved"|"already"|"noRoom"|false>}  false for anything that could not be tried
  */
@@ -208,13 +208,12 @@ export async function sendAgainst(combat, moverId, targetId, { scene = globalThi
 
 	// The target's allies the mover would also touch there step aside, those the reader may move. A hidden
 	// one a player cannot see stays put: moving it would show them where it lies in wait.
-	const seesHidden = !!globalThis.game?.user?.isGM;
 	const landing = { x: spot.x, y: spot.y, w: moverRect.w, h: moverRect.h };
 	const moves = [{ id: mover.token.id, x: spot.x, y: spot.y }];
 	const taken = new Map(others.map(o => [o.id, o.rect]));
 	for (const rival of rivals) {
 		const rect = tokenRect(rival.token);
-		if (!mayMove(rival) || (!seesHidden && isHidden(rival)) || !touching({ rect }, { rect: landing }, grid)) continue;
+		if (!mayMove(rival) || !touching({ rect }, { rect: landing }, grid)) continue;
 		taken.delete(rival.token.id);
 		const to = stepAside({
 			token: rect,
@@ -255,30 +254,31 @@ export async function sendAgainst(combat, moverId, targetId, { scene = globalThi
 
 /**
  * The GM's side of `SEND_QUERY`: move the tokens a player's send asked for, each one checked against
- * the ASKING user by the same rule (`mayMove`), so a query cannot move another player's character.
+ * the ASKING user by the same rule (`mayMove`): fighting on that scene, and not hidden from them.
  *
  * WHO ASKED. v14 hands the handler the asking user in its context; v13 hands it only `{timeout}`, so there
  * the id the sender put in the data is read instead. That id is the sender's own word, so it is never taken
- * for a GM: a player claiming to be one would otherwise move anybody's character.
+ * for a GM: a player claiming to be one would otherwise move a hidden fighter.
  *
  * @param {{sceneId: string, moves: Array<{id: string, x: number, y: number}>, userId?: string}} data
  * @param {{user?: object}} context  core's query context, naming who asked (v14 only)
  * @returns {Promise<number>}  how many tokens moved
  */
-export async function handleSendQuery(data, { user } = {}, { scenes = globalThis.game?.scenes, users = globalThis.game?.users } = {}) {
+export async function handleSendQuery(data, { user } = {}, { scenes = globalThis.game?.scenes, users = globalThis.game?.users, fightOn = fightOnScene } = {}) {
 	const scene = scenes?.get?.(data?.sceneId);
 	if (!user) {
 		const claimed = typeof data?.userId === "string" ? users?.get?.(data.userId) : null;
 		user = claimed && !claimed.isGM ? claimed : null;
 	}
 	if (!scene || !user) return 0;
+	// Only a token fighting on this scene: the send moves fighters, not whatever else stands on the map.
+	const combat = fightOn(scene);
+	const fighting = new Map([...(combat?.combatants ?? [])].filter(c => c.sceneId === scene.id && c.tokenId).map(c => [c.tokenId, c]));
 	const moves = (Array.isArray(data?.moves) ? data.moves : []).filter(m => {
 		const token = scene.tokens?.get?.(m?.id);
+		if (!token || !fighting.has(token.id) || !Number.isFinite(Number(m.x)) || !Number.isFinite(Number(m.y))) return false;
 		// Nor a hidden token, for a player: its move would give it away.
-		if (!token || (token.hidden && !user.isGM) || !Number.isFinite(Number(m.x)) || !Number.isFinite(Number(m.y))) return false;
-		const actor = token.actor ?? null;
-		const isOwner = token.testUserPermission?.(user, "OWNER") ?? actor?.testUserPermission?.(user, "OWNER");
-		return mayMove({ isOwner: !!isOwner, actor });
+		return mayMove({ hidden: fighting.get(token.id).hidden, token }, user);
 	}).map(m => ({ id: m.id, x: Number(m.x), y: Number(m.y) }));
 	if (moves.length) await displaceTokens(scene, moves);
 	return moves.length;

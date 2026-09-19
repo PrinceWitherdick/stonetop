@@ -1994,7 +1994,8 @@
       },
       "groupHit": {
         "down": "one of them goes down, {after} still standing",
-        "hurt": "one of them is hurt ({memberHp} of {hpMax} HP left), {after} still standing"
+        "hurt": "one of them is hurt ({memberHp} of {hpMax} HP left), {after} still standing",
+        "unhurt": "none of them is hurt, {after} still standing"
       },
       "defend": {
         "halve": "Halve it (Readiness)",

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { memberHit, groupTokenInfo, applyMemberHit, isLoneBlowOnGroup, GROUP_WOUND_FLAG } from "../../module/fight/group-hits.js";
+import { memberHit, groupTokenInfo, applyMemberHit, isLoneBlowOnGroup, GROUP_WOUND_FLAG, GROUP_SIZE_FLAG, groupStartSize } from "../../module/fight/group-hits.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
 import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection } from "../fakes/fight.js";
 
@@ -14,24 +14,27 @@ const horde = ({ count = 12, hp = 3, wound = 0, fightAsGroup = true } = {}) => {
 	actor.update = vi.fn(async changes => {
 		if ("system.count" in changes) actor.system.count = changes["system.count"];
 		if (`flags.${SYSTEM_ID}.${GROUP_WOUND_FLAG}` in changes) actor.flags[SYSTEM_ID][GROUP_WOUND_FLAG] = changes[`flags.${SYSTEM_ID}.${GROUP_WOUND_FLAG}`];
+		if (`flags.${SYSTEM_ID}.${GROUP_SIZE_FLAG}` in changes) actor.flags[SYSTEM_ID][GROUP_SIZE_FLAG] = changes[`flags.${SYSTEM_ID}.${GROUP_SIZE_FLAG}`];
 	});
 	return actor;
 };
 
 describe("memberHit", () => {
 	it("drops one member for a blow that reaches their HP, however hard it lands", () => {
-		expect(memberHit({ hpMax: 3, count: 12, wound: 0 }, 3)).toEqual({ down: true, count: 11, wound: 0, memberHp: 0 });
-		expect(memberHit({ hpMax: 3, count: 12, wound: 0 }, 9)).toEqual({ down: true, count: 11, wound: 0, memberHp: 0 });
+		expect(memberHit({ hpMax: 3, count: 12, wound: 0 }, 3)).toEqual({ down: true, harmed: true, count: 11, wound: 0, memberHp: 0 });
+		expect(memberHit({ hpMax: 3, count: 12, wound: 0 }, 9)).toEqual({ down: true, harmed: true, count: 11, wound: 0, memberHp: 0 });
 	});
 
 	it("leaves a member hurt for less, and finishes them with the next blow", () => {
 		const hurt = memberHit({ hpMax: 3, count: 12, wound: 0 }, 2);
-		expect(hurt).toEqual({ down: false, count: 12, wound: 2, memberHp: 1 });
+		expect(hurt).toEqual({ down: false, harmed: true, count: 12, wound: 2, memberHp: 1 });
 		expect(memberHit({ hpMax: 3, count: 12, wound: hurt.wound }, 1)).toMatchObject({ down: true, count: 11, wound: 0 });
 	});
 
-	it("does nothing for a blow that dealt nothing", () => {
-		expect(memberHit({ hpMax: 3, count: 12, wound: 0 }, 0)).toEqual({ down: false, count: 12, wound: 0, memberHp: 3 });
+	it("does nothing for a blow that dealt nothing, and says it harmed nobody", () => {
+		expect(memberHit({ hpMax: 3, count: 12, wound: 0 }, 0)).toEqual({ down: false, harmed: false, count: 12, wound: 0, memberHp: 3 });
+		// A member already hurt stays as hurt as they were: still not harmed by THIS blow.
+		expect(memberHit({ hpMax: 3, count: 12, wound: 2 }, 0)).toMatchObject({ down: false, harmed: false, wound: 2, memberHp: 1 });
 	});
 });
 
@@ -51,8 +54,16 @@ describe("applyMemberHit", () => {
 	it("takes one off the group's size and leaves its pool alone", async () => {
 		const actor = horde();
 		expect(await applyMemberHit(actor, 4)).toMatchObject({ down: true, before: 12, after: 11 });
-		expect(actor.update).toHaveBeenCalledWith({ "system.count": 11 });
+		expect(actor.update).toHaveBeenCalledWith({ "system.count": 11, [`flags.${SYSTEM_ID}.${GROUP_SIZE_FLAG}`]: 12 });
 		expect(actor.system.attributes.hp.value).toBe(3);
+	});
+
+	it("keeps the size the group started at, from the first member down on", async () => {
+		const actor = horde({ count: 6 });
+		await applyMemberHit(actor, 4);
+		await applyMemberHit(actor, 4);
+		expect(actor.system.count).toBe(4);
+		expect(groupStartSize(actor)).toBe(6);
 	});
 
 	it("keeps a hurt member's wound on the token", async () => {

@@ -29,6 +29,16 @@ export const COUNT_FLAG = "count";
 /** The combatant ids a fighter was last seen shooting at (fight-shots.js). */
 export const SHOTS_FLAG = "shots";
 
+/**
+ * The flag holding how many the group was before lone blows began dropping its members. A member going
+ * down lowers `system.count`, which is the group's size for every rule that counts it; this keeps the
+ * number it started at, so the Fight tab can say "5 of 6 standing" rather than "5 of 5".
+ */
+export const GROUP_SIZE_FLAG = "groupSize";
+
+/** The size a group started at, as kept on its token's actor, or 0 when none is kept. */
+export const groupStartSize = actor => Math.max(0, Math.trunc(Number(actor?.flags?.[SYSTEM_ID]?.[GROUP_SIZE_FLAG]) || 0));
+
 /** Core's OWNER ownership level, which a module read in tests cannot reach through CONST. */
 const OWNER = 3;
 
@@ -100,6 +110,7 @@ export function combatantBodies(combatant) {
 		count: system.count ?? 0,
 		headcount: ours(combatant)[COUNT_FLAG] ?? null,
 		roster: followerRoster(combatant),
+		startSize: groupStartSize(actor),
 	});
 }
 

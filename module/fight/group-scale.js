@@ -28,7 +28,7 @@ import { placeActors } from "../utils/token-drop.js";
 import { combatantBodies, combatantSide, tokenRect, tokenLevel, sceneRectOf, SIDE_FLAG } from "./fight-state.js";
 import { fightsAsGroup } from "./fight-sides.js";
 import { numberedNames, spotsAround } from "./group-size.js";
-import { GROUP_WOUND_FLAG, groupWound } from "./group-hits.js";
+import { GROUP_WOUND_FLAG, GROUP_SIZE_FLAG, groupWound } from "./group-hits.js";
 
 const KEY = "stonetop.fight.scale";
 
@@ -58,8 +58,8 @@ function fullHp(actor) {
 }
 
 /**
- * What a token's actor turns into to fight as a group of `size`: the switch, the size, a full pool, and
- * no member left hurt by a lone blow (fight/group-hits.js).
+ * What a token's actor turns into to fight as a group of `size`: the switch, the size, a full pool, no
+ * member left hurt by a lone blow, and no earlier size kept (fight/group-hits.js): `size` is where it starts.
  */
 export function groupChanges(actor, size) {
 	return {
@@ -67,6 +67,7 @@ export function groupChanges(actor, size) {
 		"system.count": Math.max(1, Math.trunc(size)),
 		...fullHp(actor),
 		[`flags.${SYSTEM_ID}.${GROUP_WOUND_FLAG}`]: 0,
+		[`flags.${SYSTEM_ID}.${GROUP_SIZE_FLAG}`]: 0,
 	};
 }
 

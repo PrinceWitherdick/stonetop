@@ -237,43 +237,60 @@ describe("sendAgainst", () => {
 });
 
 describe("handleSendQuery", () => {
-	it("moves what the asking player may move, and drops another player's character", async () => {
+	// The fight on the scene, as core would hand it: one combatant per token id given, hidden ones marked.
+	const fightOf = (scene, ids, hidden = []) => () => ({ combatants: ids.map(id => ({ id: `c${id}`, tokenId: id, sceneId: scene.id, hidden: hidden.includes(id) })) });
+
+	it("moves anyone in the fight for a player, another player's character too, and nothing outside it", async () => {
 		const mine = fakeActor({ id: "bram", type: "character", hasPlayerOwner: true, ownership: { alice: 3 } });
 		const theirs = fakeActor({ id: "vess", type: "character", hasPlayerOwner: true, ownership: { bob: 3 } });
 		const tBram = fakeToken({ id: "tBram", col: 0, row: 0, actor: mine });
 		const tVess = fakeToken({ id: "tVess", col: 1, row: 0, actor: theirs });
 		const tWolf = fakeToken({ id: "tWolf", col: 2, row: 0, actor: fakeActor({ id: "wolf", type: "monster" }) });
-		const scene = fakeScene({ tokens: [tBram, tVess, tWolf] });
+		const tCart = fakeToken({ id: "tCart", col: 3, row: 0, actor: fakeActor({ id: "cart", type: "npc" }) });
+		const scene = fakeScene({ tokens: [tBram, tVess, tWolf, tCart] });
 		scene.moveTokens = vi.fn(async () => ({}));
-		const moves = [{ id: "tBram", x: 500, y: 500 }, { id: "tVess", x: 600, y: 500 }, { id: "tWolf", x: 700, y: 500 }, { id: "tGone", x: 0, y: 0 }];
-		const count = await handleSendQuery({ sceneId: scene.id, moves }, { user: { id: "alice", isGM: false } }, { scenes: { get: () => scene } });
-		expect(count).toBe(2);
-		expect(Object.keys(scene.moveTokens.mock.calls[0][0])).toEqual(["tBram", "tWolf"]);
+		const moves = [{ id: "tBram", x: 500, y: 500 }, { id: "tVess", x: 600, y: 500 }, { id: "tWolf", x: 700, y: 500 }, { id: "tCart", x: 800, y: 500 }, { id: "tGone", x: 0, y: 0 }];
+		const deps = { scenes: { get: () => scene }, fightOn: fightOf(scene, ["tBram", "tVess", "tWolf"]) };
+		const count = await handleSendQuery({ sceneId: scene.id, moves }, { user: { id: "alice", isGM: false } }, deps);
+		expect(count).toBe(3);
+		expect(Object.keys(scene.moveTokens.mock.calls[0][0])).toEqual(["tBram", "tVess", "tWolf"]);
 	});
 
-	it("moves no hidden token for a player", async () => {
+	it("moves nothing when the scene has no fight", async () => {
 		const tWolf = fakeToken({ id: "tWolf", col: 2, row: 0, actor: fakeActor({ id: "wolf", type: "monster" }) });
-		tWolf.hidden = true;
 		const scene = fakeScene({ tokens: [tWolf] });
 		scene.moveTokens = vi.fn(async () => ({}));
 		const moves = [{ id: "tWolf", x: 700, y: 500 }];
-		expect(await handleSendQuery({ sceneId: scene.id, moves }, { user: { id: "alice", isGM: false } }, { scenes: { get: () => scene } })).toBe(0);
+		expect(await handleSendQuery({ sceneId: scene.id, moves }, { user: { id: "alice", isGM: false } }, { scenes: { get: () => scene }, fightOn: () => null })).toBe(0);
+		expect(scene.moveTokens).not.toHaveBeenCalled();
+	});
+
+	it("moves no hidden token for a player, whether the token or its row is hidden", async () => {
+		const tWolf = fakeToken({ id: "tWolf", col: 2, row: 0, actor: fakeActor({ id: "wolf", type: "monster" }) });
+		tWolf.hidden = true;
+		const tPup = fakeToken({ id: "tPup", col: 3, row: 0, actor: fakeActor({ id: "pup", type: "monster" }) });
+		const scene = fakeScene({ tokens: [tWolf, tPup] });
+		scene.moveTokens = vi.fn(async () => ({}));
+		const moves = [{ id: "tWolf", x: 700, y: 500 }, { id: "tPup", x: 800, y: 500 }];
+		const deps = { scenes: { get: () => scene }, fightOn: fightOf(scene, ["tWolf", "tPup"], ["tPup"]) };
+		expect(await handleSendQuery({ sceneId: scene.id, moves }, { user: { id: "alice", isGM: false } }, deps)).toBe(0);
 	});
 
 	it("reads the asker from the data on v13, whose query context names nobody, but never takes it for a GM", async () => {
-		const mine = fakeActor({ id: "bram", type: "character", hasPlayerOwner: true, ownership: { alice: 3 } });
-		const theirs = fakeActor({ id: "vess", type: "character", hasPlayerOwner: true, ownership: { bob: 3 } });
-		const scene = fakeScene({ tokens: [fakeToken({ id: "tBram", col: 0, row: 0, actor: mine }), fakeToken({ id: "tVess", col: 1, row: 0, actor: theirs })] });
+		const tWolf = fakeToken({ id: "tWolf", col: 2, row: 0, actor: fakeActor({ id: "wolf", type: "monster" }) });
+		const tLurker = fakeToken({ id: "tLurker", col: 3, row: 0, actor: fakeActor({ id: "lurker", type: "monster" }) });
+		tLurker.hidden = true;
+		const scene = fakeScene({ tokens: [tWolf, tLurker] });
 		scene.moveTokens = vi.fn(async () => ({}));
 		const alice = { id: "alice", isGM: false };
 		const gm = { id: "gm", isGM: true };
 		const users = { get: id => ({ alice, gm })[id] ?? null };
-		const moves = [{ id: "tBram", x: 500, y: 500 }, { id: "tVess", x: 600, y: 500 }];
-		const deps = { scenes: { get: () => scene }, users };
+		const moves = [{ id: "tWolf", x: 500, y: 500 }, { id: "tLurker", x: 600, y: 500 }];
+		const deps = { scenes: { get: () => scene }, users, fightOn: fightOf(scene, ["tWolf", "tLurker"]) };
 		expect(await handleSendQuery({ sceneId: scene.id, moves, userId: "alice" }, { timeout: 10000 }, deps)).toBe(1);
-		expect(Object.keys(scene.moveTokens.mock.calls[0][0])).toEqual(["tBram"]);
+		expect(Object.keys(scene.moveTokens.mock.calls[0][0])).toEqual(["tWolf"]);
+		// Claiming to be the GM would move the hidden one: the claim is refused outright.
 		expect(await handleSendQuery({ sceneId: scene.id, moves, userId: "gm" }, { timeout: 10000 }, deps)).toBe(0);
 		expect(await handleSendQuery({ sceneId: scene.id, moves }, { timeout: 10000 }, deps)).toBe(0);
 	});
 });
-

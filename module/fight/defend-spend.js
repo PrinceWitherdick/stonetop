@@ -30,6 +30,11 @@
 // why it is the people standing there. Pressed by anyone who can record the spend on the card (its author,
 // or the one GM who acts), for a defender they may write: a player cannot spend another player's Readiness.
 // Not by whoever may press Apply: the ward's player applies their own blow, and an ally or the GM spends on it.
+//
+// A CARD THE GM WROTE (a monster's blow, a counter-attack) cannot be written by a player, so a player's
+// spend on it is recorded by the GM's client (SPEND_QUERY), which checks the asker owns the defender. A
+// parry's strike back is still rolled on the player's own screen; only its Readiness and the halving go
+// through the GM, once that roll is settled.
 
 import { SYSTEM_ID } from "../system-id.js";
 import { isFightTabEnabled } from "../settings.js";
@@ -208,23 +213,13 @@ function pickOffer(offers, kind) {
  * @param {(defender: Actor, attackerUuid: string, label: string, options: {commit: () => Promise<boolean>}) => Promise<unknown>} [deps.strikeBack]
  * @returns {Promise<boolean>} whether the spend was taken
  */
-export async function spendOnBlow(message, kind, offer, { scope = SYSTEM_ID, strikeBack = null } = {}) {
+export async function spendOnBlow(message, kind, offer, { scope = SYSTEM_ID, strikeBack = null, relay = false } = {}) {
 	const current = message.getFlag(scope, "damage");
 	if (!current || !offer) return false;
 	const cost = Number.isFinite(offer.cost) ? offer.cost : 1;
 	if (heldReadiness(offer.defender) < Math.max(1, cost)) return false;
-	// Each kept as a list of who spent what, which is all spentOn and defendNotes read.
-	const list = kind === "halve" || kind === "parry" ? "halvedBy" : kind === "ignore" ? "ignoredBy" : "standIns";
-	const take = async () => {
-		const now = message.getFlag(scope, "damage");
-		if (!now || (now.applied ?? []).some(a => a.uuid === offer.row.uuid)) return false;
-		if (heldReadiness(offer.defender) < Math.max(1, cost)) return false;
-		if (cost > 0) await spendReadiness(offer.defender, cost);
-		const spend = { uuid: offer.row.uuid, name: offer.defender.name, how: kind };
-		const entry = list === "standIns" ? { ...spend, by: offer.defender.uuid, free: cost === 0 } : spend;
-		await message.setFlag(scope, "damage", { ...now, [list]: [...(now[list] ?? []), entry] });
-		return true;
-	};
+	// Written here, or by the GM's client for a card this reader cannot write (see the note at the top).
+	const take = relay ? () => askGMToSpend(message, kind, offer) : () => takeSpend(message, kind, offer, { scope });
 	if (kind !== "parry") return take();
 
 	const strike = strikeBack ?? (await import("../combat/attack-flow.js")).strikeBackAt;
@@ -235,6 +230,82 @@ export async function spendOnBlow(message, kind, offer, { scope = SYSTEM_ID, str
 	if (!taken) return false;
 	if (ownsMoveNamed(offer.defender, HERO_MOVES.SECOND_INTENT)) await postSecondIntent(offer.defender);
 	return true;
+}
+
+/** Each card's spends on this client, one after another: message id -> the last one's promise. */
+const spendQueue = new Map();
+
+/**
+ * Record one spend on the card: the Readiness off the defender and the card's flag told. Run one after
+ * another per card on this client, so two spends pressed together (the GM's and a player's relayed one)
+ * each read what the other wrote. Refused once the blow is applied, or with too little Readiness left.
+ *
+ * @returns {Promise<boolean>} whether the spend was taken
+ */
+export function takeSpend(message, kind, offer, { scope = SYSTEM_ID } = {}) {
+	const cost = Number.isFinite(offer?.cost) ? offer.cost : 1;
+	// Each kept as a list of who spent what, which is all spentOn and defendNotes read.
+	const list = kind === "halve" || kind === "parry" ? "halvedBy" : kind === "ignore" ? "ignoredBy" : "standIns";
+	const take = async () => {
+		const now = message.getFlag(scope, "damage");
+		if (!now || (now.applied ?? []).some(a => a.uuid === offer.row.uuid)) return false;
+		if (heldReadiness(offer.defender) < Math.max(1, cost)) return false;
+		// The same option twice on one blow is refused (p.216: "each option once against any given attack").
+		if ((now[list] ?? []).some(s => s.uuid === offer.row.uuid)) return false;
+		if (cost > 0) await spendReadiness(offer.defender, cost);
+		const spend = { uuid: offer.row.uuid, name: offer.defender.name, how: kind };
+		const entry = list === "standIns" ? { ...spend, by: offer.defender.uuid, free: cost === 0 } : spend;
+		await message.setFlag(scope, "damage", { ...now, [list]: [...(now[list] ?? []), entry] });
+		return true;
+	};
+	const id = message?.id ?? null;
+	const run = (spendQueue.get(id) ?? Promise.resolve()).catch(() => {}).then(take);
+	spendQueue.set(id, run);
+	// The last in line lets go of the card; one queued behind it keeps the entry.
+	return run.finally(() => { if (spendQueue.get(id) === run) spendQueue.delete(id); });
+}
+
+/** The User query a player's spend goes through on a card the GM wrote. */
+export const SPEND_QUERY = "stonetop.defendSpend";
+
+/** A player's spend on a card the GM wrote: the GM's client records it. Whether it was taken. */
+async function askGMToSpend(message, kind, offer) {
+	const gm = globalThis.game?.users?.activeGM;
+	if (!gm) return false;
+	try {
+		return !!(await gm.query(SPEND_QUERY, {
+			messageId: message.id, kind, rowUuid: offer.row.uuid, defenderUuid: offer.defender.uuid,
+			userId: globalThis.game?.user?.id ?? null,
+		}, { timeout: 10000 }));
+	} catch (err) {
+		console.warn("Stonetop | the GM's client could not record a Readiness spend", err);
+		return false;
+	}
+}
+
+/**
+ * The GM's side of `SPEND_QUERY`: record a player's spend if the asker owns the defender and the card
+ * still offers that spend to that defender (read on the GM's client, which sees every defender). Only the
+ * primary GM answers. A parry's strike back was rolled by the player already: this only takes it.
+ *
+ * WHO ASKED: as send-against.js#handleSendQuery. v13 names nobody in the context, so the id in the data is
+ * read instead, and never taken for a GM's.
+ *
+ * @returns {Promise<boolean>}
+ */
+export async function handleSpendQuery(data, { user } = {}, { messages = globalThis.game?.messages, users = globalThis.game?.users, scope = SYSTEM_ID, offersOf = defendOffers } = {}) {
+	if (!globalThis.game?.user?.isGM || !isPrimaryGM()) return false;
+	if (!user) {
+		const claimed = typeof data?.userId === "string" ? users?.get?.(data.userId) : null;
+		user = claimed && !claimed.isGM ? claimed : null;
+	}
+	const kind = data?.kind;
+	const message = messages?.get?.(data?.messageId);
+	const damage = message?.getFlag?.(scope, "damage");
+	if (!user || !SPEND_KINDS.includes(kind) || !damage) return false;
+	const offer = (offersOf(damage)[kind] ?? []).find(o => o.row?.uuid === data.rowUuid && o.defender?.uuid === data.defenderUuid);
+	if (!offer || !offer.defender.testUserPermission?.(user, "OWNER")) return false;
+	return takeSpend(message, kind, offer, { scope });
 }
 
 /**
@@ -291,8 +362,11 @@ export function wireDefendSpends(message, html, { scope = SYSTEM_ID, user = glob
 
 	const actions = root.querySelector(".stonetop-attack-actions");
 	if (!actions || !root.querySelector(".stonetop-apply-damage")) return;
-	// A spend is written to the card, so only a client that may write it offers one; of several GMs, one.
-	if (!message.isOwner || (user?.isGM && !isPrimaryGM())) return;
+	// A spend is written to the card: a client that may write it offers one (of several GMs, one), and a
+	// player who may not asks the GM's client to (SPEND_QUERY), while a GM is there to.
+	if (user?.isGM && !isPrimaryGM()) return;
+	const relay = !message.isOwner;
+	if (relay && (user?.isGM || !globalThis.game?.users?.activeGM)) return;
 	const offers = defendOffers(damage);
 	for (const kind of SPEND_KINDS) {
 		if (!offers[kind].length) continue;
@@ -311,7 +385,7 @@ export function wireDefendSpends(message, html, { scope = SYSTEM_ID, user = glob
 			button.disabled = true;
 			try {
 				const offer = await pickOffer(offers[kind], kind);
-				if (!offer || !(await spendOnBlow(message, kind, offer, { scope }))) button.disabled = false;
+				if (!offer || !(await spendOnBlow(message, kind, offer, { scope, relay }))) button.disabled = false;
 			} catch (err) {
 				console.error("Stonetop | spending Readiness failed", err);
 				button.disabled = false;

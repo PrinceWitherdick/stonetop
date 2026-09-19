@@ -301,6 +301,21 @@ describe("the Fight window at the table", () => {
 		expect(win.fightWindowWillShow({ started: false })).toBe(true);
 	});
 
+	it("says where the window is about to open for a new fight, and nothing once it is open or will not open", async () => {
+		const { tab } = table();
+		globalThis.innerWidth = 1920;
+		globalThis.innerHeight = 1080;
+		globalThis.document = { getElementById: id => (id === "sidebar" ? { getBoundingClientRect: () => ({ width: 300, left: 1620 }) } : null) };
+		const left = 1620 - FIGHT_WINDOW_WIDTH - 16;
+		expect(win.fightWindowComing({ started: true })).toEqual({ left, right: left + FIGHT_WINDOW_WIDTH, width: FIGHT_WINDOW_WIDTH });
+		expect(win.fightWindowComing({ started: false })).toBeNull();
+		store.set("fightWindowAuto", false);
+		expect(win.fightWindowComing({ started: true })).toBeNull();
+		store.set("fightWindowAuto", true);
+		await tab.renderPopout();
+		expect(win.fightWindowComing({ started: true })).toBeNull();
+	});
+
 	it("checks for a fight already on the map at ready", async () => {
 		const handlers = new Map();
 		win.installFightWindow({ hooks: { on: (name, fn) => handlers.set(name, fn) }, page: {} });

@@ -8,6 +8,14 @@ const FRIENDLY = 1;
 describe("bodiesFor a group follower", () => {
 	it("counts the members its character's roster has still standing, and routs it at none", () => {
 		expect(bodiesFor({ type: "npc", roster: { standing: 4, size: 6 } })).toEqual({ bodies: 4, out: false, group: true, standing: 4, size: 6, routed: false });
+	});
+
+	it("reports a monster group's starting size once lone blows have dropped some, counting only those left", () => {
+		const group = { type: "monster", fightAsGroup: true, organization: "horde", hp: { value: 3, max: 3 }, count: 5 };
+		expect(bodiesFor({ ...group, startSize: 6 })).toMatchObject({ bodies: 5, standing: 5, size: 6 });
+		// Never less than it is now: a group grown by a merge since.
+		expect(bodiesFor({ ...group, startSize: 3 })).toMatchObject({ bodies: 5, size: 5 });
+		expect(bodiesFor(group)).toMatchObject({ bodies: 5, size: 5 });
 		expect(bodiesFor({ type: "npc", roster: { standing: 0, size: 6 } })).toMatchObject({ bodies: 0, out: true, routed: true });
 	});
 

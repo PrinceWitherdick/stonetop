@@ -75,8 +75,8 @@ import { grantsWholeList, paintPickTally, pickLimitFor, releaseOverLimit, tierOf
 import { wireUndoXpMark } from "./module/utils/undo-xp-mark.js";
 import { isKnowThings, logbookUses, LOGBOOK, STRONG_HIT_TOTAL } from "./module/actors/character/know-things.js";
 import { artifactStateForTier } from "./module/actors/character/artifact-identify.js";
-import { wireAttackConfirm, applyGateOnce, wireApplyDamage, wireDamageSeed, wireSufferAmount, wireSufferChoice, rollOptionDamage } from "./module/combat/attack-flow.js";
-import { wireDefendSpends } from "./module/fight/defend-spend.js";
+import { wireAttackConfirm, applyGateOnce, wireApplyDamage, wireDamageSeed, wireSufferAmount, wireSufferChoice, rollOptionDamage, APPLY_QUERY, handleApplyQuery } from "./module/combat/attack-flow.js";
+import { wireDefendSpends, SPEND_QUERY, handleSpendQuery } from "./module/fight/defend-spend.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
 import { wrapGlyphTextContainers } from "./module/utils/glyphs.js";
 import { applyJournalSpiralBullets, resolveEntry } from "./module/utils/journal-spiral-bullets.js";
@@ -141,6 +141,11 @@ Hooks.once("init", () => {
 	// tracker working, not stop init.
 	try { registerFightTab(); }
 	catch (err) { console.error("Stonetop | the Fight tab could not be set up; using Foundry's Combat tab", err); }
+
+	// A player's Apply on a damage card the GM wrote is applied by the GM's client (attack-flow.js).
+	if (CONFIG.queries) CONFIG.queries[APPLY_QUERY] = (data, context) => handleApplyQuery(data, context);
+	// And a player's Readiness spend on such a card (fight/defend-spend.js).
+	if (CONFIG.queries) CONFIG.queries[SPEND_QUERY] = (data, context) => handleSpendQuery(data, context);
 
 	// Every window and modal in the system is drag-resizable; the ad-hoc
 	// Dialog popups we spawn from sheets default to resizable too. The companion

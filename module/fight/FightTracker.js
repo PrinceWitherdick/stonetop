@@ -23,8 +23,8 @@
 //
 // DRAG A FIGHTER ONTO ONE ON THE OTHER SIDE. A foe goes onto a hero and a hero onto a foe alike;
 // either way the row picked up is the token that moves, up against the one it was dropped on
-// (send-against.js). A reader may pick up anyone but another player's character, so a GM may send
-// anyone and a player their own character, any monster or any NPC. Native drag and drop, delegated from the frame
+// (send-against.js). A reader may pick up anyone in the fight, players included, other players'
+// characters too; only a hidden fighter is the GM's alone. Native drag and drop, delegated from the frame
 // so it survives every redraw, and carrying only our own data types: dropped on the map or a sheet,
 // the row is nothing anybody else reads.
 //
@@ -82,6 +82,8 @@ function headcountIsOurs(combatant) {
 export function createFightTrackerClass(Base) {
 	return class FightTracker extends Base {
 		static DEFAULT_OPTIONS = {
+			// The pop-out is titled "Combat" (stonetop.fight.window) while the sidebar tab reads "Fight": the
+			// window stands where core's combat tracker would, and the table calls it that. Kept on purpose.
 			window: { title: "stonetop.fight.window" },
 			actions: {
 				startFight: FightTracker.#onStartFight,
@@ -191,7 +193,7 @@ export function createFightTrackerClass(Base) {
 				seesFoeVitals: canReadFoeVitals(combatant, user),
 				side: combatantSide(combatant),
 				canPing: onCanvas && !!user?.hasPermission?.("PING_CANVAS"),
-				// Anyone but another player's character may be sent at someone (send-against.js#mayMove).
+				// Anyone in the fight may be sent at someone, a hidden one only by a GM (send-against.js#mayMove).
 				canSend: mayMove(combatant),
 				onCanvas,
 				group: bodies.group,

@@ -77,7 +77,7 @@ function world({ group = false } = {}) {
 describe("groupChanges", () => {
 	it("switches the token to a group of that size with its pool full", () => {
 		expect(groupChanges({ system: { attributes: { hp: { value: 1, max: 3 } } } }, 6))
-			.toEqual({ "system.fightAsGroup": true, "system.count": 6, "system.attributes.hp.value": 3, [`flags.${SYSTEM_ID}.groupWound`]: 0 });
+			.toEqual({ "system.fightAsGroup": true, "system.count": 6, "system.attributes.hp.value": 3, [`flags.${SYSTEM_ID}.groupWound`]: 0, [`flags.${SYSTEM_ID}.groupSize`]: 0 });
 	});
 });
 

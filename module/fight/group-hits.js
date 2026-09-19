@@ -20,11 +20,14 @@ import { SYSTEM_ID } from "../system-id.js";
 import { isFightTabEnabled } from "../settings.js";
 import { groupCasualties } from "../data/follower-build.js";
 import { fightsAsGroup } from "./fight-sides.js";
-import { fightOnScene, combatantBodies } from "./fight-state.js";
+import { fightOnScene, combatantBodies, GROUP_SIZE_FLAG, groupStartSize } from "./fight-state.js";
 import { rollerCombatant } from "./damage-seed.js";
 
 /** The flag holding the HP the group's currently hurt member has lost. */
 export const GROUP_WOUND_FLAG = "groupWound";
+
+// The size a group started at (GROUP_SIZE_FLAG, groupStartSize) lives in fight-state.js, which counts bodies.
+export { GROUP_SIZE_FLAG, groupStartSize };
 
 /** The HP a group's hurt member has lost, as kept on its token's actor. */
 export const groupWound = actor => Math.max(0, Math.trunc(Number(actor?.flags?.[SYSTEM_ID]?.[GROUP_WOUND_FLAG]) || 0));
@@ -53,15 +56,15 @@ export function groupTokenInfo(actor) {
  *
  * @param {{hpMax: number, count: number, wound: number}} group
  * @param {number} damage  after armor
- * @returns {{down: boolean, count: number, wound: number, memberHp: number}}
- *   `count` is the group's size afterwards, `wound` the hurt member's HP lost afterwards, and `memberHp`
- *   what that member has left (0 when they went down).
+ * @returns {{down: boolean, harmed: boolean, count: number, wound: number, memberHp: number}}
+ *   `harmed` is false for a blow that did no damage, `count` is the group's size afterwards, `wound` the
+ *   hurt member's HP lost afterwards, and `memberHp` what that member has left (0 when they went down).
  */
 export function memberHit({ hpMax, count, wound = 0 }, damage) {
 	const dealt = Math.max(0, Math.round(Number(damage) || 0));
 	const lost = Math.max(0, Math.trunc(Number(wound) || 0)) + dealt;
-	if (dealt > 0 && lost >= hpMax) return { down: true, count: Math.max(0, count - 1), wound: 0, memberHp: 0 };
-	return { down: false, count, wound: lost, memberHp: Math.max(0, hpMax - lost) };
+	if (dealt > 0 && lost >= hpMax) return { down: true, harmed: true, count: Math.max(0, count - 1), wound: 0, memberHp: 0 };
+	return { down: false, harmed: dealt > 0, count, wound: lost, memberHp: Math.max(0, hpMax - lost) };
 }
 
 /**
@@ -102,6 +105,8 @@ export async function applyMemberHit(targetActor, damage) {
 	const update = {};
 	if (hit.count !== group.count) update["system.count"] = hit.count;
 	if (hit.wound !== group.wound) update[`flags.${SYSTEM_ID}.${GROUP_WOUND_FLAG}`] = hit.wound;
+	// The first to go down: keep the size the group started at (GROUP_SIZE_FLAG).
+	if (hit.down && groupStartSize(targetActor) < group.count) update[`flags.${SYSTEM_ID}.${GROUP_SIZE_FLAG}`] = group.count;
 	if (Object.keys(update).length) await targetActor.update(update);
 	const after = groupCasualties({ hpMax: group.hpMax, hpCurrent: group.hp, count: hit.count });
 	return { ...hit, before: group.standing, after: after.standing, hpMax: group.hpMax };
