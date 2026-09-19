@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
-	startWindowModel, startFight, lineUpFight, viewRectWorld, withGroupSizes,
+	startWindowModel, startFight, lineUpFight, viewRectWorld, withGroupSizes, monsterNote,
 } from "../../module/fight/start-fight.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
 import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection, GRID } from "../fakes/fight.js";
@@ -142,6 +142,36 @@ describe("startWindowModel", () => {
 		expect(model.sides.get("actor:Compendium.stonetop-pwd.stonetop-bestiary.Actor.x")).toBe("foes");
 		expect(model.groups[2].people[0].hint).toBe("From the bestiary");
 		expect(model.selected).toEqual([]);
+	});
+
+	it("says who each person is under their name, ahead of anything else it says", () => {
+		const model = startWindowModel({
+			sceneTokens: [token("gwilm", "npc", { note: "Miller", hidden: true })],
+			pcsElsewhere: [{ uuid: "Actor.pim", name: "Pim", note: "The Fox" }],
+			people: [
+				{ uuid: "Actor.brogan", name: "Brogan", note: "Smith, Marshedge", disposition: 1 },
+				{ uuid: "Actor.ennis", name: "Ennis", disposition: 1 },
+			],
+			format,
+		});
+		const hints = Object.fromEntries(model.groups.flatMap(g => g.people).map(p => [p.id, p.hint]));
+		expect(hints).toEqual({
+			"token:gwilm": "Miller · Hidden from players",
+			"actor:Actor.pim": "The Fox",
+			"actor:Actor.brogan": "Smith, Marshedge",
+			"actor:Actor.ennis": "",
+		});
+	});
+
+	it("says what a monster is, ahead of where it comes from", () => {
+		const note = monsterNote({ creatureType: "natural-beast", organization: "horde", attributes: { hp: { max: 3 } } });
+		expect(note).toBe("Natural / Beast · Horde · 3 HP");
+		expect(monsterNote({})).toBe("");
+		const model = startWindowModel({
+			monsters: [{ uuid: "Compendium.x.Actor.rat", name: "Rat", note, fromPack: true }],
+			format,
+		});
+		expect(model.groups[0].people[0].hint).toBe("Natural / Beast · Horde · 3 HP · From the bestiary");
 	});
 });
 

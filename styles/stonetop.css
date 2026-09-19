@@ -45917,14 +45917,14 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	min-width: 0;
 }
 
-/* The note under a name (a home, an occupation) is secondary and may run long; the name it
-   belongs to never truncates. */
+/* The note under a name (a home, an occupation, "Not on this map") is secondary and may run
+   long. It WRAPS rather than trailing off in an ellipsis: the tail is often the part that
+   matters ("Not on this map" was the words cut), and the row has no fixed height, so a second
+   line simply makes it taller. */
 .stonetop-person-picker-note {
 	font-size: var(--st-fs-xs);
 	color: var(--st-quiet-ink);
-	overflow: hidden;
-	white-space: nowrap;
-	text-overflow: ellipsis;
+	overflow-wrap: anywhere;
 }
 
 /* What a list narrowed to nothing says. Points at the rail rather than at itself: the counts

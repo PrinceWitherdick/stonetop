@@ -24,8 +24,12 @@
 // movement: through walls, no animation along the way).
 
 import { SYSTEM_ID, BESTIARY_PACK } from "../system-id.js";
+import { ensurePackIndex } from "../utils/pack-index.js";
 import { format, localize } from "../utils/i18n.js";
 import { joinNames } from "../utils/strings.js";
+import { personNote } from "../utils/people-groups.js";
+import { creatureTypeLabel } from "../bestiary/creature-types.js";
+import { MONSTER_ORGANIZATIONS } from "../bestiary/bestiary-sections.js";
 import { getPlayerCharacters } from "../utils/playbook-actors.js";
 import { placeActors } from "../utils/token-drop.js";
 import { displaceTokens } from "../utils/foundry-compat.js";
@@ -45,16 +49,38 @@ const KEY = "stonetop.fight.startWindow";
 const TOKEN = "token:";
 const ACTOR = "actor:";
 
+/** A row's line under the name: the parts it has, in one breath. */
+const hintOf = (...parts) => parts.filter(Boolean).join(" · ");
+
+/**
+ * What a monster is, as the bestiary browser's badges say it: its creature type, how many of them
+ * come (which is also what the window asks about next), and its HP. Enough to tell the Rat from the
+ * Rat Swarm without opening either.
+ */
+export function monsterNote(system) {
+	const org = system?.organization ?? "";
+	const hp = system?.attributes?.hp?.max ?? 0;
+	return hintOf(
+		creatureTypeLabel(system?.creatureType ?? ""),
+		MONSTER_ORGANIZATIONS.find(o => o.key === org)?.label ?? org,
+		hp ? format(`${KEY}.hp`, { hp }) : "",
+	);
+}
+
+/** Who an actor is, in the few words a row has room for. */
+const noteOf = actor => (actor?.type === "monster" ? monsterNote(actor.system) : personNote(actor));
+
 /**
  * The start window's lists, pre-ticks and sides, from plain descriptions of what is on the map and
  * in the world. PURE.
  *
  * @param {object} p
- * @param {Array<{id, actorId, name, img, type, hasPlayerOwner, isFollower, disposition, hidden, inFight, master}>} p.sceneTokens
- *   `master` is the character a follower follows, `{id, name, img}`, else null
- * @param {Array<{uuid, actorId, name, img}>} [p.pcsElsewhere]   player characters with no token on this map
- * @param {Array<{uuid, name, img, disposition, master}>} [p.people]  world NPCs with no token on this map
- * @param {Array<{uuid, name, img, fromPack}>} [p.monsters]
+ * @param {Array<{id, actorId, name, img, note, type, hasPlayerOwner, isFollower, disposition, hidden, inFight, master}>} p.sceneTokens
+ *   `master` is the character a follower follows, `{id, name, img}`, else null; `note` is who they
+ *   are in a few words (people-groups.js#personNote), so two people of one name can be told apart
+ * @param {Array<{uuid, actorId, name, img, note}>} [p.pcsElsewhere]   player characters with no token on this map
+ * @param {Array<{uuid, name, img, note, disposition, master}>} [p.people]  world NPCs with no token on this map
+ * @param {Array<{uuid, name, img, note, fromPack}>} [p.monsters]  `note` from monsterNote
  * @param {string[]} [p.controlled]     token ids the GM has selected
  * @param {string[]|null} [p.preselect] token ids to tick instead of the selection (Deploy and fight)
  * @param {boolean} [p.preselectPcs]    also tick every player character's token
@@ -84,7 +110,7 @@ export function startWindowModel({
 			: classifySide(token);
 		if (!placed) continue;
 		const id = `${TOKEN}${token.id}`;
-		const row = { id, name: token.name, img: token.img ?? "", hint: token.hidden ? say(`${KEY}.hidden`) : "" };
+		const row = { id, name: token.name, img: token.img ?? "", hint: hintOf(token.note, token.hidden ? say(`${KEY}.hidden`) : "") };
 		// A follower fights beside their character, whatever their token's disposition says.
 		const master = forced.has(token.id) ? null : (token.master ?? null);
 		sides.set(id, master ? HEROES : placed.side);
@@ -97,7 +123,7 @@ export function startWindowModel({
 	const actorRow = (item, side, hint = "") => {
 		const id = `${ACTOR}${item.uuid}`;
 		sides.set(id, side);
-		return { id, name: item.name, img: item.img ?? "", hint };
+		return { id, name: item.name, img: item.img ?? "", hint: hintOf(item.note, hint) };
 	};
 	for (const item of pcsElsewhere) {
 		const row = actorRow(item, HEROES);
@@ -125,7 +151,7 @@ export function startWindowModel({
 			masterRows.set(master.id, home);
 		}
 		row.parent = home.id;
-		row.hint = [say(`${KEY}.followerOf`, { name: master.name }), row.hint].filter(Boolean).join(" · ");
+		row.hint = hintOf(say(`${KEY}.followerOf`, { name: master.name }), row.hint);
 		if (!children.has(row.parent)) children.set(row.parent, []);
 		children.get(row.parent).push(row);
 	}
@@ -188,6 +214,7 @@ export async function gatherStartWindow(scene, combat) {
 		master: masterOf(t.actorId),
 		name: t.name || t.actor.name,
 		img: t.texture?.src || t.actor.img || "",
+		note: noteOf(t.actor),
 		...sideInfoFor(t.actor, t),
 		hidden: !!t.hidden,
 		inFight: inFight.has(t.id),
@@ -196,24 +223,24 @@ export async function gatherStartWindow(scene, combat) {
 	const here = new Set(tokens.map(t => t.actorId));
 	const pcsElsewhere = getPlayerCharacters()
 		.filter(a => !here.has(a.id))
-		.map(a => ({ uuid: a.uuid, actorId: a.id, name: a.name, img: a.img }));
+		.map(a => ({ uuid: a.uuid, actorId: a.id, name: a.name, img: a.img, note: personNote(a) }));
 	const people = actors
 		.filter(a => a.type === "npc" && !here.has(a.id))
-		.map(a => ({ uuid: a.uuid, name: a.name, img: a.img, disposition: a.prototypeToken?.disposition ?? null, master: masterOf(a.id) }))
+		.map(a => ({ uuid: a.uuid, name: a.name, img: a.img, note: personNote(a), disposition: a.prototypeToken?.disposition ?? null, master: masterOf(a.id) }))
 		.sort((a, b) => a.name.localeCompare(b.name));
 	const worldMonsters = [...(game.actors ?? [])].filter(a => a.type === "monster");
-	const monsters = worldMonsters.map(a => ({ uuid: a.uuid, name: a.name, img: a.img, fromPack: false, group: groupInfoOf(a.uuid, a.type, a.system) }));
+	const monsters = worldMonsters.map(a => ({ uuid: a.uuid, name: a.name, img: a.img, note: monsterNote(a.system), fromPack: false, group: groupInfoOf(a.uuid, a.type, a.system) }));
 	// The bestiary entries the world has no copy of. The index is enough to list them; a pick is
 	// imported only if it is chosen (utils/deployable-actor.js), and never twice.
-	const pack = game.packs?.get?.(BESTIARY_PACK);
+	// Through the shared index, so this field list and every other reader's widen one another instead of refetching.
+	const pack = await ensurePackIndex(BESTIARY_PACK, ["img", "type", "system.organization", "system.count", "system.fightAsGroup", "system.creatureType", "system.attributes.hp.max"]).catch(() => null);
 	if (pack) {
 		const worldCopy = worldActorsBySource();
-		const index = await pack.getIndex({ fields: ["img", "type", "system.organization", "system.count", "system.fightAsGroup"] }).catch(() => []);
-		for (const entry of index) {
+		for (const entry of pack.index ?? []) {
 			if (entry.type && entry.type !== "monster") continue;
 			const uuid = entry.uuid ?? `Compendium.${pack.collection}.Actor.${entry._id}`;
 			if (worldCopy(compendiumRefTail(uuid))) continue;
-			monsters.push({ uuid, name: entry.name, img: entry.img, fromPack: true, group: groupInfoOf(uuid, "monster", entry.system) });
+			monsters.push({ uuid, name: entry.name, img: entry.img, note: monsterNote(entry.system), fromPack: true, group: groupInfoOf(uuid, "monster", entry.system) });
 		}
 	}
 	monsters.sort((a, b) => a.name.localeCompare(b.name));

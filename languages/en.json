@@ -1929,6 +1929,7 @@
         "foes": "{count} foes",
         "hidden": "Hidden from players",
         "fromBestiary": "From the bestiary",
+        "hp": "{hp} HP",
         "followerOf": "{name}'s follower",
         "notHere": "Not on this map",
         "inFight": "Already in the fight",
