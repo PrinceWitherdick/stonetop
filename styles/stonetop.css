@@ -208,11 +208,12 @@
 	--stonetop-section-gap: 12px;
 	/* The spiral icon used for bullets/markers throughout the sheets. */
 	--stonetop-spiral-icon: url('/systems/stonetop-pwd/assets/icons/steading/check-spiral.svg');
-	/* The check controls, likewise. All three of these are fixed near-black art painted as a
+	/* The check controls, likewise. All four of these are fixed near-black art painted as a
 	   background IMAGE (not a mask), so they vanish on any surface that turns black — routing
 	   them through variables is what lets one scope re-skin the lot. */
 	--stonetop-checkbox-icon:         url('/systems/stonetop-pwd/assets/icons/steading/checkbox.svg');
 	--stonetop-checkbox-checked-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg');
+	--stonetop-checkbox-partial-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-partial.svg');
 
 	/* What lifts a card off the page it sits on — the move cards, the invocation cards, the
 	   special-possessions list, the Items tab's Outfit panel. On paper that's a whisper of shadow;
@@ -4206,13 +4207,17 @@ input.stonetop-name-field {
 
 /* Select-all goes indeterminate when only some ledger rows are picked (the sheets
    set selectAllEl.indeterminate on row toggles). appearance:none above hides the
-   native dash, so paint our own: the empty checkbox SVG with a short centred bar
-   layered over it, distinct from both the empty and fully-checked states. */
+   native dash, so paint our own: the box with a dash across it, distinct from both
+   the empty and fully-checked states.
+
+   ⚠ ONE PIECE OF ART, not a bar layered over the empty box. It was a 2px
+   currentColor gradient once, and beside the name ticks it read as a heavier, blacker
+   glyph than any of them: 2px against the box's ~1.35px stroke, and the input's own
+   pure black instead of the art's ink. It also had no bone twin, so it would not
+   have followed the box onto a surface that turns black. */
 .stonetop-ledger-select-all:indeterminate,
 .stonetop-person-picker-all-check:indeterminate {
-	background:
-		linear-gradient(currentColor, currentColor) no-repeat center / 56% 2px,
-		var(--stonetop-checkbox-icon) no-repeat center / contain !important;
+	background: var(--stonetop-checkbox-partial-icon) no-repeat center / contain !important;
 }
 
 /* `.stonetop-check` is the shared skin, so it joins the list rather than growing a rule of its
@@ -14926,6 +14931,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	--stonetop-spiral-icon:           url('/systems/stonetop-pwd/assets/icons/steading/check-spiral-light.svg');
 	--stonetop-checkbox-icon:         url('/systems/stonetop-pwd/assets/icons/steading/checkbox-light.svg');
 	--stonetop-checkbox-checked-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked-light.svg');
+	--stonetop-checkbox-partial-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-partial-light.svg');
 	/* The confirm buttons come down with the room, past slate to near-black: left at the
 	   standard slategrey they are the brightest thing in the window, which puts the eye on
 	   "Done" instead of on the three fates — the one decision this step is actually asking
@@ -15183,6 +15189,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	--stonetop-spiral-icon:           url('/systems/stonetop-pwd/assets/icons/steading/check-spiral-light.svg');
 	--stonetop-checkbox-icon:         url('/systems/stonetop-pwd/assets/icons/steading/checkbox-light.svg');
 	--stonetop-checkbox-checked-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked-light.svg');
+	--stonetop-checkbox-partial-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-partial-light.svg');
 	--stonetop-diamond-icon:          url('/systems/stonetop-pwd/assets/icons/playbooks/diamond-light.svg');
 	--stonetop-diamond-selected-icon: url('/systems/stonetop-pwd/assets/icons/playbooks/diamond_selected-light.svg');
 	/* The one glyph that is a MASK and still had to be turned over by hand: the add-wound heart
@@ -16308,6 +16315,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	--stonetop-spiral-icon:           url('/systems/stonetop-pwd/assets/icons/steading/check-spiral-light.svg');
 	--stonetop-checkbox-icon:         url('/systems/stonetop-pwd/assets/icons/steading/checkbox-light.svg');
 	--stonetop-checkbox-checked-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked-light.svg');
+	--stonetop-checkbox-partial-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-partial-light.svg');
 	--st-btn-primary-bg:           hsl(0 0% 9%);
 	--st-btn-primary-bg-hover:     hsl(0 0% 16%);
 	--st-btn-primary-border:       hsl(40 13% 44%);
