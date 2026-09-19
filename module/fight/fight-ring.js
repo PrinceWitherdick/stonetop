@@ -44,6 +44,7 @@ import { heldReadiness } from "../combat/defend-readiness.js";
 import { spendReadiness, pickOne } from "./defend-spend.js";
 import { HERO_MOVES, lockEyesCandidates, lockEyes } from "./hero-moves.js";
 import { ownsMoveNamed } from "../actors/character/owns-move.js";
+import { rollerEngagement } from "./damage-seed.js";
 import { escHtml } from "../utils/strings.js";
 import { stonetopChatCard } from "../utils/chat.js";
 import { format, localize } from "../utils/i18n.js";
@@ -124,7 +125,7 @@ const tidy = formula => String(formula ?? "").replace(/\s+/g, "");
  * @param {boolean} [p.canLockEyes]  a foe in the fight they could lock eyes with (Big Damn Hero)
  * @returns {{moves: RingButton[], damage: RingButton[], readiness: number}}
  */
-export function ringButtons(actor, { die = "", order = null, swarm = null, readiness = 0, canLockEyes = false } = {}) {
+export function ringButtons(actor, { die = "", order = null, swarm = null, readiness = 0, canLockEyes = false, canStrikeBack = true } = {}) {
 	const moves = [];
 	const damage = [];
 	const system = actor?.system ?? {};
@@ -147,8 +148,9 @@ export function ringButtons(actor, { die = "", order = null, swarm = null, readi
 		// (combat/attack-flow.js#rollCharacterDamageAt).
 		if (formula) damage.push({ run: "damage", label: damageText, formula, icon: dieIcon(formula) });
 		// Held Readiness can be spent to "strike back at an attacker (deal your damage, with disadvantage)"
-		// (p.216): the same roll, with disadvantage, and one Readiness gone.
-		if (formula && readiness > 0) {
+		// (p.216): the same roll, with disadvantage, and one Readiness gone. Only while somebody is
+		// attacking them: "they can't ... strike back at a foe that's out of reach".
+		if (formula && readiness > 0 && canStrikeBack) {
 			damage.push({
 				run: "strikeBack", label: localize("stonetop.fight.ring.strikeBack"), formula, rollMode: "dis",
 				icon: STRIKE_BACK_ICON, aria: format("stonetop.fight.ring.strikeBackAria", { formula, readiness }),
@@ -218,7 +220,18 @@ export async function ringButtonsFor(actor) {
 	const readiness = heldReadiness(actor);
 	// Working out who they could lock eyes with takes the whole fight, so only for someone who could spend on it.
 	const canLockEyes = isCharacter && readiness > 0 && ownsMoveNamed(actor, HERO_MOVES.BIG_DAMN_HERO) && lockEyesCandidates(actor).length > 0;
-	return ringButtons(actor, { die, order, swarm, readiness, canLockEyes });
+	const canStrikeBack = isCharacter && readiness > 0 && hasAttacker(actor);
+	return ringButtons(actor, { die, order, swarm, readiness, canLockEyes, canStrikeBack });
+}
+
+/**
+ * Whether anyone is attacking a character, for Defend's strike back: a foe in contact, or one shooting at
+ * them. Not in a fight the ring can read: say yes, and leave it to the table.
+ */
+export function hasAttacker(actor, { engagementOf = rollerEngagement } = {}) {
+	const place = engagementOf(actor);
+	if (!place) return true;
+	return !!place.entry?.attackers?.length;
 }
 
 /**

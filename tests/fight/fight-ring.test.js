@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, onTestFinished, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import Handlebars from "handlebars";
@@ -12,7 +12,7 @@ vi.mock("../../module/combat/attack-flow.js", () => ({
 import {
 	ringButtons, ringButtonsFor, runRingButton, ringFightFor, clickOpensRing, ringGrowth, dieIcon, ringContext,
 	createFightRingClass, createFightTokenClass, openRingOnClick, onBoardPress, closeFightRing, syncFightRing,
-	installFightRing, currentFightRing, RING_MOVES,
+	installFightRing, currentFightRing, RING_MOVES, hasAttacker,
 } from "../../module/fight/fight-ring.js";
 import { rollDamageAt, rollCharacterDamageAt } from "../../module/combat/attack-flow.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
@@ -237,6 +237,24 @@ describe("ringButtons", () => {
 		const [, strike] = ringButtons(actor, { die: "d8", readiness: 2 }).damage;
 		expect(strike).toMatchObject({ run: "strikeBack", label: "Strike back", formula: "d8", rollMode: "dis", aria: "Spend 1 of 2 Readiness to strike back: d8, with disadvantage" });
 	});
+
+	it("offers no strike back with nobody attacking them: \"can't strike back at a foe that's out of reach\"", () => {
+		const actor = fakeActor({ id: "bram", type: "character" });
+		actor.items = collection([]);
+		expect(ringButtons(actor, { die: "d8", readiness: 2, canStrikeBack: false }).damage.map(b => b.run)).toEqual(["damage"]);
+	});
+});
+
+describe("hasAttacker", () => {
+	const place = entry => () => ({ entry: { attackers: [], ...entry } });
+	it("a foe in contact or one shooting at them; not a foe they only shoot at", () => {
+		expect(hasAttacker({}, { engagementOf: place({ attackers: ["wolf"] }) })).toBe(true);
+		expect(hasAttacker({}, { engagementOf: place({ attackers: ["archer"] }) })).toBe(true);
+		expect(hasAttacker({}, { engagementOf: place({}) })).toBe(false);
+	});
+	it("leaves it to the table where the fight cannot be read", () => {
+		expect(hasAttacker({}, { engagementOf: () => null })).toBe(true);
+	});
 });
 
 describe("dieIcon", () => {
@@ -293,6 +311,22 @@ describe("runRingButton", () => {
 		await runRingButton({ run: "strikeBack", label: "Strike back", formula: "d8", rollMode: "dis", weapon: null }, actor);
 		expect(rollCharacterDamageAt).toHaveBeenCalledWith(actor, { label: "Strike back", rollMode: "dis", seeded: false, shiftKey: false });
 		expect(actor.setFlag).toHaveBeenCalledWith(expect.any(String), expect.any(String), 1);
+	});
+
+	it("a strike back spends one Readiness without asking whether they went on the offense", async () => {
+		const actor = bram();
+		actor.flags = { [SYSTEM_ID]: { readiness: 2 } };
+		actor.setFlag = vi.fn(async (scope, key, value) => { actor.flags[scope][key] = value; });
+		const wait = vi.fn(async spec => spec.buttons[0].callback());
+		globalThis.foundry.applications = { ...(globalThis.foundry.applications ?? {}), api: { DialogV2: { wait } } };
+		const document = globalThis.document;
+		globalThis.document = { createElement: () => ({}) };
+		const ChatMessage = globalThis.ChatMessage;
+		globalThis.ChatMessage = { create: vi.fn(async () => {}), getSpeaker: () => ({}) };
+		onTestFinished(() => { globalThis.document = document; globalThis.ChatMessage = ChatMessage; });
+		await runRingButton({ run: "strikeBack", label: "Strike back", formula: "d8", rollMode: "dis", weapon: null }, actor);
+		expect(wait).not.toHaveBeenCalled();
+		expect(actor.flags[SYSTEM_ID].readiness).toBe(1);
 	});
 
 	it("orders a follower through their character's sheet, and never on Shift's shortcut", async () => {
