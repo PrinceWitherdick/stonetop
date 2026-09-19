@@ -48,6 +48,7 @@ import {undauntedNow, undauntedOffer, eyesLockedAgainst} from "../fight/hero-mov
 import {format} from "../utils/i18n.js";
 import {bringDialogToFront} from "../utils/front-on-open.js";
 import {isPrimaryGM, anyActiveGM} from "../utils/primary-gm.js";
+import {inCardTurn} from "../utils/card-queue.js";
 
 const SCOPE = STONETOP_SCOPE;
 
@@ -1866,22 +1867,14 @@ export function wireApplyDamage(message, html, gateFor = applyGateOnce(message))
 /** The User query a player's Apply goes through on a card the GM authored (`applyGate`'s `relay`). */
 export const APPLY_QUERY = "stonetop.applyDamage";
 
-/** Each card's applies on this client, one after another: message id -> the last one's promise. */
-const applyQueue = new Map();
-
 /**
- * Apply a card's owed damage once any apply already running for it on this client has finished, so the
- * second reads the `applied` latch the first wrote and takes nothing twice. On the GM's client this
- * lines up the GM's own press with a player's relayed one (`handleApplyQuery`).
+ * Apply a card's owed damage in the card's turn on this client (utils/card-queue.js), behind any apply or
+ * Readiness spend already running for it, so the second apply reads the `applied` latch the first wrote
+ * and takes nothing twice, and a spend pressed first is counted. On the GM's client this lines up the
+ * GM's own press with a player's relayed one (`handleApplyQuery`, defend-spend.js#handleSpendQuery).
  */
 function applyInTurn(message, damage) {
-	const id = message?.id ?? null;
-	const before = applyQueue.get(id) ?? Promise.resolve();
-	const run = before.catch(() => {}).then(() => applyOwedDamage(message, damage));
-	applyQueue.set(id, run);
-	// The last in line lets go of the card; one queued behind it keeps the entry.
-	const settle = () => { if (applyQueue.get(id) === run) applyQueue.delete(id); };
-	return run.finally(settle);
+	return inCardTurn(message, () => applyOwedDamage(message, damage));
 }
 
 /** A player's press on a card the GM authored: the GM's client applies it. Whether any row landed. */
@@ -2007,7 +2000,8 @@ async function applyOwedDamage(message, damage) {
 		const brave = undaunted ? ` <span class="stonetop-damage-mitigated">(${escHtml(format("stonetop.fight.heroMoves.undaunted.armorNote", {}))})</span>` : "";
 		lines.push(`<li><strong>${escHtml(rowName)}</strong>: ${effective} damage${back}${half}${mitigated}${brave}: ${t.oldHp} &rarr; ${t.newHp} HP${dead}</li>`);
 	}
-	await message.setFlag(SCOPE, "damage", { ...current, applied: nextApplied });
+	// Only the latch: a Readiness spend another client wrote meanwhile stays on the card.
+	await message.setFlag(SCOPE, "damage.applied", nextApplied);
 	await ChatMessage.create({
 		content: stonetopChatCard(`${current.move}: damage applied`, `<div class="card-content"><ul class="stonetop-homestead-chat-list">${lines.join("")}</ul></div>`, "stonetop-attack-applied-card"),
 		speaker: { alias: "Stonetop" },
@@ -2063,9 +2057,12 @@ export function wireDamageSeed(message, html, gateFor = applyGateOnce(message)) 
 		if (btn.disabled) return;
 		btn.disabled = true;
 		try {
-			const current = message.getFlag(SCOPE, "damage");
-			if (!current?.seed || (current.applied ?? []).length) return;
-			await message.setFlag(SCOPE, "damage", { ...current, seed: { ...current.seed, applied: current.seed.applied === false } });
+			// In the card's turn, so a toggle pressed with Apply lands before it or not at all.
+			await inCardTurn(message, async () => {
+				const current = message.getFlag(SCOPE, "damage");
+				if (!current?.seed || (current.applied ?? []).length) return;
+				await message.setFlag(SCOPE, "damage.seed", { ...current.seed, applied: current.seed.applied === false });
+			});
 		} catch (err) {
 			console.error("Stonetop | changing the fight's extra damage failed", err);
 			btn.disabled = false;

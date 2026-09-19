@@ -4,6 +4,7 @@ import path from "node:path";
 import { readOptionDamage } from "../../module/utils/damage.js";
 import { rollOptionDamage, wireApplyDamage, handleApplyQuery, APPLY_QUERY } from "../../module/combat/attack-flow.js";
 import { firstOptionList } from "../../module/utils/chat.js";
+import { writeFlagPath } from "../fakes/combat-chat.js";
 
 // The SHIPPED moves, not a paraphrase of them. Everything this feature does is decided by a
 // move's own printed words, so a test that retyped either side would keep passing after a
@@ -430,7 +431,7 @@ describe("handleApplyQuery", () => {
 		const message = {
 			id: "m1",
 			getFlag: (scope, key) => flags[scope]?.[key],
-			setFlag: vi.fn(async (scope, key, value) => { flags[scope][key] = value; }),
+			setFlag: vi.fn(async (scope, key, value) => { writeFlagPath(flags[scope], key, value); }),
 		};
 		const users = fakeUsers([GM, PIM, BOB]);
 		globalThis.game = { ...globalThis.game, user: GM, users };

@@ -47,9 +47,10 @@ import { contentElement } from "../dialogs/content-picker.js";
 import { heldReadiness, READINESS_FLAG } from "../combat/defend-readiness.js";
 import { ownsMoveNamed, ownedMove } from "../actors/character/owns-move.js";
 import { touching, HEROES } from "./engagements.js";
-import { engagementFor, fightOnScene, gridOf } from "./fight-state.js";
+import { engagementFor, fightOnScene, gridOf, isFight } from "./fight-state.js";
 import { HERO_MOVES } from "./hero-moves.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
+import { inCardTurn } from "../utils/card-queue.js";
 
 const KEY = "stonetop.fight.defend";
 
@@ -76,12 +77,23 @@ export function spentOn(damage) {
 	};
 }
 
-/** The token a damage row's target stands as on the canvas scene, or null. */
-function rowToken(doc) {
+/**
+ * The token a damage row's target stands as: its one token on the canvas scene, else the one it fights
+ * as. The GM's client answering a player's spend (handleSpendQuery) may be looking at another scene.
+ */
+export function rowToken(doc, { scene = globalThis.canvas?.scene ?? null, combats = globalThis.game?.combats } = {}) {
 	if (doc?.documentName === "Token") return doc;
-	const scene = globalThis.canvas?.scene ?? null;
-	const tokens = (doc?.getActiveTokens?.(false, true) ?? []).filter(t => t?.parent?.id === scene?.id);
-	return tokens.length === 1 ? tokens[0] : null;
+	if (!doc) return null;
+	const tokens = (doc.getActiveTokens?.(false, true) ?? []).filter(t => t?.parent?.id === scene?.id);
+	if (tokens.length) return tokens.length === 1 ? tokens[0] : null;
+	const fought = [];
+	for (const combat of combats ?? []) {
+		if (!isFight(combat)) continue;
+		for (const c of combat.combatants ?? []) {
+			if (c.actorId === doc.id && c.token && !fought.includes(c.token)) fought.push(c.token);
+		}
+	}
+	return fought.length === 1 ? fought[0] : null;
 }
 
 const resolve = uuid => {
@@ -232,13 +244,12 @@ export async function spendOnBlow(message, kind, offer, { scope = SYSTEM_ID, str
 	return true;
 }
 
-/** Each card's spends on this client, one after another: message id -> the last one's promise. */
-const spendQueue = new Map();
-
 /**
- * Record one spend on the card: the Readiness off the defender and the card's flag told. Run one after
- * another per card on this client, so two spends pressed together (the GM's and a player's relayed one)
- * each read what the other wrote. Refused once the blow is applied, or with too little Readiness left.
+ * Record one spend on the card: the Readiness off the defender and the card's flag told. Run in the card's
+ * turn on this client (utils/card-queue.js), behind any Apply or other spend already pressed, so each reads
+ * what the other wrote: a halving that comes after the blow is applied is refused, not lost. Writes only
+ * its own list, so an Apply's `applied` written from another client is never put back. Refused once the
+ * blow is applied, or with too little Readiness left.
  *
  * @returns {Promise<boolean>} whether the spend was taken
  */
@@ -255,14 +266,10 @@ export function takeSpend(message, kind, offer, { scope = SYSTEM_ID } = {}) {
 		if (cost > 0) await spendReadiness(offer.defender, cost);
 		const spend = { uuid: offer.row.uuid, name: offer.defender.name, how: kind };
 		const entry = list === "standIns" ? { ...spend, by: offer.defender.uuid, free: cost === 0 } : spend;
-		await message.setFlag(scope, "damage", { ...now, [list]: [...(now[list] ?? []), entry] });
+		await message.setFlag(scope, `damage.${list}`, [...(now[list] ?? []), entry]);
 		return true;
 	};
-	const id = message?.id ?? null;
-	const run = (spendQueue.get(id) ?? Promise.resolve()).catch(() => {}).then(take);
-	spendQueue.set(id, run);
-	// The last in line lets go of the card; one queued behind it keeps the entry.
-	return run.finally(() => { if (spendQueue.get(id) === run) spendQueue.delete(id); });
+	return inCardTurn(message, take);
 }
 
 /** The User query a player's spend goes through on a card the GM wrote. */

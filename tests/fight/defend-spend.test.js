@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { halveDamage, defendOffers, defendNotes, spendOnBlow, spentOn, handleSpendQuery, SPEND_QUERY } from "../../module/fight/defend-spend.js";
+import { halveDamage, defendOffers, defendNotes, spendOnBlow, spentOn, handleSpendQuery, SPEND_QUERY, takeSpend, rowToken } from "../../module/fight/defend-spend.js";
+import { inCardTurn } from "../../module/utils/card-queue.js";
+import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection } from "../fakes/fight.js";
 import { heldReadiness, READINESS_FLAG } from "../../module/combat/defend-readiness.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
+import { writeFlagPath } from "../fakes/combat-chat.js";
 
 // Spending Defend's Readiness on a blow from its damage card (Book I p.216).
 
@@ -73,7 +76,7 @@ describe("spendOnBlow", () => {
 	const message = flag => ({
 		flag,
 		getFlag() { return this.flag; },
-		setFlag: vi.fn(async function (_scope, _key, value) { this.flag = value; }),
+		setFlag: vi.fn(async function (_scope, key, value) { const store = { damage: this.flag }; writeFlagPath(store, key, value); this.flag = store.damage; }),
 	});
 
 	it("takes a Readiness off the defender and records the halving", async () => {
@@ -163,7 +166,7 @@ describe("a player's spend on a card the GM wrote", () => {
 	const card = flag => ({
 		id: "m1", flag,
 		getFlag() { return this.flag; },
-		setFlag: vi.fn(async function (_scope, _key, value) { this.flag = value; }),
+		setFlag: vi.fn(async function (_scope, key, value) { const store = { damage: this.flag }; writeFlagPath(store, key, value); this.flag = store.damage; }),
 	});
 	const owned = (name, readiness, ownerId, moves = []) => ({
 		...character(name, readiness, moves),
@@ -226,5 +229,51 @@ describe("a player's spend on a card the GM wrote", () => {
 			expect(bram.flags[SYSTEM_ID][READINESS_FLAG]).toBe(2);
 			expect(await handleSpendQuery({ ...data, userId: "pim" }, { timeout: 10000 }, deps)).toBe(true);
 		});
+	});
+});
+
+// A spend and an Apply pressed together on the GM's client wait in one line, and each writes only its own
+// part of the card.
+describe("a spend beside an Apply on the same card", () => {
+	const card = flag => ({
+		id: "m-race", flag,
+		getFlag() { return this.flag; },
+		setFlag: vi.fn(async function (_scope, key, value) { const store = { damage: this.flag }; writeFlagPath(store, key, value); this.flag = store.damage; }),
+	});
+
+	it("refuses a halving pressed while the blow is being applied, spending no Readiness", async () => {
+		const bram = character("bram", 2);
+		const blow = card({ results: [{ uuid: "Token.bram", name: "Bram" }], applied: [] });
+		let release;
+		const gate = new Promise(resolve => { release = resolve; });
+		const applying = inCardTurn(blow, async () => {
+			await gate;
+			await blow.setFlag(SYSTEM_ID, "damage.applied", [{ uuid: "Token.bram", effective: 5 }]);
+		});
+		const spend = takeSpend(blow, "halve", { row: blow.flag.results[0], defender: bram, cost: 1 });
+		release();
+		await applying;
+		expect(await spend).toBe(false);
+		expect(bram.flags[SYSTEM_ID][READINESS_FLAG]).toBe(2);
+		expect(blow.flag.halvedBy).toBeUndefined();
+	});
+
+	it("writes only its own list, so an applied row written from another client stays applied", async () => {
+		const aeliana = character("aeliana", 2);
+		const blow = card({ results: [{ uuid: "Token.bram", name: "Bram" }, { uuid: "Token.pim", name: "Pim" }], applied: [] });
+		await takeSpend(blow, "halve", { row: blow.flag.results[0], defender: aeliana, cost: 1 });
+		expect(blow.setFlag).toHaveBeenLastCalledWith(SYSTEM_ID, "damage.halvedBy", [expect.objectContaining({ uuid: "Token.bram" })]);
+	});
+});
+
+describe("rowToken", () => {
+	it("finds the token an actor fights as when the viewer is looking at another scene", () => {
+		const bram = fakeActor({ id: "bram", name: "Bram" });
+		const token = fakeToken({ id: "t-bram", actor: bram });
+		const scene = fakeScene({ id: "fight-scene", tokens: [token] });
+		const combat = fakeCombat({ scene, combatants: [fakeCombatant({ id: "c-bram", token, scene })] });
+		const doc = { ...bram, id: "bram", getActiveTokens: () => [] };
+		expect(rowToken(doc, { scene: { id: "elsewhere" }, combats: collection([combat]) })).toBe(token);
+		expect(rowToken(doc, { scene: { id: "elsewhere" }, combats: collection([{ ...combat, flags: {} }]) })).toBeNull();
 	});
 });
