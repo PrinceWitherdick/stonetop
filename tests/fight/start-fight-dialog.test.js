@@ -44,6 +44,15 @@ describe("StartFightDialog", () => {
 		});
 	});
 
+	it("never lines up from the Add window, which has no line-up option", () => {
+		const dialog = make("add");
+		dialog._choose({
+			querySelectorAll: sel => (sel === "input[name='person']:checked" ? [{ value: "token:b" }] : []),
+			querySelector: () => null,
+		});
+		expect(dialog._resolveWith).toHaveBeenCalledWith({ picks: [{ id: "token:b", side: "heroes", name: "Bram" }], lineUp: false });
+	});
+
 	it("gives no answer with nobody ticked", () => {
 		const dialog = make();
 		dialog._choose({ querySelectorAll: () => [], querySelector: () => null });

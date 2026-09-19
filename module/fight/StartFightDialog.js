@@ -5,7 +5,8 @@
 //  • THE BUTTON COUNTS SIDES. "Start the fight: 4 heroes, 6 foes" says who is about to fight whom,
 //    which a count of people would not.
 //  • THE ANSWER CARRIES THE SIDES AND THE LINE-UP. Each pick comes back with the side the window
-//    filed it under, and "Line everyone up" rides along from the options row.
+//    filed it under, and "Line everyone up" rides along from the options row (Start only; the Add
+//    window has no options row, so its answer's `lineUp` is always false).
 
 import { PersonPickerDialog } from "../dialogs/PersonPickerDialog.js";
 import { format } from "../utils/i18n.js";

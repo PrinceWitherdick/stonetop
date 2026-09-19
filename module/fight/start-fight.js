@@ -291,7 +291,8 @@ export async function openStartFight({ combat = null, preselect = null, preselec
 		selected: model.selected,
 		sides: model.sides,
 		mode,
-		toggles: [{ key: "lineUp", label: localize("stonetop.fight.lineUp"), hint: localize("stonetop.fight.lineUpHint"), checked: false }],
+		// Only a new fight offers to line everyone up; adding to one leaves that to the tab's own button.
+		toggles: mode === "add" ? [] : [{ key: "lineUp", label: localize("stonetop.fight.lineUp"), hint: localize("stonetop.fight.lineUpHint"), checked: false }],
 	}, { id: `stonetop-start-fight-${++windowsOpened}` });
 	const answer = await dialog.promise();
 	if (!answer) return null;
