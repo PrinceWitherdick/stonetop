@@ -6,11 +6,11 @@ import { deletionTarget } from "../utils/foundry-compat.js";
 import { postMoveToChat } from "../utils/chat.js";
 import { capitalizeFirst } from "../utils/strings.js";
 import {
-	CAMP_FLAG, CAMP_OWED_FLAG, CAMP_STATE, CAMP_STATUS, SETTLE_REFUSAL, UNLIVING_KINDS,
-	campLedger, campShareUpdate, campState, count, freezeCampPlan, newCampRecord, readCampRecord, readOwedCamps,
-	rollsBedroll,
+	CAMP_FLAG, CAMP_OWED_FLAG, CAMP_STATE, CAMP_STATUS, HAD_ALL_ALONG, SETTLE_REFUSAL, UNLIVING_KINDS,
+	campLedger, campShareUpdate, campState, count, freezeCampPlan, messKitAllAlong, newCampRecord, readCampRecord,
+	readOwedCamps, rollsBedroll, suppliesAllAlong,
 } from "./camp-rules.js";
-import { campSummaryRows } from "./camp-view.js";
+import { campSummaryRows, hadAllAlongRows } from "./camp-view.js";
 
 /**
  * THE CAMP'S DOCUMENTS: who is sitting at the fire, the choices they make there, and the moment
@@ -120,6 +120,25 @@ export function campMember(actor, hostId) {
 		maxHp:            record?.vitals.maxHp || count(actor.system?.attributes?.hp?.max),
 		activeDebilities: markedDebilities(actor, record?.vitals),
 		unliving:         isUnliving(actor),
+		pack:             packFor(actor),
+	};
+}
+
+/**
+ * What Have What You Need can draw on in a character's pack, read live off the flags, since a mark
+ * spent at the fire must show on every reader's window at once.
+ */
+function packFor(actor) {
+	let usesPerSupply = null;
+	try {
+		usesPerSupply = actor.typedActor?.getUsesPerSupply?.() ?? null;
+	} catch {
+		// No readable steading: the rules fall back to the book's default of 4.
+	}
+	return {
+		undefinedMarks: count(actor.getFlag?.(SYSTEM_ID, "inventory.regularPool")),
+		checked:        actor.getFlag?.(SYSTEM_ID, "inventory.checked") ?? {},
+		usesPerSupply,
 	};
 }
 
@@ -305,6 +324,39 @@ export async function setCampChoices(actor, patch = {}) {
 		update[`${FLAG_PATH}.${key}`] = value;
 	}
 	if (Object.keys(update).length) await actor.update(update, { stonetopLedger: true });
+}
+
+/**
+ * HAVE WHAT YOU NEED at the fire (Book I p.78): one undefined ◇ becomes a supplies row, full, or a
+ * mess kit the character is now cooking with. Through the same StonetopCharacter#toggleCarriedItem
+ * as ticking the item on the Inventory tab, so the ◇ is recorded as drawn from the undefined pool
+ * and un-ticking it later gives the ◇ back. Load is unchanged: the mark only moves.
+ *
+ * The table hears about it in chat, because the move lets the GM or any player veto it.
+ *
+ * @param {Actor}  actor
+ * @param {string} what  HAD_ALL_ALONG
+ * @returns {Promise<{ok: boolean, row?: string, uses?: number}>}
+ */
+export async function haveWhatYouNeedAtCamp(actor, what) {
+	const record = campRecordOf(actor);
+	const character = actor?.typedActor;
+	if (!record || !character || stateOfCamp({ campId: record.id, hostId: record.host }) !== CAMP_STATE.OPEN) return { ok: false };
+	const member = campMember(actor, record.host);
+	if (what === HAD_ALL_ALONG.MESS_KIT) {
+		if (!messKitAllAlong(member)) return { ok: false };
+		await character.toggleCarriedItem(HAD_ALL_ALONG.MESS_KIT, true, { weight: 1 });
+		// Published on the record, like a mess kit packed before the camp began, and put to use.
+		await actor.update({ [`${FLAG_PATH}.vitals.messKit`]: true, [`${FLAG_PATH}.messKit`]: true }, { stonetopLedger: true });
+		postMoveToChat(actor, "Have What You Need", hadAllAlongRows(what));
+		return { ok: true };
+	}
+	const supplies = suppliesAllAlong(member);
+	if (!supplies.ok) return { ok: false };
+	await character.toggleCarriedItem(supplies.row, true, { weight: 1 });
+	await character.setInventoryResource(supplies.row, supplies.uses);
+	postMoveToChat(actor, "Have What You Need", hadAllAlongRows(what, supplies));
+	return { ok: true, row: supplies.row, uses: supplies.uses };
 }
 
 /** Break a camp up without anyone eating. Nothing is spent and nothing is gained. */

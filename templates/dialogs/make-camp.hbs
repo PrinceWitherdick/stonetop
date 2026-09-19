@@ -29,6 +29,10 @@
       <p class="stonetop-camp-meal-line">{{meal.mouthsText}}{{#if meal.cookText}} {{meal.cookText}}{{/if}}</p>
       {{#if meal.costText}}<p class="stonetop-camp-meal-line stonetop-camp-meal-cost">{{meal.costText}}</p>{{/if}}
       {{#if meal.statusText}}<p class="stonetop-camp-meal-status">{{meal.statusText}}</p>{{/if}}
+      {{#if allAlongText}}<p class="stonetop-camp-meal-line">{{allAlongText}}</p>{{/if}}
+      {{#if meal.forageText}}<p class="stonetop-camp-meal-line">{{meal.forageText}}</p>{{/if}}
+      {{#if meal.afterText}}<p class="stonetop-camp-meal-line">{{meal.afterText}}</p>{{/if}}
+      {{#if meal.provisionsText}}<p class="stonetop-camp-meal-line stonetop-camp-meal-note">{{meal.provisionsText}}</p>{{/if}}
     </section>
 
     <ol class="stonetop-camp-rows">
@@ -65,6 +69,17 @@
           {{/each}}
           {{#if cover.show}}
           <button type="button" class="stonetop-camp-inline-btn" data-camp-action="cover" data-actor-id="{{actorId}}" data-camp-focus="{{actorId}}:cover"><i class="fas fa-hand-holding-heart" aria-hidden="true"></i> {{cover.label}}</button>
+          {{/if}}
+          {{#if allAlong.show}}
+          {{!-- Have What You Need (Book I p.78): an undefined ◇ becomes something this character had all along. --}}
+          <div class="stonetop-camp-all-along">
+            {{#if allAlong.supplies.show}}
+            <button type="button" class="stonetop-camp-inline-btn" data-camp-action="had-supplies" data-actor-id="{{actorId}}" data-camp-focus="{{actorId}}:had-supplies" data-tooltip="{{allAlong.supplies.tip}}"{{#unless allAlong.supplies.can}} disabled{{/unless}}><i class="fas fa-sack" aria-hidden="true"></i> {{allAlong.supplies.label}}</button>
+            {{/if}}
+            {{#if allAlong.messKit.show}}
+            <button type="button" class="stonetop-camp-inline-btn" data-camp-action="had-mess-kit" data-actor-id="{{actorId}}" data-camp-focus="{{actorId}}:had-mess-kit" data-tooltip="{{allAlong.messKit.tip}}"><i class="fas fa-bowl-food" aria-hidden="true"></i> Had a mess kit all along</button>
+            {{/if}}
+          </div>
           {{/if}}
           {{#if givesBackText}}<p class="stonetop-camp-note">{{givesBackText}}</p>{{/if}}
         </div>

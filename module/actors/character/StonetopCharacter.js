@@ -179,6 +179,11 @@ function _buildOtherMoveResource(resource, current) {
 const _PROSPERITY_RESOURCE_SLUGS = new Set(["supplies", "more-supplies", "even-more-supplies"]);
 const _WEAPONS_OF_WAR_CATEGORY = "Weapons of War";
 const _WEAPONS_OF_WAR_IMPROVEMENT = "weaponsOfWar";
+// The Mill: "when you Outfit from Stonetop or Have What You Need after doing so, each ◆ of
+// supplies has 1 extra use." Completing it also writes "Mill" onto the Resources list, which a
+// GM may have done by hand instead, so either counts, the way Weapons of War reads.
+const _MILL_IMPROVEMENT = "mill";
+const _MILL_RESOURCE = "Mill";
 
 // Resolve "x piercing" against the steading's Prosperity for display. With Prosperity
 // 1+ it shows the actual value ("2 piercing"); at 0, no steading (null), or negative,
@@ -851,6 +856,7 @@ export class StonetopCharacter {
 		const allItems       = await this._inventoryRepo.getAll();
 		const steadingActor  = this.getSteadingActor();
 		const smallItemLimit = this.getSmallItemLimit(steadingActor);
+		const usesPerSupply  = this.getUsesPerSupply(steadingActor);
 		const steadingName   = steadingActor?.name ?? null;
 		const prosperity     = smallItemLimit !== null ? smallItemLimit - 4 : null;
 		const commonSpecialSet = this._earnedCommonSpecialSlugs(steadingActor, allItems);
@@ -872,10 +878,10 @@ export class StonetopCharacter {
 			// Three sources of a track's size, most specific first. An ACQUIRED capacity wins
 			// outright: provisions have no printed number of uses because the larder is however
 			// much the last Forage brought in (CharacterInventory#resourceMax). Then the
-			// 4+Prosperity supplies rule, then the number printed on the item.
+			// 4+Prosperity supplies rule (+1 with a Mill), then the number printed on the item.
 			const acquiredMax = Number(acquiredMaxes[outfitItem.slug]);
 			const resMax = Number.isFinite(acquiredMax) ? acquiredMax
-				: (isProsperityResource && smallItemLimit !== null) ? smallItemLimit
+				: (isProsperityResource && usesPerSupply !== null) ? usesPerSupply
 				: res?.max;
 			// Armored reduces a carried shield's ◇ cost (min 1), so it reads ◆ instead of ◆◆.
 			const weight = _shieldAdjustedWeight(outfitItem.weight, outfitItem.shield, shieldLoadReduction);
@@ -1615,6 +1621,23 @@ export class StonetopCharacter {
 		if (rawProsperity == null) return null;
 		const prosperity = Number(rawProsperity);
 		return isNaN(prosperity) ? null : 4 + prosperity;
+	}
+
+	/**
+	 * The uses in one ◆ of supplies: 4+Prosperity (Book I p.89), and 1 more once the steading has a
+	 * Mill. Null when Prosperity cannot be read, like getSmallItemLimit.
+	 *
+	 * The Mill's text says "when you Outfit from Stonetop", and nothing records where an Outfit
+	 * happened, so an earned Mill always counts: the same reading Weapons of War gets.
+	 */
+	getUsesPerSupply(steading = this.getSteadingActor()) {
+		const limit = this.getSmallItemLimit(steading);
+		if (limit === null) return null;
+		const steadingFlags = resolvedFlagProperty(steading, "steading") ?? {};
+		const mill = !!steadingFlags.improvements?.[_MILL_IMPROVEMENT]?.completed
+			// A Resources row is `{name, checked}`: one left unticked is not a Mill the village has.
+			|| (steadingFlags.resources ?? []).some(r => String(r?.name ?? r) === _MILL_RESOURCE && r?.checked !== false);
+		return limit + (mill ? 1 : 0);
 	}
 
 	/**

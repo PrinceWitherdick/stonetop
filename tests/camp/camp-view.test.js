@@ -215,7 +215,10 @@ describe("the camp window's meal", () => {
 			mouthsText: "1 to feed.",
 			cookText:   "With no mess kit, each use feeds 1.",
 			costText:   "The meal costs 1 use of food, and 0 have been shared.",
-			statusText: "1 more use needed. Share more food, or mark who goes without.",
+			statusText: "1 more use needed. Share more food, decide someone had supplies all along, or mark who goes without.",
+			forageText: "Or Forage first: a few hours seeking food in the wild, rolling +WIS.",
+			afterText:  "",
+			provisionsText: "",
 			isShort:    true,
 			isPaid:     false,
 		});
@@ -235,7 +238,7 @@ describe("the camp window's footer", () => {
 	it("holds Make Camp while anyone eating has no food", () => {
 		expect(view([aeliana()]).nav).toEqual({
 			manages: true, canSettle: false, hint: "Make Camp waits until everyone eating has food.",
-			blocked: "The meal is 1 use of food short. Share more food, or press Go without on the card of anyone not eating.",
+			blocked: "The meal is 1 use of food short. Share more food, decide someone had supplies all along, or press Go without on the card of anyone not eating.",
 		});
 	});
 

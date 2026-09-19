@@ -2217,8 +2217,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				// "4 uses, but you add Stonetop's current Prosperity to that" (p.88) — the same
 				// arithmetic the small-item allotment uses (p.306), which is why smallItemLimit can
 				// stand in for it. Two separate rules that happen to agree, so keep both citations:
-				// errata to either one stops them agreeing.
-				const pipsPerSet      = smallItemLimit ?? 5;
+				// errata to either one stops them agreeing. The steading's Mill is where they already
+				// part: it adds 1 use to each ◇ of supplies, and nothing to the small items.
+				const pipsPerSet      = this._stonetopCharacter?.getUsesPerSupply?.() ?? smallItemLimit ?? 5;
 				const prosperity      = smallItemLimit !== null ? smallItemLimit - 4 : null;
 				const suppliesRaw     = sf.crew?.supplies;
 				// A short (or absent) stored array just reads as unfilled sets — every lookup below
@@ -9005,10 +9006,10 @@ export function createStonetopCharacterSheetClass(Base) {
 		// in the pip list above this section. So the button says what it does; widening it to the
 		// whole move would mean a crew equivalent of OutfitMoveDialog, not a bigger fill() here.
 		async _onRestockCrewSupplies() {
-			// Uses per ◇ is "4 + Prosperity" (p.88) — a synchronous read; no need to build the
-			// whole sheet snapshot just to pull one scalar off it. Same value, same reasoning as
-			// the pipsPerSet the grid is drawn with.
-			const pipsPerSet = this._stonetopCharacter.getSmallItemLimit() ?? 5;
+			// Uses per ◇ is "4 + Prosperity" (p.88), +1 with a Mill — a synchronous read; no need to
+			// build the whole sheet snapshot just to pull one scalar off it. Same value, same reasoning
+			// as the pipsPerSet the grid is drawn with.
+			const pipsPerSet = this._stonetopCharacter.getUsesPerSupply?.() ?? this._stonetopCharacter.getSmallItemLimit() ?? 5;
 			const size       = this._crewRosterSize();
 			await this.actor.setFlag(STONETOP_SCOPE, "crew.supplies", Array(size).fill(pipsPerSet));
 			const who = size === 1 ? "its one member" : `all ${size} members`;

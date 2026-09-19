@@ -7841,6 +7841,8 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 .stonetop-camp-meal.is-short .stonetop-camp-meal-status { color: var(--st-red-text); }
 .stonetop-camp-meal.is-paid .stonetop-camp-meal-status { color: var(--st-green-text); }
 
+.stonetop-camp-meal-note { font-size: var(--st-fs-sm); font-style: italic; color: var(--st-text-secondary); }
+
 /* The cards, as many to a line as the window has room for. `auto-fill` rather than `auto-fit`, so
    the number of columns follows the window and never the party: a card keeps its width when someone
    sits down or gets up beside it, and nobody part-way through their own card (perhaps reading it
@@ -8124,6 +8126,9 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 }
 
 .stonetop-camp-closed { margin: 0; font-style: italic; color: var(--st-text-body); }
+
+/* Have What You Need at the fire: its buttons side by side while the card has room. */
+.stonetop-camp-all-along { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; }
 
 /* On the card's bottom edge, by its auto margin in the card's column, so the ready ticks of two
    cards side by side sit on one line however much each holds above them. The card's gap still

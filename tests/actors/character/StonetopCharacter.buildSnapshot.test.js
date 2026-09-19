@@ -1477,6 +1477,49 @@ describe("buildSnapshot — inventory: possession-derived special items", () => 
 		expect(regular.some(i => i.slug === "glass-vial")).toBe(false);
 	});
 
+	// "By default, one ◇ of supplies contains 4 uses, but you add Stonetop's current Prosperity"
+	// (Book I p.89); the Mill: "each ◆ of supplies has 1 extra use". Small items get no such use.
+	describe("uses in a ◇ of supplies", () => {
+		const supplies = () => makeOutfitItem({ slug: "supplies", name: "Supplies", resource: { max: 6, title: null, labels: [] } });
+		const steading = (steadingFlags = {}) => ({
+			type: "stonetop",
+			system: { attributes: { prosperity: { value: 1 } } },
+			flags: { "stonetop-pwd": { steading: steadingFlags } },
+		});
+		const usesWith = async steadingDoc => {
+			global.game.actors = { get: () => null, find: () => steadingDoc };
+			const char = new TestCharacterBuilder(makeHeavyActor())
+				.withInventoryRepo(new FakeInventoryRepository([supplies()]))
+				.build();
+			const snap = await char.buildSnapshot();
+			return {
+				max:   snap.inventory.outfit.regularItems.find(i => i.slug === "supplies").resource.max,
+				per:   char.getUsesPerSupply(),
+				small: char.getSmallItemLimit(),
+			};
+		};
+
+		it("holds 4+Prosperity", async () => {
+			expect(await usesWith(steading())).toEqual({ max: 5, per: 5, small: 5 });
+		});
+
+		it("holds one more once the steading has a Mill, and small items stay 4+Prosperity", async () => {
+			expect(await usesWith(steading({ improvements: { mill: { completed: true } } }))).toEqual({ max: 6, per: 6, small: 5 });
+		});
+
+		it("counts a Mill the GM wrote onto the Resources list by hand", async () => {
+			expect((await usesWith(steading({ resources: [{ name: "Mill", checked: true }] }))).per).toBe(6);
+		});
+
+		it("does not count a Mill row left unticked on the Resources list", async () => {
+			expect((await usesWith(steading({ resources: [{ name: "Mill", checked: false }] }))).per).toBe(5);
+		});
+
+		it("does not count a Mill still being built", async () => {
+			expect((await usesWith(steading({ improvements: { mill: { completed: false } } }))).per).toBe(5);
+		});
+	});
+
 	it("keeps Weapons of War hidden until the steading improvement is earned", async () => {
 		const axe = makeOutfitItem({
 			slug: "battleaxe", name: "Battleaxe, iron", weight: 1,
