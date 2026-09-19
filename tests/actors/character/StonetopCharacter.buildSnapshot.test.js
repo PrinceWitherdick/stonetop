@@ -1477,6 +1477,33 @@ describe("buildSnapshot — inventory: possession-derived special items", () => 
 		expect(regular.some(i => i.slug === "glass-vial")).toBe(false);
 	});
 
+	// Weapons of War names "maces, flails, battleaxes, warhammers, and all types of swords", and
+	// gives "battleaxes and swords 'x piercing'". The handout's weapons section also holds the
+	// crossbow and composite bow, which the improvement does not make common.
+	it("makes only the named weapons common, and gives battleaxes and swords x piercing", async () => {
+		const weapons = [
+			makeOutfitItem({ slug: "battleaxe", name: "Battleaxe, iron", weight: 1, note: "<em>iron</em>, <em>close</em>, <em>messy</em>", special: true, specialCategory: "Weapons of War" }),
+			makeOutfitItem({ slug: "warhammer", name: "Warhammer, iron", weight: 1, note: "<em>iron</em>, <em>close</em>, 2 piercing", special: true, specialCategory: "Weapons of War" }),
+			makeOutfitItem({ slug: "crossbow", name: "Crossbow", weight: 1, special: true, specialCategory: "Weapons of War" }),
+		];
+		global.game.actors = {
+			get: () => null,
+			find: () => ({
+				type: "stonetop",
+				system: { attributes: { prosperity: { value: 1 } } },
+				flags: { "stonetop-pwd": { steading: { improvements: { weaponsOfWar: { completed: true } } } } },
+			}),
+		};
+		const snap = await new TestCharacterBuilder(makeHeavyActor())
+			.withInventoryRepo(new FakeInventoryRepository(weapons))
+			.build().buildSnapshot();
+		const regular = snap.inventory.outfit.regularItems;
+		expect(regular.some(i => i.slug === "crossbow")).toBe(false);
+		expect(regular.find(i => i.slug === "battleaxe").note).toBe("<em>iron</em>, <em>close</em>, <em>messy</em>, 1 <em>piercing</em>");
+		// A warhammer already pierces; it is not one of the weapons the improvement names.
+		expect(regular.find(i => i.slug === "warhammer").note).toBe("<em>iron</em>, <em>close</em>, 2 piercing");
+	});
+
 	// "By default, one ◇ of supplies contains 4 uses, but you add Stonetop's current Prosperity"
 	// (Book I p.89); the Mill: "each ◆ of supplies has 1 extra use". Small items get no such use.
 	describe("uses in a ◇ of supplies", () => {

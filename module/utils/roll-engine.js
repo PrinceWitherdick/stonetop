@@ -162,15 +162,18 @@ export function multiDieFaces(roll) {
  * clicked it. Pass `alias` instead to speak the card under a fixed name with no header
  * (the Expedition Requisition card).
  */
-export async function rollSeasonsCard({ formula, title = "", alias = "", resultTable, resultLegend = "" } = {}) {
+export async function rollSeasonsCard({ formula, title = "", alias = "", resultTable, resultLegend = "", missCountsAsPartial = "" } = {}) {
 	const roll = await new Roll(formula).evaluate();
-	const tier = classifyResult(roll.total).key;
+	const rolled = classifyResult(roll.total).key;
+	// As rollStat's option of the same name: a 6- that a rule counts as a 7-9, said on the card.
+	const counted = missCountsAsPartial && rolled === "failure";
+	const tier = counted ? "partial" : rolled;
 	const result = resultTable[tier];
 	const body = springRollCardBody(
 		roll.total,
 		tier,
 		result.label,
-		result.line,
+		counted ? `${result.line} <em>(Rolled a 6-, counted as a 7-9: ${escHtml(missCountsAsPartial)}.)</em>` : result.line,
 		roll.formula,
 		multiDieFaces(roll),
 		resultLegend || _resultTableLegend(resultTable),
@@ -592,6 +595,8 @@ export function conditionsRowHtml(conditions) {
  *   or something is ignoring it.
  * @param {string}  [options.stonetopDebilityIgnoredName]  - Which debility is being ignored
  * @param {boolean} [options.noXpOnMiss]               - Skip the automatic +1 XP on a miss (for moves that replace it)
+ * @param {string}  [options.missCountsAsPartial]      - Why a 6- counts as a 7-9 on this roll, named on
+ *   the card; absent for an ordinary roll
  * @param {string[]|{success?: string[], partial?: string[], failure?: string[]}} [options.pickOptions]
  *   "Choose from this list" options, rendered as a checklist on the card. An array is one pool
  *   shared by every tier (love letters); an object names a pool per tier (the homefront moves,
@@ -617,7 +622,12 @@ export async function rollStat(statKey, actor, options = {}) {
 
 	const roll   = await new Roll(_rollFormula(rollMode, modifier), rollData, rollOptions).evaluate();
 	const total  = roll.total;
-	const result = classifyResult(total);
+	// A rule that turns a miss into a weak hit (Herd of Horses: "When you Requisition half the
+	// herd or less, treat a 6- as a 7-9") is applied to the TIER, so every tier-keyed part of the
+	// card (outcome, pick list, buttons, the ladder's mark) reads as the 7-9 it counts as.
+	const missCountsAsPartial = String(options.missCountsAsPartial ?? "").trim();
+	const rolled = classifyResult(total);
+	const result = missCountsAsPartial && rolled.key === "failure" ? classifyResult(7) : rolled;
 
 	// Surface the move's own per-tier outcome (10+/7-9/6-) on the result card. Some
 	// moves (e.g. the Blessed's Borrow Power, Suck the Poison Out) keep their outcomes
@@ -696,6 +706,9 @@ export async function rollStat(statKey, actor, options = {}) {
 	// someone else's card from a long way off.
 	for (const note of (Array.isArray(options.conditionNotes) ? options.conditionNotes : []).filter(Boolean)) {
 		conditions.push(`<li class="stonetop-condition-note">${escHtml(note)}</li>`);
+	}
+	if (missCountsAsPartial && rolled.key === "failure") {
+		conditions.push(`<li class="stonetop-condition-note">${escHtml(`Rolled a 6-, counted as a 7-9 (${missCountsAsPartial})`)}</li>`);
 	}
 
 	const conditionsHtml = conditionsRowHtml(conditions);

@@ -80,6 +80,8 @@ import {ARTIFACT_STATE, concealArtifactFields, isArtifactUpgrade, normalizeArtif
 import {isLoveLetter} from "./love-letters.js";
 import {deriveLoadLevel, loadLimitsFor} from "../../utils/load.js";
 import {maxDie, stepDie, normalizeDamageDie} from "../../utils/damage-die.js";
+import {WEAPONS_OF_WAR_COMMON, WEAPONS_OF_WAR_PIERCING} from "../../data/weapons.js";
+import {X_PIERCING_MAX} from "../../utils/damage.js";
 
 const OTHER_MOVE_TYPES = ["background", "special", "follower", "homefront"];
 // Expedition moves that operate on the STEADING rather than the individual hero,
@@ -195,8 +197,18 @@ function _transformPiercingNote(note, prosperity) {
 	const marker = /x <em>piercing<\/em>/i;
 	if (!note || !marker.test(note)) return note;
 	if (prosperity === null) return note; // no steading → leave literal "x piercing"
+	// The Inventory insert's Prosperity table: -1 "Gear is crude", +1 "x = 1 piercing", +2 "x = 2
+	// piercing", and no higher row. damage.js#resolvePiercing counts the same way.
 	if (prosperity <= -1) return note.replace(marker, '<em>crude</em>');
-	return note.replace(marker, `${Math.min(prosperity, 2)} <em>piercing</em>`);
+	return note.replace(marker, `${Math.min(prosperity, X_PIERCING_MAX)} <em>piercing</em>`);
+}
+
+// A battleaxe's or sword's note once the steading has Weapons of War: the item's own tags plus the
+// improvement's "x piercing", for _transformPiercingNote to resolve against Prosperity.
+function _withWeaponsOfWarPiercing(item, weaponsOfWar) {
+	const note = item?.note ?? "";
+	if (!weaponsOfWar || !WEAPONS_OF_WAR_PIERCING.has(item?.slug) || /piercing/i.test(note)) return note;
+	return note ? `${note}, x <em>piercing</em>` : "x <em>piercing</em>";
 }
 
 // A gear-bearing `choices` option (Weapons of War) leads its label with the run of ◇/◆
@@ -860,6 +872,8 @@ export class StonetopCharacter {
 		const steadingName   = steadingActor?.name ?? null;
 		const prosperity     = smallItemLimit !== null ? smallItemLimit - 4 : null;
 		const commonSpecialSet = this._earnedCommonSpecialSlugs(steadingActor, allItems);
+		// Weapons of War: "Battleaxes and swords have 'x piercing'", resolved below with the rest.
+		const weaponsOfWar     = this.weaponsOfWarEarned(steadingActor);
 		// A move's `loadBonus` raises every load cap (the Ranger's Pack Horse → +1).
 		// The boosted limits flow into the regular ◇ pool here and into the Outfit
 		// dialog via the snapshot; the granting moves' names ride along so the boosted
@@ -888,7 +902,7 @@ export class StonetopCharacter {
 			return new InventoryItemSnapshotBuilder()
 				.withSlug(outfitItem.slug)
 				.withName(outfitItem.name)
-				.withNote(_transformPiercingNote(outfitItem.note, prosperity))
+				.withNote(_transformPiercingNote(_withWeaponsOfWarPiercing(outfitItem, weaponsOfWar), prosperity))
 				.withWeight(weight)
 				.withChecked(checked[outfitItem.slug] ?? false)
 				.withResource(res ? new ResourceBuilder()
@@ -1604,14 +1618,27 @@ export class StonetopCharacter {
 			?? getStonetopSteadingActor();
 	}
 
-	_earnedCommonSpecialSlugs(steading, allItems) {
-		if (!steading) return new Set();
+	/**
+	 * Whether the steading has earned Weapons of War: the improvement built, or "Weapons of War"
+	 * active on its Fortifications list (a GM who wrote it there by hand).
+	 */
+	weaponsOfWarEarned(steading = this.getSteadingActor()) {
+		if (!steading) return false;
 		const steadingFlags = resolvedFlagProperty(steading, "steading") ?? {};
-		const weaponsEarned = !!steadingFlags.improvements?.[_WEAPONS_OF_WAR_IMPROVEMENT]?.completed
-			|| (steadingFlags.fortifications ?? []).some(f => String(f?.name ?? f) === _WEAPONS_OF_WAR_CATEGORY);
-		if (!weaponsEarned) return new Set();
+		return !!steadingFlags.improvements?.[_WEAPONS_OF_WAR_IMPROVEMENT]?.completed
+			|| (steadingFlags.fortifications ?? []).some(f =>
+				String(f?.name ?? f) === _WEAPONS_OF_WAR_CATEGORY && f?.checked !== false);
+	}
+
+	/**
+	 * The special items Weapons of War makes common: "maces, flails, battleaxes, warhammers, and all
+	 * types of swords". Only those: the Special Items handout's weapons section also holds the
+	 * crossbow and the composite bow, which the improvement does not name.
+	 */
+	_earnedCommonSpecialSlugs(steading, allItems) {
+		if (!this.weaponsOfWarEarned(steading)) return new Set();
 		return new Set(allItems
-			.filter(i => i.special && i.specialCategory === _WEAPONS_OF_WAR_CATEGORY)
+			.filter(i => i.special && i.specialCategory === _WEAPONS_OF_WAR_CATEGORY && WEAPONS_OF_WAR_COMMON.has(i.slug))
 			.map(i => i.slug));
 	}
 

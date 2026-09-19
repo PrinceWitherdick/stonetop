@@ -265,6 +265,8 @@ export async function carriedAttackWeapons(actor, move) {
 	// possessions.choiceCarried; and arcana / treasure weapons were missed again below, for
 	// having no WEAPON_META entry to find.
 	const gear = (await actor.typedActor?.carriedWeaponGear?.()) ?? legacyCarriedGear(actor);
+	// Weapons of War gives the steading's battleaxes and swords "x piercing" (data/weapons.js).
+	const weaponsOfWar = !!actor.typedActor?.weaponsOfWarEarned?.();
 	for (const g of gear) {
 		// A catalog or gear-choice weapon is in the curated table; anything picked up in play
 		// states its own mechanics in its tag line instead.
@@ -275,7 +277,7 @@ export async function carriedAttackWeapons(actor, move) {
 		// horse and the mule print the damage THEY deal; and a player carrying any of them was
 		// asked which one they were attacking with. The book's equipment list is exactly what
 		// WEAPON_META was curated from, so a row it doesn't name is not a weapon.
-		const meta = (g.weaponSlug ? weaponMeta(g.weaponSlug) : null)
+		const meta = (g.weaponSlug ? weaponMeta(g.weaponSlug, { weaponsOfWar }) : null)
 			?? (g.catalog ? null : weaponMetaFromNote(g.name, g.note, { ammo: !!g.ammo }));
 		if (!meta || !move.filter(meta)) continue;
 		const weapon = {

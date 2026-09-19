@@ -4474,6 +4474,7 @@ input.stonetop-name-field {
 .stonetop-readonly .steading-herd-step,
 .stonetop-readonly .steading-herd-input,
 .stonetop-readonly .steading-inn-gathering-btn,
+.stonetop-readonly .steading-improvement-move-btn,
 .stonetop-readonly .stonetop-item-resource-check {
 	pointer-events: auto;
 	opacity: 1;
@@ -8333,6 +8334,16 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	padding: 8px 10px;
 	margin-bottom: 12px;
 }
+/* Herd of Horses' "half the herd or less" question, above the roll it changes (the character's
+   Requisition and the expedition guide's). */
+.stonetop-requisition-herd {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	margin: 0 0 8px;
+	font-size: var(--st-fs-base);
+	color: var(--st-text-body);
+}
 /* Slate primary buttons, matching the custom Application modals. (RequisitionDialog
    is a `.stonetop` Application, not a `.dialog`, so it styles its own buttons rather
    than picking up the shared `.stonetop.dialog .dialog-buttons` rule.) */
@@ -9297,6 +9308,25 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
    reserved room for it is already dropped by the .stonetop-picklist-item rule above.) */
 :is(#chat, #chat-notifications, #chat-popout) .message
 	:is(.stonetop-chat-move-description, .stonetop-roll-card-description) .stonetop-picklist-item::before {
+	content: none;
+}
+
+/* A NUMBERED list (Level Up's steps) already has its marker: the number. The spiral every
+   description <li> hangs at left: 0 sat between the number and the words, two markers on one
+   row. The number stays and the spiral goes, with the spiral's reserved padding moved onto the
+   <ol> as room for the numerals. `ol > li` outweighs the family rules' bare `li` by one tag. */
+:is(#chat, #chat-notifications, #chat-popout) .message
+	:is(.stonetop-chat-move-description, .stonetop-roll-card-description) ol {
+	margin: 0 0 5px;
+	padding-left: 1.5em;
+	list-style: decimal;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message
+	:is(.stonetop-chat-move-description, .stonetop-roll-card-description) ol > li {
+	padding-left: 0;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message
+	:is(.stonetop-chat-move-description, .stonetop-roll-card-description) ol > li::before {
 	content: none;
 }
 
@@ -19915,6 +19945,26 @@ a.steading-player-open:hover {
 	opacity: 0.5;
 	cursor: default;
 }
+
+/* An improvement that is a move (Aurochs Hunting, Heroic Reputation) rolls from its own card: the
+   Inn gathering button's look, since it is the same kind of act from the same kind of card. */
+.steading-improvement-move-btn {
+	width: 100%;
+	margin-top: 8px;
+	padding: 6px 10px;
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
+	border: none;
+	border-radius: var(--st-radius);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	font-size: var(--st-fs-sm);
+}
+
+.steading-improvement-move-btn:hover { background: var(--st-btn-primary-bg-hover); }
 
 /* -- Moves tab ------------------------------------------------- */
 

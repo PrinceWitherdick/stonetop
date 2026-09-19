@@ -173,9 +173,14 @@ export function composeDamageFormula(base, { bonus = 0, extraDice = "", seed = n
  */
 export function resolvePiercing(piercing) {
 	if (typeof piercing === "number") return Math.max(0, piercing);
-	if (piercing === "prosperity") return Math.max(0, Number(getStonetopProsperity()) || 0);
+	// Capped as the Inventory insert's Prosperity table caps it ("+2: x = 2 piercing", no higher
+	// row), so the damage a Prosperity +3 steading's spear deals matches what its sheet says.
+	if (piercing === "prosperity") return Math.min(X_PIERCING_MAX, Math.max(0, Number(getStonetopProsperity()) || 0));
 	return 0;
 }
+
+/** The most "x piercing" comes to: the Inventory insert's table stops at "+2: x = 2 piercing". */
+export const X_PIERCING_MAX = 2;
 
 /**
  * Reduce raw damage by a target's armor, honouring piercing and full-bypass:

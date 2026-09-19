@@ -90,6 +90,7 @@ import { bindThreatSeedDrag } from "./module/threats/threat-seed-cards.js";
 import { maybeAnnounceBecameHero } from "./module/actors/character/WouldBeHeroAsterisk.js";
 import { StonetopSteading } from "./module/actors/steading/StonetopSteading.js";
 import { debilityPath } from "./module/actors/steading/steading-debilities.js";
+import { readCurrentSeason, readCurrentYear } from "./module/seasons/current-season.js";
 import { onSteadingPeopleUpdate, repaintOpenSteadingRosters } from "./module/actors/steading/steading-people.js";
 import { makeDialogsResizable, enableAutoHeightVerticalResize } from "./module/utils/resizable-dialogs.js";
 import { registerStonetopWindowTheme, registerStonetopLightTheme } from "./module/utils/window-theme.js";
@@ -1520,11 +1521,10 @@ function _chatWireRequisitionMissCost(message, html) {
 	});
 }
 
-// -- DEPLOY: mark diminished from the roll card -----------------
-// "Injuries abound; the steading marks diminished" is one of the two consequences the GM
-// chooses on a Deploy miss, so the button that applies it belongs on the miss, beside the
-// list it comes from — not in the pre-roll dialog, where it was offered before anyone knew
-// whether Deploy had missed at all.
+// -- MARK DIMINISHED from the roll card ----------------------------
+// "Injuries abound; the steading marks diminished" is one of the consequences a Deploy (and an
+// Aurochs Hunt) can pick after the dice, so the button that applies it rides the card beside the
+// list it comes from, not the pre-roll dialog. `data-move` names the move for the ledger.
 function _chatWireDeployMarkDiminished(message, html) {
 	const btn = html.querySelector(".stonetop-deploy-mark-diminished");
 	_wireSteadingCardButtons(message, btn ? [btn] : [], {
@@ -1532,9 +1532,60 @@ function _chatWireDeployMarkDiminished(message, html) {
 		onSettled: (_already, [b]) => { b.textContent = "Marked diminished"; },
 		warn: "You need permission to update the steading's debilities.",
 		errorNote: "Error marking the steading diminished",
-		run: async steading => {
-			await steading.setSystemValue(debilityPath("diminished"), true, { stonetopMove: "Deploy" });
+		run: async (steading, b) => {
+			await steading.setSystemValue(debilityPath("diminished"), true, { stonetopMove: b.dataset.move || "Deploy" });
 			return { notice: "Stonetop marked diminished." };
+		},
+	});
+}
+
+// -- THE AUROCHS HUNT's card (the Aurochs Hunting improvement) ----
+// The hunt's Surplus, and the two consequences that write something: horses lost from a tracked
+// herd, and a herd left weak, which next spring's hunt window warns about. Each settles once per
+// card, like every steading card button.
+function _chatWireAurochsHunt(message, html) {
+	const surplus = html.querySelector(".stonetop-aurochs-surplus");
+	_wireSteadingCardButtons(message, surplus ? [surplus] : [], {
+		flag: "aurochsSurplus",
+		onSettled: (already, [b]) => { b.textContent = already.gained ? `Gained ${already.gained} Surplus` : "Surplus gained"; },
+		warn: "You need permission to update the steading's Surplus.",
+		errorNote: "Error gaining the aurochs hunt's Surplus",
+		run: async steading => {
+			const roll = await new Roll("1d4").evaluate();
+			await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: steading._actor }), flavor: "Aurochs Hunt: Surplus (1d4)" });
+			const live = steading.getStatValue("surplus");
+			await steading.applyChanges({ system: { "attributes.surplus.value": live + roll.total } }, { stonetopMove: "Aurochs Hunt" });
+			return { stamp: { gained: roll.total }, notice: `The hunt brings home ${roll.total} Surplus (${live + roll.total} now).` };
+		},
+	});
+	const horses = html.querySelector(".stonetop-aurochs-horses");
+	_wireSteadingCardButtons(message, horses ? [horses] : [], {
+		flag: "aurochsHorses",
+		onSettled: (already, [b]) => { b.textContent = `${already.rolled} horses lamed or killed`; },
+		warn: "You need permission to update the steading's herd.",
+		errorNote: "Error rolling the aurochs hunt's lost horses",
+		run: async steading => {
+			const roll = await new Roll("1d4").evaluate();
+			await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: steading._actor }), flavor: "Aurochs Hunt: horses lamed or killed (1d4)" });
+			const lost = await steading.loseHorses(roll.total, { stonetopMove: "Aurochs Hunt" });
+			return {
+				stamp: { rolled: roll.total },
+				notice: lost === null
+					? `${roll.total} of the town's horses are lamed or killed. With no Herd of Horses, strike them from the Assets list by hand.`
+					: `${lost} horses taken from the herd.`,
+			};
+		},
+	});
+	const weak = html.querySelector(".stonetop-aurochs-weak");
+	_wireSteadingCardButtons(message, weak ? [weak] : [], {
+		flag: "aurochsWeak",
+		onSettled: (_already, [b]) => { b.textContent = "Next spring will warn: the herd is weak"; },
+		warn: "You need permission to update the steading.",
+		errorNote: "Error remembering the weak aurochs herd",
+		run: async steading => {
+			const season = readCurrentSeason(steading._actor);
+			await steading.markAurochsWeak(season?.year ?? readCurrentYear(steading._actor));
+			return { notice: "Remembered: hunt the aurochs next year and the herd will be wiped out." };
 		},
 	});
 }
@@ -1962,6 +2013,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	wireUndoXpMark(message, html);
 	_chatWireRequisitionMissCost(message, html);
 	_chatWireDeployMarkDiminished(message, html);
+	_chatWireAurochsHunt(message, html);
 	_chatWireMusterRaise(message, html);
 	_chatWireSpendStock(message, html);
 	_chatWireSeasonsRoll(message, html);
