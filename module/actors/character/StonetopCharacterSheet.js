@@ -3363,6 +3363,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						// The character's own damage, with the weapon in hand (asked as Clash asks): at their
 						// targets, or whoever they are fighting on the map, on the damage card whose Apply takes
 						// the foe's armor off (combat/attack-flow.js#rollCharacterDamageAt).
+						// Dealing it holding Readiness asks whether they went on the offense (p.216).
 						await rollCharacterDamageAt(this.actor, { label: rollable.dataset.label ?? "Damage", shiftKey: ev.shiftKey });
 					} else if (rollable.classList.contains("stonetop-follower-damage-roll")) {
 						const followerType   = rollable.dataset.followerType ?? "";

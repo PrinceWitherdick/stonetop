@@ -59,6 +59,7 @@ import {grantsToCreate, grantSourceMap, grantAdoptionKeys, itemGrantKey} from ".
 import {CharacterInventory} from "./CharacterInventory.js";
 import {maybeBeginAttack, maybeCounterOnMiss, attackMoveFor} from "../../combat/attack-flow.js";
 import {defendReadinessHold, defendReadinessCap, readinessCount, READINESS_FLAG} from "../../combat/defend-readiness.js";
+import {settleReadinessOnAttack} from "../../combat/readiness-loss.js";
 import {classifyResult} from "../../utils/roll-engine.js";
 import {xpToLevelUp, withXpLock} from "../../utils/xp.js";
 import {CharacterArcana} from "./CharacterArcana.js";
@@ -2378,9 +2379,10 @@ export class StonetopCharacter {
 			// player closed the weapon prompt", and while these answered the same the guards
 			// written for exactly that (`if (handled) …`) were doing nothing at all.
 			if (begun === "cancel") return "cancel";
-			// Going on the offense (Clash / Let Fly) sheds any held Defend Readiness (p.216) —
-			// but only once the attack is committed, not on a cancelled weapon/target prompt.
-			if (attackMoveFor(item)) await this._loseDefendReadinessToOffense(item.name);
+			// Going on the offense sheds any held Defend Readiness (p.216), but an attack made
+			// holding one's ground does not, so the player is asked (combat/readiness-loss.js):
+			// only once the attack is committed, not on a cancelled weapon/target prompt.
+			if (attackMoveFor(item)) await settleReadinessOnAttack(this._actor, item.name);
 			if (begun === "handled") return true;
 			attackExtra = begun;
 		}
@@ -2871,18 +2873,6 @@ export class StonetopCharacter {
 			content: moveChatCard("Defend: Readiness held",
 				`<p><strong>${escHtml(this._actor.name)}</strong> holds <strong>${next}</strong> Readiness${escHtml(shieldNote)}.</p>`
 				+ `<p>Spend it to suffer an attack's damage/effects for a ward, halve it, draw all attention to yourself, or strike back.</p>`),
-			speaker: ChatMessage.getSpeaker({ actor: this._actor }),
-		});
-	}
-
-	// "When you go on the offense … lose any Readiness that you hold" (p.216). Called when
-	// the character rolls Clash / Let Fly. Clears the pool and posts a note if any was held.
-	async _loseDefendReadinessToOffense(moveName) {
-		if (this.defendReadiness <= 0) return;
-		await this.setDefendReadiness(0);
-		await ChatMessage.create({
-			content: moveChatCard("Readiness lost",
-				`<p><strong>${escHtml(this._actor.name)}</strong> goes on the offense${moveName ? ` (${escHtml(moveName)})` : ""} and loses all held Readiness.</p>`),
 			speaker: ChatMessage.getSpeaker({ actor: this._actor }),
 		});
 	}

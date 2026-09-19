@@ -10,6 +10,8 @@ vi.mock("../../module/dialogs/RollDialog.js", async importOriginal => ({
 	rollDamagePrompted: vi.fn(async () => true),
 }));
 const { rollDamagePrompted } = await import("../../module/dialogs/RollDialog.js");
+vi.mock("../../module/combat/readiness-loss.js", () => ({ settleReadinessOnAttack: vi.fn(async () => false) }));
+const { settleReadinessOnAttack } = await import("../../module/combat/readiness-loss.js");
 const { rollDamageAt, maybeBeginAttack, wireApplyDamage, withSeedTags, rollCharacterDamageAt, strikeBackAt, rollFollowerDamageAt, wireAttackConfirm } = await import("../../module/combat/attack-flow.js");
 
 // Rolls aimed by the fight: a monster's damage at the character it is fighting, a character's at the
@@ -238,6 +240,16 @@ describe("a character's own damage, with the weapon in hand", () => {
 		const flag = damageFlag();
 		expect(flag.move).toBe("Damage: Sword");
 		expect(flag.results).toEqual([expect.objectContaining({ uuid: tokens.crin.uuid, formula: "d8+1" })]);
+	});
+
+	it("asks whether they went on the offense once the blow is rolled, but not for a strike back (p.216)", async () => {
+		const pim = armed("sword");
+		fightInARow([["pim", pim], ["crin", crinwin("crinwin")]]);
+		vi.mocked(settleReadinessOnAttack).mockClear();
+		await rollCharacterDamageAt(pim, { label: "Strike back", seeded: false, shiftKey: true });
+		expect(settleReadinessOnAttack).not.toHaveBeenCalled();
+		await rollCharacterDamageAt(pim, { label: "Damage", shiftKey: true });
+		expect(settleReadinessOnAttack).toHaveBeenCalledWith(pim, "Damage");
 	});
 
 	it("carries a warhammer's 2 piercing to Apply", async () => {

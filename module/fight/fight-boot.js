@@ -20,6 +20,7 @@ import { sendAgainst, handleSendQuery, SEND_QUERY } from "./send-against.js";
 import { installFightWindow, syncFightWindow } from "./fight-window.js";
 import { fightVitalsKey } from "./fight-vitals.js";
 import { createFightTokenClass, installFightRing, syncFightRing } from "./fight-ring.js";
+import { installReadinessLoss } from "../combat/readiness-loss.js";
 
 /**
  * `preCreateCombat`: mark a new Combat as a fight, and tie it to the scene it is started on.
@@ -101,6 +102,8 @@ export function registerFightTab({ config = globalThis.CONFIG, hooks = globalThi
 	});
 	installFightWindow({ hooks });
 	installFightRing({ hooks });
+	// Defend's Readiness goes when the fight ends, or a character leaves it or goes down (p.216).
+	installReadinessLoss({ hooks });
 	// The canvas destroys the overlay with its interface group; drop the handles to it.
 	hooks.on("canvasTearDown", teardownFightOverlay);
 	// A reader switching high contrast on or off gets the lines repainted in that mode's ink.

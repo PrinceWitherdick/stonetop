@@ -44,7 +44,7 @@ const OWNER = 3;
 
 const ours = doc => doc?.flags?.[SYSTEM_ID] ?? {};
 /** A collection as an array; nothing for anything that cannot be walked. */
-const each = collection => (typeof collection?.[Symbol.iterator] === "function" ? [...collection] : []);
+export const each = collection => (typeof collection?.[Symbol.iterator] === "function" ? [...collection] : []);
 
 /** Whether a Combat was started (or claimed) as a Stonetop fight. */
 export function isFight(combat) {

@@ -49,6 +49,7 @@ import {format} from "../utils/i18n.js";
 import {bringDialogToFront} from "../utils/front-on-open.js";
 import {isPrimaryGM, anyActiveGM} from "../utils/primary-gm.js";
 import {inCardTurn} from "../utils/card-queue.js";
+import {settleReadinessOnAttack} from "./readiness-loss.js";
 
 const SCOPE = STONETOP_SCOPE;
 
@@ -915,7 +916,9 @@ export async function chooseDamageWeapon(actor, title) {
  * @param {object} [options]
  * @param {string} [options.label]     the card's title
  * @param {string} [options.rollMode]  "dis" for a strike back
- * @param {boolean} [options.seeded]   offer the fight's +N (off for a strike back: one defender's blow)
+ * @param {boolean} [options.seeded]   offer the fight's +N (off for a strike back: one defender's blow).
+ *   A seeded blow is the character going on the offense, so dealing it holding Readiness asks whether
+ *   they keep it (p.216, combat/readiness-loss.js); a strike back spends its own Readiness instead.
  * @param {boolean} [options.shiftKey] skip the damage window
  * @returns {Promise<boolean>} whether damage was rolled
  */
@@ -923,7 +926,9 @@ export async function rollCharacterDamageAt(actor, { label = "Damage", rollMode 
 	if (!actor) return false;
 	const blow = await characterBlow(actor, label);
 	if (!blow) return false;
-	return rollDamageAt(actor, { formula: blow.formula, label: blow.move, rollMode, weapon: blow.weapon, seeded, shiftKey });
+	const rolled = await rollDamageAt(actor, { formula: blow.formula, label: blow.move, rollMode, weapon: blow.weapon, seeded, shiftKey });
+	if (rolled && seeded) await settleReadinessOnAttack(actor, label);
+	return rolled;
 }
 
 /**

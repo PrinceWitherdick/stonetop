@@ -2032,6 +2032,19 @@
           "armorNote": "+1 armor, Undaunted"
         }
       }
+    },
+    "readiness": {
+      "askTitle": "{name} holds {count} Readiness",
+      "ask": "{name} holds {count} Readiness and attacks ({move}). Going on the offense loses all of it, but fighting defensively keeps it (p.216). Are they rushing in, or holding their ground?",
+      "lose": "Rushing in: lose the Readiness",
+      "keep": "Holding their ground: keep it",
+      "keptTitle": "Readiness kept",
+      "kept": "{name} fights defensively ({move}) and keeps {count} Readiness.",
+      "lostTitle": "Readiness lost",
+      "lostOffense": "{name} goes on the offense ({move}) and loses all held Readiness.",
+      "lostFightOver": "The fight is over: {names} let go of their Readiness.",
+      "lostLeftFight": "{name} leaves the fight and loses their Readiness.",
+      "lostDown": "{name} is down and loses their Readiness."
     }
   }
 }
