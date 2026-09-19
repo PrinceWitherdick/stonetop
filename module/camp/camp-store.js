@@ -220,6 +220,13 @@ function unpaidPart({ id, plan }) {
 /** Sit a character down at a camp: one write of a whole fresh record. */
 async function sitDown(actor, { campId, hostId }) {
 	const vitals = await campVitalsFor(actor);
+	// A host walking away from their own unsettled camp breaks it up, and this write replaces the record
+	// that said so. The new one names it, along with every camp the old one named, so their cards and
+	// windows go on saying they broke up (campState) however many fires this character moves between.
+	const last  = campRecordOf(actor);
+	const broke = last && last.host === actor.id && last.id !== campId
+		&& [CAMP_STATE.OPEN, CAMP_STATE.CANCELLED].includes(campState(last, { campId: last.id, hostId: actor.id }, Date.now()));
+	const left  = [...(last?.leftCamps ?? []), ...(broke ? [last.id] : [])];
 	const record = newCampRecord({
 		id:                 campId,
 		hostId,
@@ -230,6 +237,7 @@ async function sitDown(actor, { campId, hostId }) {
 		hpValue:            actor.system?.attributes?.hp?.value,
 		activeDebilityKeys: markedDebilities(actor, vitals).map(d => d.key),
 		unliving:           isUnliving(actor),
+		leftCamps:          left,
 	});
 	const update = { [FLAG_PATH]: record };
 	// The fresh record replaces the one a settled camp's plan is kept on. Whatever of that plan is

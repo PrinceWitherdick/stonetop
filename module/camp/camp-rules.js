@@ -66,6 +66,9 @@ export const CAMP_STALE_MS = 8 * 60 * 60 * 1000;
 /** The most extra mouths one character can bring to the fire. */
 export const CAMP_FOLLOWERS_MAX = 20;
 
+/** How many camps a character remembers breaking up, latest kept. Older ones read as simply gone. */
+export const CAMP_LEFT_MAX = 10;
+
 /** The held advantage a peaceful night leaves, named the way the sheet's chip shows it. */
 export const PEACEFUL_NIGHT = "A peaceful night's rest";
 
@@ -146,6 +149,9 @@ export function readCampRecord(raw) {
 		// as a fresh token each time (camp-store.js#settleCamp).
 		settleAsk: String(raw.settleAsk ?? ""),
 		applied:   !!raw.applied,
+		// The unsettled camps this character was hosting when they sat down somewhere else instead,
+		// which those moves broke up (campState). Carried from record to record, latest last.
+		leftCamps: readLeftCamps(raw.leftCamps),
 	};
 }
 
@@ -166,7 +172,7 @@ export function readOwedCamps(raw) {
  */
 export function newCampRecord({
 	id, hostId, actorId, now = 0, vitals = {}, followers = 0,
-	hpValue = 0, activeDebilityKeys = [], unliving = false,
+	hpValue = 0, activeDebilityKeys = [], unliving = false, leftCamps = [],
 }) {
 	const read    = readVitals(vitals);
 	const hosting = actorId === hostId;
@@ -192,7 +198,14 @@ export function newCampRecord({
 		settledAt: 0,
 		settleAsk: "",
 		applied:   false,
+		leftCamps: readLeftCamps(leftCamps),
 	};
+}
+
+/** A list of broken-up camp ids in one dependable shape: strings, no repeats, the latest CAMP_LEFT_MAX. */
+function readLeftCamps(raw) {
+	const ids = (Array.isArray(raw) ? raw : []).filter(Boolean).map(String);
+	return [...new Set(ids)].slice(-CAMP_LEFT_MAX);
 }
 
 /**
@@ -200,8 +213,12 @@ export function newCampRecord({
  *
  * The host is the only authority on this. A member's record names the camp they joined, and that
  * stays true after the camp is long over, so asking the member would keep a broken-up camp alive.
+ *
+ * A host who walked over to another fire replaced the record this camp was read from, and named
+ * this camp among the ones they left: it broke up, it did not simply end.
  */
 export function campState(hostRecord, { campId, hostId }, now = 0) {
+	if (hostRecord?.leftCamps?.includes(campId)) return CAMP_STATE.CANCELLED;
 	if (!hostRecord || hostRecord.id !== campId || hostRecord.host !== hostId) return CAMP_STATE.GONE;
 	if (hostRecord.status === CAMP_STATUS.OPEN) {
 		return now - hostRecord.openedAt > CAMP_STALE_MS ? CAMP_STATE.COLD : CAMP_STATE.OPEN;
