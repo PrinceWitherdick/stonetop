@@ -125,6 +125,11 @@
 	   Seeded at the `editPencilRevealDelay` setting's own default, so the pre-`ready`
 	   frames match what hooks/Ready.js writes a moment later. */
 	--st-edit-reveal-delay: 1s;
+	/* How long a pop-out tile that waits for the pointer (the relationship map's, the expedition
+	   map's) takes to fade in and back out. 120ms read as a blink rather than a fade; ONE token so
+	   the two tiles keep behaving alike. Only the opacity rides this: the tile's own hover colours
+	   stay quick, because those answer the pointer on the button rather than on the picture. */
+	--st-popout-fade: 250ms;
 	--font-size-display: 42px;
 	/* THE PANEL TONE. Not the page: read the note on --st-page below before changing it.
 	   This is the fill of the things that sit ON the page and want to read as slightly inset from
@@ -35358,7 +35363,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	   meant for whatever is under it, and on this map a click is how a destination gets chosen — so
 	   the fade takes the pointer with it. */
 	opacity: 0; pointer-events: none;
-	transition: opacity 120ms ease, color 120ms ease, border-color 120ms ease;
+	transition: opacity var(--st-popout-fade, 250ms) ease, color 120ms ease, border-color 120ms ease;
 }
 /* Later than the base rule, per the modifier-ordering house rule. Focus stands beside hover
    because a keyboard has no pointer to reveal it with, and a control that can be tabbed to but
@@ -43454,7 +43459,7 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
 	opacity: 0;
 	pointer-events: none;
-	transition: opacity 120ms ease, background 120ms ease, color 120ms ease;
+	transition: opacity var(--st-popout-fade, 250ms) ease, background 120ms ease, color 120ms ease;
 }
 
 /* Later than the base rule, per the modifier-ordering house rule. Focus stands beside hover
