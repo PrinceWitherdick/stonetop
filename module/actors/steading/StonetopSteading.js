@@ -21,6 +21,7 @@ import {markedDebilities} from "./steading-debilities.js";
 import {innGatheringState, INN_SEASON_STEP} from "./inn-gathering.js";
 import {steadingHolds} from "./steading-holds.js";
 import {MILITIA_SEASON_STEP, militiaTactics} from "./season-effects.js";
+import { inTurn } from "../../utils/turn-queue.js";
 
 /** Which season's Weapons of War maintenance has been paid ("each spring, 1 Surplus"). */
 export const WEAPONS_SEASON_STEP = "weaponsUpkeep";
@@ -1091,6 +1092,12 @@ export class StonetopSteading {
 	 *   the auto-applied (or reversed) changes, for a user-facing notification.
 	 */
 	async setImprovementCompleted(slug, checked, { forceR } = {}) {
+		// The same line as setImprovementRequirement, and the same document: completing an improvement
+		// and ticking one of its boxes both rewrite the whole `improvements` flag.
+		return inTurn(`steading:${this._actor.id}`, () => this._setImprovementCompleted(slug, checked, { forceR }));
+	}
+
+	async _setImprovementCompleted(slug, checked, { forceR } = {}) {
 		const def = this.improvementDef(slug);
 		// A built-in improvement's grants are keyed by slug; a custom one carries its own
 		// on the definition (authored in the builder dialog, or riding in on a dropped
@@ -1169,6 +1176,15 @@ export class StonetopSteading {
 	 * @returns {Promise<{label: string, summary: string[]}>}  what changed, for a notification
 	 */
 	async setImprovementRequirement(slug, index, checked) {
+		// IN TURN, because this is a read-modify-write and the control is a checkbox: two boxes pressed
+		// inside one round trip both read the same `improvements` and the same stat, and the second
+		// write lands on top of the first. Since a standing effect started MOVING A STAT that is no
+		// longer a lost tick — Prosperity came off twice for one lapse, and `entry.standing` was left
+		// claiming an effect that had already been taken back.
+		return inTurn(`steading:${this._actor.id}`, () => this._setImprovementRequirement(slug, index, checked));
+	}
+
+	async _setImprovementRequirement(slug, index, checked) {
 		const def = this.improvementDef(slug);
 		const improvements = foundry.utils.deepClone(this._flags.improvements ?? {});
 		const entry = improvements[slug] ?? { completed: false, r: [] };

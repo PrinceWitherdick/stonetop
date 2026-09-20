@@ -32,6 +32,22 @@ function steadingWith(steading = {}, system = {}) {
 	return { actor, steading: new StonetopSteading(actor) };
 }
 
+/**
+ * Make this steading's writes cost a round trip, which is what a real one costs.
+ *
+ * steadingWith's `update` applies before it ever yields, so two calls started together still read
+ * each other's work and nothing can race. An Actor#update goes to the server and back: the caller
+ * is suspended with the document UNCHANGED, which is the whole of the window a second click lands
+ * in. Nothing about the write changes but when it is visible.
+ */
+function overTheWire(actor) {
+	const write = actor.update;
+	actor.update = vi.fn(async data => {
+		await Promise.resolve();
+		return write(data);
+	});
+}
+
 const flagsOf = actor => actor.flags[SCOPE].steading;
 const defenses = actor => flagsOf(actor).system?.stats?.defenses?.value;
 const prosperity = actor => flagsOf(actor).system?.attributes?.prosperity?.value;
@@ -51,6 +67,45 @@ describe("the militia's +1 Defenses", () => {
 		const down = await steading.setImprovementRequirement("wellTrainedMilitia", 1, false);
 		expect(defenses(actor)).toBe(1);
 		expect(down.summary[0]).toMatch(/no longer/);
+	});
+
+	// ⚠ TWO BOXES CAN BE PRESSED INSIDE ONE ROUND TRIP, and this is a read-modify-write over the
+	// whole `improvements` flag AND a stat. Run at once, both copies read the same "before" and the
+	// second write lands on top of the first: the first untick is lost, while the Defenses it already
+	// took stays taken, and `entry.standing` is left claiming an effect that is gone. So they queue.
+	it("takes turns, so two quick unticks cannot lose one and strand the standing record", async () => {
+		const { actor, steading } = steadingWith(
+			{ improvements: { wellTrainedMilitia: { completed: true, r: MILITIA_R(1, 3), standing: { defenses: 1 } } }, system: { stats: { defenses: { value: 2 } } } },
+		);
+		overTheWire(actor);
+
+		// Neither awaited before the other starts: two clicks, one round trip.
+		await Promise.all([
+			steading.setImprovementRequirement("wellTrainedMilitia", 1, false),
+			steading.setImprovementRequirement("wellTrainedMilitia", 3, false),
+		]);
+
+		// Both unticks survive, the +1 comes off exactly once, and the record agrees with the stat.
+		expect(flagsOf(actor).improvements.wellTrainedMilitia.r.slice(1)).toEqual([false, false, false, false, false]);
+		expect(defenses(actor)).toBe(1);
+		expect(flagsOf(actor).improvements.wellTrainedMilitia.standing).toBeNull();
+	});
+
+	// The same line, because completing an improvement rewrites the same flag its boxes live in.
+	it("queues a completion behind a requirement tick on the same steading", async () => {
+		const { actor, steading } = steadingWith(
+			{ improvements: { wellTrainedMilitia: { completed: true, r: MILITIA_R(1), standing: null } }, system: { stats: { defenses: { value: 1 } } } },
+		);
+		overTheWire(actor);
+
+		await Promise.all([
+			steading.setImprovementRequirement("wellTrainedMilitia", 3, true),
+			steading.setImprovementCompleted("wellTrainedMilitia", false),
+		]);
+
+		// The tick banked its +1, then un-completing gave it straight back: neither write was lost.
+		expect(flagsOf(actor).improvements.wellTrainedMilitia.completed).toBe(false);
+		expect(defenses(actor)).toBe(1);
 	});
 
 	it("does nothing until the militia is built", async () => {
