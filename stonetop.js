@@ -75,7 +75,7 @@ import { grantsWholeList, paintPickTally, pickLimitFor, releaseOverLimit, tierOf
 import { wireUndoXpMark } from "./module/utils/undo-xp-mark.js";
 import { isKnowThings, logbookUses, LOGBOOK, STRONG_HIT_TOTAL } from "./module/actors/character/know-things.js";
 import { artifactStateForTier } from "./module/actors/character/artifact-identify.js";
-import { wireAttackConfirm, applyGateOnce, wireApplyDamage, wireDamageSeed, wireSufferAmount, wireSufferChoice, rollOptionDamage, APPLY_QUERY, handleApplyQuery } from "./module/combat/attack-flow.js";
+import { wireAttackConfirm, applyGateOnce, wireApplyDamage, wireDamageSeed, wireConditionalArmor, wireSufferAmount, wireSufferChoice, rollOptionDamage, APPLY_QUERY, handleApplyQuery } from "./module/combat/attack-flow.js";
 import { wireDefendSpends, SPEND_QUERY, handleSpendQuery } from "./module/fight/defend-spend.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
 import { wrapGlyphTextContainers } from "./module/utils/glyphs.js";
@@ -2032,6 +2032,9 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	// ...and beside Apply, the fight's "Leave off the +N" for several attackers, which also repaints the
 	// card's totals from its flag on every client (attack-flow.js#wireDamageSeed).
 	wireDamageSeed(message, html, damageGate);
+	// ...and the tick box for armor a move grants on a clause only the fiction can answer: Barkskin
+	// while touching the earth, a holy light held by someone otherwise unarmed.
+	wireConditionalArmor(message, html, damageGate);
 	// Defend's Readiness, spent on the blow before it lands: halve it, or take it for your ward
 	// (fight/defend-spend.js). Pressed by anyone who can write the card, for a defender of theirs.
 	wireDefendSpends(message, html);
