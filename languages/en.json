@@ -2031,6 +2031,80 @@
           "bigger": "Undaunted: +1d6 damage, facing a foe bigger than you",
           "pill": "Undaunted +1d6",
           "armorNote": "+1 armor, Undaunted"
+        },
+        "rememberMe": {
+          "label": "Something to Remember Me By: +{dice} damage, and you mark them",
+          "pill": "{move} +{dice}"
+        },
+        "hungryFlames": {
+          "label": "Hungry Flames: +{dice} damage, and they are engulfed in holy light and flames",
+          "pill": "{move} +{dice}"
+        },
+        "nemesis": {
+          "label": "Nemesis: +{dice} damage, against a foe who survived you",
+          "pill": "{move} +{dice}"
+        },
+        "payback": {
+          "label": "Payback: +{dice} damage, against a foe who has harmed you or an ally",
+          "pill": "{move} +{dice}"
+        },
+        "upAgain": {
+          "label": "But I Get Up Again: +{dice} damage, against whoever knocked you down",
+          "pill": "{move} +{dice}"
+        },
+        "bigGame": {
+          "label": "Strike at its weak spot: +{dice} damage (large or huge)",
+          "pill": "{move} +{dice}"
+        },
+        "anger": {
+          "label": "Spend 1 Resolve to strike hard: +{dice} damage, forceful",
+          "pill": "{move} +{dice}"
+        },
+        "dogWithBone": {
+          "label": "Like a Dog with a Bone: +{dice} damage, against something tainted by chaos",
+          "pill": "{move} +{dice}"
+        },
+        "everythingBleeds": {
+          "label": "Everything Bleeds: +{dice} damage, exploiting this unnatural foe's weakness",
+          "pill": "{move} +{dice}"
+        },
+        "predator": {
+          "label": "Predator: +{dice} damage, acting on what you learned about your prey",
+          "pill": "{move} +{dice}"
+        },
+        "takenAtDisadvantage": "{move}: the damage against them rolls with disadvantage.",
+        "armorGate": {
+          "barkskin": "Barkskin: {armor} armor, while touching the earth",
+          "candle": "A Candle Against the Dark: {armor} armor, wielding a holy light and otherwise unarmed",
+          "note": "without {move}'s {armor} armor"
+        },
+        "uncanny": {
+          "label": "{name}'s Uncanny Reflexes: roll with disadvantage, for a blow they could dodge or roll with",
+          "pill": "Uncanny Reflexes"
+        },
+        "battlefieldGrace": {
+          "label": "{name}'s Battlefield Grace: roll with disadvantage, while they lead their allies in battle",
+          "pill": "Battlefield Grace"
+        },
+        "blotOut": {
+          "question": "Deplete your ammunition before you roll? If you do, pick what the volley buys.",
+          "advantage": "Advantage on your damage roll",
+          "area": "Area: roll damage separately for each target",
+          "keep": "Keep your arrows",
+          "spent": "{name} looses a volley: {weapon} is now {status}."
+        },
+        "muscleboundNote": "Musclebound: forceful and messy, and more so where it already was.",
+        "berserkerHint": "Berserker: in your Battle Joy you lash out at anyone nearby, friend and foe alike. Damage is rolled separately for each.",
+        "volleyHint": "Your volley falls on everyone standing where the arrows land, friend and foe alike. Damage is rolled separately for each.",
+        "knockedDown": {
+          "button": "{name} gets knocked down (halve it)",
+          "title": "I Get Knocked Down",
+          "ask": "{name} halves the blow. What does it cost them?",
+          "lost": "They lose something: footing, grip, their weapon's place in their hand",
+          "broke": "Something on their person breaks",
+          "outOfIt": "They are out of it for a moment",
+          "note": "{name} gets knocked down, halving the blow: {cost}",
+          "upAgain": "{name} is getting up again: advantage on their next roll against {foe}, and +1d4 on their next blow."
         }
       }
     },

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { undauntedNow, undauntedOffer, eyesLockedAgainst, lockEyes, lockEyesCandidates, LOCKED_EYES_FLAG } from "../../module/fight/hero-moves.js";
+import { undauntedNow, undauntedOffer, eyesLockedAgainst, lockEyes, lockEyesCandidates, dangerousMode, LOCKED_EYES_FLAG } from "../../module/fight/hero-moves.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
 import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection } from "../fakes/fight.js";
 
@@ -80,5 +80,28 @@ describe("Big Damn Hero", () => {
 		expect(eyesLockedAgainst(foe, [{ uuid: tokens.far.uuid }])).toEqual([]);
 		combatants.pim.flags[SYSTEM_ID][LOCKED_EYES_FLAG] = [];
 		expect(eyesLockedAgainst(foe, [{ uuid: tokens.pim.uuid }])).toEqual([]);
+	});
+});
+
+describe("Dangerous", () => {
+	const heavy = () => withMoves(fakeActor({ id: "bram", name: "Bram", type: "character" }), ["Dangerous", "Hard to Kill"]);
+
+	it("gives the Heavy's own damage advantage, whatever the roll opened on", () => {
+		expect(dangerousMode(heavy(), "")).toBe("adv");
+		expect(dangerousMode(heavy(), null)).toBe("adv");
+		expect(dangerousMode(heavy(), "normal")).toBe("adv");
+		expect(dangerousMode(heavy(), "adv")).toBe("adv");
+	});
+
+	it("cancels a strike back's disadvantage into a straight roll", () => {
+		expect(dangerousMode(heavy(), "dis")).toBe("normal");
+	});
+
+	it("leaves everyone without the move alone, and never reaches a monster", () => {
+		const pim = withMoves(fakeActor({ id: "pim", name: "Pim", type: "character" }), ["Undaunted"]);
+		expect(dangerousMode(pim, "")).toBe("");
+		expect(dangerousMode(pim, "dis")).toBe("dis");
+		const brute = withMoves(fakeActor({ id: "m", name: "Brute", type: "monster" }), ["Dangerous"]);
+		expect(dangerousMode(brute, "")).toBe("");
 	});
 });
