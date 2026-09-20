@@ -24,7 +24,7 @@ import { condemnedContext } from "../character/condemn.js";
 import { partyCharacters } from "../../utils/playbook-actors.js";
 import { mountTabRail } from "../../utils/tab-rail.js";
 import { withSheetSizeMemory, sizeOnceOnOpen } from "../../utils/sheet-size.js";
-import { SYSTEM_ID } from "../../system-id.js";
+import { followerCardFor } from "../character/follower-masters.js";
 
 // Rich-text (HTMLField) fields edited inline via prose-mirror on the sheet.
 const NPC_RICH_TEXT_FIELDS = [
@@ -314,16 +314,17 @@ export function createStonetopNpcSheetClass(Base) {
 			st.statusOptions = NPC_STATUSES.map(s => ({ ...s, selected: s.value === statusMeta.value }));
 			st.isInactive    = statusMeta.inactive;
 
-			// "Following" — the player character(s) who have recruited this NPC as a
-			// follower: any custom-follower card whose sourceUuid points back at this actor
-			// (the link the conversion sets). Lets the sheet show "Following: <PC>" and jump
-			// to that PC's sheet, so a recruited NPC is no longer an orphan on either side.
-			const npcUuid = this.actor.uuid;
-			st.following = (game.actors?.contents ?? [])
-				.filter(a => a.type === "character")
-				.filter(pc => Object.values(pc.getFlag?.(SYSTEM_ID, "customFollowers") ?? {})
-					.some(f => f?.sourceUuid === npcUuid))
-				.map(pc => ({ id: pc.id, name: pc.name }));
+			// "Following": whose follower this NPC is, so the sheet can show "Following: <PC>" and
+			// jump to that PC's sheet.
+			//
+			// THROUGH follower-masters.js#followerCardFor, which is the one reader of BOTH links a
+			// follower can have: the `followerOrigin` stamp an actor built from a card carries
+			// (data/follower-actor.js), and a custom-follower card's `sourceUuid` pointing back at a
+			// recruited NPC. This line used to read only the second, so an initiate, beast or crew
+			// deployed from a card said it followed nobody while the Fight tab and the Start-a-fight
+			// roster, which already go through followerCardFor, named its character.
+			const card = followerCardFor(this.actor);
+			st.following = card ? [{ id: card.character.id, name: card.character.name }] : [];
 			st.isFollowing = st.following.length > 0;
 
 			// Relationships and Stats render conditionally (see npc.hbs), so either can vanish

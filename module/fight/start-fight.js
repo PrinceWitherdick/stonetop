@@ -188,17 +188,25 @@ export function startWindowModel({
 	return { groups, selected: [...ticked], sides };
 }
 
-/** What group-size.js needs to know about a monster, and the key shared by every copy of it. */
-function groupInfoOf(kind, type, system) {
+/**
+ * What group-size.js needs to know about a monster, and the key shared by every copy of it.
+ *
+ * `fightAsGroup` is the sheet switch's answer, and only a token ALREADY ON THE MAP may give it.
+ * A world or pack pick has not been placed yet, so its prototype's switch would set the scale of
+ * every copy dragged out of it without anyone being asked "how many?" (groupSizeQuestion returns
+ * null once it is on). How many bodies a fight starts with is the fight's question now, not the
+ * sheet's (fight/group-scale.js), so an unplaced pick answers false and goes through the window.
+ */
+function groupInfoOf(kind, type, system, { placed = true } = {}) {
 	if (type !== "monster" || !kind) return null;
-	return { kind, organization: system?.organization ?? "", count: system?.count ?? 0, fightAsGroup: !!system?.fightAsGroup };
+	return { kind, organization: system?.organization ?? "", count: system?.count ?? 0, fightAsGroup: placed && !!system?.fightAsGroup };
 }
 
 /**
  * What is on the map and in the world, as startWindowModel reads it. Monsters also carry `group`,
  * what group-size.js asks about them, which the window itself does not read.
  */
-export async function gatherStartWindow(scene, combat) {
+async function gatherStartWindow(scene, combat) {
 	const game = globalThis.game;
 	const inFight = new Set([...(combat?.combatants ?? [])].filter(c => c.sceneId === scene.id).map(c => c.tokenId));
 	const tokens = [...(scene.tokens ?? [])].filter(t => t.actor);
@@ -229,7 +237,7 @@ export async function gatherStartWindow(scene, combat) {
 		.map(a => ({ uuid: a.uuid, name: a.name, img: a.img, note: personNote(a), disposition: a.prototypeToken?.disposition ?? null, master: masterOf(a.id) }))
 		.sort((a, b) => a.name.localeCompare(b.name));
 	const worldMonsters = [...(game.actors ?? [])].filter(a => a.type === "monster");
-	const monsters = worldMonsters.map(a => ({ uuid: a.uuid, name: a.name, img: a.img, note: monsterNote(a.system), fromPack: false, group: groupInfoOf(a.uuid, a.type, a.system) }));
+	const monsters = worldMonsters.map(a => ({ uuid: a.uuid, name: a.name, img: a.img, note: monsterNote(a.system), fromPack: false, group: groupInfoOf(a.uuid, a.type, a.system, { placed: false }) }));
 	// The bestiary entries the world has no copy of. The index is enough to list them; a pick is
 	// imported only if it is chosen (utils/deployable-actor.js), and never twice.
 	// Through the shared index, so this field list and every other reader's widen one another instead of refetching.
@@ -240,7 +248,7 @@ export async function gatherStartWindow(scene, combat) {
 			if (entry.type && entry.type !== "monster") continue;
 			const uuid = entry.uuid ?? `Compendium.${pack.collection}.Actor.${entry._id}`;
 			if (worldCopy(compendiumRefTail(uuid))) continue;
-			monsters.push({ uuid, name: entry.name, img: entry.img, note: monsterNote(entry.system), fromPack: true, group: groupInfoOf(uuid, "monster", entry.system) });
+			monsters.push({ uuid, name: entry.name, img: entry.img, note: monsterNote(entry.system), fromPack: true, group: groupInfoOf(uuid, "monster", entry.system, { placed: false }) });
 		}
 	}
 	monsters.sort((a, b) => a.name.localeCompare(b.name));
