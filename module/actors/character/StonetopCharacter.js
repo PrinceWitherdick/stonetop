@@ -42,9 +42,10 @@ import {moveMarkBudget} from "./move-mark-budget.js";
 import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
 import {DEATHS_DOOR_FLAG, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
 import {heroDisplayName, WBH_HERO_FLAG, ownsAsteriskMove} from "./WouldBeHeroAsterisk.js";
-import {ownedNamesOr, ownedMove} from "./owns-move.js";
+import {ownedNamesOr, ownedMove, ownsLearnedMoveNamed, isMoveLearned} from "./owns-move.js";
 import {RITES_OF_THE_LAND} from "./stock-cost.js";
 import {HOLY_LIGHT_FLAG, canWieldHolyLight} from "./holy-light.js";
+import {moveArmor, barkskinMarkedBy} from "./move-armor.js";
 import {ONGOING_INVOCATION_FLAG, readOngoing} from "./ongoing-invocation.js";
 import {CONDEMNED_FLAG, canCondemn, readCondemned, addCondemned, removeCondemned, noteCondemned} from "./condemn.js";
 import {OATHS_FLAG, canBindOaths, readOaths, addOath, removeOath, noteOath, setOathBroken} from "./oaths.js";
@@ -57,10 +58,11 @@ import {CharacterOrigin} from "./CharacterOrigin.js";
 import {CharacterPossessions} from "./CharacterPossessions.js";
 import {grantsToCreate, grantSourceMap, grantAdoptionKeys, itemGrantKey} from "./possession-grants.js";
 import {CharacterInventory} from "./CharacterInventory.js";
-import {maybeBeginAttack, maybeCounterOnMiss, attackMoveFor} from "../../combat/attack-flow.js";
+import {maybeBeginAttack, maybeCounterOnMiss, attackMoveFor, attackFoeAdvantage, recordClashedFoes, rollMoveDamageAt} from "../../combat/attack-flow.js";
 import {defendReadinessHold, defendReadinessCap, readinessCount, READINESS_FLAG} from "../../combat/defend-readiness.js";
 import {settleReadinessOnAttack} from "../../combat/readiness-loss.js";
 import {classifyResult} from "../../utils/roll-engine.js";
+import {betterMode} from "../../utils/roll-mode.js";
 import {xpToLevelUp, withXpLock} from "../../utils/xp.js";
 import {CharacterArcana} from "./CharacterArcana.js";
 import {CharacterLore} from "./CharacterLore.js";
@@ -82,6 +84,25 @@ import {deriveLoadLevel, loadLimitsFor} from "../../utils/load.js";
 import {maxDie, stepDie, normalizeDamageDie} from "../../utils/damage-die.js";
 import {WEAPONS_OF_WAR_COMMON, WEAPONS_OF_WAR_PIERCING} from "../../data/weapons.js";
 import {X_PIERCING_MAX} from "../../utils/damage.js";
+
+/** The Judge's Castigate, whose damage rides every Censure (see brandCondemned). */
+const CASTIGATE = "Castigate";
+
+/**
+ * Advantage from somewhere other than the picker, folded into a roll's options and NAMED on the card.
+ *
+ * The one shape it takes, whatever bought it: a promise made at a peaceful camp, a grudge a foe owes
+ * (Relentless, But I Get Up Again). Advantage and disadvantage cancel (p.230), so a roll that already
+ * had disadvantage rolls straight instead; the note is added either way, so a cancellation reads as a
+ * trade rather than as a mode that quietly vanished.
+ */
+function foldAdvantage(options, source) {
+	return {
+		...options,
+		rollMode: betterMode(options.rollMode),
+		conditionNotes: [...(options.conditionNotes ?? []), source],
+	};
+}
 
 const OTHER_MOVE_TYPES = ["background", "special", "follower", "homefront"];
 // Expedition moves that operate on the STEADING rather than the individual hero,
@@ -124,14 +145,6 @@ function _isCustomMove(item) {
 	return !!item?.flags?.[STONETOP_SCOPE]?.custom;
 }
 
-// A custom move can be "un-learned" — kept on the sheet but inactive (not rollable, its
-// hp/armor/load bonuses stop applying). An absent flag means learned, so every freshly
-// authored move and any authored before this feature reads as learned. Non-custom moves
-// are always active, so this returns true for them too.
-function _isMoveLearned(item) {
-	return item?.flags?.[STONETOP_SCOPE]?.learned !== false;
-}
-
 // Total a numeric `system.<field>` across every LEARNED move the actor owns, and name the
 // moves that actually contributed, in sheet order. The shared spine of _ownedLoadBonus /
 // _ownedShieldLoadReduction (and any future per-move bonus), so the "skip un-learned moves"
@@ -141,7 +154,7 @@ function _learnedMoveField(actor, field) {
 	let total = 0;
 	const names = [];
 	for (const i of actor.items) {
-		if (i.type !== "move" || !_isMoveLearned(i)) continue;
+		if (i.type !== "move" || !isMoveLearned(i)) continue;
 		const value = Number(i.system?.[field]) || 0;
 		if (value === 0) continue;
 		total += value;
@@ -637,7 +650,7 @@ export class StonetopCharacter {
 		// move that happens to be stored as moveType "other" doesn't get its bonus counted
 		// here. (loadBonus/shieldLoadReduction are summed across all owned moves elsewhere.)
 		for (const i of this._actor.items) {
-			if (!_isCustomMove(i) || !_isMoveLearned(i)) continue;
+			if (!_isCustomMove(i) || !isMoveLearned(i)) continue;
 			totals.hp    += Number(i.system?.hpBonus)    || 0;
 			totals.armor += Number(i.system?.armorBonus) || 0;
 		}
@@ -656,7 +669,7 @@ export class StonetopCharacter {
 		// Name-gated against the own-playbook defs rather than on moveType, so a Heavy's own copy
 		// is counted once — down there, from its definition — and never here as well.
 		for (const i of this._actor.items) {
-			if (i.type !== "move" || _isCustomMove(i) || !_isMoveLearned(i)) continue;
+			if (i.type !== "move" || _isCustomMove(i) || !isMoveLearned(i)) continue;
 			if (ownPlaybookMoveNames.has(i.name)) continue;
 			totals.hp    += Number(i.system?.hpBonus)    || 0;
 			totals.armor += Number(i.system?.armorBonus) || 0;
@@ -1174,7 +1187,7 @@ export class StonetopCharacter {
 					.withRollLabel(_rollLabelForMove(i.name, i.system?.rollType, i.system))
 					.withSourceLabel(origin && origin !== ownPlaybook ? origin : null)
 					.withCustom(_isCustomMove(i))
-					.withLearned(_isMoveLearned(i))
+					.withLearned(isMoveLearned(i))
 					.withResourceKey(resourceKey)
 					.withResource(_buildOtherMoveResource(i.system?.resource, moveResourceState[resourceKey]))
 					.build();
@@ -1891,7 +1904,7 @@ export class StonetopCharacter {
 	// on the sheet but inactive). Persisted as an item flag; an absent flag means learned, so
 	// a fresh move never needs the flag written to default to learned. Applies to ANY owned
 	// move, not just player-authored ones: a move dropped onto the sheet from another
-	// playbook is exactly as reversible as a homebrew one, and _isMoveLearned (which gates
+	// playbook is exactly as reversible as a homebrew one, and isMoveLearned (which gates
 	// the roll icon and every per-move bonus) has always read the flag off any item.
 	async setMoveLearned(itemId, learned) {
 		const item = this._actor.items.get(itemId);
@@ -2454,6 +2467,13 @@ export class StonetopCharacter {
 			modifier, forward, ongoing, statOverride: stat, ...(attackExtra ?? {}),
 		};
 
+		// A grudge this character is owed against the very foe they are attacking: Relentless on a Clash
+		// with someone who survived the last one, But I Get Up Again on whoever knocked them down. Folded
+		// in like a held advantage (see _spendHeldAdvantage) — before the debility pass, so a Weakened
+		// Heavy's advantage cancels rather than quietly outranking the debility — and NAMED on the card.
+		const grudge = attackExtra ? attackFoeAdvantage(this._actor, attackExtra) : null;
+		if (grudge) Object.assign(rollOptions, foldAdvantage(rollOptions, grudge));
+
 		// A promise made earlier (a peaceful camp) is spent HERE — after the guards above, so
 		// reading a move's text or backing out of the weapon prompt never burns it.
 		const promised = descriptionOnly ? rollOptions : await this._spendHeldAdvantage(rollOptions);
@@ -2472,6 +2492,11 @@ export class StonetopCharacter {
 		// After the roll card and its miss XP, which rollStat has already posted, so the chat
 		// reads in the order the move does.
 		if (!descriptionOnly) await maybeCounterOnMiss(this._actor, item, roll, attackExtra);
+
+		// Nemesis and Relentless both turn on "when you Clash and your foe survives": the foes this Clash
+		// was aimed at are written down now, AFTER the dice, so the +1d6 rides the attacks that come after
+		// this one rather than this one's own damage (combat/attack-flow.js#recordClashedFoes).
+		if (!descriptionOnly && attackExtra) await recordClashedFoes(this._actor, attackExtra);
 
 		if (forward !== 0) {
 			await this._actor.update({ "system.attributes.forward.value": 0 }, { stonetopMove: item?.name });
@@ -2522,8 +2547,8 @@ export class StonetopCharacter {
 			this._derivedInputs(),
 			this._postDeath.hpPenalty(),
 		]);
-		const { armor, unpierceable } = this._armorFrom(gear, moveBonuses);
-		return { armor, unpierceable, maxHp: playbookData ? _hpFrom(this._actor, playbookData, moveBonuses, hpPenalty).hpMax : 0 };
+		const { armor, unpierceable, conditional, conditionalSource } = this._armorFrom(gear, moveBonuses);
+		return { armor, unpierceable, conditional, conditionalSource, maxHp: playbookData ? _hpFrom(this._actor, playbookData, moveBonuses, hpPenalty).hpMax : 0 };
 	}
 
 	/** What the derived vitals are worked out from: the playbook, the carried gear and the move bonuses. */
@@ -2554,14 +2579,21 @@ export class StonetopCharacter {
 	 * @param {{armor: number|null, unpierceable: number, maxHp: number}} [vitals]  computedVitals' answer
 	 */
 	async syncStoredVitals(vitals = null) {
-		const { armor, unpierceable, maxHp } = vitals ?? await this.computedVitals();
+		const { armor, unpierceable, maxHp, conditional = 0, conditionalSource = "" } = vitals ?? await this.computedVitals();
 		const attrs = this._actor.system?.attributes ?? {};
 		const update = {};
 		const floor = Number(unpierceable) || 0;
+		// The fiction-gated part of the total travels with it, for the same reason the floor does: the
+		// damage card reads this document, and it offers that armor back (combat/attack-flow.js).
+		const gated = Math.max(0, Math.trunc(Number(conditional) || 0));
+		const gatedBy = gated > 0 ? String(conditionalSource || "") : "";
 		if (armor !== null && Number.isFinite(Number(armor))
-			&& (Number(attrs.armor?.value) !== Number(armor) || (Number(attrs.armor?.unpierceable) || 0) !== floor)) {
+			&& (Number(attrs.armor?.value) !== Number(armor) || (Number(attrs.armor?.unpierceable) || 0) !== floor
+				|| (Number(attrs.armor?.conditional) || 0) !== gated || (attrs.armor?.conditionalSource ?? "") !== gatedBy)) {
 			update["system.attributes.armor.value"] = Number(armor);
 			update["system.attributes.armor.unpierceable"] = floor;
+			update["system.attributes.armor.conditional"] = gated;
+			update["system.attributes.armor.conditionalSource"] = gatedBy;
 		}
 		const hpMax = Number(maxHp) || 0;
 		if (hpMax > 0 && Number(attrs.hp?.max) !== hpMax) update["system.attributes.hp.max"] = hpMax;
@@ -2577,10 +2609,26 @@ export class StonetopCharacter {
 	 */
 	_armorFrom(gear, moveBonuses) {
 		const worn = this._inventory.wornArmorBase(gear.items, gear.marks);
-		const base = Math.max(0, this._inventory.calculateArmor(gear.items, worn, gear.marks) + moveBonuses.armor);
+		// Barkskin and A Candle Against the Dark say the character HAS 2 armor, which is a worn base and
+		// not a bonus: the best base wins and a shield still adds on top (actors/character/move-armor.js).
+		// `worn` itself stays the gear's, because "unarmored" is about what you are WEARING — the moves
+		// that ask (Uncanny Reflexes) mean armor, not bark.
+		const granted = moveArmor({
+			actor: this._actor,
+			holyLight: this.holyLight,
+			// A THUNK, not a value: the world scan behind it is the expensive part of this function, and a
+			// character with Barkskin of their own never needs asking (see moveArmor).
+			markedWithBarkskin: () => barkskinMarkedBy(this._actor, globalThis.game?.actors ?? []),
+		});
+		const base = Math.max(0, this._inventory.calculateArmor(gear.items, Math.max(worn, granted.base), gear.marks) + moveBonuses.armor);
+		// How much of the total the move actually bought, which is nothing when the gear was already
+		// better: that is what a damage card offers back when the fiction says the clause is not met.
+		const conditional = Math.max(0, granted.base - worn);
 		return {
 			worn,
 			base,
+			conditional,
+			conditionalSource: conditional > 0 ? granted.source : "",
 			armor: Math.max(0, base + this.armorAdjustment),
 			unpierceable: this._inventory.unpierceableArmor(gear.items, gear.marks),
 		};
@@ -2763,8 +2811,23 @@ export class StonetopCharacter {
 	 * either a nameless target or one already branded.
 	 */
 	async brandCondemned(entry) {
-		return this._rosterWrite(CONDEMNED_FLAG,
+		const laid = await this._rosterWrite(CONDEMNED_FLAG,
 			addCondemned(this._rosterRaw(CONDEMNED_FLAG), entry, newRosterId));
+		// CASTIGATE: "When you Censure someone, your voice deals 1d4 damage to them (near, loud, ignores
+		// armor)." Laying the brand IS the Censure (see StonetopCharacterSheet's note on the same moment),
+		// so the blow lands here, aimed at the person just named rather than at whoever is targeted.
+		if (laid) await this._maybeCastigate(laid);
+		return laid;
+	}
+
+	/** Castigate's 1d4 at whoever was just branded, when this Judge has the move and the row names them. */
+	async _maybeCastigate(entry) {
+		if (!ownsLearnedMoveNamed(this._actor, CASTIGATE) || !entry?.uuid) return null;
+		const target = await fromUuid(entry.uuid).catch(() => null);
+		if (!target) return null;
+		return rollMoveDamageAt(this._actor, target, {
+			move: CASTIGATE, formula: "1d4", ignoresArmor: true, tags: ["loud"],
+		}).catch(err => console.warn("Stonetop | Castigate's damage could not be rolled", err));
 	}
 
 	/** Dismiss one brand — the only way it ever ends. Returns the entry that was lifted, or null. */
@@ -3096,11 +3159,7 @@ export class StonetopCharacter {
 		const held = this.heldAdvantage();
 		if (!held) return options;
 		await this.clearHeldAdvantage();
-		return {
-			...options,
-			rollMode: options.rollMode === "dis" ? "normal" : "adv",
-			conditionNotes: [...(options.conditionNotes ?? []), held.source],
-		};
+		return foldAdvantage(options, held.source);
 	}
 
 	// ── Death and dying (Book I, Harm & Healing p.245) ─────────────────────────
