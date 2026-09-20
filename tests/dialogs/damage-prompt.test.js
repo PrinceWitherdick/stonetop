@@ -67,24 +67,39 @@ function fakeInput(value = "") {
 	};
 }
 
-function fakeRoot({ modifier = "0", extraDice = "", mode = "normal" } = {}) {
+/** A ticked line's checkbox, which the window reads by name and listens to for changes. */
+function fakeBox() {
+	const listeners = [];
+	return {
+		checked: true, disabled: false,
+		addEventListener: (_type, fn) => listeners.push(fn),
+		change() { listeners.forEach(fn => fn()); },
+	};
+}
+
+function fakeRoot({ modifier = "0", extraDice = "", mode = "normal", offers = [] } = {}) {
 	const buttons = ["dis", "normal", "adv"].map(m => fakeButton(m, m === mode));
 	const input = fakeInput(modifier);
 	const extra = fakeInput(extraDice);
 	const preview = { textContent: "" };
 	const steps = [];
+	const boxes = new Map(offers.map(key => [key, fakeBox()]));
 	return {
 		buttons, input, extra, preview, steps,
+		box: key => boxes.get(key),
 		querySelector(sel) {
 			if (sel === ".stonetop-roll-mode-btn.is-active") return buttons.find(b => b._has("is-active")) ?? null;
 			if (sel === '[name="modifier"]')  return input;
 			if (sel === '[name="extraDice"]') return extra;
 			if (sel === ".stonetop-damage-preview strong") return preview;
+			const offer = /^\[name="offer-(.+)"\]$/.exec(sel);
+			if (offer) return boxes.get(offer[1]) ?? null;
 			return null;
 		},
 		querySelectorAll(sel) {
 			if (sel === ".stonetop-roll-mode-btn") return buttons;
 			if (sel === ".stonetop-roll-modifier-step") return steps;
+			if (sel === '[name^="offer-"]') return [...boxes.values()];
 			return [];
 		},
 	};
@@ -133,6 +148,35 @@ describe("the pre-roll damage window", () => {
 		expect(adv.attrs["aria-pressed"]).toBe("true");
 		await data.buttons.roll.callback([root]);
 		expect((await pending).rollMode).toBe("adv");
+	});
+
+	// A line that carries a mode moves the picker with it (Uncanny Reflexes), so nobody is left looking
+	// at Disadvantage beside an unticked box. What it must NOT do is overrule the player: the derivation
+	// starts from the mode the window opened on, so a hand-picked one has to stop it.
+	describe("a line that carries a mode", () => {
+		const uncanny = [{ key: "uncanny", mode: "dis", applied: true, label: "Wren's Uncanny Reflexes", pill: "Uncanny Reflexes" }];
+
+		it("moves the picker as it is ticked and unticked", async () => {
+			// The window opens on the disadvantage the ticked line brings, which is what the picker is
+			// baked with (`untouched`), and unticking the only reason for it takes it away again.
+			const { pending, data, root } = open({ offers: uncanny, root: { offers: ["uncanny"], mode: "dis" } });
+			root.box("uncanny").checked = false;
+			root.box("uncanny").change();
+			expect(root.buttons[1]._has("is-active")).toBe(true);
+			await data.buttons.roll.callback([root]);
+			expect((await pending).rollMode).toBe("normal");
+		});
+
+		it("leaves a mode the player picked by hand where they put it", async () => {
+			const { pending, data, root } = open({ offers: uncanny, root: { offers: ["uncanny"], mode: "dis" } });
+			const [, , adv] = root.buttons;
+			adv.click();
+			root.box("uncanny").checked = false;
+			root.box("uncanny").change();
+			expect(adv._has("is-active")).toBe(true);
+			await data.buttons.roll.callback([root]);
+			expect((await pending).rollMode).toBe("adv");
+		});
 	});
 
 	// The preview replaces the mode tooltips the move prompt shows. "Roll 3d6 and keep the

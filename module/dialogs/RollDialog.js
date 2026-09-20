@@ -1,8 +1,9 @@
 import { bringDialogToFront } from "../utils/front-on-open.js";
 import { format, localize } from "../utils/i18n.js";
 import { escHtml } from "../utils/strings.js";
-import { composeDamageFormula, normalizeDamageBonusDice, seedBonus, settleBestDie } from "../utils/damage.js";
+import { composeDamageFormula, normalizeDamageBonusDice, extraTerm, seedBonus, settleBestDie } from "../utils/damage.js";
 import { damageRollFormula, rollDamage } from "../utils/roll-engine.js";
+import { stepMode } from "../utils/roll-mode.js";
 import { getAskRollModeEachRollSetting, getPromptRollModifierSetting, getPromptDamageModifierSetting } from "../settings.js";
 
 // Advantage / Normal / Disadvantage, worst to best left to right, so the strip reads as a scale
@@ -99,6 +100,15 @@ function readActiveMode(root) {
 		root?.querySelector?.(".stonetop-roll-mode-btn.is-active")?.dataset?.rollMode);
 }
 
+/** Move the picker, for a ticked line that carries a mode (Uncanny Reflexes). The window keeps ONE answer. */
+function setActiveMode(root, mode) {
+	for (const btn of root?.querySelectorAll?.(".stonetop-roll-mode-btn") ?? []) {
+		const on = btn.dataset.rollMode === mode;
+		btn.classList.toggle("is-active", on);
+		btn.setAttribute("aria-pressed", String(on));
+	}
+}
+
 /** The stepper's live answer. Anything unparseable reads as 0. */
 function readModifier(root) {
 	return Math.trunc(Number(root?.querySelector?.('[name="modifier"]')?.value)) || 0;
@@ -111,11 +121,7 @@ function wireModePicker(root, onChange) {
 	const options = root.querySelectorAll(".stonetop-roll-mode-btn");
 	options.forEach(btn => {
 		btn.addEventListener("click", () => {
-			options.forEach(other => {
-				const on = other === btn;
-				other.classList.toggle("is-active", on);
-				other.setAttribute("aria-pressed", String(on));
-			});
+			setActiveMode(root, btn.dataset.rollMode);
 			onChange(btn.dataset.rollMode);
 		});
 	});
@@ -299,7 +305,9 @@ function offeredSeed(seed, formula) {
 function withOffers(answer, ticked) {
 	if (!ticked.length) return answer;
 	const typed = answer.extraDice ? [answer.extraDice] : [];
-	return { ...answer, extraDice: [...typed, ...ticked.map(offer => ({ dice: offer.dice, pill: offer.pill }))] };
+	// `key` rides along so the caller can tell which lines were ticked and settle what they cost
+	// (combat/attack-flow.js#takenOffers: a Resolve spent, a tag added to the blow).
+	return { ...answer, extraDice: [...typed, ...ticked.map(offer => ({ key: offer.key, dice: offer.dice, pill: offer.pill }))] };
 }
 
 /** The composed formula a set of answers would actually roll, for the window's preview line. */
@@ -356,9 +364,16 @@ export function promptDamage({
 } = {}) {
 	const start = normalizeRollMode(rollMode);
 	const seeded = offeredSeed(seed, formula);
-	const extras = (Array.isArray(offers) ? offers : []).filter(offer => offer?.key && normalizeDamageBonusDice(offer.dice));
+	// A move's line may add a die, a flat number (the Ranger's "+2 damage" at a weak spot) — both read by
+	// `extraTerm`, which the typed field deliberately does not share — or a ROLL MODE rather than a
+	// number: the moves that put a blow at disadvantage because of who it is aimed at (Uncanny Reflexes).
+	const extras = (Array.isArray(offers) ? offers : []).filter(offer => offer?.key && (extraTerm(offer) || offer.mode));
+	// A ticked mode line moves the picker rather than fighting it, so the window has ONE answer to "how
+	// is this rolled" and the box says where it came from.
+	const modeWith = ticked => ticked.reduce((mode, offer) => stepMode(mode, offer.mode), start);
 	// What the roll is with nothing touched: the answer when no window is asked, and the window's first preview.
-	const untouched = withSeed(withOffers(unpromptedDamage(start), extras.filter(o => o.applied !== false)), seeded);
+	const onByDefault = extras.filter(o => o.applied !== false);
+	const untouched = withSeed(withOffers({ ...unpromptedDamage(start), rollMode: modeWith(onByDefault.filter(o => o.mode)) }, onByDefault), seeded);
 	if (shiftKey || !ask) return Promise.resolve(untouched);
 
 	return new Promise(resolve => {
@@ -406,7 +421,7 @@ export function promptDamage({
 		const dialog = new Dialog({
 			title: attacker ? `Rolling damage for ${attacker}` : "Rolling damage",
 			content: `<form class="stonetop-roll-form stonetop-damage-form">
-				${modePickerHtml("How are you rolling this damage?", start)}${seedLine}${offerLines}
+				${modePickerHtml("How are you rolling this damage?", untouched.rollMode)}${seedLine}${offerLines}
 				<p class="stonetop-roll-prompt">Add to the damage (an arcanum's +1, a move's extra dice, a GM's call).</p>
 				<!-- Two labels then two controls, in that order: the row is a 2x2 grid, so the labels
 				     share a line and the controls share a line whatever either one measures. The
@@ -445,13 +460,27 @@ export function promptDamage({
 					extra?.classList?.toggle("is-invalid", Boolean(typed) && !normalizeDamageBonusDice(typed));
 				};
 
-				wireModePicker(root, repaint);
+				// A MODE PICKED BY HAND IS THE ANSWER, and the lines below stop moving the picker once it
+				// has been. The derivation they do is from `start` — the mode before anyone said anything
+				// — so without this a player who set Disadvantage themselves lost it again the moment they
+				// unticked any box at all, mode-carrying or not, and the window quietly rolled the other way.
+				let picked = false;
+				wireModePicker(root, () => { picked = true; repaint(); });
 				const input = wireStepper(root, repaint);
 				input?.addEventListener("input", repaint);
 				extra?.addEventListener("input", repaint);
 				root.querySelector?.('[name="seedApplied"]')?.addEventListener("change", repaint);
 				root.querySelector?.('[name="seedBest"]')?.addEventListener("change", repaint);
-				for (const box of root.querySelectorAll?.('[name^="offer-"]') ?? []) box.addEventListener("change", repaint);
+				for (const box of root.querySelectorAll?.('[name^="offer-"]') ?? []) {
+					box.addEventListener("change", () => {
+						// A line that carries a mode moves the picker as it is ticked and unticked, so the
+						// window never shows Disadvantage beside an unticked box that was the only reason for it.
+						const modes = extras.filter(offer => offer.mode
+							&& root.querySelector?.(`[name="offer-${offer.key}"]`)?.checked);
+						if (!picked && extras.some(offer => offer.mode)) setActiveMode(root, modeWith(modes));
+						repaint();
+					});
+				}
 				// Painted once from the rendered controls as well as baked into the content
 				// above, so the line is always what THIS DOM would roll rather than a seed that
 				// could drift from the fields beside it.
