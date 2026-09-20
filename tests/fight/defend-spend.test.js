@@ -41,7 +41,7 @@ describe("defendOffers", () => {
 
 	it("offers each option once against a blow, and nothing on a blow already applied", () => {
 		const taken = { ...damage, halvedBy: [{ uuid: "Token.bram", name: "bram", how: "halve" }], standIns:[{ uuid: "Token.bram", by: aeliana.uuid, name: "aeliana" }] };
-		const none = { halve: [], parry: [], standIn: [], ignore: [] };
+		const none = { halve: [], parry: [], standIn: [], ignore: [], knockedDown: [] };
 		expect(defendOffers(taken, () => ({ self: bram, allies: [aeliana] }), () => aeliana)).toEqual(none);
 		const applied = { ...damage, applied: [{ uuid: "Token.bram" }] };
 		expect(defendOffers(applied, () => ({ self: bram, allies: [aeliana] }))).toEqual(none);
@@ -61,6 +61,17 @@ describe("playbook moves on the card", () => {
 	it("lets a Steadfast Guardian take a blow for free, while they hold any Readiness", () => {
 		const heavy = character("heavy", 1, ["Steadfast Guardian"]);
 		expect(defendOffers(damage, () => ({ self: null, allies: [heavy] })).standIn).toEqual([{ row: damage.results[0], defender: heavy, cost: 0 }]);
+	});
+
+	it("offers I Get Knocked Down to the one hit, whether or not they hold any Readiness", () => {
+		const pim = character("pim", 0, ["I Get Knocked Down"]);
+		const offers = defendOffers(damage, () => ({ self: null, allies: [] }), () => pim);
+		expect(offers.knockedDown).toEqual([{ row: damage.results[0], defender: pim, cost: 0 }]);
+		// Not to an ally, and not twice on the same blow.
+		expect(defendOffers(damage, () => ({ self: null, allies: [] }), () => character("plain", 2)).knockedDown).toEqual([]);
+		const taken = { ...damage, knockedDownBy: [{ uuid: "Token.bram", name: "pim", how: "knockedDown" }] };
+		expect(defendOffers(taken, () => ({ self: null, allies: [] }), () => pim).knockedDown).toEqual([]);
+		expect(defendNotes(taken)).toEqual(["pim got knocked down, halving the blow (I Get Knocked Down)."]);
 	});
 
 	it("offers A Mighty Rampart's ignore to whoever will suffer the blow: the one hit, or the one who took it for them", () => {

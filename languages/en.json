@@ -2024,6 +2024,10 @@
         "ignoreChoice": "{defender} ignores the blow on {ward}",
         "noteIgnore": "{defender} spent Readiness to ignore the blow (A Mighty Rampart).",
         "ignoredLine": "ignored it (A Mighty Rampart), no damage",
+        "knockedDown": "Get knocked down (halve it)",
+        "knockedDownOne": "{defender} gets knocked down (halve it)",
+        "knockedDownChoice": "{defender} gets knocked down under the blow on {ward}",
+        "noteKnockedDown": "{defender} got knocked down, halving the blow (I Get Knocked Down).",
         "secondIntent": "{name} parried: also pick 1 option from the Ambush list."
       },
       "heroMoves": {

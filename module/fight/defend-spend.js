@@ -11,7 +11,7 @@
 // once against any given attack", so each is offered once per blow. Strike back is a damage roll of its own
 // (the fight ring's button); drawing attention is fiction, and the GM's to play.
 //
-// PLAYBOOK MOVES CHANGE THE SPENDS, and the card follows the defender's sheet (owns-move.js#ownsMoveNamed):
+// PLAYBOOK MOVES CHANGE THE SPENDS, and the card follows the defender's sheet (owns-move.js#ownsLearnedMoveNamed):
 //  • PARRY & RIPOSTE (Fox): "spend 1 Readiness to both halve an attack's effects/damage and strike back at
 //    the attacker (deal your damage with disadvantage), instead of spending 1 Readiness for each." One more
 //    button, which halves the blow and rolls the strike back at whoever struck it. With SECOND INTENT it
@@ -23,6 +23,11 @@
 //  • A MIGHTY RAMPART (Judge): "you can spend 1 Readiness to completely ignore the effects/damage of an
 //    attack that you suffer". Offered to whoever will take the blow: the one hit, or the defender who took
 //    it for them.
+//  • I GET KNOCKED DOWN (Would-Be Hero): "When you take damage despite your best efforts to avoid it, you
+//    can choose to halve the damage but pick 1 of the following". The ONE spend here that costs no
+//    Readiness — its price is the pick, which is asked before the halving is written and said out loud on
+//    the card. With BUT I GET UP AGAIN it also writes down who dealt it, and that foe then owes the
+//    character advantage and +1d4 (fight/hero-moves.js).
 //
 // WHO MAY DEFEND. The one hit, when they hold Readiness, can halve their own blow; any character in the
 // fight standing beside them (touching, or fighting the same foe) who holds Readiness can do either. "They
@@ -45,14 +50,15 @@ import { damageRowActor } from "../utils/damage.js";
 import { themedDialogClasses } from "../utils/window-theme.js";
 import { contentElement } from "../dialogs/content-picker.js";
 import { heldReadiness, READINESS_FLAG } from "../combat/defend-readiness.js";
-import { ownsMoveNamed, ownedMove } from "../actors/character/owns-move.js";
+import { ownsLearnedMoveNamed, ownedMove } from "../actors/character/owns-move.js";
 import { touching, HEROES } from "./engagements.js";
 import { engagementFor, fightOnScene, gridOf, isFight } from "./fight-state.js";
-import { HERO_MOVES } from "./hero-moves.js";
+import { HERO_MOVES, recordKnockedDownBy } from "./hero-moves.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
 import { inCardTurn } from "../utils/card-queue.js";
 
 const KEY = "stonetop.fight.defend";
+const HERO_KEY = "stonetop.fight.heroMoves";
 
 /** Take `cost` Readiness off a character, never below none. */
 export function spendReadiness(actor, cost = 1) {
@@ -74,6 +80,9 @@ export function spentOn(damage) {
 		halved: new Set((damage?.halvedBy ?? []).map(spend => spend.uuid)),
 		standIns: new Map((damage?.standIns ?? []).map(spend => [spend.uuid, spend])),
 		ignored: new Set((damage?.ignoredBy ?? []).map(spend => spend.uuid)),
+		// I Get Knocked Down halves as Readiness does, from its own list: it is a different move with a
+		// different price, and "each option once against any given attack" counts them apart.
+		knockedDown: new Set((damage?.knockedDownBy ?? []).map(spend => spend.uuid)),
 	};
 }
 
@@ -136,7 +145,13 @@ export function defendersFor(uuid, { user = globalThis.game?.user } = {}) {
 }
 
 /** The kinds of spend a card can offer, in the order its buttons stand. */
-export const SPEND_KINDS = ["halve", "parry", "standIn", "ignore"];
+export const SPEND_KINDS = ["halve", "parry", "standIn", "ignore", "knockedDown"];
+
+/** The kinds that cost Readiness. I Get Knocked Down is paid for in the fiction instead. */
+const FREE_KINDS = new Set(["knockedDown"]);
+
+/** Which list on the card's flag records a spend of this kind. */
+const SPEND_LIST = { halve: "halvedBy", parry: "halvedBy", ignore: "ignoredBy", knockedDown: "knockedDownBy", standIn: "standIns" };
 
 /**
  * The spends a card still offers: one entry per blow and defender, for each option, leaving out an option
@@ -150,26 +165,34 @@ export const SPEND_KINDS = ["halve", "parry", "standIn", "ignore"];
  */
 export function defendOffers(damage, defendersOf = defendersFor, resolveActor = uuid => damageRowActor(resolve(uuid))) {
 	const done = new Set((damage?.applied ?? []).map(a => a.uuid));
-	const { halved, standIns, ignored } = spentOn(damage);
-	const offers = { halve: [], parry: [], standIn: [], ignore: [] };
+	const { halved, standIns, ignored, knockedDown } = spentOn(damage);
+	const offers = { halve: [], parry: [], standIn: [], ignore: [], knockedDown: [] };
 	const user = globalThis.game?.user;
 	for (const row of damage?.results ?? []) {
 		if (!row?.uuid || done.has(row.uuid) || ignored.has(row.uuid)) continue;
+		// I Get Knocked Down needs no Readiness, so it is offered to the one hit whether or not they hold
+		// any — which is the whole point of the move, and why it cannot come from `defendersFor`.
+		if (!knockedDown.has(row.uuid)) {
+			const hit = resolveActor(row.uuid);
+			if (hit && (user?.isGM || hit.isOwner || !user) && ownsLearnedMoveNamed(hit, HERO_MOVES.KNOCKED_DOWN)) {
+				offers.knockedDown.push({ row, defender: hit, cost: 0 });
+			}
+		}
 		const { self, allies } = defendersOf(row.uuid);
 		if (!halved.has(row.uuid)) {
 			for (const defender of [self, ...allies].filter(Boolean)) {
 				offers.halve.push({ row, defender, cost: 1 });
-				if (ownsMoveNamed(defender, HERO_MOVES.PARRY)) offers.parry.push({ row, defender, cost: 1 });
+				if (ownsLearnedMoveNamed(defender, HERO_MOVES.PARRY)) offers.parry.push({ row, defender, cost: 1 });
 			}
 		}
 		if (!standIns.has(row.uuid)) {
-			for (const defender of allies) offers.standIn.push({ row, defender, cost: ownsMoveNamed(defender, HERO_MOVES.STEADFAST) ? 0 : 1 });
+			for (const defender of allies) offers.standIn.push({ row, defender, cost: ownsLearnedMoveNamed(defender, HERO_MOVES.STEADFAST) ? 0 : 1 });
 		}
 		// Whoever will suffer the blow: the defender who took it, or the one it was aimed at.
 		const standIn = standIns.get(row.uuid);
 		const sufferer = standIn ? resolveActor(standIn.by) : self;
 		const mayWrite = !!sufferer && (user?.isGM || sufferer.isOwner || !user);
-		if (mayWrite && heldReadiness(sufferer) > 0 && ownsMoveNamed(sufferer, HERO_MOVES.RAMPART)) {
+		if (mayWrite && heldReadiness(sufferer) > 0 && ownsLearnedMoveNamed(sufferer, HERO_MOVES.RAMPART)) {
 			offers.ignore.push({ row, defender: sufferer, cost: 1 });
 		}
 	}
@@ -229,9 +252,21 @@ export async function spendOnBlow(message, kind, offer, { scope = SYSTEM_ID, str
 	const current = message.getFlag(scope, "damage");
 	if (!current || !offer) return false;
 	const cost = Number.isFinite(offer.cost) ? offer.cost : 1;
-	if (heldReadiness(offer.defender) < Math.max(1, cost)) return false;
+	if (!FREE_KINDS.has(kind) && heldReadiness(offer.defender) < Math.max(1, cost)) return false;
 	// Written here, or by the GM's client for a card this reader cannot write (see the note at the top).
 	const take = relay ? () => askGMToSpend(message, kind, offer) : () => takeSpend(message, kind, offer, { scope });
+
+	// I Get Knocked Down: the pick IS the price, so it is asked before anything is written, and backing
+	// out of it halves nothing. Then the foe is remembered for But I Get Up Again.
+	if (kind === "knockedDown") {
+		const cost1 = await askKnockedDownCost(offer.defender);
+		if (!cost1 || !(await take())) return false;
+		const striker = current.selfHarm ? (current.foeUuid ?? "") : (current.attackerUuid ?? "");
+		const foe = striker ? resolve(striker) : null;
+		await postKnockedDown(offer.defender, cost1, foe);
+		if (foe) await recordKnockedDownBy(offer.defender, foe);
+		return true;
+	}
 	if (kind !== "parry") return take();
 
 	const strike = strikeBack ?? (await import("../combat/attack-flow.js")).strikeBackAt;
@@ -240,7 +275,7 @@ export async function spendOnBlow(message, kind, offer, { scope = SYSTEM_ID, str
 	let taken = false;
 	await strike(offer.defender, attacker, format(`${KEY}.parryStrike`, {}), { commit: async () => (taken = await take()) });
 	if (!taken) return false;
-	if (ownsMoveNamed(offer.defender, HERO_MOVES.SECOND_INTENT)) await postSecondIntent(offer.defender);
+	if (ownsLearnedMoveNamed(offer.defender, HERO_MOVES.SECOND_INTENT)) await postSecondIntent(offer.defender);
 	return true;
 }
 
@@ -256,11 +291,11 @@ export async function spendOnBlow(message, kind, offer, { scope = SYSTEM_ID, str
 export function takeSpend(message, kind, offer, { scope = SYSTEM_ID } = {}) {
 	const cost = Number.isFinite(offer?.cost) ? offer.cost : 1;
 	// Each kept as a list of who spent what, which is all spentOn and defendNotes read.
-	const list = kind === "halve" || kind === "parry" ? "halvedBy" : kind === "ignore" ? "ignoredBy" : "standIns";
+	const list = SPEND_LIST[kind] ?? "standIns";
 	const take = async () => {
 		const now = message.getFlag(scope, "damage");
 		if (!now || (now.applied ?? []).some(a => a.uuid === offer.row.uuid)) return false;
-		if (heldReadiness(offer.defender) < Math.max(1, cost)) return false;
+		if (!FREE_KINDS.has(kind) && heldReadiness(offer.defender) < Math.max(1, cost)) return false;
 		// The same option twice on one blow is refused (p.216: "each option once against any given attack").
 		if ((now[list] ?? []).some(s => s.uuid === offer.row.uuid)) return false;
 		if (cost > 0) await spendReadiness(offer.defender, cost);
@@ -316,6 +351,36 @@ export async function handleSpendQuery(data, { user } = {}, { messages = globalT
 }
 
 /**
+ * I Get Knocked Down's price: "pick 1 of the following. Whatever you choose, the GM will describe the
+ * details." Three buttons, the move's own words. Null when the window is closed, which halves nothing.
+ */
+async function askKnockedDownCost(actor, { DialogV2 = globalThis.foundry?.applications?.api?.DialogV2 } = {}) {
+	const costs = ["lost", "broke", "outOfIt"].map(key => localize(`${HERO_KEY}.knockedDown.${key}`));
+	// With no window to ask in, the first cost stands: the move is already spent and the blow is
+	// already halved, so returning null here would quietly un-halve it.
+	if (!DialogV2) return costs[0];
+	return pickOne(costs, {
+		title: localize(`${HERO_KEY}.knockedDown.title`),
+		question: format(`${HERO_KEY}.knockedDown.ask`, { name: actor?.name ?? "" }),
+		labelOf: cost => cost,
+		DialogV2,
+	});
+}
+
+/** Say what being knocked down cost, and — with But I Get Up Again — what the foe now owes them. */
+async function postKnockedDown(actor, cost, foe) {
+	const upAgain = ownsLearnedMoveNamed(actor, HERO_MOVES.UP_AGAIN)
+		? `<p>${escHtml(format(`${HERO_KEY}.knockedDown.upAgain`, { name: actor.name, foe: foe?.name ?? "them" }))}</p>`
+		: "";
+	return globalThis.ChatMessage?.create?.({
+		content: stonetopChatCard(HERO_MOVES.KNOCKED_DOWN, `<div class="card-content">
+			<p>${escHtml(format(`${HERO_KEY}.knockedDown.note`, { name: actor.name, cost }))}</p>${upAgain}
+		</div>`, "stonetop-knocked-down-card"),
+		speaker: globalThis.ChatMessage?.getSpeaker?.({ actor }),
+	});
+}
+
+/**
  * Second Intent: "When you Defend and spend 1 Readiness to Parry & Riposte, also pick 1 option from the
  * Ambush list." The list is read off the character's own Ambush, so it is the book's words; the pick is
  * theirs to say.
@@ -342,6 +407,9 @@ export function defendNotes(damage) {
 	}
 	for (const spend of damage?.ignoredBy ?? []) {
 		notes.push(format(`${KEY}.noteIgnore`, { defender: spend.name }));
+	}
+	for (const spend of damage?.knockedDownBy ?? []) {
+		notes.push(format(`${KEY}.noteKnockedDown`, { defender: spend.name }));
 	}
 	return notes;
 }
