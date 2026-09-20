@@ -10,9 +10,34 @@
  * Pure: no Foundry global is touched, so every caller stays testable with a plain object.
  */
 
+import { SYSTEM_ID } from "../../system-id.js";
+
 /** Does this actor own a MOVE by that exact name? */
 export function ownsMoveNamed(actor, name) {
 	return !!actor?.items?.some(i => i.type === "move" && i.name === name);
+}
+
+/**
+ * Is a move LEARNED — active — rather than kept on the sheet switched off?
+ *
+ * A player can un-learn any owned move (StonetopCharacter#setMoveLearned): it stays listed, greyed,
+ * and its HP and armor bonuses stop counting. An absent flag means learned, so a fresh move needs
+ * nothing written to be on.
+ */
+export function isMoveLearned(item) {
+	return item?.flags?.[SYSTEM_ID]?.learned !== false;
+}
+
+/**
+ * Does this actor have move `name` AND still have it switched on?
+ *
+ * What a RULE should ask. `ownsMoveNamed` answers "is it on the sheet", which is the right question
+ * for a panel, a glyph or a roster the move opens — a Blessed whose Barkskin is off still has marks
+ * to look after. It is the wrong question for a move that changes a number in a fight: an un-learned
+ * Dangerous must not sharpen a damage roll.
+ */
+export function ownsLearnedMoveNamed(actor, name) {
+	return !!actor?.items?.some(i => i.type === "move" && i.name === name && isMoveLearned(i));
 }
 
 /**
