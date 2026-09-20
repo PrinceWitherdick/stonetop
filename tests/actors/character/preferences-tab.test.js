@@ -160,12 +160,48 @@ describe("Preferences tab contents", () => {
 		expect(missing, `listed on the tab but never registered: ${missing.join(", ")}`).toEqual([]);
 	});
 
-	// The whole tab is per-PERSON. A world-scoped key here would be refused by Foundry on a
-	// player's client (and silently applied for the whole table on the GM's), so the tab would
-	// show a control that works for one person at the table and lies to everyone else.
-	it("offers only client-scoped settings", () => {
-		const wrong = ALL_KEYS.filter(key => !/scope:\s*"client"/.test(REGISTRATIONS.get(key) ?? ""));
-		expect(wrong, `not client-scoped: ${wrong.join(", ")}`).toEqual([]);
+	// The tab is per-PERSON but for `fightTab`, and the exception is listed BY NAME here rather
+	// than allowed by shape. A world-scoped key is refused by Foundry on a player's client and
+	// applied for the whole table on the GM's, so one that arrived on this tab unnoticed would be
+	// a control that works for one person and lies to everyone else. Adding a second means coming
+	// through this test, which is where the three things a world row owes are written down.
+	const WORLD_KEYS = ["fightTab"];
+
+	it("offers only client-scoped settings, bar the world rows named here", () => {
+		const wrong = ALL_KEYS
+			.filter(key => !WORLD_KEYS.includes(key))
+			.filter(key => !/scope:\s*"client"/.test(REGISTRATIONS.get(key) ?? ""));
+		expect(wrong, `not client-scoped, and not a declared world row: ${wrong.join(", ")}`).toEqual([]);
+	});
+
+	it("keeps each declared world row world-scoped, GM-only and announced", () => {
+		const src = stripComments(read("module/utils/sheet-preferences.js"));
+		for (const key of WORLD_KEYS) {
+			expect(REGISTRATIONS.get(key), `${key} is not registered`).toMatch(/scope:\s*"world"/);
+			// A player's client would refuse the write outright, so the row must not be drawn there.
+			expect(GM_ONLY_KEYS.has(key), `${key} is world-scoped but offered to players`).toBe(true);
+		}
+		// And the row says whose setting it is, off the registration rather than a second list.
+		expect(src).toContain("isWorld: isWorldScoped(key, cfg)");
+		expect(stripComments(TAB_HBS)).toContain("{{#if isWorld}}");
+		expect(EN.stonetop.sheet.preferences.worldScoped).toBeTruthy();
+	});
+
+	// The sentence is set in the BODY ink while every caption around it is grey, and the rule that
+	// greys the captions ("THE SETTINGS CAPTION") sits ~1300 lines LATER in the file. This wins on
+	// specificity, not order — a class added to that selector would take the ink back and the
+	// sentence would sink into the captions it has to be read over.
+	it("sets the world row's sentence in the body ink", () => {
+		const captionSelector = ".stonetop-preferences .stonetop-preference-row .notes";
+		const worldSelector   = `${captionSelector}.stonetop-preference-world`;
+
+		const own = declarations(CSS, worldSelector);
+		expect(own, "the world-row rule is gone, renamed, or no longer written at that specificity")
+			.toBeTruthy();
+		expect(own).toMatch(/color:\s*var\(--st-text-body\)/);
+		// The caption rule this has to outrank names three surfaces at once, so it cannot simply
+		// be moved after this one.
+		expect(CSS).toMatch(/\.stonetop-preferences \.stonetop-preference-row \.notes,\n\.stonetop-hover-settings \.notes/);
 	});
 
 	it("lists no key twice, in a group or across them", () => {
@@ -187,7 +223,7 @@ describe("Preferences tab contents", () => {
 const SYSTEM_ID = "stonetop-pwd";
 
 /** A `game` with just the settings registry the module reads. */
-function fakeGame(registrations, { menus = [], throwOnGet = null, isGM = true } = {}) {
+function fakeGame(registrations, { menus = [], throwOnGet = null, isGM = true, canModify = isGM } = {}) {
 	const registry = new Map();
 	const values   = new Map();
 	for (const [key, cfg] of Object.entries(registrations)) {
@@ -197,7 +233,9 @@ function fakeGame(registrations, { menus = [], throwOnGet = null, isGM = true } 
 	const menuMap = new Map(menus.map(m => [`${SYSTEM_ID}.${m.id}`, m]));
 	return {
 		i18n: { localize: k => (typeof k === "string" ? k.replace(/^i18n:/, "") : k) },
-		user: { isGM },
+		// `can` defaults to the role, as Foundry does for a full gamemaster; the assistant case
+		// (isGM, no SETTINGS_MODIFY) is what `canModify: false` sets up.
+		user: { isGM, can: perm => (perm === "SETTINGS_MODIFY" ? canModify : isGM) },
 		settings: {
 			settings: registry,
 			menus: menuMap,
@@ -341,6 +379,115 @@ describe("the GM-only rows", () => {
 			{ openSheetsInEditMode: { name: "Edit mode", type: Boolean, default: false } },
 			{ isGM: true });
 		expect(await setPreference("openSheetsInEditMode", true)).toBe(true);
+	});
+});
+
+// The Fight tab switch — the tab's one world row, and the only control on it that changes what
+// anybody else at the table sees. Stonetop has no initiative (Book I p.417), so the Fight tab is
+// what the system ships; this is how a table that would rather run an initiative module gets
+// Foundry's Combat tracker back without hunting through Configure Settings.
+describe("the Fight tab row", () => {
+	const fightTab = (value = true) => ({
+		fightTab: { name: "Fight tab", hint: "h", scope: "world", type: Boolean,
+			default: true, requiresReload: true, value },
+	});
+
+	/** A `foundry.applications.settings.SettingsConfig` with just the prompt this path calls. */
+	function fakeSettingsConfig() {
+		const reloadConfirm = vi.fn(async () => {});
+		globalThis.foundry = { applications: { settings: { SettingsConfig: { reloadConfirm } } } };
+		return reloadConfirm;
+	}
+
+	let savedFoundry;
+	beforeEach(() => { savedFoundry = globalThis.foundry; });
+	afterEach(() => {
+		if (savedFoundry === undefined) delete globalThis.foundry;
+		else globalThis.foundry = savedFoundry;
+	});
+
+	it("draws for a GM, in a group of its own at the foot of the tab", () => {
+		globalThis.game = fakeGame(fightTab());
+		const groups = buildPreferenceGroups();
+		const fights = groups.at(-1);
+		expect(fights.id).toBe("fights");
+		expect(fights.rows.map(r => r.key)).toEqual(["fightTab"]);
+		expect(fights.rows[0].isCheck).toBe(true);
+		expect(fights.rows[0].checked).toBe(true);
+	});
+
+	// The sentence under it is the whole reason a world row is allowed on a tab whose intro
+	// promises nothing here leaves this browser.
+	it("marks the row as the table's rather than the reader's", () => {
+		globalThis.game = fakeGame(fightTab());
+		expect(buildPreferenceGroups().at(-1).rows[0].isWorld).toBe(true);
+	});
+
+	it("leaves the everyday rows unmarked", () => {
+		globalThis.game = fakeGame({
+			reduceMotion: { name: "Motion", scope: "client", type: Boolean, default: false },
+		});
+		expect(buildPreferenceGroups().flatMap(g => g.rows).every(r => !r.isWorld)).toBe(true);
+	});
+
+	// The group holds this one key, so a player loses the heading with it rather than being left
+	// looking at "Fights" over nothing.
+	it("is absent for a player, heading and all", () => {
+		globalThis.game = fakeGame(fightTab(), { isGM: false });
+		expect(buildPreferenceGroups().find(g => g.id === "fights")).toBeUndefined();
+	});
+
+	// An assistant gamemaster is `isGM`, and SETTINGS_MODIFY is a role permission a world can take
+	// off the assistant role. Gating on the role alone drew a live switch that threw on touch.
+	it("is absent for a GM without SETTINGS_MODIFY, and refuses their write", async () => {
+		globalThis.game = fakeGame(fightTab(), { isGM: true, canModify: false });
+		expect(buildPreferenceGroups().find(g => g.id === "fights")).toBeUndefined();
+		expect(await setPreference("fightTab", false)).toBe(false);
+		expect(globalThis.game.settings.set).not.toHaveBeenCalled();
+	});
+
+	it("refuses a player's write as well as their row", async () => {
+		globalThis.game = fakeGame(fightTab(), { isGM: false });
+		expect(await setPreference("fightTab", false)).toBe(false);
+		expect(globalThis.game.settings.set).not.toHaveBeenCalled();
+	});
+
+	// `requiresReload` is read by core's SettingsConfig form submit and NOWHERE else, so a write
+	// from this tab would store the new value and leave every client — the GM's included — still
+	// running the Fight tab it had just been switched off. `world: true` is what tells the other
+	// clients to reload too.
+	it("offers the table-wide reload after the write", async () => {
+		const reloadConfirm = fakeSettingsConfig();
+		globalThis.game = fakeGame(fightTab(true));
+
+		expect(await setPreference("fightTab", false)).toBe(true);
+		expect(globalThis.game._values.get(`${SYSTEM_ID}.fightTab`)).toBe(false);
+		expect(reloadConfirm).toHaveBeenCalledWith({ world: true });
+	});
+
+	it("does not offer a reload when the value did not actually change", async () => {
+		const reloadConfirm = fakeSettingsConfig();
+		globalThis.game = fakeGame(fightTab(true));
+		await setPreference("fightTab", true);
+		expect(reloadConfirm).not.toHaveBeenCalled();
+	});
+
+	it("leaves the everyday rows alone: no reload prompt for a client setting", async () => {
+		const reloadConfirm = fakeSettingsConfig();
+		globalThis.game = fakeGame({
+			reduceMotion: { name: "Motion", scope: "client", type: Boolean, default: false },
+		});
+		await setPreference("reduceMotion", true);
+		expect(reloadConfirm).not.toHaveBeenCalled();
+	});
+
+	// The value is stored either way; a core that moved the class costs the GM a manual reload,
+	// not a thrown write.
+	it("still writes where core's prompt is not there to call", async () => {
+		delete globalThis.foundry;
+		globalThis.game = fakeGame(fightTab(true));
+		expect(await setPreference("fightTab", false)).toBe(true);
+		expect(globalThis.game._values.get(`${SYSTEM_ID}.fightTab`)).toBe(false);
 	});
 });
 

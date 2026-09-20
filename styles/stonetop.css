@@ -3322,6 +3322,24 @@ input.stonetop-name-field {
 	margin: 2px 0 0;
 }
 
+/* "This one is the whole table's, not yours." The tab's one world-scoped row (the Fight tab
+   switch) says so under its hint — see tab-preferences.hbs.
+
+   Set in the body ink rather than the caption's grey, which is the point of the rule: it sits
+   among captions a reader skims past, and it is the one line on the tab they have to read. The
+   glyph is what the eye lands on first; `.notes` above already spans both columns, so only the
+   ink and the icon's gap are stated here, and the caption's scaled size is inherited.
+
+   The ink comes from THE SETTINGS CAPTION rule ~1300 lines below, which is LATER in the file —
+   this wins on specificity (one class more), not on order. Adding a class to that selector
+   would take this row's ink back. */
+.stonetop-preferences .stonetop-preference-row .notes.stonetop-preference-world {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	color: var(--st-text-body);
+}
+
 /* NO ROW HERE IS DRAWN DISABLED, so there is no `:disabled` skin and no override note.
    There were both, for "Paper Texture" while Sheet Contrast was High: the palette took the grain
    off from a later rule than the grain's own switch, so that row saved a value and changed

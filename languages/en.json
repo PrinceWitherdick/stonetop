@@ -60,12 +60,14 @@
         "railLabel": "Sheet sections"
       },
       "preferences": {
-        "intro": "These are your own settings. They change every Stonetop sheet you open in this browser, and nobody else at the table sees the difference.",
+        "intro": "These are your own settings unless a row says otherwise. They change every Stonetop sheet you open in this browser, and nobody else at the table sees the difference.",
         "accessibility": "Accessibility",
         "appearance": "Look and Feel",
         "rolling": "Rolling and Chat",
         "windows": "Windows",
         "hover": "On Hover Info",
+        "fights": "Fights",
+        "worldScoped": "This one is the whole table's, not yours. Changing it changes it for everyone, then offers to reload the whole table.",
         "openSettings": "All Stonetop Settings…"
       }
     },
