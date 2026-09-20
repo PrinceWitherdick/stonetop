@@ -6454,21 +6454,36 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	text-decoration: line-through;
 }
 
-/* "Fought by 3": the number printed, in a pill that is not colour alone. */
+/* "Fought by 3": the number printed, in a pill that is not colour alone.
+
+   CENTRED BY TRIMMING, like every other chip (see the --st-trim-top block). This one flex-centred
+   its line box instead, which put "×2" up to 0.88px high at the 16px root and wobbled between
+   +0.25px and +0.88px across roots 12-24 — the pixel-rounded ascent and descent the doctrine exists
+   to get out of the way. `inline-block`, NOT `inline-flex`: the label is a bare text node, so inside
+   a flex chip it would be an anonymous flex item, and an anonymous flex item takes no `text-box`.
+   Blockified as a flex item of the name line, so `text-align` does what `justify-content` did.
+
+   The whole-pixel line height is the same snap the +STAT chip makes: the painter rounds a box's top
+   and bottom independently, so a fractional height moves one edge and not the other and the same
+   badge lands differently on different rows. `1.5em` rather than a font-size expression because the
+   badge inherits its size from the row. */
 .stonetop-fight-badge {
 	flex: none;
 	order: 1;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
+	display: inline-block;
+	box-sizing: border-box;
+	text-box: trim-both cap alphabetic;
 	min-width: 2.2em;
-	padding: 0 6px;
+	padding: var(--st-trim-top) 6px var(--st-trim-bottom);
 	border: 1px solid var(--st-red-border);
 	border-radius: 999px;
 	background: var(--st-red-bg);
 	color: var(--st-red-text);
+	text-align: center;
 	font-weight: 700;
 	line-height: 1.5;
+	line-height: round(1.5em, 1px);
+	height: calc(1lh + 2px);
 }
 
 .stonetop-fight-controls {
@@ -11918,6 +11933,7 @@ button.stonetop-held-advantage:hover { color: var(--st-text-body); }
 	:root { --st-trim-top: 0px; --st-trim-bottom: 0px; }
 	.stonetop-condemn-count,
 	.stonetop-marks-count { display: inline-flex; align-items: center; justify-content: center; padding-top: 0; }
+	.stonetop-fight-badge { display: inline-flex; align-items: center; justify-content: center; }
 }
 
 /* Chip labels that share their flex chip with an icon or a count. Trimmed like the status pills'
