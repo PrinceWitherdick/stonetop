@@ -225,11 +225,17 @@ describe("StonetopCharacterSheet._syncStoredDerived", () => {
 	const Sheet = createStonetopCharacterSheetClass(class { });
 	const sync = Sheet.prototype._syncStoredDerived;
 
-	function ctx({ computed, stored = 0, isOwner = true, isEditable = true, maxHp = 0, storedMaxHp = 0 }) {
+	function ctx({ computed, stored = 0, isOwner = true, isEditable = true, maxHp = 0, storedMaxHp = 0,
+		gated = 0, gatedBy = "", storedGated = 0, storedGatedBy = "" }) {
 		const update = vi.fn(async () => {});
 		const actor = {
 			isOwner,
-			system: { attributes: { armor: { value: stored, unpierceable: 0 }, hp: { max: storedMaxHp } } },
+			system: {
+				attributes: {
+					armor: { value: stored, unpierceable: 0, conditional: storedGated, conditionalSource: storedGatedBy },
+					hp: { max: storedMaxHp },
+				},
+			},
 			update,
 		};
 		// The write is the character's own (StonetopCharacter#syncStoredVitals), handed the render's numbers.
@@ -244,6 +250,8 @@ describe("StonetopCharacterSheet._syncStoredDerived", () => {
 				_computedMaxHp: maxHp,
 				isEditable,
 				_computedUnpierceable: 0,
+				_computedConditional: gated,
+				_computedConditionalSource: gatedBy,
 				_stonetopCharacter: character,
 				actor,
 			},
@@ -282,6 +290,39 @@ describe("StonetopCharacterSheet._syncStoredDerived", () => {
 			"system.attributes.armor.conditional": 0,
 			"system.attributes.armor.conditionalSource": "",
 		}, { stonetopLedger: true });
+	});
+
+	// ⚠ THE WHOLE ARMOR GROUP TRAVELS TOGETHER, because the write is ONE update over all four
+	// fields. Left out of what the render hands in, the fiction-gated part was defaulted back to
+	// 0 and written over a real one on EVERY render: a Barkskin'd character kept the armor in
+	// their total and lost the damage card's "the fiction says otherwise" tick box for it.
+	it("carries the fiction-gated slice of the armor, and the move that bought it", async () => {
+		const { self, update } = ctx({ computed: 2, stored: 0, gated: 2, gatedBy: "Barkskin" });
+		await sync.call(self);
+		expect(update).toHaveBeenCalledWith({
+			"system.attributes.armor.value": 2,
+			"system.attributes.armor.unpierceable": 0,
+			"system.attributes.armor.conditional": 2,
+			"system.attributes.armor.conditionalSource": "Barkskin",
+		}, { stonetopLedger: true });
+	});
+
+	it("leaves a stored gate alone when this render worked out the same one", async () => {
+		const { self, update } = ctx({
+			computed: 2, stored: 2, gated: 2, gatedBy: "Barkskin", storedGated: 2, storedGatedBy: "Barkskin",
+		});
+		await sync.call(self);
+		expect(update).not.toHaveBeenCalled();
+	});
+
+	// And a gate that has really gone still goes: the move ended, the gear caught up, the clause lapsed.
+	it("clears a stored gate the render no longer finds", async () => {
+		const { self, update } = ctx({ computed: 2, stored: 2, storedGated: 2, storedGatedBy: "Barkskin" });
+		await sync.call(self);
+		expect(update).toHaveBeenCalledWith(expect.objectContaining({
+			"system.attributes.armor.conditional": 0,
+			"system.attributes.armor.conditionalSource": "",
+		}), { stonetopLedger: true });
 	});
 
 	it("does not write when the stored value already agrees", async () => {

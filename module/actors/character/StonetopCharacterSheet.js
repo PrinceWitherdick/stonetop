@@ -1460,6 +1460,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			// carries `null` for "no snapshot, nothing to mirror" rather than overloading 0.
 			this._computedArmor = Number.isFinite(Number(v.armor)) ? Number(v.armor) : null;
 			this._computedUnpierceable = Number(v.unpierceableArmor) || 0;
+			// The fiction-gated slice travels with the total it is part of. Mirrored on every
+			// render alongside it, because the mirror writes the whole armor group in one update:
+			// leaving these out wrote the schema defaults back and took the damage card's
+			// "the fiction says otherwise" tick box off a Barkskin'd character on every render.
+			this._computedConditional = Number(v.conditionalArmor) || 0;
+			this._computedConditionalSource = v.conditionalArmorSource ?? "";
 			// A permanent max-HP change (an arcanum's soul-wound, a Mark's boon) is otherwise
 			// invisible once applied — the field just shows a number that disagrees with the
 			// playbook. Marked and spelled out here so a GM reading the sheet months later can
@@ -9538,6 +9544,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			await this._stonetopCharacter.syncStoredVitals({
 				armor: this._computedArmor,
 				unpierceable: this._computedUnpierceable,
+				conditional: this._computedConditional,
+				conditionalSource: this._computedConditionalSource,
 				maxHp: this._computedMaxHp,
 			});
 		}

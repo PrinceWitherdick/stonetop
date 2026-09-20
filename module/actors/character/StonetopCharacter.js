@@ -504,7 +504,7 @@ export class StonetopCharacter {
 		// the clamp is not biting: under an adjustment deep enough to bottom the total out, they
 		// read the derived armor as the size of the adjustment instead, and a typed 2 banked a
 		// delta that landed back on 0.
-		const { worn: wornArmorBase, base: armorBase, armor, unpierceable: unpierceableArmor } = this._armorFrom(gear, moveBonuses);
+		const { worn: wornArmorBase, base: armorBase, armor, unpierceable: unpierceableArmor, conditional: conditionalArmor, conditionalSource } = this._armorFrom(gear, moveBonuses);
 		const arcanaLore = (playbookData?.lore ?? []).some(e => e.arcanaImage || (e.options ?? []).some(o => o.arcanaRole))
 			? await this._arcana.buildLoreDisplay()
 			: null;
@@ -517,7 +517,7 @@ export class StonetopCharacter {
 			// A Thrall's Marks eat into their max HP ("Reduce your max HP by 2"), and they collect
 			// more as Dark Succor keeps saving them — so it's derived from the marked options
 			// every render, not written once.
-			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses, wornArmorBase, insertHpPenalty(postDeath.activeInsert?.lore), unpierceableArmor, armorBase))
+			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses, wornArmorBase, insertHpPenalty(postDeath.activeInsert?.lore), unpierceableArmor, armorBase, { value: conditionalArmor, source: conditionalSource }))
 			.withMoves(moves)
 			.withMovelist(_buildMovelist(moves, inventory.other, pdiLabel, actorLevel, inventory.loveLetters, playbookData?.name ?? null))
 			.withInventory(inventory)
@@ -2576,7 +2576,9 @@ export class StonetopCharacter {
 	 * playbook to derive it from (0 says there is none). Ledger-silenced: the real change was the gear,
 	 * the level or the Mark, which the ledger already files. Returns whether it wrote.
 	 *
-	 * @param {{armor: number|null, unpierceable: number, maxHp: number}} [vitals]  computedVitals' answer
+	 * @param {{armor: number|null, unpierceable: number, conditional?: number, conditionalSource?: string, maxHp: number}} [vitals]  computedVitals' answer.
+	 *   A caller handing in its own numbers must carry the WHOLE armor group: the write is one update
+	 *   over all four fields, so an omitted `conditional` writes the default back over a real one.
 	 */
 	async syncStoredVitals(vitals = null) {
 		const { armor, unpierceable, maxHp, conditional = 0, conditionalSource = "" } = vitals ?? await this.computedVitals();
@@ -3926,7 +3928,7 @@ function _hpFrom(actor, playbookData, moveBonuses = {}, insertHpPenalty = 0) {
 	return { hpBase, hpMax };
 }
 
-function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, wornArmorBase = 0, insertHpPenalty = 0, unpierceableArmor = 0, armorBase = null) {
+function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, wornArmorBase = 0, insertHpPenalty = 0, unpierceableArmor = 0, armorBase = null, gatedArmor = { value: 0, source: "" }) {
 	const attrs = actor.system?.attributes ?? {};
 	const level = attrs.level?.value ?? 1;
 	const { hpBase, hpMax } = _hpFrom(actor, playbookData, moveBonuses, insertHpPenalty);
@@ -3947,6 +3949,7 @@ function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, 
 		.withArmorBase(armorBase ?? armorValue)
 		.withWornArmor(wornArmorBase)
 		.withUnpierceableArmor(unpierceableArmor)
+		.withConditionalArmor(gatedArmor?.value ?? 0, gatedArmor?.source ?? "")
 		.withLevel(level)
 		.withXp(new ValueMax(attrs.xp?.value ?? 0, xpToLevelUp(level)))
 		.build();
