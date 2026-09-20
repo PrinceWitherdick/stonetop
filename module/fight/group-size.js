@@ -13,7 +13,7 @@
 //
 // PURE apart from `askGroupSize`, which opens the question.
 
-import { escHtml } from "../utils/strings.js";
+import { escHtml, escapeRegExp } from "../utils/strings.js";
 import { format, localize } from "../utils/i18n.js";
 import { themedDialogClasses } from "../utils/window-theme.js";
 import { contentElement } from "../dialogs/content-picker.js";
@@ -23,7 +23,7 @@ import { insideRect } from "./fight-state.js";
 const KEY = "stonetop.fight.groupSize";
 
 /** The sizes offered for each organization that comes in numbers, before the stat block's own count. */
-export const GROUP_SIZES = Object.freeze({
+const GROUP_SIZES = Object.freeze({
 	group: Object.freeze([2, 3, 4, 5]),
 	horde: Object.freeze([6, 8, 10, 12]),
 });
@@ -132,7 +132,7 @@ export function spotsAround({ anchor, count, footprint = null, size = 100, other
  * @param {number} count
  */
 export function numberedNames(base, existing = [], count = 0) {
-	const escaped = String(base).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const escaped = escapeRegExp(base);
 	const pattern = new RegExp(`^${escaped} \\((\\d+)\\)$`);
 	const used = new Set();
 	for (const name of existing) {

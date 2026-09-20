@@ -39,6 +39,7 @@ import { betterMode } from "../utils/roll-mode.js";
 import { HEROES, touching } from "./engagements.js";
 import { fightOnScene, gridOf } from "./fight-state.js";
 import { rollerEngagement } from "./damage-seed.js";
+import { resolveSync } from "../utils/foundry-compat.js";
 
 export const HERO_MOVES = Object.freeze({
 	PARRY: "Parry & Riposte",
@@ -185,10 +186,7 @@ export function undauntedOffer(actor) {
 export function foeKey(target) {
 	const uuid = target?.uuid ?? "";
 	if (!uuid) return "";
-	let doc = target?.documentName ? target : null;
-	if (!doc) {
-		try { doc = globalThis.fromUuidSync?.(uuid, { strict: false }) ?? null; } catch { doc = null; }
-	}
+	const doc = target?.documentName ? target : resolveSync(uuid);
 	if (!doc) return uuid;
 	// An unlinked token's actor belongs to that token and nowhere else: key it by the token.
 	if (doc.documentName === "Actor") return doc.token?.uuid ?? doc.uuid;
@@ -431,8 +429,7 @@ export function blowOffers(actor, { targets = [], weapon = null, strikeBack = fa
 
 /** A damage row's stat block, or an empty one. */
 function targetSystem(target) {
-	let doc = null;
-	try { doc = globalThis.fromUuidSync?.(target?.uuid ?? "", { strict: false }) ?? null; } catch { doc = null; }
+	const doc = resolveSync(target?.uuid ?? "");
 	return (doc?.actor ?? doc)?.system ?? {};
 }
 

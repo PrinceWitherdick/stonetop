@@ -25,22 +25,11 @@ import { themedDialogClasses } from "../utils/window-theme.js";
 import { contentElement } from "../dialogs/content-picker.js";
 import { HEROES, touching } from "./engagements.js";
 import { gridOf } from "./fight-state.js";
-import { rollerEngagement } from "./damage-seed.js";
+import { rollerEngagement, asTarget } from "./damage-seed.js";
 import { namesPhrase } from "./fight-copy.js";
 
 const KEY = "stonetop.fight.targets";
 export const TARGET_FIELD = "stonetopFightTarget";
-
-/** A combatant as a roll's target, in the shape a hand target is frozen in (combat/attack-flow.js). */
-function asTarget(combatant) {
-	return {
-		uuid: combatant.token.uuid,
-		name: combatant.name || combatant.token.name || "",
-		actorId: combatant.actorId ?? null,
-		disposition: combatant.token.disposition ?? 0,
-		hasActor: !!combatant.actor,
-	};
-}
 
 /**
  * Everyone `actor` is fighting on the canvas scene, as targets, in the order the Fight tab lists them.

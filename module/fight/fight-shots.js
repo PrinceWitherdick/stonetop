@@ -20,6 +20,9 @@ import { SYSTEM_ID } from "../system-id.js";
 import { fightOnScene, combatantSide, SHOTS_FLAG } from "./fight-state.js";
 import { rollerEngagement } from "./damage-seed.js";
 
+/** Which combatant of a snapshot stands on which token: the join a roll's targets are matched on. */
+const byTokenUuid = found => new Map([...found.combatants.values()].map(c => [c.token?.uuid, c]));
+
 /**
  * The combatant ids a roll at `targets` is a shot at, from `found` (engagementOf's answer for the
  * roller). PURE apart from what `found` holds.
@@ -32,10 +35,10 @@ export function shotsFrom(found, targets = []) {
 	if (!found) return [];
 	const mine = combatantSide(found.combatant);
 	const melee = new Set(found.entry?.melee ?? []);
-	const byTokenUuid = new Map([...found.combatants.values()].map(c => [c.token?.uuid, c]));
+	const byUuid = byTokenUuid(found);
 	const shots = [];
 	for (const target of targets ?? []) {
-		const combatant = byTokenUuid.get(target?.uuid);
+		const combatant = byUuid.get(target?.uuid);
 		if (!combatant || combatant.id === found.combatant.id || melee.has(combatant.id)) continue;
 		if (combatantSide(combatant) === mine || shots.includes(combatant.id)) continue;
 		shots.push(combatant.id);
@@ -82,8 +85,8 @@ export function shotOnRecordAt(actor, targets = []) {
 	if (!found) return false;
 	const shots = found.combatant.flags?.[SYSTEM_ID]?.[SHOTS_FLAG];
 	if (!Array.isArray(shots) || !shots.length) return false;
-	const byTokenUuid = new Map([...found.combatants.values()].map(c => [c.token?.uuid, c.id]));
-	return (targets ?? []).some(t => shots.includes(byTokenUuid.get(t?.uuid)));
+	const byUuid = byTokenUuid(found);
+	return (targets ?? []).some(t => shots.includes(byUuid.get(t?.uuid)?.id));
 }
 
 /** Whether a combatant has a shot on record. */

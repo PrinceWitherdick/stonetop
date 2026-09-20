@@ -57,6 +57,7 @@ import { HEROES, FOES } from "./engagements.js";
 import { engagementFor, engagementOf, fightOnScene, combatantBodies, combatantSide, sideInfoFor } from "./fight-state.js";
 import { classifySide } from "./fight-sides.js";
 import { namesPhrase } from "./fight-copy.js";
+import { resolveSync } from "../utils/foundry-compat.js";
 
 const KEY = "stonetop.fight.seed";
 
@@ -103,7 +104,7 @@ export function makeSeed({ count, direction, target, names, dice = [], tags = []
  * @param {object} combatant
  * @returns {{name: string, formula: string, tags: string[], piercing: number, character: boolean}}
  */
-export function attackerProfile(combatant) {
+function attackerProfile(combatant) {
 	const actor = combatant?.actor ?? null;
 	const name = combatant?.name || actor?.name || "";
 	if (actor?.type === "character") {
@@ -140,7 +141,7 @@ function othersOf(found, ids) {
  * @param {number} p.yours   bodies in the roller's side's groups
  * @param {number} p.theirs  bodies in the other side's groups
  */
-export function makeGroupSeed({ yours, theirs }) {
+function makeGroupSeed({ yours, theirs }) {
 	const ahead = outnumberBonus(yours, theirs).bonus;
 	const behind = outnumberBonus(theirs, yours).bonus;
 	if (ahead < 1 && behind < 1) return null;
@@ -232,8 +233,7 @@ export function rollerEngagement(actor, { scene = globalThis.canvas?.scene ?? nu
  * @param {"heroes"|"foes"} p.against  the side the target has to be on
  */
 function pileOnSeed({ attacker, target, against }) {
-	let tokenDoc = null;
-	try { tokenDoc = globalThis.fromUuidSync?.(target.uuid, { strict: false }) ?? null; } catch { return null; }
+	const tokenDoc = resolveSync(target.uuid);
 	if (tokenDoc?.documentName !== "Token") return null;
 	const found = engagementFor(tokenDoc);
 	if (!found) return null;
@@ -342,6 +342,22 @@ export function pcEngagement(pc) {
 }
 
 /**
+ * A combatant as a roll's target, in the shape a hand target is frozen in (combat/attack-flow.js).
+ * The one reader of that shape: attack-flow.js#snapshotTargets, #rollDamageAt and fight-shots.js all
+ * key off its uuid/hasActor, so the counter-attack path and the "who does this hit?" path must build
+ * the same record for the same combatant.
+ */
+export function asTarget(combatant) {
+	return {
+		uuid: combatant.token.uuid,
+		name: combatant.name || combatant.token.name || "",
+		actorId: combatant.actorId ?? null,
+		disposition: combatant.token.disposition ?? 0,
+		hasActor: !!combatant.actor,
+	};
+}
+
+/**
  * The foes a character is in contact with, as tokens: who "your enemy" is when a counter-attack
  * comes with nothing targeted.
  *
@@ -352,7 +368,7 @@ export function engagedFoeTargets(pc, found = pcEngagement(pc)) {
 	return found.entry.melee
 		.map(id => found.combatants.get(id))
 		.filter(c => c?.token)
-		.map(c => ({ uuid: c.token.uuid, name: c.name || c.token.name, actorId: c.actorId ?? null, disposition: c.token.disposition ?? 0, hasActor: !!c.actor }));
+		.map(asTarget);
 }
 
 /**

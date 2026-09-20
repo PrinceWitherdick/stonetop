@@ -277,3 +277,31 @@ export function displaceTokens(scene, moves) {
 		movement: Object.fromEntries(list.map(m => [m.id, instruction(m)])),
 	});
 }
+
+/**
+ * Resolve a uuid without awaiting, for a chat render, a sheet's getData, or anywhere else that
+ * cannot go async. Null rather than a throw for anything missing: `fromUuidSync` THROWS on an
+ * EMBEDDED document's uuid instead of answering null, and `{strict: false}` does not cover that,
+ * which is the whole reason this wrapper exists. Read through `globalThis` so a Foundry-free
+ * unit test just gets null.
+ */
+export function resolveSync(uuid) {
+	try { return globalThis.fromUuidSync?.(uuid, { strict: false }) ?? null; } catch { return null; }
+}
+
+/**
+ * Who asked, for a User query a player sends to the GM's client. v14 names the asker in the
+ * query's context; v13 hands the handler only `{timeout}`, so the id the asker put in the data
+ * is read instead. That id is the sender's OWN WORD, so it is never taken for a GM's: a player
+ * claiming to be one would otherwise be handed a GM's authority over the thing being asked for.
+ *
+ * @param {object} data  the query payload, carrying {userId} for v13
+ * @param {{user?: object}} context  core's query context, naming who asked (v14 only)
+ * @param {object} [users]  the users collection to resolve a claimed id against
+ * @returns {object|null}  the asking non-GM user, or null
+ */
+export function queryAsker(data, context = {}, users = globalThis.game?.users) {
+	if (context?.user) return context.user;
+	const claimed = typeof data?.userId === "string" ? users?.get?.(data.userId) : null;
+	return claimed && !claimed.isGM ? claimed : null;
+}

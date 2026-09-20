@@ -29,7 +29,7 @@
 // core's "displace" movement, as a line-up does: straight there, through walls, no walk along the way.
 
 import { format } from "../utils/i18n.js";
-import { displaceTokens } from "../utils/foundry-compat.js";
+import { displaceTokens, queryAsker } from "../utils/foundry-compat.js";
 import { touching } from "./engagements.js";
 import { combatantSide, combatantBodies, gridOf, tokenRect, tokenLevel, sceneRectOf, insideRect, fightOnScene } from "./fight-state.js";
 import { overlapShare, rectCenter } from "./overlay-geometry.js";
@@ -140,7 +140,7 @@ export function spotBeside({ mover, target, others = [], rivals = [], grid = {},
  * @param {number} [p.reach]
  * @returns {{x: number, y: number}|null}
  */
-export function stepAside({ token, clear, avoid = [], others = [], grid = {}, sceneRect = null, snap = point => point, reach = 3 }) {
+function stepAside({ token, clear, avoid = [], others = [], grid = {}, sceneRect = null, snap = point => point, reach = 3 }) {
 	if (!token || !clear) return null;
 	const size = Number(grid.size) > 0 ? Number(grid.size) : 100;
 	const g = { size, kind: grid.kind };
@@ -256,20 +256,16 @@ export async function sendAgainst(combat, moverId, targetId, { scene = globalThi
  * The GM's side of `SEND_QUERY`: move the tokens a player's send asked for, each one checked against
  * the ASKING user by the same rule (`mayMove`): fighting on that scene, and not hidden from them.
  *
- * WHO ASKED. v14 hands the handler the asking user in its context; v13 hands it only `{timeout}`, so there
- * the id the sender put in the data is read instead. That id is the sender's own word, so it is never taken
- * for a GM: a player claiming to be one would otherwise move a hidden fighter.
+ * WHO ASKED is foundry-compat.js#queryAsker's business. It never takes a claimed id for a GM's: a
+ * player claiming to be one would otherwise move a hidden fighter.
  *
  * @param {{sceneId: string, moves: Array<{id: string, x: number, y: number}>, userId?: string}} data
  * @param {{user?: object}} context  core's query context, naming who asked (v14 only)
  * @returns {Promise<number>}  how many tokens moved
  */
-export async function handleSendQuery(data, { user } = {}, { scenes = globalThis.game?.scenes, users = globalThis.game?.users, fightOn = fightOnScene } = {}) {
+export async function handleSendQuery(data, context = {}, { scenes = globalThis.game?.scenes, users = globalThis.game?.users, fightOn = fightOnScene } = {}) {
 	const scene = scenes?.get?.(data?.sceneId);
-	if (!user) {
-		const claimed = typeof data?.userId === "string" ? users?.get?.(data.userId) : null;
-		user = claimed && !claimed.isGM ? claimed : null;
-	}
+	const user = queryAsker(data, context, users);
 	if (!scene || !user) return 0;
 	// Only a token fighting on this scene: the send moves fighters, not whatever else stands on the map.
 	const combat = fightOn(scene);

@@ -56,6 +56,7 @@ import { engagementFor, fightOnScene, gridOf, isFight } from "./fight-state.js";
 import { HERO_MOVES, recordKnockedDownBy } from "./hero-moves.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
 import { inCardTurn } from "../utils/card-queue.js";
+import { resolveSync, queryAsker } from "../utils/foundry-compat.js";
 
 const KEY = "stonetop.fight.defend";
 const HERO_KEY = "stonetop.fight.heroMoves";
@@ -105,9 +106,6 @@ export function rowToken(doc, { scene = globalThis.canvas?.scene ?? null, combat
 	return fought.length === 1 ? fought[0] : null;
 }
 
-const resolve = uuid => {
-	try { return globalThis.fromUuidSync?.(uuid, { strict: false }) ?? null; } catch { return null; }
-};
 
 /**
  * Who could spend Readiness on the blow a row owes: the one hit, and the characters standing by them.
@@ -115,8 +113,8 @@ const resolve = uuid => {
  * @param {string} uuid  the row's target
  * @returns {{self: Actor|null, allies: Actor[]}}  those holding Readiness this reader may write
  */
-export function defendersFor(uuid, { user = globalThis.game?.user } = {}) {
-	const doc = resolve(uuid);
+function defendersFor(uuid, { user = globalThis.game?.user } = {}) {
+	const doc = resolveSync(uuid);
 	const target = damageRowActor(doc);
 	const writable = actor => !!actor && (user?.isGM || actor.isOwner) && heldReadiness(actor) > 0;
 	const self = writable(target) ? target : null;
@@ -145,7 +143,7 @@ export function defendersFor(uuid, { user = globalThis.game?.user } = {}) {
 }
 
 /** The kinds of spend a card can offer, in the order its buttons stand. */
-export const SPEND_KINDS = ["halve", "parry", "standIn", "ignore", "knockedDown"];
+const SPEND_KINDS = ["halve", "parry", "standIn", "ignore", "knockedDown"];
 
 /** The kinds that cost Readiness. I Get Knocked Down is paid for in the fiction instead. */
 const FREE_KINDS = new Set(["knockedDown"]);
@@ -163,7 +161,7 @@ const SPEND_LIST = { halve: "halvedBy", parry: "halvedBy", ignore: "ignoredBy", 
  * @param {(uuid: string) => Actor|null} [resolveActor]  a stand-in's actor, from the uuid on the card
  * @returns {{halve: object[], parry: object[], standIn: object[], ignore: object[]}}
  */
-export function defendOffers(damage, defendersOf = defendersFor, resolveActor = uuid => damageRowActor(resolve(uuid))) {
+export function defendOffers(damage, defendersOf = defendersFor, resolveActor = uuid => damageRowActor(resolveSync(uuid))) {
 	const done = new Set((damage?.applied ?? []).map(a => a.uuid));
 	const { halved, standIns, ignored, knockedDown } = spentOn(damage);
 	const offers = { halve: [], parry: [], standIn: [], ignore: [], knockedDown: [] };
@@ -262,7 +260,7 @@ export async function spendOnBlow(message, kind, offer, { scope = SYSTEM_ID, str
 		const cost1 = await askKnockedDownCost(offer.defender);
 		if (!cost1 || !(await take())) return false;
 		const striker = current.selfHarm ? (current.foeUuid ?? "") : (current.attackerUuid ?? "");
-		const foe = striker ? resolve(striker) : null;
+		const foe = striker ? resolveSync(striker) : null;
 		await postKnockedDown(offer.defender, cost1, foe);
 		if (foe) await recordKnockedDownBy(offer.defender, foe);
 		return true;
@@ -330,17 +328,14 @@ async function askGMToSpend(message, kind, offer) {
  * still offers that spend to that defender (read on the GM's client, which sees every defender). Only the
  * primary GM answers. A parry's strike back was rolled by the player already: this only takes it.
  *
- * WHO ASKED: as send-against.js#handleSendQuery. v13 names nobody in the context, so the id in the data is
- * read instead, and never taken for a GM's.
+ * WHO ASKED is foundry-compat.js#queryAsker's business: v13 names nobody in the context, so the id in
+ * the data is read instead, and never taken for a GM's.
  *
  * @returns {Promise<boolean>}
  */
-export async function handleSpendQuery(data, { user } = {}, { messages = globalThis.game?.messages, users = globalThis.game?.users, scope = SYSTEM_ID, offersOf = defendOffers } = {}) {
+export async function handleSpendQuery(data, context = {}, { messages = globalThis.game?.messages, users = globalThis.game?.users, scope = SYSTEM_ID, offersOf = defendOffers } = {}) {
 	if (!globalThis.game?.user?.isGM || !isPrimaryGM()) return false;
-	if (!user) {
-		const claimed = typeof data?.userId === "string" ? users?.get?.(data.userId) : null;
-		user = claimed && !claimed.isGM ? claimed : null;
-	}
+	const user = queryAsker(data, context, users);
 	const kind = data?.kind;
 	const message = messages?.get?.(data?.messageId);
 	const damage = message?.getFlag?.(scope, "damage");
@@ -385,7 +380,7 @@ async function postKnockedDown(actor, cost, foe) {
  * Ambush list." The list is read off the character's own Ambush, so it is the book's words; the pick is
  * theirs to say.
  */
-export async function postSecondIntent(actor) {
+async function postSecondIntent(actor) {
 	const ambush = ownedMove(actor, "Ambush");
 	const options = (firstOptionList(ambush?.system?.description)?.items ?? []).map(stripHtmlToText).filter(Boolean);
 	const list = options.length ? `<ul>${options.map(o => `<li>${escHtml(o)}</li>`).join("")}</ul>` : "";

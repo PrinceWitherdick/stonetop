@@ -114,11 +114,11 @@ export function droppedHoldingReadiness(actor, changes = {}) {
 }
 
 /** Clear these characters' Readiness and post one note saying why. */
-async function loseAll(actors, noteKey, extra = {}) {
+async function loseAll(actors, noteKey) {
 	if (!actors.length) return;
 	await Promise.all(actors.map(actor => actor.setFlag(SYSTEM_ID, READINESS_FLAG, 0)));
 	const names = joinNames(actors.map(a => a.name));
-	await postNote(actors.length === 1 ? actors[0] : null, localize(`${KEY}.lostTitle`), format(`${KEY}.${noteKey}`, { name: names, names, ...extra }));
+	await postNote(actors.length === 1 ? actors[0] : null, localize(`${KEY}.lostTitle`), format(`${KEY}.${noteKey}`, { name: names, names }));
 }
 
 /**

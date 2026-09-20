@@ -93,7 +93,7 @@ function mirror(actor) {
 }
 
 /** Re-mirror a character's vitals once the changes arriving now have settled. */
-export function scheduleVitalsMirror(actor) {
+function scheduleVitalsMirror(actor) {
 	clearTimeout(pending.get(actor.id));
 	pending.set(actor.id, setTimeout(() => {
 		pending.delete(actor.id);

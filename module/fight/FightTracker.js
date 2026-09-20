@@ -55,7 +55,7 @@ const HEADER_TEMPLATE = "systems/stonetop-pwd/templates/sidebar/fight-header.hbs
 const TRACKER_TEMPLATE = "systems/stonetop-pwd/templates/sidebar/fight-tracker.hbs";
 
 /** The prefix every fighter-row drag type is built on. */
-export const FIGHTER_DRAG_TYPE = "application/x-stonetop-fighter";
+const FIGHTER_DRAG_TYPE = "application/x-stonetop-fighter";
 /**
  * The drag data type a fighter's row carries: its combatant id, under the row's OWN side. A dragover
  * may read the TYPES on a drag but never their values, so the side has to be part of the type for a
@@ -168,10 +168,10 @@ export function createFightTrackerClass(Base) {
 			const scene = combat.scene ?? globalThis.canvas?.scene ?? null;
 			const snapshot = snapshotFight(combat, { scene });
 			if (!snapshot) return;
-			const rows = new Map();
-			for (const combatant of [...snapshot.combatants.values(), ...snapshot.elsewhere]) {
-				rows.set(combatant.id, await this._fightRow(combatant));
-			}
+			// Each row awaits core's thumbnail, which decodes video token art the first time it sees it.
+			// One at a time, the tab cannot paint until the last of them has finished.
+			const inFight = [...snapshot.combatants.values(), ...snapshot.elsewhere];
+			const rows = new Map(await Promise.all(inFight.map(async c => [c.id, await this._fightRow(c)])));
 			context.fight = fightTrackerView({
 				snapshot, rows, isGM: !!user?.isGM, format, cites: bookPageCites, openRules: this._openRules,
 			});

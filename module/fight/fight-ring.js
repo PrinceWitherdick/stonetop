@@ -257,7 +257,7 @@ export async function lockEyesFromRing(actor, { DialogV2 = globalThis.foundry?.a
 }
 
 /** Whether a ring has anything on it. */
-export const ringHasButtons = buttons => !!(buttons?.moves?.length || buttons?.damage?.length);
+const ringHasButtons = buttons => !!(buttons?.moves?.length || buttons?.damage?.length);
 
 /**
  * Press one of the ring's buttons: the same call the sheet's own control makes.

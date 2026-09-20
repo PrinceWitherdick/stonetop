@@ -51,6 +51,7 @@ import {format, localize} from "../utils/i18n.js";
 import {worseMode} from "../utils/roll-mode.js";
 import {bringDialogToFront} from "../utils/front-on-open.js";
 import {isPrimaryGM, anyActiveGM} from "../utils/primary-gm.js";
+import {resolveSync, queryAsker} from "../utils/foundry-compat.js";
 import {inCardTurn} from "../utils/card-queue.js";
 import {settleReadinessOnAttack} from "./readiness-loss.js";
 
@@ -2049,11 +2050,20 @@ function electedApplier(actors, message = null) {
  * @returns {string|null}
  */
 function electedOwner(actors) {
-	const owners = (game.users?.players ?? [])
-		.filter(u => u.active && actors.every(a => a.testUserPermission?.(u, "OWNER")))
-		.map(u => u.id)
-		.sort();
-	return owners[0] ?? null;
+	// Passing no message is what makes it so: `canUserWriteCard` answers its `whenUnknown` default
+	// for a card it cannot see, so the election runs without the write filter rather than beside it.
+	return electedApplier(actors);
+}
+
+/**
+ * The actors a set of damage rows actually lands on. A row a defender took in the ward's place
+ * (fight/defend-spend.js) writes the DEFENDER's HP, so it is the defender's owner who may press, not
+ * the ward's. Both the local gate and the GM's relay must read the SAME rows: a player refused on
+ * their own client and allowed through the query would take the damage twice over.
+ */
+function sufferingActors(damage, rows) {
+	const { standIns } = spentOn(damage);
+	return resolveDamageActors(rows.map(r => (standIns.has(r.uuid) ? { ...r, uuid: standIns.get(r.uuid).by } : r)));
 }
 
 // "Apply damage" on the results card. Writes each target's HP, mitigating by armor/piercing at
@@ -2076,10 +2086,7 @@ function applyGate(message, damage) {
 	const owed = pending.length ? pending : damage.results;
 	// ONE resolution pass for both questions below. Each row's uuid used to be looked up twice per
 	// render, and chat re-renders on every flag write anywhere in the log.
-	// A row a defender took in the ward's place (fight/defend-spend.js) writes the DEFENDER's HP, so it is
-	// the defender's owner who may press, not the ward's.
-	const { standIns } = spentOn(damage);
-	const owedActors = resolveDamageActors(owed.map(r => (standIns.has(r.uuid) ? { ...r, uuid: standIns.get(r.uuid).by } : r)));
+	const owedActors = sufferingActors(damage, owed);
 	const applier = electedApplier(owedActors, message);
 
 	if (!game.user.isGM) {
@@ -2190,19 +2197,16 @@ async function askGMToApply(message) {
  * The GM's side of `APPLY_QUERY`: apply a card for the player who pressed it, if that player owns every
  * row still owed. Only the primary GM's client answers, as only its own press counts (`applyGate`).
  *
- * WHO ASKED: as send-against.js#handleSendQuery. v13 names nobody in the context, so the id in the data
- * is read instead, and never taken for a GM's.
+ * WHO ASKED is foundry-compat.js#queryAsker's business: v13 names nobody in the context, so the id
+ * in the data is read instead, and never taken for a GM's.
  *
  * @param {{messageId: string, userId?: string}} data
  * @param {{user?: object}} context
  * @returns {Promise<boolean>}  whether any row was applied
  */
-export async function handleApplyQuery(data, { user } = {}, { messages = game.messages, users = game.users } = {}) {
+export async function handleApplyQuery(data, context = {}, { messages = game.messages, users = game.users } = {}) {
 	if (!game.user?.isGM || !isPrimaryGM()) return false;
-	if (!user) {
-		const claimed = typeof data?.userId === "string" ? users?.get?.(data.userId) : null;
-		user = claimed && !claimed.isGM ? claimed : null;
-	}
+	const user = queryAsker(data, context, users);
 	const message = messages?.get?.(data?.messageId);
 	const damage = message?.getFlag?.(SCOPE, "damage");
 	if (!user || !damage?.results?.length) return false;
@@ -2210,8 +2214,7 @@ export async function handleApplyQuery(data, { user } = {}, { messages = game.me
 	const owed = damage.results.filter(r => !applied.has(r.uuid));
 	if (!owed.length) return false;
 	// The same rows the player's own gate read, stand-ins included: every one theirs to take.
-	const { standIns } = spentOn(damage);
-	const actors = resolveDamageActors(owed.map(r => (standIns.has(r.uuid) ? { ...r, uuid: standIns.get(r.uuid).by } : r)));
+	const actors = sufferingActors(damage, owed);
 	if (!actors?.every(a => a.testUserPermission?.(user, "OWNER"))) return false;
 	return applyInTurn(message, damage);
 }
@@ -2355,7 +2358,7 @@ export function wireConditionalArmor(message, html, gateFor = applyGateOnce(mess
 
 	for (const row of damage.results) {
 		if (!row.uuid || done.has(row.uuid)) continue;
-		const target = damageRowActor(resolveRowDoc(row.uuid));
+		const target = damageRowActor(resolveSync(row.uuid));
 		const gated = target ? conditionalArmorOf(target) : null;
 		// No key means a `conditionalSource` this build does not know (a world written by a later one),
 		// which has no words to offer the armor back with (actors/character/move-armor.js#armorGateKey).
@@ -2390,10 +2393,6 @@ export function wireConditionalArmor(message, html, gateFor = applyGateOnce(mess
 	}
 }
 
-/** A damage row's document, resolved without awaiting inside a chat render. */
-function resolveRowDoc(uuid) {
-	try { return fromUuidSync(uuid, { strict: false }); } catch { return null; }
-}
 
 /**
  * "Leave off the +N" on a damage card carrying the fight's extra-attackers bonus.

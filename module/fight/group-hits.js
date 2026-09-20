@@ -75,7 +75,7 @@ export function memberHit({ hpMax, count, wound = 0 }, damage) {
  * @param {Actor|null} attacker
  * @param {Scene|null} scene  the scene the target stands on
  */
-export function attackerIsGroup(attacker, scene) {
+function attackerIsGroup(attacker, scene) {
 	if (!attacker || !scene) return false;
 	const combat = fightOnScene(scene);
 	const combatant = rollerCombatant(combat, scene, attacker);
