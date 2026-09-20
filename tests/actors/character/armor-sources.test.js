@@ -255,7 +255,7 @@ describe("StonetopCharacterSheet._syncStoredDerived", () => {
 		const { self, update } = ctx({ computed: 3, stored: 0 });
 		await sync.call(self);
 		expect(update).toHaveBeenCalledWith(
-			{ "system.attributes.armor.value": 3, "system.attributes.armor.unpierceable": 0 },
+			{ "system.attributes.armor.value": 3, "system.attributes.armor.unpierceable": 0, "system.attributes.armor.conditional": 0, "system.attributes.armor.conditionalSource": "" },
 			{ stonetopLedger: true });
 	});
 
@@ -265,7 +265,7 @@ describe("StonetopCharacterSheet._syncStoredDerived", () => {
 		const { self, update } = ctx({ computed: 0, stored: 2 });
 		await sync.call(self);
 		expect(update).toHaveBeenCalledWith(
-			{ "system.attributes.armor.value": 0, "system.attributes.armor.unpierceable": 0 },
+			{ "system.attributes.armor.value": 0, "system.attributes.armor.unpierceable": 0, "system.attributes.armor.conditional": 0, "system.attributes.armor.conditionalSource": "" },
 			{ stonetopLedger: true });
 	});
 
@@ -279,6 +279,8 @@ describe("StonetopCharacterSheet._syncStoredDerived", () => {
 			"system.attributes.hp.max": 18,
 			"system.attributes.armor.value": 3,
 			"system.attributes.armor.unpierceable": 0,
+			"system.attributes.armor.conditional": 0,
+			"system.attributes.armor.conditionalSource": "",
 		}, { stonetopLedger: true });
 	});
 

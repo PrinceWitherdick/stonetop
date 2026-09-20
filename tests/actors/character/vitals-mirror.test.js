@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { registerVitalsMirrorHooks, mayMoveVitals, mayMoveSteadingGear, FLAG_NOISE } from "../../../module/actors/character/vitals-mirror.js";
+import { registerVitalsMirrorHooks, mayMoveVitals, mayMoveSteadingGear, mayMoveMarks, FLAG_NOISE } from "../../../module/actors/character/vitals-mirror.js";
+import { CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG } from "../../../module/fight/hero-moves.js";
 import { StonetopCharacter } from "../../../module/actors/character/StonetopCharacter.js";
 import { READINESS_FLAG } from "../../../module/combat/defend-readiness.js";
 import { LEDGER_KEY } from "../../../module/utils/ledger-core.js";
@@ -40,7 +41,15 @@ describe("what moves a vital", () => {
 	});
 
 	it("spells each quiet flag as its owner does", () => {
-		expect([...FLAG_NOISE].sort()).toEqual([READINESS_FLAG, LEDGER_KEY, CAMP_FLAG, CAMP_OWED_FLAG, DEATHS_DOOR_FLAG].sort());
+		expect([...FLAG_NOISE].sort()).toEqual([
+			READINESS_FLAG, LEDGER_KEY, CAMP_FLAG, CAMP_OWED_FLAG, DEATHS_DOOR_FLAG,
+			CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG,
+		].sort());
+	});
+
+	it("re-mirrors everyone when a Blessed lays or lifts a mark: Barkskin is armor on somebody else's sheet", () => {
+		expect(mayMoveMarks({ flags: { "stonetop-pwd": { blessedMarks: [{ kind: "barkskin", uuid: "Actor.pim" }] } } })).toBe(true);
+		expect(mayMoveMarks({ flags: { "stonetop-pwd": { inventory: { checked: { shield: true } } } } })).toBe(false);
 	});
 
 	it("counts the steading's Weapons of War, and nothing else about the steading", () => {
@@ -151,8 +160,34 @@ describe("StonetopCharacter#syncStoredVitals", () => {
 		expect(actor.update).toHaveBeenCalledWith({
 			"system.attributes.armor.value": 2,
 			"system.attributes.armor.unpierceable": 1,
+			"system.attributes.armor.conditional": 0,
+			"system.attributes.armor.conditionalSource": "",
 			"system.attributes.hp.max": 22,
 		}, { stonetopLedger: true });
+	});
+
+	it("carries the fiction-gated part of the armor and which move granted it", async () => {
+		const { self, actor } = typed(
+			{ armor: { value: 0, unpierceable: 0, conditional: 0, conditionalSource: "" }, hp: { max: 18 } },
+			{ armor: 2, unpierceable: 0, conditional: 2, conditionalSource: "Barkskin", maxHp: 18 });
+		expect(await sync(self)).toBe(true);
+		expect(actor.update).toHaveBeenCalledWith({
+			"system.attributes.armor.value": 2,
+			"system.attributes.armor.unpierceable": 0,
+			"system.attributes.armor.conditional": 2,
+			"system.attributes.armor.conditionalSource": "Barkskin",
+		}, { stonetopLedger: true });
+	});
+
+	it("writes again when only the move behind that armor changed", async () => {
+		const { self, actor } = typed(
+			{ armor: { value: 2, unpierceable: 0, conditional: 2, conditionalSource: "Barkskin" }, hp: { max: 18 } },
+			{ armor: 2, unpierceable: 0, conditional: 0, conditionalSource: "", maxHp: 18 });
+		expect(await sync(self)).toBe(true);
+		expect(actor.update).toHaveBeenCalledWith(expect.objectContaining({
+			"system.attributes.armor.conditional": 0,
+			"system.attributes.armor.conditionalSource": "",
+		}), { stonetopLedger: true });
 	});
 
 	it("writes only the half that moved", async () => {
@@ -178,7 +213,7 @@ describe("StonetopCharacter#syncStoredVitals", () => {
 		self.computedVitals = vi.fn();
 		expect(await StonetopCharacter.prototype.syncStoredVitals.call(self, { armor: 3, unpierceable: 0, maxHp: 18 })).toBe(true);
 		expect(self.computedVitals).not.toHaveBeenCalled();
-		expect(actor.update).toHaveBeenCalledWith({ "system.attributes.armor.value": 3, "system.attributes.armor.unpierceable": 0 }, { stonetopLedger: true });
+		expect(actor.update).toHaveBeenCalledWith({ "system.attributes.armor.value": 3, "system.attributes.armor.unpierceable": 0, "system.attributes.armor.conditional": 0, "system.attributes.armor.conditionalSource": "" }, { stonetopLedger: true });
 		// null is "no snapshot": nothing to write.
 		actor.update.mockClear();
 		expect(await StonetopCharacter.prototype.syncStoredVitals.call(self, { armor: null, unpierceable: 0, maxHp: 0 })).toBe(false);

@@ -18,6 +18,8 @@
 
 import { isPrimaryGM } from "../../utils/primary-gm.js";
 import { isSteadingActor } from "../../utils/world.js";
+import { BLESSED_MARKS_FLAG } from "./blessed-marks.js";
+import { CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG } from "../../fight/hero-moves.js";
 
 // What the vitals are worked out from on the character document itself, outside its flags. Its items
 // have hooks of their own. HP, XP, wounds, the name and the portrait move nothing, and the mirror's own
@@ -30,9 +32,17 @@ const SYSTEM_INPUTS = [
 ];
 
 // Every flag is an input (the gear, possessions, marks, arcana and inserts all live there), but for these,
-// written over and over in play and read by no vital: Defend's Readiness, the ledger, camp, and Death's
-// Door. Each is its owner's constant (tests/actors/character/vitals-mirror checks the spelling against them).
-export const FLAG_NOISE = new Set(["readiness", "ledger", "camp", "campOwed", "deathsDoor"]);
+// written over and over in play and read by no vital: Defend's Readiness, the ledger, camp, Death's Door,
+// and the three a fight keeps about particular foes (fight/hero-moves.js). Each is its owner's constant
+// (tests/actors/character/vitals-mirror checks the spelling against them).
+export const FLAG_NOISE = new Set([
+	"readiness", "ledger", "camp", "campOwed", "deathsDoor",
+	CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG,
+]);
+
+// A mark on somebody ELSE's sheet that a character's armor reads: the Blessed's Barkskin
+// (actors/character/move-armor.js). Like the steading's gear, it re-mirrors everyone.
+const MARKS_INPUT = new RegExp(`^flags\\.[^.]+\\.${BLESSED_MARKS_FLAG}(\\.|$)`);
 
 // The steading's flags a vital reads: Weapons of War, as the improvement or a fortification.
 const STEADING_INPUT = /^flags\.[^.]+\.steading\.(improvements|fortifications)(\.|$)/;
@@ -62,9 +72,19 @@ export function mayMoveVitals(changed) {
 	});
 }
 
+/** Whether any key an update touched matches `input`. The shape every "did this move X" below takes. */
+function touches(changed, input) {
+	return changedKeys(changed).some(key => input.test(key));
+}
+
+/** Whether an update laid or lifted a Blessed's mark, which is armor on somebody else's sheet. */
+export function mayMoveMarks(changed) {
+	return touches(changed, MARKS_INPUT);
+}
+
 /** Whether a steading update could move a character's vitals. */
 export function mayMoveSteadingGear(changed) {
-	return changedKeys(changed).some(key => STEADING_INPUT.test(key));
+	return touches(changed, STEADING_INPUT);
 }
 
 function mirror(actor) {
@@ -105,6 +125,8 @@ function onUpdateActor(actor, changed, _options, userId) {
 		if (mayMoveSteadingGear(changed)) scheduleEveryone();
 		return;
 	}
+	// A Blessed's marks move the ARMOR OF WHOEVER THEY ARE ON, so this one cannot stop at this actor.
+	if (mayMoveMarks(changed)) scheduleEveryone();
 	if (mirrorsHere(actor, userId) && mayMoveVitals(changed)) scheduleVitalsMirror(actor);
 }
 
