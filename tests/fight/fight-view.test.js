@@ -98,6 +98,32 @@ describe("fightTrackerView", () => {
 		expect(v.clusters[1].pairs[0].label).toBe("Against Cadi");
 	});
 
+	// ⚠ ALL THREE LINKS, because an engagement is built from all three. An archer picking off the
+	// Fox across the field has nobody in reach of it and nobody shooting back: its only tie to the
+	// cluster is the shot IT fired. Read from `melee` and `shotBy` alone that is no tie at all, and
+	// the foe fell through to whichever hero happened to be first in the list.
+	it("puts a foe whose only link is the shot it fired under the hero it is shooting at", () => {
+		globalThis.game.user = { id: "gm", isGM: true };
+		const snapshot = {
+			fighters: [
+				{ id: "bram", side: "heroes" }, { id: "fox", side: "heroes" }, { id: "archer", side: "foes" },
+			],
+			result: {
+				clusters: [{ id: "c1", heroIds: ["bram", "fox"], foeIds: ["archer"] }],
+				unengaged: { heroes: [], foes: [] },
+				out: { heroes: [], foes: [] },
+				byFighter: { archer: { melee: [], shotBy: [], shootingAt: ["fox"] } },
+			},
+		};
+		const row = name => ({ name, img: "", onCanvas: true, canPing: true, canSend: false });
+		const rows = new Map([["bram", row("Bram")], ["fox", row("Fox")], ["archer", row("Archer")]]);
+
+		const v = fightTrackerView({ snapshot, rows, isGM: true, format, cites: bookPageCites });
+
+		expect(v.clusters[0].pairs.map(pair => [pair.hero.name, pair.foes.map(f => f.name)]))
+			.toEqual([["Bram", []], ["Fox", ["Archer"]]]);
+	});
+
 	it("lets a GM drag any capable fighter on this map onto any other, either way about", () => {
 		const gm = view(true);
 		expect(gm.clusters[0].foes[0]).toMatchObject({ side: "foes", draggable: true, dropTarget: true });

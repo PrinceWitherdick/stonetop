@@ -200,6 +200,22 @@ export function registerSettings() {
 		default: {}
 	});
 
+	// The world monsters whose Group fight switch this world unticked when the Fight tab was turned
+	// on (hooks/Ready.js#_reconcileWorldGroupFights), so turning the tab back OFF can put them back.
+	//
+	// The untick itself is necessary — with the tab on, a group's scale is a per-token question and
+	// the sheet stops drawing the switch, so a ticked sidebar monster hands a scale to every token
+	// dragged out of it with no box left to untick. What was NOT necessary was making it a one-way
+	// door: a GM who had ticked a dozen bestiary entries lost all twelve to a setting they could
+	// switch straight back, with nothing anywhere recording what had been taken.
+	game.settings.register(SYSTEM_ID, "groupFightUnticked", {
+		name: "Group Fight Unticked",
+		scope: "world",
+		config: false,
+		type: Array,
+		default: []
+	});
+
 	// Fingerprint of the seeded gazetteer folder colour scheme last applied in this
 	// world (see hooks/SeedCompendiums.syncSeededFolderColors). When it trails the
 	// current scheme — a fresh install, or a system update that added/retinted a
@@ -2502,6 +2518,16 @@ export function getObjectSetting(key) {
 		return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 	} catch (_) {
 		return {};
+	}
+}
+
+/** A list setting, read with the same tolerance getObjectSetting reads an object one with. */
+export function getArraySetting(key) {
+	try {
+		const value = globalThis.game?.settings?.get?.(SYSTEM_ID, key);
+		return Array.isArray(value) ? value : [];
+	} catch (_) {
+		return [];
 	}
 }
 

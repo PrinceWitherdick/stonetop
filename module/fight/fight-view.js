@@ -143,14 +143,19 @@ function ruleQuotesView(keys, { isGM, cites }) {
 
 /**
  * One engagement's rows as each hero with the foes under them. A foe goes under the first hero in
- * contact with it, else the first shooting at it; the engagement guarantees one of the two.
+ * contact with it, else the first shooting at it, else the first it is shooting at.
+ *
+ * ALL THREE LINKS, because an engagement is built from all three. A foe whose only tie to this
+ * cluster is the shot IT fired — an archer picking off the Fox across the field, nobody in reach of
+ * it and nobody shooting back — has neither `melee` nor `shotBy`, so it fell through to the first
+ * hero in the list and the tab filed it under a character it had nothing to do with.
  */
 function pairUp(heroes, foes, byFighter, againstLabel) {
 	const pairs = heroes.map(hero => ({ hero, foes: [], label: againstLabel(hero.name) }));
 	const byHero = new Map(pairs.map(pair => [pair.hero.id, pair]));
 	for (const foe of foes) {
 		const entry = byFighter[foe.id] ?? {};
-		const heroId = [...(entry.melee ?? []), ...(entry.shotBy ?? [])].find(id => byHero.has(id));
+		const heroId = [...(entry.melee ?? []), ...(entry.shotBy ?? []), ...(entry.shootingAt ?? [])].find(id => byHero.has(id));
 		(byHero.get(heroId) ?? pairs[0])?.foes.push(foe);
 	}
 	return pairs;

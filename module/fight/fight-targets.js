@@ -150,11 +150,15 @@ export async function askWhoItHits(question, { DialogV2 = globalThis.foundry?.ap
  * @returns {Promise<object[]|null>}
  */
 export async function rollTargets(actor, { handTargets = [], roller = "", area = false, areaAround = "roller", ask = askWhoItHits } = {}) {
-	if (handTargets?.length) return handTargets;
+	// Hand targets win outright for an ordinary blow — but an AREA attack is not aimed at one thing, it
+	// is aimed at a PLACE, and who else is standing there is the whole of what the tag buys. Returned
+	// here, a Blot Out the Sun fired at a targeted foe spent the quiver on a volley that fell on that
+	// foe alone. So the hand targets become what the area is measured AROUND, not the end of the question.
+	if (handTargets?.length && !area) return handTargets;
 	// ONE fight snapshot for both questions: `engage` is a pairwise geometry solve over every fighter,
 	// and who is engaged and who is merely standing nearby are two readings of the same answer.
 	const engagement = rollerEngagement(actor);
-	const engaged = engagedOpponents(actor, { engagement });
+	const engaged = handTargets?.length ? handTargets : engagedOpponents(actor, { engagement });
 	// An area attack asks even about a single foe, because the answer includes who ELSE is standing there.
 	if (!area) return engaged.length < 2 ? engaged : ask({ roller: roller || actor?.name || "", candidates: engaged });
 	const candidates = [...engaged, ...bystanders(engaged, engagement, { areaAround })];
@@ -183,7 +187,11 @@ function bystanders(engaged, found, { areaAround = "roller" } = {}) {
 	if (!anchors.length) return [];
 	const out = [];
 	for (const fighter of found.fighters) {
-		if (fighter.id === me.id || fighter.out) continue;
+		// `visible` is the tracker's own rule (fight-state.js#fighterOf), and it is the reason this list
+		// is safe to show a PLAYER. Without it the window named a GM-hidden token standing beside the
+		// Berserker, pre-ticked, and gave away the ambush before it was sprung. A GM sees everyone, so
+		// they can still sweep it in; nobody else is told it is there.
+		if (fighter.id === me.id || fighter.out || !fighter.visible) continue;
 		if (!anchors.some(anchor => anchor.id !== fighter.id && touching(anchor, fighter, grid))) continue;
 		const combatant = found.combatants.get(fighter.id);
 		if (!combatant?.token || aimed.has(combatant.token.uuid)) continue;

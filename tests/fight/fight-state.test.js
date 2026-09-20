@@ -145,6 +145,21 @@ describe("what each viewer counts", () => {
 		expect(snap.fighters.map(f => f.id)).not.toContain("cAway");
 		expect(snap.elsewhere.map(c => c.id)).toEqual(["cAway"]);
 	});
+
+	// ⚠ THE SAME TWO-PART RULE fighterOf applies, for the same reason: core's tracker flag AND the
+	// token's own hidden switch. Checking only the first showed a player a HUD-hidden ambusher waiting
+	// on another map, which is the one thing hiding it was meant to prevent. A GM still counts it.
+	it("keeps a hidden combatant on another map away from a player, but not from the GM", () => {
+		const { scene, combat } = table();
+		const token = fakeToken({ id: "tAway", actor: fakeActor({ id: "away" }) });
+		token.hidden = true;
+		const elsewhere = fakeCombatant({ id: "cAway", token, scene: { id: "other" } });
+		combat.combatants = collection([...combat.combatants, elsewhere]);
+		world({ user: { id: "gm", isGM: true }, combats: [combat] });
+
+		expect(snapshotFight(combat, { scene }).elsewhere.map(c => c.id)).toEqual(["cAway"]);
+		expect(snapshotFight(combat, { scene, viewer: { id: "p1", isGM: false } }).elsewhere).toEqual([]);
+	});
 });
 
 describe("ranged engagements from players' targets", () => {

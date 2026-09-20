@@ -151,7 +151,10 @@ function makeRoot(dialog) {
 				if (sel === ".stonetop-person-picker-none") return none;
 				if (sel === ".stonetop-person-picker-all-check") return all;
 				if (sel.startsWith(".stonetop-person-picker-item:not([hidden])")) {
-					return items.find(item => !item.hidden)?.radio ?? null;
+					// A row on screen only to say whose the row below it is carries a `context` mark,
+					// and Enter's selector steps over it (PersonPickerDialog#_applyFilter).
+					const skipContext = sel.includes(":not([data-context])");
+					return items.find(item => !item.hidden && !(skipContext && "context" in item.dataset))?.radio ?? null;
 				}
 				return null;
 			},
@@ -232,6 +235,17 @@ describe("the button, which is where the answer is", () => {
 	});
 });
 
+/** One list: a character, and the follower who sits under them. */
+function withFollower() {
+	return [{
+		key: "heroes", label: "Heroes", icon: "fa-users",
+		people: [
+			{ id: "bram", name: "Bram" },
+			{ id: "hound", name: "Hound", hint: "Bram's follower", parent: "bram" },
+		],
+	}];
+}
+
 describe("the find box", () => {
 	it("narrows the list in front of the reader", () => {
 		const dialog = makeDialog();
@@ -258,6 +272,45 @@ describe("the find box", () => {
 		type(dialog, root, "hou");
 		expect(root.section("heroes").items.map(item => item.hidden)).toEqual([false, false, true]);
 		expect(root.count("heroes")).toBe("1");
+	});
+
+	// ⚠ ON SCREEN IS NOT THE SAME AS ASKED FOR. The character above a matched follower is context,
+	// and it is marked as such: untagged it counted as a hit of its own, so the rail said two where
+	// one had matched, Enter ticked the character rather than the follower typed, and "Select all"
+	// over a narrowed list swept in a PC whose name was never typed.
+	it("marks a parent kept in view as context, and does not count, tick or take it", () => {
+		const dialog = makeMultiDialog(withFollower());
+		const root = makeRoot(dialog);
+		type(dialog, root, "hou");
+
+		const [bram, hound] = root.section("heroes").items;
+		expect([bram.hidden, hound.hidden]).toEqual([false, false]);
+		expect("context" in bram.dataset).toBe(true);
+		expect("context" in hound.dataset).toBe(false);
+		expect(root.count("heroes")).toBe("1");
+
+		dialog._toggleAll(root, "heroes", true);
+		expect(dialog._picked(root)).toEqual(["hound"]);
+	});
+
+	it("takes the searched follower on Enter, not the character it sits under", () => {
+		const dialog = makeMultiDialog(withFollower());
+		const root = makeRoot(dialog);
+		type(dialog, root, "hou");
+		dialog._takeFirstMatch(root);
+
+		expect(dialog._picked(root)).toEqual(["hound"]);
+	});
+
+	// And the mark comes off again the moment the row matches on its own account.
+	it("stops calling a parent context once the find box clears", () => {
+		const dialog = makeMultiDialog(withFollower());
+		const root = makeRoot(dialog);
+		type(dialog, root, "hou");
+		type(dialog, root, "");
+
+		expect("context" in root.section("heroes").items[0].dataset).toBe(false);
+		expect(root.count("heroes")).toBe("2");
 	});
 
 	it("says how many are left on every other list too", () => {

@@ -244,7 +244,10 @@ export function snapshotFight(combat, { scene, viewer = globalThis.game?.user, u
 		if (fighter) {
 			fighters.push(fighter);
 			combatants.set(combatant.id, combatant);
-		} else if (viewer?.isGM || combatant.visible !== false) {
+		// The SAME two-part rule fighterOf applies, for the same reason: core's tracker flag and the
+		// token's own hidden switch. Checking only the first showed a player a HUD-hidden ambusher
+		// waiting on another scene, which is the one thing hiding it was meant to prevent.
+		} else if (viewer?.isGM || (combatant.visible !== false && !combatant.token?.hidden)) {
 			elsewhere.push(combatant);
 		}
 	}

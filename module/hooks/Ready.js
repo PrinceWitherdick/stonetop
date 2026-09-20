@@ -24,7 +24,7 @@ import { MACRO_MODULES } from "../book2-art/macro-modules.js";
 import { openProgressNotification } from "../utils/progress-notification.js";
 import { stonetopChatCard, whisperGm } from "../utils/chat.js";
 import { stampWorldLayoutBaseline } from "../utils/sheet-layout.js";
-import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyReduceMotion, applySheetContrast, applySheetTexture, applyNoItalics, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown, adoptClassicLayoutScope, isTimelineEnabled, isFightTabEnabled } from "../settings.js";
+import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyReduceMotion, applySheetContrast, applySheetTexture, applyNoItalics, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown, adoptClassicLayoutScope, isTimelineEnabled, isFightTabEnabled, getArraySetting } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
 import { SpringBurstDialog } from "../dialogs/SpringBurstDialog.js";
@@ -182,9 +182,10 @@ export async function onReady() {
 	try { await _dropRetiredActorFlags(); }
 	catch (err) { console.error("Stonetop | retired actor-flag sweep failed", err); }
 	// Untick Group fight on sidebar monsters while the Fight tab is on, which picks a group's scale
-	// token by token (see _untickWorldGroupFights). Self-gated like the sweep above.
-	try { await _untickWorldGroupFights(); }
-	catch (err) { console.error("Stonetop | world Group fight untick failed", err); }
+	// token by token — and put the ticks back when the tab goes off again
+	// (see _reconcileWorldGroupFights). Self-gated like the sweep above.
+	try { await _reconcileWorldGroupFights(); }
+	catch (err) { console.error("Stonetop | world Group fight reconcile failed", err); }
 	await _migrateGmPrepPagesToSingleJournal();
 	// Convert each steading's plain-text Residents/Neighbors rows into linked NPC actors
 	// (idempotent; primary-GM only so two connected GMs can't double-create). Swept every
@@ -1562,8 +1563,8 @@ export async function _dropRetiredActorFlags() {
 	return staleKeys.size;
 }
 
-// Untick the monster sheet's Group fight switch (`system.fightAsGroup`) on WORLD monsters while the
-// Fight tab is on.
+// Keep the monster sheet's Group fight switch (`system.fightAsGroup`) on WORLD monsters in step with
+// the Fight tab: unticked while the tab is on, and PUT BACK when it goes off again.
 //
 // With the tab on, a group's scale is chosen for each TOKEN: as it joins a fight (the "how many?"
 // window) and from the tab after that (Merge, Split: fight/group-scale.js), and the sheet no longer
@@ -1571,15 +1572,54 @@ export async function _dropRetiredActorFlags() {
 // the switch to every token dragged out of it, is never asked "how many?", and has no box left to
 // untick. Tokens keep theirs: each is the scale its own fight settled on.
 //
-// Every load rather than once per version, because switching the tab off brings the switch back, so
-// a monster can be ticked again and the tab switched on again at any time. Idempotent, and in a tidy
-// world a filter over the Actors sidebar that finds nothing. PRIMARY-GM ONLY, like every other write
-// in onReady, and batched with the same per-actor retry (see _updateActorsBatched).
-export async function _untickWorldGroupFights() {
-	if (!game.user?.isGM || !isPrimaryGM() || !isFightTabEnabled()) return 0;
+// WHICH IS A GOOD REASON TO UNTICK AND NO REASON AT ALL TO FORGET. The tab is a switch a GM can
+// throw back the same evening; the ticks it ate were a dozen deliberate decisions about a dozen
+// bestiary entries, and nothing recorded them, so throwing it back left the whole sidebar unticked
+// with no way to tell which entries had been which. So the untick writes down whose switch it took
+// (`groupFightUnticked`), and turning the tab off gives them back and clears the record.
+//
+// A GM who re-ticks an entry with the tab OFF and turns it on again is swept as before, and their
+// new tick is added to the record: it is a list of what this sweep took, not a one-time snapshot.
+//
+// Every load rather than once per version, since the tab can be thrown either way at any time.
+// Idempotent, and in a settled world a filter over the Actors sidebar that finds nothing to write.
+// PRIMARY-GM ONLY, like every other write in onReady, and batched with the same per-actor retry
+// (see _updateActorsBatched).
+export async function _reconcileWorldGroupFights() {
+	if (!game.user?.isGM || !isPrimaryGM()) return 0;
+	return isFightTabEnabled() ? _untickWorldGroupFights() : _restoreWorldGroupFights();
+}
+
+/** The tab is ON: take the switch off every world monster still carrying it, and remember whose. */
+async function _untickWorldGroupFights() {
 	const ticked = (game.actors ?? []).filter(actor => actor.type === "monster" && actor.system?.fightAsGroup);
 	if (!ticked.length) return 0;
-	return _updateActorsBatched(ticked, () => ({ "system.fightAsGroup": false }), "Group fight untick");
+	const wrote = await _updateActorsBatched(ticked, () => ({ "system.fightAsGroup": false }), "Group fight untick");
+	// Everyone the batch was about, not only those `wrote` counted: a per-actor retry that dropped
+	// one leaves it still ticked, the next load sweeps it again, and the Set swallows the repeat.
+	// Recording one whose write failed costs nothing either — the restore hands the switch back only
+	// to a monster that has not got it, so an id that never lost one is passed over.
+	if (wrote) {
+		const held = new Set([...getArraySetting("groupFightUnticked"), ...ticked.map(actor => actor.id)]);
+		await setSetting("groupFightUnticked", [...held]);
+	}
+	return wrote;
+}
+
+/** The tab is OFF: the switch is back on the sheet, so give back what the untick took. */
+async function _restoreWorldGroupFights() {
+	const held = getArraySetting("groupFightUnticked");
+	if (!held.length) return 0;
+	// Cleared whether or not anyone is left to give it back to: an id whose monster has since been
+	// deleted, or which the GM has already re-ticked by hand, is a record with nothing left to say.
+	const actors = game.actors ?? [];
+	const back = held.map(id => [...actors].find(a => a?.id === id))
+		.filter(actor => actor?.type === "monster" && !actor.system?.fightAsGroup);
+	const wrote = back.length
+		? await _updateActorsBatched(back, () => ({ "system.fightAsGroup": true }), "Group fight restore")
+		: 0;
+	await setSetting("groupFightUnticked", []);
+	return wrote;
 }
 
 // Give a slug to any arcanum card in the world that has none.

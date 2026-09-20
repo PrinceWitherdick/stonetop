@@ -177,6 +177,23 @@ describe("an area attack (Berserker)", () => {
 		expect(names(await rollTargets(bramActor, { ask }))).toEqual(["Crinwin"]);
 	});
 
+	// ⚠ A HIDDEN TOKEN IS NOT A CANDIDATE, because this list is shown to whoever is rolling and a
+	// player is often whoever that is. `visible` is the tracker's own rule (fight-state.js#fighterOf),
+	// and without it the window named a GM-hidden ambusher beside the Berserker, pre-ticked, and gave
+	// the ambush away before it was sprung. A GM sees everyone and can still sweep it in.
+	it("leaves a token this viewer cannot see out of the list, though a GM still sees it", async () => {
+		const { bramActor } = shoulderToShoulder();
+		const ask = vi.fn(async q => q.candidates);
+		const hidden = [...globalThis.canvas.scene.tokens].find(t => t.id === "tCadi");
+		hidden.hidden = true;
+
+		// The GM is told, because the GM is the one hiding it.
+		expect(names(await rollTargets(bramActor, { area: true, ask }))).toEqual(["Crinwin", "Cadi"]);
+
+		globalThis.game.user = { id: "p1", isGM: false };
+		expect(names(await rollTargets(bramActor, { area: true, ask }))).toEqual(["Crinwin"]);
+	});
+
 	it("ticks them all and says why, where an ordinary question ticks the first", () => {
 		const candidates = [{ name: "Crinwin" }, { name: "Cadi", ally: true }];
 		const area = whoItHitsWindow({ roller: "Bram", candidates, area: true });
@@ -228,6 +245,30 @@ describe("an area attack loosed at the far end (Blot Out the Sun)", () => {
 		const { aelianaActor } = acrossTheField();
 		const ask = vi.fn(async q => q.candidates);
 		expect(names(await rollTargets(aelianaActor, { area: true, ask }))).toEqual(["Wolf", "Robin"]);
+	});
+
+	// ⚠ HAND TARGETS DO NOT END AN AREA ATTACK'S QUESTION. An ordinary blow is aimed at a thing and
+	// the roller's own target settles it; a volley is aimed at a PLACE, and who else is standing
+	// there is the whole of what the tag buys. Returned on the hand target alone, Blot Out the Sun
+	// spent the quiver on a sweep that fell on the one foe already picked.
+	it("still sweeps what is standing where a hand-targeted volley lands", async () => {
+		const { aelianaActor } = acrossTheField();
+		const ask = vi.fn(async q => q.candidates);
+		const wolf = { uuid: "Scene.scene1.Token.tWolf", name: "Wolf", hasActor: true };
+
+		const hit = await rollTargets(aelianaActor, { handTargets: [wolf], area: true, areaAround: "targets", ask });
+
+		expect(names(hit)).toEqual(["Wolf", "Cadi"]);
+	});
+
+	// And an ordinary blow is still the roller's own to aim: no question, no sweep.
+	it("takes a hand target and asks nothing when there is no area tag", async () => {
+		const { aelianaActor } = acrossTheField();
+		const ask = vi.fn(async q => q.candidates);
+		const wolf = { uuid: "Scene.scene1.Token.tWolf", name: "Wolf", hasActor: true };
+
+		expect(await rollTargets(aelianaActor, { handTargets: [wolf], ask })).toEqual([wolf]);
+		expect(ask).not.toHaveBeenCalled();
 	});
 
 	it("says where the volley falls rather than quoting Berserker", () => {

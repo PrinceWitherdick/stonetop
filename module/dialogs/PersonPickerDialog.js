@@ -249,14 +249,25 @@ export class PersonPickerDialog extends StonetopDialog {
 			.trim().toLowerCase();
 		for (const section of root.querySelectorAll(".stonetop-person-picker-group")) {
 			const items = [...section.querySelectorAll(".stonetop-person-picker-item")];
-			for (const item of items) item.hidden = !(!text || (item.dataset.search ?? "").includes(text));
-			// A row showing keeps the one it sits under in view.
+			for (const item of items) {
+				const matched = !text || (item.dataset.search ?? "").includes(text);
+				item.hidden = !matched;
+				// A ROW ON SCREEN IS NOT THE SAME AS A ROW THE READER ASKED FOR. The loop below puts a
+				// parent back in view to keep its match legible, and marked as nothing more than that:
+				// untagged, a follower's character counted as a hit of its own, so Enter ticked the
+				// character rather than the follower just searched for, and Select all over a narrowed
+				// list swept in a PC nobody had typed.
+				if (matched) delete item.dataset.context;
+				else item.dataset.context = "";
+			}
+			// A row showing keeps the one it sits under in view — as context, keeping whatever mark the
+			// pass above gave it: a parent that matched in its own right is still an answer.
 			for (const item of items) {
 				if (item.hidden || !item.dataset.parent) continue;
 				const above = items.find(other => other.dataset.personId === item.dataset.parent);
 				if (above) above.hidden = false;
 			}
-			const showing = items.filter(item => !item.hidden && !("header" in item.dataset)).length;
+			const showing = items.filter(item => !item.hidden && !("header" in item.dataset) && !("context" in item.dataset)).length;
 			const none = section.querySelector(".stonetop-person-picker-none");
 			if (none) none.hidden = showing > 0;
 			const count = root.querySelector(`[data-count-for="${section.dataset.group}"]`);
@@ -267,10 +278,11 @@ export class PersonPickerDialog extends StonetopDialog {
 		this._syncAll(root);
 	}
 
-	/** The rows a list is showing, as their controls. What "Select all" is about. */
+	/** The rows a list is showing IN ANSWER TO THE FIND BOX, as their controls. What "Select all" is
+	 *  about — never a row that is only on screen to say whose the row below it is (see _applyFilter). */
 	_shownBoxes(section) {
 		return [...(section.querySelectorAll(".stonetop-person-picker-item") ?? [])]
-			.filter(item => !item.hidden)
+			.filter(item => !item.hidden && !("context" in item.dataset))
 			.map(item => item.querySelector("input[name='person']"))
 			.filter(Boolean);
 	}
@@ -318,7 +330,7 @@ export class PersonPickerDialog extends StonetopDialog {
 	/** Mark the first name still showing on the list in front of the reader, and offer the button. */
 	_takeFirstMatch(root) {
 		const showing = this._visibleGroup(root);
-		const first = showing?.querySelector(".stonetop-person-picker-item:not([hidden]) input[name='person']");
+		const first = showing?.querySelector(".stonetop-person-picker-item:not([hidden]):not([data-context]) input[name='person']");
 		if (!first) return;
 		first.checked = true;
 		this._syncChoice(root);
