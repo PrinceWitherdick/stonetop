@@ -30,7 +30,7 @@ import {escHtml, joinNames} from "../utils/strings.js";
 import {stonetopChatCard, rollFormulaChip, damageMark, damageBadge, damageKeywordsHtml, optionKey, whisperGm, cardNoticeHtml, canUserWriteCard} from "../utils/chat.js";
 import {rollDamage, multiDieFaces, sign, damageRollFormula, damageConditionPills, conditionsRowHtml, classifyResult} from "../utils/roll-engine.js";
 import {mitigateDamage, resolvePiercing, applyDamageToActor, damageRowActor, composeDamageFormula, seedBonus, damageSeedBonus, foeAttacks, fictionTagsIn, hardestAttackIndex} from "../utils/damage.js";
-import {promptDamage, rollDamagePrompted} from "../dialogs/RollDialog.js";
+import {promptDamage} from "../dialogs/RollDialog.js";
 // The fight's +N for several attackers (Book I p.414), offered to the damage rolls below. Every builder
 // answers null with the Fight tab off or no fight on the map, so none of this changes a roll then.
 import {incomingSeed, engagedFoeTargets, pcEngagement, seedForRoll, seedWithoutStriker, sheetSeed} from "../fight/damage-seed.js";
@@ -48,7 +48,7 @@ import {undauntedNow, eyesLockedAgainst, dangerousMode, blowOffers as heroOffers
 import {ownsLearnedMoveNamed} from "../actors/character/owns-move.js";
 import {armorGateKey} from "../actors/character/move-armor.js";
 import {format, localize} from "../utils/i18n.js";
-import {worseMode} from "../utils/roll-mode.js";
+import {foldModes} from "../utils/roll-mode.js";
 import {bringDialogToFront} from "../utils/front-on-open.js";
 import {isPrimaryGM, anyActiveGM} from "../utils/primary-gm.js";
 import {resolveSync, queryAsker} from "../utils/foundry-compat.js";
@@ -912,6 +912,19 @@ function takenOffers(offers, adjust) {
 const unarmedWeapon = () => ({ name: "", range: ["hand"] });
 
 /**
+ * `weapon` with the tags a ticked damage line bought laid on top of its own — Anger is a Gift's "strike
+ * hard (+1d4 damage, forceful)". Shared by both cards: the targeted one prints the tag in each row's
+ * fine print and the no-target one owes it a notice, and a copy per card is how the two stop agreeing
+ * about what a blow just became. `unarmedWeapon` rather than a bare record, for the reason it gives.
+ */
+function withAddedTags(weapon, added) {
+	const tags = Array.isArray(added) ? added : [];
+	if (!tags.length) return weapon;
+	const base = weapon ?? unarmedWeapon();
+	return { ...base, tags: [...new Set([...(base.tags ?? []), ...tags])] };
+}
+
+/**
  * Berserker: "While in your Battle Joy, add the area tag to your melee attacks, lashing out at anyone
  * nearby (friend and foe alike)." True for a melee blow — a weapon with reach of hand, close or reach,
  * or nothing in hand at all — while the Joy is on.
@@ -920,16 +933,6 @@ function berserkMelee(actor, weapon) {
 	if (!berserkNow(actor)) return false;
 	const range = weapon?.range ?? ["hand"];
 	return range.some(r => MELEE_RANGES.has(r));
-}
-
-/**
- * Big Damn Hero's locked eyes: a foe rolls damage with disadvantage against the hero who locked eyes with
- * it and their ward (fight/hero-moves.js#eyesLockedAgainst). The roll's own mode otherwise. A blow that
- * already had advantage rolls straight: the two cancel (p.230).
- */
-function lockedEyesMode(actor, targets, rollMode) {
-	if (!eyesLockedAgainst(actor, targets).length) return rollMode;
-	return worseMode(rollMode);
 }
 
 /**
@@ -942,12 +945,19 @@ function lockedEyesMode(actor, targets, rollMode) {
  * two people cannot roll twice over for one of them. Advantage and disadvantage cancel (p.230).
  */
 async function incomingMode(actor, targets, rollMode, { includeOffered = false, defenders = null } = {}) {
-	const mode = lockedEyesMode(actor, targets, rollMode);
 	const { imposed, offered } = defenders ?? await defenderModes(targets);
 	// The offered ones are ticked boxes on the damage window; where there is no window to untick them on
 	// (a counter-attack rolls straight off the card), they simply apply, as a ticked box would.
 	const carried = imposed.length || (includeOffered && offered.length);
-	return carried ? worseMode(mode) : mode;
+	// GATHERED AND FOLDED ONCE, not laid on one at a time. Big Damn Hero's locked eyes
+	// (fight/hero-moves.js#eyesLockedAgainst) and the defender's own skin are two voices saying the
+	// same "dis", and neither side stacks with itself: against an advantaged blow they cancel with it
+	// and the roll is straight. Stepped in sequence, the second one landed on the straight roll the
+	// first had just cancelled to and pushed the blow to disadvantage instead.
+	return foldModes([
+		...(eyesLockedAgainst(actor, targets).length ? ["dis"] : []),
+		...(carried ? ["dis"] : []),
+	], rollMode);
 }
 
 /**
@@ -1076,14 +1086,25 @@ export async function rollDamageAt(actor, { formula, label, keywords = "", descr
 	if (!targets.some(t => t.hasActor !== false && t.uuid)) {
 		// Nobody to hit: the plain card, with the roller's own lines only — there is no target to bring any.
 		const offers = striker ? [] : heroOffers(actor, { targets, weapon, strikeBack });
-		const seed = seeded ? sheetSeed({ actor }) : null;
+		// askDamageAdjustment, NOT rollDamagePrompted, for the half rollDamagePrompted does not do: a
+		// ticked line has to be PAID FOR and may put a tag on the blow. Handed to the plain card it
+		// took the offer's dice and nothing else, so a no-target Anger is a Gift rolled its +1d4 free
+		// every time, forever, and the forceful the Resolve bought never reached the table.
+		const damage = await askDamageAdjustment(actor, {
+			formula, offers, shiftKey, attacker, strikeBack,
+			rollMode: striker ? rollMode : dangerousMode(actor, rollMode),
+			seed: seeded ? sheetSeed({ actor }) : null,
+		});
+		if (!damage) return false;
 		// The fiction the weapon's tags owe, as a Clash with nobody targeted prints it (rollAndPostDamage).
-		const notices = tagNoticesHtml(striker ? weapon : muscleboundWeapon(actor, weapon));
-		return rollDamagePrompted(formula, actor, {
-			label, keywords, description, rollMode: striker ? rollMode : dangerousMode(actor, rollMode), attacker, shiftKey, offers,
-			...(seed ? { seed } : {}),
+		// Worked out AFTER the window, because a tag a ticked line just bought owes its notice too.
+		const notices = tagNoticesHtml(withAddedTags(striker ? weapon : muscleboundWeapon(actor, weapon), damage.addTags));
+		const { base, addTags, ...adjust } = damage;
+		await rollDamage(base, actor, {
+			label, keywords, description, ...adjust,
 			...(notices ? { notices } : {}),
 		});
+		return true;
 	}
 
 	// What the people being hit bring, worked out ONCE and handed on: it settles the roll mode AND fills
@@ -1348,12 +1369,7 @@ async function rollAndPostDamage(actor, { move, weapon, targets, damage, ignores
 	// thrown attack forceful and messy, and a ticked line can add a tag of its own (Anger is a Gift's
 	// "strike hard (+1d4 damage, forceful)"). Not a follower's blow, and not a stat block's.
 	if (own && !selfHarm) {
-		weapon = muscleboundWeapon(actor, weapon);
-		const added = Array.isArray(damage?.addTags) ? damage.addTags : [];
-		if (added.length) {
-			const base = weapon ?? unarmedWeapon();
-			weapon = { ...base, tags: [...new Set([...(base.tags ?? []), ...added])] };
-		}
+		weapon = withAddedTags(muscleboundWeapon(actor, weapon), damage?.addTags);
 	}
 
 	// The window's answer, folded in once for every branch below. The single-target branch hands
@@ -2349,6 +2365,11 @@ export function wireConditionalArmor(message, html, gateFor = applyGateOnce(mess
 	if (!damage?.results?.length || !actions) return;
 
 	const off = armorLeftOff(damage);
+	// WHOSE ARMOR THE ROW IS TAKEN AGAINST, read the same way applyOwedDamage reads it: a Defend that
+	// put someone in the ward's place moves the whole armor calculation onto the STAND-IN. Drawn from
+	// the ward instead, the box asked about skin the subtraction never touched — so unticking it was a
+	// silent no-op, and a stand-in who really was Barkskin'd got no box at all.
+	const { standIns } = spentOn(damage);
 	const done = new Set((damage.applied ?? []).map(a => a.uuid));
 	const gate = gateFor(damage);
 	// Loop-invariant, so it is asked before the rows rather than once per row: a hidden gate draws
@@ -2358,7 +2379,8 @@ export function wireConditionalArmor(message, html, gateFor = applyGateOnce(mess
 
 	for (const row of damage.results) {
 		if (!row.uuid || done.has(row.uuid)) continue;
-		const target = damageRowActor(resolveSync(row.uuid));
+		const standIn = standIns.get(row.uuid);
+		const target = damageRowActor(resolveSync(standIn?.by ?? row.uuid));
 		const gated = target ? conditionalArmorOf(target) : null;
 		// No key means a `conditionalSource` this build does not know (a world written by a later one),
 		// which has no words to offer the armor back with (actors/character/move-armor.js#armorGateKey).
@@ -2372,8 +2394,12 @@ export function wireConditionalArmor(message, html, gateFor = applyGateOnce(mess
 		box.className = "stonetop-check";
 		box.checked = !off.has(row.uuid);
 		const words = format(`stonetop.fight.heroMoves.armorGate.${gateKey}`, { armor: gated.armor });
+		// Named whenever the box is not plainly about the one person the card is about — which a
+		// stand-in's box never is, even on a card with a single row. The same words applyOwedDamage
+		// labels that row with, so the question and the arithmetic name the same character.
+		const whose = standIn ? format("stonetop.fight.defend.rowFor", { defender: target.name, ward: row.name }) : row.name;
 		label.append(box, Object.assign(document.createElement("span"), {
-			textContent: several ? `${row.name}: ${words}` : words,
+			textContent: several || standIn ? `${whose}: ${words}` : words,
 		}));
 		actions.append(label);
 
@@ -2615,9 +2641,13 @@ async function postIncomingDamage(pc, attack, { foeName = "", seed = null } = {}
 	const pcToken = pcEngagement(pc)?.combatant?.token ?? null;
 	// Locked eyes (Big Damn Hero) and the moves the character's own skin carries (Never Gonna Keep Me
 	// Down, Uncanny Reflexes, Battlefield Grace) both reach a counter-attack, which is a blow like any other.
-	const rollMode = pcToken
-		? await incomingMode(foe ?? pc, [{ uuid: pcToken.uuid }], attack?.rollMode ?? "normal", { includeOffered: true })
-		: (attack?.rollMode ?? "normal");
+	// THE CHARACTER'S OWN SKIN COMES WITH THEM. Never Gonna Keep Me Down is about standing at 5 HP or
+	// less, not about being in a fight the tab has worked out — so gating this on the engagement meant a
+	// counter-attack on a scene with no fight, or with the Fight tab off entirely, skipped the move and
+	// the blow landed whole. The token when there is one, because locked eyes is keyed by token uuid;
+	// the actor otherwise, which defenderModes resolves just as well and which no locked eyes can match.
+	const rollMode = await incomingMode(foe ?? pc, [pcToken ? { uuid: pcToken.uuid } : selfTarget(pc)],
+		attack?.rollMode ?? "normal", { includeOffered: true });
 	return rollAndPostDamage(pc, {
 		// What the card's title and its follow-up both compose from: "Rime Lord's attack: damage",
 		// then "…: damage applied". The ATTACK's own name goes in the weapon slot below, where it

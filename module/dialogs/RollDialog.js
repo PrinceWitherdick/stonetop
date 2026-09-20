@@ -3,7 +3,7 @@ import { format, localize } from "../utils/i18n.js";
 import { escHtml } from "../utils/strings.js";
 import { composeDamageFormula, normalizeDamageBonusDice, extraTerm, seedBonus, settleBestDie } from "../utils/damage.js";
 import { damageRollFormula, rollDamage } from "../utils/roll-engine.js";
-import { stepMode } from "../utils/roll-mode.js";
+import { foldModes } from "../utils/roll-mode.js";
 import { getAskRollModeEachRollSetting, getPromptRollModifierSetting, getPromptDamageModifierSetting } from "../settings.js";
 
 // Advantage / Normal / Disadvantage, worst to best left to right, so the strip reads as a scale
@@ -370,7 +370,10 @@ export function promptDamage({
 	const extras = (Array.isArray(offers) ? offers : []).filter(offer => offer?.key && (extraTerm(offer) || offer.mode));
 	// A ticked mode line moves the picker rather than fighting it, so the window has ONE answer to "how
 	// is this rolled" and the box says where it came from.
-	const modeWith = ticked => ticked.reduce((mode, offer) => stepMode(mode, offer.mode), start);
+	// FOLDED, not stepped one at a time: two ticked lines that both blunt the blow are two voices
+	// saying the same "dis", and neither side stacks with itself — against a sharpened blow they
+	// cancel with it once and the roll is straight (utils/roll-mode.js#foldModes).
+	const modeWith = ticked => foldModes(ticked.map(offer => offer.mode), start);
 	// What the roll is with nothing touched: the answer when no window is asked, and the window's first preview.
 	const onByDefault = extras.filter(o => o.applied !== false);
 	const untouched = withSeed(withOffers({ ...unpromptedDamage(start), rollMode: modeWith(onByDefault.filter(o => o.mode)) }, onByDefault), seeded);
@@ -525,10 +528,16 @@ export function promptDamage({
  * @param {string} [opts.attacker] who is swinging, for the window's header, when that is not the
  *   actor itself: a follower rolling off its PC's sheet. Defaults to the actor's name.
  * @param {boolean} [opts.shiftKey] skip the window
+ *
+ * NO `offers`. A move's line is not just dice: it is PAID FOR when it is ticked and it may put a tag
+ * on the blow, and neither of those is this function's to do — so taking them here made a no-target
+ * Anger is a Gift free and tagless. A caller with lines to offer wants combat/attack-flow.js's
+ * askDamageAdjustment, which asks and settles up, and posts the card itself.
+ *
  * @returns {Promise<boolean>} whether damage was actually rolled
  */
-export async function rollDamagePrompted(formula, actor, { label, keywords, description, notices, rollMode, attacker, seed, offers = [], shiftKey = false } = {}) {
-	const adjust = await promptDamage({ attacker: attacker || actor?.name, formula, ...(rollMode ? { rollMode } : {}), seed, offers, shiftKey });
+export async function rollDamagePrompted(formula, actor, { label, keywords, description, notices, rollMode, attacker, seed, shiftKey = false } = {}) {
+	const adjust = await promptDamage({ attacker: attacker || actor?.name, formula, ...(rollMode ? { rollMode } : {}), seed, shiftKey });
 	if (!adjust) return false;
 	await rollDamage(formula, actor, { label, keywords, description, notices, ...adjust });
 	return true;

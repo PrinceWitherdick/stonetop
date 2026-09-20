@@ -33,3 +33,28 @@ export const betterMode = mode => stepMode(mode, "adv");
 
 /** One step worse: what a move that blunts a blow does to it. */
 export const worseMode = mode => stepMode(mode, "dis");
+
+/**
+ * EVERY mode in play at once, folded into the one the roll is actually made at.
+ *
+ * stepMode is the PAIRWISE rule and cannot answer this on its own. Folding a list through it one
+ * at a time loses the difference between a straight roll nobody has spoken about and a straight
+ * roll REACHED BY CANCELLING, so the next "dis" lands on the latter as though it were the former
+ * and pushes the blow past straight: locked eyes plus a Never Gonna Keep Me Down against an
+ * advantaged blow rolled at disadvantage, when the rule the caller quotes says they cancel.
+ *
+ * Neither side stacks with itself, so this is a question about which sides SPOKE, not how loudly.
+ *
+ * @param {Iterable<string>} modes  what every source says; empty and "normal" entries say nothing
+ * @param {string} [base]  the roll's own mode, counted as a source and returned when none change it
+ * @returns {string} the mode to roll at
+ */
+export function foldModes(modes, base = "") {
+	const all = [base, ...(modes ?? [])];
+	const adv = all.some(m => m === "adv");
+	const dis = all.some(m => m === "dis");
+	if (adv && dis) return "normal";
+	if (adv) return "adv";
+	if (dis) return "dis";
+	return base;
+}

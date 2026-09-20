@@ -296,8 +296,11 @@ describe("the pre-roll damage window", () => {
 		const from = ATTACK_FLOW_JS.indexOf("export async function rollDamageAt");
 		const body = ATTACK_FLOW_JS.slice(from, ATTACK_FLOW_JS.indexOf("\n}\n", from));
 		expect(body).toContain("const attacker = striker?.name");
-		expect(body).toMatch(/rollDamagePrompted\(formula, actor, \{[^}]*\battacker,/);
-		expect(body).toMatch(/askDamageAdjustment\(actor, \{[^}]*\battacker,/);
+		// BOTH windows, which are now the same window: the no-target branch asks
+		// askDamageAdjustment too, so a ticked line is paid for and can tag the blow.
+		const windows = body.match(/askDamageAdjustment\(actor, \{[\s\S]*?\n\t*\}\);/g) ?? [];
+		expect(windows).toHaveLength(2);
+		for (const call of windows) expect(call).toMatch(/\battacker,/);
 		expect(body).toContain("roller: attacker");
 	});
 });
@@ -356,15 +359,17 @@ describe("the damage window's reach", () => {
 		});
 	}
 
-	// Both of its branches ask: the plain card through the helper, the targeted card through the attack
-	// flow's own window, and a dismissed window rolls nothing either way.
+	// Both of its branches ask, through the SAME window: the plain card and the targeted one alike.
+	// The plain card used to go through rollDamagePrompted, which asks and rolls but never pays for
+	// what was ticked - so a no-target Anger is a Gift rolled its +1d4 free and lost its forceful.
+	// A dismissed window rolls nothing on either branch.
 	it("asks on both branches of a damage roll aimed at whoever the roller is fighting", () => {
 		const at = ATTACK_FLOW_JS.indexOf("export async function rollDamageAt");
 		expect(at, "rollDamageAt is gone").toBeGreaterThan(-1);
 		const body = ATTACK_FLOW_JS.slice(at, ATTACK_FLOW_JS.indexOf("\n}\n", at));
-		expect(body).toContain("return rollDamagePrompted(");
-		expect(body).toContain("await askDamageAdjustment(");
-		expect(body).toContain("if (!damage) return false;");
+		expect(body).not.toContain("rollDamagePrompted(");
+		expect(body.match(/await askDamageAdjustment\(/g) ?? []).toHaveLength(2);
+		expect(body.match(/if \(!damage\) return false;/g) ?? []).toHaveLength(2);
 		expect(body.indexOf("if (!damage) return false;")).toBeLessThan(body.indexOf("rollAndPostDamage("));
 	});
 

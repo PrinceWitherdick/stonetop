@@ -3,13 +3,14 @@ import { SCOPE, installCombatChatFakes, uninstallCombatChatFakes, cardWithFlag, 
 import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection } from "../fakes/fight.js";
 import { attackWeapon, parseMonsterAttacks } from "../../module/utils/damage.js";
 
-// The plain card is RollDialog's business and has its own tests; here it only matters that it is what
-// a roll with nobody to hit falls back to.
-vi.mock("../../module/dialogs/RollDialog.js", async importOriginal => ({
+// The plain card is roll-engine's business and has its own tests; here it only matters that it is
+// what a roll with nobody to hit falls back to, and what it was handed. The WINDOW in front of it is
+// the real one: every case below passes `shiftKey`, which it answers without opening anything.
+vi.mock("../../module/utils/roll-engine.js", async importOriginal => ({
 	...(await importOriginal()),
-	rollDamagePrompted: vi.fn(async () => true),
+	rollDamage: vi.fn(async () => ({ total: 0 })),
 }));
-const { rollDamagePrompted } = await import("../../module/dialogs/RollDialog.js");
+const { rollDamage: plainCard } = await import("../../module/utils/roll-engine.js");
 vi.mock("../../module/combat/readiness-loss.js", () => ({ settleReadinessOnAttack: vi.fn(async () => false) }));
 const { settleReadinessOnAttack } = await import("../../module/combat/readiness-loss.js");
 const { rollDamageAt, maybeBeginAttack, wireApplyDamage, withSeedTags, rollCharacterDamageAt, strikeBackAt, rollFollowerDamageAt, wireAttackConfirm, rollMoveDamageAt, wireConditionalArmor } = await import("../../module/combat/attack-flow.js");
@@ -70,7 +71,7 @@ beforeEach(() => {
 	saved = { canvas: globalThis.canvas, fromUuidSync: globalThis.fromUuidSync, document: globalThis.document, applications: globalThis.foundry?.applications };
 	globalThis.CONST = { ...globalThis.CONST, GRID_TYPES: { GRIDLESS: 0, SQUARE: 1 } };
 	globalThis.ui.notifications.info = vi.fn();
-	vi.mocked(rollDamagePrompted).mockClear();
+	vi.mocked(plainCard).mockClear();
 });
 afterEach(() => {
 	uninstallCombatChatFakes();
@@ -213,6 +214,63 @@ describe("Apply damage and the fight's rules", () => {
 		expect(message.getFlag(SCOPE, "damage").armorOff).toEqual([tokens.aerin.uuid]);
 	});
 
+	// ⚠ THE BOX BELONGS TO WHOEVER THE ARITHMETIC IS ABOUT. A Defend that puts someone in the ward's
+	// place moves the whole armor calculation onto the STAND-IN (applyOwedDamage), so a box drawn from
+	// the ward asked about skin the subtraction never touched: unticking it did nothing at all, and a
+	// stand-in who really was Barkskin'd was offered no box to untick.
+	it("draws the box for the defender standing in, not the ward whose row it is", async () => {
+		const pim = hero("pim", "Pim");
+		const aerin = hero("aerin", "Aerin");
+		aerin.system.attributes.armor = { value: 2, unpierceable: 0, conditional: 2, conditionalSource: "Barkskin" };
+		const { tokens } = fightInARow([["pim", pim], ["aerin", aerin]]);
+		// A stand-in is named by ACTOR uuid, which the row-token map fightInARow installs does not hold.
+		const byToken = globalThis.fromUuidSync;
+		globalThis.fromUuidSync = uuid => (uuid === aerin.uuid ? aerin : byToken(uuid));
+		const made = [];
+		const element = tag => { const el = { tagName: tag, className: "", type: "", checked: false, disabled: false, title: "", textContent: "", kids: [], append(...k) { this.kids.push(...k); }, addEventListener(_t, fn) { this.fire = fn; } }; made.push(el); return el; };
+		globalThis.document = { createElement: element };
+		const actions = element("div");
+		const root = { querySelector: sel => (sel === ".stonetop-attack-actions" ? actions : null) };
+		const message = makeMessage({ damage: {
+			move: "Bite",
+			results: [{ uuid: tokens.pim.uuid, name: "Pim", raw: 6 }],
+			applied: [],
+			standIns: [{ uuid: tokens.pim.uuid, by: aerin.uuid, name: "Aerin" }],
+		} });
+		message.canUserModify = () => true;
+
+		wireConditionalArmor(message, root);
+
+		const label = actions.kids[0];
+		expect(label).toBeTruthy();
+		expect(label.kids[0].checked).toBe(true);
+		// And it says whose skin it is asking about, on a card with one row as on a card with several.
+		expect(label.kids[1].textContent).toContain("Aerin");
+		expect(label.kids[1].textContent).toContain("Barkskin");
+	});
+
+	it("draws no box when the ward has the gated armor but the defender standing in does not", async () => {
+		const aerin = hero("aerin", "Aerin");
+		aerin.system.attributes.armor = { value: 2, unpierceable: 0, conditional: 2, conditionalSource: "Barkskin" };
+		const pim = hero("pim", "Pim");
+		const { tokens } = fightInARow([["aerin", aerin], ["pim", pim]]);
+		const byToken = globalThis.fromUuidSync;
+		globalThis.fromUuidSync = uuid => (uuid === pim.uuid ? pim : byToken(uuid));
+		const actions = { kids: [], append(...k) { this.kids.push(...k); } };
+		const root = { querySelector: sel => (sel === ".stonetop-attack-actions" ? actions : null) };
+		const message = makeMessage({ damage: {
+			move: "Bite",
+			results: [{ uuid: tokens.aerin.uuid, name: "Aerin", raw: 6 }],
+			applied: [],
+			standIns: [{ uuid: tokens.aerin.uuid, by: pim.uuid, name: "Pim" }],
+		} });
+		message.canUserModify = () => true;
+
+		wireConditionalArmor(message, root);
+
+		expect(actions.kids).toEqual([]);
+	});
+
 	it("draws no such box for a character whose armor is all their own gear", async () => {
 		const pim = hero("pim", "Pim");
 		const { tokens } = fightInARow([["pim", pim]]);
@@ -347,7 +405,7 @@ describe("a character's own damage, with the weapon in hand", () => {
 		const pim = armed("battleaxe");
 		globalThis.game.combats = collection([]);
 		expect(await rollCharacterDamageAt(pim, { label: "Damage", shiftKey: true })).toBe(true);
-		const [formula, , options] = vi.mocked(rollDamagePrompted).mock.calls[0];
+		const [formula, , options] = vi.mocked(plainCard).mock.calls[0];
 		expect(formula).toBe("d8");
 		expect(options.label).toBe("Damage: Battleaxe");
 		expect(options.notices).toContain("Messy.");
@@ -426,7 +484,7 @@ describe("Dangerous (the Heavy): \"When you deal your damage, you have advantage
 		const bram = heavy();
 		globalThis.game.combats = collection([]);
 		await rollCharacterDamageAt(bram, { label: "Damage", shiftKey: true });
-		expect(vi.mocked(rollDamagePrompted).mock.calls[0][2].rollMode).toBe("adv");
+		expect(vi.mocked(plainCard).mock.calls[0][2].rollMode).toBe("adv");
 	});
 });
 
@@ -468,7 +526,7 @@ describe("a character's own moves on the blow they deal", () => {
 		// Nothing in hand is a hand blow either way: the record the card carries must not unmake it.
 		globalThis.game.combats = collection([]);
 		await rollCharacterDamageAt(fists(), { label: "Damage", shiftKey: true });
-		expect(vi.mocked(rollDamagePrompted).mock.calls.at(-1)[2].notices).toContain("Forceful.");
+		expect(vi.mocked(plainCard).mock.calls.at(-1)[2].notices).toContain("Forceful.");
 	});
 
 	it("leaves a follower's blow from the same sheet untouched by the character's moves", async () => {
@@ -542,7 +600,7 @@ describe("a stat block's damage, aimed by the fight", () => {
 		expect(content).toContain("Bite: damage");
 		expect(content).toContain("piercing");
 		expect(content).toContain("Apply damage");
-		expect(rollDamagePrompted).not.toHaveBeenCalled();
+		expect(plainCard).not.toHaveBeenCalled();
 
 		await apply(flag);
 		// 9, less Pim's 2 armor pierced by 1.
@@ -584,9 +642,9 @@ describe("a stat block's damage, aimed by the fight", () => {
 		const loner = crinwin("loner");
 		globalThis.game.combats = collection([]);
 		expect(await rollDamageAt(loner, { formula: "d6", label: "Bite", keywords: "close", rollMode: "dis", shiftKey: true })).toBe(true);
-		expect(rollDamagePrompted).toHaveBeenCalledWith("d6", loner, {
-			label: "Bite", keywords: "close", description: "", rollMode: "dis", attacker: "", shiftKey: true, offers: [],
-		});
+		expect(plainCard).toHaveBeenCalledWith("d6", loner, expect.objectContaining({
+			label: "Bite", keywords: "close", description: "", rollMode: "dis",
+		}));
 		expect(damageFlag()).toBeUndefined();
 	});
 });
@@ -599,7 +657,7 @@ describe("damage at several", () => {
 		expect(await rollDamageAt(pim, { formula: "d8", label: "Damage", shiftKey: true })).toBe(false);
 		expect(wait).toHaveBeenCalledTimes(1);
 		expect(posted).toEqual([]);
-		expect(rollDamagePrompted).not.toHaveBeenCalled();
+		expect(plainCard).not.toHaveBeenCalled();
 	});
 
 	it("rolls separately against each one ticked, and says why on the card", async () => {
@@ -824,9 +882,11 @@ describe("a follower's damage from their card", () => {
 		const pim = hero("pim", "Pim");
 		globalThis.game.combats = collection([]);
 		expect(await rollFollowerDamageAt(pim, crewBlow({ keywords: "messy" }))).toBe(true);
-		expect(rollDamagePrompted).toHaveBeenCalledWith("d6", pim, {
-			label: "Pim's crew attacks", keywords: "messy", description: "", rollMode: "", attacker: "Pim's crew", shiftKey: true, offers: [],
-		});
+		expect(plainCard).toHaveBeenCalledWith("d6", pim, expect.objectContaining({
+			// "normal", not the empty string handed in: an unspoken mode is a straight roll, and the
+			// window settles that before the card is posted (dialogs/RollDialog.js#promptDamage).
+			label: "Pim's crew attacks", keywords: "messy", description: "", rollMode: "normal",
+		}));
 		expect(damageFlag()).toBeUndefined();
 	});
 

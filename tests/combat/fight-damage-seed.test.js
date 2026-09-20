@@ -115,6 +115,34 @@ describe("a counter-attack from several foes at once", () => {
 		expect(flag).not.toHaveProperty("seed");
 		expect(damageCard().content).not.toContain("Leave off");
 	});
+
+	// ⚠ BUT THE CHARACTER'S OWN SKIN IS NOT THE FIGHT TAB'S TO SWITCH OFF. Never Gonna Keep Me Down
+	// is about standing at 5 HP or less, not about being in a fight the tab has worked out. Gated on
+	// the engagement, a counter-attack with the tab off - or on a map with no fight at all - skipped
+	// the move entirely and the blow landed whole.
+	it("still rolls a counter-attack at disadvantage for the hero's own moves with the tab off", async () => {
+		fightTabOn = false;
+		const pim = makePim();
+		pim.items = [{ type: "move", name: "Never Gonna Keep Me Down" }];
+		pim.system.attributes.hp.value = 5;
+		const { foeTokens } = fightAround(pim, [biter("crinwin", "Crinwin")]);
+
+		await sufferEnemyAttack(pim, { targets: [{ uuid: foeTokens[0].uuid, name: "Crinwin" }] });
+
+		expect(damageCard().flags[SCOPE].damage.results[0].formula).toBe("2d6kl1");
+	});
+
+	// And it is the MOVE doing it, not the tab's absence: above 5 HP the same blow is straight.
+	it("leaves that same counter-attack straight once the hero is above 5 HP", async () => {
+		fightTabOn = false;
+		const pim = makePim();
+		pim.items = [{ type: "move", name: "Never Gonna Keep Me Down" }];
+		const { foeTokens } = fightAround(pim, [biter("crinwin", "Crinwin")]);
+
+		await sufferEnemyAttack(pim, { targets: [{ uuid: foeTokens[0].uuid, name: "Crinwin" }] });
+
+		expect(damageCard().flags[SCOPE].damage.results[0].formula).toBe("d6");
+	});
 });
 
 /** A rendered damage card: its rows, its pill and its two buttons, as the wiring reads them. */
@@ -154,11 +182,17 @@ describe("an attack's own damage windows", () => {
 		const calls = src.match(/await askDamageAdjustment\([\s\S]*?\);/g) ?? [];
 		// Defend's strike back from a parry (strikeBackAt) is one attacker's blow at the one who struck, and
 		// takes no pile-on. Neither does a follower off the map (rollDamageAt's `striker`, which turns
-		// `seeded` off): the fight counts the bodies on the map, and they are not one. Every other window is
-		// offered it.
-		const aimed = calls.filter(call => !call.includes('rollMode: "dis", seed: null'));
-		expect(calls).toHaveLength(4);
+		// `seeded` off): the fight counts the bodies on the map, and they are not one.
+		const strikeBack = calls.filter(call => call.includes('rollMode: "dis", seed: null'));
+		// And the window with NOBODY TO HIT takes the roller's own sheet seed instead, because the
+		// pile-on is a +N against ONE target and this blow has none (rollDamageAt's no-target branch,
+		// which asks this window so a ticked line is paid for and can tag the blow).
+		const unaimed = calls.filter(call => call.includes("sheetSeed({ actor })"));
+		const aimed = calls.filter(call => !strikeBack.includes(call) && !unaimed.includes(call));
+		expect(calls).toHaveLength(5);
 		expect(src).toContain("seeded = seeded && !striker;");
+		expect(strikeBack).toHaveLength(1);
+		expect(unaimed).toHaveLength(1);
 		expect(aimed).toHaveLength(3);
 		for (const call of aimed) expect(call).toContain("seedForTargets(actor, targets)");
 	});

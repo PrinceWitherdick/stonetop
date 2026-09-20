@@ -12,12 +12,20 @@ vi.mock("../../../module/actors/steading/PeopleGalleryDialog.js", () => ({
 	openPeoplePortraitPicker: gallery.open,
 }));
 
-// The damage window and the roll behind it, stood in for so a click on a damage line can be read
-// off the arguments it rolled with. Everything else in the module is the real one.
-const rollDialog = vi.hoisted(() => ({ rollDamagePrompted: vi.fn() }));
+// The damage window and the card behind it, stood in for so a click on a damage line can be read off
+// the arguments it asked and rolled with. They are two modules: the window is asked by
+// combat/attack-flow.js (so a ticked line is paid for) and the card posted by utils/roll-engine.js.
+// Everything else in both is the real one.
+const rollDialog = vi.hoisted(() => ({ promptDamage: vi.fn(async () => ({ rollMode: "normal", bonus: 0, extraDice: "" })) }));
 vi.mock("../../../module/dialogs/RollDialog.js", async importOriginal => ({
 	...(await importOriginal()),
-	rollDamagePrompted: rollDialog.rollDamagePrompted,
+	promptDamage: rollDialog.promptDamage,
+}));
+
+const rollEngine = vi.hoisted(() => ({ rollDamage: vi.fn(async () => ({ total: 0 })) }));
+vi.mock("../../../module/utils/roll-engine.js", async importOriginal => ({
+	...(await importOriginal()),
+	rollDamage: rollEngine.rollDamage,
 }));
 
 function makeItems(items) {
@@ -519,14 +527,19 @@ describe("StonetopMonsterSheet", () => {
 			dataset: { rollFormula: garrote.formula, rollLabel: garrote.title, rollKeywords: garrote.keywords, rollMode: garrote.rollMode },
 		};
 		const target = { closest: selector => selector === ".stonetop-monster-damage-roll" ? rollButton : null };
-		rollDialog.rollDamagePrompted.mockClear();
+		rollDialog.promptDamage.mockClear();
+		rollEngine.rollDamage.mockClear();
 		await handlers[0]({ target, shiftKey: false });
 
 		// Nobody to hit (no fight, nothing targeted), so the plain card, through the targeted roll's own
-		// fallback (combat/attack-flow.js#rollDamageAt).
-		expect(rollDialog.rollDamagePrompted).toHaveBeenCalledWith("d8", actor, {
-			label: "Garrote", keywords: "hand, grabby, ignores armor", description: "", rollMode: "normal", attacker: "", shiftKey: false, offers: [],
-		});
+		// fallback (combat/attack-flow.js#rollDamageAt) - which still asks the window, so a ticked line
+		// is paid for before anything is rolled.
+		expect(rollDialog.promptDamage).toHaveBeenCalledWith(expect.objectContaining({
+			formula: "d8", rollMode: "normal", shiftKey: false, offers: [],
+		}));
+		expect(rollEngine.rollDamage).toHaveBeenCalledWith("d8", actor, expect.objectContaining({
+			label: "Garrote", keywords: "hand, grabby, ignores armor", description: "", rollMode: "normal",
+		}));
 	});
 
 	it("enriches the qualities rich-text field for display", async () => {
