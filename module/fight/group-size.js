@@ -86,9 +86,11 @@ export function groupSizeQuestions(picks = [], infoFor = () => null) {
  * @param {Array<{x: number, y: number, w: number, h: number}>} [p.others]  every token already there
  * @param {{x: number, y: number, w: number, h: number}|null} [p.sceneRect]
  * @param {number} [p.reach]  how many rings out to look
+ * @param {((at: {x: number, y: number, w: number, h: number}) => boolean)|null} [p.prefer]  spots it answers
+ *   true for are taken first, from any ring (a split group keeps its members on the foe it was fighting)
  * @returns {Array<{x: number, y: number}>}  top-left corners; fewer than `count` when the rings are full
  */
-export function spotsAround({ anchor, count, footprint = null, size = 100, others = [], sceneRect = null, reach = 6 }) {
+export function spotsAround({ anchor, count, footprint = null, size = 100, others = [], sceneRect = null, reach = 6, prefer = null }) {
 	const spots = [];
 	if (!anchor || !(count > 0)) return spots;
 	const grid = Number(size) > 0 ? Number(size) : 100;
@@ -99,23 +101,23 @@ export function spotsAround({ anchor, count, footprint = null, size = 100, other
 	const cy = anchor.y + anchor.h / 2;
 	const stepX = Math.max(1, Math.round(w / grid)) * grid;
 	const stepY = Math.max(1, Math.round(h / grid)) * grid;
-	for (let ring = 1; ring <= reach && spots.length < count; ring += 1) {
-		const candidates = [];
+	const candidates = [];
+	for (let ring = 1; ring <= reach; ring += 1) {
 		for (let row = -ring; row <= ring; row += 1) {
 			for (let col = -ring; col <= ring; col += 1) {
 				if (Math.max(Math.abs(row), Math.abs(col)) !== ring) continue;
 				const at = { x: anchor.x + col * stepX, y: anchor.y + row * stepY, w, h };
-				candidates.push({ at, distance: Math.hypot(at.x + w / 2 - cx, at.y + h / 2 - cy), order: candidates.length });
+				candidates.push({ at, ring, preferred: prefer?.(at) ? 1 : 0, distance: Math.hypot(at.x + w / 2 - cx, at.y + h / 2 - cy), order: candidates.length });
 			}
 		}
-		candidates.sort((a, b) => (a.distance - b.distance) || (a.order - b.order));
-		for (const { at } of candidates) {
-			if (spots.length >= count) break;
-			if (!insideRect(at, sceneRect)) continue;
-			if (taken.some(other => overlapShare(at, other) > 0)) continue;
-			taken.push(at);
-			spots.push({ x: at.x, y: at.y });
-		}
+	}
+	candidates.sort((a, b) => (b.preferred - a.preferred) || (a.ring - b.ring) || (a.distance - b.distance) || (a.order - b.order));
+	for (const { at } of candidates) {
+		if (spots.length >= count) break;
+		if (!insideRect(at, sceneRect)) continue;
+		if (taken.some(other => overlapShare(at, other) > 0)) continue;
+		taken.push(at);
+		spots.push({ x: at.x, y: at.y });
 	}
 	return spots;
 }

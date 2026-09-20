@@ -72,6 +72,27 @@ describe("spotsAround", () => {
 		expect(new Set(all).size).toBe(all.length);
 	});
 
+	it("takes the spots `prefer` picks first, from any ring (a split horde stays on the hero it was fighting)", () => {
+		// Live: a merged horde beside Bram split, and one member landed two squares from him, out of the fight.
+		const hero = sq(4, 5);
+		const others = [hero, sq(5, 4)];
+		const touchesHero = at => Math.max(Math.abs(at.x - hero.x), Math.abs(at.y - hero.y)) <= GRID;
+		const preferred = spotsAround({ anchor: sq(5, 5), count: 5, size: GRID, others, prefer: touchesHero });
+		expect(preferred).toHaveLength(5);
+		expect(preferred.every(touchesHero)).toBe(true);
+		const plain = spotsAround({ anchor: sq(5, 5), count: 5, size: GRID, others });
+		expect(plain.every(touchesHero)).toBe(false);
+	});
+
+	it("falls back to the nearest spots when the preferred ones run out", () => {
+		const hero = sq(4, 5);
+		const touchesHero = at => Math.max(Math.abs(at.x - hero.x), Math.abs(at.y - hero.y)) <= GRID;
+		const spots = spotsAround({ anchor: sq(5, 5), count: 8, size: GRID, others: [hero], prefer: touchesHero });
+		expect(spots).toHaveLength(8);
+		expect(spots.slice(0, 7).every(touchesHero)).toBe(true);
+		expect(Math.max(Math.abs(spots[7].x - 500), Math.abs(spots[7].y - 500))).toBe(GRID);
+	});
+
 	it("keeps inside the scene, and gives back fewer when there is no more room", () => {
 		const spots = spotsAround({ anchor: sq(0, 0), count: 20, size: GRID, sceneRect: { x: 0, y: 0, w: 2 * GRID, h: 2 * GRID } });
 		expect(spots).toEqual([{ x: 100, y: 0 }, { x: 0, y: 100 }, { x: 100, y: 100 }]);

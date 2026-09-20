@@ -25,7 +25,8 @@
 import { SYSTEM_ID } from "../system-id.js";
 import { format } from "../utils/i18n.js";
 import { placeActors } from "../utils/token-drop.js";
-import { combatantBodies, combatantSide, tokenRect, tokenLevel, sceneRectOf, SIDE_FLAG } from "./fight-state.js";
+import { combatantBodies, combatantSide, tokenRect, tokenLevel, sceneRectOf, gridOf, SIDE_FLAG } from "./fight-state.js";
+import { touching } from "./engagements.js";
 import { fightsAsGroup } from "./fight-sides.js";
 import { numberedNames, spotsAround } from "./group-size.js";
 import { GROUP_WOUND_FLAG, GROUP_SIZE_FLAG, groupWound } from "./group-hits.js";
@@ -136,7 +137,13 @@ export async function splitGroup(combat, combatant, { scene = globalThis.canvas?
 	if (wound && "system.attributes.hp.value" in hp) hp["system.attributes.hp.value"] = Math.max(1, hp["system.attributes.hp.value"] - wound);
 	await actor.update({ "system.fightAsGroup": false, ...hp, [`flags.${SYSTEM_ID}.${GROUP_WOUND_FLAG}`]: 0 });
 
-	const more = await gatherAround(globalThis.canvas, scene, token, standing - 1);
+	// The members stay on whoever the group was fighting where there is room, so a split changes the scale
+	// and not the fight: gathered round the group token alone, one crinwin of five ended up out of reach.
+	const level = tokenLevel(token);
+	const grid = gridOf(scene);
+	const foes = meleeFoes(combat, combatant, token, grid);
+	const prefer = foes.length ? at => foes.some(rect => touching({ rect: at, level }, { rect, level }, grid)) : null;
+	const more = await gatherAround(globalThis.canvas, scene, token, standing - 1, { prefer });
 	// A world actor switched to fight as a group hands that to every token made from it.
 	await Promise.all(more.tokens.filter(extra => extra.actor?.system?.fightAsGroup)
 		.map(extra => extra.actor.update({ "system.fightAsGroup": false })));
@@ -170,12 +177,26 @@ export async function settleNewcomers(scene, actor, tokens, extra = {}) {
 	if (updates.length) await scene.updateEmbeddedDocuments("Token", updates);
 }
 
+/** The footprints of the other side's fighters in melee with a combatant's token (engagements.js#touching). */
+function meleeFoes(combat, combatant, token, grid) {
+	const side = combatantSide(combatant);
+	const level = tokenLevel(token);
+	const mine = { rect: tokenRect(token), level };
+	return [...(combat?.combatants ?? [])]
+		.filter(other => other.id !== combatant.id && other.token && other.token.parent?.id === token.parent?.id)
+		.filter(other => { const theirs = combatantSide(other); return theirs && theirs !== side; })
+		.map(other => ({ rect: tokenRect(other.token), level: tokenLevel(other.token) }))
+		.filter(other => touching(mine, other, grid))
+		.map(other => other.rect);
+}
+
 /**
- * Put `count` more of a token's monster on the map around it, hidden when it is.
+ * Put `count` more of a token's monster on the map around it, hidden when it is. `prefer` picks the spots
+ * taken first (group-size.js#spotsAround).
  *
  * @returns {Promise<{tokens: object[], missed: string[]}>}
  */
-export async function gatherAround(canvas, scene, token, count) {
+export async function gatherAround(canvas, scene, token, count, { prefer = null } = {}) {
 	const actor = globalThis.game?.actors?.get?.(token.actorId) ?? token.baseActor ?? null;
 	const name = actor?.name ?? token.name ?? "";
 	if (!(count > 0)) return { tokens: [], missed: [] };
@@ -186,7 +207,7 @@ export async function gatherAround(canvas, scene, token, count) {
 	const others = [...(scene.tokens ?? [])]
 		.filter(t => t.id !== token.id && tokenLevel(t) === level)
 		.map(tokenRect);
-	const spots = spotsAround({ anchor, count, size, others, sceneRect: sceneRectOf(canvas) });
+	const spots = spotsAround({ anchor, count, size, others, sceneRect: sceneRectOf(canvas), prefer });
 	const drop = await placeActors(canvas, spots.map(() => actor), i => ({ x: spots[i].x + anchor.w / 2, y: spots[i].y + anchor.h / 2 }));
 	const tokens = drop.dropped.map(d => d.token).filter(t => t?.documentName === "Token");
 	await settleNewcomers(scene, actor, tokens, token.hidden ? { hidden: true } : {});
