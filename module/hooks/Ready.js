@@ -65,6 +65,7 @@ import { PERSON_DEFAULT_IMG } from "../utils/person-portrait.js";
 import { NEW_SHOOT_MARKER, LEGACY_SHOOT_MARKERS } from "../data/follower-actor.js";
 import { isDefaultImg } from "../utils/strings.js";
 import { updatePlacedTokens } from "../utils/placed-tokens.js";
+import { grandfatherWeaponsOfWar } from "../migration/weapons-of-war-grandfather.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
 const _EOS_MACRO_IMG    = "systems/stonetop-pwd/assets/icons/macros/truce.svg";
@@ -209,6 +210,13 @@ export async function onReady() {
 		// made at all now, so this is legacy repair and has a last world to run in.
 		try { await oncePerVersion("arcanumSlugs", _stampMissingArcanumSlugs); }
 		catch (err) { console.error("Stonetop | arcanum slug sweep failed", err); }
+		// Keep a crossbow a character already carries on the sheet now that Weapons of War grants only
+		// the five weapons it names (migration/weapons-of-war-grandfather.js). GATED: it reads the
+		// outfit catalog and then every character's inventory flags, and it is legacy repair — the
+		// narrowed grant is what ships, so a world swept once has nothing left to find.
+		try { await oncePerVersion("weaponsOfWarGrandfather", grandfatherWeaponsOfWar); }
+		catch (err) { console.error("Stonetop | Weapons of War grandfathering failed", err); }
+
 		// Point player tokens back at the characters they stand for. An unlinked PC token carries
 		// a private copy of its character, and the two drift because a roll writes to the sheet's
 		// Actor while every chat-card button resolves its Actor out of the message speaker — which
