@@ -23,7 +23,8 @@ import { escHtml } from "../utils/strings.js";
 import { format, localize } from "../utils/i18n.js";
 import { themedDialogClasses } from "../utils/window-theme.js";
 import { contentElement } from "../dialogs/content-picker.js";
-import { HEROES } from "./engagements.js";
+import { HEROES, touching } from "./engagements.js";
+import { gridOf } from "./fight-state.js";
 import { rollerEngagement } from "./damage-seed.js";
 import { namesPhrase } from "./fight-copy.js";
 
@@ -46,9 +47,12 @@ function asTarget(combatant) {
  * Empty with the Fight tab off, no fight here, the actor not in it, or nobody engaged with them.
  *
  * @param {Actor} actor  the roller (an unlinked token's own actor, for a monster)
+ * @param {object} [options]
+ * @param {Scene} [options.scene]
+ * @param {object|null} [options.engagement]  rollerEngagement's answer, when the caller already has it
  */
-export function engagedOpponents(actor, { scene = globalThis.canvas?.scene ?? null } = {}) {
-	const found = rollerEngagement(actor, { scene });
+export function engagedOpponents(actor, { scene = globalThis.canvas?.scene ?? null, engagement } = {}) {
+	const found = engagement === undefined ? rollerEngagement(actor, { scene }) : engagement;
 	if (!found) return [];
 	const self = found.fighters.find(f => f.id === found.combatant.id);
 	const { melee = [], shootingAt = [], shotBy = [] } = found.entry;
@@ -61,13 +65,21 @@ export function engagedOpponents(actor, { scene = globalThis.canvas?.scene ?? nu
 /**
  * The "Who does this hit?" window's words: a checkbox per opponent, the first ticked. PURE.
  *
- * @param {{roller: string, candidates: Array<{name: string}>}} question
+ * AN AREA ATTACK TICKS THEM ALL, and says why. Two moves reach here on their own: Berserker ("add the
+ * area tag to your melee attacks, lashing out at anyone nearby, friend and foe alike") and Blot Out the
+ * Sun's volley. That is also why the list holds allies: both moves hit them too, and a window that
+ * quietly left them out would be answering the question the moves deliberately do not.
+ *
+ * `areaAround` picks which of the two the hint speaks in the voice of — it is the same distinction the
+ * list itself was built on (see bystanders), so the words and the names agree.
+ *
+ * @param {{roller: string, candidates: Array<{name: string}>, area?: boolean, areaAround?: string}} question
  */
-export function whoItHitsWindow({ roller, candidates }) {
+export function whoItHitsWindow({ roller, candidates, area = false, areaAround = "roller" }) {
 	const rows = candidates.map((candidate, index) => `<li>
 			<label class="stonetop-fight-targets-option">
-				<input type="checkbox" name="${TARGET_FIELD}" value="${index}"${index === 0 ? " checked" : ""}>
-				<span>${escHtml(candidate.name)}</span>
+				<input type="checkbox" name="${TARGET_FIELD}" value="${index}"${area || index === 0 ? " checked" : ""}>
+				<span>${escHtml(candidate.name)}${candidate.ally ? ` <em>${escHtml(localize(`${KEY}.ally`))}</em>` : ""}</span>
 			</label>
 		</li>`).join("");
 	return {
@@ -75,9 +87,9 @@ export function whoItHitsWindow({ roller, candidates }) {
 		content: `<div class="stonetop-fight-targets">
 		<p>${escHtml(format(`${KEY}.body`, { name: roller }))}</p>
 		<ul class="stonetop-fight-targets-list">${rows}</ul>
-		<p class="stonetop-fight-targets-hint">${escHtml(localize(`${KEY}.hint`))}</p>
+		<p class="stonetop-fight-targets-hint">${escHtml(area ? localize(`stonetop.fight.heroMoves.${areaAround === "targets" ? "volleyHint" : "berserkerHint"}`) : localize(`${KEY}.hint`))}</p>
 	</div>`,
-		confirm: whoItHitsConfirm(candidates.slice(0, 1)),
+		confirm: whoItHitsConfirm(area ? candidates : candidates.slice(0, 1)),
 		cancel: localize(`${KEY}.cancel`),
 	};
 }
@@ -141,12 +153,52 @@ export async function askWhoItHits(question, { DialogV2 = globalThis.foundry?.ap
  * @param {object[]} [options.handTargets]  the roller's own targets, frozen
  * @param {string} [options.roller]  who the question names, when that is not `actor`: a follower
  *   off the map, fighting beside the character it is aimed by
+ * @param {boolean} [options.area]  an area attack: everyone in reach, ticked, allies too
+ * @param {"roller"|"targets"} [options.areaAround]  WHERE that area is. Berserker's is around the
+ *   Heavy, who is lashing out at what stands next to THEM; Blot Out the Sun's is around the foes the
+ *   arrows fall on, which is nowhere near the archer.
  * @param {typeof askWhoItHits} [options.ask]
  * @returns {Promise<object[]|null>}
  */
-export async function rollTargets(actor, { handTargets = [], roller = "", ask = askWhoItHits } = {}) {
+export async function rollTargets(actor, { handTargets = [], roller = "", area = false, areaAround = "roller", ask = askWhoItHits } = {}) {
 	if (handTargets?.length) return handTargets;
-	const engaged = engagedOpponents(actor);
-	if (engaged.length < 2) return engaged;
-	return ask({ roller: roller || actor?.name || "", candidates: engaged });
+	// ONE fight snapshot for both questions: `engage` is a pairwise geometry solve over every fighter,
+	// and who is engaged and who is merely standing nearby are two readings of the same answer.
+	const engagement = rollerEngagement(actor);
+	const engaged = engagedOpponents(actor, { engagement });
+	// An area attack asks even about a single foe, because the answer includes who ELSE is standing there.
+	if (!area) return engaged.length < 2 ? engaged : ask({ roller: roller || actor?.name || "", candidates: engaged });
+	const candidates = [...engaged, ...bystanders(engaged, engagement, { areaAround })];
+	if (!candidates.length) return [];
+	return ask({ roller: roller || actor?.name || "", candidates, area: true, areaAround });
+}
+
+/**
+ * Who else is standing close enough to be caught by an area attack, and not already among the foes it
+ * is aimed at. Anyone on the roller's own side is marked `ally` so the window can say so.
+ *
+ * WHAT COUNTS AS "CLOSE" IS THE MOVE'S OWN QUESTION. A Heavy in their Battle Joy lashes out around
+ * themselves, so the neighbourhood is the roller's; a volley of arrows falls where it was aimed, so the
+ * neighbourhood is the FOES', and measuring it from the archer would sweep the Ranger's own line into a
+ * shot fired over their heads. A foe touching the roller is already in melee with them and so already
+ * among `engaged`, which is why the roller-anchored reading only ever turns up allies.
+ */
+function bystanders(engaged, found, { areaAround = "roller" } = {}) {
+	if (!found) return [];
+	const aimed = new Set(engaged.map(t => t.uuid));
+	const grid = gridOf(found.scene);
+	const me = found.fighters.find(f => f.id === found.combatant.id);
+	if (!me) return [];
+	const byUuid = new Map(found.fighters.map(f => [found.combatants.get(f.id)?.token?.uuid, f]).filter(([uuid]) => uuid));
+	const anchors = areaAround === "targets" ? engaged.map(t => byUuid.get(t.uuid)).filter(Boolean) : [me];
+	if (!anchors.length) return [];
+	const out = [];
+	for (const fighter of found.fighters) {
+		if (fighter.id === me.id || fighter.out) continue;
+		if (!anchors.some(anchor => anchor.id !== fighter.id && touching(anchor, fighter, grid))) continue;
+		const combatant = found.combatants.get(fighter.id);
+		if (!combatant?.token || aimed.has(combatant.token.uuid)) continue;
+		out.push({ ...asTarget(combatant), ...(fighter.side === me.side ? { ally: true } : {}) });
+	}
+	return out;
 }

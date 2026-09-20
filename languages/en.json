@@ -1885,6 +1885,7 @@
         "hint": "Tick more than one only when this attack could hurt them all: an area attack, followers joining in, or the way it is described. Damage is rolled separately against each (Book I, page 414).",
         "confirm": "Attack {names}",
         "confirmNone": "Tick who this hits",
+        "ally": "(your side)",
         "cancel": "Don't roll",
         "several": "{move} hit more than one: damage is rolled separately against each, for an attack that could hurt them all (Book I, page 414)."
       },
