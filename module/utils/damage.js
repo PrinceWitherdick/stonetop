@@ -59,8 +59,25 @@ export function seedBonus(seed) {
  * One entry of `extraDice` as its dice: a typed string as it is, or a move's named extra (`{dice, pill}`,
  * dialogs/RollDialog.js#withOffers) as its dice. The card names the latter by its pill.
  */
-export function extraDiceTerm(entry) {
+function extraDiceTerm(entry) {
 	return entry && typeof entry === "object" ? String(entry.dice ?? "") : entry;
+}
+
+/**
+ * One extra-dice entry as a formula term: a die like "1d6", or — for a move's OWN line only — a flat
+ * number like the Ranger's "+2 damage at its weak spot".
+ *
+ * A FLAT NUMBER IS NOT ALLOWED FROM THE TYPED FIELD, which is why this is not simply a looser
+ * normalizer: "2" typed into a box labelled Extra dice is far more likely to be a half-finished "2d6"
+ * than a bonus, and the field turns red on anything it cannot read (dialogs/RollDialog.js). A move's
+ * line is not typed — the system wrote it — so it may say +2 and mean it.
+ */
+export function extraTerm(entry) {
+	const dice = normalizeDamageBonusDice(extraDiceTerm(entry));
+	if (dice) return dice;
+	if (!entry || typeof entry !== "object") return "";
+	const flat = String(entry.dice ?? "").trim();
+	return /^[+-]?\d+$/.test(flat) ? flat.replace(/^\+/, "") : "";
 }
 
 /**
@@ -153,7 +170,7 @@ export function composeDamageFormula(base, { bonus = 0, extraDice = "", seed = n
 	const terms = [];
 	const first = withBestDie(String(base ?? "").trim(), seed);
 	if (first) terms.push(first);
-	for (const term of (Array.isArray(extraDice) ? extraDice : [extraDice]).map(extraDiceTerm).map(normalizeDamageBonusDice)) {
+	for (const term of (Array.isArray(extraDice) ? extraDice : [extraDice]).map(extraTerm)) {
 		if (term) terms.push(term.startsWith("-") ? term : `+${term}`);
 	}
 	// The fight's +N for several attackers (fight/damage-seed.js) joins the flat bonus: one term on the

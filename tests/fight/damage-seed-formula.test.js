@@ -83,7 +83,8 @@ describe("the damage window with a seed", () => {
 	it("folds a move's own extra dice in, named, and leaves an answer with none as it was", async () => {
 		const offers = [{ key: "undaunted", dice: "1d6", label: "Undaunted: +1d6 damage", pill: "Undaunted +1d6", applied: true }];
 		const answer = await promptDamage({ shiftKey: true, formula: "d8", offers });
-		expect(answer.extraDice).toEqual([{ dice: "1d6", pill: "Undaunted +1d6" }]);
+		// `key` rides along so the caller can settle what a ticked line costs (attack-flow.js#takenOffers).
+		expect(answer.extraDice).toEqual([{ key: "undaunted", dice: "1d6", pill: "Undaunted +1d6" }]);
 		expect(composeDamageFormula("d8", answer)).toBe("d8+1d6");
 		expect(damageConditionPills(answer)).toContain('<li class="stonetop-condition-situational">Undaunted +1d6</li>');
 		expect((await promptDamage({ shiftKey: true, formula: "d8", offers: [] })).extraDice).toBe("");

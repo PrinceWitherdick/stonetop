@@ -6,7 +6,7 @@ import { pickLeadText, TIER_KEYS, TIER_LABELS } from "./move-results.js";
 import { markRolledTier } from "./move-tiers.js";
 import { stonetopCardShell, stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber, damageMark, damageBadge, damageKeywordsHtml, pickListItem, descriptionPickTiers, cardNoticeHtml } from "./chat.js";
 import { adjustXp } from "./xp.js";
-import { composeDamageFormula, normalizeDamageBonusDice, seedBonus, extraDiceTerm } from "./damage.js";
+import { composeDamageFormula, seedBonus, extraTerm } from "./damage.js";
 import { SYSTEM_ID } from "../system-id.js";
 import { getBooleanSetting } from "../settings.js";
 
@@ -823,10 +823,15 @@ export function damageConditionPills({ rollMode = "normal", bonus = 0, extraDice
 	const flat = Math.trunc(Number(bonus)) || 0;
 	if (flat !== 0) pills.push(`<li class="stonetop-condition-situational">Damage ${sign(flat)}</li>`);
 	for (const entry of (Array.isArray(extraDice) ? extraDice : [extraDice])) {
-		const term = normalizeDamageBonusDice(extraDiceTerm(entry));
-		if (!term) continue;
+		const term = extraTerm(entry);
 		// A move's own extra dice (Undaunted) are named for the move; typed ones say only what they add.
 		const named = entry && typeof entry === "object" && entry.pill;
+		// A line that added no number but changed the ROLL still says so: "Uncanny Reflexes" beside the
+		// Disadvantage pill is what tells the table whose move put it there.
+		if (!term) {
+			if (named) pills.push(`<li class="stonetop-condition-situational">${escHtml(named)}</li>`);
+			continue;
+		}
 		pills.push(`<li class="stonetop-condition-situational">${escHtml(named || `Extra ${term.startsWith("-") ? term : `+${term}`}`)}</li>`);
 	}
 	// The fight's +N for several attackers, or a group's for outnumbering (fight/damage-seed.js), named
