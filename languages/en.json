@@ -1873,6 +1873,7 @@
         "swarmAria": "Roll damage: all {count} of them on one foe, {formula}",
         "strikeBack": "Strike back",
         "strikeBackAria": "Spend 1 of {readiness} Readiness to strike back: {formula}, with disadvantage",
+        "strikeBackAriaDangerous": "Spend 1 of {readiness} Readiness to strike back: {formula}, rolled straight (Dangerous cancels the disadvantage)",
         "lockEyes": "Lock eyes",
         "lockEyesAria": "Spend 1 of {readiness} Readiness to lock eyes with a foe",
         "lockEyesAsk": "Who does {name} lock eyes with?",

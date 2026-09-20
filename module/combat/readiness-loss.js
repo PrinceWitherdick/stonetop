@@ -14,6 +14,7 @@
 import { SYSTEM_ID } from "../system-id.js";
 import { heldReadiness, READINESS_FLAG } from "./defend-readiness.js";
 import { each, isFight } from "../fight/fight-state.js";
+import { clearHarmedBy } from "../fight/hero-moves.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
 import { moveChatCard } from "../utils/chat.js";
 import { themedDialogClasses } from "../utils/window-theme.js";
@@ -133,8 +134,18 @@ export function installReadinessLoss({ hooks = globalThis.Hooks } = {}) {
 		Promise.resolve(fn(...args)).catch(err => console.error("Stonetop | letting go of Readiness failed", err));
 	})]);
 
-	on("deleteCombat", combat => {
+	on("deleteCombat", async combat => {
 		if (!isFight(combat)) return;
+		// The grudges a fight leaves behind go with it: Payback's "a foe that has harmed you" is about the
+		// blow that just landed, and a list of dead tokens would follow a character forever
+		// (fight/hero-moves.js#clearHarmedBy). Nemesis is deliberately NOT here: the book says "all of your
+		// future attacks against them", and a nemesis who walked away is the point of the move.
+		// One write each, together: a character with two tokens in the fight is one sheet, not two.
+		const harmed = new Map();
+		for (const combatant of combat.combatants ?? []) {
+			if (combatant.actor?.type === "character") harmed.set(combatant.actor.id, combatant.actor);
+		}
+		await Promise.all([...harmed.values()].map(clearHarmedBy));
 		return loseAll(holdersLeft(combat), "lostFightOver");
 	});
 	on("deleteCombatant", combatant => {

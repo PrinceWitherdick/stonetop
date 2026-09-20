@@ -300,7 +300,7 @@ describe("runRingButton", () => {
 	it("rolls a character's damage with the weapon in hand, as the sheet's Damage button does, Shift and all", async () => {
 		const actor = bram();
 		await runRingButton(ringButtons(actor, { die: "d8" }).damage[0], actor, { shiftKey: true });
-		expect(rollCharacterDamageAt).toHaveBeenCalledWith(actor, { label: "Damage", rollMode: undefined, seeded: true, shiftKey: true });
+		expect(rollCharacterDamageAt).toHaveBeenCalledWith(actor, { label: "Damage", rollMode: undefined, seeded: true, strikeBack: false, shiftKey: true });
 		expect(rollDamageAt).not.toHaveBeenCalled();
 	});
 
@@ -309,7 +309,7 @@ describe("runRingButton", () => {
 		actor.flags = { [SYSTEM_ID]: { readiness: 2 } };
 		actor.setFlag = vi.fn(async () => {});
 		await runRingButton({ run: "strikeBack", label: "Strike back", formula: "d8", rollMode: "dis", weapon: null }, actor);
-		expect(rollCharacterDamageAt).toHaveBeenCalledWith(actor, { label: "Strike back", rollMode: "dis", seeded: false, shiftKey: false });
+		expect(rollCharacterDamageAt).toHaveBeenCalledWith(actor, { label: "Strike back", rollMode: "dis", seeded: false, strikeBack: true, shiftKey: false });
 		expect(actor.setFlag).toHaveBeenCalledWith(expect.any(String), expect.any(String), 1);
 	});
 
@@ -514,7 +514,7 @@ describe("the ring window", () => {
 		expect(actor.sheet.rollMoveById).toHaveBeenCalledWith("letfly", { shiftKey: false });
 		await ring.render({ object: token });
 		await Ring.DEFAULT_OPTIONS.actions.ringRoll.call(ring, { shiftKey: true }, { dataset: { index: "2" } });
-		expect(rollCharacterDamageAt).toHaveBeenCalledWith(actor, { label: "Damage", rollMode: undefined, seeded: true, shiftKey: true });
+		expect(rollCharacterDamageAt).toHaveBeenCalledWith(actor, { label: "Damage", rollMode: undefined, seeded: true, strikeBack: false, shiftKey: true });
 	});
 });
 

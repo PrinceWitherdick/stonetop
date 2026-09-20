@@ -43,7 +43,7 @@ import { followerRingInfo, openFollowerOrder } from "./follower-fight.js";
 import { heldReadiness } from "../combat/defend-readiness.js";
 import { spendReadiness, pickOne } from "./defend-spend.js";
 import { HERO_MOVES, lockEyesCandidates, lockEyes } from "./hero-moves.js";
-import { ownsMoveNamed } from "../actors/character/owns-move.js";
+import { ownsLearnedMoveNamed } from "../actors/character/owns-move.js";
 import { rollerEngagement } from "./damage-seed.js";
 import { escHtml } from "../utils/strings.js";
 import { stonetopChatCard } from "../utils/chat.js";
@@ -139,7 +139,7 @@ export function ringButtons(actor, { die = "", order = null, swarm = null, readi
 			if (item) moves.push({ run: "move", itemId: item.id, label: item.name, icon });
 		}
 		// Big Damn Hero: "When you Defend, you can spend 1 Readiness to lock eyes with an attacker".
-		if (readiness > 0 && canLockEyes && ownsMoveNamed(actor, HERO_MOVES.BIG_DAMN_HERO)) {
+		if (readiness > 0 && canLockEyes && ownsLearnedMoveNamed(actor, HERO_MOVES.BIG_DAMN_HERO)) {
 			moves.push({ run: "lockEyes", label: localize("stonetop.fight.ring.lockEyes"), icon: LOCK_EYES_ICON, aria: format("stonetop.fight.ring.lockEyesAria", { readiness }) });
 		}
 		// The sheet's Damage button: the die, titled "Damage", carrying no armor clause of its own.
@@ -153,7 +153,8 @@ export function ringButtons(actor, { die = "", order = null, swarm = null, readi
 		if (formula && readiness > 0 && canStrikeBack) {
 			damage.push({
 				run: "strikeBack", label: localize("stonetop.fight.ring.strikeBack"), formula, rollMode: "dis",
-				icon: STRIKE_BACK_ICON, aria: format("stonetop.fight.ring.strikeBackAria", { formula, readiness }),
+				icon: STRIKE_BACK_ICON,
+				aria: format(ownsLearnedMoveNamed(actor, HERO_MOVES.DANGEROUS) ? "stonetop.fight.ring.strikeBackAriaDangerous" : "stonetop.fight.ring.strikeBackAria", { formula, readiness }),
 			});
 		}
 	}
@@ -219,7 +220,7 @@ export async function ringButtonsFor(actor) {
 	const { order, swarm } = followerRingInfo(actor);
 	const readiness = heldReadiness(actor);
 	// Working out who they could lock eyes with takes the whole fight, so only for someone who could spend on it.
-	const canLockEyes = isCharacter && readiness > 0 && ownsMoveNamed(actor, HERO_MOVES.BIG_DAMN_HERO) && lockEyesCandidates(actor).length > 0;
+	const canLockEyes = isCharacter && readiness > 0 && ownsLearnedMoveNamed(actor, HERO_MOVES.BIG_DAMN_HERO) && lockEyesCandidates(actor).length > 0;
 	const canStrikeBack = isCharacter && readiness > 0 && hasAttacker(actor);
 	return ringButtons(actor, { die, order, swarm, readiness, canLockEyes, canStrikeBack });
 }
@@ -286,6 +287,7 @@ export async function runRingButton(button, actor, { shiftKey = false } = {}) {
 		label: button.label,
 		rollMode: button.rollMode,
 		seeded: !strikeBack,
+		strikeBack,
 		shiftKey,
 	}) : await rollDamageAt(actor, {
 		formula: button.formula,
