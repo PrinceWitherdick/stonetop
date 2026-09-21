@@ -39,14 +39,20 @@ class CombatTracker {}
 const combatTab = () => ({ documentName: "Combat" });
 
 describe("registerFightTab", () => {
-	it("leaves core's Combat tab alone when the world has the Fight tab off", () => {
+	it("leaves core's Combat tab alone when the world has the Fight tab off, and only opens its window", () => {
 		settings.set("fightTab", false);
 		const config = { ui: { combat: CombatTracker, sidebar: { TABS: { combat: combatTab() } } } };
 		const hooks = fakeHooks();
 		expect(registerFightTab({ config, hooks, foundryNs: { applications: { sidebar: { tabs: { CombatTracker } } } } })).toBe(false);
 		expect(config.ui.combat).toBe(CombatTracker);
 		expect(config.ui.sidebar.TABS.combat.tooltip).toBeUndefined();
-		expect(hooks.registered.size).toBe(0);
+		// The window over core's tracker is the one piece that survives the switch (fight-window.js).
+		expect(hooks.registered.has("createCombat")).toBe(true);
+		expect(hooks.registered.has("closeCombatTracker")).toBe(true);
+		// Nothing else of ours: no stamps on what joins a combat, no watcher, no map overlay.
+		for (const name of ["preCreateCombat", "preCreateCombatant", "refreshToken", "targetToken", "canvasPan", "canvasTearDown"]) {
+			expect(hooks.registered.has(name)).toBe(false);
+		}
 	});
 
 	it("reads an unregistered setting as off", () => {

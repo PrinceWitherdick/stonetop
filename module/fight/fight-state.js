@@ -59,25 +59,35 @@ export function combatTouchesScene(combat, scene) {
 }
 
 /**
- * The fight on a scene: the one the Fight tab is showing when it is fought here, else the active one,
- * else the most recently changed. Only a Combat stamped as a fight counts: a world that ran the old
- * Introductions still has its active, tokenless roster Combat, and that is nobody's fight.
+ * The combat on a scene: the one the tab is showing when it is fought here, else the active one, else
+ * the most recently changed. `counts` decides which Combats are worth looking at at all.
  *
- * ⚠ THE TAB CAN BE SHOWING A FIGHT THAT IS OVER. Core takes a deleted Combat out of `game.combats`
+ * ⚠ THE TAB CAN BE SHOWING A COMBAT THAT IS OVER. Core takes a deleted Combat out of `game.combats`
  * before the delete hooks run, but the tab only lets go of it when its redraw lands, a render later.
  * Anything asking in between (the Fight window closing at the end of a fight) would be handed the
  * fight that just ended, so the tab's choice counts only while the world still holds it.
+ *
+ * @param {Scene|null} scene
+ * @param {(combat: Combat) => boolean} [counts]  which Combats count; fights, by default
  */
-export function fightOnScene(scene) {
+export function combatOnScene(scene, counts = isFight) {
 	if (!scene) return null;
 	const viewed = globalThis.ui?.combat?.viewed ?? null;
 	const combats = globalThis.game?.combats;
 	const stillHeld = typeof combats?.get !== "function" || combats.get(viewed?.id) === viewed;
-	if (isFight(viewed) && stillHeld && combatTouchesScene(viewed, scene)) return viewed;
-	const here = each(globalThis.game?.combats).filter(c => isFight(c) && combatTouchesScene(c, scene));
+	if (viewed && counts(viewed) && stillHeld && combatTouchesScene(viewed, scene)) return viewed;
+	const here = each(globalThis.game?.combats).filter(c => counts(c) && combatTouchesScene(c, scene));
 	here.sort((a, b) => (Number(!!b.active) - Number(!!a.active))
 		|| ((b._stats?.modifiedTime ?? 0) - (a._stats?.modifiedTime ?? 0)));
 	return here[0] ?? null;
+}
+
+/**
+ * The fight on a scene. Only a Combat stamped as a fight counts: a world that ran the old
+ * Introductions still has its active, tokenless roster Combat, and that is nobody's fight.
+ */
+export function fightOnScene(scene) {
+	return combatOnScene(scene, isFight);
 }
 
 /** What classifySide needs to know about an actor and its token. */

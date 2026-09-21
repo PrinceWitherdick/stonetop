@@ -408,16 +408,17 @@ export function registerSettings() {
 		requiresReload: true,
 	});
 
-	// Whether the Fight tab pops out into a window of its own when a fight starts on the map this
+	// Whether the combat tab pops out into a window of its own when a fight starts on the map this
 	// reader is looking at, and closes when it ends (module/fight/fight-window.js). Per client: a GM
-	// on a wide monitor and a player on a laptop want different things. Listed only in a world with
-	// the Fight tab on, where it does anything; `fightTab` is registered above and a world setting
-	// reads fine at init.
+	// on a wide monitor and a player on a laptop want different things. Offered in both kinds of
+	// world, because the window is the one piece of the Fight tab that works over core's own tracker
+	// too; the wording follows whichever tab this world has. `fightTab` is registered above and a
+	// world setting reads fine at init.
 	game.settings.register(SYSTEM_ID, "fightWindowAuto", {
-		name: "stonetop.settings.fightWindowAuto.name",
-		hint: "stonetop.settings.fightWindowAuto.hint",
+		name: isFightTabEnabled() ? "stonetop.settings.fightWindowAuto.name" : "stonetop.settings.fightWindowAuto.combatName",
+		hint: isFightTabEnabled() ? "stonetop.settings.fightWindowAuto.hint" : "stonetop.settings.fightWindowAuto.combatHint",
 		scope: "client",
-		config: isFightTabEnabled(),
+		config: true,
 		type: Boolean,
 		default: true,
 	});

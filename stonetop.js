@@ -40,6 +40,7 @@ import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
 import { onDropFollower } from "./module/hooks/FollowerDrop.js";
 import { onPreUpdateActorDeathsDoor, onUpdateActorDeathsDoorAutoOpen, onUpdateActorDeathsDoorCard, onUpdateActorDeathsDoorRaised, wireDyingPrompt } from "./module/hooks/DeathsDoorPrompt.js";
 import { deathDripStamp, markDeathDrip } from "./module/hooks/DeathChatDrip.js";
+import { installOutOfTheFight } from "./module/fight/out-of-the-fight.js";
 import { onPreCreateThreatNote } from "./module/hooks/ThreatNotePins.js";
 import { onUpdateSiteNote } from "./module/sites/site-scene-pins.js";
 import { onDrawStonetopNote } from "./module/hooks/StonetopNoteLabels.js";
@@ -962,6 +963,13 @@ Hooks.on("updateActor", onUpdateActorDeathsDoorAutoOpen);
 // The other direction: hit points appearing on a sheet that is through the Last Door. Nothing
 // walks `dead` back on its own, so this asks whoever made the change whether it was a raising.
 Hooks.on("updateActor", onUpdateActorDeathsDoorRaised);
+
+// The other side of the same moment. A monster reduced to 0 HP has no move to face: it is out of
+// the fight, so the GM's client marks it there and then — core's own `defeated`, which is the skull
+// on its token and the struck-through row in whichever tracker the world is running. Registered
+// here rather than inside registerFightTab because the mark is core's and reads the same with the
+// Fight tab off. See module/fight/out-of-the-fight.js.
+installOutOfTheFight();
 
 // -- CHAT SPEAKER: ALIAS AND DEATH -----------------------------
 // Two stamps a character's message carries from the moment it is created: the playbook in the

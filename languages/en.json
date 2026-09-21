@@ -804,7 +804,9 @@
       },
       "fightWindowAuto": {
         "name": "Open the Fight window when a fight starts",
-        "hint": "When a fight starts on the map you are looking at, the Fight tab opens in a window of its own, and the window closes when the fight ends. If you close it, it stays closed until the next fight. Turn this off to keep fights in the sidebar: the Fight tab's Open in a window button still opens it."
+        "hint": "When a fight starts on the map you are looking at, the Fight tab opens in a window of its own, and the window closes when the fight ends. If you close it, it stays closed until the next fight. Turn this off to keep fights in the sidebar: the Fight tab's Open in a window button still opens it.",
+        "combatName": "Open the Combat window when a fight starts",
+        "combatHint": "When a combat starts on the map you are looking at, Foundry's Combat tracker opens in a window of its own, and the window closes when the combat ends. If you close it, it stays closed until the next combat. Turn this off to keep combat in the sidebar: right-clicking the Combat tab still opens the window."
       },
       "fightRing": {
         "name": "Fight buttons when you click a token",

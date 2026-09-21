@@ -135,7 +135,7 @@ describe("the Fight window at the table", () => {
 				set: vi.fn(async (scope, key, value) => { store.set(key, value); return value; }),
 			},
 		};
-		globalThis.ui = { ...saved.ui, combat: tab };
+		globalThis.ui = { ...saved.ui, combat: tab, sidebar: { changeTab: vi.fn() } };
 		globalThis.canvas = { scene };
 		return { scene, combat, tab };
 	}
@@ -260,10 +260,41 @@ describe("the Fight window at the table", () => {
 		expect(store.has("fightWindow")).toBe(false);
 	});
 
-	it("never opens for a reader who switched it off", async () => {
+	it("never opens for a reader who switched it off, and puts the fight in their sidebar instead", async () => {
 		const { tab } = table({ settings: { fightWindowAuto: false } });
 		await win.syncFightWindow();
 		expect(tab.renderPopout).not.toHaveBeenCalled();
+		expect(globalThis.ui.sidebar.changeTab).toHaveBeenCalledWith("combat", "primary");
+	});
+
+	it("puts a fight the reader closed the window on in their sidebar, once", async () => {
+		const { tab } = table({ settings: { fightWindow: { closed: "combat1" } } });
+		await win.syncFightWindow();
+		expect(tab.renderPopout).not.toHaveBeenCalled();
+		expect(globalThis.ui.sidebar.changeTab).toHaveBeenCalledTimes(1);
+		// The same fight redrawing does not yank the sidebar back.
+		await win.syncFightWindow();
+		expect(globalThis.ui.sidebar.changeTab).toHaveBeenCalledTimes(1);
+	});
+
+	it("leaves the sidebar alone when the window shows the fight, and when there is no fight", async () => {
+		const { tab } = table();
+		await win.syncFightWindow();
+		expect(tab.renderPopout).toHaveBeenCalledTimes(1);
+		expect(globalThis.ui.sidebar.changeTab).not.toHaveBeenCalled();
+		// The fight ends: a closing window is no reason to show anyone an empty tab.
+		globalThis.game.combats = collection([]);
+		tab.viewed = null;
+		await win.syncFightWindow();
+		expect(globalThis.ui.sidebar.changeTab).not.toHaveBeenCalled();
+	});
+
+	it("leaves the sidebar alone while the window is already up", async () => {
+		const { tab } = table();
+		await tab.renderPopout();
+		store.set("fightWindowAuto", false);
+		await win.syncFightWindow();
+		expect(globalThis.ui.sidebar.changeTab).not.toHaveBeenCalled();
 	});
 
 	it("writes down where the window was left once the reader stops moving it, numbers only", () => {
@@ -344,5 +375,171 @@ describe("the Fight window at the table", () => {
 		await win.syncFightWindow();
 		expect(error).toHaveBeenCalledWith("Stonetop | Fight window:", expect.any(Error));
 		error.mockRestore();
+	});
+});
+
+describe("the Combat window, with the Fight tab off", () => {
+	let saved;
+	let store;
+	let win;
+	let hooks;
+	let listeners;
+
+	beforeEach(async () => {
+		saved = {
+			game: globalThis.game, ui: globalThis.ui, canvas: globalThis.canvas, document: globalThis.document,
+			innerWidth: globalThis.innerWidth, innerHeight: globalThis.innerHeight,
+		};
+		store = new Map();
+		hooks = new Map();
+		listeners = new Map();
+		vi.resetModules();
+		win = await import("../../module/fight/fight-window.js");
+		win.installCombatWindow({
+			hooks: { on: (name, fn) => hooks.set(name, fn) },
+			page: { addEventListener: (name, fn) => listeners.set(name, fn) },
+		});
+	});
+	afterEach(() => {
+		vi.useRealTimers();
+		Object.assign(globalThis, saved);
+	});
+
+	/** Core's own Combat tracker, as far as the window reads it. Its pop-out takes a position. */
+	function fakeTab() {
+		const tab = {
+			viewed: null,
+			popout: undefined,
+			render: vi.fn(),
+			renderPopout: vi.fn(async () => {
+				tab.popout ??= {
+					rendered: false,
+					isPopout: true,
+					position: { left: 1, top: 2, width: 3, height: 4 },
+					setPosition: vi.fn(place => Object.assign(tab.popout.position, place)),
+					close: vi.fn(async () => { tab.popout.rendered = false; }),
+				};
+				tab.popout.rendered = true;
+				return tab.popout;
+			}),
+		};
+		return tab;
+	}
+
+	/**
+	 * A plain Foundry combat on the map the reader is looking at: nothing stamped it a fight, because
+	 * with the Fight tab off nothing of ours stamps anything.
+	 */
+	function table({ user = { id: "gm", isGM: true }, combatants = undefined, settings = {} } = {}) {
+		const bram = fakeToken({ id: "tBram", col: 0, row: 0, actor: fakeActor({ id: "bram" }) });
+		const scene = fakeScene({ tokens: [bram] });
+		const combat = fakeCombat({
+			scene,
+			flags: {},
+			combatants: combatants ?? [fakeCombatant({ id: "cBram", token: bram, scene })],
+		});
+		for (const [key, value] of Object.entries(settings)) store.set(key, value);
+		const tab = fakeTab();
+		globalThis.game = {
+			...saved.game,
+			ready: true,
+			user,
+			users: collection([]),
+			combats: collection([combat]),
+			settings: {
+				get: (scope, key) => { if (!store.has(key)) throw new Error(`unregistered ${key}`); return store.get(key); },
+				set: vi.fn(async (scope, key, value) => { store.set(key, value); return value; }),
+			},
+		};
+		globalThis.ui = { ...saved.ui, combat: tab, sidebar: { changeTab: vi.fn() } };
+		globalThis.canvas = { scene };
+		globalThis.innerWidth = 1920;
+		globalThis.innerHeight = 1080;
+		globalThis.document = { getElementById: () => null };
+		return { scene, combat, tab };
+	}
+
+	/** Run the hook's folded work, and the draw it hands on. */
+	async function fire(name, ...args) {
+		hooks.get(name)?.(...args);
+		await Promise.resolve();
+		await Promise.resolve();
+		await Promise.resolve();
+	}
+
+	it("opens core's own tracker for a combat on the map, though nothing stamped it a fight", async () => {
+		const { combat, tab } = table();
+		await fire("createCombatant");
+		expect(tab.viewed).toBe(combat);
+		expect(tab.renderPopout).toHaveBeenCalledTimes(1);
+		// The same combat again is not a second window.
+		await fire("updateCombat");
+		expect(tab.renderPopout).toHaveBeenCalledTimes(1);
+	});
+
+	it("opens nothing for an encounter with nobody in it yet", async () => {
+		const { tab } = table({ combatants: [] });
+		await fire("createCombat");
+		expect(tab.renderPopout).not.toHaveBeenCalled();
+	});
+
+	it("waits for a player to see somebody in it", async () => {
+		const player = { id: "player", isGM: false };
+		const scene = fakeScene({ tokens: [] });
+		const hiddenToken = fakeToken({ id: "tCrin", hidden: true, actor: fakeActor({ id: "crinwin", type: "monster" }) });
+		const hidden = fakeCombatant({ id: "cCrin", token: hiddenToken, scene, hidden: true, visible: false });
+		const { tab } = table({ user: player, combatants: [hidden] });
+		await fire("createCombatant");
+		expect(tab.renderPopout).not.toHaveBeenCalled();
+		// The GM reveals it.
+		Object.assign(hidden, { hidden: false, visible: true });
+		hidden.token.hidden = false;
+		await fire("updateToken", null, { hidden: false });
+		expect(tab.renderPopout).toHaveBeenCalledTimes(1);
+	});
+
+	it("puts the pop-out where the reader left it, once", async () => {
+		store.set("fightWindow", { position: { left: 40, top: 50, width: 500 } });
+		const { tab } = table();
+		await fire("createCombatant");
+		expect(tab.popout.setPosition).toHaveBeenCalledWith({ left: 40, top: 50, width: 500 });
+		// Brought back by hand, it keeps the place it was dragged to since.
+		await win.openFightWindow({ byHand: true });
+		expect(tab.popout.setPosition).toHaveBeenCalledTimes(1);
+	});
+
+	it("closes when the combat ends, and that closing is not the reader's", async () => {
+		const { tab } = table();
+		await fire("createCombatant");
+		globalThis.game.combats = collection([]);
+		tab.viewed = null;
+		await fire("deleteCombat");
+		expect(tab.popout.close).toHaveBeenCalledWith({ [FIGHT_OVER]: true });
+		hooks.get("closeCombatTracker")(tab.popout);
+		expect(store.get("fightWindow")?.closed).toBeUndefined();
+	});
+
+	it("stays shut for a combat the reader closed it on, and remembers where they left it", async () => {
+		vi.useFakeTimers();
+		const { tab } = table();
+		await fire("createCombatant");
+		tab.popout.position = { left: 12, top: 34, width: 400, height: 620 };
+		hooks.get("closeCombatTracker")(tab.popout);
+		vi.advanceTimersByTime(500);
+		// The height is core's to work out: only where the window stood is kept.
+		expect(store.get("fightWindow")).toEqual({ position: { left: 12, top: 34, width: 400 }, closed: "combat1" });
+
+		// The sidebar tab closing says nothing about the window.
+		hooks.get("closeCombatTracker")({ isPopout: false, position: { left: 0, top: 0 } });
+		vi.advanceTimersByTime(500);
+		expect(store.get("fightWindow").position).toEqual({ left: 12, top: 34, width: 400 });
+	});
+
+	it("never opens for a reader who switched it off, and leaves core's sidebar where it was", async () => {
+		const { tab } = table({ settings: { fightWindowAuto: false } });
+		await fire("createCombatant");
+		expect(tab.renderPopout).not.toHaveBeenCalled();
+		// A table running an initiative module has its own ideas about what a combat does to the screen.
+		expect(globalThis.ui.sidebar.changeTab).not.toHaveBeenCalled();
 	});
 });

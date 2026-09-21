@@ -3,8 +3,12 @@
 // ONE DECISION, MADE ONCE. Core builds its sidebar tabs from `CONFIG.ui` when the interface is first
 // drawn, so which class the Combat tab is made from has to be settled at init, from the world setting
 // `fightTab`. That is why the setting takes a reload, and why switching it off hands back core's own
-// tracker with nothing of ours left running: no stamps, no watcher, no map lines, no Fight window
-// opening by itself, no damage pre-fill.
+// tracker with nothing of ours left running: no stamps, no watcher, no map lines, no damage pre-fill.
+//
+// ONE THING SURVIVES THE SWITCH: the window. A table running an initiative module wants the tracker in
+// front of them when a fight starts just as much as ours does, and a window holding core's own tracker
+// says nothing about how Stonetop fights. So with the tab off, `installCombatWindow` opens and closes
+// core's pop-out on the same rules and the same `fightWindowAuto` switch (fight-window.js).
 //
 // Wired in stonetop.js right after the settings are registered (a setting cannot be read before).
 
@@ -17,7 +21,7 @@ import { combatantSide, snapshotFight, FIGHT_FLAG, SIDE_FLAG } from "./fight-sta
 import { refreshFightOverlay, invalidateFightOverlay, teardownFightOverlay } from "./fight-overlay.js";
 import { openStartFight, lineUpFight } from "./start-fight.js";
 import { sendAgainst, handleSendQuery, SEND_QUERY } from "./send-against.js";
-import { installFightWindow, syncFightWindow } from "./fight-window.js";
+import { installCombatWindow, installFightWindow, syncFightWindow } from "./fight-window.js";
 import { fightVitalsKey } from "./fight-vitals.js";
 import { createFightTokenClass, installFightRing, syncFightRing } from "./fight-ring.js";
 import { installReadinessLoss } from "../combat/readiness-loss.js";
@@ -66,7 +70,11 @@ export function refreshFightTab(tab = globalThis.ui?.combat) {
  * @returns {boolean} whether it was turned on
  */
 export function registerFightTab({ config = globalThis.CONFIG, hooks = globalThis.Hooks, foundryNs = globalThis.foundry, game = globalThis.game } = {}) {
-	if (!isFightTabEnabled()) return false;
+	if (!isFightTabEnabled()) {
+		// The tab is core's, and so is everything in it; only the window is ours (see the head of this file).
+		installCombatWindow({ hooks });
+		return false;
+	}
 	const Base = foundryNs?.applications?.sidebar?.tabs?.CombatTracker;
 	if (!Base || !config?.ui) return false;
 

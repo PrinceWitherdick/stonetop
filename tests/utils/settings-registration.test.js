@@ -121,10 +121,15 @@ describe("settings registration", () => {
 		for (const { key, body } of REGISTRATIONS) {
 			if (!/config:\s*true/.test(body)) continue;
 			for (const field of ["name", "hint"]) {
-				const m = new RegExp(`${field}:\\s*"([^"]+)"`).exec(body);
-				if (!m) { bad.push(`${key}.${field} is missing`); continue; }
-				if (!m[1].startsWith("stonetop.settings.")) bad.push(`${key}.${field} is a bare string, not an i18n key`);
-				else if (!(m[1] in I18N)) bad.push(`${key}.${field} -> ${m[1]} (no such key in en.json)`);
+				// A label may be chosen at registration (`fightWindowAuto` reads differently in a world
+				// with the Fight tab off), so every key the line can hand Foundry is checked.
+				const line = new RegExp(`${field}:\\s*(.+)`).exec(body);
+				const paths = [...(line?.[1] ?? "").matchAll(/"([^"]+)"/g)].map(m => m[1]);
+				if (!paths.length) { bad.push(`${key}.${field} is missing`); continue; }
+				for (const path of paths) {
+					if (!path.startsWith("stonetop.settings.")) bad.push(`${key}.${field} is a bare string, not an i18n key`);
+					else if (!(path in I18N)) bad.push(`${key}.${field} -> ${path} (no such key in en.json)`);
+				}
 			}
 		}
 		expect(bad, `Config-visible settings with missing/unlocalized labels:\n  ${bad.join("\n  ")}`).toEqual([]);
