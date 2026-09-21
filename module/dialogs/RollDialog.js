@@ -1,8 +1,9 @@
 import { bringDialogToFront } from "../utils/front-on-open.js";
-import { localize } from "../utils/i18n.js";
+import { format, localize } from "../utils/i18n.js";
 import { escHtml } from "../utils/strings.js";
-import { composeDamageFormula, normalizeDamageBonusDice } from "../utils/damage.js";
+import { composeDamageFormula, normalizeDamageBonusDice, extraTerm, seedBonus, settleBestDie } from "../utils/damage.js";
 import { damageRollFormula, rollDamage } from "../utils/roll-engine.js";
+import { foldModes } from "../utils/roll-mode.js";
 import { getAskRollModeEachRollSetting, getPromptRollModifierSetting, getPromptDamageModifierSetting } from "../settings.js";
 
 // Advantage / Normal / Disadvantage, worst to best left to right, so the strip reads as a scale
@@ -99,6 +100,15 @@ function readActiveMode(root) {
 		root?.querySelector?.(".stonetop-roll-mode-btn.is-active")?.dataset?.rollMode);
 }
 
+/** Move the picker, for a ticked line that carries a mode (Uncanny Reflexes). The window keeps ONE answer. */
+function setActiveMode(root, mode) {
+	for (const btn of root?.querySelectorAll?.(".stonetop-roll-mode-btn") ?? []) {
+		const on = btn.dataset.rollMode === mode;
+		btn.classList.toggle("is-active", on);
+		btn.setAttribute("aria-pressed", String(on));
+	}
+}
+
 /** The stepper's live answer. Anything unparseable reads as 0. */
 function readModifier(root) {
 	return Math.trunc(Number(root?.querySelector?.('[name="modifier"]')?.value)) || 0;
@@ -111,11 +121,7 @@ function wireModePicker(root, onChange) {
 	const options = root.querySelectorAll(".stonetop-roll-mode-btn");
 	options.forEach(btn => {
 		btn.addEventListener("click", () => {
-			options.forEach(other => {
-				const on = other === btn;
-				other.classList.toggle("is-active", on);
-				other.setAttribute("aria-pressed", String(on));
-			});
+			setActiveMode(root, btn.dataset.rollMode);
 			onChange(btn.dataset.rollMode);
 		});
 	});
@@ -264,9 +270,49 @@ function unpromptedDamage(rollMode) {
 	return { rollMode: normalizeRollMode(rollMode), bonus: 0, extraDice: "" };
 }
 
+/**
+ * An answer with the fight's seed on it, when there is one. ONLY then: an answer with no seed keeps
+ * exactly the three keys it always had, so every caller that never heard of fights reads it unchanged.
+ */
+function withSeed(answer, seed) {
+	return seed ? { ...answer, seed } : answer;
+}
+
+/**
+ * The fight's seed as the window offers it: ticked as the seed says (a pile-on that another character
+ * shares opens unticked, fight/damage-seed.js), with the other attackers' best die settled against the
+ * roller's own formula and worded for the window and the card. `useBest` is what a window that does not
+ * open answers: the best die, whenever the +N is on.
+ */
+function offeredSeed(seed, formula) {
+	if (seedBonus(seed) === 0) return null;
+	const settled = settleBestDie({ ...seed, applied: seed.applied !== false }, formula);
+	if (!settled.best) return { ...settled, useBest: false };
+	const data = { name: settled.best.name, formula: settled.best.formula };
+	return {
+		...settled,
+		best: { ...settled.best, label: format("stonetop.fight.seed.bestDie", data), pill: format("stonetop.fight.seed.bestPill", data) },
+		useBest: settled.applied,
+	};
+}
+
+/**
+ * An answer with a move's own extra dice folded in, one entry each, named: Undaunted's "+1d6 damage"
+ * (fight/hero-moves.js). They join the player's typed dice as `{dice, pill}` entries, which the formula
+ * reads as their dice and the card names by their pill (utils/damage.js#extraDiceTerm). An answer with none
+ * keeps the string it always had.
+ */
+function withOffers(answer, ticked) {
+	if (!ticked.length) return answer;
+	const typed = answer.extraDice ? [answer.extraDice] : [];
+	// `key` rides along so the caller can tell which lines were ticked and settle what they cost
+	// (combat/attack-flow.js#takenOffers: a Resolve spent, a tag added to the blow).
+	return { ...answer, extraDice: [...typed, ...ticked.map(offer => ({ key: offer.key, dice: offer.dice, pill: offer.pill }))] };
+}
+
 /** The composed formula a set of answers would actually roll, for the window's preview line. */
-function previewFormula(base, { rollMode, bonus, extraDice }) {
-	return damageRollFormula(composeDamageFormula(base, { bonus, extraDice }), rollMode);
+function previewFormula(base, { rollMode, bonus, extraDice, seed }) {
+	return damageRollFormula(composeDamageFormula(base, { bonus, extraDice, seed }), rollMode);
 }
 
 /**
@@ -299,7 +345,13 @@ function previewFormula(base, { rollMode, bonus, extraDice }) {
  * @param {string}  [opts.rollMode]  Mode to start on (a stat block's noted advantage).
  * @param {boolean} [opts.shiftKey]  Skip the window entirely.
  * @param {boolean} [opts.ask]       Override the client setting (tests).
- * @returns {Promise<{rollMode: string, bonus: number, extraDice: string}|null>}
+ * @param {Array<{key: string, dice: string, label: string, pill: string, applied?: boolean}>} [opts.offers]
+ *   A move's own extra dice that the fight says are on (Undaunted's +1d6), each its own ticked line.
+ * @param {object}  [opts.seed]      The fight's +N for several attackers (fight/damage-seed.js). Shown
+ *   as its OWN ticked line above the player's adjustment, never folded into it, so unticking it takes
+ *   off exactly what the fight added. A window that does not open still applies it: it is the book's
+ *   rule, not a one-off the player declared, and the card names it either way.
+ * @returns {Promise<{rollMode: string, bonus: number, extraDice: string, seed?: object}|null>}
  */
 export function promptDamage({
 	attacker = "",
@@ -307,25 +359,72 @@ export function promptDamage({
 	rollMode = DEFAULT_ROLL_MODE,
 	shiftKey = false,
 	ask = getPromptDamageModifierSetting(),
+	seed = null,
+	offers = [],
 } = {}) {
 	const start = normalizeRollMode(rollMode);
-	if (shiftKey || !ask) return Promise.resolve(unpromptedDamage(start));
+	const seeded = offeredSeed(seed, formula);
+	// A move's line may add a die, a flat number (the Ranger's "+2 damage" at a weak spot) — both read by
+	// `extraTerm`, which the typed field deliberately does not share — or a ROLL MODE rather than a
+	// number: the moves that put a blow at disadvantage because of who it is aimed at (Uncanny Reflexes).
+	const extras = (Array.isArray(offers) ? offers : []).filter(offer => offer?.key && (extraTerm(offer) || offer.mode));
+	// A ticked mode line moves the picker rather than fighting it, so the window has ONE answer to "how
+	// is this rolled" and the box says where it came from.
+	// FOLDED, not stepped one at a time: two ticked lines that both blunt the blow are two voices
+	// saying the same "dis", and neither side stacks with itself — against a sharpened blow they
+	// cancel with it once and the roll is straight (utils/roll-mode.js#foldModes).
+	const modeWith = ticked => foldModes(ticked.map(offer => offer.mode), start);
+	// What the roll is with nothing touched: the answer when no window is asked, and the window's first preview.
+	const onByDefault = extras.filter(o => o.applied !== false);
+	const untouched = withSeed(withOffers({ ...unpromptedDamage(start), rollMode: modeWith(onByDefault.filter(o => o.mode)) }, onByDefault), seeded);
+	if (shiftKey || !ask) return Promise.resolve(untouched);
 
 	return new Promise(resolve => {
 		const settle = settler(resolve);
 
-		const readAnswer = root => ({
-			rollMode: readActiveMode(root),
-			bonus: readModifier(root),
-			// Normalized on the way OUT, not just in the preview: a half-typed "1d" must reach
-			// the roll as nothing at all rather than as a formula that throws.
-			extraDice: normalizeDamageBonusDice(root?.querySelector?.('[name="extraDice"]')?.value),
-		});
+		const readAnswer = root => {
+			const seedBox = root?.querySelector?.('[name="seedApplied"]');
+			const bestBox = root?.querySelector?.('[name="seedBest"]');
+			const applied = seedBox ? !!seedBox.checked : !!seeded?.applied;
+			// The best die is part of striking together: it goes with the +N, and its box with it.
+			if (bestBox) bestBox.disabled = !applied;
+			const ticked = extras.filter(offer => {
+				const box = root?.querySelector?.(`[name="offer-${offer.key}"]`);
+				return box ? !!box.checked : offer.applied !== false;
+			});
+			return withSeed(withOffers({
+				rollMode: readActiveMode(root),
+				bonus: readModifier(root),
+				// Normalized on the way OUT, not just in the preview: a half-typed "1d" must reach
+				// the roll as nothing at all rather than as a formula that throws.
+				extraDice: normalizeDamageBonusDice(root?.querySelector?.('[name="extraDice"]')?.value),
+			}, ticked), seeded && { ...seeded, applied, useBest: applied && !!seeded.best && (bestBox ? !!bestBox.checked : true) });
+		};
+
+		// The fight's line: ticked, with the book's page beside it. Its own control, apart from the
+		// stepper, so the two numbers never blur into one.
+		const seedLine = seeded ? `
+				<label class="stonetop-damage-seed">
+					<input type="checkbox" class="stonetop-check stonetop-damage-seed-check" name="seedApplied"${seeded.applied ? " checked" : ""}>
+					<span class="stonetop-damage-seed-text">${escHtml(seeded.label ?? "")}</span>
+					<span class="stonetop-damage-seed-cite">${escHtml(seeded.cite ?? "")}</span>
+				</label>${seeded.best ? `
+				<label class="stonetop-damage-seed stonetop-damage-seed--best">
+					<input type="checkbox" class="stonetop-check stonetop-damage-seed-check" name="seedBest"${seeded.useBest ? " checked" : ""}${seeded.applied ? "" : " disabled"}>
+					<span class="stonetop-damage-seed-text">${escHtml(seeded.best.label)}</span>
+					<span class="stonetop-damage-seed-cite">${escHtml(seeded.cite ?? "")}</span>
+				</label>` : ""}` : "";
+		// A move's own extra dice (Undaunted), each ticked on its own line under the fight's.
+		const offerLines = extras.map(offer => `
+				<label class="stonetop-damage-seed stonetop-damage-seed--move">
+					<input type="checkbox" class="stonetop-check stonetop-damage-seed-check" name="offer-${escHtml(offer.key)}"${offer.applied === false ? "" : " checked"}>
+					<span class="stonetop-damage-seed-text">${escHtml(offer.label)}</span>
+				</label>`).join("");
 
 		const dialog = new Dialog({
 			title: attacker ? `Rolling damage for ${attacker}` : "Rolling damage",
 			content: `<form class="stonetop-roll-form stonetop-damage-form">
-				${modePickerHtml("How are you rolling this damage?", start)}
+				${modePickerHtml("How are you rolling this damage?", untouched.rollMode)}${seedLine}${offerLines}
 				<p class="stonetop-roll-prompt">Add to the damage (an arcanum's +1, a move's extra dice, a GM's call).</p>
 				<!-- Two labels then two controls, in that order: the row is a 2x2 grid, so the labels
 				     share a line and the controls share a line whatever either one measures. The
@@ -339,7 +438,7 @@ export function promptDamage({
 					<input type="text" name="extraDice" class="stonetop-damage-extra-dice" value="" placeholder="1d6"
 					       aria-label="Extra dice" autocomplete="off" spellcheck="false">
 				</div>
-				<p class="stonetop-damage-preview" aria-live="polite">Rolling <strong>${escHtml(previewFormula(formula, unpromptedDamage(start)))}</strong></p>
+				<p class="stonetop-damage-preview" aria-live="polite">Rolling <strong>${escHtml(previewFormula(formula, untouched))}</strong></p>
 			</form>`,
 			buttons: rollDialogButtons("Roll damage", settle, readAnswer),
 			default: "roll",
@@ -361,13 +460,30 @@ export function promptDamage({
 					// Said, not swallowed: a field holding text the roll will drop looks exactly
 					// like one that worked, and the player finds out when the damage is short.
 					const typed = String(extra?.value ?? "").trim();
-					extra?.classList?.toggle("is-invalid", Boolean(typed) && !answer.extraDice);
+					extra?.classList?.toggle("is-invalid", Boolean(typed) && !normalizeDamageBonusDice(typed));
 				};
 
-				wireModePicker(root, repaint);
+				// A MODE PICKED BY HAND IS THE ANSWER, and the lines below stop moving the picker once it
+				// has been. The derivation they do is from `start` — the mode before anyone said anything
+				// — so without this a player who set Disadvantage themselves lost it again the moment they
+				// unticked any box at all, mode-carrying or not, and the window quietly rolled the other way.
+				let picked = false;
+				wireModePicker(root, () => { picked = true; repaint(); });
 				const input = wireStepper(root, repaint);
 				input?.addEventListener("input", repaint);
 				extra?.addEventListener("input", repaint);
+				root.querySelector?.('[name="seedApplied"]')?.addEventListener("change", repaint);
+				root.querySelector?.('[name="seedBest"]')?.addEventListener("change", repaint);
+				for (const box of root.querySelectorAll?.('[name^="offer-"]') ?? []) {
+					box.addEventListener("change", () => {
+						// A line that carries a mode moves the picker as it is ticked and unticked, so the
+						// window never shows Disadvantage beside an unticked box that was the only reason for it.
+						const modes = extras.filter(offer => offer.mode
+							&& root.querySelector?.(`[name="offer-${offer.key}"]`)?.checked);
+						if (!picked && extras.some(offer => offer.mode)) setActiveMode(root, modeWith(modes));
+						repaint();
+					});
+				}
 				// Painted once from the rendered controls as well as baked into the content
 				// above, so the line is always what THIS DOM would roll rather than a seed that
 				// could drift from the fields beside it.
@@ -404,17 +520,25 @@ export function promptDamage({
  * @param {string} [opts.keywords] what the card prints beside the total: a stat block attack's
  *   tags, which its title no longer carries (utils/damage.js#damageCardText)
  * @param {string} [opts.description] the card's description HTML: a monster move's own text
+ * @param {string} [opts.notices] the card's notice HTML: the fiction a weapon's tags owe
+ *   (combat/attack-flow.js#tagNoticesHtml)
  * @param {string} [opts.rollMode] a mode the SOURCE already notes (a stat block's "w/
  *   disadvantage"), which SEEDS the window rather than being replaced by it - so skipping the
  *   window still rolls the way the source says.
  * @param {string} [opts.attacker] who is swinging, for the window's header, when that is not the
  *   actor itself: a follower rolling off its PC's sheet. Defaults to the actor's name.
  * @param {boolean} [opts.shiftKey] skip the window
+ *
+ * NO `offers`. A move's line is not just dice: it is PAID FOR when it is ticked and it may put a tag
+ * on the blow, and neither of those is this function's to do — so taking them here made a no-target
+ * Anger is a Gift free and tagless. A caller with lines to offer wants combat/attack-flow.js's
+ * askDamageAdjustment, which asks and settles up, and posts the card itself.
+ *
  * @returns {Promise<boolean>} whether damage was actually rolled
  */
-export async function rollDamagePrompted(formula, actor, { label, keywords, description, rollMode, attacker, shiftKey = false } = {}) {
-	const adjust = await promptDamage({ attacker: attacker || actor?.name, formula, ...(rollMode ? { rollMode } : {}), shiftKey });
+export async function rollDamagePrompted(formula, actor, { label, keywords, description, notices, rollMode, attacker, seed, shiftKey = false } = {}) {
+	const adjust = await promptDamage({ attacker: attacker || actor?.name, formula, ...(rollMode ? { rollMode } : {}), seed, shiftKey });
 	if (!adjust) return false;
-	await rollDamage(formula, actor, { label, keywords, description, ...adjust });
+	await rollDamage(formula, actor, { label, keywords, description, notices, ...adjust });
 	return true;
 }

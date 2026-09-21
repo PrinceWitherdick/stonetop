@@ -79,10 +79,11 @@ export function pickContentOption({ title, options, buttonLabel = "Continue", se
  * which is fine, because the wrapper is inside the `innerHTML` that survives.
  *
  * @param {string} inner  Authored markup for the container that carries the classes.
+ * @param {Document} [doc]  The document to build it in (injectable for tests).
  * @returns {HTMLDivElement}
  */
-function contentElement(inner) {
-	const content = document.createElement("div");
+export function contentElement(inner, doc = globalThis.document) {
+	const content = doc.createElement("div");
 	content.innerHTML = inner;
 	return content;
 }

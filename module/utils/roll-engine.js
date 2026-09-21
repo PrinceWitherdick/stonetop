@@ -6,7 +6,7 @@ import { pickLeadText, TIER_KEYS, TIER_LABELS } from "./move-results.js";
 import { markRolledTier } from "./move-tiers.js";
 import { stonetopCardShell, stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber, damageMark, damageBadge, damageKeywordsHtml, pickListItem, descriptionPickTiers, cardNoticeHtml } from "./chat.js";
 import { adjustXp } from "./xp.js";
-import { composeDamageFormula, normalizeDamageBonusDice } from "./damage.js";
+import { composeDamageFormula, seedBonus, extraTerm } from "./damage.js";
 import { SYSTEM_ID } from "../system-id.js";
 import { getBooleanSetting } from "../settings.js";
 
@@ -162,15 +162,18 @@ export function multiDieFaces(roll) {
  * clicked it. Pass `alias` instead to speak the card under a fixed name with no header
  * (the Expedition Requisition card).
  */
-export async function rollSeasonsCard({ formula, title = "", alias = "", resultTable, resultLegend = "" } = {}) {
+export async function rollSeasonsCard({ formula, title = "", alias = "", resultTable, resultLegend = "", missCountsAsPartial = "" } = {}) {
 	const roll = await new Roll(formula).evaluate();
-	const tier = classifyResult(roll.total).key;
+	const rolled = classifyResult(roll.total).key;
+	// As rollStat's option of the same name: a 6- that a rule counts as a 7-9, said on the card.
+	const counted = missCountsAsPartial && rolled === "failure";
+	const tier = counted ? "partial" : rolled;
 	const result = resultTable[tier];
 	const body = springRollCardBody(
 		roll.total,
 		tier,
 		result.label,
-		result.line,
+		counted ? `${result.line} <em>(Rolled a 6-, counted as a 7-9: ${escHtml(missCountsAsPartial)}.)</em>` : result.line,
 		roll.formula,
 		multiDieFaces(roll),
 		resultLegend || _resultTableLegend(resultTable),
@@ -592,6 +595,8 @@ export function conditionsRowHtml(conditions) {
  *   or something is ignoring it.
  * @param {string}  [options.stonetopDebilityIgnoredName]  - Which debility is being ignored
  * @param {boolean} [options.noXpOnMiss]               - Skip the automatic +1 XP on a miss (for moves that replace it)
+ * @param {string}  [options.missCountsAsPartial]      - Why a 6- counts as a 7-9 on this roll, named on
+ *   the card; absent for an ordinary roll
  * @param {string[]|{success?: string[], partial?: string[], failure?: string[]}} [options.pickOptions]
  *   "Choose from this list" options, rendered as a checklist on the card. An array is one pool
  *   shared by every tier (love letters); an object names a pool per tier (the homefront moves,
@@ -617,7 +622,12 @@ export async function rollStat(statKey, actor, options = {}) {
 
 	const roll   = await new Roll(_rollFormula(rollMode, modifier), rollData, rollOptions).evaluate();
 	const total  = roll.total;
-	const result = classifyResult(total);
+	// A rule that turns a miss into a weak hit (Herd of Horses: "When you Requisition half the
+	// herd or less, treat a 6- as a 7-9") is applied to the TIER, so every tier-keyed part of the
+	// card (outcome, pick list, buttons, the ladder's mark) reads as the 7-9 it counts as.
+	const missCountsAsPartial = String(options.missCountsAsPartial ?? "").trim();
+	const rolled = classifyResult(total);
+	const result = missCountsAsPartial && rolled.key === "failure" ? classifyResult(7) : rolled;
 
 	// Surface the move's own per-tier outcome (10+/7-9/6-) on the result card. Some
 	// moves (e.g. the Blessed's Borrow Power, Suck the Poison Out) keep their outcomes
@@ -696,6 +706,9 @@ export async function rollStat(statKey, actor, options = {}) {
 	// someone else's card from a long way off.
 	for (const note of (Array.isArray(options.conditionNotes) ? options.conditionNotes : []).filter(Boolean)) {
 		conditions.push(`<li class="stonetop-condition-note">${escHtml(note)}</li>`);
+	}
+	if (missCountsAsPartial && rolled.key === "failure") {
+		conditions.push(`<li class="stonetop-condition-note">${escHtml(`Rolled a 6-, counted as a 7-9 (${missCountsAsPartial})`)}</li>`);
 	}
 
 	const conditionsHtml = conditionsRowHtml(conditions);
@@ -805,12 +818,31 @@ function advDisConditionPills(rollMode) {
  * Exported for the attack flow, which rolls once per target and builds its own results card;
  * both surfaces report an adjusted damage roll in the same words.
  */
-export function damageConditionPills({ rollMode = "normal", bonus = 0, extraDice = "" } = {}) {
+export function damageConditionPills({ rollMode = "normal", bonus = 0, extraDice = "", seed = null } = {}) {
 	const pills = advDisConditionPills(rollMode);
 	const flat = Math.trunc(Number(bonus)) || 0;
 	if (flat !== 0) pills.push(`<li class="stonetop-condition-situational">Damage ${sign(flat)}</li>`);
-	for (const term of (Array.isArray(extraDice) ? extraDice : [extraDice]).map(normalizeDamageBonusDice)) {
-		if (term) pills.push(`<li class="stonetop-condition-situational">Extra ${escHtml(term.startsWith("-") ? term : `+${term}`)}</li>`);
+	for (const entry of (Array.isArray(extraDice) ? extraDice : [extraDice])) {
+		const term = extraTerm(entry);
+		// A move's own extra dice (Undaunted) are named for the move; typed ones say only what they add.
+		const named = entry && typeof entry === "object" && entry.pill;
+		// A line that added no number but changed the ROLL still says so: "Uncanny Reflexes" beside the
+		// Disadvantage pill is what tells the table whose move put it there.
+		if (!term) {
+			if (named) pills.push(`<li class="stonetop-condition-situational">${escHtml(named)}</li>`);
+			continue;
+		}
+		pills.push(`<li class="stonetop-condition-situational">${escHtml(named || `Extra ${term.startsWith("-") ? term : `+${term}`}`)}</li>`);
+	}
+	// The fight's +N for several attackers, or a group's for outnumbering (fight/damage-seed.js), named
+	// apart from the roller's own bonus, and still named when it was left off, so the card says what
+	// was waived.
+	if (seedBonus(seed) !== 0) {
+		const leftOff = seed.applied === false;
+		pills.push(`<li class="stonetop-condition-situational stonetop-condition-numbers${leftOff ? " is-left-off" : ""}">${escHtml(leftOff ? seed.pillLeftOff : seed.pill)}</li>`);
+		// The other attacker's die, when it was rolled in place of the roller's own (p.414 "usually the
+		// best one"). It stays named if the +N is left off later: the die is already on the table.
+		if (seed.useBest && seed.best?.pill) pills.push(`<li class="stonetop-condition-situational">${escHtml(seed.best.pill)}</li>`);
 	}
 	return pills;
 }
@@ -857,6 +889,8 @@ export function damageRollFormula(formula, rollMode) {
  * @param {string} [options.rollMode]  - "adv" | "dis" | "normal" (advantage/disadvantage on the damage die)
  * @param {number} [options.bonus]     - Flat one-off damage modifier
  * @param {string|string[]} [options.extraDice] - One-off extra damage dice ("1d6")
+ * @param {object} [options.seed] - The fight's +N for several attackers (fight/damage-seed.js), added
+ *   while it is applied and named on the card either way
  * @param {string} [options.keywords] - What the card prints beside the total: a stat block attack's
  *   tags, its name alone being the title (utils/damage.js#damageCardText). Plain text, escaped here;
  *   known tags print bold with their meaning on hover (utils/chat.js#damageKeywordsHtml).
@@ -872,15 +906,19 @@ export async function rollDamage(formula, actor, options = {}) {
 	const rollMode = options.rollMode ?? "normal";
 	const bonus     = Math.trunc(Number(options.bonus)) || 0;
 	const extraDice = options.extraDice ?? "";
-	const adjusted  = composeDamageFormula(formula, { bonus, extraDice });
+	const seed      = options.seed ?? null;
+	const adjusted  = composeDamageFormula(formula, { bonus, extraDice, seed });
 	const roll = await new Roll(damageRollFormula(adjusted, rollMode)).evaluate();
 	const label = options.label ?? "Damage";
 
-	const conditions = damageConditionPills({ rollMode, bonus, extraDice });
+	const conditions = damageConditionPills({ rollMode, bonus, extraDice, seed });
 
 	await roll.toMessage({
 		speaker:  ChatMessage.getSpeaker({ actor }),
-		flavor:   _rollCard({ header: label, buttons: true, total: roll.total, formula: roll.formula, dieResults: dieResultsText(roll), conditionsHtml: conditionsRowHtml(conditions), noticesHtml: options.notices ?? "", keywords: options.keywords ?? "", description: options.description ?? "", badge: damageBadge(), sectionClass: "stonetop-damage-roll-card", damage: true }),
+		// Never below 0: a group's -N for the bigger side's armor (fight/damage-seed.js) can take a d4 under it.
+		// The Roll itself keeps the dice's arithmetic, so a caller reading its total clamps it the same way
+		// (combat/attack-flow.js#rollAndPostDamage).
+		flavor:   _rollCard({ header: label, buttons: true, total: Math.max(0, roll.total), formula: roll.formula, dieResults: dieResultsText(roll), conditionsHtml: conditionsRowHtml(conditions), noticesHtml: options.notices ?? "", keywords: options.keywords ?? "", description: options.description ?? "", badge: damageBadge(), sectionClass: "stonetop-damage-roll-card", damage: true }),
 		rollMode: game.settings.get("core", "rollMode"),
 	});
 

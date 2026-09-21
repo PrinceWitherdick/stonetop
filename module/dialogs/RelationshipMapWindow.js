@@ -19,6 +19,7 @@ import { StonetopDialog } from "../utils/stonetop-dialog.js";
 import { themedDialogClasses } from "../utils/window-theme.js";
 import { clipText, escHtml } from "../utils/strings.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
+import { finitePlace } from "../utils/window-restore.js";
 import { openingSize } from "../utils/opening-size.js";
 import { getDragEventData, renderTemplate } from "../utils/foundry-compat.js";
 import { openLinkedActorSheet } from "../utils/actor-link.js";
@@ -5088,10 +5089,7 @@ function redrawEdge(parts, { curve, d, anchor, heads: arrows }, board) {
  */
 export function openRelationshipMap(entry, where = {}) {
 	if (!entry) return null;
-	const geometry = {};
-	for (const key of ["left", "top", "width", "height"]) {
-		if (Number.isFinite(where?.[key])) geometry[key] = where[key];
-	}
+	const geometry = finitePlace(where);
 	// WHICH BOARD TO COME UP ON, where the caller knows. Three of them do: a window restored across
 	// a reload (utils/window-restore.js saved the page it was left on), a click on one of the map's
 	// pages in the Journal sidebar, which is core's own `pageId` option, and a second call while

@@ -3,7 +3,10 @@ import { deletionEntry } from "../utils/foundry-compat.js";
 import { StonetopDialog } from "../utils/stonetop-dialog.js";
 import { shuffle } from "../utils/arrays.js";
 import { stonetopSteadingHeaderButton } from "../utils/world.js";
-import { playbookSlug, getPlayerCharacters, playbookIconPath, orderByCombatTurns } from "../utils/playbook-actors.js";
+import { playbookSlug, getPlayerCharacters, playbookIconPath } from "../utils/playbook-actors.js";
+// The order the introductions go around the table in: a world setting of its own, never the
+// Combat tracker. See utils/introductions-order.js for why.
+import { introductionsRoster, adoptLegacyIntroOrder, writeIntroOrder, moveId, reshuffle } from "../utils/introductions-order.js";
 import { wrapLoreTerms } from "../utils/lore-terms.js";
 // Authored prompts/questions live in introductions-data.js so the Chronicle
 // compiler can resolve a recorded answer's question index back to its text.
@@ -108,13 +111,6 @@ const _isStep       = (phase) => !!phase && (phase.kind === "answer" || phase.ki
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-// Player characters on the combat tracker, in the GM's arranged turn order; [] before
-// a combat is set up. Resolves to roster actors so the ids line up with
-// getPlayerCharacters() (getData compares the two by id).
-function _getCombatPcs() {
-	return orderByCombatTurns(getPlayerCharacters());
-}
-
 // A chosen-question index normalized to an int, or null (no/blank prompt).
 const _normQ = (v) => (Number.isInteger(v) ? v : null);
 
@@ -134,7 +130,7 @@ export class IntroductionsDialog extends StonetopDialog {
 		this._phase       = 0;
 		this._pcIndex     = 0;
 		this._pcs         = [];
-		this._combatHooks = null;
+		this._rosterHooks = null;
 		this._introHook   = null;
 		this._liveDraftTimer = null;
 		// One-shot: a commit has just cleared the live draft, so the re-render that follows
@@ -146,10 +142,10 @@ export class IntroductionsDialog extends StonetopDialog {
 		this._cursorKey   = null;
 	}
 
-	// Entry point used by the Welcome guide / macro: auto-populate the Combat Tracker
-	// with every playbook-bearing character (GM only), then show the dialog. The GM
-	// resumes its own saved position; a player seeds their phase/turn from the shared
-	// cursor (the GM drives; players follow).
+	// Entry point used by the Welcome guide / macro: show the dialog. The GM resumes its
+	// own saved position; a player seeds their phase/turn from the shared cursor (the GM
+	// drives; players follow). The turn order is the introductions' own setting, so opening
+	// this never creates or touches a Combat (see introductions-order.js).
 	static async open() {
 		const existing = IntroductionsDialog._current();
 		if (existing) { existing.bringToTop(); return existing; }
@@ -165,12 +161,14 @@ export class IntroductionsDialog extends StonetopDialog {
 
 	static async _doOpen() {
 		const dialog = new IntroductionsDialog();
+		// A world that arranged its table in the old Combat-tracker order gets that order copied
+		// across the first time a GM opens this (primary GM only; a no-op every time after).
+		// Before the resume below, so a resumed round-robin reads the copied order.
 		try {
-			await dialog.ensureCombatRoster();
+			await adoptLegacyIntroOrder();
 		} catch (err) {
-			console.error("Stonetop | Introductions: failed to set up the combat tracker", err);
+			console.error("Stonetop | Introductions: failed to carry over the old turn order", err);
 		}
-		// Combat is set up first so the resumed/seeded round-robin has its PC list.
 		if (game.user?.isGM) {
 			// A GM with no saved local position (a fresh browser/tab) but a live session must
 			// follow the running cursor, NOT reset to the pre-check — landing on phase 0 and
@@ -267,32 +265,12 @@ export class IntroductionsDialog extends StonetopDialog {
 		if (cursor.active && !IntroductionsDialog._current()) IntroductionsDialog.open();
 	}
 
-	// Ensure an active combat exists and every player character (any actor with a
-	// playbook) is in it. Only the GM can mutate combat, so this is a no-op for
-	// players — they just see whatever the GM has already set up.
-	async ensureCombatRoster() {
-		if (!game.user?.isGM) return;
-
-		const actors = getPlayerCharacters();
-		if (!actors.length) return;
-
-		let combat = game.combat;
-		if (!combat) {
-			const CombatCls = getDocumentClass("Combat");
-			combat = await CombatCls.create({ scene: canvas?.scene?.id ?? null });
-			await combat?.activate?.();
-		}
-		if (!combat) return;
-
-		const present = new Set(combat.combatants.map(c => c.actorId));
-		const toAdd   = actors.filter(a => !present.has(a.id));
-		if (!toAdd.length) return;
-
-		await combat.createEmbeddedDocuments("Combatant", toAdd.map(a => ({
-			actorId: a.id,
-			name:    a.name,
-			img:     a.img,
-		})));
+	// onChange handler for the saved turn order (wired in Ready.js). Runs on every client,
+	// the writer's included. Only the pre-check shows the order; a running session follows
+	// the cursor's own pcOrder, so a change made elsewhere mid-session must not repaint it.
+	static onOrderChanged() {
+		const dialog = IntroductionsDialog._current();
+		if (dialog && dialog._phase === 0) dialog.render(false);
 	}
 
 	static get defaultOptions() {
@@ -366,6 +344,10 @@ export class IntroductionsDialog extends StonetopDialog {
 	activateListeners(html) {
 		super.activateListeners(html);
 		html.find(".stonetop-intros-shuffle").on("click", () => this._shuffleOrder());
+		html.find(".stonetop-intros-move").on("click", ev => {
+			const el = ev.currentTarget;
+			this._moveInOrder(el.dataset.actorId, Number(el.dataset.delta));
+		});
 		html.find(".stonetop-intros-begin").on("click", () => this._begin());
 		html.find(".stonetop-intros-next").on("click",  () => this._advance());
 		html.find(".stonetop-intros-pass").on("click",  () => this._confirmPass());
@@ -452,7 +434,7 @@ export class IntroductionsDialog extends StonetopDialog {
 			this._setSaveStatus("saved");
 		});
 
-		this._registerCombatHooks();
+		this._registerRosterHooks();
 		this._registerIntroHooks();
 	}
 
@@ -737,8 +719,8 @@ export class IntroductionsDialog extends StonetopDialog {
 	// client can follow along. Skips a no-op write; _writeCursor bumps the nonce. Phase 0 is
 	// the GM's local pre-check/roster screen, NOT a session end — leaving the cursor untouched
 	// there means stepping Back to re-check the roster doesn't close every player's dialog;
-	// only close() (a deliberate finish) deactivates the session. Carries the GM-authored PC
-	// order so players seed their roster from the cursor, not their own scene-scoped game.combat.
+	// only close() (a deliberate finish) deactivates the session. Carries the PC order the session
+	// is running in, so every client follows the same table for as long as it runs.
 	_syncCursorFromLocal() {
 		if (!game.user?.isGM || !isPrimaryGM()) return; // only the primary GM authors the cursor
 		const phase = this._phase;
@@ -754,21 +736,26 @@ export class IntroductionsDialog extends StonetopDialog {
 		this._writeCursor({ active: true, phase, activeActorId, activeUserId, pcOrder });
 	}
 
+	// The PCs a cursor's GM-authored `pcOrder` names, resolved against game.actors (which every
+	// client has in full); the saved introductions order when it names none.
+	_cursorRoster(cur) {
+		const fromCursor = Array.isArray(cur?.pcOrder)
+			? cur.pcOrder.map(id => this._actor(id)).filter(a => a && playbookSlug(a))
+			: [];
+		return fromCursor.length ? fromCursor : introductionsRoster();
+	}
+
 	// Players (and a GM without local nav state) seed their phase/turn from the cursor.
 	// Returns false when the cursor isn't running (leaves the dialog on the pre-check). The
 	// roster comes from the GM-authored `pcOrder` carried in the cursor — resolved against
-	// game.actors (which every client has in full) — so a player whose scene-scoped
-	// game.combat is empty or different still gets the right PCs and turn index; falls back
-	// to the local combat roster before the GM has written an order.
+	// game.actors (which every client has in full) — so every client gets the same PCs and
+	// turn index; falls back to the saved introductions order before a session has begun.
 	_syncFromCursor() {
 		const cur = this._cursor();
 		// Record what we are now drawn at, so the next cursor write can tell a real move from
 		// a same-position bump (see handleIntroCursor).
 		this._cursorKey = cursorPositionKey(cur);
-		const fromCursor = Array.isArray(cur.pcOrder)
-			? cur.pcOrder.map(id => this._actor(id)).filter(a => a && playbookSlug(a))
-			: [];
-		this._pcs = fromCursor.length ? fromCursor : _getCombatPcs();
+		this._pcs = this._cursorRoster(cur);
 		if (!cur.active || !Number.isInteger(cur.phase) || cur.phase < 1 || cur.phase > _LAST_PHASE) {
 			this._phase   = 0;
 			this._pcIndex = 0;
@@ -962,28 +949,24 @@ export class IntroductionsDialog extends StonetopDialog {
 		return this.close();
 	}
 
-	_registerCombatHooks() {
-		if (this._combatHooks) return;
+	// A PC created or deleted while the pre-check is up changes the order it shows, so the
+	// list redraws rather than going stale until some unrelated event. getData filters to
+	// playbook-bearing actors, so a non-PC create/delete is a harmless no-op re-render. A
+	// change to the saved order itself arrives through the setting's onChange instead
+	// (onOrderChanged).
+	_registerRosterHooks() {
+		if (this._rosterHooks) return;
 		const refresh = () => { if (this._phase === 0) this.render(false); };
-		this._combatHooks = [
-			["createCombat",    Hooks.on("createCombat",    refresh)],
-			["deleteCombat",    Hooks.on("deleteCombat",    refresh)],
-			["createCombatant", Hooks.on("createCombatant", refresh)],
-			["deleteCombatant", Hooks.on("deleteCombatant", refresh)],
-			// A PC created/deleted while the pre-check is up changes the roster too, but fires
-			// no combatant hook — refresh so the "ready / not yet in the tracker" lists stay
-			// live rather than going stale until some unrelated event (the removed "Add Player
-			// Characters" button used to be the only nudge for a late-added PC). getData filters
-			// to playbook-bearing actors, so a non-PC create/delete is a harmless no-op re-render.
-			["createActor",     Hooks.on("createActor",     refresh)],
-			["deleteActor",     Hooks.on("deleteActor",     refresh)],
+		this._rosterHooks = [
+			["createActor", Hooks.on("createActor", refresh)],
+			["deleteActor", Hooks.on("deleteActor", refresh)],
 		];
 	}
 
-	_unregisterCombatHooks() {
-		if (!this._combatHooks) return;
-		for (const [name, id] of this._combatHooks) Hooks.off(name, id);
-		this._combatHooks = null;
+	_unregisterRosterHooks() {
+		if (!this._rosterHooks) return;
+		for (const [name, id] of this._rosterHooks) Hooks.off(name, id);
+		this._rosterHooks = null;
 	}
 
 	// Live-sync listener for the answer/ask steps: when a PC's intro flag changes (a
@@ -1056,7 +1039,7 @@ export class IntroductionsDialog extends StonetopDialog {
 					+ "check the latest narration before continuing.");
 			}
 		}
-		this._unregisterCombatHooks();
+		this._unregisterRosterHooks();
 		this._unregisterIntroHooks();
 		// Closing on purpose (the X or "Let spring break forth!") clears the open flag
 		// so we don't auto-reopen on the next load; a browser reload skips close() and
@@ -1073,23 +1056,27 @@ export class IntroductionsDialog extends StonetopDialog {
 		if (this._phase === 0) {
 			// The pre-check roster is only needed on this screen; the round-robin below
 			// reads this._pcs instead. Building it here keeps the per-keystroke re-render
-			// off two full actor scans it would only throw away.
-			const allPcs    = getPlayerCharacters();
-			const combatPcs = orderByCombatTurns(allPcs);
-			const combatIds = new Set(combatPcs.map(a => a.id));
-			const missing   = allPcs.filter(a => !combatIds.has(a.id));
+			// off a full actor scan it would only throw away.
+			const pcs  = introductionsRoster();
 			const isGM = game.user?.isGM ?? false;
+			// Reordering is a world-setting write, so it is offered to a GM only, and only
+			// once there are two names to put in an order.
+			const canReorder = isGM && pcs.length > 1;
 			return {
-				isPreCheck:   true,
+				isPreCheck: true,
 				isGM,
-				canShuffle:   isGM && combatPcs.length > 1,
-				canBegin:     combatPcs.length > 0,
-				hasNone:      allPcs.length === 0,
-				noneInCombat: allPcs.length > 0 && combatPcs.length === 0,
-				hasMissing:   missing.length > 0,
-				missingPcs:   missing.map(a => a.name),
-				pcNames:      combatPcs.map(a => a.name),
-				pcCount:      combatPcs.length,
+				canReorder,
+				canBegin:   pcs.length > 0,
+				hasNone:    pcs.length === 0,
+				pcCount:    pcs.length,
+				pcs: pcs.map((a, i) => ({
+					id:        a.id,
+					name:      a.name,
+					first:     i === 0,
+					last:      i === pcs.length - 1,
+					upLabel:   `Move ${a.name} earlier`,
+					downLabel: `Move ${a.name} later`,
+				})),
 			};
 		}
 
@@ -1260,36 +1247,39 @@ export class IntroductionsDialog extends StonetopDialog {
 		};
 	}
 
-	// Randomize the round-robin order. We express the new order as descending
-	// initiative on the PC combatants, so both the Combat Tracker and the dialog's
-	// turn order (which reads `combat.turns`) reflect the shuffle.
+	// Randomize the round-robin order, saved to the introductions' own setting. Every
+	// client's pre-check redraws from that setting's onChange (onOrderChanged), this one's
+	// included, so nothing re-renders here. reshuffle never hands back the order it was given.
 	async _shuffleOrder() {
-		const combat = game.combat;
-		if (!combat || !game.user?.isGM) return;
+		if (!game.user?.isGM) return;
+		const ids = introductionsRoster().map(a => a.id);
+		if (ids.length < 2) return;
+		await this._saveOrder(reshuffle(ids, shuffle));
+	}
 
-		const pcs = _getCombatPcs();
-		if (pcs.length < 2) return;
+	// Move one PC a place earlier (delta -1) or later (delta +1) in the saved order. The
+	// buttons at either end are disabled, and moveId answers null there anyway.
+	async _moveInOrder(actorId, delta) {
+		if (!game.user?.isGM) return;
+		const next = moveId(introductionsRoster().map(a => a.id), actorId, delta);
+		if (next) await this._saveOrder(next);
+	}
 
-		const ids = pcs.map(a => a.id);
-		let order = shuffle(ids);
-		// Re-roll a few times if the shuffle happened to land on the same order.
-		let guard = 0;
-		while (order.every((id, i) => id === ids[i]) && guard++ < 10) order = shuffle(ids);
-
-		const updates = [];
-		order.forEach((actorId, idx) => {
-			const c = combat.combatants.find(cb => cb.actorId === actorId);
-			if (c) updates.push({ _id: c.id, initiative: order.length - idx });
-		});
-		if (updates.length) await combat.updateEmbeddedDocuments("Combatant", updates);
-		this.render(false);
+	// Write the order, saying so if it fails: the list on screen would otherwise sit unchanged
+	// with nothing to explain why the press did nothing.
+	async _saveOrder(ids) {
+		try { await writeIntroOrder(ids); }
+		catch (err) {
+			console.error("Stonetop | Introductions: saving the turn order failed", err);
+			ui.notifications?.error("Stonetop: the new introductions order could not be saved.");
+		}
 	}
 
 	_begin() {
 		// Only the PRIMARY GM starts the session — it authors the cursor every other client
 		// follows; a secondary GM beginning locally would move only its own view and desync.
 		if (!game.user?.isGM || !isPrimaryGM()) return;
-		this._pcs     = _getCombatPcs();
+		this._pcs     = introductionsRoster();
 		this._phase   = 1;
 		this._pcIndex = 0;
 		this.render(false);
@@ -1588,8 +1578,13 @@ export class IntroductionsDialog extends StonetopDialog {
 
 	// Resume the phase/turn saved before a reload (the dialog doesn't survive a refresh).
 	// Returns true when it restored a live position; false (leaving the dialog on the
-	// pre-check) when nothing's saved or no PCs are on the tracker — the caller then falls
-	// back to the shared cursor so a fresh GM tab joins a running session instead of resetting.
+	// pre-check) when nothing's saved or there are no PCs — the caller then falls back to the
+	// shared cursor so a fresh GM tab joins a running session instead of resetting.
+	//
+	// The order comes from the running session's cursor when there is one, and only otherwise
+	// from the saved order: the saved turn index counts into the order the session BEGAN with,
+	// and a saved order edited since (by a second GM on their pre-check) would otherwise hand
+	// the turn to somebody else on reload.
 	_restorePosition() {
 		const saved = getWalkthroughResume(_RESUME_KEY);
 		let phase = Number(saved?.phase);
@@ -1603,7 +1598,8 @@ export class IntroductionsDialog extends StonetopDialog {
 		} else {
 			phase = _LEGACY_RESUME_PHASE_MAP[phase] ?? _LAST_PHASE;
 		}
-		const pcs = _getCombatPcs();
+		const cur = this._cursor();
+		const pcs = this._cursorRoster(cur.active ? cur : {});
 		if (!pcs.length) return false;
 		this._pcs     = pcs;
 		this._phase   = phase;

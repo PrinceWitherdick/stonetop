@@ -25,7 +25,8 @@ import {FollowerFateDialog} from "./dialogs/FollowerFateDialog.js";
 import {CallUpDeepOnesDialog} from "./dialogs/CallUpDeepOnesDialog.js";
 import {RING_SOURCE_UUID, SERVANT_SOURCE_UUID, buildServantFollower} from "../../data/servant-of-daagon.js";
 import {grantedWeaponForMove, weaponTraitText} from "../../data/weapons.js";
-import {grantedWeaponAttackFor} from "../../combat/attack-flow.js";
+import {grantedWeaponAttackFor, rollCharacterDamageAt, rollFollowerDamageAt} from "../../combat/attack-flow.js";
+import {followerInFight} from "../../fight/follower-fight.js";
 import {ALT_STAT_GRANTS} from "../../data/alt-stat-grants.js";
 import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
 import {trackCreationFlow} from "./creation-flow.js";
@@ -39,12 +40,12 @@ import {showsPreferencesTab, withPreferencesTab} from "../../utils/preferences-t
 import {injectHeaderToggle} from "../../utils/sheet-chrome.js";
 import {mountScrollFrost} from "../../utils/scroll-frost.js";
 import {withSheetSizeMemory} from "../../utils/sheet-size.js";
-import { crewExists, effectiveCrewSize, customGroupSize, crewAnonymousCount, crewAnonMemberLabel, crewIndividualLabel, customGroupMemberLabel, CREW_SIZE_MAX } from "../../utils/crew.js";
+import { crewExists, effectiveCrewSize, customGroupSize, crewAnonymousCount, crewAnonMemberLabel, crewIndividualLabel, customGroupMemberLabel, groupFollowerMembers, groupFollowerStanding, CREW_SIZE_MAX } from "../../utils/crew.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
 import {createArcanumItem} from "../../item/createArcanum.js";
 import {rollStat, sign, classifyResult} from "../../utils/roll-engine.js";
 import {defendReadinessHold} from "../../combat/defend-readiness.js";
-import {dieFromDamage} from "../../utils/damage.js";
+import {dieFromDamage, printedBlow} from "../../utils/damage.js";
 import {normalizeDamageDie} from "../../utils/damage-die.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
 import {escHtml, isDefaultImg, normalizePlaybookGlyphs, composeInstinct} from "../../utils/strings.js";
@@ -1459,6 +1460,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			// carries `null` for "no snapshot, nothing to mirror" rather than overloading 0.
 			this._computedArmor = Number.isFinite(Number(v.armor)) ? Number(v.armor) : null;
 			this._computedUnpierceable = Number(v.unpierceableArmor) || 0;
+			// The fiction-gated slice travels with the total it is part of. Mirrored on every
+			// render alongside it, because the mirror writes the whole armor group in one update:
+			// leaving these out wrote the schema defaults back and took the damage card's
+			// "the fiction says otherwise" tick box off a Barkskin'd character on every render.
+			this._computedConditional = Number(v.conditionalArmor) || 0;
+			this._computedConditionalSource = v.conditionalArmorSource ?? "";
 			// A permanent max-HP change (an arcanum's soul-wound, a Mark's boon) is otherwise
 			// invisible once applied — the field just shows a number that disagrees with the
 			// playbook. Marked and spelled out here so a GM reading the sheet months later can
@@ -2216,8 +2223,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				// "4 uses, but you add Stonetop's current Prosperity to that" (p.88) — the same
 				// arithmetic the small-item allotment uses (p.306), which is why smallItemLimit can
 				// stand in for it. Two separate rules that happen to agree, so keep both citations:
-				// errata to either one stops them agreeing.
-				const pipsPerSet      = smallItemLimit ?? 5;
+				// errata to either one stops them agreeing. The steading's Mill is where they already
+				// part: it adds 1 use to each ◇ of supplies, and nothing to the small items.
+				const pipsPerSet      = this._stonetopCharacter?.getUsesPerSupply?.() ?? smallItemLimit ?? 5;
 				const prosperity      = smallItemLimit !== null ? smallItemLimit - 4 : null;
 				const suppliesRaw     = sf.crew?.supplies;
 				// A short (or absent) stored array just reads as unfilled sets — every lookup below
@@ -3358,32 +3366,49 @@ export function createStonetopCharacterSheetClass(Base) {
 					if (_STAT_KEYS.has(roll)) {
 						// Stat roll (STR, DEX, etc.)
 						await this._stonetopCharacter.onDirectStatRoll(roll, prompted);
+					} else if ("ownDamage" in rollable.dataset) {
+						// The character's own damage, with the weapon in hand (asked as Clash asks): at their
+						// targets, or whoever they are fighting on the map, on the damage card whose Apply takes
+						// the foe's armor off (combat/attack-flow.js#rollCharacterDamageAt).
+						// Dealing it holding Readiness asks whether they went on the offense (p.216).
+						await rollCharacterDamageAt(this.actor, { label: rollable.dataset.label ?? "Damage", shiftKey: ev.shiftKey });
+					} else if (rollable.classList.contains("stonetop-follower-damage-roll")) {
+						const followerType   = rollable.dataset.followerType ?? "";
+						const followerName   = (rollable.dataset.followerName   ?? "").trim();
+						const followerKind   = (rollable.dataset.followerKind   ?? "").trim();
+						const followerPronoun = (rollable.dataset.followerPronoun ?? "").trim().toLowerCase().split(/[\s/]/)[0];
+						const damageForm     = (rollable.dataset.damageForm     ?? "").trim();
+						const possessive = { he: "his", she: "her", they: "their" }[followerPronoun] ?? "its";
+						const formPart   = damageForm ? ` with ${possessive} ${damageForm}` : "";
+						// The follower is who swings, so it names the damage window as well as the
+						// card; the actor in hand is only the PC whose sheet this is. An animal
+						// companion goes by its own name, every other follower as the PC's.
+						const attacker = followerType === "animal"
+							? (followerName || followerKind || "animal companion")
+							: `${this.actor.name}'s ${followerName || { initiate: "initiate", beast: "beast", custom: "follower" }[followerType] || "crew"}`;
+						const label = `${attacker} attacks${formPart}`;
+						// Aimed like every other damage roll: as the follower's own token when they have one
+						// in the fight, else by this character's fight (combat/attack-flow.js#rollFollowerDamageAt).
+						// The tags and armor clause come off the card's own damage line, read as an NPC's is.
+						const card = rollable.closest(".stonetop-follower-card");
+						const which = { ftype: card?.dataset.ftype ?? "", slug: card?.dataset.slug ?? "" };
+						const printed = this._followerDragData?.get(`${which.ftype}:${which.slug}`)?.follower?.damage ?? "";
+						const { keywords, weapon, rollMode } = printedBlow(printed, rollable.dataset.baseRoll || roll);
+						await rollFollowerDamageAt(this.actor, {
+							fighter: followerInFight(this.actor, which),
+							formula: roll, label, attacker,
+							keywords, weapon, rollMode,
+							// The Swarm and Group-vs-group rows carry their own +N in the formula.
+							seeded: !("numbersRoll" in rollable.dataset),
+							group: (groupFollowerStanding(resolvedFlags(this.actor), which)?.standing ?? 0) > 1,
+							shiftKey: ev.shiftKey,
+						});
 					} else {
-						// Raw formula roll (e.g. damage die "d8")
-						let label, attacker;
-						if (rollable.classList.contains("stonetop-follower-damage-roll")) {
-							const followerType   = rollable.dataset.followerType ?? "";
-							const followerName   = (rollable.dataset.followerName   ?? "").trim();
-							const followerKind   = (rollable.dataset.followerKind   ?? "").trim();
-							const followerPronoun = (rollable.dataset.followerPronoun ?? "").trim().toLowerCase().split(/[\s/]/)[0];
-							const damageForm     = (rollable.dataset.damageForm     ?? "").trim();
-							const possessive = { he: "his", she: "her", they: "their" }[followerPronoun] ?? "its";
-							const formPart   = damageForm ? ` with ${possessive} ${damageForm}` : "";
-							// The follower is who swings, so it names the damage window as well as the
-							// card; the actor in hand is only the PC whose sheet this is. An animal
-							// companion goes by its own name, every other follower as the PC's.
-							attacker = followerType === "animal"
-								? (followerName || followerKind || "animal companion")
-								: `${this.actor.name}'s ${followerName || { initiate: "initiate", beast: "beast", custom: "follower" }[followerType] || "crew"}`;
-							label = `${attacker} attacks${formPart}`;
-						} else {
-							label = rollable.dataset.label ?? roll;
-						}
-						// A raw formula IS a damage roll — the character's own die, a follower's
-						// attack — so it gets the damage window rather than the move prompt, which
-						// asked it nothing upstream (see _resolveMoveRollPrompts). Shift on the
-						// originating click skips it, exactly as it skips the move prompt.
-						await rollDamagePrompted(roll, this.actor, { label, attacker, shiftKey: ev.shiftKey });
+						// A raw formula IS a damage roll (e.g. damage die "d8"), so it gets the damage
+						// window rather than the move prompt, which asked it nothing upstream (see
+						// _resolveMoveRollPrompts). Shift on the originating click skips it, exactly as it
+						// skips the move prompt.
+						await rollDamagePrompted(roll, this.actor, { label: rollable.dataset.label ?? roll, shiftKey: ev.shiftKey });
 					}
 				}
 			}, true);
@@ -4943,19 +4968,22 @@ export function createStonetopCharacterSheetClass(Base) {
 			wireFightingInNumbers(html[0], { rollKey: "roll", baseKey: "baseRoll" });
 
 			// -- Followers: Order (direct any follower to make a move, p.462) --
-			// Every way in comes through here: the per-card Order button, a named crew
+			// Every card button comes through here: the per-card Order button, a named crew
 			// member's own button, and both groups' Clash / Let Fly. The crew's
 			// group-fight buttons used to shortcut straight to a roll on the pre-baked
 			// `rollMod` the card shows, which meant a group could never come out with
 			// disadvantage even when a shared tag was plainly in the way — and that
 			// modifier is only ever "+1 if a tag applies, +2 if exceptional", which is
 			// exactly what the dialog derives anyway.
+			//
+			// This reads the card's own dataset and hands it to `orderFollower`, which is where the
+			// dialog is actually opened — a follower's token on the map reaches the same method.
 			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".stonetop-follower-order");
 				if (!btn) return;
 				ev.stopPropagation();
 				const pipeList = (raw) => (raw || "").split("|").map(s => s.trim()).filter(Boolean);
-				const follower = {
+				this.orderFollower({
 					name:        btn.dataset.followerName || "Follower",
 					tags:        pipeList(btn.dataset.tags),
 					// Their moves count toward the same bonus as their tags (p.462).
@@ -4964,15 +4992,10 @@ export function createStonetopCharacterSheetClass(Base) {
 					// A group-fight Clash/Let Fly button pre-selects that move; the plain
 					// Order button leaves it at the default (Defy Danger).
 					moveKey:     btn.dataset.moveKey || null,
-				};
-				const ftype = btn.dataset.ftype, slug = btn.dataset.slug ?? "";
-				new OrderFollowersDialog(this.actor, follower,
-					async (result) => {
-						const roll = await this._stonetopCharacter.onOrderFollowersRoll(result);
-						await this._maybeHoldReadinessOnDefend(ftype, slug, result, roll);
-					},
-					{ classes: this._pastDeathWindowClasses(OrderFollowersDialog.defaultOptions.classes) },
-				).render(true);
+					// A crew individual's own button is already one member's order, so the
+					// dialog does not offer to pick a member (its tags are theirs already).
+					member:      btn.dataset.member || null,
+				}, { ftype: btn.dataset.ftype, slug: btn.dataset.slug ?? "" });
 			}, true);
 
 			html.find(".stonetop-invocation-check").on("change", async ev => {
@@ -8989,10 +9012,10 @@ export function createStonetopCharacterSheetClass(Base) {
 		// in the pip list above this section. So the button says what it does; widening it to the
 		// whole move would mean a crew equivalent of OutfitMoveDialog, not a bigger fill() here.
 		async _onRestockCrewSupplies() {
-			// Uses per ◇ is "4 + Prosperity" (p.88) — a synchronous read; no need to build the
-			// whole sheet snapshot just to pull one scalar off it. Same value, same reasoning as
-			// the pipsPerSet the grid is drawn with.
-			const pipsPerSet = this._stonetopCharacter.getSmallItemLimit() ?? 5;
+			// Uses per ◇ is "4 + Prosperity" (p.88), +1 with a Mill — a synchronous read; no need to
+			// build the whole sheet snapshot just to pull one scalar off it. Same value, same reasoning
+			// as the pipsPerSet the grid is drawn with.
+			const pipsPerSet = this._stonetopCharacter.getUsesPerSupply?.() ?? this._stonetopCharacter.getSmallItemLimit() ?? 5;
 			const size       = this._crewRosterSize();
 			await this.actor.setFlag(STONETOP_SCOPE, "crew.supplies", Array(size).fill(pipsPerSet));
 			const who = size === 1 ? "its one member" : `all ${size} members`;
@@ -9013,6 +9036,36 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 			const detail = this.actor.getFlag(STONETOP_SCOPE, _followerDetailBase(ftype, slug));
 			return _followerBearsShield(detail?.gear);
+		}
+
+		/**
+		 * Direct one follower to make a move, and roll what the dialog decides (p.462).
+		 *
+		 * THE ONE DOOR IN. The Followers tab's buttons come through here, and so does a follower's
+		 * own token on the map (fight/follower-fight.js), so a follower ordered from the map is
+		 * ordered exactly as they are from their card — the same tag chips, the same +1/+2, and the
+		 * same Readiness held when a Defend lands.
+		 *
+		 * A GROUP ordered as a whole is offered its members too, so one of them can be directed on
+		 * their own (p.471): the crew's token on the map, and the crew's and a custom group's buttons
+		 * on the card, all get the Who row from here. An order that already names one member (a
+		 * crew individual's own button) does not.
+		 *
+		 * @param {{name: string, tags: string[], moves: string[], exceptional: boolean, moveKey: ?string, member?: ?string}} follower
+		 *   what the dialog weighs; `moveKey` starts it on a move, or null for its own default;
+		 *   `member` is set when the order is already one member's
+		 * @param {{ftype: string, slug: string}} card  whose Readiness a Defend writes to
+		 */
+		async orderFollower(follower, { ftype = "", slug = "" } = {}) {
+			const members = follower?.member ? [] : groupFollowerMembers(resolvedFlags(this.actor), { ftype, slug });
+			if (members.length) follower = { ...follower, members };
+			new OrderFollowersDialog(this.actor, follower,
+				async (result) => {
+					const roll = await this._stonetopCharacter.onOrderFollowersRoll(result);
+					await this._maybeHoldReadinessOnDefend(ftype, slug, result, roll);
+				},
+				{ classes: this._pastDeathWindowClasses(OrderFollowersDialog.defaultOptions.classes) },
+			).render(true);
 		}
 
 		// When a follower is Ordered to Defend and rolls 7+, they hold Readiness (p.469):
@@ -9459,7 +9512,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		/**
-		 * Mirror the computed max HP onto the persisted `hp.max`.
+		 * Mirror the computed max HP and armor onto the persisted `hp.max` and `armor`.
 		 *
 		 * The stored field is stale by design (StonetopCharacter#computedMaxHp sets out why) and
 		 * this sheet never reads it — getData mirrors the computed number into the render context
@@ -9474,8 +9527,9 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * there banks a permanent adjustment rather than pinning the number — took that away and
 		 * put nothing in its place.
 		 *
-		 * Ledger-silenced: the real change was the level or the Mark, which the ledger already
-		 * files. Writes only on a genuine difference, so it settles in one pass and costs a
+		 * The write itself is StonetopCharacter#syncStoredVitals, the one writer of these fields
+		 * (actors/character/vitals-mirror.js calls it too), handed the numbers this render already
+		 * worked out. It writes only on a genuine difference, so it settles in one pass and costs a
 		 * comparison on every render after that.
 		 */
 		async _syncStoredDerived() {
@@ -9486,27 +9540,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			// field the token was reading off the actor perfectly well. isEditable is the sheet's
 			// own answer to "may this be written", and it already accounts for both.
 			if (!this.actor?.isOwner || !this.isEditable) return;
-
-			const update = {};
-			const maxHp = Number(this._computedMaxHp) || 0;
-			if (maxHp > 0 && Number(this.actor.system?.attributes?.hp?.max) !== maxHp) {
-				update["system.attributes.hp.max"] = maxHp;
-			}
-			// null means the snapshot had no armor to mirror. 0 does NOT — an unarmored character
-			// is a real computed value and must still overwrite a stale stored number.
-			const armor = this._computedArmor;
-			if (armor != null) {
-				const floor = Number(this._computedUnpierceable) || 0;
-				const attrs = this.actor.system?.attributes?.armor;
-				// The two move together: a floor is part of the total above it, so a disagreement
-				// in either is settled by writing both rather than leaving half the pair stale.
-				if (Number(attrs?.value) !== armor || (Number(attrs?.unpierceable) || 0) !== floor) {
-					update["system.attributes.armor.value"] = armor;
-					update["system.attributes.armor.unpierceable"] = floor;
-				}
-			}
-			if (!Object.keys(update).length) return;
-			await this.actor.update(update, { stonetopLedger: true });
+			// null armor means the snapshot had none to mirror; 0 max HP, no playbook.
+			await this._stonetopCharacter.syncStoredVitals({
+				armor: this._computedArmor,
+				unpierceable: this._computedUnpierceable,
+				conditional: this._computedConditional,
+				conditionalSource: this._computedConditionalSource,
+				maxHp: this._computedMaxHp,
+			});
 		}
 
 		// ── Wounds (4th harm track) ────────────────────────────────────────────────

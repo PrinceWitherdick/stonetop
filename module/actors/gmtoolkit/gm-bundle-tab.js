@@ -73,13 +73,13 @@
 // step. That is exactly what `{ render: false }` above gives up, and it is why there is no
 // teardown call here to pair with the sheet's `close()`.
 import { wireDocumentDropZone } from "../../utils/card-drop-zone.js";
-import { clusterPoint, dropActorOnCanvas } from "../../utils/token-drop.js";
+import { clusterPoint, placeActors } from "../../utils/token-drop.js";
 import { enrichHTML } from "../../utils/foundry-compat.js";
-import { compendiumRefTail, worldCopiesBySource } from "../../migration/compat.js";
+import { worldActorsBySource, resolveDeployableActor } from "../../utils/deployable-actor.js";
+import { isFightTabEnabled } from "../../settings.js";
 import { escHtml, joinNames, stripHtmlToText } from "../../utils/strings.js";
 import { moveWithin, insertionIndexIn } from "../../utils/list-reorder.js";
 import { localize, format } from "../../utils/i18n.js";
-import { error } from "../../utils/logger.js";
 import { openBundleNotesDialog } from "./bundle-notes-dialog.js";
 import { ActorListStore } from "./actor-list-store.js";
 import { localizedOnce } from "../../utils/localized-once.js";
@@ -110,33 +110,6 @@ const NOTE_PEEK_CHARS = 240;
 function notePeek(html) {
 	return stripHtmlToText(html).slice(0, NOTE_PEEK_CHARS);
 }
-
-/**
- * "The world's copy of this pack document, if it has one", asked cheaply many times over.
- *
- * The index itself is `worldCopiesBySource` in migration/compat.js, beside `seededSourceKeys`,
- * which asks the same question of the same walk for the seeders. Deferred to the first question
- * so a deploy of world actors alone never pays to build it.
- */
-function worldActorsBySource() {
-	let index = null;
-	const find = tail => {
-		if (!tail) return null;
-		index ??= worldCopiesBySource(game.actors ?? []);
-		return index.get(tail) ?? null;
-	};
-	// IT HAS TO LEARN, or the index defeats the very duplication it exists to prevent. The map is
-	// built on the first question and the deploy that asked it goes on to IMPORT what it could not
-	// find, so a second row pointing at the same pack Actor -- "three hillfolk raiders", listed
-	// three times -- would miss against a snapshot taken before the first import and mint a second
-	// and a third copy into the world's Actors directory from one press. The live `.find()` this
-	// index replaced could not: it saw the copy the previous entry had just made.
-	find.remember = (tail, actor) => {
-		if (tail && actor && index) index.set(tail, actor);
-	};
-	return find;
-}
-
 
 /**
  * Reordering an encounter among its siblings.
@@ -913,6 +886,9 @@ export class GmBundleTab {
 	 */
 	async addContext(context) {
 		const list = this.list();
+		// "Deploy and fight" rides beside Deploy on a tab that asks for it, for a GM, with the Fight
+		// tab on (a world that switched it off has no Fight tab for the window to fill).
+		const fightable = !!this.cfg.fight && !!game.user?.isGM && isFightTabEnabled();
 		const cards = await Promise.all(list.map(async enc => {
 			// Enriched for every encounter and not only the open ones, because the body is in
 			// the DOM either way: expanding is a CSS class this file toggles in place, so that
@@ -926,7 +902,7 @@ export class GmBundleTab {
 				// 12 things gathered into it"), so it stays; `groups` is what both the head's
 				// badges and the body's per-kind cards are drawn from.
 				entryCount:  enc.entries.length,
-				groups:      groupBundleEntries(entries),
+				groups:      groupBundleEntries(entries).map(group => ({ ...group, canFight: fightable && group.canDeploy })),
 				notesHtml:   notes.html,
 				notesPeek:   notes.peek,
 				entries,
@@ -1115,17 +1091,22 @@ export class GmBundleTab {
 	 * deliberately holds the scene, the roll table and the read-aloud page beside the
 	 * monsters, and a Deploy that stopped at the first journal page would be a button a GM
 	 * could never press.
+	 *
+	 * ANSWERS WITH WHAT IT DID, for "Deploy and fight" (gm-encounters-tab.js), which starts a fight
+	 * with exactly the tokens this placed: `{placed: TokenDocument[], missed, imported, refused}`,
+	 * where `refused` names the warning that stopped it before anything was placed.
 	 */
 	async deploy(id) {
+		const refuse = key => { this.warn(key); return { placed: [], missed: [], imported: 0, refused: key }; };
 		const encounter = this.card(id);
-		if (!encounter) return;
-		if (!globalThis.canvas?.scene) return this.warn("noScene");
+		if (!encounter) return { placed: [], missed: [], imported: 0, refused: "missing" };
+		if (!globalThis.canvas?.scene) return refuse("noScene");
 		// Asked here as well as inside core's own path, which warns per call: one toast for a
 		// deploy of eight, rather than eight identical ones.
-		if (!game.user?.can?.("TOKEN_CREATE")) return this.warn("noTokens");
+		if (!game.user?.can?.("TOKEN_CREATE")) return refuse("noTokens");
 
 		const wanted = encounter.entries.filter(e => e.type === "Actor");
-		if (!wanted.length) return this.warn("nothingToDeploy");
+		if (!wanted.length) return refuse("nothingToDeploy");
 
 		const actors = [];
 		const missed = [];
@@ -1140,30 +1121,18 @@ export class GmBundleTab {
 		// waiting is `fromUuid` per row, which answers from the pack index without a load for
 		// anything already resolved once.
 		for (const entry of wanted) {
-			const found = await this.deployableActor(entry, worldCopy);
+			const found = await resolveDeployableActor(entry.uuid, worldCopy);
 			if (!found) { missed.push(entry.name); continue; }
 			if (found.imported) imported += 1;
 			actors.push(found.actor);
 		}
 
-		// SEQUENTIAL, not Promise.all. Each placement reads `getMaxSort()` off the layer to
-		// stack the next token above the last, and a batch fired at once reads the same value
-		// for all of them. It is also one create per token, which is exactly what a GM
-		// dragging them in one at a time would produce.
-		let placed = 0;
-		for (const [i, actor] of actors.entries()) {
-			const point = clusterPoint(globalThis.canvas, i, actors.length);
-			// Core returns FALSE for a point outside the scene rect and places nothing,
-			// silently, so the count that gets reported has to know about it before it asks.
-			if (!point) { missed.push(actor.name); continue; }
-			try {
-				await dropActorOnCanvas(globalThis.canvas, actor, point, { altKey: false, shiftKey: false });
-				placed += 1;
-			} catch (err) {
-				error("failed to deploy an encounter actor", err);
-				missed.push(actor.name);
-			}
-		}
+		// One at a time, off-scene squares counted as missed (utils/token-drop.js#placeActors).
+		const canvas = globalThis.canvas;
+		const drop = await placeActors(canvas, actors, i => clusterPoint(canvas, i, actors.length));
+		missed.push(...drop.missed);
+		const placed = drop.dropped.length;
+		const placedTokens = drop.dropped.map(d => d.token).filter(token => token?.documentName === "Token");
 
 		if (placed) {
 			ui.notifications?.info?.(this.f("deployed", {
@@ -1179,41 +1148,7 @@ export class GmBundleTab {
 		// Through the system's ONE list-joiner, so this reads like every other "you got A, B & C"
 		// toast rather than being the one place with a different conjunction.
 		if (missed.length) this.warn("deploySkipped", { names: joinNames(missed) });
-	}
-
-	/**
-	 * The world Actor to make a token of, and whether making it available meant importing one.
-	 *
-	 * A token needs a WORLD actor to point at, so a compendium entry has to become one. Core's
-	 * own canvas drop (`TokenLayer#_onDropActorData`) imports unconditionally, without ever
-	 * looking for a copy already in the world — and this world SEEDS the whole bestiary into
-	 * `game.actors` on ready (hooks/SeedActors.js). Handed a pack uuid, core would therefore
-	 * mint a duplicate of an already-imported monster on every deploy of every encounter, for
-	 * the life of the campaign. The check below is the difference.
-	 *
-	 * Matched on the compendium source with the package id stripped (`compendiumRefTail`), so
-	 * a world seeded under an older system id still counts as having it.
-	 *
-	 * The stored uuid is NOT rewritten to the imported copy. The pack entry is the stable
-	 * identity — a world copy can be deleted, and the row should still point at the monster —
-	 * and this check finds the copy again next time without help.
-	 */
-	async deployableActor(entry, worldCopy = worldActorsBySource()) {
-		const doc = await fromUuid(entry.uuid).catch(() => null);
-		if (doc?.documentName !== "Actor") return null;
-		if (!doc.pack) return { actor: doc, imported: false };
-
-		const tail = compendiumRefTail(doc.uuid);
-		const copy = worldCopy(tail);
-		if (copy) return { actor: copy, imported: false };
-
-		if (!Actor.canUserCreate(game.user)) return null;
-		const created = await Actor.create(game.actors.fromCompendium(doc), { fromCompendium: true });
-		if (!created) return null;
-		// Told to the index straight away: the next entry in this same deploy asks the same
-		// question of a map that was built before this import, and would otherwise import again.
-		worldCopy.remember?.(tail, created);
-		return { actor: created, imported: true };
+		return { placed: placedTokens, missed, imported, refused: null };
 	}
 
 	/* ── listeners ───────────────────────────────────────────────────────────── */

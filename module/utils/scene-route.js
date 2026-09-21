@@ -25,6 +25,7 @@
 import { SYSTEM_ID } from "../system-id.js";
 import { format, localize } from "./i18n.js";
 import { joinNames } from "./strings.js";
+import { bodyStyleTokens } from "./css-tokens.js";
 import {
 	flagScopes, posterMapFor, posterMapSlugOf, sceneOrigin, scopedFlag,
 } from "../book2-art/poster-map-catalog.js";
@@ -110,22 +111,13 @@ export const ROUTE_WAYPOINT_HEAD_SIZE = 46;
 export const ROUTE_INK_FALLBACK = Object.freeze({ ink: 0xb3261e, case: 0xf4ecd8, caseAlpha: 0.9 });
 
 export function routeInk() {
-	const body = globalThis.document?.body;
-	if (!body || typeof globalThis.getComputedStyle !== "function") return ROUTE_INK_FALLBACK;
-
-	const style = globalThis.getComputedStyle(body);
-	const hex = (name) => {
-		const found = /^#([0-9a-f]{6})$/i.exec(style.getPropertyValue(name)?.trim() ?? "");
-		return found ? parseInt(found[1], 16) : null;
-	};
-	const ink = hex("--stonetop-route-ink");
+	const tokens = bodyStyleTokens();
+	const ink = tokens?.hex("--stonetop-route-ink") ?? null;
 	if (ink === null) return ROUTE_INK_FALLBACK;
-
-	const alpha = Number(style.getPropertyValue("--stonetop-route-case-alpha"));
 	return Object.freeze({
 		ink,
-		case: hex("--stonetop-route-case") ?? ROUTE_INK_FALLBACK.case,
-		caseAlpha: Number.isFinite(alpha) && alpha > 0 ? alpha : ROUTE_INK_FALLBACK.caseAlpha,
+		case: tokens.hex("--stonetop-route-case") ?? ROUTE_INK_FALLBACK.case,
+		caseAlpha: tokens.number("--stonetop-route-case-alpha", ROUTE_INK_FALLBACK.caseAlpha),
 	});
 }
 

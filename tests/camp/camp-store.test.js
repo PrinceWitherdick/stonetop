@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SYSTEM_ID } from "../../module/system-id.js";
-import { CAMP_STALE_MS, CAMP_STATUS, SETTLE_REFUSAL } from "../../module/camp/camp-rules.js";
+import { CAMP_STALE_MS, CAMP_STATE, CAMP_STATUS, SETTLE_REFUSAL } from "../../module/camp/camp-rules.js";
 import {
 	applyCampShares, breakCamp, campMembers, campWriterId, hostCamp, joinCamp, onUpdateActorCamp,
 	openCamps, partyFollowerMouths, payPendingShares, registerCampHooks, sendAwayFromCamp, setCampChoices, settleCamp,
-	takenFromCamp,
+	stateOfCamp, takenFromCamp,
 } from "../../module/camp/camp-store.js";
 import { campCharacter, campParty, restoreCampWorld } from "../fakes/camp.js";
 
@@ -67,6 +67,31 @@ describe("sitting down at a camp", () => {
 		await setCampChoices(bram, { ready: true, "offer.provisions": 2 });
 		await joinCamp(bram, await hostCamp(aeliana));
 		expect(campOf(bram)).toMatchObject({ ready: false, offer: { provisions: 0 } });
+	});
+
+	it("breaks up the camp a host walks away from, open or already broken up, and nothing else", async () => {
+		const { aeliana, bram } = campParty();
+		const left = await hostCamp(aeliana);
+		await joinCamp(aeliana, await hostCamp(bram));
+		expect(stateOfCamp(left)).toBe(CAMP_STATE.CANCELLED);
+
+		const broken = await hostCamp(aeliana);
+		await breakCamp(aeliana);
+		await joinCamp(aeliana, await hostCamp(bram));
+		expect(stateOfCamp(broken)).toBe(CAMP_STATE.CANCELLED);
+
+		// Moving on again, from a camp they were only a guest at, keeps both broken up.
+		await joinCamp(aeliana, await hostCamp(bram));
+		expect(stateOfCamp(left)).toBe(CAMP_STATE.CANCELLED);
+		expect(stateOfCamp(broken)).toBe(CAMP_STATE.CANCELLED);
+
+		// A settled camp was eaten at, not broken up, and a member moving on breaks nothing.
+		const { aeliana: host, bram: guest, camp } = await readyToSettle();
+		await settleCamp(camp);
+		await joinCamp(host, await hostCamp(guest));
+		expect(campOf(host).leftCamps).toEqual([]);
+		expect(stateOfCamp(camp)).not.toBe(CAMP_STATE.CANCELLED);
+		expect(campOf(guest).leftCamps).toEqual([]);
 	});
 
 	it("brings every living follower marked as in the party, a group as its whole headcount", () => {

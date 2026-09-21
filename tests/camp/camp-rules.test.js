@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SYSTEM_ID } from "../../module/system-id.js";
 import {
-	CAMP_BENEFIT, CAMP_FOLLOWERS_MAX, CAMP_STALE_MS, CAMP_STATE, CAMP_STATUS, PEACEFUL_NIGHT,
+	CAMP_BENEFIT, CAMP_FOLLOWERS_MAX, CAMP_LEFT_MAX, CAMP_STALE_MS, CAMP_STATE, CAMP_STATUS, PEACEFUL_NIGHT,
 	blankOffer, campLedger, campShareUpdate, campState, coverTheRest, freezeCampPlan,
 	newCampRecord, offerStep, readCampRecord, readOwedCamps, rollsBedroll, spareUses,
 } from "../../module/camp/camp-rules.js";
@@ -111,6 +111,19 @@ describe("where a camp stands", () => {
 		expect(campState(hostRecord({ id: "camp-2" }), camp, 2000)).toBe(CAMP_STATE.GONE);
 		expect(campState(hostRecord({ host: "bram", status: null }), camp, 2000)).toBe(CAMP_STATE.GONE);
 		expect(campState(null, camp, 2000)).toBe(CAMP_STATE.GONE);
+	});
+
+	// Walking over to another fire breaks the host's own camp up, and the record that said so is gone.
+	it("is broken up when its host left it for another camp", () => {
+		expect(campState(hostRecord({ id: "camp-2", status: null, leftCamps: ["camp-1"] }), camp, 2000)).toBe(CAMP_STATE.CANCELLED);
+		expect(campState(hostRecord({ id: "camp-3", status: null, leftCamps: ["camp-1", "camp-2"] }), camp, 2000)).toBe(CAMP_STATE.CANCELLED);
+		expect(campState(hostRecord({ id: "camp-2", status: null, leftCamps: ["camp-9"] }), camp, 2000)).toBe(CAMP_STATE.GONE);
+	});
+
+	it("remembers only the latest camps a character broke up", () => {
+		const ids = Array.from({ length: CAMP_LEFT_MAX + 2 }, (_, i) => `camp-${i}`);
+		expect(readCampRecord({ id: "x", leftCamps: ids }).leftCamps).toEqual(ids.slice(-CAMP_LEFT_MAX));
+		expect(readCampRecord({ id: "x", leftCamps: "camp-1" }).leftCamps).toEqual([]);
 	});
 });
 

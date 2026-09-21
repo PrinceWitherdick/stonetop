@@ -12,6 +12,7 @@ import {
 	groupEncounterEntries,
 	nudgeWithinGroup,
 	STONETOP_ENCOUNTER_DRAG_TYPE,
+	deployAndFight,
 } from "../../../module/actors/gmtoolkit/gm-encounters-tab.js";
 import { clusterPoint } from "../../../module/utils/token-drop.js";
 import { fakeEl, makeListHost, fakeRoot as sheetRoot } from "../../fakes/dom.js";
@@ -2039,5 +2040,111 @@ describe("the Encounters tab: the Completed section", () => {
 		const box = declarations(CSS, ".stonetop-gm-encounters-completed");
 		expect(box).toMatch(/border-top:\s*1px solid var\(--st-card-rule\)/);
 		expect(box).toMatch(/padding-top:/);
+	});
+});
+
+/* ══ deploy and fight ═════════════════════════════════════════════════════════ */
+
+describe("the Encounters tab: deploy and fight", () => {
+	const oneMonster = () => [{ id: "e1", name: "Crypt", entries: [
+		{ id: "x1", uuid: "Actor.a", type: "Actor", name: "Rust-Hound", note: "" },
+		{ id: "x2", uuid: "Actor.f", type: "Actor", name: "Hound", note: "" },
+	] }];
+
+	/** A canvas whose drops hand back real-looking tokens: a monster, then a follower. */
+	function tokenCanvas({ returns = "tokens" } = {}) {
+		const tokens = [];
+		globalThis.canvas = {
+			scene: { id: "scene1" },
+			grid: { size: 100 },
+			stage: { pivot: { x: 1000, y: 1000 } },
+			dimensions: { rect: { contains: () => true } },
+			tokens: {
+				_onDropActorData: vi.fn(async (ev, data) => {
+					if (returns !== "tokens") return false;
+					const follower = data.uuid === "Actor.f";
+					const token = {
+						documentName: "Token",
+						id: `t${tokens.length}`,
+						actor: follower
+							? { type: "npc", flags: { "stonetop-pwd": { followerOrigin: { ftype: "crew" } } } }
+							: { type: "monster" },
+						_source: { disposition: follower ? 1 : -1 },
+					};
+					tokens.push(token);
+					return token;
+				}),
+			},
+		};
+		return tokens;
+	}
+
+	let savedGame;
+	beforeEach(() => { savedGame = global.game; });
+	afterEach(() => { global.game = savedGame; });
+
+	it("answers with the tokens Deploy placed", async () => {
+		const { host } = makeHost(oneMonster());
+		tokenCanvas();
+		globalThis.fromUuid = vi.fn(async uuid => ({ documentName: "Actor", uuid, name: uuid }));
+		const result = await host._deployEncounter("e1");
+		expect(result.placed.map(t => t.id)).toEqual(["t0", "t1"]);
+		expect(result).toMatchObject({ missed: [], imported: 0, refused: null });
+	});
+
+	it("says which warning stopped it when it placed nothing", async () => {
+		const { host } = makeHost(oneMonster());
+		delete globalThis.canvas;
+		expect(await host._deployEncounter("e1")).toMatchObject({ placed: [], refused: "noScene" });
+	});
+
+	it("starts a fight with exactly those tokens, the monster as a foe and the follower left as it is", async () => {
+		const { host } = makeHost(oneMonster());
+		tokenCanvas();
+		globalThis.fromUuid = vi.fn(async uuid => ({ documentName: "Actor", uuid, name: uuid }));
+		const openStart = vi.fn(async () => "opened");
+		global.game = { ...global.game, stonetop: { fight: { openStart } } };
+		expect(await deployAndFight(host._encounters, "e1")).toBe("opened");
+		expect(openStart).toHaveBeenCalledWith({ preselect: ["t0", "t1"], preselectPcs: true, forceFoes: ["t0"] });
+	});
+
+	it("opens nothing when Deploy placed nothing", async () => {
+		const { host } = makeHost(oneMonster());
+		tokenCanvas({ returns: "nothing" });
+		globalThis.fromUuid = vi.fn(async uuid => ({ documentName: "Actor", uuid, name: uuid }));
+		const openStart = vi.fn();
+		global.game = { ...global.game, stonetop: { fight: { openStart } } };
+		expect(await deployAndFight(host._encounters, "e1")).toBeNull();
+		expect(openStart).not.toHaveBeenCalled();
+	});
+
+	it("offers it only to a GM, and only with the Fight tab on", async () => {
+		const { host } = makeHost(oneMonster());
+		globalThis.fromUuidSync = vi.fn(() => ({ name: "Rust-Hound", documentName: "Actor" }));
+		const canFight = async ({ on, gm }) => {
+			global.game = {
+				...savedGame,
+				user: { isGM: gm, can: () => true },
+				settings: { get: (scope, key) => (key === "fightTab" ? on : undefined) },
+			};
+			const context = { stonetop: {} };
+			await host._addGmEncountersContext(context);
+			return context.stonetop.encounters.active[0].groups.find(g => g.canDeploy)?.canFight;
+		};
+		expect(await canFight({ on: true, gm: true })).toBe(true);
+		expect(await canFight({ on: false, gm: true })).toBe(false);
+		expect(await canFight({ on: true, gm: false })).toBe(false);
+	});
+
+	it("draws the button beside Deploy, before the count, with a label a screen reader says", () => {
+		const head = CARD_MARKUP.slice(
+			CARD_MARKUP.indexOf("stonetop-gm-entry-card-head"),
+			CARD_MARKUP.indexOf("stonetop-gm-encounter-entries"));
+		expect(head).toMatch(/\{\{#if canFight\}\}\s*<button type="button" class="stonetop-gm-encounter-fight"/);
+		expect(head.indexOf("stonetop-gm-encounter-deploy")).toBeLessThan(head.indexOf("stonetop-gm-encounter-fight"));
+		expect(head.indexOf("stonetop-gm-encounter-fight")).toBeLessThan(head.indexOf("stonetop-gm-entry-card-count"));
+		expect(head).toContain('aria-label="{{localize "stonetop.gmToolkit.encounters.deployAndFight"}}"');
+		expect(CARD_MARKUP.match(/class="stonetop-gm-encounter-deploy"/g)).toHaveLength(1);
+		expect(declarations(CSS, ".stonetop-gm-entry-card-head > .stonetop-gm-encounter-fight")).toMatch(/width:\s*22px/);
 	});
 });

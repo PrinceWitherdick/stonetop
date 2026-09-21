@@ -43,12 +43,23 @@ describe("the person picker's checkbox", () => {
 
 	// ⚠ `appearance: none` HIDES THE BROWSER'S OWN DASH, so a box the dialog sets `indeterminate`
 	// on would read as empty -- "Select all" saying nobody is, over a list with four names
-	// ticked. The bar is painted here instead, layered over the empty spiral.
-	it("paints its own part-way bar, since the native one is gone", () => {
+	// ticked. The dash is painted here instead, as its own piece of art.
+	//
+	// ⚠ NOT A BAR LAYERED OVER THE EMPTY BOX. It was a 2px currentColor gradient once, and beside
+	// the name ticks it was reported as the one glyph that looked wrong: heavier than the box's
+	// stroke and blacker than its ink. The art also has a bone twin behind the same variable, which
+	// a gradient over the empty box never had.
+	it("paints its own part-way box, since the native dash is gone", () => {
 		expect(CHECK).toMatch(/appearance:\s*none/);
 		expect(PART_WAY, ".stonetop-person-picker-all-check:indeterminate reaches no rule").toBeTruthy();
-		expect(PART_WAY).toMatch(/linear-gradient\(currentColor, currentColor\)/);
-		expect(PART_WAY).toMatch(/var\(--stonetop-checkbox-icon\)/);
+		expect(PART_WAY).toMatch(/background:\s*var\(--stonetop-checkbox-partial-icon\)/);
+		expect(PART_WAY, "the old bar is what was reported").not.toMatch(/linear-gradient/);
+	});
+
+	it("re-skins the part-way box wherever the other two boxes are re-skinned", () => {
+		const count = re => (CSS.match(re) ?? []).length;
+		expect(count(/--stonetop-checkbox-partial-icon:\s*url\([^)]*checkbox-partial-light\.svg/g))
+			.toBe(count(/--stonetop-checkbox-checked-icon:\s*url\([^)]*checkbox-checked-light\.svg/g));
 	});
 
 	// The radio on the one-answer question is a real radio and keeps its own pinning; what must

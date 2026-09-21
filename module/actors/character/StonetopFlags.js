@@ -125,6 +125,11 @@ export function resolvedFlags(actor) {
 	return bag ?? {};
 }
 
+/** resolvedFlags, or the active scope's bag when the cut-over state cannot be read: a read that must not throw. */
+export function readableFlags(actor) {
+	try { return resolvedFlags(actor) ?? {}; } catch { return actor?.flags?.[_scope] ?? {}; }
+}
+
 export function resolvedFlagProperty(actor, path) {
 	const scoped = resolvedFlags(actor);
 	return foundry.utils.getProperty(scoped, path) ?? scoped?.[path];

@@ -439,14 +439,15 @@ describe("what asks before it rolls", () => {
 		const roll = STEADING_JS.slice(STEADING_JS.indexOf("async _onSteadingRoll(moveName, statKey"));
 		expect(roll.slice(0, 1200)).toContain("pickOptions: flow.pickPools");
 		expect(roll.slice(0, 1200)).toContain("tierActions: flow.tierActions");
-		// Deploy is the move that needs them per-tier: its 6- consequences are a different list.
+		// Deploy (Book I): "on a 7-9, it works but someone picks 1 from the list below". Its one
+		// list is the consequences, on the 7-9 alone; there is no list of good outcomes to choose.
 		const deploy = STEADING_JS.slice(STEADING_JS.indexOf("\tdeploy: {"), STEADING_JS.indexOf("\ttradeBarter: {"));
-		expect(deploy).toContain("success: DEPLOY_CHOICES");
-		expect(deploy).toContain("partial: DEPLOY_CHOICES");
-		expect(deploy).toContain("failure: DEPLOY_CONSEQUENCES");
+		expect(deploy).toContain("partial: DEPLOY_CONSEQUENCES");
+		expect(STEADING_JS).not.toContain("DEPLOY_CHOICES");
 		// "Injuries abound; the steading marks diminished" is one of those consequences, so the
-		// button that applies it rides the miss with them rather than the pre-roll dialog.
-		expect(deploy).toContain("stonetop-deploy-mark-diminished");
+		// button that applies it rides the card with them rather than the pre-roll dialog.
+		expect(deploy).toContain('markDiminishedAction("Deploy")');
+		expect(STEADING_JS).toContain("stonetop-deploy-mark-diminished");
 		expect(STEADING_JS).not.toContain("data-action='mark-diminished'");
 		expect(STONETOP_JS).toContain("function _chatWireDeployMarkDiminished");
 		expect(STONETOP_JS).toContain("_chatWireDeployMarkDiminished(message, html);");
@@ -509,10 +510,15 @@ describe("what asks before it rolls", () => {
 	// Trade & Barter in winter is at disadvantage by the move's own text, so the rule is spread
 	// OVER the prompt's answer rather than under it — and it is absent, not `undefined`, the
 	// other three seasons, or the spread would blank the answer (and the flag behind it).
-	it("lets a rule-forced disadvantage beat everything else, and only when it applies", () => {
-		expect(STEADING_JS).toContain("...(data.winter ? { rollMode: \"dis\" } : {})");
+	// Winter's disadvantage is a SOURCE the roll nets against any advantage (a Township's), since
+	// "if you have advantage and disadvantage on the same roll, they cancel each other out". The
+	// netting itself is improvement-rolls.test.js's.
+	it("hands winter's disadvantage to the roll as a source, netted against every advantage", () => {
+		expect(STEADING_JS).toContain("winter: !!data.winter");
 		const roll = STEADING_JS.slice(STEADING_JS.indexOf("await this._onSteadingRoll(flow.label"));
 		expect(roll.slice(0, 200)).toMatch(/\.\.\.prompted,\s*\.\.\.this\._homesteadRollOptions/);
+		const steadingRoll = STEADING_JS.slice(STEADING_JS.indexOf("async _onSteadingRoll(moveName, statKey"));
+		expect(steadingRoll.slice(0, 4000)).toContain("netRollMode(");
 	});
 
 	// Shift is the escape hatch: the dice and nothing else. The rule lives in the prompt, not in

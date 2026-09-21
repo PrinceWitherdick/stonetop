@@ -354,8 +354,9 @@ export function followerNpcActorData(follower = {}, { folder = null, origin = nu
 	});
 	data.flags[SYSTEM_ID] = {
 		// Provenance: which character's follower card this actor was made from
-		// ({characterUuid, ftype, slug}). Nothing reads it back today — it's here so a GM tidying
-		// the sidebar can tell where an actor came from.
+		// ({characterUuid, ftype, slug}). Read back by follower-masters.js#followerCardFor and
+		// #followerMasterIndex (and through them by the NPC sheet, the Fight tab and the
+		// Start-a-fight roster), so it is the link, not just a note for a GM tidying the sidebar.
 		followerOrigin: origin ?? null,
 		// What the card dictated, remembered, so a later edit on the card can tell a field this
 		// actor still holds AS GIVEN from one somebody has since changed on the NPC itself — the

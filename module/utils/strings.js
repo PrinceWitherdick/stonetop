@@ -183,6 +183,8 @@ export function decodeEntities(text) {
 // trailing options back onto their own bulleted lines. The {0,40} keeps the match from
 // running past the colon into unrelated prose.
 const _PICK_MARKER = /\b(?:pick|choose|select)\b[^:]{0,40}:/i;
+// The same hinge, but not across a sentence break. See formatOutcomeDetail's `introOnly` fallback.
+const _PROSE_PICK_HINGE = /\b(?:pick|choose|select)\b[^:.;!?]{0,40}:/i;
 
 // Options after the hinge are separated by " / " (from a collapsed <ul>) or by a
 // deliberate capitalised "OR" / "; OR". "OR" is matched case-SENSITIVELY so an option's
@@ -251,6 +253,21 @@ export function formatOutcomeDetail(text, { introOnly = false } = {}) {
 		const items = split.options.map((o) => `<li>${escHtml(o)}</li>`).join("");
 		return `<span class="stonetop-roll-result-lead">${escHtml(split.intro)}</span>`
 			+ `<ul class="stonetop-roll-result-picks">${items}</ul>`;
+	}
+	// The options are already on the card, but written as prose ("Choose 1: struggle for control,
+	// start acting as compelled, or harm yourself") rather than " / "-separated, so nothing above
+	// could split them. They are still the list the boxes hold, and the lead-in is still all this
+	// line owes: Urges' weak hit printed its three options out in full under the ladder's "Choose 1."
+	//
+	// A tighter hinge than _PICK_MARKER: no sentence break between the count and the colon. With no
+	// options to confirm the match, the loose one would find "pick 1 seasonal gain. Summer:" in
+	// Seasons Change and cut the season line in half.
+	if (introOnly) {
+		const hinge = raw.match(_PROSE_PICK_HINGE);
+		if (hinge) {
+			const lead = raw.slice(0, hinge.index + hinge[0].length).trim();
+			return `<span class="stonetop-roll-result-lead">${escHtml(closeLeadIn(lead))}</span>`;
+		}
 	}
 	return escHtml(closeLeadIn(raw));
 }

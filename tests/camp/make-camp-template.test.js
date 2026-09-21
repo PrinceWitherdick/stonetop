@@ -129,7 +129,7 @@ describe("the camp window's template", () => {
 
 	it("says on the held Make Camp button how short the meal is, and what would fix it", async () => {
 		const held = await render([aeliana()]);
-		expect(held).toMatch(/data-camp-action="settle" disabled data-tooltip="The meal is \d+ uses? of food short\. Share more food, or press Go without on the card of anyone not eating\."/);
+		expect(held).toMatch(/data-camp-action="settle" disabled data-tooltip="The meal is \d+ uses? of food short\. Share more food, decide someone had supplies all along, or press Go without on the card of anyone not eating\."/);
 		const paid = await render([aeliana({ choices: { offer: { supplies: 1 } } })]);
 		expect(paid).not.toMatch(/data-camp-action="settle"[^>]*data-tooltip/);
 	});

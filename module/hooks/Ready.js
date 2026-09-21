@@ -24,7 +24,7 @@ import { MACRO_MODULES } from "../book2-art/macro-modules.js";
 import { openProgressNotification } from "../utils/progress-notification.js";
 import { stonetopChatCard, whisperGm } from "../utils/chat.js";
 import { stampWorldLayoutBaseline } from "../utils/sheet-layout.js";
-import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyReduceMotion, applySheetContrast, applySheetTexture, applyNoItalics, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown, adoptClassicLayoutScope, isTimelineEnabled } from "../settings.js";
+import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyReduceMotion, applySheetContrast, applySheetTexture, applyNoItalics, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown, adoptClassicLayoutScope, isTimelineEnabled, isFightTabEnabled, getArraySetting } from "../settings.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
 import { SpringBurstDialog } from "../dialogs/SpringBurstDialog.js";
@@ -65,6 +65,7 @@ import { PERSON_DEFAULT_IMG } from "../utils/person-portrait.js";
 import { NEW_SHOOT_MARKER, LEGACY_SHOOT_MARKERS } from "../data/follower-actor.js";
 import { isDefaultImg } from "../utils/strings.js";
 import { updatePlacedTokens } from "../utils/placed-tokens.js";
+import { grandfatherWeaponsOfWar } from "../migration/weapons-of-war-grandfather.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
 const _EOS_MACRO_IMG    = "systems/stonetop-pwd/assets/icons/macros/truce.svg";
@@ -180,6 +181,11 @@ export async function onReady() {
 	// _RETIRED_ACTOR_FLAGS). Self-gated to the primary GM, and a no-op in a clean world.
 	try { await _dropRetiredActorFlags(); }
 	catch (err) { console.error("Stonetop | retired actor-flag sweep failed", err); }
+	// Untick Group fight on sidebar monsters while the Fight tab is on, which picks a group's scale
+	// token by token — and put the ticks back when the tab goes off again
+	// (see _reconcileWorldGroupFights). Self-gated like the sweep above.
+	try { await _reconcileWorldGroupFights(); }
+	catch (err) { console.error("Stonetop | world Group fight reconcile failed", err); }
 	await _migrateGmPrepPagesToSingleJournal();
 	// Convert each steading's plain-text Residents/Neighbors rows into linked NPC actors
 	// (idempotent; primary-GM only so two connected GMs can't double-create). Swept every
@@ -205,6 +211,13 @@ export async function onReady() {
 		// made at all now, so this is legacy repair and has a last world to run in.
 		try { await oncePerVersion("arcanumSlugs", _stampMissingArcanumSlugs); }
 		catch (err) { console.error("Stonetop | arcanum slug sweep failed", err); }
+		// Keep a crossbow a character already carries on the sheet now that Weapons of War grants only
+		// the five weapons it names (migration/weapons-of-war-grandfather.js). GATED: it reads the
+		// outfit catalog and then every character's inventory flags, and it is legacy repair — the
+		// narrowed grant is what ships, so a world swept once has nothing left to find.
+		try { await oncePerVersion("weaponsOfWarGrandfather", grandfatherWeaponsOfWar); }
+		catch (err) { console.error("Stonetop | Weapons of War grandfathering failed", err); }
+
 		// Point player tokens back at the characters they stand for. An unlinked PC token carries
 		// a private copy of its character, and the two drift because a roll writes to the sheet's
 		// Actor while every chat-card button resolves its Actor out of the message speaker — which
@@ -332,6 +345,9 @@ export async function onReady() {
 	// focuses/closes the Introductions dialog on the active player's client as the GM
 	// drives the round-robin. See dialogs/IntroductionsDialog.js.
 	game.stonetop.onIntroCursor     = cursor => IntroductionsDialog.handleIntroCursor(cursor);
+	// Order onChange dispatcher (the introductionsOrder world setting): redraws an open
+	// pre-check on every client when a GM randomizes or moves someone.
+	game.stonetop.onIntroductionsOrder = () => IntroductionsDialog.onOrderChanged();
 	game.stonetop.openSpringBurst   = () => SpringBurstDialog.open();
 	// Run the steading's Seasons Change homefront move from the hotbar: launch the
 	// season-picker → roll flow (the same one the sheet's Seasons Change move uses)
@@ -1545,6 +1561,65 @@ export async function _dropRetiredActorFlags() {
 		"retired flag sweep",
 	);
 	return staleKeys.size;
+}
+
+// Keep the monster sheet's Group fight switch (`system.fightAsGroup`) on WORLD monsters in step with
+// the Fight tab: unticked while the tab is on, and PUT BACK when it goes off again.
+//
+// With the tab on, a group's scale is chosen for each TOKEN: as it joins a fight (the "how many?"
+// window) and from the tab after that (Merge, Split: fight/group-scale.js), and the sheet no longer
+// draws the switch. A sidebar monster ticked before then, or while the tab was switched off, hands
+// the switch to every token dragged out of it, is never asked "how many?", and has no box left to
+// untick. Tokens keep theirs: each is the scale its own fight settled on.
+//
+// WHICH IS A GOOD REASON TO UNTICK AND NO REASON AT ALL TO FORGET. The tab is a switch a GM can
+// throw back the same evening; the ticks it ate were a dozen deliberate decisions about a dozen
+// bestiary entries, and nothing recorded them, so throwing it back left the whole sidebar unticked
+// with no way to tell which entries had been which. So the untick writes down whose switch it took
+// (`groupFightUnticked`), and turning the tab off gives them back and clears the record.
+//
+// A GM who re-ticks an entry with the tab OFF and turns it on again is swept as before, and their
+// new tick is added to the record: it is a list of what this sweep took, not a one-time snapshot.
+//
+// Every load rather than once per version, since the tab can be thrown either way at any time.
+// Idempotent, and in a settled world a filter over the Actors sidebar that finds nothing to write.
+// PRIMARY-GM ONLY, like every other write in onReady, and batched with the same per-actor retry
+// (see _updateActorsBatched).
+export async function _reconcileWorldGroupFights() {
+	if (!game.user?.isGM || !isPrimaryGM()) return 0;
+	return isFightTabEnabled() ? _untickWorldGroupFights() : _restoreWorldGroupFights();
+}
+
+/** The tab is ON: take the switch off every world monster still carrying it, and remember whose. */
+async function _untickWorldGroupFights() {
+	const ticked = (game.actors ?? []).filter(actor => actor.type === "monster" && actor.system?.fightAsGroup);
+	if (!ticked.length) return 0;
+	const wrote = await _updateActorsBatched(ticked, () => ({ "system.fightAsGroup": false }), "Group fight untick");
+	// Everyone the batch was about, not only those `wrote` counted: a per-actor retry that dropped
+	// one leaves it still ticked, the next load sweeps it again, and the Set swallows the repeat.
+	// Recording one whose write failed costs nothing either — the restore hands the switch back only
+	// to a monster that has not got it, so an id that never lost one is passed over.
+	if (wrote) {
+		const held = new Set([...getArraySetting("groupFightUnticked"), ...ticked.map(actor => actor.id)]);
+		await setSetting("groupFightUnticked", [...held]);
+	}
+	return wrote;
+}
+
+/** The tab is OFF: the switch is back on the sheet, so give back what the untick took. */
+async function _restoreWorldGroupFights() {
+	const held = getArraySetting("groupFightUnticked");
+	if (!held.length) return 0;
+	// Cleared whether or not anyone is left to give it back to: an id whose monster has since been
+	// deleted, or which the GM has already re-ticked by hand, is a record with nothing left to say.
+	const actors = game.actors ?? [];
+	const back = held.map(id => [...actors].find(a => a?.id === id))
+		.filter(actor => actor?.type === "monster" && !actor.system?.fightAsGroup);
+	const wrote = back.length
+		? await _updateActorsBatched(back, () => ({ "system.fightAsGroup": true }), "Group fight restore")
+		: 0;
+	await setSetting("groupFightUnticked", []);
+	return wrote;
 }
 
 // Give a slug to any arcanum card in the world that has none.

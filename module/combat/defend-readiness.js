@@ -14,6 +14,20 @@
 // can be unit-tested; StonetopCharacter wires it to the actor's flags and roll flow, and
 // the sheet renders the pips.
 
+import { SYSTEM_ID } from "../system-id.js";
+
+// Where a character's held Readiness lives: a flag on the actor.
+export const READINESS_FLAG = "readiness";
+
+/** Readiness as it is held: a whole number, never below none. */
+export const readinessCount = value => Math.max(0, Math.trunc(Number(value) || 0));
+
+/** A character's held Readiness, read off its flags; anyone else holds none. */
+export function heldReadiness(actor) {
+	if (actor?.type !== "character") return 0;
+	return readinessCount(actor.flags?.[SYSTEM_ID]?.[READINESS_FLAG]);
+}
+
 // The base cap without a shield or Guardian: a 10+ Defend holds 3.
 export const DEFEND_READINESS_BASE_CAP = 3;
 

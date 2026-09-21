@@ -12,11 +12,20 @@
  * second edit, and a row cannot ship describing behaviour the setting no longer has. The only
  * thing this file states is which keys a player is offered and in what order.
  *
- * Scope is per-PLAYER, not per-character: these are all client-scoped, and several of them
- * (`sheetFont`, `reduceMotion`, `sheetFontScale`, `sheetContrast`, `sheetTexture`, `noItalics`)
- * are applied by setting a variable or a class
+ * Scope is per-PLAYER, not per-character: nearly all of these are client-scoped, and several of
+ * them (`sheetFont`, `reduceMotion`, `sheetFontScale`, `sheetContrast`, `sheetTexture`,
+ * `noItalics`) are applied by setting a variable or a class
  * on `document.documentElement`, so one character's sheet could not hold its own value even if
  * it wanted to. The tab is where a player finds them, not what owns them.
+ *
+ * THE ONE EXCEPTION IS WORLD-SCOPED, and it is deliberate rather than an oversight. `fightTab`
+ * decides whether this system's Fight tab replaces Foundry's Combat tracker for the whole table,
+ * and the person who wants it is a GM sitting on their Toolkit, which is the sheet this tab is
+ * theirs on. Sending them to Configure Settings for the one table-wide switch they are most
+ * likely to want is the trip this tab exists to save. A world row is not free, though, and pays
+ * for itself three ways below: `offeredToThisUser` asks for the SETTINGS_MODIFY permission and
+ * not just the GM role, `buildRow` marks it `isWorld` so the tab says whose setting it is, and
+ * `setPreference` runs core's own reload prompt, which `game.settings.set` does not.
  *
  * NB the keys below are quoted literals on purpose, not built from a loop or a prefix:
  * tests/utils/settings-registration.test.js proves every registered key is read somewhere by
@@ -81,6 +90,21 @@ export const PREFERENCE_GROUPS = [
 		keys: ["hoverDescriptionsEnabled"],
 		menu: "hoverDescriptionSettings",
 	},
+	{
+		id: "fights",
+		titleKey: "stonetop.sheet.preferences.fights",
+		// LAST, and on its own, because it is the only group on the tab that is not the reader's
+		// own: one GM-only, world-scoped switch that decides whether Stonetop's Fight tab replaces
+		// Foundry's Combat tracker for everybody. Stonetop has no initiative (Book I p.417), so the
+		// Fight tab is what the system ships; a table that would rather run an initiative module
+		// turns it off here and gets core's tracker back with nothing of ours left running
+		// (module/fight/fight-boot.js).
+		//
+		// Furthest from the everyday rows on purpose. Everything above changes what one person
+		// sees the moment it is touched; this one changes the table and reloads every client, and
+		// a switch like that should not sit next to the font size.
+		keys: ["fightTab"],
+	},
 ];
 
 /**
@@ -90,8 +114,9 @@ export const PREFERENCE_GROUPS = [
  * element that grew one could write any registered setting — including the WORLD-scoped ones
  * (`classicLayoutCharacter`, the GM-only gates) that a player must not touch and that Foundry
  * would reject noisily on their client and apply for everyone on the GM's. Membership of this
- * set is the whole permission check; keep it derived from the groups so adding a row to a group
- * is the only edit an added row needs.
+ * set is the whole permission check for a client-scoped key, and the FIRST of two for a
+ * world-scoped one (see `offeredToThisUser`); keep it derived from the groups so adding a row to
+ * a group is the only edit an added row needs.
  */
 export const PREFERENCE_KEYS = new Set(PREFERENCE_GROUPS.flatMap(group => group.keys));
 
@@ -104,6 +129,10 @@ export const PREFERENCE_KEYS = new Set(PREFERENCE_GROUPS.flatMap(group => group.
  * can edit most of them. A player opens their own character, which they can already flip with
  * the header wrench.
  *
+ * `fightTab` is here for a blunter reason: it is world-scoped, so a player's client would refuse
+ * the write outright. Being a GM is not enough for it either — see `offeredToThisUser`, which
+ * asks a second question of every world-scoped key.
+ *
  * Gated HERE rather than at registration, because `registerSettings` runs on the `init` hook and
  * `game.user` does not exist yet — there is no `isGM` to ask at the moment the `config` flag
  * would have to be decided. This means the row is absent from the TAB for a player while the
@@ -114,7 +143,7 @@ export const PREFERENCE_KEYS = new Set(PREFERENCE_GROUPS.flatMap(group => group.
  * change handler takes its key from a `data-pref` attribute, so hiding the control without
  * refusing the key would leave the setting one hand-edited attribute from being written anyway.
  */
-export const GM_ONLY_KEYS = new Set(["openSheetsInEditMode"]);
+export const GM_ONLY_KEYS = new Set(["openSheetsInEditMode", "fightTab"]);
 
 /**
  * NO ROW ON THIS TAB IS EVER DRAWN DISABLED BY ANOTHER ROW, and that is worth saying because
@@ -151,10 +180,34 @@ function settingValue(key, cfg = registration(key)) {
 	}
 }
 
-/** Whether this client is offered `key` at all. */
+/** Is `key` the whole table's setting rather than this reader's own? */
+function isWorldScoped(key, cfg = registration(key)) {
+	return cfg?.scope === "world";
+}
+
+/**
+ * Whether this client is offered `key` at all.
+ *
+ * Two questions, and a world-scoped key is asked both.
+ *
+ * The role is the first: `GM_ONLY_KEYS` is the list of rows a player is not shown, and for the
+ * world-scoped one it is also the list Foundry would reject on their client anyway.
+ *
+ * The PERMISSION is the second, and it is the one `isGM` gets wrong. An assistant gamemaster is
+ * `isGM`, and `SETTINGS_MODIFY` is a role permission a world can take off the assistant role —
+ * the arrangement a table makes precisely so a co-GM cannot change the world out from under it.
+ * Asking only `isGM` there drew a live switch on their Toolkit that threw on touch and left the
+ * control showing the value it had failed to store. Asked of every world key rather than of
+ * `fightTab` by name, so a second one added to a group inherits the check.
+ *
+ * `can` is missing on a client mid-boot and on the partial `game` the tests build, and an absent
+ * permission means DENIED in v14 — so the fallback is false, and a client-scoped key never
+ * reaches this line.
+ */
 function offeredToThisUser(key) {
-	if (!GM_ONLY_KEYS.has(key)) return true;
-	return !!globalThis.game?.user?.isGM;
+	if (GM_ONLY_KEYS.has(key) && !globalThis.game?.user?.isGM) return false;
+	if (isWorldScoped(key) && !globalThis.game?.user?.can?.("SETTINGS_MODIFY")) return false;
+	return true;
 }
 
 /** Localize a registration string, tolerating one that is already plain text. */
@@ -184,7 +237,11 @@ function buildRow(key) {
 
 	const value = settingValue(key, cfg);
 
-	const row = { key, label: loc(cfg.name), hint: loc(cfg.hint) };
+	// `isWorld` is what the tab says out loud. The intro over these groups promises that nothing
+	// here leaves this browser, and one row on the tab breaks that promise on purpose — so it
+	// carries a line of its own saying whose setting it is. Read off the registration rather than
+	// listed here, so the sentence cannot go missing from a world row added later.
+	const row = { key, label: loc(cfg.name), hint: loc(cfg.hint), isWorld: isWorldScoped(key, cfg) };
 
 	if (cfg.choices) {
 		row.isChoice = true;
@@ -289,8 +346,31 @@ export async function setPreference(key, raw) {
 		value = number;
 	} else value = String(raw);
 
+	const before = settingValue(key, cfg);
 	await globalThis.game?.settings?.set?.(SYSTEM_ID, key, value);
+	if (cfg.requiresReload && String(before) !== String(value)) await promptReload(cfg);
 	return true;
+}
+
+/**
+ * Offer the reload a `requiresReload` setting needs, the way Configure Settings does.
+ *
+ * `requiresReload` IS NOT HONOURED BY `game.settings.set`, and that is the whole reason this
+ * exists: core reads the flag in `SettingsConfig`'s own form submit and nowhere else, so a
+ * setting written from anything but that window stores its new value and leaves every client
+ * running the old one. For `fightTab` that means the switch reads "off" while the Fight tab is
+ * still on the sidebar — a control that saved, reported success and changed nothing, which is
+ * the failure the note at the top of this file is written against.
+ *
+ * Core's own prompt rather than a reload of our own: with `world: true` it asks once, then tells
+ * every other client to reload too, which is what a table-wide setting needs and what a lone
+ * `location.reload()` here would not do. Skipped where the class is absent (a test, a core that
+ * moved it) — the value is stored either way, and the GM's next reload picks it up.
+ */
+async function promptReload(cfg) {
+	const SettingsConfig = globalThis.foundry?.applications?.settings?.SettingsConfig;
+	if (!SettingsConfig?.reloadConfirm) return;
+	await SettingsConfig.reloadConfirm({ world: cfg.scope === "world" });
 }
 
 /**
