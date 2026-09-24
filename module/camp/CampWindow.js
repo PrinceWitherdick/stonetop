@@ -3,11 +3,13 @@ import { openOrFocus } from "../utils/open-or-focus.js";
 import { partyCharacters } from "../utils/playbook-actors.js";
 import { escHtml } from "../utils/strings.js";
 import { registerRestorableWindow } from "../utils/window-restore.js";
-import { CAMP_BENEFIT, CAMP_FOLLOWERS_MAX, CAMP_STATE, campLedger, count, coverTheRest, offerStep } from "./camp-rules.js";
+import {
+	CAMP_BENEFIT, CAMP_FOLLOWERS_MAX, CAMP_STATE, HAD_ALL_ALONG, campLedger, count, coverTheRest, offerStep,
+} from "./camp-rules.js";
 import { campWindowView, closedCampNotice, departedCampNotice, settleRefusalText } from "./camp-view.js";
 import {
-	breakCamp, campActors, campMembers, campRecordOf, canCamp, isCampWriter, joinCamp, playsCharacter,
-	sendAwayFromCamp, setCampChoices, settleCamp, stateOfCamp, takenFromCamp, touchesCamp,
+	breakCamp, campActors, campMembers, campRecordOf, canCamp, haveWhatYouNeedAtCamp, isCampWriter, joinCamp,
+	playsCharacter, sendAwayFromCamp, setCampChoices, settleCamp, stateOfCamp, takenFromCamp, touchesCamp,
 } from "./camp-store.js";
 import { askWithButtons, confirmLeavingOwnCamp } from "./camp-ask.js";
 
@@ -221,6 +223,16 @@ export class CampWindow extends StonetopDialog {
 					if (!member || !actor) return;
 					await setCampChoices(actor, { offer: coverTheRest(campLedger(members), member) });
 				});
+			// Have What You Need: supplies had all along go straight onto the table, as far as the meal
+			// is still short, the way Cover would share them.
+			case "had-supplies":
+				return this._queue("supplies", async () => {
+					if (!actor || !(await haveWhatYouNeedAtCamp(actor, HAD_ALL_ALONG.SUPPLIES)).ok) return;
+					const { members, member } = this._seat(actorId);
+					if (member) await setCampChoices(actor, { offer: coverTheRest(campLedger(members), member) });
+				});
+			case "had-mess-kit":
+				return actor ? this._queue("mess kit", () => haveWhatYouNeedAtCamp(actor, HAD_ALL_ALONG.MESS_KIT)) : undefined;
 			case "followers-add":
 			case "followers-take":
 				return this._queue("head count", async () => {

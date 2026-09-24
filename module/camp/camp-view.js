@@ -1,6 +1,7 @@
 import { escHtml, joinNames } from "../utils/strings.js";
 import {
-	CAMP_BENEFIT, CAMP_FOLLOWERS_MAX, CAMP_STATE, SETTLE_REFUSAL, debilityToClear, eatsTonight, healTo, spareUses,
+	CAMP_BENEFIT, CAMP_FOLLOWERS_MAX, CAMP_STATE, HAD_ALL_ALONG, HAD_ALL_ALONG_REFUSAL, SETTLE_REFUSAL, debilityToClear,
+	eatsTonight, foodAfterTonight, healTo, messKitAllAlong, messKitWouldHelp, provisionsAtFire, spareUses, suppliesAllAlong,
 } from "./camp-rules.js";
 
 /**
@@ -143,7 +144,7 @@ function mealView(ledger) {
 	else mouthsText = `${mouths} to feed: ${atFire} at the fire and ${followers} ${followerWord}.`;
 
 	let statusText = "";
-	if (short) statusText = `${short} more ${uses(short)} needed. Share more food, or mark who goes without.`;
+	if (short) statusText = `${short} more ${uses(short)} needed. Share more food, decide someone had supplies all along, or mark who goes without.`;
 	else if (over) statusText = `Paid for, with ${over} to spare. Only what the meal needs is eaten, and the rest stays in the packs.`;
 	else if (mouths) statusText = "Paid for.";
 
@@ -154,9 +155,75 @@ function mealView(ledger) {
 			: "With no mess kit, each use feeds 1.",
 		costText: !mouths ? "" : `The meal costs ${bill} ${uses(bill)} of food, and ${offered} ${plural(offered, "has", "have")} been shared.`,
 		statusText,
+		// Forage is the other way to more food, and it comes before the fire: "a few hours seeking
+		// food in the wild" (p.79), so it is said only while the meal is short.
+		forageText: short ? "Or Forage first: a few hours seeking food in the wild, rolling +WIS." : "",
+		afterText:  mouths && !short ? afterTonightText(foodAfterTonight(ledger)) : "",
+		provisionsText: provisionsAtFire(ledger)
+			? "Provisions spoil and attract beasts more readily than supplies do (Book I p.89)."
+			: "",
 		isShort: short > 0,
 		isPaid:  mouths > 0 && short === 0,
 	};
+}
+
+function nights(n) {
+	return n === 1 ? "night" : "nights";
+}
+
+/** What the fire has left to eat once tonight is paid, as the p.327 party works it out. */
+function afterTonightText({ left, nights: more }) {
+	if (!left) return "After tonight, the packs at this fire hold no more food.";
+	const lasts = more ? `enough for ${more} more ${nights(more)} like this one` : "not enough for another night like this one";
+	return `After tonight, ${left} ${uses(left)} of food ${plural(left, "stays", "stay")} in the packs at this fire: ${lasts}.`;
+}
+
+const SUPPLY_ROW_LABELS = {
+	"supplies":           "Supplies",
+	"more-supplies":      "More supplies",
+	"even-more-supplies": "Even more supplies",
+};
+
+/**
+ * Have What You Need at the fire, on a row the reader drives. Supplies are offered while the meal is
+ * short by more than this pack could still share, and held with the reason when this pack cannot
+ * produce them, since a short meal is exactly when a player looks for them. A mess kit is offered only when it would save a use tonight and this
+ * character could produce one: it is a bargain, never a need.
+ */
+function allAlongView(member, ledger, canEdit) {
+	const supplies = suppliesAllAlong(member);
+	// Food already in this pack is shared, not conjured: the button waits until the pack is short too.
+	const showSupplies = canEdit && ledger.short > spareUses(ledger, member);
+	const showKit = canEdit && messKitWouldHelp(ledger) && messKitAllAlong(member);
+	let blocked = "";
+	if (supplies.reason === HAD_ALL_ALONG_REFUSAL.NO_MARKS) blocked = `${member.name} has no undefined ◇ left to turn into supplies.`;
+	else if (supplies.reason === HAD_ALL_ALONG_REFUSAL.NO_ROW) blocked = `All three supplies rows are already marked on ${member.name}'s Inventory.`;
+	return {
+		show: showSupplies || showKit,
+		supplies: {
+			show:    showSupplies,
+			can:     supplies.ok,
+			label:   supplies.ok ? `Had supplies all along (${supplies.uses} ${uses(supplies.uses)})` : "Had supplies all along",
+			blocked,
+			// A held button says on hover why it is held; otherwise, what pressing it spends.
+			tip:     blocked || "Have What You Need: 1 undefined ◇ becomes a row of supplies you had all along.",
+		},
+		messKit: { show: showKit, tip: "Have What You Need: 1 undefined ◇ becomes a mess kit you had all along." },
+	};
+}
+
+/**
+ * The chat card a Have What You Need at the fire posts, as label and value rows. It goes to chat
+ * because the move lets anyone object: "The GM or any player can veto unreasonable items" (p.78).
+ */
+export function hadAllAlongRows(what, { row, uses: n } = {}) {
+	const item = what === HAD_ALL_ALONG.MESS_KIT
+		? "A mess kit, for 1 undefined ◇. It needs fire and water, and then 1 use of food feeds 4."
+		: `${SUPPLY_ROW_LABELS[row] ?? "Supplies"}, ${n} ${uses(n)} of food, for 1 undefined ◇.`;
+	return [
+		{ label: "Had all along", value: item },
+		{ label: "Any objection", value: "The GM or any player can veto something that could not have been there all along." },
+	];
 }
 
 /** What a row the reader cannot change says instead of its controls. */
@@ -223,6 +290,7 @@ function rowView(member, at, ledger, { canEdit, isMine, canOpenSheet }) {
 				? `Cover the last ${ledger.short} ${uses(ledger.short)}`
 				: `Share the ${spare} ${uses(spare)} still in this pack`,
 		},
+		allAlong: allAlongView(member, ledger, canEdit),
 		givesBackText: returned > 0
 			? `${returned} ${uses(returned)} shared here ${plural(returned, "stays", "stay")} in the pack: the meal is already paid for.`
 			: "",
@@ -263,7 +331,7 @@ function rowView(member, at, ledger, { canEdit, isMine, canOpenSheet }) {
 function settleBlockedText(ledger) {
 	if (!ledger.rows.length) return "Nobody is at the fire.";
 	const { short } = ledger;
-	return `The meal is ${short} ${uses(short)} of food short. Share more food, or press Go without on the card of anyone not eating.`;
+	return `The meal is ${short} ${uses(short)} of food short. Share more food, decide someone had supplies all along, or press Go without on the card of anyone not eating.`;
 }
 
 function navView({ isOpen, manages, ledger, hostName }) {
@@ -298,16 +366,21 @@ export function campWindowView({ state, hostName = "", ledger, manages = false, 
 	const sees    = new Set(viewable);
 	// Never the host: a camp without its host has nobody to settle it, and Break up is for that.
 	const awayable = sendsAway ? ledger.rows.filter(m => !m.isHost).map(m => ({ id: m.actorId, name: m.name })) : [];
+	const rows = ledger.rows.map((member, at) => rowView(member, at, ledger, {
+		canEdit: isOpen && canEdit.has(member.actorId),
+		isMine:  plays.has(member.actorId),
+		canOpenSheet: sees.has(member.actorId),
+	}));
 	return {
 		isOpen,
 		closedText: isOpen ? "" : campCardClosedText(state, hostName),
 		title:      hostName ? `${hostName}'s camp` : "Make Camp",
 		meal:       mealView(ledger),
-		rows:       ledger.rows.map((member, at) => rowView(member, at, ledger, {
-			canEdit: isOpen && canEdit.has(member.actorId),
-			isMine:  plays.has(member.actorId),
-			canOpenSheet: sees.has(member.actorId),
-		})),
+		// What the Have What You Need buttons are, said once in the meal box rather than on every card.
+		allAlongText: rows.some(r => r.allAlong.show)
+			? "Have What You Need: anyone can decide an undefined ◇ was supplies or a mess kit all along. The GM or any player can veto it."
+			: "",
+		rows,
 		add:        { show: isOpen && addable.length > 0, options: addable },
 		sendAway:   { show: isOpen && awayable.length > 0, options: awayable },
 		// Bring someone and Send them away share one list and one line.

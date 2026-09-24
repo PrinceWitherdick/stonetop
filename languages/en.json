@@ -60,12 +60,14 @@
         "railLabel": "Sheet sections"
       },
       "preferences": {
-        "intro": "These are your own settings. They change every Stonetop sheet you open in this browser, and nobody else at the table sees the difference.",
+        "intro": "These are your own settings unless a row says otherwise. They change every Stonetop sheet you open in this browser, and nobody else at the table sees the difference.",
         "accessibility": "Accessibility",
         "appearance": "Look and Feel",
         "rolling": "Rolling and Chat",
         "windows": "Windows",
         "hover": "On Hover Info",
+        "fights": "Fights",
+        "worldScoped": "This one is the whole table's, not yours. Changing it changes it for everyone, then offers to reload the whole table.",
         "openSettings": "All Stonetop Settings…"
       }
     },
@@ -261,7 +263,8 @@
             "macro": "macros",
             "unknown": "things of a kind this build doesn't know"
           }
-        }
+        },
+        "deployAndFight": "Put every monster in this encounter on the map and start a fight with them"
       },
       "expeditions": {
         "sites": "Sites",
@@ -794,6 +797,20 @@
       "artifactsStartUnidentified": {
         "name": "Artifacts Arrive Unidentified",
         "hint": "Book I, Discoveries pp.430-431. When on, a Book II treasure dropped onto a character sheet arrives with its tags, Value and uses withheld: the player sees only what's obvious at a glance, and has to Know Things or Seek Insight about it to learn more. Off by default, so treasure lands fully described as it always has. Either way you can hide or hand over any single artifact from the mask icon on its gear row."
+      },
+      "fightTab": {
+        "name": "Fight tab (replaces the Combat tracker)",
+        "hint": "Stonetop has no initiative. The Combat tab becomes a Fight tab showing who is fighting whom and the group rules that apply, with lines on the map and the extra damage for several attackers filled into damage rolls. Turn it off to get Foundry's Combat tracker back, for example to use an initiative module. Takes a reload."
+      },
+      "fightWindowAuto": {
+        "name": "Open the Fight window when a fight starts",
+        "hint": "When a fight starts on the map you are looking at, the Fight tab opens in a window of its own, and the window closes when the fight ends. If you close it, it stays closed until the next fight. Turn this off to keep fights in the sidebar: the Fight tab's Open in a window button still opens it.",
+        "combatName": "Open the Combat window when a fight starts",
+        "combatHint": "When a combat starts on the map you are looking at, Foundry's Combat tracker opens in a window of its own, and the window closes when the combat ends. If you close it, it stays closed until the next combat. Turn this off to keep combat in the sidebar: right-clicking the Combat tab still opens the window."
+      },
+      "fightRing": {
+        "name": "Fight buttons when you click a token",
+        "hint": "During a fight, clicking a token you control puts buttons around it: Clash, Let Fly and the damage die for a character, a button for each attack a monster has, and Clash, Let Fly and Order for a follower, which their character rolls for them. Click the token again, or anywhere on the map, to put them away. Right-clicking still opens Foundry's token controls."
       }
     },
     "newCharacter": {
@@ -1768,6 +1785,351 @@
         "tooltip": "Fold in level-ups, moves gained and the seasons as they turned. Only you see this choice.",
         "badge": "Recorded"
       }
+    },
+    "fight": {
+      "tab": "Fight",
+      "window": "Combat",
+      "names": {
+        "andOthers": "{names} & {count} others"
+      },
+      "readout": {
+        "fighting": "fighting {names}",
+        "shootingAt": "shooting at {names}",
+        "foughtBy": "fought by {names}",
+        "shotBy": "shot at by {names}",
+        "joiner": "; ",
+        "standing": "{standing} of {size} standing",
+        "together": "{count} together",
+        "hp": "HP {hp}",
+        "hpOf": "HP {hp}/{max}",
+        "vitals": "{hp} · Armor {armor}",
+        "readiness": "{line} · Readiness {readiness}"
+      },
+      "badge": {
+        "foughtBy": "Fought by {count}",
+        "facing": "Facing {count}"
+      },
+      "fact": {
+        "onFoe": "+{bonus} damage on {name} ({count} attackers)",
+        "onHero": "+{bonus} damage on {name} ({count} foes)",
+        "onFoeCrowd": "+{bonus} damage on {name} ({count} of {all} attackers can reach)",
+        "onHeroCrowd": "+{bonus} damage on {name} ({count} of {all} foes can reach)",
+        "aidsItself": "{name} outnumbers {against}: they aid themselves, and the GM picks advantage or more done",
+        "groups": "Group against group, {heroes} to {foes}: +{bonus} damage and armor for {side}",
+        "groupsEven": "Group against group, {heroes} to {foes}: neither side outnumbers the other",
+        "sideHeroes": "the heroes",
+        "sideFoes": "the foes"
+      },
+      "start": "Start a fight",
+      "startHint": "Pick who is fighting, then drag tokens next to whoever they are fighting.",
+      "add": "Add to the fight",
+      "lineUp": "Line everyone up",
+      "lineUpHint": "Fights already going on are kept as they stand; everyone not fighting anybody yet lines up, heroes on the left and foes on the right, right where everyone already is",
+      "openWindow": "Open in a window",
+      "openWindowHint": "Show this fight in a window you can move and resize, so it stays in view while the sidebar is on Chat",
+      "endFight": "End the fight",
+      "none": "No fight on this scene.",
+      "noneGM": "No fight on this scene. Start one to see who is fighting whom.",
+      "empty": "Nobody is in this fight yet.",
+      "emptyGM": "Nobody is in this fight yet. Add them, or select tokens and use the combat toggle on a token's HUD.",
+      "noEngagements": "Nobody is engaged. Move a token next to a foe, or target one from range.",
+      "dragHint": {
+        "foes": "Drag a foe onto a hero to put it next to them on the map.",
+        "heroes": "Drag a hero onto a foe to put them next to it on the map."
+      },
+      "send": {
+        "noRoom": "There is no free space next to {name}.",
+        "noGM": "Only the GM can move {name}, and no GM is connected.",
+        "refused": "The GM's client did not move {name}."
+      },
+      "roundsNote": "This fight was started in Foundry's tracker, which counts rounds and turns. Stonetop does not take turns.",
+      "stopRounds": "Stop counting rounds",
+      "cycle": {
+        "label": "Fights on this scene",
+        "count": "Fight {index} of {count}",
+        "previous": "Previous fight",
+        "next": "Next fight"
+      },
+      "section": {
+        "unengagedFoes": "Foes not engaged",
+        "unengagedHeroes": "Heroes not engaged",
+        "out": "Out of the fight",
+        "elsewhere": "Not on this map"
+      },
+      "aria": {
+        "engagements": "Engagements",
+        "against": "Against {name}"
+      },
+      "rules": {
+        "summary": "What the book says"
+      },
+      "ring": {
+        "label": "{name} in the fight",
+        "moves": "Moves",
+        "damageGroup": "Damage rolls",
+        "damage": "Damage",
+        "rollMove": "Roll {move}",
+        "rollDamage": "Roll damage: {label}, {formula}",
+        "order": "Order",
+        "orderAria": "Order {name}",
+        "orderMove": "Order {name} to {move}",
+        "swarm": "Swarm",
+        "swarmAria": "Roll damage: all {count} of them on one foe, {formula}",
+        "strikeBack": "Strike back",
+        "strikeBackAria": "Spend 1 of {readiness} Readiness to strike back: {formula}, with disadvantage",
+        "strikeBackAriaDangerous": "Spend 1 of {readiness} Readiness to strike back: {formula}, rolled straight (Dangerous cancels the disadvantage)",
+        "lockEyes": "Lock eyes",
+        "lockEyesAria": "Spend 1 of {readiness} Readiness to lock eyes with a foe",
+        "lockEyesAsk": "Who does {name} lock eyes with?",
+        "lockEyesSaid": "{name} locks eyes with {foe}. It rolls damage against {name} and their ward with disadvantage for the rest of the fight.",
+        "readiness": "{name} holds {count} Readiness"
+      },
+      "targets": {
+        "title": "{name}: who does this hit?",
+        "body": "{name} is fighting more than one.",
+        "hint": "Tick more than one only when this attack could hurt them all: an area attack, followers joining in, or the way it is described. Damage is rolled separately against each (Book I, page 414).",
+        "confirm": "Attack {names}",
+        "confirmNone": "Tick who this hits",
+        "ally": "(your side)",
+        "cancel": "Don't roll",
+        "several": "{move} hit more than one: damage is rolled separately against each, for an attack that could hurt them all (Book I, page 414)."
+      },
+      "row": {
+        "hide": "Hide from players",
+        "show": "Show to players",
+        "out": "Mark out of the fight",
+        "backIn": "Back in the fight",
+        "ping": "Point this out on the map"
+      },
+      "menu": {
+        "switchSide": "Move to the other side",
+        "headcount": "How many are in this token",
+        "openSheet": "Open sheet",
+        "remove": "Remove from the fight",
+        "stopShooting": "Stop shooting"
+      },
+      "headcount": {
+        "title": "How many are in {name}?",
+        "label": "People in this token",
+        "hint": "A crew or a warband on one token counts as this many attackers. One person is 1.",
+        "confirm": "Set how many"
+      },
+      "end": {
+        "title": "End the fight?",
+        "body": "This takes everyone out of the fight, for every player. Tokens stay where they are.",
+        "confirm": "End the fight",
+        "cancel": "Keep fighting"
+      },
+      "startWindow": {
+        "titleStart": "Start a fight",
+        "titleAdd": "Add to the fight",
+        "hintStart": "Tick everyone in the fight. Anyone not on this map is put near the middle of your view: heroes to the left, foes to the right.",
+        "hintAdd": "Tick who joins the fight. Anyone not on this map is put near the middle of your view.",
+        "buttonStart": "Start the fight",
+        "buttonAdd": "Add to the fight",
+        "confirmStart": "Start the fight: {who}",
+        "confirmAdd": "Add to the fight: {who}",
+        "hero": "{count} hero",
+        "heroes": "{count} heroes",
+        "foe": "{count} foe",
+        "foes": "{count} foes",
+        "hidden": "Hidden from players",
+        "fromBestiary": "From the bestiary",
+        "hp": "{hp} HP",
+        "followerOf": "{name}'s follower",
+        "notHere": "Not on this map",
+        "inFight": "Already in the fight",
+        "lists": {
+          "heroesHere": "Heroes on this map",
+          "foesHere": "Foes on this map",
+          "othersHere": "Others on this map",
+          "othersHint": "Anyone else on the map. Ticked, they join as foes; move them to the heroes from the tab.",
+          "pcsElsewhere": "Characters not on this map",
+          "people": "People",
+          "monsters": "Monsters"
+        },
+        "noScene": "Open a map first: a fight happens on a scene.",
+        "nobody": "There is nobody to add to this fight.",
+        "joined": "{count} joined the fight.",
+        "imported": "Brought {count} from the bestiary into the world's Actors.",
+        "missed": "Couldn't put these in the fight: {names}",
+        "ungrouped": "A linked token can't fight as one group, so these came in as separate tokens: {names}"
+      },
+      "groupSize": {
+        "title": "{name}: how many?",
+        "body": {
+          "group": "{name} is a group monster, found 2 to 5 at a time.",
+          "horde": "{name} is a horde monster, found 6 or more at a time."
+        },
+        "usual": "Its stat block says {count}.",
+        "justOne": "Just one",
+        "scale": {
+          "legend": "On the map",
+          "tokens": "A token for each one, each with its own HP",
+          "group": "One token for the whole group, fighting as one (Book I p.416, for a fight against another group)"
+        }
+      },
+      "scale": {
+        "menuMerge": "Merge into one group",
+        "menuSplit": "Split into separate tokens",
+        "merged": "{name}: {count} now fight as one group.",
+        "split": "{name}: the group is now {count} separate tokens.",
+        "splitShort": "{name}: only room for {count} of the {wanted} still standing."
+      },
+      "seed": {
+        "onFoeTwo": "+{bonus}: {names} are both fighting {target}",
+        "onFoe": "+{bonus}: {names} are all fighting {target}",
+        "onHero": "+{bonus}: {target} is fighting {names}",
+        "pillOnFoe": "+{bonus} for {count} attackers",
+        "pillOnHero": "+{bonus} for {count} foes",
+        "leftOff": "{pill}, left off",
+        "cite": "Book I, page 414",
+        "leaveOff": "Leave off the {bonus}",
+        "addBack": "Add the {bonus} back",
+        "alreadyApplied": "The damage has already been applied",
+        "groupAhead": "+{bonus}: group against group, {yours} outnumber {theirs}",
+        "groupBehind": "-{bonus}: group against group, {theirs} outnumber {yours}, so their armor is +{bonus}",
+        "pillAhead": "+{bonus} for {yours} against {theirs}",
+        "pillBehind": "-{bonus} for their armor, {theirs} against {yours}",
+        "citeGroups": "Book I, page 416",
+        "together": "{label}, if you strike together",
+        "bestDie": "Roll {name}'s {formula} instead, the hardest-hitting die among you",
+        "bestPill": "{name}'s {formula}",
+        "hardest": "hardest-hitting",
+        "piercingWhile": "while the +{bonus} is on",
+        "armorBack": "{shown} on the card, {rolled} before their {armor} armor"
+      },
+      "groupHit": {
+        "down": "one of them goes down, {after} still standing",
+        "hurt": "one of them is hurt ({memberHp} of {hpMax} HP left), {after} still standing",
+        "unhurt": "none of them is hurt, {after} still standing"
+      },
+      "defend": {
+        "halve": "Halve it (Readiness)",
+        "halveOne": "{defender} halves it (1 Readiness)",
+        "standIn": "Take it for them (Readiness)",
+        "standInOne": "{defender} takes it for {ward} (1 Readiness)",
+        "halveChoice": "{defender} halves the blow on {ward}",
+        "standInChoice": "{defender} takes the blow for {ward}",
+        "ask": "Who spends Readiness, and on which blow?",
+        "cancel": "Don't spend",
+        "noteHalve": "{defender} spent Readiness to halve the blow on {ward}.",
+        "noteStandIn": "{defender} spent Readiness to take the blow for {ward}.",
+        "rowFor": "{defender} (for {ward})",
+        "halvedFrom": "halved from {rolled}",
+        "parry": "Parry & riposte (Readiness)",
+        "parryOne": "{defender} parries and ripostes (1 Readiness)",
+        "parryChoice": "{defender} parries the blow on {ward}",
+        "parryStrike": "Parry & riposte",
+        "noteParry": "{defender} spent Readiness to parry the blow on {ward} and strike back.",
+        "standInFreeOne": "{defender} takes it for {ward} (free: Steadfast Guardian)",
+        "noteStandInFree": "{defender} took the blow for {ward} (Steadfast Guardian, no Readiness spent).",
+        "ignore": "Ignore it (Readiness)",
+        "ignoreOne": "{defender} ignores it (1 Readiness)",
+        "ignoreChoice": "{defender} ignores the blow on {ward}",
+        "noteIgnore": "{defender} spent Readiness to ignore the blow (A Mighty Rampart).",
+        "ignoredLine": "ignored it (A Mighty Rampart), no damage",
+        "knockedDown": "Get knocked down (halve it)",
+        "knockedDownOne": "{defender} gets knocked down (halve it)",
+        "knockedDownChoice": "{defender} gets knocked down under the blow on {ward}",
+        "noteKnockedDown": "{defender} got knocked down, halving the blow (I Get Knocked Down).",
+        "secondIntent": "{name} parried: also pick 1 option from the Ambush list."
+      },
+      "heroMoves": {
+        "undaunted": {
+          "outnumbered": "Undaunted: +1d6 damage, while you are outnumbered",
+          "bigger": "Undaunted: +1d6 damage, facing a foe bigger than you",
+          "pill": "Undaunted +1d6",
+          "armorNote": "+1 armor, Undaunted"
+        },
+        "rememberMe": {
+          "label": "Something to Remember Me By: +{dice} damage, and you mark them",
+          "pill": "{move} +{dice}"
+        },
+        "hungryFlames": {
+          "label": "Hungry Flames: +{dice} damage, and they are engulfed in holy light and flames",
+          "pill": "{move} +{dice}"
+        },
+        "nemesis": {
+          "label": "Nemesis: +{dice} damage, against a foe who survived you",
+          "pill": "{move} +{dice}"
+        },
+        "payback": {
+          "label": "Payback: +{dice} damage, against a foe who has harmed you or an ally",
+          "pill": "{move} +{dice}"
+        },
+        "upAgain": {
+          "label": "But I Get Up Again: +{dice} damage, against whoever knocked you down",
+          "pill": "{move} +{dice}"
+        },
+        "bigGame": {
+          "label": "Strike at its weak spot: +{dice} damage (large or huge)",
+          "pill": "{move} +{dice}"
+        },
+        "anger": {
+          "label": "Spend 1 Resolve to strike hard: +{dice} damage, forceful",
+          "pill": "{move} +{dice}"
+        },
+        "dogWithBone": {
+          "label": "Like a Dog with a Bone: +{dice} damage, against something tainted by chaos",
+          "pill": "{move} +{dice}"
+        },
+        "everythingBleeds": {
+          "label": "Everything Bleeds: +{dice} damage, exploiting this unnatural foe's weakness",
+          "pill": "{move} +{dice}"
+        },
+        "predator": {
+          "label": "Predator: +{dice} damage, acting on what you learned about your prey",
+          "pill": "{move} +{dice}"
+        },
+        "takenAtDisadvantage": "{move}: the damage against them rolls with disadvantage.",
+        "armorGate": {
+          "barkskin": "Barkskin: {armor} armor, while touching the earth",
+          "candle": "A Candle Against the Dark: {armor} armor, wielding a holy light and otherwise unarmed",
+          "note": "without {move}'s {armor} armor"
+        },
+        "uncanny": {
+          "label": "{name}'s Uncanny Reflexes: roll with disadvantage, for a blow they could dodge or roll with",
+          "pill": "Uncanny Reflexes"
+        },
+        "battlefieldGrace": {
+          "label": "{name}'s Battlefield Grace: roll with disadvantage, while they lead their allies in battle",
+          "pill": "Battlefield Grace"
+        },
+        "blotOut": {
+          "question": "Deplete your ammunition before you roll? If you do, pick what the volley buys.",
+          "advantage": "Advantage on your damage roll",
+          "area": "Area: roll damage separately for each target",
+          "keep": "Keep your arrows",
+          "spent": "{name} looses a volley: {weapon} is now {status}."
+        },
+        "muscleboundNote": "Musclebound: forceful and messy, and more so where it already was.",
+        "berserkerHint": "Berserker: in your Battle Joy you lash out at anyone nearby, friend and foe alike. Damage is rolled separately for each.",
+        "volleyHint": "Your volley falls on everyone standing where the arrows land, friend and foe alike. Damage is rolled separately for each.",
+        "knockedDown": {
+          "button": "{name} gets knocked down (halve it)",
+          "title": "I Get Knocked Down",
+          "ask": "{name} halves the blow. What does it cost them?",
+          "lost": "They lose something: footing, grip, their weapon's place in their hand",
+          "broke": "Something on their person breaks",
+          "outOfIt": "They are out of it for a moment",
+          "note": "{name} gets knocked down, halving the blow: {cost}",
+          "upAgain": "{name} is getting up again: advantage on their next roll against {foe}, and +1d4 on their next blow."
+        }
+      }
+    },
+    "readiness": {
+      "askTitle": "{name} holds {count} Readiness",
+      "ask": "{name} holds {count} Readiness and attacks ({move}). Going on the offense loses all of it, but fighting defensively keeps it (p.216). Are they rushing in, or holding their ground?",
+      "lose": "Rushing in: lose the Readiness",
+      "keep": "Holding their ground: keep it",
+      "keptTitle": "Readiness kept",
+      "kept": "{name} fights defensively ({move}) and keeps {count} Readiness.",
+      "lostTitle": "Readiness lost",
+      "lostOffense": "{name} goes on the offense ({move}) and loses all held Readiness.",
+      "lostFightOver": "The fight is over: {names} let go of their Readiness.",
+      "lostLeftFight": "{name} leaves the fight and loses their Readiness.",
+      "lostDown": "{name} is down and loses their Readiness."
     }
   }
 }

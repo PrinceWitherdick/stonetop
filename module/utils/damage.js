@@ -36,6 +36,120 @@ export function normalizeDamageBonusDice(input) {
 }
 
 /**
+ * What a fight's extra-attackers seed adds to a damage roll: its bonus while it is applied, nothing
+ * once it has been left off, and nothing for no seed at all. See fight/damage-seed.js.
+ */
+export function damageSeedBonus(seed) {
+	return seed?.applied === false ? 0 : seedBonus(seed);
+}
+
+/**
+ * The +N a fight's seed carries, whether or not it is applied: 0 for no seed, or one with nothing
+ * to add. THE ONE TEST of whether a seed is worth showing at all (the window, the pills, the card).
+ *
+ * NEGATIVE ONLY FOR A GROUP HITTING A BIGGER GROUP (p.416): the bigger group's +N armor, taken off the
+ * roll where there is nobody to Apply it to. A card with an Apply puts it back and adds it to the
+ * target's armor instead (combat/attack-flow.js#seedArmor), so piercing can reach it.
+ */
+export function seedBonus(seed) {
+	return Math.trunc(Number(seed?.bonus)) || 0;
+}
+
+/**
+ * One entry of `extraDice` as its dice: a typed string as it is, or a move's named extra (`{dice, pill}`,
+ * dialogs/RollDialog.js#withOffers) as its dice. The card names the latter by its pill.
+ */
+function extraDiceTerm(entry) {
+	return entry && typeof entry === "object" ? String(entry.dice ?? "") : entry;
+}
+
+/**
+ * One extra-dice entry as a formula term: a die like "1d6", or — for a move's OWN line only — a flat
+ * number like the Ranger's "+2 damage at its weak spot".
+ *
+ * A FLAT NUMBER IS NOT ALLOWED FROM THE TYPED FIELD, which is why this is not simply a looser
+ * normalizer: "2" typed into a box labelled Extra dice is far more likely to be a half-finished "2d6"
+ * than a bonus, and the field turns red on anything it cannot read (dialogs/RollDialog.js). A move's
+ * line is not typed — the system wrote it — so it may say +2 and mean it.
+ */
+export function extraTerm(entry) {
+	const dice = normalizeDamageBonusDice(extraDiceTerm(entry));
+	if (dice) return dice;
+	if (!entry || typeof entry !== "object") return "";
+	const flat = String(entry.dice ?? "").trim();
+	return /^[+-]?\d+$/.test(flat) ? flat.replace(/^\+/, "") : "";
+}
+
+/**
+ * What a damage formula averages: each `NdX` at N*(X+1)/2, each flat number as itself. Only for telling
+ * which of two dice hits harder, so anything it cannot read counts as nothing.
+ *
+ * @param {string} formula
+ */
+export function averageDamage(formula) {
+	const text = String(formula ?? "").replace(/\s+/g, "").toLowerCase();
+	let total = 0;
+	for (const [, sign, count, faces, flat] of text.matchAll(/([+-]?)(?:(\d*)d(\d+)|(\d+))/g)) {
+		const value = faces ? (Number(count) || 1) * (Number(faces) + 1) / 2 : Number(flat) || 0;
+		total += sign === "-" ? -value : value;
+	}
+	return total;
+}
+
+/** Which of several attacks hits hardest on average (the first of equals), or -1 when none rolls a die. */
+export function hardestAttackIndex(attacks) {
+	let best = -1;
+	let bestAverage = 0;
+	(attacks ?? []).forEach((attack, index) => {
+		if (!attack?.formula) return;
+		const average = averageDamage(attack.formula);
+		if (best < 0 || average > bestAverage) [best, bestAverage] = [index, average];
+	});
+	return best;
+}
+
+/** The first dice term of a formula with any flat number stuck to it ("d8+2" of "d8+2+1d6"), or "". */
+export function leadDie(formula) {
+	const text = String(formula ?? "").replace(/\s+/g, "");
+	return text.match(/^\d*d\d+(?:[+-]\d+(?![d\d]))*/i)?.[0] ?? "";
+}
+
+/**
+ * The best die among the other attackers in a pile-on, when it beats the roller's own: "roll one
+ * combatant's damage (usually the best one)" (Book I p.414), "roll the single highest damage die among
+ * them" (p.239). The seed carries every other attacker's die as `dice`; this keeps the strongest of
+ * them as `best` only if it averages more than the lead die of `base`. PURE.
+ *
+ * @param {object|null} seed
+ * @param {string} base  the roller's formula
+ * @returns {object|null} the seed, with `best` set or removed
+ */
+export function settleBestDie(seed, base) {
+	if (!seed) return seed;
+	const { best: _drop, ...rest } = seed;
+	const own = averageDamage(leadDie(base) || base);
+	let best = null;
+	for (const die of Array.isArray(seed.dice) ? seed.dice : []) {
+		const formula = String(die?.formula ?? "").replace(/\s+/g, "");
+		if (!leadDie(formula)) continue;
+		const average = averageDamage(formula);
+		if (average > own && (!best || average > best.average)) best = { name: String(die.name ?? ""), formula, average };
+	}
+	return best ? { ...rest, best: { name: best.name, formula: best.formula } } : rest;
+}
+
+/**
+ * `base` with its lead die swapped for the seed's best die, when the roller chose to roll that
+ * (`seed.useBest`). Only the lead die goes: the roller's own extra dice (strike hard's 1d6) stay on.
+ */
+export function withBestDie(base, seed) {
+	const best = seed?.useBest ? String(seed.best?.formula ?? "") : "";
+	const lead = leadDie(base);
+	if (!best || !lead) return base;
+	return best + base.slice(lead.length);
+}
+
+/**
  * A damage formula with a one-off adjustment folded in: the base die (already carrying the
  * weapon's own `+N`) plus any extra dice and a flat bonus.
  *
@@ -52,14 +166,16 @@ export function normalizeDamageBonusDice(input) {
  * disadvantage on damage doubles the formula's first dice term (see `damageRollFormula`),
  * and "roll damage twice, take the higher" means the damage die — not the bonus dice.
  */
-export function composeDamageFormula(base, { bonus = 0, extraDice = "" } = {}) {
+export function composeDamageFormula(base, { bonus = 0, extraDice = "", seed = null } = {}) {
 	const terms = [];
-	const first = String(base ?? "").trim();
+	const first = withBestDie(String(base ?? "").trim(), seed);
 	if (first) terms.push(first);
-	for (const term of (Array.isArray(extraDice) ? extraDice : [extraDice]).map(normalizeDamageBonusDice)) {
+	for (const term of (Array.isArray(extraDice) ? extraDice : [extraDice]).map(extraTerm)) {
 		if (term) terms.push(term.startsWith("-") ? term : `+${term}`);
 	}
-	const flat = Math.trunc(Number(bonus)) || 0;
+	// The fight's +N for several attackers (fight/damage-seed.js) joins the flat bonus: one term on the
+	// formula, told apart from the roller's own +N by its pill.
+	const flat = (Math.trunc(Number(bonus)) || 0) + damageSeedBonus(seed);
 	if (flat) terms.push(flat > 0 ? `+${flat}` : String(flat));
 	// A bonus with no base leaves the leading sign stranded at the head of the formula, which
 	// Roll rejects. Nothing at all rolls a flat 0 rather than throwing on an empty formula.
@@ -74,9 +190,14 @@ export function composeDamageFormula(base, { bonus = 0, extraDice = "" } = {}) {
  */
 export function resolvePiercing(piercing) {
 	if (typeof piercing === "number") return Math.max(0, piercing);
-	if (piercing === "prosperity") return Math.max(0, Number(getStonetopProsperity()) || 0);
+	// Capped as the Inventory insert's Prosperity table caps it ("+2: x = 2 piercing", no higher
+	// row), so the damage a Prosperity +3 steading's spear deals matches what its sheet says.
+	if (piercing === "prosperity") return Math.min(X_PIERCING_MAX, Math.max(0, Number(getStonetopProsperity()) || 0));
 	return 0;
 }
+
+/** The most "x piercing" comes to: the Inventory insert's table stops at "+2: x = 2 piercing". */
+export const X_PIERCING_MAX = 2;
 
 /**
  * Reduce raw damage by a target's armor, honouring piercing and full-bypass:
@@ -97,6 +218,20 @@ export function mitigateDamage(raw, { armor = 0, piercing = 0, ignoresArmor = fa
 	if (ignoresArmor) return Math.max(0, dmg - floor);
 	const effectiveArmor = Math.max(floor, (Number(armor) || 0) - (Number(piercing) || 0));
 	return Math.max(0, dmg - effectiveArmor);
+}
+
+/**
+ * The actor a damage row is aimed at, off the uuid the card froze at roll time.
+ *
+ * TWO SHAPES, because the two things that produce this card point at different documents. An
+ * attack targets TOKENS (an unlinked monster has to hit its own synthetic actor, not the shared
+ * prototype it was stamped from), while a move option that burns the person who picked it points
+ * at the CHARACTER, who may have no token on the scene anyone is currently looking at. A reader
+ * that only unwrapped a token document answered null for the second and left the button on a card
+ * it could never enact.
+ */
+export function damageRowActor(doc) {
+	return doc?.documentName === "Actor" ? doc : (doc?.actor ?? null);
 }
 
 /**
@@ -604,11 +739,88 @@ export function foeAttacks(actor) {
 	const printed = parseMonsterAttacks(damage.value, damage.rollFormula);
 	const moves = actor?.items?.filter?.(item =>
 		_MOVE_ITEM_TYPES.has(item?.type) && String(item?.system?.rollFormula ?? "").trim()) ?? [];
-	return [...printed, ...moves.map(_readMoveAttack)];
+	return [...printed, ...moves.map(readMoveAttack)];
+}
+
+/**
+ * The printed attack on a damage line that rolls `formula`, or the line's only attack, or null: the
+ * blow an NPC's single damage button is rolling, for the armor clause it carries. Chosen by the same
+ * rule as the card's title (damageCardText), so the card names the blow whose clause it applies.
+ *
+ * @param {string} damageValue
+ * @param {string} [formula]
+ */
+export function attackRolling(damageValue, formula = "") {
+	const attacks = parseMonsterAttacks(damageValue, formula);
+	const die = _comparableDie(formula);
+	return (die && attacks.find(attack => _comparableDie(attack.formula) === die))
+		|| (attacks.length === 1 ? attacks[0] : null);
+}
+
+/**
+ * A printed attack as a damage card's WEAPON: the record Apply damage reads armor from
+ * (combat/attack-flow.js#wireApplyDamage), exactly as a foe's counter-attack already rides in. Nameless,
+ * because the card is titled with the blow already. Null for no attack.
+ *
+ * @param {ReturnType<typeof parseMonsterAttacks>[number]|null} attack
+ */
+export function attackWeapon(attack) {
+	if (!attack) return null;
+	const tags = Array.isArray(attack.tags) ? [...attack.tags] : [];
+	return {
+		name: "",
+		range: [],
+		piercing: attack.piercing ?? 0,
+		ignoresArmor: !!attack.ignoresArmor,
+		tags,
+		area: tags.includes("area"),
+	};
+}
+
+/**
+ * The armor clause of the blow on a damage line that rolls `formula` (attackRolling), as a damage
+ * card's weapon: what an NPC's single damage button hands Apply. Null when no one blow is meant.
+ *
+ * @param {string} damageValue
+ * @param {string} [formula]
+ */
+export function blowWeapon(damageValue, formula = "") {
+	return attackWeapon(attackRolling(damageValue, formula));
+}
+
+/**
+ * The one blow a single damage button rolls, read once: what its card says (damageCardText), its armor
+ * clause (attackWeapon) and its printed "w/disadvantage" ("" for none). The one-die counterpart of
+ * damageBlows, for an NPC's button, a follower's card and the NPC's fight ring.
+ *
+ * @param {string} damageValue
+ * @param {string} [formula]
+ * @returns {{title: string, keywords: string, weapon: object|null, rollMode: string}}
+ */
+export function printedBlow(damageValue, formula = "") {
+	const attack = attackRolling(damageValue, formula);
+	return { ...damageCardText(damageValue, formula), weapon: attackWeapon(attack), rollMode: attack?.rollMode ?? "" };
+}
+
+/**
+ * A monster's damage line as the blows its roll buttons roll, one per printed attack: the verbatim
+ * text, its die (no spaces), a noted "w/disadvantage" (attackRollMode), what its card says
+ * (damageCardText), and its armor clause for Apply (blowWeapon). The stat block's buttons and the
+ * fight ring both read a line through this, so neither can roll a blow the other reads differently.
+ * A fragment with no die keeps `formula: ""`; a caller offering a button skips it.
+ *
+ * @param {string} damageValue
+ * @returns {{text: string, formula: string, rollMode: string, title: string, keywords: string, weapon: object|null}[]}
+ */
+export function damageBlows(damageValue) {
+	return splitMonsterAttackProse(damageValue).map(text => {
+		const formula = (dieFromDamage(text) ?? "").replace(/\s+/g, "");
+		return { text, formula, rollMode: attackRollMode(text), ...damageCardText(text), weapon: formula ? blowWeapon(text, formula) : null };
+	});
 }
 
 /** One attack a MOVE rolls: read out of its name, at the die its own field carries. */
-function _readMoveAttack(item) {
+export function readMoveAttack(item) {
 	const name = String(item?.name ?? "");
 	const attack = _readAttack(name);
 	return {

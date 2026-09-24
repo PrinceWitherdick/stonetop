@@ -42,9 +42,10 @@ import {moveMarkBudget} from "./move-mark-budget.js";
 import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
 import {DEATHS_DOOR_FLAG, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
 import {heroDisplayName, WBH_HERO_FLAG, ownsAsteriskMove} from "./WouldBeHeroAsterisk.js";
-import {ownedNamesOr, ownedMove} from "./owns-move.js";
+import {ownedNamesOr, ownedMove, ownsLearnedMoveNamed, isMoveLearned} from "./owns-move.js";
 import {RITES_OF_THE_LAND} from "./stock-cost.js";
 import {HOLY_LIGHT_FLAG, canWieldHolyLight} from "./holy-light.js";
+import {moveArmor, barkskinMarkedBy} from "./move-armor.js";
 import {ONGOING_INVOCATION_FLAG, readOngoing} from "./ongoing-invocation.js";
 import {CONDEMNED_FLAG, canCondemn, readCondemned, addCondemned, removeCondemned, noteCondemned} from "./condemn.js";
 import {OATHS_FLAG, canBindOaths, readOaths, addOath, removeOath, noteOath, setOathBroken} from "./oaths.js";
@@ -57,9 +58,11 @@ import {CharacterOrigin} from "./CharacterOrigin.js";
 import {CharacterPossessions} from "./CharacterPossessions.js";
 import {grantsToCreate, grantSourceMap, grantAdoptionKeys, itemGrantKey} from "./possession-grants.js";
 import {CharacterInventory} from "./CharacterInventory.js";
-import {maybeBeginAttack, maybeCounterOnMiss, attackMoveFor} from "../../combat/attack-flow.js";
-import {defendReadinessHold, defendReadinessCap} from "../../combat/defend-readiness.js";
+import {maybeBeginAttack, maybeCounterOnMiss, attackMoveFor, attackFoeAdvantage, recordClashedFoes, rollMoveDamageAt} from "../../combat/attack-flow.js";
+import {defendReadinessHold, defendReadinessCap, readinessCount, READINESS_FLAG} from "../../combat/defend-readiness.js";
+import {settleReadinessOnAttack} from "../../combat/readiness-loss.js";
 import {classifyResult} from "../../utils/roll-engine.js";
+import {betterMode} from "../../utils/roll-mode.js";
 import {xpToLevelUp, withXpLock} from "../../utils/xp.js";
 import {CharacterArcana} from "./CharacterArcana.js";
 import {CharacterLore} from "./CharacterLore.js";
@@ -79,6 +82,27 @@ import {ARTIFACT_STATE, concealArtifactFields, isArtifactUpgrade, normalizeArtif
 import {isLoveLetter} from "./love-letters.js";
 import {deriveLoadLevel, loadLimitsFor} from "../../utils/load.js";
 import {maxDie, stepDie, normalizeDamageDie} from "../../utils/damage-die.js";
+import {WEAPONS_OF_WAR_COMMON, WEAPONS_OF_WAR_PIERCING} from "../../data/weapons.js";
+import {X_PIERCING_MAX} from "../../utils/damage.js";
+
+/** The Judge's Castigate, whose damage rides every Censure (see brandCondemned). */
+const CASTIGATE = "Castigate";
+
+/**
+ * Advantage from somewhere other than the picker, folded into a roll's options and NAMED on the card.
+ *
+ * The one shape it takes, whatever bought it: a promise made at a peaceful camp, a grudge a foe owes
+ * (Relentless, But I Get Up Again). Advantage and disadvantage cancel (p.230), so a roll that already
+ * had disadvantage rolls straight instead; the note is added either way, so a cancellation reads as a
+ * trade rather than as a mode that quietly vanished.
+ */
+function foldAdvantage(options, source) {
+	return {
+		...options,
+		rollMode: betterMode(options.rollMode),
+		conditionNotes: [...(options.conditionNotes ?? []), source],
+	};
+}
 
 const OTHER_MOVE_TYPES = ["background", "special", "follower", "homefront"];
 // Expedition moves that operate on the STEADING rather than the individual hero,
@@ -121,14 +145,6 @@ function _isCustomMove(item) {
 	return !!item?.flags?.[STONETOP_SCOPE]?.custom;
 }
 
-// A custom move can be "un-learned" — kept on the sheet but inactive (not rollable, its
-// hp/armor/load bonuses stop applying). An absent flag means learned, so every freshly
-// authored move and any authored before this feature reads as learned. Non-custom moves
-// are always active, so this returns true for them too.
-function _isMoveLearned(item) {
-	return item?.flags?.[STONETOP_SCOPE]?.learned !== false;
-}
-
 // Total a numeric `system.<field>` across every LEARNED move the actor owns, and name the
 // moves that actually contributed, in sheet order. The shared spine of _ownedLoadBonus /
 // _ownedShieldLoadReduction (and any future per-move bonus), so the "skip un-learned moves"
@@ -138,7 +154,7 @@ function _learnedMoveField(actor, field) {
 	let total = 0;
 	const names = [];
 	for (const i of actor.items) {
-		if (i.type !== "move" || !_isMoveLearned(i)) continue;
+		if (i.type !== "move" || !isMoveLearned(i)) continue;
 		const value = Number(i.system?.[field]) || 0;
 		if (value === 0) continue;
 		total += value;
@@ -178,6 +194,11 @@ function _buildOtherMoveResource(resource, current) {
 const _PROSPERITY_RESOURCE_SLUGS = new Set(["supplies", "more-supplies", "even-more-supplies"]);
 const _WEAPONS_OF_WAR_CATEGORY = "Weapons of War";
 const _WEAPONS_OF_WAR_IMPROVEMENT = "weaponsOfWar";
+// The Mill: "when you Outfit from Stonetop or Have What You Need after doing so, each ◆ of
+// supplies has 1 extra use." Completing it also writes "Mill" onto the Resources list, which a
+// GM may have done by hand instead, so either counts, the way Weapons of War reads.
+const _MILL_IMPROVEMENT = "mill";
+const _MILL_RESOURCE = "Mill";
 
 // Resolve "x piercing" against the steading's Prosperity for display. With Prosperity
 // 1+ it shows the actual value ("2 piercing"); at 0, no steading (null), or negative,
@@ -189,8 +210,18 @@ function _transformPiercingNote(note, prosperity) {
 	const marker = /x <em>piercing<\/em>/i;
 	if (!note || !marker.test(note)) return note;
 	if (prosperity === null) return note; // no steading → leave literal "x piercing"
+	// The Inventory insert's Prosperity table: -1 "Gear is crude", +1 "x = 1 piercing", +2 "x = 2
+	// piercing", and no higher row. damage.js#resolvePiercing counts the same way.
 	if (prosperity <= -1) return note.replace(marker, '<em>crude</em>');
-	return note.replace(marker, `${Math.min(prosperity, 2)} <em>piercing</em>`);
+	return note.replace(marker, `${Math.min(prosperity, X_PIERCING_MAX)} <em>piercing</em>`);
+}
+
+// A battleaxe's or sword's note once the steading has Weapons of War: the item's own tags plus the
+// improvement's "x piercing", for _transformPiercingNote to resolve against Prosperity.
+function _withWeaponsOfWarPiercing(item, weaponsOfWar) {
+	const note = item?.note ?? "";
+	if (!weaponsOfWar || !WEAPONS_OF_WAR_PIERCING.has(item?.slug) || /piercing/i.test(note)) return note;
+	return note ? `${note}, x <em>piercing</em>` : "x <em>piercing</em>";
 }
 
 // A gear-bearing `choices` option (Weapons of War) leads its label with the run of ◇/◆
@@ -263,9 +294,8 @@ function _ownedLoadBonus(actor) {
 // circle of its own — it just adds one to Defend's track).
 const _DEFEND_MOVE_NAME = "Defend";
 const _GUARDIAN_MOVE_NAME = "Guardian";
-// Where a character's held Defend Readiness lives (a flag on the actor, mirroring how
-// followers store theirs under readiness paths in _FOLLOWER_FLAGS).
-const _DEFEND_READINESS_FLAG = "readiness";
+// Held Defend Readiness lives in a flag on the actor (READINESS_FLAG, combat/defend-readiness.js),
+// mirroring how followers store theirs under readiness paths in _FOLLOWER_FLAGS.
 
 // The Armored move ("carry a shield, mark only ◆ instead of ◆◆") drops a carried shield's
 // ◇ load by its `shieldLoadReduction`. Like loadBonus, the mechanic lives in the move's data
@@ -458,10 +488,11 @@ export class StonetopCharacter {
 		// moves that require being unarmored (Uncanny Reflexes); 0 means unarmored. Same base
 		// selection as calculateArmor — CharacterInventory owns the rule. Computed once and
 		// handed to calculateArmor so the base filter doesn't run twice per render.
-		const wornArmorBase = this._inventory.wornArmorBase(gear.items, gear.marks);
-		// Armor that shrugs off piercing and "ignores armor" outright. Carried separately all the
-		// way to the damage math, because it is a FLOOR under the mitigation rather than a bonus.
-		const unpierceableArmor = this._inventory.unpierceableArmor(gear.items, gear.marks);
+		//
+		// Unpierceable armor shrugs off piercing and "ignores armor" outright. Carried separately
+		// all the way to the damage math, because it is a FLOOR under the mitigation rather than
+		// a bonus.
+		//
 		// `armorAdjustment` is the GM/player's hand-set delta on top of everything derived — the
 		// same shape as hp.adjustment, and for the same reason: a lasting change the sheet can't
 		// derive (an arcanum's boon, a curse, a ruling) has to survive the next render.
@@ -473,10 +504,7 @@ export class StonetopCharacter {
 		// the clamp is not biting: under an adjustment deep enough to bottom the total out, they
 		// read the derived armor as the size of the adjustment instead, and a typed 2 banked a
 		// delta that landed back on 0.
-		const armorBase = Math.max(0,
-			this._inventory.calculateArmor(gear.items, wornArmorBase, gear.marks)
-			+ moveBonuses.armor);
-		const armor = Math.max(0, armorBase + this.armorAdjustment);
+		const { worn: wornArmorBase, base: armorBase, armor, unpierceable: unpierceableArmor, conditional: conditionalArmor, conditionalSource } = this._armorFrom(gear, moveBonuses);
 		const arcanaLore = (playbookData?.lore ?? []).some(e => e.arcanaImage || (e.options ?? []).some(o => o.arcanaRole))
 			? await this._arcana.buildLoreDisplay()
 			: null;
@@ -489,7 +517,7 @@ export class StonetopCharacter {
 			// A Thrall's Marks eat into their max HP ("Reduce your max HP by 2"), and they collect
 			// more as Dark Succor keeps saving them — so it's derived from the marked options
 			// every render, not written once.
-			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses, wornArmorBase, insertHpPenalty(postDeath.activeInsert?.lore), unpierceableArmor, armorBase))
+			.withVitals(_buildVitalsSection(actor, playbookData, armor, moveBonuses, wornArmorBase, insertHpPenalty(postDeath.activeInsert?.lore), unpierceableArmor, armorBase, { value: conditionalArmor, source: conditionalSource }))
 			.withMoves(moves)
 			.withMovelist(_buildMovelist(moves, inventory.other, pdiLabel, actorLevel, inventory.loveLetters, playbookData?.name ?? null))
 			.withInventory(inventory)
@@ -622,7 +650,7 @@ export class StonetopCharacter {
 		// move that happens to be stored as moveType "other" doesn't get its bonus counted
 		// here. (loadBonus/shieldLoadReduction are summed across all owned moves elsewhere.)
 		for (const i of this._actor.items) {
-			if (!_isCustomMove(i) || !_isMoveLearned(i)) continue;
+			if (!_isCustomMove(i) || !isMoveLearned(i)) continue;
 			totals.hp    += Number(i.system?.hpBonus)    || 0;
 			totals.armor += Number(i.system?.armorBonus) || 0;
 		}
@@ -641,7 +669,7 @@ export class StonetopCharacter {
 		// Name-gated against the own-playbook defs rather than on moveType, so a Heavy's own copy
 		// is counted once — down there, from its definition — and never here as well.
 		for (const i of this._actor.items) {
-			if (i.type !== "move" || _isCustomMove(i) || !_isMoveLearned(i)) continue;
+			if (i.type !== "move" || _isCustomMove(i) || !isMoveLearned(i)) continue;
 			if (ownPlaybookMoveNames.has(i.name)) continue;
 			totals.hp    += Number(i.system?.hpBonus)    || 0;
 			totals.armor += Number(i.system?.armorBonus) || 0;
@@ -853,9 +881,12 @@ export class StonetopCharacter {
 		const allItems       = await this._inventoryRepo.getAll();
 		const steadingActor  = this.getSteadingActor();
 		const smallItemLimit = this.getSmallItemLimit(steadingActor);
+		const usesPerSupply  = this.getUsesPerSupply(steadingActor);
 		const steadingName   = steadingActor?.name ?? null;
 		const prosperity     = smallItemLimit !== null ? smallItemLimit - 4 : null;
 		const commonSpecialSet = this._earnedCommonSpecialSlugs(steadingActor, allItems);
+		// Weapons of War: "Battleaxes and swords have 'x piercing'", resolved below with the rest.
+		const weaponsOfWar     = this.weaponsOfWarEarned(steadingActor);
 		// A move's `loadBonus` raises every load cap (the Ranger's Pack Horse → +1).
 		// The boosted limits flow into the regular ◇ pool here and into the Outfit
 		// dialog via the snapshot; the granting moves' names ride along so the boosted
@@ -874,17 +905,17 @@ export class StonetopCharacter {
 			// Three sources of a track's size, most specific first. An ACQUIRED capacity wins
 			// outright: provisions have no printed number of uses because the larder is however
 			// much the last Forage brought in (CharacterInventory#resourceMax). Then the
-			// 4+Prosperity supplies rule, then the number printed on the item.
+			// 4+Prosperity supplies rule (+1 with a Mill), then the number printed on the item.
 			const acquiredMax = Number(acquiredMaxes[outfitItem.slug]);
 			const resMax = Number.isFinite(acquiredMax) ? acquiredMax
-				: (isProsperityResource && smallItemLimit !== null) ? smallItemLimit
+				: (isProsperityResource && usesPerSupply !== null) ? usesPerSupply
 				: res?.max;
 			// Armored reduces a carried shield's ◇ cost (min 1), so it reads ◆ instead of ◆◆.
 			const weight = _shieldAdjustedWeight(outfitItem.weight, outfitItem.shield, shieldLoadReduction);
 			return new InventoryItemSnapshotBuilder()
 				.withSlug(outfitItem.slug)
 				.withName(outfitItem.name)
-				.withNote(_transformPiercingNote(outfitItem.note, prosperity))
+				.withNote(_transformPiercingNote(_withWeaponsOfWarPiercing(outfitItem, weaponsOfWar), prosperity))
 				.withWeight(weight)
 				.withChecked(checked[outfitItem.slug] ?? false)
 				.withResource(res ? new ResourceBuilder()
@@ -1156,7 +1187,7 @@ export class StonetopCharacter {
 					.withRollLabel(_rollLabelForMove(i.name, i.system?.rollType, i.system))
 					.withSourceLabel(origin && origin !== ownPlaybook ? origin : null)
 					.withCustom(_isCustomMove(i))
-					.withLearned(_isMoveLearned(i))
+					.withLearned(isMoveLearned(i))
 					.withResourceKey(resourceKey)
 					.withResource(_buildOtherMoveResource(i.system?.resource, moveResourceState[resourceKey]))
 					.build();
@@ -1600,14 +1631,27 @@ export class StonetopCharacter {
 			?? getStonetopSteadingActor();
 	}
 
-	_earnedCommonSpecialSlugs(steading, allItems) {
-		if (!steading) return new Set();
+	/**
+	 * Whether the steading has earned Weapons of War: the improvement built, or "Weapons of War"
+	 * active on its Fortifications list (a GM who wrote it there by hand).
+	 */
+	weaponsOfWarEarned(steading = this.getSteadingActor()) {
+		if (!steading) return false;
 		const steadingFlags = resolvedFlagProperty(steading, "steading") ?? {};
-		const weaponsEarned = !!steadingFlags.improvements?.[_WEAPONS_OF_WAR_IMPROVEMENT]?.completed
-			|| (steadingFlags.fortifications ?? []).some(f => String(f?.name ?? f) === _WEAPONS_OF_WAR_CATEGORY);
-		if (!weaponsEarned) return new Set();
+		return !!steadingFlags.improvements?.[_WEAPONS_OF_WAR_IMPROVEMENT]?.completed
+			|| (steadingFlags.fortifications ?? []).some(f =>
+				String(f?.name ?? f) === _WEAPONS_OF_WAR_CATEGORY && f?.checked !== false);
+	}
+
+	/**
+	 * The special items Weapons of War makes common: "maces, flails, battleaxes, warhammers, and all
+	 * types of swords". Only those: the Special Items handout's weapons section also holds the
+	 * crossbow and the composite bow, which the improvement does not name.
+	 */
+	_earnedCommonSpecialSlugs(steading, allItems) {
+		if (!this.weaponsOfWarEarned(steading)) return new Set();
 		return new Set(allItems
-			.filter(i => i.special && i.specialCategory === _WEAPONS_OF_WAR_CATEGORY)
+			.filter(i => i.special && i.specialCategory === _WEAPONS_OF_WAR_CATEGORY && WEAPONS_OF_WAR_COMMON.has(i.slug))
 			.map(i => i.slug));
 	}
 
@@ -1617,6 +1661,23 @@ export class StonetopCharacter {
 		if (rawProsperity == null) return null;
 		const prosperity = Number(rawProsperity);
 		return isNaN(prosperity) ? null : 4 + prosperity;
+	}
+
+	/**
+	 * The uses in one ◆ of supplies: 4+Prosperity (Book I p.89), and 1 more once the steading has a
+	 * Mill. Null when Prosperity cannot be read, like getSmallItemLimit.
+	 *
+	 * The Mill's text says "when you Outfit from Stonetop", and nothing records where an Outfit
+	 * happened, so an earned Mill always counts: the same reading Weapons of War gets.
+	 */
+	getUsesPerSupply(steading = this.getSteadingActor()) {
+		const limit = this.getSmallItemLimit(steading);
+		if (limit === null) return null;
+		const steadingFlags = resolvedFlagProperty(steading, "steading") ?? {};
+		const mill = !!steadingFlags.improvements?.[_MILL_IMPROVEMENT]?.completed
+			// A Resources row is `{name, checked}`: one left unticked is not a Mill the village has.
+			|| (steadingFlags.resources ?? []).some(r => String(r?.name ?? r) === _MILL_RESOURCE && r?.checked !== false);
+		return limit + (mill ? 1 : 0);
 	}
 
 	/**
@@ -1843,7 +1904,7 @@ export class StonetopCharacter {
 	// on the sheet but inactive). Persisted as an item flag; an absent flag means learned, so
 	// a fresh move never needs the flag written to default to learned. Applies to ANY owned
 	// move, not just player-authored ones: a move dropped onto the sheet from another
-	// playbook is exactly as reversible as a homebrew one, and _isMoveLearned (which gates
+	// playbook is exactly as reversible as a homebrew one, and isMoveLearned (which gates
 	// the roll icon and every per-move bonus) has always read the flag off any item.
 	async setMoveLearned(itemId, learned) {
 		const item = this._actor.items.get(itemId);
@@ -2381,9 +2442,10 @@ export class StonetopCharacter {
 			// player closed the weapon prompt", and while these answered the same the guards
 			// written for exactly that (`if (handled) …`) were doing nothing at all.
 			if (begun === "cancel") return "cancel";
-			// Going on the offense (Clash / Let Fly) sheds any held Defend Readiness (p.216) —
-			// but only once the attack is committed, not on a cancelled weapon/target prompt.
-			if (attackMoveFor(item)) await this._loseDefendReadinessToOffense(item.name);
+			// Going on the offense sheds any held Defend Readiness (p.216), but an attack made
+			// holding one's ground does not, so the player is asked (combat/readiness-loss.js):
+			// only once the attack is committed, not on a cancelled weapon/target prompt.
+			if (attackMoveFor(item)) await settleReadinessOnAttack(this._actor, item.name);
 			if (begun === "handled") return true;
 			attackExtra = begun;
 		}
@@ -2405,6 +2467,13 @@ export class StonetopCharacter {
 			modifier, forward, ongoing, statOverride: stat, ...(attackExtra ?? {}),
 		};
 
+		// A grudge this character is owed against the very foe they are attacking: Relentless on a Clash
+		// with someone who survived the last one, But I Get Up Again on whoever knocked them down. Folded
+		// in like a held advantage (see _spendHeldAdvantage) — before the debility pass, so a Weakened
+		// Heavy's advantage cancels rather than quietly outranking the debility — and NAMED on the card.
+		const grudge = attackExtra ? attackFoeAdvantage(this._actor, attackExtra) : null;
+		if (grudge) Object.assign(rollOptions, foldAdvantage(rollOptions, grudge));
+
 		// A promise made earlier (a peaceful camp) is spent HERE — after the guards above, so
 		// reading a move's text or backing out of the weapon prompt never burns it.
 		const promised = descriptionOnly ? rollOptions : await this._spendHeldAdvantage(rollOptions);
@@ -2423,6 +2492,11 @@ export class StonetopCharacter {
 		// After the roll card and its miss XP, which rollStat has already posted, so the chat
 		// reads in the order the move does.
 		if (!descriptionOnly) await maybeCounterOnMiss(this._actor, item, roll, attackExtra);
+
+		// Nemesis and Relentless both turn on "when you Clash and your foe survives": the foes this Clash
+		// was aimed at are written down now, AFTER the dice, so the +1d6 rides the attacks that come after
+		// this one rather than this one's own damage (combat/attack-flow.js#recordClashedFoes).
+		if (!descriptionOnly && attackExtra) await recordClashedFoes(this._actor, attackExtra);
 
 		if (forward !== 0) {
 			await this._actor.update({ "system.attributes.forward.value": 0 }, { stonetopMove: item?.name });
@@ -2461,6 +2535,108 @@ export class StonetopCharacter {
 	}
 
 	/**
+	 * The derived vitals everything outside the sheet reads off the STORED fields, `{armor, unpierceable,
+	 * maxHp}`: buildSnapshot's arithmetic without building a sheet. `maxHp` is 0 with no playbook, which
+	 * is "nothing to say", not a max of 0 (see computedMaxHp).
+	 *
+	 * The stored armor is what the damage card's Apply takes off (combat/attack-flow.js#wornArmor), so a
+	 * shield handed over mid-fight with the sheet closed has to reach it: actors/character/vitals-mirror.js.
+	 */
+	async computedVitals() {
+		const [{ playbookData, gear, moveBonuses }, hpPenalty] = await Promise.all([
+			this._derivedInputs(),
+			this._postDeath.hpPenalty(),
+		]);
+		const { armor, unpierceable, conditional, conditionalSource } = this._armorFrom(gear, moveBonuses);
+		return { armor, unpierceable, conditional, conditionalSource, maxHp: playbookData ? _hpFrom(this._actor, playbookData, moveBonuses, hpPenalty).hpMax : 0 };
+	}
+
+	/** What the derived vitals are worked out from: the playbook, the carried gear and the move bonuses. */
+	async _derivedInputs() {
+		const playbook = this.playbook();
+		const [playbookData, allOutfitItems, arcanaCarried, moveBonuses] = await Promise.all([
+			playbook,
+			this._inventoryRepo.getAll(),
+			this._arcana.weightedInventoryItems(),
+			playbook.then(pb => this._ownedMoveBonuses(pb, this._buildOwnedMovesMap())),
+		]);
+		return { playbookData, gear: this._gearSources(playbookData, allOutfitItems, arcanaCarried), moveBonuses };
+	}
+
+	/**
+	 * Write the derived vitals onto the stored armor and max HP where they differ, for everything that
+	 * reads the stored fields: the token bar, the Fight tab, Apply, the ledger. THE ONE WRITER of them:
+	 * actors/character/vitals-mirror.js calls it on a change made with the sheet closed, and the sheet
+	 * after each render (StonetopCharacterSheet#_syncStoredDerived), handing in the numbers its snapshot
+	 * already worked out rather than working them out again.
+	 *
+	 * The two armor numbers move together: a floor is part of the total above it, so a disagreement in
+	 * either writes both. A non-finite armor (nothing worked out, or a move bonus that is not a number)
+	 * writes neither, where 0 is real (unarmored) and must overwrite a stale number. Max HP only with a
+	 * playbook to derive it from (0 says there is none). Ledger-silenced: the real change was the gear,
+	 * the level or the Mark, which the ledger already files. Returns whether it wrote.
+	 *
+	 * @param {{armor: number|null, unpierceable: number, conditional?: number, conditionalSource?: string, maxHp: number}} [vitals]  computedVitals' answer.
+	 *   A caller handing in its own numbers must carry the WHOLE armor group: the write is one update
+	 *   over all four fields, so an omitted `conditional` writes the default back over a real one.
+	 */
+	async syncStoredVitals(vitals = null) {
+		const { armor, unpierceable, maxHp, conditional = 0, conditionalSource = "" } = vitals ?? await this.computedVitals();
+		const attrs = this._actor.system?.attributes ?? {};
+		const update = {};
+		const floor = Number(unpierceable) || 0;
+		// The fiction-gated part of the total travels with it, for the same reason the floor does: the
+		// damage card reads this document, and it offers that armor back (combat/attack-flow.js).
+		const gated = Math.max(0, Math.trunc(Number(conditional) || 0));
+		const gatedBy = gated > 0 ? String(conditionalSource || "") : "";
+		if (armor !== null && Number.isFinite(Number(armor))
+			&& (Number(attrs.armor?.value) !== Number(armor) || (Number(attrs.armor?.unpierceable) || 0) !== floor
+				|| (Number(attrs.armor?.conditional) || 0) !== gated || (attrs.armor?.conditionalSource ?? "") !== gatedBy)) {
+			update["system.attributes.armor.value"] = Number(armor);
+			update["system.attributes.armor.unpierceable"] = floor;
+			update["system.attributes.armor.conditional"] = gated;
+			update["system.attributes.armor.conditionalSource"] = gatedBy;
+		}
+		const hpMax = Number(maxHp) || 0;
+		if (hpMax > 0 && Number(attrs.hp?.max) !== hpMax) update["system.attributes.hp.max"] = hpMax;
+		if (!Object.keys(update).length) return false;
+		await this._actor.update(update, { stonetopLedger: true });
+		return true;
+	}
+
+	/**
+	 * The armor arithmetic shared by buildSnapshot, computedVitals and setArmor, so the number Apply
+	 * subtracts and the number the sheet shows cannot drift apart. `base` is the derived armor
+	 * before the hand-set adjustment, kept apart because the total is clamped (see buildSnapshot).
+	 */
+	_armorFrom(gear, moveBonuses) {
+		const worn = this._inventory.wornArmorBase(gear.items, gear.marks);
+		// Barkskin and A Candle Against the Dark say the character HAS 2 armor, which is a worn base and
+		// not a bonus: the best base wins and a shield still adds on top (actors/character/move-armor.js).
+		// `worn` itself stays the gear's, because "unarmored" is about what you are WEARING — the moves
+		// that ask (Uncanny Reflexes) mean armor, not bark.
+		const granted = moveArmor({
+			actor: this._actor,
+			holyLight: this.holyLight,
+			// A THUNK, not a value: the world scan behind it is the expensive part of this function, and a
+			// character with Barkskin of their own never needs asking (see moveArmor).
+			markedWithBarkskin: () => barkskinMarkedBy(this._actor, globalThis.game?.actors ?? []),
+		});
+		const base = Math.max(0, this._inventory.calculateArmor(gear.items, Math.max(worn, granted.base), gear.marks) + moveBonuses.armor);
+		// How much of the total the move actually bought, which is nothing when the gear was already
+		// better: that is what a damage card offers back when the fiction says the clause is not met.
+		const conditional = Math.max(0, granted.base - worn);
+		return {
+			worn,
+			base,
+			conditional,
+			conditionalSource: conditional > 0 ? granted.source : "",
+			armor: Math.max(0, base + this.armorAdjustment),
+			unpierceable: this._inventory.unpierceableArmor(gear.items, gear.marks),
+		};
+	}
+
+	/**
 	 * Bank a hand-typed armor total as the delta that reaches it. Mirrors setMaxHp: the typed
 	 * number is what the player wants to SEE, so the stored adjustment is that minus everything
 	 * currently derived. Typing the derived number back in clears the adjustment to 0.
@@ -2476,7 +2652,9 @@ export class StonetopCharacter {
 		// `armorBase` and NOT `armor` minus the adjustment: the total is clamped at 0, so once a
 		// negative adjustment has bottomed it out the subtraction gives back the adjustment's own
 		// size instead of the derived armor, and the delta banked from it lands somewhere else.
-		const derived = (await this.buildSnapshot()).vitals.armorBase;
+		// _derivedInputs, not buildSnapshot: the one number, without building a whole sheet for it.
+		const { gear, moveBonuses } = await this._derivedInputs();
+		const derived = this._armorFrom(gear, moveBonuses).base;
 		await this._actor.update({ "system.attributes.armor.adjustment": target - derived });
 		return target;
 	}
@@ -2487,7 +2665,7 @@ export class StonetopCharacter {
 	}
 
 	get defendReadiness() {
-		return Math.max(0, Math.trunc(Number(this._actor.getFlag(STONETOP_SCOPE, _DEFEND_READINESS_FLAG)) || 0));
+		return readinessCount(this._actor.getFlag(STONETOP_SCOPE, READINESS_FLAG));
 	}
 
 	/** The view model the sheet renders as circles beside the Defend move. Async only because
@@ -2509,9 +2687,9 @@ export class StonetopCharacter {
 	}
 
 	async setDefendReadiness(n) {
-		const next = Math.max(0, Math.trunc(Number(n) || 0));
+		const next = readinessCount(n);
 		if (next === this.defendReadiness) return;
-		await this._actor.setFlag(STONETOP_SCOPE, _DEFEND_READINESS_FLAG, next);
+		await this._actor.setFlag(STONETOP_SCOPE, READINESS_FLAG, next);
 	}
 
 	/**
@@ -2635,8 +2813,23 @@ export class StonetopCharacter {
 	 * either a nameless target or one already branded.
 	 */
 	async brandCondemned(entry) {
-		return this._rosterWrite(CONDEMNED_FLAG,
+		const laid = await this._rosterWrite(CONDEMNED_FLAG,
 			addCondemned(this._rosterRaw(CONDEMNED_FLAG), entry, newRosterId));
+		// CASTIGATE: "When you Censure someone, your voice deals 1d4 damage to them (near, loud, ignores
+		// armor)." Laying the brand IS the Censure (see StonetopCharacterSheet's note on the same moment),
+		// so the blow lands here, aimed at the person just named rather than at whoever is targeted.
+		if (laid) await this._maybeCastigate(laid);
+		return laid;
+	}
+
+	/** Castigate's 1d4 at whoever was just branded, when this Judge has the move and the row names them. */
+	async _maybeCastigate(entry) {
+		if (!ownsLearnedMoveNamed(this._actor, CASTIGATE) || !entry?.uuid) return null;
+		const target = await fromUuid(entry.uuid).catch(() => null);
+		if (!target) return null;
+		return rollMoveDamageAt(this._actor, target, {
+			move: CASTIGATE, formula: "1d4", ignoresArmor: true, tags: ["loud"],
+		}).catch(err => console.warn("Stonetop | Castigate's damage could not be rolled", err));
 	}
 
 	/** Dismiss one brand — the only way it ever ends. Returns the entry that was lifted, or null. */
@@ -2795,18 +2988,6 @@ export class StonetopCharacter {
 			content: moveChatCard("Defend: Readiness held",
 				`<p><strong>${escHtml(this._actor.name)}</strong> holds <strong>${next}</strong> Readiness${escHtml(shieldNote)}.</p>`
 				+ `<p>Spend it to suffer an attack's damage/effects for a ward, halve it, draw all attention to yourself, or strike back.</p>`),
-			speaker: ChatMessage.getSpeaker({ actor: this._actor }),
-		});
-	}
-
-	// "When you go on the offense … lose any Readiness that you hold" (p.216). Called when
-	// the character rolls Clash / Let Fly. Clears the pool and posts a note if any was held.
-	async _loseDefendReadinessToOffense(moveName) {
-		if (this.defendReadiness <= 0) return;
-		await this.setDefendReadiness(0);
-		await ChatMessage.create({
-			content: moveChatCard("Readiness lost",
-				`<p><strong>${escHtml(this._actor.name)}</strong> goes on the offense${moveName ? ` (${escHtml(moveName)})` : ""} and loses all held Readiness.</p>`),
 			speaker: ChatMessage.getSpeaker({ actor: this._actor }),
 		});
 	}
@@ -2980,11 +3161,7 @@ export class StonetopCharacter {
 		const held = this.heldAdvantage();
 		if (!held) return options;
 		await this.clearHeldAdvantage();
-		return {
-			...options,
-			rollMode: options.rollMode === "dis" ? "normal" : "adv",
-			conditionNotes: [...(options.conditionNotes ?? []), held.source],
-		};
+		return foldAdvantage(options, held.source);
 	}
 
 	// ── Death and dying (Book I, Harm & Healing p.245) ─────────────────────────
@@ -3080,14 +3257,12 @@ export class StonetopCharacter {
 	 * HP" has to ask for the computed value or it will quietly use the level-1 number.
 	 */
 	async computedMaxHp() {
-		const snapshot = await this.buildSnapshot();
-		// 0 is the vitals section's way of saying "there is no computed max": without a playbook it
-		// emits `new ValueMax(0, 0)`. That is not nullish, so a bare `??` never reached the fallback
-		// below and this handed back a max of 0 — and every caller doing arithmetic on it inherited
-		// the zero. UndeathDialog's "reform with half your max HP" floored to 1 HP for a Ghost whose
-		// playbook slug no longer resolved in the pack, which is the one moment it most matters.
-		const computed = Number(snapshot.vitals?.hp?.max);
-		return Number.isFinite(computed) && computed > 0 ? computed : this.storedMaxHp;
+		// 0 is computedVitals' way of saying "there is no computed max" (no playbook). A bare `??` would
+		// hand back a max of 0, and every caller doing arithmetic on it inherited the zero:
+		// UndeathDialog's "reform with half your max HP" floored to 1 HP for a Ghost whose playbook slug
+		// no longer resolved in the pack, which is the one moment it most matters.
+		const { maxHp } = await this.computedVitals();
+		return maxHp > 0 ? maxHp : this.storedMaxHp;
 	}
 
 	/** The persisted field — stale by design; see computedMaxHp. Only for a last-resort fallback. */
@@ -3728,9 +3903,12 @@ function _derivedDamageDie(playbookData, moveBonuses = {}) {
 	return moveBonuses.damageDie ? maxDie(playbookData.damage, moveBonuses.damageDie) : playbookData.damage;
 }
 
-function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, wornArmorBase = 0, insertHpPenalty = 0, unpierceableArmor = 0, armorBase = null) {
+/**
+ * Max HP from the playbook, move bonuses, an insert's Marks and the hand-set delta, `{hpBase, hpMax}`:
+ * the one arithmetic behind the sheet's vitals and StonetopCharacter#computedVitals.
+ */
+function _hpFrom(actor, playbookData, moveBonuses = {}, insertHpPenalty = 0) {
 	const attrs = actor.system?.attributes ?? {};
-	const level = attrs.level?.value ?? 1;
 	// Floored at 1: a Thrall who collects enough max-HP Marks would otherwise arrive at 0 max HP
 	// and be permanently dying, which is Unholy Vessel's job to end, not arithmetic's. The same
 	// floor covers a permanent adjustment deep enough to do it the other way round.
@@ -3747,6 +3925,13 @@ function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, 
 	// max off derivedHp then landed somewhere else entirely. The floor still holds, since hpBase
 	// is already at least 1 wherever a playbook exists.
 	const hpMax = Math.max(1, hpBase + hpAdjust);
+	return { hpBase, hpMax };
+}
+
+function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, wornArmorBase = 0, insertHpPenalty = 0, unpierceableArmor = 0, armorBase = null, gatedArmor = { value: 0, source: "" }) {
+	const attrs = actor.system?.attributes ?? {};
+	const level = attrs.level?.value ?? 1;
+	const { hpBase, hpMax } = _hpFrom(actor, playbookData, moveBonuses, insertHpPenalty);
 	const damageBase = _derivedDamageDie(playbookData, moveBonuses);
 	// A die typed into the sheet's Damage field wins outright: it is the player saying "this
 	// character's die is X", which the playbook has no business overwriting on the next render.
@@ -3764,6 +3949,7 @@ function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, 
 		.withArmorBase(armorBase ?? armorValue)
 		.withWornArmor(wornArmorBase)
 		.withUnpierceableArmor(unpierceableArmor)
+		.withConditionalArmor(gatedArmor?.value ?? 0, gatedArmor?.source ?? "")
 		.withLevel(level)
 		.withXp(new ValueMax(attrs.xp?.value ?? 0, xpToLevelUp(level)))
 		.build();

@@ -1,5 +1,6 @@
 import { SYSTEM_ID } from "../system-id.js";
-import { SUPPLY_PURPOSE, campUsesNeeded, supplyPurseSlugsFor, supplyPursesFor } from "../actors/character/supply-cost.js";
+import { PROVISIONS_SLUG } from "../actors/character/provisions.js";
+import { SUPPLY_PURPOSE, SUPPLY_SLUGS, campUsesNeeded, supplyPurseSlugsFor, supplyPursesFor } from "../actors/character/supply-cost.js";
 
 /**
  * MAKE CAMP, AS A PARTY (Book I p.334).
@@ -65,6 +66,9 @@ export const CAMP_STALE_MS = 8 * 60 * 60 * 1000;
 
 /** The most extra mouths one character can bring to the fire. */
 export const CAMP_FOLLOWERS_MAX = 20;
+
+/** How many camps a character remembers breaking up, latest kept. Older ones read as simply gone. */
+export const CAMP_LEFT_MAX = 10;
 
 /** The held advantage a peaceful night leaves, named the way the sheet's chip shows it. */
 export const PEACEFUL_NIGHT = "A peaceful night's rest";
@@ -146,6 +150,9 @@ export function readCampRecord(raw) {
 		// as a fresh token each time (camp-store.js#settleCamp).
 		settleAsk: String(raw.settleAsk ?? ""),
 		applied:   !!raw.applied,
+		// The unsettled camps this character was hosting when they sat down somewhere else instead,
+		// which those moves broke up (campState). Carried from record to record, latest last.
+		leftCamps: readLeftCamps(raw.leftCamps),
 	};
 }
 
@@ -166,7 +173,7 @@ export function readOwedCamps(raw) {
  */
 export function newCampRecord({
 	id, hostId, actorId, now = 0, vitals = {}, followers = 0,
-	hpValue = 0, activeDebilityKeys = [], unliving = false,
+	hpValue = 0, activeDebilityKeys = [], unliving = false, leftCamps = [],
 }) {
 	const read    = readVitals(vitals);
 	const hosting = actorId === hostId;
@@ -192,7 +199,14 @@ export function newCampRecord({
 		settledAt: 0,
 		settleAsk: "",
 		applied:   false,
+		leftCamps: readLeftCamps(leftCamps),
 	};
+}
+
+/** A list of broken-up camp ids in one dependable shape: strings, no repeats, the latest CAMP_LEFT_MAX. */
+function readLeftCamps(raw) {
+	const ids = (Array.isArray(raw) ? raw : []).filter(Boolean).map(String);
+	return [...new Set(ids)].slice(-CAMP_LEFT_MAX);
 }
 
 /**
@@ -200,8 +214,12 @@ export function newCampRecord({
  *
  * The host is the only authority on this. A member's record names the camp they joined, and that
  * stays true after the camp is long over, so asking the member would keep a broken-up camp alive.
+ *
+ * A host who walked over to another fire replaced the record this camp was read from, and named
+ * this camp among the ones they left: it broke up, it did not simply end.
  */
 export function campState(hostRecord, { campId, hostId }, now = 0) {
+	if (hostRecord?.leftCamps?.includes(campId)) return CAMP_STATE.CANCELLED;
 	if (!hostRecord || hostRecord.id !== campId || hostRecord.host !== hostId) return CAMP_STATE.GONE;
 	if (hostRecord.status === CAMP_STATUS.OPEN) {
 		return now - hostRecord.openedAt > CAMP_STALE_MS ? CAMP_STATE.COLD : CAMP_STATE.OPEN;
@@ -269,6 +287,9 @@ function trimToBill(offers, bill) {
  * @property {number}  maxHp      the COMPUTED max
  * @property {Array<{key: string, name: string}>} activeDebilities  read live
  * @property {boolean} unliving
+ * @property {object}  [pack]     what Have What You Need can draw on, read live: `undefinedMarks`
+ *   (the undefined ◇ left), `checked` (which inventory rows are marked) and `usesPerSupply`
+ *   (4+Prosperity)
  */
 
 /**
@@ -469,4 +490,89 @@ export function campShareUpdate(entry, { resources = {}, hpValue = 0, resourceDa
 	}
 	update[`flags.${SYSTEM_ID}.${CAMP_FLAG}.applied`] = true;
 	return { update, shortfall };
+}
+
+// ── Have What You Need, at the fire ─────────────────────────────────────────
+
+/**
+ * What a character can decide they had all along to feed the camp (Book I p.78): "transfer a mark
+ * (or marks) from your 'undefined' inventory to a specific item or a slot." The book plays exactly
+ * this at a campfire (p.327): nobody had packed supplies or a mess kit, and the GM says "you can
+ * Have What You Need for supplies and a mess kit. One diamond of supplies gives you 4 uses, and the
+ * mess kit is one diamond itself."
+ *
+ * There is no roll. It never makes PROVISIONS: those are food found in the field (p.89), not
+ * something that could have been in the pack all along.
+ */
+export const HAD_ALL_ALONG = Object.freeze({
+	SUPPLIES: "supplies",
+	MESS_KIT: "mess-kit",
+});
+
+/** Why a character cannot produce supplies at the fire, when they cannot. */
+export const HAD_ALL_ALONG_REFUSAL = Object.freeze({
+	NO_MARKS: "no-marks",
+	NO_ROW:   "no-row",
+});
+
+/** A member's pack as Have What You Need reads it, with the defaults filled in. */
+function packOf(member) {
+	const pack = member?.pack ?? {};
+	return {
+		undefinedMarks: count(pack.undefinedMarks),
+		checked:        pack.checked ?? {},
+		// "By default, one ◇ of supplies contains 4 uses, but you add Stonetop's current Prosperity" (p.89).
+		usesPerSupply:  count(pack.usesPerSupply) || 4,
+	};
+}
+
+/**
+ * The printed supplies row an undefined ◇ would become: the first one not already marked, or null
+ * when all three are. A marked row eaten empty stays marked and is not refilled: its ◇ already
+ * counts toward the load, so filling it for one undefined ◇ would make a mark vanish.
+ */
+export function suppliesRowToMark(member) {
+	const { checked } = packOf(member);
+	return SUPPLY_SLUGS.find(slug => !checked[slug]) ?? null;
+}
+
+/**
+ * Whether a member can decide they had supplies all along, and what that brings: `{ok: true, row,
+ * uses}`, or `{ok: false, reason}` with a HAD_ALL_ALONG_REFUSAL.
+ */
+export function suppliesAllAlong(member) {
+	const { undefinedMarks, usesPerSupply } = packOf(member);
+	if (!undefinedMarks) return { ok: false, reason: HAD_ALL_ALONG_REFUSAL.NO_MARKS };
+	const row = suppliesRowToMark(member);
+	if (!row) return { ok: false, reason: HAD_ALL_ALONG_REFUSAL.NO_ROW };
+	return { ok: true, row, uses: usesPerSupply };
+}
+
+/**
+ * Whether a mess kit somebody had all along would make tonight's meal cheaper: nobody at the fire
+ * is cooking with one yet, and a pot for four actually saves a use (one mouth eats 1 use either way).
+ */
+export function messKitWouldHelp(ledger) {
+	return !ledger.messKit && campUsesNeeded(ledger.mouths, true) < ledger.bill;
+}
+
+/** Whether this member could produce a mess kit tonight: they carry none, and have an undefined ◇ to spend. */
+export function messKitAllAlong(member) {
+	return !member?.record?.vitals?.messKit && packOf(member).undefinedMarks > 0;
+}
+
+/**
+ * What the packs at this fire still hold to eat once tonight's meal is paid, and how many more
+ * nights like this one that feeds. Book I p.327's party does this sum before the next leg ("We've
+ * got another eight days ahead of us... so that's 16 more uses").
+ */
+export function foodAfterTonight(ledger) {
+	const held = ledger.offers.reduce((sum, o) => sum + o.purses.reduce((s, p) => s + p.remaining, 0), 0);
+	const left = Math.max(0, held - Math.min(ledger.bill, ledger.offered));
+	return { left, nights: ledger.bill ? Math.floor(left / ledger.bill) : 0 };
+}
+
+/** Whether anyone at this fire is carrying provisions, which keep worse than supplies (p.89). */
+export function provisionsAtFire(ledger) {
+	return ledger.rows.some(m => count(m.resources?.[PROVISIONS_SLUG]) > 0);
 }

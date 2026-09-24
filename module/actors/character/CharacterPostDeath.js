@@ -321,6 +321,16 @@ export class CharacterPostDeath {
 		await this._lore.setCount(entry, option, clampInt(value, 0, 3));
 	}
 
+	/**
+	 * What the active insert's marked options take off max HP (insertHpPenalty), without building the
+	 * rest of the section: StonetopCharacter#computedVitals asks this on every change to the character.
+	 */
+	async hpPenalty() {
+		const slug = this.activeSlug;
+		const data = slug ? await this._insertRepo.findBySlug(slug) : null;
+		return data ? insertHpPenalty(buildLoreSection(data.lore, this._lore, null, this.crossedOffMarks)) : 0;
+	}
+
 	async buildSnapshot() {
 		const slug       = this.activeSlug;
 		const allEntries = await this._insertRepo.getAll();

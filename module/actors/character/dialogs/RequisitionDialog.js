@@ -8,6 +8,7 @@ import { escHtml } from "../../../utils/strings.js";
 import { CUSTOM_ASSET_VALUE, assetTakenLabel, wireCustomAssetSelect } from "../../../utils/requisition-asset.js";
 import { SYSTEM_ID } from "../../../system-id.js";
 import { promptRoll } from "../../../dialogs/RollDialog.js";
+import { STEADING_MOVE, improvementQuestions, rollAdjustments } from "../../steading/improvement-rolls.js";
 
 /**
  * The player-facing Requisition move. Lists the linked steading's on-hand assets
@@ -51,6 +52,10 @@ export class RequisitionDialog extends StonetopDialog {
 			fortunes: sign(this._steading.getStatValue("fortunes")),
 			assets: this._steading.getAvailableAssets(),
 			customAssetValue: CUSTOM_ASSET_VALUE,
+			// The Herd of Horses question, worded where the steading's own Requisition words it.
+			herdShare: improvementQuestions(STEADING_MOVE.REQUISITION, "fortunes", {
+				has: slug => this._steading.improvementCompleted(slug),
+			}).find(q => q.name === "herdShare")?.label ?? "",
 			// "Already out" reads through the shared wording, so an asset a GM sent out on an
 			// expedition names the trip here rather than reporting "Taken by someone".
 			takenAssets: assets
@@ -75,7 +80,13 @@ export class RequisitionDialog extends StonetopDialog {
 		root.querySelector(".stonetop-requisition-roll-btn")?.addEventListener("click", async ev => {
 			const prompted = await promptRoll({ title: "Requisition", shiftKey: ev.shiftKey });
 			if (!prompted) return;
+			const { missAsPartial } = rollAdjustments({
+				moveName: STEADING_MOVE.REQUISITION, statKey: "fortunes",
+				has: slug => this._steading.improvementCompleted(slug),
+				answers: { herdShare: !!root.querySelector('[name="herdShare"]')?.checked },
+			});
 			rollStat("fortunes", this._steadingActor, {
+				...(missAsPartial ? { missCountsAsPartial: missAsPartial } : {}),
 				moveName: "Requisition",
 				statValue: this._steading.getStatValue("fortunes"),
 				rollMode: prompted.rollMode ?? this._steadingActor.getFlag(SYSTEM_ID, "rollMode") ?? "normal",

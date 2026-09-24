@@ -492,6 +492,41 @@ describe("rollSeasonsCard", () => {
 	});
 });
 
+// Herd of Horses: "When you Requisition half the herd or less, treat a 6- as a 7-9." Applied to
+// the TIER, so everything the card keys off a tier reads the 7-9, and said on the card.
+describe("a 6- that counts as a 7-9", () => {
+	const steadingActor = () => ({ type: "stonetop", name: "Stonetop", system: {} });
+
+	it("reads a miss as a weak hit on a stat roll, and says why", async () => {
+		rollTotal = 5;
+		await rollStat("fortunes", steadingActor(), { statValue: 0, moveName: "Requisition", missCountsAsPartial: "Half the herd or less" });
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain("result partial");
+		expect(flavor).toContain("Rolled a 6-, counted as a 7-9 (Half the herd or less)");
+	});
+
+	it("leaves a real hit alone, and says nothing", async () => {
+		rollTotal = 8;
+		await rollStat("fortunes", steadingActor(), { statValue: 0, moveName: "Requisition", missCountsAsPartial: "Half the herd or less" });
+		expect(rollMessages[0].flavor).not.toContain("counted as a 7-9");
+	});
+
+	it("does the same on the expedition guide's card", async () => {
+		rollTotal = 4;
+		const rolled = await rollSeasonsCard({
+			formula: "2d6", alias: "Requisition", missCountsAsPartial: "Half the herd or less",
+			resultTable: {
+				success: { label: "10+", line: "Go." },
+				partial: { label: "7-9", line: "Convince them." },
+				failure: { label: "6-", line: "No." },
+			},
+		});
+		expect(rolled.tier).toBe("partial");
+		expect(rollMessages[0].flavor).toContain("Convince them.");
+		expect(rollMessages[0].flavor).toContain("counted as a 7-9");
+	});
+});
+
 describe("rollDamage", () => {
 	it("posts damage rolls using the Stonetop card shell", async () => {
 		await rollDamage("d6+1", makeActor(), { label: "Hammer" });

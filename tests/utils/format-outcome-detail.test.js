@@ -134,6 +134,26 @@ describe("formatOutcomeDetail", () => {
 					+ "(deal your damage) and pick 1.</span>");
 		});
 
+		// Urges' weak hit writes its options as a sentence, not " / "-separated, so they never split.
+		// The boxes above are still those options, and its line printed all three in full anyway.
+		it("drops options written as a comma-and-or sentence", () => {
+			const text = "Choose 1: struggle for control until something snaps you out of it, start acting as "
+				+ "compelled (putting yourself or an ally in a spot), or harm yourself (d6 damage, ignores armor) "
+				+ "to regain control.";
+			expect(formatOutcomeDetail(text, { introOnly: true }))
+				.toBe('<span class="stonetop-roll-result-lead">Choose 1.</span>');
+			// ...and prints the sentence untouched on a tier whose options are NOT on the card.
+			expect(formatOutcomeDetail(text)).toBe(text);
+		});
+
+		// Seasons Change: "pick 1 seasonal gain" is a count with no list, and the next colon belongs
+		// to the following sentence. Cutting there left "…pick 1 seasonal gain. Summer."
+		it("does not take a colon in the next sentence for the hinge", () => {
+			const text = "Spring/Autumn: pick 1 seasonal gain. Summer: pick 2 seasonal gains. Winter: the winter "
+				+ "is relatively mild; each player names a local NPC with whom their relationship improves.";
+			expect(formatOutcomeDetail(text, { introOnly: true })).toBe(text);
+		});
+
 		// The flag only speaks for a line that HAS a list to drop. A plain outcome is prose either
 		// way, and its own punctuation is none of this function's business.
 		it("leaves a line with no option list exactly as it was", () => {

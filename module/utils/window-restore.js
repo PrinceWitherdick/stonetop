@@ -143,16 +143,23 @@ function _hasEditMode(app) {
 	return typeof app?._editMode === "boolean";
 }
 
-// A {left, top, width, height} snapshot of an app's current window geometry, plus its
-// minimized state, active tab(s), and edit/lock mode, or null if it isn't positioned yet.
-// Only finite numbers are kept, so an auto-height window (height: "auto") stores no height
-// and reopens auto-sized.
-function _snapshotPosition(app) {
-	const p = app?.position ?? {};
+/**
+ * The finite numbers among a window's left, top, width and height, rounded. An auto-height window
+ * (height: "auto") has no height here, so it reopens auto-sized. Also the Fight window's (fight/fight-window.js).
+ */
+export function finitePlace(position) {
 	const out = {};
 	for (const key of ["left", "top", "width", "height"]) {
-		if (Number.isFinite(p[key])) out[key] = Math.round(p[key]);
+		if (Number.isFinite(position?.[key])) out[key] = Math.round(position[key]);
 	}
+	return out;
+}
+
+// A {left, top, width, height} snapshot of an app's current window geometry (finitePlace), plus its
+// minimized state, active tab(s), and edit/lock mode, or null if it isn't positioned yet.
+function _snapshotPosition(app) {
+	const p = app?.position ?? {};
+	const out = finitePlace(p);
 	if (out.left === undefined && out.top === undefined) return null;
 	// Where it sat in the stack. Both application frameworks keep this current: every render and
 	// every bring-to-front hands the window the next z-index, so a higher number is nearer the front.

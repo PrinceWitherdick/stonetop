@@ -67,24 +67,39 @@ function fakeInput(value = "") {
 	};
 }
 
-function fakeRoot({ modifier = "0", extraDice = "", mode = "normal" } = {}) {
+/** A ticked line's checkbox, which the window reads by name and listens to for changes. */
+function fakeBox() {
+	const listeners = [];
+	return {
+		checked: true, disabled: false,
+		addEventListener: (_type, fn) => listeners.push(fn),
+		change() { listeners.forEach(fn => fn()); },
+	};
+}
+
+function fakeRoot({ modifier = "0", extraDice = "", mode = "normal", offers = [] } = {}) {
 	const buttons = ["dis", "normal", "adv"].map(m => fakeButton(m, m === mode));
 	const input = fakeInput(modifier);
 	const extra = fakeInput(extraDice);
 	const preview = { textContent: "" };
 	const steps = [];
+	const boxes = new Map(offers.map(key => [key, fakeBox()]));
 	return {
 		buttons, input, extra, preview, steps,
+		box: key => boxes.get(key),
 		querySelector(sel) {
 			if (sel === ".stonetop-roll-mode-btn.is-active") return buttons.find(b => b._has("is-active")) ?? null;
 			if (sel === '[name="modifier"]')  return input;
 			if (sel === '[name="extraDice"]') return extra;
 			if (sel === ".stonetop-damage-preview strong") return preview;
+			const offer = /^\[name="offer-(.+)"\]$/.exec(sel);
+			if (offer) return boxes.get(offer[1]) ?? null;
 			return null;
 		},
 		querySelectorAll(sel) {
 			if (sel === ".stonetop-roll-mode-btn") return buttons;
 			if (sel === ".stonetop-roll-modifier-step") return steps;
+			if (sel === '[name^="offer-"]') return [...boxes.values()];
 			return [];
 		},
 	};
@@ -133,6 +148,35 @@ describe("the pre-roll damage window", () => {
 		expect(adv.attrs["aria-pressed"]).toBe("true");
 		await data.buttons.roll.callback([root]);
 		expect((await pending).rollMode).toBe("adv");
+	});
+
+	// A line that carries a mode moves the picker with it (Uncanny Reflexes), so nobody is left looking
+	// at Disadvantage beside an unticked box. What it must NOT do is overrule the player: the derivation
+	// starts from the mode the window opened on, so a hand-picked one has to stop it.
+	describe("a line that carries a mode", () => {
+		const uncanny = [{ key: "uncanny", mode: "dis", applied: true, label: "Wren's Uncanny Reflexes", pill: "Uncanny Reflexes" }];
+
+		it("moves the picker as it is ticked and unticked", async () => {
+			// The window opens on the disadvantage the ticked line brings, which is what the picker is
+			// baked with (`untouched`), and unticking the only reason for it takes it away again.
+			const { pending, data, root } = open({ offers: uncanny, root: { offers: ["uncanny"], mode: "dis" } });
+			root.box("uncanny").checked = false;
+			root.box("uncanny").change();
+			expect(root.buttons[1]._has("is-active")).toBe(true);
+			await data.buttons.roll.callback([root]);
+			expect((await pending).rollMode).toBe("normal");
+		});
+
+		it("leaves a mode the player picked by hand where they put it", async () => {
+			const { pending, data, root } = open({ offers: uncanny, root: { offers: ["uncanny"], mode: "dis" } });
+			const [, , adv] = root.buttons;
+			adv.click();
+			root.box("uncanny").checked = false;
+			root.box("uncanny").change();
+			expect(adv._has("is-active")).toBe(true);
+			await data.buttons.roll.callback([root]);
+			expect((await pending).rollMode).toBe("adv");
+		});
 	});
 
 	// The preview replaces the mode tooltips the move prompt shows. "Roll 3d6 and keep the
@@ -241,8 +285,23 @@ describe("the pre-roll damage window", () => {
 	it("names a follower rather than the PC whose sheet it rolled from", () => {
 		expect(ROLL_DIALOG_JS).toContain("attacker: attacker || actor?.name");
 		const sheet = read("module/actors/character/StonetopCharacterSheet.js");
-		expect(sheet).toContain("rollDamagePrompted(roll, this.actor, { label, attacker, shiftKey: ev.shiftKey })");
+		expect(sheet).toMatch(/rollFollowerDamageAt\(this\.actor, \{[\s\S]*?formula: roll, label, attacker,/);
 		expect(sheet).toMatch(/label\s*=\s*`\$\{attacker\} attacks\$\{formPart\}`/);
+		// Whichever window the follower's roll opens, the name goes with it: the plain card's, the aimed
+		// card's, and "Who does this hit?".
+		const at = ATTACK_FLOW_JS.indexOf("export async function rollFollowerDamageAt");
+		expect(at, "rollFollowerDamageAt is gone").toBeGreaterThan(-1);
+		const follower = ATTACK_FLOW_JS.slice(at, ATTACK_FLOW_JS.indexOf("\n}\n", at));
+		expect(follower).toContain("striker: { name: attacker, group }");
+		const from = ATTACK_FLOW_JS.indexOf("export async function rollDamageAt");
+		const body = ATTACK_FLOW_JS.slice(from, ATTACK_FLOW_JS.indexOf("\n}\n", from));
+		expect(body).toContain("const attacker = striker?.name");
+		// BOTH windows, which are now the same window: the no-target branch asks
+		// askDamageAdjustment too, so a ticked line is paid for and can tag the blow.
+		const windows = body.match(/askDamageAdjustment\(actor, \{[\s\S]*?\n\t*\}\);/g) ?? [];
+		expect(windows).toHaveLength(2);
+		for (const call of windows) expect(call).toMatch(/\battacker,/);
+		expect(body).toContain("roller: attacker");
 	});
 });
 
@@ -293,11 +352,26 @@ describe("the damage window's reach", () => {
 			// `rollDamagePrompted`, which IS that pair — asking and aborting are only correct
 			// together, so the helper bundles them and the surface cannot get one without the
 			// other. What must never appear is a bare `rollDamage` with no window in sight.
-			const viaHelper = src.includes("rollDamagePrompted");
+			// `rollDamageAt` is the third way in: the same pair, aimed at whoever the roller is fighting.
+			const viaHelper = src.includes("rollDamagePrompted") || src.includes("rollDamageAt(");
 			const viaPair = src.includes("promptDamage") && /if \(!adjust\)|if \(!damage\)/.test(src);
 			expect(viaHelper || viaPair, `${what} rolls damage without offering the window`).toBe(true);
 		});
 	}
+
+	// Both of its branches ask, through the SAME window: the plain card and the targeted one alike.
+	// The plain card used to go through rollDamagePrompted, which asks and rolls but never pays for
+	// what was ticked - so a no-target Anger is a Gift rolled its +1d4 free and lost its forceful.
+	// A dismissed window rolls nothing on either branch.
+	it("asks on both branches of a damage roll aimed at whoever the roller is fighting", () => {
+		const at = ATTACK_FLOW_JS.indexOf("export async function rollDamageAt");
+		expect(at, "rollDamageAt is gone").toBeGreaterThan(-1);
+		const body = ATTACK_FLOW_JS.slice(at, ATTACK_FLOW_JS.indexOf("\n}\n", at));
+		expect(body).not.toContain("rollDamagePrompted(");
+		expect(body.match(/await askDamageAdjustment\(/g) ?? []).toHaveLength(2);
+		expect(body.match(/if \(!damage\) return false;/g) ?? []).toHaveLength(2);
+		expect(body.indexOf("if (!damage) return false;")).toBeLessThan(body.indexOf("rollAndPostDamage("));
+	});
 
 	// The helper three of those four surfaces lean on has to carry the guard itself, or it
 	// hands each of them a cancelled roll instead of no roll.

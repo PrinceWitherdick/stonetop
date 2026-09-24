@@ -22,6 +22,10 @@ export class ValueMax {
  * @property {number} armorBase - armor with the hand-set adjustment ignored: what the gear and
  *   the moves alone come to. The sheet's note and StonetopCharacter#setArmor both need it, and
  *   neither can get it back out of `armor`, which is clamped at 0. Mirrors `hpBase`.
+ * @property {number} conditionalArmor - the part of `armor` a fiction-gated move bought (Barkskin,
+ *   A Candle Against the Dark) and the gear did not already cover, which a damage card offers back
+ *   when the fiction says the clause is not met. 0 for almost every character.
+ * @property {string} conditionalArmorSource - the move that bought it, "" when there is none.
  * @property {number} wornArmor - the highest worn-armor BASE among equipped items
  *   (shields and move bonuses excluded); 0 means unarmored. Distinct from `armor`,
  *   which is the full total. Used to gate moves that require being unarmored.
@@ -39,6 +43,12 @@ export class VitalsSnapshot {
 		// The portion of `armor` that piercing cannot reduce and "ignores armor" cannot
 		// bypass (the Rune-laden Scales' PROOF AGAINST HARM). 0 for almost every character.
 		this.unpierceableArmor = b._unpierceableArmor ?? 0;
+		// Carried on the snapshot for the same reason the floor above is: the sheet's post-render
+		// mirror (StonetopCharacterSheet#_syncStoredDerived) writes these onto the document, and
+		// the damage card reads them from there. Left off, every render wrote the default back and
+		// wiped the gate off a Barkskin'd character.
+		this.conditionalArmor = b._conditionalArmor ?? 0;
+		this.conditionalArmorSource = b._conditionalArmorSource ?? "";
 		this.wornArmor  = b._wornArmor ?? 0;
 		this.level      = b._level;
 		this.xp         = b._xp;
@@ -53,6 +63,7 @@ export class VitalsSnapshotBuilder {
 	withArmor(v)      { this._armor      = v; return this; }
 	withArmorBase(v)  { this._armorBase  = v; return this; }
 	withUnpierceableArmor(v) { this._unpierceableArmor = v; return this; }
+	withConditionalArmor(v, source = "") { this._conditionalArmor = v; this._conditionalArmorSource = source; return this; }
 	withWornArmor(v)  { this._wornArmor  = v; return this; }
 	withLevel(v)      { this._level      = v; return this; }
 	withXp(v)         { this._xp         = v; return this; }

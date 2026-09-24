@@ -125,6 +125,11 @@
 	   Seeded at the `editPencilRevealDelay` setting's own default, so the pre-`ready`
 	   frames match what hooks/Ready.js writes a moment later. */
 	--st-edit-reveal-delay: 1s;
+	/* How long a pop-out tile that waits for the pointer (the relationship map's, the expedition
+	   map's) takes to fade in and back out. 120ms read as a blink rather than a fade; ONE token so
+	   the two tiles keep behaving alike. Only the opacity rides this: the tile's own hover colours
+	   stay quick, because those answer the pointer on the button rather than on the picture. */
+	--st-popout-fade: 250ms;
 	--font-size-display: 42px;
 	/* THE PANEL TONE. Not the page: read the note on --st-page below before changing it.
 	   This is the fill of the things that sit ON the page and want to read as slightly inset from
@@ -208,11 +213,12 @@
 	--stonetop-section-gap: 12px;
 	/* The spiral icon used for bullets/markers throughout the sheets. */
 	--stonetop-spiral-icon: url('/systems/stonetop_pwd/assets/icons/steading/check-spiral.svg');
-	/* The check controls, likewise. All three of these are fixed near-black art painted as a
+	/* The check controls, likewise. All four of these are fixed near-black art painted as a
 	   background IMAGE (not a mask), so they vanish on any surface that turns black — routing
 	   them through variables is what lets one scope re-skin the lot. */
 	--stonetop-checkbox-icon:         url('/systems/stonetop_pwd/assets/icons/steading/checkbox.svg');
 	--stonetop-checkbox-checked-icon: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked.svg');
+	--stonetop-checkbox-partial-icon: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-partial.svg');
 
 	/* What lifts a card off the page it sits on — the move cards, the invocation cards, the
 	   special-possessions list, the Items tab's Outfit panel. On paper that's a whisper of shadow;
@@ -476,6 +482,27 @@
 	--stonetop-route-ink: #b3261e;
 	--stonetop-route-case: #f4ecd8;
 	--stonetop-route-case-alpha: 0.9;
+	/* The fight's lines on the map (module/fight/fight-overlay.js reads these; its fallbacks are
+	   pinned to them by tests/fight/fight-overlay-ink.test.js). Hex only: the painter parses hex.
+	   Melee and ranged differ by PATTERN (a solid tie, a dashed arrow) as well as colour, so the
+	   two never rest on colour alone. The badge glyph clears 7:1 on the badge. */
+	--stonetop-fight-melee: #b3261e;
+	--stonetop-fight-ranged: #1f4e8c;
+	--stonetop-fight-halo: #f4ecd8;
+	--stonetop-fight-halo-alpha: 0.9;
+	--stonetop-fight-badge: #8e1c16;
+	--stonetop-fight-badge-glyph: #ffffff;
+	--stonetop-fight-weight: 1;
+	/* The fight ring's buttons round a clicked token (module/fight/fight-ring.js). Dark pills whatever
+	   the interface theme, since they sit on map art rather than on a panel. Worst case is a white map
+	   showing through the paper: the lettering is 14.9:1 there and the die's amber 7.4:1. Named
+	   "lettering", not "ink": an -ink token is measured on the sheet's white page, which this is not. */
+	--stonetop-fight-ring-paper: rgba(11, 10, 19, 0.92);
+	--stonetop-fight-ring-lettering: #f7f3e8;
+	--stonetop-fight-ring-die: var(--color-warm-1, #ee9b3a);
+	--stonetop-fight-ring-edge: #584a75;
+	--stonetop-fight-ring-edge-width: 1px;
+	--stonetop-fight-ring-hover: var(--color-warm-1, #ee9b3a);
 
 	/* WHERE THEY SET OUT FROM, in one place for the same reason. Both ends of a journey are drawn
 	   twice over — the start the books lettered and the start a GM put down by hand — and they are
@@ -3295,6 +3322,24 @@ input.stonetop-name-field {
 	margin: 2px 0 0;
 }
 
+/* "This one is the whole table's, not yours." The tab's one world-scoped row (the Fight tab
+   switch) says so under its hint — see tab-preferences.hbs.
+
+   Set in the body ink rather than the caption's grey, which is the point of the rule: it sits
+   among captions a reader skims past, and it is the one line on the tab they have to read. The
+   glyph is what the eye lands on first; `.notes` above already spans both columns, so only the
+   ink and the icon's gap are stated here, and the caption's scaled size is inherited.
+
+   The ink comes from THE SETTINGS CAPTION rule ~1300 lines below, which is LATER in the file —
+   this wins on specificity (one class more), not on order. Adding a class to that selector
+   would take this row's ink back. */
+.stonetop-preferences .stonetop-preference-row .notes.stonetop-preference-world {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	color: var(--st-text-body);
+}
+
 /* NO ROW HERE IS DRAWN DISABLED, so there is no `:disabled` skin and no override note.
    There were both, for "Paper Texture" while Sheet Contrast was High: the palette took the grain
    off from a later rule than the grain's own switch, so that row saved a value and changed
@@ -3785,6 +3830,53 @@ input.stonetop-name-field {
 	color: var(--st-text, #2f2a24);
 }
 
+/* The fight's +N for several attackers (fight/damage-seed.js): its own ticked line above the
+   player's adjustment, with the book's page beside it. The label words sit in one span so a
+   wrapped line keeps the checkbox on its first row. */
+.stonetop-damage-seed {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	column-gap: 0.6em;
+	align-items: start;
+	margin: 12px 0 0;
+	padding: 6px 8px;
+	border: 1px solid var(--st-quiet-ink, rgba(0, 0, 0, 0.3));
+	border-radius: var(--st-radius-sm);
+	color: var(--st-text-body);
+	font-size: var(--st-fs-sm);
+	cursor: pointer;
+}
+.stonetop-damage-seed-check {
+	grid-row: span 2;
+	margin: 0;
+}
+.stonetop-damage-seed-text {
+	color: var(--st-text);
+	font-weight: 600;
+}
+.stonetop-damage-seed-cite {
+	grid-column: 2;
+	color: var(--st-text-muted);
+	font-size: var(--st-fs-xs);
+}
+/* The other attacker's harder-hitting die (utils/damage.js#settleBestDie), right under the +N it goes
+   with and greyed with it while the +N is off. */
+.stonetop-damage-seed--best {
+	margin-top: 6px;
+}
+.stonetop-damage-seed:has(.stonetop-damage-seed-check:disabled) {
+	opacity: 0.6;
+	cursor: default;
+}
+
+/* The same +N named on the damage card, struck through once left off. */
+.stonetop-condition-numbers.is-left-off {
+	text-decoration: line-through;
+}
+.stonetop-damage-row.is-seed-left-off .stonetop-roll-result-number {
+	text-decoration: underline dotted;
+}
+
 /* Basic move hover panel */
 .stonetop-basic-move-panel {
 	position: fixed;
@@ -4138,13 +4230,17 @@ input.stonetop-name-field {
 
 /* Select-all goes indeterminate when only some ledger rows are picked (the sheets
    set selectAllEl.indeterminate on row toggles). appearance:none above hides the
-   native dash, so paint our own: the empty checkbox SVG with a short centred bar
-   layered over it, distinct from both the empty and fully-checked states. */
+   native dash, so paint our own: the box with a dash across it, distinct from both
+   the empty and fully-checked states.
+
+   ⚠ ONE PIECE OF ART, not a bar layered over the empty box. It was a 2px
+   currentColor gradient once, and beside the name ticks it read as a heavier, blacker
+   glyph than any of them: 2px against the box's ~1.35px stroke, and the input's own
+   pure black instead of the art's ink. It also had no bone twin, so it would not
+   have followed the box onto a surface that turns black. */
 .stonetop-ledger-select-all:indeterminate,
 .stonetop-person-picker-all-check:indeterminate {
-	background:
-		linear-gradient(currentColor, currentColor) no-repeat center / 56% 2px,
-		var(--stonetop-checkbox-icon) no-repeat center / contain !important;
+	background: var(--stonetop-checkbox-partial-icon) no-repeat center / contain !important;
 }
 
 /* `.stonetop-check` is the shared skin, so it joins the list rather than growing a rule of its
@@ -4396,6 +4492,7 @@ input.stonetop-name-field {
 .stonetop-readonly .steading-herd-step,
 .stonetop-readonly .steading-herd-input,
 .stonetop-readonly .steading-inn-gathering-btn,
+.stonetop-readonly .steading-improvement-move-btn,
 .stonetop-readonly .stonetop-item-resource-check {
 	pointer-events: auto;
 	opacity: 1;
@@ -4841,6 +4938,12 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	list-style: none;
 	margin: 3px 0 0;
 	padding-left: 2px;
+}
+/* A notice printed right above its card's buttons (a damage card's Apply) would otherwise sit
+   flush on them: the button row carries `margin: 0`, and the notice's last line ends at its
+   rule's foot. `.pbta-chat-card` is weight, to outrank that margin rule wherever it sits. */
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .stonetop-card-notice + .card-buttons {
+	margin-top: 8px;
 }
 
 /* Lasting-injury reminder on a move's roll card (echoed from a wound's tag). A
@@ -5913,6 +6016,19 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 :is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons button.stonetop-suffer-deal:hover:not(:disabled) {
 	background: var(--st-btn-primary-bg-hover, var(--st-btn-primary-bg));
 }
+/* "Leave off the +1" beside Apply stays a plain button: Apply is the card's one primary action, and
+   this only changes the number Apply will use. It may wrap, since it sits beside a wide CTA. */
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons button.stonetop-damage-seed-toggle,
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .card-buttons button.stonetop-damage-defend {
+	white-space: normal;
+}
+/* Defend's Readiness spent on this blow (fight/defend-spend.js), said under the totals it changes. */
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .stonetop-damage-defend-note {
+	margin: 4px 0;
+	color: var(--st-text);
+	font-weight: 600;
+	font-size: 0.9em;
+}
 
 /* Per-target damage list on the results card: one roll-result block per target (stacked,
    not the old hairline-separated single-line rows), so each number carries the weight of
@@ -5992,6 +6108,19 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	font-style: italic;
 	opacity: 0.75;
 	font-size: 0.9em;
+}
+/* The fight's +N for several foes on one character (fight/damage-seed.js), said on the GM's card
+   before a blow is picked or priced, so the number that follows is no surprise. */
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .stonetop-suffer-seed {
+	color: var(--st-text);
+	font-weight: 600;
+	font-size: 0.9em;
+}
+/* Whose blow a row is, on a card holding several foes' attacks; and the hardest-hitting of them, the
+   one the book rolls (p.239). */
+:is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card :is(.stonetop-suffer-choice-foe, .stonetop-suffer-choice-best) {
+	color: var(--st-text-secondary);
+	font-weight: normal;
 }
 
 /* ── "Name the enemy's damage": the GM's number for a foe with none ─────────── */
@@ -6149,6 +6278,491 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	mask-image: var(--stonetop-arrow-icon);
 }
 .stonetop-nav-arrow--back { transform: scaleX(-1); }
+
+/* ── Fight tab (module/fight/FightTracker.js, templates/sidebar/fight-*.hbs) ── */
+/* The sidebar is core chrome and follows core's theme, so the header and the loose notes use core's
+   theme variables. The engagement cards are Stonetop paper, as the chat cards are, and declare their
+   own ink from --st-text*, so they read the same in a dark interface and high contrast reaches them.
+   Core's combatant rules (flex row, theme text colour, subtle controls) are restated for rows on
+   paper: left alone they paint near-white text on it under a dark interface. */
+
+.stonetop-fight-header { gap: 6px; }
+
+.stonetop-fight-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.stonetop-fight-btn {
+	flex: 1 1 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	width: auto;
+	min-width: 0;
+	padding-inline: 8px;
+	font-size: calc(0.8rem * var(--stonetop-font-scale, 1));
+	white-space: nowrap;
+}
+/* Core spaces a button's icon from its label with a margin; the gap does that here. */
+.stonetop-fight-btn > i { margin: 0; }
+.stonetop-fight-start { flex-basis: 100%; }
+
+.stonetop-fight-cycle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+}
+.stonetop-fight-cycle-count { color: var(--color-text-secondary); }
+
+.stonetop-fight-note,
+.stonetop-fight-rounds {
+	margin: 0;
+	color: var(--color-text-secondary);
+	font-size: calc(0.8rem * var(--stonetop-font-scale, 1));
+	line-height: 1.4;
+}
+/* A note inside a card sits on the card's light page, so it takes the page's ink, not core's sidebar ink
+   (pale orange under the dark theme, unreadable on white). */
+.stonetop-fight-card .stonetop-fight-note,
+.stonetop-fight-section .stonetop-fight-note { color: var(--st-text-secondary); }
+.stonetop-fight-rounds {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.stonetop-fight-tracker {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 0 8px 8px;
+}
+
+.stonetop-fight-cards {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+}
+
+.stonetop-fight-card,
+.stonetop-fight-section {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 6px;
+	border: 1px solid var(--st-quiet-ink, rgba(0, 0, 0, 0.3));
+	border-radius: var(--st-radius);
+	background: var(--st-page);
+	color: var(--st-text-body);
+}
+
+/* Each hero, with the foes they fight indented under them and tied to them by a rule down the left:
+   the tab's picture of the line on the map. The indent is in the rows' own ems, so it grows with the
+   reader's text size. */
+.stonetop-fight-pairs,
+.stonetop-fight-pair {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	font-size: calc(0.8rem * var(--stonetop-font-scale, 1));
+}
+.stonetop-fight-pair { gap: 2px; }
+.stonetop-fight-attached {
+	margin-left: 1.5em;
+	border-left: 3px solid var(--st-red-border);
+}
+
+.stonetop-fight-side,
+.stonetop-fight-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin: 0;
+	padding: 0;
+}
+.stonetop-fight-side--foes {
+	border-radius: var(--st-radius-sm);
+	background: color-mix(in srgb, var(--st-red-bg) 45%, transparent);
+}
+
+.stonetop-fight-tracker .combatant.stonetop-fight-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0;
+	padding: 4px;
+	border-radius: var(--st-radius-sm);
+	color: var(--st-text);
+	font-size: calc(0.8rem * var(--stonetop-font-scale, 1));
+	cursor: pointer;
+}
+.stonetop-fight-tracker .combatant.stonetop-fight-row:hover,
+.stonetop-fight-tracker .combatant.stonetop-fight-row.hover {
+	background: color-mix(in srgb, var(--st-text) 8%, transparent);
+}
+
+/* Dragging a fighter onto one on the other side (FightTracker.js): the row picked up fades, the row it
+   would go to is ringed. A dashed ring, not a tint alone, so the target reads without telling colours
+   apart. */
+.stonetop-fight-tracker .combatant.stonetop-fight-row[draggable="true"] { cursor: grab; }
+.stonetop-fight-tracker .combatant.stonetop-fight-row.is-dragging { opacity: 0.5; }
+.stonetop-fight-tracker .combatant.stonetop-fight-row.is-drop-target {
+	outline: 2px dashed var(--st-text);
+	outline-offset: -2px;
+	background: color-mix(in srgb, var(--st-text) 12%, transparent);
+}
+
+/* A dark plate behind the face: core's placeholder art (mystery-man, token rings) is white on
+   transparent, drawn for core's dark sidebar, and would vanish into the paper. A real portrait
+   covers the plate. */
+.stonetop-fight-face {
+	flex: none;
+	width: 32px;
+	height: 32px;
+	object-fit: cover;
+	object-position: center top;
+	border: none;
+	border-radius: var(--st-radius-sm);
+	background: var(--st-text-secondary);
+}
+
+/* The name line carries the badge and the buttons; what the fighter is doing wraps underneath at
+   the row's full width. The name gives way first (it wraps inside its own box down to 5em), and
+   only a row too narrow for that drops the buttons to a line of their own. Visual order only:
+   the markup keeps name, readout, badge, buttons, which is the order a screen reader wants. */
+.stonetop-fight-row-text {
+	flex: 1 1 0;
+	min-width: 0;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	column-gap: 6px;
+}
+.stonetop-fight-name {
+	flex: 1 1 0;
+	min-width: min(100%, 5em);
+	color: var(--st-text);
+	overflow-wrap: anywhere;
+}
+.stonetop-fight-readout,
+.stonetop-fight-standing {
+	flex: 1 0 100%;
+	order: 3;
+	color: var(--st-text-secondary);
+	font-size: 0.9em;
+	line-height: 1.3;
+	overflow-wrap: anywhere;
+}
+.stonetop-fight-standing { order: 4; }
+
+/* Hidden and out of the fight: the face fades and an out name is struck through, but the words stay
+   at secondary ink. Muted ink measured 4.3:1 here, under AA, on a name someone still has to read. */
+.stonetop-fight-tracker .combatant.stonetop-fight-row.hide,
+.stonetop-fight-tracker .combatant.stonetop-fight-row.defeated { color: var(--st-text-secondary); }
+.stonetop-fight-tracker .combatant.stonetop-fight-row.hide .stonetop-fight-face,
+.stonetop-fight-tracker .combatant.stonetop-fight-row.defeated .stonetop-fight-face { opacity: 0.45; }
+.stonetop-fight-tracker .combatant.stonetop-fight-row.defeated .stonetop-fight-name {
+	color: var(--st-text-secondary);
+	text-decoration: line-through;
+}
+
+/* "Fought by 3": the number printed, in a pill that is not colour alone.
+
+   CENTRED BY TRIMMING, like every other chip (see the --st-trim-top block). This one flex-centred
+   its line box instead, which put "×2" up to 0.88px high at the 16px root and wobbled between
+   +0.25px and +0.88px across roots 12-24 — the pixel-rounded ascent and descent the doctrine exists
+   to get out of the way. `inline-block`, NOT `inline-flex`: the label is a bare text node, so inside
+   a flex chip it would be an anonymous flex item, and an anonymous flex item takes no `text-box`.
+   Blockified as a flex item of the name line, so `text-align` does what `justify-content` did.
+
+   The whole-pixel line height is the same snap the +STAT chip makes: the painter rounds a box's top
+   and bottom independently, so a fractional height moves one edge and not the other and the same
+   badge lands differently on different rows. `1.5em` rather than a font-size expression because the
+   badge inherits its size from the row. */
+.stonetop-fight-badge {
+	flex: none;
+	order: 1;
+	display: inline-block;
+	box-sizing: border-box;
+	text-box: trim-both cap alphabetic;
+	min-width: 2.2em;
+	padding: var(--st-trim-top) 6px var(--st-trim-bottom);
+	border: 1px solid var(--st-red-border);
+	border-radius: 999px;
+	background: var(--st-red-bg);
+	color: var(--st-red-text);
+	text-align: center;
+	font-weight: 700;
+	line-height: 1.5;
+	line-height: round(1.5em, 1px);
+	height: calc(1lh + 2px);
+}
+
+.stonetop-fight-controls {
+	flex: none;
+	order: 2;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin-left: auto;
+}
+.stonetop-fight-controls:empty { display: none; }
+.stonetop-fight-tracker .stonetop-fight-controls .inline-control {
+	--button-text-color: var(--st-text-secondary);
+	color: var(--st-text-secondary);
+	font-size: calc(0.75rem * var(--stonetop-font-scale, 1));
+}
+.stonetop-fight-tracker .stonetop-fight-controls .inline-control.active {
+	--button-text-color: var(--st-text);
+	color: var(--st-text);
+}
+
+.stonetop-fight-facts {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin: 0;
+	padding: 0;
+}
+.stonetop-fight-fact {
+	color: var(--st-text);
+	font-weight: 600;
+	font-size: calc(0.8rem * var(--stonetop-font-scale, 1));
+	line-height: 1.35;
+}
+
+.stonetop-fight-section-title {
+	margin: 0;
+	padding: 0;
+	border: none;
+	color: var(--st-text-secondary);
+	font-size: calc(0.8rem * var(--stonetop-font-scale, 1));
+	font-weight: 700;
+}
+
+/* "What the book says". */
+.stonetop-fight-rules {
+	color: var(--st-text-body);
+	font-size: calc(0.78rem * var(--stonetop-font-scale, 1));
+}
+.stonetop-fight-rules-summary {
+	color: var(--st-text-secondary);
+	cursor: pointer;
+}
+/* Upright and in the page's own serif: core sets blockquotes in italic sans, and italics are the
+   hardest face in the tab to read at a distance. */
+.stonetop-fight-quote {
+	margin: 6px 0 0;
+	padding: 0 0 0 8px;
+	border: none;
+	border-left: 2px solid var(--st-quiet-ink, rgba(0, 0, 0, 0.3));
+	background: none;
+	font-family: inherit;
+	font-style: normal;
+}
+.stonetop-fight-quote-text {
+	margin: 0;
+	color: var(--st-text-body);
+	line-height: 1.45;
+}
+.stonetop-fight-quote-cite {
+	margin-top: 2px;
+	color: var(--st-text-secondary);
+}
+
+/* "Crinwin: how many?" (fight/group-size.js): "Just one" and a button per size. A long row of sizes
+   wraps onto a second line rather than squeezing each number to nothing. */
+.stonetop-fight-group-size-app .form-footer { flex-wrap: wrap; }
+.stonetop-fight-group-size-app .form-footer button { flex: 1 0 auto; min-width: 3em; }
+.stonetop-fight-group-size p { margin: 0 0 6px; }
+/* The two scales (separate tokens, or one group token), one per line. */
+.stonetop-fight-group-size-scales {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0 0 6px;
+}
+.stonetop-fight-group-size-scale {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+/* "Who does this hit?" (module/fight/fight-targets.js): a roller fighting more than one ticks who a blow
+   lands on. One opponent per line, the hint under them in the quieter ink. */
+.stonetop-fight-targets p { margin: 0 0 6px; }
+.stonetop-fight-targets-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0 0 8px;
+	padding: 0;
+	list-style: none;
+}
+.stonetop-fight-targets-option {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+.stonetop-fight-targets .stonetop-fight-targets-hint {
+	margin: 0;
+	color: var(--st-text-secondary);
+}
+
+.stonetop-fight-headcount {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+.stonetop-fight-headcount-field {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+.stonetop-fight-headcount-field input { width: 5em; }
+.stonetop-fight-headcount-hint {
+	margin: 0;
+	color: var(--st-text-secondary);
+	font-size: calc(0.8rem * var(--stonetop-font-scale, 1));
+}
+
+/* The Fight window (module/fight/fight-window.js) is the tab popped out, in core's pop-out frame.
+   Core lets a drag squeeze a pop-out to nothing; the floor here is the sidebar's width, which the
+   tab's rows are laid out for. Scoped to a pop-out holding the Fight tab, so a world that switched
+   back to core's tracker keeps core's pop-out as it was. */
+.combat-sidebar.sidebar-popout:has(.stonetop-fight-tracker) {
+	min-width: var(--sidebar-width, 300px);
+}
+
+/* No taller than the room between where the window stands (FightTracker#_updatePosition) and the
+   foot of the screen, less the margin fight-window.js keeps at the top. Core measures a
+   content-fitted pop-out against this, so a long fight scrolls its list inside the window rather
+   than pushing the window up the screen. The header's buttons stay in view above the list.
+   The floor keeps a window dragged to the foot of the screen from folding to its title bar:
+   core slides that one back up instead.
+   ONLY WHILE IT FITS ITS CONTENT. Core holds a height given in numbers (dragged to a size, or saved)
+   to any max-height too, and keeps what it clamped to as the window's own: a sized window dragged
+   toward the foot of the screen came back up shorter, and was saved that way. A sized window is
+   held to the screen by core, which slides it up to fit. */
+.combat-sidebar.sidebar-popout:has(.stonetop-fight-tracker):not([data-stonetop-fight-sized]) {
+	max-height: max(240px, calc(100vh - var(--stonetop-fight-top, 16px) - 16px));
+}
+
+/* The fight ring (module/fight/fight-ring.js, templates/hud/fight-ring.hbs): a token's moves and damage
+   rolls round it, in core's HUD container and core's two HUD columns beside the token. Core's own HUD
+   buttons are unlabelled squares; these are labelled pills, because a monster's four attacks cannot be
+   told apart by a die glyph. Each column is centred on the token and its pills grow AWAY from it (core
+   aligns the left column's items to its right edge and the right column's to its left). */
+#stonetop-fight-ring .stonetop-fight-ring-col {
+	justify-content: center;
+	gap: 6px;
+}
+
+#stonetop-fight-ring .stonetop-fight-ring-button {
+	display: flex;
+	flex: none;
+	align-items: center;
+	gap: 8px;
+	width: max-content;
+	max-width: 20rem;
+	/* A floor, not a height: a large UI font makes the label taller than core's control size. */
+	height: auto;
+	min-height: var(--control-size, 35px);
+	margin: 0;
+	padding: 4px 14px 4px 11px;
+	background: var(--stonetop-fight-ring-paper);
+	border: var(--stonetop-fight-ring-edge-width) solid var(--stonetop-fight-ring-edge);
+	border-radius: 999px;
+	box-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
+	color: var(--stonetop-fight-ring-lettering);
+	font-family: var(--font-sans, "Signika", sans-serif);
+	font-size: var(--font-size-16, 1rem);
+	font-weight: 600;
+	line-height: 1.2;
+	text-shadow: none;
+	white-space: nowrap;
+	pointer-events: auto;
+	cursor: pointer;
+	/* Core's buttons transition everything over half a second, font size included. */
+	transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+#stonetop-fight-ring .stonetop-fight-ring-button:hover,
+#stonetop-fight-ring .stonetop-fight-ring-button:focus {
+	background: var(--stonetop-fight-ring-paper);
+	border-color: var(--stonetop-fight-ring-hover);
+	color: var(--stonetop-fight-ring-lettering);
+	outline: none;
+	box-shadow: 0 0 10px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--stonetop-fight-ring-hover);
+}
+
+#stonetop-fight-ring .stonetop-fight-ring-button:focus-visible {
+	outline: 2px solid var(--stonetop-fight-ring-hover);
+	outline-offset: 2px;
+}
+
+#stonetop-fight-ring .stonetop-fight-ring-button > i {
+	flex: none;
+	width: 1.25em;
+	margin: 0;
+	font-size: 1.15em;
+	text-align: center;
+}
+
+/* A long move name ("Breathe forth a baleful cloud") ends in an ellipsis; its die never does, and the
+   whole name is the button's tooltip. */
+#stonetop-fight-ring .stonetop-fight-ring-label {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+#stonetop-fight-ring .stonetop-fight-ring-formula {
+	flex: none;
+	color: var(--stonetop-fight-ring-die);
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+}
+
+#stonetop-fight-ring .stonetop-fight-ring-formula:empty {
+	display: none;
+}
+
+/* A character's held Readiness, over the token: a pill in the ring's own paper, centred above it. The
+   count is printed as well as drawn, so it reads at a glance and to a screen reader alike. */
+#stonetop-fight-ring .stonetop-fight-ring-readiness {
+	position: absolute;
+	left: 50%;
+	bottom: 100%;
+	transform: translate(-50%, -8px);
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 12px;
+	background: var(--stonetop-fight-ring-paper);
+	border: var(--stonetop-fight-ring-edge-width) solid var(--stonetop-fight-ring-edge);
+	border-radius: 999px;
+	box-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
+	color: var(--stonetop-fight-ring-lettering);
+	font-family: var(--font-sans, "Signika", sans-serif);
+	font-size: var(--font-size-16, 1rem);
+	font-weight: 700;
+	line-height: 1.2;
+	white-space: nowrap;
+	pointer-events: auto;
+}
+#stonetop-fight-ring .stonetop-fight-ring-readiness-pips {
+	display: flex;
+	gap: 3px;
+	color: var(--stonetop-fight-ring-die);
+}
 
 /* ── Item source ──────────────────────────────────────────────────────────── */
 
@@ -7261,6 +7875,8 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 .stonetop-camp-meal.is-short .stonetop-camp-meal-status { color: var(--st-red-text); }
 .stonetop-camp-meal.is-paid .stonetop-camp-meal-status { color: var(--st-green-text); }
 
+.stonetop-camp-meal-note { font-size: var(--st-fs-sm); font-style: italic; color: var(--st-text-secondary); }
+
 /* The cards, as many to a line as the window has room for. `auto-fill` rather than `auto-fit`, so
    the number of columns follows the window and never the party: a card keeps its width when someone
    sits down or gets up beside it, and nobody part-way through their own card (perhaps reading it
@@ -7545,6 +8161,9 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 
 .stonetop-camp-closed { margin: 0; font-style: italic; color: var(--st-text-body); }
 
+/* Have What You Need at the fire: its buttons side by side while the card has room. */
+.stonetop-camp-all-along { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; }
+
 /* On the card's bottom edge, by its auto margin in the card's column, so the ready ticks of two
    cards side by side sit on one line however much each holds above them. The card's gap still
    keeps it clear of the part above in the tallest card of a line. */
@@ -7747,6 +8366,16 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	border-radius: var(--st-radius-lg);
 	padding: 8px 10px;
 	margin-bottom: 12px;
+}
+/* Herd of Horses' "half the herd or less" question, above the roll it changes (the character's
+   Requisition and the expedition guide's). */
+.stonetop-requisition-herd {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	margin: 0 0 8px;
+	font-size: var(--st-fs-base);
+	color: var(--st-text-body);
 }
 /* Slate primary buttons, matching the custom Application modals. (RequisitionDialog
    is a `.stonetop` Application, not a `.dialog`, so it styles its own buttons rather
@@ -8712,6 +9341,25 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
    reserved room for it is already dropped by the .stonetop-picklist-item rule above.) */
 :is(#chat, #chat-notifications, #chat-popout) .message
 	:is(.stonetop-chat-move-description, .stonetop-roll-card-description) .stonetop-picklist-item::before {
+	content: none;
+}
+
+/* A NUMBERED list (Level Up's steps) already has its marker: the number. The spiral every
+   description <li> hangs at left: 0 sat between the number and the words, two markers on one
+   row. The number stays and the spiral goes, with the spiral's reserved padding moved onto the
+   <ol> as room for the numerals. `ol > li` outweighs the family rules' bare `li` by one tag. */
+:is(#chat, #chat-notifications, #chat-popout) .message
+	:is(.stonetop-chat-move-description, .stonetop-roll-card-description) ol {
+	margin: 0 0 5px;
+	padding-left: 1.5em;
+	list-style: decimal;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message
+	:is(.stonetop-chat-move-description, .stonetop-roll-card-description) ol > li {
+	padding-left: 0;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message
+	:is(.stonetop-chat-move-description, .stonetop-roll-card-description) ol > li::before {
 	content: none;
 }
 
@@ -11303,6 +11951,7 @@ button.stonetop-held-advantage:hover { color: var(--st-text-body); }
 	:root { --st-trim-top: 0px; --st-trim-bottom: 0px; }
 	.stonetop-condemn-count,
 	.stonetop-marks-count { display: inline-flex; align-items: center; justify-content: center; padding-top: 0; }
+	.stonetop-fight-badge { display: inline-flex; align-items: center; justify-content: center; }
 }
 
 /* Chip labels that share their flex chip with an icon or a count. Trimmed like the status pills'
@@ -14362,6 +15011,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	--stonetop-spiral-icon:           url('/systems/stonetop_pwd/assets/icons/steading/check-spiral-light.svg');
 	--stonetop-checkbox-icon:         url('/systems/stonetop_pwd/assets/icons/steading/checkbox-light.svg');
 	--stonetop-checkbox-checked-icon: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked-light.svg');
+	--stonetop-checkbox-partial-icon: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-partial-light.svg');
 	/* The confirm buttons come down with the room, past slate to near-black: left at the
 	   standard slategrey they are the brightest thing in the window, which puts the eye on
 	   "Done" instead of on the three fates — the one decision this step is actually asking
@@ -14619,6 +15269,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	--stonetop-spiral-icon:           url('/systems/stonetop_pwd/assets/icons/steading/check-spiral-light.svg');
 	--stonetop-checkbox-icon:         url('/systems/stonetop_pwd/assets/icons/steading/checkbox-light.svg');
 	--stonetop-checkbox-checked-icon: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked-light.svg');
+	--stonetop-checkbox-partial-icon: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-partial-light.svg');
 	--stonetop-diamond-icon:          url('/systems/stonetop_pwd/assets/icons/playbooks/diamond-light.svg');
 	--stonetop-diamond-selected-icon: url('/systems/stonetop_pwd/assets/icons/playbooks/diamond_selected-light.svg');
 	/* The one glyph that is a MASK and still had to be turned over by hand: the add-wound heart
@@ -15744,6 +16395,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	--stonetop-spiral-icon:           url('/systems/stonetop_pwd/assets/icons/steading/check-spiral-light.svg');
 	--stonetop-checkbox-icon:         url('/systems/stonetop_pwd/assets/icons/steading/checkbox-light.svg');
 	--stonetop-checkbox-checked-icon: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-checked-light.svg');
+	--stonetop-checkbox-partial-icon: url('/systems/stonetop_pwd/assets/icons/steading/checkbox-partial-light.svg');
 	--st-btn-primary-bg:           hsl(0 0% 9%);
 	--st-btn-primary-bg-hover:     hsl(0 0% 16%);
 	--st-btn-primary-border:       hsl(40 13% 44%);
@@ -19327,6 +19979,26 @@ a.steading-player-open:hover {
 	opacity: 0.5;
 	cursor: default;
 }
+
+/* An improvement that is a move (Aurochs Hunting, Heroic Reputation) rolls from its own card: the
+   Inn gathering button's look, since it is the same kind of act from the same kind of card. */
+.steading-improvement-move-btn {
+	width: 100%;
+	margin-top: 8px;
+	padding: 6px 10px;
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
+	border: none;
+	border-radius: var(--st-radius);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	font-size: var(--st-fs-sm);
+}
+
+.steading-improvement-move-btn:hover { background: var(--st-btn-primary-bg-hover); }
 
 /* -- Moves tab ------------------------------------------------- */
 
@@ -29253,27 +29925,40 @@ th:has(> .stonetop-roll-table-btn) {
 	padding: 0;
 }
 
-/* Spiral bullets for the warning's PC list (matching the rest of the system's prose);
-   any <ol> here keeps its numbers. */
-.stonetop-intros-notice ul {
-	list-style: none;
-	margin-left: 0;
-	padding-left: 14px;
+/* The turn order, one PC per row, with a GM's move-earlier / move-later arrows at the row's end
+   (dialogs/introductions-order.js). The row is a flex box INSIDE the <li>, so the <li> stays a
+   list item and keeps its number. */
+.stonetop-intros-order-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 1px 0;
 }
-.stonetop-intros-notice ul > li {
-	position: relative;
-	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
+.stonetop-intros-order-name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.stonetop-intros-order-moves { flex: 0 0 auto; display: inline-flex; gap: 4px; }
+.stonetop-intros-move {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: auto;
+	min-width: 26px;
+	height: 24px;
+	padding: 0 6px;
+	margin: 0;
+	line-height: 1;
+	font-size: calc(0.78rem * var(--stonetop-font-scale, 1));
+	cursor: pointer;
+	border: 1px solid var(--st-green-border);
+	border-radius: var(--st-radius-sm);
+	background: rgba(255, 255, 255, 0.55);
+	color: var(--st-green-text);
+	transition: background 0.15s;
 }
-.stonetop-intros-notice ul > li::before {
-	content: "";
-	position: absolute;
-	left: 0;
-	top: 0.2em;
-	width: var(--stonetop-bullet-size, 10px);
-	height: var(--stonetop-bullet-size, 10px);
-	background: var(--stonetop-spiral-icon) no-repeat center / contain;
-	opacity: 0.55;
-}
+/* Core spaces a button's icon from a label this button does not have. */
+.stonetop-intros-move > i { margin: 0; }
+.stonetop-intros-move:hover:not(:disabled) { background: var(--st-green-bg-hover); }
+.stonetop-intros-move:disabled { opacity: 0.35; cursor: default; }
 
 .stonetop-intros-reminder {
 	margin: 0;
@@ -34767,7 +35452,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	   meant for whatever is under it, and on this map a click is how a destination gets chosen — so
 	   the fade takes the pointer with it. */
 	opacity: 0; pointer-events: none;
-	transition: opacity 120ms ease, color 120ms ease, border-color 120ms ease;
+	transition: opacity var(--st-popout-fade, 250ms) ease, color 120ms ease, border-color 120ms ease;
 }
 /* Later than the base rule, per the modifier-ordering house rule. Focus stands beside hover
    because a keyboard has no pointer to reveal it with, and a control that can be tabbed to but
@@ -40019,7 +40704,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    `display: inline` and `width: auto` for the same reason in the other direction:
    core gives buttons a block box and a full-width stretch, and either would break a
    citation out of the line it belongs to. */
-.stonetop .stonetop-book-cite {
+.stonetop .stonetop-book-cite,
+.stonetop-fight-tracker .stonetop-book-cite {
 	display: inline;
 	width: auto;
 	margin: 0;
@@ -40041,15 +40727,19 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    reads as a highlighter mark. Taken back off, and the answer to the pointer is the
    underline going solid and the ink coming up out of muted instead. */
 .stonetop .stonetop-book-cite:hover,
-.stonetop .stonetop-book-cite:focus {
+.stonetop .stonetop-book-cite:focus,
+.stonetop-fight-tracker .stonetop-book-cite:hover,
+.stonetop-fight-tracker .stonetop-book-cite:focus {
 	background: none;
 	box-shadow: none;
 }
-.stonetop .stonetop-book-cite:hover {
+.stonetop .stonetop-book-cite:hover,
+.stonetop-fight-tracker .stonetop-book-cite:hover {
 	color: var(--st-text);
 	text-decoration: underline solid;
 }
-.stonetop .stonetop-book-cite:focus-visible {
+.stonetop .stonetop-book-cite:focus-visible,
+.stonetop-fight-tracker .stonetop-book-cite:focus-visible {
 	outline: 2px solid var(--st-btn-primary-bg);
 	outline-offset: 2px;
 }
@@ -41328,7 +42018,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	line-height: 1;
 }
 
-.stonetop-gm-encounter-deploy:hover {
+.stonetop-gm-encounter-deploy:hover,
+.stonetop-gm-encounter-fight:hover {
 	color: var(--st-blue-text);
 }
 
@@ -41429,7 +42120,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    spaces its caps out, and 0.04em after a one-character run pushes the glyph off its own centre.
    The blue hover comes from the shared `.stonetop-gm-encounter-deploy:hover` rule further up, which
    is keyed on the class and so followed the button here. */
-.stonetop-gm-entry-card-head > .stonetop-gm-encounter-deploy {
+.stonetop-gm-entry-card-head > .stonetop-gm-encounter-deploy,
+.stonetop-gm-entry-card-head > .stonetop-gm-encounter-fight {
 	flex: 0 0 auto;
 	display: inline-flex;
 	align-items: center;
@@ -41448,9 +42140,17 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	line-height: 1;
 }
 
-.stonetop-gm-entry-card-head > .stonetop-gm-encounter-deploy:hover {
+.stonetop-gm-entry-card-head > .stonetop-gm-encounter-deploy:hover,
+.stonetop-gm-entry-card-head > .stonetop-gm-encounter-fight:hover {
 	background: var(--st-warm-hover-bg);
 	box-shadow: none;
+}
+/* Deploy and fight's glyph is Font Awesome, sized to the same 16px the Deploy mask draws at. Core
+   margins a button's icon away from a label this button does not have. */
+.stonetop-gm-entry-card-head > .stonetop-gm-encounter-fight > i {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1;
 }
 
 /* The glyph itself: a figure going down, masked out of one SVG so it takes the button's ink in
@@ -42848,7 +43548,7 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
 	opacity: 0;
 	pointer-events: none;
-	transition: opacity 120ms ease, background 120ms ease, color 120ms ease;
+	transition: opacity var(--st-popout-fade, 250ms) ease, background 120ms ease, color 120ms ease;
 }
 
 /* Later than the base rule, per the modifier-ordering house rule. Focus stands beside hover
@@ -45144,6 +45844,20 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	background: color-mix(in srgb, currentColor 6%, transparent);
 }
 
+/* A row under another (a follower under their character): indented, with a rule down the left that
+   ties it to the row above. A heading row has no tick, so it holds the tick's width empty to keep
+   its face in the column every other face is in, and does not light up under the pointer. */
+.stonetop-person-picker-item--nested {
+	margin-left: 1.5em;
+	padding-left: 4px;
+	border-left: 2px solid var(--st-quiet-ink, rgba(0, 0, 0, 0.3));
+}
+.stonetop-person-picker-row--header { cursor: default; }
+.stonetop-person-picker-row--header:hover { background: none; }
+.stonetop-person-picker-nocheck {
+	flex: 0 0 calc(15px * var(--stonetop-font-scale, 1));
+}
+
 /* The picked row, marked as the content picker marks its own: an accented edge and a filled
    bed, so the answer can be seen without reading down the radios. */
 .stonetop-person-picker-row:has(input:checked) {
@@ -45311,14 +46025,14 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	min-width: 0;
 }
 
-/* The note under a name (a home, an occupation) is secondary and may run long; the name it
-   belongs to never truncates. */
+/* The note under a name (a home, an occupation, "Not on this map") is secondary and may run
+   long. It WRAPS rather than trailing off in an ellipsis: the tail is often the part that
+   matters ("Not on this map" was the words cut), and the row has no fixed height, so a second
+   line simply makes it taller. */
 .stonetop-person-picker-note {
 	font-size: var(--st-fs-xs);
 	color: var(--st-quiet-ink);
-	overflow: hidden;
-	white-space: nowrap;
-	text-overflow: ellipsis;
+	overflow-wrap: anywhere;
 }
 
 /* What a list narrowed to nothing says. Points at the rail rather than at itself: the counts
@@ -45330,6 +46044,24 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 }
 
 .stonetop-person-picker-foot { flex: 0 0 auto; }
+
+/* Options about the whole answer ("Line everyone up"), a quiet row above the buttons. Drawn only by
+   a window that asks for them (fight/StartFightDialog.js). */
+.stonetop-person-picker-toggles {
+	flex: 0 0 auto;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 16px;
+	padding: 6px 12px 0;
+}
+.stonetop-person-picker-toggle {
+	display: flex;
+	align-items: center;
+	gap: 0.6em;
+	cursor: pointer;
+	color: var(--st-text-body);
+	font-size: var(--st-fs-sm);
+}
 
 /* ══ The narrative timeline ══════════════════════════════════════════════════════════════
    One thread of the campaign, drawn down a spine: Stonetop's own, or one character's. The
@@ -45913,6 +46645,22 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
    against it. */
 :root.stonetop-high-contrast {
 	--st-page: #fff;
+	/* The fight's lines on the map: black ink on a solid yellow halo, half as heavy again, so a line
+	   reads against any map art at any zoom. */
+	--stonetop-fight-melee: #000000;
+	--stonetop-fight-ranged: #000000;
+	--stonetop-fight-halo: #ffd400;
+	--stonetop-fight-halo-alpha: 1;
+	--stonetop-fight-badge: #000000;
+	--stonetop-fight-badge-glyph: #ffffff;
+	--stonetop-fight-weight: 1.5;
+	/* The fight ring's buttons: white on solid black, edged in the lines' yellow, twice as thick. */
+	--stonetop-fight-ring-paper: #000000;
+	--stonetop-fight-ring-lettering: #ffffff;
+	--stonetop-fight-ring-die: #ffd400;
+	--stonetop-fight-ring-edge: #ffd400;
+	--stonetop-fight-ring-edge-width: 2px;
+	--stonetop-fight-ring-hover: #ffffff;
 	/* The panels keep a step off the page rather than dissolving into it. Three points of white is
 	   nothing to somebody reading in this mode — which is why their borders are the thing taken to
 	   4.76:1 below — but it costs nothing, and it keeps the sheet from flattening into one field

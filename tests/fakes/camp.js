@@ -18,12 +18,13 @@ import { capitalizeFirst } from "../../module/utils/strings.js";
  *
  * `choices` is what the player has set on their row. Everything else is the character: what they
  * carry (`carried`, and whether a bedroll or a mess kit is in their outfit), their HP, what they
- * have marked.
+ * have marked. `undefinedMarks`, `checked` and `usesPerSupply` are what Have What You Need draws on.
  */
 export function seat({
 	id = "aeliana", name = "Aeliana", isHost = false, joinedAt = 1, img = "",
 	carried = { supplies: 4 }, hp = 4, maxHp = 15, marked = [], unliving = false,
 	carriesBedroll = false, carriesMessKit = false, choices = {},
+	undefinedMarks = 0, checked = {}, usesPerSupply = null,
 } = {}) {
 	const debilities = marked.map(key => ({ key, name: capitalizeFirst(key) }));
 	return {
@@ -43,6 +44,7 @@ export function seat({
 		maxHp,
 		activeDebilities: debilities,
 		unliving,
+		pack: { undefinedMarks, checked, usesPerSupply },
 	};
 }
 

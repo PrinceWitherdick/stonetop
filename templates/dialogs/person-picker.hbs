@@ -67,17 +67,8 @@
             <span class="stonetop-person-picker-all-text">{{../selectAllLabel}}</span>
           </label>
           {{/if}}
-          <ul class="stonetop-person-picker-list">
-            {{#each people}}
-            {{!-- `data-search` is the name and the note folded to lower case once, at render. --}}
-            <li class="stonetop-person-picker-item" data-search="{{search}}">
-              <label class="stonetop-person-picker-row">
-                {{!-- A radio where the question takes one answer and a checkbox where it takes
-                      several; the NAME is `person` either way, which is what every selector in
-                      the dialog reads. The CLASS follows the type because the two are skinned
-                      apart: the checkbox joins the system's SVG master block (a checkbox left off
-                      it renders as a native browser box), and the radio is pinned to slate. --}}
-                <input type="{{../../inputType}}" class="{{../../inputClass}}" name="person" value="{{id}}">
+          {{!-- A row's face and its name and note: the same on a tickable row and on a header row. --}}
+          {{#*inline "personFaceText"}}
                 <span class="stonetop-person-picker-face">
                   {{#if img}}<img class="stonetop-person-picker-face-img" src="{{img}}" alt="" draggable="false"{{#if imgStyle}} style="{{imgStyle}}"{{/if}}>
                   {{else}}<i class="fas fa-user" aria-hidden="true"></i>{{/if}}
@@ -86,7 +77,30 @@
                   <span class="stonetop-person-picker-name">{{name}}</span>
                   {{#if hint}}<span class="stonetop-person-picker-note">{{hint}}</span>{{/if}}
                 </span>
+          {{/inline}}
+          <ul class="stonetop-person-picker-list">
+            {{#each people}}
+            {{!-- `data-search` is the name and the note folded to lower case once, at render. A row
+                  with a `parent` sits indented under that row (a follower under their character);
+                  a `header` row has no tick and only heads the rows under it. --}}
+            <li class="stonetop-person-picker-item{{#if parent}} stonetop-person-picker-item--nested{{/if}}"
+                data-search="{{search}}" data-person-id="{{id}}"{{#if parent}} data-parent="{{parent}}"{{/if}}{{#if header}} data-header{{/if}}>
+              {{#if header}}
+              <div class="stonetop-person-picker-row stonetop-person-picker-row--header">
+                <span class="stonetop-person-picker-nocheck" aria-hidden="true"></span>
+                {{> personFaceText}}
+              </div>
+              {{else}}
+              <label class="stonetop-person-picker-row">
+                {{!-- A radio where the question takes one answer and a checkbox where it takes
+                      several; the NAME is `person` either way, which is what every selector in
+                      the dialog reads. The CLASS follows the type because the two are skinned
+                      apart: the checkbox joins the system's SVG master block (a checkbox left off
+                      it renders as a native browser box), and the radio is pinned to slate. --}}
+                <input type="{{../../inputType}}" class="{{../../inputClass}}" name="person" value="{{id}}"{{#if checked}} checked{{/if}}>
+                {{> personFaceText}}
               </label>
+              {{/if}}
             </li>
             {{/each}}
           </ul>
@@ -97,6 +111,19 @@
 
     </div>
   </div>
+
+  {{!-- Options about the whole answer rather than about any one name ("Line everyone up"). Only a
+        window that asks for them draws them; the base picker never reads them. --}}
+  {{#if toggles.length}}
+  <div class="stonetop-person-picker-toggles">
+    {{#each toggles}}
+    <label class="stonetop-person-picker-toggle"{{#if hint}} data-tooltip="{{hint}}"{{/if}}>
+      <input type="checkbox" class="stonetop-check stonetop-person-picker-toggle-check" data-toggle="{{key}}"{{#if checked}} checked{{/if}}>
+      <span class="stonetop-person-picker-toggle-text">{{label}}</span>
+    </label>
+    {{/each}}
+  </div>
+  {{/if}}
 
   {{!-- Affirmative on the left, as everywhere else in the system. It opens dead and unnamed:
         there is no default person, and a button that said "Add" over a list nobody had answered

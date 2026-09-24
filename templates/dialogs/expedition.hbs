@@ -89,6 +89,9 @@
           on had been read. --}}
     {{#if showRoll}}
     <div class="stonetop-spring-roll-wrap">
+      {{#if herdShare}}
+      <label class="stonetop-requisition-herd"><input type="checkbox" class="stonetop-check" name="herdShare"><span>{{herdShare}}</span></label>
+      {{/if}}
       {{#if roll}}
       <div class="stonetop-spring-roll-result stonetop-spring--{{roll.tier}}">
         <span class="stonetop-spring-roll-result-total">{{roll.total}}</span>
