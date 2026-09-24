@@ -19,13 +19,13 @@ function seededActor({ season = "spring", year = 1, pickerYear = year, steadingF
 	return {
 		type: "stonetop",
 		system: {},
-		flags: { "stonetop-pwd": flags },
-		getFlag: (scope, key) => (scope === "stonetop-pwd" ? flags[key] ?? null : null),
+		flags: { "stonetop_pwd": flags },
+		getFlag: (scope, key) => (scope === "stonetop_pwd" ? flags[key] ?? null : null),
 		update: vi.fn(),
 	};
 }
 
-/** Exactly what create-test-characters.js writes into flags["stonetop-pwd"].steading. */
+/** Exactly what create-test-characters.js writes into flags["stonetop_pwd"].steading. */
 function fixtureSteadingFlags({ year = 1, season = "spring" } = {}) {
 	const built = { completed: true, applied: null, r: Array(16).fill(true) };
 	return {

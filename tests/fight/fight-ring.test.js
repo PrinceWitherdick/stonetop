@@ -492,7 +492,7 @@ describe("the ring window", () => {
 	it("is core's placeable HUD, marked as ours, with the one action its buttons use", () => {
 		expect(Ring.prototype).toBeInstanceOf(FakeHUD);
 		expect(Ring.DEFAULT_OPTIONS).toMatchObject({ id: "stonetop-fight-ring", classes: ["stonetop-fight-ring"] });
-		expect(Ring.PARTS.ring).toEqual({ root: true, template: "systems/stonetop-pwd/templates/hud/fight-ring.hbs" });
+		expect(Ring.PARTS.ring).toEqual({ root: true, template: "systems/stonetop_pwd/templates/hud/fight-ring.hbs" });
 		expect(typeof Ring.DEFAULT_OPTIONS.actions.ringRoll).toBe("function");
 	});
 

@@ -15,7 +15,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const CONTACT = "https://github.com/PrinceWitherdick/stonetop-pwd/issues";
+const CONTACT = "https://github.com/PrinceWitherdick/stonetop/issues";
 
 async function loadBots() {
 	const raw = await fs.readFile(path.join(ROOT, "scripts", "ai-bots.txt"), "utf8");

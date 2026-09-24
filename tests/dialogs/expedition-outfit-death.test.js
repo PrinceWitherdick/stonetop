@@ -37,7 +37,7 @@ const ROOT    = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta
 const PARTIAL = fs.readFileSync(path.join(ROOT, "templates/dialogs/partials/expedition-load.hbs"), "utf8");
 const CSS     = fs.readFileSync(path.join(ROOT, "styles/stonetop.css"), "utf8");
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 
 /**
  * A PC on the roster. `death` is the deathsDoor flag and `insert` the post-death insert slug —

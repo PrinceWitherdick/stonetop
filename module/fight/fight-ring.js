@@ -50,7 +50,7 @@ import { stonetopChatCard } from "../utils/chat.js";
 import { format, localize } from "../utils/i18n.js";
 
 // A plain literal, not built from SYSTEM_ID: the precache check in tests finds template paths by it.
-const RING_TEMPLATE = "systems/stonetop-pwd/templates/hud/fight-ring.hbs";
+const RING_TEMPLATE = "systems/stonetop_pwd/templates/hud/fight-ring.hbs";
 
 /**
  * The moves a ring offers, left column top to bottom. A character rolls the move item of that name;

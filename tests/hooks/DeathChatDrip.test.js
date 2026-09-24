@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEATH_DRIP_FLAG, deathDripStamp, markDeathDrip } from "../../module/hooks/DeathChatDrip.js";
 import { DEATHS_DOOR_STATE } from "../../module/actors/character/deaths-door.js";
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const FLAG_PATH = `flags.${SCOPE}.${DEATH_DRIP_FLAG}`;
 
 /** An actor carrying the two flags the stamp reads, in the shape Foundry stores them. */

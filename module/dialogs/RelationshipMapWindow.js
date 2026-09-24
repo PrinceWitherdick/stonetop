@@ -77,8 +77,8 @@ import { promptForText } from "./content-picker.js";
 // Plain literals, not built from SYSTEM_ID: tests/templates/partial-registration.test.js proves
 // every precached template is actually reached by finding its PATH in the JS, and an interpolated
 // one is a path that appears nowhere in the source for it to find.
-const TEMPLATE = "systems/stonetop-pwd/templates/dialogs/relationship-map.hbs";
-const BOARD_PARTIAL = "systems/stonetop-pwd/templates/dialogs/partials/relationship-map-board.hbs";
+const TEMPLATE = "systems/stonetop_pwd/templates/dialogs/relationship-map.hbs";
+const BOARD_PARTIAL = "systems/stonetop_pwd/templates/dialogs/partials/relationship-map-board.hbs";
 
 /** How long a burst of remote writes is allowed to coalesce before the board repaints. */
 const SYNC_DEBOUNCE_MS = 50;
@@ -1409,7 +1409,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * Filtered cheapest-first, because EVERY journal write in the world arrives here.
 	 *
 	 * ⚠ `changed.flags[SYSTEM_ID]` in BRACKETS, never a dotted path. The package id is hyphenated,
-	 * so `changed.flags.stonetop-pwd` parses as a subtraction and throws — inside a global hook,
+	 * so `changed.flags.stonetop_pwd` parses as a subtraction and throws — inside a global hook,
 	 * which takes down every other listener registered on it. See hooks/CondemnedTag.js.
 	 */
 	_wireSync() {

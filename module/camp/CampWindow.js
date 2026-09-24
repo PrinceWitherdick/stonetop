@@ -13,7 +13,7 @@ import {
 } from "./camp-store.js";
 import { askWithButtons, confirmLeavingOwnCamp } from "./camp-ask.js";
 
-const TEMPLATE  = "systems/stonetop-pwd/templates/dialogs/make-camp.hbs";
+const TEMPLATE  = "systems/stonetop_pwd/templates/dialogs/make-camp.hbs";
 const ID_PREFIX = "stonetop-camp";
 /** The column that scrolls: the shared spring-dialog skin gives it `overflow-y: auto`, and the nav stays pinned below it. */
 const SCROLLER  = ".stonetop-guide-main";

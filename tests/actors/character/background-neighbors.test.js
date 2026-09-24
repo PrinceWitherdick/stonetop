@@ -27,7 +27,7 @@ function makeSteading(neighbors = []) {
 	const flags = { neighbors };
 	return {
 		type: "stonetop",
-		flags: { "stonetop-pwd": { steading: flags } },
+		flags: { "stonetop_pwd": { steading: flags } },
 		typedActor: { setFlags: vi.fn(async patch => Object.assign(flags, patch)) },
 		get neighbors() { return flags.neighbors; },
 	};
@@ -191,7 +191,7 @@ describe("_applyBackgroundNeighbors", () => {
 	// written against the roster as it stands after the creates, not the copy read before them.
 	it("keeps a row added to the roster while it was creating the NPCs", async () => {
 		global.Actor.create.mockImplementationOnce(async data => {
-			steading.flags["stonetop-pwd"].steading.neighbors = [{ uuid: "Actor.late", id: "late", name: "Kesh" }];
+			steading.flags["stonetop_pwd"].steading.neighbors = [{ uuid: "Actor.late", id: "late", name: "Kesh" }];
 			const id = `npc${++nextId}`;
 			const actor = {
 				id, uuid: `Actor.${id}`, name: data.name, type: data.type,

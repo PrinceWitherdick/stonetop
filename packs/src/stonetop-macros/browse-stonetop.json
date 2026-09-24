@@ -1,7 +1,7 @@
 {
   "name": "Browse Stonetop",
   "type": "script",
-  "img": "systems/stonetop-pwd/assets/icons/macros/magnifying-glass.svg",
+  "img": "systems/stonetop_pwd/assets/icons/macros/magnifying-glass.svg",
   "scope": "global",
   "command": "game.stonetop?.openBrowser?.()",
   "folder": null,

@@ -16,7 +16,7 @@ import { IntroductionsDialog } from "../../module/dialogs/IntroductionsDialog.js
 // No DOM in this suite (vitest runs in node), so the dialog is driven through the same hand-built
 // stand-ins the capture-flush suite uses: a window root and a PC actor's flag.
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const FLAG  = "intro";
 
 function makeActor(intro = {}) {

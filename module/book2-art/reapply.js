@@ -18,7 +18,7 @@ import { SYSTEM_ID, packId } from "../system-id.js";
 //
 // The "Import Book Art" macro extracts the art from a GM-owned PDF into a DURABLE
 // folder outside the system (CONFIG.ROOT / the `book2ArtRoot` setting), then points
-// documents at it. A system update replaces the whole `systems/stonetop-pwd` folder,
+// documents at it. A system update replaces the whole `systems/stonetop_pwd` folder,
 // so it wipes the compendium edits (the shipped packs overwrite them) but NOT the
 // durable image files. This pass re-points documents at those surviving files, so the
 // GM only ever runs the macro once. It ships no pixels: the file paths and document ids

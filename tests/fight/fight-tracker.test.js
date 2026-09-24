@@ -102,7 +102,7 @@ describe("the Fight tab class", () => {
 	it("draws only a header and a tracker, from templates that exist", () => {
 		expect(Object.keys(FightTracker.PARTS)).toEqual(["header", "tracker"]);
 		for (const part of Object.values(FightTracker.PARTS)) {
-			const file = part.template.replace(/^systems\/stonetop-pwd\//, "");
+			const file = part.template.replace(/^systems\/stonetop_pwd\//, "");
 			expect(fs.existsSync(path.join(ROOT, file)), file).toBe(true);
 		}
 		expect(FightTracker.PARTS.tracker.scrollable).toEqual([""]);

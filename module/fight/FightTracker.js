@@ -51,8 +51,8 @@ import { themedDialogClasses } from "../utils/window-theme.js";
 
 // Plain literals, not built from SYSTEM_ID: the precache check in tests finds template paths by
 // searching the source for them.
-const HEADER_TEMPLATE = "systems/stonetop-pwd/templates/sidebar/fight-header.hbs";
-const TRACKER_TEMPLATE = "systems/stonetop-pwd/templates/sidebar/fight-tracker.hbs";
+const HEADER_TEMPLATE = "systems/stonetop_pwd/templates/sidebar/fight-header.hbs";
+const TRACKER_TEMPLATE = "systems/stonetop_pwd/templates/sidebar/fight-tracker.hbs";
 
 /** The prefix every fighter-row drag type is built on. */
 const FIGHTER_DRAG_TYPE = "application/x-stonetop-fighter";

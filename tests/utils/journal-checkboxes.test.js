@@ -68,8 +68,8 @@ function makePage({ checks = {}, editable = true, inCompendium = false, pack } =
 	// the compendium copy is read-only; the world copy is what players actually tick.
 	let parent;
 	if (pack !== undefined) parent = { pack };                                  // explicit (e.g. a non-Stonetop pack)
-	else if (inCompendium) parent = { pack: "stonetop-pwd.stonetop-journal" };  // immutable compendium copy
-	else parent = { pack: null, _stats: { compendiumSource: "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.abc" } };
+	else if (inCompendium) parent = { pack: "stonetop_pwd.stonetop-journal" };  // immutable compendium copy
+	else parent = { pack: null, _stats: { compendiumSource: "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.abc" } };
 	return {
 		documentName: "JournalEntryPage",
 		id: "page1",

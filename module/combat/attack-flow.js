@@ -168,7 +168,7 @@ function isFriendly(disposition) {
 // -- Ammo statuses ------------------------------------------------------------
 // Ammo weapons (crossbow, composite bow) carry a resource track on their inventory
 // item — the ○○ "low ammo" / "all out" boxes on the equipment tab, stored in
-// flags.stonetop-pwd.inventory.resources[slug]. Let Fly's 7-9 "deplete your ammo"
+// flags.stonetop_pwd.inventory.resources[slug]. Let Fly's 7-9 "deplete your ammo"
 // pick marks the next box; 0 = plenty, the last box = all out. We drive that SAME
 // resource so the sheet tracker and the chat button stay in lockstep.
 //

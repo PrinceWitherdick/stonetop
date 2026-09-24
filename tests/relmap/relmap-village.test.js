@@ -39,7 +39,7 @@ function applyDotted(doc, patch) {
 }
 
 function pageDoc(name, graph, { sort = 0, parent = null, flags: extra = null } = {}) {
-	const flags = extra ?? { "stonetop-pwd": { relationshipMap: graph } };
+	const flags = extra ?? { "stonetop_pwd": { relationshipMap: graph } };
 	const doc = {
 		id: `page${++nextPageId}`,
 		name, sort, parent, flags, updates: [],
@@ -63,7 +63,7 @@ const entry = (name, flags = {}) => {
 		update(patch) { doc.updates.push(patch); applyDotted(doc, patch); return Promise.resolve(doc); },
 		createEmbeddedDocuments(type, rows) {
 			const made = rows.map(row => pageDoc(
-				row.name, row.flags?.["stonetop-pwd"]?.relationshipMap ?? null,
+				row.name, row.flags?.["stonetop_pwd"]?.relationshipMap ?? null,
 				{ sort: row.sort, parent: doc, flags: row.flags ?? null },
 			));
 			pages.push(...made);
@@ -80,7 +80,7 @@ const entry = (name, flags = {}) => {
 
 /** A map with its home board already converted, as every map opened since pages arrived is. */
 function mapped(name = "Stonetop", nodes = {}) {
-	const map = entry(name, { "stonetop-pwd": { relationshipMap: { version: 2 } } });
+	const map = entry(name, { "stonetop_pwd": { relationshipMap: { version: 2 } } });
 	map.pages.contents.push(pageDoc(name, { nodes, edges: {} }, { sort: 0, parent: map }));
 	return map;
 }
@@ -170,7 +170,7 @@ describe("the ledger, which is what makes a removal stick", () => {
 		await syncVillagePage(map, VILLAGE);
 		const page = getVillagePage(map);
 		const quill = Object.entries(readGraph(page).nodes).find(([, n]) => n.name === "Quill")[0];
-		delete page.flags["stonetop-pwd"].relationshipMap.nodes[quill];
+		delete page.flags["stonetop_pwd"].relationshipMap.nodes[quill];
 		expect(namesOn(page)).toEqual(["Brakkos", "Maeve"]);
 
 		expect(await syncVillagePage(map, VILLAGE)).toBe(null);
@@ -186,7 +186,7 @@ describe("the ledger, which is what makes a removal stick", () => {
 		await syncVillagePage(map, VILLAGE);
 		const page = getVillagePage(map);
 		const quill = Object.entries(readGraph(page).nodes).find(([, n]) => n.name === "Quill")[0];
-		delete page.flags["stonetop-pwd"].relationshipMap.nodes[quill];
+		delete page.flags["stonetop_pwd"].relationshipMap.nodes[quill];
 
 		expect(await syncVillagePage(map, VILLAGE, { asked: true, all: true })).toBe(null);
 		expect(namesOn(page)).toEqual(["Brakkos", "Maeve"]);
@@ -199,7 +199,7 @@ describe("the ledger, which is what makes a removal stick", () => {
 		const map = mapped("Stonetop", { n1: { uuid: "Actor.quill", name: "Quill", x: 12, y: 34 } });
 		await syncVillagePage(map, [resident("Quill")]);
 		const page = getVillagePage(map);
-		delete page.flags["stonetop-pwd"].relationshipMap.nodes.n1;
+		delete page.flags["stonetop_pwd"].relationshipMap.nodes.n1;
 		expect(await syncVillagePage(map, [resident("Quill")])).toBe(null);
 		expect(namesOn(page)).toEqual([]);
 	});
@@ -214,7 +214,7 @@ describe("the ledger, which is what makes a removal stick", () => {
 		const page = getVillagePage(map);
 		// The ledger landed all the same, which is the whole point of the write: the resident is
 		// accounted for, so taking them off the board later sticks.
-		expect(page.getFlag("stonetop-pwd", "relationshipVillageBoard")?.seated)
+		expect(page.getFlag("stonetop_pwd", "relationshipVillageBoard")?.seated)
 			.toEqual(["Actor.quill"]);
 	});
 });
@@ -254,7 +254,7 @@ describe("when it does nothing at all", () => {
 	// be deleted on purpose, and a village that conjured a fresh one on the next open would be a map
 	// nobody could be rid of.
 	it("makes no board on a collection with no maps in it", async () => {
-		const map = entry("Stonetop", { "stonetop-pwd": { relationshipMap: { version: 2 } } });
+		const map = entry("Stonetop", { "stonetop_pwd": { relationshipMap: { version: 2 } } });
 		expect(await syncVillagePage(map, VILLAGE)).toBe(null);
 		expect(listMapPages(map)).toHaveLength(0);
 		expect(hadVillagePage(map)).toBe(false);

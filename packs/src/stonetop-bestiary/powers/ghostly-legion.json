@@ -1,7 +1,7 @@
 {
   "name": "The Ghostly Legion",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/undead.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/undead.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "horde, spirit, undead, organized, terrifying, hoarder, violent",
     "qualities": "<p>Roams far and wide, but tethered to the cave; shuns daylight; can only touch the world through violence; upset by and afraid of dogs.</p>",
     "count": 6,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.sgwKSp8PEmkIv21v",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.sgwKSp8PEmkIv21v",
     "notes": "",
     "creatureType": "undead"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/undead.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/undead.svg"
     }
   },
   "items": [

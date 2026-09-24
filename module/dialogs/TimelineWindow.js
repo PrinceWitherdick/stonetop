@@ -73,7 +73,7 @@ export class TimelineWindow extends StonetopDialog {
 		const size = openingSize({ share: 0.8, maxAspect: 1.4, fallbackWidth: 980, fallbackHeight: 760 });
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id: TIMELINE_WINDOW_ID,
-			template: "systems/stonetop-pwd/templates/dialogs/timeline.hbs",
+			template: "systems/stonetop_pwd/templates/dialogs/timeline.hbs",
 			width: size.width,
 			height: size.height,
 			resizable: true,

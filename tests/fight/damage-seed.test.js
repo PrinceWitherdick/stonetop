@@ -102,7 +102,7 @@ describe("seedForRoll: a hero's pile-on on one foe", () => {
 
 	it("offers nothing against a token standing for several foes", () => {
 		const { bramActor, tokens, combat } = fight();
-		combat.combatants.get("cCrin").flags["stonetop-pwd"].count = 6;
+		combat.combatants.get("cCrin").flags["stonetop_pwd"].count = 6;
 		expect(seedForRoll({ attacker: bramActor, targets: [{ uuid: tokens.crinwin.uuid }] })).toBeNull();
 	});
 });
