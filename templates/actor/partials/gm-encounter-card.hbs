@@ -188,6 +188,17 @@
 					<span class="stonetop-gm-encounter-deploy-icon" aria-hidden="true"></span>
 				</button>
 				{{/if}}
+				{{!-- DEPLOY AND FIGHT: the same placing, then the "Start a fight" window with those tokens
+				      ticked (gm-encounters-tab.js#deployAndFight). Beside Deploy and only where Deploy
+				      is; `canFight` also needs the Fight tab on and a GM reading. Core's own combat glyph,
+				      so it reads as the Fight tab's. --}}
+				{{#if canFight}}
+				<button type="button" class="stonetop-gm-encounter-fight"
+				        data-tooltip="{{localize "stonetop.gmToolkit.encounters.deployAndFight"}}" data-tooltip-direction="UP"
+				        aria-label="{{localize "stonetop.gmToolkit.encounters.deployAndFight"}}">
+					<i class="fa-solid fa-swords" aria-hidden="true"></i>
+				</button>
+				{{/if}}
 				<span class="stonetop-gm-entry-card-count">{{count}}</span>
 			</div>
 			<ul class="stonetop-gm-encounter-entries">

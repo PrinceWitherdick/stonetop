@@ -123,10 +123,21 @@ export function grantedWeaponForMove(moveName) {
 export const MELEE_RANGES  = new Set(["hand", "close", "reach"]);
 export const RANGED_RANGES = new Set(["near", "far"]);
 
+/**
+ * WEAPONS OF WAR (a steading improvement): "you can treat maces, flails, battleaxes, warhammers,
+ * and all types of swords as common items... Battleaxes and swords have 'x piercing', where x is
+ * the steading's current Prosperity."
+ */
+export const WEAPONS_OF_WAR_COMMON = new Set(["mace-or-flail", "battleaxe", "warhammer", "short-sword", "sword"]);
+export const WEAPONS_OF_WAR_PIERCING = new Set(["battleaxe", "short-sword", "sword"]);
+
 /** Metadata for a weapon slug, or null if the slug isn't a known weapon
- *  (tools, supplies, and write-ins fall through here). */
-export function weaponMeta(slug) {
-	return WEAPON_META[slug] ?? null;
+ *  (tools, supplies, and write-ins fall through here). With `weaponsOfWar`, a battleaxe or sword
+ *  carries the improvement's "x piercing". */
+export function weaponMeta(slug, { weaponsOfWar = false } = {}) {
+	const meta = WEAPON_META[slug] ?? null;
+	if (meta && weaponsOfWar && WEAPONS_OF_WAR_PIERCING.has(slug) && !meta.piercing) return { ...meta, piercing: "prosperity" };
+	return meta;
 }
 
 /** A melee weapon can be used with Clash (has a hand/close/reach range). */

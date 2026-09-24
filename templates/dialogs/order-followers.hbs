@@ -14,6 +14,16 @@
 
     <div class="stonetop-of-controls">
 
+      {{!-- Who, for a group: the whole of it acting as one (p.470), or one member on the
+            group's tags plus their own (p.471). Absent for a follower who is one person. --}}
+      {{#if who}}
+      <label class="stonetop-cf-label">Who
+        <select class="stonetop-cf-input stonetop-of-who">
+          {{#each who}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </label>
+      {{/if}}
+
       {{!-- Which move are they making? --}}
       <label class="stonetop-cf-label">Move
         <select class="stonetop-cf-input stonetop-of-move">
@@ -42,6 +52,7 @@
         {{else}}
         <span class="stonetop-cf-chosen-empty">No tags: they roll +0.</span>
         {{/if}}
+        {{#if ownNote}}<span class="stonetop-of-tags-hint stonetop-of-own-note">{{ownNote}}</span>{{/if}}
 
         {{!-- Their moves count toward the same +1/+2 ("at least one appropriate tag
               or move", p.462), but can't put anything in the way, so these toggle

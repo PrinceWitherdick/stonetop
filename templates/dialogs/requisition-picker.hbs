@@ -2,6 +2,10 @@
 	<p class="stonetop-requisition-trigger"><em>When you borrow some of the steading's assets for an expedition (like the horses or a plow), roll +Fortunes.</em></p>
 
 	<div class="stonetop-requisition-roll">
+		{{#if herdShare}}
+		{{!-- Herd of Horses: "When you Requisition half the herd or less, treat a 6- as a 7-9." --}}
+		<label class="stonetop-requisition-herd"><input type="checkbox" class="stonetop-check" name="herdShare"><span>{{herdShare}}</span></label>
+		{{/if}}
 		<button type="button" class="stonetop-requisition-roll-btn">
 			<i class="fas fa-dice-d6"></i> Roll +Fortunes ({{fortunes}})
 		</button>

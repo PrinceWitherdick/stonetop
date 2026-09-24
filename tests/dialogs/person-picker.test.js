@@ -124,11 +124,15 @@ function makeRoot(dialog) {
 					get checked() { return boxes.picked === person.id; },
 					set checked(on) { if (on) boxes.picked = person.id; },
 				};
-			boxes.push(box);
+			if (!person.header) boxes.push(box);
 			return {
 				hidden: false,
-				dataset: { search: person.search },
-				querySelector: sel => (sel.includes("input[name='person']") ? box : null),
+				dataset: {
+					search: person.search, personId: person.id,
+					...(person.parent ? { parent: person.parent } : {}),
+					...(person.header ? { header: "" } : {}),
+				},
+				querySelector: sel => (sel.includes("input[name='person']") && !person.header ? box : null),
 				radio: box,
 			};
 		});
@@ -147,7 +151,10 @@ function makeRoot(dialog) {
 				if (sel === ".stonetop-person-picker-none") return none;
 				if (sel === ".stonetop-person-picker-all-check") return all;
 				if (sel.startsWith(".stonetop-person-picker-item:not([hidden])")) {
-					return items.find(item => !item.hidden)?.radio ?? null;
+					// A row on screen only to say whose the row below it is carries a `context` mark,
+					// and Enter's selector steps over it (PersonPickerDialog#_applyFilter).
+					const skipContext = sel.includes(":not([data-context])");
+					return items.find(item => !item.hidden && !(skipContext && "context" in item.dataset))?.radio ?? null;
 				}
 				return null;
 			},
@@ -228,6 +235,17 @@ describe("the button, which is where the answer is", () => {
 	});
 });
 
+/** One list: a character, and the follower who sits under them. */
+function withFollower() {
+	return [{
+		key: "heroes", label: "Heroes", icon: "fa-users",
+		people: [
+			{ id: "bram", name: "Bram" },
+			{ id: "hound", name: "Hound", hint: "Bram's follower", parent: "bram" },
+		],
+	}];
+}
+
 describe("the find box", () => {
 	it("narrows the list in front of the reader", () => {
 		const dialog = makeDialog();
@@ -239,6 +257,62 @@ describe("the find box", () => {
 	// ⚠ EVERY LIST, NOT THE ONE SHOWING. This is what the counts on the rail are for: a reader
 	// looking for Maeve under Residents can see that the one Maeve in this world is a player
 	// without going and checking each list by hand.
+	it("keeps a follower's character in view when only the follower matches, and counts no heading", () => {
+		const groups = [{
+			key: "heroes", label: "Heroes", icon: "fa-users",
+			people: [
+				{ id: "master:bram", name: "Bram", header: true, hint: "Already in the fight" },
+				{ id: "hound", name: "Hound", hint: "Bram's follower", parent: "master:bram" },
+				{ id: "cadi", name: "Cadi" },
+			],
+		}];
+		const dialog = makeMultiDialog(groups);
+		expect(dialog.getData().groups[0].count).toBe(2);
+		const root = makeRoot(dialog);
+		type(dialog, root, "hou");
+		expect(root.section("heroes").items.map(item => item.hidden)).toEqual([false, false, true]);
+		expect(root.count("heroes")).toBe("1");
+	});
+
+	// ⚠ ON SCREEN IS NOT THE SAME AS ASKED FOR. The character above a matched follower is context,
+	// and it is marked as such: untagged it counted as a hit of its own, so the rail said two where
+	// one had matched, Enter ticked the character rather than the follower typed, and "Select all"
+	// over a narrowed list swept in a PC whose name was never typed.
+	it("marks a parent kept in view as context, and does not count, tick or take it", () => {
+		const dialog = makeMultiDialog(withFollower());
+		const root = makeRoot(dialog);
+		type(dialog, root, "hou");
+
+		const [bram, hound] = root.section("heroes").items;
+		expect([bram.hidden, hound.hidden]).toEqual([false, false]);
+		expect("context" in bram.dataset).toBe(true);
+		expect("context" in hound.dataset).toBe(false);
+		expect(root.count("heroes")).toBe("1");
+
+		dialog._toggleAll(root, "heroes", true);
+		expect(dialog._picked(root)).toEqual(["hound"]);
+	});
+
+	it("takes the searched follower on Enter, not the character it sits under", () => {
+		const dialog = makeMultiDialog(withFollower());
+		const root = makeRoot(dialog);
+		type(dialog, root, "hou");
+		dialog._takeFirstMatch(root);
+
+		expect(dialog._picked(root)).toEqual(["hound"]);
+	});
+
+	// And the mark comes off again the moment the row matches on its own account.
+	it("stops calling a parent context once the find box clears", () => {
+		const dialog = makeMultiDialog(withFollower());
+		const root = makeRoot(dialog);
+		type(dialog, root, "hou");
+		type(dialog, root, "");
+
+		expect("context" in root.section("heroes").items[0].dataset).toBe(false);
+		expect(root.count("heroes")).toBe("2");
+	});
+
 	it("says how many are left on every other list too", () => {
 		const dialog = makeDialog();
 		const root = makeRoot(dialog);
@@ -541,6 +615,20 @@ describe("the markup it renders", () => {
 		expect(html).toContain('value="tovia"');
 	});
 
+	it("indents a row under the one it follows, and gives a heading row no tick", () => {
+		const html = render([{
+			key: "heroes", label: "Heroes", icon: "fa-users",
+			people: [
+				{ id: "master:bram", name: "Bram", header: true },
+				{ id: "hound", name: "Hound", parent: "master:bram" },
+			],
+		}]);
+		expect(html).toMatch(/class="stonetop-person-picker-item"\s+data-search="bram\s*" data-person-id="master:bram" data-header>/);
+		expect(html).toMatch(/class="stonetop-person-picker-item stonetop-person-picker-item--nested"\s+data-search="hound\s*" data-person-id="hound" data-parent="master:bram">/);
+		expect(html).not.toContain('value="master:bram"');
+		expect(html).toContain('value="hound"');
+	});
+
 	it("folds each row's searchable text to lower case at render", () => {
 		expect(render()).toContain('data-search="pim the lightbearer"');
 	});
@@ -600,5 +688,44 @@ describe("the markup it renders", () => {
 		const html = render([GROUPS[0]]);
 		expect(html).not.toContain("stonetop-person-picker-tab");
 		expect(html).toContain('value="pim"');
+	});
+});
+
+describe("opening already answered, and options about the whole answer", () => {
+	const render = (groups = GROUPS) => template(makeDialog(groups).getData());
+
+	// A window that can guess who is meant (the tokens a GM selected) opens with them ticked. Nothing
+	// changes for a caller that passes neither option, which is every caller but the fight's.
+	it("ticks what it was handed, and only that", () => {
+		const html = template(new PersonPickerDialog({ groups: GROUPS, multiple: true, selected: ["maeve", "quill", "nobody"] }).getData());
+		expect(html).toMatch(/value="maeve" checked/);
+		expect(html).toMatch(/value="quill" checked/);
+		expect(html).not.toMatch(/value="pim" checked/);
+	});
+
+	it("takes the first pre-tick only on a question with one answer", () => {
+		const data = new PersonPickerDialog({ groups: GROUPS, selected: ["tovia", "pim"] }).getData();
+		const checked = data.groups.flatMap(g => g.people).filter(p => p.checked).map(p => p.id);
+		expect(checked).toEqual(["tovia"]);
+	});
+
+	it("draws no options row, and ticks nobody, when not asked to", () => {
+		const html = render();
+		expect(html).not.toContain("stonetop-person-picker-toggles");
+		expect(html).not.toContain(" checked");
+	});
+
+	it("draws each option above the buttons, and reads them back", () => {
+		const dialog = new PersonPickerDialog({
+			groups: GROUPS, multiple: true,
+			toggles: [{ key: "lineUp", label: "Line everyone up", hint: "Heroes left, foes right", checked: true }, { key: "", label: "dropped" }],
+		});
+		const html = template(dialog.getData());
+		expect(html).toContain('data-toggle="lineUp" checked');
+		expect(html).toContain("Line everyone up");
+		expect(html).not.toContain("dropped");
+		expect(html.indexOf("stonetop-person-picker-toggles")).toBeLessThan(html.indexOf("stonetop-person-picker-foot"));
+		const root = { querySelector: sel => (sel === '[data-toggle="lineUp"]' ? { checked: false } : null) };
+		expect(dialog._toggleValues(root)).toEqual({ lineUp: false });
 	});
 });

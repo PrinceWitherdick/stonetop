@@ -80,6 +80,7 @@ describe("text-only chips trim themselves", () => {
 		".stonetop-expedition-dialog .stonetop-exp-load-pill",
 		".stonetop-journey-canvas .stonetop-journey-tag",
 		".stonetop-rel-lane-count",
+		".stonetop-fight-badge",
 	];
 
 	it.each(SELF)("%s trims and pads with both tokens", sel => {
@@ -99,6 +100,18 @@ describe("text-only chips trim themselves", () => {
 	it("keeps the move roll chip on a whole-pixel height", () => {
 		// The trimmed cap band is fractional; the pinned height stops it making the chip fractional.
 		expect(declared(declarations(MAIN, ".stonetop-move-roll-chip"), "height")).toBe("calc(1lh + 4px)");
+	});
+
+	it("keeps the fight tab's count badge on a whole-pixel height", () => {
+		// Same snap, but rounded from `1.5em`: the badge inherits its size from the row it sits in,
+		// so there is no font-size expression here to round the way the move roll chip rounds one.
+		const body = declarations(MAIN, ".stonetop-fight-badge");
+		expect(declared(body, "line-height")).toBe("round(1.5em, 1px)");
+		expect(declared(body, "height")).toBe("calc(1lh + 2px)");
+	});
+
+	it("puts the fight badge back on flex centring where text-box is unsupported", () => {
+		expect(FALLBACK).toMatch(/\.stonetop-fight-badge\s*\{[^}]*display:\s*inline-flex/);
 	});
 
 	it("takes the base tag's trim back off the exceptional toggle, whose span trims instead", () => {

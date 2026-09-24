@@ -78,6 +78,21 @@ export function uninstallCombatChatFakes() {
 /** The posted card carrying `flagKey` under the system's scope, or undefined. */
 export const cardWithFlag = (posted, flagKey) => posted.find(p => p.flags?.[SCOPE]?.[flagKey]);
 
+const plain = v => !!v && typeof v === "object" && !Array.isArray(v);
+
+/**
+ * Write `value` at a dotted flag `key` in `store`, as Foundry's setFlag does: "damage.applied" writes only
+ * that field, a plain object merges into what is there, and an array or a scalar replaces it.
+ */
+export function writeFlagPath(store, key, value) {
+	const parts = key.split(".");
+	const last = parts.pop();
+	let at = store;
+	for (const part of parts) at = plain(at[part]) ? at[part] : (at[part] = {});
+	at[last] = plain(value) && plain(at[last]) ? { ...at[last], ...value } : value;
+	return value;
+}
+
 /** A chat message whose flags can be read and written, as the GM-card handlers expect. */
 export function makeMessage(flags = {}) {
 	return {
@@ -85,6 +100,6 @@ export function makeMessage(flags = {}) {
 		isOwner: true,
 		flags,
 		getFlag: (scope, key) => (scope === SCOPE ? flags[key] : undefined),
-		setFlag: vi.fn(async (scope, key, value) => { flags[key] = value; return value; }),
+		setFlag: vi.fn(async (scope, key, value) => writeFlagPath(flags, key, value)),
 	};
 }

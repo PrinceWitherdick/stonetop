@@ -83,6 +83,15 @@
 
 					<div class="steading-improvement-effect">{{{effect}}}</div>
 
+					{{!-- An improvement that is a move (Aurochs Hunting, Heroic Reputation) rolls
+					      from here as well as from the Homefront list. Rolling is play, open to
+					      anyone who can see the sheet, so it is not gated on canEdit. --}}
+					{{#if rollsMove}}
+					<button type="button" class="steading-improvement-move-btn" data-action="improvement-move" data-move="{{rollsMove.move}}">
+						<i class="fas {{rollsMove.icon}}" aria-hidden="true"></i> {{rollsMove.label}}
+					</button>
+					{{/if}}
+
 					{{#if herd}}
 					<div class="steading-herd" data-slug="{{slug}}">
 						<div class="steading-herd-header">

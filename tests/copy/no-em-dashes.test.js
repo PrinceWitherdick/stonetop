@@ -46,6 +46,7 @@ const ALLOWED = {
 	"module/data/treasure-catalog.js":                       "each Book II treasure's own write-up, extracted from packs/src",
 	"module/data/arcana-summons.js":                         "stat blocks off each arcanum's reverse",
 	"module/data/follower-moves.js":                         "the universal follower moves, generated from packs/src",
+	"module/fight/fight-rules.js":                           "Book I pp.414-418 on fights, quoted as printed",
 	"module/actors/character/dialogs/well-versed-topics.js": "the Lore journals' \"Everyone knows\" text",
 	"module/utils/lore-terms.js":                            "the Lore glossary entries",
 	"module/dialogs/spring-burst-data.js":                   "the Spring Burst omen table",

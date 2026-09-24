@@ -218,3 +218,90 @@ export function deletionTarget(keyPath, value) {
 export function compendiumSourceOf(doc) {
 	return doc?._stats?.compendiumSource ?? doc?.flags?.core?.sourceId ?? null;
 }
+
+/**
+ * One context-menu entry that both cores read.
+ *
+ * v14 reads `label` / `visible` / `onClick(event, target)` and warns (once) about the v13 names;
+ * v13 reads only `name` / `condition` / `callback(target)`. An entry carrying BOTH spellings is read
+ * by each core in its own, and v14 raises no warning when the new names are present beside the old.
+ * Both build a sidebar tab's menu with `jQuery: false`, so the target is an HTMLElement in either.
+ *
+ * The icon goes in as a whole `<i>` element: v13 inserts `icon` as HTML, and v14 parses a string
+ * that starts with `<` the same way.
+ *
+ * @param {object} p
+ * @param {string} p.label  an i18n key (each core localizes it)
+ * @param {string} p.icon   Font Awesome classes, e.g. "fa-solid fa-trash"
+ * @param {(target: HTMLElement) => boolean} [p.visible]
+ * @param {(target: HTMLElement) => unknown} p.run
+ */
+export function contextMenuEntry({ label, icon, visible = () => true, run }) {
+	const shown = target => !!visible(target);
+	return {
+		label,
+		name: label,
+		icon: `<i class="${icon}"></i>`,
+		visible: shown,
+		condition: shown,
+		onClick: (event, target) => run(target),
+		callback: target => run(target),
+	};
+}
+
+/**
+ * Move tokens straight to new places in one write, through walls, with no animation along the way:
+ * core's "displace" movement, which is how a GM rearranges a map rather than how a token walks.
+ *
+ * v14 batches this as `Scene#moveTokens`. v13 has no batch, but its own `TokenDocument#move` is an
+ * empty update carrying the movement in `options.movement[id]`, so the same update over several
+ * tokens is that call, batched. Never the `teleport` update option, which both cores deprecate.
+ *
+ * @param {Scene} scene
+ * @param {Array<{id: string, x: number, y: number}>} moves  top-left corners, already snapped
+ */
+export function displaceTokens(scene, moves) {
+	const list = (Array.isArray(moves) ? moves : []).filter(m => m?.id);
+	if (!scene || !list.length) return Promise.resolve(null);
+	const instruction = ({ x, y }) => ({
+		waypoints: [{ x, y, action: "displace", snapped: true }],
+		method: "api",
+		autoRotate: false,
+		showRuler: false,
+		constrainOptions: { ignoreWalls: true, ignoreCost: true },
+	});
+	if (typeof scene.moveTokens === "function") {
+		return scene.moveTokens(Object.fromEntries(list.map(m => [m.id, instruction(m)])));
+	}
+	return scene.updateEmbeddedDocuments("Token", list.map(m => ({ _id: m.id })), {
+		movement: Object.fromEntries(list.map(m => [m.id, instruction(m)])),
+	});
+}
+
+/**
+ * Resolve a uuid without awaiting, for a chat render, a sheet's getData, or anywhere else that
+ * cannot go async. Null rather than a throw for anything missing: `fromUuidSync` THROWS on an
+ * EMBEDDED document's uuid instead of answering null, and `{strict: false}` does not cover that,
+ * which is the whole reason this wrapper exists. Read through `globalThis` so a Foundry-free
+ * unit test just gets null.
+ */
+export function resolveSync(uuid) {
+	try { return globalThis.fromUuidSync?.(uuid, { strict: false }) ?? null; } catch { return null; }
+}
+
+/**
+ * Who asked, for a User query a player sends to the GM's client. v14 names the asker in the
+ * query's context; v13 hands the handler only `{timeout}`, so the id the asker put in the data
+ * is read instead. That id is the sender's OWN WORD, so it is never taken for a GM's: a player
+ * claiming to be one would otherwise be handed a GM's authority over the thing being asked for.
+ *
+ * @param {object} data  the query payload, carrying {userId} for v13
+ * @param {{user?: object}} context  core's query context, naming who asked (v14 only)
+ * @param {object} [users]  the users collection to resolve a claimed id against
+ * @returns {object|null}  the asking non-GM user, or null
+ */
+export function queryAsker(data, context = {}, users = globalThis.game?.users) {
+	if (context?.user) return context.user;
+	const claimed = typeof data?.userId === "string" ? users?.get?.(data.userId) : null;
+	return claimed && !claimed.isGM ? claimed : null;
+}
