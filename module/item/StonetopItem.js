@@ -1,7 +1,7 @@
 import {StonetopPlaybook} from "./StonetopPlaybook.js";
 import {rollFormula, rollStat} from "../utils/roll-engine.js";
-import {rollDamagePrompted} from "../dialogs/RollDialog.js";
-import {damageCardText, attackRollMode} from "../utils/damage.js";
+import {rollDamageAt} from "../combat/attack-flow.js";
+import {damageCardText, attackRollMode, attackWeapon, readMoveAttack} from "../utils/damage.js";
 import {normalizeRollType} from "../utils/roll-types.js";
 import {filterStatOptionLines, escHtml} from "../utils/strings.js";
 import {moveCardBody} from "../utils/move-tiers.js";
@@ -318,13 +318,18 @@ export function createStonetopItemClass(BaseItem) {
 			// these moves print, which the plain formula card below never applied.
 			// An NPC's move keeps that plain card: a GM types those, and one may roll something other
 			// than damage.
+			//
+			// Aimed like the Damage line is: at whoever the monster is fighting on the map, or the GM's
+			// own targets, with the move's own armor clause for Apply (combat/attack-flow.js#rollDamageAt).
 			if (this.type === "monsterMove") {
 				const { title, keywords } = damageCardText(this.name, rawFormula);
-				return rollDamagePrompted(rawFormula, actor, {
+				return rollDamageAt(actor, {
+					formula: rawFormula,
 					label: title || this.name,
 					keywords,
 					description: cardDescription,
 					rollMode: attackRollMode(this.name),
+					weapon: attackWeapon(readMoveAttack(this)),
 					shiftKey: options.shiftKey,
 				});
 			}

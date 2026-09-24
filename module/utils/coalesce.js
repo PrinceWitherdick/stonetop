@@ -16,12 +16,31 @@
  * @returns {() => void}       Call as often as you like.
  */
 export function coalesceMicrotask(work, label) {
+	return coalesce(work, label, run => { Promise.resolve().then(run).catch(() => {}); });
+}
+
+/**
+ * The same fold, run on the next animation frame instead: for work that only redraws, where a frame
+ * is the finest a reader can see. Falls back to the next microtask where there are no frames (a test).
+ */
+export function coalesceFrame(work, label) {
+	return coalesce(work, label, run => {
+		if (typeof globalThis.requestAnimationFrame === "function") globalThis.requestAnimationFrame(run);
+		else Promise.resolve().then(run).catch(() => {});
+	});
+}
+
+/** The latch both share. `run` catches its own throw, so a scheduler's chain can never reject. */
+function coalesce(work, label, schedule) {
 	let queued = false;
+	const run = () => {
+		queued = false;
+		try { work(); }
+		catch (err) { console.error(label, err); }
+	};
 	return () => {
 		if (queued) return;
 		queued = true;
-		Promise.resolve()
-			.then(() => { queued = false; work(); })
-			.catch(err => console.error(label, err));
+		schedule(run);
 	};
 }

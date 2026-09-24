@@ -200,6 +200,22 @@ export function registerSettings() {
 		default: {}
 	});
 
+	// The world monsters whose Group fight switch this world unticked when the Fight tab was turned
+	// on (hooks/Ready.js#_reconcileWorldGroupFights), so turning the tab back OFF can put them back.
+	//
+	// The untick itself is necessary — with the tab on, a group's scale is a per-token question and
+	// the sheet stops drawing the switch, so a ticked sidebar monster hands a scale to every token
+	// dragged out of it with no box left to untick. What was NOT necessary was making it a one-way
+	// door: a GM who had ticked a dozen bestiary entries lost all twelve to a setting they could
+	// switch straight back, with nothing anywhere recording what had been taken.
+	game.settings.register(SYSTEM_ID, "groupFightUnticked", {
+		name: "Group Fight Unticked",
+		scope: "world",
+		config: false,
+		type: Array,
+		default: []
+	});
+
 	// Fingerprint of the seeded gazetteer folder colour scheme last applied in this
 	// world (see hooks/SeedCompendiums.syncSeededFolderColors). When it trails the
 	// current scheme — a fresh install, or a system update that added/retinted a
@@ -375,6 +391,57 @@ export function registerSettings() {
 		type: Boolean,
 		default: false,
 		onChange: () => game.stonetop?.threatBoard?.refresh?.(),
+	});
+
+	// Foundry's Combat tab becomes the Fight tab: no initiative, rounds or turns, and each
+	// engagement shown with the rule that applies (module/fight/). Read ONCE, at init, where it
+	// decides which class the sidebar builds its tab from, so changing it needs a reload.
+	// Off switches everything the Fight tab brings (the map lines, the damage pre-fill, Deploy
+	// and fight) back to core's own tracker for a table that runs an initiative module.
+	game.settings.register(SYSTEM_ID, "fightTab", {
+		name: "stonetop.settings.fightTab.name",
+		hint: "stonetop.settings.fightTab.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: true,
+		requiresReload: true,
+	});
+
+	// Whether the combat tab pops out into a window of its own when a fight starts on the map this
+	// reader is looking at, and closes when it ends (module/fight/fight-window.js). Per client: a GM
+	// on a wide monitor and a player on a laptop want different things. Offered in both kinds of
+	// world, because the window is the one piece of the Fight tab that works over core's own tracker
+	// too; the wording follows whichever tab this world has. `fightTab` is registered above and a
+	// world setting reads fine at init.
+	game.settings.register(SYSTEM_ID, "fightWindowAuto", {
+		name: isFightTabEnabled() ? "stonetop.settings.fightWindowAuto.name" : "stonetop.settings.fightWindowAuto.combatName",
+		hint: isFightTabEnabled() ? "stonetop.settings.fightWindowAuto.hint" : "stonetop.settings.fightWindowAuto.combatHint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: true,
+	});
+
+	// Where this reader last left the Fight window, and the fight they closed it on, so it stays shut
+	// for that fight across a reload (module/fight/fight-window.js). Never shown.
+	game.settings.register(SYSTEM_ID, "fightWindow", {
+		scope: "client",
+		config: false,
+		type: Object,
+		default: {},
+	});
+
+	// Whether a plain click on a token in the fight puts its moves and damage dice round it
+	// (module/fight/fight-ring.js). Per client: a GM who clicks tokens all evening to move them may
+	// want it off while the players keep it. Listed only with the Fight tab on, like the one above.
+	game.settings.register(SYSTEM_ID, "fightRing", {
+		name: "stonetop.settings.fightRing.name",
+		hint: "stonetop.settings.fightRing.hint",
+		scope: "client",
+		config: isFightTabEnabled(),
+		type: Boolean,
+		default: true,
 	});
 
 	// Whether the one-time "Welcome to Stonetop" fresh-start CHAT card has been posted in
@@ -860,8 +927,8 @@ export function registerSettings() {
 	// and player, on the first write too — unlike Hooks.on("updateSetting")) to open/focus/
 	// close the dialog on the active player's screen. `nonce` bumps on every write so a
 	// Back-to-the-same-step still fires onChange (Foundry suppresses equal-value writes).
-	// `pcOrder` is the GM-authored turn order (actor ids) so players seed their roster from
-	// the cursor rather than their own scene-scoped game.combat. Shape:
+	// `pcOrder` is the turn order the running session began with (actor ids), so every client
+	// follows the same table even if the saved order below is edited mid-session. Shape:
 	//   { active: <bool>, phase: <0-6>, activeActorId: "<id>",
 	//     activeUserId: "<owning player's user id>", pcOrder: [ "<id>", … ], nonce: <int> }.
 	game.settings.register(SYSTEM_ID, "introCursor", {
@@ -871,6 +938,21 @@ export function registerSettings() {
 		type: Object,
 		default: { active: false, phase: 0, activeActorId: "", activeUserId: "", pcOrder: [], nonce: 0 },
 		onChange: value => game.stonetop?.onIntroCursor?.(value),
+	});
+
+	// The order Character Introductions go around the table in, set on the pre-check screen
+	// (Randomize, or move someone up or down). A GM writes it; everyone reads it, and the
+	// onChange redraws an open pre-check on every client. `adopted` records that the world's
+	// old Combat-tracker order has been copied across ("combat") or that there was none
+	// ("none"), so that copy happens once. See utils/introductions-order.js. Shape:
+	//   { ids: [ "<actor id>", … ], adopted: "combat" | "none" }.
+	game.settings.register(SYSTEM_ID, "introductionsOrder", {
+		name: "Character Introductions Order",
+		scope: "world",
+		config: false,
+		type: Object,
+		default: { ids: [] },
+		onChange: value => game.stonetop?.onIntroductionsOrder?.(value),
 	});
 
 	// Notes the GM records in the Expedition walkthrough (see dialogs/ExpeditionDialog.js).
@@ -2083,6 +2165,24 @@ export function getOpenSheetsInEditMode() {
 }
 
 /**
+ * Is the Fight tab on in this world? Read once, at init (module/fight/fight-boot.js). Tolerates an
+ * unregistered key, so a test that never registered settings reads it as off.
+ */
+export function isFightTabEnabled() {
+	return getBooleanSetting("fightTab", false);
+}
+
+/** Does this reader want the Fight window to open by itself when a fight starts? Defaults to yes. */
+export function isFightWindowAuto() {
+	return getBooleanSetting("fightWindowAuto", true);
+}
+
+/** Does a click on a token in the fight put its fight buttons round it, for this reader? Defaults to yes. */
+export function isFightRingOn() {
+	return getBooleanSetting("fightRing", true);
+}
+
+/**
  * Is the narrative timeline switched on in this world? Defaults to NO, and NO is what ships.
  *
  * Read by every door the feature has: both sheets' `getData` (which is what draws or withholds the
@@ -2419,6 +2519,16 @@ export function getObjectSetting(key) {
 		return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 	} catch (_) {
 		return {};
+	}
+}
+
+/** A list setting, read with the same tolerance getObjectSetting reads an object one with. */
+export function getArraySetting(key) {
+	try {
+		const value = globalThis.game?.settings?.get?.(SYSTEM_ID, key);
+		return Array.isArray(value) ? value : [];
+	} catch (_) {
+		return [];
 	}
 }
 

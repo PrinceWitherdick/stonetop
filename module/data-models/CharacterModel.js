@@ -27,7 +27,7 @@ export class CharacterModel extends foundry.abstract.TypeDataModel {
 				}),
 				xp:      valueMaxField(0, 8),
 				level:   valueField(1),
-				// `value` is DERIVED — mirrored from the snapshot by the sheet's _syncStoredArmor
+				// `value` is DERIVED — mirrored by the sheet's _syncStoredDerived and actors/character/vitals-mirror.js
 				// so combat, which reads this document rather than the render context, sees the
 				// real number. Never hand-edit it; type in the sheet's Armor box instead, which
 				// banks the difference as `adjustment`.
@@ -41,6 +41,13 @@ export class CharacterModel extends foundry.abstract.TypeDataModel {
 					// "ignores armor" (the Rune-laden Scales' PROOF AGAINST HARM). Combat reads
 					// this document, so the floor has to travel with the total.
 					unpierceable: new fields.NumberField({ required: true, integer: true, initial: 0 }),
+					// DERIVED and mirrored: how much of `value` a move grants on a clause only the
+					// FICTION can answer — Barkskin's "while touching the earth", A Candle Against the
+					// Dark's "but go otherwise unarmed" (actors/character/move-armor.js). Kept apart from
+					// the rest so a damage card can offer it back with one tick when the fiction says no.
+					conditional: new fields.NumberField({ required: true, integer: true, initial: 0 }),
+					// Which move granted it, for the words on that tick box.
+					conditionalSource: new fields.StringField({ required: true, blank: true, initial: "" }),
 				}),
 				forward: valueField(),
 				ongoing: valueField(),

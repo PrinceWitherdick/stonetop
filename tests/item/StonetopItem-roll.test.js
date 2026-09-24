@@ -7,15 +7,19 @@ import { createStonetopItemClass } from "../../module/item/StonetopItem.js";
 
 const rollStat = vi.hoisted(() => vi.fn(async () => ({ total: 7 })));
 const rollFormula = vi.hoisted(() => vi.fn(async () => ({ total: 0 })));
+// A monster's rolling move goes through the damage WINDOW and then the damage CARD, which are two
+// different modules: the window is asked by combat/attack-flow.js so a ticked line can be paid for,
+// and the card is posted by utils/roll-engine.js. Both stood in for, so a test can read the mode and
+// the Shift skip off the window's arguments and the title, keywords and description off the card's.
+const rollDamage = vi.hoisted(() => vi.fn(async () => ({ total: 0 })));
 vi.mock("../../module/utils/roll-engine.js", () => ({
 	rollStat,
 	rollFormula,
+	rollDamage,
 }));
 
-// A monster's rolling move goes through the damage window and card (dialogs/RollDialog.js), stood in
-// for here so a test can read the title, keywords and mode the move asked to be rolled with.
-const rollDamagePrompted = vi.hoisted(() => vi.fn(async () => true));
-vi.mock("../../module/dialogs/RollDialog.js", () => ({ rollDamagePrompted }));
+const promptDamage = vi.hoisted(() => vi.fn(async () => ({ rollMode: "", bonus: 0, extraDice: "" })));
+vi.mock("../../module/dialogs/RollDialog.js", () => ({ promptDamage }));
 
 const move = (name, system = {}) => ({ type: "move", name, system });
 
@@ -105,7 +109,8 @@ describe("StonetopItem.roll: a monster's move posted without a roll", () => {
 
 	beforeEach(() => {
 		rollFormula.mockClear();
-		rollDamagePrompted.mockClear();
+		rollDamage.mockClear();
+		promptDamage.mockClear();
 		// Hands back what was posted, so a test reads the card it made.
 		globalThis.ChatMessage = { create: vi.fn(async data => data), getSpeaker: vi.fn(() => ({ alias: "Stat block" })) };
 	});
@@ -116,7 +121,7 @@ describe("StonetopItem.roll: a monster's move posted without a roll", () => {
 		const posted = await statBlockMove("monsterMove", "Block their path", { description: "", rollFormula: "" }).roll();
 
 		expect(rollFormula).not.toHaveBeenCalled();
-		expect(rollDamagePrompted).not.toHaveBeenCalled();
+		expect(rollDamage).not.toHaveBeenCalled();
 		expect(heading(posted.content)).toBe("Move");
 		expect(posted.content).toContain('<div class="stonetop-chat-move-description"><p>Block their path</p>');
 	});
@@ -155,7 +160,7 @@ describe("StonetopItem.roll: a monster's move posted without a roll", () => {
 // A monster's move that rolls dice is an attack (utils/damage.js#foeAttacks), so it rolls on the
 // damage card: titled with the blow's name, its tags beside the total, its printed advantage on the die.
 describe("StonetopItem.roll: a monster's rolling move", () => {
-	beforeEach(() => { rollFormula.mockClear(); rollDamagePrompted.mockClear(); });
+	beforeEach(() => { rollFormula.mockClear(); rollDamage.mockClear(); promptDamage.mockClear(); });
 
 	it("rolls on the damage card, titled with the blow's name and its tags as the body", async () => {
 		// Draventao, verbatim.
@@ -165,7 +170,7 @@ describe("StonetopItem.roll: a monster's rolling move", () => {
 		await item.roll();
 
 		expect(rollFormula).not.toHaveBeenCalled();
-		expect(rollDamagePrompted).toHaveBeenCalledWith("d10+3", item.parent, expect.objectContaining({
+		expect(rollDamage).toHaveBeenCalledWith("d10+3", item.parent, expect.objectContaining({
 			label: "Breathe sticky fire",
 			keywords: "near, area, grabby, messy, reload, ignores armor",
 			description: "",
@@ -178,10 +183,8 @@ describe("StonetopItem.roll: a monster's rolling move", () => {
 			"Lose his temper and drain heat from someone, d10 damage w/advantage (hand, close, reach, ignores armor)",
 			{ description: "", rollFormula: "d10" }).roll();
 
-		expect(rollDamagePrompted.mock.calls[0][2]).toMatchObject({
-			label: "Lose his temper and drain heat from someone",
-			rollMode: "adv",
-		});
+		expect(rollDamage.mock.calls[0][2]).toMatchObject({ label: "Lose his temper and drain heat from someone" });
+		expect(promptDamage.mock.calls[0][0]).toMatchObject({ rollMode: "adv" });
 	});
 
 	it("keeps a plain name as the title, and its description on the card", async () => {
@@ -191,7 +194,7 @@ describe("StonetopItem.roll: a monster's rolling move", () => {
 			rollFormula: "d6",
 		}).roll();
 
-		const opts = rollDamagePrompted.mock.calls[0][2];
+		const opts = rollDamage.mock.calls[0][2];
 		expect(opts).toMatchObject({ label: "Choke with sinewy fingers", keywords: "", rollMode: "" });
 		expect(opts.description).toContain("Clammy, too-cold fingers close around a throat.");
 	});
@@ -201,14 +204,14 @@ describe("StonetopItem.roll: a monster's rolling move", () => {
 		await statBlockMove("monsterMove", "Stampede, d6+4 damage (hand, area, messy, forceful, 1 piercing)",
 			{ description: "", rollFormula: "d6+4" }).roll({ shiftKey: true });
 
-		expect(rollDamagePrompted.mock.calls[0][2].shiftKey).toBe(true);
+		expect(promptDamage.mock.calls[0][0].shiftKey).toBe(true);
 	});
 
 	it("leaves an NPC's rolling move on the plain formula card", async () => {
 		// Typed: a GM writes these, and one may roll something other than damage.
 		await statBlockMove("npcMove", "Call the watch", { description: "", rollFormula: "d4" }).roll();
 
-		expect(rollDamagePrompted).not.toHaveBeenCalled();
+		expect(rollDamage).not.toHaveBeenCalled();
 		expect(rollFormula).toHaveBeenCalledWith("d4", expect.anything(), expect.objectContaining({ label: "Call the watch" }));
 	});
 });

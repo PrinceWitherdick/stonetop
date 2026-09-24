@@ -98,6 +98,92 @@ describe("OrderFollowersDialog", () => {
 			moveName:     "The Crew: Let Fly",
 			moveKey:      "let-fly",
 			followerName: "The Crew",
+			member:       null,
 		});
+	});
+});
+
+// A group ordered one member at a time (Book I p.471): "When a PC directs an individual member of a
+// group, they can trigger moves as if they were a follower themselves. The group's tags and moves apply,
+// plus any unique tags or moves they have as an individual." That is how Glaw Lets Fly while the rest of
+// the crew Clashes.
+describe("OrderFollowersDialog, for a group", () => {
+	const crew = (extra = {}) => new OrderFollowersDialog(
+		{ name: "Rhianna" },
+		{
+			name: "The Crew", tags: ["archers", "stealthy"], moves: ["Heroes to the Last"],
+			members: [
+				{ key: "named:0", name: "Glaw", tags: ["small", "too serious"] },
+				{ key: "anon:0", name: "Crew member 2", tags: [] },
+			],
+			...extra,
+		},
+		() => {},
+	);
+
+	it("offers the whole group first, as it usually acts, then each member by name and own tags", () => {
+		expect(crew().getData().who).toEqual([
+			{ key: "", label: "All of The Crew, acting as one", selected: true },
+			{ key: "named:0", label: "Glaw (small, too serious)", selected: false },
+			{ key: "anon:0", label: "Crew member 2", selected: false },
+		]);
+	});
+
+	it("has no Who row for a follower who is one person", () => {
+		expect(makeDialog({ tags: ["brave"] }).getData().who).toBeNull();
+	});
+
+	it("gives a picked member the group's tags plus their own, under their own name", () => {
+		const dialog = crew();
+		dialog._who = "named:0";
+		const data = dialog.getData();
+		expect(data.followerName).toBe("Glaw");
+		expect(data.tags.map(t => t.tag)).toEqual(["archers", "stealthy", "small", "too serious"]);
+		expect(data.ownNote).toBe("Glaw's own: small, too serious. The rest are The Crew's.");
+		// The group's moves are the member's too.
+		expect(data.followerMoves.map(m => m.move)).toEqual(["Heroes to the Last"]);
+	});
+
+	it("shows a member's tag once when the group has it too, as the group's", () => {
+		const dialog = crew({ members: [{ key: "named:0", name: "Glaw", tags: ["stealthy", "small"] }] });
+		dialog._who = "named:0";
+		expect(dialog.getData().tags.map(t => t.tag)).toEqual(["archers", "stealthy", "small"]);
+		expect(dialog.getData().ownNote).toBe("Glaw's own: small. The rest are The Crew's.");
+	});
+
+	it("stops counting a member's own tag once the whole group is picked again", () => {
+		// "small" is Glaw's alone. Marked in the way for him, it must not put the whole crew at
+		// disadvantage, and marked as helping it must not earn the whole crew a +1.
+		const dialog = crew();
+		dialog._who = "named:0";
+		dialog._tagState["small"] = "hinder";
+		expect(dialog.getData().readout).toBe("Roll 3d6 (keep lowest 2) +0, with disadvantage");
+		dialog._who = "";
+		expect(dialog.getData().readout).toBe("Roll 2d6 +0");
+		dialog._tagState["small"] = "help";
+		expect(dialog.getData().readout).toBe("Roll 2d6 +0");
+		// And picking Glaw again brings back what the table said about it.
+		dialog._who = "named:0";
+		expect(dialog.getData().readout).toBe("Roll 2d6 +1");
+	});
+
+	it("rolls a member's order under their name, and hands back which member it was", async () => {
+		let handed = null;
+		const dialog = new OrderFollowersDialog(
+			{ name: "Rhianna" },
+			{ name: "The Crew", tags: ["archers"], moveKey: "let-fly", members: [{ key: "named:0", name: "Glaw", tags: ["small"] }] },
+			(result) => { handed = result; },
+		);
+		dialog._who = "named:0";
+		dialog._tagState["small"] = "help";
+		dialog.close = () => {};
+		await dialog._finish();
+		expect(handed).toMatchObject({ bonus: 1, moveName: "Glaw: Let Fly", followerName: "Glaw", member: "named:0" });
+	});
+
+	it("falls back to the whole group if the member picked is not on offer", () => {
+		const dialog = crew();
+		dialog._who = "named:9";
+		expect(dialog.getData().followerName).toBe("The Crew");
 	});
 });

@@ -25,6 +25,9 @@
 // addressed it by these names. Keeping them is what let the extraction happen without touching a
 // line of the behaviour they were written against.
 import { GmBundleTab, STONETOP_ENCOUNTER_DRAG_TYPE } from "./gm-bundle-tab.js";
+import { classifySide } from "../../fight/fight-sides.js";
+import { sideInfoFor } from "../../fight/fight-state.js";
+import { HEROES } from "../../fight/engagements.js";
 
 // Re-exported, every one of them, because this module's path is the one the rest of the system and
 // the whole of this tab's test suite import from. The definitions moved; the address did not.
@@ -52,7 +55,7 @@ export {
  * `panel` is the scope of every listener this tab binds, which is what keeps a click on an
  * expedition card out of this engine's handlers — both tabs print the same class names on purpose.
  *
- * No `actions`: the Encounters card carries only the controls every bundle card has.
+ * `fight` puts "Deploy and fight" beside Deploy (when the Fight tab is on), and `actions` wires it.
  */
 export const ENCOUNTERS_TAB = Object.freeze({
 	path:       "system.encounters",
@@ -61,7 +64,34 @@ export const ENCOUNTERS_TAB = Object.freeze({
 	panel:      ".tab.encounters",
 	i18n:       "stonetop.gmToolkit.encounters",
 	dragType:   STONETOP_ENCOUNTER_DRAG_TYPE,
+	fight:      true,
+	actions:    Object.freeze([
+		Object.freeze({ selector: ".stonetop-gm-encounter-fight", run: (tab, id) => deployAndFight(tab, id) }),
+	]),
 });
+
+/**
+ * "Deploy and fight": put the encounter's monsters on the map, then open "Start a fight" with exactly
+ * those tokens ticked (and the party on the map ticked beside them).
+ *
+ * THE TOKENS DEPLOY PLACED, not whatever the GM has selected: a deploy does not select what it puts
+ * down, and a fight should start with the encounter that was just deployed.
+ *
+ * AS FOES, unless someone marked them otherwise. An encounter is prep for a fight, so a plain NPC in
+ * it (a bandit) is listed with the foes rather than as a bystander; a follower or a FRIENDLY token
+ * someone deliberately set up keeps the heroes' side.
+ *
+ * Opens nothing when Deploy placed nothing, since Deploy has already said why.
+ */
+export async function deployAndFight(tab, id) {
+	const result = await tab.deploy(id);
+	if (!result?.placed?.length) return null;
+	const ids = result.placed.map(token => token.id);
+	const foes = result.placed
+		.filter(token => classifySide(sideInfoFor(token.actor, token))?.side !== HEROES)
+		.map(token => token.id);
+	return globalThis.game?.stonetop?.fight?.openStart?.({ preselect: ids, preselectPcs: true, forceFoes: foes }) ?? null;
+}
 
 export function withGmEncountersTab(Base) {
 	return class GmEncountersTab extends Base {

@@ -84,14 +84,15 @@ describe("how it is wired", () => {
 	// Applied LAST so it beats the sticky selector and the pre-roll prompt: it is a rule the
 	// fiction already settled, not a preference. And SPENT here, because this is the roll it was
 	// promised to — a hold that survived would apply to every Fortunes roll afterwards.
+	// The hold is one more SOURCE of advantage (improvement-rolls.js#rollAdjustments), netted like
+	// every other: a GM-imposed disadvantage on the same roll cancels it, as the book has it.
 	it("spends the hold on the next +Fortunes roll, and only that one", () => {
 		const at = STEADING_SHEET.indexOf('statKey === "fortunes" ? this._stonetopSteading.fortunesAdvantage()');
 		expect(at).toBeGreaterThan(-1);
-		const block = STEADING_SHEET.slice(at, at + 700);
-		expect(block).toContain('options.rollMode = "adv"');
+		const block = STEADING_SHEET.slice(at, at + 4000);
+		expect(block).toContain('held: held?.source ?? ""');
+		expect(block).toContain("netRollMode(");
 		expect(block).toContain("clearFortunesAdvantage()");
-		// After the debility branches, so nothing later quietly overrules it.
-		expect(at).toBeGreaterThan(STEADING_SHEET.indexOf('stonetopDebilityTooltip = "Treat Prosperity as 1 lower."'));
 	});
 
 	it("names the reason on the card rather than leaving the advantage unexplained", () => {

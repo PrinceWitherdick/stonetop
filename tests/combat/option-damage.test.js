@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { readOptionDamage } from "../../module/utils/damage.js";
-import { rollOptionDamage, wireApplyDamage } from "../../module/combat/attack-flow.js";
+import { rollOptionDamage, wireApplyDamage, handleApplyQuery, APPLY_QUERY } from "../../module/combat/attack-flow.js";
 import { firstOptionList } from "../../module/utils/chat.js";
+import { writeFlagPath } from "../fakes/combat-chat.js";
 
 // The SHIPPED moves, not a paraphrase of them. Everything this feature does is decided by a
 // move's own printed words, so a test that retyped either side would keep passing after a
@@ -341,5 +342,126 @@ describe("wireApplyDamage: exactly one live button per card", () => {
 		}), root);
 
 		expect(btn.disabled).toBe(false);
+	});
+});
+
+// -- A card the GM wrote, aimed at a player's own character --------------------
+//
+// A monster's blow or a counter-attack: the GM authored the card, so the player cannot write its
+// `applied` latch. Their press goes to the GM's client instead (APPLY_QUERY), which applies it in turn
+// with the GM's own press, so both buttons may stay live.
+
+describe("wireApplyDamage: a player takes a GM's card through the GM's client", () => {
+	const GM   = { id: "gm",   name: "Vora", isGM: true,  active: true };
+	const PIM  = { id: "pim",  name: "Pim",  isGM: false, active: true };
+	const ALYS = { id: "alys", name: "Alys", isGM: false, active: true };
+	const gmCard = results => ({ ...fakeCard({ selfHarm: false, results }), id: "m1", isOwner: false });
+
+	afterEach(() => { delete globalThis.fromUuidSync; });
+
+	it("leaves the button live for the owning player, and hands the press to the GM", async () => {
+		const results = ownedBy("pim");
+		const query = vi.fn(async () => true);
+		const users = fakeUsers([{ ...GM, query }, PIM]);
+		globalThis.game = { ...globalThis.game, user: PIM, users };
+		const card = gmCard(results);
+		const { btn, root } = fakeButton();
+		wireApplyDamage(card, root);
+
+		expect(btn.disabled).toBe(false);
+		expect(btn.style.display).toBeUndefined();
+		await btn.listeners[0]();
+		expect(query).toHaveBeenCalledWith(APPLY_QUERY, { messageId: "m1", userId: "pim" }, { timeout: 10000 });
+		// The player's client writes nothing itself: the GM's client does.
+		expect(card.setFlag).not.toHaveBeenCalled();
+	});
+
+	it("says to ask the GM when no GM is there to apply it", () => {
+		const results = ownedBy("pim");
+		globalThis.game = { ...globalThis.game, user: PIM, users: fakeUsers([{ ...GM, active: false }, PIM]) };
+		const { btn, root } = fakeButton();
+		wireApplyDamage(gmCard(results), root);
+
+		expect(btn.disabled).toBe(true);
+		expect(btn.title).toBe("Ask the GM to apply this damage");
+	});
+
+	it("gives one of two co-owners the button, whether or not they could write the card", () => {
+		const results = ownedBy("pim", "alys");
+		globalThis.game = { ...globalThis.game, user: PIM, users: fakeUsers([GM, PIM, ALYS]) };
+		const forPim = fakeButton();
+		wireApplyDamage(gmCard(results), forPim.root);
+		globalThis.game = { ...globalThis.game, user: ALYS, users: fakeUsers([GM, PIM, ALYS]) };
+		const forAlys = fakeButton();
+		wireApplyDamage(gmCard(results), forAlys.root);
+
+		expect(forPim.btn.disabled).toBe(true);
+		expect(forPim.btn.title).toBe("Another player will take this damage");
+		expect(forAlys.btn.disabled).toBe(false);
+	});
+});
+
+describe("handleApplyQuery", () => {
+	const GM  = { id: "gm",  name: "Vora", isGM: true,  active: true };
+	const PIM = { id: "pim", name: "Pim",  isGM: false, active: true };
+	const BOB = { id: "bob", name: "Bob",  isGM: false, active: true };
+	let saved;
+	beforeEach(() => { saved = { game: globalThis.game, ChatMessage: globalThis.ChatMessage, fromUuid: globalThis.fromUuid }; });
+	afterEach(() => {
+		globalThis.game = saved.game;
+		globalThis.ChatMessage = saved.ChatMessage;
+		globalThis.fromUuid = saved.fromUuid;
+		delete globalThis.fromUuidSync;
+	});
+
+	/** A GM's card aimed at Pim's character, and the GM's client that answers the query. */
+	function gmSide() {
+		const hp = { value: 12, max: 18 };
+		const actor = {
+			documentName: "Actor", type: "character", name: "Pim", isOwner: true,
+			system: { attributes: { hp, armor: { value: 0 } } },
+			items: [],
+			testUserPermission: user => user.id === "pim",
+			update: vi.fn(async changes => { if ("system.attributes.hp.value" in changes) hp.value = changes["system.attributes.hp.value"]; }),
+		};
+		globalThis.fromUuidSync = () => actor;
+		globalThis.fromUuid = async () => actor;
+		globalThis.ChatMessage = { create: vi.fn(async () => ({})) };
+		const flags = { [SCOPE]: { damage: { move: "Spears", results: [{ uuid: "Actor.pim", name: "Pim", raw: 5 }], applied: [], weapon: null } } };
+		const message = {
+			id: "m1",
+			getFlag: (scope, key) => flags[scope]?.[key],
+			setFlag: vi.fn(async (scope, key, value) => { writeFlagPath(flags[scope], key, value); }),
+		};
+		const users = fakeUsers([GM, PIM, BOB]);
+		globalThis.game = { ...globalThis.game, user: GM, users };
+		return { message, flags, hp, deps: { messages: { get: id => (id === "m1" ? message : null) }, users } };
+	}
+
+	it("applies the card for the player who owns every row, once however often it is asked", async () => {
+		const { message, flags, hp, deps } = gmSide();
+		const [first, second] = await Promise.all([
+			handleApplyQuery({ messageId: "m1" }, { user: PIM }, deps),
+			handleApplyQuery({ messageId: "m1" }, { user: PIM }, deps),
+		]);
+		expect(first).toBe(true);
+		expect(second).toBe(false);
+		expect(hp.value).toBe(7);
+		expect(flags[SCOPE].damage.applied).toHaveLength(1);
+		expect(message.setFlag).toHaveBeenCalledTimes(1);
+	});
+
+	it("applies nothing for a player who does not own the row", async () => {
+		const { hp, deps } = gmSide();
+		expect(await handleApplyQuery({ messageId: "m1" }, { user: BOB }, deps)).toBe(false);
+		expect(hp.value).toBe(12);
+	});
+
+	it("reads the asker from the data on v13, but never takes it for a GM", async () => {
+		const { hp, deps } = gmSide();
+		expect(await handleApplyQuery({ messageId: "m1", userId: "gm" }, { timeout: 10000 }, deps)).toBe(false);
+		expect(hp.value).toBe(12);
+		expect(await handleApplyQuery({ messageId: "m1", userId: "pim" }, { timeout: 10000 }, deps)).toBe(true);
+		expect(hp.value).toBe(7);
 	});
 });

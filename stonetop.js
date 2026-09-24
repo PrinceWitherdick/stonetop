@@ -40,6 +40,7 @@ import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
 import { onDropFollower } from "./module/hooks/FollowerDrop.js";
 import { onPreUpdateActorDeathsDoor, onUpdateActorDeathsDoorAutoOpen, onUpdateActorDeathsDoorCard, onUpdateActorDeathsDoorRaised, wireDyingPrompt } from "./module/hooks/DeathsDoorPrompt.js";
 import { deathDripStamp, markDeathDrip } from "./module/hooks/DeathChatDrip.js";
+import { installOutOfTheFight } from "./module/fight/out-of-the-fight.js";
 import { onPreCreateThreatNote } from "./module/hooks/ThreatNotePins.js";
 import { onUpdateSiteNote } from "./module/sites/site-scene-pins.js";
 import { onDrawStonetopNote } from "./module/hooks/StonetopNoteLabels.js";
@@ -75,7 +76,8 @@ import { grantsWholeList, paintPickTally, pickLimitFor, releaseOverLimit, tierOf
 import { wireUndoXpMark } from "./module/utils/undo-xp-mark.js";
 import { isKnowThings, logbookUses, LOGBOOK, STRONG_HIT_TOTAL } from "./module/actors/character/know-things.js";
 import { artifactStateForTier } from "./module/actors/character/artifact-identify.js";
-import { wireAttackConfirm, wireApplyDamage, wireSufferAmount, wireSufferChoice, rollOptionDamage } from "./module/combat/attack-flow.js";
+import { wireAttackConfirm, applyGateOnce, wireApplyDamage, wireDamageSeed, wireConditionalArmor, wireSufferAmount, wireSufferChoice, rollOptionDamage, APPLY_QUERY, handleApplyQuery } from "./module/combat/attack-flow.js";
+import { wireDefendSpends, SPEND_QUERY, handleSpendQuery } from "./module/fight/defend-spend.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
 import { wrapGlyphTextContainers } from "./module/utils/glyphs.js";
 import { applyJournalSpiralBullets, resolveEntry } from "./module/utils/journal-spiral-bullets.js";
@@ -89,6 +91,7 @@ import { bindThreatSeedDrag } from "./module/threats/threat-seed-cards.js";
 import { maybeAnnounceBecameHero } from "./module/actors/character/WouldBeHeroAsterisk.js";
 import { StonetopSteading } from "./module/actors/steading/StonetopSteading.js";
 import { debilityPath } from "./module/actors/steading/steading-debilities.js";
+import { readCurrentSeason, readCurrentYear } from "./module/seasons/current-season.js";
 import { onSteadingPeopleUpdate, repaintOpenSteadingRosters } from "./module/actors/steading/steading-people.js";
 import { makeDialogsResizable, enableAutoHeightVerticalResize } from "./module/utils/resizable-dialogs.js";
 import { registerStonetopWindowTheme, registerStonetopLightTheme } from "./module/utils/window-theme.js";
@@ -106,8 +109,10 @@ import { SYSTEM_ID } from "./module/system-id.js";
 import { speakerActor } from "./module/utils/speaker-actor.js";
 import { bootStep, recordBootPhase, reportBootHealth, bootReport } from "./module/utils/boot-guard.js";
 import { registerCampHooks } from "./module/camp/camp-store.js";
+import { registerVitalsMirrorHooks } from "./module/actors/character/vitals-mirror.js";
 import { wireCampCard } from "./module/camp/camp-flow.js";
 import { registerCampWindowRestore } from "./module/camp/CampWindow.js";
+import { registerFightTab } from "./module/fight/fight-boot.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -131,6 +136,18 @@ Hooks.once("init", () => {
 
 	bootStep("registerSettings", registerSettings);
 	registerStonetopSingletonHooks();
+
+	// The Fight tab in place of core's Combat tab, when the world has it on. Right after the settings,
+	// because it reads one, and before the interface is drawn, which is when core builds its sidebar
+	// tabs from CONFIG.ui. Caught rather than a bootStep: a failure here should leave core's own
+	// tracker working, not stop init.
+	try { registerFightTab(); }
+	catch (err) { console.error("Stonetop | the Fight tab could not be set up; using Foundry's Combat tab", err); }
+
+	// A player's Apply on a damage card the GM wrote is applied by the GM's client (attack-flow.js).
+	if (CONFIG.queries) CONFIG.queries[APPLY_QUERY] = (data, context) => handleApplyQuery(data, context);
+	// And a player's Readiness spend on such a card (fight/defend-spend.js).
+	if (CONFIG.queries) CONFIG.queries[SPEND_QUERY] = (data, context) => handleSpendQuery(data, context);
 
 	// Every window and modal in the system is drag-resizable; the ad-hoc
 	// Dialog popups we spawn from sheets default to resizable too. The companion
@@ -504,6 +521,12 @@ Hooks.once("init", () => {
 		"stonetop.relationships-viewbar": "systems/stonetop_pwd/templates/actor/partials/relationships-viewbar.hbs",
 		// The clickable page citation, shared by every GM Toolkit surface that cites the book.
 		"stonetop.book-page-cite":  "systems/stonetop_pwd/templates/actor/partials/book-page-cite.hbs",
+		// The Fight tab's rows and its "What the book says" folds (module/fight/FightTracker.js).
+		"stonetop.fight-row":   "systems/stonetop_pwd/templates/sidebar/fight-row.hbs",
+		"stonetop.fight-rules": "systems/stonetop_pwd/templates/sidebar/fight-rules.hbs",
+		// The buttons a click puts round a token in the fight (module/fight/fight-ring.js), cached so
+		// the first click of the evening does not wait on a fetch.
+		"stonetop.fight-ring":  "systems/stonetop_pwd/templates/hud/fight-ring.hbs",
 		"stonetop.section-heading":  "systems/stonetop_pwd/templates/actor/partials/section-heading.hbs",
 		"stonetop.section-collapse": "systems/stonetop_pwd/templates/actor/partials/section-collapse.hbs",
 		"stonetop.section-randomize": "systems/stonetop_pwd/templates/actor/partials/section-randomize.hbs",
@@ -940,6 +963,13 @@ Hooks.on("updateActor", onUpdateActorDeathsDoorAutoOpen);
 // The other direction: hit points appearing on a sheet that is through the Last Door. Nothing
 // walks `dead` back on its own, so this asks whoever made the change whether it was a raising.
 Hooks.on("updateActor", onUpdateActorDeathsDoorRaised);
+
+// The other side of the same moment. A monster reduced to 0 HP has no move to face: it is out of
+// the fight, so the GM's client marks it there and then — core's own `defeated`, which is the skull
+// on its token and the struck-through row in whichever tracker the world is running. Registered
+// here rather than inside registerFightTab because the mark is core's and reads the same with the
+// Fight tab off. See module/fight/out-of-the-fight.js.
+installOutOfTheFight();
 
 // -- CHAT SPEAKER: ALIAS AND DEATH -----------------------------
 // Two stamps a character's message carries from the moment it is created: the playbook in the
@@ -1499,11 +1529,10 @@ function _chatWireRequisitionMissCost(message, html) {
 	});
 }
 
-// -- DEPLOY: mark diminished from the roll card -----------------
-// "Injuries abound; the steading marks diminished" is one of the two consequences the GM
-// chooses on a Deploy miss, so the button that applies it belongs on the miss, beside the
-// list it comes from — not in the pre-roll dialog, where it was offered before anyone knew
-// whether Deploy had missed at all.
+// -- MARK DIMINISHED from the roll card ----------------------------
+// "Injuries abound; the steading marks diminished" is one of the consequences a Deploy (and an
+// Aurochs Hunt) can pick after the dice, so the button that applies it rides the card beside the
+// list it comes from, not the pre-roll dialog. `data-move` names the move for the ledger.
 function _chatWireDeployMarkDiminished(message, html) {
 	const btn = html.querySelector(".stonetop-deploy-mark-diminished");
 	_wireSteadingCardButtons(message, btn ? [btn] : [], {
@@ -1511,9 +1540,60 @@ function _chatWireDeployMarkDiminished(message, html) {
 		onSettled: (_already, [b]) => { b.textContent = "Marked diminished"; },
 		warn: "You need permission to update the steading's debilities.",
 		errorNote: "Error marking the steading diminished",
-		run: async steading => {
-			await steading.setSystemValue(debilityPath("diminished"), true, { stonetopMove: "Deploy" });
+		run: async (steading, b) => {
+			await steading.setSystemValue(debilityPath("diminished"), true, { stonetopMove: b.dataset.move || "Deploy" });
 			return { notice: "Stonetop marked diminished." };
+		},
+	});
+}
+
+// -- THE AUROCHS HUNT's card (the Aurochs Hunting improvement) ----
+// The hunt's Surplus, and the two consequences that write something: horses lost from a tracked
+// herd, and a herd left weak, which next spring's hunt window warns about. Each settles once per
+// card, like every steading card button.
+function _chatWireAurochsHunt(message, html) {
+	const surplus = html.querySelector(".stonetop-aurochs-surplus");
+	_wireSteadingCardButtons(message, surplus ? [surplus] : [], {
+		flag: "aurochsSurplus",
+		onSettled: (already, [b]) => { b.textContent = already.gained ? `Gained ${already.gained} Surplus` : "Surplus gained"; },
+		warn: "You need permission to update the steading's Surplus.",
+		errorNote: "Error gaining the aurochs hunt's Surplus",
+		run: async steading => {
+			const roll = await new Roll("1d4").evaluate();
+			await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: steading._actor }), flavor: "Aurochs Hunt: Surplus (1d4)" });
+			const live = steading.getStatValue("surplus");
+			await steading.applyChanges({ system: { "attributes.surplus.value": live + roll.total } }, { stonetopMove: "Aurochs Hunt" });
+			return { stamp: { gained: roll.total }, notice: `The hunt brings home ${roll.total} Surplus (${live + roll.total} now).` };
+		},
+	});
+	const horses = html.querySelector(".stonetop-aurochs-horses");
+	_wireSteadingCardButtons(message, horses ? [horses] : [], {
+		flag: "aurochsHorses",
+		onSettled: (already, [b]) => { b.textContent = `${already.rolled} horses lamed or killed`; },
+		warn: "You need permission to update the steading's herd.",
+		errorNote: "Error rolling the aurochs hunt's lost horses",
+		run: async steading => {
+			const roll = await new Roll("1d4").evaluate();
+			await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: steading._actor }), flavor: "Aurochs Hunt: horses lamed or killed (1d4)" });
+			const lost = await steading.loseHorses(roll.total, { stonetopMove: "Aurochs Hunt" });
+			return {
+				stamp: { rolled: roll.total },
+				notice: lost === null
+					? `${roll.total} of the town's horses are lamed or killed. With no Herd of Horses, strike them from the Assets list by hand.`
+					: `${lost} horses taken from the herd.`,
+			};
+		},
+	});
+	const weak = html.querySelector(".stonetop-aurochs-weak");
+	_wireSteadingCardButtons(message, weak ? [weak] : [], {
+		flag: "aurochsWeak",
+		onSettled: (_already, [b]) => { b.textContent = "Next spring will warn: the herd is weak"; },
+		warn: "You need permission to update the steading.",
+		errorNote: "Error remembering the weak aurochs herd",
+		run: async steading => {
+			const season = readCurrentSeason(steading._actor);
+			await steading.markAurochsWeak(season?.year ?? readCurrentYear(steading._actor));
+			return { notice: "Remembered: hunt the aurochs next year and the herd will be wiped out." };
 		},
 	});
 }
@@ -1941,6 +2021,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	wireUndoXpMark(message, html);
 	_chatWireRequisitionMissCost(message, html);
 	_chatWireDeployMarkDiminished(message, html);
+	_chatWireAurochsHunt(message, html);
 	_chatWireMusterRaise(message, html);
 	_chatWireSpendStock(message, html);
 	_chatWireSeasonsRoll(message, html);
@@ -1954,7 +2035,17 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatWireOptionDamage(message, html);
 	wireDyingPrompt(message, html);
 	wireAttackConfirm(message, html);
-	wireApplyDamage(message, html);
+	const damageGate = applyGateOnce(message);
+	wireApplyDamage(message, html, damageGate);
+	// ...and beside Apply, the fight's "Leave off the +N" for several attackers, which also repaints the
+	// card's totals from its flag on every client (attack-flow.js#wireDamageSeed).
+	wireDamageSeed(message, html, damageGate);
+	// ...and the tick box for armor a move grants on a clause only the fiction can answer: Barkskin
+	// while touching the earth, a holy light held by someone otherwise unarmed.
+	wireConditionalArmor(message, html, damageGate);
+	// Defend's Readiness, spent on the blow before it lands: halve it, or take it for your ward
+	// (fight/defend-spend.js). Pressed by anyone who can write the card, for a defender of theirs.
+	wireDefendSpends(message, html);
 	wireSufferAmount(message, html);
 	// ...and the GM-whispered "Which attack?" card a foe with more than one printed attack posts
 	// instead of guessing which die it swung (attack-flow.js#postSufferChoiceCard).
@@ -1968,6 +2059,8 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 // is settled, each character's share is paid by the one client elected to pay it. See
 // module/camp/camp-store.js.
 registerCampHooks();
+// A character's stored armor and max HP, re-mirrored whenever they or their gear change, sheet open or not.
+registerVitalsMirrorHooks();
 // And a camp window open when this client reloaded comes back with the sheets, where it was left
 // (utils/window-restore.js, installed in the init hook).
 registerCampWindowRestore();

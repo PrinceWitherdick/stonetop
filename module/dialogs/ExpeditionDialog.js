@@ -28,6 +28,7 @@ import {
 } from "../utils/expedition-log-core.js";
 import { StonetopSteading } from "../actors/steading/StonetopSteading.js";
 import { openReturnTriumphant } from "../actors/steading/return-triumphant.js";
+import { STEADING_MOVE, improvementQuestions, rollAdjustments } from "../actors/steading/improvement-rolls.js";
 import { assetTakenLabel } from "../utils/requisition-asset.js";
 import { getPlayerCharacters } from "../utils/playbook-actors.js";
 // Who on the roster is past the Door: the dead don't outfit, and the three who came back set
@@ -859,6 +860,8 @@ export class ExpeditionDialog extends StepperDialog {
 			showRoll:  step.roll === "requisition",
 			roll,
 			fortunesLabel: step.roll === "requisition" ? this._fortunesLabel() : null,
+			// The Herd of Horses question, once the steading has one (improvement-rolls.js).
+			herdShare: step.roll === "requisition" ? this._herdShareQuestion() : "",
 			showTiers: !!step.showTiers,
 			tiers:     step.showTiers
 				? _REQ_TIERS.map(t => ({ ...t, label: _REQ_RESULT[t.key].label, isActive: roll?.tier === t.key }))
@@ -1386,13 +1389,30 @@ export class ExpeditionDialog extends StepperDialog {
 	async _rollRequisition() {
 		if (!globalThis.Roll) return;
 		const fortunes = this._steadingFortunes();
+		const found = this._steadingWrapper();
+		const herdShare = !!this.element?.[0]?.querySelector?.('[name="herdShare"]')?.checked;
+		const { missAsPartial } = rollAdjustments({
+			moveName: STEADING_MOVE.REQUISITION, statKey: "fortunes",
+			has: slug => !!found?.steading.improvementCompleted(slug),
+			answers: { herdShare },
+		});
 		this._rolls.requisition = await rollSeasonsCard({
 			// sign() keeps a negative Fortunes value a valid formula ("2d6 -1", not "2d6 + -1").
 			formula:     `2d6 ${sign(fortunes)}`,
 			alias:       "Requisition",
 			resultTable: _REQ_RESULT,
+			missCountsAsPartial: missAsPartial,
 		});
 		this.render(false);
+	}
+
+	/** "Requisitioning half the herd or less", asked only once the steading has a Herd of Horses. */
+	_herdShareQuestion() {
+		const found = this._steadingWrapper();
+		if (!found) return "";
+		return improvementQuestions(STEADING_MOVE.REQUISITION, "fortunes", {
+			has: slug => found.steading.improvementCompleted(slug),
+		}).find(q => q.name === "herdShare")?.label ?? "";
 	}
 
 	// ── The route (journey step) ─────────────────────────────────────────────────

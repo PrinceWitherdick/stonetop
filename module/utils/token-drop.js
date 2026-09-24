@@ -29,6 +29,8 @@
 // on a core that has moved the method out from under us, where guessing at the new contract is
 // worth less than placing the token at all.
 
+import { error } from "./logger.js";
+
 /**
  * Place `actor` on the canvas at a point.
  * @param {Canvas} canvas        The canvas to place on; its `scene` is the token's parent.
@@ -47,6 +49,39 @@ export async function dropActorOnCanvas(canvas, actor, point, event) {
 	if (typeof layer?._onDropActorData === "function") return layer._onDropActorData(event, payload);
 	const token = await actor.getTokenDocument({ x: point.x, y: point.y }, { parent: canvas.scene });
 	return token.constructor.create(token, { parent: canvas.scene });
+}
+
+/**
+ * Put several actors on the canvas, one at a time (see the note at the top about `getMaxSort()`).
+ * Shared by the GM Toolkit's Deploy and the Fight tab's "Start a fight", which differ only in where
+ * each one goes.
+ *
+ * A point that is missing or outside the scene rect is MISSED before core is asked, since core
+ * would decline it silently; so is a drop that throws.
+ *
+ * @param {Canvas} canvas
+ * @param {Actor[]} actors                 world actors
+ * @param {(i: number) => ({x: number, y: number}|null)} pointFor  the i-th actor's centre point
+ * @returns {Promise<{dropped: Array<{i: number, actor: Actor, token: *}>, missed: string[]}>}
+ *   `token` is whatever the drop answered: a TokenDocument, normally
+ */
+export async function placeActors(canvas, actors, pointFor) {
+	const dropped = [];
+	const missed = [];
+	for (const [i, actor] of actors.entries()) {
+		const point = pointFor(i);
+		if (!point || canvas?.dimensions?.rect?.contains?.(point.x, point.y) === false) {
+			missed.push(actor.name);
+			continue;
+		}
+		try {
+			dropped.push({ i, actor, token: await dropActorOnCanvas(canvas, actor, point, { altKey: false, shiftKey: false }) });
+		} catch (err) {
+			error("couldn't put an actor on the map", err);
+			missed.push(actor.name);
+		}
+	}
+	return { dropped, missed };
 }
 
 /**
