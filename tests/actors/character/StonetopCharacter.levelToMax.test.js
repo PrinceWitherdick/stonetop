@@ -20,7 +20,7 @@ import { readRepo } from "../../fakes/css.js";
 // Resolve whatever selection the picked move demands at acquisition: a stat for
 // Improved/Superior Stat, a foreign move for cross-playbook moves, or the mark picks for a
 // budgeted move (Veteran Crew / Heroes to the Last / Beast of Legend / Well Versed).
-async function choicesFor(char, pick, newLevel, actor) {
+async function choicesFor(char, pick, newLevel, actor, data = {}) {
 	if (pick.cap != null) {
 		// Improved/Superior Stat: raise a stat that's still below this move's cap.
 		const stat = STAT_KEYS.find(k => (actor.system.stats[k]?.value ?? 0) < pick.cap) ?? "str";
@@ -36,11 +36,19 @@ async function choicesFor(char, pick, newLevel, actor) {
 	}
 	const choices = {};
 	// A budgeted count-mark move just picked (Veteran Crew / Heroes to the Last / Beast of
-	// Legend / Well Versed): spend this take's allowance on the first count options.
+	// Legend / Well Versed): as the dialog's mark step (_buildPickedMoveMarkStep) offers it, this
+	// take's allowance is the budget less the marks already spent, over the options with a free box
+	// (the background's box is not one: the Patriot's Things Below is Well Versed's already).
 	if (pick.markOptions?.length) {
+		const len = v => Array.isArray(v) ? v.length : (typeof v === "number" ? v : 0);
+		const marksForMove = data.marks?.[pick.name] ?? {};
+		const fromBackground = data.backgroundMarks?.[pick.name] ?? null;
 		const countOpts = pick.markOptions.filter(o => o.choice !== "stat");
-		const allowance = moveMarkBudget(pick.markBudget, (pick.ownedIds?.length ?? 0) + 1) ?? 0;
-		const picks = countOpts.slice(0, allowance).map(o => ({ slug: o.slug }));
+		const used = countOpts.reduce((n, o) => n + len(marksForMove[o.slug]), 0);
+		const budget = moveMarkBudget(pick.markBudget, (pick.ownedIds?.length ?? 0) + 1);
+		const allowance = budget != null ? Math.max(0, budget - used) : 1;
+		const free = countOpts.filter(o => len(marksForMove[o.slug]) < (o.marks ?? 1) - (o.slug === fromBackground ? 1 : 0));
+		const picks = free.slice(0, allowance).map(o => ({ slug: o.slug }));
 		if (picks.length) choices.marks = { moveName: pick.name, picks };
 	}
 	return Object.keys(choices).length ? choices : null;
@@ -66,7 +74,7 @@ async function levelUpOnce(char, actor) {
 	expect(pickSource.system?.requirement?.level ?? 1, `${pick.name} offered at level ${data.newLevel}`)
 		.toBeLessThanOrEqual(data.newLevel);
 	const invocation = data.needsInvocation ? data.availableInvocations[0].slug : null;
-	const choices = await choicesFor(char, pick, data.newLevel, actor);
+	const choices = await choicesFor(char, pick, data.newLevel, actor, data);
 
 	await char.applyLevelUp(pick.compendiumId, invocation, choices);
 
@@ -292,6 +300,33 @@ describe("StonetopCharacter level-up climb — per-rule guarantees", () => {
 		expect(spiritTongue.flags["stonetop-pwd"].grantedBy).toMatchObject({ move: "Worldly" });
 		expect(ownedMoveNames(actor)).not.toContain("Wild Speech");
 		expect((await char.getLevelUpData()).availableMoves.map(m => m.name)).toContain("Alpha");
+	});
+
+	// Book: Well Versed, "Mark 1 topic, in addition to the one noted in your Background. Each
+	// additional time you take this move, mark 2 more topics." A Patriot (the Things Below) who
+	// marked the Fae at creation and takes it twice more knows 6 distinct topics: the background's
+	// and 5 of their own, none of them the background's box marked again.
+	it("Seeker: Well Versed taken 3 times knows the background's topic plus 5 more, all distinct", async () => {
+		const { char, actor } = buildLiveCharacter({
+			slug: "the-seeker", name: "The Seeker",
+			flags: {
+				"background.selected": "patriot",
+				"moves.backgroundAnswers": { "Well Versed": { label: "Well Versed in", value: "the Things Below" } },
+				"moves.moveMarks": { "Well Versed": { fae: [{ stat: "", level: 1 }] } },
+			},
+		});
+		await char.ensureStartingMoves(); // the Patriot's Let's Make a Deal
+		vi.spyOn(char, "selectPossession").mockResolvedValue(undefined);
+		for (let guard = 0; guard < 400; guard++) {
+			if (!(await levelUpOnce(char, actor))) break;
+		}
+		expect(actor.items.filter(i => i.name === "Well Versed")).toHaveLength(3);
+		const marks = actor.getFlag("stonetop-pwd", "moves.moveMarks")["Well Versed"];
+		const own = Object.entries(marks).filter(([, v]) => Array.isArray(v) && v.length).map(([slug]) => slug);
+		expect(own).toHaveLength(5);
+		expect(own).not.toContain("things-below");
+		for (const v of Object.values(marks)) expect(v.length).toBeLessThanOrEqual(1);
+		expect(new Set([...own, ...Object.values(await char.backgroundMarkOptions())]).size).toBe(6);
 	});
 
 	it("Lightbearer: offers an invocation every even level and never re-offers a chosen or starting one", async () => {

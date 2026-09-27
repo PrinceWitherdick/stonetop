@@ -89,4 +89,13 @@ describe("the Seeker's Sacred Pouch while Initiate of the Secret Arts is switche
 		const offChar = seeker({ initiateLearned: false });
 		expect(await on.char.sacredPouchMax()).toBeGreaterThan(await offChar.char.sacredPouchMax());
 	});
+
+	it("reads as off on the Moves tab, naming the granter", async () => {
+		const { char } = seeker({ initiateLearned: false });
+		const snap = await char.buildSnapshot();
+		const bigMagic = snap.moves.find(c => c.key === "learned")?.moves.find(m => m.name === "Big Magic");
+		expect(bigMagic.granterOff).toBe("Initiate of the Secret Arts");
+		const onSnap = await seeker().char.buildSnapshot();
+		expect(onSnap.moves.find(c => c.key === "learned")?.moves.find(m => m.name === "Big Magic").granterOff).toBeNull();
+	});
 });

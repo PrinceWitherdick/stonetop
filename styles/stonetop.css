@@ -7436,7 +7436,8 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	opacity: 1;
 }
 .stonetop-move-choice-needed,
-.stonetop-move-stat-choice-needed {
+.stonetop-move-stat-choice-needed,
+.stonetop-move-background-answer-needed {
 	margin-left: 5px;
 	color: var(--st-blue-text);
 	cursor: pointer;
@@ -7444,8 +7445,23 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 .stonetop-move-choice-needed:hover,
 .stonetop-move-choice-needed:focus-visible,
 .stonetop-move-stat-choice-needed:hover,
-.stonetop-move-stat-choice-needed:focus-visible {
+.stonetop-move-stat-choice-needed:focus-visible,
+.stonetop-move-background-answer-needed:hover,
+.stonetop-move-background-answer-needed:focus-visible {
 	color: var(--st-blue-border);
+}
+/* The box a background fills on a move's mark list (the Patriot's Things Below on Well Versed):
+   ticked and locked, with a small "Background" chip after the option's label. The duplicate
+   warning flags a stored mark on top of it, which is kept. */
+.stonetop-move-mark-background {
+	margin-left: 4px;
+	font-size: 0.85em;
+	color: var(--st-text-muted);
+	font-style: italic;
+}
+.stonetop-move-mark-duplicate {
+	margin-left: 4px;
+	color: var(--st-red-border);
 }
 
 /* A move the player OWNS but whose prerequisites are no longer satisfied (they

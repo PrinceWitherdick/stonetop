@@ -154,6 +154,8 @@ function makeCharacterMock(actor) {
 		settleBackgroundPossessions: vi.fn(async () => {}),
 		settleBackgroundArcana: vi.fn(async () => {}),
 		settleBackgroundResources: vi.fn(async () => {}),
+		// A background that leaves a move's answer to the player asks it; none here.
+		backgroundAnswerAsks: vi.fn(async () => []),
 		// _onBackgroundChange looks the new background up for neighbors it names; none here.
 		playbook: vi.fn(async () => null),
 		clearPlaybookData: vi.fn(async () => {}),

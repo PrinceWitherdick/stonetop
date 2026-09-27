@@ -7,6 +7,7 @@ import { annotateInvocationEffects } from "../invocation-effects.js";
 import { getHoverDescriptionSetting } from "../../../settings.js";
 import { playbookIconPath } from "../../../utils/playbook-actors.js";
 import { INVOKE_THE_SUN_GOD } from "../holy-light.js";
+import { localize } from "../../../utils/i18n.js";
 
 // Base width (overview, stat, marks). The move, foreign-move, and invocation steps
 // widen so their two-column masonry lists show both columns comfortably by default.
@@ -267,7 +268,9 @@ export class LevelUpDialog extends StonetopDialog {
 				return {
 					slug: o.slug, label: o.label, selected,
 					tooltip: !selected ? o.capNote : null,
-					existingLabel: o.existing > 0 ? `marked ×${o.existing}` : null,
+					existingLabel: o.background
+						? localize("stonetop.character.moves.backgroundMark")
+						: o.existing > 0 ? `marked ×${o.existing}` : null,
 					disabled: !selected && (!hasRoom || (this._selectedMarks.length >= markDesc.allowance && markDesc.allowance !== 1)),
 				};
 			}),
@@ -408,10 +411,20 @@ export class LevelUpDialog extends StonetopDialog {
 		const budgetMax = moveMarkBudget(entry.markBudget, ownedCountAfter);
 		const marksForMove = this._data?.marks?.[entry.name] ?? {};
 		const len = v => Array.isArray(v) ? v.length : (typeof v === "number" ? v : 0);
+		// The box the background fills (the Patriot's Things Below on Well Versed) is not stored, so
+		// it spends none of the budget; it is one of the option's boxes, so it can't be picked again.
+		const backgroundSlug = this._data?.backgroundMarks?.[entry.name] ?? null;
 		const options = (entry.markOptions ?? [])
 			.filter(o => o.choice !== "stat")
-			.map(o => ({ slug: o.slug, label: o.label, choice: "count", capacity: o.marks ?? 1, existing: len(marksForMove[o.slug]),
-				capNote: markOptionCapNote(o, this._data?.markCapState ?? {}) }));
+			.map(o => {
+				const fromBackground = o.slug === backgroundSlug;
+				return { slug: o.slug, label: o.label, choice: "count", existing: len(marksForMove[o.slug]),
+					capacity: Math.max(0, (o.marks ?? 1) - (fromBackground ? 1 : 0)),
+					background: fromBackground,
+					capNote: fromBackground
+						? localize("stonetop.specialMoves.levelUp.markFromBackground")
+						: markOptionCapNote(o, this._data?.markCapState ?? {}) };
+			});
 		if (!options.length) return null;
 		const used = options.reduce((n, o) => n + o.existing, 0);
 		// A null budget (move declares no markBudget) is uncapped; fall back to one pick so

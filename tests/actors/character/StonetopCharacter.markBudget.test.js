@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { TestCharacterBuilder } from "../../fakes/TestCharacterBuilder.js";
 import { FakeActorBuilder } from "../../fakes/FakeActorBuilder.js";
+import { buildLiveCharacter, sourceMovesFor } from "../../fakes/LiveCharacter.js";
 
 // A budgeted move (Veteran Crew): pick 1 per take. Mirrors the shipped three-option
 // shape (incl. effect fields), so the cross-option budget and effect summation are
@@ -200,5 +201,154 @@ describe("StonetopCharacter.setCountMark — repeat-scaling budget", () => {
 		const totals = await char._ownedMoveBonuses({ name: "The Ranger" }, char._buildOwnedMovesMap());
 		expect(totals.companionHp).toBe(4);
 		expect(totals.companionArmor).toBe(1);
+	});
+});
+
+describe("StonetopCharacter.setCountMark: an option's own boxes", () => {
+	it("never marks an option past its boxes, however much budget is left", async () => {
+		// Beast of Legend's options are one box each; 3 copies give a budget of 3, but "tough" holds 1.
+		const { char, actor } = makeChar({ def: BEAST_OF_LEGEND, copies: 3 });
+		await char.setCountMark("Beast of Legend", "tough", 2);
+		expect(writtenMarks(actor)["Beast of Legend"]["tough"]).toHaveLength(1);
+	});
+
+	it("keeps an over-full option already stored (a decrease is never clamped)", async () => {
+		const { char, actor } = makeChar({ def: BEAST_OF_LEGEND, copies: 3, marks: { tough: [lvl(), lvl()] } });
+		await char.setCountMark("Beast of Legend", "tough", 1);
+		expect(writtenMarks(actor)["Beast of Legend"]["tough"]).toHaveLength(1);
+	});
+});
+
+// The Seeker, off the shipped pack: the background's Well Versed topic ("Well Versed in the Things
+// Below", the Patriot's) is one of the move's seven boxes, ticked by the background and outside the
+// budget ("Mark 1 topic, in addition to the one noted in your Background").
+describe("Well Versed: the background's topic", () => {
+	const wellVersedDoc = () => sourceMovesFor("The Seeker").find(d => d.name === "Well Versed");
+	const patriot = (moveMarks = {}) => buildLiveCharacter({
+		slug: "the-seeker", name: "The Seeker",
+		flags: {
+			"background.selected": "patriot",
+			"moves.backgroundAnswers": { "Well Versed": { label: "Well Versed in", value: "the Things Below" } },
+			"moves.moveMarks": { "Well Versed": moveMarks },
+		},
+	});
+	const liveMarks = actor => actor.getFlag("stonetop-pwd", "moves.moveMarks")["Well Versed"];
+	const card = async char => (await char.buildSnapshot()).movelist.playbookMoves.find(m => m.name === "Well Versed");
+
+	it("names the background's box, from the stored answer or the background's fixed one", async () => {
+		expect(await patriot().char.backgroundMarkOptions()).toEqual({ "Well Versed": "things-below" });
+		// A first background picked before the answer was ever written still counts.
+		const { char } = buildLiveCharacter({ slug: "the-seeker", name: "The Seeker", flags: { "background.selected": "antiquarian" } });
+		expect(await char.backgroundMarkOptions()).toEqual({ "Well Versed": "makers" });
+	});
+
+	it("refuses to mark the background's box, and marks another topic within the budget", async () => {
+		const { char, actor } = patriot();
+		await char.setCountMark("Well Versed", "things-below", 1);
+		expect(liveMarks(actor)["things-below"] ?? []).toEqual([]);
+		await char.setCountMark("Well Versed", "fae", 1);
+		expect(liveMarks(actor).fae).toHaveLength(1);
+	});
+
+	it("shows the background's box ticked and locked, outside the budget, on the card", async () => {
+		const { char } = patriot({ fae: [lvl()] });
+		const wv = await card(char);
+		const things = wv.markOptions.find(o => o.slug === "things-below");
+		expect(things.background).toMatchObject({ label: "Background" });
+		expect(things.checks).toEqual([]); // its one box is the background's
+		expect(things.duplicateNote).toBeNull();
+		expect(wv.markBudget).toMatchObject({ used: 1, max: 1, needsChoice: false });
+		expect(wv.markOptions.find(o => o.slug === "fae").background).toBeNull();
+	});
+
+	it("flags, never clears, a mark an old character stored on the background's box", async () => {
+		const { char, actor } = patriot({ "things-below": [lvl()] });
+		const things = (await card(char)).markOptions.find(o => o.slug === "things-below");
+		expect(things.duplicateNote).toBeTruthy();
+		expect(things.checks).toHaveLength(1);
+		expect(things.checks[0]).toMatchObject({ checked: true, disabled: false });
+		expect(liveMarks(actor)["things-below"]).toHaveLength(1);
+	});
+
+	// Onboarding's "1 topic, in addition": a re-run replaces its own mark and nothing else.
+	it("a re-run of onboarding's topic replaces its own mark", async () => {
+		const { char, actor } = patriot();
+		await char.setCreationMark("Well Versed", "fae");
+		expect(liveMarks(actor).fae).toEqual([{ stat: "", level: 1, creation: true }]);
+		expect(char.creationMarkOption("Well Versed")).toBe("fae");
+		await char.setCreationMark("Well Versed", "wild");
+		expect(liveMarks(actor).fae).toEqual([]);
+		expect(liveMarks(actor).wild).toEqual([{ stat: "", level: 1, creation: true }]);
+	});
+
+	it("reads a topic ticked by hand at 1st level as onboarding's pick, and a re-run takes only it", async () => {
+		const first = { stat: "", level: 1 };
+		const { char, actor } = patriot({ fae: [first], makers: [first] });
+		expect(char.creationMarkOption("Well Versed")).toBe("fae");
+		await char.setCreationMark("Well Versed", "");
+		expect(liveMarks(actor).fae).toEqual([]);
+		expect(liveMarks(actor).makers).toEqual([first]);
+	});
+
+	it("the level-up data names the background's box for the mark step", async () => {
+		const { char } = patriot();
+		expect((await char.getLevelUpData()).backgroundMarks).toEqual({ "Well Versed": "things-below" });
+		expect(wellVersedDoc().system.markOptions.map(o => o.slug)).toContain("things-below");
+	});
+});
+
+// A move of another playbook taken more than once (a Fox's Well Versed, twice through Dabbler) is ONE
+// learned card, its budget scaling with both copies, as the writer's clamp reads it.
+describe("a learned move held twice", () => {
+	const wellVersed = () => sourceMovesFor("The Seeker").find(d => d.name === "Well Versed");
+	const foxWithTwo = () => buildLiveCharacter({
+		slug: "the-fox", name: "The Fox", level: 5,
+		items: [1, 2].map(() => ({
+			name: "Well Versed", type: "move",
+			// An old copy without the budget: the pack's definition is read first.
+			system: { ...structuredClone(wellVersed().system), markBudget: null },
+			flags: { "stonetop-pwd": { grantedBy: { move: "Dabbler" } } },
+		})),
+	});
+
+	it("is one card with both copies and a budget of 3", async () => {
+		const { char } = foxWithTwo();
+		const cards = (await char.buildSnapshot()).movelist.learnedMoves.filter(m => m.name === "Well Versed");
+		expect(cards).toHaveLength(1);
+		expect(cards[0].ownedIds).toHaveLength(2);
+		expect(cards[0].markBudget).toMatchObject({ used: 0, max: 3 });
+	});
+
+	// Granters from other playbooks, so neither copy is shown inside a card of the Fox's own (a
+	// Dabbler grant is). The first granter is switched off, the second is on.
+	it("names every granter, and notes a copy switched off with its granter while another is on", async () => {
+		const GRANTERS = [["Worldly", "The Ranger"], ["Seasoned Warrior", "The Heavy"]];
+		const { char } = buildLiveCharacter({
+			slug: "the-fox", name: "The Fox", level: 5,
+			items: [
+				...GRANTERS.map(([name, playbook], n) => ({
+					_id: `granter${n}`, name, type: "move", system: { moveType: "playbook", playbook },
+					...(n === 0 ? { flags: { "stonetop-pwd": { learned: false } } } : {}),
+				})),
+				...GRANTERS.map(([move], n) => ({
+					_id: `wv${n}`, name: "Well Versed", type: "move", system: structuredClone(wellVersed().system),
+					flags: { "stonetop-pwd": { grantedBy: { move, instanceId: `granter${n}` } } },
+				})),
+			],
+		});
+		const [card] = (await char.buildSnapshot()).movelist.learnedMoves.filter(m => m.name === "Well Versed");
+		expect(card.sourceLabel).toBe("Granted by Worldly, Seasoned Warrior · The Seeker");
+		expect(card.granterOff).toBeNull();
+		expect(card.granterOffCopy).toBe("Worldly");
+		// Unticking the card takes the copy that is still on.
+		expect(card.ownedId).toBe("wv1");
+	});
+
+	it("takes 3 topics and refuses a 4th", async () => {
+		const { char, actor } = foxWithTwo();
+		for (const slug of ["fae", "makers", "wild", "primordial"]) await char.setCountMark("Well Versed", slug, 1);
+		const marks = actor.getFlag("stonetop-pwd", "moves.moveMarks")["Well Versed"];
+		expect(["fae", "makers", "wild"].map(s => marks[s]?.length)).toEqual([1, 1, 1]);
+		expect(marks.primordial ?? []).toEqual([]);
 	});
 });

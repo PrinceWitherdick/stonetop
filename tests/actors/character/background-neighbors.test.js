@@ -256,6 +256,7 @@ describe("choosing a neighbor-naming background on the Details tab", () => {
 			settleBackgroundPossessions: async () => {},
 			settleBackgroundArcana: async () => {},
 			settleBackgroundResources: async () => {},
+			backgroundAnswerAsks: async () => [],
 			playbook: async () => playbook,
 		};
 		return sheet;

@@ -416,6 +416,36 @@ describe("LevelUpDialog mark step — budgeted moves (Veteran Crew / Well Versed
 		expect(dlg._markStepDescriptor().allowance).toBe(3);
 	});
 
+	// Well Versed: "Mark 1 topic, in addition to the one noted in your Background". The background's
+	// topic (the Patriot's Things Below) is shown as the Background's, never pickable, and spends none
+	// of the take's allowance.
+	it("shows the background's topic as the Background's, not pickable and outside the allowance", () => {
+		const wellVersed = {
+			compendiumId: "wv1", name: "Well Versed", cap: null, crossPlaybook: null,
+			markOptions: [
+				{ slug: "fae",          label: "The Fae and their strange ways", marks: 1 },
+				{ slug: "things-below", label: "The Things Below", marks: 1 },
+				{ slug: "wild",         label: "The wild world and its spirits", marks: 1 },
+			],
+			markBudget: { base: 1, perExtra: 2 }, ownedIds: ["o1"],
+		};
+		const { dlg } = makeDialog({ data: {
+			availableMoves: [wellVersed], marks: { "Well Versed": { fae: [{ level: 1 }] } },
+			backgroundMarks: { "Well Versed": "things-below" },
+		} });
+		dlg._selectedMoveId = "wv1";
+		dlg._step = "marks";
+		const desc = dlg._markStepDescriptor();
+		// 2nd copy: budget 3, the Fae spent, the background's box not ⇒ 2 more.
+		expect(desc.allowance).toBe(2);
+		expect(desc.options.find(o => o.slug === "things-below")).toMatchObject({ background: true, capacity: 0, capNote: "From your Background: you already have this one." });
+		const step = dlg.getData().markStep;
+		const things = step.options.find(o => o.slug === "things-below");
+		expect(things).toMatchObject({ disabled: true, existingLabel: "Background" });
+		// Only the wild world is left to pick: the Fae is marked, the Things Below is the background's.
+		expect(step.allowance).toBe(1);
+	});
+
 	it("the move step is non-terminal and Continue is gated until the take's pick is made", () => {
 		const { dlg } = makeDialog({ data: { availableMoves: [veteranCrew], marks: {} } });
 		dlg._selectedMoveId = "vc1";

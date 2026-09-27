@@ -35,7 +35,7 @@
         {
           "slug": "antiquarian",
           "label": "Antiquarian",
-          "description": "<p>The past has buried many secrets, and you are determined to dig them up. Years of study across the land have led you here, and you are convinced that this town holds the key to your greatest discoveries. What is it you hope to find? What is it that keeps you here?</p><p>Your travels and studies mean that you start with the <strong>Polyglot</strong> move and are Well Versed in the Makers and their arts. You've also acquired 1 major arcanum.</p>",
+          "description": "<p>The past has buried many secrets, and you are determined to dig them up. Years of study across the land have led you here, and you are convinced that this town holds the key to your greatest discoveries. What is it you hope to find? What is it that keeps you here?</p><p>In any case, your travels and studies mean that you start with the <strong>Polyglot</strong> move and that you are Well Versed in the Makers and their arts (go mark them now). You've also acquired 1 major arcanum.</p>",
           "moves": [
             "Polyglot"
           ],

@@ -12,6 +12,7 @@ import { createStonetopCharacterSheetClass } from "../../../module/actors/charac
 import { CREATION_PICK_FLAG } from "../../../module/actors/character/StonetopCharacter.js";
 import { moveArmor } from "../../../module/actors/character/move-armor.js";
 import { CharacterOnboardingDialog, combineNameChip } from "../../../module/actors/character/dialogs/CharacterOnboardingDialog.js";
+import { BackgroundAnswersDialog } from "../../../module/actors/character/dialogs/BackgroundAnswersDialog.js";
 
 const PACK = new Map(loadPlaybookPackDocs().map(doc => [doc.system.slug, doc]));
 const playbookDoc = slug => ({ ...structuredClone(PACK.get(slug)), uuid: `Compendium.test.${slug}` });
@@ -430,6 +431,136 @@ describe("settleBackgroundMoves, for every background shape", () => {
 		await char.background.selectBackground("witch-hunter");
 		await char.settleBackgroundMoves(previous);
 		expect(flag(actor, "moves.backgroundAnswers")["Well Versed"]).toBeUndefined();
+	});
+});
+
+// The Seeker's backgrounds note a Well Versed topic: the Patriot's and the Antiquarian's are fixed,
+// the Witch Hunter's is "(pick 1) the Fae, the Things Below, or the Last Door and what lies beyond".
+describe("a background's Well Versed topic on the Details tab", () => {
+	const seeker = (flags = {}) => {
+		const made = buildLiveCharacter({ slug: "the-seeker", name: "The Seeker", flags });
+		return { ...made, sheet: sheetFor(made.char, made.actor) };
+	};
+	const choose = (sheet, slug) => sheet._onBackgroundChange({ currentTarget: { value: slug } });
+	const answer = actor => flag(actor, "moves.backgroundAnswers")?.["Well Versed"]?.value;
+	const card = async char => (await char.buildSnapshot()).movelist.playbookMoves.find(m => m.name === "Well Versed");
+
+	it("a first background picked there writes its fixed topic", async () => {
+		const { actor, sheet } = seeker();
+		await choose(sheet, "patriot");
+		expect(answer(actor)).toBe("the Things Below");
+	});
+
+	it("a switch to the Witch Hunter asks the topic, the kept one pre-picked, and writes the pick", async () => {
+		const { char, actor, sheet } = seeker({
+			"background.selected": "patriot",
+			"moves.backgroundAnswers": { "Well Versed": { label: "Well Versed in", value: "the Things Below" } },
+		});
+		await char.ensureStartingMoves();
+		const ask = vi.spyOn(BackgroundAnswersDialog, "ask").mockResolvedValue({ "Well Versed": "the Fae" });
+		await choose(sheet, "witch-hunter");
+		expect(ask).toHaveBeenCalledTimes(1);
+		const [background, asks] = ask.mock.calls[0];
+		expect(background.slug).toBe("witch-hunter");
+		expect(asks).toEqual([{
+			key: "Well Versed", move: "Well Versed", label: "Well Versed in",
+			options: ["the Fae", "the Things Below", "the Last Door and what lies beyond"],
+			value: "the Things Below",
+		}]);
+		expect(answer(actor)).toBe("the Fae");
+	});
+
+	it("closed unanswered, a topic not on offer is gone and the card cues the choice", async () => {
+		const { char, actor, sheet } = seeker({
+			"background.selected": "antiquarian",
+			"moves.backgroundAnswers": { "Well Versed": { label: "Well Versed in", value: "the Makers and their arts" } },
+		});
+		await char.ensureStartingMoves();
+		vi.spyOn(BackgroundAnswersDialog, "ask").mockResolvedValue(null);
+		await choose(sheet, "witch-hunter");
+		expect(answer(actor)).toBeUndefined();
+		const wv = await card(char);
+		expect(wv.backgroundAnswerNeeded).toMatchObject({ label: "Well Versed in", options: ["the Fae", "the Things Below", "the Last Door and what lies beyond"] });
+		expect(wv.backgroundAnswerNeeded.tooltip).toContain("the Fae, the Things Below");
+		// The cue's hand asks again; an answer ends it.
+		vi.spyOn(BackgroundAnswersDialog, "ask").mockResolvedValue({ "Well Versed": "the Last Door and what lies beyond" });
+		await sheet._askBackgroundAnswers();
+		expect(answer(actor)).toBe("the Last Door and what lies beyond");
+		expect((await card(char)).backgroundAnswerNeeded).toBeNull();
+	});
+
+	it("setBackgroundAnswer takes only an offer the background prints", async () => {
+		const { char, actor } = seeker({ "background.selected": "witch-hunter" });
+		expect(await char.setBackgroundAnswer("Well Versed", "the Makers and their arts")).toBe(false);
+		expect(answer(actor)).toBeUndefined();
+		expect(await char.setBackgroundAnswer("Well Versed", "the Fae")).toBe(true);
+		expect(answer(actor)).toBe("the Fae");
+	});
+});
+
+// Well Versed: "Mark 1 topic, in addition to the one noted in your Background." Onboarding asks it
+// beside the background's topic, and marks it at 1st level.
+describe("onboarding's extra Well Versed topic", () => {
+	const SEEKER_STATS = { str: -1, dex: 0, con: 1, int: 2, wis: 1, cha: 0 };
+	const freshSeeker = (level = 1) => {
+		const made = buildLiveCharacter({ slug: "the-seeker", name: "The Seeker", level, seedStartingMoves: false, stats: SEEKER_STATS });
+		return { ...made, sheet: sheetFor(made.char, made.actor) };
+	};
+	const run = (sheet, extra, backgroundSlug = "patriot") => sheet._applyPlaybookSelections(playbookDoc("the-seeker"), {
+		backgroundSlug, stats: SEEKER_STATS, moves: [], lore: { picks: {}, texts: {} },
+		backgroundChoices: { "Well Versed": { label: "Well Versed in", value: "the Things Below" } },
+		backgroundMoveMarks: { "Well Versed": extra },
+	});
+	const wvMarks = actor => flag(actor, "moves.moveMarks")?.["Well Versed"] ?? {};
+	const marked = actor => Object.entries(wvMarks(actor)).filter(([, v]) => v?.length).map(([slug]) => slug).sort();
+
+	it("marks the topic at 1st level, and a re-run replaces it", async () => {
+		const { actor, sheet } = freshSeeker();
+		vi.spyOn(sheet._stonetopCharacter, "addArcanum").mockResolvedValue(undefined);
+		await run(sheet, "fae");
+		expect(marked(actor)).toEqual(["fae"]);
+		expect(wvMarks(actor).fae[0].level).toBe(1);
+		await run(sheet, "wild");
+		expect(marked(actor)).toEqual(["wild"]);
+	});
+
+	it("a re-run past 1st level keeps the level-up topics and restores its own pick", async () => {
+		const { char, actor, sheet } = freshSeeker(3);
+		await run(sheet, "fae");
+		// A second Well Versed at 2nd level, with its 2 topics.
+		await char.addMove(moveId("The Seeker", "Well Versed"));
+		await actor.setFlag("stonetop-pwd", "moves.moveMarks", {
+			"Well Versed": { ...wvMarks(actor), humanity: [{ stat: "", level: 2 }], primordial: [{ stat: "", level: 2 }] },
+		});
+		expect(sheet._readSelectionsFromActor(playbookDoc("the-seeker")).backgroundMoveMarks).toEqual({ "Well Versed": "fae" });
+		await run(sheet, "wild");
+		expect(marked(actor)).toEqual(["humanity", "primordial", "wild"]);
+		expect(wvMarks(actor).wild[0].level).toBe(1);
+	});
+
+	it("the background step asks it, never offers the background's topic, and waits for it", () => {
+		const dialog = Object.create(CharacterOnboardingDialog.prototype);
+		dialog._initializeState(playbookDoc("the-seeker"), null, null);
+		dialog._applyBackgroundChange("witch-hunter");
+		dialog._selections.backgroundChoices["Well Versed"] = { label: "Well Versed in", value: "the Fae" };
+		const witchHunter = dialog._backgrounds.find(b => b.slug === "witch-hunter");
+		const extra = dialog._backgroundMoveChoiceData(witchHunter)[0].extraMark;
+		expect(extra.options.map(o => o.slug)).toEqual(["last-door", "humanity", "fae", "makers", "primordial", "things-below", "wild"]);
+		expect(extra.options.find(o => o.slug === "fae")).toMatchObject({ fromBackground: true, selected: false });
+		expect(dialog._isStepComplete("background")).toBe(false);
+		expect(dialog._backgroundStepDiagnostic().missing).toContain("moveMark:Well Versed");
+
+		// The background's own topic doesn't count.
+		dialog._selections.backgroundMoveMarks["Well Versed"] = "fae";
+		expect(dialog._isStepComplete("background")).toBe(false);
+		dialog._selections.backgroundMoveMarks["Well Versed"] = "wild";
+		expect(dialog._isStepComplete("background")).toBe(true);
+
+		// Picking the extra topic as the background's drops the extra pick.
+		dialog._selections.backgroundChoices["Well Versed"].value = "the Things Below";
+		dialog._selections.backgroundMoveMarks["Well Versed"] = "things-below";
+		dialog._ensureBackgroundMoveChoices();
+		expect(dialog._selections.backgroundMoveMarks["Well Versed"]).toBeUndefined();
 	});
 });
 

@@ -10,6 +10,7 @@ import {AddInventoryItemDialog, characterInventoryItemSaver} from "./dialogs/Add
 import {LoveLetterDialog} from "../../dialogs/LoveLetterDialog.js";
 import {LoveLetterReadDialog} from "../../dialogs/LoveLetterReadDialog.js";
 import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
+import {moveChoiceKey} from "./dialogs/well-versed-topics.js";
 import {PossessionChoicesDialog} from "./dialogs/PossessionChoicesDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
 import {UndeathDialog} from "./dialogs/UndeathDialog.js";
@@ -28,6 +29,7 @@ import {CrewSetupDialog, crewSetupLimit, crewSetupUpdate} from "./dialogs/CrewSe
 import {FOLLOWER_FATE_TYPES, SIR_PERMISSION_TO_DIE, isCrewMemberRow, isCustomMemberRow, followerFateHpPath, followerFateLoyaltyType, wasStanding, followerReviveUpdate, crewMemberFateName, customMemberFateName, sirPermissionOffer, crewIndividualRemovalUpdate, crewMemberDeathUpdate, customMemberDeathUpdate, customMemberStruckOff, postLetGoReceipt} from "./follower-fate.js";
 import {CallUpDeepOnesDialog} from "./dialogs/CallUpDeepOnesDialog.js";
 import {BackgroundNeighborsDialog, storedNeighborPicks, storedNeighborTraits, traitedNeighbors} from "./dialogs/BackgroundNeighborsDialog.js";
+import {BackgroundAnswersDialog} from "./dialogs/BackgroundAnswersDialog.js";
 import {RING_SOURCE_UUID, SERVANT_SOURCE_UUID, buildServantFollower} from "../../data/servant-of-daagon.js";
 import {grantedWeaponForMove, weaponTraitText} from "../../data/weapons.js";
 import {grantedWeaponAttackFor, rollCharacterDamageAt, rollFollowerDamageAt, crewBlow} from "../../combat/attack-flow.js";
@@ -4341,6 +4343,19 @@ export function createStonetopCharacterSheetClass(Base) {
 			html[0].addEventListener("click", fillStatChoiceFromHand, true);
 			html[0].addEventListener("keydown", fillStatChoiceFromHand, true);
 
+			// The hand on a card whose background answer is the player's to pick and still empty
+			// (the Witch Hunter's Well Versed topic): ask it (_askBackgroundAnswers).
+			const askBackgroundAnswerFromHand = async ev => {
+				const hand = ev.target.closest(".stonetop-move-background-answer-needed");
+				if (!hand) return;
+				if (ev.type === "keydown" && ev.key !== "Enter" && ev.key !== " ") return;
+				ev.preventDefault();
+				ev.stopPropagation();
+				await this._askBackgroundAnswers();
+			};
+			html[0].addEventListener("click", askBackgroundAnswerFromHand, true);
+			html[0].addEventListener("keydown", askBackgroundAnswerFromHand, true);
+
 			// Followers tab: per-card, per-section edit pencils. Same per-section toggle
 			// mechanism, keyed on `follower-<section>:<ftype>:<slug>`; opening a text
 			// section (name/moves/notes) focuses its input.
@@ -6940,7 +6955,27 @@ export function createStonetopCharacterSheetClass(Base) {
 			await character.settleBackgroundArcana(previous);
 			// Mid-play, so the new background's tracks start empty (no "start of play" Enigma).
 			await character.settleBackgroundResources(previous);
-			if (slug && slug !== previous.slug) await this._fileBackgroundNeighbors(slug);
+			if (slug && slug !== previous.slug) {
+				await this._fileBackgroundNeighbors(slug);
+				// A background that leaves an answer to the player (the Witch Hunter's Well Versed topic)
+				// asks it, the answer kept from the old background pre-picked when it is among the offers.
+				await this._askBackgroundAnswers();
+			}
+		}
+
+		/**
+		 * Ask the current background's answers that are the player's to pick (StonetopCharacter#
+		 * backgroundAnswerAsks: the Witch Hunter's "Well Versed in (pick 1) ..."), the answer held now
+		 * pre-picked, and write what is picked. "Choose later" writes nothing, and the card's cue
+		 * stays until it is answered. Self-contained, so another background ask can run beside it.
+		 */
+		async _askBackgroundAnswers() {
+			const character = this._stonetopCharacter;
+			const asks = await character.backgroundAnswerAsks();
+			if (!asks.length) return;
+			const background = await character.selectedBackground();
+			const picks = await BackgroundAnswersDialog.ask(background, asks);
+			for (const [key, value] of Object.entries(picks ?? {})) await character.setBackgroundAnswer(key, value);
 		}
 
 		/**
@@ -11263,6 +11298,19 @@ export function createStonetopCharacterSheetClass(Base) {
 			return picks;
 		}
 
+		// Onboarding's extra mark on each move the background answers (Well Versed's "1 topic, in
+		// addition to the one noted in your Background"): the option marked at 1st level
+		// (StonetopCharacter#creationMarkOption), so a re-run shows it picked.
+		_restoreBackgroundMoveMarks(background) {
+			const out = {};
+			for (const choice of background?.moveChoices ?? []) {
+				const move = moveChoiceKey(choice);
+				const slug = move ? this._stonetopCharacter.creationMarkOption(move) : "";
+				if (slug) out[move] = slug;
+			}
+			return out;
+		}
+
 		// Onboarding's free picks as the character holds them (StonetopCharacter#creationPickItems).
 		// `playbookDoc` is the playbook Item, or the StonetopPlaybook getData hands over.
 		_creationPickItemsOf(playbookDoc) {
@@ -11366,6 +11414,8 @@ export function createStonetopCharacterSheetClass(Base) {
 					cost:     f.animalCompanion?.cost ?? "",
 				},
 				backgroundChoices: foundry.utils.deepClone(f.moves?.backgroundAnswers ?? {}),
+				// Well Versed's topic beside the background's: the one marked at 1st level.
+				backgroundMoveMarks: this._restoreBackgroundMoveMarks(bg),
 				backgroundSetup: {
 					choices:        foundry.utils.deepClone(f.background?.setupChoices ?? {}),
 					texts:          foundry.utils.deepClone(f.background?.setupTexts ?? {}),
@@ -11745,6 +11795,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (leadMinor) await this._stonetopCharacter.addLead(leadMinor);
 
 			if (Object.keys(flagUpd).length) await this.actor.update(flagUpd);
+			// Well Versed's "1 topic, in addition to the one noted in your Background", once the
+			// background's answer is stored (its box is the background's, never this pick). The 1st
+			// level's mark: a re-run replaces it, and the level-up marks stay (setCreationMark).
+			for (const choice of (selectedBackground?.moveChoices ?? [])) {
+				const move = moveChoiceKey(choice);
+				const pick = move ? selections.backgroundMoveMarks?.[move] : null;
+				if (pick) await character.setCreationMark(move, pick);
+			}
 			await this._applyBackgroundNeighbors(backgroundSetup, selections, { previousTraits: previousNeighborTraits });
 			this.render(false);
 		}
@@ -11802,7 +11860,7 @@ export function createStonetopCharacterSheetClass(Base) {
 
 			const backgroundAnswers = {};
 			for (const choice of (selectedBackground?.moveChoices ?? [])) {
-				const key = choice.move ?? choice.slug ?? choice.label ?? "";
+				const key = moveChoiceKey(choice);
 				if (!key) continue;
 				const answer = selections.backgroundChoices?.[key];
 				if (answer?.value) backgroundAnswers[key] = answer;

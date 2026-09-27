@@ -396,6 +396,7 @@
         "foreignIntro": "Choose the move this grants you from another playbook (you must qualify for it):",
         "foreignEmpty": "You don't currently qualify for any move from the allowed playbooks. Continue to finish.",
         "marksIntro": "Make this move's selection(s) for the level you're gaining.",
+        "markFromBackground": "From your Background: you already have this one.",
         "companionIntro": "Beast-Bonded: mark another action you can use when you focus on your animal companion.",
         "reviewReminder": "Last, review your Instinct and Appearance on the Details tab. Change anything that no longer applies, or make up something new.",
         "again": "You have enough XP to level up again, so here's the next one.",
@@ -862,6 +863,12 @@
       "yes": "Change to {new}",
       "no": "Keep {old}"
     },
+    "backgroundAnswers": {
+      "title": "{background}: {label}",
+      "lead": "Your Background asks you to choose 1.",
+      "choose": "Choose this",
+      "later": "Choose later"
+    },
     "backgroundNeighbors": {
       "title": "{background}: Neighbors",
       "fixed": "{names} go on the steading's Neighbors list.",
@@ -872,6 +879,8 @@
       "skipTraits": "Add them without traits"
     },
     "onboarding": {
+      "wellVersedExtra": "Well Versed: mark 1 more topic",
+      "wellVersedFromBackground": "from your Background",
       "saveButton": "Save",
       "savedTitle": "Selections Saved",
       "savedContent": "Your current character creation selections have been saved.",
@@ -1171,6 +1180,12 @@
         "learnedTitle": "Learned. Un-check to keep this move on the sheet but inactive (not rollable, bonuses off)",
         "replacedBy": "Replaced by {move}",
         "replacedByTooltip": "You gave this move up when you took {move}. Remove {move} to get it back.",
+        "granterOff": "Its granter, {move}, is switched off. Switch {move} back on to use this move again.",
+        "granterOffCopy": "The copy {move} granted is off while {move} is switched off. The move still works through its other copy.",
+        "backgroundMark": "Background",
+        "backgroundMarkTooltip": "From your Background. It comes with the background and isn't one of this move's picks.",
+        "backgroundMarkDuplicate": "Your Background already gives this one, so this mark is a spare pick. Untick it and mark another.",
+        "backgroundAnswerNeeded": "Your Background asks you to choose: {label} ({options}). Tap the hand to choose.",
         "statIncreaseAtCap": "{move}: {stat} is already at +{cap}, so it was not raised. Choose another stat from the move's card.",
         "chooseStartingMoves": "Choose Starting Moves",
         "levelMovesIncompleteOne": "You still have 1 move to choose for level {level}.",

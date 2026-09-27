@@ -45,7 +45,7 @@ import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from
 import {DEATHS_DOOR_FLAG, UNSTOPPABLE, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
 import {heroDisplayName, WBH_HERO_FLAG, ownsAsteriskMove} from "./WouldBeHeroAsterisk.js";
 import {tookBackground} from "./took-background.js";
-import {ownedNamesOr, ownedLearnedMove, ownsLearnedMoveNamed, moveLearnedIn, ownedMoveNames, ownsMoveNamed} from "./owns-move.js";
+import {ownedNamesOr, ownedLearnedMove, ownsLearnedMoveNamed, moveLearnedIn, switchedOffGranter, ownedMoveNames, ownsMoveNamed} from "./owns-move.js";
 import {ANIMAL_COMPANION_MOVE, RANGER_SLUG, MAGNIFICENT_SPECIMEN_MOVE, COMPANION_TRAIT_PICKS_PER_SPECIMEN, companionTraitAllowance, trimCompanionTraits} from "./animal-companion.js";
 import {fineWhiskyOffer as fineWhiskyOfferFrom, isPersuadeMove, FINE_WHISKY_SOURCE} from "./fine-whisky.js";
 import {tagLoadGatedMoves} from "./load-gates.js";
@@ -88,6 +88,7 @@ import {CharacterLore} from "./CharacterLore.js";
 import {CharacterPostDeath, buildLoreSection, insertHpPenalty} from "./CharacterPostDeath.js";
 import {effectiveSubgroupMax, sumMoveBonus} from "./dialogs/possession-choice-cap.js";
 import {partitionMovesByGroup} from "./dialogs/onboarding-move-groups.js";
+import {backgroundMarkOption, hasBackgroundMarkOptions, moveChoiceKey} from "./dialogs/well-versed-topics.js";
 import {FoundryRepositoryFactory} from "./repositories/FoundryRepositoryFactory.js";
 import {capitalizeFirst, slugify, composeInstinct, escHtml, joinNames, stripHtmlToText} from "../../utils/strings.js";
 import {splitFillBlank, fillBlank} from "../../utils/fill-blanks.js";
@@ -574,17 +575,29 @@ export class StonetopCharacter {
 	// any write surface, not just the disabled checkboxes (mirrors the possession
 	// remarkable-trait cap in selectSubChoice). Decreases are never clamped, so a
 	// grandfathered over-budget mark can always be cleared.
+	//
+	// An increase is also clamped to the option's own boxes (`marks`), less the box the
+	// background fills (the Patriot's Things Below is Well Versed's, outside the budget):
+	// that box can't be marked again. A duplicate already stored is kept, never cleared.
 	async setCountMark(moveName, optionSlug, newCount) {
 		const allMarks = this._moveResources.getMarks();
 		const current  = _markEntries(allMarks[moveName]?.[optionSlug]).length;
 		// Clamp an INCREASE to the move's repeat-scaling pick budget (if any); a decrease
 		// is left as-is (budget null below), so a grandfathered over-budget mark clears.
 		let count = newCount;
-		const budget = newCount > current ? await this._moveSelectionBudget(moveName) : null;
-		if (budget) {
-			const others    = _sumMarkPicks(allMarks[moveName] ?? {}, budget.markOptions, optionSlug);
-			const remaining = Math.max(0, budget.max - others);      // picks still free across the move's options
+		const def = newCount > current ? await this._moveMarkDefinition(moveName) : null;
+		const max = def ? moveMarkBudget(def.markBudget, def.ownedCount) : null;
+		if (max != null) {
+			const others    = _sumMarkPicks(allMarks[moveName] ?? {}, def.markOptions, optionSlug);
+			const remaining = Math.max(0, max - others);             // picks still free across the move's options
 			count = Math.min(newCount, Math.max(current, remaining)); // never below what's already checked
+		}
+		const opt = def?.markOptions.find(o => o.slug === optionSlug);
+		if (opt) {
+			// Only a move a background can answer with a box reads the playbook for it (Well Versed).
+			const fromBackground = hasBackgroundMarkOptions(moveName)
+				&& (await this.backgroundMarkOptions())[moveName] === optionSlug ? 1 : 0;
+			count = Math.min(count, Math.max(current, (opt.marks ?? 1) - fromBackground));
 		}
 		const entries = _markEntries(allMarks[moveName]?.[optionSlug]);
 		while (entries.length < count) entries.push({ stat: "", level: this._characterLevel });
@@ -592,20 +605,101 @@ export class StonetopCharacter {
 		await this._actor.update(this._moveResources.markUpdate(moveName, optionSlug, entries));
 	}
 
-	// Repeat-scaling pick budget for a move's markOptions, or null when it declares
-	// none (uncapped). The definition is read from the compiled pack (fresh
-	// markBudget/markOptions, regardless of when the owned copy was created — matching
-	// the render path); `ownedCount` is how many copies the actor owns.
-	async _moveSelectionBudget(moveName) {
+	/**
+	 * The option of `moveName` onboarding marked, or "" when none is: its pick of Well Versed's "1
+	 * topic, in addition to the one noted in your Background". That is the entry stored with
+	 * `creation`, else (a character made before onboarding stamped it, or one who ticked the topic
+	 * by hand at 1st level, which is the same pick) the first entry marked at 1st level. A level-up's
+	 * marks carry the level gained (2 and up), so they are never it.
+	 */
+	creationMarkOption(moveName) {
+		return this._creationMarkEntry(moveName)?.slug ?? "";
+	}
+
+	// Where creationMarkOption's mark is stored: its option and its index there, or null.
+	_creationMarkEntry(moveName) {
+		const marks = Object.entries(this._moveResources.getMarks()[moveName] ?? {})
+			.map(([slug, stored]) => [slug, _markEntries(stored)]);
+		for (const test of [e => e.creation, e => e.level === 1]) {
+			for (const [slug, entries] of marks) {
+				const index = entries.findIndex(test);
+				if (index >= 0) return { slug, index };
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Make `optionSlug` onboarding's mark of `moveName` (the extra Well Versed topic): the ONE mark
+	 * creationMarkOption reads goes, every other mark stays, and the new one goes through
+	 * setCountMark, so the budget and the background's box hold. Stored at 1st level with
+	 * `creation`, whatever level a re-run happens at, so the next re-run finds it. An empty slug
+	 * only clears.
+	 */
+	async setCreationMark(moveName, optionSlug) {
+		const was = this._creationMarkEntry(moveName);
+		if (was) {
+			const entries = _markEntries(this._moveResources.getMarks()[moveName]?.[was.slug]);
+			entries.splice(was.index, 1);
+			await this._actor.update(this._moveResources.markUpdate(moveName, was.slug, entries));
+		}
+		if (!optionSlug) return;
+		const current = _markEntries(this._moveResources.getMarks()[moveName]?.[optionSlug]).length;
+		await this.setCountMark(moveName, optionSlug, current + 1);
+		const entries = _markEntries(this._moveResources.getMarks()[moveName]?.[optionSlug]);
+		if (entries.length <= current) return;
+		entries[entries.length - 1] = { ...entries[entries.length - 1], level: 1, creation: true };
+		await this._actor.update(this._moveResources.markUpdate(moveName, optionSlug, entries));
+	}
+
+	// A held move's markBudget and markOptions, off its pack definition first and its owned copy
+	// after, with how many copies are held; null when none is.
+	async _moveMarkDefinition(moveName) {
 		const owned = this._actor.items.filter(i => i.type === "move" && i.name === moveName);
 		if (!owned.length) return null;
-		const pbName = owned[0].system?.playbook ?? null;
+		const def = await this._packMoveDefinition(owned[0]);
+		return {
+			markBudget:  def?.markBudget  ?? owned[0].system?.markBudget  ?? null,
+			markOptions: def?.markOptions ?? owned[0].system?.markOptions ?? [],
+			ownedCount:  owned.length,
+		};
+	}
+
+	// An owned move's definition in its playbook's pack (by name), or null.
+	async _packMoveDefinition(item) {
+		const pbName = item.system?.playbook ?? null;
 		const defs   = pbName ? await this._moveRepo.getPlaybookMoves(pbName) : [];
-		const def    = defs.find(d => d.name === moveName) ?? null;
-		const markBudget  = def?.markBudget  ?? owned[0].system?.markBudget  ?? null;
-		const markOptions = def?.markOptions ?? owned[0].system?.markOptions ?? [];
-		const max = moveMarkBudget(markBudget, owned.length);
-		return max == null ? null : { max, markOptions };
+		return defs.find(d => d.name === item.name) ?? null;
+	}
+
+	/**
+	 * The mark box each background answer fills, by move name: the Patriot's "Well Versed in the
+	 * Things Below" is Well Versed's `things-below` box. Ticked on the card, outside the budget, and
+	 * never markable again (setCountMark, the level-up mark step). The answer stored, or the
+	 * background's fixed one when none was ever written (a character from before it was).
+	 * @param {object} [playbookData]  the playbook, when the caller already has it
+	 * @returns {Promise<Record<string, string>>}
+	 */
+	async backgroundMarkOptions(playbookData = null) {
+		playbookData ??= await this.playbook();
+		const answers = this._backgroundAnswers(playbookData);
+		const out = {};
+		for (const [move, answer] of Object.entries(answers)) {
+			const slug = backgroundMarkOption(move, answer?.value);
+			if (slug) out[move] = slug;
+		}
+		return out;
+	}
+
+	// The background's answers to moves (moves.backgroundAnswers), with the background's fixed
+	// answer filling in where none is stored.
+	_backgroundAnswers(playbookData) {
+		const answers = { ...(resolvedFlags(this._actor).moves?.backgroundAnswers ?? {}) };
+		for (const choice of this._selectedBackground(playbookData)?.moveChoices ?? []) {
+			const key = moveChoiceKey(choice);
+			if (key && choice.value && !answers[key]?.value) answers[key] = { label: choice.label ?? key, value: choice.value };
+		}
+		return answers;
 	}
 
 	// Edit-mode override of the level recorded for a given mark slot.
@@ -996,7 +1090,10 @@ export class StonetopCharacter {
 				);
 				const moveResourcesMap = this._moveResources.getMoveResources();
 				const moveMarksMap     = this._moveResources.getMarks();
-				const moveBackgroundAnswers = resolvedFlags(this._actor).moves?.backgroundAnswers ?? {};
+				// The stored answers, with the background's fixed ones filling any never written; the
+				// choices the background offers, so an unanswered one cues the card.
+				const moveBackgroundAnswers = this._backgroundAnswers(playbookData);
+				const backgroundChoices     = new Map((background?.moveChoices ?? []).map(c => [moveChoiceKey(c), c]));
 				const improvedStatChoices   = resolvedFlags(this._actor).improvedStatChoices ?? {};
 				const actorStats            = _statValueMap(this._actor.system?.stats);
 				const source = { type: "playbook", slug: playbookData.slug };
@@ -1004,7 +1101,7 @@ export class StonetopCharacter {
 					.withKey("playbook")
 					.withTitle(`${playbookData.name} Moves`)
 					.withNote(playbookData.startingMovesNote ?? null)
-					.withMoves(_sortOwnedFirst(sorted.map(m => _buildMoveEntry(m, source, moveResourcesMap, bgSlugs, moveBackgroundAnswers, improvedStatChoices, moveMarksMap, actorStats, capState))))
+					.withMoves(_sortOwnedFirst(sorted.map(m => _buildMoveEntry(m, source, moveResourcesMap, bgSlugs, moveBackgroundAnswers, improvedStatChoices, moveMarksMap, actorStats, capState, backgroundChoices))))
 					.build()
 				);
 			}
@@ -1032,18 +1129,35 @@ export class StonetopCharacter {
 			const learnedResourcesMap = this._moveResources.getMoveResources();
 			const learnedMarksMap     = this._moveResources.getMarks();
 			const learnedActorStats   = _statValueMap(this._actor.system?.stats);
+			// Copies of one move (a Fox who takes Well Versed twice through Dabbler) are ONE card, as
+			// on the playbook list: its mark budget scales with every copy, and its marks are shared.
+			const learnedGroups = new Map();
+			for (const i of learnedItems) {
+				const key = `${i.system?.playbook ?? ""}\u0000${i.name}`;
+				if (!learnedGroups.has(key)) learnedGroups.set(key, []);
+				learnedGroups.get(key).push(i);
+			}
+			// The pack's markBudget/markOptions come first, as _moveMarkDefinition reads them, so
+			// the card and the writer's clamp agree; the owned copy's are the fallback.
+			const learnedDefs = await Promise.all([...learnedGroups.values()].map(copies => this._packMoveDefinition(copies[0])));
 			categories.push(new MoveCategorySnapshotBuilder()
 				.withKey("learned")
 				.withTitle("Learned Moves")
 				.withNote("Moves you've gained from outside your own playbook's list.")
-				.withMoves(learnedItems.map(i => {
-					const grantedBy   = i.flags?.[STONETOP_SCOPE]?.grantedBy ?? {};
+				.withMoves([...learnedGroups.values()].map((copies, groupIndex) => {
+					// The card stands for the copies still on first (owns-move.js#moveLearnedIn), so
+					// unticking it takes one of those; a switched-off copy is named in a note below.
+					const learned  = copies.filter(c => moveLearnedIn(c, this._actor.items));
+					const i        = learned[0] ?? copies[0];
+					const ownedIds = copies.map(c => c._id);
+					const def      = learnedDefs[groupIndex];
 					const origin      = i.system?.playbook ?? null;
-					// A cross-playbook grant says who granted it; a move added by hand has no
-					// granter to name, so it wears its origin playbook alone rather than the
-					// old "Granted by —" placeholder, which read like a bug of its own.
-					const sourceLabel = grantedBy.move
-						? `Granted by ${grantedBy.move}${origin ? ` · ${origin}` : ""}`
+					// A cross-playbook grant says who granted it, every granter of every copy; a move
+					// added by hand has no granter to name, so it wears its origin playbook alone
+					// rather than the old "Granted by —" placeholder, which read like a bug of its own.
+					const granters    = [...new Set(copies.map(c => c.flags?.[STONETOP_SCOPE]?.grantedBy?.move).filter(Boolean))];
+					const sourceLabel = granters.length
+						? `Granted by ${granters.join(", ")}${origin ? ` · ${origin}` : ""}`
 						: (origin ?? "Added directly");
 					// Full card fidelity: resource track + markOptions, keyed by move NAME (the
 					// same store playbook moves use), so e.g. a learned ammo/Marks track works.
@@ -1056,7 +1170,7 @@ export class StonetopCharacter {
 						.withSpendTooltip(new ResourceDef(resourceDef).spendTooltip)
 						.build() : null;
 					const { options: markOptions, budget: markBudget } = _buildMarkOptions(
-						{ markOptions: i.system?.markOptions, markBudget: i.system?.markBudget, ownedIds: [i._id], owned: true },
+						{ markOptions: def?.markOptions ?? i.system?.markOptions, markBudget: def?.markBudget ?? i.system?.markBudget, ownedIds, owned: true },
 						learnedMarksMap[i.name] ?? {}, capState);
 					// Its prerequisites, read by the same checks a playbook move's are (a required
 					// move, a level, a stat): a Heavy who learned Parry & Riposte through Seasoned
@@ -1064,6 +1178,13 @@ export class StonetopCharacter {
 					// A WARNING only: nothing is locked or taken away. Its playbook requirement is
 					// not asked, since a learned move is from another playbook by definition.
 					const checked = _learnedMoveRequirement(i, ownedAllByName, actorLevel, learnedActorStats);
+					// Every copy switched off by the cross move that granted it (the user's ruling):
+					// the card reads as off and names the granter to switch back on.
+					// A card still on through another copy names the switched-off one's granter in a note.
+					const offGranter = copies.filter(c => !learned.includes(c))
+						.map(c => switchedOffGranter(c, this._actor.items)).find(Boolean)?.name ?? null;
+					const granterOff     = learned.length ? null : offGranter;
+					const granterOffCopy = learned.length ? offGranter : null;
 					return new MoveSnapshotBuilder()
 						.withId(i._id).withCompendiumId(i._id).withOwnedId(i._id)
 						.withName(i.name)
@@ -1073,9 +1194,10 @@ export class StonetopCharacter {
 						.withIsStarting(false)
 						.withSource({ type: "learned" })
 						.withSourceLabel(sourceLabel)
-						.withOwned(true).withOwnedIds([i._id])
+						.withOwned(true).withOwnedIds(ownedIds)
 						.withLocked(false).withRequirement(null).withRequiresLabel(checked.requiresLabel)
 						.withRequirementsUnmet(checked.requirementsUnmet)
+						.withGranterOff(granterOff).withGranterOffCopy(granterOffCopy)
 						.withResource(resource)
 						.withMarkOptions(markOptions).withMarkBudget(markBudget)
 						.withMaxLoad(i.system?.maxLoad)
@@ -2909,6 +3031,11 @@ export class StonetopCharacter {
 		return playbookData?.backgrounds?.find(b => b.slug === this._background.selectedSlug) ?? null;
 	}
 
+	// The same, reading the playbook itself.
+	async selectedBackground() {
+		return this._selectedBackground(await this.playbook());
+	}
+
 	// The moves that background hands over, with the player's own setup-choice picks
 	// folded in (see backgroundMoveNames).
 	_backgroundMoveNames(background) {
@@ -3048,28 +3175,64 @@ export class StonetopCharacter {
 
 	// A background's `moveChoices` answer a move's question rather than grant it: the Seeker's
 	// "Well Versed in the Things Below" is the Patriot's, stored as Well Versed's answer. On a
-	// change of background the new one's fixed answer replaces the old; one that offers a choice
-	// keeps the old answer if it is among the offers, and otherwise the answer goes, to be picked
-	// again, rather than going on naming the old background's topic.
+	// change of background the NEW one decides: its fixed answer is written (a first background
+	// picked on the Details tab included); one that offers a choice keeps the old answer if it is
+	// among the offers, and otherwise the answer goes, to be asked for (backgroundAnswerAsks, the
+	// sheet's ask) rather than going on naming the old background's topic. An answer the old
+	// background gave and the new one doesn't ask for goes too.
 	async _settleBackgroundAnswers(fromSlug, toSlug) {
 		const backgrounds = (await this.playbook())?.backgrounds ?? [];
-		const keyOf = choice => choice.move ?? choice.slug ?? choice.label ?? "";
-		const was = (backgrounds.find(b => b.slug === fromSlug)?.moveChoices ?? []).map(keyOf).filter(Boolean);
-		if (!was.length) return;
-		const next    = new Map((backgrounds.find(b => b.slug === toSlug)?.moveChoices ?? []).map(c => [keyOf(c), c]));
+		const was  = (backgrounds.find(b => b.slug === fromSlug)?.moveChoices ?? []).map(moveChoiceKey).filter(Boolean);
+		const next = new Map((backgrounds.find(b => b.slug === toSlug)?.moveChoices ?? []).map(c => [moveChoiceKey(c), c]));
+		next.delete("");
 		const answers = resolvedFlags(this._actor).moves?.backgroundAnswers ?? {};
 		const update  = {};
-		for (const key of was) {
+		for (const key of new Set([...was, ...next.keys()])) {
 			const path   = `flags.${STONETOP_SCOPE}.moves.backgroundAnswers.${key}`;
 			const choice = next.get(key);
 			if (choice?.value) {
-				update[path] = { label: choice.label ?? key, value: choice.value };
+				if (answers[key]?.value !== choice.value) update[path] = { label: choice.label ?? key, value: choice.value };
 			} else if (answers[key] && !(choice?.options ?? []).includes(answers[key].value)) {
 				const [deleteKey, deleteValue] = deletionEntry(path);
 				update[deleteKey] = deleteValue;
 			}
 		}
 		if (Object.keys(update).length) await this._actor.update(update);
+	}
+
+	/**
+	 * The current background's answers to moves that are the player's to pick (the Witch Hunter's
+	 * "Well Versed in (pick 1) the Fae, the Things Below, or the Last Door"), with the answer held
+	 * now (`value`, "" when none). The sheet asks these after a change of background, and from the
+	 * card's cue while one is unanswered.
+	 * @returns {Promise<Array<{key: string, move: string, label: string, options: string[], value: string}>>}
+	 */
+	async backgroundAnswerAsks() {
+		const background = this._selectedBackground(await this.playbook());
+		const answers = resolvedFlags(this._actor).moves?.backgroundAnswers ?? {};
+		return (background?.moveChoices ?? [])
+			.filter(choice => moveChoiceKey(choice) && !choice.value && choice.options?.length)
+			.map(choice => {
+				const key = moveChoiceKey(choice);
+				const held = answers[key]?.value ?? "";
+				return {
+					key, move: choice.move ?? key, label: choice.label ?? key,
+					options: [...choice.options],
+					value: choice.options.includes(held) ? held : "",
+				};
+			});
+	}
+
+	/**
+	 * Answer the current background's choice `key` with `value`, one of the offers it prints. Any
+	 * other value is refused (false).
+	 */
+	async setBackgroundAnswer(key, value) {
+		const choice = (this._selectedBackground(await this.playbook())?.moveChoices ?? [])
+			.find(c => moveChoiceKey(c) === key);
+		if (!choice?.options?.includes(value)) return false;
+		await this._actor.update({ [`flags.${STONETOP_SCOPE}.moves.backgroundAnswers.${key}`]: { label: choice.label ?? key, value } });
+		return true;
 	}
 
 	/**
@@ -5381,6 +5544,9 @@ export class StonetopCharacter {
 			// spent on a budgeted move (Veteran Crew / Well Versed / …) and compute the
 			// remaining picks for this take.
 			marks: this._moveResources.getMarks(),
+			// The box each background answer fills (the Patriot's Things Below on Well Versed): shown
+			// in the mark step as the Background's, never pickable (backgroundMarkOptions).
+			backgroundMarks: await this.backgroundMarkOptions(playbookData),
 			// What a capped mark option is weighed against, so the mark step greys an option that
 			// would buy nothing (the crew's die already at d10): see _markCapState.
 			markCapState: this._markCapState(await this._crewStatsFor(playbookData, ownedAllByName)),
@@ -6174,12 +6340,13 @@ function _buildPlaybookSection(playbookData, background, instinct, appearance, o
 		.build();
 }
 
+
 // Normalize a stored mark value into an array of { stat, level } entries.
 // Handles legacy shapes: a plain count (number) or an array of stat strings.
 function _markEntries(stored) {
 	if (Array.isArray(stored)) {
 		return stored.map(e => (e && typeof e === "object")
-			? { stat: e.stat ?? "", level: e.level ?? null }
+			? { stat: e.stat ?? "", level: e.level ?? null, ...(e.creation ? { creation: true } : {}) }
 			: { stat: typeof e === "string" ? e : "", level: null });
 	}
 	if (typeof stored === "number") return Array.from({ length: stored }, () => ({ stat: "", level: null }));
@@ -6241,7 +6408,13 @@ function _sumMarkPicks(moveMarks, markOptions, skipSlug = null) {
 // buy nothing, its target already at the option's cap (move-mark-budget.js#markOptionCapNote); the
 // option carries the reason as `capNote` for a tooltip. A checked box stays editable, as under the
 // budget lock, so a pick can still be taken back.
-function _buildMarkOptions(entry, markCounts, capState = {}) {
+//
+// `backgroundSlug` is the option the background fills (StonetopCharacter#backgroundMarkOptions: the
+// Patriot's Things Below on Well Versed). On an owned move its first box shows ticked and locked,
+// labelled "Background", and is not stored, so it sits outside the budget; the option's own boxes
+// are what is left. A mark stored on it anyway (an old character's) stays, editable, and is flagged
+// with `duplicateNote`: never taken away.
+function _buildMarkOptions(entry, markCounts, capState = {}, backgroundSlug = null) {
 	if (!entry.markOptions?.length) return { options: null, budget: null };
 	const statList = Object.entries(_STAT_DEFS).map(([key, { abbr }]) => ({ key, abbr }));
 
@@ -6268,12 +6441,20 @@ function _buildMarkOptions(entry, markCounts, capState = {}) {
 		}
 		const count = entries.length;
 		const capNote = markOptionCapNote(opt, capState);
+		const fromBackground = !!entry.owned && !!backgroundSlug && opt.slug === backgroundSlug;
+		// The option's own boxes: the background's box is not one of them, but a mark stored on
+		// top of it still shows, so it can be seen and unticked.
+		const ownBoxes = fromBackground ? Math.max(marks - 1, count) : marks;
 		return {
 			slug:   opt.slug,
 			label:  opt.label,
 			// Only while a box is still there to tick: a fully marked option has nothing to grey.
-			capNote: capNote && count < marks ? capNote : null,
-			checks: Array.from({ length: marks }, (_, i) => ({
+			capNote: capNote && count < ownBoxes ? capNote : null,
+			background: fromBackground
+				? { label: _loc("stonetop.character.moves.backgroundMark"), tooltip: _loc("stonetop.character.moves.backgroundMarkTooltip") }
+				: null,
+			duplicateNote: fromBackground && count > marks - 1 ? _loc("stonetop.character.moves.backgroundMarkDuplicate") : null,
+			checks: Array.from({ length: ownBoxes }, (_, i) => ({
 				index: i,
 				checked: i < count,
 				level: entries[i]?.level ?? null,
@@ -6310,7 +6491,9 @@ function _learnedMoveRequirement(item, ownedAllByName, actorLevel, actorStats) {
 	return { requiresLabel: entry.requiresLabel, requirementsUnmet: entry.requirementsUnmet };
 }
 
-function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), moveBackgroundAnswers = {}, improvedStatChoices = {}, moveMarksMap = {}, actorStats = {}, capState = {}) {
+// `backgroundChoices` (move name → the background's moveChoices entry) marks a card whose background
+// answer is the player's to pick and still empty (`backgroundAnswerNeeded`, the card's cue).
+function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), moveBackgroundAnswers = {}, improvedStatChoices = {}, moveMarksMap = {}, actorStats = {}, capState = {}, backgroundChoices = new Map()) {
 	const resourceDef = entry.resource;
 	const resource = resourceDef ? new ResourceBuilder()
 		.withCurrent(moveResourcesMap[entry.name] ?? 0)
@@ -6329,7 +6512,17 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		: null;
 	const sourceLabel = entry.isStarting ? (bgSlugs.has(slugify(entry.name)) ? "Background" : "Starting move") : null;
 
-	const { options: markOptions, budget: markBudget } = _buildMarkOptions(entry, moveMarksMap[entry.name] ?? {}, capState);
+	const backgroundAnswer = moveBackgroundAnswers[entry.name] ?? null;
+	const { options: markOptions, budget: markBudget } = _buildMarkOptions(entry, moveMarksMap[entry.name] ?? {}, capState,
+		backgroundMarkOption(entry.name, backgroundAnswer?.value));
+	const backgroundChoice = backgroundChoices.get(entry.name);
+	const backgroundAnswerNeeded = entry.owned && backgroundChoice?.options?.length && !backgroundAnswer?.value
+		? {
+			label: backgroundChoice.label ?? entry.name, options: [...backgroundChoice.options],
+			tooltip: format("stonetop.character.moves.backgroundAnswerNeeded",
+				{ label: backgroundChoice.label ?? entry.name, options: backgroundChoice.options.join(", ") }),
+		}
+		: null;
 
 	const statChoices = (entry.cap != null && entry.ownedIds.length > 0)
 		? entry.ownedIds
@@ -6376,7 +6569,8 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		.withResource(resource)
 		.withRepeat(repeat)
 		.withRepeatable(repeat !== null)
-		.withBackgroundAnswer(moveBackgroundAnswers[entry.name] ?? null)
+		.withBackgroundAnswer(backgroundAnswer)
+		.withBackgroundAnswerNeeded(backgroundAnswerNeeded)
 		.withStatChoices(statChoices)
 		.withStatChoiceNeeded(statChoiceNeeded)
 		.withMarkOptions(markOptions)

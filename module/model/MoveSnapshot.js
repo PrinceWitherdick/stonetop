@@ -25,6 +25,8 @@ export class RequirementSnapshot {
  * @property {string[]} ownedIds
  * @property {boolean} locked
  * @property {boolean} requirementsUnmet - owned, but its prerequisites are no longer met
+ * @property {string|null} granterOff - the switched-off cross move that granted this one (so it is off too)
+ * @property {string|null} granterOffCopy - on a card still on through another copy: the switched-off granter of a copy that is off
  * @property {RequirementSnapshot|null} requirement
  * @property {string|null} requiresLabel
  * @property {string|null} replacedBy - the owned move this un-owned one was given up for
@@ -32,6 +34,7 @@ export class RequirementSnapshot {
  * @property {{ max: number, current: number }|null} repeat
  * @property {boolean} repeatable
  * @property {{ label: string, value: string }|null} backgroundAnswer
+ * @property {{ label: string, options: string[] }|null} backgroundAnswerNeeded
  * @property {Array<{ownedId:string, statKey:string, statAbbr:string}>|null} statChoices
  * @property {{ count:number, cap:number }|null} statChoiceNeeded owned stat-increase instances with no stat picked yet
  */
@@ -52,6 +55,12 @@ export class MoveSnapshot {
 		this.ownedIds      = b._ownedIds;
 		this.locked        = b._locked;
 		this.requirementsUnmet = b._requirementsUnmet ?? false;
+		// A learned move granted by a cross move (Versatile, Initiate) that is now switched off:
+		// the granter's name, and the card reads as off (owns-move.js#moveLearnedIn). Null otherwise.
+		this.granterOff    = b._granterOff ?? null;
+		// A card held in several copies, still on through one of them, with a copy whose granter is
+		// switched off: that granter's name, for a note. Null otherwise.
+		this.granterOffCopy = b._granterOffCopy ?? null;
 		this.requirement   = b._requirement;
 		this.requiresLabel = b._requiresLabel;
 		// The owned move this one was given up for (Bulwark -> "A Mighty Rampart"), or null.
@@ -61,6 +70,9 @@ export class MoveSnapshot {
 		this.repeat        = b._repeat;
 		this.repeatable    = b._repeatable;
 		this.backgroundAnswer = b._backgroundAnswer;
+		// The background's answer to this move is the player's to pick and still empty (the Witch
+		// Hunter's Well Versed topic): { label, options }, or null. Drives the card's cue.
+		this.backgroundAnswerNeeded = b._backgroundAnswerNeeded ?? null;
 		this.statChoices   = b._statChoices ?? null;
 		// Owned Improved/Superior Stat instances that were taken but never had a stat
 		// chosen (so they silently raise nothing) — { count, cap }, or null when every
@@ -98,6 +110,8 @@ export class MoveSnapshotBuilder {
 	withOwnedIds(v)      { this._ownedIds      = v; return this; }
 	withLocked(v)        { this._locked        = v; return this; }
 	withRequirementsUnmet(v) { this._requirementsUnmet = !!v; return this; }
+	withGranterOff(v)    { this._granterOff = v ?? null; return this; }
+	withGranterOffCopy(v) { this._granterOffCopy = v ?? null; return this; }
 	withRequirement(v)   { this._requirement   = v; return this; }
 	withRequiresLabel(v) { this._requiresLabel = v; return this; }
 	withReplacedBy(v)    { this._replacedBy    = v ?? null; return this; }
@@ -105,6 +119,7 @@ export class MoveSnapshotBuilder {
 	withRepeat(v)        { this._repeat        = v; return this; }
 	withRepeatable(v)    { this._repeatable    = v; return this; }
 	withBackgroundAnswer(v) { this._backgroundAnswer = v ?? null; return this; }
+	withBackgroundAnswerNeeded(v) { this._backgroundAnswerNeeded = v ?? null; return this; }
 	withStatChoices(v)   { this._statChoices      = v ?? null; return this; }
 	withStatChoiceNeeded(v) { this._statChoiceNeeded = v ?? null; return this; }
 	withMarkOptions(v)   { this._markOptions      = v ?? null; return this; }

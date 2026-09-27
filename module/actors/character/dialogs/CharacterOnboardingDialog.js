@@ -17,7 +17,8 @@ import { faqForStep, faqPage } from "../../../utils/onboarding-faq.js";
 import { markFaqItems } from "../../../utils/faq-bullets.js";
 import { applyGearTermTooltips } from "../../../utils/gear-term-tooltips.js";
 import { StonetopAutocomplete } from "../../../utils/autocomplete.js";
-import { wellVersedTopicSummary } from "./well-versed-topics.js";
+import { wellVersedTopicSummary, backgroundMarkOption, moveChoiceKey, WELL_VERSED_MOVE, WELL_VERSED_TOPICS } from "./well-versed-topics.js";
+import { localize } from "../../../utils/i18n.js";
 import { LORE_TERM_TOOLTIPS } from "../../../utils/lore-terms.js";
 import { getHoverDescriptionSetting } from "../../../settings.js";
 import { moveGroupsForPlaybook, moveGroupKeys } from "./onboarding-move-groups.js";
@@ -252,6 +253,10 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			// resets to the rule default (1 ○ circle marked, or none for □-task arcana).
 			arcana:          { major: "", minorDraw: [], minorRoles: { mastered: "", found: "", lead: "" }, majorMarks: [], majorMarksFor: "" },
 			backgroundChoices: {},
+			// The mark a background-answered move asks beside the background's answer, by move name:
+			// Well Versed's "Mark 1 topic, in addition to the one noted in your Background" → the
+			// topic's markOption slug. Applied as the move's 1st-level mark (setCreationMark).
+			backgroundMoveMarks: {},
 			backgroundSetup: { choices: {}, texts: {}, neighborTraits: {}, neighborPicks: {} },
 			// Slugs of the background's level-gated markable actions marked during
 			// creation (the Ranger's Beast-Bonded "focus on your companion" actions —
@@ -673,14 +678,10 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		return background?.moveChoices ?? [];
 	}
 
-	_moveChoiceKey(choice) {
-		return choice?.move ?? choice?.slug ?? choice?.label ?? "";
-	}
-
 	_ensureBackgroundMoveChoices(background = this._selectedBackground()) {
 		if (!background) return;
 		for (const choice of this._backgroundMoveChoices(background)) {
-			const key = this._moveChoiceKey(choice);
+			const key = moveChoiceKey(choice);
 			if (!key) continue;
 			if (choice.value) {
 				this._selections.backgroundChoices[key] = {
@@ -698,13 +699,61 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				};
 			}
 		}
+		// The extra topic can't be the one the background notes: that box is the background's.
+		this._selections.backgroundMoveMarks ??= {};
+		for (const choice of this._backgroundMoveChoices(background)) {
+			const key = moveChoiceKey(choice);
+			if (!this._asksExtraMark(choice) || !this._selections.backgroundMoveMarks[key]) continue;
+			if (this._selections.backgroundMoveMarks[key] === this._backgroundChoiceMarkSlug(choice, background)) {
+				delete this._selections.backgroundMoveMarks[key];
+			}
+		}
+	}
+
+	// Well Versed: "Mark 1 topic, in addition to the one noted in your Background". The step asks
+	// that topic beside the background's own.
+	_asksExtraMark(choice) {
+		return moveChoiceKey(choice) === WELL_VERSED_MOVE;
+	}
+
+	// The box `background`'s answer to `choice` fills (well-versed-topics.js#backgroundMarkOption),
+	// its fixed answer or, on the background picked, the answer picked; null when none is yet.
+	_backgroundChoiceMarkSlug(choice, background) {
+		const key = moveChoiceKey(choice);
+		const picked = background?.slug === this._selections.backgroundSlug ? this._selections.backgroundChoices[key]?.value : "";
+		return backgroundMarkOption(choice.move ?? key, choice.value || picked || "");
+	}
+
+	// Every extra topic the background's move choices ask is picked, and is not the background's.
+	_backgroundExtraMarksComplete(background) {
+		const topics = new Set(WELL_VERSED_TOPICS.map(t => t.slug));
+		return this._backgroundMoveChoices(background).every(choice => {
+			if (!this._asksExtraMark(choice)) return true;
+			const pick = this._selections.backgroundMoveMarks?.[moveChoiceKey(choice)];
+			return topics.has(pick) && pick !== this._backgroundChoiceMarkSlug(choice, background);
+		});
 	}
 
 	_backgroundMoveChoiceData(background) {
 		return this._backgroundMoveChoices(background).map(choice => {
-			const key = this._moveChoiceKey(choice);
+			const key = moveChoiceKey(choice);
 			const selectedValue = this._selections.backgroundChoices[key]?.value ?? choice.value ?? "";
+			const fromBackground = this._backgroundChoiceMarkSlug(choice, background);
+			const extraPick = this._selections.backgroundMoveMarks?.[key] ?? "";
 			return {
+				// "Plus 1 more topic": all seven, the background's own shown but not pickable.
+				extraMark: this._asksExtraMark(choice) ? {
+					label: localize("stonetop.onboarding.wellVersedExtra"),
+					fromBackgroundLabel: localize("stonetop.onboarding.wellVersedFromBackground"),
+					options: WELL_VERSED_TOPICS.map(topic => ({
+						slug: topic.slug,
+						label: topic.label,
+						summary: wellVersedTopicSummary(topic.label) ?? "",
+						fromBackground: topic.slug === fromBackground,
+						selected: topic.slug === extraPick && topic.slug !== fromBackground
+							&& background?.slug === this._selections.backgroundSlug,
+					})),
+				} : null,
 				key,
 				move: choice.move ?? key,
 				label: this._normalizeOnboardingText(choice.label ?? key),
@@ -1488,7 +1537,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				if (!bg) return false;
 				const moveChoicesComplete = this._backgroundMoveChoices(bg).every(choice => {
 					if (!choice.options?.length) return true;
-					const key = this._moveChoiceKey(choice);
+					const key = moveChoiceKey(choice);
 					return !!this._selections.backgroundChoices[key]?.value;
 				});
 				const setup = this._backgroundSetup(bg);
@@ -1506,7 +1555,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 					return (this._selections.backgroundSetup.neighborPicks[choice.key] ?? []).length === count;
 				});
 				const markableActionsComplete = this._backgroundActionsComplete(bg);
-				return moveChoicesComplete && setupChoicesComplete && setupTextsComplete &&
+				return moveChoicesComplete && this._backgroundExtraMarksComplete(bg) && setupChoicesComplete && setupTextsComplete &&
 					neighborTraitsComplete && neighborChoicesComplete && markableActionsComplete;
 			}
 			case "instinct":       return !!this._selections.instinctValue.trim();
@@ -1806,8 +1855,11 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		const missing = [];
 		for (const choice of this._backgroundMoveChoices(bg)) {
 			if (!choice.options?.length) continue;
-			const key = this._moveChoiceKey(choice);
+			const key = moveChoiceKey(choice);
 			if (!this._selections.backgroundChoices[key]?.value) missing.push(`moveChoice:${key}`);
+		}
+		if (!this._backgroundExtraMarksComplete(bg)) {
+			for (const choice of this._backgroundMoveChoices(bg).filter(c => this._asksExtraMark(c))) missing.push(`moveMark:${moveChoiceKey(choice)}`);
 		}
 		const setup = this._backgroundSetup(bg);
 		for (const choice of (setup?.choices ?? [])) {
@@ -2513,6 +2565,45 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				radio.closest(".stonetop-onboarding-background-choice-option")
 					?.classList.toggle("is-selected", radio.checked);
 			});
+			// The topic picked is the background's box now: out of the "1 more topic" list.
+			this._ensureBackgroundMoveChoices();
+			_paintExtraMarks(ev.currentTarget.closest(".stonetop-onboarding-background-move-choice"), backgroundSlug, choiceKey);
+			_syncBackgroundSelection(prevBackground, backgroundSlug);
+			_refreshNextButton();
+		});
+
+		// Well Versed's "1 more topic" beside the background's: the background's own box is shown
+		// but can't be picked, and a pick equal to it is dropped (_ensureBackgroundMoveChoices).
+		const _paintExtraMarks = (container, backgroundSlug, choiceKey) => {
+			if (!container) return;
+			const background = this._backgrounds.find(b => b.slug === backgroundSlug);
+			const choice = this._backgroundMoveChoices(background).find(c => moveChoiceKey(c) === choiceKey);
+			const fromBackground = choice ? this._backgroundChoiceMarkSlug(choice, background) : null;
+			const pick = this._selections.backgroundMoveMarks?.[choiceKey] ?? "";
+			container.querySelectorAll(".stonetop-onboarding-background-extra-mark input[type='radio']").forEach(radio => {
+				const own = radio.value === fromBackground;
+				radio.disabled = own;
+				radio.checked = !own && radio.value === pick && backgroundSlug === this._selections.backgroundSlug;
+				const option = radio.closest(".stonetop-onboarding-background-extra-mark");
+				option?.classList.toggle("is-from-background", own);
+				option?.classList.toggle("is-selected", radio.checked);
+			});
+		};
+		html.find(".stonetop-onboarding-background-extra-mark").on("click", ev => {
+			if (ev.target.type === "radio") return;
+			const radio = ev.currentTarget.querySelector("input[type='radio']");
+			if (radio && !radio.checked && !radio.disabled) {
+				radio.checked = true;
+				radio.dispatchEvent(new Event("change", { bubbles: true }));
+			}
+		});
+		html.find(".stonetop-onboarding-background-extra-mark input[type='radio']").on("change", ev => {
+			const { backgroundSlug, choiceKey } = ev.currentTarget.dataset;
+			const prevBackground = this._selections.backgroundSlug;
+			if (prevBackground !== backgroundSlug) this._applyBackgroundChange(backgroundSlug);
+			this._selections.backgroundMoveMarks ??= {};
+			this._selections.backgroundMoveMarks[choiceKey] = ev.currentTarget.value;
+			_paintExtraMarks(ev.currentTarget.closest(".stonetop-onboarding-background-move-choice"), backgroundSlug, choiceKey);
 			_syncBackgroundSelection(prevBackground, backgroundSlug);
 			_refreshNextButton();
 		});

@@ -70,6 +70,25 @@
 						<p class="stonetop-onboarding-background-choice-fixed">{{value}}</p>
 						{{/if}}
 						{{/if}}
+						{{!-- Well Versed: "Mark 1 topic, in addition to the one noted in your Background". --}}
+						{{#if extraMark}}
+						<p class="stonetop-onboarding-background-move-choice-label">{{extraMark.label}}</p>
+						<div class="stonetop-onboarding-background-choice-options stonetop-onboarding-background-extra-marks">
+							{{#each extraMark.options}}
+							<span class="stonetop-onboarding-bg-option stonetop-onboarding-background-extra-mark{{#if selected}} is-selected{{/if}}{{#if fromBackground}} is-from-background{{/if}}">
+								<input type="radio"
+								       name="onboard-background-extra-mark-{{../../slug}}-{{../key}}"
+								       value="{{slug}}"
+								       data-background-slug="{{../../slug}}"
+								       data-choice-key="{{../key}}"
+								       {{#if selected}}checked{{/if}}
+								       {{#if fromBackground}}disabled{{/if}}>
+								<span class="stonetop-onboarding-well-versed-topic"{{#if summary}} data-tooltip="{{summary}}"{{/if}}>{{label}}</span>
+								{{#if fromBackground}}<em class="stonetop-onboarding-background-extra-mark-note">({{../extraMark.fromBackgroundLabel}})</em>{{/if}}
+							</span>
+							{{/each}}
+						</div>
+						{{/if}}
 					</div>
 					{{/each}}
 				</div>
