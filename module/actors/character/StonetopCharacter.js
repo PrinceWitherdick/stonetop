@@ -44,7 +44,7 @@ import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from
 import {DEATHS_DOOR_FLAG, UNSTOPPABLE, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
 import {heroDisplayName, WBH_HERO_FLAG, ownsAsteriskMove} from "./WouldBeHeroAsterisk.js";
 import {tookBackground} from "./took-background.js";
-import {ownedNamesOr, ownedLearnedMove, ownsLearnedMoveNamed, isMoveLearned, ownedMoveNames, ownsMoveNamed} from "./owns-move.js";
+import {ownedNamesOr, ownedLearnedMove, ownsLearnedMoveNamed, isMoveLearned, moveLearnedIn, ownedMoveNames, ownsMoveNamed} from "./owns-move.js";
 import {fineWhiskyOffer as fineWhiskyOfferFrom, isPersuadeMove, FINE_WHISKY_SOURCE} from "./fine-whisky.js";
 import {tagLoadGatedMoves} from "./load-gates.js";
 import {startOfPlayGear, START_GEAR_FLAG} from "./start-of-play-gear.js";
@@ -286,7 +286,7 @@ function _learnedMoveField(actor, field) {
 	let total = 0;
 	const names = [];
 	for (const i of actor.items) {
-		if (i.type !== "move" || !isMoveLearned(i)) continue;
+		if (i.type !== "move" || !moveLearnedIn(i, actor.items)) continue;
 		const value = Number(i.system?.[field]) || 0;
 		if (value === 0) continue;
 		total += value;
@@ -860,7 +860,7 @@ export class StonetopCharacter {
 		// move that happens to be stored as moveType "other" doesn't get its bonus counted
 		// here. (loadBonus/shieldLoadReduction are summed across all owned moves elsewhere.)
 		for (const i of this._actor.items) {
-			if (!_isCustomMove(i) || !isMoveLearned(i)) continue;
+			if (!_isCustomMove(i) || !moveLearnedIn(i, this._actor.items)) continue;
 			totals.hp    += Number(i.system?.hpBonus)    || 0;
 			totals.armor += Number(i.system?.armorBonus) || 0;
 		}
@@ -885,7 +885,7 @@ export class StonetopCharacter {
 		const marks = this._moveResources.getMarks();
 		const foreignMarked = new Set();
 		for (const i of this._actor.items) {
-			if (i.type !== "move" || _isCustomMove(i) || !isMoveLearned(i)) continue;
+			if (i.type !== "move" || _isCustomMove(i) || !moveLearnedIn(i, this._actor.items)) continue;
 			if (ownPlaybookMoveNames.has(i.name)) continue;
 			totals.hp    += Number(i.system?.hpBonus)    || 0;
 			totals.armor += Number(i.system?.armorBonus) || 0;
@@ -912,7 +912,7 @@ export class StonetopCharacter {
 	// Whether the character holds a learned, non-custom copy of `name`, off `ownedAllByName`
 	// (_buildOwnedMovesMap: name → owned items[]).
 	_ownsLearnedBookCopy(name, ownedAllByName) {
-		return (ownedAllByName.get(name) ?? []).some(i => !_isCustomMove(i) && isMoveLearned(i));
+		return (ownedAllByName.get(name) ?? []).some(i => !_isCustomMove(i) && moveLearnedIn(i, this._actor.items));
 	}
 
 	// What a capped mark option is weighed against (move-mark-budget.js#markOptionCapNote): the
@@ -1438,7 +1438,7 @@ export class StonetopCharacter {
 					.withRollLabel(_rollLabelForMove(i.name, i.system?.rollType, i.system))
 					.withSourceLabel(origin && origin !== ownPlaybook ? origin : null)
 					.withCustom(_isCustomMove(i))
-					.withLearned(isMoveLearned(i))
+					.withLearned(moveLearnedIn(i, this._actor.items))
 					.withResourceKey(resourceKey)
 					.withResource(_buildOtherMoveResource(i.system?.resource, moveResourceState[resourceKey]))
 					.build();
@@ -1620,8 +1620,11 @@ export class StonetopCharacter {
 				.withPreselected(isPre)
 				// Preselected possessions (the Blessed's sacred pouch, Marshal's symbol of
 				// authority, etc.) are starting *gear*, not moves — show no source label
-				// (the disabled checkbox already signals they're locked in).
-				.withPreselectedSource(null)
+				// (the disabled checkbox already signals they're locked in). A granted pouch whose
+				// granter is switched off says so there: it can't be spent until it is back on.
+				.withPreselectedSource(isSelected && this._grantSuspended(opt.slug, { specialPossessions })
+					? `Off: ${this._actor.items.find(i => i.type === "move" && i.system?.crossPlaybook?.grantsPossession === opt.slug)?.name ?? ""} is switched off`
+					: null)
 				.withResource(resource)
 				// Untitled circle tracks default to a "Uses" label (mirrors the Blessed's
 				// "Stock"), so the top-right circles always read with a heading.
@@ -2421,7 +2424,7 @@ export class StonetopCharacter {
 			}
 			// LEARNED copies only: an un-learned Big Magic stays on the sheet switched off, and
 			// its "+2 max Stock" must not keep growing the pouch.
-			bonus += sumMoveBonus(usesBonus.moveBonus, n => (ownedAllByName.get(n) ?? []).filter(isMoveLearned).length);
+			bonus += sumMoveBonus(usesBonus.moveBonus, n => (ownedAllByName.get(n) ?? []).filter(i => moveLearnedIn(i, this._actor.items)).length);
 			if (bonus > 0) result[opt.slug] = (opt.resource?.max ?? 0) + bonus;
 		}
 		return result;
@@ -2432,7 +2435,21 @@ export class StonetopCharacter {
 	// caller that has already resolved it.
 	async holdsPossession(slug, playbookData = undefined) {
 		const pb = playbookData === undefined ? await this.playbook() : playbookData;
-		return this._selectedPossessionSlugs(pb).has(slug);
+		return this._selectedPossessionSlugs(pb).has(slug) && !this._grantSuspended(slug, pb);
+	}
+
+	// A grant-only possession (the Seeker's Sacred Pouch, from Initiate of the Secret Arts) whose
+	// every granting move is switched off: kept, uses and all, but not held for spending until a
+	// granter is learned again (the user's ruling). Never one the playbook preselects, and never
+	// one no move on the sheet grants (nothing to switch back on). A possession the playbook does
+	// not list at all (a Would-be Hero's pouch through a dropped-on Initiate) is held by the grant
+	// alone, so it counts as grant-only.
+	_grantSuspended(slug, playbookData) {
+		const sp  = playbookData?.specialPossessions;
+		const opt = sp?.options?.find(o => o.slug === slug);
+		if ((opt && !opt.grantOnly) || (sp?.preselected ?? []).includes(slug)) return false;
+		const granters = this._actor.items.filter(i => i.type === "move" && i.system?.crossPlaybook?.grantsPossession === slug);
+		return granters.length > 0 && !granters.some(i => moveLearnedIn(i, this._actor.items));
 	}
 
 	// The sacred pouch's real max Stock, worked out now (for a caller with no snapshot, like
@@ -2452,7 +2469,7 @@ export class StonetopCharacter {
 	// (the Blessed's sacred-pouch remarkable traits, +1 per Big Magic).
 	ownedMoveCounts() {
 		const counts = {};
-		for (const [name, items] of this._buildOwnedMovesMap()) counts[name] = items.filter(isMoveLearned).length;
+		for (const [name, items] of this._buildOwnedMovesMap()) counts[name] = items.filter(i => moveLearnedIn(i, this._actor.items)).length;
 		return counts;
 	}
 
@@ -4784,7 +4801,7 @@ export class StonetopCharacter {
 	 * un-ticked Unstoppable charges no penalty for circles it still shows on the sheet.
 	 */
 	deathsDoorRollOptions() {
-		const moves = this._actor.items.filter(i => i.type === "move" && isMoveLearned(i));
+		const moves = this._actor.items.filter(i => i.type === "move" && moveLearnedIn(i, this._actor.items));
 		const opts  = deathsDoorRollOptions(moves.map(i => i.name), this._moveResources.getMoveResources());
 		const owner = opts.statChoiceMove
 			? moves.find(i => i.name?.toLowerCase() === opts.statChoiceMove.toLowerCase())
@@ -5280,7 +5297,7 @@ export class StonetopCharacter {
 		const ownedNames = new Set(this._actor.items.filter(i => i.type === "move").map(i => i.name));
 		// What a requirement may lean on: only moves still LEARNED. A switched-off move stays
 		// "owned" (never offered twice) but opens nothing.
-		const learnedNames = new Set(this._actor.items.filter(i => i.type === "move" && isMoveLearned(i)).map(i => i.name));
+		const learnedNames = new Set(this._actor.items.filter(i => i.type === "move" && moveLearnedIn(i, this._actor.items)).map(i => i.name));
 		const retired    = this._retiredMoveNames();
 		const actorStats = _statValueMap(this._actor.system?.stats);
 		const out = [], seen = new Set();

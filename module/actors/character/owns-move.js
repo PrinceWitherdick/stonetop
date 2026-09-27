@@ -25,7 +25,39 @@ export function ownsMoveNamed(actor, name) {
  * nothing written to be on.
  */
 export function isMoveLearned(item) {
-	return item?.flags?.[SYSTEM_ID]?.learned !== false;
+	return moveLearnedIn(item, item?.parent?.items);
+}
+
+/**
+ * The cross-playbook move that granted `item` (Versatile, Initiate of the Secret Arts, ...), found
+ * among `items` by the `grantedBy.instanceId` it was stamped with; null when it has none or the
+ * granter is no longer there.
+ */
+export function granterOf(item, items) {
+	const id = item?.flags?.[SYSTEM_ID]?.grantedBy?.instanceId;
+	if (!id || !items) return null;
+	return items.get?.(id) ?? [...items].find(i => (i?._id ?? i?.id) === id) ?? null;
+}
+
+/**
+ * `isMoveLearned`, read against the actor's own `items`, for a caller holding the actor (a test's
+ * plain item has no `parent`). A move a switched-off cross move GRANTED is switched off with it
+ * (the user's ruling): the grant stays on the sheet with its own flag untouched, so re-learning
+ * the granter brings it straight back. Its own toggle still counts on its own: a learned granter
+ * with the grant switched off reads as off.
+ */
+export function moveLearnedIn(item, items) {
+	return item?.flags?.[SYSTEM_ID]?.learned !== false && !switchedOffGranter(item, items);
+}
+
+/** The switched-off move whose grant keeps `item` off, or null (see moveLearnedIn). */
+export function switchedOffGranter(item, items) {
+	const seen = new Set([item]);
+	for (let granter = granterOf(item, items); granter && !seen.has(granter); granter = granterOf(granter, items)) {
+		if (granter.flags?.[SYSTEM_ID]?.learned === false) return granter;
+		seen.add(granter);
+	}
+	return null;
 }
 
 /**
@@ -37,7 +69,7 @@ export function isMoveLearned(item) {
  * Dangerous must not sharpen a damage roll.
  */
 export function ownsLearnedMoveNamed(actor, name) {
-	return !!actor?.items?.some(i => i.type === "move" && i.name === name && isMoveLearned(i));
+	return !!actor?.items?.some(i => i.type === "move" && i.name === name && moveLearnedIn(i, actor.items));
 }
 
 /** The characters out of any list of actors who have move `name` learned (ownsLearnedMoveNamed). */
@@ -70,7 +102,7 @@ export function isPlayerAuthoredMove(item) {
  * for the move's own resource track.
  */
 export function ownedLearnedBookMove(actor, name) {
-	return (actor?.items ?? []).find(i => i.type === "move" && i.name === name && isMoveLearned(i) && !isPlayerAuthoredMove(i));
+	return (actor?.items ?? []).find(i => i.type === "move" && i.name === name && moveLearnedIn(i, actor.items) && !isPlayerAuthoredMove(i));
 }
 
 /** `ownedLearnedBookMove` as a yes/no, which is all Cheap Shot needs. */
@@ -92,7 +124,7 @@ export function ownedMove(actor, name) {
  * offering a Boon purse (see ownsLearnedMoveNamed for why the two questions differ).
  */
 export function ownedLearnedMove(actor, name) {
-	return (actor?.items ?? []).find(i => i.type === "move" && i.name === name && isMoveLearned(i));
+	return (actor?.items ?? []).find(i => i.type === "move" && i.name === name && moveLearnedIn(i, actor.items));
 }
 
 /** Every move name this character owns, as a Set, for callers testing several names at once. */

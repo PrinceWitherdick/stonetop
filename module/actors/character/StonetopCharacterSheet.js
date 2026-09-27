@@ -94,8 +94,8 @@ import {withSectionEditing} from "../../utils/section-editing.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {annotateInvocationEffects, splitEmpoweredEffect} from "./invocation-effects.js";
 import {CONSECRATED_FLAME, INVOKE_THE_SUN_GOD, EMPOWERED_INVOCATIONS, showHolyLight} from "./holy-light.js";
-import {ownedMoveNames, ownedMove, ownedLearnedMove, ownsLearnedMoveNamed, isPlayerAuthoredMove, isMoveLearned} from "./owns-move.js";
 import { crewIsExceptional } from "./follower-masters.js";
+import {ownedMoveNames, ownedMove, ownedLearnedMove, ownsLearnedMoveNamed, isPlayerAuthoredMove, moveLearnedIn} from "./owns-move.js";
 import {CARD_EMPOWERED_FLAG, CARD_INVOCATIONS_FLAG, TEN_PLUS_FLAG, debilityPayments, invokeTenPlusCardBody, payDebility} from "./invoke-consequences.js";
 import {DANCING_LIGHT, invocationLabel, invocationLabels, invokeWindowNotice, readOngoing, resolveInvocationUse} from "./ongoing-invocation.js";
 import {INVOCATIONS_GRANTED_AT_FLAG, invocationCountCue} from "./invocation-count.js";
@@ -6326,7 +6326,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (!item || item.type !== "move") return null;
 			const defaultStat = normalizeRollType(item.system?.rollType);
 			if (!defaultStat || !_STAT_KEYS.has(defaultStat)) return null; // skip "ask"/formula moves
-			const learned = new Map(this.actor.items.filter(i => i.type === "move" && isMoveLearned(i)).map(i => [i.name, i]));
+			const learned = new Map(this.actor.items.filter(i => i.type === "move" && moveLearnedIn(i, this.actor.items)).map(i => [i.name, i]));
 			const rows = altStatGrantsFor({ moveName: item.name, defaultStat }, {
 				learnedMoveNames: learned.keys(),
 				...this._altStatBackground(),
@@ -8490,7 +8490,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// is fiction the system can't see. Everyone else rolls straight through, so the
 			// ordinary case stays a single click.
 			// LEARNED moves only: one switched off on the sheet bends nothing.
-			const choices = knowThingsRollChoices(moves.filter(isMoveLearned).map(i => i.name), this._altStatBackground());
+			const choices = knowThingsRollChoices(moves.filter(i => moveLearnedIn(i, this.actor.items)).map(i => i.name), this._altStatBackground());
 			const picked  = choices.hasChoice
 				? await this._promptIdentifyRoll(choices, moves)
 				: { stat: KNOW_THINGS_STAT, advantage: false };
