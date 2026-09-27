@@ -41,6 +41,10 @@ export const MOVE_PICK_BONUSES = [
 	{ move: "Seek Insight", ownsLearned: "Perceptive", plus: 1, missFloor: 1 },
 	{ move: "Seek Insight", background: THE_NATURAL,
 		addOptions: ["What opportunity does no one else see?"] },
+	// The Heavy's Situational Awareness. Its "when a fight breaks out, ask the GM 1 question" half
+	// is the table's to honour: nothing is rolled there to hang a list on.
+	{ move: "Seek Insight", ownsLearned: "Situational Awareness",
+		addOptions: ["Who or what here is the biggest threat?", "What is my enemy's true position?", "What here can I use as a weapon?"] },
 	{ move: "Forage", ownsLearned: "Survivalist", plus: 1, missFloor: 1,
 		addOptions: ["Find or fashion some useful item or supply (GM can veto)"] },
 ];

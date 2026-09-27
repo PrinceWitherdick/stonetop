@@ -174,6 +174,69 @@ describe("what a blow adds", () => {
 		expect(blowOffers(wren, { targets: [target(t.bandit)] }).find(o => o.key === "predator")).toMatchObject({ dice: "1d4", applied: false });
 	});
 
+	// Heavy audit (2026-09-25): Blood-Soaked Past's "When you fight to kill without mercy or hesitation, you
+	// deal +1d4 damage" was left to be typed by hand in the damage window.
+	it("offers Blood-Soaked Past's +1d4 UNTICKED to a Heavy who took it, and to no one else", () => {
+		const heavy = (background, playbook = "The Heavy") => {
+			const actor = hero("Bram", [], { system: { playbook: { name: playbook }, attributes: { hp: { value: 20, max: 20 } } } });
+			actor.flags[SYSTEM_ID].background = { selected: background };
+			return actor;
+		};
+		expect(blowOffers(heavy("blood-soaked-past"), {}).find(o => o.key === "withoutMercy"))
+			.toMatchObject({ dice: "1d4", applied: false, label: "Blood-Soaked Past: +1d4 damage, fighting to kill without mercy or hesitation", pill: "Blood-Soaked Past +1d4" });
+		expect(blowOffers(heavy("sheriff"), {}).map(o => o.key)).not.toContain("withoutMercy");
+		// A slug is the playbook's own name for its background.
+		expect(blowOffers(heavy("blood-soaked-past", "The Fox"), {}).map(o => o.key)).not.toContain("withoutMercy");
+	});
+
+	// Heavy audit (2026-09-25), with the user's ruling that followers are allies: Payback read the grudges of
+	// characters only, and a blow on a follower was never written down at all.
+	it("earns Payback from a foe that harmed the Heavy's follower, written on the Heavy", async () => {
+		const { t, rows } = crinRows();
+		const bram = hero("Bram", [HERO_MOVES.PAYBACK]);
+		globalThis.game = { ...saved.game, combats: collection([]), settings: { get: () => true } };
+		globalThis.ui = { combat: {} };
+		globalThis.canvas = { scene: null };
+		const dog = fakeActor({ id: "dog", name: "Dog", type: "npc" });
+		const cardFor = actor => (actor === dog ? { character: bram, ftype: "animal-companion", slug: "" } : null);
+		expect(await recordHarmedBy(dog, t.crin.actor, { cardFor })).toBe(true);
+		expect(bram.getFlag(SYSTEM_ID, HARMED_BY_FLAG)).toEqual([t.crin.uuid]);
+		expect(paybackEarned(bram, rows)).toBe(true);
+		// An NPC who follows nobody is not an ally's follower, and writes nothing.
+		const stranger = fakeActor({ id: "stranger", name: "Stranger", type: "npc" });
+		expect(await recordHarmedBy(stranger, t.crin.actor, { cardFor: () => null })).toBe(false);
+	});
+
+	it("earns Payback from a foe that harmed an ally's follower fighting beside the Heavy", async () => {
+		const crin = fakeActor({ id: "crin", name: "Crinwin", type: "monster" });
+		const bram = hero("Bram", [HERO_MOVES.PAYBACK]);
+		// Cadi is not in the fight; her hound is.
+		const cadi = hero("Cadi", []);
+		const hound = fakeActor({ id: "hound", name: "Hound", type: "npc" });
+		const token = (id, col, actor) => Object.assign(fakeToken({ id, col, row: 1, actor }), { uuid: `Scene.scene1.Token.${id}`, documentName: "Token", actorLink: false });
+		const tokens = { bram: token("tBram", 1, bram), hound: token("tHound", 2, hound), crin: token("tCrin", 3, crin) };
+		Object.assign(crin, { documentName: "Actor", token: { uuid: tokens.crin.uuid }, uuid: `${tokens.crin.uuid}.Actor.crin` });
+		const byUuid = new Map([[tokens.crin.uuid, tokens.crin], [crin.uuid, crin]]);
+		globalThis.fromUuidSync = uuid => byUuid.get(uuid) ?? null;
+		const scene = fakeScene({ tokens: Object.values(tokens) });
+		const combatants = [
+			fakeCombatant({ id: "cBram", token: tokens.bram, scene, side: "heroes" }),
+			fakeCombatant({ id: "cHound", token: tokens.hound, scene, side: "heroes" }),
+			fakeCombatant({ id: "cCrin", token: tokens.crin, scene, side: "foes" }),
+		];
+		const combat = fakeCombat({ scene, combatants });
+		globalThis.game = { ...saved.game, user: { id: "gm", isGM: true }, users: collection([]), combats: collection([combat]), settings: { get: (_s, key) => (key === "fightTab" ? true : undefined) } };
+		globalThis.ui = { combat: { viewed: combat } };
+		globalThis.canvas = { scene };
+		const cardFor = actor => (actor === hound ? { character: cadi, ftype: "animal-companion", slug: "" } : null);
+
+		const rows = [{ uuid: tokens.crin.uuid, name: "Crinwin" }];
+		expect(paybackEarned(bram, rows, { cardFor })).toBe(false);
+		await recordHarmedBy(hound, crin, { cardFor });
+		expect(cadi.getFlag(SYSTEM_ID, HARMED_BY_FLAG)).toEqual([tokens.crin.uuid]);
+		expect(paybackEarned(bram, rows, { cardFor })).toBe(true);
+	});
+
 	it("adds Something to Remember Me By to a strike back, and to nothing else", () => {
 		const pim = hero("Pim", [HERO_MOVES.REMEMBER_ME]);
 		expect(blowOffers(pim, { strikeBack: true }).map(o => o.key)).toContain("rememberMe");
@@ -271,13 +334,19 @@ describe("the damage a character takes", () => {
 
 describe("Berserker", () => {
 	it("is on only in the Battle Joy, and only with the move", () => {
-		const raging = hero("Bram", [HERO_MOVES.BERSERKER]);
+		const raging = hero("Bram", [HERO_MOVES.BERSERKER, "Battle Joy"]);
 		expect(berserkNow(raging)).toBe(false);
 		raging.flags[SYSTEM_ID].battleJoy = true;
 		expect(berserkNow(raging)).toBe(true);
 		const plain = hero("Duvin", ["Battle Joy"]);
 		plain.flags[SYSTEM_ID].battleJoy = true;
 		expect(berserkNow(plain)).toBe(false);
+	});
+
+	it("is off for a rage left on the sheet after Battle Joy was un-learned", () => {
+		const stranded = hero("Bram", [HERO_MOVES.BERSERKER]);
+		stranded.flags[SYSTEM_ID].battleJoy = true;
+		expect(berserkNow(stranded)).toBe(false);
 	});
 });
 

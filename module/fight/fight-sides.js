@@ -53,7 +53,9 @@ export function fightsAsGroup({ type = "", fightAsGroup = false, organization = 
  *  • A group or horde monster fighting as a group (p.416) ..... the members still standing,
  *    read off its HP pool as casualties; routed at 0 HP is out; a group with no headcount
  *    recorded stands for one, as the monster sheet's rows do
- *  • Anything else at 0 HP (with an HP maximum to be at 0 of) . none, out
+ *  • Anything else at 0 HP (with an HP maximum to be at 0 of) . none, out, unless it `keepsFighting`:
+ *    a Heavy's Unstoppable ("reduced to 0 HP in battle, you can keep fighting") until they roll
+ *    Death's Door (actors/character/unstoppable.js#keepsFightingAtZero)
  *  • A group follower (the crew, a custom group) .............. the members its character's roster
  *    has still standing; none left is routed. The roster is who is really up, and it falls as they
  *    do, so the group's bonuses shrink with its casualties (p.416 "Adjust the bonuses")
@@ -69,12 +71,14 @@ export function fightsAsGroup({ type = "", fightAsGroup = false, organization = 
  * @param {number}  [info.count]         a monster's group size
  * @param {number}  [info.headcount]     the combatant's own headcount
  * @param {{standing: number, size: number}|null} [info.roster]  a group follower's roster
+ * @param {boolean} [info.keepsFighting]  fighting on at 0 HP (Unstoppable)
  * @param {number}  [info.startSize]     the size a monster group started at before lone blows dropped
  *   members (fight/group-hits.js#GROUP_SIZE_FLAG); only the `size` it reports reads it
  * @returns {{bodies: number, out: boolean, group: boolean, standing: number|null, size: number|null, routed: boolean}}
  */
 export function bodiesFor({
 	defeated = false, type = "", fightAsGroup = false, organization = "", hp = {}, count = 0, headcount = null, roster = null, startSize = 0,
+	keepsFighting = false,
 } = {}) {
 	const none = { bodies: 0, out: true, group: false, standing: null, size: null, routed: false };
 	if (defeated) return none;
@@ -101,7 +105,7 @@ export function bodiesFor({
 		}
 	}
 
-	if (max > 0 && Number.isFinite(value) && value <= 0) return none;
+	if (max > 0 && Number.isFinite(value) && value <= 0 && !keepsFighting) return none;
 
 	const set = Math.trunc(Number(headcount) || 0);
 	return { bodies: set > 1 ? set : 1, out: false, group: set > 1, standing: null, size: set > 1 ? set : null, routed: false };

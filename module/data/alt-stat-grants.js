@@ -17,6 +17,14 @@ import { tookBackground } from "../actors/character/took-background.js";
 /** The Fox's The Natural, as a background row names it (move-pick-bonuses.js names it the same way). */
 export const THE_NATURAL = { playbook: "The Fox", slug: "the-natural", label: "The Natural" };
 
+/**
+ * The Heavy's Blood-Soaked Past: "When you Persuade using violence or threats against someone who
+ * knows your black reputation, you can roll +STR instead of +CHA. Also, if you take the Formidable
+ * move, you can choose to roll +CON instead of +CHA." The fictional half (violence or threats, a
+ * target who knows) is the player's call, quoted beside the stat in the picker.
+ */
+export const BLOOD_SOAKED_PAST = { playbook: "The Heavy", slug: "blood-soaked-past", label: "Blood-Soaked Past" };
+
 export const ALT_STAT_GRANTS = [
 	{ whenMove: "Clash",               ownsMove: "Skill at Arms",    altStat: "dex" },
 	{ whenMove: "Clash",               ownsMove: "Purifying Flames", altStat: "wis" },
@@ -24,6 +32,9 @@ export const ALT_STAT_GRANTS = [
 	{ whenMove: "Persuade (vs. NPCs)", ownsMove: "Wild Speech",      altStat: "wis" },
 	{ whenDefaultStat: "con",          ownsMove: "Laugh at Danger",  altStat: "cha" },
 	{ whenMove: "Seek Insight",        background: THE_NATURAL, altStat: "int" },
+	{ whenMove: "Persuade (vs. NPCs)", background: BLOOD_SOAKED_PAST, altStat: "str" },
+	{ whenMove: "Persuade (vs. PCs)",  background: BLOOD_SOAKED_PAST, altStat: "str" },
+	{ whenMove: "Formidable",          background: BLOOD_SOAKED_PAST, altStat: "con" },
 ];
 
 /**

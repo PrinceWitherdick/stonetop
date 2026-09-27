@@ -347,7 +347,8 @@ export function raisedFromDead({ oldHp, newHp, state = null }) {
  *  • UNSTOPPABLE — "roll for Death's Door with a -1 penalty for each circle marked". The
  *    circles are Unstoppable's own resource track, so the penalty is read, not typed.
  *
- * @param {string[]} moveNames        every move name the character owns
+ * @param {string[]} moveNames        every move name the character has LEARNED (an un-ticked move
+ *   bends nothing; see StonetopCharacter#deathsDoorRollOptions)
  * @param {Object<string,number>} moveResources  move-name → marked count
  */
 export function deathsDoorRollOptions(moveNames = [], moveResources = {}) {

@@ -41,12 +41,13 @@ import {effectiveRequiredMoves, requiredMovesUnmet, requirementLabel} from "./mo
 import {MoveResources} from "./MoveResources.js";
 import {moveMarkBudget} from "./move-mark-budget.js";
 import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
-import {DEATHS_DOOR_FLAG, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
+import {DEATHS_DOOR_FLAG, UNSTOPPABLE, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
 import {heroDisplayName, WBH_HERO_FLAG, ownsAsteriskMove} from "./WouldBeHeroAsterisk.js";
 import {tookBackground} from "./took-background.js";
 import {ownedNamesOr, ownedLearnedMove, ownsLearnedMoveNamed, isMoveLearned, ownedMoveNames, ownsMoveNamed} from "./owns-move.js";
 import {fineWhiskyOffer as fineWhiskyOfferFrom, isPersuadeMove, FINE_WHISKY_SOURCE} from "./fine-whisky.js";
 import {tagLoadGatedMoves} from "./load-gates.js";
+import {startOfPlayGear, START_GEAR_FLAG} from "./start-of-play-gear.js";
 import {RITES_OF_THE_LAND, SACRED_POUCH_SLUG, NO_POUCH_STOCK_NOTE, BLESSED_PLAYBOOK, isVessel, stockSourcesForFlags, stockCostFromDescription} from "./stock-cost.js";
 import {loseHpForStock} from "./provisions.js";
 import {HOLY_LIGHT_FLAG, canWieldHolyLight, INVOKE_THE_SUN_GOD} from "./holy-light.js";
@@ -131,6 +132,29 @@ const BACKGROUND_MOVE_ADVANTAGE = [
  */
 const SEASON_MOVE_DISADVANTAGE = [
 	{ season: "winter", move: "Forage" },
+];
+
+/**
+ * Lines the roll window offers UNTICKED on a move, for a clause only the player can judge: the
+ * Heavy's Intimidating ("When you Persuade using violence or threats, you have advantage"), Husbandry
+ * tools ("Gain advantage to Persuade domestic beasts (livestock, dogs, etc.)", the Heavy, the Ranger
+ * and the Would-Be Hero) and Stone Cold ("When you Defy Danger ... by keeping calm and carrying on,
+ * treat a 6- as a 7-9"; its Struggle as One half is struggle/struggle-rules.js's).
+ *
+ * A row applies to a character who has `ownsLearned` LEARNED, took the `background` (took-background.js),
+ * holds the special possession `possession`, or has picked AND carries (the ◇) the gear choice
+ * `possessionChoice`, keyed `possession:choice` as the carry marks are. Taken, a line's `source` is
+ * folded in as advantage and named on the card, unless its `effect` says otherwise (see onRoll):
+ * "missAsPartial" counts a 6- as a 7-9 instead, and "hitNote" buys no advantage but prints its `note`
+ * on the card's 10+ and 7-9 rows.
+ */
+const FICTION_ROLL_OFFERS = [
+	{ key: "intimidating", moves: isPersuadeMove, ownsLearned: "Intimidating",
+		source: "Intimidating", label: "stonetop.rollOffers.intimidating" },
+	{ key: "husbandry-tools", moves: name => name === "Persuade (vs. NPCs)", possession: "husbandry-tools",
+		source: "Husbandry tools", label: "stonetop.rollOffers.husbandryTools" },
+	{ key: "stone-cold", moves: name => name === "Defy Danger", ownsLearned: "Stone Cold",
+		source: "Stone Cold", label: "stonetop.rollOffers.stoneCold", effect: "missAsPartial" },
 ];
 
 /**
@@ -1805,26 +1829,46 @@ export class StonetopCharacter {
 	}
 
 	/**
-	 * The ticked lines the roll window offers before `item` is rolled (dialogs/RollDialog.js
-	 * #promptRoll): what the character carries that this roll could spend. Only fine whisky today.
+	 * The lines the roll window offers before `item` is rolled (dialogs/RollDialog.js #promptRoll):
+	 * what the character carries that this roll could spend (a skin of fine whisky, ticked), and the
+	 * FICTION_ROLL_OFFERS their moves and possessions bring to it (unticked).
 	 *
-	 * Each line carries what taking it does, so onRoll settles every line the same way: `source`, the
-	 * advantage it folds in, named on the card, and `spend(moveName)`, its price, paid after the dice.
+	 * Each line carries what taking it does, so onRoll settles every line the same way: `source`, named
+	 * on the card; `effect`, what it does to the roll (advantage unless it says "missAsPartial"); and
+	 * `spend(moveName)`, its price if it has one, paid after the dice.
 	 */
 	async rollOffers(item) {
-		if (!isPersuadeMove(item?.name)) return [];
-		const whisky = await this.fineWhiskyOffer();
-		if (!whisky) return [];
-		return [{
-			...whisky,
-			source: FINE_WHISKY_SOURCE,
-			// 1 use marked (an inventory track counts what is spent). Re-read, so a use marked by hand
-			// while the window was open is not undone.
-			spend: async moveName => {
-				const used = Number(this._inventory.resources[whisky.slug] ?? whisky.used) || 0;
-				await this._inventory.setResource(whisky.slug, Math.min(whisky.max, used + 1), { stonetopMove: moveName });
-			},
-		}];
+		const moveName = item?.name;
+		if (!moveName) return [];
+		const offers = [];
+		const whisky = isPersuadeMove(moveName) ? await this.fineWhiskyOffer() : null;
+		if (whisky) {
+			offers.push({
+				...whisky,
+				source: FINE_WHISKY_SOURCE,
+				// 1 use marked (an inventory track counts what is spent). Re-read, so a use marked by hand
+				// while the window was open is not undone.
+				spend: async name => {
+					const used = Number(this._inventory.resources[whisky.slug] ?? whisky.used) || 0;
+					await this._inventory.setResource(whisky.slug, Math.min(whisky.max, used + 1), { stonetopMove: name });
+				},
+			});
+		}
+		for (const row of FICTION_ROLL_OFFERS) {
+			if (!row.moves(moveName)) continue;
+			if (!await this._earnsRollOffer(row)) continue;
+			offers.push({
+				key: row.key, label: _loc(row.label), applied: false, source: row.source,
+				...(row.effect ? { effect: row.effect } : {}), ...(row.note ? { note: _loc(row.note) } : {}),
+			});
+		}
+		return offers;
+	}
+
+	/** Whether this character has what a FICTION_ROLL_OFFERS row asks for (see there). */
+	async _earnsRollOffer(row) {
+		if (row.ownsLearned) return ownsLearnedMoveNamed(this._actor, row.ownsLearned);
+		return this.holdsPossession(row.possession);
 	}
 
 	/**
@@ -2706,6 +2750,40 @@ export class StonetopCharacter {
 		}
 	}
 
+	// The arcana half of a change of background: a background's `setup.arcana` rows ({ slug,
+	// identify, boxes: [{ context, index }] }), the Heavy's Storm-Marked ("You start with the Storm
+	// Markings major arcanum. Mark one of the boxes on the front"). The ONE writer of those rows,
+	// for the Details tab's dropdown and for onboarding alike. What the new background hands over
+	// is added, identified and marked, unless the card is already owned: a re-run of the same
+	// background leaves the card as play has left it. What the old one handed over goes only while
+	// the card is exactly as it was given (_arcanumAsGranted); a card with play on it stays.
+	async settleBackgroundArcana(previous) {
+		const backgrounds = (await this.playbook())?.backgrounds ?? [];
+		const rowsOf = slug => (backgrounds.find(b => b.slug === slug)?.setup?.arcana ?? []).filter(row => row?.slug);
+		const next   = rowsOf(this.backgroundState().slug);
+		const kept   = new Set(next.map(row => row.slug));
+		for (const row of rowsOf(previous?.slug)) {
+			if (kept.has(row.slug) || !this._arcanumAsGranted(row)) continue;
+			await this.removeArcanum(row.slug);
+		}
+		for (const row of next) {
+			if (this._arcana.ownedSlugs.has(row.slug)) continue;
+			await this.addArcanum(row.slug);
+			if (row.identify) await this.identifyArcanum(row.slug);
+			for (const box of row.boxes ?? []) {
+				await this.setArcanumBoxChecked(row.slug, box.context ?? "front", Number(box.index ?? 0), true);
+			}
+		}
+	}
+
+	// A background's arcanum untouched since it was given: the card's own state is the row's
+	// (CharacterArcana#isAsGranted) and nothing sits on its tracks (Storm Markings' Fury).
+	_arcanumAsGranted(row) {
+		const resources = this._inventory.resources;
+		const onTrack = key => Number(resources[key]) > 0;
+		return this._arcana.isAsGranted(row) && !onTrack(row.slug) && !onTrack(`${row.slug}:item`);
+	}
+
 	// A background's `moveChoices` answer a move's question rather than grant it: the Seeker's
 	// "Well Versed in the Things Below" is the Patriot's, stored as Well Versed's answer. On a
 	// change of background the new one's fixed answer replaces the old; one that offers a choice
@@ -2765,16 +2843,43 @@ export class StonetopCharacter {
 	async dropCreationPicksExcept(keepNames, playbookName, backgrounds = [], choiceGroups = []) {
 		for (const item of this.creationPickItems(playbookName, backgrounds, choiceGroups)) {
 			if (keepNames.has(item.name)) continue;
-			if (this._actor.items.some(i => i._id === item._id)) await this.removeMove(item._id);
+			if (!this._actor.items.some(i => i._id === item._id)) continue;
+			await this._releaseStartGear(item);
+			await this.removeMove(item._id);
 		}
 	}
 
 	// Stamp an onboarding free pick (see creationPickItems): the move just added, or the copy
 	// already owned when a re-run picked it again. One copy per pick.
 	async markCreationPick(moveName) {
-		const owned = this._actor.items.filter(i => i.type === "move" && i.name === moveName);
-		if (!owned.length || owned.some(i => i.flags?.[STONETOP_SCOPE]?.[CREATION_PICK_FLAG])) return;
-		await owned[0].setFlag(STONETOP_SCOPE, CREATION_PICK_FLAG, true);
+		const owned = this._actor.items.filter(i => i.type === "move" && i.name === moveName
+			&& !i.flags?.[STONETOP_SCOPE]?.grantedBy);
+		if (!owned.length) return;
+		const stamped = owned.find(i => i.flags?.[STONETOP_SCOPE]?.[CREATION_PICK_FLAG]);
+		if (!stamped) await owned[0].setFlag(STONETOP_SCOPE, CREATION_PICK_FLAG, true);
+		await this._grantStartGear(stamped ?? owned[0]);
+	}
+
+	// The gear a move gives when taken at the start of play (start-of-play-gear.js), added to the
+	// inventory carried, and remembered on the move (START_GEAR_FLAG) so _releaseStartGear takes
+	// back that and nothing else. Once per move: a re-run finds it remembered. A hauberk already
+	// in the inventory is the player's own, so the move neither adds a second nor claims that one.
+	async _grantStartGear(item) {
+		const slug = startOfPlayGear(item?.name);
+		if (!slug || item.flags?.[STONETOP_SCOPE]?.[START_GEAR_FLAG]) return;
+		if (this._inventory.addedSpecial.includes(slug)) return;
+		await this._inventory.addSpecial(slug);
+		await this._inventory.setItemChecked(slug, true);
+		await item.setFlag(STONETOP_SCOPE, START_GEAR_FLAG, slug);
+	}
+
+	// A re-run of onboarding taking back a move taken at the start of play takes back the gear it
+	// gave (_grantStartGear), unless another move still claims it.
+	async _releaseStartGear(item) {
+		const slug = item?.flags?.[STONETOP_SCOPE]?.[START_GEAR_FLAG];
+		if (!slug) return;
+		const claimed = this._actor.items.some(i => i._id !== item._id && i.flags?.[STONETOP_SCOPE]?.[START_GEAR_FLAG] === slug);
+		if (!claimed) await this._inventory.removeSpecial(slug);
 	}
 
 	/**
@@ -2819,12 +2924,17 @@ export class StonetopCharacter {
 	}
 
 	// Stamp the either/or option onboarding granted (see startingChoiceItems). One copy, and not
-	// the free pick's copy when there is another.
+	// the free pick's copy when there is another. It is taken at the start of play, so it hands over
+	// its gear here (start-of-play-gear.js: the Heavy's Armored).
 	async markStartingChoice(moveName) {
 		const owned = this._actor.items.filter(i => i.type === "move" && i.name === moveName && !i.flags?.[STONETOP_SCOPE]?.grantedBy);
-		if (!owned.length || owned.some(i => i.flags?.[STONETOP_SCOPE]?.[STARTING_CHOICE_FLAG])) return;
-		const item = owned.find(i => !i.flags?.[STONETOP_SCOPE]?.[CREATION_PICK_FLAG]) ?? owned[0];
-		await item.setFlag(STONETOP_SCOPE, STARTING_CHOICE_FLAG, true);
+		if (!owned.length) return;
+		let item = owned.find(i => i.flags?.[STONETOP_SCOPE]?.[STARTING_CHOICE_FLAG]);
+		if (!item) {
+			item = owned.find(i => !i.flags?.[STONETOP_SCOPE]?.[CREATION_PICK_FLAG]) ?? owned[0];
+			await item.setFlag(STONETOP_SCOPE, STARTING_CHOICE_FLAG, true);
+		}
+		await this._grantStartGear(item);
 	}
 
 	// A playbook's moves by name and by id: onboarding's picks arrive as compendium ids, or as the
@@ -2909,12 +3019,25 @@ export class StonetopCharacter {
 
 	// `choiceGroups`: the playbook's "either X OR Y" groups (_startingChoiceGroups), so only the
 	// option this character started with reads as a starting move (demotedStartingChoices).
+	//
+	// A move only a background gives (`requirement.background`: the Heavy's Bark an Order, the
+	// Sheriff's) is left out for any other background, on the Moves tab and in the level-up's
+	// locked list alike: the background is a creation choice, so a faded row would promise a move
+	// no one can earn. Held anyway (a GM dropped it on), it shows, with its warning.
+	//
+	// A row's own copies leave out a move granted through a cross-playbook pick, even one of the
+	// same name (Armored is the Heavy's, the Judge's and the Marshal's): a world from before
+	// getForeignMovesForLevelUp stopped offering the Marshal's Armored to a Heavy holds such a
+	// grant, and it belongs in Learned Moves with its "Granted by", out of the level's picks and
+	// out of reach of the Heavy's own Armored box. Requirements still read every move held.
 	buildMovelistContext(entries, ownedAllByName, bgMoveNames, actorLevel, actorPlaybook, choiceGroups = []) {
 		const actorStats = _statValueMap(this._actor.system?.stats);
 		const demoted    = this.demotedStartingChoices(choiceGroups);
-		return entries.map(e =>
-			new PlaybookMoveEntry(e, ownedAllByName.get(e.name) ?? [], bgMoveNames, ownedAllByName, actorLevel, actorPlaybook, actorStats, demoted)
-		);
+		const background = this._background.selectedSlug;
+		const ownCopies  = name => (ownedAllByName.get(name) ?? []).filter(i => !i.flags?.[STONETOP_SCOPE]?.grantedBy);
+		return entries
+			.filter(e => !e.requirement?.background || e.requirement.background === background || ownedAllByName.has(e.name))
+			.map(e => new PlaybookMoveEntry(e, ownCopies(e.name), bgMoveNames, ownedAllByName, actorLevel, actorPlaybook, actorStats, demoted));
 	}
 
 	// A playbook's "either X OR Y" starting-move groups, from the StonetopPlaybook the repository
@@ -2979,7 +3102,8 @@ export class StonetopCharacter {
 	async addMove(compendiumId, { skipIfOwned = false } = {}) {
 		const doc = await this._moveRepo.getPlaybookMoveDocument(compendiumId);
 		if (!doc) return null;
-		if (skipIfOwned && this._actor.items.some(i => i.type === "move" && i.name === doc.name)) return null;
+		if (skipIfOwned && this._actor.items.some(i => i.type === "move" && i.name === doc.name
+			&& !i.flags?.[STONETOP_SCOPE]?.grantedBy)) return null;
 		const created = await this._actor.createEmbeddedDocuments("Item", [doc.toObject()]);
 		const added = created?.[0] ?? null;
 		if (added) await this._retireReplacedMove(added);
@@ -3120,7 +3244,11 @@ export class StonetopCharacter {
 			const claimed = !!was && (flags[STARTING_CHOICE_FLAG] || level <= 1);
 			if (claimed && was.name !== chosenDoc.name && this._actor.items.some(it => it._id === was._id)) {
 				if (flags[CREATION_PICK_FLAG]) await was.unsetFlag(STONETOP_SCOPE, STARTING_CHOICE_FLAG);
-				else await this.removeMove(was._id);
+				else {
+					// Armored's hauberk goes with it (start-of-play-gear.js).
+					await this._releaseStartGear(was);
+					await this.removeMove(was._id);
+				}
 			}
 			await this.addMove(chosenId, { skipIfOwned: true });
 			await this.markStartingChoice(chosenDoc.name);
@@ -3229,9 +3357,14 @@ export class StonetopCharacter {
 		// A background's standing advantage and a season's standing disadvantage on one move: the same fold.
 		if (!descriptionOnly) Object.assign(rollOptions, this._foldStandingModes(rollOptions, item.name));
 		// The lines the roll window offered and the player left ticked (rollOffers: a skin of fine
-		// whisky shared before a Persuade): the same fold, each paid for after the dice, below.
-		const taken = descriptionOnly ? [] : (await this.rollOffers(item)).filter(offer => tookOffer(offer, takenOffers));
-		for (const offer of taken) Object.assign(rollOptions, foldAdvantage(rollOptions, offer.source));
+		// whisky shared before a Persuade): the same fold, each paid for after the dice, below. Stone
+		// Cold's line buys no advantage: it counts a 6- as a 7-9, named on the card as Herd of Horses is.
+		const taken = descriptionOnly || !takenOffers?.length ? [] : (await this.rollOffers(item)).filter(offer => tookOffer(offer, takenOffers));
+		for (const offer of taken) {
+			Object.assign(rollOptions, offer.effect === "missAsPartial"
+				? { missCountsAsPartial: offer.source }
+				: foldAdvantage(rollOptions, offer.source));
+		}
 
 		// A promise made earlier (a peaceful camp) is spent HERE — after the guards above, so
 		// reading a move's text or backing out of the weapon prompt never burns it.
@@ -3244,7 +3377,7 @@ export class StonetopCharacter {
 		const roll = await item.roll({ ...this.applyDebilityRollMode(stat, withSurprise), descriptionOnly });
 
 		// What the taken lines cost, paid once the dice have landed.
-		if (roll) for (const offer of taken) await offer.spend(item.name);
+		if (roll) for (const offer of taken) await offer.spend?.(item.name);
 
 		// Defend: fill the character's Readiness circles from the tier they just rolled
 		// (p.216), never lowering a pool they already hold.
@@ -3441,7 +3574,7 @@ export class StonetopCharacter {
 
 	/** The Heavy's Guardian move (+1 Readiness on every Defend, incl. a 6-). */
 	get hasGuardianMove() {
-		return this._actor.items.some(i => i.type === "move" && i.name === _GUARDIAN_MOVE_NAME);
+		return ownsLearnedMoveNamed(this._actor, _GUARDIAN_MOVE_NAME);
 	}
 
 	get defendReadiness() {
@@ -3718,13 +3851,18 @@ export class StonetopCharacter {
 	 * greys the boxes out, so the tick and the roll can never disagree about whether it applies.
 	 */
 	get ignoresDebilities() {
-		return ignoresDebilities({ raging: this.battleJoy });
+		return ignoresDebilities({ raging: this.battleJoy, learned: ownsLearnedMoveNamed(this._actor, BATTLE_JOY) });
 	}
 
-	/** Returns true only when the flag actually changed, so a caller can skip a re-render. */
+	/**
+	 * Returns true only when the flag actually changed, so a caller can skip a re-render. Entering
+	 * needs the move LEARNED (canEnterBattleJoy); leaving never needs anything, so a stranded rage
+	 * can always be put out.
+	 */
 	async setBattleJoy(raging) {
 		const next = !!raging;
 		if (next === this.battleJoy) return false;
+		if (next && !canEnterBattleJoy(this._actor)) return false;
 		if (next) await this._actor.setFlag(STONETOP_SCOPE, BATTLE_JOY_FLAG, true);
 		else      await this._actor.unsetFlag(STONETOP_SCOPE, BATTLE_JOY_FLAG);
 		return true;
@@ -4088,9 +4226,12 @@ export class StonetopCharacter {
 	 * The pure rule lives in deaths-door.js and only ever sees move NAMES, so the one thing it
 	 * can't hand back is the prose. Fetched here instead, off the character's own copy of the
 	 * move, so the dialog can show a player who is being offered +CON where that came from.
+	 *
+	 * LEARNED moves only: an un-ticked Hard to Kill offers no +CON and no debility trade, and an
+	 * un-ticked Unstoppable charges no penalty for circles it still shows on the sheet.
 	 */
 	deathsDoorRollOptions() {
-		const moves = this._actor.items.filter(i => i.type === "move");
+		const moves = this._actor.items.filter(i => i.type === "move" && isMoveLearned(i));
 		const opts  = deathsDoorRollOptions(moves.map(i => i.name), this._moveResources.getMoveResources());
 		const owner = opts.statChoiceMove
 			? moves.find(i => i.name?.toLowerCase() === opts.statChoiceMove.toLowerCase())
@@ -4106,6 +4247,18 @@ export class StonetopCharacter {
 	 */
 	async returnToOneHp() {
 		return this.restoreHp(1, "Death's Door", { clearsDeathsDoor: true });
+	}
+
+	/**
+	 * Unstoppable: "If you survive, clear all your circles." Read through deathsDoorRollOptions,
+	 * so the circles cleared are exactly the ones the roll was charged for (none for an un-learned
+	 * Unstoppable). Returns how many were cleared; 0 writes nothing.
+	 */
+	async clearUnstoppableCircles() {
+		const { unstoppableMarks } = this.deathsDoorRollOptions();
+		if (!unstoppableMarks) return 0;
+		await this._moveResources.setUses(UNSTOPPABLE, 0, { stonetopMove: UNSTOPPABLE });
+		return unstoppableMarks;
 	}
 
 	// ── The inserts' own 0-HP moves (Undying / Tethered / Dark Succor) ─────────
@@ -4441,9 +4594,11 @@ export class StonetopCharacter {
 			const bgMoveNames = this._backgroundMoveNames(this._selectedBackground(playbookData));
 			const entries     = await this._moveRepo.getPlaybookMoves(playbookData.name);
 			const retired     = this._retiredMoveNames();
+			// Held under any right, not only as the row's own copy: a Heavy holding the Marshal's
+			// Armored through Seasoned Warrior (see buildMovelistContext) has the move already.
 			const all = this.sortPlaybookMoves(
 				this.buildMovelistContext(entries, ownedAllByName, bgMoveNames, newLevel, playbookData.name, this._startingChoiceGroups(playbookData))
-			).filter(e => (!e.owned || (e.repeatable && e.ownedIds.length < e.repeatMax)) && !retired.has(e.name));
+			).filter(e => (!ownedAllByName.has(e.name) || (e.repeatable && e.ownedIds.length < e.repeatMax)) && !retired.has(e.name));
 			availableMoves = all.filter(e => !e.locked);
 			lockedMoves    = all.filter(e => e.locked);
 		}
@@ -4506,8 +4661,9 @@ export class StonetopCharacter {
 	// config + the level being gained, returns the qualifying foreign moves
 	// ({compendiumId, name, description, playbook}), EXCLUDING: Improved/Superior Stat
 	// (cap != null), other cross-playbook moves (no third-playbook chaining), moves
-	// already owned, and playbook-locked moves (Dangerous, Potential for Greatness — see
-	// _foreignMoveQualifies). Level, required-move and stat prereqs are honored.
+	// already owned, playbook-locked moves (Dangerous, Potential for Greatness; see
+	// _foreignMoveQualifies), and a move the character's OWN playbook has by the same name.
+	// Level, required-move and stat prereqs are honored.
 	async getForeignMovesForLevelUp(crossPlaybook, level) {
 		const ownName = (await this.playbook())?.name ?? this._actor.system?.playbook?.name ?? null;
 		const allowed = crossPlaybook?.playbooks === "any"
@@ -4520,12 +4676,21 @@ export class StonetopCharacter {
 		// Fetch every allowed playbook's moves concurrently — the reads are independent
 		// compendium lookups, so awaiting them one at a time just stacks latency (up to
 		// ~8 playbooks for an "any" cross-playbook move).
-		const movesPerPlaybook = await Promise.all(allowed.map(pb => this._moveRepo.getPlaybookMoves(pb)));
+		const [ownDefs, movesPerPlaybook] = await Promise.all([
+			ownName ? this._moveRepo.getPlaybookMoves(ownName) : [],
+			Promise.all(allowed.map(pb => this._moveRepo.getPlaybookMoves(pb))),
+		]);
+		// Armored is the Heavy's, the Judge's and the Marshal's. A move the character's own
+		// playbook has is an ordinary pick there, never a foreign one: a Heavy who started with
+		// Uncanny Reflexes and took the Marshal's Armored through Seasoned Warrior had it swallowed
+		// by their own Armored row, counted against the level's picks and without its "Granted by".
+		const ownMoveNames = new Set((ownDefs ?? []).map(d => d.name));
 		for (let i = 0; i < allowed.length; i++) {
 			const pb = allowed[i];
 			for (const def of movesPerPlaybook[i]) {
 				if (def.cap != null) continue;          // no Improved/Superior Stat
 				if (def.crossPlaybook) continue;         // no third-playbook chaining
+				if (ownMoveNames.has(def.name)) continue; // the own playbook's move of that name
 				if (ownedNames.has(def.name) || retired.has(def.name) || seen.has(def.name)) continue;
 				if (!_foreignMoveQualifies(def, ownedNames, level, actorStats)) continue;
 				seen.add(def.name);

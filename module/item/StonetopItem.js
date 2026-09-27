@@ -8,8 +8,8 @@ import {moveCardBody} from "../utils/move-tiers.js";
 import {stonetopThumbnail} from "../utils/item-icon.js";
 import {STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "../actors/character/StonetopFlags.js";
 import {newArcanumSlug, isArcanumData} from "./createArcanum.js";
-import {isKnowThings, knowThingsRollOptions} from "../actors/character/know-things.js";
 import {withMovePickBonuses} from "../actors/character/move-pick-bonuses.js";
+import {moveRollOptions} from "../actors/character/move-roll-options.js";
 
 /**
  * Which world item owns each arcanum slug: `slug -> item id`.
@@ -265,13 +265,6 @@ export function createStonetopItemClass(BaseItem) {
 				[STONETOP_SCOPE]: { move: this.name, ...(priorFlags[STONETOP_SCOPE] ?? {}) },
 			};
 
-			// Never at a Loss defers the miss XP to a choice on the card, so a Know Things roll by
-			// a character who owns it suppresses the automatic mark and carries the two buttons
-			// instead. Null for everyone else, leaving the roll exactly as it was.
-			const knowThings = isKnowThings(this.name) && actor?.type === "character"
-				? knowThingsRollOptions(actor)
-				: null;
-
 			// "On a 10+, pick 2" needs something to pick. A move prints its options in its own
 			// text, so they are made tickable exactly where they are printed — the same treatment
 			// a non-rolling move's posted card gets, and ticks persist on the message either way.
@@ -303,6 +296,9 @@ export function createStonetopItemClass(BaseItem) {
 			// question) is laid over them here, where the roller is known. See move-pick-bonuses.js.
 			const cardDescription = withMovePickBonuses(moveCardBody(moveDescription, this.system?.moveResults,
 				{ pickable: options.pickable ?? !declaredPicks.length }), actor, this.name) + signoff;
+			// What this move adds to its own card (Never at a Loss's deferred XP, Battle Joy's and
+			// Wielder's buttons, the speech's), its tier actions after any the roll brought.
+			const moveExtras = moveRollOptions(this.name, actor, options.tierActions);
 
 			if (stat) return rollStat(stat, actor, {
 				...options,
@@ -317,7 +313,7 @@ export function createStonetopItemClass(BaseItem) {
 				// Sense, Hard to Kill / Death's Door rolls) set system.noXpOnMiss.
 				noXpOnMiss:  this.system?.noXpOnMiss ?? false,
 				// Last, so Never at a Loss's deferred-XP override beats the item's own default.
-				...(knowThings ?? {}),
+				...(moveExtras ?? {}),
 			});
 
 			// A MONSTER's rolling move is an attack, and rolls on the same damage card as its Damage

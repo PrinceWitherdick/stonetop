@@ -6,10 +6,13 @@ import { BATTLE_JOY } from "../../../module/actors/character/battle-joy.js";
 // The pure predicates live in battle-joy.test.js; what is checked HERE is the wiring — that the
 // state reaches the one place a debility touches a roll, and that rolling the move leaves it.
 
-function heavy({ raging = false, weakened = false } = {}) {
+function heavy({ raging = false, weakened = false, learned = true } = {}) {
 	const { char, actor } = buildLiveCharacter({
 		slug: "the-heavy", name: "The Heavy", seedStartingMoves: false,
-		items: [makeLiveItem({ name: BATTLE_JOY, type: "move", system: { rollType: "con" } })],
+		items: [makeLiveItem({
+			name: BATTLE_JOY, type: "move", system: { rollType: "con" },
+			flags: learned ? {} : { "stonetop-pwd": { learned: false } },
+		})],
 		flags: raging ? { battleJoy: true } : {},
 	});
 	if (weakened) actor.system.attributes.debilities.options.weakened.value = true;
@@ -59,6 +62,23 @@ describe("the same debility while the Heavy is in their Battle Joy", () => {
 		expect(actor.system.attributes.debilities.options.weakened.value).toBe(true);
 		await char.setBattleJoy(false);
 		expect(char.applyDebilityRollMode("str", { rollMode: "normal" }).rollMode).toBe("dis");
+	});
+});
+
+// A Battle Joy kept on the sheet switched off: it cannot be entered, and a rage left standing on it
+// (switched off mid-fight) ignores nothing, while it can still be ended.
+describe("a Battle Joy un-learned", () => {
+	it("cannot be entered", async () => {
+		const { char } = heavy({ learned: false });
+		expect(await char.setBattleJoy(true)).toBe(false);
+		expect(char.battleJoy).toBe(false);
+	});
+
+	it("leaves a stranded rage ignoring nothing, and endable", async () => {
+		const { char } = heavy({ weakened: true, raging: true, learned: false });
+		expect(char.ignoresDebilities).toBe(false);
+		expect(char.applyDebilityRollMode("str", { rollMode: "normal" })).toMatchObject({ rollMode: "dis", stonetopDebility: "Weakened" });
+		expect(await char.setBattleJoy(false)).toBe(true);
 	});
 });
 

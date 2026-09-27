@@ -189,10 +189,11 @@ function rollDialogButtons(rollLabel, settle, readAnswer) {
  * exactly as "nothing was asked" answers, so a sheet selector still applies to a Shift-click.
  *
  * OFFERED LINES (`offers`) are something the character could spend on this roll that the sheet
- * cannot know they mean to: a skin of fine whisky shared before a Persuade. Each is its own ticked
- * line, and the answer names the ones left ticked in `takenOffers` (their keys). The line does NOT
- * move the mode picker: what it buys is a SOURCE of advantage, folded by the caller with every
- * other source so it nets against a disadvantage (StonetopCharacter#onRoll). A line is the
+ * cannot know they mean to: a skin of fine whisky shared before a Persuade (ticked), threats made
+ * with Intimidating (unticked, `applied: false`). Each is its own line, and the answer names the
+ * ones left ticked in `takenOffers` (their keys). The line does NOT move the mode picker: what it
+ * buys is a SOURCE of advantage, folded by the caller with every other source so it nets against a
+ * disadvantage, or Stone Cold's 6- counted as a 7-9 (StonetopCharacter#onRoll). A line is the
  * player's to take, so it OPENS the window even when neither setting asks anything (the window then
  * shows just the lines), and an answer that never showed them took none: a Shift-click is the dice
  * and nothing else. Not the damage window's rule, whose lines are the move's own riders rather
@@ -360,10 +361,11 @@ function previewFormula(base, { rollMode, bonus, extraDice, seed }) {
  *
  * This is the seam for every damage bonus the system cannot know about from the sheet, because
  * the fiction is what turns it on: the Storm Markings' "when you roil with anger, you do +1
- * damage until you calm down", a Blood-Soaked Past's +1d4 for fighting without mercy, a spent
- * Fury's "+1d6, forceful, loud", a GM's ruling. Nothing here is enforced or remembered — it is
- * one roll's worth of adjustment, said out loud on the card as a pill so the table can see it
- * was added rather than wondering where an 11 came from on a d10.
+ * damage until you calm down", a spent Fury's "+1d6, forceful, loud", a GM's ruling. (A bonus the
+ * sheet knows of but cannot judge, like a Blood-Soaked Past's +1d4 for fighting without mercy,
+ * comes in as one of the `offers` below instead: an unticked line of its own.) Nothing here is
+ * enforced or remembered: it is one roll's worth of adjustment, said out loud on the card as a
+ * pill so the table can see it was added rather than wondering where an 11 came from on a d10.
  *
  * Resolves to `{ rollMode, bonus, extraDice }`, ready to spread into {@link rollDamage}, or
  * `null` when the player cancels so the caller can abort without rolling. The window opens only

@@ -194,3 +194,12 @@ export function followerCardFor(actor, { characters = null, resolve = globalThis
 	}
 	return null;
 }
+
+/**
+ * The character an actor fights for: a character is their own, and a follower's NPC answers the
+ * character whose card it is (followerCardFor). Null for anyone else, a monster included.
+ */
+export function characterBehind(actor, cardFor = followerCardFor) {
+	if (actor?.type === "character") return actor;
+	return actor?.type === "npc" ? cardFor(actor)?.character ?? null : null;
+}

@@ -1,4 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import { buildLiveCharacter, makeLiveItem, sourceMovesFor } from "../../fakes/LiveCharacter.js";
+import { createStonetopCharacterSheetClass } from "../../../module/actors/character/StonetopCharacterSheet.js";
 import {
 	DEATHS_DOOR_STATE,
 	PAST_DEATH_KINDS,
@@ -316,6 +318,118 @@ describe("deathsDoorRollOptions — the Heavy's two modifiers", () => {
 		expect(deathsDoorRollOptions(["Unstoppable"], {}).penalty).toBe(0);
 		expect(deathsDoorRollOptions(["Unstoppable"], { Unstoppable: "x" }).penalty).toBe(0);
 		expect(deathsDoorRollOptions(["Unstoppable"], { Unstoppable: -2 }).penalty).toBe(0);
+	});
+});
+
+// The same two moves on a live Heavy: only LEARNED ones bend the roll. A player can switch a move
+// off and keep it on the sheet, and an un-ticked Hard to Kill or Unstoppable must do nothing here.
+describe("StonetopCharacter#deathsDoorRollOptions: learned moves only", () => {
+	function heavy({ hardToKill = true, unstoppable = true, marks = 0 } = {}) {
+		const def = name => structuredClone(sourceMovesFor("The Heavy").find(d => d.name === name).system);
+		const off = { "stonetop-pwd": { learned: false } };
+		const built = buildLiveCharacter({
+			slug: "the-heavy", name: "The Heavy",
+			items: [makeLiveItem({ name: "Unstoppable", type: "move", system: def("Unstoppable"), flags: unstoppable ? {} : off })],
+			flags: marks ? { "moves.backgroundChoices": { Unstoppable: marks } } : {},
+		});
+		if (!hardToKill) built.actor.items.find(i => i.name === "Hard to Kill").flags["stonetop-pwd"].learned = false;
+		return built;
+	}
+	const marksOf = actor => actor.flags["stonetop-pwd"].moves?.backgroundChoices?.Unstoppable ?? 0;
+
+	it("offers +CON and charges the circles with both learned", () => {
+		const opts = heavy({ marks: 2 }).char.deathsDoorRollOptions();
+		expect(opts.hardToKill).toBe(true);
+		expect(opts.penalty).toBe(-2);
+	});
+
+	it("offers no +CON and no debility trade with Hard to Kill switched off", () => {
+		const opts = heavy({ hardToKill: false }).char.deathsDoorRollOptions();
+		expect(opts.hardToKill).toBe(false);
+		expect(opts.statChoices).toEqual([{ stat: "", label: "+nothing" }]);
+	});
+
+	it("charges no penalty for the circles of an Unstoppable switched off", () => {
+		expect(heavy({ unstoppable: false, marks: 3 }).char.deathsDoorRollOptions().penalty).toBe(0);
+	});
+
+	it("clears the circles it charged for, and only those", async () => {
+		const learned = heavy({ marks: 3 });
+		expect(await learned.char.clearUnstoppableCircles()).toBe(3);
+		expect(marksOf(learned.actor)).toBe(0);
+
+		const off = heavy({ unstoppable: false, marks: 3 });
+		expect(await off.char.clearUnstoppableCircles()).toBe(0);
+		expect(marksOf(off.actor)).toBe(3);
+	});
+
+	// The Heavy's Guardian is a rule too (+1 Readiness on every Defend), so it asks the same way.
+	it("gives Guardian's extra Readiness only while Guardian is learned", () => {
+		const guardian = learned => makeLiveItem({ name: "Guardian", type: "move", system: {}, flags: learned ? {} : { "stonetop-pwd": { learned: false } } });
+		expect(buildLiveCharacter({ slug: "the-heavy", name: "The Heavy", items: [guardian(true)] }).char.hasGuardianMove).toBe(true);
+		expect(buildLiveCharacter({ slug: "the-heavy", name: "The Heavy", items: [guardian(false)] }).char.hasGuardianMove).toBe(false);
+	});
+});
+
+// Hard to Kill is "when you are at Death's Door, you can roll +CON": its roll IS Death's Door's, which
+// the walkthrough already folds it into. Rolled on its own it posted a +CON card that changed nothing
+// and doubled the real roll, so every roll path (the Moves tab, the hotbar, the fight ring) opens the
+// walkthrough instead, or says why nothing rolls.
+describe("rolling Hard to Kill opens Death's Door instead", () => {
+	let saved;
+	beforeEach(() => {
+		saved = { ui: globalThis.ui, document: globalThis.document };
+		globalThis.ui = { notifications: { info: vi.fn(), warn: vi.fn() } };
+		// Enough of a DOM for the hotbar's detached stand-in row (_makeSyntheticRollable).
+		globalThis.document = { createElement: () => {
+			const el = { dataset: {}, className: "", textContent: "", parent: null, kids: [] };
+			el.append = (...k) => { for (const c of k) { c.parent = el; el.kids.push(c); } };
+			el.closest = sel => (sel === ".item" ? (el.dataset.itemId ? el : el.parent?.closest(sel) ?? null) : null);
+			el.classList = { contains: c => el.className.split(" ").includes(c) };
+			return el;
+		} };
+	});
+	afterEach(() => { globalThis.ui = saved.ui; globalThis.document = saved.document; });
+
+	function sheetFor({ hp = 8, state = null } = {}) {
+		const { char, actor } = buildLiveCharacter({ slug: "the-heavy", name: "The Heavy", flags: state ? { deathsDoor: state } : {} });
+		actor.system.attributes.hp = { value: hp, max: 20 };
+		actor.typedActor = char;
+		actor.items.get = id => actor.items.find(i => i.id === id);
+		const Base = class {
+			constructor() { this._actor = actor; }
+			get actor() { return this._actor; }
+			get isEditable() { return true; }
+			activateListeners() {}
+			render = vi.fn();
+		};
+		const sheet = new (createStonetopCharacterSheetClass(Base))();
+		sheet._stonetopCharacter = char;
+		sheet._onDeathsDoorOpen = vi.fn();
+		char.onRoll = vi.fn();
+		const hardToKill = actor.items.find(i => i.name === "Hard to Kill");
+		return { sheet, char, hardToKill };
+	}
+
+	it("opens the walkthrough for a Heavy who is dying, and rolls nothing on its own", async () => {
+		const { sheet, char, hardToKill } = sheetFor({ hp: 0, state: DEATHS_DOOR_STATE.DYING });
+		await sheet.rollMoveById(hardToKill.id);
+		expect(sheet._onDeathsDoorOpen).toHaveBeenCalledTimes(1);
+		expect(char.onRoll).not.toHaveBeenCalled();
+	});
+
+	it("says why nothing rolls for a Heavy who is not at Death's Door", async () => {
+		const { sheet, char, hardToKill } = sheetFor();
+		await sheet.rollMoveById(hardToKill.id);
+		expect(sheet._onDeathsDoorOpen).not.toHaveBeenCalled();
+		expect(char.onRoll).not.toHaveBeenCalled();
+		expect(globalThis.ui.notifications.info).toHaveBeenCalledWith(expect.stringContaining("not at Death's Door"));
+	});
+
+	it("keeps no em dash in the move's own outcome lines", () => {
+		for (const tier of Object.values(sourceMovesFor("The Heavy").find(d => d.name === "Hard to Kill").system.moveResults)) {
+			expect(tier.value).not.toContain(String.fromCharCode(0x2014));
+		}
 	});
 });
 

@@ -135,6 +135,7 @@ function makeCharacterMock(actor) {
 		backgroundMovesDropped: vi.fn(async () => []),
 		settleBackgroundMoves: vi.fn(async () => {}),
 		settleBackgroundPossessions: vi.fn(async () => {}),
+		settleBackgroundArcana: vi.fn(async () => {}),
 		clearPlaybookData: vi.fn(async () => {}),
 		updateName: vi.fn(async name => actor.update({ name })),
 		addMove: vi.fn(),
@@ -356,6 +357,8 @@ describe("StonetopCharacterSheet event handlers", () => {
 			.toBeLessThan(actor.typedActor.settleBackgroundMoves.mock.invocationCallOrder[0]);
 		// ...and the special possessions it hands over (the Missionary's aviary), the same way.
 		expect(actor.typedActor.settleBackgroundPossessions).toHaveBeenCalledWith({ slug: "", setupChoices: {} });
+		// ...and the arcanum (the Storm-Marked's Storm Markings).
+		expect(actor.typedActor.settleBackgroundArcana).toHaveBeenCalledWith({ slug: "", setupChoices: {} });
 	});
 
 	it("_onAppearanceChange calls appearance.select with lineIdx and value", async () => {
@@ -702,6 +705,31 @@ describe("StonetopCharacterSheet holy light candle", () => {
 		await sheet._onBattleJoyToggle(clickEvent());
 		expect(sheet._stonetopCharacter.battleJoy).toBe(false);
 		expect(asked).not.toHaveBeenCalled();
+	});
+
+	// The ruling: a Heavy who is down stopped fighting when they dropped, so the lit glyph ends the
+	// rage with no +CON roll and no question, and says so in chat.
+	it("ends a downed Heavy's Battle Joy with no roll", async () => {
+		const clickEvent = () => ({ preventDefault: vi.fn(), stopPropagation: vi.fn() });
+		const actor = makeActor();
+		actor.items = [{ id: "bj", type: "move", name: "Battle Joy", system: { rollType: "con" } }];
+		actor.system.attributes.hp.value = 0;
+		const sheet = makeSheet(actor);
+		sheet.render = vi.fn();
+		const asked = stubConfirm(true);
+		const saved = globalThis.ChatMessage;
+		globalThis.ChatMessage = { create: vi.fn(async data => data), getSpeaker: () => ({}) };
+		try {
+			await sheet._stonetopCharacter.setBattleJoy(true);
+			await actor.setFlag("stonetop-pwd", "battleJoy", true);
+			await sheet._onBattleJoyToggle(clickEvent());
+			expect(asked).not.toHaveBeenCalled();
+			expect(sheet._stonetopCharacter.onRoll).not.toHaveBeenCalled();
+			expect(actor.getFlag("stonetop-pwd", "battleJoy")).toBeNull();
+			expect(globalThis.ChatMessage.create.mock.calls[0][0].content).toContain("their Battle Joy ends, with no roll");
+		} finally {
+			globalThis.ChatMessage = saved;
+		}
 	});
 
 	// The roll this glyph ends the rage WITH is a 2d6 move roll like any other, so it walks the

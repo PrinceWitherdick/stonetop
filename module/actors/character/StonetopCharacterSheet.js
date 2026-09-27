@@ -14,7 +14,7 @@ import {PossessionChoicesDialog} from "./dialogs/PossessionChoicesDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
 import {UndeathDialog} from "./dialogs/UndeathDialog.js";
 import {buildPostDeathChoices, choiceWriteIns} from "./post-death-choices.js";
-import {DEATHS_DOOR_STATE, PAST_DEATH_KINDS, POST_DEATH_INSERT_SLUGS, pastDeathClasses, pastDeathKind, resolvedHp, zeroHpMove} from "./deaths-door.js";
+import {DEATHS_DOOR_STATE, HARD_TO_KILL, PAST_DEATH_KINDS, POST_DEATH_INSERT_SLUGS, pastDeathClasses, pastDeathKind, resolvedHp, zeroHpMove} from "./deaths-door.js";
 import {WoundDialog} from "./dialogs/WoundDialog.js";
 import {WOUND_STATUS_GLYPH, WOUND_STATUS_LABEL} from "./wound-display.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
@@ -94,6 +94,7 @@ import {ownedMoveNames, ownedMove, ownsLearnedMoveNamed, isPlayerAuthoredMove, i
 import {invocationLabel, invokeNotice, readOngoing, resolveInvocationUse} from "./ongoing-invocation.js";
 import {showJudgeMarks, condemnedContext, CONDEMN, CENSURE} from "./condemn.js";
 import {readyRulebookIcon, openSharedRulebook} from "../../books/rulebook-icons.js";
+import { endBattleJoyUnrolled } from "../../combat/battle-joy-offer.js";
 
 /**
  * The one book a PLAYER's sheet offers. Book I is the rules they play by; Book II is the
@@ -102,7 +103,7 @@ import {readyRulebookIcon, openSharedRulebook} from "../../books/rulebook-icons.
 const PLAYER_BOOK = 1;
 import {BINDING_ARBITRATION} from "./oaths.js";
 import {CondemnedDialog} from "./dialogs/CondemnedDialog.js";
-import {showBattleJoy, BATTLE_JOY} from "./battle-joy.js";
+import {showBattleJoy, BATTLE_JOY, battleJoyEndsUnrolled} from "./battle-joy.js";
 import {fightStateGlyphs, fightStateForStem, fightStateOn, setFightState, revealOnAttack, FIGHT_STATES} from "./fight-states.js";
 import {
 	showBlessedMarks, BARKSKIN, TRACKLESS_STEP, SHARED_SOULS, AMULETS_TALISMANS, WARDS_BINDINGS,
@@ -371,6 +372,16 @@ const MOVE_USE_EFFECTS = {
 const MOVE_ROLL_EFFECTS = {
 	[AMULETS_TALISMANS]: sheet => sheet._openBlessedMarksIfBlessed(),
 	[WARDS_BINDINGS]:    sheet => sheet._openBlessedMarksIfBlessed(),
+};
+
+// Moves whose roll IS another move's roll, and so open that one INSTEAD of rolling. Hard to Kill
+// is "when you are at Death's Door, you can roll +CON": the Death's Door walkthrough already folds
+// it in (+CON, the 7-9 trade), so a plain +CON card of its own changed nothing and doubled the
+// real roll. Asked first in _resolveMoveRollPrompts, the one ladder every roll path walks (the
+// Moves tab, the hotbar, the fight ring). Each answers whether it took the roll over; false lets the
+// plain roll go ahead.
+const MOVE_ROLL_INSTEAD = {
+	[HARD_TO_KILL]:       async sheet => { await sheet._rollHardToKill(); return true; },
 };
 
 /** Which sentence the scales' tooltip says, given what the Judge is actually holding. */
@@ -6139,6 +6150,10 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * what lets the general rollable handler share it with the move-only hotbar path.
 		 */
 		async _resolveMoveRollPrompts(rollable, { shiftKey = false } = {}) {
+			const insteadItem = this.actor.items.get(rollable.closest(".item")?.dataset?.itemId ?? "");
+			const instead = insteadItem?.type === "move" ? MOVE_ROLL_INSTEAD[insteadItem.name] : null;
+			if (instead && await instead(this, { shiftKey })) return "handled";
+
 			const guided = this._guidedMoveForRollable(rollable);
 			if (guided) { this._openGuidedCharacterMove(guided, rollable); return "handled"; }
 
@@ -6208,13 +6223,15 @@ export function createStonetopCharacterSheetClass(Base) {
 		/**
 		 * A background that grants an alternate stat, shaped as the stat picker quotes a granting
 		 * move: its label, and the paragraph of its text that names `moveName` (the rest of a
-		 * background is who the character was, not the rule).
+		 * background is who the character was, not the rule). A basic move's parenthetical is the
+		 * sheet's, not the book's: Blood-Soaked Past says "Persuade", never "Persuade (vs. NPCs)".
 		 */
 		async _backgroundGrantQuote(background, moveName) {
 			const found = ((await this._stonetopCharacter?.playbook?.())?.backgrounds ?? [])
 				.find(b => b.slug === background.slug);
 			const paragraphs = String(found?.description ?? "").match(/<p\b[^>]*>[\s\S]*?<\/p>/gi) ?? [];
-			const rule = paragraphs.filter(p => stripHtmlToText(p).includes(moveName)).join("");
+			const named = String(moveName ?? "").replace(/\s*\([^)]*\)\s*$/, "");
+			const rule = paragraphs.filter(p => stripHtmlToText(p).includes(named)).join("");
 			return { name: background.label, system: { description: rule } };
 		}
 
@@ -6775,6 +6792,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			await character.background.selectBackground(slug);
 			await character.settleBackgroundMoves(previous);
 			await character.settleBackgroundPossessions(previous);
+			await character.settleBackgroundArcana(previous);
 		}
 
 		// True to go ahead. Asks only when a move going holds something (see _onBackgroundChange).
@@ -7329,6 +7347,19 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		/**
+		 * Hard to Kill's roll is Death's Door's (MOVE_ROLL_INSTEAD): open the walkthrough when they
+		 * are at the Door, where +CON is offered beside +nothing, and otherwise say why nothing
+		 * rolls. "At the Door" is the dialog's own gate (a dying character, or a 6- still choosing
+		 * its fate) for a character whose 0-HP move is Death's Door at all.
+		 */
+		async _rollHardToKill() {
+			const char = this._stonetopCharacter;
+			const pending = char.deathsDoorState === DEATHS_DOOR_STATE.FATE_PENDING;
+			if (char.zeroHpMove.dialog && (pending || char.canFaceDeathsDoor)) return this._onDeathsDoorOpen();
+			ui.notifications?.info(format("stonetop.unstoppable.hardToKillNotDying", { name: this.actor.name }));
+		}
+
+		/**
 		 * Open the Death's Door walkthrough — but only when Death's Door is the move this
 		 * character actually triggers. A PC carrying a post-death insert has their own 0-HP
 		 * move (Undying / Tethered / Dark Succor), so they get pointed at it instead of a
@@ -7676,6 +7707,12 @@ export function createStonetopCharacterSheetClass(Base) {
 		 */
 		async _endBattleJoy({ shiftKey = false } = {}) {
 			if (!this._stonetopCharacter.battleJoy) return;
+			// Down at 0 HP (or past it): they stopped fighting when they dropped, so it ends with no
+			// +CON roll (battle-joy.js#battleJoyEndsUnrolled).
+			if (battleJoyEndsUnrolled(this.actor)) {
+				if (await endBattleJoyUnrolled(this.actor)) this.render(false);
+				return;
+			}
 			const item = this.actor.items.find(i => i.type === "move" && i.name === BATTLE_JOY);
 			// No move on the sheet means this state was stranded by a playbook swap: there is
 			// nothing to roll, so the only thing left to offer is putting it out.
@@ -10717,6 +10754,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Once the background AND its setup picks are stored (A Life of Crime's Burgle OR Light
 			// Fingers is one): the old background's move goes, and the starting moves are granted.
 			await character.settleBackgroundMoves(previousBackground);
+			// And the old background's arcanum goes while untouched, and the new one's is given.
+			await character.settleBackgroundArcana(previousBackground);
 
 			// Apply-specific: create owned possession items, add moves, bg extras.
 			const rawPossessions = playbookDoc.flags?.stonetop?.specialPossessions;
@@ -10799,16 +10838,6 @@ export function createStonetopCharacterSheetClass(Base) {
 					await this._stonetopCharacter.addPlaybookMoveByName(playbookDoc.name, value);
 				} else if (choice.apply === "possession") {
 					await this._stonetopCharacter.selectPossession(value);
-				}
-			}
-			for (const arcanum of (backgroundSetup?.arcana ?? [])) {
-				if (!arcanum.slug) continue;
-				await this._stonetopCharacter.addArcanum(arcanum.slug);
-				if (arcanum.identify) await this._stonetopCharacter.identifyArcanum(arcanum.slug);
-				for (const box of (arcanum.boxes ?? [])) {
-					await this._stonetopCharacter.setArcanumBoxChecked(
-						arcanum.slug, box.context ?? "front", Number(box.index ?? 0), true,
-					);
 				}
 			}
 			const existingSetupResources = resolvedFlagProperty(this.actor, "background.setupResources") ?? {};

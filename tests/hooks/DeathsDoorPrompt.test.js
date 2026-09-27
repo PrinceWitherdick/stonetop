@@ -7,6 +7,8 @@ import {
 import { DEATHS_DOOR_STATE } from "../../module/actors/character/deaths-door.js";
 
 const SCOPE = "stonetop-pwd";
+/** The English table tests/setup.js loads, kept before any test replaces the game global. */
+const ENGLISH = global.game.i18n;
 
 /** A user as `ownerUsers` reduces one: just the four facts the claim rules on. */
 const user = (id, { isGM = false, active = true, assigned = false } = {}) => ({ id, isGM, active, assigned });
@@ -132,7 +134,38 @@ describe("onUpdateActorDeathsDoorAutoOpen — opening the move on the dying play
 		onUpdateActorDeathsDoorAutoOpen({ ...actor, type: "monster" }, becameDying);
 		expect(sheet.render).not.toHaveBeenCalled();
 	});
+
+	// Unstoppable: "you can keep fighting ... When you stop fighting, roll for Death's Door." The
+	// walkthrough waits for that, and the player is told why it did not open.
+	it("opens nothing for a Heavy fighting on at 0 HP with Unstoppable, and says so", () => {
+		const { actor, sheet } = world();
+		fightingOn(actor);
+		const info = vi.fn();
+		global.ui = { notifications: { info } };
+		try {
+			onUpdateActorDeathsDoorAutoOpen(actor, becameDying);
+			expect(sheet.render).not.toHaveBeenCalled();
+			expect(info).toHaveBeenCalledWith(expect.stringContaining("fights on at 0 HP"));
+			// Un-learned, it opens as ever.
+			actor.items[0].flags = { [SCOPE]: { learned: false } };
+			onUpdateActorDeathsDoorAutoOpen(actor, becameDying);
+			expect(sheet.render).toHaveBeenCalledWith(true);
+		} finally {
+			delete global.ui;
+		}
+	});
 });
+
+/** Make a world()'s actor a Heavy down at 0 HP, dying, with Unstoppable learned. */
+function fightingOn(actor) {
+	// world() replaces the game global; the lines are read in English, as players see them.
+	global.game.i18n = ENGLISH;
+	actor.name = "Duvin";
+	actor.system = { attributes: { hp: { value: 0 } } };
+	actor.flags = { [SCOPE]: { deathsDoor: DEATHS_DOOR_STATE.DYING } };
+	actor.items = [{ type: "move", name: "Unstoppable", flags: {} }];
+	return actor;
+}
 
 // The announcement used to be posted from preUpdateActor — i.e. before the write that makes it
 // true was committed. An update can still be refused at that point (a later preUpdate hook
@@ -174,6 +207,16 @@ describe("onUpdateActorDeathsDoorCard — announcing a PC who went down", () => 
 		const { actor } = cardWorld({ me: "player-2" });
 		onUpdateActorDeathsDoorCard(actor, becameDying, {}, "gm");
 		expect(global.ChatMessage.create).not.toHaveBeenCalled();
+	});
+
+	it("says on the card that a Heavy with Unstoppable fights on, and rolls when they stop", async () => {
+		const { actor } = cardWorld({ me: "gm" });
+		fightingOn(actor);
+		onUpdateActorDeathsDoorCard(actor, becameDying, {}, "gm");
+		await vi.waitFor(() => expect(global.ChatMessage.create).toHaveBeenCalled());
+		const { content } = global.ChatMessage.create.mock.calls[0][0];
+		expect(content).toContain("Unstoppable: Duvin fights on at 0 HP, and rolls Death&#x27;s Door when they stop fighting.");
+		expect(content).toContain("Face Death's Door");
 	});
 
 	it("stays quiet when the table silenced the announcement", () => {

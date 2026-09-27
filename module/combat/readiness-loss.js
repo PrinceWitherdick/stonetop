@@ -15,6 +15,8 @@ import { SYSTEM_ID } from "../system-id.js";
 import { heldReadiness, READINESS_FLAG } from "./defend-readiness.js";
 import { each, isFight } from "../fight/fight-state.js";
 import { clearHarmedBy } from "../fight/hero-moves.js";
+import { characterBehind, followerCardFor } from "../actors/character/follower-masters.js";
+import { keepsFightingAtZero } from "../actors/character/unstoppable.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
 import { postMoveNote } from "../utils/chat.js";
 import { askWithButtons } from "../utils/ask-with-buttons.js";
@@ -95,9 +97,13 @@ export function holdersLeft(combat, combats = globalThis.game?.combats) {
 	return holders;
 }
 
-/** Whether an actor update has just put a character holding Readiness on 0 HP. */
+/**
+ * Whether an actor update has just put a character holding Readiness on 0 HP. Not one who fights on
+ * at 0 on Unstoppable's word (actors/character/unstoppable.js): they have not stopped defending.
+ */
 export function droppedHoldingReadiness(actor, changes = {}) {
 	if (actor?.type !== "character" || heldReadiness(actor) <= 0) return false;
+	if (keepsFightingAtZero(actor)) return false;
 	const hp = changes?.system?.attributes?.hp;
 	const touched = (hp && typeof hp === "object" && "value" in hp) || "system.attributes.hp.value" in (changes ?? {});
 	return touched && Number(actor.system?.attributes?.hp?.value) <= 0;
@@ -115,9 +121,11 @@ async function loseAll(actors, noteKey) {
  * The GM's client lets Readiness go when the threat passes or a character stops defending: the fight
  * ends, they leave it, or they drop to 0 HP. Only the primary GM writes, so it happens once.
  *
+ * @param {object} [deps]
+ * @param {Function} [deps.cardFor]  follower-masters.js#followerCardFor (injectable for tests)
  * @returns {() => void} stops listening
  */
-export function installReadinessLoss({ hooks = globalThis.Hooks } = {}) {
+export function installReadinessLoss({ hooks = globalThis.Hooks, cardFor = followerCardFor } = {}) {
 	const listening = [];
 	const on = (name, fn) => listening.push([name, hooks.on(name, (...args) => {
 		if (!globalThis.game?.user?.isGM || !isPrimaryGM()) return;
@@ -131,9 +139,12 @@ export function installReadinessLoss({ hooks = globalThis.Hooks } = {}) {
 		// (fight/hero-moves.js#clearHarmedBy). Nemesis is deliberately NOT here: the book says "all of your
 		// future attacks against them", and a nemesis who walked away is the point of the move.
 		// One write each, together: a character with two tokens in the fight is one sheet, not two.
+		// A follower's harm is kept on the character it follows (hero-moves.js#recordHarmedBy), who
+		// need not have fought here, so each follower in the fight brings that character's flag too.
 		const harmed = new Map();
 		for (const combatant of combat.combatants ?? []) {
-			if (combatant.actor?.type === "character") harmed.set(combatant.actor.id, combatant.actor);
+			const holder = characterBehind(combatant.actor, cardFor);
+			if (holder?.type === "character") harmed.set(holder.id, holder);
 		}
 		await Promise.all([...harmed.values()].map(clearHarmedBy));
 		return loseAll(holdersLeft(combat), "lostFightOver");

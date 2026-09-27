@@ -1,5 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { DeathsDoorDialog } from "../../../../module/actors/character/dialogs/DeathsDoorDialog.js";
+
+// Only the roll itself is stood in for (the Battle Joy case below reads what it was handed).
+const rollStat = vi.hoisted(() => vi.fn(async () => ({ total: 8 })));
+vi.mock("../../../../module/utils/roll-engine.js", async importOriginal => ({ ...(await importOriginal()), rollStat }));
 
 // A character at the Door, with only what the 10+ path touches: the hit point it hands back and
 // the wound list the mark goes into. The wound store is the real shape (add returns an id, patch
@@ -127,6 +131,96 @@ describe("DeathsDoorDialog — the 10+ mark records itself", () => {
 		await dialog._saveMark("a nasty scar");
 		expect(character.wounds).toHaveLength(1);
 		expect(character.wounds[0].text).toBe("a nasty scar");
+	});
+});
+
+// Unstoppable: "When you stop fighting, roll for Death's Door ... If you survive, clear all your
+// circles." Surviving is a 10+ or a 7-9; the 7-9's Hard to Kill trade follows the tier that already
+// cleared them.
+describe("DeathsDoorDialog: Unstoppable's circles clear on surviving", () => {
+	let posted;
+	beforeEach(() => {
+		posted = [];
+		globalThis.ChatMessage = { create: vi.fn(async d => posted.push(d)), getSpeaker: () => ({}) };
+	});
+	afterEach(() => { delete globalThis.ChatMessage; });
+
+	function withCircles(n) {
+		const character = makeCharacter();
+		const order = [];
+		Object.assign(character, {
+			circles: n,
+			order,
+			async clearUnstoppableCircles() { order.push("circles"); const c = this.circles; this.circles = 0; return c; },
+			async returnToOneHp() { order.push("hp"); this.restored = true; },
+			async setDeathsDoorState(state) { this.state = state; },
+		});
+		return character;
+	}
+
+	it("clears them on a 10+, before the hit point goes back on", async () => {
+		const character = withCircles(3);
+		await makeDialog(character)._applyTier("success");
+		expect(character.circles).toBe(0);
+		// First, or the 1 HP would be read as "regain HP while fighting" and clear one mark instead.
+		expect(character.order).toEqual(["circles", "hp"]);
+		expect(posted.some(p => p.content.includes("clears all 3 Unstoppable circles"))).toBe(true);
+	});
+
+	it("clears them on a 7-9", async () => {
+		const character = withCircles(2);
+		await makeDialog(character)._applyTier("partial");
+		expect(character.circles).toBe(0);
+	});
+
+	it("leaves them on a 6-, which is not surviving", async () => {
+		const character = withCircles(2);
+		await makeDialog(character)._applyTier("failure");
+		expect(character.circles).toBe(2);
+	});
+
+	it("says nothing when there was nothing to clear", async () => {
+		const character = withCircles(0);
+		await makeDialog(character)._applyTier("partial");
+		expect(posted).toHaveLength(0);
+	});
+});
+
+// "When you stop fighting, roll for Death's Door": rolling it is stopping, so a Heavy still in their
+// Battle Joy (fighting on at 0 HP with Unstoppable) comes out of it first, with no roll, and the Door
+// is rolled with their debilities.
+describe("DeathsDoorDialog: a Battle Joy ends before the roll", () => {
+	let posted;
+	beforeEach(() => {
+		posted = [];
+		rollStat.mockClear();
+		globalThis.ChatMessage = { create: vi.fn(async d => posted.push(d)), getSpeaker: () => ({}) };
+	});
+	afterEach(() => { delete globalThis.ChatMessage; });
+
+	it("ends it, says so, and rolls with the debility biting", async () => {
+		const actor = {
+			id: "actor-1", name: "Duvin", type: "character",
+			system: { attributes: { hp: { value: 0 } } },
+			flags: { "stonetop-pwd": { battleJoy: true, deathsDoor: "dying" } },
+			getFlag: (scope, key) => actor.flags[scope]?.[key],
+			unsetFlag: vi.fn(async (scope, key) => { delete actor.flags[scope][key]; }),
+		};
+		const character = Object.assign(makeCharacter(), {
+			_actor: actor,
+			deathsDoorRollOptions: () => ({ penalty: -1 }),
+			// Weakened-style: disadvantage unless the rage is still on.
+			applyDebilityRollMode: (_stat, options) => (actor.flags["stonetop-pwd"].battleJoy ? options : { ...options, rollMode: "dis" }),
+		});
+		const dialog = makeDialog(character);
+		dialog._stat = "con";
+		dialog._applyTier = vi.fn(async () => {});
+
+		await dialog._onRoll();
+
+		expect(actor.flags["stonetop-pwd"].battleJoy).toBeUndefined();
+		expect(posted[0].content).toContain("their Battle Joy ends, with no roll");
+		expect(rollStat.mock.calls[0][2]).toMatchObject({ rollMode: "dis", modifier: -1, noXpOnMiss: true });
 	});
 });
 

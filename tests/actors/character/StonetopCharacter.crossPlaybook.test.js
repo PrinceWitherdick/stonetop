@@ -7,6 +7,15 @@ function foreignMove(id, name, system = {}) {
 	return { _id: id, name, system: { playbook: "The Heavy", moveType: "playbook", description: `${name} desc`, ...system } };
 }
 
+// FakeMoveRepository hands back every move for any playbook; the real one reads one playbook's
+// pack. getForeignMovesForLevelUp also reads the character's OWN playbook (a move of the same name
+// there is never foreign), so each playbook is given only its own moves here.
+function byPlaybook(char) {
+	const all = char._moveRepo.getPlaybookMoves.bind(char._moveRepo);
+	char._moveRepo.getPlaybookMoves = async name => (await all()).filter(d => d.playbook === name);
+	return char;
+}
+
 describe("StonetopCharacter.getForeignMovesForLevelUp", () => {
 	it("returns qualifying foreign moves; excludes stat / cross-playbook / owned / under-level / unmet-prereq / playbook-locked", async () => {
 		const actor = new FakeActorBuilder()
@@ -21,7 +30,10 @@ describe("StonetopCharacter.getForeignMovesForLevelUp", () => {
 			.addPlaybookMove(foreignMove("f5", "Cut From Granite", { requirement: { moves: ["Carved Out of Wood"] } })) // ✗ missing prereq
 			.addPlaybookMove(foreignMove("f6", "Hardy", { requirement: { playbook: "The Heavy" } }))       // ✗ playbook-locked (Book I p.528: "No one but the Heavy can take Dangerous")
 			.addPlaybookMove(foreignMove("f7", "Tough", { requirement: { level: 6 } }))                    // ✗ under level
+			.addPlaybookMove(foreignMove("f8", "Nimble"))                                                 // ✗ the Fox has its own Nimble
+			.addPlaybookMove(foreignMove("x8", "Nimble", { playbook: "The Fox" }))
 			.build();
+		byPlaybook(char);
 
 		const result = await char.getForeignMovesForLevelUp({ playbooks: ["The Heavy"] }, 5);
 		expect(result.map(m => m.name)).toEqual(["Smash"]);
@@ -34,8 +46,9 @@ describe("StonetopCharacter.getForeignMovesForLevelUp", () => {
 			.addItem({ _id: "o1", type: "move", name: "Crew", system: { moveType: "playbook", playbook: "The Marshal" } })
 			.build();
 		const char = new TestCharacterBuilder(actor)
-			.addPlaybookMove(foreignMove("vc", "Veteran Crew", { requirement: { moves: ["Crew"] } }))
+			.addPlaybookMove(foreignMove("vc", "Veteran Crew", { playbook: "The Marshal", requirement: { moves: ["Crew"] } }))
 			.build();
+		byPlaybook(char);
 		const result = await char.getForeignMovesForLevelUp({ playbooks: ["The Marshal"] }, 5);
 		expect(result.map(m => m.name)).toEqual(["Veteran Crew"]);
 	});

@@ -189,12 +189,12 @@ describe("buildItemReadout — the armor chip", () => {
 
 	// The shipped armours store their value under `flags.stonetop.armor`, not `system.armor` —
 	// see packs/src/stonetop-items/inventory-items/hauberk-iron.json. Read out of `system` alone,
-	// an Iron Hauberk showed no armour value anywhere on its own card: its tags say "messy" and
+	// an Iron Hauberk showed no armour value anywhere on its own card: its tags say "warm" and
 	// "cumbersome" and nothing said 2. Resolved through readInventoryItemData, flags first, the
 	// same way the drop path has always resolved it.
 	it("reads a shipped armour's value out of flags.stonetop", () => {
 		const hauberk = catalogItem({
-			note: "<em>messy</em>, <em>cumbersome</em>", weight: 2, resource: undefined,
+			note: "<em>warm</em>, <em>cumbersome</em>", weight: 2, resource: undefined,
 			armor: { modifier: 2 },
 		});
 		hauberk.name = "Hauberk, iron";

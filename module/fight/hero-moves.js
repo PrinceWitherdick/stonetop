@@ -26,7 +26,10 @@
 //    comes up again, which is why the record is written at the Clash rather than waiting on the corpse.
 //  • PAYBACK (Heavy): "+1d4" against a foe that has harmed this character or an ally. Apply writes who hurt
 //    whom on the HARMED character (`harmedBy`), because Apply often runs on a player's client, which cannot
-//    write the Combat document.
+//    write the Combat document. A follower is an ally too (the user's ruling): a blow on one is written on
+//    the character it follows.
+//  • BLOOD-SOAKED PAST (Heavy background): "When you fight to kill without mercy or hesitation, you deal
+//    +1d4 damage." Pure fiction, so a standing UNTICKED line, like Predator's.
 //  • NEVER GONNA KEEP ME DOWN (Would-Be Hero) at 5 HP or less, UNCANNY REFLEXES (Heavy) unarmored under a
 //    light or normal load, and BATTLEFIELD GRACE (Marshal) leading allies: each puts the damage THEY take
 //    at disadvantage, like locked eyes from the other side.
@@ -37,6 +40,9 @@ import { SYSTEM_ID } from "../system-id.js";
 import { format } from "../utils/i18n.js";
 import { ownsLearnedMoveNamed, ownedMove } from "../actors/character/owns-move.js";
 import { heldOnTrack } from "../actors/character/MoveResources.js";
+import { characterBehind, followerCardFor } from "../actors/character/follower-masters.js";
+import { actorTookBackground } from "../actors/character/took-background.js";
+import { BLOOD_SOAKED_PAST } from "../data/alt-stat-grants.js";
 import { MELEE_RANGES } from "../data/weapons.js";
 import { betterMode, foldModes } from "../utils/roll-mode.js";
 import { fightStateActive, STORM_MARKINGS_NAME } from "../actors/character/fight-states.js";
@@ -220,6 +226,7 @@ const listFlag = (actor, flag) => {
 /** Whether this character has a move to act on, and still has it switched on. */
 const has = (actor, name) => actor?.type === "character" && ownsLearnedMoveNamed(actor, name);
 
+
 /** That move as the Item itself, for the ones that carry a track (Anger is a Gift's Resolve). */
 const ownedLearned = (actor, name) => (has(actor, name) ? ownedMove(actor, name) ?? null : null);
 
@@ -329,14 +336,24 @@ export async function recordKnockedDownBy(actor, attacker) {
  * Payback: remember a foe that has harmed this character. Written on the HARMED character by whoever
  * applied the damage, which is the one client guaranteed to be allowed to write something here — a
  * player taking a blow owns their own actor, and nobody but a GM may write a Combat.
+ *
+ * A FOLLOWER's harm is written on the character it follows: "one of your allies" takes in the Heavy's
+ * followers and every ally's (the user's ruling), and the character's flag is the one the fight's end
+ * already clears (combat/readiness-loss.js). An NPC who follows nobody is left alone.
+ *
+ * @param {Actor} actor     who took the blow
+ * @param {Actor} attacker  who dealt it
+ * @param {object} [options]
+ * @param {Function} [options.cardFor]  follower-masters.js#followerCardFor (injectable for tests)
  */
-export async function recordHarmedBy(actor, attacker) {
-	if (actor?.type !== "character" || typeof actor.setFlag !== "function") return false;
+export async function recordHarmedBy(actor, attacker, { cardFor = followerCardFor } = {}) {
+	const holder = characterBehind(actor, cardFor);
+	if (holder?.type !== "character" || typeof holder.setFlag !== "function") return false;
 	const key = foeKey(attacker);
 	if (!key) return false;
-	const held = listFlag(actor, HARMED_BY_FLAG);
+	const held = listFlag(holder, HARMED_BY_FLAG);
 	if (held.includes(key)) return false;
-	await actor.setFlag(SYSTEM_ID, HARMED_BY_FLAG, [...held, key]);
+	await holder.setFlag(SYSTEM_ID, HARMED_BY_FLAG, [...held, key]);
 	return true;
 }
 
@@ -347,22 +364,27 @@ export async function clearHarmedBy(actor) {
 	return true;
 }
 
-/** The heroes whose grudges Payback may draw on: this character, and their allies in this fight. */
-function paybackParty(actor) {
+/**
+ * The heroes whose grudges Payback may draw on: this character, and their allies in this fight. A
+ * follower fighting here brings the character it follows, whose flag holds the follower's grudges
+ * (see recordHarmedBy), even when that character is not in the fight themselves.
+ */
+function paybackParty(actor, { cardFor = followerCardFor } = {}) {
 	const party = [actor];
 	const place = rollerEngagement(actor);
 	for (const fighter of place?.fighters ?? []) {
 		if (fighter.side !== HEROES) continue;
 		const ally = place.combatants.get(fighter.id)?.actor ?? null;
-		if (ally?.type === "character" && !party.includes(ally)) party.push(ally);
+		const hero = characterBehind(ally, cardFor);
+		if (hero?.type === "character" && !party.includes(hero)) party.push(hero);
 	}
 	return party;
 }
 
-/** Payback: has every one of `targets` harmed this character or one of their allies? */
-export function paybackEarned(actor, targets = []) {
+/** Payback: has every one of `targets` harmed this character or one of their allies (followers too)? */
+export function paybackEarned(actor, targets = [], { cardFor = followerCardFor } = {}) {
 	if (!has(actor, HERO_MOVES.PAYBACK) || !targets?.length) return false;
-	const grudges = new Set(paybackParty(actor).flatMap(ally => listFlag(ally, HARMED_BY_FLAG)));
+	const grudges = new Set(paybackParty(actor, { cardFor }).flatMap(ally => listFlag(ally, HARMED_BY_FLAG)));
 	return targets.every(target => grudges.has(foeKey(target)));
 }
 
@@ -389,9 +411,13 @@ export function muscleboundWeapon(actor, weapon) {
 /** Whether a blow is dealt with a holy light (Hungry Flames). */
 const isHolyLight = weapon => weapon?.slug === "purifying-flames-holy-light";
 
-/** Is this character lost in their Battle Joy, with Berserker to spend it on? */
+/**
+ * Is this character lost in their Battle Joy, with Berserker to spend it on? Battle Joy itself must
+ * still be learned: a rage left on the sheet after the move was un-learned is no Battle Joy.
+ */
 export function berserkNow(actor) {
-	return has(actor, HERO_MOVES.BERSERKER) && !!actor?.getFlag?.(SYSTEM_ID, "battleJoy");
+	return has(actor, HERO_MOVES.BERSERKER) && has(actor, "Battle Joy")
+		&& !!actor?.getFlag?.(SYSTEM_ID, "battleJoy");
 }
 
 /**
@@ -472,6 +498,9 @@ export function blowOffers(actor, { targets = [], weapon = null, strikeBack = fa
 		}
 	}
 	if (has(actor, HERO_MOVES.PREDATOR)) add("predator", HERO_MOVES.PREDATOR, "1d4", { applied: false });
+	// Blood-Soaked Past: "When you fight to kill without mercy or hesitation, you deal +1d4 damage." Nothing
+	// on the map says how this blow was meant, so it is a standing unticked line, as Predator's is.
+	if (actorTookBackground(actor, BLOOD_SOAKED_PAST)) add("withoutMercy", BLOOD_SOAKED_PAST.label, "1d4", { applied: false });
 	// The Ranger's weak spot: the fight knows the creature is large or huge, and the player says whether
 	// this blow found the spot — so these open UNTICKED.
 	if (has(actor, HERO_MOVES.BIG_GAME) && targets.length && targets.every(isBigQuarry)) {

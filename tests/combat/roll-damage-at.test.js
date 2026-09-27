@@ -15,7 +15,7 @@ vi.mock("../../module/combat/readiness-loss.js", () => ({ settleReadinessOnAttac
 const { settleReadinessOnAttack } = await import("../../module/combat/readiness-loss.js");
 vi.mock("../../module/combat/battle-joy-offer.js", () => ({ offerBattleJoyOnDamage: vi.fn(async () => false) }));
 const { offerBattleJoyOnDamage } = await import("../../module/combat/battle-joy-offer.js");
-const { rollDamageAt, maybeBeginAttack, wireApplyDamage, withSeedTags, rollCharacterDamageAt, strikeBackAt, rollFollowerDamageAt, wireAttackConfirm, rollMoveDamageAt, wireConditionalArmor } = await import("../../module/combat/attack-flow.js");
+const { rollDamageAt, maybeBeginAttack, wireApplyDamage, withSeedTags, rollCharacterDamageAt, strikeBackAt, rollFollowerDamageAt, wireAttackConfirm, rollMoveDamageAt, wireConditionalArmor, wireUnstoppableMark } = await import("../../module/combat/attack-flow.js");
 
 // Rolls aimed by the fight: a monster's damage at the character it is fighting, a character's at the
 // foe, the "Who does this hit?" question when there are several, and the plain card when nobody is there.
@@ -424,6 +424,77 @@ describe("Apply damage and the fight's rules", () => {
 			.toEqual({ name: "Sword", range: ["close"], piercing: 1, tags: ["close", "forceful"] });
 		expect(withSeedTags(weapon, { bonus: 1, applied: false, tags: ["forceful"], piercing: 1 })).toBe(weapon);
 		expect(withSeedTags(weapon, { bonus: 1, applied: true, tags: [], piercing: 0 })).toBe(weapon);
+	});
+});
+
+// Unstoppable: "Each time you take damage while at 0 HP, mark 1." A ticked box on the damage card,
+// since whether the Heavy is still in the battle is the table's to say.
+describe("Unstoppable on the damage card", () => {
+	/** A Heavy down at 0 HP, dying and fighting on, with `marks` circles marked. */
+	const fightingOn = (id, name, marks = 1) => {
+		const actor = hero(id, name);
+		actor.system.attributes.hp.value = 0;
+		actor.flags = { "stonetop-pwd": { deathsDoor: "dying", moves: { backgroundChoices: { Unstoppable: marks } } } };
+		actor.items = [{ type: "move", name: "Unstoppable", system: { resource: { max: 5 } }, flags: {} }];
+		actor.getFlag = (scope, key) => key.split(".").reduce((v, k) => v?.[k], actor.flags[scope]);
+		actor.update = vi.fn(async function (changes) {
+			for (const [path, value] of Object.entries(changes)) {
+				const parts = path.split(".");
+				let at = this;
+				for (const k of parts.slice(0, -1)) at = at[k] ??= {};
+				at[parts.at(-1)] = value;
+			}
+		});
+		return actor;
+	};
+	const marksOf = actor => actor.flags["stonetop-pwd"].moves.backgroundChoices.Unstoppable;
+
+	it("marks 1 when a Heavy fighting on at 0 HP takes damage, and says so on the applied card", async () => {
+		const bram = fightingOn("bram", "Bram", 1);
+		const { tokens } = fightInARow([["bram", bram]]);
+		await apply({ move: "Bite", weapon: null, results: [{ uuid: tokens.bram.uuid, name: "Bram", raw: 6 }], applied: [] });
+		expect(marksOf(bram)).toBe(2);
+		expect(posted.at(-1).content).toContain("Unstoppable: marks 1, 2 of 5 marked");
+	});
+
+	it("marks nothing when the box was unticked", async () => {
+		const bram = fightingOn("bram", "Bram", 1);
+		const { tokens } = fightInARow([["bram", bram]]);
+		const row = { uuid: tokens.bram.uuid, name: "Bram", raw: 6 };
+		await apply({ move: "Bite", weapon: null, results: [row], applied: [], unstoppableOff: [row.uuid] });
+		expect(marksOf(bram)).toBe(1);
+	});
+
+	it("marks nothing for a blow the armor soaked", async () => {
+		const bram = fightingOn("bram", "Bram", 1);
+		const { tokens } = fightInARow([["bram", bram]]);
+		await apply({ move: "Bite", weapon: null, results: [{ uuid: tokens.bram.uuid, name: "Bram", raw: 2 }], applied: [] });
+		expect(marksOf(bram)).toBe(1);
+	});
+
+	it("draws the box ticked for a Heavy fighting on, none for anyone else, and writes the card when unticked", async () => {
+		const bram = fightingOn("bram", "Bram", 1);
+		const pim = hero("pim", "Pim");
+		const { tokens } = fightInARow([["bram", bram], ["pim", pim]]);
+		const element = tag => ({ tagName: tag, className: "", type: "", checked: false, disabled: false, title: "", textContent: "", kids: [], append(...k) { this.kids.push(...k); }, addEventListener(_t, fn) { this.fire = fn; } });
+		globalThis.document = { createElement: element };
+		const actions = element("div");
+		const message = makeMessage({ damage: { move: "Bite", results: [
+			{ uuid: tokens.bram.uuid, name: "Bram", raw: 6 },
+			{ uuid: tokens.pim.uuid, name: "Pim", raw: 6 },
+		], applied: [] } });
+		message.canUserModify = () => true;
+
+		wireUnstoppableMark(message, { querySelector: sel => (sel === ".stonetop-attack-actions" ? actions : null) });
+
+		expect(actions.kids).toHaveLength(1);
+		const [box, words] = actions.kids[0].kids;
+		expect(box.checked).toBe(true);
+		expect(words.textContent).toContain("Bram");
+		expect(words.textContent).toContain("Unstoppable: mark 1");
+		box.checked = false;
+		await box.fire();
+		expect(message.getFlag(SCOPE, "damage").unstoppableOff).toEqual([tokens.bram.uuid]);
 	});
 });
 

@@ -47,6 +47,11 @@ export class MoveResources {
 		await this._flags.setSubKey(key, moveName, value, options);
 	}
 
+	/** `setUses` as an actor.update() fragment, for a caller folding it into a write of its own. */
+	usesUpdate(moveName, value) {
+		return this._flags.subKeyData(key, moveName, value);
+	}
+
 	async _addMoveResource(current, moveName, newValue) {
 		await this._flags.setFlag(key, {...current, [moveName]: newValue});
 	}

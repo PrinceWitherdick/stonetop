@@ -11,6 +11,10 @@ import {
 } from "../actors/character/deaths-door.js";
 import { getSetting } from "../settings.js";
 import { bringDialogToFront } from "../utils/front-on-open.js";
+import { UNSTOPPABLE_INSTEAD_OPTION, UNSTOPPABLE_REGAIN_OPTION, fightsOnWhenDropped, keepsFightingAtZero, regainInstead } from "../actors/character/unstoppable.js";
+import { BATTLE_JOY_DROPPED_OPTION, BATTLE_JOY_FLAG } from "../actors/character/battle-joy.js";
+import { deletionEntry } from "../utils/foundry-compat.js";
+import { format } from "../utils/i18n.js";
 
 /**
  * Document-update option marking "this write took a dead character above 0 HP". Set by the
@@ -61,8 +65,23 @@ export function onPreUpdateActorDeathsDoor(actor, changes, options = {}) {
 	// stop HP being written at all — losing damage rather than merely losing the card. Nothing
 	// this hook does is worth that, so it fails quiet and lets the write through.
 	try {
-		const newHp = Number(raw) || 0;
+		let newHp = Number(raw) || 0;
 		const oldHp = Number(actor.system?.attributes?.hp?.value) || 0;
+
+		// Unstoppable: "If you would regain HP while fighting, clear one mark instead." Decided here,
+		// before the state below reads the hit points, so a Heavy fighting on stays dying: the write
+		// keeps its HP where it was and clears the mark in the same update, and the committed half
+		// offers the HP back (actors/character/unstoppable.js#onUpdateActorUnstoppable). Never for a
+		// write that settles the Door itself (Death's Door's 1 HP, Hard to Kill's trade), which
+		// carries the state flag: rolling is when they stopped fighting.
+		const settlesDoor = foundry.utils.getProperty(changes, `flags.${STONETOP_SCOPE}.${DEATHS_DOOR_FLAG}`) !== undefined;
+		const instead = options[UNSTOPPABLE_REGAIN_OPTION] || settlesDoor ? null : regainInstead(actor, { oldHp, newHp });
+		if (instead) {
+			foundry.utils.setProperty(changes, "system.attributes.hp.value", oldHp);
+			for (const [path, value] of Object.entries(instead.update)) foundry.utils.setProperty(changes, path, value);
+			options[UNSTOPPABLE_INSTEAD_OPTION] = { hp: instead.hp, marks: instead.marks };
+			newHp = oldHp;
+		}
 		// Read the same way the character model reads it: `fate-pending` is one of the two states
 		// this function refuses to move off, so a stale one left beside an insert would freeze this
 		// character's state for good — never dying again, and so never announcing it. See
@@ -75,6 +94,18 @@ export function onPreUpdateActorDeathsDoor(actor, changes, options = {}) {
 
 		if (next !== state) {
 			foundry.utils.setProperty(changes, `flags.${STONETOP_SCOPE}.${DEATHS_DOOR_FLAG}`, next ?? null);
+		}
+
+		// The Heavy's Battle Joy lasts "as long as you keep fighting", and one who drops to 0 HP has
+		// stopped (the user's ruling): it ends in this same write, with no roll, so the Death's Door
+		// roll that follows takes their debilities again. Not for a Heavy whose Unstoppable keeps them
+		// fighting at 0: theirs ends when the fight does (combat/battle-joy-offer.js#actionStops). The
+		// committed half says so in chat, off the option.
+		if (next === DEATHS_DOOR_STATE.DYING && state !== DEATHS_DOOR_STATE.DYING
+			&& resolvedFlagProperty(actor, BATTLE_JOY_FLAG) && !fightsOnWhenDropped(actor)) {
+			const [key, value] = deletionEntry(`flags.${STONETOP_SCOPE}.${BATTLE_JOY_FLAG}`);
+			foundry.utils.setProperty(changes, key, value);
+			options[BATTLE_JOY_DROPPED_OPTION] = true;
 		}
 
 		// Someone through the Last Door whose hit points have just gone above 0. Marked on the
@@ -159,6 +190,14 @@ export function onUpdateActorDeathsDoorAutoOpen(actor, changes) {
 		// Subordinate to the announcement: a table that silenced the card doesn't want a window.
 		if (!getSetting("deathsDoorPrompt") || !getSetting("deathsDoorAutoOpen")) return;
 		if (autoOpenUserId(ownerUsers(actor)) !== game.user?.id) return;
+
+		// Unstoppable: "you can keep fighting ... When you stop fighting, roll for Death's Door." So the
+		// walkthrough waits: they are told, the card's button (and the sheet's dying glyph) opens it when
+		// they choose, and the fight ending asks for it (combat/battle-joy-offer.js#actionStops).
+		if (keepsFightingAtZero(actor)) {
+			ui.notifications?.info?.(format("stonetop.unstoppable.fightsOn", { name: actor.name }));
+			return;
+		}
 
 		openZeroHpMove(actor).catch(err => console.error("Stonetop | Error opening the dying walkthrough:", err));
 	} catch (err) {
@@ -340,12 +379,17 @@ export async function postDyingPrompt(actor) {
 	const lead = move.dialog
 		? `<p><strong>${who}</strong> is at 0 HP: they're <strong>dying</strong>.</p>`
 		: `<p><strong>${who}</strong> is at 0 HP. Death's Door is behind them: <strong>${escHtml(move.name)}</strong> triggers instead.</p>`;
+	// Unstoppable keeps them in the fight, and the roll waits until they stop (see the auto-open above).
+	const fightsOn = keepsFightingAtZero(actor)
+		? `<p class="stonetop-dying-unstoppable">${escHtml(format("stonetop.unstoppable.fightsOnCard", { name: actor.name }))}</p>`
+		: "";
 
 	return ChatMessage.create({
 		speaker: ChatMessage.getSpeaker({ actor }),
 		content: stonetopChatCard(move.dialog ? "Death's Door" : move.name, `<div class="card-content">
 			${lead}
 			<p class="stonetop-dying-trigger">${move.trigger}</p>
+			${fightsOn}
 			<div class="card-buttons stonetop-card-buttons stonetop-dying-actions">${button}</div>
 		</div>`, "stonetop-dying-card"),
 		flags: { [STONETOP_SCOPE]: { dying: { actorUuid: actor.uuid, move: move.name } } },

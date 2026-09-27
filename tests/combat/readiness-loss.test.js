@@ -135,6 +135,17 @@ describe("droppedHoldingReadiness", () => {
 		// Another change on a character already down is not the drop.
 		expect(droppedHoldingReadiness(hero("bram", 2, { hp: 0 }), { name: "Bram" })).toBe(false);
 	});
+
+	// Unstoppable: "When you are reduced to 0 HP in battle, you can keep fighting." Still fighting is
+	// still defending, until they roll Death's Door.
+	it("not a Heavy who fights on at 0 HP with Unstoppable", () => {
+		const bram = hero("bram", 2, { hp: 0 });
+		bram.flags[SYSTEM_ID].deathsDoor = "dying";
+		bram.items = [{ type: "move", name: "Unstoppable", flags: {} }];
+		expect(droppedHoldingReadiness(bram, { system: { attributes: { hp: { value: 0 } } } })).toBe(false);
+		bram.items[0].flags = { [SYSTEM_ID]: { learned: false } };
+		expect(droppedHoldingReadiness(bram, { system: { attributes: { hp: { value: 0 } } } })).toBe(true);
+	});
 });
 
 describe("installReadinessLoss", () => {
@@ -179,6 +190,24 @@ describe("installReadinessLoss", () => {
 		await hooks.fire("updateActor", bram, { system: { attributes: { hp: { value: 0 } } } });
 		expect(held(bram)).toBe(0);
 		expect(posted[0].content).toContain("Bram is down and loses their Readiness.");
+	});
+
+	// Payback keeps a follower's grudges on the character it follows (hero-moves.js#recordHarmedBy), and
+	// that character need not be in the fight: the fight ending still clears them.
+	it("the fight ending clears Payback's grudges on a follower's character who was not in it", async () => {
+		const withGrudges = (actor, list) => {
+			actor.flags[SYSTEM_ID].harmedBy = list;
+			actor.getFlag = (scope, key) => actor.flags[scope]?.[key];
+			return actor;
+		};
+		const bram = withGrudges(hero("bram"), ["foe-1"]);
+		const dog = withGrudges(hero("dog", 0, { type: "npc" }), []);
+		const cardFor = vi.fn(actor => (actor === dog ? { character: bram } : null));
+		const hooks = fakeHooks();
+		installReadinessLoss({ hooks, cardFor });
+		await hooks.fire("deleteCombat", fight("f1", [combatant("d", dog)]));
+		expect(bram.flags[SYSTEM_ID].harmedBy).toEqual([]);
+		expect(cardFor).toHaveBeenCalledWith(dog);
 	});
 
 	it("only the primary GM writes", async () => {

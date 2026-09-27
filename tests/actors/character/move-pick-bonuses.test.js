@@ -88,6 +88,19 @@ describe("movePickBonusesFor", () => {
 		expect(movePickBonusesFor(character({ playbook: "The Heavy", background: "the-natural" }), "Seek Insight")).toEqual([]);
 	});
 
+	// Heavy audit (2026-09-25): Situational Awareness's three questions were never on the list.
+	it("adds Situational Awareness's three questions for a Heavy who LEARNED it, without raising the count", () => {
+		const heavy = learned => character({ playbook: "The Heavy", items: [move("Situational Awareness", { learned })] });
+		const bonuses = movePickBonusesFor(heavy(true), "Seek Insight");
+		expect(bonuses.flatMap(b => b.addOptions)).toEqual([
+			"Who or what here is the biggest threat?", "What is my enemy's true position?", "What here can I use as a weapon?",
+		]);
+		const out = applyPickBonuses(pickableMoveDescription(SEEK.system.description), bonuses);
+		expect(rows(out)).toBe(9);
+		expect(attr(openTag(out), "data-pick-max-success")).toBe("3");
+		expect(movePickBonusesFor(heavy(false), "Seek Insight")).toEqual([]);
+	});
+
 	it("reads Survivalist on Forage: one more pick, 1 even on a 6-, and its added option", () => {
 		const [b] = movePickBonusesFor(character({ playbook: "The Ranger", items: [move("Survivalist")] }), "Forage");
 		const tag = openTag(applyPickBonuses(pickableMoveDescription(FORAGE.system.description), [b]));
@@ -123,13 +136,20 @@ describe("MOVE_PICK_BONUSES quotes its sources", () => {
 		"Survivalist":  () => doc("playbook-moves/the-ranger/survivalist.json").system.description,
 		"Perceptive":   () => doc("playbook-moves/the-fox/perceptive.json").system.description,
 		"the-natural":  () => doc("playbooks/the-fox.json").flags.stonetop.backgrounds.find(b => b.slug === "the-natural").description,
+		"Situational Awareness": () => doc("playbook-moves/the-heavy/situational-awareness.json").system.description,
 	};
 	for (const b of MOVE_PICK_BONUSES) {
 		const key = b.ownsLearned ?? b.background.slug;
 		it(`${key} on ${b.move}`, () => {
-			const text = stripHtmlToText(SOURCES[key]()).replace(/[“”]/g, '"');
+			const html = SOURCES[key]();
+			const text = stripHtmlToText(html).replace(/[“”]/g, '"');
 			expect(text).toContain(b.move);
-			for (const option of b.addOptions ?? []) expect(text).toContain(`"${option}"`);
+			// An option is quoted in the source's prose ("add 'X' to the list"), or is one whole
+			// bullet of the source's own list (Situational Awareness).
+			const bullets = [...html.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/gi)].map(m => stripHtmlToText(m[1]).trim());
+			for (const option of b.addOptions ?? []) {
+				expect(text.includes(`"${option}"`) || bullets.includes(option), option).toBe(true);
+			}
 		});
 	}
 });

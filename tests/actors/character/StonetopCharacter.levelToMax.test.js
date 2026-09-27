@@ -138,7 +138,8 @@ function inHomeReachableAdvanced(playbookName, finalStats) {
 		return ok;
 	};
 
-	return new Set(docs.filter(d => !d.system?.isStartingMove && reachable(d, new Set())).map(d => d.name));
+	// A background's own move (the Heavy's Bark an Order, `requirement.background`) is never a pick.
+	return new Set(docs.filter(d => !d.system?.isStartingMove && !d.system?.requirement?.background && reachable(d, new Set())).map(d => d.name));
 }
 
 describe("StonetopCharacter level-up climb — every playbook to exhaustion", () => {
@@ -189,7 +190,9 @@ describe("StonetopCharacter level-up climb — every playbook to exhaustion", ()
 				const homeNames = new Set(sourceMovesFor(pb.name).map(d => d.name));
 				const crossOnlyPrereq = reqMoves.some(r => !owned.has(r) && !homeNames.has(r)) ||
 					(anyOf.length > 0 && anyOf.every(r => !owned.has(r) && !homeNames.has(r)));
-				expect(crossOnlyPrereq, `${pb.name} left "${locked.name}" locked without a cross-playbook reason`).toBe(true);
+				// Or it is another background's move, which the climb's character never took.
+				const otherBackground = !!src?.system?.requirement?.background;
+				expect(crossOnlyPrereq || otherBackground, `${pb.name} left "${locked.name}" locked without a cross-playbook reason`).toBe(true);
 			}
 
 			// Final stats are the DETERMINISTIC result of the standard creation array

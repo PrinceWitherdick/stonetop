@@ -1335,7 +1335,10 @@
       }
     },
     "rollOffers": {
-      "fineWhisky": "Share a skin of fine whisky (spend 1 use): advantage"
+      "fineWhisky": "Share a skin of fine whisky (spend 1 use): advantage",
+      "intimidating": "Using violence or threats (Intimidating): advantage",
+      "husbandryTools": "Persuading a domestic beast (Husbandry tools): advantage",
+      "stoneCold": "Keeping calm and carrying on (Stone Cold): treat a 6- as a 7-9"
     },
     "pickBonus": {
       "note": "{source}: {detail}.",
@@ -1467,7 +1470,14 @@
       "ask": "Do they lose themselves in battle? While lost in their Battle Joy they ignore fear, pain, mind-control and the effects of debilities, as long as they keep fighting.",
       "askEnter": "Lose themselves in battle",
       "askDecline": "Keep their head",
-      "entered": "{name} spills blood and loses themselves in battle, ignoring fear, pain, mind-control and the effects of debilities as long as they keep fighting."
+      "entered": "{name} spills blood and loses themselves in battle, ignoring fear, pain, mind-control and the effects of debilities as long as they keep fighting.",
+      "endedDropped": "{name} drops to 0 HP and stops fighting: their Battle Joy ends, with no roll.",
+      "endedDown": "The action stops with {name} down: their Battle Joy ends, with no roll.",
+      "regainButton": "That was a rush: regain 1d4 HP",
+      "regained": "Battle Joy: that was a rush. {name} regains {amount} HP (now {hp}).",
+      "debilityButton": "Mark {debility}",
+      "debilityMarked": "{name} marks {debility} as their Battle Joy ends, and marks no XP for the miss.",
+      "debilityTaken": "That debility is already marked. Choose another."
     },
     "nerves": {
       "onLabel": "Shaken nerves",
@@ -2227,6 +2237,10 @@
           "label": "Predator: +{dice} damage, acting on what you learned about your prey",
           "pill": "{move} +{dice}"
         },
+        "withoutMercy": {
+          "label": "Blood-Soaked Past: +{dice} damage, fighting to kill without mercy or hesitation",
+          "pill": "{move} +{dice}"
+        },
         "takenAtDisadvantage": "{move}: the damage against them rolls with disadvantage.",
         "armorGate": {
           "barkskin": "Barkskin: {armor} armor, while touching the earth",
@@ -2271,6 +2285,21 @@
           "upAgain": "{name} is getting up again: advantage on their next roll against {foe}, and +1d4 on their next blow."
         }
       }
+    },
+    "unstoppable": {
+      "markBox": "Unstoppable: mark 1, for damage taken while fighting on at 0 HP",
+      "marked": "Unstoppable: marks 1, {marks} of {max} marked",
+      "full": "Unstoppable: all {max} circles are already marked",
+      "insteadTitle": "Unstoppable",
+      "insteadAsk": "{name} is fighting on at 0 HP and would regain HP (to {hp}). Unstoppable clears one mark instead, which leaves {marks} marked.",
+      "insteadKeep": "Clear one mark instead",
+      "insteadRegain": "Regain the HP",
+      "insteadNote": "{name} would regain HP while fighting, and clears one Unstoppable mark instead ({marks} marked).",
+      "regainedNote": "{name} regains HP after all (to {hp}), and the Unstoppable mark stays.",
+      "hardToKillNotDying": "Hard to Kill is rolled at Death's Door, and {name} is not at Death's Door.",
+      "fightsOn": "Unstoppable: {name} fights on at 0 HP. Roll Death's Door when you stop fighting (the dying card's button, or the sheet).",
+      "fightsOnCard": "Unstoppable: {name} fights on at 0 HP, and rolls Death's Door when they stop fighting.",
+      "stopsFighting": "The action stops for {name}, fighting on at 0 HP: time to roll Death's Door."
     },
     "readiness": {
       "askTitle": "{name} holds {count} Readiness",

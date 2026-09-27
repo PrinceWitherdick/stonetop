@@ -386,6 +386,27 @@ export class CharacterArcana {
 		await this._flags.setFlag("owned", [...slugsWeHae]);
 	}
 
+	/**
+	 * Whether a card is still exactly as a background's `setup.arcana` row gave it (see
+	 * StonetopCharacter#settleBackgroundArcana): owned, read as far as the row said and no further
+	 * (no GM reveal, no owed back, not a lead), marked with the row's boxes and no others, and no
+	 * unlock or back option counted. `flipped` is only which face is showing, so it doesn't count.
+	 * An unticked box is stored as false (setArcanumBoxChecked), which is the same as never marked.
+	 */
+	isAsGranted({ slug, identify = false, boxes = [] } = {}) {
+		if (!slug || !this.ownedSlugs.has(slug)) return false;
+		if (this.identifiedSlugs.has(slug) !== !!identify) return false;
+		if (this.revealedSlugs.has(slug) || this.backOwedSlugs.has(slug) || this.leadSlugs.has(slug)) return false;
+		const prefix = `${slug}:`;
+		const marked = key => Object.entries(this._flags.getFlag(key) ?? {})
+			.filter(([k, v]) => k.startsWith(prefix) && (typeof v === "number" ? v > 0 : !!v))
+			.map(([k]) => k);
+		const granted = new Set(boxes.map(box => `${slug}:${box.context ?? "front"}:${Number(box.index ?? 0)}`));
+		const ticked  = marked("boxes");
+		if (ticked.length !== granted.size || ticked.some(k => !granted.has(k))) return false;
+		return !marked("unlock").length && !marked("backOptions").length;
+	}
+
 	async removeArcanum(slug) {
 		// Clear every per-card trace of this slug, not just owned/identified. Leaving the reveal
 		// flag or the unlock/mark maps behind means re-acquiring the same arcanum later (a fresh

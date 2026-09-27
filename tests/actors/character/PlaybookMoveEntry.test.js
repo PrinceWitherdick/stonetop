@@ -200,6 +200,30 @@ describe("PlaybookMoveEntry (display-only requirement note)", () => {
 	});
 });
 
+describe("PlaybookMoveEntry (a background's own move)", () => {
+	// The Heavy's Bark an Order: only the Sheriff background gives it, and it is never a pick.
+	const def = new MoveDefinition({
+		_id: "bark", name: "Bark an Order",
+		system: { playbook: "The Heavy", requirement: { playbook: "The Heavy", background: "sheriff", note: "Sheriff background" } },
+	});
+
+	// Any other Heavy never sees the row (StonetopCharacter#buildMovelistContext leaves it out);
+	// one who holds it anyway (a GM dropped it on) sees it warned, labelled with the background.
+	it("held by any other Heavy, is locked and warned, labelled with the background", () => {
+		const entry = new PlaybookMoveEntry(def, [{ _id: "b1" }], NO_BG, NO_OWNED_BY_NAME, 10, "The Heavy");
+		expect(entry.locked).toBe(true);
+		expect(entry.requirementsUnmet).toBe(true);
+		expect(entry.requiresLabel).toBe("Sheriff background");
+	});
+
+	it("is the Sheriff's, from the background, and never locked there", () => {
+		const entry = new PlaybookMoveEntry(def, [{ _id: "b1" }], new Set(["Bark an Order"]), NO_OWNED_BY_NAME, 1, "The Heavy");
+		expect(entry.locked).toBe(false);
+		expect(entry.source).toBe("Background");
+		expect(entry.requirementsUnmet).toBe(false);
+	});
+});
+
 describe("PlaybookMoveEntry (machine-checkable stat requirement)", () => {
 	// Musclebound: "Requires Strength +2 or higher" → { str: 2 }, a stat gate the engine
 	// CAN check (unlike a freeform note), so it actually locks the move.

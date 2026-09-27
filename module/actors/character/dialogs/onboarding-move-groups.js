@@ -32,7 +32,7 @@ export const ONBOARDING_MOVE_GROUPS = deepFreeze({
 		{ key: "charm", label: "Charm", moves: ["Irresistible", "Laugh at Danger", "Pants on Fire", "Rapier Wit", "Silver Tongued", "Under Your Skin"] },
 	],
 	"The Heavy": [
-		{ key: "offense", label: "Offense", moves: ["Battle Joy", "Berserker", "Bringer of Ruin", "Dangerous", "Mighty Thews", "Musclebound", "Nemesis", "Payback", "Relentless", "Terror on the Field", "Intimidating", "Formidable"] },
+		{ key: "offense", label: "Offense", moves: ["Battle Joy", "Berserker", "Bringer of Ruin", "Dangerous", "Mighty Thews", "Musclebound", "Nemesis", "Payback", "Relentless", "Terror on the Field", "Intimidating", "Bark an Order", "Formidable"] },
 		{ key: "defense", label: "Defense", moves: ["Armored", "Guardian", "Steadfast Guardian", "Uncanny Reflexes"] },
 		{ key: "grit", label: "Grit", moves: ["Hard to Kill", "Unstoppable", "Unfettered", "Frosty", "Stone Cold", "Seasoned Warrior", "Carved Out of Wood", "Cut from Granite"] },
 	],

@@ -6,6 +6,7 @@ import { classifyResult, rollStat } from "../../../utils/roll-engine.js";
 import { guideRailStep } from "../../../utils/guide-rail.js";
 import { DEATHS_DOOR_STATE, zeroHpMove } from "../deaths-door.js";
 import { activatePostDeathChoices, buildPostDeathChoices, outstandingLabel } from "../post-death-choices.js";
+import { endBattleJoyUnrolled } from "../../../combat/battle-joy-offer.js";
 
 // The move itself (name + trigger), from the 0-HP routing table that every other surface reads.
 // The trigger is a rule the player is being asked to act on, so the walkthrough, its roll card
@@ -514,6 +515,11 @@ export class DeathsDoorDialog extends StonetopDialog {
 			if (!actor) return;
 			const { penalty } = this._character.deathsDoorRollOptions();
 
+			// Rolling it is when they stop fighting, so a Heavy still in their Battle Joy (fighting on
+			// at 0 HP with Unstoppable) comes out of it first, with no roll, and this roll takes their
+			// debilities again (combat/battle-joy-offer.js#endBattleJoyUnrolled).
+			await endBattleJoyUnrolled(actor);
+
 			// Rolling +CON exposes the roll to `miserable`, like any other +CON roll; +nothing
 			// touches no stat and so is untouched by debilities.
 			const rollOptions = this._character.applyDebilityRollMode?.(this._stat, { rollMode: "normal" })
@@ -566,10 +572,15 @@ export class DeathsDoorDialog extends StonetopDialog {
 	 */
 	async _applyTier(key) {
 		if (key === "success") {
+			// Unstoppable's circles go BEFORE the hit point: a Heavy still carrying marks at 0 HP
+			// would otherwise have that 1 HP read as "regain HP while fighting" and turned into a
+			// cleared mark (see unstoppable.js#regainInstead).
+			await this._clearUnstoppable();
 			// The hit point and the end of dying land in one write (see returnToOneHp).
 			await this._character.returnToOneHp();
 			await this._seedMark();
 		} else if (key === "partial") {
+			await this._clearUnstoppable();
 			// Pointedly no HP: "no longer dying" is not "back up". They're unconscious (or close
 			// enough) until the GM says otherwise, which is what the state records.
 			await this._character.setDeathsDoorState(DEATHS_DOOR_STATE.OUT_OF_ACTION);
@@ -578,6 +589,17 @@ export class DeathsDoorDialog extends StonetopDialog {
 			// is still theirs, and the GM will want to ask about it before they answer.
 			await this._character.setDeathsDoorState(DEATHS_DOOR_STATE.FATE_PENDING);
 		}
+	}
+
+	/**
+	 * Unstoppable: "If you survive, clear all your circles." A 10+ and a 7-9 are both surviving
+	 * (the Hard to Kill trade only follows a 7-9, so it finds them already cleared), and the move
+	 * gives no choice about it, so it is written with the tier and said in chat.
+	 */
+	async _clearUnstoppable() {
+		const cleared = await this._character.clearUnstoppableCircles?.();
+		if (!cleared) return;
+		await this._post("Unstoppable", `<p><strong>${escHtml(this._actorName)}</strong> survives, and clears ${cleared === 1 ? "their Unstoppable circle" : `all ${cleared} Unstoppable circles`}.</p>`);
 	}
 
 	/**

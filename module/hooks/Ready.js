@@ -68,6 +68,7 @@ import { isDefaultImg } from "../utils/strings.js";
 import { updatePlacedTokens } from "../utils/placed-tokens.js";
 import { grandfatherWeaponsOfWar } from "../migration/weapons-of-war-grandfather.js";
 import { repairAllPossessionGrants } from "../migration/possession-grant-repair.js";
+import { refreshHeldMoves } from "../migration/move-refresh.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
 const _EOS_MACRO_IMG    = "systems/stonetop-pwd/assets/icons/macros/truce.svg";
@@ -225,6 +226,11 @@ export async function onReady() {
 		// chance for a grant to have moved, and between releases there is nothing to find.
 		try { await oncePerVersion("possessionGrantRepair", repairAllPossessionGrants); }
 		catch (err) { console.error("Stonetop | special-possession gear repair failed", err); }
+		// Fill in what the pack has gained on moves characters already hold: a track, a miss that marks
+		// no XP (migration/move-refresh.js). Per VERSION, like the grant repair above, and what lets
+		// every rule read the held copy with no fallback to the pack of its own.
+		try { await oncePerVersion("moveRefresh", refreshHeldMoves); }
+		catch (err) { console.error("Stonetop | refreshing held moves failed", err); }
 
 		// Point player tokens back at the characters they stand for. An unlinked PC token carries
 		// a private copy of its character, and the two drift because a roll writes to the sheet's

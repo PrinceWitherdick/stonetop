@@ -179,11 +179,12 @@ export function startingMoveItems(playbookName) {
 
 export function buildLiveCharacter({
 	slug, name, stats = STANDARD_ARRAY, level = 1, xp = 9999,
-	seedStartingMoves = true, items = [], flags = {},
+	seedStartingMoves = true, items = [], flags = {}, arcana,
 } = {}) {
 	const startItems = seedStartingMoves ? startingMoveItems(name) : [];
 	const actor = makeLiveActor({ slug, name, level, xp, stats, items: [...startItems, ...items], flags });
-	const factory = new FakeRepositoryFactory({ playbook: makePlaybookRepo(), moves: makeSourceMoveRepo() });
+	// `arcana`: an arcana repository (FakeArcanaRepository) for a test that reads cards back.
+	const factory = new FakeRepositoryFactory({ playbook: makePlaybookRepo(), moves: makeSourceMoveRepo(), arcana });
 	const char = new StonetopCharacter(actor, factory);
 	return { char, actor };
 }

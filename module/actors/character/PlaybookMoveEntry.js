@@ -59,7 +59,10 @@ export class PlaybookMoveEntry {
 		// Taking a replacing move gives up the one it replaces, so once this move is owned
 		// the replaced move's absence is the expected state, not a broken prerequisite.
 		const moveMissing = m => !ownedAllByName.has(m) && !(m === replaces && ownedInstances.length > 0);
+		// `req.background` (the Heavy's Bark an Order: the Sheriff's): a move only that background
+		// gives, never a pick. The background's own grant is a starting move, so it never locks there.
 		this.locked = !this.isStarting && !!(
+			req?.background ||
 			requiredMovesUnmet({ moves: requiresMoves, anyMoves: req?.anyMoves }, m => !moveMissing(m)) ||
 			(this.requiresPlaybook && this.requiresPlaybook !== actorPlaybook) ||
 			(this.minLevel && actorLevel < this.minLevel) ||

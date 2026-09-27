@@ -14,8 +14,8 @@ export function dieFromDamage(str) {
 
 /**
  * One extra damage-dice term, cleaned up for concatenation onto a damage formula — the
- * "+1d6" the Storm Markings' Storm's Fury imbues a strike with, the "+1d4" a Blood-Soaked
- * Past deals fighting without mercy, the "1d6" Clash's strike-hard already folds in.
+ * "+1d6" the Storm Markings' Storm's Fury imbues a strike with, a GM's one-off "+1d4", the
+ * "1d6" Clash's strike-hard already folds in.
  *
  * Accepts what a player would actually type: a leading `+` or `-`, spaces anywhere, and an
  * optional flat tail (`2d6 + 1`). Returns the term WITHOUT a leading `+` (a `-` is kept, since

@@ -47,6 +47,7 @@ import {halveDamage, spentOn} from "../fight/defend-spend.js";
 import {undauntedNow, eyesLockedAgainst, ownDamageMode, blowOffers as heroOffers, muscleboundWeapon, berserkNow, defenderDisadvantage, recordHarmedBy, recordClash, foeAdvantage, defenderMoveKey} from "../fight/hero-moves.js";
 import {ownsLearnedMoveNamed, ownsLearnedBookMoveNamed, ownedLearnedBookMove, isPlayerAuthoredMove} from "../actors/character/owns-move.js";
 import {armorGateWords, barkskinMarks, wearsBarkskin, withBarkskinBase} from "../actors/character/move-armor.js";
+import {keepsFightingAtZero, markUnstoppable} from "../actors/character/unstoppable.js";
 import {format, localize} from "../utils/i18n.js";
 import {foldModes} from "../utils/roll-mode.js";
 import {bringDialogToFront} from "../utils/front-on-open.js";
@@ -1851,6 +1852,9 @@ function conditionalArmorOf(actor, barkskin) {
 /** The rows whose conditional armor has been ticked off on this card. */
 const armorLeftOff = damage => new Set(Array.isArray(damage?.armorOff) ? damage.armorOff : []);
 
+/** The rows whose Unstoppable mark has been ticked off on this card (wireUnstoppableMark). */
+const unstoppableLeftOff = damage => new Set(Array.isArray(damage?.unstoppableOff) ? damage.unstoppableOff : []);
+
 function postDamageResultsCard(actor, { move, weapon, ownPiercing, results, damage, selfHarm = false, notices = "", foeUuid = "", groupBlow = false }) {
 	// Several targets is the book's own rule now that the roller is asked who a blow hits
 	// (fight/fight-targets.js), so the note says when it applies rather than calling it an abstraction.
@@ -2699,6 +2703,9 @@ async function applyOwedDamage(message, damage) {
 				continue;
 			}
 		}
+		// Unstoppable: "Each time you take damage while at 0 HP, mark 1". Asked BEFORE the blow, which
+		// is what "while at 0 HP" means: the blow that puts them on 0 marks nothing.
+		const fightingOn = effective > 0 && !unstoppableLeftOff(current).has(r.uuid) && keepsFightingAtZero(targetActor);
 		const t = await applyDamageToActor(targetActor, effective);
 		// A target actor with no hp attribute (e.g. a steading token) yields null. Skip it
 		// without recording it as applied, so it can be retried if the actor is fixed —
@@ -2715,6 +2722,13 @@ async function applyOwedDamage(message, damage) {
 		if (effective > 0 && striker) {
 			await recordHarmedBy(targetActor, striker).catch(err => console.warn("Stonetop | could not record who struck", err));
 		}
+		// After the HP and before the latch, on the same terms as Payback above.
+		const marked = fightingOn
+			? await markUnstoppable(targetActor).catch(err => { console.warn("Stonetop | could not mark Unstoppable", err); return null; })
+			: null;
+		const unstoppable = marked
+			? ` <span class="stonetop-damage-mitigated">(${escHtml(format(`stonetop.unstoppable.${marked.full ? "full" : "marked"}`, marked))})</span>`
+			: "";
 		const dead = t.newHp === 0 ? " <em>(0 HP)</em>" : "";
 		const half = raw !== rolled ? ` <span class="stonetop-damage-mitigated">(${escHtml(format("stonetop.fight.defend.halvedFrom", { rolled }))})</span>` : "";
 		const brave = undaunted ? ` <span class="stonetop-damage-mitigated">(${escHtml(format("stonetop.fight.heroMoves.undaunted.armorNote", {}))})</span>` : "";
@@ -2722,7 +2736,7 @@ async function applyOwedDamage(message, damage) {
 		const bare = gatedOff
 			? ` <span class="stonetop-damage-mitigated">(${escHtml(format(`stonetop.fight.heroMoves.armorGate.${gateWords?.noteKey ?? "note"}`, { move: worn.conditionalSource, ...gateWords?.params, armor: gatedOff }))})</span>`
 			: "";
-		lines.push(`<li><strong>${escHtml(rowName)}</strong>: ${effective} damage${back}${half}${mitigated}${brave}${bare}: ${t.oldHp} &rarr; ${t.newHp} HP${dead}</li>`);
+		lines.push(`<li><strong>${escHtml(rowName)}</strong>: ${effective} damage${back}${half}${mitigated}${brave}${bare}: ${t.oldHp} &rarr; ${t.newHp} HP${dead}${unstoppable}</li>`);
 	}
 	// Only the latch: a Readiness spend another client wrote meanwhile stays on the card.
 	await message.setFlag(SCOPE, "damage.applied", nextApplied);
@@ -2805,6 +2819,63 @@ export function wireConditionalArmor(message, html, gateFor = applyGateOnce(mess
 			if (box.checked) list.delete(row.uuid);
 			else list.add(row.uuid);
 			await message.setFlag(SCOPE, "damage.armorOff", [...list]);
+		});
+	}
+}
+
+/**
+ * The tick box for Unstoppable's "each time you take damage while at 0 HP, mark 1", on a row whose
+ * target is fighting on at 0 HP (actors/character/unstoppable.js#keepsFightingAtZero).
+ *
+ * TICKED, for the reason wireConditionalArmor's box is: the sheet knows they are at 0 HP, dying and
+ * holding Unstoppable, but not whether they are still in the battle, and that is the ordinary case
+ * for a Heavy who took the move. Untick it and applyOwedDamage marks nothing for that row. Drawn and
+ * gated the same way as the armor box, against the same person (a Defend's stand-in, if one took it).
+ */
+export function wireUnstoppableMark(message, html, gateFor = applyGateOnce(message)) {
+	const root = html?.[0] ?? html;
+	const damage = message.getFlag(SCOPE, "damage");
+	const actions = root?.querySelector?.(".stonetop-attack-actions");
+	if (!damage?.results?.length || !actions) return;
+
+	const off = unstoppableLeftOff(damage);
+	const { standIns } = spentOn(damage);
+	const done = new Set((damage.applied ?? []).map(a => a.uuid));
+	const gate = gateFor(damage);
+	if (gate.hide) return;
+	const several = damage.results.filter(r => r.uuid).length > 1;
+
+	for (const row of damage.results) {
+		if (!row.uuid || done.has(row.uuid)) continue;
+		const standIn = standIns.get(row.uuid);
+		const target = damageRowActor(resolveSync(standIn?.by ?? row.uuid));
+		if (!keepsFightingAtZero(target)) continue;
+
+		const label = document.createElement("label");
+		label.className = "stonetop-damage-armor-gate";
+		const box = document.createElement("input");
+		box.type = "checkbox";
+		box.className = "stonetop-check";
+		box.checked = !off.has(row.uuid);
+		const words = format("stonetop.unstoppable.markBox", {});
+		const whose = standIn ? format("stonetop.fight.defend.rowFor", { defender: target.name, ward: row.name }) : row.name;
+		label.append(box, Object.assign(document.createElement("span"), {
+			textContent: several || standIn ? `${whose}: ${words}` : words,
+		}));
+		actions.append(label);
+
+		if (gate.refused || gate.relay || done.size) {
+			box.disabled = true;
+			box.title = gate.refused ?? (gate.relay ? "Ask the GM to change this" : format("stonetop.fight.seed.alreadyApplied", {}));
+			continue;
+		}
+		box.addEventListener("change", async () => {
+			box.disabled = true;
+			const now = message.getFlag(SCOPE, "damage");
+			const list = new Set(Array.isArray(now?.unstoppableOff) ? now.unstoppableOff : []);
+			if (box.checked) list.delete(row.uuid);
+			else list.add(row.uuid);
+			await message.setFlag(SCOPE, "damage.unstoppableOff", [...list]);
 		});
 	}
 }

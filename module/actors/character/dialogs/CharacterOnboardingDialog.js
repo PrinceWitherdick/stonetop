@@ -396,6 +396,9 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			// its group is theirs already.
 			if (doc.system?.isStartingMove && !choiceMoveNames.has(doc.name)) return false;
 			if (bgMoveNames.has(doc.name)) return false;
+			// A move only a background gives (the Heavy's Bark an Order, the Sheriff's), for any
+			// other background: never a pick.
+			if (doc.system?.requirement?.background) return false;
 			if (chosenChoiceNames.has(doc.name)) return false;
 			if (doc.system?.requirement?.level > 1) return false;
 			if (requiredMovesUnmet(doc.system?.requirement, r => grantedNames.has(r))) return false;
