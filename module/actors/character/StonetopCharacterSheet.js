@@ -108,6 +108,7 @@ import {DANCING_LIGHT, invocationLabel, invocationLabels, invokeWindowNotice, re
 import {INVOCATIONS_GRANTED_AT_FLAG, invocationCountCue} from "./invocation-count.js";
 import {showJudgeMarks, condemnedContext, CONDEMN, CENSURE, CASTIGATE} from "./condemn.js";
 import {PIETY, holdBlessing, shareBlessing} from "./roll-boosts.js";
+import {giveAdvantageCardHtml} from "./give-advantage.js";
 import {pickPersonOnMap} from "../../dialogs/RelationshipLinkDialog.js";
 import {readyRulebookIcon, openSharedRulebook} from "../../books/rulebook-icons.js";
 
@@ -3624,7 +3625,8 @@ export function createStonetopCharacterSheetClass(Base) {
 					? moveCardBody(source.description, source.moveResults)
 					: pickableMoveDescription(stockBody);
 				ChatMessage.create({
-					content: moveChatCard(name, printed, { actions: this._stockSpendButtonHtml(stockBody) }),
+					// And the "Give advantage to..." button of a move that gives it (Countermeasures, Sage Advice).
+					content: moveChatCard(name, printed, { actions: this._stockSpendButtonHtml(stockBody) + giveAdvantageCardHtml(this.actor, name) }),
 					speaker,
 				});
 				// A description-only move has no rollType, so it falls all the way through to
@@ -6179,7 +6181,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				// move made from the hotbar or the fight ring is paid for there, or nowhere.
 				// Through item.roll rather than around it, so the card keeps the `move` stamp that
 				// option damage reads.
-				const posted = await item.roll({ actions: this._stockSpendButtonHtml(item.system?.description ?? "") });
+				const posted = await item.roll({ actions: this._stockSpendButtonHtml(item.system?.description ?? "") + giveAdvantageCardHtml(this.actor, item.name) });
 				// The other half: a move dragged to the hotbar is used from there just as truly
 				// as from the sheet, so it gets the same effects.
 				await this._onDescriptionMoveUsed(item);

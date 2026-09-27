@@ -12349,9 +12349,11 @@ button.stonetop-inspiration-chip:focus-visible {
 	outline-offset: 2px;
 }
 
-/* What a We Happy Few card gave, and the die a damage card took: a line of the card's own text. */
+/* What a We Happy Few card gave, and the die a damage card took: a line of the card's own text.
+   So is who a "Give advantage to..." card gave it to (give-advantage-flow.js). */
 .stonetop-inspiration-readout,
-.stonetop-inspiration-note {
+.stonetop-inspiration-note,
+.stonetop-give-advantage-readout {
 	margin: 0.3em 0 0;
 	font-size: var(--st-fs-xs);
 	font-style: italic;

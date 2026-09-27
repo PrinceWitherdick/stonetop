@@ -10,6 +10,7 @@ import { BATTLE_JOY, battleJoyRollOptions } from "./battle-joy.js";
 import { WIELDER_OF_THE_WHITE_FLAME } from "./holy-light.js";
 import { wielderRollOptions } from "./invoke-consequences.js";
 import { WE_HAPPY_FEW, speechRollOptions } from "./inspiration.js";
+import { GIVE_ADVANTAGE_MOVES, giveAdvantageRollOptions } from "./give-advantage.js";
 
 const named = name => moveName => moveName === name;
 
@@ -27,6 +28,10 @@ export const MOVE_ROLL_OPTIONS = [
 	{ matches: named(WIELDER_OF_THE_WHITE_FLAME), build: wielderRollOptions },
 	// Every tier asks who heard the speech (inspiration-flow.js#wireSpeechCard).
 	{ matches: named(WE_HAPPY_FEW), build: speechRollOptions },
+	// "You or an ally gain advantage" on the tiers that print it: Everything Burns' 10+, Work With What
+	// You've Got's 7+ (give-advantage-flow.js#wireGiveAdvantage).
+	...Object.entries(GIVE_ADVANTAGE_MOVES).filter(([, rule]) => rule.tiers?.length)
+		.map(([name]) => ({ matches: named(name), build: giveAdvantageRollOptions(name) })),
 ];
 
 /**

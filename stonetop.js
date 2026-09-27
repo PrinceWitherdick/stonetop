@@ -133,6 +133,7 @@ import { reconcileTierEffects } from "./module/actors/character/tier-effects.js"
 import {
 	INSPIRATION_QUERY, handleInspirationQuery, onUpdateActorInspirationAtZero, wireInspirationDamage, wireKeepOneHp, wireSpeechCard,
 } from "./module/actors/character/inspiration-flow.js";
+import { GIVE_ADVANTAGE_QUERY, handleGiveAdvantageQuery, wireGiveAdvantage } from "./module/actors/character/give-advantage-flow.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -182,6 +183,9 @@ Hooks.once("init", () => {
 	if (CONFIG.queries) CONFIG.queries[INSPIRATION_QUERY] = (data, context) => handleInspirationQuery(data, context, INSPIRATION_DEPS);
 	// And Bath of Healing Light, on a patient the Lightbearer's player does not own (invocation-apply.js).
 	if (CONFIG.queries) CONFIG.queries[BATH_QUERY] = (data, context) => handleBathQuery(data, context);
+	// And "you or an ally gain advantage" (Countermeasures, Sage Advice, Everything Burns, Work With What
+	// You've Got), given to a PC the giver's player does not own (give-advantage-flow.js).
+	if (CONFIG.queries) CONFIG.queries[GIVE_ADVANTAGE_QUERY] = (data, context) => handleGiveAdvantageQuery(data, context);
 
 	// Every window and modal in the system is drag-resizable; the ad-hoc
 	// Dialog popups we spawn from sheets default to resizable too. The companion
@@ -2278,6 +2282,9 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	wireMarkConsequenceCard(message, html);
 	// We Happy Few, every tier: who heard the speech holds its Inspiration, once per card.
 	wireSpeechCard(message, html);
+	// "You or an ally gain advantage" (Everything Burns' 10+, Work With What You've Got's 7+, and the posted
+	// cards of Countermeasures and Sage Advice): who holds it, once per card.
+	wireGiveAdvantage(message, html);
 	// Same row, same reason: a spend that rewrites what the roll costs the player.
 	_chatWireHolyRelics(message, html);
 	// The XP receipt's own row, not the shared button row the two above claim — a card with no
