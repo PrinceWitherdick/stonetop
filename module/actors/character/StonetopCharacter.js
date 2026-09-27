@@ -1268,11 +1268,18 @@ export class StonetopCharacter {
 	// "Add Special Item" picker. The `i.special` guard at each use site does the actual
 	// intersection, so returning the full possession-slug set here is fine. Derived at
 	// render, so it covers already-created characters and needs no stored flag/migration.
+	// A possession's `specialItems` are catalog special items it makes by other slugs (the
+	// Seeker's Laboratory produces naphtha, a ◇ weapon with its own ○○○ track), surfaced the same
+	// way while the possession is held.
 	_selectedPossessionSlugs(playbookData) {
-		return new Set([
+		const held = new Set([
 			...(playbookData?.specialPossessions?.preselected ?? []),
 			...this._possessions.selected,
 		]);
+		for (const opt of playbookData?.specialPossessions?.options ?? []) {
+			if (held.has(opt.slug)) for (const slug of opt.specialItems ?? []) held.add(slug);
+		}
+		return held;
 	}
 
 	async _buildInventorySection(playbookData, ownedAllByName, actorLevel, view = {}, arcanaCarried = null) {

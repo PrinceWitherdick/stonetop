@@ -313,7 +313,7 @@ export class LevelUpDialog extends StonetopDialog {
 			hasForeignMoves: foreignMoves.length > 0,
 			foreignMovesEmpty: isForeignMove && foreignMoves.length === 0,
 			foreignFromMoveName: selectedEntry?.name ?? null,
-			foreignGrantsPouch:  !!selectedEntry?.crossPlaybook?.grantsPossession,
+			foreignGrantsPouch:  !!selectedEntry?.crossPlaybook?.grantsPossession && !!this._grantsNewPossession,
 		};
 	}
 
@@ -446,6 +446,9 @@ export class LevelUpDialog extends StonetopDialog {
 		}
 		if (this._foreignMovesForId === entry.compendiumId) return; // already loaded for this move
 		this._foreignMoves = await this._character.getForeignMovesForLevelUp(entry.crossPlaybook, this._data.newLevel);
+		// "Also grants a Sacred Pouch" only on the take that brings one: a second Initiate adds nothing.
+		const grants = entry.crossPlaybook.grantsPossession ?? null;
+		this._grantsNewPossession = !!grants && !(await this._character.holdsPossession?.(grants));
 		this._foreignMovesForId = entry.compendiumId;
 		this._selectedForeignMoveId = null;
 		this._foreignSearch = "";

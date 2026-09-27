@@ -31,10 +31,16 @@ export class CharacterPossessions {
 		await this._flags.batch({ deletes: { grantedAtLevel: [slug], uses: [slug], subChoices: [slug] } });
 	}
 
+	// Un-picking a possession forgets its spent uses and its picks with it, in the same write, so
+	// picking it again starts it fresh (Books & scrolls back at 5, not at what was left). A
+	// grant-only possession's release clears the same keys (forgetGranted).
 	async deselect(slug) {
 		const s = this.selected;
 		s.delete(slug);
-		await this._flags.setFlag("selected", [...s]);
+		const deletes = {};
+		if (slug in this.uses)       deletes.uses       = [slug];
+		if (slug in this.subChoices) deletes.subChoices = [slug];
+		await this._flags.batch({ sets: { selected: [...s] }, deletes });
 	}
 
 	async setUses(slug, count) {

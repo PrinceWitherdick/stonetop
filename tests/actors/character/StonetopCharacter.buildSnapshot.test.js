@@ -1413,6 +1413,31 @@ describe("buildSnapshot — inventory: possession-derived special items", () => 
 		expect(snap.inventory.outfit.regularItems.some(i => i.slug === "composite-bow")).toBe(true);
 	});
 
+	// The Seeker's Laboratory "produces d4-1 uses of ◇ naphtha" every season: a possession's
+	// `specialItems` carry catalog items under other slugs, derived at render (no migration).
+	it("surfaces a held possession's `specialItems` (the Laboratory's naphtha), and not while it is un-picked", async () => {
+		const NAPHTHA = makeOutfitItem({ slug: "naphtha", name: "Naphtha", weight: 1, special: true, resource: { max: 3, title: null, labels: ["", ""] } });
+		const labPlaybook = {
+			...HEAVY_PLAYBOOK,
+			specialPossessions: { pickNote: "Pick 1", pickCount: 1, preselected: [],
+				options: [{ slug: "laboratory", label: "Laboratory", description: "chemics", specialItems: ["naphtha"] }] },
+		};
+		const build = flags => new TestCharacterBuilder(makeHeavyActor({ flags }))
+			.withPlaybookRepo(new FakePlaybookRepository(labPlaybook))
+			.withInventoryRepo(new FakeInventoryRepository([NAPHTHA]))
+			.build().buildSnapshot();
+		const held = (await build({ "possessions.selected": ["laboratory"] })).inventory.outfit.regularItems.find(i => i.slug === "naphtha");
+		expect(held).toMatchObject({ weight: 1, resource: { max: 3 } });
+		expect((await build({})).inventory.outfit.regularItems.some(i => i.slug === "naphtha")).toBe(false);
+	});
+
+	it("the Seeker's Laboratory lists naphtha among its specialItems (pack data)", async () => {
+		const { readFileSync } = await import("node:fs");
+		const pb = JSON.parse(readFileSync("packs/src/stonetop-items/playbooks/the-seeker.json", "utf8"));
+		const lab = JSON.stringify(pb).includes("\"specialItems\":[\"naphtha\"]");
+		expect(lab).toBe(true);
+	});
+
 	it("keeps a special item OFF the Items column when no held possession matches it", async () => {
 		const snap = await new TestCharacterBuilder(makeHeavyActor())
 			.withPlaybookRepo(new FakePlaybookRepository(bowPlaybook([])))

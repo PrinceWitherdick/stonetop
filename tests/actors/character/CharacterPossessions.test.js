@@ -32,6 +32,24 @@ describe("CharacterPossessions — top-level", () => {
 		expect(store.selected).toContain("mastiffs");
 	});
 
+	it("deselect forgets the possession's spent uses and picks, in the same write, and only its own", async () => {
+		const store = { selected: ["books-and-scrolls", "distillery"], uses: { "books-and-scrolls": 3, distillery: 1 }, subChoices: { "books-and-scrolls": ["x"] } };
+		const flags = makeFlags(store);
+		flags.batch = vi.fn(async ({ sets = {}, deletes = {} } = {}) => {
+			Object.assign(store, sets);
+			for (const [key, subs] of Object.entries(deletes)) for (const sub of subs) delete store[key][sub];
+		});
+		const cp = new CharacterPossessions(flags);
+		await cp.deselect("books-and-scrolls");
+		expect(flags.batch).toHaveBeenCalledTimes(1);
+		expect(store.selected).toEqual(["distillery"]);
+		expect(store.uses).toEqual({ distillery: 1 });
+		expect(store.subChoices).toEqual({});
+		// Nothing stored to forget: nothing asked to be deleted.
+		await cp.deselect("distillery");
+		expect(flags.batch.mock.calls[1][0].deletes).toEqual({ uses: ["distillery"] });
+	});
+
 	it("setUses stores count under slug key", async () => {
 		const store = {};
 		const cp = new CharacterPossessions(makeFlags(store));

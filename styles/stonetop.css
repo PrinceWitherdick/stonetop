@@ -31975,6 +31975,21 @@ th:has(> .stonetop-roll-table-btn) {
 	line-height: 1.35;
 }
 
+/* The Logbook row's "Reset logbook", pressed by the Seeker's own player. */
+.stonetop-seasons-reset-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	width: 100%;
+	margin-top: 6px;
+}
+
+.stonetop-seasons-reset-btn:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+
 /* "New to Foundry?" text link, sitting under the intro on the Welcome guide. A
    quiet prompt → the FoundryBasicsDialog primer, styled as a text button (no
    box) so it reads as a link rather than competing with the step actions. */

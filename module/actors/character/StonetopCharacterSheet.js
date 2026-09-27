@@ -7291,7 +7291,8 @@ export function createStonetopCharacterSheetClass(Base) {
 				const stock = m.stockNote ? `<p class="stonetop-move-note">${_esc(m.stockNote)}</p>` : "";
 				return `${m.description ?? ""}${req}${stock}`;
 			};
-			const pouchNote = grantsPossession
+			// Only on the take that brings the pouch: a second Initiate finds it already held.
+			const pouchNote = grantsPossession && !(await this._stonetopCharacter.holdsPossession(grantsPossession))
 				? `<p class="notes">${_esc(addedItem.name)} also grants a Sacred Pouch.</p>`
 				: "";
 			const content = `

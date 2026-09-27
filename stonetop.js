@@ -104,6 +104,7 @@ import { maybeAnnounceBecameHero } from "./module/actors/character/WouldBeHeroAs
 import { StonetopSteading } from "./module/actors/steading/StonetopSteading.js";
 import { debilityPath } from "./module/actors/steading/steading-debilities.js";
 import { readCurrentSeason, readCurrentYear } from "./module/seasons/current-season.js";
+import { wireSeasonsReminderResets } from "./module/seasons/seasons-change-reminders.js";
 import { onSteadingPeopleUpdate, repaintOpenSteadingRosters } from "./module/actors/steading/steading-people.js";
 import { makeDialogsResizable, enableAutoHeightVerticalResize } from "./module/utils/resizable-dialogs.js";
 import { registerStonetopWindowTheme, registerStonetopLightTheme } from "./module/utils/window-theme.js";
@@ -2296,6 +2297,8 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatWireMusterRaise(message, html);
 	_chatWireSpendStock(message, html);
 	_chatWireSeasonsRoll(message, html);
+	// The Seasons Change reminder card's "Reset logbook", for the Seeker's own player.
+	wireSeasonsReminderResets(message, html);
 	_chatWireRollCardPicks(message, html);
 	// Invoke the Sun God's consequences: a ticked debility grows its buttons, the snuffing and the
 	// sun act on the Invocation the card names. After the picks pass, for the same reason as below.
