@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { TestCharacterBuilder } from "../../fakes/TestCharacterBuilder.js";
 import { FakeActorBuilder } from "../../fakes/FakeActorBuilder.js";
 import { FakeInventoryRepository } from "../../fakes/FakeInventoryRepository.js";
@@ -283,6 +283,72 @@ describe("StonetopCharacter — ensurePossessionGrants back-fill", () => {
 		expect(actor.setFlag).toHaveBeenCalledWith(
 			"stonetop-pwd", "possessionGrantsApplied", { mastiffs: true },
 		);
+	});
+
+	// A PRESELECTED possession is held without ever being selected (only onboarding selects it),
+	// so a Judge dropped on a blank sheet with onboarding closed had Scribe's tools ticked and
+	// locked and no Parchment, Ink or Notebook.
+	describe("preselected possessions", () => {
+		const JUDGE = {
+			slug: "the-judge",
+			name: "The Judge",
+			specialPossessions: {
+				preselected: ["scribes-tools"],
+				options: [
+					{
+						slug: "scribes-tools",
+						label: "Scribe's tools",
+						grantsItems: [
+							{ name: "Parchment", column: "small" },
+							{ name: "Notebook", column: "small" },
+						],
+					},
+					{ slug: "apiary", label: "Apiary", grantsItems: [{ name: "Beeswax", column: "small" }] },
+				],
+			},
+		};
+		function makeJudge({ flags = {}, items = [] } = {}) {
+			let builder = new FakeActorBuilder().withPlaybook("the-judge", "The Judge").withItems(items);
+			for (const [k, v] of Object.entries(flags)) builder = builder.withFlag(k, v);
+			const actor = builder.build();
+			const character = new TestCharacterBuilder(actor).addPlaybook(JUDGE).build();
+			return { actor, character };
+		}
+		const created = actor => actor.createEmbeddedDocuments.mock.calls.flatMap(([, docs]) => docs.map(d => d.name));
+
+		it("gives a character with only the playbook set its preselected gear", async () => {
+			const { actor, character } = makeJudge();
+			await character.ensurePossessionGrants();
+			expect(created(actor)).toEqual(["Parchment", "Notebook"]);
+			expect(created(actor)).not.toContain("Beeswax");
+			expect(actor.getFlag("stonetop-pwd", "possessionGrantsApplied")).toEqual({ "scribes-tools": true });
+		});
+
+		it("does not resurrect preselected gear the player deleted", async () => {
+			const { actor, character } = makeJudge({ items: [grantedItem({ _id: "p", name: "Parchment", sourcePossession: "scribes-tools" })] });
+			await character.ensurePossessionGrants();
+			// The Notebook is deleted by hand after the first run; the second run must leave it gone.
+			actor.createEmbeddedDocuments.mockClear();
+			await character.ensurePossessionGrants();
+			expect(actor.createEmbeddedDocuments).not.toHaveBeenCalled();
+		});
+
+		it("does not resolve the playbook in the steady state", async () => {
+			const { character } = makeJudge();
+			await character.ensurePossessionGrants();
+			const spy = vi.spyOn(character, "playbook");
+			await character.ensurePossessionGrants();
+			expect(spy).not.toHaveBeenCalled();
+		});
+
+		it("walks them again after a change of playbook, which clears the marker", async () => {
+			const { actor, character } = makeJudge({
+				flags: { possessionGrantsApplied: {}, possessionGrantsPreselected: "the-fox" },
+			});
+			await character.ensurePossessionGrants();
+			expect(created(actor)).toEqual(["Parchment", "Notebook"]);
+			expect(actor.getFlag("stonetop-pwd", "possessionGrantsPreselected")).toBe("the-judge");
+		});
 	});
 });
 

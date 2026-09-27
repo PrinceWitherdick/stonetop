@@ -27,6 +27,7 @@ export class RequirementSnapshot {
  * @property {boolean} requirementsUnmet - owned, but its prerequisites are no longer met
  * @property {RequirementSnapshot|null} requirement
  * @property {string|null} requiresLabel
+ * @property {string|null} replacedBy - the owned move this un-owned one was given up for
  * @property {Resource|null} resource
  * @property {{ max: number, current: number }|null} repeat
  * @property {boolean} repeatable
@@ -53,6 +54,9 @@ export class MoveSnapshot {
 		this.requirementsUnmet = b._requirementsUnmet ?? false;
 		this.requirement   = b._requirement;
 		this.requiresLabel = b._requiresLabel;
+		// The owned move this one was given up for (Bulwark -> "A Mighty Rampart"), or null.
+		// The card says so and its box stays shut (PlaybookMoveEntry#replacedBy).
+		this.replacedBy    = b._replacedBy ?? null;
 		this.resource      = b._resource;
 		this.repeat        = b._repeat;
 		this.repeatable    = b._repeatable;
@@ -96,7 +100,8 @@ export class MoveSnapshotBuilder {
 	withRequirementsUnmet(v) { this._requirementsUnmet = !!v; return this; }
 	withRequirement(v)   { this._requirement   = v; return this; }
 	withRequiresLabel(v) { this._requiresLabel = v; return this; }
-	withResource(v)      { this._resource      = v; return this; }
+	withReplacedBy(v)    { this._replacedBy    = v ?? null; return this; }
+	withResource(v)     { this._resource      = v; return this; }
 	withRepeat(v)        { this._repeat        = v; return this; }
 	withRepeatable(v)    { this._repeatable    = v; return this; }
 	withBackgroundAnswer(v) { this._backgroundAnswer = v ?? null; return this; }

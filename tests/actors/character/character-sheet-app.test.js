@@ -4,6 +4,14 @@ import { createStonetopCharacterSheetClass } from "../../../module/actors/charac
 import {FakeActorBuilder} from "../../fakes/FakeActorBuilder.js";
 import { DEATHS_DOOR_STATE, zeroHpMove, zeroHpResolution } from "../../../module/actors/character/deaths-door.js";
 
+// The people picker Castigate asks "who did you Censure?" with. Replaced so a test can answer it (or
+// back out) without a window; the rest of the module is the real one.
+const picker = vi.hoisted(() => ({ pick: vi.fn(async () => null) }));
+vi.mock("../../../module/dialogs/RelationshipLinkDialog.js", async (importOriginal) => ({
+	...(await importOriginal()),
+	pickPersonOnMap: picker.pick,
+}));
+
 // -- Helpers ------------------------------------------------------------------
 
 function makeCharacterMock(actor) {
@@ -131,11 +139,14 @@ function makeCharacterMock(actor) {
 		}),
 		onRoll: vi.fn(async () => true),
 		ensureStartingMoves: vi.fn(),
+		ensurePossessionGrants: vi.fn(),
 		backgroundState: () => ({ slug: background.selectedSlug, setupChoices: {} }),
 		backgroundMovesDropped: vi.fn(async () => []),
 		settleBackgroundMoves: vi.fn(async () => {}),
 		settleBackgroundPossessions: vi.fn(async () => {}),
 		settleBackgroundArcana: vi.fn(async () => {}),
+		// _onBackgroundChange looks the new background up for neighbors it names; none here.
+		playbook: vi.fn(async () => null),
 		clearPlaybookData: vi.fn(async () => {}),
 		updateName: vi.fn(async name => actor.update({ name })),
 		addMove: vi.fn(),
@@ -928,12 +939,143 @@ describe("StonetopCharacterSheet Condemn roster on move use", () => {
 		expect(sheet._openCondemned).not.toHaveBeenCalled();
 	});
 
+	// Armistice rather than Castigate, which this used to name: Castigate IS a Censure now (it
+	// deals the Censure's damage, and opens the roster the Censure opens), see the block below.
 	it("ignores any other move, a same-named non-move, and a row with no item at all", async () => {
 		const { sheet } = condemnSheet();
-		await sheet._onDescriptionMoveUsed({ type: "move", name: "Castigate" });
+		await sheet._onDescriptionMoveUsed({ type: "move", name: "Armistice" });
 		await sheet._onDescriptionMoveUsed({ type: "item", name: "Condemn" });
 		await sheet._onDescriptionMoveUsed(null);
 		expect(sheet._openCondemned).not.toHaveBeenCalled();
+	});
+});
+
+// "When you Censure someone, your voice deals 1d4 damage to them (near, loud, ignores armor)."
+// Castigate is level 2+ and Condemn level 6+, and the blow used to ride the brand being laid in
+// Condemn's window, so a Judge without Condemn never dealt it. It lands from the Censure now. What
+// is pinned here is WHO it lands on; the card itself (1d4, loud, ignores armor) is pinned against
+// the real model in playbook-the-judge.test.js, so `castigate` is a spy.
+describe("StonetopCharacterSheet Castigate on Censure", () => {
+	const token = (id, name, { actorId = `a-${id}`, hidden = false } = {}) =>
+		({ id, name, uuid: `Scene.s.Token.${id}`, hidden, actor: { id: actorId } });
+	const bandit = token("b", "Bandit");
+	const cutpurse = token("c", "Cutpurse");
+	const ownToken = token("j", "The Judge", { actorId: "actor-1" });
+
+	let savedUser;
+	let savedScenes;
+	beforeEach(() => {
+		savedUser = global.game.user;
+		savedScenes = global.game.scenes;
+		picker.pick.mockReset();
+		picker.pick.mockResolvedValue(null);
+	});
+	afterEach(() => {
+		global.game.user = savedUser;
+		global.game.scenes = savedScenes;
+	});
+
+	function censureSheet({ castigate = true, condemn = false, proclaim = false, targets = [], scene = [], editable = true } = {}) {
+		const actor = makeActor();
+		Object.assign(actor.typedActor, {
+			canCastigate: castigate,
+			canProclaim: proclaim,
+			castigate: vi.fn(async () => ({ id: "card" })),
+		});
+		actor.typedActor.canCondemn = condemn;
+		const sheet = makeSheet(actor);
+		if (!editable) Object.defineProperty(sheet, "isEditable", { get: () => false });
+		sheet._openCondemned = vi.fn(async () => {});
+		global.game.user = { ...(savedUser ?? {}), isGM: false, targets: new Set(targets.map(document => ({ document }))) };
+		global.game.scenes = { viewed: { tokens: scene } };
+		return { character: actor.typedActor, sheet };
+	}
+
+	const censure = sheet => sheet._onDescriptionMoveUsed({ type: "move", name: "Censure" });
+
+	it("hits the one targeted person, without Condemn, and opens no roster", async () => {
+		const { character, sheet } = censureSheet({ targets: [bandit] });
+		await censure(sheet);
+		expect(character.castigate).toHaveBeenCalledTimes(1);
+		expect(character.castigate).toHaveBeenCalledWith(bandit);
+		expect(picker.pick).not.toHaveBeenCalled();
+		expect(sheet._openCondemned).not.toHaveBeenCalled();
+	});
+
+	it("does nothing for a Judge who has not learned Castigate", async () => {
+		const { character, sheet } = censureSheet({ castigate: false, targets: [bandit] });
+		await censure(sheet);
+		expect(character.castigate).not.toHaveBeenCalled();
+		expect(picker.pick).not.toHaveBeenCalled();
+	});
+
+	it("asks who, off this scene, when nobody is targeted; backing out deals nothing", async () => {
+		const hidden = token("h", "Lurker", { hidden: true });
+		const { character, sheet } = censureSheet({ scene: [bandit, ownToken, hidden, cutpurse] });
+		await censure(sheet);
+		expect(picker.pick).toHaveBeenCalledTimes(1);
+		// Never the Judge themself, and not a token the player cannot see.
+		expect(picker.pick.mock.calls[0][0].options.map(o => o.id)).toEqual(["b", "c"]);
+		expect(character.castigate).not.toHaveBeenCalled();
+	});
+
+	it("hits whoever the picker names", async () => {
+		picker.pick.mockResolvedValue("c");
+		const { character, sheet } = censureSheet({ scene: [bandit, cutpurse] });
+		await censure(sheet);
+		expect(character.castigate).toHaveBeenCalledTimes(1);
+		expect(character.castigate).toHaveBeenCalledWith(cutpurse);
+	});
+
+	it("says so and rolls nothing when there is nobody to ask about", async () => {
+		const info = vi.spyOn(global.ui.notifications, "info");
+		const { character, sheet } = censureSheet({ scene: [ownToken] });
+		await censure(sheet);
+		expect(picker.pick).not.toHaveBeenCalled();
+		expect(character.castigate).not.toHaveBeenCalled();
+		expect(info).toHaveBeenCalledWith(expect.stringMatching(/Castigate has nobody to hit/));
+		info.mockRestore();
+	});
+
+	// Censure denounces "an individual": several targets are a question, not a volley.
+	it("asks which ONE of several targets, without Proclamation", async () => {
+		picker.pick.mockResolvedValue("b");
+		const { character, sheet } = censureSheet({ targets: [bandit, cutpurse], scene: [bandit, cutpurse, token("x", "Other")] });
+		await censure(sheet);
+		expect(picker.pick.mock.calls[0][0].options.map(o => o.id)).toEqual(["b", "c"]);
+		expect(character.castigate).toHaveBeenCalledTimes(1);
+		expect(character.castigate).toHaveBeenCalledWith(bandit);
+	});
+
+	// "Apply the effects of Censure to every member of that group."
+	it("hits every target, one card each, with Proclamation", async () => {
+		const { character, sheet } = censureSheet({ proclaim: true, condemn: true, targets: [bandit, cutpurse] });
+		await censure(sheet);
+		expect(picker.pick).not.toHaveBeenCalled();
+		expect(character.castigate.mock.calls.map(c => c[0])).toEqual([bandit, cutpurse]);
+	});
+
+	// The window still opens for the brand. Laying it there rolls nothing (brandCondemned is
+	// record-keeping now, pinned in playbook-the-judge.test.js), so this is the only 1d4.
+	it("still opens the roster for a Judge who owns Condemn, after the one blow", async () => {
+		const { character, sheet } = censureSheet({ condemn: true, targets: [bandit] });
+		await censure(sheet);
+		expect(character.castigate).toHaveBeenCalledTimes(1);
+		expect(sheet._openCondemned).toHaveBeenCalledTimes(1);
+	});
+
+	it("does the same when Castigate itself is used", async () => {
+		const { character, sheet } = censureSheet({ condemn: true, targets: [bandit] });
+		await sheet._onDescriptionMoveUsed({ type: "move", name: "Castigate" });
+		expect(character.castigate).toHaveBeenCalledWith(bandit);
+		expect(sheet._openCondemned).toHaveBeenCalledTimes(1);
+	});
+
+	it("rolls nothing from a sheet the viewer cannot edit, but still shows the roster", async () => {
+		const { character, sheet } = censureSheet({ condemn: true, targets: [bandit], editable: false });
+		await censure(sheet);
+		expect(character.castigate).not.toHaveBeenCalled();
+		expect(sheet._openCondemned).toHaveBeenCalledTimes(1);
 	});
 });
 
@@ -1349,6 +1491,8 @@ describe("StonetopCharacterSheet._onDropPlaybook", () => {
 		expect(actor.update).toHaveBeenCalled();
 		expect(actor.update.mock.calls[0][0]["system.playbook"].slug).toBe("the-heavy");
 		expect(actor.typedActor.ensureStartingMoves).toHaveBeenCalled();
+		// Its preselected possessions' gear arrives with the drop, not only through onboarding.
+		expect(actor.typedActor.ensurePossessionGrants).toHaveBeenCalled();
 	});
 
 	it("still takes the three real inserts as inserts", async () => {

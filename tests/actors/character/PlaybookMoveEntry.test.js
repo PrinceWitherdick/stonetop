@@ -12,7 +12,9 @@ function repeatableEntry({ repeatMax = 3 } = {}) {
 }
 
 const NO_BG = new Set();
-const NO_OWNED_BY_NAME = new Set();
+const NO_OWNED_BY_NAME = new Map();
+/** `ownedAllByName` as _buildOwnedMovesMap builds it: one learned copy of each name. */
+const ownedByName = (...names) => new Map(names.map(n => [n, [{}]]));
 
 describe("PlaybookMoveEntry (repeatable moves)", () => {
 	it("exposes repeatMax from the move definition", () => {
@@ -116,7 +118,7 @@ describe("PlaybookMoveEntry (a move that replaces another)", () => {
 
 	it("is locked until the move it replaces is owned", () => {
 		expect(new PlaybookMoveEntry(bigDamnHero, [], NO_BG, NO_OWNED_BY_NAME, 6, "The Would-Be Hero").locked).toBe(true);
-		expect(new PlaybookMoveEntry(bigDamnHero, [], NO_BG, new Set(["In Over Your Head"]), 6, "The Would-Be Hero").locked).toBe(false);
+		expect(new PlaybookMoveEntry(bigDamnHero, [], NO_BG, ownedByName("In Over Your Head"), 6, "The Would-Be Hero").locked).toBe(false);
 	});
 
 	it("reads as the book prints it, naming the replaced move once", () => {
@@ -127,7 +129,7 @@ describe("PlaybookMoveEntry (a move that replaces another)", () => {
 	});
 
 	it("once owned, the original's absence is not a broken prerequisite", () => {
-		const entry = new PlaybookMoveEntry(rampart, [{ _id: "r1" }], NO_BG, new Set(["A Mighty Rampart"]), 6, "The Judge");
+		const entry = new PlaybookMoveEntry(rampart, [{ _id: "r1" }], NO_BG, ownedByName("A Mighty Rampart"), 6, "The Judge");
 		expect(entry.locked).toBe(false);
 		expect(entry.requirementsUnmet).toBe(false);
 	});
@@ -143,14 +145,14 @@ describe("PlaybookMoveEntry (broken prerequisites on a learned move)", () => {
 	const OWNED = [{ _id: "b1" }];
 
 	it("flags an OWNED move whose required move is no longer owned", () => {
-		const entry = new PlaybookMoveEntry(moveB, OWNED, NO_BG, new Set(["Move B"]), 6, "The Heavy");
+		const entry = new PlaybookMoveEntry(moveB, OWNED, NO_BG, ownedByName("Move B"), 6, "The Heavy");
 		expect(entry.owned).toBe(true);
 		expect(entry.locked).toBe(true);
 		expect(entry.requirementsUnmet).toBe(true);
 	});
 
 	it("does NOT flag when the required move is still owned", () => {
-		const entry = new PlaybookMoveEntry(moveB, OWNED, NO_BG, new Set(["Move A", "Move B"]), 6, "The Heavy");
+		const entry = new PlaybookMoveEntry(moveB, OWNED, NO_BG, ownedByName("Move A", "Move B"), 6, "The Heavy");
 		expect(entry.locked).toBe(false);
 		expect(entry.requirementsUnmet).toBe(false);
 	});
@@ -167,7 +169,7 @@ describe("PlaybookMoveEntry (broken prerequisites on a learned move)", () => {
 			_id: "wv", name: "Superior Stat",
 			system: { playbook: "The Would-Be Hero", requirement: { note: "All 6 marks in Potential for Greatness" } },
 		});
-		const entry = new PlaybookMoveEntry(def, [{ _id: "wv1" }], NO_BG, new Set(["Superior Stat"]), 6, "The Would-Be Hero");
+		const entry = new PlaybookMoveEntry(def, [{ _id: "wv1" }], NO_BG, ownedByName("Superior Stat"), 6, "The Would-Be Hero");
 		expect(entry.requirementsUnmet).toBe(false);
 	});
 });
@@ -267,7 +269,7 @@ describe("PlaybookMoveEntry (an either-or required move)", () => {
 		_id: "alpha", name: "Alpha",
 		system: { playbook: "The Ranger", requirement: { level: 6, anyMoves: ["Wild Speech", "Spirit Tongue"] } },
 	});
-	const at6 = (owned, instances = []) => new PlaybookMoveEntry(alpha, instances, NO_BG, new Set(owned), 6, "The Ranger");
+	const at6 = (owned, instances = []) => new PlaybookMoveEntry(alpha, instances, NO_BG, ownedByName(...owned), 6, "The Ranger");
 
 	it("is unlocked by either move alone", () => {
 		expect(at6(["Wild Speech"]).locked).toBe(false);

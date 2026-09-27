@@ -486,6 +486,22 @@ describe("changing playbook", () => {
 		expect(flag(actor, "possessions.selected")).toEqual(["sacred-pouch", "mastiffs"]);
 	});
 
+	// Only onboarding used to select the preselected possessions, and only a select makes their
+	// gear: a GM who dropped The Judge on a blank sheet and closed onboarding got Scribe's kit
+	// ticked and locked, and no Parchment, Ink or Notebook.
+	it("onto a blank character brings the preselected possessions' gear without onboarding", async () => {
+		const { char, actor } = buildLiveCharacter({ seedStartingMoves: false });
+		const sheet = sheetFor(char, actor);
+		const asked = stubConfirm(true);
+
+		await sheet._onDropPlaybook(playbookDoc("the-judge"));
+
+		expect(asked).not.toHaveBeenCalled();
+		expect(ownedMoveNames(actor)).toEqual(expect.arrayContaining(["Parchment", "Ink", "Pigments", "Vials", "Quills", "Notebook"]));
+		expect(itemNamed(actor, "Notebook").system.sourcePossession).toBe("scribes-kit");
+		expect(ownedMoveNames(actor)).not.toContain("Anvil");
+	});
+
 	it("to the SAME playbook clears nothing and asks nothing", async () => {
 		const { actor, sheet } = await fullBlessed();
 		const asked = stubConfirm(true);

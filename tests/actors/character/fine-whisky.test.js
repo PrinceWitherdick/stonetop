@@ -9,6 +9,19 @@ import { buildLiveCharacter, makeLiveItem } from "../../fakes/LiveCharacter.js";
 import { fineWhiskyOffer, isFineWhiskyName, isPersuadeMove, FINE_WHISKY_OFFER } from "../../../module/actors/character/fine-whisky.js";
 import { promptRoll, tookOffer } from "../../../module/dialogs/RollDialog.js";
 
+// Binding Arbitration's rolls below need an attack's targets and a Persuade (vs. PCs)'s aim without
+// the prompts that settle them. Both answer null (not an attack, aimed at nobody) unless a test says
+// otherwise, which is what the real ones answer for every other roll in this file.
+const seams = vi.hoisted(() => ({ begin: null, aim: null }));
+vi.mock("../../../module/combat/attack-flow.js", async (importOriginal) => {
+	const real = await importOriginal();
+	return { ...real, maybeBeginAttack: (...args) => (seams.begin ?? real.maybeBeginAttack)(...args) };
+});
+vi.mock("../../../module/pc-asks/pc-ask-flow.js", async (importOriginal) => {
+	const real = await importOriginal();
+	return { ...real, aimPcAskRoll: (...args) => (seams.aim ?? real.aimPcAskRoll)(...args) };
+});
+
 const SCOPE = "stonetop-pwd";
 
 describe("which whisky counts", () => {
@@ -152,5 +165,219 @@ describe("sharing a skin on Persuade", () => {
 		const { char, persuade } = persuader({ withSkin: false });
 		await rollPersuade(char, { takenOffers: [FINE_WHISKY_OFFER] });
 		expect(rolledWith(persuade).rollMode).toBe("normal");
+	});
+});
+
+// ── The unticked lines (StonetopCharacter's FICTION_ROLL_OFFERS) ─────────────
+// Heavy audit (2026-09-25): Intimidating ("When you Persuade using violence or threats, you have
+// advantage"), Husbandry tools ("Gain advantage to Persuade domestic beasts") and Stone Cold ("When you
+// Defy Danger ... by keeping calm and carrying on, treat a 6- as a 7-9") did nothing on the roll. Each is
+// the player's call, so each is an UNTICKED line in the same window the whisky uses.
+function heavy({ moves = [], possessions = [], total = 5 } = {}) {
+	const rolled = name => ({ _id: `${name}-1`, name, type: "move", system: { rollType: "cha" }, roll: vi.fn(async () => ({ total })) });
+	const persuade = rolled("Persuade (vs. NPCs)");
+	const persuadePcs = rolled("Persuade (vs. PCs)");
+	const defy = rolled("Defy Danger");
+	const made = buildLiveCharacter({
+		slug: "the-heavy", name: "The Heavy", seedStartingMoves: false,
+		items: moves.map(m => makeLiveItem({ name: m.name ?? m, type: "move", system: { moveType: "playbook" }, flags: m.learned === false ? { [SCOPE]: { learned: false } } : undefined })),
+		flags: { "possessions.selected": possessions },
+	});
+	const items = [...made.actor.items, persuade, persuadePcs, defy];
+	items.get = id => items.find(i => i._id === id) ?? null;
+	made.actor.items = items;
+	const roll = (item, prompted) => made.char.onRoll({
+		currentTarget: { closest: sel => (sel === ".item" ? { dataset: { itemId: item._id } } : null), getAttribute: () => null },
+	}, prompted);
+	return { ...made, persuade, persuadePcs, defy, roll };
+}
+const keysOf = async (char, item) => (await char.rollOffers(item)).map(o => o.key);
+
+describe("the unticked lines a Heavy's moves and possessions bring", () => {
+	it("offers Intimidating on either Persuade, unticked, for a LEARNED move only", async () => {
+		const { char, persuade, persuadePcs, defy } = heavy({ moves: ["Intimidating"] });
+		const [line] = await char.rollOffers(persuade);
+		expect(line).toMatchObject({ key: "intimidating", applied: false, source: "Intimidating" });
+		expect(line.spend).toBeUndefined();
+		expect(await keysOf(char, persuadePcs)).toEqual(["intimidating"]);
+		expect(await keysOf(char, defy)).toEqual([]);
+		const off = heavy({ moves: [{ name: "Intimidating", learned: false }] });
+		expect(await keysOf(off.char, off.persuade)).toEqual([]);
+	});
+
+	it("taken, Intimidating is a SOURCE of advantage named on the card; left unticked, nothing", async () => {
+		const { persuade, roll } = heavy({ moves: ["Intimidating"] });
+		await roll(persuade, { takenOffers: ["intimidating"] });
+		expect(rolledWith(persuade).rollMode).toBe("adv");
+		expect(rolledWith(persuade).conditionNotes).toContain("Intimidating");
+		const other = heavy({ moves: ["Intimidating"] });
+		await other.roll(other.persuade, { takenOffers: [] });
+		expect(rolledWith(other.persuade).rollMode).toBe("normal");
+	});
+
+	it("offers Husbandry tools on Persuade (vs. NPCs) while the possession is held", async () => {
+		const { char, persuade, persuadePcs, roll } = heavy({ possessions: ["husbandry-tools"] });
+		expect(await char.rollOffers(persuade)).toEqual([expect.objectContaining({ key: "husbandry-tools", applied: false, source: "Husbandry tools" })]);
+		// Domestic beasts are never player characters.
+		expect(await keysOf(char, persuadePcs)).toEqual([]);
+		expect(await keysOf(heavy({ possessions: ["smithy"] }).char, persuade)).toEqual([]);
+		await roll(persuade, { takenOffers: ["husbandry-tools"] });
+		expect(rolledWith(persuade).rollMode).toBe("adv");
+	});
+
+	it("offers Stone Cold on Defy Danger, and taken it counts a 6- as a 7-9 rather than giving advantage", async () => {
+		const { char, defy, persuade, roll } = heavy({ moves: ["Stone Cold"] });
+		expect(await char.rollOffers(defy)).toEqual([expect.objectContaining({ key: "stone-cold", applied: false, source: "Stone Cold", effect: "missAsPartial" })]);
+		expect(await keysOf(char, persuade)).toEqual([]);
+		await roll(defy, { takenOffers: ["stone-cold"] });
+		expect(rolledWith(defy).missCountsAsPartial).toBe("Stone Cold");
+		expect(rolledWith(defy).rollMode).toBe("normal");
+		const unticked = heavy({ moves: ["Stone Cold"] });
+		await unticked.roll(unticked.defy, { takenOffers: [] });
+		expect(rolledWith(unticked.defy).missCountsAsPartial).toBeUndefined();
+	});
+});
+
+// Judge audit (2026-09-25): Legacy ("When you Know Things about the people or history of Stonetop, you
+// have advantage"), For the Greater Good ("When you Persuade someone to act in defense of their
+// community or civilization at large, you have advantage"), The Tower Eternal ("When you Defy Danger
+// against magic, treat a result of 6- as a 7-9") and the helm set with a dark ice "jewel" ("Grants
+// advantage to resist mind-affecting magic") did nothing on the roll. Each is the player's call.
+function judgeRoller({ moves = [], background = null, subChoices = null, carried = null, oaths = null, total = 8 } = {}) {
+	const rolled = (name, rollType = "cha") => ({ _id: `${name}-1`, name, type: "move", system: { rollType }, roll: vi.fn(async () => ({ total })) });
+	const knowThings = rolled("Know Things", "int");
+	const persuade = rolled("Persuade (vs. NPCs)");
+	const persuadePcs = rolled("Persuade (vs. PCs)");
+	const defy = rolled("Defy Danger");
+	const clash = rolled("Clash", "str");
+	const flags = {};
+	if (background) flags["background.selected"] = background;
+	if (subChoices) flags["possessions.subChoices"] = subChoices;
+	if (carried) flags["possessions.choiceCarried"] = carried;
+	if (oaths) flags.oaths = oaths;
+	const made = buildLiveCharacter({
+		slug: "the-judge", name: "The Judge", seedStartingMoves: false,
+		items: moves.map(m => makeLiveItem({ name: m.name ?? m, type: "move", system: { moveType: "playbook" }, flags: m.learned === false ? { [SCOPE]: { learned: false } } : undefined })),
+		flags,
+	});
+	const items = [...made.actor.items, knowThings, persuade, persuadePcs, defy, clash];
+	items.get = id => items.find(i => i._id === id) ?? null;
+	made.actor.items = items;
+	const roll = (item, prompted) => made.char.onRoll({
+		currentTarget: { closest: sel => (sel === ".item" ? { dataset: { itemId: item._id } } : null), getAttribute: () => null },
+	}, prompted);
+	return { ...made, knowThings, persuade, persuadePcs, defy, clash, roll };
+}
+
+describe("the unticked lines a Judge's background, moves and helm bring", () => {
+	it("offers Legacy on Know Things to a Legacy Judge, and not to a Missionary", async () => {
+		const legacy = judgeRoller({ background: "legacy" });
+		expect(await legacy.char.rollOffers(legacy.knowThings)).toEqual([expect.objectContaining({ key: "legacy", applied: false, source: "Legacy" })]);
+		expect(await keysOf(legacy.char, legacy.defy)).toEqual([]);
+		const missionary = judgeRoller({ background: "missionary" });
+		expect(await keysOf(missionary.char, missionary.knowThings)).toEqual([]);
+		await legacy.roll(legacy.knowThings, { takenOffers: ["legacy"] });
+		expect(rolledWith(legacy.knowThings).rollMode).toBe("adv");
+		expect(rolledWith(legacy.knowThings).conditionNotes).toContain("Legacy");
+	});
+
+	it("offers For the Greater Good on either Persuade, for a LEARNED move only", async () => {
+		const { char, persuade, persuadePcs, defy } = judgeRoller({ moves: ["For the Greater Good"] });
+		expect(await char.rollOffers(persuade)).toEqual([expect.objectContaining({ key: "for-the-greater-good", applied: false, source: "For the Greater Good" })]);
+		expect(await keysOf(char, persuadePcs)).toEqual(["for-the-greater-good"]);
+		expect(await keysOf(char, defy)).toEqual([]);
+		const off = judgeRoller({ moves: [{ name: "For the Greater Good", learned: false }] });
+		expect(await keysOf(off.char, off.persuade)).toEqual([]);
+	});
+
+	it("offers The Tower Eternal on Defy Danger, and taken it counts a 6- as a 7-9", async () => {
+		const { char, defy, persuade, roll } = judgeRoller({ moves: ["The Tower Eternal"], total: 5 });
+		expect(await char.rollOffers(defy)).toEqual([expect.objectContaining({ key: "tower-eternal", applied: false, source: "The Tower Eternal", effect: "missAsPartial" })]);
+		expect(await keysOf(char, persuade)).toEqual([]);
+		await roll(defy, { takenOffers: ["tower-eternal"] });
+		expect(rolledWith(defy).missCountsAsPartial).toBe("The Tower Eternal");
+		expect(rolledWith(defy).rollMode).toBe("normal");
+	});
+
+	it("offers the helm on Defy Danger only while it is the symbol picked AND carried", async () => {
+		const helm = { "symbol-of-authority": ["helm"] };
+		const worn = judgeRoller({ subChoices: helm, carried: { "symbol-of-authority:helm": true } });
+		expect(await worn.char.rollOffers(worn.defy)).toEqual([expect.objectContaining({ key: "judge-helm", applied: false, source: "Helm" })]);
+		expect(await keysOf(worn.char, worn.persuade)).toEqual([]);
+		const home = judgeRoller({ subChoices: helm, carried: { "symbol-of-authority:helm": false } });
+		expect(await keysOf(home.char, home.defy)).toEqual([]);
+		const maul = judgeRoller({ subChoices: { "symbol-of-authority": ["black-iron-maul"] }, carried: { "symbol-of-authority:black-iron-maul": true, "symbol-of-authority:helm": true } });
+		expect(await keysOf(maul.char, maul.defy)).toEqual([]);
+		await worn.roll(worn.defy, { takenOffers: ["judge-helm"] });
+		expect(rolledWith(worn.defy).rollMode).toBe("adv");
+	});
+});
+
+// Binding Arbitration: "If they have broken their word, you gain advantage on all rolls against them".
+// The user's ruling: EVERY roll aimed at an oathbreaker, not only attacks, imposed and named on the
+// card; a roll aimed at nobody offers it as an unticked line instead.
+describe("Binding Arbitration on every roll against an oathbreaker", () => {
+	const BA = "Binding Arbitration";
+	const brokenBy = [{ id: "o1", name: "Brennan", broken: true }];
+	const brennanToken = { document: { uuid: "Scene.s.Token.tb", name: "Brennan" }, actor: { id: "brennanActor" } };
+	const target = tokens => { global.game.user = { targets: new Set(tokens) }; };
+	afterEach(() => { delete global.game.user; seams.begin = null; seams.aim = null; });
+	const notesOf = item => rolledWith(item).conditionNotes ?? [];
+
+	it("imposes advantage on a Persuade aimed at a targeted oathbreaker, named on the card, with no line", async () => {
+		target([brennanToken]);
+		const { char, persuade, roll } = judgeRoller({ moves: [BA], oaths: brokenBy });
+		expect(await keysOf(char, persuade)).toEqual([]);
+		await roll(persuade, { takenOffers: [] });
+		expect(rolledWith(persuade).rollMode).toBe("adv");
+		expect(notesOf(persuade)).toContain(BA);
+	});
+
+	it("imposes it on a Persuade (vs. PCs) aimed at an oathbreaking character", async () => {
+		seams.aim = async () => ({ messageFlags: { [SCOPE]: { pcAsk: { move: "Persuade (vs. PCs)", targetId: "brennanActor", targetName: "Brennan" } } }, conditionNotes: ["To Brennan"] });
+		const { char, persuadePcs, roll } = judgeRoller({ moves: [BA], oaths: brokenBy });
+		// Aimed once the window closes, so the window has no line to offer.
+		expect(await keysOf(char, persuadePcs)).toEqual([]);
+		await roll(persuadePcs, { takenOffers: [] });
+		expect(rolledWith(persuadePcs).rollMode).toBe("adv");
+		expect(notesOf(persuadePcs).filter(n => n === BA)).toHaveLength(1);
+	});
+
+	it("imposes nothing on a roll aimed at someone who kept their word", async () => {
+		target([{ document: { uuid: "Scene.s.Token.tx", name: "Stranger" }, actor: { id: "x" } }]);
+		const { char, persuade, roll } = judgeRoller({ moves: [BA], oaths: brokenBy });
+		expect(await keysOf(char, persuade)).toEqual([]);
+		await roll(persuade, { takenOffers: [] });
+		expect(rolledWith(persuade).rollMode).toBe("normal");
+	});
+
+	it("offers an unticked line naming the oathbreakers on a roll aimed at nobody", async () => {
+		const { char, defy, roll } = judgeRoller({ moves: [BA], oaths: [...brokenBy, { id: "o2", name: "Old Mag", broken: true }, { id: "o3", name: "Kept", broken: false }] });
+		const [line] = await char.rollOffers(defy);
+		expect(line).toMatchObject({ key: "binding-arbitration", applied: false, source: BA });
+		expect(line.label).toContain("Brennan");
+		expect(line.label).toContain("Old Mag");
+		expect(line.label).not.toContain("Kept");
+		await roll(defy, { takenOffers: ["binding-arbitration"] });
+		expect(rolledWith(defy).rollMode).toBe("adv");
+		expect(notesOf(defy)).toContain(BA);
+	});
+
+	it("offers nothing with no oath broken, or with the move not learned", async () => {
+		const kept = judgeRoller({ moves: [BA], oaths: [{ id: "o1", name: "Brennan", broken: false }] });
+		expect(await keysOf(kept.char, kept.defy)).toEqual([]);
+		const unlearned = judgeRoller({ moves: [{ name: BA, learned: false }], oaths: brokenBy });
+		expect(await keysOf(unlearned.char, unlearned.defy)).toEqual([]);
+		target([brennanToken]);
+		await unlearned.roll(unlearned.persuade, { takenOffers: [] });
+		expect(rolledWith(unlearned.persuade).rollMode).toBe("normal");
+	});
+
+	it("gives an attack at an oathbreaker its advantage exactly once, even with the line ticked", async () => {
+		seams.begin = async () => ({ messageFlags: { [SCOPE]: { attack: { moveKey: "clash", targets: [{ uuid: "Scene.s.Token.tb", name: "Brennan", actorId: "brennanActor" }] } } } });
+		const { clash, roll } = judgeRoller({ moves: [BA], oaths: brokenBy });
+		await roll(clash, { takenOffers: ["binding-arbitration"] });
+		expect(rolledWith(clash).rollMode).toBe("adv");
+		expect(notesOf(clash).filter(n => n === BA)).toHaveLength(1);
 	});
 });

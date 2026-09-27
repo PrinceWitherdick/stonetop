@@ -113,8 +113,9 @@
 				             in edit mode so the choice can be made/changed by hand on the sheet.
 			             A move whose requirements aren't met stays faded (.move-locked) but is
 			             still pickable in edit mode, so a player can deliberately learn it anyway
-			             — it then shows the "requirement not met" warning. --}}
-				       {{#if (or (and isStarting owned) (not @root.stonetop.movesEdit))}}disabled{{/if}}>
+			             — it then shows the "requirement not met" warning. A move given up
+			             for its replacement (replacedBy) is the exception: never re-tickable. --}}
+				       {{#if (or (and isStarting owned) replacedBy (not @root.stonetop.movesEdit))}}disabled{{/if}}>
 				{{/if}}
 				{{!-- THE TITLE IS THE ROLL. There is no dice icon beside a move any more: the
 				      name element IS the `.rollable`, carrying the stat and the classes the
@@ -223,6 +224,7 @@
 			{{#if requiresLabel}}<p class="stonetop-move-note{{#if requirementsUnmet}} stonetop-move-note--unmet{{/if}}">Requires: {{requiresLabel}}{{#if requirementsUnmet}} (not met){{/if}}</p>{{/if}}
 			{{#if requiresPlaybook}}<p class="stonetop-move-note{{#if requirementsUnmet}} stonetop-move-note--unmet{{/if}}">Requires {{requiresPlaybook}} playbook</p>{{/if}}
 			{{#if minLevel}}<p class="stonetop-move-note{{#if requirementsUnmet}} stonetop-move-note--unmet{{/if}}">Level {{minLevel}}+</p>{{/if}}
+			{{#if replacedBy}}<p class="stonetop-move-note stonetop-move-note--replaced" data-tooltip="{{localize 'stonetop.character.moves.replacedByTooltip' move=replacedBy}}" data-tooltip-direction="UP">{{localize "stonetop.character.moves.replacedBy" move=replacedBy}}</p>{{/if}}
 		</li>
 	{{/each}}
 	</ol>

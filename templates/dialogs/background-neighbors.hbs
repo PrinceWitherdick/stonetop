@@ -1,0 +1,24 @@
+<form class="stonetop-possession-choices stonetop-background-neighbors">
+	{{#if lead}}
+	<div class="stonetop-possession-choices-desc stonetop-item-description"><p>{{lead}}</p></div>
+	{{/if}}
+
+	{{#each groups}}
+	<div class="stonetop-choice-group">
+		<p class="stonetop-choice-group-heading">{{label}}</p>
+		<div class="stonetop-choice-subgroup" data-neighbor-choice="{{key}}" data-pick-max="{{count}}">
+			{{#each options}}
+			<label class="stonetop-choice-option-label">
+				<input type="checkbox" class="stonetop-item-check" value="{{value}}" {{#if selected}}checked{{/if}}>
+				<span class="stonetop-pc-option-label"><strong>{{name}}</strong>{{#if origin}} <em>from {{origin}}</em>{{/if}}</span>
+			</label>
+			{{/each}}
+		</div>
+	</div>
+	{{/each}}
+
+	<footer class="stonetop-pc-footer">
+		<button type="button" class="stonetop-pc-done" data-action="add">{{addLabel}}</button>
+		<button type="button" class="stonetop-pc-done" data-action="skip">{{skipLabel}}</button>
+	</footer>
+</form>

@@ -305,6 +305,25 @@ export function queryAsker(data, context = {}, users = globalThis.game?.users) {
 	return claimed && !claimed.isGM ? claimed : null;
 }
 
+/**
+ * Ask the GM's client a User query (the other half of queryAsker), answering `fallback` when there is
+ * no GM or it could not answer: a timeout, or an error on its side, logged as "could not `what`".
+ *
+ * @param {User|null} gm  the active GM
+ * @param {string} query
+ * @param {object} data
+ * @param {{fallback?: *, what?: string}} [options]
+ */
+export async function askGMClient(gm, query, data, { fallback = null, what = "answer" } = {}) {
+	if (!gm) return fallback;
+	try {
+		return await gm.query(query, data, { timeout: 10000 });
+	} catch (err) {
+		console.warn(`Stonetop | the GM's client could not ${what}`, err);
+		return fallback;
+	}
+}
+
 /** The running core's generation (13, 14...), or 0 when it cannot be read. */
 export function coreGeneration() {
 	return Number(globalThis.game?.release?.generation) || 0;

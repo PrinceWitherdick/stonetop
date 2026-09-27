@@ -65,7 +65,7 @@ import {CharacterOrigin} from "./CharacterOrigin.js";
 import {CharacterPossessions} from "./CharacterPossessions.js";
 import {grantsToCreate, grantSourceMap, grantAdoptionKeys, itemGrantKey, grantOfTaggedItem, grantRepair} from "./possession-grants.js";
 import {CharacterInventory} from "./CharacterInventory.js";
-import {maybeBeginAttack, maybeCounterOnMiss, maybeMissFx, attackMoveFor, attackFoeAdvantage, recordClashedFoes, rollMoveDamageAt} from "../../combat/attack-flow.js";
+import {maybeBeginAttack, maybeCounterOnMiss, maybeMissFx, attackMoveFor, attackFoeAdvantage, recordClashedFoes, rollMoveDamageAt, snapshotTargets} from "../../combat/attack-flow.js";
 import {aimPcAskRoll} from "../../pc-asks/pc-ask-flow.js";
 import {defendReadinessHold, defendReadinessCap, readinessCount, READINESS_FLAG} from "../../combat/defend-readiness.js";
 import {settleReadinessOnAttack} from "../../combat/readiness-loss.js";
@@ -96,6 +96,10 @@ import {deriveLoadLevel, loadLimitsFor} from "../../utils/load.js";
 import {maxDie, stepDie, normalizeDamageDie} from "../../utils/damage-die.js";
 import {WEAPONS_OF_WAR_COMMON, WEAPONS_OF_WAR_PIERCING, ALL_IN_THE_WRIST} from "../../data/weapons.js";
 import {X_PIERCING_MAX} from "../../utils/damage.js";
+import { PROCLAMATION } from "./condemn.js";
+import { BINDING_ARBITRATION } from "./oaths.js";
+import { INTERFERE_MOVE, PERSUADE_PC_MOVE, PC_ASK_FLAG } from "../../pc-asks/pc-ask-rules.js";
+import { brokenOaths, oathbreakerAgainst } from "../../fight/hero-moves.js";
 
 /** The Judge's Castigate, whose damage rides every Censure (see brandCondemned). */
 const CASTIGATE = "Castigate";
@@ -139,7 +143,12 @@ const SEASON_MOVE_DISADVANTAGE = [
  * Heavy's Intimidating ("When you Persuade using violence or threats, you have advantage"), Husbandry
  * tools ("Gain advantage to Persuade domestic beasts (livestock, dogs, etc.)", the Heavy, the Ranger
  * and the Would-Be Hero) and Stone Cold ("When you Defy Danger ... by keeping calm and carrying on,
- * treat a 6- as a 7-9"; its Struggle as One half is struggle/struggle-rules.js's).
+ * treat a 6- as a 7-9"; its Struggle as One half is struggle/struggle-rules.js's). And the Judge's:
+ * Legacy ("When you Know Things about the people or history of Stonetop, you have advantage"), For the
+ * Greater Good ("When you Persuade someone to act in defense of their community or civilization at
+ * large, you have advantage"), The Tower Eternal ("When you Defy Danger against magic, treat a result
+ * of 6- as a 7-9"; its Struggle as One half is struggle-rules.js's too) and the helm set with a dark ice
+ * "jewel" ("Grants advantage to resist mind-affecting magic").
  *
  * A row applies to a character who has `ownsLearned` LEARNED, took the `background` (took-background.js),
  * holds the special possession `possession`, or has picked AND carries (the ◇) the gear choice
@@ -155,7 +164,22 @@ const FICTION_ROLL_OFFERS = [
 		source: "Husbandry tools", label: "stonetop.rollOffers.husbandryTools" },
 	{ key: "stone-cold", moves: name => name === "Defy Danger", ownsLearned: "Stone Cold",
 		source: "Stone Cold", label: "stonetop.rollOffers.stoneCold", effect: "missAsPartial" },
+	{ key: "legacy", moves: name => name === "Know Things", background: { playbook: "The Judge", slug: "legacy" },
+		source: "Legacy", label: "stonetop.rollOffers.legacy" },
+	{ key: "for-the-greater-good", moves: isPersuadeMove, ownsLearned: "For the Greater Good",
+		source: "For the Greater Good", label: "stonetop.rollOffers.forTheGreaterGood" },
+	{ key: "tower-eternal", moves: name => name === "Defy Danger", ownsLearned: "The Tower Eternal",
+		source: "The Tower Eternal", label: "stonetop.rollOffers.towerEternal", effect: "missAsPartial" },
+	{ key: "judge-helm", moves: name => name === "Defy Danger", possessionChoice: "symbol-of-authority:helm",
+		source: "Helm", label: "stonetop.rollOffers.judgeHelm" },
 ];
+
+/**
+ * The roll window's line for Binding Arbitration on a roll aimed at nobody: "If they have broken their
+ * word, you gain advantage on all rolls against them". A roll aimed at someone asks the oath itself
+ * (onRoll, fight/hero-moves.js#oathbreakerAgainst), so this is offered only when nobody is targeted.
+ */
+const BINDING_ARBITRATION_OFFER = "binding-arbitration";
 
 /**
  * Advantage from somewhere other than the picker, folded into a roll's options and NAMED on the card.
@@ -391,6 +415,10 @@ const _GUARDIAN_MOVE_NAME = "Guardian";
 // Held Defend Readiness lives in a flag on the actor (READINESS_FLAG, combat/defend-readiness.js),
 // mirroring how followers store theirs under readiness paths in _FOLLOWER_FLAGS.
 
+// The playbook slug whose PRESELECTED possessions ensurePossessionGrants last walked. Lets the
+// ready-time back-fill bail without the pack lookup once they are done; a playbook change clears it.
+const POSSESSION_PRESELECTED_WALKED_FLAG = "possessionGrantsPreselected";
+
 // The Armored move ("carry a shield, mark only ◆ instead of ◆◆") drops a carried shield's
 // ◇ load by its `shieldLoadReduction`. Like loadBonus, the mechanic lives in the move's data
 // so buildSnapshot never hard-codes a move name.
@@ -399,8 +427,8 @@ function _ownedShieldLoadReduction(actor) {
 }
 
 // What a shield's ◇ cost becomes once Armored is applied to it. ONE rule for every shield,
-// whichever store it came from: the outfit catalog's and a special possession's gear choice both
-// ask here. Being a shield already means two other things — it carries armor, and it buys "+1
+// whichever store it came from: the outfit catalog's, an `inventory-custom` item's (write-ins,
+// grantsItems, dropped treasures) and a special possession's gear choice all ask here. Being a shield already means two other things: it carries armor, and it buys "+1
 // Readiness on a Defend 7+" — and each of those is answered in exactly one place; the load was the
 // odd one out, answered only for outfit items, so a Judge with Armored still paid ◇◇ for their
 // Makerglass shield.
@@ -1091,6 +1119,10 @@ export class StonetopCharacter {
 				lead:     item.system?.artifactLead,
 			}, { viewerIsGM });
 			const shownRes = artifact.resource;
+			// Armored lightens a written-in, granted or dropped shield (the makerglass shield
+			// treasure) exactly as it does a catalog one. Whether the item IS a shield is read the
+			// way _gearSources reads it for Readiness, so the two can never disagree.
+			const weight = _shieldAdjustedWeight(item.system.weight ?? 1, readInventoryItemData(item).shield, shieldLoadReduction);
 			return new InventoryItemSnapshotBuilder()
 			.withSlug(item._id)
 			.withName(grant?.name ?? item.name)
@@ -1098,7 +1130,7 @@ export class StonetopCharacter {
 			// possession's card (grouped under the possession label), so it needs no
 			// "from <possession>" note either.
 			.withNote(artifact.note)
-			.withWeight(item.system.weight ?? 1)
+			.withWeight(weight)
 			.withChecked(checked[item._id] ?? false)
 			.withArtifact(artifact)
 			.withResource(shownRes ? new ResourceBuilder()
@@ -1862,13 +1894,62 @@ export class StonetopCharacter {
 				...(row.effect ? { effect: row.effect } : {}), ...(row.note ? { note: _loc(row.note) } : {}),
 			});
 		}
+		const oathbreaker = this._oathbreakerOffer(moveName);
+		if (oathbreaker) offers.push(oathbreaker);
 		return offers;
 	}
 
 	/** Whether this character has what a FICTION_ROLL_OFFERS row asks for (see there). */
 	async _earnsRollOffer(row) {
 		if (row.ownsLearned) return ownsLearnedMoveNamed(this._actor, row.ownsLearned);
+		if (row.background) {
+			return tookBackground({ playbook: this._actor.system?.playbook?.name ?? null, background: this._background.selectedSlug }, row.background);
+		}
+		if (row.possessionChoice) return this.carriesPossessionChoice(row.possessionChoice);
 		return this.holdsPossession(row.possession);
+	}
+
+	/**
+	 * Whether this character has picked the gear choice `key` ("symbol-of-authority:helm", keyed as the
+	 * carry marks are) of a special possession they hold, and carries it (its ◇ marked): the rule
+	 * _buildChoiceGearByPossession draws the gear by, so a helm left at home grants nothing.
+	 */
+	async carriesPossessionChoice(key) {
+		const [possession, choice] = String(key ?? "").split(":");
+		if (!possession || !choice) return false;
+		if (!(this._possessions.subChoices[possession] ?? []).includes(choice)) return false;
+		if (!this._possessions.isChoiceCarried(possession, choice)) return false;
+		return this.holdsPossession(possession);
+	}
+
+	/**
+	 * Binding Arbitration's line (see BINDING_ARBITRATION_OFFER), or null: a roll aimed at nobody, by a
+	 * character holding at least one oath ticked broken. Interfere and Persuade (vs. PCs) ask whom they
+	 * are aimed at once the window closes, and onRoll asks that character's oath itself.
+	 */
+	_oathbreakerOffer(moveName) {
+		if (moveName === INTERFERE_MOVE || moveName === PERSUADE_PC_MOVE) return null;
+		if (globalThis.game?.user?.targets?.size) return null;
+		const broken = brokenOaths(this._actor);
+		if (!broken.length) return null;
+		const names = joinNames([...new Set(broken.map(oath => String(oath.name ?? "").trim()).filter(Boolean))]);
+		return {
+			key: BINDING_ARBITRATION_OFFER, applied: false, source: BINDING_ARBITRATION,
+			label: names
+				? format("stonetop.rollOffers.bindingArbitrationNamed", { names })
+				: _loc("stonetop.rollOffers.bindingArbitration"),
+		};
+	}
+
+	/**
+	 * Who a roll that is not an attack is aimed at, for Binding Arbitration: the player character an
+	 * Interfere or a Persuade (vs. PCs) was just aimed at (`aimed`, pc-asks/pc-ask-flow.js#aimPcAskRoll),
+	 * else the tokens this user has targeted. In the shape an attack's targets take (attack-flow.js).
+	 */
+	_rollTargets(aimed) {
+		const ask = aimed?.messageFlags?.[STONETOP_SCOPE]?.[PC_ASK_FLAG] ?? null;
+		if (ask?.targetId) return [{ uuid: `Actor.${ask.targetId}`, name: ask.targetName ?? "", actorId: ask.targetId }];
+		return globalThis.game?.user?.targets ? snapshotTargets() : [];
 	}
 
 	/**
@@ -2455,21 +2536,33 @@ export class StonetopCharacter {
 
 	// Ready-time back-fill for characters whose grant-bearing possessions were selected
 	// before bundled-gear grants existed (or before this first ran): materialize the gear
-	// for each selected possession not yet marked applied, then mark it — so it happens
+	// for each held possession not yet marked applied, then mark it, so it happens
 	// once and never fights a later deletion. Idempotent (grantsToCreate skips items
 	// already present), so a character already carrying its gear just gains the mark.
+	//
+	// "Held" is the selection AND the playbook's preselected possessions, which the sheet treats
+	// as held without their ever being selected: only onboarding selects them, so a Judge whose
+	// playbook was dropped on and whose onboarding was closed had Scribe's tools ticked and locked
+	// with no Parchment, Ink or Notebook. Also run on a playbook drop, so that gear arrives then.
 	async ensurePossessionGrants() {
 		// Bail before resolving the playbook (a pack lookup, run per character on world
-		// load) when there's nothing to back-fill: no selected possessions, or every one
-		// already marked applied — the steady state after the first run.
+		// load) when there's nothing to back-fill: every selected possession already marked
+		// applied, and the preselected ones already walked for THIS playbook (which ones they
+		// are needs the playbook, so the slug they were walked for is recorded instead). The
+		// steady state after the first run.
 		const selected = [...this._possessions.selected];
-		if (!selected.length) return;
 		const applied = this._possessionGrantsApplied();
-		if (selected.every(slug => applied[slug])) return;
+		const playbookSlug = this._actor.system?.playbook?.slug || null;
+		const preselectedWalked = !playbookSlug
+			|| this._actor.getFlag(STONETOP_SCOPE, POSSESSION_PRESELECTED_WALKED_FLAG) === playbookSlug;
+		if (preselectedWalked && selected.every(slug => applied[slug])) return;
 		const playbookData = await this.playbook();
-		const options = playbookData?.specialPossessions?.options ?? [];
-		if (!options.length) return;
-		for (const slug of selected) {
+		// Unresolved (a missing pack): leave the marker unwritten, so a later load tries again.
+		if (!playbookData) return;
+		const sp = playbookData.specialPossessions;
+		const options = sp?.options ?? [];
+		const held = [...new Set([...selected, ...(sp?.preselected ?? [])])];
+		for (const slug of held) {
 			if (applied[slug]) continue;
 			const opt = options.find(o => o.slug === slug);
 			if (opt?.grantsItems?.length) {
@@ -2480,6 +2573,9 @@ export class StonetopCharacter {
 				// next load instead of re-resolving the playbook for this character every time.
 				await this._markPossessionGrantsApplied(slug);
 			}
+		}
+		if (this._actor.getFlag(STONETOP_SCOPE, POSSESSION_PRESELECTED_WALKED_FLAG) !== playbookSlug) {
+			await this._actor.setFlag(STONETOP_SCOPE, POSSESSION_PRESELECTED_WALKED_FLAG, playbookSlug);
 		}
 		// The playbook is resolved now anyway, so bring the gear already there up to its grants
 		// too. The steady state bails above without reaching this; the once-per-version sweep in
@@ -2990,7 +3086,7 @@ export class StonetopCharacter {
 
 		const flags = resolvedFlags(this._actor);
 		const keys  = [
-			"possessions", "possessionGrantsApplied", "background", "instinct", "lore",
+			"possessions", "possessionGrantsApplied", POSSESSION_PRESELECTED_WALKED_FLAG, "background", "instinct", "lore",
 			"moves.backgroundAnswers", "moves.dismissedLevelOverage",
 			"crew", "animalCompanion",
 			"initiateDetails", "initiatesLoyalty", "initiatesHp", "initiatesReadiness", "initiatesAmmo",
@@ -3035,9 +3131,12 @@ export class StonetopCharacter {
 		const demoted    = this.demotedStartingChoices(choiceGroups);
 		const background = this._background.selectedSlug;
 		const ownCopies  = name => (ownedAllByName.get(name) ?? []).filter(i => !i.flags?.[STONETOP_SCOPE]?.grantedBy);
+		// A move an owned move replaced (Bulwark, while A Mighty Rampart is owned) is locked as
+		// "Replaced by ...": ticked back, the character would hold both.
+		const retiredBy  = this.retiredMoveReplacers();
 		return entries
 			.filter(e => !e.requirement?.background || e.requirement.background === background || ownedAllByName.has(e.name))
-			.map(e => new PlaybookMoveEntry(e, ownCopies(e.name), bgMoveNames, ownedAllByName, actorLevel, actorPlaybook, actorStats, demoted));
+			.map(e => new PlaybookMoveEntry(e, ownCopies(e.name), bgMoveNames, ownedAllByName, actorLevel, actorPlaybook, actorStats, demoted, retiredBy));
 	}
 
 	// A playbook's "either X OR Y" starting-move groups, from the StonetopPlaybook the repository
@@ -3354,12 +3453,21 @@ export class StonetopCharacter {
 		// Heavy's advantage cancels rather than quietly outranking the debility — and NAMED on the card.
 		const grudge = attackExtra ? attackFoeAdvantage(this._actor, attackExtra) : null;
 		if (grudge) Object.assign(rollOptions, foldAdvantage(rollOptions, grudge));
+		// Binding Arbitration on every other roll aimed at someone: "advantage on all rolls against them"
+		// (the user's ruling; an attack has had it above, as a grudge). Aimed at the tokens targeted, or
+		// at the character an Interfere or a Persuade (vs. PCs) was just aimed at.
+		const oathbreaker = attackExtra || descriptionOnly ? null : oathbreakerAgainst(this._actor, this._rollTargets(aimed));
+		if (oathbreaker) Object.assign(rollOptions, foldAdvantage(rollOptions, oathbreaker));
+		const oathbreakerNamed = grudge === BINDING_ARBITRATION || !!oathbreaker;
 		// A background's standing advantage and a season's standing disadvantage on one move: the same fold.
 		if (!descriptionOnly) Object.assign(rollOptions, this._foldStandingModes(rollOptions, item.name));
 		// The lines the roll window offered and the player left ticked (rollOffers: a skin of fine
 		// whisky shared before a Persuade): the same fold, each paid for after the dice, below. Stone
 		// Cold's line buys no advantage: it counts a 6- as a 7-9, named on the card as Herd of Horses is.
-		const taken = descriptionOnly || !takenOffers?.length ? [] : (await this.rollOffers(item)).filter(offer => tookOffer(offer, takenOffers));
+		// Binding Arbitration's line is dropped when the oath has already been asked above, so it is
+		// named once.
+		const taken = descriptionOnly || !takenOffers?.length ? [] : (await this.rollOffers(item)).filter(offer => tookOffer(offer, takenOffers)
+			&& !(oathbreakerNamed && offer.key === BINDING_ARBITRATION_OFFER));
 		for (const offer of taken) {
 			Object.assign(rollOptions, offer.effect === "missAsPartial"
 				? { missCountsAsPartial: offer.source }
@@ -3720,20 +3828,35 @@ export class StonetopCharacter {
 	 * either a nameless target or one already branded.
 	 */
 	async brandCondemned(entry) {
-		const laid = await this._rosterWrite(CONDEMNED_FLAG,
+		// RECORD-KEEPING ONLY. Castigate's 1d4 used to ride this write, which meant a Judge without
+		// Condemn (Castigate is level 2+, Condemn level 6+) never dealt it at all, since only Condemn
+		// opens the window that lays brands. The blow now lands where the Censure itself is used (the
+		// sheet's _censure), and a brand laid from the window afterwards, or added by hand, rolls
+		// nothing, so one Censure is never two 1d4s.
+		return this._rosterWrite(CONDEMNED_FLAG,
 			addCondemned(this._rosterRaw(CONDEMNED_FLAG), entry, newRosterId));
-		// CASTIGATE: "When you Censure someone, your voice deals 1d4 damage to them (near, loud, ignores
-		// armor)." Laying the brand IS the Censure (see StonetopCharacterSheet's note on the same moment),
-		// so the blow lands here, aimed at the person just named rather than at whoever is targeted.
-		if (laid) await this._maybeCastigate(laid);
-		return laid;
 	}
 
-	/** Castigate's 1d4 at whoever was just branded, when this Judge has the move and the row names them. */
-	async _maybeCastigate(entry) {
-		if (!ownsLearnedMoveNamed(this._actor, CASTIGATE) || !entry?.uuid) return null;
-		const target = await fromUuid(entry.uuid).catch(() => null);
-		if (!target) return null;
+	/** Whether this Judge's Censure hurts: Castigate LEARNED, not merely listed. */
+	get canCastigate() {
+		return ownsLearnedMoveNamed(this._actor, CASTIGATE);
+	}
+
+	/** Whether this Judge may Censure a whole group at once (Proclamation), so every member is hit. */
+	get canProclaim() {
+		return ownsLearnedMoveNamed(this._actor, PROCLAMATION);
+	}
+
+	/**
+	 * CASTIGATE: "When you Censure someone, your voice deals 1d4 damage to them (near, loud, ignores
+	 * armor)." One card at the person Censured, aimed at them by name rather than at whoever happens
+	 * to be targeted (the sheet asks who, see _censure). Null when the move is not learned or there
+	 * is nobody to hit.
+	 *
+	 * @param {Actor|TokenDocument} target
+	 */
+	async castigate(target) {
+		if (!this.canCastigate || !target) return null;
 		return rollMoveDamageAt(this._actor, target, {
 			move: CASTIGATE, formula: "1d4", ignoresArmor: true, tags: ["loud"],
 		}).catch(err => console.warn("Stonetop | Castigate's damage could not be rolled", err));
@@ -4670,6 +4793,9 @@ export class StonetopCharacter {
 			? _ALL_PLAYBOOK_NAMES.filter(p => p !== ownName)
 			: (crossPlaybook?.playbooks ?? []).filter(p => p !== ownName);
 		const ownedNames = new Set(this._actor.items.filter(i => i.type === "move").map(i => i.name));
+		// What a requirement may lean on: only moves still LEARNED. A switched-off move stays
+		// "owned" (never offered twice) but opens nothing.
+		const learnedNames = new Set(this._actor.items.filter(i => i.type === "move" && isMoveLearned(i)).map(i => i.name));
 		const retired    = this._retiredMoveNames();
 		const actorStats = _statValueMap(this._actor.system?.stats);
 		const out = [], seen = new Set();
@@ -4692,7 +4818,7 @@ export class StonetopCharacter {
 				if (def.crossPlaybook) continue;         // no third-playbook chaining
 				if (ownMoveNames.has(def.name)) continue; // the own playbook's move of that name
 				if (ownedNames.has(def.name) || retired.has(def.name) || seen.has(def.name)) continue;
-				if (!_foreignMoveQualifies(def, ownedNames, level, actorStats)) continue;
+				if (!_foreignMoveQualifies(def, learnedNames, level, actorStats)) continue;
 				seen.add(def.name);
 				out.push({ compendiumId: def.id, name: def.name, description: def.description ?? "", playbook: pb, requiresLabel: requirementLabel(def.requirement, { replaces: def.replaces ?? null }) });
 			}
@@ -4769,19 +4895,33 @@ export class StonetopCharacter {
 		return { applied: true };
 	}
 
-	// Record an Improved/Superior Stat pick: remember which stat this move instance raised
-	// (keyed by the new item's id, so a repeatable Improved Stat's instances stay distinct
-	// and the "+1 STR" chip renders on the right card), then bump that stat by +1, clamped
-	// to the move's cap (+2 / +3). Tagged with the move name so the ledger reads "via …".
+	// Record an Improved/Superior Stat pick: bump the stat by +1, clamped to the move's cap
+	// (+2 / +3), and remember which stat this move instance raised (keyed by the item's id, so
+	// a repeatable Improved Stat's instances stay distinct and the "+1 STR" chip renders on the
+	// right card). Tagged with the move name so the ledger reads "via …".
+	//
+	// Recorded ONLY when the stat actually rose: removing the move steps the recorded stat back
+	// down (_revertStatIncreaseChoice), so a pick recorded at the cap (the stat reached it while
+	// the picker was open) would cost a point it never gave. Such a pick says so and leaves the
+	// move without a stat, which the card's "needs your input" cue then asks for again; a stale
+	// record for this instance (an onboarding re-run) goes too. Returns whether the stat rose.
 	async _applyStatIncreaseChoice(moveItem, statKey, cap) {
-		if (!_STAT_DEFS[statKey]) return;
-		const choices = { ...(this._actor.getFlag(STONETOP_SCOPE, "improvedStatChoices") ?? {}), [moveItem.id]: statKey };
-		await this._actor.setFlag(STONETOP_SCOPE, "improvedStatChoices", choices);
+		if (!_STAT_DEFS[statKey]) return false;
 		const current = this._actor.system?.stats?.[statKey]?.value ?? 0;
 		const next    = cap != null ? Math.min(current + 1, cap) : current + 1;
-		if (next > current) {
-			await this._actor.update({ [`system.stats.${statKey}.value`]: next }, { stonetopMove: moveItem.name });
+		if (next <= current) {
+			if ((this._actor.getFlag(STONETOP_SCOPE, "improvedStatChoices") ?? {})[moveItem.id]) {
+				await this._actor.update(Object.fromEntries(
+					[deletionEntry(`flags.${STONETOP_SCOPE}.improvedStatChoices.${moveItem.id}`)]));
+			}
+			ui.notifications?.warn?.(game.i18n.format("stonetop.character.moves.statIncreaseAtCap",
+				{ move: moveItem.name, stat: _STAT_DEFS[statKey].name, cap }));
+			return false;
 		}
+		await this._actor.update({ [`system.stats.${statKey}.value`]: next }, { stonetopMove: moveItem.name });
+		const choices = { ...(this._actor.getFlag(STONETOP_SCOPE, "improvedStatChoices") ?? {}), [moveItem.id]: statKey };
+		await this._actor.setFlag(STONETOP_SCOPE, "improvedStatChoices", choices);
+		return true;
 	}
 
 	// Apply (or re-apply) the "+1 to which stat?" pick for a stat-increase move taken at
@@ -4800,10 +4940,10 @@ export class StonetopCharacter {
 
 	// Inverse of _applyStatIncreaseChoice, run when an Improved/Superior Stat instance is
 	// dropped from the sheet: forget this instance's recorded pick and step the chosen stat
-	// back down by 1. The picker only ever offers stats below the cap, so every recorded
-	// pick applied exactly +1 — a plain −1 is its exact inverse (floored at the −1 stat
-	// minimum). No-ops when this move recorded no pick (any non-stat move, or one added
-	// before the pick was collected).
+	// back down by 1. A pick is recorded only when it raised the stat by exactly +1, so a
+	// plain -1 is its exact inverse (floored at the -1 stat minimum). No-ops when this move
+	// recorded no pick (any non-stat move, one added before the pick was collected, or one
+	// whose pick found the stat already at the cap).
 	async _revertStatIncreaseChoice(moveItem) {
 		const statKey = (this._actor.getFlag(STONETOP_SCOPE, "improvedStatChoices") ?? {})[moveItem.id];
 		if (!statKey) return;
@@ -4850,12 +4990,22 @@ export class StonetopCharacter {
 		}
 	}
 
-	// Names of moves an owned move replaces (Bulwark, while A Mighty Rampart is owned). The
-	// original was given up for its replacement, so it is not offered again.
+	// Each move an owned move replaces, to the move that replaced it (Bulwark -> A Mighty
+	// Rampart, while the Rampart is owned). The original was given up for its replacement, so
+	// it is not offered again: the level-up list and the cross-playbook picker leave it out,
+	// the Moves tab locks it as "Replaced by ..." (buildMovelistContext), and onboarding's free
+	// picks skip it (the sheet hands this to CharacterOnboardingDialog).
+	retiredMoveReplacers() {
+		const out = new Map();
+		for (const i of (this._actor.items ?? []).filter(i => i.type === "move" && i.system?.replaces)) {
+			if (!out.has(i.system.replaces)) out.set(i.system.replaces, i.name);
+		}
+		return out;
+	}
+
+	// The names alone, for the pickers that only leave them out.
 	_retiredMoveNames() {
-		return new Set(this._actor.items
-			.filter(i => i.type === "move" && i.system?.replaces)
-			.map(i => i.system.replaces));
+		return new Set(this.retiredMoveReplacers().keys());
 	}
 
 	// How many playbook picks were given up to a replacing move, for the level move budget.
@@ -4902,8 +5052,9 @@ const _ALL_PLAYBOOK_NAMES = [
 	"The Marshal", "The Ranger", "The Seeker", "The Would-Be Hero",
 ];
 
-// A foreign move qualifies for a cross-playbook pick when the actor owns its required
-// moves (including the one it replaces), meets its level, and meets any machine-checkable
+// A foreign move qualifies for a cross-playbook pick when the actor has its required
+// moves LEARNED (`learnedNames`: a switched-off move opens nothing; the one it replaces
+// counts too), meets its level, and meets any machine-checkable
 // stat minimum (Musclebound's STR +2 — gated here just as it is on its home playbook, so
 // crossing playbooks can't dodge the prereq); a null requirement always qualifies.
 //
@@ -4918,11 +5069,11 @@ const _ALL_PLAYBOOK_NAMES = [
 // still NOT machine-checked — it can't be without a per-note rule engine — so such a move
 // stays pickable; the note is surfaced in the picker for the player to self-police, exactly
 // as the sheet shows note-only prerequisites on owned moves.
-function _foreignMoveQualifies(def, ownedNames, level, actorStats = {}) {
+function _foreignMoveQualifies(def, learnedNames, level, actorStats = {}) {
 	const req = def.requirement ?? {};
 	if (req.playbook) return false;
 	if (req.level && level < req.level) return false;
-	if (requiredMovesUnmet({ ...req, moves: effectiveRequiredMoves(req, def.replaces) }, m => ownedNames.has(m))) return false;
+	if (requiredMovesUnmet({ ...req, moves: effectiveRequiredMoves(req, def.replaces) }, m => learnedNames.has(m))) return false;
 	return !statRequirementsUnmet(req.stats, actorStats);
 }
 
@@ -5491,6 +5642,7 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		.withRequirementsUnmet(entry.requirementsUnmet)
 		.withRequirement(requirement)
 		.withRequiresLabel(requirement?.label ?? null)
+		.withReplacedBy(entry.replacedBy ?? null)
 		.withResource(resource)
 		.withRepeat(repeat)
 		.withRepeatable(repeat !== null)

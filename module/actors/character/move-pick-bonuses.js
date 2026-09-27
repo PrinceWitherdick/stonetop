@@ -12,10 +12,13 @@
  * showed no list at all. This is the per-roller half, laid over that stamp where the roll card is
  * built and the roller is known (item/StonetopItem.js#roll).
  *
- * Deliberately NOT here, because they are a different shape: the "you can always ask X for free,
- * even on a 6-" moves (Hound of Aratis, Vision Unclouded, Sniff Out Corruption, Attuned, Voice of
- * Experience, Expert Tracker) grant ONE named question outside the count, which a single capped
- * list cannot say; Deep Insight's extra question is "not limited to the list" and only "about
+ * The "you can always ask X for free, even on a 6-" moves (Hound of Aratis, Vision Unclouded, Sniff
+ * Out Corruption, Attuned, Voice of Experience, Expert Tracker) are here too, as a row of their own
+ * shape: `freeQuestion`. They grant ONE named question OUTSIDE the count, which a capped list cannot
+ * say, so they never touch the list or its stamp. Each is a line of its own under the list
+ * (`freeQuestionLines`), shown on every tier, the 6- included, where the list itself is hidden.
+ *
+ * Deliberately NOT here: Deep Insight's extra question is "not limited to the list" and only "about
  * something magical"; Well Versed's follow-up rides Know Things, which prints no list.
  */
 

@@ -25,6 +25,7 @@ import {NpcToFollowerDialog} from "./dialogs/NpcToFollowerDialog.js";
 import {OrderFollowersDialog} from "./dialogs/OrderFollowersDialog.js";
 import {FollowerFateDialog} from "./dialogs/FollowerFateDialog.js";
 import {CallUpDeepOnesDialog} from "./dialogs/CallUpDeepOnesDialog.js";
+import {BackgroundNeighborsDialog, storedNeighborPicks} from "./dialogs/BackgroundNeighborsDialog.js";
 import {RING_SOURCE_UUID, SERVANT_SOURCE_UUID, buildServantFollower} from "../../data/servant-of-daagon.js";
 import {grantedWeaponForMove, weaponTraitText} from "../../data/weapons.js";
 import {grantedWeaponAttackFor, rollCharacterDamageAt, rollFollowerDamageAt} from "../../combat/attack-flow.js";
@@ -95,6 +96,8 @@ import {invocationLabel, invokeNotice, readOngoing, resolveInvocationUse} from "
 import {showJudgeMarks, condemnedContext, CONDEMN, CENSURE} from "./condemn.js";
 import {readyRulebookIcon, openSharedRulebook} from "../../books/rulebook-icons.js";
 import { endBattleJoyUnrolled } from "../../combat/battle-joy-offer.js";
+import { CASTIGATE } from "./condemn.js";
+import { pickPersonOnMap } from "../../dialogs/RelationshipLinkDialog.js";
 
 /**
  * The one book a PLAYER's sheet offers. Book I is the rules they play by; Book II is the
@@ -347,7 +350,11 @@ const EXPEDITION_MOVE_HANDLERS = {
 const MOVE_USE_EFFECTS = {
 	[CONSECRATED_FLAME]:  sheet => sheet._consecrateFlame(),
 	[CONDEMN]:            sheet => sheet._openCondemnedIfJudge(),
-	[CENSURE]:            sheet => sheet._openCondemnedIfJudge(),
+	// Censure is where Castigate's 1d4 lands, and clicking Castigate is the same act: the player is
+	// reaching for the damage, and the damage only ever comes from a Censure. One method, so the two
+	// cannot drift into rolling twice or not at all.
+	[CENSURE]:            sheet => sheet._censure(),
+	[CASTIGATE]:          sheet => sheet._censure(),
 	[BINDING_ARBITRATION]: sheet => sheet._openCondemnedIfJudge(),
 	// The Blessed's three description-only marking moves. Using one IS laying a mark, and a
 	// Blessed handed no way to write it down is back to keeping the list in their head.
@@ -5855,6 +5862,9 @@ export function createStonetopCharacterSheetClass(Base) {
 				...this._playbookHpInit(playbookDoc),
 			});
 			await target.ensureStartingMoves();
+			// The playbook's preselected possessions (the Judge's Scribe's tools) are held from
+			// now on, whether or not onboarding runs, so their gear arrives with the drop.
+			await target.ensurePossessionGrants();
 			(redirectedTo?.sheet ?? this).render(false);
 		}
 
@@ -6261,8 +6271,13 @@ export function createStonetopCharacterSheetClass(Base) {
 				...(offers.length ? { offers } : {}),
 			});
 			// A roll with no move behind it has nothing to offer, and asks at once rather than a tick later.
+			// The offers ride the answer to onRoll (`offered`), which settles the ticked ones without
+			// working them out a second time.
 			if (!item || !this._stonetopCharacter?.rollOffers) return ask();
-			return Promise.resolve(this._stonetopCharacter.rollOffers(item)).then(offers => ask(offers ?? []));
+			return Promise.resolve(this._stonetopCharacter.rollOffers(item)).then(async offers => {
+				const answer = await ask(offers ?? []);
+				return answer && typeof answer === "object" ? { ...answer, offered: offers ?? [] } : answer;
+			});
 		}
 
 		// `grants` are the moves that opened this choice up (empty for a move whose own
@@ -6777,9 +6792,12 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		// A new background takes back the old one's move and grants its own (settleBackgroundMoves),
-		// and the same for the special possessions it hands over (settleBackgroundPossessions).
-		// When the move going has something on it, a held track (Rites of the Land's Boon) or marks,
-		// the player is told first and may stay; nothing else about a change asks.
+		// and the same for the special possessions and the arcanum it hands over (settleBackgroundPossessions,
+		// settleBackgroundArcana). When the move going has something on it, a held track (Rites of the
+		// Land's Boon) or marks, the player is told first and may stay; nothing else about a change asks.
+		// An arcanum with play on it never goes, so it has nothing to warn about.
+		// The neighbors it names are filed on the steading too (_fileBackgroundNeighbors). Neighbors
+		// are the steading's, not the character's, so a change AWAY takes none of them back.
 		async _onBackgroundChange(ev) {
 			const slug = ev.currentTarget.value;
 			const character = this._stonetopCharacter;
@@ -6793,6 +6811,32 @@ export function createStonetopCharacterSheetClass(Base) {
 			await character.settleBackgroundMoves(previous);
 			await character.settleBackgroundPossessions(previous);
 			await character.settleBackgroundArcana(previous);
+			if (slug && slug !== previous.slug) await this._fileBackgroundNeighbors(slug);
+		}
+
+		/**
+		 * File the neighbors background `slug` names, as onboarding does on its background step: the
+		 * Judge's Missionary puts Devin and Haeris on the Neighbors list and asks for 2 more. The fixed
+		 * ones go on whether the "pick N more" is answered or closed. Never removes anyone, and
+		 * _applyBackgroundNeighbors matches a neighbor already listed rather than adding them twice,
+		 * so switching back and forth files each person once.
+		 *
+		 * The picks are stored where onboarding stores them (background.neighborPicks), so a later
+		 * onboarding run reads them back ticked.
+		 */
+		async _fileBackgroundNeighbors(slug) {
+			const background = ((await this._stonetopCharacter.playbook())?.backgrounds ?? []).find(b => b.slug === slug);
+			const setup = background?.setup;
+			if (!setup?.neighbors?.length && !setup?.neighborChoices?.length) return;
+			const stored = resolvedFlags(this.actor).background ?? {};
+			let neighborPicks = {};
+			if (setup.neighborChoices?.length) {
+				neighborPicks = (await BackgroundNeighborsDialog.ask(background, stored.neighborPicks ?? {})) ?? {};
+				await this._batchFlagSetOrUnset({ "background.neighborPicks": storedNeighborPicks(setup, neighborPicks) });
+			}
+			await this._applyBackgroundNeighbors(setup, {
+				backgroundSetup: { neighborTraits: stored.neighborTraits ?? {}, neighborPicks },
+			});
 		}
 
 		// True to go ahead. Asks only when a move going holds something (see _onBackgroundChange).
@@ -7566,6 +7610,67 @@ export function createStonetopCharacterSheetClass(Base) {
 			// the same window for its own half, which is the whole reason the two lists share one.
 			if (!this._stonetopCharacter.canCondemn && !this._stonetopCharacter.canBindOaths) return;
 			await this._openCondemned();
+		}
+
+		/**
+		 * Using Censure (or Castigate, which is the same act): Castigate's blow first, then the roster.
+		 *
+		 * The blow is HERE, at the use of the move, and nowhere else. It used to ride the brand being
+		 * written (StonetopCharacter#brandCondemned), so a Judge with Castigate but not yet Condemn
+		 * (level 2+ against 6+) never dealt it, since nothing opened the window that lays brands. It
+		 * also means a Censure followed by a brand laid in the window rolls once, not twice.
+		 *
+		 * Only an editable sheet rolls, like every other effect here that acts on the character's
+		 * behalf; the roster still opens, read-only, for anyone else.
+		 */
+		async _censure() {
+			if (this.isEditable) await this._castigateCensured();
+			await this._openCondemnedIfJudge();
+		}
+
+		/**
+		 * Castigate's 1d4 at whoever was Censured, one card each (StonetopCharacter#castigate).
+		 *
+		 * Censure denounces "an individual", so ONE person, unless the Judge has learned Proclamation:
+		 * that applies Censure "to every member of that group", so several targets are each hit.
+		 */
+		async _castigateCensured() {
+			const character = this._stonetopCharacter;
+			if (!character.canCastigate) return;
+			for (const target of await this._whoWasCensured({ group: character.canProclaim })) {
+				await character.castigate(target);
+			}
+		}
+
+		/**
+		 * The token documents a Censure lands on, or an empty list when nobody was chosen.
+		 *
+		 * The player's single target when there is one, or every target under Proclamation. Otherwise
+		 * the people picker asks: over the targets when there are several, and over this scene's
+		 * tokens when there are none (Castigate is near, so the person is here). Backing out of the
+		 * picker is "never mind", and deals nothing. The Judge is never offered to themself.
+		 */
+		async _whoWasCensured({ group = false } = {}) {
+			const own = this.actor?.id;
+			const other = doc => !!doc?.actor && doc.actor.id !== own;
+			const targeted = [...(game.user?.targets ?? [])].map(token => token.document).filter(other);
+			if (targeted.length === 1 || (group && targeted.length > 1)) return targeted;
+			const pool = targeted.length ? targeted
+				: [...(game.scenes?.viewed?.tokens ?? [])].filter(doc => other(doc) && (!doc.hidden || game.user?.isGM));
+			if (!pool.length) {
+				ui.notifications?.info(localize("stonetop.condemn.castigateNobody"));
+				return [];
+			}
+			const id = await pickPersonOnMap({
+				options: pool.map(doc => ({ id: doc.id, name: doc.name, actor: doc.actor })),
+				title: localize("stonetop.condemn.castigateTitle"),
+				hint: localize("stonetop.condemn.castigateHint"),
+				icon: "fa-bullhorn",
+				buttonLabel: localize("stonetop.condemn.castigateChoose"),
+				formatLabel: name => format("stonetop.condemn.castigateNamed", { name }),
+			});
+			const chosen = pool.find(doc => doc.id === id);
+			return chosen ? [chosen] : [];
 		}
 
 		/**
@@ -10909,7 +11014,6 @@ export function createStonetopCharacterSheetClass(Base) {
 				const backgroundSetupTexts    = {};
 				const backgroundSetupChoices  = {};
 				const backgroundNeighborTraits = {};
-				const backgroundNeighborPicks  = {};
 				for (const text of (backgroundSetup?.texts ?? [])) {
 					const value = selections.backgroundSetup?.texts?.[text.key]?.trim();
 					if (value) backgroundSetupTexts[text.key] = value;
@@ -10922,10 +11026,6 @@ export function createStonetopCharacterSheetClass(Base) {
 					const value = selections.backgroundSetup?.neighborTraits?.[neighbor.traitKey]?.trim();
 					if (neighbor.traitKey && value) backgroundNeighborTraits[neighbor.traitKey] = value;
 				}
-				for (const choice of (backgroundSetup?.neighborChoices ?? [])) {
-					const values = selections.backgroundSetup?.neighborPicks?.[choice.key] ?? [];
-					if (values.length) backgroundNeighborPicks[choice.key] = values;
-				}
 				// Beast-Bonded marked actions, filtered to the selected background's list.
 				const markableSlugs = new Set((selectedBackground.markableActions?.options ?? []).map(o => o.slug));
 				const backgroundMarkedActions = (selections.markedActions ?? []).filter(s => markableSlugs.has(s));
@@ -10933,7 +11033,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					"background.setupChoices":   backgroundSetupChoices,
 					"background.setupTexts":     backgroundSetupTexts,
 					"background.neighborTraits": backgroundNeighborTraits,
-					"background.neighborPicks":  backgroundNeighborPicks,
+					"background.neighborPicks":  storedNeighborPicks(backgroundSetup, selections.backgroundSetup?.neighborPicks),
 					"background.markedActions":  backgroundMarkedActions,
 				});
 			}

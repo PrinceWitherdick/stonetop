@@ -1941,12 +1941,12 @@
       {
         "slug": "legacy",
         "label": "Legacy",
-        "description": "<p>You are the latest in a long line of Judges—born here, apprenticed to the prior Judge, and charged with the passing of the mantle. The Chronicle is a rich repository of lore, but there's no index, so good luck finding anything.</p><p>When you <strong><em>Know Things about the people or history of Stonetop</em></strong>, you have advantage.</p><p>When you <strong><em>spend days, weeks, or months poring over the Chronicle</em></strong>, ask the GM and the GM will tell you what you learn in that time.</p>"
+        "description": "<p>You are the latest in a long line of Judges—born here, apprenticed to the prior Judge, and charged with the passing of the mantle. The Chronicle is a rich repository of lore, but there's no index, so good luck finding anything.</p><p>When you <strong><em>Know Things about the people or history of Stonetop</em></strong>, you have advantage.</p><p>When you <strong><em>spend days, weeks, or months poring over the Chronicle</em></strong>, ask the GM a question, and the GM will tell you what you learn in that time.</p>"
       },
       {
         "slug": "missionary",
         "label": "Missionary",
-        "description": "<p>You are part of a larger order of Judges, sent here to protect the flickering flame of civilization. The Chronicle is relatively new; your position in town is far from certain.</p><p>When you <strong><em>call upon the Judge of another steading for aid or information</em></strong>, they are oathbound to give it. You are likewise oathbound to support them.</p><p>You have an aviary in addition to your usual choice of special possessions. When you <strong><em>send a message via trained bird</em></strong>, the GM will tell you if and when you receive a response, and what it says.</p>",
+        "description": "<p>You are part of a larger order of Judges, sent here to protect the flickering flame of civilization. The Chronicle is relatively new; your position in town is far from certain. Add these Judges to the Neighbors section of the steading playbook (pick 2 more):</p><ul><li><strong>Devin</strong> (from Marshedge)</li><li><strong>Haeris</strong> (from Gordin's Delve)</li><li><strong>Isalde</strong> (from the Manmarch)</li><li><strong>Rahat</strong> (from Lygos)</li><li><strong>Tejisha</strong> (from Barrier Pass)</li><li><strong>Unz</strong> (from the Hillfolk)</li></ul><p>When you <strong><em>call upon the Judge of another steading for aid or information</em></strong>, they are oathbound to give it. You are likewise oathbound to support them.</p><p>You have an aviary in addition to your usual choice of special possessions (go mark it now). When you <strong><em>send a message via trained bird</em></strong>, as is the way of the Judges of your order, the GM will tell you if and when you receive a response, and what it says.</p>",
         "extraPossessions": [
           "aviary"
         ],
@@ -1995,7 +1995,10 @@
       {
         "slug": "prophet",
         "label": "Prophet",
-        "description": "<p>The line of Judges was broken long ago, the Chronicle lost or fallen into ruin. Aratis has called you personally to her service through dreams, omens, and visions. Some in town resent the authority you've assumed.</p><p>When you <strong><em>spend a few days communing with Aratis about a threat facing Stonetop or civilization as a whole</em></strong>, roll +WIS: <strong>on a 7+</strong>, Aratis reveals the course of action she would have you take; <strong>on a 10+</strong>, you also hold 2 Sanction. While <strong><em>acting on her orders</em></strong>, spend 1 Sanction to add +1 to a roll you just made.</p>"
+        "description": "<p>The line of Judges was broken long ago, the Chronicle lost or fallen into ruin. Aratis has called you personally to her service through dreams, omens, and visions. Some in town resent the authority you've assumed.</p><p>When you <strong><em>spend a few days communing with Aratis about a threat facing Stonetop or civilization as a whole</em></strong>, roll +WIS: <strong>on a 7+</strong>, Aratis reveals the course of action she would have you take; <strong>on a 10+</strong>, you also hold 2 Sanction. While <strong><em>acting on her orders</em></strong>, spend 1 Sanction to add +1 to a roll you just made.</p>",
+        "moves": [
+          "Commune with Aratis"
+        ]
       }
     ],
     "instincts": [
@@ -2061,7 +2064,7 @@
         "region": "Barrier Pass",
         "names": [
           "Arinasai",
-          "Bortachikan",
+          "Bortachikhan",
           "Khadagan",
           "Khojin",
           "Odval",
@@ -2320,7 +2323,7 @@
       {
         "slug": "chronicle-plus",
         "title": "The Chronicle",
-        "description": "<p>The Judge of Aratis is charged with maintaining the Chronicle, a history of the community, its people, their knowledge, and their traditions. It is more than a mere book; it is a physical place. On the plus side, it… <em>(choose 3)</em></p>",
+        "description": "<p>The Judge of Aratis is charged with maintaining the Chronicle, a history of the community, its people, their knowledge, and their traditions. The nature of the lore contained in the Chronicle depends on your Background, but it is more than a mere book; it is a physical place. Decide on its physical structure.</p><p>On the plus side, it… <em>(choose 3)</em></p>",
         "options": [
           {
             "slug": "sturdy-vault",
@@ -2362,7 +2365,7 @@
       {
         "slug": "chronicle-minus",
         "title": "But Alas, It…",
-        "description": "<p><em>(choose 2)</em></p>",
+        "description": "<p><em>(choose 2)</em></p><p>Mark the location of the Chronicle on the Stonetop playbook map.</p>",
         "options": [
           {
             "slug": "outskirts",

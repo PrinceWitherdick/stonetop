@@ -4996,11 +4996,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
    utils/pick-tally.js hides the list outright on a tier that offers no picks, and an empty framed
    box would be worse than no box. The lead-in that would have said "choose one" is prose and goes
    with the rest; what stands in for it is the count the result block states and the tally the list
-   carries on its own. Revealed cards are exempt from both halves: the reader asked for all of it. */
-body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card:not(.desc-revealed) .stonetop-roll-card-description:has(:is(.stonetop-picklist, .stonetop-pc-answers):not([hidden])) {
+   carries on its own. Revealed cards are exempt from both halves: the reader asked for all of it.
+   A free question (Hound of Aratis and its kin, move-pick-bonuses.js#freeQuestionLines) is a choice
+   too, and stays for the same reason, on the 6- as well, where it is the only one on the card. */
+body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card:not(.desc-revealed) .stonetop-roll-card-description:has(:is(.stonetop-picklist, .stonetop-pc-answers):not([hidden]), .stonetop-free-question) {
 	display: block;
 }
-body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card:not(.desc-revealed) .stonetop-roll-card-description > *:not(.stonetop-picklist, .stonetop-pc-answers):not(:has(:is(.stonetop-picklist, .stonetop-pc-answers):not([hidden]))) {
+body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card:not(.desc-revealed) .stonetop-roll-card-description > *:not(.stonetop-picklist, .stonetop-pc-answers, .stonetop-free-question):not(:has(:is(.stonetop-picklist, .stonetop-pc-answers):not([hidden]))) {
 	display: none;
 }
 
@@ -22747,6 +22749,12 @@ a.steading-player-open:hover {
 	background: var(--st-btn-primary-bg-hover);
 	border-color: var(--st-btn-primary-border-hover);
 	color: var(--st-btn-primary-text);
+}
+
+/* The background-neighbors picker borrows this chrome with TWO footer buttons (add the picks /
+   add only the fixed ones), side by side. */
+.stonetop-background-neighbors-dialog .stonetop-pc-footer {
+	gap: 8px;
 }
 
 /* The "edit" pencils that open the modal (move card + gear-tab possession). Slate,

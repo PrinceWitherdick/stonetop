@@ -510,8 +510,9 @@ function promptAttackMode(moveName, { question, choices, fallback }) {
 // -- Targets ------------------------------------------------------------------
 
 // Freeze the current user's targets into a plain, storable list. Runs on the attacking
-// player's client at click time, where game.user.targets is theirs.
-function snapshotTargets() {
+// player's client at click time, where game.user.targets is theirs. Also what a roll that is not an
+// attack is aimed at, for Binding Arbitration (StonetopCharacter#onRoll).
+export function snapshotTargets() {
 	return Array.from(game.user?.targets ?? [])
 		.map(t => ({
 			uuid: t.document?.uuid ?? null,

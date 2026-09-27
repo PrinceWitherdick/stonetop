@@ -37,9 +37,9 @@ export const ONBOARDING_MOVE_GROUPS = deepFreeze({
 		{ key: "grit", label: "Grit", moves: ["Hard to Kill", "Unstoppable", "Unfettered", "Frosty", "Stone Cold", "Seasoned Warrior", "Carved Out of Wood", "Cut from Granite"] },
 	],
 	"The Judge": [
-		{ key: "justice", label: "Justice", moves: ["Censure", "Condemn", "Proclamation", "Castigate", "Armistice", "Binding Arbitration", "Bear Witness", "Truth or Consequences", "For the Greater Good"] },
-		{ key: "defense", label: "Defense", moves: ["Armored", "A Mighty Rampart", "Aegis of Faith", "Bulwark", "Mirrorshield", "The Tower Eternal", "A Bundle of Sticks Unbroken"] },
-		{ key: "lore", label: "Lore", moves: ["Knowledge is Power", "Well-Read", "Chronicler of Stonetop", "Vision Unclouded", "Hound of Aratis"] },
+		{ key: "justice", label: "Justice", moves: ["Censure", "Condemn", "Proclamation", "Castigate", "Armistice", "Binding Arbitration", "Bear Witness", "Truth or Consequences", "For the Greater Good", "The Hammer and the Book", "Like a Dog with a Bone"] },
+		{ key: "defense", label: "Defense", moves: ["Armored", "A Mighty Rampart", "Aegis of Faith", "Bulwark", "Mirrorshield", "The Tower Eternal", "Many Hands Make Light Work", "A Bundle of Sticks Unbroken", "Break Bread"] },
+		{ key: "lore", label: "Lore", moves: ["Knowledge is Power", "Well-Read", "Chronicler of Stonetop", "Vision Unclouded", "Hound of Aratis", "Commune with Aratis"] },
 	],
 	"The Lightbearer": [
 		{ key: "faith", label: "Faith", moves: ["Invoke the Sun God", "Empowered Invocations", "Burn Twice as Bright", "Glorious Servant", "Piety", "Wielder of the White Flame"] },

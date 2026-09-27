@@ -5,6 +5,10 @@ import { FakeInventoryRepository } from "../../fakes/FakeInventoryRepository.js"
 import { FakeArcanaRepository } from "../../fakes/FakeArcanaRepository.js";
 import { OutfitItemBuilder } from "../../../module/model/OutfitItem.js";
 import { backBoxChecked, unlockedArcanumArmor } from "../../../module/actors/character/CharacterArcana.js";
+import { SYSTEM_ID } from "../../../module/system-id.js";
+import { readFileSync } from "node:fs";
+import { carriedAttackWeapons } from "../../../module/combat/attack-flow.js";
+import { isClashWeapon } from "../../../module/data/weapons.js";
 
 // Defend's "+1 Readiness on a 7+" rides a SHIELD (Book I p.216), and the answer to "is this
 // character bearing one" used to be `inventory.checked["shield"]` — one hard-coded catalog slug.
@@ -334,6 +338,91 @@ describe("Armored and a shield's load", () => {
 		const rows = [...char._buildChoiceGearByPossession(JUDGE_LIKE).values()]
 			.flatMap(b => [...b.regular, ...b.small]);
 		expect(rows.find(r => r.choiceSlug === "makerglass-shield").weight).toBe(2);
+	});
+
+	// The fourth store: `inventory-custom` items (write-ins, grantsItems, dropped treasures) were
+	// mapped at their stored weight, so the makerglass shield treasure still cost ◇◇ under Armored.
+	const TREASURE_SHIELD = {
+		_id: "t1", type: "move", name: "A shield of makerglass",
+		system: { moveType: "inventory-custom", inventoryColumn: "regular", weight: 2, isTreasure: true, shield: true, armor: { modifier: 1 } },
+	};
+	const ROPE = {
+		_id: "w1", type: "move", name: "A coil of rope",
+		system: { moveType: "inventory-custom", inventoryColumn: "regular", weight: 2 },
+	};
+	const outfitOf = async (char) => (await char.buildSnapshot()).inventory.outfit;
+
+	it("drops a treasure shield from 2 ◇ to 1 ◇, and the load with it", async () => {
+		const armored = makeChar({ actorItems: [TREASURE_SHIELD, ARMORED], checked: { t1: true } });
+		const plain   = makeChar({ actorItems: [TREASURE_SHIELD], checked: { t1: true } });
+		const a = await outfitOf(armored);
+		const p = await outfitOf(plain);
+		expect(a.treasureRegular.find(i => i.slug === "t1").weight).toBe(1);
+		expect(p.treasureRegular.find(i => i.slug === "t1").weight).toBe(2);
+		expect(a.load.totalMarks).toBe(p.load.totalMarks - 1);
+	});
+
+	it("drops a shield whose flag lives in the item's flags, as a catalog re-plant stores it", async () => {
+		const flagged = {
+			_id: "t2", type: "move", name: "Shield", flags: { stonetop: { shield: true } },
+			system: { moveType: "inventory-custom", inventoryColumn: "regular", weight: 2 },
+		};
+		const char = makeChar({ actorItems: [flagged, ARMORED], checked: { t2: true } });
+		expect((await outfitOf(char)).regularItems.find(i => i.slug === "t2").weight).toBe(1);
+	});
+
+	it("leaves a treasure shield at 2 ◇ while Armored is un-learned", async () => {
+		const unlearned = { ...ARMORED, flags: { [SYSTEM_ID]: { learned: false } } };
+		const char = makeChar({ actorItems: [TREASURE_SHIELD, unlearned], checked: { t1: true } });
+		expect((await outfitOf(char)).treasureRegular.find(i => i.slug === "t1").weight).toBe(2);
+	});
+
+	it("leaves a write-in that is not a shield at its own weight", async () => {
+		const char = makeChar({ actorItems: [ROPE, ARMORED], checked: { w1: true } });
+		expect((await outfitOf(char)).regularItems.find(i => i.slug === "w1").weight).toBe(2);
+	});
+});
+
+// -- The Judge's symbol of authority, as the pack ships it -----------------------
+
+describe("the Judge's symbol of authority, read off the real playbook", () => {
+	// Every test above uses JUDGE_LIKE, whose maul is slugged `maul`. The pack's is
+	// `black-iron-maul`, and it carries no weaponSlug: the attack flow reads it off its own label.
+	const JUDGE_DOC = JSON.parse(readFileSync(new URL("../../../packs/src/stonetop-items/playbooks/the-judge.json", import.meta.url), "utf8"));
+	const JUDGE = { slug: "the-judge", name: "The Judge", specialPossessions: JUDGE_DOC.flags.stonetop.specialPossessions };
+	const CLASH = { key: "clash", filter: isClashWeapon };
+
+	it("offers the carried black iron maul for Clash: close, forceful, awkward, +1 damage", async () => {
+		const char = makeChar({
+			playbook: JUDGE, picked: ["black-iron-maul"],
+			carried: { "symbol-of-authority:black-iron-maul": true },
+		});
+		char._actor.typedActor = char;
+		const weapons = await carriedAttackWeapons(char._actor, CLASH);
+		const maul = weapons.find(w => w.slug === "symbol-of-authority:black-iron-maul");
+		expect(maul).toBeTruthy();
+		expect(maul.meta.range).toContain("close");
+		expect(maul.meta.tags).toEqual(expect.arrayContaining(["forceful", "awkward"]));
+		expect(maul.meta.damageBonus).toBe(1);
+	});
+
+	it("does not offer the maul when it is not carried", async () => {
+		const char = makeChar({ playbook: JUDGE, picked: ["black-iron-maul"], carried: {} });
+		char._actor.typedActor = char;
+		const weapons = await carriedAttackWeapons(char._actor, CLASH);
+		expect(weapons.some(w => w.slug === "symbol-of-authority:black-iron-maul")).toBe(false);
+	});
+
+	it("gives +1 armor from the carried Makerglass shield, and counts it as a shield", async () => {
+		const carriedShield = makeChar({
+			playbook: JUDGE, picked: ["makerglass-shield"],
+			carried: { "symbol-of-authority:makerglass-shield": true },
+		});
+		const leftHome = makeChar({ playbook: JUDGE, picked: ["makerglass-shield"], carried: {} });
+		expect((await carriedShield.buildSnapshot()).vitals.armor).toBe(1);
+		expect(await carriedShield.bearsShield()).toBe(true);
+		expect((await leftHome.buildSnapshot()).vitals.armor).toBe(0);
+		expect(await leftHome.bearsShield()).toBe(false);
 	});
 });
 

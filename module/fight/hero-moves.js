@@ -289,15 +289,18 @@ function upAgainAgainst(actor, targets = []) {
  * Binding Arbitration: "If they have broken their word, you gain advantage on all rolls against them
  * until they admit their wrongdoing and suffer an appropriate consequence." The Judge ticks an oath
  * broken in the scales' window (actors/character/oaths.js) and unticks it for the admission, so the
- * tick IS the condition and the advantage is simply applied, named on the card. Only rolls aimed at
- * someone reach here, which in practice is the attack moves.
+ * tick IS the condition and the advantage is simply applied, named on the card. Every roll aimed at
+ * someone asks it (the user's ruling: all rolls, not only attacks; damage rolls aside): an attack at
+ * the foes it targets (attackFoeAdvantage), and any other move at the tokens targeted or the player
+ * character it is aimed at (StonetopCharacter#onRoll). A roll aimed at nobody offers it as an unticked
+ * line instead (StonetopCharacter#rollOffers, off brokenOaths).
  *
  * Matched the way the roster matches anyone: a row's actor, or its name, against the token's name and
  * its actor's. Every target has to be an oathbreaker, as for the other grudges here.
  */
 export function oathbreakerAgainst(actor, targets = []) {
-	if (!has(actor, BINDING_ARBITRATION) || !targets?.length) return null;
-	const broken = readOaths(actor.getFlag?.(SYSTEM_ID, OATHS_FLAG)).filter(oath => oath.broken);
+	if (!targets?.length) return null;
+	const broken = brokenOaths(actor);
 	if (!broken.length) return null;
 	const index = oathIndex(broken);
 	const breaker = target => {
@@ -307,6 +310,12 @@ export function oathbreakerAgainst(actor, targets = []) {
 			|| (!!person && isSwornBy(index, person));
 	};
 	return targets.every(breaker) ? BINDING_ARBITRATION : null;
+}
+
+/** The oaths this character holds ticked broken, while Binding Arbitration is learned; [] otherwise. */
+export function brokenOaths(actor) {
+	if (!has(actor, BINDING_ARBITRATION)) return [];
+	return readOaths(actor.getFlag?.(SYSTEM_ID, OATHS_FLAG)).filter(oath => oath.broken);
 }
 
 /** Whichever remembered foe gives this attack roll advantage, or null. One name, for the card's pill. */

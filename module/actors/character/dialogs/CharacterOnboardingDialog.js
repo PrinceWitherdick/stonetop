@@ -26,6 +26,7 @@ import { requiredMovesUnmet } from "../move-requirement.js";
 import { playbookIconPath } from "../../../utils/playbook-actors.js";
 import { ensurePackIndex } from "../../../utils/pack-index.js";
 import { SYSTEM_ID } from "../../../system-id.js";
+import { neighborChoiceGroups } from "./BackgroundNeighborsDialog.js";
 
 const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
 
@@ -125,10 +126,14 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	}
 
 	constructor(playbookDoc, onComplete, options = {}) {
-		const { onBack, onSave, onClose, onProgress, onLiveSave, onExit, initialSelections, startAtStep = null, ownedMoveCounts = null, ...appOptions } = options;
+		const { onBack, onSave, onClose, onProgress, onLiveSave, onExit, initialSelections, startAtStep = null, ownedMoveCounts = null, retiredMoveNames = null, ...appOptions } = options;
 		super(appOptions);
 		this._playbookDoc        = playbookDoc;
 		this._onComplete         = onComplete;
+		// Names of the moves this character gave up for a replacing move (Bulwark, once A Mighty
+		// Rampart is owned; StonetopCharacter#retiredMoveReplacers), kept out of the free picks.
+		// A new character passes none.
+		this._retiredMoves       = new Set(retiredMoveNames ?? []);
 		// How many of each move the character already has (move name → count), so a
 		// possession sub-choice cap that grows with a move (the Blessed's sacred-pouch
 		// remarkable traits, +1 per Big Magic) is correct after taking that move at
@@ -383,14 +388,24 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		// to end up with. Of the either/or options that is only the one picked in each group,
 		// so a Fox who picked Skill at Arms is offered Parry & Riposte, and one who picked
 		// Ambush is not. A change of radio re-renders the step, so this follows it.
+		//
+		// The free picks made so far count too, so picks CHAIN (the user's ruling): a Judge whose
+		// first pick is Hound of Aratis is offered Like a Dog with a Bone for the second. Unticking
+		// the first takes the second off offer, and the moves step lets it go (_pruneFreePicks).
+		const pickedIds = new Set(this._selections.moves ?? []);
 		const grantedNames = new Set([
 			...this._movesCache
 				.filter(d => d.system?.isStartingMove && !choiceMoveNames.has(d.name))
 				.map(d => d.name),
 			...chosenChoiceNames,
 			...bgMoveNames,
+			...this._movesCache.filter(d => pickedIds.has(d.id)).map(d => d.name),
 		]);
+		// A move this character gave up for its replacement (a re-run on a Judge who took A
+		// Mighty Rampart: Bulwark) is not theirs to pick again (StonetopCharacter#retiredMoveReplacers).
+		const retired = this._retiredMoves ?? new Set();
 		return this._movesCache.filter(doc => {
+			if (retired.has(doc.name)) return false;
 			// The other half of an either/or MAY be the free pick (the user's ruling): a Fox who
 			// starts with Ambush can take Skill at Arms as their 1 of choice. The half picked in
 			// its group is theirs already.
@@ -404,6 +419,22 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			if (requiredMovesUnmet(doc.system?.requirement, r => grantedNames.has(r))) return false;
 			return true;
 		});
+	}
+
+	// Let go of every free pick the list no longer offers, and return the offers. Repeated until
+	// nothing more drops, since picks chain: a pick that leaned on one just let go goes too. Its
+	// pending "+1 to which stat?" goes with it.
+	_pruneFreePicks() {
+		for (;;) {
+			const offered   = this._freePickOffers();
+			const offeredIds = new Set(offered.map(doc => doc.id));
+			const kept = this._selections.moves.filter(id => offeredIds.has(id));
+			if (kept.length === this._selections.moves.length) return offered;
+			for (const id of this._selections.moves) {
+				if (!offeredIds.has(id)) delete this._selections.moveStatChoices?.[id];
+			}
+			this._selections.moves = kept;
+		}
 	}
 
 	// How many tales a section's count is for. The Fox's tall tales are "a couple of your more
@@ -651,22 +682,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			traitLabel: this._normalizeOnboardingText(neighbor.traitLabel ?? "Trait"),
 			trait: this._selections.backgroundSetup.neighborTraits[neighbor.traitKey] ?? "",
 		}));
-		const neighborChoices = (setup.neighborChoices ?? []).map(choice => {
-			const selected = this._selections.backgroundSetup.neighborPicks[choice.key] ?? [];
-			return {
-				key: choice.key,
-				label: this._normalizeOnboardingText(choice.label ?? choice.key),
-				count: Number(choice.count ?? 1),
-				selectedCount: selected.length,
-				options: (choice.options ?? []).map(option => ({
-					value: option.value,
-					name: this._normalizeOnboardingText(option.name ?? option.value),
-					origin: this._normalizeOnboardingText(option.origin ?? ""),
-					trait: this._normalizeOnboardingText(option.trait ?? ""),
-					selected: selected.includes(option.value),
-				})),
-			};
-		});
+		const neighborChoices = neighborChoiceGroups(setup, this._selections.backgroundSetup.neighborPicks);
 		return choices.length || texts.length || neighbors.length || neighborChoices.length
 			? { choices, texts, neighbors, neighborChoices }
 			: null;
@@ -1950,13 +1966,11 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				}),
 			}));
 
-			const offered = this._freePickOffers();
 			// A pick this list no longer offers is let go: a re-run's restored free pick that the
 			// background just chosen now grants, say, or Parry & Riposte once the radio moved
-			// off Skill at Arms. Kept, it would fill the count with a card the player can't see
-			// to untick.
-			const offeredIds  = new Set(offered.map(doc => doc.id));
-			this._selections.moves = this._selections.moves.filter(id => offeredIds.has(id));
+			// off Skill at Arms, or Like a Dog with a Bone once Hound of Aratis is unticked. Kept,
+			// it would fill the count with a card the player can't see to untick.
+			const offered     = this._pruneFreePicks();
 			const chosenIds   = new Set(this._selections.moves);
 			const atLimit     = chosenIds.size >= this._movePickCount;
 			moveOptions = offered
@@ -2850,7 +2864,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		});
 
 		// ── Starting Moves ────────────────────────────────────────────
-		html.find("[name='onboard-move']").on("change", ev => {
+		html.find("[name='onboard-move']").on("change", async ev => {
 			const id      = ev.currentTarget.value;
 			const checked = ev.currentTarget.checked;
 			const limit   = this._movePickCount;
@@ -2879,6 +2893,20 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			// the step list can't change and we skip the rebuild.
 			if (this._rawAnimalCompanion?.types?.length) this._rebuildDynamicSteps();
 			_refreshNextButton();
+			// Picks chain (_freePickOffers): Hound of Aratis opens Like a Dog with a Bone, and
+			// unticking it closes that card again and lets a pick of it go. When the offers
+			// changed, re-render (scroll and focus kept, as the either/or radios do); the step's
+			// render prunes the picks and redraws the count.
+			const shown  = new Set(html.find("[name='onboard-move']").map((_, el) => el.value).get());
+			const offers = this._freePickOffers().map(doc => doc.id);
+			if (offers.length === shown.size && offers.every(o => shown.has(o))) return;
+			const stepEl    = html.find(".stonetop-onboarding-step")[0];
+			const scrollTop = stepEl?.scrollTop ?? 0;
+			await this.render(false);
+			const root      = this.element?.[0];
+			const newStepEl = root?.querySelector(".stonetop-onboarding-step");
+			if (newStepEl) newStepEl.scrollTop = scrollTop;
+			[...(root?.querySelectorAll("[name='onboard-move']") ?? [])].find(el => el.value === id)?.focus({ preventScroll: true });
 		});
 
 		// A stat-increase move's inline "+1 to which stat?" pick (Improved Stat). Records

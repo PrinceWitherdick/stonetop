@@ -1,5 +1,6 @@
 import { statRequirementsUnmet } from "./stat-requirement.js";
 import { effectiveRequiredMoves, requiredMovesUnmet, requirementLabel } from "./move-requirement.js";
+import { isMoveLearned } from "./owns-move.js";
 
 /**
  * Whether box `i` of a repeatable move owned `current` times is closed to a click. Boxes are taken
@@ -19,7 +20,12 @@ export class PlaybookMoveEntry {
 	// (StonetopCharacter#demotedStartingChoices). Every option carries isStartingMove, but the
 	// other half taken later is an ordinary pick: counted in the level's budget, labelled as
 	// nothing, and free to untick.
-	constructor(entry, ownedInstances, bgMoveNames, ownedAllByName, actorLevel, actorPlaybook, actorStats = {}, demotedStarting = null) {
+	//
+	// `retiredBy`: each move an owned move replaces, to the move that replaced it (Bulwark ->
+	// A Mighty Rampart; StonetopCharacter#retiredMoveReplacers). Book I p.529: taking the
+	// replacing move loses the original, so an un-owned original is `replacedBy` that move and
+	// closed to a tick, not offered back as an ordinary pick.
+	constructor(entry, ownedInstances, bgMoveNames, ownedAllByName, actorLevel, actorPlaybook, actorStats = {}, demotedStarting = null, retiredBy = null) {
 		const isFromPlaybook   = entry.isStarting && !demotedStarting?.has(entry.name);
 		const isFromBackground = bgMoveNames.has(entry.name);
 		const req              = entry.requirement;
@@ -56,18 +62,24 @@ export class PlaybookMoveEntry {
 		this.cap = entry.cap ?? null;
 		this.repeatable = repeatMax > 1;
 		this.repeatMax = repeatMax;
+		// A required move counts only while LEARNED (the user's ruling): one kept on the sheet
+		// switched off grants nothing, so it opens nothing either, and a move that leans on it
+		// reads as unmet until it is switched back on. `ownedAllByName` is a Map(name -> owned items[]).
+		const learned = m => (ownedAllByName.get(m) ?? []).some(isMoveLearned);
 		// Taking a replacing move gives up the one it replaces, so once this move is owned
 		// the replaced move's absence is the expected state, not a broken prerequisite.
-		const moveMissing = m => !ownedAllByName.has(m) && !(m === replaces && ownedInstances.length > 0);
+		const moveMissing = m => !learned(m) && !(m === replaces && ownedInstances.length > 0);
+		this.replacedBy = this.owned ? null : (retiredBy?.get(entry.name) ?? null);
 		// `req.background` (the Heavy's Bark an Order: the Sheriff's): a move only that background
 		// gives, never a pick. The background's own grant is a starting move, so it never locks there.
-		this.locked = !this.isStarting && !!(
+		// A move given up for its replacement locks whatever else is true of it.
+		this.locked = !!this.replacedBy || (!this.isStarting && !!(
 			req?.background ||
 			requiredMovesUnmet({ moves: requiresMoves, anyMoves: req?.anyMoves }, m => !moveMissing(m)) ||
 			(this.requiresPlaybook && this.requiresPlaybook !== actorPlaybook) ||
 			(this.minLevel && actorLevel < this.minLevel) ||
 			statRequirementsUnmet(requiresStats, actorStats)
-		);
+		));
 		// The player OWNS this move but its mechanically-checkable prerequisites
 		// (a required move / playbook / level / stat minimum) are no longer satisfied —
 		// e.g. they edited their learned moves and removed a prerequisite, or lowered a
@@ -84,7 +96,9 @@ export class PlaybookMoveEntry {
 				// so a player may deliberately take it anyway (the row then shows the
 				// "requirement not met" warning). The (not movesEdit) gate in the template
 				// still keeps every box read-only outside edit mode.
-				disabled: repeatBoxLocked(i, ownedInstances.length, this.isStarting),
+				// A move given up for its replacement is the exception: ticking it back would
+				// hold both, which the book never allows.
+				disabled: repeatBoxLocked(i, ownedInstances.length, this.isStarting) || !!this.replacedBy,
 			}))
 			: null;
 		this.resource = entry.resource;

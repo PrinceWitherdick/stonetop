@@ -259,8 +259,10 @@ describe("StonetopCharacter level-up climb — per-rule guarantees", () => {
 		await char.applyLevelUp(superior, null, { stat: "str", cap: 3 }); // Superior reaches +3
 		expect(str()).toBe(3);
 
-		// Each take recorded its own pick, keyed by the distinct new item id.
-		expect(Object.values(actor.getFlag("stonetop-pwd", "improvedStatChoices"))).toEqual(["str", "str", "str", "str"]);
+		// Each take that raised the stat recorded its own pick, keyed by the distinct new item id.
+		// The clamped third take recorded nothing: it raised nothing, so it is left needing a stat
+		// (and removing it later must not take a point back).
+		expect(Object.values(actor.getFlag("stonetop-pwd", "improvedStatChoices"))).toEqual(["str", "str", "str"]);
 	});
 
 	// Book I, the Ranger's Alpha: "(Requires level 6+, and Wild Speech or Spirit Tongue)".
