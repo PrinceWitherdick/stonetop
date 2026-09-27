@@ -456,6 +456,31 @@ describe("LevelUpDialog mark step — budgeted moves (Veteran Crew / Well Versed
 		dlg._selectedMarks = [{ slug: "tough" }, { slug: "unique" }];
 		expect(dlg.getData().canContinue).toBe(true);
 	});
+
+	// Heroes to the Last's "Increase their damage die one size (max d10)" buys nothing once the crew's
+	// die is d10 already (d6, d8 from Veteran Crew, d10 from a first Heroes pick): greyed, with why.
+	it("greys an option whose target is already at its cap, and says why", () => {
+		const heroes = {
+			compendiumId: "htl1", name: "Heroes to the Last", cap: null, crossPlaybook: null,
+			markOptions: [
+				{ slug: "inured",      label: "They are inured", marks: 1 },
+				{ slug: "crew-damage", label: "Increase their damage die one size (max d10)", marks: 2, crewDamageStep: 1, crewDamageCap: "d10" },
+			],
+			markBudget: { base: 1, perExtra: 1 }, ownedIds: ["h1"],
+		};
+		const marks = { "Heroes to the Last": { "crew-damage": [{ stat: "", level: 6 }] } };
+		const at = (die) => {
+			const { dlg } = makeDialog({ data: { availableMoves: [heroes], marks, markCapState: { crewDamageDie: die } } });
+			dlg._selectedMoveId = "htl1";
+			dlg._step = "marks";
+			return Object.fromEntries(dlg.getData().markStep.options.map(o => [o.slug, o]));
+		};
+		const capped = at("d10");
+		expect(capped["crew-damage"]).toMatchObject({ disabled: true, tooltip: "Their damage die is already d10" });
+		expect(capped.inured).toMatchObject({ disabled: false, tooltip: null });
+		const room = at("d8");
+		expect(room["crew-damage"]).toMatchObject({ disabled: false, tooltip: null });
+	});
 });
 
 describe("LevelUpDialog mark step — no step when not applicable", () => {

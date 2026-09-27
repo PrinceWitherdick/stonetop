@@ -267,6 +267,20 @@
 				{{#if description}}
 				<div class="stonetop-item-description">{{{description}}}</div>
 				{{/if}}
+				{{!-- The Marshal's personal symbol: "when you display or reveal it in a dramatic
+				     fashion, your crew holds +1 Loyalty (max 3)". A button pressed once it has
+				     happened, only while chosen and with a crew (personal-symbol.js). The tooltip
+				     sits on a wrapper because a disabled button fires no hover to say why. --}}
+				{{#if (and checked (eq slug @root.stonetop.personalSymbol.slug))}}
+				<div class="stonetop-possession-actions">
+					<span class="stonetop-personal-symbol-wrap" data-tooltip="{{@root.stonetop.personalSymbol.tooltip}}" data-tooltip-direction="UP">
+						<button type="button" class="stonetop-personal-symbol-btn stonetop-inline-btn"
+						        {{#if @root.stonetop.personalSymbol.atMax}}disabled{{/if}}>
+							<i class="fas fa-flag" aria-hidden="true"></i> {{localize "stonetop.personalSymbol.button"}}
+						</button>
+					</span>
+				</div>
+				{{/if}}
 				{{#if choiceSummary}}
 				<div class="stonetop-possession-choice-summary">
 					{{#each choiceSummary}}

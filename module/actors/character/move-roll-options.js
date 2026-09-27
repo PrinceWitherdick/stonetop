@@ -9,6 +9,7 @@ import { isKnowThings, knowThingsRollOptions } from "./know-things.js";
 import { BATTLE_JOY, battleJoyRollOptions } from "./battle-joy.js";
 import { WIELDER_OF_THE_WHITE_FLAME } from "./holy-light.js";
 import { wielderRollOptions } from "./invoke-consequences.js";
+import { WE_HAPPY_FEW, speechRollOptions } from "./inspiration.js";
 
 const named = name => moveName => moveName === name;
 
@@ -24,6 +25,8 @@ export const MOVE_ROLL_OPTIONS = [
 	{ matches: named(BATTLE_JOY), build: actor => battleJoyRollOptions(actor.typedActor?.debilityChoices ?? []) },
 	// "You may Invoke the Sun God right now as if you rolled a 10+" (invoke-consequences.js#wireWielderInvoke).
 	{ matches: named(WIELDER_OF_THE_WHITE_FLAME), build: wielderRollOptions },
+	// Every tier asks who heard the speech (inspiration-flow.js#wireSpeechCard).
+	{ matches: named(WE_HAPPY_FEW), build: speechRollOptions },
 ];
 
 /**

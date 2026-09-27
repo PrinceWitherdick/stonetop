@@ -3,6 +3,7 @@ import {
 	battleHoldsToFill, battleHoldsContent, askBattleHolds, offerBattleHolds, installBattleHolds,
 	spendSurpriseForRoll, regainSurpriseOnHit, PREPARE_A_WELCOME,
 } from "../../module/combat/battle-holds.js";
+import { refreshHeldMoves } from "../../module/migration/move-refresh.js";
 import { stubAsk } from "../fakes/confirm.js";
 
 // The Marshal going into battle: Stentorian's "hold 2 Command" and Front Line Leader's "hold 2
@@ -150,5 +151,57 @@ describe("Prepare a Welcome's Surprise", () => {
 		const { actor } = planner(2);
 		expect(await spendSurpriseForRoll(actor, { name: "Clash" })).toBeNull();
 		expect(await regainSurpriseOnHit(actor, { name: "Clash" }, "success")).toBe(false);
+	});
+});
+
+// A copy embedded before the moves' `resource` was added to the pack (2026-06-09) has no track of its
+// own: the pack definition's is read instead, as the sheet draws it.
+describe("a stale embedded copy with no track", () => {
+	// Taken before the pack gave these moves their tracks: the held copy has none until the
+	// once-per-version refresh (migration/move-refresh.js) fills it from the pack, and then it works.
+	const stale = ({ moves = ["Stentorian", "Front Line Leader", PREPARE_A_WELCOME], held = {} } = {}) => {
+		const made = marshal({ moves, held });
+		made.actor.items.forEach((item, i) => { item.system = {}; item._id = `i${i}`; });
+		made.actor.updateEmbeddedDocuments = vi.fn(async (_type, updates) => {
+			for (const { _id, ...paths } of updates) {
+				const item = made.actor.items.find(it => it._id === _id);
+				for (const [path, value] of Object.entries(paths)) item.system[path.replace(/^system\./, "")] = value;
+			}
+		});
+		return made;
+	};
+	const index = Object.entries({
+		"Stentorian": { max: 2, title: "Command" },
+		"Front Line Leader": { max: 2, title: "Presence" },
+		[PREPARE_A_WELCOME]: { max: 3, title: "Surprise" },
+	}).map(([name, resource]) => ({ name, type: "move", system: { resource } }));
+	const refreshed = async made => {
+		expect(await refreshHeldMoves({ actors: [made.actor], entries: index })).toBe(1);
+		return made;
+	};
+
+	it("offers nothing until it is refreshed, then the pack's tracks", async () => {
+		const made = stale({ held: { "Front Line Leader": 1 } });
+		expect(battleHoldsToFill(made.actor)).toEqual([]);
+		await refreshed(made);
+		expect(battleHoldsToFill(made.actor)).toEqual([
+			{ move: "Stentorian", title: "Command", max: 2, held: 0 },
+			{ move: "Front Line Leader", title: "Presence", max: 2, held: 1 },
+		]);
+	});
+
+	it("fills them on joining a fight, once refreshed", async () => {
+		const { actor, tracks: held } = await refreshed(stale());
+		const moves = await offerBattleHolds(actor, { ask: async (_a, holds) => holds });
+		expect(moves).toEqual(["Stentorian", "Front Line Leader"]);
+		expect(held).toMatchObject({ "Stentorian": 2, "Front Line Leader": 2 });
+	});
+
+	it("spends and regains a Surprise, once refreshed", async () => {
+		const { actor, tracks: held } = await refreshed(stale({ moves: [PREPARE_A_WELCOME], held: { [PREPARE_A_WELCOME]: 3 } }));
+		expect(await spendSurpriseForRoll(actor, { name: PREPARE_A_WELCOME })).toBe("Spent 1 Surprise (2 left)");
+		expect(held[PREPARE_A_WELCOME]).toBe(2);
+		expect(await regainSurpriseOnHit(actor, { name: PREPARE_A_WELCOME }, "success")).toBe(true);
+		expect(held[PREPARE_A_WELCOME]).toBe(3);
 	});
 });

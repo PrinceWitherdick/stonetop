@@ -25,20 +25,23 @@ import { askWithButtons } from "../utils/ask-with-buttons.js";
 import { contentElement } from "../dialogs/content-picker.js";
 import { escHtml, joinNames } from "../utils/strings.js";
 import { format, localize } from "../utils/i18n.js";
+import { learnedTrack } from "../actors/character/MoveResources.js";
 
 const KEY = "stonetop.battleHolds";
 const FIELD = "stonetop-battle-hold";
 
 export const PREPARE_A_WELCOME = "Prepare a Welcome";
 
+/** The moves a battle fills, in the order the window lists them, each with its row's language key. */
+const HOLD_ROW_KEY = { "Stentorian": "stentorian", "Front Line Leader": "frontLine" };
+export const BATTLE_HOLD_MOVES = Object.keys(HOLD_ROW_KEY);
+
+// ── THE TRACK ITSELF ────────────────────────────────────────────────────────────────────────────
+// The held copy's `resource`. A copy taken before the pack gave these moves their tracks (2026-06-09)
+// is filled in once per version by migration/move-refresh.js.
+
 /** A move's HELD count off its track, within its max, or null when this character has no such track. */
-function heldOn(actor, move) {
-	if (!ownsLearnedMoveNamed(actor, move)) return null;
-	const max = Math.trunc(Number(ownedMove(actor, move)?.system?.resource?.max) || 0);
-	const resources = actor.typedActor?.moveResources;
-	if (!max || !resources) return null;
-	return { held: heldOnTrack(resources, move, max), max, resources };
-}
+const heldOn = learnedTrack;
 
 /**
  * Prepare a Welcome is being rolled: take the Surprise it spends. Returns the note the roll card should
@@ -68,9 +71,6 @@ export async function regainSurpriseOnHit(actor, item, tier) {
 	return true;
 }
 
-/** The moves a battle fills, in the order the window lists them, each with its row's language key. */
-const HOLD_ROW_KEY = { "Stentorian": "stentorian", "Front Line Leader": "frontLine" };
-export const BATTLE_HOLD_MOVES = Object.keys(HOLD_ROW_KEY);
 
 /**
  * The holds this character could top up right now: a learned move with a track, not full.
@@ -152,7 +152,7 @@ export function installBattleHolds({ hooks = globalThis.Hooks, offer = offerBatt
 	const id = hooks.on("createCombatant", combatant => {
 		const actor = combatant?.actor;
 		if (actor?.type !== "character" || asking.has(actor.id)) return;
-		if (!battleHoldsToFill(actor).length) return;
+		if (!BATTLE_HOLD_MOVES.some(move => ownsLearnedMoveNamed(actor, move))) return;
 		if (!answersFor(actor)) return;
 		asking.add(actor.id);
 		Promise.resolve(offer(actor))

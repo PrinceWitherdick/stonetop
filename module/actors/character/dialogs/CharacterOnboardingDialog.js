@@ -26,6 +26,7 @@ import { requiredMovesUnmet } from "../move-requirement.js";
 import { playbookIconPath } from "../../../utils/playbook-actors.js";
 import { ensurePackIndex } from "../../../utils/pack-index.js";
 import { SYSTEM_ID } from "../../../system-id.js";
+import { crewSetupLimit } from "./CrewSetupDialog.js";
 import { neighborChoiceGroups } from "./BackgroundNeighborsDialog.js";
 
 const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
@@ -126,7 +127,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	}
 
 	constructor(playbookDoc, onComplete, options = {}) {
-		const { onBack, onSave, onClose, onProgress, onLiveSave, onExit, initialSelections, startAtStep = null, ownedMoveCounts = null, retiredMoveNames = null, ...appOptions } = options;
+		const { onBack, onSave, onClose, onProgress, onLiveSave, onExit, initialSelections, startAtStep = null, ownedMoveCounts = null, retiredMoveNames = null, crewTagBonus = 0, ...appOptions } = options;
 		super(appOptions);
 		this._playbookDoc        = playbookDoc;
 		this._onComplete         = onComplete;
@@ -139,6 +140,9 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		// remarkable traits, +1 per Big Magic) is correct after taking that move at
 		// level-up. New characters pass none; in-session move picks add on top.
 		this._ownedMoveCounts    = ownedMoveCounts ?? {};
+		// Extra crew tags the character's marked moves allow (Veteran Crew's "Select 2 new tags",
+		// the crew stats' tagBonus), on top of the playbook's pick count. A new character has none.
+		this._crewTagBonus       = Math.max(0, Number(crewTagBonus) || 0);
 		this._onBack             = onBack ?? null;
 		this._onSave             = onSave ?? null;
 		// Fired when the dialog closes for good (finish / save-and-close / window X),
@@ -413,7 +417,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			// starts with Ambush can take Skill at Arms as their 1 of choice. The half picked in
 			// its group is theirs already.
 			if (doc.system?.isStartingMove && !choiceMoveNames.has(doc.name)) return false;
-			if (bgMoveNames.has(doc.name)) return false;
+			if (bgMoveNames.has(doc.name) && !this._backgroundMoveHasRoom(doc, pickedIds)) return false;
 			// A move only a background gives (the Heavy's Bark an Order, the Sheriff's), for any
 			// other background: never a pick.
 			if (doc.system?.requirement?.background) return false;
@@ -422,6 +426,18 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			if (requiredMovesUnmet(doc.system?.requirement, r => grantedNames.has(r))) return false;
 			return true;
 		});
+	}
+
+	// A REPEATABLE move the background gives may still be the free pick (the user's ruling: a
+	// Scion's free pick may be the second Veteran Crew) while the copies held, the background's own
+	// included, are below its repeatMax. This pick's own copy, held already on a re-run, is not
+	// counted against it; a copy taken at a level-up is.
+	_backgroundMoveHasRoom(doc, pickedIds) {
+		const repeatMax = Number(doc.system?.repeatMax) || 1;
+		if (repeatMax < 2) return false;
+		const owned = Number(this._ownedMoveCounts?.[doc.name]) || 0;
+		const held  = Math.max(1, owned - (pickedIds.has(doc.id) || pickedIds.has(doc.name) ? 1 : 0));
+		return held < repeatMax;
 	}
 
 	// Let go of every free pick the list no longer offers, and return the offers. Repeated until
@@ -504,9 +520,48 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		return SEEKER_ARCANA_SLUGS.every(slug => slugs.has(slug));
 	}
 
+	// ── Crew tags ─────────────────────────────────────────────────
+	// The tag the chosen background gives the crew (auto, never a pick), or null.
+	_crewBgTag() {
+		return this._rawCrew?.backgroundTags?.[this._selections.backgroundSlug] ?? null;
+	}
+
+	// The crew tags the player PICKED: the stored list less the background's auto tag and the
+	// "group" tag every crew has, as the sheet counts them (StonetopCharacterSheet, crewChosenTags).
+	// A stored tag that the background now grants is not a pick, or a Penitent who took respected
+	// and then became a Scion reads 2/2 with one real pick.
+	_crewPickedTags() {
+		const bgTag = this._crewBgTag();
+		return (this._selections.crew?.tags ?? []).filter(t => t !== bgTag && t !== "group");
+	}
+
+	// How many crew tags the player picks: the playbook's count plus Veteran Crew's marked extras.
+	_crewTagLimit() {
+		return crewSetupLimit(this._rawCrew, this._crewTagBonus);
+	}
+
+	// A crew tag ticked or unticked in the picker. Refused (false) when ticking one past the limit;
+	// the caller puts the box back.
+	_toggleCrewTag(tag, checked) {
+		const tags = this._selections.crew.tags;
+		if (!checked) {
+			this._selections.crew.tags = tags.filter(t => t !== tag);
+			return true;
+		}
+		if (tags.includes(tag)) return true;
+		if (this._crewPickedTags().length >= this._crewTagLimit()) return false;
+		tags.push(tag);
+		return true;
+	}
+
 	_applyBackgroundChange(slug) {
 		this._selections.backgroundSlug = slug;
 		this._selections.initiates = [];
+		// A picked crew tag the new background grants on its own is no longer a pick.
+		if (this._selections.crew?.tags) {
+			const bgTag = this._crewBgTag();
+			this._selections.crew.tags = this._selections.crew.tags.filter(t => t !== bgTag);
+		}
 		this._ensureBackgroundMoveChoices();
 		this._ensureBackgroundSetup();
 		this._ensureBackgroundActions();
@@ -1444,8 +1499,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				});
 			}
 			case "crew": {
-				const tagLimit = this._rawCrew?.additionalTagCount ?? 2;
-				return this._selections.crew.tags.length >= tagLimit &&
+				return this._crewPickedTags().length >= this._crewTagLimit() &&
 				       !!this._selections.crew.instinct &&
 				       !!this._selections.crew.cost;
 			}
@@ -1673,10 +1727,9 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				};
 			}
 			case "crew": {
-				const tagLimit = this._rawCrew?.additionalTagCount ?? 2;
 				return {
-					requiredTags: tagLimit,
-					selectedTags: this._selections.crew.tags.length,
+					requiredTags: this._crewTagLimit(),
+					selectedTags: this._crewPickedTags().length,
 					hasInstinct: !!this._selections.crew.instinct,
 					hasCost: !!this._selections.crew.cost,
 				};
@@ -2126,9 +2179,10 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		// ── Crew ──────────────────────────────────────────────────────
 		if (stepType === "crew") {
 			const raw    = this._rawCrew;
-			const bgTag  = raw.backgroundTags?.[this._selections.backgroundSlug] ?? null;
-			const chosen = new Set(this._selections.crew.tags);
-			const limit  = raw.additionalTagCount ?? 2;
+			const bgTag  = this._crewBgTag();
+			// Picks only: a stored tag the background now grants is its auto tag, not a pick.
+			const chosen = new Set(this._crewPickedTags());
+			const limit  = this._crewTagLimit();
 			const atLimit = chosen.size >= limit;
 			// The Crew insert mirrors the companion's: blank write-in rows for Tags (a
 			// chosen tag not in the list is the write-in, and it spends one of the "pick N"
@@ -3054,20 +3108,15 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		});
 
 		html.find("[name='onboard-crew-tag']").on("change", ev => {
-			const tag     = ev.currentTarget.value;
-			const checked = ev.currentTarget.checked;
-			const limit   = this._rawCrew?.additionalTagCount ?? 2;
-			if (checked) {
-				if (this._selections.crew.tags.length < limit && !this._selections.crew.tags.includes(tag)) {
-					this._selections.crew.tags.push(tag);
-				} else { ev.currentTarget.checked = false; return; }
-			} else {
-				this._selections.crew.tags = this._selections.crew.tags.filter(t => t !== tag);
+			if (!this._toggleCrewTag(ev.currentTarget.value, ev.currentTarget.checked)) {
+				ev.currentTarget.checked = false;
+				return;
 			}
 			ev.currentTarget.closest(".stonetop-onboarding-tag-option")
 				?.classList.toggle("is-selected", ev.currentTarget.checked);
-			html.find(".stonetop-onboarding-crew-tag-count").text(this._selections.crew.tags.length);
-			const atLimit = this._selections.crew.tags.length >= limit;
+			const picked  = this._crewPickedTags().length;
+			html.find(".stonetop-onboarding-crew-tag-count").text(picked);
+			const atLimit = picked >= this._crewTagLimit();
 			html.find("[name='onboard-crew-tag']:not([data-auto])").each((_, el) => {
 				if (!el.checked) el.disabled = atLimit;
 			});
@@ -3080,12 +3129,14 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		html.find(".onboard-crew-tag-custom").on("input", ev => {
 			const value = ev.currentTarget.value.trim();
 			const known = new Set(this._rawCrew?.availableTags ?? []);
-			const limit = this._rawCrew?.additionalTagCount ?? 2;
-			const tags  = this._selections.crew.tags.filter(t => known.has(t));
+			const limit = this._crewTagLimit();
+			const bgTag = this._crewBgTag();
+			const tags  = this._selections.crew.tags.filter(t => known.has(t) && t !== bgTag);
 			if (value && tags.length < limit) tags.push(value);
 			this._selections.crew.tags = tags;
-			html.find(".stonetop-onboarding-crew-tag-count").text(tags.length);
-			html.find("[name='onboard-crew-tag']:not([data-auto]):not(:checked)").prop("disabled", tags.length >= limit);
+			const picked = this._crewPickedTags().length;
+			html.find(".stonetop-onboarding-crew-tag-count").text(picked);
+			html.find("[name='onboard-crew-tag']:not([data-auto]):not(:checked)").prop("disabled", picked >= limit);
 			_refreshNextButton();
 		});
 		// Suggestion-radio + "or write your own" custom-input pair (crew/AC instinct &

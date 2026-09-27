@@ -25,6 +25,14 @@ export const THE_NATURAL = { playbook: "The Fox", slug: "the-natural", label: "T
  */
 export const BLOOD_SOAKED_PAST = { playbook: "The Heavy", slug: "blood-soaked-past", label: "Blood-Soaked Past" };
 
+/**
+ * The Marshal's Penitent: "When you draw on your bloody past to Know Things, you may roll +STR
+ * instead of +INT. If you do, the GM will ask you who you wronged back then or who might still
+ * hold a grudge." Drawing on that past is the player's call, and the GM's question follows at the
+ * table; the picker quotes the paragraph beside the stat.
+ */
+export const PENITENT = { playbook: "The Marshal", slug: "penitent", label: "Penitent" };
+
 export const ALT_STAT_GRANTS = [
 	{ whenMove: "Clash",               ownsMove: "Skill at Arms",    altStat: "dex" },
 	{ whenMove: "Clash",               ownsMove: "Purifying Flames", altStat: "wis" },
@@ -35,6 +43,7 @@ export const ALT_STAT_GRANTS = [
 	{ whenMove: "Persuade (vs. NPCs)", background: BLOOD_SOAKED_PAST, altStat: "str" },
 	{ whenMove: "Persuade (vs. PCs)",  background: BLOOD_SOAKED_PAST, altStat: "str" },
 	{ whenMove: "Formidable",          background: BLOOD_SOAKED_PAST, altStat: "con" },
+	{ whenMove: "Know Things",         background: PENITENT,          altStat: "str" },
 ];
 
 /**

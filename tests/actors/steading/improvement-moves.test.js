@@ -85,6 +85,23 @@ describe("a homefront roll, with what the steading has built", () => {
 		expect(lastRoll()[2].conditionNotes).toContain("Trained tactic: Formations");
 	});
 
+	it("rolls a Muster at advantage with the Marshal's Logistics ticked, and cancels it against Diminished", async () => {
+		await makeSheet()._onSteadingRoll("Muster", "population", { improvementAnswers: { logistics: "yes" } });
+		expect(lastRoll()[2]).toMatchObject({ rollMode: "adv", conditionNotes: ["Logistics: advantage"] });
+		await makeSheet({ diminished: true })._onSteadingRoll("Pull Together", "population", { improvementAnswers: { logistics: "yes" } });
+		expect(lastRoll()[2].rollMode).toBe("normal");
+		await makeSheet()._onSteadingRoll("Requisition", "fortunes", { improvementAnswers: { logistics: "" } });
+		expect(lastRoll()[2].rollMode).toBe("normal");
+	});
+
+	it("asks the Logistics line, ticked, in the Muster, Pull Together and Requisition windows", async () => {
+		const { improvementCheckHtml } = await import("../../../module/actors/steading/StonetopSteadingSheet.js");
+		expect(improvementCheckHtml({ name: "logistics", label: "Logistics (Wren)", checked: true })).toMatch(/name="logistics" value="yes" checked>/);
+		expect(improvementCheckHtml({ name: "herd", label: "Herd" })).not.toMatch(/checked/);
+		// Both windows hand the world's Logistics holders to the questions.
+		expect(STEADING_JS.match(/logistics: worldLogisticsNames\(\)/g)).toHaveLength(2);
+	});
+
 	it("passes a herd Requisition's 6- as a 7-9 to the roll", async () => {
 		await makeSheet({ built: ["herdOfHorses"] })._onSteadingRoll("Requisition", "fortunes", { improvementAnswers: { herdShare: "yes" } });
 		expect(lastRoll()[2].missCountsAsPartial).toMatch(/half the herd/i);

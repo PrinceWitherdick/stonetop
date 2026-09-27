@@ -104,6 +104,10 @@
       {{#if herdShare}}
       <label class="stonetop-requisition-herd"><input type="checkbox" class="stonetop-check" name="herdShare"><span>{{herdShare}}</span></label>
       {{/if}}
+      {{#if reqLogistics}}
+      {{!-- The Marshal's Logistics, ticked once any character has it learned. --}}
+      <label class="stonetop-requisition-herd stonetop-requisition-logistics"><input type="checkbox" class="stonetop-check" name="logistics" checked><span>{{reqLogistics}}</span></label>
+      {{/if}}
       {{#if roll}}
       <div class="stonetop-spring-roll-result stonetop-spring--{{roll.tier}}">
         <span class="stonetop-spring-roll-result-total">{{roll.total}}</span>

@@ -40,6 +40,11 @@ export function ownsLearnedMoveNamed(actor, name) {
 	return !!actor?.items?.some(i => i.type === "move" && i.name === name && isMoveLearned(i));
 }
 
+/** The characters out of any list of actors who have move `name` learned (ownsLearnedMoveNamed). */
+export function learnedHolders(actors, name) {
+	return [...(actors ?? [])].filter(a => a?.type === "character" && ownsLearnedMoveNamed(a, name));
+}
+
 /**
  * Did a PLAYER write this move, in the custom-move dialog, rather than a book print it?
  *

@@ -956,6 +956,9 @@ export async function rollDamage(formula, actor, options = {}) {
 		// (combat/attack-flow.js#rollAndPostDamage).
 		flavor:   _rollCard({ header: label, buttons: true, total: Math.max(0, roll.total), formula: roll.formula, dieResults: dieResultsText(roll), conditionsHtml: conditionsRowHtml(conditions), noticesHtml: options.notices ?? "", keywords: options.keywords ?? "", description: options.description ?? "", badge: damageBadge(), sectionClass: "stonetop-damage-roll-card", damage: true }),
 		rollMode: game.settings.get("core", "rollMode"),
+		// What a caller needs the card to say about itself: a follower's blow posted under their
+		// character's name (combat/attack-flow.js#rollDamageAt), which is not the character's roll.
+		...(options.messageFlags ? { flags: options.messageFlags } : {}),
 	});
 
 	return roll;

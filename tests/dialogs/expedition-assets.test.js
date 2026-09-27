@@ -423,11 +423,39 @@ describe("rolling Requisition", () => {
 		expect(seasons.calls[0].formula).toMatch(/^2d6 /);
 	});
 
-	it("rolls at advantage when the GM picks it (the Marshal's Logistics)", async () => {
+	it("rolls at advantage when the GM picks it", async () => {
 		const d = dialog();
 		d._reqMode = "adv";
 		await d._rollRequisition();
 		expect(seasons.calls[0].formula).toMatch(/^3d6kh2 /);
+	});
+
+	// The Marshal's Logistics: "when you Requisition, you have advantage".
+	it("asks the Logistics line only once a character has it learned, and names them", () => {
+		const move = (name, learned = true) => ({ type: "move", name, flags: learned ? {} : { "stonetop-pwd": { learned: false } } });
+		global.game.actors = [
+			{ type: "character", name: "Wren", items: [move("Logistics")] },
+			{ type: "character", name: "Ash", items: [move("Logistics", false)] },
+			{ type: "npc", name: "Quartermaster", items: [move("Logistics")] },
+		];
+		expect(dialog()._logisticsQuestion()).toMatch(/^Logistics \(Wren\): they are the one Requisitioning, advantage$/);
+		global.game.actors = [{ type: "character", name: "Ash", items: [move("Logistics", false)] }];
+		expect(dialog()._logisticsQuestion()).toBe("");
+	});
+
+	it("rolls at advantage with the Logistics line ticked, and names it on the card", async () => {
+		const d = dialog();
+		d.element = [{ querySelector: sel => (sel === '[name="logistics"]' ? { checked: true } : null) }];
+		await d._rollRequisition();
+		expect(seasons.calls[0].formula).toMatch(/^3d6kh2 /);
+		expect(seasons.calls[0].conditionNotes).toEqual(["Logistics: advantage"]);
+	});
+
+	it("rolls a plain 2d6 with the Logistics line unticked", async () => {
+		const d = dialog();
+		d.element = [{ querySelector: sel => (sel === '[name="logistics"]' ? { checked: false } : null) }];
+		await d._rollRequisition();
+		expect(seasons.calls[0].formula).toMatch(/^2d6 /);
 	});
 
 	it("applies the steading's held advantage, spends it, and names it on the card", async () => {

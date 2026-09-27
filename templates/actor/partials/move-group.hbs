@@ -190,7 +190,7 @@
 						{{/each}}
 					</span>
 					{{else}}
-					<span class="stonetop-move-mark-checks">
+					<span class="stonetop-move-mark-checks"{{#if capNote}} data-tooltip="{{capNote}}" data-tooltip-direction="UP"{{/if}}>
 						{{#each checks}}
 						<input type="checkbox" class="stonetop-move-mark-check"
 						       data-move-name="{{../../name}}"
@@ -200,7 +200,7 @@
 						       {{#if (or disabled (not @root.stonetop.movesEdit))}}disabled{{/if}}>
 						{{/each}}
 					</span>
-					<span class="stonetop-move-mark-label">{{label}}</span>
+					<span class="stonetop-move-mark-label"{{#if capNote}} data-tooltip="{{capNote}}" data-tooltip-direction="UP"{{/if}}>{{label}}</span>
 					{{#each checks}}{{#if checked}}{{> "stonetop.move-mark-level" moveName=../../name slug=../slug index=index level=level}}{{/if}}{{/each}}
 					{{/if}}
 				</li>

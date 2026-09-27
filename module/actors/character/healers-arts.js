@@ -23,7 +23,7 @@
 // patient's player and the chat card are told so. With nobody at all to ask, the window says so and
 // offers the Recover without the Stock.
 
-import { ownsLearnedMoveNamed } from "./owns-move.js";
+import { learnedHolders, ownsLearnedMoveNamed } from "./owns-move.js";
 import { payableStockSources, mustAskStockSource } from "./stock-cost.js";
 import { askStockSource } from "./ask-stock-source.js";
 import { queryAsker } from "../../utils/foundry-compat.js";
@@ -53,7 +53,7 @@ const LATE_MARGIN_MS = 10000;
 
 /** The characters who can tend a Recover: those with Healer's Arts LEARNED (owns-move.js). */
 export function healersArtsCarers(actors) {
-	return [...(actors ?? [])].filter(a => a?.type === "character" && ownsLearnedMoveNamed(a, HEALERS_ARTS));
+	return learnedHolders(actors, HEALERS_ARTS);
 }
 
 /** A carer's WIS, as the sheet stores it. */

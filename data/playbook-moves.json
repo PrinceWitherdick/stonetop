@@ -2327,7 +2327,7 @@
     },
     {
       "name": "Shake It Off",
-      "description": "<p>When you <strong><em>order an ally to overcome fear, pain</em></strong>, doubt, or delusion, roll +CHA: <strong>on a 10+</strong>, they do it; <strong><em>on a 7-9</em></strong>, a PC gets advantage to do it; an NPC will do it, but they'll need time, they'll resent you, or they'll feel humiliated (GM decides).</p>",
+      "description": "<p>When you <strong><em>order an ally to overcome fear, pain, doubt, or delusion</em></strong>, roll +CHA: <strong>on a 10+</strong>, they do it; <strong><em>on a 7-9</em></strong>, a PC gets advantage to do it; an NPC will do it, but they'll need time, they'll resent you, or they'll feel humiliated (GM decides).</p>",
       "rollType": "cha",
       "results": {
         "success": {
@@ -2347,7 +2347,7 @@
     },
     {
       "name": "Shield Wall",
-      "description": "<p>When you <strong><em>have your crew form a shield wall</em></strong>, they Defend with advantage and <strong><em>on a 7+</em></strong> they hold +2 Readiness (instead of the usual +1 for shields). As long as they maintain formation, they can go on the offensive without losing Readiness.</p>",
+      "description": "<p>When you <strong><em>have your crew form a shield wall</em></strong>, they Defend with advantage and <strong><em>on a 7+</em></strong> they hold +2 Readiness (instead of the usual +1 for shields). <strong><em>As long as they maintain formation</em></strong>, they can go on the offensive without losing Readiness.</p>",
       "rollType": null,
       "playbook": "The Marshal"
     },

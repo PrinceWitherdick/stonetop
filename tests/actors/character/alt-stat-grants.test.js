@@ -46,6 +46,13 @@ describe("knowThingsRollChoices reads the same table", () => {
 		expect(knowThingsRollChoices(["Well-Read"], NATURAL).stats).toEqual(["int", "wis"]);
 		expect(knowThingsRollChoices([], NATURAL).hasChoice).toBe(false);
 	});
+
+	it("so an arcanum's identifying Know Things offers the Penitent +STR, named by the background", () => {
+		const choices = knowThingsRollChoices([], { playbook: "The Marshal", background: "penitent" });
+		expect(choices.stats).toEqual(["int", "str"]);
+		expect(choices.statGrants).toEqual(["Penitent"]);
+		expect(knowThingsRollChoices([], { playbook: "The Marshal", background: "luminary" }).hasChoice).toBe(false);
+	});
 });
 
 // ── The sheet's stat picker ────────────────────────────────────────────────────
@@ -103,6 +110,65 @@ describe("the sheet's alternate-stat offer", () => {
 		expect(offer.grants[0].system.description).toContain("roll +INT instead of +WIS");
 		// Only the rule, not the character's life story.
 		expect(offer.grants[0].system.description).not.toContain("You grew up around here");
+	});
+
+	// Heavy audit (2026-09-25): Blood-Soaked Past's "+STR instead of +CHA" to Persuade and "+CON
+	// instead of +CHA" on Formidable offered nothing. The quote looked for "Persuade (vs. NPCs)" in
+	// a background that only ever says "Persuade", so even a table row would have quoted nothing.
+	it("offers Blood-Soaked Past's +STR on either Persuade, quoting the background's rule", async () => {
+		for (const name of ["Persuade (vs. NPCs)", "Persuade (vs. PCs)"]) {
+			const persuade = basic(name, "cha");
+			const { char, actor } = buildLiveCharacter({
+				slug: "the-heavy", name: "The Heavy", seedStartingMoves: false, items: [persuade],
+				flags: { "background.selected": "blood-soaked-past" },
+			});
+			const offer = await sheetFor(char, actor)._altStatChoiceForRollable(rollableFor(persuade));
+			expect(offer.stats).toEqual(["cha", "str"]);
+			expect(offer.grants[0].name).toBe("Blood-Soaked Past");
+			expect(offer.grants[0].system.description).toContain("roll +STR instead of +CHA");
+			expect(offer.grants[0].system.description).not.toContain("a name mothers used to scare");
+		}
+	});
+
+	it("offers Blood-Soaked Past's +CON on Formidable, and neither grant to another background", async () => {
+		const formidable = makeLiveItem({ name: "Formidable", type: "move", system: { moveType: "playbook", rollType: "cha" } });
+		const { char, actor } = buildLiveCharacter({
+			slug: "the-heavy", name: "The Heavy", seedStartingMoves: false, items: [formidable],
+			flags: { "background.selected": "blood-soaked-past" },
+		});
+		const offer = await sheetFor(char, actor)._altStatChoiceForRollable(rollableFor(formidable));
+		expect(offer.stats).toEqual(["cha", "con"]);
+		expect(offer.grants[0].system.description).toContain("roll +CON instead of +CHA");
+
+		const persuade = basic("Persuade (vs. NPCs)", "cha");
+		const sheriff = buildLiveCharacter({
+			slug: "the-heavy", name: "The Heavy", seedStartingMoves: false, items: [persuade],
+			flags: { "background.selected": "sheriff" },
+		});
+		expect(await sheetFor(sheriff.char, sheriff.actor)._altStatChoiceForRollable(rollableFor(persuade))).toBeNull();
+	});
+
+	// Marshal audit (2026-09-26): the Penitent's "draw on your bloody past to Know Things, you may
+	// roll +STR instead of +INT" offered nothing.
+	it("offers the Penitent's +STR on Know Things, quoting the background's rule, and not to a Scion", async () => {
+		const know = basic("Know Things", "int");
+		const { char, actor } = buildLiveCharacter({
+			slug: "the-marshal", name: "The Marshal", seedStartingMoves: false, items: [know],
+			flags: { "background.selected": "penitent" },
+		});
+		const offer = await sheetFor(char, actor)._altStatChoiceForRollable(rollableFor(know));
+		expect(offer.stats).toEqual(["int", "str"]);
+		expect(offer.grants[0].name).toBe("Penitent");
+		expect(offer.grants[0].system.description).toContain("roll +STR instead of +INT");
+		expect(offer.grants[0].system.description).toContain("who might still hold a grudge");
+		expect(offer.grants[0].system.description).not.toContain("ne'er-do-wells");
+
+		const know2 = basic("Know Things", "int");
+		const scion = buildLiveCharacter({
+			slug: "the-marshal", name: "The Marshal", seedStartingMoves: false, items: [know2],
+			flags: { "background.selected": "scion" },
+		});
+		expect(await sheetFor(scion.char, scion.actor)._altStatChoiceForRollable(rollableFor(know2))).toBeNull();
 	});
 
 	it("offers nothing on Seek Insight to a Fox of another background", async () => {

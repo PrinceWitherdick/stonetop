@@ -118,7 +118,7 @@ export function dangerousMode(actor, rollMode = "") {
 
 /**
  * A character's own damage roll's mode once THEY have had their say: Dangerous's advantage, and the
- * Marshal's shaken nerves ("disadvantage on all rolls until you share your nerves", We Happy Few's 6-;
+ * Marshal's shaken nerves ("disadvantage on all rolls until you share your nagging doubts", We Happy Few's 6-;
  * actors/character/fight-states.js). Folded together, so the two cancel (p.230) rather than stepping
  * one after the other, and neither stacks with the roll's own mode.
  *

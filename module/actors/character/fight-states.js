@@ -4,7 +4,7 @@
  * a read-only face for a viewer who cannot write.
  *
  *  - NERVES, the Marshal's We Happy Few 6-: "each ally holds 1, but you have disadvantage on all rolls
- *    until you share your nerves with someone". Switched on by the 6- itself (a stated consequence is
+ *    until you share your nagging doubts with someone else". Switched on by the 6- itself (a stated consequence is
  *    not an offer), and off by a click once they have. Enforced: every roll the character makes
  *    (StonetopCharacter#applyDebilityRollMode, and their damage through `ownDamageMode` in
  *    fight/hero-moves.js), named on the card.
@@ -127,8 +127,8 @@ function postNote(actor, title, key, data = {}) {
 }
 
 /**
- * We Happy Few rolled a 6-: "you have disadvantage on all rolls until you share your nerves with
- * someone". Stated flatly, so it is simply switched on, and the chat says so.
+ * We Happy Few rolled a 6-: "you have disadvantage on all rolls until you share your nagging doubts
+ * with someone else". Stated flatly, so it is simply switched on, and the chat says so.
  *
  * @returns {Promise<boolean>} whether it was switched on just now
  */

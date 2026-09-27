@@ -174,6 +174,8 @@ function makeCharacterMock(actor) {
 		// The real one falls back to the Lightbearer's list for anyone with Invoke the Sun God;
 		// these tests only ever hand it a playbook that carries its own.
 		invocationSource: vi.fn(async playbookDoc => playbookDoc?.invocations?.options?.length ? playbookDoc.invocations : null),
+		// Likewise the Crew insert: the real one borrows the Marshal's for anyone with Crew learned.
+		crewSource: vi.fn(async playbookDoc => playbookDoc?.crew ?? null),
 	};
 }
 

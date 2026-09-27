@@ -181,21 +181,21 @@ describe("StonetopCharacter.setCountMark — repeat-scaling budget", () => {
 		// 1 owned ⇒ budget 1, but crew-hp is marked 3× (legacy over-budget). _ownedMoveBonuses
 		// sums the full checked count — effects are never clamped to the budget.
 		const { char } = makeChar({ def: VETERAN_CREW, copies: 1, marks: { "crew-hp": [lvl(), lvl(), lvl()] } });
-		const totals = await char._ownedMoveBonuses({ name: "The Marshal" }, new Set(["Veteran Crew"]));
+		const totals = await char._ownedMoveBonuses({ name: "The Marshal" }, char._buildOwnedMovesMap());
 		expect(totals.crewHp).toBe(6); // 3 marks × crewHp 2, not clamped to 1
 	});
 
 	it("sums crewTags so 'Select 2 new tags' raises the Crew tag allowance (+2 per pick)", async () => {
 		// 2 copies (budget 2), the tags option picked twice ⇒ +4 crew tag slots.
 		const { char } = makeChar({ def: VETERAN_CREW, copies: 2, marks: { tags: [lvl(), lvl()] } });
-		const totals = await char._ownedMoveBonuses({ name: "The Marshal" }, new Set(["Veteran Crew"]));
+		const totals = await char._ownedMoveBonuses({ name: "The Marshal" }, char._buildOwnedMovesMap());
 		expect(totals.crewTags).toBe(4);
 	});
 
 	it("sums companionHp/companionArmor from Beast of Legend's 'tough' pick", async () => {
 		// 2 copies (budget 2), the tough option picked twice ⇒ +8 HP / +2 armor to the companion.
 		const { char } = makeChar({ def: BEAST_OF_LEGEND, copies: 2, marks: { tough: [lvl(), lvl()] } });
-		const totals = await char._ownedMoveBonuses({ name: "The Ranger" }, new Set(["Beast of Legend"]));
+		const totals = await char._ownedMoveBonuses({ name: "The Ranger" }, char._buildOwnedMovesMap());
 		expect(totals.companionHp).toBe(8);
 		expect(totals.companionArmor).toBe(2);
 	});

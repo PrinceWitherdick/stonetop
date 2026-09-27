@@ -89,7 +89,8 @@ describe("We Happy Few's 6-", () => {
 		const hale = hero({ moves: [WE_HAPPY_FEW] });
 		expect(await shakeNervesOnMiss(hale, item, "failure")).toBe(true);
 		expect(fightStateOn(hale, "nerves")).toBe(true);
-		expect(posted[0].content).toContain("disadvantage on all rolls until they share their nerves");
+		// The sheet's words: "until you share your nagging doubts with someone else".
+		expect(posted[0].content).toContain("disadvantage on all rolls until they share their nagging doubts with someone else");
 	});
 
 	it("leaves a hit, another move, and nerves already shaken alone", async () => {

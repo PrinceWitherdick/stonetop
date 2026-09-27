@@ -48,6 +48,37 @@ describe("the questions a move's window asks", () => {
 	});
 });
 
+// The Marshal's Logistics: "When you have a steading Muster or Pull Together, or when you
+// Requisition, you have advantage." Asked, ticked, only once some character has it learned.
+describe("the Marshal's Logistics", () => {
+	it("asks a ticked line on Muster, Pull Together and Requisition, naming who has it", () => {
+		for (const move of [STEADING_MOVE.MUSTER, STEADING_MOVE.PULL_TOGETHER, STEADING_MOVE.REQUISITION]) {
+			const ask = improvementQuestions(move, "x", { logistics: ["Wren"] }).find(q => q.name === "logistics");
+			expect(ask, move).toMatchObject({ type: "checkbox", checked: true });
+			expect(ask.label, move).toMatch(/^Logistics \(Wren\): they are the one/);
+		}
+		expect(improvementQuestions(STEADING_MOVE.MUSTER, "population", { logistics: ["Wren", "Ash"] })[0].label)
+			.toBe("Logistics (Wren or Ash): one of them is the one having the steading Muster, advantage");
+	});
+
+	it("asks nothing when nobody has it, or on any other move", () => {
+		expect(improvementQuestions(STEADING_MOVE.MUSTER, "population", { logistics: [] })).toEqual([]);
+		for (const move of [STEADING_MOVE.DEPLOY, STEADING_MOVE.TRADE_BARTER, STEADING_MOVE.AUROCHS_HUNT]) {
+			expect(names(improvementQuestions(move, "x", { logistics: ["Wren"] })), move).not.toContain("logistics");
+		}
+	});
+
+	it("gives advantage while ticked, named, and cancels against Diminished", () => {
+		const muster = answers => rollAdjustments({ moveName: STEADING_MOVE.MUSTER, statKey: "population", answers, diminished: true });
+		expect(muster({ logistics: "yes" }).adv).toEqual(["Logistics"]);
+		expect(muster({ logistics: "" }).adv).toEqual([]);
+		expect(netRollMode("normal", muster({ logistics: "yes" }).adv, muster({ logistics: "yes" }).dis)).toBe("normal");
+		expect(rollConditionNotes(rollAdjustments({ moveName: STEADING_MOVE.REQUISITION, statKey: "fortunes", answers: { logistics: true } })))
+			.toEqual(["Logistics: advantage"]);
+		expect(rollAdjustments({ moveName: STEADING_MOVE.TRADE_BARTER, statKey: "prosperity", answers: { logistics: "yes" } }).adv).toEqual([]);
+	});
+});
+
 describe("what the improvements do to the roll", () => {
 	it("gives a Township advantage to Muster, Pull Together and Trade & Barter, and nothing else", () => {
 		for (const move of [STEADING_MOVE.MUSTER, STEADING_MOVE.PULL_TOGETHER, STEADING_MOVE.TRADE_BARTER]) {

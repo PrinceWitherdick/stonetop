@@ -402,12 +402,14 @@
           {
             "slug": "shield",
             "label": "<strong>Shield</strong> (+1 armor, +1 Readiness on 7+ to Defend)",
-            "weight": 2
+            "weight": 2,
+            "armorBonus": 1
           },
           {
             "slug": "thick-hides",
             "label": "<strong>Thick hides</strong> (1 armor, <em>warm</em>)",
-            "weight": 2
+            "weight": 2,
+            "armor": 1
           },
           {
             "slug": "cloak",

@@ -23,7 +23,8 @@
 //    system has no socket relay); "suffer your enemy's attack" writes the PC's own HP, so
 //    its card is pressed by whoever can — the player, or the GM who authored it.
 
-import {STONETOP_SCOPE} from "../actors/character/StonetopFlags.js";
+import {STONETOP_SCOPE, readableFlags} from "../actors/character/StonetopFlags.js";
+import {crewWeaponChoices} from "./crew-weapons.js";
 import {weaponMetaFromNote} from "../data/weapon-from-note.js";
 import {weaponMeta, isClashWeapon, isLetFlyWeapon, weaponTraitText, weaponArmorBits, grantedWeaponForMove, MOVE_GRANTED_WEAPONS, UNARMED_META, MELEE_RANGES, ALL_IN_THE_WRIST, withWristThrow} from "../data/weapons.js";
 import {escHtml, joinNames} from "../utils/strings.js";
@@ -40,7 +41,7 @@ import {rollTargets} from "../fight/fight-targets.js";
 // used are let go once it is (fight/fight-shots.js).
 import {recordShots, releaseSpentTargets, shotOnRecordAt} from "../fight/fight-shots.js";
 // A lone attacker's blow on a token standing for a group hits one member of it (fight/group-hits.js).
-import {isLoneBlowOnGroup, applyMemberHit} from "../fight/group-hits.js";
+import {isLoneBlowOnGroup, applyMemberHit, applyRosterHit, moveRosterHit, rosterGroupFor} from "../fight/group-hits.js";
 import {halveDamage, spentOn} from "../fight/defend-spend.js";
 // Playbook moves the fight turns on: Undaunted's +1 armor and +1d6, Big Damn Hero's locked eyes
 // (fight/hero-moves.js).
@@ -1243,6 +1244,9 @@ export async function rollDamageAt(actor, { formula, label, keywords = "", descr
 		const roll = await rollDamage(base, actor, {
 			label, keywords, description, ...adjust,
 			...(notices ? { notices } : {}),
+			// A follower's blow is not a damage roll the character made (We Happy Few's die rides only
+			// those: actors/character/inspiration-flow.js).
+			...(striker ? { messageFlags: { [SCOPE]: { followerBlow: true } } } : {}),
 		});
 		// The Heavy spilling blood (combat/battle-joy-offer.js), and attacking ending a Fox's or Ranger's
 		// being unseen (actors/character/fight-states.js). A follower's blow is theirs, not the character's.
@@ -1272,6 +1276,7 @@ export async function rollDamageAt(actor, { formula, label, keywords = "", descr
 		damage,
 		shots: !striker,
 		groupBlow: !!striker?.group,
+		followerBlow: !!striker,
 		// A stat block's weapon has no name: its "bite" is the label. A follower off the map has no
 		// token to swing from, so its blow is heard and not drawn.
 		fx: { blow: label, ...(striker ? { attacker: null } : {}) },
@@ -1365,6 +1370,45 @@ async function characterBlow(actor, label) {
 export async function rollFollowerDamageAt(character, { fighter = null, formula, label, attacker = "", keywords = "", rollMode = "", weapon = null, seeded = true, group = false, shiftKey = false } = {}) {
 	if (fighter) return rollDamageAt(fighter, { formula, label, keywords, rollMode, weapon, seeded, shiftKey });
 	return rollDamageAt(character, { formula, label, keywords, rollMode, weapon, shiftKey, striker: { name: attacker, group } });
+}
+
+/**
+ * A blow the Marshal's crew deals, with the weapon they deal it with: asked from the weapons the crew's
+ * card has ticked (combat/crew-weapons.js), the way a character's own damage asks (chooseDamageWeapon),
+ * so an iron hatchet's "x piercing" and a weapon's tags reach Apply. Nothing to ask with one weapon that
+ * fits or none; none leaves the blow as the card prints it (the bare die).
+ *
+ * The weapon never changes the die, only what rides it, as for a character (data/weapons.js).
+ *
+ * @param {Actor} character  whose crew it is
+ * @param {object} blow
+ * @param {string} blow.label          the card's title
+ * @param {object|null} [blow.weapon]  the armor clause the card's own damage line prints, if any
+ * @param {string} [blow.keywords]     the tags the card's own damage line prints, if any
+ * @param {"clash"|"let-fly"|null} [blow.move]  the move the blow is dealt by, when known: Clash is dealt
+ *   with a melee weapon, Let Fly with a thrown or ranged one; unknown offers every weapon
+ * @returns {Promise<{label: string, weapon: object|null, keywords: string}|null>}  null when the player
+ *   backed out. A chosen weapon's own piercing and tags are what the card prints then, so `keywords` is
+ *   emptied for it (attack-flow.js#damageRowDetail prints the weapon's armor bits only without them).
+ */
+export async function crewBlow(character, { label, weapon = null, keywords = "", move = null } = {}) {
+	let inventory = null;
+	// The Crew insert the crew is drawn from: the Marshal's own, or the one a learned Crew borrows.
+	try { inventory = (await character?.typedActor?.crewSource?.())?.inventory ?? null; } catch { inventory = null; }
+	const candidates = crewWeaponChoices(readableFlags(character)?.crew, inventory, { move });
+	const picked = await promptWeaponChoice(candidates, label);
+	if (picked === "cancel") return null;
+	if (!picked.weapon) return { label, weapon, keywords };
+	const chosen = serializeWeapon(picked.weapon);
+	return {
+		label: damageLabel(label, chosen),
+		keywords: "",
+		weapon: {
+			...(weapon ?? {}), ...chosen,
+			ignoresArmor: !!(weapon?.ignoresArmor || chosen.ignoresArmor),
+			tags: [...new Set([...(weapon?.tags ?? []), ...(chosen.tags ?? [])])],
+		},
+	};
 }
 
 /**
@@ -1507,7 +1551,7 @@ export function tagNoticesHtml(weapon) {
 // no-target Clash needed a whole extra branch here just to have somewhere to put that button.
 // The tier fires the counter itself now, straight after this returns (resolveAttackTier), and it
 // comes back through this same function as a damage card of its own (postIncomingDamage).
-async function rollAndPostDamage(actor, { move, weapon, targets, damage, ignoresArmor = false, selfHarm = false, foeUuid = "", shots = true, groupBlow = false, own = true, spillsBlood = own, fx = null }) {
+async function rollAndPostDamage(actor, { move, weapon, targets, damage, ignoresArmor = false, selfHarm = false, foeUuid = "", shots = true, groupBlow = false, followerBlow = false, own = true, spillsBlood = own, fx = null }) {
 	// What the blow is swung WITH, for the animation (combat/attack-fx.js), taken before the lines
 	// below lay armor and fiction tags over it: those change what Apply does, not what a spear is.
 	const struckWith = weapon;
@@ -1548,7 +1592,8 @@ async function rollAndPostDamage(actor, { move, weapon, targets, damage, ignores
 
 	let results = [];
 	if (applyable.length === 0) {
-		const roll = await rollDamage(base, actor, { label: damageLabel(move, weapon), rollMode, bonus, extraDice, seed, notices });
+		const roll = await rollDamage(base, actor, { label: damageLabel(move, weapon), rollMode, bonus, extraDice, seed, notices,
+			...(followerBlow ? { messageFlags: { [SCOPE]: { followerBlow: true } } } : {}) });
 		// The number the card shows, which never goes below 0 (a group's -N can take a d4 under it).
 		results = [{ raw: Math.max(0, roll.total), formula: roll.formula, faces: multiDieFaces(roll) }];
 	} else {
@@ -1559,7 +1604,7 @@ async function rollAndPostDamage(actor, { move, weapon, targets, damage, ignores
 			uuid: t.uuid, name: t.name, actorId: t.actorId, disposition: t.disposition,
 			raw: rolls[i].total, formula: rolls[i].formula, faces: multiDieFaces(rolls[i]),
 		}));
-		await postDamageResultsCard(actor, { move, weapon, ownPiercing, results, damage, selfHarm, notices, foeUuid, groupBlow });
+		await postDamageResultsCard(actor, { move, weapon, ownPiercing, results, damage, selfHarm, notices, foeUuid, groupBlow, followerBlow });
 		// The blow on the map, as its card lands. `fx` is the caller saying this was a weapon's blow at
 		// all: a move's own number (rollOptionDamage, rollMoveDamageAt) passes none and draws nothing.
 		// Never awaited, and it cannot throw: everything before it is already spent.
@@ -1857,7 +1902,7 @@ const armorLeftOff = damage => new Set(Array.isArray(damage?.armorOff) ? damage.
 /** The rows whose Unstoppable mark has been ticked off on this card (wireUnstoppableMark). */
 const unstoppableLeftOff = damage => new Set(Array.isArray(damage?.unstoppableOff) ? damage.unstoppableOff : []);
 
-function postDamageResultsCard(actor, { move, weapon, ownPiercing, results, damage, selfHarm = false, notices = "", foeUuid = "", groupBlow = false }) {
+function postDamageResultsCard(actor, { move, weapon, ownPiercing, results, damage, selfHarm = false, notices = "", foeUuid = "", groupBlow = false, followerBlow = false }) {
 	// Several targets is the book's own rule now that the roller is asked who a blow hits
 	// (fight/fight-targets.js), so the note says when it applies rather than calling it an abstraction.
 	const multiWarn = results.length > 1 && !weapon?.area
@@ -1947,7 +1992,11 @@ function postDamageResultsCard(actor, { move, weapon, ownPiercing, results, dama
 			// adding it back) adjusts each one at apply time (wireApplyDamage) and redraws the totals
 			// on every client (wireDamageSeed). Only on a card that has one.
 			...(seed ? { seed } : {}),
-		} } },
+		},
+		// Any follower's blow off the map, group or lone: not a damage roll the character made, so We
+		// Happy Few's Inspiration die is not offered on it (actors/character/inspiration-flow.js). The
+		// same message flag the plain card carries.
+		...(followerBlow ? { followerBlow: true } : {}) } },
 	});
 }
 
@@ -2696,6 +2745,18 @@ async function applyOwedDamage(message, damage) {
 		const mitigated = effective !== raw ? ` <span class="stonetop-damage-mitigated">(${raw}${detail})</span>` : "";
 		// ONE MEMBER OF A GROUP, for one attacker's blow: see fight/group-hits.js.
 		if (!current.selfHarm && !current.groupBlow && isLoneBlowOnGroup(targetActor, attacker, td?.parent ?? null)) {
+			// A group follower's: the first member standing on its character's roster, which the card then
+			// offers to hand to another (wireRosterHitMove).
+			const onRoster = await applyRosterHit(targetActor, effective);
+			if (onRoster) {
+				reactions.push({ uuid: struck, reaction: hitReaction({ raw, effective, lowered: onRoster.harmed }) });
+				nextApplied.push({ uuid: r.uuid, effective, member: true, down: onRoster.down, before: onRoster.before, after: onRoster.after, roster: onRoster.roster });
+				if (effective > 0 && striker) {
+					await recordHarmedBy(targetActor, striker).catch(err => console.warn("Stonetop | could not record who struck", err));
+				}
+				lines.push(`<li><strong>${escHtml(r.name)}</strong>: ${effective} damage${back}${mitigated}: ${escHtml(rosterHitWords(onRoster.roster, onRoster))}</li>`);
+				continue;
+			}
 			const hit = await applyMemberHit(targetActor, effective);
 			if (hit) {
 				reactions.push({ uuid: struck, reaction: hitReaction({ raw, effective, lowered: !!hit.harmed }) });
@@ -2880,6 +2941,135 @@ export function wireUnstoppableMark(message, html, gateFor = applyGateOnce(messa
 			await message.setFlag(SCOPE, "damage.unstoppableOff", [...list]);
 		});
 	}
+}
+
+/**
+ * What a lone blow on a group follower did to the member who took it (fight/group-hits.js#applyRosterHit),
+ * said the way the applied card and the moved card both say it.
+ *
+ * @param {{name: string, oldHp: number, newHp: number}} roster
+ * @param {{down: boolean, after: number}} hit
+ */
+function rosterHitWords(roster, { down, after }) {
+	const key = down ? "memberDown" : roster.newHp < roster.oldHp ? "memberHurt" : "memberUnhurt";
+	return format(`stonetop.fight.groupHit.${key}`, { member: roster.name, oldHp: roster.oldHp, newHp: roster.newHp, after });
+}
+
+/**
+ * WHICH MEMBER TOOK IT, on a damage card whose blow landed on a group follower's roster: the member the
+ * blow went to (the first standing), and every other member still standing to give it to instead. The
+ * roster's order is only a default; who was nearest the axe is the table's to say.
+ *
+ * Drawn per applied row, from the flag, on every client; pressed by whoever may press Apply, a player on
+ * a card the GM wrote through the GM's client (ROSTER_MOVE_QUERY), as their Apply was.
+ */
+export function wireRosterHitMove(message, html, gateFor = applyGateOnce(message)) {
+	const root = html?.[0] ?? html;
+	const damage = message.getFlag(SCOPE, "damage");
+	const actions = root?.querySelector?.(".stonetop-attack-actions");
+	const onRoster = (Array.isArray(damage?.applied) ? damage.applied : []).filter(a => a?.roster && a.effective > 0);
+	if (!onRoster.length || !actions) return;
+	const gate = gateFor(damage);
+	if (gate.hide) return;
+	const several = damage.results.filter(r => r.uuid).length > 1;
+
+	for (const entry of onRoster) {
+		const token = damageRowActor(resolveSync(entry.uuid));
+		const others = (rosterGroupFor(token)?.members ?? []).filter(m => m.key !== entry.roster.key);
+		if (!others.length) continue;
+		const rowName = damage.results.find(r => r.uuid === entry.uuid)?.name ?? "";
+
+		const label = document.createElement("label");
+		label.className = "stonetop-damage-armor-gate stonetop-damage-roster-member";
+		const select = document.createElement("select");
+		for (const member of [{ key: entry.roster.key, name: entry.roster.name }, ...others]) {
+			select.append(Object.assign(document.createElement("option"), { value: member.key, textContent: member.name, selected: member.key === entry.roster.key }));
+		}
+		label.append(Object.assign(document.createElement("span"), {
+			textContent: several ? format("stonetop.fight.groupHit.tookItFor", { name: rowName }) : localize("stonetop.fight.groupHit.tookIt"),
+		}), select);
+		label.title = localize("stonetop.fight.groupHit.moveHint");
+		actions.append(label);
+
+		if (gate.refused) {
+			select.disabled = true;
+			select.title = gate.refused;
+			continue;
+		}
+		select.addEventListener("change", async () => {
+			const toKey = select.value;
+			select.disabled = true;
+			let moved = false;
+			try {
+				moved = gate.relay
+					? await askGMToMoveRosterHit(message, entry.uuid, toKey)
+					: await inCardTurn(message, () => moveRosterHitOnCard(message, entry.uuid, toKey));
+			} catch (err) {
+				console.error("Stonetop | giving the blow to another member failed", err);
+			}
+			// A move that landed redraws the card; one that did not puts the old answer back.
+			if (!moved) { select.value = entry.roster.key; select.disabled = false; }
+		});
+	}
+}
+
+/**
+ * Give the blow one applied row put on a roster member to `toKey` instead: the roster first, then the
+ * card's record of who has it, then a line in chat saying so. Returns whether it moved.
+ */
+async function moveRosterHitOnCard(message, rowUuid, toKey) {
+	const current = message.getFlag(SCOPE, "damage");
+	const applied = Array.isArray(current?.applied) ? [...current.applied] : [];
+	const at = applied.findIndex(a => a?.uuid === rowUuid && a.roster);
+	if (at < 0) return false;
+	const entry = applied[at];
+	const moved = await moveRosterHit(entry.roster, toKey, entry.effective);
+	if (!moved) return false;
+	applied[at] = { ...entry, roster: moved.roster, down: moved.down, after: moved.after };
+	await message.setFlag(SCOPE, "damage.applied", applied);
+	const said = format("stonetop.fight.groupHit.moved", { from: moved.from.name, fromHp: moved.from.hp, line: rosterHitWords(moved.roster, moved) });
+	await ChatMessage.create({
+		content: stonetopChatCard(format("stonetop.fight.groupHit.movedTitle", { move: current.move }), `<div class="card-content"><p>${escHtml(said)}</p></div>`, "stonetop-attack-applied-card"),
+		speaker: { alias: "Stonetop" },
+	});
+	return true;
+}
+
+/** The User query a player's roster move goes through on a card the GM authored (wireRosterHitMove). */
+export const ROSTER_MOVE_QUERY = "stonetop.moveRosterHit";
+
+/** A player's roster move on a card the GM authored: the GM's client makes it. Whether it moved. */
+async function askGMToMoveRosterHit(message, rowUuid, toKey) {
+	const gm = game.users?.activeGM;
+	if (!gm) { ui.notifications?.warn("Ask the GM to change this"); return false; }
+	try {
+		return !!(await gm.query(ROSTER_MOVE_QUERY, { messageId: message.id, rowUuid, toKey, userId: game.user?.id ?? null }, { timeout: 10000 }));
+	} catch (err) {
+		console.warn("Stonetop | the GM's client could not move the blow", err);
+		ui.notifications?.warn("The GM's client did not move the blow. Ask the GM to change it.");
+		return false;
+	}
+}
+
+/**
+ * The GM's side of `ROSTER_MOVE_QUERY`: move the blow for the player who asked, if that player owns the
+ * character whose roster it is. Only the primary GM's client answers, in the card's turn.
+ *
+ * @param {{messageId: string, rowUuid: string, toKey: string, userId?: string}} data
+ * @returns {Promise<boolean>}
+ */
+export async function handleRosterMoveQuery(data, context = {}, { messages = game.messages, users = game.users, resolve = globalThis.fromUuidSync } = {}) {
+	if (!game.user?.isGM || !isPrimaryGM()) return false;
+	const user = queryAsker(data, context, users);
+	const message = messages?.get?.(data?.messageId);
+	const damage = message?.getFlag?.(SCOPE, "damage");
+	if (!user || !damage) return false;
+	const entry = (damage.applied ?? []).find(a => a?.uuid === data?.rowUuid && a.roster);
+	if (!entry) return false;
+	let character = null;
+	try { character = resolve?.(entry.roster.characterUuid, { strict: false }) ?? null; } catch { character = null; }
+	if (!character?.testUserPermission?.(user, "OWNER")) return false;
+	return inCardTurn(message, () => moveRosterHitOnCard(message, data.rowUuid, data.toKey));
 }
 
 

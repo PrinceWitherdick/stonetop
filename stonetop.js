@@ -82,7 +82,7 @@ import { possessionTrackUses, BOOKS_AND_SCROLLS, HOLY_RELICS } from "./module/ac
 import { INVOKE_THE_SUN_GOD } from "./module/actors/character/holy-light.js";
 import { artifactStateForTier } from "./module/actors/character/artifact-identify.js";
 import { repeatBoxLocked } from "./module/actors/character/PlaybookMoveEntry.js";
-import { wireAttackConfirm, applyGateOnce, wireApplyDamage, wireDamageSeed, wireConditionalArmor, forgetBarkskinMarks, wireSufferAmount, wireSufferChoice, rollOptionDamage, APPLY_QUERY, handleApplyQuery } from "./module/combat/attack-flow.js";
+import { wireAttackConfirm, applyGateOnce, wireApplyDamage, wireDamageSeed, wireConditionalArmor, wireUnstoppableMark, forgetBarkskinMarks, wireSufferAmount, wireSufferChoice, rollOptionDamage, APPLY_QUERY, handleApplyQuery, wireRosterHitMove, ROSTER_MOVE_QUERY, handleRosterMoveQuery } from "./module/combat/attack-flow.js";
 import { wireDefendSpends, SPEND_QUERY, handleSpendQuery } from "./module/fight/defend-spend.js";
 import { HEALERS_ARTS_QUERY, handleHealersArtsQuery } from "./module/actors/character/healers-arts.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
@@ -117,13 +117,17 @@ import { speakerActor } from "./module/utils/speaker-actor.js";
 import { bootStep, recordBootPhase, reportBootHealth, bootReport } from "./module/utils/boot-guard.js";
 import { registerCampHooks } from "./module/camp/camp-store.js";
 import { registerVitalsMirrorHooks } from "./module/actors/character/vitals-mirror.js";
+import { registerRosterFateHooks } from "./module/fight/roster-fate.js";
 import { wireCampCard } from "./module/camp/camp-flow.js";
 import { registerCampWindowRestore } from "./module/camp/CampWindow.js";
 import { registerStruggleHooks } from "./module/struggle/struggle-flow.js";
 import { registerPcAskHooks, wirePcAskCard } from "./module/pc-asks/pc-ask-flow.js";
 import { registerFightTab } from "./module/fight/fight-boot.js";
-import { invokeCardChoosesConsequence, invokeActionRow, TEN_PLUS_FLAG } from "./module/actors/character/invoke-consequences.js";
+import { onUpdateActorUnstoppable } from "./module/actors/character/unstoppable.js";
+import { wireBattleJoyResult } from "./module/combat/battle-joy-offer.js";
+import { wireWielderInvoke, invokeCardChoosesConsequence, invokeActionRow, TEN_PLUS_FLAG } from "./module/actors/character/invoke-consequences.js";
 import { wireRollBoosts, BOOST_QUERY, handleBoostQuery, BLESSING_QUERY, handleBlessingQuery } from "./module/actors/character/roll-boosts.js";
+import { INSPIRATION_QUERY, handleInspirationQuery, onUpdateActorInspirationAtZero, wireInspirationDamage, wireKeepOneHp, wireSpeechCard } from "./module/actors/character/inspiration-flow.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -159,6 +163,8 @@ Hooks.once("init", () => {
 	if (CONFIG.queries) CONFIG.queries[APPLY_QUERY] = (data, context) => handleApplyQuery(data, context);
 	// And a player's Readiness spend on such a card (fight/defend-spend.js).
 	if (CONFIG.queries) CONFIG.queries[SPEND_QUERY] = (data, context) => handleSpendQuery(data, context);
+	// And giving a blow a crew member took to another member of the crew (attack-flow.js#wireRosterHitMove).
+	if (CONFIG.queries) CONFIG.queries[ROSTER_MOVE_QUERY] = (data, context) => handleRosterMoveQuery(data, context);
 	// And Healer's Arts' Stock, asked for a patient's Recover out of a carer the player does not own.
 	// Answered by the carer's player, or the GM when none is online (actors/character/healers-arts.js).
 	if (CONFIG.queries) CONFIG.queries[HEALERS_ARTS_QUERY] = (data, context) => handleHealersArtsQuery(data, context);
@@ -166,6 +172,9 @@ Hooks.once("init", () => {
 	if (CONFIG.queries) CONFIG.queries[BOOST_QUERY] = (data, context) => handleBoostQuery(data, context, ROLL_BOOST_DEPS);
 	// And Piety's Blessing, given to a fellow worshipper the Lightbearer's player does not own (roll-boosts.js).
 	if (CONFIG.queries) CONFIG.queries[BLESSING_QUERY] = (data, context) => handleBlessingQuery(data, context);
+	// And We Happy Few's Inspiration: given to an ally the Marshal's player does not own, or its 1d6 added
+	// to a damage card the holder's player cannot write (inspiration-flow.js).
+	if (CONFIG.queries) CONFIG.queries[INSPIRATION_QUERY] = (data, context) => handleInspirationQuery(data, context, INSPIRATION_DEPS);
 
 	// Every window and modal in the system is drag-resizable; the ad-hoc
 	// Dialog popups we spawn from sheets default to resizable too. The companion
@@ -999,6 +1008,12 @@ Hooks.on("updateActor", onUpdateActorDeathsDoorAutoOpen);
 // The other direction: hit points appearing on a sheet that is through the Last Door. Nothing
 // walks `dead` back on its own, so this asks whoever made the change whether it was a raising.
 Hooks.on("updateActor", onUpdateActorDeathsDoorRaised);
+// Unstoppable: a Heavy fighting on at 0 HP who "would regain HP" clears a mark instead (decided in
+// the preUpdate above); this offers the hit points back to whoever healed them.
+Hooks.on("updateActor", onUpdateActorUnstoppable);
+// We Happy Few: an ally holding Inspiration in a fight, just reduced to 0 HP, is asked whether to keep 1 HP
+// instead, on their own screen; the walkthrough above waits for the answer (inspiration-flow.js).
+Hooks.on("updateActor", onUpdateActorInspirationAtZero);
 
 // The Heavy's own blood spilled: a Heavy who loses HP and stays up is asked, on their own screen,
 // whether they lose themselves in battle. See module/combat/battle-joy-offer.js.
@@ -1282,6 +1297,12 @@ const ROLL_BOOST_DEPS = {
 	cardFlavor: (flavor, total, formula) => _shiftRollCardFlavor(flavor, total, formula),
 	// A shifted Know Things card identifying an arcanum carries the new tier's disclosure, as Shift Up does.
 	afterShift: (message, total) => _resyncIdentification(message, speakerActor(message), total),
+};
+
+// We Happy Few's 1d6 on a plain damage card redraws its total the way a Shift does
+// (module/actors/character/inspiration-flow.js#addInspirationDie).
+const INSPIRATION_DEPS = {
+	cardFlavor: (flavor, total, formula) => _shiftRollCardFlavor(flavor, total, formula),
 };
 
 // -- KNOW THINGS: the moves that reach back into a landed roll --
@@ -2218,6 +2239,12 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	// After the roll-shift pass (which hides the button row from non-GMs) and after Burn
 	// Brightly, so the logbook pill sits to its right in the shared button row.
 	_chatWireKnowThings(message, html);
+	// Battle Joy's ending roll: the 10+'s 1d4 HP and the 6-'s debility, each spent once per card.
+	wireBattleJoyResult(message, html);
+	// Wielder of the White Flame's 10+: Invoke the Sun God now, as a 10+, once per card.
+	wireWielderInvoke(message, html);
+	// We Happy Few, every tier: who heard the speech holds its Inspiration, once per card.
+	wireSpeechCard(message, html);
 	// Same row, same reason: a spend that rewrites what the roll costs the player.
 	_chatWireHolyRelics(message, html);
 	// The XP receipt's own row, not the shared button row the two above claim — a card with no
@@ -2238,15 +2265,25 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	// for a calculator and the target's HP field.
 	_chatWireOptionDamage(message, html);
 	wireDyingPrompt(message, html);
+	// ...and beside Face Death's Door, We Happy Few's "Keep 1 HP" while the character still could.
+	wireKeepOneHp(message, html);
 	wireAttackConfirm(message, html);
 	const damageGate = applyGateOnce(message);
 	wireApplyDamage(message, html, damageGate);
 	// ...and beside Apply, the fight's "Leave off the +N" for several attackers, which also repaints the
 	// card's totals from its flag on every client (attack-flow.js#wireDamageSeed).
 	wireDamageSeed(message, html, damageGate);
+	// ...and We Happy Few's "+1d6 (Inspiration)" on the holder's own damage card, AFTER the seed pass so the
+	// die's redraw of the totals reads the same rows it did (inspiration-flow.js#wireInspirationDamage).
+	wireInspirationDamage(message, html, INSPIRATION_DEPS);
 	// ...and the tick box for armor a move grants on a clause only the fiction can answer: Barkskin
 	// while touching the earth, a holy light held by someone otherwise unarmed.
 	wireConditionalArmor(message, html, damageGate);
+	// ...and Unstoppable's "mark 1" for a Heavy fighting on at 0 HP, ticked, for the same reason.
+	wireUnstoppableMark(message, html, damageGate);
+	// ...and, once a lone blow on a crew's token has landed on one member of its roster, which member
+	// took it, with the others still standing to give it to instead (fight/group-hits.js).
+	wireRosterHitMove(message, html, damageGate);
 	// Defend's Readiness, spent on the blow before it lands: halve it, or take it for your ward
 	// (fight/defend-spend.js). Pressed by anyone who can write the card, for a defender of theirs.
 	wireDefendSpends(message, html);
@@ -2268,6 +2305,8 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 registerCampHooks();
 // A character's stored armor and max HP, re-mirrored whenever they or their gear change, sheet open or not.
 registerVitalsMirrorHooks();
+// A crew member a lone blow drops in a fight is asked their fate on the Marshal's player's screen.
+registerRosterFateHooks();
 // And a camp window open when this client reloaded comes back with the sheets, where it was left
 // (utils/window-restore.js, installed in the init hook).
 registerCampWindowRestore();

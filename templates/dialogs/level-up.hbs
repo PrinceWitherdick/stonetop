@@ -201,7 +201,7 @@
 		<div class="stonetop-levelup-mark-list">
 			{{#each markStep.options}}
 			<div class="stonetop-levelup-stat-option stonetop-levelup-mark-option{{#if selected}} is-selected{{/if}}{{#if disabled}} is-at-cap{{/if}}"
-				data-mark-slug="{{slug}}">
+				data-mark-slug="{{slug}}"{{#if tooltip}} data-tooltip="{{tooltip}}" data-tooltip-direction="UP"{{/if}}>
 				<span class="stonetop-levelup-stat-name">{{label}}</span>
 				{{#if existingLabel}}<span class="stonetop-levelup-stat-value">{{existingLabel}}</span>{{/if}}
 			</div>

@@ -120,6 +120,30 @@ describe("onUpdateActorDeathsDoorAutoOpen — opening the move on the dying play
 		}
 	});
 
+	// We Happy Few: an ally holding Inspiration in a fight is first asked whether to keep 1 HP instead
+	// (inspiration-flow.js#onUpdateActorInspirationAtZero), which opens the walkthrough if they go down.
+	it("stands down for a character holding Inspiration in a fight, and not out of one", async () => {
+		const holding = () => {
+			const w = world({ me: "player-1", playedBy: "player-1" });
+			const flags = { deathsDoor: DEATHS_DOOR_STATE.DYING, inspiration: 1 };
+			Object.assign(w.actor, {
+				flags: { [SCOPE]: flags },
+				system: { attributes: { hp: { value: 0 } } },
+				getFlag: (scope, key) => (scope === SCOPE ? flags[key] : undefined),
+			});
+			return w;
+		};
+		const inFight = holding();
+		global.game.combats = [{ combatants: [{ actor: { id: "actor-1" } }] }];
+		onUpdateActorDeathsDoorAutoOpen(inFight.actor, becameDying);
+		expect(inFight.sheet.render).not.toHaveBeenCalled();
+
+		const outOfFight = holding();
+		global.game.combats = [];
+		onUpdateActorDeathsDoorAutoOpen(outOfFight.actor, becameDying);
+		await vi.waitFor(() => expect(outOfFight.sheet._onDeathsDoorOpen).toHaveBeenCalled());
+	});
+
 	// The flag is written only on the transition, so an already-down PC taking another hit
 	// carries no state change — and must not get a second window.
 	it("ignores an update that isn't the moment they became dying", () => {

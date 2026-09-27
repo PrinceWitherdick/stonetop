@@ -2,7 +2,7 @@ import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 import { holdCentre } from "../../../utils/hold-centre.js";
 import { markProseSpiralBullets } from "../../../utils/journal-spiral-bullets.js";
 import { moveGroupsForPlaybook, moveGroupKeys } from "./onboarding-move-groups.js";
-import { moveMarkBudget } from "../move-mark-budget.js";
+import { moveMarkBudget, markOptionCapNote } from "../move-mark-budget.js";
 import { annotateInvocationEffects } from "../invocation-effects.js";
 import { getHoverDescriptionSetting } from "../../../settings.js";
 import { playbookIconPath } from "../../../utils/playbook-actors.js";
@@ -209,7 +209,7 @@ export class LevelUpDialog extends StonetopDialog {
 		// exceeds its distinct options (e.g. Beast of Legend's 2 options on a 3-pick take) can
 		// never trap the player — one pick per option means the budget is filled as far as it
 		// can be, with the rest markable later on the sheet.
-		const markSelectable = markDesc ? markDesc.options.reduce((n, o) => o.existing < o.capacity ? n + 1 : n, 0) : 0;
+		const markSelectable = markDesc ? markDesc.options.reduce((n, o) => o.existing < o.capacity && !o.capNote ? n + 1 : n, 0) : 0;
 		const markAllowance = markDesc ? Math.min(markDesc.allowance, markSelectable) : 0;
 
 		// The mark step is satisfied when this take's allowance of picks is made (the player
@@ -261,9 +261,12 @@ export class LevelUpDialog extends StonetopDialog {
 			used:      this._selectedMarks.length,
 			options: markDesc.options.map(o => {
 				const selected = this._selectedMarks.some(p => p.slug === o.slug);
-				const hasRoom  = o.existing < o.capacity;
+				// An option whose target is already at its cap (the crew's die at d10) buys nothing,
+				// so it has no room either, and says why (move-mark-budget.js#markOptionCapNote).
+				const hasRoom  = o.existing < o.capacity && !o.capNote;
 				return {
 					slug: o.slug, label: o.label, selected,
+					tooltip: !selected ? o.capNote : null,
 					existingLabel: o.existing > 0 ? `marked ×${o.existing}` : null,
 					disabled: !selected && (!hasRoom || (this._selectedMarks.length >= markDesc.allowance && markDesc.allowance !== 1)),
 				};
@@ -399,7 +402,8 @@ export class LevelUpDialog extends StonetopDialog {
 		const len = v => Array.isArray(v) ? v.length : (typeof v === "number" ? v : 0);
 		const options = (entry.markOptions ?? [])
 			.filter(o => o.choice !== "stat")
-			.map(o => ({ slug: o.slug, label: o.label, choice: "count", capacity: o.marks ?? 1, existing: len(marksForMove[o.slug]) }));
+			.map(o => ({ slug: o.slug, label: o.label, choice: "count", capacity: o.marks ?? 1, existing: len(marksForMove[o.slug]),
+				capNote: markOptionCapNote(o, this._data?.markCapState ?? {}) }));
 		if (!options.length) return null;
 		const used = options.reduce((n, o) => n + o.existing, 0);
 		// A null budget (move declares no markBudget) is uncapped; fall back to one pick so

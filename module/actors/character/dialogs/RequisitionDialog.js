@@ -10,6 +10,7 @@ import { SYSTEM_ID } from "../../../system-id.js";
 import { promptRoll } from "../../../dialogs/RollDialog.js";
 import { STEADING_MOVE, improvementQuestions } from "../../steading/improvement-rolls.js";
 import { settleSteadingRoll } from "../../steading/steading-roll.js";
+import { ownLogisticsNames } from "../logistics.js";
 
 /**
  * The player-facing Requisition move. Lists the linked steading's on-hand assets
@@ -48,15 +49,21 @@ export class RequisitionDialog extends StonetopDialog {
 
 	getData() {
 		const assets = this._steading._flags.assets ?? [];
+		// Worded where the steading's own Requisition words them. Logistics is asked for THIS
+		// character only, and ticked: this window knows who is Requisitioning.
+		const questions = improvementQuestions(STEADING_MOVE.REQUISITION, "fortunes", {
+			has: slug => this._steading.improvementCompleted(slug),
+			logistics: ownLogisticsNames(this._characterActor),
+		});
 		return {
 			steadingName: this._steadingActor.name,
 			fortunes: sign(this._steading.getStatValue("fortunes")),
 			assets: this._steading.getAvailableAssets(),
 			customAssetValue: CUSTOM_ASSET_VALUE,
-			// The Herd of Horses question, worded where the steading's own Requisition words it.
-			herdShare: improvementQuestions(STEADING_MOVE.REQUISITION, "fortunes", {
-				has: slug => this._steading.improvementCompleted(slug),
-			}).find(q => q.name === "herdShare")?.label ?? "",
+			// The Herd of Horses question.
+			herdShare: questions.find(q => q.name === "herdShare")?.label ?? "",
+			// The Marshal's Logistics: advantage when you Requisition.
+			logistics: questions.find(q => q.name === "logistics")?.label ?? "",
 			// "Already out" reads through the shared wording, so an asset a GM sent out on an
 			// expedition names the trip here rather than reporting "Taken by someone".
 			takenAssets: assets
@@ -86,7 +93,7 @@ export class RequisitionDialog extends StonetopDialog {
 			const terms = await settleSteadingRoll(this._steading, {
 				moveName: STEADING_MOVE.REQUISITION, statKey: "fortunes",
 				chosenMode: prompted.rollMode ?? this._steadingActor.getFlag(SYSTEM_ID, "rollMode"),
-				answers: { herdShare: !!root.querySelector('[name="herdShare"]')?.checked },
+				answers: this._rollAnswers(root),
 				canSpend: !!this._steadingActor.isOwner,
 			});
 			await terms.spend();
@@ -145,6 +152,14 @@ export class RequisitionDialog extends StonetopDialog {
 		});
 
 		root.querySelector(".stonetop-requisition-close")?.addEventListener("click", () => this.close());
+	}
+
+	/** The window's ticked questions, as settleSteadingRoll reads them. */
+	_rollAnswers(root) {
+		return {
+			herdShare: !!root.querySelector('[name="herdShare"]')?.checked,
+			logistics: !!root.querySelector('[name="logistics"]')?.checked,
+		};
 	}
 
 	_getChosenAsset(root) {

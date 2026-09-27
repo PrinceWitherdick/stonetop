@@ -9,9 +9,11 @@
 	      the crew via Heroes to the Last, the animal companion via Beast of Legend).
 	      In edit mode it's a selectable chip that shows a lock and warns on click
 	      until the granting move is owned (exceptionalMet); in view mode it shows
-	      only once earned. --}}
+	      only once earned. The crew's is DERIVED from Heroes to the Last's pick
+	      (exceptionalDerived): never a button, it only reports the state, and in edit
+	      mode shows locked until the pick is made. --}}
 	{{#*inline "stonetopExceptionalChip"}}
-	{{#if exceptionalAvailable}}{{#if edit.stats}}<button type="button" class="stonetop-follower-tag stonetop-follower-tag--exceptional stonetop-exceptional-toggle{{#if exceptional}} is-selected{{/if}}{{#unless exceptionalMet}} is-locked{{/unless}}" data-ftype="{{ftype}}" data-slug="{{slug}}" data-met="{{exceptionalMet}}" data-hint="{{exceptionalHint}}"{{#unless exceptionalMet}} data-tooltip="{{exceptionalHint}}" data-tooltip-direction="UP"{{/unless}}><span class="stonetop-chip-text">exceptional</span>{{#unless exceptionalMet}} <i class="fas fa-lock"></i>{{/unless}}</button>{{else}}{{#if exceptional}}<span class="stonetop-follower-tag stonetop-follower-tag--exceptional">exceptional</span>{{/if}}{{/if}}{{/if}}
+	{{#if exceptionalAvailable}}{{#if exceptionalDerived}}{{#if (or exceptional edit.stats)}}<span class="stonetop-follower-tag stonetop-follower-tag--exceptional stonetop-follower-tag--derived{{#if exceptional}} is-selected{{else}} is-locked{{/if}}" data-tooltip="{{exceptionalHint}}" data-tooltip-direction="UP"><span class="stonetop-chip-text">exceptional</span>{{#unless exceptional}} <i class="fas fa-lock"></i>{{/unless}}</span>{{/if}}{{else if edit.stats}}<button type="button" class="stonetop-follower-tag stonetop-follower-tag--exceptional stonetop-exceptional-toggle{{#if exceptional}} is-selected{{/if}}{{#unless exceptionalMet}} is-locked{{/unless}}" data-ftype="{{ftype}}" data-slug="{{slug}}" data-met="{{exceptionalMet}}" data-hint="{{exceptionalHint}}"{{#unless exceptionalMet}} data-tooltip="{{exceptionalHint}}" data-tooltip-direction="UP"{{/unless}}><span class="stonetop-chip-text">exceptional</span>{{#unless exceptionalMet}} <i class="fas fa-lock"></i>{{/unless}}</button>{{else}}{{#if exceptional}}<span class="stonetop-follower-tag stonetop-follower-tag--exceptional">exceptional</span>{{/if}}{{/if}}{{/if}}
 	{{/inline}}
 
 	{{!-- One roster row's face: the crew's named individuals and anonymous members, and the
@@ -1081,6 +1083,13 @@
 		<button type="button" class="stonetop-create-follower-btn stonetop-follower-add-btn">
 			<i class="fas fa-user-plus"></i> Create a follower
 		</button>
+		{{!-- The crew a learned Crew is owed but has never been set up (a Crew borrowed through
+		      another playbook's move, or a Marshal whose onboarding stopped short). --}}
+		{{#if stonetop.followers.crewSetupOffer}}
+		<button type="button" class="stonetop-create-crew stonetop-follower-add-btn">
+			<i class="fas fa-users"></i> Create your crew
+		</button>
+		{{/if}}
 		{{!-- Playbook possession-followers (the dog / Hounds / Mastiffs) you hold but
 		      haven't added yet — one click builds an editable card. --}}
 		{{#each stonetop.followers.possessionFollowerOffers}}

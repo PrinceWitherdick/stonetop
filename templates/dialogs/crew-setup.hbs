@@ -1,0 +1,104 @@
+{{!-- Create your crew: the Crew insert's picks (Book I p.144) for a crew the character is owed but
+      has never set up. The picks and their markup are onboarding's crew step's (the
+      stonetop-onboarding-* classes). See dialogs/CrewSetupDialog.js. --}}
+<div class="stonetop-spring">
+
+  <div class="stonetop-guide-main">
+
+    <div class="stonetop-guide-banner">
+      <i class="fas fa-users stonetop-guide-banner-icon"></i>
+      <div class="stonetop-guide-banner-info">
+        <div class="stonetop-guide-banner-title">Your crew</div>
+        <div class="stonetop-guide-banner-sub">Six or so residents of Stonetop with some steel to them (Crew insert, p.144)</div>
+      </div>
+    </div>
+
+    <p class="stonetop-onboarding-step-hint">Your crew starts with the <em>group</em> tag{{#if crewData.bgTag}} and <em>{{crewData.bgTag}}</em> (from your background){{/if}}. Pick {{crewData.additionalTagCount}} more tags, an instinct, and a cost.</p>
+
+    <div class="stonetop-onboarding-name-row">
+      <label class="stonetop-onboarding-name-label" for="crew-setup-name">Crew name <em>(optional)</em></label>
+      <input id="crew-setup-name" type="text" class="crew-setup-name"
+             value="{{crewData.name}}"
+             placeholder="What do people call your crew?">
+    </div>
+
+    <div class="stonetop-onboarding-insert-section">
+      <p class="stonetop-onboarding-insert-section-label">
+        Tags &nbsp;
+        <span class="stonetop-onboarding-insert-counter">
+          <span class="stonetop-onboarding-crew-tag-count">{{crewData.selectedTagCount}}</span> / {{crewData.additionalTagCount}}
+        </span>
+      </p>
+      <div class="stonetop-onboarding-tag-grid">
+        {{#each crewData.tags}}
+        <label class="stonetop-onboarding-tag-option{{#if isSelected}} is-selected{{/if}}">
+          <input type="checkbox" name="crew-setup-tag" value="{{slug}}"
+                 {{#if isSelected}}checked{{/if}}
+                 {{#if disabled}}disabled{{/if}}
+                 {{#if isAuto}}data-auto="true"{{/if}}>
+          {{label}}{{#if isAuto}} <em>(included)</em>{{/if}}
+        </label>
+        {{/each}}
+      </div>
+      <label class="stonetop-onboarding-custom-label">
+        <span>Custom tag</span>
+        <input type="text" class="crew-setup-tag-custom"
+               value="{{crewData.customTag}}"
+               aria-label="Custom tag"
+               placeholder="Write your own…"
+               {{#if crewData.customTagDisabled}}disabled{{/if}}>
+      </label>
+    </div>
+
+    <div class="stonetop-onboarding-insert-section">
+      <p class="stonetop-onboarding-insert-section-label">Instinct</p>
+      <div class="stonetop-onboarding-cards stonetop-onboarding-cards--compact">
+        {{#each crewData.instincts}}
+        <label class="stonetop-onboarding-card stonetop-onboarding-card--compact{{#if selected}} is-selected{{/if}}">
+          <div class="stonetop-onboarding-card-header">
+            <input type="radio" name="crew-setup-instinct" value="{{value}}"
+                   {{#if selected}}checked{{/if}}>
+            <span class="stonetop-onboarding-card-inline-desc">{{value}}</span>
+          </div>
+        </label>
+        {{/each}}
+      </div>
+      <label class="stonetop-onboarding-custom-label">
+        <span>Custom instinct</span>
+        <input type="text" class="crew-setup-instinct-custom"
+               value="{{crewData.customInstinct}}"
+               aria-label="Custom instinct"
+               placeholder="Write your own…">
+      </label>
+    </div>
+
+    <div class="stonetop-onboarding-insert-section">
+      <p class="stonetop-onboarding-insert-section-label">Cost</p>
+      <div class="stonetop-onboarding-cards stonetop-onboarding-cards--compact">
+        {{#each crewData.costs}}
+        <label class="stonetop-onboarding-card stonetop-onboarding-card--compact{{#if selected}} is-selected{{/if}}">
+          <div class="stonetop-onboarding-card-header">
+            <input type="radio" name="crew-setup-cost" value="{{value}}"
+                   {{#if selected}}checked{{/if}}>
+            <span class="stonetop-onboarding-card-inline-desc">{{value}}</span>
+          </div>
+        </label>
+        {{/each}}
+      </div>
+      <label class="stonetop-onboarding-custom-label">
+        <span>Custom cost</span>
+        <input type="text" class="crew-setup-cost-custom"
+               value="{{crewData.customCost}}"
+               aria-label="Custom cost"
+               placeholder="Write your own…">
+      </label>
+    </div>
+
+  </div>
+
+  <div class="stonetop-guide-nav">
+    <button type="button" class="stonetop-crew-setup-create stonetop-guide-btn--primary"{{#unless crewData.ready}} disabled{{/unless}}><i class="fas fa-users"></i> Create the crew</button>
+    <button type="button" class="stonetop-crew-setup-cancel">Not now</button>
+  </div>
+
+</div>

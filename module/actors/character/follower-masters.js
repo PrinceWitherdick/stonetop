@@ -16,6 +16,7 @@
 import { SYSTEM_ID } from "../../system-id.js";
 import { readableFlags } from "./StonetopFlags.js";
 import { initiateActive } from "./initiates.js";
+import { ownsLearnedBookMoveNamed } from "./owns-move.js";
 
 /**
  * Whether a card is one of the character's followers at all. Every card is, except an initiate of
@@ -58,6 +59,36 @@ const BY_FTYPE = Object.freeze(Object.fromEntries(
 export function followerDetailBase(ftype, slug = "") {
 	const base = BY_FTYPE[ftype]?.detailBase;
 	return base ? base.replaceAll("{slug}", slug ?? "") : null;
+}
+
+/** The Marshal's move whose "They are exceptional" pick makes the crew exceptional. */
+export const HEROES_TO_THE_LAST = "Heroes to the Last";
+
+/**
+ * Whether the crew is exceptional: Heroes to the Last is LEARNED (the book's move, the Marshal's own
+ * copy or one taken through another playbook) and its "They are exceptional" pick is marked.
+ *
+ * THE ONE SOURCE, the user's ruling. That pick is also what raises the card's "Roll +N" (its
+ * `crewRoll`, summed in StonetopCharacter#_ownedMoveBonuses from the same learned copies and the same
+ * marks), so the number the card shows and the +2 an order actually rolls are one answer. The crew's
+ * old hand toggle (`crew.details.exceptional`) is not read: a stored `true` from before is ignored.
+ */
+export function crewIsExceptional(character) {
+	if (!ownsLearnedBookMoveNamed(character, HEROES_TO_THE_LAST)) return false;
+	const marked = readableFlags(character)?.moves?.moveMarks?.[HEROES_TO_THE_LAST]?.exceptional;
+	return Array.isArray(marked) ? marked.length > 0 : Number(marked) > 0;
+}
+
+/**
+ * Whether a follower is exceptional, for any of the five types: the crew's comes from Heroes to the
+ * Last (crewIsExceptional), every other type's is the toggle stored on its own card.
+ */
+export function followerExceptional(character, ftype, slug = "") {
+	if (ftype === "crew") return crewIsExceptional(character);
+	const base = followerDetailBase(ftype, slug);
+	if (!base) return false;
+	const details = base.split(".").reduce((node, key) => node?.[key], readableFlags(character));
+	return !!details?.exceptional;
 }
 const LINK_KEYS = new Set(["actorUuid", "sourceUuid"]);
 

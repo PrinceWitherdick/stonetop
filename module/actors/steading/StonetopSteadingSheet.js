@@ -64,6 +64,7 @@ import {closeRelmapTab, detachRelmapTab, makeFirstRelationshipMap, relmapTabCont
 import {closeTimelineTab, detachTimelineTab, syncTimelineTab, TIMELINE_TAB} from "../../timeline/timeline-tab.js";
 import {DIMINISHED_MOVES, STEADING_MOVE, improvementQuestions, rollAdjustments} from "./improvement-rolls.js";
 import {settleSteadingRoll} from "./steading-roll.js";
+import {worldLogisticsNames} from "../character/logistics.js";
 
 /**
  * What the member-photo WINDOW shows, given the path a member actually wears.
@@ -266,6 +267,17 @@ const STEADING_STAT_TOOLTIPS = {
 	debilities: "Ongoing afflictions that drag the steading down: diminished (injury, sickness, or doubt), lacking (shortages, hoarding, or distrust), and malcontent (fear, anger, or despair). Check any that apply; each imposes its own penalty until it's cleared.",
 };
 const _esc = escHtml;
+
+/**
+ * One yes/no question an improvement (or the Marshal's Logistics) asks in a homefront window.
+ * `checked` questions start ticked: they are usually true, and unticking is the exception.
+ */
+export function improvementCheckHtml(q) {
+	return `<label class="stonetop-homestead-field stonetop-homestead-field--check">
+		<input type="checkbox" class="stonetop-check" name="${_esc(q.name)}" value="yes"${q.checked ? " checked" : ""}>
+		<span>${_esc(q.label)}</span>
+	</label>`;
+}
 
 // A steading move's result table is an ordered list of rows. Each row declares which PbtA
 // tier(s) its line feeds — success (10+), partial (7-9), both (a 7+ line), failure (6-/Miss),
@@ -1711,17 +1723,17 @@ export function createStonetopSteadingSheetClass(Base) {
 			// What the steading has built, asked about where it could change this roll, and said
 			// where it always does (improvement-rolls.js).
 			const has = slug => this._hasImprovement(slug);
-			const questions = improvementQuestions(flow.label, flow.stat, { has, tactics: this._militiaTactics() });
+			// The Marshal's Logistics is asked (ticked) once any character has it learned.
+			const questions = improvementQuestions(flow.label, flow.stat, {
+				has, tactics: this._militiaTactics(), logistics: worldLogisticsNames(),
+			});
 			const standing = rollAdjustments({ moveName: flow.label, statKey: flow.stat, has });
 			const questionHtml = questions.map(q => (q.type === "select"
 				? `<label class="stonetop-homestead-field">
 					<span>${_esc(q.label)}</span>
 					<select name="${_esc(q.name)}">${q.options.map(o => `<option value="${_esc(o.value)}">${_esc(o.label)}</option>`).join("")}</select>
 				</label>`
-				: `<label class="stonetop-homestead-field stonetop-homestead-field--check">
-					<input type="checkbox" class="stonetop-check" name="${_esc(q.name)}" value="yes">
-					<span>${_esc(q.label)}</span>
-				</label>`)).join("");
+				: improvementCheckHtml(q))).join("");
 			const improvementNotes = [
 				...standing.adv.map(source => `${source}: advantage on this roll.`),
 				...this._aurochsWarnings(flow),
@@ -1996,11 +2008,11 @@ export function createStonetopSteadingSheetClass(Base) {
 				RESULT.miss("do not mark XP; you can take the asset, but if you do, reduce Fortunes by 1."),
 			];
 			// Herd of Horses: "When you Requisition half the herd or less, treat a 6- as a 7-9."
-			const questions = improvementQuestions(STEADING_MOVE.REQUISITION, "fortunes", { has: slug => this._hasImprovement(slug) });
-			const questionHtml = questions.map(q => `<label class="stonetop-homestead-field stonetop-homestead-field--check">
-					<input type="checkbox" class="stonetop-check" name="${_esc(q.name)}" value="yes">
-					<span>${_esc(q.label)}</span>
-				</label>`).join("");
+			// And the Marshal's Logistics, ticked, once any character has it learned.
+			const questions = improvementQuestions(STEADING_MOVE.REQUISITION, "fortunes", {
+				has: slug => this._hasImprovement(slug), logistics: worldLogisticsNames(),
+			});
+			const questionHtml = questions.map(improvementCheckHtml).join("");
 
 			const dialog = new Dialog({
 				title: "Requisition",

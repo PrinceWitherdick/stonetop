@@ -24,12 +24,14 @@ import {MonsterToFollowerDialog} from "./dialogs/MonsterToFollowerDialog.js";
 import {NpcToFollowerDialog} from "./dialogs/NpcToFollowerDialog.js";
 import {OrderFollowersDialog} from "./dialogs/OrderFollowersDialog.js";
 import {FollowerFateDialog} from "./dialogs/FollowerFateDialog.js";
+import {CrewSetupDialog, crewSetupLimit, crewSetupUpdate} from "./dialogs/CrewSetupDialog.js";
+import {FOLLOWER_FATE_TYPES, SIR_PERMISSION_TO_DIE, isCrewMemberRow, isCustomMemberRow, followerFateHpPath, followerFateLoyaltyType, wasStanding, followerReviveUpdate, crewMemberFateName, customMemberFateName, sirPermissionOffer, crewIndividualRemovalUpdate, crewMemberDeathUpdate, customMemberDeathUpdate, customMemberStruckOff, postLetGoReceipt} from "./follower-fate.js";
 import {CallUpDeepOnesDialog} from "./dialogs/CallUpDeepOnesDialog.js";
 import {BackgroundNeighborsDialog, storedNeighborPicks} from "./dialogs/BackgroundNeighborsDialog.js";
 import {RING_SOURCE_UUID, SERVANT_SOURCE_UUID, buildServantFollower} from "../../data/servant-of-daagon.js";
 import {grantedWeaponForMove, weaponTraitText} from "../../data/weapons.js";
-import {grantedWeaponAttackFor, rollCharacterDamageAt, rollFollowerDamageAt} from "../../combat/attack-flow.js";
-import {offerBattleJoyOnDamage} from "../../combat/battle-joy-offer.js";
+import {grantedWeaponAttackFor, rollCharacterDamageAt, rollFollowerDamageAt, crewBlow} from "../../combat/attack-flow.js";
+import {offerBattleJoyOnDamage, endBattleJoyUnrolled} from "../../combat/battle-joy-offer.js";
 import {ownDamageMode} from "../../fight/hero-moves.js";
 import {followerInFight} from "../../fight/follower-fight.js";
 import {altStatGrantsFor} from "../../data/alt-stat-grants.js";
@@ -90,19 +92,18 @@ import {promptRoll, rollDamagePrompted, UNPROMPTED_ROLL} from "../../dialogs/Rol
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {annotateInvocationEffects, splitEmpoweredEffect} from "./invocation-effects.js";
-import { CONSECRATED_FLAME, INVOKE_THE_SUN_GOD, EMPOWERED_INVOCATIONS, showHolyLight } from "./holy-light.js";
-import {ownedMoveNames, ownedMove, ownsLearnedMoveNamed, isPlayerAuthoredMove, isMoveLearned} from "./owns-move.js";
-import { invocationLabel, readOngoing, resolveInvocationUse } from "./ongoing-invocation.js";
-import {showJudgeMarks, condemnedContext, CONDEMN, CENSURE} from "./condemn.js";
+import {CONSECRATED_FLAME, INVOKE_THE_SUN_GOD, EMPOWERED_INVOCATIONS, showHolyLight} from "./holy-light.js";
+import {ownedMoveNames, ownedMove, ownedLearnedMove, ownsLearnedMoveNamed, isPlayerAuthoredMove, isMoveLearned} from "./owns-move.js";
+import { crewIsExceptional } from "./follower-masters.js";
+import {CARD_EMPOWERED_FLAG, CARD_INVOCATIONS_FLAG, TEN_PLUS_FLAG, debilityPayments, invokeTenPlusCardBody, payDebility} from "./invoke-consequences.js";
+import {DANCING_LIGHT, invocationLabel, invocationLabels, invokeWindowNotice, readOngoing, resolveInvocationUse} from "./ongoing-invocation.js";
+import {INVOCATIONS_GRANTED_AT_FLAG, invocationCountCue} from "./invocation-count.js";
+import {showJudgeMarks, condemnedContext, CONDEMN, CENSURE, CASTIGATE} from "./condemn.js";
+import {PIETY, holdBlessing, shareBlessing} from "./roll-boosts.js";
+import {pickPersonOnMap} from "../../dialogs/RelationshipLinkDialog.js";
 import {readyRulebookIcon, openSharedRulebook} from "../../books/rulebook-icons.js";
-import { endBattleJoyUnrolled } from "../../combat/battle-joy-offer.js";
-import { ownedLearnedMove } from "./owns-move.js";
-import { CARD_EMPOWERED_FLAG, CARD_INVOCATIONS_FLAG, TEN_PLUS_FLAG, debilityPayments, invokeTenPlusCardBody, payDebility } from "./invoke-consequences.js";
-import { DANCING_LIGHT, invocationLabels, invokeWindowNotice } from "./ongoing-invocation.js";
-import { INVOCATIONS_GRANTED_AT_FLAG, invocationCountCue } from "./invocation-count.js";
-import { CASTIGATE } from "./condemn.js";
-import { PIETY, holdBlessing, shareBlessing } from "./roll-boosts.js";
-import { pickPersonOnMap } from "../../dialogs/RelationshipLinkDialog.js";
+import { personalSymbolAction, displayPersonalSymbol } from "./personal-symbol.js";
+import { crewBackgroundTag } from "../../utils/crew.js";
 
 /**
  * The one book a PLAYER's sheet offers. Book I is the rules they play by; Book II is the
@@ -113,6 +114,8 @@ import {BINDING_ARBITRATION} from "./oaths.js";
 import {CondemnedDialog} from "./dialogs/CondemnedDialog.js";
 import {showBattleJoy, BATTLE_JOY, battleJoyEndsUnrolled} from "./battle-joy.js";
 import {fightStateGlyphs, fightStateForStem, fightStateOn, setFightState, revealOnAttack, FIGHT_STATES} from "./fight-states.js";
+import {fearlessWords, inspirationChip, inspirationHeld} from "./inspiration.js";
+import {actFearlessly} from "./inspiration-flow.js";
 import {
 	showBlessedMarks, BARKSKIN, TRACKLESS_STEP, SHARED_SOULS, AMULETS_TALISMANS, WARDS_BINDINGS,
 } from "./blessed-marks.js";
@@ -126,7 +129,7 @@ import {buildRelationshipRows, wireRelationshipTable, wireRelationshipLinks, rel
 import {wireAvatarPreview, removeAvatarPreview} from "../../utils/avatar-preview.js";
 import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relationship-board.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
-import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, wireFightingInNumbers, groupFightCardSummaries, nextFollowerOrder} from "../../data/follower-build.js";
+import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, wireFightingInNumbers, groupFightCardSummaries, nextFollowerOrder, crewGearCarried, crewGearArmor} from "../../data/follower-build.js";
 import {LOAD_LEVEL_LIMITS} from "../../utils/load.js";
 import {arcanaSummonFollowers} from "../../data/arcana-summons.js";
 import {joinNames} from "../../utils/strings.js";
@@ -1502,6 +1505,8 @@ export function createStonetopCharacterSheetClass(Base) {
 				: {};
 			context.stonetop.movesEdit       = sectionEdit("moves");
 			context.stonetop.possessionsEdit = sectionEdit("possessions");
+			// The Marshal's personal symbol: its row's "Display it" button, or null (personal-symbol.js).
+			context.stonetop.personalSymbol  = personalSymbolAction(this.actor);
 			context.stonetop.invocationsEdit = sectionEdit("invocations");
 			// The two Arcana sections (Major / Minor) each get their own pencil, like every
 			// other section. The per-tier "Create arcanum" buttons live at the foot of their
@@ -1686,8 +1691,14 @@ export function createStonetopCharacterSheetClass(Base) {
 				);
 			}
 			const crewStats               = context.stonetop.crewBonuses ?? { memberHp: 6, armor: 0, damageDie: "d6", rollMod: 1 };
+			// Kept for onboarding, which caps the crew's tag picks with Veteran Crew's extras too, and
+			// is only ever launched from a sheet that has rendered.
+			this._crewTagBonus            = crewStats.tagBonus ?? 0;
 			const companionBonuses        = context.stonetop.companionBonuses ?? { hp: 0, armor: 0, traitPicks: 0 };
-			context.stonetop.followers    = this._buildFollowersData(playbookDoc, context.stonetop.inventory?.smallItemLimit ?? null, crewStats, companionBonuses);
+			// The Crew insert the crew card is drawn from: the Marshal's own, or the one a learned
+			// Crew borrows (StonetopCharacter#crewSource), as the snapshot worked it out.
+			const crewDef                 = context.stonetop.crewDef ?? null;
+			context.stonetop.followers    = this._buildFollowersData(playbookDoc, context.stonetop.inventory?.smallItemLimit ?? null, crewStats, companionBonuses, crewDef);
 			context.stonetop.hasFollowers = !!(
 				context.stonetop.followers.animalCompanion ||
 				context.stonetop.followers.crew ||
@@ -1935,6 +1946,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Three more on/off states a fight turns on: the Marshal's shaken nerves, the Storm Markings'
 			// anger, a Fox's or Ranger's being unseen. Same glyph, same terms (./fight-states.js).
 			context.stonetop.fightStates = fightStateGlyphs(this.actor, { editable: context.editable });
+			// Inspiration an ally holds from a Marshal's We Happy Few (./inspiration.js): shown only while
+			// held, with the count in words, and pressed to act fearlessly (the other two spends have cards).
+			context.stonetop.inspiration = inspirationChip(this.actor, { editable: context.editable });
 			// An advantage HELD over the next roll — a peaceful camp, so far (p.334). Shown for the
 			// same reason the steading shows its own promised +Fortunes advantage: the roll it is
 			// owed to has not been made yet, possibly not this session, and a promise nobody can
@@ -2179,7 +2193,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			else if (/^follower-individuals:crew:/.test(section)) this._openCrewSections.add("roster");
 		}
 
-		_buildFollowersData(playbookDoc, smallItemLimit = null, crewStats = { memberHp: 6, armor: 0, damageDie: "d6", rollMod: 1 }, companionBonuses = { hp: 0, armor: 0, traitPicks: 0 }) {
+		// `crewDef` is the Crew insert the crew card is drawn from (StonetopCharacter#crewSource): the
+		// Marshal's own, or the one a learned Crew borrows. Null draws no crew card, whatever is
+		// stored, so a Crew switched off hides it and its flags wait for it to come back.
+		_buildFollowersData(playbookDoc, smallItemLimit = null, crewStats = { memberHp: 6, armor: 0, damageDie: "d6", rollMod: 1 }, companionBonuses = { hp: 0, armor: 0, traitPicks: 0 }, crewDef = playbookDoc?.crew ?? null) {
 			const sf = resolvedFlags(this.actor);
 			// Which collapsible crew sections are expanded. Seeded from the persisted
 			// per-actor setting in the constructor (so it survives a sheet reopen);
@@ -2195,7 +2212,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			// abstracted group-fight pool (ONE member's HP, whatever the crew's size), so
 			// it is the ceiling clampStoredGroupHp pulls a stored pool back under.
 			this._crewMemberHpMax = crewMaxHp;
-			const crewArmor = _crewOverride("armor") ?? crewStats.armor ?? 0;
+			// Armor: a hand-set override wins; otherwise it is DERIVED in the crew block below from
+			// the carried kit (thick hides, shield) on top of the playbook's base.
+			const crewArmorOverride = _crewOverride("armor");
 			const crewDamageDie = crewStats.damageDie ?? "d6";
 			const crewRollMod = crewStats.rollMod ?? 1;
 			// Edit state for follower cards. One card-level pencil (top-right of the
@@ -2402,26 +2421,20 @@ export function createStonetopCharacterSheetClass(Base) {
 				};
 			}
 
-			// Owned move names for the crew's Shield-Wall check (below) and the per-card
-			// "exceptional" gate (further down). The render's own copy — the header glyphs
+			// Owned move names for the animal companion's "exceptional" gate (further down; the
+			// crew's Shield Wall and exceptional ask for LEARNED moves instead). The render's own copy: the header glyphs
 			// resolve from the same one, so the whole repaint walks the items once.
 			const ownedMoves = this._ownedMoveNames();
 
 			// -- Crew (Marshal) -----------------------------------------
-			// Hardcoded fallback until LevelDB pack is rebuilt with the marshal.json inventory changes.
-			const CREW_INVENTORY_FALLBACK = [
-				{ slug: "hatchet",     label: "<strong>Hatchet</strong>, iron (<em>hand, thrown</em>, x <em>piercing</em>)",                       weight: 1 },
-				{ slug: "spear",       label: "<strong>Spear</strong>, iron (<em>close</em>, x <em>piercing</em>)",                                weight: 1 },
-				{ slug: "bow-arrows",  label: "<strong>Bow &amp; iron arrows</strong> (<em>near</em>, x <em>piercing</em>)", weight: 1 },
-				{ slug: "shield",      label: "<strong>Shield</strong> (+1 armor, +1 Readiness on 7+ to Defend)",                         weight: 2 },
-				{ slug: "thick-hides", label: "<strong>Thick hides</strong> (1 armor, <em>warm</em>)",                                    weight: 2 },
-				{ slug: "cloak",       label: "<strong>Cloak</strong> (<em>warm</em>)",                                                   weight: 1 },
-			];
 			let crew = null;
-			if (crewExists(sf.crew)) {
+			if (crewDef && crewExists(sf.crew)) {
 				const loyaltyVal      = sf.crew?.loyalty ?? 0;
 				const gearFlags       = sf.crew?.gear ?? {};
-				const inventoryDef    = playbookDoc?.crew?.inventory?.length ? playbookDoc.crew.inventory : CREW_INVENTORY_FALLBACK;
+				// The Crew insert's Inventory (packs/src .../the-marshal.json `crew.inventory`).
+				const inventoryDef    = crewDef.inventory ?? [];
+				// The crew's armor, from the kit they carry (the insert's "Armor: Starts at 0").
+				const crewArmor       = crewArmorOverride ?? crewGearArmor(inventoryDef, gearFlags, crewStats.armor ?? 0);
 				// Supplies: one set per crew member, each set being one ◇ of supplies. A ◇ holds
 				// "4 uses, but you add Stonetop's current Prosperity to that" (p.88) — the same
 				// arithmetic the small-item allotment uses (p.306), which is why smallItemLimit can
@@ -2497,15 +2510,15 @@ export function createStonetopCharacterSheetClass(Base) {
 				// p.216); the shield is "equipped" when all its load pips are filled.
 				const crewReadiness  = Math.max(0, Number(sf.crew?.readiness) || 0);
 				const crewShieldDef  = inventoryDef.find(i => i.slug === "shield");
-				const crewShieldWeight = Number(crewShieldDef?.weight) || 1;
 				// A non-number gear flag is already the "fully equipped" boolean; a
-				// number is filled load pips and counts as equipped once it meets weight.
-				const crewHasShield  = !!crewShieldDef && (typeof gearFlags.shield === "number"
-					? gearFlags.shield >= crewShieldWeight
-					: !!gearFlags.shield);
+				// number is filled load pips and counts as equipped once it meets weight
+				// (crewGearCarried, the same rule the crew's armor reads).
+				const crewHasShield  = !!crewShieldDef && crewGearCarried(crewShieldDef, gearFlags.shield);
 				// "Shield Wall" (Marshal) upgrades the shield's Readiness bonus from +1 to
-				// +2, so a Shield-Wall crew with shields can hold up to 5.
-				const crewHasShieldWall = ownedMoves.has(SHIELD_WALL_MOVE);
+				// +2, so a Shield-Wall crew with shields can hold up to 5. A RULE, so it asks for the
+				// move LEARNED (an un-learned Shield Wall stays on the sheet and changes nothing), as
+				// orderFollower's own Shield Wall offer already does.
+				const crewHasShieldWall = ownsLearnedMoveNamed(this.actor, SHIELD_WALL_MOVE);
 				const crewShieldBonus = crewHasShieldWall ? READINESS_SHIELD_WALL_BONUS : READINESS_SHIELD_BONUS;
 				const crewReadinessPips = _makeReadinessPips(crewReadiness, readinessCap(crewHasShield, crewShieldBonus));
 				// Crew shares the common card body but supplies its own gear (the
@@ -2523,7 +2536,8 @@ export function createStonetopCharacterSheetClass(Base) {
 				// never baked into crew.tags — so changing background swaps it cleanly
 				// instead of leaving the old one stranded in storage. crew.tags holds
 				// only the player's chosen tags.
-				const crewBgTag = (playbookDoc?.crew?.backgroundTags ?? {})[sf.background?.selected ?? ""] ?? null;
+				// The Marshal's alone: a borrowed crew gets none (crewBackgroundTag).
+				const crewBgTag = crewBackgroundTag(playbookDoc, crewDef, sf.background?.selected);
 				const crewChosenTags = (sf.crew.tags ?? []).filter(t => t !== crewBgTag);
 				let crewTagOptions = null, crewInstinctOptions = null, crewCostOptions = null;
 				let crewTagLimit = 2;
@@ -2531,10 +2545,10 @@ export function createStonetopCharacterSheetClass(Base) {
 				// player typed rather than picked from the list. Surfaced as editable fields.
 				let crewTagCustom = "", crewTagCustomDisabled = false, crewInstinctCustom = "", crewCostCustom = "";
 				if (cardEditing("crew", "")) {
-					const crewOpts     = playbookDoc?.crew ?? {};
+					const crewOpts     = crewDef;
 					// Base allowance (playbook data) + extra tags unlocked by Veteran Crew's
 					// "Select 2 new tags" picks (tagBonus, from the marked-move bonuses).
-					crewTagLimit       = (Number.isFinite(crewOpts.additionalTagCount) ? crewOpts.additionalTagCount : 2) + (crewStats.tagBonus ?? 0);
+					crewTagLimit       = crewSetupLimit(crewOpts, crewStats.tagBonus);
 					const crewTagSet   = new Set(sf.crew.tags ?? []);
 					const crewTagsAtLimit = [...crewTagSet].filter(t => t !== crewBgTag).length >= crewTagLimit;
 					crewTagOptions = (crewOpts.availableTags ?? []).map(tag => {
@@ -2582,7 +2596,11 @@ export function createStonetopCharacterSheetClass(Base) {
 					damageKind: "",
 					damageName: sf.crew.name || "Crew",
 					damageForm: "",
-					...crewExtras,        // exceptional / moves / movesLines / notes (gear overridden below)
+					...crewExtras,        // moves / movesLines / notes (exceptional and gear overridden below)
+					// Heroes to the Last's "They are exceptional" pick, and only that (the user's
+					// ruling): the same pick raises the Roll +N below, so the two cannot disagree. A
+					// stored crew.details.exceptional from the old hand toggle is not read.
+					exceptional: crewIsExceptional(this.actor),
 					gear:      inventoryDef.map(item => {
 						// A weightless entry still gets one pip, so it's toggleable (matches
 						// the data-weight `|| 1` fallback in the gear-check handler).
@@ -2617,7 +2635,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					// map — so the shared toggle / rename / remove handlers act on it unchanged.
 					produced:          crewExtras.gear,
 					individuals:       crewIndividuals,
-					individualOptions: playbookDoc?.crew?.individualOptions ?? {},
+					individualOptions: crewDef.individualOptions ?? {},
 					namedCount:        crewNamedCount,
 					size:              crewSize,
 					anonMembers:       crewAnonMembers,
@@ -2907,10 +2925,22 @@ export function createStonetopCharacterSheetClass(Base) {
 			// shows for follower types whose playbook grants it, and can be switched
 			// on only once that move is owned. Surfaced per-card so the tags-row chip
 			// and its click handler can warn when the requirement isn't met.
-			// (ownedMoves is built once above, shared with the crew Shield-Wall check.)
+			// (ownedMoves is built once above.)
 			const withExceptional = (card) => {
 				if (!card) return card;
 				const def = FOLLOWER_EXCEPTIONAL[card.ftype];
+				if (card.ftype === "crew") {
+					// The crew's is DERIVED (crewIsExceptional, set on the card above): the chip only
+					// reports it, and nothing on the card switches it. Heroes to the Last's pick does.
+					card.exceptionalAvailable = true;
+					card.exceptionalDerived   = true;
+					card.exceptionalMoveName  = def.move;
+					card.exceptionalMet       = !!card.exceptional;
+					card.exceptionalHint      = card.exceptional
+						? `Exceptional from ${def.move}'s pick “They are exceptional.”`
+						: `Your crew becomes exceptional when you take ${def.move} and pick “They are exceptional.”`;
+					return card;
+				}
 				if (def) {
 					card.exceptionalAvailable = true;
 					card.exceptionalMoveName = def.move;
@@ -3121,7 +3151,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			this._followerDragData = new Map(Object.values(groups).flat()
 				.filter(card => card?.ftype)
 				.map(card => [`${card.ftype}:${card.slug ?? ""}`, _followerDragSnapshot(card, this.actor)]));
-			return { ...groups, possessionFollowerOffers };
+			// A crew the character is owed but has never been given: Crew learned through another
+			// playbook's move (which onboarding never asks about), or a Marshal whose onboarding
+			// stopped short of its crew step. The add bar offers "Create your crew" (_onCreateCrew).
+			const crewSetupOffer = !!crewDef && !crewExists(sf.crew);
+			return { ...groups, possessionFollowerOffers, crewSetupOffer };
 		}
 
 		// `borrowed`: the list is the Lightbearer's, drawn on through Invoke the Sun God by someone
@@ -3653,10 +3687,20 @@ export function createStonetopCharacterSheetClass(Base) {
 						const card = rollable.closest(".stonetop-follower-card");
 						const which = { ftype: card?.dataset.ftype ?? "", slug: card?.dataset.slug ?? "" };
 						const printed = this._followerDragData?.get(`${which.ftype}:${which.slug}`)?.follower?.damage ?? "";
-						const { keywords, weapon, rollMode } = printedBlow(printed, rollable.dataset.baseRoll || roll);
+						const printedLine = printedBlow(printed, rollable.dataset.baseRoll || roll);
+						const { rollMode } = printedLine;
+						let { keywords, weapon } = printedLine;
+						// The crew deals its blow with one of the weapons its card has ticked, asked as a
+						// character's own damage asks, so the weapon's piercing and tags reach Apply.
+						let blowLabel = label;
+						if (which.ftype === "crew") {
+							const blow = await crewBlow(this.actor, { label, weapon, keywords });
+							if (!blow) return;
+							({ label: blowLabel, weapon, keywords } = blow);
+						}
 						await rollFollowerDamageAt(this.actor, {
 							fighter: followerInFight(this.actor, which),
-							formula: roll, label, attacker,
+							formula: roll, label: blowLabel, attacker,
 							keywords, weapon, rollMode,
 							// The Swarm and Group-vs-group rows carry their own +N in the formula.
 							seeded: !("numbersRoll" in rollable.dataset),
@@ -4381,6 +4425,19 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 			html.find(".stonetop-possession-check").on("change", this._onPossessionCheck.bind(this));
 			html.find(".stonetop-possession-custom-remove").on("click", this._onRemoveCustomPossession.bind(this));
+			// The Marshal's personal symbol, displayed: crew +1 Loyalty (max 3). Disabled for the
+			// write so a double click cannot count twice; the render that follows redraws it.
+			html.find(".stonetop-personal-symbol-btn").on("click", async ev => {
+				const btn = ev.currentTarget;
+				if (btn.disabled) return;
+				btn.disabled = true;
+				try {
+					await displayPersonalSymbol(this.actor);
+				} finally {
+					btn.disabled = false;
+					this.render(false);
+				}
+			});
 			html.find(".stonetop-possession-sub-check").on("change", this._onPossessionSubCheck.bind(this));
 			// Weapons-of-war ◇/□ rows: ticking a diamond picks the weapon (a sub-choice) and
 			// marks it carried in one move — the pick IS the load mark.
@@ -4446,6 +4503,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Releasing a held advantage, on the same `button.` terms: the read-only copy is a
 			// <span> and must not be wired.
 			html.find("button.stonetop-held-advantage").on("click", this._onReleaseHeldAdvantage.bind(this));
+			// We Happy Few's Inspiration chip: act fearlessly. Only ever a <button> where the sheet is editable.
+			html.find("button.stonetop-inspiration-chip").on("click", this._onActFearlessly.bind(this));
 			html.find("button.stonetop-held-disadvantage").on("click", this._onReleaseHeldDisadvantage.bind(this));
 			html.find(".stonetop-recover-open-btn").on("click", this._onRecoverOpen.bind(this));
 			html.find(".stonetop-convalesce-open-btn").on("click", this._onConvalesceOpen.bind(this));
@@ -4503,6 +4562,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			// allowed; trying to turn it on without the move warns instead of toggling.
 			html.find(".stonetop-exceptional-toggle").on("click", async ev => {
 				const el   = ev.currentTarget;
+				// The crew's comes from Heroes to the Last's pick; its chip is no toggle (withExceptional).
+				if (el.dataset.ftype === "crew") return;
 				const path = followerDetailPath(el.dataset.ftype, el.dataset.slug, "exceptional");
 				if (!path) return;
 				const turnOn = !el.classList.contains("is-selected");
@@ -4636,6 +4697,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Materialize a playbook possession-follower (dog / Hounds / Mastiffs) as a card.
 			html.find(".stonetop-add-possession-follower").on("click", ev =>
 				this._onAddPossessionFollower(ev.currentTarget.dataset.slug));
+			// A crew the character is owed but has never set up (crewSetupOffer).
+			html.find(".stonetop-create-crew").on("click", () => this._onCreateCrew());
 			// Expand/collapse-all caret on a rules card header (Animal Companion Moves /
 			// Follower Special Moves): open every move's <details> when any is collapsed,
 			// otherwise close them all. Open state is ephemeral (resets on re-render), like
@@ -4765,39 +4828,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Delete individual crew member
 			html.find(".stonetop-crew-delete-individual").on("click", async ev => {
 				const idx = Number(ev.currentTarget.dataset.index);
-				const individuals = [...(this.actor.getFlag(STONETOP_SCOPE, "crew.individuals") ?? [])];
-				if (idx < 0 || idx >= individuals.length) return;
-				const name = individuals[idx]?.name || "this crew member";
-				individuals.splice(idx, 1);
-				// Re-key per-individual HP to stay aligned with the spliced array:
-				// the removed entry is dropped and every entry above it shifts down
-				// one. (individualsHp is an index-keyed map, not part of the array.)
-				const oldHp = this.actor.getFlag(STONETOP_SCOPE, "crew.individualsHp") ?? {};
-				const newHp = {};
-				for (const [k, v] of Object.entries(oldHp)) {
-					const i = Number(k);
-					if (i < idx)      newHp[i]     = v;
-					else if (i > idx) newHp[i - 1] = v;
-				}
-				// Write the re-keyed entries and per-key delete any stale indices the
-				// shift left behind, in one update. (Foundry recursively merges
-				// object-valued flags, so without the key deletes the dropped/old
-				// trailing entries would persist.)
-				const survivors = new Set(Object.keys(newHp));
-				const update = { "flags.stonetop-pwd.crew.individuals": individuals };
-				for (const k of Object.keys(oldHp))
-					if (!survivors.has(k)) {
-						const [updKey, val] = deletionEntry(`flags.${STONETOP_SCOPE}.crew.individualsHp.${k}`);
-						update[updKey] = val;
-					}
-				for (const [k, v] of Object.entries(newHp))
-					update[`flags.stonetop-pwd.crew.individualsHp.${k}`] = v;
-				// Shrink the roster by one: "Remove" takes the member out of the crew
-				// entirely. Without this the freed slot reappears as a fresh full-HP
-				// anonymous member (`size` would still imply the old headcount).
-				const sizeBefore = effectiveCrewSize(this.actor.getFlag(STONETOP_SCOPE, "crew.size"), individuals.length + 1);
-				const newSize = Math.max(individuals.length, sizeBefore - 1);
-				update["flags.stonetop-pwd.crew.size"] = newSize;
+				const crew = this.actor.getFlag(STONETOP_SCOPE, "crew") ?? {};
+				// The same write as the fate dialog's "Dead" (follower-fate.js): out of the crew
+				// entirely, HP re-keyed, the headcount down by one.
+				const update = crewIndividualRemovalUpdate(crew, idx);
+				if (!update) return;
+				const name = crew.individuals[idx]?.name || "this crew member";
 				clampStoredGroupHp(update);
 				const ok = await confirmOutcome({
 					title:   "Remove crew member",
@@ -5035,8 +5071,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			const openNameMemberDialog = async (anonIndex) => {
 				// Fall back to the shared crew suggestion lists (module/data/steading-members.js)
 				// when the playbook pack doesn't carry its own crew.individualOptions.
-				const playbookDoc = await this._stonetopCharacter.playbook();
-				const indOpts     = playbookDoc?.flags?.stonetop?.crew?.individualOptions ?? {};
+				// The Crew insert's own lists, the Marshal's or the one a learned Crew borrows (crewSource).
+				const indOpts     = (await this._stonetopCharacter.crewSource())?.individualOptions ?? {};
 				const names  = indOpts.names?.length  ? indOpts.names  : CREW_INDIVIDUAL_NAMES;
 				const tags   = indOpts.tags?.length   ? indOpts.tags   : CREW_INDIVIDUAL_TAGS;
 				const traits = indOpts.traits?.length ? indOpts.traits : CREW_INDIVIDUAL_TRAITS;
@@ -5715,49 +5751,44 @@ export function createStonetopCharacterSheetClass(Base) {
 				let val = Math.max(0, parseInt(input.value, 10) || 0);
 				if (Number.isFinite(max) && max > 0) val = Math.min(val, max);
 				const { follower, slug, index } = input.dataset;
-				// Watch for a named single follower (animal companion / initiate / beast /
-				// custom — not the crew, not livestock) crossing from alive to 0 HP, so we
-				// can prompt for its fate (p.469 + Loyal to the End) after the write.
-				const fateTypes = new Set(["animal-companion", "initiate", "beast", "custom"]);
-				const fateHpPaths = {
-					"animal-companion": "animalCompanion.hpCurrent",
-					"initiate":         `initiatesHp.${slug}`,
-					"beast":            `beastHp.${slug}`,
-					"custom":           `customFollowers.${slug}.hpCurrent`,
-				};
+				// Watch for a follower (animal companion / initiate / beast / custom, or one
+				// member of the crew's or a custom group's roster; not livestock, not a group's
+				// pooled HP) crossing
+				// from alive to 0 HP, so we can prompt for its fate (p.469 + Loyal to the End)
+				// after the write. See follower-fate.js.
 				const fateEligible = val === 0
-					&& fateTypes.has(follower)
+					&& FOLLOWER_FATE_TYPES.has(follower)
 					&& !input.closest(".stonetop-follower-card--livestock");
-				// "unset" HP means full (see _clampHp) — so an undefined previous value
-				// counts as alive; only an explicit 0 means they were already down.
+				// "unset" HP means full (see _clampHp), so an unset previous value counts
+				// as alive; only an explicit 0 means they were already down.
 				const wasAlive = fateEligible
-					&& Number(this.actor.getFlag(STONETOP_SCOPE, fateHpPaths[follower])) !== 0;
-				await this._setFollowerHp(follower, slug, index, val);
+					&& wasStanding(this.actor.getFlag(STONETOP_SCOPE, followerFateHpPath(follower, slug, index)));
 				// Reviving a fallen custom follower (HP back above 0) clears its "dead" mark so
-				// the card returns to normal — a mirror of the fate dialog's "Dead" outcome.
-				if (follower === "custom" && slug && val > 0
-					&& this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}.dead`)) {
-					await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.dead`]: false });
-				}
+				// the card returns to normal: a mirror of the fate dialog's "Dead" outcome. One
+				// rule with Bath of Healing Light's heal of a card (follower-fate.js). A custom
+				// group's member marked fallen at the group's floor is revived the same way.
+				// In the HP's own write: one update, one re-render.
+				const update = {
+					...this._followerHpUpdate(follower, slug, index, val),
+					...followerReviveUpdate(follower, slug, val, resolvedFlags(this.actor), index),
+				};
+				if (Object.keys(update).length) await this.actor.update(update);
 				// Capture the follower's display name off the live card BEFORE the
-				// re-render detaches this input from the DOM.
-				const fateName = wasAlive
-					? (input.closest(".stonetop-follower-card")?.querySelector(".stonetop-follower-order")?.dataset.followerName
-						|| input.closest(".stonetop-follower-card")?.querySelector(".stonetop-spend-loyalty")?.dataset.followerName
-						|| "Your follower")
-					: null;
+				// re-render detaches this input from the DOM. A crew member, or a custom
+				// group's, is named by their own roster row, never by the card (which would
+				// name the whole group).
+				const fateName = !wasAlive ? null
+					: isCrewMemberRow(follower)
+						? crewMemberFateName(this.actor.getFlag(STONETOP_SCOPE, "crew"), follower, index)
+					: isCustomMemberRow(follower)
+						? customMemberFateName(index)
+						: (input.closest(".stonetop-follower-card")?.querySelector(".stonetop-follower-order")?.dataset.followerName
+							|| input.closest(".stonetop-follower-card")?.querySelector(".stonetop-spend-loyalty")?.dataset.followerName
+							|| "Your follower");
 				this.render(false);
 				// Now that the 0 is committed, offer the fate choice (Loyal to the End /
 				// Death's Door / dying / dead) for a follower who just went down.
-				if (wasAlive) {
-					const loyaltyPath = _followerLoyaltyPath(follower, slug);
-					const loyalty = Math.max(0, Number(this.actor.getFlag(STONETOP_SCOPE, loyaltyPath)) || 0);
-					// Loyal to the End is the Ranger's animal-companion move (p.469 → p.143):
-					// it replaces the standard fate choice, and only the companion gets it.
-					new FollowerFateDialog(this.actor, { name: fateName, loyalty, isAnimalCompanion: follower === "animal-companion" },
-						(action) => this._resolveFollowerFate(action, { name: fateName, loyalty, follower, slug }),
-					).render(true);
-				}
+				if (wasAlive) this._openFollowerFate({ follower, slug, index, name: fateName });
 			}, true);
 
 			this._activateTabDragDrop(html);
@@ -7939,6 +7970,26 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		/**
+		 * We Happy Few: "Act fearlessly in the face of terror or overwhelming odds", 1 Inspiration. The
+		 * fiction is the table's; the sheet asks, spends one and says so in chat (./inspiration-flow.js).
+		 */
+		async _onActFearlessly(ev) {
+			ev?.preventDefault?.();
+			ev?.stopPropagation?.();
+			if (!this.isEditable || inspirationHeld(this.actor) <= 0) return;
+			const words = fearlessWords(this.actor);
+			const spend = await confirmOutcome({
+				title: words.title,
+				content: `<p>${escHtml(words.ask)}</p>`,
+				yes: { label: words.spend, icon: "fa-bullhorn" },
+				no:  { label: words.keep },
+				defaultYes: true,
+			});
+			if (spend !== true) return;
+			if (await actFearlessly(this.actor)) this.render(false);
+		}
+
+		/**
 		 * "When the action stops, roll +CON." Asks, then rolls or simply comes out of it. Two ways in:
 		 * the lit glyph, and a fight ending with the Heavy still raging (combat/battle-joy-offer.js),
 		 * which calls this on the Heavy's own screen whether or not the sheet is open.
@@ -9234,6 +9285,28 @@ export function createStonetopCharacterSheetClass(Base) {
 			this.render(false);
 		}
 
+		// "Create your crew" (crewSetupOffer): the Crew insert's picks, for a character who has
+		// learned Crew through another playbook's move, or a Marshal whose onboarding never reached
+		// its crew step. Writes the same crew.* flags onboarding does. Resolves to whether it did.
+		async _onCreateCrew() {
+			if (!this.isEditable) return false;
+			const playbookDoc = await this._stonetopCharacter.playbook();
+			const crewDef = await this._stonetopCharacter.crewSource(playbookDoc);
+			if (!crewDef) return false;
+			const sf = resolvedFlags(this.actor);
+			const { crewStats } = await this._stonetopCharacter.followerCardBonuses(playbookDoc, crewDef);
+			const picks = await new CrewSetupDialog({
+				crewDef,
+				bgTag:    crewBackgroundTag(playbookDoc, crewDef, sf.background?.selected),
+				tagBonus: crewStats?.tagBonus ?? 0,
+				stored:   sf.crew ?? {},
+			}).promise();
+			if (!picks) return false;
+			await this.actor.update(crewSetupUpdate(picks));
+			this.render(false);
+			return true;
+		}
+
 		// Open a blank homebrew arcanum (minor or major) in the editor as a draft. It's added
 		// to this character only when the author clicks Save & Done (see _createAndAddArcanum).
 		async _onArcanaCreate(major = false) {
@@ -9727,14 +9800,52 @@ export function createStonetopCharacterSheetClass(Base) {
 			return nextFollowerOrder(this.actor.getFlag(STONETOP_SCOPE, "customFollowers") ?? {});
 		}
 
+		// Open the fate dialog for a follower row that has just gone to 0 HP. `follower` is
+		// the HP row's own type (crew rows included, see follower-fate.js), `index` the roster
+		// row for a crew member or a custom group's. Loyalty is read off the follower's own
+		// track, the crew's shared one for a crew member, the group's for a group member.
+		_openFollowerFate({ follower, slug, index, name } = {}) {
+			const loyaltyPath = _followerLoyaltyPath(followerFateLoyaltyType(follower), slug);
+			const loyalty = loyaltyPath ? Math.max(0, Number(this.actor.getFlag(STONETOP_SCOPE, loyaltyPath)) || 0) : 0;
+			// Loyal to the End is the Ranger's animal-companion move (p.469 → p.143):
+			// it replaces the standard fate choice, and only the companion gets it.
+			const dialog = new FollowerFateDialog(this.actor, {
+				name, loyalty,
+				isAnimalCompanion: follower === "animal-companion",
+				isCrewMember:      isCrewMemberRow(follower),
+				isGroupMember:     isCustomMemberRow(follower),
+				sir:              sirPermissionOffer(this.actor, loyalty),
+			}, (action, { letGo = false } = {}) => this._resolveFollowerFate(action, { name, loyalty, follower, slug, index, letGo }));
+			dialog.render(true);
+			return dialog;
+		}
+
 		// Apply the fate chosen for a follower that hit 0 HP (FollowerFateDialog).
 		// "roll" is the Ranger's animal-companion move Loyal to the End (p.143): roll +0
 		// (advantage if it holds Loyalty) and the result card carries the 10+/7-9/6-
-		// outcome. Every other follower's "action" just posts a note recording the GM's
-		// call.
-		async _resolveFollowerFate(action, { name, loyalty, follower, slug } = {}) {
+		// outcome. "spare" is the Marshal's SIR, PERMISSION TO DIE, SIR: 1 Loyalty spent,
+		// they stay at 0 HP (out of the action, which the fight already reads off 0 HP) but
+		// alive. Every other follower's "action" posts a note recording the GM's call; Dead
+		// also strikes a crew member (or a custom group's) off the roster, and marks the Marshal's XP when they
+		// let them go (`letGo`, the dialog's pre-ticked box).
+		async _resolveFollowerFate(action, { name, loyalty, follower, slug, index, letGo = false } = {}) {
 			const plainWho = name || "Your follower";
 			const who = escHtml(plainWho);
+			if (action === "spare") {
+				if (!ownsLearnedMoveNamed(this.actor, SIR_PERMISSION_TO_DIE)) return;
+				const path = _followerLoyaltyPath(followerFateLoyaltyType(follower), slug);
+				// Decrement the LIVE track, not the count the dialog opened with.
+				const live = path ? Math.max(0, Number(this.actor.getFlag(STONETOP_SCOPE, path)) || 0) : 0;
+				if (live <= 0) {
+					ui.notifications?.warn?.(game.i18n.format("stonetop.character.followers.fate.spareNone", { name: plainWho }));
+					return;
+				}
+				await this.actor.update({ [`flags.stonetop-pwd.${path}`]: live - 1 }, { stonetopMove: SIR_PERMISSION_TO_DIE });
+				await this._postMoveCard(SIR_PERMISSION_TO_DIE,
+					`<p>${game.i18n.format("stonetop.character.followers.fate.spareCard", { name: `<strong>${who}</strong>`, loyalty: live - 1 })}</p>`);
+				this.render(false);
+				return;
+			}
 			if (action === "roll") {
 				await rollStat("", this.actor, {
 					statValue:   0,
@@ -9769,6 +9880,36 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (follower === "custom" && slug) {
 					await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.dead`]: true });
 				}
+				// A crew member is struck off the roster (follower-fate.js#crewMemberDeathUpdate).
+				// Checked against the LIVE roster: a row healed or shifted since the dialog opened
+				// is left alone rather than erasing whoever now sits at that index.
+				if (isCrewMemberRow(follower)) {
+					const update = crewMemberDeathUpdate(this.actor.getFlag(STONETOP_SCOPE, "crew"), follower, index);
+					if (update) {
+						await this.actor.update(update);
+						body += `<p>${escHtml(game.i18n.localize("stonetop.character.followers.fate.crewDeadCard"))}</p>`;
+					} else {
+						ui.notifications?.warn?.(game.i18n.format("stonetop.character.followers.fate.crewStale", { name: plainWho }));
+					}
+				}
+				// A custom group's member likewise (follower-fate.js#customMemberDeathUpdate), off the
+				// live record; a group down to its last two keeps their slots, the dead one marked fallen.
+				if (isCustomMemberRow(follower)) {
+					const update = customMemberDeathUpdate(this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}`), slug, index);
+					if (update) {
+						await this.actor.update(update);
+						const card = customMemberStruckOff(update, slug) ? "groupDeadCard" : "groupFloorCard";
+						body += `<p>${escHtml(game.i18n.localize(`stonetop.character.followers.fate.${card}`))}</p>`;
+					} else {
+						ui.notifications?.warn?.(game.i18n.format("stonetop.character.followers.fate.crewStale", { name: plainWho }));
+					}
+				}
+				// SIR, PERMISSION TO DIE, SIR: "If you let them go, mark XP." One card, death and receipt.
+				if (letGo && ownsLearnedMoveNamed(this.actor, SIR_PERMISSION_TO_DIE)) {
+					await postLetGoReceipt(this.actor, body);
+					this.render(false);
+					return;
+				}
 			} else {
 				return;
 			}
@@ -9776,32 +9917,27 @@ export function createStonetopCharacterSheetClass(Base) {
 			this.render(false);
 		}
 
-		// Write a follower's current HP to `val`. The per-slug / per-index HP stores are
-		// object-valued flags; write the single changed key with a dotted path (Foundry
-		// merges it) instead of cloning the whole map.
-		async _setFollowerHp(follower, slug, index, val) {
-			if (follower === "animal-companion") {
-				await this.actor.setFlag(STONETOP_SCOPE, "animalCompanion.hpCurrent", val);
-			} else if (follower === "initiate") {
-				await this.actor.update({ [`flags.stonetop-pwd.initiatesHp.${slug}`]: val });
-			} else if (follower === "crew-individual") {
-				await this.actor.update({ [`flags.stonetop-pwd.crew.individualsHp.${Number(index)}`]: val });
-			} else if (follower === "crew-member") {
-				const arr = [...(this.actor.getFlag(STONETOP_SCOPE, "crew.memberHp") ?? [])];
+		// A follower's current HP as `val`, as an actor.update fragment (empty for a row that has
+		// none). The per-slug / per-index HP stores are object-valued flags: the single changed key
+		// is written with a dotted path (Foundry merges it) instead of cloning the whole map; the two
+		// array-valued member stores are written whole.
+		_followerHpUpdate(follower, slug, index, val) {
+			const arrayWith = key => {
+				const arr = [...(this.actor.getFlag(STONETOP_SCOPE, key) ?? [])];
 				arr[Number(index)] = val;
-				await this.actor.setFlag(STONETOP_SCOPE, "crew.memberHp", arr);
-			} else if (follower === "crew-group") {
-				await this.actor.setFlag(STONETOP_SCOPE, "crew.groupHp", val);
-			} else if (follower === "beast") {
-				await this.actor.update({ [`flags.stonetop-pwd.beastHp.${slug}`]: val });
-			} else if (follower === "custom") {
-				await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.hpCurrent`]: val });
-			} else if (follower === "custom-group") {
-				await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.groupHp`]: val });
-			} else if (follower === "custom-member") {
-				const arr = [...(this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}.memberHp`) ?? [])];
-				arr[Number(index)] = val;
-				await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.memberHp`]: arr });
+				return { [`flags.stonetop-pwd.${key}`]: arr };
+			};
+			switch (follower) {
+				case "animal-companion": return { "flags.stonetop-pwd.animalCompanion.hpCurrent": val };
+				case "initiate":         return { [`flags.stonetop-pwd.initiatesHp.${slug}`]: val };
+				case "crew-individual":  return { [`flags.stonetop-pwd.crew.individualsHp.${Number(index)}`]: val };
+				case "crew-member":      return arrayWith("crew.memberHp");
+				case "crew-group":       return { "flags.stonetop-pwd.crew.groupHp": val };
+				case "beast":            return { [`flags.stonetop-pwd.beastHp.${slug}`]: val };
+				case "custom":           return { [`flags.stonetop-pwd.customFollowers.${slug}.hpCurrent`]: val };
+				case "custom-group":     return { [`flags.stonetop-pwd.customFollowers.${slug}.groupHp`]: val };
+				case "custom-member":    return arrayWith(`customFollowers.${slug}.memberHp`);
+				default:                 return {};
 			}
 		}
 
@@ -9952,6 +10088,9 @@ export function createStonetopCharacterSheetClass(Base) {
 					follower = { ...follower, exceptional: initiateExceptional(det, opt) };
 				}
 			}
+			// The crew's exceptional is Heroes to the Last's pick, whichever door the order came through
+			// (the card's button, a crew member's own, or the token on the map), so it is settled here.
+			if (ftype === "crew") follower = { ...follower, exceptional: crewIsExceptional(this.actor) };
 			// Shield Wall is the Marshal's order to THEIR crew, so only the crew is offered it.
 			if (ftype === "crew" && ownsLearnedMoveNamed(this.actor, SHIELD_WALL_MOVE)) follower = { ...follower, shieldWall: true };
 			new OrderFollowersDialog(this.actor, follower,
@@ -10835,6 +10974,8 @@ export function createStonetopCharacterSheetClass(Base) {
 					initialSelections,
 					startAtStep,
 					ownedMoveCounts: this._ownedMoveCounts(),
+					retiredMoveNames: this._stonetopCharacter._retiredMoveNames(),
+					crewTagBonus: this._crewTagBonus ?? 0,
 					onBack: openPicker,
 					onSave: async (selections) => {
 						await this._applyPlaybookSelections(playbookDoc, selections);
@@ -10899,6 +11040,8 @@ export function createStonetopCharacterSheetClass(Base) {
 					initialSelections: selections,
 					startAtStep: options.startAtStep ?? null,
 					ownedMoveCounts: this._ownedMoveCounts(),
+					retiredMoveNames: this._stonetopCharacter._retiredMoveNames(),
+					crewTagBonus: this._crewTagBonus ?? 0,
 					onSave: async (sel) => {
 						await this._applyPlaybookSelections(playbookDoc, sel);
 					},

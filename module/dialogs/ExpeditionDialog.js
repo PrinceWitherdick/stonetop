@@ -36,6 +36,7 @@ import { StonetopSteading } from "../actors/steading/StonetopSteading.js";
 import { openReturnTriumphant } from "../actors/steading/return-triumphant.js";
 import { STEADING_MOVE, improvementQuestions } from "../actors/steading/improvement-rolls.js";
 import { settleSteadingRoll } from "../actors/steading/steading-roll.js";
+import { worldLogisticsNames } from "../actors/character/logistics.js";
 import { assetTakenLabel } from "../utils/requisition-asset.js";
 import { getPlayerCharacters } from "../utils/playbook-actors.js";
 // Who on the roster is past the Door: the dead don't outfit, and the three who came back set
@@ -1010,8 +1011,10 @@ export class ExpeditionDialog extends StepperDialog {
 			fortunesLabel: step.roll === "requisition" ? this._fortunesLabel() : null,
 			// The Herd of Horses question, once the steading has one (improvement-rolls.js).
 			herdShare: step.roll === "requisition" ? this._herdShareQuestion() : "",
-			// How the GM is rolling it (the Marshal's Logistics is advantage), and any advantage
-			// the steading is holding for its next +Fortunes roll, which this roll will spend.
+			// The Marshal's Logistics, ticked, once any character has it learned.
+			reqLogistics: step.roll === "requisition" ? this._logisticsQuestion() : "",
+			// How the GM is rolling it, and any advantage the steading is holding for its next
+			// +Fortunes roll, which this roll will spend.
 			reqMode:   step.roll === "requisition" ? this._requisitionMode() : null,
 			reqHeld:   step.roll === "requisition" ? this._steadingWrapper()?.steading.fortunesAdvantage?.()?.source ?? "" : "",
 			showTiers: !!step.showTiers,
@@ -1682,12 +1685,14 @@ export class ExpeditionDialog extends StepperDialog {
 	async _rollRequisitionOnce() {
 		const fortunes = this._steadingFortunes();
 		const found = this._steadingWrapper();
-		const herdShare = !!this.element?.[0]?.querySelector?.('[name="herdShare"]')?.checked;
+		const root = this.element?.[0];
+		const herdShare = !!root?.querySelector?.('[name="herdShare"]')?.checked;
+		const logistics = !!root?.querySelector?.('[name="logistics"]')?.checked;
 		const terms = found
 			? await settleSteadingRoll(found.steading, {
 				moveName: STEADING_MOVE.REQUISITION, statKey: "fortunes",
 				chosenMode: this._requisitionMode(),
-				answers: { herdShare },
+				answers: { herdShare, logistics },
 				canSpend: !!found.actor.isOwner,
 			})
 			: { rollMode: this._requisitionMode(), missAsPartial: "", conditionNotes: [], spend: () => {} };
@@ -1711,6 +1716,12 @@ export class ExpeditionDialog extends StepperDialog {
 		return improvementQuestions(STEADING_MOVE.REQUISITION, "fortunes", {
 			has: slug => found.steading.improvementCompleted(slug),
 		}).find(q => q.name === "herdShare")?.label ?? "";
+	}
+
+	/** The Marshal's Logistics ("when you Requisition, you have advantage"), asked once anyone has it learned. */
+	_logisticsQuestion() {
+		return improvementQuestions(STEADING_MOVE.REQUISITION, "fortunes", { logistics: worldLogisticsNames() })
+			.find(q => q.name === "logistics")?.label ?? "";
 	}
 
 	// ── The route (journey step) ─────────────────────────────────────────────────

@@ -274,6 +274,38 @@ export function readinessCap(hasShield = false, shieldBonus = READINESS_SHIELD_B
 // (like FOLLOWER_EXCEPTIONAL's move names) so the sheet doesn't hardcode the literal.
 export const SHIELD_WALL_MOVE = "Shield Wall";
 
+// ── The crew's kit (the Crew insert's Inventory) ─────────────────────────────
+// Each row is a slug with a load `weight`, and `crew.gear[slug]` records its filled pips: a
+// number, or the boolean an older sheet stored for "all of it". A row counts as CARRIED once
+// every pip is filled, which is the one rule the shield's Readiness and the crew's armor share.
+export function crewGearCarried(item, flagVal) {
+	const weight = Number(item?.weight) || 1;
+	return typeof flagVal === "number" ? flagVal >= weight : !!flagVal;
+}
+
+/**
+ * The armor the crew's carried kit gives them: "Armor: Starts at 0" on the insert, and the
+ * inventory raises it (thick hides "1 armor", a shield "+1 armor"; Book I, a follower "has 0 armor
+ * unless ... Outfit him with thick hides or a shield"). Data on the rows, never read from labels:
+ * `armor` is a worn BASE (bases do not stack, the highest counts, as on a character) and
+ * `armorBonus` ADDS on top (the shield).
+ *
+ * @param {object[]} inventory  the playbook's crew inventory rows
+ * @param {object}   gearFlags  crew.gear, slug -> filled pips (or boolean)
+ * @param {number}   base       the crew's own armor before any kit (the playbook's 0)
+ * @returns {number}
+ */
+export function crewGearArmor(inventory = [], gearFlags = {}, base = 0) {
+	let worn = Number(base) || 0;
+	let bonus = 0;
+	for (const item of inventory ?? []) {
+		if (!crewGearCarried(item, gearFlags?.[item?.slug])) continue;
+		worn   = Math.max(worn, Number(item?.armor) || 0);
+		bonus += Number(item?.armorBonus) || 0;
+	}
+	return worn + bonus;
+}
+
 // ── FIGHTING IN NUMBERS: two rules, deliberately kept apart ───────────────────
 //
 // The book pays a side for having more bodies in the fight in TWO different ways,

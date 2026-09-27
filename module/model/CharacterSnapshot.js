@@ -83,6 +83,8 @@ export class CharacterSnapshot {
 		this.postDeathInsert = b._postDeathInsert;
 		this.rollMode        = b._rollMode;
 		this.crewBonuses     = b._crewBonuses ?? null;
+		// The Crew insert the crew card is drawn from (StonetopCharacter#crewSource), or null.
+		this.crewDef         = b._crewDef ?? null;
 		// { hp, armor, traitPicks } applied to the Animal Companion card (Beast of
 		// Legend "+4 HP/+1 armor", Magnificent Specimen extra trait picks).
 		this.companionBonuses = b._companionBonuses ?? null;
@@ -109,6 +111,7 @@ export class CharacterSnapshotBuilder {
 	withPostDeathInsert(v) { this._postDeathInsert = v; return this; }
 	withRollMode(v)        { this._rollMode        = v; return this; }
 	withCrewBonuses(v)     { this._crewBonuses     = v; return this; }
+	withCrewDef(v)         { this._crewDef         = v; return this; }
 	withCompanionBonuses(v) { this._companionBonuses = v; return this; }
 	withViewerIsGM(v)      { this._isGM            = v; return this; }
 	build()                { return new CharacterSnapshot(this); }

@@ -39,7 +39,7 @@ import {deletionEntry} from "../../utils/foundry-compat.js";
 import {statRequirementsUnmet} from "./stat-requirement.js";
 import {effectiveRequiredMoves, requiredMovesUnmet, requirementLabel} from "./move-requirement.js";
 import {MoveResources} from "./MoveResources.js";
-import {moveMarkBudget} from "./move-mark-budget.js";
+import {moveMarkBudget, markOptionCapNote} from "./move-mark-budget.js";
 import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
 import {DEATHS_DOOR_FLAG, UNSTOPPABLE, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
 import {heroDisplayName, WBH_HERO_FLAG, ownsAsteriskMove} from "./WouldBeHeroAsterisk.js";
@@ -621,6 +621,25 @@ export class StonetopCharacter {
 		return this.lightbearerInvocations();
 	}
 
+	// The Crew insert this character works from ({ availableTags, instincts, costs, inventory, … }),
+	// or null for none. The Marshal's comes with the playbook. Anyone else who has LEARNED Crew
+	// (a Fox through Dabbler, a Ranger through Worldly, a Heavy through Seasoned Warrior, a
+	// Would-be Hero through Versatile) has a crew too (the user's ruling), drawn from the same
+	// insert: the move says "See the Crew insert for details", and there is only the one.
+	//
+	// Learned, not merely held: the crew is the move's, so a Crew switched off hides the card
+	// (its flags stay, and come back with it). The Marshal's own is not gated this way, being the
+	// playbook's insert rather than a borrowed move's.
+	//
+	// The playbook repository caches by slug, so the Marshal's lookup costs one pack read a session.
+	async crewSource(playbookData = undefined) {
+		const own = playbookData === undefined ? await this.playbook() : playbookData;
+		if (own?.crew) return own.crew;
+		if (!ownsLearnedMoveNamed(this._actor, CREW_MOVE)) return null;
+		const marshal = await this._playbookRepo.findBySlug(MARSHAL_SLUG);
+		return marshal?.crew ?? null;
+	}
+
 	// The Lightbearer playbook's Invocations, whoever is asking, or null if it can't be found.
 	async lightbearerInvocations() {
 		const lightbearer = await this._playbookRepo.findBySlug(LIGHTBEARER_SLUG);
@@ -662,14 +681,19 @@ export class StonetopCharacter {
 		// bearsShield, which otherwise rebuilt this whole picture — a second arcana walk and a
 		// second pass over the outfit catalog — on every single render.
 		const gear = this._gearSources(playbookData, allOutfitItems, arcanaCarried);
-		const moves    = await this._buildMovesSection(playbookData, ownedAllByName, actorLevel, gear);
+		// Before the moves section, which greys a capped mark option against these (_markCapState).
+		const moveBonuses = await this._ownedMoveBonuses(playbookData, ownedAllByName);
+		// The Crew insert the crew's numbers start from: the Marshal's own, or the one a learned
+		// Crew borrows (crewSource).
+		const crewDef  = await this.crewSource(playbookData);
+		const crewStats = _buildCrewStats(crewDef, moveBonuses);
+		const moves    = await this._buildMovesSection(playbookData, ownedAllByName, actorLevel, gear, this._markCapState(crewStats));
 		const inventory = await this._buildInventorySection(playbookData, ownedAllByName, actorLevel, view, arcanaCarried);
 		// A load-gated move the load on the sheet has switched off (Catlike's quiet, Free Running) wears
 		// a tag saying so on its card. Display only: see load-gates.js.
 		tagLoadGatedMoves(moves, inventory?.outfit?.load?.selected ?? null);
 		const postDeath = await this._postDeath.buildSnapshot();
 		const pdiLabel  = postDeath.activeInsert?.name ?? null;
-		const moveBonuses = await this._ownedMoveBonuses(playbookData, ownedAllByName);
 		// The worn-armor base (leather/mail/etc., excluding shields and move bonuses) gates
 		// moves that require being unarmored (Uncanny Reflexes); 0 means unarmored. Same base
 		// selection as calculateArmor — CharacterInventory owns the rule. Computed once and
@@ -710,7 +734,8 @@ export class StonetopCharacter {
 			.withArcana(await this._arcana.buildSnapshot(actor.system.stats ?? {}, this._inventory.checked, this._inventory.resources))
 			.withPostDeathInsert(postDeath)
 			.withRollMode(normalizeRollMode(resolvedFlags(actor).rollMode))
-			.withCrewBonuses(_buildCrewStats(playbookData?.crew, moveBonuses))
+			.withCrewBonuses(crewStats)
+			.withCrewDef(crewDef)
 			.withCompanionBonuses(_buildCompanionBonuses(moveBonuses, ownedAllByName))
 			.withViewerIsGM(!!view.viewerIsGM)
 			.build();
@@ -855,57 +880,65 @@ export class StonetopCharacter {
 		//
 		// Name-gated against the own-playbook defs rather than on moveType, so a Heavy's own copy
 		// is counted once — down there, from its definition — and never here as well.
+		//
+		// Its marks count too (the user's ruling): a Crew, Veteran Crew or Heroes to the Last taken
+		// through Dabbler / Worldly / Seasoned Warrior / Versatile works as it does for a Marshal.
+		// Marks are keyed by NAME, so they are summed once per name however many copies are held.
+		const marks = this._moveResources.getMarks();
+		const foreignMarked = new Set();
 		for (const i of this._actor.items) {
 			if (i.type !== "move" || _isCustomMove(i) || !isMoveLearned(i)) continue;
 			if (ownPlaybookMoveNames.has(i.name)) continue;
 			totals.hp    += Number(i.system?.hpBonus)    || 0;
 			totals.armor += Number(i.system?.armorBonus) || 0;
+			if (foreignMarked.has(i.name)) continue;
+			foreignMarked.add(i.name);
+			_addMarkOptionBonuses(totals, i.system?.markOptions, marks[i.name]);
 		}
 		if (!playbookData) return totals;
-		const marks = this._moveResources.getMarks();
 		for (const m of defs) {
-			// Require a genuine (non-custom) owned move of this name, so a player-authored
-			// custom move that merely reuses a playbook move's name can't pull in the def's
-			// hp/armor/marks (its own bonus is already counted in the loop above).
-			// `ownedAllByName` is a Map(name → owned items[]) in production; some tests pass a
-			// Set(name), which has `.has` but no `.get` — fall back to plain membership there.
-			const ownedItems = ownedAllByName.get?.(m.name);
-			if (ownedItems ? !ownedItems.some(i => !_isCustomMove(i)) : !ownedAllByName.has(m.name)) continue;
+			// Require a genuine (non-custom) owned move of this name that is still LEARNED (the
+			// user's ruling, every playbook): an un-learned move grants nothing, as the custom and
+			// foreign loops above already say. Its marks stay stored, so re-learning it brings
+			// them back. A player-authored custom move that merely reuses a playbook move's name
+			// can't pull in the def's hp/armor/marks (its own bonus is counted in the loop above).
+			if (!this._ownsLearnedBookCopy(m.name, ownedAllByName)) continue;
 			totals.hp    += m.hpBonus    || 0;
 			totals.armor += m.armorBonus || 0;
 			// Per-option marks (e.g. Potential for Greatness): apply each checked box.
-			const moveMarks = marks[m.name] ?? {};
-			for (const opt of (m.markOptions ?? [])) {
-				// Stat-choice marks (e.g. Potential for Greatness) store an array of
-				// chosen stats and are applied directly to the stored stats on change,
-				// not derived here — multiplying by the array would yield NaN.
-				if (opt.choice === "stat") continue;
-				const count = _markEntries(moveMarks[opt.slug]).length;
-				if (!count) continue;
-				totals.hp     += (opt.hp     || 0) * count;
-				totals.armor  += (opt.armor  || 0) * count;
-				totals.crewHp += (opt.crewHp || 0) * count;
-				if (opt.damageDie) totals.damageDie = maxDie(totals.damageDie, opt.damageDie);
-				totals.crewDamageSteps += (opt.crewDamageStep || 0) * count;
-				if (opt.crewDamageCap) totals.crewDamageCap = opt.crewDamageCap;
-				totals.crewRollSteps += (opt.crewRoll || 0) * count;
-				// Veteran Crew's "Select 2 new tags" raises how many tags the player may
-				// pick for the Crew (the followers-tab tag picker reads this as tagBonus).
-				totals.crewTags += (opt.crewTags || 0) * count;
-				// Beast of Legend's "+4 HP and +1 armor" buffs the Animal Companion (the
-				// followers-tab companion card reads these as companionBonuses).
-				totals.companionHp    += (opt.companionHp    || 0) * count;
-				totals.companionArmor += (opt.companionArmor || 0) * count;
-			}
+			_addMarkOptionBonuses(totals, m.markOptions, marks[m.name]);
 		}
 		return totals;
+	}
+
+	// Whether the character holds a learned, non-custom copy of `name`, off `ownedAllByName`
+	// (_buildOwnedMovesMap: name → owned items[]).
+	_ownsLearnedBookCopy(name, ownedAllByName) {
+		return (ownedAllByName.get(name) ?? []).some(i => !_isCustomMove(i) && isMoveLearned(i));
+	}
+
+	// What a capped mark option is weighed against (move-mark-budget.js#markOptionCapNote): the
+	// crew's current damage die, stepped by every marked step, exactly as the crew card shows it.
+	// The move card's mark boxes and the level-up mark step both read it.
+	// Off the crew's stats (_buildCrewStats: the Crew insert, crewSource, with the move bonuses).
+	_markCapState(crewStats) {
+		return { crewDamageDie: crewStats.damageDie };
+	}
+
+	// The crew's stats for a caller without buildSnapshot's: its insert (crewSource) and the move bonuses.
+	async _crewStatsFor(playbookData, ownedAllByName) {
+		return _buildCrewStats(await this.crewSource(playbookData), await this._ownedMoveBonuses(playbookData, ownedAllByName));
 	}
 
 	// `gear` is the prebuilt gear picture from buildSnapshot, passed through to Defend's
 	// readiness pips so bearsShield does not rebuild it. Optional: a caller without one
 	// (a test) still gets the correct answer, just at the cost of the rebuild.
-	async _buildMovesSection(playbookData, ownedAllByName, actorLevel, gear = null) {
+	//
+	// `capState` is what a capped mark option is weighed against (_markCapState), from
+	// buildSnapshot's own move bonuses; a caller without it has it worked out here.
+	async _buildMovesSection(playbookData, ownedAllByName, actorLevel, gear = null, capState = null) {
 		const categories = [];
+		capState ??= this._markCapState(await this._crewStatsFor(playbookData, ownedAllByName));
 
 		if (playbookData) {
 			const background = this._selectedBackground(playbookData);
@@ -926,7 +959,7 @@ export class StonetopCharacter {
 					.withKey("playbook")
 					.withTitle(`${playbookData.name} Moves`)
 					.withNote(playbookData.startingMovesNote ?? null)
-					.withMoves(_sortOwnedFirst(sorted.map(m => _buildMoveEntry(m, source, moveResourcesMap, bgSlugs, moveBackgroundAnswers, improvedStatChoices, moveMarksMap, actorStats))))
+					.withMoves(_sortOwnedFirst(sorted.map(m => _buildMoveEntry(m, source, moveResourcesMap, bgSlugs, moveBackgroundAnswers, improvedStatChoices, moveMarksMap, actorStats, capState))))
 					.build()
 				);
 			}
@@ -979,7 +1012,7 @@ export class StonetopCharacter {
 						.build() : null;
 					const { options: markOptions, budget: markBudget } = _buildMarkOptions(
 						{ markOptions: i.system?.markOptions, markBudget: i.system?.markBudget, ownedIds: [i._id], owned: true },
-						learnedMarksMap[i.name] ?? {});
+						learnedMarksMap[i.name] ?? {}, capState);
 					// Its prerequisites, read by the same checks a playbook move's are (a required
 					// move, a level, a stat): a Heavy who learned Parry & Riposte through Seasoned
 					// Warrior and then dropped Skill at Arms is warned, as a playbook move would be.
@@ -2832,6 +2865,11 @@ export class StonetopCharacter {
 	// in a setup choice (A Life of Crime's Burgle OR Light Fingers), so changing only that pick
 	// takes back the other. Asked before the change as well as by it, so the Details tab can warn
 	// about a move with something held on its track.
+	//
+	// Only the copy the background gave goes, which ensureStartingMoves stamps (BACKGROUND_GRANT_FLAG):
+	// a Scion who took the second Veteran Crew at a level-up keeps that one on becoming Penitent. A
+	// copy from before the stamp can't be told from a pick, so at most ONE unstamped copy per name
+	// goes (the earliest gained), never every copy of the name.
 	async backgroundMovesDropped(from, to) {
 		const playbookData = await this.playbook();
 		const backgrounds  = playbookData?.backgrounds ?? [];
@@ -2839,9 +2877,16 @@ export class StonetopCharacter {
 		const kept  = gives(to);
 		const gone  = new Set([...gives(from)].filter(name => !kept.has(name)));
 		if (!gone.size) return [];
-		return this._actor.items.filter(i => i.type === "move" && gone.has(i.name)
-			&& (!i.system?.playbook || i.system.playbook === playbookData?.name)
-			&& !_heldBesidesBackground(i));
+		const dropped = [];
+		for (const name of gone) {
+			const copies = this._actor.items.filter(i => i.type === "move" && i.name === name
+				&& (!i.system?.playbook || i.system.playbook === playbookData?.name));
+			const stamped = copies.filter(_isBackgroundGrant);
+			if (stamped.length) { dropped.push(...stamped); continue; }
+			const legacy = _earliestFirst(copies.filter(i => !_heldBesidesBackground(i)))[0];
+			if (legacy) dropped.push(legacy);
+		}
+		return dropped;
 	}
 
 	// Book I: "You start with Spirit Tongue, Call the Spirits, 1 from your Background, and 1 of
@@ -2851,13 +2896,20 @@ export class StonetopCharacter {
 	// stored, with what they were before (backgroundState). The ONE path for the Details tab's
 	// dropdown and for onboarding. Through removeMove, so the move's own bookkeeping goes with it;
 	// a shipped move's track is keyed by its name and is there again if the move comes back.
+	//
+	// The moves the new background gives that the old one didn't (`newlyGiven`) are handed to
+	// ensureStartingMoves, so a copy the character already held (a Penitent's level-up Veteran
+	// Crew) stays their pick and the Scion's own copy is added beside it.
 	async settleBackgroundMoves(previous) {
 		const current = this.backgroundState();
 		for (const item of await this.backgroundMovesDropped(previous, current)) {
 			if (this._actor.items.some(i => i._id === item._id)) await this.removeMove(item._id);
 		}
 		if ((previous?.slug ?? "") !== current.slug) await this._settleBackgroundAnswers(previous?.slug, current.slug);
-		await this.ensureStartingMoves();
+		const backgrounds = (await this.playbook())?.backgrounds ?? [];
+		const gives = state => backgroundMoveNames(backgrounds.find(b => b.slug === state?.slug), state?.setupChoices);
+		const before = gives(previous);
+		await this.ensureStartingMoves({ newlyGiven: new Set([...gives(current)].filter(name => !before.has(name))) });
 	}
 
 	// The possessions half of a change of background (backgroundPossessionSlugs): what the old one
@@ -2997,10 +3049,13 @@ export class StonetopCharacter {
 	}
 
 	// Stamp an onboarding free pick (see creationPickItems): the move just added, or the copy
-	// already owned when a re-run picked it again. One copy per pick.
+	// already owned when a re-run picked it again, never a copy of the name a cross-playbook pick
+	// granted (see addMove's skipIfOwned), nor the copy a background gave (a Scion whose free pick
+	// was the second Veteran Crew). One copy per pick. A move taken at the start of
+	// play hands over its gear here (start-of-play-gear.js: the Judge's and Marshal's Armored).
 	async markCreationPick(moveName) {
 		const owned = this._actor.items.filter(i => i.type === "move" && i.name === moveName
-			&& !i.flags?.[STONETOP_SCOPE]?.grantedBy);
+			&& !i.flags?.[STONETOP_SCOPE]?.grantedBy && !_isBackgroundGrant(i));
 		if (!owned.length) return;
 		const stamped = owned.find(i => i.flags?.[STONETOP_SCOPE]?.[CREATION_PICK_FLAG]);
 		if (!stamped) await owned[0].setFlag(STONETOP_SCOPE, CREATION_PICK_FLAG, true);
@@ -3177,11 +3232,18 @@ export class StonetopCharacter {
 	// getForeignMovesForLevelUp stopped offering the Marshal's Armored to a Heavy holds such a
 	// grant, and it belongs in Learned Moves with its "Granted by", out of the level's picks and
 	// out of reach of the Heavy's own Armored box. Requirements still read every move held.
+	//
+	// The copy a background gave (BACKGROUND_GRANT_FLAG) sits FIRST among a row's copies: box 0 is
+	// the locked one, and un-ticking a later box removes the LAST copy, which must be the pick, not
+	// the Scion's own Veteran Crew.
 	buildMovelistContext(entries, ownedAllByName, bgMoveNames, actorLevel, actorPlaybook, choiceGroups = []) {
 		const actorStats = _statValueMap(this._actor.system?.stats);
 		const demoted    = this.demotedStartingChoices(choiceGroups);
 		const background = this._background.selectedSlug;
-		const ownCopies  = name => (ownedAllByName.get(name) ?? []).filter(i => !i.flags?.[STONETOP_SCOPE]?.grantedBy);
+		const ownCopies  = name => {
+			const copies = (ownedAllByName.get(name) ?? []).filter(i => !i.flags?.[STONETOP_SCOPE]?.grantedBy);
+			return [...copies.filter(_isBackgroundGrant), ...copies.filter(i => !_isBackgroundGrant(i))];
+		};
 		// A move an owned move replaced (Bulwark, while A Mighty Rampart is owned) is locked as
 		// "Replaced by ...": ticked back, the character would hold both.
 		const retiredBy  = this.retiredMoveReplacers();
@@ -3210,7 +3272,12 @@ export class StonetopCharacter {
 		return result;
 	}
 
-	async ensureStartingMoves() {
+	// `newlyGiven`: the background moves a change of background has just started giving
+	// (settleBackgroundMoves). A copy already held of one of those predates the background, so it
+	// stays the character's pick and the background's copy is added beside it (while the move is
+	// repeatable and has room). Any other background move with no stamped copy is a character from
+	// before the stamp: the copy it holds IS the background's, and is stamped rather than doubled.
+	async ensureStartingMoves({ newlyGiven = new Set() } = {}) {
 		const playbookName = this._actor.system?.playbook?.name;
 		if (!playbookName) return;
 
@@ -3218,7 +3285,8 @@ export class StonetopCharacter {
 		const ownedNames = new Set(this._actor.items.filter(i => i.type === "move").map(i => i.name));
 
 		const playbookData = await this.playbook();
-		const bgMoveNames = this._backgroundMoveNames(this._selectedBackground(playbookData));
+		const background  = this._selectedBackground(playbookData);
+		const bgMoveNames = this._backgroundMoveNames(background);
 
 		// "Either X OR Y" starting moves (e.g. the Heavy's Armored OR Uncanny
 		// Reflexes) are a player choice, so they're never auto-granted — the chosen
@@ -3227,12 +3295,34 @@ export class StonetopCharacter {
 			playbookData?.startingMoveChoices ?? playbookData?.moves?.choices
 		);
 
-		const missing = entries.filter(e =>
-			((e.isStarting && !choiceMoveNames.has(e.name)) || bgMoveNames.has(e.name)) && !ownedNames.has(e.name)
-		);
-		if (missing.length) {
-			const docs = await Promise.all(missing.map(e => this._moveRepo.getPlaybookMoveDocument(e.id)));
-			await this._actor.createEmbeddedDocuments("Item", docs.filter(Boolean).map(d => d.toObject()));
+		const isStarting = e => e.isStarting && !choiceMoveNames.has(e.name);
+		const missing = entries.filter(e => isStarting(e) && !ownedNames.has(e.name));
+		// A background's move comes stamped with the background (BACKGROUND_GRANT_FLAG), the copy a
+		// later change of background takes back.
+		const bgStamp = background?.slug ?? true;
+		const fromBackground = [];
+		for (const e of entries) {
+			if (isStarting(e) || !bgMoveNames.has(e.name)) continue;
+			if (!ownedNames.has(e.name)) { fromBackground.push(e); continue; }
+			// Already held: only a repeatable move gets a copy of its own, and only while none is
+			// stamped (a non-repeatable one held already IS the background's, as it always was).
+			if ((e.repeatMax ?? 1) < 2) continue;
+			const copies = this._actor.items.filter(i => i.type === "move" && i.name === e.name);
+			if (copies.some(_isBackgroundGrant)) continue;
+			const legacy = newlyGiven.has(e.name) ? null : _earliestFirst(copies.filter(i => !_heldBesidesBackground(i)))[0];
+			if (legacy) await legacy.setFlag(STONETOP_SCOPE, BACKGROUND_GRANT_FLAG, bgStamp);
+			else if (copies.length < e.repeatMax) fromBackground.push(e);
+		}
+		if (missing.length || fromBackground.length) {
+			const docs = await Promise.all([...missing, ...fromBackground].map(e => this._moveRepo.getPlaybookMoveDocument(e.id)));
+			const data = docs.map((d, index) => {
+				if (!d) return null;
+				const obj = d.toObject();
+				if (index < missing.length) return obj;
+				const flags = obj.flags ?? {};
+				return { ...obj, flags: { ...flags, [STONETOP_SCOPE]: { ...(flags[STONETOP_SCOPE] ?? {}), [BACKGROUND_GRANT_FLAG]: bgStamp } } };
+			}).filter(Boolean);
+			if (data.length) await this._actor.createEmbeddedDocuments("Item", data);
 		}
 
 		const [basicEntries, expeditionEntries] = await Promise.all([
@@ -3249,11 +3339,15 @@ export class StonetopCharacter {
 		}
 	}
 
+	// `skipIfOwned` (onboarding) passes over a copy granted through a cross-playbook pick: a Heavy
+	// holding the Marshal's Armored through Seasoned Warrior still gets their own when a re-run
+	// picks it (see buildMovelistContext). It passes over the copy a background gave as well
+	// (BACKGROUND_GRANT_FLAG): a Scion's free pick may be the second Veteran Crew.
 	async addMove(compendiumId, { skipIfOwned = false } = {}) {
 		const doc = await this._moveRepo.getPlaybookMoveDocument(compendiumId);
 		if (!doc) return null;
 		if (skipIfOwned && this._actor.items.some(i => i.type === "move" && i.name === doc.name
-			&& !i.flags?.[STONETOP_SCOPE]?.grantedBy)) return null;
+			&& !i.flags?.[STONETOP_SCOPE]?.grantedBy && !_isBackgroundGrant(i))) return null;
 		const created = await this._actor.createEmbeddedDocuments("Item", [doc.toObject()]);
 		const added = created?.[0] ?? null;
 		if (added) await this._retireReplacedMove(added);
@@ -3330,6 +3424,7 @@ export class StonetopCharacter {
 		// learning the Versatile that granted a Rampart undoes the Rampart's swap as well.
 		for (const gone of [removed, ...orphanItems]) await this._restoreRetiredMove(gone);
 		await this._trimSubChoicesOverCap([removed, ...orphanItems]);
+		await this._trimMoveMarksOnRemoval([removed, ...orphanItems]);
 		await this._releaseGrantedPossession(removed);
 		await this._clearUnheldInvocations();
 	}
@@ -3374,6 +3469,55 @@ export class StonetopCharacter {
 			if (!drop.size) continue;
 			await this.setPossessionSubChoices(opt.slug, picked.filter(s => !drop.has(s)));
 		}
+	}
+
+	// Removing a copy of a move whose mark options scale with its copies ("pick 1 each time you take
+	// this move": Veteran Crew, Heroes to the Last, Beast of Legend, Well Versed) takes back the
+	// picks that copy paid for: the move's checked marks are trimmed to the budget the copies left
+	// still buy (moveMarkBudget), the latest-level picks first. Removing the last copy clears the
+	// move's marks outright, so taking it again asks for a fresh choice rather than restoring the
+	// old one. Stat-choice slots (Potential for Greatness) are left alone: their +1 sits on the
+	// stored stat, and dropping the record would strand it. Only on removal: a grandfathered
+	// over-budget mark on a move still held keeps working (see setCountMark).
+	async _trimMoveMarksOnRemoval(goneMoves) {
+		const allMarks = this._moveResources.getMarks();
+		const marksPath = `flags.${STONETOP_SCOPE}.moves.moveMarks`;
+		const update = {};
+		const seen = new Set();
+		for (const gone of goneMoves.filter(Boolean)) {
+			const name = gone.name;
+			if (!name || !allMarks[name] || seen.has(name)) continue;
+			seen.add(name);
+			const pbName  = gone.system?.playbook ?? null;
+			const def     = pbName ? (await this._moveRepo.getPlaybookMoves(pbName)).find(d => d.name === name) : null;
+			const options = def?.markOptions ?? gone.system?.markOptions ?? [];
+			const boxes   = options.filter(o => o.choice !== "stat");
+			if (!boxes.length) continue;
+			const moveMarks = allMarks[name];
+			const remaining = this._actor.items.filter(i => i.type === "move" && i.name === name).length;
+			// The last copy gone: the move's marks go whole (a merge can't drop a key, so it is a
+			// deletion), unless a stat slot is recorded there.
+			if (remaining === 0 && !options.some(o => o.choice === "stat" && moveMarks[o.slug] !== undefined)) {
+				const [deleteKey, deleteValue] = deletionEntry(`${marksPath}.${name}`);
+				update[deleteKey] = deleteValue;
+				continue;
+			}
+			const max = remaining === 0 ? 0 : moveMarkBudget(def?.markBudget ?? gone.system?.markBudget, remaining);
+			if (max == null) continue;
+			// Every checked pick across the move's boxes, latest level first (a pick with no level
+			// recorded counts as the oldest), a later box before an earlier one within a level.
+			const picks = boxes.flatMap(opt => _markEntries(moveMarks[opt.slug]).map((entry, index) => ({ slug: opt.slug, index, level: entry.level })));
+			const over  = picks.length - max;
+			if (over <= 0) continue;
+			picks.sort((a, b) => ((b.level ?? 0) - (a.level ?? 0)) || (b.index - a.index));
+			const drop = new Set(picks.slice(0, over).map(p => `${p.slug}:${p.index}`));
+			for (const opt of boxes) {
+				if (moveMarks[opt.slug] === undefined) continue;
+				// An array replaces the stored one outright, so each box's list is its own write.
+				update[`${marksPath}.${name}.${opt.slug}`] = _markEntries(moveMarks[opt.slug]).filter((_, index) => !drop.has(`${opt.slug}:${index}`));
+			}
+		}
+		if (Object.keys(update).length) await this._actor.update(update);
 	}
 
 	// Un-learning Initiate of the Secret Arts takes back the Sacred Pouch it brought: "You
@@ -3643,6 +3787,22 @@ export class StonetopCharacter {
 		]);
 		const { armor, unpierceable, conditional, conditionalSource } = this._armorFrom(gear, moveBonuses);
 		return { armor, unpierceable, conditional, conditionalSource, maxHp: playbookData ? _hpFrom(this._actor, playbookData, moveBonuses, hpPenalty).hpMax : 0 };
+	}
+
+	/**
+	 * The move bonuses the Followers tab builds its cards with, `{crewStats, companionBonuses}`:
+	 * buildSnapshot's two, without building a sheet. For a reader that needs a card's numbers with the
+	 * sheet closed (StonetopCharacterSheet#followerCardHp), so Beast of Legend's +4 HP is on the
+	 * companion's max there too.
+	 */
+	async followerCardBonuses(playbookData = null, crewDef = null) {
+		const playbook = playbookData ?? await this.playbook();
+		const ownedAllByName = this._buildOwnedMovesMap();
+		const moveBonuses = await this._ownedMoveBonuses(playbook, ownedAllByName);
+		return {
+			crewStats: _buildCrewStats(crewDef ?? await this.crewSource(playbook), moveBonuses),
+			companionBonuses: _buildCompanionBonuses(moveBonuses, ownedAllByName),
+		};
 	}
 
 	/** What the derived vitals are worked out from: the playbook, the carried gear and the move bonuses. */
@@ -4373,7 +4533,7 @@ export class StonetopCharacter {
 	 */
 	applyDebilityRollMode(stat, options) {
 		const out = this._debilityRollMode(stat, options);
-		// We Happy Few's 6-: "disadvantage on ALL rolls until you share your nerves". Folded rather than
+		// We Happy Few's 6-: "disadvantage on ALL rolls until you share your nagging doubts". Folded rather than
 		// stepped, so it cancels an advantage the way a debility does and does not stack with one (p.230);
 		// and named on the card, since nothing else on it would say why. Not something Battle Joy ignores:
 		// it is the move's own price, not a debility.
@@ -5017,6 +5177,9 @@ export class StonetopCharacter {
 			// spent on a budgeted move (Veteran Crew / Well Versed / …) and compute the
 			// remaining picks for this take.
 			marks: this._moveResources.getMarks(),
+			// What a capped mark option is weighed against, so the mark step greys an option that
+			// would buy nothing (the crew's die already at d10): see _markCapState.
+			markCapState: this._markCapState(await this._crewStatsFor(playbookData, ownedAllByName)),
 		};
 	}
 
@@ -5284,6 +5447,9 @@ export class StonetopCharacter {
 
 // The playbook whose Invocations anyone with Invoke the Sun God learns from.
 const LIGHTBEARER_SLUG = "the-lightbearer";
+// The Marshal's Crew move, and the playbook whose insert every crew is drawn from (crewSource).
+export const CREW_MOVE = "Crew";
+export const MARSHAL_SLUG = "the-marshal";
 
 // Whether a possession's choiceGroups leave anything to pick: any radio line, or a
 // multi-select whose effective cap (maxSelect + move bonus) isn't zero.
@@ -5514,12 +5680,14 @@ function _buildCrewStats(crew, moveBonuses) {
 // Animal Companion bonuses from owned Ranger moves, layered on top of the trait-derived
 // base stats by the followers-tab companion card: Beast of Legend's marked "+4 HP / +1
 // armor" pick (via moveBonuses), plus Magnificent Specimen's "+2 options of your choice
-// each time you take this move" — i.e. 2 extra companion trait picks per owned copy.
+// each time you take this move" — i.e. 2 extra companion trait picks per owned copy, counted
+// only while LEARNED (an un-learned move grants nothing).
 function _buildCompanionBonuses(moveBonuses, ownedAllByName) {
+	const specimens = (ownedAllByName.get?.(MAGNIFICENT_SPECIMEN_MOVE) ?? []).filter(isMoveLearned).length;
 	return {
 		hp:         moveBonuses.companionHp    ?? 0,
 		armor:      moveBonuses.companionArmor ?? 0,
-		traitPicks: COMPANION_TRAIT_PICKS_PER_MAGNIFICENT_SPECIMEN * (ownedAllByName.get?.(MAGNIFICENT_SPECIMEN_MOVE)?.length ?? 0),
+		traitPicks: COMPANION_TRAIT_PICKS_PER_MAGNIFICENT_SPECIMEN * specimens,
 	};
 }
 
@@ -5584,6 +5752,25 @@ export const STARTING_CHOICE_FLAG = "startingChoice";
 function _heldBesidesBackground(item) {
 	const flags = item.flags?.[STONETOP_SCOPE];
 	return !!(item.system?.isStartingMove || flags?.[CREATION_PICK_FLAG] || flags?.grantedBy);
+}
+
+// The item flag ensureStartingMoves stamps on the copy of a move a background GAVE (its value is
+// the background's slug), so a repeatable one (the Scion's Veteran Crew, repeatMax 2) can be told
+// from a copy taken at a level-up: a change of background takes back only the stamped copy, and a
+// new background gives its own copy beside one the character already picked.
+export const BACKGROUND_GRANT_FLAG = "backgroundGrant";
+
+function _isBackgroundGrant(item) {
+	return !!item?.flags?.[STONETOP_SCOPE]?.[BACKGROUND_GRANT_FLAG];
+}
+
+// Owned items in the order they were gained: Foundry's createdTime, with the collection's own
+// order (also creation order) deciding a tie or an item that has none.
+function _earliestFirst(items) {
+	const created = i => i._stats?.createdTime ?? Infinity;
+	return items.map((item, index) => ({ item, index }))
+		.sort((a, b) => (created(a.item) - created(b.item)) || (a.index - b.index))
+		.map(({ item }) => item);
 }
 
 // The special possessions a background hands over on top of the playbook's picks: its fixed
@@ -5749,6 +5936,35 @@ function _markEntries(stored) {
 	return [];
 }
 
+// Add the bonuses of a move's checked mark options (`moveMarks`, the move's entry in
+// moves.moveMarks) into `totals` (see StonetopCharacter#_ownedMoveBonuses). One writer for a
+// move of the character's own playbook, read off its definition, and a foreign one, read off
+// its embedded copy, so the two can't count an option differently.
+function _addMarkOptionBonuses(totals, markOptions, moveMarks = {}) {
+	for (const opt of (markOptions ?? [])) {
+		// Stat-choice marks (e.g. Potential for Greatness) store an array of chosen stats and
+		// are applied directly to the stored stats on change, not derived here: multiplying by
+		// the array would yield NaN.
+		if (opt.choice === "stat") continue;
+		const count = _markEntries(moveMarks?.[opt.slug]).length;
+		if (!count) continue;
+		totals.hp     += (opt.hp     || 0) * count;
+		totals.armor  += (opt.armor  || 0) * count;
+		totals.crewHp += (opt.crewHp || 0) * count;
+		if (opt.damageDie) totals.damageDie = maxDie(totals.damageDie, opt.damageDie);
+		totals.crewDamageSteps += (opt.crewDamageStep || 0) * count;
+		if (opt.crewDamageCap) totals.crewDamageCap = opt.crewDamageCap;
+		totals.crewRollSteps += (opt.crewRoll || 0) * count;
+		// Veteran Crew's "Select 2 new tags" raises how many tags the player may pick for the
+		// Crew (the followers-tab tag picker reads this as tagBonus).
+		totals.crewTags += (opt.crewTags || 0) * count;
+		// Beast of Legend's "+4 HP and +1 armor" buffs the Animal Companion (the followers-tab
+		// companion card reads these as companionBonuses).
+		totals.companionHp    += (opt.companionHp    || 0) * count;
+		totals.companionArmor += (opt.companionArmor || 0) * count;
+	}
+}
+
 // Total checked marks across a move's budgeted (non-stat) options, optionally skipping
 // one slug. Drives both the render-side "used" badge and the writer-side "others
 // already spent" clamp, so they always count picks the same way.
@@ -5770,7 +5986,12 @@ function _sumMarkPicks(moveMarks, markOptions, skipSlug = null) {
 // unchecked boxes lock once the budget is spent, and `budget = { used, max, atBudget,
 // over }` drives the card's "N / max" badge. Without a markBudget both are uncapped
 // (the prior behavior) and `budget` is null.
-function _buildMarkOptions(entry, markCounts) {
+//
+// `capState` (StonetopCharacter#_markCapState) greys out the unchecked boxes of an option that would
+// buy nothing, its target already at the option's cap (move-mark-budget.js#markOptionCapNote); the
+// option carries the reason as `capNote` for a tooltip. A checked box stays editable, as under the
+// budget lock, so a pick can still be taken back.
+function _buildMarkOptions(entry, markCounts, capState = {}) {
 	if (!entry.markOptions?.length) return { options: null, budget: null };
 	const statList = Object.entries(_STAT_DEFS).map(([key, { abbr }]) => ({ key, abbr }));
 
@@ -5796,9 +6017,12 @@ function _buildMarkOptions(entry, markCounts) {
 			return { slug: opt.slug, label: opt.label, choice: "stat", statSlots };
 		}
 		const count = entries.length;
+		const capNote = markOptionCapNote(opt, capState);
 		return {
 			slug:   opt.slug,
 			label:  opt.label,
+			// Only while a box is still there to tick: a fully marked option has nothing to grey.
+			capNote: capNote && count < marks ? capNote : null,
 			checks: Array.from({ length: marks }, (_, i) => ({
 				index: i,
 				checked: i < count,
@@ -5806,7 +6030,8 @@ function _buildMarkOptions(entry, markCounts) {
 				// Lock an UNchecked box once the budget is spent — checked boxes always
 				// stay editable so the player can free up a pick (and any grandfathered
 				// over-budget mark from before the cap existed is never force-cleared).
-				disabled: atBudget && !(i < count),
+				// Likewise once what the option raises is already at its cap.
+				disabled: (atBudget || !!capNote) && !(i < count),
 			})),
 		};
 	});
@@ -5835,7 +6060,7 @@ function _learnedMoveRequirement(item, ownedAllByName, actorLevel, actorStats) {
 	return { requiresLabel: entry.requiresLabel, requirementsUnmet: entry.requirementsUnmet };
 }
 
-function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), moveBackgroundAnswers = {}, improvedStatChoices = {}, moveMarksMap = {}, actorStats = {}) {
+function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), moveBackgroundAnswers = {}, improvedStatChoices = {}, moveMarksMap = {}, actorStats = {}, capState = {}) {
 	const resourceDef = entry.resource;
 	const resource = resourceDef ? new ResourceBuilder()
 		.withCurrent(moveResourcesMap[entry.name] ?? 0)
@@ -5854,7 +6079,7 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		: null;
 	const sourceLabel = entry.isStarting ? (bgSlugs.has(slugify(entry.name)) ? "Background" : "Starting move") : null;
 
-	const { options: markOptions, budget: markBudget } = _buildMarkOptions(entry, moveMarksMap[entry.name] ?? {});
+	const { options: markOptions, budget: markBudget } = _buildMarkOptions(entry, moveMarksMap[entry.name] ?? {}, capState);
 
 	const statChoices = (entry.cap != null && entry.ownedIds.length > 0)
 		? entry.ownedIds
@@ -6006,7 +6231,11 @@ function _buildMovelist(categories, other, pdiLabel = null, actorLevel = 1, love
 		: null;
 	const startingNote = playbookCat?.note ?? null;
 	const pickCount    = parseMovePickCount(startingNote);
-	const chosenCount    = (playbookCat?.moves ?? []).filter(m => m.sourceLabel === null && m.owned).length;
+	// A starting or background move counts too once a copy BEYOND the one it came with is held:
+	// a Scion whose free pick is the second Veteran Crew (the user's ruling) has made it.
+	const chosenCount    = (playbookCat?.moves ?? []).reduce((n, m) => n + (m.sourceLabel === null
+		? (m.owned ? 1 : 0)
+		: Math.max(0, (m.ownedIds?.length ?? 0) - 1)), 0);
 	const movesIncomplete = pickCount > 0 && chosenCount < pickCount;
 
 	// Advancement budget: every level past 1 grants one move pick, on top of the

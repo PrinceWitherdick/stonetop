@@ -29,6 +29,22 @@ export const DIMINISHED_MOVES = new Set([STEADING_MOVE.DEPLOY, STEADING_MOVE.MUS
 /** Township: "When you Muster, Pull Together, or Trade & Barter, you have advantage." */
 const TOWNSHIP_MOVES = new Set([STEADING_MOVE.MUSTER, STEADING_MOVE.PULL_TOGETHER, STEADING_MOVE.TRADE_BARTER]);
 
+/**
+ * The Marshal's Logistics: "When you have a steading Muster or Pull Together, or when you
+ * Requisition, you have advantage." The advantage is the Marshal's, not the steading's, so it
+ * turns on WHO is behind the roll, which only the table knows: the window asks, ticked, and only
+ * when someone has the move learned (actors/character/logistics.js finds them).
+ */
+export const LOGISTICS = "Logistics";
+export const LOGISTICS_MOVES = new Set([STEADING_MOVE.MUSTER, STEADING_MOVE.PULL_TOGETHER, STEADING_MOVE.REQUISITION]);
+
+/** The Logistics line, naming who holds the move ("the Marshal" when nobody is named). */
+function logisticsLabel(moveName, holders) {
+	const who = holders.length ? holders.join(" or ") : "the Marshal";
+	const act = moveName === STEADING_MOVE.REQUISITION ? "Requisitioning" : `having the steading ${moveName}`;
+	return `${LOGISTICS} (${who}): ${holders.length > 1 ? "one of them is" : "they are"} the one ${act}, advantage`;
+}
+
 /** The wall a Deploy can take advantage of: the Stone Wall erases the Palisade when it is built. */
 function wallOf(has) {
 	if (has("stoneWall")) return "Stone Wall";
@@ -45,9 +61,11 @@ function wallOf(has) {
  * @param {object} o
  * @param {(slug: string) => boolean} o.has  is this improvement built?
  * @param {Array<{index: number, label: string}>} [o.tactics]  the militia's trained tactics
- * @returns {Array<{name: string, type: "checkbox"|"select", label: string, options?: Array<{value: string, label: string}>}>}
+ * @param {string[]} [o.logistics]  the names of the characters with Logistics learned; any at all
+ *   asks the Logistics line, ticked (`checked`), since the Marshal is usually the one behind it
+ * @returns {Array<{name: string, type: "checkbox"|"select", label: string, checked?: boolean, options?: Array<{value: string, label: string}>}>}
  */
-export function improvementQuestions(moveName, statKey, { has = () => false, tactics = [] } = {}) {
+export function improvementQuestions(moveName, statKey, { has = () => false, tactics = [], logistics = [] } = {}) {
 	const asks = [];
 	if (moveName === STEADING_MOVE.DEPLOY) {
 		asks.push({
@@ -72,6 +90,9 @@ export function improvementQuestions(moveName, statKey, { has = () => false, tac
 	}
 	if (moveName === STEADING_MOVE.REQUISITION && has("herdOfHorses")) {
 		asks.push({ name: "herdShare", type: "checkbox", label: "Requisitioning half the herd of horses or less: a 6- counts as a 7-9" });
+	}
+	if (LOGISTICS_MOVES.has(moveName) && logistics.length) {
+		asks.push({ name: "logistics", type: "checkbox", checked: true, label: logisticsLabel(moveName, logistics) });
 	}
 	return asks;
 }
@@ -102,6 +123,7 @@ export function rollAdjustments({
 	const notes = [];
 	let statBonus = 0;
 	if (TOWNSHIP_MOVES.has(moveName) && has("township")) adv.push("Township");
+	if (LOGISTICS_MOVES.has(moveName) && answers.logistics) adv.push(LOGISTICS);
 	const wall = wallOf(has);
 	if (moveName === STEADING_MOVE.DEPLOY && wall && answers.wall) adv.push(wall);
 	if (held) adv.push(held);

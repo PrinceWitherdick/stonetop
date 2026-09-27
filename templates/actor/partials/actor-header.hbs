@@ -190,6 +190,22 @@
 			{{#each stonetop.fightStates as |g|}}{{#if g.show}}
 			{{> "stonetop.header-toggle-glyph" stem=g.stem onClass=g.onClass on=g.on labelKey=g.labelKey tooltipKey=g.tooltipKey editable=../editable}}
 			{{/if}}{{/each}}
+			{{! Inspiration from a Marshal's We Happy Few (inspiration.js): a pill with the count IN WORDS,
+			    drawn only while some is held. A <button> that acts fearlessly (1 Inspiration) where the
+			    sheet is editable, a plain readout where it is not. The other two spends are on cards. }}
+			{{#if stonetop.inspiration.show}}
+			{{#if editable}}
+			<button type="button" class="stonetop-inspiration-chip"
+			        aria-label="{{stonetop.inspiration.tooltip}}"
+			        data-tooltip="{{stonetop.inspiration.tooltip}}"
+			        data-tooltip-direction="UP"><i class="fas fa-bullhorn" aria-hidden="true"></i><span class="stonetop-inspiration-chip-name">{{stonetop.inspiration.label}}</span></button>
+			{{else}}
+			<span class="stonetop-inspiration-chip"
+			      aria-label="{{stonetop.inspiration.tooltip}}"
+			      data-tooltip="{{stonetop.inspiration.tooltip}}"
+			      data-tooltip-direction="UP"><i class="fas fa-bullhorn" aria-hidden="true"></i><span class="stonetop-inspiration-chip-name">{{stonetop.inspiration.label}}</span></span>
+			{{/if}}
+			{{/if}}
 			{{! An advantage HELD over the next roll (a peaceful camp, p.334), on the steading's
 			    holds-tray terms rather than the candle's: it is not a state anyone toggles on, so
 			    it is drawn only while one is held and it goes when a roll spends it.

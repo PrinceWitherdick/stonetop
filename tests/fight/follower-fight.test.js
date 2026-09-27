@@ -90,9 +90,28 @@ describe("followerOrderInfo", () => {
 	});
 
 	it("reads exceptional off the character, which is the one thing the NPC does not carry", () => {
-		const rhianna = character("rhianna", { crew: { details: { exceptional: true } } });
+		const rhianna = character("rhianna", { crew: { details: {} }, moves: { moveMarks: { "Heroes to the Last": { exceptional: [{ stat: "", level: 6 }] } } } });
+		rhianna.items = [{ type: "move", name: "Heroes to the Last", flags: {} }];
 		const crew = follower({ id: "crew", name: "The Crew", tags: "warrior", origin: { characterUuid: "Actor.rhianna", ftype: "crew", slug: "" } });
 		expect(followerOrderInfo(crew, cardOf(crew, [rhianna])).follower.exceptional).toBe(true);
+	});
+
+	// The crew's exceptional is Heroes to the Last's pick, the one source (the user's ruling): the map
+	// agrees with the card's "Roll +N", and a hand toggle stored before that is not read.
+	it("the crew is exceptional only by Heroes to the Last's pick, never a stored toggle", () => {
+		const origin = { characterUuid: "Actor.rhianna", ftype: "crew", slug: "" };
+		const legacy = character("rhianna", { crew: { details: { exceptional: true } } });
+		legacy.items = [];
+		const crew = follower({ id: "crew", name: "The Crew", origin });
+		expect(followerOrderInfo(crew, cardOf(crew, [legacy])).follower.exceptional).toBe(false);
+		// Learned but the pick is elsewhere: not exceptional.
+		const other = character("rhianna", { moves: { moveMarks: { "Heroes to the Last": { "crew-hp": [{ stat: "", level: 6 }] } } } });
+		other.items = [{ type: "move", name: "Heroes to the Last", flags: {} }];
+		expect(followerOrderInfo(crew, cardOf(crew, [other])).follower.exceptional).toBe(false);
+		// Picked but un-learned: not exceptional.
+		const off = character("rhianna", { moves: { moveMarks: { "Heroes to the Last": { exceptional: [{ stat: "", level: 6 }] } } } });
+		off.items = [{ type: "move", name: "Heroes to the Last", flags: { [SYSTEM_ID]: { learned: false } } }];
+		expect(followerOrderInfo(crew, cardOf(crew, [off])).follower.exceptional).toBe(false);
 	});
 
 	// Book I p.462 gates the crew and the animal companion behind a playbook move, but lets the GM

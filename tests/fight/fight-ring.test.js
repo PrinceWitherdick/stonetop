@@ -8,6 +8,7 @@ vi.mock("../../module/combat/attack-flow.js", () => ({
 	rollDamageAt: vi.fn(async () => true),
 	rollCharacterDamageAt: vi.fn(async () => true),
 	letFlyAmmoStatuses: vi.fn(async actor => actor?.ammo ?? { weapons: [], allOut: false }),
+	crewBlow: vi.fn(async (_character, blow) => blow),
 }));
 
 import {
@@ -15,7 +16,7 @@ import {
 	createFightRingClass, createFightTokenClass, openRingOnClick, onBoardPress, closeFightRing, syncFightRing,
 	installFightRing, currentFightRing, RING_MOVES, hasAttacker,
 } from "../../module/fight/fight-ring.js";
-import { rollDamageAt, rollCharacterDamageAt } from "../../module/combat/attack-flow.js";
+import { rollDamageAt, rollCharacterDamageAt, crewBlow } from "../../module/combat/attack-flow.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
 import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection } from "../fakes/fight.js";
 
@@ -192,8 +193,10 @@ describe("ringButtons", () => {
 	});
 
 	it("looks a follower's character up for them, so their token can be ordered", async () => {
-		const cadi = fakeActor({ id: "cadi", type: "character", name: "Cadi", flags: { [SYSTEM_ID]: { crew: { details: { exceptional: true } } } } });
+		// The crew's exceptional is Heroes to the Last's pick (follower-masters.js#crewIsExceptional).
+		const cadi = fakeActor({ id: "cadi", type: "character", name: "Cadi", flags: { [SYSTEM_ID]: { moves: { moveMarks: { "Heroes to the Last": { exceptional: [{ stat: "", level: 6 }] } } } } } });
 		cadi.uuid = "Actor.cadi";
+		cadi.items = [{ type: "move", name: "Heroes to the Last", flags: {} }];
 		const crew = fakeActor({
 			id: "crew", type: "npc", name: "The Crew",
 			system: { tags: "warrior, organized", attributes: { damage: { value: "" } } },
@@ -341,6 +344,42 @@ describe("runRingButton", () => {
 			{ name: "The Crew", tags: ["warrior"], moves: [], exceptional: true, moveKey: "let-fly" },
 			{ ftype: "crew", slug: "" },
 		);
+		expect(rollDamageAt).not.toHaveBeenCalled();
+	});
+
+	it("asks which of the crew's weapons a crew token's blow is dealt with, and rolls with it", async () => {
+		const cadi = fakeActor({ id: "cadi", type: "character", name: "Cadi", flags: { [SYSTEM_ID]: { crew: { gear: { spear: 1 } } } } });
+		cadi.uuid = "Actor.cadi";
+		const crew = fakeActor({
+			id: "crew", type: "npc", name: "The Crew",
+			system: { attributes: { damage: { value: "d6", rollFormula: "d6" } } },
+			flags: { [SYSTEM_ID]: { followerOrigin: { characterUuid: "Actor.cadi", ftype: "crew", slug: "" } } },
+		});
+		const spear = { name: "Spear", range: ["close", "thrown"], piercing: "prosperity", tags: [] };
+		crewBlow.mockImplementationOnce(async (_character, blow) => ({ ...blow, label: `${blow.label}: Spear`, weapon: spear, keywords: "" }));
+		const actors = globalThis.game.actors;
+		globalThis.game.actors = collection([cadi, crew]);
+		try {
+			await runRingButton({ run: "damage", label: "Damage", formula: "d6", keywords: "", rollMode: "normal", weapon: null }, crew);
+		} finally {
+			globalThis.game.actors = actors;
+		}
+		expect(crewBlow).toHaveBeenCalledWith(cadi, { label: "Damage", weapon: null, keywords: "" });
+		expect(rollDamageAt).toHaveBeenCalledWith(crew, { formula: "d6", label: "Damage: Spear", keywords: "", rollMode: "normal", weapon: spear, shiftKey: false });
+	});
+
+	it("rolls nothing when the crew's weapon is not chosen", async () => {
+		const cadi = fakeActor({ id: "cadi", type: "character", name: "Cadi" });
+		cadi.uuid = "Actor.cadi";
+		const crew = fakeActor({ id: "crew", type: "npc", flags: { [SYSTEM_ID]: { followerOrigin: { characterUuid: "Actor.cadi", ftype: "crew", slug: "" } } } });
+		crewBlow.mockImplementationOnce(async () => null);
+		const actors = globalThis.game.actors;
+		globalThis.game.actors = collection([cadi, crew]);
+		try {
+			await runRingButton({ run: "damage", label: "Damage", formula: "d6" }, crew);
+		} finally {
+			globalThis.game.actors = actors;
+		}
 		expect(rollDamageAt).not.toHaveBeenCalled();
 	});
 

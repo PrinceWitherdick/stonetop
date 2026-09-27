@@ -6,6 +6,9 @@ import { READINESS_FLAG } from "../../../module/combat/defend-readiness.js";
 import { LEDGER_KEY } from "../../../module/utils/ledger-core.js";
 import { CAMP_FLAG, CAMP_OWED_FLAG } from "../../../module/camp/camp-rules.js";
 import { DEATHS_DOOR_FLAG } from "../../../module/actors/character/deaths-door.js";
+import { INSPIRATION_FLAG } from "../../../module/actors/character/inspiration.js";
+import { BLESSING_FLAG } from "../../../module/actors/character/roll-boosts.js";
+import { ONGOING_INVOCATION_FLAGS } from "../../../module/actors/character/ongoing-invocation.js";
 import { HOLY_LIGHT_FLAG } from "../../../module/actors/character/holy-light.js";
 
 // The stored armor and max HP are what the token bar, the Fight tab and the ledger read. They have to
@@ -45,6 +48,7 @@ describe("what moves a vital", () => {
 		expect([...FLAG_NOISE].sort()).toEqual([
 			READINESS_FLAG, LEDGER_KEY, CAMP_FLAG, CAMP_OWED_FLAG, DEATHS_DOOR_FLAG,
 			CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG,
+			INSPIRATION_FLAG, BLESSING_FLAG, "invocations", ...ONGOING_INVOCATION_FLAGS,
 		].sort());
 		// The Candle against the Dark's armor reads the light, so lighting it must re-mirror.
 		expect(FLAG_NOISE.has(HOLY_LIGHT_FLAG)).toBe(false);

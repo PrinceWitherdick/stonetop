@@ -1118,7 +1118,23 @@
       },
       "followers": {
         "searchLabel": "Search followers",
-        "searchPlaceholder": "Filter followers…"
+        "searchPlaceholder": "Filter followers…",
+        "fate": {
+          "spareLabel": "Sir, Permission to Die, Sir: spend 1 Loyalty, they survive (out of the action)",
+          "spareDesc": "Spend 1 of their Loyalty ({loyalty} held). They stay at 0 HP, out of the action, but alive.",
+          "spareCrewDesc": "Spend 1 of the crew's shared Loyalty ({loyalty} held). They stay at 0 HP, out of the action, but alive.",
+          "spareCard": "{name} survives: out of the action, but alive. 1 Loyalty spent, {loyalty} left.",
+          "spareNone": "{name} holds no Loyalty to spend.",
+          "letGo": "Sir, Permission to Die, Sir: you let them go, mark XP (only if you choose Dead)",
+          "letGoCard": "You let them go, and mark XP.",
+          "crewDeadDesc": "Dead, immediately. They are struck off the crew roster.",
+          "crewDeadCard": "They are struck off the crew roster.",
+          "crewStale": "{name} is no longer down on the roster, so nobody was struck off it.",
+          "spareGroupDesc": "Spend 1 of the group's shared Loyalty ({loyalty} held). They stay at 0 HP, out of the action, but alive.",
+          "groupDeadDesc": "Dead, immediately. They are struck off the group's roster (a group keeps at least two).",
+          "groupDeadCard": "They are struck off the group's roster.",
+          "groupFloorCard": "The group is down to two, the fewest a group keeps, so they stay on its roster at 0 HP, marked fallen."
+        }
       },
       "moveTypes": {
         "background": "Background"
@@ -1557,15 +1573,54 @@
       "debilityMarked": "{name} marks {debility} as their Battle Joy ends, and marks no XP for the miss.",
       "debilityTaken": "That debility is already marked. Choose another."
     },
+    "personalSymbol": {
+      "button": "Display it: crew +1 Loyalty",
+      "tooltip": "When you display or reveal your personal symbol in a dramatic fashion, your crew holds +1 Loyalty (max 3). Click once you have.",
+      "atMaxTooltip": "{crew} already holds {max} Loyalty, the most your personal symbol gives.",
+      "displayed": "{name} displays their personal symbol: {crew} holds +1 Loyalty (now {loyalty} of {max}).",
+      "yourCrew": "Your crew",
+      "theirCrew": "their crew"
+    },
     "nerves": {
       "onLabel": "Shaken nerves",
       "offLabel": "Nerves steady",
-      "onTooltip": "Shaken nerves (We Happy Few): disadvantage on all rolls until you share your nerves with someone. Click once you have.",
+      "onTooltip": "Shaken nerves (We Happy Few): disadvantage on all rolls until you share your nagging doubts with someone else. Click once you have.",
       "offTooltip": "Nerves steady. We Happy Few's 6- shakes them: click to mark them shaken by hand.",
-      "readOnlyOn": "Shaken nerves: disadvantage on all rolls until they share their nerves with someone.",
+      "readOnlyOn": "Shaken nerves: disadvantage on all rolls until they share their nagging doubts with someone else.",
       "readOnlyOff": "Nerves steady.",
-      "shaken": "{name}'s nerves are shaken: disadvantage on all rolls until they share their nerves with someone.",
+      "shaken": "{name}'s nerves are shaken: disadvantage on all rolls until they share their nagging doubts with someone else.",
       "rollNote": "Shaken nerves ({move})"
+    },
+    "inspiration": {
+      "inspireButton": "Inspire who heard the speech ({amount} each)",
+      "inspired": "Inspired: {names} ({amount} Inspiration each).",
+      "pickTitle": "Who heard the speech?",
+      "pickHint": "Each ally you pick holds {amount} Inspiration (or keeps what they hold, if that is more). Close this window if nobody did.",
+      "pickChoose": "Inspire them",
+      "pickNamed": "Inspire {name}",
+      "pickNamedCount": "Inspire {count} allies",
+      "noAllies": "There are no other characters to hear the speech.",
+      "given": "Inspiration held by: {names}.",
+      "missed": "No GM is online to give {names} Inspiration. Press the button again once one is.",
+      "chipLabel": "Inspiration {count}",
+      "chipTooltip": "Inspiration (We Happy Few): {count} held. Once battle is joined, spend 1 to act fearlessly, to keep 1 HP instead of being reduced to 0 HP, or to add 1d6 to a damage roll you just made. Click to act fearlessly.",
+      "chipReadOnly": "Inspiration (We Happy Few): {count} held.",
+      "fearlessTitle": "{name}: act fearlessly",
+      "fearlessAsk": "Spend 1 Inspiration to act fearlessly in the face of terror or overwhelming odds? {name} holds {held}.",
+      "fearlessSpend": "Act fearlessly (spend 1)",
+      "fearlessKeep": "Keep it",
+      "fearlessDone": "{name} spends 1 Inspiration to act fearlessly in the face of terror or overwhelming odds ({left} left).",
+      "damageButton": "+1d6 (Inspiration)",
+      "damageTip": "Spend 1 of {name}'s {held} Inspiration to add 1d6 to this damage roll.",
+      "damageNote": "+1d6 Inspiration ({name}): {amount}",
+      "refused": "That Inspiration could not be spent: it may already have been, or the damage has been applied.",
+      "keepTitle": "{name} is going down",
+      "keepAsk": "{name} holds {held} Inspiration. Spend 1 to keep 1 HP instead of being reduced to 0 HP?",
+      "keepButton": "Keep 1 HP (spend 1 Inspiration)",
+      "fallButton": "Go down to 0 HP",
+      "keepCardButton": "Keep 1 HP (Inspiration)",
+      "keptOneHp": "{name} spends 1 Inspiration and keeps 1 HP instead of being reduced to 0 HP ({left} left).",
+      "keptOneHpJoy": "{name} spends 1 Inspiration and keeps 1 HP instead of being reduced to 0 HP ({left} left). Their Battle Joy goes on."
     },
     "roiling": {
       "onLabel": "Roiling with anger",
@@ -2226,7 +2281,15 @@
       "groupHit": {
         "down": "one of them goes down, {after} still standing",
         "hurt": "one of them is hurt ({memberHp} of {hpMax} HP left), {after} still standing",
-        "unhurt": "none of them is hurt, {after} still standing"
+        "unhurt": "none of them is hurt, {after} still standing",
+        "memberDown": "{member} takes it and goes down ({oldHp} → 0 HP), {after} still standing",
+        "memberHurt": "{member} takes it ({oldHp} → {newHp} HP), {after} still standing",
+        "memberUnhurt": "{member} takes it unhurt, {after} still standing",
+        "tookIt": "Who took it:",
+        "tookItFor": "{name}, who took it:",
+        "moveHint": "The first member standing takes a lone blow. Pick another to give it to them instead.",
+        "movedTitle": "{move}: another member takes it",
+        "moved": "{from} is back to {fromHp} HP. {line}."
       },
       "defend": {
         "halve": "Halve it (Readiness)",

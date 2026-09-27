@@ -9,12 +9,15 @@ import {
 	raisedFromDead,
 	zeroHpMove,
 } from "../actors/character/deaths-door.js";
-import { getSetting } from "../settings.js";
-import { bringDialogToFront } from "../utils/front-on-open.js";
-import { UNSTOPPABLE_INSTEAD_OPTION, UNSTOPPABLE_REGAIN_OPTION, fightsOnWhenDropped, keepsFightingAtZero, regainInstead } from "../actors/character/unstoppable.js";
+import {
+	UNSTOPPABLE_INSTEAD_OPTION, UNSTOPPABLE_REGAIN_OPTION, fightsOnWhenDropped, keepsFightingAtZero, regainInstead,
+} from "../actors/character/unstoppable.js";
 import { BATTLE_JOY_DROPPED_OPTION, BATTLE_JOY_FLAG } from "../actors/character/battle-joy.js";
+import { canKeepOneHp } from "../actors/character/inspiration.js";
 import { deletionEntry } from "../utils/foundry-compat.js";
 import { format } from "../utils/i18n.js";
+import { getSetting } from "../settings.js";
+import { bringDialogToFront } from "../utils/front-on-open.js";
 
 /**
  * Document-update option marking "this write took a dead character above 0 HP". Set by the
@@ -140,9 +143,9 @@ export function onPreUpdateActorDeathsDoor(actor, changes, options = {}) {
  * The transition itself was already decided by `nextDeathsDoorState` in the preUpdate half, which
  * writes the flag only when the state actually changes — so a downed PC hit again carries no flag
  * in its diff and neither hook below re-fires. Both of them ask this same question, of the same
- * `updateActor` payload, and would otherwise spell the flag path out twice.
+ * `updateActor` payload (so does We Happy Few's Keep 1 HP), and would otherwise spell the flag path out.
  */
-const becameDyingInDiff = (changes) =>
+export const becameDyingInDiff = (changes) =>
 	foundry.utils.getProperty(changes, `flags.${STONETOP_SCOPE}.${DEATHS_DOOR_FLAG}`) === DEATHS_DOOR_STATE.DYING;
 
 /**
@@ -198,6 +201,11 @@ export function onUpdateActorDeathsDoorAutoOpen(actor, changes) {
 			ui.notifications?.info?.(format("stonetop.unstoppable.fightsOn", { name: actor.name }));
 			return;
 		}
+
+		// We Happy Few's "Keep 1 HP instead of being reduced to 0 HP": a character holding Inspiration
+		// in a fight is asked that first, and the walkthrough opens only if they go down after all
+		// (actors/character/inspiration-flow.js#offerKeepOneHp).
+		if (canKeepOneHp(actor)) return;
 
 		openZeroHpMove(actor).catch(err => console.error("Stonetop | Error opening the dying walkthrough:", err));
 	} catch (err) {

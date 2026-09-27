@@ -38,8 +38,9 @@ import { SYSTEM_ID } from "../system-id.js";
 import { isFightTabEnabled, isFightRingOn } from "../settings.js";
 import { fightOnScene } from "./fight-state.js";
 import { damageBlows, damageCardText, printedBlow } from "../utils/damage.js";
-import { pcDamageDie, rollDamageAt, rollCharacterDamageAt, letFlyAmmoStatuses } from "../combat/attack-flow.js";
+import { pcDamageDie, rollDamageAt, rollCharacterDamageAt, letFlyAmmoStatuses, crewBlow } from "../combat/attack-flow.js";
 import { followerRingInfo, openFollowerOrder } from "./follower-fight.js";
+import { followerCardFor } from "../actors/character/follower-masters.js";
 import { heldReadiness } from "../combat/defend-readiness.js";
 import { spendReadiness, pickOne } from "./defend-spend.js";
 import { HERO_MOVES, lockEyesCandidates, lockEyes } from "./hero-moves.js";
@@ -305,16 +306,25 @@ export async function runRingButton(button, actor, { shiftKey = false } = {}) {
 		seeded: !strikeBack,
 		strikeBack,
 		shiftKey,
-	}) : await rollDamageAt(actor, {
-		formula: button.formula,
-		label: button.label,
-		keywords: button.keywords,
-		rollMode: button.rollMode,
-		weapon: button.weapon,
-		shiftKey,
-	});
+	}) : await rollFollowerOrFoeDamage(actor, button, { shiftKey });
 	if (strikeBack && rolled) await spendReadiness(actor);
 	return rolled;
+}
+
+/**
+ * A stat block's or a follower's damage button: its own die, tags and armor clause. The Marshal's crew
+ * deals its blow with one of the weapons their card has ticked, asked first (combat/attack-flow.js#crewBlow),
+ * so the weapon's piercing and tags ride the blow as they do from the card.
+ */
+async function rollFollowerOrFoeDamage(actor, button, { shiftKey = false, cardFor = followerCardFor } = {}) {
+	let { label, keywords, weapon } = button;
+	const card = actor?.type === "npc" ? cardFor(actor) : null;
+	if (card?.ftype === "crew") {
+		const blow = await crewBlow(card.character, { label, weapon, keywords });
+		if (!blow) return false;
+		({ label, weapon, keywords } = blow);
+	}
+	return rollDamageAt(actor, { formula: button.formula, label, keywords, rollMode: button.rollMode, weapon, shiftKey });
 }
 
 /**

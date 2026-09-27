@@ -637,7 +637,10 @@ describe("StonetopCharacter.ensureStartingMoves", () => {
 			.withMoveRepo(new FakeMoveRepository(entries, []))
 			.build();
 		await char.ensureStartingMoves();
-		expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith("Item", [{ name: "Rites of the Land" }]);
+		// Stamped with the background that gave it, so a change of background takes back that copy.
+		expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith("Item", [
+			{ name: "Rites of the Land", flags: { "stonetop-pwd": { backgroundGrant: "initiate" } } },
+		]);
 	});
 });
 
