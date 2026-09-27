@@ -43,6 +43,7 @@ import { onUpdateActorUnstoppable } from "./module/actors/character/unstoppable.
 import { installBattleJoyOnHurt, installBattleJoyEnd, wireBattleJoyResult } from "./module/combat/battle-joy-offer.js";
 import { wireInvokeConsequences, wireWielderInvoke, invokeCardChoosesConsequence, invokeActionRow, TEN_PLUS_FLAG } from "./module/actors/character/invoke-consequences.js";
 import { wireLoyalToTheEnd } from "./module/actors/character/companion-bond.js";
+import { wireImproviseCard, wireMarkConsequenceCard } from "./module/actors/character/arcana-seeker-moves.js";
 import { wireInvocationEffects, BATH_QUERY, handleBathQuery } from "./module/actors/character/invocation-apply.js";
 import { installBattleHolds } from "./module/combat/battle-holds.js";
 import { hideAttackFxForReducedMotion } from "./module/combat/attack-fx.js";
@@ -2270,6 +2271,11 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	wireWielderInvoke(message, html);
 	// Loyal to the End's 7-9 and 6-: the companion's "injured" tag, added once per card.
 	wireLoyalToTheEnd(message, html);
+	// Improvise, rolled from an un-learned mystery: its 7+'s "use it this once" and its 10+'s step.
+	wireImproviseCard(message, html);
+	// "Mark a consequence" as a move's cost (the Ring of Daagon's Call Up and Send Them Back):
+	// the Ring's next Consequence, through Conduit of Power / Overchannel's ask, once per card.
+	wireMarkConsequenceCard(message, html);
 	// We Happy Few, every tier: who heard the speech holds its Inspiration, once per card.
 	wireSpeechCard(message, html);
 	// Same row, same reason: a spend that rewrites what the roll costs the player.

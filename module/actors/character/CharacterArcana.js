@@ -141,6 +141,17 @@ const _FRONT_CONSEQUENCE_REF_RE = /consequences?\b[^.<]*?\(see reverse\)/i;
 // real heading.
 const _CONSEQUENCES_HEADING_RE = /<h([1-6])\b[^>]*>\s*Consequences\s*<\/h\1>/i;
 
+// A back description's "Consequences" section: its heading, and the body from there to the next
+// heading (or the end), with where that body starts. Null when the card prints no such heading.
+function _consequencesSection(text) {
+	const m = _CONSEQUENCES_HEADING_RE.exec(text);
+	if (!m) return null;
+	const start = m.index + m[0].length;
+	const after = text.slice(start);
+	const nextHeading = after.search(/<h[1-6]\b/i);
+	return { heading: m[0], start, body: nextHeading >= 0 ? after.slice(0, nextHeading) : after };
+}
+
 // Slice the "Consequences" section out of an already-processed BACK description so it can be
 // shown on the front. Runs from the heading to the next heading (or the end — the section is
 // authored last on every shipped card), which keeps its nested lists and any trailing prose
@@ -150,14 +161,30 @@ const _CONSEQUENCES_HEADING_RE = /<h([1-6])\b[^>]*>\s*Consequences\s*<\/h\1>/i;
 // Returns null when there's no section or only a pointer stub (e.g. Whispering Rocks' "See
 // above."), so a contentless fold never renders.
 function _extractConsequencesSection(processedBackHtml) {
-	if (!processedBackHtml) return null;
-	const m = _CONSEQUENCES_HEADING_RE.exec(processedBackHtml);
-	if (!m) return null;
-	const after = processedBackHtml.slice(m.index + m[0].length);
-	const nextHeading = after.search(/<h[1-6]\b/i);
-	const body = nextHeading >= 0 ? after.slice(0, nextHeading) : after;
-	if (!/<li\b/i.test(body)) return null;
-	return m[0] + body;
+	const section = processedBackHtml ? _consequencesSection(processedBackHtml) : null;
+	if (!section || !/<li\b/i.test(section.body)) return null;
+	return section.heading + section.body;
+}
+
+/**
+ * Which of a back side's □ belong to its "Consequences" section, as the half-open index range
+ * `{from, to}` those boxes carry under `slug:back:i` (the back's □ are indexed in document order,
+ * see _injectMarkers), or null when the card prints no such section or no box in it.
+ *
+ * Read off the RAW back description: the move-name wrap and the marker pass add no glyphs, so the
+ * indices match the processed HTML's, and the front-surfaced fold writes the same keys. Only □
+ * count: a ○○○ run inside a consequence (the Blood-quenched Sword's Sustenance) is a track the
+ * consequence grants, not a consequence to mark. The section is _consequencesSection's.
+ */
+export function consequenceBoxRange(backDescription) {
+	const text = String(backDescription ?? "");
+	const section = _consequencesSection(text);
+	if (!section) return null;
+	const boxes = s => (s.match(/□/g) || []).length;
+	const inside = boxes(section.body);
+	if (!inside) return null;
+	const from = boxes(text.slice(0, section.start));
+	return { from, to: from + inside };
 }
 
 // Run a side description through the full marker pipeline: center standalone tracks, then
@@ -200,6 +227,7 @@ export class CharacterArcana {
 	get leadSlugs()        { return new Set(this._flags.getFlag("leads") ?? []); }
 	get unlockCounts()     { return this._flags.getFlag("unlock") ?? {}; }
 	get backOptionCounts() { return this._flags.getFlag("backOptions") ?? {}; }
+	get boxStates()        { return this._flags.getFlag("boxes") ?? {}; }
 	get majorSlug()        { return this._flags.getFlag("major") ?? null; }
 	get minorDrawSlugs()   { return this._flags.getFlag("minorDraw") ?? []; }
 	get minorRoles()       { return this._flags.getFlag("minorRoles") ?? {}; }
@@ -683,6 +711,29 @@ export class CharacterArcana {
 		// Store false explicitly rather than deleting the key — Foundry's setFlag uses
 		// mergeObject internally, which preserves keys missing from the update object.
 		await this._flags.setFlag("boxes", { ...boxes, [key]: !!checked });
+	}
+
+	/**
+	 * Tick the first unmarked ○ of a card's unlock track: Improvise's 10+, "mark one step towards
+	 * unlocking the arcanum's mysteries". Answers `{index, count, title}`, with `index` null when
+	 * there was nothing to tick (a card whose steps are not ○, like the Mindgem's □ tasks, or one
+	 * whose circles are all marked), or null when the card is gone.
+	 *
+	 * Counts GLYPHS, not runs: the marker pass gives every ○ of "○○○○" its own index.
+	 */
+	async markNextUnlockStep(slug, options) {
+		const item = await this.getArcanum(slug);
+		if (!item) return null;
+		const title = item.front?.title ?? slug;
+		const count = unlockCircleCount(item.front?.unlock?.description);
+		const boxes = this._flags.getFlag("boxes") ?? {};
+		let index = null;
+		for (let i = 0; i < count; i++) {
+			if (!boxes[`${slug}:unlock:${i}`]) { index = i; break; }
+		}
+		if (index === null) return { index, count, title };
+		await this._flags.setFlag("boxes", { ...boxes, [`${slug}:unlock:${index}`]: true }, options);
+		return { index, count, title };
 	}
 
 	async setBackOptionCount(arcanumSlug, optionSlug, count) {

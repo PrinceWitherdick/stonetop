@@ -138,6 +138,7 @@ import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
 import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, wireFightingInNumbers, groupFightCardSummaries, nextFollowerOrder, crewGearCarried, crewGearArmor} from "../../data/follower-build.js";
 import {LOAD_LEVEL_LIMITS} from "../../utils/load.js";
 import {arcanaSummonFollowers} from "../../data/arcana-summons.js";
+import {IMPROVISE, RING_OF_DAAGON, improviseOffer, improviseRollOptions, markConsequenceButton, mindOverMagicRoll, settleArcanumBoxTick} from "./arcana-seeker-moves.js";
 import {joinNames} from "../../utils/strings.js";
 import {availablePossessionFollowers} from "../../data/possession-followers.js";
 import {FOLLOWER_MOVES} from "../../data/follower-moves.js";
@@ -5670,7 +5671,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!cb) return;
 				ev.stopPropagation();
 				const { arcanumSlug, context, index } = cb.dataset;
-				this._stonetopCharacter.setArcanumBoxChecked(arcanumSlug, context, Number(index), cb.checked);
+				// Through the Seeker's seam (arcana-seeker-moves.js): a tick of a major arcanum's
+				// Consequence asks first when Conduit of Power or Overchannel can take it instead,
+				// and a mark made elsewhere leaves this box clear. Everything else writes as before.
+				settleArcanumBoxTick(this.actor, { slug: arcanumSlug, context, index: Number(index), checked: cb.checked })
+					.then(result => { if (result === "diverted" || result === "cancelled") cb.checked = false; })
+					.catch(err => console.error("Stonetop | marking an arcanum box failed", err));
 			}, true);
 
 			html[0].addEventListener("change", ev => {
@@ -6599,14 +6605,24 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * carries a hand-written `trigger` line instead), the card's options become the tickable
 		 * list, and `card` is what a "Send to chat" or a roll posts. Rolling is gated on the
 		 * move's □ being marked — an unlearned mystery reads, it does not yet act.
+		 *
+		 * Two Seeker moves reach in here (arcana-seeker-moves.js): Mind Over Magic adds a +INT roll
+		 * beside the printed stat (`altRoll`), and Improvise offers an un-learned mystery a roll of
+		 * its own (`improvise`), which needs the card's slug to mark its 10+ step.
 		 */
-		_arcanumMoveGuide(move) {
+		_arcanumMoveGuide(move, arcanumSlug = null) {
 			// The options list renders as ticks below, so drop the printed copy of it from the
 			// body rather than showing the same list twice.
 			const body = move.picks.length && move.listHtml
 				? move.description.replace(move.listHtml, "")
 				: move.description;
+			const roll = (move.learned && this.isEditable) ? move.roll : null;
+			const improvise = improviseOffer(this.actor, move, arcanumSlug, { editable: this.isEditable });
 			return {
+				altRoll:    roll ? mindOverMagicRoll(this.actor, roll) : null,
+				improvise,
+				...(improvise ? { note: "Not unlocked yet. To Improvise it, ask the GM what fool risks it requires "
+					+ "and what consequences you'll incur; if you go for it, roll +INT." } : {}),
 				bodyHtml:   body,
 				card:       move.description,
 				picks:      move.picks,
@@ -6614,7 +6630,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				// How many of that list the mystery allows, read off its own lead-in — the
 				// denominator in the tally over the boxes (see _openGuidedCharacterMove).
 				pickMax:    move.pickMax,
-				roll:       (move.learned && this.isEditable) ? move.roll : null,
+				roll,
 				post:       "Send to chat",
 			};
 		}
@@ -6722,18 +6738,32 @@ export function createStonetopCharacterSheetClass(Base) {
 				};
 			} else if (guide.roll && !cost) {
 				const fixedStat = askStat ? null : guide.roll;
+				const rollWith = chosenStat => async html => {
+					const stat = chosenStat ?? html[0]?.querySelector('[name="guidedRollStat"]')?.value ?? "wis";
+					const prompted = await this._promptRollOptions({ title: name });
+					if (!prompted) return;
+					await this._postGuidedCharacterMove(name, guide, html);
+					// "roll +nothing" (the Demonhide Cloak's The Flesh Remembers) is a flat 2d6:
+					// no stat stands behind it, so the value is spelled out rather than looked up.
+					const flat = stat === "nothing" ? { statValue: 0 } : {};
+					await this._stonetopCharacter.onDirectStatRoll(stat, { moveName: name, ...flat, ...prompted });
+				};
 				buttons.roll = {
 					label: fixedStat ? `Roll +${fixedStat.toUpperCase()}` : "Roll",
-					callback: async html => {
-						const stat = fixedStat ?? html[0]?.querySelector('[name="guidedRollStat"]')?.value ?? "wis";
-						const prompted = await this._promptRollOptions({ title: name });
-						if (!prompted) return;
-						await this._postGuidedCharacterMove(name, guide, html);
-						// "roll +nothing" (the Demonhide Cloak's The Flesh Remembers) is a flat 2d6:
-						// no stat stands behind it, so the value is spelled out rather than looked up.
-						const flat = stat === "nothing" ? { statValue: 0 } : {};
-						await this._stonetopCharacter.onDirectStatRoll(stat, { moveName: name, ...flat, ...prompted });
-					},
+					callback: rollWith(fixedStat),
+				};
+				// Mind Over Magic's "+INT instead of the stat you'd normally roll": a second button
+				// beside the printed one, named for the move, so the choice is made by the press.
+				if (fixedStat && guide.altRoll) {
+					buttons.rollAlt = { label: guide.altRoll.label, callback: rollWith(guide.altRoll.stat) };
+				}
+			}
+			// Improvise, for a mystery not yet learned: its own +INT roll, whose card carries the
+			// "use it this once" and the 10+'s step (arcana-seeker-moves.js).
+			if (guide.improvise) {
+				buttons.improvise = {
+					label:    `${IMPROVISE} (roll +INT)`,
+					callback: () => this._rollImprovise(guide.improvise),
 				};
 			}
 
@@ -6906,12 +6936,17 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * roll, a list to pick from) opens its dialog; one that is pure text posts straight to
 		 * chat. Reading is never gated — an unlearned mystery posts like an un-owned playbook
 		 * move — only the dice are (see _arcanumMoveGuide).
+		 *
+		 * `improvised` is an Improvise card's 7+ ("trigger the move ... as if you'd unlocked it"):
+		 * the mystery opens as if learned, this once. An un-learned mystery that Improvise could
+		 * reach opens its dialog even when it is pure text, since that is where the offer sits.
 		 */
-		async _onArcanumMoveName(arcanumSlug, moveSlug) {
-			const move = await this._stonetopCharacter.getArcanumMove(arcanumSlug, moveSlug);
-			if (!move) return void ui.notifications.warn("That move is no longer on this arcanum.");
-			const guide = this._arcanumMoveGuide(move);
-			if (guide.roll || guide.picks.length) {
+		async _onArcanumMoveName(arcanumSlug, moveSlug, { improvised = false } = {}) {
+			const found = await this._stonetopCharacter.getArcanumMove(arcanumSlug, moveSlug);
+			if (!found) return void ui.notifications.warn("That move is no longer on this arcanum.");
+			const move = improvised ? { ...found, learned: true } : found;
+			const guide = this._arcanumMoveGuide(move, arcanumSlug);
+			if (guide.roll || guide.picks.length || guide.improvise) {
 				this._openGuidedCharacterMove({ name: move.name, guide }, null);
 				return;
 			}
@@ -6923,6 +6958,18 @@ export function createStonetopCharacterSheetClass(Base) {
 				content: moveChatCard(move.name, moveBodyHtml(move.description, null)),
 				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
 			});
+		}
+
+		/**
+		 * Improvise an un-learned mystery (the button _arcanumMoveGuide's `improvise` puts on its
+		 * dialog): the move's own +INT roll, whose card names the mystery and carries the 7+'s
+		 * "use it this once" and the 10+'s step (arcana-seeker-moves.js#wireImproviseCard).
+		 */
+		async _rollImprovise(offer) {
+			if (!offer || !this.isEditable) return;
+			const prompted = await this._promptRollOptions({ title: IMPROVISE });
+			if (!prompted) return;
+			await this._stonetopCharacter.onDirectStatRoll("int", { ...improviseRollOptions(this.actor, offer), ...prompted });
 		}
 
 		async _postGuidedCharacterMove(name, guide, html) {
@@ -8387,9 +8434,13 @@ export function createStonetopCharacterSheetClass(Base) {
 				[`flags.stonetop-pwd.customFollowers.${id}`]: { ...buildServantFollower(input), order: this._nextFollowerOrder() },
 			};
 			let costLine;
+			// The consequence is the Ring's own: the card carries a button that asks which one to mark
+			// (arcana-seeker-moves.js#markArcanumConsequence, Conduit of Power / Overchannel asked).
+			let actions = markConsequenceButton(RING_OF_DAAGON, "Ring of Daagon");
 			if (cost?.kind === "loyalty" && ring.id && ring.loyalty > 0) {
 				update[`flags.stonetop-pwd.customFollowers.${ring.id}.loyalty`] = ring.loyalty - 1;
 				costLine = `<p>You spend <strong>1 Loyalty</strong> from ${escHtml(ring.name)} (now ${ring.loyalty - 1}).</p>`;
+				actions = "";
 			} else if (cost?.kind === "loyalty") {
 				costLine = `<p>${escHtml(ring.name)} holds no Loyalty, so you <strong>mark a consequence</strong> to call them up.</p>`;
 			} else {
@@ -8405,7 +8456,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				+ `<p>HP ${input.hp}${input.isGroup ? ` each &middot; ${input.size} strong` : ""}, Armor ${input.armor}, damage ${escHtml(input.damage)}.</p>`
 				+ (input.moves ? `<p><strong>Moves:</strong> ${escHtml(input.moves.replace(/\n/g, "; "))}</p>` : "")
 				+ costLine;
-			await this._postMoveCard("Call Up the Deep Ones", body);
+			await this._postMoveCard("Call Up the Deep Ones", body, { actions });
 			this.render(false);
 		}
 
@@ -8416,9 +8467,24 @@ export function createStonetopCharacterSheetClass(Base) {
 			const who = name
 				|| this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}.name`)
 				|| "the servants of Daagon";
-			const roll = await rollStat("cha", this.actor, {
+			// A use of the Ring, so Mind Over Magic may swap its +CHA for +INT: asked only when it can.
+			const alt = mindOverMagicRoll(this.actor, "cha");
+			const stat = alt
+				? await askWithButtons({
+					title:   "Send Them Back",
+					content: `<p>Which stat do you roll to send <strong>${escHtml(who)}</strong> back?</p>`,
+					buttons: [
+						{ key: "cha", label: "Roll +CHA", icon: "fa-dice", value: "cha" },
+						{ key: "int", label: alt.label, icon: "fa-dice", value: alt.stat },
+					],
+				})
+				: "cha";
+			if (!stat) return;
+			const roll = await rollStat(stat, this.actor, {
 				moveName:        "Send Them Back",
 				moveDescription: `<p>When you <strong><em>send them back whence they came</em></strong>, roll +CHA.</p>`,
+				// The book's text says +CHA; the card's pills say why this roll is +INT.
+				...(stat !== "cha" ? { conditionNotes: [`Rolled +INT instead (${alt.source})`] } : {}),
 				moveResults: {
 					success: { value: "They go, now." },
 					partial: { value: "They go, but take their time and likely do some harm on the way out." },
@@ -8458,9 +8524,9 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * two were one method wearing three flags that only ever moved together, which read as
 		 * three independent features and left seventeen callers carrying options they never used.
 		 */
-		_postMoveCard(title, body, { stockSpend = false } = {}) {
+		_postMoveCard(title, body, { stockSpend = false, actions = "" } = {}) {
 			return ChatMessage.create({
-				content: moveChatCard(title, body, { actions: stockSpend ? this._stockSpendButtonHtml(body) : "" }),
+				content: moveChatCard(title, body, { actions: (stockSpend ? this._stockSpendButtonHtml(body) : "") + actions }),
 				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
 			});
 		}
@@ -9372,13 +9438,16 @@ export function createStonetopCharacterSheetClass(Base) {
 		async _payServantExit(slug, who, kind) {
 			const ring = this._ringFollowerEntry();
 			let line;
+			let actions = "";
 			if (kind === "loyalty" && ring.id && ring.loyalty > 0) {
 				await this.actor.setFlag(STONETOP_SCOPE, `customFollowers.${ring.id}.loyalty`, ring.loyalty - 1);
 				line = `<p>You spend <strong>1 Loyalty</strong> from ${escHtml(ring.name)} (now ${ring.loyalty - 1}). <strong>${escHtml(who)}</strong> will eventually go.</p>`;
 			} else {
 				line = `<p>You <strong>mark a consequence</strong>. <strong>${escHtml(who)}</strong> will eventually go.</p>`;
+				// The Ring's next Consequence, from the card (as Call Up's).
+				actions = markConsequenceButton(RING_OF_DAAGON, "Ring of Daagon");
 			}
-			await this._postMoveCard("Send Them Back", line);
+			await this._postMoveCard("Send Them Back", line, { actions });
 			this._confirmServantDeparture(slug, who, "They'll eventually go.");
 		}
 

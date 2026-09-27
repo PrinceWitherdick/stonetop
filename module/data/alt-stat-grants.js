@@ -4,7 +4,9 @@ import { tookBackground } from "../actors/character/took-background.js";
 // owns `ownsMove` (and has it LEARNED: a move switched off on the sheet grants nothing), the basic
 // move named `whenMove` (or, for blanket grants, any move whose default stat is `whenDefaultStat`)
 // offers `altStat` as an extra choice in the roll's stat picker. Mind Over Magic (arcanum rolls)
-// is not covered here — arcana roll through a separate path.
+// is not a row here: arcana roll through their own path, so its +INT is offered there
+// (actors/character/arcana-seeker-moves.js#mindOverMagicRoll, on a mystery's dialog and on
+// the Ring of Daagon's Send Them Back). Studying an arcanum is Know Things, +INT already.
 //
 // A row can name a BACKGROUND in place of a move (`background: { playbook, slug, label }`): the
 // Fox's The Natural, "When you Seek Insight, you may roll +INT instead of +WIS". It applies to a

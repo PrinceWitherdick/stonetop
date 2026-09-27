@@ -5597,9 +5597,12 @@ export class StonetopCharacter {
 	// (see _syncArcanumIdentification in stonetop.js).
 	get identifiedArcanaSlugs() { return this._arcana.identifiedSlugs; }
 	get ownedArcanaSlugs()      { return this._arcana.ownedSlugs; }
+	// Every card's □/○/◇ marks, keyed "slug:context:index" (CharacterArcana#boxStates).
+	get arcanaBoxStates()       { return this._arcana.boxStates; }
 	async setArcanumUnlockCount(arcanumSlug, optionSlug, count)          { await this._arcana.setUnlockCount(arcanumSlug, optionSlug, count); }
 	async setArcanumBackOptionCount(arcanumSlug, optionSlug, count)      { await this._arcana.setBackOptionCount(arcanumSlug, optionSlug, count); }
 	async setArcanumBoxChecked(slug, context, index, checked)            { await this._arcana.setArcanumBoxChecked(slug, context, index, checked); }
+	async markNextArcanumUnlockStep(slug, options)                       { return this._arcana.markNextUnlockStep(slug, options); }
 	async setArcanumResource(slug, count, options)                       { await this._inventory.setResource(slug, count, options); }
 	async setLoreOptionCount(loreSlug, optionSlug, count)           { await this._lore.setCount(loreSlug, optionSlug, count); }
 	async setLoreOptionText(loreSlug, optionSlug, value)            { await this._lore.setText(loreSlug, optionSlug, value); }
