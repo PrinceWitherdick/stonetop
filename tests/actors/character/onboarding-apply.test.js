@@ -140,6 +140,16 @@ describe("re-running onboarding", () => {
 		expect(flag(actor, "background.choices")).toMatchObject({ enfys: true, afon: true });
 	});
 
+	it("hands the neighbor traits as filed last time to the filing, read before they are overwritten", async () => {
+		const { actor, sheet } = await onboarded();
+		await actor.setFlag("stonetop-pwd", "background.neighborTraits", { ennis: "sly" });
+		const pbDoc = playbookDoc("the-blessed");
+
+		await sheet._applyPlaybookSelections(pbDoc, sheet._readSelectionsFromActor(pbDoc));
+
+		expect(sheet._applyBackgroundNeighbors.mock.calls.at(-1)[2]).toEqual({ previousTraits: { ennis: "sly" } });
+	});
+
 	it("replaces the initiates as a set", async () => {
 		const { actor, sheet } = await onboarded();
 		const pbDoc = playbookDoc("the-blessed");
@@ -356,6 +366,45 @@ describe("settleBackgroundMoves, for every background shape", () => {
 		expect(ownedMoveNames(actor)).not.toContain("Expert Tracker");
 		expect(ownedMoveNames(actor)).not.toContain("Stalker");
 		expect(ownedMoveNames(actor)).toContain("Mental Map");
+	});
+
+	it("a level-up pick the new background also gives stays a pick, through Mighty Hunter and back (the Ranger)", async () => {
+		const { char, actor } = buildLiveCharacter({
+			slug: "the-ranger", name: "The Ranger", level: 3, flags: { "background.selected": "wide-wanderer" },
+		});
+		await char.ensureStartingMoves();
+		const stalker = await char.addMove(moveId("The Ranger", "Stalker"));
+		const shortfall = async () => (await char.buildSnapshot()).movelist.levelMovesShortfall;
+		const before = await shortfall();
+		const switchTo = async slug => {
+			const previous = char.backgroundState();
+			await char.background.selectBackground(slug);
+			await char.settleBackgroundMoves(previous);
+		};
+
+		await switchTo("mighty-hunter");
+		expect(actor.items.filter(i => i.name === "Stalker").map(i => i._id)).toEqual([stalker._id]);
+		expect(await shortfall()).toBe(before);
+		const row = (await char.buildSnapshot()).movelist.playbookMoves.find(m => m.name === "Stalker");
+		expect(row.sourceLabel).toBeNull();
+
+		await switchTo("wide-wanderer");
+		expect(ownedMoveNames(actor)).toContain("Stalker");
+		expect(ownedMoveNames(actor)).not.toContain("Expert Tracker");
+		expect(await shortfall()).toBe(before);
+	});
+
+	it("a background's own copy from before the stamp still goes when it is left (the legacy path)", async () => {
+		const { char, actor } = buildLiveCharacter({
+			slug: "the-ranger", name: "The Ranger", level: 3, flags: { "background.selected": "mighty-hunter" },
+		});
+		await char.addMove(moveId("The Ranger", "Stalker"));
+		await char.ensureStartingMoves();
+		const previous = char.backgroundState();
+		await char.background.selectBackground("wide-wanderer");
+		await char.settleBackgroundMoves(previous);
+
+		expect(ownedMoveNames(actor)).not.toContain("Stalker");
 	});
 
 	it("a background's answer to a move (the Seeker's Well Versed topic) follows the background", async () => {

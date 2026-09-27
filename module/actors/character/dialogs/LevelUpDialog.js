@@ -206,9 +206,9 @@ export class LevelUpDialog extends StonetopDialog {
 
 		// How many distinct options are actually SELECTABLE this take (a count option with a
 		// free box). The required allowance is capped to this, so a budgeted move whose budget
-		// exceeds its distinct options (e.g. Beast of Legend's 2 options on a 3-pick take) can
-		// never trap the player — one pick per option means the budget is filled as far as it
-		// can be, with the rest markable later on the sheet.
+		// exceeds its free boxes (one-box options like Beast of Legend's, some of them marked by
+		// hand beyond the budget) can never trap the player: one pick per free box means the
+		// budget is filled as far as it can be, with the rest markable later on the sheet.
 		const markSelectable = markDesc ? markDesc.options.reduce((n, o) => o.existing < o.capacity && !o.capNote ? n + 1 : n, 0) : 0;
 		const markAllowance = markDesc ? Math.min(markDesc.allowance, markSelectable) : 0;
 
@@ -348,8 +348,16 @@ export class LevelUpDialog extends StonetopDialog {
 	// Heroes to the Last / Beast of Legend / Well Versed). Potential for Greatness is NOT
 	// collected at level-up — it's marked in play on a 10+ stat roll (see the chat reminder
 	// in WouldBeHeroAsterisk.js).
+	//
+	// A cross-playbook pick asks the marks of the FOREIGN move it chose: a Blessed who takes Beast
+	// of Legend through Wild Soul picks its option here as a Ranger would. The foreign move carries
+	// its mark options and the copies already held (StonetopCharacter#getForeignMovesForLevelUp).
 	_markStepDescriptor() {
 		const entry = this._selectedMoveEntry();
+		if (entry?.crossPlaybook) {
+			const foreign = this._foreignMoves.find(m => m.compendiumId === this._selectedForeignMoveId);
+			return foreign?.markOptions?.length ? this._buildPickedMoveMarkStep(foreign) : null;
+		}
 		return entry?.markOptions?.length ? this._buildPickedMoveMarkStep(entry) : null;
 	}
 
@@ -486,6 +494,8 @@ export class LevelUpDialog extends StonetopDialog {
 		});
 
 		html.find(".stonetop-levelup-foreign-option").on("click", ev => {
+			// A mark picked for the previous foreign move is not this one's (_markStepDescriptor).
+			if (this._selectedForeignMoveId !== ev.currentTarget.dataset.compendiumId) this._selectedMarks = [];
 			this._selectedForeignMoveId = ev.currentTarget.dataset.compendiumId;
 			this.render(false);
 		});

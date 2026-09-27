@@ -867,7 +867,9 @@
       "fixed": "{names} go on the steading's Neighbors list.",
       "add": "Add them to Neighbors",
       "skipFixed": "Add only {names}",
-      "skip": "Add none of them"
+      "skip": "Add none of them",
+      "traitsLead": "Choose 1 trait for each.",
+      "skipTraits": "Add them without traits"
     },
     "onboarding": {
       "saveButton": "Save",

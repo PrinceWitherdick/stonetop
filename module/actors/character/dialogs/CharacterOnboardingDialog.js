@@ -27,7 +27,7 @@ import { playbookIconPath } from "../../../utils/playbook-actors.js";
 import { ensurePackIndex } from "../../../utils/pack-index.js";
 import { SYSTEM_ID } from "../../../system-id.js";
 import { crewSetupLimit } from "./CrewSetupDialog.js";
-import { neighborChoiceGroups } from "./BackgroundNeighborsDialog.js";
+import { neighborChoiceGroups, randomNeighborTrait } from "./BackgroundNeighborsDialog.js";
 import { MAGNIFICENT_SPECIMEN_MOVE, companionKindOptions, companionTraitAllowance, trimCompanionTraits } from "../animal-companion.js";
 
 const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
@@ -257,6 +257,9 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			// creation (the Ranger's Beast-Bonded "focus on your companion" actions —
 			// mark 1 at 1st level). Mirrors flags.stonetop.background.markedActions.
 			markedActions: [],
+			// The actions marked since, at a level-up (a re-run restores them): shown marked and locked,
+			// never one of the 1st level's marks, and kept by the apply (StonetopCharacter#splitMarkedActions).
+			learnedMarkedActions: [],
 		};
 
 		if (initialSelections) {
@@ -609,7 +612,15 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			return;
 		}
 		const allowed = new Set(markable.options.map(o => o.slug));
-		this._selections.markedActions = this._selections.markedActions.filter(s => allowed.has(s));
+		const learned = new Set(this._selections.learnedMarkedActions ?? []);
+		this._selections.markedActions = this._selections.markedActions.filter(s => allowed.has(s) && !learned.has(s));
+	}
+
+	// The actions marked at a level-up that the selected background lists (a re-run's
+	// `learnedMarkedActions`): locked, uncounted, and kept by the apply.
+	_learnedBackgroundActions(background = this._selectedBackground()) {
+		const allowed = new Set((background?.markableActions?.options ?? []).map(o => o.slug));
+		return (this._selections.learnedMarkedActions ?? []).filter(s => allowed.has(s));
 	}
 
 	// Whether the player has marked the required number of actions at creation
@@ -617,17 +628,21 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	_backgroundActionsComplete(background = this._selectedBackground()) {
 		const markable = background?.markableActions;
 		if (!markable?.options?.length) return true;
-		return this._selections.markedActions.length >= allowedMarkableActions(markable, 1);
+		const learned = new Set(this._learnedBackgroundActions(background));
+		return this._selections.markedActions.filter(s => !learned.has(s)).length >= allowedMarkableActions(markable, 1);
 	}
 
 	// Render-data for the background's level-gated markable actions (Beast-Bonded),
 	// or null when it has none. Onboarding is always 1st level, so `allowed` is the
-	// number of marks unlocked at level 1 (1 for Beast-Bonded).
+	// number of marks unlocked at level 1 (1 for Beast-Bonded). On a re-run, an action
+	// marked at a level-up shows marked but locked and badged, outside the count, as a
+	// learned Invocation does (_invocationStepData).
 	_backgroundMarkableActionsData(background) {
 		const markable = background?.markableActions;
 		if (!markable?.options?.length) return null;
 		const allowed = allowedMarkableActions(markable, 1);
-		const marked  = new Set(this._selections.markedActions);
+		const learned = new Set(this._learnedBackgroundActions(background));
+		const marked  = new Set(this._selections.markedActions.filter(s => !learned.has(s)));
 		const markedCount = markable.options.filter(o => marked.has(o.slug)).length;
 		const atLimit = markedCount >= allowed;
 		return {
@@ -636,13 +651,15 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			allowed,
 			markedCount,
 			options: markable.options.map(o => {
-				const isSelected = marked.has(o.slug);
+				const isLearned  = learned.has(o.slug);
+				const isSelected = isLearned || marked.has(o.slug);
 				return {
 					backgroundSlug: background.slug,
 					slug:       o.slug,
 					label:      this._normalizeOnboardingText(o.label),
 					isSelected,
-					disabled:   !isSelected && atLimit,
+					isLearned,
+					disabled:   isLearned || (!isSelected && atLimit),
 				};
 			}),
 		};
@@ -2553,17 +2570,9 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			const input = ev.currentTarget.parentElement
 				?.querySelector(".onboard-background-neighbor-trait");
 			if (!input) return;
-			const taken = new Set(
-				Array.from(ev.currentTarget.closest(".stonetop-onboarding-background-setup")
-					?.querySelectorAll(".onboard-background-neighbor-trait") ?? [])
-					.map(el => el.value.trim().toLowerCase())
-					.filter(Boolean)
-			);
-			// A steading with more neighbors than the ~90 listed traits would exhaust the
-			// pool; fall back to the whole list rather than doing nothing.
-			const pool = STEADING_NPC_TRAITS.filter(trait => !taken.has(trait.toLowerCase()));
-			const options = pool.length ? pool : STEADING_NPC_TRAITS;
-			input.value = options[Math.floor(Math.random() * options.length)];
+			const taken = Array.from(ev.currentTarget.closest(".stonetop-onboarding-background-setup")
+				?.querySelectorAll(".onboard-background-neighbor-trait") ?? []).map(el => el.value);
+			input.value = randomNeighborTrait(taken, STEADING_NPC_TRAITS);
 			// Let the field's own "input" handler record the pick, then dismiss the
 			// suggestion popup that handler's event just re-opened.
 			input.dispatchEvent(new Event("input", { bubbles: true }));

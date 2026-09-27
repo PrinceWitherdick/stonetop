@@ -3299,6 +3299,10 @@ export class StonetopCharacter {
 	// The copy a background gave (BACKGROUND_GRANT_FLAG) sits FIRST among a row's copies: box 0 is
 	// the locked one, and un-ticking a later box removes the LAST copy, which must be the pick, not
 	// the Scion's own Veteran Crew.
+	//
+	// A background's move held only as picks from before the background (HELD_BEFORE_BACKGROUND_FLAG,
+	// no copy of the background's own) reads as the pick it is, not as the background's: a level-3
+	// Mighty Hunter whose Stalker was a level-up pick has made that pick.
 	buildMovelistContext(entries, ownedAllByName, bgMoveNames, actorLevel, actorPlaybook, choiceGroups = []) {
 		const actorStats = _statValueMap(this._actor.system?.stats);
 		const demoted    = this.demotedStartingChoices(choiceGroups);
@@ -3307,6 +3311,11 @@ export class StonetopCharacter {
 			const copies = (ownedAllByName.get(name) ?? []).filter(i => !i.flags?.[STONETOP_SCOPE]?.grantedBy);
 			return [...copies.filter(_isBackgroundGrant), ...copies.filter(i => !_isBackgroundGrant(i))];
 		};
+		const heldAsPick = name => {
+			const copies = ownCopies(name);
+			return copies.some(_isHeldBeforeBackground) && !copies.some(_isBackgroundGrant);
+		};
+		bgMoveNames = new Set([...bgMoveNames].filter(name => !heldAsPick(name)));
 		// A move an owned move replaced (Bulwark, while A Mighty Rampart is owned) is locked as
 		// "Replaced by ...": ticked back, the character would hold both.
 		const retiredBy  = this.retiredMoveReplacers();
@@ -3367,14 +3376,28 @@ export class StonetopCharacter {
 		for (const e of entries) {
 			if (isStarting(e) || !bgMoveNames.has(e.name)) continue;
 			if (!ownedNames.has(e.name)) { fromBackground.push(e); continue; }
-			// Already held: only a repeatable move gets a copy of its own, and only while none is
-			// stamped (a non-repeatable one held already IS the background's, as it always was).
-			if ((e.repeatMax ?? 1) < 2) continue;
 			const copies = this._actor.items.filter(i => i.type === "move" && i.name === e.name);
 			if (copies.some(_isBackgroundGrant)) continue;
-			const legacy = newlyGiven.has(e.name) ? null : _earliestFirst(copies.filter(i => !_heldBesidesBackground(i)))[0];
+			const repeatMax = e.repeatMax ?? 1;
+			// Newly given and already held: a repeatable move with room gets a copy of its own beside
+			// the pick. One with no room (any non-repeatable move) gets none, so the copies held are
+			// marked as held before the background (HELD_BEFORE_BACKGROUND_FLAG): they stay picks in the
+			// level's budget, and leaving the background again takes none of them (a level-up Stalker
+			// through Mighty Hunter and back).
+			if (newlyGiven.has(e.name)) {
+				if (copies.length < repeatMax) fromBackground.push(e);
+				else for (const copy of copies) {
+					if (!copy.flags?.[STONETOP_SCOPE]?.[HELD_BEFORE_BACKGROUND_FLAG]) await copy.setFlag(STONETOP_SCOPE, HELD_BEFORE_BACKGROUND_FLAG, true);
+				}
+				continue;
+			}
+			// A character from before the stamp: a non-repeatable move held already IS the
+			// background's, as it always was; a repeatable one stamps its earliest copy that isn't held
+			// some other way, or gets a copy of its own.
+			if (repeatMax < 2) continue;
+			const legacy = _earliestFirst(copies.filter(i => !_heldBesidesBackground(i)))[0];
 			if (legacy) await legacy.setFlag(STONETOP_SCOPE, BACKGROUND_GRANT_FLAG, bgStamp);
-			else if (copies.length < e.repeatMax) fromBackground.push(e);
+			else if (copies.length < repeatMax) fromBackground.push(e);
 		}
 		if (missing.length || fromBackground.length) {
 			const docs = await Promise.all([...missing, ...fromBackground].map(e => this._moveRepo.getPlaybookMoveDocument(e.id)));
@@ -5370,7 +5393,7 @@ export class StonetopCharacter {
 	// config + the level being gained, returns the qualifying foreign moves
 	// ({compendiumId, name, description, playbook}), EXCLUDING: Improved/Superior Stat
 	// (cap != null), other cross-playbook moves (no third-playbook chaining), moves
-	// already owned, playbook-locked moves (Dangerous, Potential for Greatness; see
+	// already owned (a repeatable one held fewer times than its repeatMax excepted), playbook-locked moves (Dangerous, Potential for Greatness; see
 	// _foreignMoveQualifies), and a move the character's OWN playbook has by the same name.
 	// Level, required-move and stat prereqs are honored.
 	async getForeignMovesForLevelUp(crossPlaybook, level) {
@@ -5378,7 +5401,10 @@ export class StonetopCharacter {
 		const allowed = crossPlaybook?.playbooks === "any"
 			? _ALL_PLAYBOOK_NAMES.filter(p => p !== ownName)
 			: (crossPlaybook?.playbooks ?? []).filter(p => p !== ownName);
-		const ownedNames = new Set(this._actor.items.filter(i => i.type === "move").map(i => i.name));
+		// The copies held of each move, by name. A move held is not offered again unless it repeats
+		// ("each time you take this move") and fewer copies than it allows are held: Magnificent
+		// Specimen or Beast of Legend taken twice through Wild Soul or Versatile.
+		const held = this._buildOwnedMovesMap();
 		// What a requirement may lean on: only moves still LEARNED. A switched-off move stays
 		// "owned" (never offered twice) but opens nothing.
 		const learnedNames = new Set(this._actor.items.filter(i => i.type === "move" && moveLearnedIn(i, this._actor.items)).map(i => i.name));
@@ -5403,10 +5429,18 @@ export class StonetopCharacter {
 				if (def.cap != null) continue;          // no Improved/Superior Stat
 				if (def.crossPlaybook) continue;         // no third-playbook chaining
 				if (ownMoveNames.has(def.name)) continue; // the own playbook's move of that name
-				if (ownedNames.has(def.name) || retired.has(def.name) || seen.has(def.name)) continue;
+				const ownedIds = (held.get(def.name) ?? []).map(i => i.id);
+				if (ownedIds.length >= Math.max(1, Number(def.repeatMax) || 1)) continue;
+				if (retired.has(def.name) || seen.has(def.name)) continue;
 				if (!_foreignMoveQualifies(def, learnedNames, level, actorStats)) continue;
 				seen.add(def.name);
-				out.push({ compendiumId: def.id, name: def.name, description: def.description ?? "", playbook: pb, requiresLabel: requirementLabel(def.requirement, { replaces: def.replaces ?? null }) });
+				// The mark options ride along with the copies already held, so the level-up's marks step
+				// can ask a foreign Beast of Legend's pick as it asks the Ranger's own (LevelUpDialog).
+				out.push({
+					compendiumId: def.id, name: def.name, description: def.description ?? "", playbook: pb,
+					requiresLabel: requirementLabel(def.requirement, { replaces: def.replaces ?? null }),
+					markOptions: def.markOptions ?? null, markBudget: def.markBudget ?? null, ownedIds,
+				});
 			}
 		}
 		out.sort((a, b) => a.playbook.localeCompare(b.playbook) || a.name.localeCompare(b.name));
@@ -5938,10 +5972,22 @@ export const STARTING_CHOICE_FLAG = "startingChoice";
 // Raised by Wolves and back), or a move learned through a cross-playbook move. A level-up pick
 // carries no such mark (nor does a free pick made before the stamp existed), so one that a later
 // background also gives is taken back when that background is left. That needs a pick of the
-// very move the next background grants, and ticking it again on the Moves tab restores it.
+// very move the next background grants, and ticking it again on the Moves tab restores it. A
+// pick a background came to give when it was already held (HELD_BEFORE_BACKGROUND_FLAG) is marked.
 function _heldBesidesBackground(item) {
 	const flags = item.flags?.[STONETOP_SCOPE];
-	return !!(item.system?.isStartingMove || flags?.[CREATION_PICK_FLAG] || flags?.grantedBy);
+	return !!(item.system?.isStartingMove || flags?.[CREATION_PICK_FLAG] || flags?.grantedBy || flags?.[HELD_BEFORE_BACKGROUND_FLAG]);
+}
+
+// The item flag ensureStartingMoves stamps on a copy the character already held when a change of
+// background started giving that move and had no room for a copy of its own (a level-3 Wide
+// Wanderer's level-up Stalker on becoming a Mighty Hunter). The copy stays the character's pick:
+// counted in the level's budget (buildMovelistContext) and never taken back by a later change of
+// background (backgroundMovesDropped, through _heldBesidesBackground).
+export const HELD_BEFORE_BACKGROUND_FLAG = "heldBeforeBackground";
+
+function _isHeldBeforeBackground(item) {
+	return !!item?.flags?.[STONETOP_SCOPE]?.[HELD_BEFORE_BACKGROUND_FLAG];
 }
 
 // The item flag ensureStartingMoves stamps on the copy of a move a background GAVE (its value is
@@ -5993,6 +6039,20 @@ export function startingMoveChoiceNames(groups) {
 export function allowedMarkableActions(markable, actorLevel) {
 	const levels = markable?.levels ?? [];
 	return levels.filter(l => actorLevel >= l).length;
+}
+
+// A background's marked actions told apart for a re-run of onboarding, which asks only the 1st
+// level's marks: `starting`, the first as many as 1st level allows, and `later`, the rest, marked at
+// a level-up (or on the Details tab past 1st level) and kept, shown locked. Onboarding writes its
+// marks first and a later mark is only ever appended (CharacterBackgrounds#markAction, applyLevelUp),
+// so the list's order is the order they were marked. With no markable list, all are `starting`.
+export function splitMarkedActions(markable, marked) {
+	const list = [...new Set((Array.isArray(marked) ? marked : []).filter(Boolean))];
+	if (!markable?.options?.length) return { starting: list, later: [] };
+	const known = new Set(markable.options.map(o => o.slug));
+	const own = list.filter(slug => known.has(slug));
+	const first = allowedMarkableActions(markable, 1);
+	return { starting: own.slice(0, first), later: own.slice(first) };
 }
 
 function _buildMarkableActions(b, savedMarkedActions, actorLevel) {

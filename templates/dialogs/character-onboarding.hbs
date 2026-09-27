@@ -165,8 +165,10 @@
 							       value="{{slug}}"
 							       data-background-slug="{{backgroundSlug}}"
 							       {{#if isSelected}}checked{{/if}}
-							       {{#if disabled}}disabled{{/if}}>
+							       {{#if disabled}}disabled{{/if}}
+							       {{#if isLearned}}data-learned="true"{{/if}}>
 							<span>{{{label}}}</span>
+							{{#if isLearned}}<span class="stonetop-onboarding-possession-badge">Marked at level-up</span>{{/if}}
 						</span>
 						{{/each}}
 					</div>

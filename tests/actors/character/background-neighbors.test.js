@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { createStonetopCharacterSheetClass } from "../../../module/actors/character/StonetopCharacterSheet.js";
-import { BackgroundNeighborsDialog } from "../../../module/actors/character/dialogs/BackgroundNeighborsDialog.js";
+import {
+	BackgroundNeighborsDialog, randomNeighborTrait, storedNeighborTraits,
+} from "../../../module/actors/character/dialogs/BackgroundNeighborsDialog.js";
 
 // Backgrounds that name neighbors (the Ranger's Wide Wanderer names five) file them on the
 // steading's Neighbors roster as they're applied, as the NPC actors every other roster row is
@@ -232,9 +234,9 @@ describe("choosing a neighbor-naming background on the Details tab", () => {
 	const JUDGE = JSON.parse(readFileSync(new URL("../../../packs/src/stonetop-items/playbooks/the-judge.json", import.meta.url), "utf8"));
 	const PLAYBOOK = { name: "The Judge", backgrounds: JUDGE.flags.stonetop.backgrounds };
 
-	function makeDetailsSheet(from = "legacy") {
+	function makeDetailsSheet(from = "legacy", playbook = PLAYBOOK, background = {}) {
 		const sheet = makeSheet();
-		const flags = { background: { selected: from } };
+		const flags = { background: { selected: from, ...background } };
 		sheet.actor = {
 			flags: { "stonetop-pwd": flags },
 			update: vi.fn(async upd => {
@@ -254,7 +256,7 @@ describe("choosing a neighbor-naming background on the Details tab", () => {
 			settleBackgroundPossessions: async () => {},
 			settleBackgroundArcana: async () => {},
 			settleBackgroundResources: async () => {},
-			playbook: async () => PLAYBOOK,
+			playbook: async () => playbook,
 		};
 		return sheet;
 	}
@@ -265,7 +267,7 @@ describe("choosing a neighbor-naming background on the Details tab", () => {
 	afterEach(() => { vi.restoreAllMocks(); });
 
 	it("files Devin and Haeris and the two picked", async () => {
-		const ask = askPicks({ "missionary-judges": ["rahat", "unz"] });
+		const ask = askPicks({ picks: { "missionary-judges": ["rahat", "unz"] }, traits: {} });
 		const sheet = makeDetailsSheet();
 
 		await choose(sheet, "missionary");
@@ -284,7 +286,7 @@ describe("choosing a neighbor-naming background on the Details tab", () => {
 	});
 
 	it("adds no one twice when the background is chosen again", async () => {
-		askPicks({ "missionary-judges": ["rahat", "unz"] });
+		askPicks({ picks: { "missionary-judges": ["rahat", "unz"] }, traits: {} });
 		const sheet = makeDetailsSheet();
 		await choose(sheet, "missionary");
 		await choose(sheet, "legacy");
@@ -294,7 +296,7 @@ describe("choosing a neighbor-naming background on the Details tab", () => {
 	});
 
 	it("takes no one off the roster when the background changes away", async () => {
-		askPicks({ "missionary-judges": ["isalde", "tejisha"] });
+		askPicks({ picks: { "missionary-judges": ["isalde", "tejisha"] }, traits: {} });
 		const sheet = makeDetailsSheet();
 		await choose(sheet, "missionary");
 		await choose(sheet, "prophet");
@@ -306,6 +308,90 @@ describe("choosing a neighbor-naming background on the Details tab", () => {
 		await choose(makeDetailsSheet("missionary"), "prophet");
 		expect(ask).not.toHaveBeenCalled();
 		expect(steading.typedActor.setFlags).not.toHaveBeenCalled();
+	});
+
+	// The Ranger's Wide Wanderer: "Add each of the following to the Neighbors list ..., choosing 1
+	// trait for each". Fixed neighbors with a traitKey were filed with blank traits, never asked.
+	describe("the Ranger's Wide Wanderer", () => {
+		const RANGER = JSON.parse(readFileSync(new URL("../../../packs/src/stonetop-items/playbooks/the-ranger.json", import.meta.url), "utf8"));
+		const RANGER_PLAYBOOK = { name: "The Ranger", backgrounds: RANGER.flags.stonetop.backgrounds };
+		const TRAITS = { ennis: "wary", shahar: "greedy", yannic: "proud", tovia: "stoic", sasca: "cheery" };
+		const ranger = (background = {}) => makeDetailsSheet("mighty-hunter", RANGER_PLAYBOOK, background);
+
+		it("asks a trait for each of the five and files them wearing it, stored where onboarding stores them", async () => {
+			const ask = askPicks({ picks: {}, traits: TRAITS });
+			const sheet = ranger();
+
+			await choose(sheet, "wide-wanderer");
+
+			expect(ask).toHaveBeenCalledTimes(1);
+			expect(names()).toEqual(["Ennis", "Shahar", "Yannic", "Tovia", "Sasca"]);
+			expect(actors.map(a => a.system.traits)).toEqual(["wary", "greedy", "proud", "stoic", "cheery"]);
+			expect(sheet.actor.flags["stonetop-pwd"].background.neighborTraits).toEqual(TRAITS);
+		});
+
+		it("fills in the earlier answer, and files them with no traits when closed", async () => {
+			const ask = askPicks(null);
+			const sheet = ranger({ neighborTraits: { ennis: "wary" } });
+
+			await choose(sheet, "wide-wanderer");
+
+			expect(ask.mock.calls[0][2]).toEqual({ ennis: "wary" });
+			expect(names()).toHaveLength(5);
+			expect(actors.every(a => a.system.traits === "")).toBe(true);
+			expect(sheet.actor.flags["stonetop-pwd"].background.neighborTraits).toEqual({ ennis: "wary" });
+		});
+
+		it("a changed answer reaches a neighbor still wearing the old trait, not one edited since", async () => {
+			askPicks({ picks: {}, traits: TRAITS });
+			const sheet = ranger();
+			await choose(sheet, "wide-wanderer");
+			actors[1].system.traits = "a table's own note";
+			await choose(sheet, "mighty-hunter");
+
+			askPicks({ picks: {}, traits: { ...TRAITS, ennis: "fearless", shahar: "curious" } });
+			await choose(sheet, "wide-wanderer");
+
+			expect(global.Actor.create).toHaveBeenCalledTimes(5);
+			expect(actors[0].update).toHaveBeenCalledWith({ "system.traits": "fearless" });
+			expect(actors[1].update).not.toHaveBeenCalled();
+		});
+	});
+});
+
+describe("_fillExistingBackgroundNeighbor: a re-run's changed trait", () => {
+	const ennisNpc = traits => ({ id: "npc0", uuid: "Actor.npc0", name: "Ennis", system: { home: "Marshedge", traits }, isOwner: true, update: vi.fn(async () => {}) });
+
+	it("replaces traits still as the background filed them", async () => {
+		const ennis = ennisNpc("sly");
+		actors.push(ennis);
+		steading = makeSteading([{ uuid: "Actor.npc0", id: "npc0", name: "Ennis" }]);
+
+		await makeSheet()._applyBackgroundNeighbors(WIDE_WANDERER, TRAIT_PICKS, { previousTraits: { ennis: "sly" } });
+
+		expect(ennis.update).toHaveBeenCalledWith({ "system.traits": "wary" });
+	});
+
+	it("leaves traits edited since the background filed them", async () => {
+		const ennis = ennisNpc("sly, and owes Shahar money");
+		actors.push(ennis);
+		steading = makeSteading([{ uuid: "Actor.npc0", id: "npc0", name: "Ennis" }]);
+
+		await makeSheet()._applyBackgroundNeighbors(WIDE_WANDERER, TRAIT_PICKS, { previousTraits: { ennis: "sly" } });
+
+		expect(ennis.update).not.toHaveBeenCalled();
+	});
+
+	it("a legacy text row the same way", async () => {
+		steading = makeSteading([
+			{ name: "Ennis", home: "Marshedge", traits: "sly" },
+			{ name: "Shahar", home: "Gordin's Delve", traits: "an edit" },
+		]);
+
+		await makeSheet()._applyBackgroundNeighbors(WIDE_WANDERER, TRAIT_PICKS, { previousTraits: { ennis: "sly", shahar: "sly" } });
+
+		expect(steading.neighbors[0].traits).toBe("wary");
+		expect(steading.neighbors[1].traits).toBe("an edit");
 	});
 });
 
@@ -331,5 +417,42 @@ describe("BackgroundNeighborsDialog", () => {
 
 	it("does not open for a background with nothing to pick", async () => {
 		expect(await BackgroundNeighborsDialog.ask({ setup: { neighbors: [{ name: "Devin" }] } })).toBeNull();
+	});
+
+	const WANDERER = { slug: "wide-wanderer", label: "Wide Wanderer", setup: WIDE_WANDERER };
+
+	it("opens for fixed neighbors that each take a trait", async () => {
+		const promise = vi.spyOn(BackgroundNeighborsDialog.prototype, "promise").mockResolvedValue({ picks: {}, traits: { ennis: "wary" } });
+		expect(await BackgroundNeighborsDialog.ask(WANDERER, {}, {})).toEqual({ picks: {}, traits: { ennis: "wary" } });
+		expect(promise).toHaveBeenCalledTimes(1);
+		promise.mockRestore();
+	});
+
+	it("draws a trait field per neighbor, the earlier answer filled in, and names what closing does", () => {
+		const data = new BackgroundNeighborsDialog(WANDERER, {}, { shahar: "greedy" }).getData();
+		expect(data.neighbors.map(n => [n.name, n.origin, n.traitKey, n.trait])).toEqual([
+			["Ennis", "Marshedge", "ennis", ""],
+			["Shahar", "Gordin's Delve", "shahar", "greedy"],
+			["Yannic", "the Hillfolk", "yannic", ""],
+		]);
+		expect(data.groups).toEqual([]);
+		expect(data.traitsLead).toBe("Choose 1 trait for each.");
+		expect(data.skipLabel).toBe("Add them without traits");
+	});
+
+	it("the Missionary's dialog draws no trait fields", () => {
+		expect(new BackgroundNeighborsDialog(MISSIONARY).getData().neighbors).toEqual([]);
+	});
+});
+
+describe("neighbor trait helpers", () => {
+	it("storedNeighborTraits keeps only this background's keys, trimmed and written", () => {
+		expect(storedNeighborTraits(WIDE_WANDERER, { ennis: " wary ", shahar: "", other: "x" })).toEqual({ ennis: "wary" });
+	});
+
+	it("randomNeighborTrait skips the traits already taken, any case, and falls back to the whole pool", () => {
+		const pool = ["cheery", "stoic", "wary"];
+		expect(randomNeighborTrait(["Cheery", "wary"], pool, () => 0.99)).toBe("stoic");
+		expect(randomNeighborTrait(pool, pool, () => 0)).toBe("cheery");
 	});
 });

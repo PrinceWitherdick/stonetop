@@ -1,6 +1,6 @@
 import {MoveResourceButton} from "./elements/move-resource-button.js";
 import { confirmOutcome, askWithButtons } from "../../utils/ask-with-buttons.js";
-import { parseMovePickCount, backgroundPossessionSlugs } from "./StonetopCharacter.js";
+import { parseMovePickCount, backgroundPossessionSlugs, splitMarkedActions } from "./StonetopCharacter.js";
 import {BackgroundInputChoice} from "./elements/background-input-choice.js";
 import {PossessionUseButton} from "./elements/possession-use-button.js";
 import {OutfitMoveDialog} from "./dialogs/OutfitMoveDialog.js";
@@ -27,7 +27,7 @@ import {FollowerFateDialog} from "./dialogs/FollowerFateDialog.js";
 import {CrewSetupDialog, crewSetupLimit, crewSetupUpdate} from "./dialogs/CrewSetupDialog.js";
 import {FOLLOWER_FATE_TYPES, SIR_PERMISSION_TO_DIE, isCrewMemberRow, isCustomMemberRow, followerFateHpPath, followerFateLoyaltyType, wasStanding, followerReviveUpdate, crewMemberFateName, customMemberFateName, sirPermissionOffer, crewIndividualRemovalUpdate, crewMemberDeathUpdate, customMemberDeathUpdate, customMemberStruckOff, postLetGoReceipt} from "./follower-fate.js";
 import {CallUpDeepOnesDialog} from "./dialogs/CallUpDeepOnesDialog.js";
-import {BackgroundNeighborsDialog, storedNeighborPicks} from "./dialogs/BackgroundNeighborsDialog.js";
+import {BackgroundNeighborsDialog, storedNeighborPicks, storedNeighborTraits, traitedNeighbors} from "./dialogs/BackgroundNeighborsDialog.js";
 import {RING_SOURCE_UUID, SERVANT_SOURCE_UUID, buildServantFollower} from "../../data/servant-of-daagon.js";
 import {grantedWeaponForMove, weaponTraitText} from "../../data/weapons.js";
 import {grantedWeaponAttackFor, rollCharacterDamageAt, rollFollowerDamageAt, crewBlow} from "../../combat/attack-flow.js";
@@ -6950,22 +6950,35 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * _applyBackgroundNeighbors matches a neighbor already listed rather than adding them twice,
 		 * so switching back and forth files each person once.
 		 *
-		 * The picks are stored where onboarding stores them (background.neighborPicks), so a later
-		 * onboarding run reads them back ticked.
+		 * The Ranger's Wide Wanderer names five with "choosing 1 trait for each": the same dialog asks
+		 * a trait per neighbor (the earlier answer filled in), and the NPCs are filed wearing them.
+		 * Closed, they are filed with none.
+		 *
+		 * The answers are stored where onboarding stores them (background.neighborPicks,
+		 * background.neighborTraits), so a later onboarding run reads them back.
 		 */
 		async _fileBackgroundNeighbors(slug) {
 			const background = ((await this._stonetopCharacter.playbook())?.backgrounds ?? []).find(b => b.slug === slug);
 			const setup = background?.setup;
 			if (!setup?.neighbors?.length && !setup?.neighborChoices?.length) return;
-			const stored = resolvedFlags(this.actor).background ?? {};
-			let neighborPicks = {};
-			if (setup.neighborChoices?.length) {
-				neighborPicks = (await BackgroundNeighborsDialog.ask(background, stored.neighborPicks ?? {})) ?? {};
-				await this._batchFlagSetOrUnset({ "background.neighborPicks": storedNeighborPicks(setup, neighborPicks) });
+			const stored = foundry.utils.deepClone(resolvedFlags(this.actor).background ?? {});
+			const asksTraits = traitedNeighbors(setup).length > 0;
+			let neighborPicks  = {};
+			let neighborTraits = stored.neighborTraits ?? {};
+			if (setup.neighborChoices?.length || asksTraits) {
+				const answer = await BackgroundNeighborsDialog.ask(background, stored.neighborPicks ?? {}, stored.neighborTraits ?? {});
+				neighborPicks = answer?.picks ?? {};
+				const flags = {};
+				if (setup.neighborChoices?.length) flags["background.neighborPicks"] = storedNeighborPicks(setup, neighborPicks);
+				if (asksTraits) {
+					neighborTraits = storedNeighborTraits(setup, answer?.traits);
+					if (answer) flags["background.neighborTraits"] = neighborTraits;
+				}
+				await this._batchFlagSetOrUnset(flags);
 			}
 			await this._applyBackgroundNeighbors(setup, {
-				backgroundSetup: { neighborTraits: stored.neighborTraits ?? {}, neighborPicks },
-			});
+				backgroundSetup: { neighborTraits, neighborPicks },
+			}, { previousTraits: stored.neighborTraits ?? {} });
 		}
 
 		// True to go ahead. Asks only when a move going holds something (see _onBackgroundChange).
@@ -11311,6 +11324,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// `aliases`), so the re-run shows it ticked.
 			const acTypeData  = acTypes.find(t => t.slug === acType) ?? null;
 			const acTraits    = companionPaidTraits(acTypeData, f.animalCompanion?.traits ?? []);
+			const markedSplit = splitMarkedActions(bg?.markableActions, f.background?.markedActions);
 
 			return {
 				backgroundSlug:  f.background?.selected ?? "",
@@ -11358,7 +11372,10 @@ export function createStonetopCharacterSheetClass(Base) {
 					neighborTraits: foundry.utils.deepClone(f.background?.neighborTraits ?? {}),
 					neighborPicks:  foundry.utils.deepClone(f.background?.neighborPicks ?? {}),
 				},
-				markedActions:  [...(f.background?.markedActions ?? [])],
+				// Only the 1st level's marks: the step asks for exactly those. The ones marked at a level-up
+				// ride along as marked and locked, and the apply keeps them (StonetopCharacter#splitMarkedActions).
+				markedActions:        markedSplit.starting,
+				learnedMarkedActions: markedSplit.later,
 				lore: {
 					picks: foundry.utils.deepClone(f.lore?.counts ?? {}),
 					texts: foundry.utils.deepClone(f.lore?.texts ?? {}),
@@ -11442,10 +11459,18 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * matters.
 		 *
 		 * Mutates `neighbors[idx]` in place — the caller rebases the whole array once.
+		 *
+		 * Traits the neighbor still wears exactly as this background filed them (`previousTraits`:
+		 * the trait stored for them before this pass, Wide Wanderer's background.neighborTraits) were
+		 * never touched since, so a changed answer replaces them. Traits edited since stay.
 		 */
-		async _fillExistingBackgroundNeighbor(neighbors, idx, addition) {
+		async _fillExistingBackgroundNeighbor(neighbors, idx, addition, previousTraits = null) {
 			const row = neighbors[idx];
 			const actor = personRowActor(row);
+			const takesTraits = current => {
+				const now = String(current ?? "").trim();
+				return !!addition.traits && (!now || (!!previousTraits?.trim() && now === previousTraits.trim()));
+			};
 			if (!actor) {
 				// Legacy plain-text row: its own fields are what the roster renders. Only ever a
 				// row with no actor pointer at all — _findBackgroundNeighbor refuses to match a
@@ -11454,14 +11479,14 @@ export function createStonetopCharacterSheetClass(Base) {
 				neighbors[idx] = {
 					...row,
 					home: addition.home || row.home || "",
-					traits: addition.traits || row.traits || "",
+					traits: takesTraits(row.traits) ? addition.traits : (row.traits || ""),
 					checked: true,
 				};
 				return;
 			}
 			const update = {};
-			if (addition.home   && !String(actor.system?.home   ?? "").trim()) update["system.home"]   = addition.home;
-			if (addition.traits && !String(actor.system?.traits ?? "").trim()) update["system.traits"] = addition.traits;
+			if (addition.home && !String(actor.system?.home ?? "").trim()) update["system.home"] = addition.home;
+			if (takesTraits(actor.system?.traits) && addition.traits !== actor.system?.traits) update["system.traits"] = addition.traits;
 			if (Object.keys(update).length && actor.isOwner) {
 				try { await actor.update(update); }
 				catch (err) { console.warn("Stonetop | Could not fill in background details for", actor.name, err); }
@@ -11480,10 +11505,17 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * revoked the permission — the row still renders (resolvePersonRow has a legacy branch)
 		 * and a GM's client converts it, live on the next steading write or at their next load.
 		 * See steading-people.js#onSteadingPeopleUpdate / #migrateSteadingPeople.
+		 *
+		 * `previousTraits`: the background.neighborTraits stored before this pass (read before it was
+		 * overwritten), so a neighbor already listed takes a changed trait only while still wearing
+		 * the old one (_fillExistingBackgroundNeighbor).
 		 */
-		async _applyBackgroundNeighbors(backgroundSetup, selections) {
+		async _applyBackgroundNeighbors(backgroundSetup, selections, { previousTraits = {} } = {}) {
 			const additions = this._backgroundSetupNeighbors(backgroundSetup, selections);
 			if (!additions.length) return;
+			const previousByName = new Map((backgroundSetup?.neighbors ?? [])
+				.filter(n => n.name && n.traitKey)
+				.map(n => [n.name, previousTraits?.[n.traitKey] ?? null]));
 			const steadingActor = getStonetopSteadingActor();
 			if (!steadingActor) {
 				ui.notifications?.warn?.("No Stonetop steading actor was found, so background neighbors were not added.");
@@ -11507,7 +11539,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const idx = this._findBackgroundNeighbor(neighbors, addition);
 				if (idx >= 0) {
 					const identity = personRowIdentity(neighbors[idx]);
-					await this._fillExistingBackgroundNeighbor(neighbors, idx, addition);
+					await this._fillExistingBackgroundNeighbor(neighbors, idx, addition, previousByName.get(addition.name) ?? null);
 					// A one-entry queue (see rebasePersonRows), overwritten rather than appended:
 					// two additions naming the same person both resolve to that one roster row, so
 					// the later fill is the whole of what that row becomes.
@@ -11544,8 +11576,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				await character.clearPlaybookData(oldPlaybook.name);
 			}
 			// Read before anything below changes it: the moves the old background gave go
-			// (settleBackgroundMoves), and the free picks the player didn't pick again go too.
+			// (settleBackgroundMoves), and the free picks the player didn't pick again go too. The
+			// neighbor traits as filed last time, so a changed one reaches a neighbor still wearing
+			// the old (_applyBackgroundNeighbors).
 			const previousBackground = character.backgroundState();
+			const previousNeighborTraits = foundry.utils.deepClone(resolvedFlags(this.actor).background?.neighborTraits ?? {});
 			// Picks arrive as compendium ids, or by name when a re-run restored them and the moves
 			// step was never opened to swap them (_restoreCreationPicks).
 			const { idByName, nameById } = await character.playbookMoveIndex(playbookDoc.name);
@@ -11710,7 +11745,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (leadMinor) await this._stonetopCharacter.addLead(leadMinor);
 
 			if (Object.keys(flagUpd).length) await this.actor.update(flagUpd);
-			await this._applyBackgroundNeighbors(backgroundSetup, selections);
+			await this._applyBackgroundNeighbors(backgroundSetup, selections, { previousTraits: previousNeighborTraits });
 			this.render(false);
 		}
 
@@ -11751,9 +11786,11 @@ export function createStonetopCharacterSheetClass(Base) {
 					const value = selections.backgroundSetup?.neighborTraits?.[neighbor.traitKey]?.trim();
 					if (neighbor.traitKey && value) backgroundNeighborTraits[neighbor.traitKey] = value;
 				}
-				// Beast-Bonded marked actions, filtered to the selected background's list.
+				// Beast-Bonded marked actions, filtered to the selected background's list: the 1st level's
+				// marks first, then the ones a re-run kept from level-ups (learnedMarkedActions).
 				const markableSlugs = new Set((selectedBackground.markableActions?.options ?? []).map(o => o.slug));
-				const backgroundMarkedActions = (selections.markedActions ?? []).filter(s => markableSlugs.has(s));
+				const backgroundMarkedActions = [...new Set([...(selections.markedActions ?? []), ...(selections.learnedMarkedActions ?? [])])]
+					.filter(s => markableSlugs.has(s));
 				await this._batchFlagSetOrUnset({
 					"background.setupChoices":   backgroundSetupChoices,
 					"background.setupTexts":     backgroundSetupTexts,

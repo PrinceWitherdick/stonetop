@@ -119,7 +119,7 @@ export const INTRO_PLAYBOOK_DATA = {
 		step3: `describe your <strong>major arcana</strong>. Tell us your answers to the questions you chose. Then, tell us about your <strong>minor arcana</strong>, too.`,
 		step4: [
 			"Who is your closest kin?",
-			"Who is your spouse, lover, or betrothed?",
+			"Who is your spouse/lover/betrothed?",
 			"Whom do you trust, even more than yourself?",
 			"Whom do you secretly watch over, and why?",
 		],

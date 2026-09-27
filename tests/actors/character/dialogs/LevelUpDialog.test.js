@@ -492,3 +492,43 @@ describe("LevelUpDialog mark step — no step when not applicable", () => {
 		expect(dlg.getData().isLastStep).toBe(true); // nothing follows → move is terminal
 	});
 });
+
+// A Blessed who takes Beast of Legend through Wild Soul picks its option as a Ranger would (Ranger
+// audit M12): the step is built from the chosen FOREIGN move's mark options and the copies held.
+describe("LevelUpDialog mark step: a foreign budgeted move", () => {
+	const wildSoul = { compendiumId: "ws1", name: "Wild Soul", cap: null, crossPlaybook: { playbooks: ["The Ranger"] } };
+	const foreignBeast = {
+		compendiumId: "bol1", name: "Beast of Legend", playbook: "The Ranger",
+		markOptions: [
+			{ slug: "exceptional", label: "They are exceptional", marks: 1 },
+			{ slug: "tough",       label: "+4 HP and +1 armor",   marks: 1 },
+			{ slug: "unique",      label: "A unique trait",       marks: 1 },
+		],
+		markBudget: { base: 1, perExtra: 1 }, ownedIds: [],
+	};
+
+	it("the chosen foreign move's marks follow the foreign-move step", () => {
+		const { dlg } = makeDialog({ data: { availableMoves: [wildSoul], marks: {} } });
+		dlg._selectedMoveId = "ws1";
+		dlg._foreignMoves = [foreignBeast, { compendiumId: "wh1", name: "Wild Speech", playbook: "The Ranger" }];
+		dlg._selectedForeignMoveId = "wh1";
+		expect(dlg._needsMarkChoice()).toBe(false);
+		dlg._selectedForeignMoveId = "bol1";
+		expect(dlg._markStepDescriptor()).toMatchObject({ moveName: "Beast of Legend", allowance: 1 });
+		dlg._step = "foreignMove";
+		expect(dlg._adjacentStep(+1)).toBe("marks");
+	});
+
+	it("_apply threads the foreign move and its pick together", async () => {
+		const { dlg, char } = makeDialog({ data: { availableMoves: [wildSoul], marks: {} } });
+		dlg._selectedMoveId = "ws1";
+		dlg._foreignMoves = [foreignBeast];
+		dlg._selectedForeignMoveId = "bol1";
+		dlg._selectedMarks = [{ slug: "tough" }];
+		await dlg._apply();
+		expect(char.applyLevelUp).toHaveBeenCalledWith("ws1", null, {
+			crossPlaybook: true, foreignMoveId: "bol1", grantsPossession: null,
+			marks: { moveName: "Beast of Legend", picks: [{ slug: "tough" }] },
+		}, { fromLevel: 2 });
+	});
+});
