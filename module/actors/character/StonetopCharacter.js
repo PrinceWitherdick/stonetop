@@ -52,10 +52,14 @@ import {RITES_OF_THE_LAND, SACRED_POUCH_SLUG, NO_POUCH_STOCK_NOTE, BLESSED_PLAYB
 import {loseHpForStock} from "./provisions.js";
 import {HOLY_LIGHT_FLAG, canWieldHolyLight, INVOKE_THE_SUN_GOD} from "./holy-light.js";
 import {moveArmor, barkskinMarkedBy} from "./move-armor.js";
+import {invocationLabels} from "./ongoing-invocation.js";
 import {choiceCountState} from "./initiates.js";
-import {ONGOING_INVOCATION_FLAG, readOngoing} from "./ongoing-invocation.js";
-import {CONDEMNED_FLAG, canCondemn, readCondemned, addCondemned, removeCondemned, noteCondemned} from "./condemn.js";
-import {OATHS_FLAG, canBindOaths, readOaths, addOath, removeOath, noteOath, setOathBroken} from "./oaths.js";
+import {ONGOING_INVOCATION_FLAG, ONGOING_SECOND_FLAG, ONGOING_EMPOWERED_FLAG, ONGOING_SNUFF_FLAG, ONGOING_SECOND_SNUFF_FLAG,
+	ONGOING_INVOCATION_FLAGS, readOngoing, readInvocationState, runningSlugs, resolveInvocationEnd, invocationEndings,
+	NEEDS_SUN_FLAG, readNeedsSun} from "./ongoing-invocation.js";
+import {INVOCATIONS_GRANTED_AT_FLAG} from "./invocation-count.js";
+import { CONDEMNED_FLAG, PROCLAMATION, canCondemn, readCondemned, addCondemned, removeCondemned, noteCondemned } from "./condemn.js";
+import {OATHS_FLAG, BINDING_ARBITRATION, canBindOaths, readOaths, addOath, removeOath, noteOath, setOathBroken} from "./oaths.js";
 import {BLESSED_MARKS_FLAG, canMarkBlessed, readMarks, addMark, removeMark, noteMark, setMarkLoyalty, setMarkSign} from "./blessed-marks.js";
 import {BATTLE_JOY_FLAG, BATTLE_JOY, canEnterBattleJoy, ignoresDebilities} from "./battle-joy.js";
 import {CharacterBackgrounds} from "./CharacterBackgrounds.js";
@@ -86,7 +90,7 @@ import {localize as _loc, format} from "../../utils/i18n.js";
 import {getStonetopSteadingActor} from "../../utils/world.js";
 import {readCurrentSeason} from "../../seasons/current-season.js";
 import {seasonLabel} from "../../seasons/seasons-change-reminders.js";
-import {moveChatCard} from "../../utils/chat.js";
+import {moveChatCard, postMoveNote} from "../../utils/chat.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
 import {buildCustomMoveData, clampInt} from "../../utils/custom-move-data.js";
 import {buildInventoryItemData, readInventoryItemData} from "../../utils/inventory-item-data.js";
@@ -96,8 +100,7 @@ import {deriveLoadLevel, loadLimitsFor} from "../../utils/load.js";
 import {maxDie, stepDie, normalizeDamageDie} from "../../utils/damage-die.js";
 import {WEAPONS_OF_WAR_COMMON, WEAPONS_OF_WAR_PIERCING, ALL_IN_THE_WRIST} from "../../data/weapons.js";
 import {X_PIERCING_MAX} from "../../utils/damage.js";
-import { PROCLAMATION } from "./condemn.js";
-import { BINDING_ARBITRATION } from "./oaths.js";
+import { holyLightAfterRoll } from "./holy-light.js";
 import { INTERFERE_MOVE, PERSUADE_PC_MOVE, PC_ASK_FLAG } from "../../pc-asks/pc-ask-rules.js";
 import { brokenOaths, oathbreakerAgainst } from "../../fight/hero-moves.js";
 
@@ -116,7 +119,9 @@ const MOVE_STATE = [
 	{ glyph: "oaths",     held: canBindOaths,      flags: [OATHS_FLAG] },
 	{ glyph: "battleJoy", held: canEnterBattleJoy, flags: [BATTLE_JOY_FLAG] },
 	{ glyph: "blessed",   held: canMarkBlessed,    flags: [BLESSED_MARKS_FLAG] },
-	{ held: (actor, owned) => ownedNamesOr(actor, owned).has(INVOKE_THE_SUN_GOD), flags: ["invocations", ONGOING_INVOCATION_FLAG] },
+	// "invocations" is the whole bag: the learned list, and the ones waiting on the sun
+	// (NEEDS_SUN_FLAG, `invocations.needsSun`) with it.
+	{ held: (actor, owned) => ownedNamesOr(actor, owned).has(INVOKE_THE_SUN_GOD), flags: ["invocations", ...ONGOING_INVOCATION_FLAGS] },
 ];
 
 /**
@@ -148,7 +153,11 @@ const SEASON_MOVE_DISADVANTAGE = [
  * Greater Good ("When you Persuade someone to act in defense of their community or civilization at
  * large, you have advantage"), The Tower Eternal ("When you Defy Danger against magic, treat a result
  * of 6- as a 7-9"; its Struggle as One half is struggle-rules.js's too) and the helm set with a dark ice
- * "jewel" ("Grants advantage to resist mind-affecting magic").
+ * "jewel" ("Grants advantage to resist mind-affecting magic"). And the Lightbearer's: Radiant
+ * Countenance ("When you give someone your fond attention, you can then Persuade them with advantage")
+ * and Soul on Fire ("When you Persuade a group by preaching charity, mercy, and hope and roll a 7+,
+ * aside from the usual effect, choose 1: Your name and your message spread / Someone approaches you,
+ * now or later, eager to know more").
  *
  * A row applies to a character who has `ownsLearned` LEARNED, took the `background` (took-background.js),
  * holds the special possession `possession`, or has picked AND carries (the ◇) the gear choice
@@ -172,6 +181,10 @@ const FICTION_ROLL_OFFERS = [
 		source: "The Tower Eternal", label: "stonetop.rollOffers.towerEternal", effect: "missAsPartial" },
 	{ key: "judge-helm", moves: name => name === "Defy Danger", possessionChoice: "symbol-of-authority:helm",
 		source: "Helm", label: "stonetop.rollOffers.judgeHelm" },
+	{ key: "radiant-countenance", moves: isPersuadeMove, ownsLearned: "Radiant Countenance",
+		source: "Radiant Countenance", label: "stonetop.rollOffers.radiantCountenance" },
+	{ key: "soul-on-fire", moves: name => name === "Persuade (vs. NPCs)", background: { playbook: "The Lightbearer", slug: "soul-on-fire" },
+		source: "Soul on Fire", label: "stonetop.rollOffers.soulOnFire", effect: "hitNote", note: "stonetop.rollOffers.soulOnFireNote" },
 ];
 
 /**
@@ -194,6 +207,18 @@ function foldAdvantage(options, source) {
 		...layModes(options, ["adv"]),
 		conditionNotes: [...(options.conditionNotes ?? []), source],
 	};
+}
+
+/**
+ * A taken "hitNote" roll offer (Soul on Fire): no advantage, but its `note` rides the card's 10+ and 7-9
+ * rows (roll-engine's tierActions, which a GM's Shift Up/Down reveals with the tier), and the line is
+ * named on the card as every taken offer is. Added to whatever tier rows the roll already carries.
+ */
+function _withHitNote(options, offer) {
+	const note = `<p class="stonetop-roll-offer-note">${offer.note ?? ""}</p>`;
+	const actions = { ...(options.tierActions ?? {}) };
+	for (const tier of ["success", "partial"]) actions[tier] = `${actions[tier] ?? ""}${note}`;
+	return { tierActions: actions, conditionNotes: [...(options.conditionNotes ?? []), offer.source] };
 }
 
 /** The other side of foldAdvantage: disadvantage imposed from outside the picker, named on the card. */
@@ -440,6 +465,14 @@ function _shieldAdjustedWeight(weight, isShield, reduction) {
 	return Math.max(1, w - reduction);
 }
 
+// Whether any carried gear is a shield, over _gearSources' `{items, marks}`. Sync, so the armor
+// arithmetic (_armorFrom, which A Candle Against the Dark's "otherwise unarmed" reads) and the async
+// bearsShield share it.
+function _carriesShield(gear) {
+	const marks = gear?.marks ?? {};
+	return (gear?.items ?? []).some(i => i.shield && marks[i.slug]);
+}
+
 // The id seed every standing-list row is minted with (see _rosterWrite). One width, in one place,
 // because the rows are addressed by it: three call sites each passing their own length is how two
 // of the rosters come to disagree about how unique a row id is.
@@ -577,10 +610,14 @@ export class StonetopCharacter {
 	// are the Lightbearer (or have Invoke the Sun God) and your new level is even, choose a new
 	// invocation." The Invocations insert's "you start knowing 2" is addressed to the
 	// Lightbearer alone, so such a character starts knowing none and learns them at even levels.
-	async invocationSource(playbookData = undefined) {
+	//
+	// `learned`: a RULE asks (Level Up step 5), so Invoke the Sun God must be learned, not merely
+	// held switched off. The Invocations tab keeps showing a held-but-unlearned copy's list.
+	async invocationSource(playbookData = undefined, { learned = false } = {}) {
 		const own = playbookData === undefined ? await this.playbook() : playbookData;
 		if (own?.invocations?.options?.length) return own.invocations;
-		if (!ownsMoveNamed(this._actor, INVOKE_THE_SUN_GOD)) return null;
+		const owns = learned ? ownsLearnedMoveNamed : ownsMoveNamed;
+		if (!owns(this._actor, INVOKE_THE_SUN_GOD)) return null;
 		return this.lightbearerInvocations();
 	}
 
@@ -2872,6 +2909,20 @@ export class StonetopCharacter {
 		}
 	}
 
+	// The tracks half of a change of background on the Details tab: the new background's setup tracks
+	// start EMPTY. "At the very start of play, hold 3 Enigma" is onboarding's to give (its apply seeds
+	// each track's `value`), and so is a character's first background, picked here instead: they are
+	// still at the start. A switch from another background is mid-play, so the Itinerant Mystic
+	// arrives holding no Enigma, and a return to a background finds its track emptied too.
+	async settleBackgroundResources(previous) {
+		const slug = this.backgroundState().slug;
+		if (!previous?.slug || !slug || previous.slug === slug) return;
+		const background = ((await this.playbook())?.backgrounds ?? []).find(b => b.slug === slug);
+		for (const resource of background?.setup?.resources ?? []) {
+			if (resource?.key) await this._background.setSetupResource(resource.key, 0);
+		}
+	}
+
 	// A background's arcanum untouched since it was given: the card's own state is the row's
 	// (CharacterArcana#isAsGranted) and nothing sits on its tracks (Storm Markings' Fury).
 	_arcanumAsGranted(row) {
@@ -3280,6 +3331,27 @@ export class StonetopCharacter {
 		for (const gone of [removed, ...orphanItems]) await this._restoreRetiredMove(gone);
 		await this._trimSubChoicesOverCap([removed, ...orphanItems]);
 		await this._releaseGrantedPossession(removed);
+		await this._clearUnheldInvocations();
+	}
+
+	// A Would-be Hero who un-learns the Versatile that granted Invoke the Sun God (or has it taken
+	// off) keeps no Invocations: the learned list and every ongoing slot go, by the same MOVE_STATE
+	// test clearPlaybookData asks. Every flag in THAT row, so a slot added to it is cleared too. Never
+	// for a playbook with Invocations of its own (the Lightbearer's list is the playbook's, not a
+	// move's), and nothing written when there is nothing stored.
+	async _clearUnheldInvocations() {
+		const row = MOVE_STATE.find(state => state.flags.includes("invocations"));
+		if (!row) return;
+		const flags = resolvedFlags(this._actor);
+		const stored = row.flags.filter(key => foundry.utils.getProperty(flags, key) !== undefined);
+		if (!stored.length || row.held(this._actor, ownedMoveNames(this._actor))) return;
+		if ((await this.playbook())?.invocations?.options?.length) return;
+		const update = {};
+		for (const key of stored) {
+			const [deleteKey, deleteValue] = deletionEntry(`flags.${STONETOP_SCOPE}.${key}`);
+			update[deleteKey] = deleteValue;
+		}
+		await this._actor.update(update);
 	}
 
 	// Un-learning Big Magic takes back the remarkable trait it unlocked ("one per Big
@@ -3383,8 +3455,9 @@ export class StonetopCharacter {
 	//
 	// `takenOffers` is the roll window's answer about the lines it offered (dialogs/RollDialog.js
 	// #promptRoll, from rollOffers below): the keys left ticked. Null from a caller that asked no
-	// window, which takes none: a line the player never saw is never spent.
-	async onRoll(event, { statOverride = null, situational = 0, weaponSlug = null, rollMode = null, takenOffers = null } = {}) {
+	// window, which takes none: a line the player never saw is never spent. `offered` is those lines
+	// as the window was handed them (the sheet's _promptRollOptions), so they are not worked out twice.
+	async onRoll(event, { statOverride = null, situational = 0, weaponSlug = null, rollMode = null, takenOffers = null, offered = null } = {}) {
 		const itemId = event.currentTarget.closest(".item")?.dataset.itemId;
 		if (!itemId) return false;
 		const item = this._actor.items.get(itemId);
@@ -3466,10 +3539,11 @@ export class StonetopCharacter {
 		// Cold's line buys no advantage: it counts a 6- as a 7-9, named on the card as Herd of Horses is.
 		// Binding Arbitration's line is dropped when the oath has already been asked above, so it is
 		// named once.
-		const taken = descriptionOnly || !takenOffers?.length ? [] : (await this.rollOffers(item)).filter(offer => tookOffer(offer, takenOffers)
+		const taken = descriptionOnly || !takenOffers?.length ? [] : (offered ?? await this.rollOffers(item)).filter(offer => tookOffer(offer, takenOffers)
 			&& !(oathbreakerNamed && offer.key === BINDING_ARBITRATION_OFFER));
 		for (const offer of taken) {
-			Object.assign(rollOptions, offer.effect === "missAsPartial"
+			if (offer.effect === "hitNote") Object.assign(rollOptions, _withHitNote(rollOptions, offer));
+			else Object.assign(rollOptions, offer.effect === "missAsPartial"
 				? { missCountsAsPartial: offer.source }
 				: foldAdvantage(rollOptions, offer.source));
 		}
@@ -3542,8 +3616,7 @@ export class StonetopCharacter {
 	 * a tick box that bought nothing.
 	 */
 	async bearsShield(gear = null) {
-		const { items, marks } = gear ?? await this._carriedGearSources();
-		return items.some(i => i.shield && marks[i.slug]);
+		return _carriesShield(gear ?? await this._carriedGearSources());
 	}
 
 	/**
@@ -3639,6 +3712,8 @@ export class StonetopCharacter {
 		const granted = moveArmor({
 			actor: this._actor,
 			holyLight: this.holyLight,
+			// A Candle Against the Dark's "otherwise unarmed": no Candle armor with a shield carried.
+			shield: _carriesShield(gear),
 			// A THUNK, not a value: the world scan behind it is the expensive part of this function, and a
 			// character with Barkskin of their own never needs asking (see moveArmor).
 			markedWithBarkskin: () => barkskinMarkedBy(this._actor, globalThis.game?.actors ?? []),
@@ -3746,36 +3821,203 @@ export class StonetopCharacter {
 	 *  update and broadcasts nothing to the other clients. */
 	async setHolyLight(lit) {
 		const next = !!lit;
-		// The Invocation goes out with the light — "it will end immediately if your holy light is
-		// extinguished". Enforced HERE rather than at the one button that snuffs a flame, so no
-		// future way of putting a light out can strand a Lightbearer concentrating on nothing.
-		// Anyone who wants to SAY what stopped reads `ongoingInvocation` before calling.
-		const droppedInvocation = !next && !!this.ongoingInvocation && await this.setOngoingInvocation("");
-		if (next === this.holyLight) return droppedInvocation;
+		// The Invocations go out with the light: "it will end immediately if your holy light is
+		// extinguished". BOTH slots. Enforced HERE rather than at the one button that snuffs a
+		// flame, so no future way of putting a light out can strand a Lightbearer concentrating on
+		// nothing. Anyone who wants to SAY what stopped reads `ongoingInvocations` before calling.
+		const droppedInvocation = !next && this.ongoingInvocations.length > 0 && await this._writeInvocationState({});
+		if (next === this.holyLight) return !!droppedInvocation;
 		if (next) await this._actor.setFlag(STONETOP_SCOPE, HOLY_LIGHT_FLAG, true);
 		else      await this._actor.unsetFlag(STONETOP_SCOPE, HOLY_LIGHT_FLAG);
 		return true;
 	}
 
-	// -- The ongoing Invocation (what the Lightbearer is concentrating on) -------------
-
-	/** The slug of the Invocation being held open, or "" for none. See ongoing-invocation.js
-	 *  for why this is one slug and not a list, and why the label isn't stored beside it. */
-	get ongoingInvocation() {
-		return readOngoing(this._actor.getFlag(STONETOP_SCOPE, ONGOING_INVOCATION_FLAG));
+	/**
+	 * After a roll of a move that turns the light on or off (holy-light.js#holyLightAfterRoll): Luminous
+	 * Shield's 6- ("your light snuffs out") and Wielder of the White Flame's 7+ ("it ignites with a white
+	 * flame that casts a holy light"). Only for the move LEARNED. The snuffing is news, so the chat says
+	 * what went out, naming any Invocation it took with it (read before the write, which ends them).
+	 * Lighting posts nothing: the roll card already says so. Returns whether anything changed.
+	 */
+	async _settleHolyLightOnRoll(item, tier) {
+		const lit = holyLightAfterRoll(item?.name, tier);
+		if (lit === null || !ownsLearnedMoveNamed(this._actor, item.name)) return false;
+		if (lit) return this.setHolyLight(true);
+		const running = this.ongoingInvocations;
+		if (!await this.setHolyLight(false)) return false;
+		const names = running.length ? invocationLabels(running, (await this.invocationSource())?.options) : "";
+		await postMoveNote(this._actor, item.name, format(names ? "stonetop.holyLight.snuffedEnding" : "stonetop.holyLight.snuffedByRoll",
+			{ name: this._actor.name, invocations: names }));
+		return true;
 	}
 
-	/** Start concentrating on an Invocation, or end it with "". Same contract as setHolyLight:
-	 *  true only when something actually changed, so renewing the Invocation already running
-	 *  writes nothing and broadcasts nothing. */
+	// -- The ongoing Invocations (what the Lightbearer is concentrating on) ------------
+
+	/** The slug of the Invocation being held open (the first slot), or "" for none. See
+	 *  ongoing-invocation.js for why each slot is one slug, and why the label isn't stored. */
+	get ongoingInvocation() {
+		return this.invocationState.primary;
+	}
+
+	/** The second running Invocation (Burn Twice as Bright, or one used through an empowered
+	 *  Dancing Light), or "". */
+	get ongoingInvocationSecond() {
+		return this.invocationState.second;
+	}
+
+	/** Was the first slot's Invocation used empowered? */
+	get ongoingInvocationEmpowered() {
+		return this.invocationState.empowered;
+	}
+
+	/** Every running Invocation's slug, first slot first. */
+	get ongoingInvocations() {
+		return runningSlugs(this.invocationState);
+	}
+
+	/** The whole stored state, normalised (ongoing-invocation.js#readInvocationState). */
+	get invocationState() {
+		const get = key => this._actor.getFlag(STONETOP_SCOPE, key);
+		return readInvocationState({
+			primary:     get(ONGOING_INVOCATION_FLAG),
+			second:      get(ONGOING_SECOND_FLAG),
+			empowered:   get(ONGOING_EMPOWERED_FLAG) === true,
+			snuff:       get(ONGOING_SNUFF_FLAG) === true,
+			secondSnuff: get(ONGOING_SECOND_SNUFF_FLAG) === true,
+		});
+	}
+
+	/**
+	 * Write the ongoing state in ONE update, touching only the flags that differ, so hooks never see
+	 * a half-written state (a first slot with no second). Unset rather than storing "" or false: an
+	 * Invocation that has ended should leave no trace on the actor, the same way a snuffed light
+	 * doesn't. True when anything was written.
+	 */
+	async _writeInvocationState(next) {
+		const s = readInvocationState(next);
+		const wanted = [
+			[ONGOING_INVOCATION_FLAG,   s.primary || undefined],
+			[ONGOING_SECOND_FLAG,       s.second || undefined],
+			[ONGOING_EMPOWERED_FLAG,    s.empowered || undefined],
+			[ONGOING_SNUFF_FLAG,        s.snuff || undefined],
+			[ONGOING_SECOND_SNUFF_FLAG, s.secondSnuff || undefined],
+		];
+		const update = {};
+		for (const [key, value] of wanted) {
+			const raw = this._actor.getFlag(STONETOP_SCOPE, key);
+			if (value === undefined ? raw == null : raw === value) continue;
+			const path = `flags.${STONETOP_SCOPE}.${key}`;
+			if (value === undefined) {
+				const [deleteKey, deleteValue] = deletionEntry(path);
+				update[deleteKey] = deleteValue;
+			} else update[path] = value;
+		}
+		if (!Object.keys(update).length) return false;
+		await this._actor.update(update);
+		return true;
+	}
+
+	/**
+	 * Replace the ongoing state (ongoing-invocation.js#resolveInvocationUse's `state`). Honours the
+	 * snuff stamp: when a slot that carried it ends, however it ends, the holy light goes out too,
+	 * which ends whatever was left running ("it will end immediately if your holy light is
+	 * extinguished").
+	 *
+	 * @returns {Promise<{changed: boolean, ended: string[], snuffed: boolean}>}  `ended` is every
+	 *   slug that stopped, the light's casualties included.
+	 */
+	async setInvocationState(next) {
+		const before = this.invocationState;
+		const after  = readInvocationState(next);
+		const { ended, snuffs } = invocationEndings(before, after);
+		const changed = await this._writeInvocationState(after);
+		const snuffed = snuffs && this.holyLight && await this.setHolyLight(false);
+		const all = snuffed ? [...new Set([...ended, ...runningSlugs(after)])] : ended;
+		return { changed: changed || !!snuffed, ended: all, snuffed: !!snuffed };
+	}
+
+	/** Concentrate on this one Invocation alone, or end everything with "". Same contract as
+	 *  setHolyLight: true only when something actually changed, so renewing the Invocation
+	 *  already running writes nothing and broadcasts nothing. */
 	async setOngoingInvocation(slug) {
 		const next = readOngoing(slug);
-		if (next === this.ongoingInvocation) return false;
-		// Unset rather than storing "": an Invocation that has ended should leave no trace on the
-		// actor, the same way a snuffed light doesn't.
-		if (next) await this._actor.setFlag(STONETOP_SCOPE, ONGOING_INVOCATION_FLAG, next);
-		else      await this._actor.unsetFlag(STONETOP_SCOPE, ONGOING_INVOCATION_FLAG);
-		return true;
+		const now  = this.invocationState;
+		if (next === now.primary && !now.second) return false;
+		return (await this.setInvocationState({ primary: next, snuff: next === now.primary && now.snuff,
+			empowered: next === now.primary && now.empowered })).changed;
+	}
+
+	/** End one running Invocation by its slug, or all of them with "" (the End it controls). See
+	 *  ongoing-invocation.js#resolveInvocationEnd for what ending the first slot does to the second. */
+	async endOngoingInvocation(slug = "") {
+		const { state, changed } = resolveInvocationEnd({ current: this.invocationState, ending: slug });
+		if (!changed) return { changed: false, ended: [], snuffed: false };
+		return this.setInvocationState(state);
+	}
+
+	/**
+	 * Stamp a running Invocation so that ending it also snuffs the holy light (the Invoke
+	 * consequence "the light is snuffed out when the Invocation is complete"). False when that slug
+	 * isn't running or already carried the stamp.
+	 */
+	async markInvocationSnuff(slug, on = true) {
+		const now = this.invocationState;
+		const want = readOngoing(slug);
+		if (!want) return false;
+		if (want === now.primary) return this._writeInvocationState({ ...now, snuff: !!on });
+		if (want === now.second)  return this._writeInvocationState({ ...now, secondSnuff: !!on });
+		return false;
+	}
+
+	/** The Invocations waiting on the sun (ongoing-invocation.js#NEEDS_SUN_FLAG), as slugs. */
+	get invocationsNeedingSun() {
+		return readNeedsSun(this._actor.getFlag(STONETOP_SCOPE, NEEDS_SUN_FLAG));
+	}
+
+	/**
+	 * The Invoke consequence "You must bask in sunlight for an hour or so before using that
+	 * Invocation again": put these Invocations on the list. A cue, never a block. Answers the slugs
+	 * this ADDED (not the ones already there), so a caller undoing its own tick takes back only those.
+	 */
+	async markNeedsSun(slugs) {
+		const now = this.invocationsNeedingSun;
+		const added = readNeedsSun(slugs).filter(slug => !now.includes(slug));
+		if (added.length) await this._actor.setFlag(STONETOP_SCOPE, NEEDS_SUN_FLAG, [...now, ...added]);
+		return added;
+	}
+
+	/** Take these Invocations off the list (they have basked, or were used again). Answers the slugs
+	 *  it removed; the flag goes entirely once the list is empty. */
+	async clearNeedsSun(slugs) {
+		const now = this.invocationsNeedingSun;
+		const drop = new Set(readNeedsSun(slugs));
+		const removed = now.filter(slug => drop.has(slug));
+		if (!removed.length) return [];
+		const kept = now.filter(slug => !drop.has(slug));
+		if (kept.length) await this._actor.setFlag(STONETOP_SCOPE, NEEDS_SUN_FLAG, kept);
+		else await this._actor.unsetFlag(STONETOP_SCOPE, NEEDS_SUN_FLAG);
+		return removed;
+	}
+
+	/**
+	 * Run `run` (a roll of `moveName`) with `context` held as that roll's pick context: what was
+	 * decided before the dice that changes how many options its card allows (`{empowered,
+	 * burnTwice}` for Invoke the Sun God; see move-pick-bonuses.js), and which Invocations the roll is
+	 * for (`invocations`, stamped on the card for its consequences; invoke-consequences.js). Held in
+	 * memory, never written, and let go however the roll ends, so it can reach no other roll. It rides here rather than
+	 * through onRoll's options because the roll prompt, the stat ladder and onRoll all sit between
+	 * the invoke window that decided it and item/StonetopItem.js#roll that builds the card.
+	 */
+	async withPickContext(moveName, context, run) {
+		this._pickContext = context ? { ...context, move: moveName } : null;
+		try { return await run(); }
+		finally { this._pickContext = null; }
+	}
+
+	/** The pick context held for a roll of `moveName`, or null. */
+	pickContextFor(moveName) {
+		const ctx = this._pickContext;
+		return ctx && ctx.move === moveName ? ctx : null;
 	}
 
 	// -- The standing lists (Condemn, oaths, the Blessed's marks) -----------------------
@@ -4734,7 +4976,7 @@ export class StonetopCharacter {
 		let needsInvocation     = false;
 		let availableInvocations = [];
 		if (newLevel % 2 === 0) {
-			const source = await this.invocationSource(playbookData);
+			const source = await this.invocationSource(playbookData, { learned: true });
 			const list   = source ?? await this.lightbearerInvocations();
 			const selected = new Set(actor.getFlag(STONETOP_SCOPE, "invocations.selected") ?? []);
 			availableInvocations = (list?.options ?? []).filter(o => !selected.has(o.slug));
@@ -4888,9 +5130,12 @@ export class StonetopCharacter {
 		if (choices?.companionActions?.length) {
 			await this._background.setMarkedActions(new Set([...this._background.markedActions, ...choices.companionActions]));
 		}
+		// Once only: an Invocation already known (a replayed step, a stale dialog) is not learned twice.
 		if (selectedInvocationSlug) {
 			const current = this._actor.getFlag(STONETOP_SCOPE, "invocations.selected") ?? [];
-			await this._actor.setFlag(STONETOP_SCOPE, "invocations.selected", [...current, selectedInvocationSlug]);
+			if (!current.includes(selectedInvocationSlug)) {
+				await this._actor.setFlag(STONETOP_SCOPE, "invocations.selected", [...current, selectedInvocationSlug]);
+			}
 		}
 		return { applied: true };
 	}
@@ -4969,6 +5214,14 @@ export class StonetopCharacter {
 			const foreign = await this.addMove(foreignMoveCompendiumId);
 			if (foreign) {
 				await foreign.setFlag(STONETOP_SCOPE, "grantedBy", { move: crossItem.name, instanceId: crossItem.id });
+				// Invoke the Sun God taken off-playbook: its taker learns an Invocation at each even
+				// level from here on (Level Up step 5), so the Invocations tab's "N of M" cue has to
+				// know where "here" was (invocation-count.js). The EARLIEST grant stands: re-editing
+				// a pick later must not shrink what was earned.
+				if (foreign.name === INVOKE_THE_SUN_GOD
+					&& this._actor.getFlag(STONETOP_SCOPE, INVOCATIONS_GRANTED_AT_FLAG) == null) {
+					await this._actor.setFlag(STONETOP_SCOPE, INVOCATIONS_GRANTED_AT_FLAG, this._characterLevel);
+				}
 			}
 		}
 		if (grantsPossession && !this._possessions.selected.has(grantsPossession)) {
@@ -5430,6 +5683,8 @@ function _buildPlaybookSection(playbookData, background, instinct, appearance, o
 					label: r.label ?? r.key,
 					current,
 					max,
+					// The moves that empty it (background-tracks.js): Auspicious Birth's circle.
+					clearsOn: Array.isArray(r.clearsOn) ? [...r.clearsOn] : [],
 					checks: Array.from({ length: max }, (_, i) => ({
 						index: i,
 						checked: i < current,

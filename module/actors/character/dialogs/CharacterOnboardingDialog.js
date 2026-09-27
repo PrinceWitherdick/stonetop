@@ -226,6 +226,9 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			// owned item id doesn't exist yet); applied via _applyStatIncreaseChoice.
 			moveStatChoices: {},
 			invocations:     [],
+			// Invocations learned since, at level-up (a re-run restores them): shown known and locked,
+			// never one of the step's picks, and kept by the apply (starting-invocations.js).
+			learnedInvocations: [],
 			initiates:       [],
 			initiateDetails: {},
 			crew:            { name: "", tags: [], instinct: "", cost: "" },
@@ -1354,6 +1357,33 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		});
 	}
 
+	/**
+	 * The Invocations step's cards. The picks are the starting pair only, so the count and its cap
+	 * are theirs. An Invocation learned at level-up (a re-run's `learnedInvocations`) is known, so it
+	 * shows ticked, but it is not a starting pick: locked, uncounted, and badged "Learned at level-up",
+	 * so it cannot be taken again as one. The apply keeps it (starting-invocations.js).
+	 */
+	_invocationStepData() {
+		const raw     = this._rawInvocations;
+		const count   = raw.startingCount ?? 2;
+		const chosen  = new Set(this._selections.invocations);
+		const learned = new Set((this._selections.learnedInvocations ?? []).filter(slug => !chosen.has(slug)));
+		const atLimit = chosen.size >= count;
+		return {
+			startingCount: count,
+			selectedCount: chosen.size,
+			learnedCount:  learned.size,
+			options: (raw.options ?? []).map(opt => ({
+				slug:        opt.slug,
+				label:       this._normalizeOnboardingText(opt.label),
+				description: this._normalizeOnboardingText(opt.description),
+				isSelected:  chosen.has(opt.slug) || learned.has(opt.slug),
+				isLearned:   learned.has(opt.slug),
+				disabled:    learned.has(opt.slug) || (!chosen.has(opt.slug) && atLimit),
+			})),
+		};
+	}
+
 	// ── Completion check ──────────────────────────────────────────────
 
 	_isStepComplete(stepType = this._steps[this._step]) {
@@ -2045,23 +2075,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		}
 
 		// ── Invocations ───────────────────────────────────────────────
-		if (stepType === "invocations") {
-			const raw   = this._rawInvocations;
-			const count = raw.startingCount ?? 2;
-			const chosen = new Set(this._selections.invocations);
-			const atLimit = chosen.size >= count;
-			invocationData = {
-				startingCount: count,
-				selectedCount: chosen.size,
-				options: (raw.options ?? []).map(opt => ({
-					slug:        opt.slug,
-					label:       this._normalizeOnboardingText(opt.label),
-					description: this._normalizeOnboardingText(opt.description),
-					isSelected:  chosen.has(opt.slug),
-					disabled:    !chosen.has(opt.slug) && atLimit,
-				})),
-			};
-		}
+		if (stepType === "invocations") invocationData = this._invocationStepData();
 
 		// ── Initiates ─────────────────────────────────────────────────
 		if (stepType === "initiates") {

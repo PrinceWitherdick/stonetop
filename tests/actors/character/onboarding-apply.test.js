@@ -11,7 +11,7 @@ import { stubConfirm } from "../../fakes/confirm.js";
 import { createStonetopCharacterSheetClass } from "../../../module/actors/character/StonetopCharacterSheet.js";
 import { CREATION_PICK_FLAG } from "../../../module/actors/character/StonetopCharacter.js";
 import { moveArmor } from "../../../module/actors/character/move-armor.js";
-import { combineNameChip } from "../../../module/actors/character/dialogs/CharacterOnboardingDialog.js";
+import { CharacterOnboardingDialog, combineNameChip } from "../../../module/actors/character/dialogs/CharacterOnboardingDialog.js";
 
 const PACK = new Map(loadPlaybookPackDocs().map(doc => [doc.system.slug, doc]));
 const playbookDoc = slug => ({ ...structuredClone(PACK.get(slug)), uuid: `Compendium.test.${slug}` });
@@ -552,5 +552,126 @@ describe("the Wild's names: mix and match 1-3", () => {
 		const combining = [...PACK.values()].flatMap(doc => (doc.flags.stonetop.origin ?? [])
 			.filter(o => o.combine).map(o => [doc.name, o.region, o.combine, o.note]));
 		expect(combining).toEqual([["The Blessed", "The Wild", 3, "Mix and match 1-3 of these."]]);
+	});
+});
+
+// "You start knowing 2" Invocations is onboarding's step; Level Up step 5 adds one at each even level.
+// A re-run replaces only the starting pair (starting-invocations.js).
+describe("re-running onboarding: the Lightbearer's Invocations", () => {
+	const LIGHTBEARER_STATS = { str: -1, dex: 0, con: 1, int: 0, wis: 2, cha: 1 };
+	const FOUR = ["blinding-light", "dancing-light", "warmth-of-the-sun", "cold-light-of-day"];
+	const STAMPED = ["blinding-light", "dancing-light"];
+
+	function lightbearer(flags = {}) {
+		const made = buildLiveCharacter({
+			slug: "the-lightbearer", name: "The Lightbearer", level: 4, stats: LIGHTBEARER_STATS,
+			flags: { "background.selected": "auspicious-birth", "invocations.selected": FOUR, ...flags },
+		});
+		const sheet = sheetFor(made.char, made.actor);
+		sheet._playbookHpInit = () => ({});
+		return { ...made, sheet };
+	}
+
+	it("restores only the stamped starting pair, and the level-up ones as learned", () => {
+		const { sheet } = lightbearer({ "invocations.starting": STAMPED });
+		const sel = sheet._readSelectionsFromActor(playbookDoc("the-lightbearer"));
+		expect(sel.invocations).toEqual(STAMPED);
+		expect(sel.learnedInvocations).toEqual(["warmth-of-the-sun", "cold-light-of-day"]);
+	});
+
+	it("keeps the two learned at level-up when the pair is replaced, and stamps the new pair", async () => {
+		const { actor, sheet } = lightbearer({ "invocations.starting": STAMPED });
+		const pbDoc = playbookDoc("the-lightbearer");
+		const sel = sheet._readSelectionsFromActor(pbDoc);
+
+		await sheet._applyPlaybookSelections(pbDoc, { ...sel, invocations: ["moth-to-a-flame", "blinding-light"] });
+
+		expect(flag(actor, "invocations.selected")).toEqual(["moth-to-a-flame", "blinding-light", "warmth-of-the-sun", "cold-light-of-day"]);
+		expect(flag(actor, "invocations.starting")).toEqual(["moth-to-a-flame", "blinding-light"]);
+	});
+
+	it("changes nothing when confirmed as it was read back", async () => {
+		const { actor, sheet } = lightbearer({ "invocations.starting": STAMPED });
+		const pbDoc = playbookDoc("the-lightbearer");
+		await sheet._applyPlaybookSelections(pbDoc, sheet._readSelectionsFromActor(pbDoc));
+		expect(flag(actor, "invocations.selected")).toEqual(FOUR);
+	});
+
+	it("takes a character from before the stamp to have started with the first two", async () => {
+		const { actor, sheet } = lightbearer();
+		const pbDoc = playbookDoc("the-lightbearer");
+		const sel = sheet._readSelectionsFromActor(pbDoc);
+		expect(sel.invocations).toEqual(STAMPED);
+
+		await sheet._applyPlaybookSelections(pbDoc, { ...sel, invocations: ["moth-to-a-flame", "terrible-as-the-dawn"] });
+
+		expect(flag(actor, "invocations.selected")).toEqual(["moth-to-a-flame", "terrible-as-the-dawn", "warmth-of-the-sun", "cold-light-of-day"]);
+		expect(flag(actor, "invocations.starting")).toEqual(["moth-to-a-flame", "terrible-as-the-dawn"]);
+	});
+
+	it("ends an ongoing Invocation the re-run leaves unknown, and keeps one still known", async () => {
+		const dropped = lightbearer({ "invocations.starting": STAMPED, ongoingInvocation: "dancing-light" });
+		const pbDoc = playbookDoc("the-lightbearer");
+		await dropped.sheet._applyPlaybookSelections(pbDoc, { ...dropped.sheet._readSelectionsFromActor(pbDoc), invocations: ["blinding-light", "moth-to-a-flame"] });
+		expect(dropped.char.ongoingInvocations).toEqual([]);
+
+		const kept = lightbearer({ "invocations.starting": STAMPED, ongoingInvocation: "warmth-of-the-sun" });
+		await kept.sheet._applyPlaybookSelections(pbDoc, { ...kept.sheet._readSelectionsFromActor(pbDoc), invocations: ["blinding-light", "moth-to-a-flame"] });
+		expect(kept.char.ongoingInvocations).toEqual(["warmth-of-the-sun"]);
+	});
+
+	it("shows the learned ones ticked and locked in the step, which completes with the starting two", () => {
+		const { sheet } = lightbearer({ "invocations.starting": STAMPED });
+		const pbDoc = playbookDoc("the-lightbearer");
+		const dialog = Object.create(CharacterOnboardingDialog.prototype);
+		dialog._initializeState(pbDoc, null, null);
+		// The test Foundry's mergeObject is not in place, so the restored picks go in by hand.
+		Object.assign(dialog._selections, sheet._readSelectionsFromActor(pbDoc));
+
+		expect(dialog._isStepComplete("invocations")).toBe(true);
+		const data = dialog._invocationStepData();
+		expect(data).toMatchObject({ startingCount: 2, selectedCount: 2, learnedCount: 2 });
+		const card = slug => data.options.find(o => o.slug === slug);
+		expect(card("warmth-of-the-sun")).toMatchObject({ isSelected: true, isLearned: true, disabled: true });
+		expect(card("blinding-light")).toMatchObject({ isSelected: true, isLearned: false, disabled: false });
+		// The pair is full, so an unknown one waits for a starting pick to be unticked.
+		expect(card("moth-to-a-flame")).toMatchObject({ isSelected: false, disabled: true });
+	});
+});
+
+// Itinerant Mystic: "At the very start of play, hold 3 Enigma." Only onboarding is the start.
+describe("a background's setup tracks", () => {
+	const choose = (sheet, slug) => sheet._onBackgroundChange({ currentTarget: { value: slug } });
+
+	it("onboarding at the start of play gives the Itinerant Mystic 3 Enigma", async () => {
+		const made = buildLiveCharacter({ slug: "the-lightbearer", name: "The Lightbearer", seedStartingMoves: false });
+		const sheet = sheetFor(made.char, made.actor);
+		const pbDoc = playbookDoc("the-lightbearer");
+		await sheet._applyPlaybookSelections(pbDoc, {
+			backgroundSlug: "itinerant-mystic", stats: { str: -1, dex: 0, con: 1, int: 0, wis: 2, cha: 1 },
+			moves: [], invocations: ["blinding-light", "dancing-light"], lore: { picks: {}, texts: {} },
+		});
+		expect(flag(made.actor, "background.setupResources")).toMatchObject({ enigma: 3 });
+	});
+
+	it("a switch to it mid-play starts the Enigma empty", async () => {
+		const made = buildLiveCharacter({ slug: "the-lightbearer", name: "The Lightbearer", flags: { "background.selected": "soul-on-fire" } });
+		const sheet = sheetFor(made.char, made.actor);
+		stubConfirm(true);
+		await choose(sheet, "itinerant-mystic");
+		expect(flag(made.actor, "background.selected")).toBe("itinerant-mystic");
+		expect(flag(made.actor, "background.setupResources")).toEqual({ enigma: 0 });
+	});
+
+	it("a first background picked on the Details tab is still the start of play, so nothing is seeded", async () => {
+		const made = buildLiveCharacter({ slug: "the-lightbearer", name: "The Lightbearer" });
+		const sheet = sheetFor(made.char, made.actor);
+		await choose(sheet, "itinerant-mystic");
+		expect(flag(made.actor, "background.setupResources")).toBeFalsy();
+	});
+
+	it("holds up to 9 Enigma", () => {
+		const im = PACK.get("the-lightbearer").flags.stonetop.backgrounds.find(b => b.slug === "itinerant-mystic");
+		expect(im.setup.resources[0]).toMatchObject({ key: "enigma", max: 9, value: 3 });
 	});
 });

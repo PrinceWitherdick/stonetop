@@ -127,6 +127,14 @@ function makeCharacterMock(actor) {
 			ongoing = next;
 			return changed;
 		}),
+		// One slot is all these tests drive; the two-slot rules are ongoing-invocation.test.js's.
+		get ongoingInvocationSecond() { return ""; },
+		get ongoingInvocationEmpowered() { return false; },
+		endOngoingInvocation: vi.fn(async () => {
+			const had = ongoing;
+			ongoing = "";
+			return { changed: !!had, ended: had ? [had] : [], snuffed: false };
+		}),
 		setHolyLight: vi.fn(async value => {
 			const changed = !!value !== lit;
 			lit = !!value;
@@ -145,6 +153,7 @@ function makeCharacterMock(actor) {
 		settleBackgroundMoves: vi.fn(async () => {}),
 		settleBackgroundPossessions: vi.fn(async () => {}),
 		settleBackgroundArcana: vi.fn(async () => {}),
+		settleBackgroundResources: vi.fn(async () => {}),
 		// _onBackgroundChange looks the new background up for neighbors it names; none here.
 		playbook: vi.fn(async () => null),
 		clearPlaybookData: vi.fn(async () => {}),
@@ -830,10 +839,17 @@ describe("StonetopCharacterSheet ongoing Invocation", () => {
 		const { actor, sheet } = invokingSheet();
 		await sheet._onEndOngoingInvocation(clickEvent());
 
-		expect(actor.typedActor.setOngoingInvocation).toHaveBeenCalledWith("");
+		expect(actor.typedActor.endOngoingInvocation).toHaveBeenCalledWith("warmth-of-the-sun");
 		expect(sheet.render).toHaveBeenCalledWith(false);
 		expect(sheet._postMoveCard).toHaveBeenCalledTimes(1);
 		expect(sheet._postMoveCard.mock.calls[0][1]).toMatch(/Warmth of the Sun<\/strong> ends\./);
+	});
+
+	// Two can run at once, each with its own End it: the control names which one it ends.
+	it("ends the Invocation its control names", async () => {
+		const { actor, sheet } = invokingSheet();
+		await sheet._onEndOngoingInvocation({ ...clickEvent(), currentTarget: { dataset: { slug: "blinding-light" } } });
+		expect(actor.typedActor.endOngoingInvocation).toHaveBeenCalledWith("blinding-light");
 	});
 
 	// Two controls for the one act (the header chip and the tab banner), and however many clients
@@ -841,7 +857,7 @@ describe("StonetopCharacterSheet ongoing Invocation", () => {
 	// one who stopped it", so the card follows the WRITE — the table hears it stop once.
 	it("says nothing when the write found the Invocation already ended", async () => {
 		const { actor, sheet } = invokingSheet();
-		actor.typedActor.setOngoingInvocation.mockResolvedValueOnce(false);
+		actor.typedActor.endOngoingInvocation.mockResolvedValueOnce({ changed: false, ended: [], snuffed: false });
 
 		await sheet._onEndOngoingInvocation(clickEvent());
 
@@ -1436,6 +1452,20 @@ describe("StonetopCharacterSheet._buildConvalesceData", () => {
 		expect(data.canConvalesce).toBe(false);
 		expect(data.hint.icon).toBe("fa-heart");
 	});
+
+	// Auspicious Birth: "Clear it when you Make Camp or Convalesce." The circle stands in for a
+	// debility, so it is often the only thing marked.
+	it("can convalesce at full HP to clear a marked Auspicious Birth circle, and only a marked one", () => {
+		const sheet = makeSheet(makeActor());
+		const withCircle = current => ({
+			...convalesceSnapshot({ hpValue: 8, hpMax: 8 }),
+			playbook: { background: { options: [{ selected: true, label: "Auspicious Birth", setupResources: [
+				{ key: "auspicious-birth", label: "Background circle", current, clearsOn: ["make-camp", "convalesce"] },
+			] }] } },
+		});
+		expect(sheet._buildConvalesceData(withCircle(1)).canConvalesce).toBe(true);
+		expect(sheet._buildConvalesceData(withCircle(0)).canConvalesce).toBe(false);
+	});
 });
 
 describe("StonetopCharacterSheet._applyConvalesce", () => {
@@ -1453,6 +1483,19 @@ describe("StonetopCharacterSheet._applyConvalesce", () => {
 			"system.attributes.hp.value": 8,
 			"system.attributes.debilities.options.weakened.value": false,
 			"system.attributes.debilities.options.miserable.value": false,
+		}, { stonetopMove: "Convalesce" });
+	});
+
+	it("clears a marked background track in the same write", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		await sheet._applyConvalesce({
+			oldHp: 8, newHp: 8, debilities: [],
+			tracks: [{ key: "auspicious-birth", name: "Auspicious Birth's background circle" }],
+		});
+		expect(actor.update).toHaveBeenCalledWith({
+			"system.attributes.hp.value": 8,
+			"flags.stonetop-pwd.background.setupResources.auspicious-birth": 0,
 		}, { stonetopMove: "Convalesce" });
 	});
 

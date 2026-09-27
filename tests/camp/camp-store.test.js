@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SYSTEM_ID } from "../../module/system-id.js";
-import { CAMP_STALE_MS, CAMP_STATE, CAMP_STATUS, SETTLE_REFUSAL } from "../../module/camp/camp-rules.js";
+import { CAMP_EXTRA, CAMP_STALE_MS, CAMP_STATE, CAMP_STATUS, SETTLE_REFUSAL, planExtra } from "../../module/camp/camp-rules.js";
 import {
 	applyCampShares, breakCamp, campMembers, campWriterId, hostCamp, joinCamp, onUpdateActorCamp,
 	openCamps, partyFollowerMouths, payPendingShares, registerCampHooks, sendAwayFromCamp, setCampChoices, settleCamp,
@@ -269,13 +269,88 @@ describe("settling the camp", () => {
 
 		expect(aeliana.update).toHaveBeenCalledTimes(1);
 		expect(campOf(aeliana).status).toBe(CAMP_STATUS.SETTLED);
-		expect(campOf(aeliana).plan.map(entry => [entry.actorId, entry.bedroll])).toEqual([["aeliana", 0], ["bram", 3]]);
+		expect(campOf(aeliana).plan.map(entry => [entry.actorId, planExtra(entry, CAMP_EXTRA.BEDROLL)])).toEqual([["aeliana", 0], ["bram", 3]]);
 		expect(toMessage).toHaveBeenCalledTimes(1);
 		expect(ChatMessage.create).toHaveBeenCalledTimes(1);
 
 		// Nothing is said about a plan before it exists.
 		expect(aeliana.update.mock.invocationCallOrder[0]).toBeLessThan(toMessage.mock.invocationCallOrder[0]);
 		expect(toMessage.mock.invocationCallOrder[0]).toBeLessThan(ChatMessage.create.mock.invocationCallOrder[0]);
+	});
+
+	// The Judge's Break Bread: one meal, so one 1d8 for each person eating, however many hold it.
+	it("rolls Break Bread's 1d8 once for each person eating, when someone eating has it learned", async () => {
+		const { aeliana, camp, toMessage } = await readyToSettle({ aeliana: { moves: ["Break Bread"] }, bram: { moves: ["Break Bread"] } });
+		expect((await settleCamp(camp)).ok).toBe(true);
+		expect(campOf(aeliana).plan.map(entry => [entry.actorId, planExtra(entry, CAMP_EXTRA.BREAK_BREAD)])).toEqual([["aeliana", 3], ["bram", 3]]);
+		expect(toMessage).toHaveBeenCalledTimes(2);
+		expect(toMessage.mock.calls.map(([data]) => data.flavor)).toEqual(["Break Bread (1d8 extra HP)", "Break Bread (1d8 extra HP)"]);
+		// Both dice in one request.
+		expect(ChatMessage.implementation.createDocuments).toHaveBeenCalledTimes(1);
+		expect(ChatMessage.implementation.createDocuments.mock.calls[0][0]).toHaveLength(2);
+	});
+
+	it("rolls no Break Bread when the host unticks the proper meal", async () => {
+		const { aeliana, camp, toMessage } = await readyToSettle({ aeliana: { moves: ["Break Bread"] } });
+		await setCampChoices(aeliana, { properMeal: false });
+		await settleCamp(camp);
+		expect(campOf(aeliana).plan.map(entry => planExtra(entry, CAMP_EXTRA.BREAK_BREAD))).toEqual([0, 0]);
+		expect(toMessage).not.toHaveBeenCalled();
+	});
+
+	it("rolls no Break Bread for a holder who has switched the move off", async () => {
+		const { aeliana, camp, toMessage } = await readyToSettle({ aeliana: { moves: [{ name: "Break Bread", learned: false }] } });
+		await settleCamp(camp);
+		expect(campOf(aeliana).plan.map(entry => planExtra(entry, CAMP_EXTRA.BREAK_BREAD))).toEqual([0, 0]);
+		expect(toMessage).not.toHaveBeenCalled();
+	});
+
+	// The Lightbearer's Keep the Home-Fires Burning: "anyone who Makes Camp with you ... recovers
+	// (extra) HP equal to your CHA", read live off the holder, and a fixed number, so no die.
+	it("gives everyone at the fire the Home-Fires holder's CHA in extra HP, the holder too", async () => {
+		const { aeliana, bram, camp, toMessage, act } = await readyToSettle({ bram: { moves: ["Keep the Home-Fires Burning"], cha: 2 } });
+		await setCampChoices(bram, { eats: false });
+		expect((await settleCamp(camp)).ok).toBe(true);
+		expect(campOf(aeliana).plan.map(entry => [entry.actorId, planExtra(entry, CAMP_EXTRA.HOME_FIRES)])).toEqual([["aeliana", 2], ["bram", 2]]);
+		expect(toMessage).not.toHaveBeenCalled();
+		expect(ChatMessage.create.mock.calls[0][0].content).toContain("Keep the Home-Fires Burning");
+
+		// Bram went without food, so no pick: only the fire's 2.
+		act("player-2");
+		await applyCampShares(aeliana);
+		expect(bram.system.attributes.hp.value).toBe(6);
+	});
+
+	it("gives no Home-Fires HP when the host unticks the hearth ash, or the holder has it switched off", async () => {
+		const unticked = await readyToSettle({ aeliana: { moves: ["Keep the Home-Fires Burning"], cha: 3 } });
+		await setCampChoices(unticked.aeliana, { hearthAsh: false });
+		await settleCamp(unticked.camp);
+		expect(campOf(unticked.aeliana).plan.map(entry => planExtra(entry, CAMP_EXTRA.HOME_FIRES))).toEqual([0, 0]);
+		restoreCampWorld();
+
+		const off = await readyToSettle({ aeliana: { moves: [{ name: "Keep the Home-Fires Burning", learned: false }], cha: 3 } });
+		await settleCamp(off.camp);
+		expect(campOf(off.aeliana).plan.map(entry => planExtra(entry, CAMP_EXTRA.HOME_FIRES))).toEqual([0, 0]);
+	});
+
+	// Auspicious Birth: "Clear it when you Make Camp or Convalesce."
+	it("clears Auspicious Birth's marked circle, named on the card, and leaves an unmarked one alone", async () => {
+		const circle = { key: "auspicious-birth", label: "Background circle", clearsOn: ["make-camp", "convalesce"] };
+		const { aeliana, bram, camp } = await readyToSettle({
+			aeliana: { background: { label: "Auspicious Birth", setupResources: [circle], marks: { "auspicious-birth": 1 } } },
+			bram:    { background: { label: "Auspicious Birth", setupResources: [circle], marks: { "auspicious-birth": 0 } } },
+		});
+		await settleCamp(camp);
+		expect(campOf(aeliana).plan.map(entry => entry.clears)).toEqual([
+			[{ key: "auspicious-birth", name: "Auspicious Birth's background circle" }], [],
+		]);
+		expect(ChatMessage.create.mock.calls[0][0].content).toContain("background circle");
+
+		await applyCampShares(aeliana);
+		expect(aeliana.flags[SYSTEM_ID].background.setupResources["auspicious-birth"]).toBe(0);
+		expect(bram.update).not.toHaveBeenCalledWith(expect.objectContaining({
+			[`flags.${SYSTEM_ID}.background.setupResources.auspicious-birth`]: 0,
+		}), expect.anything());
 	});
 
 	it("pays nobody's share itself: the plan landing on every client is what does that", async () => {

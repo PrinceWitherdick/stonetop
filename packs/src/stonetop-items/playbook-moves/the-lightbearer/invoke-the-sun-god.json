@@ -12,11 +12,11 @@
     "moveResults": {
       "success": {
         "label": "10+",
-        "value": "It works as described — you choose 1 consequence."
+        "value": "It works as described: you choose 1 consequence."
       },
       "partial": {
         "label": "7-9",
-        "value": "It works as described — you and the GM each choose 1 consequence."
+        "value": "It works as described: you and the GM each choose 1 consequence."
       },
       "failure": {
         "label": "6-",

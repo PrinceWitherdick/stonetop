@@ -132,6 +132,17 @@ describe("maybeBeginAttack with a weapon already chosen", () => {
 		expect(begun.tierActions.failure).toBeUndefined();
 	});
 
+	// Lightbearer audit (2026-09-25), D3: the +WIS lives inside "When you wield a holy light against a
+	// creature of darkness", so a +WIS Clash IS the holy light, with nothing to ask.
+	it("takes the holy light, unasked, for a +WIS Clash with no weapon named", async () => {
+		const begun = await maybeBeginAttack(actor, { name: "Clash" }, { stat: "wis" });
+		expect(begun.messageFlags["stonetop-pwd"].attack.weapon.name).toBe("Holy light");
+	});
+
+	it("still asks for a Clash on any other stat", async () => {
+		await expect(maybeBeginAttack(actor, { name: "Clash" }, { stat: "str" })).rejects.toThrow(/Dialog/);
+	});
+
 	it("falls back to the prompt when the named weapon isn't on offer", async () => {
 		// A slug nothing matches must NOT quietly attack with no weapon — it asks, which here
 		// means reaching for Dialog and throwing.

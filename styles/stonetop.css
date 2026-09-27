@@ -9914,6 +9914,51 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	font-size: 0.85em;
 	font-weight: bold;
 }
+/* Invoke the Sun God's consequences (invoke-consequences.js): a ticked "mark a debility" grows a
+   row of buttons under it, and the snuffing and the sun say what they did. Same place and size as
+   the readouts above; the ink is declared, since the card's paper is pinned light in both themes. */
+:is(#chat, #chat-notifications, #chat-popout) .message
+	:is(.stonetop-roll-card-picklist, .stonetop-chat-move-description, .stonetop-roll-card-description)
+	.stonetop-invoke-debility {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin: 3px 0 5px 22px;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message
+	:is(.stonetop-roll-card-picklist, .stonetop-chat-move-description, .stonetop-roll-card-description)
+	.stonetop-invoke-debility[hidden] {
+	display: none;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message
+	:is(.stonetop-roll-card-picklist, .stonetop-chat-move-description, .stonetop-roll-card-description)
+	.stonetop-invoke-debility-btn {
+	flex: none;
+	width: auto;
+	padding: 2px 9px;
+	font-size: 0.85em;
+	line-height: 1.4;
+	border-radius: var(--st-radius);
+	border: 1px solid var(--st-btn-primary-border);
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
+	cursor: pointer;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message
+	:is(.stonetop-roll-card-picklist, .stonetop-chat-move-description, .stonetop-roll-card-description)
+	.stonetop-invoke-debility-btn:disabled {
+	opacity: 0.55;
+	cursor: default;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message
+	:is(.stonetop-roll-card-picklist, .stonetop-chat-move-description, .stonetop-roll-card-description)
+	.stonetop-invoke-consequence-note {
+	display: block;
+	margin: 1px 0 4px 22px;
+	font-size: 0.85em;
+	font-weight: bold;
+	color: var(--st-holy-light-ink);
+}
 
 /* Special possessions — 2-column card list, matching the Moves tab
    (.stonetop-move-group .items-list): CSS columns so uneven-height cards pack
@@ -22484,12 +22529,14 @@ a.steading-player-open:hover {
 	align-items: center;
 }
 
-.stonetop-onboarding-card--possession.is-preselected {
+.stonetop-onboarding-card--possession.is-preselected,
+.stonetop-onboarding-card--invocation.is-preselected {
 	background: rgba(100,116,139,0.06);
 	border-color: rgba(100,116,139,0.3);
 }
 
-.stonetop-onboarding-card--possession .stonetop-onboarding-card-header {
+.stonetop-onboarding-card--possession .stonetop-onboarding-card-header,
+.stonetop-onboarding-card--invocation.is-preselected .stonetop-onboarding-card-header {
 	align-items: center;
 }
 
@@ -24020,6 +24067,36 @@ a.steading-player-open:hover {
 
 .stonetop-invoke-dialog .stonetop-invoke-empower input { flex: none; }
 
+/* Burn Twice as Bright: the same checkbox line, with its two pickers (which Invocation, and what
+   pays for it) indented under it. */
+.stonetop-invoke-dialog .stonetop-invoke-burn-twice {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	margin: 8px 0 0;
+	cursor: pointer;
+}
+
+.stonetop-invoke-dialog .stonetop-invoke-burn-twice input { flex: none; }
+
+.stonetop-invoke-dialog .stonetop-burn-twice-fields {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 4px 0 0 22px;
+}
+
+.stonetop-invoke-dialog .stonetop-burn-twice-fields label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.stonetop-invoke-dialog .stonetop-burn-twice-unpaid {
+	margin: 4px 0 0 22px;
+	color: var(--st-text-secondary);
+}
+
 /* Whether a light is at hand is the table's call, so this states the sheet's answer rather
    than blocking the roll: a note, not an error. */
 .stonetop-invoke-dialog .stonetop-invoke-nolight {
@@ -24250,6 +24327,57 @@ a.steading-player-open:hover {
 /* "Ongoing" badge carries the ongoing-rules text on hover. */
 .stonetop-invocation-ongoing {
 	cursor: help;
+}
+
+/* "Needs sun" (the Invoke consequence "bask in sunlight ... before using that Invocation again"):
+   a cue under the card's title with its one-click Basked. Never a block, so no warning ink. */
+.stonetop-invocation-needs-sun {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 2px 0 4px;
+}
+
+.stonetop-invocation-sun-badge {
+	cursor: help;
+	color: var(--st-holy-light-ink);
+	border-color: var(--st-holy-light-border);
+}
+
+/* Core's `body.game .app button { width: 100% }` reaches this one too. */
+.stonetop-invocation-needs-sun .stonetop-invocation-basked {
+	flex: none;
+	width: auto;
+	min-width: 0;
+	min-height: 0;
+	height: auto;
+	margin: 0;
+	padding: 1px 10px;
+	border: 1px solid var(--st-holy-light-border);
+	border-radius: 999px;
+	background: transparent;
+	box-shadow: none;
+	font-size: var(--st-fs-xs);
+	font-weight: 600;
+	line-height: 1.7;
+	color: var(--st-holy-light-ink);
+	cursor: pointer;
+}
+
+.stonetop-invocation-needs-sun .stonetop-invocation-basked:hover {
+	background: var(--st-holy-light-bg-hover);
+}
+
+/* The same cue in the invoke window: a quiet note, like the no-light line. */
+.stonetop-invoke-dialog .stonetop-invoke-needs-sun {
+	margin: 8px 0 0;
+	color: var(--st-text-secondary);
+	font-size: 0.95em;
+}
+
+.stonetop-invoke-dialog .stonetop-invoke-needs-sun i {
+	margin-right: 4px;
+	color: rgba(176, 128, 24, 0.9);
 }
 
 .stonetop-invocation-name {
@@ -30526,6 +30654,16 @@ th:has(> .stonetop-roll-table-btn) {
 }
 
 .stonetop-intros-notice--warn > i { color: #c07820; }
+
+/* The blue "still wants a choice from you" call-to-action, the notice-sized cousin of
+   `.move-needs-choice`: something is owed, nothing is wrong (the Invocations tab's "N of M"). */
+.stonetop-intros-notice--choice {
+	background: var(--st-blue-bg);
+	border: 1px solid var(--st-blue-border);
+	color: var(--st-blue-text);
+}
+
+.stonetop-intros-notice--choice > i { color: var(--st-blue-border); }
 
 .stonetop-intros-notice--ok {
 	background: rgba(40, 140, 70, 0.08);

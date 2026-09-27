@@ -79,6 +79,11 @@ export function followerArmorGate(armor) {
 export function armorGateWords(source) {
 	const text = String(source ?? "");
 	if (ARMOR_GATE_KEYS[text]) return { key: ARMOR_GATE_KEYS[text], noteKey: "note", params: { move: text } };
+	// Both moves at once (see moveArmor): one box, which says both clauses, and unticked means neither held.
+	const parts = text.split(ARMOR_SOURCE_JOIN);
+	if (parts.length === 2 && parts.includes(BARKSKIN) && parts.includes(CANDLE_AGAINST_THE_DARK)) {
+		return { key: BOTH_GATE_KEY, noteKey: `${BOTH_GATE_KEY}Note`, params: { move: text } };
+	}
 	if (text.startsWith(VERSUS_ARMOR_PREFIX) && text.length > VERSUS_ARMOR_PREFIX.length) {
 		return { key: "versus", noteKey: "versusNote", params: { against: text.slice(VERSUS_ARMOR_PREFIX.length) } };
 	}
@@ -86,25 +91,44 @@ export function armorGateWords(source) {
 }
 
 /**
+ * What joins two moves' names in one stored `conditionalSource`, when BOTH grant the armor (a Blessed's
+ * Barkskin on a Lightbearer with the Candle lit). Neither name contains it.
+ */
+export const ARMOR_SOURCE_JOIN = " + ";
+
+/** The damage card's words for the one pair that can meet: either clause keeps the 2 armor. */
+const BOTH_GATE_KEY = "barkskinOrCandle";
+
+/**
  * The worn-armor base a character's own moves give them, and which move gives it. 0 and null when none
  * do, which is nearly every character.
+ *
+ * BOTH CAN HOLD AT ONCE. The base is still 2 (bases do not stack), but it now stands on two clauses, and
+ * the armor is lost only when NEITHER is met. So `source` carries both names (ARMOR_SOURCE_JOIN), and the
+ * damage card's one box asks about both (armorGateWords): it used to carry Barkskin alone, and unticking
+ * "touching the earth" stripped armor the lit Candle still gave.
+ *
+ * A CANDLE AGAINST THE DARK asks for "otherwise unarmed", and a shield is the one part of that the sheet
+ * CAN read: with a shield carried the Candle gives nothing (the user's ruling). Weapons in hand are still
+ * the fiction's, asked on the damage card.
  *
  * @param {object} p
  * @param {Actor} p.actor
  * @param {boolean} [p.holyLight]  is this character's holy light burning (holy-light.js)
+ * @param {boolean} [p.shield]  is this character carrying a shield (StonetopCharacter#_carriesShield)
  * @param {boolean|(() => boolean)} [p.markedWithBarkskin]  has a Blessed put Barkskin on them (see
  *   `barkskinMarkedBy`). A FUNCTION is only called when the answer could matter: the scan behind it
  *   walks the world, and a character with Barkskin of their own is already at the base it would find.
  * @returns {{base: number, source: string|null}}
  */
-export function moveArmor({ actor, holyLight = false, markedWithBarkskin = false }) {
+export function moveArmor({ actor, holyLight = false, shield = false, markedWithBarkskin = false }) {
 	if (actor?.type !== "character") return { base: 0, source: null };
 	const marked = () => (typeof markedWithBarkskin === "function" ? markedWithBarkskin() : markedWithBarkskin);
-	if (ownsLearnedMoveNamed(actor, BARKSKIN) || marked()) return { base: MOVE_ARMOR_BASE, source: BARKSKIN };
-	if (holyLight && ownsLearnedMoveNamed(actor, CANDLE_AGAINST_THE_DARK)) {
-		return { base: MOVE_ARMOR_BASE, source: CANDLE_AGAINST_THE_DARK };
-	}
-	return { base: 0, source: null };
+	const sources = [];
+	if (ownsLearnedMoveNamed(actor, BARKSKIN) || marked()) sources.push(BARKSKIN);
+	if (holyLight && !shield && ownsLearnedMoveNamed(actor, CANDLE_AGAINST_THE_DARK)) sources.push(CANDLE_AGAINST_THE_DARK);
+	if (!sources.length) return { base: 0, source: null };
+	return { base: MOVE_ARMOR_BASE, source: sources.join(ARMOR_SOURCE_JOIN) };
 }
 
 /**

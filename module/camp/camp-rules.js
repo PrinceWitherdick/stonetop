@@ -1,6 +1,7 @@
 import { SYSTEM_ID } from "../system-id.js";
 import { PROVISIONS_SLUG } from "../actors/character/provisions.js";
 import { SUPPLY_PURPOSE, SUPPLY_SLUGS, campUsesNeeded, supplyPurseSlugsFor, supplyPursesFor } from "../actors/character/supply-cost.js";
+import { clearTracksData } from "../actors/character/background-tracks.js";
 
 /**
  * MAKE CAMP, AS A PARTY (Book I p.334).
@@ -73,6 +74,19 @@ export const CAMP_LEFT_MAX = 10;
 /** The held advantage a peaceful night leaves, named the way the sheet's chip shows it. */
 export const PEACEFUL_NIGHT = "A peaceful night's rest";
 
+/**
+ * The Judge's move: "When you share a proper meal with someone and each of you eats their fill, each
+ * of you recovers 1d8 (extra) HP." Any character can hold it, through a pick from another playbook.
+ */
+export const BREAK_BREAD = "Break Bread";
+
+/**
+ * The Lightbearer's move: "When you build a camp fire and sprinkle it with ash from your own hearth,
+ * anyone who Makes Camp with you is free from nightmares or bad dreams and recovers (extra) HP equal
+ * to your CHA." Any character can hold it, through a pick from another playbook.
+ */
+export const HOME_FIRES = "Keep the Home-Fires Burning";
+
 /** Why a press of Make Camp did not settle the camp. */
 export const SETTLE_REFUSAL = Object.freeze({
 	CLOSED:    "closed",
@@ -105,16 +119,19 @@ export function blankOffer() {
  * The derived numbers a character publishes when they join, because another client cannot work
  * them out: max HP is COMPUTED by the character model (the stored field lags it), and whether a
  * bedroll or a mess kit is actually carried is an outfit question. Debility names ride along so a
- * row can name one; whether it is marked is read live off the actor.
+ * row can name one; whether it is marked is read live off the actor. So do the background tracks a
+ * Make Camp clears (`clears`, Auspicious Birth's circle), which the playbook's data names.
  */
 function readVitals(raw) {
+	const named = list => (Array.isArray(list) ? list : [])
+		.filter(d => d?.key)
+		.map(d => ({ key: String(d.key), name: String(d.name ?? d.key) }));
 	return {
 		maxHp:      count(raw?.maxHp),
 		bedroll:    !!raw?.bedroll,
 		messKit:    !!raw?.messKit,
-		debilities: (Array.isArray(raw?.debilities) ? raw.debilities : [])
-			.filter(d => d?.key)
-			.map(d => ({ key: String(d.key), name: String(d.name ?? d.key) })),
+		debilities: named(raw?.debilities),
+		clears:     named(raw?.clears),
 	};
 }
 
@@ -143,6 +160,12 @@ export function readCampRecord(raw) {
 		bedroll:   !!raw.bedroll,
 		peaceful:  !!raw.peaceful,
 		ready:     !!raw.ready,
+		// On a host: whether tonight's meal is a proper one, for Break Bread. Ticked unless the host
+		// unticked it, since "a proper meal" and "eats their fill" are the fiction's to say.
+		properMeal: raw.properMeal !== false,
+		// On a host: whether the fire is sprinkled with ash from a hearth, for Keep the Home-Fires
+		// Burning. Ticked unless the host unticked it, like the proper meal.
+		hearthAsh: raw.hearthAsh !== false,
 		vitals:    readVitals(raw.vitals),
 		plan:      Array.isArray(raw.plan) ? raw.plan : null,
 		settledAt: count(raw.settledAt),
@@ -194,6 +217,8 @@ export function newCampRecord({
 		bedroll:   read.bedroll,
 		peaceful:  false,
 		ready:     false,
+		properMeal: true,
+		hearthAsh: true,
 		vitals:    read,
 		plan:      null,
 		settledAt: 0,
@@ -287,6 +312,11 @@ function trimToBill(offers, bill) {
  * @property {number}  maxHp      the COMPUTED max
  * @property {Array<{key: string, name: string}>} activeDebilities  read live
  * @property {boolean} unliving
+ * @property {boolean} [breaksBread]  has Break Bread learned, read live
+ * @property {number|null} [hearthCha]  CHA, when Keep the Home-Fires Burning is learned (read live);
+ *   null without it
+ * @property {Array<{key: string, name: string}>} [clearsTonight]  the marked background tracks a
+ *   Make Camp clears (Auspicious Birth's circle), read live
  * @property {object}  [pack]     what Have What You Need can draw on, read live: `undefinedMarks`
  *   (the undefined ◇ left), `checked` (which inventory rows are marked) and `usesPerSupply`
  *   (4+Prosperity)
@@ -326,6 +356,15 @@ export function campLedger(members = []) {
 		canSettle: rows.length > 0 && short === 0,
 		// The host settles the camp, so the host is never waited on.
 		waitingOn: rows.filter(m => !m.isHost && !m.record.ready).map(m => m.name),
+		// Break Bread is "when you share a meal", so a holder who goes without (or cannot eat) brings
+		// nothing to it.
+		breadBreakers: rows.filter(m => m.breaksBread && eatsTonight(m)).map(m => m.name),
+		properMeal:    rows.find(m => m.isHost)?.record.properMeal ?? true,
+		// Keep the Home-Fires Burning is the fire's, not the meal's: a holder who goes without still
+		// sprinkles the ash.
+		hearthKeepers: rows.filter(m => m.hearthCha !== null && m.hearthCha !== undefined)
+			.map(m => ({ name: m.name, cha: Math.trunc(Number(m.hearthCha) || 0) })),
+		hearthAsh:     rows.find(m => m.isHost)?.record.hearthAsh ?? true,
 	};
 }
 
@@ -381,6 +420,105 @@ export function rollsBedroll(member, ledger) {
 	return restsTonight(member, ledger) && member.record.bedroll && member.record.vitals.bedroll;
 }
 
+/**
+ * Whether Break Bread is on the table tonight: somebody eating at the fire has it learned, and the
+ * meal is paid for. The host's "A proper meal" box shows exactly then.
+ */
+export function breakBreadOffered(ledger) {
+	return ledger.short === 0 && (ledger.breadBreakers?.length ?? 0) > 0;
+}
+
+/**
+ * Whether Break Bread's "each of you recovers 1d8 (extra) HP" is owed to this member: it is on the
+ * table, the host left the proper meal ticked, and this member eats. One meal, so one 1d8 each,
+ * however many at the fire hold the move.
+ */
+export function rollsBreakBread(member, ledger) {
+	return breakBreadOffered(ledger) && ledger.properMeal !== false && eatsTonight(member);
+}
+
+/**
+ * Whether Keep the Home-Fires Burning is on offer tonight: somebody at the fire has it learned. The
+ * host's "Ash from your own hearth" box shows exactly then.
+ */
+export function homeFiresOffered(ledger) {
+	return (ledger.hearthKeepers?.length ?? 0) > 0;
+}
+
+/**
+ * Whose hearth the ash comes from: the holder at the fire with the highest CHA, as `{name, cha}`, or
+ * null with nobody holding the move. One fire, so two holders at it give one helping, the better.
+ */
+export function homeFiresKeeper(ledger) {
+	return (ledger.hearthKeepers ?? []).reduce((best, k) => (!best || k.cha > best.cha ? k : best), null);
+}
+
+/**
+ * The extra HP Keep the Home-Fires Burning gives everyone making camp tonight: the keeper's CHA, never
+ * below 0 (a negative CHA takes nothing away, as Healer's Arts treats WIS), or 0 while the host has
+ * the ash unticked.
+ */
+export function homeFiresHp(ledger) {
+	if (!homeFiresOffered(ledger) || ledger.hearthAsh === false) return 0;
+	return Math.max(0, homeFiresKeeper(ledger).cha);
+}
+
+/**
+ * Whether this member gets Keep the Home-Fires Burning's HP: "anyone who Makes Camp with you", the
+ * holder too, and whether or not they eat. Not the Unliving, who "gain no benefit from ... Make Camp".
+ */
+export function warmsAtHomeFires(member, ledger) {
+	return homeFiresHp(ledger) > 0 && !member.unliving;
+}
+
+// ── Extra HP ────────────────────────────────────────────────────────────────
+// What a night at the fire heals ON TOP of the pick, each landing after the last, in this order. Each
+// is "(extra) HP", never "instead of", so they stack: the bedroll's is the night's (only for someone who
+// rests), Break Bread's the meal's (anyone who ate, sleep or no sleep), the home fires' the fire's
+// (anyone who Makes Camp there). A new source is one row here and its words in camp-view.js.
+
+export const CAMP_EXTRA = Object.freeze({ BEDROLL: "bedroll", BREAK_BREAD: "breakBread", HOME_FIRES: "homeFires" });
+
+/** Each source's extra HP for member `m` tonight, from `rolls` ({bedrolls, breads}: 1d6 and 1d8 by actor id). */
+const CAMP_EXTRAS = [
+	{ source: CAMP_EXTRA.BEDROLL,     amount: (m, ledger, rolls) => (rollsBedroll(m, ledger) ? count(rolls.bedrolls?.[m.actorId]) : 0) },
+	{ source: CAMP_EXTRA.BREAK_BREAD, amount: (m, ledger, rolls) => (rollsBreakBread(m, ledger) ? count(rolls.breads?.[m.actorId]) : 0) },
+	{ source: CAMP_EXTRA.HOME_FIRES,  amount: (m, ledger) => (warmsAtHomeFires(m, ledger) ? homeFiresHp(ledger) : 0) },
+];
+
+/** `[source, amount]` pairs healed in turn from `start`, as `[{source, amount, from, to}]`, the empty left out. */
+function healInTurn(start, amounts, maxHp) {
+	const out = [];
+	let hp = count(start);
+	for (const [source, amount] of amounts) {
+		const n = count(amount);
+		if (!n) continue;
+		const to = healTo(hp, n, maxHp);
+		out.push({ source, amount: n, from: hp, to });
+		hp = to;
+	}
+	return out;
+}
+
+/**
+ * A plan entry's extra HP, `[{source, amount, from, to}]` in the order it lands. A plan frozen before the
+ * list (an owed camp from an earlier version) is read off its old separate fields, replayed from the pick
+ * with the same arithmetic that froze them.
+ */
+export function planExtras(entry) {
+	if (Array.isArray(entry?.extras)) return entry.extras;
+	return healInTurn(entry?.hpAfterPick ?? entry?.hpBefore, [
+		[CAMP_EXTRA.BEDROLL, entry?.rests ? entry.bedroll : 0],
+		[CAMP_EXTRA.BREAK_BREAD, entry?.breakBread],
+		[CAMP_EXTRA.HOME_FIRES, entry?.homeFires],
+	], entry?.maxHp);
+}
+
+/** How much `source` gave on a plan entry, 0 for none. */
+export function planExtra(entry, source) {
+	return planExtras(entry).find(extra => extra.source === source)?.amount ?? 0;
+}
+
 /** HP after healing `gain`, capped at `max`. */
 export function healTo(hp, gain, max) {
 	// Never below where they started: a max that could not be read (0) heals nothing rather than
@@ -413,8 +551,9 @@ export function debilityToClear(member) {
  * @param {object} ledger  campLedger's result
  * @param {object} [o]
  * @param {Object<string, number>} [o.bedrolls]  each bedroll's 1d6, by actor id
+ * @param {Object<string, number>} [o.breads]    each eater's Break Bread 1d8, by actor id
  */
-export function freezeCampPlan(ledger, { bedrolls = {} } = {}) {
+export function freezeCampPlan(ledger, { bedrolls = {}, breads = {} } = {}) {
 	return ledger.rows.map((m, at) => {
 		const rests   = restsTonight(m, ledger);
 		const cleared = rests && m.record.benefit === CAMP_BENEFIT.DEBILITY ? debilityToClear(m) : null;
@@ -423,9 +562,9 @@ export function freezeCampPlan(ledger, { bedrolls = {} } = {}) {
 		const benefit  = !rests ? null : cleared ? CAMP_BENEFIT.DEBILITY : CAMP_BENEFIT.HP;
 		const maxHp    = count(m.maxHp);
 		const halfMax  = Math.ceil(maxHp / 2);
-		const bedroll  = rollsBedroll(m, ledger) ? count(bedrolls[m.actorId]) : 0;
 		const hpBefore = count(m.hpValue);
 		const picked   = benefit === CAMP_BENEFIT.HP ? healTo(hpBefore, halfMax, maxHp) : hpBefore;
+		const extras   = healInTurn(picked, CAMP_EXTRAS.map(x => [x.source, x.amount(m, ledger, { bedrolls, breads })]), maxHp);
 		return {
 			actorId:  m.actorId,
 			name:     m.name,
@@ -437,18 +576,22 @@ export function freezeCampPlan(ledger, { bedrolls = {} } = {}) {
 			debility: cleared ? { key: cleared.key, name: cleared.name } : null,
 			maxHp,
 			halfMax,
-			bedroll,
 			hpBefore,
 			hpAfterPick: picked,
-			hpAfter:  healTo(picked, bedroll, maxHp),
+			extras,
+			hpAfter:  extras.at(-1)?.to ?? picked,
 			peaceful: rests && m.record.peaceful,
+			// Auspicious Birth's circle: "Clear it when you Make Camp", so whoever sits at the fire,
+			// eating or not. Not the Unliving, whom Make Camp gives nothing.
+			clears:   m.unliving ? [] : (m.clearsTonight ?? []).map(t => ({ key: t.key, name: t.name })),
 		};
 	});
 }
 
 /**
  * One character's share of a settled camp, as a single update: the food out of their pack, then
- * the night's pick, the bedroll and the peaceful night, and the mark that says it is done.
+ * the night's pick, the bedroll, Break Bread, the home fires, the peaceful night and any background
+ * track the camp clears, and the mark that says it is done.
  *
  * What is carried and the current HP are read LIVE, by the caller, at the moment of writing, and
  * what lands is still an absolute count and an absolute HP. So the plan says how many uses and how
@@ -472,22 +615,23 @@ export function campShareUpdate(entry, { resources = {}, hpValue = 0, resourceDa
 		shortfall += count(s.n) - paid;
 		Object.assign(update, resourceData(s.slug, have - paid));
 	}
+	const before = count(hpValue);
+	let hp = before;
 	if (entry.rests) {
-		const before = count(hpValue);
-		let hp = before;
 		if (entry.benefit === CAMP_BENEFIT.DEBILITY && entry.debility?.key) {
 			update[`system.attributes.debilities.options.${entry.debility.key}.value`] = false;
 		} else if (entry.benefit === CAMP_BENEFIT.HP) {
 			hp = healTo(hp, entry.halfMax, entry.maxHp);
 		}
-		// The bedroll's text is "extra HP when you Make Camp", not "instead of", so it stacks on
-		// whichever pick was taken.
-		if (entry.bedroll) hp = healTo(hp, entry.bedroll, entry.maxHp);
-		if (hp !== before) update["system.attributes.hp.value"] = hp;
 		// Held, not the sticky roll-modifier selector: "advantage on your next roll" is a promise
 		// about one roll. See StonetopCharacter#heldAdvantage.
 		if (entry.peaceful) Object.assign(update, advantageData(PEACEFUL_NIGHT));
 	}
+	// The extra HP, each on top of what came before (CAMP_EXTRAS), healed from their HP now.
+	for (const extra of planExtras(entry)) hp = healTo(hp, extra.amount, entry.maxHp);
+	if (hp !== before) update["system.attributes.hp.value"] = hp;
+	// Auspicious Birth's circle, cleared by making camp at all.
+	Object.assign(update, clearTracksData((entry.clears ?? []).filter(t => t?.key), SYSTEM_ID));
 	update[`flags.${SYSTEM_ID}.${CAMP_FLAG}.applied`] = true;
 	return { update, shortfall };
 }

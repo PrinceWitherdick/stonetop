@@ -33,6 +33,24 @@
       {{#if meal.forageText}}<p class="stonetop-camp-meal-line">{{meal.forageText}}</p>{{/if}}
       {{#if meal.afterText}}<p class="stonetop-camp-meal-line">{{meal.afterText}}</p>{{/if}}
       {{#if meal.provisionsText}}<p class="stonetop-camp-meal-line stonetop-camp-meal-note">{{meal.provisionsText}}</p>{{/if}}
+      {{!-- Break Bread (the Judge): the host's box, ticked until they say the meal was not a proper one. --}}
+      {{#if breakBread.show}}
+      {{#if breakBread.canTick}}
+      <label class="stonetop-camp-check"><input type="checkbox" class="stonetop-check" data-camp-field="properMeal" data-actor-id="{{breakBread.hostId}}" data-camp-focus="{{breakBread.hostId}}:properMeal"{{#if breakBread.ticked}} checked{{/if}}><span>{{breakBread.label}}</span></label>
+      <p class="stonetop-camp-meal-line stonetop-camp-meal-note">{{breakBread.holders}}</p>
+      {{else}}
+      <p class="stonetop-camp-meal-line">{{breakBread.says}}</p>
+      {{/if}}
+      {{/if}}
+      {{!-- Keep the Home-Fires Burning (the Lightbearer): the host's box, ticked until they say the fire has no hearth ash. --}}
+      {{#if homeFires.show}}
+      {{#if homeFires.canTick}}
+      <label class="stonetop-camp-check"><input type="checkbox" class="stonetop-check" data-camp-field="hearthAsh" data-actor-id="{{homeFires.hostId}}" data-camp-focus="{{homeFires.hostId}}:hearthAsh"{{#if homeFires.ticked}} checked{{/if}}><span>{{homeFires.label}}</span></label>
+      <p class="stonetop-camp-meal-line stonetop-camp-meal-note">{{homeFires.holders}}</p>
+      {{else}}
+      <p class="stonetop-camp-meal-line">{{homeFires.says}}</p>
+      {{/if}}
+      {{/if}}
     </section>
 
     <ol class="stonetop-camp-rows">

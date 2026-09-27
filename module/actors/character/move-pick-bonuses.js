@@ -23,9 +23,9 @@
  */
 
 import { ownsLearnedMoveNamed } from "./owns-move.js";
+import { INVOKE_THE_SUN_GOD, EMPOWERED_INVOCATIONS } from "./holy-light.js";
 import { THE_NATURAL } from "../../data/alt-stat-grants.js";
-import { tookBackground } from "./took-background.js";
-import { readableFlags } from "./StonetopFlags.js";
+import { actorTookBackground } from "./took-background.js";
 import { pickListItem, pickListStampAttrs, readPickListStamp } from "../../utils/chat.js";
 import { escHtml } from "../../utils/strings.js";
 import { TIER_KEYS } from "../../utils/move-results.js";
@@ -39,6 +39,19 @@ import { format, localize } from "../../utils/i18n.js";
  * `addOptions` are appended to the list, in the granting text's own words (pinned against the pack
  * by tests/actors/character/move-pick-bonuses.test.js, so a reworded source fails a test rather
  * than drifting).
+ *
+ * `freeQuestion` is a question the roller may always ask on top of whatever the tier allows, on
+ * every tier: it is not an option on the list and not one of its count. `when` is the granting
+ * move's own narrower trigger, where it has one (Expert Tracker's is Seek Insight "by searching
+ * for or studying the signs left by passing creatures"). The card cannot tell how the roller
+ * studied, so the line says the condition and the table honours it.
+ *
+ * `capTo` LOWERS a tier's cap (`{partial: 1}`), for a move that takes a chooser away rather than
+ * adding a choice. `rollOption` gates a row on something decided for THIS roll rather than owned,
+ * read from the roll's pick context (StonetopCharacter#withPickContext): an Invocation empowered
+ * before the dice. `detailKey` replaces the note's generated "N more on a hit" with the move's own
+ * words, where the count alone would misdescribe it. Rows apply in table order, which matters for
+ * Invoke the Sun God: Glorious Servant's 7-9 of 1 is set before Empowered's +1 lands on it.
  */
 export const MOVE_PICK_BONUSES = [
 	{ move: "Seek Insight", ownsLearned: "Perceptive", plus: 1, missFloor: 1 },
@@ -50,24 +63,41 @@ export const MOVE_PICK_BONUSES = [
 		addOptions: ["Who or what here is the biggest threat?", "What is my enemy's true position?", "What here can I use as a weapon?"] },
 	{ move: "Forage", ownsLearned: "Survivalist", plus: 1, missFloor: 1,
 		addOptions: ["Find or fashion some useful item or supply (GM can veto)"] },
+	// Free questions, even on a 6-. Two of them are already on Seek Insight's printed list (Expert
+	// Tracker's, Voice of Experience's): the move makes that one free, it does not add it.
+	{ move: "Seek Insight", ownsLearned: "Hound of Aratis",      freeQuestion: "What here is tainted by chaos?" },
+	{ move: "Seek Insight", ownsLearned: "Vision Unclouded",     freeQuestion: "What here is hidden by illusion or magic?" },
+	{ move: "Seek Insight", ownsLearned: "Sniff Out Corruption", freeQuestion: "What here stinks of the unnatural?" },
+	{ move: "Seek Insight", ownsLearned: "Attuned",              freeQuestion: "What here is infused with magic?" },
+	{ move: "Seek Insight", ownsLearned: "Voice of Experience",  freeQuestion: "What is about to happen?" },
+	{ move: "Seek Insight", ownsLearned: "Expert Tracker",       freeQuestion: "What happened here recently?",
+		when: "Seek Insight by searching for or studying the signs left by passing creatures" },
+	// The Lightbearer's consequence list. Glorious Servant: "on a 10+, you need not choose a
+	// consequence; on a 7-9, you choose a consequence but the GM does not", so the 7-9's "you and
+	// the GM each choose 1" (2) is 1, and the 10+'s 1 stands as the most, taken or not. Empowered
+	// Invocations: "choose an extra consequence before you roll", on whichever tier comes up.
+	{ move: INVOKE_THE_SUN_GOD, ownsLearned: "Glorious Servant", capTo: { partial: 1 },
+		detailKey: "stonetop.invocations.pickGloriousServant" },
+	{ move: INVOKE_THE_SUN_GOD, ownsLearned: EMPOWERED_INVOCATIONS, rollOption: "empowered", plus: 1,
+		label: "Empowered", detailKey: "stonetop.invocations.pickEmpowered" },
 ];
 
 /**
  * The MOVE_PICK_BONUSES rows `actor` brings to a roll of `moveName`, in table order. A character's
- * alone: a monster or NPC rolling a move brings nothing to it.
+ * alone: a monster or NPC rolling a move brings nothing to it. `context` is the roll's pick context
+ * (`{empowered, burnTwice}`, see StonetopCharacter#withPickContext): a `rollOption` row needs its
+ * key set there as well as its move learned.
  */
-export function movePickBonusesFor(actor, moveName) {
+export function movePickBonusesFor(actor, moveName, context = null) {
 	if (actor?.type !== "character" || !moveName) return [];
 	const rows = MOVE_PICK_BONUSES.filter(b => b.move === moveName);
 	if (!rows.length) return [];
-	const playbook   = actor.system?.playbook?.name ?? null;
-	// Read without throwing: a roll is no place to fail over a flag bag (CharacterBackgrounds#selectedSlug
-	// is the same key, through a class this pure module has no instance of).
-	const bag        = rows.some(b => b.background) ? readableFlags(actor) : {};
-	const background = bag?.background?.selected ?? bag?.["background.selected"] ?? null;
-	return rows.filter(b => b.background
-		? tookBackground({ playbook, background }, b.background)
-		: ownsLearnedMoveNamed(actor, b.ownsLearned));
+	return rows.filter(b => {
+		if (b.rollOption && !context?.[b.rollOption]) return false;
+		return b.background
+			? actorTookBackground(actor, b.background)
+			: ownsLearnedMoveNamed(actor, b.ownsLearned);
+	});
 }
 
 const _OPEN_RE = /<ul class="stonetop-picklist"([^>]*)>([\s\S]*?)<\/ul>/i;
@@ -83,7 +113,8 @@ const _OPEN_RE = /<ul class="stonetop-picklist"([^>]*)>([\s\S]*?)<\/ul>/i;
  */
 export function applyPickBonuses(html, bonuses = []) {
 	const src = String(html ?? "");
-	if (!bonuses.length) return src;
+	// A free question is none of the list's business (freeQuestionLines).
+	if (!bonuses.some(b => b.plus || b.missFloor || b.capTo || b.addOptions?.length)) return src;
 	const open = _OPEN_RE.exec(src);
 	if (!open) return src;
 	const attrs = open[1];
@@ -94,6 +125,8 @@ export function applyPickBonuses(html, bonuses = []) {
 
 	for (const b of bonuses) {
 		for (const t of TIER_KEYS) {
+			// Only ever DOWN, and only on a tier that already has a cap to lower.
+			if (b.capTo?.[t] != null && reaches.has(t) && caps[t] > 0) caps[t] = Math.min(caps[t], b.capTo[t]);
 			if (b.plus && reaches.has(t) && caps[t] > 0) caps[t] += b.plus;
 		}
 		if (b.missFloor && !reaches.has("failure")) {
@@ -122,21 +155,45 @@ export function applyPickBonuses(html, bonuses = []) {
  * the added option is on the list itself, and says so.
  */
 export function pickBonusNotes(bonuses = []) {
-	return bonuses.filter(b => b.plus || b.missFloor).map(b => {
-		const detail = [
+	return bonuses.filter(b => b.plus || b.missFloor || b.capTo).map(b => {
+		const detail = b.detailKey ? localize(b.detailKey) : [
 			b.plus      ? format("stonetop.pickBonus.plus",      { n: b.plus }) : null,
 			b.missFloor ? format("stonetop.pickBonus.missFloor", { n: b.missFloor }) : null,
 		].filter(Boolean).join(localize("stonetop.pickBonus.joiner"));
-		const source = b.ownsLearned ?? b.background?.label ?? "";
+		const source = b.label ?? b.ownsLearned ?? b.background?.label ?? "";
 		return `<p class="stonetop-pick-bonus-note"><em>${escHtml(format("stonetop.pickBonus.note", { source, detail }))}</em></p>`;
 	}).join("");
 }
 
-/** `applyPickBonuses` and its note, for `actor` rolling `moveName`: the one call a card builder makes. */
-export function withMovePickBonuses(html, actor, moveName) {
-	const bonuses = movePickBonusesFor(actor, moveName);
-	if (!bonuses.length) return String(html ?? "");
-	const applied = applyPickBonuses(html, bonuses);
+/**
+ * One line per free question: "Free question (Hound of Aratis): What here is tainted by chaos?".
+ * Not a box on the list, because a box there would be one of its count, and a 10+ must still ask
+ * its 3 besides. Not tier-hidden either, as the list is on a 6-: the move says "even on a 6-".
+ */
+export function freeQuestionLines(bonuses = []) {
+	return bonuses.filter(b => b.freeQuestion).map(b => {
+		const source = b.when ? format("stonetop.pickBonus.freeWhen", { source: b.ownsLearned, when: b.when }) : b.ownsLearned;
+		const text = format("stonetop.pickBonus.freeQuestion", { source, question: b.freeQuestion });
+		return `<p class="stonetop-free-question"><em>${escHtml(text)}</em></p>`;
+	}).join("");
+}
+
+/**
+ * `applyPickBonuses` and its note, for `actor` rolling `moveName`: the one call a card builder makes.
+ * The free questions go straight under the move's list, beside the questions they sit outside of,
+ * or at the end of a card that has no list.
+ */
+export function withMovePickBonuses(html, actor, moveName, context = null) {
+	const src = String(html ?? "");
+	const bonuses = movePickBonusesFor(actor, moveName, context);
+	if (!bonuses.length) return src;
+	const applied = applyPickBonuses(src, bonuses);
 	// No list to lay them over, no note: it would name a count nothing on the card shows.
-	return applied === String(html ?? "") ? applied : applied + pickBonusNotes(bonuses);
+	const notes = applied === src ? "" : pickBonusNotes(bonuses);
+	const free = freeQuestionLines(bonuses);
+	const list = free ? _OPEN_RE.exec(applied) : null;
+	const withFree = list
+		? applied.slice(0, list.index + list[0].length) + free + applied.slice(list.index + list[0].length)
+		: applied + free;
+	return withFree + notes;
 }

@@ -1288,7 +1288,9 @@
       "readOnlyUnlit": "No holy light is lit.",
       "unlitAttackNotice": "No holy light is lit. The candle in the sheet header lights one.",
       "litLabel": "Holy light is lit",
-      "unlitLabel": "Holy light is out"
+      "unlitLabel": "Holy light is out",
+      "snuffedByRoll": "{name}'s holy light snuffs out.",
+      "snuffedEnding": "{name}'s holy light snuffs out. It takes {invocations} with it."
     },
     "invocations": {
       "chipLabel": "Concentrating on {name}",
@@ -1298,12 +1300,62 @@
       "endLabel": "End it",
       "endTooltip": "End it now. It also ends on its own the moment your holy light goes out, or when you use another Invocation.",
       "noticeStart": "This one is <strong>ongoing</strong>: you'll be concentrating on it until you end it, and you can't use another Invocation while it lasts.",
+      "noticeStartPair": "Both are <strong>ongoing</strong>: <strong>{name}</strong>. You'll be concentrating on them until you end them, and you can't use another Invocation while they last.",
+      "noticeStartOne": "<strong>{name}</strong> is <strong>ongoing</strong>: you'll be concentrating on it until you end it, and you can't use another Invocation while it lasts.",
       "noticeRenew": "You're already concentrating on <strong>{name}</strong>. Invoking it again renews it.",
       "noticeReplace": "You're concentrating on <strong>{name}</strong>. Invoking this ends it, and you concentrate on this instead.",
       "noticeInterrupt": "You're concentrating on <strong>{name}</strong>. You can't use another Invocation while it's ongoing, so using this one lets it go.",
       "endedTitle": "Invocation Ended",
       "endedByHand": "<strong>{name}</strong> ends.",
-      "endedLight": "<strong>{name}</strong> ends. The holy light is out."
+      "endedLight": "<strong>{name}</strong> ends. The holy light is out.",
+      "bannerSecond": "Also running: <strong>{name}</strong>.",
+      "noticeThrough": "Your empowered <strong>Dancing Light</strong> keeps burning: this one goes through it.",
+      "noticeThroughReplace": "Your empowered <strong>Dancing Light</strong> keeps burning and this one goes through it, so <strong>{name}</strong> ends.",
+      "burnTwiceLabel": "Burn Twice as Bright: mark a debility to use 2 Invocations at once. Roll once; any consequences apply to both.",
+      "burnTwicePartner": "Also use",
+      "burnTwicePrice": "Pay with",
+      "burnTwiceNoPrice": "All your debilities are already marked, so there is nothing to pay Burn Twice as Bright with.",
+      "burnTwiceCircle": "Your Auspicious Birth circle (no ill effect)",
+      "burnTwiceDebility": "Mark {debility}",
+      "burnTwiceCard": "Burn Twice as Bright: both at once, one roll, any consequences apply to both.",
+      "burnTwicePaidCircle": "You mark your Auspicious Birth circle.",
+      "burnTwicePaidDebility": "You mark {debility}.",
+      "pickEmpowered": "1 extra consequence",
+      "pickGloriousServant": "on a 10+ you need not choose a consequence; on a 7-9 you choose one and the GM does not",
+      "countShortOne": "You know {known} of the {expected} Invocations your level brings: 1 still to choose.",
+      "countShortMany": "You know {known} of the {expected} Invocations your level brings: {count} still to choose.",
+      "countOver": "You know {known} Invocations, more than the {expected} your level brings. Fine if that's intended.",
+      "countHint": "Turn on Edit and tick the Invocations you've learned.",
+      "consequenceCircle": "Mark your Auspicious Birth circle (no ill effect)",
+      "consequenceCircleName": "the Auspicious Birth circle",
+      "consequenceDebility": "Mark {debility}",
+      "consequenceMarked": "Marked {debility}.",
+      "consequenceTaken": "That is already marked. Choose another.",
+      "consequenceDebilityMarked": "{name} marks {debility}: the effort of invoking the Sun God taxes them.",
+      "consequenceCircleMarked": "{name} marks their Auspicious Birth circle instead of a debility, to no ill effect.",
+      "consequenceSnuffStamped": "The holy light goes out when {invocations} ends.",
+      "consequenceSnuffedNote": "The holy light went out, its fuel consumed.",
+      "consequenceSnuffed": "{name}'s holy light is snuffed out as the Invocation completes, its fuel consumed.",
+      "consequenceSnuffedEnding": "{name}'s holy light is snuffed out as the Invocation completes, its fuel consumed. It takes {invocations} with it.",
+      "consequenceNeedsSun": "{invocations} needs sun: bask in sunlight for an hour or so before using it again.",
+      "consequenceUnnamed": "This roll names no Invocation, so the sheet can't track this one: settle it at the table.",
+      "needsSunBadge": "Needs sun",
+      "needsSunTooltip": "You must bask in sunlight for an hour or so before using this Invocation again. A reminder, not a block.",
+      "baskedLabel": "Basked",
+      "baskedTooltip": "You have basked in sunlight: clear the reminder.",
+      "noticeNeedsSun": "<strong>{name}</strong> still needs sun: you were to bask in sunlight for an hour or so before using it again. Using it now clears the reminder.",
+      "partnerNeedsSun": "{name} (needs sun)",
+      "wielderButton": "Invoke the Sun God now (as a 10+)",
+      "wielderPick": "Wielder of the White Flame: which Invocation do you use?",
+      "whichTitle": "Invoke the Sun God: which Invocation?",
+      "whichPrompt": "Choose an Invocation you know. You roll +WIS for it next.",
+      "wielderNoneKnown": "You know no Invocations to use.",
+      "tenPlusTitle": "Invoke the Sun God (as a 10+)",
+      "tenPlusLead": "Wielder of the White Flame: as if you rolled a 10+. It works as described, but you must choose 1 consequence from the list below.",
+      "tenPlusWindow": "<em>Wielder of the White Flame:</em> Invoke the Sun God right now as if you rolled a 10+, with no roll. It works as described, and you choose 1 consequence.",
+      "tenPlusButton": "Invoke as a 10+",
+      "reducedTitle": "{name} (Reduced)",
+      "empoweredTitle": "{name} (Empowered)"
     },
     "condemn": {
       "openLabel": "What you are holding",
@@ -1358,6 +1410,9 @@
       "forTheGreaterGood": "Urging them to defend their community or civilization at large (For the Greater Good): advantage",
       "towerEternal": "Against magic (The Tower Eternal): treat a 6- as a 7-9",
       "judgeHelm": "Resisting mind-affecting magic (Helm): advantage",
+      "radiantCountenance": "Fond attention (Radiant Countenance): you gave them your fond attention first, so advantage",
+      "soulOnFire": "Preaching charity, mercy and hope to a group (Soul on Fire): on a 7+, also choose 1",
+      "soulOnFireNote": "<strong>Soul on Fire:</strong> aside from the usual effect, choose 1: your name and your message spread, or someone approaches you, now or later, eager to know more.",
       "bindingArbitration": "Against an oathbreaker (Binding Arbitration): advantage",
       "bindingArbitrationNamed": "Against an oathbreaker: {names} (Binding Arbitration): advantage"
     },
@@ -2268,6 +2323,8 @@
         "armorGate": {
           "barkskin": "Barkskin: {armor} armor, while touching the earth",
           "candle": "A Candle Against the Dark: {armor} armor, wielding a holy light and otherwise unarmed",
+          "barkskinOrCandle": "Barkskin or A Candle Against the Dark: {armor} armor, while touching the earth or wielding a holy light otherwise unarmed (untick only if neither holds)",
+          "barkskinOrCandleNote": "without {armor} armor: neither Barkskin nor A Candle Against the Dark held",
           "note": "without {move}'s {armor} armor",
           "versus": "Not {against}: {armor} armor, which {against} goes straight through",
           "versusNote": "{against} goes through {armor} armor"
@@ -2336,6 +2393,38 @@
       "lostFightOver": "The fight is over: {names} let go of their Readiness.",
       "lostLeftFight": "{name} leaves the fight and loses their Readiness.",
       "lostDown": "{name} is down and loses their Readiness."
+    },
+    "rollBoosts": {
+      "button": {
+        "diligence": "Diligence: +1",
+        "sanction": "Sanction: +1",
+        "manyHands": "Many Hands: +1",
+        "blessing": "Blessing: +1"
+      },
+      "buttonFor": "{label} ({name})",
+      "tip": {
+        "diligence": "Chronicler of Stonetop: {name} spends 1 Diligence ({held} held) to add +1 to this roll.",
+        "sanction": "Commune with Aratis: acting on Aratis's orders, {name} spends 1 Sanction ({held} held) to add +1 to this roll.",
+        "manyHands": "Many Hands Make Light Work: {name} jumps in to help. Say how, and ask the GM what else it takes or what it will cost. If you accept, this roll gets +1.",
+        "blessing": "Piety: in pursuit of a righteous cause, {name} spends their Blessing from worship to Helior to add +1 to this roll."
+      },
+      "note": {
+        "diligence": "+1 Diligence ({name})",
+        "sanction": "+1 Sanction ({name})",
+        "manyHands": "+1 Many Hands ({name})",
+        "blessing": "+1 Blessing ({name})"
+      },
+      "conditionsHeading": "Conditions Applied:",
+      "refused": "The +1 was not added: it has already been used on this roll, the track is empty, or no GM is here to record it.",
+      "piety": {
+        "title": "Who worshipped with you?",
+        "hint": "Each faithful PC who took part in the worship holds 1 Blessing, to spend for +1 on a roll of their own. Close this window if nobody else did.",
+        "choose": "Pick who took part",
+        "named": "Give {name} a Blessing",
+        "namedCount": "Give {count} people a Blessing",
+        "blessed": "1 Blessing held by each of: {names}.",
+        "missed": "No GM is online to give {names} a Blessing. Use Piety again once one is."
+      }
     }
   }
 }

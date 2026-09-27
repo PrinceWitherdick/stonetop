@@ -90,13 +90,18 @@ import {promptRoll, rollDamagePrompted, UNPROMPTED_ROLL} from "../../dialogs/Rol
 import {withSectionEditing} from "../../utils/section-editing.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {annotateInvocationEffects, splitEmpoweredEffect} from "./invocation-effects.js";
-import {CONSECRATED_FLAME, INVOKE_THE_SUN_GOD, EMPOWERED_INVOCATIONS, ownsMoveNamed, showHolyLight} from "./holy-light.js";
+import { CONSECRATED_FLAME, INVOKE_THE_SUN_GOD, EMPOWERED_INVOCATIONS, showHolyLight } from "./holy-light.js";
 import {ownedMoveNames, ownedMove, ownsLearnedMoveNamed, isPlayerAuthoredMove, isMoveLearned} from "./owns-move.js";
-import {invocationLabel, invokeNotice, readOngoing, resolveInvocationUse} from "./ongoing-invocation.js";
+import { invocationLabel, readOngoing, resolveInvocationUse } from "./ongoing-invocation.js";
 import {showJudgeMarks, condemnedContext, CONDEMN, CENSURE} from "./condemn.js";
 import {readyRulebookIcon, openSharedRulebook} from "../../books/rulebook-icons.js";
 import { endBattleJoyUnrolled } from "../../combat/battle-joy-offer.js";
+import { ownedLearnedMove } from "./owns-move.js";
+import { CARD_EMPOWERED_FLAG, CARD_INVOCATIONS_FLAG, TEN_PLUS_FLAG, debilityPayments, invokeTenPlusCardBody, payDebility } from "./invoke-consequences.js";
+import { DANCING_LIGHT, invocationLabels, invokeWindowNotice } from "./ongoing-invocation.js";
+import { INVOCATIONS_GRANTED_AT_FLAG, invocationCountCue } from "./invocation-count.js";
 import { CASTIGATE } from "./condemn.js";
+import { PIETY, holdBlessing, shareBlessing } from "./roll-boosts.js";
 import { pickPersonOnMap } from "../../dialogs/RelationshipLinkDialog.js";
 
 /**
@@ -140,6 +145,8 @@ import {canOpenTokenizer, openTokenizer} from "../../utils/portrait-tokenizer.js
 import {ensureFollowerActors, followerActorFromLink, syncFollowerActors} from "./follower-actors.js";
 import {INITIATE_BACKGROUND, activeInitiateOptions, initiateBackground, initiateChoicePatch, initiateExceptional, initiateMoves, initiateOption} from "./initiates.js";
 import {barkskinMarks, wearsBarkskin, MOVE_ARMOR_BASE} from "./move-armor.js";
+import {CLEARS_ON, clearTracksData, snapshotTracksClearedBy} from "./background-tracks.js";
+import {STARTING_INVOCATIONS_FLAG, learnedInvocations, rerunInvocations, startingInvocations} from "./starting-invocations.js";
 import {localize, format} from "../../utils/i18n.js";
 import {promptRaiseFromDead} from "../../hooks/DeathsDoorPrompt.js";
 
@@ -181,6 +188,14 @@ const FOLLOWER_ARMOR_SOURCES = [
 ];
 
 const _esc = escHtml;
+
+// "You start knowing 2" (the Invocations insert): how many Invocations onboarding gives with this
+// playbook, a playbook Item or the character's playbook data. 0 for one with no Invocations of its
+// own, whose character (a borrower through Invoke the Sun God) learns them all at level-up.
+function _startingInvocationCount(playbook) {
+	const raw = playbook?.flags?.stonetop?.invocations ?? playbook?.invocations;
+	return raw?.options?.length ? (raw.startingCount ?? 2) : 0;
+}
 
 // Whether the playbook a character has (`system.playbook`: { name, slug }) is the playbook Item
 // `doc`. By slug where both carry one, since a Would-be Hero can retitle their playbook's NAME;
@@ -369,6 +384,9 @@ const MOVE_USE_EFFECTS = {
 	// to it, so using the move IS collecting: the prompt asks the one question its text asks
 	// (winter or barren terrain?) and rolls the 1d6 accordingly.
 	[ON_THE_HOOF]:        sheet => sheet._onTheHoof(),
+	// Piety's worship holds the Lightbearer 1 Blessing and 1 for each faithful PC who took part,
+	// which is a question only the player can answer, so using the move asks it.
+	[PIETY]:              sheet => sheet._piety(),
 };
 
 // The same idea for moves that ROLL: their use does not fall through to the post-it-to-chat tail,
@@ -387,8 +405,13 @@ const MOVE_ROLL_EFFECTS = {
 // real roll. Asked first in _resolveMoveRollPrompts, the one ladder every roll path walks (the
 // Moves tab, the hotbar, the fight ring). Each answers whether it took the roll over; false lets the
 // plain roll go ahead.
+//
+// An Invoke the Sun God roll that has not said which Invocation it is for (no pick context: the Moves
+// tab, the hotbar, the fight ring) asks that first and goes the way a tap on that Invocation does
+// (_invokeWhichInvocation); the invoke window's own roll always carries one, and is not asked again.
 const MOVE_ROLL_INSTEAD = {
 	[HARD_TO_KILL]:       async sheet => { await sheet._rollHardToKill(); return true; },
+	[INVOKE_THE_SUN_GOD]: (sheet, { shiftKey, pickContext }) => !pickContext && sheet._invokeWhichInvocation({ shiftKey }),
 };
 
 /** Which sentence the scales' tooltip says, given what the Judge is actually holding. */
@@ -593,7 +616,17 @@ const INVOCATION_NOTICE_KEYS = {
 	renew:     "stonetop.invocations.noticeRenew",
 	replace:   "stonetop.invocations.noticeReplace",
 	interrupt: "stonetop.invocations.noticeInterrupt",
+	// A Burn Twice pair taking hold: both of it ongoing, or only the one named.
+	startPair: "stonetop.invocations.noticeStartPair",
+	startOne:  "stonetop.invocations.noticeStartOne",
+	// An empowered Dancing Light carrying this one; the second key when it also lets one go.
+	through:        "stonetop.invocations.noticeThrough",
+	throughReplace: "stonetop.invocations.noticeThroughReplace",
 };
+
+// Burn Twice as Bright: "When you Invoke the Sun God, you may mark a debility to use 2 Invocations
+// at once. Roll once, and apply any consequences to both Invocations."
+const BURN_TWICE_AS_BRIGHT = "Burn Twice as Bright";
 
 // Why an Invocation stopped, said in the chat card that reports it. The Invocation ending is a
 // thing that happens in the fiction — a wall of light drops, a blinding glare gutters — so unlike
@@ -1862,6 +1895,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			// ends it, and the player who most needs to see it is the one whose sheet is sitting on
 			// Moves reaching for the next thing to do.
 			context.stonetop.ongoingInvocation = this._ongoingInvocationContext();
+			// And the second, when two run at once (Burn Twice as Bright, or one going through an
+			// empowered Dancing Light): its own chip, with its own End it.
+			context.stonetop.ongoingInvocationSecond = this._ongoingInvocationContext("second");
 			// The header scales, on the same terms: shown once the Judge owns Condemn or Binding
 			// Arbitration, and kept on a sheet that no longer does while rows are still standing, so
 			// they can be lifted. The two lists are read fresh by the dialog rather than carried
@@ -2068,7 +2104,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			// get a Make-a-Plan note — so it's available when either is outstanding, even
 			// at full HP with no debilities.
 			const openWounds       = (snapshot.wounds ?? []).filter(w => !w.healed);
-			const canConvalesce    = !atFullHp || hasDebility || openWounds.length > 0;
+			// And a marked background track it clears (Auspicious Birth's circle), which stands in
+			// for a debility, so it is often the only thing marked.
+			const markedTracks     = snapshotTracksClearedBy(snapshot, CLEARS_ON.CONVALESCE).filter(t => t.marked);
+			const canConvalesce    = !atFullHp || hasDebility || openWounds.length > 0 || markedTracks.length > 0;
 			return {
 				atFullHp,
 				hasDebility,
@@ -3098,7 +3137,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (!raw?.options?.length) return null;
 			const selected = new Set(this.actor.getFlag(STONETOP_SCOPE, "invocations.selected") ?? []);
 			const showEffectTips = getHoverDescriptionSetting("hoverDescriptionsInvocations");
-			const ongoingSlug = this._stonetopCharacter.ongoingInvocation;
+			const running = new Set(this._runningInvocations());
+			// The Invoke consequence "You must bask in sunlight ... before using that Invocation again".
+			const needsSun = new Set(this._stonetopCharacter.invocationsNeedingSun ?? []);
 			const options = raw.options.map(opt => {
 				const description = opt.description ?? "";
 				return {
@@ -3107,11 +3148,27 @@ export function createStonetopCharacterSheetClass(Base) {
 					description: showEffectTips ? annotateInvocationEffects(description) : description,
 					known:       selected.has(opt.slug),
 					ongoing:     !!opt.ongoing,
-					// `ongoing` is what this Invocation IS; `active` is what it is DOING. Only one
-					// card can carry `active`, and it replaces the type badge there — a card that is
-					// visibly running does not also need telling that it is the running kind.
-					active:      !!ongoingSlug && opt.slug === ongoingSlug,
+					// `ongoing` is what this Invocation IS; `active` is what it is DOING. Only the
+					// running cards (one, or two at once) carry `active`, and it replaces the type badge
+					// there: a card that is visibly running does not also need telling that it is the
+					// running kind.
+					active:      running.has(opt.slug),
+					// A cue with a Basked button to clear it, never a block on using it.
+					needsSun:    needsSun.has(opt.slug),
 				};
+			});
+			// "N of M": how many they know against how many their level expects. A cue, never a
+			// block (invocation-count.js). Counted over the list's own slugs, so a stale slug left in
+			// `selected` by an older list does not count.
+			const optionSlugs = new Set(raw.options.map(opt => opt.slug));
+			const startingCount = borrowed ? 0 : (raw.startingCount ?? 2);
+			const countCue = invocationCountCue({
+				known:          [...selected].filter(slug => optionSlugs.has(slug)).length,
+				optionCount:    raw.options.length,
+				startingCount,
+				level:          this.actor.system?.attributes?.level?.value ?? 1,
+				borrowed,
+				grantedAtLevel: this.actor.getFlag(STONETOP_SCOPE, INVOCATIONS_GRANTED_AT_FLAG) ?? null,
 			});
 			// Known first, then alphabetically — mirrors the moves tab's owned-first order. The one
 			// order the tab has: an A–Z alternative used to be offered here as a dropdown, but the
@@ -3122,20 +3179,30 @@ export function createStonetopCharacterSheetClass(Base) {
 				return a.label.localeCompare(b.label);
 			});
 			return {
-				startingCount: borrowed ? 0 : (raw.startingCount ?? 2),
+				startingCount,
 				hideUnknown:   this.actor.getFlag(STONETOP_SCOPE, "hideUnknownInvocations") ?? false,
 				// The banner over the grid. Named here as well as on its own card because the
 				// hide-un-learned toggle and the search can both push that card out of sight, and
 				// the rule the banner restates is the one that costs you an Invocation.
 				concentrating: this._ongoingInvocationContext(),
+				concentratingSecond: this._ongoingInvocationContext("second"),
+				countCue,
 				options,
 			};
 		}
 
-		/** The Invocation being held open, for the header chip and the tab's banner. */
-		_ongoingInvocationContext() {
-			const slug = readOngoing(this._stonetopCharacter.ongoingInvocation);
+		/** An Invocation being held open, for the header chip and the tab's banner: the first slot,
+		 *  or with "second" the second (see ongoing-invocation.js). */
+		_ongoingInvocationContext(slot = "first") {
+			const raw = slot === "second" ? this._stonetopCharacter.ongoingInvocationSecond : this._stonetopCharacter.ongoingInvocation;
+			const slug = readOngoing(raw);
 			return { active: !!slug, slug, label: this._invocationLabel(slug) };
+		}
+
+		/** Every running Invocation's slug, first slot first. */
+		_runningInvocations() {
+			return [this._stonetopCharacter.ongoingInvocation, this._stonetopCharacter.ongoingInvocationSecond]
+				.map(readOngoing).filter(Boolean);
 		}
 
 		/** An Invocation's printed name, from whichever playbook the last render read. */
@@ -4361,6 +4428,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			// candle and the banner over the Invocations grid are the same control in two places a
 			// player might look for it. Only ever rendered where the sheet is editable.
 			html.find("button.stonetop-invocation-end").on("click", this._onEndOngoingInvocation.bind(this));
+			// "Basked": clear an Invocation's needs-sun cue (the Invoke consequence). Editable only.
+			html.find("button.stonetop-invocation-basked").on("click", this._onInvocationBasked.bind(this));
 			// The header scales. Unlike the candle this is wired for READERS too — the span/button
 			// split is about who may WRITE, and opening a list of who has been branded is looking,
 			// not writing. The dialog itself withholds its add and dismiss controls (see
@@ -5229,7 +5298,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				// offered the roll: the same line this sheet draws for moves, where the roll is
 				// what's gated and the reading is not.
 				const known = !card.classList.contains("is-unknown");
-				// Which Invocation this is, and whether it is one of the six that keep running —
+				// Which Invocation this is, and whether it is one of the seven that keep running,
 				// read off the card rather than matched by name, since the name in the DOM is the
 				// printed label and the state is keyed by slug.
 				const { slug = "", ongoing } = card.dataset;
@@ -6002,7 +6071,10 @@ export function createStonetopCharacterSheetClass(Base) {
 		// builds a detached stand-in for the row's rollable (see _makeSyntheticRollable)
 		// and feeds it to the same helpers the inline click handler uses — literally the same
 		// ladder, via _resolveMoveRollPrompts, so the two can no longer fall out of step.
-		async rollMoveById(itemId, { shiftKey = false } = {}) {
+		// `pickContext` is what was decided for this roll before it (an Invocation empowered for an
+		// extra consequence): held by the model around the roll, for the card's pick caps. See
+		// StonetopCharacter#withPickContext.
+		async rollMoveById(itemId, { shiftKey = false, pickContext = null } = {}) {
 			const item = this.actor?.items?.get(itemId);
 			if (!item) return void ui.notifications.warn("That move is no longer on this character.");
 			if (!this.isEditable) return;
@@ -6033,10 +6105,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 
 			// The same ladder the Moves tab's own dice click walks, which is the point: a move on
-			// the hotbar must ask what the sheet asks. See _resolveMoveRollPrompts.
-			const prompted = await this._resolveMoveRollPrompts(rollable, { shiftKey });
+			// the hotbar must ask what the sheet asks. See _resolveMoveRollPrompts. The pick context
+			// goes with it: an Invoke the Sun God roll that carries one has its Invocation already.
+			const prompted = await this._resolveMoveRollPrompts(rollable, { shiftKey, pickContext });
 			if (prompted === "handled" || prompted === "cancel") return;
-			const handled = await this._stonetopCharacter.onRoll({ currentTarget: rollable }, prompted);
+			const roll = () => this._stonetopCharacter.onRoll({ currentTarget: rollable }, prompted);
+			const handled = pickContext
+				? await this._stonetopCharacter.withPickContext(item.name, pickContext, roll)
+				: await roll();
 			// What rolling this move DOES beyond the roll — the same effects the Moves tab's own
 			// click fires, and gated the same way, so a weapon/target prompt backed out of here
 			// fires nothing either. A move dragged to the hotbar is rolled from there just as truly
@@ -6158,11 +6234,13 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * The roll prompt is only for 2d6 move/stat rolls, never a raw formula (a damage die, a
 		 * follower's attack) — so this answers correctly for ANY rollable on the sheet, which is
 		 * what lets the general rollable handler share it with the move-only hotbar path.
+		 *
+		 * `pickContext` is what rollMoveById was handed for this roll (see MOVE_ROLL_INSTEAD).
 		 */
-		async _resolveMoveRollPrompts(rollable, { shiftKey = false } = {}) {
+		async _resolveMoveRollPrompts(rollable, { shiftKey = false, pickContext = null } = {}) {
 			const insteadItem = this.actor.items.get(rollable.closest(".item")?.dataset?.itemId ?? "");
 			const instead = insteadItem?.type === "move" ? MOVE_ROLL_INSTEAD[insteadItem.name] : null;
-			if (instead && await instead(this, { shiftKey })) return "handled";
+			if (instead && await instead(this, { shiftKey, pickContext })) return "handled";
 
 			const guided = this._guidedMoveForRollable(rollable);
 			if (guided) { this._openGuidedCharacterMove(guided, rollable); return "handled"; }
@@ -6811,6 +6889,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			await character.settleBackgroundMoves(previous);
 			await character.settleBackgroundPossessions(previous);
 			await character.settleBackgroundArcana(previous);
+			// Mid-play, so the new background's tracks start empty (no "start of play" Enigma).
+			await character.settleBackgroundResources(previous);
 			if (slug && slug !== previous.slug) await this._fileBackgroundNeighbors(slug);
 		}
 
@@ -7528,8 +7608,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			// out may strand a Lightbearer concentrating on nothing), but its own boolean conflates
 			// "the light changed" with "an Invocation went with it" and only the second is news.
 			// Dropping it first makes the model's own drop a no-op, so this is still two writes.
-			const ending = lit ? this._invocationLabel(this._stonetopCharacter.ongoingInvocation) : "";
-			const ended  = !!ending && await this._stonetopCharacter.setOngoingInvocation("");
+			// Every running one: both slots go out with the light.
+			const ending = lit ? this._runningInvocations().map(slug => this._invocationLabel(slug)) : [];
+			const ended  = ending.length > 0 && await this._stonetopCharacter.setOngoingInvocation("");
 			const snuffed = await this._stonetopCharacter.setHolyLight(!lit);
 			if (snuffed || ended) this.render(false);
 			// The candle itself still posts nothing — snuffing it is the player correcting the
@@ -7553,19 +7634,36 @@ export function createStonetopCharacterSheetClass(Base) {
 			ev.preventDefault();
 			ev.stopPropagation();
 			if (!this.isEditable) return;
-			const ending = this._invocationLabel(this._stonetopCharacter.ongoingInvocation);
-			if (!ending) return;
-			if (!await this._stonetopCharacter.setOngoingInvocation("")) return;
+			// Each control names the Invocation it ends (two can run at once); one without a slug
+			// ends the first.
+			const slug = readOngoing(ev.currentTarget?.dataset?.slug) || readOngoing(this._stonetopCharacter.ongoingInvocation);
+			if (!slug) return;
+			// The model decides what else goes with it (the half going through an empowered Dancing
+			// Light), and pays a "light is snuffed" stamp, so the card names what the WRITE ended.
+			const result = await this._stonetopCharacter.endOngoingInvocation(slug);
+			if (!result?.changed || !result.ended?.length) return;
 			this.render(false);
-			await this._postInvocationEnded(ending, "byHand");
+			await this._postInvocationEnded(result.ended.map(s => this._invocationLabel(s)), result.snuffed ? "light" : "byHand");
 		}
 
-		/** Tell the table an Invocation stopped, and why. */
-		_postInvocationEnded(label, reason) {
+		/** The Basked button: this Invocation's wait on the sun is over. Clears the cue; nothing posts. */
+		async _onInvocationBasked(ev) {
+			ev.preventDefault();
+			ev.stopPropagation();
+			if (!this.isEditable) return;
+			const slug = readOngoing(ev.currentTarget?.dataset?.slug);
+			if (!slug) return;
+			if ((await this._stonetopCharacter.clearNeedsSun([slug]))?.length) this.render(false);
+		}
+
+		/** Tell the table an Invocation stopped (or several did, one line each), and why: the reason
+		 *  rides the last line, so "The holy light is out" is said once. */
+		_postInvocationEnded(labels, reason) {
 			const key = INVOCATION_ENDED_KEYS[reason] ?? INVOCATION_ENDED_KEYS.byHand;
-			return this._postMoveCard(
-				game.i18n.localize("stonetop.invocations.endedTitle"),
-				`<p>${game.i18n.format(key, { name: escHtml(label) })}</p>`);
+			const list = (Array.isArray(labels) ? labels : [labels]).filter(Boolean);
+			const body = list.map((label, i) => `<p>${game.i18n.format(i === list.length - 1 ? key : INVOCATION_ENDED_KEYS.byHand,
+				{ name: escHtml(label) })}</p>`).join("");
+			return this._postMoveCard(game.i18n.localize("stonetop.invocations.endedTitle"), body);
 		}
 
 		/**
@@ -7671,6 +7769,41 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 			const chosen = pool.find(doc => doc.id === id);
 			return chosen ? [chosen] : [];
+		}
+
+		/**
+		 * Using Piety: "When you spend at least an hour in proper worship to Helior, hold 1 Blessing.
+		 * Other faithful PCs who partake in this worship also hold 1 Blessing."
+		 *
+		 * The Lightbearer's own Blessing goes on Piety's pip; then the people picker asks which of the
+		 * party took part, several at once, and each of them holds 1 as a flag (roll-boosts.js#
+		 * shareBlessing, through the GM's client for a character this player does not own). Closing
+		 * the picker is "nobody else". Whether they were faithful is the table's call, not the sheet's.
+		 * Every Blessing is spent from its holder's own roll card (roll-boosts.js).
+		 *
+		 * Gated on Piety LEARNED, like every rule here: a Piety kept switched off holds nothing.
+		 */
+		async _piety() {
+			if (!this.isEditable || !ownsLearnedMoveNamed(this.actor, PIETY)) return;
+			await holdBlessing(this.actor);
+			const party = partyCharacters({ exclude: this.actor.id });
+			if (!party.length) return;
+			const ids = await pickPersonOnMap({
+				options: party.map(actor => ({ id: actor.id, name: actor.name, actor })),
+				multiple: true,
+				title: localize("stonetop.rollBoosts.piety.title"),
+				hint: localize("stonetop.rollBoosts.piety.hint"),
+				icon: "fa-sun",
+				buttonLabel: localize("stonetop.rollBoosts.piety.choose"),
+				formatLabel: name => format("stonetop.rollBoosts.piety.named", { name }),
+				formatManyLabel: count => format("stonetop.rollBoosts.piety.namedCount", { count }),
+			});
+			const chosen = party.filter(actor => Array.isArray(ids) && ids.includes(actor.id));
+			if (!chosen.length) return;
+			const { blessed, missed } = await shareBlessing(this.actor, chosen);
+			const names = list => joinNames(list.map(actor => actor.name));
+			if (blessed.length) ui.notifications?.info(format("stonetop.rollBoosts.piety.blessed", { names: names(blessed) }));
+			if (missed.length) ui.notifications?.warn(format("stonetop.rollBoosts.piety.missed", { names: names(missed) }));
 		}
 
 		/**
@@ -7872,10 +8005,49 @@ export function createStonetopCharacterSheetClass(Base) {
 		 *
 		 * One slot, so re-consecrating writes nothing (setHolyLight returns false) and the sheet
 		 * doesn't re-render. No chat card either: the move's own card has already posted.
+		 *
+		 * Except for what the OLD flame was carrying. Consecrating a new flame while one is lit puts
+		 * the old one out, and an Invocation running on it ends with it ("it will end immediately if
+		 * your holy light is extinguished"), so that is asked first, naming what ends, the ending
+		 * answer first. A Dancing Light is exempt, "untethered from its fuel", and so is whatever is
+		 * going through an empowered one. Declining leaves everything as it was.
 		 */
 		async _consecrateFlame() {
 			if (!this.isEditable) return;
-			if (await this._stonetopCharacter.setHolyLight(true)) this.render(false);
+			const model = this._stonetopCharacter;
+			const tethered = model.holyLight ? this._tetheredInvocations() : [];
+			if (tethered.length) {
+				const names = invocationLabels(tethered, this._invocationOptions);
+				const ok = await confirmOutcome({
+					title:   "Consecrate a new flame",
+					content: `<p>This puts out the old flame and ends <strong>${escHtml(names)}</strong>.</p>`,
+					yes:     { label: tethered.length > 1 ? "End them and consecrate" : "End it and consecrate", icon: "fa-fire" },
+					no:      { label: "Keep the old flame" },
+					classes: ["stonetop"],
+				});
+				if (!ok) return;
+				const ended = [];
+				for (const slug of tethered) {
+					const result = await model.endOngoingInvocation(slug);
+					for (const s of result?.ended ?? []) if (!ended.includes(s)) ended.push(s);
+				}
+				if (ended.length) await this._postInvocationEnded(ended.map(s => this._invocationLabel(s)), "byHand");
+				// A "snuffed when complete" stamp on what ended has put the light out; the new flame
+				// is lit all the same.
+				await model.setHolyLight(true);
+				this.render(false);
+				return;
+			}
+			if (await model.setHolyLight(true)) this.render(false);
+		}
+
+		/** The running Invocations that burn on the flame itself: all but a Dancing Light, which is
+		 *  "untethered from its fuel", and whatever is going through an empowered one. */
+		_tetheredInvocations() {
+			const model = this._stonetopCharacter;
+			const running = this._runningInvocations();
+			const carried = running[0] === DANCING_LIGHT && model.ongoingInvocationEmpowered === true ? running[1] : "";
+			return running.filter(slug => slug !== DANCING_LIGHT && slug !== carried);
 		}
 
 		/**
@@ -8627,87 +8799,271 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * move (a cross-playbook pick through Versatile, a Lightbearer whose starting move was
 		 * dropped) has to be tracked like any other — otherwise the header chip, the banner and the
 		 * "you can't use another while one is ongoing" rule are dead for them forever.
+		 *
+		 * `asTenPlus` is Wielder of the White Flame's "Invoke the Sun God right now as if you rolled a
+		 * 10+" (_invokeAsTenPlus): the same window and bookkeeping, and in place of the roll a card of
+		 * Invoke's consequences to choose 1 from. Answers null then unless it was invoked, so the
+		 * Wielder card's button is given back for a "Just show it".
 		 */
-		async _postInvocationCard(name, description, { shiftKey = false, known = true, slug = "", ongoing = false } = {}) {
+		async _postInvocationCard(name, description, { shiftKey = false, known = true, slug = "", ongoing = false, asTenPlus = false } = {}) {
 			const { base, empowered } = splitEmpoweredEffect(description);
 			// `known` first: an Invocation this character hasn't learned can be read but not
 			// invoked, so neither question is worth asking about one. rollMoveById also bails
 			// silently when the sheet isn't editable, so an observer must never be offered a
 			// roll button that would do nothing.
-			const canInvoke  = known && this.isEditable && ownsMoveNamed(this.actor, INVOKE_THE_SUN_GOD);
-			const canEmpower = known && !!empowered && ownsMoveNamed(this.actor, EMPOWERED_INVOCATIONS);
+			// Rules ask whether the move is LEARNED: an un-learned Invoke the Sun God or Empowered
+			// Invocations is kept on the sheet switched off, and must not go on offering its roll.
+			const canInvoke  = known && this.isEditable && ownsLearnedMoveNamed(this.actor, INVOKE_THE_SUN_GOD);
+			const canEmpower = known && !!empowered && ownsLearnedMoveNamed(this.actor, EMPOWERED_INVOCATIONS);
 			// Whether this tap is a USE at all, which is the narrower question the two gates above
 			// answer for the roll and the empower checkbox. An un-learned Invocation is being read
 			// out; a sheet nobody can write is being looked at; anything else is being used.
 			const canUse = known && this.isEditable;
+			// Burn Twice as Bright rides the Invoke roll, and needs another known Invocation to pair
+			// with this one, and a debility (or the Auspicious Birth circle) to pay with.
+			const partners = canInvoke && ownsLearnedMoveNamed(this.actor, BURN_TWICE_AS_BRIGHT)
+				? this._burnTwicePartners(slug) : [];
+			const prices = partners.length ? this._burnTwicePrices() : [];
 
-			const used = { slug, ongoing };
+			const model = this._stonetopCharacter;
 			// Nothing to decide — no window, and the affirmative is assumed, because a tap with no
 			// question attached to it is still the player saying they use this.
-			let answer = { roll: false, used: canUse, empower: false };
+			let answer = { roll: false, used: canUse, empower: false, burnTwice: null };
 			if (canInvoke || canEmpower) {
 				answer = await this._promptInvokeInvocation({
-					name, empoweredHtml: empowered, canInvoke, canEmpower,
-					lit:    this._stonetopCharacter.holyLight,
-					notice: invokeNotice({ current: this._stonetopCharacter.ongoingInvocation, used, options: this._invocationOptions }),
+					name, empoweredHtml: empowered, canInvoke, canEmpower, partners, prices, asTenPlus,
+					lit:    model.holyLight,
+					// What it ends or takes hold of, for what is ticked in the window: re-read as the
+					// Empower box and Burn Twice's partner change, since both change the answer.
+					noticeFor: ({ empower = false, partner = null } = {}) => invokeWindowNotice({
+						current: model.invocationState, used: { slug, ongoing }, empower, partner, options: this._invocationOptions }),
+					// "You must bask in sunlight ... before using that Invocation again": said, never enforced.
+					sunNotice: slug && (model.invocationsNeedingSun ?? []).includes(slug) ? this._invocationLabel(slug) : "",
 				});
 				if (answer === null) return null;   // dismissed — the Invocation isn't used at all
 			}
+			const partner = answer.burnTwice ? partners.find(p => p.slug === answer.burnTwice.slug) ?? null : null;
+			// Empowered, as the window answered: an empowered Cleansing Light is ongoing
+			// (ongoing-invocation.js#usesOngoing reads `empowered` for that), and an empowered
+			// Dancing Light carries another Invocation.
+			const used = { slug, ongoing, empowered: !!answer.empower,
+				...(partner ? { also: { slug: partner.slug, ongoing: !!partner.ongoing } } : {}) };
 
-			// What using it does to the Invocation already running. Worked out BEFORE the card is
-			// built, because the one it displaces is named on that card: the ending belongs in the
+			// What using it does to the Invocations already running. Worked out BEFORE the card is
+			// built, because what it displaces is named on that card: the ending belongs in the
 			// same post as the thing that caused it, not in a second card the table has to pair up
 			// with the first.
-			const use = answer.used
-				? resolveInvocationUse({ current: this._stonetopCharacter.ongoingInvocation, used })
-				: null;
-			const lead = use?.ended
-				? `<p class="stonetop-chat-invocation-ended"><em>${escHtml(this._invocationLabel(use.ended))} ends.</em></p>`
-				: "";
+			const use = answer.used ? resolveInvocationUse({ current: model.invocationState, used }) : null;
+			const lead = (use?.ended ?? []).map(s =>
+				`<p class="stonetop-chat-invocation-ended"><em>${escHtml(this._invocationLabel(s))} ends.</em></p>`).join("");
+
+			// The price of Burn Twice as Bright, paid before the dice: "you may mark a debility to use
+			// 2 Invocations at once. Roll once". Marked first, so a debility on the roll's own stat
+			// counts against it, as the book's order has it. Named on the card.
+			const paid = partner ? await this._payBurnTwicePrice(answer.burnTwice.price) : "";
 
 			// Card first, roll second: the card is the statement and the roll is how it goes.
 			// It also means a cancelled roll prompt (which fires INSIDE rollMoveById) leaves
 			// the Invocation posted rather than losing everything.
-			const card = answer.empower
-				? await this._postMoveCard(`${name} (Empowered)`, lead + base + EMPOWERED_NOTE_HTML + empowered)
-				: await this._postMoveCard(name, lead + base);
+			const title = (partner ? `${name} + ${partner.label}` : name) + (answer.empower ? " (Empowered)" : "");
+			let body = lead;
+			if (partner) {
+				body += `<p class="stonetop-chat-burn-twice"><i class="fas fa-fire" aria-hidden="true"></i> `
+					+ `<em>${escHtml(game.i18n.localize("stonetop.invocations.burnTwiceCard"))}</em>`
+					+ (paid ? ` ${escHtml(paid)}` : "") + `</p>`;
+				body += `<h4 class="stonetop-chat-invocation-heading">${escHtml(name)}</h4>`;
+			}
+			body += answer.empower ? base + EMPOWERED_NOTE_HTML + empowered : base;
+			if (partner) {
+				const split = splitEmpoweredEffect(partner.description);
+				body += `<h4 class="stonetop-chat-invocation-heading">${escHtml(partner.label)}</h4>`
+					+ split.base + (answer.empower && split.empowered ? split.empowered : "");
+			}
+			const card = await this._postMoveCard(title, body);
 			// Written before the roll, deliberately. A 6- is the GM's to narrate — it may or may not
 			// mean the Invocation failed to take hold — so the sheet records what the player did and
 			// leaves "it didn't work" to one click on End it, rather than guessing from a die.
-			if (use?.changed) await this._stonetopCharacter.setOngoingInvocation(use.next);
-			if (answer.roll) await this.rollMoveByName(INVOKE_THE_SUN_GOD, { shiftKey });
+			if (use?.changed) await model.setInvocationState(use.state);
+			// Used again: whatever sun it was waiting on is behind it (the window said so first).
+			const invocations = [slug, partner?.slug].map(readOngoing).filter(Boolean);
+			const basked = answer.used && invocations.length ? await model.clearNeedsSun?.(invocations) : [];
+			// The empower and Burn Twice choices reach the roll card, whose consequence caps they
+			// change (move-pick-bonuses.js), and so does which Invocation(s) it is for, which the
+			// card's consequences act on (invoke-consequences.js). ALWAYS handed over, even naming
+			// nothing: a roll that carries a pick context is one whose Invocation was already chosen,
+			// and the roll ladder asks "Which Invocation?" of any Invoke the Sun God roll that arrives
+			// without one (_invokeWhichInvocation). This one must not be asked again.
+			const pickContext = { empowered: !!answer.empower, burnTwice: !!partner, ...(invocations.length ? { invocations } : {}) };
+			if (answer.roll && asTenPlus) await this._postInvokeTenPlus(pickContext);
+			else if (answer.roll) await this.rollMoveByName(INVOKE_THE_SUN_GOD, { shiftKey, pickContext });
 			// The banner, the header chip and the card's badge are all read at render time, so the
 			// flag write above shows up only once the sheet repaints. Left until AFTER the roll —
 			// re-rendering mid-roll would pull the roll prompt out from under it — and guarded
 			// on the sheet still being open, since the roll is an await and it may have been closed.
-			if (use?.changed && this.rendered) this.render(false);
-			return card;
+			if ((use?.changed || partner || basked?.length) && this.rendered) this.render(false);
+			return asTenPlus && !answer.roll ? null : card;
 		}
 
 		/**
-		 * The Invocation window. Resolves {roll, empower}, or null if it was dismissed — the
-		 * choices are made BEFORE the roll, so backing out means the Invocation was never used
-		 * and nothing is posted.
+		 * Wielder of the White Flame's 10+: "you may Invoke the Sun God right now as if you rolled a
+		 * 10+" (the button on its roll card, invoke-consequences.js#wireWielderInvoke). Asks which
+		 * known Invocation (straight on when there is one), then the ordinary invoke path with no
+		 * roll. Answers the posted card, or null when nothing was invoked.
+		 */
+		async _invokeAsTenPlus() {
+			const choices = await this._knownInvocationChoices();
+			if (!choices.length) {
+				ui.notifications?.warn?.(game.i18n.localize("stonetop.invocations.wielderNoneKnown"));
+				return null;
+			}
+			const chosen = await this._pickKnownInvocation(choices, {
+				title: game.i18n.localize("stonetop.invocations.tenPlusTitle"),
+				prompt: game.i18n.localize("stonetop.invocations.wielderPick"),
+			});
+			if (!chosen) return null;
+			return this._postInvocationCard(chosen.label, chosen.description ?? "",
+				{ known: true, slug: chosen.slug, ongoing: !!chosen.ongoing, asTenPlus: true });
+		}
+
+		/**
+		 * An Invoke the Sun God roll that names no Invocation (the Moves tab, a hotbar macro, the fight
+		 * ring: every roll that walks _resolveMoveRollPrompts without a pick context). The move is
+		 * "choose an Invocation you know and roll +WIS", so it asks which (straight on when one is
+		 * known) and then goes exactly the way a tap on that Invocation's title goes, window and all
+		 * (_postInvocationCard): Empower, Burn Twice, what it ends, and a roll card that names it, so
+		 * its snuffing and its sun have an Invocation to act on.
+		 *
+		 * Answers true when it took the roll over (closing the picker included: nothing is rolled),
+		 * false to let the plain roll go ahead: a character who knows no Invocations, or whose Invoke
+		 * the Sun God is switched off, rolls it as before, and the card says to settle it at the table.
+		 * Works on a sheet that has never been drawn (the hotbar's), reading the list off the playbook.
+		 */
+		async _invokeWhichInvocation({ shiftKey = false } = {}) {
+			if (!ownsLearnedMoveNamed(this.actor, INVOKE_THE_SUN_GOD)) return false;
+			const choices = await this._knownInvocationChoices();
+			if (!choices.length) return false;
+			const chosen = await this._pickKnownInvocation(choices, {
+				title: game.i18n.localize("stonetop.invocations.whichTitle"),
+				prompt: game.i18n.localize("stonetop.invocations.whichPrompt"),
+			});
+			if (chosen) {
+				await this._postInvocationCard(chosen.label, chosen.description ?? "",
+					{ shiftKey, known: true, slug: chosen.slug, ongoing: !!chosen.ongoing });
+			}
+			return true;
+		}
+
+		/** The Invocations this character KNOWS, as the playbook's options, in its order. */
+		async _knownInvocationChoices() {
+			const source = await this._stonetopCharacter.invocationSource?.();
+			const options = source?.options ?? [];
+			// Named from the playbook even on a sheet that has never been drawn.
+			if (!this._invocationOptions?.length) this._invocationOptions = options;
+			const known = new Set(this.actor.getFlag(STONETOP_SCOPE, "invocations.selected") ?? []);
+			return options.filter(opt => opt?.slug && known.has(opt.slug));
+		}
+
+		/**
+		 * Which of `choices` (known Invocations): the one, when there is only one, else asked, one
+		 * button each, an Invocation still waiting on the sun marked so. Null when the picker is closed.
+		 */
+		async _pickKnownInvocation(choices, { title, prompt }) {
+			if (choices.length === 1) return choices[0];
+			const sun = new Set(this._stonetopCharacter.invocationsNeedingSun ?? []);
+			const slug = await askWithButtons({
+				title,
+				content: `<p>${escHtml(prompt)}</p>`,
+				buttons: choices.map(opt => ({ key: opt.slug, icon: "fa-sun", value: opt.slug,
+					label: sun.has(opt.slug) ? game.i18n.format("stonetop.invocations.partnerNeedsSun", { name: opt.label }) : opt.label })),
+			});
+			return choices.find(opt => opt.slug === slug) ?? null;
+		}
+
+		/** The "as if you rolled a 10+" card: Invoke the Sun God's consequences, choose 1, no roll. */
+		_postInvokeTenPlus(pickContext = null) {
+			const invoke = ownedLearnedMove(this.actor, INVOKE_THE_SUN_GOD) ?? ownedMove(this.actor, INVOKE_THE_SUN_GOD);
+			const invocations = pickContext?.invocations ?? [];
+			return ChatMessage.create({
+				content: moveChatCard(game.i18n.localize("stonetop.invocations.tenPlusTitle"),
+					invokeTenPlusCardBody(invoke?.system?.description ?? "", this.actor, pickContext)),
+				speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+				// Stamped like a rolled card, so the same consequence wiring acts on its ticks, and as the
+				// 10+ it stands for, so what a rolled 7+ offers (the holy relics, an Invocation's own
+				// button) is offered here without a roll to read it off.
+				flags: { [STONETOP_SCOPE]: { move: INVOKE_THE_SUN_GOD, [TEN_PLUS_FLAG]: true,
+					...(invocations.length ? { [CARD_INVOCATIONS_FLAG]: invocations } : {}),
+					...(invocations.length && pickContext?.empowered ? { [CARD_EMPOWERED_FLAG]: true } : {}) } },
+			});
+		}
+
+		/** The other Invocations this character KNOWS, for Burn Twice as Bright's picker. */
+		_burnTwicePartners(slug) {
+			const known = new Set(this.actor.getFlag(STONETOP_SCOPE, "invocations.selected") ?? []);
+			const sun = new Set(this._stonetopCharacter.invocationsNeedingSun ?? []);
+			return (this._invocationOptions ?? [])
+				.filter(opt => opt?.slug && opt.slug !== slug && known.has(opt.slug))
+				.map(opt => ({ slug: opt.slug, label: opt.label, ongoing: !!opt.ongoing, description: opt.description ?? "",
+					needsSun: sun.has(opt.slug) }));
+		}
+
+		/** What Burn Twice as Bright can be paid with (invoke-consequences.js#debilityPayments). */
+		_burnTwicePrices() {
+			return debilityPayments(this.actor).map(p => ({ value: p.key, label: p.circle
+				? game.i18n.localize("stonetop.invocations.burnTwiceCircle")
+				: game.i18n.format("stonetop.invocations.burnTwiceDebility", { debility: p.name }) }));
+		}
+
+		/** Pay Burn Twice as Bright's price; answers the card's line saying what was marked, or "". */
+		async _payBurnTwicePrice(price) {
+			const paid = await payDebility(this.actor, price, BURN_TWICE_AS_BRIGHT);
+			if (!paid) return "";
+			return paid.circle
+				? game.i18n.localize("stonetop.invocations.burnTwicePaidCircle")
+				: game.i18n.format("stonetop.invocations.burnTwicePaidDebility", { debility: paid.name });
+		}
+
+		/**
+		 * The Invocation window. Resolves {roll, used, empower, burnTwice}, or null if it was
+		 * dismissed: the choices are made BEFORE the roll, so backing out means the Invocation was
+		 * never used and nothing is posted. `burnTwice` is `{slug, price}` (the second Invocation and
+		 * what pays for it) or null.
 		 *
 		 * TWO FIXED BUTTONS, always the same two. Empowering is a modifier of invoking, not a
 		 * third alternative, so it rides a checkbox: this window now opens on every single
 		 * Invocation use, and a button set that grows at 6th level would break the muscle memory
 		 * of every use before it. It also folds what would otherwise be two sequential dialogs
-		 * into one.
+		 * into one. Burn Twice as Bright is a checkbox for the same reason.
+		 *
+		 * `noticeFor({empower, partner})` answers the ongoing-Invocation notice for what is ticked
+		 * (ongoing-invocation.js#invokeWindowNotice), and is asked again whenever those controls
+		 * change.
 		 */
-		_promptInvokeInvocation({ name, empoweredHtml, canInvoke, canEmpower, lit, notice = null }) {
+		_promptInvokeInvocation({ name, empoweredHtml, canInvoke, canEmpower, lit, noticeFor = null, partners = [], prices = [], asTenPlus = false, sunNotice = "" }) {
 			return new Promise(resolve => {
 				let answer = null;
-				const read = (html, roll, used) => ({
-					roll,
-					used,
-					empower: !!html.find('[name="empower"]')[0]?.checked,
-				});
+				const value = (html, field) => html.find(`[name="${field}"]`)[0]?.value ?? "";
+				const read = (html, roll, used) => {
+					const burn = roll && partners.length && prices.length && !!html.find('[name="burnTwice"]')[0]?.checked;
+					const slug = burn ? value(html, "burnTwicePartner") : "";
+					const price = burn ? value(html, "burnTwicePrice") : "";
+					return {
+						roll,
+						used,
+						empower: !!html.find('[name="empower"]')[0]?.checked,
+						burnTwice: slug && price && partners.some(p => p.slug === slug) && prices.some(p => p.value === price)
+							? { slug, price } : null,
+					};
+				};
 				let content = "";
-				if (canInvoke) {
+				if (canInvoke && asTenPlus) {
+					// Wielder of the White Flame's 10+: no roll, the 10+'s one consequence.
+					content += `<p>${game.i18n.localize("stonetop.invocations.tenPlusWindow")}</p>`;
+				} else if (canInvoke) {
 					content += `<p><em>Invoke the Sun God:</em> imbue your holy light with Helior's power `
 						+ `and roll +WIS. On a 10+ it works, and you choose 1 consequence; on a 7-9 it works, `
 						+ `and you and the GM each choose 1.</p>`;
+				}
+				if (canInvoke) {
 					// Not a block: whether a light is at hand is the table's call, and the sheet's
 					// candle is only ever as current as someone kept it. Say it and move on.
 					if (!lit) content += `<p class="stonetop-invoke-nolight">`
@@ -8719,12 +9075,29 @@ export function createStonetopCharacterSheetClass(Base) {
 				// window must never change that state without having said so. Also not a block:
 				// ending one Invocation to use another is a legal, ordinary thing to do, it just
 				// has to be a decision rather than a discovery.
-				{
-					const key  = notice && INVOCATION_NOTICE_KEYS[notice.kind];
-					const line = key ? game.i18n.format(key, { name: escHtml(notice.ending) }) : "";
-					if (line) content += `<p class="stonetop-invoke-ongoing${notice.kind === "start" ? "" : " is-ending"}">`
-						+ `<i class="fas fa-sun" aria-hidden="true"></i> ${line}</p>`;
-				}
+				// In a holder of its own, because it is LIVE: ticking Empower (an empowered Cleansing
+				// Light is ongoing) or pairing a Burn Twice partner changes what ends, so the render
+				// hook below re-reads it from the window and swaps the line in place.
+				const noticeLine = n => {
+					const kind = n?.kind === "through" && n.ending ? "throughReplace" : n?.kind;
+					const key  = n && INVOCATION_NOTICE_KEYS[kind];
+					const line = key ? game.i18n.format(key, { name: escHtml(n.ending) }) : "";
+					return line ? `<p class="stonetop-invoke-ongoing${["start", "startPair", "startOne", "through"].includes(kind) ? "" : " is-ending"}">`
+						+ `<i class="fas fa-sun" aria-hidden="true"></i> ${line}</p>` : "";
+				};
+				// What the window's controls say right now, as noticeFor takes it.
+				const ticked = html => {
+					const burn = partners.length && prices.length && !!html.find('[name="burnTwice"]')[0]?.checked;
+					const partner = burn ? partners.find(p => p.slug === value(html, "burnTwicePartner")) ?? null : null;
+					return { empower: !!html.find('[name="empower"]')[0]?.checked, partner };
+				};
+				content += `<div class="stonetop-invoke-notice">${noticeLine(noticeFor?.())}</div>`;
+				// The Invoke consequence "You must bask in sunlight for an hour or so before using that
+				// Invocation again", still standing. A reminder, not a block: the table knows whether
+				// they basked, and using it clears the cue.
+				if (sunNotice) content += `<p class="stonetop-invoke-needs-sun">`
+					+ `<i class="fas fa-cloud-sun" aria-hidden="true"></i> `
+					+ `${game.i18n.format("stonetop.invocations.noticeNeedsSun", { name: escHtml(sunNotice) })}</p>`;
 				if (canEmpower) {
 					content += `<label class="stonetop-invoke-empower"><input type="checkbox" name="empower"> `
 						+ `<span>Empower it: choose an extra consequence before you roll.</span></label>`
@@ -8732,15 +9105,33 @@ export function createStonetopCharacterSheetClass(Base) {
 						+ `<p class="stonetop-empower-cost">The extra consequence is the price of asking, not a `
 						+ `penalty for failing: you take it however the roll turns out, even on a 10+.</p>`;
 				}
+				// Burn Twice as Bright: another known Invocation at once, one roll, and a debility (or
+				// the Auspicious Birth circle) as the price. Offered but unusable when every debility is
+				// already marked and there is no circle to mark instead: said, rather than hidden.
+				if (canInvoke && partners.length) {
+					const loc = key => escHtml(game.i18n.localize(key));
+					const opts = list => list.map(o => `<option value="${escHtml(o.value)}">${escHtml(o.label)}</option>`).join("");
+					content += `<label class="stonetop-invoke-burn-twice"><input type="checkbox" name="burnTwice"${prices.length ? "" : " disabled"}> `
+						+ `<span>${loc("stonetop.invocations.burnTwiceLabel")}</span></label>`;
+					content += prices.length
+						? `<div class="stonetop-burn-twice-fields">`
+							+ `<label>${loc("stonetop.invocations.burnTwicePartner")} <select name="burnTwicePartner">`
+							+ opts(partners.map(p => ({ value: p.slug,
+								label: p.needsSun ? game.i18n.format("stonetop.invocations.partnerNeedsSun", { name: p.label }) : p.label }))) + `</select></label>`
+							+ `<label>${loc("stonetop.invocations.burnTwicePrice")} <select name="burnTwicePrice">`
+							+ opts(prices) + `</select></label></div>`
+						: `<p class="stonetop-burn-twice-unpaid">${loc("stonetop.invocations.burnTwiceNoPrice")}</p>`;
+				}
 				new Dialog({
-					title:   canInvoke ? `${name}: Invoke the Sun God?` : `${name}: Empower it?`,
+					title:   canInvoke ? `${name}: Invoke the Sun God${asTenPlus ? " as a 10+" : ""}?` : `${name}: Empower it?`,
 					content,
 					buttons: {
 						// The affirmative key is declared first and is in the shared left-side list,
 						// so it sits opposite "Just show it".
 						roll: {
 							icon:     '<i class="fas fa-sun"></i>',
-							label:    canInvoke ? "Invoke the Sun God (+WIS)" : "Use it",
+							label:    !canInvoke ? "Use it"
+								: asTenPlus ? game.i18n.localize("stonetop.invocations.tenPlusButton") : "Invoke the Sun God (+WIS)",
 							callback: html => { answer = read(html, canInvoke, true); },
 						},
 						no: {
@@ -8753,7 +9144,17 @@ export function createStonetopCharacterSheetClass(Base) {
 						},
 					},
 					default: "roll",
-					render:  bringDialogToFront,
+					render:  html => {
+						bringDialogToFront(html);
+						if (!noticeFor) return;
+						// Re-derived from the whole window on any change, never patched per control, so
+						// the line always says what the affirmative button would do as ticked.
+						const refresh = () => {
+							const holder = html.find(".stonetop-invoke-notice")[0];
+							if (holder) holder.innerHTML = noticeLine(noticeFor(ticked(html)));
+						};
+						html.find('[name="empower"], [name="burnTwice"], [name="burnTwicePartner"]').on("change", refresh);
+					},
 					// Runs on every path out, button or ✕, so it is the one place that answers.
 					// A promise resolved only from the button callbacks would hang on a dismiss.
 					close:   () => resolve(answer),
@@ -9904,7 +10305,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			const openWounds = (snapshot.wounds ?? []).filter(w => !w.healed);
 			const healable   = openWounds.filter(w => w.status !== "permanent");
 			const permanent  = openWounds.filter(w => w.status === "permanent");
-			if (hp.value >= hp.max && activeDebilities.length === 0 && openWounds.length === 0) return;
+			// Auspicious Birth: "Clear it when you Make Camp or Convalesce."
+			const tracks     = snapshotTracksClearedBy(snapshot, CLEARS_ON.CONVALESCE).filter(t => t.marked);
+			if (hp.value >= hp.max && activeDebilities.length === 0 && openWounds.length === 0 && tracks.length === 0) return;
 
 			const hpRow = hp.value < hp.max
 				? `<li>Recover all HP: <strong>${hp.value} &rarr; ${hp.max}</strong>.</li>`
@@ -9912,6 +10315,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			const debilityRow = activeDebilities.length
 				? `<li>Clear ${activeDebilities.length === 1 ? "debility" : "debilities"}: <strong>${_esc(activeDebilities.map(d => d.name).join(", "))}</strong>.</li>`
 				: `<li>No debilities marked.</li>`;
+			const trackRow = tracks.length
+				? `<li>Clear <strong>${_esc(tracks.map(t => t.name).join(", "))}</strong>.</li>`
+				: "";
 
 			// Wounds that can heal → an OPT-IN checklist (unchecked by default): healing them
 			// is Convalesce's stricter "few weeks under a healer" tier, distinct from the "few
@@ -9954,7 +10360,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				content: `<form class="stonetop-homestead-dialog stonetop-convalesce-dialog">
 					<p class="stonetop-homestead-trigger"><em>When you rest for a few days, in safety and comfort…</em></p>
 					<div class="stonetop-homestead-reference">
-						<ul>${hpRow}${debilityRow}</ul>
+						<ul>${hpRow}${debilityRow}${trackRow}</ul>
 					</div>
 					<p class="stonetop-homestead-note"><em>When you rest for a few weeks under the care of a healer,</em> heal any problematic wounds that can heal. If you have suffered a permanent injury or impairment, either retire or Make a Plan to adapt to it.</p>
 					${healSection}
@@ -9974,7 +10380,7 @@ export function createStonetopCharacterSheetClass(Base) {
 								const next = (html.find(`[name="plan-${w.id}"]`).val() ?? "").trim();
 								if (next !== (w.planNote ?? "")) planNotes[w.id] = next;
 							}
-							this._applyConvalesce({ oldHp: hp.value, newHp: hp.max, debilities: activeDebilities, healable, healIds, planNotes });
+							this._applyConvalesce({ oldHp: hp.value, newHp: hp.max, debilities: activeDebilities, tracks, healable, healIds, planNotes });
 						},
 					},
 					cancel: { label: "Cancel" },
@@ -9984,9 +10390,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			}, { width: 480, classes: this._pastDeathWindowClasses(["dialog", "stonetop", "stonetop-convalesce-dialog"]) }).render(true);
 		}
 
-		async _applyConvalesce({ oldHp, newHp, debilities, healable = [], healIds = [], planNotes = {} }) {
+		// `tracks`: the marked background tracks Convalesce clears (background-tracks.js), in the same write.
+		async _applyConvalesce({ oldHp, newHp, debilities, tracks = [], healable = [], healIds = [], planNotes = {} }) {
 			const update = { "system.attributes.hp.value": newHp };
 			for (const d of debilities) update[`system.attributes.debilities.options.${d.key}.value`] = false;
+			Object.assign(update, clearTracksData(tracks, STONETOP_SCOPE));
 			await this.actor.update(update, { stonetopMove: "Convalesce" });
 
 			// Heal checked wounds (→ scars) and stamp any Make-a-Plan notes, in one write.
@@ -10002,6 +10410,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			const rows = [];
 			if (newHp > oldHp)       rows.push({ label: "HP", value: `${oldHp} → ${newHp} (+${newHp - oldHp})` });
 			if (debilities.length)   rows.push({ label: "Debilities cleared", value: debilities.map(d => d.name).join(", ") });
+			if (tracks.length)       rows.push({ label: "Cleared", value: tracks.map(t => t.name).join(", ") });
 			if (healedNames.length)  rows.push({ label: healedNames.length === 1 ? "Wound healed" : "Wounds healed", value: healedNames.join(", ") });
 			if (!rows.length)        rows.push({ label: "Convalesce", value: "Rested in safety and comfort." });
 			postMoveToChat(this.actor, "Convalesce", rows);
@@ -10607,7 +11016,10 @@ export function createStonetopCharacterSheetClass(Base) {
 				// them picked and confirming again changes nothing (see _restoreCreationPicks).
 				...this._restoreCreationPicks(playbookDoc, f),
 				moveChoices:     this._restoreOwnedMoveChoices(playbookDoc),
-				invocations:     [...(f.invocations?.selected ?? [])],
+				// Only the pair onboarding gave: the step asks for exactly those. The ones learned at
+				// level-up ride along as known and locked, and the apply keeps them (starting-invocations.js).
+				invocations:     startingInvocations(f.invocations?.selected, f.invocations?.starting, _startingInvocationCount(playbookDoc)),
+				learnedInvocations: learnedInvocations(f.invocations?.selected, f.invocations?.starting, _startingInvocationCount(playbookDoc)),
 				initiates:       Object.entries(f.background?.choices ?? {})
 				                       .filter(([, v]) => v === true)
 				                       .map(([k]) => k),
@@ -11078,7 +11490,24 @@ export function createStonetopCharacterSheetClass(Base) {
 			const flagUpd = {};
 			const f = key => `flags.${STONETOP_SCOPE}.${key}`;
 			if (Object.keys(backgroundAnswers).length)                flagUpd[f("moves.backgroundAnswers")] = backgroundAnswers;
-			if (selections.invocations?.length)                       flagUpd[f("invocations.selected")]    = selections.invocations;
+			// The Invocations step replaces only the pair onboarding gave: the ones learned at level-up
+			// are kept, and the new pair is stamped so the next re-run tells them apart. An ongoing
+			// Invocation no longer known is ended (starting-invocations.js).
+			const startingCount = _startingInvocationCount(playbookDoc);
+			if (startingCount > 0 && selections.invocations?.length) {
+				const next = rerunInvocations({
+					selected: resolvedFlagProperty(this.actor, "invocations.selected"),
+					starting: resolvedFlagProperty(this.actor, STARTING_INVOCATIONS_FLAG),
+					startingCount,
+					picks:    selections.invocations,
+				});
+				flagUpd[f("invocations.selected")]    = next.selected;
+				flagUpd[f(STARTING_INVOCATIONS_FLAG)] = next.starting;
+				const known = new Set(next.selected);
+				for (const slug of this._stonetopCharacter.ongoingInvocations ?? []) {
+					if (!known.has(slug)) await this._stonetopCharacter.endOngoingInvocation(slug);
+				}
+			}
 			// Initiate onboarding owns only each initiate's pronoun + per-row choices.
 			// Write those with dotted paths (Foundry merges, leaving sibling keys intact)
 			// so a hand-edit of the same initiate's moves / notes / gear / stat overrides

@@ -9,6 +9,7 @@ import {stonetopThumbnail} from "../utils/item-icon.js";
 import {STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "../actors/character/StonetopFlags.js";
 import {newArcanumSlug, isArcanumData} from "./createArcanum.js";
 import {withMovePickBonuses} from "../actors/character/move-pick-bonuses.js";
+import {CARD_EMPOWERED_FLAG, CARD_INVOCATIONS_FLAG} from "../actors/character/invoke-consequences.js";
 import {moveRollOptions} from "../actors/character/move-roll-options.js";
 
 /**
@@ -294,8 +295,20 @@ export function createStonetopItemClass(BaseItem) {
 			// The printed list's caps are a reading of the MOVE; what the ROLLER brings to it (a
 			// Perceptive Fox's extra question, a 6- that still asks one, The Natural's added
 			// question) is laid over them here, where the roller is known. See move-pick-bonuses.js.
+			// So is what was decided for THIS roll before the dice (an Invocation empowered for an
+			// extra consequence): the roll's pick context, handed in or held by the character model
+			// for the one roll it was set around (StonetopCharacter#withPickContext).
+			const pickContext = options.pickContext ?? actor?.typedActor?.pickContextFor?.(this.name) ?? null;
 			const cardDescription = withMovePickBonuses(moveCardBody(moveDescription, this.system?.moveResults,
-				{ pickable: options.pickable ?? !declaredPicks.length }), actor, this.name) + signoff;
+				{ pickable: options.pickable ?? !declaredPicks.length }), actor, this.name, pickContext) + signoff;
+			// Which Invocation(s) an Invoke the Sun God roll is for, when the pick context names them:
+			// the card's consequences act on exactly those (actors/character/invoke-consequences.js).
+			// And whether they were empowered, which changes what an Invocation's own button offers
+			// (invocation-apply.js: Bath of Healing Light's empowered choices).
+			if (Array.isArray(pickContext?.invocations) && pickContext.invocations.length) {
+				messageFlags[STONETOP_SCOPE] = { ...messageFlags[STONETOP_SCOPE], [CARD_INVOCATIONS_FLAG]: [...pickContext.invocations],
+					...(pickContext.empowered ? { [CARD_EMPOWERED_FLAG]: true } : {}) };
+			}
 			// What this move adds to its own card (Never at a Loss's deferred XP, Battle Joy's and
 			// Wielder's buttons, the speech's), its tier actions after any the roll brought.
 			const moveExtras = moveRollOptions(this.name, actor, options.tierActions);

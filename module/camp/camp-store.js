@@ -6,10 +6,12 @@ import { deletionTarget } from "../utils/foundry-compat.js";
 import { postMoveToChat } from "../utils/chat.js";
 import { capitalizeFirst } from "../utils/strings.js";
 import {
-	CAMP_FLAG, CAMP_OWED_FLAG, CAMP_STATE, CAMP_STATUS, HAD_ALL_ALONG, SETTLE_REFUSAL, UNLIVING_KINDS,
+	BREAK_BREAD, CAMP_FLAG, CAMP_OWED_FLAG, CAMP_STATE, CAMP_STATUS, HAD_ALL_ALONG, HOME_FIRES, SETTLE_REFUSAL, UNLIVING_KINDS,
 	campLedger, campShareUpdate, campState, count, freezeCampPlan, messKitAllAlong, newCampRecord, readCampRecord,
-	readOwedCamps, rollsBedroll, suppliesAllAlong,
+	readOwedCamps, rollsBedroll, rollsBreakBread, suppliesAllAlong,
 } from "./camp-rules.js";
+import { ownsLearnedMoveNamed } from "../actors/character/owns-move.js";
+import { CLEARS_ON, markedTracks, snapshotTracksClearedBy } from "../actors/character/background-tracks.js";
 import { campSummaryRows, hadAllAlongRows } from "./camp-view.js";
 
 /**
@@ -40,7 +42,7 @@ const OWED_PATH = `flags.${SYSTEM_ID}.${CAMP_OWED_FLAG}`;
 export const CAMP_CARD_FLAG = "campJoin";
 
 /** The fields a seated character may change on their own record. `offer` is a map by purse. */
-const CHOICE_FIELDS = new Set(["offer", "followers", "eats", "messKit", "benefit", "debility", "bedroll", "peaceful", "ready"]);
+const CHOICE_FIELDS = new Set(["offer", "followers", "eats", "messKit", "benefit", "debility", "bedroll", "peaceful", "ready", "properMeal", "hearthAsh"]);
 
 /**
  * How far back through the chat log a camp's cards are looked for. A join card is posted the
@@ -120,6 +122,11 @@ export function campMember(actor, hostId) {
 		maxHp:            record?.vitals.maxHp || count(actor.system?.attributes?.hp?.max),
 		activeDebilities: markedDebilities(actor, record?.vitals),
 		unliving:         isUnliving(actor),
+		// Read live, like the debilities: a move learned or switched off mid-camp counts as it is now.
+		breaksBread:      ownsLearnedMoveNamed(actor, BREAK_BREAD),
+		hearthCha:        ownsLearnedMoveNamed(actor, HOME_FIRES) ? Math.trunc(Number(actor.system?.stats?.cha?.value) || 0) : null,
+		// The tracks were named on sitting down (campVitalsFor); whether one is marked is read live.
+		clearsTonight:    markedTracks(record?.vitals.clears, actor.getFlag?.(SYSTEM_ID, "background.setupResources")),
 		pack:             packFor(actor),
 	};
 }
@@ -195,10 +202,12 @@ export async function campVitalsFor(actor) {
 			bedroll:    carried("bedroll"),
 			messKit:    carried("mess-kit"),
 			debilities: (snapshot?.debilities ?? []).map(d => ({ key: d.key, name: d.name })),
+			// Auspicious Birth's circle, which Make Camp clears.
+			clears:     snapshotTracksClearedBy(snapshot, CLEARS_ON.MAKE_CAMP).map(t => ({ key: t.key, name: t.name })),
 		};
 	} catch (err) {
 		console.warn(`Stonetop | Make Camp: could not read ${actor?.name}'s sheet, so the stored max HP stands in`, err);
-		return { maxHp: storedMax, bedroll: false, messKit: false, debilities: [] };
+		return { maxHp: storedMax, bedroll: false, messKit: false, debilities: [], clears: [] };
 	}
 }
 
@@ -409,30 +418,36 @@ export async function settleCamp(camp) {
 async function settleHere(camp, host, ledger) {
 	// The dice now and their messages last: a plan that then failed to write would otherwise leave
 	// bedroll rolls in the log for a night that never happened.
-	const rolls = [];
+	const rolls  = [];
+	const breads = [];
 	for (const member of ledger.rows) {
 		if (rollsBedroll(member, ledger)) rolls.push({ member, roll: await new Roll("1d6").evaluate() });
+		// One meal, so one 1d8 each, however many at the fire hold Break Bread.
+		if (rollsBreakBread(member, ledger)) breads.push({ member, roll: await new Roll("1d8").evaluate() });
 	}
 	// Somebody else may have settled it, or broken it up, while the dice were out.
 	if (stateOfCamp(camp) !== CAMP_STATE.OPEN) return { ok: false, reason: SETTLE_REFUSAL.CLOSED };
 
-	const plan = freezeCampPlan(ledger, {
-		bedrolls: Object.fromEntries(rolls.map(({ member, roll }) => [member.actorId, roll.total])),
-	});
+	const byActor = list => Object.fromEntries(list.map(({ member, roll }) => [member.actorId, roll.total]));
+	const plan = freezeCampPlan(ledger, { bedrolls: byActor(rolls), breads: byActor(breads) });
 	await host.update({
 		[`${FLAG_PATH}.status`]:    CAMP_STATUS.SETTLED,
 		[`${FLAG_PATH}.plan`]:      plan,
 		[`${FLAG_PATH}.settledAt`]: Date.now(),
 	}, { stonetopLedger: true });
 
-	// Each bedroll is its own die in the log, the way the one-person camp always rolled it: a die
-	// the table can watch land, spoken by the character it heals.
-	for (const { member, roll } of rolls) {
-		await roll.toMessage({
-			speaker: ChatMessage.getSpeaker({ actor: game.actors?.get(member.actorId) }),
-			flavor:  "Bedroll (1d6 extra HP)",
-		});
-	}
+	// Each die is its own message in the log, the way the one-person camp always rolled it: a die the
+	// table can watch land, spoken by the character it heals. Made together, in one request, bedrolls
+	// first.
+	const dice = [
+		...rolls.map(die => ({ ...die, flavor: "Bedroll (1d6 extra HP)" })),
+		...breads.map(die => ({ ...die, flavor: "Break Bread (1d8 extra HP)" })),
+	];
+	const messages = await Promise.all(dice.map(({ member, roll, flavor }) => roll.toMessage({
+		speaker: ChatMessage.getSpeaker({ actor: game.actors?.get(member.actorId) }),
+		flavor,
+	}, { create: false })));
+	if (messages.length) await ChatMessage.implementation.createDocuments(messages);
 	postMoveToChat(host, "Make Camp", campSummaryRows(ledger, plan));
 	return { ok: true, plan };
 }

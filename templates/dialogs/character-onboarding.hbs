@@ -532,19 +532,23 @@
 		{{!-- ── Invocations (Lightbearer) ─────────────────────────── --}}
 		{{#if isInvocations}}
 		<h3 class="stonetop-onboarding-step-title">Invocations</h3>
-		<p class="stonetop-onboarding-step-hint">You start knowing {{invocationData.startingCount}} Invocations. Choose them now.</p>
+		<p class="stonetop-onboarding-step-hint">You start knowing {{invocationData.startingCount}} Invocations. Choose them now.{{#if invocationData.learnedCount}} The ones you learned at level-up stay known.{{/if}}</p>
 		<p class="stonetop-onboarding-move-counter">
 			<span class="stonetop-onboarding-invocation-count">{{invocationData.selectedCount}}</span>
 			/ {{invocationData.startingCount}} chosen
 		</p>
 		<div class="stonetop-onboarding-cards">
 			{{#each invocationData.options}}
-			<label class="stonetop-onboarding-card stonetop-onboarding-card--invocation{{#if isSelected}} is-selected{{/if}}">
+			<label class="stonetop-onboarding-card stonetop-onboarding-card--invocation{{#if isSelected}} is-selected{{/if}}{{#if isLearned}} is-preselected{{/if}}">
 				<div class="stonetop-onboarding-card-header">
 					<input type="checkbox" class="stonetop-onboarding-check" name="onboard-invocation" value="{{slug}}"
 					       {{#if isSelected}}checked{{/if}}
-					       {{#if disabled}}disabled{{/if}}>
+					       {{#if disabled}}disabled{{/if}}
+					       {{#if isLearned}}data-learned="true"{{/if}}>
 					<strong class="stonetop-onboarding-card-title">{{label}}</strong>
+					{{#if isLearned}}
+					<span class="stonetop-onboarding-possession-badge">Learned at level-up</span>
+					{{/if}}
 				</div>
 				{{#if description}}
 				<div class="stonetop-onboarding-card-desc">{{{description}}}</div>

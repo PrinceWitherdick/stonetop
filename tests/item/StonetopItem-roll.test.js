@@ -88,6 +88,86 @@ describe("StonetopItem.roll — Never at a Loss", () => {
 	});
 });
 
+// Battle Joy: "on a 6-, mark a debility but don't mark XP". The pack carries noXpOnMiss now, but a copy
+// owned from before it did keeps its old data, so the roll asks the move's name as well.
+describe("StonetopItem.roll: Battle Joy's ending roll", () => {
+	const BATTLE_JOY = { moveType: "playbook", rollType: "con", description: "<p>x</p>" };
+
+	function heavyItem(debilities = []) {
+		const item = makeItem("Battle Joy", BATTLE_JOY);
+		item.parent.typedActor = { debilityChoices: debilities };
+		return item;
+	}
+
+	it("marks no XP on a miss, even on an owned copy without the pack's noXpOnMiss", async () => {
+		await heavyItem().roll();
+		expect(rollStat.mock.calls[0][2].noXpOnMiss).toBe(true);
+	});
+
+	it("carries the 10+'s regain button and a 6- button per unmarked debility", async () => {
+		await heavyItem([
+			{ key: "weakened", name: "Weakened", marked: true },
+			{ key: "dazed", name: "Dazed", marked: false },
+			{ key: "miserable", name: "Miserable", marked: false },
+		]).roll();
+		const { tierActions } = rollStat.mock.calls[0][2];
+		expect(tierActions.success).toContain('data-choice="regain"');
+		expect(tierActions.failure).toContain('data-choice="dazed"');
+		expect(tierActions.failure).toContain('data-choice="miserable"');
+		expect(tierActions.failure).not.toContain('data-choice="weakened"');
+		expect(tierActions.partial).toBeUndefined();
+	});
+
+	it("leaves any other move's miss XP alone", async () => {
+		await makeItem("Clash", { rollType: "str" }).roll();
+		expect(rollStat.mock.calls[0][2].noXpOnMiss).toBe(false);
+		expect(rollStat.mock.calls[0][2].tierActions).toBeUndefined();
+	});
+});
+
+// Invoke the Sun God's card names the Invocation(s) it is for, from the roll's pick context, so its
+// ticked consequences act on the right slot (actors/character/invoke-consequences.js).
+describe("StonetopItem.roll: the Invocations an Invoke card is for", () => {
+	const INVOKE = { moveType: "playbook", rollType: "wis", description: "<p>x</p>" };
+
+	it("stamps them on the message", async () => {
+		await makeItem("Invoke the Sun God", INVOKE).roll({ pickContext: { empowered: false, invocations: ["blinding-flash", "warmth-of-the-sun"] } });
+		const flags = rollStat.mock.calls[0][2].messageFlags["stonetop-pwd"];
+		expect(flags).toEqual({ move: "Invoke the Sun God", invocations: ["blinding-flash", "warmth-of-the-sun"] });
+	});
+
+	// R7: what an Invocation's own button offers depends on it (Bath of Healing Light's empowered choices).
+	it("stamps whether they were empowered", async () => {
+		await makeItem("Invoke the Sun God", INVOKE).roll({ pickContext: { empowered: true, invocations: ["bath-of-healing-light"] } });
+		expect(rollStat.mock.calls[0][2].messageFlags["stonetop-pwd"])
+			.toEqual({ move: "Invoke the Sun God", invocations: ["bath-of-healing-light"], invokeEmpowered: true });
+	});
+
+	it("stamps nothing for a roll that names none", async () => {
+		await makeItem("Invoke the Sun God", INVOKE).roll();
+		expect(rollStat.mock.calls[0][2].messageFlags["stonetop-pwd"]).toEqual({ move: "Invoke the Sun God" });
+	});
+});
+
+// Wielder of the White Flame's 10+: "you may Invoke the Sun God right now as if you rolled a 10+".
+describe("StonetopItem.roll: Wielder of the White Flame's 10+", () => {
+	const WIELDER = { moveType: "playbook", rollType: "wis", description: "<p>x</p>" };
+
+	it("carries an Invoke-now button on the 10+ for a Lightbearer with both moves learned", async () => {
+		await makeItem("Wielder of the White Flame", WIELDER, [move("Wielder of the White Flame"), move("Invoke the Sun God")]).roll();
+		const { tierActions } = rollStat.mock.calls[0][2];
+		expect(tierActions.success).toContain("stonetop-wielder-invoke");
+		expect(tierActions.success).toContain("Invoke the Sun God now (as a 10+)");
+		expect(tierActions.partial).toBeUndefined();
+	});
+
+	it("carries nothing without Invoke the Sun God learned", async () => {
+		const unlearned = { ...move("Invoke the Sun God"), flags: { "stonetop-pwd": { learned: false } } };
+		await makeItem("Wielder of the White Flame", WIELDER, [move("Wielder of the White Flame"), unlearned]).roll();
+		expect(rollStat.mock.calls[0][2].tierActions).toBeUndefined();
+	});
+});
+
 // A move on a stat block: a monster's, or an NPC's.
 function statBlockMove(type, name, system) {
 	const Base = class {

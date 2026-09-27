@@ -122,6 +122,8 @@ import { registerCampWindowRestore } from "./module/camp/CampWindow.js";
 import { registerStruggleHooks } from "./module/struggle/struggle-flow.js";
 import { registerPcAskHooks, wirePcAskCard } from "./module/pc-asks/pc-ask-flow.js";
 import { registerFightTab } from "./module/fight/fight-boot.js";
+import { invokeCardChoosesConsequence, invokeActionRow, TEN_PLUS_FLAG } from "./module/actors/character/invoke-consequences.js";
+import { wireRollBoosts, BOOST_QUERY, handleBoostQuery, BLESSING_QUERY, handleBlessingQuery } from "./module/actors/character/roll-boosts.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -160,6 +162,10 @@ Hooks.once("init", () => {
 	// And Healer's Arts' Stock, asked for a patient's Recover out of a carer the player does not own.
 	// Answered by the carer's player, or the GM when none is online (actors/character/healers-arts.js).
 	if (CONFIG.queries) CONFIG.queries[HEALERS_ARTS_QUERY] = (data, context) => handleHealersArtsQuery(data, context);
+	// And a Judge's +1 (Diligence, Sanction, Many Hands) on another player's roll card (roll-boosts.js).
+	if (CONFIG.queries) CONFIG.queries[BOOST_QUERY] = (data, context) => handleBoostQuery(data, context, ROLL_BOOST_DEPS);
+	// And Piety's Blessing, given to a fellow worshipper the Lightbearer's player does not own (roll-boosts.js).
+	if (CONFIG.queries) CONFIG.queries[BLESSING_QUERY] = (data, context) => handleBlessingQuery(data, context);
 
 	// Every window and modal in the system is drag-resizable; the ad-hoc
 	// Dialog popups we spawn from sheets default to resizable too. The companion
@@ -1267,6 +1273,17 @@ function _chatWireBurnBrightly(message, html) {
 	});
 }
 
+// -- +1 TO A ROLL JUST MADE ------------------------------------
+// The Judge's Diligence (Chronicler of Stonetop) and Sanction (Commune with Aratis), and Many Hands Make
+// Light Work: buttons on the roll card that shift its total by one, the way Burn Brightly does. What they
+// need from here is the same shift the GM's Shift Up makes. See module/actors/character/roll-boosts.js.
+const ROLL_BOOST_DEPS = {
+	shiftRoll:  (roll, shift) => _shiftRoll(roll, shift),
+	cardFlavor: (flavor, total, formula) => _shiftRollCardFlavor(flavor, total, formula),
+	// A shifted Know Things card identifying an arcanum carries the new tier's disclosure, as Shift Up does.
+	afterShift: (message, total) => _resyncIdentification(message, speakerActor(message), total),
+};
+
 // -- KNOW THINGS: the moves that reach back into a landed roll --
 //
 // Two Seeker moves act on a Know Things roll AFTER the dice land, so both live on the card:
@@ -1521,25 +1538,32 @@ function _possessionFlags(actor) {
  * the consequences to choose on a 7+, so the relic is offered there, as the Logbook is on a Know
  * Things card. One per card: it stands in for the player's own choice, and the GM's pick on a 7-9
  * is still theirs to make. Settled on the message, so every client shows the same card.
+ *
+ * Wielder of the White Flame's "Invoke the Sun God right now as if you rolled a 10+" posts a card with
+ * the 10+'s list and no roll (invoke-consequences.js#invokeCardChoosesConsequence), so the relic goes
+ * in that card's own action row: it has no shared button row, and making one would invite a Shift and
+ * a Burn Brightly onto a card with no roll to shift.
  */
 function _chatWireHolyRelics(message, html) {
-	const card = html.querySelector(".stonetop-roll-card");
+	const tenPlus = !!message.getFlag(SYSTEM_ID, TEN_PLUS_FLAG);
+	const card = html.querySelector(tenPlus ? ".stonetop-chat-move" : ".stonetop-roll-card");
 	if (!card || _cardMoveName(message) !== INVOKE_THE_SUN_GOD) return;
-	const cardButtons = card.querySelector(".stonetop-card-buttons");
-	if (!cardButtons || cardButtons.querySelector(".stonetop-holy-relic-btn")) return;
+	if (card.querySelector(".stonetop-holy-relic-btn")) return;
 	if (message.getFlag(SYSTEM_ID, "holyRelicSpent")) return;
-	const roll = message.rolls?.at(0);
 	// A 6- has no consequence list for the player to choose from; the GM says what happens.
-	if (!roll || _classifyShiftedTotal(roll.total).key === "failure") return;
+	if (!invokeCardChoosesConsequence(message, { total: message.rolls?.at(0)?.total ?? null })) return;
 	const actor = speakerActor(message);
 	if (!canRewriteCard(message, actor)) return;
 	const relics = possessionTrackUses(_possessionFlags(actor), HOLY_RELICS);
 	if (!relics || relics.left <= 0) return;
+	// Found (or, on the 10+ card, made) only now that there is a button to put in it.
+	const cardButtons = tenPlus ? invokeActionRow(html) : card.querySelector(".stonetop-card-buttons");
+	if (!cardButtons) return;
 
 	const btn = document.createElement("button");
 	btn.className = "stonetop-logbook-btn stonetop-holy-relic-btn";
 	btn.innerHTML = `<i class="fas fa-sun"></i> Mark a holy relic`;
-	btn.dataset.tooltip = `Mark a use (${relics.left} of ${relics.max} left) in lieu of choosing a consequence.`;
+	btn.dataset.tooltip = `If you have one in your inventory, mark a use (${relics.left} of ${relics.max} left) in lieu of choosing a consequence.`;
 	btn.dataset.tooltipDirection = "UP";
 	cardButtons.appendChild(btn);
 	cardButtons.style.display = "flex";
@@ -2189,6 +2213,8 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatAnnotateDebility(message, html);
 	_chatWireRollShifting(message, html);
 	_chatWireBurnBrightly(message, html);
+	// Beside Burn Brightly, in the same row: a Judge's +1 on this roll, and the +1s already added.
+	wireRollBoosts(message, html, ROLL_BOOST_DEPS);
 	// After the roll-shift pass (which hides the button row from non-GMs) and after Burn
 	// Brightly, so the logbook pill sits to its right in the shared button row.
 	_chatWireKnowThings(message, html);

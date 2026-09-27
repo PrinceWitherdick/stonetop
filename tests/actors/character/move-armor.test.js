@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
 	moveArmor, barkskinMarkedBy, barkskinMarks, wearsBarkskin, withBarkskinBase, followerArmorGate, armorGateWords,
-	MOVE_ARMOR_BASE, CANDLE_AGAINST_THE_DARK,
+	MOVE_ARMOR_BASE, CANDLE_AGAINST_THE_DARK, ARMOR_SOURCE_JOIN,
 } from "../../../module/actors/character/move-armor.js";
 import { BARKSKIN, BLESSED_MARKS_FLAG } from "../../../module/actors/character/blessed-marks.js";
 import { SYSTEM_ID } from "../../../module/system-id.js";
@@ -115,5 +115,32 @@ describe("a follower's printed armor clause", () => {
 		expect(armorGateWords(BARKSKIN)).toMatchObject({ key: "barkskin", noteKey: "note" });
 		expect(armorGateWords("Something Newer")).toBe(null);
 		expect(armorGateWords("")).toBe(null);
+	});
+
+	it("has one box for Barkskin and the Candle together, whose words name both clauses", () => {
+		const both = `${BARKSKIN}${ARMOR_SOURCE_JOIN}${CANDLE_AGAINST_THE_DARK}`;
+		expect(armorGateWords(both)).toMatchObject({ key: "barkskinOrCandle", noteKey: "barkskinOrCandleNote" });
+		expect(armorGateWords(`${BARKSKIN}${ARMOR_SOURCE_JOIN}Something Newer`)).toBe(null);
+		const words = globalThis.game.i18n.format("stonetop.fight.heroMoves.armorGate.barkskinOrCandle", { armor: 2 });
+		expect(words).toContain("touching the earth");
+		expect(words).toContain("otherwise unarmed");
+	});
+});
+
+// Lightbearer audit (2026-09-25): B7, both moves at once used to carry Barkskin's name alone, so the
+// damage card's "touching the earth" box stripped armor a lit Candle still gave; R4, "otherwise
+// unarmed" is not met with a shield carried.
+describe("Barkskin and A Candle Against the Dark together, and the Candle beside a shield", () => {
+	const both = character("Sael", [BARKSKIN, CANDLE_AGAINST_THE_DARK]);
+
+	it("carries both sources at the one base of 2 when both hold", () => {
+		expect(moveArmor({ actor: both, holyLight: true }))
+			.toEqual({ base: MOVE_ARMOR_BASE, source: `${BARKSKIN}${ARMOR_SOURCE_JOIN}${CANDLE_AGAINST_THE_DARK}` });
+		expect(moveArmor({ actor: both, holyLight: false })).toEqual({ base: MOVE_ARMOR_BASE, source: BARKSKIN });
+	});
+
+	it("gives the Candle nothing with a shield carried, and leaves Barkskin alone", () => {
+		expect(moveArmor({ actor: character("Sael", [CANDLE_AGAINST_THE_DARK]), holyLight: true, shield: true })).toEqual({ base: 0, source: null });
+		expect(moveArmor({ actor: both, holyLight: true, shield: true })).toEqual({ base: MOVE_ARMOR_BASE, source: BARKSKIN });
 	});
 });

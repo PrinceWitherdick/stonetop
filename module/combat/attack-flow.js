@@ -804,13 +804,14 @@ export async function maybeBeginAttack(actor, item, { stat = null, weaponSlug = 
 		unrolled = mode === "deal";
 	}
 
-	// Rolling the stat a granted weapon rides on (+WIS to Clash → Purifying Flames)
-	// pre-selects that weapon, so the d10 the move promises is what's in hand by default.
+	// Rolling the stat a granted weapon rides on (+WIS to Clash → Purifying Flames) CHOOSES that
+	// weapon: the +WIS lives inside "When you wield a holy light against a creature of darkness", so a
+	// +WIS Clash with anything else in hand is not one the move allows, and there is nothing to ask.
 	const candidates = await carriedAttackWeapons(actor, move);
-	const preferSlug = candidates.find(c => c.whenStat && c.whenStat === stat)?.slug ?? null;
+	const impliedSlug = candidates.find(c => c.whenStat && c.whenStat === stat)?.slug ?? null;
 	// Both "which weapon should be pre-checked" and "is there anything to ask at all" are the
 	// prompt's own call — see promptWeaponChoice.
-	const picked = await promptWeaponChoice(candidates, item.name, { preferSlug, forceSlug: weaponSlug });
+	const picked = await promptWeaponChoice(candidates, item.name, { preferSlug: impliedSlug, forceSlug: weaponSlug ?? impliedSlug });
 	if (picked === "cancel") return "cancel";
 	const weapon = picked.weapon ? serializeWeapon(picked.weapon) : null;
 

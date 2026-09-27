@@ -114,7 +114,7 @@
 			    it are said. }}
 			{{#if stonetop.ongoingInvocation.active}}
 			{{#if editable}}
-			<button type="button" class="stonetop-invocation-chip stonetop-invocation-end"
+			<button type="button" class="stonetop-invocation-chip stonetop-invocation-end" data-slug="{{stonetop.ongoingInvocation.slug}}"
 			        aria-label="{{localize "stonetop.invocations.chipLabel" name=stonetop.ongoingInvocation.label}}"
 			        data-tooltip="{{localize "stonetop.invocations.chipTooltip" name=stonetop.ongoingInvocation.label}}"
 			        data-tooltip-direction="UP"><i class="fas fa-sun" aria-hidden="true"></i><span class="stonetop-invocation-chip-name">{{stonetop.ongoingInvocation.label}}</span></button>
@@ -123,6 +123,21 @@
 			      aria-label="{{localize "stonetop.invocations.chipLabel" name=stonetop.ongoingInvocation.label}}"
 			      data-tooltip="{{localize "stonetop.invocations.chipReadOnly" name=stonetop.ongoingInvocation.label}}"
 			      data-tooltip-direction="UP"><i class="fas fa-sun" aria-hidden="true"></i><span class="stonetop-invocation-chip-name">{{stonetop.ongoingInvocation.label}}</span></span>
+			{{/if}}
+			{{/if}}
+			{{! The second running Invocation (Burn Twice as Bright, or one going through an empowered
+			    Dancing Light): its own chip, ending only itself. }}
+			{{#if stonetop.ongoingInvocationSecond.active}}
+			{{#if editable}}
+			<button type="button" class="stonetop-invocation-chip stonetop-invocation-end is-second" data-slug="{{stonetop.ongoingInvocationSecond.slug}}"
+			        aria-label="{{localize "stonetop.invocations.chipLabel" name=stonetop.ongoingInvocationSecond.label}}"
+			        data-tooltip="{{localize "stonetop.invocations.chipTooltip" name=stonetop.ongoingInvocationSecond.label}}"
+			        data-tooltip-direction="UP"><i class="fas fa-sun" aria-hidden="true"></i><span class="stonetop-invocation-chip-name">{{stonetop.ongoingInvocationSecond.label}}</span></button>
+			{{else}}
+			<span class="stonetop-invocation-chip is-second"
+			      aria-label="{{localize "stonetop.invocations.chipLabel" name=stonetop.ongoingInvocationSecond.label}}"
+			      data-tooltip="{{localize "stonetop.invocations.chipReadOnly" name=stonetop.ongoingInvocationSecond.label}}"
+			      data-tooltip-direction="UP"><i class="fas fa-sun" aria-hidden="true"></i><span class="stonetop-invocation-chip-name">{{stonetop.ongoingInvocationSecond.label}}</span></span>
 			{{/if}}
 			{{/if}}
 			{{! The Judge's scales, beside the candle and on the same terms — shown once they own

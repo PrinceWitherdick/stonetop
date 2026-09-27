@@ -117,7 +117,7 @@
     "slug": "candle",
     "column": "small",
     "weight": 1,
-    "tags": "lasts ~1 hour, <em>hand</em>, <em>area</em>",
+    "tags": "lasts ~1 hour, <em>close</em>, <em>area</em>",
     "special": true,
     "specialCategory": "Light Sources"
   },
@@ -333,8 +333,9 @@
     "weight": 1,
     "tags": "for lamp/lantern, useless as a weapon",
     "resource": {
-      "max": 4,
+      "max": 5,
       "labels": [
+        "",
         "",
         "",
         "",

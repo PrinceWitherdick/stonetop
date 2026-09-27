@@ -42,12 +42,47 @@
 		      a translator can move it. --}}
 		<span class="stonetop-invocation-concentrating-text">{{{localize "stonetop.invocations.bannerText" name=(escapeHtml stonetop.invocations.concentrating.label)}}}</span>
 		{{#if editable}}
-		<button type="button" class="stonetop-invocation-end"
+		<button type="button" class="stonetop-invocation-end" data-slug="{{stonetop.invocations.concentrating.slug}}"
 		        data-tooltip="{{localize "stonetop.invocations.endTooltip"}}"
 		        data-tooltip-direction="UP">{{localize "stonetop.invocations.endLabel"}}</button>
 		{{/if}}
 	</div>
 	{{/if}}
+	{{!-- The second running Invocation, when two run at once, with an End it of its own. --}}
+	{{#if stonetop.invocations.concentratingSecond.active}}
+	<div class="stonetop-invocation-concentrating is-second">
+		<i class="fas fa-sun" aria-hidden="true"></i>
+		<span class="stonetop-invocation-concentrating-text">{{{localize "stonetop.invocations.bannerSecond" name=(escapeHtml stonetop.invocations.concentratingSecond.label)}}}</span>
+		{{#if editable}}
+		<button type="button" class="stonetop-invocation-end" data-slug="{{stonetop.invocations.concentratingSecond.slug}}"
+		        data-tooltip="{{localize "stonetop.invocations.endTooltip"}}"
+		        data-tooltip-direction="UP">{{localize "stonetop.invocations.endLabel"}}</button>
+		{{/if}}
+	</div>
+	{{/if}}
+
+	{{!-- "N of M": how many Invocations are known against how many the level brings. Flagged,
+	      never blocked: blue when some are still to choose, the gold caution when there are more
+	      than expected (invocation-count.js). --}}
+	{{#with stonetop.invocations.countCue}}
+	<div class="stonetop-intros-notice {{#if shortfall}}stonetop-intros-notice--choice{{else}}stonetop-intros-notice--warn{{/if}} stonetop-invocations-count-notice">
+		<i class="fas {{#if shortfall}}fa-circle-question{{else}}fa-triangle-exclamation{{/if}}" aria-hidden="true"></i>
+		<div class="stonetop-moves-level-notice-body">
+			<p>
+			{{#if shortfall}}
+				{{#if (eq shortfall 1)}}
+					{{localize "stonetop.invocations.countShortOne" known=known expected=expected}}
+				{{else}}
+					{{localize "stonetop.invocations.countShortMany" known=known expected=expected count=shortfall}}
+				{{/if}}
+			{{else}}
+				{{localize "stonetop.invocations.countOver" known=known expected=expected}}
+			{{/if}}
+			</p>
+			{{#if shortfall}}<p class="stonetop-moves-level-notice-hint">{{localize "stonetop.invocations.countHint"}}</p>{{/if}}
+		</div>
+	</div>
+	{{/with}}
 
 	<div class="stonetop-invocations-grid">
 		{{#each stonetop.invocations.options}}
@@ -68,6 +103,18 @@
 				{{#if active}}<span class="stonetop-item-source stonetop-invocation-active" data-tooltip="You are concentrating on this Invocation. It lasts until you end it, until you use another, or until your holy light goes out." data-tooltip-direction="UP">Concentrating</span>
 				{{else if ongoing}}<span class="stonetop-item-source stonetop-invocation-ongoing" data-tooltip="While one Invocation is ongoing, you can't use another. You can end an Invocation whenever you wish, and it will end immediately if your holy light is extinguished. An invocation's range is equal to that of its light source." data-tooltip-direction="UP">Ongoing</span>{{/if}}
 			</div>
+			{{!-- The Invoke consequence "You must bask in sunlight for an hour or so before using that
+			      Invocation again". A cue, never a block: Basked clears it, and so does using it. --}}
+			{{#if needsSun}}
+			<div class="stonetop-invocation-needs-sun">
+				<span class="stonetop-item-source stonetop-invocation-sun-badge" data-tooltip="{{localize "stonetop.invocations.needsSunTooltip"}}" data-tooltip-direction="UP"><i class="fas fa-cloud-sun" aria-hidden="true"></i> {{localize "stonetop.invocations.needsSunBadge"}}</span>
+				{{#if @root.editable}}
+				<button type="button" class="stonetop-invocation-basked" data-slug="{{slug}}"
+				        data-tooltip="{{localize "stonetop.invocations.baskedTooltip"}}"
+				        data-tooltip-direction="UP">{{localize "stonetop.invocations.baskedLabel"}}</button>
+				{{/if}}
+			</div>
+			{{/if}}
 			<div class="stonetop-invocation-desc">{{{description}}}</div>
 		</div>
 		{{/each}}
