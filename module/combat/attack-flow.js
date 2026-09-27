@@ -2731,7 +2731,7 @@ async function applyOwedDamage(message, damage) {
 		: attacker;
 	// Defend's Readiness, spent on a blow from this card (fight/defend-spend.js): halved before armor,
 	// or taken by a defender in the ward's place, against the defender's own armor.
-	const { halved, standIns, ignored, knockedDown } = spentOn(current);
+	const { halved, standIns, ignored, knockedDown, safetyFirst } = spentOn(current);
 	const lines = [];
 	// What each token does on the map once this press lands (combat/attack-fx.js#playHitReactions):
 	// on whoever actually took the blow, which is the stand-in when a Defend put one in the way.
@@ -2768,10 +2768,12 @@ async function applyOwedDamage(message, damage) {
 		const back = groupArmor && shown !== rolled
 			? ` <span class="stonetop-damage-mitigated">(${escHtml(format("stonetop.fight.seed.armorBack", { shown, rolled, armor: groupArmor }))})</span>`
 			: "";
-		// Halved by Readiness, by I Get Knocked Down, or by both — each is its own move with its own price,
-		// and the book stops neither from meeting the same blow. Halving comes before armor (p.216).
+		// Halved by Readiness, by I Get Knocked Down, by Safety First's Protection, or by more than one: each
+		// is its own move with its own price, and the book stops none from meeting the same blow. Halving
+		// comes before armor (p.216).
 		let raw = halved.has(r.uuid) ? halveDamage(rolled) : rolled;
 		if (knockedDown.has(r.uuid)) raw = halveDamage(raw);
+		if (safetyFirst.has(r.uuid)) raw = halveDamage(raw);
 		const effective = mitigateDamage(raw, { armor, piercing, unpierceable, ignoresArmor: current.weapon?.ignoresArmor });
 		// Through `mitigationDetail`, the one place the subtraction is put into words: this
 		// used to restate `armor - piercing` inline, which stopped matching the moment

@@ -15,7 +15,7 @@
 // character has left to spend, and the card markup. The Foundry writes live in stonetop.js
 // beside Burn Brightly, the existing post-roll card mutation.
 
-import { ownsMoveNamed, ownedMove, ownedMoveNames } from "./owns-move.js";
+import { ownsLearnedMoveNamed, ownedLearnedMove, ownedMoveNames } from "./owns-move.js";
 
 // Re-exported so this module's tests keep reaching the helper through the feature module.
 export { ownedMoveNames };
@@ -40,10 +40,11 @@ export function isKnowThings(moveName) {
  * pouch) counts the same way; Rites of the Land's Boon is the pool that counts the other.
  *
  * `max` comes off the owned move Item rather than a constant, so a homebrew or re-pointed Logbook
- * keeps working. Returns null when the character doesn't own the move at all.
+ * keeps working. Returns null when the character doesn't own the move, or keeps it switched off
+ * (un-learned): a rule asks the learned move, so an un-learned Logbook offers no consult.
  */
 export function logbookUses(actor, moveResourceMap = {}) {
-	const item = ownedMove(actor, LOGBOOK);
+	const item = ownedLearnedMove(actor, LOGBOOK);
 	if (!item) return null;
 	const max   = Number(item.system?.resource?.max) || 0;
 	const spent = Math.max(0, Number(moveResourceMap[LOGBOOK]) || 0);
@@ -72,12 +73,12 @@ export function neverAtALossActions() {
 
 /**
  * Extra roll options for a Know Things roll, folded into whatever the caller already passes.
- * Returns null for a character who owns neither move, so the ordinary roll is untouched.
+ * Returns null for a character without Never at a Loss LEARNED, so the ordinary roll is untouched.
  *
  * `noXpOnMiss` is set only for Never at a Loss: suppressing the automatic mark is what lets the
  * player choose afterwards. Without the move, a miss marks XP the moment the dice land, as usual.
  */
 export function knowThingsRollOptions(actor) {
-	if (!ownsMoveNamed(actor, NEVER_AT_A_LOSS)) return null;
+	if (!ownsLearnedMoveNamed(actor, NEVER_AT_A_LOSS)) return null;
 	return { noXpOnMiss: true, tierActions: neverAtALossActions() };
 }

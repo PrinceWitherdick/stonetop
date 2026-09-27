@@ -75,7 +75,7 @@ import {STRUGGLE_MOVE} from "../../struggle/struggle-rules.js";
 import {rollProvisions, ON_THE_HOOF} from "./provisions.js";
 import {buildMoveTierResults} from "../../utils/move-results.js";
 import {knowThingsRollChoices, withAdvantage, KNOW_THINGS_STAT} from "./arcana-identify.js";
-import {movePickBonusesFor} from "./move-pick-bonuses.js";
+import {movePickBonusesFor, withMovePickBonuses} from "./move-pick-bonuses.js";
 import {statRuleIssues} from "./stat-rules.js";
 import {ARTIFACT_STATE, artifactStateForTier, knowThingsArtifactResults, seekInsightArtifactResults,
 	ARTIFACT_INSIGHT_QUESTIONS, ARTIFACT_LEAD_SUGGESTIONS} from "./artifact-identify.js";
@@ -8698,8 +8698,10 @@ export function createStonetopCharacterSheetClass(Base) {
 				messageFlags: { [STONETOP_SCOPE]: { move: "Know Things", ...subject } },
 				...(knowThingsRollOptions(this.actor) ?? {}),
 				moveName:        "Know Things",
-				moveDescription: owned?.system?.description
-					?? `<p>When you <strong><em>consult your accumulated knowledge</em></strong>, roll +INT.</p>`,
+				// And what the roller brings to the card, as StonetopItem.roll lays it: Well Versed's
+				// follow-up question, "even on a 6-" (move-pick-bonuses.js).
+				moveDescription: withMovePickBonuses(owned?.system?.description
+					?? `<p>When you <strong><em>consult your accumulated knowledge</em></strong>, roll +INT.</p>`, this.actor, "Know Things"),
 				moveResults: buildMoveTierResults(results),
 			});
 			return { roll };

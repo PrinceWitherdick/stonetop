@@ -172,6 +172,16 @@ describe("Apply damage and the fight's rules", () => {
 		expect(pim2.system.attributes.hp.value).toBe(9);
 	});
 
+	// Seeker audit (2026-09-26): Safety First's "spend 1 Protection ... to halve its damage/effects".
+	it("halves a blow for Safety First's Protection, before armor", async () => {
+		const pim = hero("pim", "Pim");
+		const { tokens } = fightInARow([["pim", pim]]);
+		const row = { uuid: tokens.pim.uuid, name: "Pim", raw: 9 };
+		await apply({ move: "Bite", weapon: null, results: [row], applied: [], safetyFirstBy: [{ uuid: row.uuid, name: "Pim", how: "safetyFirst" }] });
+		// 9 halved to 5, less Pim's 2 armor.
+		expect(pim.system.attributes.hp.value).toBe(7);
+	});
+
 	it("leaves the armor a move's fiction granted out of a blow when its box is unticked", async () => {
 		// Aerin's 2 armor is Barkskin's, so Apply takes it off when the table says she was not on the earth.
 		const aerin = hero("aerin", "Aerin");

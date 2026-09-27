@@ -38,7 +38,7 @@ import {normalizeRollMode, tookOffer} from "../../dialogs/RollDialog.js";
 import {deletionEntry} from "../../utils/foundry-compat.js";
 import {statRequirementsUnmet} from "./stat-requirement.js";
 import {effectiveRequiredMoves, requiredMovesUnmet, requirementLabel} from "./move-requirement.js";
-import {MoveResources} from "./MoveResources.js";
+import {MoveResources, learnedTrack, takeBackHeld} from "./MoveResources.js";
 import {debilityData, walkItOffChoice} from "./walk-it-off.js";
 import {moveMarkBudget, markOptionCapNote} from "./move-mark-budget.js";
 import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
@@ -74,7 +74,7 @@ import {CharacterInventory} from "./CharacterInventory.js";
 import {maybeBeginAttack, maybeCounterOnMiss, maybeMissFx, attackMoveFor, attackFoeAdvantage, recordClashedFoes, rollMoveDamageAt, snapshotTargets} from "../../combat/attack-flow.js";
 import {aimPcAskRoll} from "../../pc-asks/pc-ask-flow.js";
 import {INTERFERE_MOVE, PERSUADE_PC_MOVE, PC_ASK_FLAG} from "../../pc-asks/pc-ask-rules.js";
-import {brokenOaths, oathbreakerAgainst, alphaAgainst, spendAlphaOver} from "../../fight/hero-moves.js";
+import {brokenOaths, oathbreakerAgainst, alphaAgainst, spendAlphaOver, HERO_MOVES} from "../../fight/hero-moves.js";
 import {defendReadinessHold, defendReadinessCap, readinessCount, readinessForTier, READINESS_FLAG, DEFEND_MOVE} from "../../combat/defend-readiness.js";
 import {settleReadinessOnAttack} from "../../combat/readiness-loss.js";
 import {classifyResult, messageOfRoll} from "../../utils/roll-engine.js";
@@ -211,6 +211,14 @@ const FICTION_ROLL_OFFERS = [
 		source: "Trailblazer", label: "stonetop.rollOffers.trailblazer", effect: "successNote", note: "stonetop.rollOffers.trailblazerNote" },
 	{ key: "constant-vigilance", moves: () => true, ownsLearned: "Constant Vigilance", unlessDebility: "dazed",
 		source: "Constant Vigilance", label: "stonetop.rollOffers.constantVigilance" },
+	{ key: "lets-make-a-deal", moves: isPersuadeMove, ownsLearned: "Let's Make a Deal",
+		source: "Let's Make a Deal", label: "stonetop.rollOffers.letsMakeADeal", effect: "partialAsSuccess" },
+	{ key: "polyglot", moves: name => name === "Know Things", ownsLearned: "Polyglot",
+		source: "Polyglot", label: "stonetop.rollOffers.polyglot" },
+	{ key: "proof-against-detection", moves: name => name === "Defy Danger", ownsLearned: "Proof Against Detection",
+		whileHolding: HERO_MOVES.SAFETY_FIRST, source: "Proof Against Detection", label: "stonetop.rollOffers.proofAgainstDetection" },
+	{ key: "safety-first", moves: name => name === "Defy Danger", ownsLearned: HERO_MOVES.SAFETY_FIRST,
+		whileHolding: HERO_MOVES.SAFETY_FIRST, spendHeld: HERO_MOVES.SAFETY_FIRST, source: HERO_MOVES.SAFETY_FIRST, label: "stonetop.rollOffers.safetyFirst" },
 ];
 
 /** The card rows a taken note-only offer prints on, by its `effect` (see _withHitNote). */
@@ -2107,7 +2115,8 @@ export class StonetopCharacter {
 	 * FICTION_ROLL_OFFERS their moves and possessions bring to it (unticked).
 	 *
 	 * Each line carries what taking it does, so onRoll settles every line the same way: `source`, named
-	 * on the card; `effect`, what it does to the roll (advantage unless it says "missAsPartial"); and
+	 * on the card; `effect`, what it does to the roll (advantage unless it says "missAsPartial",
+	 * "partialAsSuccess" or a note); and
 	 * `spend(moveName)`, its price if it has one, paid after the dice.
 	 */
 	async rollOffers(item) {
@@ -2130,10 +2139,14 @@ export class StonetopCharacter {
 		for (const row of FICTION_ROLL_OFFERS) {
 			if (!row.moves(moveName)) continue;
 			if (row.unlessDebility && this._actor.system?.attributes?.debilities?.options?.[row.unlessDebility]?.value) continue;
+			if (row.whileHolding && !(learnedTrack(this._actor, row.whileHolding)?.held > 0)) continue;
 			if (!await this._earnsRollOffer(row)) continue;
 			offers.push({
 				key: row.key, label: _loc(row.label), applied: false, source: row.source,
 				...(row.effect ? { effect: row.effect } : {}), ...(row.note ? { note: _loc(row.note) } : {}),
+				// 1 held off the track (a hold pool counts what is HELD). Re-read, so a pip spent by hand
+				// while the window was open is not given back.
+				...(row.spendHeld ? { spend: () => takeBackHeld(this._actor, row.spendHeld, 1) } : {}),
 			});
 		}
 		const oathbreaker = this._oathbreakerOffer(moveName);
@@ -4083,14 +4096,15 @@ export class StonetopCharacter {
 		if (!descriptionOnly) Object.assign(rollOptions, this._foldStandingModes(rollOptions, item.name));
 		// The lines the roll window offered and the player left ticked (rollOffers: a skin of fine
 		// whisky shared before a Persuade): the same fold, each paid for after the dice, below. Stone
-		// Cold's line buys no advantage: it counts a 6- as a 7-9, named on the card as Herd of Horses is.
-		// Binding Arbitration's line is dropped when the oath has already been asked above, so it is
-		// named once.
+		// Cold's line buys no advantage: it counts a 6- as a 7-9, named on the card as Herd of Horses is,
+		// and Let's Make a Deal's a 7-9 as a 10+ the same way. Binding Arbitration's line is dropped when
+		// the oath has already been asked above, so it is named once.
 		const taken = descriptionOnly || !takenOffers?.length ? [] : (offered ?? await this.rollOffers(item)).filter(offer => tookOffer(offer, takenOffers)
 			&& !(oathbreakerNamed && offer.key === BINDING_ARBITRATION_OFFER));
 		for (const offer of taken) {
 			if (NOTE_OFFER_TIERS[offer.effect]) Object.assign(rollOptions, _withHitNote(rollOptions, offer));
 			else if (offer.effect === "missAsPartial") rollOptions.missCountsAsPartial = offer.source;
+			else if (offer.effect === "partialAsSuccess") rollOptions.partialCountsAsSuccess = offer.source;
 			else Object.assign(rollOptions, foldAdvantage(rollOptions, offer.source));
 		}
 

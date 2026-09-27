@@ -17,9 +17,10 @@
  * shape: `freeQuestion`. They grant ONE named question OUTSIDE the count, which a capped list cannot
  * say, so they never touch the list or its stamp. Each is a line of its own under the list
  * (`freeQuestionLines`), shown on every tier, the 6- included, where the list itself is hidden.
- *
- * Deliberately NOT here: Deep Insight's extra question is "not limited to the list" and only "about
- * something magical"; Well Versed's follow-up rides Know Things, which prints no list.
+ * So are the Seeker's Deep Insight (one question "not limited to the list", about something magical)
+ * and Well Versed (a follow-up of your choice on Know Things about one of your topics): their question
+ * is the roller's own, so the line names what it may be rather than quoting it, and Well Versed's
+ * lands at the end of a Know Things card, which prints no list.
  */
 
 import { ownsLearnedMoveNamed } from "./owns-move.js";
@@ -76,6 +77,14 @@ export const MOVE_PICK_BONUSES = [
 	{ move: "Seek Insight", ownsLearned: "Voice of Experience",  freeQuestion: "What is about to happen?" },
 	{ move: "Seek Insight", ownsLearned: "Expert Tracker",       freeQuestion: "What happened here recently?",
 		when: "Seek Insight by searching for or studying the signs left by passing creatures" },
+	// The Seeker's. Let's Make a Deal's Persuade half is a roll-window line (StonetopCharacter.js's
+	// FICTION_ROLL_OFFERS); Deep Insight and Well Versed are free questions of the roller's own choosing.
+	{ move: "Seek Insight", ownsLearned: "Let's Make a Deal",
+		addOptions: ["What do they really want or need?"] },
+	{ move: "Seek Insight", ownsLearned: "Deep Insight",         freeQuestion: "one additional question, not limited to the list",
+		when: "Seek Insight about something magical" },
+	{ move: "Know Things",  ownsLearned: "Well Versed",          freeQuestion: "a follow-up question of your choice",
+		when: "Know Things about one of your topics" },
 	// The Lightbearer's consequence list. Glorious Servant: "on a 10+, you need not choose a
 	// consequence; on a 7-9, you choose a consequence but the GM does not", so the 7-9's "you and
 	// the GM each choose 1" (2) is 1, and the 10+'s 1 stands as the most, taken or not. Empowered

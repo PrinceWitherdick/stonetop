@@ -618,6 +618,8 @@ export function messageOfRoll(roll) {
  * @param {boolean} [options.noXpOnMiss]               - Skip the automatic +1 XP on a miss (for moves that replace it)
  * @param {string}  [options.missCountsAsPartial]      - Why a 6- counts as a 7-9 on this roll, named on
  *   the card; absent for an ordinary roll
+ * @param {string}  [options.partialCountsAsSuccess]   - Why a 7-9 counts as a 10+ on this roll, named the
+ *   same way
  * @param {string[]} [options.whisper]                  - Post the card privately, to these user ids (the
  *   author always sees it too); absent for a card that follows the table's own chat mode
  * @param {string[]|{success?: string[], partial?: string[], failure?: string[]}} [options.pickOptions]
@@ -649,8 +651,13 @@ export async function rollStat(statKey, actor, options = {}) {
 	// herd or less, treat a 6- as a 7-9") is applied to the TIER, so every tier-keyed part of the
 	// card (outcome, pick list, buttons, the ladder's mark) reads as the 7-9 it counts as.
 	const missCountsAsPartial = String(options.missCountsAsPartial ?? "").trim();
+	// And one that turns a weak hit into a strong one, the same way (the Seeker's Let's Make a Deal:
+	// "When you Persuade by offering them something that you know they want or need, treat a 7-9 as a 10+").
+	const partialCountsAsSuccess = String(options.partialCountsAsSuccess ?? "").trim();
 	const rolled = classifyResult(total);
-	const result = missCountsAsPartial && rolled.key === "failure" ? classifyResult(7) : rolled;
+	const result = missCountsAsPartial && rolled.key === "failure" ? classifyResult(7)
+		: partialCountsAsSuccess && rolled.key === "partial" ? classifyResult(10)
+		: rolled;
 
 	// Surface the move's own per-tier outcome (10+/7-9/6-) on the result card. Some
 	// moves (e.g. the Blessed's Borrow Power, Suck the Poison Out) keep their outcomes
@@ -730,6 +737,9 @@ export async function rollStat(statKey, actor, options = {}) {
 	conditions.push(...conditionNotePills(options.conditionNotes));
 	if (missCountsAsPartial && rolled.key === "failure") {
 		conditions.push(`<li class="stonetop-condition-note">${escHtml(`Rolled a 6-, counted as a 7-9 (${missCountsAsPartial})`)}</li>`);
+	}
+	if (partialCountsAsSuccess && rolled.key === "partial") {
+		conditions.push(`<li class="stonetop-condition-note">${escHtml(`Rolled a 7-9, counted as a 10+ (${partialCountsAsSuccess})`)}</li>`);
 	}
 
 	const conditionsHtml = conditionsRowHtml(conditions);

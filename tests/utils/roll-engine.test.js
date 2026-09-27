@@ -550,6 +550,27 @@ describe("a 6- that counts as a 7-9", () => {
 	});
 });
 
+// Let's Make a Deal: "When you Persuade by offering them something that you know they want or need,
+// treat a 7-9 as a 10+." The same shape one tier up.
+describe("a 7-9 that counts as a 10+", () => {
+	const seeker = () => ({ type: "stonetop", name: "Maelis", system: {} });
+
+	it("reads a weak hit as a strong hit, and says why", async () => {
+		rollTotal = 8;
+		await rollStat("cha", seeker(), { statValue: 0, moveName: "Persuade (vs. NPCs)", partialCountsAsSuccess: "Let's Make a Deal" });
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain("result success");
+		expect(flavor).toContain("Rolled a 7-9, counted as a 10+ (Let&#x27;s Make a Deal)");
+	});
+
+	it("leaves a miss and a strong hit alone, and says nothing", async () => {
+		rollTotal = 5;
+		await rollStat("cha", seeker(), { statValue: 0, moveName: "Persuade (vs. NPCs)", partialCountsAsSuccess: "Let's Make a Deal" });
+		expect(rollMessages[0].flavor).toContain("result failure");
+		expect(rollMessages[0].flavor).not.toContain("counted as a 10+");
+	});
+});
+
 describe("rollDamage", () => {
 	it("posts damage rolls using the Stonetop card shell", async () => {
 		await rollDamage("d6+1", makeActor(), { label: "Hammer" });

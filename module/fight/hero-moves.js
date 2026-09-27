@@ -79,6 +79,7 @@ export const HERO_MOVES = Object.freeze({
 	EVERYTHING_BLEEDS: "Everything Bleeds",
 	PREDATOR: "Predator",
 	ALPHA: "Alpha",
+	SAFETY_FIRST: "Safety First",
 });
 
 /**
@@ -561,10 +562,10 @@ export function blowOffers(actor, { targets = [], weapon = null, strikeBack = fa
 	// line is drawn at all, and the player decides whether it is ticked — except Like a Dog with a Bone,
 	// whose whole condition is the tag the stat block prints.
 	if (targets.length) {
-		if (has(actor, HERO_MOVES.DOG_WITH_BONE) && targets.every(t => targetTags(t).some(tag => CORRUPTED_TAGS.has(tag)))) {
+		if (has(actor, HERO_MOVES.DOG_WITH_BONE) && targets.every(isCorruptedFoe)) {
 			add("dogWithBone", HERO_MOVES.DOG_WITH_BONE, "1d6");
 		}
-		if (has(actor, HERO_MOVES.EVERYTHING_BLEEDS) && targets.every(t => targetTags(t).some(tag => UNNATURAL_TAGS.has(tag)))) {
+		if (has(actor, HERO_MOVES.EVERYTHING_BLEEDS) && targets.every(isUnnaturalFoe)) {
 			add("everythingBleeds", HERO_MOVES.EVERYTHING_BLEEDS, "1d6", { applied: false });
 		}
 	}
@@ -587,11 +588,6 @@ function targetSystem(target) {
 	return (doc?.actor ?? doc)?.system ?? {};
 }
 
-/** Its printed tags, lower-cased. */
-function targetTags(target) {
-	return systemTags(targetSystem(target));
-}
-
 /** Is this target a large or huge creature (Big Game Hunter's quarry)? Reads the stat block. */
 function isBigQuarry(target) {
 	return isBiggerSystem(targetSystem(target));
@@ -600,7 +596,28 @@ function isBigQuarry(target) {
 // "Tainted by chaos" and "unnatural" as the bestiary writes them. A stat block says `corrupted` of
 // the chaos-touched; the unnatural are everything that is not simply a beast or a person.
 const CORRUPTED_TAGS = new Set(["corrupted", "chaos", "chaos-tainted"]);
-const UNNATURAL_TAGS = new Set(["corrupted", "spirit", "magical", "undead", "construct", "fae", "primordial", "amorphous"]);
+const UNNATURAL_TAGS = new Set(["corrupted", "spirit", "magical", "undead", "construct", "fae", "primordial", "amorphous", "emanation"]);
+// The stat block's creature type says the same thing (bestiary/creature-types.js). The user's ruling
+// (2026-09-26 Seeker audit): every type but these three is unnatural, the Makers and the unknown included.
+const NATURAL_CREATURE_TYPES = new Set(["human-individual", "human-group", "natural-beast"]);
+
+/** A stat block's creature type slug, or "" for one that names none. */
+function creatureTypeOf(system) {
+	return String(system?.creatureType ?? "").trim().toLowerCase();
+}
+
+/** Like a Dog with a Bone's quarry: typed Corrupted, or tagged as the chaos-touched are. */
+function isCorruptedFoe(target) {
+	const system = targetSystem(target);
+	return creatureTypeOf(system) === "corrupted" || systemTags(system).some(tag => CORRUPTED_TAGS.has(tag));
+}
+
+/** Everything Bleeds' "unnatural foe": typed as anything but a person or a beast, or tagged unnatural. */
+function isUnnaturalFoe(target) {
+	const system = targetSystem(target);
+	const type = creatureTypeOf(system);
+	return (!!type && !NATURAL_CREATURE_TYPES.has(type)) || systemTags(system).some(tag => UNNATURAL_TAGS.has(tag));
+}
 
 // -- What a character's own skin adds ----------------------------------------
 

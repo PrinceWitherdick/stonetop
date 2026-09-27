@@ -29,6 +29,11 @@
 //    Readiness — its price is the pick, which is asked before the halving is written and said out loud on
 //    the card. With BUT I GET UP AGAIN it also writes down who dealt it, and that foe then owes the
 //    character advantage and +1d4 (fight/hero-moves.js).
+//  • SAFETY FIRST (Seeker): "When you are affected by harmful magic, spend 1 Protection either to gain
+//    advantage on any roll to resist it or to halve its damage/effects." The halving is offered to whoever
+//    suffers the blow while they hold Protection (the user's ruling, 2026-09-26), priced in Protection, not
+//    Readiness. Whether the blow is harmful magic is the table's to say, so the button says so. The
+//    advantage half is a roll-window line (StonetopCharacter.js's FICTION_ROLL_OFFERS).
 //
 // WHO MAY DEFEND. The one hit, when they hold Readiness, can halve their own blow; any character in the
 // fight standing beside them (touching, or fighting the same foe) who holds Readiness can do either. "They
@@ -52,6 +57,7 @@ import { askWithButtons } from "../utils/ask-with-buttons.js";
 import { contentElement } from "../dialogs/content-picker.js";
 import { heldReadiness, READINESS_FLAG } from "../combat/defend-readiness.js";
 import { ownsLearnedMoveNamed, ownedMove } from "../actors/character/owns-move.js";
+import { learnedTrack, takeBackHeld } from "../actors/character/MoveResources.js";
 import { touching, HEROES } from "./engagements.js";
 import { engagementFor, fightOnScene, gridOf, isFight } from "./fight-state.js";
 import { HERO_MOVES, recordKnockedDownBy } from "./hero-moves.js";
@@ -71,6 +77,23 @@ export function spendReadiness(actor, cost = 1) {
 export const halveDamage = raw => Math.ceil(Math.max(0, Number(raw) || 0) / 2);
 
 /**
+ * The kinds of spend a card can offer, in the order its buttons stand: `list`, which list on the
+ * card's flag records one (spentOn reads them back), and `free`, a kind that costs no Readiness (I
+ * Get Knocked Down is paid for in the fiction; Safety First in Protection). A new kind is one row
+ * here, its offers in defendOffers and its words in the lang file.
+ */
+const SPEND_KINDS = {
+	halve:       { list: "halvedBy" },
+	parry:       { list: "halvedBy" },
+	standIn:     { list: "standIns" },
+	ignore:      { list: "ignoredBy" },
+	knockedDown: { list: "knockedDownBy", free: true },
+	safetyFirst: { list: "safetyFirstBy", free: true },
+};
+const isSpendKind = kind => Object.hasOwn(SPEND_KINDS, kind);
+const costsReadiness = kind => !SPEND_KINDS[kind]?.free;
+
+/**
  * What the spends on a card have settled so far, by row uuid: the blows halved (a halving or a parry),
  * the ones a defender took in the ward's place, and the ones ignored. PURE.
  *
@@ -78,13 +101,17 @@ export const halveDamage = raw => Math.ceil(Math.max(0, Number(raw) || 0) / 2);
  * @returns {{halved: Set<string>, standIns: Map<string, object>, ignored: Set<string>}}
  */
 export function spentOn(damage) {
+	const spent = kind => (damage?.[SPEND_KINDS[kind].list] ?? []);
+	const uuids = kind => new Set(spent(kind).map(spend => spend.uuid));
 	return {
-		halved: new Set((damage?.halvedBy ?? []).map(spend => spend.uuid)),
-		standIns: new Map((damage?.standIns ?? []).map(spend => [spend.uuid, spend])),
-		ignored: new Set((damage?.ignoredBy ?? []).map(spend => spend.uuid)),
+		halved: uuids("halve"),
+		standIns: new Map(spent("standIn").map(spend => [spend.uuid, spend])),
+		ignored: uuids("ignore"),
 		// I Get Knocked Down halves as Readiness does, from its own list: it is a different move with a
 		// different price, and "each option once against any given attack" counts them apart.
-		knockedDown: new Set((damage?.knockedDownBy ?? []).map(spend => spend.uuid)),
+		knockedDown: uuids("knockedDown"),
+		// Safety First's halving the same way: its own move, paid in Protection.
+		safetyFirst: uuids("safetyFirst"),
 	};
 }
 
@@ -143,14 +170,6 @@ function defendersFor(uuid, { user = globalThis.game?.user } = {}) {
 	return { self, allies };
 }
 
-/** The kinds of spend a card can offer, in the order its buttons stand. */
-const SPEND_KINDS = ["halve", "parry", "standIn", "ignore", "knockedDown"];
-
-/** The kinds that cost Readiness. I Get Knocked Down is paid for in the fiction instead. */
-const FREE_KINDS = new Set(["knockedDown"]);
-
-/** Which list on the card's flag records a spend of this kind. */
-const SPEND_LIST = { halve: "halvedBy", parry: "halvedBy", ignore: "ignoredBy", knockedDown: "knockedDownBy", standIn: "standIns" };
 
 /**
  * The spends a card still offers: one entry per blow and defender, for each option, leaving out an option
@@ -164,15 +183,15 @@ const SPEND_LIST = { halve: "halvedBy", parry: "halvedBy", ignore: "ignoredBy", 
  */
 export function defendOffers(damage, defendersOf = defendersFor, resolveActor = uuid => damageRowActor(resolveSync(uuid))) {
 	const done = new Set((damage?.applied ?? []).map(a => a.uuid));
-	const { halved, standIns, ignored, knockedDown } = spentOn(damage);
-	const offers = { halve: [], parry: [], standIn: [], ignore: [], knockedDown: [] };
+	const { halved, standIns, ignored, knockedDown, safetyFirst } = spentOn(damage);
+	const offers = { halve: [], parry: [], standIn: [], ignore: [], knockedDown: [], safetyFirst: [] };
 	const user = globalThis.game?.user;
 	for (const row of damage?.results ?? []) {
 		if (!row?.uuid || done.has(row.uuid) || ignored.has(row.uuid)) continue;
+		const hit = resolveActor(row.uuid);
 		// I Get Knocked Down needs no Readiness, so it is offered to the one hit whether or not they hold
 		// any — which is the whole point of the move, and why it cannot come from `defendersFor`.
 		if (!knockedDown.has(row.uuid)) {
-			const hit = resolveActor(row.uuid);
 			if (hit && (user?.isGM || hit.isOwner || !user) && ownsLearnedMoveNamed(hit, HERO_MOVES.KNOCKED_DOWN)) {
 				offers.knockedDown.push({ row, defender: hit, cost: 0 });
 			}
@@ -189,10 +208,18 @@ export function defendOffers(damage, defendersOf = defendersFor, resolveActor = 
 		}
 		// Whoever will suffer the blow: the defender who took it, or the one it was aimed at.
 		const standIn = standIns.get(row.uuid);
-		const sufferer = standIn ? resolveActor(standIn.by) : self;
+		const stoodIn = standIn ? resolveActor(standIn.by) : null;
+		const sufferer = standIn ? stoodIn : self;
 		const mayWrite = !!sufferer && (user?.isGM || sufferer.isOwner || !user);
 		if (mayWrite && heldReadiness(sufferer) > 0 && ownsLearnedMoveNamed(sufferer, HERO_MOVES.RAMPART)) {
 			offers.ignore.push({ row, defender: sufferer, cost: 1 });
+		}
+		// Safety First, to whoever suffers the blow while they hold Protection: no Readiness asked, so the
+		// one hit is read here rather than out of `defendersFor`.
+		if (!safetyFirst.has(row.uuid)) {
+			const protectedOne = standIn ? stoodIn : hit;
+			const mayProtect = !!protectedOne && (user?.isGM || protectedOne.isOwner || !user);
+			if (mayProtect && learnedTrack(protectedOne, HERO_MOVES.SAFETY_FIRST)?.held > 0) offers.safetyFirst.push({ row, defender: protectedOne, cost: 0 });
 		}
 	}
 	return offers;
@@ -251,7 +278,7 @@ export async function spendOnBlow(message, kind, offer, { scope = SYSTEM_ID, str
 	const current = message.getFlag(scope, "damage");
 	if (!current || !offer) return false;
 	const cost = Number.isFinite(offer.cost) ? offer.cost : 1;
-	if (!FREE_KINDS.has(kind) && heldReadiness(offer.defender) < Math.max(1, cost)) return false;
+	if (costsReadiness(kind) && heldReadiness(offer.defender) < Math.max(1, cost)) return false;
 	// Written here, or by the GM's client for a card this reader cannot write (see the note at the top).
 	const take = relay ? () => askGMToSpend(message, kind, offer) : () => takeSpend(message, kind, offer, { scope });
 
@@ -297,13 +324,15 @@ export async function spendOnBlow(message, kind, offer, { scope = SYSTEM_ID, str
 export function takeSpend(message, kind, offer, { scope = SYSTEM_ID } = {}) {
 	const cost = Number.isFinite(offer?.cost) ? offer.cost : 1;
 	// Each kept as a list of who spent what, which is all spentOn and defendNotes read.
-	const list = SPEND_LIST[kind] ?? "standIns";
+	const list = SPEND_KINDS[kind]?.list ?? "standIns";
 	const take = async () => {
 		const now = message.getFlag(scope, "damage");
 		if (!now || (now.applied ?? []).some(a => a.uuid === offer.row.uuid)) return false;
-		if (!FREE_KINDS.has(kind) && heldReadiness(offer.defender) < Math.max(1, cost)) return false;
+		if (costsReadiness(kind) && heldReadiness(offer.defender) < Math.max(1, cost)) return false;
 		// The same option twice on one blow is refused (p.216: "each option once against any given attack").
 		if ((now[list] ?? []).some(s => s.uuid === offer.row.uuid)) return false;
+		// Safety First is paid in Protection, 1 off what is HELD, and refused with none left.
+		if (kind === "safetyFirst" && !await takeBackHeld(offer.defender, HERO_MOVES.SAFETY_FIRST, 1)) return false;
 		if (cost > 0) await spendReadiness(offer.defender, cost);
 		const spend = { uuid: offer.row.uuid, name: offer.defender.name, how: kind };
 		const entry = list === "standIns" ? { ...spend, by: offer.defender.uuid, free: cost === 0 } : spend;
@@ -347,7 +376,7 @@ export async function handleSpendQuery(data, context = {}, { messages = globalTh
 	const kind = data?.kind;
 	const message = messages?.get?.(data?.messageId);
 	const damage = message?.getFlag?.(scope, "damage");
-	if (!user || !SPEND_KINDS.includes(kind) || !damage) return false;
+	if (!user || !isSpendKind(kind) || !damage) return false;
 	const offer = (offersOf(damage)[kind] ?? []).find(o => o.row?.uuid === data.rowUuid && o.defender?.uuid === data.defenderUuid);
 	if (!offer || !offer.defender.testUserPermission?.(user, "OWNER")) return false;
 	return takeSpend(message, kind, offer, { scope });
@@ -419,6 +448,9 @@ export function defendNotes(damage) {
 	for (const spend of damage?.knockedDownBy ?? []) {
 		notes.push(format(`${KEY}.noteKnockedDown`, { defender: spend.name }));
 	}
+	for (const spend of damage?.safetyFirstBy ?? []) {
+		notes.push(format(`${KEY}.noteSafetyFirst`, { defender: spend.name }));
+	}
 	return notes;
 }
 
@@ -451,7 +483,7 @@ export function wireDefendSpends(message, html, { scope = SYSTEM_ID, user = glob
 	const relay = !message.isOwner;
 	if (relay && (user?.isGM || !globalThis.game?.users?.activeGM)) return;
 	const offers = defendOffers(damage);
-	for (const kind of SPEND_KINDS) {
+	for (const kind of Object.keys(SPEND_KINDS)) {
 		if (!offers[kind].length) continue;
 		const button = document.createElement("button");
 		button.type = "button";

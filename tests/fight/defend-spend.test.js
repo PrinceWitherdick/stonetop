@@ -42,7 +42,7 @@ describe("defendOffers", () => {
 
 	it("offers each option once against a blow, and nothing on a blow already applied", () => {
 		const taken = { ...damage, halvedBy: [{ uuid: "Token.bram", name: "bram", how: "halve" }], standIns:[{ uuid: "Token.bram", by: aeliana.uuid, name: "aeliana" }] };
-		const none = { halve: [], parry: [], standIn: [], ignore: [], knockedDown: [] };
+		const none = { halve: [], parry: [], standIn: [], ignore: [], knockedDown: [], safetyFirst: [] };
 		expect(defendOffers(taken, () => ({ self: bram, allies: [aeliana] }), () => aeliana)).toEqual(none);
 		const applied = { ...damage, applied: [{ uuid: "Token.bram" }] };
 		expect(defendOffers(applied, () => ({ self: bram, allies: [aeliana] }))).toEqual(none);
@@ -81,6 +81,59 @@ describe("playbook moves on the card", () => {
 		const stood = { ...damage, standIns: [{ uuid: "Token.bram", by: judge.uuid, name: "judge" }] };
 		expect(defendOffers(stood, () => ({ self: null, allies: [] }), () => judge).ignore.map(o => o.defender.name)).toEqual(["judge"]);
 		expect(defendOffers(damage, () => ({ self: character("plain", 1), allies: [] })).ignore).toEqual([]);
+	});
+});
+
+// Seeker audit (2026-09-26), the user's ruling: Safety First's "spend 1 Protection ... to halve its
+// damage/effects" is a "Halve it (Safety First, harmful magic)" offer on the damage card while Protection is
+// held, paid in Protection (a hold pool: a ticked pip is held), never in Readiness.
+describe("Safety First on the damage card", () => {
+	const seeker = (name, protection, { learned = true } = {}) => {
+		const tracks = { "Safety First": protection };
+		return {
+			...character(name, 0),
+			items: [{ type: "move", name: "Safety First", system: { resource: { max: 2 } }, flags: learned ? {} : { [SYSTEM_ID]: { learned: false } } }],
+			typedActor: { moveResources: {
+				getMoveResources: () => tracks,
+				setUses: vi.fn(async (move, value) => { tracks[move] = value; }),
+			} },
+			tracks,
+		};
+	};
+	const damage = { results: [{ uuid: "Token.maelis", name: "Maelis" }] };
+	const nobody = () => ({ self: null, allies: [] });
+	const message = flag => ({
+		flag,
+		getFlag() { return this.flag; },
+		setFlag: vi.fn(async function (_scope, key, value) { const store = { damage: this.flag }; writeFlagPath(store, key, value); this.flag = store.damage; }),
+	});
+
+	it("is offered to the one hit while they hold Protection, and to nobody else", () => {
+		const maelis = seeker("maelis", 1);
+		expect(defendOffers(damage, nobody, () => maelis).safetyFirst).toEqual([{ row: damage.results[0], defender: maelis, cost: 0 }]);
+		expect(defendOffers(damage, nobody, () => seeker("maelis", 0)).safetyFirst).toEqual([]);
+		expect(defendOffers(damage, nobody, () => seeker("maelis", 2, { learned: false })).safetyFirst).toEqual([]);
+		expect(defendOffers(damage, nobody, () => character("plain", 2)).safetyFirst).toEqual([]);
+		const taken = { ...damage, safetyFirstBy: [{ uuid: "Token.maelis", name: "maelis", how: "safetyFirst" }] };
+		expect(defendOffers(taken, nobody, () => maelis).safetyFirst).toEqual([]);
+	});
+
+	it("spends 1 Protection, not Readiness, halves the blow and says so", async () => {
+		const maelis = seeker("maelis", 2);
+		const card = message({ results: [{ uuid: "Token.maelis", name: "Maelis" }] });
+		expect(await spendOnBlow(card, "safetyFirst", { row: card.flag.results[0], defender: maelis, cost: 0 })).toBe(true);
+		expect(maelis.tracks["Safety First"]).toBe(1);
+		expect(maelis.typedActor.moveResources.setUses).toHaveBeenCalledWith("Safety First", 1, { stonetopMove: "Safety First" });
+		expect(maelis.flags[SYSTEM_ID][READINESS_FLAG]).toBe(0);
+		expect([...spentOn(card.flag).safetyFirst]).toEqual(["Token.maelis"]);
+		expect(defendNotes(card.flag)).toEqual(["maelis spent 1 Protection to halve the harmful magic's damage (Safety First)."]);
+	});
+
+	it("is refused with no Protection left", async () => {
+		const maelis = seeker("maelis", 0);
+		const card = message({ results: [{ uuid: "Token.maelis", name: "Maelis" }] });
+		expect(await spendOnBlow(card, "safetyFirst", { row: card.flag.results[0], defender: maelis, cost: 0 })).toBe(false);
+		expect(card.setFlag).not.toHaveBeenCalled();
 	});
 });
 

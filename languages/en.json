@@ -1535,7 +1535,11 @@
       "homeOnTheRange": "A journey requires it (Home on the Range): treat a 6- as a 7-9",
       "trailblazer": "A journey causes it (Trailblazer): on a 10+, also learn something useful",
       "trailblazerNote": "<strong>Trailblazer:</strong> you also learn or discover something interesting and useful. Ask the GM what.",
-      "constantVigilance": "Intercepting a sudden threat to yourself or an ally (Constant Vigilance): advantage"
+      "constantVigilance": "Intercepting a sudden threat to yourself or an ally (Constant Vigilance): advantage",
+      "letsMakeADeal": "Offering something you know they want or need (Let's Make a Deal): treat a 7-9 as a 10+",
+      "polyglot": "About a script, text, runes or symbols you encounter (Polyglot): advantage",
+      "proofAgainstDetection": "Being stealthy while you hold Protection (Proof Against Detection): advantage",
+      "safetyFirst": "Safety First: spend 1 Protection, advantage (resisting harmful magic)"
     },
     "pickBonus": {
       "note": "{source}: {detail}.",
@@ -2426,6 +2430,10 @@
         "knockedDownOne": "{defender} gets knocked down (halve it)",
         "knockedDownChoice": "{defender} gets knocked down under the blow on {ward}",
         "noteKnockedDown": "{defender} got knocked down, halving the blow (I Get Knocked Down).",
+        "safetyFirst": "Halve it (Safety First, harmful magic)",
+        "safetyFirstOne": "{defender} halves it (Safety First, harmful magic: 1 Protection)",
+        "safetyFirstChoice": "{defender} spends 1 Protection to halve the harmful magic on {ward}",
+        "noteSafetyFirst": "{defender} spent 1 Protection to halve the harmful magic's damage (Safety First).",
         "secondIntent": "{name} parried: also pick 1 option from the Ambush list. The strike back was rolled without the +1d4 damage.",
         "secondIntentTookDie": "{name} parried and took +1d4 damage on the strike back: that is their pick from the Ambush list."
       },

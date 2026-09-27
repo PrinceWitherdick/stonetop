@@ -209,6 +209,24 @@ describe("free questions", () => {
 	it("rides only the move it names", () => {
 		expect(movePickBonusesFor(judge("Hound of Aratis"), "Know Things")).toEqual([]);
 	});
+
+	// Seeker audit (2026-09-26): Let's Make a Deal's added question, Deep Insight's extra question "not
+	// limited to the list" and Well Versed's Know Things follow-up (both "even on a 6-") did nothing.
+	it("reads the Seeker's: Let's Make a Deal's option, Deep Insight's question, Well Versed's follow-up", () => {
+		const seeker = (...names) => character({ playbook: "The Seeker", items: names.map(n => (typeof n === "string" ? move(n) : n)) });
+		const html = card(seeker("Let's Make a Deal", "Deep Insight"));
+		expect(tierView(html, "success")).toEqual({ cap: 3, boxes: 7, free: [
+			"Free question (Deep Insight, when you Seek Insight about something magical): one additional question, not limited to the list",
+		] });
+		expect(stripHtmlToText(html)).toContain("What do they really want or need?");
+		expect(tierView(html, "failure").free).toHaveLength(1);
+
+		// Know Things prints no list, so the follow-up goes at the end of the card.
+		const know = withMovePickBonuses("<p>Know Things.</p>", seeker("Well Versed"), "Know Things");
+		expect(stripHtmlToText(know)).toContain("Free question (Well Versed, when you Know Things about one of your topics): a follow-up question of your choice");
+		expect(withMovePickBonuses("<p>Know Things.</p>", seeker(move("Well Versed", { learned: false })), "Know Things")).toBe("<p>Know Things.</p>");
+		expect(movePickBonusesFor(seeker(move("Let's Make a Deal", { learned: false })), "Seek Insight")).toEqual([]);
+	});
 });
 
 // The added options are the granting text's own words, retyped in the table. Pinned here so a
@@ -225,6 +243,9 @@ describe("MOVE_PICK_BONUSES quotes its sources", () => {
 		"Sniff Out Corruption":  () => doc("playbook-moves/the-ranger/sniff-out-corruption.json").system.description,
 		"Expert Tracker":        () => doc("playbook-moves/the-ranger/expert-tracker.json").system.description,
 		"Attuned":               () => doc("playbook-moves/the-seeker/attuned.json").system.description,
+		"Let's Make a Deal":     () => doc("playbook-moves/the-seeker/let-s-make-a-deal.json").system.description,
+		"Deep Insight":          () => doc("playbook-moves/the-seeker/deep-insight.json").system.description,
+		"Well Versed":           () => doc("playbook-moves/the-seeker/well-versed.json").system.description,
 		"Voice of Experience":   () => doc("playbook-moves/the-would-be-hero/voice-of-experience.json").system.description,
 		"Glorious Servant":      () => doc("playbook-moves/the-lightbearer/glorious-servant.json").system.description,
 		"Empowered Invocations": () => doc("playbook-moves/the-lightbearer/empowered-invocations.json").system.description,
@@ -242,9 +263,14 @@ describe("MOVE_PICK_BONUSES quotes its sources", () => {
 				expect(text.includes(`"${option}"`) || bullets.includes(option), option).toBe(true);
 			}
 			// A free question is quoted in the source, which says it is free even on a miss, and a
-			// narrower trigger is the source's own words.
+			// narrower trigger is the source's own words. One the roller chooses (Deep Insight's, Well
+			// Versed's) is not quoted: the line is the source's own description of it.
 			if (b.freeQuestion) {
-				expect(text).toContain(`"${b.freeQuestion}" for free, even on a 6-.`);
+				if (text.includes(`"${b.freeQuestion}"`)) expect(text).toContain(`"${b.freeQuestion}" for free, even on a 6-.`);
+				else {
+					expect(text).toContain(b.freeQuestion);
+					expect(text).toMatch(/even on a 6-/i);
+				}
 				if (b.when) expect(text).toContain(`When you ${b.when},`);
 			}
 		});

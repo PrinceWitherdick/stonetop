@@ -24,8 +24,9 @@ export function learnedTrack(actor, move) {
 }
 
 /**
- * Take back up to `count` of what a 10+ put on a move's track, when the card is moved off it
- * (tier-effects.js): never below none, so hold spent since is not taken twice. How many came off.
+ * Take up to `count` off what a learned move's track HOLDS: a spend (Safety First's Protection), or
+ * what a 10+ put there taken back when the card is moved off it (tier-effects.js). Never below none,
+ * so hold spent since is not taken twice. How many came off (0 = nothing held to take).
  */
 export async function takeBackHeld(actor, move, count) {
 	const n = Math.max(0, Math.trunc(Number(count) || 0));

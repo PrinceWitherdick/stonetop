@@ -175,6 +175,25 @@ describe("what a blow adds", () => {
 		expect(blowOffers(wren, { targets: [target(t.bandit)] }).find(o => o.key === "predator")).toMatchObject({ dice: "1d4", applied: false });
 	});
 
+	// Seeker audit (2026-09-26), the user's ruling: an "unnatural foe" is any creature type but a person or a
+	// beast (the Makers and the unknown included), besides the tags; and a Corrupted type is Like a Dog with a
+	// Bone's quarry however it is tagged.
+	it("reads the stat block's creature type for Everything Bleeds and Like a Dog with a Bone", () => {
+		const typed = (id, creatureType, tags = "") => fakeActor({ id, name: id, type: "monster", system: { tags, creatureType } });
+		const t = mapWith(["maker", "unknown-origin", "emanation", "corrupted", "human-individual", "human-group", "natural-beast", "untyped"]
+			.map(type => [type, typed(type, type === "untyped" ? "" : type)])
+			.concat([["glow", typed("glow", "", "solitary, emanation")]]));
+		const seeker = hero("Maelis", [HERO_MOVES.EVERYTHING_BLEEDS]);
+		const bleeds = key => blowOffers(seeker, { targets: [target(t[key])] }).some(o => o.key === "everythingBleeds");
+		for (const key of ["maker", "unknown-origin", "emanation", "corrupted", "glow"]) expect(bleeds(key), key).toBe(true);
+		for (const key of ["human-individual", "human-group", "natural-beast", "untyped"]) expect(bleeds(key), key).toBe(false);
+
+		const judge = hero("Hafgan", [HERO_MOVES.DOG_WITH_BONE]);
+		const bone = key => blowOffers(judge, { targets: [target(t[key])] }).some(o => o.key === "dogWithBone");
+		expect(bone("corrupted")).toBe(true);
+		expect(bone("maker")).toBe(false);
+	});
+
 	it("keeps Predator a standing reminder whatever the foe", () => {
 		const t = mapWith([["bandit", fakeActor({ id: "bandit", name: "Bandit", type: "monster", system: { tags: "group, organized" } })]]);
 		const wren = hero("Wren", [HERO_MOVES.PREDATOR]);

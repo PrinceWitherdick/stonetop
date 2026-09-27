@@ -520,3 +520,92 @@ describe("Alpha's advantage on the next roll against them", () => {
 		expect(actor.getFlag(SCOPE, "alphaOver")).toHaveLength(1);
 	});
 });
+
+// Seeker audit (2026-09-26): Let's Make a Deal ("When you Persuade by offering them something that you know
+// they want or need, treat a 7-9 as a 10+"), Polyglot ("When you Know Things about any script, text, runes or
+// symbols that you encounter, you have advantage"), Proof Against Detection ("When you hold Protection, you ...
+// have advantage to Defy Danger by being stealthy") and Safety First ("spend 1 Protection either to gain
+// advantage on any roll to resist it or to halve its damage/effects"; the user's ruling: an unticked line on
+// Defy Danger that spends a pip only when taken) did nothing on the roll.
+function seekerRoller({ moves = [], protection = 0, total = 8 } = {}) {
+	const rolled = (name, rollType = "int") => ({ _id: `${name}-1`, name, type: "move", system: { rollType }, roll: vi.fn(async () => ({ total })) });
+	const knowThings = rolled("Know Things");
+	const persuade = rolled("Persuade (vs. NPCs)", "cha");
+	const persuadePcs = rolled("Persuade (vs. PCs)", "cha");
+	const defy = rolled("Defy Danger", "dex");
+	const made = buildLiveCharacter({
+		slug: "the-seeker", name: "The Seeker", seedStartingMoves: false,
+		items: moves.map(m => makeLiveItem({
+			name: m.name ?? m, type: "move",
+			system: { moveType: "playbook", ...((m.name ?? m) === "Safety First" ? { resource: { max: 2, title: "Protection" } } : {}) },
+			flags: m.learned === false ? { [SCOPE]: { learned: false } } : undefined,
+		})),
+		flags: protection ? { "moves.backgroundChoices": { "Safety First": protection } } : {},
+	});
+	const items = [...made.actor.items, knowThings, persuade, persuadePcs, defy];
+	items.get = id => items.find(i => i._id === id) ?? null;
+	made.actor.items = items;
+	const roll = (item, prompted) => made.char.onRoll({
+		currentTarget: { closest: sel => (sel === ".item" ? { dataset: { itemId: item._id } } : null), getAttribute: () => null },
+	}, prompted);
+	return { ...made, knowThings, persuade, persuadePcs, defy, roll };
+}
+const protectionHeld = char => char.moveResources.getMoveResources()["Safety First"];
+
+describe("the unticked lines a Seeker's moves bring", () => {
+	it("offers Let's Make a Deal on either Persuade, and taken it counts a 7-9 as a 10+", async () => {
+		const { char, persuade, persuadePcs, defy, roll } = seekerRoller({ moves: ["Let's Make a Deal"] });
+		expect(await char.rollOffers(persuade)).toEqual([expect.objectContaining({ key: "lets-make-a-deal", applied: false, source: "Let's Make a Deal", effect: "partialAsSuccess" })]);
+		expect(await keysOf(char, persuadePcs)).toEqual(["lets-make-a-deal"]);
+		expect(await keysOf(char, defy)).toEqual([]);
+		await roll(persuade, { takenOffers: ["lets-make-a-deal"] });
+		expect(rolledWith(persuade).partialCountsAsSuccess).toBe("Let's Make a Deal");
+		expect(rolledWith(persuade).rollMode).toBe("normal");
+		const unticked = seekerRoller({ moves: ["Let's Make a Deal"] });
+		await unticked.roll(unticked.persuade, { takenOffers: [] });
+		expect(rolledWith(unticked.persuade).partialCountsAsSuccess).toBeUndefined();
+		const off = seekerRoller({ moves: [{ name: "Let's Make a Deal", learned: false }] });
+		expect(await keysOf(off.char, off.persuade)).toEqual([]);
+	});
+
+	it("offers Polyglot on Know Things, for a LEARNED move only, and taken it is a SOURCE of advantage", async () => {
+		const { char, knowThings, defy, roll } = seekerRoller({ moves: ["Polyglot"] });
+		expect(await char.rollOffers(knowThings)).toEqual([expect.objectContaining({ key: "polyglot", applied: false, source: "Polyglot" })]);
+		expect(await keysOf(char, defy)).toEqual([]);
+		const off = seekerRoller({ moves: [{ name: "Polyglot", learned: false }] });
+		expect(await keysOf(off.char, off.knowThings)).toEqual([]);
+		await roll(knowThings, { takenOffers: ["polyglot"] });
+		expect(rolledWith(knowThings).rollMode).toBe("adv");
+		expect(rolledWith(knowThings).conditionNotes).toContain("Polyglot");
+	});
+
+	it("offers Proof Against Detection on Defy Danger only while Protection is held, and spends none", async () => {
+		const held = seekerRoller({ moves: ["Safety First", "Proof Against Detection"], protection: 1 });
+		expect(await keysOf(held.char, held.defy)).toEqual(["proof-against-detection", "safety-first"]);
+		expect(await keysOf(held.char, held.persuade)).toEqual([]);
+		await held.roll(held.defy, { takenOffers: ["proof-against-detection"] });
+		expect(rolledWith(held.defy).rollMode).toBe("adv");
+		expect(rolledWith(held.defy).conditionNotes).toContain("Proof Against Detection");
+		expect(protectionHeld(held.char)).toBe(1);
+		const none = seekerRoller({ moves: ["Safety First", "Proof Against Detection"], protection: 0 });
+		expect(await keysOf(none.char, none.defy)).toEqual([]);
+	});
+
+	it("offers Safety First's advantage on Defy Danger while Protection is held, spending 1 only when taken", async () => {
+		const { char, defy, roll } = seekerRoller({ moves: ["Safety First"], protection: 2 });
+		const [line] = await char.rollOffers(defy);
+		expect(line).toMatchObject({ key: "safety-first", applied: false, source: "Safety First" });
+		expect(line.label).toContain("spend 1 Protection");
+		await roll(defy, { takenOffers: ["safety-first"] });
+		expect(rolledWith(defy).rollMode).toBe("adv");
+		expect(rolledWith(defy).conditionNotes).toContain("Safety First");
+		expect(protectionHeld(char)).toBe(1);
+
+		const unticked = seekerRoller({ moves: ["Safety First"], protection: 2 });
+		await unticked.roll(unticked.defy, { takenOffers: [] });
+		expect(protectionHeld(unticked.char)).toBe(2);
+		expect(await keysOf(seekerRoller({ moves: ["Safety First"] }).char, defy)).toEqual([]);
+		const off = seekerRoller({ moves: [{ name: "Safety First", learned: false }], protection: 2 });
+		expect(await keysOf(off.char, off.defy)).toEqual([]);
+	});
+});
