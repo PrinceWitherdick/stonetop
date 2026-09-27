@@ -4,7 +4,7 @@ import { TIER_LABELS } from "../utils/move-results.js";
 // `openOrFocus` cannot serve `openOnTrip`: it brings an already-open window to the front without
 // running the factory, and that window still has to be told which trip to switch to.
 import { findOpenApp } from "../utils/open-windows.js";
-import { crewExists } from "../utils/crew.js";
+import { crewExists, customGroupPresent, customGroupSize } from "../utils/crew.js";
 import { sign, rollSeasonsCard, pbtaDiceFormula } from "../utils/roll-engine.js";
 import { normalizeRollMode, wireModePicker } from "./RollDialog.js";
 import { getStonetopSteadingActor, isSteadingActor } from "../utils/world.js";
@@ -3549,9 +3549,18 @@ export class ExpeditionDialog extends StepperDialog {
 	// A custom follower's load row (gear is a ✓ checklist).
 	_followerRow(f) {
 		const marks  = (Array.isArray(f?.gear) ? f.gear : []).filter(g => g?.checked).length;
-		const folTag = f?.isGroup ? `×${Math.max(2, Number(f?.size) || 2)} group` : "follower";
+		const folTag = f?.isGroup ? this._groupTag(f) : "follower";
 		// A custom follower stores its whole card, portrait included, in the one object.
 		return this._makeFollowerRow(f?.name, marks, folTag, f);
+	}
+
+	// A custom group's tag counts who is actually coming along. Members marked fallen at the
+	// group's two-member floor (follower-fate.js) keep their roster rows but don't travel, so they
+	// are named apart rather than silently dropped, which would read as a group below its floor.
+	_groupTag(f) {
+		const size    = customGroupSize(f);
+		const present = customGroupPresent(f).length;
+		return present < size ? `×${present} group (${size - present} fallen)` : `×${size} group`;
 	}
 
 	// Shared builder for a follower load row from a name + ◇ mark count. `art` is whichever

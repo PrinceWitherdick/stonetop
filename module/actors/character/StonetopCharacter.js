@@ -58,7 +58,7 @@ import {ONGOING_INVOCATION_FLAG, ONGOING_SECOND_FLAG, ONGOING_EMPOWERED_FLAG, ON
 	ONGOING_INVOCATION_FLAGS, readOngoing, readInvocationState, runningSlugs, resolveInvocationEnd, invocationEndings,
 	NEEDS_SUN_FLAG, readNeedsSun} from "./ongoing-invocation.js";
 import {INVOCATIONS_GRANTED_AT_FLAG} from "./invocation-count.js";
-import { CONDEMNED_FLAG, PROCLAMATION, canCondemn, readCondemned, addCondemned, removeCondemned, noteCondemned } from "./condemn.js";
+import {CONDEMNED_FLAG, CASTIGATE, PROCLAMATION, canCondemn, readCondemned, addCondemned, removeCondemned, noteCondemned} from "./condemn.js";
 import {OATHS_FLAG, BINDING_ARBITRATION, canBindOaths, readOaths, addOath, removeOath, noteOath, setOathBroken} from "./oaths.js";
 import {BLESSED_MARKS_FLAG, canMarkBlessed, readMarks, addMark, removeMark, noteMark, setMarkLoyalty, setMarkSign} from "./blessed-marks.js";
 import {BATTLE_JOY_FLAG, BATTLE_JOY, canEnterBattleJoy, ignoresDebilities} from "./battle-joy.js";
@@ -103,9 +103,7 @@ import {deriveLoadLevel, loadLimitsFor} from "../../utils/load.js";
 import {maxDie, stepDie, normalizeDamageDie} from "../../utils/damage-die.js";
 import {WEAPONS_OF_WAR_COMMON, WEAPONS_OF_WAR_PIERCING, ALL_IN_THE_WRIST} from "../../data/weapons.js";
 import {X_PIERCING_MAX} from "../../utils/damage.js";
-
-/** The Judge's Castigate, whose damage rides every Censure (see brandCondemned). */
-const CASTIGATE = "Castigate";
+import {healTo} from "../../camp/camp-rules.js";
 
 /**
  * The state a playbook move leaves on a character, and whether anything they hold still makes it:
@@ -5017,6 +5015,55 @@ export class StonetopCharacter {
 		if (clearsDeathsDoor) Object.assign(update, this._clearDeathsDoorUpdate);
 		await this._actor.update(update, moveName ? { stonetopMove: moveName } : {});
 		return true;
+	}
+
+	/**
+	 * Healing somebody's move hands this character, in ONE write tagged with that move: Bath of
+	 * Healing Light's "Regains 5 HP", "Clears a debility", "Has one of their problematic wounds
+	 * stabilized" and (empowered) "Fully recovers from a problematic wound".
+	 *
+	 * HP is regained up to the COMPUTED max (computedMaxHp), never lowered. The write goes through the
+	 * HP hooks like any other (hooks/DeathsDoorPrompt.js: leaving Death's Door, Unstoppable's "clear one
+	 * mark instead"), so the HP it reports is read back AFTER the write rather than assumed. A debility
+	 * not marked, or a wound that is not (or no longer) a problematic one, is skipped, not an error.
+	 *
+	 * @param {object} o
+	 * @param {number} [o.hp]                 HP to regain
+	 * @param {string[]} [o.clearDebilities]  debility keys to clear
+	 * @param {string|null} [o.stabilizeWound]  id of an open problematic wound to stabilize
+	 * @param {string|null} [o.healWound]     id of a problematic wound (stabilized or not) to heal outright
+	 * @param {string} [o.moveName]
+	 * @returns {Promise<{hp: {gain: number, from: number, to: number}|null, cleared: {key: string, name: string}[],
+	 *   stabilized: object|null, healed: object|null}>}
+	 */
+	async receiveHealing({ hp = 0, clearDebilities = [], stabilizeWound = null, healWound = null, moveName = null } = {}) {
+		const update = {};
+		const from = this.hp;
+		const gain = Math.max(0, Math.trunc(Number(hp) || 0));
+		if (gain) {
+			const to = healTo(from, gain, await this.computedMaxHp());
+			if (to > from) update["system.attributes.hp.value"] = to;
+		}
+		const marked = new Map(this.debilityChoices.filter(d => d.marked).map(d => [d.key, d]));
+		const cleared = [...new Set(clearDebilities ?? [])].filter(key => marked.has(key))
+			.map(key => ({ key, name: marked.get(key).name ?? key }));
+		for (const { key } of cleared) update[`system.attributes.debilities.options.${key}.value`] = false;
+
+		let stabilized = null;
+		let healed = null;
+		const wounds = this._woundList();
+		const open = w => !w.healed && (w.status === "problematic" || w.status === "stabilized");
+		const heal = healWound ? wounds.findIndex(w => w.id === healWound && open(w)) : -1;
+		if (heal >= 0) healed = wounds[heal] = { ...wounds[heal], healed: true };
+		// The same change tending a wound on Recover makes (stabilizeOpenWoundsUpdate): stabilized, and
+		// whatever it was said to need cleared. Not the one just healed outright.
+		const steady = stabilizeWound && stabilizeWound !== healWound
+			? wounds.findIndex(w => w.id === stabilizeWound && !w.healed && w.status === "problematic") : -1;
+		if (steady >= 0) stabilized = wounds[steady] = { ...wounds[steady], status: "stabilized", requirementNote: "" };
+		if (healed || stabilized) update["system.attributes.wounds"] = wounds;
+
+		if (Object.keys(update).length) await this._actor.update(update, moveName ? { stonetopMove: moveName } : {});
+		return { hp: gain ? { gain, from, to: this.hp } : null, cleared, stabilized, healed };
 	}
 
 	// ── Problematic / permanent wounds (Book I, Harm & Healing) ────────────────

@@ -3,7 +3,7 @@ import {
 	HERO_MOVES, CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG,
 	foeKey, recordClash, clashedBefore, relentlessAgainst, foeAdvantage,
 	recordHarmedBy, clearHarmedBy, paybackEarned, recordKnockedDownBy, clearKnockedDownBy,
-	muscleboundWeapon, berserkNow, blowOffers, defenderDisadvantage, dangerousMode,
+	muscleboundWeapon, berserkNow, blowOffers, defenderDisadvantage, dangerousMode, holyLightOffers,
 } from "../../module/fight/hero-moves.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
 import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection } from "../fakes/fight.js";
@@ -262,6 +262,19 @@ describe("what a blow adds", () => {
 		const light = { slug: "purifying-flames-holy-light", name: "Holy light", range: ["hand", "close"] };
 		expect(blowOffers(sael, { weapon: light }).map(o => o.key)).toContain("hungryFlames");
 		expect(blowOffers(sael, { weapon: { slug: "sword", name: "Sword", range: ["close"] } }).map(o => o.key)).not.toContain("hungryFlames");
+	});
+
+	// R7: an Invocation's own damage (Go Back to the Shadow) is dealt with a holy light too, and asks
+	// for the same ticked line without a weapon to read it off.
+	it("offers Hungry Flames on damage dealt with a holy light, ticked, only when learned", () => {
+		const sael = hero("Sael", [HERO_MOVES.HUNGRY_FLAMES]);
+		expect(holyLightOffers(sael)).toEqual([expect.objectContaining({
+			key: "hungryFlames", dice: "1d6", applied: true,
+			label: "Hungry Flames: +1d6 damage, and they are engulfed in holy light and flames",
+		})]);
+		expect(holyLightOffers(hero("Pim", []))).toEqual([]);
+		const off = hero("Sael", [{ type: "move", name: HERO_MOVES.HUNGRY_FLAMES, flags: { [SYSTEM_ID]: { learned: false } } }]);
+		expect(holyLightOffers(off)).toEqual([]);
 	});
 
 	it("gives +1d4 against whoever knocked them down, until it is spent", async () => {

@@ -429,6 +429,25 @@ export function berserkNow(actor) {
 		&& !!actor?.getFlag?.(SYSTEM_ID, "battleJoy");
 }
 
+/** One line of the damage window, worded from the move's own `heroMoves.<key>` strings. */
+function offerLine(key, move, dice, { applied = true, tags = [], spend = null } = {}) {
+	return {
+		key, dice, applied, tags, ...(spend ? { spend } : {}),
+		label: format(`${MOVE_KEY}.${key}.label`, { dice }),
+		pill: format(`${MOVE_KEY}.${key}.pill`, { dice, move }),
+	};
+}
+
+/**
+ * What the character's moves add to damage dealt WITH A HOLY LIGHT: Hungry Flames' "When you deal damage
+ * with a holy light, you deal +1d6 damage", ticked. A holy-light blow gets it through blowOffers; an
+ * Invocation's own damage, which is dealt with the light but is no weapon's blow (Go Back to the Shadow,
+ * actors/character/invocation-apply.js), asks for it here, so the line is the same line either way.
+ */
+export function holyLightOffers(actor) {
+	return has(actor, HERO_MOVES.HUNGRY_FLAMES) ? [offerLine("hungryFlames", HERO_MOVES.HUNGRY_FLAMES, "1d6")] : [];
+}
+
 /**
  * A blow's own extra dice, as the damage window offers them: the move's name on each line, and ticked
  * where the rule leaves nothing to decide. `targets`, `weapon` and `strikeBack` are what the moves
@@ -449,17 +468,13 @@ export function blowOffers(actor, { targets = [], weapon = null, strikeBack = fa
 	const offers = [];
 	const undaunted = undauntedOffer(actor);
 	if (undaunted) offers.push(undaunted);
-	const add = (key, move, dice, { applied = true, tags = [], spend = null } = {}) => offers.push({
-		key, dice, applied, tags, ...(spend ? { spend } : {}),
-		label: format(`${MOVE_KEY}.${key}.label`, { dice }),
-		pill: format(`${MOVE_KEY}.${key}.pill`, { dice, move }),
-	});
+	const add = (key, move, dice, options) => offers.push(offerLine(key, move, dice, options));
 	if (strikeBack && has(actor, HERO_MOVES.REMEMBER_ME)) add("rememberMe", HERO_MOVES.REMEMBER_ME, "1d4");
 	// Second Intent: "When you Defend and spend 1 Readiness to Parry & Riposte, also pick 1 option from the
 	// Ambush list", and "Deal +1d4 damage" is on it. UNTICKED: the pick is the player's, and may be another
 	// option. Whether they took it here is what the Second Intent card then says (defend-spend.js).
 	if (strikeBack && parry && has(actor, HERO_MOVES.SECOND_INTENT)) add("secondIntent", HERO_MOVES.SECOND_INTENT, "1d4", { applied: false });
-	if (isHolyLight(weapon) && has(actor, HERO_MOVES.HUNGRY_FLAMES)) add("hungryFlames", HERO_MOVES.HUNGRY_FLAMES, "1d6");
+	if (isHolyLight(weapon)) offers.push(...holyLightOffers(actor));
 	// Nemesis rides every attack after the Clash that earned it — never the Clash's own damage, which is
 	// what `since` against the card's age settles.
 	if (has(actor, HERO_MOVES.NEMESIS) && targets.length) {

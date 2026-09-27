@@ -1,7 +1,7 @@
 import { SYSTEM_ID } from "../system-id.js";
 import { autoOpenUserId, ownerUsers } from "../hooks/DeathsDoorPrompt.js";
 import { actorPastDeathKind } from "../actors/character/deaths-door-actor.js";
-import { customGroupSize } from "../utils/crew.js";
+import { customGroupPresent } from "../utils/crew.js";
 import { deletionTarget } from "../utils/foundry-compat.js";
 import { postMoveToChat } from "../utils/chat.js";
 import { capitalizeFirst } from "../utils/strings.js";
@@ -213,14 +213,15 @@ export async function campVitalsFor(actor) {
 
 /**
  * The mouths a character brings besides their own: every living follower they have marked as
- * travelling with the party, a group follower counting as its whole headcount. Only where the
- * count starts; the player changes it at the fire.
+ * travelling with the party, a group follower counting as its members still with it (a member
+ * marked fallen eats nothing; one who is only down still eats). Only where the count starts; the
+ * player changes it at the fire.
  */
 export function partyFollowerMouths(actor) {
 	const followers = actor?.getFlag?.(SYSTEM_ID, "customFollowers") ?? {};
 	return Object.values(followers)
 		.filter(f => f?.party && !f?.dead)
-		.reduce((sum, f) => sum + (f.isGroup ? customGroupSize(f) : 1), 0);
+		.reduce((sum, f) => sum + (f.isGroup ? customGroupPresent(f).length : 1), 0);
 }
 
 /**

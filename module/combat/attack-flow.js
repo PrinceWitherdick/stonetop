@@ -1762,6 +1762,38 @@ export async function rollMoveDamageAt(actor, target, { move, formula, ignoresAr
 }
 
 /**
+ * An Invocation's OWN damage, rolled separately for each target: Go Back to the Shadow's "Spirits of
+ * darkness in your light take 2d8 damage (ignores armor). Roll damage for each spirit separately."
+ *
+ * The option-damage card and its aim (whoever the Lightbearer has targeted, the spirits in the light),
+ * with one difference that is the reason this is not rollMoveDamageAt: the damage window IS asked.
+ * The number is still the Invocation's, so the character's own damage die, their Dangerous and their
+ * fight's pile-on take no part (`attacker` keeps their own modes off it, `seed: null` the +N), but it is
+ * damage dealt with a holy light, and Hungry Flames' "+1d6 damage" rides exactly that
+ * (fight/hero-moves.js#holyLightOffers). The caller hands its lines in as `offers`.
+ *
+ * Nobody targeted rolls one plain card, one spirit's worth, as every damage roll with no one to hit does.
+ *
+ * @param {Actor} actor
+ * @param {object} p
+ * @param {string} p.move      the card's title
+ * @param {string} p.formula   the Invocation's number ("2d8", "1d8" reduced)
+ * @param {object[]} [p.offers] the damage window's lines
+ * @param {boolean} [p.shiftKey]
+ * @returns {Promise<object[]|null>}  the rolled totals, or null when the window was cancelled
+ */
+export async function rollInvocationDamage(actor, { move, formula, offers = [], shiftKey = false }) {
+	if (!actor || !formula) return null;
+	const targets = snapshotTargets();
+	const damage = await askDamageAdjustment(actor, { formula, rollMode: "normal", seed: null, offers, attacker: actor.name, targets, shiftKey });
+	if (!damage) return null;
+	return rollAndPostDamage(actor, {
+		move, targets, damage, ignoresArmor: true, own: false, spillsBlood: true, shots: false,
+		weapon: { name: "", range: [], piercing: 0, ignoresArmor: true, tags: [] },
+	});
+}
+
+/**
  * The acting character as a target of their own option.
  *
  * The ACTOR uuid, not a token's: a self-harming option is picked on a card, which may well be

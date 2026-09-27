@@ -39,7 +39,10 @@ import { onHotbarDrop } from "./module/hooks/HotbarDrop.js";
 import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
 import { onDropFollower } from "./module/hooks/FollowerDrop.js";
 import { onPreUpdateActorDeathsDoor, onUpdateActorDeathsDoorAutoOpen, onUpdateActorDeathsDoorCard, onUpdateActorDeathsDoorRaised, wireDyingPrompt } from "./module/hooks/DeathsDoorPrompt.js";
-import { installBattleJoyOnHurt, installBattleJoyEnd } from "./module/combat/battle-joy-offer.js";
+import { onUpdateActorUnstoppable } from "./module/actors/character/unstoppable.js";
+import { installBattleJoyOnHurt, installBattleJoyEnd, wireBattleJoyResult } from "./module/combat/battle-joy-offer.js";
+import { wireInvokeConsequences, wireWielderInvoke, invokeCardChoosesConsequence, invokeActionRow, TEN_PLUS_FLAG } from "./module/actors/character/invoke-consequences.js";
+import { wireInvocationEffects, BATH_QUERY, handleBathQuery } from "./module/actors/character/invocation-apply.js";
 import { installBattleHolds } from "./module/combat/battle-holds.js";
 import { hideAttackFxForReducedMotion } from "./module/combat/attack-fx.js";
 import { deathDripStamp, markDeathDrip } from "./module/hooks/DeathChatDrip.js";
@@ -128,9 +131,6 @@ import { reconcileTierEffects } from "./module/actors/character/tier-effects.js"
 import {
 	INSPIRATION_QUERY, handleInspirationQuery, onUpdateActorInspirationAtZero, wireInspirationDamage, wireKeepOneHp, wireSpeechCard,
 } from "./module/actors/character/inspiration-flow.js";
-import { onUpdateActorUnstoppable } from "./module/actors/character/unstoppable.js";
-import { wireBattleJoyResult } from "./module/combat/battle-joy-offer.js";
-import { wireWielderInvoke, invokeCardChoosesConsequence, invokeActionRow, TEN_PLUS_FLAG } from "./module/actors/character/invoke-consequences.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -178,6 +178,8 @@ Hooks.once("init", () => {
 	// And We Happy Few's Inspiration: given to an ally the Marshal's player does not own, or its 1d6 added
 	// to a damage card the holder's player cannot write (inspiration-flow.js).
 	if (CONFIG.queries) CONFIG.queries[INSPIRATION_QUERY] = (data, context) => handleInspirationQuery(data, context, INSPIRATION_DEPS);
+	// And Bath of Healing Light, on a patient the Lightbearer's player does not own (invocation-apply.js).
+	if (CONFIG.queries) CONFIG.queries[BATH_QUERY] = (data, context) => handleBathQuery(data, context);
 
 	// Every window and modal in the system is drag-resizable; the ad-hoc
 	// Dialog popups we spawn from sheets default to resizable too. The companion
@@ -1562,6 +1564,12 @@ async function _spendKnowThingsUpgrade(message, actor, cardButtons, btn, source)
 	}
 }
 
+/** Whether a rolled card's (shifted) total is a 6-; a card with no roll has not missed. */
+function _invokeCardMissed(message) {
+	const roll = message.rolls?.at(0);
+	return !!roll && _classifyShiftedTotal(roll.total).key === "failure";
+}
+
 /** The `possessions` flag bag a possession track is read from, off a bare Actor. */
 function _possessionFlags(actor) {
 	const possessions = new StonetopFlags(actor, "possessions");
@@ -2273,6 +2281,12 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatWireSpendStock(message, html);
 	_chatWireSeasonsRoll(message, html);
 	_chatWireRollCardPicks(message, html);
+	// Invoke the Sun God's consequences: a ticked debility grows its buttons, the snuffing and the
+	// sun act on the Invocation the card names. After the picks pass, for the same reason as below.
+	wireInvokeConsequences(message, html);
+	// ...and the Invocation's own button (Bath of Healing Light's heal, Go Back to the Shadow's
+	// damage), which reads the Reduced tick the picks pass restored. A 6- grows none.
+	wireInvocationEffects(message, html, { missed: _invokeCardMissed(message) });
 	// After the picks pass, which is what restores each box's ticked state — the provisions
 	// button is shown or hidden by exactly that.
 	_chatWireProvisionsPicks(message, html);

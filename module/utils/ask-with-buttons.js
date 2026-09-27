@@ -21,8 +21,12 @@ import { themedDialogClasses } from "./window-theme.js";
  * @param {string} [o.defaultKey]  the button Enter presses; the first unless the first destroys something
  * @param {string[]} [o.classes]  extra window classes
  * @param {object} [o.position]  the window's position, for one that needs a width of its own
+ * @param {(root: HTMLElement) => void} [o.render]  run once the window is on screen, with its element: a
+ *   form whose controls answer each other (a cap on how many boxes may be ticked). Content handed in as
+ *   an element keeps only its markup (dialogs/content-picker.js#contentElement), so a listener has to
+ *   be put on here, not before.
  */
-export async function askWithButtons({ title, content, buttons, defaultKey = null, classes = [], position = null }) {
+export async function askWithButtons({ title, content, buttons, defaultKey = null, classes = [], position = null, render = null }) {
 	const DialogV2 = globalThis.foundry?.applications?.api?.DialogV2;
 	if (!DialogV2) return null;
 	const chosen  = defaultKey ?? buttons[0]?.key;
@@ -32,6 +36,7 @@ export async function askWithButtons({ title, content, buttons, defaultKey = nul
 		classes: themedDialogClasses(...classes, "stonetop-ask"),
 		window:  { title },
 		...(position ? { position } : {}),
+		...(render ? { render: (_event, dialog) => render(dialog?.element ?? dialog) } : {}),
 		content,
 		buttons: buttons.map(button => ({
 			action:  button.key,

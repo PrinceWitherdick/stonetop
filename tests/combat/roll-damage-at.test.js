@@ -15,7 +15,7 @@ vi.mock("../../module/combat/readiness-loss.js", () => ({ settleReadinessOnAttac
 const { settleReadinessOnAttack } = await import("../../module/combat/readiness-loss.js");
 vi.mock("../../module/combat/battle-joy-offer.js", () => ({ offerBattleJoyOnDamage: vi.fn(async () => false) }));
 const { offerBattleJoyOnDamage } = await import("../../module/combat/battle-joy-offer.js");
-const { rollDamageAt, maybeBeginAttack, wireApplyDamage, withSeedTags, rollCharacterDamageAt, strikeBackAt, rollFollowerDamageAt, wireAttackConfirm, rollMoveDamageAt, wireConditionalArmor, wireUnstoppableMark } = await import("../../module/combat/attack-flow.js");
+const { rollDamageAt, maybeBeginAttack, wireApplyDamage, withSeedTags, rollCharacterDamageAt, strikeBackAt, rollFollowerDamageAt, wireAttackConfirm, rollMoveDamageAt, rollInvocationDamage, wireConditionalArmor, wireUnstoppableMark } = await import("../../module/combat/attack-flow.js");
 
 // Rolls aimed by the fight: a monster's damage at the character it is fighting, a character's at the
 // foe, the "Who does this hit?" question when there are several, and the plain card when nobody is there.
@@ -885,6 +885,40 @@ describe("a move's own damage at somebody it names (Castigate)", () => {
 		const judge = hero("judge", "Hafgan");
 		expect(await rollMoveDamageAt(judge, null, { move: "Castigate", formula: "1d4" })).toBeNull();
 		expect(await rollMoveDamageAt(judge, hero("b", "B"), { move: "Castigate", formula: "" })).toBeNull();
+		expect(posted).toEqual([]);
+	});
+});
+
+// R7: Go Back to the Shadow, "Spirits of darkness in your light take 2d8 damage (ignores armor). Roll
+// damage for each spirit separately." Through the damage window, so Hungry Flames' line rides it.
+describe("an Invocation's own damage (Go Back to the Shadow)", () => {
+	const HUNGRY = { key: "hungryFlames", dice: "1d6", applied: true, label: "Hungry Flames", pill: "Hungry Flames +1d6" };
+
+	it("rolls once for each targeted spirit, ignoring armor, with a ticked line added", async () => {
+		const seren = Object.assign(hero("seren", "Seren"), { items: [{ type: "move", name: "Dangerous" }] });
+		const { tokens } = fightInARow([["seren", seren], ["a", crinwin("shade1")], ["b", crinwin("shade2")]]);
+		globalThis.game.user.targets = new Set([{ document: tokens.a, actor: tokens.a.actor }, { document: tokens.b, actor: tokens.b.actor }]);
+		const results = await rollInvocationDamage(seren, { move: "Go Back to the Shadow", formula: "2d8", offers: [HUNGRY], shiftKey: true });
+		expect(results).toHaveLength(2);
+		const flag = damageFlag();
+		expect(flag.move).toBe("Go Back to the Shadow");
+		expect(flag.results.map(r => r.uuid)).toEqual([tokens.a.uuid, tokens.b.uuid]);
+		// The Invocation's number first, Hungry Flames after it, and no Dangerous: this is not their blow.
+		for (const r of flag.results) expect(r.formula).toBe("2d8+1d6");
+		expect(flag.weapon).toMatchObject({ ignoresArmor: true });
+		expect(flag).not.toHaveProperty("seed");
+	});
+
+	it("rolls the reduced 1d8 as it is handed, and one plain card with nobody targeted", async () => {
+		const seren = hero("seren", "Seren");
+		globalThis.game.combats = collection([]);
+		globalThis.game.user.targets = new Set();
+		await rollInvocationDamage(seren, { move: "Go Back to the Shadow (Reduced)", formula: "1d8", shiftKey: true });
+		expect(plainCard).toHaveBeenCalledWith("1d8", seren, expect.objectContaining({ label: "Go Back to the Shadow (Reduced)" }));
+	});
+
+	it("rolls nothing without a die", async () => {
+		expect(await rollInvocationDamage(hero("seren", "Seren"), { move: "Go Back to the Shadow", formula: "" })).toBeNull();
 		expect(posted).toEqual([]);
 	});
 });

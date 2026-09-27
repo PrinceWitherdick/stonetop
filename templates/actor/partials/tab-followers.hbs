@@ -909,9 +909,10 @@
 			{{/if}}
 			<div class="stonetop-crew-members">
 				{{#each groupMembers}}
-				<div class="stonetop-crew-member-row">
+				<div class="stonetop-crew-member-row{{#if dead}} is-dead{{/if}}">
 					{{> stonetopRosterAvatar roster="custom-member" slug=../slug}}
 					<span class="stonetop-crew-member-name">{{label}}</span>
+					{{#if dead}}<span class="stonetop-follower-dead-badge" data-tooltip="Marked dead: the group keeps at least two, so they stay on its roster. Set their HP above 0 to revive them."><i class="fas fa-skull-crossbones"></i> <span class="stonetop-chip-text">Fallen</span></span>{{/if}}
 					<span class="stonetop-follower-hp-track stonetop-follower-hp-track--individual">
 						<strong class="stonetop-follower-hp-label">HP</strong>
 						<input class="stonetop-follower-hp-input" type="number"

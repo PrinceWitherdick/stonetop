@@ -109,6 +109,38 @@ describe("_followerMemberNames — who a group can produce for", () => {
 		expect(sheet._followerMemberNames("custom", "warband")).toEqual(["Member 1", "Member 2", "Member 3"]);
 	});
 
+	// A group at its two-member floor keeps a dead member's row, marked fallen (memberDead). The dead
+	// produce nothing, so the picker leaves them out; a member who is only down at 0 HP is still offered,
+	// and each keeps the number their roster row carries.
+	it("leaves a custom group's fallen member out of the picker, but keeps one who is only down", () => {
+		const { sheet } = makeSheet({ customFollowers: { band: {
+			name: "The Band", isGroup: true, size: 3, memberHp: [0, 0, 4], memberDead: [true, null, null],
+		} } });
+		expect(sheet._followerMemberNames("custom", "band")).toEqual(["Member 2", "Member 3"]);
+		const dialog = captureDialog();
+		sheet._onHaveWhatTheyNeed("custom", "band", "The Band");
+		expect(dialog.memberOptions).toEqual(["Member 2", "Member 3"]);
+	});
+
+	// Both floor members marked fallen: nobody is left to direct, and the prompt must not fall
+	// back to the singular wording as if the group itself were one follower.
+	it("opens no prompt for a custom group whose every member has fallen, and says why", () => {
+		const { sheet } = makeSheet({ customFollowers: { band: {
+			name: "The Band", isGroup: true, size: 2, memberHp: [0, 0], memberDead: [true, true],
+		} } });
+		const warn = vi.fn();
+		const prevUi = global.ui;
+		global.ui = { ...prevUi, notifications: { ...prevUi?.notifications, warn } };
+		try {
+			const dialog = captureDialog();
+			sheet._onHaveWhatTheyNeed("custom", "band", "The Band");
+			expect(dialog.data).toBeNull();
+			expect(warn).toHaveBeenCalledWith(expect.stringContaining("every member has fallen"));
+		} finally {
+			global.ui = prevUi;
+		}
+	});
+
 	// A singular follower IS the member, so there is nobody to choose between.
 	it("answers empty for a follower who is not a group", () => {
 		const { sheet } = makeSheet({ customFollowers: { andras: { name: "Andras" } } });

@@ -47,7 +47,8 @@ import {showsPreferencesTab, withPreferencesTab} from "../../utils/preferences-t
 import {injectHeaderToggle} from "../../utils/sheet-chrome.js";
 import {mountScrollFrost} from "../../utils/scroll-frost.js";
 import {withSheetSizeMemory} from "../../utils/sheet-size.js";
-import { crewExists, effectiveCrewSize, customGroupSize, crewAnonymousCount, crewAnonMemberLabel, crewIndividualLabel, customGroupMemberLabel, groupFollowerMembers, groupFollowerStanding, CREW_SIZE_MAX } from "../../utils/crew.js";
+import { personalSymbolAction, displayPersonalSymbol } from "./personal-symbol.js";
+import { crewExists, crewBackgroundTag, effectiveCrewSize, customGroupSize, crewAnonymousCount, crewAnonMemberLabel, crewIndividualLabel, customGroupMemberLabel, customGroupPresent, groupFollowerMembers, groupFollowerStanding, CREW_SIZE_MAX } from "../../utils/crew.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
 import {createArcanumItem} from "../../item/createArcanum.js";
 import {rollStat, sign, classifyResult} from "../../utils/roll-engine.js";
@@ -102,8 +103,6 @@ import {showJudgeMarks, condemnedContext, CONDEMN, CENSURE, CASTIGATE} from "./c
 import {PIETY, holdBlessing, shareBlessing} from "./roll-boosts.js";
 import {pickPersonOnMap} from "../../dialogs/RelationshipLinkDialog.js";
 import {readyRulebookIcon, openSharedRulebook} from "../../books/rulebook-icons.js";
-import { personalSymbolAction, displayPersonalSymbol } from "./personal-symbol.js";
-import { crewBackgroundTag } from "../../utils/crew.js";
 
 /**
  * The one book a PLAYER's sheet offers. Book I is the rules they play by; Book II is the
@@ -2891,6 +2890,8 @@ export function createStonetopCharacterSheetClass(Base) {
 						const groupEditing = cardEditing("custom", id);
 						const anonMembers = this._anonRosterMembers(size, {
 							hp: memberHpRaw, img: memberImgRaw, hpMax: memberHpMax,
+							// Members marked fallen at the group's two-member floor (follower-fate.js).
+							dead: Array.isArray(c?.memberDead) ? c.memberDead : [],
 							editing: groupEditing,
 							labelFor: customGroupMemberLabel,
 						});
@@ -2902,7 +2903,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						card.groupHpCurrent = groupHpCurrent;
 						card.groupHpMax     = groupHpMax;
 						card.groupMemberHp  = memberHpMax;
-						card.memberCount    = anonMembers.filter(m => m.hpCurrent > 0).length;
+						card.memberCount    = anonMembers.filter(m => m.hpCurrent > 0 && !m.dead).length;
 						card.groupSectionsOpen = {
 							roster:     this._openCrewSections.has(`roster:custom:${id}`),
 							groupFight: this._openCrewSections.has(`groupFight:custom:${id}`),
@@ -2993,7 +2994,10 @@ export function createStonetopCharacterSheetClass(Base) {
 					// something that would trigger a player move, and they do it, they trigger the
 					// move" (Order Followers, p.462). Every orderable follower can, the crew included
 					// — the crew is in fact the one type the book names for it.
-					card.canHaveNeed = true;
+					// A custom group whose every member is marked fallen (follower-fate.js) has nobody left
+					// to produce anything, so the button goes rather than opening a dialog with no one in it.
+					card.canHaveNeed = !(card.isGroup && Array.isArray(card.groupMembers)
+						&& card.groupMembers.length && card.groupMembers.every(m => m.dead));
 					// A group produces for ONE of its members, not all of them: "the PC can direct one
 					// crew member to Have What They Need and add an item to their inventory, WITHOUT
 					// the rest of the crew each producing the same item" (p.472). That holds for any
@@ -4951,6 +4955,10 @@ export function createStonetopCharacterSheetClass(Base) {
 				// And their faces, which are an array parallel to that HP (roster-portraits.js).
 				if (Array.isArray(c.memberPortrait) && c.memberPortrait.length > size) {
 					update[`flags.stonetop-pwd.customFollowers.${slug}.memberPortrait`] = c.memberPortrait.slice(0, size);
+				}
+				// And the fallen marks, parallel the same way (follower-fate.js#customMemberDeathUpdate).
+				if (Array.isArray(c.memberDead) && c.memberDead.length > size) {
+					update[`flags.stonetop-pwd.customFollowers.${slug}.memberDead`] = c.memberDead.slice(0, size);
 				}
 				// Clamp an explicitly-set group pool to its max (unset tracks full). The pool
 				// is ONE member's HP, so resizing the roster no longer moves that ceiling —
@@ -9614,9 +9622,10 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * cannot land on one roster and be forgotten on the other.
 		 *
 		 * `labelFor` is the only real difference — the crew counts past its named members, a custom
-		 * group counts from one.
+		 * group counts from one. `dead` (a custom group's `memberDead`, parallel to `hp`) marks a
+		 * member fallen at the group's two-member floor: the row greys with a "Fallen" badge.
 		 */
-		_anonRosterMembers(count, { hp = [], img = [], hpMax, editing, labelFor }) {
+		_anonRosterMembers(count, { hp = [], img = [], dead = [], hpMax, editing, labelFor }) {
 			return Array.from({ length: count }, (_, i) => {
 				const label = labelFor(i);
 				return {
@@ -9624,6 +9633,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					label,
 					hpMax,
 					hpCurrent: _clampHp(hp[i], hpMax),
+					dead:      !!dead[i],
 					...rosterAvatarContext(img[i], {
 						name: label, canWrite: this.isEditable, rosterEditing: editing,
 					}),
@@ -9965,10 +9975,10 @@ export function createStonetopCharacterSheetClass(Base) {
 				for (let i = 0; i < anonCount; i++) list.push(crewAnonMemberLabel(named.length, i));
 				return list;
 			}
-			// A custom group has no named individuals — every row is an anonymous slot.
+			// A custom group has no named individuals — every row is an anonymous slot. A member marked
+			// fallen produces nothing; one who is only down still can. Labels keep their roster numbers.
 			const custom = ftype === "custom" ? this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}`) : null;
-			if (!custom?.isGroup) return [];
-			return Array.from({ length: customGroupSize(custom) }, (_, i) => customGroupMemberLabel(i));
+			return customGroupPresent(custom).map(i => customGroupMemberLabel(i));
 		}
 
 		// Have What They Need (p.326) run for a follower, per Order Followers (p.462): "when you
@@ -9987,6 +9997,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (!gearPath) return;
 			// Only a group has members to choose between; a singular follower IS the member.
 			const members = this._followerMemberNames(ftype, slug);
+			// A custom group with every member fallen has no one to direct (the button is hidden then,
+			// but the sheet can be stale); never fall through to the singular wording for a group.
+			if (!members.length && ftype === "custom" && this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}`)?.isGroup) {
+				ui.notifications?.warn(`${name || "This group"}: every member has fallen, so no one can Have What They Need.`);
+				return;
+			}
 			const picker  = members.length
 				? `<p class="stonetop-hwtn-who"><label>Which of them?`
 					+ `<select class="stonetop-hwtn-member stonetop-cf-input">`
@@ -10585,10 +10601,8 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * ones the Order button would use.
 		 */
 		async orderableFollowers() {
-			const groups = this._buildFollowersData(await this._stonetopCharacter.playbook());
-			const cards = [groups.animalCompanion, groups.crew, ...(groups.initiates ?? []), ...groups.beasts, ...groups.custom];
 			const split = csv => String(csv ?? "").split("|").map(s => s.trim()).filter(Boolean);
-			return cards
+			return (await this._followerCards())
 				.filter(card => card?.ftype && card.canOrder && !card.dead)
 				.map(card => ({
 					ftype:       card.ftype,
@@ -10600,6 +10614,30 @@ export function createStonetopCharacterSheetClass(Base) {
 					isGroup:     !!card.isGroup || card.groupHpMax != null,
 					party:       !!card.party,
 				}));
+		}
+
+		/**
+		 * One follower card's HP box as the Followers tab draws it, `{max, current}`, or null for no such
+		 * card. Built from the same cards and the same move bonuses a render uses, so the max is the HP
+		 * input's own `max` (the stat override, Beast of Legend's +4) and an unset HP reads full. For a
+		 * reader outside the tab that raises the box (Bath of Healing Light, invocation-apply.js).
+		 */
+		async followerCardHp(ftype, slug = "") {
+			const card = (await this._followerCards()).find(c => c?.ftype === ftype && (c.slug ?? "") === (slug ?? ""));
+			if (!card || typeof card.hpMax !== "number") return null;
+			return { max: card.hpMax, current: card.hpCurrent };
+		}
+
+		/**
+		 * Every follower card as the Followers tab draws it, one flat list, for a reader with the tab
+		 * closed: the same cards, the same move bonuses, and the crew a learned Crew borrows (crewSource).
+		 */
+		async _followerCards() {
+			const playbookDoc = await this._stonetopCharacter.playbook();
+			const crewDef = await this._stonetopCharacter.crewSource(playbookDoc);
+			const { crewStats, companionBonuses } = await this._stonetopCharacter.followerCardBonuses(playbookDoc, crewDef);
+			const groups = this._buildFollowersData(playbookDoc, null, crewStats, companionBonuses, crewDef);
+			return [groups.animalCompanion, groups.crew, ...(groups.initiates ?? []), ...groups.beasts, ...groups.custom];
 		}
 
 		// ── Damage die ─────────────────────────────────────────────────────────────

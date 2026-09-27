@@ -103,6 +103,15 @@ describe("sitting down at a camp", () => {
 		} } });
 		expect(partyFollowerMouths(aeliana)).toBe(6);
 	});
+
+	// A group at its two-member floor keeps a dead member's row, marked fallen (memberDead). The dead
+	// eat nothing; a member who is only down at 0 HP still eats.
+	it("does not feed a group member marked fallen, but still feeds one who is only down", () => {
+		const { aeliana } = campParty({ aeliana: { followers: {
+			band: { party: true, isGroup: true, size: 2, memberHp: [0, 0], memberDead: [true, null] },
+		} } });
+		expect(partyFollowerMouths(aeliana)).toBe(1);
+	});
 });
 
 describe("finding camps and who is at them", () => {

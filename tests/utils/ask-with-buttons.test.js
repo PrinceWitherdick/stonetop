@@ -44,6 +44,19 @@ describe("confirmOutcome", () => {
 		expect(no).not.toHaveProperty("class");
 	});
 
+	// Content handed in as an element keeps only its markup, so a form whose boxes answer each other
+	// (Bath of Healing Light's cap on picks) is wired once the window is on screen.
+	it("hands a render callback the window's element, and passes none when not asked", async () => {
+		const asked = stubConfirm(null);
+		const render = vi.fn();
+		await askWithButtons({ title: "t", content: "", render, buttons: [{ key: "a", label: "A", value: 1 }] });
+		const element = { id: "window" };
+		asked.mock.calls[0][0].render({}, { element });
+		expect(render).toHaveBeenCalledWith(element);
+		await askWithButtons({ title: "t", content: "", buttons: [{ key: "a", label: "A", value: 1 }] });
+		expect(asked.mock.calls[1][0]).not.toHaveProperty("render");
+	});
+
 	it("keeps a caller's own window class", async () => {
 		const asked = stubConfirm(false);
 		await askWithButtons({ title: "t", content: "", classes: ["stonetop-camp-ask"], buttons: [{ key: "a", label: "A", value: 1 }] });

@@ -1043,6 +1043,18 @@ describe("follower fate: a custom group's members are followers too", () => {
 		expect(chat.mock.calls[0][0].content).toMatch(/marked fallen/);
 	});
 
+	it("the Followers tab draws a fallen member greyed with the Fallen badge, and does not count them standing", async () => {
+		const { char, actor } = marshalAt(1, { flags: bandFlags({ size: 2, memberHp: [4, 0], memberDead: [null, true] }) });
+		const card = (await followerGroups(char, actor)).custom.find(c => c.slug === "band");
+		expect(card.groupMembers.map(m => [m.label, m.dead])).toEqual([["Member 1", false], ["Member 2", true]]);
+		expect(card.memberCount).toBe(1);
+		const { readFileSync } = await import("node:fs");
+		const source = readFileSync("templates/actor/partials/tab-followers.hbs", "utf8");
+		const row = /{{#each groupMembers}}([\s\S]*?){{\/each}}/.exec(source.slice(source.indexOf('data-section="roster:custom:')))?.[1] ?? "";
+		expect(row).toMatch(/stonetop-crew-member-row{{#if dead}} is-dead{{\/if}}/);
+		expect(row).toMatch(/{{#if dead}}<span class="stonetop-follower-dead-badge"[^>]*>.*Fallen/);
+	});
+
 	it("a row healed since the dialog opened is left alone", async () => {
 		withChat();
 		const warn = vi.fn();
