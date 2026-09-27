@@ -123,11 +123,14 @@ import { registerCampWindowRestore } from "./module/camp/CampWindow.js";
 import { registerStruggleHooks } from "./module/struggle/struggle-flow.js";
 import { registerPcAskHooks, wirePcAskCard } from "./module/pc-asks/pc-ask-flow.js";
 import { registerFightTab } from "./module/fight/fight-boot.js";
+import { wireRollBoosts, BOOST_QUERY, handleBoostQuery, BLESSING_QUERY, handleBlessingQuery } from "./module/actors/character/roll-boosts.js";
+import { reconcileTierEffects } from "./module/actors/character/tier-effects.js";
+import {
+	INSPIRATION_QUERY, handleInspirationQuery, onUpdateActorInspirationAtZero, wireInspirationDamage, wireKeepOneHp, wireSpeechCard,
+} from "./module/actors/character/inspiration-flow.js";
 import { onUpdateActorUnstoppable } from "./module/actors/character/unstoppable.js";
 import { wireBattleJoyResult } from "./module/combat/battle-joy-offer.js";
 import { wireWielderInvoke, invokeCardChoosesConsequence, invokeActionRow, TEN_PLUS_FLAG } from "./module/actors/character/invoke-consequences.js";
-import { wireRollBoosts, BOOST_QUERY, handleBoostQuery, BLESSING_QUERY, handleBlessingQuery } from "./module/actors/character/roll-boosts.js";
-import { INSPIRATION_QUERY, handleInspirationQuery, onUpdateActorInspirationAtZero, wireInspirationDamage, wireKeepOneHp, wireSpeechCard } from "./module/actors/character/inspiration-flow.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -1281,6 +1284,7 @@ function _chatWireBurnBrightly(message, html) {
 				speaker: { ...message.speaker, ...speakerUpdate },
 				flags:   { [SYSTEM_ID]: { burnBrightly: true } },
 			});
+			await _resyncRewrittenTotal(message, actor, roll.total);
 		} catch (err) {
 			console.error("Stonetop | Error burning brightly:", err);
 			btn.disabled = false;
@@ -1295,8 +1299,9 @@ function _chatWireBurnBrightly(message, html) {
 const ROLL_BOOST_DEPS = {
 	shiftRoll:  (roll, shift) => _shiftRoll(roll, shift),
 	cardFlavor: (flavor, total, formula) => _shiftRollCardFlavor(flavor, total, formula),
-	// A shifted Know Things card identifying an arcanum carries the new tier's disclosure, as Shift Up does.
-	afterShift: (message, total) => _resyncIdentification(message, speakerActor(message), total),
+	// A shifted Know Things card identifying an arcanum carries the new tier's disclosure, as Shift Up does,
+	// and the tier's effects on the roller follow it. On the GM's client for a relayed +1 (BOOST_QUERY).
+	afterShift: (message, total) => _resyncRewrittenTotal(message, speakerActor(message), total),
 };
 
 // We Happy Few's 1d6 on a plain damage card redraws its total the way a Shift does
@@ -1405,6 +1410,17 @@ const IDENTIFY_SYNCERS = [_syncArcanumIdentification, _syncArtifactIdentificatio
 /** Re-apply a rewritten roll total to whatever that roll was identifying. */
 async function _resyncIdentification(message, actor, total) {
 	for (const sync of IDENTIFY_SYNCERS) await sync(message, actor, total);
+}
+
+/**
+ * Everything a roll card's total owes to what it moved, called by every place that rewrites one (a GM's
+ * Shift, Burn Brightly, a +1 pressed on the card, a logbook's 10+): what it was identifying, and what its
+ * tier did to the roller (We Happy Few's nerves, Prepare a Welcome's Surprise, Commune with Aratis's
+ * Sanction, the holy light, Defend's Readiness: actors/character/tier-effects.js).
+ */
+async function _resyncRewrittenTotal(message, actor, total) {
+	await _resyncIdentification(message, actor, total);
+	await reconcileTierEffects(message, total, { actor });
 }
 
 
@@ -1538,7 +1554,7 @@ async function _spendKnowThingsUpgrade(message, actor, cardButtons, btn, source)
 		});
 		// If this roll was identifying an arcanum or an artifact, the 10+ the use just bought
 		// has to actually hand the thing over — the outcome was committed when the dice landed.
-		await _resyncIdentification(message, actor, shifted.total);
+		await _resyncRewrittenTotal(message, actor, shifted.total);
 		actor.sheet?.render(false);
 	} catch (err) {
 		console.error(`Stonetop | Error consulting ${source.noun}:`, err);
@@ -2372,8 +2388,9 @@ async function _onRollShift(event, message) {
 		});
 		// A shifted Know Things card that was identifying an arcanum has to carry the new tier's
 		// disclosure with it, or a Shift Up says "You read the card, front and back" over a card
-		// still face down. No-op for every other roll — the flag is only on that one.
-		await _resyncIdentification(message, speakerActor(message), roll.total);
+		// still face down. No-op for every other roll: the flag is only on that one. And what the
+		// tier did to the roller follows it: a We Happy Few lifted off its 6- steadies the nerves.
+		await _resyncRewrittenTotal(message, speakerActor(message), roll.total);
 	} catch (err) {
 		console.error("Stonetop | Error shifting roll result:", err);
 	} finally {

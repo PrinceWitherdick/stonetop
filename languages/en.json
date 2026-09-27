@@ -1620,7 +1620,8 @@
       "fallButton": "Go down to 0 HP",
       "keepCardButton": "Keep 1 HP (Inspiration)",
       "keptOneHp": "{name} spends 1 Inspiration and keeps 1 HP instead of being reduced to 0 HP ({left} left).",
-      "keptOneHpJoy": "{name} spends 1 Inspiration and keeps 1 HP instead of being reduced to 0 HP ({left} left). Their Battle Joy goes on."
+      "keptOneHpJoy": "{name} spends 1 Inspiration and keeps 1 HP instead of being reduced to 0 HP ({left} left). Their Battle Joy goes on.",
+      "keptReadiness": "They still hold {count} Readiness."
     },
     "roiling": {
       "onLabel": "Roiling with anger",

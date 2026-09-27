@@ -18,14 +18,13 @@
 // rolls (a sheet flags, it never blocks), and the card says the Surprise was not there.
 
 import { ownsLearnedMoveNamed, ownedMove } from "../actors/character/owns-move.js";
-import { heldOnTrack } from "../actors/character/MoveResources.js";
+import { heldOnTrack, learnedTrack, takeBackHeld } from "../actors/character/MoveResources.js";
 import { answersFor } from "../hooks/DeathsDoorPrompt.js";
 import { postMoveNote } from "../utils/chat.js";
 import { askWithButtons } from "../utils/ask-with-buttons.js";
 import { contentElement } from "../dialogs/content-picker.js";
 import { escHtml, joinNames } from "../utils/strings.js";
 import { format, localize } from "../utils/i18n.js";
-import { learnedTrack } from "../actors/character/MoveResources.js";
 
 const KEY = "stonetop.battleHolds";
 const FIELD = "stonetop-battle-hold";
@@ -71,6 +70,15 @@ export async function regainSurpriseOnHit(actor, item, tier) {
 	return true;
 }
 
+/**
+ * Take back Surprise a 10+ gave, when the card is moved off it (actors/character/tier-effects.js): never
+ * below none, so a Surprise spent since is not taken twice.
+ *
+ * @returns {Promise<number>} how many came off
+ */
+export function takeBackSurprise(actor, count) {
+	return takeBackHeld(actor, PREPARE_A_WELCOME, count);
+}
 
 /**
  * The holds this character could top up right now: a learned move with a track, not full.

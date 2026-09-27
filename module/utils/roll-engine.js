@@ -582,6 +582,15 @@ export function conditionsRowHtml(conditions) {
 	</div>`;
 }
 
+// The card each rollStat roll was posted as, for a caller that has to write on it after the dice (the
+// tier effects a roll applied: actors/character/tier-effects.js). Weak, so a roll let go of lets go of it.
+const ROLL_MESSAGES = new WeakMap();
+
+/** The chat message rollStat posted this roll as, or null for a roll it did not post. */
+export function messageOfRoll(roll) {
+	return (roll && typeof roll === "object" && ROLL_MESSAGES.get(roll)) || null;
+}
+
 /**
  * Roll 2d6+stat for a character move or direct stat roll.
  *
@@ -758,6 +767,7 @@ export async function rollStat(statKey, actor, options = {}) {
 		rollMode: game.settings.get("core", "rollMode"),
 		...(whisper.length ? { whisper } : {}),
 	}, whisper.length ? privateMessageModeOptions() : {});
+	if (resultMessage && typeof resultMessage === "object") ROLL_MESSAGES.set(roll, resultMessage);
 
 	// Wait for the Dice So Nice 3D animation (if installed) to finish before
 	// posting any follow-up cards, so the Miss/XP card doesn't reveal the result

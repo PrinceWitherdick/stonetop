@@ -50,7 +50,7 @@ import {tagLoadGatedMoves} from "./load-gates.js";
 import {startOfPlayGear, START_GEAR_FLAG} from "./start-of-play-gear.js";
 import {RITES_OF_THE_LAND, SACRED_POUCH_SLUG, NO_POUCH_STOCK_NOTE, BLESSED_PLAYBOOK, isVessel, stockSourcesForFlags, stockCostFromDescription} from "./stock-cost.js";
 import {loseHpForStock} from "./provisions.js";
-import {HOLY_LIGHT_FLAG, canWieldHolyLight, INVOKE_THE_SUN_GOD} from "./holy-light.js";
+import {HOLY_LIGHT_FLAG, canWieldHolyLight, INVOKE_THE_SUN_GOD, holyLightAfterRoll, LUMINOUS_SHIELD} from "./holy-light.js";
 import {moveArmor, barkskinMarkedBy} from "./move-armor.js";
 import {invocationLabels} from "./ongoing-invocation.js";
 import {choiceCountState} from "./initiates.js";
@@ -71,12 +71,15 @@ import {grantsToCreate, grantSourceMap, grantAdoptionKeys, itemGrantKey, grantOf
 import {CharacterInventory} from "./CharacterInventory.js";
 import {maybeBeginAttack, maybeCounterOnMiss, maybeMissFx, attackMoveFor, attackFoeAdvantage, recordClashedFoes, rollMoveDamageAt, snapshotTargets} from "../../combat/attack-flow.js";
 import {aimPcAskRoll} from "../../pc-asks/pc-ask-flow.js";
-import {defendReadinessHold, defendReadinessCap, readinessCount, READINESS_FLAG} from "../../combat/defend-readiness.js";
+import {INTERFERE_MOVE, PERSUADE_PC_MOVE, PC_ASK_FLAG} from "../../pc-asks/pc-ask-rules.js";
+import {brokenOaths, oathbreakerAgainst} from "../../fight/hero-moves.js";
+import {defendReadinessHold, defendReadinessCap, readinessCount, readinessForTier, READINESS_FLAG, DEFEND_MOVE} from "../../combat/defend-readiness.js";
 import {settleReadinessOnAttack} from "../../combat/readiness-loss.js";
-import {classifyResult} from "../../utils/roll-engine.js";
+import {classifyResult, messageOfRoll} from "../../utils/roll-engine.js";
 import {foldModes, layModes} from "../../utils/roll-mode.js";
-import {fightStateActive, shakeNervesOnMiss, revealOnAttack, WE_HAPPY_FEW} from "./fight-states.js";
-import {spendSurpriseForRoll, regainSurpriseOnHit} from "../../combat/battle-holds.js";
+import {fightStateActive, revealOnAttack, WE_HAPPY_FEW} from "./fight-states.js";
+import {spendSurpriseForRoll} from "../../combat/battle-holds.js";
+import {settleTierEffects, recordTierEffects} from "./tier-effects.js";
 import {xpToLevelUp, withXpLock} from "../../utils/xp.js";
 import {CharacterArcana} from "./CharacterArcana.js";
 import {CharacterLore} from "./CharacterLore.js";
@@ -100,9 +103,6 @@ import {deriveLoadLevel, loadLimitsFor} from "../../utils/load.js";
 import {maxDie, stepDie, normalizeDamageDie} from "../../utils/damage-die.js";
 import {WEAPONS_OF_WAR_COMMON, WEAPONS_OF_WAR_PIERCING, ALL_IN_THE_WRIST} from "../../data/weapons.js";
 import {X_PIERCING_MAX} from "../../utils/damage.js";
-import { holyLightAfterRoll } from "./holy-light.js";
-import { INTERFERE_MOVE, PERSUADE_PC_MOVE, PC_ASK_FLAG } from "../../pc-asks/pc-ask-rules.js";
-import { brokenOaths, oathbreakerAgainst } from "../../fight/hero-moves.js";
 
 /** The Judge's Castigate, whose damage rides every Censure (see brandCondemned). */
 const CASTIGATE = "Castigate";
@@ -435,7 +435,7 @@ function _ownedLoadBonus(actor) {
 // The Defend basic move holds Readiness (p.216) — the only move with the on-sheet
 // circle track; the Heavy's Guardian move sweetens each hold by +1 (and so needs no
 // circle of its own — it just adds one to Defend's track).
-const _DEFEND_MOVE_NAME = "Defend";
+const _DEFEND_MOVE_NAME = DEFEND_MOVE;
 const _GUARDIAN_MOVE_NAME = "Guardian";
 // Held Defend Readiness lives in a flag on the actor (READINESS_FLAG, combat/defend-readiness.js),
 // mirroring how followers store theirs under readiness paths in _FOLLOWER_FLAGS.
@@ -3705,19 +3705,14 @@ export class StonetopCharacter {
 		// What the taken lines cost, paid once the dice have landed.
 		if (roll) for (const offer of taken) await offer.spend?.(item.name);
 
-		// Defend: fill the character's Readiness circles from the tier they just rolled
-		// (p.216), never lowering a pool they already hold.
-		if (!descriptionOnly && item?.name === _DEFEND_MOVE_NAME && Number.isFinite(roll?.total)) {
-			await this._maybeHoldDefendReadiness(roll.total);
-		}
-
-		// We Happy Few's 6-: "you have disadvantage on all rolls until you share your nerves with
-		// someone". Stated flatly, so the state goes on with the dice (actors/character/fight-states.js).
+		// What the tier just rolled does to the character: Defend's Readiness (p.216), We Happy Few's 6-
+		// shaking the nerves, Prepare a Welcome's 10+ regaining 1 Surprise, Commune with Aratis's 10+
+		// holding 2 Sanction, the holy light lit or snuffed. Stated flatly, so each goes on with the dice.
+		// What each did is written on the card, so a later Shift or +1 moving its tier can bring the
+		// character along, undoing only what this roll did (actors/character/tier-effects.js).
 		if (!descriptionOnly && Number.isFinite(roll?.total)) {
 			const tier = classifyResult(roll.total).key;
-			await shakeNervesOnMiss(this._actor, item, tier);
-			// Prepare a Welcome's 10+: "regain 1 Surprise".
-			await regainSurpriseOnHit(this._actor, item, tier);
+			await recordTierEffects(messageOfRoll(roll), await settleTierEffects(this._actor, item.name, tier, null, { character: this }));
 		}
 
 		// Clash's 6-: "your maneuver fails and you suffer your enemy's attack". A flat consequence
@@ -4009,6 +4004,34 @@ export class StonetopCharacter {
 		await postMoveNote(this._actor, item.name, format(names ? "stonetop.holyLight.snuffedEnding" : "stonetop.holyLight.snuffedByRoll",
 			{ name: this._actor.name, invocations: names }));
 		return true;
+	}
+
+	/**
+	 * The holy light for a tier of one of the two moves that light or snuff it, at the roll and again when
+	 * its card's tier is moved afterwards (actors/character/tier-effects.js). `done` is what the card did so
+	 * far: `true` when a Wielder of the White Flame card lit it, `{lit, invocations}` when a Luminous Shield
+	 * card snuffed it (whether it was lit, and the Invocations it ended), falsy for nothing. A tier that no
+	 * longer asks for it undoes it: the light put out again, or relit with its Invocations back.
+	 * Resolves to the card's new record.
+	 */
+	async settleHolyLightTier(moveName, tier, done = false) {
+		const lit = holyLightAfterRoll(moveName, tier);
+		const move = { name: moveName };
+		if (moveName === LUMINOUS_SHIELD) {
+			if (lit === false && !done) {
+				const was = { lit: this.holyLight, invocations: this.invocationState };
+				return (await this._settleHolyLightOnRoll(move, tier)) ? was : false;
+			}
+			if (lit !== false && done) {
+				if (done.lit) await this.setHolyLight(true);
+				await this._writeInvocationState(done.invocations ?? {});
+				return false;
+			}
+			return done || false;
+		}
+		if (lit === true && !done) return !!(await this._settleHolyLightOnRoll(move, tier));
+		if (lit !== true && done) { await this.setHolyLight(false); return false; }
+		return !!done;
 	}
 
 	// -- The ongoing Invocations (what the Lightbearer is concentrating on) ------------
@@ -4409,15 +4432,21 @@ export class StonetopCharacter {
 	// Raise the held Readiness to the amount this Defend tier grants, never lowering an
 	// existing pool (a fresh 7-9 shouldn't shrink Readiness you're already holding). Posts
 	// a chat note when the pool actually grows.
-	async _maybeHoldDefendReadiness(total) {
-		const tier = classifyResult(total).key;
+	//
+	// Also for the tier the card is moved to afterwards (a Shift, a +1 on it): `done` is what the
+	// card's earlier tier did, `{prior, set}` (actors/character/tier-effects.js), and the pool moves
+	// by the difference, so Readiness spent since stays spent. Absent at the roll itself.
+	// Resolves to the card's new record.
+	async settleDefendReadinessTier(tier, done = null) {
 		// Resolved once: the note below must credit the shield on exactly the rolls the hold did.
 		const hasShield = await this.bearsShield();
 		const hold = defendReadinessHold(tier, { hasShield, hasGuardian: this.hasGuardianMove });
 		const existing = this.defendReadiness;
-		const next = Math.max(existing, hold);
-		if (next === existing) return;
+		const prior = done ? readinessCount(done.prior) : existing;
+		const { next, set } = readinessForTier({ prior, set: done ? done.set : prior, current: existing, hold });
+		if (next === existing) return { prior, set };
 		await this.setDefendReadiness(next);
+		if (next < existing) return { prior, set };
 		// The shield's +1 rides a 7+ hit only, so don't credit it on a 6- miss (where the
 		// hold comes solely from Guardian) — that would falsely imply the shield applied.
 		const shieldNote = (hasShield && tier !== "failure") ? " (shield)" : "";
@@ -4427,6 +4456,7 @@ export class StonetopCharacter {
 				+ `<p>Spend it to suffer an attack's damage/effects for a ward, halve it, draw all attention to yourself, or strike back.</p>`),
 			speaker: ChatMessage.getSpeaker({ actor: this._actor }),
 		});
+		return { prior, set };
 	}
 
 	async onDirectStatRoll(stat, extraOptions = {}) {
@@ -4945,13 +4975,16 @@ export class StonetopCharacter {
 	 * than two. It still has to happen when the hit points DON'T move (a character healed above
 	 * the amount while the dialog was open), so that path writes the state on its own.
 	 */
-	async restoreHp(value, moveName, { clearsDeathsDoor = false } = {}) {
+	// `alsoUpdate`: more of the same decision, in the same write (We Happy Few's Keep 1 HP puts back
+	// the Battle Joy and Readiness the drop cost), so hooks see it land as one.
+	async restoreHp(value, moveName, { clearsDeathsDoor = false, alsoUpdate = null } = {}) {
 		const target = Math.max(0, Math.trunc(Number(value) || 0));
 		if (target <= this.hp) {
 			if (clearsDeathsDoor) await this.setDeathsDoorState(null);
+			if (alsoUpdate && Object.keys(alsoUpdate).length) await this._actor.update(alsoUpdate, moveName ? { stonetopMove: moveName } : {});
 			return false;
 		}
-		const update = { "system.attributes.hp.value": target };
+		const update = { "system.attributes.hp.value": target, ...(alsoUpdate ?? {}) };
 		if (clearsDeathsDoor) Object.assign(update, this._clearDeathsDoorUpdate);
 		await this._actor.update(update, moveName ? { stonetopMove: moveName } : {});
 		return true;
