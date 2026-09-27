@@ -118,6 +118,15 @@ const _CIRCLE_TRACK_RE  = /○{2,}/g;
 const _BOX_RE           = /□+/g;
 const _UNLOCK_CIRCLE_RE = /○+/g;
 
+/**
+ * How many ○ an unlock lead prints: one per GLYPH, as _injectMarkers indexes them (a run of
+ * "○○○○" is four boxes, `unlock:0` to `unlock:3`). Counting matches of _UNLOCK_CIRCLE_RE counted
+ * RUNS, so a four-circle major read as unlocked after its first mark.
+ */
+export function unlockCircleCount(description) {
+	return (String(description ?? "").match(/○/g) || []).length;
+}
+
 // A few cards' FRONT text tells you to "mark a consequence (see reverse)" (Hec'tumel Codex,
 // Redwood Effigy). The consequences themselves live in a "Consequences" section on the BACK,
 // which a player may not have unlocked. For those cards we surface that section onto the front
@@ -194,6 +203,7 @@ export class CharacterArcana {
 	get majorSlug()        { return this._flags.getFlag("major") ?? null; }
 	get minorDrawSlugs()   { return this._flags.getFlag("minorDraw") ?? []; }
 	get minorRoles()       { return this._flags.getFlag("minorRoles") ?? {}; }
+	get majorMarkKeys()    { return this._flags.getFlag("majorMarks") ?? []; }
 
 	/**
 	 * Display data for a playbook's arcana lore (the Seeker): the chosen major
@@ -213,12 +223,6 @@ export class CharacterArcana {
 			minorOptions: drawSlugs.map(slug => ({ slug, name: names[slug] ?? slug })),
 			roles: this.minorRoles,
 		};
-	}
-
-	async setMinorRole(role, slug) {
-		const roles = { ...this.minorRoles };
-		if (slug) roles[role] = slug; else delete roles[role];
-		await this._flags.setFlag("minorRoles", roles);
 	}
 
 	async buildSnapshot(stats = {}, checkedMap = {}, inventoryResources = {}) {
@@ -392,11 +396,17 @@ export class CharacterArcana {
 	 * (no GM reveal, no owed back, not a lead), marked with the row's boxes and no others, and no
 	 * unlock or back option counted. `flipped` is only which face is showing, so it doesn't count.
 	 * An unticked box is stored as false (setArcanumBoxChecked), which is the same as never marked.
+	 *
+	 * The Seeker's creation grants read the same way (StonetopCharacter#settleSeekerArcana), with
+	 * what each role gives: `reveal` (the found card, both sides read), `lead` (a lead placeholder)
+	 * and `unlock` (the mastered card's unlock requirements, `{ optionSlug: count }`).
 	 */
-	isAsGranted({ slug, identify = false, boxes = [] } = {}) {
+	isAsGranted({ slug, identify = false, reveal = false, lead = false, boxes = [], unlock = {} } = {}) {
 		if (!slug || !this.ownedSlugs.has(slug)) return false;
 		if (this.identifiedSlugs.has(slug) !== !!identify) return false;
-		if (this.revealedSlugs.has(slug) || this.backOwedSlugs.has(slug) || this.leadSlugs.has(slug)) return false;
+		if (this.revealedSlugs.has(slug) !== !!reveal) return false;
+		if (this.leadSlugs.has(slug) !== !!lead) return false;
+		if (this.backOwedSlugs.has(slug)) return false;
 		const prefix = `${slug}:`;
 		const marked = key => Object.entries(this._flags.getFlag(key) ?? {})
 			.filter(([k, v]) => k.startsWith(prefix) && (typeof v === "number" ? v > 0 : !!v))
@@ -404,7 +414,12 @@ export class CharacterArcana {
 		const granted = new Set(boxes.map(box => `${slug}:${box.context ?? "front"}:${Number(box.index ?? 0)}`));
 		const ticked  = marked("boxes");
 		if (ticked.length !== granted.size || ticked.some(k => !granted.has(k))) return false;
-		return !marked("unlock").length && !marked("backOptions").length;
+		const counts   = this.unlockCounts;
+		const expected = Object.entries(unlock).filter(([, n]) => Number(n) > 0);
+		const counted  = marked("unlock");
+		if (counted.length !== expected.length) return false;
+		if (expected.some(([option, n]) => Number(counts[`${prefix}${option}`]) !== Number(n))) return false;
+		return !marked("backOptions").length;
 	}
 
 	async removeArcanum(slug) {
@@ -538,19 +553,97 @@ export class CharacterArcana {
 	// mastered minor, which begins play already realized — it carries its back item and its back
 	// is visible to the owner. No-op if the slug can't be resolved to a pack/world arcanum.
 	async masterArcanum(slug) {
-		const item = await this.getArcanum(slug);
-		if (!item) return;
+		const grant = await this.masteryGrant(slug);
+		if (!grant) return;
 		const unlock = { ...this.unlockCounts };
-		for (const req of item.front?.unlock?.requirements ?? []) {
-			if (req?.type === "option" && req.slug) unlock[`${slug}:${req.slug}`] = req.max ?? 1;
-		}
-		const circleCount = (item.front?.unlock?.description?.match(_UNLOCK_CIRCLE_RE) || []).length;
+		for (const [option, count] of Object.entries(grant.unlock)) unlock[`${slug}:${option}`] = count;
 		const boxes = { ...(this._flags.getFlag("boxes") ?? {}) };
-		for (let i = 0; i < circleCount; i++) boxes[`${slug}:unlock:${i}`] = true;
+		for (const box of grant.boxes) boxes[`${slug}:${box.context}:${box.index}`] = true;
 		await Promise.all([
 			this._flags.setFlag("unlock", unlock),
 			this._flags.setFlag("boxes", boxes),
 		]);
+	}
+
+	/**
+	 * What masterArcanum writes for a card, as an isAsGranted row's `unlock` and `boxes`: every
+	 * option requirement at its max, and every ○ of the unlock lead (one box per glyph). Null when
+	 * the card can't be resolved.
+	 */
+	async masteryGrant(slug) {
+		const item = await this.getArcanum(slug);
+		if (!item) return null;
+		const unlock = {};
+		for (const req of item.front?.unlock?.requirements ?? []) {
+			if (req?.type === "option" && req.slug) unlock[req.slug] = req.max ?? 1;
+		}
+		const boxes = Array.from({ length: unlockCircleCount(item.front?.unlock?.description) }, (_, index) => ({ context: "unlock", index }));
+		return { unlock, boxes };
+	}
+
+	/**
+	 * Finish the Seeker's mastered card where the old masterArcanum left it short. It counted the
+	 * unlock lead's ○ by RUN, so a card printing "○○○" got `unlock:0` alone and has read as locked
+	 * since the count went per glyph. Only the card the Seeker's creation mastered is touched: a
+	 * part-marked track on any other card is play, not a short grant. Answers whether it wrote.
+	 */
+	async repairMasteredUnlock() {
+		const slug = this.minorRoles?.mastered;
+		if (!slug || !this.ownedSlugs.has(slug)) return false;
+		const grant = await this.masteryGrant(slug);
+		if (!grant || grant.boxes.length < 2) return false;
+		const boxes = this._flags.getFlag("boxes") ?? {};
+		const key = box => `${slug}:${box.context}:${box.index}`;
+		if (!boxes[key(grant.boxes[0])] || grant.boxes.every(box => boxes[key(box)])) return false;
+		await this.masterArcanum(slug);
+		return true;
+	}
+
+	/**
+	 * Take back what masterArcanum gave (a Seeker's mastered card re-chosen as the found one): its
+	 * unlock requirements and unlock circles. Other play on the card stays.
+	 */
+	async unmasterArcanum(slug) {
+		const grant = await this.masteryGrant(slug);
+		if (!grant) return;
+		const deletes = {};
+		const unlockKeys = Object.keys(grant.unlock).map(option => `${slug}:${option}`).filter(k => k in this.unlockCounts);
+		const boxes      = this._flags.getFlag("boxes") ?? {};
+		const boxKeys    = grant.boxes.map(box => `${slug}:${box.context}:${box.index}`).filter(k => k in boxes);
+		if (unlockKeys.length) deletes.unlock = unlockKeys;
+		if (boxKeys.length)    deletes.boxes  = boxKeys;
+		if (Object.keys(deletes).length) await this._flags.batch({ deletes });
+	}
+
+	/**
+	 * Drop the lead marker from a card without identifying it (a Seeker's lead re-chosen as the
+	 * mastered or found card, which identifies it its own way). No-op when it is not a lead.
+	 */
+	async dropLead(slug) {
+		const leads = this.leadSlugs;
+		if (!leads.delete(slug)) return;
+		await this._flags.setFlag("leads", [...leads]);
+	}
+
+	/**
+	 * Store the Seeker's creation bookkeeping (seeker-collection.js#seekerArcanaState) in ONE
+	 * update: the chosen major, the minor draw, its roles and the major's onboarding marks. An empty
+	 * field is removed rather than stored, so a change of playbook's clear and a re-run agree.
+	 */
+	async setSeekerCreation({ major = "", minorDraw = [], minorRoles = {}, majorMarks = [] } = {}) {
+		const hasRoles = Object.values(minorRoles).some(Boolean);
+		const entries = [
+			["major",      major || null],
+			["minorDraw",  minorDraw.length ? [...minorDraw] : null],
+			["minorRoles", hasRoles ? { ...minorRoles } : null],
+			["majorMarks", majorMarks.length ? [...majorMarks] : null],
+		];
+		const data = {};
+		for (const [key, value] of entries) {
+			if (value !== null) Object.assign(data, this._flags.updateData(key, value));
+			else if (this._flags.getFlag(key) != null) Object.assign(data, this._flags.deletionData(key));
+		}
+		await this._flags.applyUpdateData(data);
 	}
 
 	// GM-only: in secretive mode, expose / hide a still-LOCKED card's back to the owning
@@ -638,9 +731,9 @@ export class CharacterArcana {
 			// flip: a card realises its back-side item once unlocked, otherwise it's the front
 			// item. Gate on identified too, so an unidentified face-down mystery always shows its
 			// front curio — a homebrew card whose unlock is vacuously satisfied (no options, no
-			// circles) can't leak its back item before it's even identified. circleCount reuses
-			// buildSnapshot's shared ○-marker regex so the two counts can't drift.
-			const circleCount = (item.front.unlock?.description?.match(_UNLOCK_CIRCLE_RE) || []).length;
+			// circles) can't leak its back item before it's even identified. circleCount counts
+			// each ○, as buildSnapshot's marker pass indexes them, so the two counts can't drift.
+			const circleCount = unlockCircleCount(item.front.unlock?.description);
 			const unlocked = identified.has(item.slug) && _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount);
 			const sideItem = (unlocked && item.back.item) ? item.back.item : item.front.item;
 			// Skip unnamed sides, and skip a card's weightless side when the card is one of the

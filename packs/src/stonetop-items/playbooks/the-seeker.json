@@ -539,7 +539,8 @@
             {
               "slug": "when-unlocked",
               "description": "When and how did you begin to unlock its mysteries?",
-              "type": "text"
+              "type": "text",
+              "uncounted": true
             }
           ]
         },
@@ -553,19 +554,19 @@
           "options": [
             {
               "slug": "mastered-location",
-              "description": "Choose one whose secrets you have unlocked. If it's portable, keep it on your person or hidden away. Where is it now? How did you come to master it?",
+              "description": "Choose one whose secrets you have unlocked. If it's portable, you either keep it on your person or hidden away somewhere safe. Where is it now? How did you come to master it?",
               "type": "text",
               "arcanaRole": "mastered"
             },
             {
               "slug": "found-location",
-              "description": "Choose another that you have not yet mastered. It is either in your possession or in a secret place known only to you. Where is it? How did you find it?",
+              "description": "Choose another, which you have not yet mastered. It is either in your possession or in a secret place known only to you. Where is it? How did you find it?",
               "type": "text",
               "arcanaRole": "found"
             },
             {
               "slug": "sought-notes",
-              "description": "The third you have not yet found, but you have a lead on it. Give the card back to the GM but make note of it here. What do you know about it?",
+              "description": "The third you have not yet found, but you have a lead on it. Give the card back to the GM, but make note of it below. During play, ask the GM what you know about it.",
               "type": "text",
               "arcanaRole": "lead"
             }

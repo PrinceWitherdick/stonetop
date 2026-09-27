@@ -30,6 +30,8 @@ import {FOLLOWER_FATE_TYPES, SIR_PERMISSION_TO_DIE, isCrewMemberRow, isCustomMem
 import {CallUpDeepOnesDialog} from "./dialogs/CallUpDeepOnesDialog.js";
 import {BackgroundNeighborsDialog, storedNeighborPicks, storedNeighborTraits, traitedNeighbors} from "./dialogs/BackgroundNeighborsDialog.js";
 import {BackgroundAnswersDialog} from "./dialogs/BackgroundAnswersDialog.js";
+import {SeekerMajorArcanumDialog} from "./dialogs/SeekerMajorArcanumDialog.js";
+import {minorArcanaHeldElsewhere} from "./seeker-collection.js";
 import {RING_SOURCE_UUID, SERVANT_SOURCE_UUID, buildServantFollower} from "../../data/servant-of-daagon.js";
 import {grantedWeaponForMove, weaponTraitText} from "../../data/weapons.js";
 import {grantedWeaponAttackFor, rollCharacterDamageAt, rollFollowerDamageAt, crewBlow} from "../../combat/attack-flow.js";
@@ -1700,9 +1702,15 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.animalCompanionMoves = context.stonetop.followers.animalCompanion
 				? (companionDef?.moves ?? [])
 				: [];
+			// A Seeker whose background's major arcanum is still to choose ("Choose later" on the
+			// Details tab's ask): the Arcana tab carries the cue and its button, for whoever may
+			// edit the sheet, and shows even while it holds no card yet.
+			context.stonetop.seekerMajorOwed = this.isEditable
+				&& !!(await this._stonetopCharacter.seekerMajorOwed?.(playbookDoc));
 			context.stonetop.hasArcana = !!(
 				context.stonetop.arcana?.minor?.hasOwned ||
-				context.stonetop.arcana?.major?.hasOwned
+				context.stonetop.arcana?.major?.hasOwned ||
+				context.stonetop.seekerMajorOwed
 			);
 			// Decorate summoning arcana (those whose reverse "Treats it/them as a
 			// follower") with what the "Add as follower" button needs: its label and
@@ -5529,6 +5537,14 @@ export function createStonetopCharacterSheetClass(Base) {
 				this.render(false);
 			}, true);
 
+			// The Seeker's owed major arcanum (the tab's cue): the Details tab's own ask, again.
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".stonetop-seeker-major-owed-btn");
+				if (!btn) return;
+				ev.stopPropagation();
+				this._onSeekerMajorOwed().catch(err => console.error("Stonetop | choosing the major arcanum failed", err));
+			}, true);
+
 			html[0].addEventListener("click", ev => {
 				const thumb = ev.target.closest(".stonetop-arcanum-thumb, .stonetop-lore-arcana-img");
 				if (!thumb) return;
@@ -6960,7 +6976,43 @@ export function createStonetopCharacterSheetClass(Base) {
 				// A background that leaves an answer to the player (the Witch Hunter's Well Versed topic)
 				// asks it, the answer kept from the old background pre-picked when it is among the offers.
 				await this._askBackgroundAnswers();
+				// The Seeker's backgrounds each list 3 major arcana: the old major goes while untouched,
+				// and 1 of the new list is asked for with its mark.
+				await this._askSeekerMajorArcanum();
 			}
+		}
+
+		/**
+		 * The Seeker's major arcanum after a background switch (StonetopCharacter#
+		 * settleSeekerMajorOnBackground, user ruling 2026-09-26): a major the new background lists
+		 * stays; an as-granted one not listed is released and 1 of the new list asked for with its
+		 * mark (SeekerMajorArcanumDialog), as is a first background with no major held; a played one
+		 * stays, with a notice, and no second one is offered. "Choose later" leaves no major.
+		 */
+		async _askSeekerMajorArcanum() {
+			const character = this._stonetopCharacter;
+			const { plan, background, offered, major } = await character.settleSeekerMajorOnBackground();
+			if (plan === "stays") {
+				const name = (await character.getArcanum(major))?.front?.title ?? major;
+				ui.notifications?.info?.(format("stonetop.seekerMajor.stays", { major: name }));
+				return;
+			}
+			if (plan !== "ask" && plan !== "replace") return;
+			const cards = (await Promise.all(offered.map(slug => character.getArcanum(slug)))).filter(Boolean);
+			const pick  = await SeekerMajorArcanumDialog.ask(background, cards);
+			if (pick?.major) await character.chooseSeekerMajor(pick.major, pick.marks);
+		}
+
+		/**
+		 * The Arcana tab's "Choose your major arcanum" (the cue StonetopCharacter#seekerMajorOwed
+		 * raises after "Choose later"): the same ask the background switch makes, applied the same
+		 * way. Owner or GM only.
+		 */
+		async _onSeekerMajorOwed() {
+			if (!this.isEditable) return;
+			if (!(await this._stonetopCharacter.seekerMajorOwed())) return;
+			await this._askSeekerMajorArcanum();
+			this.render(false);
 		}
 
 		/**
@@ -11111,6 +11163,16 @@ export function createStonetopCharacterSheetClass(Base) {
 			return this._stonetopCharacter.ownedMoveCounts();
 		}
 
+		// The minor arcana held across the world's characters, which the Seeker's draw leaves out
+		// (seeker-collection.js#minorArcanaHeldElsewhere): this character's own last draw stays drawable.
+		_heldMinorArcana() {
+			const actors = game.actors?.contents ?? [...(game.actors ?? [])];
+			const characters = actors
+				.filter(a => a.type === "character")
+				.map(a => ({ id: a.id, arcana: resolvedFlags(a)?.arcana ?? {} }));
+			return [...minorArcanaHeldElsewhere(characters, this.actor.id)];
+		}
+
 		// Open the standalone sacred-pouch (possession choiceGroups) editor. `addOnly`
 		// restricts it to the just-freed remarkable-trait slot (the level-up surface);
 		// the default full editor (gear-tab pencil) exposes flavor + all traits.
@@ -11177,6 +11239,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					retiredMoveNames: this._stonetopCharacter._retiredMoveNames(),
 					crewTagBonus: this._crewTagBonus ?? 0,
 					companionTraitBonus: this._companionTraitBonusBeyondCreation(playbookDoc),
+					heldMinorArcana: this._heldMinorArcana(),
 					onBack: openPicker,
 					onSave: async (selections) => {
 						await this._applyPlaybookSelections(playbookDoc, selections);
@@ -11244,6 +11307,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					retiredMoveNames: this._stonetopCharacter._retiredMoveNames(),
 					crewTagBonus: this._crewTagBonus ?? 0,
 					companionTraitBonus: this._companionTraitBonusBeyondCreation(playbookDoc),
+					heldMinorArcana: this._heldMinorArcana(),
 					onSave: async (sel) => {
 						await this._applyPlaybookSelections(playbookDoc, sel);
 					},
@@ -11765,34 +11829,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				flagUpd[`flags.${STONETOP_SCOPE}.background.setupResources`] = backgroundSetupResources;
 			}
 
-			// Seeker arcana
-			const masteredMinor = selections.arcana?.minorRoles?.mastered ?? null;
-			const foundMinor    = selections.arcana?.minorRoles?.found    ?? null;
-			const leadMinor     = selections.arcana?.minorRoles?.lead     ?? null;
-			for (const slug of [selections.arcana?.major, masteredMinor, foundMinor].filter(Boolean)) {
-				await this._stonetopCharacter.addArcanum(slug);
-				await this._stonetopCharacter.identifyArcanum(slug);
-			}
-			// "You've begun to unlock the mysteries of your major arcanum" — mark the ○
-			// circles / □ tasks the player ticked in onboarding onto the actual card
-			// (majorMarks holds "<context>:<index>" keys matching the sheet's boxes).
-			if (selections.arcana?.major) {
-				for (const key of (selections.arcana.majorMarks ?? [])) {
-					const [context, indexStr] = String(key).split(":");
-					const index = Number(indexStr);
-					if (context && Number.isInteger(index)) {
-						await this._stonetopCharacter.setArcanumBoxChecked(selections.arcana.major, context, index, true);
-					}
-				}
-			}
-			// The Seeker's mastered minor begins play already realized: fully unlock it so it
-			// carries its back item and shows its back to the owner. The carried side and back
-			// visibility now follow the unlock state (the manual flip was retired), so identify
-			// alone would leave a mastered card reading as a locked, front-only curio.
-			if (masteredMinor) await this._stonetopCharacter.masterArcanum(masteredMinor);
-			// The Lead minor isn't in hand yet: add it as a lead card (owned but un-identified)
-			// so it shows on the arcana tab as a placeholder the player can later mark discovered.
-			if (leadMinor) await this._stonetopCharacter.addLead(leadMinor);
+			// Seeker arcana: the Collection as this run chose it, settled against what the last run
+			// (or a Save part-way) stored, so a changed major, role or draw REPLACES the old cards
+			// rather than adding beside them (StonetopCharacter#settleSeekerArcana). Read here, after
+			// clearPlaybookData, so a new playbook starts from nothing.
+			await character.settleSeekerArcana(character.seekerCreationState(), selections.arcana);
 
 			if (Object.keys(flagUpd).length) await this.actor.update(flagUpd);
 			// Well Versed's "1 topic, in addition to the one noted in your Background", once the
@@ -11942,10 +11983,8 @@ export function createStonetopCharacterSheetClass(Base) {
 				flagUpd[f("animalCompanion.cost")]     = ac.cost     ?? "";
 				if (ac.name?.trim()) flagUpd[f("animalCompanion.name")] = ac.name.trim();
 			}
-			if (selections.arcana?.major)            flagUpd[f("arcana.major")]      = selections.arcana.major;
-			if (selections.arcana?.minorDraw?.length) flagUpd[f("arcana.minorDraw")] = selections.arcana.minorDraw;
-			if (selections.arcana?.minorRoles)        flagUpd[f("arcana.minorRoles")] = selections.arcana.minorRoles;
-			if (selections.arcana?.majorMarks?.length) flagUpd[f("arcana.majorMarks")] = selections.arcana.majorMarks;
+			// The Seeker's arcana bookkeeping (arcana.major, minorDraw, minorRoles, majorMarks) is
+			// settleSeekerArcana's to store, beside the cards it changes.
 
 			return { flagUpd, selectedBackground, backgroundSetup };
 		}

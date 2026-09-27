@@ -1,0 +1,33 @@
+<form class="stonetop-possession-choices stonetop-seeker-major">
+	<div class="stonetop-possession-choices-desc stonetop-item-description"><p>{{lead}}</p></div>
+
+	<div class="stonetop-choice-group">
+		<div class="stonetop-choice-subgroup">
+			{{#each choices}}
+			<label class="stonetop-choice-option-label"{{#if summary}} data-tooltip="{{summary}}" data-tooltip-direction="UP"{{/if}}>
+				<input type="radio" class="stonetop-item-check" name="seeker-major" value="{{slug}}" {{#if selected}}checked{{/if}}>
+				{{#if img}}<img class="stonetop-seeker-major-thumb" src="{{img}}" alt="">{{/if}}
+				<span class="stonetop-pc-option-label"><strong>{{name}}</strong>
+					{{#if circles}}<span class="stonetop-seeker-major-note">{{../circlesNote}}</span>{{/if}}
+					{{#if tasks.length}}<span class="stonetop-seeker-major-note">{{../tasksNote}}</span>{{/if}}
+				</span>
+			</label>
+			{{#if tasks.length}}
+			<div class="stonetop-seeker-major-tasks">
+				{{#each tasks}}
+				<label class="stonetop-choice-option-label">
+					<input type="radio" class="stonetop-item-check" name="seeker-major-task-{{../slug}}" value="{{key}}">
+					<span class="stonetop-pc-option-label">□ {{label}}</span>
+				</label>
+				{{/each}}
+			</div>
+			{{/if}}
+			{{/each}}
+		</div>
+	</div>
+
+	<footer class="stonetop-pc-footer">
+		<button type="button" class="stonetop-pc-done" data-action="choose">{{chooseLabel}}</button>
+		<button type="button" class="stonetop-pc-done" data-action="later">{{laterLabel}}</button>
+	</footer>
+</form>

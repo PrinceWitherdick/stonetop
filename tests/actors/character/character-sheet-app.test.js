@@ -156,6 +156,8 @@ function makeCharacterMock(actor) {
 		settleBackgroundResources: vi.fn(async () => {}),
 		// A background that leaves a move's answer to the player asks it; none here.
 		backgroundAnswerAsks: vi.fn(async () => []),
+		// A Seeker background's major arcanum is settled and asked for; not a Seeker here.
+		settleSeekerMajorOnBackground: vi.fn(async () => ({ plan: "none", offered: [] })),
 		// _onBackgroundChange looks the new background up for neighbors it names; none here.
 		playbook: vi.fn(async () => null),
 		clearPlaybookData: vi.fn(async () => {}),

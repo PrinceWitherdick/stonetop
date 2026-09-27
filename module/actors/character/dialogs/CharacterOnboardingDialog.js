@@ -30,6 +30,7 @@ import { SYSTEM_ID } from "../../../system-id.js";
 import { crewSetupLimit } from "./CrewSetupDialog.js";
 import { neighborChoiceGroups, randomNeighborTrait } from "./BackgroundNeighborsDialog.js";
 import { MAGNIFICENT_SPECIMEN_MOVE, companionKindOptions, companionTraitAllowance, trimCompanionTraits } from "../animal-companion.js";
+import { seekerMajorTrack, pickSeekerMajorMark, drawableMinorSlugs } from "../seeker-collection.js";
 
 const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
 
@@ -130,10 +131,14 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	}
 
 	constructor(playbookDoc, onComplete, options = {}) {
-		const { onBack, onSave, onClose, onProgress, onLiveSave, onExit, initialSelections, startAtStep = null, ownedMoveCounts = null, retiredMoveNames = null, crewTagBonus = 0, companionTraitBonus = 0, ...appOptions } = options;
+		const { onBack, onSave, onClose, onProgress, onLiveSave, onExit, initialSelections, startAtStep = null, ownedMoveCounts = null, retiredMoveNames = null, crewTagBonus = 0, companionTraitBonus = 0, heldMinorArcana = null, ...appOptions } = options;
 		super(appOptions);
 		this._playbookDoc        = playbookDoc;
 		this._onComplete         = onComplete;
+		// The minor arcana already held in the world (seeker-collection.js#minorArcanaHeldElsewhere),
+		// which the Seeker's draw and swap picker leave out: a card in someone's hands is not in the
+		// deck. A new character's own earlier draw is not among them.
+		this._heldMinorArcana    = new Set(heldMinorArcana ?? []);
 		// Names of the moves this character gave up for a replacing move (Bulwark, once A Mighty
 		// Rampart is owned; StonetopCharacter#retiredMoveReplacers), kept out of the free picks.
 		// A new character passes none.
@@ -856,13 +861,14 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		}
 	}
 
+	// "Draw 3 at random": from the minor arcana no one holds (_heldMinorArcana).
 	_drawSeekerMinorArcana(minorOptions) {
-		this._selections.arcana.minorDraw = shuffle(minorOptions.map(option => option.slug)).slice(0, 3);
+		this._selections.arcana.minorDraw = shuffle(drawableMinorSlugs(minorOptions, this._heldMinorArcana)).slice(0, 3);
 		this._selections.arcana.minorRoles = { mastered: "", found: "", lead: "" };
 	}
 
 	_ensureSeekerMinorDraw(minorOptions) {
-		const available = new Set(minorOptions.map(option => option.slug));
+		const available = new Set(drawableMinorSlugs(minorOptions, this._heldMinorArcana));
 		const current = this._selections.arcana.minorDraw.filter(slug => available.has(slug));
 		if (current.length === 3) return;
 		this._drawSeekerMinorArcana(minorOptions);
@@ -1064,7 +1070,12 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 					// tasks (see _seekerMajorMysteryTrack).
 					frontDescription:  flags.front?.description ?? "",
 					unlockDescription: flags.front?.unlock?.description ?? "",
-					img:         doc.img && doc.img !== "icons/svg/item-bag.svg" ? doc.img : null,
+					// "Draw 3 at random and review both sides": the minor draw shows the back too.
+					frontTitle:      this._normalizeOnboardingText(flags.front?.title ?? ""),
+					backTitle:       this._normalizeOnboardingText(flags.back?.title ?? ""),
+					backSummary:     this._firstParagraph(flags.back?.description ?? ""),
+					backDescription: flags.back?.description ?? "",
+					img:        doc.img && doc.img !== "icons/svg/item-bag.svg" ? doc.img : null,
 					isMajor:     isMajorArcana(slug),
 				}];
 			});
@@ -1090,8 +1101,10 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		// duplicate it). The same list applies to all three cards, so it's attached (by shared
 		// reference) to each below — this keeps the template free of `../` context hops across
 		// the card `{{#each}}`. arcana.minor is pre-sorted by name, so the picker is alphabetical.
+		// Held cards are left out here too (_heldMinorArcana), as the draw leaves them out.
+		const held = this._heldMinorArcana;
 		const swapOptions = arcana.minor
-			.filter(option => !minorDraw.has(option.slug))
+			.filter(option => !minorDraw.has(option.slug) && !held.has(option.slug))
 			.map(option => ({ slug: option.slug, name: option.name }));
 		return {
 			majorSelected: selectedMajor,
@@ -1115,51 +1128,43 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	// their mysteries behind □ tasks in the front description. Returns { kind, markers },
 	// each marker carrying the box-flag { context, index } it persists under (and, for □
 	// tasks, its label) so the same key round-trips to the live sheet's arcana boxes.
+	//
+	// The same track the Details tab's ask reads (seeker-collection.js#seekerMajorTrack), so the
+	// two can't index a □ differently.
 	_seekerMajorMysteryTrack(option) {
 		if (!option) return { kind: null, markers: [] };
-		const circleCount = (String(option.unlockDescription ?? "").match(/○/g) || []).length;
-		if (circleCount > 0) {
-			return {
-				kind: "circle",
-				markers: Array.from({ length: circleCount }, (_, index) => ({ context: "unlock", index })),
-			};
-		}
-		const boxes = this._frontTaskBoxes(option.frontDescription);
-		if (boxes.length) {
-			return { kind: "box", markers: boxes.map(box => ({ context: "front", index: box.index, label: box.label })) };
-		}
-		return { kind: null, markers: [] };
+		const track = seekerMajorTrack({ description: option.frontDescription, unlock: { description: option.unlockDescription } });
+		return { ...track, markers: track.markers.map(marker => ({ ...marker, label: this._normalizeOnboardingText(marker.label) })) };
 	}
 
-	// Each □ in a front description, in document order, paired with its task text — indices
-	// match CharacterArcana._injectMarkers' "front" context (which replaces every □ in the
-	// full front HTML in order), so a mark set here lands on the right box on the sheet.
-	_frontTaskBoxes(html) {
-		const div = document.createElement("div");
-		div.innerHTML = String(html ?? "");
-		const boxes = [];
-		let index = 0;
-		const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT);
-		let node;
-		while ((node = walker.nextNode())) {
-			const count = (node.textContent.match(/□/g) || []).length;
-			if (!count) continue;
-			const li    = node.parentElement?.closest("li");
-			const label = this._normalizeOnboardingText((li?.textContent ?? node.textContent).replace(/□/g, "").trim());
-			for (let i = 0; i < count; i++) boxes.push({ index: index++, label });
-		}
-		return boxes;
+	// "Mark 1 ○ or □": the major step is done once the chosen major carries exactly 1 mark, made for
+	// THIS major (majorMarksFor). A major whose card prints no track needs none; while the arcana
+	// pack is still loading, the track is unknown, so the mark is still asked for.
+	/** Tick (or untick) one mark on the chosen major: the tick replaces the mark held. */
+	_markSeekerMajor(key, checked) {
+		const arcana = this._selections.arcana;
+		arcana.majorMarks    = pickSeekerMajorMark(arcana.majorMarksFor === arcana.major ? arcana.majorMarks : [], key, checked);
+		arcana.majorMarksFor = arcana.major;
+	}
+
+	_seekerMajorMarkDone() {
+		const arcana = this._selections.arcana;
+		if (!arcana.major) return false;
+		const option = this._arcanaCache?.major?.find(o => o.slug === arcana.major);
+		if (option && !this._seekerMajorMysteryTrack(option).markers.length) return true;
+		return arcana.majorMarksFor === arcana.major && arcana.majorMarks.length === 1;
 	}
 
 	// Keep _selections.arcana.majorMarks consistent with the chosen major's track. Same
-	// arcanum → preserve the player's marks (dropping any key the track no longer has);
+	// arcanum → preserve the player's marks (dropping any key the track no longer has, and
+	// keeping only the first: "mark 1");
 	// changed arcanum (or first visit) → reset to the rule default: 1 circle marked for
-	// an unlock-circle track, none for a □-task arcanum ("mark 1 ○" needs a ○ to mark).
+	// an unlock-circle track, none for a □-task arcanum, whose player picks the task done.
 	_reconcileSeekerMajorMarks(track) {
 		const arcana    = this._selections.arcana;
 		const validKeys = new Set(track.markers.map(marker => `${marker.context}:${marker.index}`));
 		if (arcana.majorMarksFor === arcana.major) {
-			arcana.majorMarks = arcana.majorMarks.filter(key => validKeys.has(key));
+			arcana.majorMarks = arcana.majorMarks.filter(key => validKeys.has(key)).slice(0, 1);
 			return;
 		}
 		arcana.majorMarksFor = arcana.major;
@@ -1602,7 +1607,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				       !!ac.instinct && !!ac.cost;
 			}
 			case "seekerArcana":
-				return !!this._selections.arcana.major;
+				return this._seekerMajorMarkDone();
 			case "seekerArcanaMinor":
 				return Object.values(this._selections.arcana.minorRoles).filter(Boolean).length === 3;
 			default: {
@@ -1655,7 +1660,14 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		return Math.max(0, Math.min(min, textOptionCount));
 	}
 
-	_countLoreSectionTextAnswers(section, textOptions = (section?.options ?? []).filter(o => o.type === "text")) {
+	// The written prompts that count toward a section's "Answer at least N". A prompt flagged
+	// `uncounted` stands beside the set without being one of its questions: the Seeker's "When and
+	// how did you begin to unlock its mysteries?" follows the mark, not the "at least 2".
+	_countedTextOptions(section) {
+		return (section?.options ?? []).filter(o => o.type === "text" && !o.uncounted);
+	}
+
+	_countLoreSectionTextAnswers(section, textOptions = this._countedTextOptions(section)) {
 		return textOptions.filter(opt =>
 			!!this._selections.lore.texts[`${section.slug}:${opt.slug}`]?.trim()
 		).length;
@@ -1664,8 +1676,8 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	_isLoreSectionAnswered(section) {
 		const opts = section?.options ?? [];
 		if (!opts.length) return true;
-		const textOptions = opts.filter(o => o.type === "text");
-		if (textOptions.length) {
+		if (opts.some(o => o.type === "text")) {
+			const textOptions = this._countedTextOptions(section);
 			const min = this._parseTextAnswerMin(section, textOptions.length);
 			return this._countLoreSectionTextAnswers(section, textOptions) >= min;
 		}
@@ -1778,8 +1790,8 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				selectedPicks: textOptions.length ? null : selected,
 				// For "answer at least N" text sets, completeness is the count answered
 				// vs. N — not whether every prompt has text.
-				requiredAnswers: textOptions.length ? this._parseTextAnswerMin(section, textOptions.length) : null,
-				answeredCount: textOptions.length ? this._countLoreSectionTextAnswers(section, textOptions) : null,
+				requiredAnswers: textOptions.length ? this._parseTextAnswerMin(section, this._countedTextOptions(section).length) : null,
+				answeredCount: textOptions.length ? this._countLoreSectionTextAnswers(section) : null,
 				textAnswers: textOptions.map(opt => ({
 					optionSlug: opt.slug,
 					hasAnswer: !!this._selections.lore.texts[`${section.slug}:${opt.slug}`]?.trim(),
@@ -3425,13 +3437,13 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		});
 
 		// Marking a ○ circle / □ task inline on the chosen major's card front, right in
-		// onboarding. The checkbox's own :checked state shows the mark; we just persist it.
+		// onboarding. "Mark 1": a tick replaces the mark held (the other boxes clear, like a
+		// radio), and the step's Next waits for exactly one (_seekerMajorMarkDone).
 		html.find(".stonetop-onboarding-arcana-mark").on("change", ev => {
 			const { context, index } = ev.currentTarget.dataset;
-			const key   = `${context}:${index}`;
-			const marks = new Set(this._selections.arcana.majorMarks);
-			if (ev.currentTarget.checked) marks.add(key); else marks.delete(key);
-			this._selections.arcana.majorMarks = [...marks];
+			this._markSeekerMajor(`${context}:${index}`, ev.currentTarget.checked);
+			if (ev.currentTarget.checked) html.find(".stonetop-onboarding-arcana-mark").not(ev.currentTarget).prop("checked", false);
+			_refreshNextButton();
 		});
 
 		html.find("[name^='onboard-seeker-minor-role-']").on("change", ev => {

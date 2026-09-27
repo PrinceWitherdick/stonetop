@@ -917,7 +917,7 @@
 		<div class="stonetop-onboarding-arcana-picker">
 			<section class="stonetop-onboarding-arcana-section">
 				<h4 class="stonetop-onboarding-lore-section-title">Minor Arcana</h4>
-				<p class="stonetop-onboarding-step-hint">Three minor arcana have been drawn at random below. Hover each to review it, then assign a role: one you've Mastered, one you've Found, and one you have a Lead on. Not the draw you wanted? Use <em>Draw again</em> to re-roll all three, or swap any single card for a specific one.</p>
+				<p class="stonetop-onboarding-step-hint">Three minor arcana have been drawn at random below. Review both sides of each (<em>Read both sides</em>), then assign a role: one you've Mastered, one you've Found, and one you have a Lead on. Not the draw you wanted? Use <em>Draw again</em> to re-roll all three, or swap any single card for a specific one.</p>
 				<p class="stonetop-onboarding-lore-counter">
 					<span class="stonetop-onboarding-seeker-minor-count">{{seekerArcanaChoices.minorAssignedCount}}</span>
 					/ {{seekerArcanaChoices.minorPickCount}} assigned
@@ -931,7 +931,24 @@
 							{{#if img}}<img src="{{img}}" alt="">{{/if}}
 							<strong>{{name}}</strong>
 							<span>{{description}}</span>
+							{{#if backSummary}}<strong>{{#if backTitle}}{{backTitle}}{{else}}Back{{/if}}</strong>
+							<span>{{backSummary}}</span>{{/if}}
 						</span>
+						{{!-- "Review both sides": the whole card, front and back, folded until opened. --}}
+						<details class="stonetop-onboarding-minor-sides">
+							<summary>Read both sides</summary>
+							<div class="stonetop-arcanum-body stonetop-onboarding-minor-side">
+								<h5>Front{{#if frontTitle}}: {{frontTitle}}{{/if}}</h5>
+								{{{frontDescription}}}
+								{{#if unlockDescription}}<p class="stonetop-arcanum-unlock-lead">{{{unlockDescription}}}</p>{{/if}}
+							</div>
+							{{#if backDescription}}
+							<div class="stonetop-arcanum-body stonetop-onboarding-minor-side">
+								<h5>Back{{#if backTitle}}: {{backTitle}}{{/if}}</h5>
+								{{{backDescription}}}
+							</div>
+							{{/if}}
+						</details>
 						<div class="stonetop-onboarding-minor-roles">
 							<label>
 								<input type="radio" name="onboard-seeker-minor-role-{{slug}}" value="mastered" data-slug="{{slug}}" {{#if (eq role "mastered")}}checked{{/if}}>

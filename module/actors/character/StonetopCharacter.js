@@ -84,6 +84,7 @@ import {spendSurpriseForRoll} from "../../combat/battle-holds.js";
 import {settleTierEffects, recordTierEffects} from "./tier-effects.js";
 import {xpToLevelUp, withXpLock} from "../../utils/xp.js";
 import {CharacterArcana} from "./CharacterArcana.js";
+import {seekerArcanaState, seekerArcanaChosen, seekerCardRoles, majorMarkBoxes, withMinorRole, seekerMajorSwitchPlan, seekerMajorOwed} from "./seeker-collection.js";
 import {CharacterLore} from "./CharacterLore.js";
 import {CharacterPostDeath, buildLoreSection, insertHpPenalty} from "./CharacterPostDeath.js";
 import {effectiveSubgroupMax, sumMoveBonus} from "./dialogs/possession-choice-cap.js";
@@ -3173,6 +3174,125 @@ export class StonetopCharacter {
 		return this._arcana.isAsGranted(row) && !onTrack(row.slug) && !onTrack(`${row.slug}:item`);
 	}
 
+	/** The Seeker's stored creation arcana (seeker-collection.js#seekerArcanaState). */
+	seekerCreationState() {
+		const arcana = this._arcana;
+		return seekerArcanaState({
+			major: arcana.majorSlug, minorDraw: arcana.minorDrawSlugs, minorRoles: arcana.minorRoles, majorMarks: arcana.majorMarkKeys,
+		});
+	}
+
+	// A Seeker's creation card untouched since creation gave it in `role`, as _arcanumAsGranted reads a
+	// background's row: the major identified with its onboarding marks, the mastered card at its
+	// mastery (CharacterArcana#masteryGrant), the found card identified and revealed (or identified
+	// only, as creation gave it before the reveal), the lead a bare lead.
+	async _seekerCardAsGranted(slug, role, state) {
+		if (role === "major") return this._arcanumAsGranted({ slug, identify: true, boxes: majorMarkBoxes(state.majorMarks) });
+		if (role === "lead")  return this._arcanumAsGranted({ slug, lead: true });
+		if (role === "found") {
+			return this._arcanumAsGranted({ slug, identify: true, reveal: true }) || this._arcanumAsGranted({ slug, identify: true });
+		}
+		const grant = await this._arcana.masteryGrant(slug);
+		return !!grant && this._arcanumAsGranted({ slug, identify: true, boxes: grant.boxes, unlock: grant.unlock });
+	}
+
+	/**
+	 * The Seeker's Collection, as creation (or a role picked on the sheet) chose it: `previous` is the
+	 * bookkeeping stored last time (seekerCreationState), `next` the new choice. The ONE writer of
+	 * the Seeker's creation arcana, for onboarding's apply and Save alike.
+	 *
+	 * A card creation gave and no longer gives goes only while it is as creation gave it
+	 * (_seekerCardAsGranted); a card with play on it stays. A card whose role changed is given again
+	 * in its new role: taken back first while untouched, and otherwise the old role's grant comes off
+	 * only where the new one differs (a played mastered card chosen as the found one is un-mastered;
+	 * a played card chosen as the lead stays held, since a card in hand can't be a lead). A card new to
+	 * the choice is given: the major identified and marked, the mastered card identified and
+	 * mastered, the found card identified and revealed ("review both sides"), the lead added as a lead
+	 * unless it is already held. A card kept in its role is left as play has left it, so a lead
+	 * discovered or deleted in play is not given again. The kept major's onboarding marks follow the
+	 * new ones. Then the bookkeeping is stored.
+	 */
+	async settleSeekerArcana(previous, next) {
+		const was = seekerArcanaState(previous);
+		const now = seekerArcanaState(next);
+		if (!seekerArcanaChosen(was) && !seekerArcanaChosen(now)) return;
+		const wasRoles = seekerCardRoles(was);
+		const nowRoles = seekerCardRoles(now);
+		const owned = slug => this._arcana.ownedSlugs.has(slug);
+
+		for (const [slug, role] of wasRoles) {
+			const to = nowRoles.get(slug);
+			if (to === role) continue;
+			if (await this._seekerCardAsGranted(slug, role, was)) await this.removeArcanum(slug);
+			else if (role === "mastered" && to === "found") await this._arcana.unmasterArcanum(slug);
+		}
+
+		const tick = async (slug, marks, checked) => {
+			for (const box of majorMarkBoxes(marks)) await this.setArcanumBoxChecked(slug, box.context, box.index, checked);
+		};
+		for (const [slug, role] of nowRoles) {
+			const from = wasRoles.get(slug);
+			if (from === role) {
+				if (role === "major" && owned(slug)) {
+					const kept = new Set(now.majorMarks);
+					await tick(slug, was.majorMarks.filter(key => !kept.has(key)), false);
+					await tick(slug, now.majorMarks, true);
+				}
+				continue;
+			}
+			if (role === "lead") {
+				if (!owned(slug)) await this.addLead(slug);
+				continue;
+			}
+			if (!owned(slug)) await this.addArcanum(slug);
+			await this._arcana.dropLead(slug);
+			if (role === "found") {
+				await this.identifyAndRevealArcanum(slug);
+				continue;
+			}
+			if (!this._arcana.identifiedSlugs.has(slug)) await this.identifyArcanum(slug);
+			if (role === "mastered") await this.masterArcanum(slug);
+			else await tick(slug, now.majorMarks, true);
+		}
+		await this._arcana.setSeekerCreation(now);
+	}
+
+	/**
+	 * The major half of a background switch on the Details tab (seekerMajorSwitchPlan): answers the
+	 * plan, the new background and its offered majors. A "replace" plan has released the old major
+	 * already, so the caller asks for the new one (chooseSeekerMajor).
+	 */
+	async settleSeekerMajorOnBackground() {
+		const state      = this.seekerCreationState();
+		const background = await this.selectedBackground();
+		const offered    = background?.majorArcana ?? [];
+		const held       = !!state.major && this._arcana.ownedSlugs.has(state.major);
+		const asGranted  = held && await this._seekerCardAsGranted(state.major, "major", state);
+		const plan       = seekerMajorSwitchPlan({ major: state.major, held, offered, asGranted });
+		if (plan === "replace") await this.settleSeekerArcana(state, { ...state, major: "", majorMarks: [] });
+		return { plan, background, offered, major: state.major };
+	}
+
+	/**
+	 * Whether the current background still owes its major arcanum (seekerMajorOwed): the Arcana
+	 * tab's "Choose your major arcanum" cue, left by "Choose later" on the Details tab's ask.
+	 */
+	async seekerMajorOwed(playbookData = undefined) {
+		if (!this.backgroundState().slug) return false;
+		const background = this._selectedBackground(playbookData === undefined ? await this.playbook() : playbookData);
+		const offered    = background?.majorArcana ?? [];
+		if (!offered.length) return false;
+		const leads = this._arcana.leadSlugs;
+		const owned = [...this._arcana.ownedSlugs].filter(s => !leads.has(s));
+		return seekerMajorOwed({ offered, owned, major: this.seekerCreationState().major });
+	}
+
+	/** Give `major` as the Seeker's major arcanum with its 1 mark ("context:index" keys). */
+	async chooseSeekerMajor(major, marks = []) {
+		const state = this.seekerCreationState();
+		await this.settleSeekerArcana(state, { ...state, major, majorMarks: marks });
+	}
+
 	// A background's `moveChoices` answer a move's question rather than grant it: the Seeker's
 	// "Well Versed in the Things Below" is the Patriot's, stored as Well Versed's answer. On a
 	// change of background the NEW one decides: its fixed answer is written (a first background
@@ -3387,10 +3507,14 @@ export class StonetopCharacter {
 	 * its picks and the answers it gave; the instinct; the lore; the followers it brought (crew,
 	 * animal companion, initiates, a possession's dog), whose NPC actors stay in the sidebar,
 	 * unlisted; and the state of moves no longer held (Blessed marks, a Judge's brands and oaths,
-	 * the holy light and invocations, Battle Joy, the Would-be Hero's crossed-off "Would-be").
+	 * the holy light and invocations, Battle Joy, the Would-be Hero's crossed-off "Would-be"); the
+	 * Seeker's lead placeholders (a card never found) and the record of what its creation chose
+	 * (`arcana.major`, `minorDraw`, `minorRoles`, `majorMarks`). With the roles gone, the lead
+	 * backfill (CharacterArcana#ensureLeadBackfill) has no lead to bring back.
 	 *
 	 * Kept: name, level, XP, stats, appearance, origin, notes, relationships, inventory (beasts
-	 * included), arcana, post-death moves, custom followers, and every move not of the old playbook.
+	 * included), the arcana actually held, post-death moves, custom followers, and every move not of
+	 * the old playbook.
 	 */
 	async clearPlaybookData(oldPlaybookName) {
 		if (!oldPlaybookName) return;
@@ -3416,9 +3540,15 @@ export class StonetopCharacter {
 		const possessionSlugs = new Set([...(sp?.preselected ?? []), ...this._possessions.selected]);
 		for (const slug of possessionSlugs) await this._removePossessionGrants(slug);
 
+		const identified = this._arcana.identifiedSlugs;
+		for (const slug of this._arcana.leadSlugs) {
+			if (this._arcana.ownedSlugs.has(slug) && !identified.has(slug)) await this.removeArcanum(slug);
+		}
+
 		const flags = resolvedFlags(this._actor);
 		const keys  = [
 			"possessions", "possessionGrantsApplied", POSSESSION_PRESELECTED_WALKED_FLAG, "background", "instinct", "lore",
+			"arcana.major", "arcana.minorDraw", "arcana.minorRoles", "arcana.majorMarks", "arcana.majorMarksFor",
 			"moves.backgroundAnswers", "moves.dismissedLevelOverage",
 			"crew", "animalCompanion",
 			"initiateDetails", "initiatesLoyalty", "initiatesHp", "initiatesReadiness", "initiatesAmmo",
@@ -5450,8 +5580,14 @@ export class StonetopCharacter {
 	async discoverArcanum(slug)                      { await this._arcana.discoverArcanum(slug); }
 	async ensureSeekerLeadCard()                     { await this._arcana.ensureLeadBackfill(); }
 	async masterArcanum(slug)                        { await this._arcana.masterArcanum(slug); }
+	async repairMasteredUnlock()                     { return this._arcana.repairMasteredUnlock(); }
 	async getArcanumChatContent(slug, flipped)       { return this._arcana.getArcanumChatContent(slug, flipped); }
-	async setMinorArcanumRole(role, slug) { await this._arcana.setMinorRole(role, slug); }
+	// The Seeker's lore role pickers: a role picked on the sheet changes the cards as a re-run of
+	// creation would (settleSeekerArcana), the card leaving any other role it held.
+	async setMinorArcanumRole(role, slug) {
+		const was = this.seekerCreationState();
+		await this.settleSeekerArcana(was, { ...was, minorRoles: withMinorRole(was.minorRoles, role, slug) });
+	}
 	async revealArcanum(slug, options) { await this._arcana.revealArcanum(slug, options); }
 	async hideArcanum(slug, options)   { await this._arcana.hideArcanum(slug, options); }
 	get revealedArcanaSlugs()   { return this._arcana.revealedSlugs; }

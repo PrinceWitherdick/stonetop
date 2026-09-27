@@ -869,6 +869,18 @@
       "choose": "Choose this",
       "later": "Choose later"
     },
+    "seekerMajor": {
+      "title": "{background}: Major Arcanum",
+      "lead": "Your Background grants you 1 major arcanum. You've begun to unlock its mysteries: 1 mark goes on the front of its insert.",
+      "circles": "Marks its first ○.",
+      "tasks": "Pick the □ task you've done:",
+      "pickTask": "Pick the □ task you've done for this arcanum.",
+      "choose": "Take this one",
+      "later": "Choose later",
+      "stays": "{major} stays: it has been played. Your new background grants no second major arcanum.",
+      "owed": "Your Background grants you 1 major arcanum, and you haven't chosen it yet.",
+      "owedButton": "Choose your major arcanum"
+    },
     "backgroundNeighbors": {
       "title": "{background}: Neighbors",
       "fixed": "{names} go on the steading's Neighbors list.",

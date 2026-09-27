@@ -11040,6 +11040,44 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	border-radius: var(--st-radius-sm);
 }
 
+/* A Seeker's background major arcanum still to choose ("Choose later" on the Details tab):
+   the Moves tab's blue `.move-needs-choice` call-to-action (border, tint, inset stripe), as a
+   strip at the top of the Arcana tab with the ask behind its button. */
+.stonetop-seeker-major-owed {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 8px;
+	padding: 6px 10px;
+	border: 1px solid var(--st-blue-border);
+	border-radius: var(--st-radius-sm);
+	background: var(--st-blue-bg);
+	box-shadow: inset 3px 0 0 var(--st-blue-border);
+	color: var(--st-blue-text);
+}
+
+.stonetop-seeker-major-owed > i { flex-shrink: 0; color: var(--st-blue-border); }
+
+.stonetop-seeker-major-owed span { flex: 1; min-width: 10em; }
+
+.stonetop-seeker-major-owed-btn {
+	width: auto;
+	flex: 0 0 auto;
+	font-size: var(--st-fs-sm);
+	padding: 3px 12px;
+	cursor: pointer;
+	background-color: transparent;
+	border: 1px solid var(--st-blue-border);
+	border-radius: var(--st-radius-sm);
+	color: var(--st-blue-text);
+}
+
+.stonetop-seeker-major-owed-btn:hover,
+.stonetop-seeker-major-owed-btn:focus-visible {
+	background-color: color-mix(in srgb, var(--st-blue-border) 12%, transparent);
+}
+
 .stonetop-arcanum-identify-btn,
 .stonetop-arcanum-givecard-btn,
 .stonetop-arcanum-discover-btn {
@@ -22958,8 +22996,27 @@ a.steading-player-open:hover {
 
 /* The background-neighbors picker borrows this chrome with TWO footer buttons (add the picks /
    add only the fixed ones), side by side. */
-.stonetop-background-neighbors-dialog .stonetop-pc-footer {
+.stonetop-background-neighbors-dialog .stonetop-pc-footer,
+.stonetop-seeker-major-dialog .stonetop-pc-footer {
 	gap: 8px;
+}
+
+/* The Seeker's major-arcanum ask (Details-tab background switch): a small icon beside each major,
+   a quiet note of what gets marked, and a major's □ tasks indented under it. */
+.stonetop-seeker-major-thumb {
+	width: 28px;
+	height: 28px;
+	flex-shrink: 0;
+	border: none;
+	object-fit: contain;
+}
+.stonetop-seeker-major-note {
+	display: block;
+	font-size: 0.9em;
+	color: var(--st-quiet-ink);
+}
+.stonetop-seeker-major-tasks {
+	margin-left: 28px;
 }
 
 /* The "edit" pencils that open the modal (move card + gear-tab possession). Slate,
@@ -23672,6 +23729,20 @@ a.steading-player-open:hover {
 	/* Same Chromium radio-in-flex quirk: the native radio renders ~2px below the row's
 	   center. Nudge it up to line up with the role label. */
 	transform: translateY(-2px);
+}
+
+/* "Review both sides": each drawn card's front and back, folded under its name until opened. */
+.stonetop-onboarding-minor-sides {
+	font-size: 0.9em;
+	text-align: left;
+}
+.stonetop-onboarding-minor-sides > summary {
+	cursor: pointer;
+	color: var(--st-quiet-ink);
+}
+.stonetop-onboarding-minor-side h5 {
+	margin: 6px 0 2px;
+	font-size: 1em;
 }
 
 /* Per-card swap picker: replace this one drawn card with a specific arcanum, without

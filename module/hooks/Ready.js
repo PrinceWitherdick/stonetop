@@ -68,6 +68,7 @@ import { isDefaultImg } from "../utils/strings.js";
 import { updatePlacedTokens } from "../utils/placed-tokens.js";
 import { grandfatherWeaponsOfWar } from "../migration/weapons-of-war-grandfather.js";
 import { repairAllPossessionGrants } from "../migration/possession-grant-repair.js";
+import { repairMasteredArcanumCircles } from "../migration/mastered-arcanum-circles.js";
 import { refreshHeldMoves } from "../migration/move-refresh.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
@@ -231,6 +232,11 @@ export async function onReady() {
 		// every rule read the held copy with no fallback to the pack of its own.
 		try { await oncePerVersion("moveRefresh", refreshHeldMoves); }
 		catch (err) { console.error("Stonetop | refreshing held moves failed", err); }
+		// Tick the rest of the unlock circles on a Seeker's mastered card that the old run-count
+		// grant left at one (migration/mastered-arcanum-circles.js). GATED: legacy repair, and a
+		// world swept once has nothing left to find.
+		try { await oncePerVersion("masteredArcanumCircles", repairMasteredArcanumCircles); }
+		catch (err) { console.error("Stonetop | mastered arcanum repair failed", err); }
 
 		// Point player tokens back at the characters they stand for. An unlinked PC token carries
 		// a private copy of its character, and the two drift because a roll writes to the sheet's

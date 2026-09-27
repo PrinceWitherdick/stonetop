@@ -1194,3 +1194,67 @@ describe("CharacterArcana.buildSnapshot() — checked state", () => {
 		expect(item.checked).toBe(false);
 	});
 });
+
+// An unlock lead's "○○○○" is FOUR boxes (unlock:0..3), as the arcana tab's marker pass indexes
+// them. Counting regex matches counted RUNS, so a card read as unlocked after its first ○ and its
+// back item reached the inventory early, and masterArcanum ticked only the first ○.
+describe("unlock circles count per glyph", () => {
+	const FOUR_CIRCLES = {
+		slug: "four-circles",
+		front: {
+			title: "A Staff",
+			item: { name: "A Staff", weight: 1 },
+			description: "<p>A staff.</p>",
+			unlock: { description: "○○○○ Each time you mark 1, ask the GM.", requirements: [] },
+		},
+		back: { title: "The Staff Awake", item: { name: "The Staff Awake", weight: 1 }, description: "<p>Awake.</p>", options: [] },
+	};
+
+	it("one ○ marked of four leaves the card locked: the front item is carried", async () => {
+		const arcana = makeArcana({ owned: ["four-circles"], identified: ["four-circles"], boxes: { "four-circles:unlock:0": true } }, [FOUR_CIRCLES]);
+		expect((await arcana.weightedInventoryItems()).map(i => i.name)).toEqual(["A Staff"]);
+	});
+
+	it("masterArcanum ticks every ○, so the back item is carried", async () => {
+		const store = { owned: ["four-circles"], identified: ["four-circles"] };
+		const arcana = makeArcana(store, [FOUR_CIRCLES]);
+		await arcana.masterArcanum("four-circles");
+		expect(Object.keys(store.boxes).sort()).toEqual([0, 1, 2, 3].map(i => `four-circles:unlock:${i}`));
+		expect((await arcana.weightedInventoryItems()).map(i => i.name)).toEqual(["The Staff Awake"]);
+	});
+
+	// A Seeker mastered under the old run count holds `unlock:0` alone (migration/mastered-arcanum-circles.js).
+	describe("repairMasteredUnlock", () => {
+		const oldMastered = (extra = {}) => ({
+			owned: ["four-circles"], identified: ["four-circles"],
+			minorRoles: { mastered: "four-circles" },
+			boxes: { "four-circles:unlock:0": true }, ...extra,
+		});
+
+		it("ticks the rest of the mastered card's circles, so its back is carried again", async () => {
+			const store = oldMastered();
+			const arcana = makeArcana(store, [FOUR_CIRCLES]);
+			expect(await arcana.repairMasteredUnlock()).toBe(true);
+			expect(Object.keys(store.boxes).sort()).toEqual([0, 1, 2, 3].map(i => `four-circles:unlock:${i}`));
+			expect((await arcana.weightedInventoryItems()).map(i => i.name)).toEqual(["The Staff Awake"]);
+		});
+
+		it("is idempotent: a fully marked card writes nothing", async () => {
+			const store = oldMastered();
+			const arcana = makeArcana(store, [FOUR_CIRCLES]);
+			await arcana.repairMasteredUnlock();
+			expect(await arcana.repairMasteredUnlock()).toBe(false);
+		});
+
+		it("leaves a part-marked card alone when it is not the mastered one", async () => {
+			const store = oldMastered({ minorRoles: { found: "four-circles" } });
+			expect(await makeArcana(store, [FOUR_CIRCLES]).repairMasteredUnlock()).toBe(false);
+			expect(store.boxes).toEqual({ "four-circles:unlock:0": true });
+		});
+
+		it("leaves a mastered card with no circle ticked alone: that is not the old grant", async () => {
+			const store = oldMastered({ boxes: {} });
+			expect(await makeArcana(store, [FOUR_CIRCLES]).repairMasteredUnlock()).toBe(false);
+		});
+	});
+});
