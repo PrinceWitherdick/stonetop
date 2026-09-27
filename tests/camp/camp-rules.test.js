@@ -481,6 +481,13 @@ describe("one character's share", () => {
 		expect(Object.keys(update)).not.toContain(HP);
 	});
 
+	// Walk It Off: "Clear it as you would a debility". Its box is the move's track, not a debility box.
+	it("clears a Ranger's Walk It Off box when that was the pick", () => {
+		const { update } = share({ benefit: CAMP_BENEFIT.DEBILITY, debility: { key: "walkItOff", name: "Walk It Off" } });
+		expect(update["flags.stonetop-pwd.moves.backgroundChoices.Walk It Off"]).toBe(0);
+		expect(Object.keys(update).filter(k => k.startsWith("system.attributes.debilities"))).toEqual([]);
+	});
+
 	it("adds the bedroll's roll on top of either pick", () => {
 		expect(share({ bedroll: 3 }).update[HP]).toBe(15);
 		const cleared = share({ benefit: CAMP_BENEFIT.DEBILITY, debility: { key: "dazed" }, bedroll: 3 }, { hpValue: 10 }).update;

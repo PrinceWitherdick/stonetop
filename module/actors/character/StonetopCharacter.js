@@ -39,6 +39,7 @@ import {deletionEntry} from "../../utils/foundry-compat.js";
 import {statRequirementsUnmet} from "./stat-requirement.js";
 import {effectiveRequiredMoves, requiredMovesUnmet, requirementLabel} from "./move-requirement.js";
 import {MoveResources} from "./MoveResources.js";
+import {debilityData, walkItOffChoice} from "./walk-it-off.js";
 import {moveMarkBudget, markOptionCapNote} from "./move-mark-budget.js";
 import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
 import {DEATHS_DOOR_FLAG, UNSTOPPABLE, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
@@ -736,7 +737,7 @@ export class StonetopCharacter {
 		return new CharacterSnapshotBuilder()
 			.withName(actor.name)
 			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore, actor.name, arcanaLore, (!!this._actor.getFlag(STONETOP_SCOPE, WBH_HERO_FLAG) || ownsAsteriskMove(this._actor)), actorLevel) : null)
-			.withDebilities(_buildDebilitiesSection(actor))
+			.withDebilities(_buildDebilitiesSection(actor, this._moveResources))
 			.withWounds(_buildWoundsSection(actor))
 			.withStats(_buildStatsSection(actor))
 			// A Thrall's Marks eat into their max HP ("Reduce your max HP by 2"), and they collect
@@ -5040,12 +5041,18 @@ export class StonetopCharacter {
 		return true;
 	}
 
-	/** The three debilities and whether each is marked — for a move that offers a choice of one. */
+	/**
+	 * The three debilities and whether each is marked, for a move that offers a choice of one. And
+	 * the Ranger's Walk It Off box after them, which stands in for a debility wherever one is marked
+	 * or cleared (walk-it-off.js#walkItOffChoice says when it is listed); its entry has `standIn`.
+	 */
 	get debilityChoices() {
 		const opts = this._actor.system?.attributes?.debilities?.options ?? {};
-		return _DEBILITY_DEFS.map(({ key, name, description }) => ({
+		const choices = _DEBILITY_DEFS.map(({ key, name, description }) => ({
 			key, name, description, marked: !!opts[key]?.value,
 		}));
+		const walkItOff = walkItOffChoice(this._actor, this._moveResources);
+		return walkItOff ? [...choices, walkItOff] : choices;
 	}
 
 	/**
@@ -5058,11 +5065,14 @@ export class StonetopCharacter {
 	 * points, so the number is where they must not be below rather than where they must be. The
 	 * difference shows when someone else heals a downed character while the walkthrough is still
 	 * open — a Heavy healed to 6 who then trades a debility was being set back down to 1.
+	 *
+	 * `key` can be Walk It Off's (walk-it-off.js) while debilityChoices lists it: the move's box is
+	 * marked instead, and no debility is.
 	 */
 	async markDebility(key, { hp = null, moveName, clearsDeathsDoor = false } = {}) {
-		if (!_DEBILITY_DEF_BY_KEY[key]) return false;
-		if (this.debilityChoices.find(d => d.key === key)?.marked) return false;
-		const update = { [`system.attributes.debilities.options.${key}.value`]: true };
+		const choice = this.debilityChoices.find(d => d.key === key);
+		if (!choice || choice.marked) return false;
+		const update = debilityData(key, true);
 		if (hp !== null && hp > this.hp) update["system.attributes.hp.value"] = hp;
 		if (clearsDeathsDoor) Object.assign(update, this._clearDeathsDoorUpdate);
 		await this._actor.update(update, moveName ? { stonetopMove: moveName } : {});
@@ -5099,7 +5109,8 @@ export class StonetopCharacter {
 		const marked = new Map(this.debilityChoices.filter(d => d.marked).map(d => [d.key, d]));
 		const cleared = [...new Set(clearDebilities ?? [])].filter(key => marked.has(key))
 			.map(key => ({ key, name: marked.get(key).name ?? key }));
-		for (const { key } of cleared) update[`system.attributes.debilities.options.${key}.value`] = false;
+		// Walk It Off's box among them, "clear it as you would a debility".
+		for (const { key } of cleared) Object.assign(update, debilityData(key, false));
 
 		let stabilized = null;
 		let healed = null;
@@ -5661,13 +5672,20 @@ function _statValueMap(rawStats) {
 	return Object.fromEntries(Object.keys(_STAT_DEFS).map(key => [key, stats[key]?.value ?? 0]));
 }
 
-function _buildDebilitiesSection(actor) {
+// With Walk It Off's box last when the character has it listed (walk-it-off.js), touching no stat,
+// so Convalesce and Make Camp clear it with the debilities.
+function _buildDebilitiesSection(actor, moveResources) {
 	const opts = actor.system?.attributes?.debilities?.options ?? {};
-	return _DEBILITY_DEFS.map(({ key, name, stats }) =>
+	const walkItOff = walkItOffChoice(actor, moveResources);
+	const rows = [
+		..._DEBILITY_DEFS.map(({ key, name, stats }) => ({ key, name, active: !!(opts[key]?.value), stats })),
+		...(walkItOff ? [{ key: walkItOff.key, name: walkItOff.name, active: walkItOff.marked, stats: [] }] : []),
+	];
+	return rows.map(({ key, name, active, stats }) =>
 		new DebilitySnapshotBuilder()
 			.withKey(key)
 			.withName(name)
-			.withActive(!!(opts[key]?.value))
+			.withActive(active)
 			.withStats(stats)
 			.build()
 	);

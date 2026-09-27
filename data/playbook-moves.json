@@ -1001,6 +1001,10 @@
       "name": "Walk It Off",
       "description": "<p>When <strong><em>you'd mark a debility</em></strong>, you can mark this move instead to no ill effect. Clear it as you would a debility.</p>",
       "rollType": null,
+      "resource": {
+        "max": 1,
+        "title": "Marked"
+      },
       "requirement": {
         "level": 6
       },

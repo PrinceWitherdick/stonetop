@@ -151,6 +151,7 @@ import {ensureFollowerActors, followerActorFromLink, syncFollowerActors} from ".
 import {INITIATE_BACKGROUND, activeInitiateOptions, initiateBackground, initiateChoicePatch, initiateExceptional, initiateMoves, initiateOption} from "./initiates.js";
 import {barkskinMarks, wearsBarkskin, MOVE_ARMOR_BASE} from "./move-armor.js";
 import {CLEARS_ON, clearTracksData, snapshotTracksClearedBy} from "./background-tracks.js";
+import {askWalkItOffInstead, debilityData} from "./walk-it-off.js";
 import {STARTING_INVOCATIONS_FLAG, learnedInvocations, rerunInvocations, startingInvocations} from "./starting-invocations.js";
 import {localize, format} from "../../utils/i18n.js";
 import {promptRaiseFromDead} from "../../hooks/DeathsDoorPrompt.js";
@@ -4535,6 +4536,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Armor, same story again: derived from carried gear + move bonuses, so a hand-typed
 			// total is banked as a signed adjustment rather than pinning the derived number.
 			html.find("[data-armor]").on("change", this._onArmorEdit.bind(this));
+
+			// A debility box ticked by hand while Walk It Off stands ready asks which to mark first.
+			html.find('input[name^="system.attributes.debilities.options."]').on("change", this._onDebilityBoxTick.bind(this));
 
 			// -- Followers tab: shared follower-card fields ----------------
 			// Common, hand-editable fields on every follower card (name,
@@ -10604,7 +10608,8 @@ export function createStonetopCharacterSheetClass(Base) {
 		// `tracks`: the marked background tracks Convalesce clears (background-tracks.js), in the same write.
 		async _applyConvalesce({ oldHp, newHp, debilities, tracks = [], healable = [], healIds = [], planNotes = {} }) {
 			const update = { "system.attributes.hp.value": newHp };
-			for (const d of debilities) update[`system.attributes.debilities.options.${d.key}.value`] = false;
+			// Walk It Off's box among them (walk-it-off.js), cleared as a debility is.
+			for (const d of debilities) Object.assign(update, debilityData(d.key, false));
 			Object.assign(update, clearTracksData(tracks, STONETOP_SCOPE));
 			await this.actor.update(update, { stonetopMove: "Convalesce" });
 
@@ -10773,6 +10778,26 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 			await this._stonetopCharacter.setArmor(typed);
 			this.render(false);
+		}
+
+		// Walk It Off: "When you'd mark a debility, you can mark this move instead". A box ticked on
+		// the sheet while the move is learned and clear is held back from the form's save and asked
+		// about (walk-it-off.js#askWalkItOffInstead); the answer is marked through markDebility, the
+		// seam every other "mark a debility" goes through. Decided before the first await, since the
+		// form's own change handler runs as soon as this one returns. Unticking, and a character
+		// with nothing to stand in, save as the form always did.
+		_onDebilityBoxTick(ev) {
+			const el = ev.currentTarget;
+			if (!el.checked || !this.isEditable) return;
+			const key = String(el.name ?? "").split(".")[4];
+			const choices = this._stonetopCharacter.debilityChoices;
+			const debility = choices.find(d => d.key === key && !d.standIn);
+			if (!debility || !choices.some(d => d.standIn && !d.marked)) return;
+			ev.stopPropagation();
+			el.checked = false;
+			askWalkItOffInstead(debility)
+				.then(chosen => chosen && this._stonetopCharacter.markDebility(chosen))
+				.catch(err => console.error("Stonetop | marking a debility failed", err));
 		}
 
 		/**

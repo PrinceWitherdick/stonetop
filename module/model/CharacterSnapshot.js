@@ -57,7 +57,7 @@ export {
  *
  * @property {string} name
  * @property {PlaybookSnapshot|null} playbook
- * @property {DebilitySnapshot[]} debilities - always 3: weakened, dazed, miserable
+ * @property {DebilitySnapshot[]} debilities - weakened, dazed, miserable, then the Ranger's Walk It Off box when listed (walk-it-off.js)
  * @property {WoundSnapshot[]} wounds - problematic/permanent wounds (may be empty)
  * @property {Object.<string, StatSnapshot>} stats - keys: str dex con int wis cha
  * @property {VitalsSnapshot} vitals

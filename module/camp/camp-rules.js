@@ -2,6 +2,7 @@ import { SYSTEM_ID } from "../system-id.js";
 import { PROVISIONS_SLUG } from "../actors/character/provisions.js";
 import { SUPPLY_PURPOSE, SUPPLY_SLUGS, campUsesNeeded, supplyPurseSlugsFor, supplyPursesFor } from "../actors/character/supply-cost.js";
 import { clearTracksData } from "../actors/character/background-tracks.js";
+import { debilityData } from "../actors/character/walk-it-off.js";
 
 /**
  * MAKE CAMP, AS A PARTY (Book I p.334).
@@ -619,7 +620,8 @@ export function campShareUpdate(entry, { resources = {}, hpValue = 0, resourceDa
 	let hp = before;
 	if (entry.rests) {
 		if (entry.benefit === CAMP_BENEFIT.DEBILITY && entry.debility?.key) {
-			update[`system.attributes.debilities.options.${entry.debility.key}.value`] = false;
+			// Walk It Off's box, when that is the one picked (walk-it-off.js).
+			Object.assign(update, debilityData(entry.debility.key, false));
 		} else if (entry.benefit === CAMP_BENEFIT.HP) {
 			hp = healTo(hp, entry.halfMax, entry.maxHp);
 		}

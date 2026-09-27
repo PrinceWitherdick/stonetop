@@ -11,6 +11,7 @@ import {
 	readOwedCamps, rollsBedroll, rollsBreakBread, suppliesAllAlong,
 } from "./camp-rules.js";
 import { ownsLearnedMoveNamed } from "../actors/character/owns-move.js";
+import { walkItOffChoice } from "../actors/character/walk-it-off.js";
 import { CLEARS_ON, markedTracks, snapshotTracksClearedBy } from "../actors/character/background-tracks.js";
 import { campSummaryRows, hadAllAlongRows } from "./camp-view.js";
 
@@ -96,14 +97,16 @@ export function campActors(campId) {
 /**
  * The debilities a character has marked right now, named from what they published on joining.
  * Which ones are marked is read live: a debility cleared by Recover while the camp sits open must
- * not stay on offer.
+ * not stay on offer. A marked Walk It Off box counts, since it is cleared as a debility is.
  */
 function markedDebilities(actor, vitals) {
 	const marked = actor?.system?.attributes?.debilities?.options ?? {};
 	const named  = new Map((vitals?.debilities ?? []).map(d => [d.key, d.name]));
+	const walkItOff = walkItOffChoice(actor);
 	return Object.keys(marked)
 		.filter(key => marked[key]?.value)
-		.map(key => ({ key, name: named.get(key) ?? capitalizeFirst(key) }));
+		.map(key => ({ key, name: named.get(key) ?? capitalizeFirst(key) }))
+		.concat(walkItOff?.marked ? [{ key: walkItOff.key, name: walkItOff.name }] : []);
 }
 
 /** One character at the fire, in the shape camp-rules.js reads (its CampMember). */

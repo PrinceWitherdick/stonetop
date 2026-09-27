@@ -147,6 +147,17 @@ describe("finding camps and who is at them", () => {
 		aeliana.system.attributes.debilities.options.miserable.value = true;
 		expect(campMembers(camp.campId, "aeliana")[0].activeDebilities).toEqual([{ key: "miserable", name: "Miserable" }]);
 	});
+
+	// "Clear it as you would a debility": a marked Walk It Off box is on offer at the fire, read live.
+	it("counts a Ranger's marked Walk It Off box among them", async () => {
+		const { aeliana } = campParty({ aeliana: { moves: ["Walk It Off"] } });
+		const held = {};
+		aeliana.typedActor.moveResources = { getMoveResources: () => held };
+		const camp = await hostCamp(aeliana);
+		expect(campMembers(camp.campId, "aeliana")[0].activeDebilities).toEqual([]);
+		held["Walk It Off"] = 1;
+		expect(campMembers(camp.campId, "aeliana")[0].activeDebilities).toEqual([{ key: "walkItOff", name: "Walk It Off" }]);
+	});
 });
 
 describe("who pays whose share", () => {
