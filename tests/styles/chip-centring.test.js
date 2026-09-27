@@ -188,7 +188,6 @@ describe("chip icons sit at a whole-pixel size", () => {
 		".stonetop-cf-chosen-tag i",
 		".stonetop .create-monster .cm-move-suggestion i",
 		".stonetop-person-picker-chip i",
-		".stonetop-exceptional-toggle.is-locked .fa-lock",
 		".stonetop-order-followers-dialog .stonetop-of-tag i",
 		".stonetop-follower-dead-badge i",
 		".stonetop-timeline-entry-linked i",

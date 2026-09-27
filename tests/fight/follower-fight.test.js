@@ -114,6 +114,21 @@ describe("followerOrderInfo", () => {
 		expect(followerOrderInfo(crew, cardOf(crew, [off])).follower.exceptional).toBe(false);
 	});
 
+	// The animal companion's the same way, by Beast of Legend's pick (Ranger audit, 2026-09-26).
+	it("the animal companion is exceptional only by Beast of Legend's pick, never a stored toggle", () => {
+		const origin = { characterUuid: "Actor.bram", ftype: "animal-companion", slug: "" };
+		const hound = follower({ id: "hound", name: "Gelert", origin });
+		const picked = character("bram", { animalCompanion: { details: {} }, moves: { moveMarks: { "Beast of Legend": { exceptional: [{ stat: "", level: 6 }] } } } });
+		picked.items = [{ type: "move", name: "Beast of Legend", flags: {} }];
+		expect(followerOrderInfo(hound, cardOf(hound, [picked])).follower.exceptional).toBe(true);
+		const legacy = character("bram", { animalCompanion: { details: { exceptional: true } } });
+		legacy.items = [];
+		expect(followerOrderInfo(hound, cardOf(hound, [legacy])).follower.exceptional).toBe(false);
+		const off = character("bram", { moves: { moveMarks: { "Beast of Legend": { exceptional: [{ stat: "", level: 6 }] } } } });
+		off.items = [{ type: "move", name: "Beast of Legend", flags: { [SYSTEM_ID]: { learned: false } } }];
+		expect(followerOrderInfo(hound, cardOf(hound, [off])).follower.exceptional).toBe(false);
+	});
+
 	// Book I p.462 gates the crew and the animal companion behind a playbook move, but lets the GM
 	// call ANY outstanding follower exceptional — so the sheet shows the chip for an initiate, a custom
 	// follower and a beast follower too (see withExceptional). The token reads whatever the card stored,

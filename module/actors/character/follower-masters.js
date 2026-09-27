@@ -74,17 +74,38 @@ export const HEROES_TO_THE_LAST = "Heroes to the Last";
  * old hand toggle (`crew.details.exceptional`) is not read: a stored `true` from before is ignored.
  */
 export function crewIsExceptional(character) {
-	if (!ownsLearnedBookMoveNamed(character, HEROES_TO_THE_LAST)) return false;
-	const marked = readableFlags(character)?.moves?.moveMarks?.[HEROES_TO_THE_LAST]?.exceptional;
+	return exceptionalPickMarked(character, HEROES_TO_THE_LAST);
+}
+
+/** The Ranger's move whose "They are exceptional" pick makes the animal companion exceptional. */
+export const BEAST_OF_LEGEND = "Beast of Legend";
+
+/**
+ * Whether the animal companion is exceptional: the crew's shape (crewIsExceptional), for the Ranger.
+ * Beast of Legend is LEARNED (a book copy) and its "They are exceptional" pick is marked. The card's
+ * old hand toggle (`animalCompanion.details.exceptional`) is not read: a stored `true` is ignored.
+ */
+export function companionIsExceptional(character) {
+	return exceptionalPickMarked(character, BEAST_OF_LEGEND);
+}
+
+/** The follower types whose "exceptional" is a move's pick, and that move. */
+export const EXCEPTIONAL_FROM_MOVE = Object.freeze({ "crew": HEROES_TO_THE_LAST, "animal-companion": BEAST_OF_LEGEND });
+
+// `moveName` is LEARNED (a book copy) and its "They are exceptional" pick is marked.
+function exceptionalPickMarked(character, moveName) {
+	if (!ownsLearnedBookMoveNamed(character, moveName)) return false;
+	const marked = readableFlags(character)?.moves?.moveMarks?.[moveName]?.exceptional;
 	return Array.isArray(marked) ? marked.length > 0 : Number(marked) > 0;
 }
 
 /**
  * Whether a follower is exceptional, for any of the five types: the crew's comes from Heroes to the
- * Last (crewIsExceptional), every other type's is the toggle stored on its own card.
+ * Last (crewIsExceptional), the animal companion's from Beast of Legend (companionIsExceptional),
+ * every other type's is the toggle stored on its own card.
  */
 export function followerExceptional(character, ftype, slug = "") {
-	if (ftype === "crew") return crewIsExceptional(character);
+	if (EXCEPTIONAL_FROM_MOVE[ftype]) return exceptionalPickMarked(character, EXCEPTIONAL_FROM_MOVE[ftype]);
 	const base = followerDetailBase(ftype, slug);
 	if (!base) return false;
 	const details = base.split(".").reduce((node, key) => node?.[key], readableFlags(character));

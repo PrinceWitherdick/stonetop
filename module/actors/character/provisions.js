@@ -156,11 +156,14 @@ function _provisionsCard(roll, title, note, larder) {
 	// The second is only knowable once the write has landed, which is why the card is built after
 	// it rather than before.
 	const details = [note, larder ? `${larder.held} in the pack` : ""].filter(Boolean).join(" • ");
-	return _haulCard(roll, title, `${uses === 1 ? "use" : "uses"} of provisions`, details);
+	return haulCard(roll, title, `${uses === 1 ? "use" : "uses"} of provisions`, details);
 }
 
-/** A thrown haul: the chip, the total and what it was a total OF. Shared by provisions and Stock. */
-function _haulCard(roll, title, label, details) {
+/**
+ * A thrown haul: the chip, the total and what it was a total OF. Shared by provisions, Stock and the
+ * companion's "Lend it your strength" (companion-bond.js). `details` is a line, or lines.
+ */
+export function haulCard(roll, title, label, details) {
 	const faces = multiDieFaces(roll);
 	const total = Math.max(0, Math.trunc(roll.total));
 	const body = `<div class="card-content">
@@ -169,7 +172,7 @@ function _haulCard(roll, title, label, details) {
 			${rollResultNumber(total, faces)}
 			<div class="stonetop-roll-result-body">
 				<span class="stonetop-roll-result-label">${escHtml(label)}</span>
-				<span class="stonetop-roll-result-details">${escHtml(details)}</span>
+				<span class="stonetop-roll-result-details">${[details].flat().map(escHtml).join("<br>")}</span>
 			</div>
 		</div>
 	</div>`;
@@ -199,7 +202,7 @@ export async function rollStock(actor, { formula, pouchMax, speaker } = {}) {
 	const details = produced > restocked ? `${held} in the pouch (full)` : `${held} in the pouch`;
 	await roll.toMessage({
 		speaker: speaker ?? ChatMessage.getSpeaker({ actor }),
-		flavor:  _haulCard(roll, "Stock", "Stock", details),
+		flavor:  haulCard(roll, "Stock", "Stock", details),
 	});
 	return { produced, restocked, held };
 }
@@ -228,7 +231,7 @@ export async function loseHpForStock(actor, { amount = 1, moveName = "", speaker
 	const newHp = hp?.newHp ?? 0;
 	await roll.toMessage({
 		speaker: speaker ?? ChatMessage.getSpeaker({ actor }),
-		flavor:  _haulCard(roll, moveName || "Vessel", "HP lost", `in place of ${amount} Stock • HP ${oldHp} → ${newHp}`),
+		flavor:  haulCard(roll, moveName || "Vessel", "HP lost", `in place of ${amount} Stock • HP ${oldHp} → ${newHp}`),
 	});
 	return { lost, oldHp, newHp };
 }

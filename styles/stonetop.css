@@ -26634,8 +26634,6 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 	border-color: rgba(160,130,80,0.65);
 	color: var(--st-text-body);
 }
-.stonetop-exceptional-toggle.is-locked { border-style: dashed; opacity: 0.85; }
-.stonetop-exceptional-toggle.is-locked .fa-lock { font-size: 0.8em; font-size: round(0.8em, 1px); opacity: 0.6; }
 
 /* Pick-one option list (instinct / cost) */
 .stonetop-follower-option-list {
@@ -26683,6 +26681,34 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 
 .stonetop-follower-moves-list li::before {
 	content: "\27A4"; /* ➤ — matches the rulebook's Moves marker */
+	flex: none;
+	color: var(--st-text-secondary);
+	font-size: 0.78em;
+	line-height: 1.3;
+}
+
+/* Beast-Bonded actions on the companion card: the moves list's arrow and fill line, but read-only
+   (nothing to post, so no pointer or hover). */
+.stonetop-companion-bond-actions {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.stonetop-companion-bond-actions li {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	font-size: var(--st-fs-base);
+	border-bottom: 1px dotted rgba(0, 0, 0, 0.15);
+	padding-bottom: 1px;
+}
+
+.stonetop-companion-bond-actions li::before {
+	content: "\27A4";
 	flex: none;
 	color: var(--st-text-secondary);
 	font-size: 0.78em;

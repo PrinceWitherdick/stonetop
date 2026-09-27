@@ -366,7 +366,10 @@ async function buildNameLookup(actor) {
 		const companionKind = getActorProperty(actor, `flags.${LEDGER_SCOPE}.animalCompanion.kind`);
 		if (!names.followers.has("animalCompanion") && companionKind) names.followers.set("animalCompanion", companionKind);
 		const companionType = getActorProperty(actor, `flags.${LEDGER_SCOPE}.animalCompanion.type`);
-		const companionTypeLabel = (playbookFlags?.animalCompanion?.types ?? []).find(type => type.slug === companionType)?.label;
+		// The snapshot's companionDef follows a companion taken through another playbook's move
+		// (StonetopCharacter#companionSource); the own playbook's insert is the fallback.
+		const companionTypes = snapshot?.companionDef?.types ?? playbookFlags?.animalCompanion?.types ?? [];
+		const companionTypeLabel = companionTypes.find(type => type.slug === companionType)?.label;
 		if (!names.followers.has("animalCompanion")) addFollower("animalCompanion", companionTypeLabel ?? "Animal companion");
 		const crewName = getActorProperty(actor, `flags.${LEDGER_SCOPE}.crew.name`);
 		addFollower("crew", crewName || "Crew");

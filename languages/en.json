@@ -1134,6 +1134,21 @@
           "groupDeadDesc": "Dead, immediately. They are struck off the group's roster (a group keeps at least two).",
           "groupDeadCard": "They are struck off the group's roster.",
           "groupFloorCard": "The group is down to two, the fewest a group keeps, so they stay on its roster at 0 HP, marked fallen."
+        },
+        "companion": {
+          "fallbackName": "Your companion",
+          "bondHeading": "Beast-Bonded",
+          "bondIntro": "Focus on your companion for a few moments to use these, no matter the distance between you:",
+          "bondNone": "No action marked yet. Mark one on the Details tab.",
+          "lendButton": "Lend it your strength",
+          "lendHint": "Lose 1d6 HP; your companion regains as much, up to its max.",
+          "lendFullNote": "Your companion is at full HP, so the HP you lose would be wasted.",
+          "lendLabel": "HP lent",
+          "lendLost": "{name} loses {amount} HP ({from} to {to}).",
+          "lendGained": "{name} regains {gain} HP ({from} to {to}).",
+          "lendNoBox": "{name} has no HP box to raise.",
+          "injuredButton": "Add the injured tag",
+          "removeCondition": "Remove the {tag} tag"
         }
       },
       "moveTypes": {

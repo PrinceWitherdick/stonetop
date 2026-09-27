@@ -186,6 +186,8 @@ export function buildLiveCharacter({
 	// `arcana`: an arcana repository (FakeArcanaRepository) for a test that reads cards back.
 	const factory = new FakeRepositoryFactory({ playbook: makePlaybookRepo(), moves: makeSourceMoveRepo(), arcana });
 	const char = new StonetopCharacter(actor, factory);
+	// As StonetopActor#typedActor hands it back, for the helpers that reach the character through the actor.
+	actor.typedActor ??= char;
 	return { char, actor };
 }
 

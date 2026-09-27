@@ -60,8 +60,9 @@ export class OrderFollowersDialog extends StonetopDialog {
 	/**
 	 * @param {Actor}    actor
 	 * @param {object}   follower  - { name, tags: string[], moves: string[], exceptional: bool,
-	 *   members?: Array<{key, name, tags: string[]}> } — `members` only for a group ordered as a
-	 *   whole, each with their OWN tags (utils/crew.js#groupFollowerMembers)
+	 *   members?: Array<{key, name, tags: string[]}>, hinderingTags?: string[] }: `members` only for
+	 *   a group ordered as a whole, each with their OWN tags (utils/crew.js#groupFollowerMembers);
+	 *   `hinderingTags` start marked in the way
 	 * @param {Function} onRoll    - async ({ bonus, rollMode, moveName, moveKey, followerName, member }) => void
 	 */
 	constructor(actor, follower, onRoll, options = {}) {
@@ -79,8 +80,11 @@ export class OrderFollowersDialog extends StonetopDialog {
 			? this._follower.moveKey
 			: "defy-danger";
 		this._customMove = "";
-		// Per-tag state: "help" | "hinder" | "" (neither). Keyed by tag string.
+		// Per-tag state: "help" | "hinder" | "" (neither). Keyed by tag string. A tag the caller
+		// names in `hinderingTags` (an animal companion's "injured") starts in the way; a click
+		// still cycles it, the call being the table's.
 		this._tagState   = {};
+		for (const tag of this._follower.hinderingTags ?? []) if (tag) this._tagState[tag] = "hinder";
 		// Per-move state: "help" | "" only — a move can earn the bonus but can't
 		// impose disadvantage (p.462 says "if any of their *tags* would get in the
 		// way"). Kept in its own map so a move whose text happens to match a tag

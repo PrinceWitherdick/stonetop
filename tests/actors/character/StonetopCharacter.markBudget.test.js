@@ -51,7 +51,8 @@ const STAT_MIX = {
 	},
 };
 
-// Beast of Legend (Ranger): the "tough" pick buffs the Animal Companion's HP/armor.
+// Beast of Legend (Ranger): "pick 1" each take, one box per option as the insert prints them; the
+// "tough" pick buffs the Animal Companion's HP/armor, "exceptional" makes it exceptional.
 const BEAST_OF_LEGEND = {
 	_id: "bol1",
 	name: "Beast of Legend",
@@ -59,8 +60,9 @@ const BEAST_OF_LEGEND = {
 		playbook: "The Ranger",
 		markBudget: { base: 1, perExtra: 1 },
 		markOptions: [
-			{ slug: "tough",  label: "They get +4 HP and +1 armor", marks: 3, companionHp: 4, companionArmor: 1 },
-			{ slug: "unique", label: "They develop some unique ability or trait", marks: 3 },
+			{ slug: "exceptional", label: "They are exceptional (and roll +2 instead of +1)", marks: 1 },
+			{ slug: "tough",  label: "They get +4 HP and +1 armor", marks: 1, companionHp: 4, companionArmor: 1 },
+			{ slug: "unique", label: "They develop some unique ability or trait", marks: 1 },
 		],
 	},
 };
@@ -193,10 +195,10 @@ describe("StonetopCharacter.setCountMark — repeat-scaling budget", () => {
 	});
 
 	it("sums companionHp/companionArmor from Beast of Legend's 'tough' pick", async () => {
-		// 2 copies (budget 2), the tough option picked twice ⇒ +8 HP / +2 armor to the companion.
-		const { char } = makeChar({ def: BEAST_OF_LEGEND, copies: 2, marks: { tough: [lvl(), lvl()] } });
+		// 2 copies (budget 2): exceptional and tough, one each ⇒ +4 HP / +1 armor to the companion.
+		const { char } = makeChar({ def: BEAST_OF_LEGEND, copies: 2, marks: { exceptional: [lvl()], tough: [lvl()] } });
 		const totals = await char._ownedMoveBonuses({ name: "The Ranger" }, char._buildOwnedMovesMap());
-		expect(totals.companionHp).toBe(8);
-		expect(totals.companionArmor).toBe(2);
+		expect(totals.companionHp).toBe(4);
+		expect(totals.companionArmor).toBe(1);
 	});
 });

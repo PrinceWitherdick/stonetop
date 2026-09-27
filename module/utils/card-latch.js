@@ -5,6 +5,9 @@
 // has to take the latch back as well as re-enable them.
 
 import { SYSTEM_ID } from "../system-id.js";
+import { canRewriteCard } from "./chat.js";
+import { belongsToMessage } from "./picked-option-button.js";
+import { speakerActor } from "./speaker-actor.js";
 
 /**
  * Disable `buttons`, write `flag` = `value` on the message, then run `work(release)`. `work` answers
@@ -36,5 +39,33 @@ export async function withCardLatch(message, flag, value, buttons, work) {
 	} catch (err) {
 		await release().catch(e => console.error(`Stonetop | could not release the ${flag} latch`, e));
 		throw err;
+	}
+}
+
+/**
+ * Wire a card's once-only buttons (stonetop.js renderChatMessageHTML): the `selector` buttons of THIS
+ * message show as chosen once `flag` is set, are disabled for a client that cannot rewrite the card,
+ * and otherwise run `act(actor, btn, buttons)` on click (which latches through withCardLatch). Safe
+ * to call on every render: a button is wired once.
+ *
+ * @param {ChatMessage} message
+ * @param {HTMLElement|jQuery} html
+ * @param {{selector: string, flag: string, act: Function, what: string}} opts  `what` names it in the error log
+ */
+export function wireLatchedButtons(message, html, { selector, flag, act, what }) {
+	const root = html?.[0] ?? html;
+	const buttons = [...(root?.querySelectorAll?.(selector) ?? [])].filter(btn => belongsToMessage(btn, message));
+	if (!buttons.length) return;
+	const actor = speakerActor(message);
+	const used = !!message?.getFlag?.(SYSTEM_ID, flag);
+	const usable = !used && canRewriteCard(message, actor);
+	for (const btn of buttons) {
+		btn.classList.toggle("is-chosen", used);
+		if (!usable) { btn.disabled = true; continue; }
+		if (btn.dataset.latchWired === "1") continue;
+		btn.dataset.latchWired = "1";
+		btn.addEventListener("click", () => {
+			act(actor, btn, buttons).catch(err => console.error(`Stonetop | ${what} failed`, err));
+		});
 	}
 }

@@ -747,6 +747,7 @@
 					<span class="stonetop-onboarding-ac-trait-count">{{acData.selectedType.selectedCount}}</span> / {{acData.selectedType.pickCount}}
 				</span>
 			</p>
+			<p class="stonetop-onboarding-step-hint stonetop-onboarding-ac-over"{{#unless acData.selectedType.overCount}} hidden{{/unless}}>You have more options picked than your companion can have (only {{acData.selectedType.pickCount}}). Untick <span class="stonetop-onboarding-ac-over-count">{{acData.selectedType.overCount}}</span> to go on.</p>
 			<div class="stonetop-onboarding-tag-grid">
 				{{#each acData.selectedType.traits}}
 				<label class="stonetop-onboarding-tag-option{{#if isSelected}} is-selected{{/if}}{{#if isMandatory}} is-mandatory{{/if}}"{{#if isMandatory}} title="Always included; doesn't count toward your picks"{{/if}}>

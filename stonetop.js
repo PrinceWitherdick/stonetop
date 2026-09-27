@@ -42,6 +42,7 @@ import { onPreUpdateActorDeathsDoor, onUpdateActorDeathsDoorAutoOpen, onUpdateAc
 import { onUpdateActorUnstoppable } from "./module/actors/character/unstoppable.js";
 import { installBattleJoyOnHurt, installBattleJoyEnd, wireBattleJoyResult } from "./module/combat/battle-joy-offer.js";
 import { wireInvokeConsequences, wireWielderInvoke, invokeCardChoosesConsequence, invokeActionRow, TEN_PLUS_FLAG } from "./module/actors/character/invoke-consequences.js";
+import { wireLoyalToTheEnd } from "./module/actors/character/companion-bond.js";
 import { wireInvocationEffects, BATH_QUERY, handleBathQuery } from "./module/actors/character/invocation-apply.js";
 import { installBattleHolds } from "./module/combat/battle-holds.js";
 import { hideAttackFxForReducedMotion } from "./module/combat/attack-fx.js";
@@ -2267,6 +2268,8 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	wireBattleJoyResult(message, html);
 	// Wielder of the White Flame's 10+: Invoke the Sun God now, as a 10+, once per card.
 	wireWielderInvoke(message, html);
+	// Loyal to the End's 7-9 and 6-: the companion's "injured" tag, added once per card.
+	wireLoyalToTheEnd(message, html);
 	// We Happy Few, every tier: who heard the speech holds its Inspiration, once per card.
 	wireSpeechCard(message, html);
 	// Same row, same reason: a spend that rewrites what the roll costs the player.

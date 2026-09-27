@@ -94,8 +94,11 @@ import {withSectionEditing} from "../../utils/section-editing.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {annotateInvocationEffects, splitEmpoweredEffect} from "./invocation-effects.js";
 import {CONSECRATED_FLAME, INVOKE_THE_SUN_GOD, EMPOWERED_INVOCATIONS, showHolyLight} from "./holy-light.js";
-import { crewIsExceptional } from "./follower-masters.js";
-import {ownedMoveNames, ownedMove, ownedLearnedMove, ownsLearnedMoveNamed, isPlayerAuthoredMove, moveLearnedIn} from "./owns-move.js";
+import {ownedMoveNames, ownedMove, ownedLearnedMove, ownsLearnedMoveNamed, ownsMoveNamed, isPlayerAuthoredMove, moveLearnedIn} from "./owns-move.js";
+import { crewIsExceptional, companionIsExceptional, EXCEPTIONAL_FROM_MOVE } from "./follower-masters.js";
+import { ANIMAL_COMPANION_MOVE, COMPANION_TRAIT_PICKS_PER_SPECIMEN, MAGNIFICENT_SPECIMEN_MOVE, canonicalCompanionTraits, companionPaidTraits, companionStats, companionTraitAllowance } from "./animal-companion.js";
+import { LOYAL_TO_THE_END, beastBondActions, companionConditions, lendStrength, loyalToTheEndTierActions, removeCompanionCondition } from "./companion-bond.js";
+import { CompanionSetupDialog, companionSetupUpdate } from "./dialogs/CompanionSetupDialog.js";
 import {CARD_EMPOWERED_FLAG, CARD_INVOCATIONS_FLAG, TEN_PLUS_FLAG, debilityPayments, invokeTenPlusCardBody, payDebility} from "./invoke-consequences.js";
 import {DANCING_LIGHT, invocationLabel, invocationLabels, invokeWindowNotice, readOngoing, resolveInvocationUse} from "./ongoing-invocation.js";
 import {INVOCATIONS_GRANTED_AT_FLAG, invocationCountCue} from "./invocation-count.js";
@@ -647,38 +650,6 @@ const EMPOWERED_NOTE_HTML =
 	+ `Empowered: an <strong>extra consequence</strong>, chosen before the roll and taken `
 	+ `whatever it comes up.</p>`;
 
-function _addToLeadingNumber(value, delta) {
-	const match = String(value ?? "").match(/^(-?\d+)(.*)$/);
-	if (!match) return value;
-	return `${Number(match[1]) + delta}${match[2]}`;
-}
-
-function _addToDamage(value, delta) {
-	const text = String(value ?? "");
-	const match = text.match(/^([^(\s]+)(.*)$/);
-	if (!match) return value;
-	const formula = match[1].replace(/([+-]\d+)?$/, current => {
-		const next = (current ? Number(current) : 0) + delta;
-		return next > 0 ? `+${next}` : next < 0 ? String(next) : "";
-	});
-	return `${formula}${match[2]}`;
-}
-
-function _applyAnimalCompanionTraits(typeData, traits) {
-	const traitText = traits.join(" ");
-	const hpBonus     = [...traitText.matchAll(/[+](\d+)\s*HP/gi)]
-		.reduce((sum, m) => sum + Number(m[1]), 0);
-	const armorBonus  = [...traitText.matchAll(/[+](\d+)\s*armor/gi)]
-		.reduce((sum, m) => sum + Number(m[1]), 0);
-	const damageBonus = [...traitText.matchAll(/(?:Damage\s*)?[+](\d+)\s*damage/gi)]
-		.reduce((sum, m) => sum + Number(m[1]), 0);
-	return {
-		hp:     typeData?.hp !== undefined ? Number(typeData.hp) + hpBonus : undefined,
-		armor:  armorBonus  ? _addToLeadingNumber(typeData?.armor,  armorBonus)  : typeData?.armor,
-		damage: damageBonus ? _addToDamage(typeData?.damage, damageBonus) : typeData?.damage,
-	};
-}
-
 function _titleCase(value) {
 	return String(value ?? "").toLowerCase().replace(/\b\p{L}/gu, char => char.toUpperCase());
 }
@@ -729,8 +700,8 @@ function _followerBearsShield(gear) {
 // animal companion gets it from Beast of Legend). Other follower types have no
 // such option in the rulebook, so they never show the exceptional control.
 const FOLLOWER_EXCEPTIONAL = {
-	"crew":             { move: "Heroes to the Last", noun: "crew" },
-	"animal-companion": { move: "Beast of Legend",    noun: "animal companion" },
+	"crew":             { move: EXCEPTIONAL_FROM_MOVE["crew"],             noun: "crew" },
+	"animal-companion": { move: EXCEPTIONAL_FROM_MOVE["animal-companion"], noun: "animal companion" },
 };
 
 // Per-follower-type presentation constants, spread into each card builder in
@@ -1694,10 +1665,16 @@ export function createStonetopCharacterSheetClass(Base) {
 			// is only ever launched from a sheet that has rendered.
 			this._crewTagBonus            = crewStats.tagBonus ?? 0;
 			const companionBonuses        = context.stonetop.companionBonuses ?? { hp: 0, armor: 0, traitPicks: 0 };
+			// Kept for onboarding the same way: a re-run allows the companion the options the learned
+			// Magnificent Specimens already give, so it can't trap a level-up pick.
+			this._companionTraitPicks     = companionBonuses.traitPicks ?? 0;
 			// The Crew insert the crew card is drawn from: the Marshal's own, or the one a learned
 			// Crew borrows (StonetopCharacter#crewSource), as the snapshot worked it out.
 			const crewDef                 = context.stonetop.crewDef ?? null;
-			context.stonetop.followers    = this._buildFollowersData(playbookDoc, context.stonetop.inventory?.smallItemLimit ?? null, crewStats, companionBonuses, crewDef);
+			// And the Animal Companion insert the companion card is drawn from: the Ranger's own, or the
+			// one a learned Animal Companion borrows (StonetopCharacter#companionSource).
+			const companionDef            = context.stonetop.companionDef ?? null;
+			context.stonetop.followers    = this._buildFollowersData(playbookDoc, context.stonetop.inventory?.smallItemLimit ?? null, crewStats, companionBonuses, crewDef, companionDef);
 			context.stonetop.hasFollowers = !!(
 				context.stonetop.followers.animalCompanion ||
 				context.stonetop.followers.crew ||
@@ -1715,10 +1692,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			// read-only from the follower-moves items via their build export.
 			context.stonetop.followerSpecialMoves = FOLLOWER_MOVES;
 			// The Ranger's Animal Companion insert carries its own special move (Loyal
-			// to the End, p.143) — not universal, so it shows only when a beast-bonded
-			// Ranger actually has a companion.
+			// to the End, p.143), not universal, so it shows only while the character actually
+			// has a companion card (companionSource's insert, the move held).
 			context.stonetop.animalCompanionMoves = context.stonetop.followers.animalCompanion
-				? (playbookDoc?.animalCompanion?.moves ?? [])
+				? (companionDef?.moves ?? [])
 				: [];
 			context.stonetop.hasArcana = !!(
 				context.stonetop.arcana?.minor?.hasOwned ||
@@ -2195,7 +2172,11 @@ export function createStonetopCharacterSheetClass(Base) {
 		// `crewDef` is the Crew insert the crew card is drawn from (StonetopCharacter#crewSource): the
 		// Marshal's own, or the one a learned Crew borrows. Null draws no crew card, whatever is
 		// stored, so a Crew switched off hides it and its flags wait for it to come back.
-		_buildFollowersData(playbookDoc, smallItemLimit = null, crewStats = { memberHp: 6, armor: 0, damageDie: "d6", rollMod: 1 }, companionBonuses = { hp: 0, armor: 0, traitPicks: 0 }, crewDef = playbookDoc?.crew ?? null) {
+		// `companionDef` is the Animal Companion insert the companion card is drawn from
+		// (StonetopCharacter#companionSource), the same way: null draws no card. The card also asks
+		// that Animal Companion is held (the panel rule), so a companion whose move has gone keeps its
+		// flags for the move's return.
+		_buildFollowersData(playbookDoc, smallItemLimit = null, crewStats = { memberHp: 6, armor: 0, damageDie: "d6", rollMod: 1 }, companionBonuses = { hp: 0, armor: 0, traitPicks: 0 }, crewDef = playbookDoc?.crew ?? null, companionDef = playbookDoc?.animalCompanion ?? null) {
 			const sf = resolvedFlags(this.actor);
 			// Which collapsible crew sections are expanded. Seeded from the persisted
 			// per-actor setting in the constructor (so it survives a sheet reopen);
@@ -2342,52 +2323,57 @@ export function createStonetopCharacterSheetClass(Base) {
 			// -- Animal Companion (Ranger) ------------------------------
 			let animalCompanion = null;
 			const acSlug = sf.animalCompanion?.type;
-			if (acSlug) {
-				const typeData = (playbookDoc?.animalCompanion?.types ?? []).find(t => t.slug === acSlug);
-				const traits = sf.animalCompanion?.traits ?? [];
+			if (acSlug && companionDef && ownsMoveNamed(this.actor, ANIMAL_COMPANION_MOVE)) {
+				const typeData = (companionDef.types ?? []).find(t => t.slug === acSlug);
+				// Stored picks under the labels the type prints now (a renamed option's old
+				// spelling is read through the type's `aliases`, animal-companion.js).
+				const traits = canonicalCompanionTraits(typeData, sf.animalCompanion?.traits ?? []);
 				// The type's mandatory trait (Bird/Critter "tiny", etc.) is auto-included
 				// and free; it's stat-neutral, so it doesn't affect derived stats, but it
 				// must still show as a locked chip and never count toward the pick budget.
 				const mandatoryTrait = typeData?.mandatoryTrait ?? null;
 				const displayTraits  = (mandatoryTrait && !traits.includes(mandatoryTrait))
 					? [mandatoryTrait, ...traits] : traits;
-				const stats = _applyAnimalCompanionTraits(typeData, traits);
+				// The type's base line, each held option's effects (the type's `effects` map, never
+				// the label's wording), then Beast of Legend's marked "+4 HP / +1 armor"
+				// (companionBonuses): animal-companion.js#companionStats.
+				const stats = typeData ? companionStats(typeData, traits, companionBonuses) : null;
 				const kind = sf.animalCompanion?.kind ?? "";
 				const typeLabel = typeData?.label ?? acSlug;
 				const loyaltyVal = sf.animalCompanion?.loyalty ?? 0;
-				// Trait-derived base stats, then Beast of Legend's marked "+4 HP / +1 armor"
-				// (companionBonuses) layered onto the leading number of the base armor string
-				// (e.g. "1 (size)" → "2 (size)"), matching _applyAnimalCompanionTraits.
-				const hpMax = (Number(stats.hp) || 0) + (companionBonuses.hp ?? 0);
-				const acArmor = companionBonuses.armor
-					? _addToLeadingNumber(stats.armor, companionBonuses.armor)
-					: (stats.armor ?? "—");
+				const hpMax = stats?.hp ?? 0;
+				const acArmor = stats?.armor ?? "—";
 				const hpRaw = sf.animalCompanion?.hpCurrent;
 				const showTraitHover = getHoverDescriptionSetting("hoverDescriptionsTraits");
 				const acName = sf.animalCompanion?.name ?? "";
 				const acPronoun = sf.animalCompanion?.pronoun ?? "";
+				// Base trait allowance + Magnificent Specimen's "+2 options" per learned copy, and
+				// what of it is still unpicked (the card's cue, and the picker's "Pick N more").
+				const pickCount   = companionTraitAllowance(typeData) + (companionBonuses.traitPicks ?? 0);
+				const extraCount  = companionPaidTraits(typeData, traits).length;
+				const unpicked    = typeData ? Math.max(0, pickCount - extraCount) : 0;
 				// Edit mode: the type's trait list as a pick-up-to-pickCount picker
 				// (the rulebook's animal-companion build). Traits drive HP / armor /
-				// damage via _applyAnimalCompanionTraits, so toggling one re-derives the
-				// card's stats. Only built when editing; view mode shows the trait chips.
+				// damage via companionStats, so toggling one re-derives the card's
+				// stats. Only built when editing; view mode shows the trait chips.
 				let acTraitChoices = null;
 				if (cardEditing("animal-companion", "")) {
 					const acTypeTraits = typeData?.traits ?? [];
-					// Base trait allowance + Magnificent Specimen's "+2 options" per owned copy.
-					const pickCount    = (Number(typeData?.pickCount) || 0) + (companionBonuses.traitPicks ?? 0);
 					const selectedSet  = new Set(traits);
-					// The mandatory trait is locked on and free, so exclude it from the count.
-					const extraCount   = [...selectedSet].filter(t => t !== mandatoryTrait).length;
 					const atLimit      = pickCount > 0 && extraCount >= pickCount;
+					// An option the type no longer lists (the Brute's old "cautious") that this
+					// companion took: offered ticked, so it is kept until unticked, and gone then.
+					const legacy       = (typeData?.legacyTraits ?? []).filter(t => selectedSet.has(t) && !acTypeTraits.includes(t));
 					// The insert's blank write-in trait: a selected trait that isn't one of
 					// the type's listed options (nor the mandatory one). Surfaced as an
 					// editable field so it survives — and stays editable — after creation.
-					const customTrait  = [...selectedSet].find(t => t !== mandatoryTrait && !acTypeTraits.includes(t)) ?? "";
+					const customTrait  = [...selectedSet].find(t => t !== mandatoryTrait && !acTypeTraits.includes(t) && !legacy.includes(t)) ?? "";
 					if (acTypeTraits.length) acTraitChoices = {
 						limit:   pickCount,
+						remaining: unpicked,
 						customTrait,
 						customTraitDisabled: !customTrait && atLimit,
-						options: acTypeTraits.map(value => {
+						options: [...acTypeTraits, ...legacy].map(value => {
 							const isMandatory = value === mandatoryTrait;
 							const selected    = isMandatory || selectedSet.has(value);
 							return { value, selected, mandatory: isMandatory, disabled: isMandatory || (!selected && atLimit) };
@@ -2401,14 +2387,28 @@ export function createStonetopCharacterSheetClass(Base) {
 					pronoun:      acPronoun,
 					pronounEditable: true,
 					typeLabel:    kind ? `${_titleCase(kind)} (${String(typeLabel).toLowerCase()})` : String(typeLabel),
-					tags:         displayTraits.map(label => ({ label, tooltip: showTraitHover ? _animalCompanionTraitTooltip(label) : null })),
+					// Its options, then its conditions (Loyal to the End's "injured", companion-bond.js):
+					// a condition is a tag with its own remove button, apart from the options it was built with.
+					tags:         [
+						...displayTraits.map(label => ({ label, tooltip: showTraitHover ? _animalCompanionTraitTooltip(label) : null })),
+						...companionConditions(sf).map(label => ({
+							label, cls: "stonetop-follower-tag--condition", removable: true,
+							removeLabel: game.i18n.format("stonetop.character.followers.companion.removeCondition", { tag: label }),
+						})),
+					],
 					traitChoices: acTraitChoices,
+					// Options the allowance still owes (a Magnificent Specimen taken since the build).
+					traitsNote:   unpicked ? `${unpicked} option${unpicked === 1 ? "" : "s"} unpicked` : null,
 					hpSlug:       "",
 					hpMax,
 					hpCurrent:    _clampHp(hpRaw, hpMax),
 					armor:        acArmor,
-					damage:       stats.damage             ?? "—",
-					..._parseFollowerDamage(stats.damage),
+					// The derived line carries the options' +N, die, tags and piercing, so the card,
+					// the NPC that copies it (follower-actors.js) and the fight (printedBlow) agree.
+					damage:       stats?.damage || "—",
+					..._parseFollowerDamage(stats?.damage),
+					// "attacks with its hand": the type's own form, not every tag an option added.
+					...(stats?.damageForm ? { damageForm: stats.damageForm } : {}),
 					damageKind:   kind || String(typeLabel).toLowerCase(),
 					damageName:   acName,
 					damagePronoun: acPronoun,
@@ -2417,13 +2417,23 @@ export function createStonetopCharacterSheetClass(Base) {
 					loyalty:      _makeLoyaltyPips(loyaltyVal),
 					loyaltySlug:  "",
 					..._followerExtras(sf.animalCompanion?.details),
+					// Beast of Legend's "They are exceptional" pick, and only that (the crew's
+					// shape): a stored animalCompanion.details.exceptional is not read.
+					exceptional:  companionIsExceptional(this.actor),
 				};
+				// Beast-Bonded's marked actions, listed read-only while that background is the one taken
+				// (the marks are made on the Details tab); "Lend it your strength" marked is a button
+				// (companion-bond.js). Offered at full HP too, with a note that the HP would be wasted.
+				const bondBackground = (playbookDoc?.backgrounds ?? []).find(b => b.slug === sf.background?.selected) ?? null;
+				const bondActions = beastBondActions(bondBackground, sf.background?.markedActions);
+				if (bondActions) {
+					animalCompanion.bond = {
+						actions: bondActions,
+						canLend: this.isEditable && bondActions.some(a => a.lend),
+						atFull:  animalCompanion.hpCurrent >= hpMax,
+					};
+				}
 			}
-
-			// Owned move names for the animal companion's "exceptional" gate (further down; the
-			// crew's Shield Wall and exceptional ask for LEARNED moves instead). The render's own copy: the header glyphs
-			// resolve from the same one, so the whole repaint walks the items once.
-			const ownedMoves = this._ownedMoveNames();
 
 			// -- Crew (Marshal) -----------------------------------------
 			let crew = null;
@@ -2922,31 +2932,21 @@ export function createStonetopCharacterSheetClass(Base) {
 					return card;
 				});
 
-			// "exceptional" is a gated tag (see FOLLOWER_EXCEPTIONAL): the chip only
-			// shows for follower types whose playbook grants it, and can be switched
-			// on only once that move is owned. Surfaced per-card so the tags-row chip
-			// and its click handler can warn when the requirement isn't met.
-			// (ownedMoves is built once above.)
+			// "exceptional" is a gated tag (see FOLLOWER_EXCEPTIONAL): for the crew and the
+			// animal companion it is a move's pick, reported by the chip and never toggled.
+			// Surfaced per-card so the tags-row chip can say where it comes from.
 			const withExceptional = (card) => {
 				if (!card) return card;
 				const def = FOLLOWER_EXCEPTIONAL[card.ftype];
-				if (card.ftype === "crew") {
-					// The crew's is DERIVED (crewIsExceptional, set on the card above): the chip only
-					// reports it, and nothing on the card switches it. Heroes to the Last's pick does.
+				if (def) {
+					// The crew's and the animal companion's are DERIVED (crewIsExceptional /
+					// companionIsExceptional, set on the card above): the chip only reports it, and
+					// nothing on the card switches it. Heroes to the Last's / Beast of Legend's pick does.
 					card.exceptionalAvailable = true;
 					card.exceptionalDerived   = true;
-					card.exceptionalMoveName  = def.move;
-					card.exceptionalMet       = !!card.exceptional;
 					card.exceptionalHint      = card.exceptional
 						? `Exceptional from ${def.move}'s pick “They are exceptional.”`
-						: `Your crew becomes exceptional when you take ${def.move} and pick “They are exceptional.”`;
-					return card;
-				}
-				if (def) {
-					card.exceptionalAvailable = true;
-					card.exceptionalMoveName = def.move;
-					card.exceptionalMet      = ownedMoves.has(def.move);
-					card.exceptionalHint     = `Your ${def.noun} can become exceptional only after you take the move “${def.move}.”`;
+						: `Your ${def.noun} becomes exceptional when you take ${def.move} and pick “They are exceptional.”`;
 					return card;
 				}
 				// Book I (p.462) lets the GM declare any truly outstanding follower
@@ -2957,7 +2957,6 @@ export function createStonetopCharacterSheetClass(Base) {
 				const ungated = card.ftype === "custom" || card.ftype === "initiate"
 					|| (card.ftype === "beast" && card.isFollower);
 				card.exceptionalAvailable = ungated;
-				card.exceptionalMet        = ungated;   // no move requirement → always met
 				return card;
 			};
 			// Stash the data the Order button (and its dialog) needs as plain values:
@@ -3159,7 +3158,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			// playbook's move (which onboarding never asks about), or a Marshal whose onboarding
 			// stopped short of its crew step. The add bar offers "Create your crew" (_onCreateCrew).
 			const crewSetupOffer = !!crewDef && !crewExists(sf.crew);
-			return { ...groups, possessionFollowerOffers, crewSetupOffer };
+			// Likewise a companion: Animal Companion LEARNED and none stored. Taken at a level-up or on
+			// the Moves tab, a mid-play switch to Beast-Bonded, or learned through another playbook's
+			// move: onboarding asks about none of those. "Create your companion" (_onCreateCompanion).
+			const companionSetupOffer = !!companionDef && !acSlug && ownsLearnedMoveNamed(this.actor, ANIMAL_COMPANION_MOVE);
+			return { ...groups, possessionFollowerOffers, crewSetupOffer, companionSetupOffer };
 		}
 
 		// `borrowed`: the list is the Lightbearer's, drawn on through Invoke the Sun God by someone
@@ -4560,21 +4563,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			// just work. Uses our custom popup (native <datalist> has no scrollbar).
 			html.find(".stonetop-follower-armor-source-input").each((_, input) =>
 				StonetopAutocomplete.attach(input, FOLLOWER_ARMOR_SOURCES));
-			// Exceptional tag chip (edit mode). A gated tag: only follower types whose
-			// playbook grants it show the chip (see FOLLOWER_EXCEPTIONAL), and it can
-			// be switched on only once that move is owned. Turning it off is always
-			// allowed; trying to turn it on without the move warns instead of toggling.
+			// Exceptional tag chip (edit mode): a plain toggle, for the types with no move behind it
+			// (custom, initiate, a beast follower). The crew's and the animal companion's come from
+			// a move's pick and are never a button (withExceptional).
 			html.find(".stonetop-exceptional-toggle").on("click", async ev => {
 				const el   = ev.currentTarget;
-				// The crew's comes from Heroes to the Last's pick; its chip is no toggle (withExceptional).
-				if (el.dataset.ftype === "crew") return;
 				const path = followerDetailPath(el.dataset.ftype, el.dataset.slug, "exceptional");
 				if (!path) return;
 				const turnOn = !el.classList.contains("is-selected");
-				if (turnOn && el.dataset.met !== "true") {
-					ui.notifications.warn(el.dataset.hint || "This follower can't be marked exceptional yet.");
-					return;
-				}
 				await this.actor.setFlag(STONETOP_SCOPE, path, turnOn);
 				this.render(false);
 			});
@@ -4703,6 +4699,16 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._onAddPossessionFollower(ev.currentTarget.dataset.slug));
 			// A crew the character is owed but has never set up (crewSetupOffer).
 			html.find(".stonetop-create-crew").on("click", () => this._onCreateCrew());
+			// ...and a companion (companionSetupOffer).
+			html.find(".stonetop-create-companion").on("click", () => this._onCreateCompanion());
+			// Beast-Bonded's "Lend it your strength", on the companion card (companion-bond.js).
+			html.find(".stonetop-companion-lend").on("click", ev => this._onLendStrength(ev));
+			// A condition's remove button on the companion card (Loyal to the End's "injured").
+			html.find(".stonetop-follower-tag-remove").on("click", async ev => {
+				if (!this.isEditable) return;
+				await removeCompanionCondition(this.actor, ev.currentTarget.dataset.tag);
+				this.render(false);
+			});
 			// Expand/collapse-all caret on a rules card header (Animal Companion Moves /
 			// Follower Special Moves): open every move's <details> when any is collapsed,
 			// otherwise close them all. Open state is ephemeral (resets on re-render), like
@@ -7025,6 +7031,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				await this._maybePromptStatIncrease(added);
 				await this._maybePromptForeignMove(added);
 				await this._maybeOpenPossessionChoicesForMove(el.dataset.moveName);
+				if (added) this._maybeOpenCompanionTraitsForMove(added.name);
 			} else {
 				await this._stonetopCharacter.removeMove(el.dataset.ownedId);
 			}
@@ -7498,6 +7505,9 @@ export function createStonetopCharacterSheetClass(Base) {
 					// move that frees it.
 					if (addedMoveName) this._maybeOpenPossessionChoicesForMove(addedMoveName);
 					if (foreignMoveName) this._maybeOpenPossessionChoicesForMove(foreignMoveName);
+					// Levelling into Magnificent Specimen owes the companion 2 more options: open its
+					// card's trait picker so they're asked now.
+					if (addedMoveName) this._maybeOpenCompanionTraitsForMove(addedMoveName);
 					// Book I p.528: "If a PC has enough XP to Level Up twice, then they Level Up
 					// twice right away." So the next one opens straight after.
 					if (applied && this._stonetopCharacter.canLevelUp) {
@@ -9315,6 +9325,41 @@ export function createStonetopCharacterSheetClass(Base) {
 			return true;
 		}
 
+		// "Create your companion" (companionSetupOffer): the Animal Companion insert's picks, for a
+		// character who has learned Animal Companion anywhere but onboarding (a level-up, the Moves tab,
+		// a switch to Beast-Bonded, another playbook's move). Writes the same animalCompanion.* flags
+		// onboarding does. Resolves to whether it did.
+		async _onCreateCompanion() {
+			if (!this.isEditable) return false;
+			const playbookDoc = await this._stonetopCharacter.playbook();
+			const companionDef = await this._stonetopCharacter.companionSource(playbookDoc);
+			if (!companionDef) return false;
+			const { companionBonuses } = await this._stonetopCharacter.followerCardBonuses(playbookDoc);
+			const picks = await new CompanionSetupDialog({
+				companionDef,
+				traitBonus: companionBonuses?.traitPicks ?? 0,
+				stored:     resolvedFlags(this.actor).animalCompanion ?? {},
+			}).promise();
+			if (!picks) return false;
+			await this.actor.update(companionSetupUpdate(picks));
+			this.render(false);
+			return true;
+		}
+
+		// Beast-Bonded's "Lend it your strength" (companion-bond.js#lendStrength): lose 1d6 HP, the
+		// companion regains as much up to its max. Only while the action is marked (the card's button).
+		async _onLendStrength(ev) {
+			if (!this.isEditable) return;
+			const btn = ev?.currentTarget ?? null;
+			if (btn) btn.disabled = true;
+			try {
+				await lendStrength(this.actor);
+			} finally {
+				if (btn) btn.disabled = false;
+				this.render(false);
+			}
+		}
+
 		// Open a blank homebrew arcanum (minor or major) in the editor as a draft. It's added
 		// to this character only when the author clicks Save & Done (see _createAndAddArcanum).
 		async _onArcanaCreate(major = false) {
@@ -9859,7 +9904,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (action === "roll") {
 				await rollStat("", this.actor, {
 					statValue:   0,
-					moveName:    "Loyal to the End",
+					moveName:    LOYAL_TO_THE_END,
 					rollMode:    loyalty > 0 ? "adv" : "normal",
 					noXpOnMiss:  true,
 					moveDescription: `<p>When your <strong><em>companion is at 0 HP</em></strong>, roll +0, with advantage if it holds Loyalty.</p>`,
@@ -9871,6 +9916,8 @@ export function createStonetopCharacterSheetClass(Base) {
 						partial: { label: "7–9", value: `${plainWho} survives but takes the "injured" tag.` },
 						failure: { label: "6–", value: `${plainWho} is injured and will die soon unless someone saves it.` },
 					},
+					// The 7-9's and the 6-'s "injured" as a button, spent once (companion-bond.js).
+					tierActions: loyalToTheEndTierActions(),
 				});
 				this.render(false);
 				return;
@@ -10107,6 +10154,15 @@ export function createStonetopCharacterSheetClass(Base) {
 			// The crew's exceptional is Heroes to the Last's pick, whichever door the order came through
 			// (the card's button, a crew member's own, or the token on the map), so it is settled here.
 			if (ftype === "crew") follower = { ...follower, exceptional: crewIsExceptional(this.actor) };
+			// And the animal companion's is Beast of Legend's, by the same rule. Its conditions (Loyal to
+			// the End's "injured") are tags too, offered already marked in the way, whichever door.
+			if (ftype === "animal-companion") {
+				const conditions = companionConditions(resolvedFlags(this.actor));
+				follower = {
+					...follower, exceptional: companionIsExceptional(this.actor),
+					tags: [...new Set([...(follower.tags ?? []), ...conditions])], hinderingTags: conditions,
+				};
+			}
 			// Shield Wall is the Marshal's order to THEIR crew, so only the crew is offered it.
 			if (ftype === "crew" && ownsLearnedMoveNamed(this.actor, SHIELD_WALL_MOVE)) follower = { ...follower, shieldWall: true };
 			new OrderFollowersDialog(this.actor, follower,
@@ -10630,13 +10686,15 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		/**
 		 * Every follower card as the Followers tab draws it, one flat list, for a reader with the tab
-		 * closed: the same cards, the same move bonuses, and the crew a learned Crew borrows (crewSource).
+		 * closed: the same cards, the same move bonuses, and the crew a learned Crew borrows (crewSource)
+		 * and the companion a learned Animal Companion does (companionSource).
 		 */
 		async _followerCards() {
 			const playbookDoc = await this._stonetopCharacter.playbook();
 			const crewDef = await this._stonetopCharacter.crewSource(playbookDoc);
+			const companionDef = await this._stonetopCharacter.companionSource(playbookDoc);
 			const { crewStats, companionBonuses } = await this._stonetopCharacter.followerCardBonuses(playbookDoc, crewDef);
-			const groups = this._buildFollowersData(playbookDoc, null, crewStats, companionBonuses, crewDef);
+			const groups = this._buildFollowersData(playbookDoc, null, crewStats, companionBonuses, crewDef, companionDef);
 			return [groups.animalCompanion, groups.crew, ...(groups.initiates ?? []), ...groups.beasts, ...groups.custom];
 		}
 
@@ -10986,6 +11044,23 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (slug) this._openPossessionChoices(slug, { addOnly: true });
 		}
 
+		// After gaining Magnificent Specimen, open the animal companion's trait picker (its card's
+		// own pencil, on the Followers tab) so its "2 additional options" are picked right away,
+		// as Big Magic opens the pouch above. Only for a companion already built: one with no type
+		// yet gets every option at its setup. Returns whether it opened.
+		_maybeOpenCompanionTraitsForMove(moveName) {
+			if (moveName !== MAGNIFICENT_SPECIMEN_MOVE) return false;
+			if (!resolvedFlags(this.actor)?.animalCompanion?.type) return false;
+			const section = "follower-card:animal-companion:";
+			if (!this._editingSections.has(section)) {
+				this._editingSections.add(section);
+				this._onSectionEditOpened(section);
+			}
+			this._activateTabOnRender = "followers";
+			this.render(false);
+			return true;
+		}
+
 		_launchOnboarding(playbookDoc, { openSheetOnce, openPicker, initialSelections = null, startAtStep = null } = {}) {
 			const saveResume = info => writeOnboardingResume(this.actor, {
 				playbookUuid: playbookDoc.uuid,
@@ -11014,6 +11089,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					ownedMoveCounts: this._ownedMoveCounts(),
 					retiredMoveNames: this._stonetopCharacter._retiredMoveNames(),
 					crewTagBonus: this._crewTagBonus ?? 0,
+					companionTraitBonus: this._companionTraitBonusBeyondCreation(playbookDoc),
 					onBack: openPicker,
 					onSave: async (selections) => {
 						await this._applyPlaybookSelections(playbookDoc, selections);
@@ -11080,6 +11156,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					ownedMoveCounts: this._ownedMoveCounts(),
 					retiredMoveNames: this._stonetopCharacter._retiredMoveNames(),
 					crewTagBonus: this._crewTagBonus ?? 0,
+					companionTraitBonus: this._companionTraitBonusBeyondCreation(playbookDoc),
 					onSave: async (sel) => {
 						await this._applyPlaybookSelections(playbookDoc, sel);
 					},
@@ -11134,17 +11211,32 @@ export function createStonetopCharacterSheetClass(Base) {
 			return picks;
 		}
 
+		// Onboarding's free picks as the character holds them (StonetopCharacter#creationPickItems).
+		// `playbookDoc` is the playbook Item, or the StonetopPlaybook getData hands over.
+		_creationPickItemsOf(playbookDoc) {
+			if (!playbookDoc) return [];
+			const st      = playbookDoc.flags?.stonetop;
+			const choices = st ? st.moves?.choices : playbookDoc.startingMoveChoices;
+			return this._stonetopCharacter.creationPickItems(playbookDoc.name, (st ?? playbookDoc).backgrounds ?? [], choices ?? []);
+		}
+
+		// The companion options onboarding's companion step allows beyond its own picks: 2 for each
+		// learned Magnificent Specimen that is NOT one of those free picks (a copy taken at a level-up).
+		// A free-pick Specimen is re-shown as a pick and counted there (_companionTraitLimit), so
+		// un-ticking it lowers the limit.
+		_companionTraitBonusBeyondCreation(playbookDoc) {
+			const creationSpecimens = this._creationPickItemsOf(playbookDoc)
+				.filter(item => item.name === MAGNIFICENT_SPECIMEN_MOVE).length;
+			return Math.max(0, (this._companionTraitPicks ?? 0) - COMPANION_TRAIT_PICKS_PER_SPECIMEN * creationSpecimens);
+		}
+
 		// Restore onboarding's free picks (StonetopCharacter#creationPickItems) by the owned move's
 		// NAME, with the "+1 to which stat?" each stat move recorded, keyed the same way. The dialog
 		// swaps both for compendium ids once its move list loads (_reconcileMoveChoices), and the
 		// apply resolves any name still standing. Returns { moves, moveStatChoices }.
 		// `playbookDoc` is the playbook Item, or the StonetopPlaybook getData hands over.
 		_restoreCreationPicks(playbookDoc, f) {
-			const st      = playbookDoc?.flags?.stonetop;
-			const choices = st ? st.moves?.choices : playbookDoc?.startingMoveChoices;
-			const picks   = playbookDoc
-				? this._stonetopCharacter.creationPickItems(playbookDoc.name, (st ?? playbookDoc).backgrounds ?? [], choices ?? [])
-				: [];
+			const picks = this._creationPickItemsOf(playbookDoc);
 			const statChoices = f.improvedStatChoices ?? {};
 			return {
 				moves:           picks.map(item => item.name),
@@ -11176,9 +11268,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			// legacy character that stored it as one of its picks.
 			const acType      = f.animalCompanion?.type ?? "";
 			const acTypes     = playbookDoc?.flags?.stonetop?.animalCompanion?.types ?? [];
-			const acMandatory = acTypes.find(t => t.slug === acType)?.mandatoryTrait ?? null;
-			const acTraits    = [...(f.animalCompanion?.traits ?? [])]
-				.filter(t => !acMandatory || t !== acMandatory);
+			// A renamed option's old spelling comes back under its current label (the type's
+			// `aliases`), so the re-run shows it ticked.
+			const acTypeData  = acTypes.find(t => t.slug === acType) ?? null;
+			const acTraits    = companionPaidTraits(acTypeData, f.animalCompanion?.traits ?? []);
 
 			return {
 				backgroundSlug:  f.background?.selected ?? "",

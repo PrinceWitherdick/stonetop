@@ -44,7 +44,8 @@ import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from
 import {DEATHS_DOOR_FLAG, UNSTOPPABLE, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
 import {heroDisplayName, WBH_HERO_FLAG, ownsAsteriskMove} from "./WouldBeHeroAsterisk.js";
 import {tookBackground} from "./took-background.js";
-import {ownedNamesOr, ownedLearnedMove, ownsLearnedMoveNamed, isMoveLearned, moveLearnedIn, ownedMoveNames, ownsMoveNamed} from "./owns-move.js";
+import {ownedNamesOr, ownedLearnedMove, ownsLearnedMoveNamed, moveLearnedIn, ownedMoveNames, ownsMoveNamed} from "./owns-move.js";
+import {ANIMAL_COMPANION_MOVE, RANGER_SLUG, MAGNIFICENT_SPECIMEN_MOVE, COMPANION_TRAIT_PICKS_PER_SPECIMEN, companionTraitAllowance, trimCompanionTraits} from "./animal-companion.js";
 import {fineWhiskyOffer as fineWhiskyOfferFrom, isPersuadeMove, FINE_WHISKY_SOURCE} from "./fine-whisky.js";
 import {tagLoadGatedMoves} from "./load-gates.js";
 import {startOfPlayGear, START_GEAR_FLAG} from "./start-of-play-gear.js";
@@ -638,6 +639,22 @@ export class StonetopCharacter {
 		return marshal?.crew ?? null;
 	}
 
+	// The Animal Companion insert this character's companion is drawn from ({ types, instincts,
+	// costs, moves }), or null for none: crewSource's shape, for the Ranger. The Ranger's comes with
+	// the playbook. Anyone else who has LEARNED Animal Companion (a Blessed through Wild Soul, a Fox
+	// through Dabbler, a Would-be Hero through Versatile) draws from the same insert, which is where
+	// the move sends them ("See the Animal Companion insert").
+	//
+	// Learned, not merely held, for a borrowed copy: a switched-off one hides the card, its flags kept
+	// for its return. The card itself asks the move is held (the panel rule), the Ranger's included.
+	async companionSource(playbookData = undefined) {
+		const own = playbookData === undefined ? await this.playbook() : playbookData;
+		if (own?.animalCompanion?.types?.length) return own.animalCompanion;
+		if (!ownsLearnedMoveNamed(this._actor, ANIMAL_COMPANION_MOVE)) return null;
+		const ranger = await this._playbookRepo.findBySlug(RANGER_SLUG);
+		return ranger?.animalCompanion?.types?.length ? ranger.animalCompanion : null;
+	}
+
 	// The Lightbearer playbook's Invocations, whoever is asking, or null if it can't be found.
 	async lightbearerInvocations() {
 		const lightbearer = await this._playbookRepo.findBySlug(LIGHTBEARER_SLUG);
@@ -734,7 +751,8 @@ export class StonetopCharacter {
 			.withRollMode(normalizeRollMode(resolvedFlags(actor).rollMode))
 			.withCrewBonuses(crewStats)
 			.withCrewDef(crewDef)
-			.withCompanionBonuses(_buildCompanionBonuses(moveBonuses, ownedAllByName))
+			.withCompanionBonuses(_buildCompanionBonuses(moveBonuses, ownedAllByName, this._actor.items))
+			.withCompanionDef(await this.companionSource(playbookData))
 			.withViewerIsGM(!!view.viewerIsGM)
 			.build();
 	}
@@ -3440,6 +3458,7 @@ export class StonetopCharacter {
 		for (const gone of [removed, ...orphanItems]) await this._restoreRetiredMove(gone);
 		await this._trimSubChoicesOverCap([removed, ...orphanItems]);
 		await this._trimMoveMarksOnRemoval([removed, ...orphanItems]);
+		await this._trimCompanionTraitsOnRemoval([removed, ...orphanItems]);
 		await this._releaseGrantedPossession(removed);
 		await this._clearUnheldInvocations();
 	}
@@ -3533,6 +3552,22 @@ export class StonetopCharacter {
 			}
 		}
 		if (Object.keys(update).length) await this._actor.update(update);
+	}
+
+	// Removing a copy of Magnificent Specimen takes back the 2 options it gave the companion: the
+	// stored picks are cut to what the type's "Pick N more" and the LEARNED book copies left still
+	// allow, the newest first and never the pre-ticked option (animal-companion.js#trimCompanionTraits).
+	// Only on removal: un-learning a copy keeps the picks, as un-learning Big Magic keeps its trait
+	// (_trimSubChoicesOverCap runs from here too), so re-learning it has them straight back.
+	async _trimCompanionTraitsOnRemoval(goneMoves) {
+		if (!goneMoves.some(i => i?.name === MAGNIFICENT_SPECIMEN_MOVE && !_isCustomMove(i))) return;
+		const companion = resolvedFlags(this._actor)?.animalCompanion;
+		if (!companion?.type || !Array.isArray(companion.traits)) return;
+		const typeData = ((await this.companionSource())?.types ?? []).find(t => t.slug === companion.type);
+		if (!typeData) return;
+		const allowance = companionTraitAllowance(typeData, _learnedBookSpecimens(this._buildOwnedMovesMap(), this._actor.items));
+		const kept = trimCompanionTraits(typeData, companion.traits, allowance);
+		if (kept.length !== companion.traits.length) await this._actor.setFlag(STONETOP_SCOPE, "animalCompanion.traits", kept);
 	}
 
 	// Un-learning Initiate of the Secret Arts takes back the Sacred Pouch it brought: "You
@@ -3811,7 +3846,7 @@ export class StonetopCharacter {
 		const moveBonuses = await this._ownedMoveBonuses(playbook, ownedAllByName);
 		return {
 			crewStats: _buildCrewStats(crewDef ?? await this.crewSource(playbook), moveBonuses),
-			companionBonuses: _buildCompanionBonuses(moveBonuses, ownedAllByName),
+			companionBonuses: _buildCompanionBonuses(moveBonuses, ownedAllByName, this._actor.items),
 		};
 	}
 
@@ -5755,11 +5790,6 @@ function _buildVitalsSection(actor, playbookData, armorValue, moveBonuses = {}, 
 		.build();
 }
 
-// Magnificent Specimen (Ranger): "each time you take this move, your companion gains 2
-// additional options of your choice" → 2 extra trait picks on the companion per copy.
-const MAGNIFICENT_SPECIMEN_MOVE = "Magnificent Specimen";
-const COMPANION_TRAIT_PICKS_PER_MAGNIFICENT_SPECIMEN = 2;
-
 // Final per-Crew-member stats: the playbook's data-driven base plus the bonuses
 // from marked Marshal moves (Heroes to the Last / Veteran Crew).
 function _buildCrewStats(crew, moveBonuses) {
@@ -5778,14 +5808,21 @@ function _buildCrewStats(crew, moveBonuses) {
 // base stats by the followers-tab companion card: Beast of Legend's marked "+4 HP / +1
 // armor" pick (via moveBonuses), plus Magnificent Specimen's "+2 options of your choice
 // each time you take this move" — i.e. 2 extra companion trait picks per owned copy, counted
-// only while LEARNED (an un-learned move grants nothing).
-function _buildCompanionBonuses(moveBonuses, ownedAllByName) {
-	const specimens = (ownedAllByName.get?.(MAGNIFICENT_SPECIMEN_MOVE) ?? []).filter(isMoveLearned).length;
+// only while LEARNED (an un-learned move grants nothing) and only for the BOOK's move (a
+// player's own move of that name is not it, as _ownsLearnedBookCopy says).
+function _buildCompanionBonuses(moveBonuses, ownedAllByName, items) {
+	const specimens = _learnedBookSpecimens(ownedAllByName, items);
 	return {
 		hp:         moveBonuses.companionHp    ?? 0,
 		armor:      moveBonuses.companionArmor ?? 0,
-		traitPicks: COMPANION_TRAIT_PICKS_PER_MAGNIFICENT_SPECIMEN * specimens,
+		traitPicks: COMPANION_TRAIT_PICKS_PER_SPECIMEN * specimens,
 	};
+}
+
+// How many LEARNED book copies of Magnificent Specimen `ownedAllByName` holds, read against the
+// actor's `items` (a copy a switched-off cross move granted is off with it).
+function _learnedBookSpecimens(ownedAllByName, items) {
+	return (ownedAllByName.get?.(MAGNIFICENT_SPECIMEN_MOVE) ?? []).filter(i => !_isCustomMove(i) && moveLearnedIn(i, items)).length;
 }
 
 function _originDescriptionForRegion(region) {

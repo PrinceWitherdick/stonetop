@@ -4138,6 +4138,7 @@
           "pickCount": 4,
           "mandatoryTrait": "tiny",
           "traits": [
+            "Improved damage die (d6)",
             "+4 HP",
             "+1 armor (agility)",
             "attack-bird",
@@ -4150,7 +4151,19 @@
             "thieving",
             "tiny",
             "tireless"
-          ]
+          ],
+          "effects": {
+            "Improved damage die (d6)": {
+              "damageDie": "d6"
+            },
+            "+4 HP": {
+              "hp": 4
+            },
+            "+1 armor (agility)": {
+              "armor": 1,
+              "armorSource": "agility"
+            }
+          }
         },
         {
           "slug": "critter",
@@ -4180,7 +4193,16 @@
             "stinky",
             "tiny",
             "thieving"
-          ]
+          ],
+          "effects": {
+            "+4 HP": {
+              "hp": 4
+            },
+            "+1 armor (agility)": {
+              "armor": 1,
+              "armorSource": "agility"
+            }
+          }
         },
         {
           "slug": "brute",
@@ -4193,17 +4215,50 @@
           "mandatoryTrait": "tough",
           "traits": [
             "+1 armor (hide, scales, etc.)",
-            "Damage +2, forceful",
-            "Damage messy, 1 piercing",
+            "Damage is +2 damage, forceful",
+            "Damage is messy, 1 piercing",
             "large (+4 HP, +1 damage, +close)",
             "easy-going",
-            "cautious",
+            "fearless",
             "gluttonous",
             "keen-nosed",
+            "powerful",
             "protective",
             "quick",
             "terrifying",
             "tough"
+          ],
+          "effects": {
+            "+1 armor (hide, scales, etc.)": {
+              "armor": 1,
+              "armorSource": "hide, scales, etc."
+            },
+            "Damage is +2 damage, forceful": {
+              "damage": 2,
+              "tags": [
+                "forceful"
+              ]
+            },
+            "Damage is messy, 1 piercing": {
+              "tags": [
+                "messy"
+              ],
+              "piercing": 1
+            },
+            "large (+4 HP, +1 damage, +close)": {
+              "hp": 4,
+              "damage": 1,
+              "tags": [
+                "close"
+              ]
+            }
+          },
+          "aliases": {
+            "Damage +2, forceful": "Damage is +2 damage, forceful",
+            "Damage messy, 1 piercing": "Damage is messy, 1 piercing"
+          },
+          "legacyTraits": [
+            "cautious"
           ]
         },
         {
@@ -4218,7 +4273,7 @@
           "traits": [
             "+4 HP",
             "+1 armor (hide)",
-            "Damage messy, 1 piercing",
+            "Damage is messy, 1 piercing",
             "agile",
             "climber",
             "clever",
@@ -4233,7 +4288,25 @@
             "powerful",
             "stealthy",
             "terrifying"
-          ]
+          ],
+          "effects": {
+            "+4 HP": {
+              "hp": 4
+            },
+            "+1 armor (hide)": {
+              "armor": 1,
+              "armorSource": "hide"
+            },
+            "Damage is messy, 1 piercing": {
+              "tags": [
+                "messy"
+              ],
+              "piercing": 1
+            }
+          },
+          "aliases": {
+            "Damage messy, 1 piercing": "Damage is messy, 1 piercing"
+          }
         },
         {
           "slug": "steed",
@@ -4247,7 +4320,7 @@
           "traits": [
             "+4 HP",
             "+1 armor (hide)",
-            "Damage +2, forceful",
+            "Damage is +2 damage, forceful",
             "aggressive",
             "agile",
             "beautiful",
@@ -4258,7 +4331,25 @@
             "large",
             "powerful",
             "swift"
-          ]
+          ],
+          "effects": {
+            "+4 HP": {
+              "hp": 4
+            },
+            "+1 armor (hide)": {
+              "armor": 1,
+              "armorSource": "hide"
+            },
+            "Damage is +2 damage, forceful": {
+              "damage": 2,
+              "tags": [
+                "forceful"
+              ]
+            }
+          },
+          "aliases": {
+            "Damage +2, forceful": "Damage is +2 damage, forceful"
+          }
         }
       ],
       "instincts": [

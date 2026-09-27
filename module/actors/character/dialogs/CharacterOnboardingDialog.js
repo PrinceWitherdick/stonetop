@@ -28,6 +28,7 @@ import { ensurePackIndex } from "../../../utils/pack-index.js";
 import { SYSTEM_ID } from "../../../system-id.js";
 import { crewSetupLimit } from "./CrewSetupDialog.js";
 import { neighborChoiceGroups } from "./BackgroundNeighborsDialog.js";
+import { MAGNIFICENT_SPECIMEN_MOVE, companionKindOptions, companionTraitAllowance, trimCompanionTraits } from "../animal-companion.js";
 
 const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
 
@@ -89,6 +90,7 @@ export const ANIMAL_COMPANION_TRAIT_GLOSSARY = {
 	"easy-going":      "Laid-back and even-tempered; gets along with just about everyone.",
 	"enduring":        "Can sustain strenuous effort far longer than expected without flagging.",
 	"fast":            "Moves quickly over open ground; can outrun most threats without difficulty.",
+	"fearless":        "Stands its ground against things that would send most beasts fleeing.",
 	"fierce":          "Attacks with aggression and doesn't back down; enemies take it seriously.",
 	"gluttonous":      "Compelled to eat whenever food is present; can be distracted or baited with it.",
 	"hardy":           "Handles harsh weather, rough terrain, and lean times without complaint.",
@@ -127,7 +129,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	}
 
 	constructor(playbookDoc, onComplete, options = {}) {
-		const { onBack, onSave, onClose, onProgress, onLiveSave, onExit, initialSelections, startAtStep = null, ownedMoveCounts = null, retiredMoveNames = null, crewTagBonus = 0, ...appOptions } = options;
+		const { onBack, onSave, onClose, onProgress, onLiveSave, onExit, initialSelections, startAtStep = null, ownedMoveCounts = null, retiredMoveNames = null, crewTagBonus = 0, companionTraitBonus = 0, ...appOptions } = options;
 		super(appOptions);
 		this._playbookDoc        = playbookDoc;
 		this._onComplete         = onComplete;
@@ -143,6 +145,11 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		// Extra crew tags the character's marked moves allow (Veteran Crew's "Select 2 new tags",
 		// the crew stats' tagBonus), on top of the playbook's pick count. A new character has none.
 		this._crewTagBonus       = Math.max(0, Number(crewTagBonus) || 0);
+		// The extra companion options the character's LEARNED Magnificent Specimens already give (2
+		// each), less the free-pick copies this dialog shows as picks (the sheet's
+		// _companionTraitBonusBeyondCreation), so a re-run allows what a level-up gave
+		// (_companionTraitLimit). A new character has none.
+		this._companionTraitBonus = Math.max(0, Number(companionTraitBonus) || 0);
 		this._onBack             = onBack ?? null;
 		this._onSave             = onSave ?? null;
 		// Fired when the dialog closes for good (finish / save-and-close / window X),
@@ -332,6 +339,29 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		return (this._movesCache ?? []).some(doc => chosen.has(doc.id) && doc.name === ANIMAL_COMPANION_MOVE);
 	}
 
+	// How many options the companion step asks for beyond the type's pre-ticked one: its "Pick N
+	// more", plus 2 for each Magnificent Specimen taken as a free pick here ("your companion gains 2
+	// additional options"), plus what the character's other learned copies give
+	// (_companionTraitBonus, a copy taken at a level-up). The sheet leaves a free-pick Specimen out of
+	// that bonus, since it is re-shown here as a pick, so giving it back lowers the limit.
+	_companionTraitLimit(typeData) {
+		if (!typeData) return 0;
+		const idToName = new Map((this._movesCache ?? []).map(d => [d.id, d.name]));
+		const specimens = (this._selections.moves ?? []).filter(id => idToName.get(id) === MAGNIFICENT_SPECIMEN_MOVE).length;
+		return companionTraitAllowance(typeData, specimens) + this._companionTraitBonus;
+	}
+
+	// A free Magnificent Specimen given back takes its 2 options with it: the companion's picks drop
+	// to the new limit, newest first (trimCompanionTraits, the rule removeMove uses on the sheet).
+	// Only called once the move list is loaded, since an empty list would read as no Specimen at all.
+	_trimCompanionPicksToLimit() {
+		const ac = this._selections.animalCompanion;
+		if (!ac?.type || !this._movesCache?.length) return;
+		const typeData = this._rawAnimalCompanion?.types?.find(t => t.slug === ac.type);
+		if (!typeData) return;
+		ac.traits = trimCompanionTraits(typeData, ac.traits, this._companionTraitLimit(typeData));
+	}
+
 	// Returns the Initiate background's choices object when the Initiate
 	// background is selected; null otherwise.
 	_getInitiatesData() {
@@ -453,6 +483,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				if (!offeredIds.has(id)) delete this._selections.moveStatChoices?.[id];
 			}
 			this._selections.moves = kept;
+			this._trimCompanionPicksToLimit();
 		}
 	}
 
@@ -942,15 +973,6 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			? p.textContent
 			: (div.textContent.split(/\n+/).find(l => l.trim()) ?? div.textContent);
 		return this._normalizeOnboardingText(raw.trim());
-	}
-
-	_animalCompanionKindOptions(typeData) {
-		const examples = this._normalizeOnboardingText(typeData?.examples ?? "")
-			.replace(/[.…]+$/g, "");
-		return examples
-			.split(",")
-			.map(value => value.trim())
-			.filter(Boolean);
 	}
 
 	async _loadArcanaOptions() {
@@ -1506,9 +1528,11 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			case "animalCompanion": {
 				if (!ac.type) return false;
 				const typeData = this._rawAnimalCompanion?.types?.find(t => t.slug === ac.type);
+				// Exactly the allowance: picks past it (a free Magnificent Specimen given back after its
+				// options were chosen) are flagged on the step for the player to untick, never trimmed.
 				return !!typeData &&
 				       !!ac.kind?.trim() &&
-				       ac.traits.length >= typeData.pickCount &&
+				       ac.traits.length === this._companionTraitLimit(typeData) &&
 				       !!ac.instinct && !!ac.cost;
 			}
 			case "seekerArcana":
@@ -1740,7 +1764,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				return {
 					type: ac.type || "",
 					kind: ac.kind || "",
-					requiredTraits: typeData?.pickCount ?? null,
+					requiredTraits: typeData ? this._companionTraitLimit(typeData) : null,
 					selectedTraits: ac.traits.length,
 					hasInstinct: !!ac.instinct,
 					hasCost: !!ac.cost,
@@ -2275,12 +2299,14 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			const mandatoryTrait = typeData?.mandatoryTrait ?? null;
 			const chosenTraits = new Set(this._selections.animalCompanion.traits);
 			const kind = this._selections.animalCompanion.kind;
-			const kindOptionValues = this._animalCompanionKindOptions(typeData);
-			const traitAtLimit = chosenTraits.size >= (typeData?.pickCount ?? 0);
+			const kindOptionValues = companionKindOptions(typeData);
+			// "Pick N more", plus Magnificent Specimen's 2 per copy (_companionTraitLimit).
+			const traitLimit   = this._companionTraitLimit(typeData);
+			const traitAtLimit = chosenTraits.size >= traitLimit;
 			// Each Type's trait list ends with a blank write-in row (Book I p.143). A
 			// selected trait that isn't one of the listed options is the player's write-in;
 			// it still spends one of the "Pick N" picks but is descriptive-only (it derives
-			// no HP/armor/damage — the stat regex only matches "+N HP/armor/damage").
+			// no HP/armor/damage: only the type's `effects` do, animal-companion.js).
 			const knownTraitSet = new Set(typeData?.traits ?? []);
 			const customTrait   = [...chosenTraits].find(t => !knownTraitSet.has(t)) ?? "";
 			// Instinct and cost are "pick a suggestion or make up your own" (Book I
@@ -2309,8 +2335,11 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 					isCustomKind:  !!kind && !kindOptionValues.includes(kind),
 					kindOptions:   kindOptionValues
 						.map(value => ({ value, selected: kind === value })),
-					pickCount:     typeData.pickCount,
+					pickCount:     traitLimit,
 					selectedCount: chosenTraits.size,
+					// More picked than the allowance now gives (a free Magnificent Specimen given back
+					// after its options were chosen): said, and Next held, until enough are unticked.
+					overCount:     Math.max(0, chosenTraits.size - traitLimit),
 					customTrait,
 					customTraitDisabled: !customTrait && traitAtLimit,
 					traits: (typeData.traits ?? []).map(trait => {
@@ -2942,6 +2971,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				} else { ev.currentTarget.checked = false; return; }
 			} else {
 				this._selections.moves = this._selections.moves.filter(m => m !== id);
+				this._trimCompanionPicksToLimit();
 				// Dropping a stat-increase move discards its pending "+1 to which stat?" pick,
 				// and clears its radios so re-picking the move starts from an unchosen state.
 				delete this._selections.moveStatChoices[id];
@@ -3189,11 +3219,18 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			_refreshAnimalCompanionKind();
 			_refreshNextButton();
 		});
+		// The "more options than your companion can have" line (the step's `overCount`), kept in step
+		// as picks are unticked, since these handlers don't re-render.
+		const _refreshCompanionOver = (picked, limit) => {
+			const over = Math.max(0, picked - limit);
+			html.find(".stonetop-onboarding-ac-over").prop("hidden", !over);
+			html.find(".stonetop-onboarding-ac-over-count").text(over);
+		};
 		html.find("[name='onboard-ac-trait']").on("change", ev => {
 			const trait   = ev.currentTarget.value;
 			const checked = ev.currentTarget.checked;
 			const typeData = this._rawAnimalCompanion?.types?.find(t => t.slug === this._selections.animalCompanion.type);
-			const limit = typeData?.pickCount ?? 0;
+			const limit = this._companionTraitLimit(typeData);
 			if (checked) {
 				if (this._selections.animalCompanion.traits.length < limit && !this._selections.animalCompanion.traits.includes(trait)) {
 					this._selections.animalCompanion.traits.push(trait);
@@ -3204,6 +3241,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			ev.currentTarget.closest(".stonetop-onboarding-tag-option")
 				?.classList.toggle("is-selected", ev.currentTarget.checked);
 			html.find(".stonetop-onboarding-ac-trait-count").text(this._selections.animalCompanion.traits.length);
+			_refreshCompanionOver(this._selections.animalCompanion.traits.length, limit);
 			const atLimit = this._selections.animalCompanion.traits.length >= limit;
 			html.find("[name='onboard-ac-trait']:not(:checked)").prop("disabled", atLimit);
 			const traitCustom = html.find(".onboard-ac-trait-custom");
@@ -3217,11 +3255,12 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			const value    = ev.currentTarget.value.trim();
 			const typeData = this._rawAnimalCompanion?.types?.find(t => t.slug === this._selections.animalCompanion.type);
 			const known    = new Set(typeData?.traits ?? []);
-			const limit    = typeData?.pickCount ?? 0;
+			const limit    = this._companionTraitLimit(typeData);
 			const traits   = this._selections.animalCompanion.traits.filter(t => known.has(t));
 			if (value && traits.length < limit) traits.push(value);
 			this._selections.animalCompanion.traits = traits;
 			html.find(".stonetop-onboarding-ac-trait-count").text(traits.length);
+			_refreshCompanionOver(traits.length, limit);
 			html.find("[name='onboard-ac-trait']:not(:checked)").prop("disabled", traits.length >= limit);
 			_refreshNextButton();
 		});
