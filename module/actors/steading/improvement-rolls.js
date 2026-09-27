@@ -45,6 +45,21 @@ function logisticsLabel(moveName, holders) {
 	return `${LOGISTICS} (${who}): ${holders.length > 1 ? "one of them is" : "they are"} the one ${act}, advantage`;
 }
 
+/**
+ * The Ranger's Pathfinder: "When you lead your people to Pull Together or Deploy beyond sight of
+ * home, you have advantage." The Ranger's like Logistics, and turning on fiction besides (beyond
+ * sight of home), so the window asks UNTICKED, and only when someone has the move learned
+ * (owns-move.js#worldLearnedHolderNames finds them).
+ */
+export const PATHFINDER = "Pathfinder";
+export const PATHFINDER_MOVES = new Set([STEADING_MOVE.DEPLOY, STEADING_MOVE.PULL_TOGETHER]);
+
+/** The Pathfinder line, naming who holds the move ("the Ranger" when nobody is named). */
+function pathfinderLabel(holders) {
+	const who = holders.length ? holders.join(" or ") : "the Ranger";
+	return `${PATHFINDER} (${who}): ${holders.length > 1 ? "one of them leads" : "they lead"} the people beyond sight of home, advantage`;
+}
+
 /** The wall a Deploy can take advantage of: the Stone Wall erases the Palisade when it is built. */
 function wallOf(has) {
 	if (has("stoneWall")) return "Stone Wall";
@@ -63,9 +78,11 @@ function wallOf(has) {
  * @param {Array<{index: number, label: string}>} [o.tactics]  the militia's trained tactics
  * @param {string[]} [o.logistics]  the names of the characters with Logistics learned; any at all
  *   asks the Logistics line, ticked (`checked`), since the Marshal is usually the one behind it
+ * @param {string[]} [o.pathfinder]  the names of the characters with Pathfinder learned; any at all
+ *   asks the Pathfinder line, unticked, since beyond sight of home is the table's call
  * @returns {Array<{name: string, type: "checkbox"|"select", label: string, checked?: boolean, options?: Array<{value: string, label: string}>}>}
  */
-export function improvementQuestions(moveName, statKey, { has = () => false, tactics = [], logistics = [] } = {}) {
+export function improvementQuestions(moveName, statKey, { has = () => false, tactics = [], logistics = [], pathfinder = [] } = {}) {
 	const asks = [];
 	if (moveName === STEADING_MOVE.DEPLOY) {
 		asks.push({
@@ -93,6 +110,9 @@ export function improvementQuestions(moveName, statKey, { has = () => false, tac
 	}
 	if (LOGISTICS_MOVES.has(moveName) && logistics.length) {
 		asks.push({ name: "logistics", type: "checkbox", checked: true, label: logisticsLabel(moveName, logistics) });
+	}
+	if (PATHFINDER_MOVES.has(moveName) && pathfinder.length) {
+		asks.push({ name: "pathfinder", type: "checkbox", label: pathfinderLabel(pathfinder) });
 	}
 	return asks;
 }
@@ -124,6 +144,7 @@ export function rollAdjustments({
 	let statBonus = 0;
 	if (TOWNSHIP_MOVES.has(moveName) && has("township")) adv.push("Township");
 	if (LOGISTICS_MOVES.has(moveName) && answers.logistics) adv.push(LOGISTICS);
+	if (PATHFINDER_MOVES.has(moveName) && answers.pathfinder) adv.push(PATHFINDER);
 	const wall = wallOf(has);
 	if (moveName === STEADING_MOVE.DEPLOY && wall && answers.wall) adv.push(wall);
 	if (held) adv.push(held);

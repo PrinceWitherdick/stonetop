@@ -7346,16 +7346,20 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * what `2d6kl` rolls — the same shape the roll dialog's adv/dis uses on 2d6, applied to
 		 * this move's one die.
 		 *
-		 * Gated on owning the move, like every other MOVE_USE_EFFECTS handler: the row posts its
-		 * text for anyone reading another playbook's page, and only a Ranger actually procures.
+		 * Gated on having the move LEARNED, like every other MOVE_USE_EFFECTS handler: the row posts
+		 * its text for anyone reading another playbook's page, and only a Ranger actually procures.
+		 *
+		 * The box starts ticked in winter, read off the steading's clock as Forage's winter is
+		 * (StonetopCharacter's SEASON_MOVE_DISADVANTAGE). Barren terrain is the player's to tick.
 		 */
 		async _onTheHoof() {
-			if (!this.isEditable || !ownedMove(this.actor, ON_THE_HOOF)) return;
+			if (!this.isEditable || !ownsLearnedMoveNamed(this.actor, ON_THE_HOOF)) return;
+			const winter = readCurrentSeason(this._stonetopCharacter?.getSteadingActor?.())?.season === "winter";
 			new Dialog({
 				title: ON_THE_HOOF,
 				content: `<form class="stonetop-homestead-dialog">
 					<p class="stonetop-homestead-trigger"><em>When you travel through the wilderness, you can procure 1d6 uses of provisions each day.</em></p>
-					<label class="stonetop-camp-extra"><input type="checkbox" name="lean">
+					<label class="stonetop-camp-extra"><input type="checkbox" name="lean"${winter ? " checked" : ""}>
 						<span>Winter, or barren terrain: roll with <strong>disadvantage</strong></span></label>
 				</form>`,
 				buttons: {
@@ -9290,16 +9294,26 @@ export function createStonetopCharacterSheetClass(Base) {
 		// Materialize a playbook possession-follower (the Would-be Hero's dog, the
 		// Ranger's Hounds, the Blessed's Mastiffs) as an editable follower card. Mirrors
 		// the arcana "Add as follower" flow: build from the catalog and dedupe by
-		// sourceUuid so it can't be added twice. Groups (Hounds/Mastiffs) land as a group.
+		// sourceUuid so it can't be added twice. Groups (Hounds/Mastiffs) land as a group, of the
+		// headcount the player picks from the printed range ("Hounds, 2-3 followers"); a closed
+		// ask adds the smaller.
 		async _onAddPossessionFollower(slug) {
 			if (!this.isEditable || !slug) return;
-			const { possessionFollower } = await import("../../data/possession-followers.js");
+			const { possessionFollower, possessionFollowerSizeChoices } = await import("../../data/possession-followers.js");
 			// The dog's retriever / herder pick lives on the possession, not the catalog.
 			const picked = resolvedFlags(this.actor).possessions?.subChoices?.[slug] ?? [];
-			const input = possessionFollower(slug, picked);
-			if (!input) return;
+			const base = possessionFollower(slug, picked);
+			if (!base) return;
 			const existing = this.actor.getFlag(STONETOP_SCOPE, "customFollowers") ?? {};
-			if (Object.values(existing).some(f => f?.sourceUuid === input.sourceUuid)) return;
+			if (Object.values(existing).some(f => f?.sourceUuid === base.sourceUuid)) return;
+			const sizes = possessionFollowerSizeChoices(slug);
+			const kind  = String(base.typeLabel || base.name).toLowerCase();
+			const size  = sizes.length ? await askWithButtons({
+				title:   base.name,
+				content: `<p>How many ${escHtml(kind)}?</p>`,
+				buttons: sizes.map(n => ({ key: String(n), label: `${n} ${kind}`, icon: "fa-dog", value: n })),
+			}) : null;
+			const input = possessionFollower(slug, picked, { size });
 			const id = foundry.utils.randomID(16);
 			await this.actor.update({
 				[`flags.stonetop-pwd.customFollowers.${id}`]: { ...buildCustomFollower(input), order: this._nextFollowerOrder() },

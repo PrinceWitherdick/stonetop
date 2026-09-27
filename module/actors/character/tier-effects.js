@@ -6,6 +6,7 @@
 //  - Commune with Aratis's 10+ holds 2 Sanction (roll-boosts.js).
 //  - Wielder of the White Flame's 7+ lights the holy light; Luminous Shield's 6- snuffs it (holy-light.js).
 //  - Defend holds Readiness by tier (combat/defend-readiness.js).
+//  - Alpha's 10+ has advantage on the next roll against the foes it was aimed at (fight/hero-moves.js).
 //
 // The tier is not settled when the dice land: a GM's Shift Up/Down, a +1 pressed on the card (Diligence,
 // Sanction, Many Hands, a Blessing), Burn Brightly, all move it. So each effect is SETTLED, not fired: told
@@ -27,6 +28,7 @@ import { regainSurpriseOnHit, takeBackSurprise, PREPARE_A_WELCOME } from "../../
 import { holdSanctionOnHit, releaseSanction, sanctionTrack, COMMUNE_WITH_ARATIS } from "./roll-boosts.js";
 import { LUMINOUS_SHIELD, WIELDER_OF_THE_WHITE_FLAME } from "./holy-light.js";
 import { DEFEND_MOVE } from "../../combat/defend-readiness.js";
+import { HERO_MOVES, foeKey, recordAlphaOver, forgetAlphaOver } from "../../fight/hero-moves.js";
 
 /** The message flag holding what a roll's tier effects have done, keyed as TIER_EFFECTS is. */
 export const TIER_EFFECTS_FLAG = "tierEffects";
@@ -34,9 +36,10 @@ export const TIER_EFFECTS_FLAG = "tierEffects";
 const count = value => Math.max(0, Math.trunc(Number(value) || 0));
 
 /**
- * Each effect: the moves it belongs to, and `settle(actor, move, tier, done)`, which brings the character
- * to what `tier` asks given what this card has `done` so far (undefined at the roll itself), and resolves
- * to what the card has done now.
+ * Each effect: the moves it belongs to, and `settle(actor, move, tier, done, character, {targets})`, which
+ * brings the character to what `tier` asks given what this card has `done` so far (undefined at the roll
+ * itself), and resolves to what the card has done now. `targets` are the foes the roll was aimed at, given
+ * at the roll only: an effect that needs them later keeps them in its own record.
  */
 const TIER_EFFECTS = {
 	// true: this card shook the nerves.
@@ -84,6 +87,19 @@ const TIER_EFFECTS = {
 		moves: [DEFEND_MOVE],
 		settle: (_actor, _move, tier, done, character) => character?.settleDefendReadinessTier?.(tier, done) ?? done ?? null,
 	},
+	// `{foes, set}`: the foes the Alpha was aimed at (`{key, name}`), and whether this card's 10+ has them
+	// remembered. Aimed at nobody, nothing: there is no "them" to have advantage against.
+	alphaOver: {
+		moves: [HERO_MOVES.ALPHA],
+		async settle(actor, _move, tier, done, _character, { targets = [] } = {}) {
+			const foes = done?.foes ?? (targets ?? []).map(t => ({ key: foeKey(t), name: t?.name ?? "" })).filter(f => f.key);
+			if (!foes.length) return undefined;
+			const wants = tier === "success";
+			if (wants && !done?.set) return { foes, set: await recordAlphaOver(actor, foes) };
+			if (!wants && done?.set) { await forgetAlphaOver(actor, foes.map(f => f.key)); return { foes, set: false }; }
+			return { foes, set: !!done?.set };
+		},
+	},
 };
 
 /** The moves whose tier does something to the roller. */
@@ -99,13 +115,16 @@ export const TIER_EFFECT_MOVES = Object.freeze([...new Set(Object.values(TIER_EF
  * @param {object|null} [done]  the card's `tierEffects` flag
  * @param {object} [options]
  * @param {StonetopCharacter} [options.character]  the actor's character model (default `actor.typedActor`)
+ * @param {object[]} [options.targets]  the foes the roll was aimed at (at the roll itself; Alpha keeps them)
  * @returns {Promise<object>}
  */
-export async function settleTierEffects(actor, move, tier, done = null, { character = actor?.typedActor } = {}) {
+export async function settleTierEffects(actor, move, tier, done = null, { character = actor?.typedActor, targets = [] } = {}) {
 	const record = {};
 	for (const [key, effect] of Object.entries(TIER_EFFECTS)) {
 		if (!effect.moves.includes(move)) continue;
-		record[key] = await effect.settle(actor, move, tier, done?.[key], character);
+		const now = await effect.settle(actor, move, tier, done?.[key], character, { targets });
+		// An effect with nothing to keep (an Alpha aimed at nobody) leaves no trace on the card.
+		if (now !== undefined) record[key] = now;
 	}
 	return record;
 }

@@ -924,19 +924,26 @@ describe("an Invocation's own damage (Go Back to the Shadow)", () => {
 });
 
 describe("Blot Out the Sun", () => {
-	/** A Ranger with a bow, and a fake attack-mode dialog that presses `pick`. */
-	function ranger(pick, moves = ["Blot Out the Sun"]) {
+	const BOW = { slug: "bow-arrows", weaponSlug: "bow-arrows", catalog: true };
+	let asked;
+	/**
+	 * A Ranger with a bow, and a fake attack-mode dialog that presses `pick`. `resources` is the
+	 * inventory's ammo tracks; `gear` what they carry. Every window's title lands in `asked`.
+	 */
+	function ranger(pick, moves = ["Blot Out the Sun"], { resources = { "bow-arrows": 0 }, gear = [BOW] } = {}) {
+		asked = [];
 		const wren = Object.assign(hero("wren", "Wren"), {
 			items: moves.map(name => ({ type: "move", name })),
-			typedActor: { carriedWeaponGear: async () => [{ slug: "bow-arrows", weaponSlug: "bow-arrows", catalog: true }], computedDamageDie: async () => "d8" },
+			typedActor: { carriedWeaponGear: async () => gear, computedDamageDie: async () => "d8" },
 			update: vi.fn(async function (changes) { this.updates = { ...(this.updates ?? {}), ...changes }; }),
-			getFlag: (scope, key) => (key === "inventory.resources" ? { "bow-arrows": 0 } : {}),
+			getFlag: (scope, key) => (key === "inventory.resources" ? resources : {}),
 		});
 		// Let Fly asks its own question first ("easy shot, or tricky?"), so the fake answers whichever
 		// window is in front of it: the roll, then the volley.
 		globalThis.Dialog = class {
 			constructor(config) { this.config = config; }
 			render() {
+				asked.push(this.config.title);
 				const buttons = this.config.buttons;
 				const key = buttons[pick] ? pick : (buttons.roll ? "roll" : Object.keys(buttons)[0]);
 				Promise.resolve().then(() => buttons[key]?.callback?.());
@@ -1008,6 +1015,38 @@ describe("Blot Out the Sun", () => {
 		fightInARow([["wren", plain], ["crin", crinwin("crinwin")]]);
 		await maybeBeginAttack(plain, { name: "Let Fly" });
 		expect(plain.updates).toBeUndefined();
+	});
+
+	// The depletion IS the price: a quiver already all out has nothing left to loose.
+	it("never asks when the bow is already all out", async () => {
+		const wren = ranger("advantage", undefined, { resources: { "bow-arrows": 2 } });
+		fightInARow([["wren", wren], ["crin", crinwin("crinwin")]]);
+		const begun = await maybeBeginAttack(wren, { name: "Let Fly" });
+		expect(asked).not.toContain("Blot Out the Sun");
+		expect(begun.messageFlags[SCOPE].attack.damageMode).toBeUndefined();
+		expect(wren.updates).toBeUndefined();
+	});
+
+	// A bow picked up in play with no ammo statuses: marking one would write a track nothing draws.
+	it("never asks of a bow with no ammo statuses, so writes no track for it", async () => {
+		const huntingBow = { slug: "custom-bow", weaponSlug: null, name: "Hunting bow", note: "near", ammoStore: "inventory", catalog: false };
+		const wren = ranger("advantage", undefined, { resources: {}, gear: [huntingBow] });
+		fightInARow([["wren", wren], ["crin", crinwin("crinwin")]]);
+		const begun = await maybeBeginAttack(wren, { name: "Let Fly" });
+		expect(begun.messageFlags[SCOPE].attack.weapon).toMatchObject({ slug: "custom-bow", ammo: false });
+		expect(asked).not.toContain("Blot Out the Sun");
+		expect(wren.updates).toBeUndefined();
+	});
+
+	// Bow & arrows carries the item's own "low ammo / all out" pair, in the slot the inventory row draws.
+	it("marks the plain bow's next status on its own inventory track", async () => {
+		const bow = { ...BOW, ammoMax: 2, ammoLabels: ["low ammo", "all out"] };
+		const wren = ranger("advantage", undefined, { resources: { "bow-arrows": 1 }, gear: [bow] });
+		fightInARow([["wren", wren], ["crin", crinwin("crinwin")]]);
+		const begun = await maybeBeginAttack(wren, { name: "Let Fly" });
+		expect(begun.messageFlags[SCOPE].attack.weapon).toMatchObject({ slug: "bow-arrows", ammo: true, ammoMax: 2 });
+		expect(wren.updates).toEqual({ "flags.stonetop-pwd.inventory.resources.bow-arrows": 2 });
+		expect(posted.at(-1).content).toContain("All out");
 	});
 });
 

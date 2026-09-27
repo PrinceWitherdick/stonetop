@@ -62,9 +62,10 @@ import {openPortraitFrameEditor} from "../../utils/PortraitFrameDialog.js";
 import {localize} from "../../utils/i18n.js";
 import {closeRelmapTab, detachRelmapTab, makeFirstRelationshipMap, relmapTabContext, STEADING_RELMAP_TAB, syncRelmapTab} from "./steading-relmap-tab.js";
 import {closeTimelineTab, detachTimelineTab, syncTimelineTab, TIMELINE_TAB} from "../../timeline/timeline-tab.js";
-import {DIMINISHED_MOVES, STEADING_MOVE, improvementQuestions, rollAdjustments} from "./improvement-rolls.js";
+import {DIMINISHED_MOVES, PATHFINDER, STEADING_MOVE, improvementQuestions, rollAdjustments} from "./improvement-rolls.js";
 import {settleSteadingRoll} from "./steading-roll.js";
 import {worldLogisticsNames} from "../character/logistics.js";
+import {worldLearnedHolderNames} from "../character/owns-move.js";
 
 /**
  * What the member-photo WINDOW shows, given the path a member actually wears.
@@ -1723,9 +1724,10 @@ export function createStonetopSteadingSheetClass(Base) {
 			// What the steading has built, asked about where it could change this roll, and said
 			// where it always does (improvement-rolls.js).
 			const has = slug => this._hasImprovement(slug);
-			// The Marshal's Logistics is asked (ticked) once any character has it learned.
+			// The Marshal's Logistics is asked (ticked) once any character has it learned, and the
+			// Ranger's Pathfinder (unticked) the same.
 			const questions = improvementQuestions(flow.label, flow.stat, {
-				has, tactics: this._militiaTactics(), logistics: worldLogisticsNames(),
+				has, tactics: this._militiaTactics(), logistics: worldLogisticsNames(), pathfinder: worldLearnedHolderNames(PATHFINDER),
 			});
 			const standing = rollAdjustments({ moveName: flow.label, statKey: flow.stat, has });
 			const questionHtml = questions.map(q => (q.type === "select"

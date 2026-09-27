@@ -73,7 +73,8 @@ export const WEAPON_META = {
 
 	// ---- Thrown / ranged (Let Fly) -------------------------------------------
 	"javelins":           M({ name: "Javelins",           range: ["thrown"], piercing: "prosperity", damageBonus: 1 }),
-	"bow-arrows":         M({ name: "Bow & arrows",       range: ["near"], piercing: "prosperity" }),
+	// Its item prints the same "low ammo / all out" pair as the composite bow's.
+	"bow-arrows":         M({ name: "Bow & arrows",       range: ["near"], piercing: "prosperity", ammo: true }),
 	"sling":              M({ name: "Sling",              range: ["near"], tags: ["reload", "awkward"] }),
 	"crossbow":           M({ name: "Crossbow",           range: ["far"], damageBonus: 1, piercing: "prosperity", ammo: true, tags: ["reload"] }),
 	"composite-bow":      M({ name: "Composite bow",      range: ["far"], damageBonus: 1, piercing: "prosperity", ammo: true }),

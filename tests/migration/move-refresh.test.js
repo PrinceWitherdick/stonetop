@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { readFileSync } from "node:fs";
 import {
 	moveRefreshUpdate, packEntryFor, packMovesByName, refreshHeldMoves,
 } from "../../module/migration/move-refresh.js";
@@ -32,6 +33,18 @@ describe("moveRefreshUpdate", () => {
 		const custom = move("Stentorian", {}, { flags: { [SCOPE]: { custom: true } } });
 		expect(moveRefreshUpdate(custom, entry("Stentorian", { resource: { max: 2 } }))).toBeNull();
 		expect(moveRefreshUpdate(move("Stentorian"), null)).toBeNull();
+	});
+
+	// The Ranger's: Pack Horse's +1 load (a stale copy read 3/6/9) and Walk It Off's one box, off the pack source.
+	it("fills Pack Horse's load bonus and Walk It Off's box on copies taken before they shipped", () => {
+		const source = file => JSON.parse(readFileSync(new URL(`../../packs/src/stonetop-items/playbook-moves/the-ranger/${file}`, import.meta.url), "utf8"));
+		const packHorse = source("pack-horse.json");
+		const walkItOff = source("walk-it-off.json");
+		expect(moveRefreshUpdate(move("Pack Horse", { playbook: "The Ranger" }), packHorse))
+			.toEqual({ _id: "id-Pack Horse", "system.loadBonus": 1 });
+		expect(moveRefreshUpdate(move("Walk It Off", { playbook: "The Ranger" }), walkItOff))
+			.toEqual({ _id: "id-Walk It Off", "system.resource": { max: 1, title: "Marked" } });
+		expect(moveRefreshUpdate(move("Pack Horse", { loadBonus: 1 }), packHorse)).toBeNull();
 	});
 
 	it("hands out a copy, never the pack's own object", () => {

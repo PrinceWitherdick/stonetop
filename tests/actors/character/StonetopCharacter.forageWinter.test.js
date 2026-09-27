@@ -129,3 +129,50 @@ describe("winter on Forage", () => {
 		}
 	});
 });
+
+// Ranger audit R6, On the Hoof: "roll with disadvantage in winter or barren terrain". Its window's box
+// starts ticked in winter, off the same clock; barren terrain stays the player's to tick. And the window
+// opens only for a Ranger with the move LEARNED.
+describe("winter on On the Hoof", () => {
+	let savedDialog;
+	let opened;
+	beforeEach(() => {
+		savedDialog = globalThis.Dialog;
+		opened = [];
+		globalThis.Dialog = class { constructor(data) { opened.push(data); } render() { return this; } };
+	});
+	afterEach(() => { globalThis.Dialog = savedDialog; });
+
+	async function hoofWindow({ learned = true } = {}) {
+		const { createStonetopCharacterSheetClass } = await import("../../../module/actors/character/StonetopCharacterSheet.js");
+		const { makeLiveItem } = await import("../../fakes/LiveCharacter.js");
+		const { char, actor } = forager();
+		actor.items.push(makeLiveItem({ name: "On the Hoof", type: "move", system: { moveType: "playbook" }, flags: learned ? undefined : { "stonetop-pwd": { learned: false } } }));
+		actor.typedActor = char;
+		const Base = class {
+			constructor() { this._actor = actor; }
+			get actor() { return this._actor; }
+			get isEditable() { return true; }
+			render = vi.fn();
+		};
+		const sheet = new (createStonetopCharacterSheetClass(Base))();
+		sheet._stonetopCharacter = char;
+		await sheet._onTheHoof();
+		return opened.at(-1)?.content ?? null;
+	}
+	const leanBox = html => /<input type="checkbox" name="lean"[^>]*>/.exec(html)?.[0] ?? "";
+
+	it("ticks the winter-or-barren box in winter, and leaves it to the player otherwise", async () => {
+		worldWith(steadingIn("winter"));
+		expect(leanBox(await hoofWindow())).toContain("checked");
+		worldWith(steadingIn("summer"));
+		expect(leanBox(await hoofWindow())).not.toContain("checked");
+		worldWith(null);
+		expect(leanBox(await hoofWindow())).not.toContain("checked");
+	});
+
+	it("opens nothing for a Ranger who switched the move off", async () => {
+		worldWith(steadingIn("winter"));
+		expect(await hoofWindow({ learned: false })).toBeNull();
+	});
+});

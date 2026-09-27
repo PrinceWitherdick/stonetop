@@ -78,6 +78,15 @@ export function learnedHolders(actors, name) {
 }
 
 /**
+ * The names of every character in the world with move `name` learned: for a steading window, which
+ * cannot tell which character is behind its roll (Logistics, Pathfinder).
+ */
+export function worldLearnedHolderNames(name) {
+	const actors = globalThis.game?.actors;
+	return learnedHolders(actors?.contents ?? actors ?? [], name).map(a => a.name);
+}
+
+/**
  * Did a PLAYER write this move, in the custom-move dialog, rather than a book print it?
  *
  * The custom-move flag is the answer (utils/custom-move-data.js#buildCustomMoveData stamps it), and

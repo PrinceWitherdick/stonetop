@@ -78,6 +78,7 @@ export const HERO_MOVES = Object.freeze({
 	DOG_WITH_BONE: "Like a Dog with a Bone",
 	EVERYTHING_BLEEDS: "Everything Bleeds",
 	PREDATOR: "Predator",
+	ALPHA: "Alpha",
 });
 
 /**
@@ -102,6 +103,9 @@ export const HARMED_BY_FLAG = "harmedBy";
 
 /** Whoever knocked this character down (But I Get Up Again), as `{key, name}` on the actor. */
 export const KNOCKED_DOWN_FLAG = "knockedDownBy";
+
+/** The foes an Alpha's 10+ asserted dominance over (Alpha), as `{key, name}` on the actor. */
+export const ALPHA_FLAG = "alphaOver";
 
 /**
  * A character's own damage roll's mode once Dangerous has had its say: advantage, or a straight roll
@@ -194,9 +198,9 @@ export function undauntedOffer(actor) {
 
 // -- Remembering a particular foe ---------------------------------------------
 //
-// Three moves are about ONE foe rather than the fight in front of you: Nemesis and Relentless
-// remember whoever survived a Clash, and But I Get Up Again remembers whoever knocked you down.
-// All three key a foe the same way, and it is not always a token: a recurring villain with a
+// Four moves are about ONE foe rather than the fight in front of you: Nemesis and Relentless
+// remember whoever survived a Clash, But I Get Up Again remembers whoever knocked you down, and
+// Alpha remembers whoever its 10+ cowed. All four key a foe the same way, and it is not always a token: a recurring villain with a
 // linked actor is the SAME foe next session on another map, while an unlinked crinwin is only
 // ever that token. So a linked token keys by its actor, everything else by the token itself.
 
@@ -318,10 +322,53 @@ export function brokenOaths(actor) {
 	return readOaths(actor.getFlag?.(SYSTEM_ID, OATHS_FLAG)).filter(oath => oath.broken);
 }
 
+/**
+ * Alpha: "on a 10+, you also have advantage on your next roll against them." Returns the source to
+ * name, or null. The record is laid by the Alpha roll's 10+ (actors/character/tier-effects.js), one
+ * entry per foe it was aimed at, and spent by the next roll aimed at them (spendAlphaOver). Every
+ * target has to be one of them, as for the other grudges here.
+ */
+export function alphaAgainst(actor, targets = []) {
+	if (!has(actor, HERO_MOVES.ALPHA) || !targets?.length) return null;
+	const known = new Set(listFlag(actor, ALPHA_FLAG).map(entry => entry?.key));
+	return targets.every(target => known.has(foeKey(target))) ? HERO_MOVES.ALPHA : null;
+}
+
+/**
+ * Remember the foes (`{key, name}`, keyed by foeKey) an Alpha's 10+ asserted dominance over. A foe
+ * already there is written again rather than twice. Whether anything was written.
+ */
+export async function recordAlphaOver(actor, foes = []) {
+	if (!has(actor, HERO_MOVES.ALPHA)) return false;
+	const fresh = (foes ?? []).filter(foe => foe?.key);
+	if (!fresh.length) return false;
+	const keys = new Set(fresh.map(foe => foe.key));
+	const kept = listFlag(actor, ALPHA_FLAG).filter(entry => !keys.has(entry?.key));
+	await actor.setFlag(SYSTEM_ID, ALPHA_FLAG, [...kept, ...fresh.map(({ key, name }) => ({ key, name: name ?? "" }))]);
+	return true;
+}
+
+/** Forget the Alpha entries under these foe keys: a roll against them spent it, or a Shift took the 10+ back. */
+export async function forgetAlphaOver(actor, keys = []) {
+	const drop = new Set(keys ?? []);
+	const held = listFlag(actor, ALPHA_FLAG);
+	const kept = held.filter(entry => !drop.has(entry?.key));
+	if (kept.length === held.length) return false;
+	await actor.setFlag(SYSTEM_ID, ALPHA_FLAG, kept);
+	return true;
+}
+
+/** Spend Alpha's advantage once a roll against `targets` has been made: it was for the NEXT roll only. */
+export async function spendAlphaOver(actor, targets = []) {
+	if (!alphaAgainst(actor, targets)) return false;
+	return forgetAlphaOver(actor, targets.map(foeKey));
+}
+
 /** Whichever remembered foe gives this attack roll advantage, or null. One name, for the card's pill. */
 export function foeAdvantage(actor, targets = [], { clash = false } = {}) {
 	return (clash ? relentlessAgainst(actor, targets) : null)
 		?? upAgainAgainst(actor, targets)
+		?? alphaAgainst(actor, targets)
 		?? oathbreakerAgainst(actor, targets);
 }
 

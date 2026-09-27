@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { registerVitalsMirrorHooks, mayMoveVitals, mayMoveSteadingGear, mayMoveMarks, FLAG_NOISE } from "../../../module/actors/character/vitals-mirror.js";
-import { CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG } from "../../../module/fight/hero-moves.js";
+import { CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG, ALPHA_FLAG } from "../../../module/fight/hero-moves.js";
 import { StonetopCharacter } from "../../../module/actors/character/StonetopCharacter.js";
 import { READINESS_FLAG } from "../../../module/combat/defend-readiness.js";
 import { LEDGER_KEY } from "../../../module/utils/ledger-core.js";
@@ -47,7 +47,7 @@ describe("what moves a vital", () => {
 	it("spells each quiet flag as its owner does", () => {
 		expect([...FLAG_NOISE].sort()).toEqual([
 			READINESS_FLAG, LEDGER_KEY, CAMP_FLAG, CAMP_OWED_FLAG, DEATHS_DOOR_FLAG,
-			CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG,
+			CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG, ALPHA_FLAG,
 			INSPIRATION_FLAG, BLESSING_FLAG, "invocations", ...ONGOING_INVOCATION_FLAGS,
 		].sort());
 		// The Candle against the Dark's armor reads the light, so lighting it must re-mirror.

@@ -874,11 +874,15 @@ function isBow(weapon) {
  * Asked here because "before you roll" is here, and because the ammo is spent whichever of the two they
  * take. Closing the window is not spending it: the volley simply is not loosed.
  *
+ * Not asked of a bow with no ammo statuses to mark (the depletion IS the price, and marking one would
+ * write a track the sheet never draws), nor of one already all out: there is nothing left to loose.
+ *
  * @returns {Promise<"cancel"|{damageMode: string, area: boolean}>}
  */
 async function askBlotOutTheSun(actor, move, weapon) {
 	const none = { damageMode: "", area: false };
 	if (move.key !== "let-fly" || !isBow(weapon) || !ownsLearnedMoveNamed(actor, BLOT_OUT_THE_SUN)) return none;
+	if (!weapon.ammo || weaponAmmoIndex(actor, weapon) >= ammoTrack(weapon).max) return none;
 	const picked = await promptAttackMode(BLOT_OUT_THE_SUN, {
 		question: localize("stonetop.fight.heroMoves.blotOut.question"),
 		choices: [

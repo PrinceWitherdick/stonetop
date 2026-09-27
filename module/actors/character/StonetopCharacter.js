@@ -74,7 +74,7 @@ import {CharacterInventory} from "./CharacterInventory.js";
 import {maybeBeginAttack, maybeCounterOnMiss, maybeMissFx, attackMoveFor, attackFoeAdvantage, recordClashedFoes, rollMoveDamageAt, snapshotTargets} from "../../combat/attack-flow.js";
 import {aimPcAskRoll} from "../../pc-asks/pc-ask-flow.js";
 import {INTERFERE_MOVE, PERSUADE_PC_MOVE, PC_ASK_FLAG} from "../../pc-asks/pc-ask-rules.js";
-import {brokenOaths, oathbreakerAgainst} from "../../fight/hero-moves.js";
+import {brokenOaths, oathbreakerAgainst, alphaAgainst, spendAlphaOver} from "../../fight/hero-moves.js";
 import {defendReadinessHold, defendReadinessCap, readinessCount, readinessForTier, READINESS_FLAG, DEFEND_MOVE} from "../../combat/defend-readiness.js";
 import {settleReadinessOnAttack} from "../../combat/readiness-loss.js";
 import {classifyResult, messageOfRoll} from "../../utils/roll-engine.js";
@@ -157,14 +157,30 @@ const SEASON_MOVE_DISADVANTAGE = [
  * Countenance ("When you give someone your fond attention, you can then Persuade them with advantage")
  * and Soul on Fire ("When you Persuade a group by preaching charity, mercy, and hope and roll a 7+,
  * aside from the usual effect, choose 1: Your name and your message spread / Someone approaches you,
- * now or later, eager to know more").
+ * now or later, eager to know more"). And the Ranger's: Naturalist ("When you Know Things about beasts,
+ * natural environs, or spirits of the wild, you have advantage"; the arcana identify roll asks it in its
+ * own picker, arcana-identify.js#KNOW_THINGS_ADVANTAGE_MOVES, and opens no offers of its own), Home on the
+ * Range ("When a journey requires you to Defy Danger or Struggle as One, treat a 6- as a 7-9"), Trailblazer
+ * ("When a journey causes you to Defy Danger or Struggle as One, on a 10+ you also learn or discover
+ * something interesting and useful"; both Struggle as One halves are struggle-rules.js's) and Constant
+ * Vigilance ("Unless you're dazed ... When you intercept a sudden threat (to yourself or an ally), you
+ * have advantage on whatever move you make"), on every roll. And the Seeker's: Let's Make a Deal ("When
+ * you Persuade by offering them something that you know they want or need, treat a 7-9 as a 10+"; its
+ * Seek Insight question is move-pick-bonuses.js's), Polyglot ("When you Know Things about any script,
+ * text, runes or symbols that you encounter, you have advantage"), Proof Against Detection ("When you
+ * hold Protection, you ... have advantage to Defy Danger by being stealthy") and Safety First ("When you
+ * are affected by harmful magic, spend 1 Protection either to gain advantage on any roll to resist it or
+ * to halve its damage/effects"; the halving is the damage card's, fight/defend-spend.js).
  *
  * A row applies to a character who has `ownsLearned` LEARNED, took the `background` (took-background.js),
  * holds the special possession `possession`, or has picked AND carries (the ◇) the gear choice
- * `possessionChoice`, keyed `possession:choice` as the carry marks are. Taken, a line's `source` is
- * folded in as advantage and named on the card, unless its `effect` says otherwise (see onRoll):
- * "missAsPartial" counts a 6- as a 7-9 instead, and "hitNote" buys no advantage but prints its `note`
- * on the card's 10+ and 7-9 rows.
+ * `possessionChoice`, keyed `possession:choice` as the carry marks are; and never while the debility
+ * `unlessDebility` is marked, nor while the learned move `whileHolding` holds nothing on its track
+ * (Safety First's Protection). `spendHeld` names that track: taken, the line spends 1 of it after the
+ * dice. Taken, a line's `source` is folded in as advantage and named on the card, unless its `effect`
+ * says otherwise (see onRoll): "missAsPartial" counts a 6- as a 7-9 instead, "partialAsSuccess" a 7-9
+ * as a 10+, "hitNote" buys no advantage but prints its `note` on the card's 10+ and 7-9 rows, and
+ * "successNote" the same on the 10+ row alone.
  */
 const FICTION_ROLL_OFFERS = [
 	{ key: "intimidating", moves: isPersuadeMove, ownsLearned: "Intimidating",
@@ -185,7 +201,18 @@ const FICTION_ROLL_OFFERS = [
 		source: "Radiant Countenance", label: "stonetop.rollOffers.radiantCountenance" },
 	{ key: "soul-on-fire", moves: name => name === "Persuade (vs. NPCs)", background: { playbook: "The Lightbearer", slug: "soul-on-fire" },
 		source: "Soul on Fire", label: "stonetop.rollOffers.soulOnFire", effect: "hitNote", note: "stonetop.rollOffers.soulOnFireNote" },
+	{ key: "naturalist", moves: name => name === "Know Things", ownsLearned: "Naturalist",
+		source: "Naturalist", label: "stonetop.rollOffers.naturalist" },
+	{ key: "home-on-the-range", moves: name => name === "Defy Danger", ownsLearned: "Home on the Range",
+		source: "Home on the Range", label: "stonetop.rollOffers.homeOnTheRange", effect: "missAsPartial" },
+	{ key: "trailblazer", moves: name => name === "Defy Danger", ownsLearned: "Trailblazer",
+		source: "Trailblazer", label: "stonetop.rollOffers.trailblazer", effect: "successNote", note: "stonetop.rollOffers.trailblazerNote" },
+	{ key: "constant-vigilance", moves: () => true, ownsLearned: "Constant Vigilance", unlessDebility: "dazed",
+		source: "Constant Vigilance", label: "stonetop.rollOffers.constantVigilance" },
 ];
+
+/** The card rows a taken note-only offer prints on, by its `effect` (see _withHitNote). */
+const NOTE_OFFER_TIERS = { hitNote: ["success", "partial"], successNote: ["success"] };
 
 /**
  * The roll window's line for Binding Arbitration on a roll aimed at nobody: "If they have broken their
@@ -212,12 +239,13 @@ function foldAdvantage(options, source) {
 /**
  * A taken "hitNote" roll offer (Soul on Fire): no advantage, but its `note` rides the card's 10+ and 7-9
  * rows (roll-engine's tierActions, which a GM's Shift Up/Down reveals with the tier), and the line is
- * named on the card as every taken offer is. Added to whatever tier rows the roll already carries.
+ * named on the card as every taken offer is. Added to whatever tier rows the roll already carries. A
+ * "successNote" (Trailblazer) rides the 10+ row alone.
  */
 function _withHitNote(options, offer) {
 	const note = `<p class="stonetop-roll-offer-note">${offer.note ?? ""}</p>`;
 	const actions = { ...(options.tierActions ?? {}) };
-	for (const tier of ["success", "partial"]) actions[tier] = `${actions[tier] ?? ""}${note}`;
+	for (const tier of NOTE_OFFER_TIERS[offer.effect]) actions[tier] = `${actions[tier] ?? ""}${note}`;
 	return { tierActions: actions, conditionNotes: [...(options.conditionNotes ?? []), offer.source] };
 }
 
@@ -1978,6 +2006,7 @@ export class StonetopCharacter {
 		}
 		for (const row of FICTION_ROLL_OFFERS) {
 			if (!row.moves(moveName)) continue;
+			if (row.unlessDebility && this._actor.system?.attributes?.debilities?.options?.[row.unlessDebility]?.value) continue;
 			if (!await this._earnsRollOffer(row)) continue;
 			offers.push({
 				key: row.key, label: _loc(row.label), applied: false, source: row.source,
@@ -3724,9 +3753,16 @@ export class StonetopCharacter {
 		// Binding Arbitration on every other roll aimed at someone: "advantage on all rolls against them"
 		// (the user's ruling; an attack has had it above, as a grudge). Aimed at the tokens targeted, or
 		// at the character an Interfere or a Persuade (vs. PCs) was just aimed at.
-		const oathbreaker = attackExtra || descriptionOnly ? null : oathbreakerAgainst(this._actor, this._rollTargets(aimed));
+		const aimedAt = attackExtra || descriptionOnly ? [] : this._rollTargets(aimed);
+		const oathbreaker = aimedAt.length ? oathbreakerAgainst(this._actor, aimedAt) : null;
 		if (oathbreaker) Object.assign(rollOptions, foldAdvantage(rollOptions, oathbreaker));
 		const oathbreakerNamed = grudge === BINDING_ARBITRATION || !!oathbreaker;
+		// Alpha's 10+: "advantage on your next roll against them", on any roll (an attack has had it above,
+		// as a grudge). Named only where Binding Arbitration has not already bought the advantage, since the
+		// two do not stack; spent after the dice, below, either way, since this was the next roll against them.
+		const foesTargeted = attackExtra ? attackExtra.messageFlags?.[STONETOP_SCOPE]?.attack?.targets ?? [] : aimedAt;
+		const alpha = alphaAgainst(this._actor, foesTargeted);
+		if (alpha && !attackExtra && !oathbreaker) Object.assign(rollOptions, foldAdvantage(rollOptions, alpha));
 		// A background's standing advantage and a season's standing disadvantage on one move: the same fold.
 		if (!descriptionOnly) Object.assign(rollOptions, this._foldStandingModes(rollOptions, item.name));
 		// The lines the roll window offered and the player left ticked (rollOffers: a skin of fine
@@ -3737,10 +3773,9 @@ export class StonetopCharacter {
 		const taken = descriptionOnly || !takenOffers?.length ? [] : (offered ?? await this.rollOffers(item)).filter(offer => tookOffer(offer, takenOffers)
 			&& !(oathbreakerNamed && offer.key === BINDING_ARBITRATION_OFFER));
 		for (const offer of taken) {
-			if (offer.effect === "hitNote") Object.assign(rollOptions, _withHitNote(rollOptions, offer));
-			else Object.assign(rollOptions, offer.effect === "missAsPartial"
-				? { missCountsAsPartial: offer.source }
-				: foldAdvantage(rollOptions, offer.source));
+			if (NOTE_OFFER_TIERS[offer.effect]) Object.assign(rollOptions, _withHitNote(rollOptions, offer));
+			else if (offer.effect === "missAsPartial") rollOptions.missCountsAsPartial = offer.source;
+			else Object.assign(rollOptions, foldAdvantage(rollOptions, offer.source));
 		}
 
 		// A promise made earlier (a peaceful camp) is spent HERE — after the guards above, so
@@ -3755,6 +3790,9 @@ export class StonetopCharacter {
 
 		// What the taken lines cost, paid once the dice have landed.
 		if (roll) for (const offer of taken) await offer.spend?.(item.name);
+		// And Alpha's advantage against these foes, which was for this one roll. Before the tier effects, so
+		// an Alpha rolled again at the same foe spends the old record and its own 10+ lays a fresh one.
+		if (roll && alpha) await spendAlphaOver(this._actor, foesTargeted);
 
 		// What the tier just rolled does to the character: Defend's Readiness (p.216), We Happy Few's 6-
 		// shaking the nerves, Prepare a Welcome's 10+ regaining 1 Surprise, Commune with Aratis's 10+
@@ -3763,7 +3801,7 @@ export class StonetopCharacter {
 		// character along, undoing only what this roll did (actors/character/tier-effects.js).
 		if (!descriptionOnly && Number.isFinite(roll?.total)) {
 			const tier = classifyResult(roll.total).key;
-			await recordTierEffects(messageOfRoll(roll), await settleTierEffects(this._actor, item.name, tier, null, { character: this }));
+			await recordTierEffects(messageOfRoll(roll), await settleTierEffects(this._actor, item.name, tier, null, { character: this, targets: aimedAt }));
 		}
 
 		// Clash's 6-: "your maneuver fails and you suffer your enemy's attack". A flat consequence

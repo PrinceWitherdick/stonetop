@@ -4,6 +4,7 @@ import {
 	foeKey, recordClash, clashedBefore, relentlessAgainst, foeAdvantage,
 	recordHarmedBy, clearHarmedBy, paybackEarned, recordKnockedDownBy, clearKnockedDownBy,
 	muscleboundWeapon, berserkNow, blowOffers, defenderDisadvantage, dangerousMode, holyLightOffers,
+	ALPHA_FLAG, alphaAgainst, recordAlphaOver, forgetAlphaOver, spendAlphaOver,
 } from "../../module/fight/hero-moves.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
 import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection } from "../fakes/fight.js";
@@ -170,6 +171,12 @@ describe("what a blow adds", () => {
 		expect(blowOffers(seeker, { targets: [target(t.bandit)] }).map(o => o.key)).not.toContain("everythingBleeds");
 
 		// Predator has no readable condition at all, so it is a standing unticked reminder.
+		const wren = hero("Wren", [HERO_MOVES.PREDATOR]);
+		expect(blowOffers(wren, { targets: [target(t.bandit)] }).find(o => o.key === "predator")).toMatchObject({ dice: "1d4", applied: false });
+	});
+
+	it("keeps Predator a standing reminder whatever the foe", () => {
+		const t = mapWith([["bandit", fakeActor({ id: "bandit", name: "Bandit", type: "monster", system: { tags: "group, organized" } })]]);
 		const wren = hero("Wren", [HERO_MOVES.PREDATOR]);
 		expect(blowOffers(wren, { targets: [target(t.bandit)] }).find(o => o.key === "predator")).toMatchObject({ dice: "1d4", applied: false });
 	});
@@ -369,5 +376,42 @@ describe("fakes", () => {
 		const scene = fakeScene({ tokens: [] });
 		expect(fakeCombat({ scene, combatants: [] }).combatants).toBeDefined();
 		expect(fakeCombatant({ id: "c1", token: fakeToken({ id: "t1", col: 0, row: 0, actor: fakeActor({ id: "a", name: "A", type: "monster" }) }), scene })).toBeDefined();
+	});
+});
+
+// Ranger audit M10: Alpha's "on a 10+, you also have advantage on your next roll against them". One
+// entry per foe (the 10+ lays it, actors/character/tier-effects.js), read by foeAdvantage for an attack
+// and spent by the next roll against them.
+describe("Alpha's advantage against the foes it cowed", () => {
+	it("gives the next roll against a remembered foe advantage, once, for a LEARNED move only", async () => {
+		const t = mapWith([["crin", fakeActor({ id: "crin", name: "Crinwin", type: "monster" })], ["chief", fakeActor({ id: "chief", name: "Chief", type: "monster" }), true]]);
+		const rook = hero("Rook", [HERO_MOVES.ALPHA]);
+		const crin = [target(t.crin)];
+		expect(foeAdvantage(rook, crin)).toBeNull();
+		expect(await recordAlphaOver(rook, [{ key: foeKey(target(t.crin)), name: "Crinwin" }])).toBe(true);
+		expect(rook.getFlag(SYSTEM_ID, ALPHA_FLAG)).toEqual([{ key: t.crin.uuid, name: "Crinwin" }]);
+		expect(alphaAgainst(rook, crin)).toBe(HERO_MOVES.ALPHA);
+		expect(foeAdvantage(rook, crin)).toBe(HERO_MOVES.ALPHA);
+		// Every target has to be one of them, and nobody targeted is nobody to have it against.
+		expect(alphaAgainst(rook, [target(t.crin), target(t.chief)])).toBeNull();
+		expect(alphaAgainst(rook, [])).toBeNull();
+		// Spent by the roll against them.
+		expect(await spendAlphaOver(rook, crin)).toBe(true);
+		expect(foeAdvantage(rook, crin)).toBeNull();
+		expect(await spendAlphaOver(rook, crin)).toBe(false);
+
+		const off = hero("Rook", [{ type: "move", name: HERO_MOVES.ALPHA, flags: { [SYSTEM_ID]: { learned: false } } }]);
+		expect(await recordAlphaOver(off, [{ key: t.crin.uuid, name: "Crinwin" }])).toBe(false);
+		off.flags[SYSTEM_ID][ALPHA_FLAG] = [{ key: t.crin.uuid, name: "Crinwin" }];
+		expect(alphaAgainst(off, crin)).toBeNull();
+	});
+
+	it("writes a foe cowed twice once, and forgets only the foes named", async () => {
+		const rook = hero("Rook", [HERO_MOVES.ALPHA]);
+		await recordAlphaOver(rook, [{ key: "a", name: "A" }, { key: "b", name: "B" }]);
+		await recordAlphaOver(rook, [{ key: "a", name: "A" }]);
+		expect(rook.getFlag(SYSTEM_ID, ALPHA_FLAG).map(e => e.key).sort()).toEqual(["a", "b"]);
+		expect(await forgetAlphaOver(rook, ["a"])).toBe(true);
+		expect(rook.getFlag(SYSTEM_ID, ALPHA_FLAG)).toEqual([{ key: "b", name: "B" }]);
 	});
 });

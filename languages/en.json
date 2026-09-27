@@ -1501,7 +1501,12 @@
       "soulOnFire": "Preaching charity, mercy and hope to a group (Soul on Fire): on a 7+, also choose 1",
       "soulOnFireNote": "<strong>Soul on Fire:</strong> aside from the usual effect, choose 1: your name and your message spread, or someone approaches you, now or later, eager to know more.",
       "bindingArbitration": "Against an oathbreaker (Binding Arbitration): advantage",
-      "bindingArbitrationNamed": "Against an oathbreaker: {names} (Binding Arbitration): advantage"
+      "bindingArbitrationNamed": "Against an oathbreaker: {names} (Binding Arbitration): advantage",
+      "naturalist": "About beasts, natural environs or spirits of the wild (Naturalist): advantage",
+      "homeOnTheRange": "A journey requires it (Home on the Range): treat a 6- as a 7-9",
+      "trailblazer": "A journey causes it (Trailblazer): on a 10+, also learn something useful",
+      "trailblazerNote": "<strong>Trailblazer:</strong> you also learn or discover something interesting and useful. Ask the GM what.",
+      "constantVigilance": "Intercepting a sudden threat to yourself or an ally (Constant Vigilance): advantage"
     },
     "pickBonus": {
       "note": "{source}: {detail}.",

@@ -33,6 +33,13 @@ export const BLOOD_SOAKED_PAST = { playbook: "The Heavy", slug: "blood-soaked-pa
  */
 export const PENITENT = { playbook: "The Marshal", slug: "penitent", label: "Penitent" };
 
+/**
+ * The Ranger's Wide Wanderer: "When you Know Things about the wider world, you can roll +WIS
+ * instead of +INT." Whether the question is about the wider world is the player's call, quoted
+ * beside the stat in the picker (and in the arcana identify picker, which reads this table too).
+ */
+export const WIDE_WANDERER = { playbook: "The Ranger", slug: "wide-wanderer", label: "Wide Wanderer" };
+
 export const ALT_STAT_GRANTS = [
 	{ whenMove: "Clash",               ownsMove: "Skill at Arms",    altStat: "dex" },
 	{ whenMove: "Clash",               ownsMove: "Purifying Flames", altStat: "wis" },
@@ -44,6 +51,7 @@ export const ALT_STAT_GRANTS = [
 	{ whenMove: "Persuade (vs. PCs)",  background: BLOOD_SOAKED_PAST, altStat: "str" },
 	{ whenMove: "Formidable",          background: BLOOD_SOAKED_PAST, altStat: "con" },
 	{ whenMove: "Know Things",         background: PENITENT,          altStat: "str" },
+	{ whenMove: "Know Things",         background: WIDE_WANDERER,     altStat: "wis" },
 ];
 
 /**

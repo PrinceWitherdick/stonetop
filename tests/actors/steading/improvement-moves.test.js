@@ -102,6 +102,20 @@ describe("a homefront roll, with what the steading has built", () => {
 		expect(STEADING_JS.match(/logistics: worldLogisticsNames\(\)/g)).toHaveLength(2);
 	});
 
+	// Ranger audit M5: Pathfinder's "lead your people to Pull Together or Deploy beyond sight of home".
+	it("rolls a Deploy at advantage with the Ranger's Pathfinder ticked, and the window asks the world's holders", async () => {
+		await makeSheet()._onSteadingRoll("Deploy", "defenses", { improvementAnswers: { pathfinder: "yes" } });
+		expect(lastRoll()[2]).toMatchObject({ rollMode: "adv" });
+		expect(lastRoll()[2].conditionNotes).toContain("Pathfinder: advantage");
+		await makeSheet()._onSteadingRoll("Pull Together", "population", { improvementAnswers: { pathfinder: "" } });
+		expect(lastRoll()[2].rollMode).toBe("normal");
+		expect(STEADING_JS).toMatch(/pathfinder: worldLearnedHolderNames\(PATHFINDER\)/);
+		const { worldLearnedHolderNames } = await import("../../../module/actors/character/owns-move.js");
+		const ranger = (name, learned) => ({ name, type: "character", items: [{ type: "move", name: "Pathfinder", flags: learned ? {} : { "stonetop-pwd": { learned: false } } }] });
+		vi.stubGlobal("game", { actors: { contents: [ranger("Rook", true), ranger("Ash", false), { name: "Stonetop", type: "stonetop", items: [] }] } });
+		try { expect(worldLearnedHolderNames("Pathfinder")).toEqual(["Rook"]); } finally { vi.unstubAllGlobals(); }
+	});
+
 	it("passes a herd Requisition's 6- as a 7-9 to the roll", async () => {
 		await makeSheet({ built: ["herdOfHorses"] })._onSteadingRoll("Requisition", "fortunes", { improvementAnswers: { herdShare: "yes" } });
 		expect(lastRoll()[2].missCountsAsPartial).toMatch(/half the herd/i);

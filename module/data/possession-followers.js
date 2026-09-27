@@ -9,7 +9,9 @@
 // playbook). `sourceUuid` (`possession:<slug>`) dedupes re-adds, exactly like the
 // arcana summons. Where the playbook offers a tag choice (the dog is a retriever OR a
 // herder), `choiceTags` names the choice slugs that are tags, and the one the player
-// picked on the possession leads the card's tags.
+// picked on the possession leads the card's tags. Where the playbook prints a headcount
+// range ("Hounds, 2-3 followers"), `sizeChoices` lists it: the sheet asks which when the
+// group is added, and `size` is the answer taken when none is given.
 
 export const POSSESSION_FOLLOWER_CATALOG = {
 	// The Would-be Hero — "A good dog" (single follower).
@@ -37,6 +39,7 @@ export const POSSESSION_FOLLOWER_CATALOG = {
 		cost:       "training",
 		isGroup:    true,
 		size:       2,
+		sizeChoices: [2, 3],
 		sourceUuid: "possession:hounds",
 	},
 	// The Blessed — "Mastiffs" (2–3 followers → a group).
@@ -51,6 +54,7 @@ export const POSSESSION_FOLLOWER_CATALOG = {
 		cost:       "affection",
 		isGroup:    true,
 		size:       2,
+		sizeChoices: [2, 3],
 		sourceUuid: "possession:mastiffs",
 	},
 };
@@ -61,14 +65,24 @@ export const POSSESSION_FOLLOWER_CATALOG = {
  * ones among the entry's `choiceTags` lead its tags, so the Would-be Hero's dog is the
  * retriever or the herder they chose. Nothing picked yet leaves the choice off rather
  * than guessing it.
+ *
+ * `size` is the headcount the player chose for a group with `sizeChoices` (the Ranger's
+ * Hounds, 2 or 3); one the entry doesn't list, or none, leaves the entry's own `size`.
  */
-export function possessionFollower(slug, picked = []) {
+export function possessionFollower(slug, picked = [], { size = null } = {}) {
 	const entry = POSSESSION_FOLLOWER_CATALOG[slug];
 	if (!entry) return null;
-	if (!entry.choiceTags) return entry;
-	const { choiceTags, ...rest } = entry;
+	const sized = entry.sizeChoices?.includes(Number(size)) ? { ...entry, size: Number(size) } : entry;
+	if (!entry.choiceTags) return sized;
+	const { choiceTags, ...rest } = sized;
 	const chosen = choiceTags.filter(t => (picked ?? []).includes(t));
 	return { ...rest, tags: [...chosen, ...entry.tags] };
+}
+
+/** The headcounts to ask between for a possession-follower's group, or [] when there's nothing to ask. */
+export function possessionFollowerSizeChoices(slug) {
+	const choices = POSSESSION_FOLLOWER_CATALOG[slug]?.sizeChoices ?? [];
+	return choices.length > 1 ? [...choices] : [];
 }
 
 /**

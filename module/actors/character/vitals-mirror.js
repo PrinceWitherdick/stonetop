@@ -19,7 +19,7 @@
 import { isPrimaryGM } from "../../utils/primary-gm.js";
 import { isSteadingActor } from "../../utils/world.js";
 import { BLESSED_MARKS_FLAG } from "./blessed-marks.js";
-import { CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG } from "../../fight/hero-moves.js";
+import { CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG, ALPHA_FLAG } from "../../fight/hero-moves.js";
 import { INSPIRATION_FLAG } from "./inspiration.js";
 import { BLESSING_FLAG } from "./roll-boosts.js";
 import { NEEDS_SUN_FLAG, ONGOING_INVOCATION_FLAGS } from "./ongoing-invocation.js";
@@ -36,12 +36,12 @@ const SYSTEM_INPUTS = [
 
 // Every flag is an input (the gear, possessions, marks, arcana and inserts all live there), but for these,
 // written over and over in play and read by no vital: Defend's Readiness, the ledger, camp, Death's Door,
-// the three a fight keeps about particular foes (fight/hero-moves.js), Inspiration and Blessing holds, and
+// the four a fight keeps about particular foes (fight/hero-moves.js), Inspiration and Blessing holds, and
 // the Invocations (the `invocations` bag and the running slots; NOT holyLight, which the Candle's armor
 // reads). Each is its owner's constant (tests/actors/character/vitals-mirror checks the spelling).
 export const FLAG_NOISE = new Set([
 	"readiness", "ledger", "camp", "campOwed", "deathsDoor",
-	CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG,
+	CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG, ALPHA_FLAG,
 	INSPIRATION_FLAG, BLESSING_FLAG, NEEDS_SUN_FLAG.split(".")[0], ...ONGOING_INVOCATION_FLAGS,
 ]);
 

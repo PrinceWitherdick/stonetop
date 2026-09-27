@@ -10,7 +10,7 @@
 // cancels against Diminished like a Township does. A character's own Requisition window already
 // knows who is rolling, and ticks the line for that character alone.
 
-import { learnedHolders } from "./owns-move.js";
+import { learnedHolders, worldLearnedHolderNames } from "./owns-move.js";
 import { LOGISTICS } from "../steading/improvement-rolls.js";
 
 /** The characters with Logistics learned, out of any list of actors. */
@@ -20,8 +20,7 @@ export function logisticsHolders(actors) {
 
 /** Their names, for the steading's windows: every character in the world, since any may be behind it. */
 export function worldLogisticsNames() {
-	const actors = globalThis.game?.actors;
-	return logisticsHolders(actors?.contents ?? actors ?? []).map(a => a.name);
+	return worldLearnedHolderNames(LOGISTICS);
 }
 
 /** The one character's own name when they hold the move, for their own Requisition window. */

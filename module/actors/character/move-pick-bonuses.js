@@ -61,6 +61,10 @@ export const MOVE_PICK_BONUSES = [
 	// is the table's to honour: nothing is rolled there to hang a list on.
 	{ move: "Seek Insight", ownsLearned: "Situational Awareness",
 		addOptions: ["Who or what here is the biggest threat?", "What is my enemy's true position?", "What here can I use as a weapon?"] },
+	// The Ranger's Predator. Its "deal an extra 1d4 damage" when acting on either answer rides the
+	// damage roll (fight/hero-moves.js), not this list.
+	{ move: "Seek Insight", ownsLearned: "Predator",
+		addOptions: ["Who or what here is the easiest prey?", "How is ________ weak or vulnerable?"] },
 	{ move: "Forage", ownsLearned: "Survivalist", plus: 1, missFloor: 1,
 		addOptions: ["Find or fashion some useful item or supply (GM can veto)"] },
 	// Free questions, even on a 6-. Two of them are already on Seek Insight's printed list (Expert

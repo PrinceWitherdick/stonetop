@@ -19,6 +19,8 @@ import { isPlayerAuthoredMove } from "../actors/character/owns-move.js";
 export const SHIPPED_MOVE_FIELDS = {
 	resource:   value => Number(value?.max) > 0,
 	noXpOnMiss: value => value === true,
+	// Pack Horse's +1 to every load cap: a copy from before it shipped still read 3/6/9.
+	loadBonus:  value => Number(value) > 0,
 };
 
 const INDEX_FIELDS = ["system.playbook", ...Object.keys(SHIPPED_MOVE_FIELDS).map(field => `system.${field}`)];

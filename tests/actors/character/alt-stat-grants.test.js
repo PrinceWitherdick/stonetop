@@ -171,6 +171,30 @@ describe("the sheet's alternate-stat offer", () => {
 		expect(await sheetFor(scion.char, scion.actor)._altStatChoiceForRollable(rollableFor(know2))).toBeNull();
 	});
 
+	// Ranger audit M3: Wide Wanderer's "When you Know Things about the wider world, you can roll +WIS
+	// instead of +INT" offered nothing.
+	it("offers Wide Wanderer's +WIS on Know Things, quoting the background's rule, and not to a Mighty Hunter", async () => {
+		const know = basic("Know Things", "int");
+		const { char, actor } = buildLiveCharacter({
+			slug: "the-ranger", name: "The Ranger", seedStartingMoves: false, items: [know],
+			flags: { "background.selected": "wide-wanderer" },
+		});
+		const offer = await sheetFor(char, actor)._altStatChoiceForRollable(rollableFor(know));
+		expect(offer.stats).toEqual(["int", "wis"]);
+		expect(offer.grants[0].name).toBe("Wide Wanderer");
+		expect(offer.grants[0].system.description).toContain("roll +WIS instead of +INT");
+		expect(offer.grants[0].system.description).not.toContain("Neighbors list");
+
+		const know2 = basic("Know Things", "int");
+		const hunter = buildLiveCharacter({
+			slug: "the-ranger", name: "The Ranger", seedStartingMoves: false, items: [know2],
+			flags: { "background.selected": "mighty-hunter" },
+		});
+		expect(await sheetFor(hunter.char, hunter.actor)._altStatChoiceForRollable(rollableFor(know2))).toBeNull();
+		// The arcana identify picker reads the same row: the player may pick it there too.
+		expect(knowThingsRollChoices([], { playbook: "The Ranger", background: "wide-wanderer" }).stats).toEqual(["int", "wis"]);
+	});
+
 	it("offers nothing on Seek Insight to a Fox of another background", async () => {
 		const seek = basic("Seek Insight", "wis");
 		const { char, actor } = buildLiveCharacter({

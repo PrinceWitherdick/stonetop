@@ -101,6 +101,19 @@ describe("movePickBonusesFor", () => {
 		expect(movePickBonusesFor(heavy(false), "Seek Insight")).toEqual([]);
 	});
 
+	// Ranger audit M1: Predator's two questions were never on the list.
+	it("adds Predator's two questions for a Ranger who LEARNED it, without raising the count", () => {
+		const ranger = learned => character({ playbook: "The Ranger", items: [move("Predator", { learned })] });
+		const bonuses = movePickBonusesFor(ranger(true), "Seek Insight");
+		expect(bonuses.flatMap(b => b.addOptions)).toEqual([
+			"Who or what here is the easiest prey?", "How is ________ weak or vulnerable?",
+		]);
+		const out = applyPickBonuses(pickableMoveDescription(SEEK.system.description), bonuses);
+		expect(rows(out)).toBe(8);
+		expect(attr(openTag(out), "data-pick-max-success")).toBe("3");
+		expect(movePickBonusesFor(ranger(false), "Seek Insight")).toEqual([]);
+	});
+
 	it("reads Survivalist on Forage: one more pick, 1 even on a 6-, and its added option", () => {
 		const [b] = movePickBonusesFor(character({ playbook: "The Ranger", items: [move("Survivalist")] }), "Forage");
 		const tag = openTag(applyPickBonuses(pickableMoveDescription(FORAGE.system.description), [b]));
@@ -208,6 +221,7 @@ describe("MOVE_PICK_BONUSES quotes its sources", () => {
 		"Situational Awareness": () => doc("playbook-moves/the-heavy/situational-awareness.json").system.description,
 		"Hound of Aratis":       () => doc("playbook-moves/the-judge/hound-of-aratis.json").system.description,
 		"Vision Unclouded":      () => doc("playbook-moves/the-judge/vision-unclouded.json").system.description,
+		"Predator":              () => doc("playbook-moves/the-ranger/predator.json").system.description,
 		"Sniff Out Corruption":  () => doc("playbook-moves/the-ranger/sniff-out-corruption.json").system.description,
 		"Expert Tracker":        () => doc("playbook-moves/the-ranger/expert-tracker.json").system.description,
 		"Attuned":               () => doc("playbook-moves/the-seeker/attuned.json").system.description,

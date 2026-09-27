@@ -1,7 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
-	possessionFollower, availablePossessionFollowers, POSSESSION_FOLLOWER_CATALOG,
+	possessionFollower, possessionFollowerSizeChoices, availablePossessionFollowers, POSSESSION_FOLLOWER_CATALOG,
 } from "../../module/data/possession-followers.js";
+import { buildCustomFollower } from "../../module/data/follower-build.js";
+import { stubAsk } from "../fakes/confirm.js";
 
 // Playbook possession-followers (the Would-be Hero's dog, the Ranger's Hounds, the
 // Blessed's Mastiffs): mirrored as buildCustomFollower inputs so the Followers tab
@@ -60,5 +62,74 @@ describe("availablePossessionFollowers", () => {
 	it("returns nothing when the character holds no follower possessions", () => {
 		expect(availablePossessionFollowers(["a-sturdy-sword", "an-old-map"])).toEqual([]);
 		expect(availablePossessionFollowers([])).toEqual([]);
+	});
+});
+
+// "Hounds, 2-3 followers" (the Ranger), "Mastiffs, 2-3 followers" (the Blessed): the headcount is
+// the player's, asked when the group is added.
+describe("a possession-follower group's headcount", () => {
+	it("lists the printed range to ask between, and nothing for a single follower", () => {
+		expect(possessionFollowerSizeChoices("hounds")).toEqual([2, 3]);
+		expect(possessionFollowerSizeChoices("mastiffs")).toEqual([2, 3]);
+		expect(possessionFollowerSizeChoices("a-good-dog")).toEqual([]);
+		expect(possessionFollowerSizeChoices("a-sturdy-sword")).toEqual([]);
+	});
+
+	it("takes the chosen size into the group, and 2 when none or an unlisted one is given", () => {
+		expect(possessionFollower("hounds", [], { size: 3 }).size).toBe(3);
+		expect(buildCustomFollower(possessionFollower("hounds", [], { size: 3 })).size).toBe(3);
+		expect(possessionFollower("hounds", [], { size: null }).size).toBe(2);
+		expect(possessionFollower("hounds", [], { size: 7 }).size).toBe(2);
+		expect(POSSESSION_FOLLOWER_CATALOG.hounds.size).toBe(2);
+	});
+});
+
+const { createStonetopCharacterSheetClass } = await import("../../module/actors/character/StonetopCharacterSheet.js");
+
+describe("adding the Hounds from the Followers tab", () => {
+	function sheetWithHounds() {
+		const flags = { possessions: { selected: ["hounds"] }, customFollowers: {} };
+		const actor = {
+			flags: { "stonetop-pwd": flags },
+			getFlag: (_scope, key) => key.split(".").reduce((o, k) => o?.[k], flags),
+			update: vi.fn(async upd => {
+				for (const [k, v] of Object.entries(upd)) flags.customFollowers[k.split(".").at(-1)] = v;
+			}),
+		};
+		const Sheet = createStonetopCharacterSheetClass(class {
+			get actor() { return actor; }
+			get isEditable() { return true; }
+			render() {}
+		});
+		return { sheet: new Sheet(), flags };
+	}
+	const added = flags => Object.values(flags.customFollowers);
+
+	it("asks how many, naming each answer, and files the group at the size picked", async () => {
+		const ask = stubAsk("3");
+		const { sheet, flags } = sheetWithHounds();
+
+		await sheet._onAddPossessionFollower("hounds");
+
+		const { content, buttons } = ask.mock.calls[0][0];
+		expect(content).toContain("How many hounds?");
+		expect(buttons.map(b => b.label)).toEqual(["2 hounds", "3 hounds"]);
+		expect(added(flags)).toHaveLength(1);
+		expect(added(flags)[0]).toMatchObject({ name: "Hounds", isGroup: true, size: 3 });
+	});
+
+	it("files 2 when the ask is closed", async () => {
+		stubAsk(null);
+		const { sheet, flags } = sheetWithHounds();
+		await sheet._onAddPossessionFollower("hounds");
+		expect(added(flags)[0].size).toBe(2);
+	});
+
+	it("asks nothing for the Would-be Hero's single dog", async () => {
+		const ask = stubAsk("3");
+		const { sheet, flags } = sheetWithHounds();
+		await sheet._onAddPossessionFollower("a-good-dog");
+		expect(ask).not.toHaveBeenCalled();
+		expect(added(flags)[0]).toMatchObject({ name: "Good dog", isGroup: false });
 	});
 });

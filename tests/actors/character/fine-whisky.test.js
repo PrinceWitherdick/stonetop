@@ -4,6 +4,7 @@
 // and 1 use marked after the dice; unticked, nothing. From the 2026-09-25 Fox audit, where the skin
 // was a label on the sheet that bought nothing.
 
+import { readFileSync } from "node:fs";
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { buildLiveCharacter, makeLiveItem } from "../../fakes/LiveCharacter.js";
 import { fineWhiskyOffer, isFineWhiskyName, isPersuadeMove, FINE_WHISKY_OFFER } from "../../../module/actors/character/fine-whisky.js";
@@ -379,5 +380,143 @@ describe("Binding Arbitration on every roll against an oathbreaker", () => {
 		await roll(clash, { takenOffers: ["binding-arbitration"] });
 		expect(rolledWith(clash).rollMode).toBe("adv");
 		expect(notesOf(clash).filter(n => n === BA)).toHaveLength(1);
+	});
+});
+
+// Ranger audit (2026-09-26): Naturalist ("When you Know Things about beasts, natural environs, or spirits
+// of the wild, you have advantage"), Home on the Range ("When a journey requires you to Defy Danger or
+// Struggle as One, treat a 6- as a 7-9"), Trailblazer ("When a journey causes you to Defy Danger or
+// Struggle as One, on a 10+ you also learn or discover something interesting and useful") and Constant
+// Vigilance ("Unless you're dazed ... When you intercept a sudden threat (to yourself or an ally), you
+// have advantage on whatever move you make") did nothing on a solo roll. Each is the player's call.
+function rangerRoller({ moves = [], dazed = false, total = 8 } = {}) {
+	const rolled = (name, rollType = "wis") => ({ _id: `${name}-1`, name, type: "move", system: { rollType }, roll: vi.fn(async () => ({ total })) });
+	const knowThings = rolled("Know Things", "int");
+	const persuade = rolled("Persuade (vs. NPCs)", "cha");
+	const defy = rolled("Defy Danger");
+	const clash = rolled("Clash", "str");
+	const alpha = rolled("Alpha");
+	const made = buildLiveCharacter({
+		slug: "the-ranger", name: "The Ranger", seedStartingMoves: false,
+		items: moves.map(m => makeLiveItem({ name: m.name ?? m, type: "move", system: { moveType: "playbook" }, flags: m.learned === false ? { [SCOPE]: { learned: false } } : undefined })),
+	});
+	made.actor.system.attributes.debilities.options.dazed.value = dazed;
+	const items = [...made.actor.items, knowThings, persuade, defy, clash, alpha];
+	items.get = id => items.find(i => i._id === id) ?? null;
+	made.actor.items = items;
+	const roll = (item, prompted) => made.char.onRoll({
+		currentTarget: { closest: sel => (sel === ".item" ? { dataset: { itemId: item._id } } : null), getAttribute: () => null },
+	}, prompted);
+	return { ...made, knowThings, persuade, defy, clash, alpha, roll };
+}
+
+describe("the unticked lines a Ranger's moves bring", () => {
+	it("offers Naturalist on Know Things, for a LEARNED move only, and taken it is a SOURCE of advantage", async () => {
+		const { char, knowThings, defy, roll } = rangerRoller({ moves: ["Naturalist"] });
+		expect(await char.rollOffers(knowThings)).toEqual([expect.objectContaining({ key: "naturalist", applied: false, source: "Naturalist" })]);
+		expect(await keysOf(char, defy)).toEqual([]);
+		const off = rangerRoller({ moves: [{ name: "Naturalist", learned: false }] });
+		expect(await keysOf(off.char, off.knowThings)).toEqual([]);
+		await roll(knowThings, { takenOffers: ["naturalist"] });
+		expect(rolledWith(knowThings).rollMode).toBe("adv");
+		expect(rolledWith(knowThings).conditionNotes).toContain("Naturalist");
+	});
+
+	it("offers Home on the Range on Defy Danger, and taken it counts a 6- as a 7-9", async () => {
+		const { char, defy, knowThings, roll } = rangerRoller({ moves: ["Home on the Range"], total: 5 });
+		expect(await char.rollOffers(defy)).toEqual([expect.objectContaining({ key: "home-on-the-range", applied: false, source: "Home on the Range", effect: "missAsPartial" })]);
+		expect(await keysOf(char, knowThings)).toEqual([]);
+		await roll(defy, { takenOffers: ["home-on-the-range"] });
+		expect(rolledWith(defy).missCountsAsPartial).toBe("Home on the Range");
+		expect(rolledWith(defy).rollMode).toBe("normal");
+		const off = rangerRoller({ moves: [{ name: "Home on the Range", learned: false }] });
+		expect(await keysOf(off.char, off.defy)).toEqual([]);
+	});
+
+	it("offers Trailblazer on Defy Danger, and taken it prints its discovery on the 10+ row alone", async () => {
+		const { char, defy, roll } = rangerRoller({ moves: ["Home on the Range", "Trailblazer"] });
+		expect(await keysOf(char, defy)).toEqual(["home-on-the-range", "trailblazer"]);
+		await roll(defy, { takenOffers: ["trailblazer"] });
+		const options = rolledWith(defy);
+		expect(options.rollMode).toBe("normal");
+		expect(options.conditionNotes).toContain("Trailblazer");
+		expect(options.tierActions.success).toContain("something interesting and useful");
+		expect(options.tierActions.partial).toBeUndefined();
+		expect(options.tierActions.failure).toBeUndefined();
+		const off = rangerRoller({ moves: [{ name: "Trailblazer", learned: false }] });
+		expect(await keysOf(off.char, off.defy)).toEqual([]);
+	});
+
+	// The user's ruling: Trailblazer REQUIRES Home on the Range (the sheet's wording; Book I p.131's
+	// "replaces" is a misprint), so a Ranger keeps both and both lines are offered.
+	it("keeps Trailblazer a dependent of Home on the Range, never its replacement", () => {
+		const url = new URL("../../../packs/src/stonetop-items/playbook-moves/the-ranger/trailblazer.json", import.meta.url);
+		const { system } = JSON.parse(readFileSync(url, "utf8"));
+		expect(system.requirement.moves).toContain("Home on the Range");
+		expect(system.replaces).toBeUndefined();
+		expect(system.requirement.replaces).toBeUndefined();
+	});
+
+	it("offers Constant Vigilance on every roll, never while dazed, for a LEARNED move only", async () => {
+		const { char, knowThings, persuade, defy, clash, roll } = rangerRoller({ moves: ["Constant Vigilance"] });
+		for (const item of [knowThings, persuade, defy, clash]) {
+			expect(await char.rollOffers(item)).toEqual([expect.objectContaining({ key: "constant-vigilance", applied: false, source: "Constant Vigilance" })]);
+		}
+		const dazed = rangerRoller({ moves: ["Constant Vigilance"], dazed: true });
+		expect(await keysOf(dazed.char, dazed.defy)).toEqual([]);
+		const off = rangerRoller({ moves: [{ name: "Constant Vigilance", learned: false }] });
+		expect(await keysOf(off.char, off.defy)).toEqual([]);
+		await roll(defy, { takenOffers: ["constant-vigilance"] });
+		expect(rolledWith(defy).rollMode).toBe("adv");
+		expect(rolledWith(defy).conditionNotes).toContain("Constant Vigilance");
+	});
+});
+
+// Ranger audit M10, Alpha: "on a 10+, you also have advantage on your next roll against them." The Alpha's
+// 10+ remembers the foes it was aimed at (fight/hero-moves.js, like But I Get Up Again's record), and the
+// next roll aimed at them is at advantage, named, and spends it. Aimed at nobody, nothing is remembered.
+describe("Alpha's advantage on the next roll against them", () => {
+	const wolf = { document: { uuid: "Scene.s.Token.tw", name: "Grey Wolf" }, actor: { id: "wolfActor" } };
+	const target = tokens => { global.game.user = { targets: new Set(tokens) }; };
+	afterEach(() => { delete global.game.user; seams.begin = null; seams.aim = null; });
+
+	it("remembers the foe an Alpha 10+ was aimed at, and spends it on the next roll against them", async () => {
+		target([wolf]);
+		const { actor, alpha, persuade, defy, roll } = rangerRoller({ moves: ["Alpha"], total: 11 });
+		await roll(alpha, { takenOffers: [] });
+		expect(actor.getFlag(SCOPE, "alphaOver")).toEqual([{ key: "Scene.s.Token.tw", name: "Grey Wolf" }]);
+		await roll(persuade, { takenOffers: [] });
+		expect(rolledWith(persuade).rollMode).toBe("adv");
+		expect(rolledWith(persuade).conditionNotes).toContain("Alpha");
+		expect(actor.getFlag(SCOPE, "alphaOver")).toEqual([]);
+		// Spent: the roll after that is a straight one.
+		await roll(defy, { takenOffers: [] });
+		expect(rolledWith(defy).rollMode).toBe("normal");
+	});
+
+	it("remembers nothing on a 7-9, aimed at nobody, or with the move not learned", async () => {
+		target([wolf]);
+		const partial = rangerRoller({ moves: ["Alpha"], total: 8 });
+		await partial.roll(partial.alpha, { takenOffers: [] });
+		expect(partial.actor.getFlag(SCOPE, "alphaOver")).toBeNull();
+		// The rolled move itself switched off on the sheet.
+		const off = rangerRoller({ total: 11 });
+		off.alpha.flags = { [SCOPE]: { learned: false } };
+		await off.roll(off.alpha, { takenOffers: [] });
+		expect(off.actor.getFlag(SCOPE, "alphaOver")).toBeNull();
+		target([]);
+		const nobody = rangerRoller({ moves: ["Alpha"], total: 11 });
+		await nobody.roll(nobody.alpha, { takenOffers: [] });
+		expect(nobody.actor.getFlag(SCOPE, "alphaOver")).toBeNull();
+	});
+
+	it("gives nothing on a roll aimed at someone else, and keeps the record for the wolf", async () => {
+		target([wolf]);
+		const { actor, alpha, persuade, roll } = rangerRoller({ moves: ["Alpha"], total: 11 });
+		await roll(alpha, { takenOffers: [] });
+		target([{ document: { uuid: "Scene.s.Token.tx", name: "Stranger" }, actor: { id: "x" } }]);
+		await roll(persuade, { takenOffers: [] });
+		expect(rolledWith(persuade).rollMode).toBe("normal");
+		expect(actor.getFlag(SCOPE, "alphaOver")).toHaveLength(1);
 	});
 });

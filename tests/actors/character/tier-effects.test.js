@@ -281,3 +281,42 @@ describe("the holy light", () => {
 		expect(self.invocationState).toEqual(running);
 	});
 });
+
+// Ranger audit M10: Alpha's "on a 10+, you also have advantage on your next roll against them". The 10+
+// remembers the foes the roll was aimed at (fight/hero-moves.js#alphaAgainst reads it), and a Shift that
+// takes the 10+ away forgets them again; one that lifts a 7-9 to a 10+ remembers them then.
+describe("Alpha's foes", () => {
+	const wolf = { uuid: "Scene.s.Token.tw", name: "Grey Wolf" };
+	const alphaRoll = async (actor, tier, targets) => {
+		const message = card("Alpha");
+		await recordTierEffects(message, await settleTierEffects(actor, "Alpha", tier, null, { targets }));
+		return message;
+	};
+
+	it("are remembered on a 10+, forgotten when it is lowered, and remembered again when lifted", async () => {
+		const { actor } = hero({ moves: ["Alpha"] });
+		const hit = await alphaRoll(actor, "success", [wolf]);
+		expect(actor.flags[SYSTEM_ID].alphaOver).toEqual([{ key: wolf.uuid, name: "Grey Wolf" }]);
+		expect(hit.getFlag(SYSTEM_ID, TIER_EFFECTS_FLAG)).toEqual({ alphaOver: { foes: [{ key: wolf.uuid, name: "Grey Wolf" }], set: true } });
+		await shift(hit, actor, 9);
+		expect(actor.flags[SYSTEM_ID].alphaOver).toEqual([]);
+		// The card kept who it was aimed at, so a lift needs no targets to remember them by.
+		await shift(hit, actor, 10);
+		expect(actor.flags[SYSTEM_ID].alphaOver).toEqual([{ key: wolf.uuid, name: "Grey Wolf" }]);
+	});
+
+	it("a 7-9 lifted to a 10+ remembers them then", async () => {
+		const { actor } = hero({ moves: ["Alpha"] });
+		const partial = await alphaRoll(actor, "partial", [wolf]);
+		expect(actor.flags[SYSTEM_ID].alphaOver).toBeUndefined();
+		await shift(partial, actor, 11);
+		expect(actor.flags[SYSTEM_ID].alphaOver).toEqual([{ key: wolf.uuid, name: "Grey Wolf" }]);
+	});
+
+	it("an Alpha aimed at nobody leaves no trace, on the character or the card", async () => {
+		const { actor } = hero({ moves: ["Alpha"] });
+		const hit = await alphaRoll(actor, "success", []);
+		expect(actor.setFlag).not.toHaveBeenCalled();
+		expect(hit.setFlag).not.toHaveBeenCalled();
+	});
+});
