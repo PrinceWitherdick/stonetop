@@ -3,6 +3,7 @@ import { PROVISIONS_SLUG } from "../actors/character/provisions.js";
 import { SUPPLY_PURPOSE, SUPPLY_SLUGS, campUsesNeeded, supplyPurseSlugsFor, supplyPursesFor } from "../actors/character/supply-cost.js";
 import { clearTracksData } from "../actors/character/background-tracks.js";
 import { debilityData } from "../actors/character/walk-it-off.js";
+import { UNLIVING_KINDS } from "../actors/character/deaths-door-actor.js";
 
 /**
  * MAKE CAMP, AS A PARTY (Book I p.334).
@@ -99,9 +100,10 @@ export const SETTLE_REFUSAL = Object.freeze({
  * The post-death inserts whose Unliving move reads "You need not eat nor drink nor sleep ... You
  * gain no benefit from ... Make Camp". They can still sit at the fire and share out their food;
  * they are simply not a mouth, and the night buys them nothing. A Thrall eats and sleeps like
- * anyone else.
+ * anyone else. The list is Death's Door's (Recover, Convalesce and magical healing ask it too), and
+ * named here as well so the camp's own readers find it beside the rest of the camp's rules.
  */
-export const UNLIVING_KINDS = Object.freeze(["ghost", "revenant"]);
+export { UNLIVING_KINDS };
 
 /** Every purse a camp can be fed from, in the order a spend drains them. */
 const CAMP_PURSE_SLUGS = supplyPurseSlugsFor(SUPPLY_PURPOSE.CAMP);

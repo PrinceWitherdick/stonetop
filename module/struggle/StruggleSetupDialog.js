@@ -1,7 +1,7 @@
 import { StonetopDialog } from "../utils/stonetop-dialog.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
 import { partyCharacters } from "../utils/playbook-actors.js";
-import { actorPastDeathKind } from "../actors/character/deaths-door-actor.js";
+import { isOutOfPlay } from "../actors/character/deaths-door-actor.js";
 import { ownsLearnedMoveNamed } from "../actors/character/owns-move.js";
 import { STRUGGLE_MOVES } from "./struggle-rules.js";
 import { followerKey, newSetupDraft, setupHelpers, setupRows, setupView } from "./struggle-setup.js";
@@ -66,9 +66,9 @@ async function rosterEntry(actor) {
 	};
 }
 
-/** The characters a GM can call on: the party, less the dead. */
+/** The characters a GM can call on: the party, less whoever has left play (deaths-door-actor.js#isOutOfPlay). */
 function callable() {
-	return partyCharacters().filter(a => actorPastDeathKind(a) !== "dead");
+	return partyCharacters().filter(a => !isOutOfPlay(a));
 }
 
 /**

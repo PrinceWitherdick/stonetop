@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../module/dialogs/RelationshipLinkDialog.js", () => ({ pickPersonOnMap: vi.fn() }));
 vi.mock("../../module/utils/playbook-actors.js", () => ({ getPlayerCharacters: vi.fn() }));
-vi.mock("../../module/actors/character/deaths-door-actor.js", () => ({ actorPastDeathKind: vi.fn(actor => actor?.dead ? "dead" : null) }));
+vi.mock("../../module/actors/character/deaths-door-actor.js", () => ({ isOutOfPlay: vi.fn(actor => !!actor?.dead) }));
 vi.mock("../../module/utils/xp.js", () => ({ adjustXp: vi.fn(async () => ({ applied: 1, after: 5, max: 8 })) }));
 
 import { SYSTEM_ID } from "../../module/system-id.js";

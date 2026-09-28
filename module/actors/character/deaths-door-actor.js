@@ -1,8 +1,8 @@
 import { STONETOP_SCOPE, readableFlags, resolvedFlagProperty } from "./StonetopFlags.js";
 import { deletionEntry } from "../../utils/foundry-compat.js";
 import {
-	DEATHS_DOOR_FLAG, DEATHS_DOOR_ROLL_FLAG, DEATHS_DOOR_ROLLING_FLAG, NEVER_GONNA_KEEP_ME_DOWN, effectiveDeathsDoorState,
-	pastDeathKind,
+	DEATHS_DOOR_FLAG, DEATHS_DOOR_ROLL_FLAG, DEATHS_DOOR_ROLLING_FLAG, DEATHS_DOOR_STATE, NEVER_GONNA_KEEP_ME_DOWN,
+	effectiveDeathsDoorState, pastDeathKind,
 } from "./deaths-door.js";
 
 // How far back through the chat log a roll's card is looked for by its nonce, when the marker never got as far
@@ -141,4 +141,79 @@ export function actorPastDeathKind(actor) {
 		state:      resolvedFlagProperty(actor, DEATHS_DOOR_FLAG) ?? null,
 		insertSlug: resolvedFlagProperty(actor, "postDeathInsert.slug") ?? null,
 	});
+}
+
+/**
+ * Whether a character has left play: `dead`, WHATEVER insert they wear. The test every party list asks
+ * (who can camp, who a move can be aimed at, who the GM can call on for a Struggle, who sets out on an
+ * expedition).
+ *
+ * Not `actorPastDeathKind(actor) === "dead"`, which is the question for how a sheet LOOKS and lets the
+ * insert win: a Ghost who marked the Final Consequence reads "ghost" there, and so went on counting as a
+ * live party member while their sheet said they had become a monster under the GM's control. The same
+ * for a Thrall lost to Unholy Vessel, and for a Ghost or Revenant who fulfilled their Terrible Purpose and
+ * passed through the Last Door.
+ */
+export function isOutOfPlay(actor) {
+	return !!actor && resolvedFlagProperty(actor, DEATHS_DOOR_FLAG) === DEATHS_DOOR_STATE.DEAD;
+}
+
+/**
+ * The post-death inserts whose Unliving move reads "You need not eat nor drink nor sleep ... You
+ * gain no benefit from magical healing, Make Camp, Recover or Convalesce." A Thrall eats, sleeps and
+ * heals like anyone else.
+ */
+export const UNLIVING_KINDS = Object.freeze(["ghost", "revenant"]);
+
+/**
+ * A Ghost or a Revenant: magical healing, Make Camp, Recover and Convalesce do them no good. Their
+ * own moves' healing is another matter (a Terrible Purpose fulfilled, a Ghost reforming at their
+ * tether), which is why StonetopCharacter#restoreHp does not ask this.
+ */
+export function isUnliving(actor) {
+	return UNLIVING_KINDS.includes(actorPastDeathKind(actor));
+}
+
+/** The Thrall Marks this file's rules turn on, by their slug in the insert's `marks` section. */
+export const THRALL_MARK = Object.freeze({
+	TORMENTS_BLESSING:  "torments-blessing",
+	RAVENOUS:           "ravenous",
+	QUICKSILVER_DREAMS: "quicksilver-dreams",
+});
+
+/**
+ * Whether a Thrall has Mark `slug` marked. Read off the actor's flags rather than through the
+ * character model, because Make Camp asks it of every character at the fire on every client, and a
+ * camp reads raw actors (camp/camp-store.js). A Mark left on a sheet whose insert was taken away
+ * (removal prunes nothing, so it can be undone) no longer counts.
+ */
+export function hasThrallMark(actor, slug) {
+	if (!actor || !slug || resolvedFlagProperty(actor, "postDeathInsert.slug") !== "thrall") return false;
+	const counts = resolvedFlagProperty(actor, "postDeathLore.counts");
+	return Number(counts?.[`marks:${slug}`]) > 0;
+}
+
+/**
+ * Torment's Blessing: "Your wounds are slow to heal. When you recover HP, recover only half the
+ * amount that you should."
+ */
+export function slowToHeal(actor) {
+	return hasThrallMark(actor, THRALL_MARK.TORMENTS_BLESSING);
+}
+
+/**
+ * Where HP that should go from `from` to `to` actually lands: at `to`, or, for one who is slow to
+ * heal (Torment's Blessing), `from` plus half the gain, rounded up (halves round up). Halved ONCE, on
+ * the whole amount a move recovers, however many parts it is made of: a night at the fire's half max
+ * HP, bedroll and Break Bread are one recovery, not three roundings up. Never a loss: damage is not
+ * recovery, and a `to` at or below `from` is returned as it is.
+ *
+ * THE ONE RULE for every way HP is recovered (restoreHp, receiveHealing, Recover, Convalesce, Make
+ * Camp), so none of them rounds it differently.
+ */
+export function recoveredHpTo(from, to, slow) {
+	const start = Math.trunc(Number(from) || 0);
+	const end = Math.trunc(Number(to) || 0);
+	if (!slow || end <= start) return end;
+	return start + Math.ceil((end - start) / 2);
 }

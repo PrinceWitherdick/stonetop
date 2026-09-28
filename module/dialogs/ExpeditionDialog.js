@@ -41,7 +41,7 @@ import { assetTakenLabel } from "../utils/requisition-asset.js";
 import { getPlayerCharacters } from "../utils/playbook-actors.js";
 // Who on the roster is past the Door: the dead don't outfit, and the three who came back set
 // out wearing the name of whatever brought them back.
-import { actorPastDeathKind } from "../actors/character/deaths-door-actor.js";
+import { actorPastDeathKind, isOutOfPlay } from "../actors/character/deaths-door-actor.js";
 import { deriveLoadLevel, LOAD_LEVEL_LIMITS } from "../utils/load.js";
 import { SYSTEM_ID, JOURNAL_PACK } from "../system-id.js";
 import { renderTemplate } from "../utils/foundry-compat.js";
@@ -3421,9 +3421,11 @@ export class ExpeditionDialog extends StepperDialog {
 		const out = this._currentExpedition()?.partyOut ?? {};
 		// The kind is read once per PC here and handed down: `_pcRow` would otherwise re-read
 		// the same two flags off the same actor a moment later.
+		// Who has left play is asked on its own (isOutOfPlay): the kind lets an insert win, so a Ghost lost
+		// to the Final Consequence read "ghost" there and was still offered a place on the trip.
 		const pcs = getPlayerCharacters()
-			.map(actor => ({ actor, undeadKind: actorPastDeathKind(actor) }))
-			.filter(({ undeadKind }) => undeadKind !== "dead");
+			.filter(actor => !isOutOfPlay(actor))
+			.map(actor => ({ actor, undeadKind: actorPastDeathKind(actor) }));
 		if (!pcs.length) return { chips: [], hasRows: false, rows: [], summary: null };
 
 		const chips = pcs.map(({ actor, undeadKind }) =>

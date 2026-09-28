@@ -1,6 +1,6 @@
 import { SYSTEM_ID } from "../system-id.js";
 import { getPlayerCharacters } from "../utils/playbook-actors.js";
-import { actorPastDeathKind } from "../actors/character/deaths-door-actor.js";
+import { isOutOfPlay } from "../actors/character/deaths-door-actor.js";
 import { pickPersonOnMap } from "../dialogs/RelationshipLinkDialog.js";
 import { moveChatCard } from "../utils/chat.js";
 import { MOVE_TIERS_CLASS, TIER_KEYS } from "../utils/move-results.js";
@@ -33,11 +33,12 @@ export function answerTo(message) {
 }
 
 /**
- * Everyone this character could aim the move at: the other player characters, less the dead.
- * A Ghost or a Revenant is still somebody you can help or get in the way of.
+ * Everyone this character could aim the move at: the other player characters, less whoever has left
+ * play (deaths-door-actor.js#isOutOfPlay, a Ghost lost to the Final Consequence included). A Ghost or a
+ * Revenant still in play is somebody you can help or get in the way of.
  */
 export function aimableCharacters(actor) {
-	return getPlayerCharacters().filter(other => other.id !== actor?.id && actorPastDeathKind(other) !== "dead");
+	return getPlayerCharacters().filter(other => other.id !== actor?.id && !isOutOfPlay(other));
 }
 
 const allUsers = () => [...(game.users?.contents ?? game.users ?? [])];

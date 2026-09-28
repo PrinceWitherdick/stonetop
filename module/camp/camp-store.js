@@ -1,12 +1,12 @@
 import { SYSTEM_ID } from "../system-id.js";
 import { autoOpenUserId, ownerUsers } from "../hooks/DeathsDoorPrompt.js";
-import { actorPastDeathKind } from "../actors/character/deaths-door-actor.js";
+import { isOutOfPlay, isUnliving } from "../actors/character/deaths-door-actor.js";
 import { customGroupPresent } from "../utils/crew.js";
 import { deletionTarget } from "../utils/foundry-compat.js";
 import { postMoveToChat } from "../utils/chat.js";
 import { capitalizeFirst } from "../utils/strings.js";
 import {
-	BREAK_BREAD, CAMP_FLAG, CAMP_OWED_FLAG, CAMP_STATE, CAMP_STATUS, HAD_ALL_ALONG, HOME_FIRES, SETTLE_REFUSAL, UNLIVING_KINDS,
+	BREAK_BREAD, CAMP_FLAG, CAMP_OWED_FLAG, CAMP_STATE, CAMP_STATUS, HAD_ALL_ALONG, HOME_FIRES, SETTLE_REFUSAL,
 	campLedger, campShareUpdate, campState, count, freezeCampPlan, messKitAllAlong, newCampRecord, readCampRecord,
 	readOwedCamps, rollsBedroll, rollsBreakBread, suppliesAllAlong,
 } from "./camp-rules.js";
@@ -66,15 +66,17 @@ export function stateOfCamp({ campId, hostId } = {}, now = Date.now()) {
 	return campState(campRecordOf(game.actors?.get(hostId)), { campId, hostId }, now);
 }
 
-/** Whether a character can sit at a camp at all. The dead cannot. */
+/** Whether a character can sit at a camp at all. Whoever has left play cannot (deaths-door-actor.js#isOutOfPlay). */
 export function canCamp(actor) {
-	return actor?.type === "character" && actorPastDeathKind(actor) !== "dead";
+	return actor?.type === "character" && !isOutOfPlay(actor);
 }
 
-/** A Ghost or a Revenant: at the fire, but no mouth, and the night buys them nothing. */
-export function isUnliving(actor) {
-	return UNLIVING_KINDS.includes(actorPastDeathKind(actor));
-}
+/**
+ * A Ghost or a Revenant: at the fire, but no mouth, and the night buys them nothing. The rule is
+ * Death's Door's (deaths-door-actor.js#isUnliving), since Recover, Convalesce and magical healing
+ * ask it too; named here as well for the camp's own readers.
+ */
+export { isUnliving };
 
 /** Every camp in the world that can still be joined, as `{campId, hostId, hostName}`. */
 export function openCamps(now = Date.now()) {
