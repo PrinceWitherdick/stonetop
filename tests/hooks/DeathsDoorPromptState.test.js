@@ -180,6 +180,39 @@ describe("onPreUpdateActorDeathsDoor: a raging Heavy dropping to 0 HP", () => {
 });
 
 /**
+ * A Death's Door roll in progress (DEATHS_DOOR_ROLLING_FLAG) belongs to one brush with death. One left behind
+ * by a write that failed must not tell the NEXT visit that somebody is already rolling, or hand a Take over its
+ * old card; so the write that moves the state by hit points drops it.
+ */
+describe("onPreUpdateActorDeathsDoor: a Death's Door roll left on the sheet", () => {
+	const MARKER = { userId: "p1", userName: "Aline", nonce: "n1", at: 1, messageId: "m1", total: 8, tier: "partial" };
+	function hit(flags, oldHp, newHp) {
+		const changes = { system: { attributes: { hp: { value: newHp } } } };
+		onPreUpdateActorDeathsDoor(about(flags, oldHp), changes, {});
+		return changes.flags?.["stonetop-pwd"] ?? {};
+	}
+
+	it("is dropped by the write that makes them dying afresh", () => {
+		const bag = hit({ deathsDoorRolling: MARKER }, 5, 0);
+		expect(bag.deathsDoor).toBe(DEATHS_DOOR_STATE.DYING);
+		expect(bag).toHaveProperty(["-=deathsDoorRolling"], null);
+	});
+
+	it("is dropped by the hit point that brings them back up (the 10+'s own, or a heal)", () => {
+		const bag = hit({ deathsDoor: DEATHS_DOOR_STATE.DYING, deathsDoorRolling: MARKER }, 0, 1);
+		expect(bag.deathsDoor).toBeNull();
+		expect(bag).toHaveProperty(["-=deathsDoorRolling"], null);
+	});
+
+	it("stands through a hit that moves no state: the roll is still under way", () => {
+		const bag = hit({ deathsDoor: DEATHS_DOOR_STATE.DYING, deathsDoorRolling: MARKER }, 0, 0);
+		expect(bag).not.toHaveProperty(["-=deathsDoorRolling"]);
+		// And nothing to drop is never written as a deletion.
+		expect(hit({}, 5, 0)).not.toHaveProperty(["-=deathsDoorRolling"]);
+	});
+});
+
+/**
  * The raise prompt. `dead` is the one state with no automatic way out ("only the rarest of magic
  * can bring them back"), and a GM playing out a resurrection looks exactly like a GM fixing a typo
  * in the HP box — so the pair of hooks recognises the moment and asks whoever made the change.

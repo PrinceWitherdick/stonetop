@@ -15299,10 +15299,14 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	justify-content: flex-end;
 }
 
-/* No background here: every one of these states its own below, primary or transparent. */
-.deaths-door-close-btn,
+/* No background here: every one of these states its own below, primary or transparent.
+
+   THE DOOR'S AFFIRMATIVES ARE NAMED ONCE, as the `is-primary` buttons in its footer (Done, the roll,
+   "Accept this result", "Take over"), so a footer that gains one is lit by the template alone. The
+   footer is in `:where()` to keep each rule at the one class it had when every button was listed by
+   name: a bump would change which rule wins against anything else aimed at them. */
+:where(.deaths-door-dialog-buttons) .is-primary,
 .deaths-door-cancel-btn,
-.deaths-door-roll-btn,
 .undeath-apply-btn,
 .undeath-close-btn,
 .undeath-cancel-btn {
@@ -15313,15 +15317,18 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	font-size: var(--st-fs-base);
 }
 
-.deaths-door-close-btn,
-.deaths-door-cancel-btn,
-.deaths-door-roll-btn {
+:where(.deaths-door-dialog-buttons) .is-primary,
+.deaths-door-cancel-btn {
 	transition: background 0.1s, border-color 0.1s;
 }
 
 /* The roll is the whole point of the step, so it takes whatever the footer has left over rather
-   than shrinking to its label — "Not yet" beside it stays at its own width. */
-.deaths-door-roll-btn {
+   than shrinking to its label: "Not yet" beside it stays at its own width. "Accept this result"
+   is the same in the result step that waits on Burn Brightly or giving it your all, and so is
+   "Take over" in the window following another owner's roll. */
+.deaths-door-roll-btn,
+.deaths-door-accept-btn,
+.deaths-door-take-over-btn {
 	/* `width` is declared because core hands every button in an application `width: 100%`, which
 	   would otherwise become this one's flex basis and squeeze "Not yet" into wrapping. Growing
 	   from the label's own width fills the same space without taking it from the neighbour. */
@@ -15348,8 +15355,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	justify-content: center;
 }
 
-.deaths-door-close-btn,
-.deaths-door-roll-btn,
+:where(.deaths-door-dialog-buttons) .is-primary,
 .undeath-apply-btn,
 .undeath-close-btn {
 	background: var(--st-btn-primary-bg);
@@ -15407,6 +15413,32 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	cursor: not-allowed;
 }
 
+/* Never Gonna Keep Me Down's "Don't roll: take a 10+": a second way through the step, beside the
+   roll rather than in its place, so it keeps its label's width and the roll stays the lit one.
+   Burn Brightly and "Give it my all" sit beside "Accept this result" the same way. */
+.deaths-door-skip-roll-btn,
+.deaths-door-boost-btn {
+	width: auto;
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.45em;
+	padding: 6px 12px;
+	border: 1px solid var(--dd-rule);
+	border-radius: var(--st-radius-sm);
+	background: transparent;
+	color: inherit;
+	font-size: var(--st-fs-base);
+	cursor: pointer;
+	transition: background 0.1s, border-color 0.1s;
+}
+
+.deaths-door-skip-roll-btn:hover,
+.deaths-door-boost-btn:hover {
+	background: var(--dd-surface-hover);
+	border-color: var(--dd-accent);
+}
+
 /* "Not yet" / "Cancel" are dismissive, so they sit at the right edge (Foundry's convention)
    rather than at the left, where space-between drops a lone button. */
 .deaths-door-cancel-btn {
@@ -15414,8 +15446,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	margin-left: auto;
 }
 
-.deaths-door-close-btn:hover,
-.deaths-door-roll-btn:hover {
+:where(.deaths-door-dialog-buttons) .is-primary:hover {
 	background: var(--st-btn-primary-bg-hover);
 }
 

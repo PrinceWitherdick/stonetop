@@ -3,6 +3,7 @@ import { stonetopChatCard } from "../utils/chat.js";
 import { STONETOP_SCOPE, resolvedFlagProperty } from "../actors/character/StonetopFlags.js";
 import {
 	DEATHS_DOOR_FLAG,
+	DEATHS_DOOR_ROLLING_FLAG,
 	DEATHS_DOOR_STATE,
 	effectiveDeathsDoorState,
 	nextDeathsDoorState,
@@ -97,6 +98,14 @@ export function onPreUpdateActorDeathsDoor(actor, changes, options = {}) {
 
 		if (next !== state) {
 			foundry.utils.setProperty(changes, `flags.${STONETOP_SCOPE}.${DEATHS_DOOR_FLAG}`, next ?? null);
+			// A Death's Door roll in progress belongs to ONE brush with death (DEATHS_DOOR_ROLLING_FLAG). Going
+			// down afresh, or being brought back up before it lands (the 10+'s own hit point included), ends it
+			// in this same write: a marker left over from an earlier visit must never tell the next one that
+			// somebody is already rolling, or hand their old card to a Take over.
+			if (resolvedFlagProperty(actor, DEATHS_DOOR_ROLLING_FLAG)) {
+				const [key, value] = deletionEntry(`flags.${STONETOP_SCOPE}.${DEATHS_DOOR_ROLLING_FLAG}`);
+				foundry.utils.setProperty(changes, key, value);
+			}
 		}
 
 		// The Heavy's Battle Joy lasts "as long as you keep fighting", and one who drops to 0 HP has

@@ -33,11 +33,6 @@ const ALLOWED = {
 	"module/utils/value-tooltips.js":                "parses a Value range written with any dash",
 	"module/utils/treasure-drops.js":                "trims leading punctuation off enriched prose",
 
-	// Quoted rules text. The Death's Door move as the book prints it, dashes and all. Rewriting
-	// somebody else's punctuation inside a quotation is a worse fault than the house rule cures,
-	// and a test in deaths-door.test.js pins this text against the entity form on purpose.
-	"module/actors/character/dialogs/DeathsDoorDialog.js": "the Death's Door move, as printed",
-
 	// TRANSCRIPTION, not copy. These files are Book I / Book II text carried into code so a sheet
 	// or a dialog can render it, and they are transcription end to end rather than in patches —
 	// the same reason `packs/src` is out of this check entirely. The punctuation in them is the
@@ -113,17 +108,24 @@ const QUOTED = {
 	"templates/dialogs/arcana-inspire.hbs": [
 		"pur your creativity, not limit it — interpret them loosely.</p>",
 	],
-	"templates/dialogs/deaths-door.hbs": [
-		"el\"><strong>Hard to Kill</strong> &mdash; mark a debility of your choice to",
-	],
 	"templates/dialogs/wound.hbs": [
 		"re, or Make a Plan to adapt to it &mdash; write the requirements down as ti",
 	],
 };
 
-/** The language file's quoted-rules entries, allowed for the same reason as the dialog above. */
+/**
+ * The language file's quoted-rules entries, allowed for the same reason as the quoted phrases above. The
+ * Death's Door walkthrough's three outcomes are the move as the book prints it, dashes and all: rewriting
+ * somebody else's punctuation inside a quotation is a worse fault than the house rule cures, and a test in
+ * deaths-door.test.js pins that text against the entity form on purpose. Its Hard to Kill line is the one the
+ * template carried as a quoted phrase before its copy moved here.
+ */
 const ALLOWED_EN_KEYS = [
 	"stonetop.specialMoves.deathsDoor.description",
+	"stonetop.specialMoves.deathsDoor.tiers.success",
+	"stonetop.specialMoves.deathsDoor.tiers.partial",
+	"stonetop.specialMoves.deathsDoor.tiers.failure",
+	"stonetop.specialMoves.deathsDoor.result.debilityAsk",
 	"stonetop.specialMoves.recover.lockedHint",
 	"stonetop.condemn.tagTooltip",
 ];
