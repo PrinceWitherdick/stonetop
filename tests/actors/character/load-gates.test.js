@@ -18,8 +18,8 @@ vi.mock("../../../module/book2-art/travel-map-art.js", () => ({
 	resolveTravelMap:   () => Promise.resolve(null),
 }));
 
-const ROOT = "Z:/Foundry/FoundryVTT/Data/systems/stonetop-pwd/packs/src/stonetop-items/playbook-moves";
-const move = rel => JSON.parse(readFileSync(`${ROOT}/${rel}`, "utf8"));
+const ROOT = new URL("../../../packs/src/stonetop-items/playbook-moves/", import.meta.url);
+const move = rel => JSON.parse(readFileSync(new URL(rel, ROOT), "utf8"));
 const CATLIKE  = move("the-fox/catlike.json");
 const FREE_RUN = move("the-fox/free-running.json");
 const STALKER  = move("the-ranger/stalker.json");

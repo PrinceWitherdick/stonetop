@@ -12,8 +12,8 @@ import { pickableMoveDescription, readPickListStamp } from "../../../module/util
 import { moveCardBody } from "../../../module/utils/move-tiers.js";
 import { stripHtmlToText } from "../../../module/utils/strings.js";
 
-const ROOT = "Z:/Foundry/FoundryVTT/Data/systems/stonetop-pwd/packs/src/stonetop-items";
-const doc = rel => JSON.parse(readFileSync(`${ROOT}/${rel}`, "utf8"));
+const ROOT = new URL("../../../packs/src/stonetop-items/", import.meta.url);
+const doc = rel => JSON.parse(readFileSync(new URL(rel, ROOT), "utf8"));
 const SEEK   = doc("basic-moves/seek-insight.json");
 const FORAGE = doc("expedition-moves/forage.json");
 
