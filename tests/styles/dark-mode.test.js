@@ -1,6 +1,4 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import fs from "node:fs";
-import path from "node:path";
 import { readCss, readRepo, repoFileExists, ownRule } from "../fakes/css.js";
 import { fakeEl } from "../fakes/dom.js";
 import { contrastRatio, parseColor, ratioText } from "../fakes/contrast.js";
