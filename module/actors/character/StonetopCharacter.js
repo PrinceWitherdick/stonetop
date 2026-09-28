@@ -3757,6 +3757,20 @@ export class StonetopCharacter {
 			const [deleteKey, deleteValue] = deletionEntry(`flags.${STONETOP_SCOPE}.${key}`);
 			update[deleteKey] = deleteValue;
 		}
+		// A stat slot's +1 (Potential for Greatness) sits on the stored stat, and removeMove leaves
+		// it there with its record (_trimMoveMarksOnRemoval). The record goes with the move's marks
+		// above, so the +1 goes too, in the same write: each slot gave exactly +1, floored at -1 as
+		// _revertStatIncreaseChoice is. A new playbook's onboarding writes its base stats after this.
+		const stats = this._actor.system?.stats ?? {};
+		const drop  = {};
+		for (const name of gone) {
+			for (const mark of filledMarks(flags.moves?.moveMarks?.[name] ?? {})) {
+				if (stats[mark.stat]) drop[mark.stat] = (drop[mark.stat] ?? 0) + 1;
+			}
+		}
+		for (const [key, count] of Object.entries(drop)) {
+			update[`system.stats.${key}.value`] = Math.max((stats[key].value ?? 0) - count, -1);
+		}
 		if (Object.keys(update).length) await this._actor.update(update);
 	}
 

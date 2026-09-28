@@ -225,6 +225,27 @@ describe("a free pick retired by its replacement, and onboarding run again", () 
 	});
 });
 
+describe("a change of playbook takes back the +1s Potential for Greatness gave", () => {
+	it("each filled slot steps its stat back down, with the level-up Improved Stat's", async () => {
+		const { char, actor } = hero({ level: 3, stats: { ...WBH_STATS, con: 1, wis: 1 } });
+		await char.setStatSlot(PFG, "stat", 0, "wis");
+		await char.setStatSlot(PFG, "stat", 2, "con");
+		await char.applyLevelUp(wbhId("Improved Stat"), null, { stat: "dex", cap: 2 });
+		expect([stat(actor, "wis"), stat(actor, "con"), stat(actor, "dex")]).toEqual([2, 2, 1]);
+
+		await char.clearPlaybookData(WBH);
+
+		expect([stat(actor, "wis"), stat(actor, "con"), stat(actor, "dex")]).toEqual([1, 1, 0]);
+		expect(marksOf(actor)).toEqual({});
+	});
+
+	it("never takes a stat below -1", async () => {
+		const { char, actor } = hero({ stats: { ...WBH_STATS, cha: -1 }, marks: { stat: [{ stat: "cha", level: 1 }] } });
+		await char.clearPlaybookData(WBH);
+		expect(stat(actor, "cha")).toBe(-1);
+	});
+});
+
 describe("re-running onboarding keeps the +1s earned since creation", () => {
 	function sheetFor(char, actor) {
 		actor.typedActor = char;
