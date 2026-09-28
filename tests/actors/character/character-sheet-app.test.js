@@ -1952,3 +1952,115 @@ describe("StonetopCharacterSheet: an insert's 0-HP move rolled from the sheet", 
 		expect(ui.notifications.info).toHaveBeenCalledWith("Undying is Vess's move at 0 HP, and Vess is not dying.");
 	});
 });
+
+// The Post-Death tab's controls (post-death-outcomes.js): the context the tab is drawn from, the one
+// delegated handler its buttons go through, and the edit-mode ticks of the insert's lists.
+describe("StonetopCharacterSheet Post-Death tab controls", () => {
+	const purposeLore = {
+		entries: [{
+			slug: "terrible-purpose",
+			options: [{ slug: "longing", count: 1, description: "<p><strong>LONGING</strong> &mdash; Name the person.</p>" }],
+		}],
+	};
+
+	function makePdiSheet({ isGM = false } = {}) {
+		installGetDataGlobals();
+		const actor = makeActor();
+		const char = actor.typedActor;
+		char.playbook = vi.fn(async () => null);
+		char.possessionTriggerMoves = vi.fn(() => ({}));
+		char.deathsDoorState = null;
+		char.sectionOptions = vi.fn(async () => []);
+		char.debilityChoices = [];
+		char.favor = () => 0;
+		char.setFavor = vi.fn(async () => {});
+		char.crossOffMark = vi.fn(async () => true);
+		char.restoreCrossedOffMark = vi.fn(async () => true);
+		char.markSectionOption = vi.fn(async () => true);
+		char.unmarkSectionOption = vi.fn(async () => true);
+		char.setPostDeathLoreCount = vi.fn(async () => {});
+		char.holdAdvantage = vi.fn(async () => {});
+		char.buildSnapshot = vi.fn(async () => ({
+			...minimalSheetSnapshot({}),
+			vitals: { armor: 0, xp: { value: 0, max: 8 }, hp: { value: 3, max: 8 }, damage: "d4" },
+			postDeathInsert: { activeSlug: "ghost", activeInsert: { lore: purposeLore } },
+		}));
+		global.game.user = { isGM, getFlag: () => ({}) };
+		const sheet = makeSheet(actor);
+		return { sheet, char };
+	}
+
+	const button = (dataset, attrs = {}) => ({
+		dataset, disabled: false, getAttribute: name => attrs[name] ?? null,
+	});
+
+	let savedUser;
+	beforeEach(() => { savedUser = global.game.user; global.ChatMessage = { create: vi.fn(async () => ({})), getSpeaker: () => ({}) }; });
+	afterEach(() => { global.game.user = savedUser; delete global.ChatMessage; });
+
+	it("hands the tab its outcome buttons in play, and none in edit mode", async () => {
+		const { sheet } = makePdiSheet();
+		const play = (await sheet.getData()).stonetop.postDeathTab;
+		expect(play.outcomes.rows[0].title).toBe("Terrible Purpose: LONGING");
+		// At 3 of 8 HP: regaining is live.
+		expect(play.outcomes.rows[0].actions[0]).toMatchObject({ action: "regain-all", disabled: false });
+
+		sheet._editMode = true;
+		expect((await sheet.getData()).stonetop.postDeathTab.outcomes).toBeNull();
+	});
+
+	it("routes an outcome button to its outcome, and ignores one with nothing to do", async () => {
+		const { sheet, char } = makePdiSheet();
+		await sheet._onPostDeathControl(button({ pdiAction: "indulge", source: "INSATIABLE" }));
+		expect(char.holdAdvantage).toHaveBeenCalledWith("Insatiable");
+
+		char.holdAdvantage.mockClear();
+		expect(sheet._onPostDeathControl(button({ pdiAction: "indulge" }, { "aria-disabled": "true" }))).toBeNull();
+		expect(char.holdAdvantage).not.toHaveBeenCalled();
+	});
+
+	it("sets Favor from a pip: a ticked pip is held", async () => {
+		const { sheet, char } = makePdiSheet();
+		await sheet._onPostDeathControl(button({ pdiAction: "favor-pip", index: "2" }, { "aria-pressed": "false" }));
+		expect(char.setFavor).toHaveBeenCalledWith(3);
+		await sheet._onPostDeathControl(button({ pdiAction: "favor-pip", index: "1" }, { "aria-pressed": "true" }));
+		expect(char.setFavor).toHaveBeenLastCalledWith(1);
+	});
+
+	it("keeps the Mark controls the GM's", async () => {
+		const player = makePdiSheet();
+		expect(player.sheet._onPostDeathControl(button({ pdiAction: "cross-off", slug: "ravenous" }))).toBeNull();
+		expect(player.char.crossOffMark).not.toHaveBeenCalled();
+
+		const gm = makePdiSheet({ isGM: true });
+		await gm.sheet._onPostDeathControl(button({ pdiAction: "cross-off", slug: "ravenous" }));
+		expect(gm.char.crossOffMark).toHaveBeenCalledWith("ravenous");
+		await gm.sheet._onPostDeathControl(button({ pdiAction: "uncross", slug: "ravenous" }));
+		expect(gm.char.restoreCrossedOffMark).toHaveBeenCalledWith("ravenous");
+	});
+
+	// B12: a Consequence ticked in edit mode goes through markSectionOption, which grants the moves some bring.
+	it("routes an edit-mode Consequence tick through markSectionOption, and a Purpose tick as a count", async () => {
+		const { sheet, char } = makePdiSheet();
+		await sheet._onInsertLoreTick({ checked: true, dataset: { loreSlug: "consequences", optionSlug: "specter", idx: "0" } });
+		expect(char.markSectionOption).toHaveBeenCalledWith("consequences", "specter");
+		await sheet._onInsertLoreTick({ checked: false, dataset: { loreSlug: "consequences", optionSlug: "specter", idx: "0" } });
+		expect(char.unmarkSectionOption).toHaveBeenCalledWith("consequences", "specter");
+		await sheet._onInsertLoreTick({ checked: true, dataset: { loreSlug: "terrible-purpose", optionSlug: "duty", idx: "0" } });
+		expect(char.setPostDeathLoreCount).toHaveBeenCalledWith("terrible-purpose", "duty", 1);
+		expect(sheet.render).toHaveBeenCalled();
+	});
+
+	it("puts the Final Consequence's box back when the question is declined", async () => {
+		const { sheet, char } = makePdiSheet();
+		char.markSectionOptionUpdateData = vi.fn(() => ({ x: 1 }));
+		char.deathsDoorStateUpdateData = vi.fn(() => ({ y: 1 }));
+		char.restoreHp = vi.fn(async () => false);
+		stubConfirm(false);
+		await sheet._onInsertLoreTick({ checked: true, dataset: { loreSlug: "consequences", optionSlug: "final-consequence", idx: "0" } });
+		expect(char.restoreHp).not.toHaveBeenCalled();
+		expect(char.markSectionOption).not.toHaveBeenCalled();
+		// The re-render is what redraws the box unticked.
+		expect(sheet.render).toHaveBeenCalledWith(false);
+	});
+});

@@ -101,6 +101,19 @@ export class CharacterPostDeath {
 		return true;
 	}
 
+	/**
+	 * Take a crossing-off back: the GM's control for a Mark crossed off by mistake. The book never
+	 * un-crosses one ("you can never gain it"), so this is a correction, not a rule. The last one
+	 * going unsets the flag rather than leaving an empty list behind, as pruneToInsert does.
+	 */
+	async restoreCrossedOffMark(slug) {
+		if (!slug || !this.crossedOffMarks.includes(slug)) return false;
+		const rest = this.crossedOffMarks.filter(s => s !== slug);
+		if (rest.length) await this._insertFlags.setFlag("crossedOff", rest);
+		else await this._insertFlags.unsetFlag("crossedOff");
+		return true;
+	}
+
 	/** Which of those slugs one section is entitled to read — see MARKS_SECTION. */
 	_crossedOffIn(sectionSlug) {
 		return sectionSlug === MARKS_SECTION ? this.crossedOffMarks : [];
@@ -109,6 +122,13 @@ export class CharacterPostDeath {
 	/** "Your master gives you a task; until you complete it, your Favor stays at 0." */
 	get masterTask()          { return this._insertFlags.getFlag("task") ?? ""; }
 	async setMasterTask(text) { await this._insertFlags.setFlag("task", String(text ?? "").trim()); }
+
+	/** The task done: unset, not written blank, so no empty record outlives it. False when none stood. */
+	async clearMasterTask() {
+		if (this._insertFlags.getFlag("task") == null) return false;
+		await this._insertFlags.unsetFlag("task");
+		return true;
+	}
 
 	/**
 	 * The Ghost's tether: "Choose something to which you are bound: your mortal remains, the

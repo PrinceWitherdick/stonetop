@@ -17242,6 +17242,163 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	text-decoration: line-through;
 }
 
+/* The GM's Restore sits on a crossed-off row, and the row's own dimming would dim the one control
+   on it that still does something. So a row carrying it dims its box and text instead. */
+.stonetop-lore-option.is-crossed-off:has(.stonetop-pdi-crossoff-btn) {
+	opacity: 1;
+}
+.stonetop-lore-option.is-crossed-off:has(.stonetop-pdi-crossoff-btn) :is(.stonetop-lore-option-checks, .stonetop-lore-option-desc) {
+	opacity: 0.55;
+}
+
+/* ── Post-Death tab: what the fiction earned, pressed ─────────────────
+   The outcome buttons, the Thrall's Favor pips and the GM's Mark controls (post-death-outcomes.js).
+   Everything is drawn from tokens the past-death skin already turns over (the ink family, the card
+   fill, the primary button's border, the reds), so on the black paper this tab always wears they
+   come down with the sheet and nothing here needs a dark rule of its own.
+
+   Real buttons with their words on them, at the body size and no smaller: a low-vision player
+   reads this tab through a magnifier. Every property core's app-button rule sets is declared,
+   `width` above all, or `body.game .app button { width: 100% }` stretches each across the row. */
+.stonetop-pdi-outcome-row + .stonetop-pdi-outcome-row {
+	margin-top: 10px;
+}
+
+.stonetop-pdi-outcome-title {
+	margin: 0 0 4px;
+	font-size: var(--st-fs-base);
+	font-weight: 600;
+	color: var(--color-text-dark-primary);
+}
+
+.stonetop-pdi-outcome-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.stonetop-pdi-outcome-btn,
+.stonetop-pdi-crossoff-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	width: auto;
+	flex: 0 0 auto;
+	min-height: calc(28px * var(--stonetop-font-scale, 1));
+	margin: 0;
+	padding: 2px 10px;
+	line-height: 1.25;
+	font-size: var(--st-fs-base);
+	white-space: normal;
+	text-align: left;
+	background: var(--st-card-fill);
+	border: 1px solid var(--st-btn-primary-border);
+	border-radius: var(--st-radius-sm);
+	color: var(--color-text-dark-primary);
+	cursor: pointer;
+}
+
+.stonetop-pdi-outcome-btn:hover,
+.stonetop-pdi-crossoff-btn:hover {
+	background: var(--st-card-rule);
+}
+
+.stonetop-pdi-outcome-btn:focus-visible,
+.stonetop-pdi-crossoff-btn:focus-visible,
+.stonetop-pdi-favor-pip:focus-visible {
+	outline: 2px solid var(--st-past-death-ink, var(--st-btn-primary-border));
+	outline-offset: 2px;
+}
+
+/* Nothing to do (full HP, no debility marked). Dimmed, but still focusable and still carrying
+   its reason on hover: `aria-disabled`, not `disabled` (see tab-post-death.hbs). */
+.stonetop-pdi-outcome-btn[aria-disabled="true"] {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+
+/* Passing through the Last Door ends the character, so it wears the reds the tab's other
+   ending (Remove Insert) wears, re-pointed for the black paper with the rest of the family. */
+.stonetop-pdi-outcome-btn--danger {
+	border-color: var(--st-red-border);
+	background: var(--st-red-bg);
+	color: var(--st-red-text);
+}
+
+.stonetop-pdi-crossoff-btn {
+	flex: 0 0 auto;
+	font-size: var(--st-fs-sm);
+	min-height: 0;
+	padding: 0 8px;
+}
+
+.stonetop-pdi-task .stonetop-pdi-outcome-btn,
+.stonetop-pdi-gm-row .stonetop-pdi-outcome-btn {
+	margin-top: 4px;
+}
+
+.stonetop-pdi-gm-row {
+	margin: 4px 0 12px;
+}
+
+.stonetop-pdi-gm-row .stonetop-pdi-hint {
+	margin-top: 4px;
+}
+
+/* Favor: a ticked pip is Favor HELD. Circles at a size a magnifier can still find, inked in the
+   body ink so the black paper turns them over. */
+.stonetop-pdi-favor-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 4px;
+}
+
+.stonetop-pdi-favor-pip {
+	appearance: none;
+	flex: 0 0 auto;
+	width: calc(20px * var(--stonetop-font-scale, 1));
+	height: calc(20px * var(--stonetop-font-scale, 1));
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	line-height: 1;
+	border: 2px solid var(--color-text-dark-primary);
+	border-radius: 50%;
+	background: transparent;
+	cursor: pointer;
+}
+
+.stonetop-pdi-favor-pip.is-filled {
+	background: var(--color-text-dark-primary);
+}
+
+.stonetop-pdi-favor-pip:disabled {
+	cursor: default;
+}
+
+.stonetop-pdi-favor-count {
+	font-size: var(--st-fs-base);
+	color: var(--color-text-dark-secondary);
+}
+
+/* An edit-mode pick the rules can't account for (UNSTABLE without BREAKDOWN, two Terrible
+   Purposes): the gold caution the stat boxes wear, flagged and never blocked. On the black paper
+   the ink stop is too dark to find, so the border stop (the bright gold) carries it there. */
+.stonetop-lore-option.is-cautioned {
+	box-shadow: inset 3px 0 0 var(--st-gold-border);
+	padding-left: 6px;
+}
+
+.stonetop-lore-option-caution {
+	flex: 0 0 auto;
+	color: var(--st-gold-text);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-lore-option-caution {
+	color: var(--st-gold-border);
+}
+
 /* ── "Someone is dying" chat card ────────────────────────────────────
    The one card in the log that isn't a result — it's an interruption. Given the same cold
    ink and ember edge as the dialog it opens, so a PC going down doesn't scroll past looking

@@ -16,6 +16,9 @@ import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
 import {UndeathDialog} from "./dialogs/UndeathDialog.js";
 import {buildPostDeathChoices, choiceWriteIns} from "./post-death-choices.js";
 import {moveActionsFor, runPostDeathAction} from "./post-death-actions.js";
+import {
+	buildPostDeathTabView, completeMasterTask, gainThrallMark, runPostDeathOutcome, setFavorFromPip, tickInsertLore,
+} from "./post-death-outcomes.js";
 import {DEATHS_DOOR_STATE, HARD_TO_KILL, PAST_DEATH_KINDS, POST_DEATH_INSERT_SLUGS, ZERO_HP_MOVES, halfMaxHp, pastDeathClasses, pastDeathKind, zeroHpMove} from "./deaths-door.js";
 import {WoundDialog} from "./dialogs/WoundDialog.js";
 import {WOUND_STATUS_GLYPH, WOUND_STATUS_LABEL} from "./wound-display.js";
@@ -1621,6 +1624,20 @@ export function createStonetopCharacterSheetClass(Base) {
 			// copies then drift (a retitled section that folds under two different ids).
 			context.stonetop.postDeathInstinctNote = context.stonetop.postDeathInstinctOpen
 				? game.i18n.localize("stonetop.character.selection.chooseOne") : "";
+			// What the tab lets them DO with the insert (post-death-outcomes.js): the outcome buttons a
+			// Terrible Purpose or a Consequence earns in play, the Thrall's Favor as pips, the GM's hand
+			// on a Thrall's Marks, and edit mode's cautions. Built only while the tab is drawn, on the same
+			// grounds as the choices above: it reads the insert's lists from the repository.
+			context.stonetop.postDeathTab = context.stonetop.showPostDeath
+				? await buildPostDeathTabView(this._stonetopCharacter, context.stonetop.postDeathInsert?.activeInsert, {
+					editMode:  !!context.stonetop.editMode,
+					canEdit:   this.isEditable,
+					isGM:      !!game.user?.isGM,
+					outOfPlay: pdState === DEATHS_DOOR_STATE.DEAD,
+					hp:        context.stonetop.vitals?.hp?.value,
+					maxHp:     context.stonetop.vitals?.hp?.max,
+				})
+				: null;
 			// Mirror computed vitals back onto system attributes for the sheet's inputs.
 			// HP-max is playbook-derived, so it only applies with a playbook — keeps
 			// onboarding-built characters from showing the stale template default. Damage
@@ -6003,9 +6020,18 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!ev.target.closest("[data-pdi='lore']")) return;
 				const cb = ev.target.closest(".stonetop-lore-option-check");
 				if (!cb) return;
-				const { loreSlug, optionSlug, idx } = cb.dataset;
-				const newCount = cb.checked ? Number(idx) + 1 : Number(idx);
-				this._stonetopCharacter.setPostDeathLoreCount(loreSlug, optionSlug, newCount);
+				this._onInsertLoreTick(cb);
+			}, true);
+
+			// The tab's own controls, in play and in edit mode alike: the outcome buttons, the Favor pips,
+			// the GM's Mark controls and the master's task. One delegated handler keyed by the button's
+			// `data-pdi-action`, so a control added to the tab needs no listener of its own.
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest("[data-pdi-action]");
+				if (!btn) return;
+				ev.preventDefault();
+				ev.stopPropagation();
+				this._onPostDeathControl(btn);
 			}, true);
 
 			html[0].addEventListener("change", ev => {
@@ -8040,6 +8066,46 @@ export function createStonetopCharacterSheetClass(Base) {
 			// active tab loses that race intermittently.
 			this._activateTabOnRender = "post-death";
 			this.render(false);
+		}
+
+		/**
+		 * An edit-mode tick on the insert's lists (post-death-outcomes.js#tickInsertLore): THE FINAL
+		 * CONSEQUENCE asks and sets `dead` with it, and a Consequence or Mark goes through the seams that
+		 * grant the moves some of them bring. Always re-rendered after, which is also what puts a box
+		 * back when its confirmation was declined.
+		 */
+		_onInsertLoreTick(cb) {
+			const { loreSlug, optionSlug, idx } = cb.dataset;
+			const count = cb.checked ? Number(idx) + 1 : Number(idx);
+			return this._renderAfter(tickInsertLore(this._stonetopCharacter, { section: loreSlug, option: optionSlug, count }));
+		}
+
+		/**
+		 * One of the Post-Death tab's controls (see the listener). Owners only, and the Mark controls
+		 * the GM's alone: "the GM will choose", "ask the GM to choose a Mark that you don't have". The
+		 * button is disabled while its write runs so a second press can't land it twice; the render
+		 * that follows draws it afresh.
+		 */
+		_onPostDeathControl(btn) {
+			// `aria-disabled`, not `disabled`, on an outcome with nothing to do: it stays focusable so its
+			// reason can be read, and so it can be pressed. This is where that press stops.
+			if (!this.isEditable || btn.getAttribute("aria-disabled") === "true") return null;
+			const { pdiAction: action, source = "", slug = "", index } = btn.dataset;
+			const character = this._stonetopCharacter;
+			// Crossing off is the GM's ("ask the GM to choose a Mark that you don't have"); gaining one
+			// is the owner's too (Favor's "Gain a new Mark of your choice").
+			const gmOnly = { "cross-off": true, "uncross": true };
+			if (gmOnly[action] && !game.user?.isGM) return null;
+			btn.disabled = true;
+			switch (action) {
+				case "favor-pip":
+					return this._renderAfter(setFavorFromPip(character, Number(index), btn.getAttribute("aria-pressed") === "true"));
+				case "task-complete": return this._renderAfter(completeMasterTask(character));
+				case "gain-mark":     return this._renderAfter(gainThrallMark(character));
+				case "cross-off":     return this._renderAfter(character.crossOffMark(slug));
+				case "uncross":       return this._renderAfter(character.restoreCrossedOffMark(slug));
+				default:              return this._renderAfter(runPostDeathOutcome(character, action, { source }));
+			}
 		}
 
 		/**

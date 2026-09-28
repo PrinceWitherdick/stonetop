@@ -5707,9 +5707,12 @@ export class StonetopCharacter {
 		return effective;
 	}
 	async setMasterTask(t)  { await this._postDeath.setMasterTask(t); }
+	get masterTask()        { return this._postDeath.masterTask; }
+	async clearMasterTask() { return this._postDeath.clearMasterTask(); }
 	get tether()            { return this._postDeath.tether; }
 	async setTether(t)      { await this._postDeath.setTether(t); }
 	async crossOffMark(s)   { return this._postDeath.crossOffMark(s); }
+	async restoreCrossedOffMark(s) { return this._postDeath.restoreCrossedOffMark(s); }
 	async sectionOptions(s) { return this._postDeath.sectionOptions(s); }
 	async markSectionOption(section, option)   { return this._postDeath.markSectionOption(section, option); }
 	async unmarkSectionOption(section, option) { return this._postDeath.unmarkSectionOption(section, option); }
