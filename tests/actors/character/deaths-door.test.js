@@ -1,12 +1,17 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import { buildLiveCharacter, makeLiveItem, sourceMovesFor } from "../../fakes/LiveCharacter.js";
+import { createStonetopCharacterSheetClass } from "../../../module/actors/character/StonetopCharacterSheet.js";
 import {
+	DEATHS_DOOR_ROLL_STALE_MS,
 	DEATHS_DOOR_STATE,
 	PAST_DEATH_KINDS,
 	POST_DEATH_INSERT_SLUGS,
 	ZERO_HP_MOVES,
 	ZERO_HP_RESOLUTIONS,
 	canFaceDeathsDoor,
+	deathsDoorClaimRuling,
 	deathsDoorRollOptions,
+	deathsDoorRollWatch,
 	effectiveDeathsDoorState,
 	nextDeathsDoorState,
 	pastDeathClasses,
@@ -319,6 +324,118 @@ describe("deathsDoorRollOptions — the Heavy's two modifiers", () => {
 	});
 });
 
+// The same two moves on a live Heavy: only LEARNED ones bend the roll. A player can switch a move
+// off and keep it on the sheet, and an un-ticked Hard to Kill or Unstoppable must do nothing here.
+describe("StonetopCharacter#deathsDoorRollOptions: learned moves only", () => {
+	function heavy({ hardToKill = true, unstoppable = true, marks = 0 } = {}) {
+		const def = name => structuredClone(sourceMovesFor("The Heavy").find(d => d.name === name).system);
+		const off = { "stonetop-pwd": { learned: false } };
+		const built = buildLiveCharacter({
+			slug: "the-heavy", name: "The Heavy",
+			items: [makeLiveItem({ name: "Unstoppable", type: "move", system: def("Unstoppable"), flags: unstoppable ? {} : off })],
+			flags: marks ? { "moves.backgroundChoices": { Unstoppable: marks } } : {},
+		});
+		if (!hardToKill) built.actor.items.find(i => i.name === "Hard to Kill").flags["stonetop-pwd"].learned = false;
+		return built;
+	}
+	const marksOf = actor => actor.flags["stonetop-pwd"].moves?.backgroundChoices?.Unstoppable ?? 0;
+
+	it("offers +CON and charges the circles with both learned", () => {
+		const opts = heavy({ marks: 2 }).char.deathsDoorRollOptions();
+		expect(opts.hardToKill).toBe(true);
+		expect(opts.penalty).toBe(-2);
+	});
+
+	it("offers no +CON and no debility trade with Hard to Kill switched off", () => {
+		const opts = heavy({ hardToKill: false }).char.deathsDoorRollOptions();
+		expect(opts.hardToKill).toBe(false);
+		expect(opts.statChoices).toEqual([{ stat: "", label: "+nothing" }]);
+	});
+
+	it("charges no penalty for the circles of an Unstoppable switched off", () => {
+		expect(heavy({ unstoppable: false, marks: 3 }).char.deathsDoorRollOptions().penalty).toBe(0);
+	});
+
+	it("clears the circles it charged for, and only those", async () => {
+		const learned = heavy({ marks: 3 });
+		expect(await learned.char.clearUnstoppableCircles()).toBe(3);
+		expect(marksOf(learned.actor)).toBe(0);
+
+		const off = heavy({ unstoppable: false, marks: 3 });
+		expect(await off.char.clearUnstoppableCircles()).toBe(0);
+		expect(marksOf(off.actor)).toBe(3);
+	});
+
+	// The Heavy's Guardian is a rule too (+1 Readiness on every Defend), so it asks the same way.
+	it("gives Guardian's extra Readiness only while Guardian is learned", () => {
+		const guardian = learned => makeLiveItem({ name: "Guardian", type: "move", system: {}, flags: learned ? {} : { "stonetop-pwd": { learned: false } } });
+		expect(buildLiveCharacter({ slug: "the-heavy", name: "The Heavy", items: [guardian(true)] }).char.hasGuardianMove).toBe(true);
+		expect(buildLiveCharacter({ slug: "the-heavy", name: "The Heavy", items: [guardian(false)] }).char.hasGuardianMove).toBe(false);
+	});
+});
+
+// Hard to Kill is "when you are at Death's Door, you can roll +CON": its roll IS Death's Door's, which
+// the walkthrough already folds it into. Rolled on its own it posted a +CON card that changed nothing
+// and doubled the real roll, so every roll path (the Moves tab, the hotbar, the fight ring) opens the
+// walkthrough instead, or says why nothing rolls.
+describe("rolling Hard to Kill opens Death's Door instead", () => {
+	let saved;
+	beforeEach(() => {
+		saved = { ui: globalThis.ui, document: globalThis.document };
+		globalThis.ui = { notifications: { info: vi.fn(), warn: vi.fn() } };
+		// Enough of a DOM for the hotbar's detached stand-in row (_makeSyntheticRollable).
+		globalThis.document = { createElement: () => {
+			const el = { dataset: {}, className: "", textContent: "", parent: null, kids: [] };
+			el.append = (...k) => { for (const c of k) { c.parent = el; el.kids.push(c); } };
+			el.closest = sel => (sel === ".item" ? (el.dataset.itemId ? el : el.parent?.closest(sel) ?? null) : null);
+			el.classList = { contains: c => el.className.split(" ").includes(c) };
+			return el;
+		} };
+	});
+	afterEach(() => { globalThis.ui = saved.ui; globalThis.document = saved.document; });
+
+	function sheetFor({ hp = 8, state = null } = {}) {
+		const { char, actor } = buildLiveCharacter({ slug: "the-heavy", name: "The Heavy", flags: state ? { deathsDoor: state } : {} });
+		actor.system.attributes.hp = { value: hp, max: 20 };
+		actor.typedActor = char;
+		actor.items.get = id => actor.items.find(i => i.id === id);
+		const Base = class {
+			constructor() { this._actor = actor; }
+			get actor() { return this._actor; }
+			get isEditable() { return true; }
+			activateListeners() {}
+			render = vi.fn();
+		};
+		const sheet = new (createStonetopCharacterSheetClass(Base))();
+		sheet._stonetopCharacter = char;
+		sheet._onDeathsDoorOpen = vi.fn();
+		char.onRoll = vi.fn();
+		const hardToKill = actor.items.find(i => i.name === "Hard to Kill");
+		return { sheet, char, hardToKill };
+	}
+
+	it("opens the walkthrough for a Heavy who is dying, and rolls nothing on its own", async () => {
+		const { sheet, char, hardToKill } = sheetFor({ hp: 0, state: DEATHS_DOOR_STATE.DYING });
+		await sheet.rollMoveById(hardToKill.id);
+		expect(sheet._onDeathsDoorOpen).toHaveBeenCalledTimes(1);
+		expect(char.onRoll).not.toHaveBeenCalled();
+	});
+
+	it("says why nothing rolls for a Heavy who is not at Death's Door", async () => {
+		const { sheet, char, hardToKill } = sheetFor();
+		await sheet.rollMoveById(hardToKill.id);
+		expect(sheet._onDeathsDoorOpen).not.toHaveBeenCalled();
+		expect(char.onRoll).not.toHaveBeenCalled();
+		expect(globalThis.ui.notifications.info).toHaveBeenCalledWith(expect.stringContaining("not at Death's Door"));
+	});
+
+	it("keeps no em dash in the move's own outcome lines", () => {
+		for (const tier of Object.values(sourceMovesFor("The Heavy").find(d => d.name === "Hard to Kill").system.moveResults)) {
+			expect(tier.value).not.toContain(String.fromCharCode(0x2014));
+		}
+	});
+});
+
 describe("the move's text stays the book's", () => {
 	it("keeps Death's Door's trigger wording", () => {
 		// The prompt card shows this verbatim, so a paraphrase here is a paraphrase at the table.
@@ -466,5 +583,99 @@ describe("DeathsDoorDialog — the window's mood", () => {
 		dlg._rolledTotal = 5;
 		expect(paint(dlg)).toContain("deaths-door-mood-entering");
 		expect(paint(dlg)).not.toContain("deaths-door-mood-entering");
+	});
+});
+
+/**
+ * The roll in progress, as every other owner's window reads it. The window is one client's and the character
+ * stays dying until the tier lands, so this decides whether a window offers dice, waits, resumes or may take over.
+ */
+describe("deathsDoorRollWatch: what a window makes of a roll under way", () => {
+	const DYING = DEATHS_DOOR_STATE.DYING;
+	const marker = (over = {}) => ({ userId: "p1", userName: "Aline", nonce: "n1", at: 1_000, ...over });
+	const watch = (over = {}) => deathsDoorRollWatch({ marker: marker(), state: DYING, me: "gm", holderActive: true, now: 2_000, ...over });
+
+	it("follows another owner's live roll", () => {
+		expect(watch()).toMatchObject({ kind: "watch", marker: { userId: "p1" } });
+	});
+
+	it("honours a marker only while the character is dying, and not one set aside", () => {
+		for (const state of [null, DEATHS_DOOR_STATE.OUT_OF_ACTION, DEATHS_DOOR_STATE.FATE_PENDING, DEATHS_DOOR_STATE.DEAD]) {
+			expect(watch({ state }).kind).toBe("none");
+		}
+		expect(watch({ marker: null }).kind).toBe("none");
+		expect(watch({ marker: { userId: "p1" } }).kind).toBe("none");   // no nonce: not a roll
+		expect(watch({ ignoredNonce: "n1" }).kind).toBe("none");
+	});
+
+	it("is the window's own roll only while its name is still on it", () => {
+		expect(watch({ me: "p1", ownNonce: "n1" }).kind).toBe("own");
+		// Taken over: the same roll under another name is someone else's again.
+		expect(watch({ me: "p1", ownNonce: "n1", marker: marker({ userId: "gm", userName: "GM" }) }).kind).toBe("watch");
+	});
+
+	it("resumes this user's roll that no window here holds, and follows the one that still does", () => {
+		expect(watch({ me: "p1" }).kind).toBe("resume");
+		expect(watch({ me: "p1", heldHere: true }).kind).toBe("watch");
+	});
+
+	it("may be taken over once its roller has left, or it has sat untouched too long", () => {
+		expect(watch({ holderActive: false })).toMatchObject({ kind: "orphaned", reason: "away" });
+		expect(watch({ now: 1_000 + DEATHS_DOOR_ROLL_STALE_MS }).kind).toBe("watch");
+		expect(watch({ now: 1_001 + DEATHS_DOOR_ROLL_STALE_MS })).toMatchObject({ kind: "orphaned", reason: "stale" });
+	});
+});
+
+/**
+ * The primary GM's ruling on a claim, one claim at a time: the lock that makes two owners' presses of Roll inside
+ * one round trip into one roll. Read from the claimant's side of deathsDoorRollWatch.
+ */
+describe("deathsDoorClaimRuling: the GM's lock on a roll", () => {
+	const DYING = DEATHS_DOOR_STATE.DYING;
+	const marker = (over = {}) => ({ userId: "p1", userName: "Aline", nonce: "n1", at: 1_000, ...over });
+	const rule = (over = {}) => deathsDoorClaimRuling({
+		marker: null, state: DYING, userId: "p2", nonce: "n2", holderActive: true, now: 2_000, ...over,
+	});
+
+	it("grants the first claim, with nothing under way", () => {
+		expect(rule()).toEqual({ granted: true, holder: null });
+	});
+
+	it("refuses a second claim while the first is live, naming who holds it", () => {
+		expect(rule({ marker: marker() })).toEqual({ granted: false, holder: marker() });
+	});
+
+	it("refuses every claim once the Door is settled, or before anyone is dying", () => {
+		for (const state of [null, DEATHS_DOOR_STATE.OUT_OF_ACTION, DEATHS_DOOR_STATE.FATE_PENDING, DEATHS_DOOR_STATE.DEAD]) {
+			expect(rule({ state })).toEqual({ granted: false, holder: null });
+		}
+		expect(rule({ userId: null }).granted).toBe(false);
+		expect(rule({ nonce: null }).granted).toBe(false);
+	});
+
+	it("grants a fresh roll over one nobody is finishing, unless it reached the table", () => {
+		expect(rule({ marker: marker(), holderActive: false }).granted).toBe(true);
+		expect(rule({ marker: marker(), now: 1_001 + DEATHS_DOOR_ROLL_STALE_MS }).granted).toBe(true);
+		// Posted: that roll is spent, and is taken over and accepted, never rolled again.
+		expect(rule({ marker: marker(), holderActive: false, posted: true })).toEqual({ granted: false, holder: marker() });
+		// The same user's own posted roll (a reload): picked back up, not rolled again either.
+		expect(rule({ marker: marker({ userId: "p2" }), posted: true }).granted).toBe(false);
+		expect(rule({ marker: marker({ userId: "p2" }) }).granted).toBe(true);
+	});
+
+	it("grants a stale roll to the taker, and only the roll the taker saw left behind", () => {
+		const stale = { marker: marker(), now: 1_001 + DEATHS_DOOR_ROLL_STALE_MS, takeOver: true };
+		expect(rule({ ...stale, nonce: "n1" })).toEqual({ granted: true, holder: null });
+		expect(rule({ marker: marker(), holderActive: false, takeOver: true, nonce: "n1" }).granted).toBe(true);
+		// Its roller came back to it meanwhile: live again, and theirs.
+		expect(rule({ marker: marker(), takeOver: true, nonce: "n1" })).toEqual({ granted: false, holder: marker() });
+		// Another owner took it first: live under their name.
+		const takenFirst = marker({ userId: "p3", userName: "Cal", at: 1_001 + DEATHS_DOOR_ROLL_STALE_MS });
+		expect(rule({ ...stale, marker: takenFirst, nonce: "n1" })).toEqual({ granted: false, holder: takenFirst });
+		// It landed (the marker is gone), or a different roll stands now.
+		expect(rule({ ...stale, marker: null, nonce: "n1" }).granted).toBe(false);
+		expect(rule({ ...stale, nonce: "other" }).granted).toBe(false);
+		// Already the taker's: granted again, so a repeated ask changes nothing.
+		expect(rule({ marker: marker({ userId: "p2" }), takeOver: true, nonce: "n1" }).granted).toBe(true);
 	});
 });

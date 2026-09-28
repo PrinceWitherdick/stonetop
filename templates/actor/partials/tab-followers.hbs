@@ -6,12 +6,14 @@
 
 	{{!-- The "exceptional" tag chip, shown in the tags row. A gated tag: rendered
 	      only for follower types whose playbook grants it (exceptionalAvailable —
-	      the crew via Heroes to the Last, the animal companion via Beast of Legend).
-	      In edit mode it's a selectable chip that shows a lock and warns on click
-	      until the granting move is owned (exceptionalMet); in view mode it shows
-	      only once earned. --}}
+	      the crew via Heroes to the Last, the animal companion via Beast of Legend,
+	      and the ungated custom / initiate / beast follower). The crew's and the
+	      companion's are DERIVED from their move's pick (exceptionalDerived): never a
+	      button, it only reports the state, and in edit mode shows locked until the
+	      pick is made. The ungated ones are a plain toggle in edit mode; in view mode
+	      the chip shows only once earned. --}}
 	{{#*inline "stonetopExceptionalChip"}}
-	{{#if exceptionalAvailable}}{{#if edit.stats}}<button type="button" class="stonetop-follower-tag stonetop-follower-tag--exceptional stonetop-exceptional-toggle{{#if exceptional}} is-selected{{/if}}{{#unless exceptionalMet}} is-locked{{/unless}}" data-ftype="{{ftype}}" data-slug="{{slug}}" data-met="{{exceptionalMet}}" data-hint="{{exceptionalHint}}"{{#unless exceptionalMet}} data-tooltip="{{exceptionalHint}}" data-tooltip-direction="UP"{{/unless}}><span class="stonetop-chip-text">exceptional</span>{{#unless exceptionalMet}} <i class="fas fa-lock"></i>{{/unless}}</button>{{else}}{{#if exceptional}}<span class="stonetop-follower-tag stonetop-follower-tag--exceptional">exceptional</span>{{/if}}{{/if}}{{/if}}
+	{{#if exceptionalAvailable}}{{#if exceptionalDerived}}{{#if (or exceptional edit.stats)}}<span class="stonetop-follower-tag stonetop-follower-tag--exceptional stonetop-follower-tag--derived{{#if exceptional}} is-selected{{else}} is-locked{{/if}}" data-tooltip="{{exceptionalHint}}" data-tooltip-direction="UP"><span class="stonetop-chip-text">exceptional</span>{{#unless exceptional}} <i class="fas fa-lock"></i>{{/unless}}</span>{{/if}}{{else if edit.stats}}<button type="button" class="stonetop-follower-tag stonetop-follower-tag--exceptional stonetop-exceptional-toggle{{#if exceptional}} is-selected{{/if}}" data-ftype="{{ftype}}" data-slug="{{slug}}"><span class="stonetop-chip-text">exceptional</span></button>{{else}}{{#if exceptional}}<span class="stonetop-follower-tag stonetop-follower-tag--exceptional">exceptional</span>{{/if}}{{/if}}{{/if}}
 	{{/inline}}
 
 	{{!-- One roster row's face: the crew's named individuals and anonymous members, and the
@@ -263,7 +265,7 @@
 			      pickCount the rulebook allows. Traits drive HP / armor / damage, so
 			      the card's stats re-derive as they're toggled. --}}
 			<div class="stonetop-crew-tag-picker">
-				<span class="stonetop-crew-tag-hint">Pick {{traitChoices.limit}} more trait{{#unless (eq traitChoices.limit 1)}}s{{/unless}} for your animal companion:</span>
+				<span class="stonetop-crew-tag-hint">{{#if traitChoices.remaining}}Pick {{traitChoices.remaining}} more trait{{#unless (eq traitChoices.remaining 1)}}s{{/unless}} for your animal companion ({{traitChoices.limit}} in all):{{else}}Your animal companion's {{traitChoices.limit}} trait{{#unless (eq traitChoices.limit 1)}}s{{/unless}} (untick one to change it):{{/if}}</span>
 				<div class="stonetop-follower-tags">
 					{{> stonetopExceptionalChip}}
 					{{#each traitChoices.options}}
@@ -280,7 +282,7 @@
 			<div class="stonetop-crew-tag-picker">
 				{{#if subtitleTags.length}}
 				<div class="stonetop-follower-tags">
-					{{#each subtitleTags}}<span class="stonetop-follower-tag">{{label}}</span>{{/each}}
+					{{#each subtitleTags}}<span class="stonetop-follower-tag">{{label}}{{#if editRemovable}} <button type="button" class="stonetop-follower-tag-drop" data-ftype="{{../ftype}}" data-slug="{{../slug}}" data-tag="{{label}}" aria-label="{{editRemoveLabel}}" data-tooltip="{{editRemoveLabel}}" data-tooltip-direction="UP"><i class="fas fa-xmark"></i></button>{{/if}}</span>{{/each}}
 				</div>
 				{{/if}}
 				<div class="stonetop-initiate-trait-rows">
@@ -303,10 +305,26 @@
 			{{#if (or exceptional tags.length (and edit.stats exceptionalAvailable))}}
 			<div class="stonetop-follower-tags">
 				{{> stonetopExceptionalChip}}
-				{{#each tags}}<span class="stonetop-follower-tag{{#if cls}} {{cls}}{{/if}}{{#if tooltip}} stonetop-follower-tag--tooltip{{/if}}"{{#if tooltip}} data-tooltip="{{tooltip}}" data-tooltip-direction="UP"{{/if}}>{{label}}</span>{{/each}}
+				{{#each tags}}<span class="stonetop-follower-tag{{#if cls}} {{cls}}{{/if}}{{#if tooltip}} stonetop-follower-tag--tooltip{{/if}}"{{#if tooltip}} data-tooltip="{{tooltip}}" data-tooltip-direction="UP"{{/if}}>{{label}}{{#if removable}}{{#if @root.editable}} <button type="button" class="stonetop-follower-tag-remove" data-tag="{{label}}" aria-label="{{removeLabel}}" data-tooltip="{{removeLabel}}" data-tooltip-direction="UP"><i class="fas fa-xmark"></i></button>{{/if}}{{/if}}{{#if editRemovable}} <button type="button" class="stonetop-follower-tag-drop" data-ftype="{{../ftype}}" data-slug="{{../slug}}" data-tag="{{label}}" aria-label="{{editRemoveLabel}}" data-tooltip="{{editRemoveLabel}}" data-tooltip-direction="UP"><i class="fas fa-xmark"></i></button>{{/if}}</span>{{/each}}
 				{{#if traitsNote}}<span class="stonetop-follower-trait-note">{{traitsNote}}</span>{{/if}}
 			</div>
-			{{else}}<span class="stonetop-follower-fill-line"></span>{{/if}}
+			{{else}}{{#unless tagEdit}}<span class="stonetop-follower-fill-line"></span>{{/unless}}{{/if}}
+			{{/if}}
+			{{!-- The tag editor under the pencil (Updating followers, p.480): add a tag, and on a
+			      card whose tags are a picker above, the tags added by hand with their remove
+			      buttons (a plain-chip card carries its remove buttons on the chips). --}}
+			{{#if tagEdit}}
+			<div class="stonetop-follower-tag-editor">
+				{{#if tagEdit.added.length}}
+				<div class="stonetop-follower-tags">
+					{{#each tagEdit.added}}<span class="stonetop-follower-tag">{{label}} <button type="button" class="stonetop-follower-tag-drop" data-ftype="{{../ftype}}" data-slug="{{../slug}}" data-tag="{{label}}" aria-label="{{editRemoveLabel}}" data-tooltip="{{editRemoveLabel}}" data-tooltip-direction="UP"><i class="fas fa-xmark"></i></button></span>{{/each}}
+				</div>
+				{{/if}}
+				<div class="stonetop-follower-tag-add-row">
+					<input type="text" class="stonetop-follower-tag-input" data-ftype="{{ftype}}" data-slug="{{slug}}" placeholder="{{tagEdit.placeholder}}" aria-label="{{tagEdit.addLabel}}" autocomplete="off">
+					<button type="button" class="stonetop-follower-tag-add stonetop-cf-mini-btn" aria-label="{{tagEdit.addLabel}}" data-tooltip="{{tagEdit.addLabel}}" data-tooltip-direction="UP"><i class="fas fa-plus"></i></button>
+				</div>
+			</div>
 			{{/if}}
 			{{!-- The card's own fold control. It clamps everything below the vitals band away
 			      (the Details fold, the crew's sections, the Order row) and leaves the card as
@@ -362,7 +380,7 @@
 					<input class="stonetop-follower-stat-input stonetop-follower-armor-source-input" type="text" data-ftype="{{ftype}}" data-slug="{{slug}}" data-field="armorSource" value="{{armorSource}}" placeholder="from… (leather, shield…)" data-tooltip="Where their armor comes from: leather, a shield, thick hides. Optional, and it never changes the number." data-tooltip-direction="UP">
 				</div>
 				{{else}}
-				<span class="stonetop-follower-field-value">{{armor}}{{#if armorSource}} <span class="stonetop-follower-armor-source">({{armorSource}})</span>{{/if}}</span>
+				<span class="stonetop-follower-field-value">{{armor}}{{#if armorSource}} <span class="stonetop-follower-armor-source">({{armorSource}})</span>{{/if}}{{#if armorGateNote}} <span class="stonetop-follower-armor-source stonetop-follower-armor-gate">({{armorGateNote}})</span>{{/if}}</span>
 				{{/if}}
 			</div>
 		</div>
@@ -617,6 +635,31 @@
 	{{#if stonetop.followers.animalCompanion}}
 	{{#with stonetop.followers.animalCompanion}}
 	<div class="stonetop-follower-card{{#if edit.card}} is-editing{{/if}}{{#if cardFolded}} is-collapsed{{/if}}" draggable="true" data-ftype="{{ftype}}" data-slug="{{slug}}" data-section="{{foldId}}">{{> stonetopFollowerCardBody}}
+
+		{{!-- Beast-Bonded (the Ranger's background): the actions marked on the Details tab, listed
+		      read-only; "Lend it your strength" marked is a button (companion-bond.js). --}}
+		{{#if bond}}{{#unless edit.stats}}
+		<div class="stonetop-follower-section stonetop-companion-bond">
+			<p class="stonetop-follower-section-heading">{{localize "stonetop.character.followers.companion.bondHeading"}}</p>
+			<p class="stonetop-follower-readiness-note">{{localize "stonetop.character.followers.companion.bondIntro"}}</p>
+			{{#if bond.actions.length}}
+			<ul class="stonetop-companion-bond-actions">
+				{{#each bond.actions}}<li>{{label}}</li>{{/each}}
+			</ul>
+			{{else}}
+			<p class="stonetop-follower-readiness-note">{{localize "stonetop.character.followers.companion.bondNone"}}</p>
+			{{/if}}
+			{{#if bond.canLend}}
+			<div class="stonetop-follower-order-row">
+				<button type="button" class="stonetop-companion-lend stonetop-inline-btn"
+				        data-tooltip="{{localize "stonetop.character.followers.companion.lendHint"}}" data-tooltip-direction="UP">
+					<i class="fas fa-hand-holding-heart"></i> {{localize "stonetop.character.followers.companion.lendButton"}}
+				</button>
+				{{#if bond.atFull}}<span class="stonetop-follower-readiness-note">{{localize "stonetop.character.followers.companion.lendFullNote"}}</span>{{/if}}
+			</div>
+			{{/if}}
+		</div>
+		{{/unless}}{{/if}}
 	</div>
 	{{/with}}
 	{{/if}}
@@ -907,9 +950,10 @@
 			{{/if}}
 			<div class="stonetop-crew-members">
 				{{#each groupMembers}}
-				<div class="stonetop-crew-member-row">
+				<div class="stonetop-crew-member-row{{#if dead}} is-dead{{/if}}">
 					{{> stonetopRosterAvatar roster="custom-member" slug=../slug}}
 					<span class="stonetop-crew-member-name">{{label}}</span>
+					{{#if dead}}<span class="stonetop-follower-dead-badge" data-tooltip="Marked dead: the group keeps at least two, so they stay on its roster. Set their HP above 0 to revive them."><i class="fas fa-skull-crossbones"></i> <span class="stonetop-chip-text">Fallen</span></span>{{/if}}
 					<span class="stonetop-follower-hp-track stonetop-follower-hp-track--individual">
 						<strong class="stonetop-follower-hp-label">HP</strong>
 						<input class="stonetop-follower-hp-input" type="number"
@@ -1081,6 +1125,20 @@
 		<button type="button" class="stonetop-create-follower-btn stonetop-follower-add-btn">
 			<i class="fas fa-user-plus"></i> Create a follower
 		</button>
+		{{!-- The crew a learned Crew is owed but has never been set up (a Crew borrowed through
+		      another playbook's move, or a Marshal whose onboarding stopped short). --}}
+		{{#if stonetop.followers.crewSetupOffer}}
+		<button type="button" class="stonetop-create-crew stonetop-follower-add-btn">
+			<i class="fas fa-users"></i> Create your crew
+		</button>
+		{{/if}}
+		{{!-- Likewise the companion a learned Animal Companion is owed (taken anywhere but
+		      onboarding: a level-up, the Moves tab, Beast-Bonded mid-play, another playbook's move). --}}
+		{{#if stonetop.followers.companionSetupOffer}}
+		<button type="button" class="stonetop-create-companion stonetop-follower-add-btn">
+			<i class="fas fa-paw"></i> Create your companion
+		</button>
+		{{/if}}
 		{{!-- Playbook possession-followers (the dog / Hounds / Mastiffs) you hold but
 		      haven't added yet — one click builds an editable card. --}}
 		{{#each stonetop.followers.possessionFollowerOffers}}

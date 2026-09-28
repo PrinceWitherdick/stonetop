@@ -39,12 +39,21 @@ import { onHotbarDrop } from "./module/hooks/HotbarDrop.js";
 import { onDropPlaceOfInterest } from "./module/hooks/PlaceOfInterestDrop.js";
 import { onDropFollower } from "./module/hooks/FollowerDrop.js";
 import { onPreUpdateActorDeathsDoor, onUpdateActorDeathsDoorAutoOpen, onUpdateActorDeathsDoorCard, onUpdateActorDeathsDoorRaised, wireDyingPrompt } from "./module/hooks/DeathsDoorPrompt.js";
+import { onUpdateActorUnstoppable } from "./module/actors/character/unstoppable.js";
+import { installBattleJoyOnHurt, installBattleJoyEnd, wireBattleJoyResult } from "./module/combat/battle-joy-offer.js";
+import { wireInvokeConsequences, wireWielderInvoke, invokeCardChoosesConsequence, invokeActionRow, TEN_PLUS_FLAG } from "./module/actors/character/invoke-consequences.js";
+import { wireLoyalToTheEnd } from "./module/actors/character/companion-bond.js";
+import { wireImproviseCard, wireMarkConsequenceCard } from "./module/actors/character/arcana-seeker-moves.js";
+import { wireInvocationEffects, BATH_QUERY, handleBathQuery } from "./module/actors/character/invocation-apply.js";
+import { installBattleHolds } from "./module/combat/battle-holds.js";
+import { hideAttackFxForReducedMotion } from "./module/combat/attack-fx.js";
 import { deathDripStamp, markDeathDrip } from "./module/hooks/DeathChatDrip.js";
 import { installOutOfTheFight } from "./module/fight/out-of-the-fight.js";
 import { onPreCreateThreatNote } from "./module/hooks/ThreatNotePins.js";
 import { onUpdateSiteNote } from "./module/sites/site-scene-pins.js";
 import { onDrawStonetopNote } from "./module/hooks/StonetopNoteLabels.js";
 import { installMapPinNameToggle } from "./module/hooks/MapPinNameToggle.js";
+import { installTimeBanner } from "./module/seasons/time-banner.js";
 import { registerExpeditionRouteHooks } from "./module/hooks/ExpeditionRouteOverlay.js";
 import { bumpEncounterNotesGeneration } from "./module/actors/gmtoolkit/gm-encounters-tab.js";
 import { gmToolkitActors } from "./module/actors/gmtoolkit/gm-toolkit-actor.js";
@@ -68,16 +77,24 @@ import { boldMissText } from "./module/utils/strings.js";
 import { moveBodyHtml } from "./module/utils/move-tiers.js";
 import { MOVE_TIERS_CLASS, ROLLED_TIER_ATTR } from "./module/utils/move-results.js";
 import { hbsTruthy } from "./module/utils/hbs-truthy.js";
-import { rollSeasonsCard, sign, markMissXp, pbtaDiceFormula, seasonsRollTable } from "./module/utils/roll-engine.js";
-import { xpToLevelUp, adjustXp } from "./module/utils/xp.js";
+import { rollSeasonsCard, sign, markMissXp, pbtaDiceFormula, seasonsRollTable, seasonsRollPicks, syncCountedNotePill } from "./module/utils/roll-engine.js";
+import { countedResult, rolledRecord, cardCountedTier, totalTier } from "./module/utils/counted-tier.js";
+import { burnBrightlyAffordable, burnsBrightlyDriven } from "./module/actors/character/burn-brightly.js";
+import { wireImpetuousYouth, HURT_DAMAGE, IMPETUOUS_YOUTH } from "./module/actors/character/impetuous-youth.js";
+import { isUndeathCard, isZeroHpMoveCard } from "./module/actors/character/deaths-door.js";
+import { registerRollRewrite } from "./module/utils/roll-rewrite.js";
 import { formatOutcomeDetail, escHtml } from "./module/utils/strings.js";
 import { moveChatCard, canRewriteCard } from "./module/utils/chat.js";
 import { grantsWholeList, paintPickTally, pickLimitFor, releaseOverLimit, tierOffersPicks } from "./module/utils/pick-tally.js";
 import { wireUndoXpMark } from "./module/utils/undo-xp-mark.js";
 import { isKnowThings, logbookUses, LOGBOOK, STRONG_HIT_TOTAL } from "./module/actors/character/know-things.js";
+import { possessionTrackUses, BOOKS_AND_SCROLLS, HOLY_RELICS } from "./module/actors/character/possession-tracks.js";
+import { INVOKE_THE_SUN_GOD } from "./module/actors/character/holy-light.js";
 import { artifactStateForTier } from "./module/actors/character/artifact-identify.js";
-import { wireAttackConfirm, applyGateOnce, wireApplyDamage, wireDamageSeed, wireConditionalArmor, wireSufferAmount, wireSufferChoice, rollOptionDamage, APPLY_QUERY, handleApplyQuery } from "./module/combat/attack-flow.js";
+import { repeatBoxLocked } from "./module/actors/character/PlaybookMoveEntry.js";
+import { wireAttackConfirm, applyGateOnce, wireApplyDamage, wireDamageSeed, wireConditionalArmor, wireUnstoppableMark, forgetBarkskinMarks, wireSufferAmount, wireSufferChoice, rollOptionDamage, APPLY_QUERY, handleApplyQuery, wireRosterHitMove, ROSTER_MOVE_QUERY, handleRosterMoveQuery } from "./module/combat/attack-flow.js";
 import { wireDefendSpends, SPEND_QUERY, handleSpendQuery } from "./module/fight/defend-spend.js";
+import { HEALERS_ARTS_QUERY, handleHealersArtsQuery } from "./module/actors/character/healers-arts.js";
 import { markQuestionBullets } from "./module/utils/question-bullets.js";
 import { wrapGlyphTextContainers } from "./module/utils/glyphs.js";
 import { applyJournalSpiralBullets, resolveEntry } from "./module/utils/journal-spiral-bullets.js";
@@ -88,10 +105,11 @@ import { applyJournalCheckboxes } from "./module/utils/journal-checkboxes.js";
 import { applyJournalRollTables } from "./module/utils/journal-roll-tables.js";
 import { bindSteadingImprovementDrag } from "./module/journal/steading-improvement-cards.js";
 import { bindThreatSeedDrag } from "./module/threats/threat-seed-cards.js";
-import { maybeAnnounceBecameHero } from "./module/actors/character/WouldBeHeroAsterisk.js";
+import { remindPotentialForGreatnessOnCard, wirePotentialForGreatnessReminder } from "./module/actors/character/WouldBeHeroAsterisk.js";
 import { StonetopSteading } from "./module/actors/steading/StonetopSteading.js";
 import { debilityPath } from "./module/actors/steading/steading-debilities.js";
 import { readCurrentSeason, readCurrentYear } from "./module/seasons/current-season.js";
+import { wireSeasonsReminderResets } from "./module/seasons/seasons-change-reminders.js";
 import { onSteadingPeopleUpdate, repaintOpenSteadingRosters } from "./module/actors/steading/steading-people.js";
 import { makeDialogsResizable, enableAutoHeightVerticalResize } from "./module/utils/resizable-dialogs.js";
 import { registerStonetopWindowTheme, registerStonetopLightTheme } from "./module/utils/window-theme.js";
@@ -99,20 +117,37 @@ import { installWindowRestore } from "./module/utils/window-restore.js";
 import { registerUuidRedirects } from "./module/migration/compat.js";
 import { adoptLegacyClientSettings } from "./module/migration/copy-settings.js";
 import { StonetopFlags } from "./module/actors/character/StonetopFlags.js";
-import { CharacterPossessions } from "./module/actors/character/CharacterPossessions.js";
-import { stockSourcesForFlags, defaultStockSource, SACRED_POUCH_SLUG, RITES_OF_THE_LAND } from "./module/actors/character/stock-cost.js";
-import { readProvisionsYield, rollProvisions } from "./module/actors/character/provisions.js";
+import { payableStockSources, mustAskStockSource, stockReceipt } from "./module/actors/character/stock-cost.js";
+import { askStockSource } from "./module/actors/character/ask-stock-source.js";
+import { readProvisionsYield, rollProvisions, rollStock, withTrappingGear, TRAPPING_GEAR_SLUG } from "./module/actors/character/provisions.js";
+import { askWithButtons } from "./module/utils/ask-with-buttons.js";
 import { belongsToMessage, wirePickedOptionButton } from "./module/utils/picked-option-button.js";
 import { readOptionDamage } from "./module/utils/damage.js";
-import { ownedMove } from "./module/actors/character/owns-move.js";
 import { SYSTEM_ID } from "./module/system-id.js";
 import { speakerActor } from "./module/utils/speaker-actor.js";
 import { bootStep, recordBootPhase, reportBootHealth, bootReport } from "./module/utils/boot-guard.js";
 import { registerCampHooks } from "./module/camp/camp-store.js";
 import { registerVitalsMirrorHooks } from "./module/actors/character/vitals-mirror.js";
+import { registerPostDeathMoveHooks } from "./module/actors/character/post-death-moves.js";
+import { wirePostDeathMoveCards } from "./module/actors/character/post-death-actions.js";
+import { registerRosterFateHooks } from "./module/fight/roster-fate.js";
 import { wireCampCard } from "./module/camp/camp-flow.js";
 import { registerCampWindowRestore } from "./module/camp/CampWindow.js";
+import { registerStruggleHooks } from "./module/struggle/struggle-flow.js";
+import { registerPcAskHooks, wirePcAskCard } from "./module/pc-asks/pc-ask-flow.js";
 import { registerFightTab } from "./module/fight/fight-boot.js";
+import { wireRollBoosts, BOOST_QUERY, handleBoostQuery, BLESSING_QUERY, handleBlessingQuery } from "./module/actors/character/roll-boosts.js";
+import { reconcileTierEffects } from "./module/actors/character/tier-effects.js";
+import {
+	INSPIRATION_QUERY, handleInspirationQuery, onUpdateActorInspirationAtZero, wireInspirationDamage, wireKeepOneHp, wireSpeechCard,
+} from "./module/actors/character/inspiration-flow.js";
+import { GIVE_ADVANTAGE_QUERY, handleGiveAdvantageQuery, wireGiveAdvantage } from "./module/actors/character/give-advantage-flow.js";
+import { wireWouldBeHeroCards } from "./module/actors/character/would-be-hero-cards.js";
+import { UP_WITH_PEOPLE_QUERY, handleUpWithPeopleQuery } from "./module/actors/character/up-with-people.js";
+import {
+	DEATHS_DOOR_BOOST_QUERY, DEATHS_DOOR_CLAIM_QUERY, burnBrightlyOnDoorCard, handleDeathsDoorBoostQuery,
+	handleDeathsDoorClaimQuery,
+} from "./module/actors/character/deaths-door-relay.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -148,6 +183,30 @@ Hooks.once("init", () => {
 	if (CONFIG.queries) CONFIG.queries[APPLY_QUERY] = (data, context) => handleApplyQuery(data, context);
 	// And a player's Readiness spend on such a card (fight/defend-spend.js).
 	if (CONFIG.queries) CONFIG.queries[SPEND_QUERY] = (data, context) => handleSpendQuery(data, context);
+	// And giving a blow a crew member took to another member of the crew (attack-flow.js#wireRosterHitMove).
+	if (CONFIG.queries) CONFIG.queries[ROSTER_MOVE_QUERY] = (data, context) => handleRosterMoveQuery(data, context);
+	// And Healer's Arts' Stock, asked for a patient's Recover out of a carer the player does not own.
+	// Answered by the carer's player, or the GM when none is online (actors/character/healers-arts.js).
+	if (CONFIG.queries) CONFIG.queries[HEALERS_ARTS_QUERY] = (data, context) => handleHealersArtsQuery(data, context);
+	// And a Judge's +1 (Diligence, Sanction, Many Hands) on another player's roll card (roll-boosts.js).
+	if (CONFIG.queries) CONFIG.queries[BOOST_QUERY] = (data, context) => handleBoostQuery(data, context, ROLL_BOOST_DEPS);
+	// And Piety's Blessing, given to a fellow worshipper the Lightbearer's player does not own (roll-boosts.js).
+	if (CONFIG.queries) CONFIG.queries[BLESSING_QUERY] = (data, context) => handleBlessingQuery(data, context);
+	// And We Happy Few's Inspiration: given to an ally the Marshal's player does not own, or its 1d6 added
+	// to a damage card the holder's player cannot write (inspiration-flow.js).
+	if (CONFIG.queries) CONFIG.queries[INSPIRATION_QUERY] = (data, context) => handleInspirationQuery(data, context, INSPIRATION_DEPS);
+	// And Bath of Healing Light, on a patient the Lightbearer's player does not own (invocation-apply.js).
+	if (CONFIG.queries) CONFIG.queries[BATH_QUERY] = (data, context) => handleBathQuery(data, context);
+	// And "you or an ally gain advantage" (Countermeasures, Sage Advice, Everything Burns, Work With What
+	// You've Got), given to a PC the giver's player does not own (give-advantage-flow.js).
+	if (CONFIG.queries) CONFIG.queries[GIVE_ADVANTAGE_QUERY] = (data, context) => handleGiveAdvantageQuery(data, context);
+	// And Up With People's Rapport, held by (or let go of by) a PC partner the hero's player does not own
+	// (actors/character/up-with-people.js).
+	if (CONFIG.queries) CONFIG.queries[UP_WITH_PEOPLE_QUERY] = (data, context) => handleUpWithPeopleQuery(data, context);
+	// And Death's Door's roll in progress: one owner's claim on it at a time, and Burn Brightly or giving it your
+	// all on a private roll's card the owner who took it over was never sent (actors/character/deaths-door-relay.js).
+	if (CONFIG.queries) CONFIG.queries[DEATHS_DOOR_CLAIM_QUERY] = (data, context) => handleDeathsDoorClaimQuery(data, context);
+	if (CONFIG.queries) CONFIG.queries[DEATHS_DOOR_BOOST_QUERY] = (data, context) => handleDeathsDoorBoostQuery(data, context);
 
 	// Every window and modal in the system is drag-resizable; the ad-hoc
 	// Dialog popups we spawn from sheets default to resizable too. The companion
@@ -271,10 +330,12 @@ Hooks.once("init", () => {
 		if (!move?.repeat) return [];
 		const { max, current } = move.repeat;
 		const lastOwnedId = move.ownedIds[move.ownedIds.length - 1] ?? null;
+		// A starting move locks only its first box (see repeatBoxLocked): the Seeker's second Well
+		// Versed is ticked here like any repeatable move's.
 		return Array.from({ length: max }, (_, i) => ({
 			checked:  i < current,
 			ownedId:  i < current ? lastOwnedId : null,
-			disabled: move.isStarting || move.locked || (!(i < current) && i !== current),
+			disabled: repeatBoxLocked(i, current, move.isStarting) || move.locked,
 		}));
 	});
 
@@ -511,6 +572,8 @@ Hooks.once("init", () => {
 		// mounted behind the "Ask How to Roll Each Time" client setting — see RollDialog.js.
 		"stonetop.roll-mode-radios":     "systems/stonetop-pwd/templates/actor/partials/roll-mode-radios.hbs",
 		"stonetop.roll-mode-picker":     "systems/stonetop-pwd/templates/actor/partials/roll-mode-picker.hbs",
+		// The pill itself, inside the picker and over each roll the expedition walkthrough makes.
+		"stonetop.roll-mode-strip":      "systems/stonetop-pwd/templates/actor/partials/roll-mode-strip.hbs",
 		"stonetop.lore-section":          "systems/stonetop-pwd/templates/actor/partials/lore-section.hbs",
 		"stonetop.lore-options-edit":     "systems/stonetop-pwd/templates/actor/partials/lore-options-edit.hbs",
 		"stonetop.lore-options-readonly": "systems/stonetop-pwd/templates/actor/partials/lore-options-readonly.hbs",
@@ -628,6 +691,12 @@ Hooks.once("init", () => {
 Hooks.on("renderPause", onRenderPause);
 Hooks.on("renderPauseBanner", onRenderPause);
 Hooks.on("pauseGame", (paused) => paused && onRenderPause());
+
+// -- ATTACK EFFECTS --------------------------------------------
+// Sequencer fires this on every client as it draws an effect, so each reader's own reduced-motion
+// setting decides whether they see this system's swings and shots (module/combat/attack-fx.js).
+// Registered whether or not Sequencer is installed: without it the hook is simply never called.
+Hooks.on("createSequencerEffect", hideAttackFxForReducedMotion);
 
 // -- COMPENDIUM ITEM ICONS -------------------------------------
 // Art-less rows in an Item compendium get the same fallback markers the world sidebar gets.
@@ -822,6 +891,11 @@ Hooks.on("drawNote", onDrawStonetopNote);
 // does not exist until the interface has been rendered. See hooks/MapPinNameToggle.js.
 Hooks.once("ready", installMapPinNameToggle);
 
+// The weather, the season and the year hung from the top of the screen, read off the steading.
+// `ready` for the same reason as the eye: it mounts into core's own `#ui-top`. See
+// seasons/time-banner.js.
+Hooks.once("ready", installTimeBanner);
+
 // -- EXPEDITION ROUTE ON THE MAP -------------------------------
 // A journey put on a poster-map scene from the Run an Expedition walkthrough. The scene
 // carries the two place slugs and every client paints the line from them, players included.
@@ -900,6 +974,14 @@ Hooks.on("updateActor", (actor, changes) => {
 	if ("name" in (changes ?? {}) || changes?.system?.concept !== undefined) invalidateMonsterRefIndex();
 });
 
+// -- BARKSKIN MARKS --------------------------------------------
+// The damage cards keep one scan of the world's Barkskin marks (attack-flow.js#barkskinOnce). A
+// mark is a flag on the Blessed and counts only while Barkskin is learned, so any actor or move
+// made, changed or deleted drops the scan for the next card to take again.
+for (const hook of ["createActor", "updateActor", "deleteActor", "createItem", "updateItem", "deleteItem"]) {
+	Hooks.on(hook, forgetBarkskinMarks);
+}
+
 // -- CROSS-CLIENT RENDER SYNC ----------------------------------
 // Arcana resource-track clicks persist with { render: false } so the masonry doesn't
 // repack and jump the tab's scroll (the click handler patches the track's checkboxes in
@@ -963,6 +1045,20 @@ Hooks.on("updateActor", onUpdateActorDeathsDoorAutoOpen);
 // The other direction: hit points appearing on a sheet that is through the Last Door. Nothing
 // walks `dead` back on its own, so this asks whoever made the change whether it was a raising.
 Hooks.on("updateActor", onUpdateActorDeathsDoorRaised);
+// Unstoppable: a Heavy fighting on at 0 HP who "would regain HP" clears a mark instead (decided in
+// the preUpdate above); this offers the hit points back to whoever healed them.
+Hooks.on("updateActor", onUpdateActorUnstoppable);
+// We Happy Few: an ally holding Inspiration in a fight, just reduced to 0 HP, is asked whether to keep 1 HP
+// instead, on their own screen; the walkthrough above waits for the answer (inspiration-flow.js).
+Hooks.on("updateActor", onUpdateActorInspirationAtZero);
+
+// The Heavy's own blood spilled: a Heavy who loses HP and stays up is asked, on their own screen,
+// whether they lose themselves in battle. See module/combat/battle-joy-offer.js.
+installBattleJoyOnHurt();
+// And the other end of it: the fight over, a Heavy still raging is asked to roll +CON.
+installBattleJoyEnd();
+// The Marshal going into battle: Stentorian's Command and Front Line Leader's Presence, offered full.
+installBattleHolds();
 
 // The other side of the same moment. A monster reduced to 0 HP has no move to face: it is out of
 // the fight, so the GM's client marks it there and then — core's own `defeated`, which is the skull
@@ -1135,7 +1231,10 @@ function _chatWireRollShifting(message, html) {
 	// most tables never touch it. When disabled, don't inject or reveal the buttons, and
 	// hide any the roll card pre-rendered; the shared .stonetop-card-buttons row is left
 	// for Burn Brightly (wired next) to claim if the owner qualifies.
-	const showShift = game.user.isGM && getSetting("chatShiftButtons");
+	// Not on an insert's 0-HP move (Undying, Dark Succor): its window applies the tier the dice gave
+	// and hears nothing after, so a shift would relabel the card under costs already paid
+	// (deaths-door.js#isUndeathCard). Death's Door's own window follows a shift, and keeps them.
+	const showShift = game.user.isGM && getSetting("chatShiftButtons") && !isUndeathCard(message);
 
 	if (showShift && !cardButtons.querySelector("[data-action='shiftUp']")) {
 		cardButtons.insertAdjacentHTML("afterbegin", `
@@ -1152,9 +1251,9 @@ function _chatWireRollShifting(message, html) {
 }
 
 // -- BURN BRIGHTLY ---------------------------------------------
-const BURN_BRIGHTLY_TOOLTIP =
-	"When you have enough XP to Level Up, " +
-	"you may spend 2 XP after any roll you make to add +1 to that roll (max +1 per roll).";
+// The words live beside the Special Moves tab's (languages/en.json). The Would-Be Hero's Driven background
+// has its own tooltip: any 2 XP will do (actors/character/burn-brightly.js).
+const BURN_BRIGHTLY_KEY = "stonetop.specialMoves.burnBrightly";
 
 function _chatWireBurnBrightly(message, html) {
 	const cardButtons = html.querySelector(".stonetop-roll-card .stonetop-card-buttons");
@@ -1167,14 +1266,17 @@ function _chatWireBurnBrightly(message, html) {
 	const alreadyBurned = message.getFlag(SYSTEM_ID, "burnBrightly") ?? false;
 	const xp    = actor.system?.attributes?.xp?.value    ?? 0;
 	const level = actor.system?.attributes?.level?.value ?? 1;
-	const canAfford = xp >= xpToLevelUp(level);
+	const canAfford = burnBrightlyAffordable(actor, xp, level);
 
-	if (!canAfford && !alreadyBurned) return;
+	// Not on a 0-HP move's card while unspent: Death's Door's window offers Burn Brightly before it settles the
+	// tier, and Undying's and Dark Succor's apply the tier the dice gave, so a +1 here afterwards would relabel
+	// the card and change nothing (deaths-door.js#isZeroHpMoveCard). A spend made there still shows here, spent.
+	if (!alreadyBurned && (!canAfford || isZeroHpMoveCard(message))) return;
 
 	const btn = document.createElement("button");
 	btn.className = "stonetop-burn-brightly-btn";
-	btn.innerHTML = `<span class="stonetop-burn-brightly-icon"></span> Burn brightly`;
-	btn.dataset.tooltip = BURN_BRIGHTLY_TOOLTIP;
+	btn.innerHTML = `<span class="stonetop-burn-brightly-icon"></span> ${escHtml(game.i18n.localize(`${BURN_BRIGHTLY_KEY}.button`))}`;
+	btn.dataset.tooltip = game.i18n.localize(`${BURN_BRIGHTLY_KEY}.${burnsBrightlyDriven(actor) ? "drivenTooltip" : "tooltip"}`);
 	btn.dataset.tooltipDirection = "UP";
 	btn.disabled = alreadyBurned;
 
@@ -1186,48 +1288,37 @@ function _chatWireBurnBrightly(message, html) {
 	btn.addEventListener("click", async () => {
 		btn.disabled = true;
 		try {
-			// Read before the update, so the re-stamped alias is the one the card was created
-			// with rather than whatever the actor has become mid-click.
-			const fullName = characterFullName(actor);
-			// Affordability is checked INSIDE the write queue rather than here. Checking it at
-			// click time was right for one spend and wrong for two: a second Burn Brightly
-			// queued behind the first tested a total the first had not yet reduced, so a
-			// character with 9 XP could buy two +1s and end on 5, below the threshold that made
-			// either of them legal.
-			const { applied, after: newXp, max: maxXp } = await adjustXp(actor, -2, {
-				move: "Burn Brightly",
-				require: (xp, level) => xp >= xpToLevelUp(level),
-			});
-			if (!applied) {
-				ui.notifications.warn("You don't have enough XP to Burn Brightly.");
+			// The one spend (deaths-door-relay.js#burnBrightlyOnDoorCard): the XP inside the write queue, then the
+			// +1 through the same dice-term math and card redraw the ± roll-shift buttons use, so the two never drift.
+			const burned = await burnBrightlyOnDoorCard(message, actor, ROLL_BOOST_DEPS);
+			if (!burned) {
+				ui.notifications.warn(game.i18n.localize(`${BURN_BRIGHTLY_KEY}.notEnoughXp`));
 				btn.disabled = false;
-				return;
 			}
-			ChatMessage.create({
-				content: `-2 XP for Burning Brightly.<br>New XP: ${newXp} / ${maxXp}`,
-				speaker: ChatMessage.getSpeaker({ actor }),
-			});
-
-			const rolls = message.rolls;
-			const roll  = rolls.at(0);
-			// Add +1 to the roll's rollShifting modifier term (creating it if absent) — the
-			// same dice-term math the ± roll-shift buttons use, so the two never drift.
-			await _shiftRoll(roll, 1);
-
-			const speakerUpdate = fullName !== actor.name ? { alias: fullName } : {};
-			await message.update({
-				rolls,
-				// Regenerate the card so the readout, result label and per-tier outcome reflect the +1.
-				flavor:  _shiftRollCardFlavor(message.flavor, roll.total, roll.formula),
-				speaker: { ...message.speaker, ...speakerUpdate },
-				flags:   { [SYSTEM_ID]: { burnBrightly: true } },
-			});
 		} catch (err) {
 			console.error("Stonetop | Error burning brightly:", err);
 			btn.disabled = false;
 		}
 	});
 }
+
+// -- +1 TO A ROLL JUST MADE ------------------------------------
+// The Judge's Diligence (Chronicler of Stonetop) and Sanction (Commune with Aratis), and Many Hands Make
+// Light Work: buttons on the roll card that shift its total by one, the way Burn Brightly does. What they
+// need from here is the same shift the GM's Shift Up makes. See module/actors/character/roll-boosts.js.
+const ROLL_BOOST_DEPS = {
+	shiftRoll:  (roll, shift) => _shiftRoll(roll, shift),
+	cardFlavor: (flavor, total, formula) => _shiftRollCardFlavor(flavor, total, formula),
+	// A shifted Know Things card identifying an arcanum carries the new tier's disclosure, as Shift Up does,
+	// and the tier's effects on the roller follow it. On the GM's client for a relayed +1 (BOOST_QUERY).
+	afterShift: (message, total) => _resyncRewrittenTotal(message, speakerActor(message), total),
+};
+
+// We Happy Few's 1d6 on a plain damage card redraws its total the way a Shift does
+// (module/actors/character/inspiration-flow.js#addInspirationDie).
+const INSPIRATION_DEPS = {
+	cardFlavor: (flavor, total, formula) => _shiftRollCardFlavor(flavor, total, formula),
+};
 
 // -- KNOW THINGS: the moves that reach back into a landed roll --
 //
@@ -1239,8 +1330,8 @@ function _chatWireBurnBrightly(message, html) {
 //     shift term up to exactly 10, reusing the same term math the GM's Shift buttons use.
 //
 // Caveat worth knowing: a later GM Shift Down can take a padded 10 back to 9 and revoke the
-// guarantee, because _shiftRollCardFlavor derives the tier from the total alone and has no notion
-// of a locked tier. That's a GM overriding a player's spend, which is their call to make.
+// guarantee, because _shiftRollCardFlavor derives the tier from the total (and the bends the roll
+// carried) and has no notion of a locked tier. That's a GM overriding a player's spend, which is their call to make.
 
 /** The move a roll card came from, as stamped by StonetopItem.roll. Null for non-move rolls. */
 function _cardMoveName(message) {
@@ -1269,7 +1360,8 @@ async function _syncArcanumIdentification(message, actor, total) {
 	const character = actor?.typedActor;
 	if (!slug || !character) return;
 
-	const key  = _classifyShiftedTotal(Number(total) || 0).key;
+	// The tier the card COUNTS as, which a roll's own "treat a 7-9 as a 10+" bends (utils/counted-tier.js).
+	const key  = cardCountedTier(message, Number(total) || 0, SYSTEM_ID);
 	const opts = { stonetopMove: "Know Things" };
 	try {
 		if (key === "success" || key === "critical") {
@@ -1303,7 +1395,7 @@ async function _syncArtifactIdentification(message, actor, total) {
 	// never settles the ladder — p.430 leaves those answers with the GM. Only Know Things writes.
 	if (!itemId || !character || !isKnowThings(_cardMoveName(message))) return;
 
-	const state = artifactStateForTier(_classifyShiftedTotal(Number(total) || 0).key);
+	const state = artifactStateForTier(cardCountedTier(message, Number(total) || 0, SYSTEM_ID));
 	if (!state) return;
 	try {
 		if (await character.setArtifactState(itemId, state, { upgradeOnly: true })) {
@@ -1330,6 +1422,34 @@ const IDENTIFY_SYNCERS = [_syncArcanumIdentification, _syncArtifactIdentificatio
 async function _resyncIdentification(message, actor, total) {
 	for (const sync of IDENTIFY_SYNCERS) await sync(message, actor, total);
 }
+
+/**
+ * Everything a roll card's total owes to what it moved, called by every place that rewrites one (a GM's
+ * Shift, Burn Brightly, a +1 pressed on the card, a logbook's 10+): what it was identifying, and what its
+ * tier did to the roller (We Happy Few's nerves, Prepare a Welcome's Surprise, Commune with Aratis's
+ * Sanction, the holy light, Defend's Readiness: actors/character/tier-effects.js), and, for a Would-Be Hero
+ * whose card it lifts to a 10+ (as it now COUNTS), the Potential for Greatness reminder the roll itself would
+ * have posted, once per card (WouldBeHeroAsterisk.js).
+ */
+async function _resyncRewrittenTotal(message, actor, total) {
+	await _resyncIdentification(message, actor, total);
+	await reconcileTierEffects(message, total, { actor });
+	try {
+		await remindPotentialForGreatnessOnCard(message, actor, total);
+	} catch (err) {
+		console.error("Stonetop | Error reminding of Potential for Greatness after a rewritten roll:", err);
+	}
+}
+
+// Impetuous Youth's "give it your all" (actors/character/impetuous-youth.js): the same lift every other
+// rewrite makes, and "you get hurt" rolls its 2d4 at the hero on the move-option damage card.
+const IMPETUOUS_YOUTH_DEPS = {
+	...ROLL_BOOST_DEPS,
+	hurt: actor => rollOptionDamage(actor, { move: IMPETUOUS_YOUTH.label, damage: HURT_DAMAGE }),
+};
+// The same hands for Death's Door's own window, which offers Burn Brightly and giving it your all before it
+// settles the tier, and rewrites its card through them (utils/roll-rewrite.js, dialogs/DeathsDoorDialog.js).
+registerRollRewrite(IMPETUOUS_YOUTH_DEPS);
 
 
 function _chatWireKnowThings(message, html) {
@@ -1384,63 +1504,167 @@ function _wireNeverAtALoss(message, html, actor) {
 	}
 }
 
-// "expend a use ... treat the result as a 10+". Only offered while the card is still below a
-// strong hit and the logbook still has a use in it.
+// "expend a use ... treat the result as a 10+". Two things buy it: the Logbook move and the
+// books & scrolls possession, each offered while the card is still below a strong hit and its
+// track still has a use in it. Spending either settles the card, so both buttons go with it.
 function _wireLogbook(message, html, actor, card) {
 	if (message.getFlag(SYSTEM_ID, "knowThingsUpgrade")) return;
 	const roll = message.rolls?.at(0);
 	if (!roll || roll.total >= STRONG_HIT_TOTAL) return;
 
-	const uses = logbookUses(actor, actor.typedActor?.moveResources?.getMoveResources?.() ?? {});
-	if (!uses || uses.left <= 0) return;
-
 	const cardButtons = card.querySelector(".stonetop-card-buttons");
 	if (!cardButtons) return;
+	for (const source of _knowThingsUpgradeSources(actor)) {
+		const uses = source.read();
+		if (!uses || uses.left <= 0) continue;
+		const btn = document.createElement("button");
+		btn.className = "stonetop-logbook-btn";
+		btn.innerHTML = `<i class="fas ${source.icon}"></i> ${escHtml(source.button)}`;
+		btn.dataset.tooltip = `Expend a use (${uses.left} of ${uses.max} left) to ignore this roll and treat the result as a 10+.`;
+		btn.dataset.tooltipDirection = "UP";
+		cardButtons.appendChild(btn);
+		cardButtons.style.display = "flex";
+		btn.addEventListener("click", () => _spendKnowThingsUpgrade(message, actor, cardButtons, btn, source));
+	}
+}
+
+/**
+ * What can turn a Know Things roll into a 10+, each read and spent through the store it lives
+ * in. Both tracks count uses SPENT, so expending one increments.
+ */
+function _knowThingsUpgradeSources(actor) {
+	return [
+		{
+			key: LOGBOOK, title: "Logbook", icon: "fa-book", button: "Consult your logbook",
+			noun: "their logbook", empty: "Your logbook has no uses left.",
+			read:  () => logbookUses(actor, actor.typedActor?.moveResources?.getMoveResources?.() ?? {}),
+			// Routed through the class that owns the move-track storage shape — the same door the
+			// sheet's pips use — so the flag path is spelled out in one place. Attributed for the
+			// ledger.
+			spend: now => actor.typedActor.moveResources.setUses(LOGBOOK, now.spent + 1, { stonetopMove: LOGBOOK }),
+		},
+		{
+			key: BOOKS_AND_SCROLLS.slug, title: "Books & Scrolls", icon: "fa-scroll", button: "Consult your books & scrolls",
+			noun: "their collection", empty: "Your books & scrolls have no uses left.",
+			read:  () => possessionTrackUses(_possessionFlags(actor), BOOKS_AND_SCROLLS),
+			spend: now => actor.typedActor.possessions.setUses(BOOKS_AND_SCROLLS.slug, now.spent + 1),
+		},
+	];
+}
+
+async function _spendKnowThingsUpgrade(message, actor, cardButtons, btn, source) {
+	btn.disabled = true;
+	try {
+		// Re-read at click time: the track may have been spent elsewhere since this rendered.
+		const now = source.read();
+		if (!now || now.left <= 0) {
+			ui.notifications.warn(source.empty);
+			return;
+		}
+		await source.spend(now);
+		// The other source's button, if any: the card is a 10+ now, with nothing left to buy.
+		for (const other of cardButtons.querySelectorAll(".stonetop-logbook-btn")) other.disabled = true;
+		// Pad to exactly 10. _shiftRoll only steps by one, and stopping at 10 keeps the card
+		// off the 12+ "critical" label a bigger pad would earn.
+		const rolls = message.rolls;
+		const shifted = rolls.at(0);
+		while (shifted.total < STRONG_HIT_TOTAL) await _shiftRoll(shifted, 1);
+		await message.update({
+			rolls,
+			flavor: _shiftRollCardFlavor(message.flavor, shifted.total, shifted.formula),
+			flags:  { [SYSTEM_ID]: { knowThingsUpgrade: source.key } },
+		});
+		await ChatMessage.create({
+			content: moveChatCard(source.title,
+				`<p><strong>${escHtml(actor.name)}</strong> consults ${source.noun} and expends a use`
+				+ ` (${now.left - 1} of ${now.max} left), treating that roll as a 10+.</p>`),
+			speaker: ChatMessage.getSpeaker({ actor }),
+		});
+		// If this roll was identifying an arcanum or an artifact, the 10+ the use just bought
+		// has to actually hand the thing over — the outcome was committed when the dice landed.
+		await _resyncRewrittenTotal(message, actor, shifted.total);
+		actor.sheet?.render(false);
+	} catch (err) {
+		console.error(`Stonetop | Error consulting ${source.noun}:`, err);
+		btn.disabled = false;
+	}
+}
+
+/** Whether a rolled card's (shifted) total is a 6-; a card with no roll has not missed. */
+function _invokeCardMissed(message) {
+	const roll = message.rolls?.at(0);
+	return !!roll && totalTier(roll.total) === "failure";
+}
+
+/** The `possessions` flag bag a possession track is read from, off a bare Actor. */
+function _possessionFlags(actor) {
+	const possessions = new StonetopFlags(actor, "possessions");
+	return { selected: possessions.getFlag("selected") ?? [], uses: possessions.getFlag("uses") ?? {} };
+}
+
+// -- HOLY RELICS: A USE IN LIEU OF A CONSEQUENCE ----------------
+/**
+ * The Lightbearer's holy relics (○○○ uses): "if you have one in inventory when you Invoke the Sun
+ * God, you can mark a use in lieu of choosing a consequence." Invoke the Sun God's roll card lists
+ * the consequences to choose on a 7+, so the relic is offered there, as the Logbook is on a Know
+ * Things card. One per card: it stands in for the player's own choice, and the GM's pick on a 7-9
+ * is still theirs to make. Settled on the message, so every client shows the same card.
+ *
+ * Wielder of the White Flame's "Invoke the Sun God right now as if you rolled a 10+" posts a card with
+ * the 10+'s list and no roll (invoke-consequences.js#invokeCardChoosesConsequence), so the relic goes
+ * in that card's own action row: it has no shared button row, and making one would invite a Shift and
+ * a Burn Brightly onto a card with no roll to shift.
+ */
+function _chatWireHolyRelics(message, html) {
+	const tenPlus = !!message.getFlag(SYSTEM_ID, TEN_PLUS_FLAG);
+	const card = html.querySelector(tenPlus ? ".stonetop-chat-move" : ".stonetop-roll-card");
+	if (!card || _cardMoveName(message) !== INVOKE_THE_SUN_GOD) return;
+	if (card.querySelector(".stonetop-holy-relic-btn")) return;
+	if (message.getFlag(SYSTEM_ID, "holyRelicSpent")) return;
+	// A 6- has no consequence list for the player to choose from; the GM says what happens.
+	if (!invokeCardChoosesConsequence(message, { total: message.rolls?.at(0)?.total ?? null })) return;
+	const actor = speakerActor(message);
+	if (!canRewriteCard(message, actor)) return;
+	const relics = possessionTrackUses(_possessionFlags(actor), HOLY_RELICS);
+	if (!relics || relics.left <= 0) return;
+	// Found (or, on the 10+ card, made) only now that there is a button to put in it.
+	const cardButtons = tenPlus ? invokeActionRow(html) : card.querySelector(".stonetop-card-buttons");
+	if (!cardButtons) return;
+
 	const btn = document.createElement("button");
-	btn.className = "stonetop-logbook-btn";
-	btn.innerHTML = `<i class="fas fa-book"></i> Consult your logbook`;
-	btn.dataset.tooltip = `Expend a use (${uses.left} of ${uses.max} left) to ignore this roll and treat the result as a 10+.`;
+	btn.className = "stonetop-logbook-btn stonetop-holy-relic-btn";
+	btn.innerHTML = `<i class="fas fa-sun"></i> Mark a holy relic`;
+	btn.dataset.tooltip = `If you have one in your inventory, mark a use (${relics.left} of ${relics.max} left) in lieu of choosing a consequence.`;
 	btn.dataset.tooltipDirection = "UP";
 	cardButtons.appendChild(btn);
 	cardButtons.style.display = "flex";
 
-	btn.addEventListener("click", async () => {
-		btn.disabled = true;
-		try {
-			// Re-read at click time: the track may have been spent elsewhere since this rendered.
-			const now = logbookUses(actor, actor.typedActor?.moveResources?.getMoveResources?.() ?? {});
+	// The card-button skeleton: the latch on the message, the permission check, the re-render and the
+	// button put back on a throw. A spent card never draws the button, so there is nothing to relabel.
+	_wireSteadingCardButtons(message, [btn], {
+		flag: "holyRelicSpent",
+		onSettled: () => {},
+		warn: "You need permission to mark this character's holy relics.",
+		errorNote: "Error marking a holy relic",
+		actorType: "character",
+		subject: a => a,
+		run: async actor => {
+			// Re-read at click time: the track may have been marked elsewhere since this rendered.
+			const now = possessionTrackUses(_possessionFlags(actor), HOLY_RELICS);
 			if (!now || now.left <= 0) {
-				ui.notifications.warn("Your logbook has no uses left.");
-				return;
+				ui.notifications.warn("Your holy relics have no uses left.");
+				btn.remove();
+				return { abort: true };
 			}
-			// A move track counts uses SPENT, so expending one increments. Routed through the
-			// class that owns that storage shape — the same door the sheet's pips use — so the
-			// flag path is spelled out in one place. Attributed for the ledger.
-			await actor.typedActor.moveResources.setUses(LOGBOOK, now.spent + 1, { stonetopMove: LOGBOOK });
-			// Pad to exactly 10. _shiftRoll only steps by one, and stopping at 10 keeps the card
-			// off the 12+ "critical" label a bigger pad would earn.
-			const rolls = message.rolls;
-			const shifted = rolls.at(0);
-			while (shifted.total < STRONG_HIT_TOTAL) await _shiftRoll(shifted, 1);
-			await message.update({
-				rolls,
-				flavor: _shiftRollCardFlavor(message.flavor, shifted.total, shifted.formula),
-				flags:  { [SYSTEM_ID]: { knowThingsUpgrade: LOGBOOK } },
-			});
+			await actor.typedActor.possessions.setUses(HOLY_RELICS.slug, now.spent + 1);
 			await ChatMessage.create({
-				content: moveChatCard("Logbook",
-					`<p><strong>${escHtml(actor.name)}</strong> consults their logbook and expends a use`
-					+ ` (${now.left - 1} of ${now.max} left), treating that roll as a 10+.</p>`),
+				content: moveChatCard("Holy Relics",
+					`<p><strong>${escHtml(actor.name)}</strong> marks a use of their holy relics`
+					+ ` (${now.left - 1} of ${now.max} left) in lieu of choosing a consequence.</p>`),
 				speaker: ChatMessage.getSpeaker({ actor }),
 			});
-			// If this roll was identifying an arcanum or an artifact, the 10+ the use just bought
-			// has to actually hand the thing over — the outcome was committed when the dice landed.
-			await _resyncIdentification(message, actor, shifted.total);
-			actor.sheet?.render(false);
-		} catch (err) {
-			console.error("Stonetop | Error consulting the logbook:", err);
-			btn.disabled = false;
-		}
+			btn.remove();
+		},
 	});
 }
 
@@ -1641,8 +1865,9 @@ function _chatWireMusterRaise(message, html) {
 // POUCH, several tabs away — so a card that says "spend 1 Stock" carries the button that does it.
 //
 // Rites of the Land's "Spend Boon in lieu of Stock, 1-for-1" applies here exactly as it does to
-// the gated moves, through the same reader (actors/character/stock-cost.js), so the dialog and
-// this button can never disagree about what is in the purse.
+// the gated moves, and so does a Vessel's "lose 2d4 HP instead", through the same reader
+// (StonetopCharacter#stockSources), so the dialog and this button can never disagree about what
+// is in the purse.
 function _chatWireSpendStock(message, html) {
 	const btn = html.querySelector(".stonetop-spend-stock");
 	// Through the same skeleton as the steading's card buttons — the latch, the permission
@@ -1652,46 +1877,37 @@ function _chatWireSpendStock(message, html) {
 		// Stamped on the message, not inferred from the button: a card is one use of the move,
 		// and one use is paid for once however many clients render it.
 		flag: "stockSpent",
-		onSettled: (already, [b]) => { b.textContent = `Spent ${already.amount} ${already.label}`; },
+		// The stamp is shaped like a purse ({ label, vessel }) so the receipt reads off it the way
+		// the sheet's reads off the purse it charged. An older stamp has no `vessel` and reads as Stock.
+		onSettled: (already, [b]) => { b.textContent = stockReceipt(already, already.amount, already.lost); },
 		warn: "You need permission to spend this character's Stock.",
 		errorNote: "Error spending Stock",
 		actorType: "character",
 		subject: actor => actor,
 		run: async (actor, button) => {
 			const amount = Math.max(1, Number(button.dataset.amount) || 1);
-			const source = defaultStockSource(stockSourcesForFlags(readStockFlags(actor)), amount);
-			if (!source) {
+			const character = actor.typedActor;
+			const moveName = _cardMoveName(message) ?? html.querySelector(".stonetop-chat-move-name")?.textContent?.trim() ?? "";
+			// Read LIVE: the pouch's real max and whether it is held (preselected included), a
+			// learned Rites of the Land's Boon, and a Vessel's HP.
+			const payable = payableStockSources(await character.stockSources(), amount);
+			if (!payable.length) {
 				ui.notifications.warn("No Stock or Boon left to spend.");
 				return { abort: true };
 			}
-			// The purse knows which way it counts: the pouch up as it empties, the Boon down.
-			const next = source.after(amount);
-			if (source.key === "boon") {
-				await new StonetopFlags(actor, "moves").setSubKey("backgroundChoices", RITES_OF_THE_LAND, next);
-			} else {
-				await new CharacterPossessions(new StonetopFlags(actor, "possessions")).setUses(SACRED_POUCH_SLUG, next);
-			}
+			// Which purse, asked exactly as the sheet's "Spend from" picker asks it: only when
+			// there is a choice, and always when the Vessel's HP is one of them.
+			const source = mustAskStockSource(payable) ? await askStockSource(payable, amount, moveName) : payable[0];
+			// Closed, or left unpaid: nothing spent, and the button comes back for later.
+			if (!source) return { abort: true };
+			const { lost } = await character.spendStock(source, amount, { moveName, speaker: message.speaker });
+			const receipt = stockReceipt(source, amount, lost);
 			return {
-				stamp: { amount, label: source.label },
-				notice: `Spent ${amount} ${source.label} (${source.remaining - amount} left).`,
+				stamp: { amount, label: source.label, vessel: !!source.vessel, lost },
+				notice: source.vessel ? `${receipt}.` : `${receipt} (${source.remaining - amount} left).`,
 			};
 		},
 	});
-}
-
-/** The two flag bags the purse is read from, off a bare Actor. */
-function readStockFlags(actor) {
-	const rites = ownedMove(actor, RITES_OF_THE_LAND);
-	const possessions = new StonetopFlags(actor, "possessions");
-	return {
-		possessions: {
-			selected: possessions.getFlag("selected") ?? [],
-			uses:     possessions.getFlag("uses") ?? {},
-			maxUses:  possessions.getFlag("maxUses") ?? {},
-		},
-		moveResources: new StonetopFlags(actor, "moves").getFlag("backgroundChoices") ?? {},
-		ritesMax: rites?.system?.resource?.max ?? null,
-	};
 }
 
 // -- ROLL CARD PICK LIST ---------------------------------------
@@ -1855,17 +2071,47 @@ function _chatWireProvisionsPicks(message, html) {
 		// say so, rather than offering to "roll" a 6.
 		icon:    pick => (pick.isRoll ? "fas fa-dice-d6" : "fas fa-basket-shopping"),
 		label:   pick => (pick.isRoll ? ` Roll ${pick.formula} uses` : ` Take ${pick.formula} uses`),
-		readout: paid => _provisionsPaidEl(paid.uses),
+		readout: paid => _provisionsPaidEl(paid.uses, paid.stock),
 		onPress: (btn, index, pick) => _onRollProvisions(message, btn, index, pick),
 	});
 }
 
-/** The static readout a rolled option wears from then on. */
-function _provisionsPaidEl(uses) {
+/** The static readout a rolled option wears from then on: provisions, or Stock for a pouch. */
+function _provisionsPaidEl(uses, stock = false) {
 	const el = document.createElement("span");
 	el.className = "stonetop-provisions-paid";
-	el.textContent = `+${uses} ${uses === 1 ? "use" : "uses"}`;
+	el.textContent = stock ? `+${uses} Stock` : `+${uses} ${uses === 1 ? "use" : "uses"}`;
 	return el;
+}
+
+// The move whose payouts trapping gear and a sacred pouch reach into (see _onRollProvisions).
+const FORAGE = "Forage";
+
+/**
+ * A sacred pouch "can produce Stock instead of provisions" when its owner Forages, so a payout
+ * asks which, while the pouch has room. Null when there is no choice to make (no pouch, a full
+ * one, or not a Forage); otherwise `{ pouchMax }` for Stock, false for provisions, and undefined
+ * when the window was closed without an answer.
+ */
+async function _forageIntoPouch(message, actor, pick) {
+	if (_cardMoveName(message) !== FORAGE) return null;
+	// The one Stock reader (StonetopCharacter#stockSources): whether the pouch is held, its real max,
+	// and its count clamped to that max, so a count past it (Big Magic removed after it was spent
+	// into) never reads as a pouch holding negative Stock.
+	const pouch = (await actor.typedActor?.stockSources?.())?.find(s => s.key === "stock");
+	if (!pouch?.max || pouch.stored <= 0) return null;
+	const pouchMax = pouch.max;
+	const answer = await askWithButtons({
+		title: "Forage",
+		content: `<p>Your sacred pouch holds ${pouch.remaining} of ${pouchMax} Stock. `
+			+ `You can produce Stock instead of provisions: the same ${escHtml(pick.formula)}.</p>`,
+		buttons: [
+			{ key: "stock",      label: "Restock the pouch", icon: "fa-seedling",       value: "stock" },
+			{ key: "provisions", label: "Take provisions",   icon: "fa-basket-shopping", value: "provisions" },
+		],
+	});
+	if (answer === null) return undefined;
+	return answer === "stock" ? { pouchMax } : false;
 }
 
 async function _onRollProvisions(message, btn, index, pick) {
@@ -1878,15 +2124,40 @@ async function _onRollProvisions(message, btn, index, pick) {
 			return;
 		}
 
+		// A sacred pouch may take this haul as Stock instead. Closing the window pays nothing yet.
+		const intoPouch = await _forageIntoPouch(message, actor, pick);
+		if (intoPouch === undefined) {
+			btn.disabled = false;
+			return;
+		}
+		if (intoPouch) {
+			const { produced, held } = await rollStock(actor, { formula: pick.formula, pouchMax: intoPouch.pouchMax, speaker: message.speaker });
+			btn.replaceWith(_provisionsPaidEl(produced, true));
+			for (const sheet of Object.values(actor.apps ?? {})) sheet.render(false);
+			ui.notifications.info(`${actor.name} produced ${produced} Stock (${held} in the pouch).`);
+			const rolled = { ...(message.getFlag(SYSTEM_ID, "provisionsRolled") ?? {}), [index]: { uses: produced, formula: pick.formula, stock: true } };
+			await message.setFlag(SYSTEM_ID, "provisionsRolled", rolled);
+			return;
+		}
+
+		// Trapping gear's "+1 use of provisions" is once per Forage: the first provisions payout on
+		// the card carries it, and the stamp below says which one did.
+		const paidBefore = Object.values(message.getFlag(SYSTEM_ID, "provisionsRolled") ?? {});
+		const trapping = _cardMoveName(message) === FORAGE
+			&& !paidBefore.some(p => p?.trapping)
+			&& !!(await actor.typedActor?.holdsPossession?.(TRAPPING_GEAR_SLUG));
+		const formula = trapping ? withTrappingGear(pick.formula) : pick.formula;
+
 		// Rolled to chat rather than quietly: how much food the party came back with is a number
 		// the whole table plays off, and a die nobody saw is a number they have to take on faith.
 		// A flat count has no such doubt and posts nothing — a card announcing a rolled "6" out of
 		// a formula that is the literal 6 is noise.
 		const { uses, larder } = await rollProvisions(actor, {
-			formula:  pick.formula,
+			formula,
 			announce: pick.isRoll,
 			carry:    pick.claimsLoad,
 			speaker:  message.speaker,
+			note:     trapping ? "+1 from trapping gear" : "",
 		});
 		btn.replaceWith(_provisionsPaidEl(uses));
 		for (const sheet of Object.values(actor.apps ?? {})) sheet.render(false);
@@ -1894,7 +2165,7 @@ async function _onRollProvisions(message, btn, index, pick) {
 
 		// Stamped last: the larder is the thing that had to land, and a stamp written before it
 		// would lock out the retry if the write failed.
-		const rolled = { ...(message.getFlag(SYSTEM_ID, "provisionsRolled") ?? {}), [index]: { uses, formula: pick.formula } };
+		const rolled = { ...(message.getFlag(SYSTEM_ID, "provisionsRolled") ?? {}), [index]: { uses, formula, ...(trapping ? { trapping: true } : {}) } };
 		await message.setFlag(SYSTEM_ID, "provisionsRolled", rolled);
 	} catch (err) {
 		console.error("Stonetop | Error rolling provisions:", err);
@@ -1944,7 +2215,9 @@ function _chatWireOptionDamage(message, html) {
 		// An option that names a flat number has nothing to throw, and the icon and the verb both
 		// say so rather than offering to "roll" a 3.
 		icon:    dealt => (dealt.isRoll ? "fas fa-dice-d6" : "fas fa-burst"),
-		label:   dealt => `${dealt.isRoll ? " Roll" : " Deal"} ${dealt.formula} damage`,
+		// HP lost is not damage and says so (Bodysnatcher's "lose 2d4 HP"): it rolls onto the same card,
+		// aimed at the one who picked it and armor no object (utils/damage.js#readOptionDamage).
+		label:   dealt => (dealt.hpLoss ? ` Lose ${dealt.formula} HP` : `${dealt.isRoll ? " Roll" : " Deal"} ${dealt.formula} damage`),
 		readout: paid => _optionDamageDealtEl(paid.totals),
 		onPress: (btn, index, dealt) => _onRollOptionDamage(message, btn, index, { move, dealt }),
 	});
@@ -1989,12 +2262,6 @@ async function _onRollOptionDamage(message, btn, index, { move, dealt }) {
 	}
 }
 
-// -- WOULD-BE HERO: BECOME A HERO ------------------------------
-// The first time a Would-Be Hero gains a hero-making (asterisked) move, cross off
-// "Would-be" and announce it once. The playbook header already derives "The Hero"
-// from owning such a move, so this hook is purely the one-time announcement.
-Hooks.on("createItem", (item, options, userId) => maybeAnnounceBecameHero(item, userId, options));
-
 // One render hook drives all of the above, in this order: the blind-roll strip
 // MUST run first (it removes our card so the button-wiring helpers below no-op
 // for viewers who can't see the result), then the message-root passes, then prose
@@ -2013,9 +2280,36 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatAnnotateDebility(message, html);
 	_chatWireRollShifting(message, html);
 	_chatWireBurnBrightly(message, html);
+	// Beside Burn Brightly: a Would-Be Hero's Impetuous Youth, giving it their all on their own move card.
+	wireImpetuousYouth(message, html, IMPETUOUS_YOUTH_DEPS);
+	// Potential for Greatness's reminder card: its "mark this box" buttons, for the character's owners.
+	wirePotentialForGreatnessReminder(message, html, { actor: speakerActor(message) });
+	// Beside Burn Brightly, in the same row: a Judge's +1 on this roll, and the +1s already added.
+	wireRollBoosts(message, html, ROLL_BOOST_DEPS);
 	// After the roll-shift pass (which hides the button row from non-GMs) and after Burn
 	// Brightly, so the logbook pill sits to its right in the shared button row.
 	_chatWireKnowThings(message, html);
+	// Battle Joy's ending roll: the 10+'s 1d4 HP and the 6-'s debility, each spent once per card.
+	wireBattleJoyResult(message, html);
+	// Wielder of the White Flame's 10+: Invoke the Sun God now, as a 10+, once per card.
+	wireWielderInvoke(message, html);
+	// Loyal to the End's 7-9 and 6-: the companion's "injured" tag, added once per card.
+	wireLoyalToTheEnd(message, html);
+	// Improvise, rolled from an un-learned mystery: its 7+'s "use it this once" and its 10+'s step.
+	wireImproviseCard(message, html);
+	// "Mark a consequence" as a move's cost (the Ring of Daagon's Call Up and Send Them Back):
+	// the Ring's next Consequence, through Conduit of Power / Overchannel's ask, once per card.
+	wireMarkConsequenceCard(message, html);
+	// We Happy Few, every tier: who heard the speech holds its Inspiration, once per card.
+	wireSpeechCard(message, html);
+	// "You or an ally gain advantage" (Everything Burns' 10+, Work With What You've Got's 7+, and the posted
+	// cards of Countermeasures and Sage Advice): who holds it, once per card.
+	wireGiveAdvantage(message, html);
+	// The Would-Be Hero's card buttons: Speak Truth to Power's "They refused: +1 Resolve", In Over Your
+	// Head's "Mark XP", Voice of Experience's "Ask it" (actors/character/would-be-hero-cards.js).
+	wireWouldBeHeroCards(message, html);
+	// Same row, same reason: a spend that rewrites what the roll costs the player.
+	_chatWireHolyRelics(message, html);
 	// The XP receipt's own row, not the shared button row the two above claim — a card with no
 	// roll behind it never grows a Shift or a Burn Brightly, and this never lands on one that has.
 	wireUndoXpMark(message, html);
@@ -2025,7 +2319,15 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatWireMusterRaise(message, html);
 	_chatWireSpendStock(message, html);
 	_chatWireSeasonsRoll(message, html);
+	// The Seasons Change reminder card's "Reset logbook", for the Seeker's own player.
+	wireSeasonsReminderResets(message, html);
 	_chatWireRollCardPicks(message, html);
+	// Invoke the Sun God's consequences: a ticked debility grows its buttons, the snuffing and the
+	// sun act on the Invocation the card names. After the picks pass, for the same reason as below.
+	wireInvokeConsequences(message, html);
+	// ...and the Invocation's own button (Bath of Healing Light's heal, Go Back to the Shadow's
+	// damage), which reads the Reduced tick the picks pass restored. A 6- grows none.
+	wireInvocationEffects(message, html, { missed: _invokeCardMissed(message) });
 	// After the picks pass, which is what restores each box's ticked state — the provisions
 	// button is shown or hidden by exactly that.
 	_chatWireProvisionsPicks(message, html);
@@ -2033,16 +2335,29 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	// states a damage roll is a number the card owes, and a table with no button for it reaches
 	// for a calculator and the target's HP field.
 	_chatWireOptionDamage(message, html);
+	// A post-death move's roll card: Poltergeist's "deal your damage" and "lose 1d4 HP", the pin's HP, Red
+	// Wrath's and Torment's Blessing's printed damage (actors/character/post-death-actions.js).
+	wirePostDeathMoveCards(message, html);
 	wireDyingPrompt(message, html);
+	// ...and beside Face Death's Door, We Happy Few's "Keep 1 HP" while the character still could.
+	wireKeepOneHp(message, html);
 	wireAttackConfirm(message, html);
 	const damageGate = applyGateOnce(message);
 	wireApplyDamage(message, html, damageGate);
 	// ...and beside Apply, the fight's "Leave off the +N" for several attackers, which also repaints the
 	// card's totals from its flag on every client (attack-flow.js#wireDamageSeed).
 	wireDamageSeed(message, html, damageGate);
+	// ...and We Happy Few's "+1d6 (Inspiration)" on the holder's own damage card, AFTER the seed pass so the
+	// die's redraw of the totals reads the same rows it did (inspiration-flow.js#wireInspirationDamage).
+	wireInspirationDamage(message, html, INSPIRATION_DEPS);
 	// ...and the tick box for armor a move grants on a clause only the fiction can answer: Barkskin
 	// while touching the earth, a holy light held by someone otherwise unarmed.
 	wireConditionalArmor(message, html, damageGate);
+	// ...and Unstoppable's "mark 1" for a Heavy fighting on at 0 HP, ticked, for the same reason.
+	wireUnstoppableMark(message, html, damageGate);
+	// ...and, once a lone blow on a crew's token has landed on one member of its roster, which member
+	// took it, with the others still standing to give it to instead (fight/group-hits.js).
+	wireRosterHitMove(message, html, damageGate);
 	// Defend's Readiness, spent on the blow before it lands: halve it, or take it for your ward
 	// (fight/defend-spend.js). Pressed by anyone who can write the card, for a defender of theirs.
 	wireDefendSpends(message, html);
@@ -2052,6 +2367,9 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	wireSufferChoice(message, html);
 	// The card a new camp posts: its Join button, or how the camp ended (camp/camp-flow.js).
 	wireCampCard(message, html);
+	// Aid, Interfere and Persuade (vs. PCs): the other person's answer, drawn where the move asks
+	// for it (pc-asks/pc-ask-flow.js).
+	wirePcAskCard(message, html);
 });
 
 // -- MAKE CAMP, SHARED -----------------------------------------
@@ -2061,9 +2379,23 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 registerCampHooks();
 // A character's stored armor and max HP, re-mirrored whenever they or their gear change, sheet open or not.
 registerVitalsMirrorHooks();
+// And a character's post-death Consequence and Mark moves (Poltergeist, Red Wrath), kept to what is marked
+// on whichever client marked it, with Home to Vermin's follower offered there.
+registerPostDeathMoveHooks();
+// A crew member a lone blow drops in a fight is asked their fate on the Marshal's player's screen.
+registerRosterFateHooks();
 // And a camp window open when this client reloaded comes back with the sheets, where it was left
 // (utils/window-restore.js, installed in the init hook).
 registerCampWindowRestore();
+
+// -- STRUGGLE AS ONE, SHARED -----------------------------------
+// On every client: the window opens when the GM calls a struggle or shares its results, a player's
+// ask reaches the GM, and a window open at reload comes back. See module/struggle/struggle-flow.js.
+registerStruggleHooks();
+
+// -- AID, INTERFERE, PERSUADE (VS. PCS) -----------------------
+// On every client: an answer posted to one of these cards (or deleted) redraws the card it answers.
+registerPcAskHooks();
 
 // -- SEASONS CHANGE: "ask the most hopeful to roll" -----------
 // Wire the roll button on a spring Seasons Change prompt card (postSeasonsRollPrompt):
@@ -2090,8 +2422,12 @@ function _chatWireSeasonsRoll(message, html) {
 		// — spring's Seasons Change and the Inn's questions — and they share everything but their
 		// outcomes. A card from before the Inn's roll existed carries no id and gets spring's.
 		const table    = seasonsRollTable(btn.dataset.table);
+		// And what it lets the table pick: spring's seasonal gains, listed on the result so the
+		// players can see their options (to say aloud; the GM enters them in the Seasons Change
+		// window). The Inn's questions have no list.
+		const picks    = seasonsRollPicks(btn.dataset.table);
 		try {
-			await rollSeasonsCard({ formula, title, resultTable: table });
+			await rollSeasonsCard({ formula, title, resultTable: table, ...picks });
 		} catch (err) {
 			console.error("Stonetop | Error rolling Seasons Change from chat:", err);
 			btn.disabled = false;
@@ -2117,8 +2453,9 @@ async function _onRollShift(event, message) {
 		});
 		// A shifted Know Things card that was identifying an arcanum has to carry the new tier's
 		// disclosure with it, or a Shift Up says "You read the card, front and back" over a card
-		// still face down. No-op for every other roll — the flag is only on that one.
-		await _resyncIdentification(message, speakerActor(message), roll.total);
+		// still face down. No-op for every other roll: the flag is only on that one. And what the
+		// tier did to the roller follows it: a We Happy Few lifted off its 6- steadies the nerves.
+		await _resyncRewrittenTotal(message, speakerActor(message), roll.total);
 	} catch (err) {
 		console.error("Stonetop | Error shifting roll result:", err);
 	} finally {
@@ -2173,7 +2510,10 @@ function _shiftRollCardFlavor(flavor, total, formula = null) {
 	const resultLabel = resultEl?.querySelector(".stonetop-roll-result-label");
 	let result = null;
 	if (resultEl && resultLabel) {
-		result = _classifyShiftedTotal(total);
+		// The tier the new total COUNTS as, not its own: a roll that treats a 7-9 as a 10+ (Let's Make a
+		// Deal) or a 6- as a 7-9 (Destined, Herd of Horses) carries that bend on its result block, by the
+		// rule's name (roll-engine.js#_rollCard), and a lift inside the bent tier leaves it the tier it was.
+		result = countedResult(total, rolledRecord("", resultEl.dataset));
 		resultEl.classList.remove("success", "partial", "failure", "critical");
 		resultEl.classList.add(result.key);
 		resultLabel.textContent = result.label;
@@ -2222,14 +2562,11 @@ function _shiftRollCardFlavor(flavor, total, formula = null) {
 				else row.setAttribute("hidden", "hidden");
 			}
 		}
+
+		// And the pill naming the bend, as rollStat said it: off when the new total counts as itself, on (or
+		// reworded) when it moves into the bent tier, and the "Conditions Applied" row with it.
+		syncCountedNotePill(wrapper, result.note);
 	}
 
 	return wrapper.innerHTML;
-}
-
-function _classifyShiftedTotal(total) {
-	if (total >= 12) return { key: "critical", label: "12+ Strong Hit" };
-	if (total >= 10) return { key: "success", label: "Strong Hit" };
-	if (total >= 7) return { key: "partial", label: "Weak Hit" };
-	return { key: "failure", label: "Miss" };
 }

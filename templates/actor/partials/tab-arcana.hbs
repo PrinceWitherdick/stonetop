@@ -4,10 +4,21 @@
 	      Minor sections (see below). The empty-state line only shows when there's
 	      nothing to create with either — i.e. the sections themselves won't render. --}}
 	{{#unless stonetop.canCreateArcana}}
-	{{#unless stonetop.arcana.major.hasOwned}}{{#unless stonetop.arcana.minor.hasOwned}}
+	{{#unless stonetop.arcana.major.hasOwned}}{{#unless stonetop.arcana.minor.hasOwned}}{{#unless stonetop.seekerMajorOwed}}
 	<p class="stonetop-arcana-empty">{{localize "stonetop.arcana.empty"}}</p>
-	{{/unless}}{{/unless}}
+	{{/unless}}{{/unless}}{{/unless}}
 	{{/unless}}
+
+	{{!-- A Seeker's background grants 1 major arcanum, and "Choose later" on the Details tab's ask
+	      left it unchosen: the blue "needs your input" cue (the Moves tab's .move-needs-choice),
+	      with the same ask behind its button. Only for whoever may edit the sheet. --}}
+	{{#if stonetop.seekerMajorOwed}}
+	<div class="stonetop-seeker-major-owed">
+		<i class="fas fa-hand-pointer" aria-hidden="true"></i>
+		<span>{{localize "stonetop.seekerMajor.owed"}}</span>
+		<button type="button" class="stonetop-seeker-major-owed-btn">{{localize "stonetop.seekerMajor.owedButton"}}</button>
+	</div>
+	{{/if}}
 
 	{{#*inline "arcanumCard"}}
 	{{#if owned}}

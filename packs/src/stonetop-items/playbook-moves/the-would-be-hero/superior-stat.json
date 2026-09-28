@@ -8,8 +8,7 @@
     "moveType": "playbook",
     "description": "<p>Increase one of your stats by +1 (to a max of +3).</p>",
     "requirement": {
-      "level": 6,
-      "note": "All 6 marks in Potential for Greatness"
+      "marks": { "move": "Potential for Greatness", "count": 6 }
     },
     "cap": 3
   },

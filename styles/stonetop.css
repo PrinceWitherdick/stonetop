@@ -128,7 +128,8 @@
 	/* How long a pop-out tile that waits for the pointer (the relationship map's, the expedition
 	   map's) takes to fade in and back out. 120ms read as a blink rather than a fade; ONE token so
 	   the two tiles keep behaving alike. Only the opacity rides this: the tile's own hover colours
-	   stay quick, because those answer the pointer on the button rather than on the picture. */
+	   stay quick, because those answer the pointer on the button rather than on the picture.
+	   Zeroed under reduced motion, just below this block. */
 	--st-popout-fade: 250ms;
 	--font-size-display: 42px;
 	/* THE PANEL TONE. Not the page: read the note on --st-page below before changing it.
@@ -219,6 +220,27 @@
 	--stonetop-checkbox-icon:         url('/systems/stonetop-pwd/assets/icons/steading/checkbox.svg');
 	--stonetop-checkbox-checked-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg');
 	--stonetop-checkbox-partial-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-partial.svg');
+	/* Two more pieces of fixed near-black art painted as background IMAGES, routed here for the
+	   same reason as the check controls above: the question spiral (lore questions, bestiary
+	   prompts) and the playbook arrow (fold toggles, arcanum and follower disclosure marks). Each
+	   has a bone -light.svg twin beside it; the dark palette at the foot of the file swaps them.
+	   Places that use the same art as a MASK read the url directly and follow currentColor. */
+	--stonetop-question-spiral-icon: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg');
+	--stonetop-playbook-arrow-icon:  url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon.svg');
+
+	/* INK AND PAPER AS CHANNELS, for the washes, rules and wells that were written as
+	   rgba(0,0,0,a) and rgba(255,255,255,a). Used as rgb(var(--st-ink-rgb) / a): the light values
+	   ARE the old literals, so a rule migrated onto these renders identically on paper, and the
+	   dark palette turns every one of them over by re-pointing two tokens. Shadows stay black
+	   and do not use these. */
+	--st-ink-rgb:   0 0 0;
+	--st-paper-rgb: 255 255 255;
+
+	/* Two inks the dialogs wrote as literals: the red of a destructive control (and the rule it
+	   shares with a date heading), and the warm near-black of those headings. Light values ARE the
+	   old literals; the dark palette lifts both. */
+	--st-danger-ink:  #a02020;
+	--st-heading-ink: #2f2a24;
 
 	/* What lifts a card off the page it sits on — the move cards, the invocation cards, the
 	   special-possessions list, the Items tab's Outfit panel. On paper that's a whisper of shadow;
@@ -503,6 +525,9 @@
 	--stonetop-fight-ring-edge: #584a75;
 	--stonetop-fight-ring-edge-width: 1px;
 	--stonetop-fight-ring-hover: var(--color-warm-1, #ee9b3a);
+	/* Let Fly's ammo, low and all out: amber, then a red that still reads on the dark paper. */
+	--stonetop-fight-ring-ammo-low: #f2c14e;
+	--stonetop-fight-ring-ammo-out: #ff7b6e;
 
 	/* WHERE THEY SET OUT FROM, in one place for the same reason. Both ends of a journey are drawn
 	   twice over — the start the books lettered and the start a GM put down by hand — and they are
@@ -697,6 +722,11 @@
 	scrollbar-color: slategrey hsl(30deg 20% 94%);
 }
 
+/* Motion off: the pop-out tiles are simply there on hover and simply gone after it. */
+@media (prefers-reduced-motion: reduce) {
+	:root { --st-popout-fade: 0ms; }
+}
+
 /* Whole-app base font (sidebar, chat, hotbar, everything). This is intentional
    global theming of the Foundry UI, not window/modal chrome, so it stays global. */
 body {
@@ -846,7 +876,7 @@ body {
    A window whose button relabels itself AFTER opening also has to be told it grew: a `Dialog`
    carries no `height: "auto"`, so the frame stays pinned at whatever the content measured
    first. The debility pickers re-fit on each relabel (steading-debilities.js). Seasons Change
-   relabels its Done too, but opens at 560 precisely so that label never wraps.
+   relabels its Done too, but opens at 700 precisely so that label never wraps beside Back/Next.
 
    SPECIFICITY, because this rule now OWNS five properties for every `.stonetop` Dialog in the
    system. It is 0-4-1 and unlayered, which beats core's layered `body.game .app button` outright
@@ -1127,17 +1157,17 @@ figure.stonetop-map figcaption {
 }
 
 .stonetop-glyph--arrow {
-	background-image: url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon.svg');
+	background-image: var(--stonetop-playbook-arrow-icon);
 }
 
 /* Inline ASCII checkboxes (e.g. the gear-value table's "□ Small metal tool")
    swapped for the same checkbox SVGs the interactive lists use. */
 .stonetop-glyph--checkbox {
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/checkbox.svg');
+	background-image: var(--stonetop-checkbox-icon);
 }
 
 .stonetop-glyph--checkbox-checked {
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg');
+	background-image: var(--stonetop-checkbox-checked-icon);
 }
 
 /* Inline ASCII circles (e.g. arcana charge tracks "○○○○") drawn to match the
@@ -1391,7 +1421,7 @@ body :is(.app, .window-app).stonetop-height-resized {
 	--color-form-label-hover: var(--st-text);
 	--color-form-hint: var(--st-text-muted);
 	--color-form-hint-hover: var(--st-text-secondary);
-	--input-background-color: rgba(255, 255, 255, 0.7);
+	--input-background-color: rgb(var(--st-paper-rgb) / 0.7);
 	--input-border-color: #999;
 	--input-text-color: var(--st-text);
 	--input-focus-outline-color: var(--st-btn-primary-border);
@@ -1440,7 +1470,7 @@ body :is(.app, .window-app).stonetop-height-resized {
 	:is(input:not([type=checkbox], [type=radio], [type=range], [type=color]), select, textarea) {
 	font-family: var(--font-stonetop);
 	color: var(--st-text);
-	background: rgba(255, 255, 255, 0.7);
+	background: rgb(var(--st-paper-rgb) / 0.7);
 	border: 1px solid #999;
 }
 :is(.application, .window-app).stonetop-themed .window-content
@@ -1493,6 +1523,107 @@ body :is(.app, .window-app).stonetop-height-resized {
 	border-color: var(--st-red-border);
 	color: var(--st-red-text);
 }
+
+/* ── A question and its answers: `.stonetop-ask` ─────────────────────────
+   The shape a good few of our DialogV2s are: a paragraph of rule, then one button per answer,
+   each labelled with what it DOES rather than yes/no. Two things that shape needs and core does
+   not give it.
+
+   A MEASURE. A DialogV2 sets no width, and ApplicationV2's `width: "auto"` is shrink-to-fit
+   against the VIEWPORT rather than against anything readable -- so a two-sentence question opened
+   as a single line around 1100px wide at the default text size, and half as wide again at the
+   larger sizes some of us run. The cap is that sentence's measure, scaled by the same
+   `--stonetop-font-scale` the prose itself is scaled by on `.stonetop .window-content`, so the
+   question comes to about three lines whatever the size. A `max-width` and not a
+   `position: {width}`: a number of pixels is right at exactly one text size, and shrink-to-fit
+   honours a cap, so a short question still opens a short window.
+
+   A ROW PER ANSWER. Core lays the footer out `flex: 1` and pins every button to a fixed
+   `height: var(--button-size)`, so a label too long for its half of the row wraps INSIDE a box
+   that cannot grow -- the ApplicationV2 twin of the AppV1 trap in `.stonetop.dialog
+   .dialog-buttons button` above. These labels are verb phrases ("Rushing in: lose the Readiness",
+   "Ilsa takes the blow for Wren"), and several of these windows are a list of choices rather than
+   a yes or a no, so each answer takes a row of its own, read top to bottom with the affirmative
+   first. Unlayered, so it beats core's `@layer blocks.base` `.standard-form .form-footer > button`
+   whatever the specificity. `height: auto` over core's fixed one is the safety net under all of
+   it: a name long enough to wrap a label even at full width makes its own button taller instead
+   of spilling out of it. */
+.application.dialog.stonetop-ask {
+	max-width: calc(26rem * var(--stonetop-font-scale, 1));
+}
+.application.dialog.stonetop-ask .form-footer > button {
+	flex: 1 0 100%;
+	height: auto;
+	min-height: var(--button-size);
+}
+/* An opt-in beside the question (deleting a trip: "also remove its Chronicle page"). The shared
+   first-line checkbox row (.stonetop-camp-check), so a label that wraps reads as one item; this
+   only sets it off from the question above. */
+.application.dialog.stonetop-ask .stonetop-ask-check { margin: 6px 0 0; }
+/* Bath of Healing Light's picks (actors/character/invocation-apply.js): a row per choice, the box
+   (two for a "can pick this twice") before its words, and the Reduced box under the list. A row
+   with nothing to act on (no debility marked) stays readable but reads as out of reach. */
+.application.dialog.stonetop-ask .stonetop-bath-options {
+	list-style: none;
+	margin: 4px 0;
+	padding: 0;
+}
+.application.dialog.stonetop-ask :is(.stonetop-bath-option label, .stonetop-bath-reduced) {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.4em;
+	margin: 2px 0;
+}
+.application.dialog.stonetop-ask .stonetop-bath-option.is-none { opacity: 0.6; }
+.application.dialog.stonetop-ask .stonetop-bath-reduced { margin-top: 6px; }
+/* Bath of Healing Light's "Which member?": a radio row per member, in a box that scrolls, so a crew
+   of twelve keeps the window on the screen and its one Heal button in reach. Rows are big targets
+   (the whole row is the label) for a low-vision player; a fallen member stays full-strength ink,
+   struck through beside the Fallen badge, so it reads as out of reach rather than as faint. */
+.application.dialog.stonetop-ask .stonetop-bath-members {
+	list-style: none;
+	margin: 6px 0 0;
+	padding: 2px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	max-height: min(calc(22rem * var(--stonetop-font-scale, 1)), 55vh);
+	overflow-y: auto;
+}
+.application.dialog.stonetop-ask .stonetop-bath-member {
+	display: flex;
+	align-items: center;
+	gap: 0.6em;
+	min-height: 2.6em;
+	padding: 0.35em 0.7em;
+	border: 1px solid var(--st-border, color-mix(in srgb, currentColor 22%, transparent));
+	border-radius: var(--st-radius);
+	cursor: pointer;
+}
+.application.dialog.stonetop-ask .stonetop-bath-member:hover {
+	background: color-mix(in srgb, currentColor 6%, transparent);
+}
+.application.dialog.stonetop-ask .stonetop-bath-member:has(input:checked) {
+	border-color: var(--st-btn-primary-bg, currentColor);
+	background: color-mix(in srgb, currentColor 8%, transparent);
+}
+.application.dialog.stonetop-ask .stonetop-bath-member input[type="radio"] {
+	flex: none;
+	width: 1.25em;
+	height: 1.25em;
+	margin: 0;
+	accent-color: slategrey;
+}
+.application.dialog.stonetop-ask .stonetop-bath-member-name {
+	flex: 1 1 auto;
+	min-width: 0;
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+.application.dialog.stonetop-ask .stonetop-bath-member-hp { flex: none; white-space: nowrap; }
+.application.dialog.stonetop-ask .stonetop-bath-member.is-dead { cursor: not-allowed; }
+.application.dialog.stonetop-ask .stonetop-bath-member.is-dead .stonetop-bath-member-name { text-decoration: line-through; }
+.application.dialog.stonetop-ask .stonetop-bath-member .stonetop-follower-dead-badge { flex: none; margin-top: 0; }
 
 /* ── Neutralize Foundry v14's orange hover / focus accent ──────────────────
    v14 paints button hover, and button + input focus outlines, with its "warm"
@@ -2792,6 +2923,54 @@ input.stonetop-name-field {
 	cursor: pointer;
 }
 
+/* The list is full ("choose 2 or 3" with 3 ticked): what is left cannot be ticked. */
+.stonetop-bg-choice-option.is-disabled {
+	cursor: default;
+	opacity: 0.55;
+}
+
+/* Fewer ticked than the book asks for: said, never refused. */
+.stonetop-bg-choices-flag {
+	margin: 3px 0 0;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	color: var(--st-red-text);
+}
+
+/* An unchosen background's list, shown as what it would ask rather than as boxes to tick. */
+.stonetop-bg-choices-preview-list {
+	margin: 0;
+	padding-left: 1.2em;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	color: var(--color-text-dark-secondary);
+}
+
+/* A list of short words (the Destined's destiny) flows in rows, as the playbook prints it, rather
+   than running 25 lines down the tab. The label keeps its own line. */
+.stonetop-bg-choices--inline {
+	display: flex;
+	flex-wrap: wrap;
+	column-gap: 12px;
+}
+
+.stonetop-bg-choices--inline > .stonetop-bg-choices-label,
+.stonetop-bg-choices--inline > .stonetop-bg-choices-flag,
+.stonetop-bg-choices--inline > .stonetop-bg-choices-preview-list {
+	flex: 1 0 100%;
+}
+
+.stonetop-bg-choices--inline .stonetop-bg-choices-preview-list {
+	padding-left: 0;
+	list-style: none;
+}
+
+.stonetop-bg-choices--inline .stonetop-bg-choices-preview-list li {
+	display: inline;
+}
+
+.stonetop-bg-choices--inline .stonetop-bg-choices-preview-list li:not(:last-child)::after {
+	content: ", ";
+}
+
 .stonetop-bg-resource-row {
 	display: flex;
 	align-items: center;
@@ -3265,15 +3444,49 @@ input.stonetop-name-field {
    Edge to edge, like every other page on this sheet: the tab's own 12px side gutter is the
    whole inset — see the nine-tab padding rule further down. */
 
+/* The intro and the search bar are ONE BLOCK, and the rule goes under the pair of them rather
+   than between them. Both are the tab's preamble — one says whose settings these are, the other
+   is how you get to one — and a rule between them cut the reader off from the box before they
+   had read the sentence that explains it, while leaving the box hanging over the first group as
+   though it belonged to Accessibility. The rule's job is to divide the preamble from the
+   settings, so it sits at the bottom of the preamble: see `.stonetop-preferences-controls`,
+   which carries it. */
 .stonetop-preferences-intro {
-	margin: 0 0 14px;
-	padding-bottom: 10px;
-	border-bottom: 1px solid var(--color-border-light-2);
+	margin: 0 0 10px;
 	color: var(--st-text-secondary);
 	font-size: var(--st-fs-sm);
 	font-style: italic;
 }
 
+/* The search bar over the groups, and the foot of the preamble. Already open and sized to its
+   content, unlike every other search on these sheets — see the pinned variant down in the
+   tab-search block, and the note in tab-preferences.hbs for why this one is not hidden behind
+   a glass. */
+.stonetop-preferences-controls {
+	margin: 0 0 14px;
+	padding-bottom: 10px;
+	border-bottom: 1px solid var(--color-border-light-2);
+}
+
+/* "Nothing here matches…", drawn only while a term has emptied the tab. Kept in the markup
+   rather than built by JS so the sentence lives in en.json with the rest of the tab's copy. */
+.stonetop-preferences-no-matches {
+	display: none;
+	margin: 0;
+	padding: 6px 0;
+	color: var(--st-text-secondary);
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+}
+
+.stonetop-preferences-no-matches.is-visible {
+	display: block;
+}
+
+/* A group with nothing left in it after the filter is hidden whole — heading, caret and all —
+   by the shared `.stonetop-search-hidden` at the foot of the tab-search block. _wirePreferenceSearch
+   stamps it from the rows' own state, because the filter itself hides ITEMS and leaves headings
+   standing: everywhere else the search box lives inside one, and here it does not. */
 .stonetop-preference-group + .stonetop-preference-group {
 	margin-top: var(--stonetop-section-gap, 12px);
 }
@@ -3353,6 +3566,37 @@ input.stonetop-name-field {
    stamps this class on each of the heading's following siblings — see section-editing.js. */
 .stonetop-preference-row.stonetop-section-folded {
 	display: none;
+}
+
+/* …except while the tab's search is running, when a fold the reader set earlier would be
+   hiding the very row they just typed the name of. The search is a question about the WHOLE
+   tab, so it answers over the folds, and they come back the moment the box is empty. Same
+   trade the Arcana sections make (search `.stonetop-arcana-collapsible.is-searching`),
+   including leaving the caret reading "collapsed" while the term is up: it is telling the
+   truth about the state the section goes back to.
+
+   `!important` BECAUSE THE RULE IT HAS TO BEAT IS, and this is the whole reason the rule reads
+   the way it does. The fold is not hidden by the row rule just above — that one is redundant —
+   but by the shared `.stonetop-section-folded { display: none !important }` near the fold
+   machinery's own block, whose `!important` is there to beat the flex and grid displays the
+   folded elements carry. An important declaration beats any non-important one at any
+   specificity, so the first cut of this rule did nothing at all: a reader with the
+   Accessibility group folded searched "contrast", the group's heading came back and the row
+   they wanted stayed hidden under it. Important against important is settled by specificity,
+   which this wins at 0,4,0 against 0,1,0.
+
+   Prefixed with `.stonetop` rather than left bare, which is this file's standing rule for any
+   `!important`: a bare `.stonetop-foo` rule reaches any sheet that renders the class without
+   the root, and an `!important` one cannot be outranked there.
+
+   And it says `:not(.stonetop-search-hidden)` out loud rather than leaning on the filter's own
+   rule to hold the line. That rule is `!important` as well but only 0,1,0, and specificity is
+   read before source order — so without this, the weight added to beat the FOLD would have gone
+   on to beat the FILTER too, and a folded group would have opened showing every row it holds
+   instead of the one that matched. A forced-open group shows the matches and nothing else. */
+.stonetop .stonetop-preferences.is-searching
+	.stonetop-preference-row.stonetop-section-folded:not(.stonetop-search-hidden) {
+	display: grid !important;
 }
 
 .stonetop-preference-select {
@@ -3542,7 +3786,7 @@ input.stonetop-name-field {
 	width: 0.6em;
 	height: 0.6em;
 	flex: none;
-	background: center / contain no-repeat url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon.svg');
+	background: center / contain no-repeat var(--stonetop-playbook-arrow-icon);
 	transform: rotate(90deg); /* expanded: arrow points down */
 	transition: transform 0.15s;
 }
@@ -4393,6 +4637,23 @@ input.stonetop-name-field {
 	cursor: pointer;
 }
 
+/* A load-gated move the sheet's load has switched off (actors/character/load-gates.js): the roll
+   chip's box, dashed and not clickable, since it is a note about the move rather than a way in. */
+.stonetop-move-load-tag {
+	display: inline-block;
+	text-box: trim-both cap alphabetic;
+	box-sizing: border-box;
+	padding: calc(1px + var(--st-trim-top)) 6px calc(1px + var(--st-trim-bottom));
+	border: 1px dashed var(--color-text-dark-secondary);
+	border-radius: var(--st-radius-sm);
+	font-size: calc(0.72rem * var(--stonetop-font-scale, 1));
+	font-style: italic;
+	line-height: 1.2;
+	line-height: round(calc(0.72rem * var(--stonetop-font-scale, 1) * 1.2), 1px);
+	color: var(--color-text-dark-secondary);
+	cursor: help;
+}
+
 /* -- Read-only tab (not in edit mode) ----------------------------- */
 
 .stonetop-readonly input,
@@ -4855,11 +5116,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
    utils/pick-tally.js hides the list outright on a tier that offers no picks, and an empty framed
    box would be worse than no box. The lead-in that would have said "choose one" is prose and goes
    with the rest; what stands in for it is the count the result block states and the tally the list
-   carries on its own. Revealed cards are exempt from both halves: the reader asked for all of it. */
-body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card:not(.desc-revealed) .stonetop-roll-card-description:has(.stonetop-picklist:not([hidden])) {
+   carries on its own. Revealed cards are exempt from both halves: the reader asked for all of it.
+   A free question (Hound of Aratis and its kin, move-pick-bonuses.js#freeQuestionLines) is a choice
+   too, and stays for the same reason, on the 6- as well, where it is the only one on the card. */
+body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card:not(.desc-revealed) .stonetop-roll-card-description:has(:is(.stonetop-picklist, .stonetop-pc-answers):not([hidden]), .stonetop-free-question) {
 	display: block;
 }
-body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card:not(.desc-revealed) .stonetop-roll-card-description > *:not(.stonetop-picklist):not(:has(.stonetop-picklist:not([hidden]))) {
+body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-roll-card:not(.desc-revealed) .stonetop-roll-card-description > *:not(.stonetop-picklist, .stonetop-pc-answers, .stonetop-free-question):not(:has(:is(.stonetop-picklist, .stonetop-pc-answers):not([hidden]))) {
 	display: none;
 }
 
@@ -5916,8 +6179,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 /* ── Know Things: the moves that act on a landed roll ───────────────────────── */
 
 /* The Logbook's "treat this as a 10+" spend. Shares the Burn Brightly row and its full-width
-   stacking, since both are post-roll spends and their labels are long. */
-.stonetop-logbook-btn {
+   stacking, since both are post-roll spends and their labels are long. Impetuous Youth's "Give it your
+   all" is one more (actors/character/impetuous-youth.js). */
+.stonetop-logbook-btn,
+.stonetop-give-it-all-btn {
 	flex: 0 0 100%;
 	display: flex;
 	align-items: center;
@@ -5927,7 +6192,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	border: none;
 }
 
-.stonetop-logbook-btn:disabled {
+.stonetop-logbook-btn:disabled,
+.stonetop-give-it-all-btn:disabled {
 	opacity: 0.5;
 	cursor: default;
 }
@@ -6227,7 +6493,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 .stonetop-condemn-icon,
 .stonetop-blessed-marks-icon,
 .stonetop-battle-joy-icon,
+.stonetop-nerves-icon,
+.stonetop-roiling-icon,
+.stonetop-unseen-icon,
 .stonetop-held-advantage-icon,
+.stonetop-held-disadvantage-icon,
 .stonetop-nav-arrow {
 	-webkit-mask-size: contain;
 	mask-size: contain;
@@ -6250,7 +6520,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 .stonetop-condemn-icon,
 .stonetop-blessed-marks-icon,
 .stonetop-battle-joy-icon,
-.stonetop-held-advantage-icon {
+.stonetop-nerves-icon,
+.stonetop-roiling-icon,
+.stonetop-unseen-icon,
+.stonetop-held-advantage-icon,
+.stonetop-held-disadvantage-icon {
 	display: block;
 	width: auto;
 	background: currentColor;
@@ -6735,6 +7009,22 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	display: none;
 }
 
+/* Let Fly's bow, low or out, on the button that fires it: in words, so it needs no colour to be read. */
+#stonetop-fight-ring .stonetop-fight-ring-ammo {
+	flex: none;
+	padding: 0 0.4em;
+	border: 1px solid currentColor;
+	border-radius: 999px;
+	color: var(--stonetop-fight-ring-ammo-low);
+	font-size: 0.8em;
+	font-weight: 700;
+	line-height: 1.4;
+}
+
+#stonetop-fight-ring .stonetop-fight-ring-ammo.is-out {
+	color: var(--stonetop-fight-ring-ammo-out);
+}
+
 /* A character's held Readiness, over the token: a pill in the ring's own paper, centred above it. The
    count is printed as well as drawn, so it reads at a glance and to a screen reader alike. */
 #stonetop-fight-ring .stonetop-fight-ring-readiness {
@@ -6793,6 +7083,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	margin: 2px 0;
 }
 
+/* A summon repair's word on a group it has too many of (ArcanaSummonDialog). */
+.stonetop-arcana-summon-note {
+	margin: 0 0 2px;
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	color: var(--st-text-muted);
+}
+
 .stonetop-choice-subgroup {
 	display: flex;
 	flex-wrap: wrap;
@@ -6838,6 +7136,26 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 .stonetop-possession-choice-summary-heading {
 	font-family: var(--font-stonetop);
 	font-weight: bold;
+}
+
+/* A possession's own action under its description (the Marshal's personal symbol: "Display it:
+   crew +1 Loyalty"). Indented with the description; the wrapper is inline so its tooltip, there
+   because a disabled button fires no hover, anchors on the button rather than the whole row. */
+.stonetop-possession-actions {
+	padding-left: 20px;
+	margin-top: 4px;
+}
+.stonetop-personal-symbol-wrap {
+	display: inline-block;
+}
+.stonetop-personal-symbol-btn {
+	width: max-content;
+}
+.stonetop-personal-symbol-btn:disabled,
+.stonetop-personal-symbol-btn:disabled:hover {
+	opacity: 0.55;
+	cursor: default;
+	background: transparent;
 }
 
 /* Bundled gear a special possession grants (Distillery → firkins, whisky, malt…),
@@ -7185,7 +7503,8 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	opacity: 1;
 }
 .stonetop-move-choice-needed,
-.stonetop-move-stat-choice-needed {
+.stonetop-move-stat-choice-needed,
+.stonetop-move-background-answer-needed {
 	margin-left: 5px;
 	color: var(--st-blue-text);
 	cursor: pointer;
@@ -7193,8 +7512,31 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 .stonetop-move-choice-needed:hover,
 .stonetop-move-choice-needed:focus-visible,
 .stonetop-move-stat-choice-needed:hover,
-.stonetop-move-stat-choice-needed:focus-visible {
+.stonetop-move-stat-choice-needed:focus-visible,
+.stonetop-move-background-answer-needed:hover,
+.stonetop-move-background-answer-needed:focus-visible {
 	color: var(--st-blue-border);
+}
+/* The box a background fills on a move's mark list (the Patriot's Things Below on Well Versed):
+   ticked and locked, with a small "Background" chip after the option's label. The duplicate
+   warning flags a stored mark on top of it, which is kept. */
+.stonetop-move-mark-background {
+	margin-left: 4px;
+	font-size: 0.85em;
+	color: var(--st-text-muted);
+	font-style: italic;
+}
+.stonetop-move-mark-duplicate {
+	margin-left: 4px;
+	color: var(--st-red-border);
+}
+/* "Once per level" (Potential for Greatness): a mark noted at the same level as another, or above
+   the current level. The gold caution tone, as a stat box the rules can't account for wears it
+   (.stonetop-stat-box--off-rules): flagged, never blocked. --st-gold-text, not -border, for the
+   same reason given there: it is the only stop in the family that carries against paper. */
+.stonetop-move-mark-level-caution {
+	margin-left: 3px;
+	color: var(--st-gold-text);
 }
 
 /* A move the player OWNS but whose prerequisites are no longer satisfied (they
@@ -7246,7 +7588,10 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	min-width: 0;
 }
 
-.stonetop-item-resource-check {
+/* Up With People's "theirs" pip (an NPC partner's 1 Rapport) is the same circle under its own class:
+   `.stonetop-item-resource-check` is what the sheet's track click handler answers. */
+.stonetop-item-resource-check,
+.stonetop-up-with-people-theirs {
 	width: calc(16px * var(--stonetop-font-scale, 1));
 	height: calc(16px * var(--stonetop-font-scale, 1));
 	border-radius: 50% !important;
@@ -7257,8 +7602,56 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	flex-shrink: 0;
 }
 
-.stonetop-item-resource-check.is-checked {
+.stonetop-item-resource-check.is-checked,
+.stonetop-up-with-people-theirs.is-checked {
 	background-color: var(--color-text-dark-primary) !important;
+}
+
+.stonetop-up-with-people-theirs:disabled { cursor: default; }
+
+/* Up With People's line under the move: who the hero is talking with, an NPC's pip, and Converse. */
+.stonetop-up-with-people {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 8px;
+}
+
+/* A post-death move's own buttons under its text (Poltergeist's Get angry and Fury spends, Red Wrath's
+   Favor roll): one wrapping row, the same inline buttons Up With People's Converse uses. */
+.stonetop-move-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 6px;
+	margin-top: 4px;
+}
+
+/* Disembodied's manifest question: one printed option per row, its box beside it. */
+.stonetop-pd-manifest {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+.stonetop-pd-manifest-option {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+}
+
+/* A move-track pip with a label of its own is set off behind a bar, as the book prints Up With
+   People's: your two Rapport, a bar, then the one they hold ("theirs", an NPC's, on its own line). */
+.stonetop-item-resources .stonetop-item-resource-entry:has(> .stonetop-resource-label) {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	margin-left: 2px;
+	padding-left: 4px;
+	border-left: 1px solid var(--color-text-dark-primary);
+}
+.stonetop-item-resources .stonetop-item-resource-entry > .stonetop-resource-label {
+	font-size: var(--font-size-11, 0.85em);
+	font-style: italic;
 }
 
 /* Grouped circle track (sacred pouch Stock): circles chunk into fives so a long
@@ -8222,6 +8615,256 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 .stonetop-camp-card-text { margin: 4px 0 8px; color: var(--st-text-body); }
 .stonetop-camp-card-closed { margin: 0; font-style: italic; color: var(--st-text-secondary); }
 
+/* -- Struggle as One, shared (module/struggle/) ------------------ */
+/* The struggle window and the GM's setup both wear the Make Camp card skin above (and the
+   `.stonetop-camp-window` scope, for its column gap and wrapping footer). What follows is only what a
+   struggle adds: the brief, the result badges, and the setup's fields. */
+
+/* The danger and the approach, boxed like the camp's meal. */
+.stonetop-struggle-brief {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 8px 12px;
+	border: 1px solid var(--color-border-light-2, rgba(0, 0, 0, 0.15));
+	border-radius: var(--st-radius);
+	background: rgba(0, 0, 0, 0.04);
+	color: var(--st-text-body);
+}
+
+.stonetop-struggle-brief-line { margin: 0; line-height: 1.4; }
+.stonetop-struggle-brief-line strong { color: var(--st-text); }
+
+/* A cue the table may act on (Keep Company) or must (a struggle already under way): the caution gold
+   as a bar and a wash, the words in body ink, as the camp's going-without line does. */
+.stonetop-struggle-cue {
+	margin: 0;
+	padding: 4px 8px;
+	border-left: 3px solid var(--st-gold-border);
+	background: var(--st-gold-bg);
+	color: var(--st-text-body);
+}
+
+/* The badge beside a name says where the row stands. The band (10+, 7-9, 6-) is always written in it,
+   so the colour is never the only cue: green for a 10+, red for a 6-, and a 7-9 keeps the plain
+   badge. A roll the reader may not see yet reads "Rolled", in the ready green's edge only. */
+.stonetop-struggle-state.is-success,
+.stonetop-struggle-state.is-rolled {
+	border-color: var(--st-green-border);
+	color: var(--st-green-text);
+}
+
+.stonetop-struggle-state.is-success { background: var(--st-green-bg); }
+
+.stonetop-struggle-state.is-failure {
+	border-color: var(--st-red-border);
+	background: var(--st-red-bg);
+	color: var(--st-red-text);
+}
+
+.stonetop-struggle-state.is-partial { color: var(--st-text); }
+
+.stonetop-struggle-result-line {
+	margin: 0;
+	font-size: var(--st-fs-md);
+	font-weight: 700;
+	color: var(--st-text);
+}
+
+.stonetop-struggle-mode { font-weight: 600; }
+
+/* The roll, the rescue and the GM's row tools sit at the card's foot. A stat list says what each stat
+   means here (Defy Danger's approaches), so it may be long: it takes the line, and wraps its words
+   inside the list rather than pushing the button off the card. */
+.stonetop-struggle-roll select,
+.stonetop-struggle-rescue select {
+	flex: 1 1 12em;
+	width: auto;
+	min-width: 0;
+	max-width: 100%;
+}
+
+.stonetop-struggle-roll .stonetop-camp-inline-btn,
+.stonetop-struggle-rescue .stonetop-camp-inline-btn,
+.stonetop-struggle-gm-row .stonetop-camp-inline-btn { margin: 0; }
+
+.stonetop-struggle-rescue-hint { flex: 1 0 100%; margin: 0; }
+.stonetop-struggle-gm-row .stonetop-struggle-leave-out { margin-left: auto; }
+
+/* The GM's spots question is a fieldset, so its radios are announced as one question. */
+.stonetop-struggle-spots {
+	min-width: 0;
+	padding: 0;
+	border: none;
+}
+
+/* Every field in both windows wears the system's well (`.stonetop-cf-input`, and what
+   `.stonetop-themed` gives a bare input): translucent white on the paper, a #999 hairline, the slate
+   ring on focus. Core's own fill is a grey wash under a dark border, which on this paper read as a
+   disabled box. Its inset shadow is put out on the field itself (see the roster notes), since core's
+   `:focus` rule sets one straight back. */
+.stonetop-struggle-window :is(input[type="text"], select, textarea) {
+	border: 1px solid #999;
+	border-radius: var(--st-radius-sm);
+	background: rgb(var(--st-paper-rgb) / 0.7);
+	box-shadow: none;
+	color: var(--st-text);
+}
+
+.stonetop-struggle-window :is(input[type="text"], select, textarea):focus {
+	border-color: var(--st-btn-primary-border);
+	box-shadow: 0 0 4px var(--color-shadow-highlight);
+}
+
+.stonetop-struggle-window :is(input[type="text"], textarea)::placeholder { color: var(--st-text-muted); }
+
+/* -- The setup -- */
+.stonetop-struggle-field {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin: 0;
+}
+
+.stonetop-struggle-field textarea {
+	width: 100%;
+	min-height: 3.2em;
+	padding: 4px 8px;
+	resize: vertical;
+	line-height: 1.45;
+	font-family: inherit;
+	font-size: inherit;
+}
+
+/* A character left out keeps their card, so ticking them back in puts them where they were. Marked by
+   a dashed edge, not by fading: faded text is the one thing a player reading through a magnifier
+   cannot get back. */
+.stonetop-struggle-setup-row.is-left-out { border-style: dashed; align-self: start; }
+
+.stonetop-struggle-include { flex: 1 1 auto; min-width: 0; margin: 0; }
+
+.stonetop-struggle-stats {
+	min-width: 0;
+	padding: 0;
+	border: none;
+}
+
+/* Equal chips, three and three, in the character sheet's stat order: a line that filled to the card
+   broke them four and a stray two at most widths. The card's 18em floor still holds "+CON" at a third. */
+.stonetop-struggle-chips {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 5px;
+}
+
+/* A stat is a chip, the system's pick-from-a-pool pill (`.stonetop-cf-chip`): the chip is the control,
+   so its checkbox is kept for the keyboard and the reader but not drawn, where a box inside a pill
+   was two controls for one choice. A picked chip is the selected green, and its edge doubles, so the
+   colour is not the only thing that changes. */
+.stonetop-struggle-chip {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 2px 10px;
+	border: 1px solid rgba(100, 116, 139, 0.3);
+	border-radius: 999px;
+	background: hsl(210 12% 92%);
+	cursor: pointer;
+	font-weight: 600;
+	color: var(--st-text-body);
+	transition: background 0.12s, border-color 0.12s;
+}
+
+.stonetop-struggle-chip:hover { background: hsl(210 12% 85%); }
+
+.stonetop-struggle-chip:has(input:checked) {
+	border-color: var(--st-green-border);
+	background: var(--st-green-bg);
+	box-shadow: inset 0 0 0 1px var(--st-green-border);
+	color: var(--st-green-text);
+}
+
+.stonetop-struggle-chip:has(input:focus-visible) {
+	outline: 2px solid var(--st-btn-primary-bg);
+	outline-offset: 1px;
+}
+
+.stonetop-struggle-chip > input {
+	position: absolute;
+	inset: 0;
+	margin: 0;
+	opacity: 0;
+	pointer-events: none;
+}
+
+/* "Rolls with" and "Aided by" (and a follower's two lists): the words in one column and the fields in
+   the next, so the fields line up down the card instead of each dropping under its own label. A list
+   sizes to its longest choice; the name box takes the rest of the line. */
+.stonetop-struggle-fields {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	align-items: center;
+	gap: 6px 10px;
+	color: var(--st-text-body);
+}
+
+.stonetop-struggle-fields > label { display: contents; }
+.stonetop-struggle-fields select { justify-self: start; width: auto; max-width: 100%; }
+.stonetop-struggle-fields input[type="text"] { width: 100%; min-width: 0; }
+
+/* Who Aids from outside names people, some of them long ("Enfys, your acolyte, beloved by birds
+   (Aerin's)"), so it takes the column rather than sizing to its longest name and pushing the card
+   wide. A flag under it (someone rolling picked, or one person Aiding two) keeps the gold cue. */
+.stonetop-struggle-fields select.stonetop-struggle-aid { justify-self: stretch; width: 100%; min-width: 0; }
+.stonetop-struggle-fields + .stonetop-struggle-cue,
+.stonetop-struggle-cue + .stonetop-struggle-cue { margin-top: 6px; }
+
+/* A follower's settings sit under their name, in from the tick, so which follower they belong to is
+   read from the indent rather than from a rule drawn between every one. */
+.stonetop-struggle-follower + .stonetop-struggle-follower { margin-top: 4px; }
+
+.stonetop-struggle-follower-body {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 2px 0 4px;
+	padding-left: calc(15px * var(--stonetop-font-scale, 1) + 0.5em);
+}
+
+.stonetop-struggle-follower-body > .stonetop-camp-note { margin: 0; }
+
+/* The follower's bonus says what it is in its own words ("+1: a tag or move applies"), so it has the
+   width of the card rather than a label beside it that would cut those words short. */
+.stonetop-struggle-bonus { align-self: stretch; width: 100%; min-width: 0; }
+
+/* The GM's button onto the move, on the toolkit's Expeditions tab (wearing the expedition card's Run
+   button skin) and on the walkthrough's journey step (beside the Die of Fate). The hint says what the
+   move is for, or how far one under way has got, and wraps under the button in a narrow sheet. */
+.stonetop-gm-struggle-bar {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 4px 10px;
+	margin: 0 0 8px;
+}
+
+.stonetop-gm-struggle-hint {
+	flex: 1 1 14em;
+	min-width: 0;
+	font-size: var(--st-fs-sm);
+	color: var(--st-text-secondary);
+}
+
+/* A player's ask (a DialogV2): the two boxes, one above the other. */
+.stonetop-struggle-ask {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.stonetop-struggle-ask p { margin: 0; }
+
 .stonetop-edit-mode .stonetop-inv-delete {
 	display: inline;
 	color: var(--st-red-text);
@@ -8914,6 +9557,10 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	--tc-rule: #c7b59a;
 	--tc-rule-hard: #8f7f63;
 	--ll-accent: #7a3f44;
+	/* What is written ON the maroon seal: the Read and Resolve buttons and the reader's title bar.
+	   It is the letter's own highlight on paper, but it has to be named apart from it because the
+	   dark palette turns the paper dark while the seal stays maroon, and the label has to stay light. */
+	--ll-seal-text: var(--tc-paper-hi);
 }
 .tab.moves .stonetop-item.stonetop-love-letter {
 	position: relative;
@@ -8970,7 +9617,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	border-radius: 3px;
 	background: var(--ll-accent);
 	border: 1px solid rgba(20, 14, 6, 0.35);
-	color: var(--tc-paper-hi);
+	color: var(--ll-seal-text);
 	transition: background 0.15s;
 }
 .stonetop-love-letter-read:hover { background: #8f4a50; }
@@ -8993,7 +9640,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 .vtt .stonetop-love-letter-read-dialog.stonetop.window-app .window-header .window-title,
 .vtt .stonetop-love-letter-read-dialog.stonetop.window-app .window-header .header-control,
 .vtt .stonetop-love-letter-read-dialog.stonetop.window-app .window-header a {
-	color: var(--tc-paper-hi);
+	color: var(--ll-seal-text);
 	font-family: var(--font-stonetop);
 }
 /* Parchment page. height:"auto" grows the window to fit the letter; cap it so a long one
@@ -9100,7 +9747,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 .stonetop-love-letter-resolve.stonetop-custom-move-save {
 	background: var(--ll-accent);
 	border: 1px solid rgba(20, 14, 6, 0.35);
-	color: var(--tc-paper-hi);
+	color: var(--ll-seal-text);
 	font-family: var(--font-stonetop);
 }
 .stonetop-love-letter-resolve.stonetop-custom-move-save:hover {
@@ -9344,6 +9991,68 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	content: none;
 }
 
+/* ── Answered by someone else: Aid, Interfere, Persuade (vs. PCs) ─────────
+   pc-asks/pc-ask-flow.js turns the move's own printed list into the answer: a button per option
+   for whoever answers (the GM for Aid, the other character's player otherwise), the options as
+   printed with who is deciding under them for everyone else, and, once answered, the pick marked
+   and the rest faded. A button spans its row and reads left to right like the bullet it replaced,
+   so the list still reads as the move's list. Persuade has no list, so its buttons sit in the
+   tier row under the result and take the card's ordinary button chrome. */
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-pc-answers {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	color: var(--st-text-body);
+}
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-pc-answers ul {
+	margin: 0;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-pc-answers-item:has(> .stonetop-pc-answer) {
+	padding-left: 0;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-pc-answers-item:has(> .stonetop-pc-answer)::before {
+	content: none;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-pc-answers .stonetop-pc-answer {
+	display: block;
+	width: 100%;
+	height: auto;
+	min-height: 0;
+	margin: 0;
+	padding: 4px 8px;
+	text-align: left;
+	line-height: 1.35;
+	white-space: normal;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-pc-answers-item.is-chosen {
+	font-weight: bold;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-pc-answers-item.is-passed {
+	color: var(--st-text-muted);
+	text-decoration: line-through;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-pc-ask-status {
+	margin: 0;
+	font-style: italic;
+	color: var(--st-text-body);
+}
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-pc-ask {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	width: 100%;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-pc-ask .stonetop-pc-answer {
+	flex: 1 1 12em;
+	height: auto;
+	min-height: 0;
+	white-space: normal;
+	line-height: 1.35;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-pc-ask-lead {
+	font-weight: bold;
+}
+
 /* A NUMBERED list (Level Up's steps) already has its marker: the number. The spiral every
    description <li> hangs at left: 0 sat between the number and the words, two markers on one
    row. The number stays and the spiral goes, with the spiral's reserved padding moved onto the
@@ -9371,7 +10080,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
    Marked hidden by the wiring in stonetop.js until the option is actually ticked. */
 :is(#chat, #chat-notifications, #chat-popout) .message
 	:is(.stonetop-roll-card-picklist, .stonetop-chat-move-description, .stonetop-roll-card-description)
-	:is(.stonetop-provisions-roll, .stonetop-option-damage-roll) {
+	:is(.stonetop-provisions-roll, .stonetop-option-damage-roll, .stonetop-ammo-deplete) {
 	display: block;
 	margin: 3px 0 5px 22px;
 	width: auto;
@@ -9386,18 +10095,18 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 }
 :is(#chat, #chat-notifications, #chat-popout) .message
 	:is(.stonetop-roll-card-picklist, .stonetop-chat-move-description, .stonetop-roll-card-description)
-	:is(.stonetop-provisions-roll, .stonetop-option-damage-roll):hover {
+	:is(.stonetop-provisions-roll, .stonetop-option-damage-roll, .stonetop-ammo-deplete):hover {
 	background: var(--st-btn-primary-bg-hover);
 	border-color: var(--st-btn-primary-border-hover, var(--st-btn-primary-border));
 }
 :is(#chat, #chat-notifications, #chat-popout) .message
 	:is(.stonetop-roll-card-picklist, .stonetop-chat-move-description, .stonetop-roll-card-description)
-	:is(.stonetop-provisions-roll, .stonetop-option-damage-roll)[hidden] {
+	:is(.stonetop-provisions-roll, .stonetop-option-damage-roll, .stonetop-ammo-deplete)[hidden] {
 	display: none;
 }
 :is(#chat, #chat-notifications, #chat-popout) .message
 	:is(.stonetop-roll-card-picklist, .stonetop-chat-move-description, .stonetop-roll-card-description)
-	:is(.stonetop-provisions-roll, .stonetop-option-damage-roll):disabled {
+	:is(.stonetop-provisions-roll, .stonetop-option-damage-roll, .stonetop-ammo-deplete):disabled {
 	opacity: 0.55;
 	cursor: default;
 }
@@ -9424,6 +10133,61 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	font-size: 0.85em;
 	font-weight: bold;
 	color: var(--st-red-text);
+}
+/* What Let Fly's deplete row marked, once pressed. Plain ink: a cost paid, neither good news nor
+   a blow landed. Same place and size as the two readouts above. */
+:is(#chat, #chat-notifications, #chat-popout) .message
+	:is(.stonetop-roll-card-picklist, .stonetop-chat-move-description, .stonetop-roll-card-description)
+	.stonetop-ammo-depleted {
+	display: block;
+	margin: 1px 0 4px 22px;
+	font-size: 0.85em;
+	font-weight: bold;
+}
+/* Invoke the Sun God's consequences (invoke-consequences.js): a ticked "mark a debility" grows a
+   row of buttons under it, and the snuffing and the sun say what they did. Same place and size as
+   the readouts above; the ink is declared, since the card's paper is pinned light in both themes. */
+:is(#chat, #chat-notifications, #chat-popout) .message
+	:is(.stonetop-roll-card-picklist, .stonetop-chat-move-description, .stonetop-roll-card-description)
+	.stonetop-invoke-debility {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin: 3px 0 5px 22px;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message
+	:is(.stonetop-roll-card-picklist, .stonetop-chat-move-description, .stonetop-roll-card-description)
+	.stonetop-invoke-debility[hidden] {
+	display: none;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message
+	:is(.stonetop-roll-card-picklist, .stonetop-chat-move-description, .stonetop-roll-card-description)
+	.stonetop-invoke-debility-btn {
+	flex: none;
+	width: auto;
+	padding: 2px 9px;
+	font-size: 0.85em;
+	line-height: 1.4;
+	border-radius: var(--st-radius);
+	border: 1px solid var(--st-btn-primary-border);
+	background: var(--st-btn-primary-bg);
+	color: var(--st-btn-primary-text);
+	cursor: pointer;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message
+	:is(.stonetop-roll-card-picklist, .stonetop-chat-move-description, .stonetop-roll-card-description)
+	.stonetop-invoke-debility-btn:disabled {
+	opacity: 0.55;
+	cursor: default;
+}
+:is(#chat, #chat-notifications, #chat-popout) .message
+	:is(.stonetop-roll-card-picklist, .stonetop-chat-move-description, .stonetop-roll-card-description)
+	.stonetop-invoke-consequence-note {
+	display: block;
+	margin: 1px 0 4px 22px;
+	font-size: 0.85em;
+	font-weight: bold;
+	color: var(--st-holy-light-ink);
 }
 
 /* Special possessions — 2-column card list, matching the Moves tab
@@ -9818,7 +10582,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	width: 0.6em;
 	height: 0.6em;
 	flex: none;
-	background: center / contain no-repeat url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon.svg');
+	background: center / contain no-repeat var(--stonetop-playbook-arrow-icon);
 	transform: rotate(90deg); /* expanded: arrow points down */
 	transition: transform 0.15s;
 }
@@ -9870,7 +10634,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	display: inline-block;
 	width: 0.7em;
 	height: 0.7em;
-	background: center / contain no-repeat url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon.svg');
+	background: center / contain no-repeat var(--stonetop-playbook-arrow-icon);
 	transform: rotate(90deg); /* expanded: arrow points down */
 	transition: transform 0.15s;
 }
@@ -10404,6 +11168,44 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	background-color: transparent;
 	border: 1px solid var(--color-border-dark);
 	border-radius: var(--st-radius-sm);
+}
+
+/* A Seeker's background major arcanum still to choose ("Choose later" on the Details tab):
+   the Moves tab's blue `.move-needs-choice` call-to-action (border, tint, inset stripe), as a
+   strip at the top of the Arcana tab with the ask behind its button. */
+.stonetop-seeker-major-owed {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 8px;
+	padding: 6px 10px;
+	border: 1px solid var(--st-blue-border);
+	border-radius: var(--st-radius-sm);
+	background: var(--st-blue-bg);
+	box-shadow: inset 3px 0 0 var(--st-blue-border);
+	color: var(--st-blue-text);
+}
+
+.stonetop-seeker-major-owed > i { flex-shrink: 0; color: var(--st-blue-border); }
+
+.stonetop-seeker-major-owed span { flex: 1; min-width: 10em; }
+
+.stonetop-seeker-major-owed-btn {
+	width: auto;
+	flex: 0 0 auto;
+	font-size: var(--st-fs-sm);
+	padding: 3px 12px;
+	cursor: pointer;
+	background-color: transparent;
+	border: 1px solid var(--st-blue-border);
+	border-radius: var(--st-radius-sm);
+	color: var(--st-blue-text);
+}
+
+.stonetop-seeker-major-owed-btn:hover,
+.stonetop-seeker-major-owed-btn:focus-visible {
+	background-color: color-mix(in srgb, var(--st-blue-border) 12%, transparent);
 }
 
 .stonetop-arcanum-identify-btn,
@@ -11472,7 +12274,11 @@ button.stonetop-dead-tag:hover {
 .stonetop-condemn,
 .stonetop-blessed-marks,
 .stonetop-held-advantage,
-.stonetop-battle-joy {
+.stonetop-held-disadvantage,
+.stonetop-battle-joy,
+.stonetop-nerves,
+.stonetop-roiling,
+.stonetop-unseen {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -11496,7 +12302,11 @@ button.stonetop-holy-light:focus-visible,
 .stonetop-condemn:focus-visible,
 .stonetop-blessed-marks:focus-visible,
 .stonetop-battle-joy:focus-visible,
-.stonetop-held-advantage:focus-visible {
+.stonetop-nerves:focus-visible,
+.stonetop-roiling:focus-visible,
+.stonetop-unseen:focus-visible,
+.stonetop-held-advantage:focus-visible,
+.stonetop-held-disadvantage:focus-visible {
 	outline: 2px solid var(--color-shadow-primary, slategrey);
 	outline-offset: 2px;
 }
@@ -11617,6 +12427,74 @@ button.stonetop-invocation-chip:hover {
 button.stonetop-invocation-chip:focus-visible {
 	outline: 2px solid var(--color-shadow-primary, slategrey);
 	outline-offset: 2px;
+}
+
+/* ── Inspiration (the Marshal's We Happy Few, held by an ally) ─────────────
+   The ongoing Invocation's pill, in gold: a count said in words ("Inspiration 2"), because a bare
+   number on an icon says nothing to a player who cannot see it well. A <button> where the sheet is
+   editable (it acts fearlessly) and a <span> where it isn't, so every property core sets on an in-app
+   button is named here, for the reason the Invocation chip's comment gives.
+   Up With People's Rapport, held with a hero (up-with-people.js), wears the same pill: one more hold
+   another character handed over, spent from this chip. */
+.stonetop-inspiration-chip,
+.stonetop-rapport-chip {
+	display: inline-flex;
+	align-items: center;
+	align-self: center;
+	gap: 0.4em;
+	flex: 0 1 auto;
+	width: auto;
+	min-width: 0;
+	max-width: 14em;
+	min-height: 0;
+	height: auto;
+	margin: 0 0 0 16px;
+	padding: 1px 9px;
+	border: 1px solid var(--st-gold-border);
+	border-radius: 999px;
+	background: var(--st-gold-bg);
+	box-shadow: none;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	font-style: normal;
+	font-weight: 600;
+	line-height: 1.7;
+	letter-spacing: 0.04em;
+	color: var(--st-gold-text);
+	transition: border-color 0.12s;
+}
+
+.stonetop-inspiration-chip i,
+.stonetop-rapport-chip i { font-size: 0.95em; font-size: round(0.95em, 1px); }
+
+.stonetop-inspiration-chip-name,
+.stonetop-rapport-chip-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+button.stonetop-inspiration-chip,
+button.stonetop-rapport-chip { cursor: pointer; }
+
+button.stonetop-inspiration-chip:hover,
+button.stonetop-rapport-chip:hover { border-color: var(--st-gold-text); }
+
+button.stonetop-inspiration-chip:focus-visible,
+button.stonetop-rapport-chip:focus-visible {
+	outline: 2px solid var(--color-shadow-primary, slategrey);
+	outline-offset: 2px;
+}
+
+/* What a We Happy Few card gave, and the die a damage card took: a line of the card's own text.
+   So is who a "Give advantage to..." card gave it to (give-advantage-flow.js). */
+.stonetop-inspiration-readout,
+.stonetop-inspiration-note,
+.stonetop-give-advantage-readout {
+	margin: 0.3em 0 0;
+	font-size: var(--st-fs-xs);
+	font-style: italic;
 }
 
 /* ── The Judge's scales, and the Blessed's triquetra ───────────────────────
@@ -11800,6 +12678,66 @@ button.stonetop-battle-joy:not(.is-raging):hover { color: var(--st-text-body); }
    scope's repaint like every other red here. Declared AFTER the base rule, per the tie note above. */
 .stonetop-battle-joy.is-raging { color: var(--st-red-text); }
 
+/* ── Three more fight states (actors/character/fight-states.js) ────────────
+   The Battle Joy's shape exactly: one state, toggled, a <button> where the sheet is editable and a
+   <span> where it isn't, no count. Each is sized to the enrage glyph's painted AREA, not its height
+   (the header convention): the worried eyes are 2.8 times as wide as tall, so they stand 24px high.
+
+   The same `:not(.is-*)` hover guard as the Battle Joy, for the same reason: `button.x:hover`
+   out-specifies `.x.is-on`, and would drag a lit glyph back to near-black under the pointer. Each
+   colour is declared AFTER its base rule. */
+.stonetop-nerves,
+.stonetop-roiling,
+.stonetop-unseen {
+	transition: color 0.15s ease;
+}
+
+button.stonetop-nerves,
+button.stonetop-roiling,
+button.stonetop-unseen { cursor: pointer; }
+
+button.stonetop-nerves:not(.is-shaken):hover,
+button.stonetop-roiling:not(.is-roiling):hover,
+button.stonetop-unseen:not(.is-unseen):hover { color: var(--st-text-body); }
+
+/* The Marshal's shaken nerves (We Happy Few's 6-): disadvantage on every roll until they are shared. */
+.stonetop-nerves-icon {
+	height: 24px;
+	aspect-ratio: 464.35 / 166.03;
+	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/nerves.svg');
+	mask-image: url('/systems/stonetop-pwd/assets/icons/nerves.svg');
+}
+
+.stonetop-nerves.is-shaken { color: var(--st-gold-text); }
+
+/* The Storm Markings' anger: +1 damage until they calm down. Storm blue. */
+.stonetop-roiling-icon {
+	height: 40px;
+	aspect-ratio: 479.88 / 478.30;
+	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/storm-rage.svg');
+	mask-image: url('/systems/stonetop-pwd/assets/icons/storm-rage.svg');
+}
+
+.stonetop-roiling.is-roiling { color: var(--st-blue-text); }
+
+/* A Fox's or Ranger's being unseen, until they attack, move or draw attention. */
+.stonetop-unseen-icon {
+	height: 37px;
+	aspect-ratio: 479.75 / 400.55;
+	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/unseen.svg');
+	mask-image: url('/systems/stonetop-pwd/assets/icons/unseen.svg');
+}
+
+.stonetop-unseen.is-unseen { color: var(--st-green-text); }
+
+/* The Marshal's battle holds window (combat/battle-holds.js): one ticked row per hold. */
+.stonetop-battle-hold-row {
+	display: flex;
+	align-items: baseline;
+	gap: 0.5em;
+	margin: 0.25em 0;
+}
+
 /* ── An advantage held over the next roll ──────────────────────────────────
    The steading's own promised +Fortunes advantage wears this same clover in its holds tray, and
    this is the character's half of the same promise, so it is the same drawing rather than a
@@ -11813,23 +12751,37 @@ button.stonetop-battle-joy:not(.is-raging):hover { color: var(--st-text-body); }
 
    38px, matching the scales: the drawing is square, so the 40 the near-square Battle Joy needs to
    hold equal painted area would read slightly large beside them. */
-.stonetop-held-advantage {
+.stonetop-held-advantage,
+.stonetop-held-disadvantage {
 	color: var(--st-quiet-ink);
 	transition: color 0.15s ease;
 }
 
 /* Only the editable copy is a button, so only it says "press me". */
-button.stonetop-held-advantage { cursor: pointer; }
+button.stonetop-held-advantage,
+button.stonetop-held-disadvantage { cursor: pointer; }
 
 /* No `:not()` guard needed here, unlike the candle's and the Heavy's: there is one state, so a
    hover rule cannot out-specify a modifier that does not exist. */
-button.stonetop-held-advantage:hover { color: var(--st-text-body); }
+button.stonetop-held-advantage:hover,
+button.stonetop-held-disadvantage:hover { color: var(--st-text-body); }
 
-.stonetop-held-advantage-icon {
+.stonetop-held-advantage-icon,
+.stonetop-held-disadvantage-icon {
 	height: 38px;
 	aspect-ratio: 1 / 1;
 	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/holds/fortunes-advantage.svg');
 	mask-image: url('/systems/stonetop-pwd/assets/icons/holds/fortunes-advantage.svg');
+}
+
+/* ── A disadvantage held over the next roll ────────────────────────────────
+   The advantage's other half (Interfere's "do it anyway, with disadvantage", pc-asks/), drawn,
+   sized and released the same way by the rules above. The drawing is a foot hooked round an
+   ankle, which is what being interfered with looks like; the same quiet ink, so the two read as
+   one family and the drawings tell them apart. */
+.stonetop-held-disadvantage-icon {
+	-webkit-mask-image: url('/systems/stonetop-pwd/assets/icons/holds/held-disadvantage.svg');
+	mask-image: url('/systems/stonetop-pwd/assets/icons/holds/held-disadvantage.svg');
 }
 
 /* The three debility boxes while that rage lasts. They stay TICKED and stop doing anything ("you
@@ -12910,7 +13862,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	align-items: center;
 	gap: 8px;
 	padding: 6px 8px;
-	border-bottom: 1px solid rgba(0,0,0,0.14);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.14);
 	flex-shrink: 0;
 }
 
@@ -12923,7 +13875,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	border-radius: var(--st-radius);
 	font-family: var(--font-stonetop);
 	font-size: calc(13px * var(--stonetop-font-scale, 1));
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 }
 
 .stonetop-ledger-sort,
@@ -12935,7 +13887,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	border-radius: var(--st-radius);
 	font-family: var(--font-stonetop);
 	font-size: calc(13px * var(--stonetop-font-scale, 1));
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 	cursor: pointer;
 }
 
@@ -12993,10 +13945,10 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	width: auto;
 	height: auto;
 	padding: 3px 8px;
-	border: 1px solid #a02020;
+	border: 1px solid var(--st-danger-ink);
 	border-radius: var(--st-radius-sm);
 	background: none;
-	color: #a02020;
+	color: var(--st-danger-ink);
 	font-size: calc(12px * var(--stonetop-font-scale, 1));
 	font-family: var(--font-stonetop);
 	line-height: 1;
@@ -13006,15 +13958,15 @@ button.stonetop-mark-sign-btn.is-active:hover {
 }
 
 .stonetop-ledger-edit-mode .stonetop-ledger-delete-selected:hover {
-	background: rgba(160, 32, 32, 0.1);
+	background: color-mix(in srgb, var(--st-danger-ink) 10%, transparent);
 	box-shadow: none;
 }
 
 .stonetop-ledger-date-header {
 	margin: 10px 0 0;
 	padding: 4px 2px 3px;
-	border-bottom: 1px solid #a02020;
-	color: #2f2a24;
+	border-bottom: 1px solid var(--st-danger-ink);
+	color: var(--st-heading-ink);
 	font-size: calc(20px * var(--stonetop-font-scale, 1));
 	font-weight: 800;
 	letter-spacing: 0;
@@ -13027,9 +13979,9 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	align-items: flex-start;
 	gap: 8px;
 	padding: 8px 10px;
-	border: 1px solid rgba(0,0,0,0.16);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.16);
 	border-radius: var(--st-radius);
-	background: rgba(255,255,255,0.55);
+	background: rgb(var(--st-paper-rgb) / 0.55);
 }
 
 .stonetop-ledger-row-check {
@@ -13560,7 +14512,8 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	letter-spacing: 0.03em;
 }
 
-.stonetop-outfit-section-heading--arcana {
+.stonetop-outfit-section-heading--arcana,
+.stonetop-outfit-section-heading--possessions {
 	margin-top: 10px;
 }
 
@@ -14368,10 +15321,14 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	justify-content: flex-end;
 }
 
-/* No background here: every one of these states its own below, primary or transparent. */
-.deaths-door-close-btn,
+/* No background here: every one of these states its own below, primary or transparent.
+
+   THE DOOR'S AFFIRMATIVES ARE NAMED ONCE, as the `is-primary` buttons in its footer (Done, the roll,
+   "Accept this result", "Take over"), so a footer that gains one is lit by the template alone. The
+   footer is in `:where()` to keep each rule at the one class it had when every button was listed by
+   name: a bump would change which rule wins against anything else aimed at them. */
+:where(.deaths-door-dialog-buttons) .is-primary,
 .deaths-door-cancel-btn,
-.deaths-door-roll-btn,
 .undeath-apply-btn,
 .undeath-close-btn,
 .undeath-cancel-btn {
@@ -14382,15 +15339,18 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	font-size: var(--st-fs-base);
 }
 
-.deaths-door-close-btn,
-.deaths-door-cancel-btn,
-.deaths-door-roll-btn {
+:where(.deaths-door-dialog-buttons) .is-primary,
+.deaths-door-cancel-btn {
 	transition: background 0.1s, border-color 0.1s;
 }
 
 /* The roll is the whole point of the step, so it takes whatever the footer has left over rather
-   than shrinking to its label — "Not yet" beside it stays at its own width. */
-.deaths-door-roll-btn {
+   than shrinking to its label: "Not yet" beside it stays at its own width. "Accept this result"
+   is the same in the result step that waits on Burn Brightly or giving it your all, and so is
+   "Take over" in the window following another owner's roll. */
+.deaths-door-roll-btn,
+.deaths-door-accept-btn,
+.deaths-door-take-over-btn {
 	/* `width` is declared because core hands every button in an application `width: 100%`, which
 	   would otherwise become this one's flex basis and squeeze "Not yet" into wrapping. Growing
 	   from the label's own width fills the same space without taking it from the neighbour. */
@@ -14417,8 +15377,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	justify-content: center;
 }
 
-.deaths-door-close-btn,
-.deaths-door-roll-btn,
+:where(.deaths-door-dialog-buttons) .is-primary,
 .undeath-apply-btn,
 .undeath-close-btn {
 	background: var(--st-btn-primary-bg);
@@ -14476,6 +15435,32 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	cursor: not-allowed;
 }
 
+/* Never Gonna Keep Me Down's "Don't roll: take a 10+": a second way through the step, beside the
+   roll rather than in its place, so it keeps its label's width and the roll stays the lit one.
+   Burn Brightly and "Give it my all" sit beside "Accept this result" the same way. */
+.deaths-door-skip-roll-btn,
+.deaths-door-boost-btn {
+	width: auto;
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.45em;
+	padding: 6px 12px;
+	border: 1px solid var(--dd-rule);
+	border-radius: var(--st-radius-sm);
+	background: transparent;
+	color: inherit;
+	font-size: var(--st-fs-base);
+	cursor: pointer;
+	transition: background 0.1s, border-color 0.1s;
+}
+
+.deaths-door-skip-roll-btn:hover,
+.deaths-door-boost-btn:hover {
+	background: var(--dd-surface-hover);
+	border-color: var(--dd-accent);
+}
+
 /* "Not yet" / "Cancel" are dismissive, so they sit at the right edge (Foundry's convention)
    rather than at the left, where space-between drops a lone button. */
 .deaths-door-cancel-btn {
@@ -14483,8 +15468,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	margin-left: auto;
 }
 
-.deaths-door-close-btn:hover,
-.deaths-door-roll-btn:hover {
+:where(.deaths-door-dialog-buttons) .is-primary:hover {
 	background: var(--st-btn-primary-bg-hover);
 }
 
@@ -15272,6 +16256,8 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	--stonetop-checkbox-partial-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-partial-light.svg');
 	--stonetop-diamond-icon:          url('/systems/stonetop-pwd/assets/icons/playbooks/diamond-light.svg');
 	--stonetop-diamond-selected-icon: url('/systems/stonetop-pwd/assets/icons/playbooks/diamond_selected-light.svg');
+	--stonetop-question-spiral-icon:  url('/systems/stonetop-pwd/assets/icons/steading/question-spiral-light.svg');
+	--stonetop-playbook-arrow-icon:   url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon-light.svg');
 	/* The one glyph that is a MASK and still had to be turned over by hand: the add-wound heart
 	   beside HP. A mask paints from the background, so it can't ride `color` down with the rest
 	   of the sheet's furniture, and its fill was a literal black — on this paper the heart was
@@ -15511,14 +16497,11 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	color: var(--st-text-body);
 }
 
-/* The open/closed arrow is `arrow_icon.svg` painted as a background IMAGE with a baked `#242021`
-   fill — the same trap the spiral bullets and the check boxes were in, but this one is a hard-coded
-   url rather than a variable, so the bone twins swapped further up cannot reach it. There is no
-   second file to point at and the art is a single flat shape, so it inverts in place. */
-.vtt .stonetop.character.stonetop-past-death.window-app .window-content
-	.stonetop-follower-rule summary::before {
-	filter: invert(1);
-}
+/* The open/closed arrow (`arrow_icon.svg`, a background IMAGE with a baked `#242021` fill) used to
+   be inverted in place here with `filter: invert(1)`. It now reads `--stonetop-playbook-arrow-icon`,
+   which this sheet swaps for the bone twin with the rest of its marks above. The filter had to go
+   with it: kept, it would turn the bone twin back to near-black, and it would do the same under the
+   dark palette, which swaps that variable at the root. */
 
 /* The HP octagon is built as two clipped shapes: the element itself is the RING and already fills
    from `--st-text-body`, so it came over as bone on its own — but the `::before` inset 2px inside it
@@ -16259,6 +17242,163 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	text-decoration: line-through;
 }
 
+/* The GM's Restore sits on a crossed-off row, and the row's own dimming would dim the one control
+   on it that still does something. So a row carrying it dims its box and text instead. */
+.stonetop-lore-option.is-crossed-off:has(.stonetop-pdi-crossoff-btn) {
+	opacity: 1;
+}
+.stonetop-lore-option.is-crossed-off:has(.stonetop-pdi-crossoff-btn) :is(.stonetop-lore-option-checks, .stonetop-lore-option-desc) {
+	opacity: 0.55;
+}
+
+/* ── Post-Death tab: what the fiction earned, pressed ─────────────────
+   The outcome buttons, the Thrall's Favor pips and the GM's Mark controls (post-death-outcomes.js).
+   Everything is drawn from tokens the past-death skin already turns over (the ink family, the card
+   fill, the primary button's border, the reds), so on the black paper this tab always wears they
+   come down with the sheet and nothing here needs a dark rule of its own.
+
+   Real buttons with their words on them, at the body size and no smaller: a low-vision player
+   reads this tab through a magnifier. Every property core's app-button rule sets is declared,
+   `width` above all, or `body.game .app button { width: 100% }` stretches each across the row. */
+.stonetop-pdi-outcome-row + .stonetop-pdi-outcome-row {
+	margin-top: 10px;
+}
+
+.stonetop-pdi-outcome-title {
+	margin: 0 0 4px;
+	font-size: var(--st-fs-base);
+	font-weight: 600;
+	color: var(--color-text-dark-primary);
+}
+
+.stonetop-pdi-outcome-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.stonetop-pdi-outcome-btn,
+.stonetop-pdi-crossoff-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	width: auto;
+	flex: 0 0 auto;
+	min-height: calc(28px * var(--stonetop-font-scale, 1));
+	margin: 0;
+	padding: 2px 10px;
+	line-height: 1.25;
+	font-size: var(--st-fs-base);
+	white-space: normal;
+	text-align: left;
+	background: var(--st-card-fill);
+	border: 1px solid var(--st-btn-primary-border);
+	border-radius: var(--st-radius-sm);
+	color: var(--color-text-dark-primary);
+	cursor: pointer;
+}
+
+.stonetop-pdi-outcome-btn:hover,
+.stonetop-pdi-crossoff-btn:hover {
+	background: var(--st-card-rule);
+}
+
+.stonetop-pdi-outcome-btn:focus-visible,
+.stonetop-pdi-crossoff-btn:focus-visible,
+.stonetop-pdi-favor-pip:focus-visible {
+	outline: 2px solid var(--st-past-death-ink, var(--st-btn-primary-border));
+	outline-offset: 2px;
+}
+
+/* Nothing to do (full HP, no debility marked). Dimmed, but still focusable and still carrying
+   its reason on hover: `aria-disabled`, not `disabled` (see tab-post-death.hbs). */
+.stonetop-pdi-outcome-btn[aria-disabled="true"] {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+
+/* Passing through the Last Door ends the character, so it wears the reds the tab's other
+   ending (Remove Insert) wears, re-pointed for the black paper with the rest of the family. */
+.stonetop-pdi-outcome-btn--danger {
+	border-color: var(--st-red-border);
+	background: var(--st-red-bg);
+	color: var(--st-red-text);
+}
+
+.stonetop-pdi-crossoff-btn {
+	flex: 0 0 auto;
+	font-size: var(--st-fs-sm);
+	min-height: 0;
+	padding: 0 8px;
+}
+
+.stonetop-pdi-task .stonetop-pdi-outcome-btn,
+.stonetop-pdi-gm-row .stonetop-pdi-outcome-btn {
+	margin-top: 4px;
+}
+
+.stonetop-pdi-gm-row {
+	margin: 4px 0 12px;
+}
+
+.stonetop-pdi-gm-row .stonetop-pdi-hint {
+	margin-top: 4px;
+}
+
+/* Favor: a ticked pip is Favor HELD. Circles at a size a magnifier can still find, inked in the
+   body ink so the black paper turns them over. */
+.stonetop-pdi-favor-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 4px;
+}
+
+.stonetop-pdi-favor-pip {
+	appearance: none;
+	flex: 0 0 auto;
+	width: calc(20px * var(--stonetop-font-scale, 1));
+	height: calc(20px * var(--stonetop-font-scale, 1));
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	line-height: 1;
+	border: 2px solid var(--color-text-dark-primary);
+	border-radius: 50%;
+	background: transparent;
+	cursor: pointer;
+}
+
+.stonetop-pdi-favor-pip.is-filled {
+	background: var(--color-text-dark-primary);
+}
+
+.stonetop-pdi-favor-pip:disabled {
+	cursor: default;
+}
+
+.stonetop-pdi-favor-count {
+	font-size: var(--st-fs-base);
+	color: var(--color-text-dark-secondary);
+}
+
+/* An edit-mode pick the rules can't account for (UNSTABLE without BREAKDOWN, two Terrible
+   Purposes): the gold caution the stat boxes wear, flagged and never blocked. On the black paper
+   the ink stop is too dark to find, so the border stop (the bright gold) carries it there. */
+.stonetop-lore-option.is-cautioned {
+	box-shadow: inset 3px 0 0 var(--st-gold-border);
+	padding-left: 6px;
+}
+
+.stonetop-lore-option-caution {
+	flex: 0 0 auto;
+	color: var(--st-gold-text);
+}
+
+.vtt .stonetop.character.stonetop-past-death.window-app .window-content .stonetop-lore-option-caution {
+	color: var(--st-gold-border);
+}
+
 /* ── "Someone is dying" chat card ────────────────────────────────────
    The one card in the log that isn't a result — it's an interruption. Given the same cold
    ink and ember edge as the dialog it opens, so a PC going down doesn't scroll past looking
@@ -16568,12 +17708,12 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	margin-top: 2px;
 	border: none;
 	border-radius: 0;
-	background: url('/systems/stonetop-pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain !important;
+	background: var(--stonetop-checkbox-icon) no-repeat center / contain !important;
 	cursor: pointer;
 }
 
 .stonetop-eos-question input[type="checkbox"]:checked {
-	background: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain !important;
+	background: var(--stonetop-checkbox-checked-icon) no-repeat center / contain !important;
 }
 
 .stonetop-eos-question-text {
@@ -16654,7 +17794,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	top: 0.05em;
 	width: 15px;
 	height: 15px;
-	background: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg') no-repeat center / contain;
+	background: var(--stonetop-checkbox-checked-icon) no-repeat center / contain;
 }
 
 /* ================================================================
@@ -16828,22 +17968,26 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	mask: var(--st-weather-icon) no-repeat center / contain;
 }
 
-/* One rule per sky, keyed by the modifier the template interpolates from the view's `sky` —
-   a flat list like the tab rail's, so adding a weather is one line here and one in
-   WEATHER_SKIES. Order is the vocabulary's own (fine to foul, then the two temperatures). */
-.steading-header .steading-header-weather--sun      { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/sun.svg'); }
-.steading-header .steading-header-weather--fair     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/fair.svg'); }
-.steading-header .steading-header-weather--cloud    { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/cloud.svg'); }
-.steading-header .steading-header-weather--wind     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/wind.svg'); }
-.steading-header .steading-header-weather--rain     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/rain.svg'); }
-.steading-header .steading-header-weather--downpour { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/downpour.svg'); }
-.steading-header .steading-header-weather--storm    { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/storm.svg'); }
-.steading-header .steading-header-weather--tornado  { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/tornado.svg'); }
-.steading-header .steading-header-weather--snow     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/snow.svg'); }
-.steading-header .steading-header-weather--blizzard { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/blizzard.svg'); }
-.steading-header .steading-header-weather--cold     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/cold.svg'); }
-.steading-header .steading-header-weather--heat     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/heat.svg'); }
-.steading-header .steading-header-weather--haze     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/haze.svg'); }
+/* One rule per sky, keyed by the modifier the view resolves from its `sky` — a flat list like
+   the tab rail's, so adding a weather is one line here and one in WEATHER_SKIES. Order is the
+   vocabulary's own (fine to foul, then the two temperatures).
+
+   UNSCOPED, because two surfaces draw a sky: this header and the weather-and-season bar at the
+   top of the screen (seasons/time-banner.js). Each rule only sets the variable a glyph masks
+   with, so there is nothing in them for the two surfaces to fight over. */
+.stonetop-sky--sun      { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/sun.svg'); }
+.stonetop-sky--fair     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/fair.svg'); }
+.stonetop-sky--cloud    { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/cloud.svg'); }
+.stonetop-sky--wind     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/wind.svg'); }
+.stonetop-sky--rain     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/rain.svg'); }
+.stonetop-sky--downpour { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/downpour.svg'); }
+.stonetop-sky--storm    { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/storm.svg'); }
+.stonetop-sky--tornado  { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/tornado.svg'); }
+.stonetop-sky--snow     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/snow.svg'); }
+.stonetop-sky--blizzard { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/blizzard.svg'); }
+.stonetop-sky--cold     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/cold.svg'); }
+.stonetop-sky--heat     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/heat.svg'); }
+.stonetop-sky--haze     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/haze.svg'); }
 
 /* Nobody has set the weather yet, so the sun is ours rather than the GM's. Dropped to the
    secondary ink the year chip already uses — quiet enough to read as a default, not so quiet
@@ -16863,6 +18007,298 @@ button.stonetop-mark-sign-btn.is-active:hover {
 .steading-header .steading-header-weather--set:hover {
 	background: var(--st-slate-hover-bg);
 	color: var(--st-text-body);
+}
+
+/* ── The weather-and-season bar ────────────────────────────────────────────────────
+   The weather, the season and the year, hung from the top edge of the screen for the whole
+   table (seasons/time-banner.js): one bar in three parts, the same facts the steading header's
+   clock shows. Brought over from Mythic Bastionland's Phase/Season/Age banner, lights and all.
+
+   Each part is painted in its own light, off a `stonetop-time-banner--<light>` class the script
+   puts on the part and on the face that slides in over it: the weather in its sky's colours, the
+   season in its season's, the year in the parchment of Bastionland's Age. Every light sets the
+   same five variables and the part and the face paint from them, so a light is one rule.
+
+   ⚠ THE ONE SANCTIONED EXCEPTION to "only the steading clock colours by season" (the user's
+   call, 2026-09-27). Kept narrow: the season lights below are gradients of the bar's own, and
+   nothing here reads the four `--stonetop-season-*-ink` tokens, which stay the clock's alone
+   (steading-header-season.test.js still counts them).
+
+   Each later part lies over the end of the one before it and fades in from nothing, so one light
+   runs into the next with no line between them; only the bar's two outer corners are rounded.
+   It sits in Foundry's middle column (`#ui-top`), which centres it over the map and scales it
+   with the interface already. The column is click-through, so only the parts take pointers. */
+#ui-top > .stonetop-time-banner {
+	/* How far each part fades in over the one before it, which is also how far its words sit in
+	   from either inner side: the whole gap between two parts' words is fade, so two unlike lights
+	   (a storm against summer) turn into each other rather than meet. The fade must not outrun the
+	   overlap, or the page shows through its tail as a dark band. */
+	--stonetop-banner-blend: 2.4em;
+
+	order: -1;
+	align-self: center;
+	/* The season buttons hang from it (see `__moves`). */
+	position: relative;
+	display: inline-flex;
+	flex: none;
+	align-items: stretch;
+	margin: 0;
+	padding: 0;
+	border-radius: 0 0 12px 12px;
+	box-shadow: 0 2px 10px rgb(0 0 0 / 45%);
+	font-family: var(--font-stonetop);
+	font-size: calc(1.3rem * var(--stonetop-font-scale));
+	line-height: 1.2;
+	pointer-events: none;
+}
+
+/* A part. For a GM it is a <button>, so everything core hands a button is taken off by name. */
+.stonetop-time-banner__tab {
+	position: relative;
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	gap: 0.45em;
+	width: auto;
+	height: auto;
+	min-height: 0;
+	margin: 0;
+	/* The inner sides keep the words clear of the fade on either side of them. */
+	padding: 0.25em var(--stonetop-banner-blend) 0.35em;
+	border: none;
+	border-bottom: 1px solid var(--stonetop-banner-rule);
+	border-radius: 0;
+	box-shadow: none;
+	/* Straight down, so a part is no lighter at its left end than at its right, and a join meets
+	   like with like; slanted, every join ran from one part's darkest corner into the next one's
+	   lightest. */
+	background: linear-gradient(to bottom, var(--stonetop-banner-top), var(--stonetop-banner-bottom));
+	color: var(--stonetop-banner-ink);
+	font: inherit;
+	white-space: nowrap;
+	pointer-events: auto;
+	cursor: default;
+	/* A new face slides in from above the part, and nothing of it shows until it's inside. */
+	clip-path: inset(0);
+	/* Core slides every button's every property; a part turns by its own animation instead. */
+	transition: none;
+}
+
+/* Only the bar's two ends are rounded and edged down the side. */
+.stonetop-time-banner__tab--weather {
+	padding-left: 1.1em;
+	border-left: 1px solid var(--stonetop-banner-rule);
+	border-bottom-left-radius: 12px;
+}
+
+.stonetop-time-banner__tab--year {
+	padding-right: 1.1em;
+	border-right: 1px solid var(--stonetop-banner-rule);
+	border-bottom-right-radius: 12px;
+}
+
+/* Each later part lies over the end of the one before it and fades in from nothing, so the two lights blend.
+   The fade is eased (smoothstep, in tenths): a straight ramp shows as a hard band where it starts and
+   where it stops, which is most of what read as a seam. */
+.stonetop-time-banner__tab + .stonetop-time-banner__tab {
+	--stonetop-banner-fade-mask: linear-gradient(to right, transparent, rgb(0 0 0 / 3%) calc(var(--stonetop-banner-blend) * 0.1), rgb(0 0 0 / 10%) calc(var(--stonetop-banner-blend) * 0.2), rgb(0 0 0 / 22%) calc(var(--stonetop-banner-blend) * 0.3), rgb(0 0 0 / 35%) calc(var(--stonetop-banner-blend) * 0.4), rgb(0 0 0 / 50%) calc(var(--stonetop-banner-blend) * 0.5), rgb(0 0 0 / 65%) calc(var(--stonetop-banner-blend) * 0.6), rgb(0 0 0 / 78%) calc(var(--stonetop-banner-blend) * 0.7), rgb(0 0 0 / 90%) calc(var(--stonetop-banner-blend) * 0.8), rgb(0 0 0 / 97%) calc(var(--stonetop-banner-blend) * 0.9), #000 var(--stonetop-banner-blend));
+	margin-left: calc(-1 * var(--stonetop-banner-blend));
+	-webkit-mask-image: var(--stonetop-banner-fade-mask);
+	mask-image: var(--stonetop-banner-fade-mask);
+}
+
+/* Each wide enough for its longest word (Bitter cold, Summer), so no part changes width, and the
+   bar does not shift sideways, as the weather and the seasons turn. Measured in Libre Caslon at
+   roots of 14, 16 and 20px. The year only fits the short ones ("Year Seven"): it turns once a
+   year, and holding room for "Year Twenty-Three" would pad every other year out by half. */
+.stonetop-time-banner__tab--weather { min-width: 10.4em; }
+.stonetop-time-banner__tab--season  { min-width: 10.8em; }
+.stonetop-time-banner__tab--year    { min-width: 10.6em; }
+
+/* The sky, masked over its light's icon colour off the same `stonetop-sky--<sky>` rules the
+   steading header wears. Sized a little over the words for the reason the header's is:
+   game-icons.net art keeps wide margins inside its square, so a glyph matched to the text draws
+   smaller than it. The season's glyph below is drawn the same way, so the two share everything
+   but the drawing each is masked from. */
+.stonetop-time-banner__sky,
+.stonetop-time-banner__season {
+	display: block;
+	flex: none;
+	width: 1.3em;
+	height: 1.3em;
+	background: var(--stonetop-banner-icon);
+}
+
+.stonetop-time-banner__sky {
+	-webkit-mask: var(--st-weather-icon) no-repeat center / contain;
+	mask: var(--st-weather-icon) no-repeat center / contain;
+}
+
+/* Nobody has set the weather yet, so the sun is ours rather than the GM's; as on the header. */
+.stonetop-time-banner__sky--unset { opacity: 0.55; }
+
+/* The season's glyph, drawn the way the sky's is: a game-icons.net drawing masked in the light's
+   own icon colour (assets/icons/seasons/glyphs/ATTRIBUTION.md). NOT the book's season art the
+   Chronicle and the location journals use: that is a traced bitmap, a black disc with the picture
+   cut out of it, and at this size its edge breaks into stair-steps. No fallback in the var, so a
+   season with no rule paints a hole a test can see rather than the wrong season. */
+.stonetop-time-banner__season {
+	-webkit-mask: var(--stonetop-banner-season-glyph) no-repeat center / contain;
+	mask: var(--stonetop-banner-season-glyph) no-repeat center / contain;
+}
+
+.stonetop-time-banner__season--spring { --stonetop-banner-season-glyph: url('/systems/stonetop-pwd/assets/icons/seasons/glyphs/spring.svg'); }
+.stonetop-time-banner__season--summer { --stonetop-banner-season-glyph: url('/systems/stonetop-pwd/assets/icons/seasons/glyphs/summer.svg'); }
+.stonetop-time-banner__season--autumn { --stonetop-banner-season-glyph: url('/systems/stonetop-pwd/assets/icons/seasons/glyphs/autumn.svg'); }
+.stonetop-time-banner__season--winter { --stonetop-banner-season-glyph: url('/systems/stonetop-pwd/assets/icons/seasons/glyphs/winter.svg'); }
+
+/* The year's hourglass, Bastionland's Age glyph. Font Awesome paints above the middle of its own
+   box, so it is let down a pixel to sit level with the words. */
+.stonetop-time-banner__icon {
+	position: relative;
+	top: 1px;
+	flex: none;
+	color: var(--stonetop-banner-icon);
+	font-size: 0.85em;
+}
+
+/* GM only: each part opens the window that decides it, and says so when the pointer is over it. */
+#ui-top > .stonetop-time-banner > button {
+	cursor: pointer;
+}
+
+#ui-top > .stonetop-time-banner > button:hover {
+	filter: brightness(1.06);
+}
+
+#ui-top > .stonetop-time-banner > button:focus-visible {
+	outline: 2px solid var(--stonetop-banner-icon);
+	outline-offset: -4px;
+}
+
+/* A new weather, season or year drops in from the top edge over the old one, already in its own
+   light. The face covers the whole part down to its rule and ends, and the part takes the light
+   once it's in (time-banner.js). Skipped outright, in the script, for a reader who has asked for
+   less motion. */
+.stonetop-time-banner__face {
+	position: absolute;
+	inset: 0 0 -1px;
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: inherit;
+	padding: inherit;
+	border-bottom: 1px solid var(--stonetop-banner-rule);
+	border-radius: inherit;
+	background: linear-gradient(to bottom, var(--stonetop-banner-top), var(--stonetop-banner-bottom));
+	color: var(--stonetop-banner-ink);
+	pointer-events: none;
+	animation: stonetop-time-banner-turn 0.7s ease-out;
+}
+
+.stonetop-time-banner__tab--weather > .stonetop-time-banner__face {
+	left: -1px;
+	border-left: 1px solid var(--stonetop-banner-rule);
+}
+
+.stonetop-time-banner__tab--year > .stonetop-time-banner__face {
+	right: -1px;
+	border-right: 1px solid var(--stonetop-banner-rule);
+}
+
+/* Next Season and Change Season, let down under the season part by a GM's press on the season or
+   the year, as Bastionland lets down its ways of moving time on. Wears the year's parchment light
+   (the script puts `stonetop-time-banner--year` on it). The script sets `left` to the middle of the
+   season part; the 50% here is only for a bar that has somehow lost it. */
+.stonetop-time-banner__moves {
+	position: absolute;
+	top: calc(100% + 0.4rem);
+	left: 50%;
+	translate: -50% 0;
+	display: flex;
+	gap: 0.4rem;
+	padding: 0.4rem;
+	border: 1px solid var(--stonetop-banner-rule);
+	border-radius: 10px;
+	background: linear-gradient(160deg, var(--stonetop-banner-top), var(--stonetop-banner-bottom));
+	box-shadow: 0 2px 10px rgb(0 0 0 / 45%);
+	font-size: 0.8em;
+	pointer-events: auto;
+}
+
+.stonetop-time-banner__moves > button {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	gap: 0.45em;
+	width: auto;
+	height: auto;
+	min-height: 0;
+	margin: 0;
+	padding: 0.35em 0.8em;
+	border: 1px solid var(--stonetop-banner-rule);
+	border-radius: 6px;
+	background: var(--stonetop-banner-top);
+	box-shadow: none;
+	color: var(--stonetop-banner-ink);
+	font: inherit;
+	line-height: 1.2;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.stonetop-time-banner__moves > button i {
+	color: var(--stonetop-banner-icon);
+}
+
+.stonetop-time-banner__moves > button:hover {
+	border-color: var(--stonetop-banner-icon);
+	background: color-mix(in srgb, var(--stonetop-banner-icon) 12%, var(--stonetop-banner-top));
+}
+
+.stonetop-time-banner__moves > button:focus {
+	outline: none;
+	box-shadow: none;
+}
+
+.stonetop-time-banner__moves > button:focus-visible {
+	outline: 2px solid var(--stonetop-banner-icon);
+	outline-offset: 1px;
+}
+
+/* THE LIGHTS. Five variables each: the gradient's two ends, the words, the glyph, and the rule
+   along the foot. The inks are held to 7:1 or better against BOTH ends of their gradient, since a
+   player at this table reads through Windows Magnifier (tests/seasons/time-banner.test.js). */
+
+/* The skies, fine to foul and then the two temperatures, as WEATHER_SKIES lists them. */
+.stonetop-time-banner--sky-sun      { --stonetop-banner-top: #fffbe8; --stonetop-banner-bottom: #f8e7a0; --stonetop-banner-ink: #2a2414; --stonetop-banner-icon: #b0780c; --stonetop-banner-rule: #d9b84e; }
+.stonetop-time-banner--sky-fair     { --stonetop-banner-top: #fbf6e2; --stonetop-banner-bottom: #e6dcb4; --stonetop-banner-ink: #2a2414; --stonetop-banner-icon: #9a7018; --stonetop-banner-rule: #c9b47a; }
+.stonetop-time-banner--sky-cloud    { --stonetop-banner-top: #eceef0; --stonetop-banner-bottom: #bcc3ca; --stonetop-banner-ink: #1e2328; --stonetop-banner-icon: #4f5a66; --stonetop-banner-rule: #8d969f; }
+.stonetop-time-banner--sky-wind     { --stonetop-banner-top: #eef3f3; --stonetop-banner-bottom: #c2d3d3; --stonetop-banner-ink: #1b2626; --stonetop-banner-icon: #3f6464; --stonetop-banner-rule: #88a3a3; }
+.stonetop-time-banner--sky-rain     { --stonetop-banner-top: #e2e9f0; --stonetop-banner-bottom: #a9bccd; --stonetop-banner-ink: #142030; --stonetop-banner-icon: #2f5376; --stonetop-banner-rule: #7890a8; }
+.stonetop-time-banner--sky-downpour { --stonetop-banner-top: #cbd6e1; --stonetop-banner-bottom: #92a7bd; --stonetop-banner-ink: #0e1826; --stonetop-banner-icon: #1c3552; --stonetop-banner-rule: #52688a; }
+.stonetop-time-banner--sky-storm    { --stonetop-banner-top: #3a4160; --stonetop-banner-bottom: #171b2e; --stonetop-banner-ink: #ece6f6; --stonetop-banner-icon: #e8dfa8; --stonetop-banner-rule: #4d4f7c; }
+.stonetop-time-banner--sky-tornado  { --stonetop-banner-top: #4a5046; --stonetop-banner-bottom: #1e221c; --stonetop-banner-ink: #eef0e6; --stonetop-banner-icon: #d8d27a; --stonetop-banner-rule: #5d6454; }
+.stonetop-time-banner--sky-snow     { --stonetop-banner-top: #f7fafc; --stonetop-banner-bottom: #d4e0ea; --stonetop-banner-ink: #16202a; --stonetop-banner-icon: #4d6f8f; --stonetop-banner-rule: #9ab0c4; }
+.stonetop-time-banner--sky-blizzard { --stonetop-banner-top: #dfe7ee; --stonetop-banner-bottom: #aabccc; --stonetop-banner-ink: #101a24; --stonetop-banner-icon: #34506c; --stonetop-banner-rule: #7d95ab; }
+.stonetop-time-banner--sky-cold     { --stonetop-banner-top: #eef6fb; --stonetop-banner-bottom: #b7d3e6; --stonetop-banner-ink: #10202c; --stonetop-banner-icon: #2c6286; --stonetop-banner-rule: #7fa6c2; }
+.stonetop-time-banner--sky-heat     { --stonetop-banner-top: #f3d39c; --stonetop-banner-bottom: #dfa060; --stonetop-banner-ink: #2a1808; --stonetop-banner-icon: #8c3f0c; --stonetop-banner-rule: #a8692c; }
+.stonetop-time-banner--sky-haze     { --stonetop-banner-top: #eef0d8; --stonetop-banner-bottom: #d0d4a4; --stonetop-banner-ink: #262814; --stonetop-banner-icon: #62631f; --stonetop-banner-rule: #a3a668; }
+
+/* The seasons: new green, high-summer gold, turning rust, frost. */
+.stonetop-time-banner--season-spring { --stonetop-banner-top: #f6fbe8; --stonetop-banner-bottom: #d6e8b0; --stonetop-banner-ink: #1f2a14; --stonetop-banner-icon: #4a5a32; --stonetop-banner-rule: #8fb05a; }
+.stonetop-time-banner--season-summer { --stonetop-banner-top: #fbf1c4; --stonetop-banner-bottom: #efd27a; --stonetop-banner-ink: #2e240c; --stonetop-banner-icon: #7a5608; --stonetop-banner-rule: #c9a23c; }
+.stonetop-time-banner--season-autumn { --stonetop-banner-top: #f3d39c; --stonetop-banner-bottom: #de9656; --stonetop-banner-ink: #221204; --stonetop-banner-icon: #7a3410; --stonetop-banner-rule: #a8692c; }
+.stonetop-time-banner--season-winter { --stonetop-banner-top: #f4f8fb; --stonetop-banner-bottom: #c6d6e4; --stonetop-banner-ink: #16202a; --stonetop-banner-icon: #43546a; --stonetop-banner-rule: #8aa4bc; }
+
+/* The year: Bastionland's Age parchment, its hourglass in red ochre. */
+.stonetop-time-banner--year { --stonetop-banner-top: #f7f1e3; --stonetop-banner-bottom: #dccfb0; --stonetop-banner-ink: #231f1a; --stonetop-banner-icon: #9b3b24; --stonetop-banner-rule: #8a7d6a; }
+
+@keyframes stonetop-time-banner-turn {
+	from { translate: 0 -100%; }
+	to   { translate: 0 0; }
 }
 
 /* ── The hold tray ─────────────────────────────────────────────────────────────────
@@ -19899,6 +21335,20 @@ a.steading-player-open:hover {
 	flex: 0 0 auto;
 }
 
+/* Core gives every `<i>` in an app button a 3px right margin, which put the glyph 1.56px left of
+   centre; and a glyph sized from the UI font grew inside this fixed 20px box (21px at root 24).
+   A whole-px 11px glyph with no margin sits within 0.19px of centre at root 16/20/24.
+   Probe: z:/tmp/foundry-verify/herd-step-centre.mjs.
+   The crew's and a custom group's size steppers are the same fix: there the glyph also sat up to
+   1px high in a fixed 22px box at root 24 (probe: crew-step-centre.mjs, beside it). */
+.steading-herd-step > i,
+.stonetop-crew-size-step > i,
+.stonetop-custom-group-size-step > i {
+	margin: 0;
+	font-size: 11px;
+	line-height: 1;
+}
+
 .steading-herd-step:hover:not(:disabled) {
 	background: rgba(0,0,0,0.1);
 }
@@ -20279,13 +21729,17 @@ a.steading-player-open:hover {
    maroon 1px underline sized to the WORD, since a flex item shrinks to its content. That
    short dark rule floating under "Spring" is the thing this block is undoing — the whole row
    gets one hairline in the card-rule token instead, which is a heading with a rule under it
-   rather than an underlined word. */
+   rather than an underlined word.
+
+   It sits at the top of the step rail, so it STACKS (glyph, name, year) to fit the rail's width. */
 .stonetop-season-flow-header {
 	display: flex;
+	flex-direction: column;
 	align-items: center;
-	gap: 10px;
-	margin-bottom: 10px;
-	padding-bottom: 8px;
+	gap: 6px;
+	margin: 0 0 10px;
+	padding: 2px 4px 10px;
+	text-align: center;
 	border-bottom: 1px solid var(--st-card-rule);
 }
 
@@ -20293,7 +21747,7 @@ a.steading-player-open:hover {
    above. 700 is the ceiling Libre Caslon Text ships — heavier synthesises a stroke, which at
    this size fills in Caslon's thin strokes, exactly as it does on the steading header. */
 .stonetop-season-flow-header .stonetop-season-flow-title {
-	flex: 1;
+	flex: none;
 	min-width: 0;
 	margin: 0;
 	border: none;
@@ -20320,8 +21774,106 @@ a.steading-player-open:hover {
 	border: none;
 }
 
-.stonetop-season-flow { padding-bottom: 12px; }
 .stonetop-season-picker { padding-bottom: 12px; }
+
+/* ── Seasons Change as a left-rail stepped window ─────────────────────────────
+   The Welcome guide's shape (the shared .stonetop-guide-split / -toc / -main chrome): the rail
+   and one step's column fill a FIXED-height window above a pinned footer, and only the column
+   scrolls. Full-bleed, so the rail's tint runs to the window's edges.
+
+   The footer is core's own `.dialog-buttons` (Done, plus the Back/Next the render callback
+   adds), a flex item of `.window-content` like the content beside it. */
+.stonetop-season-flow-dialog .window-content {
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.stonetop-season-flow-dialog .dialog-content,
+.stonetop-season-flow {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.stonetop-season-main {
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+/* The first block of a step would otherwise open with its own top margin under the column's
+   padding (the gains box's 12px, the notes' 10px), which the other steps don't have. */
+.stonetop-season-section > :first-child { margin-top: 0; }
+
+/* The steading's three numbers, under the header on the rail: label left, figure right, so
+   the figures read down as a column. */
+.stonetop-season-rail-stats {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin: 0 0 10px;
+	padding: 0 6px 10px;
+	font-size: var(--st-fs-sm);
+	border-bottom: 1px solid var(--st-card-rule);
+}
+
+.stonetop-season-rail-stats > div {
+	display: flex;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.stonetop-season-rail-stats dt {
+	font-weight: 400;
+	/* Core puts a 1px black shadow on a dialog's <dt>, which smudges it on parchment. */
+	text-shadow: none;
+	color: var(--st-text-secondary);
+}
+
+.stonetop-season-rail-stats dd {
+	margin: 0;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+}
+
+/* The footer as a footer: a rule above, no floating gap (the generic 16px margin-top is for
+   popups whose buttons sit under a message). Carries `.vtt .stonetop.dialog` to get over that
+   generic rule, which is 0-4-0. */
+.vtt .stonetop.dialog.stonetop-season-flow-dialog .dialog-buttons {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	margin: 0;
+	padding: 10px 16px 12px;
+	border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Back / Next: the Welcome guide's parchment step buttons, content-sized at the right end.
+   They are the footer's only buttons: the season is closed out from its last step, not here.
+   The scope is what outranks the slate skin every `.stonetop` Dialog button gets. */
+.vtt .stonetop.dialog.stonetop-season-flow-dialog .dialog-buttons .stonetop-season-step {
+	flex: 0 0 auto;
+	width: auto;
+	gap: 0.4em;
+	padding: 0 14px;
+	background: var(--stonetop-bg, #f5f0e8);
+	border: 1px solid var(--color-border-dark, #7a7971);
+	color: inherit;
+}
+
+.vtt .stonetop.dialog.stonetop-season-flow-dialog .dialog-buttons .stonetop-season-step:hover:not(:disabled) {
+	background: hsl(40 25% 85%);
+}
+
+.vtt .stonetop.dialog.stonetop-season-flow-dialog .dialog-buttons .stonetop-season-step:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
 
 .stonetop-seasons-grid {
 	display: grid;
@@ -20367,23 +21919,26 @@ a.steading-player-open:hover {
 }
 
 /* No `h3` rule here: the only one in this flow is the banner's title, styled with the rest
-   of that header above (where core's underline and normal weight are undone). */
-.stonetop-season-flow p  { margin: 5px 0; }
-.stonetop-season-flow ul { margin: 4px 0; padding-left: 24px; }
-.stonetop-season-flow li { margin: 3px 0; padding-left: 16px; }
+   of that header above (where core's underline and normal weight are undone).
+
+   Scoped to the step COLUMN, not the whole flow: the rail beside it is an <ol> of <li>s too,
+   and a 16px list indent there pushed "Roll +Fortunes" onto two lines. */
+.stonetop-season-main p  { margin: 5px 0; }
+.stonetop-season-main ul { margin: 4px 0; padding-left: 24px; }
+.stonetop-season-main li { margin: 3px 0; padding-left: 16px; }
 
 /* The bare roll-result lists (10+/7–9/6−) get spiral bullets like the rest of this
    system's prose. Scoped to unclassed <ul> so the classed lists in this flow — the
    seasonal-gains checklist and the winter disaster <ol> — keep their own styling. */
-.stonetop-season-flow ul:not([class]) {
+.stonetop-season-main ul:not([class]) {
 	list-style: none;
 	padding-left: 14px;
 }
-.stonetop-season-flow ul:not([class]) > li {
+.stonetop-season-main ul:not([class]) > li {
 	position: relative;
 	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
 }
-.stonetop-season-flow ul:not([class]) > li::before {
+.stonetop-season-main ul:not([class]) > li::before {
 	content: "";
 	position: absolute;
 	left: 0;
@@ -20483,7 +22038,7 @@ a.steading-player-open:hover {
 
 /* Checklist of seasonal gains the GM ticks — shared by the steading's Seasons Change
    modal and the Spring Burst "Read the omen" step (both render the same SEASONAL_GAINS).
-   Scoped past .stonetop-season-flow ul/li so they don't inherit the season list's disc
+   Scoped past .stonetop-season-main ul/li so they don't inherit the season list's disc
    bullets and indent. */
 .stonetop-season-gains .stonetop-season-gains-list {
 	list-style: none;
@@ -20513,7 +22068,7 @@ a.steading-player-open:hover {
    window, two different acts — so a yield is a card with an amount on its right and a button
    under it, and cannot be mistaken for something to check off.
 
-   Scoped past `.stonetop-season-flow ul/li`, as the gains list is, so these do not inherit the
+   Scoped past `.stonetop-season-main ul/li`, as the gains list is, so these do not inherit the
    season's disc bullets and their indent. */
 .stonetop-season-yields {
 	margin: 10px 0 4px;
@@ -20583,6 +22138,27 @@ a.steading-player-open:hover {
 	min-height: 48px;
 	resize: vertical;
 	font-family: inherit;
+}
+
+/* The Chronicle step is nothing but the notes, so the textarea takes the column's whole height
+   (the column's own padding is the inset) instead of sitting as a two-row box at the top.
+   `:not([hidden])` because a `display` here would otherwise out-rank the UA's `[hidden]` and
+   show this step under every other one. */
+.stonetop-season-section[data-season-tab="chronicle"]:not([hidden]) {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+.stonetop-season-section[data-season-tab="chronicle"] .stonetop-season-notes-wrap {
+	flex: 1 1 auto;
+	min-height: 0;
+}
+.stonetop-season-section[data-season-tab="chronicle"] .stonetop-season-notes {
+	flex: 1 1 auto;
+	min-height: 120px;
+	resize: none;
+	padding: 8px 10px;
 }
 
 /* -- Meet with Disaster dialog --------------------------------- */
@@ -20868,6 +22444,18 @@ a.steading-player-open:hover {
 	height: var(--stonetop-bullet-size, 10px);
 	background: var(--stonetop-spiral-icon) no-repeat center / contain;
 	opacity: 0.55;
+}
+
+/* A roll card's list to READ (roll-engine#pickReferenceHtml: the seasonal gains), in this same
+   box under the Results legend. The gap says they are two boxes. On the box rather than on its
+   tier wrapper, so a tier that lists nothing (a 6-, its box hidden) leaves no gap behind. */
+.stonetop-roll-card-results .stonetop-roll-reference { margin-top: 6px; }
+
+/* "(tell the GM what you choose)" beside the box's heading: an instruction, quieter than the
+   heading it follows, the way the Seasons Change window's "(tick what they pick)" is. */
+.stonetop-roll-reference-hint {
+	font-weight: 400;
+	color: var(--st-text-secondary);
 }
 
 .stonetop-homestead-choice-list {
@@ -21898,12 +23486,14 @@ a.steading-player-open:hover {
 	align-items: center;
 }
 
-.stonetop-onboarding-card--possession.is-preselected {
+.stonetop-onboarding-card--possession.is-preselected,
+.stonetop-onboarding-card--invocation.is-preselected {
 	background: rgba(100,116,139,0.06);
 	border-color: rgba(100,116,139,0.3);
 }
 
-.stonetop-onboarding-card--possession .stonetop-onboarding-card-header {
+.stonetop-onboarding-card--possession .stonetop-onboarding-card-header,
+.stonetop-onboarding-card--invocation.is-preselected .stonetop-onboarding-card-header {
 	align-items: center;
 }
 
@@ -22163,6 +23753,31 @@ a.steading-player-open:hover {
 	background: var(--st-btn-primary-bg-hover);
 	border-color: var(--st-btn-primary-border-hover);
 	color: var(--st-btn-primary-text);
+}
+
+/* The background-neighbors picker borrows this chrome with TWO footer buttons (add the picks /
+   add only the fixed ones), side by side. */
+.stonetop-background-neighbors-dialog .stonetop-pc-footer,
+.stonetop-seeker-major-dialog .stonetop-pc-footer {
+	gap: 8px;
+}
+
+/* The Seeker's major-arcanum ask (Details-tab background switch): a small icon beside each major,
+   a quiet note of what gets marked, and a major's □ tasks indented under it. */
+.stonetop-seeker-major-thumb {
+	width: 28px;
+	height: 28px;
+	flex-shrink: 0;
+	border: none;
+	object-fit: contain;
+}
+.stonetop-seeker-major-note {
+	display: block;
+	font-size: 0.9em;
+	color: var(--st-quiet-ink);
+}
+.stonetop-seeker-major-tasks {
+	margin-left: 28px;
 }
 
 /* The "edit" pencils that open the modal (move card + gear-tab possession). Slate,
@@ -22464,6 +24079,7 @@ a.steading-player-open:hover {
 
 .stonetop-onboarding-background-move-choices,
 .stonetop-onboarding-background-setup,
+.stonetop-onboarding-background-picks,
 .stonetop-onboarding-background-actions {
 	display: flex;
 	flex-direction: column;
@@ -22471,6 +24087,28 @@ a.steading-player-open:hover {
 	margin-top: 8px;
 	padding-top: 8px;
 	border-top: 1px solid rgba(100,116,139,0.16);
+}
+
+/* A background's own "choose N" list: sentences (Driven) stack, short words (Destined) wrap as
+   pills. A full list's unticked options are shown as out of reach; a short list is flagged. */
+.stonetop-onboarding-background-picks:not(.is-inline) .stonetop-onboarding-background-choice-options {
+	flex-direction: column;
+	align-items: flex-start;
+}
+
+.stonetop-onboarding-background-pick-option:has(input:disabled) {
+	cursor: default;
+	opacity: 0.55;
+}
+
+.stonetop-onboarding-background-picks-flag {
+	margin: 0;
+	font-size: var(--st-fs-sm);
+	color: var(--st-red-text);
+}
+
+.stonetop-onboarding-background-picks-flag[hidden] {
+	display: none;
 }
 
 /* Beast-Bonded actions are full sentences, so stack them instead of wrapping pills. */
@@ -22875,6 +24513,20 @@ a.steading-player-open:hover {
 	/* Same Chromium radio-in-flex quirk: the native radio renders ~2px below the row's
 	   center. Nudge it up to line up with the role label. */
 	transform: translateY(-2px);
+}
+
+/* "Review both sides": each drawn card's front and back, folded under its name until opened. */
+.stonetop-onboarding-minor-sides {
+	font-size: 0.9em;
+	text-align: left;
+}
+.stonetop-onboarding-minor-sides > summary {
+	cursor: pointer;
+	color: var(--st-quiet-ink);
+}
+.stonetop-onboarding-minor-side h5 {
+	margin: 6px 0 2px;
+	font-size: 1em;
 }
 
 /* Per-card swap picker: replace this one drawn card with a specific arcanum, without
@@ -23428,6 +25080,36 @@ a.steading-player-open:hover {
 
 .stonetop-invoke-dialog .stonetop-invoke-empower input { flex: none; }
 
+/* Burn Twice as Bright: the same checkbox line, with its two pickers (which Invocation, and what
+   pays for it) indented under it. */
+.stonetop-invoke-dialog .stonetop-invoke-burn-twice {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	margin: 8px 0 0;
+	cursor: pointer;
+}
+
+.stonetop-invoke-dialog .stonetop-invoke-burn-twice input { flex: none; }
+
+.stonetop-invoke-dialog .stonetop-burn-twice-fields {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 4px 0 0 22px;
+}
+
+.stonetop-invoke-dialog .stonetop-burn-twice-fields label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.stonetop-invoke-dialog .stonetop-burn-twice-unpaid {
+	margin: 4px 0 0 22px;
+	color: var(--st-text-secondary);
+}
+
 /* Whether a light is at hand is the table's call, so this states the sheet's answer rather
    than blocking the roll: a note, not an error. */
 .stonetop-invoke-dialog .stonetop-invoke-nolight {
@@ -23568,6 +25250,54 @@ a.steading-player-open:hover {
 	padding: 0 6px 0 2px;
 }
 
+/* ---- Pinned variant: a search bar, not a glass ---------------------------
+   The Preferences tab's filter (tab-search-control.hbs, `searchPinned`). Drawn open, with no
+   toggle button — the glass is a plain <i> — because it is the first line of the tab rather
+   than a control tucked in beside a heading.
+
+   SIZED TO WHAT GOES IN IT, not to the panel. It was full-width first and that was wrong: a
+   field is as long as the longest thing anyone types into it, and these are words like
+   "contrast" and "italics", so a 900px box was a stripe of empty white promising a kind of
+   input nobody was going to give it. It also read as a heading band rather than as a control.
+   `min()` keeps it honest on a narrow sheet — the Toolkit can be dragged well under 22em —
+   where it goes back to taking what there is rather than overflowing the page.
+
+   The `.is-open` rules above are the thing being overridden and they are ordinary two-class
+   selectors, so these carry the block class as well (0,2,0 for the box, 0,3,0 for the input)
+   and win by sitting LATER in the file, which is the modifier order this sheet keeps
+   throughout. Note the `margin-top` reset: `.is-open` pulls the box up by 8px to keep a
+   heading's underline from shifting as it grows, and there is no heading here to protect —
+   left in, it would hang the bar into the intro above it. */
+.stonetop-tab-search.stonetop-tab-search--pinned {
+	display: flex;
+	width: min(100%, 22em);
+	height: calc(26px * var(--stonetop-font-scale, 1));
+	margin-top: 0;
+	padding-left: 6px;
+	background: #fff;
+	border-color: var(--color-border-dark, #7a7971);
+}
+
+.stonetop-tab-search.stonetop-tab-search--pinned .stonetop-tab-search-glyph {
+	flex: 0 0 auto;
+	/* The same grey the toggle button's icon rests at: a mark saying what the field is, not a
+	   control, and it is not competing with the text typed beside it. */
+	color: #9b9a94;
+	font-size: calc(15px * var(--stonetop-font-scale, 1));
+	line-height: 1;
+	align-self: center;
+}
+
+.stonetop-tab-search.stonetop-tab-search--pinned .stonetop-tab-search-input {
+	flex: 1 1 auto;
+	width: auto;
+	max-width: none;
+	opacity: 1;
+	pointer-events: auto;
+	padding: 0 6px;
+	font-weight: normal;
+}
+
 /* Exception: grow DOWNWARD where the heading is a scrollport's first line.
    The upward growth above assumes empty space over the heading. On the Invocations tab the
    heading is the tab's very first line AND the tab is its own scroll container, so the open
@@ -23610,6 +25340,57 @@ a.steading-player-open:hover {
 /* "Ongoing" badge carries the ongoing-rules text on hover. */
 .stonetop-invocation-ongoing {
 	cursor: help;
+}
+
+/* "Needs sun" (the Invoke consequence "bask in sunlight ... before using that Invocation again"):
+   a cue under the card's title with its one-click Basked. Never a block, so no warning ink. */
+.stonetop-invocation-needs-sun {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 2px 0 4px;
+}
+
+.stonetop-invocation-sun-badge {
+	cursor: help;
+	color: var(--st-holy-light-ink);
+	border-color: var(--st-holy-light-border);
+}
+
+/* Core's `body.game .app button { width: 100% }` reaches this one too. */
+.stonetop-invocation-needs-sun .stonetop-invocation-basked {
+	flex: none;
+	width: auto;
+	min-width: 0;
+	min-height: 0;
+	height: auto;
+	margin: 0;
+	padding: 1px 10px;
+	border: 1px solid var(--st-holy-light-border);
+	border-radius: 999px;
+	background: transparent;
+	box-shadow: none;
+	font-size: var(--st-fs-xs);
+	font-weight: 600;
+	line-height: 1.7;
+	color: var(--st-holy-light-ink);
+	cursor: pointer;
+}
+
+.stonetop-invocation-needs-sun .stonetop-invocation-basked:hover {
+	background: var(--st-holy-light-bg-hover);
+}
+
+/* The same cue in the invoke window: a quiet note, like the no-light line. */
+.stonetop-invoke-dialog .stonetop-invoke-needs-sun {
+	margin: 8px 0 0;
+	color: var(--st-text-secondary);
+	font-size: 0.95em;
+}
+
+.stonetop-invoke-dialog .stonetop-invoke-needs-sun i {
+	margin-right: 4px;
+	color: rgba(176, 128, 24, 0.9);
 }
 
 .stonetop-invocation-name {
@@ -24359,6 +26140,15 @@ a.steading-player-open:hover {
 	color: var(--st-text-muted);
 	margin: 4px 0 0;
 }
+/* Sir, Permission to Die, Sir: the pre-ticked "you let them go, mark XP" box under the options. */
+.stonetop-follower-fate-dialog .stonetop-ff-let-go-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	margin: 8px 0 0;
+	font-size: var(--st-fs-sm);
+}
+.stonetop-follower-fate-dialog .stonetop-ff-let-go-row input { flex: 0 0 auto; margin: 2px 0 0; }
 
 /* "pick 2 more" / "swift or hardy" choose-hint shown after the fixed trait tags */
 .stonetop-follower-trait-note {
@@ -25106,6 +26896,22 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 	   back up on one line the moment the sheet is wide enough or the tab is a single column. */
 	flex-wrap: wrap;
 }
+/* A custom group's member marked dead at the group's two-member floor (follower-fate.js): the fallen
+   card's treatment (.stonetop-follower-card.is-dead) at row size, the "Fallen" badge full strength
+   so the state reads against the muted row. */
+.stonetop-crew-member-row.is-dead {
+	border-color: var(--st-red-border);
+	background: var(--st-red-bg);
+}
+.stonetop-crew-member-row.is-dead .stonetop-crew-member-name { text-decoration: line-through; }
+.stonetop-crew-member-row.is-dead .stonetop-roster-avatar {
+	filter: grayscale(0.7);
+	opacity: 0.75;
+}
+.stonetop-crew-member-row .stonetop-follower-dead-badge {
+	flex: none;
+	margin-top: 0;
+}
 
 /* ONE line, always. This is `Crew member 3` — a positional label, not a name someone chose — so
    the useful failure at a narrow width is to clip it, never to stack it into a three-line column
@@ -25666,6 +27472,59 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 .stonetop-crew-tag-choice.is-auto { cursor: default; }
 .stonetop-crew-tag-choice.is-disabled:not(.is-selected) { opacity: 0.35; cursor: default; }
 
+/* A tag's remove button: the companion's conditions (always) and every hand-editable tag under the
+   card's pencil (Updating followers, p.480). A bare glyph inside the chip, so core's button rules
+   (`width: 100%`, a block box, a min height, the icon's 3px right margin) are all put back. */
+.stonetop-follower-tag :is(.stonetop-follower-tag-remove, .stonetop-follower-tag-drop) {
+	display: inline-flex;
+	flex: none;
+	width: auto;
+	height: auto;
+	min-height: 0;
+	margin: 0 0 0 2px;
+	padding: 0 1px;
+	border: 0;
+	background: none;
+	color: var(--st-text-muted);
+	font-size: 0.85em;
+	line-height: 1;
+	vertical-align: baseline;
+	cursor: pointer;
+}
+.stonetop-follower-tag :is(.stonetop-follower-tag-remove, .stonetop-follower-tag-drop) > i { margin: 0; }
+.stonetop-follower-tag :is(.stonetop-follower-tag-remove, .stonetop-follower-tag-drop):is(:hover, :focus-visible) {
+	color: var(--st-text-body);
+}
+
+/* The tag editor under a card's pencil: any hand-added tags (on a picker card), then the add field.
+   It takes a line of its own, so the row wraps rather than squeezing the picker beside it. */
+.stonetop-follower-tags-row:has(> .stonetop-follower-tag-editor) { flex-wrap: wrap; }
+.stonetop-follower-tag-editor {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	flex: 1 1 100%;
+	min-width: 0;
+}
+.stonetop-follower-tag-add-row { display: flex; gap: 6px; align-items: center; min-width: 0; }
+/* The .stonetop-follower-text skin, but NOT that class: the sheet saves every .stonetop-follower-text
+   on change to the field its data-field names, and this one names none (it is read on add). */
+.stonetop-follower-tag-add-row .stonetop-follower-tag-input {
+	flex: 1 1 0;
+	min-width: 0;
+	width: auto;
+	box-sizing: border-box;
+	border: 1px solid rgba(0, 0, 0, 0.25);
+	border-radius: var(--st-radius-sm);
+	background: rgba(255, 255, 255, 0.6);
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-base);
+	line-height: 1.35;
+	padding: 3px 6px;
+}
+.stonetop-follower-tag-add-row .stonetop-follower-tag-input:not(:focus) { box-shadow: none; }
+.stonetop-follower-tag-add-row .stonetop-follower-tag-add > i { margin: 0; }
+
 /* Exceptional: a gated, selectable tag chip (edit mode). Mirrors the crew tag
    choices but keeps the amber "exceptional" tint and shows a lock until the
    granting playbook move is owned.
@@ -25699,8 +27558,6 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 	border-color: rgba(160,130,80,0.65);
 	color: var(--st-text-body);
 }
-.stonetop-exceptional-toggle.is-locked { border-style: dashed; opacity: 0.85; }
-.stonetop-exceptional-toggle.is-locked .fa-lock { font-size: 0.8em; font-size: round(0.8em, 1px); opacity: 0.6; }
 
 /* Pick-one option list (instinct / cost) */
 .stonetop-follower-option-list {
@@ -25748,6 +27605,34 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 
 .stonetop-follower-moves-list li::before {
 	content: "\27A4"; /* ➤ — matches the rulebook's Moves marker */
+	flex: none;
+	color: var(--st-text-secondary);
+	font-size: 0.78em;
+	line-height: 1.3;
+}
+
+/* Beast-Bonded actions on the companion card: the moves list's arrow and fill line, but read-only
+   (nothing to post, so no pointer or hover). */
+.stonetop-companion-bond-actions {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.stonetop-companion-bond-actions li {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	font-size: var(--st-fs-base);
+	border-bottom: 1px dotted rgba(0, 0, 0, 0.15);
+	padding-bottom: 1px;
+}
+
+.stonetop-companion-bond-actions li::before {
+	content: "\27A4";
 	flex: none;
 	color: var(--st-text-secondary);
 	font-size: 0.78em;
@@ -26021,7 +27906,7 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 	display: inline-block;
 	width: 0.65em;
 	height: 0.65em;
-	background: center / contain no-repeat url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon.svg');
+	background: center / contain no-repeat var(--stonetop-playbook-arrow-icon);
 	transform: rotate(-90deg); /* closed: arrow points up */
 	transition: transform 0.15s;
 }
@@ -26109,7 +27994,7 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
    Where a family declares its marker later still, it re-asserts both for itself (the journal and
    monster bodies, the two GM playbook lists) — for the same reason and in the same pair. */
 li.question-bullet::before {
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg');
+	background-image: var(--stonetop-question-spiral-icon);
 	width: calc(var(--stonetop-bullet-size, 10px) * 1.26);
 }
 
@@ -26288,7 +28173,7 @@ li.question-bullet::before {
 }
 .stonetop-monster-rich-text li.check-bullet.checked::before,
 .stonetop-monster-move-description li.check-bullet.checked::before {
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg');
+	background-image: var(--stonetop-checkbox-checked-icon);
 }
 /* The injected control sits where the ::before marker hung (left padding), drawn
    as the same currentColor mask so it inherits the journal text colour in both
@@ -28052,7 +29937,7 @@ li.question-bullet::before {
 	content: "";
 	width: 0.7em;
 	height: 1.4em; /* span the name's first line so the arrow centers on it */
-	background: center / 0.7em no-repeat url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon.svg');
+	background: center / 0.7em no-repeat var(--stonetop-playbook-arrow-icon);
 	opacity: 0.7;
 }
 
@@ -28163,7 +30048,7 @@ li.question-bullet::before {
    it is a wide mark in a box built for a square one, and a square box draws it a fifth short. */
 .stonetop-monster-rich-text li.question-bullet::before,
 .stonetop-monster-move-description li.question-bullet::before {
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg');
+	background-image: var(--stonetop-question-spiral-icon);
 	width: calc(var(--stonetop-bullet-size, 10px) * 1.26);
 }
 
@@ -28173,7 +30058,7 @@ li.question-bullet::before {
    it via the existing `.theme-dark … li::before` rule. */
 .stonetop-monster-rich-text li.check-bullet::before,
 .stonetop-monster-move-description li.check-bullet::before {
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/checkbox.svg');
+	background-image: var(--stonetop-checkbox-icon);
 	width: var(--stonetop-checkbox-size);
 	height: var(--stonetop-checkbox-size);
 	background-size: contain;
@@ -28981,7 +30866,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	top: 0.1em;
 	width: var(--stonetop-question-spiral-size, 14px);
 	height: var(--stonetop-question-spiral-size, 14px);
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg');
+	background-image: var(--stonetop-question-spiral-icon);
 	background-size: contain;
 	background-repeat: no-repeat;
 	background-position: center;
@@ -29887,6 +31772,16 @@ th:has(> .stonetop-roll-table-btn) {
 
 .stonetop-intros-notice--warn > i { color: #c07820; }
 
+/* The blue "still wants a choice from you" call-to-action, the notice-sized cousin of
+   `.move-needs-choice`: something is owed, nothing is wrong (the Invocations tab's "N of M"). */
+.stonetop-intros-notice--choice {
+	background: var(--st-blue-bg);
+	border: 1px solid var(--st-blue-border);
+	color: var(--st-blue-text);
+}
+
+.stonetop-intros-notice--choice > i { color: var(--st-blue-border); }
+
 .stonetop-intros-notice--ok {
 	background: rgba(40, 140, 70, 0.08);
 	border: 1px solid rgba(40, 140, 70, 0.35);
@@ -30072,14 +31967,14 @@ th:has(> .stonetop-roll-table-btn) {
 	width: calc(15px * var(--stonetop-font-scale, 1));
 	height: calc(15px * var(--stonetop-font-scale, 1));
 	margin-top: 0.15em;
-	background: url('/systems/stonetop-pwd/assets/icons/steading/checkbox.svg') no-repeat center / contain;
+	background: var(--stonetop-checkbox-icon) no-repeat center / contain;
 }
 
 .stonetop-intros-question-pick.is-selected::before,
 .stonetop-intros-question-pick.is-used::before,
 .stonetop-intros-question-static.is-selected::before,
 .stonetop-intros-question-static.is-used::before {
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked.svg');
+	background-image: var(--stonetop-checkbox-checked-icon);
 }
 
 .stonetop-intros-question-pick:hover { background: rgba(0, 0, 0, 0.05); }
@@ -30915,6 +32810,21 @@ th:has(> .stonetop-roll-table-btn) {
 	line-height: 1.35;
 }
 
+/* The Logbook row's "Reset logbook", pressed by the Seeker's own player. */
+.stonetop-seasons-reset-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	width: 100%;
+	margin-top: 6px;
+}
+
+.stonetop-seasons-reset-btn:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+
 /* "New to Foundry?" text link, sitting under the intro on the Welcome guide. A
    quiet prompt → the FoundryBasicsDialog primer, styled as a text button (no
    box) so it reads as a link rather than competing with the step actions. */
@@ -31645,7 +33555,7 @@ th:has(> .stonetop-roll-table-btn) {
 	white-space: nowrap;
 	padding: 5px 14px;
 	font-family: var(--font-stonetop);
-	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	font-size: calc(0.95rem * var(--stonetop-font-scale, 1));
 	cursor: pointer;
 	border: 1px solid var(--color-border-dark, #7a7971);
 	border-radius: var(--st-radius-sm);
@@ -31655,7 +33565,7 @@ th:has(> .stonetop-roll-table-btn) {
 }
 
 .stonetop-spring-roll-btn:hover,
-.stonetop-spring-ask-btn:hover { background: hsl(40 25% 85%); }
+.stonetop-spring-ask-btn:hover { background: var(--st-warm-hover-bg); }
 .stonetop-spring-roll-btn > i,
 .stonetop-spring-ask-btn > i { margin-right: 4px; }
 
@@ -31702,7 +33612,7 @@ th:has(> .stonetop-roll-table-btn) {
 }
 
 .stonetop-spring-roll-result-label {
-	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	font-size: calc(0.92rem * var(--stonetop-font-scale, 1));
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 }
@@ -31758,7 +33668,7 @@ th:has(> .stonetop-roll-table-btn) {
 
 .stonetop-spring-tiers--cards .stonetop-spring-tier-text {
 	flex: 1;
-	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	font-size: calc(0.95rem * var(--stonetop-font-scale, 1));
 	line-height: 1.45;
 }
 
@@ -31802,23 +33712,23 @@ th:has(> .stonetop-roll-table-btn) {
 
 /* Tier colour-coding (shared by the dialog roll result and the chat card) */
 
-.stonetop-spring--success { color: #1a5c2e; }
-.stonetop-spring--partial { color: #7a4a00; }
-.stonetop-spring--failure { color: #8a2020; }
+.stonetop-spring--success { color: var(--st-green-text); }
+.stonetop-spring--partial { color: var(--st-gold-text); }
+.stonetop-spring--failure { color: var(--st-red-text); }
 
 .stonetop-spring-roll-result.stonetop-spring--success {
-	background: rgba(40, 140, 70, 0.1);
-	border-color: rgba(40, 140, 70, 0.4);
+	background: var(--st-green-bg);
+	border-color: var(--st-green-border);
 }
 
 .stonetop-spring-roll-result.stonetop-spring--partial {
-	background: rgba(200, 120, 20, 0.1);
-	border-color: rgba(200, 120, 20, 0.4);
+	background: var(--st-gold-bg);
+	border-color: var(--st-gold-border);
 }
 
 .stonetop-spring-roll-result.stonetop-spring--failure {
-	background: rgba(176, 48, 48, 0.1);
-	border-color: rgba(176, 48, 48, 0.4);
+	background: var(--st-red-bg);
+	border-color: var(--st-red-border);
 }
 
 /* Q&A answer fields (styled after the journal Q&A: question-spiral prompt + a
@@ -31861,7 +33771,7 @@ th:has(> .stonetop-roll-table-btn) {
 	top: 0.1em;
 	width: var(--stonetop-question-spiral-size, 14px);
 	height: var(--stonetop-question-spiral-size, 14px);
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg');
+	background-image: var(--stonetop-question-spiral-icon);
 	background-size: contain;
 	background-repeat: no-repeat;
 	background-position: center;
@@ -31878,7 +33788,7 @@ th:has(> .stonetop-roll-table-btn) {
 	border-radius: var(--st-radius);
 	background: rgba(255, 255, 255, 0.4);
 	font-family: var(--font-stonetop);
-	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	font-size: calc(0.95rem * var(--stonetop-font-scale, 1));
 	line-height: 1.45;
 }
 
@@ -31887,9 +33797,9 @@ th:has(> .stonetop-roll-table-btn) {
 	align-items: flex-start;
 	gap: 6px;
 	margin: 0;
-	font-size: calc(0.82rem * var(--stonetop-font-scale, 1));
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
 	font-style: italic;
-	color: var(--color-text-dark-secondary);
+	color: var(--st-text-secondary);
 }
 
 .stonetop-spring-qa-empty > i { margin-top: 2px; }
@@ -31925,18 +33835,18 @@ th:has(> .stonetop-roll-table-btn) {
 
 .stonetop-exp-bar-label {
 	flex-shrink: 0;
-	font-size: calc(0.72rem * var(--stonetop-font-scale, 1));
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
 	font-weight: 600;
-	color: var(--color-text-dark-secondary);
+	color: var(--st-text-secondary);
 }
 
 .stonetop-exp-title,
 .stonetop-exp-switch {
 	height: 26px;
 	font-family: var(--font-stonetop);
-	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	font-size: calc(0.95rem * var(--stonetop-font-scale, 1));
 	border: 1px solid rgba(0, 0, 0, 0.22);
 	border-radius: var(--st-radius);
 	background: rgba(255, 255, 255, 0.4);
@@ -31947,16 +33857,21 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-exp-switch { flex: 0 1 auto; max-width: 40%; padding: 2px 4px; }
 
 /* Core sets `button { display: flex }` (block-level → full-width); keep the New pill
-   content-sized (see the button-display-flex note). */
+   content-sized (see the button-display-flex note). Both pills stand the same fixed 26px
+   as the name box and the switcher beside them: left to their content, the label's
+   inherited 28px line box made New 38px tall, half again the rest of the row. */
 .stonetop-exp-new {
 	display: inline-flex;
 	align-items: center;
 	gap: 0.4em;
 	flex-shrink: 0;
 	width: auto;
-	padding: 4px 10px;
+	height: 26px;
+	min-height: 0;
+	line-height: normal;
+	padding: 0 10px;
 	font-family: var(--font-stonetop);
-	font-size: calc(0.8rem * var(--stonetop-font-scale, 1));
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
 	cursor: pointer;
 	border: 1px solid var(--color-border-dark, #7a7971);
 	border-radius: var(--st-radius-sm);
@@ -31965,7 +33880,7 @@ th:has(> .stonetop-roll-table-btn) {
 	transition: background 0.15s;
 }
 
-.stonetop-exp-new:hover { background: hsl(40 25% 85%); }
+.stonetop-exp-new:hover { background: var(--st-warm-hover-bg); }
 
 /* Icon-only "delete this expedition" pill. No font-family (it holds a Font Awesome
    glyph); danger tint on hover. */
@@ -31975,13 +33890,15 @@ th:has(> .stonetop-roll-table-btn) {
 	justify-content: center;
 	flex-shrink: 0;
 	width: auto;
-	padding: 4px 8px;
-	font-size: calc(0.8rem * var(--stonetop-font-scale, 1));
+	height: 26px;
+	min-height: 0;
+	padding: 0 8px;
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
 	cursor: pointer;
 	border: 1px solid var(--color-border-dark, #7a7971);
 	border-radius: var(--st-radius-sm);
 	background: var(--stonetop-bg, #f5f0e8);
-	color: var(--color-text-dark-secondary);
+	color: var(--st-text-secondary);
 	transition: background 0.15s, color 0.15s;
 }
 
@@ -32011,10 +33928,10 @@ th:has(> .stonetop-roll-table-btn) {
 
 .stonetop-exp-checkgroup-label {
 	font-weight: 600;
-	font-size: calc(0.82rem * var(--stonetop-font-scale, 1));
+	font-size: calc(0.9rem * var(--stonetop-font-scale, 1));
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
-	color: var(--color-text-dark-secondary);
+	color: var(--st-text-secondary);
 }
 
 /* ── The charted list ───────────────────────────────────────────────────────────────────
@@ -32127,7 +34044,7 @@ th:has(> .stonetop-roll-table-btn) {
    has to be matched. */
 .stonetop-exp-questions > li {
 	position: relative;
-	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	font-size: calc(0.95rem * var(--stonetop-font-scale, 1));
 	line-height: 1.4;
 	padding-left: calc(1em + var(--stonetop-spiral-gap));
 }
@@ -32144,7 +34061,7 @@ th:has(> .stonetop-roll-table-btn) {
 	top: 0;
 	width: 1em;
 	height: 1.4em;
-	background: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg') no-repeat left center / contain;
+	background: var(--stonetop-question-spiral-icon) no-repeat left center / contain;
 	opacity: 0.55;
 }
 
@@ -32195,7 +34112,7 @@ th:has(> .stonetop-roll-table-btn) {
 	border: 1px solid rgba(0, 0, 0, 0.1);
 	border-radius: var(--st-radius);
 	background: rgba(0, 0, 0, 0.02);
-	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	font-size: calc(0.92rem * var(--stonetop-font-scale, 1));
 }
 
 /* Only the inline reference table needs lifting off the paragraph above it. */
@@ -32214,8 +34131,8 @@ th:has(> .stonetop-roll-table-btn) {
 	text-align: center;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
-	color: var(--color-text-dark-secondary);
+	font-size: calc(0.92rem * var(--stonetop-font-scale, 1));
+	color: var(--st-text-secondary);
 	white-space: nowrap;
 }
 
@@ -32266,7 +34183,7 @@ th:has(> .stonetop-roll-table-btn) {
 	color: var(--st-text-body);
 	border: 1px solid #999;
 	border-radius: var(--st-radius-sm);
-	background: rgba(255, 255, 255, 0.7);
+	background: rgb(var(--st-paper-rgb) / 0.7);
 }
 .stonetop-cf-input:focus,
 .stonetop-cf-textarea:focus {
@@ -35033,7 +36950,9 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-expedition-dialog .stonetop-exp-load-row {
 	display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
 	padding: 8px 12px; border-bottom: 1px solid rgba(0,0,0,0.06);
-	border-left: 3px solid slategrey;
+	/* The token, not the literal: the high-contrast skin re-points it, and the row's avatar and
+	   pips already follow it there. */
+	border-left: 3px solid var(--st-accent-fill);
 }
 .stonetop-expedition-dialog .stonetop-exp-load-row:last-child { border-bottom: none; }
 .stonetop-expedition-dialog .stonetop-exp-load-row.lvl-light { border-left-color: var(--st-green-border); }
@@ -35096,7 +37015,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 .stonetop-expedition-dialog .stonetop-exp-load-fol {
 	font-family: var(--font-stonetop); font-size: var(--st-fs-2xs);
-	text-transform: uppercase; letter-spacing: 0.04em; color: var(--st-text-faint);
+	text-transform: uppercase; letter-spacing: 0.04em; color: var(--st-text-secondary);
 	border: 1px solid rgba(0,0,0,0.2); border-radius: var(--st-radius-sm); padding: 0 4px;
 }
 
@@ -35105,7 +37024,60 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-expedition-dialog .stonetop-exp-load-band { display: flex; gap: 5px; }
 .stonetop-expedition-dialog .stonetop-exp-load-pip {
 	width: 11px; height: 11px; transform: rotate(45deg); border-radius: 2px;
-	border: 1.5px solid rgba(0,0,0,0.3); background: transparent;
+	/* An empty diamond is still a count the GM reads ("room for two more"), so its edge has to
+	   clear the 3:1 a meaningful shape needs. 30% black was about 2:1 on the paper, and a
+	   literal the high-contrast skin could not reach. */
+	border: 1.5px solid var(--st-text-muted); background: transparent;
+}
+/* How a roll here is made (Requisition, a step's Die of Fate): the pre-roll window's strip, on
+   its own line above the roll button, with Requisition's held-advantage note under it. */
+.stonetop-expedition-dialog .stonetop-exp-mode {
+	flex: 1 1 100%;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+.stonetop-expedition-dialog .stonetop-exp-mode .stonetop-roll-mode-picker .stonetop-roll-mode-btn {
+	padding: 4px 10px;
+}
+.stonetop-expedition-dialog .stonetop-exp-req-held {
+	margin: 0;
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	color: var(--st-text-secondary);
+}
+/* Running the journey's to-do list: what was charted, ticked off as it is dealt with. A tick
+   strikes the line and quiets it rather than removing it, because the book says a challenge they
+   dealt with can come back. */
+.stonetop-expedition-dialog .stonetop-exp-todo-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+/* Each line is the shared first-line checkbox row (.stonetop-camp-check), spaced by the list's gap. */
+.stonetop-expedition-dialog .stonetop-exp-todo-item .stonetop-camp-check { margin: 0; }
+.stonetop-expedition-dialog .stonetop-exp-todo-said { color: var(--st-text-secondary); font-style: italic; }
+.stonetop-expedition-dialog .stonetop-exp-todo-item.is-done .stonetop-exp-todo-text {
+	text-decoration: line-through;
+	color: var(--st-text-secondary);
+}
+.stonetop-expedition-dialog .stonetop-exp-todo-empty {
+	margin: 0;
+	font-style: italic;
+	color: var(--st-text-secondary);
+}
+/* Going home's read-back of the note from Other preparations: the GM's own lines, kept as typed. */
+.stonetop-expedition-dialog .stonetop-exp-projects-note {
+	margin: 0;
+	padding: 8px 12px;
+	white-space: pre-wrap;
+	color: var(--st-text-body);
+	border-left: 3px solid var(--st-gold-text);
+	background: var(--st-gold-bg);
+	border-radius: var(--st-radius-sm);
 }
 .stonetop-expedition-dialog .lvl-light .stonetop-exp-load-pip.on { background: var(--st-green-border); border-color: var(--st-green-border); }
 .stonetop-expedition-dialog .lvl-normal .stonetop-exp-load-pip.on { background: var(--st-accent-fill); border-color: var(--st-accent-fill); }
@@ -35146,7 +37118,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	padding: 1px 8px; border-radius: 999px; border: 1px solid rgba(0,0,0,0.18);
 }
 .stonetop-expedition-dialog .stonetop-exp-load-move .ic { font-weight: 700; font-size: var(--st-fs-2xs); }
-.stonetop-expedition-dialog .stonetop-exp-load-move .rq { color: var(--st-text-faint); font-size: var(--st-fs-2xs); }
+.stonetop-expedition-dialog .stonetop-exp-load-move .rq { color: var(--st-text-secondary); font-size: var(--st-fs-2xs); }
 /* A 0.10 wash, NOT the solid --st-red-bg: a switched-off move is struck through and read
    past, so it stays quieter than the "over encumbered" pill that shares the red border. */
 .stonetop-expedition-dialog .stonetop-exp-load-move.off { color: var(--st-red-text); background: rgba(200,60,60,0.10); border-color: var(--st-red-border); }
@@ -35255,6 +37227,11 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	font-family: var(--font-stonetop); font-size: var(--st-fs-xs); line-height: 1.35;
 }
 .stonetop-expedition-dialog .stonetop-exp-asset-btn:hover { background: rgba(0,0,0,0.06); }
+.stonetop-expedition-dialog .stonetop-exp-asset-btn:focus-visible,
+.stonetop-expedition-dialog .stonetop-exp-load-chip:focus-visible {
+	outline: 2px solid var(--st-btn-primary-bg);
+	outline-offset: 1px;
+}
 .stonetop-expedition-dialog .stonetop-exp-asset-btn .tick {
 	flex: 0 0 auto; width: 1em; text-align: center;
 	font-weight: 700; font-size: var(--st-fs-2xs); color: var(--st-text-faint);
@@ -35701,7 +37678,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	box-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
 .stonetop-journey-canvas .stonetop-journey-tag em {
-	font-weight: 400; font-style: italic; color: #8a6a12;
+	font-weight: 400; font-style: italic; color: var(--st-gold-text);
 }
 .stonetop-journey-canvas .h-centre .stonetop-journey-tag { left: 50%; transform: translateX(-50%); }
 .stonetop-journey-canvas .h-left   .stonetop-journey-tag { left: -4px; }
@@ -35742,7 +37719,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-journey-canvas .stonetop-journey-exit.is-chosen .stonetop-journey-arrow { width: 20px; height: 20px; }
 .stonetop-journey-canvas .stonetop-journey-spot.is-chosen .stonetop-journey-tag,
 .stonetop-journey-canvas .stonetop-journey-exit.is-chosen .stonetop-journey-tag {
-	color: #8a6a12; border-color: #9a6f0e;
+	color: var(--st-gold-text); border-color: #9a6f0e;
 }
 
 /* WHERE THEY SET OUT FROM, when that is a point the GM put down rather than a place the books
@@ -35933,6 +37910,13 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    colours the bookmark and leaves the pick unlit. */
 .stonetop-journey .stonetop-journey-list li:has(.stonetop-journey-row:hover) {
 	background: var(--st-slate-hover-bg); border-color: var(--st-slate-hover-border);
+}
+/* The ring goes on the pill too, for the same reason the hover does: the row inside it has its
+   own outline unpinned below, and a keyboard reader tabbing down the list otherwise saw nothing
+   move. */
+.stonetop-journey .stonetop-journey-list li:has(.stonetop-journey-row:focus-visible) {
+	outline: 2px solid var(--st-btn-primary-bg);
+	outline-offset: 1px;
 }
 /* A prose row that happens to be a <button>, so core's button rule has to be unpinned in full:
    `display: flex` on its own replaces only `display`, and the `justify-content: center` beside it
@@ -37180,7 +39164,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	content: "";
 	width: 0.7em;
 	height: 1.4em; /* span the name's first line so the arrow centers on it */
-	background: center / 0.7em no-repeat url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon.svg');
+	background: center / 0.7em no-repeat var(--stonetop-playbook-arrow-icon);
 	opacity: 0.7;
 }
 
@@ -39218,6 +41202,11 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .steading-residents-section--settlements > .steading-list-heading > .stonetop-rel-viewbar--heading {
 	position: static;
 	margin-left: auto;
+	/* The pencil and fold caret hang in the card's top-right corner (4px in, pencil a
+	   further 1.35em left of the caret), which reaches past the 14px card padding and over
+	   the strip's right end. Stand clear of both. In rem, not em: the strip sits in an xl
+	   heading while the pencil sizes off the card, so neither's em measures the other. */
+	margin-right: calc(1.75rem * var(--stonetop-font-scale, 1));
 }
 
 /* On a heading line the strip has to fit ABOVE the underline, and a details heading is only
@@ -41333,7 +43322,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    reason. The picture and the width it needs; the seating stays the list's own. This guide is
    half questions, so without it the one thing the tab is named for draws as ordinary prose. */
 .stonetop-gm-wonder-guide-items > li.question-bullet::before {
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg');
+	background-image: var(--stonetop-question-spiral-icon);
 	width: calc(var(--stonetop-bullet-size, 10px) * 1.26);
 }
 
@@ -41404,7 +43393,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    them — the partial says so in prose — and every one would otherwise draw as ordinary
    prose, which looks like nothing being wrong. */
 .stonetop-gm-homefront-items > li.question-bullet::before {
-	background-image: url('/systems/stonetop-pwd/assets/icons/steading/question-spiral.svg');
+	background-image: var(--stonetop-question-spiral-icon);
 	width: calc(var(--stonetop-bullet-size, 10px) * 1.26);
 }
 
@@ -41999,6 +43988,33 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	white-space: nowrap;
 }
 
+/* THE FIELD IS AS WIDE AS ITS WORDS, so its hover ring answers the pointer on the name and not on
+   the empty stretch of row between the name and the badges. Grown to fill the row, the box lit up
+   wherever the head was hovered.
+
+   The badges then have to be pushed right by something else, and that is an auto margin on the
+   first of them: the count when there is one, else the caret. Not on both at once, since two auto
+   margins in one row split the free space between them and park the badges in its middle.
+
+   Behind `@supports` for the same reason as the wonder answers below: Firefox has no
+   `field-sizing`, and there the field keeps filling the row, which is how it shipped. */
+@supports (field-sizing: content) {
+	.stonetop-gm-encounter-name {
+		flex: 0 1 auto;
+		width: auto;
+		min-width: 3ch;
+		field-sizing: content;
+	}
+
+	.stonetop-gm-encounter-count {
+		margin-left: auto;
+	}
+
+	.stonetop-gm-encounter-head:not(:has(> .stonetop-gm-encounter-count)) > .stonetop-gm-encounter-toggle {
+		margin-left: auto;
+	}
+}
+
 /* One kind's count and its glyph, which read as a single word and so must never be split by the
    gap above -- hence a flex box of their own with a hair's gap inside it.
 
@@ -42214,10 +44230,17 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 
 /* A button rather than an anchor (see the template), so every scrap of core's button chrome has
-   to come off before it reads as a name in a list. */
+   to come off before it reads as a name in a list.
+
+   `justify-self: start` sizes it to the name rather than stretching it across the `1fr` column, so
+   the hover underline (and the click and drag) answer the name and not the blank run beside it.
+   `max-width: 100%` is what keeps the ellipsis: a nowrap name is its own min-content, and without
+   the cap a long one would run out of its cell rather than clip. */
 .stonetop-gm-encounter-entry-open {
 	grid-column: 1;
+	justify-self: start;
 	min-width: 0;
+	max-width: 100%;
 	width: auto;
 	margin: 0;
 	padding: 0;
@@ -42442,7 +44465,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 
    The metrics are the toggle's, deliberately: the two are the same height and sit on the same
    baseline, which is what stops the row looking like a button with a label stuck beside it. */
-.stonetop-gm-expedition-run {
+.stonetop-gm-expedition-run,
+.stonetop-gm-struggle-call {
 	width: auto;
 	margin: 0;
 	padding: 1px 10px;
@@ -42456,7 +44480,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	line-height: 1.6;
 }
 
-.stonetop-gm-expedition-run:hover {
+.stonetop-gm-expedition-run:hover,
+.stonetop-gm-struggle-call:hover {
 	background: var(--st-btn-primary-bg-hover);
 	border-color: var(--st-btn-primary-border-hover);
 	box-shadow: none;
@@ -43506,9 +45531,14 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
    THE SAME PLACE AND THE SAME BEHAVIOUR AS THE EXPEDITION MAP'S `.stonetop-journey-zoom`, asked
    for by name (user, 2026-09-07). What is deliberately NOT copied is its white tile: that one sits
    over 300 dpi printed artwork and has to carry its own ground because the map underneath is
-   another paper. This sits over the board's own page tone, so it takes the PANEL tone every other
-   piece of chrome in this system takes over a page -- see `--stonetop-bg` vs `--st-page` at the
-   top of this file. A white square here would read as a hole cut in the board.
+   another paper. This sits over the board's own page tone, and a white square here would read as
+   a hole cut in the board.
+
+   SEE-THROUGH, NOT TAN (user, 2026-09-23). It used to take the PANEL tone every other piece of
+   chrome takes over a page, and a solid tan square in the corner was a heavier thing than a way out
+   should be. It is the board's own page tone at 60% now: over empty board the fill vanishes and the
+   border and shadow draw the tile, and a line that runs under the corner still shows through,
+   dimmed enough that the glyph reads over it.
 
    ⚠ THE HIDDEN STATE TAKES THE POINTER WITH IT. A transparent button left live over the corner
    swallows presses meant for the board under it, and on this board a press is how a portrait is
@@ -43539,7 +45569,7 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	   nothing for a ratio to transfer from). */
 	padding: 0.25em;
 	justify-items: center;
-	background: var(--stonetop-bg);
+	background: color-mix(in srgb, var(--st-page) 60%, transparent);
 	border: 1px solid var(--st-card-rule);
 	border-radius: var(--st-radius-sm);
 	color: var(--st-text-secondary);
@@ -44018,6 +46048,51 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 		calc(5 * var(--relmap-line-scale, 1))
 		calc(4 * var(--relmap-line-scale, 1));
 	stroke-linecap: round;
+}
+
+/* THE SELECTION BOX, drawn with Shift and a drag on open paper (utils/relmap-drag.js). Built like the
+   rubber band above and for the same reasons: in the board's own 0-100 space, so it stays on the
+   paper it was started on through a zoom, with a stroke kept even on screen by `vector-effect`.
+   Dashed, because it is not a thing on the map; a wash of the accent inside so the area reads as an
+   area at a glance, faint enough that the faces under it stay clear. */
+.stonetop-relmap-marquee {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	overflow: visible;
+}
+
+.stonetop-relmap-marquee path {
+	fill: var(--st-accent-fill);
+	fill-opacity: 0.08;
+	stroke: var(--st-accent-fill);
+	stroke-width: 2;
+	stroke-dasharray: 6 4;
+}
+
+/* SOMEBODY IN THE SELECTION, to be moved with the others (utils/relmap-drag.js; the list is the
+   window's, `_paintSelection`). TWO MARKS, a ring and a heavier name, so colour is never the only
+   thing saying it.
+
+   ⚠ AN OUTLINE, DASHED, AND NOT THE SOLID RING `is-link-target` WEARS, so the two can be told apart
+   by shape as well as by colour: a line dragged onto somebody who is also selected carries both,
+   and a reader on a magnifier has to be able to read either. An outline is paint only, like the
+   other marks on a portrait, so wearing it moves nothing: the drag that follows a selection starts
+   from exactly where the face was. Above its neighbours (2), so the ring is not buried under a
+   face overlapping it; below one being carried (4) or aimed at (3). */
+.stonetop-relmap-node.is-selected {
+	z-index: 2;
+}
+
+.stonetop-relmap-node.is-selected .stonetop-relmap-face {
+	outline: 3px dashed var(--st-accent-fill);
+	outline-offset: 3px;
+}
+
+.stonetop-relmap-node.is-selected .stonetop-relmap-name {
+	font-weight: 700;
 }
 
 /* ── The arrowheads ───────────────────────────────────────────────────────────
@@ -44572,6 +46647,8 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 }
 
 .stonetop-relmap-board.is-dragging { cursor: grabbing; }
+/* A selection box being drawn is not the board moving; later than the rule above so it wins. */
+.stonetop-relmap-board.is-boxing { cursor: crosshair; }
 
 /* A CAPTION BEING SLID ALONG ITS OWN LINE. The words are redrawn at the pointer's place on the
    stroke frame by frame (`_slideCaption`), and this is the only thing on screen that says the board
@@ -46543,6 +48620,360 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 }
 
 
+/* ══ DARK PALETTE: "Lamplit" ════════════════════════════════════════════════════════════════
+   Driven by the `sheetContrast` client setting (module/settings.js → applySheetContrast), which
+   puts `.stonetop-dark` on the document ROOT for its "dark" and "dark-high" values. Per player,
+   like every setting in the accessibility family, and reached from the character sheet's and
+   the GM Toolkit's Preferences tab as well as Configure Settings.
+
+   WHAT IT IS. Parchment by lamplight, not a grey app theme. The research consensus for dark UI
+   (Material's #121212 baseline, WCAG) is a dark GREY page rather than black, raised surfaces a
+   step LIGHTER than the page rather than darker, accents desaturated until they clear 4.5:1,
+   and off-white rather than #fff ink, because pure white on black halates for readers with
+   astigmatism. This keeps all of that and warms it: a brown-black page (#1d1915), panels one
+   step lighter (#27221d), bone ink (#ebe4d6, 13.8:1).
+
+   THE SPIRALS COME WITH IT. sheet-bg.webp is inverted exactly the way the black papers already
+   invert it (a white background-color and `difference`), which hands back near-black with the
+   spirals still on it, and a warm flat tint is then SCREENED over that. Screen lifts the black
+   to the tint and lifts the spirals by the same proportion, so the grain moves about as much as
+   it does on the light paper (roughly 1.03:1 between its darkest pixel and its mean) and never
+   competes with the text. "Paper Texture" off turns the image into a flat white sheet, which
+   inverts to flat black, which the screen turns into the flat tint: no rule of its own needed.
+
+   THE DEAD ARE DARKER AND COLDER (user's call, 2026-09-27). On light paper a dead sheet is the
+   living one inverted, black against parchment. On this paper "slightly darker" would be about
+   1.1:1 from the living page, which is the same colour to most eyes. So the dead lose the warmth
+   as well: a neutral near-black, grey ink instead of bone. The per-kind wash on a return
+   (ghost, thrall, revenant) still rides over it, and the red Dead tag still names a plain death.
+
+   COLOUR LITERALS. About 1,500 colour literals in the file were written for white paper.
+   This section turns over everything that reads a TOKEN; the literals were moved onto tokens
+   area by area (light values identical, so light mode cannot move), and the two dark choices
+   have been offered by the setting since the character sheet, the chat cards and the dialogs
+   were done. A literal added later for white paper is black-on-black here, so new colours go
+   on tokens.
+
+   HOW IT WINS, with no `!important`. Tokens: `:root.stonetop-dark` is (0,2,0) against the base
+   block's (0,1,0). Surfaces that repaint a background use `:where(:root.stonetop-dark)`, which
+   adds NO specificity, so each ties with the rule it replaces and wins only by coming later in
+   the file, while anything that already out-specifies that rule (a love letter's own paper, the
+   black papers of the dead) keeps its own look. Core's colour names go on the window roots and
+   the Stonetop chat cards, never on :root, where core's own element-level declarations would
+   shadow them (see the accessibility block below).
+
+   DARK + HIGH CONTRAST is the last part of this section: `:root.stonetop-dark.stonetop-high-
+   contrast` is (0,3,0), so it beats both single-class palettes wherever it sits, and it restates
+   every token the high-contrast palette re-points, since those are pitched for WHITE paper and
+   would otherwise land dark ink on the dark page. It sits HERE rather than after the high-
+   contrast block because that block's tests treat everything after it as white paper. */
+
+:root.stonetop-dark {
+	/* The page and the panel. Panels are LIGHTER than the page here, the dark-UI convention for a
+	   raised surface; on paper they are darker, reading as inset. Either way they are a step apart. */
+	--st-page:     #1d1915;
+	--stonetop-bg: #27221d;
+	/* The warm tint screened over the inverted grain. Screen(t, i) = 1 - (1-t)(1-i): with the
+	   grain's inverted mean at rgb(4, 5, 5), this lands the painted page on --st-page. */
+	--st-paper-tint: #191511;
+	scrollbar-color: #6b5f50 #1d1915;
+
+	/* The ink ramp, bone. Measured on the panel, the lighter of the two grounds. */
+	--st-text:           #ebe4d6;   /* 12.5:1 */
+	--st-text-body:      #ddd5c6;   /* 10.8:1 */
+	--st-text-secondary: #c2b9a8;   /*  8.1:1 */
+	--st-text-muted:     #a39a8a;   /*  5.7:1 */
+	--st-text-faint:     #978e7f;   /*  4.8:1 */
+
+	/* The two channels a migrated wash, rule or well reads (see their declaration at the top). */
+	--st-ink-rgb:   235 228 214;
+	--st-paper-rgb: 39 34 29;
+	--st-danger-ink:  #ec8c82;
+	--st-heading-ink: #ebe4d6;
+
+	/* Cards lift off the page by a whisper of LIGHT here, as on the black papers. */
+	--st-card-fill: rgba(235, 228, 214, 0.035);
+	--st-card-rule: rgba(235, 228, 214, 0.16);
+	--st-warm-hover-bg: rgba(235, 228, 214, 0.08);
+
+	/* Hit tiers on a card, lifted off paper ink. */
+	--st-tier-failure-text: #f08c84;
+	--st-tier-partial-text: #e2b25e;
+	--st-tier-success-text: #8fd19e;
+
+	/* The dead sit BELOW the lamplit page: less lift than on paper, about #0e0e0e. */
+	--st-black-lift: rgba(255, 255, 255, 0.035);
+
+	/* The semantic families: fills become low washes of the hue, text lifts to a pastel. */
+	--st-green-border:   hsl(140 30% 48%);
+	--st-green-bg:       hsla(140, 35%, 30%, 0.32);
+	--st-green-bg-hover: hsla(140, 35%, 36%, 0.42);
+	--st-green-text:     #8fc99b;
+	--st-levelup-accent:       hsl(140 55% 55%);
+	--st-levelup-accent-hover: hsl(140 60% 64%);
+	--st-blue-border:    hsl(212 45% 54%);
+	--st-blue-bg:        hsla(212, 45%, 34%, 0.35);
+	--st-blue-bg-hover:  hsla(212, 45%, 40%, 0.42);
+	--st-blue-text:      #8fb6e6;
+	--st-red-border:     hsl(6 45% 50%);
+	--st-red-bg:         hsla(6, 45%, 32%, 0.35);
+	--st-red-bg-hover:   hsla(6, 45%, 38%, 0.42);
+	--st-red-text:       #ec8c82;
+	--stonetop-red:      hsl(6 62% 68%);
+	--st-gold-bg:        rgba(201, 162, 39, 0.16);
+	--st-gold-text:      #d9b44a;
+	--st-holy-light-ink:    hsl(41 75% 64%);
+	--st-holy-light-border: hsla(41, 80%, 60%, 0.55);
+	--st-condemned-text:   hsl(38 14% 82%);
+	--st-condemned-border: hsla(38, 12%, 72%, 0.55);
+	--st-condemned-bg:     hsla(38, 12%, 72%, 0.12);
+	--st-condemned-on:     hsl(0 0% 10%);
+	--stonetop-improvement-accent: #c9a063;
+	--st-wound-add-ink: #ddd5c6;
+
+	/* Primary buttons in a dark context go NEAR-BLACK, not slate (user's call, 2026-08-05): a
+	   shade darker than the page, so they read as cut into it, with a bone label and a warm bone
+	   rule carrying the affordance. The slate hover wash would vanish here, so it goes bone too. */
+	--st-btn-primary-bg:           #120f0c;
+	--st-btn-primary-bg-hover:     #231e19;
+	--st-btn-primary-border:       #8a7a62;
+	--st-btn-primary-border-hover: #a8977c;
+	--st-btn-primary-text:         #ebe4d6;
+	--st-slate-hover-bg:     rgba(235, 228, 214, 0.08);
+	--st-slate-hover-border: #8a7a62;
+	/* The quiet slate ink, lifted until it reads (slategrey is 4.3:1 on this page). The slate FILL
+	   keeps its white label and its 4.05:1, exactly as on paper. */
+	--st-quiet-ink: hsl(210 14% 68%);
+	--st-tabstrip-bg:  #3a332b;
+	--st-tabstrip-ink: #ebe4d6;
+
+	/* Seasons and the relationship map's eight inks, lifted to at least 4.5:1 on the panel. */
+	--stonetop-season-spring-ink: hsl(140 45% 62%);
+	--stonetop-season-summer-ink: hsl(35 75% 62%);
+	--stonetop-season-autumn-ink: hsl(12 70% 68%);
+	--stonetop-season-winter-ink: hsl(205 60% 68%);
+	--st-relmap-ink-rose:   hsl(340deg 62% 72%);
+	--st-relmap-ink-green:  hsl(100deg 40% 60%);
+	--st-relmap-ink-ochre:  hsl(62deg 45% 58%);
+	--st-relmap-ink-indigo: hsl(258deg 62% 78%);
+	--st-relmap-ink-plum:   hsl(296deg 50% 72%);
+	--st-relmap-ink-rust:   hsl(25deg 32% 64%);
+	--st-relmap-ink-crimson:hsl(350deg 62% 72%);
+	--st-relmap-ink-slate:  hsl(215deg 16% 66%);
+
+	/* Every piece of fixed near-black art, swapped for its bone (or lifted-red) twin. */
+	--stonetop-spiral-icon:           url('/systems/stonetop-pwd/assets/icons/steading/check-spiral-light.svg');
+	--stonetop-question-spiral-icon:  url('/systems/stonetop-pwd/assets/icons/steading/question-spiral-light.svg');
+	--stonetop-checkbox-icon:         url('/systems/stonetop-pwd/assets/icons/steading/checkbox-light.svg');
+	--stonetop-checkbox-checked-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-checked-light.svg');
+	--stonetop-checkbox-partial-icon: url('/systems/stonetop-pwd/assets/icons/steading/checkbox-partial-light.svg');
+	--stonetop-diamond-icon:          url('/systems/stonetop-pwd/assets/icons/playbooks/diamond-light.svg');
+	--stonetop-diamond-selected-icon: url('/systems/stonetop-pwd/assets/icons/playbooks/diamond_selected-light.svg');
+	--stonetop-playbook-arrow-icon:   url('/systems/stonetop-pwd/assets/icons/playbooks/arrow_icon-light.svg');
+	--stonetop-blood-icon:            url('/systems/stonetop-pwd/assets/icons/playbooks/blood-light.svg');
+	--stonetop-blood-filled-icon:     url('/systems/stonetop-pwd/assets/icons/playbooks/blood-filled-light.svg');
+	--stonetop-blood-dotted-icon:     url('/systems/stonetop-pwd/assets/icons/playbooks/blood-dotted-light.svg');
+}
+
+/* Two panels that were ALWAYS dark, and inverted the ink spiral with `filter: invert(1)` to show
+   on it: the basic-move hover panel and the relationship tooltip. Handed the bone twin by the
+   swap above, that filter would turn it back to near-black. They keep the ink original instead,
+   which is the one their filter was written for, so they render exactly as they always have. */
+:root.stonetop-dark :is(.stonetop-basic-move-panel, .stonetop-rel-value) {
+	--stonetop-spiral-icon: url('/systems/stonetop-pwd/assets/icons/steading/check-spiral.svg');
+}
+
+/* Core's own colour names, where core declares them: on the window roots, and on the chat cards
+   this system paints (only those: a plain chat message keeps core's parchment, and light ink on
+   it would vanish). `color-scheme: dark` brings native selects, checkboxes and scrollbars over. */
+:root.stonetop-dark :is(.app, .application, .window-app):is(.stonetop, .stonetop-themed),
+:root.stonetop-dark :is(#chat, #chat-notifications, #chat-popout)
+	.message:is(:has(.stonetop-roll-card), :has(.stonetop-startup-card), :has(.stonetop-chat-move),
+		:has(.stonetop-dying-card)) {
+	color-scheme: dark;
+	--color-text-dark-primary:   #ebe4d6;
+	--color-text-dark-secondary: #c2b9a8;
+	--color-text-dark-inactive:  #978e7f;
+	--color-text-primary:        #ebe4d6;
+	--color-text-emphatic:       #f1eadc;
+	--color-text-secondary:      #c2b9a8;
+	--color-text-subtle:         #a39a8a;
+	--color-text-hyperlink:      #e0a86a;
+	--color-form-hint:           #a39a8a;
+	--color-form-label:          #c2b9a8;
+	--color-select-option-bg:    #27221d;
+	--color-border-dark:            #6b5f50;
+	--color-border-light-primary:   #4a4038;
+	--color-border-light-secondary: #3f372f;
+	--color-border-light-tertiary:  #453c33;
+}
+
+/* The lamplit paper, on the four surfaces that paint the grain. Each selector is the rule it
+   replaces, verbatim, behind a `:where()` that weighs nothing: see "HOW IT WINS" above. */
+:where(:root.stonetop-dark) .vtt .stonetop:not(.application,.image-popout,.journal-sheet,.sidebar-popout) .window-content,
+:where(:root.stonetop-dark) :is(.application, .window-app).stonetop-themed .window-content,
+:where(:root.stonetop-dark) :is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-roll-card),
+:where(:root.stonetop-dark) :is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-startup-card),
+:where(:root.stonetop-dark) :is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-chat-move) {
+	background:
+		linear-gradient(var(--st-paper-tint), var(--st-paper-tint)) center / auto no-repeat,
+		#fff var(--st-inverted-paper) center / cover no-repeat;
+	background-blend-mode: screen, difference;
+}
+/* The dying card keeps its ember at the top, a little stronger so it still shows on the dark. */
+:where(:root.stonetop-dark) :is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-dying-card) {
+	background:
+		linear-gradient(180deg, hsla(8, 50%, 42%, 0.22), transparent 42%),
+		linear-gradient(var(--st-paper-tint), var(--st-paper-tint)) center / auto no-repeat,
+		#fff var(--st-inverted-paper) center / cover no-repeat;
+	background-blend-mode: normal, screen, difference;
+}
+
+/* The title bar: the paper's slate band becomes a warm near-black one, a shade under the page. */
+:where(:root.stonetop-dark) .vtt .stonetop .window-header {
+	background-color: #14110e;
+}
+
+/* The dead, darker AND colder. Their own block (the sheet of someone past the Last Door) already
+   turns the paper black and names its tokens on this same element; this restates the ones that
+   carry warmth in neutral grey, and drops the page and surface to the neutral black so a cut-out
+   blends into it. (0,8,0) against that block's (0,6,0). */
+:root.stonetop-dark .vtt .stonetop.app.stonetop-past-death.window-app .window-content {
+	--st-page:    #0e0e0e;
+	--st-surface: #0e0e0e;
+	--color-text-dark-primary:   hsl(0 0% 85%);
+	--color-text-dark-secondary: hsl(0 0% 70%);
+	--st-text:           hsl(0 0% 85%);
+	--st-text-body:      hsl(0 0% 81%);
+	--st-text-secondary: hsl(0 0% 70%);
+	--st-text-muted:     hsl(0 0% 60%);
+	--st-text-faint:     hsl(0 0% 53%);
+	--st-condemned-text: hsl(0 0% 80%);
+	--st-wound-add-ink:  hsl(0 0% 84%);
+	--st-btn-primary-text:   hsl(0 0% 82%);
+	--st-btn-primary-border: hsl(0 0% 40%);
+	color: hsl(0 0% 84%);
+}
+
+/* The sheet's tab rail. Its resting glyphs are inked in the primary button FILL, slate on paper,
+   which the palette above turns near-black, so they sank into the panel. Here they take the ink
+   ramp instead, the slate hover wash goes bone, and the active tab keeps its near-black cut with
+   the button's bone rule around it so it still reads as the chosen one. The dead keep their
+   own rail skin: it is excluded by a `:where()` so the exclusion adds no weight. */
+:where(:root.stonetop-dark) .stonetop:where(:not(.stonetop-past-death)) .sheet-tabs.stonetop-tab-rail .item {
+	color: var(--st-text-secondary);
+}
+/* `:not(.active)`: this ties with the base `.active` rule and comes later, so without it a
+   clicked (focused) tab would lose its fill. */
+:where(:root.stonetop-dark) .stonetop:where(:not(.stonetop-past-death)) .sheet-tabs.stonetop-tab-rail .item:not(.active):hover,
+:where(:root.stonetop-dark) .stonetop:where(:not(.stonetop-past-death)) .sheet-tabs.stonetop-tab-rail .item:not(.active):focus {
+	background: var(--st-warm-hover-bg);
+	color: var(--st-text);
+}
+:where(:root.stonetop-dark) .stonetop:where(:not(.stonetop-past-death)) .sheet-tabs.stonetop-tab-rail .item.active:not(.stonetop-tab-drag-over) {
+	box-shadow: inset 0 0 0 1px var(--st-btn-primary-border);
+}
+
+/* Love letters and Threat cards keep their handed-over paper, darkened (user's call, 2026-09-27):
+   a warm dark tan a step lighter than the page (1.35:1), so the letter still reads as a separate
+   sheet laid on it. The maroon seal stays maroon; its label is `--ll-seal-text`, pinned light,
+   because the paper's highlight it used to borrow is now dark. (0,4,0)+ against their (0,2,0)+. */
+:root.stonetop-dark .tab.moves .stonetop-item.stonetop-love-letter,
+:root.stonetop-dark .stonetop-love-letter-read-dialog,
+:root.stonetop-dark .stonetop .threat-card {
+	--tc-paper:     #3a3024;
+	--tc-paper-hi:  #43382a;
+	--tc-paper-lo:  #31281e;
+	--tc-ink:       #f1e8d6;   /* 9.4:1 on the lightest stop */
+	--tc-ink-soft:  #d3c7b0;   /* 6.8:1 */
+	--tc-rule:      #6f5e45;
+	--tc-rule-hard: #9c8768;   /* 5.1:1 against the page, the card's edge */
+	--ll-seal-text: #f6eddc;   /* 6.9:1 on the maroon seal */
+}
+
+/* ── Dark + High Contrast ────────────────────────────────────────────────────────────────────
+   For the reader who needs the glare down AND the separation up. Every text step clears 7:1 on
+   the page, the panel and the grain, but the brightest ink stops short of white and the page
+   short of black: pure white on pure black is the halation case, the one a dark palette exists to
+   avoid. Restates every token the high-contrast palette re-points (except the fight overlay's,
+   which is drawn on the map, not on the page). */
+:root.stonetop-dark.stonetop-high-contrast {
+	--st-page:       #141210;
+	--stonetop-bg:   #1c1915;
+	--st-paper-tint: #100d0b;
+	--st-text:           #f0ebe0;
+	--st-text-body:      #e8e2d6;
+	--st-text-secondary: #dcd5c8;
+	--st-text-muted:     #cfc7b8;
+	--st-text-faint:     #c2b9a8;
+	--st-card-fill: transparent;
+	--st-card-rule: rgba(240, 235, 224, 0.5);
+	--st-green-border: hsl(140 35% 55%);
+	--st-green-text:   hsl(140 45% 72%);
+	--st-blue-border:  hsl(212 50% 62%);
+	--st-blue-text:    hsl(212 60% 80%);
+	--st-red-border:   hsl(6 55% 60%);
+	--st-red-text:     hsl(6 70% 78%);
+	--st-danger-ink:   hsl(6 70% 78%);
+	--st-heading-ink:  #f0ebe0;
+	--st-gold-border:  #d9b44a;
+	--st-gold-text:    #e6c56a;
+	--st-btn-primary-bg:       #0a0806;
+	--st-btn-primary-bg-hover: #1c1814;
+	--st-btn-primary-border:   #d9d2c2;
+	--st-slate-hover-bg:       rgba(240, 235, 224, 0.12);
+	--st-slate-hover-border:   #d9d2c2;
+	--st-holy-light-ink:    hsl(41 80% 70%);
+	--st-holy-light-border: hsl(41 70% 55%);
+	--st-condemned-border:  rgba(240, 235, 224, 0.7);
+	--stonetop-season-spring-ink: hsl(140 45% 70%);
+	--stonetop-season-summer-ink: hsl(35 75% 70%);
+	--stonetop-season-autumn-ink: hsl(12 70% 76%);
+	--stonetop-season-winter-ink: hsl(205 60% 76%);
+	--st-quiet-ink:   hsl(210 14% 76%);
+	--st-accent-fill: #3f4a55;
+	--st-tabstrip-bg: #2e2822;
+	--color-the-fox:         hsl(19 80% 68%);
+	--color-the-blessed:     hsl(132 34% 62%);
+	--color-the-lightbearer: hsl(40 85% 60%);
+	--st-relmap-ink-rose:   hsl(340deg 62% 78%);
+	--st-relmap-ink-green:  hsl(100deg 40% 68%);
+	--st-relmap-ink-ochre:  hsl(62deg 45% 66%);
+	--st-relmap-ink-indigo: hsl(258deg 62% 84%);
+	--st-relmap-ink-plum:   hsl(296deg 50% 78%);
+	--st-relmap-ink-rust:   hsl(25deg 32% 72%);
+	--st-relmap-ink-crimson:hsl(350deg 62% 78%);
+	--st-relmap-ink-slate:  hsl(215deg 16% 74%);
+}
+:root.stonetop-dark.stonetop-high-contrast :is(.app, .application, .window-app):is(.stonetop, .stonetop-themed),
+:root.stonetop-dark.stonetop-high-contrast :is(#chat, #chat-notifications, #chat-popout)
+	.message:is(:has(.stonetop-roll-card), :has(.stonetop-startup-card), :has(.stonetop-chat-move),
+		:has(.stonetop-dying-card)) {
+	--color-text-dark-primary:   #f0ebe0;
+	--color-text-dark-secondary: #dcd5c8;
+	--color-text-dark-inactive:  #c2b9a8;
+	--color-text-primary:        #f0ebe0;
+	--color-text-emphatic:       #f6f1e6;
+	--color-text-hyperlink:      #f0b878;
+	--color-border-dark:            rgba(240, 235, 224, 0.75);
+	--color-border-light-primary:   rgba(240, 235, 224, 0.55);
+	--color-border-light-secondary: rgba(240, 235, 224, 0.45);
+	--color-border-light-tertiary:  rgba(240, 235, 224, 0.48);
+}
+/* High contrast's focus ring is a navy pitched for white paper (under 2:1 here). Same selector
+   with the dark class added, so it outweighs that one wherever it sits. */
+:root.stonetop-dark.stonetop-high-contrast body :is(.app, .application, .window-app):is(.stonetop, .stonetop-themed)
+	:is(input, textarea, select, button, a, summary, [tabindex]):focus-visible {
+	outline-color: #f0b878;
+}
+:root.stonetop-dark.stonetop-high-contrast .tab.moves .stonetop-item.stonetop-love-letter,
+:root.stonetop-dark.stonetop-high-contrast .stonetop-love-letter-read-dialog,
+:root.stonetop-dark.stonetop-high-contrast .stonetop .threat-card {
+	--tc-rule:      #8f7c5f;
+	--tc-rule-hard: #b3a07f;
+	--tc-ink-soft:  #e0d6c2;
+}
+
 /* ══ ACCESSIBILITY: the paper, and the two switches a reader can turn ══════════════════════
    Driven by two client settings (module/settings.js → applySheetContrast, applySheetTexture),
    each a class on the document ROOT.
@@ -46661,6 +49092,9 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	--stonetop-fight-ring-edge: #ffd400;
 	--stonetop-fight-ring-edge-width: 2px;
 	--stonetop-fight-ring-hover: #ffffff;
+	/* The words carry which it is; high contrast keeps to its own three colours. */
+	--stonetop-fight-ring-ammo-low: #ffd400;
+	--stonetop-fight-ring-ammo-out: #ffd400;
 	/* The panels keep a step off the page rather than dissolving into it. Three points of white is
 	   nothing to somebody reading in this mode — which is why their borders are the thing taken to
 	   4.76:1 below — but it costs nothing, and it keeps the sheet from flattening into one field

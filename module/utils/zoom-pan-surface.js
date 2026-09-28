@@ -47,12 +47,28 @@ export class ZoomPanSurface {
 	 *                                    was aiming for every time.
 	 * @param {Function} [spec.onChange]  Called after every paint, for a caller that has its own
 	 *                                    pixel-sized furniture to keep in step.
+	 * @param {object} [spec.bounds]      The part of the board that has anything on it, as
+	 *                                    `{left, top, right, bottom}` in the board's own pixels at
+	 *                                    1:1, and free to reach past the board's own box on any side.
+	 *                                    It is what `fit` frames and what the pan keeps a sliver of
+	 *                                    in the window. Absent, it is the board itself. See
+	 *                                    `setNaturalSize`.
+	 * @param {Function} [spec.yields]    `ev => boolean`: a LEFT press this surface leaves alone,
+	 *                                    for a caller with a gesture of its own on open board (the
+	 *                                    relationship map's selection box, on a Shift press). Asked
+	 *                                    after the glide is caught, so the press still stops a
+	 *                                    sliding board.
 	 */
-	constructor({ view, content, naturalWidth, naturalHeight, controls = "", menus = "", zoomStep = 0, onChange = null } = {}) {
+	constructor({
+		view, content, naturalWidth, naturalHeight, controls = "", menus = "", zoomStep = 0, onChange = null,
+		bounds = null, yields = null,
+	} = {}) {
 		this._view = view ?? null;
 		this._content = content ?? null;
 		this._naturalWidth = Number(naturalWidth) || 0;
 		this._naturalHeight = Number(naturalHeight) || 0;
+		this._bounds = readBox(bounds);
+		this._yields = typeof yields === "function" ? yields : null;
 		this._controls = controls;
 		this._menus = menus;
 		// Zero, absent and nonsense all mean "the shared default", which `stepZoom` supplies rather
@@ -187,15 +203,53 @@ export class ZoomPanSurface {
 	 * into a corner to read it keeps their corner; re-fitting under them would throw away the very
 	 * thing they were looking at, which is the rule the whole live-update path is built on.
 	 */
-	setNaturalSize(width, height) {
+	setNaturalSize(width, height, bounds) {
 		const w = Number(width) || 0;
 		const h = Number(height) || 0;
-		if (!w || !h || (w === this._naturalWidth && h === this._naturalHeight)) return;
-		this._naturalWidth = w;
-		this._naturalHeight = h;
-		this._sized = false;
-		if (this._fitting) this.fit();
+		const resized = !!w && !!h && (w !== this._naturalWidth || h !== this._naturalHeight);
+		// ⚠ `undefined` IS "NOT SAID", AND NOT "BACK TO THE BOARD". A caller that only knows the size
+		// must not throw away the bounds another call set; `null` is how a caller says there are none.
+		const box = bounds === undefined ? this._bounds : readBox(bounds);
+		const reboxed = !sameBox(box, this._bounds);
+		if (!resized && !reboxed) return;
+		if (resized) {
+			this._naturalWidth = w;
+			this._naturalHeight = h;
+			this._sized = false;
+		}
+		this._bounds = box;
+		// ⚠ A NEW SHEET RE-FITS, BUT A NEW EDGE ONLY RE-FITS WHEN SOMETHING HAS GONE OUT OF SIGHT. The
+		// board changing size moves everything on it, so a fitted board is fitted again. The bounds
+		// changing is usually one portrait just put down on paper the reader could see, and re-fitting
+		// for that would shrink and re-centre the whole board under them after every drop past the
+		// sheet -- the map fighting the hand arranging it. So the view stays put, unless that drop
+		// (or somebody else's) landed where this window cannot show it.
+		if (this._fitting && (resized || !this._boxInView())) this.fit();
 		else this.apply();
+	}
+
+	/** The bounds alone. See `setNaturalSize`, which this is with the size left as it is. */
+	setBounds(bounds) {
+		this.setNaturalSize(this._naturalWidth, this._naturalHeight, bounds ?? null);
+	}
+
+	/**
+	 * What `fit` frames and the pan holds a sliver of: the bounds a caller set, or the board itself.
+	 * In the board's own pixels at 1:1.
+	 */
+	_box() {
+		return this._bounds ?? { left: 0, top: 0, right: this._naturalWidth, bottom: this._naturalHeight };
+	}
+
+	/** Whether all of `_box` is inside the window at the scale and pan painted now. */
+	_boxInView() {
+		const box = this._box();
+		const s = this._scale;
+		// A pixel of give, so a box fitted exactly edge to edge is not taken for one spilling out.
+		return this._offset.x + box.left * s >= -1
+			&& this._offset.y + box.top * s >= -1
+			&& this._offset.x + box.right * s <= this._viewW + 1
+			&& this._offset.y + box.bottom * s <= this._viewH + 1;
 	}
 
 	/**
@@ -241,17 +295,26 @@ export class ZoomPanSurface {
 		// A board being put back where it belongs is not one that should still be drifting.
 		this._stopGlide();
 		this._fitting = true;
+		// THE BOUNDS AND NOT THE BOARD, which are the same box until somebody stands off the sheet.
+		// The offset is still the BOARD's top-left corner, so the box's own corner is taken back off
+		// the centring: a box starting left of the board puts the board right of where it centres.
+		const box = this._box();
+		const boxW = box.right - box.left;
+		const boxH = box.bottom - box.top;
 		this._scale = fitScale({
-			imageWidth: this._naturalWidth,
-			imageHeight: this._naturalHeight,
+			imageWidth: boxW,
+			imageHeight: boxH,
 			viewWidth: this._viewW,
 			viewHeight: this._viewH,
 		});
-		const { width, height } = this.painted();
-		this._offset = centreOffset({
-			paintedWidth: width, paintedHeight: height,
+		const at = centreOffset({
+			paintedWidth: boxW * this._scale, paintedHeight: boxH * this._scale,
 			viewWidth: this._viewW, viewHeight: this._viewH,
 		});
+		this._offset = {
+			x: Math.round(at.x - box.left * this._scale),
+			y: Math.round(at.y - box.top * this._scale),
+		};
 		this.apply();
 	}
 
@@ -290,12 +353,20 @@ export class ZoomPanSurface {
 	/** Paint the current scale and position. */
 	apply() {
 		if (!this._content || !this._naturalWidth) return;
-		const { width, height } = this.painted();
 		// Clamped here rather than in the pan handler, so a zoom-out that leaves the board off in a
 		// corner is caught as well as a drag that does.
+		//
+		// ⚠ A SLIVER OF THE BOUNDS, NOT OF THE BOARD. With somebody standing well off the sheet, the
+		// board's own box is not the edge of what there is to see, and holding the pan to it would
+		// refuse to let the reader bring that person into the middle of the window. So the clamp is
+		// asked about the bounds' corner on screen, and the answer taken back to the board's.
+		const box = this._box();
+		const s = this._scale;
 		this._offset = {
-			x: clampPan({ offset: this._offset.x, painted: width, view: this._viewW }),
-			y: clampPan({ offset: this._offset.y, painted: height, view: this._viewH }),
+			x: clampPan({ offset: this._offset.x + box.left * s, painted: (box.right - box.left) * s, view: this._viewW })
+				- box.left * s,
+			y: clampPan({ offset: this._offset.y + box.top * s, painted: (box.bottom - box.top) * s, view: this._viewH })
+				- box.top * s,
 		};
 		// TRANSFORM ONLY. The other three are constants of the board this surface was handed, so
 		// re-setting a width that cannot have changed is three needless style invalidations on every
@@ -428,6 +499,10 @@ export class ZoomPanSurface {
 		if (ev.buttons > 2) return;
 		const refuse = right ? this._menus : this._controls;
 		if (refuse && ev.target?.closest?.(refuse)) return;
+		// A LEFT PRESS THE CALLER HAS A GESTURE OF ITS OWN FOR. No capture and no preventDefault, for
+		// the reason the controls above get none: the caller takes the pointer itself, if and when
+		// the press turns out to be a drag.
+		if (!right && this._yields?.(ev)) return;
 		ev.preventDefault();
 		this._pan = {
 			id: ev.pointerId,
@@ -696,4 +771,23 @@ export class ZoomPanSurface {
 		if (this._fitting) this.zoomTo(1, this.anchorFor(ev));
 		else this.fit();
 	}
+}
+
+/**
+ * A box of bounds as the surface keeps it, or null for "the board itself". A box with no area, or
+ * with a side that is not a number, is not a box: it would fit the board to nothing.
+ */
+function readBox(box) {
+	if (!box || typeof box !== "object") return null;
+	const left = Number(box.left);
+	const top = Number(box.top);
+	const right = Number(box.right);
+	const bottom = Number(box.bottom);
+	if (![left, top, right, bottom].every(Number.isFinite) || right <= left || bottom <= top) return null;
+	return { left, top, right, bottom };
+}
+
+function sameBox(a, b) {
+	if (!a || !b) return a === b;
+	return a.left === b.left && a.top === b.top && a.right === b.right && a.bottom === b.bottom;
 }

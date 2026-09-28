@@ -3,17 +3,24 @@ import { WOUND_STATUS_LABEL } from "../actors/character/wound-display.js";
 import { escHtml, formatOutcomeDetail, stripHtmlToText, sign } from "./strings.js";
 import { pickLimitsFrom } from "./move-picks.js";
 import { pickLeadText, TIER_KEYS, TIER_LABELS } from "./move-results.js";
-import { markRolledTier } from "./move-tiers.js";
-import { stonetopCardShell, stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber, damageMark, damageBadge, damageKeywordsHtml, pickListItem, descriptionPickTiers, cardNoticeHtml } from "./chat.js";
+import { markRolledTier, moveTiersHtml } from "./move-tiers.js";
+import { stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber, damageMark, damageBadge, damageKeywordsHtml, pickListItem, descriptionPickTiers, cardNoticeHtml } from "./chat.js";
 import { adjustXp } from "./xp.js";
+import { XP_MARK_FLAG } from "./undo-xp-mark.js";
 import { composeDamageFormula, seedBonus, extraTerm } from "./damage.js";
 import { SYSTEM_ID } from "../system-id.js";
 import { getBooleanSetting } from "../settings.js";
+import { privateMessageModeOptions } from "./foundry-compat.js";
+import { CRITICAL_TOTAL, ROLLED_FLAG, rolledRecord, countedNote } from "./counted-tier.js";
+import { SEASONAL_GAINS } from "../dialogs/spring-burst-data.js";
 
 // What a miss is worth (Book I p.209: "a tick mark that raises your total by 1"). Named because
 // the mark and the Undo that takes it back have to agree, and a card stamped by one number and
 // reversed by another is a bug that only shows up as a total nobody can account for.
 const XP_PER_MISS = 1;
+
+// Defined in ./counted-tier.js (its tier ladder reads it too), re-exported here where its readers already reach for it.
+export { CRITICAL_TOTAL };
 
 const _STAT_LABELS = {
 	str: "Strength", dex: "Dexterity", int: "Intelligence",
@@ -58,6 +65,42 @@ export const SPRING_SEASONS_RESULT = {
 	failure: { label: TIER_LABELS.failure, line: "<strong>Threats abound</strong> &mdash; and don't mark XP." },
 };
 
+/**
+ * The six seasonal gains as roll-card options, so the players reading the result can see what
+ * they are choosing from rather than asking the GM to read the list out. Name in bold, then its
+ * effect, as the book prints them.
+ *
+ * From the same SEASONAL_GAINS the GM's Seasons Change window ticks off, so the card and the
+ * window say the same six things in the same words.
+ */
+export const SEASONAL_GAIN_PICKS = SEASONAL_GAINS.map(g => ({
+	html: `<strong>${escHtml(g.name)}:</strong> ${escHtml(g.text)}`,
+}));
+
+/**
+ * The gains per tier, for every +Fortunes Seasons Change roll that picks from them (spring,
+ * summer, autumn). A 10+ and a 7-9 pick; a 6- picks nothing, so it has no list, and a GM's
+ * Shift Up/Down shows or hides the list with the tier. How MANY is the tier's own result line
+ * ("pick 2 seasonal gains").
+ */
+export const SEASONAL_GAIN_POOLS = Object.freeze({
+	success: SEASONAL_GAIN_PICKS,
+	partial: SEASONAL_GAIN_PICKS,
+});
+
+/**
+ * The roll-card options that put the gains on a Seasons Change result, spread into rollStat's or
+ * rollSeasonsCard's options.
+ *
+ * A REFERENCE list (pickReference), not a checklist: the players say what they choose and the GM
+ * enters it in the Seasons Change window, whose Done is what applies and records the gains. Boxes
+ * on the card would be a second place to make the same choice, and one Done never reads.
+ */
+export const SEASONAL_GAIN_LIST = Object.freeze({
+	pickOptions: SEASONAL_GAIN_POOLS,
+	pickReference: Object.freeze({ title: "Seasonal gains", hint: "tell the GM what you choose" }),
+});
+
 // The Inn's own +Fortunes roll, which is a SECOND roll the season makes and not a variant of the
 // one above: "Henceforth, when the Seasons Change, whoever is friendliest rolls +Fortunes: on a
 // 10+, ask the GM 3 questions about the wider world; on a 7-9, ask 1 question; on a 6-, ask 1
@@ -90,6 +133,7 @@ export const SEASONS_ROLL_TABLES = {
 		asks:    "most hopeful",
 		tail:    "for the <em>Seasons Change</em>",
 		results: SPRING_SEASONS_RESULT,
+		picks:   SEASONAL_GAIN_LIST,
 	},
 	inn: {
 		lead:    "Talk at the inn turns to the world beyond.",
@@ -109,6 +153,14 @@ export function seasonsRollTable(id) {
 	return _seasonsRollEntry(id).results;
 }
 
+/**
+ * What a handed-over roll's result card lists to choose from, as options to spread into
+ * rollSeasonsCard's (`pickOptions` and `pickReference`); empty when it lists nothing.
+ */
+export function seasonsRollPicks(id) {
+	return _seasonsRollEntry(id).picks ?? {};
+}
+
 /** Wrap a list of pre-rendered `<li>` inner-HTML strings in the shared "Results" legend
  *  block, so every result table (roll cards, homestead / season walkthroughs) renders the
  *  same chrome from one place instead of each caller re-emitting the wrapper markup. */
@@ -119,14 +171,22 @@ export function resultsLegendHtml(rows) {
 	</div>`;
 }
 
-function _resultTableLegend(resultTable) {
-	if (!resultTable) return "";
-	const rows = TIER_KEYS
-		.map(key => resultTable[key])
-		.filter(Boolean)
-		.map(result => `<strong>${result.label}:</strong> ${result.line}`);
-	return resultsLegendHtml(rows);
+/**
+ * A `{ label, line }` result table as the move card's own tier ladder, with the rung the dice
+ * landed on marked: the same `ul.stonetop-move-tiers` a move's description carries on its roll
+ * card, so a handed-over Seasons Change reads like any other move rather than wearing a boxed
+ * legend of its own under the result. The lines are markup (a bold phrase) and the ladder prints
+ * plain text, so they are flattened here; the result block above keeps the bold.
+ */
+function _resultTableLadder(resultTable, tier) {
+	const moveResults = Object.fromEntries(TIER_KEYS
+		.filter(key => resultTable?.[key])
+		.map(key => [key, { label: resultTable[key].label, value: stripHtmlToText(resultTable[key].line) }]));
+	return markRolledTier(moveTiersHtml(moveResults), tier);
 }
+
+// The title row's "?" that reveals a hidden move description, shared by every card that carries one.
+const DESC_TOGGLE_HTML = `<button class="stonetop-roll-card-desc-toggle" type="button" title="Show move description"><i class="fas fa-question-circle"></i></button>`;
 
 /**
  * Pull the individual die faces out of an evaluated Roll, e.g. a 2d6 that came up
@@ -159,30 +219,40 @@ export function multiDieFaces(roll) {
  * Speaker/title: pass `title` to head the card with it (like a stat roll's
  * "Dexterity") and speak the card as whoever made the roll (ChatMessage.getSpeaker) —
  * used by the chat "Roll +Fortunes" button, so the result is spoken by the player who
- * clicked it. Pass `alias` instead to speak the card under a fixed name with no header
- * (the Expedition Requisition card).
+ * clicked it. Pass `alias` instead to speak the card under a fixed name, which then
+ * heads it too (the Expedition Requisition card).
  */
-export async function rollSeasonsCard({ formula, title = "", alias = "", resultTable, resultLegend = "", missCountsAsPartial = "" } = {}) {
+export async function rollSeasonsCard({ formula, title = "", alias = "", resultTable, resultLegend = "", missCountsAsPartial = "", conditionNotes = [], pickOptions = null, pickReference = null } = {}) {
 	const roll = await new Roll(formula).evaluate();
 	const rolled = classifyResult(roll.total).key;
 	// As rollStat's option of the same name: a 6- that a rule counts as a 7-9, said on the card.
 	const counted = missCountsAsPartial && rolled === "failure";
 	const tier = counted ? "partial" : rolled;
 	const result = resultTable[tier];
-	const body = springRollCardBody(
+	// And rollStat's `pickOptions` + `pickReference`: what the tier chooses from, listed to READ
+	// under the legend (spring's seasonal gains). Only ever a reference list here: nothing rolled
+	// from this card has a checklist of its own.
+	const reference = pickReference ? pickReferenceHtml(normalizePickPools(pickOptions), tier, pickReference) : "";
+	// The 10+ / 7-9 / 6- ladder sits where a move card's description does: under the title and above
+	// the result, with the landed rung lit. A caller's own `resultLegend` still goes below instead.
+	const ladder = resultLegend ? "" : _resultTableLadder(resultTable, tier);
+	const description = ladder ? `<div class="stonetop-roll-card-description">${ladder}</div>` : "";
+	const body = description + springRollCardBody(
 		roll.total,
 		tier,
 		result.label,
 		counted ? `${result.line} <em>(Rolled a 6-, counted as a 7-9: ${escHtml(missCountsAsPartial)}.)</em>` : result.line,
 		roll.formula,
 		multiDieFaces(roll),
-		resultLegend || _resultTableLegend(resultTable),
-	);
+		resultLegend + reference,
+	// And rollStat's `conditionNotes`, in its pills: what put the roll at advantage (a held Rites
+	// of the Land advantage, say), so this card says why as a stat roll's does.
+	) + conditionsRowHtml(conditionNotePills(conditionNotes));
+	// Titled even when spoken under an alias: the title row is what carries the "?" that brings a
+	// hidden description back, and without it a table that hides descriptions would lose the ladder.
 	await roll.toMessage({
 		speaker: alias ? { alias } : ChatMessage.getSpeaker(),
-		flavor:  title
-			? stonetopChatCard(title, body, "stonetop-spring-card")
-			: stonetopCardShell(body, "stonetop-spring-card"),
+		flavor:  stonetopChatCard(title || alias, body, "stonetop-spring-card", description ? DESC_TOGGLE_HTML : ""),
 	});
 	return { total: roll.total, tier, label: result.label };
 }
@@ -205,6 +275,8 @@ export async function rollSeasonsCard({ formula, title = "", alias = "", resultT
  * @param {string} [rollMode]  "adv" | "dis" | "normal" — NOT core's public/gmroll/blind.
  * @param {string} [why]       What bought the advantage, named on the card so the table can see
  *   the sacrifice land rather than reading two extra dice and wondering.
+ * @returns {Promise<ChatMessage>|undefined} the card being posted, so a caller spending the hold
+ *   can wait until it is up
  */
 export function postSeasonsRollPrompt({
 	alias = "Seasons Change: Spring",
@@ -237,7 +309,7 @@ export function postSeasonsRollPrompt({
 			</button>
 		</div>
 	</div>`;
-	ChatMessage.create({
+	return ChatMessage.create({
 		speaker: { alias },
 		content: stonetopChatCard(alias, body, "stonetop-seasons-prompt-card"),
 	});
@@ -324,12 +396,16 @@ export function pickedTiers(pools) {
 	return TIER_KEYS.filter(tier => pools.byTier[tier].length);
 }
 
+// One pick option's row markup. An option is plain text, escaped here, or `{ html }` for a row
+// that is already markup (the seasonal gains, whose names are bold as the book prints them).
+const _pickOptionHtml = option => (typeof option === "string" ? escHtml(option) : String(option?.html ?? ""));
+
 export function pickListsHtml(pools, activeTier, picks = null) {
 	let index = 0;
 	// Rows through the shared emitter (utils/chat.js), so this surface and a move's own printed
 	// list cannot drift apart on the class names the tally and cap wiring keys off.
 	const list = (options, limitAttrs = "") => `<ul class="stonetop-picklist"${limitAttrs}>${
-		options.map(option => pickListItem(escHtml(option), index++)).join("")}</ul>`;
+		options.map(option => pickListItem(_pickOptionHtml(option), index++)).join("")}</ul>`;
 	// A tier that states no count of its own (a homefront move's 6- consequences, whose result
 	// text already says how many) stamps nothing and ticks freely, same as an unreadable move.
 	const cap = tier => (Math.trunc(Number(picks?.[tier])) || 0);
@@ -348,7 +424,40 @@ export function pickListsHtml(pools, activeTier, picks = null) {
 	</div>`;
 }
 
-function _rollCard({ header, result = "", resultClass = "", resultDetail = "", keywords = "", resultOutcomes = null, resultLegend = "", pickList = "", pickTiers = [], tierActions = null, conditionsHtml = "", noticesHtml = "", buttons = false, actions = "", total = null, formula = "", description = "", dieResults = "", badge = "", sectionClass = "", damage = false }) {
+/**
+ * The same pools as {@link pickListsHtml}, as a list to READ rather than tick: for a choice the
+ * players say aloud and the GM records somewhere else (the seasonal gains, entered in the Seasons
+ * Change window). No checkbox, no cap and no tally, so none of the pick wiring in stonetop.js
+ * finds anything to bind; spiral bullets instead, in the titled box the Results legend above it
+ * wears (`.stonetop-homestead-reference`), because it is read the same way the legend is.
+ *
+ * Per tier like a checklist, with the same `data-active-tier` / `data-tier` wrappers and the same
+ * VALUED `hidden="hidden"`, so a GM's Shift Up/Down shows the list on the tier that picks and hides
+ * it on the one that does not (see _shiftRollCardFlavor in stonetop.js).
+ *
+ * @param {{shared: Array|null, byTier: object}} pools  from normalizePickPools
+ * @param {string} activeTier  the tier the roll landed on
+ * @param {{title?: string, hint?: string}} [reference]  the box's heading, and a quieter note
+ *   beside it saying what to do with the list
+ */
+export function pickReferenceHtml(pools, activeTier, { title = "", hint = "" } = {}) {
+	const heading = (title ? `<strong>${escHtml(title)}</strong>` : "")
+		+ (hint ? ` <span class="stonetop-roll-reference-hint">(${escHtml(hint)})</span>` : "");
+	const box = options => `<div class="stonetop-homestead-reference stonetop-roll-reference">${heading}<ul>${
+		options.map(option => `<li>${_pickOptionHtml(option)}</li>`).join("")}</ul></div>`;
+
+	if (pools.shared) return pools.shared.length ? box(pools.shared) : "";
+
+	const tiers = pickedTiers(pools);
+	if (!tiers.length) return "";
+	return `<div class="stonetop-roll-tier-picklists" data-active-tier="${escHtml(activeTier)}">
+		${tiers.map(tier =>
+			`<div class="stonetop-roll-tier-picklist" data-tier="${escHtml(tier)}"${tier === activeTier ? "" : ` hidden="hidden"`}>${box(pools.byTier[tier])}</div>`
+		).join("")}
+	</div>`;
+}
+
+function _rollCard({ header, result = "", resultClass = "", resultDetail = "", keywords = "", resultOutcomes = null, resultLegend = "", pickList = "", pickTiers = [], tierActions = null, conditionsHtml = "", noticesHtml = "", buttons = false, actions = "", total = null, formula = "", description = "", dieResults = "", badge = "", sectionClass = "", damage = false, countsAs = null }) {
 	// Stash every tier's outcome on the row so a GM Shift Up/Down can swap the
 	// detail line to match the new tier (see _shiftRollCardFlavor in stonetop.js).
 	const outcomeAttrs = resultOutcomes
@@ -359,6 +468,12 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", k
 	// ...and which of those tiers has its options offered below, so the shift keeps printing
 	// the lead-in alone on a tier whose list is already on the card (see `detailHtml`).
 	const pickedAttr = pickTiers.length ? ` data-picked-tiers="${escHtml(pickTiers.join(" "))}"` : "";
+	// ...and the bends the roll carried, each by the rule's name, whether or not it fired: a rewrite reads
+	// them back (utils/counted-tier.js#rolledRecord takes this dataset as is) so a 7-9 lifted to an 8 on a
+	// Let's Make a Deal roll is still the 10+ it counts as, and says why.
+	const countsAsAttrs = [["miss-counts-as-partial", countsAs?.missCountsAsPartial],
+		["partial-counts-as-success", countsAs?.partialCountsAsSuccess]]
+		.filter(([, why]) => why).map(([name, why]) => ` data-${name}="${escHtml(why)}"`).join("");
 	// The tier's own options are reprinted inside the result block ONLY when nothing below lists
 	// them -- neither the checklist nor the tier controls. A card that offers them as boxes shows
 	// the lead-in here and the boxes there, so one choice is stated once.
@@ -378,7 +493,7 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", k
 	// mark instead — the same one the attack flow's per-target damage rows use.
 	const resultNumberHtml = damage ? damageMark(total, dieResults) : rollResultNumber(total, dieResults);
 	const resultBlockHtml = (total != null || result)
-		? `<div class="stonetop-roll-result ${resultClass}"${outcomeAttrs}${pickedAttr}>
+		? `<div class="stonetop-roll-result ${resultClass}"${outcomeAttrs}${pickedAttr}${countsAsAttrs}>
 			${total != null ? resultNumberHtml : ""}
 			<div class="stonetop-roll-result-body">
 				${result ? `<span class="stonetop-roll-result-label">${result}</span>` : ""}
@@ -416,9 +531,7 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", k
 	const descriptionHtml = description
 		? `<div class="stonetop-roll-card-description">${description}</div>`
 		: "";
-	const descToggleHtml = description
-		? `<button class="stonetop-roll-card-desc-toggle" type="button" title="Show move description"><i class="fas fa-question-circle"></i></button>`
-		: "";
+	const descToggleHtml = description ? DESC_TOGGLE_HTML : "";
 	const buttonsHtml = buttons
 		? `<div class="card-buttons stonetop-card-buttons">
 			<button data-action="shiftDown"><i class="fas fa-arrow-down"></i> Shift Down</button>
@@ -551,6 +664,42 @@ function _woundJustifyHtml(actor, resultClass) {
 }
 
 /**
+ * The pill saying a bend fired ("Rolled a 7-9, counted as a 10+ (Let's Make a Deal)", utils/counted-tier.js
+ * #countedNote). Its own class beside the note's, so a rewrite of the card's total can take it off or put it
+ * back as the tier it counts as moves (stonetop.js#_shiftRollCardFlavor). Text, never markup.
+ */
+export function countedNotePill(note) {
+	return `<li class="stonetop-condition-note stonetop-condition-counted">${escHtml(note)}</li>`;
+}
+
+/**
+ * Put a rewritten card's bend pill in step with `note` ("" for none), inside `root` (the card's flavor,
+ * parsed). A card whose only pill it was loses the "Conditions Applied" row; one that had no row gains it
+ * where rollStat draws it, above the card's own controls.
+ */
+export function syncCountedNotePill(root, note) {
+	for (const pill of root.querySelectorAll(".stonetop-roll-card .stonetop-condition-counted")) pill.remove();
+	const list = root.querySelector(".stonetop-roll-card .stonetop-roll-conditions ul");
+	if (note && list) {
+		list.insertAdjacentHTML("beforeend", countedNotePill(note));
+	} else if (note) {
+		const cell = root.querySelector(".stonetop-roll-card .cell--chat");
+		const row = root.ownerDocument.createElement("div");
+		row.innerHTML = conditionsRowHtml([countedNotePill(note)]);
+		const before = cell?.querySelector(":scope > .stonetop-roll-actions, :scope > .stonetop-card-buttons") ?? null;
+		if (cell && row.firstElementChild) cell.insertBefore(row.firstElementChild, before);
+	} else if (list && !list.children.length) {
+		list.closest(".stonetop-roll-conditions")?.remove();
+	}
+}
+
+/** A caller's own named conditions, one pill each. Text, never markup (see rollStat). */
+function conditionNotePills(notes) {
+	return (Array.isArray(notes) ? notes : []).filter(Boolean)
+		.map(note => `<li class="stonetop-condition-note">${escHtml(note)}</li>`);
+}
+
+/**
  * The "Conditions Applied:" row a roll card wears under its result — the Advantage /
  * Forward / Situational pills.
  *
@@ -568,6 +717,15 @@ export function conditionsRowHtml(conditions) {
 		<h3 class="cell__subtitle">${label}</h3>
 		<ul>${conditions.join("")}</ul>
 	</div>`;
+}
+
+// The card each rollStat roll was posted as, for a caller that has to write on it after the dice (the
+// tier effects a roll applied: actors/character/tier-effects.js). Weak, so a roll let go of lets go of it.
+const ROLL_MESSAGES = new WeakMap();
+
+/** The chat message rollStat posted this roll as, or null for a roll it did not post. */
+export function messageOfRoll(roll) {
+	return (roll && typeof roll === "object" && ROLL_MESSAGES.get(roll)) || null;
 }
 
 /**
@@ -588,6 +746,8 @@ export function conditionsRowHtml(conditions) {
  * @param {string} [options.moveName]                  - Display name for the roll header
  * @param {string} [options.resultLegend]              - Optional visible result legend HTML
  * @param {object} [options.tierActions]               - Optional HTML actions keyed by result tier
+ * @param {string} [options.criticalActions]           - HTML added to the 10+ row only when the total
+ *   is 12 or more (A Force to Be Reckoned With: "on a 12+ you turn the tables on them")
  * @param {string}  [options.stonetopDebility]          - Debility name for annotation
  * @param {string}  [options.stonetopDebilityTooltip]
  * @param {string}  [options.stonetopDebilityIgnored]      - What is cancelling a marked debility
@@ -597,10 +757,17 @@ export function conditionsRowHtml(conditions) {
  * @param {boolean} [options.noXpOnMiss]               - Skip the automatic +1 XP on a miss (for moves that replace it)
  * @param {string}  [options.missCountsAsPartial]      - Why a 6- counts as a 7-9 on this roll, named on
  *   the card; absent for an ordinary roll
+ * @param {string}  [options.partialCountsAsSuccess]   - Why a 7-9 counts as a 10+ on this roll, named the
+ *   same way
+ * @param {string[]} [options.whisper]                  - Post the card privately, to these user ids (the
+ *   author always sees it too); absent for a card that follows the table's own chat mode
  * @param {string[]|{success?: string[], partial?: string[], failure?: string[]}} [options.pickOptions]
  *   "Choose from this list" options, rendered as a checklist on the card. An array is one pool
  *   shared by every tier (love letters); an object names a pool per tier (the homefront moves,
  *   whose 6- consequences are a different list from their 10+/7-9 options).
+ * @param {{title?: string, hint?: string}} [options.pickReference] - List `pickOptions` to READ,
+ *   in a titled box under the legend, rather than as a checklist (pickReferenceHtml): for a
+ *   choice made aloud and recorded elsewhere, like the seasonal gains.
  * @returns {Promise<Roll>}
  */
 export async function rollStat(statKey, actor, options = {}) {
@@ -626,8 +793,13 @@ export async function rollStat(statKey, actor, options = {}) {
 	// herd or less, treat a 6- as a 7-9") is applied to the TIER, so every tier-keyed part of the
 	// card (outcome, pick list, buttons, the ladder's mark) reads as the 7-9 it counts as.
 	const missCountsAsPartial = String(options.missCountsAsPartial ?? "").trim();
+	// And one that turns a weak hit into a strong one, the same way (the Seeker's Let's Make a Deal:
+	// "When you Persuade by offering them something that you know they want or need, treat a 7-9 as a 10+").
+	const partialCountsAsSuccess = String(options.partialCountsAsSuccess ?? "").trim();
 	const rolled = classifyResult(total);
-	const result = missCountsAsPartial && rolled.key === "failure" ? classifyResult(7) : rolled;
+	const result = missCountsAsPartial && rolled.key === "failure" ? classifyResult(7)
+		: partialCountsAsSuccess && rolled.key === "partial" ? classifyResult(10)
+		: rolled;
 
 	// Surface the move's own per-tier outcome (10+/7-9/6-) on the result card. Some
 	// moves (e.g. the Blessed's Borrow Power, Suck the Poison Out) keep their outcomes
@@ -660,7 +832,11 @@ export async function rollStat(statKey, actor, options = {}) {
 		: null;
 	const resultDetail = resultOutcomes?.[result.key] ?? "";
 
-	const pickListHtml = pickListsHtml(pickPools, result.key, tierPickCounts(moveResults));
+	// A pool the caller marked as a REFERENCE is listed to read under the legend instead (the
+	// seasonal gains: said aloud, entered by the GM in the Seasons Change window).
+	const pickReference = options.pickReference ?? null;
+	const pickListHtml = pickReference ? "" : pickListsHtml(pickPools, result.key, tierPickCounts(moveResults));
+	const pickReferenceList = pickReference ? pickReferenceHtml(pickPools, result.key, pickReference) : "";
 	// Two ways a tier's options can already be on the card as BOXES, and either one keeps the
 	// result block from reprinting them in prose: the checklist `pickListHtml` just built from a
 	// declared pool, and -- for a move like Clash, whose options live in its own text rather than
@@ -669,7 +845,8 @@ export async function rollStat(statKey, actor, options = {}) {
 	// Merged in TIER_KEYS order, not concatenation order: the two sources can each answer for a
 	// different tier, and `data-picked-tiers` is read back by a GM's Shift Up/Down.
 	const pickedTierSet = new Set([
-		...(pickListHtml ? pickedTiers(pickPools) : []),
+		// (A reference list counts too: the options are on the card either way.)
+		...((pickListHtml || pickReferenceList) ? pickedTiers(pickPools) : []),
 		...descriptionPickTiers(moveDescription),
 	]);
 	const pickedTierKeys = TIER_KEYS.filter(tier => pickedTierSet.has(tier));
@@ -704,14 +881,18 @@ export async function rollStat(statKey, actor, options = {}) {
 	// so a roll that is at advantage for a reason settled seasons ago says which reason. Text, not
 	// markup: the pill's chrome belongs to this card, and a caller passing HTML would be styling
 	// someone else's card from a long way off.
-	for (const note of (Array.isArray(options.conditionNotes) ? options.conditionNotes : []).filter(Boolean)) {
-		conditions.push(`<li class="stonetop-condition-note">${escHtml(note)}</li>`);
-	}
-	if (missCountsAsPartial && rolled.key === "failure") {
-		conditions.push(`<li class="stonetop-condition-note">${escHtml(`Rolled a 6-, counted as a 7-9 (${missCountsAsPartial})`)}</li>`);
-	}
+	conditions.push(...conditionNotePills(options.conditionNotes));
+	const counted = countedNote(total, rolledRecord(statKey, { missCountsAsPartial, partialCountsAsSuccess }));
+	if (counted) conditions.push(countedNotePill(counted));
 
 	const conditionsHtml = conditionsRowHtml(conditions);
+
+	// A 12+'s own line rides the 10+ row, and only a total that reached 12 carries it: a 10 or 11 is
+	// the same tier and says nothing more.
+	const critical = String(options.criticalActions ?? "");
+	const tierActions = critical && roll.total >= CRITICAL_TOTAL
+		? { ...(options.tierActions ?? {}), success: `${options.tierActions?.success ?? ""}${critical}` }
+		: options.tierActions ?? null;
 
 	const flavor = _rollCard({
 		header,
@@ -719,10 +900,11 @@ export async function rollStat(statKey, actor, options = {}) {
 		resultClass: result.key,
 		resultDetail,
 		resultOutcomes,
-		resultLegend: options.resultLegend ?? "",
+		resultLegend: (options.resultLegend ?? "") + pickReferenceList,
 		pickList: pickListHtml,
 		pickTiers: pickedTierKeys,
-		tierActions: options.tierActions ?? null,
+		countsAs: { missCountsAsPartial, partialCountsAsSuccess },
+		tierActions,
 		conditionsHtml,
 		noticesHtml: _woundReminderHtml(actor, moveName) + _woundJustifyHtml(actor, result.key),
 		buttons: true,
@@ -735,12 +917,28 @@ export async function rollStat(statKey, actor, options = {}) {
 		description: markRolledTier(moveDescription, result.key),
 	});
 
+	// A roll meant for its player and the GM only: Struggle as One keeps each result quiet until the
+	// GM shares them all (Book I p.329). The author always sees their own message, so the list names
+	// the GMs and anyone else who plays the character.
+	const whisper = Array.isArray(options.whisper) ? options.whisper.filter(Boolean) : [];
+	// What was rolled, on the card, for whatever reads its tier again after a rewrite (utils/counted-tier.js):
+	// Potential for Greatness asks the stat, and a 7-9 this roll treats as a 10+ still counts as one.
+	const priorFlags = options.messageFlags ?? {};
+	const messageFlags = {
+		...priorFlags,
+		[SYSTEM_ID]: {
+			...(priorFlags[SYSTEM_ID] ?? {}),
+			[ROLLED_FLAG]: rolledRecord(statKey, { moveName, missCountsAsPartial, partialCountsAsSuccess }),
+		},
+	};
 	const resultMessage = await roll.toMessage({
 		speaker:  ChatMessage.getSpeaker({ actor }),
 		flavor,
-		flags:    options.messageFlags ?? undefined,
+		flags:    messageFlags,
 		rollMode: game.settings.get("core", "rollMode"),
-	});
+		...(whisper.length ? { whisper } : {}),
+	}, whisper.length ? privateMessageModeOptions() : {});
+	if (resultMessage && typeof resultMessage === "object") ROLL_MESSAGES.set(roll, resultMessage);
 
 	// Wait for the Dice So Nice 3D animation (if installed) to finish before
 	// posting any follow-up cards, so the Miss/XP card doesn't reveal the result
@@ -756,9 +954,50 @@ export async function rollStat(statKey, actor, options = {}) {
 		await markMissXp(actor, moveName);
 	}
 
-	await maybeRemindPotentialForGreatness(actor, statKey, total);
+	// The COUNTED tier: a 7-9 this roll treats as a 10+ is a 10+ to Potential for Greatness too. The reminder
+	// goes where the roll went (a Struggle as One whisper stays one), and latches on the card so a later
+	// rewrite of it does not ask twice (WouldBeHeroAsterisk.js#remindPotentialForGreatnessOnCard).
+	await maybeRemindPotentialForGreatness(actor, statKey, total, {
+		tier: result.key,
+		whisper,
+		rollMode: game.settings.get("core", "rollMode"),
+		message: resultMessage && typeof resultMessage === "object" ? resultMessage : null,
+	});
 
 	return roll;
+}
+
+/**
+ * Mark XP, and build the receipt that says so, with its Undo (utils/undo-xp-mark.js). A miss posts
+ * one; so does a character who does what another PC Persuaded them to (pc-asks/pc-ask-flow.js).
+ * The caller posts it, with whatever else its card carries.
+ *
+ * The write goes through adjustXp (utils/xp.js), which queues it behind anything else changing
+ * this character's XP and reads the total inside that queue. The card then reports the number
+ * that actually landed rather than one computed from a total read before the write — which is
+ * how a mark and a spend firing together came to print two totals that could not both be true.
+ *
+ * `flags` are the card's own (under SYSTEM_ID): how much it marked, stamped at creation so the Undo
+ * takes back exactly what was given rather than a number read off the card's own text. Their
+ * presence is also what identifies the card to the wiring — a card without them has nothing to
+ * undo, so an ordinary roll card can never grow the button. Free: they ride on the create.
+ *
+ * @returns {Promise<{content: string, flags: object}>}
+ */
+export async function markXpReceipt(actor, { header, description = "", move, amount = XP_PER_MISS }) {
+	// Attributed to the move, so the ledger reads "via <move>".
+	const { after, max } = await adjustXp(actor, amount, { move });
+	return {
+		content: _rollCard({
+			header,
+			result: `+${amount} XP (${after} / ${max})`,
+			resultClass: "success",
+			sectionClass: "stonetop-xp-mark-card",
+			description,
+			actions: `<button type="button" class="stonetop-xp-undo" data-action="undoXpMark"><i class="fas fa-rotate-left"></i> Undo XP Gain</button>`,
+		}),
+		flags: { [XP_MARK_FLAG]: amount },
+	};
 }
 
 /**
@@ -769,32 +1008,18 @@ export async function rollStat(statKey, actor, options = {}) {
  * this one. `moveName` attributes the write in the character ledger.
  *
  * XP is deliberately not capped: xpToLevelUp is a level-up threshold, not a ceiling.
- *
- * The write goes through adjustXp (utils/xp.js), which queues it behind anything else changing
- * this character's XP and reads the total inside that queue. The card then reports the number
- * that actually landed rather than one computed from a total read before the write — which is
- * how a mark and a spend firing together came to print two totals that could not both be true.
  */
 export async function markMissXp(actor, moveName) {
-	// Attribute the marked XP to the move that missed, so the ledger reads "via <move>".
-	const { after: newXp, max: maxXp } = await adjustXp(actor, XP_PER_MISS, { move: moveName });
-	const xpCard = _rollCard({
+	const receipt = await markXpReceipt(actor, {
 		header: "Miss",
-		result: `+1 XP (${newXp} / ${maxXp})`,
-		resultClass: "success",
-		sectionClass: "stonetop-xp-mark-card",
+		move: moveName,
 		description: `<p>On a <strong>miss</strong> (a total of 6 or less), you <strong>mark XP</strong>, a tick mark that raises your total by 1, unless the move says otherwise.</p>`,
-		actions: `<button type="button" class="stonetop-xp-undo" data-action="undoXpMark"><i class="fas fa-rotate-left"></i> Undo XP Gain</button>`,
 	});
 	await ChatMessage.create({
-		content:  xpCard,
+		content:  receipt.content,
 		speaker:  ChatMessage.getSpeaker({ actor }),
 		rollMode: game.settings.get("core", "rollMode"),
-		// How much this card marked, stamped at creation so the Undo button takes back exactly
-		// what was given rather than a number read off the card's own text. Its presence is also
-		// what identifies the card to the wiring — a card with no `xpMark` has nothing to undo,
-		// so an ordinary roll card can never grow the button. Free: it rides on the create.
-		flags: { [SYSTEM_ID]: { xpMark: XP_PER_MISS } },
+		flags:    { [SYSTEM_ID]: receipt.flags },
 	});
 }
 
@@ -920,6 +1145,9 @@ export async function rollDamage(formula, actor, options = {}) {
 		// (combat/attack-flow.js#rollAndPostDamage).
 		flavor:   _rollCard({ header: label, buttons: true, total: Math.max(0, roll.total), formula: roll.formula, dieResults: dieResultsText(roll), conditionsHtml: conditionsRowHtml(conditions), noticesHtml: options.notices ?? "", keywords: options.keywords ?? "", description: options.description ?? "", badge: damageBadge(), sectionClass: "stonetop-damage-roll-card", damage: true }),
 		rollMode: game.settings.get("core", "rollMode"),
+		// What a caller needs the card to say about itself: a follower's blow posted under their
+		// character's name (combat/attack-flow.js#rollDamageAt), which is not the character's roll.
+		...(options.messageFlags ? { flags: options.messageFlags } : {}),
 	});
 
 	return roll;

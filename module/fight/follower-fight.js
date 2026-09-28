@@ -24,7 +24,7 @@
 // step afterwards by syncFollowerActors. The one thing the actor does not carry is `exceptional`,
 // which is read from the character's flags.
 
-import { followerCardFor, followerDetailBase } from "../actors/character/follower-masters.js";
+import { followerCardFor, followerExceptional } from "../actors/character/follower-masters.js";
 import { readableFlags } from "../actors/character/StonetopFlags.js";
 import { isFightTabEnabled } from "../settings.js";
 import { fightOnScene } from "./fight-state.js";
@@ -78,16 +78,17 @@ export function followerOrderInfo(actor, card) {
 	if (!card || !followerTakesOrders(card)) return null;
 	// Whatever the type, exceptional is read at the card's own detail path, the one the sheet's
 	// control writes to. Book I p.462 gates the crew and the animal companion behind a move, but lets
-	// the GM call ANY outstanding follower exceptional, so no type is left out here.
-	const base = followerDetailBase(card.ftype, card.slug);
-	const details = base ? foundry.utils.getProperty(readableFlags(card.character), base) : null;
+	// the GM call ANY outstanding follower exceptional, so no type is left out here. An initiate the
+	// insert prints "Exceptional" (Seren) is so until that toggle says otherwise; the default is playbook
+	// data this cannot read synchronously, so the sheet's orderFollower, which this is handed to, settles it.
+	// The crew's comes from Heroes to the Last's pick instead, never a stored toggle (followerExceptional).
 	return {
 		...card,
 		follower: {
 			name:        String(actor?.name ?? "").trim(),
 			tags:        followerTags(actor?.system?.tags),
 			moves:       followerMoves(actor),
-			exceptional: !!details?.exceptional,
+			exceptional: followerExceptional(card.character, card.ftype, card.slug),
 		},
 	};
 }

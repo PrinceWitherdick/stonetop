@@ -22,7 +22,11 @@
                 "key": "auspicious-birth",
                 "label": "Background circle",
                 "max": 1,
-                "value": 0
+                "value": 0,
+                "clearsOn": [
+                  "make-camp",
+                  "convalesce"
+                ]
               }
             ]
           }
@@ -30,13 +34,13 @@
         {
           "slug": "itinerant-mystic",
           "label": "Itinerant Mystic",
-          "description": "<p>They think of you as a self-important kook who comes through now and again, speaking in riddles and playing tricks with the light. Sure, they know there's something holy about you, but it's not like you're a priest or anything. Priests talk sense.</p><p>When you <strong><em>go off a-wandering</em></strong>, hold 1 Enigma if you're gone for days, 2 if you're gone for weeks, or 3 if you're gone for months. At the very start of play, hold 3 Enigma. Spend Enigma 1-for-1 to: return from your wandering exactly when and where you are needed, fully Outfitted; Know Things as if you rolled a 10+; or have What You Need to produce an oddly specific yet mundane item of Value 1 or less.</p>",
+          "description": "<p>They think of you as a self-important kook who comes through now and again, speaking in riddles and playing tricks with the light. Sure, they know there's something holy about you, but it's not like you're a priest or anything. Priests talk sense.</p><p>When you <strong><em>go off a-wandering</em></strong>, hold 1 Enigma if you're gone for days, 2 if you're gone for weeks, or 3 if you're gone for months. At the very start of play, hold 3 Enigma. Spend Enigma 1-for-1 to: return from your wandering exactly when and where you are needed, fully Outfitted; Know Things as if you rolled a 10+, drawing on what you learned while away; or have What You Need to produce an oddly specific yet mundane item of Value 1 or less.</p>",
           "setup": {
             "resources": [
               {
                 "key": "enigma",
                 "label": "Enigma",
-                "max": 3,
+                "max": 9,
                 "value": 3
               }
             ]
@@ -45,7 +49,7 @@
         {
           "slug": "soul-on-fire",
           "label": "Soul on Fire",
-          "description": "<p>You once led a worldly life, full of fear and doubt, base pleasures and petty grudges. But something happened. Injury, illness, a brush with death. Or just a moment of such profound misery and self-loathing that you thought you could go no further.</p><p>There, in the dark, Helior's light shined upon you, igniting in your soul, lifting you and filling you with a profound sense of purpose.</p><p>When you <strong><em>Persuade a group by preaching charity, mercy, and hope and roll a 7+</em></strong>, aside from the usual effect, choose 1:</p><ul><li>Your name and your message spread</li><li>Someone approaches you, now or later, eager to know more.</li></ul>"
+          "description": "<p>You once led a worldly life, full of fear and doubt, base pleasures and petty grudges. But something happened. Injury, illness, a brush with death. Or just a moment of such profound misery and self-loathing that you thought you could fall no further.</p><p>There, in the dark, Helior's light shined upon you, igniting in your soul, lifting you and filling you with a profound sense of purpose.</p><p>When you <strong><em>Persuade a group by preaching charity, mercy, and hope and roll a 7+</em></strong>, aside from the usual effect, choose 1:</p><ul><li>Your name and your message spread</li><li>Someone approaches you, now or later, eager to know more.</li></ul>"
         }
       ],
       "instincts": [
@@ -308,9 +312,16 @@
                 "column": "small"
               },
               {
-                "name": "Lanterns (close, area)",
+                "name": "Lanterns",
+                "sourceKey": "Lanterns (close, area)",
                 "column": "regular",
-                "weight": 1
+                "weight": 1,
+                "resource": {
+                  "max": 5,
+                  "title": null,
+                  "labels": []
+                },
+                "resourceSuffix": "hours, close, area"
               }
             ]
           },

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { splitEmpoweredEffect, annotateInvocationEffects } from "../../../module/actors/character/invocation-effects.js";
+import { splitEmpoweredEffect, annotateInvocationEffects, INVOCATION_EFFECT_TOOLTIPS } from "../../../module/actors/character/invocation-effects.js";
 
 // Real shape, from the Lightbearer playbook's Invocations.
 const BLINDING_FLASH = "<p>Your light blazes. Any in range who look at it are temporarily blinded.</p>"
@@ -65,5 +65,14 @@ describe("splitEmpoweredEffect", () => {
 
 	it("handles a missing description", () => {
 		expect(splitEmpoweredEffect(null)).toEqual({ base: "", empowered: null });
+	});
+});
+
+// Lightbearer audit B12: Reduced is a consequence the roller MAY choose; the old tooltip said it was
+// one you "must" take on a 7-9, which the move never says.
+describe("the Reduced tooltip", () => {
+	it("says what Reduced is and nothing the move does not", () => {
+		expect(INVOCATION_EFFECT_TOOLTIPS.reduced).toBe("One of Invoke the Sun God's consequences: the Invocation takes this weaker effect.");
+		expect(INVOCATION_EFFECT_TOOLTIPS.reduced).not.toMatch(/must/);
 	});
 });

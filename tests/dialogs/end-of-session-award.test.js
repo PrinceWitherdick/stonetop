@@ -141,4 +141,21 @@ describe("End of Session group XP", () => {
 		expect(torwyn.update).not.toHaveBeenCalled();
 		expect(global.ChatMessage.create).not.toHaveBeenCalled();
 	});
+
+	// Never Gonna Keep Me Down: "Once per session, when you are at Death's Door, don't roll." A new
+	// session gives the use back, whatever the table answered.
+	it("clears a spent Never Gonna Keep Me Down circle", async () => {
+		const held = { "Never Gonna Keep Me Down": 1 };
+		const wynfor = pc("Wynfor", 3);
+		wynfor.typedActor = { moveResources: {
+			getMoveResources: () => held,
+			setUses: vi.fn(async (name, value) => { held[name] = value; }),
+		} };
+		roster.chars = [wynfor, pc("Bryn", 5)];
+		const { confirm } = opened(0);
+
+		await confirm({ currentTarget: { disabled: false } });
+
+		expect(held["Never Gonna Keep Me Down"]).toBe(0);
+	});
 });

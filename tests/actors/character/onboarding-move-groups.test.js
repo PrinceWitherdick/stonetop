@@ -66,6 +66,14 @@ describe("ONBOARDING_MOVE_GROUPS", () => {
 		});
 	}
 
+	// Every Judge move but the two stat moves has a chip; a move added to the pack folder with no
+	// group would drop to "Other" and out of every chip filter, as four once did.
+	it("groups every Judge move but Improved Stat and Superior Stat", async () => {
+		const grouped = new Set(ONBOARDING_MOVE_GROUPS["The Judge"].flatMap(g => g.moves));
+		const stray = [...await movesInPlaybook("The Judge")].filter(name => !grouped.has(name)).sort();
+		expect(stray).toEqual(["Improved Stat", "Superior Stat"]);
+	});
+
 	it("helpers resolve chips and per-move group keys", () => {
 		expect(moveGroupsForPlaybook("The Blessed")).toEqual([
 			{ key: "spirits", label: "Spirits" },

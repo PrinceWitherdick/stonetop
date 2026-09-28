@@ -220,6 +220,8 @@ export function currentWeatherView(stored) {
 		// which is the drift the season beside it avoids by putting its readout in a partial.
 		// One string, built where `sky` and `stamped` are decided, and neither wrapper can
 		// disagree with the other about what it is under.
-		classes: `steading-header-weather steading-header-weather--${sky}${stored ? "" : " steading-header-weather--unset"}`,
+		// The sky's drawing comes off `stonetop-sky--<sky>`, which the top-of-screen bar
+		// (time-banner.js) wears as well.
+		classes: `steading-header-weather stonetop-sky--${sky}${stored ? "" : " steading-header-weather--unset"}`,
 	};
 }

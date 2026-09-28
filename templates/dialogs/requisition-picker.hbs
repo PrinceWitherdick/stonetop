@@ -6,6 +6,10 @@
 		{{!-- Herd of Horses: "When you Requisition half the herd or less, treat a 6- as a 7-9." --}}
 		<label class="stonetop-requisition-herd"><input type="checkbox" class="stonetop-check" name="herdShare"><span>{{herdShare}}</span></label>
 		{{/if}}
+		{{#if logistics}}
+		{{!-- The Marshal's Logistics, ticked for a character who has it learned. --}}
+		<label class="stonetop-requisition-herd stonetop-requisition-logistics"><input type="checkbox" class="stonetop-check" name="logistics" checked><span>{{logistics}}</span></label>
+		{{/if}}
 		<button type="button" class="stonetop-requisition-roll-btn">
 			<i class="fas fa-dice-d6"></i> Roll +Fortunes ({{fortunes}})
 		</button>

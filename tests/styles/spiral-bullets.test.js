@@ -173,7 +173,7 @@ describe("the question spiral is given a box built for its shape", () => {
 	// rich text, and the two GM playbook lists), each because the one before it loses the cascade
 	// where it lands -- and a sixth added later would shrink the glyph again on that surface alone.
 	it("sizes the box in the same rule that swaps the picture, every time", () => {
-		const swaps = rules.filter(r => /question-spiral\.svg/.test(r.body)
+		const swaps = rules.filter(r => /question-spiral\.svg|--stonetop-question-spiral-icon/.test(r.body)
 			&& r.selectors.some(sel => sel.includes("question-bullet")));
 		expect(swaps.length, "the swap rules are gone or renamed").toBeGreaterThanOrEqual(5);
 		for (const rule of swaps) {

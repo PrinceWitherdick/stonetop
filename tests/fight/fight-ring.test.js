@@ -7,6 +7,8 @@ vi.mock("../../module/combat/attack-flow.js", () => ({
 	pcDamageDie: vi.fn(async actor => String(actor?.system?.attributes?.damage?.value ?? "")),
 	rollDamageAt: vi.fn(async () => true),
 	rollCharacterDamageAt: vi.fn(async () => true),
+	letFlyAmmoStatuses: vi.fn(async actor => actor?.ammo ?? { weapons: [], allOut: false }),
+	crewBlow: vi.fn(async (_character, blow) => blow),
 }));
 
 import {
@@ -14,7 +16,7 @@ import {
 	createFightRingClass, createFightTokenClass, openRingOnClick, onBoardPress, closeFightRing, syncFightRing,
 	installFightRing, currentFightRing, RING_MOVES, hasAttacker,
 } from "../../module/fight/fight-ring.js";
-import { rollDamageAt, rollCharacterDamageAt } from "../../module/combat/attack-flow.js";
+import { rollDamageAt, rollCharacterDamageAt, crewBlow } from "../../module/combat/attack-flow.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
 import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection } from "../fakes/fight.js";
 
@@ -75,11 +77,12 @@ afterEach(() => {
 });
 
 describe("ringButtons", () => {
-	it("gives a character Clash then Let Fly, and their damage die", () => {
+	it("gives a character Clash, Let Fly and Defy Danger in the ring's order, not their sheet's, and their damage die", () => {
 		const { moves, damage } = ringButtons(bram(), { die: "d8" });
 		expect(moves).toEqual([
 			{ run: "move", itemId: "clash", label: "Clash", icon: "fa-solid fa-swords" },
 			{ run: "move", itemId: "letfly", label: "Let Fly", icon: "fa-solid fa-bow-arrow" },
+			{ run: "move", itemId: "defy", label: "Defy Danger", icon: "fa-solid fa-person-running" },
 		]);
 		expect(damage).toEqual([{ run: "damage", label: "Damage", formula: "d8", icon: "fa-solid fa-dice-d8" }]);
 	});
@@ -190,8 +193,10 @@ describe("ringButtons", () => {
 	});
 
 	it("looks a follower's character up for them, so their token can be ordered", async () => {
-		const cadi = fakeActor({ id: "cadi", type: "character", name: "Cadi", flags: { [SYSTEM_ID]: { crew: { details: { exceptional: true } } } } });
+		// The crew's exceptional is Heroes to the Last's pick (follower-masters.js#crewIsExceptional).
+		const cadi = fakeActor({ id: "cadi", type: "character", name: "Cadi", flags: { [SYSTEM_ID]: { moves: { moveMarks: { "Heroes to the Last": { exceptional: [{ stat: "", level: 6 }] } } } } } });
 		cadi.uuid = "Actor.cadi";
+		cadi.items = [{ type: "move", name: "Heroes to the Last", flags: {} }];
 		const crew = fakeActor({
 			id: "crew", type: "npc", name: "The Crew",
 			system: { tags: "warrior, organized", attributes: { damage: { value: "" } } },
@@ -212,8 +217,9 @@ describe("ringButtons", () => {
 		}
 	});
 
-	it("offers the three fighting moves: the two basic attacks and Defend", () => {
-		expect(RING_MOVES.map(m => m.name)).toEqual(["Clash", "Let Fly", "Defend"]);
+	it("offers the three fighting moves, then Defy Danger, which a follower's Order already opens on", () => {
+		expect(RING_MOVES.map(m => m.name)).toEqual(["Clash", "Let Fly", "Defend", "Defy Danger"]);
+		expect(RING_MOVES.filter(m => m.characterOnly).map(m => m.name)).toEqual(["Defy Danger"]);
 	});
 
 	it("shows the Readiness a character holds over their token, and nothing when they hold none", () => {
@@ -228,6 +234,18 @@ describe("ringButtons", () => {
 		expect(ringButtons(actor, { die: "d6", readiness: 1, canLockEyes: true }).moves.map(b => b.run)).toEqual(["lockEyes"]);
 		expect(ringButtons(actor, { die: "d6", readiness: 0, canLockEyes: true }).moves).toEqual([]);
 		expect(ringButtons(actor, { die: "d6", readiness: 1, canLockEyes: false }).moves).toEqual([]);
+	});
+
+	// WBH audit: Big Damn Hero's "When you first leap into danger to protect someone, don't roll to Defend.
+	// Instead, treat it as though you rolled a 10+" had no button anywhere.
+	it("offers Big Damn Hero's leap while it is still there to make, Readiness or none, learned only", () => {
+		const actor = fakeActor({ id: "pim", type: "character" });
+		actor.items = collection([item("bdh", "move", "Big Damn Hero")]);
+		const [leap] = ringButtons(actor, { die: "d6", readiness: 0, canLeapIn: true }).moves;
+		expect(leap).toMatchObject({ run: "leapIn", label: "Leap in (Big Damn Hero)", icon: "fa-solid fa-shield-heart" });
+		expect(ringButtons(actor, { die: "d6", readiness: 0, canLeapIn: false }).moves).toEqual([]);
+		actor.items = collection([{ ...item("bdh", "move", "Big Damn Hero"), flags: { [SYSTEM_ID]: { learned: false } } }]);
+		expect(ringButtons(actor, { die: "d6", readiness: 0, canLeapIn: true }).moves).toEqual([]);
 	});
 
 	it("offers Defend's strike back while a character holds Readiness, at their die with disadvantage", () => {
@@ -341,6 +359,42 @@ describe("runRingButton", () => {
 		expect(rollDamageAt).not.toHaveBeenCalled();
 	});
 
+	it("asks which of the crew's weapons a crew token's blow is dealt with, and rolls with it", async () => {
+		const cadi = fakeActor({ id: "cadi", type: "character", name: "Cadi", flags: { [SYSTEM_ID]: { crew: { gear: { spear: 1 } } } } });
+		cadi.uuid = "Actor.cadi";
+		const crew = fakeActor({
+			id: "crew", type: "npc", name: "The Crew",
+			system: { attributes: { damage: { value: "d6", rollFormula: "d6" } } },
+			flags: { [SYSTEM_ID]: { followerOrigin: { characterUuid: "Actor.cadi", ftype: "crew", slug: "" } } },
+		});
+		const spear = { name: "Spear", range: ["close", "thrown"], piercing: "prosperity", tags: [] };
+		crewBlow.mockImplementationOnce(async (_character, blow) => ({ ...blow, label: `${blow.label}: Spear`, weapon: spear, keywords: "" }));
+		const actors = globalThis.game.actors;
+		globalThis.game.actors = collection([cadi, crew]);
+		try {
+			await runRingButton({ run: "damage", label: "Damage", formula: "d6", keywords: "", rollMode: "normal", weapon: null }, crew);
+		} finally {
+			globalThis.game.actors = actors;
+		}
+		expect(crewBlow).toHaveBeenCalledWith(cadi, { label: "Damage", weapon: null, keywords: "" });
+		expect(rollDamageAt).toHaveBeenCalledWith(crew, { formula: "d6", label: "Damage: Spear", keywords: "", rollMode: "normal", weapon: spear, shiftKey: false });
+	});
+
+	it("rolls nothing when the crew's weapon is not chosen", async () => {
+		const cadi = fakeActor({ id: "cadi", type: "character", name: "Cadi" });
+		cadi.uuid = "Actor.cadi";
+		const crew = fakeActor({ id: "crew", type: "npc", flags: { [SYSTEM_ID]: { followerOrigin: { characterUuid: "Actor.cadi", ftype: "crew", slug: "" } } } });
+		crewBlow.mockImplementationOnce(async () => null);
+		const actors = globalThis.game.actors;
+		globalThis.game.actors = collection([cadi, crew]);
+		try {
+			await runRingButton({ run: "damage", label: "Damage", formula: "d6" }, crew);
+		} finally {
+			globalThis.game.actors = actors;
+		}
+		expect(rollDamageAt).not.toHaveBeenCalled();
+	});
+
 	it("does nothing without a button or an actor", async () => {
 		await runRingButton(null, bram());
 		await runRingButton({ run: "damage", formula: "d6" }, null);
@@ -435,15 +489,16 @@ describe("ringGrowth", () => {
 describe("the ring's template", () => {
 	it("puts moves on the left and damage on the right, numbered straight through, each saying what it rolls", () => {
 		const context = ringContext(ringButtons(bram(), { die: "d8" }), { name: "Bram" });
-		expect([...context.moves, ...context.damage].map(b => b.label)).toEqual(["Clash", "Let Fly", "Damage"]);
+		expect([...context.moves, ...context.damage].map(b => b.label)).toEqual(["Clash", "Let Fly", "Defy Danger", "Damage"]);
 		const html = template(context);
 		const left = html.slice(html.indexOf("col left"), html.indexOf("col right"));
 		const right = html.slice(html.indexOf("col right"));
 		expect(left).toContain('data-index="0"');
 		expect(left).toContain('aria-label="Roll Clash"');
 		expect(left).toContain('data-index="1"');
+		expect(left).toContain('aria-label="Roll Defy Danger"');
 		expect(left).not.toContain("stonetop-fight-ring-formula");
-		expect(right).toContain('data-index="2"');
+		expect(right).toContain('data-index="3"');
 		expect(right).toContain('aria-label="Roll damage: Damage, d8"');
 		expect(right).toContain('<span class="stonetop-fight-ring-formula">d8</span>');
 		expect(html).toContain('aria-label="Bram in the fight: Moves"');
@@ -513,7 +568,7 @@ describe("the ring window", () => {
 		expect(ring.closes).toBe(1);
 		expect(actor.sheet.rollMoveById).toHaveBeenCalledWith("letfly", { shiftKey: false });
 		await ring.render({ object: token });
-		await Ring.DEFAULT_OPTIONS.actions.ringRoll.call(ring, { shiftKey: true }, { dataset: { index: "2" } });
+		await Ring.DEFAULT_OPTIONS.actions.ringRoll.call(ring, { shiftKey: true }, { dataset: { index: "3" } });
 		expect(rollCharacterDamageAt).toHaveBeenCalledWith(actor, { label: "Damage", rollMode: undefined, seeded: true, strikeBack: false, shiftKey: true });
 	});
 });
@@ -535,7 +590,7 @@ describe("clicking tokens", () => {
 		expect(ring.rendered).toBe(true);
 		expect(ring.object).toBe(token);
 		expect(ring.renders.at(-1)).toMatchObject({ force: true, position: true, object: token });
-		expect(ring.context.moves.map(m => m.label)).toEqual(["Clash", "Let Fly"]);
+		expect(ring.context.moves.map(m => m.label)).toEqual(["Clash", "Let Fly", "Defy Danger"]);
 	});
 
 	it("puts it away on the next press, and keeps it away when that press was on the same token", async () => {
@@ -661,3 +716,47 @@ function fakeHooks() {
 		fire: (name, ...args) => { for (const fn of on.get(name) ?? []) fn(...args); },
 	};
 }
+
+describe("Let Fly's ammo on the ring", () => {
+	const low = { name: "Crossbow", label: "Low ammo", allOut: false };
+	const out = { name: "Composite bow", label: "All out", allOut: true };
+	const letFly = (ammo, ammoOut = false) => ringContext(ringButtons(bram(), { die: "d8", ammo, ammoOut }), { name: "Bram" })
+		.moves.find(m => m.label === "Let Fly");
+
+	it("says nothing while the quiver is full", () => {
+		expect(letFly([])).toMatchObject({ ammo: "", ammoOut: false, aria: "Roll Let Fly" });
+	});
+
+	it("puts a low bow on the Let Fly button, and only there", () => {
+		const context = ringContext(ringButtons(bram(), { die: "d8", ammo: [low] }), { name: "Bram" });
+		expect(context.moves.find(m => m.label === "Let Fly")).toMatchObject({ ammo: "Low ammo", ammoOut: false });
+		expect(context.moves.find(m => m.label === "Clash").ammo).toBe("");
+		// Spoken with the weapon's name, which the badge leaves off.
+		expect(context.moves.find(m => m.label === "Let Fly").aria).toBe("Roll Let Fly (Crossbow: low ammo)");
+	});
+
+	it("is red only when nothing they carry has any left", () => {
+		expect(letFly([out], true).ammoOut).toBe(true);
+		const both = letFly([low, out]);
+		expect(both.ammoOut).toBe(false);
+		expect(both.ammo).toBe("Crossbow: low ammo, Composite bow: all out");
+		// An empty crossbow beside a full bow, which the list leaves out: still shots to fire.
+		expect(letFly([out], false).ammoOut).toBe(false);
+	});
+
+	it("draws the badge in the template", () => {
+		const html = template(ringContext(ringButtons(bram(), { die: "d8", ammo: [out], ammoOut: true }), { name: "Bram" }));
+		expect(html).toContain('<span class="stonetop-fight-ring-ammo is-out">All out</span>');
+		expect(template(ringContext(ringButtons(bram(), { die: "d8" }), { name: "Bram" }))).not.toContain("stonetop-fight-ring-ammo");
+	});
+
+	it("is looked up for a character, and never for a monster", async () => {
+		const actor = bram();
+		actor.ammo = { weapons: [out], allOut: true };
+		const button = (await ringButtonsFor(actor)).moves.find(m => m.label === "Let Fly");
+		expect(button).toMatchObject({ ammo: [out], ammoOut: true });
+		const beast = gwyllgi();
+		beast.ammo = { weapons: [low], allOut: false };
+		expect((await ringButtonsFor(beast)).moves).toEqual([]);
+	});
+});

@@ -285,7 +285,9 @@ describe("the pre-roll damage window", () => {
 	it("names a follower rather than the PC whose sheet it rolled from", () => {
 		expect(ROLL_DIALOG_JS).toContain("attacker: attacker || actor?.name");
 		const sheet = read("module/actors/character/StonetopCharacterSheet.js");
-		expect(sheet).toMatch(/rollFollowerDamageAt\(this\.actor, \{[\s\S]*?formula: roll, label, attacker,/);
+		expect(sheet).toMatch(/rollFollowerDamageAt\(this\.actor, \{[\s\S]*?formula: roll, label: blowLabel, attacker,/);
+		// The crew's weapon only renames the blow; the name of who swings still starts it.
+		expect(sheet).toMatch(/let blowLabel = label;/);
 		expect(sheet).toMatch(/label\s*=\s*`\$\{attacker\} attacks\$\{formPart\}`/);
 		// Whichever window the follower's roll opens, the name goes with it: the plain card's, the aimed
 		// card's, and "Who does this hit?".

@@ -26,7 +26,7 @@ describe("StonetopCharacter.applyLevelUp — count-mark moves (Veteran Crew etc.
 			marks: { moveName: "Veteran Crew", picks: [{ slug: "tags" }] },
 		});
 		// 'tags' grants +2 crew tag slots per mark; one mark ⇒ +2.
-		const totals = await char._ownedMoveBonuses({ name: "The Marshal" }, new Set(["Veteran Crew"]));
+		const totals = await char._ownedMoveBonuses({ name: "The Marshal" }, char._buildOwnedMovesMap());
 		expect(totals.crewTags).toBe(2);
 	});
 

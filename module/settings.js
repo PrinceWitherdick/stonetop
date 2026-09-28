@@ -43,6 +43,7 @@ function reconcileWeatherFx() {
  * button showing a stale eye with nothing failing anywhere, and the file that knows about the
  * change has no reason to look in hooks/.
  */
+
 export const MAP_PIN_NAME_SETTINGS = Object.freeze([
 	"alwaysShowMapPinNames", "mapPinNamesByMap", "mapPinNamesLocal",
 ]);
@@ -501,6 +502,17 @@ export function registerSettings() {
 	// reason: "has this world been told" is world state, and only a GM can act on it.
 	game.settings.register(SYSTEM_ID, "fxMasterSuggestionShown", {
 		name: "Weather Effects Module Suggestion Shown",
+		scope: "world",
+		config: false,
+		type: Boolean,
+		default: false
+	});
+
+	// Whether the one-time "your attacks could be seen and heard" chat card has been posted
+	// (see combat/attack-fx-suggestion.js). For worlds greeted before the greeting card named
+	// Sequencer, JB2A and SoundFx Library; a world greeted since is marked done unposted.
+	game.settings.register(SYSTEM_ID, "attackFxSuggestionShown", {
+		name: "Attack Effects Module Suggestion Shown",
 		scope: "world",
 		config: false,
 		type: Boolean,
@@ -971,7 +983,11 @@ export function registerSettings() {
 		scope: "world",
 		config: false,
 		type: Object,
-		default: {}
+		default: {},
+		// An open walkthrough holds its own copy of the log, so a second GM's write has to reach
+		// it or the next save here writes the old copy back over theirs. The writer's id comes
+		// with it, so a client can tell its own echo from somebody else's change.
+		onChange: (value, _options, userId) => game.stonetop?.onExpeditionLog?.(value, userId),
 	});
 
 	// The system-macro hotbar layout version this client has been snapped to (see
@@ -1041,6 +1057,20 @@ export function registerSettings() {
 			onChange: reconcileWeatherFx,
 		});
 	}
+
+	// Swings, shots and hits drawn on the map and heard at the table (combat/attack-fx.js). A world
+	// switch rather than a reader's, because the effects are BROADCAST: one player's blow plays on
+	// every screen, so whether a table has them is the table's call. Default ON, and harmless where
+	// the modules it needs are missing; each reader who wants the motion gone has their system's
+	// reduced-motion setting, Sequencer's own Enable Effects, and core's Photosensitive Mode.
+	game.settings.register(SYSTEM_ID, "attackFx", {
+		name: "stonetop.settings.attackFx.name",
+		hint: "stonetop.settings.attackFx.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: true,
+	});
 
 	// The season last picked in the Weather roll dialog (see dialogs/WeatherDialog.js),
 	// so it reopens to where the GM left off. Client-scoped — it's a GM convenience,
@@ -1215,13 +1245,16 @@ export function registerSettings() {
 		scope: "client",
 		config: true,
 		type: String,
-		// A CHOICE rather than a checkbox, though it has two options today. The palette is the axis,
-		// not the boolean "more contrast": a light-on-dark option is the next thing asked for by
-		// readers who need the glare down rather than the separation up, and it lands here as a third
-		// value rather than as a second setting that has to be kept exclusive with this one by hand.
+		// A CHOICE rather than a checkbox. The palette is the axis, not the boolean "more contrast":
+		// the light-on-dark pair (the "Lamplit" section of stonetop.css) landed here as two more
+		// values rather than as a second setting that has to be kept exclusive with this one by hand.
+		// Configure Settings and the Preferences tab on the character sheet and the GM Toolkit all
+		// read these choices off the registration.
 		choices: {
-			"normal": "stonetop.settings.sheetContrast.normal",
-			"high":   "stonetop.settings.sheetContrast.high",
+			"normal":    "stonetop.settings.sheetContrast.normal",
+			"high":      "stonetop.settings.sheetContrast.high",
+			"dark":      "stonetop.settings.sheetContrast.dark",
+			"dark-high": "stonetop.settings.sheetContrast.darkHigh",
 		},
 		default: "normal",
 		// NO re-render, unlike most of the settings below it: the palette is tokens on the document
@@ -1429,6 +1462,19 @@ export function registerSettings() {
 		range: { min: 0, max: 3, step: 0.1 },
 		default: 1,
 		onChange: value => applyEditPencilRevealDelay(value),
+	});
+
+	// The weather, the season and the year hung from the top of the screen (seasons/time-banner.js).
+	// Per browser: it sits over the map for everybody, and a player who finds it in the way takes
+	// it down for themselves without asking the GM to take it down for the table. No onChange: the
+	// bar listens for `clientSettingChanged` itself, since this file cannot import it back.
+	game.settings.register(SYSTEM_ID, "timeBannerShown", {
+		name: "stonetop.settings.timeBannerShown.name",
+		hint: "stonetop.settings.timeBannerShown.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: true,
 	});
 
 	// NO "HIDE ROLLABLE ICON" SETTING. It used to sit here, between the pencil delay and the
@@ -2101,11 +2147,19 @@ export function applyReduceMotion(value) {
  * sheet — still win inside themselves, which is right: those are already light-on-black and
  * already well past AA.
  *
- * Compared as a string against the one value that means "on", so an unreadable or retired setting
+ * The dark palette is a second class, `.stonetop-dark`, rather than a third exclusive value of the
+ * first: "dark" and "high contrast" are two independent axes, so "dark-high" turns on BOTH, and
+ * everything high contrast does that is not colour (the focus ring, underlined links, heavier
+ * hairlines) comes along for free. The stylesheet's `:root.stonetop-dark.stonetop-high-contrast`
+ * block then re-pitches the colours for the dark page.
+ *
+ * Compared as strings against the values that mean "on", so an unreadable or retired setting
  * lands on the normal palette rather than on a half-applied one.
  */
 export function applySheetContrast(value) {
-	document.documentElement.classList.toggle("stonetop-high-contrast", value === "high");
+	const palette = String(value ?? "");
+	document.documentElement.classList.toggle("stonetop-high-contrast", palette === "high" || palette === "dark-high");
+	document.documentElement.classList.toggle("stonetop-dark", palette === "dark" || palette === "dark-high");
 }
 
 /**
@@ -2180,6 +2234,11 @@ export function isFightWindowAuto() {
 /** Does a click on a token in the fight put its fight buttons round it, for this reader? Defaults to yes. */
 export function isFightRingOn() {
 	return getBooleanSetting("fightRing", true);
+}
+
+/** Does this world draw and sound its attacks (combat/attack-fx.js)? Defaults to yes. */
+export function isAttackFxOn() {
+	return getBooleanSetting("attackFx", true);
 }
 
 /**

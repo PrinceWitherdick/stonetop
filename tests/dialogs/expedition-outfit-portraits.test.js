@@ -114,6 +114,24 @@ describe("the party-load readout's faces", () => {
 	});
 });
 
+// A custom group's tag counts who actually travels. A member marked fallen at the group's
+// two-member floor keeps a roster row but stays behind, and is named apart rather than dropped
+// silently, which would show a group below its own floor.
+describe("a custom group's load-row tag", () => {
+	it("counts the whole group when nobody has fallen", () => {
+		expect(dialog()._groupTag({ isGroup: true, size: 4 })).toBe("×4 group");
+	});
+
+	it("counts only those present and names the fallen apart", () => {
+		expect(dialog()._groupTag({ isGroup: true, size: 2, memberHp: [0, 3], memberDead: [true, null] }))
+			.toBe("×1 group (1 fallen)");
+	});
+
+	it("still counts a member who is only down, not dead", () => {
+		expect(dialog()._groupTag({ isGroup: true, size: 3, memberHp: [0, 0, 2] })).toBe("×3 group");
+	});
+});
+
 // Heavy and overloaded are the two states that actually cost a PC something, so they are both
 // red, and step apart by weight rather than by hue. Heavy used to be the gold caution accent,
 // which put an amber beside a red and read as a colour scheme rather than as a ladder.

@@ -61,6 +61,13 @@ describe("logbookUses", () => {
 		expect(logbookUses(actorWith("Know Things"), {})).toBeNull();
 	});
 
+	// Seeker audit (2026-09-26): a rule asks the LEARNED move. A Logbook kept on the sheet switched
+	// off offered its consult button all the same.
+	it("is null for a Logbook kept on the sheet un-learned", () => {
+		const off = { ...logbook, flags: { "stonetop-pwd": { learned: false } } };
+		expect(logbookUses(actorWith(off), {})).toBeNull();
+	});
+
 	it("ignores another move's track", () => {
 		expect(logbookUses(actorWith(logbook), { "Potential for Greatness": 2 }).left).toBe(2);
 	});
@@ -77,6 +84,11 @@ describe("knowThingsRollOptions", () => {
 		expect(opts.noXpOnMiss).toBe(true);
 		expect(opts.tierActions.failure).toContain('data-choice="mark"');
 		expect(opts.tierActions.failure).toContain('data-choice="decline"');
+	});
+
+	it("leaves the roll untouched for a Never at a Loss kept on the sheet un-learned", () => {
+		const off = { type: "move", name: NEVER_AT_A_LOSS, system: {}, flags: { "stonetop-pwd": { learned: false } } };
+		expect(knowThingsRollOptions(actorWith(KNOW_THINGS, off))).toBeNull();
 	});
 
 	it("offers the choice only on a miss — the move only triggers on a 6-", () => {

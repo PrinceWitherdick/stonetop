@@ -16,6 +16,9 @@ const move = (id, name) => ({ id, type: "npcMove", name, system: {} });
 const cardOf = (actor, characters = [], resolve = undefined) =>
 	followerCardFor(actor, { characters, ...(resolve === undefined ? {} : { resolve }) });
 
+/** The Initiate background with Enfys picked: without it an initiate is nobody's follower (initiates.js). */
+const INITIATE_BG = { selected: "initiate", choices: { enfys: true } };
+
 /** A character with follower flags, and a sheet that records what it was asked to order. */
 function character(id, flags = {}) {
 	const actor = fakeActor({ id, type: "character", name: id, flags: { [SYSTEM_ID]: flags } });
@@ -75,7 +78,7 @@ describe("followerTakesOrders", () => {
 
 describe("followerOrderInfo", () => {
 	it("hands the dialog the follower standing on the map: their name, tags and their own moves", () => {
-		const cadi = character("cadi");
+		const cadi = character("cadi", { background: INITIATE_BG });
 		const enfys = follower({
 			name: "Enfys", tags: "brave, healer", moves: ["Tend the wounded", "Sing the old songs"],
 			origin: { characterUuid: "Actor.cadi", ftype: "initiate", slug: "enfys" },
@@ -87,9 +90,43 @@ describe("followerOrderInfo", () => {
 	});
 
 	it("reads exceptional off the character, which is the one thing the NPC does not carry", () => {
-		const rhianna = character("rhianna", { crew: { details: { exceptional: true } } });
+		const rhianna = character("rhianna", { crew: { details: {} }, moves: { moveMarks: { "Heroes to the Last": { exceptional: [{ stat: "", level: 6 }] } } } });
+		rhianna.items = [{ type: "move", name: "Heroes to the Last", flags: {} }];
 		const crew = follower({ id: "crew", name: "The Crew", tags: "warrior", origin: { characterUuid: "Actor.rhianna", ftype: "crew", slug: "" } });
 		expect(followerOrderInfo(crew, cardOf(crew, [rhianna])).follower.exceptional).toBe(true);
+	});
+
+	// The crew's exceptional is Heroes to the Last's pick, the one source (the user's ruling): the map
+	// agrees with the card's "Roll +N", and a hand toggle stored before that is not read.
+	it("the crew is exceptional only by Heroes to the Last's pick, never a stored toggle", () => {
+		const origin = { characterUuid: "Actor.rhianna", ftype: "crew", slug: "" };
+		const legacy = character("rhianna", { crew: { details: { exceptional: true } } });
+		legacy.items = [];
+		const crew = follower({ id: "crew", name: "The Crew", origin });
+		expect(followerOrderInfo(crew, cardOf(crew, [legacy])).follower.exceptional).toBe(false);
+		// Learned but the pick is elsewhere: not exceptional.
+		const other = character("rhianna", { moves: { moveMarks: { "Heroes to the Last": { "crew-hp": [{ stat: "", level: 6 }] } } } });
+		other.items = [{ type: "move", name: "Heroes to the Last", flags: {} }];
+		expect(followerOrderInfo(crew, cardOf(crew, [other])).follower.exceptional).toBe(false);
+		// Picked but un-learned: not exceptional.
+		const off = character("rhianna", { moves: { moveMarks: { "Heroes to the Last": { exceptional: [{ stat: "", level: 6 }] } } } });
+		off.items = [{ type: "move", name: "Heroes to the Last", flags: { [SYSTEM_ID]: { learned: false } } }];
+		expect(followerOrderInfo(crew, cardOf(crew, [off])).follower.exceptional).toBe(false);
+	});
+
+	// The animal companion's the same way, by Beast of Legend's pick (Ranger audit, 2026-09-26).
+	it("the animal companion is exceptional only by Beast of Legend's pick, never a stored toggle", () => {
+		const origin = { characterUuid: "Actor.bram", ftype: "animal-companion", slug: "" };
+		const hound = follower({ id: "hound", name: "Gelert", origin });
+		const picked = character("bram", { animalCompanion: { details: {} }, moves: { moveMarks: { "Beast of Legend": { exceptional: [{ stat: "", level: 6 }] } } } });
+		picked.items = [{ type: "move", name: "Beast of Legend", flags: {} }];
+		expect(followerOrderInfo(hound, cardOf(hound, [picked])).follower.exceptional).toBe(true);
+		const legacy = character("bram", { animalCompanion: { details: { exceptional: true } } });
+		legacy.items = [];
+		expect(followerOrderInfo(hound, cardOf(hound, [legacy])).follower.exceptional).toBe(false);
+		const off = character("bram", { moves: { moveMarks: { "Beast of Legend": { exceptional: [{ stat: "", level: 6 }] } } } });
+		off.items = [{ type: "move", name: "Beast of Legend", flags: { [SYSTEM_ID]: { learned: false } } }];
+		expect(followerOrderInfo(hound, cardOf(hound, [off])).follower.exceptional).toBe(false);
 	});
 
 	// Book I p.462 gates the crew and the animal companion behind a playbook move, but lets the GM
@@ -97,11 +134,11 @@ describe("followerOrderInfo", () => {
 	// follower and a beast follower too (see withExceptional). The token reads whatever the card stored,
 	// at the card's own detail path, or the two doors into one dialog would roll differently.
 	it("reads exceptional off a slug-keyed card too, so the map agrees with the card", () => {
-		const cadi = character("cadi", { initiateDetails: { enfys: { exceptional: true } } });
+		const cadi = character("cadi", { initiateDetails: { enfys: { exceptional: true } }, background: INITIATE_BG });
 		const enfys = follower({ origin: { characterUuid: "Actor.cadi", ftype: "initiate", slug: "enfys" } });
 		expect(followerOrderInfo(enfys, cardOf(enfys, [cadi])).follower.exceptional).toBe(true);
 		// and stays false for a card that never set it
-		const bram = character("bram", { initiateDetails: { enfys: {} } });
+		const bram = character("bram", { initiateDetails: { enfys: {} }, background: INITIATE_BG });
 		const plain = follower({ origin: { characterUuid: "Actor.bram", ftype: "initiate", slug: "enfys" } });
 		expect(followerOrderInfo(plain, cardOf(plain, [bram])).follower.exceptional).toBe(false);
 	});

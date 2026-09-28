@@ -32,10 +32,27 @@
       </button>
       <button type="button" class="stonetop-ff-option stonetop-ff-option--dead" data-action="dead">
         <span class="stonetop-ff-option-title"><i class="fas fa-skull-crossbones"></i> Dead</span>
-        <span class="stonetop-ff-option-desc">Dead, immediately.</span>
+        <span class="stonetop-ff-option-desc">{{deadDesc}}</span>
+      </button>
+      {{/if}}
+      {{!-- SIR, PERMISSION TO DIE, SIR (Marshal, learned): spend 1 of their Loyalty and
+            they survive, out of the action. See follower-fate.js. --}}
+      {{#if canSpare}}
+      <button type="button" class="stonetop-ff-option stonetop-ff-option--save" data-action="spare">
+        <span class="stonetop-ff-option-title"><i class="fas fa-hand-holding-heart"></i> {{spareLabel}}</span>
+        <span class="stonetop-ff-option-desc">{{spareDesc}}</span>
       </button>
       {{/if}}
     </div>
+
+    {{!-- "If you let them go, mark XP": a clause the sheet can't check, so a pre-ticked
+          box. Only the Dead outcome reads it. --}}
+    {{#if letGo}}
+    <label class="stonetop-ff-let-go-row">
+      <input type="checkbox" class="stonetop-ff-let-go" checked>
+      <span>{{letGoLabel}}</span>
+    </label>
+    {{/if}}
 
     <p class="stonetop-ff-note">If the blow wasn't lethal, just close this. They're out of the action until they Recover or you say otherwise.</p>
 

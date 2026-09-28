@@ -1,0 +1,24 @@
+{
+  "name": "Red Wrath",
+  "type": "move",
+  "system": {
+    "moveType": "post-death",
+    "playbook": "thrall",
+    "loreOption": "marks:red-wrath",
+    "description": "<p>When <strong><em>the GM compels you to violence</em></strong>, you have disadvantage to resist.</p><p>When you <strong><em>let your fury fly and lash out at someone</em></strong> (<em>hand, close</em>), spend 1&ndash;3 Favor and roll +Favor spent: <strong>on a 10+</strong>, deal 2d8 damage (<em>messy, forceful</em>) and shock, terrify, or impress any onlookers; <strong>on a 7&ndash;9</strong>, as a 10+ but you keep attacking your victim (or their corpse) in an unthinking rage, heedless of other danger.</p>",
+    "rollType": null,
+    "moveResults": {
+      "success": {
+        "label": "10+",
+        "value": "Deal 2d8 damage (messy, forceful) and shock, terrify, or impress any onlookers."
+      },
+      "partial": {
+        "label": "7-9",
+        "value": "As a 10+, but you keep attacking your victim (or their corpse) in an unthinking rage, heedless of other danger."
+      }
+    }
+  },
+  "_id": "Rw2hFt8kQz5mNx4J",
+  "_key": "!items!Rw2hFt8kQz5mNx4J",
+  "folder": "G7pEx5cMmt9Q3dVl"
+}

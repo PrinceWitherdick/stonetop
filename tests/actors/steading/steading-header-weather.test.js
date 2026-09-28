@@ -169,7 +169,7 @@ describe("the clock block's layout", () => {
 	// game-icons.net's opaque backing square paints a solid slab where the weather should be.
 	it("gives every sky a rule pointing at a maskable file", () => {
 		for (const sky of Object.keys(WEATHER_SKIES)) {
-			const rule = `.steading-header .steading-header-weather--${sky}`;
+			const rule = `.stonetop-sky--${sky}`;
 			expect(CSS, sky).toContain(rule);
 			expect(ownRule(CSS, rule), sky)
 				.toContain(`url('/systems/stonetop-pwd/assets/icons/weather/${sky}.svg')`);

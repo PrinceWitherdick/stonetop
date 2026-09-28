@@ -3,7 +3,7 @@
 // Introductions and Let-Spring-Burst walkthroughs, the playbook picker, and the
 // character sheet's avatar art.
 
-import { WBH_PLAYBOOK_NAME, WBH_HERO_FLAG, heroDisplayName, ownsAsteriskMove } from "../actors/character/WouldBeHeroAsterisk.js";
+import { WBH_PLAYBOOK_NAME, WBH_HERO_FLAG, heroDisplayName } from "../actors/character/WouldBeHeroAsterisk.js";
 import { STONETOP_SCOPE } from "../actors/character/StonetopFlags.js";
 import { playbookSlug } from "./playbook-slug.js";
 
@@ -18,15 +18,13 @@ export { playbookSlug };
  * an actor who hasn't picked one. This is the sheet header's name, not the stored one: a
  * Would-Be Hero who has crossed off "Would-be" is "The Hero" everywhere they are named.
  *
- * The cross-off is only ever consulted for the one playbook it can apply to, so the rest
- * of the party never pays for the item scan behind `ownsAsteriskMove` — this runs once per
- * row of every Actors-sidebar render.
+ * Crossed off means the flag (WBH_HERO_FLAG), written on the first USE of an asterisked
+ * move and never taken back: owning one is not using it (WouldBeHeroAsterisk.js).
  */
 export function playbookTitle(actor) {
 	const name = actor?.system?.playbook?.name ?? "";
 	if (name !== WBH_PLAYBOOK_NAME) return name;
-	const becameHero = !!actor?.getFlag?.(STONETOP_SCOPE, WBH_HERO_FLAG) || ownsAsteriskMove(actor);
-	return heroDisplayName(name, becameHero);
+	return heroDisplayName(name, !!actor?.getFlag?.(STONETOP_SCOPE, WBH_HERO_FLAG));
 }
 
 /**

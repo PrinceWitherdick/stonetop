@@ -16,12 +16,12 @@ export const INTRO_PLAYBOOK_DATA = {
 			"Who is your closest kin?",
 			"Whose heart &amp; soul is entwined with yours?",
 			"Who taught you the secret ways?",
-			"Who is beloved by the goddess, your charge to nurture, guide, protect, or heal?",
+			"Who is beloved by the goddess, your charge to nurture/guide/protect/heal?",
 		],
 		step6: [
 			"Which one of you do the spirits whisper of?",
 			"Which one of you has joined me in a sacred rite?",
-			"Which one of you has made a blood-oath with me?",
+			"Which of you has made a blood-oath with me?",
 			"Which one of you doubts the power of Danu?",
 		],
 	},
@@ -119,7 +119,7 @@ export const INTRO_PLAYBOOK_DATA = {
 		step3: `describe your <strong>major arcana</strong>. Tell us your answers to the questions you chose. Then, tell us about your <strong>minor arcana</strong>, too.`,
 		step4: [
 			"Who is your closest kin?",
-			"Who is your spouse, lover, or betrothed?",
+			"Who is your spouse/lover/betrothed?",
 			"Whom do you trust, even more than yourself?",
 			"Whom do you secretly watch over, and why?",
 		],

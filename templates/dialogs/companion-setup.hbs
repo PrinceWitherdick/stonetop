@@ -1,0 +1,139 @@
+{{!-- Create your companion: the Animal Companion insert's picks (Book I p.143) for a companion the
+      character is owed but has never set up. The picks and their markup are onboarding's companion
+      step's (the stonetop-onboarding-* classes). See dialogs/CompanionSetupDialog.js. --}}
+<div class="stonetop-spring">
+
+  <div class="stonetop-guide-main">
+
+    <div class="stonetop-guide-banner">
+      <i class="fas fa-paw stonetop-guide-banner-icon"></i>
+      <div class="stonetop-guide-banner-info">
+        <div class="stonetop-guide-banner-title">Your animal companion</div>
+        <div class="stonetop-guide-banner-sub">A beast of the wild bound to you (Animal Companion insert, p.143)</div>
+      </div>
+    </div>
+
+    <p class="stonetop-onboarding-step-hint">Choose your companion's type, kind, options, instinct, and cost.</p>
+
+    <div class="stonetop-onboarding-insert-section">
+      <p class="stonetop-onboarding-insert-section-label">Type</p>
+      <div class="stonetop-onboarding-tag-grid stonetop-onboarding-tag-grid--types">
+        {{#each acData.types}}
+        <label class="stonetop-onboarding-tag-option stonetop-onboarding-tag-option--type{{#if selected}} is-selected{{/if}}">
+          <input type="radio" name="companion-setup-type" value="{{slug}}" {{#if selected}}checked{{/if}}>
+          <span class="stonetop-onboarding-ac-type-name">{{label}}</span>
+          <span class="stonetop-onboarding-ac-type-stats">HP {{hp}} · Armor {{armor}} · {{damage}}</span>
+          <span class="stonetop-onboarding-ac-type-examples">{{examples}}</span>
+        </label>
+        {{/each}}
+      </div>
+    </div>
+
+    {{#if acData.selectedType}}
+    <div class="stonetop-onboarding-insert-section">
+      <p class="stonetop-onboarding-insert-section-label">Kind</p>
+      <div class="stonetop-onboarding-ac-kind-options">
+        {{#each acData.selectedType.kindOptions}}
+        <label class="stonetop-onboarding-appearance-option{{#if selected}} is-selected{{/if}}">
+          <input type="radio" name="companion-setup-kind" value="{{value}}" {{#if selected}}checked{{/if}}>
+          <span>{{value}}</span>
+        </label>
+        {{/each}}
+        <label class="stonetop-onboarding-appearance-option stonetop-onboarding-ac-kind-custom{{#if acData.selectedType.isCustomKind}} is-selected{{/if}}">
+          <input type="radio" name="companion-setup-kind" value="custom" {{#if acData.selectedType.isCustomKind}}checked{{/if}}>
+          <input type="text" class="companion-setup-kind-custom"
+                 value="{{acData.selectedType.customKind}}"
+                 aria-label="Other kind"
+                 placeholder="Other kind...">
+        </label>
+      </div>
+    </div>
+
+    <div class="stonetop-onboarding-insert-section">
+      <p class="stonetop-onboarding-insert-section-label">
+        Options: pick {{acData.selectedType.pickCount}} more &nbsp;
+        <span class="stonetop-onboarding-insert-counter">
+          <span class="stonetop-onboarding-ac-trait-count">{{acData.selectedType.selectedCount}}</span> / {{acData.selectedType.pickCount}}
+        </span>
+      </p>
+      <div class="stonetop-onboarding-tag-grid">
+        {{#each acData.selectedType.traits}}
+        <label class="stonetop-onboarding-tag-option{{#if isSelected}} is-selected{{/if}}{{#if isMandatory}} is-mandatory{{/if}}"{{#if isMandatory}} title="Always included; doesn't count toward your picks"{{/if}}>
+          <input type="checkbox" name="companion-setup-trait" value="{{slug}}"
+                 {{#if isSelected}}checked{{/if}}
+                 {{#if disabled}}disabled{{/if}}
+                 {{#if isMandatory}}data-mandatory="true"{{/if}}>
+          {{label}}{{#if isMandatory}} <em class="stonetop-onboarding-ac-included">(included)</em>{{/if}}
+        </label>
+        {{/each}}
+      </div>
+      <label class="stonetop-onboarding-custom-label">
+        <span>Custom option</span>
+        <input type="text" class="companion-setup-trait-custom"
+               value="{{acData.selectedType.customTrait}}"
+               aria-label="Custom option"
+               placeholder="Write your own…"
+               {{#if acData.selectedType.customTraitDisabled}}disabled{{/if}}>
+      </label>
+    </div>
+    {{/if}}
+
+    <div class="stonetop-onboarding-insert-section">
+      <p class="stonetop-onboarding-insert-section-label">Instinct</p>
+      <div class="stonetop-onboarding-cards stonetop-onboarding-cards--compact">
+        {{#each acData.instincts}}
+        <label class="stonetop-onboarding-card stonetop-onboarding-card--compact{{#if selected}} is-selected{{/if}}">
+          <div class="stonetop-onboarding-card-header">
+            <input type="radio" name="companion-setup-instinct" value="{{value}}"
+                   {{#if selected}}checked{{/if}}>
+            <span class="stonetop-onboarding-card-inline-desc">{{value}}</span>
+          </div>
+        </label>
+        {{/each}}
+      </div>
+      <label class="stonetop-onboarding-custom-label">
+        <span>Custom instinct</span>
+        <input type="text" class="companion-setup-instinct-custom"
+               value="{{acData.customInstinct}}"
+               aria-label="Custom instinct"
+               placeholder="Write your own…">
+      </label>
+    </div>
+
+    <div class="stonetop-onboarding-insert-section">
+      <p class="stonetop-onboarding-insert-section-label">Cost</p>
+      <div class="stonetop-onboarding-cards stonetop-onboarding-cards--compact">
+        {{#each acData.costs}}
+        <label class="stonetop-onboarding-card stonetop-onboarding-card--compact{{#if selected}} is-selected{{/if}}">
+          <div class="stonetop-onboarding-card-header">
+            <input type="radio" name="companion-setup-cost" value="{{value}}"
+                   {{#if selected}}checked{{/if}}>
+            <span class="stonetop-onboarding-card-inline-desc">{{value}}</span>
+          </div>
+        </label>
+        {{/each}}
+      </div>
+      <label class="stonetop-onboarding-custom-label">
+        <span>Custom cost</span>
+        <input type="text" class="companion-setup-cost-custom"
+               value="{{acData.customCost}}"
+               aria-label="Custom cost"
+               placeholder="Write your own…">
+      </label>
+    </div>
+
+    <div class="stonetop-onboarding-name-row">
+      <label class="stonetop-onboarding-name-label" for="companion-setup-name">Name <em>(optional)</em></label>
+      <input id="companion-setup-name" type="text" class="companion-setup-name"
+             value="{{acData.name}}"
+             placeholder="Your companion's name…">
+    </div>
+
+  </div>
+
+  <div class="stonetop-guide-nav">
+    <button type="button" class="stonetop-companion-setup-create stonetop-guide-btn--primary"{{#unless acData.ready}} disabled{{/unless}}><i class="fas fa-paw"></i> Create the companion</button>
+    <button type="button" class="stonetop-companion-setup-cancel">Not now</button>
+  </div>
+
+</div>

@@ -200,14 +200,21 @@ export const GM_CHOOSES_NOTE = "Your GM chooses this one.";
  * re-deriving the rules.
  *
  * Returns null when there's no insert — there is nothing to ask about.
+ *
+ * `carried` is `{ [section]: slugs }`: options the character already held when they came to this insert
+ * from another one. Undying's 6- trades the Revenant for the Ghost, and the prune keeps what both print
+ * (BREAKDOWN, UNSTABLE, QUARRY), but a Ghost still takes a FRESH first Consequence (the user's ruling,
+ * 2026-09-27): "when you die but your soul lingers, you gain this insert, and choose 1 Consequence". So a
+ * carried option shows ticked and locked, the way an inflicted one does, and neither answers the step
+ * nor spends its allowance.
  */
-export async function buildPostDeathChoices(character, { group = "" } = {}) {
+export async function buildPostDeathChoices(character, { group = "", carried = {} } = {}) {
 	const slug  = character?.postDeathSlug ?? null;
 	const steps = POST_DEATH_CHOICES[slug];
 	if (!slug || !steps) return null;
 
 	const built = [];
-	for (const step of steps) built.push(await _buildStep(character, step));
+	for (const step of steps) built.push(await _buildStep(character, step, carried?.[step.section] ?? []));
 
 	return {
 		slug,
@@ -221,7 +228,7 @@ export async function buildPostDeathChoices(character, { group = "" } = {}) {
 	};
 }
 
-async function _buildStep(character, step) {
+async function _buildStep(character, step, carriedSlugs = []) {
 	const base = {
 		key:   step.key,
 		kind:  step.kind,
@@ -262,13 +269,17 @@ async function _buildStep(character, step) {
 	// can't be taken yet arrives `blocked` rather than having to be filtered here.
 	const raw     = await character.sectionOptions(step.section);
 	const never   = new Set(step.neverPick ?? []);
+	// Held before this insert was taken (see buildPostDeathChoices' `carried`). Only an option still
+	// marked counts: one un-ticked since is no longer carried, and can be picked here like any other.
+	const carried = new Set(raw.filter(o => o.marked && carriedSlugs.includes(o.slug)).map(o => o.slug));
 	// What the PLAYER chose, which is not the same as what is ticked. An INFLICTED option (THE
-	// FINAL CONSEQUENCE) is put there by the fiction, never picked. Stated once because three
-	// separate questions below — the hint, the cap, and the answer itself — all turn on it, and
-	// the reason is the same every time: a step must not report itself answered, or spend its
-	// allowance, on the strength of the character being destroyed. Reads equally well on a raw
-	// option and on an enriched one, which carry the same `marked` and `slug`.
-	const isPick  = (o) => o.marked && !never.has(o.slug);
+	// FINAL CONSEQUENCE) is put there by the fiction, never picked; a CARRIED one was picked for
+	// another insert. Stated once because three separate questions below (the hint, the cap, and
+	// the answer itself) all turn on it, and the reason is the same every time: a step must not
+	// report itself answered, or spend its allowance, on the strength of the character being
+	// destroyed or of what they held before. Reads equally well on a raw option and on an enriched
+	// one, which carry the same `marked` and `slug`.
+	const isPick  = (o) => o.marked && !never.has(o.slug) && !carried.has(o.slug);
 	// An accumulating step's hint invites a pick ("Take 1 now"); once the pick is made the step
 	// is a record instead, and the invitation would be describing something it no longer offers.
 	// An INFLICTED option is not that pick, so the invitation stands.
@@ -301,6 +312,7 @@ async function _buildStep(character, step) {
 			..._withSplitProse(o),
 			requiresLabel: needsFirst ? (labels.get(o.requires) ?? o.requires) : "",
 			inflicted:     never.has(o.slug),
+			carried:       carried.has(o.slug),
 			subPicks,
 			subValue:      subPicks.length ? character.postDeathLoreText(step.section, o.slug) : "",
 			// An accumulating section leaves a marked option clickable so it can be un-ticked;
@@ -311,8 +323,9 @@ async function _buildStep(character, step) {
 			// `needsFirst` only bars TAKING one: an option already held whose prerequisite has since
 			// been un-ticked is in an illegal state, and locking it would be locking the sheet out
 			// of the one click that fixes it. It still wears the tag, which is now a warning
-			// rather than a price.
-			locked: never.has(o.slug) || o.crossedOff || (needsFirst && !o.marked)
+			// rather than a price. A carried option is locked too: it was taken under the insert before
+			// this one, and un-ticking it is not a mis-click this window made, so not one it takes back.
+			locked: never.has(o.slug) || carried.has(o.slug) || o.crossedOff || (needsFirst && !o.marked)
 			        || (!step.accumulates && o.marked)
 			        || (atCap && !o.marked && !needed.has(o.slug)),
 		};

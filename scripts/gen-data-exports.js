@@ -90,14 +90,19 @@ function cleanMove(doc) {
     }
     if (s.resource?.max) out.resource = cleanResource(s.resource);
     if (s.isStartingMove) out.isStartingMove = true;
-    if (s.requirement && (s.requirement.level > 1 || s.requirement.moves?.length || s.requirement.note || s.requirement.stats)) {
+    if (s.requirement && (s.requirement.level > 1 || s.requirement.moves?.length || s.requirement.anyMoves?.length || s.requirement.note || s.requirement.stats || s.requirement.marks)) {
         out.requirement = {};
         if (s.requirement.level > 1) out.requirement.level = s.requirement.level;
         if (s.requirement.moves?.length) out.requirement.moves = s.requirement.moves;
+        // Any ONE of these is enough (Alpha: "Wild Speech or Spirit Tongue").
+        if (s.requirement.anyMoves?.length) out.requirement.anyMoves = s.requirement.anyMoves;
         // Machine-checkable per-stat minimum (Musclebound's { str: 2 }) — gates the move.
         if (s.requirement.stats) out.requirement.stats = s.requirement.stats;
-        // Display-only prerequisite the engine can't check mechanically (e.g. "All 6 marks
-        // in Potential for Greatness") — shown to the player but never used to lock.
+        // Machine-checkable marks on another move (the Would-be Hero's Superior Stat:
+        // { move: "Potential for Greatness", count: 6 }): gates the move.
+        if (s.requirement.marks) out.requirement.marks = s.requirement.marks;
+        // Display-only prerequisite the engine can't check mechanically (e.g. "Sheriff
+        // background"): shown to the player but never used to lock.
         if (s.requirement.note) out.requirement.note = s.requirement.note;
     }
     if (s.repeatMax) out.repeatMax = s.repeatMax;
@@ -107,6 +112,8 @@ function cleanMove(doc) {
     if (s.maxLoad) out.maxLoad = s.maxLoad;
     if (s.requiresUnarmored) out.requiresUnarmored = true;
     if (s.replaces) out.replaces = s.replaces;
+    // A post-death Consequence or Mark's own move: the lore option it is owned for.
+    if (s.loreOption) out.loreOption = s.loreOption;
     return out;
 }
 

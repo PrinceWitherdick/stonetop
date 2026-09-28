@@ -5,6 +5,7 @@
 // right here. The card markup is shared, so threat-view's wiring (doom toggles,
 // drag-to-pin) applies to all three. The sheets differ only in the config values below.
 import { wireThreatDoomChange, wireThreatCardDrag } from "../threats/threat-view.js";
+import { adoptInlineViewRoot } from "./inline-page-view.js";
 
 /**
  * @param {Function} Base  The core JournalPageSheet base for this render mode.
@@ -18,6 +19,14 @@ import { wireThreatDoomChange, wireThreatCardDrag } from "../threats/threat-view
  */
 export function createStonetopGmPrepPageSheetClass(Base, { template, buildCardVM, editSelector, openEditor, wireExtras }) {
 	return class StonetopGmPrepPageSheet extends Base {
+		// Nothing on the card is a form field for core to save (the doom boxes write
+		// themselves, and edits go through the editor), and the template has no <form>. Left
+		// on, save-on-close threw "no registered form element" and the popout's X did
+		// nothing the first time it was pressed.
+		static get defaultOptions() {
+			return foundry.utils.mergeObject(super.defaultOptions, { submitOnClose: false });
+		}
+
 		get template() { return template; }
 
 		// The embedded page view renders with editable:false, which would blanket-disable
@@ -37,7 +46,7 @@ export function createStonetopGmPrepPageSheetClass(Base, { template, buildCardVM
 		activateListeners(html) {
 			super.activateListeners(html);
 			// The embedded view sheet is rendered by the journal, which never sets _element.
-			this._element = html;
+			adoptInlineViewRoot(this, html);
 			const root = html?.[0] ?? html;
 			if (!root) return;
 

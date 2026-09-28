@@ -15,9 +15,10 @@
       "resourceFirst": true,
       "weight": 1,
       "resource": {
-        "max": 4,
+        "max": 5,
         "title": null,
         "labels": [
+          "",
           "",
           "",
           "",

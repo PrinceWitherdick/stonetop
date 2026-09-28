@@ -148,6 +148,28 @@ describe("the camp window's template", () => {
 		expect(html).toContain("Aeliana makes camp once everyone is ready.");
 	});
 
+	// The Judge's Break Bread: "a proper meal" is the fiction's to say, so it is a ticked box the host can untick.
+	it("gives the host a ticked Break Bread box on the host's own record, and a player its sentence", async () => {
+		const members = [aeliana({ breaksBread: true, choices: { offer: { supplies: 2 } } }), bram()];
+		const html = await render(members);
+		expect(html).toMatch(/<input type="checkbox" class="stonetop-check" data-camp-field="properMeal" data-actor-id="aeliana"[^>]* checked><span>A proper meal \(Break Bread\)/);
+		const players = await render(members, { manages: false, editable: ["bram"], mine: ["bram"] });
+		expect(players).not.toContain('data-camp-field="properMeal"');
+		expect(players).toContain("A proper meal (Break Bread): everyone eating recovers 1d8 extra HP.");
+		expect(await render([aeliana({ choices: { offer: { supplies: 2 } } }), bram()])).not.toContain("Break Bread");
+	});
+
+	// The Lightbearer's Keep the Home-Fires Burning: whether the fire has the hearth ash is the fiction's too.
+	it("gives the host a ticked hearth-ash box when someone at the fire keeps the home fires", async () => {
+		const members = [aeliana({ choices: { offer: { supplies: 2 } } }), bram({ hearthCha: 1 })];
+		const html = await render(members);
+		expect(html).toMatch(/<input type="checkbox" class="stonetop-check" data-camp-field="hearthAsh" data-actor-id="aeliana"[^>]* checked><span>Ash from your own hearth \(Keep the Home-Fires Burning\)/);
+		const players = await render(members, { manages: false, editable: ["bram"], mine: ["bram"] });
+		expect(players).not.toContain('data-camp-field="hearthAsh"');
+		expect(players).toContain("recovers 1 extra HP.");
+		expect(await render([aeliana({ choices: { offer: { supplies: 2 } } }), bram()])).not.toContain("Home-Fires");
+	});
+
 	it("says how a camp ended instead of drawing its rows", async () => {
 		const html = await render([aeliana()], { state: CAMP_STATE.CANCELLED });
 		expect(html).not.toContain('<li class="stonetop-camp-row');

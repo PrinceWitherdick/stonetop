@@ -117,7 +117,7 @@ function readModifier(root) {
 /** Buttons rather than the radios a segmented strip is normally built around: the pill has to
  *  repaint the instant it is clicked and there is no document write behind it to re-render off
  *  (the choice lives and dies with this window), so the fill hangs off a class we move. */
-function wireModePicker(root, onChange) {
+export function wireModePicker(root, onChange) {
 	const options = root.querySelectorAll(".stonetop-roll-mode-btn");
 	options.forEach(btn => {
 		btn.addEventListener("click", () => {
@@ -188,33 +188,63 @@ function rollDialogButtons(rollLabel, settle, readAnswer) {
  * roll surface passes its `shiftKey` straight through. Skipping does not force Normal: it answers
  * exactly as "nothing was asked" answers, so a sheet selector still applies to a Shift-click.
  *
+ * OFFERED LINES (`offers`) are something the character could spend on this roll that the sheet
+ * cannot know they mean to: a skin of fine whisky shared before a Persuade (ticked), threats made
+ * with Intimidating (unticked, `applied: false`). Each is its own line, and the answer names the
+ * ones left ticked in `takenOffers` (their keys). The line does NOT move the mode picker: what it
+ * buys is a SOURCE of advantage, folded by the caller with every other source so it nets against a
+ * disadvantage, or Stone Cold's 6- counted as a 7-9 (StonetopCharacter#onRoll). A line is the
+ * player's to take, so it OPENS the window even when neither setting asks anything (the window then
+ * shows just the lines), and an answer that never showed them took none: a Shift-click is the dice
+ * and nothing else. Not the damage window's rule, whose lines are the move's own riders rather
+ * than something carried and spent.
+ *
  * @param {object} [opts]
  * @param {string} [opts.title]        Dialog title — usually the move or stat being rolled.
  * @param {boolean} [opts.shiftKey]    Skip the window entirely.
  * @param {boolean} [opts.askMode]     Override the "Ask How to Roll Each Time" setting (tests).
  * @param {boolean} [opts.askModifier] Override the "Prompt for Roll Modifier" setting (tests).
- * @returns {Promise<{rollMode?: string, situational: number}|null>}
+ * @param {Array<{key: string, label: string, applied?: boolean}>} [opts.offers]
+ * @returns {Promise<{rollMode?: string, situational: number, takenOffers?: string[]}|null>}
  */
 export function promptRoll({
 	title = "Roll",
 	shiftKey = false,
 	askMode = getAskRollModeEachRollSetting(),
 	askModifier = askMode || getPromptRollModifierSetting(),
+	offers = [],
 } = {}) {
+	const lines = (Array.isArray(offers) ? offers : []).filter(offer => offer?.key);
+	// Only an answer that HAD lines says which it took, so every roll offered none keeps the exact
+	// shape it always had.
+	const withTaken = (answer, taken) => (lines.length ? { ...answer, takenOffers: taken } : answer);
 	// Nothing to ask, or told not to ask: answer as if the window had opened and been left
-	// alone. No Dialog is constructed at all — one that opened and closed itself would still
-	// steal focus from whatever the player was doing.
-	if (shiftKey || (!askMode && !askModifier)) {
-		return Promise.resolve(askMode ? { rollMode: DEFAULT_ROLL_MODE, situational: 0 } : { situational: 0 });
+	// alone, except that a line nobody saw is not taken. No Dialog is constructed at all — one
+	// that opened and closed itself would still steal focus from whatever the player was doing.
+	if (shiftKey || (!askMode && !askModifier && !lines.length)) {
+		return Promise.resolve(withTaken(askMode ? { rollMode: DEFAULT_ROLL_MODE, situational: 0 } : { situational: 0 }, []));
 	}
 	return new Promise(resolve => {
 		const settle = settler(resolve);
+		// The stepper comes with either half; a window opened only for its lines asks nothing else,
+		// because the settings said not to.
+		const withStepper = askMode || askModifier;
 
 		// The answer's SHAPE follows from what was asked: no picker, no `rollMode` key, so a
 		// sheet selector is not overruled by a window that never put the question.
-		const readAnswer = root => (askMode
+		const readAnswer = root => withTaken(askMode
 			? { rollMode: readActiveMode(root), situational: readModifier(root) }
-			: { situational: readModifier(root) });
+			: { situational: withStepper ? readModifier(root) : 0 },
+		lines.filter(offer => {
+			const box = root?.querySelector?.(`[name="offer-${offer.key}"]`);
+			return box ? !!box.checked : offer.applied !== false;
+		}).map(offer => offer.key));
+		// The damage window's line markup and skin: one look for "a ticked thing this roll spends".
+		const offerLines = lines.map(offer => `
+				<label class="stonetop-damage-seed stonetop-damage-seed--move stonetop-roll-offer">
+					<input type="checkbox" class="stonetop-check stonetop-damage-seed-check" name="offer-${escHtml(offer.key)}"${offer.applied === false ? "" : " checked"}>
+					<span class="stonetop-damage-seed-text">${escHtml(offer.label)}</span>
+				</label>`).join("");
 
 		// This window's readout is the dice line ("Roll 3d6 and keep the highest two"), which is
 		// the mode picker's own answer restated. The damage window replaces it with a formula
@@ -223,11 +253,13 @@ export function promptRoll({
 				${modePickerHtml("How are you rolling this?", DEFAULT_ROLL_MODE)}
 				<p class="stonetop-roll-dice" aria-live="polite">${diceReadout(DEFAULT_ROLL_MODE)}</p>` : "";
 
+		const modifierSection = withStepper ? `
+				<p class="stonetop-roll-prompt">Add a one-off modifier (a held bonus, a GM-granted +1, a penalty&hellip;).</p>
+				${stepperHtml(localize("stonetop.rollMode.modifierLabel"))}` : "";
+
 		const dialog = new Dialog({
 			title,
-			content: `<form class="stonetop-roll-form">${modeSection}
-				<p class="stonetop-roll-prompt">Add a one-off modifier (a held bonus, a GM-granted +1, a penalty&hellip;).</p>
-				${stepperHtml(localize("stonetop.rollMode.modifierLabel"))}
+			content: `<form class="stonetop-roll-form">${modeSection}${offerLines}${modifierSection}
 			</form>`,
 			buttons: rollDialogButtons("Roll", settle, readAnswer),
 			default: "roll",
@@ -243,9 +275,11 @@ export function promptRoll({
 				const input = wireStepper(root, () => {});
 				// Focus the modifier, not the picker: Normal is already the answer to the picker's
 				// question, so the field that might need typing into is the one to land in, and
-				// Enter still fires the default Roll button from there.
-				input?.focus();
-				input?.select?.();
+				// Enter still fires the default Roll button from there. A window of lines alone
+				// lands on its first line.
+				const landing = input ?? root.querySelector(".stonetop-roll-offer input");
+				landing?.focus();
+				landing?.select?.();
 			},
 		}, { classes: ["dialog", "stonetop", "stonetop-roll-dialog"], width: 380 });
 
@@ -268,6 +302,12 @@ export function promptRoll({
  */
 function unpromptedDamage(rollMode) {
 	return { rollMode: normalizeRollMode(rollMode), bonus: 0, extraDice: "" };
+}
+
+/** Whether promptRoll's `takenOffers` took `offer`. An answer that never showed it took nothing. */
+export function tookOffer(offer, takenOffers) {
+	if (!offer) return false;
+	return Array.isArray(takenOffers) && takenOffers.includes(offer.key);
 }
 
 /**
@@ -321,10 +361,11 @@ function previewFormula(base, { rollMode, bonus, extraDice, seed }) {
  *
  * This is the seam for every damage bonus the system cannot know about from the sheet, because
  * the fiction is what turns it on: the Storm Markings' "when you roil with anger, you do +1
- * damage until you calm down", a Blood-Soaked Past's +1d4 for fighting without mercy, a spent
- * Fury's "+1d6, forceful, loud", a GM's ruling. Nothing here is enforced or remembered — it is
- * one roll's worth of adjustment, said out loud on the card as a pill so the table can see it
- * was added rather than wondering where an 11 came from on a d10.
+ * damage until you calm down", a spent Fury's "+1d6, forceful, loud", a GM's ruling. (A bonus the
+ * sheet knows of but cannot judge, like a Blood-Soaked Past's +1d4 for fighting without mercy,
+ * comes in as one of the `offers` below instead: an unticked line of its own.) Nothing here is
+ * enforced or remembered: it is one roll's worth of adjustment, said out loud on the card as a
+ * pill so the table can see it was added rather than wondering where an 11 came from on a d10.
  *
  * Resolves to `{ rollMode, bonus, extraDice }`, ready to spread into {@link rollDamage}, or
  * `null` when the player cancels so the caller can abort without rolling. The window opens only
@@ -539,6 +580,6 @@ export function promptDamage({
 export async function rollDamagePrompted(formula, actor, { label, keywords, description, notices, rollMode, attacker, seed, shiftKey = false } = {}) {
 	const adjust = await promptDamage({ attacker: attacker || actor?.name, formula, ...(rollMode ? { rollMode } : {}), seed, shiftKey });
 	if (!adjust) return false;
-	await rollDamage(formula, actor, { label, keywords, description, notices, ...adjust });
-	return true;
+	// The roll itself, for a caller that acts on what it came to (the Heavy's Battle Joy asks only for blood).
+	return rollDamage(formula, actor, { label, keywords, description, notices, ...adjust });
 }

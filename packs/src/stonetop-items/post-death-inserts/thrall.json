@@ -128,7 +128,7 @@
             },
             {
               "slug": "quicksilver-dreams",
-              "description": "<p><strong>QUICKSILVER DREAMS</strong> &mdash; Reduce your max HP by 2.</p><p>When you <strong><em>Make Camp</em></strong>, everyone suffers nightmares and has disadvantage on their next roll.</p><p>You can spend 1 Favor to inflict false sensations upon someone, as long as you can see them.</p>",
+              "description": "<p><strong>QUICKSILVER DREAMS</strong> &mdash; Reduce your max HP by 2.</p><p>When you <strong><em>Make Camp</em></strong>, everyone with you suffers nightmares and has disadvantage on their next roll.</p><p>You can spend 1 Favor to inflict false sensations upon someone, as long as you can see them.</p>",
               "max": 1,
               "requires": null
             },

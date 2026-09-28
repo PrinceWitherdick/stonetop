@@ -1,6 +1,6 @@
 /**
- * @property {string} key    - "weakened" | "dazed" | "miserable"
- * @property {string} name   - "Weakened" | "Dazed" | "Miserable"
+ * @property {string} key    - "weakened" | "dazed" | "miserable" | "walkItOff" (the Ranger's stand-in box)
+ * @property {string} name   - "Weakened" | "Dazed" | "Miserable" | "Walk It Off"
  * @property {boolean} active
  * @property {string[]} stats - stat keys affected, e.g. ["str","dex"]
  */

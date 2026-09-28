@@ -85,9 +85,17 @@ describe("grantedWeaponAttackFor", () => {
 	});
 
 	it("lets a player-authored move of the same name act as itself", () => {
-		const actor = lightbearer(CLASH, { name: "Purifying Flames", system: { moveType: "other" } });
+		// Player-authored is the custom-move flag (owns-move.js#isPlayerAuthoredMove), not moveType.
+		const actor = lightbearer(CLASH, { name: "Purifying Flames", system: { moveType: "other" }, flags: { "stonetop-pwd": { custom: true } } });
 
 		expect(grantedWeaponAttackFor(actor, actor.items[1])).toBeNull();
+	});
+
+	it("still grants the holy light from a Purifying Flames a GM dropped from the Lightbearer", () => {
+		// onDropMove lands a foreign playbook move as moveType "other"; it is still the book's move.
+		const actor = lightbearer(CLASH, { name: "Purifying Flames", system: { moveType: "other", playbook: "The Lightbearer" } });
+
+		expect(grantedWeaponAttackFor(actor, actor.items[1])?.weaponSlug).toBe("purifying-flames-holy-light");
 	});
 
 	it("declines an un-owned playbook row, which carries no item at all", () => {
@@ -122,6 +130,17 @@ describe("maybeBeginAttack with a weapon already chosen", () => {
 		expect(begun.tierActions.partial).toContain('data-counter="1"');
 		// ...and its 6- carries no button: the miss suffers the enemy's attack on its own.
 		expect(begun.tierActions.failure).toBeUndefined();
+	});
+
+	// Lightbearer audit (2026-09-25), D3: the +WIS lives inside "When you wield a holy light against a
+	// creature of darkness", so a +WIS Clash IS the holy light, with nothing to ask.
+	it("takes the holy light, unasked, for a +WIS Clash with no weapon named", async () => {
+		const begun = await maybeBeginAttack(actor, { name: "Clash" }, { stat: "wis" });
+		expect(begun.messageFlags["stonetop-pwd"].attack.weapon.name).toBe("Holy light");
+	});
+
+	it("still asks for a Clash on any other stat", async () => {
+		await expect(maybeBeginAttack(actor, { name: "Clash" }, { stat: "str" })).rejects.toThrow(/Dialog/);
 	});
 
 	it("falls back to the prompt when the named weapon isn't on offer", async () => {

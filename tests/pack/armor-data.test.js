@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { promises as fs } from "fs";
 import path from "path";
+import { SPECIAL_ITEM_CATALOG } from "../../module/data/special-items.js";
 
 // Armor that is only PROSE grants nothing. That was the whole bug: the Judge's Makerglass shield
 // printed "+1 armor" inside a label string, the Demonhide Cloak printed "1 armor" inside a tag
@@ -79,6 +80,19 @@ describe("inventory-item armor data", () => {
 			.filter(i => i.st.armor.base == null)
 			.map(i => `${i.file} (${i.name}): ${JSON.stringify(i.st.armor)}`);
 		expect(wrong).toEqual([]);
+	});
+
+	it("tags every Armor piece as the Special Items handout does (the hauberk is warm, not messy)", () => {
+		// SPECIAL_ITEM_CATALOG copies the handout's traits verbatim; Book I's armor table agrees.
+		const traits = new Map(SPECIAL_ITEM_CATALOG.flatMap(c => c.items).map(i => [i.slug, i.traits]));
+		const wrong = items
+			.filter(i => i.st.specialCategory === "Armor")
+			.flatMap(i => [...String(i.st.note ?? "").matchAll(/<em>([^<]+)<\/em>/g)]
+				.map(m => m[1].trim())
+				.filter(tag => !String(traits.get(i.st.slug) ?? "").split(/,\s*/).includes(tag))
+				.map(tag => `${i.file}: "${tag}" is not in "${traits.get(i.st.slug)}"`));
+		expect(wrong).toEqual([]);
+		expect(items.find(i => i.st.slug === "hauberk-iron")?.st.note).toBe("<em>warm</em>, <em>cumbersome</em>");
 	});
 
 	it("still has the catalog armors it is supposed to have (guards against a vacuous pass)", () => {

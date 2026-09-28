@@ -14,8 +14,8 @@ export function dieFromDamage(str) {
 
 /**
  * One extra damage-dice term, cleaned up for concatenation onto a damage formula — the
- * "+1d6" the Storm Markings' Storm's Fury imbues a strike with, the "+1d4" a Blood-Soaked
- * Past deals fighting without mercy, the "1d6" Clash's strike-hard already folds in.
+ * "+1d6" the Storm Markings' Storm's Fury imbues a strike with, a GM's one-off "+1d4", the
+ * "1d6" Clash's strike-hard already folds in.
  *
  * Accepts what a player would actually type: a leading `+` or `-`, spaces anywhere, and an
  * optional flat tail (`2d6 + 1`). Returns the term WITHOUT a leading `+` (a `-` is kept, since
@@ -302,7 +302,16 @@ const OPTION_DAMAGE_RE = /(\d*\s*d\s*\d+(?:\s*[+-]\s*\d+)?|\d+)\s*(?:points?\s+o
 
 // Someone has to be taking it. A roll-call of the verbs the books actually use, not a wildcard:
 // what this keeps out is a stat line that names a damage die without anybody striking with it.
-const DAMAGE_VERB_RE = /\b(?:takes?|taking|suffers?|suffering|deals?|dealing|inflicts?|inflicting|loses?|losing|burns?|hurts?)\b/i;
+// "Harm yourself (d6 damage, ignores armor) to regain control" is the Thrall's Urges, and harming is as
+// much a blow as hurting.
+const DAMAGE_VERB_RE = /\b(?:takes?|taking|suffers?|suffering|deals?|dealing|inflicts?|inflicting|loses?|losing|burns?|hurts?|harms?)\b/i;
+
+// HIT POINTS LOST, which the books print without the word "damage": "They do it, but it costs you, lose
+// 2d4 HP" (the Ghost's Bodysnatcher), "Mark a debility, lose 1d4 HP". A die or a count straight before
+// "HP", after a form of "lose". It is always the reader's own, and never armored: HP lost is not a blow.
+// "They lose" is somebody else's, and left alone.
+const HP_LOSS_RE = /\b(?:lose|loses|losing)\s+(\d*\s*d\s*\d+(?:\s*[+-]\s*\d+)?|\d+)\s*HP\b/i;
+const THEIR_HP_LOSS_RE = /\b(?:they|it|the\s+target)\s+(?:lose|loses)\b/i;
 
 // "1d6 extra damage", "add 1d6 to a damage roll": a number that rides another roll rather than
 // being one, said in words. The other half of that rule is the SIGN, and it is not read here but
@@ -396,7 +405,7 @@ export function readOptionDamage(text) {
 	if (!line || BONUS_DAMAGE_RE.test(line)) return null;
 	if (!DAMAGE_VERB_RE.test(line)) return null;
 	const match = OPTION_DAMAGE_RE.exec(line);
-	if (!match) return null;
+	if (!match) return _readHpLoss(line);
 
 	// A SIGN IN FRONT OF THE NUMBER means it is being added to something else, and the something
 	// else is not on this card: "Deal +1d4 damage" (Ambush) is a die the attack's own Confirm
@@ -419,6 +428,18 @@ export function readOptionDamage(text) {
 		piercing: Number(PIERCING_RE.exec(line)?.[1]) || 0,
 		tags: fictionTagsIn(_damageTagList(line, match.index)),
 	};
+}
+
+/**
+ * A line that loses HP rather than dealing damage (HP_LOSS_RE), in readOptionDamage's shape: the
+ * reader's own, armor no object, `hpLoss` set so the button can say "Lose 2d4 HP" rather than offer
+ * damage. Null for a line with no such loss, or one where somebody else loses it.
+ */
+function _readHpLoss(line) {
+	const match = HP_LOSS_RE.exec(line);
+	if (!match || THEIR_HP_LOSS_RE.test(line)) return null;
+	const formula = match[1].replace(/\s+/g, "").replace(/^d/i, "1d");
+	return { formula, isRoll: /d/i.test(formula), self: true, ignoresArmor: true, piercing: 0, tags: [], hpLoss: true };
 }
 
 /**

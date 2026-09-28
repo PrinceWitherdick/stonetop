@@ -3,6 +3,7 @@ import {
 	CREW_SIZE_MAX,
 	crewAnonymousCount,
 	crewExists,
+	customGroupPresent,
 	customGroupSize,
 	effectiveCrewSize,
 	groupFollowerStanding,
@@ -160,5 +161,24 @@ describe("a custom group follower's headcount", () => {
 	// The cap exists so a fat-fingered size cannot build a thousand-member list.
 	it("is capped", () => {
 		expect(customGroupSize({ size: 5000 })).toBe(CREW_SIZE_MAX);
+	});
+});
+
+// A member marked fallen at the two-member floor keeps a roster row but is no longer with the group:
+// they do not eat at the fire or produce anything. One who is only down (0 HP) is still with them.
+describe("a custom group's members still with it", () => {
+	it("leaves out a member marked fallen and keeps one who is only down, by roster slot", () => {
+		const follower = { isGroup: true, size: 3, memberHp: [0, 0, 4], memberDead: [null, true, null] };
+		expect(customGroupPresent(follower)).toEqual([0, 2]);
+	});
+
+	it("is the whole roster when nobody is marked, and a stale mark past the roster counts for nothing", () => {
+		expect(customGroupPresent({ isGroup: true })).toEqual([0, 1]);
+		expect(customGroupPresent({ isGroup: true, size: 2, memberDead: [null, null, true] })).toEqual([0, 1]);
+	});
+
+	it("has nobody for a follower who is not a group", () => {
+		expect(customGroupPresent({ name: "Enfys" })).toEqual([]);
+		expect(customGroupPresent(undefined)).toEqual([]);
 	});
 });

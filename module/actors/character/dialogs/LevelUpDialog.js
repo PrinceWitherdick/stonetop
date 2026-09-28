@@ -1,10 +1,13 @@
 import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
+import { holdCentre } from "../../../utils/hold-centre.js";
 import { markProseSpiralBullets } from "../../../utils/journal-spiral-bullets.js";
 import { moveGroupsForPlaybook, moveGroupKeys } from "./onboarding-move-groups.js";
-import { moveMarkBudget } from "../move-mark-budget.js";
+import { moveMarkBudget, markOptionCapNote } from "../move-mark-budget.js";
 import { annotateInvocationEffects } from "../invocation-effects.js";
 import { getHoverDescriptionSetting } from "../../../settings.js";
 import { playbookIconPath } from "../../../utils/playbook-actors.js";
+import { INVOKE_THE_SUN_GOD } from "../holy-light.js";
+import { localize } from "../../../utils/i18n.js";
 
 // Base width (overview, stat, marks). The move, foreign-move, and invocation steps
 // widen so their two-column masonry lists show both columns comfortably by default.
@@ -23,7 +26,15 @@ const LEVELUP_WIDE_STEPS = ["move", "foreignMove", "invocation"];
 // predicate fires (`overview` and `move` are always present). Next/Back navigation and the
 // "is this the final step?" check all derive from this single ordering via _adjacentStep —
 // keep this the one source of truth for step order + skip logic.
-const LEVELUP_STEPS = ["overview", "move", "foreignMove", "stat", "marks", "invocation"];
+const LEVELUP_STEPS = ["overview", "move", "foreignMove", "stat", "marks", "companion", "invocation"];
+
+// One click on a step's pick list (the mark step, the companion step): a picked slug comes off, an
+// unpicked one goes on while the allowance has room, and a single-pick step swaps its lone pick.
+function _togglePick(picks, slug, allowance) {
+	if (picks.includes(slug)) return picks.filter(s => s !== slug);
+	if (picks.length < allowance) return [...picks, slug];
+	return allowance === 1 ? [slug] : picks;
+}
 
 // The foreign-move step reuses the move step's card and chip markup so it inherits that
 // styling (including the past-death skin, which targets these class names directly): a
@@ -41,9 +52,15 @@ const FOREIGN_CARD = ".stonetop-levelup-foreign-option";
 const MOVE_CHIP    = ".stonetop-levelup-move-chip[data-move-group]";
 const FOREIGN_CHIP = ".stonetop-levelup-foreign-chip";
 
+const LEVELUP_ID_PREFIX = "stonetop-levelup-dialog";
+
 export class LevelUpDialog extends StonetopDialog {
 	constructor(character, levelUpData, onDone, options = {}) {
-		super(options);
+		// One window PER CHARACTER — see StonetopDialog.perDocumentOptions. A GM levelling the
+		// whole party between sessions has several of these open at once, and with one shared
+		// id the second painted into the first's frame, leaving buttons that levelled up the
+		// wrong character.
+		super(StonetopDialog.perDocumentOptions(LEVELUP_ID_PREFIX, character?._actor?.id, options));
 		this._character  = character;
 		this._data       = levelUpData;
 		this._step       = "overview"; // "overview" | "move" | "foreignMove" | "stat" | "marks" | "invocation"
@@ -53,6 +70,8 @@ export class LevelUpDialog extends StonetopDialog {
 		// Level-up mark step (Veteran Crew / Well Versed / … and Potential for Greatness):
 		// the picks made this take, each { slug, stat? } (stat only for a stat-choice option).
 		this._selectedMarks          = [];
+		// Beast-Bonded Ranger: the companion action slugs marked for the level being gained.
+		this._selectedCompanionActions = [];
 		this._showLockedMoves        = false;
 		// Move-filter state, persisted across re-renders (a move click re-renders the
 		// dialog) so the search query and active chip survive selection.
@@ -68,9 +87,16 @@ export class LevelUpDialog extends StonetopDialog {
 		this._onDone = onDone;
 	}
 
+	// The level-up window already open for this actor, if any. A second press of the button
+	// raises it rather than opening another instance under the same id.
+	static openFor(actorId) {
+		const id = StonetopDialog.perDocumentOptions(LEVELUP_ID_PREFIX, actorId).id;
+		return Object.values(ui.windows ?? {}).find(w => w.id === id) ?? null;
+	}
+
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
-			id:        "stonetop-levelup-dialog",
+			id:        LEVELUP_ID_PREFIX,
 			template:  "systems/stonetop-pwd/templates/dialogs/level-up.hbs",
 			title:     game.i18n.localize("stonetop.specialMoves.levelUp.title"),
 			width:     LEVELUP_BASE_WIDTH,
@@ -85,17 +111,14 @@ export class LevelUpDialog extends StonetopDialog {
 	}
 
 	async _render(force, options) {
-		// Capture the previous step's CENTER before re-rendering. A step change
-		// resizes the window; without this it would grow from a fixed corner (or
+		// Hold the previous step's CENTER before re-rendering (utils/hold-centre.js). A step
+		// change resizes the window; without this it would grow from a fixed corner (or
 		// Foundry would re-center it in the viewport, reading as a jump). Re-centering
 		// on this point keeps the new, larger window centered over the old one.
-		// Null on first render (no prior position), where Foundry centers us.
-		const p = this.position;
-		const prevCenter = [p?.left, p?.top, p?.width, p?.height].every(Number.isFinite)
-			? { x: p.left + p.width / 2, y: p.top + p.height / 2 }
-			: null;
+		// Nothing is held on the first render (no prior position), where Foundry centers us.
+		const recentre = holdCentre(this);
 		await super._render(force, options);
-		this._applyStepSize(prevCenter);
+		this._applyStepSize(recentre);
 	}
 
 	// Resize the window to match the active step — but only when the step actually
@@ -105,20 +128,16 @@ export class LevelUpDialog extends StonetopDialog {
 	// balloon); only the width differs — the move, foreign-move, and invocation
 	// pickers widen for their two-column grids (LEVELUP_WIDE_STEPS). So a short step
 	// like the stat picker shrinks back down instead of hanging at the wide size. When
-	// `prevCenter` is known the window is re-centered on it so the resize stays put.
-	_applyStepSize(prevCenter = null) {
+	// given `recentre` (holdCentre's answer) the window is re-centered on the old centre so
+	// the resize stays put.
+	_applyStepSize(recentre = null) {
 		if (this._sizedStep === this._step) return;
 		this._sizedStep = this._step;
 		const width = LEVELUP_WIDE_STEPS.includes(this._step) ? LEVELUP_MOVE_WIDTH : LEVELUP_BASE_WIDTH;
 		// Apply the new width + fit-to-content height first so Foundry resolves the
 		// final height, then recenter using the now-known dimensions.
 		this.setPosition({ width, height: "auto" });
-		if (prevCenter) {
-			this.setPosition({
-				left: prevCenter.x - this.position.width / 2,
-				top:  prevCenter.y - this.position.height / 2,
-			});
-		}
+		recentre?.();
 	}
 
 	getData() {
@@ -128,6 +147,7 @@ export class LevelUpDialog extends StonetopDialog {
 		const isForeignMove = this._step === "foreignMove";
 		const isStat        = this._step === "stat";
 		const isMarks       = this._step === "marks";
+		const isCompanion   = this._step === "companion";
 		const isInvocation  = this._step === "invocation";
 
 		const markDesc     = this._markStepDescriptor();
@@ -173,6 +193,9 @@ export class LevelUpDialog extends StonetopDialog {
 			description:   m.description,
 			playbook:      m.playbook,
 			requiresLabel: m.requiresLabel ?? null,
+			// "Costs Stock; you have no sacred pouch", or null. Display only (see
+			// StonetopCharacter#getForeignMovesForLevelUp, which leaves it off an Initiate pick).
+			stockNote:     m.stockNote ?? null,
 			selected:      m.compendiumId === this._selectedForeignMoveId,
 		}));
 
@@ -184,10 +207,10 @@ export class LevelUpDialog extends StonetopDialog {
 
 		// How many distinct options are actually SELECTABLE this take (a count option with a
 		// free box). The required allowance is capped to this, so a budgeted move whose budget
-		// exceeds its distinct options (e.g. Beast of Legend's 2 options on a 3-pick take) can
-		// never trap the player — one pick per option means the budget is filled as far as it
-		// can be, with the rest markable later on the sheet.
-		const markSelectable = markDesc ? markDesc.options.reduce((n, o) => o.existing < o.capacity ? n + 1 : n, 0) : 0;
+		// exceeds its free boxes (one-box options like Beast of Legend's, some of them marked by
+		// hand beyond the budget) can never trap the player: one pick per free box means the
+		// budget is filled as far as it can be, with the rest markable later on the sheet.
+		const markSelectable = markDesc ? markDesc.options.reduce((n, o) => o.existing < o.capacity && !o.capNote ? n + 1 : n, 0) : 0;
 		const markAllowance = markDesc ? Math.min(markDesc.allowance, markSelectable) : 0;
 
 		// The mark step is satisfied when this take's allowance of picks is made (the player
@@ -199,7 +222,25 @@ export class LevelUpDialog extends StonetopDialog {
 			|| (isForeignMove && (this._selectedForeignMoveId !== null || foreignMoves.length === 0))
 			|| (isStat && this._selectedStat !== null)
 			|| (isMarks && marksComplete)
+			|| (isCompanion && this._selectedCompanionActions.length === (d.companionActions?.allowance ?? 0))
 			|| (isInvocation && this._selectedInvocationSlug !== null);
+
+		// Companion step (Beast-Bonded Ranger): each action not yet marked is a pickable row;
+		// one already marked shows as such and can't be picked again. An allowance of 1 just
+		// swaps the lone pick, like the mark step.
+		const companion = d.companionActions ?? null;
+		const companionStep = companion ? {
+			allowance: companion.allowance,
+			used:      this._selectedCompanionActions.length,
+			options: companion.options.map(o => {
+				const selected = this._selectedCompanionActions.includes(o.slug);
+				return {
+					slug: o.slug, label: o.label, selected,
+					existingLabel: o.marked ? "marked" : null,
+					disabled: o.marked || (!selected && companion.allowance !== 1 && this._selectedCompanionActions.length >= companion.allowance),
+				};
+			}),
+		} : null;
 
 		// Stat-increase step: the six stats, greying out any already at the chosen
 		// move's cap (+2 Improved / +3 Superior).
@@ -221,10 +262,15 @@ export class LevelUpDialog extends StonetopDialog {
 			used:      this._selectedMarks.length,
 			options: markDesc.options.map(o => {
 				const selected = this._selectedMarks.some(p => p.slug === o.slug);
-				const hasRoom  = o.existing < o.capacity;
+				// An option whose target is already at its cap (the crew's die at d10) buys nothing,
+				// so it has no room either, and says why (move-mark-budget.js#markOptionCapNote).
+				const hasRoom  = o.existing < o.capacity && !o.capNote;
 				return {
 					slug: o.slug, label: o.label, selected,
-					existingLabel: o.existing > 0 ? `marked ×${o.existing}` : null,
+					tooltip: !selected ? o.capNote : null,
+					existingLabel: o.background
+						? localize("stonetop.character.moves.backgroundMark")
+						: o.existing > 0 ? `marked ×${o.existing}` : null,
 					disabled: !selected && (!hasRoom || (this._selectedMarks.length >= markDesc.allowance && markDesc.allowance !== 1)),
 				};
 			}),
@@ -236,9 +282,11 @@ export class LevelUpDialog extends StonetopDialog {
 			isForeignMove,
 			isStat,
 			isMarks,
+			isCompanion,
 			isInvocation,
 			isLastStep,
 			markStep,
+			companionStep,
 			canContinue,
 			// Playbook avatar art, shown beside the intro of steps unique to one playbook
 			// (currently only the Lightbearer-only invocation step) to brand them.
@@ -265,7 +313,7 @@ export class LevelUpDialog extends StonetopDialog {
 			hasForeignMoves: foreignMoves.length > 0,
 			foreignMovesEmpty: isForeignMove && foreignMoves.length === 0,
 			foreignFromMoveName: selectedEntry?.name ?? null,
-			foreignGrantsPouch:  !!selectedEntry?.crossPlaybook?.grantsPossession,
+			foreignGrantsPouch:  !!selectedEntry?.crossPlaybook?.grantsPossession && !!this._grantsNewPossession,
 		};
 	}
 
@@ -303,14 +351,33 @@ export class LevelUpDialog extends StonetopDialog {
 	// Heroes to the Last / Beast of Legend / Well Versed). Potential for Greatness is NOT
 	// collected at level-up — it's marked in play on a 10+ stat roll (see the chat reminder
 	// in WouldBeHeroAsterisk.js).
+	//
+	// A cross-playbook pick asks the marks of the FOREIGN move it chose: a Blessed who takes Beast
+	// of Legend through Wild Soul picks its option here as a Ranger would. The foreign move carries
+	// its mark options and the copies already held (StonetopCharacter#getForeignMovesForLevelUp).
 	_markStepDescriptor() {
 		const entry = this._selectedMoveEntry();
+		if (entry?.crossPlaybook) {
+			const foreign = this._foreignMoves.find(m => m.compendiumId === this._selectedForeignMoveId);
+			return foreign?.markOptions?.length ? this._buildPickedMoveMarkStep(foreign) : null;
+		}
 		return entry?.markOptions?.length ? this._buildPickedMoveMarkStep(entry) : null;
 	}
 
 	// Drives navigation routing — a mark step follows the move/foreign/stat steps.
 	_needsMarkChoice() {
 		return !!this._markStepDescriptor();
+	}
+
+	// Level Up step 5: a new Invocation on an even level for the Lightbearer or anyone with
+	// Invoke the Sun God. Step 3 comes first, so a character who learns Invoke the Sun God as
+	// this level's cross-playbook pick is owed one now as well. `availableInvocations` is only
+	// filled on even levels, so it doubles as the even-level check.
+	_needsInvocationChoice() {
+		if (this._data?.needsInvocation) return true;
+		if (!this._data?.availableInvocations?.length) return false;
+		const foreign = this._foreignMoves.find(m => m.compendiumId === this._selectedForeignMoveId);
+		return this._needsForeignMoveChoice() && foreign?.name === INVOKE_THE_SUN_GOD;
 	}
 
 	// Whether a given step is part of THIS level-up; the optional steps appear only when
@@ -320,7 +387,8 @@ export class LevelUpDialog extends StonetopDialog {
 			case "foreignMove": return this._needsForeignMoveChoice();
 			case "stat":        return this._needsStatChoice();
 			case "marks":       return this._needsMarkChoice();
-			case "invocation":  return !!this._data?.needsInvocation;
+			case "companion":   return !!this._data?.companionActions;
+			case "invocation":  return this._needsInvocationChoice();
 			default:            return true; // overview, move
 		}
 	}
@@ -343,9 +411,20 @@ export class LevelUpDialog extends StonetopDialog {
 		const budgetMax = moveMarkBudget(entry.markBudget, ownedCountAfter);
 		const marksForMove = this._data?.marks?.[entry.name] ?? {};
 		const len = v => Array.isArray(v) ? v.length : (typeof v === "number" ? v : 0);
+		// The box the background fills (the Patriot's Things Below on Well Versed) is not stored, so
+		// it spends none of the budget; it is one of the option's boxes, so it can't be picked again.
+		const backgroundSlug = this._data?.backgroundMarks?.[entry.name] ?? null;
 		const options = (entry.markOptions ?? [])
 			.filter(o => o.choice !== "stat")
-			.map(o => ({ slug: o.slug, label: o.label, choice: "count", capacity: o.marks ?? 1, existing: len(marksForMove[o.slug]) }));
+			.map(o => {
+				const fromBackground = o.slug === backgroundSlug;
+				return { slug: o.slug, label: o.label, choice: "count", existing: len(marksForMove[o.slug]),
+					capacity: Math.max(0, (o.marks ?? 1) - (fromBackground ? 1 : 0)),
+					background: fromBackground,
+					capNote: fromBackground
+						? localize("stonetop.specialMoves.levelUp.markFromBackground")
+						: markOptionCapNote(o, this._data?.markCapState ?? {}) };
+			});
 		if (!options.length) return null;
 		const used = options.reduce((n, o) => n + o.existing, 0);
 		// A null budget (move declares no markBudget) is uncapped; fall back to one pick so
@@ -367,6 +446,9 @@ export class LevelUpDialog extends StonetopDialog {
 		}
 		if (this._foreignMovesForId === entry.compendiumId) return; // already loaded for this move
 		this._foreignMoves = await this._character.getForeignMovesForLevelUp(entry.crossPlaybook, this._data.newLevel);
+		// "Also grants a Sacred Pouch" only on the take that brings one: a second Initiate adds nothing.
+		const grants = entry.crossPlaybook.grantsPossession ?? null;
+		this._grantsNewPossession = !!grants && !(await this._character.holdsPossession?.(grants));
 		this._foreignMovesForId = entry.compendiumId;
 		this._selectedForeignMoveId = null;
 		this._foreignSearch = "";
@@ -428,6 +510,8 @@ export class LevelUpDialog extends StonetopDialog {
 		});
 
 		html.find(".stonetop-levelup-foreign-option").on("click", ev => {
+			// A mark picked for the previous foreign move is not this one's (_markStepDescriptor).
+			if (this._selectedForeignMoveId !== ev.currentTarget.dataset.compendiumId) this._selectedMarks = [];
 			this._selectedForeignMoveId = ev.currentTarget.dataset.compendiumId;
 			this.render(false);
 		});
@@ -464,11 +548,15 @@ export class LevelUpDialog extends StonetopDialog {
 		// swaps the lone pick instead of locking.
 		const markDesc = this._markStepDescriptor();
 		html.find(".stonetop-levelup-mark-option:not(.is-at-cap)").on("click", ev => {
-			const slug = ev.currentTarget.dataset.markSlug;
-			const i = this._selectedMarks.findIndex(p => p.slug === slug);
-			if (i >= 0) this._selectedMarks.splice(i, 1);                                        // deselect
-			else if (markDesc && this._selectedMarks.length < markDesc.allowance) this._selectedMarks.push({ slug });
-			else if (markDesc && markDesc.allowance === 1) this._selectedMarks = [{ slug }];     // single-pick: replace
+			const picks = this._selectedMarks.map(p => p.slug);
+			this._selectedMarks = _togglePick(picks, ev.currentTarget.dataset.markSlug, markDesc?.allowance ?? 0).map(slug => ({ slug }));
+			this.render(false);
+		});
+
+		// ── Companion step (Beast-Bonded Ranger) ──────────────────────────
+		html.find(".stonetop-levelup-companion-option:not(.is-at-cap)").on("click", ev => {
+			const allowance = this._data?.companionActions?.allowance ?? 0;
+			this._selectedCompanionActions = _togglePick(this._selectedCompanionActions, ev.currentTarget.dataset.actionSlug, allowance);
 			this.render(false);
 		});
 
@@ -560,10 +648,38 @@ export class LevelUpDialog extends StonetopDialog {
 		if (markDesc && this._selectedMarks.length) {
 			choices.marks = { moveName: markDesc.moveName, picks: this._selectedMarks };
 		}
-		await this._character.applyLevelUp(this._selectedMoveId, this._selectedInvocationSlug, Object.keys(choices).length ? choices : null);
+		if (this._stepActive("companion") && this._selectedCompanionActions.length) {
+			choices.companionActions = [...this._selectedCompanionActions];
+		}
+		// Only when the step ran THIS time: a player who picked Invoke the Sun God through
+		// Versatile, chose an Invocation, then went Back and picked another move has a stale
+		// slug left over that must not be learned.
+		const invocationSlug = this._stepActive("invocation") ? this._selectedInvocationSlug : null;
+		// `fromLevel` pins the level these choices were built for, so a stale window (the same
+		// level-up already applied elsewhere, or XP spent meanwhile) writes nothing.
+		const result = await this._character.applyLevelUp(
+			this._selectedMoveId, invocationSlug,
+			Object.keys(choices).length ? choices : null,
+			{ fromLevel: this._data.level },
+		);
+		// Closed BEFORE the sheet hears back: when there's XP for another level, the sheet
+		// opens the next level-up, and a window still closing under this id would be found by
+		// LevelUpDialog.openFor and raised instead.
+		await this.close();
+		if (result && !result.applied) {
+			ui.notifications?.warn(game.i18n.localize(result.reason === "level"
+				? "stonetop.specialMoves.levelUp.refusedLevel"
+				: "stonetop.specialMoves.levelUp.refusedXp"));
+			if (this._onDone) this._onDone(null, { applied: false });
+			return;
+		}
 		// Hand back the chosen move's name so the sheet can auto-open the sacred-pouch
-		// editor when a Blessed levels into Big Magic (an additional remarkable trait).
-		if (this._onDone) this._onDone(entry?.name ?? null);
-		this.close();
+		// editor when a Blessed levels into Big Magic (an additional remarkable trait). A
+		// cross-playbook pick hands back the foreign move it learned too: a Seeker who takes
+		// Big Magic through Initiate of the Secret Arts is owed that trait just the same.
+		const foreignMoveName = choices.crossPlaybook
+			? this._foreignMoves.find(m => m.compendiumId === choices.foreignMoveId)?.name
+			: undefined;
+		if (this._onDone) this._onDone(entry?.name ?? null, { applied: true, foreignMoveName });
 	}
 }

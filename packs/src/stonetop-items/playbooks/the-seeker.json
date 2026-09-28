@@ -35,7 +35,7 @@
         {
           "slug": "antiquarian",
           "label": "Antiquarian",
-          "description": "<p>The past has buried many secrets, and you are determined to dig them up. Years of study across the land have led you here, and you are convinced that this town holds the key to your greatest discoveries. What is it you hope to find? What is it that keeps you here?</p><p>Your travels and studies mean that you start with the <strong>Polyglot</strong> move and are Well Versed in the Makers and their arts. You've also acquired 1 major arcanum.</p>",
+          "description": "<p>The past has buried many secrets, and you are determined to dig them up. Years of study across the land have led you here, and you are convinced that this town holds the key to your greatest discoveries. What is it you hope to find? What is it that keeps you here?</p><p>In any case, your travels and studies mean that you start with the <strong>Polyglot</strong> move and that you are Well Versed in the Makers and their arts (go mark them now). You've also acquired 1 major arcanum.</p>",
           "moves": [
             "Polyglot"
           ],
@@ -243,7 +243,56 @@
               "max": 3,
               "title": "Stock",
               "labels": []
-            }
+            },
+            "usesBonus": {
+              "evenLevelBonus": 1,
+              "sinceGranted": true,
+              "earliestGrant": 2,
+              "moveBonus": [
+                {
+                  "moveName": "Big Magic",
+                  "perInstance": 2
+                }
+              ]
+            },
+            "choiceGroups": [
+              {
+                "heading": "What remarkable trait does it possess?",
+                "note": "one per Big Magic",
+                "subgroups": [
+                  {
+                    "multiSelect": true,
+                    "maxSelect": 0,
+                    "maxSelectBonus": {
+                      "moveBonus": [
+                        {
+                          "moveName": "Big Magic",
+                          "perInstance": 1
+                        }
+                      ]
+                    },
+                    "options": [
+                      {
+                        "slug": "trait-indestructible",
+                        "label": "It cannot be cut, torn, or burned by any natural means."
+                      },
+                      {
+                        "slug": "trait-unnoticed",
+                        "label": "Unless someone is specifically searching for your pouch, they will ignore its presence."
+                      },
+                      {
+                        "slug": "trait-sealed",
+                        "label": "So long as the pouch is sealed, nothing within can be detected or found by magic, nor can anything within escape or affect the outside world."
+                      },
+                      {
+                        "slug": "trait-unclean",
+                        "label": "Unnatural and unclean creatures cannot bear to touch it."
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
           },
           {
             "slug": "books-and-scrolls",
@@ -339,6 +388,10 @@
             "slug": "laboratory",
             "label": "Laboratory",
             "description": "chemics, reagents, vials, measures, ◇ scales, ◇ decanters, etc. Every season, produce d4-1 uses of ◇ naphtha (<em>thrown, area, dangerous, ignores armor</em>).",
+            "rulesNote": "Every season, produce d4-1 uses of ◇ naphtha (<em>thrown, area, dangerous, ignores armor</em>).",
+            "specialItems": [
+              "naphtha"
+            ],
             "grantsItems": [
               {
                 "name": "Chemics",
@@ -417,6 +470,7 @@
             "slug": "trade-contacts",
             "label": "Trade contacts",
             "description": "small amounts of salt, glass, silk, spice, medicinal herbs, pigments, ivory, etc.",
+            "rulesNote": "Small amounts of each.",
             "grantsItems": [
               {
                 "name": "Salt",
@@ -488,7 +542,8 @@
             {
               "slug": "when-unlocked",
               "description": "When and how did you begin to unlock its mysteries?",
-              "type": "text"
+              "type": "text",
+              "uncounted": true
             }
           ]
         },
@@ -502,19 +557,19 @@
           "options": [
             {
               "slug": "mastered-location",
-              "description": "Choose one whose secrets you have unlocked. If it's portable, keep it on your person or hidden away. Where is it now? How did you come to master it?",
+              "description": "Choose one whose secrets you have unlocked. If it's portable, you either keep it on your person or hidden away somewhere safe. Where is it now? How did you come to master it?",
               "type": "text",
               "arcanaRole": "mastered"
             },
             {
               "slug": "found-location",
-              "description": "Choose another that you have not yet mastered. It is either in your possession or in a secret place known only to you. Where is it? How did you find it?",
+              "description": "Choose another, which you have not yet mastered. It is either in your possession or in a secret place known only to you. Where is it? How did you find it?",
               "type": "text",
               "arcanaRole": "found"
             },
             {
               "slug": "sought-notes",
-              "description": "The third you have not yet found, but you have a lead on it. Give the card back to the GM but make note of it here. What do you know about it?",
+              "description": "The third you have not yet found, but you have a lead on it. Give the card back to the GM, but make note of it below. During play, ask the GM what you know about it.",
               "type": "text",
               "arcanaRole": "lead"
             }

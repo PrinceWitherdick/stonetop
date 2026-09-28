@@ -24,7 +24,7 @@ export function seat({
 	id = "aeliana", name = "Aeliana", isHost = false, joinedAt = 1, img = "",
 	carried = { supplies: 4 }, hp = 4, maxHp = 15, marked = [], unliving = false,
 	carriesBedroll = false, carriesMessKit = false, choices = {},
-	undefinedMarks = 0, checked = {}, usesPerSupply = null,
+	undefinedMarks = 0, checked = {}, usesPerSupply = null, breaksBread = false, hearthCha = null, clearsTonight = [],
 } = {}) {
 	const debilities = marked.map(key => ({ key, name: capitalizeFirst(key) }));
 	return {
@@ -44,6 +44,9 @@ export function seat({
 		maxHp,
 		activeDebilities: debilities,
 		unliving,
+		breaksBread,
+		hearthCha,
+		clearsTonight,
 		pack: { undefinedMarks, checked, usesPerSupply },
 	};
 }
@@ -88,21 +91,37 @@ const DEBILITY_NAMES = { weakened: "Weakened", dazed: "Dazed", miserable: "Miser
  * @param {string[]} [o.owners]   user ids that own the character (a GM owns everything anyway)
  * @param {Array<{slug: string, checked: boolean}>} [o.outfit]  the outfit rows the sheet reports
  * @param {"dead"|"ghost"|"revenant"|"thrall"|null} [o.pastDeath]
+ * @param {string[]} [o.thrallMarks]  Mark slugs ticked, for a `pastDeath: "thrall"`
+ * @param {Array<string|{name: string, learned: boolean}>} [o.moves]  the move Items on the sheet
+ * @param {number} [o.cha]
+ * @param {object|null} [o.background]  the selected background as the snapshot's playbook section
+ *   shows it (`{label, setupResources: [{key, label, clearsOn}]}`), and `marks`, what is stored on
+ *   each track (`background.setupResources`)
  */
 export function campCharacter({
 	id, name = id, owners = [], hp = 4, maxHp = 15, marked = [], carried = { supplies: 4 },
-	outfit = [], followers = {}, pastDeath = null,
+	outfit = [], followers = {}, pastDeath = null, moves = [], cha = 0, background = null, thrallMarks = [],
 } = {}) {
 	const actor = {
 		id,
 		name,
 		type: "character",
 		img:  `${id}.webp`,
-		system: { attributes: {
-			hp: { value: hp, max: maxHp },
-			debilities: { options: Object.fromEntries(Object.keys(DEBILITY_NAMES).map(key => [key, { value: marked.includes(key) }])) },
+		items: moves.map(move => typeof move === "string"
+			? { type: "move", name: move, flags: {} }
+			: { type: "move", name: move.name, flags: { [SYSTEM_ID]: { learned: move.learned } } }),
+		system: {
+			attributes: {
+				hp: { value: hp, max: maxHp },
+				debilities: { options: Object.fromEntries(Object.keys(DEBILITY_NAMES).map(key => [key, { value: marked.includes(key) }])) },
+			},
+			stats: { cha: { value: cha } },
+		},
+		flags: { [SYSTEM_ID]: {
+			inventory: { resources: { ...carried } },
+			customFollowers: structuredClone(followers),
+			...(background ? { background: { setupResources: { ...(background.marks ?? {}) } } } : {}),
 		} },
-		flags: { [SYSTEM_ID]: { inventory: { resources: { ...carried } }, customFollowers: structuredClone(followers) } },
 		getFlag: (scope, key) => foundry.utils.getProperty(actor.flags[scope] ?? {}, key),
 		update: vi.fn(async update => {
 			await Promise.resolve();
@@ -119,13 +138,21 @@ export function campCharacter({
 				vitals:     { hp: { value: actor.system.attributes.hp.value, max: maxHp } },
 				inventory:  { outfit: { regularItems: outfit } },
 				debilities: Object.entries(DEBILITY_NAMES).map(([key, label]) => ({ key, name: label, active: marked.includes(key) })),
+				playbook:   background
+					? { background: { options: [{ selected: true, label: background.label, setupResources: background.setupResources ?? [] }] } }
+					: null,
 			})),
 			inventoryResourceData: (slug, count) => ({ [`flags.${SYSTEM_ID}.inventory.resources.${slug}`]: count }),
 			heldAdvantageData:     source => ({ [`flags.${SYSTEM_ID}.heldAdvantage`]: { source } }),
+			heldDisadvantageData:  source => ({ [`flags.${SYSTEM_ID}.heldDisadvantage`]: { source } }),
 		},
 	};
 	if (pastDeath === "dead") applyUpdate(actor, { [`flags.${SYSTEM_ID}.${DEATHS_DOOR_FLAG}`]: DEATHS_DOOR_STATE.DEAD });
 	else if (pastDeath) applyUpdate(actor, { [`flags.${SYSTEM_ID}.postDeathInsert.slug`]: pastDeath });
+	// A Thrall's Marks, ticked in the insert's `marks` section the way the Post-Death tab stores them.
+	if (thrallMarks.length) {
+		applyUpdate(actor, { [`flags.${SYSTEM_ID}.postDeathLore.counts`]: Object.fromEntries(thrallMarks.map(slug => [`marks:${slug}`, 1])) });
+	}
 	return actor;
 }
 
@@ -147,7 +174,9 @@ export function campWorld({ me, users, actors = [], messages = [], rolled = 3 })
 		create:     vi.fn(async data => data),
 		getSpeaker: vi.fn(({ actor } = {}) => ({ alias: actor?.name ?? "" })),
 	};
-	const toMessage = vi.fn(async () => {});
+	globalThis.ChatMessage.implementation = { createDocuments: vi.fn(async list => list) };
+	// With `{create: false}`, core answers the message's data for the caller to create.
+	const toMessage = vi.fn(async data => data);
 	globalThis.Roll = class {
 		constructor(formula) { this.formula = formula; }
 		async evaluate() { this.total = rolled; return this; }
