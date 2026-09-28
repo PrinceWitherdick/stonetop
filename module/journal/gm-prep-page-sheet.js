@@ -5,6 +5,7 @@
 // right here. The card markup is shared, so threat-view's wiring (doom toggles,
 // drag-to-pin) applies to all three. The sheets differ only in the config values below.
 import { wireThreatDoomChange, wireThreatCardDrag } from "../threats/threat-view.js";
+import { adoptInlineViewRoot } from "./inline-page-view.js";
 
 /**
  * @param {Function} Base  The core JournalPageSheet base for this render mode.
@@ -37,7 +38,7 @@ export function createStonetopGmPrepPageSheetClass(Base, { template, buildCardVM
 		activateListeners(html) {
 			super.activateListeners(html);
 			// The embedded view sheet is rendered by the journal, which never sets _element.
-			this._element = html;
+			adoptInlineViewRoot(this, html);
 			const root = html?.[0] ?? html;
 			if (!root) return;
 

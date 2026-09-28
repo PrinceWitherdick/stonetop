@@ -6,6 +6,7 @@ import { markValueTooltips } from "../utils/value-tooltips.js";
 import { markDebilityTooltips } from "../utils/debility-tooltips.js";
 import { applyTreasureDrops } from "../utils/treasure-drops.js";
 import { isInCompendium, blockCompendiumEdit } from "../utils/compendium-edit-guard.js";
+import { adoptInlineViewRoot, holdRenderWhileTyping, keepTypingAcrossRedraw } from "./inline-page-view.js";
 
 // Edit affordances on the location page; clicking any of these in a compendium gets
 // the immutable-journal dialog instead of mutating the read-only document.
@@ -43,6 +44,13 @@ export function createStonetopLocationPageSheetClass(Base) {
 		}
 
 		get _editMode() { return this.isEditable || this._editingSections.size > 0; }
+
+		// Each field saves on blur, and the save redraws the popout. Held while typing, so
+		// clicking from one answer into the next doesn't wipe the second.
+		render(force = false, options = {}) {
+			if (holdRenderWhileTyping(this, force)) return this;
+			return super.render(force, options);
+		}
 
 		// Compendium journals are immutable reference content — never editable in place,
 		// regardless of the pack's lock state. Edit attempts are redirected to a dialog
@@ -192,9 +200,11 @@ export function createStonetopLocationPageSheetClass(Base) {
 		activateListeners(html) {
 			super.activateListeners(html);
 			// The embedded view sheet is rendered by the journal, which never sets
-			// `_element`; point it at our root so queries work in both modes.
-			this._element = html;
+			// `_element`; point it at our root so queries work in both modes. Popped out, the
+			// window keeps its frame, or Close strands the title bar on screen.
+			adoptInlineViewRoot(this, html);
 			const root = html[0];
+			keepTypingAcrossRedraw(this, root);
 			// Make the requirement/option check-lists tickable in view mode. The custom
 			// page sheet fires `renderStonetopLocationPageSheet`, not the journal render
 			// hooks that drive this elsewhere, so run the pass here. Before the owner
