@@ -51,6 +51,7 @@ import {asteriskMoveUsed} from "../actors/character/WouldBeHeroAsterisk.js";
 import {ownsLearnedMoveNamed, ownsLearnedBookMoveNamed, ownedLearnedBookMove, isPlayerAuthoredMove} from "../actors/character/owns-move.js";
 import {armorGateWords, barkskinMarks, wearsBarkskin, withBarkskinBase} from "../actors/character/move-armor.js";
 import {keepsFightingAtZero, markUnstoppable} from "../actors/character/unstoppable.js";
+import {actorPastDeathKind} from "../actors/character/deaths-door-actor.js";
 import {format, localize} from "../utils/i18n.js";
 import {foldModes} from "../utils/roll-mode.js";
 import {bringDialogToFront} from "../utils/front-on-open.js";
@@ -1950,9 +1951,19 @@ function conditionalArmorOf(actor, barkskin) {
 }
 
 /**
+ * A Revenant, whose Undying reads "When you take damage from cutting, stabbing, or crushing, take half
+ * damage (after armor, rounded up)." A Revenant who has passed through the Last Door takes no damage worth
+ * halving, and reads "dead" here.
+ */
+function undyingSufferer(actor) {
+	return actor?.type === "character" && actorPastDeathKind(actor) === "revenant";
+}
+
+/**
  * The rows a damage card's flag lists under `key`, as a Set: `armorOff`, whose conditional armor has been
  * ticked off (wireConditionalArmor); `unstoppableOff`, whose Unstoppable mark has been ticked off
- * (wireUnstoppableMark); `undauntedArmor`, whose Undaunted +1 armor the table has ticked ON (wireUndauntedArmor).
+ * (wireUnstoppableMark); `undauntedArmor`, whose Undaunted +1 armor the table has ticked ON (wireUndauntedArmor);
+ * `undyingOff`, whose Undying halving has been ticked off (wireUndyingHalf).
  */
 const damageSet = (damage, key) => new Set(Array.isArray(damage?.[key]) ? damage[key] : []);
 
@@ -2832,13 +2843,20 @@ async function applyOwedDamage(message, damage) {
 		let raw = halved.has(r.uuid) ? halveDamage(rolled) : rolled;
 		if (knockedDown.has(r.uuid)) raw = halveDamage(raw);
 		if (safetyFirst.has(r.uuid)) raw = halveDamage(raw);
-		const effective = mitigateDamage(raw, { armor, piercing, unpierceable, ignoresArmor: current.weapon?.ignoresArmor });
+		const soaked = mitigateDamage(raw, { armor, piercing, unpierceable, ignoresArmor: current.weapon?.ignoresArmor });
+		// Undying (the Revenant): half of what gets through armor, rounded up, for a blow that cuts, stabs
+		// or crushes. On unless the table ticked the card's box off (wireUndyingHalf).
+		const undying = undyingSufferer(targetActor) && !damageSet(current, "undyingOff").has(r.uuid);
+		const effective = undying ? halveDamage(soaked) : soaked;
 		// Through `mitigationDetail`, the one place the subtraction is put into words: this
 		// used to restate `armor - piercing` inline, which stopped matching the moment
 		// mitigateDamage learned about an unpierceable floor, and printed armor the
 		// arithmetic had not applied.
 		const detail = mitigationDetail({ armor, piercing, unpierceable, ignoresArmor: current.weapon?.ignoresArmor });
-		const mitigated = effective !== raw ? ` <span class="stonetop-damage-mitigated">(${raw}${detail})</span>` : "";
+		const mitigated = soaked !== raw ? ` <span class="stonetop-damage-mitigated">(${raw}${detail})</span>` : "";
+		const undead = effective !== soaked
+			? ` <span class="stonetop-damage-mitigated">(${escHtml(format("stonetop.fight.undying.halvedNote", { soaked }))})</span>`
+			: "";
 		// ONE MEMBER OF A GROUP, for one attacker's blow: see fight/group-hits.js.
 		if (!current.selfHarm && !current.groupBlow && isLoneBlowOnGroup(targetActor, attacker, td?.parent ?? null)) {
 			// A group follower's: the first member standing on its character's roster, which the card then
@@ -2900,7 +2918,7 @@ async function applyOwedDamage(message, damage) {
 		const bare = gatedOff
 			? ` <span class="stonetop-damage-mitigated">(${escHtml(format(`stonetop.fight.heroMoves.armorGate.${gateWords?.noteKey ?? "note"}`, { move: worn.conditionalSource, ...gateWords?.params, armor: gatedOff }))})</span>`
 			: "";
-		lines.push(`<li><strong>${escHtml(rowName)}</strong>: ${effective} damage${back}${half}${mitigated}${brave}${bare}: ${t.oldHp} &rarr; ${t.newHp} HP${dead}${unstoppable}</li>`);
+		lines.push(`<li><strong>${escHtml(rowName)}</strong>: ${effective} damage${back}${half}${mitigated}${brave}${bare}${undead}: ${t.oldHp} &rarr; ${t.newHp} HP${dead}${unstoppable}</li>`);
 	}
 	// Only the latch: a Readiness spend another client wrote meanwhile stays on the card.
 	await message.setFlag(SCOPE, "damage.applied", nextApplied);
@@ -2963,6 +2981,34 @@ export function wireConditionalArmor(message, html, gateFor = applyGateOnce(mess
 	// the same armor, drawn under the same gate. Here rather than beside its caller, so every damage card
 	// that asks about armor asks about this too.
 	wireUndauntedArmor(message, actions, { damage, gate, standIns, done, several });
+	// And a Revenant's Undying, which halves what gets past that armor: the next question down the same sum.
+	wireUndyingHalf(message, actions, { damage, gate, standIns, done, several });
+}
+
+/**
+ * The TICKED box for a Revenant's Undying, "When you take damage from cutting, stabbing, or crushing,
+ * take half damage (after armor, rounded up)", on a row whose sufferer is a Revenant.
+ *
+ * Ticked for the reason the conditional armor's box is: the box opens on the ORDINARY case. A blade, a
+ * spear, an arrow, a club, a claw or a fist all cut, stab or crush, and that is nearly every blow a card
+ * carries; fire, poison, cold or a curse are the exceptions the table knows when it sees them, so it
+ * unticks for those and applyOwedDamage then takes the blow whole. (Undaunted's box opens unticked
+ * because being outnumbered or outsized is NOT the ordinary case.) Drawn per row against whoever takes
+ * the blow, a Defend's stand-in included, and gated like the armor boxes.
+ */
+function wireUndyingHalf(message, actions, { damage, gate, standIns, done, several }) {
+	const off = damageSet(damage, "undyingOff");
+	for (const row of damage.results) {
+		if (!row.uuid || done.has(row.uuid)) continue;
+		const standIn = standIns.get(row.uuid);
+		const target = damageRowActor(resolveSync(standIn?.by ?? row.uuid));
+		if (!undyingSufferer(target)) continue;
+
+		appendRowBox(message, actions, {
+			row, standIn, target, several, gate, done, className: "stonetop-damage-armor-gate stonetop-damage-undying",
+			words: format("stonetop.fight.undying.box", {}), key: "undyingOff", listed: off, listsTicked: false,
+		});
+	}
 }
 
 /**

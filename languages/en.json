@@ -2815,6 +2815,10 @@
         "movedTitle": "{move}: another member takes it",
         "moved": "{from} is back to {fromHp} HP. {line}."
       },
+      "undying": {
+        "box": "Undying: from cutting, stabbing or crushing, so half damage after armor",
+        "halvedNote": "halved from {soaked} after armor, Undying"
+      },
       "defend": {
         "halve": "Halve it (Readiness)",
         "halveOne": "{defender} halves it (1 Readiness)",

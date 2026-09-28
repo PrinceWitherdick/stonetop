@@ -1021,6 +1021,48 @@ describe("Undaunted's armor where the fight does not show it", () => {
 	});
 });
 
+// Post-death audit B3: the Revenant's Undying, "When you take damage from cutting, stabbing, or crushing,
+// take half damage (after armor, rounded up)." A TICKED box on the card: nearly every blow cuts, stabs or
+// crushes, and the table unticks it for fire, poison and the like.
+describe("a Revenant's Undying on the damage card", () => {
+	const revenant = () => Object.assign(hero("wyn", "Wyn"), { flags: { [SCOPE]: { postDeathInsert: { slug: "revenant" } } } });
+	const element = tag => ({ tagName: tag, className: "", type: "", checked: false, disabled: false, title: "", textContent: "", kids: [], append(...k) { this.kids.push(...k); }, addEventListener(_t, fn) { this.fire = fn; } });
+
+	it("halves what gets past armor, rounding up, and says so", async () => {
+		const wyn = revenant();
+		const { tokens } = fightInARow([["wyn", wyn]]);
+		await apply({ move: "Bite", weapon: null, results: [{ uuid: tokens.wyn.uuid, name: "Wyn", raw: 9 }], applied: [] });
+		// 9 less 2 armor is 7, halved up to 4.
+		expect(wyn.system.attributes.hp.value).toBe(6);
+		expect(posted.at(-1).content).toContain("halved from 7 after armor, Undying");
+	});
+
+	it("takes the blow whole when the box was ticked off", async () => {
+		const wyn = revenant();
+		const { tokens } = fightInARow([["wyn", wyn]]);
+		const row = { uuid: tokens.wyn.uuid, name: "Wyn", raw: 9 };
+		await apply({ move: "Firebolt", weapon: null, results: [row], applied: [], undyingOff: [row.uuid] });
+		expect(wyn.system.attributes.hp.value).toBe(3);
+	});
+
+	it("draws the box ticked for a Revenant, writes it when unticked, and draws none for anyone else", async () => {
+		const wyn = revenant();
+		const { tokens } = fightInARow([["wyn", wyn], ["pim", hero("pim", "Pim")]]);
+		globalThis.document = { createElement: element };
+		const actions = element("div");
+		const message = makeMessage({ damage: { move: "Bite", results: [{ uuid: tokens.wyn.uuid, name: "Wyn", raw: 6 }, { uuid: tokens.pim.uuid, name: "Pim", raw: 6 }], applied: [] } });
+		message.canUserModify = () => true;
+		wireConditionalArmor(message, { querySelector: sel => (sel === ".stonetop-attack-actions" ? actions : null) });
+		expect(actions.kids).toHaveLength(1);
+		const [box, words] = actions.kids[0].kids;
+		expect(box.checked).toBe(true);
+		expect(words.textContent).toBe("Wyn: Undying: from cutting, stabbing or crushing, so half damage after armor");
+		box.checked = false;
+		await box.fire();
+		expect(message.getFlag(SCOPE, "damage").undyingOff).toEqual([tokens.wyn.uuid]);
+	});
+});
+
 // R7: Go Back to the Shadow, "Spirits of darkness in your light take 2d8 damage (ignores armor). Roll
 // damage for each spirit separately." Through the damage window, so Hungry Flames' line rides it.
 describe("an Invocation's own damage (Go Back to the Shadow)", () => {
