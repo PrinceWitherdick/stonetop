@@ -14,6 +14,7 @@ import { repairCharacterTokenLinks, applyLinkChoices } from "../migration/link-c
 import { CharacterTokenLinkDialog } from "../dialogs/CharacterTokenLinkDialog.js";
 import { createArcanumItem, newArcanumSlug, isArcanumData } from "../item/createArcanum.js";
 import { renameAllSeasonYearPages } from "../migration/season-year-page-names.js";
+import { clearAllBlankDangers } from "../migration/blank-dangers.js";
 import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingleton.js";
 import { runWorldSetup, pendingSetupWork } from "./WorldSetup.js";
 import { reapplyBook2Art, hasImportedBook2Art } from "../book2-art/reapply.js";
@@ -278,6 +279,11 @@ export async function onReady() {
 		// See migration/season-year-page-names.js.
 		try { await renameAllSeasonYearPages(); }
 		catch (err) { console.error("Stonetop | Chronicle year-page rename failed", err); }
+		// Take out the blank Dangers entries the page sheet wrote until 43ca5442, one after every
+		// real entry on each save (see migration/blank-dangers.js). Once per version: a full walk
+		// of every journal page, and nothing writes them any more.
+		try { await oncePerVersion("blankDangers", clearAllBlankDangers); }
+		catch (err) { console.error("Stonetop | blank Dangers entry cleanup failed", err); }
 		try { await migrateAllSteadingPeople(); }
 		catch (err) { console.error("Stonetop | Residents/Neighbors → NPC conversion failed", err); }
 		// Give already-linked Residents of Stonetop a "Stonetop" Home if theirs is blank
