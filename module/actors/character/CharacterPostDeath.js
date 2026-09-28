@@ -301,6 +301,36 @@ export class CharacterPostDeath {
 		return true;
 	}
 
+	// ── The same writes as `actor.update()` fragments ─────────────────────────
+	// For a 0-HP move that has to land its costs, its hit points and the end of dying in ONE write
+	// (UndeathDialog#_onApply): as a run of separate writes a reload between them left a Revenant
+	// marked and maimed but still dying, or back up with the costs unpaid. Each answers null where its
+	// writing twin above would refuse, so the caller can tell what the write will actually change.
+
+	/** markSectionOption as a fragment; null when the option is missing or already marked. */
+	markSectionOptionUpdateData(sectionSlug, optionSlug) {
+		if (!optionSlug || this._lore.getCount(sectionSlug, optionSlug) > 0) return null;
+		return this._lore.countUpdateData(sectionSlug, optionSlug, 1);
+	}
+
+	/** crossOffMark as a fragment; null when the slug is missing or already crossed off. */
+	crossOffMarkUpdateData(slug) {
+		if (!slug || this.crossedOffMarks.includes(slug)) return null;
+		return this._insertFlags.updateData("crossedOff", [...this.crossedOffMarks, slug]);
+	}
+
+	/** setMasterTask as a fragment. */
+	masterTaskUpdateData(text) { return this._insertFlags.updateData("task", String(text ?? "").trim()); }
+
+	/** setTether as a fragment. */
+	tetherUpdateData(text) { return this._insertFlags.updateData("tether", String(text ?? "").trim()); }
+
+	/** setFavor as a fragment, clamped the same way. */
+	favorUpdateData(value) {
+		const { entry, option } = this._rollTrack();
+		return this._lore.countUpdateData(entry, option, clampInt(value, 0, 3));
+	}
+
 	/**
 	 * Where this insert's roll track lives in its lore, if it has one — the Thrall's Favor is
 	 * the only such track today, and its coordinates are the resolution table's to state (see

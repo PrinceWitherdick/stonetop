@@ -187,9 +187,9 @@ export const ZERO_HP_RESOLUTIONS = {
 		// "Your master's succor has no number" — Dark Succor is the one move that leaves the
 		// recovery to the GM, so the card says why rather than showing a blank where the HP goes.
 		hpNote: "Your master's succor has no number: you recover here and now, or at a time and "
-			+ "place of the GM's choosing. Clear the state on your Special Moves tab when you're back.",
+			+ "place of the GM's choosing. When you do, press Back on your feet on your Special Moves tab.",
 		effects: [
-			{ kind: "mark-gain",     label: "Gain a Mark of the GM's choice" },
+			{ kind: "mark-gain",     label: "Gain a new Mark of the GM's choice" },
 			{ kind: "mark-crossoff", label: "Cross off a Mark that you don't have — you can never gain it" },
 			{ kind: "task",          label: "Your master gives you a task; until you complete it, your Favor stays at 0" },
 		],
@@ -220,6 +220,67 @@ export function zeroHpMove(insertSlug) {
  */
 export function isDeathsDoorCard(message) {
 	return message?.getFlag?.(SYSTEM_ID, ROLLED_FLAG)?.move === ZERO_HP_MOVES.null.name;
+}
+
+/** The inserts' own 0-HP moves by name: Undying, Tethered, Dark Succor. */
+export const UNDEATH_MOVE_NAMES = POST_DEATH_INSERT_SLUGS.map(slug => ZERO_HP_MOVES[slug].name);
+
+/**
+ * Whether a roll card is one of the inserts' 0-HP moves (Undying's +CON, Dark Succor's +Favor), read the same
+ * way as isDeathsDoorCard. UndeathDialog classifies the tier the moment the dice land and applies what it
+ * says, so a +1, a Burn Brightly or a GM's Shift pressed on the card afterwards would relabel it while the
+ * sheet kept the old tier's costs.
+ */
+export function isUndeathCard(message) {
+	return UNDEATH_MOVE_NAMES.includes(message?.getFlag?.(SYSTEM_ID, ROLLED_FLAG)?.move);
+}
+
+/**
+ * Any 0-HP move's card: Death's Door or an insert's. The one question the card's lifts ask (roll-boosts.js
+ * isBoostableRoll, stonetop.js's Burn Brightly), since every one of them is settled by its own window.
+ * isDeathsDoorCard stays apart for what only the Door's window offers (Impetuous Youth's give it your all).
+ */
+export function isZeroHpMoveCard(message) {
+	return isDeathsDoorCard(message) || isUndeathCard(message);
+}
+
+/**
+ * The state taking an insert leaves a character in, given the state they were in (the user's ruling,
+ * 2026-09-27). Coming back from the Door is not getting up: whoever takes an insert while dying, owing a
+ * fate or dead is returned OUT OF THE ACTION at 0 HP, and the Special Moves card's "Back on your feet"
+ * (a Ghost's "Reform at your tether") is what brings them up with half their max HP.
+ *
+ * Any other state stands. A character already out of the action stays there, and a living one given an
+ * insert by the GM away from any brush with death has nothing to return from. `atTheDoor` says whether
+ * the hit points go to 0 with it.
+ *
+ * @returns {{state: string|null, atTheDoor: boolean}}
+ */
+export function stateOnTakingInsert(state = null) {
+	const atTheDoor = state === DEATHS_DOOR_STATE.DYING || state === DEATHS_DOOR_STATE.FATE_PENDING
+		|| state === DEATHS_DOOR_STATE.DEAD;
+	return { state: atTheDoor ? DEATHS_DOOR_STATE.OUT_OF_ACTION : state, atTheDoor };
+}
+
+/** Where THE FINAL CONSEQUENCE is ticked on a Ghost or Revenant: the lore section and option. */
+export const FINAL_CONSEQUENCE = { section: "consequences", option: "final-consequence" };
+
+/**
+ * How a character past the Door left play, when it was not through the Last Door: null for everyone else.
+ *
+ *  • "monster"  a Ghost or Revenant who marked THE FINAL CONSEQUENCE: "your tenuous connection to humanity
+ *               is lost and you become a monster under the GM's control."
+ *  • "threat"   a Thrall lost to Unholy Vessel: "your humanity is utterly lost. You become a threat in the
+ *               GM's control." A Thrall has no other way to `dead` (Dark Succor always intercedes).
+ *
+ * A Ghost or Revenant who is `dead` without the Final Consequence finished their Terrible Purpose and did
+ * pass through the Last Door, which is what the plain card says. Pure, for the sheet's card to word.
+ */
+export function lostToTheGm({ state = null, insertSlug = null, finalConsequence = false } = {}) {
+	if (state !== DEATHS_DOOR_STATE.DEAD) return null;
+	if (insertSlug === "thrall") return "threat";
+	if ((insertSlug === "ghost" || insertSlug === "revenant") && finalConsequence) return "monster";
+	return null;
 }
 
 /**

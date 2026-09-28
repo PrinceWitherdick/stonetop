@@ -73,6 +73,7 @@
 					<strong class="stonetop-pdc-option-name">{{label}}</strong>
 					{{#if crossedOff}}<span class="stonetop-pdc-option-tag">crossed off</span>{{/if}}
 					{{#if inflicted}}<span class="stonetop-pdc-option-tag">inflicted, never chosen</span>{{/if}}
+					{{#if carried}}<span class="stonetop-pdc-option-tag">{{localize "stonetop.postDeath.carriedOver"}}</span>{{/if}}
 					{{#if requiresLabel}}<span class="stonetop-pdc-option-tag">needs {{requiresLabel}}</span>{{/if}}
 				</span>
 				{{#if summary}}<span class="stonetop-pdc-option-body">{{{summary}}}</span>{{/if}}

@@ -81,7 +81,7 @@ import { rollSeasonsCard, sign, markMissXp, pbtaDiceFormula, seasonsRollTable, s
 import { countedResult, rolledRecord, cardCountedTier, totalTier } from "./module/utils/counted-tier.js";
 import { burnBrightlyAffordable, burnsBrightlyDriven } from "./module/actors/character/burn-brightly.js";
 import { wireImpetuousYouth, HURT_DAMAGE, IMPETUOUS_YOUTH } from "./module/actors/character/impetuous-youth.js";
-import { isDeathsDoorCard } from "./module/actors/character/deaths-door.js";
+import { isUndeathCard, isZeroHpMoveCard } from "./module/actors/character/deaths-door.js";
 import { registerRollRewrite } from "./module/utils/roll-rewrite.js";
 import { formatOutcomeDetail, escHtml } from "./module/utils/strings.js";
 import { moveChatCard, canRewriteCard } from "./module/utils/chat.js";
@@ -1231,7 +1231,10 @@ function _chatWireRollShifting(message, html) {
 	// most tables never touch it. When disabled, don't inject or reveal the buttons, and
 	// hide any the roll card pre-rendered; the shared .stonetop-card-buttons row is left
 	// for Burn Brightly (wired next) to claim if the owner qualifies.
-	const showShift = game.user.isGM && getSetting("chatShiftButtons");
+	// Not on an insert's 0-HP move (Undying, Dark Succor): its window applies the tier the dice gave
+	// and hears nothing after, so a shift would relabel the card under costs already paid
+	// (deaths-door.js#isUndeathCard). Death's Door's own window follows a shift, and keeps them.
+	const showShift = game.user.isGM && getSetting("chatShiftButtons") && !isUndeathCard(message);
 
 	if (showShift && !cardButtons.querySelector("[data-action='shiftUp']")) {
 		cardButtons.insertAdjacentHTML("afterbegin", `
@@ -1265,10 +1268,10 @@ function _chatWireBurnBrightly(message, html) {
 	const level = actor.system?.attributes?.level?.value ?? 1;
 	const canAfford = burnBrightlyAffordable(actor, xp, level);
 
-	// Not on Death's Door's card while unspent: its window offers Burn Brightly before it settles the tier,
-	// and a +1 here afterwards would relabel the card and change nothing (deaths-door.js#isDeathsDoorCard).
-	// A spend made there still shows here, spent.
-	if (!alreadyBurned && (!canAfford || isDeathsDoorCard(message))) return;
+	// Not on a 0-HP move's card while unspent: Death's Door's window offers Burn Brightly before it settles the
+	// tier, and Undying's and Dark Succor's apply the tier the dice gave, so a +1 here afterwards would relabel
+	// the card and change nothing (deaths-door.js#isZeroHpMoveCard). A spend made there still shows here, spent.
+	if (!alreadyBurned && (!canAfford || isZeroHpMoveCard(message))) return;
 
 	const btn = document.createElement("button");
 	btn.className = "stonetop-burn-brightly-btn";

@@ -373,7 +373,12 @@
         "outOfActionHint": "No longer dying, but out of the action until the GM says otherwise.",
         "dispersedHint": "Your essence has dispersed. You reform near your tether at the next sunset with {hp} HP.",
         "reform": "Reform at your tether",
+        "backOnFeet": "Back on your feet",
+        "backOnFeetHint": "Out of the action. Back on your feet, you return with {hp} HP.",
         "deadHint": "They stepped through the Last Door.",
+        "monsterHint": "Their tenuous connection to humanity is lost: they became a monster under the GM's control.",
+        "threatHint": "Their humanity is utterly lost: they became a threat in the GM's control.",
+        "undeathNotDying": "{move} is {name}'s move at 0 HP, and {name} is not dying.",
         "postDeathTab": "Choose Your Fate",
         "postDeathTabHint": "Opens the Post-Death tab, where you can take the Revenant, Ghost or Thrall insert. Death's Door grants one for you on a 6-. Use this if your table resolved that away from the sheet.",
         "lockedHint": "Only available when the character is dying: at 0 HP, with the move still to face.",
@@ -413,6 +418,11 @@
             "intro": "You refused to go, and the Last Door let you back. Here is what that costs.",
             "card": "<strong>{who}</strong> refuses the Last Door and gains the <strong>{what}</strong> insert.",
             "next": "Choose your Terrible Purpose and your first Consequence."
+          },
+          "undying": {
+            "intro": "You gave up the body you clung to, and your spirit lingers on. Your Terrible Purpose stays with you; as a Ghost, you choose a first Consequence of your own.",
+            "card": "<strong>{who}</strong> gives up the body and lingers on as a <strong>{what}</strong>.",
+            "next": "Choose your first Consequence as a Ghost."
           },
           "thrall": {
             "intro": "You called one of the Things Below by name, and it answered. Here is what that costs.",
@@ -597,6 +607,17 @@
         "unlivingHint": "Unliving: no benefit. A Ghost or Revenant gains nothing from Convalesce."
       }
     },
+    "undeath": {
+      "becameGhost": "Gave up the Revenant insert and became a <strong>Ghost</strong>. Your Terrible Purpose stays with you; choose your first Consequence as a Ghost.",
+      "ghostDown": "Your body is given up, so no HP comes back now: you're out of the action until you reform (Reform at your tether, on your Special Moves tab).",
+      "taskStanding": "Your master's task still stands: \"{task}\". A new task takes its place.",
+      "unholyVessel": {
+        "label": "Unholy Vessel",
+        "warning": "You would gain a Mark, but there are none left to gain. Your humanity is utterly lost: you become a threat in the GM's control. Make a new character.",
+        "apply": "Lose your humanity",
+        "summary": "<strong>Unholy Vessel</strong>: there is no Mark left to gain. {name}'s humanity is utterly lost, and they become a threat in the GM's control. Make a new character."
+      }
+    },
     "postDeath": {
       "chooseFate": "Choose Your Fate",
       "chooseFateHint": "You take one of these only when it becomes relevant: you died, and refused to go. Death's Door grants it for you on a 6-; pick one here if your table resolved that away from the sheet.",
@@ -609,6 +630,7 @@
       "tetherMissing": "Name your tether. Tethered can't resolve without knowing where you reform.",
       "crossedOff": "Crossed Off",
       "crossedOffHint": "Dark Succor took these away. You can never gain them.",
+      "carriedOver": "carried over",
       "masterTask": "Your Master's Task",
       "masterTaskHint": "Until it's done, your Favor stays at 0.",
       "instinct": "Instinct",

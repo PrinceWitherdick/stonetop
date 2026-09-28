@@ -30,6 +30,16 @@ export class CharacterLore {
 		await this._flags.setFlag("counts", { ...this.counts, ...changes });
 	}
 
+	/**
+	 * One count as an `actor.update()` fragment, for a caller landing it in ONE write with changes outside
+	 * this store (UndeathDialog's costs, with the hit points and the state). Written as the count's own sub-key
+	 * rather than the whole counts object, so two of these in one update (a Consequence and a reset Favor, a
+	 * Mark and the Favor) each keep their own key instead of the second object replacing the first.
+	 */
+	countUpdateData(loreSlug, optionSlug, count) {
+		return this._flags.subKeyData("counts", `${loreSlug}:${optionSlug}`, count);
+	}
+
 	get texts() {
 		return this._flags.getFlag("texts") ?? {};
 	}

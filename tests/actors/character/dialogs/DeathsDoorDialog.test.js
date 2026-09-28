@@ -650,7 +650,8 @@ describe("Death's Door's roll card offers neither boost itself", () => {
 		// The card's Burn Brightly button asks the same question before it draws (a spent one still shows).
 		const main = readRepo("stonetop.js");
 		const wire = main.slice(main.indexOf("function _chatWireBurnBrightly"), main.indexOf("// -- +1 TO A ROLL JUST MADE"));
-		expect(wire).toMatch(/if \(!alreadyBurned && \(!canAfford \|\| isDeathsDoorCard\(message\)\)\) return;/);
+		// Any 0-HP move's card (deaths-door.js#isZeroHpMoveCard), Death's Door's among them.
+		expect(wire).toMatch(/if \(!alreadyBurned && \(!canAfford \|\| isZeroHpMoveCard\(message\)\)\) return;/);
 		// And the window's footer puts accepting first (Foundry's order), each boost naming what it does.
 		const hbs = readRepo("templates/dialogs/deaths-door.hbs");
 		const accept = hbs.indexOf("deaths-door-accept-btn");

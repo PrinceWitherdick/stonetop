@@ -76,9 +76,6 @@ const QUOTED = {
 		"\"My body was completely destroyed — burnt to ash, ground to jelly\",",
 		"ss off a Mark that you don't have — you can never gain it\" },",
 	],
-	"module/actors/character/dialogs/UndeathDialog.js": [
-		"is given up, so no HP comes back — you're out of the action until th",
-	],
 	"module/actors/steading/StonetopSteadingSheet.js": [
 		"<div><strong>Winter</strong> — The <em>weariest</em> rolls 1d4+P",
 		"g>return home in triumph</strong> — having saved your fellows, put do",

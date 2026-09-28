@@ -3,8 +3,10 @@ import { stonetopChatCard } from "../../../utils/chat.js";
 import { escHtml } from "../../../utils/strings.js";
 import { TIER_LABELS } from "../../../utils/move-results.js";
 import { classifyResult, rollStat } from "../../../utils/roll-engine.js";
-import { DEATHS_DOOR_STATE, resolutionTier, resolvedHp } from "../deaths-door.js";
+import { format, localize } from "../../../utils/i18n.js";
+import { DEATHS_DOOR_STATE, FINAL_CONSEQUENCE, resolutionTier, resolvedHp } from "../deaths-door.js";
 import { NEVER_CHOSEN_OPTIONS } from "../post-death-choices.js";
+import { DeathsDoorDialog } from "./DeathsDoorDialog.js";
 
 /**
  * The 0-HP move of a character who already died once — Undying (Revenant), Tethered (Ghost) or
@@ -25,9 +27,10 @@ import { NEVER_CHOSEN_OPTIONS } from "../post-death-choices.js";
 
 // The lore sections each effect writes to. Consequences and Marks are ordinary lore options on
 // the insert; naming the sections here keeps the slugs out of the effect handlers.
-const _CONSEQUENCES = "consequences";
+const _CONSEQUENCES = FINAL_CONSEQUENCE.section;
 const _MARKS        = "marks";
-const _FINAL_CONSEQUENCE = "final-consequence";
+const _FINAL_CONSEQUENCE = FINAL_CONSEQUENCE.option;
+const _I18N = "stonetop.undeath";
 
 export class UndeathDialog extends StonetopDialog {
 	constructor(character, onDone, options = {}) {
@@ -46,7 +49,6 @@ export class UndeathDialog extends StonetopDialog {
 
 		this._picked   = new Set();   // effect kinds the player has taken
 		this._applied  = false;
-		this._maimed   = false;       // set once the maiming is on the wound list; see _applyEffect
 		this._forcedMiss = false;     // Revenant: body destroyed → resolve as a 6-
 		this._tetherDestroyed = false;
 		this._choices  = {};          // effect kind → chosen option slug / text
@@ -124,6 +126,8 @@ export class UndeathDialog extends StonetopDialog {
 		// three when only two exist would leave the Apply button dead forever.
 		const available = effects.filter(e => !e.exhausted).length;
 		const pick = Math.min(tier?.pick ?? 0, available);
+		// Unholy Vessel: the move demands a Mark and there is none left to gain. Nothing else is asked.
+		const unholyVessel = this._isUnholyVessel();
 		return {
 			moveName:  this._moveName,
 			trigger:   this._character?.zeroHpMove?.trigger ?? "",
@@ -141,7 +145,12 @@ export class UndeathDialog extends StonetopDialog {
 			pickedCount: this._picked.size,
 			// "All 3 apply" is not a choice — say so instead of asking them to tick three boxes.
 			allApply:    pick >= available && available > 0,
-			canApply:    this._picked.size === pick && this._choicesComplete(),
+			canApply:    unholyVessel || (this._picked.size === pick && this._choicesComplete()),
+			unholyVessel: unholyVessel ? {
+				label:   localize(`${_I18N}.unholyVessel.label`),
+				warning: localize(`${_I18N}.unholyVessel.warning`),
+			} : null,
+			applyLabel:  unholyVessel ? localize(`${_I18N}.unholyVessel.apply`) : "",
 
 			hp,
 			// The note rides on the resolution spec, not on a table keyed by the move's display
@@ -158,6 +167,11 @@ export class UndeathDialog extends StonetopDialog {
 			needsTether: !!res?.disperses && !(this._tether ?? this._character.tether),
 			alternative:     tier?.alternative ?? null,
 			resetsFavor:     !!res?.alwaysResetFavor,
+			// A task set by an earlier Dark Succor and never finished: the new one replaces it (the
+			// sheet holds one), so the player is told before they write over it.
+			standingTask:    this._character?.masterTask
+				? format(`${_I18N}.taskStanding`, { task: this._character.masterTask })
+				: "",
 
 			applied: this._applied,
 			summary: this._summary ?? [],
@@ -189,14 +203,23 @@ export class UndeathDialog extends StonetopDialog {
 	 * Only the kinds that spend from a list can run out. A `task` is written, not picked from
 	 * anything, so it is never exhausted — and _optionsFor returns [] for it, which is why the
 	 * membership test has to come first rather than the emptiness check standing alone.
+	 *
+	 * Crossing off is counted off what it may actually OFFER (_selectableFor), because the book puts
+	 * it second: "Gain a new Mark of the GM's choice", then "Cross off a Mark that you don't have".
+	 * With one Mark left and a 6- demanding both, the gain takes it and there is no Mark left that
+	 * they don't have, so the cross-off has nothing to spend. Counted off _optionsFor as well, the
+	 * two dropdowns both wanted the same last Mark, each hid it from the other, and Apply never
+	 * lit (the deadlock, 2026-09-27). Gaining is still counted off everything: a Mark crossed off
+	 * first must not talk the gain out of being owed, which is what makes Unholy Vessel.
 	 */
 	_isExhausted(kind) {
-		return _OPTION_KINDS.has(kind) && this._optionsFor(kind).length === 0;
+		if (!_OPTION_KINDS.has(kind)) return false;
+		return (kind === "mark-crossoff" ? this._selectableFor(kind) : this._optionsFor(kind)).length === 0;
 	}
 
 	/**
 	 * What a dropdown may actually OFFER: everything the kind has left, less the Mark its opposite
-	 * number is already spending.
+	 * number is spending.
 	 *
 	 * mark-gain keeps `!o.blocked` and mark-crossoff keeps `!o.marked && !o.crossedOff`, and those
 	 * two overlap on every Mark the character neither holds nor has already lost. A 6- on Dark
@@ -205,23 +228,83 @@ export class UndeathDialog extends StonetopDialog {
 	 * never gain them", the checkbox beside it is disabled so it can never be unticked again, and
 	 * its 2 max HP are gone for good.
 	 *
-	 * Deliberately NOT folded into _optionsFor, which answers the different question _isExhausted
-	 * counts by — "has this cost anything left to spend at all". One dropdown's pick declaring the
-	 * other exhausted would drop the tier's `available`, and with it the number of costs the move
-	 * is allowed to demand.
+	 * The gain comes first (see _isExhausted), so while it is taken the cross-off also leaves alone
+	 * the one Mark it could gain when there is only one: that Mark is spoken for before it is chosen.
 	 */
 	_selectableFor(kind) {
-		const opposite = kind === "mark-gain" ? "mark-crossoff" : kind === "mark-crossoff" ? "mark-gain" : null;
-		const taken = opposite ? this._choices[opposite] : null;
 		const options = this._optionsFor(kind);
-		return taken ? options.filter(o => o.slug !== taken) : options;
+		if (kind === "mark-gain") {
+			const taken = this._choices["mark-crossoff"];
+			return taken ? options.filter(o => o.slug !== taken) : options;
+		}
+		if (kind === "mark-crossoff") {
+			const gains = this._optionsFor("mark-gain");
+			const reserved = this._choices["mark-gain"]
+				|| (this._picked.has("mark-gain") && gains.length === 1 ? gains[0].slug : null);
+			return reserved ? options.filter(o => o.slug !== reserved) : options;
+		}
+		return options;
+	}
+
+	/**
+	 * Keep the picks honest after anything that moves them: a cost that has run out is no longer
+	 * taken (it shows as exhausted, and the tier's `pick` has already stopped counting it), and a
+	 * choice its dropdown no longer offers is dropped rather than left to be written. Repeated until
+	 * nothing moves, since dropping one choice can put an option back in the other dropdown.
+	 */
+	_prunePicks() {
+		for (let changed = true; changed;) {
+			changed = false;
+			for (const kind of [...this._picked]) {
+				if (this._isExhausted(kind)) {
+					this._picked.delete(kind);
+					delete this._choices[kind];
+					changed = true;
+				} else if (_OPTION_KINDS.has(kind) && this._choices[kind]
+					&& !this._selectableFor(kind).some(o => o.slug === this._choices[kind])) {
+					delete this._choices[kind];
+					changed = true;
+				}
+			}
+		}
+	}
+
+	/** Take or give back one of the move's costs. */
+	_setPicked(kind, on) {
+		if (on) this._picked.add(kind);
+		else { this._picked.delete(kind); delete this._choices[kind]; }
+		this._prunePicks();
+	}
+
+	/** Choose the option a cost spends (a Consequence, a Mark), or the task's words. */
+	_setChoice(kind, value) {
+		this._choices[kind] = value;
+		this._prunePicks();
+	}
+
+	/**
+	 * Unholy Vessel (the Thrall's own move): "When you would gain a Mark but there are none left to gain,
+	 * your humanity is utterly lost. You become a threat in the GM's control. Make a new character."
+	 *
+	 * "Would gain" is the move demanding it: the tier asks for more costs than the others can cover
+	 * without the gain (a 6-'s all three, or a 7-9's two with nothing but the task left), and there
+	 * is no Mark to gain. A 10+ that can be paid with the task never comes here. Before this, the
+	 * exhausted gain was quietly let off (`pick` counts only what is left), so a Thrall who had spent
+	 * every Mark simply could not be lost.
+	 */
+	_isUnholyVessel() {
+		const res  = this._resolution;
+		const tier = resolutionTier(res, this._tierKey);
+		const effects = res?.effects ?? [];
+		if (!tier || !effects.some(e => e.kind === "mark-gain") || !this._isExhausted("mark-gain")) return false;
+		return tier.pick > effects.filter(e => !this._isExhausted(e.kind)).length;
 	}
 
 	/** Every picked effect that needs a choice has one, and no Mark is being gained and lost at once. */
 	_choicesComplete() {
 		for (const kind of this._picked) {
 			if (kind === "task") { if (!String(this._choices.task ?? "").trim()) return false; continue; }
-			if (this._optionsFor(kind).length && !this._choices[kind]) return false;
+			if (this._selectableFor(kind).length && !this._choices[kind]) return false;
 		}
 		// Behind _selectableFor rather than instead of it: the two selects are independent, so a
 		// choice made before its opposite number narrowed the list survives until a re-render, and
@@ -257,14 +340,12 @@ export class UndeathDialog extends StonetopDialog {
 		});
 
 		html.find(".undeath-effect-check").on("change", (ev) => {
-			const kind = ev.currentTarget.dataset.kind;
-			if (ev.currentTarget.checked) this._picked.add(kind);
-			else { this._picked.delete(kind); delete this._choices[kind]; }
+			this._setPicked(ev.currentTarget.dataset.kind, ev.currentTarget.checked);
 			this.render(true);
 		});
 
 		html.find(".undeath-effect-select").on("change", (ev) => {
-			this._choices[ev.currentTarget.dataset.kind] = ev.currentTarget.value;
+			this._setChoice(ev.currentTarget.dataset.kind, ev.currentTarget.value);
 			this.render(true);
 		});
 
@@ -298,8 +379,10 @@ export class UndeathDialog extends StonetopDialog {
 			return;
 		}
 		if (tier.pick >= (this._resolution.effects?.length ?? 0)) {
+			// In the book's order, so the gain is taken before the cross-off asks what is left for it.
 			for (const e of this._resolution.effects) if (!this._isExhausted(e.kind)) this._picked.add(e.kind);
 		}
+		this._prunePicks();
 	}
 
 	async _onRoll() {
@@ -342,50 +425,22 @@ export class UndeathDialog extends StonetopDialog {
 		}
 	}
 
-	/** Enact the tier: the HP it restores, then each effect the player took. */
+	/**
+	 * Enact the tier: the HP it restores, each effect the player took, and the state it leaves them
+	 * in, as ONE write. It used to be a run of them (the HP, then each cost, then the state), and a
+	 * reload between two left a Revenant back up with the costs unpaid, or marked and maimed but
+	 * still dying and offered the move again. Each piece is built as an update fragment and the lot
+	 * lands together, so a failure writes nothing and the latch rolls back to a clean retry.
+	 */
 	async _onApply() {
 		if (this._applied) return;
-		const res  = this._resolution;
-		const tier = resolutionTier(res, this._tierKey);
+		const tier = resolutionTier(this._resolution, this._tierKey);
 		if (!tier) return;
 		this._applied = true;
 
-		const done = [];
+		let done;
 		try {
-			// A tether named here (the Ghost's first Tethered, usually) is theirs from now on.
-			const tether = String(this._tether ?? "").trim();
-			if (res.disperses && tether && tether !== this._character.tether) {
-				await this._character.setTether(tether);
-				done.push(`Bound to <strong>${escHtml(tether)}</strong>.`);
-			}
-
-			const hp = resolvedHp(tier, this._maxHp ?? 0);
-			if (hp !== null && await this._character.restoreHp(hp, this._moveName)) done.push(`Back to <strong>${hp} HP</strong>.`);
-
-			for (const kind of this._picked) done.push(...await this._applyEffect(kind));
-
-			// "Regardless, reset your Favor to 0."
-			if (res.alwaysResetFavor && this._character.favor() > 0) {
-				await this._character.setFavor(0);
-				done.push("Favor reset to <strong>0</strong>.");
-			}
-
-			if (this._tetherDestroyed) {
-				// There is nothing left to reform beside. The Final Consequence is the end of them
-				// as a player character — "your tenuous connection to humanity is lost and you
-				// become a monster under the GM's control" — so they leave play rather than sitting
-				// in a state that offers to bring them back.
-				await this._character.markSectionOption(_CONSEQUENCES, _FINAL_CONSEQUENCE);
-				await this._character.setDeathsDoorState(DEATHS_DOOR_STATE.DEAD);
-				done.push("Your tether is destroyed: marked <strong>the Final Consequence</strong>. You pass into the GM's hands.");
-			} else {
-				// Otherwise they are no longer dying — all three moves avert the death. They're out
-				// of the action if the move says so (Undying's second cost), if their essence has
-				// dispersed (Tethered), or if the move states no recovery and leaves it to the GM
-				// (Dark Succor). Clearing that state is how they come back.
-				const down = this._picked.has("out-of-action") || !!res.disperses || hp === null;
-				await this._character.setDeathsDoorState(down ? DEATHS_DOOR_STATE.OUT_OF_ACTION : null);
-			}
+			done = this._isUnholyVessel() ? await this._applyUnholyVessel() : await this._applyTier(tier);
 		} catch (err) {
 			this._applied = false;
 			throw err;
@@ -394,9 +449,76 @@ export class UndeathDialog extends StonetopDialog {
 		this._summary = done;
 		this._step = "done";
 		await this._post(done);
-		// Guarded: everything above is server round trips (the HP write, each effect, the chat
-		// card), and a window closed part-way through them must not pop back open.
+		// Guarded: the write and the chat card are server round trips, and a window closed while
+		// they were in flight must not pop back open.
 		this.renderIfOpen();
+	}
+
+	/**
+	 * The one write. restoreHp is the seam that lands HP with more of the same decision (`alsoUpdate`),
+	 * and it writes that alone when the HP would not rise, so a move that restores nothing (Tethered,
+	 * Dark Succor) is handed 0 and still makes exactly one write. Whether the HP rose.
+	 */
+	async _write(hp, update) {
+		return this._character.restoreHp(hp ?? 0, this._moveName, { alsoUpdate: update });
+	}
+
+	/** The tier's costs, HP and state, in the one write. Returns the summary lines. */
+	async _applyTier(tier) {
+		const res    = this._resolution;
+		const update = {};
+		const add    = (fragment) => { if (fragment) Object.assign(update, fragment); return !!fragment; };
+		const lines  = { tether: [], effects: [], after: [] };
+
+		// A tether named here (the Ghost's first Tethered, usually) is theirs from now on.
+		const tether = String(this._tether ?? "").trim();
+		if (res.disperses && tether && tether !== this._character.tether) {
+			add(this._character.tetherUpdateData(tether));
+			lines.tether.push(`Bound to <strong>${escHtml(tether)}</strong>.`);
+		}
+
+		for (const kind of this._picked) lines.effects.push(...this._effectUpdate(kind, add));
+
+		// "Regardless, reset your Favor to 0."
+		if (res.alwaysResetFavor && this._character.favor() > 0) {
+			add(this._character.favorUpdateData(0));
+			lines.after.push("Favor reset to <strong>0</strong>.");
+		}
+
+		const hp = resolvedHp(tier, this._maxHp ?? 0);
+		if (this._tetherDestroyed) {
+			// There is nothing left to reform beside. The Final Consequence is the end of them
+			// as a player character ("your tenuous connection to humanity is lost and you
+			// become a monster under the GM's control"), so they leave play rather than sitting
+			// in a state that offers to bring them back.
+			add(this._character.markSectionOptionUpdateData(_CONSEQUENCES, _FINAL_CONSEQUENCE));
+			add(this._character.deathsDoorStateUpdateData(DEATHS_DOOR_STATE.DEAD));
+			lines.after.push("Your tether is destroyed: marked <strong>the Final Consequence</strong>. You pass into the GM's hands.");
+		} else {
+			// Otherwise they are no longer dying: all three moves avert the death. They're out
+			// of the action if the move says so (Undying's second cost), if their essence has
+			// dispersed (Tethered), or if the move states no recovery and leaves it to the GM
+			// (Dark Succor). "Back on your feet" on the Special Moves card is how they come back.
+			const down = this._picked.has("out-of-action") || !!res.disperses || hp === null;
+			add(this._character.deathsDoorStateUpdateData(down ? DEATHS_DOOR_STATE.OUT_OF_ACTION : null));
+		}
+
+		// The HP the write actually left, not the tier's number: a slow healer (Torment's Blessing)
+		// recovers only half of it.
+		const raised = await this._write(hp, update);
+		const hpLine = hp !== null && raised ? [`Back to <strong>${this._character.hp} HP</strong>.`] : [];
+		return [...lines.tether, ...hpLine, ...lines.effects, ...lines.after];
+	}
+
+	/**
+	 * Unholy Vessel: the Thrall is lost. Nothing else of the move is paid, since there is no one left
+	 * to pay it; the state goes to `dead` (out of play, and the Special Moves card says how) in one
+	 * write, and the table is told to make a new character.
+	 */
+	async _applyUnholyVessel() {
+		await this._write(null, this._character.deathsDoorStateUpdateData(DEATHS_DOOR_STATE.DEAD));
+		const name = escHtml(this._character?._actor?.name ?? "");
+		return [format(`${_I18N}.unholyVessel.summary`, { name })];
 	}
 
 	/**
@@ -406,74 +528,86 @@ export class UndeathDialog extends StonetopDialog {
 	 */
 	_onApplyFailed(err) { this.reportWriteFailure("undeath resolution", err); }
 
-	/** One effect, applied. Returns the lines it contributes to the summary. */
-	async _applyEffect(kind) {
+	/**
+	 * One effect, as its part of the one write: `add` takes the fragment (and answers whether there
+	 * was one; a model that would refuse, say an option already marked, hands back none). Returns the
+	 * lines it contributes to the summary.
+	 *
+	 * The maiming no longer has to be remembered against a retry: a wound is appended to a list, so
+	 * a second attempt used to append a second wound whenever a failure came after it, but a failure
+	 * of the one write now leaves nothing behind to append to.
+	 */
+	_effectUpdate(kind, add) {
 		const label = (section, slug) => this._sections[section].find(o => o.slug === slug)?.label ?? slug;
 
 		if (kind === "consequence") {
 			const slug = this._choices.consequence;
-			if (!slug || !await this._character.markSectionOption(_CONSEQUENCES, slug)) return [];
+			if (!slug || !add(this._character.markSectionOptionUpdateData(_CONSEQUENCES, slug))) return [];
 			return [`Marked the consequence <strong>${escHtml(label(_CONSEQUENCES, slug))}</strong>.`];
 		}
 		if (kind === "mark-gain") {
 			const slug = this._choices["mark-gain"];
-			if (!slug || !await this._character.markSectionOption(_MARKS, slug)) return [];
+			if (!slug || !add(this._character.markSectionOptionUpdateData(_MARKS, slug))) return [];
 			return [`Gained the Mark <strong>${escHtml(label(_MARKS, slug))}</strong>.`];
 		}
 		if (kind === "mark-crossoff") {
 			const slug = this._choices["mark-crossoff"];
-			if (!slug || !await this._character.crossOffMark(slug)) return [];
+			if (!slug || !add(this._character.crossOffMarkUpdateData(slug))) return [];
 			return [`Crossed off <strong>${escHtml(label(_MARKS, slug))}</strong>: it can never be gained.`];
 		}
 		if (kind === "task") {
 			const text = String(this._choices.task ?? "").trim();
 			if (!text) return [];
-			await this._character.setMasterTask(text);
+			add(this._character.masterTaskUpdateData(text));
 			return [`Your master sets a task: <em>${escHtml(text)}</em>. Favor stays at 0 until it's done.`];
 		}
 		if (kind === "maim") {
-			// Remembered, because this is the ONE effect here that is not idempotent on its own.
-			// The others all ask the model to mark something already marked and are told no
-			// (markSectionOption, crossOffMark) or overwrite a single field (setMasterTask); a
-			// wound is appended to a list, so a second attempt appends a second wound. _onApply
-			// rolls its latch back on a failure precisely so the player CAN click again — which
-			// turned one maiming into two whenever the failure came after this line.
-			if (this._maimed) return [];
 			// "…permanently maimed in some way of the GM's choosing" — a permanent wound is
 			// exactly the sheet's record for that, and it prompts them to name it.
-			await this._character.addWound({
+			add(this._character.addWoundUpdate({
 				text: "Permanently maimed: the GM says how",
 				status: "permanent",
 				origin: "wound",
-			});
-			this._maimed = true;
+			}).update);
 			return ["Recorded a <strong>permanent maiming</strong> on your wound list."];
 		}
 		if (kind === "out-of-action") return ["Out of the action until the next sunset."];
 		return [];
 	}
 
-	/** The Revenant's 6- alternative: give up this insert and become a Ghost instead. */
+	/**
+	 * The Revenant's 6- alternative: give up this insert and become a Ghost instead.
+	 *
+	 * The swap is one write (StonetopCharacter#setPostDeathInsert): the slug, and out of the action at
+	 * 0 HP, since they are dying as they take it. Then they are asked for a FRESH first Consequence,
+	 * in the same window every Ghost is asked in (Death's Door's choices step). What the Revenant held
+	 * is read before the swap: the prune keeps the Consequences both inserts print, and those do not
+	 * answer the Ghost's "choose 1 Consequence".
+	 */
 	async _onAlternative(slug) {
 		if (this._applied || !slug) return;
 		this._applied = true;
+		let carried;
 		try {
+			const held = (await this._character.sectionOptions(_CONSEQUENCES)).filter(o => o.marked).map(o => o.slug);
+			carried = { [_CONSEQUENCES]: held };
 			await this._character.setPostDeathInsert(slug);
-			// This fork restores no HP — the body they were clinging to is given up. They're not
-			// dying any more, but they're not up either; the GM says when the spirit is present.
-			await this._character.setDeathsDoorState(DEATHS_DOOR_STATE.OUT_OF_ACTION);
 		} catch (err) {
 			this._applied = false;
 			throw err;
 		}
-		this._summary = [
-			"Gave up the Revenant insert and became a <strong>Ghost</strong>. Choose your Terrible Purpose and your first Consequence on the Post-Death tab.",
-			"Your body is given up, so no HP comes back — you're out of the action until the GM says otherwise.",
-		];
+		this._summary = [localize(`${_I18N}.becameGhost`), localize(`${_I18N}.ghostDown`)];
 		this._step = "done";
 		await this._post(this._summary);
-		// Guarded, like _onApply: setPostDeathInsert alone is a prune and several writes.
-		this.renderIfOpen();
+		// Straight on to the Ghost's questions. This window's work is done and its summary is on the
+		// chat card, so it gives way rather than standing open beside the next one.
+		await this.close();
+		await this._openChoices(carried);
+	}
+
+	/** The Ghost's questions, in Death's Door's choices step. Its own method so a test can stand in for the window. */
+	_openChoices(carried) {
+		return DeathsDoorDialog.openChoices(this._character, this._onDone, { carried, taken: "undying" });
 	}
 
 	async _post(lines) {

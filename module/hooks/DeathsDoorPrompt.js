@@ -94,10 +94,16 @@ export function onPreUpdateActorDeathsDoor(actor, changes, options = {}) {
 			state:      resolvedFlagProperty(actor, DEATHS_DOOR_FLAG) ?? null,
 			insertSlug: resolvedFlagProperty(actor, "postDeathInsert.slug") ?? null,
 		});
-		const next  = nextDeathsDoorState({ oldHp, newHp, state });
+		// A write that settles the Door names the state it leaves them in, and that is its call, not the
+		// hit points': Undying's "regain half your max HP" beside "you're out of the action until the next
+		// sunset" is HP up AND out of the action, in one write (dialogs/UndeathDialog.js#_onApply), which the
+		// HP rule alone would read as "back up, no state" and overwrite.
+		const next  = settlesDoor
+			? (foundry.utils.getProperty(changes, `flags.${STONETOP_SCOPE}.${DEATHS_DOOR_FLAG}`) ?? null)
+			: nextDeathsDoorState({ oldHp, newHp, state });
 
 		if (next !== state) {
-			foundry.utils.setProperty(changes, `flags.${STONETOP_SCOPE}.${DEATHS_DOOR_FLAG}`, next ?? null);
+			if (!settlesDoor) foundry.utils.setProperty(changes, `flags.${STONETOP_SCOPE}.${DEATHS_DOOR_FLAG}`, next ?? null);
 			// A Death's Door roll in progress belongs to ONE brush with death (DEATHS_DOOR_ROLLING_FLAG). Going
 			// down afresh, or being brought back up before it lands (the 10+'s own hit point included), ends it
 			// in this same write: a marker left over from an earlier visit must never tell the next one that

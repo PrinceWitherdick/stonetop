@@ -298,6 +298,11 @@ export class DeathsDoorDialog extends StonetopDialog {
 		// What the insert asks for once one is taken. Loaded on the way into the "choices" step
 		// (it reaches the compendium), null everywhere else.
 		this._choices = null;
+		// Options held before this insert was taken, `{ [section]: slugs }`, that do not answer its
+		// questions (buildPostDeathChoices' `carried`), and the words the step opens with when the insert
+		// came from somewhere other than this window's own fates. Both set by openChoices.
+		this._carried = {};
+		this._takenAs = null;
 		// Which of the insert's questions the rail is showing. Latched on the instance rather than
 		// derived per render because that step re-renders on every answer, and a cursor recomputed
 		// each time would move itself: answering the question you are looking at would swap the
@@ -309,6 +314,23 @@ export class DeathsDoorDialog extends StonetopDialog {
 		// Whether the window has already been resized for the rail sheet. One-shot, so a player who
 		// resizes the window mid-question doesn't have it snapped back on their next click.
 		this._sizedForChoices = false;
+	}
+
+	/**
+	 * Straight to the insert's questions, for an insert taken somewhere other than this window's fates:
+	 * Undying's 6- that gives up the Revenant for the Ghost (UndeathDialog#_onAlternative). The same step,
+	 * rail and rules as a 6- here, so a Ghost is asked for their first Consequence the one way every Ghost
+	 * is. `carried` is what they held before, which does not answer it; `taken` names the `taken.*` words
+	 * (languages/en.json) the step opens with.
+	 */
+	static async openChoices(character, onDone, { carried = {}, taken = null } = {}) {
+		const dialog = new DeathsDoorDialog(character, onDone);
+		dialog._step    = "choices";
+		dialog._carried = carried ?? {};
+		dialog._takenAs = taken ? _taken(taken) : null;
+		await dialog._refreshChoices();
+		dialog.render(true);
+		return dialog;
 	}
 
 	/**
@@ -491,7 +513,7 @@ export class DeathsDoorDialog extends StonetopDialog {
 			choices:          choices,
 			insertName:       this._choices?.name ?? "",
 			// Told in the terms of the fate that was actually taken — see _INSERT_TAKEN.
-			choicesIntro:     (_INSERT_TAKEN[this._choices?.slug] ?? _REFUSED).intro,
+			choicesIntro:     (this._takenAs ?? _INSERT_TAKEN[this._choices?.slug] ?? _REFUSED).intro,
 			outstandingLabel: outstandingLabel(this._choices),
 
 			// One rail entry per question. The label is the step's `short` name, the same words the
@@ -1531,9 +1553,10 @@ export class DeathsDoorDialog extends StonetopDialog {
 		if (this._fateApplied || !slug) return;
 		this._fateApplied = true;
 		try {
-			// They died and came back: no longer dying, and emphatically not dead. From here on
-			// 0 HP triggers the insert's own move, not Death's Door again. That clear rides IN the
-			// slug's own write rather than following it as a second one — as a pair, a reload
+			// They died and came back: no longer dying, and emphatically not dead, but out of the
+			// action at 0 HP until they are back on their feet (the Special Moves card's button). From
+			// here on 0 HP triggers the insert's own move, not Death's Door again. That state rides IN
+			// the slug's own write rather than following it as a second one: as a pair, a reload
 			// landing between them left a Ghost still flagged `fate-pending`, and the whole sheet
 			// then insisted Death's Door was owed by someone who had just answered it.
 			await this._character.setPostDeathInsert(slug);
@@ -1566,7 +1589,7 @@ export class DeathsDoorDialog extends StonetopDialog {
 		// of these can be open at once (see the id in the constructor) a shared suffix would put
 		// two characters' Purposes in one group — clicking in one would clear the other.
 		const id = this._character?._actor?.id ?? "unknown";
-		this._choices = await buildPostDeathChoices(this._character, { group: `deathsdoor-${id}` });
+		this._choices = await buildPostDeathChoices(this._character, { group: `deathsdoor-${id}`, carried: this._carried });
 		this._latchChoiceStep();
 	}
 

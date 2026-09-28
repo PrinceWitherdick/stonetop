@@ -124,6 +124,17 @@ describe("who sees which button", () => {
 		expect(offersFor({ message })).toEqual([]);
 	});
 
+	// B9: Undying's and Dark Succor's windows apply the tier the dice gave, so a +1 on the card afterwards
+	// would relabel it under costs already paid.
+	it("offers nothing on an insert's 0-HP move card either", () => {
+		for (const slug of ["revenant", "thrall"]) {
+			const message = card();
+			message.flags[SCOPE].rolled = { move: ZERO_HP_MOVES[slug].name };
+			expect(isBoostableRoll(message), slug).toBe(false);
+			expect(offersFor({ message }), slug).toEqual([]);
+		}
+	});
+
 	it("hides a source once that helper has used it on this roll, and only that one", () => {
 		const message = card({ boosts: [{ source: "diligence", by: "Actor.judge", name: "Aeron" }] });
 		expect(offersFor({ message })).toEqual(["manyHands:Aeron"]);

@@ -82,6 +82,23 @@ describe("onPreUpdateActorDeathsDoor — the state a hit records", () => {
 		expect(recorded(actor, 0)).toBeUndefined();
 	});
 
+	// A write that settles the Door names its own state, and the hit points in it must not overrule it:
+	// Undying's "regain half your max HP" with "out of the action until the next sunset" is HP up AND
+	// out of the action in one write (UndeathDialog#_onApply). Read as HP alone it came back "no state".
+	it("keeps the state a settling write names, even with hit points coming back in it", () => {
+		const actor = about({ deathsDoor: DEATHS_DOOR_STATE.DYING, deathsDoorRolling: { userId: "p1", nonce: "n1" } }, 0);
+		const changes = {
+			system: { attributes: { hp: { value: 6 } } },
+			flags: { "stonetop-pwd": { deathsDoor: DEATHS_DOOR_STATE.OUT_OF_ACTION } },
+		};
+
+		onPreUpdateActorDeathsDoor(actor, changes, {});
+
+		expect(changes.flags["stonetop-pwd"].deathsDoor).toBe(DEATHS_DOOR_STATE.OUT_OF_ACTION);
+		// Still the end of this brush with death, so a roll left on the sheet goes with it.
+		expect(changes.flags["stonetop-pwd"]).toHaveProperty(["-=deathsDoorRolling"], null);
+	});
+
 	// Nothing walks `dead` back on its own — the raise is asked about, never assumed.
 	it("writes no state change when a dead character is given hit points", () => {
 		const actor = about({ deathsDoor: DEATHS_DOOR_STATE.DEAD }, 0);

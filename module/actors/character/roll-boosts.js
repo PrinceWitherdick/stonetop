@@ -42,7 +42,7 @@ import { askGMClient, queryAsker, resolveSync } from "../../utils/foundry-compat
 import { holdForEach, shareHold } from "../../utils/share-hold.js";
 import { speakerActor } from "../../utils/speaker-actor.js";
 import { ownerUsers } from "../../hooks/DeathsDoorPrompt.js";
-import { isDeathsDoorCard } from "./deaths-door.js";
+import { isZeroHpMoveCard } from "./deaths-door.js";
 import { ownsLearnedMoveNamed, ownedMove } from "./owns-move.js";
 import { heldOnTrack, learnedTrack, takeBackHeld } from "./MoveResources.js";
 
@@ -91,13 +91,14 @@ export function boostsOn(message, scope = SYSTEM_ID) {
  * is not a damage card. Read off the stored flavor rather than the rendered card, so the GM's client
  * answering a relayed press asks the same question the button did. PURE.
  *
- * Not Death's Door's card either: its window settles the tier when the dice land, so a +1 pressed on the
- * card afterwards would relabel it, spend the helper's hold, and change nothing (deaths-door.js#isDeathsDoorCard).
+ * Not a 0-HP move's card either (Death's Door, Undying, Dark Succor): each one's window settles the tier when
+ * the dice land, so a +1 pressed on the card afterwards would relabel it, spend the helper's hold, and change
+ * nothing (deaths-door.js#isZeroHpMoveCard).
  */
 export function isBoostableRoll(message, scope = SYSTEM_ID) {
 	if (!message?.rolls?.length) return false;
 	if (message.getFlag?.(scope, "damage")) return false;
-	if (isDeathsDoorCard(message)) return false;
+	if (isZeroHpMoveCard(message)) return false;
 	const flavor = String(message.flavor ?? "");
 	return flavor.includes("stonetop-roll-result-label") && !flavor.includes("stonetop-damage-roll-card");
 }

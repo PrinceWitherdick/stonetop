@@ -44,7 +44,7 @@ import {moveMarkBudget, markOptionCapNote} from "./move-mark-budget.js";
 import {markEntries, filledMarks, filledMarkCount, trimEmptyTail, oncePerLevelCautions, ONCE_PER_LEVEL_MARKS} from "./pfg-marks.js";
 import {MARK_STAT_CAPS} from "./stat-rules.js";
 import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
-import {DEATHS_DOOR_FLAG, UNSTOPPABLE, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
+import {DEATHS_DOOR_FLAG, FINAL_CONSEQUENCE, UNSTOPPABLE, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, lostToTheGm, stateOnTakingInsert, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
 import {heroDisplayName, WBH_HERO_FLAG} from "./WouldBeHeroAsterisk.js";
 import {tookBackground} from "./took-background.js";
 import {ownedNamesOr, ownedLearnedMove, ownsLearnedMoveNamed, moveLearnedIn, switchedOffGranter, ownedMoveNames, ownsMoveNamed} from "./owns-move.js";
@@ -2162,9 +2162,17 @@ export class StonetopCharacter {
 		// holds the tab open (it shows the fate picker, which is the whole point of removing one);
 		// taking an insert shows the tab on its own merits, so the request is dropped rather than
 		// left to outlive the question. See CharacterPostDeath#tabRequested.
+		//
+		// Ending the brush with death is not getting up (the user's ruling, 2026-09-27): taken at the
+		// Door (dying, owing a fate, or dead), the insert returns them OUT OF THE ACTION at 0 HP, and
+		// the Special Moves card's "Back on your feet" brings them up with half their max HP. A
+		// Revenant's Undying 6- that gives up the body for a Ghost comes through here too, from dying.
+		// See deaths-door.js#stateOnTakingInsert.
+		const taken = slug ? stateOnTakingInsert(this.deathsDoorState) : null;
 		await this._actor.update({
 			...this._postDeath.slugUpdateData(slug),
-			...(slug ? this._clearDeathsDoorUpdate : {}),
+			...(taken ? { [`flags.${STONETOP_SCOPE}.${DEATHS_DOOR_FLAG}`]: taken.state } : {}),
+			...(taken?.atTheDoor && this.hp !== 0 ? { "system.attributes.hp.value": 0 } : {}),
 			...(this._postDeath.tabRequestUpdateData(!slug) ?? {}),
 		});
 		if (slug) {
@@ -5709,6 +5717,31 @@ export class StonetopCharacter {
 	favor()                 { return this._postDeath.favor(); }
 	async setFavor(v)       { await this._postDeath.setFavor(v); }
 
+	// The same writes as `actor.update()` fragments, for a 0-HP move that lands its costs, its hit
+	// points and its state in ONE write (UndeathDialog#_onApply). Null where the writing twin would
+	// refuse (already marked, already crossed off). See CharacterPostDeath.
+	markSectionOptionUpdateData(section, option) { return this._postDeath.markSectionOptionUpdateData(section, option); }
+	crossOffMarkUpdateData(s)  { return this._postDeath.crossOffMarkUpdateData(s); }
+	masterTaskUpdateData(t)    { return this._postDeath.masterTaskUpdateData(t); }
+	tetherUpdateData(t)        { return this._postDeath.tetherUpdateData(t); }
+	favorUpdateData(v)         { return this._postDeath.favorUpdateData(v); }
+	/** The Death's Door state as a fragment, written as the caller's decision (see DeathsDoorPrompt's preUpdate). */
+	deathsDoorStateUpdateData(state) { return { [`flags.${STONETOP_SCOPE}.${DEATHS_DOOR_FLAG}`]: state ?? null }; }
+
+	/**
+	 * How this character left play, when it was not through the Last Door: "monster" for a Ghost or
+	 * Revenant who marked the Final Consequence, "threat" for a Thrall lost to Unholy Vessel, else null.
+	 * The rule is deaths-door.js#lostToTheGm; this reads the state and the Final Consequence's tick for it.
+	 */
+	get lostToTheGm() {
+		const { section, option } = FINAL_CONSEQUENCE;
+		return lostToTheGm({
+			state:            resolvedFlagProperty(this._actor, DEATHS_DOOR_FLAG) ?? null,
+			insertSlug:       this._postDeath.activeSlug,
+			finalConsequence: this._postDeath.lore.getCount(section, option) > 0,
+		});
+	}
+
 	/**
 	 * Which insert is worn, and the two readers a chooser needs that the sheet snapshot doesn't
 	 * carry cheaply: the insert's own Instincts, and one written lore value. Together with
@@ -5868,6 +5901,13 @@ export class StonetopCharacter {
 		const wound  = _normalizeWound(data, { keepId: false });
 		await this._writeWounds([...this._woundList(), wound]);
 		return wound.id;
+	}
+
+	// addWound as an `actor.update()` fragment, for a move landing the wound in one write with the rest
+	// of what it does (Undying's maiming, with its hit points and state). `{update, id}`.
+	addWoundUpdate(data = {}) {
+		const wound = _normalizeWound(data, { keepId: false });
+		return { update: { "system.attributes.wounds": [...this._woundList(), wound] }, id: wound.id };
 	}
 
 	// Patch an existing wound in place (status, text, notes, tag, …).

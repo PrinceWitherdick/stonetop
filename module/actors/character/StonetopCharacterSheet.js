@@ -16,7 +16,7 @@ import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
 import {UndeathDialog} from "./dialogs/UndeathDialog.js";
 import {buildPostDeathChoices, choiceWriteIns} from "./post-death-choices.js";
 import {moveActionsFor, runPostDeathAction} from "./post-death-actions.js";
-import {DEATHS_DOOR_STATE, HARD_TO_KILL, PAST_DEATH_KINDS, POST_DEATH_INSERT_SLUGS, pastDeathClasses, pastDeathKind, resolvedHp, zeroHpMove} from "./deaths-door.js";
+import {DEATHS_DOOR_STATE, HARD_TO_KILL, PAST_DEATH_KINDS, POST_DEATH_INSERT_SLUGS, ZERO_HP_MOVES, halfMaxHp, pastDeathClasses, pastDeathKind, zeroHpMove} from "./deaths-door.js";
 import {WoundDialog} from "./dialogs/WoundDialog.js";
 import {WOUND_STATUS_GLYPH, WOUND_STATUS_LABEL} from "./wound-display.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
@@ -432,10 +432,20 @@ const MOVE_ROLL_EFFECTS = {
 // An Invoke the Sun God roll that has not said which Invocation it is for (no pick context: the Moves
 // tab, the hotbar, the fight ring) asks that first and goes the way a tap on that Invocation does
 // (_invokeWhichInvocation); the invoke window's own roll always carries one, and is not asked again.
+//
+// The inserts' own 0-HP moves are the same case as Hard to Kill: Undying, Tethered and Dark Succor are
+// resolved by their walkthrough (UndeathDialog), which marks the costs, and a plain card from the hotbar or
+// the Moves tab resolved nothing (Undying's even paid +1 XP on the miss the walkthrough does not).
 const MOVE_ROLL_INSTEAD = {
 	[HARD_TO_KILL]:       async sheet => { await sheet._rollHardToKill(); return true; },
 	[INVOKE_THE_SUN_GOD]: (sheet, { shiftKey, pickContext }) => !pickContext && sheet._invokeWhichInvocation({ shiftKey }),
+	...Object.fromEntries(POST_DEATH_INSERT_SLUGS.map(slug => ZERO_HP_MOVES[slug].name)
+		.map(name => [name, sheet => sheet._rollUndeathMove(name)])),
 };
+
+// The Death's Door card's words for someone who left play without passing the Last Door
+// (deaths-door.js#lostToTheGm), by how. Anyone else who is `dead` reads the plain deadHint.
+const _LOST_HINT = { monster: "monsterHint", threat: "threatHint" };
 
 /** Which sentence the scales' tooltip says, given what the Judge is actually holding. */
 function _judgeMarksTooltipKey(brands, oaths) {
@@ -2031,7 +2041,6 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * so the card names that move instead of offering a roll the rules don't allow.
 		 */
 		_buildDeathsDoorData(snapshot) {
-			const hp    = snapshot.vitals.hp.value;
 			const state = this._stonetopCharacter?.deathsDoorState ?? null;
 			// zeroHpMove()'s own fallback is Death's Door, which is also the right answer for a
 			// character model that predates these accessors.
@@ -2041,13 +2050,16 @@ export function createStonetopCharacterSheetClass(Base) {
 			const isDead        = state === DEATHS_DOOR_STATE.DEAD;
 			const isFatePending = state === DEATHS_DOOR_STATE.FATE_PENDING;
 			const canFace       = isDeathsDoor && !!this._stonetopCharacter?.canFaceDeathsDoor;
-			// A dispersed Ghost doesn't merely wake up — they reform at their tether with half
-			// their max HP, so the "clear" control is really a reform and says so. The snapshot's
-			// max is the computed one (move bonuses, a Thrall's Marks); the persisted attribute is
-			// the level-1 number and would understate the reform.
-			const reform = isOutOfAction
-				? resolvedHp(this._stonetopCharacter?.zeroHpResolution?.disperses, snapshot.vitals.hp.max)
-				: null;
+			// Someone past the Door who is out of the action doesn't merely wake up: they come back
+			// with half their max HP (the user's ruling, 2026-09-27), so the "clear" control is really
+			// a return and says so. A dispersed Ghost's is the book's own reform at their tether. The
+			// snapshot's max is the computed one (move bonuses, a Thrall's Marks); the persisted
+			// attribute is the level-1 number and would understate it.
+			const resolution = this._stonetopCharacter?.zeroHpResolution ?? null;
+			const backHp = isOutOfAction && resolution ? halfMaxHp(snapshot.vitals.hp.max) : null;
+			const reform = backHp !== null && resolution.disperses ? backHp : null;
+			// How a character past the Door left play, when it was not through the Last Door.
+			const lost = isDead ? (this._stonetopCharacter?.lostToTheGm ?? null) : null;
 
 			// What's true right now, in the order the card says it: the state they're in wins,
 			// and the "which move do I trigger" hint only matters while they're up. Built here
@@ -2057,20 +2069,24 @@ export function createStonetopCharacterSheetClass(Base) {
 				? game.i18n.format(`stonetop.specialMoves.deathsDoor.${key}`, data)
 				: game.i18n.localize(`stonetop.specialMoves.deathsDoor.${key}`));
 			let hint = null;
-			if (isDead)             hint = { icon: "fa-door-closed",    text: l("deadHint"),        isState: true };
+			if (isDead)             hint = { icon: "fa-door-closed",    text: l(_LOST_HINT[lost] ?? "deadHint"), isState: true };
 			else if (isFatePending) hint = { icon: "fa-hourglass-half", text: l("fatePendingHint"), isState: true };
 			else if (isOutOfAction) hint = { icon: "fa-bed",            isState: true,
-				text: reform ? l("dispersedHint", { hp: reform }) : l("outOfActionHint") };
+				text: reform ? l("dispersedHint", { hp: reform })
+					: backHp !== null ? l("backOnFeetHint", { hp: backHp }) : l("outOfActionHint") };
 			else if (!isDeathsDoor) hint = { icon: "fa-skull",          text: l("supersededHint", { move: move.name }) };
 			else if (!canFace)      hint = { icon: "fa-lock",           text: l("lockedHint") };
 
 			// The one control the card carries, in the same order. "Choose fate" reopens the
 			// dialog on the three fates (the roll is spent); clearing a lingering state is the
-			// reform for a Ghost; an insert's own 0-HP move is rolled from the sheet instead.
+			// return (a Ghost's reform) for anyone past the Door; an insert's own 0-HP move is
+			// rolled from the sheet instead, and only while they are DYING: at 0 HP out of the
+			// action (an insert just taken, a Tethered dispersal) the move is spent, not owed.
 			let action;
 			if (isFatePending)             action = { cls: "stonetop-deathsdoor-open-btn",  icon: "fa-scale-unbalanced", label: l("chooseFate") };
-			else if (isOutOfAction || isDead) action = { cls: "stonetop-deathsdoor-clear-btn", icon: "fa-rotate-left",   label: l(reform ? "reform" : "clear") };
-			else if (!isDeathsDoor)        action = { cls: "stonetop-deathsdoor-open-btn",  icon: "fa-skull",     label: move.name, disabled: hp > 0 };
+			else if (isOutOfAction || isDead) action = { cls: "stonetop-deathsdoor-clear-btn", icon: "fa-rotate-left",
+				label: l(reform ? "reform" : backHp !== null ? "backOnFeet" : "clear") };
+			else if (!isDeathsDoor)        action = { cls: "stonetop-deathsdoor-open-btn",  icon: "fa-skull",     label: move.name, disabled: state !== DEATHS_DOOR_STATE.DYING };
 			else                           action = { cls: "stonetop-deathsdoor-open-btn",  icon: "fa-door-open", label: l("button"), disabled: !canFace };
 
 			return {
@@ -7917,6 +7933,19 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		/**
+		 * An insert's 0-HP move rolled from the Moves tab or the hotbar (MOVE_ROLL_INSTEAD): its walkthrough
+		 * when it is this character's move and they are dying, else a notice saying why nothing rolls. Whether
+		 * it took the roll over; a move with no walkthrough to go to (a homebrew insert's copy) rolls plain.
+		 */
+		async _rollUndeathMove(name) {
+			const char = this._stonetopCharacter;
+			if (!char?.zeroHpResolution || char.zeroHpMove?.name !== name) return false;
+			if (char.deathsDoorState === DEATHS_DOOR_STATE.DYING) await this._onDeathsDoorOpen();
+			else ui.notifications?.info(format("stonetop.specialMoves.deathsDoor.undeathNotDying", { name: this.actor.name, move: name }));
+			return true;
+		}
+
+		/**
 		 * Open the Death's Door walkthrough — but only when Death's Door is the move this
 		 * character actually triggers. A PC carrying a post-death insert has their own 0-HP
 		 * move (Undying / Tethered / Dark Succor), so they get pointed at it instead of a
@@ -7929,11 +7958,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Gated the same way the card's own button is (_buildDeathsDoorData): a dying chat
 			// card stays in the log forever and comes through here too, so without this an old
 			// one re-opens the move — and hands out half their max HP again — for a Revenant who
-			// is back on their feet, or a second time for a Ghost still dispersed.
+			// is back on their feet, or a second time for a Ghost still dispersed. DYING and nothing
+			// else (the user's ruling, 2026-09-27): 0 HP alone is also a character just back from the
+			// Door, out of the action, whose move is not owed.
 			if (!move.dialog) {
-				const state = this._stonetopCharacter.deathsDoorState;
-				const settled = state === DEATHS_DOOR_STATE.OUT_OF_ACTION || state === DEATHS_DOOR_STATE.DEAD;
-				if (this._stonetopCharacter.hp > 0 || settled) return;
+				if (this._stonetopCharacter.deathsDoorState !== DEATHS_DOOR_STATE.DYING) return;
 				return this._onUndeathOpen();
 			}
 			// A spent 6- still opens the dialog — not to roll again, but to choose the fate it
@@ -7976,15 +8005,18 @@ export function createStonetopCharacterSheetClass(Base) {
 		 */
 		async _onDeathsDoorClear() {
 			if (!this.isEditable) return;
-			// A dispersed Ghost doesn't just wake up: "you reform near your tether with half your
-			// max HP". Clearing the state IS the reforming, so it brings the hit points with it,
-			// in the one write.
-			const disperses = this._stonetopCharacter.zeroHpResolution?.disperses;
-			const reformHp = disperses && this._stonetopCharacter.deathsDoorState === DEATHS_DOOR_STATE.OUT_OF_ACTION
-				? resolvedHp(disperses, await this._stonetopCharacter.computedMaxHp())
+			// Someone past the Door doesn't just wake up: they are back on their feet with half their
+			// max HP, rounded up (the user's ruling, 2026-09-27; a dispersed Ghost's is the book's own
+			// "you reform near your tether with half your max HP"). Clearing the state IS the return,
+			// so it brings the hit points with it, in the one write. Only from out of the action: a
+			// `dead` cleared here is a mistake being undone, not a return.
+			const char = this._stonetopCharacter;
+			const resolution = char.zeroHpResolution;
+			const backHp = resolution && char.deathsDoorState === DEATHS_DOOR_STATE.OUT_OF_ACTION
+				? halfMaxHp(await char.computedMaxHp())
 				: null;
-			if (reformHp !== null) await this._stonetopCharacter.restoreHp(reformHp, "Tethered", { clearsDeathsDoor: true });
-			else await this._stonetopCharacter.setDeathsDoorState(null);
+			if (backHp !== null) await char.restoreHp(backHp, resolution.move, { clearsDeathsDoor: true });
+			else await char.setDeathsDoorState(null);
 			this.render(false);
 		}
 

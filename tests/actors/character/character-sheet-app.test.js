@@ -1844,4 +1844,111 @@ describe("StonetopCharacterSheet 0-HP move gate", () => {
 		await sheet._onDeathsDoorOpen();
 		expect(sheet._onUndeathOpen).not.toHaveBeenCalled();
 	});
+
+	// DYING and nothing else (the user's ruling, 2026-09-27): 0 HP alone is also someone just back from
+	// the Door, whose move is not owed.
+	it("refuses it at 0 HP with no dying state", async () => {
+		const sheet = makeInsertSheet({ hp: 0, state: null });
+		await sheet._onDeathsDoorOpen();
+		expect(sheet._onUndeathOpen).not.toHaveBeenCalled();
+	});
+});
+
+// The Special Moves card, for someone past the Door: its one control, and what it says.
+describe("StonetopCharacterSheet Death's Door card past the Door", () => {
+	function makeCardSheet(slug, { state = null, lost = null } = {}) {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		sheet._stonetopCharacter = {
+			deathsDoorState: state,
+			canFaceDeathsDoor: false,
+			zeroHpMove: zeroHpMove(slug),
+			zeroHpResolution: zeroHpResolution(slug),
+			lostToTheGm: lost,
+			computedMaxHp: vi.fn(async () => 15),
+			restoreHp: vi.fn(async () => true),
+			setDeathsDoorState: vi.fn(async () => {}),
+		};
+		return sheet;
+	}
+	const card = (sheet) => sheet._buildDeathsDoorData({ vitals: { hp: { value: 0, max: 15 } } });
+
+	// Every insert, not the Ghost alone: back with half their max HP, rounded up, and the state cleared, in one write.
+	it("brings anyone out of the action back on their feet with half their max HP", async () => {
+		for (const [slug, move] of [["revenant", "Undying"], ["thrall", "Dark Succor"], ["ghost", "Tethered"]]) {
+			const sheet = makeCardSheet(slug, { state: DEATHS_DOOR_STATE.OUT_OF_ACTION });
+			await sheet._onDeathsDoorClear();
+			expect(sheet._stonetopCharacter.restoreHp, slug).toHaveBeenCalledWith(8, move, { clearsDeathsDoor: true });
+			expect(sheet._stonetopCharacter.setDeathsDoorState, slug).not.toHaveBeenCalled();
+		}
+	});
+
+	it("labels the button for it, the Ghost's as its reform", () => {
+		const revenant = card(makeCardSheet("revenant", { state: DEATHS_DOOR_STATE.OUT_OF_ACTION }));
+		expect(revenant.action.label).toBe("Back on your feet");
+		expect(revenant.hint.text).toContain("8 HP");
+		const ghost = card(makeCardSheet("ghost", { state: DEATHS_DOOR_STATE.OUT_OF_ACTION }));
+		expect(ghost.action.label).toBe("Reform at your tether");
+	});
+
+	it("still only clears the state for the living, and for a `dead` being undone", async () => {
+		const living = makeCardSheet(null, { state: DEATHS_DOOR_STATE.OUT_OF_ACTION });
+		await living._onDeathsDoorClear();
+		expect(living._stonetopCharacter.restoreHp).not.toHaveBeenCalled();
+		expect(living._stonetopCharacter.setDeathsDoorState).toHaveBeenCalledWith(null);
+
+		const dead = makeCardSheet("ghost", { state: DEATHS_DOOR_STATE.DEAD });
+		await dead._onDeathsDoorClear();
+		expect(dead._stonetopCharacter.restoreHp).not.toHaveBeenCalled();
+	});
+
+	// The insert's own move button is live only while they are dying: at 0 HP otherwise, it is spent.
+	it("offers the insert's move only while they are dying", () => {
+		expect(card(makeCardSheet("revenant", { state: DEATHS_DOOR_STATE.DYING })).action.disabled).toBe(false);
+		expect(card(makeCardSheet("revenant", { state: null })).action.disabled).toBe(true);
+	});
+
+	it("says a Ghost lost to the Final Consequence became a monster, and a lost Thrall a threat", () => {
+		const monster = card(makeCardSheet("ghost", { state: DEATHS_DOOR_STATE.DEAD, lost: "monster" }));
+		expect(monster.hint.text).toContain("monster under the GM's control");
+		const threat = card(makeCardSheet("thrall", { state: DEATHS_DOOR_STATE.DEAD, lost: "threat" }));
+		expect(threat.hint.text).toContain("threat in the GM's control");
+		const door = card(makeCardSheet("ghost", { state: DEATHS_DOOR_STATE.DEAD }));
+		expect(door.hint.text).toBe("They stepped through the Last Door.");
+	});
+});
+
+// Undying, Tethered and Dark Succor rolled from the Moves tab or the hotbar go to their walkthrough, like
+// Hard to Kill, instead of rolling a plain card that resolves nothing.
+describe("StonetopCharacterSheet: an insert's 0-HP move rolled from the sheet", () => {
+	function makeRollSheet(slug, state) {
+		const actor = makeActor();
+		actor.name = "Vess";
+		const sheet = makeSheet(actor);
+		sheet._stonetopCharacter = { deathsDoorState: state, zeroHpMove: zeroHpMove(slug), zeroHpResolution: zeroHpResolution(slug) };
+		sheet._onDeathsDoorOpen = vi.fn(async () => {});
+		// The ladder reads the move off the rolled row's item; hand it the one owned move.
+		actor.items = { get: () => ({ type: "move", name: zeroHpMove(slug).name }) };
+		return sheet;
+	}
+	const rollable = { closest: () => ({ dataset: { itemId: "m1" } }) };
+
+	let savedUi;
+	beforeEach(() => { savedUi = global.ui; global.ui = { notifications: { info: vi.fn(), warn: vi.fn() } }; });
+	afterEach(() => { global.ui = savedUi; });
+
+	it("opens the walkthrough when they are dying", async () => {
+		for (const slug of ["revenant", "ghost", "thrall"]) {
+			const sheet = makeRollSheet(slug, DEATHS_DOOR_STATE.DYING);
+			expect(await sheet._resolveMoveRollPrompts(rollable), slug).toBe("handled");
+			expect(sheet._onDeathsDoorOpen, slug).toHaveBeenCalled();
+		}
+	});
+
+	it("says why nothing rolls otherwise", async () => {
+		const sheet = makeRollSheet("revenant", null);
+		expect(await sheet._resolveMoveRollPrompts(rollable)).toBe("handled");
+		expect(sheet._onDeathsDoorOpen).not.toHaveBeenCalled();
+		expect(ui.notifications.info).toHaveBeenCalledWith("Undying is Vess's move at 0 HP, and Vess is not dying.");
+	});
 });
