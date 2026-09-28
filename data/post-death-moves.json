@@ -24,7 +24,7 @@
     },
     {
       "name": "Undying",
-      "description": "<p>Neither poison nor disease do you harm. You feel little pain. When you <strong><em>take damage from cutting, stabbing, or crushing</em></strong>, take half damage (after armor, rounded up).</p><p>When you are <strong><em>reduced to 0 HP</em></strong>, roll +CON.: <strong>on a 10+</strong>, regain half your max HP and choose 1; <strong>on a 7-9</strong>, regain half your max HP and choose 2; <strong>on a 6-</strong>, either regain 1 HP and all 3 apply, or give up this insert and gain the Ghost insert instead.</p><ul><li>Mark a consequence (see reverse)</li><li>You're out of the action until the next sunset</li><li>Your body is permanently maimed in some way of the GM's choosing</li></ul><p>If <strong><em>your body is completely destroyed</em></strong> (burnt to ash, ground to jelly, etc.), treat it as if you were reduced to 0 HP and rolled a 6-.</p>",
+      "description": "<p>Neither poison nor disease do you harm. You feel little pain. When you <strong><em>take damage from cutting, stabbing, or crushing</em></strong>, take half damage (after armor, rounded up).</p><p>When you are <strong><em>reduced to 0 HP</em></strong>, roll +CON: <strong>on a 10+</strong>, regain half your max HP and choose 1; <strong>on a 7-9</strong>, regain half your max HP and choose 2; <strong>on a 6-</strong>, either regain 1 HP and all 3 apply, or give up this insert and gain the Ghost insert instead.</p><ul><li>Mark a consequence (see reverse)</li><li>You're out of the action until the next sunset</li><li>Your body is permanently maimed in some way of the GM's choosing</li></ul><p>If <strong><em>your body is completely destroyed</em></strong> (burnt to ash, ground to jelly, etc.), treat it as if you were reduced to 0 HP and rolled a 6-.</p>",
       "rollType": "con",
       "results": {
         "success": {
@@ -50,7 +50,7 @@
   "thrall": [
     {
       "name": "Dark Succor",
-      "description": "<p>When you <strong><em>are dying or killed outright</em></strong>, your master intercedes on your behalf. You will recover, here and now or at a time and place of the GM's choosing. Then, roll +Favor: <strong>on a 10+</strong>, choose 1; <strong>on a 7&ndash;9</strong>, choose 2; <strong>on a 6&ndash;</strong>, all 3 apply:</p><ul><li>Gain a Mark of the GM's choice</li><li>Cross off a Mark that you don't have&mdash;you can never gain it</li><li>Your master gives you a task; until you complete it, your Favor stays at 0.</li></ul><p>Regardless, reset your Favor to 0.</p>",
+      "description": "<p>When you <strong><em>are dying or killed outright</em></strong>, your master intercedes on your behalf. You will recover, here and now or at a time and place of the GM's choosing. Then, roll +Favor: <strong>on a 10+</strong>, choose 1; <strong>on a 7&ndash;9</strong>, choose 2; <strong>on a 6&ndash;</strong>, all 3 apply:</p><ul><li>Gain a new Mark of the GM's choice</li><li>Cross off a Mark that you don't have&mdash;you can never gain it</li><li>Your master gives you a task; until you complete it, your Favor stays at 0.</li></ul><p>Regardless, reset your Favor to 0.</p>",
       "rollType": null
     },
     {
