@@ -1,0 +1,28 @@
+{
+  "name": "Bodysnatcher",
+  "type": "move",
+  "system": {
+    "moveType": "post-death",
+    "playbook": "ghost",
+    "loreOption": "consequences:bodysnatcher",
+    "description": "<p>When you <strong><em>possess an unconscious or willing person</em></strong>, lose 1d4 HP and control their actions. Use your stats and moves for any actions they take while under your control.</p><p>When you <strong><em>force your host to do something contrary to their instinct or something that they find abhorrent</em></strong>, roll +CHA: <strong>on a 10+</strong>, they do it anyway; <strong>on a 7-9</strong>, they pick 1:</p><ul><li>They resist that action, and you'll never be able to force them to do it or anything similar, but you otherwise remain in control</li><li>They do it, but it costs you&mdash;lose 2d4 HP</li></ul><p><strong>On a 6-</strong>, they force you from their body and you mark a consequence. You'll never be able to possess them again.</p><p>When your <strong><em>host takes damage</em></strong>, you lose an equal amount of HP. If your host dies while you still have HP, you can keep them alive until your possession ends.</p>",
+    "rollType": "cha",
+    "moveResults": {
+      "success": {
+        "label": "10+",
+        "value": "They do it anyway."
+      },
+      "partial": {
+        "label": "7-9",
+        "value": "They pick 1 from the list."
+      },
+      "failure": {
+        "label": "6-",
+        "value": "They force you from their body and you mark a consequence. You'll never be able to possess them again."
+      }
+    }
+  },
+  "_id": "Bs5nKd9mWq3vLp6T",
+  "_key": "!items!Bs5nKd9mWq3vLp6T",
+  "folder": "jcuNsfVpydWe7cCS"
+}

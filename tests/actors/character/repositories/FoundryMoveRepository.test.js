@@ -215,7 +215,7 @@ describe("FoundryMoveRepository", () => {
 			const repo = new FoundryMoveRepository();
 			await repo.getPostDeathMoves("revenant");
 			expect(pack.getIndex).toHaveBeenCalledWith({
-				fields: ["system.playbook", "system.rollType", "system.description", "system.resource", "system.moveResults"],
+				fields: ["system.playbook", "system.rollType", "system.description", "system.resource", "system.moveResults", "system.loreOption"],
 			});
 		});
 

@@ -107,10 +107,14 @@ async function buildMovesJournal() {
     const follower  = await readJsonDir(path.join(src, "follower-moves"));
     const special   = await readJsonDir(path.join(src, "special-moves"));
 
-    // Post-death moves: ghost / revenant / thrall
-    const ghost    = await readJsonDir(path.join(src, "post-death-moves", "ghost"));
-    const revenant = await readJsonDir(path.join(src, "post-death-moves", "revenant"));
-    const thrall   = await readJsonDir(path.join(src, "post-death-moves", "thrall"));
+    // Post-death moves: ghost / revenant / thrall. Only the moves each insert grants outright: a
+    // Consequence or Mark that rolls (Poltergeist, Red Wrath) is a move on the sheet only while it is
+    // marked, and the book prints it among the Consequences, not the insert's Moves.
+    const insertMoves = async slug => (await readJsonDir(path.join(src, "post-death-moves", slug)))
+        .filter(m => !m.system?.loreOption);
+    const ghost    = await insertMoves("ghost");
+    const revenant = await insertMoves("revenant");
+    const thrall   = await insertMoves("thrall");
 
     const sections = [
         { name: "Basic Moves",       moves: basic },

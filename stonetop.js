@@ -128,6 +128,7 @@ import { speakerActor } from "./module/utils/speaker-actor.js";
 import { bootStep, recordBootPhase, reportBootHealth, bootReport } from "./module/utils/boot-guard.js";
 import { registerCampHooks } from "./module/camp/camp-store.js";
 import { registerVitalsMirrorHooks } from "./module/actors/character/vitals-mirror.js";
+import { registerPostDeathMoveHooks } from "./module/actors/character/post-death-moves.js";
 import { registerRosterFateHooks } from "./module/fight/roster-fate.js";
 import { wireCampCard } from "./module/camp/camp-flow.js";
 import { registerCampWindowRestore } from "./module/camp/CampWindow.js";
@@ -2369,6 +2370,9 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 registerCampHooks();
 // A character's stored armor and max HP, re-mirrored whenever they or their gear change, sheet open or not.
 registerVitalsMirrorHooks();
+// And a character's post-death Consequence and Mark moves (Poltergeist, Red Wrath), kept to what is marked
+// on whichever client marked it, with Home to Vermin's follower offered there.
+registerPostDeathMoveHooks();
 // A crew member a lone blow drops in a fight is asked their fate on the Marshal's player's screen.
 registerRosterFateHooks();
 // And a camp window open when this client reloaded comes back with the sheets, where it was left

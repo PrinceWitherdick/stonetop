@@ -1,0 +1,23 @@
+{
+  "name": "Poltergeist",
+  "type": "move",
+  "system": {
+    "moveType": "post-death",
+    "playbook": "ghost",
+    "loreOption": "consequences:poltergeist",
+    "description": "<p>When you <strong><em>get angry</em></strong>, lose 1d4 HP and hold that much Fury. Spend Fury, 1-for-1, to:</p><ul><li>Shatter, break, or destroy a number of small mundane objects, or one big object.</li><li>Hurl an object at someone and roll +DEX: <strong>on a 10+</strong>, deal your damage (<em>forceful</em>); <strong>on a 7-9</strong>, deal your damage (<em>forceful</em>) but lose 1d4 HP.</li><li>Attack someone with telekinetic force and roll +INT: <strong>on a 10+</strong>, fling them to a place you can see and pin them there, spending 1 HP each time they make a committed effort to break free; <strong>on a 7-9</strong>, as 10+, but you also lose 1d4 HP.</li></ul>",
+    "rollType": null,
+    "resource": {
+      "max": 4,
+      "title": "Fury",
+      "spendOptions": [
+        "Shatter, break, or destroy a number of small mundane objects, or one big object",
+        "Hurl an object at someone and roll +DEX",
+        "Attack someone with telekinetic force and roll +INT"
+      ]
+    }
+  },
+  "_id": "Pq4wRt7yUz2xNv8K",
+  "_key": "!items!Pq4wRt7yUz2xNv8K",
+  "folder": "jcuNsfVpydWe7cCS"
+}

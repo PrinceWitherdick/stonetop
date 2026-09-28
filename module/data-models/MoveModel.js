@@ -98,6 +98,10 @@ export class MoveModel extends foundry.abstract.TypeDataModel {
 			pickOptions:     new fields.ArrayField(new fields.StringField(), { required: false, initial: [] }),
 			slug:            new fields.StringField({ required: true, blank: true }),
 			playbook:        new fields.StringField({ required: true, blank: true }),
+			// The post-death lore option ("consequences:poltergeist", "marks:red-wrath") whose rules this
+			// move is, for a Consequence or Mark that rolls or holds something: the character owns it only
+			// while that option is marked (actors/character/post-death-moves.js). Blank on every other move.
+			loreOption:      new fields.StringField({ required: false, blank: true, initial: "" }),
 			replaces:        new fields.StringField({ required: true, blank: true }),
 			// Irregular sub-objects — preserved verbatim, default null (falsy).
 			asterisk:        looseObject(),

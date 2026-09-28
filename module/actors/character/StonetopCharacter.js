@@ -92,6 +92,7 @@ import {CharacterArcana} from "./CharacterArcana.js";
 import {seekerArcanaState, seekerArcanaChosen, seekerCardRoles, majorMarkBoxes, withMinorRole, seekerMajorSwitchPlan, seekerMajorOwed} from "./seeker-collection.js";
 import {CharacterLore} from "./CharacterLore.js";
 import {CharacterPostDeath, buildLoreSection, insertHpPenalty} from "./CharacterPostDeath.js";
+import {planLoreMoveSync} from "./post-death-moves.js";
 import {effectiveSubgroupMax, sumMoveBonus} from "./dialogs/possession-choice-cap.js";
 import {partitionMovesByGroup} from "./dialogs/onboarding-move-groups.js";
 import {backgroundMarkOption, hasBackgroundMarkOptions, moveChoiceKey} from "./dialogs/well-versed-topics.js";
@@ -1352,11 +1353,14 @@ export class StonetopCharacter {
 
 		const postDeathItems = this._actor.items.filter(i => i.type === "move" && i.system?.moveType === "post-death");
 		if (postDeathItems.length > 0) {
+			// With their tracks: Poltergeist's Fury is a hold on its move, kept by name like a playbook
+			// move's (post-death-moves.js).
+			const resources = this._moveResources.getMoveResources();
 			categories.push(new MoveCategorySnapshotBuilder()
 				.withKey("post-death")
 				.withTitle("Post-Death Moves")
 				.withNote(null)
-				.withMoves(postDeathItems.map(i => _buildOwnedItemMoveSnapshot(i, { sourceType: "post-death", isStarting: true })))
+				.withMoves(postDeathItems.map(i => _buildOwnedItemMoveSnapshot(i, { sourceType: "post-death", isStarting: true, resources })))
 				.build()
 			);
 		}
@@ -2105,14 +2109,30 @@ export class StonetopCharacter {
 		return null;
 	}
 
-	async setPostDeathInsert(slug) {
+	/**
+	 * Take (or, with null, remove) a post-death insert. Queued with the lore-move sync
+	 * (syncPostDeathLoreMoves): this deletes and makes the character's post-death moves wholesale, and
+	 * a sync running beside it would be deciding what to create from a list this is halfway through
+	 * replacing.
+	 */
+	async setPostDeathInsert(...args) {
+		return this._queuePostDeathMoves(() => this._setPostDeathInsert(...args));
+	}
+
+	async _setPostDeathInsert(slug) {
+		// The insert they already wear, taken again (the same Item dropped a second time, the tab's own
+		// button pressed twice): nothing to do. Carrying on used to clear the state below, so a Ghost
+		// dispersed out of the action, or one lost to the Final Consequence, was stood back up by a
+		// stray drop, and their three moves were deleted and made again. Whether anything was written.
+		const previous = this._postDeath.activeSlug;
+		if (slug && slug === previous) return false;
+
 		// Swapping one insert for another leaves the old one's answers behind in their own flag
 		// namespaces. Prune them to what the incoming insert can actually hold — before the slug
 		// moves, so the pruning is measured against the new insert and not against itself.
 		// Removal (slug = null) deliberately prunes nothing: it's an edit-mode undo, and a
 		// mis-click shouldn't cost a character every Consequence they've collected.
-		const previous = this._postDeath.activeSlug;
-		if (slug && slug !== previous) await this._postDeath.pruneToInsert(slug);
+		if (slug) await this._postDeath.pruneToInsert(slug);
 
 		const toRemove = this._actor.items
 			.filter(i => i.type === "move" && i.system?.moveType === "post-death")
@@ -2137,13 +2157,54 @@ export class StonetopCharacter {
 			...(this._postDeath.tabRequestUpdateData(!slug) ?? {}),
 		});
 		if (slug) {
-			const entries = await this._moveRepo.getPostDeathMoves(slug);
+			// The insert's own moves. A Consequence's or Mark's move (Poltergeist, Red Wrath) is the
+			// lore sync's, made below only for what the character has marked and carried over.
+			const entries = (await this._moveRepo.getPostDeathMoves(slug)).filter(m => !m.loreOption);
 			await this._actor.createEmbeddedDocuments("Item", entries.map(m => ({
 				name: m.name,
 				type: "move",
 				system: { moveType: "post-death", rollType: m.rollType ?? "", description: m.description ?? "" },
 			})));
+			await this._syncPostDeathLoreMoves();
 		}
+		return true;
+	}
+
+	/**
+	 * Give this character the move of every Consequence or Mark they have marked that rolls or holds
+	 * something (Poltergeist, Bodysnatcher, Red Wrath, Torment's Blessing), and take away the move of
+	 * any they no longer have: post-death-moves.js, which says why a lore write anywhere ends up here.
+	 * Idempotent, and queued behind any insert swap. Resolves to how many were made and removed.
+	 */
+	async syncPostDeathLoreMoves() {
+		return this._queuePostDeathMoves(() => this._syncPostDeathLoreMoves());
+	}
+
+	async _syncPostDeathLoreMoves() {
+		const slug = this._postDeath.activeSlug;
+		const counts = this._postDeath.lore.counts;
+		const { create, remove } = planLoreMoveSync({
+			entries:  slug ? await this._moveRepo.getPostDeathMoves(slug) : [],
+			// Read at the moment of the sync, not handed in: a queued sync runs after whatever went
+			// before it has landed, and it is THAT state it has to agree with.
+			owned:    this._actor.items.filter(i => i.type === "move" && i.system?.moveType === "post-death"),
+			isMarked: key => Number(counts[key]) > 0,
+		});
+		if (remove.length) await this._actor.deleteEmbeddedDocuments("Item", remove);
+		if (create.length) await this._actor.createEmbeddedDocuments("Item", create);
+		return { created: create.length, removed: remove.length };
+	}
+
+	/**
+	 * Run `work` after every post-death move change already queued on this character, whether or not
+	 * that one succeeded. One queue per character model (StonetopActor#typedActor keeps one).
+	 */
+	_queuePostDeathMoves(work) {
+		const next = (this._postDeathMovesQueue ?? Promise.resolve()).then(work);
+		// The queue itself never rejects, so one failed sync does not wedge every one after it; the
+		// caller still gets `next`, rejection and all.
+		this._postDeathMovesQueue = next.catch(() => {});
+		return next;
 	}
 
 	/**
@@ -7062,7 +7123,17 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 // Build a MoveSnapshot for a plain owned move Item — the "other" move-type categories and the
 // post-death category, which differ only in their source type and whether the move is a starting
 // move. One home for this builder chain so a new MoveSnapshot field is added once, not per copy.
-function _buildOwnedItemMoveSnapshot(item, { sourceType, isStarting }) {
+// `resources` (the move-name-keyed track counts) draws the item's own `system.resource` track; without
+// it the card has none, which is how the "other" categories have always been drawn.
+function _buildOwnedItemMoveSnapshot(item, { sourceType, isStarting, resources = null }) {
+	const resourceDef = resources ? item.system?.resource ?? null : null;
+	const resource = resourceDef?.max ? new ResourceBuilder()
+		.withCurrent(Math.min(resourceDef.max, Math.max(0, Number(resources[item.name]) || 0)))
+		.withMax(resourceDef.max)
+		.withTitle(resourceDef.title ?? null)
+		.withLabels(resourceDef.labels ?? [])
+		.withSpendTooltip(new ResourceDef(resourceDef).spendTooltip)
+		.build() : null;
 	return new MoveSnapshotBuilder()
 		.withId(item._id)
 		.withCompendiumId(item._id)
@@ -7080,7 +7151,7 @@ function _buildOwnedItemMoveSnapshot(item, { sourceType, isStarting }) {
 		.withLocked(false)
 		.withRequirement(null)
 		.withRequiresLabel(null)
-		.withResource(null)
+		.withResource(resource)
 		.withRepeat(null)
 		.withRepeatable(false)
 		.build();

@@ -112,6 +112,8 @@ function cleanMove(doc) {
     if (s.maxLoad) out.maxLoad = s.maxLoad;
     if (s.requiresUnarmored) out.requiresUnarmored = true;
     if (s.replaces) out.replaces = s.replaces;
+    // A post-death Consequence or Mark's own move: the lore option it is owned for.
+    if (s.loreOption) out.loreOption = s.loreOption;
     return out;
 }
 

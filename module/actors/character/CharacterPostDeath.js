@@ -339,7 +339,9 @@ export class CharacterPostDeath {
 		if (slug) {
 			const data = await this._insertRepo.findBySlug(slug);
 			if (data) {
-				const moves   = await this._moveRepo.getPostDeathMoves(slug);
+				// The insert's own moves: a Consequence's or Mark's (Poltergeist) is the character's only
+				// while marked, and is on the sheet as an owned move when it is (post-death-moves.js).
+				const moves   = (await this._moveRepo.getPostDeathMoves(slug)).filter(m => !m.loreOption);
 				const crossed = this.crossedOffMarks;
 				// An insert whose 0-HP move disperses them binds them to a tether: it's what
 				// they reform beside. The resolution table says which insert that is (the

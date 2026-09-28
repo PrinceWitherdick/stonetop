@@ -6,6 +6,10 @@ export class MoveDefinition {
 		this.id          = data._id;
 		this.name        = data.name;
 		this.playbook    = data.system?.playbook        ?? null;
+		// A post-death Consequence or Mark's own move names the lore option it belongs to
+		// ("consequences:poltergeist"), and is owned only while that option is marked. Null on every
+		// move an insert grants outright, and on every move that is not a post-death one.
+		this.loreOption  = data.system?.loreOption      || null;
 		this.rollType    = normalizeRollType(data.system?.rollType);
 		this.description = data.system?.description     ?? null;
 		// The move's own 10+/7-9/6- outcome text, as { success|partial|failure: {label, value} }.
