@@ -5,6 +5,11 @@ import { withGmWonderTab } from "../../../module/actors/gmtoolkit/gm-wonder-tab.
 import { GM_WONDER_GUIDE } from "../../../module/gm-toolkit/gm-wonder-guide.js";
 import { fakeEl, fakeRoot, makeListHost } from "../../fakes/dom.js";
 
+// The question spiral, by its file or by the token that carries it. Background uses read
+// `--stonetop-question-spiral-icon` so the dark palette can swap in the bone twin; either spelling
+// is the same picture on paper.
+const QUESTION_SPIRAL = /question-spiral\.svg|--stonetop-question-spiral-icon/;
+
 // The GM Toolkit's "I wonder..." tab: the running list of open questions from Book I p.33, and
 // the ONE surface on this sheet a GM authors rather than reads.
 //
@@ -309,7 +314,7 @@ describe("the I wonder tab: context", () => {
 	// `markQuestionBullets` tags would quietly wear the ordinary spiral instead.
 	it("lets the question-spiral swap reach its tagged items", () => {
 		expect(declarations(CSS, ".stonetop-gm-wonder-guide-items > li.question-bullet::before"))
-			.toContain("question-spiral.svg");
+			.toMatch(QUESTION_SPIRAL);
 		expect(GM_WONDER_GUIDE.some(s => s.items.some(i => String(i).trim().endsWith("?")))).toBe(true);
 	});
 });

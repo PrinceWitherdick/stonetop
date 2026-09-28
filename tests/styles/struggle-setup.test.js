@@ -28,7 +28,7 @@ describe("the struggle setup's controls", () => {
 
 	it("puts every field in the system's well, with core's inset ring put out", () => {
 		const well = declarations(CSS, '.stonetop-struggle-window :is(input[type="text"], select, textarea)');
-		expect(well).toMatch(/background:\s*rgba\(255, 255, 255, 0\.7\)/);
+		expect(well).toMatch(/background:\s*rgb\(var\(--st-paper-rgb\) \/ 0\.7\)/);
 		expect(well).toMatch(/border:\s*1px solid #999/);
 		expect(well).toMatch(/box-shadow:\s*none/);
 	});

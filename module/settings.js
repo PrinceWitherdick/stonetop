@@ -43,6 +43,7 @@ function reconcileWeatherFx() {
  * button showing a stale eye with nothing failing anywhere, and the file that knows about the
  * change has no reason to look in hooks/.
  */
+
 export const MAP_PIN_NAME_SETTINGS = Object.freeze([
 	"alwaysShowMapPinNames", "mapPinNamesByMap", "mapPinNamesLocal",
 ]);
@@ -1244,13 +1245,16 @@ export function registerSettings() {
 		scope: "client",
 		config: true,
 		type: String,
-		// A CHOICE rather than a checkbox, though it has two options today. The palette is the axis,
-		// not the boolean "more contrast": a light-on-dark option is the next thing asked for by
-		// readers who need the glare down rather than the separation up, and it lands here as a third
-		// value rather than as a second setting that has to be kept exclusive with this one by hand.
+		// A CHOICE rather than a checkbox. The palette is the axis, not the boolean "more contrast":
+		// the light-on-dark pair (the "Lamplit" section of stonetop.css) landed here as two more
+		// values rather than as a second setting that has to be kept exclusive with this one by hand.
+		// Configure Settings and the Preferences tab on the character sheet and the GM Toolkit all
+		// read these choices off the registration.
 		choices: {
-			"normal": "stonetop.settings.sheetContrast.normal",
-			"high":   "stonetop.settings.sheetContrast.high",
+			"normal":    "stonetop.settings.sheetContrast.normal",
+			"high":      "stonetop.settings.sheetContrast.high",
+			"dark":      "stonetop.settings.sheetContrast.dark",
+			"dark-high": "stonetop.settings.sheetContrast.darkHigh",
 		},
 		default: "normal",
 		// NO re-render, unlike most of the settings below it: the palette is tokens on the document
@@ -2130,11 +2134,19 @@ export function applyReduceMotion(value) {
  * sheet — still win inside themselves, which is right: those are already light-on-black and
  * already well past AA.
  *
- * Compared as a string against the one value that means "on", so an unreadable or retired setting
+ * The dark palette is a second class, `.stonetop-dark`, rather than a third exclusive value of the
+ * first: "dark" and "high contrast" are two independent axes, so "dark-high" turns on BOTH, and
+ * everything high contrast does that is not colour (the focus ring, underlined links, heavier
+ * hairlines) comes along for free. The stylesheet's `:root.stonetop-dark.stonetop-high-contrast`
+ * block then re-pitches the colours for the dark page.
+ *
+ * Compared as strings against the values that mean "on", so an unreadable or retired setting
  * lands on the normal palette rather than on a half-applied one.
  */
 export function applySheetContrast(value) {
-	document.documentElement.classList.toggle("stonetop-high-contrast", value === "high");
+	const palette = String(value ?? "");
+	document.documentElement.classList.toggle("stonetop-high-contrast", palette === "high" || palette === "dark-high");
+	document.documentElement.classList.toggle("stonetop-dark", palette === "dark" || palette === "dark-high");
 }
 
 /**

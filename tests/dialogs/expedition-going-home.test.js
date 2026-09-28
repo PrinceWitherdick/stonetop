@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { readRepo as read, readCss, ownRule, declarations } from "../fakes/css.js";
 
+// The question spiral, by its file or by the token that carries it. Background uses read
+// `--stonetop-question-spiral-icon` so the dark palette can swap in the bone twin; either spelling
+// is the same picture on paper.
+const QUESTION_SPIRAL = /question-spiral\.svg|--stonetop-question-spiral-icon/;
+
 // The last step of the Run an Expedition walkthrough, "Going home".
 //
 // Its list of things to settle before the PCs walk back in used to be tick boxes with a
@@ -96,7 +101,7 @@ describe("the arriving-home list", () => {
 		// Through ownRule rather than a slice off indexOf: the spiral may be declared on a rule
 		// this selector SHARES with the other question lists, which a fixed-length slice from the
 		// first mention would read straight past.
-		expect(ownRule(CSS, ".stonetop-exp-questions > li::before")).toContain("question-spiral.svg");
+		expect(ownRule(CSS, ".stonetop-exp-questions > li::before")).toMatch(QUESTION_SPIRAL);
 	});
 
 	// The rows draw their own box for that spiral rather than borrowing the walkthrough's
