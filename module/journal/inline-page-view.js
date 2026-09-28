@@ -40,13 +40,15 @@ export function holdRenderWhileTyping(sheet, force) {
 	if (force || !sheet.rendered || !isPoppedOut(sheet)) return false;
 	const root = sheet.element?.[0];
 	if (!root?.contains(document.activeElement) || !isTextEntry(document.activeElement)) return false;
-	if (sheet._heldRender) return true;
-	sheet._heldRender = true;
+	// Held for THIS window. A window closed mid-hold may never hear the focusout that lets go,
+	// and a plain flag would then hold every redraw of the next one for good.
+	if (sheet._heldRender === root) return true;
+	sheet._heldRender = root;
 	const onOut = ev => {
 		if (root.contains(ev.relatedTarget) && isTextEntry(ev.relatedTarget)) return;
 		root.removeEventListener("focusout", onOut);
 		setTimeout(() => {
-			sheet._heldRender = false;
+			if (sheet._heldRender === root) sheet._heldRender = null;
 			if (sheet.rendered) sheet.render(false);
 		});
 	};
@@ -57,6 +59,8 @@ export function holdRenderWhileTyping(sheet, force) {
 // The plain fields a section opens for editing. ProseMirror bodies are left out: they save only
 // on Done or their own toolbar, so a redraw never lands in the middle of one.
 const FIELD = "textarea, input[type=text]";
+// The window a page is drawn in: the popout's own AppV1 frame, or the journal around the inline view.
+const WINDOW = ".app, .application";
 // A section of the page: indexed on location/chronicle pages, named on bestiary pages.
 const SECTION = "[data-section-index], section[data-section]";
 const sectionSelector = section => section.dataset.sectionIndex !== undefined
@@ -81,14 +85,17 @@ export function keepTypingAcrossRedraw(sheet, root) {
 	if (!root) return;
 	const was = sheet._typing;
 	sheet._typing = null;
-	if (was && !was.el.isConnected) restoreTyping(root, was);
+	// A REDRAW, NOT A REOPEN. A redraw swaps the page inside the same window; a window that was
+	// closed took its frame with it, and the note outlives it on the sheet. Put back after a
+	// reopen, the field showed text from last time, possibly over what has been saved since.
+	if (was && !was.el.isConnected && was.frame?.isConnected) restoreTyping(root, was);
 
 	const note = ev => {
 		const el = ev.target;
 		const section = el?.matches?.(FIELD) ? el.closest(SECTION) : null;
 		if (!section) return;
 		sheet._typing = {
-			el, section: sectionSelector(section),
+			el, frame: el.closest(WINDOW), section: sectionSelector(section),
 			index: [...section.querySelectorAll(FIELD)].indexOf(el), cls: el.className,
 			value: el.value, start: el.selectionStart, end: el.selectionEnd,
 		};

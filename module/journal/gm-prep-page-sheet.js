@@ -19,6 +19,14 @@ import { adoptInlineViewRoot } from "./inline-page-view.js";
  */
 export function createStonetopGmPrepPageSheetClass(Base, { template, buildCardVM, editSelector, openEditor, wireExtras }) {
 	return class StonetopGmPrepPageSheet extends Base {
+		// Nothing on the card is a form field for core to save (the doom boxes write
+		// themselves, and edits go through the editor), and the template has no <form>. Left
+		// on, save-on-close threw "no registered form element" and the popout's X did
+		// nothing the first time it was pressed.
+		static get defaultOptions() {
+			return foundry.utils.mergeObject(super.defaultOptions, { submitOnClose: false });
+		}
+
 		get template() { return template; }
 
 		// The embedded page view renders with editable:false, which would blanket-disable
