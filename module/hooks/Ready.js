@@ -50,6 +50,7 @@ import { StonetopArcanaInspireDialog } from "../item/StonetopArcanaInspireDialog
 import { StonetopBrowserDialog } from "../dialogs/StonetopBrowserDialog.js";
 import { findVisibleJournal, SETTING_OVERVIEW_JOURNAL } from "../utils/seeded-journals.js";
 import { getStonetopSteadingActor, getStonetopSteadingActorOrWarn } from "../utils/world.js";
+import { nextSeasonStamp, readCurrentSeason, readCurrentYear } from "../seasons/current-season.js";
 import { rollMoveFromUuid } from "./HotbarDrop.js";
 import { ensureThreatsEntry } from "../threats/threat-store.js";
 import { ensureHazardsEntry } from "../hazards/hazard-store.js";
@@ -375,6 +376,15 @@ export async function onReady() {
 	// button to jump to the sheet if wanted. Warns if there's no steading yet.
 	game.stonetop.openSeasonsChange = () => {
 		getStonetopSteadingActorOrWarn()?.sheet._onSeasonsChange();
+	};
+	// The same move with the picker skipped: straight to the season after the one the clock is in
+	// (Winter turns over into Spring of the next year). The top-of-screen bar's "Next Season"
+	// button (seasons/time-banner.js). Warns if there's no steading yet.
+	game.stonetop.openNextSeason = () => {
+		const steading = getStonetopSteadingActorOrWarn();
+		if (!steading) return;
+		const next = nextSeasonStamp(readCurrentSeason(steading), readCurrentYear(steading));
+		steading.sheet._showSeasonDialog(next.season, next.year);
 	};
 	// Compile the recorded Introductions + Spring Burst answers into the shared
 	// "Chronicle" journal and open it (GM-only). Callable from the Introductions

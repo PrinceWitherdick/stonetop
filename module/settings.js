@@ -1464,6 +1464,19 @@ export function registerSettings() {
 		onChange: value => applyEditPencilRevealDelay(value),
 	});
 
+	// The weather, the season and the year hung from the top of the screen (seasons/time-banner.js).
+	// Per browser: it sits over the map for everybody, and a player who finds it in the way takes
+	// it down for themselves without asking the GM to take it down for the table. No onChange: the
+	// bar listens for `clientSettingChanged` itself, since this file cannot import it back.
+	game.settings.register(SYSTEM_ID, "timeBannerShown", {
+		name: "stonetop.settings.timeBannerShown.name",
+		hint: "stonetop.settings.timeBannerShown.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: true,
+	});
+
 	// NO "HIDE ROLLABLE ICON" SETTING. It used to sit here, between the pencil delay and the
 	// roll-mode switch, and it hid the dice icon on move rows and stat rows. Both icons are
 	// gone outright: a move is rolled by its TITLE and a stat by its whole CELL, so the switch

@@ -158,14 +158,14 @@ describe("the header's weather readout", () => {
 	it("resolves the wrapper's classes, so neither wrapper composes them", () => {
 		for (const sky of Object.keys(WEATHER_SKIES)) {
 			const set = currentWeatherView({ sky, text: "" });
-			expect(set.classes, sky).toContain(`steading-header-weather--${sky}`);
+			expect(set.classes, sky).toContain(`stonetop-sky--${sky}`);
 			expect(set.classes, sky).toContain("steading-header-weather");
 			// A sky the GM chose is not softened.
 			expect(set.classes, sky).not.toContain("steading-header-weather--unset");
 		}
 		// A world that has never set one gets the default glyph, dimmed.
 		const unset = currentWeatherView(null);
-		expect(unset.classes).toContain(`steading-header-weather--${DEFAULT_SKY}`);
+		expect(unset.classes).toContain(`stonetop-sky--${DEFAULT_SKY}`);
 		expect(unset.classes).toContain("steading-header-weather--unset");
 	});
 });

@@ -17667,22 +17667,26 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	mask: var(--st-weather-icon) no-repeat center / contain;
 }
 
-/* One rule per sky, keyed by the modifier the template interpolates from the view's `sky` —
-   a flat list like the tab rail's, so adding a weather is one line here and one in
-   WEATHER_SKIES. Order is the vocabulary's own (fine to foul, then the two temperatures). */
-.steading-header .steading-header-weather--sun      { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/sun.svg'); }
-.steading-header .steading-header-weather--fair     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/fair.svg'); }
-.steading-header .steading-header-weather--cloud    { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/cloud.svg'); }
-.steading-header .steading-header-weather--wind     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/wind.svg'); }
-.steading-header .steading-header-weather--rain     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/rain.svg'); }
-.steading-header .steading-header-weather--downpour { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/downpour.svg'); }
-.steading-header .steading-header-weather--storm    { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/storm.svg'); }
-.steading-header .steading-header-weather--tornado  { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/tornado.svg'); }
-.steading-header .steading-header-weather--snow     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/snow.svg'); }
-.steading-header .steading-header-weather--blizzard { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/blizzard.svg'); }
-.steading-header .steading-header-weather--cold     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/cold.svg'); }
-.steading-header .steading-header-weather--heat     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/heat.svg'); }
-.steading-header .steading-header-weather--haze     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/haze.svg'); }
+/* One rule per sky, keyed by the modifier the view resolves from its `sky` — a flat list like
+   the tab rail's, so adding a weather is one line here and one in WEATHER_SKIES. Order is the
+   vocabulary's own (fine to foul, then the two temperatures).
+
+   UNSCOPED, because two surfaces draw a sky: this header and the weather-and-season bar at the
+   top of the screen (seasons/time-banner.js). Each rule only sets the variable a glyph masks
+   with, so there is nothing in them for the two surfaces to fight over. */
+.stonetop-sky--sun      { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/sun.svg'); }
+.stonetop-sky--fair     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/fair.svg'); }
+.stonetop-sky--cloud    { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/cloud.svg'); }
+.stonetop-sky--wind     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/wind.svg'); }
+.stonetop-sky--rain     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/rain.svg'); }
+.stonetop-sky--downpour { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/downpour.svg'); }
+.stonetop-sky--storm    { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/storm.svg'); }
+.stonetop-sky--tornado  { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/tornado.svg'); }
+.stonetop-sky--snow     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/snow.svg'); }
+.stonetop-sky--blizzard { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/blizzard.svg'); }
+.stonetop-sky--cold     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/cold.svg'); }
+.stonetop-sky--heat     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/heat.svg'); }
+.stonetop-sky--haze     { --st-weather-icon: url('/systems/stonetop-pwd/assets/icons/weather/haze.svg'); }
 
 /* Nobody has set the weather yet, so the sun is ours rather than the GM's. Dropped to the
    secondary ink the year chip already uses — quiet enough to read as a default, not so quiet
@@ -17702,6 +17706,298 @@ button.stonetop-mark-sign-btn.is-active:hover {
 .steading-header .steading-header-weather--set:hover {
 	background: var(--st-slate-hover-bg);
 	color: var(--st-text-body);
+}
+
+/* ── The weather-and-season bar ────────────────────────────────────────────────────
+   The weather, the season and the year, hung from the top edge of the screen for the whole
+   table (seasons/time-banner.js): one bar in three parts, the same facts the steading header's
+   clock shows. Brought over from Mythic Bastionland's Phase/Season/Age banner, lights and all.
+
+   Each part is painted in its own light, off a `stonetop-time-banner--<light>` class the script
+   puts on the part and on the face that slides in over it: the weather in its sky's colours, the
+   season in its season's, the year in the parchment of Bastionland's Age. Every light sets the
+   same five variables and the part and the face paint from them, so a light is one rule.
+
+   ⚠ THE ONE SANCTIONED EXCEPTION to "only the steading clock colours by season" (the user's
+   call, 2026-09-27). Kept narrow: the season lights below are gradients of the bar's own, and
+   nothing here reads the four `--stonetop-season-*-ink` tokens, which stay the clock's alone
+   (steading-header-season.test.js still counts them).
+
+   Each later part lies over the end of the one before it and fades in from nothing, so one light
+   runs into the next with no line between them; only the bar's two outer corners are rounded.
+   It sits in Foundry's middle column (`#ui-top`), which centres it over the map and scales it
+   with the interface already. The column is click-through, so only the parts take pointers. */
+#ui-top > .stonetop-time-banner {
+	/* How far each part fades in over the one before it, which is also how far its words sit in
+	   from either inner side: the whole gap between two parts' words is fade, so two unlike lights
+	   (a storm against summer) turn into each other rather than meet. The fade must not outrun the
+	   overlap, or the page shows through its tail as a dark band. */
+	--stonetop-banner-blend: 2.4em;
+
+	order: -1;
+	align-self: center;
+	/* The season buttons hang from it (see `__moves`). */
+	position: relative;
+	display: inline-flex;
+	flex: none;
+	align-items: stretch;
+	margin: 0;
+	padding: 0;
+	border-radius: 0 0 12px 12px;
+	box-shadow: 0 2px 10px rgb(0 0 0 / 45%);
+	font-family: var(--font-stonetop);
+	font-size: calc(1.3rem * var(--stonetop-font-scale));
+	line-height: 1.2;
+	pointer-events: none;
+}
+
+/* A part. For a GM it is a <button>, so everything core hands a button is taken off by name. */
+.stonetop-time-banner__tab {
+	position: relative;
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	gap: 0.45em;
+	width: auto;
+	height: auto;
+	min-height: 0;
+	margin: 0;
+	/* The inner sides keep the words clear of the fade on either side of them. */
+	padding: 0.25em var(--stonetop-banner-blend) 0.35em;
+	border: none;
+	border-bottom: 1px solid var(--stonetop-banner-rule);
+	border-radius: 0;
+	box-shadow: none;
+	/* Straight down, so a part is no lighter at its left end than at its right, and a join meets
+	   like with like; slanted, every join ran from one part's darkest corner into the next one's
+	   lightest. */
+	background: linear-gradient(to bottom, var(--stonetop-banner-top), var(--stonetop-banner-bottom));
+	color: var(--stonetop-banner-ink);
+	font: inherit;
+	white-space: nowrap;
+	pointer-events: auto;
+	cursor: default;
+	/* A new face slides in from above the part, and nothing of it shows until it's inside. */
+	clip-path: inset(0);
+	/* Core slides every button's every property; a part turns by its own animation instead. */
+	transition: none;
+}
+
+/* Only the bar's two ends are rounded and edged down the side. */
+.stonetop-time-banner__tab--weather {
+	padding-left: 1.1em;
+	border-left: 1px solid var(--stonetop-banner-rule);
+	border-bottom-left-radius: 12px;
+}
+
+.stonetop-time-banner__tab--year {
+	padding-right: 1.1em;
+	border-right: 1px solid var(--stonetop-banner-rule);
+	border-bottom-right-radius: 12px;
+}
+
+/* Each later part lies over the end of the one before it and fades in from nothing, so the two lights blend.
+   The fade is eased (smoothstep, in tenths): a straight ramp shows as a hard band where it starts and
+   where it stops, which is most of what read as a seam. */
+.stonetop-time-banner__tab + .stonetop-time-banner__tab {
+	--stonetop-banner-fade-mask: linear-gradient(to right, transparent, rgb(0 0 0 / 3%) calc(var(--stonetop-banner-blend) * 0.1), rgb(0 0 0 / 10%) calc(var(--stonetop-banner-blend) * 0.2), rgb(0 0 0 / 22%) calc(var(--stonetop-banner-blend) * 0.3), rgb(0 0 0 / 35%) calc(var(--stonetop-banner-blend) * 0.4), rgb(0 0 0 / 50%) calc(var(--stonetop-banner-blend) * 0.5), rgb(0 0 0 / 65%) calc(var(--stonetop-banner-blend) * 0.6), rgb(0 0 0 / 78%) calc(var(--stonetop-banner-blend) * 0.7), rgb(0 0 0 / 90%) calc(var(--stonetop-banner-blend) * 0.8), rgb(0 0 0 / 97%) calc(var(--stonetop-banner-blend) * 0.9), #000 var(--stonetop-banner-blend));
+	margin-left: calc(-1 * var(--stonetop-banner-blend));
+	-webkit-mask-image: var(--stonetop-banner-fade-mask);
+	mask-image: var(--stonetop-banner-fade-mask);
+}
+
+/* Each wide enough for its longest word (Bitter cold, Summer), so no part changes width, and the
+   bar does not shift sideways, as the weather and the seasons turn. Measured in Libre Caslon at
+   roots of 14, 16 and 20px. The year only fits the short ones ("Year Seven"): it turns once a
+   year, and holding room for "Year Twenty-Three" would pad every other year out by half. */
+.stonetop-time-banner__tab--weather { min-width: 10.4em; }
+.stonetop-time-banner__tab--season  { min-width: 10.8em; }
+.stonetop-time-banner__tab--year    { min-width: 10.6em; }
+
+/* The sky, masked over its light's icon colour off the same `stonetop-sky--<sky>` rules the
+   steading header wears. Sized a little over the words for the reason the header's is:
+   game-icons.net art keeps wide margins inside its square, so a glyph matched to the text draws
+   smaller than it. The season's glyph below is drawn the same way, so the two share everything
+   but the drawing each is masked from. */
+.stonetop-time-banner__sky,
+.stonetop-time-banner__season {
+	display: block;
+	flex: none;
+	width: 1.3em;
+	height: 1.3em;
+	background: var(--stonetop-banner-icon);
+}
+
+.stonetop-time-banner__sky {
+	-webkit-mask: var(--st-weather-icon) no-repeat center / contain;
+	mask: var(--st-weather-icon) no-repeat center / contain;
+}
+
+/* Nobody has set the weather yet, so the sun is ours rather than the GM's; as on the header. */
+.stonetop-time-banner__sky--unset { opacity: 0.55; }
+
+/* The season's glyph, drawn the way the sky's is: a game-icons.net drawing masked in the light's
+   own icon colour (assets/icons/seasons/glyphs/ATTRIBUTION.md). NOT the book's season art the
+   Chronicle and the location journals use: that is a traced bitmap, a black disc with the picture
+   cut out of it, and at this size its edge breaks into stair-steps. No fallback in the var, so a
+   season with no rule paints a hole a test can see rather than the wrong season. */
+.stonetop-time-banner__season {
+	-webkit-mask: var(--stonetop-banner-season-glyph) no-repeat center / contain;
+	mask: var(--stonetop-banner-season-glyph) no-repeat center / contain;
+}
+
+.stonetop-time-banner__season--spring { --stonetop-banner-season-glyph: url('/systems/stonetop-pwd/assets/icons/seasons/glyphs/spring.svg'); }
+.stonetop-time-banner__season--summer { --stonetop-banner-season-glyph: url('/systems/stonetop-pwd/assets/icons/seasons/glyphs/summer.svg'); }
+.stonetop-time-banner__season--autumn { --stonetop-banner-season-glyph: url('/systems/stonetop-pwd/assets/icons/seasons/glyphs/autumn.svg'); }
+.stonetop-time-banner__season--winter { --stonetop-banner-season-glyph: url('/systems/stonetop-pwd/assets/icons/seasons/glyphs/winter.svg'); }
+
+/* The year's hourglass, Bastionland's Age glyph. Font Awesome paints above the middle of its own
+   box, so it is let down a pixel to sit level with the words. */
+.stonetop-time-banner__icon {
+	position: relative;
+	top: 1px;
+	flex: none;
+	color: var(--stonetop-banner-icon);
+	font-size: 0.85em;
+}
+
+/* GM only: each part opens the window that decides it, and says so when the pointer is over it. */
+#ui-top > .stonetop-time-banner > button {
+	cursor: pointer;
+}
+
+#ui-top > .stonetop-time-banner > button:hover {
+	filter: brightness(1.06);
+}
+
+#ui-top > .stonetop-time-banner > button:focus-visible {
+	outline: 2px solid var(--stonetop-banner-icon);
+	outline-offset: -4px;
+}
+
+/* A new weather, season or year drops in from the top edge over the old one, already in its own
+   light. The face covers the whole part down to its rule and ends, and the part takes the light
+   once it's in (time-banner.js). Skipped outright, in the script, for a reader who has asked for
+   less motion. */
+.stonetop-time-banner__face {
+	position: absolute;
+	inset: 0 0 -1px;
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: inherit;
+	padding: inherit;
+	border-bottom: 1px solid var(--stonetop-banner-rule);
+	border-radius: inherit;
+	background: linear-gradient(to bottom, var(--stonetop-banner-top), var(--stonetop-banner-bottom));
+	color: var(--stonetop-banner-ink);
+	pointer-events: none;
+	animation: stonetop-time-banner-turn 0.7s ease-out;
+}
+
+.stonetop-time-banner__tab--weather > .stonetop-time-banner__face {
+	left: -1px;
+	border-left: 1px solid var(--stonetop-banner-rule);
+}
+
+.stonetop-time-banner__tab--year > .stonetop-time-banner__face {
+	right: -1px;
+	border-right: 1px solid var(--stonetop-banner-rule);
+}
+
+/* Next Season and Change Season, let down under the season part by a GM's press on the season or
+   the year, as Bastionland lets down its ways of moving time on. Wears the year's parchment light
+   (the script puts `stonetop-time-banner--year` on it). The script sets `left` to the middle of the
+   season part; the 50% here is only for a bar that has somehow lost it. */
+.stonetop-time-banner__moves {
+	position: absolute;
+	top: calc(100% + 0.4rem);
+	left: 50%;
+	translate: -50% 0;
+	display: flex;
+	gap: 0.4rem;
+	padding: 0.4rem;
+	border: 1px solid var(--stonetop-banner-rule);
+	border-radius: 10px;
+	background: linear-gradient(160deg, var(--stonetop-banner-top), var(--stonetop-banner-bottom));
+	box-shadow: 0 2px 10px rgb(0 0 0 / 45%);
+	font-size: 0.8em;
+	pointer-events: auto;
+}
+
+.stonetop-time-banner__moves > button {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	gap: 0.45em;
+	width: auto;
+	height: auto;
+	min-height: 0;
+	margin: 0;
+	padding: 0.35em 0.8em;
+	border: 1px solid var(--stonetop-banner-rule);
+	border-radius: 6px;
+	background: var(--stonetop-banner-top);
+	box-shadow: none;
+	color: var(--stonetop-banner-ink);
+	font: inherit;
+	line-height: 1.2;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.stonetop-time-banner__moves > button i {
+	color: var(--stonetop-banner-icon);
+}
+
+.stonetop-time-banner__moves > button:hover {
+	border-color: var(--stonetop-banner-icon);
+	background: color-mix(in srgb, var(--stonetop-banner-icon) 12%, var(--stonetop-banner-top));
+}
+
+.stonetop-time-banner__moves > button:focus {
+	outline: none;
+	box-shadow: none;
+}
+
+.stonetop-time-banner__moves > button:focus-visible {
+	outline: 2px solid var(--stonetop-banner-icon);
+	outline-offset: 1px;
+}
+
+/* THE LIGHTS. Five variables each: the gradient's two ends, the words, the glyph, and the rule
+   along the foot. The inks are held to 7:1 or better against BOTH ends of their gradient, since a
+   player at this table reads through Windows Magnifier (tests/seasons/time-banner.test.js). */
+
+/* The skies, fine to foul and then the two temperatures, as WEATHER_SKIES lists them. */
+.stonetop-time-banner--sky-sun      { --stonetop-banner-top: #fffbe8; --stonetop-banner-bottom: #f8e7a0; --stonetop-banner-ink: #2a2414; --stonetop-banner-icon: #b0780c; --stonetop-banner-rule: #d9b84e; }
+.stonetop-time-banner--sky-fair     { --stonetop-banner-top: #fbf6e2; --stonetop-banner-bottom: #e6dcb4; --stonetop-banner-ink: #2a2414; --stonetop-banner-icon: #9a7018; --stonetop-banner-rule: #c9b47a; }
+.stonetop-time-banner--sky-cloud    { --stonetop-banner-top: #eceef0; --stonetop-banner-bottom: #bcc3ca; --stonetop-banner-ink: #1e2328; --stonetop-banner-icon: #4f5a66; --stonetop-banner-rule: #8d969f; }
+.stonetop-time-banner--sky-wind     { --stonetop-banner-top: #eef3f3; --stonetop-banner-bottom: #c2d3d3; --stonetop-banner-ink: #1b2626; --stonetop-banner-icon: #3f6464; --stonetop-banner-rule: #88a3a3; }
+.stonetop-time-banner--sky-rain     { --stonetop-banner-top: #e2e9f0; --stonetop-banner-bottom: #a9bccd; --stonetop-banner-ink: #142030; --stonetop-banner-icon: #2f5376; --stonetop-banner-rule: #7890a8; }
+.stonetop-time-banner--sky-downpour { --stonetop-banner-top: #cbd6e1; --stonetop-banner-bottom: #92a7bd; --stonetop-banner-ink: #0e1826; --stonetop-banner-icon: #1c3552; --stonetop-banner-rule: #52688a; }
+.stonetop-time-banner--sky-storm    { --stonetop-banner-top: #3a4160; --stonetop-banner-bottom: #171b2e; --stonetop-banner-ink: #ece6f6; --stonetop-banner-icon: #e8dfa8; --stonetop-banner-rule: #4d4f7c; }
+.stonetop-time-banner--sky-tornado  { --stonetop-banner-top: #4a5046; --stonetop-banner-bottom: #1e221c; --stonetop-banner-ink: #eef0e6; --stonetop-banner-icon: #d8d27a; --stonetop-banner-rule: #5d6454; }
+.stonetop-time-banner--sky-snow     { --stonetop-banner-top: #f7fafc; --stonetop-banner-bottom: #d4e0ea; --stonetop-banner-ink: #16202a; --stonetop-banner-icon: #4d6f8f; --stonetop-banner-rule: #9ab0c4; }
+.stonetop-time-banner--sky-blizzard { --stonetop-banner-top: #dfe7ee; --stonetop-banner-bottom: #aabccc; --stonetop-banner-ink: #101a24; --stonetop-banner-icon: #34506c; --stonetop-banner-rule: #7d95ab; }
+.stonetop-time-banner--sky-cold     { --stonetop-banner-top: #eef6fb; --stonetop-banner-bottom: #b7d3e6; --stonetop-banner-ink: #10202c; --stonetop-banner-icon: #2c6286; --stonetop-banner-rule: #7fa6c2; }
+.stonetop-time-banner--sky-heat     { --stonetop-banner-top: #f3d39c; --stonetop-banner-bottom: #dfa060; --stonetop-banner-ink: #2a1808; --stonetop-banner-icon: #8c3f0c; --stonetop-banner-rule: #a8692c; }
+.stonetop-time-banner--sky-haze     { --stonetop-banner-top: #eef0d8; --stonetop-banner-bottom: #d0d4a4; --stonetop-banner-ink: #262814; --stonetop-banner-icon: #62631f; --stonetop-banner-rule: #a3a668; }
+
+/* The seasons: new green, high-summer gold, turning rust, frost. */
+.stonetop-time-banner--season-spring { --stonetop-banner-top: #f6fbe8; --stonetop-banner-bottom: #d6e8b0; --stonetop-banner-ink: #1f2a14; --stonetop-banner-icon: #4a5a32; --stonetop-banner-rule: #8fb05a; }
+.stonetop-time-banner--season-summer { --stonetop-banner-top: #fbf1c4; --stonetop-banner-bottom: #efd27a; --stonetop-banner-ink: #2e240c; --stonetop-banner-icon: #7a5608; --stonetop-banner-rule: #c9a23c; }
+.stonetop-time-banner--season-autumn { --stonetop-banner-top: #f3d39c; --stonetop-banner-bottom: #de9656; --stonetop-banner-ink: #221204; --stonetop-banner-icon: #7a3410; --stonetop-banner-rule: #a8692c; }
+.stonetop-time-banner--season-winter { --stonetop-banner-top: #f4f8fb; --stonetop-banner-bottom: #c6d6e4; --stonetop-banner-ink: #16202a; --stonetop-banner-icon: #43546a; --stonetop-banner-rule: #8aa4bc; }
+
+/* The year: Bastionland's Age parchment, its hourglass in red ochre. */
+.stonetop-time-banner--year { --stonetop-banner-top: #f7f1e3; --stonetop-banner-bottom: #dccfb0; --stonetop-banner-ink: #231f1a; --stonetop-banner-icon: #9b3b24; --stonetop-banner-rule: #8a7d6a; }
+
+@keyframes stonetop-time-banner-turn {
+	from { translate: 0 -100%; }
+	to   { translate: 0 0; }
 }
 
 /* ── The hold tray ─────────────────────────────────────────────────────────────────

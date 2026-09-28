@@ -147,6 +147,10 @@ describe("the steading header's season clock", () => {
 	//
 	// Counted over the whole stylesheet rather than over a list of suspects, because the next
 	// place they creep to is by definition one nobody thought to list.
+	// ONE sanctioned exception to "only the clock colours by season": the weather-and-season bar at
+	// the top of the screen (seasons/time-banner.js) paints its season part in gradients of its own,
+	// by the user's call (2026-09-27). It never reads these inks, so this count still holds it off
+	// them; tests/seasons/time-banner.test.js guards the bar's side.
 	it("spends the season inks on the clock and on nothing else", () => {
 		// One pass over the stylesheet tallying every ink read, rather than a scan per season:
 		// the tally also catches an ink for a season SEASON_IDS doesn't list, which a per-season

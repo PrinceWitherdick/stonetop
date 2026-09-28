@@ -53,6 +53,7 @@ import { onPreCreateThreatNote } from "./module/hooks/ThreatNotePins.js";
 import { onUpdateSiteNote } from "./module/sites/site-scene-pins.js";
 import { onDrawStonetopNote } from "./module/hooks/StonetopNoteLabels.js";
 import { installMapPinNameToggle } from "./module/hooks/MapPinNameToggle.js";
+import { installTimeBanner } from "./module/seasons/time-banner.js";
 import { registerExpeditionRouteHooks } from "./module/hooks/ExpeditionRouteOverlay.js";
 import { bumpEncounterNotesGeneration } from "./module/actors/gmtoolkit/gm-encounters-tab.js";
 import { gmToolkitActors } from "./module/actors/gmtoolkit/gm-toolkit-actor.js";
@@ -870,6 +871,11 @@ Hooks.on("drawNote", onDrawStonetopNote);
 // for you alone. `ready` rather than `init`: it mounts into core's own `#ui-right` row, which
 // does not exist until the interface has been rendered. See hooks/MapPinNameToggle.js.
 Hooks.once("ready", installMapPinNameToggle);
+
+// The weather, the season and the year hung from the top of the screen, read off the steading.
+// `ready` for the same reason as the eye: it mounts into core's own `#ui-top`. See
+// seasons/time-banner.js.
+Hooks.once("ready", installTimeBanner);
 
 // -- EXPEDITION ROUTE ON THE MAP -------------------------------
 // A journey put on a poster-map scene from the Run an Expedition walkthrough. The scene
