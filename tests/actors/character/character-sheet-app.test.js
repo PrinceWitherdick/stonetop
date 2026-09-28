@@ -1513,6 +1513,57 @@ describe("StonetopCharacterSheet._applyConvalesce", () => {
 	});
 });
 
+// Post-death audit B1: the Unliving (Ghost, Revenant) "gain no benefit from magical healing, Make Camp,
+// Recover or Convalesce". Both cards lock with the reason, and both windows refuse however they are reached.
+describe("Recover and Convalesce for the Unliving", () => {
+	function unliving(kind = "ghost") {
+		const actor = new FakeActorBuilder()
+			.withFlag("inventory.resources", { supplies: 3 })
+			.withFlag("postDeathInsert.slug", kind)
+			.build();
+		actor.id = "actor-1";
+		actor.isOwner = true;
+		actor.typedActor = makeCharacterMock(actor);
+		return actor;
+	}
+
+	it("locks Recover with an Unliving hint, supplies and wounds notwithstanding", () => {
+		for (const kind of ["ghost", "revenant"]) {
+			const data = makeSheet(unliving(kind))._buildRecoverData(recoverSnapshot({ hpValue: 2, hpMax: 8 }));
+			expect(data.canRecover, kind).toBe(false);
+			expect(data.hint.text).toContain("Unliving: no benefit");
+		}
+	});
+
+	it("locks Convalesce with an Unliving hint, however hurt they are", () => {
+		const data = makeSheet(unliving())._buildConvalesceData(convalesceSnapshot({
+			hpValue: 2, hpMax: 8, debilities: [{ key: "dazed", name: "Dazed", active: true }],
+		}));
+		expect(data.canConvalesce).toBe(false);
+		expect(data.hint.text).toContain("Unliving: no benefit");
+	});
+
+	it("leaves a Thrall's cards open", () => {
+		const actor = unliving("thrall");
+		expect(makeSheet(actor)._buildRecoverData(recoverSnapshot({ hpValue: 2 })).canRecover).toBe(true);
+		expect(makeSheet(actor)._buildConvalesceData(convalesceSnapshot({ hpValue: 2 })).canConvalesce).toBe(true);
+	});
+
+	it("opens no window and writes nothing when either is reached another way", async () => {
+		const actor = unliving();
+		actor.update = vi.fn();
+		const sheet = makeSheet(actor);
+		sheet._stonetopCharacter.buildSnapshot = vi.fn();
+		await sheet._onRecoverOpen();
+		await sheet._onConvalesceOpen();
+		expect(sheet._stonetopCharacter.buildSnapshot).not.toHaveBeenCalled();
+		await sheet._applyRecover({ purse: { slug: "supplies", label: "Supplies", remaining: 3 }, oldHp: 2, newHp: 7 });
+		await sheet._applyConvalesce({ oldHp: 2, newHp: 8, debilities: [] });
+		expect(actor.update).not.toHaveBeenCalled();
+		expect(actor.typedActor.setInventoryResource).not.toHaveBeenCalled();
+	});
+});
+
 describe("StonetopCharacterSheet._onDropPlaybook", () => {
 	// The three post-death inserts are `type: "playbook"` Items too, so one handler receives both
 	// and has to tell them apart. It used to ask "does it carry lore?" — which every shipped

@@ -85,6 +85,7 @@ import { partyCharacters } from "../../utils/playbook-actors.js";
 import { followerCardFor, followerMasterIndex } from "./follower-masters.js";
 import { followerFateHpPath, followerReviveUpdate } from "./follower-fate.js";
 import { readableFlags } from "./StonetopFlags.js";
+import { isUnliving } from "./deaths-door-actor.js";
 import { escHtml } from "../../utils/strings.js";
 import { format, localize } from "../../utils/i18n.js";
 
@@ -711,6 +712,11 @@ export async function applyBath(patient, picks, { cardFor = followerCardFor, car
 	}
 	const model = patient?.typedActor;
 	if (!model?.receiveHealing) return null;
+	// A Ghost or a Revenant: "You gain no benefit from magical healing." The light touches them and
+	// nothing changes, which the card says, rather than refusing a patient the Lightbearer can see.
+	if (isUnliving(patient)) {
+		return { patient: patient.name, hp: null, cleared: [], stabilized: null, healed: null, minor: false, affliction: false, unliving: true };
+	}
 	const out = await model.receiveHealing({
 		hp: plan.hp, clearDebilities: plan.clearDebilities, stabilizeWound: plan.stabilizeWound, healWound: plan.healWound,
 		moveName: BATH_NAME,
@@ -798,6 +804,8 @@ export function bathResultHtml(healer, result) {
 			? format(`${KEY}.bathCardHp`, { name, from: hp.from, to: hp.to })
 			: format(`${KEY}.bathCardHpNone`, { name, hp: hp.to }));
 	}
+	if (hp?.halved) lines.push(format(`${KEY}.bathCardHalved`, { name }));
+	if (result?.unliving) lines.push(format(`${KEY}.bathCardUnliving`, { name }));
 	if (result?.nobodyHurt) lines.push(format(`${KEY}.bathCardNobodyHurt`, { name }));
 	for (const debility of result?.cleared ?? []) lines.push(format(`${KEY}.bathCardDebility`, { name, debility }));
 	if (result?.stabilized) {

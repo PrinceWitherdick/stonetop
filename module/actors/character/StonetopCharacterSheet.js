@@ -88,6 +88,7 @@ import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.
 import {readCurrentSeason, readCurrentYear} from "../../seasons/current-season.js";
 import {openRitesOfTheLand} from "./rites-of-the-land.js";
 import {HEALERS_ARTS, HEALERS_ARTS_STOCK, HEALERS_ARTS_STOCK_HP, healersArtsCarers, carerWis, recoverHeal, recoverBreakdown, canReachCarerStock, payHealersArtsStock} from "./healers-arts.js";
+import {isUnliving, recoveredHpTo, slowToHeal} from "./deaths-door-actor.js";
 import {peopleNames, steadingPeopleActors, usedPersonPortraits, createPersonNpc, isActorRow, personRowActor, personRowKey, personRowIdentity, rebasePersonRows, addCharacterToSteadingPlayers} from "../steading/steading-people.js";
 import {openPeoplePortraitPicker} from "../steading/PeopleGalleryDialog.js";
 import {getHoverDescriptionSetting, getRollStatChipsSetting, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getFollowerCardsCollapsed, setFollowerCardsCollapsed, getInventoryLoreExpanded, setInventoryLoreExpanded, getSidebarCollapsed, setSidebarCollapsed, getOpenSheetsInEditMode, getAskRollModeEachRollSetting, isClassicLayout, layoutClasses, stampLayoutClass, isTimelineEnabled} from "../../settings.js";
@@ -552,7 +553,7 @@ function _chosenRecoverCare(html, carers) {
  * Keep the window's readout, the Stock tick and the Recover button in step with the care fields.
  * The tick is offered only when the carer can pay, and says why not when they cannot.
  */
-function _wireRecoverCare(html, { hp, base, carers }) {
+function _wireRecoverCare(html, { hp, base, carers, slow = false }) {
 	const root = html?.[0] ?? html;
 	const form = root?.querySelector?.(".stonetop-recover-dialog") ?? root;
 	if (!form?.querySelector?.('[name="recoverCarer"]')) return;
@@ -592,7 +593,7 @@ function _wireRecoverCare(html, { hp, base, carers }) {
 		if (why) why.textContent = reason;
 		show(why, !!reason);
 
-		const heal = recoverHeal({ base, hp: hp.value, max: hp.max, wis: carer ? carer.wis : null, stock: !!care?.stock });
+		const heal = recoverHeal({ base, hp: hp.value, max: hp.max, wis: carer ? carer.wis : null, stock: !!care?.stock, slow });
 		const newHp = form.querySelector(".stonetop-recover-new-hp");
 		if (newHp) newHp.textContent = String(heal.newHp);
 		const breakdown = form.querySelector(".stonetop-recover-breakdown");
@@ -2110,9 +2111,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			const healAmount  = snapshot.inventory?.smallItemLimit ?? 4;
 			const hp          = snapshot.vitals.hp;
 			const atFullHp    = hp.value >= hp.max;
+			// A Ghost or a Revenant: "You gain no benefit from ... Recover." First, because nothing
+			// else on the card could change that.
+			const unliving    = isUnliving(this.actor);
 
 			let hint = null;
-			if (locked)                 hint = { icon: "fa-lock",                text: game.i18n.localize("stonetop.specialMoves.recover.lockedHint") };
+			if (unliving)               hint = { icon: "fa-ghost",               text: game.i18n.localize("stonetop.specialMoves.recover.unlivingHint") };
+			else if (locked)            hint = { icon: "fa-lock",                text: game.i18n.localize("stonetop.specialMoves.recover.lockedHint") };
 			else if (suppliesLeft <= 0) hint = { icon: "fa-triangle-exclamation", text: game.i18n.localize("stonetop.specialMoves.recover.noSuppliesHint") };
 			else if (atFullHp)          hint = { icon: "fa-heart",               text: game.i18n.localize("stonetop.specialMoves.recover.fullHpHint") };
 
@@ -2122,7 +2127,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				healAmount,
 				atFullHp,
 				hint,
-				canRecover: !locked && suppliesLeft > 0 && !atFullHp,
+				canRecover: !unliving && !locked && suppliesLeft > 0 && !atFullHp,
 			};
 		}
 
@@ -2142,13 +2147,18 @@ export function createStonetopCharacterSheetClass(Base) {
 			// And a marked background track it clears (Auspicious Birth's circle), which stands in
 			// for a debility, so it is often the only thing marked.
 			const markedTracks     = snapshotTracksClearedBy(snapshot, CLEARS_ON.CONVALESCE).filter(t => t.marked);
-			const canConvalesce    = !atFullHp || hasDebility || openWounds.length > 0 || markedTracks.length > 0;
+			// A Ghost or a Revenant: "You gain no benefit from ... Convalesce", HP, debilities and wounds alike.
+			const unliving         = isUnliving(this.actor);
+			const canConvalesce    = !unliving && (!atFullHp || hasDebility || openWounds.length > 0 || markedTracks.length > 0);
+			let hint = null;
+			if (unliving)            hint = { icon: "fa-ghost", text: game.i18n.localize("stonetop.specialMoves.convalesce.unlivingHint") };
+			else if (!canConvalesce) hint = { icon: "fa-heart", text: game.i18n.localize("stonetop.specialMoves.convalesce.nothingHint") };
 			return {
 				atFullHp,
 				hasDebility,
 				activeDebilities,
 				canConvalesce,
-				hint: canConvalesce ? null : { icon: "fa-heart", text: game.i18n.localize("stonetop.specialMoves.convalesce.nothingHint") },
+				hint,
 			};
 		}
 
@@ -10823,6 +10833,8 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		async _onRecoverOpen() {
+			// The card is locked for the Unliving (_buildRecoverData); a hotbar or sidebar press is not.
+			if (isUnliving(this.actor)) return;
 			const snapshot = await this._stonetopCharacter.buildSnapshot();
 			const hp = snapshot.vitals.hp;
 			if (this.actor.getFlag(STONETOP_SCOPE, "recover.spent")) return;
@@ -10834,7 +10846,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (!fallback) return;
 
 			const healAmount = snapshot.inventory?.smallItemLimit ?? 4;
-			const plain      = recoverHeal({ base: healAmount, hp: hp.value, max: hp.max });
+			// Torment's Blessing halves whatever the Recover would heal; the breakdown says so.
+			const slow       = slowToHeal(this.actor);
+			const plain      = recoverHeal({ base: healAmount, hp: hp.value, max: hp.max, slow });
 			const guide      = GUIDED_CHARACTER_MOVES.Recover;
 			// Healer's Arts: whoever could be tending this Recover (healers-arts.js). None, and the
 			// window is the plain Recover it always was.
@@ -10864,7 +10878,7 @@ export function createStonetopCharacterSheetClass(Base) {
 								purse:  _chosenSupplyPurse(html, purses) ?? fallback,
 								oldHp:  hp.value,
 								newHp:  plain.newHp,
-								...(care ? { care: { ...care, base: healAmount } } : {}),
+								...(care ? { care: { ...care, base: healAmount, slow } } : {}),
 							});
 						},
 					},
@@ -10872,7 +10886,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				default: "recover",
 				render: html => {
 					bringDialogToFront(html);
-					if (carers.length) _wireRecoverCare(html, { hp, base: healAmount, carers });
+					if (carers.length) _wireRecoverCare(html, { hp, base: healAmount, carers, slow });
 				},
 			}, { width: 480, classes: this._pastDeathWindowClasses(["dialog", "stonetop", "stonetop-recover-dialog"]) }).render(true);
 		}
@@ -10914,6 +10928,8 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * Stock, and an asked carer may have taken a while to answer.
 		 */
 		async _applyRecover({ purse, oldHp, newHp, care = null }) {
+			// Unliving since the window opened: nothing is spent for a Recover that does them no good.
+			if (isUnliving(this.actor)) return;
 			let paid = null;
 			let kept = null;
 			let wounds = { update: {}, stabilized: [] };
@@ -10937,7 +10953,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				oldHp = this._stonetopCharacter.hp;
 				newHp = recoverHeal({
 					base: care.base, hp: oldHp, max: await this._stonetopCharacter.computedMaxHp(),
-					wis: care.carer.wis, stock: !!paid,
+					wis: care.carer.wis, stock: !!paid, slow: !!care.slow,
 				}).newHp;
 			}
 
@@ -10952,6 +10968,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				{ label: purse.label, value: `Expended 1 use (${purse.remaining - 1} left)` },
 				{ label: "HP", value: `${oldHp} → ${newHp} (+${newHp - oldHp})` },
 			];
+			if (newHp > oldHp && slowToHeal(this.actor)) rows.push({ label: "Torment's Blessing", value: "Slow to heal: only half the HP, rounded up" });
 			if (care) {
 				rows.push({ label: HEALERS_ARTS, value: `Under ${care.carer.name}'s care: +${Math.max(0, care.carer.wis)} HP (WIS)` });
 				if (paid) {
@@ -10973,6 +10990,8 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		async _onConvalesceOpen() {
+			// Locked on the card for the Unliving (_buildConvalesceData); refused here for any other way in.
+			if (isUnliving(this.actor)) return;
 			const snapshot = await this._stonetopCharacter.buildSnapshot();
 			const hp = snapshot.vitals.hp;
 			const activeDebilities = (snapshot.debilities ?? []).filter(d => d.active);
@@ -10983,8 +11002,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			const tracks     = snapshotTracksClearedBy(snapshot, CLEARS_ON.CONVALESCE).filter(t => t.marked);
 			if (hp.value >= hp.max && activeDebilities.length === 0 && openWounds.length === 0 && tracks.length === 0) return;
 
+			// Torment's Blessing: "all your HP" is only half of what was missing, rounded up.
+			const slow  = slowToHeal(this.actor);
+			const newHp = recoveredHpTo(hp.value, hp.max, slow);
 			const hpRow = hp.value < hp.max
-				? `<li>Recover all HP: <strong>${hp.value} &rarr; ${hp.max}</strong>.</li>`
+				? `<li>Recover all HP: <strong>${hp.value} &rarr; ${newHp}</strong>${slow ? " (halved, rounded up: Torment's Blessing)" : ""}.</li>`
 				: `<li>HP already full.</li>`;
 			const debilityRow = activeDebilities.length
 				? `<li>Clear ${activeDebilities.length === 1 ? "debility" : "debilities"}: <strong>${_esc(activeDebilities.map(d => d.name).join(", "))}</strong>.</li>`
@@ -11054,7 +11076,7 @@ export function createStonetopCharacterSheetClass(Base) {
 								const next = (html.find(`[name="plan-${w.id}"]`).val() ?? "").trim();
 								if (next !== (w.planNote ?? "")) planNotes[w.id] = next;
 							}
-							this._applyConvalesce({ oldHp: hp.value, newHp: hp.max, debilities: activeDebilities, tracks, healable, healIds, planNotes });
+							this._applyConvalesce({ oldHp: hp.value, newHp, debilities: activeDebilities, tracks, healable, healIds, planNotes });
 						},
 					},
 					cancel: { label: "Cancel" },
@@ -11066,6 +11088,8 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		// `tracks`: the marked background tracks Convalesce clears (background-tracks.js), in the same write.
 		async _applyConvalesce({ oldHp, newHp, debilities, tracks = [], healable = [], healIds = [], planNotes = {} }) {
+			// Unliving since the window opened: the rest does them no good at all.
+			if (isUnliving(this.actor)) return;
 			const update = { "system.attributes.hp.value": newHp };
 			// Walk It Off's box among them (walk-it-off.js), cleared as a debility is.
 			for (const d of debilities) Object.assign(update, debilityData(d.key, false));

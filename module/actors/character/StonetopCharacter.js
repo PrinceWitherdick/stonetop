@@ -113,6 +113,7 @@ import {maxDie, stepDie, normalizeDamageDie} from "../../utils/damage-die.js";
 import {WEAPONS_OF_WAR_COMMON, WEAPONS_OF_WAR_PIERCING, ALL_IN_THE_WRIST} from "../../data/weapons.js";
 import {X_PIERCING_MAX} from "../../utils/damage.js";
 import {healTo} from "../../camp/camp-rules.js";
+import {recoveredHpTo, slowToHeal} from "./deaths-door-actor.js";
 
 /**
  * The state a playbook move leaves on a character, and whether anything they hold still makes it:
@@ -4478,7 +4479,13 @@ export class StonetopCharacter {
 			update["system.attributes.armor.conditionalSource"] = gatedBy;
 		}
 		const hpMax = Number(maxHp) || 0;
-		if (hpMax > 0 && Number(attrs.hp?.max) !== hpMax) update["system.attributes.hp.max"] = hpMax;
+		if (hpMax > 0 && Number(attrs.hp?.max) !== hpMax) {
+			update["system.attributes.hp.max"] = hpMax;
+			// A max that drops below the HP they have (a Thrall's "Reduce your max HP by 2" Mark) takes
+			// the HP down with it, in the same write: nobody holds more HP than their max. Only when the
+			// max MOVES, so HP this sync did not cause stays the table's business.
+			if ((Number(attrs.hp?.value) || 0) > hpMax) update["system.attributes.hp.value"] = hpMax;
+		}
 		if (!Object.keys(update).length) return false;
 		await this._actor.update(update, { stonetopLedger: true });
 		return true;
@@ -5630,8 +5637,11 @@ export class StonetopCharacter {
 	 */
 	// `alsoUpdate`: more of the same decision, in the same write (We Happy Few's Keep 1 HP puts back
 	// the Battle Joy and Readiness the drop cost), so hooks see it land as one.
+	// Torment's Blessing halves what it restores, rounded up (deaths-door-actor.js#recoveredHpTo): a Thrall's
+	// "half your max HP" is a quarter's worth of hit points back. Never below 1 of a gain, so a Death's
+	// Door "regain 1 HP" still brings them back.
 	async restoreHp(value, moveName, { clearsDeathsDoor = false, alsoUpdate = null } = {}) {
-		const target = Math.max(0, Math.trunc(Number(value) || 0));
+		const target = recoveredHpTo(this.hp, Math.max(0, Math.trunc(Number(value) || 0)), slowToHeal(this._actor));
 		if (target <= this.hp) {
 			if (clearsDeathsDoor) await this.setDeathsDoorState(null);
 			if (alsoUpdate && Object.keys(alsoUpdate).length) await this._actor.update(alsoUpdate, moveName ? { stonetopMove: moveName } : {});
@@ -5690,6 +5700,9 @@ export class StonetopCharacter {
 	 * HP hooks like any other (hooks/DeathsDoorPrompt.js: leaving Death's Door, Unstoppable's "clear one
 	 * mark instead"), so the HP it reports is read back AFTER the write rather than assumed. A debility
 	 * not marked, or a wound that is not (or no longer) a problematic one, is skipped, not an error.
+	 * A Thrall with Torment's Blessing regains half the HP, rounded up, and the answer's `hp.halved`
+	 * says so. Whether the Unliving get anything from it is the CALLER's question: this heals whatever
+	 * it is handed, and it is magical healing that does them no good (invocation-apply.js#applyBath).
 	 *
 	 * @param {object} o
 	 * @param {number} [o.hp]                 HP to regain
@@ -5697,15 +5710,19 @@ export class StonetopCharacter {
 	 * @param {string|null} [o.stabilizeWound]  id of an open problematic wound to stabilize
 	 * @param {string|null} [o.healWound]     id of a problematic wound (stabilized or not) to heal outright
 	 * @param {string} [o.moveName]
-	 * @returns {Promise<{hp: {gain: number, from: number, to: number}|null, cleared: {key: string, name: string}[],
+	 * @returns {Promise<{hp: {gain: number, from: number, to: number, halved?: boolean}|null, cleared: {key: string, name: string}[],
 	 *   stabilized: object|null, healed: object|null}>}
 	 */
 	async receiveHealing({ hp = 0, clearDebilities = [], stabilizeWound = null, healWound = null, moveName = null } = {}) {
 		const update = {};
 		const from = this.hp;
 		const gain = Math.max(0, Math.trunc(Number(hp) || 0));
+		let halved = false;
 		if (gain) {
-			const to = healTo(from, gain, await this.computedMaxHp());
+			// Torment's Blessing: half of what it would have healed, rounded up, and the card says why.
+			const should = healTo(from, gain, await this.computedMaxHp());
+			const to = recoveredHpTo(from, should, slowToHeal(this._actor));
+			halved = to < should;
 			if (to > from) update["system.attributes.hp.value"] = to;
 		}
 		const marked = new Map(this.debilityChoices.filter(d => d.marked).map(d => [d.key, d]));
@@ -5728,7 +5745,7 @@ export class StonetopCharacter {
 		if (healed || stabilized) update["system.attributes.wounds"] = wounds;
 
 		if (Object.keys(update).length) await this._actor.update(update, moveName ? { stonetopMove: moveName } : {});
-		return { hp: gain ? { gain, from, to: this.hp } : null, cleared, stabilized, healed };
+		return { hp: gain ? { gain, from, to: this.hp, ...(halved ? { halved } : {}) } : null, cleared, stabilized, healed };
 	}
 
 	// ── Problematic / permanent wounds (Book I, Harm & Healing) ────────────────

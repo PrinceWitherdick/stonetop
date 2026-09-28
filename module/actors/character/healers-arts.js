@@ -31,6 +31,7 @@ import { isPrimaryGM } from "../../utils/primary-gm.js";
 import { autoOpenUserId, ownerUsers } from "../../hooks/DeathsDoorPrompt.js";
 import { confirmOutcome } from "../../utils/ask-with-buttons.js";
 import { escHtml } from "../../utils/strings.js";
+import { recoveredHpTo } from "./deaths-door-actor.js";
 
 export const HEALERS_ARTS = "Healer's Arts";
 /** The move's price: "If you also spend 1 Stock". */
@@ -75,13 +76,16 @@ export function carerWis(actor) {
  * @param {number} o.max       max HP (the COMPUTED max; see StonetopCharacter#computedMaxHp)
  * @param {number|null} [o.wis]  the carer's WIS, or null when nobody is tending them
  * @param {boolean} [o.stock]  was the carer's Stock spent
+ * @param {boolean} [o.slow]   a Thrall with Torment's Blessing (deaths-door-actor.js#slowToHeal), who
+ *   recovers only half of all that, rounded up; `halved` then says it cost them anything
  */
-export function recoverHeal({ base, hp, max, wis = null, stock = false }) {
+export function recoverHeal({ base, hp, max, wis = null, stock = false, slow = false }) {
 	const wisBonus = wis === null ? 0 : Math.max(0, Math.trunc(Number(wis) || 0));
 	const stockBonus = stock ? HEALERS_ARTS_STOCK_HP : 0;
 	const now = Math.trunc(Number(hp) || 0);
-	const newHp = Math.max(now, Math.min(Math.trunc(Number(max) || 0), now + base + wisBonus + stockBonus));
-	return { base, wis, wisBonus, stockBonus, newHp, gained: newHp - now };
+	const should = Math.max(now, Math.min(Math.trunc(Number(max) || 0), now + base + wisBonus + stockBonus));
+	const newHp = recoveredHpTo(now, should, slow);
+	return { base, wis, wisBonus, stockBonus, newHp, gained: newHp - now, halved: newHp < should };
 }
 
 /**
@@ -96,6 +100,7 @@ export function recoverBreakdown(heal, carerName = "") {
 		parts.push(`+${heal.wisBonus} ${HEALERS_ARTS} (${carerName}'s WIS${why})`);
 	}
 	if (heal.stockBonus) parts.push(`+${heal.stockBonus} ${HEALERS_ARTS} (${HEALERS_ARTS_STOCK} Stock)`);
+	if (heal.halved) parts.push("halved, rounded up (Torment's Blessing)");
 	return parts.join(", ");
 }
 

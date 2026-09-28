@@ -203,6 +203,19 @@ describe("StonetopCharacter#syncStoredVitals", () => {
 		expect(actor.update).toHaveBeenCalledWith({ "system.attributes.hp.max": 16 }, { stonetopLedger: true });
 	});
 
+	// Post-death audit B2: a Thrall's "Reduce your max HP by 2" Mark dropped the max under the HP they had.
+	it("brings the HP down to a max that drops below it, in the same write", async () => {
+		const { self, actor } = typed({ armor: { value: 2, unpierceable: 0 }, hp: { value: 18, max: 18 } }, { armor: 2, unpierceable: 0, maxHp: 16 });
+		await sync(self);
+		expect(actor.update).toHaveBeenCalledWith({ "system.attributes.hp.max": 16, "system.attributes.hp.value": 16 }, { stonetopLedger: true });
+	});
+
+	it("leaves HP under the new max where it is", async () => {
+		const { self, actor } = typed({ armor: { value: 2, unpierceable: 0 }, hp: { value: 9, max: 18 } }, { armor: 2, unpierceable: 0, maxHp: 16 });
+		await sync(self);
+		expect(actor.update).toHaveBeenCalledWith({ "system.attributes.hp.max": 16 }, { stonetopLedger: true });
+	});
+
 	it("leaves max HP alone with no playbook to derive it from", async () => {
 		const { self, actor } = typed({ armor: { value: 0 }, hp: { max: 10 } }, { armor: 0, unpierceable: 0, maxHp: 0 });
 		expect(await sync(self)).toBe(false);

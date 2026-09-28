@@ -586,13 +586,15 @@
         "summary": "When you <em><strong>take time to catch your breath and tend to what ails you</strong></em>, expend 1 use of supplies and regain HP equal to 4+Prosperity. The same move also tends a debility or a problematic wound (use the wound's Tend button); the GM says it's handled or names what's still required.",
         "lockedHint": "You've already caught your breath — you can't gain this benefit again until you take more damage.",
         "noSuppliesHint": "You have no uses of supplies to expend.",
-        "fullHpHint": "You're already at full HP."
+        "fullHpHint": "You're already at full HP.",
+        "unlivingHint": "Unliving: no benefit. A Ghost or Revenant gains nothing from Recover."
       },
       "convalesce": {
         "title": "Convalesce",
         "button": "Convalesce",
         "summary": "When you <em><strong>rest for a few days, in safety and comfort</strong></em>, recover all your HP and clear all your debilities.",
-        "nothingHint": "You're already at full HP with no debilities to clear."
+        "nothingHint": "You're already at full HP with no debilities to clear.",
+        "unlivingHint": "Unliving: no benefit. A Ghost or Revenant gains nothing from Convalesce."
       }
     },
     "postDeath": {
@@ -1641,6 +1643,8 @@
       "bathCardMinor": "{name} recovers from a minor condition.",
       "bathCardAffliction": "{name} is cured of a dire affliction, poison, or disease.",
       "bathCardNobodyHurt": "None of {name} is hurt, so the light has no HP to give back.",
+      "bathCardHalved": "{name}'s wounds are slow to heal (Torment's Blessing): only half the HP comes back.",
+      "bathCardUnliving": "{name} is Unliving and gains no benefit from magical healing: the light changes nothing.",
       "bathMemberTitle": "Bath of Healing Light: which of {group}?",
       "bathMemberQuestion": "Your patient is one person. Which member of {group} do you bathe in your light? The hurt are listed first.",
       "bathMemberHp": "{hp} of {max} HP",
