@@ -876,7 +876,7 @@ body {
    A window whose button relabels itself AFTER opening also has to be told it grew: a `Dialog`
    carries no `height: "auto"`, so the frame stays pinned at whatever the content measured
    first. The debility pickers re-fit on each relabel (steading-debilities.js). Seasons Change
-   relabels its Done too, but opens at 560 precisely so that label never wraps.
+   relabels its Done too, but opens at 700 precisely so that label never wraps beside Back/Next.
 
    SPECIFICITY, because this rule now OWNS five properties for every `.stonetop` Dialog in the
    system. It is 0-4-1 and unlayered, which beats core's layered `body.game .app button` outright
@@ -21550,13 +21550,17 @@ a.steading-player-open:hover {
    maroon 1px underline sized to the WORD, since a flex item shrinks to its content. That
    short dark rule floating under "Spring" is the thing this block is undoing — the whole row
    gets one hairline in the card-rule token instead, which is a heading with a rule under it
-   rather than an underlined word. */
+   rather than an underlined word.
+
+   It sits at the top of the step rail, so it STACKS (glyph, name, year) to fit the rail's width. */
 .stonetop-season-flow-header {
 	display: flex;
+	flex-direction: column;
 	align-items: center;
-	gap: 10px;
-	margin-bottom: 10px;
-	padding-bottom: 8px;
+	gap: 6px;
+	margin: 0 0 10px;
+	padding: 2px 4px 10px;
+	text-align: center;
 	border-bottom: 1px solid var(--st-card-rule);
 }
 
@@ -21564,7 +21568,7 @@ a.steading-player-open:hover {
    above. 700 is the ceiling Libre Caslon Text ships — heavier synthesises a stroke, which at
    this size fills in Caslon's thin strokes, exactly as it does on the steading header. */
 .stonetop-season-flow-header .stonetop-season-flow-title {
-	flex: 1;
+	flex: none;
 	min-width: 0;
 	margin: 0;
 	border: none;
@@ -21591,8 +21595,106 @@ a.steading-player-open:hover {
 	border: none;
 }
 
-.stonetop-season-flow { padding-bottom: 12px; }
 .stonetop-season-picker { padding-bottom: 12px; }
+
+/* ── Seasons Change as a left-rail stepped window ─────────────────────────────
+   The Welcome guide's shape (the shared .stonetop-guide-split / -toc / -main chrome): the rail
+   and one step's column fill a FIXED-height window above a pinned footer, and only the column
+   scrolls. Full-bleed, so the rail's tint runs to the window's edges.
+
+   The footer is core's own `.dialog-buttons` (Done, plus the Back/Next the render callback
+   adds), a flex item of `.window-content` like the content beside it. */
+.stonetop-season-flow-dialog .window-content {
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.stonetop-season-flow-dialog .dialog-content,
+.stonetop-season-flow {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.stonetop-season-main {
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+/* The first block of a step would otherwise open with its own top margin under the column's
+   padding (the gains box's 12px, the notes' 10px), which the other steps don't have. */
+.stonetop-season-section > :first-child { margin-top: 0; }
+
+/* The steading's three numbers, under the header on the rail: label left, figure right, so
+   the figures read down as a column. */
+.stonetop-season-rail-stats {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin: 0 0 10px;
+	padding: 0 6px 10px;
+	font-size: var(--st-fs-sm);
+	border-bottom: 1px solid var(--st-card-rule);
+}
+
+.stonetop-season-rail-stats > div {
+	display: flex;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.stonetop-season-rail-stats dt {
+	font-weight: 400;
+	/* Core puts a 1px black shadow on a dialog's <dt>, which smudges it on parchment. */
+	text-shadow: none;
+	color: var(--st-text-secondary);
+}
+
+.stonetop-season-rail-stats dd {
+	margin: 0;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+}
+
+/* The footer as a footer: a rule above, no floating gap (the generic 16px margin-top is for
+   popups whose buttons sit under a message). Carries `.vtt .stonetop.dialog` to get over that
+   generic rule, which is 0-4-0. */
+.vtt .stonetop.dialog.stonetop-season-flow-dialog .dialog-buttons {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	margin: 0;
+	padding: 10px 16px 12px;
+	border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Back / Next: the Welcome guide's parchment step buttons, content-sized at the right end.
+   They are the footer's only buttons: the season is closed out from its last step, not here.
+   The scope is what outranks the slate skin every `.stonetop` Dialog button gets. */
+.vtt .stonetop.dialog.stonetop-season-flow-dialog .dialog-buttons .stonetop-season-step {
+	flex: 0 0 auto;
+	width: auto;
+	gap: 0.4em;
+	padding: 0 14px;
+	background: var(--stonetop-bg, #f5f0e8);
+	border: 1px solid var(--color-border-dark, #7a7971);
+	color: inherit;
+}
+
+.vtt .stonetop.dialog.stonetop-season-flow-dialog .dialog-buttons .stonetop-season-step:hover:not(:disabled) {
+	background: hsl(40 25% 85%);
+}
+
+.vtt .stonetop.dialog.stonetop-season-flow-dialog .dialog-buttons .stonetop-season-step:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
 
 .stonetop-seasons-grid {
 	display: grid;
@@ -21638,23 +21740,26 @@ a.steading-player-open:hover {
 }
 
 /* No `h3` rule here: the only one in this flow is the banner's title, styled with the rest
-   of that header above (where core's underline and normal weight are undone). */
-.stonetop-season-flow p  { margin: 5px 0; }
-.stonetop-season-flow ul { margin: 4px 0; padding-left: 24px; }
-.stonetop-season-flow li { margin: 3px 0; padding-left: 16px; }
+   of that header above (where core's underline and normal weight are undone).
+
+   Scoped to the step COLUMN, not the whole flow: the rail beside it is an <ol> of <li>s too,
+   and a 16px list indent there pushed "Roll +Fortunes" onto two lines. */
+.stonetop-season-main p  { margin: 5px 0; }
+.stonetop-season-main ul { margin: 4px 0; padding-left: 24px; }
+.stonetop-season-main li { margin: 3px 0; padding-left: 16px; }
 
 /* The bare roll-result lists (10+/7–9/6−) get spiral bullets like the rest of this
    system's prose. Scoped to unclassed <ul> so the classed lists in this flow — the
    seasonal-gains checklist and the winter disaster <ol> — keep their own styling. */
-.stonetop-season-flow ul:not([class]) {
+.stonetop-season-main ul:not([class]) {
 	list-style: none;
 	padding-left: 14px;
 }
-.stonetop-season-flow ul:not([class]) > li {
+.stonetop-season-main ul:not([class]) > li {
 	position: relative;
 	padding-left: calc(var(--stonetop-bullet-size, 10px) + var(--stonetop-spiral-gap));
 }
-.stonetop-season-flow ul:not([class]) > li::before {
+.stonetop-season-main ul:not([class]) > li::before {
 	content: "";
 	position: absolute;
 	left: 0;
@@ -21754,7 +21859,7 @@ a.steading-player-open:hover {
 
 /* Checklist of seasonal gains the GM ticks — shared by the steading's Seasons Change
    modal and the Spring Burst "Read the omen" step (both render the same SEASONAL_GAINS).
-   Scoped past .stonetop-season-flow ul/li so they don't inherit the season list's disc
+   Scoped past .stonetop-season-main ul/li so they don't inherit the season list's disc
    bullets and indent. */
 .stonetop-season-gains .stonetop-season-gains-list {
 	list-style: none;
@@ -21784,7 +21889,7 @@ a.steading-player-open:hover {
    window, two different acts — so a yield is a card with an amount on its right and a button
    under it, and cannot be mistaken for something to check off.
 
-   Scoped past `.stonetop-season-flow ul/li`, as the gains list is, so these do not inherit the
+   Scoped past `.stonetop-season-main ul/li`, as the gains list is, so these do not inherit the
    season's disc bullets and their indent. */
 .stonetop-season-yields {
 	margin: 10px 0 4px;
@@ -21854,6 +21959,27 @@ a.steading-player-open:hover {
 	min-height: 48px;
 	resize: vertical;
 	font-family: inherit;
+}
+
+/* The Chronicle step is nothing but the notes, so the textarea takes the column's whole height
+   (the column's own padding is the inset) instead of sitting as a two-row box at the top.
+   `:not([hidden])` because a `display` here would otherwise out-rank the UA's `[hidden]` and
+   show this step under every other one. */
+.stonetop-season-section[data-season-tab="chronicle"]:not([hidden]) {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+.stonetop-season-section[data-season-tab="chronicle"] .stonetop-season-notes-wrap {
+	flex: 1 1 auto;
+	min-height: 0;
+}
+.stonetop-season-section[data-season-tab="chronicle"] .stonetop-season-notes {
+	flex: 1 1 auto;
+	min-height: 120px;
+	resize: none;
+	padding: 8px 10px;
 }
 
 /* -- Meet with Disaster dialog --------------------------------- */
@@ -22139,6 +22265,18 @@ a.steading-player-open:hover {
 	height: var(--stonetop-bullet-size, 10px);
 	background: var(--stonetop-spiral-icon) no-repeat center / contain;
 	opacity: 0.55;
+}
+
+/* A roll card's list to READ (roll-engine#pickReferenceHtml: the seasonal gains), in this same
+   box under the Results legend. The gap says they are two boxes. On the box rather than on its
+   tier wrapper, so a tier that lists nothing (a 6-, its box hidden) leaves no gap behind. */
+.stonetop-roll-card-results .stonetop-roll-reference { margin-top: 6px; }
+
+/* "(tell the GM what you choose)" beside the box's heading: an instruction, quieter than the
+   heading it follows, the way the Seasons Change window's "(tick what they pick)" is. */
+.stonetop-roll-reference-hint {
+	font-weight: 400;
+	color: var(--st-text-secondary);
 }
 
 .stonetop-homestead-choice-list {

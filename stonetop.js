@@ -77,7 +77,7 @@ import { boldMissText } from "./module/utils/strings.js";
 import { moveBodyHtml } from "./module/utils/move-tiers.js";
 import { MOVE_TIERS_CLASS, ROLLED_TIER_ATTR } from "./module/utils/move-results.js";
 import { hbsTruthy } from "./module/utils/hbs-truthy.js";
-import { rollSeasonsCard, sign, markMissXp, pbtaDiceFormula, seasonsRollTable, syncCountedNotePill } from "./module/utils/roll-engine.js";
+import { rollSeasonsCard, sign, markMissXp, pbtaDiceFormula, seasonsRollTable, seasonsRollPicks, syncCountedNotePill } from "./module/utils/roll-engine.js";
 import { countedResult, rolledRecord, cardCountedTier, totalTier } from "./module/utils/counted-tier.js";
 import { burnBrightlyAffordable, burnsBrightlyDriven } from "./module/actors/character/burn-brightly.js";
 import { wireImpetuousYouth, HURT_DAMAGE, IMPETUOUS_YOUTH } from "./module/actors/character/impetuous-youth.js";
@@ -2409,8 +2409,12 @@ function _chatWireSeasonsRoll(message, html) {
 		// — spring's Seasons Change and the Inn's questions — and they share everything but their
 		// outcomes. A card from before the Inn's roll existed carries no id and gets spring's.
 		const table    = seasonsRollTable(btn.dataset.table);
+		// And what it lets the table pick: spring's seasonal gains, listed on the result so the
+		// players can see their options (to say aloud; the GM enters them in the Seasons Change
+		// window). The Inn's questions have no list.
+		const picks    = seasonsRollPicks(btn.dataset.table);
 		try {
-			await rollSeasonsCard({ formula, title, resultTable: table });
+			await rollSeasonsCard({ formula, title, resultTable: table, ...picks });
 		} catch (err) {
 			console.error("Stonetop | Error rolling Seasons Change from chat:", err);
 			btn.disabled = false;

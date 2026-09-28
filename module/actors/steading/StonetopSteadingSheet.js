@@ -1,9 +1,10 @@
 import { StonetopSteading, IMPROVEMENT_CATEGORIES, IMPROVEMENT_COMPLETION_NOTES, STEADING_DEFAULTS, improvementRequirementsMet, HERD_SURPLUS_PER, WEAPONS_SEASON_STEP, WATCH_SEASON_STEP } from "./StonetopSteading.js";
 import { confirmOutcome } from "../../utils/ask-with-buttons.js";
 import { improvementRequirementCount } from "../../utils/improvement-def.js";
-import {rollStat, sign, postSeasonsRollPrompt, resultsLegendHtml} from "../../utils/roll-engine.js";
+import {rollStat, sign, postSeasonsRollPrompt, resultsLegendHtml, SEASONAL_GAIN_LIST} from "../../utils/roll-engine.js";
 import {SteadingLedger} from "./SteadingLedger.js";
 import {TIER_KEYS} from "../../utils/move-results.js";
+import {moveTiersHtml} from "../../utils/move-tiers.js";
 import {prepareMoveHoverBody} from "../../utils/move-hover.js";
 import {openLedgerDialog} from "../../utils/ledger-dialog.js";
 import {wireTabSearch} from "../../utils/tab-search.js";
@@ -48,6 +49,7 @@ import {readCurrentWeather, currentWeatherView} from "../../seasons/current-weat
 import {openSeasonPicker} from "../../seasons/season-picker.js";
 import {SEASONAL_GAINS} from "../../dialogs/spring-burst-data.js";
 import {addStonetopSteadingButton} from "../../utils/world.js";
+import {createInlineActionsDialog} from "../../utils/inline-actions-dialog.js";
 import {SETTLEMENTS} from "../../data/settlements.js";
 import {relationshipRow, wireRelationshipTable} from "../../utils/relationship-hearts.js";
 import {wireAvatarPreview, removeAvatarPreview} from "../../utils/avatar-preview.js";
@@ -64,6 +66,7 @@ import {closeRelmapTab, detachRelmapTab, makeFirstRelationshipMap, relmapTabCont
 import {closeTimelineTab, detachTimelineTab, syncTimelineTab, TIMELINE_TAB} from "../../timeline/timeline-tab.js";
 import {DIMINISHED_MOVES, PATHFINDER, STEADING_MOVE, improvementQuestions, rollAdjustments} from "./improvement-rolls.js";
 import {settleSteadingRoll} from "./steading-roll.js";
+import {applyGuideRail, guideRailStep} from "../../utils/guide-rail.js";
 import {worldLogisticsNames} from "../character/logistics.js";
 import {worldLearnedHolderNames} from "../character/owns-move.js";
 
@@ -338,10 +341,16 @@ function _seasonFortunesResultRows(seasonId) {
 }
 
 function _seasonRollOptions(seasonId) {
-	const results = _seasonFortunesResultRows(seasonId);
+	const moveResults = _moveResultsFromRows(_seasonFortunesResultRows(seasonId));
 	return {
-		moveResults: _moveResultsFromRows(results),
-		resultLegend: _resultsLegendHtml(results),
+		moveResults,
+		// The ladder as a move card carries it: under the title, landed rung lit (rollStat marks
+		// it), rather than a "Results" box under the result.
+		moveDescription: moveTiersHtml(moveResults),
+		// The seasonal gains on the card, so the players can see what the 10+/7-9 lets them
+		// choose. A list to read, not tick: they say what they choose and the GM enters it in the
+		// Seasons Change window. Winter's roll picks no gains.
+		...(seasonId === "winter" ? {} : SEASONAL_GAIN_LIST),
 	};
 }
 
@@ -2153,13 +2162,16 @@ export function createStonetopSteadingSheetClass(Base) {
 			});
 		}
 
-		// Read the season dialog's ticked gains + notes off the DOM (Done), apply the two
-		// gains with a mechanical effect (Population boom, Unexpected bounty), reset Fortunes
-		// for the new season, record this season into the chosen `year`'s page of the
-		// "Seasons Change" Chronicle journal (with the net Surplus change since the dialog
-		// opened), then open it. Completing a Winter advances the steading's current year so
-		// the next picker defaults to the new one. GM-only.
-		async _saveSeasonChange(seasonId, html, fortunes, resetFortunes = 1, initialSurplus = null, year = this._seasonsCurrentYear()) {
+		// Read the season dialog's ticked gains + notes off the DOM (the Chronicle step's
+		// "Record the season" button), apply the two gains with a mechanical effect
+		// (Population boom, Unexpected bounty), record this season into the chosen `year`'s
+		// page of the "Seasons Change" Chronicle journal (with the net Surplus change since the
+		// dialog opened), then open it. Completing a Winter advances the steading's current
+		// year so the next picker defaults to the new one. GM-only.
+		//
+		// Fortunes is NOT reset here: that is its own button on the roll step, so the GM takes
+		// it deliberately after the roll rather than as a side effect of closing the window.
+		async _saveSeasonChange(seasonId, html, fortunes, initialSurplus = null, year = this._seasonsCurrentYear()) {
 			const root = html?.jquery ? html[0] : (html?.[0] ?? html);
 			if (!root) return;
 			const checkedKeys = Array.from(root.querySelectorAll(".stonetop-season-gain-check:checked"))
@@ -2168,11 +2180,10 @@ export function createStonetopSteadingSheetClass(Base) {
 				.map(key => SEASONAL_GAINS.find(g => g.key === key)?.name)
 				.filter(Boolean);
 
-			// Apply the mechanical gains the GM ticked (the others are narrative-only) and
-			// reset Fortunes in one update — all effects of the Seasons Change homefront
-			// move, so the ledger names it; batching keeps it to a single ledger append and
-			// one combined stat-change card. Notices are queued so they still read in the
-			// Population → Bounty → Fortunes order.
+			// Apply the mechanical gains the GM ticked (the others are narrative-only) in one
+			// update — effects of the Seasons Change homefront move, so the ledger names it;
+			// batching keeps it to a single ledger append and one combined stat-change card.
+			// Notices are queued so they still read in the Population → Bounty order.
 			const updates = {};
 			const notices = [];
 			if (checkedKeys.includes("population")) {
@@ -2190,9 +2201,6 @@ export function createStonetopSteadingSheetClass(Base) {
 				updates["attributes.surplus.value"] = finalSurplus;
 				notices.push(`Unexpected bounty: Surplus increased to ${finalSurplus}.`);
 			}
-
-			updates["stats.fortunes.value"] = resetFortunes;
-			notices.push(`Fortunes reset to ${sign(resetFortunes)}.`);
 
 			// Tor's blessing is the one gain that leaves something BEHIND: "+1 to Pull Together
 			// this season, and when you roll the Die of Fate for weather, roll twice and take
@@ -2274,7 +2282,15 @@ export function createStonetopSteadingSheetClass(Base) {
 				<span class="stonetop-season-flow-year stonetop-year-chip">${yearLabel(year)}</span>
 			</div>`;
 
-			const statsNote = `<p class="stonetop-season-note">Fortunes: <strong>${sign(fortunes)}</strong> &nbsp;·&nbsp; Surplus: <strong>${surplus}</strong> &nbsp;·&nbsp; Population: <strong>${sign(population)}</strong></p>`;
+			// The steading's three numbers, under the header at the top of the rail, so they stay in
+			// view whichever step is showing. Kept LIVE by the render callback (an updateActor hook),
+			// because half the buttons in this window move Surplus and a figure captured at open
+			// would be wrong by the second click.
+			const statsNote = `<dl class="stonetop-season-rail-stats">
+				<div><dt>Fortunes</dt><dd data-season-stat="fortunes">${sign(fortunes)}</dd></div>
+				<div><dt>Surplus</dt><dd data-season-stat="surplus">${surplus}</dd></div>
+				<div><dt>Population</dt><dd data-season-stat="population">${sign(population)}</dd></div>
+			</dl>`;
 
 			// ── What the steading's improvements do to this season ───────────────────────
 			// Ten of the book's improvements end in a seasonal "Henceforth…", and the window used
@@ -2302,8 +2318,9 @@ export function createStonetopSteadingSheetClass(Base) {
 
 			// Spring hands the roll to the table (the most hopeful PC rolls in chat), so it
 			// shows "Ask the most hopeful…" where the other seasons show "Roll +Fortunes".
-			// "Whatever the result, reset Fortunes to +1" is the close-out of every season,
-			// so it's folded into Done (see _saveSeasonChange) rather than a separate button.
+			// "Whatever the result, reset Fortunes to +1" is its own button, directly under the
+			// roll it follows, and never a side effect of closing the window: the GM takes each
+			// step of the season deliberately. Once a season, like the Surplus steps.
 			const rollOrAskBtn = seasonId === "spring"
 				? `<button class="stonetop-season-btn" data-action="ask-hopeful">
 					<i class="fas fa-comment-dots"></i> Ask the most hopeful to roll (in chat)
@@ -2313,14 +2330,17 @@ export function createStonetopSteadingSheetClass(Base) {
 				</button>`;
 			const fortunesBtns = `<div class="stonetop-season-actions">
 				${rollOrAskBtn}
+				<button class="stonetop-season-btn" data-action="reset-fortunes">
+					<i class="fas fa-rotate-left"></i> Then reset Fortunes to ${sign(resetFortunes)}
+				</button>
 			</div>`;
 
 			// Seasonal gains as a checklist the GM ticks (recorded into the Seasons Change
-			// journal on Done). The two with a mechanical effect — Population boom (+1
-			// Population) and Unexpected bounty (+1 Surplus) — are applied on Done when
-			// ticked rather than via their own buttons; the Done button relabels to say so.
-			// Gain copy comes from the shared SEASONAL_GAINS so the dialog and Chronicle
-			// stay in lockstep.
+			// journal by the Chronicle step's "Record the season"). The two with a mechanical
+			// effect — Population boom (+1 Population) and Unexpected bounty (+1 Surplus) — are
+			// applied by that same button when ticked rather than via their own buttons; it
+			// relabels to say so. Gain copy comes from the shared SEASONAL_GAINS so the dialog
+			// and Chronicle stay in lockstep.
 			const gainsRef = `<div class="stonetop-season-gains">
 				<p class="stonetop-season-gains-label">Seasonal gains <span class="stonetop-season-gains-hint">(tick what they pick)</span></p>
 				<ul class="stonetop-season-gains-list">
@@ -2336,11 +2356,20 @@ export function createStonetopSteadingSheetClass(Base) {
 				</ul>
 			</div>`;
 
-			// Free-text notes recorded onto the season's Chronicle page on Done (the omen,
-			// the threat that surfaced, the hook it opens).
+			// Free-text notes recorded onto the season's Chronicle page (the omen, the threat
+			// that surfaced, the hook it opens), and under them the button that closes the
+			// season out. It lives on the LAST step, not in the footer, so it is only in reach
+			// once the GM has walked the rest. The unreset warning is shown by the render
+			// callback, which knows whether the roll step's reset has been taken.
 			const notesBlock = `<div class="stonetop-season-notes-wrap">
 				<label class="stonetop-season-notes-label"><i class="fas fa-feather"></i> Notes for the Chronicle</label>
 				<textarea class="stonetop-season-notes" rows="2" placeholder="The omen, threat, or hook this season opens…"></textarea>
+			</div>
+			<p class="stonetop-season-note" data-season-unreset hidden>⚠️ Fortunes has not been reset yet this season. That is on the <strong>Roll +Fortunes</strong> step.</p>
+			<div class="stonetop-season-actions">
+				<button class="stonetop-season-btn" data-action="record-season">
+					<i class="fas fa-book"></i> Record the season &amp; close
+				</button>
 			</div>`;
 
 			// Standing Watch: "At the start of each season, the watch consumes 1 Surplus or it
@@ -2353,8 +2382,10 @@ export function createStonetopSteadingSheetClass(Base) {
 			// divider, the `.stonetop-season-watch` box, the icon/name/"Surplus: N" line, then
 			// the body — so the three differed only in their sentence and their controls, and had
 			// already drifted on where the weapons' block put its `.stonetop-season-actions`.
-			const upkeepBlock = ({ icon, name, sentence, body }) => `<hr class="stonetop-season-divider">
-				<div class="stonetop-season-watch">
+			//
+			// No divider of its own: the blocks share the "What it costs" step, and joinBlocks puts
+			// one BETWEEN them, so the first never opens on a rule.
+			const upkeepBlock = ({ icon, name, sentence, body }) => `<div class="stonetop-season-watch">
 					<p class="stonetop-season-note"><i class="fas ${icon}"></i> <strong>${name}</strong> ${sentence} Surplus: <strong>${surplus}</strong>.</p>
 					${body}
 				</div>`;
@@ -2444,8 +2475,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			// friendliest is a player. It does NOT spend a held +Fortunes advantage — that hold is
 			// Rites of the Land's, promised to the steading's own roll, and which of two rolls in
 			// one window counts as "next" is a ruling the table makes, not one to make for them.
-			const innRollBlock = this._hasImprovement("inn") ? `<hr class="stonetop-season-divider">
-				<div class="stonetop-season-watch">
+			const innRollBlock = this._hasImprovement("inn") ? `<div class="stonetop-season-watch">
 					<p class="stonetop-season-note"><i class="fas fa-beer-mug-empty"></i> <strong>The Inn</strong>: whoever is friendliest rolls +Fortunes. On a <strong>10+</strong>, ask the GM 3 questions about the wider world; on a <strong>7-9</strong>, ask 1; on a <strong>6-</strong>, ask 1, but the GM describes some trouble that stems from the inn or its guests.</p>
 					<div class="stonetop-season-actions">
 						<button class="stonetop-season-btn" data-action="ask-friendliest">
@@ -2458,8 +2488,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			// one "take it all", because they are separate rules with separate conditions and two
 			// of them wait on a roll this window cannot read — and because a once-per-season marker
 			// per row is what stops a reopen taking any single one of them twice.
-			const yieldsBlock = yields.length ? `<hr class="stonetop-season-divider">
-				<div class="stonetop-season-yields">
+			const yieldsBlock = yields.length ? `<div class="stonetop-season-yields">
 					<p class="stonetop-season-gains-label">What the improvements bring <span class="stonetop-season-gains-hint">(each taken once a season)</span></p>
 					<ul class="stonetop-season-yield-list">
 						${yields.map(y => `<li class="stonetop-season-yield">
@@ -2482,150 +2511,285 @@ export function createStonetopSteadingSheetClass(Base) {
 					</ul>
 				</div>` : "";
 
-			let content;
+			// ── The window as steps ───────────────────────────────────────────────────────
+			// The same left rail as the Welcome guide (the shared `.stonetop-guide-*` chrome): the
+			// season's header and the steading's numbers sit at the top of the rail, and one step
+			// shows at a time beside it. Stacked, a summer with a few improvements ran well past the
+			// height of a laptop screen.
+			//
+			// Every step's markup is IN the window from the start and only hidden, never rendered on
+			// demand: the listeners below bind once against the whole content, "Record the season"
+			// reads the gains and notes off it wherever they are, and a ticked gain survives the GM
+			// wandering off to another step and back.
+			//
+			// The order is what the GM does in: the roll and what it lets them pick, then what the
+			// season BRINGS (Surplus rolled and earned), then what it COSTS (the watch every season,
+			// the weapons in spring, the militia in summer, the herd in winter), then the Inn's talk,
+			// then the notes and the close-out. It is deliberately not the order the improvements appear on
+			// their own tab, because nobody works through a season alphabetically. A step with
+			// nothing in it this season is left off the rail entirely.
+			const step = (key, title, icon, body) => ({ key, title, icon, body: body.trim() });
+			// Blocks sharing a step get a rule BETWEEN them, never before the first.
+			const joinBlocks = blocks => blocks.filter(Boolean).join(`<hr class="stonetop-season-divider">`);
+
+			// The roll and the gains it lets them pick are ONE step: the ladder says how many to
+			// pick, so the checklist belongs directly under it rather than a click away.
+			const rollStep = (who, ladder, note) => step("roll", "Roll +Fortunes", "fa-dice-d6", `
+				<p>Whoever is the <strong>${who}</strong> rolls +Fortunes:</p>
+				<ul>${ladder.map(([tier, text]) => `<li><strong>${tier}:</strong> ${text}</li>`).join("")}</ul>
+				<p class="stonetop-season-note">${note}</p>
+				${fortunesBtns}
+				${gainsRef}`);
+
+			// Herd of Horses: summer promotes the tiers and adds foals (the season bringing
+			// something), winter feeds the herd off Surplus (the season costing something).
+			const hasHerd = this._hasImprovement("herdOfHorses");
+			const herdAdvanceBlock = (seasonId === "summer" && hasHerd) ? `<div class="stonetop-season-actions">
+				<button class="stonetop-season-btn" data-action="advance-herd">
+					<i class="fas fa-horse"></i> Advance the herd (promote tiers, add foals)
+				</button>
+			</div>` : "";
+			const herdFeedBlock = (seasonId === "winter" && hasHerd) ? `<div>
+				<p class="stonetop-season-note">The herd eats 1 Surplus per ${HERD_SURPLUS_PER} grown-or-yearling horses; each Surplus it goes short costs 1d6 horses.</p>
+				<div class="stonetop-season-actions">
+					<button class="stonetop-season-btn" data-action="feed-herd">
+						<i class="fas fa-horse"></i> Feed the herd (consume Surplus, roll any losses)
+					</button>
+				</div>
+			</div>` : "";
+
+			let seasonSteps;
 			if (seasonId === "spring") {
-				content = `<div class="stonetop-season-flow">
-					${header}
-					<p>Whoever is the <strong>most hopeful</strong> rolls +Fortunes:</p>
-					<ul>
-						<li><strong>10+:</strong> Pick 1 seasonal gain.</li>
-						<li><strong>7–9:</strong> Pick 1 seasonal gain, but a threat makes itself known or gets worse.</li>
-						<li><strong>6−:</strong> Threats abound. Don't mark XP.</li>
-					</ul>
-					<p class="stonetop-season-note">Whatever the result, reset Fortunes to +1.</p>
-					${statsNote}${gainsRef}${fortunesBtns}
-				`;
+				seasonSteps = [
+					rollStep("most hopeful", [
+						["10+", "Pick 1 seasonal gain."],
+						["7–9", "Pick 1 seasonal gain, but a threat makes itself known or gets worse."],
+						["6−", "Threats abound. Don't mark XP."],
+					], "Whatever the result, reset Fortunes to +1."),
+					step("brings", "What it brings", "fa-wheat-awn", joinBlocks([aurochsNote, yieldsBlock])),
+				];
 			} else if (seasonId === "summer") {
-				content = `<div class="stonetop-season-flow">
-					${header}
-					<p>Whoever is the <strong>most content</strong> rolls +Fortunes:</p>
-					<ul>
-						<li><strong>10+:</strong> Pick 2 seasonal gains.</li>
-						<li><strong>7–9:</strong> Pick 1 seasonal gain.</li>
-						<li><strong>6−:</strong> A threat makes itself known or gets worse. Don't mark XP.</li>
-					</ul>
-					<p class="stonetop-season-note">Whatever the result, the steading generates 1d4−1 Surplus, then Fortunes resets to +1.</p>
-					${statsNote}${gainsRef}${fortunesBtns}
-					<div class="stonetop-season-actions">
-						<button class="stonetop-season-btn" data-action="roll-surplus">
-							<i class="fas fa-dice-d4"></i> Roll 1d4−1 Surplus (add to steading)
-						</button>
-					</div>
-					${this._hasImprovement("herdOfHorses") ? `<div class="stonetop-season-actions">
-						<button class="stonetop-season-btn" data-action="advance-herd">
-							<i class="fas fa-horse"></i> Advance the herd (promote tiers, add foals)
-						</button>
-					</div>` : ""}
-				`;
+				seasonSteps = [
+					rollStep("most content", [
+						["10+", "Pick 2 seasonal gains."],
+						["7–9", "Pick 1 seasonal gain."],
+						["6−", "A threat makes itself known or gets worse. Don't mark XP."],
+					], "Whatever the result, the steading generates 1d4−1 Surplus, then Fortunes resets to +1."),
+					step("brings", "What it brings", "fa-wheat-awn", joinBlocks([
+						`<div class="stonetop-season-actions">
+							<button class="stonetop-season-btn" data-action="roll-surplus">
+								<i class="fas fa-dice-d4"></i> Roll 1d4−1 Surplus (add to steading)
+							</button>
+						</div>${herdAdvanceBlock}`,
+						yieldsBlock,
+					])),
+				];
 			} else if (seasonId === "autumn") {
-				content = `<div class="stonetop-season-flow">
-					${header}
-					<p>Whoever is the <strong>most determined</strong> rolls +Fortunes:</p>
-					<ul>
-						<li><strong>10+:</strong> Pick 1 seasonal gain.</li>
-						<li><strong>7–9:</strong> Pick 1 seasonal gain, but a threat makes itself known or gets worse.</li>
-						<li><strong>6−:</strong> Threats abound. Don't mark XP.</li>
-					</ul>
-					<p class="stonetop-season-note">Whatever the result, reset Fortunes to +1. When harvest is complete, the steading generates ${harvest.formula} Surplus.</p>
-					${statsNote}${gainsRef}${fortunesBtns}
-					<div class="stonetop-season-actions">
-						<button class="stonetop-season-btn" data-action="roll-surplus" data-formula="${_esc(harvest.formula)}">
-							<i class="fas fa-dice-d4"></i> Roll ${harvest.formula} Surplus (Harvest)
-						</button>
-					</div>
-					${partsNote(harvest.parts)}
-				`;
-			} else {
-				// Winter
-				content = `<div class="stonetop-season-flow">
-					${header}
-					<p>Whoever is the <strong>weariest</strong> rolls ${winterBill.formula} (min 0); the steading consumes that much Surplus.</p>
-					${statsNote}${partsNote(winterBill.parts)}
-					<div id="stonetop-winter-step1" class="stonetop-season-actions">
-						<button class="stonetop-season-btn" data-action="roll-consumption" data-formula="${_esc(winterBill.formula)}">
-							<i class="fas fa-dice-d4"></i> Roll ${winterBill.formula} for Surplus Consumption
-						</button>
-					</div>
-					<!-- Stands in for step 1 when the window is REOPENED on a winter whose
-					     consumption has already been settled. Winter is the one season that
-					     runs in two halves, and the second half used to be reachable only as a
-					     side effect of clicking the first: see the render callback. -->
-					<p id="stonetop-winter-settled" class="stonetop-season-note" hidden>
-						The steading's winter consumption is already settled this season. What is left of winter follows.
-					</p>
-					<div id="stonetop-winter-step2" hidden>
-						<p id="stonetop-winter-result" class="stonetop-season-note"></p>
-						<div id="stonetop-winter-ok" hidden>
-							<div class="stonetop-season-actions">
-								<button class="stonetop-season-btn" data-action="apply-consumption">Apply Surplus Consumption</button>
-							</div>
-						</div>
-						<div id="stonetop-winter-shortfall" hidden>
-							<p>⚠️ <strong>Not enough Surplus.</strong> Reduce Surplus to 0 and Fortunes by 1, then the GM picks 1:</p>
-							${winterConsequencesHtml()}
-						</div>
-					</div>
-					<div id="stonetop-winter-step3" hidden>
-						<hr class="stonetop-season-divider">
-						<p>Then, roll +Fortunes:</p>
-						<ul>
-							<li><strong>10+:</strong> Winter is relatively mild. Each player names a local NPC with whom their relationship improves.</li>
-							<li><strong>7–9:</strong> The steading must consume ${winterAgain.formula} more Surplus before winter ends, or suffer the consequences again.</li>
-							<li><strong>6−:</strong> As 7–9, plus threats abound. Don't mark XP.</li>
-						</ul>
-						<p class="stonetop-season-note">Whatever the result, reset Fortunes to +1.</p>
-						${fortunesBtns}
-						<div class="stonetop-season-actions">
-							<button class="stonetop-season-btn stonetop-season-btn--warn" data-action="record-winter-debt">
-								<i class="fas fa-hourglass-half"></i> On a 7-9 or 6-: roll what winter still wants
+				seasonSteps = [
+					rollStep("most determined", [
+						["10+", "Pick 1 seasonal gain."],
+						["7–9", "Pick 1 seasonal gain, but a threat makes itself known or gets worse."],
+						["6−", "Threats abound. Don't mark XP."],
+					], `Whatever the result, reset Fortunes to +1. When harvest is complete, the steading generates ${harvest.formula} Surplus.`),
+					step("brings", "What it brings", "fa-wheat-awn", joinBlocks([
+						`<div class="stonetop-season-actions">
+							<button class="stonetop-season-btn" data-action="roll-surplus" data-formula="${_esc(harvest.formula)}">
+								<i class="fas fa-dice-d4"></i> Roll ${harvest.formula} Surplus (Harvest)
 							</button>
 						</div>
-					</div>
-					${this._hasImprovement("herdOfHorses") ? `<hr class="stonetop-season-divider">
-					<p class="stonetop-season-note">The herd eats 1 Surplus per ${HERD_SURPLUS_PER} grown-or-yearling horses; each Surplus it goes short costs 1d6 horses.</p>
-					<div class="stonetop-season-actions">
-						<button class="stonetop-season-btn" data-action="feed-herd">
-							<i class="fas fa-horse"></i> Feed the herd (consume Surplus, roll any losses)
-						</button>
-					</div>` : ""}
-				`;
+						${partsNote(harvest.parts)}`,
+						yieldsBlock,
+					])),
+				];
+			} else {
+				// Winter has no gains to pick, and its consumption and +Fortunes roll stay ONE step:
+				// the roll only un-hides once the consumption is settled (see the render callback), so
+				// a step of its own would open on nothing.
+				seasonSteps = [
+					step("toll", "Winter's toll", "fa-snowflake", `
+						<p>Whoever is the <strong>weariest</strong> rolls ${winterBill.formula} (min 0); the steading consumes that much Surplus.</p>
+						${partsNote(winterBill.parts)}
+						<div id="stonetop-winter-step1" class="stonetop-season-actions">
+							<button class="stonetop-season-btn" data-action="roll-consumption" data-formula="${_esc(winterBill.formula)}">
+								<i class="fas fa-dice-d4"></i> Roll ${winterBill.formula} for Surplus Consumption
+							</button>
+						</div>
+						<!-- Stands in for step 1 when the window is REOPENED on a winter whose
+						     consumption has already been settled. Winter is the one season that
+						     runs in two halves, and the second half used to be reachable only as a
+						     side effect of clicking the first: see the render callback. -->
+						<p id="stonetop-winter-settled" class="stonetop-season-note" hidden>
+							The steading's winter consumption is already settled this season. What is left of winter follows.
+						</p>
+						<div id="stonetop-winter-step2" hidden>
+							<p id="stonetop-winter-result" class="stonetop-season-note"></p>
+							<div id="stonetop-winter-ok" hidden>
+								<div class="stonetop-season-actions">
+									<button class="stonetop-season-btn" data-action="apply-consumption">Apply Surplus Consumption</button>
+								</div>
+							</div>
+							<div id="stonetop-winter-shortfall" hidden>
+								<p>⚠️ <strong>Not enough Surplus.</strong> Reduce Surplus to 0 and Fortunes by 1, then the GM picks 1:</p>
+								${winterConsequencesHtml()}
+							</div>
+						</div>
+						<div id="stonetop-winter-step3" hidden>
+							<hr class="stonetop-season-divider">
+							<p>Then, roll +Fortunes:</p>
+							<ul>
+								<li><strong>10+:</strong> Winter is relatively mild. Each player names a local NPC with whom their relationship improves.</li>
+								<li><strong>7–9:</strong> The steading must consume ${winterAgain.formula} more Surplus before winter ends, or suffer the consequences again.</li>
+								<li><strong>6−:</strong> As 7–9, plus threats abound. Don't mark XP.</li>
+							</ul>
+							<p class="stonetop-season-note">Whatever the result, reset Fortunes to +1.</p>
+							${fortunesBtns}
+							<div class="stonetop-season-actions">
+								<button class="stonetop-season-btn stonetop-season-btn--warn" data-action="record-winter-debt">
+									<i class="fas fa-hourglass-half"></i> On a 7-9 or 6-: roll what winter still wants
+								</button>
+							</div>
+						</div>`),
+				];
 			}
 
-			// Every season closes the same way, so the tail is appended ONCE rather than pasted
-			// into each of the four branches, and each block gates on its own season inside its
-			// own definition. A ninth seasonal obligation is one edit here, not four.
-			//
-			// The order is what the GM does in: what the season BRINGS first (the improvements'
-			// yields), then what it COSTS (the watch every season, the weapons in spring, the
-			// militia in summer), then the Inn's talk, then the notes that close the window. It is
-			// deliberately not the order the improvements appear on their own tab, because nobody
-			// works through a season alphabetically.
-			content += `${aurochsNote}${yieldsBlock}${watchBlock}${weaponsBlock}${militiaBlock}${innRollBlock}${notesBlock}
-				</div>`;
+			// Every season closes the same way, so these are appended ONCE rather than pasted into
+			// each of the four branches, and each block gates on its own season inside its own
+			// definition. A ninth seasonal obligation is one edit here, not four.
+			const steps = [
+				...seasonSteps,
+				step("costs", "What it costs", "fa-coins", joinBlocks([herdFeedBlock, watchBlock, weaponsBlock, militiaBlock])),
+				step("inn", "The Inn", "fa-beer-mug-empty", innRollBlock),
+				step("chronicle", "Chronicle", "fa-feather", notesBlock),
+			].filter(s => s.body);
+
+			const content = `<div class="stonetop-season-flow">
+				<div class="stonetop-guide-split">
+					<aside class="stonetop-guide-toc stonetop-season-rail">
+						${header}
+						${statsNote}
+						<nav aria-label="Seasons Change steps">
+							<ol class="stonetop-guide-toc-list">
+								${steps.map((s, i) => `<li class="stonetop-guide-toc-item${i === 0 ? " is-active" : ""}">
+									<button type="button" class="stonetop-guide-toc-btn stonetop-season-tab" data-season-tab="${s.key}"${i === 0 ? ` aria-current="true"` : ""}>
+										<i class="fas ${s.icon} stonetop-guide-toc-icon"></i>
+										<span class="stonetop-guide-toc-text">${s.title}</span>
+										${s.key === "roll" ? `<span class="stonetop-guide-toc-count stonetop-season-gains-count" hidden></span>` : ""}
+									</button>
+								</li>`).join("")}
+							</ol>
+						</nav>
+					</aside>
+					<div class="stonetop-guide-main stonetop-season-main">
+						${steps.map((s, i) => `<section class="stonetop-season-section" data-season-tab="${s.key}"${i === 0 ? "" : " hidden"}>${s.body}</section>`).join("")}
+					</div>
+				</div>
+			</div>`;
+
+			// Set by the render callback, taken down by the Dialog's close.
+			let statsHook = null;
 
 			// `const`, even though the render/button callbacks below refer to `dialog`: they run
 			// after this statement completes, so the binding is always initialised by then.
-			const dialog = new Dialog({
+			// Every action is a button in the steps, none in the footer, so core's Enter/Tab
+			// handling is taught not to reach for a footer button that isn't there.
+			const dialog = createInlineActionsDialog({
 				title: `Seasons Change: ${label}`,
 				content,
-				// Done resets Fortunes (the season's close-out), applies any ticked mechanical
-				// gains, then records this season into the year's "Seasons Change" Chronicle
-				// page: the gains, the net Surplus change, the notes. `surplus` (captured at
-				// open) is the baseline for that change.
-				buttons: { done: { label: "Done", callback: (html) => this._saveSeasonChange(seasonId, html, fortunes, resetFortunes, surplus, year) } },
+				// No footer button of its own: a one-click close-out let a GM skip every step. The
+				// footer carries only Back/Next, and the season is finished from the Chronicle
+				// step's "Record the season" (see the render callback).
+				buttons: {},
+				close: () => {
+					if (statsHook !== null) Hooks.off("updateActor", statsHook);
+					statsHook = null;
+				},
 				render: (html) => {
 					addStonetopSteadingButton(html);
 					const root = html[0];
 					// Every stat change in this walkthrough is an effect of the Seasons Change
 					// homefront move, so the ledger attributes them to it.
 					const seasonsMove = { stonetopMove: "Seasons Change" };
+					const appEl = dialog.element?.jquery ? dialog.element[0] : dialog.element;
 
-					root.querySelector("[data-action='roll-fortunes']")?.addEventListener("click", async () => {
-						const prompted = await promptRoll({ title: "Seasons Change" });
-						if (!prompted) return;
-						await this._onSteadingRoll("Seasons Change", "fortunes", {
-							...prompted, ..._seasonRollOptions(seasonId),
+					// ── The step rail ─────────────────────────────────────────────────────────
+					// Switched in the DOM, never by re-rendering, for the reasons given where the
+					// steps are built. Back/Next ride in the Dialog's own footer, as plain buttons WITHOUT `.dialog-button`: core binds its close-on-click to that
+					// class, and these must not close anything.
+					let activeStep = steps[0]?.key;
+					const footer = appEl?.querySelector(".dialog-buttons");
+					footer?.querySelectorAll(".stonetop-season-step").forEach(el => el.remove());
+					const stepBtn = (cls, html) => {
+						const btn = document.createElement("button");
+						btn.type = "button";
+						btn.className = `stonetop-season-step ${cls}`;
+						btn.innerHTML = html;
+						footer?.append(btn);
+						return btn;
+					};
+					const backBtn = stepBtn("stonetop-season-step--back", `<span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>Back`);
+					const nextBtn = stepBtn("stonetop-season-step--next", `Next<span class="stonetop-nav-arrow"></span>`);
+					const showStep = key => {
+						const index = steps.findIndex(s => s.key === key);
+						if (index < 0) return;
+						activeStep = key;
+						applyGuideRail(root, {
+							key, dataKey: "seasonTab",
+							tabSelector: ".stonetop-season-tab",
+							sectionSelector: ".stonetop-season-section",
+							mainSelector: ".stonetop-season-main",
 						});
+						// Set here rather than through applyGuideRail's back/next selectors: the
+						// footer is a sibling of `root`, which is all that helper searches.
+						backBtn.disabled = index <= 0;
+						nextBtn.disabled = index >= steps.length - 1;
+					};
+					root.querySelectorAll(".stonetop-season-tab").forEach(btn =>
+						btn.addEventListener("click", () => showStep(btn.dataset.seasonTab)));
+					backBtn.addEventListener("click", () => showStep(guideRailStep(steps, activeStep, -1)?.key));
+					nextBtn.addEventListener("click", () => showStep(guideRailStep(steps, activeStep, 1)?.key));
+					showStep(activeStep);
+
+					// How many gains are ticked, on the rail beside "Roll +Fortunes", so a GM on
+					// another step can see the pick was made without going back to look.
+					const gainsCount = root.querySelector(".stonetop-season-gains-count");
+					const refreshGainsCount = () => {
+						if (!gainsCount) return;
+						const n = root.querySelectorAll(".stonetop-season-gain-check:checked").length;
+						gainsCount.textContent = n ? String(n) : "";
+						gainsCount.hidden = !n;
+					};
+					root.querySelectorAll(".stonetop-season-gain-check").forEach(cb =>
+						cb.addEventListener("change", refreshGainsCount));
+
+					// The rail's numbers follow the steading while the window is open.
+					if (statsHook !== null) Hooks.off("updateActor", statsHook);
+					statsHook = Hooks.on("updateActor", actor => {
+						if (actor?.id !== this.actor.id) return;
+						const set = (key, text) => {
+							const el = root.querySelector(`[data-season-stat="${key}"]`);
+							if (el) el.textContent = text;
+						};
+						set("fortunes", sign(this._stonetopSteading.getStatValue("fortunes")));
+						set("surplus", String(this._stonetopSteading.getStatValue("surplus")));
+						set("population", sign(this._stonetopSteading.getStatValue("population")));
+					});
+
+					// Once per season, like the Surplus rolls below: the season's +Fortunes roll is
+					// the move itself, and a second click would post a second verdict on the same
+					// season. Given back when the prompt is dismissed, since nothing was rolled.
+					const rollFortunesBtn = root.querySelector("[data-action='roll-fortunes']");
+					this._disableIfSeasonStepDone(rollFortunesBtn, "fortunesRoll", year, seasonId);
+					rollFortunesBtn?.addEventListener("click", async () => {
+						if (rollFortunesBtn.disabled) return;
+						rollFortunesBtn.disabled = true;
+						try {
+							const prompted = await promptRoll({ title: "Seasons Change" });
+							if (!prompted) { rollFortunesBtn.disabled = false; return; }
+							await this._onSteadingRoll("Seasons Change", "fortunes", {
+								...prompted, ..._seasonRollOptions(seasonId),
+							});
+							await this._stonetopSteading.setSeasonStepApplied("fortunesRoll", year, seasonId);
+						} catch (err) { rollFortunesBtn.disabled = false; throw err; }
 					});
 
 					// Spring only: hand the roll to the table — post a chat card asking the
@@ -2642,14 +2806,13 @@ export function createStonetopSteadingSheetClass(Base) {
 					// the hold was the one roll that could not spend it. Settled exactly as
 					// `_onSteadingRoll` settles it (./steading-roll.js): the hold outranks the sticky
 					// selector as a SOURCE of advantage, and nets against a sticky Disadvantage.
+					// Once per season, under the same marker as the other seasons' Roll +Fortunes:
+					// handing the roll over IS spring's roll. Disabled before the await so a
+					// double-click can't read the hold twice and hand out two cards at advantage for
+					// one sacrifice; given back only if posting the card throws.
 					const askHopefulBtn = root.querySelector("[data-action='ask-hopeful']");
+					this._disableIfSeasonStepDone(askHopefulBtn, "fortunesRoll", year, seasonId);
 					askHopefulBtn?.addEventListener("click", async () => {
-						// Disabled for the duration and then GIVEN BACK, unlike the once-per-season
-						// steps around it. Asking the table to roll is not a step that can be done
-						// twice by mistake — a card can be scrolled away or missed, and re-posting it
-						// has to stay possible. The guard is only against the double-click that would
-						// otherwise read the hold twice before the first clear landed and hand out two
-						// cards at advantage for one sacrifice.
 						if (askHopefulBtn.disabled) return;
 						askHopefulBtn.disabled = true;
 						try {
@@ -2666,8 +2829,9 @@ export function createStonetopSteadingSheetClass(Base) {
 								why: held?.source ?? "",
 							});
 							await spend();
+							await this._stonetopSteading.setSeasonStepApplied("fortunesRoll", year, seasonId);
 							if (held) this.render(false);
-						} finally { askHopefulBtn.disabled = false; }
+						} catch (err) { askHopefulBtn.disabled = false; throw err; }
 					});
 
 					// Winter's 7-9 (and the 6- that repeats it): "consume 1d4+Population more
@@ -2706,33 +2870,64 @@ export function createStonetopSteadingSheetClass(Base) {
 							}
 							await this._stonetopSteading.setWinterDebt(owed, year, seasonId);
 							this.render(false);
-							// "Once this window is done": the clock is not stamped for this winter until
-							// Done is pressed, and the glyph is read against that stamp — so promising a
-							// header row that is not there yet would be the sheet telling a small lie.
-							ui.notifications.info(`Winter still wants ${owed} Surplus before it ends. Once this window is done it rides on the steading's header until it is settled.`);
+							// "Once the season is recorded": the clock is not stamped for this winter until
+							// the Chronicle step's "Record the season" is pressed, and the glyph is read
+							// against that stamp — so promising a header row that is not there yet would
+							// be the sheet telling a small lie.
+							ui.notifications.info(`Winter still wants ${owed} Surplus before it ends. Once the season is recorded it rides on the steading's header until it is settled.`);
 						} catch (err) { winterDebtBtn.disabled = false; throw err; }
 					});
 
-					// Done resets Fortunes for the new season (the move's guaranteed close-out)
-					// and applies any ticked mechanical gains — Population boom (+1 Population)
-					// and Unexpected bounty (+1 Surplus) — instead of those having their own
-					// buttons. Relabel Done so the GM knows what the click will write to the
-					// steading. The Dialog's footer button lives in `.dialog-buttons`, a SIBLING
-					// of `root` (`.dialog-content`), so it's looked up off the dialog's outer
-					// element.
-					const refreshDoneLabel = () => {
-						const appEl = dialog.element?.jquery ? dialog.element[0] : dialog.element;
-						const doneBtn = appEl?.querySelector("button[data-button='done']");
-						if (!doneBtn) return;
+					// "Whatever the result, reset Fortunes to +1" (+0 while Malcontent), taken by
+					// hand under the roll. Once a season, with the value and the season marker in
+					// ONE write, like the Surplus steps. The Chronicle step warns while it is still
+					// untaken, so a GM who records the season without it is told, not stopped.
+					const resetFortunesBtn = root.querySelector("[data-action='reset-fortunes']");
+					const unresetNote = root.querySelector("[data-season-unreset]");
+					const refreshUnreset = () => {
+						if (unresetNote) unresetNote.hidden = this._stonetopSteading.seasonStepApplied("fortunesReset", year, seasonId);
+					};
+					this._disableIfSeasonStepDone(resetFortunesBtn, "fortunesReset", year, seasonId);
+					refreshUnreset();
+					resetFortunesBtn?.addEventListener("click", async () => {
+						if (resetFortunesBtn.disabled) return;
+						resetFortunesBtn.disabled = true;
+						try {
+							await this._stonetopSteading.applyChanges({
+								system: { "stats.fortunes.value": resetFortunes },
+								flags: this._stonetopSteading.seasonStepFlags("fortunesReset", year, seasonId),
+							}, seasonsMove);
+							this.render(false);
+							refreshUnreset();
+							ui.notifications.info(`Fortunes reset to ${sign(resetFortunes)}.`);
+						} catch (err) { resetFortunesBtn.disabled = false; throw err; }
+					});
+
+					// The close-out, on the Chronicle step: applies any ticked mechanical gains
+					// (Population boom, Unexpected bounty), files the Chronicle page, stamps the
+					// season on the clock, then closes. Relabelled to name the gains it is about
+					// to write, so the click says what it does.
+					const recordBtn = root.querySelector("[data-action='record-season']");
+					const refreshRecordLabel = () => {
+						if (!recordBtn) return;
 						const willApply = !!root.querySelector(".stonetop-season-gain-check[data-gain-key='population']:checked")
 							|| !!root.querySelector(".stonetop-season-gain-check[data-gain-key='bounty']:checked");
-						doneBtn.textContent = willApply
-							? `Apply those Gains, reset Fortunes to ${sign(resetFortunes)} & Close`
-							: `Reset Fortunes to ${sign(resetFortunes)} & Close`;
+						recordBtn.innerHTML = `<i class="fas fa-book"></i> ${willApply
+							? "Apply those gains, record the season &amp; close"
+							: "Record the season &amp; close"}`;
 					};
 					root.querySelectorAll(".stonetop-season-gain-check").forEach(cb =>
-						cb.addEventListener("change", refreshDoneLabel));
-					refreshDoneLabel();
+						cb.addEventListener("change", refreshRecordLabel));
+					refreshRecordLabel();
+					recordBtn?.addEventListener("click", async () => {
+						if (recordBtn.disabled) return;
+						recordBtn.disabled = true;
+						try {
+							// `surplus` (captured at open) is the baseline for the Chronicle's net change.
+							await this._saveSeasonChange(seasonId, root, fortunes, surplus, year);
+						} catch (err) { recordBtn.disabled = false; throw err; }
+						dialog.close();
+					});
 
 					// Herd of Horses seasonal steps (only present when the herd is earned):
 					// summer promotes the tiers + adds foals; winter feeds the herd off Surplus.
@@ -3024,16 +3219,14 @@ export function createStonetopSteadingSheetClass(Base) {
 						}
 					});
 				},
-			// Wider than core's 400px default, which is what this had been taking. It is the
-			// densest window in the system: the season's outcome ladder, a live stats line, the
-			// five-row gains checklist (each a name over its rule), up to three seasonal upkeep
-			// blocks with their own button pairs, winter's three steps, and a notes field. At 400
-			// the gains wrapped to three lines apiece and the watch's two buttons — laid out as a
-			// row, because they are one question with two answers — stacked and stopped reading as
-			// a pair. Wider than the 520 its homestead siblings use, and only because it carries
-			// several times what they do; the footer button is the other reason, since Done
-			// relabels to name the gains it is about to apply.
-			}, { width: 560, classes: ["dialog", "stonetop", "stonetop-season-flow-dialog"] });
+			// A FIXED height, like the Welcome guide's: the steps take turns in one scrolling
+			// column beside the rail, so the window no longer grows with the season. It used to be
+			// sized by its content, and a summer with a few improvements ran past the screen.
+			//
+			// 700 wide is the rail's 168px plus the ~490px column the old 560px window gave its
+			// content (at 400 the gains wrapped to three lines apiece and the watch's two buttons
+			// stopped reading as a pair).
+			}, { width: 700, height: 620, classes: ["dialog", "stonetop", "stonetop-season-flow-dialog"] });
 			dialog.render(true);
 		}
 

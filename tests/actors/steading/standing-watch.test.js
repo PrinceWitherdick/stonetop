@@ -15,20 +15,21 @@ describe("the Standing Watch seasonal upkeep", () => {
 		expect(SHEET).toContain("_hasImprovement(slug) {");
 	});
 
-	// The herd's steps are summer/winter only; this one is not. The watch block is appended to
-	// the season flow ONCE, outside the four-way branch on the season, which is what makes it
-	// unconditional — so what this checks is that no branch closes the flow before the tail can
-	// reach it. A branch that grew its own `</div>` would strand the watch outside the dialog.
+	// The herd's steps are summer/winter only; this one is not. The watch block joins the
+	// "What it costs" step ONCE, in the steps every season shares, outside the four-way branch
+	// on the season, which is what makes it unconditional.
 	it("rides every season's flow, not just two of them", () => {
-		const at = SHEET.indexOf("content += `${");
-		expect(at).toBeGreaterThan(-1);
-		// The append is the only place the flow is closed, and it sits after the season branch.
-		const tail = SHEET.slice(at, at + 300);
-		expect(tail).toContain("${watchBlock}");
-		expect(tail).toContain("</div>");
-		const branch = SHEET.slice(SHEET.indexOf("let content;"), at);
-		expect(branch.match(/stonetop-season-flow/g) ?? []).toHaveLength(4);
-		expect(branch).not.toContain("</div>`;");
+		const branch = SHEET.indexOf("let seasonSteps;");
+		const shared = SHEET.indexOf("const steps = [", branch);
+		expect(branch).toBeGreaterThan(-1);
+		expect(shared).toBeGreaterThan(branch);
+		// All four seasons assign their own steps, and none of them mentions the watch.
+		const seasons = SHEET.slice(branch, shared);
+		expect(seasons.match(/seasonSteps = \[/g) ?? []).toHaveLength(4);
+		expect(seasons).not.toContain("watchBlock");
+		const tail = SHEET.slice(shared, shared + 400);
+		expect(tail).toContain("...seasonSteps");
+		expect(tail).toMatch(/step\("costs",[^\n]*watchBlock/);
 	});
 
 	it("offers both outcomes, and hides feeding when there is nothing to feed it with", () => {

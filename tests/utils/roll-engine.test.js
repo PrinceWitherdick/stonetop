@@ -477,7 +477,9 @@ describe("rollStat", () => {
 });
 
 describe("rollSeasonsCard", () => {
-	it("posts the full result legend on seasonal roll cards", async () => {
+	// Laid out as a move card is: the ladder under the title with the landed rung marked, then the
+	// result, and no boxed "Results" legend under it.
+	it("puts the tier ladder where a move card's description goes, landed rung marked", async () => {
 		rollTotal = 7;
 
 		await rollSeasonsCard({
@@ -487,10 +489,22 @@ describe("rollSeasonsCard", () => {
 		});
 
 		const flavor = rollMessages[0].flavor;
-		expect(flavor).toContain("stonetop-roll-card-results");
-		expect(flavor).toContain("<strong>Results</strong>");
-		expect(flavor).toContain("Pick <strong>one seasonal gain</strong>");
-		expect(flavor).toContain("<strong>Threats abound</strong>");
+		expect(flavor).toContain(`<ul class="stonetop-move-tiers" data-rolled-tier="partial">`);
+		expect(flavor).toContain("stonetop-roll-card-desc-toggle");
+		expect(flavor.indexOf("stonetop-roll-card-description")).toBeLessThan(flavor.indexOf("stonetop-roll-result "));
+		expect(flavor).not.toContain("<strong>Results</strong>");
+		// Every rung is on the ladder, as plain text; the result block keeps its bold.
+		expect(flavor).toContain("Pick one seasonal gain.");
+		expect(flavor).toContain("Threats abound");
+		expect(flavor).toContain("Pick <strong>one seasonal gain</strong>, but a threat");
+	});
+
+	it("heads an alias-spoken card with the alias, so the ladder keeps its toggle", async () => {
+		rollTotal = 11;
+		await rollSeasonsCard({ formula: "2d6", alias: "Requisition", resultTable: SPRING_SEASONS_RESULT });
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain(`<h2 class="cell__title">Requisition</h2>`);
+		expect(flavor).toContain(`data-rolled-tier="success"`);
 	});
 
 	// A stat roll names what put it at advantage; so does this card, which the walkthrough's
