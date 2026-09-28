@@ -2,8 +2,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
 	HERO_MOVES, CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG,
 	foeKey, recordClash, clashedBefore, relentlessAgainst, foeAdvantage,
-	recordHarmedBy, clearHarmedBy, paybackEarned, recordKnockedDownBy, clearKnockedDownBy,
-	muscleboundWeapon, berserkNow, blowOffers, defenderDisadvantage, dangerousMode,
+	recordHarmedBy, clearHarmedBy, paybackEarned, recordKnockedDownBy, spendUpAgainBlow, spendUpAgainRoll, upAgainAgainst,
+	TOUGH_LOVE_FLAG, toughLoveAgainst, toughLoveHeld, callOut, workedItOut,
+	muscleboundWeapon, berserkNow, blowOffers, defenderDisadvantage, dangerousMode, holyLightOffers,
+	ALPHA_FLAG, alphaAgainst, recordAlphaOver, forgetAlphaOver, spendAlphaOver,
 } from "../../module/fight/hero-moves.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
 import { fakeActor, fakeToken, fakeScene, fakeCombatant, fakeCombat, collection } from "../fakes/fight.js";
@@ -140,16 +142,17 @@ describe("what a blow adds", () => {
 
 	it("offers Anger is a Gift's strike hard untucked, and marks the Resolve off only when it is taken", async () => {
 		const setUses = vi.fn(async () => {});
-		const spentSoFar = { "Anger is a Gift": 0 };
+		const heldSoFar = { "Anger is a Gift": 2 };
 		const pim = hero("Pim", [{ type: "move", name: HERO_MOVES.ANGER, system: { resource: { max: 2, title: "Resolve" } } }], {
-			typedActor: { moveResources: { getMoveResources: () => spentSoFar, setUses } },
+			typedActor: { moveResources: { getMoveResources: () => heldSoFar, setUses } },
 		});
 		const offer = blowOffers(pim, {}).find(o => o.key === "anger");
 		expect(offer).toMatchObject({ dice: "1d4", applied: false, tags: ["forceful"] });
 		await offer.spend(pim);
+		// The track counts Resolve HELD: two held, one spent, one left.
 		expect(setUses).toHaveBeenCalledWith(HERO_MOVES.ANGER, 1, { stonetopMove: HERO_MOVES.ANGER });
 		// Nothing left to spend, nothing offered.
-		spentSoFar["Anger is a Gift"] = 2;
+		heldSoFar["Anger is a Gift"] = 0;
 		expect(blowOffers(pim, {}).map(o => o.key)).not.toContain("anger");
 	});
 
@@ -173,10 +176,112 @@ describe("what a blow adds", () => {
 		expect(blowOffers(wren, { targets: [target(t.bandit)] }).find(o => o.key === "predator")).toMatchObject({ dice: "1d4", applied: false });
 	});
 
+	// Seeker audit (2026-09-26), the user's ruling: an "unnatural foe" is any creature type but a person or a
+	// beast (the Makers and the unknown included), besides the tags; and a Corrupted type is Like a Dog with a
+	// Bone's quarry however it is tagged.
+	it("reads the stat block's creature type for Everything Bleeds and Like a Dog with a Bone", () => {
+		const typed = (id, creatureType, tags = "") => fakeActor({ id, name: id, type: "monster", system: { tags, creatureType } });
+		const t = mapWith(["maker", "unknown-origin", "emanation", "corrupted", "human-individual", "human-group", "natural-beast", "untyped"]
+			.map(type => [type, typed(type, type === "untyped" ? "" : type)])
+			.concat([["glow", typed("glow", "", "solitary, emanation")]]));
+		const seeker = hero("Maelis", [HERO_MOVES.EVERYTHING_BLEEDS]);
+		const bleeds = key => blowOffers(seeker, { targets: [target(t[key])] }).some(o => o.key === "everythingBleeds");
+		for (const key of ["maker", "unknown-origin", "emanation", "corrupted", "glow"]) expect(bleeds(key), key).toBe(true);
+		for (const key of ["human-individual", "human-group", "natural-beast", "untyped"]) expect(bleeds(key), key).toBe(false);
+
+		const judge = hero("Hafgan", [HERO_MOVES.DOG_WITH_BONE]);
+		const bone = key => blowOffers(judge, { targets: [target(t[key])] }).some(o => o.key === "dogWithBone");
+		expect(bone("corrupted")).toBe(true);
+		expect(bone("maker")).toBe(false);
+	});
+
+	it("keeps Predator a standing reminder whatever the foe", () => {
+		const t = mapWith([["bandit", fakeActor({ id: "bandit", name: "Bandit", type: "monster", system: { tags: "group, organized" } })]]);
+		const wren = hero("Wren", [HERO_MOVES.PREDATOR]);
+		expect(blowOffers(wren, { targets: [target(t.bandit)] }).find(o => o.key === "predator")).toMatchObject({ dice: "1d4", applied: false });
+	});
+
+	// Heavy audit (2026-09-25): Blood-Soaked Past's "When you fight to kill without mercy or hesitation, you
+	// deal +1d4 damage" was left to be typed by hand in the damage window.
+	it("offers Blood-Soaked Past's +1d4 UNTICKED to a Heavy who took it, and to no one else", () => {
+		const heavy = (background, playbook = "The Heavy") => {
+			const actor = hero("Bram", [], { system: { playbook: { name: playbook }, attributes: { hp: { value: 20, max: 20 } } } });
+			actor.flags[SYSTEM_ID].background = { selected: background };
+			return actor;
+		};
+		expect(blowOffers(heavy("blood-soaked-past"), {}).find(o => o.key === "withoutMercy"))
+			.toMatchObject({ dice: "1d4", applied: false, label: "Blood-Soaked Past: +1d4 damage, fighting to kill without mercy or hesitation", pill: "Blood-Soaked Past +1d4" });
+		expect(blowOffers(heavy("sheriff"), {}).map(o => o.key)).not.toContain("withoutMercy");
+		// A slug is the playbook's own name for its background.
+		expect(blowOffers(heavy("blood-soaked-past", "The Fox"), {}).map(o => o.key)).not.toContain("withoutMercy");
+	});
+
+	// Heavy audit (2026-09-25), with the user's ruling that followers are allies: Payback read the grudges of
+	// characters only, and a blow on a follower was never written down at all.
+	it("earns Payback from a foe that harmed the Heavy's follower, written on the Heavy", async () => {
+		const { t, rows } = crinRows();
+		const bram = hero("Bram", [HERO_MOVES.PAYBACK]);
+		globalThis.game = { ...saved.game, combats: collection([]), settings: { get: () => true } };
+		globalThis.ui = { combat: {} };
+		globalThis.canvas = { scene: null };
+		const dog = fakeActor({ id: "dog", name: "Dog", type: "npc" });
+		const cardFor = actor => (actor === dog ? { character: bram, ftype: "animal-companion", slug: "" } : null);
+		expect(await recordHarmedBy(dog, t.crin.actor, { cardFor })).toBe(true);
+		expect(bram.getFlag(SYSTEM_ID, HARMED_BY_FLAG)).toEqual([t.crin.uuid]);
+		expect(paybackEarned(bram, rows)).toBe(true);
+		// An NPC who follows nobody is not an ally's follower, and writes nothing.
+		const stranger = fakeActor({ id: "stranger", name: "Stranger", type: "npc" });
+		expect(await recordHarmedBy(stranger, t.crin.actor, { cardFor: () => null })).toBe(false);
+	});
+
+	it("earns Payback from a foe that harmed an ally's follower fighting beside the Heavy", async () => {
+		const crin = fakeActor({ id: "crin", name: "Crinwin", type: "monster" });
+		const bram = hero("Bram", [HERO_MOVES.PAYBACK]);
+		// Cadi is not in the fight; her hound is.
+		const cadi = hero("Cadi", []);
+		const hound = fakeActor({ id: "hound", name: "Hound", type: "npc" });
+		const token = (id, col, actor) => Object.assign(fakeToken({ id, col, row: 1, actor }), { uuid: `Scene.scene1.Token.${id}`, documentName: "Token", actorLink: false });
+		const tokens = { bram: token("tBram", 1, bram), hound: token("tHound", 2, hound), crin: token("tCrin", 3, crin) };
+		Object.assign(crin, { documentName: "Actor", token: { uuid: tokens.crin.uuid }, uuid: `${tokens.crin.uuid}.Actor.crin` });
+		const byUuid = new Map([[tokens.crin.uuid, tokens.crin], [crin.uuid, crin]]);
+		globalThis.fromUuidSync = uuid => byUuid.get(uuid) ?? null;
+		const scene = fakeScene({ tokens: Object.values(tokens) });
+		const combatants = [
+			fakeCombatant({ id: "cBram", token: tokens.bram, scene, side: "heroes" }),
+			fakeCombatant({ id: "cHound", token: tokens.hound, scene, side: "heroes" }),
+			fakeCombatant({ id: "cCrin", token: tokens.crin, scene, side: "foes" }),
+		];
+		const combat = fakeCombat({ scene, combatants });
+		globalThis.game = { ...saved.game, user: { id: "gm", isGM: true }, users: collection([]), combats: collection([combat]), settings: { get: (_s, key) => (key === "fightTab" ? true : undefined) } };
+		globalThis.ui = { combat: { viewed: combat } };
+		globalThis.canvas = { scene };
+		const cardFor = actor => (actor === hound ? { character: cadi, ftype: "animal-companion", slug: "" } : null);
+
+		const rows = [{ uuid: tokens.crin.uuid, name: "Crinwin" }];
+		expect(paybackEarned(bram, rows, { cardFor })).toBe(false);
+		await recordHarmedBy(hound, crin, { cardFor });
+		expect(cadi.getFlag(SYSTEM_ID, HARMED_BY_FLAG)).toEqual([tokens.crin.uuid]);
+		expect(paybackEarned(bram, rows, { cardFor })).toBe(true);
+	});
+
 	it("adds Something to Remember Me By to a strike back, and to nothing else", () => {
 		const pim = hero("Pim", [HERO_MOVES.REMEMBER_ME]);
 		expect(blowOffers(pim, { strikeBack: true }).map(o => o.key)).toContain("rememberMe");
 		expect(blowOffers(pim, { strikeBack: false }).map(o => o.key)).not.toContain("rememberMe");
+	});
+
+	it("offers Second Intent's +1d4 unticked on a parry's strike back, and nowhere else", () => {
+		// "When you Defend and spend 1 Readiness to Parry & Riposte, also pick 1 option from the Ambush list":
+		// "Deal +1d4 damage" is one option of four, so the line opens unticked.
+		const fox = hero("Fox", [HERO_MOVES.SECOND_INTENT]);
+		expect(blowOffers(fox, { strikeBack: true, parry: true }).find(o => o.key === "secondIntent"))
+			.toMatchObject({ dice: "1d4", applied: false, label: "Second Intent: +1d4 damage (your Ambush pick)" });
+		// The fight ring's plain Defend strike back is not a Parry & Riposte.
+		expect(blowOffers(fox, { strikeBack: true }).map(o => o.key)).not.toContain("secondIntent");
+		expect(blowOffers(fox, {}).map(o => o.key)).not.toContain("secondIntent");
+		// Un-learned, it offers nothing.
+		const off = hero("Fox", [{ type: "move", name: HERO_MOVES.SECOND_INTENT, flags: { [SYSTEM_ID]: { learned: false } } }]);
+		expect(blowOffers(off, { strikeBack: true, parry: true }).map(o => o.key)).not.toContain("secondIntent");
 	});
 
 	it("adds Hungry Flames to a blow dealt with a holy light", () => {
@@ -186,17 +291,65 @@ describe("what a blow adds", () => {
 		expect(blowOffers(sael, { weapon: { slug: "sword", name: "Sword", range: ["close"] } }).map(o => o.key)).not.toContain("hungryFlames");
 	});
 
+	// R7: an Invocation's own damage (Go Back to the Shadow) is dealt with a holy light too, and asks
+	// for the same ticked line without a weapon to read it off.
+	it("offers Hungry Flames on damage dealt with a holy light, ticked, only when learned", () => {
+		const sael = hero("Sael", [HERO_MOVES.HUNGRY_FLAMES]);
+		expect(holyLightOffers(sael)).toEqual([expect.objectContaining({
+			key: "hungryFlames", dice: "1d6", applied: true,
+			label: "Hungry Flames: +1d6 damage, and they are engulfed in holy light and flames",
+		})]);
+		expect(holyLightOffers(hero("Pim", []))).toEqual([]);
+		const off = hero("Sael", [{ type: "move", name: HERO_MOVES.HUNGRY_FLAMES, flags: { [SYSTEM_ID]: { learned: false } } }]);
+		expect(holyLightOffers(off)).toEqual([]);
+	});
+
 	it("gives +1d4 against whoever knocked them down, until it is spent", async () => {
 		const { t, rows } = crinRows();
 		const pim = hero("Pim", [HERO_MOVES.KNOCKED_DOWN, HERO_MOVES.UP_AGAIN]);
 		await recordKnockedDownBy(pim, t.crin.actor);
-		expect(pim.getFlag(SYSTEM_ID, KNOCKED_DOWN_FLAG)).toEqual({ key: t.crin.uuid, name: "Crinwin" });
+		expect(pim.getFlag(SYSTEM_ID, KNOCKED_DOWN_FLAG)).toEqual({ key: t.crin.uuid, name: "Crinwin", roll: true, blow: true });
 		expect(foeAdvantage(pim, rows)).toBe(HERO_MOVES.UP_AGAIN);
 		const offer = blowOffers(pim, { targets: rows }).find(o => o.key === "upAgain");
 		expect(offer).toMatchObject({ dice: "1d4", applied: true });
 		await offer.spend(pim);
-		expect(foeAdvantage(pim, rows)).toBeNull();
 		expect(blowOffers(pim, { targets: rows }).map(o => o.key)).not.toContain("upAgain");
+		// The blow's half only: the advantage on the next ROLL against them is still owed.
+		expect(foeAdvantage(pim, rows)).toBe(HERO_MOVES.UP_AGAIN);
+		await spendUpAgainRoll(pim, rows);
+		expect(foeAdvantage(pim, rows)).toBeNull();
+		expect(pim.getFlag(SYSTEM_ID, KNOCKED_DOWN_FLAG)).toBeNull();
+	});
+
+	// WBH audit: the record was one flag cleared only by the +1d4 blow, so a Clash that missed kept its
+	// advantage for ever. Two halves now, each spent by its own: the roll after its dice, the blow when taken.
+	it("spends the roll's advantage and the blow's +1d4 apart, in either order", async () => {
+		const { t, rows } = crinRows();
+		const pim = hero("Pim", [HERO_MOVES.KNOCKED_DOWN, HERO_MOVES.UP_AGAIN]);
+		await recordKnockedDownBy(pim, t.crin.actor);
+		expect(upAgainAgainst(pim, rows)).toBe(HERO_MOVES.UP_AGAIN);
+		expect(await spendUpAgainRoll(pim, rows)).toBe(true);
+		expect(upAgainAgainst(pim, rows)).toBeNull();
+		expect(await spendUpAgainRoll(pim, rows)).toBe(false);
+		// The +1d4 still rides the next blow against them.
+		expect(blowOffers(pim, { targets: rows }).map(o => o.key)).toContain("upAgain");
+		expect(await spendUpAgainBlow(pim)).toBe(true);
+		expect(pim.getFlag(SYSTEM_ID, KNOCKED_DOWN_FLAG)).toBeNull();
+		// A roll at someone else spends nothing.
+		await recordKnockedDownBy(pim, t.crin.actor);
+		expect(await spendUpAgainRoll(pim, [{ uuid: "Scene.scene1.Token.tother", name: "Other" }])).toBe(false);
+		expect(upAgainAgainst(pim, rows)).toBe(HERO_MOVES.UP_AGAIN);
+	});
+
+	it("reads a record written before the split as owing both halves", async () => {
+		const { t, rows } = crinRows();
+		const pim = hero("Pim", [HERO_MOVES.UP_AGAIN]);
+		pim.flags[SYSTEM_ID][KNOCKED_DOWN_FLAG] = { key: t.crin.uuid, name: "Crinwin" };
+		expect(upAgainAgainst(pim, rows)).toBe(HERO_MOVES.UP_AGAIN);
+		expect(blowOffers(pim, { targets: rows }).map(o => o.key)).toContain("upAgain");
+		await spendUpAgainBlow(pim);
+		expect(pim.getFlag(SYSTEM_ID, KNOCKED_DOWN_FLAG)).toEqual({ key: t.crin.uuid, name: "Crinwin", roll: true, blow: false });
+		expect(upAgainAgainst(pim, rows)).toBe(HERO_MOVES.UP_AGAIN);
 	});
 
 	it("keeps a move a player switched off out of all of it", async () => {
@@ -208,7 +361,7 @@ describe("what a blow adds", () => {
 		expect(blowOffers(bram, { targets: rows, attackAt: 99 }).map(o => o.key)).toEqual([]);
 		expect(dangerousMode(bram, "")).toBe("");
 		expect(muscleboundWeapon(bram, { name: "Sword", range: ["close"] }).tags).toBeUndefined();
-		await clearKnockedDownBy(bram);
+		expect(await spendUpAgainBlow(bram)).toBe(false);
 	});
 });
 
@@ -256,13 +409,19 @@ describe("the damage a character takes", () => {
 
 describe("Berserker", () => {
 	it("is on only in the Battle Joy, and only with the move", () => {
-		const raging = hero("Bram", [HERO_MOVES.BERSERKER]);
+		const raging = hero("Bram", [HERO_MOVES.BERSERKER, "Battle Joy"]);
 		expect(berserkNow(raging)).toBe(false);
 		raging.flags[SYSTEM_ID].battleJoy = true;
 		expect(berserkNow(raging)).toBe(true);
 		const plain = hero("Duvin", ["Battle Joy"]);
 		plain.flags[SYSTEM_ID].battleJoy = true;
 		expect(berserkNow(plain)).toBe(false);
+	});
+
+	it("is off for a rage left on the sheet after Battle Joy was un-learned", () => {
+		const stranded = hero("Bram", [HERO_MOVES.BERSERKER]);
+		stranded.flags[SYSTEM_ID].battleJoy = true;
+		expect(berserkNow(stranded)).toBe(false);
 	});
 });
 
@@ -272,5 +431,98 @@ describe("fakes", () => {
 		const scene = fakeScene({ tokens: [] });
 		expect(fakeCombat({ scene, combatants: [] }).combatants).toBeDefined();
 		expect(fakeCombatant({ id: "c1", token: fakeToken({ id: "t1", col: 0, row: 0, actor: fakeActor({ id: "a", name: "A", type: "monster" }) }), scene })).toBeDefined();
+	});
+});
+
+// Ranger audit M10: Alpha's "on a 10+, you also have advantage on your next roll against them". One
+// entry per foe (the 10+ lays it, actors/character/tier-effects.js), read by foeAdvantage for an attack
+// and spent by the next roll against them.
+describe("Alpha's advantage against the foes it cowed", () => {
+	it("gives the next roll against a remembered foe advantage, once, for a LEARNED move only", async () => {
+		const t = mapWith([["crin", fakeActor({ id: "crin", name: "Crinwin", type: "monster" })], ["chief", fakeActor({ id: "chief", name: "Chief", type: "monster" }), true]]);
+		const rook = hero("Rook", [HERO_MOVES.ALPHA]);
+		const crin = [target(t.crin)];
+		expect(foeAdvantage(rook, crin)).toBeNull();
+		expect(await recordAlphaOver(rook, [{ key: foeKey(target(t.crin)), name: "Crinwin" }])).toBe(true);
+		expect(rook.getFlag(SYSTEM_ID, ALPHA_FLAG)).toEqual([{ key: t.crin.uuid, name: "Crinwin" }]);
+		expect(alphaAgainst(rook, crin)).toBe(HERO_MOVES.ALPHA);
+		expect(foeAdvantage(rook, crin)).toBe(HERO_MOVES.ALPHA);
+		// Every target has to be one of them, and nobody targeted is nobody to have it against.
+		expect(alphaAgainst(rook, [target(t.crin), target(t.chief)])).toBeNull();
+		expect(alphaAgainst(rook, [])).toBeNull();
+		// Spent by the roll against them.
+		expect(await spendAlphaOver(rook, crin)).toBe(true);
+		expect(foeAdvantage(rook, crin)).toBeNull();
+		expect(await spendAlphaOver(rook, crin)).toBe(false);
+
+		const off = hero("Rook", [{ type: "move", name: HERO_MOVES.ALPHA, flags: { [SYSTEM_ID]: { learned: false } } }]);
+		expect(await recordAlphaOver(off, [{ key: t.crin.uuid, name: "Crinwin" }])).toBe(false);
+		off.flags[SYSTEM_ID][ALPHA_FLAG] = [{ key: t.crin.uuid, name: "Crinwin" }];
+		expect(alphaAgainst(off, crin)).toBeNull();
+	});
+
+	it("writes a foe cowed twice once, and forgets only the foes named", async () => {
+		const rook = hero("Rook", [HERO_MOVES.ALPHA]);
+		await recordAlphaOver(rook, [{ key: "a", name: "A" }, { key: "b", name: "B" }]);
+		await recordAlphaOver(rook, [{ key: "a", name: "A" }]);
+		expect(rook.getFlag(SYSTEM_ID, ALPHA_FLAG).map(e => e.key).sort()).toEqual(["a", "b"]);
+		expect(await forgetAlphaOver(rook, ["a"])).toBe(true);
+		expect(rook.getFlag(SYSTEM_ID, ALPHA_FLAG)).toEqual([{ key: "b", name: "B" }]);
+	});
+});
+
+// Tough Love (WBH audit, the user's ruling 2026-09-27): "When you honestly think another PC is in the wrong
+// and call them on it, they have disadvantage on any rolls against you until you two work it out." The hero
+// names the PC; that PC's rolls aimed at the hero read it, the reverse of Binding Arbitration's oathbreaker.
+describe("Tough Love", () => {
+	const pcs = () => {
+		const pim = Object.assign(hero("pim", [HERO_MOVES.TOUGH_LOVE]), { documentName: "Actor" });
+		const bram = Object.assign(hero("bram", []), { documentName: "Actor" });
+		const cadi = Object.assign(hero("cadi", []), { documentName: "Actor" });
+		const byUuid = new Map([
+			["Actor.pim", pim],
+			["Scene.scene1.Token.tpim", { documentName: "Token", uuid: "Scene.scene1.Token.tpim", actor: pim }],
+			["Actor.cadi", cadi],
+		]);
+		globalThis.fromUuidSync = uuid => byUuid.get(uuid) ?? null;
+		globalThis.ChatMessage = { create: vi.fn(async () => ({})), getSpeaker: () => ({}) };
+		return { pim, bram, cadi };
+	};
+	afterEach(() => { delete globalThis.ChatMessage; });
+
+	it("names the PC called on it, several at once, and says so on a card", async () => {
+		const { pim, bram, cadi } = pcs();
+		expect(await callOut(pim, bram)).toBe(true);
+		expect(await callOut(pim, bram)).toBe(false);
+		expect(await callOut(pim, cadi)).toBe(true);
+		expect(await callOut(pim, pim)).toBe(false);
+		expect(toughLoveHeld(pim)).toEqual([{ id: "bram", name: "bram" }, { id: "cadi", name: "cadi" }]);
+		expect(globalThis.ChatMessage.create.mock.calls[0][0].content).toContain("pim calls bram on it");
+	});
+
+	it("puts that PC's rolls at the hero at disadvantage, token or aimed ask, until they work it out", async () => {
+		const { pim, bram, cadi } = pcs();
+		await callOut(pim, bram);
+		const token = [{ uuid: "Scene.scene1.Token.tpim", name: "Pim" }];
+		const asked = [{ uuid: "Actor.pim", name: "Pim", actorId: "pim" }];
+		expect(toughLoveAgainst(bram, token)).toBe(HERO_MOVES.TOUGH_LOVE);
+		expect(toughLoveAgainst(bram, asked)).toBe(HERO_MOVES.TOUGH_LOVE);
+		// Not someone the hero never called on it, not a roll at somebody else, and not half a roll.
+		expect(toughLoveAgainst(cadi, token)).toBeNull();
+		expect(toughLoveAgainst(bram, [{ uuid: "Actor.cadi", name: "Cadi" }])).toBeNull();
+		expect(toughLoveAgainst(bram, [...token, { uuid: "Actor.cadi", name: "Cadi" }])).toBeNull();
+		expect(toughLoveAgainst(bram, [])).toBeNull();
+		expect(await workedItOut(pim, "bram")).toBe(true);
+		expect(await workedItOut(pim, "bram")).toBe(false);
+		expect(pim.getFlag(SYSTEM_ID, TOUGH_LOVE_FLAG)).toEqual([]);
+		expect(toughLoveAgainst(bram, token)).toBeNull();
+	});
+
+	it("does nothing while the move is not learned", async () => {
+		const { pim, bram } = pcs();
+		pim.items = [{ type: "move", name: HERO_MOVES.TOUGH_LOVE, flags: { [SYSTEM_ID]: { learned: false } } }];
+		expect(await callOut(pim, bram)).toBe(false);
+		pim.flags[SYSTEM_ID][TOUGH_LOVE_FLAG] = [{ id: "bram", name: "bram" }];
+		expect(toughLoveAgainst(bram, [{ uuid: "Actor.pim", actorId: "pim" }])).toBeNull();
 	});
 });

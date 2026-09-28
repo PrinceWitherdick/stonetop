@@ -159,6 +159,7 @@
 				<div class="stonetop-levelup-move-description stonetop-levelup-foreign-description">{{{moveBody description}}}</div>
 				{{/if}}
 				{{#if requiresLabel}}<p class="stonetop-levelup-move-note">Requires: {{requiresLabel}}</p>{{/if}}
+				{{#if stockNote}}<p class="stonetop-levelup-move-note">{{stockNote}}</p>{{/if}}
 			</div>
 			{{/each}}
 			</div>
@@ -200,7 +201,26 @@
 		<div class="stonetop-levelup-mark-list">
 			{{#each markStep.options}}
 			<div class="stonetop-levelup-stat-option stonetop-levelup-mark-option{{#if selected}} is-selected{{/if}}{{#if disabled}} is-at-cap{{/if}}"
-				data-mark-slug="{{slug}}">
+				data-mark-slug="{{slug}}"{{#if tooltip}} data-tooltip="{{tooltip}}" data-tooltip-direction="UP"{{/if}}>
+				<span class="stonetop-levelup-stat-name">{{label}}</span>
+				{{#if existingLabel}}<span class="stonetop-levelup-stat-value">{{existingLabel}}</span>{{/if}}
+			</div>
+			{{/each}}
+		</div>
+	</div>
+	{{/if}}
+
+	{{!-- ── Step: Mark a Companion Action (Beast-Bonded Ranger at 3rd/5th/7th/9th) ── --}}
+	{{#if isCompanion}}
+	<div class="stonetop-levelup-step">
+		<p class="stonetop-levelup-intro">
+			{{{localize "stonetop.specialMoves.levelUp.companionIntro"}}}
+			{{#if companionStep}}<span class="stonetop-levelup-stat-cap-note">{{companionStep.used}} / {{companionStep.allowance}} chosen</span>{{/if}}
+		</p>
+		<div class="stonetop-levelup-mark-list">
+			{{#each companionStep.options}}
+			<div class="stonetop-levelup-stat-option stonetop-levelup-companion-option{{#if selected}} is-selected{{/if}}{{#if disabled}} is-at-cap{{/if}}"
+				data-action-slug="{{slug}}">
 				<span class="stonetop-levelup-stat-name">{{label}}</span>
 				{{#if existingLabel}}<span class="stonetop-levelup-stat-value">{{existingLabel}}</span>{{/if}}
 			</div>
@@ -231,6 +251,11 @@
 			</div>
 		</div>
 	</div>
+	{{/if}}
+
+	{{!-- Level Up step 6, on whichever step is last: review Instinct and Appearance. --}}
+	{{#if isLastStep}}
+	<p class="stonetop-levelup-aside stonetop-levelup-review">{{{localize "stonetop.specialMoves.levelUp.reviewReminder"}}}</p>
 	{{/if}}
 
 	{{!-- ── Footer ────────────────────────────────────────────────────── --}}

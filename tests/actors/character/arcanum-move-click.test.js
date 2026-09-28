@@ -1,5 +1,6 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
 import { createStonetopCharacterSheetClass } from "../../../module/actors/character/StonetopCharacterSheet.js";
+import { RING_SOURCE_UUID, resolveServantBatch } from "../../../module/data/servant-of-daagon.js";
 
 // A mystery on an arcanum's back is a move, and the arcana tab now treats it as one: clicking
 // its name posts it to chat, or opens the same dialog a playbook move's name opens. These cover
@@ -31,9 +32,9 @@ const EMBER = {
 	learned: true,
 };
 
-function makeSheet({ move = FIRST_LIGHT, isEditable = true } = {}) {
+function makeSheet({ move = FIRST_LIGHT, isEditable = true, moves = [] } = {}) {
 	const getArcanumMove = vi.fn(async () => move);
-	const actor = { name: "Corvin", typedActor: { getArcanumMove } };
+	const actor = { name: "Corvin", items: moves.map(name => ({ type: "move", name, system: {}, flags: {} })), typedActor: { getArcanumMove } };
 	const Base = class {
 		constructor() { this._actor = actor; }
 		get actor() { return this._actor; }
@@ -129,6 +130,43 @@ describe("_onArcanumMoveName", () => {
 	});
 });
 
+describe("the Seeker's moves on a mystery's dialog", () => {
+	it("Mind Over Magic offers +INT beside a learned mystery's printed stat", () => {
+		const { sheet } = makeSheet({ moves: ["Mind Over Magic"] });
+		expect(sheet._arcanumMoveGuide(FIRST_LIGHT).altRoll).toMatchObject({ stat: "int", label: "Roll +INT (Mind Over Magic)" });
+		// Without the move, or on a mystery that cannot yet be rolled, there is nothing to swap.
+		expect(makeSheet().sheet._arcanumMoveGuide(FIRST_LIGHT).altRoll).toBeNull();
+		expect(sheet._arcanumMoveGuide({ ...FIRST_LIGHT, learned: false }).altRoll).toBeNull();
+	});
+
+	it("Improvise is offered on an un-learned mystery, and only there", () => {
+		const { sheet } = makeSheet({ moves: ["Improvise"] });
+		const guide = sheet._arcanumMoveGuide({ ...FIRST_LIGHT, learned: false }, "mystery-card");
+		expect(guide.improvise).toMatchObject({ arcanumSlug: "mystery-card", moveSlug: "first-light" });
+		expect(guide.note).toContain("roll +INT");
+		expect(guide.roll).toBeNull();
+		expect(sheet._arcanumMoveGuide(FIRST_LIGHT, "mystery-card").improvise).toBeNull();
+		expect(makeSheet().sheet._arcanumMoveGuide({ ...FIRST_LIGHT, learned: false }, "mystery-card").improvise).toBeNull();
+	});
+
+	it("opens an un-learned pure-text mystery's dialog when Improvise can reach it", async () => {
+		const { sheet } = makeSheet({ move: { ...EMBER, learned: false }, moves: ["Improvise"] });
+		sheet._openGuidedCharacterMove = vi.fn();
+		await sheet._onArcanumMoveName("mystery-card", "ember");
+		expect(sheet._openGuidedCharacterMove).toHaveBeenCalledOnce();
+		expect(ChatMessage.create).not.toHaveBeenCalled();
+	});
+
+	it("an Improvise card's 7+ opens the mystery as if learned, with its roll", async () => {
+		const { sheet } = makeSheet({ move: { ...FIRST_LIGHT, learned: false }, moves: ["Improvise"] });
+		sheet._openGuidedCharacterMove = vi.fn();
+		await sheet._onArcanumMoveName("mystery-card", "first-light", { improvised: true });
+		const [{ guide }] = sheet._openGuidedCharacterMove.mock.calls[0];
+		expect(guide.roll).toBe("con");
+		expect(guide.improvise).toBeNull();
+	});
+});
+
 describe("_postGuidedCharacterMove — an arcanum move posts as a move card", () => {
 	// The suite runs without a DOM, so the dialog's form stands in as the two things the
 	// method actually asks of it: a root that can find it, and its ticked entries.
@@ -156,5 +194,53 @@ describe("_postGuidedCharacterMove — an arcanum move posts as a move card", ()
 		const { content } = ChatMessage.create.mock.calls[0][0];
 		expect(content).toContain("strike the flint");
 		expect(content).not.toContain("stonetop-arcanum-move-picks");
+	});
+});
+
+describe("the Ring of Daagon's cost cards carry 'Mark a consequence'", () => {
+	// Call Up the Deep Ones and Send Them Back cost "spend 1 Loyalty or mark a consequence": the
+	// card of a consequence paid carries the button that marks the Ring's next one.
+	function ringSheet({ loyalty = 0 } = {}) {
+		const followers = { ring: { name: "The Ring", sourceUuid: RING_SOURCE_UUID, loyalty } };
+		const actor = {
+			name: "Corvin", items: [], typedActor: {},
+			getFlag: (_scope, key) => (key === "customFollowers" ? followers : undefined),
+			update: vi.fn(async () => {}),
+			setFlag: vi.fn(async () => {}),
+		};
+		const Base = class {
+			constructor() { this._actor = actor; }
+			get actor() { return this._actor; }
+			get isEditable() { return true; }
+			async getData() { return {}; }
+			activateListeners() {}
+			render = vi.fn();
+		};
+		const sheet = new (createStonetopCharacterSheetClass(Base))();
+		sheet._confirmServantDeparture = vi.fn();
+		return sheet;
+	}
+	const INPUT = resolveServantBatch({ aspectDie: { tags: 1, number: 2, size: 2, traits: 0, moves: 0 }, count: 3 });
+	const posted = () => ChatMessage.create.mock.calls.at(-1)[0].content;
+
+	beforeEach(() => {
+		global.foundry = { ...global.foundry, utils: { ...global.foundry?.utils, randomID: () => "servants" } };
+	});
+
+	it("Call Up paid with a consequence, chosen or for want of Loyalty, carries the button; paid in Loyalty, not", async () => {
+		await ringSheet({ loyalty: 2 })._applyCallUp(INPUT, { kind: "consequence" });
+		expect(posted()).toContain('class="stonetop-mark-consequence" data-arcanum-slug="ring-of-daagon"');
+		await ringSheet({ loyalty: 0 })._applyCallUp(INPUT, { kind: "loyalty" });
+		expect(posted()).toContain("stonetop-mark-consequence");
+		await ringSheet({ loyalty: 2 })._applyCallUp(INPUT, { kind: "loyalty" });
+		expect(posted()).toContain("You spend <strong>1 Loyalty</strong>");
+		expect(posted()).not.toContain("stonetop-mark-consequence");
+	});
+
+	it("Send Them Back's 6- paid with a consequence carries the button; paid in Loyalty, not", async () => {
+		await ringSheet({ loyalty: 1 })._payServantExit("servants", "Servants of Daagon", "consequence");
+		expect(posted()).toContain("stonetop-mark-consequence");
+		await ringSheet({ loyalty: 1 })._payServantExit("servants", "Servants of Daagon", "loyalty");
+		expect(posted()).not.toContain("stonetop-mark-consequence");
 	});
 });

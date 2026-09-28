@@ -147,7 +147,7 @@ describe("Tor's blessing", () => {
 		expect(body).toContain(`checkedKeys.includes("tor")`);
 		expect(body).toContain("torsBlessingFlags(year, seasonId)");
 		// Folded into the season's single applyChanges rather than written on its own, so the
-		// blessing does not card separately from the Fortunes reset it arrives with.
+		// blessing does not card separately from the gains it arrives with.
 		expect(body).toContain("applyChanges(");
 	});
 });

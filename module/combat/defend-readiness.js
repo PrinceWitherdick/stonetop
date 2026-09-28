@@ -16,6 +16,8 @@
 
 import { SYSTEM_ID } from "../system-id.js";
 
+export const DEFEND_MOVE = "Defend";
+
 // Where a character's held Readiness lives: a flag on the actor.
 export const READINESS_FLAG = "readiness";
 
@@ -44,6 +46,20 @@ export function defendReadinessHold(tier, { hasShield = false, hasGuardian = fal
 	if (tier === "success") return DEFEND_READINESS_BASE_CAP + shield + guardian;
 	if (tier === "partial") return 1 + shield + guardian;
 	return guardian;
+}
+
+/**
+ * A Defend's Readiness for its tier, the roll's own or the tier its card was moved to afterwards (a GM's
+ * Shift, a +1 pressed on it: actors/character/tier-effects.js). The roll raised the pool from `prior` to
+ * `set`, never lowering it; the tier's `hold` would have raised it to max(prior, hold) instead, and the
+ * difference lands on what is held NOW, so Readiness spent since stays spent. At the roll itself `set` and
+ * `current` are both `prior`. Never below none. PURE.
+ *
+ * @returns {{next: number, set: number}}  what to hold now, and what this tier raised the pool to
+ */
+export function readinessForTier({ prior, set = prior, current = prior, hold }) {
+	const target = Math.max(readinessCount(prior), readinessCount(hold));
+	return { next: readinessCount(readinessCount(current) + target - readinessCount(set)), set: target };
 }
 
 /**

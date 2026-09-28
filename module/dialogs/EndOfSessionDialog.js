@@ -1,5 +1,6 @@
 import { StonetopDialog } from "../utils/stonetop-dialog.js";
 import { resetOmenReminder } from "../hooks/StonetopSingleton.js";
+import { resetNeverGonnaKeepMeDown } from "../actors/character/deaths-door-actor.js";
 import { getPlayerCharacters } from "../utils/playbook-actors.js";
 import { adjustXp } from "../utils/xp.js";
 import { stonetopChatCard } from "../utils/chat.js";
@@ -92,6 +93,8 @@ export class EndOfSessionDialog extends StonetopDialog {
 		}
 
 		await resetOmenReminder();
+		// A new session gives back Never Gonna Keep Me Down's once-a-session 10+ at Death's Door.
+		await resetNeverGonnaKeepMeDown(playerChars);
 		this.close();
 	}
 }

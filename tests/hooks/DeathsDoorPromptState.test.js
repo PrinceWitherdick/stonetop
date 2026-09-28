@@ -6,6 +6,8 @@ import {
 	promptRaiseFromDead,
 } from "../../module/hooks/DeathsDoorPrompt.js";
 import { DEATHS_DOOR_STATE } from "../../module/actors/character/deaths-door.js";
+import { UNSTOPPABLE_INSTEAD_OPTION, UNSTOPPABLE_REGAIN_OPTION } from "../../module/actors/character/unstoppable.js";
+import { BATTLE_JOY_DROPPED_OPTION } from "../../module/actors/character/battle-joy.js";
 import { FakeActorBuilder } from "../fakes/FakeActorBuilder.js";
 
 const STATE_PATH = "flags.stonetop_pwd.deathsDoor";
@@ -80,11 +82,150 @@ describe("onPreUpdateActorDeathsDoor — the state a hit records", () => {
 		expect(recorded(actor, 0)).toBeUndefined();
 	});
 
+	// A write that settles the Door names its own state, and the hit points in it must not overrule it:
+	// Undying's "regain half your max HP" with "out of the action until the next sunset" is HP up AND
+	// out of the action in one write (UndeathDialog#_onApply). Read as HP alone it came back "no state".
+	it("keeps the state a settling write names, even with hit points coming back in it", () => {
+		const actor = about({ deathsDoor: DEATHS_DOOR_STATE.DYING, deathsDoorRolling: { userId: "p1", nonce: "n1" } }, 0);
+		const changes = {
+			system: { attributes: { hp: { value: 6 } } },
+			flags: { "stonetop_pwd": { deathsDoor: DEATHS_DOOR_STATE.OUT_OF_ACTION } },
+		};
+
+		onPreUpdateActorDeathsDoor(actor, changes, {});
+
+		expect(changes.flags["stonetop_pwd"].deathsDoor).toBe(DEATHS_DOOR_STATE.OUT_OF_ACTION);
+		// Still the end of this brush with death, so a roll left on the sheet goes with it.
+		expect(changes.flags["stonetop_pwd"]).toHaveProperty(["-=deathsDoorRolling"], null);
+	});
+
 	// Nothing walks `dead` back on its own — the raise is asked about, never assumed.
 	it("writes no state change when a dead character is given hit points", () => {
 		const actor = about({ deathsDoor: DEATHS_DOOR_STATE.DEAD }, 0);
 
 		expect(recorded(actor, 5)).toBeUndefined();
+	});
+});
+
+/**
+ * Unstoppable: "If you would regain HP while fighting, clear one mark instead." Decided on the HP
+ * write itself, before the state reads it, so a Heavy fighting on at 0 stays dying.
+ */
+describe("onPreUpdateActorDeathsDoor: Unstoppable's mark instead of hit points", () => {
+	const unstoppable = { type: "move", name: "Unstoppable", system: { resource: { max: 5 } }, flags: {} };
+	function fightingOn(marks) {
+		const actor = about({ deathsDoor: DEATHS_DOOR_STATE.DYING, "moves.backgroundChoices": { Unstoppable: marks } }, 0);
+		actor.items = [unstoppable];
+		return actor;
+	}
+	function heal(actor, hp, changes = {}) {
+		const options = {};
+		Object.assign(changes, { system: { attributes: { hp: { value: hp } } } });
+		onPreUpdateActorDeathsDoor(actor, changes, options);
+		return { changes, options };
+	}
+
+	it("keeps them at 0 HP and dying, clears a mark, and stamps what they would have had", () => {
+		const { changes, options } = heal(fightingOn(3), 4);
+		expect(changes.system.attributes.hp.value).toBe(0);
+		expect(changes.flags["stonetop_pwd"].moves.backgroundChoices.Unstoppable).toBe(2);
+		// No state change written: they are still dying, still fighting.
+		expect(changes.flags["stonetop_pwd"].deathsDoor).toBeUndefined();
+		expect(options[UNSTOPPABLE_INSTEAD_OPTION]).toEqual({ hp: 4, marks: 2 });
+	});
+
+	it("lets the hit points through with no mark left to clear", () => {
+		const { changes } = heal(fightingOn(0), 4);
+		expect(changes.system.attributes.hp.value).toBe(4);
+		expect(changes.flags["stonetop_pwd"].deathsDoor).toBeNull();
+	});
+
+	it("leaves the write that settles the Door alone (Death's Door's 1 HP)", () => {
+		const { changes, options } = heal(fightingOn(3), 1, { flags: { "stonetop_pwd": { deathsDoor: null } } });
+		expect(changes.system.attributes.hp.value).toBe(1);
+		expect(options[UNSTOPPABLE_INSTEAD_OPTION]).toBeUndefined();
+	});
+
+	it("lets through the write that takes the hit points back after all", () => {
+		const actor = fightingOn(3);
+		const changes = { system: { attributes: { hp: { value: 4 } } } };
+		onPreUpdateActorDeathsDoor(actor, changes, { [UNSTOPPABLE_REGAIN_OPTION]: true });
+		expect(changes.system.attributes.hp.value).toBe(4);
+	});
+});
+
+/**
+ * The Heavy's Battle Joy lasts "as long as you keep fighting", and one who drops to 0 HP has stopped
+ * (the user's ruling): the write that makes them dying ends it, with no roll, so the Death's Door roll
+ * takes their debilities. Unless Unstoppable keeps them fighting at 0.
+ */
+describe("onPreUpdateActorDeathsDoor: a raging Heavy dropping to 0 HP", () => {
+	function raging({ unstoppable = false, hp = 5, state = null } = {}) {
+		const actor = about({ battleJoy: true, ...(state ? { deathsDoor: state } : {}) }, hp);
+		actor.items = unstoppable ? [{ type: "move", name: "Unstoppable", system: {}, flags: {} }] : [];
+		return actor;
+	}
+	function drop(actor, hp = 0) {
+		const options = {};
+		const changes = { system: { attributes: { hp: { value: hp } } } };
+		onPreUpdateActorDeathsDoor(actor, changes, options);
+		return { bag: changes.flags?.["stonetop_pwd"] ?? {}, options };
+	}
+
+	it("ends the Battle Joy in the same write, and stamps it for the chat line", () => {
+		const { bag, options } = drop(raging());
+		expect(bag.deathsDoor).toBe(DEATHS_DOOR_STATE.DYING);
+		expect(bag).toHaveProperty(["-=battleJoy"], null);
+		expect(options[BATTLE_JOY_DROPPED_OPTION]).toBe(true);
+	});
+
+	it("leaves it on for a Heavy whose Unstoppable keeps them fighting at 0", () => {
+		const { bag, options } = drop(raging({ unstoppable: true }));
+		expect(bag.deathsDoor).toBe(DEATHS_DOOR_STATE.DYING);
+		expect(bag).not.toHaveProperty(["-=battleJoy"]);
+		expect(options[BATTLE_JOY_DROPPED_OPTION]).toBeUndefined();
+	});
+
+	it("touches nothing on a hit that leaves them standing, or on a calm Heavy", () => {
+		expect(drop(raging(), 3).options[BATTLE_JOY_DROPPED_OPTION]).toBeUndefined();
+		const calm = about({}, 5);
+		calm.items = [];
+		const { bag, options } = drop(calm);
+		expect(bag).not.toHaveProperty(["-=battleJoy"]);
+		expect(options[BATTLE_JOY_DROPPED_OPTION]).toBeUndefined();
+	});
+});
+
+/**
+ * A Death's Door roll in progress (DEATHS_DOOR_ROLLING_FLAG) belongs to one brush with death. One left behind
+ * by a write that failed must not tell the NEXT visit that somebody is already rolling, or hand a Take over its
+ * old card; so the write that moves the state by hit points drops it.
+ */
+describe("onPreUpdateActorDeathsDoor: a Death's Door roll left on the sheet", () => {
+	const MARKER = { userId: "p1", userName: "Aline", nonce: "n1", at: 1, messageId: "m1", total: 8, tier: "partial" };
+	function hit(flags, oldHp, newHp) {
+		const changes = { system: { attributes: { hp: { value: newHp } } } };
+		onPreUpdateActorDeathsDoor(about(flags, oldHp), changes, {});
+		return changes.flags?.["stonetop_pwd"] ?? {};
+	}
+
+	it("is dropped by the write that makes them dying afresh", () => {
+		const bag = hit({ deathsDoorRolling: MARKER }, 5, 0);
+		expect(bag.deathsDoor).toBe(DEATHS_DOOR_STATE.DYING);
+		expect(bag).toHaveProperty(["-=deathsDoorRolling"], null);
+	});
+
+	it("is dropped by the hit point that brings them back up (the 10+'s own, or a heal)", () => {
+		const bag = hit({ deathsDoor: DEATHS_DOOR_STATE.DYING, deathsDoorRolling: MARKER }, 0, 1);
+		expect(bag.deathsDoor).toBeNull();
+		expect(bag).toHaveProperty(["-=deathsDoorRolling"], null);
+	});
+
+	it("stands through a hit that moves no state: the roll is still under way", () => {
+		const bag = hit({ deathsDoor: DEATHS_DOOR_STATE.DYING, deathsDoorRolling: MARKER }, 0, 0);
+		expect(bag).not.toHaveProperty(["-=deathsDoorRolling"]);
+		// And nothing to drop is never written as a deletion.
+		expect(hit({}, 5, 0)).not.toHaveProperty(["-=deathsDoorRolling"]);
 	});
 });
 

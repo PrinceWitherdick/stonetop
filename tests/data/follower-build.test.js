@@ -5,6 +5,7 @@ import {
 	followerFromNpc,
 	monsterGroupDefaults, orderFollowersBonus, readinessCap,
 	READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS,
+	applyTagEdits, editTagLayer, editTagList,
 } from "../../module/data/follower-build.js";
 
 // The rules content + derivations behind the Create-a-Follower walkthrough and
@@ -473,5 +474,42 @@ describe("monsterGroupDefaults", () => {
 	it("leaves solitary / group-less monsters as single followers", () => {
 		expect(monsterGroupDefaults({ organization: "solitary" })).toEqual({ isGroup: false, size: 0 });
 		expect(monsterGroupDefaults({})).toEqual({ isGroup: false, size: 0 });
+	});
+});
+
+// Updating followers (p.480): any follower's tags may be added to, removed or revised.
+describe("hand-edited follower tags", () => {
+	it("applyTagEdits drops derived tags and appends added ones, without case", () => {
+		const tags = applyTagEdits(
+			[{ label: "fierce", tooltip: "t" }, "loyal", { label: "Hardy" }],
+			{ extraTags: ["scarred", "LOYAL"], droppedTags: ["hardy"] },
+		);
+		expect(tags).toEqual([
+			{ label: "fierce", tooltip: "t" },
+			{ label: "loyal" },
+			{ label: "scarred", added: true },
+		]);
+	});
+
+	it("applyTagEdits with no layer keeps every tag", () => {
+		expect(applyTagEdits(["a", "b"])).toEqual([{ label: "a" }, { label: "b" }]);
+		expect(applyTagEdits(undefined, { extraTags: ["x"] })).toEqual([{ label: "x", added: true }]);
+	});
+
+	it("editTagLayer adds and drops, and each undoes the other", () => {
+		let layer = editTagLayer({}, "add", "brave, cunning");
+		expect(layer).toEqual({ extraTags: ["brave", "cunning"], droppedTags: [] });
+		layer = editTagLayer(layer, "remove", "Brave");
+		expect(layer).toEqual({ extraTags: ["cunning"], droppedTags: [] });
+		layer = editTagLayer(layer, "remove", "fierce");
+		expect(layer).toEqual({ extraTags: ["cunning"], droppedTags: ["fierce"] });
+		layer = editTagLayer(layer, "add", "Fierce");
+		expect(layer).toEqual({ extraTags: ["cunning"], droppedTags: [] });
+	});
+
+	it("editTagList edits a custom follower's own list", () => {
+		expect(editTagList(["spirit", "tiny"], "add", "sly, Tiny")).toEqual(["spirit", "tiny", "sly"]);
+		expect(editTagList(["spirit", "tiny"], "remove", "TINY")).toEqual(["spirit"]);
+		expect(editTagList(undefined, "add", "")).toEqual([]);
 	});
 });

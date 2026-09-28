@@ -35,7 +35,7 @@ function makeSheet({ built = [], stats = {}, diminished = false, militiaR = [], 
 		improvementDef: vi.fn(slug => IMPROVEMENT_DEFINITIONS.find(d => d.slug === slug) ?? null),
 		improvementRequirements: vi.fn(slug => (slug === "wellTrainedMilitia" ? militiaR : [])),
 	};
-	const actor = { name: "Stonetop", type: "stonetop", typedActor, getFlag: vi.fn(() => sticky) };
+	const actor = { name: "Stonetop", type: "stonetop", isOwner: true, typedActor, getFlag: vi.fn(() => sticky) };
 	const Base = class {
 		constructor() { this._actor = actor; }
 		get actor() { return this._actor; }
@@ -83,6 +83,37 @@ describe("a homefront roll, with what the steading has built", () => {
 		await sheet._onSteadingRoll("Deploy", "defenses", { improvementAnswers: { tactic: "3" } });
 		expect(lastRoll()[2].moveResults.partial.value).toMatch(/you pick 1/);
 		expect(lastRoll()[2].conditionNotes).toContain("Trained tactic: Formations");
+	});
+
+	it("rolls a Muster at advantage with the Marshal's Logistics ticked, and cancels it against Diminished", async () => {
+		await makeSheet()._onSteadingRoll("Muster", "population", { improvementAnswers: { logistics: "yes" } });
+		expect(lastRoll()[2]).toMatchObject({ rollMode: "adv", conditionNotes: ["Logistics: advantage"] });
+		await makeSheet({ diminished: true })._onSteadingRoll("Pull Together", "population", { improvementAnswers: { logistics: "yes" } });
+		expect(lastRoll()[2].rollMode).toBe("normal");
+		await makeSheet()._onSteadingRoll("Requisition", "fortunes", { improvementAnswers: { logistics: "" } });
+		expect(lastRoll()[2].rollMode).toBe("normal");
+	});
+
+	it("asks the Logistics line, ticked, in the Muster, Pull Together and Requisition windows", async () => {
+		const { improvementCheckHtml } = await import("../../../module/actors/steading/StonetopSteadingSheet.js");
+		expect(improvementCheckHtml({ name: "logistics", label: "Logistics (Wren)", checked: true })).toMatch(/name="logistics" value="yes" checked>/);
+		expect(improvementCheckHtml({ name: "herd", label: "Herd" })).not.toMatch(/checked/);
+		// Both windows hand the world's Logistics holders to the questions.
+		expect(STEADING_JS.match(/logistics: worldLogisticsNames\(\)/g)).toHaveLength(2);
+	});
+
+	// Ranger audit M5: Pathfinder's "lead your people to Pull Together or Deploy beyond sight of home".
+	it("rolls a Deploy at advantage with the Ranger's Pathfinder ticked, and the window asks the world's holders", async () => {
+		await makeSheet()._onSteadingRoll("Deploy", "defenses", { improvementAnswers: { pathfinder: "yes" } });
+		expect(lastRoll()[2]).toMatchObject({ rollMode: "adv" });
+		expect(lastRoll()[2].conditionNotes).toContain("Pathfinder: advantage");
+		await makeSheet()._onSteadingRoll("Pull Together", "population", { improvementAnswers: { pathfinder: "" } });
+		expect(lastRoll()[2].rollMode).toBe("normal");
+		expect(STEADING_JS).toMatch(/pathfinder: worldLearnedHolderNames\(PATHFINDER\)/);
+		const { worldLearnedHolderNames } = await import("../../../module/actors/character/owns-move.js");
+		const ranger = (name, learned) => ({ name, type: "character", items: [{ type: "move", name: "Pathfinder", flags: learned ? {} : { "stonetop_pwd": { learned: false } } }] });
+		vi.stubGlobal("game", { actors: { contents: [ranger("Rook", true), ranger("Ash", false), { name: "Stonetop", type: "stonetop", items: [] }] } });
+		try { expect(worldLearnedHolderNames("Pathfinder")).toEqual(["Rook"]); } finally { vi.unstubAllGlobals(); }
 	});
 
 	it("passes a herd Requisition's 6- as a 7-9 to the roll", async () => {

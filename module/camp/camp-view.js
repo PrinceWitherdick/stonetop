@@ -1,7 +1,10 @@
 import { escHtml, joinNames } from "../utils/strings.js";
+import { recoveredHpTo } from "../actors/character/deaths-door-actor.js";
 import {
-	CAMP_BENEFIT, CAMP_FOLLOWERS_MAX, CAMP_STATE, HAD_ALL_ALONG, HAD_ALL_ALONG_REFUSAL, SETTLE_REFUSAL, debilityToClear,
-	eatsTonight, foodAfterTonight, healTo, messKitAllAlong, messKitWouldHelp, provisionsAtFire, spareUses, suppliesAllAlong,
+	CAMP_BENEFIT, CAMP_FOLLOWERS_MAX, CAMP_STATE, HAD_ALL_ALONG, HAD_ALL_ALONG_REFUSAL, SETTLE_REFUSAL, breakBreadOffered,
+	CAMP_EXTRA, debilityToClear, eatsTonight, foodAfterTonight, healTo, homeFiresHp, homeFiresKeeper, homeFiresOffered, planExtras,
+	nightmaresWarded,
+	messKitAllAlong, messKitWouldHelp, provisionsAtFire, spareUses, suppliesAllAlong,
 } from "./camp-rules.js";
 
 /**
@@ -94,26 +97,82 @@ export function settleRefusalText(reason) {
 	return SETTLE_REFUSAL_TEXT[reason] ?? "The camp could not be made.";
 }
 
-function mealLine({ mouths, bill, messKit, cooks }) {
+function mealLine(ledger) {
+	const { mouths, bill, messKit, cooks } = ledger;
 	if (!mouths) return "Nobody needed feeding.";
-	return `${mouths} fed on ${bill} ${uses(bill)} of food${messKit ? `, cooked in ${cooks[0]}'s mess kit` : ""}.`;
+	const proper = breakBreadOffered(ledger) && ledger.properMeal ? " A proper meal (Break Bread)." : "";
+	const hungry = ravenousText(ledger);
+	return `${mouths} fed on ${bill} ${uses(bill)} of food${messKit ? `, cooked in ${cooks[0]}'s mess kit` : ""}.${hungry ? ` ${hungry}` : ""}${proper}`;
+}
+
+/** A Ravenous Thrall's extra 1d4 uses, said as rolled: "Ravenous: Rook eats 3 extra uses (1d4)." Empty without one. */
+function ravenousText(ledger) {
+	return (ledger.ravenous ?? [])
+		.map(r => `Ravenous: ${r.name} eats ${r.uses} extra ${uses(r.uses)} (1d4).`)
+		.join(" ");
+}
+
+/**
+ * What a Thrall's Quicksilver Dreams do to tonight, in the meal box and on the settled card: everyone
+ * else at the fire has nightmares and disadvantage on their next roll, unless the fire's ash keeps
+ * them away (camp-rules.js#nightmaresWarded). Empty with no such Thrall at the fire.
+ */
+function nightmaresText(ledger) {
+	const dreamers = (ledger.dreamers ?? []).map(d => d.name);
+	if (!dreamers.length) return "";
+	const who = joinNames(dreamers);
+	if (nightmaresWarded(ledger)) {
+		return `Quicksilver Dreams: the ash from ${homeFiresKeeper(ledger).name}'s hearth keeps ${who}'s nightmares from everyone here.`;
+	}
+	return `Quicksilver Dreams: everyone with ${who} suffers nightmares and has disadvantage on their next roll.`;
+}
+
+/** What each source of extra HP is called on a summary line (camp-rules.js#CAMP_EXTRAS). */
+const EXTRA_WORDS = {
+	[CAMP_EXTRA.BEDROLL]:     n => `bedroll rolled ${n}`,
+	[CAMP_EXTRA.BREAK_BREAD]: n => `Break Bread rolled ${n}`,
+	[CAMP_EXTRA.HOME_FIRES]:  n => `the home fires gave ${n} extra HP`,
+};
+
+/** One extra-HP step on a summary line: what it was, and what it did to their HP. */
+function extraPart({ source, amount, from, to }) {
+	const said = EXTRA_WORDS[source]?.(amount) ?? `${amount} extra HP`;
+	return to > from ? `${said}, HP ${from} → ${to}` : `${said}, but HP was already full`;
 }
 
 function outcomeLine(entry) {
-	if (entry.unliving) return "Needs no food or sleep, and took nothing from the night.";
-	if (!entry.eats) return "Went without food, so took no pick tonight.";
-	if (!entry.rests) return "Ate, but got no real sleep, so took no pick tonight.";
+	const dreams = entry.nightmares?.length
+		? `nightmares from ${joinNames(entry.nightmares)}'s Quicksilver Dreams, so disadvantage is held for the next roll`
+		: "";
+	if (entry.unliving) return `Needs no food or sleep, and took nothing from the night${dreams ? `; ${dreams}` : ""}.`;
+	// The extra HP in the order it landed, then any background track making camp cleared.
+	const after = [
+		...planExtras(entry).map(extraPart),
+		// The steps above say what the night should have healed; Torment's Blessing halves the lot.
+		...(entry.slowToHeal ? [`Torment's Blessing recovers only half of that, rounded up, HP ${entry.hpBefore} → ${entry.hpAfter}`] : []),
+		...(entry.clears ?? []).map(track => `cleared ${track.name}`),
+		...(dreams ? [dreams] : []),
+	];
+	const tail = after.map(part => `; ${part}`).join("");
+	if (!entry.eats) return `Went without food, so took no pick tonight${tail}.`;
+	if (!entry.rests) return `Ate, but got no real sleep, so took no pick tonight${tail}.`;
 	const parts = [];
 	if (entry.benefit === CAMP_BENEFIT.DEBILITY) parts.push(`Cleared ${entry.debility?.name ?? "a debility"}`);
 	else if (entry.hpAfterPick > entry.hpBefore) parts.push(`HP ${entry.hpBefore} → ${entry.hpAfterPick} (half max)`);
 	else parts.push(`HP already full at ${entry.hpBefore}`);
-	if (entry.bedroll) {
-		parts.push(entry.hpAfter > entry.hpAfterPick
-			? `bedroll rolled ${entry.bedroll}, HP ${entry.hpAfterPick} → ${entry.hpAfter}`
-			: `bedroll rolled ${entry.bedroll}, but HP was already full`);
-	}
+	parts.push(...after);
 	if (entry.peaceful) parts.push("a peaceful night, so advantage is held for the next roll");
 	return `${parts.join("; ")}.`;
+}
+
+/**
+ * The fire's line on the settled card, when the ash was sprinkled: "free from nightmares or bad
+ * dreams" is for everyone, even at CHA 0, so it is said whatever the HP. Null otherwise.
+ */
+function hearthLine(ledger) {
+	if (!homeFiresOffered(ledger) || ledger.hearthAsh === false) return null;
+	const hp = homeFiresHp(ledger);
+	return `Ash from ${homeFiresKeeper(ledger).name}'s hearth (Keep the Home-Fires Burning): everyone making camp here is free from nightmares or bad dreams${hp ? ` and recovers ${hp} extra HP` : ""}.`;
 }
 
 /**
@@ -122,6 +181,10 @@ function outcomeLine(entry) {
  */
 export function campSummaryRows(ledger, plan) {
 	const rows = [{ label: "The meal", value: mealLine(ledger) }];
+	const hearth = hearthLine(ledger);
+	if (hearth) rows.push({ label: "The fire", value: hearth });
+	const dreams = nightmaresText(ledger);
+	if (dreams) rows.push({ label: "The night", value: dreams });
 	for (const entry of plan) {
 		const shared = shareLine(entry.spend ?? []);
 		if (shared) rows.push({ label: `From ${entry.name}'s pack`, value: shared });
@@ -162,8 +225,60 @@ function mealView(ledger) {
 		provisionsText: provisionsAtFire(ledger)
 			? "Provisions spoil and attract beasts more readily than supplies do (Book I p.89)."
 			: "",
+		// A Ravenous Thrall's extra, part of the cost above, rolled when they sat down.
+		hungerText: ravenousText(ledger),
+		nightmaresText: nightmaresText(ledger),
 		isShort: short > 0,
 		isPaid:  mouths > 0 && short === 0,
+	};
+}
+
+/**
+ * The host's "A proper meal (Break Bread)" box, in the meal box once the meal is paid and somebody
+ * eating holds the move. Ticked unless the host unticks it: whether the meal is a proper one and
+ * everyone eats their fill is the fiction's to say, so the window cannot check it. Only a reader who
+ * settles the camp can change it; everyone else reads which way it stands.
+ */
+function breakBreadView(ledger, { isOpen, manages }) {
+	const host = ledger.rows.find(m => m.isHost);
+	if (!isOpen || !host || !breakBreadOffered(ledger)) return { show: false };
+	const holders = joinNames(ledger.breadBreakers);
+	return {
+		show:     true,
+		canTick:  manages,
+		hostId:   host.actorId,
+		ticked:   ledger.properMeal,
+		label:    "A proper meal (Break Bread): everyone eating their fill recovers 1d8 extra HP",
+		holders:  `${holders} ${plural(ledger.breadBreakers.length, "has", "have")} Break Bread. Untick this if the meal is not a proper one or somebody does not eat their fill.`,
+		says:     ledger.properMeal
+			? "A proper meal (Break Bread): everyone eating recovers 1d8 extra HP."
+			: "Not a proper meal tonight, so Break Bread gives nothing.",
+	};
+}
+
+/**
+ * The host's "Ash from your own hearth" box (Keep the Home-Fires Burning), in the meal box whenever
+ * somebody at the fire holds the move. Ticked unless the host unticks it: whether the fire was
+ * sprinkled with ash from the holder's own hearth is the fiction's to say. As with Break Bread, only a
+ * reader who settles the camp can change it.
+ */
+function homeFiresView(ledger, { isOpen, manages }) {
+	const host   = ledger.rows.find(m => m.isHost);
+	const keeper = homeFiresKeeper(ledger);
+	if (!isOpen || !host || !keeper) return { show: false };
+	const hp      = Math.max(0, keeper.cha);
+	const gives   = `free from nightmares or bad dreams${hp ? ` and recovers ${hp} extra HP` : ""}`;
+	const holders = ledger.hearthKeepers.map(k => k.name);
+	return {
+		show:     true,
+		canTick:  manages,
+		hostId:   host.actorId,
+		ticked:   ledger.hearthAsh !== false,
+		label:    `Ash from your own hearth (Keep the Home-Fires Burning): everyone making camp here is ${gives}`,
+		holders:  `${joinNames(holders)} ${plural(holders.length, "has", "have")} Keep the Home-Fires Burning${holders.length > 1 ? `; ${keeper.name}'s CHA counts` : ""}. Untick this if the fire is not sprinkled with ash from their own hearth.`,
+		says:     ledger.hearthAsh !== false
+			? `Ash from ${keeper.name}'s hearth: everyone making camp here is ${gives}.`
+			: "No ash from a hearth on this fire, so Keep the Home-Fires Burning gives nothing.",
 	};
 }
 
@@ -245,7 +360,7 @@ function rowSentences(member, offer, { eats, benefit, clearing, hpAfter }) {
 	}
 	says.push(benefit === CAMP_BENEFIT.DEBILITY
 		? `Clearing ${clearing?.name ?? "a debility"}.`
-		: `Regaining HP: ${member.hpValue} → ${hpAfter}.`);
+		: `Regaining HP: ${member.hpValue} → ${hpAfter}${member.slowToHeal ? " (halved: Torment's Blessing)" : ""}.`);
 	if (record.bedroll && record.vitals.bedroll) says.push("Sleeping in a bedroll for 1d6 extra HP.");
 	if (record.peaceful) says.push("Found the rest peaceful.");
 	return says;
@@ -257,7 +372,8 @@ function rowView(member, at, ledger, { canEdit, isMine, canOpenSheet }) {
 	const kept    = ledger.spends[at];
 	const eats    = eatsTonight(member);
 	const marked  = member.activeDebilities;
-	const hpAfter = healTo(member.hpValue, Math.ceil(member.maxHp / 2), member.maxHp);
+	// Torment's Blessing halves the pick's HP, rounded up; the settled card halves the whole night's.
+	const hpAfter = recoveredHpTo(member.hpValue, healTo(member.hpValue, Math.ceil(member.maxHp / 2), member.maxHp), !!member.slowToHeal);
 	// A debility pick with nothing marked any more has only healing left to mean.
 	const benefit  = record.benefit === CAMP_BENEFIT.DEBILITY && !marked.length ? CAMP_BENEFIT.HP : record.benefit;
 	const clearing = debilityToClear(member);
@@ -309,6 +425,7 @@ function rowView(member, at, ledger, { canEdit, isMine, canOpenSheet }) {
 			none:          benefit === CAMP_BENEFIT.NONE,
 			hpBefore:      member.hpValue,
 			hpAfter,
+			halvedText:    member.slowToHeal ? "(halved: Torment's Blessing)" : "",
 			hasDebilities: marked.length > 0,
 			debilities:    marked.map(d => ({ key: d.key, name: d.name, selected: d.key === clearing?.key })),
 		},
@@ -376,6 +493,8 @@ export function campWindowView({ state, hostName = "", ledger, manages = false, 
 		closedText: isOpen ? "" : campCardClosedText(state, hostName),
 		title:      hostName ? `${hostName}'s camp` : "Make Camp",
 		meal:       mealView(ledger),
+		breakBread: breakBreadView(ledger, { isOpen, manages }),
+		homeFires:  homeFiresView(ledger, { isOpen, manages }),
 		// What the Have What You Need buttons are, said once in the meal box rather than on every card.
 		allAlongText: rows.some(r => r.allAlong.show)
 			? "Have What You Need: anyone can decide an undefined ◇ was supplies or a mess kit all along. The GM or any player can veto it."

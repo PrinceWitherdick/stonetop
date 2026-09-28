@@ -2,6 +2,9 @@ import { escHtml } from "../utils/strings.js";
 import { stonetopCardShell } from "../utils/chat.js";
 import { getPlayerCharacters } from "../utils/playbook-actors.js";
 import { SYSTEM_ID } from "../system-id.js";
+import { moveLearnedIn } from "../actors/character/owns-move.js";
+import { LOGBOOK } from "../actors/character/know-things.js";
+import { autoOpenUserId, ownerUsers } from "../hooks/DeathsDoorPrompt.js";
 
 // ── Seasons Change reminders ─────────────────────────────────────────────────
 // A few playbook moves and special possessions have rules that fire "each
@@ -59,12 +62,15 @@ export const SEASONAL_REMINDERS = [
 	{
 		// The only entry that RESETS something rather than producing it, and the only one whose
 		// trigger is the move by name: "When the Seasons Change, reset your logbook to 2 uses."
-		// Nothing in the system resets it, and nothing should — the pips are on the Seeker's own
-		// move track, on their own sheet, and a GM's Seasons Change reaching across to write
-		// another player's character is not how any other seasonal upkeep here works.
+		// The GM's Seasons Change does not write it itself: the pips are on the Seeker's own move
+		// track, on their own sheet, and a GM's move reaching across to write another player's
+		// character is not how any other seasonal upkeep here works. So the row carries a button
+		// (`reset`, the user's ruling of 2026-09-26) that the Seeker's own player presses: see
+		// wireSeasonsReminderResets.
 		kind:     "move",
 		name:     "Logbook",
 		playbook: "The Seeker",
+		reset:    "logbook",
 		rule:     "When the Seasons Change, reset your logbook to 2 uses. (Expend a use to treat a Know Things roll you just made as a 10+.)",
 	},
 	{
@@ -72,7 +78,10 @@ export const SEASONAL_REMINDERS = [
 		slug:     "laboratory",
 		label:    "Laboratory",
 		playbook: "The Seeker",
-		rule:     "Every season, the laboratory produces d4−1 uses of naphtha (thrown, area, dangerous, ignores armor). Roll this season's yield.",
+		// A button that rolls the d4-1 and sets the Laboratory's naphtha track to it (see
+		// REMINDER_RESETS), pressed by the Seeker's own player as the Logbook's is.
+		reset:    "naphtha",
+		rule:    "Every season, the laboratory produces d4−1 uses of naphtha (thrown, area, dangerous, ignores armor). Roll this season's yield.",
 	},
 ];
 
@@ -92,14 +101,15 @@ export function seasonLabel(season) {
 }
 
 // Which registered reminders apply to one character — a move match needs an
-// embedded move Item of that name; a possession match needs the slug selected.
+// embedded move Item of that name, LEARNED (a move kept on the sheet switched off
+// has no upkeep); a possession match needs the slug selected.
 //
 // `season` filters the season-limited entries (Herb garden is spring-only). Omitting it
 // lists everything the character carries regardless of season, which is what a caller
 // asking "what seasonal upkeep does this PC have?" wants; the chat card always passes one.
 export function remindersForActor(actor, season = "") {
 	if (actor?.type !== "character") return [];
-	const moveNames = new Set(actor.items.filter(i => i.type === "move").map(i => i.name));
+	const moveNames = new Set(actor.items.filter(i => i.type === "move" && moveLearnedIn(i, actor.items)).map(i => i.name));
 	const selected  = new Set(actor.getFlag?.(SYSTEM_ID, "possessions.selected") ?? []);
 	return SEASONAL_REMINDERS.filter(r => {
 		if (season && r.seasons && !r.seasons.includes(season)) return false;
@@ -112,8 +122,10 @@ export function remindersForActor(actor, season = "") {
 // (no globals), so the card builder and the tests can drive it directly.
 export function collectSeasonalReminders(actors, season = "") {
 	return actors.flatMap(actor =>
-		remindersForActor(actor, season).map(r =>
-			({ character: actor.name, name: r.label ?? r.name, playbook: r.playbook, rule: r.rule })),
+		remindersForActor(actor, season).map(r => ({
+			character: actor.name, name: r.label ?? r.name, playbook: r.playbook, rule: r.rule,
+			...(r.reset && actor.id ? { reset: r.reset, actorId: actor.id } : {}),
+		})),
 	);
 }
 
@@ -127,7 +139,7 @@ export function seasonsReminderCard(season, reminders) {
 					<span class="stonetop-seasons-reminder-item-name">${escHtml(r.name)}</span>
 					<span class="stonetop-seasons-reminder-item-char">${escHtml(r.character)}</span>
 				</div>
-				<p class="stonetop-seasons-reminder-item-rule">${escHtml(r.rule)}</p>
+				<p class="stonetop-seasons-reminder-item-rule">${escHtml(r.rule)}</p>${resetButtonHtml(r)}
 			</li>`).join("");
 	const body = `<div class="stonetop-seasons-reminder">
 			<header class="stonetop-seasons-reminder-hero">
@@ -141,6 +153,127 @@ export function seasonsReminderCard(season, reminders) {
 			<ul class="stonetop-seasons-reminder-list">${items}</ul>
 		</div>`;
 	return stonetopCardShell(body, "stonetop-seasons-reminder-chat-card");
+}
+
+// What each `reset` a reminder can carry does: its button's words, and the write. The Logbook's
+// track counts uses SPENT (know-things.js#logbookUses), so "reset to 2 uses" is 0 spent. `flag` is
+// the character's own note of the card it was last reset from, so one card resets it once.
+const REMINDER_RESETS = {
+	logbook: {
+		label:  "Reset logbook (2 uses)",
+		done:   "Logbook reset",
+		flag:   "logbookResetCard",
+		move:   LOGBOOK,
+		update: actor => actor?.typedActor?.moveResources?.usesUpdate?.(LOGBOOK, 0) ?? null,
+	},
+	// The Laboratory: "Every season, produce d4-1 uses of ◇ naphtha." The roll goes to chat, and the
+	// naphtha item's track (an inventory track, which counts uses SPENT, like the whisky's) is set to
+	// the rolled uses: a 0 leaves it all spent. Its printed ○○○ is the cap.
+	//
+	// `rolls`: a press is a public roll, so pressing twice is not harmless as a logbook reset is. The
+	// button is on ONE client (the character's player, else the GM: DeathsDoorPrompt.js#autoOpenUserId),
+	// the card is noted on the character BEFORE the dice, and once the dice are in chat the button is
+	// never handed back.
+	naphtha: {
+		label:  "Roll d4-1 naphtha",
+		done:   "Naphtha rolled",
+		icon:   "fa-dice",
+		flag:   "naphthaRollCard",
+		move:   "Laboratory",
+		rolls:  true,
+		update: async actor => {
+			const roll = await new globalThis.Roll("1d4-1").evaluate();
+			await roll.toMessage?.({ speaker: globalThis.ChatMessage?.getSpeaker?.({ actor }), flavor: "Laboratory: this season's naphtha" });
+			const uses = Math.max(0, Math.min(NAPHTHA_TRACK, Number(roll.total) || 0));
+			return { [`flags.${SYSTEM_ID}.inventory.resources.${NAPHTHA_SLUG}`]: NAPHTHA_TRACK - uses };
+		},
+	},
+};
+
+// The naphtha special item (packs/src/stonetop-items/inventory-items/naphtha.json): slug and ○○○.
+const NAPHTHA_SLUG  = "naphtha";
+const NAPHTHA_TRACK = 3;
+
+function resetButtonHtml(r) {
+	const reset = REMINDER_RESETS[r.reset];
+	if (!reset || !r.actorId) return "";
+	return `
+				<button type="button" class="stonetop-seasons-reset-btn" data-reset="${escHtml(r.reset)}" data-actor-id="${escHtml(r.actorId)}">`
+		+ `<i class="fas ${reset.icon ?? "fa-rotate-left"}"></i> ${escHtml(reset.label)}</button>`;
+}
+
+function markResetDone(btn, reset) {
+	btn.disabled = true;
+	btn.innerHTML = `<i class="fas fa-check"></i> ${escHtml(reset.done)}`;
+}
+
+/**
+ * The reminder card's reset buttons (the Logbook's), wired on each client that renders it. Only the
+ * character's owner can press one (a GM owns every character); anyone else gets the card without it,
+ * since the write is to that character's own sheet. Pressed, it resets the track and notes this card
+ * on the character, so the same card cannot hand out a second reset later in the season. A reset
+ * that `rolls` is pressed on one client only, and noted before it rolls (REMINDER_RESETS.naphtha).
+ */
+export function wireSeasonsReminderResets(message, html, {
+	actors = globalThis.game?.actors, userId = globalThis.game?.user?.id ?? null,
+	presser = actor => autoOpenUserId(ownerUsers(actor)),
+} = {}) {
+	for (const btn of [...(html?.querySelectorAll?.(".stonetop-seasons-reset-btn") ?? [])]) {
+		const reset = REMINDER_RESETS[btn.dataset?.reset];
+		const actor = actors?.get?.(btn.dataset?.actorId);
+		const elsewhere = () => { const who = presser(actor); return !!who && who !== userId; };
+		if (!reset || !actor?.isOwner || (reset.rolls && elsewhere())) {
+			btn.remove();
+			continue;
+		}
+		if (message?.id && actor.getFlag?.(SYSTEM_ID, reset.flag) === message.id) {
+			markResetDone(btn, reset);
+			continue;
+		}
+		btn.addEventListener("click", () => (reset.rolls ? pressRollingReset : pressReset)(message, btn, reset, actor));
+	}
+}
+
+// The character's note of the card a reset was last pressed from, as an update.
+const noteCard = (reset, value) => ({ [`flags.${SYSTEM_ID}.${reset.flag}`]: value ?? null });
+
+async function pressReset(message, btn, reset, actor) {
+	btn.disabled = true;
+	try {
+		const update = await reset.update(actor);
+		if (!update) throw new Error(`${actor.name} has no ${reset.move} track to reset`);
+		await actor.update({ ...update, ...noteCard(reset, message?.id) }, { stonetopMove: reset.move });
+		markResetDone(btn, reset);
+	} catch (err) {
+		console.error(`Stonetop | Could not reset ${reset.move}:`, err);
+		btn.disabled = false;
+	}
+}
+
+// A reset that rolls: the card noted FIRST, so a second press (or a re-render) finds it pressed. The
+// note comes off again only when the dice never reached chat.
+async function pressRollingReset(message, btn, reset, actor) {
+	if (btn.disabled) return;
+	btn.disabled = true;
+	const was = actor.getFlag?.(SYSTEM_ID, reset.flag) ?? null;
+	let update;
+	try {
+		await actor.update(noteCard(reset, message?.id));
+		update = await reset.update(actor);
+		if (!update) throw new Error(`${actor.name} has no ${reset.move} track to set`);
+	} catch (err) {
+		console.error(`Stonetop | Could not roll for ${reset.move}:`, err);
+		await actor.update(noteCard(reset, was)).catch(e => console.error(`Stonetop | Could not release ${reset.move}'s note`, e));
+		btn.disabled = false;
+		return;
+	}
+	markResetDone(btn, reset);
+	try {
+		await actor.update({ ...update, ...noteCard(reset, message?.id) }, { stonetopMove: reset.move });
+	} catch (err) {
+		console.error(`Stonetop | Could not write ${reset.move}'s roll:`, err);
+		globalThis.ui?.notifications?.warn?.(`${reset.move}: the roll is in chat, but ${actor.name}'s track could not be set. Set it by hand.`);
+	}
 }
 
 // GM side of the Seasons Change move: gather every player character's seasonal

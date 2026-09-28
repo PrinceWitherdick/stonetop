@@ -10,6 +10,11 @@ import { bookPageRef } from "../../../module/gm-toolkit/book-ref.js";
 import { SEASON_IDS } from "../../../module/seasons/seasons-change-reminders.js";
 import { VALUE_TIER_WORTH } from "../../../module/data/value-tiers.js";
 
+// The question spiral, by its file or by the token that carries it. Background uses read
+// `--stonetop-question-spiral-icon` so the dark palette can swap in the bone twin; either spelling
+// is the same picture on paper.
+const QUESTION_SPIRAL = /question-spiral\.svg|--stonetop-question-spiral-icon/;
+
 // The GM Toolkit's Homefront tab: the GM playbook's Homefront page, transcribed whole.
 //
 // Three halves, guarding three different kinds of failure.
@@ -169,7 +174,7 @@ describe("Homefront tab — wiring", () => {
 	// that is the wrong picture and nothing else, which no render error would report.
 	it("lets the question-spiral swap reach its tagged items", () => {
 		expect(declarations(CSS, ".stonetop-gm-homefront-items > li.question-bullet::before"))
-			.toContain("question-spiral.svg");
+			.toMatch(QUESTION_SPIRAL);
 		// Every one of them ends in "?", which is what markQuestionBullets tags on.
 		for (const item of HOMEFRONT_QUESTIONS.items) expect(item.trim().endsWith("?"), item).toBe(true);
 	});

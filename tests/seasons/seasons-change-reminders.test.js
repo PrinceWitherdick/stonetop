@@ -1,11 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
 	collectSeasonalReminders,
 	remindersForActor,
 	seasonsReminderCard,
+	wireSeasonsReminderResets,
 	SEASONAL_REMINDERS,
 } from "../../module/seasons/seasons-change-reminders.js";
 
@@ -118,6 +119,146 @@ describe("seasonsReminderCard", () => {
 		expect(html).toContain("Brother Hale");
 		expect(html).toContain("Collected offerings");
 		expect(html).toContain("Restore 1 use this season");
+	});
+});
+
+// Seeker audit (2026-09-26): the user's ruling is a "Reset logbook" button on the Logbook's row, for the
+// Seeker's own player (or a GM), writing the Seeker's own track: 0 spent, which is 2 uses left. And a
+// Logbook kept on the sheet un-learned has no upkeep at all.
+describe("the Logbook's reset button", () => {
+	const seeker = (extra = {}) => ({ ...fakeCharacter({ name: "Maelis", moves: ["Logbook"] }), id: "seeker1", ...extra });
+
+	it("lists no upkeep for an un-learned move", () => {
+		const actor = { ...seeker(), items: [{ type: "move", name: "Logbook", flags: { "stonetop_pwd": { learned: false } } }] };
+		expect(remindersForActor(actor)).toEqual([]);
+	});
+
+	it("draws the button on the Logbook's row alone, naming the character", () => {
+		const html = seasonsReminderCard("spring", collectSeasonalReminders([
+			seeker(), fakeCharacter({ name: "Brother Hale", possessions: ["collected-offerings"] }),
+		]));
+		expect(html.match(/stonetop-seasons-reset-btn/g)).toHaveLength(1);
+		expect(html).toContain('data-reset="logbook" data-actor-id="seeker1"');
+		expect(html).toContain("Reset logbook (2 uses)");
+	});
+
+	function rig({ isOwner = true, resetFrom = null } = {}) {
+		const update = vi.fn(async () => {});
+		const actor = {
+			...seeker(), isOwner, update,
+			getFlag: (scope, key) => (key === "logbookResetCard" ? resetFrom : undefined),
+			typedActor: { moveResources: { usesUpdate: (move, value) => ({ [`flags.stonetop_pwd.backgroundChoices.${move}`]: value }) } },
+		};
+		const listeners = {};
+		const btn = {
+			dataset: { reset: "logbook", actorId: "seeker1" }, disabled: false, innerHTML: "",
+			remove: vi.fn(), addEventListener: (type, fn) => { listeners[type] = fn; },
+		};
+		const html = { querySelectorAll: () => [btn] };
+		const actors = { get: id => (id === "seeker1" ? actor : undefined) };
+		return { actor, btn, html, actors, update, click: () => listeners.click?.() };
+	}
+
+	it("resets the track to 0 spent for the owner, and notes the card so it cannot reset twice", async () => {
+		const { btn, html, actors, update, click } = rig();
+		wireSeasonsReminderResets({ id: "msg1" }, html, { actors });
+		expect(btn.remove).not.toHaveBeenCalled();
+		await click();
+		expect(update).toHaveBeenCalledWith(
+			{ "flags.stonetop_pwd.backgroundChoices.Logbook": 0, "flags.stonetop_pwd.logbookResetCard": "msg1" },
+			{ stonetopMove: "Logbook" });
+		expect(btn.disabled).toBe(true);
+		expect(btn.innerHTML).toContain("Logbook reset");
+	});
+
+	it("is taken off the card for anyone who does not own the Seeker", () => {
+		const { btn, html, actors } = rig({ isOwner: false });
+		wireSeasonsReminderResets({ id: "msg1" }, html, { actors });
+		expect(btn.remove).toHaveBeenCalled();
+	});
+
+	it("renders spent once this card has reset the logbook", () => {
+		const { btn, html, actors, click } = rig({ resetFrom: "msg1" });
+		wireSeasonsReminderResets({ id: "msg1" }, html, { actors });
+		expect(btn.disabled).toBe(true);
+		expect(click()).toBeUndefined();
+	});
+});
+
+// Seeker audit C1: the Laboratory's row rolls "d4-1 uses of naphtha" for its owner and sets the
+// naphtha item's track (inventory tracks count SPENT) to the rolled uses.
+describe("the Laboratory's naphtha button", () => {
+	function rig(total) {
+		const update = vi.fn(async () => {});
+		const actor = { ...fakeCharacter({ name: "Maelis", possessions: ["laboratory"] }), id: "seeker1", isOwner: true, update };
+		const listeners = {};
+		const btn = {
+			dataset: { reset: "naphtha", actorId: "seeker1" }, disabled: false, innerHTML: "",
+			remove: vi.fn(), addEventListener: (type, fn) => { listeners[type] = fn; },
+		};
+		const toMessage = vi.fn(async () => {});
+		globalThis.Roll = class { constructor(f) { this.formula = f; this.total = total; } async evaluate() { return this; } toMessage(d) { return toMessage(this.formula, d); } };
+		return { actor, btn, update, toMessage, html: { querySelectorAll: () => [btn] }, actors: { get: () => actor }, click: () => listeners.click?.() };
+	}
+
+	it("draws a roll button on the Laboratory's row", () => {
+		const html = seasonsReminderCard("spring", collectSeasonalReminders([
+			{ ...fakeCharacter({ name: "Maelis", possessions: ["laboratory"] }), id: "seeker1" },
+		]));
+		expect(html).toContain('data-reset="naphtha" data-actor-id="seeker1"');
+		expect(html).toContain("Roll d4-1 naphtha");
+	});
+
+	it("rolls d4-1 to chat and sets the naphtha track to the rolled uses (spent = 3 - uses)", async () => {
+		const { html, actors, update, toMessage, click, btn } = rig(2);
+		wireSeasonsReminderResets({ id: "msg2" }, html, { actors });
+		await click();
+		expect(toMessage).toHaveBeenCalledWith("1d4-1", expect.anything());
+		expect(update).toHaveBeenCalledWith(
+			{ "flags.stonetop_pwd.inventory.resources.naphtha": 1, "flags.stonetop_pwd.naphthaRollCard": "msg2" },
+			{ stonetopMove: "Laboratory" });
+		expect(btn.innerHTML).toContain("Naphtha rolled");
+		delete globalThis.Roll;
+	});
+
+	it("a 0 leaves the track all spent", async () => {
+		const { html, actors, update, click } = rig(0);
+		wireSeasonsReminderResets({ id: "msg3" }, html, { actors });
+		await click();
+		expect(update.mock.calls.at(-1)[0]["flags.stonetop_pwd.inventory.resources.naphtha"]).toBe(3);
+		delete globalThis.Roll;
+	});
+
+	it("notes the card on the character before the dice, so a second press finds it pressed", async () => {
+		const { html, actors, update, toMessage, click } = rig(2);
+		let notedAtRoll = null;
+		toMessage.mockImplementation(async () => { notedAtRoll = update.mock.calls[0]?.[0]; });
+		wireSeasonsReminderResets({ id: "msg4" }, html, { actors });
+		await click();
+		expect(notedAtRoll).toEqual({ "flags.stonetop_pwd.naphthaRollCard": "msg4" });
+		await click();
+		expect(toMessage).toHaveBeenCalledOnce();
+		delete globalThis.Roll;
+	});
+
+	it("is on one client only: the character's player, else the GM", () => {
+		const { html, actors, btn } = rig(2);
+		wireSeasonsReminderResets({ id: "msg5" }, html, { actors, userId: "u-gm", presser: () => "u-player" });
+		expect(btn.remove).toHaveBeenCalled();
+		const mine = rig(2);
+		wireSeasonsReminderResets({ id: "msg5" }, mine.html, { actors: mine.actors, userId: "u-player", presser: () => "u-player" });
+		expect(mine.btn.remove).not.toHaveBeenCalled();
+		delete globalThis.Roll;
+	});
+
+	it("takes the note back and gives the button back when the dice never reached chat", async () => {
+		const { html, actors, update, toMessage, click, btn } = rig(2);
+		toMessage.mockRejectedValue(new Error("offline"));
+		wireSeasonsReminderResets({ id: "msg6" }, html, { actors });
+		await click();
+		expect(update.mock.calls.at(-1)[0]).toEqual({ "flags.stonetop_pwd.naphthaRollCard": null });
+		expect(btn.disabled).toBe(false);
+		delete globalThis.Roll;
 	});
 });
 

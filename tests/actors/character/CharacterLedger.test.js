@@ -724,6 +724,18 @@ describe("CharacterLedger", () => {
 		expect(entries.map(e => e.action)).toEqual(["Bramble notes set to Limping"]);
 	});
 
+	// A Blessed who took Animal Companion through Wild Soul has no insert of their own: the type's
+	// label comes from the snapshot's companionDef (the Ranger's insert), not their playbook.
+	it("names an unnamed borrowed companion by its type from the snapshot's companionDef", async () => {
+		const actor = makeActor({}, { stonetop: { animalCompanion: { type: "predator", details: { notes: "" } } } });
+		actor.typedActor = { buildSnapshot: async () => ({ companionDef: { types: [{ slug: "predator", label: "Predator" }] } }) };
+		actor.items = [{ type: "playbook", name: "The Blessed", flags: { "stonetop_pwd": { backgrounds: [] } } }];
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop_pwd.animalCompanion.details.notes": "Limping",
+		});
+		expect(entries.map(e => e.action)).toEqual(["Predator notes set to Limping"]);
+	});
+
 	// …but the rule is scoped to FLAG paths, so it cannot silence anything on the actor itself.
 	it("leaves non-flag paths alone", async () => {
 		const actor = makeActor({ attributes: { hp: { value: 10 } } }, {});

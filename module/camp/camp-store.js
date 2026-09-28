@@ -1,15 +1,18 @@
 import { SYSTEM_ID } from "../system-id.js";
 import { autoOpenUserId, ownerUsers } from "../hooks/DeathsDoorPrompt.js";
-import { actorPastDeathKind } from "../actors/character/deaths-door-actor.js";
-import { customGroupSize } from "../utils/crew.js";
+import { THRALL_MARK, hasThrallMark, isOutOfPlay, isUnliving, slowToHeal } from "../actors/character/deaths-door-actor.js";
+import { customGroupPresent } from "../utils/crew.js";
 import { deletionTarget } from "../utils/foundry-compat.js";
 import { postMoveToChat } from "../utils/chat.js";
 import { capitalizeFirst } from "../utils/strings.js";
 import {
-	CAMP_FLAG, CAMP_OWED_FLAG, CAMP_STATE, CAMP_STATUS, HAD_ALL_ALONG, SETTLE_REFUSAL, UNLIVING_KINDS,
+	BREAK_BREAD, CAMP_FLAG, CAMP_OWED_FLAG, CAMP_STATE, CAMP_STATUS, HAD_ALL_ALONG, HOME_FIRES, SETTLE_REFUSAL,
 	campLedger, campShareUpdate, campState, count, freezeCampPlan, messKitAllAlong, newCampRecord, readCampRecord,
-	readOwedCamps, rollsBedroll, suppliesAllAlong,
+	readOwedCamps, rollsBedroll, rollsBreakBread, suppliesAllAlong,
 } from "./camp-rules.js";
+import { ownsLearnedMoveNamed } from "../actors/character/owns-move.js";
+import { walkItOffChoice } from "../actors/character/walk-it-off.js";
+import { CLEARS_ON, markedTracks, snapshotTracksClearedBy } from "../actors/character/background-tracks.js";
 import { campSummaryRows, hadAllAlongRows } from "./camp-view.js";
 
 /**
@@ -40,7 +43,7 @@ const OWED_PATH = `flags.${SYSTEM_ID}.${CAMP_OWED_FLAG}`;
 export const CAMP_CARD_FLAG = "campJoin";
 
 /** The fields a seated character may change on their own record. `offer` is a map by purse. */
-const CHOICE_FIELDS = new Set(["offer", "followers", "eats", "messKit", "benefit", "debility", "bedroll", "peaceful", "ready"]);
+const CHOICE_FIELDS = new Set(["offer", "followers", "eats", "messKit", "benefit", "debility", "bedroll", "peaceful", "ready", "properMeal", "hearthAsh"]);
 
 /**
  * How far back through the chat log a camp's cards are looked for. A join card is posted the
@@ -63,15 +66,17 @@ export function stateOfCamp({ campId, hostId } = {}, now = Date.now()) {
 	return campState(campRecordOf(game.actors?.get(hostId)), { campId, hostId }, now);
 }
 
-/** Whether a character can sit at a camp at all. The dead cannot. */
+/** Whether a character can sit at a camp at all. Whoever has left play cannot (deaths-door-actor.js#isOutOfPlay). */
 export function canCamp(actor) {
-	return actor?.type === "character" && actorPastDeathKind(actor) !== "dead";
+	return actor?.type === "character" && !isOutOfPlay(actor);
 }
 
-/** A Ghost or a Revenant: at the fire, but no mouth, and the night buys them nothing. */
-export function isUnliving(actor) {
-	return UNLIVING_KINDS.includes(actorPastDeathKind(actor));
-}
+/**
+ * A Ghost or a Revenant: at the fire, but no mouth, and the night buys them nothing. The rule is
+ * Death's Door's (deaths-door-actor.js#isUnliving), since Recover, Convalesce and magical healing
+ * ask it too; named here as well for the camp's own readers.
+ */
+export { isUnliving };
 
 /** Every camp in the world that can still be joined, as `{campId, hostId, hostName}`. */
 export function openCamps(now = Date.now()) {
@@ -94,14 +99,16 @@ export function campActors(campId) {
 /**
  * The debilities a character has marked right now, named from what they published on joining.
  * Which ones are marked is read live: a debility cleared by Recover while the camp sits open must
- * not stay on offer.
+ * not stay on offer. A marked Walk It Off box counts, since it is cleared as a debility is.
  */
 function markedDebilities(actor, vitals) {
 	const marked = actor?.system?.attributes?.debilities?.options ?? {};
 	const named  = new Map((vitals?.debilities ?? []).map(d => [d.key, d.name]));
+	const walkItOff = walkItOffChoice(actor);
 	return Object.keys(marked)
 		.filter(key => marked[key]?.value)
-		.map(key => ({ key, name: named.get(key) ?? capitalizeFirst(key) }));
+		.map(key => ({ key, name: named.get(key) ?? capitalizeFirst(key) }))
+		.concat(walkItOff?.marked ? [{ key: walkItOff.key, name: walkItOff.name }] : []);
 }
 
 /** One character at the fire, in the shape camp-rules.js reads (its CampMember). */
@@ -120,8 +127,33 @@ export function campMember(actor, hostId) {
 		maxHp:            record?.vitals.maxHp || count(actor.system?.attributes?.hp?.max),
 		activeDebilities: markedDebilities(actor, record?.vitals),
 		unliving:         isUnliving(actor),
+		// Read live, like the debilities: a move learned or switched off mid-camp counts as it is now.
+		breaksBread:      ownsLearnedMoveNamed(actor, BREAK_BREAD),
+		hearthCha:        ownsLearnedMoveNamed(actor, HOME_FIRES) ? Math.trunc(Number(actor.system?.stats?.cha?.value) || 0) : null,
+		// The tracks were named on sitting down (campVitalsFor); whether one is marked is read live.
+		clearsTonight:    markedTracks(record?.vitals.clears, actor.getFlag?.(SYSTEM_ID, "background.setupResources")),
 		pack:             packFor(actor),
+		// A Thrall's Marks that reach the fire, read live like the moves.
+		slowToHeal:       slowToHeal(actor),
+		ravenous:         hasThrallMark(actor, THRALL_MARK.RAVENOUS),
+		nightmarish:      hasThrallMark(actor, THRALL_MARK.QUICKSILVER_DREAMS),
 	};
+}
+
+/**
+ * A Ravenous Thrall's "extra 1d4 provisions or uses of supplies", rolled as they sit down and posted
+ * as its own die, so the table watches it land and every window reads the same bill off their record.
+ * Rolled once for the camp: a roll per render would give every reader a different bill. 0, and no
+ * die, for anyone without the Mark. A Mark taken while already seated counts from their next camp.
+ */
+async function rollHunger(actor) {
+	if (!hasThrallMark(actor, THRALL_MARK.RAVENOUS)) return 0;
+	const roll = await new Roll("1d4").evaluate();
+	await roll.toMessage({
+		speaker: ChatMessage.getSpeaker({ actor }),
+		flavor:  "Ravenous (1d4 extra provisions or uses of supplies at the camp)",
+	});
+	return count(roll.total);
 }
 
 /**
@@ -195,23 +227,26 @@ export async function campVitalsFor(actor) {
 			bedroll:    carried("bedroll"),
 			messKit:    carried("mess-kit"),
 			debilities: (snapshot?.debilities ?? []).map(d => ({ key: d.key, name: d.name })),
+			// Auspicious Birth's circle, which Make Camp clears.
+			clears:     snapshotTracksClearedBy(snapshot, CLEARS_ON.MAKE_CAMP).map(t => ({ key: t.key, name: t.name })),
 		};
 	} catch (err) {
 		console.warn(`Stonetop | Make Camp: could not read ${actor?.name}'s sheet, so the stored max HP stands in`, err);
-		return { maxHp: storedMax, bedroll: false, messKit: false, debilities: [] };
+		return { maxHp: storedMax, bedroll: false, messKit: false, debilities: [], clears: [] };
 	}
 }
 
 /**
  * The mouths a character brings besides their own: every living follower they have marked as
- * travelling with the party, a group follower counting as its whole headcount. Only where the
- * count starts; the player changes it at the fire.
+ * travelling with the party, a group follower counting as its members still with it (a member
+ * marked fallen eats nothing; one who is only down still eats). Only where the count starts; the
+ * player changes it at the fire.
  */
 export function partyFollowerMouths(actor) {
 	const followers = actor?.getFlag?.(SYSTEM_ID, "customFollowers") ?? {};
 	return Object.values(followers)
 		.filter(f => f?.party && !f?.dead)
-		.reduce((sum, f) => sum + (f.isGroup ? customGroupSize(f) : 1), 0);
+		.reduce((sum, f) => sum + (f.isGroup ? customGroupPresent(f).length : 1), 0);
 }
 
 /**
@@ -257,6 +292,7 @@ async function sitDown(actor, { campId, hostId }) {
 		activeDebilityKeys: markedDebilities(actor, vitals).map(d => d.key),
 		unliving:           isUnliving(actor),
 		leftCamps:          left,
+		hunger:             await rollHunger(actor),
 	});
 	const update = { [FLAG_PATH]: record };
 	// The fresh record replaces the one a settled camp's plan is kept on. Whatever of that plan is
@@ -409,30 +445,36 @@ export async function settleCamp(camp) {
 async function settleHere(camp, host, ledger) {
 	// The dice now and their messages last: a plan that then failed to write would otherwise leave
 	// bedroll rolls in the log for a night that never happened.
-	const rolls = [];
+	const rolls  = [];
+	const breads = [];
 	for (const member of ledger.rows) {
 		if (rollsBedroll(member, ledger)) rolls.push({ member, roll: await new Roll("1d6").evaluate() });
+		// One meal, so one 1d8 each, however many at the fire hold Break Bread.
+		if (rollsBreakBread(member, ledger)) breads.push({ member, roll: await new Roll("1d8").evaluate() });
 	}
 	// Somebody else may have settled it, or broken it up, while the dice were out.
 	if (stateOfCamp(camp) !== CAMP_STATE.OPEN) return { ok: false, reason: SETTLE_REFUSAL.CLOSED };
 
-	const plan = freezeCampPlan(ledger, {
-		bedrolls: Object.fromEntries(rolls.map(({ member, roll }) => [member.actorId, roll.total])),
-	});
+	const byActor = list => Object.fromEntries(list.map(({ member, roll }) => [member.actorId, roll.total]));
+	const plan = freezeCampPlan(ledger, { bedrolls: byActor(rolls), breads: byActor(breads) });
 	await host.update({
 		[`${FLAG_PATH}.status`]:    CAMP_STATUS.SETTLED,
 		[`${FLAG_PATH}.plan`]:      plan,
 		[`${FLAG_PATH}.settledAt`]: Date.now(),
 	}, { stonetopLedger: true });
 
-	// Each bedroll is its own die in the log, the way the one-person camp always rolled it: a die
-	// the table can watch land, spoken by the character it heals.
-	for (const { member, roll } of rolls) {
-		await roll.toMessage({
-			speaker: ChatMessage.getSpeaker({ actor: game.actors?.get(member.actorId) }),
-			flavor:  "Bedroll (1d6 extra HP)",
-		});
-	}
+	// Each die is its own message in the log, the way the one-person camp always rolled it: a die the
+	// table can watch land, spoken by the character it heals. Made together, in one request, bedrolls
+	// first.
+	const dice = [
+		...rolls.map(die => ({ ...die, flavor: "Bedroll (1d6 extra HP)" })),
+		...breads.map(die => ({ ...die, flavor: "Break Bread (1d8 extra HP)" })),
+	];
+	const messages = await Promise.all(dice.map(({ member, roll, flavor }) => roll.toMessage({
+		speaker: ChatMessage.getSpeaker({ actor: game.actors?.get(member.actorId) }),
+		flavor,
+	}, { create: false })));
+	if (messages.length) await ChatMessage.implementation.createDocuments(messages);
 	postMoveToChat(host, "Make Camp", campSummaryRows(ledger, plan));
 	return { ok: true, plan };
 }
@@ -476,6 +518,7 @@ async function payShare(actor, entry, campId) {
 			hpValue:       actor.system?.attributes?.hp?.value,
 			resourceData:  (slug, count) => character.inventoryResourceData(slug, count),
 			advantageData: source => character.heldAdvantageData(source),
+			disadvantageData: source => character.heldDisadvantageData(source),
 		});
 		await actor.update(update, { stonetopMove: "Make Camp" });
 		if (shortfall > 0) {

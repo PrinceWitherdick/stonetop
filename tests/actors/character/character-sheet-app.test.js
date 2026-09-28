@@ -1,7 +1,16 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import { stubConfirm } from "../../fakes/confirm.js";
 import { createStonetopCharacterSheetClass } from "../../../module/actors/character/StonetopCharacterSheet.js";
 import {FakeActorBuilder} from "../../fakes/FakeActorBuilder.js";
 import { DEATHS_DOOR_STATE, zeroHpMove, zeroHpResolution } from "../../../module/actors/character/deaths-door.js";
+
+// The people picker Castigate asks "who did you Censure?" with. Replaced so a test can answer it (or
+// back out) without a window; the rest of the module is the real one.
+const picker = vi.hoisted(() => ({ pick: vi.fn(async () => null) }));
+vi.mock("../../../module/dialogs/RelationshipLinkDialog.js", async (importOriginal) => ({
+	...(await importOriginal()),
+	pickPersonOnMap: picker.pick,
+}));
 
 // -- Helpers ------------------------------------------------------------------
 
@@ -50,6 +59,7 @@ function makeCharacterMock(actor) {
 	// rule that releasing takes the glyph off is only assertable if the two share a value. Null
 	// rather than absent, matching the real accessor, which always answers the object or null.
 	let held = null;
+	let heldDis = null;
 	// The Invocation being held open, live for the same reason the holy light is: getData reads
 	// the getter, the End control and the candle both write through the setter, and the rule that
 	// a snuffed light takes the Invocation with it is only assertable if the two share a value.
@@ -84,6 +94,9 @@ function makeCharacterMock(actor) {
 		heldAdvantage: () => held,
 		holdAdvantage: (value) => { held = value ?? null; },
 		clearHeldAdvantage: vi.fn(async () => { held = null; }),
+		heldDisadvantage: () => heldDis,
+		holdDisadvantage: (value) => { heldDis = value ?? null; },
+		clearHeldDisadvantage: vi.fn(async () => { heldDis = null; }),
 		get canEnterBattleJoy() { return canRage; },
 		set canEnterBattleJoy(value) { canRage = !!value; },
 		// What getData actually reads for the five header glyphs — the real one answers all five
@@ -114,6 +127,14 @@ function makeCharacterMock(actor) {
 			ongoing = next;
 			return changed;
 		}),
+		// One slot is all these tests drive; the two-slot rules are ongoing-invocation.test.js's.
+		get ongoingInvocationSecond() { return ""; },
+		get ongoingInvocationEmpowered() { return false; },
+		endOngoingInvocation: vi.fn(async () => {
+			const had = ongoing;
+			ongoing = "";
+			return { changed: !!had, ended: had ? [had] : [], snuffed: false };
+		}),
 		setHolyLight: vi.fn(async value => {
 			const changed = !!value !== lit;
 			lit = !!value;
@@ -126,6 +147,20 @@ function makeCharacterMock(actor) {
 		}),
 		onRoll: vi.fn(async () => true),
 		ensureStartingMoves: vi.fn(),
+		ensurePossessionGrants: vi.fn(),
+		backgroundState: () => ({ slug: background.selectedSlug, setupChoices: {} }),
+		backgroundMovesDropped: vi.fn(async () => []),
+		settleBackgroundMoves: vi.fn(async () => {}),
+		settleBackgroundPossessions: vi.fn(async () => {}),
+		settleBackgroundArcana: vi.fn(async () => {}),
+		settleBackgroundResources: vi.fn(async () => {}),
+		// A background that leaves a move's answer to the player asks it; none here.
+		backgroundAnswerAsks: vi.fn(async () => []),
+		// A Seeker background's major arcanum is settled and asked for; not a Seeker here.
+		settleSeekerMajorOnBackground: vi.fn(async () => ({ plan: "none", offered: [] })),
+		// _onBackgroundChange looks the new background up for neighbors it names; none here.
+		playbook: vi.fn(async () => null),
+		clearPlaybookData: vi.fn(async () => {}),
 		updateName: vi.fn(async name => actor.update({ name })),
 		addMove: vi.fn(),
 		removeMove: vi.fn(),
@@ -140,6 +175,11 @@ function makeCharacterMock(actor) {
 		moveResources: { add: vi.fn() },
 		buildSnapshot: vi.fn(async () => ({})),
 		setInventoryResource: vi.fn(),
+		// The real one falls back to the Lightbearer's list for anyone with Invoke the Sun God;
+		// these tests only ever hand it a playbook that carries its own.
+		invocationSource: vi.fn(async playbookDoc => playbookDoc?.invocations?.options?.length ? playbookDoc.invocations : null),
+		// Likewise the Crew insert: the real one borrows the Marshal's for anyone with Crew learned.
+		crewSource: vi.fn(async playbookDoc => playbookDoc?.crew ?? null),
 	};
 }
 
@@ -332,11 +372,19 @@ describe("StonetopCharacterSheet event handlers", () => {
 		expect(actor.typedActor.background.selectBackground).toHaveBeenCalledWith("vessel");
 	});
 
-	it("_onBackgroundChange calls ensureStartingMoves after selecting background", async () => {
+	// The one helper that takes back the old background's move and grants the new one's, handed
+	// the background as it was before the change.
+	it("_onBackgroundChange settles the background's moves after selecting it", async () => {
 		const actor = makeActor();
 		const sheet = makeSheet(actor);
 		await sheet._onBackgroundChange({ currentTarget: { value: "vessel" } });
-		expect(actor.typedActor.ensureStartingMoves).toHaveBeenCalled();
+		expect(actor.typedActor.settleBackgroundMoves).toHaveBeenCalledWith({ slug: "", setupChoices: {} });
+		expect(actor.typedActor.background.selectBackground.mock.invocationCallOrder[0])
+			.toBeLessThan(actor.typedActor.settleBackgroundMoves.mock.invocationCallOrder[0]);
+		// ...and the special possessions it hands over (the Missionary's aviary), the same way.
+		expect(actor.typedActor.settleBackgroundPossessions).toHaveBeenCalledWith({ slug: "", setupChoices: {} });
+		// ...and the arcanum (the Storm-Marked's Storm Markings).
+		expect(actor.typedActor.settleBackgroundArcana).toHaveBeenCalledWith({ slug: "", setupChoices: {} });
 	});
 
 	it("_onAppearanceChange calls appearance.select with lineIdx and value", async () => {
@@ -625,22 +673,44 @@ describe("StonetopCharacterSheet holy light candle", () => {
 		const sheet = makeSheet(actor);
 		actor.typedActor.holdAdvantage({ source: "A peaceful night's rest" });
 
-		let buttons = null;
-		global.Dialog = class {
-			constructor(data) { buttons = data.buttons; }
-			render() {}
-		};
-
+		const kept = stubConfirm(false);
 		await sheet._onReleaseHeldAdvantage(clickEvent());
-		expect(Object.keys(buttons)).toEqual(["release", "keep"]);
-		// Nothing is given up by opening the window.
+		expect(kept).toHaveBeenCalledTimes(1);
+		// Keeping it is the default: releasing puts nothing back.
+		expect(kept.mock.calls[0][0].buttons.find(b => b.default)?.action).toBe("no");
+		expect(sheet._stonetopCharacter.clearHeldAdvantage).not.toHaveBeenCalled();
 		expect(sheet._stonetopCharacter.heldAdvantage()).not.toBeNull();
 
-		await buttons.release.callback();
+		stubConfirm(true);
+		await sheet._onReleaseHeldAdvantage(clickEvent());
 		expect(sheet._stonetopCharacter.clearHeldAdvantage).toHaveBeenCalled();
 		expect(sheet._stonetopCharacter.heldAdvantage()).toBeNull();
+	});
 
-		delete global.Dialog;
+	// Its other half: Interfere's disadvantage, held until the foiled character's next roll. Shown and
+	// released exactly as the advantage is, and on its own terms: letting one go keeps the other.
+	it("shows the header a held disadvantage, names who laid it, and releases it on its own", async () => {
+		installGetDataGlobals();
+		const clickEvent = () => ({ preventDefault: vi.fn(), stopPropagation: vi.fn() });
+		const actor = makeActor();
+		actor.typedActor.playbook = vi.fn(async () => null);
+		actor.typedActor.possessionTriggerMoves = vi.fn(() => ({}));
+		actor.typedActor.buildSnapshot = vi.fn(async () => minimalSheetSnapshot({}));
+		const sheet = makeSheet(actor);
+		const glyph = async () => (await sheet.getData()).stonetop.heldDisadvantage;
+
+		expect(await glyph()).toMatchObject({ show: false });
+		actor.typedActor.holdAdvantage({ source: "A peaceful night's rest" });
+		actor.typedActor.holdDisadvantage({ source: "Interfered with by Bram" });
+		const shown = await glyph();
+		expect(shown.show).toBe(true);
+		expect(shown.tooltip).toContain("Interfered with by Bram");
+
+		const asked = stubConfirm(true);
+		await sheet._onReleaseHeldDisadvantage(clickEvent());
+		expect(asked.mock.calls[0][0].content).toContain("Interfered with by Bram");
+		expect(sheet._stonetopCharacter.heldDisadvantage()).toBeNull();
+		expect(sheet._stonetopCharacter.heldAdvantage()).not.toBeNull();
 	});
 
 	// Turning it ON is a declaration and writes nothing else; turning it OFF is the move's own
@@ -650,18 +720,42 @@ describe("StonetopCharacterSheet holy light candle", () => {
 		const actor = makeActor();
 		const sheet = makeSheet(actor);
 		sheet.render = vi.fn();
-		globalThis.Dialog = { confirm: vi.fn(async () => false) };
+		const asked = stubConfirm(false);
 
 		await sheet._onBattleJoyToggle(clickEvent());
 		expect(sheet._stonetopCharacter.battleJoy).toBe(true);
-		expect(globalThis.Dialog.confirm).not.toHaveBeenCalled();
+		expect(asked).not.toHaveBeenCalled();
 
 		// No Battle Joy item on this fake actor, so there is nothing to roll and nothing to ask —
 		// the state is simply put out, which is what a rage stranded by a playbook swap needs.
 		await sheet._onBattleJoyToggle(clickEvent());
 		expect(sheet._stonetopCharacter.battleJoy).toBe(false);
-		expect(globalThis.Dialog.confirm).not.toHaveBeenCalled();
-		delete globalThis.Dialog;
+		expect(asked).not.toHaveBeenCalled();
+	});
+
+	// The ruling: a Heavy who is down stopped fighting when they dropped, so the lit glyph ends the
+	// rage with no +CON roll and no question, and says so in chat.
+	it("ends a downed Heavy's Battle Joy with no roll", async () => {
+		const clickEvent = () => ({ preventDefault: vi.fn(), stopPropagation: vi.fn() });
+		const actor = makeActor();
+		actor.items = [{ id: "bj", type: "move", name: "Battle Joy", system: { rollType: "con" } }];
+		actor.system.attributes.hp.value = 0;
+		const sheet = makeSheet(actor);
+		sheet.render = vi.fn();
+		const asked = stubConfirm(true);
+		const saved = globalThis.ChatMessage;
+		globalThis.ChatMessage = { create: vi.fn(async data => data), getSpeaker: () => ({}) };
+		try {
+			await sheet._stonetopCharacter.setBattleJoy(true);
+			await actor.setFlag("stonetop_pwd", "battleJoy", true);
+			await sheet._onBattleJoyToggle(clickEvent());
+			expect(asked).not.toHaveBeenCalled();
+			expect(sheet._stonetopCharacter.onRoll).not.toHaveBeenCalled();
+			expect(actor.getFlag("stonetop_pwd", "battleJoy")).toBeNull();
+			expect(globalThis.ChatMessage.create.mock.calls[0][0].content).toContain("their Battle Joy ends, with no roll");
+		} finally {
+			globalThis.ChatMessage = saved;
+		}
 	});
 
 	// The roll this glyph ends the rage WITH is a 2d6 move roll like any other, so it walks the
@@ -675,7 +769,7 @@ describe("StonetopCharacterSheet holy light candle", () => {
 		actor.items = [{ id: "bj", type: "move", name: "Battle Joy", system: { rollType: "con" } }];
 		const sheet = makeSheet(actor);
 		sheet.render = vi.fn();
-		globalThis.Dialog = { confirm: vi.fn(async () => true) };
+		stubConfirm(true);
 		// Stubbed at the ladder, not below it: what is being pinned is that the header goes
 		// THROUGH it and hands its answer on, which is the whole of the fix.
 		const stand = { dataset: { roll: "con" } };
@@ -734,6 +828,16 @@ describe("StonetopCharacterSheet ongoing Invocation", () => {
 			.toEqual({ active: true, slug: "warmth-of-the-sun", label: "Warmth of the Sun" });
 	});
 
+	// The insert's "you start knowing 2" is the Lightbearer's; anyone else with Invoke the Sun God
+	// starts knowing none (StonetopCharacter#invocationSource).
+	it("says the Lightbearer starts knowing 2, and a borrower none", () => {
+		installGetDataGlobals();
+		const { sheet } = invokingSheet({ ongoing: "" });
+		const raw = { startingCount: 2, options: [{ slug: "warmth-of-the-sun", label: "Warmth of the Sun" }] };
+		expect(sheet._buildInvocationsData(raw).startingCount).toBe(2);
+		expect(sheet._buildInvocationsData(raw, { borrowed: true }).startingCount).toBe(0);
+	});
+
 	// "You can end an Invocation whenever you wish" — one click, nothing to confirm. It posts,
 	// unlike the candle: the candle is a tracker correction, but an Invocation ending is a thing
 	// the table needs to hear about, because it was affecting the fiction.
@@ -741,10 +845,17 @@ describe("StonetopCharacterSheet ongoing Invocation", () => {
 		const { actor, sheet } = invokingSheet();
 		await sheet._onEndOngoingInvocation(clickEvent());
 
-		expect(actor.typedActor.setOngoingInvocation).toHaveBeenCalledWith("");
+		expect(actor.typedActor.endOngoingInvocation).toHaveBeenCalledWith("warmth-of-the-sun");
 		expect(sheet.render).toHaveBeenCalledWith(false);
 		expect(sheet._postMoveCard).toHaveBeenCalledTimes(1);
 		expect(sheet._postMoveCard.mock.calls[0][1]).toMatch(/Warmth of the Sun<\/strong> ends\./);
+	});
+
+	// Two can run at once, each with its own End it: the control names which one it ends.
+	it("ends the Invocation its control names", async () => {
+		const { actor, sheet } = invokingSheet();
+		await sheet._onEndOngoingInvocation({ ...clickEvent(), currentTarget: { dataset: { slug: "blinding-light" } } });
+		expect(actor.typedActor.endOngoingInvocation).toHaveBeenCalledWith("blinding-light");
 	});
 
 	// Two controls for the one act (the header chip and the tab banner), and however many clients
@@ -752,7 +863,7 @@ describe("StonetopCharacterSheet ongoing Invocation", () => {
 	// one who stopped it", so the card follows the WRITE — the table hears it stop once.
 	it("says nothing when the write found the Invocation already ended", async () => {
 		const { actor, sheet } = invokingSheet();
-		actor.typedActor.setOngoingInvocation.mockResolvedValueOnce(false);
+		actor.typedActor.endOngoingInvocation.mockResolvedValueOnce({ changed: false, ended: [], snuffed: false });
 
 		await sheet._onEndOngoingInvocation(clickEvent());
 
@@ -850,12 +961,143 @@ describe("StonetopCharacterSheet Condemn roster on move use", () => {
 		expect(sheet._openCondemned).not.toHaveBeenCalled();
 	});
 
+	// Armistice rather than Castigate, which this used to name: Castigate IS a Censure now (it
+	// deals the Censure's damage, and opens the roster the Censure opens), see the block below.
 	it("ignores any other move, a same-named non-move, and a row with no item at all", async () => {
 		const { sheet } = condemnSheet();
-		await sheet._onDescriptionMoveUsed({ type: "move", name: "Castigate" });
+		await sheet._onDescriptionMoveUsed({ type: "move", name: "Armistice" });
 		await sheet._onDescriptionMoveUsed({ type: "item", name: "Condemn" });
 		await sheet._onDescriptionMoveUsed(null);
 		expect(sheet._openCondemned).not.toHaveBeenCalled();
+	});
+});
+
+// "When you Censure someone, your voice deals 1d4 damage to them (near, loud, ignores armor)."
+// Castigate is level 2+ and Condemn level 6+, and the blow used to ride the brand being laid in
+// Condemn's window, so a Judge without Condemn never dealt it. It lands from the Censure now. What
+// is pinned here is WHO it lands on; the card itself (1d4, loud, ignores armor) is pinned against
+// the real model in playbook-the-judge.test.js, so `castigate` is a spy.
+describe("StonetopCharacterSheet Castigate on Censure", () => {
+	const token = (id, name, { actorId = `a-${id}`, hidden = false } = {}) =>
+		({ id, name, uuid: `Scene.s.Token.${id}`, hidden, actor: { id: actorId } });
+	const bandit = token("b", "Bandit");
+	const cutpurse = token("c", "Cutpurse");
+	const ownToken = token("j", "The Judge", { actorId: "actor-1" });
+
+	let savedUser;
+	let savedScenes;
+	beforeEach(() => {
+		savedUser = global.game.user;
+		savedScenes = global.game.scenes;
+		picker.pick.mockReset();
+		picker.pick.mockResolvedValue(null);
+	});
+	afterEach(() => {
+		global.game.user = savedUser;
+		global.game.scenes = savedScenes;
+	});
+
+	function censureSheet({ castigate = true, condemn = false, proclaim = false, targets = [], scene = [], editable = true } = {}) {
+		const actor = makeActor();
+		Object.assign(actor.typedActor, {
+			canCastigate: castigate,
+			canProclaim: proclaim,
+			castigate: vi.fn(async () => ({ id: "card" })),
+		});
+		actor.typedActor.canCondemn = condemn;
+		const sheet = makeSheet(actor);
+		if (!editable) Object.defineProperty(sheet, "isEditable", { get: () => false });
+		sheet._openCondemned = vi.fn(async () => {});
+		global.game.user = { ...(savedUser ?? {}), isGM: false, targets: new Set(targets.map(document => ({ document }))) };
+		global.game.scenes = { viewed: { tokens: scene } };
+		return { character: actor.typedActor, sheet };
+	}
+
+	const censure = sheet => sheet._onDescriptionMoveUsed({ type: "move", name: "Censure" });
+
+	it("hits the one targeted person, without Condemn, and opens no roster", async () => {
+		const { character, sheet } = censureSheet({ targets: [bandit] });
+		await censure(sheet);
+		expect(character.castigate).toHaveBeenCalledTimes(1);
+		expect(character.castigate).toHaveBeenCalledWith(bandit);
+		expect(picker.pick).not.toHaveBeenCalled();
+		expect(sheet._openCondemned).not.toHaveBeenCalled();
+	});
+
+	it("does nothing for a Judge who has not learned Castigate", async () => {
+		const { character, sheet } = censureSheet({ castigate: false, targets: [bandit] });
+		await censure(sheet);
+		expect(character.castigate).not.toHaveBeenCalled();
+		expect(picker.pick).not.toHaveBeenCalled();
+	});
+
+	it("asks who, off this scene, when nobody is targeted; backing out deals nothing", async () => {
+		const hidden = token("h", "Lurker", { hidden: true });
+		const { character, sheet } = censureSheet({ scene: [bandit, ownToken, hidden, cutpurse] });
+		await censure(sheet);
+		expect(picker.pick).toHaveBeenCalledTimes(1);
+		// Never the Judge themself, and not a token the player cannot see.
+		expect(picker.pick.mock.calls[0][0].options.map(o => o.id)).toEqual(["b", "c"]);
+		expect(character.castigate).not.toHaveBeenCalled();
+	});
+
+	it("hits whoever the picker names", async () => {
+		picker.pick.mockResolvedValue("c");
+		const { character, sheet } = censureSheet({ scene: [bandit, cutpurse] });
+		await censure(sheet);
+		expect(character.castigate).toHaveBeenCalledTimes(1);
+		expect(character.castigate).toHaveBeenCalledWith(cutpurse);
+	});
+
+	it("says so and rolls nothing when there is nobody to ask about", async () => {
+		const info = vi.spyOn(global.ui.notifications, "info");
+		const { character, sheet } = censureSheet({ scene: [ownToken] });
+		await censure(sheet);
+		expect(picker.pick).not.toHaveBeenCalled();
+		expect(character.castigate).not.toHaveBeenCalled();
+		expect(info).toHaveBeenCalledWith(expect.stringMatching(/Castigate has nobody to hit/));
+		info.mockRestore();
+	});
+
+	// Censure denounces "an individual": several targets are a question, not a volley.
+	it("asks which ONE of several targets, without Proclamation", async () => {
+		picker.pick.mockResolvedValue("b");
+		const { character, sheet } = censureSheet({ targets: [bandit, cutpurse], scene: [bandit, cutpurse, token("x", "Other")] });
+		await censure(sheet);
+		expect(picker.pick.mock.calls[0][0].options.map(o => o.id)).toEqual(["b", "c"]);
+		expect(character.castigate).toHaveBeenCalledTimes(1);
+		expect(character.castigate).toHaveBeenCalledWith(bandit);
+	});
+
+	// "Apply the effects of Censure to every member of that group."
+	it("hits every target, one card each, with Proclamation", async () => {
+		const { character, sheet } = censureSheet({ proclaim: true, condemn: true, targets: [bandit, cutpurse] });
+		await censure(sheet);
+		expect(picker.pick).not.toHaveBeenCalled();
+		expect(character.castigate.mock.calls.map(c => c[0])).toEqual([bandit, cutpurse]);
+	});
+
+	// The window still opens for the brand. Laying it there rolls nothing (brandCondemned is
+	// record-keeping now, pinned in playbook-the-judge.test.js), so this is the only 1d4.
+	it("still opens the roster for a Judge who owns Condemn, after the one blow", async () => {
+		const { character, sheet } = censureSheet({ condemn: true, targets: [bandit] });
+		await censure(sheet);
+		expect(character.castigate).toHaveBeenCalledTimes(1);
+		expect(sheet._openCondemned).toHaveBeenCalledTimes(1);
+	});
+
+	it("does the same when Castigate itself is used", async () => {
+		const { character, sheet } = censureSheet({ condemn: true, targets: [bandit] });
+		await sheet._onDescriptionMoveUsed({ type: "move", name: "Castigate" });
+		expect(character.castigate).toHaveBeenCalledWith(bandit);
+		expect(sheet._openCondemned).toHaveBeenCalledTimes(1);
+	});
+
+	it("rolls nothing from a sheet the viewer cannot edit, but still shows the roster", async () => {
+		const { character, sheet } = censureSheet({ condemn: true, targets: [bandit], editable: false });
+		await censure(sheet);
+		expect(character.castigate).not.toHaveBeenCalled();
+		expect(sheet._openCondemned).toHaveBeenCalledTimes(1);
 	});
 });
 
@@ -1216,6 +1458,20 @@ describe("StonetopCharacterSheet._buildConvalesceData", () => {
 		expect(data.canConvalesce).toBe(false);
 		expect(data.hint.icon).toBe("fa-heart");
 	});
+
+	// Auspicious Birth: "Clear it when you Make Camp or Convalesce." The circle stands in for a
+	// debility, so it is often the only thing marked.
+	it("can convalesce at full HP to clear a marked Auspicious Birth circle, and only a marked one", () => {
+		const sheet = makeSheet(makeActor());
+		const withCircle = current => ({
+			...convalesceSnapshot({ hpValue: 8, hpMax: 8 }),
+			playbook: { background: { options: [{ selected: true, label: "Auspicious Birth", setupResources: [
+				{ key: "auspicious-birth", label: "Background circle", current, clearsOn: ["make-camp", "convalesce"] },
+			] }] } },
+		});
+		expect(sheet._buildConvalesceData(withCircle(1)).canConvalesce).toBe(true);
+		expect(sheet._buildConvalesceData(withCircle(0)).canConvalesce).toBe(false);
+	});
 });
 
 describe("StonetopCharacterSheet._applyConvalesce", () => {
@@ -1236,11 +1492,75 @@ describe("StonetopCharacterSheet._applyConvalesce", () => {
 		}, { stonetopMove: "Convalesce" });
 	});
 
+	it("clears a marked background track in the same write", async () => {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		await sheet._applyConvalesce({
+			oldHp: 8, newHp: 8, debilities: [],
+			tracks: [{ key: "auspicious-birth", name: "Auspicious Birth's background circle" }],
+		});
+		expect(actor.update).toHaveBeenCalledWith({
+			"system.attributes.hp.value": 8,
+			"flags.stonetop_pwd.background.setupResources.auspicious-birth": 0,
+		}, { stonetopMove: "Convalesce" });
+	});
+
 	it("re-renders after applying", async () => {
 		const actor = makeActor();
 		const sheet = makeSheet(actor);
 		await sheet._applyConvalesce({ oldHp: 4, newHp: 8, debilities: [] });
 		expect(sheet.render).toHaveBeenCalledWith(false);
+	});
+});
+
+// Post-death audit B1: the Unliving (Ghost, Revenant) "gain no benefit from magical healing, Make Camp,
+// Recover or Convalesce". Both cards lock with the reason, and both windows refuse however they are reached.
+describe("Recover and Convalesce for the Unliving", () => {
+	function unliving(kind = "ghost") {
+		const actor = new FakeActorBuilder()
+			.withFlag("inventory.resources", { supplies: 3 })
+			.withFlag("postDeathInsert.slug", kind)
+			.build();
+		actor.id = "actor-1";
+		actor.isOwner = true;
+		actor.typedActor = makeCharacterMock(actor);
+		return actor;
+	}
+
+	it("locks Recover with an Unliving hint, supplies and wounds notwithstanding", () => {
+		for (const kind of ["ghost", "revenant"]) {
+			const data = makeSheet(unliving(kind))._buildRecoverData(recoverSnapshot({ hpValue: 2, hpMax: 8 }));
+			expect(data.canRecover, kind).toBe(false);
+			expect(data.hint.text).toContain("Unliving: no benefit");
+		}
+	});
+
+	it("locks Convalesce with an Unliving hint, however hurt they are", () => {
+		const data = makeSheet(unliving())._buildConvalesceData(convalesceSnapshot({
+			hpValue: 2, hpMax: 8, debilities: [{ key: "dazed", name: "Dazed", active: true }],
+		}));
+		expect(data.canConvalesce).toBe(false);
+		expect(data.hint.text).toContain("Unliving: no benefit");
+	});
+
+	it("leaves a Thrall's cards open", () => {
+		const actor = unliving("thrall");
+		expect(makeSheet(actor)._buildRecoverData(recoverSnapshot({ hpValue: 2 })).canRecover).toBe(true);
+		expect(makeSheet(actor)._buildConvalesceData(convalesceSnapshot({ hpValue: 2 })).canConvalesce).toBe(true);
+	});
+
+	it("opens no window and writes nothing when either is reached another way", async () => {
+		const actor = unliving();
+		actor.update = vi.fn();
+		const sheet = makeSheet(actor);
+		sheet._stonetopCharacter.buildSnapshot = vi.fn();
+		await sheet._onRecoverOpen();
+		await sheet._onConvalesceOpen();
+		expect(sheet._stonetopCharacter.buildSnapshot).not.toHaveBeenCalled();
+		await sheet._applyRecover({ purse: { slug: "supplies", label: "Supplies", remaining: 3 }, oldHp: 2, newHp: 7 });
+		await sheet._applyConvalesce({ oldHp: 2, newHp: 8, debilities: [] });
+		expect(actor.update).not.toHaveBeenCalled();
+		expect(actor.typedActor.setInventoryResource).not.toHaveBeenCalled();
 	});
 });
 
@@ -1271,6 +1591,8 @@ describe("StonetopCharacterSheet._onDropPlaybook", () => {
 		expect(actor.update).toHaveBeenCalled();
 		expect(actor.update.mock.calls[0][0]["system.playbook"].slug).toBe("the-heavy");
 		expect(actor.typedActor.ensureStartingMoves).toHaveBeenCalled();
+		// Its preselected possessions' gear arrives with the drop, not only through onboarding.
+		expect(actor.typedActor.ensurePossessionGrants).toHaveBeenCalled();
 	});
 
 	it("still takes the three real inserts as inserts", async () => {
@@ -1521,5 +1843,224 @@ describe("StonetopCharacterSheet 0-HP move gate", () => {
 		const sheet = makeInsertSheet({ hp: 0, state: DEATHS_DOOR_STATE.DEAD });
 		await sheet._onDeathsDoorOpen();
 		expect(sheet._onUndeathOpen).not.toHaveBeenCalled();
+	});
+
+	// DYING and nothing else (the user's ruling, 2026-09-27): 0 HP alone is also someone just back from
+	// the Door, whose move is not owed.
+	it("refuses it at 0 HP with no dying state", async () => {
+		const sheet = makeInsertSheet({ hp: 0, state: null });
+		await sheet._onDeathsDoorOpen();
+		expect(sheet._onUndeathOpen).not.toHaveBeenCalled();
+	});
+});
+
+// The Special Moves card, for someone past the Door: its one control, and what it says.
+describe("StonetopCharacterSheet Death's Door card past the Door", () => {
+	function makeCardSheet(slug, { state = null, lost = null } = {}) {
+		const actor = makeActor();
+		const sheet = makeSheet(actor);
+		sheet._stonetopCharacter = {
+			deathsDoorState: state,
+			canFaceDeathsDoor: false,
+			zeroHpMove: zeroHpMove(slug),
+			zeroHpResolution: zeroHpResolution(slug),
+			lostToTheGm: lost,
+			computedMaxHp: vi.fn(async () => 15),
+			restoreHp: vi.fn(async () => true),
+			setDeathsDoorState: vi.fn(async () => {}),
+		};
+		return sheet;
+	}
+	const card = (sheet) => sheet._buildDeathsDoorData({ vitals: { hp: { value: 0, max: 15 } } });
+
+	// Every insert, not the Ghost alone: back with half their max HP, rounded up, and the state cleared, in one write.
+	it("brings anyone out of the action back on their feet with half their max HP", async () => {
+		for (const [slug, move] of [["revenant", "Undying"], ["thrall", "Dark Succor"], ["ghost", "Tethered"]]) {
+			const sheet = makeCardSheet(slug, { state: DEATHS_DOOR_STATE.OUT_OF_ACTION });
+			await sheet._onDeathsDoorClear();
+			expect(sheet._stonetopCharacter.restoreHp, slug).toHaveBeenCalledWith(8, move, { clearsDeathsDoor: true });
+			expect(sheet._stonetopCharacter.setDeathsDoorState, slug).not.toHaveBeenCalled();
+		}
+	});
+
+	it("labels the button for it, the Ghost's as its reform", () => {
+		const revenant = card(makeCardSheet("revenant", { state: DEATHS_DOOR_STATE.OUT_OF_ACTION }));
+		expect(revenant.action.label).toBe("Back on your feet");
+		expect(revenant.hint.text).toContain("8 HP");
+		const ghost = card(makeCardSheet("ghost", { state: DEATHS_DOOR_STATE.OUT_OF_ACTION }));
+		expect(ghost.action.label).toBe("Reform at your tether");
+	});
+
+	it("still only clears the state for the living, and for a `dead` being undone", async () => {
+		const living = makeCardSheet(null, { state: DEATHS_DOOR_STATE.OUT_OF_ACTION });
+		await living._onDeathsDoorClear();
+		expect(living._stonetopCharacter.restoreHp).not.toHaveBeenCalled();
+		expect(living._stonetopCharacter.setDeathsDoorState).toHaveBeenCalledWith(null);
+
+		const dead = makeCardSheet("ghost", { state: DEATHS_DOOR_STATE.DEAD });
+		await dead._onDeathsDoorClear();
+		expect(dead._stonetopCharacter.restoreHp).not.toHaveBeenCalled();
+	});
+
+	// The insert's own move button is live only while they are dying: at 0 HP otherwise, it is spent.
+	it("offers the insert's move only while they are dying", () => {
+		expect(card(makeCardSheet("revenant", { state: DEATHS_DOOR_STATE.DYING })).action.disabled).toBe(false);
+		expect(card(makeCardSheet("revenant", { state: null })).action.disabled).toBe(true);
+	});
+
+	it("says a Ghost lost to the Final Consequence became a monster, and a lost Thrall a threat", () => {
+		const monster = card(makeCardSheet("ghost", { state: DEATHS_DOOR_STATE.DEAD, lost: "monster" }));
+		expect(monster.hint.text).toContain("monster under the GM's control");
+		const threat = card(makeCardSheet("thrall", { state: DEATHS_DOOR_STATE.DEAD, lost: "threat" }));
+		expect(threat.hint.text).toContain("threat in the GM's control");
+		const door = card(makeCardSheet("ghost", { state: DEATHS_DOOR_STATE.DEAD }));
+		expect(door.hint.text).toBe("They stepped through the Last Door.");
+	});
+});
+
+// Undying, Tethered and Dark Succor rolled from the Moves tab or the hotbar go to their walkthrough, like
+// Hard to Kill, instead of rolling a plain card that resolves nothing.
+describe("StonetopCharacterSheet: an insert's 0-HP move rolled from the sheet", () => {
+	function makeRollSheet(slug, state) {
+		const actor = makeActor();
+		actor.name = "Vess";
+		const sheet = makeSheet(actor);
+		sheet._stonetopCharacter = { deathsDoorState: state, zeroHpMove: zeroHpMove(slug), zeroHpResolution: zeroHpResolution(slug) };
+		sheet._onDeathsDoorOpen = vi.fn(async () => {});
+		// The ladder reads the move off the rolled row's item; hand it the one owned move.
+		actor.items = { get: () => ({ type: "move", name: zeroHpMove(slug).name }) };
+		return sheet;
+	}
+	const rollable = { closest: () => ({ dataset: { itemId: "m1" } }) };
+
+	let savedUi;
+	beforeEach(() => { savedUi = global.ui; global.ui = { notifications: { info: vi.fn(), warn: vi.fn() } }; });
+	afterEach(() => { global.ui = savedUi; });
+
+	it("opens the walkthrough when they are dying", async () => {
+		for (const slug of ["revenant", "ghost", "thrall"]) {
+			const sheet = makeRollSheet(slug, DEATHS_DOOR_STATE.DYING);
+			expect(await sheet._resolveMoveRollPrompts(rollable), slug).toBe("handled");
+			expect(sheet._onDeathsDoorOpen, slug).toHaveBeenCalled();
+		}
+	});
+
+	it("says why nothing rolls otherwise", async () => {
+		const sheet = makeRollSheet("revenant", null);
+		expect(await sheet._resolveMoveRollPrompts(rollable)).toBe("handled");
+		expect(sheet._onDeathsDoorOpen).not.toHaveBeenCalled();
+		expect(ui.notifications.info).toHaveBeenCalledWith("Undying is Vess's move at 0 HP, and Vess is not dying.");
+	});
+});
+
+// The Post-Death tab's controls (post-death-outcomes.js): the context the tab is drawn from, the one
+// delegated handler its buttons go through, and the edit-mode ticks of the insert's lists.
+describe("StonetopCharacterSheet Post-Death tab controls", () => {
+	const purposeLore = {
+		entries: [{
+			slug: "terrible-purpose",
+			options: [{ slug: "longing", count: 1, description: "<p><strong>LONGING</strong> &mdash; Name the person.</p>" }],
+		}],
+	};
+
+	function makePdiSheet({ isGM = false } = {}) {
+		installGetDataGlobals();
+		const actor = makeActor();
+		const char = actor.typedActor;
+		char.playbook = vi.fn(async () => null);
+		char.possessionTriggerMoves = vi.fn(() => ({}));
+		char.deathsDoorState = null;
+		char.sectionOptions = vi.fn(async () => []);
+		char.debilityChoices = [];
+		char.favor = () => 0;
+		char.setFavor = vi.fn(async () => {});
+		char.crossOffMark = vi.fn(async () => true);
+		char.restoreCrossedOffMark = vi.fn(async () => true);
+		char.markSectionOption = vi.fn(async () => true);
+		char.unmarkSectionOption = vi.fn(async () => true);
+		char.setPostDeathLoreCount = vi.fn(async () => {});
+		char.holdAdvantage = vi.fn(async () => {});
+		char.buildSnapshot = vi.fn(async () => ({
+			...minimalSheetSnapshot({}),
+			vitals: { armor: 0, xp: { value: 0, max: 8 }, hp: { value: 3, max: 8 }, damage: "d4" },
+			postDeathInsert: { activeSlug: "ghost", activeInsert: { lore: purposeLore } },
+		}));
+		global.game.user = { isGM, getFlag: () => ({}) };
+		const sheet = makeSheet(actor);
+		return { sheet, char };
+	}
+
+	const button = (dataset, attrs = {}) => ({
+		dataset, disabled: false, getAttribute: name => attrs[name] ?? null,
+	});
+
+	let savedUser;
+	beforeEach(() => { savedUser = global.game.user; global.ChatMessage = { create: vi.fn(async () => ({})), getSpeaker: () => ({}) }; });
+	afterEach(() => { global.game.user = savedUser; delete global.ChatMessage; });
+
+	it("hands the tab its outcome buttons in play, and none in edit mode", async () => {
+		const { sheet } = makePdiSheet();
+		const play = (await sheet.getData()).stonetop.postDeathTab;
+		expect(play.outcomes.rows[0].title).toBe("Terrible Purpose: LONGING");
+		// At 3 of 8 HP: regaining is live.
+		expect(play.outcomes.rows[0].actions[0]).toMatchObject({ action: "regain-all", disabled: false });
+
+		sheet._editMode = true;
+		expect((await sheet.getData()).stonetop.postDeathTab.outcomes).toBeNull();
+	});
+
+	it("routes an outcome button to its outcome, and ignores one with nothing to do", async () => {
+		const { sheet, char } = makePdiSheet();
+		await sheet._onPostDeathControl(button({ pdiAction: "indulge", source: "INSATIABLE" }));
+		expect(char.holdAdvantage).toHaveBeenCalledWith("Insatiable");
+
+		char.holdAdvantage.mockClear();
+		expect(sheet._onPostDeathControl(button({ pdiAction: "indulge" }, { "aria-disabled": "true" }))).toBeNull();
+		expect(char.holdAdvantage).not.toHaveBeenCalled();
+	});
+
+	it("sets Favor from a pip: a ticked pip is held", async () => {
+		const { sheet, char } = makePdiSheet();
+		await sheet._onPostDeathControl(button({ pdiAction: "favor-pip", index: "2" }, { "aria-pressed": "false" }));
+		expect(char.setFavor).toHaveBeenCalledWith(3);
+		await sheet._onPostDeathControl(button({ pdiAction: "favor-pip", index: "1" }, { "aria-pressed": "true" }));
+		expect(char.setFavor).toHaveBeenLastCalledWith(1);
+	});
+
+	it("keeps the Mark controls the GM's", async () => {
+		const player = makePdiSheet();
+		expect(player.sheet._onPostDeathControl(button({ pdiAction: "cross-off", slug: "ravenous" }))).toBeNull();
+		expect(player.char.crossOffMark).not.toHaveBeenCalled();
+
+		const gm = makePdiSheet({ isGM: true });
+		await gm.sheet._onPostDeathControl(button({ pdiAction: "cross-off", slug: "ravenous" }));
+		expect(gm.char.crossOffMark).toHaveBeenCalledWith("ravenous");
+		await gm.sheet._onPostDeathControl(button({ pdiAction: "uncross", slug: "ravenous" }));
+		expect(gm.char.restoreCrossedOffMark).toHaveBeenCalledWith("ravenous");
+	});
+
+	// B12: a Consequence ticked in edit mode goes through markSectionOption, which grants the moves some bring.
+	it("routes an edit-mode Consequence tick through markSectionOption, and a Purpose tick as a count", async () => {
+		const { sheet, char } = makePdiSheet();
+		await sheet._onInsertLoreTick({ checked: true, dataset: { loreSlug: "consequences", optionSlug: "specter", idx: "0" } });
+		expect(char.markSectionOption).toHaveBeenCalledWith("consequences", "specter");
+		await sheet._onInsertLoreTick({ checked: false, dataset: { loreSlug: "consequences", optionSlug: "specter", idx: "0" } });
+		expect(char.unmarkSectionOption).toHaveBeenCalledWith("consequences", "specter");
+		await sheet._onInsertLoreTick({ checked: true, dataset: { loreSlug: "terrible-purpose", optionSlug: "duty", idx: "0" } });
+		expect(char.setPostDeathLoreCount).toHaveBeenCalledWith("terrible-purpose", "duty", 1);
+		expect(sheet.render).toHaveBeenCalled();
+	});
+
+	it("puts the Final Consequence's box back when the question is declined", async () => {
+		const { sheet, char } = makePdiSheet();
+		char.markSectionOptionUpdateData = vi.fn(() => ({ x: 1 }));
+		char.deathsDoorStateUpdateData = vi.fn(() => ({ y: 1 }));
+		char.restoreHp = vi.fn(async () => false);
+		stubConfirm(false);
+		await sheet._onInsertLoreTick({ checked: true, dataset: { loreSlug: "consequences", optionSlug: "final-consequence", idx: "0" } });
+		expect(char.restoreHp).not.toHaveBeenCalled();
+		expect(char.markSectionOption).not.toHaveBeenCalled();
+		// The re-render is what redraws the box unticked.
+		expect(sheet.render).toHaveBeenCalledWith(false);
 	});
 });

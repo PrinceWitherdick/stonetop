@@ -7,7 +7,7 @@ import {
 	edgesTouching, emptyGraph, fanIndexes, isImportedEdge, isSafeId, nodePatch, normalizeGraph,
 	readSeat, relmapPath,
 } from "../../module/relmap/relmap-store.js";
-import { RELMAP_CAPTION_PX } from "../../module/utils/relmap-geometry.js";
+import { RELMAP_CAPTION_PX, RELMAP_REACH_MAX, RELMAP_REACH_MIN } from "../../module/utils/relmap-geometry.js";
 
 // The map's data layer: the only place in the feature that writes a flag path string, and the
 // guard that stops an id from destroying the map it is stored in.
@@ -94,10 +94,17 @@ describe("the shape of a write", () => {
 		expect(merged[`${PREFIX}.nodes.stefan.x`]).toBe(90);
 	});
 
-	it("clamps a coordinate onto the board on the way in", () => {
+	// THE SHEET IS NOT A WALL (user, 2026-09-27): a portrait put down off it stays where it was put.
+	it("keeps a coordinate off the sheet on the way in", () => {
 		const patch = nodePatch("elena", { x: 140, y: -20 });
-		expect(patch[`${PREFIX}.nodes.elena.x`]).toBe(100);
-		expect(patch[`${PREFIX}.nodes.elena.y`]).toBe(0);
+		expect(patch[`${PREFIX}.nodes.elena.x`]).toBe(140);
+		expect(patch[`${PREFIX}.nodes.elena.y`]).toBe(-20);
+	});
+
+	it("holds a coordinate past reach to the rail on the way in", () => {
+		const patch = nodePatch("elena", { x: 9000, y: -9000 });
+		expect(patch[`${PREFIX}.nodes.elena.x`]).toBe(RELMAP_REACH_MAX);
+		expect(patch[`${PREFIX}.nodes.elena.y`]).toBe(RELMAP_REACH_MIN);
 	});
 
 	it("shortens a runaway label rather than refusing the save", () => {
@@ -313,9 +320,16 @@ describe("reading a stored map back", () => {
 		expect(g.nodes.ghost.name).toBe("The one in the woods");
 	});
 
-	it("clamps a coordinate that was stored off the board", () => {
-		const g = normalizeGraph({ nodes: { elena: { x: 900, y: -4 } } });
-		expect(g.nodes.elena).toMatchObject({ x: 100, y: 0 });
+	// Read back through the sheet's edge, somebody standing off it would be walked onto it at every
+	// repaint, which is the invisible wall this was widened to take away.
+	it("reads a coordinate off the sheet back where it was stored", () => {
+		const g = normalizeGraph({ nodes: { elena: { x: 140, y: -4 } } });
+		expect(g.nodes.elena).toMatchObject({ x: 140, y: -4 });
+	});
+
+	it("holds a coordinate stored past reach to the rail", () => {
+		const g = normalizeGraph({ nodes: { elena: { x: 9000, y: -9000 } } });
+		expect(g.nodes.elena).toMatchObject({ x: RELMAP_REACH_MAX, y: RELMAP_REACH_MIN });
 	});
 
 	it("keeps every ink it ships and replaces any it does not", () => {

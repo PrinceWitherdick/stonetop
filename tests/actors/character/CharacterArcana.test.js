@@ -1194,3 +1194,137 @@ describe("CharacterArcana.buildSnapshot() — checked state", () => {
 		expect(item.checked).toBe(false);
 	});
 });
+
+// An unlock lead's "○○○○" is FOUR boxes (unlock:0..3), as the arcana tab's marker pass indexes
+// them. Counting regex matches counted RUNS, so a card read as unlocked after its first ○ and its
+// back item reached the inventory early, and masterArcanum ticked only the first ○.
+describe("unlock circles count per glyph", () => {
+	const FOUR_CIRCLES = {
+		slug: "four-circles",
+		front: {
+			title: "A Staff",
+			item: { name: "A Staff", weight: 1 },
+			description: "<p>A staff.</p>",
+			unlock: { description: "○○○○ Each time you mark 1, ask the GM.", requirements: [] },
+		},
+		back: { title: "The Staff Awake", item: { name: "The Staff Awake", weight: 1 }, description: "<p>Awake.</p>", options: [] },
+	};
+
+	it("one ○ marked of four leaves the card locked: the front item is carried", async () => {
+		const arcana = makeArcana({ owned: ["four-circles"], identified: ["four-circles"], boxes: { "four-circles:unlock:0": true } }, [FOUR_CIRCLES]);
+		expect((await arcana.weightedInventoryItems()).map(i => i.name)).toEqual(["A Staff"]);
+	});
+
+	it("masterArcanum ticks every ○, so the back item is carried", async () => {
+		const store = { owned: ["four-circles"], identified: ["four-circles"] };
+		const arcana = makeArcana(store, [FOUR_CIRCLES]);
+		await arcana.masterArcanum("four-circles");
+		expect(Object.keys(store.boxes).sort()).toEqual([0, 1, 2, 3].map(i => `four-circles:unlock:${i}`));
+		expect((await arcana.weightedInventoryItems()).map(i => i.name)).toEqual(["The Staff Awake"]);
+	});
+
+	// A Seeker mastered under the old run count holds `unlock:0` alone (migration/mastered-arcanum-circles.js).
+	describe("repairMasteredUnlock", () => {
+		const oldMastered = (extra = {}) => ({
+			owned: ["four-circles"], identified: ["four-circles"],
+			minorRoles: { mastered: "four-circles" },
+			boxes: { "four-circles:unlock:0": true }, ...extra,
+		});
+
+		it("ticks the rest of the mastered card's circles, so its back is carried again", async () => {
+			const store = oldMastered();
+			const arcana = makeArcana(store, [FOUR_CIRCLES]);
+			expect(await arcana.repairMasteredUnlock()).toBe(true);
+			expect(Object.keys(store.boxes).sort()).toEqual([0, 1, 2, 3].map(i => `four-circles:unlock:${i}`));
+			expect((await arcana.weightedInventoryItems()).map(i => i.name)).toEqual(["The Staff Awake"]);
+		});
+
+		it("is idempotent: a fully marked card writes nothing", async () => {
+			const store = oldMastered();
+			const arcana = makeArcana(store, [FOUR_CIRCLES]);
+			await arcana.repairMasteredUnlock();
+			expect(await arcana.repairMasteredUnlock()).toBe(false);
+		});
+
+		it("leaves a part-marked card alone when it is not the mastered one", async () => {
+			const store = oldMastered({ minorRoles: { found: "four-circles" } });
+			expect(await makeArcana(store, [FOUR_CIRCLES]).repairMasteredUnlock()).toBe(false);
+			expect(store.boxes).toEqual({ "four-circles:unlock:0": true });
+		});
+
+		it("leaves a mastered card with no circle ticked alone: that is not the old grant", async () => {
+			const store = oldMastered({ boxes: {} });
+			expect(await makeArcana(store, [FOUR_CIRCLES]).repairMasteredUnlock()).toBe(false);
+		});
+	});
+});
+
+// The beautiful scroll's reverse gained four move boxes after its instinct boxes (Book II p.527),
+// so a mark stored against the old text at index 9 or later moves four along, once, and the
+// character records that it has in the same write (migration/tulpa-move-boxes.js).
+describe("settleBoxLayouts", () => {
+	const MARKER = "beautiful-scroll:back:tulpa-moves";
+	const arcanaWith = store => new CharacterArcana(makeFlags(store), new FakeArcanaRepository([]));
+	const on = store => Object.entries(store.boxes).filter(([, v]) => v).map(([k]) => k).sort();
+
+	it("moves old marks past the insert once, records it in the same write, and is quiet in the ledger", async () => {
+		const store = { boxes: {
+			"beautiful-scroll:back:1": true, "beautiful-scroll:back:7": true,
+			"beautiful-scroll:back:10": true, "beautiful-scroll:back:11": false,
+			"mindgem:back:10": true,
+		} };
+		const arcana = arcanaWith(store);
+		expect(await arcana.settleBoxLayouts()).toBe(true);
+		expect(on(store)).toEqual(["beautiful-scroll:back:1", "beautiful-scroll:back:14", "beautiful-scroll:back:7", "mindgem:back:10"]);
+		expect(store.boxLayouts).toEqual({ [MARKER]: true });
+		expect(arcana._flags.batch).toHaveBeenCalledTimes(1);
+		expect(arcana._flags.batch.mock.calls[0][1]).toEqual({ stonetopLedger: true });
+		// Again, from any client: nothing moves twice.
+		expect(await arcana.settleBoxLayouts()).toBe(false);
+		expect(on(store)).toContain("beautiful-scroll:back:14");
+		expect(on(store)).not.toContain("beautiful-scroll:back:18");
+	});
+
+	it("writes nothing for a character with no mark past the insert, unless asked to stamp", async () => {
+		const store = { boxes: { "beautiful-scroll:back:2": true } };
+		const arcana = arcanaWith(store);
+		expect(await arcana.settleBoxLayouts()).toBe(false);
+		expect(arcana._flags.batch).not.toHaveBeenCalled();
+		expect(await arcana.settleBoxLayouts({ slug: "beautiful-scroll", stamp: true })).toBe(true);
+		expect(store.boxLayouts).toEqual({ [MARKER]: true });
+		expect(store.boxes).toEqual({ "beautiful-scroll:back:2": true });
+	});
+
+	it("stamps the card on its first new tick, so a later sweep never moves a new mark", async () => {
+		const store = { boxes: {} };
+		const arcana = arcanaWith(store);
+		await arcana.setArcanumBoxChecked("beautiful-scroll", "back", 13, true);   // a Cost on the new text
+		expect(await arcana.settleBoxLayouts()).toBe(false);
+		expect(on(store)).toEqual(["beautiful-scroll:back:13"]);
+	});
+
+	it("moves old marks before a new tick lands on the new text", async () => {
+		const store = { boxes: { "beautiful-scroll:back:9": true } };           // an old Cost: respect given
+		const arcana = arcanaWith(store);
+		await arcana.setArcanumBoxChecked("beautiful-scroll", "back", 10, true);  // a new move pick
+		expect(on(store)).toEqual(["beautiful-scroll:back:10", "beautiful-scroll:back:13"]);
+	});
+
+	it("leaves other cards unstamped, and removing the card forgets its record", async () => {
+		const store = { boxes: {}, owned: ["beautiful-scroll"] };
+		const arcana = arcanaWith(store);
+		await arcana.setArcanumBoxChecked("mindgem", "back", 10, true);
+		expect(store.boxLayouts).toBeUndefined();
+		await arcana.setArcanumBoxChecked("beautiful-scroll", "back", 0, true);
+		await arcana.removeArcanum("beautiful-scroll");
+		expect(store.boxLayouts).toEqual({});
+	});
+
+	it("setArcanumBoxesChecked ticks and clears several boxes in one write", async () => {
+		const store = { boxes: { "beautiful-scroll:back:0": true, "x:back:0": true }, boxLayouts: { [MARKER]: true } };
+		const arcana = arcanaWith(store);
+		await arcana.setArcanumBoxesChecked("beautiful-scroll", "back", { 0: false, 3: true, 5: false });
+		expect(arcana._flags.batch).toHaveBeenCalledTimes(1);
+		expect(store.boxes).toEqual({ "beautiful-scroll:back:0": false, "beautiful-scroll:back:3": true, "x:back:0": true });
+	});
+});

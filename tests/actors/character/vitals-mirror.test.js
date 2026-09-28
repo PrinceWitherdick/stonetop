@@ -1,11 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { registerVitalsMirrorHooks, mayMoveVitals, mayMoveSteadingGear, mayMoveMarks, FLAG_NOISE } from "../../../module/actors/character/vitals-mirror.js";
-import { CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG } from "../../../module/fight/hero-moves.js";
+import { CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG, ALPHA_FLAG } from "../../../module/fight/hero-moves.js";
 import { StonetopCharacter } from "../../../module/actors/character/StonetopCharacter.js";
 import { READINESS_FLAG } from "../../../module/combat/defend-readiness.js";
 import { LEDGER_KEY } from "../../../module/utils/ledger-core.js";
 import { CAMP_FLAG, CAMP_OWED_FLAG } from "../../../module/camp/camp-rules.js";
 import { DEATHS_DOOR_FLAG } from "../../../module/actors/character/deaths-door.js";
+import { INSPIRATION_FLAG } from "../../../module/actors/character/inspiration.js";
+import { BLESSING_FLAG } from "../../../module/actors/character/roll-boosts.js";
+import { ONGOING_INVOCATION_FLAGS } from "../../../module/actors/character/ongoing-invocation.js";
+import { HOLY_LIGHT_FLAG } from "../../../module/actors/character/holy-light.js";
 
 // The stored armor and max HP are what the token bar, the Fight tab and the ledger read. They have to
 // follow a change made with the character's sheet closed, on exactly one client: the one that made it.
@@ -43,8 +47,11 @@ describe("what moves a vital", () => {
 	it("spells each quiet flag as its owner does", () => {
 		expect([...FLAG_NOISE].sort()).toEqual([
 			READINESS_FLAG, LEDGER_KEY, CAMP_FLAG, CAMP_OWED_FLAG, DEATHS_DOOR_FLAG,
-			CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG,
+			CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG, ALPHA_FLAG,
+			INSPIRATION_FLAG, BLESSING_FLAG, "invocations", ...ONGOING_INVOCATION_FLAGS,
 		].sort());
+		// The Candle against the Dark's armor reads the light, so lighting it must re-mirror.
+		expect(FLAG_NOISE.has(HOLY_LIGHT_FLAG)).toBe(false);
 	});
 
 	it("re-mirrors everyone when a Blessed lays or lifts a mark: Barkskin is armor on somebody else's sheet", () => {
@@ -192,6 +199,19 @@ describe("StonetopCharacter#syncStoredVitals", () => {
 
 	it("writes only the half that moved", async () => {
 		const { self, actor } = typed({ armor: { value: 2, unpierceable: 0 }, hp: { max: 18 } }, { armor: 2, unpierceable: 0, maxHp: 16 });
+		await sync(self);
+		expect(actor.update).toHaveBeenCalledWith({ "system.attributes.hp.max": 16 }, { stonetopLedger: true });
+	});
+
+	// Post-death audit B2: a Thrall's "Reduce your max HP by 2" Mark dropped the max under the HP they had.
+	it("brings the HP down to a max that drops below it, in the same write", async () => {
+		const { self, actor } = typed({ armor: { value: 2, unpierceable: 0 }, hp: { value: 18, max: 18 } }, { armor: 2, unpierceable: 0, maxHp: 16 });
+		await sync(self);
+		expect(actor.update).toHaveBeenCalledWith({ "system.attributes.hp.max": 16, "system.attributes.hp.value": 16 }, { stonetopLedger: true });
+	});
+
+	it("leaves HP under the new max where it is", async () => {
+		const { self, actor } = typed({ armor: { value: 2, unpierceable: 0 }, hp: { value: 9, max: 18 } }, { armor: 2, unpierceable: 0, maxHp: 16 });
 		await sync(self);
 		expect(actor.update).toHaveBeenCalledWith({ "system.attributes.hp.max": 16 }, { stonetopLedger: true });
 	});

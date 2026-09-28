@@ -10,7 +10,7 @@
  * Pure: no Foundry global is touched, so every caller stays testable with a plain object.
  */
 
-import { SYSTEM_ID } from "../../system-id.js";
+import { SYSTEM_ID, LEGACY_FLAG_SCOPES, isCutOver } from "../../system-id.js";
 
 /** Does this actor own a MOVE by that exact name? */
 export function ownsMoveNamed(actor, name) {
@@ -25,7 +25,39 @@ export function ownsMoveNamed(actor, name) {
  * nothing written to be on.
  */
 export function isMoveLearned(item) {
-	return item?.flags?.[SYSTEM_ID]?.learned !== false;
+	return moveLearnedIn(item, item?.parent?.items);
+}
+
+/**
+ * The cross-playbook move that granted `item` (Versatile, Initiate of the Secret Arts, ...), found
+ * among `items` by the `grantedBy.instanceId` it was stamped with; null when it has none or the
+ * granter is no longer there.
+ */
+export function granterOf(item, items) {
+	const id = item?.flags?.[SYSTEM_ID]?.grantedBy?.instanceId;
+	if (!id || !items) return null;
+	return items.get?.(id) ?? [...items].find(i => (i?._id ?? i?.id) === id) ?? null;
+}
+
+/**
+ * `isMoveLearned`, read against the actor's own `items`, for a caller holding the actor (a test's
+ * plain item has no `parent`). A move a switched-off cross move GRANTED is switched off with it
+ * (the user's ruling): the grant stays on the sheet with its own flag untouched, so re-learning
+ * the granter brings it straight back. Its own toggle still counts on its own: a learned granter
+ * with the grant switched off reads as off.
+ */
+export function moveLearnedIn(item, items) {
+	return item?.flags?.[SYSTEM_ID]?.learned !== false && !switchedOffGranter(item, items);
+}
+
+/** The switched-off move whose grant keeps `item` off, or null (see moveLearnedIn). */
+export function switchedOffGranter(item, items) {
+	const seen = new Set([item]);
+	for (let granter = granterOf(item, items); granter && !seen.has(granter); granter = granterOf(granter, items)) {
+		if (granter.flags?.[SYSTEM_ID]?.learned === false) return granter;
+		seen.add(granter);
+	}
+	return null;
 }
 
 /**
@@ -37,7 +69,54 @@ export function isMoveLearned(item) {
  * Dangerous must not sharpen a damage roll.
  */
 export function ownsLearnedMoveNamed(actor, name) {
-	return !!actor?.items?.some(i => i.type === "move" && i.name === name && isMoveLearned(i));
+	return !!actor?.items?.some(i => i.type === "move" && i.name === name && moveLearnedIn(i, actor.items));
+}
+
+/** The characters out of any list of actors who have move `name` learned (ownsLearnedMoveNamed). */
+export function learnedHolders(actors, name) {
+	return [...(actors ?? [])].filter(a => a?.type === "character" && ownsLearnedMoveNamed(a, name));
+}
+
+/**
+ * The names of every character in the world with move `name` learned: for a steading window, which
+ * cannot tell which character is behind its roll (Logistics, Pathfinder).
+ */
+export function worldLearnedHolderNames(name) {
+	const actors = globalThis.game?.actors;
+	return learnedHolders(actors?.contents ?? actors ?? [], name).map(a => a.name);
+}
+
+/**
+ * Did a PLAYER write this move, in the custom-move dialog, rather than a book print it?
+ *
+ * The custom-move flag is the answer (utils/custom-move-data.js#buildCustomMoveData stamps it), and
+ * `moveType "other"` is NOT: a GM who drops another playbook's move on a sheet lands it as "other"
+ * too (StonetopCharacter#onDropMove), and a dropped Ambush is still the book's Ambush. A rule that
+ * lets a player's own move "act as itself" asks this, so the foreign move keeps working.
+ *
+ * Read through the older scopes too until the item is cut over (system-id.js#isCutOver): a custom
+ * move written before the rename carries its flag under `stonetop_pwd`, and must not start
+ * answering as the book's move of that name just because the migration hasn't reached it yet.
+ */
+export function isPlayerAuthoredMove(item) {
+	const flags = item?.flags;
+	if (flags?.[SYSTEM_ID]?.custom) return true;
+	if (!flags || isCutOver(item)) return false;
+	return LEGACY_FLAG_SCOPES.some(scope => !!flags[scope]?.custom);
+}
+
+/**
+ * `ownedLearnedMove`, for a rule that means the BOOK's move of that name: a player's own move that
+ * happens to share the name is not it (see isPlayerAuthoredMove). A move-granted weapon asks this,
+ * for the move's own resource track.
+ */
+export function ownedLearnedBookMove(actor, name) {
+	return (actor?.items ?? []).find(i => i.type === "move" && i.name === name && moveLearnedIn(i, actor.items) && !isPlayerAuthoredMove(i));
+}
+
+/** `ownedLearnedBookMove` as a yes/no, which is all Cheap Shot needs. */
+export function ownsLearnedBookMoveNamed(actor, name) {
+	return !!ownedLearnedBookMove(actor, name);
 }
 
 /**
@@ -46,6 +125,15 @@ export function ownsLearnedMoveNamed(actor, name) {
  */
 export function ownedMove(actor, name) {
 	return (actor?.items ?? []).find(i => i.type === "move" && i.name === name);
+}
+
+/**
+ * `ownedMove`, for a RULE: the owned move Item only while it is still learned. Rites of the
+ * Land's Boon track is read off the move for its `max`, and an un-learned Rites must not keep
+ * offering a Boon purse (see ownsLearnedMoveNamed for why the two questions differ).
+ */
+export function ownedLearnedMove(actor, name) {
+	return (actor?.items ?? []).find(i => i.type === "move" && i.name === name && moveLearnedIn(i, actor.items));
 }
 
 /** Every move name this character owns, as a Set, for callers testing several names at once. */

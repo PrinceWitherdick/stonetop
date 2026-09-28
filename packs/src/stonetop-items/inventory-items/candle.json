@@ -11,7 +11,7 @@
       "slug": "candle",
       "inventoryColumn": "small",
       "sortOrder": 26,
-      "note": "lasts ~1 hour, <em>hand</em>, <em>area</em>",
+      "note": "lasts ~1 hour, <em>close</em>, <em>area</em>",
       "smallGrid": true,
       "special": true,
       "specialCategory": "Light Sources"

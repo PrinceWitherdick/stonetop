@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { TestCharacterBuilder } from "../../fakes/TestCharacterBuilder.js";
 import { FakeActorBuilder, FakeStatBuilder } from "../../fakes/FakeActorBuilder.js";
 
@@ -26,12 +26,49 @@ describe("StonetopCharacter._applyStatIncreaseChoice", () => {
 		);
 	});
 
-	it("clamps to the cap: a stat already at the cap is recorded but not raised", async () => {
-		const { char, actor } = makeChar(new FakeStatBuilder().withDex(2));
+	it("a stat already at the cap is neither raised nor recorded, and the player is told", async () => {
+		const warn = vi.fn();
+		const saved = global.ui;
+		global.ui = { notifications: { info: () => {}, warn, error: () => {} } };
+		try {
+			const { char, actor } = makeChar(new FakeStatBuilder().withDex(2));
+			const raised = await char._applyStatIncreaseChoice({ id: "item2", name: "Improved Stat" }, "dex", 2);
+
+			expect(raised).toBe(false);
+			expect(actor.getFlag("stonetop_pwd", "improvedStatChoices")).toBeNull();
+			expect(actor.update).not.toHaveBeenCalled();
+			expect(warn).toHaveBeenCalledWith("Improved Stat: Dexterity is already at +2, so it was not raised. Choose another stat from the move's card.");
+		} finally {
+			global.ui = saved;
+		}
+	});
+
+	it("a pick that found the stat at the cap drops a stale record for that instance (onboarding re-run)", async () => {
+		const { char, actor } = makeChar(new FakeStatBuilder().withDex(2), { improvedStatChoices: { item2: "dex", other: "str" } });
 		await char._applyStatIncreaseChoice({ id: "item2", name: "Improved Stat" }, "dex", 2);
 
-		expect(actor.getFlag("stonetop_pwd", "improvedStatChoices")).toEqual({ item2: "dex" });
-		expect(actor.update).not.toHaveBeenCalled();
+		expect(actor.getFlag("stonetop_pwd", "improvedStatChoices")).toEqual({ other: "str" });
+	});
+
+	// The bug: a pick recorded at the cap raised nothing, yet removing the move took a point.
+	it("removing a move whose pick found the stat at the cap leaves the stat alone", async () => {
+		const { char, actor } = makeChar(new FakeStatBuilder().withDex(2));
+		const item = { id: "item2", name: "Improved Stat" };
+		await char._applyStatIncreaseChoice(item, "dex", 2);
+		await char._revertStatIncreaseChoice(item);
+
+		expect(actor.system.stats.dex.value).toBe(2);
+	});
+
+	it("apply then revert is an exact inverse when the stat rose", async () => {
+		const { char, actor } = makeChar(new FakeStatBuilder().withDex(1));
+		const item = { id: "item3", name: "Improved Stat" };
+		expect(await char._applyStatIncreaseChoice(item, "dex", 2)).toBe(true);
+		expect(actor.system.stats.dex.value).toBe(2);
+		await char._revertStatIncreaseChoice(item);
+
+		expect(actor.system.stats.dex.value).toBe(1);
+		expect(actor.getFlag("stonetop_pwd", "improvedStatChoices")?.item3).toBeUndefined();
 	});
 
 	it("uses the move's own cap — Superior Stat lifts a +2 stat to +3", async () => {

@@ -8,7 +8,9 @@ import {moveCardBody} from "../utils/move-tiers.js";
 import {stonetopThumbnail} from "../utils/item-icon.js";
 import {STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "../actors/character/StonetopFlags.js";
 import {newArcanumSlug, isArcanumData} from "./createArcanum.js";
-import {isKnowThings, knowThingsRollOptions} from "../actors/character/know-things.js";
+import {withMovePickBonuses} from "../actors/character/move-pick-bonuses.js";
+import {CARD_EMPOWERED_FLAG, CARD_INVOCATIONS_FLAG} from "../actors/character/invoke-consequences.js";
+import {moveRollOptions} from "../actors/character/move-roll-options.js";
 
 /**
  * Which world item owns each arcanum slug: `slug -> item id`.
@@ -183,6 +185,7 @@ export function createStonetopItemClass(BaseItem) {
 		 *   never Foundry's core public/gmroll/blind/self rollMode)
 		 * @param {string}  [options.stonetopDebility]
 		 * @param {string}  [options.stonetopDebilityTooltip]
+		 * @param {string}  [options.actions]            - HTML button row for a description-only card
 		 */
 		async roll(options = {}) {
 			const actor = this.parent;
@@ -224,10 +227,12 @@ export function createStonetopItemClass(BaseItem) {
 				const monster = this.type === "monsterMove";
 				const title   = monster ? "Move" : this.name;
 				const lead    = monster ? `<p>${escHtml(this.name)}</p>` : "";
+				// `actions` is a caller's button row (the Blessed's "Spend 1 Stock"), inside the card
+				// for the reason utils/chat.js#moveChatCard gives: outside it, it has no card to style it.
 				return ChatMessage.create({
 					content: `<div class="stonetop-chat-move">
 						<h3 class="stonetop-chat-move-name">${escHtml(title)}</h3>
-						<div class="stonetop-chat-move-description">${lead}${body}${signoff}</div>
+						<div class="stonetop-chat-move-description">${lead}${body}${signoff}</div>${options.actions ?? ""}
 					</div>`,
 					speaker: ChatMessage.getSpeaker({ actor }),
 					flags: { [STONETOP_SCOPE]: { move: this.name } },
@@ -261,13 +266,6 @@ export function createStonetopItemClass(BaseItem) {
 				[STONETOP_SCOPE]: { move: this.name, ...(priorFlags[STONETOP_SCOPE] ?? {}) },
 			};
 
-			// Never at a Loss defers the miss XP to a choice on the card, so a Know Things roll by
-			// a character who owns it suppresses the automatic mark and carries the two buttons
-			// instead. Null for everyone else, leaving the roll exactly as it was.
-			const knowThings = isKnowThings(this.name) && actor?.type === "character"
-				? knowThingsRollOptions(actor)
-				: null;
-
 			// "On a 10+, pick 2" needs something to pick. A move prints its options in its own
 			// text, so they are made tickable exactly where they are printed — the same treatment
 			// a non-rolling move's posted card gets, and ticks persist on the message either way.
@@ -290,8 +288,30 @@ export function createStonetopItemClass(BaseItem) {
 			// where the move prints them — is the only list on the card
 			// (combat/attack-flow.js#buildTierActions).
 			const declaredPicks = this.system?.pickOptions ?? [];
-			const cardDescription = moveCardBody(moveDescription, this.system?.moveResults,
-				{ pickable: !declaredPicks.length }) + signoff;
+			// `options.pickable` is for a move whose list is answered by someone OTHER than the roller
+			// (Interfere: the foiled player picks, on a card that is not theirs to tick), which keeps
+			// the list as printed for its own answer to be drawn in (pc-asks/pc-ask-flow.js).
+			//
+			// The printed list's caps are a reading of the MOVE; what the ROLLER brings to it (a
+			// Perceptive Fox's extra question, a 6- that still asks one, The Natural's added
+			// question) is laid over them here, where the roller is known. See move-pick-bonuses.js.
+			// So is what was decided for THIS roll before the dice (an Invocation empowered for an
+			// extra consequence): the roll's pick context, handed in or held by the character model
+			// for the one roll it was set around (StonetopCharacter#withPickContext).
+			const pickContext = options.pickContext ?? actor?.typedActor?.pickContextFor?.(this.name) ?? null;
+			const cardDescription = withMovePickBonuses(moveCardBody(moveDescription, this.system?.moveResults,
+				{ pickable: options.pickable ?? !declaredPicks.length }), actor, this.name, pickContext) + signoff;
+			// Which Invocation(s) an Invoke the Sun God roll is for, when the pick context names them:
+			// the card's consequences act on exactly those (actors/character/invoke-consequences.js).
+			// And whether they were empowered, which changes what an Invocation's own button offers
+			// (invocation-apply.js: Bath of Healing Light's empowered choices).
+			if (Array.isArray(pickContext?.invocations) && pickContext.invocations.length) {
+				messageFlags[STONETOP_SCOPE] = { ...messageFlags[STONETOP_SCOPE], [CARD_INVOCATIONS_FLAG]: [...pickContext.invocations],
+					...(pickContext.empowered ? { [CARD_EMPOWERED_FLAG]: true } : {}) };
+			}
+			// What this move adds to its own card (Never at a Loss's deferred XP, Battle Joy's and
+			// Wielder's buttons, the speech's), its tier actions after any the roll brought.
+			const moveExtras = moveRollOptions(this.name, actor, options.tierActions);
 
 			if (stat) return rollStat(stat, actor, {
 				...options,
@@ -306,7 +326,7 @@ export function createStonetopItemClass(BaseItem) {
 				// Sense, Hard to Kill / Death's Door rolls) set system.noXpOnMiss.
 				noXpOnMiss:  this.system?.noXpOnMiss ?? false,
 				// Last, so Never at a Loss's deferred-XP override beats the item's own default.
-				...(knowThings ?? {}),
+				...(moveExtras ?? {}),
 			});
 
 			// A MONSTER's rolling move is an attack, and rolls on the same damage card as its Damage

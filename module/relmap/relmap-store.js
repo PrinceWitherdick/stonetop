@@ -17,7 +17,7 @@ import { SYSTEM_ID } from "../system-id.js";
 import { deletionEntry } from "../utils/foundry-compat.js";
 import { clipText } from "../utils/strings.js";
 import {
-	RELMAP_BOARD_ASPECT, RELMAP_CAPTION_FLOOR_PX, RELMAP_CAPTION_PX, boardMetrics, clampPct,
+	RELMAP_BOARD_ASPECT, RELMAP_CAPTION_FLOOR_PX, RELMAP_CAPTION_PX, boardMetrics, clampReach,
 	freeSpot, ringsLayout,
 } from "../utils/relmap-geometry.js";
 import { normalizeHex } from "./relmap-ink.js";
@@ -222,7 +222,7 @@ export const RELMAP_SIZES = Object.freeze([
  * ROUNDED TO A WHOLE PIXEL, because this is what a `font-size` is written from and a caption set
  * in 14.37 pixels is measured, cut and gapped at a precision no reader asked for.
  *
- * ⚠ HELD TO THE BOUNDS RATHER THAN REFUSED, which is what `clampPct` does to a coordinate two
+ * ⚠ HELD TO THE BOUNDS RATHER THAN REFUSED, which is what `clampReach` does to a coordinate many
  * screens off the board and is the right answer for the same reason: a reader who types 500 into
  * the custom field wants the biggest caption there is, and giving them the ordinary twelve says
  * their answer was thrown away. The one thing that comes back as nothing is a value that is not a
@@ -462,8 +462,10 @@ export function normalizeGraph(raw) {
 			uuid: node.uuid ? str(node.uuid) : null,
 			name: str(node.name, RELMAP_NAME_MAX),
 			img: str(node.img),
-			x: clampPct(node.x),
-			y: clampPct(node.y),
+			// ⚠ `clampReach` AND NOT `clampPct`: a person may stand off the sheet now, and reading
+			// them back through the sheet's own edge would put them on it at every repaint.
+			x: clampReach(node.x),
+			y: clampReach(node.y),
 			note: str(node.note, RELMAP_NOTE_MAX),
 		};
 	}
@@ -537,8 +539,8 @@ function leafPatch(kind, id, fields) {
  * inline instead of beside its three siblings.
  */
 const NODE_GATES = Object.freeze({
-	x: clampPct,
-	y: clampPct,
+	x: clampReach,
+	y: clampReach,
 	name: v => str(v, RELMAP_NAME_MAX),
 	note: v => str(v, RELMAP_NOTE_MAX),
 });

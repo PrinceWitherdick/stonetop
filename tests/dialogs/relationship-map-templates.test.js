@@ -771,6 +771,25 @@ describe("the window template", () => {
 			.toMatch(/class="stonetop-relmap-tool stonetop-relmap-add"/);
 	});
 
+	// NEW PERSON: whoever may create actors, and only where the board may be written to.
+	it("offers New person only to a reader who may create actors and edit the board", () => {
+		expect(render(context())).not.toContain('data-relmap-action="create"');
+		expect(bar(render(context({ canCreatePerson: true })))).toContain('data-relmap-action="create"');
+		expect(render(context({ canCreatePerson: true, canEdit: false })))
+			.not.toContain('data-relmap-action="create"');
+	});
+
+	// Before "Add someone", which keeps the end of the row and the one fill.
+	it("puts New person before Add someone, unfilled", () => {
+		const row = bar(render(context({ canCreatePerson: true, createLabel: "New person" })));
+		expect(row.indexOf('data-relmap-action="create"'))
+			.toBeLessThan(row.indexOf('data-relmap-action="add"'));
+		expect(row.indexOf('data-relmap-action="create"'))
+			.toBeGreaterThan(row.indexOf('data-relmap-action="redo"'));
+		expect(row).toMatch(/class="stonetop-relmap-tool"\s+data-relmap-action="create"/);
+		expect(row).toContain("New person");
+	});
+
 	// OPENING THE BOARD IN A WINDOW OF ITS OWN, which only a surface that HAS somewhere to pop
 	// out from renders. Today that is the steading sheet's Relationship Map tab; the window
 	// itself must never draw it, or it offers to open the thing the reader is already inside.

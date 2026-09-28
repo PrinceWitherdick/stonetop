@@ -1,6 +1,6 @@
 // Descriptions for animal companion trait tags — checked before compendium lookup.
 import { isMajorArcana } from "../../../arcana-icons.js";
-import { parseMovePickCount, allowedMarkableActions, backgroundMoveNames, startingMoveChoiceNames } from "../StonetopCharacter.js";
+import { parseMovePickCount, allowedMarkableActions, backgroundMoveNames, backgroundPossessionSlugs, startingMoveChoiceNames } from "../StonetopCharacter.js";
 import { ITEMS_PACK, ARCANA_PACK } from "../StonetopFlags.js";
 import { markQuestionBullets } from "../../../utils/question-bullets.js";
 import { openJournalSheetAsChild } from "../../../utils/front-on-open.js";
@@ -17,20 +17,40 @@ import { faqForStep, faqPage } from "../../../utils/onboarding-faq.js";
 import { markFaqItems } from "../../../utils/faq-bullets.js";
 import { applyGearTermTooltips } from "../../../utils/gear-term-tooltips.js";
 import { StonetopAutocomplete } from "../../../utils/autocomplete.js";
-import { wellVersedTopicSummary } from "./well-versed-topics.js";
+import { wellVersedTopicSummary, backgroundMarkOption, moveChoiceKey, WELL_VERSED_MOVE, WELL_VERSED_TOPICS } from "./well-versed-topics.js";
+import { localize } from "../../../utils/i18n.js";
 import { LORE_TERM_TOOLTIPS } from "../../../utils/lore-terms.js";
 import { getHoverDescriptionSetting } from "../../../settings.js";
 import { moveGroupsForPlaybook, moveGroupKeys } from "./onboarding-move-groups.js";
 import { effectiveSubgroupMax } from "./possession-choice-cap.js";
+import { requiredMovesUnmet } from "../move-requirement.js";
 import { playbookIconPath } from "../../../utils/playbook-actors.js";
 import { ensurePackIndex } from "../../../utils/pack-index.js";
 import { SYSTEM_ID } from "../../../system-id.js";
+import { crewSetupLimit } from "./CrewSetupDialog.js";
+import { neighborChoiceGroups, randomNeighborTrait } from "./BackgroundNeighborsDialog.js";
+import { INITIATE_BACKGROUND, choiceCountState } from "../initiates.js";
+import { MAGNIFICENT_SPECIMEN_MOVE, companionKindOptions, companionTraitAllowance, trimCompanionTraits } from "../animal-companion.js";
+import { seekerMajorTrack, pickSeekerMajorMark, drawableMinorSlugs } from "../seeker-collection.js";
 
 const SEEKER_ARCANA_SLUGS = ["collection", "arcana-major", "arcana-minor"];
 
 // The Ranger's animal-companion builder only applies to characters who have the
 // Animal Companion move (Beast-Bonded background or a free-pick choice).
 const ANIMAL_COMPANION_MOVE = "Animal Companion";
+
+/**
+ * The name after a suggested-name chip is clicked. Most regions offer whole names, so a chip
+ * replaces the name. A region whose names are words to join (the Blessed's Wild: "mix and match
+ * 1-3 of these", `combine: 3`) adds the word to the end instead, up to `combine` words: a click
+ * past that leaves the name alone, and a word already in the name is not added twice.
+ */
+export function combineNameChip(current, word, combine = 0) {
+	if (!(combine > 0)) return word;
+	const words = String(current ?? "").trim().split(/\s+/).filter(Boolean);
+	if (words.length >= combine || words.includes(word)) return words.join(" ");
+	return [...words, word].join(" ");
+}
 
 const STEADING_NPC_TRAITS = [
 	"all thumbs", "ambitious", "beloved by everyone", "beautiful singing voice",
@@ -73,6 +93,7 @@ export const ANIMAL_COMPANION_TRAIT_GLOSSARY = {
 	"easy-going":      "Laid-back and even-tempered; gets along with just about everyone.",
 	"enduring":        "Can sustain strenuous effort far longer than expected without flagging.",
 	"fast":            "Moves quickly over open ground; can outrun most threats without difficulty.",
+	"fearless":        "Stands its ground against things that would send most beasts fleeing.",
 	"fierce":          "Attacks with aggression and doesn't back down; enemies take it seriously.",
 	"gluttonous":      "Compelled to eat whenever food is present; can be distracted or baited with it.",
 	"hardy":           "Handles harsh weather, rough terrain, and lean times without complaint.",
@@ -111,15 +132,34 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	}
 
 	constructor(playbookDoc, onComplete, options = {}) {
-		const { onBack, onSave, onClose, onProgress, onLiveSave, onExit, initialSelections, startAtStep = null, ownedMoveCounts = null, ...appOptions } = options;
+		const { onBack, onSave, onClose, onProgress, onLiveSave, onExit, initialSelections, startAtStep = null, ownedMoveCounts = null, retiredMoveNames = null, retiredCreationPicks = 0, crewTagBonus = 0, companionTraitBonus = 0, heldMinorArcana = null, ...appOptions } = options;
 		super(appOptions);
 		this._playbookDoc        = playbookDoc;
 		this._onComplete         = onComplete;
+		// The minor arcana already held in the world (seeker-collection.js#minorArcanaHeldElsewhere),
+		// which the Seeker's draw and swap picker leave out: a card in someone's hands is not in the
+		// deck. A new character's own earlier draw is not among them.
+		this._heldMinorArcana    = new Set(heldMinorArcana ?? []);
+		// Names of the moves this character gave up for a replacing move (Bulwark, once A Mighty
+		// Rampart is owned; StonetopCharacter#retiredMoveReplacers), kept out of the free picks.
+		// A new character passes none.
+		this._retiredMoves       = new Set(retiredMoveNames ?? []);
+		// How many of the free picks those were (StonetopCharacter#retiredCreationPickCount): made,
+		// and given up since, so the moves step asks for that many fewer. A new character passes 0.
+		this._retiredCreationPicks = Math.max(0, Number(retiredCreationPicks) || 0);
 		// How many of each move the character already has (move name → count), so a
 		// possession sub-choice cap that grows with a move (the Blessed's sacred-pouch
 		// remarkable traits, +1 per Big Magic) is correct after taking that move at
 		// level-up. New characters pass none; in-session move picks add on top.
 		this._ownedMoveCounts    = ownedMoveCounts ?? {};
+		// Extra crew tags the character's marked moves allow (Veteran Crew's "Select 2 new tags",
+		// the crew stats' tagBonus), on top of the playbook's pick count. A new character has none.
+		this._crewTagBonus       = Math.max(0, Number(crewTagBonus) || 0);
+		// The extra companion options the character's LEARNED Magnificent Specimens already give (2
+		// each), less the free-pick copies this dialog shows as picks (the sheet's
+		// _companionTraitBonusBeyondCreation), so a re-run allows what a level-up gave
+		// (_companionTraitLimit). A new character has none.
+		this._companionTraitBonus = Math.max(0, Number(companionTraitBonus) || 0);
 		this._onBack             = onBack ?? null;
 		this._onSave             = onSave ?? null;
 		// Fired when the dialog closes for good (finish / save-and-close / window X),
@@ -207,8 +247,16 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			// owned item id doesn't exist yet); applied via _applyStatIncreaseChoice.
 			moveStatChoices: {},
 			invocations:     [],
+			// Invocations learned since, at level-up (a re-run restores them): shown known and locked,
+			// never one of the step's picks, and kept by the apply (starting-invocations.js).
+			learnedInvocations: [],
 			initiates:       [],
 			initiateDetails: {},
+			// The option slugs ticked in a background's own "choose N" list, for every background but the
+			// Initiate (whose list is the Initiates step): the Would-Be Hero's Driven and Destined. Kept
+			// across a change of background, and read only against the background taken
+			// (_backgroundPicksData), as the sheet keeps `background.choices`.
+			backgroundPicks: [],
 			crew:            { name: "", tags: [], instinct: "", cost: "" },
 			animalCompanion: { type: "", kind: "", traits: [], name: "", instinct: "", cost: "" },
 			lore:            { picks: {}, texts: {} },
@@ -219,11 +267,18 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			// resets to the rule default (1 ○ circle marked, or none for □-task arcana).
 			arcana:          { major: "", minorDraw: [], minorRoles: { mastered: "", found: "", lead: "" }, majorMarks: [], majorMarksFor: "" },
 			backgroundChoices: {},
+			// The mark a background-answered move asks beside the background's answer, by move name:
+			// Well Versed's "Mark 1 topic, in addition to the one noted in your Background" → the
+			// topic's markOption slug. Applied as the move's 1st-level mark (setCreationMark).
+			backgroundMoveMarks: {},
 			backgroundSetup: { choices: {}, texts: {}, neighborTraits: {}, neighborPicks: {} },
 			// Slugs of the background's level-gated markable actions marked during
 			// creation (the Ranger's Beast-Bonded "focus on your companion" actions —
 			// mark 1 at 1st level). Mirrors flags.stonetop.background.markedActions.
 			markedActions: [],
+			// The actions marked since, at a level-up (a re-run restores them): shown marked and locked,
+			// never one of the 1st level's marks, and kept by the apply (StonetopCharacter#splitMarkedActions).
+			learnedMarkedActions: [],
 		};
 
 		if (initialSelections) {
@@ -306,12 +361,84 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		return (this._movesCache ?? []).some(doc => chosen.has(doc.id) && doc.name === ANIMAL_COMPANION_MOVE);
 	}
 
+	// How many options the companion step asks for beyond the type's pre-ticked one: its "Pick N
+	// more", plus 2 for each Magnificent Specimen taken as a free pick here ("your companion gains 2
+	// additional options"), plus what the character's other learned copies give
+	// (_companionTraitBonus, a copy taken at a level-up). The sheet leaves a free-pick Specimen out of
+	// that bonus, since it is re-shown here as a pick, so giving it back lowers the limit.
+	_companionTraitLimit(typeData) {
+		if (!typeData) return 0;
+		const idToName = new Map((this._movesCache ?? []).map(d => [d.id, d.name]));
+		const specimens = (this._selections.moves ?? []).filter(id => idToName.get(id) === MAGNIFICENT_SPECIMEN_MOVE).length;
+		return companionTraitAllowance(typeData, specimens) + this._companionTraitBonus;
+	}
+
+	// A free Magnificent Specimen given back takes its 2 options with it: the companion's picks drop
+	// to the new limit, newest first (trimCompanionTraits, the rule removeMove uses on the sheet).
+	// Only called once the move list is loaded, since an empty list would read as no Specimen at all.
+	_trimCompanionPicksToLimit() {
+		const ac = this._selections.animalCompanion;
+		if (!ac?.type || !this._movesCache?.length) return;
+		const typeData = this._rawAnimalCompanion?.types?.find(t => t.slug === ac.type);
+		if (!typeData) return;
+		ac.traits = trimCompanionTraits(typeData, ac.traits, this._companionTraitLimit(typeData));
+	}
+
 	// Returns the Initiate background's choices object when the Initiate
 	// background is selected; null otherwise.
 	_getInitiatesData() {
 		if (this._selections.backgroundSlug !== "initiate") return null;
 		const bg = this._backgrounds.find(b => b.slug === "initiate");
 		return bg?.choices?.options?.length ? bg.choices : null;
+	}
+
+	/**
+	 * A background's own "choose N" list, asked on its card: every background's but the Initiate's,
+	 * whose list is the Initiates step. The Would-Be Hero's Driven ("What was it? Choose 1") and
+	 * Destined ("Choose 3-4" words for their destiny). Only the background taken shows its picks. A
+	 * full list disables what is left unticked and a short one is flagged, never refused, the same as
+	 * the Details tab (initiates.js#choiceCountState). Null for a background with no such list.
+	 */
+	_backgroundPicksData(bg) {
+		const choices = bg?.choices;
+		if (!choices?.options?.length || bg.slug === INITIATE_BACKGROUND) return null;
+		const isCurrent = this._selections.backgroundSlug === bg.slug;
+		const picked = new Set(isCurrent ? (this._selections.backgroundPicks ?? []) : []);
+		const selectedCount = choices.options.filter(o => picked.has(o.slug)).length;
+		const state = choiceCountState(choices.count, selectedCount);
+		const count = Array.isArray(choices.count) ? choices.count : [choices.count];
+		return {
+			label:      this._normalizeOnboardingText(choices.label ?? ""),
+			countLabel: count.filter(n => n != null).join(" or "),
+			inline:     !!choices.inline,
+			selectedCount,
+			underMin:   isCurrent && state.underMin,
+			options: choices.options.map(o => {
+				const selected = picked.has(o.slug);
+				return {
+					slug:     o.slug,
+					label:    this._normalizeOnboardingText(o.label ?? o.slug),
+					selected,
+					disabled: !selected && state.atMax,
+				};
+			}),
+		};
+	}
+
+	/**
+	 * Tick or untick one of the taken background's own picks (_backgroundPicksData). A tick past the
+	 * list's cap is refused, as the Details tab's disabled boxes refuse it. Whether the pick stands.
+	 */
+	_setBackgroundPick(slug, checked) {
+		const bg = this._selectedBackground();
+		const options = new Set((bg?.choices?.options ?? []).map(o => o.slug));
+		if (!options.has(slug)) return false;
+		const picks = (this._selections.backgroundPicks ?? []).filter(s => s !== slug);
+		if (!checked) { this._selections.backgroundPicks = picks; return true; }
+		const held = picks.filter(s => options.has(s)).length;
+		if (held >= choiceCountState(bg.choices.count, held).max) return false;
+		this._selections.backgroundPicks = [...picks, slug];
+		return true;
 	}
 
 	// Normalize the choices.count array into [min, max] with safe defaults.
@@ -330,7 +457,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	_originNameGroups() {
 		return this._origins
 			.filter(o => !this._isGordinsDelve(o.region) && o.names?.length)
-			.map(o => ({ region: o.region, names: o.names }));
+			.map(o => ({ region: o.region, names: o.names, note: o.note ?? "", combine: o.combine ?? 0 }));
 	}
 
 	_appearanceLineLabel(options, lineIdx) {
@@ -347,11 +474,108 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		return normalizePlaybookGlyphs(value);
 	}
 
+	// The free picks the playbook prints ("2 other moves of your choice"), less any given up since to
+	// a replacing move (_retiredCreationPicks): that pick was made, and its move is not offered again.
 	_parseMovePickCount() {
-		return parseMovePickCount(this._playbookDoc.flags?.stonetop?.moves?.startingMovesNote);
+		const printed = parseMovePickCount(this._playbookDoc.flags?.stonetop?.moves?.startingMovesNote);
+		return Math.max(0, printed - (this._retiredCreationPicks ?? 0));
+	}
+
+	// The moves the moves step offers as the free pick ("1 of your choice"), out of the loaded
+	// move list (_movesCache), as things stand in the selections.
+	_freePickOffers() {
+		const selectedBg = this._backgrounds.find(b => b.slug === this._selections.backgroundSlug);
+		// The moves the background hands over, setup-choice picks included (the background
+		// step runs before this one, so the pick is already made). Keeping them out of the
+		// free-pick pool matters twice over: the player must not spend their one free pick
+		// on a move they're being given anyway (the grant then no-ops and the pick is
+		// silently lost), and the sheet must not count the gift against the level's budget.
+		const bgMoveNames     = backgroundMoveNames(selectedBg, this._selections.backgroundSetup?.choices);
+		const choiceMoveNames = startingMoveChoiceNames(this._rawMoveChoices);
+		// The either/or options picked so far, by name (the radios hold compendium ids).
+		const choiceIds         = new Set(Object.values(this._selections.moveChoices ?? {}));
+		const chosenChoiceNames = new Set(this._movesCache.filter(d => choiceIds.has(d.id) || choiceIds.has(d.name)).map(d => d.name));
+		// What a free pick's required moves may lean on: the moves the character is guaranteed
+		// to end up with. Of the either/or options that is only the one picked in each group,
+		// so a Fox who picked Skill at Arms is offered Parry & Riposte, and one who picked
+		// Ambush is not. A change of radio re-renders the step, so this follows it.
+		//
+		// The free picks made so far count too, so picks CHAIN (the user's ruling): a Judge whose
+		// first pick is Hound of Aratis is offered Like a Dog with a Bone for the second. Unticking
+		// the first takes the second off offer, and the moves step lets it go (_pruneFreePicks).
+		const pickedIds = new Set(this._selections.moves ?? []);
+		const grantedNames = new Set([
+			...this._movesCache
+				.filter(d => d.system?.isStartingMove && !choiceMoveNames.has(d.name))
+				.map(d => d.name),
+			...chosenChoiceNames,
+			...bgMoveNames,
+			...this._movesCache.filter(d => pickedIds.has(d.id)).map(d => d.name),
+		]);
+		// A move this character gave up for its replacement (a re-run on a Judge who took A
+		// Mighty Rampart: Bulwark) is not theirs to pick again (StonetopCharacter#retiredMoveReplacers).
+		const retired = this._retiredMoves ?? new Set();
+		return this._movesCache.filter(doc => {
+			if (retired.has(doc.name)) return false;
+			// The other half of an either/or MAY be the free pick (the user's ruling): a Fox who
+			// starts with Ambush can take Skill at Arms as their 1 of choice. The half picked in
+			// its group is theirs already.
+			if (doc.system?.isStartingMove && !choiceMoveNames.has(doc.name)) return false;
+			if (bgMoveNames.has(doc.name) && !this._backgroundMoveHasRoom(doc, pickedIds)) return false;
+			// A move only a background gives (the Heavy's Bark an Order, the Sheriff's), for any
+			// other background: never a pick.
+			if (doc.system?.requirement?.background) return false;
+			if (chosenChoiceNames.has(doc.name)) return false;
+			if (doc.system?.requirement?.level > 1) return false;
+			// Marks on another move (the Would-be Hero's Superior Stat: all 6 of Potential for
+			// Greatness) are earned in play, never had at creation.
+			if (doc.system?.requirement?.marks) return false;
+			if (requiredMovesUnmet(doc.system?.requirement, r => grantedNames.has(r))) return false;
+			return true;
+		});
+	}
+
+	// A REPEATABLE move the background gives may still be the free pick (the user's ruling: a
+	// Scion's free pick may be the second Veteran Crew) while the copies held, the background's own
+	// included, are below its repeatMax. This pick's own copy, held already on a re-run, is not
+	// counted against it; a copy taken at a level-up is.
+	_backgroundMoveHasRoom(doc, pickedIds) {
+		const repeatMax = Number(doc.system?.repeatMax) || 1;
+		if (repeatMax < 2) return false;
+		const owned = Number(this._ownedMoveCounts?.[doc.name]) || 0;
+		const held  = Math.max(1, owned - (pickedIds.has(doc.id) || pickedIds.has(doc.name) ? 1 : 0));
+		return held < repeatMax;
+	}
+
+	// Let go of every free pick the list no longer offers, and return the offers. Repeated until
+	// nothing more drops, since picks chain: a pick that leaned on one just let go goes too. Its
+	// pending "+1 to which stat?" goes with it.
+	_pruneFreePicks() {
+		for (;;) {
+			const offered   = this._freePickOffers();
+			const offeredIds = new Set(offered.map(doc => doc.id));
+			const kept = this._selections.moves.filter(id => offeredIds.has(id));
+			if (kept.length === this._selections.moves.length) return offered;
+			for (const id of this._selections.moves) {
+				if (!offeredIds.has(id)) delete this._selections.moveStatChoices?.[id];
+			}
+			this._selections.moves = kept;
+			this._trimCompanionPicksToLimit();
+		}
+	}
+
+	// How many tales a section's count is for. The Fox's tall tales are "a couple of your more
+	// memorable adventures", and each list says "(choose 1 per tale)": `tales` on the section
+	// turns that into a count for the whole list. Every other section is one.
+	_loreTales(section) {
+		return Math.max(1, Math.floor(Number(section?.tales) || 1));
 	}
 
 	_parseLorePickMax(section) {
+		return this._parseLorePickMaxPerTale(section) * this._loreTales(section);
+	}
+
+	_parseLorePickMaxPerTale(section) {
 		const desc = String(section?.description ?? "").toLowerCase();
 		if (/answer\s+at\s+least/.test(desc)) return Infinity;
 		// "choose N–M" / "choose N-M" (en-dash U+2013 or regular hyphen)
@@ -372,12 +596,27 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		return Infinity;
 	}
 
+	// Every tick counts, so an option taken twice (a tall tale's `max: 2`) is two of the section's.
 	_countLoreSectionPicks(sectionSlug) {
 		let n = 0;
 		for (const [key, val] of Object.entries(this._selections.lore.picks)) {
-			if (key.startsWith(`${sectionSlug}:`) && val > 0) n++;
+			if (key.startsWith(`${sectionSlug}:`)) n += Math.max(0, Number(val) || 0);
 		}
 		return n;
+	}
+
+	// A lore pick's box `index` (0 for the first take, 1 for the second) ticked or unticked.
+	// Ticking box N means N+1 takes; unticking it means N. Refused (false) past the option's own
+	// `max` or the section's count; the caller puts the box back.
+	_setLorePick(section, optionSlug, index, checked) {
+		const opt = (section?.options ?? []).find(o => o.slug === optionSlug);
+		if (!section || !opt) return false;
+		const key     = `${section.slug}:${optionSlug}`;
+		const current = Math.max(0, Number(this._selections.lore.picks[key]) || 0);
+		const next    = checked ? Math.min(index + 1, opt.max ?? 1) : Math.min(index, current);
+		if (next > current && this._countLoreSectionPicks(section.slug) - current + next > this._parseLorePickMax(section)) return false;
+		this._selections.lore.picks[key] = next;
+		return true;
 	}
 
 	_isSeekerArcanaSection(section) {
@@ -389,9 +628,48 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		return SEEKER_ARCANA_SLUGS.every(slug => slugs.has(slug));
 	}
 
+	// ── Crew tags ─────────────────────────────────────────────────
+	// The tag the chosen background gives the crew (auto, never a pick), or null.
+	_crewBgTag() {
+		return this._rawCrew?.backgroundTags?.[this._selections.backgroundSlug] ?? null;
+	}
+
+	// The crew tags the player PICKED: the stored list less the background's auto tag and the
+	// "group" tag every crew has, as the sheet counts them (StonetopCharacterSheet, crewChosenTags).
+	// A stored tag that the background now grants is not a pick, or a Penitent who took respected
+	// and then became a Scion reads 2/2 with one real pick.
+	_crewPickedTags() {
+		const bgTag = this._crewBgTag();
+		return (this._selections.crew?.tags ?? []).filter(t => t !== bgTag && t !== "group");
+	}
+
+	// How many crew tags the player picks: the playbook's count plus Veteran Crew's marked extras.
+	_crewTagLimit() {
+		return crewSetupLimit(this._rawCrew, this._crewTagBonus);
+	}
+
+	// A crew tag ticked or unticked in the picker. Refused (false) when ticking one past the limit;
+	// the caller puts the box back.
+	_toggleCrewTag(tag, checked) {
+		const tags = this._selections.crew.tags;
+		if (!checked) {
+			this._selections.crew.tags = tags.filter(t => t !== tag);
+			return true;
+		}
+		if (tags.includes(tag)) return true;
+		if (this._crewPickedTags().length >= this._crewTagLimit()) return false;
+		tags.push(tag);
+		return true;
+	}
+
 	_applyBackgroundChange(slug) {
 		this._selections.backgroundSlug = slug;
 		this._selections.initiates = [];
+		// A picked crew tag the new background grants on its own is no longer a pick.
+		if (this._selections.crew?.tags) {
+			const bgTag = this._crewBgTag();
+			this._selections.crew.tags = this._selections.crew.tags.filter(t => t !== bgTag);
+		}
 		this._ensureBackgroundMoveChoices();
 		this._ensureBackgroundSetup();
 		this._ensureBackgroundActions();
@@ -408,7 +686,15 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			return;
 		}
 		const allowed = new Set(markable.options.map(o => o.slug));
-		this._selections.markedActions = this._selections.markedActions.filter(s => allowed.has(s));
+		const learned = new Set(this._selections.learnedMarkedActions ?? []);
+		this._selections.markedActions = this._selections.markedActions.filter(s => allowed.has(s) && !learned.has(s));
+	}
+
+	// The actions marked at a level-up that the selected background lists (a re-run's
+	// `learnedMarkedActions`): locked, uncounted, and kept by the apply.
+	_learnedBackgroundActions(background = this._selectedBackground()) {
+		const allowed = new Set((background?.markableActions?.options ?? []).map(o => o.slug));
+		return (this._selections.learnedMarkedActions ?? []).filter(s => allowed.has(s));
 	}
 
 	// Whether the player has marked the required number of actions at creation
@@ -416,17 +702,21 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	_backgroundActionsComplete(background = this._selectedBackground()) {
 		const markable = background?.markableActions;
 		if (!markable?.options?.length) return true;
-		return this._selections.markedActions.length >= allowedMarkableActions(markable, 1);
+		const learned = new Set(this._learnedBackgroundActions(background));
+		return this._selections.markedActions.filter(s => !learned.has(s)).length >= allowedMarkableActions(markable, 1);
 	}
 
 	// Render-data for the background's level-gated markable actions (Beast-Bonded),
 	// or null when it has none. Onboarding is always 1st level, so `allowed` is the
-	// number of marks unlocked at level 1 (1 for Beast-Bonded).
+	// number of marks unlocked at level 1 (1 for Beast-Bonded). On a re-run, an action
+	// marked at a level-up shows marked but locked and badged, outside the count, as a
+	// learned Invocation does (_invocationStepData).
 	_backgroundMarkableActionsData(background) {
 		const markable = background?.markableActions;
 		if (!markable?.options?.length) return null;
 		const allowed = allowedMarkableActions(markable, 1);
-		const marked  = new Set(this._selections.markedActions);
+		const learned = new Set(this._learnedBackgroundActions(background));
+		const marked  = new Set(this._selections.markedActions.filter(s => !learned.has(s)));
 		const markedCount = markable.options.filter(o => marked.has(o.slug)).length;
 		const atLimit = markedCount >= allowed;
 		return {
@@ -435,13 +725,15 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			allowed,
 			markedCount,
 			options: markable.options.map(o => {
-				const isSelected = marked.has(o.slug);
+				const isLearned  = learned.has(o.slug);
+				const isSelected = isLearned || marked.has(o.slug);
 				return {
 					backgroundSlug: background.slug,
 					slug:       o.slug,
 					label:      this._normalizeOnboardingText(o.label),
 					isSelected,
-					disabled:   !isSelected && atLimit,
+					isLearned,
+					disabled:   isLearned || (!isSelected && atLimit),
 				};
 			}),
 		};
@@ -455,14 +747,10 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		return background?.moveChoices ?? [];
 	}
 
-	_moveChoiceKey(choice) {
-		return choice?.move ?? choice?.slug ?? choice?.label ?? "";
-	}
-
 	_ensureBackgroundMoveChoices(background = this._selectedBackground()) {
 		if (!background) return;
 		for (const choice of this._backgroundMoveChoices(background)) {
-			const key = this._moveChoiceKey(choice);
+			const key = moveChoiceKey(choice);
 			if (!key) continue;
 			if (choice.value) {
 				this._selections.backgroundChoices[key] = {
@@ -480,13 +768,61 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				};
 			}
 		}
+		// The extra topic can't be the one the background notes: that box is the background's.
+		this._selections.backgroundMoveMarks ??= {};
+		for (const choice of this._backgroundMoveChoices(background)) {
+			const key = moveChoiceKey(choice);
+			if (!this._asksExtraMark(choice) || !this._selections.backgroundMoveMarks[key]) continue;
+			if (this._selections.backgroundMoveMarks[key] === this._backgroundChoiceMarkSlug(choice, background)) {
+				delete this._selections.backgroundMoveMarks[key];
+			}
+		}
+	}
+
+	// Well Versed: "Mark 1 topic, in addition to the one noted in your Background". The step asks
+	// that topic beside the background's own.
+	_asksExtraMark(choice) {
+		return moveChoiceKey(choice) === WELL_VERSED_MOVE;
+	}
+
+	// The box `background`'s answer to `choice` fills (well-versed-topics.js#backgroundMarkOption),
+	// its fixed answer or, on the background picked, the answer picked; null when none is yet.
+	_backgroundChoiceMarkSlug(choice, background) {
+		const key = moveChoiceKey(choice);
+		const picked = background?.slug === this._selections.backgroundSlug ? this._selections.backgroundChoices[key]?.value : "";
+		return backgroundMarkOption(choice.move ?? key, choice.value || picked || "");
+	}
+
+	// Every extra topic the background's move choices ask is picked, and is not the background's.
+	_backgroundExtraMarksComplete(background) {
+		const topics = new Set(WELL_VERSED_TOPICS.map(t => t.slug));
+		return this._backgroundMoveChoices(background).every(choice => {
+			if (!this._asksExtraMark(choice)) return true;
+			const pick = this._selections.backgroundMoveMarks?.[moveChoiceKey(choice)];
+			return topics.has(pick) && pick !== this._backgroundChoiceMarkSlug(choice, background);
+		});
 	}
 
 	_backgroundMoveChoiceData(background) {
 		return this._backgroundMoveChoices(background).map(choice => {
-			const key = this._moveChoiceKey(choice);
+			const key = moveChoiceKey(choice);
 			const selectedValue = this._selections.backgroundChoices[key]?.value ?? choice.value ?? "";
+			const fromBackground = this._backgroundChoiceMarkSlug(choice, background);
+			const extraPick = this._selections.backgroundMoveMarks?.[key] ?? "";
 			return {
+				// "Plus 1 more topic": all seven, the background's own shown but not pickable.
+				extraMark: this._asksExtraMark(choice) ? {
+					label: localize("stonetop.onboarding.wellVersedExtra"),
+					fromBackgroundLabel: localize("stonetop.onboarding.wellVersedFromBackground"),
+					options: WELL_VERSED_TOPICS.map(topic => ({
+						slug: topic.slug,
+						label: topic.label,
+						summary: wellVersedTopicSummary(topic.label) ?? "",
+						fromBackground: topic.slug === fromBackground,
+						selected: topic.slug === extraPick && topic.slug !== fromBackground
+							&& background?.slug === this._selections.backgroundSlug,
+					})),
+				} : null,
 				key,
 				move: choice.move ?? key,
 				label: this._normalizeOnboardingText(choice.label ?? key),
@@ -570,22 +906,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			traitLabel: this._normalizeOnboardingText(neighbor.traitLabel ?? "Trait"),
 			trait: this._selections.backgroundSetup.neighborTraits[neighbor.traitKey] ?? "",
 		}));
-		const neighborChoices = (setup.neighborChoices ?? []).map(choice => {
-			const selected = this._selections.backgroundSetup.neighborPicks[choice.key] ?? [];
-			return {
-				key: choice.key,
-				label: this._normalizeOnboardingText(choice.label ?? choice.key),
-				count: Number(choice.count ?? 1),
-				selectedCount: selected.length,
-				options: (choice.options ?? []).map(option => ({
-					value: option.value,
-					name: this._normalizeOnboardingText(option.name ?? option.value),
-					origin: this._normalizeOnboardingText(option.origin ?? ""),
-					trait: this._normalizeOnboardingText(option.trait ?? ""),
-					selected: selected.includes(option.value),
-				})),
-			};
-		});
+		const neighborChoices = neighborChoiceGroups(setup, this._selections.backgroundSetup.neighborPicks);
 		return choices.length || texts.length || neighbors.length || neighborChoices.length
 			? { choices, texts, neighbors, neighborChoices }
 			: null;
@@ -604,13 +925,14 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		}
 	}
 
+	// "Draw 3 at random": from the minor arcana no one holds (_heldMinorArcana).
 	_drawSeekerMinorArcana(minorOptions) {
-		this._selections.arcana.minorDraw = shuffle(minorOptions.map(option => option.slug)).slice(0, 3);
+		this._selections.arcana.minorDraw = shuffle(drawableMinorSlugs(minorOptions, this._heldMinorArcana)).slice(0, 3);
 		this._selections.arcana.minorRoles = { mastered: "", found: "", lead: "" };
 	}
 
 	_ensureSeekerMinorDraw(minorOptions) {
-		const available = new Set(minorOptions.map(option => option.slug));
+		const available = new Set(drawableMinorSlugs(minorOptions, this._heldMinorArcana));
 		const current = this._selections.arcana.minorDraw.filter(slug => available.has(slug));
 		if (current.length === 3) return;
 		this._drawSeekerMinorArcana(minorOptions);
@@ -751,15 +1073,24 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				// it), so it persists and renders through the existing text machinery.
 				const desc  = this._normalizeOnboardingText(opt.description ?? "");
 				const blank = splitFillBlank(desc);
+				const max   = opt.max ?? 1;
 				return {
 					slug:        opt.slug,
 					sectionSlug: section.slug,
 					description: desc,
 					type:        "pick",
-					max:         opt.max ?? 1,
+					max,
 					count,
 					isSelected:  count > 0,
 					disabled:    !count && atLimit,
+					// An option that may be taken more than once (a tall tale told twice) gets a box
+					// per further take, as the sheet draws it. Each opens once the one before it is
+					// ticked, and shuts with the rest when the section is full.
+					extraBoxes:  Array.from({ length: Math.max(0, max - 1) }, (_, i) => ({
+						index:    i + 1,
+						checked:  count > i + 1,
+						disabled: count < i + 1 || (count === i + 1 && atLimit),
+					})),
 					hasBlank:    blank.hasBlank,
 					fillBefore:  blank.before,
 					fillAfter:   blank.after,
@@ -778,15 +1109,6 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			? p.textContent
 			: (div.textContent.split(/\n+/).find(l => l.trim()) ?? div.textContent);
 		return this._normalizeOnboardingText(raw.trim());
-	}
-
-	_animalCompanionKindOptions(typeData) {
-		const examples = this._normalizeOnboardingText(typeData?.examples ?? "")
-			.replace(/[.…]+$/g, "");
-		return examples
-			.split(",")
-			.map(value => value.trim())
-			.filter(Boolean);
 	}
 
 	async _loadArcanaOptions() {
@@ -812,7 +1134,12 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 					// tasks (see _seekerMajorMysteryTrack).
 					frontDescription:  flags.front?.description ?? "",
 					unlockDescription: flags.front?.unlock?.description ?? "",
-					img:         doc.img && doc.img !== "icons/svg/item-bag.svg" ? doc.img : null,
+					// "Draw 3 at random and review both sides": the minor draw shows the back too.
+					frontTitle:      this._normalizeOnboardingText(flags.front?.title ?? ""),
+					backTitle:       this._normalizeOnboardingText(flags.back?.title ?? ""),
+					backSummary:     this._firstParagraph(flags.back?.description ?? ""),
+					backDescription: flags.back?.description ?? "",
+					img:        doc.img && doc.img !== "icons/svg/item-bag.svg" ? doc.img : null,
 					isMajor:     isMajorArcana(slug),
 				}];
 			});
@@ -838,8 +1165,10 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		// duplicate it). The same list applies to all three cards, so it's attached (by shared
 		// reference) to each below — this keeps the template free of `../` context hops across
 		// the card `{{#each}}`. arcana.minor is pre-sorted by name, so the picker is alphabetical.
+		// Held cards are left out here too (_heldMinorArcana), as the draw leaves them out.
+		const held = this._heldMinorArcana;
 		const swapOptions = arcana.minor
-			.filter(option => !minorDraw.has(option.slug))
+			.filter(option => !minorDraw.has(option.slug) && !held.has(option.slug))
 			.map(option => ({ slug: option.slug, name: option.name }));
 		return {
 			majorSelected: selectedMajor,
@@ -863,51 +1192,43 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	// their mysteries behind □ tasks in the front description. Returns { kind, markers },
 	// each marker carrying the box-flag { context, index } it persists under (and, for □
 	// tasks, its label) so the same key round-trips to the live sheet's arcana boxes.
+	//
+	// The same track the Details tab's ask reads (seeker-collection.js#seekerMajorTrack), so the
+	// two can't index a □ differently.
 	_seekerMajorMysteryTrack(option) {
 		if (!option) return { kind: null, markers: [] };
-		const circleCount = (String(option.unlockDescription ?? "").match(/○/g) || []).length;
-		if (circleCount > 0) {
-			return {
-				kind: "circle",
-				markers: Array.from({ length: circleCount }, (_, index) => ({ context: "unlock", index })),
-			};
-		}
-		const boxes = this._frontTaskBoxes(option.frontDescription);
-		if (boxes.length) {
-			return { kind: "box", markers: boxes.map(box => ({ context: "front", index: box.index, label: box.label })) };
-		}
-		return { kind: null, markers: [] };
+		const track = seekerMajorTrack({ description: option.frontDescription, unlock: { description: option.unlockDescription } });
+		return { ...track, markers: track.markers.map(marker => ({ ...marker, label: this._normalizeOnboardingText(marker.label) })) };
 	}
 
-	// Each □ in a front description, in document order, paired with its task text — indices
-	// match CharacterArcana._injectMarkers' "front" context (which replaces every □ in the
-	// full front HTML in order), so a mark set here lands on the right box on the sheet.
-	_frontTaskBoxes(html) {
-		const div = document.createElement("div");
-		div.innerHTML = String(html ?? "");
-		const boxes = [];
-		let index = 0;
-		const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT);
-		let node;
-		while ((node = walker.nextNode())) {
-			const count = (node.textContent.match(/□/g) || []).length;
-			if (!count) continue;
-			const li    = node.parentElement?.closest("li");
-			const label = this._normalizeOnboardingText((li?.textContent ?? node.textContent).replace(/□/g, "").trim());
-			for (let i = 0; i < count; i++) boxes.push({ index: index++, label });
-		}
-		return boxes;
+	// "Mark 1 ○ or □": the major step is done once the chosen major carries exactly 1 mark, made for
+	// THIS major (majorMarksFor). A major whose card prints no track needs none; while the arcana
+	// pack is still loading, the track is unknown, so the mark is still asked for.
+	/** Tick (or untick) one mark on the chosen major: the tick replaces the mark held. */
+	_markSeekerMajor(key, checked) {
+		const arcana = this._selections.arcana;
+		arcana.majorMarks    = pickSeekerMajorMark(arcana.majorMarksFor === arcana.major ? arcana.majorMarks : [], key, checked);
+		arcana.majorMarksFor = arcana.major;
+	}
+
+	_seekerMajorMarkDone() {
+		const arcana = this._selections.arcana;
+		if (!arcana.major) return false;
+		const option = this._arcanaCache?.major?.find(o => o.slug === arcana.major);
+		if (option && !this._seekerMajorMysteryTrack(option).markers.length) return true;
+		return arcana.majorMarksFor === arcana.major && arcana.majorMarks.length === 1;
 	}
 
 	// Keep _selections.arcana.majorMarks consistent with the chosen major's track. Same
-	// arcanum → preserve the player's marks (dropping any key the track no longer has);
+	// arcanum → preserve the player's marks (dropping any key the track no longer has, and
+	// keeping only the first: "mark 1");
 	// changed arcanum (or first visit) → reset to the rule default: 1 circle marked for
-	// an unlock-circle track, none for a □-task arcanum ("mark 1 ○" needs a ○ to mark).
+	// an unlock-circle track, none for a □-task arcanum, whose player picks the task done.
 	_reconcileSeekerMajorMarks(track) {
 		const arcana    = this._selections.arcana;
 		const validKeys = new Set(track.markers.map(marker => `${marker.context}:${marker.index}`));
 		if (arcana.majorMarksFor === arcana.major) {
-			arcana.majorMarks = arcana.majorMarks.filter(key => validKeys.has(key));
+			arcana.majorMarks = arcana.majorMarks.filter(key => validKeys.has(key)).slice(0, 1);
 			return;
 		}
 		arcana.majorMarksFor = arcana.major;
@@ -972,6 +1293,13 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		const idByName = new Map(this._movesCache.map(doc => [doc.name, doc.id]));
 		for (const [groupIndex, value] of Object.entries(this._selections.moveChoices)) {
 			if (idByName.has(value)) this._selections.moveChoices[groupIndex] = idByName.get(value);
+		}
+		// The free picks a re-run restores come by name too, and so do their stat picks.
+		this._selections.moves = this._selections.moves.map(value => idByName.get(value) ?? value);
+		for (const [key, stat] of Object.entries(this._selections.moveStatChoices)) {
+			if (!idByName.has(key)) continue;
+			delete this._selections.moveStatChoices[key];
+			this._selections.moveStatChoices[idByName.get(key)] = stat;
 		}
 	}
 
@@ -1241,6 +1569,33 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		});
 	}
 
+	/**
+	 * The Invocations step's cards. The picks are the starting pair only, so the count and its cap
+	 * are theirs. An Invocation learned at level-up (a re-run's `learnedInvocations`) is known, so it
+	 * shows ticked, but it is not a starting pick: locked, uncounted, and badged "Learned at level-up",
+	 * so it cannot be taken again as one. The apply keeps it (starting-invocations.js).
+	 */
+	_invocationStepData() {
+		const raw     = this._rawInvocations;
+		const count   = raw.startingCount ?? 2;
+		const chosen  = new Set(this._selections.invocations);
+		const learned = new Set((this._selections.learnedInvocations ?? []).filter(slug => !chosen.has(slug)));
+		const atLimit = chosen.size >= count;
+		return {
+			startingCount: count,
+			selectedCount: chosen.size,
+			learnedCount:  learned.size,
+			options: (raw.options ?? []).map(opt => ({
+				slug:        opt.slug,
+				label:       this._normalizeOnboardingText(opt.label),
+				description: this._normalizeOnboardingText(opt.description),
+				isSelected:  chosen.has(opt.slug) || learned.has(opt.slug),
+				isLearned:   learned.has(opt.slug),
+				disabled:    learned.has(opt.slug) || (!chosen.has(opt.slug) && atLimit),
+			})),
+		};
+	}
+
 	// ── Completion check ──────────────────────────────────────────────
 
 	_isStepComplete(stepType = this._steps[this._step]) {
@@ -1251,7 +1606,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				if (!bg) return false;
 				const moveChoicesComplete = this._backgroundMoveChoices(bg).every(choice => {
 					if (!choice.options?.length) return true;
-					const key = this._moveChoiceKey(choice);
+					const key = moveChoiceKey(choice);
 					return !!this._selections.backgroundChoices[key]?.value;
 				});
 				const setup = this._backgroundSetup(bg);
@@ -1269,7 +1624,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 					return (this._selections.backgroundSetup.neighborPicks[choice.key] ?? []).length === count;
 				});
 				const markableActionsComplete = this._backgroundActionsComplete(bg);
-				return moveChoicesComplete && setupChoicesComplete && setupTextsComplete &&
+				return moveChoicesComplete && this._backgroundExtraMarksComplete(bg) && setupChoicesComplete && setupTextsComplete &&
 					neighborTraitsComplete && neighborChoicesComplete && markableActionsComplete;
 			}
 			case "instinct":       return !!this._selections.instinctValue.trim();
@@ -1301,21 +1656,22 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				});
 			}
 			case "crew": {
-				const tagLimit = this._rawCrew?.additionalTagCount ?? 2;
-				return this._selections.crew.tags.length >= tagLimit &&
+				return this._crewPickedTags().length >= this._crewTagLimit() &&
 				       !!this._selections.crew.instinct &&
 				       !!this._selections.crew.cost;
 			}
 			case "animalCompanion": {
 				if (!ac.type) return false;
 				const typeData = this._rawAnimalCompanion?.types?.find(t => t.slug === ac.type);
+				// Exactly the allowance: picks past it (a free Magnificent Specimen given back after its
+				// options were chosen) are flagged on the step for the player to untick, never trimmed.
 				return !!typeData &&
 				       !!ac.kind?.trim() &&
-				       ac.traits.length >= typeData.pickCount &&
+				       ac.traits.length === this._companionTraitLimit(typeData) &&
 				       !!ac.instinct && !!ac.cost;
 			}
 			case "seekerArcana":
-				return !!this._selections.arcana.major;
+				return this._seekerMajorMarkDone();
 			case "seekerArcanaMinor":
 				return Object.values(this._selections.arcana.minorRoles).filter(Boolean).length === 3;
 			default: {
@@ -1335,6 +1691,10 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	// ── Resume helpers ───────────────────────────────────────────────
 
 	_parseLorePickMin(section) {
+		return this._parseLorePickMinPerTale(section) * this._loreTales(section);
+	}
+
+	_parseLorePickMinPerTale(section) {
 		const desc = String(section?.description ?? "").toLowerCase();
 		const rangeM = desc.match(/(?:choose|pick)\s+(\d+)\s*[\u2013-]\s*(\d+)/);
 		if (rangeM) return parseInt(rangeM[1], 10);
@@ -1364,7 +1724,14 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		return Math.max(0, Math.min(min, textOptionCount));
 	}
 
-	_countLoreSectionTextAnswers(section, textOptions = (section?.options ?? []).filter(o => o.type === "text")) {
+	// The written prompts that count toward a section's "Answer at least N". A prompt flagged
+	// `uncounted` stands beside the set without being one of its questions: the Seeker's "When and
+	// how did you begin to unlock its mysteries?" follows the mark, not the "at least 2".
+	_countedTextOptions(section) {
+		return (section?.options ?? []).filter(o => o.type === "text" && !o.uncounted);
+	}
+
+	_countLoreSectionTextAnswers(section, textOptions = this._countedTextOptions(section)) {
 		return textOptions.filter(opt =>
 			!!this._selections.lore.texts[`${section.slug}:${opt.slug}`]?.trim()
 		).length;
@@ -1373,8 +1740,8 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	_isLoreSectionAnswered(section) {
 		const opts = section?.options ?? [];
 		if (!opts.length) return true;
-		const textOptions = opts.filter(o => o.type === "text");
-		if (textOptions.length) {
+		if (opts.some(o => o.type === "text")) {
+			const textOptions = this._countedTextOptions(section);
 			const min = this._parseTextAnswerMin(section, textOptions.length);
 			return this._countLoreSectionTextAnswers(section, textOptions) >= min;
 		}
@@ -1487,8 +1854,8 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				selectedPicks: textOptions.length ? null : selected,
 				// For "answer at least N" text sets, completeness is the count answered
 				// vs. N — not whether every prompt has text.
-				requiredAnswers: textOptions.length ? this._parseTextAnswerMin(section, textOptions.length) : null,
-				answeredCount: textOptions.length ? this._countLoreSectionTextAnswers(section, textOptions) : null,
+				requiredAnswers: textOptions.length ? this._parseTextAnswerMin(section, this._countedTextOptions(section).length) : null,
+				answeredCount: textOptions.length ? this._countLoreSectionTextAnswers(section) : null,
 				textAnswers: textOptions.map(opt => ({
 					optionSlug: opt.slug,
 					hasAnswer: !!this._selections.lore.texts[`${section.slug}:${opt.slug}`]?.trim(),
@@ -1526,10 +1893,9 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				};
 			}
 			case "crew": {
-				const tagLimit = this._rawCrew?.additionalTagCount ?? 2;
 				return {
-					requiredTags: tagLimit,
-					selectedTags: this._selections.crew.tags.length,
+					requiredTags: this._crewTagLimit(),
+					selectedTags: this._crewPickedTags().length,
 					hasInstinct: !!this._selections.crew.instinct,
 					hasCost: !!this._selections.crew.cost,
 				};
@@ -1540,7 +1906,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				return {
 					type: ac.type || "",
 					kind: ac.kind || "",
-					requiredTraits: typeData?.pickCount ?? null,
+					requiredTraits: typeData ? this._companionTraitLimit(typeData) : null,
 					selectedTraits: ac.traits.length,
 					hasInstinct: !!ac.instinct,
 					hasCost: !!ac.cost,
@@ -1565,8 +1931,11 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		const missing = [];
 		for (const choice of this._backgroundMoveChoices(bg)) {
 			if (!choice.options?.length) continue;
-			const key = this._moveChoiceKey(choice);
+			const key = moveChoiceKey(choice);
 			if (!this._selections.backgroundChoices[key]?.value) missing.push(`moveChoice:${key}`);
+		}
+		if (!this._backgroundExtraMarksComplete(bg)) {
+			for (const choice of this._backgroundMoveChoices(bg).filter(c => this._asksExtraMark(c))) missing.push(`moveMark:${moveChoiceKey(choice)}`);
 		}
 		const setup = this._backgroundSetup(bg);
 		for (const choice of (setup?.choices ?? [])) {
@@ -1720,6 +2089,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				selected:    this._selections.backgroundSlug === bg.slug,
 				moveChoices: this._backgroundMoveChoiceData(bg),
 				setup: this._backgroundSetupData(bg),
+				picks: this._backgroundPicksData(bg),
 				markableActions: this._backgroundMarkableActionsData(bg),
 				majorArcana: (bg.majorArcana ?? []).map(slug => {
 					const option = majorBySlug.get(slug);
@@ -1766,6 +2136,10 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			origins = this._origins.map(o => ({
 				region:   o.region,
 				names:    o.names ?? [],
+				// "The Wild: mix and match 1-3 of these": the book's own instruction, and how many
+				// of the region's words a name may join (see combineNameChip).
+				note:     o.note ?? "",
+				combine:  o.combine ?? 0,
 				nameGroups: this._isGordinsDelve(o.region) ? this._originNameGroups() : [],
 				isGordinsDelve: this._isGordinsDelve(o.region),
 				selected: this._selections.originRegion === o.region,
@@ -1822,24 +2196,14 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			// Now that the move list (with each move's cap) is loaded, drop any stat pick
 			// whose move was unselected or whose stat sits at the cap after a stats edit.
 			this._reconcileMoveStatChoices();
-			const selectedBg  = this._backgrounds.find(b => b.slug === this._selections.backgroundSlug);
-			// The moves the background hands over, setup-choice picks included (the background
-			// step runs before this one, so the pick is already made). Keeping them out of the
-			// free-pick pool matters twice over: the player must not spend their one free pick
-			// on a move they're being given anyway (the grant then no-ops and the pick is
-			// silently lost), and the sheet must not count the gift against the level's budget.
-			const bgMoveNames = backgroundMoveNames(selectedBg, this._selections.backgroundSetup?.choices);
-			const chosenIds   = new Set(this._selections.moves);
-			const atLimit     = chosenIds.size >= this._movePickCount;
 			const n           = this._movePickCount;
 			movePickNote = `Choose ${n} more starting ${n === 1 ? "move" : "moves"}`;
 
 			const docByName = new Map(this._movesCache.map(doc => [doc.name, doc]));
 			// "Either X OR Y" choice groups (e.g. the Heavy's Armored OR Uncanny
-			// Reflexes). The chosen move is granted separately, so its options are
-			// kept out of the free-pick list below.
-			const choiceMoveNames = startingMoveChoiceNames(this._rawMoveChoices);
-			moveChoiceGroups = this._rawMoveChoices.map((group, groupIndex) => ({
+			// Reflexes). The chosen move is granted separately, so it is kept out of the
+			// free-pick list below; the option not chosen stays in it (_freePickOffers).
+			moveChoiceGroups =this._rawMoveChoices.map((group, groupIndex) => ({
 				groupIndex,
 				label: this._normalizeOnboardingText(group.label ?? "Choose one"),
 				options: (group.options ?? []).flatMap(name => {
@@ -1855,26 +2219,14 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				}),
 			}));
 
-			// What a free pick's `requirement.moves` may lean on: the moves the character
-			// is guaranteed to end up with. An either/or option is NOT guaranteed — only
-			// one per group is taken — so they're excluded, or a Fox who picked Ambush
-			// would be offered Parry & Riposte, which needs Skill at Arms.
-			const grantedNames = new Set([
-				...this._movesCache
-					.filter(d => d.system?.isStartingMove && !choiceMoveNames.has(d.name))
-					.map(d => d.name),
-				...bgMoveNames,
-			]);
-			moveOptions = this._movesCache
-				.filter(doc => {
-					if (doc.system?.isStartingMove) return false;
-					if (bgMoveNames.has(doc.name)) return false;
-					if (choiceMoveNames.has(doc.name)) return false;
-					if (doc.system?.requirement?.level > 1) return false;
-					const reqMoves = doc.system?.requirement?.moves ?? [];
-					if (reqMoves.length && !reqMoves.every(r => grantedNames.has(r))) return false;
-					return true;
-				})
+			// A pick this list no longer offers is let go: a re-run's restored free pick that the
+			// background just chosen now grants, say, or Parry & Riposte once the radio moved
+			// off Skill at Arms, or Like a Dog with a Bone once Hound of Aratis is unticked. Kept,
+			// it would fill the count with a card the player can't see to untick.
+			const offered     = this._pruneFreePicks();
+			const chosenIds   = new Set(this._selections.moves);
+			const atLimit     = chosenIds.size >= this._movePickCount;
+			moveOptions = offered
 				.map(doc => {
 					const cap = doc.system?.cap ?? null;
 					return {
@@ -1896,6 +2248,12 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			const raw         = this._rawPossessions;
 			const pickCount   = raw.pickCount ?? 0;
 			const preselected = new Set(raw.preselected ?? []);
+			// What the background hands over (the Missionary's aviary, A Life of Crime's burglar's
+			// kit or hidden stash) is shown taken and locked, like the preselected gear, and is
+			// dropped from the free picks: the background step runs first, so a pick made before
+			// the player went Back and changed it can still be sitting here.
+			const fromBackground = backgroundPossessionSlugs(this._selectedBackground(), this._selections.backgroundSetup?.choices);
+			this._selections.possessions = this._selections.possessions.filter(slug => !fromBackground.has(slug));
 			const chosen      = new Set(this._selections.possessions);
 			const customLabel = this._selections.customPossession ?? "";
 			const total       = this._possessionPickTotal();
@@ -1917,14 +2275,15 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				// Grant-only possessions (the Seeker's Initiate-of-the-Secret-Arts Sacred
 				// Pouch) are gained by a level-up move, never picked at creation — hide them.
 				options: (raw.options ?? []).filter(opt => !opt.grantOnly).map(opt => {
-					const isPre = preselected.has(opt.slug);
+					const isFromBackground = fromBackground.has(opt.slug);
+					const isPre = preselected.has(opt.slug) || isFromBackground;
 					const isChosen = chosen.has(opt.slug);
 					const isSelected = isPre || isChosen;
 					return {
 						slug: opt.slug,
 						label: this._normalizeOnboardingText(opt.label),
 						description: this._normalizeOnboardingText(opt.description),
-						isPreselected: isPre, isSelected,
+						isPreselected: isPre, isSelected, isFromBackground,
 						disabled: isPre || (!isSelected && atLimit),
 						// "Pick N from this list" bundles (Weapons of war, Symbol of
 						// authority…). Always rendered; the options stay disabled until the
@@ -1939,23 +2298,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		}
 
 		// ── Invocations ───────────────────────────────────────────────
-		if (stepType === "invocations") {
-			const raw   = this._rawInvocations;
-			const count = raw.startingCount ?? 2;
-			const chosen = new Set(this._selections.invocations);
-			const atLimit = chosen.size >= count;
-			invocationData = {
-				startingCount: count,
-				selectedCount: chosen.size,
-				options: (raw.options ?? []).map(opt => ({
-					slug:        opt.slug,
-					label:       this._normalizeOnboardingText(opt.label),
-					description: this._normalizeOnboardingText(opt.description),
-					isSelected:  chosen.has(opt.slug),
-					disabled:    !chosen.has(opt.slug) && atLimit,
-				})),
-			};
-		}
+		if (stepType === "invocations") invocationData = this._invocationStepData();
 
 		// ── Initiates ─────────────────────────────────────────────────
 		if (stepType === "initiates") {
@@ -2006,9 +2349,10 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		// ── Crew ──────────────────────────────────────────────────────
 		if (stepType === "crew") {
 			const raw    = this._rawCrew;
-			const bgTag  = raw.backgroundTags?.[this._selections.backgroundSlug] ?? null;
-			const chosen = new Set(this._selections.crew.tags);
-			const limit  = raw.additionalTagCount ?? 2;
+			const bgTag  = this._crewBgTag();
+			// Picks only: a stored tag the background now grants is its auto tag, not a pick.
+			const chosen = new Set(this._crewPickedTags());
+			const limit  = this._crewTagLimit();
 			const atLimit = chosen.size >= limit;
 			// The Crew insert mirrors the companion's: blank write-in rows for Tags (a
 			// chosen tag not in the list is the write-in, and it spends one of the "pick N"
@@ -2101,12 +2445,14 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			const mandatoryTrait = typeData?.mandatoryTrait ?? null;
 			const chosenTraits = new Set(this._selections.animalCompanion.traits);
 			const kind = this._selections.animalCompanion.kind;
-			const kindOptionValues = this._animalCompanionKindOptions(typeData);
-			const traitAtLimit = chosenTraits.size >= (typeData?.pickCount ?? 0);
+			const kindOptionValues = companionKindOptions(typeData);
+			// "Pick N more", plus Magnificent Specimen's 2 per copy (_companionTraitLimit).
+			const traitLimit   = this._companionTraitLimit(typeData);
+			const traitAtLimit = chosenTraits.size >= traitLimit;
 			// Each Type's trait list ends with a blank write-in row (Book I p.143). A
 			// selected trait that isn't one of the listed options is the player's write-in;
 			// it still spends one of the "Pick N" picks but is descriptive-only (it derives
-			// no HP/armor/damage — the stat regex only matches "+N HP/armor/damage").
+			// no HP/armor/damage: only the type's `effects` do, animal-companion.js).
 			const knownTraitSet = new Set(typeData?.traits ?? []);
 			const customTrait   = [...chosenTraits].find(t => !knownTraitSet.has(t)) ?? "";
 			// Instinct and cost are "pick a suggestion or make up your own" (Book I
@@ -2135,8 +2481,11 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 					isCustomKind:  !!kind && !kindOptionValues.includes(kind),
 					kindOptions:   kindOptionValues
 						.map(value => ({ value, selected: kind === value })),
-					pickCount:     typeData.pickCount,
+					pickCount:     traitLimit,
 					selectedCount: chosenTraits.size,
+					// More picked than the allowance now gives (a free Magnificent Specimen given back
+					// after its options were chosen): said, and Next held, until enough are unticked.
+					overCount:     Math.max(0, chosenTraits.size - traitLimit),
 					customTrait,
 					customTraitDisabled: !customTrait && traitAtLimit,
 					traits: (typeData.traits ?? []).map(trait => {
@@ -2252,11 +2601,34 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				.prop("disabled", !this._isStepComplete());
 		};
 
+		// Each card's own "choose N" list (_backgroundPicksData) drawn from the selections without a
+		// re-render: only the background taken shows its picks, a full list disables the rest, and a
+		// short one says so.
+		const _paintBackgroundPicks = () => {
+			html.find(".stonetop-onboarding-background-picks").each((_, box) => {
+				const bg = this._backgrounds.find(b => b.slug === box.dataset.backgroundSlug);
+				const data = this._backgroundPicksData(bg);
+				if (!data) return;
+				const bySlug = new Map(data.options.map(o => [o.slug, o]));
+				box.querySelectorAll("input[type='checkbox']").forEach(cb => {
+					const option = bySlug.get(cb.value);
+					cb.checked  = !!option?.selected;
+					cb.disabled = !!option?.disabled;
+					cb.closest(".stonetop-onboarding-background-pick-option")?.classList.toggle("is-selected", cb.checked);
+				});
+				const flag = box.querySelector(".stonetop-onboarding-background-picks-flag");
+				if (flag) flag.hidden = !data.underMin;
+				const shown = box.querySelector(".stonetop-onboarding-background-picks-count");
+				if (shown) shown.textContent = String(data.selectedCount);
+			});
+		};
+
 		// Mirror a background change driven by an inline input (setup/neighbor/action
 		// pick) onto the background radio cards, so engaging an inner control also
 		// selects its card.
 		const _syncBackgroundSelection = (prevBackground, backgroundSlug) => {
 			if (prevBackground === backgroundSlug) return;
+			_paintBackgroundPicks();
 			html.find("[name='onboard-background']").each((_, radio) => {
 				radio.checked = radio.value === backgroundSlug;
 				radio.closest(".stonetop-onboarding-card")
@@ -2267,6 +2639,31 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		// ── Background ────────────────────────────────────────────────
 		html.find("[name='onboard-background']").on("change", ev => {
 			this._applyBackgroundChange(ev.currentTarget.value);
+			_paintBackgroundPicks();
+			_refreshNextButton();
+		});
+
+		// The background's own "choose N" list. Its options are <span>s inside the card's <label>, as
+		// the neighbor and action picks are: the click is kept from the label and forwarded by hand.
+		html.find(".stonetop-onboarding-background-picks").on("click", ev => {
+			ev.stopPropagation();
+		});
+		html.find(".stonetop-onboarding-background-pick-option").on("click", ev => {
+			if (ev.target.type === "checkbox") return;
+			const checkbox = ev.currentTarget.querySelector("input[type='checkbox']");
+			if (checkbox && !checkbox.disabled) {
+				checkbox.checked = !checkbox.checked;
+				checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+			}
+		});
+		html.find(".stonetop-onboarding-background-pick-option input[type='checkbox']").on("change", ev => {
+			const { backgroundSlug } = ev.currentTarget.dataset;
+			const prevBackground = this._selections.backgroundSlug;
+			// Ticking a background's word picks that background, as its other inner controls do.
+			if (prevBackground !== backgroundSlug) this._applyBackgroundChange(backgroundSlug);
+			this._setBackgroundPick(ev.currentTarget.value, ev.currentTarget.checked);
+			_paintBackgroundPicks();
+			_syncBackgroundSelection(prevBackground, backgroundSlug);
 			_refreshNextButton();
 		});
 
@@ -2293,6 +2690,45 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				radio.closest(".stonetop-onboarding-background-choice-option")
 					?.classList.toggle("is-selected", radio.checked);
 			});
+			// The topic picked is the background's box now: out of the "1 more topic" list.
+			this._ensureBackgroundMoveChoices();
+			_paintExtraMarks(ev.currentTarget.closest(".stonetop-onboarding-background-move-choice"), backgroundSlug, choiceKey);
+			_syncBackgroundSelection(prevBackground, backgroundSlug);
+			_refreshNextButton();
+		});
+
+		// Well Versed's "1 more topic" beside the background's: the background's own box is shown
+		// but can't be picked, and a pick equal to it is dropped (_ensureBackgroundMoveChoices).
+		const _paintExtraMarks = (container, backgroundSlug, choiceKey) => {
+			if (!container) return;
+			const background = this._backgrounds.find(b => b.slug === backgroundSlug);
+			const choice = this._backgroundMoveChoices(background).find(c => moveChoiceKey(c) === choiceKey);
+			const fromBackground = choice ? this._backgroundChoiceMarkSlug(choice, background) : null;
+			const pick = this._selections.backgroundMoveMarks?.[choiceKey] ?? "";
+			container.querySelectorAll(".stonetop-onboarding-background-extra-mark input[type='radio']").forEach(radio => {
+				const own = radio.value === fromBackground;
+				radio.disabled = own;
+				radio.checked = !own && radio.value === pick && backgroundSlug === this._selections.backgroundSlug;
+				const option = radio.closest(".stonetop-onboarding-background-extra-mark");
+				option?.classList.toggle("is-from-background", own);
+				option?.classList.toggle("is-selected", radio.checked);
+			});
+		};
+		html.find(".stonetop-onboarding-background-extra-mark").on("click", ev => {
+			if (ev.target.type === "radio") return;
+			const radio = ev.currentTarget.querySelector("input[type='radio']");
+			if (radio && !radio.checked && !radio.disabled) {
+				radio.checked = true;
+				radio.dispatchEvent(new Event("change", { bubbles: true }));
+			}
+		});
+		html.find(".stonetop-onboarding-background-extra-mark input[type='radio']").on("change", ev => {
+			const { backgroundSlug, choiceKey } = ev.currentTarget.dataset;
+			const prevBackground = this._selections.backgroundSlug;
+			if (prevBackground !== backgroundSlug) this._applyBackgroundChange(backgroundSlug);
+			this._selections.backgroundMoveMarks ??= {};
+			this._selections.backgroundMoveMarks[choiceKey] = ev.currentTarget.value;
+			_paintExtraMarks(ev.currentTarget.closest(".stonetop-onboarding-background-move-choice"), backgroundSlug, choiceKey);
 			_syncBackgroundSelection(prevBackground, backgroundSlug);
 			_refreshNextButton();
 		});
@@ -2350,17 +2786,9 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			const input = ev.currentTarget.parentElement
 				?.querySelector(".onboard-background-neighbor-trait");
 			if (!input) return;
-			const taken = new Set(
-				Array.from(ev.currentTarget.closest(".stonetop-onboarding-background-setup")
-					?.querySelectorAll(".onboard-background-neighbor-trait") ?? [])
-					.map(el => el.value.trim().toLowerCase())
-					.filter(Boolean)
-			);
-			// A steading with more neighbors than the ~90 listed traits would exhaust the
-			// pool; fall back to the whole list rather than doing nothing.
-			const pool = STEADING_NPC_TRAITS.filter(trait => !taken.has(trait.toLowerCase()));
-			const options = pool.length ? pool : STEADING_NPC_TRAITS;
-			input.value = options[Math.floor(Math.random() * options.length)];
+			const taken = Array.from(ev.currentTarget.closest(".stonetop-onboarding-background-setup")
+				?.querySelectorAll(".onboard-background-neighbor-trait") ?? []).map(el => el.value);
+			input.value = randomNeighborTrait(taken, STEADING_NPC_TRAITS);
 			// Let the field's own "input" handler record the pick, then dismiss the
 			// suggestion popup that handler's event just re-opened.
 			input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -2758,7 +3186,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		});
 
 		// ── Starting Moves ────────────────────────────────────────────
-		html.find("[name='onboard-move']").on("change", ev => {
+		html.find("[name='onboard-move']").on("change", async ev => {
 			const id      = ev.currentTarget.value;
 			const checked = ev.currentTarget.checked;
 			const limit   = this._movePickCount;
@@ -2768,6 +3196,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				} else { ev.currentTarget.checked = false; return; }
 			} else {
 				this._selections.moves = this._selections.moves.filter(m => m !== id);
+				this._trimCompanionPicksToLimit();
 				// Dropping a stat-increase move discards its pending "+1 to which stat?" pick,
 				// and clears its radios so re-picking the move starts from an unchosen state.
 				delete this._selections.moveStatChoices[id];
@@ -2787,6 +3216,20 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			// the step list can't change and we skip the rebuild.
 			if (this._rawAnimalCompanion?.types?.length) this._rebuildDynamicSteps();
 			_refreshNextButton();
+			// Picks chain (_freePickOffers): Hound of Aratis opens Like a Dog with a Bone, and
+			// unticking it closes that card again and lets a pick of it go. When the offers
+			// changed, re-render (scroll and focus kept, as the either/or radios do); the step's
+			// render prunes the picks and redraws the count.
+			const shown  = new Set(html.find("[name='onboard-move']").map((_, el) => el.value).get());
+			const offers = this._freePickOffers().map(doc => doc.id);
+			if (offers.length === shown.size && offers.every(o => shown.has(o))) return;
+			const stepEl    = html.find(".stonetop-onboarding-step")[0];
+			const scrollTop = stepEl?.scrollTop ?? 0;
+			await this.render(false);
+			const root      = this.element?.[0];
+			const newStepEl = root?.querySelector(".stonetop-onboarding-step");
+			if (newStepEl) newStepEl.scrollTop = scrollTop;
+			[...(root?.querySelectorAll("[name='onboard-move']") ?? [])].find(el => el.value === id)?.focus({ preventScroll: true });
 		});
 
 		// A stat-increase move's inline "+1 to which stat?" pick (Improved Stat). Records
@@ -2803,14 +3246,21 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			_refreshNextButton();
 		});
 
-		// "Either X OR Y" starting-move choices (one radio group per choice).
-		html.find("[name^='onboard-move-choice-']").on("change", ev => {
-			this._selections.moveChoices[ev.currentTarget.dataset.group] = ev.currentTarget.value;
-			html.find(`[name='${ev.currentTarget.name}']`).each((_, radio) => {
-				radio.closest(".stonetop-onboarding-card--move-choice")
-					?.classList.toggle("is-selected", radio.checked);
-			});
-			_refreshNextButton();
+		// "Either X OR Y" starting-move choices (one radio group per choice). Re-rendered, since
+		// the pick decides the free picks on offer: Skill at Arms opens Parry & Riposte, the half
+		// just picked leaves the list and the other half joins it, and a free pick that leaned on
+		// the half given up is let go. Scroll kept, as the arcana pickers do.
+		html.find("[name^='onboard-move-choice-']").on("change", async ev => {
+			const { name, value } = ev.currentTarget;
+			this._selections.moveChoices[ev.currentTarget.dataset.group] = value;
+			const stepEl    = html.find(".stonetop-onboarding-step")[0];
+			const scrollTop = stepEl?.scrollTop ?? 0;
+			await this.render(false);
+			const root      = this.element?.[0];
+			const newStepEl = root?.querySelector(".stonetop-onboarding-step");
+			if (newStepEl) newStepEl.scrollTop = scrollTop;
+			// Keyboard focus stays on the radio the player just moved to.
+			[...(root?.querySelectorAll(`[name='${name}']`) ?? [])].find(r => r.value === value)?.focus({ preventScroll: true });
 		});
 
 		// Filter the move cards by the search text and the active group chip. Pure
@@ -2913,20 +3363,15 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		});
 
 		html.find("[name='onboard-crew-tag']").on("change", ev => {
-			const tag     = ev.currentTarget.value;
-			const checked = ev.currentTarget.checked;
-			const limit   = this._rawCrew?.additionalTagCount ?? 2;
-			if (checked) {
-				if (this._selections.crew.tags.length < limit && !this._selections.crew.tags.includes(tag)) {
-					this._selections.crew.tags.push(tag);
-				} else { ev.currentTarget.checked = false; return; }
-			} else {
-				this._selections.crew.tags = this._selections.crew.tags.filter(t => t !== tag);
+			if (!this._toggleCrewTag(ev.currentTarget.value, ev.currentTarget.checked)) {
+				ev.currentTarget.checked = false;
+				return;
 			}
 			ev.currentTarget.closest(".stonetop-onboarding-tag-option")
 				?.classList.toggle("is-selected", ev.currentTarget.checked);
-			html.find(".stonetop-onboarding-crew-tag-count").text(this._selections.crew.tags.length);
-			const atLimit = this._selections.crew.tags.length >= limit;
+			const picked  = this._crewPickedTags().length;
+			html.find(".stonetop-onboarding-crew-tag-count").text(picked);
+			const atLimit = picked >= this._crewTagLimit();
 			html.find("[name='onboard-crew-tag']:not([data-auto])").each((_, el) => {
 				if (!el.checked) el.disabled = atLimit;
 			});
@@ -2939,12 +3384,14 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		html.find(".onboard-crew-tag-custom").on("input", ev => {
 			const value = ev.currentTarget.value.trim();
 			const known = new Set(this._rawCrew?.availableTags ?? []);
-			const limit = this._rawCrew?.additionalTagCount ?? 2;
-			const tags  = this._selections.crew.tags.filter(t => known.has(t));
+			const limit = this._crewTagLimit();
+			const bgTag = this._crewBgTag();
+			const tags  = this._selections.crew.tags.filter(t => known.has(t) && t !== bgTag);
 			if (value && tags.length < limit) tags.push(value);
 			this._selections.crew.tags = tags;
-			html.find(".stonetop-onboarding-crew-tag-count").text(tags.length);
-			html.find("[name='onboard-crew-tag']:not([data-auto]):not(:checked)").prop("disabled", tags.length >= limit);
+			const picked = this._crewPickedTags().length;
+			html.find(".stonetop-onboarding-crew-tag-count").text(picked);
+			html.find("[name='onboard-crew-tag']:not([data-auto]):not(:checked)").prop("disabled", picked >= limit);
 			_refreshNextButton();
 		});
 		// Suggestion-radio + "or write your own" custom-input pair (crew/AC instinct &
@@ -2997,11 +3444,18 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			_refreshAnimalCompanionKind();
 			_refreshNextButton();
 		});
+		// The "more options than your companion can have" line (the step's `overCount`), kept in step
+		// as picks are unticked, since these handlers don't re-render.
+		const _refreshCompanionOver = (picked, limit) => {
+			const over = Math.max(0, picked - limit);
+			html.find(".stonetop-onboarding-ac-over").prop("hidden", !over);
+			html.find(".stonetop-onboarding-ac-over-count").text(over);
+		};
 		html.find("[name='onboard-ac-trait']").on("change", ev => {
 			const trait   = ev.currentTarget.value;
 			const checked = ev.currentTarget.checked;
 			const typeData = this._rawAnimalCompanion?.types?.find(t => t.slug === this._selections.animalCompanion.type);
-			const limit = typeData?.pickCount ?? 0;
+			const limit = this._companionTraitLimit(typeData);
 			if (checked) {
 				if (this._selections.animalCompanion.traits.length < limit && !this._selections.animalCompanion.traits.includes(trait)) {
 					this._selections.animalCompanion.traits.push(trait);
@@ -3012,6 +3466,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			ev.currentTarget.closest(".stonetop-onboarding-tag-option")
 				?.classList.toggle("is-selected", ev.currentTarget.checked);
 			html.find(".stonetop-onboarding-ac-trait-count").text(this._selections.animalCompanion.traits.length);
+			_refreshCompanionOver(this._selections.animalCompanion.traits.length, limit);
 			const atLimit = this._selections.animalCompanion.traits.length >= limit;
 			html.find("[name='onboard-ac-trait']:not(:checked)").prop("disabled", atLimit);
 			const traitCustom = html.find(".onboard-ac-trait-custom");
@@ -3025,11 +3480,12 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			const value    = ev.currentTarget.value.trim();
 			const typeData = this._rawAnimalCompanion?.types?.find(t => t.slug === this._selections.animalCompanion.type);
 			const known    = new Set(typeData?.traits ?? []);
-			const limit    = typeData?.pickCount ?? 0;
+			const limit    = this._companionTraitLimit(typeData);
 			const traits   = this._selections.animalCompanion.traits.filter(t => known.has(t));
 			if (value && traits.length < limit) traits.push(value);
 			this._selections.animalCompanion.traits = traits;
 			html.find(".stonetop-onboarding-ac-trait-count").text(traits.length);
+			_refreshCompanionOver(traits.length, limit);
 			html.find("[name='onboard-ac-trait']:not(:checked)").prop("disabled", traits.length >= limit);
 			_refreshNextButton();
 		});
@@ -3041,32 +3497,27 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 
 		// ── Lore picks ────────────────────────────────────────────────
 		html.find("[name^='onboard-lore-pick-']").on("change", ev => {
-			const { section, option } = ev.currentTarget.dataset;
-			const key     = `${section}:${option}`;
-			const checked = ev.currentTarget.checked;
+			const { section, option, index } = ev.currentTarget.dataset;
 			const rawSec  = this._rawLore.find(s => s.slug === section);
 			const pickMax = this._parseLorePickMax(rawSec);
 
-			if (checked) {
-				const current = this._countLoreSectionPicks(section);
-				if (current >= pickMax) {
-					ev.currentTarget.checked = false;
-					return;
-				}
-				this._selections.lore.picks[key] = 1;
-			} else {
-				this._selections.lore.picks[key] = 0;
+			if (!this._setLorePick(rawSec, option, Number(index ?? 0), ev.currentTarget.checked)) {
+				ev.currentTarget.checked = !ev.currentTarget.checked;
+				return;
 			}
 
-			ev.currentTarget.closest(".stonetop-onboarding-lore-pick")
-				?.classList.toggle("is-selected", ev.currentTarget.checked);
-
+			// Redrawn from the counts, since one tick can change a neighbouring box: ticking an
+			// option's second box takes the first too, and unticking its first drops both.
 			const newCount = this._countLoreSectionPicks(section);
 			const atLimit  = pickMax < Infinity && newCount >= pickMax;
 			html.find(`[name='onboard-lore-pick-${section}']`).each((_, el) => {
-				if (!el.checked) el.disabled = atLimit;
-				el.closest(".stonetop-onboarding-lore-pick")
-					?.classList.toggle("stonetop-onboarding-lore-pick--disabled", !el.checked && atLimit);
+				const count = this._selections.lore.picks[`${section}:${el.dataset.option}`] ?? 0;
+				const box   = Number(el.dataset.index ?? 0);
+				el.checked  = box < count;
+				el.disabled = !el.checked && (atLimit || box > count);
+				const row = el.closest(".stonetop-onboarding-lore-pick");
+				row?.classList.toggle("is-selected", count > 0);
+				row?.classList.toggle("stonetop-onboarding-lore-pick--disabled", !count && atLimit);
 			});
 			html.find(".stonetop-onboarding-lore-pick-count").text(newCount);
 			_refreshNextButton();
@@ -3099,13 +3550,13 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		});
 
 		// Marking a ○ circle / □ task inline on the chosen major's card front, right in
-		// onboarding. The checkbox's own :checked state shows the mark; we just persist it.
+		// onboarding. "Mark 1": a tick replaces the mark held (the other boxes clear, like a
+		// radio), and the step's Next waits for exactly one (_seekerMajorMarkDone).
 		html.find(".stonetop-onboarding-arcana-mark").on("change", ev => {
 			const { context, index } = ev.currentTarget.dataset;
-			const key   = `${context}:${index}`;
-			const marks = new Set(this._selections.arcana.majorMarks);
-			if (ev.currentTarget.checked) marks.add(key); else marks.delete(key);
-			this._selections.arcana.majorMarks = [...marks];
+			this._markSeekerMajor(`${context}:${index}`, ev.currentTarget.checked);
+			if (ev.currentTarget.checked) html.find(".stonetop-onboarding-arcana-mark").not(ev.currentTarget).prop("checked", false);
+			_refreshNextButton();
 		});
 
 		html.find("[name^='onboard-seeker-minor-role-']").on("change", ev => {
@@ -3157,7 +3608,8 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		});
 
 		html.find(".onboard-name-chip").on("click", ev => {
-			const name = ev.currentTarget.dataset.name;
+			const { name: word, combine } = ev.currentTarget.dataset;
+			const name = combineNameChip(this._selections.name, word, Number(combine) || 0);
 			this._selections.name = name;
 			html.find(".onboard-name-input").val(name);
 			_refreshNextButton();

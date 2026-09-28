@@ -1,0 +1,32 @@
+{
+  "_id": "PqlQqc82Ww7z97Nr",
+  "_key": "!items!PqlQqc82Ww7z97Nr",
+  "name": "Bark an Order",
+  "type": "move",
+  "system": {
+    "playbook": "The Heavy",
+    "moveType": "playbook",
+    "description": "<p>When you <strong><em>bark an order or warning</em></strong>, roll +CHA: <strong>on a 7+</strong>, they must choose 1:</p><ul><li>Do what you say</li><li>Dig in/take cover/flee</li><li>Attack you</li></ul><p><strong><em>On a 10+</em></strong>, you can sense which one they're about to do and act first if you like; gain advantage if you do.</p>",
+    "rollType": "cha",
+    "moveResults": {
+      "success": {
+        "label": "10+",
+        "value": "They must choose 1 (do what you say, dig in/take cover/flee, or attack you), and you sense which one they're about to do: act first if you like, and gain advantage if you do."
+      },
+      "partial": {
+        "label": "7-9",
+        "value": "They must choose 1: do what you say, dig in/take cover/flee, or attack you."
+      },
+      "failure": {
+        "label": "6-",
+        "value": "The GM makes a move."
+      }
+    },
+    "requirement": {
+      "playbook": "The Heavy",
+      "background": "sheriff",
+      "note": "Sheriff background"
+    }
+  },
+  "folder": "EGBb1iIndbhAI7zU"
+}

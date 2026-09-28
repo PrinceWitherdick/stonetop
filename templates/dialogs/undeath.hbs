@@ -83,6 +83,17 @@
 		{{/if}}
 		{{/if}}
 
+		{{#if unholyVessel}}
+		{{! The Thrall's Unholy Vessel: the move demands a Mark and none is left to gain. It replaces
+		    the costs outright, since there is nobody left to pay them. }}
+		<div class="undeath-unholy-vessel">
+			<p class="undeath-pick-label">{{unholyVessel.label}}</p>
+			<p class="undeath-hint undeath-warning">
+				<i class="fas fa-triangle-exclamation"></i>
+				{{unholyVessel.warning}}
+			</p>
+		</div>
+		{{else}}
 		<p class="undeath-pick-label">
 			{{#if allApply}}
 			All of these apply:
@@ -106,6 +117,7 @@
 					{{#if (eq kind "task")}}
 					<input type="text" class="undeath-task-input" value="{{choice}}"
 					       placeholder="What does your master demand?">
+					{{#if ../standingTask}}<p class="undeath-hint">{{../standingTask}}</p>{{/if}}
 					{{else if options.length}}
 					<select class="undeath-effect-select" data-kind="{{kind}}">
 						<option value="">&mdash; choose &mdash;</option>
@@ -118,6 +130,7 @@
 			</div>
 			{{/each}}
 		</div>
+		{{/if}}
 
 		{{#if alternative}}
 		{{! The Revenant's 6- fork: not one of the three, a different answer entirely. }}
@@ -154,7 +167,7 @@
 	{{#if isResolve}}
 	<button class="undeath-cancel-btn" type="button">Cancel</button>
 	<button class="undeath-apply-btn is-primary" type="button" {{#unless canApply}}disabled{{/unless}}>
-		<i class="fas fa-check"></i> Apply
+		<i class="fas fa-check"></i> {{#if applyLabel}}{{applyLabel}}{{else}}Apply{{/if}}
 	</button>
 	{{/if}}
 

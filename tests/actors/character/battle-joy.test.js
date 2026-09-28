@@ -1,15 +1,33 @@
 import { describe, it, expect } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
 	BATTLE_JOY_FLAG, BATTLE_JOY, BERSERKER,
-	ownsMoveNamed, canEnterBattleJoy, showBattleJoy, ignoresDebilities,
+	ownsMoveNamed, canEnterBattleJoy, showBattleJoy, ignoresDebilities, battleJoyEndsUnrolled,
+	battleJoyTierActions, battleJoyRollOptions,
 } from "../../../module/actors/character/battle-joy.js";
+import { SYSTEM_ID } from "../../../module/system-id.js";
 
 const actorWith = (...items) => ({ items });
 const move = name => ({ type: "move", name });
+const unlearned = name => ({ type: "move", name, flags: { [SYSTEM_ID]: { learned: false } } });
 
 describe("who can enter a Battle Joy", () => {
 	it("counts the move that makes the state", () => {
 		expect(canEnterBattleJoy(actorWith(move(BATTLE_JOY)))).toBe(true);
+	});
+
+	// A move kept on the sheet switched off enters nothing, and so earns no glyph.
+	it("needs the move LEARNED, not just owned", () => {
+		expect(canEnterBattleJoy(actorWith(unlearned(BATTLE_JOY)))).toBe(false);
+		expect(canEnterBattleJoy(actorWith(unlearned(BATTLE_JOY)), new Set([BATTLE_JOY]))).toBe(false);
+	});
+
+	// A playbook change asks with the names it is keeping: a Battle Joy on its way out makes nothing.
+	it("reads ownership off the Set it is handed", () => {
+		expect(canEnterBattleJoy(actorWith(move(BATTLE_JOY)), new Set())).toBe(false);
+		expect(canEnterBattleJoy(actorWith(move(BATTLE_JOY)), new Set([BATTLE_JOY]))).toBe(true);
 	});
 
 	// Berserker only READS the state ("while in your Battle Joy…") and its own requirement is
@@ -50,15 +68,79 @@ describe("whether the glyph renders at all", () => {
 });
 
 describe("ignoring the effects of debilities", () => {
-	it("is exactly 'are they raging'", () => {
-		expect(ignoresDebilities({ raging: true })).toBe(true);
-		expect(ignoresDebilities({ raging: false })).toBe(false);
+	it("is 'are they raging, with the move learned'", () => {
+		expect(ignoresDebilities({ raging: true, learned: true })).toBe(true);
+		expect(ignoresDebilities({ raging: false, learned: true })).toBe(false);
+	});
+
+	// A rage stranded on a sheet whose Battle Joy was switched off keeps its glyph so it can be ended,
+	// and ignores nothing meanwhile.
+	it("ignores nothing once the move is un-learned", () => {
+		expect(ignoresDebilities({ raging: true, learned: false })).toBe(false);
+		expect(ignoresDebilities({ raging: true })).toBe(false);
 	});
 
 	// Called from the roll path with whatever the flag held, which validates nothing.
 	it("survives being asked with nothing", () => {
 		expect(ignoresDebilities()).toBe(false);
 		expect(ignoresDebilities({})).toBe(false);
+	});
+});
+
+// The ruling: a Heavy who drops has stopped fighting, so their Battle Joy ends with no +CON roll.
+describe("when the Battle Joy ends with no roll", () => {
+	const at = (hp, deathsDoor = null) => ({
+		system: { attributes: { hp: { value: hp } } },
+		flags: { [SYSTEM_ID]: deathsDoor ? { deathsDoor } : {} },
+	});
+
+	it("for one at 0 HP, or with Death's Door dying, owed or behind them", () => {
+		expect(battleJoyEndsUnrolled(at(0))).toBe(true);
+		expect(battleJoyEndsUnrolled(at(0, "dying"))).toBe(true);
+		expect(battleJoyEndsUnrolled(at(3, "fate-pending"))).toBe(true);
+		expect(battleJoyEndsUnrolled(at(3, "dead"))).toBe(true);
+	});
+
+	it("not for a Heavy still standing", () => {
+		expect(battleJoyEndsUnrolled(at(5))).toBe(false);
+		expect(battleJoyEndsUnrolled(at(5, "out-of-action"))).toBe(false);
+	});
+});
+
+// "On a 10+, that was a rush, regain 1d4 HP; ... on a 6-, mark a debility but don't mark XP."
+describe("the ending roll's card", () => {
+	const DEBILITIES = [
+		{ key: "weakened", name: "Weakened", marked: false },
+		{ key: "dazed", name: "Dazed", marked: true },
+		{ key: "miserable", name: "Miserable", marked: false },
+	];
+
+	it("offers the 10+'s regain and a 6- button per debility not yet marked, nothing on a 7-9", () => {
+		const actions = battleJoyTierActions(DEBILITIES);
+		expect(actions.success).toContain('data-choice="regain"');
+		expect(actions.success).toContain("regain 1d4 HP");
+		expect(actions.failure).toContain('data-choice="weakened"');
+		expect(actions.failure).toContain("Mark Miserable");
+		expect(actions.failure).not.toContain("dazed");
+		expect(actions.partial).toBeUndefined();
+	});
+
+	it("rolls with no XP on a miss", () => {
+		expect(battleJoyRollOptions(DEBILITIES)).toMatchObject({ noXpOnMiss: true });
+	});
+});
+
+// The pack's own copy: no XP on a 6- in the data too, and its paraphrase without an em dash.
+describe("the packaged Battle Joy", () => {
+	const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+	const doc = JSON.parse(fs.readFileSync(path.join(ROOT, "packs/src/stonetop-items/playbook-moves/the-heavy/battle-joy.json"), "utf8"));
+
+	it("says noXpOnMiss", () => {
+		expect(doc.system.noXpOnMiss).toBe(true);
+	});
+
+	it("paraphrases its tiers without an em dash", () => {
+		expect(JSON.stringify(doc.system.moveResults)).not.toContain(String.fromCharCode(0x2014));
 	});
 });
 

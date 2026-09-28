@@ -14,6 +14,7 @@ import { repairCharacterTokenLinks, applyLinkChoices } from "../migration/link-c
 import { CharacterTokenLinkDialog } from "../dialogs/CharacterTokenLinkDialog.js";
 import { createArcanumItem, newArcanumSlug, isArcanumData } from "../item/createArcanum.js";
 import { renameAllSeasonYearPages } from "../migration/season-year-page-names.js";
+import { clearAllBlankDangers } from "../migration/blank-dangers.js";
 import { ensureStonetopSingleton, remindDestinedOmenRoll } from "./StonetopSingleton.js";
 import { runWorldSetup, pendingSetupWork } from "./WorldSetup.js";
 import { reapplyBook2Art, hasImportedBook2Art } from "../book2-art/reapply.js";
@@ -36,6 +37,7 @@ import { ExpeditionDialog } from "../dialogs/ExpeditionDialog.js";
 import { WeatherDialog } from "../dialogs/WeatherDialog.js";
 import { refreshWeatherFx } from "../seasons/current-weather.js";
 import { postFxMasterSuggestionOnce } from "../seasons/fxmaster-suggestion.js";
+import { postAttackFxSuggestionOnce } from "../combat/attack-fx-suggestion.js";
 import { WelcomeDialog } from "../dialogs/WelcomeDialog.js";
 import { FoundryBasicsDialog } from "../dialogs/FoundryBasicsDialog.js";
 import { CharacterCreationDialog } from "../actors/character/dialogs/CharacterCreationDialog.js";
@@ -49,6 +51,7 @@ import { StonetopArcanaInspireDialog } from "../item/StonetopArcanaInspireDialog
 import { StonetopBrowserDialog } from "../dialogs/StonetopBrowserDialog.js";
 import { findVisibleJournal, SETTING_OVERVIEW_JOURNAL } from "../utils/seeded-journals.js";
 import { getStonetopSteadingActor, getStonetopSteadingActorOrWarn } from "../utils/world.js";
+import { nextSeasonStamp, readCurrentSeason, readCurrentYear } from "../seasons/current-season.js";
 import { rollMoveFromUuid } from "./HotbarDrop.js";
 import { ensureThreatsEntry } from "../threats/threat-store.js";
 import { ensureHazardsEntry } from "../hazards/hazard-store.js";
@@ -66,6 +69,12 @@ import { NEW_SHOOT_MARKER, LEGACY_SHOOT_MARKERS } from "../data/follower-actor.j
 import { isDefaultImg } from "../utils/strings.js";
 import { updatePlacedTokens } from "../utils/placed-tokens.js";
 import { grandfatherWeaponsOfWar } from "../migration/weapons-of-war-grandfather.js";
+import { grandfatherRetiredMoves } from "../migration/retired-move-grandfather.js";
+import { grandfatherWouldBeHeroes } from "../migration/would-be-hero-grandfather.js";
+import { repairAllPossessionGrants } from "../migration/possession-grant-repair.js";
+import { repairMasteredArcanumCircles } from "../migration/mastered-arcanum-circles.js";
+import { settleAllArcanumBoxLayouts, settleOwnArcanumBoxLayouts } from "../migration/tulpa-move-boxes.js";
+import { refreshHeldMoves } from "../migration/move-refresh.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
 const _EOS_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/truce.svg";
@@ -217,6 +226,38 @@ export async function onReady() {
 		// narrowed grant is what ships, so a world swept once has nothing left to find.
 		try { await oncePerVersion("weaponsOfWarGrandfather", grandfatherWeaponsOfWar); }
 		catch (err) { console.error("Stonetop | Weapons of War grandfathering failed", err); }
+		// Stamp the replacing moves taken before anything recorded the move they retired, so the
+		// original's absence still reads as met (migration/retired-move-grandfather.js). GATED: legacy
+		// repair, and it only ever reaches copies made under a release that never stamped.
+		try { await oncePerVersion("retiredMoveGrandfather", grandfatherRetiredMoves); }
+		catch (err) { console.error("Stonetop | replacing-move grandfathering failed", err); }
+		// Keep "The Hero" for a Would-Be Hero who was one by OWNING a starred move, before crossing off
+		// waited for its first use (migration/would-be-hero-grandfather.js). GATED: legacy repair, and it
+		// only ever reaches moves made under a release that crossed off on ownership.
+		try { await oncePerVersion("wouldBeHeroGrandfather", grandfatherWouldBeHeroes); }
+		catch (err) { console.error("Stonetop | Would-Be Hero grandfathering failed", err); }
+		// Bring special-possession gear made before its grant was corrected up to the grant (the
+		// Tannery cuirass made as a stacking modifier; see migration/possession-grant-repair.js).
+		// Per VERSION, because a grant only changes with a release: each new version is one more
+		// chance for a grant to have moved, and between releases there is nothing to find.
+		try { await oncePerVersion("possessionGrantRepair", repairAllPossessionGrants); }
+		catch (err) { console.error("Stonetop | special-possession gear repair failed", err); }
+		// Fill in what the pack has gained on moves characters already hold: a track, a miss that marks
+		// no XP (migration/move-refresh.js). Per VERSION, like the grant repair above, and what lets
+		// every rule read the held copy with no fallback to the pack of its own.
+		try { await oncePerVersion("moveRefresh", refreshHeldMoves); }
+		catch (err) { console.error("Stonetop | refreshing held moves failed", err); }
+		// Tick the rest of the unlock circles on a Seeker's mastered card that the old run-count
+		// grant left at one (migration/mastered-arcanum-circles.js). GATED: legacy repair, and a
+		// world swept once has nothing left to find.
+		try { await oncePerVersion("masteredArcanumCircles", repairMasteredArcanumCircles); }
+		catch (err) { console.error("Stonetop | mastered arcanum repair failed", err); }
+		// Move marks on arcana whose printed boxes have moved (the beautiful scroll's four move
+		// boxes; migration/tulpa-move-boxes.js). Per VERSION: each character records that it has
+		// been settled in the same write that settles it, so a repeat, a sweep that dies part-way
+		// or a player's own client settling first all leave nothing to do twice.
+		try { await oncePerVersion("arcanumBoxLayouts", settleAllArcanumBoxLayouts); }
+		catch (err) { console.error("Stonetop | arcanum box layout settle failed", err); }
 
 		// Point player tokens back at the characters they stand for. An unlinked PC token carries
 		// a private copy of its character, and the two drift because a roll writes to the sheet's
@@ -238,6 +279,11 @@ export async function onReady() {
 		// See migration/season-year-page-names.js.
 		try { await renameAllSeasonYearPages(); }
 		catch (err) { console.error("Stonetop | Chronicle year-page rename failed", err); }
+		// Take out the blank Dangers entries the page sheet wrote until 43ca5442, one after every
+		// real entry on each save (see migration/blank-dangers.js). Once per version: a full walk
+		// of every journal page, and nothing writes them any more.
+		try { await oncePerVersion("blankDangers", clearAllBlankDangers); }
+		catch (err) { console.error("Stonetop | blank Dangers entry cleanup failed", err); }
 		try { await migrateAllSteadingPeople(); }
 		catch (err) { console.error("Stonetop | Residents/Neighbors → NPC conversion failed", err); }
 		// Give already-linked Residents of Stonetop a "Stonetop" Home if theirs is blank
@@ -356,12 +402,22 @@ export async function onReady() {
 	game.stonetop.openSeasonsChange = () => {
 		getStonetopSteadingActorOrWarn()?.sheet._onSeasonsChange();
 	};
+	// The same move with the picker skipped: straight to the season after the one the clock is in
+	// (Winter turns over into Spring of the next year). The top-of-screen bar's "Next Season"
+	// button (seasons/time-banner.js). Warns if there's no steading yet.
+	game.stonetop.openNextSeason = () => {
+		const steading = getStonetopSteadingActorOrWarn();
+		if (!steading) return;
+		const next = nextSeasonStamp(readCurrentSeason(steading), readCurrentYear(steading));
+		steading.sheet._showSeasonDialog(next.season, next.year);
+	};
 	// Compile the recorded Introductions + Spring Burst answers into the shared
 	// "Chronicle" journal and open it (GM-only). Callable from the Introductions
 	// dialog's "Let spring break forth!" finish, the Expedition dialog, a macro, or
 	// the console.
 	game.stonetop.saveChronicle     = () => writeChronicle().then(j => j?.sheet?.render(true));
 	game.stonetop.openExpedition    = () => ExpeditionDialog.open();
+	game.stonetop.onExpeditionLog   = (value, userId) => ExpeditionDialog.onLogChanged(value, userId);
 	game.stonetop.openWeather       = () => WeatherDialog.open();
 	// Put the canvas weather back in step with the weather-effect settings. Registered here
 	// because settings.js reaches this way rather than importing the seasons module, which reads
@@ -485,6 +541,12 @@ export async function onReady() {
 	// READ it, which is what the two features did to them before this existed.
 	game.stonetop.rulebooks         = rulebookMacroApi();
 
+	// A player settles their own characters' arcana marks on load rather than waiting for the GM's
+	// sweep (migration/tulpa-move-boxes.js), so the first client to show a moved card shows it
+	// right. Background: it is a flag read per character, and a write only the once.
+	if (!game.user.isGM) {
+		settleOwnArcanumBoxLayouts().catch(err => console.error("Stonetop | arcanum box layout settle failed", err));
+	}
 	_registerCharacterAutoOpen();
 	_registerGmToolkitAdopt();
 	// Close any half-finished creation whose character is deleted out from under it — the
@@ -565,6 +627,9 @@ export async function onReady() {
 		catch (err) { console.error("Stonetop | player hotbar macro placement failed", err); }
 	}
 	if (game.user.isGM) {
+		// Read BEFORE the greeting is posted: afterwards every world has had it, and the attack
+		// effects card below is only for a world greeted before the greeting named its modules.
+		const greeted = !!getSetting("startupWelcomeShown");
 		await _postStartupWelcomeMessageOnce();
 		await _postBook2ArtReminderOnce();
 		// After the art reminder, and for the same reason it is ordered where it is: both are
@@ -574,6 +639,8 @@ export async function onReady() {
 		// than a suggestion about an optional module, so a failed post must not take it with it.
 		try { await postFxMasterSuggestionOnce(); }
 		catch (err) { console.error("Stonetop | FXMaster suggestion failed:", err); }
+		try { await postAttackFxSuggestionOnce({ greeted }); }
+		catch (err) { console.error("Stonetop | attack effects suggestion failed:", err); }
 		// Background, like the seeds above. This one has to BROWSE the art folder before it
 		// can tell there is nothing to offer, and it deliberately leaves its flag unset when
 		// the plan is empty so a later import still gets the nudge — so for a GM who never
@@ -2048,7 +2115,9 @@ function _buildStartupWelcomeContent() {
 			</div>
 			<div class="row row--border stonetop-startup-card__footer">
 				Open <strong>Configure Settings</strong> and filter for <strong>Stonetop</strong> for the sheet font and size, the hover info, and the rest.
-				<a href="https://foundryvtt.com/packages/dice-so-nice">Dice So Nice!</a> is worth installing for 3D dice.
+				Worth installing: <a href="https://foundryvtt.com/packages/dice-so-nice">Dice So Nice!</a> for 3D dice,
+				<a href="https://foundryvtt.com/packages/sequencer">Sequencer</a> and <a href="https://foundryvtt.com/packages/JB2A_DnD5e">JB2A</a> to see swords swing and arrows fly on the map,
+				and <a href="https://foundryvtt.com/packages/soundfxlibrary">SoundFx Library</a> to hear them land.
 			</div>
 		</div>
 	</section>`;

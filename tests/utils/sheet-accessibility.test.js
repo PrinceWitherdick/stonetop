@@ -98,7 +98,7 @@ describe("the class names the stylesheet is waiting for", () => {
 	// The join. Each of these is one string agreed between a `classList.toggle` and a selector,
 	// and a mismatch is silent on both sides.
 	it("matches every class the apply functions set to a rule that paints it", () => {
-		for (const name of ["stonetop-high-contrast", "stonetop-no-texture", "stonetop-no-italics"]) {
+		for (const name of ["stonetop-high-contrast", "stonetop-dark", "stonetop-no-texture", "stonetop-no-italics"]) {
 			expect(SETTINGS_SRC, `${name} is not set by settings.js`)
 				.toContain(`classList.toggle("${name}"`);
 			expect(CSS, `${name} is set but nothing in the stylesheet answers to it`)
@@ -189,8 +189,8 @@ describe("the registrations", () => {
 		const body = registration("sheetContrast");
 		expect(body).toMatch(/type:\s*String/);
 		expect(body).toMatch(/choices:\s*\{/);
-		expect(body).toContain('"normal": "stonetop.settings.sheetContrast.normal"');
-		expect(body).toContain('"high":   "stonetop.settings.sheetContrast.high"');
+		expect(body).toMatch(/"normal":\s*"stonetop\.settings\.sheetContrast\.normal"/);
+		expect(body).toMatch(/"high":\s*"stonetop\.settings\.sheetContrast\.high"/);
 	});
 });
 

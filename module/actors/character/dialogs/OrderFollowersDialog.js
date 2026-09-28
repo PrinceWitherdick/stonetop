@@ -30,7 +30,13 @@ import { sign } from "../../../utils/roll-engine.js";
 // tags plus their own, under their own name. That is how Glaw Lets Fly while the
 // rest of the crew Clashes: two orders, two rolls.
 //
-// Hands { bonus, rollMode, moveName, moveKey, followerName, member } back to the
+// SHIELD WALL (the Marshal): "When you have your crew form a shield wall, they Defend with advantage
+// and on a 7+ they hold +2 Readiness (instead of the usual +1 for shields)." Whether they HAVE formed
+// one is the fiction's, so a crew ordered to Defend by a Marshal with the move gets its own box, ticked,
+// naming the move; unticked, it is an ordinary Defend. Its own box rather than the Advantage toggle, so
+// the card and the readout can say where the advantage came from.
+//
+// Hands { bonus, rollMode, moveName, moveKey, followerName, member, shieldWall } back to the
 // caller (which calls StonetopCharacter.onOrderFollowersRoll). `member` is the
 // picked member's key, or null for the whole group or a follower who is one person.
 
@@ -54,8 +60,9 @@ export class OrderFollowersDialog extends StonetopDialog {
 	/**
 	 * @param {Actor}    actor
 	 * @param {object}   follower  - { name, tags: string[], moves: string[], exceptional: bool,
-	 *   members?: Array<{key, name, tags: string[]}> } — `members` only for a group ordered as a
-	 *   whole, each with their OWN tags (utils/crew.js#groupFollowerMembers)
+	 *   members?: Array<{key, name, tags: string[]}>, hinderingTags?: string[] }: `members` only for
+	 *   a group ordered as a whole, each with their OWN tags (utils/crew.js#groupFollowerMembers);
+	 *   `hinderingTags` start marked in the way
 	 * @param {Function} onRoll    - async ({ bonus, rollMode, moveName, moveKey, followerName, member }) => void
 	 */
 	constructor(actor, follower, onRoll, options = {}) {
@@ -73,8 +80,11 @@ export class OrderFollowersDialog extends StonetopDialog {
 			? this._follower.moveKey
 			: "defy-danger";
 		this._customMove = "";
-		// Per-tag state: "help" | "hinder" | "" (neither). Keyed by tag string.
+		// Per-tag state: "help" | "hinder" | "" (neither). Keyed by tag string. A tag the caller
+		// names in `hinderingTags` (an animal companion's "injured") starts in the way; a click
+		// still cycles it, the call being the table's.
 		this._tagState   = {};
+		for (const tag of this._follower.hinderingTags ?? []) if (tag) this._tagState[tag] = "hinder";
 		// Per-move state: "help" | "" only — a move can earn the bonus but can't
 		// impose disadvantage (p.462 says "if any of their *tags* would get in the
 		// way"). Kept in its own map so a move whose text happens to match a tag
@@ -82,6 +92,8 @@ export class OrderFollowersDialog extends StonetopDialog {
 		this._moveState   = {};
 		this._advantage    = false;
 		this._disadvantage = false;
+		// Formed up in a shield wall: only asked when `follower.shieldWall` offers it and they Defend.
+		this._inWall       = true;
 	}
 
 	static get defaultOptions() {
@@ -133,6 +145,21 @@ export class OrderFollowersDialog extends StonetopDialog {
 		return this._tags().map(tag => this._tagState[tag] ?? "");
 	}
 
+	/** Whether this order is a Defend by a crew whose Marshal has Shield Wall, i.e. the box is shown. */
+	_offersWall() {
+		return !!this._follower.shieldWall && this._moveKey === "defend";
+	}
+
+	/** Whether Shield Wall's advantage is on this roll: offered, and still ticked. */
+	_wallAdvantage() {
+		return this._offersWall() && this._inWall;
+	}
+
+	/** Advantage from either source: the player's toggle, or Shield Wall. */
+	_hasAdvantage() {
+		return this._advantage || this._wallAdvantage();
+	}
+
 	// Live tallies the player's chip picks into the Order Followers result. Moves
 	// count toward `helps` alongside tags; only tags can feed `hinders`.
 	_result() {
@@ -143,7 +170,7 @@ export class OrderFollowersDialog extends StonetopDialog {
 		return orderFollowersBonus({
 			helps, hinders,
 			exceptional:  !!this._follower.exceptional,
-			advantage:    this._advantage,
+			advantage:    this._hasAdvantage(),
 			disadvantage: this._disadvantage,
 		});
 	}
@@ -170,7 +197,7 @@ export class OrderFollowersDialog extends StonetopDialog {
 		// the cancellation especially, which otherwise looks like the ticked boxes
 		// were ignored.
 		const tagsHinder = this._tagsHinder();
-		const modeNote = this._advantage && (tagsHinder || this._disadvantage)
+		const modeNote = (this._hasAdvantage()) && (tagsHinder || this._disadvantage)
 			? "Advantage and disadvantage cancel out: rolling straight (p.230)."
 			: tagsHinder ? "A tag in the way is already imposing disadvantage."
 			: "";
@@ -215,6 +242,8 @@ export class OrderFollowersDialog extends StonetopDialog {
 			})),
 			advantage:    this._advantage,
 			disadvantage: this._disadvantage,
+			shieldWall:   this._offersWall(),
+			inWall:       this._inWall,
 			modeNote,
 			readout:      `Roll ${dice} ${signedBonus}${readoutNote}`,
 		};
@@ -256,6 +285,7 @@ export class OrderFollowersDialog extends StonetopDialog {
 		});
 
 		html.find(".stonetop-of-adv").on("change", ev => { this._advantage    = ev.currentTarget.checked; this.render(false); });
+		html.find(".stonetop-of-wall").on("change", ev => { this._inWall      = ev.currentTarget.checked; this.render(false); });
 		html.find(".stonetop-of-dis").on("change", ev => { this._disadvantage = ev.currentTarget.checked; this.render(false); });
 
 		html.find(".stonetop-of-roll").on("click", () => this._finish());
@@ -278,6 +308,7 @@ export class OrderFollowersDialog extends StonetopDialog {
 		await this._onRoll?.({
 			bonus, rollMode, moveName, moveKey: this._moveKey, followerName: name,
 			member: this._member()?.key ?? null,
+			shieldWall: this._wallAdvantage(),
 		});
 		this.close();
 	}

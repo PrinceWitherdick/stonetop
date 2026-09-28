@@ -70,6 +70,25 @@
 						<p class="stonetop-onboarding-background-choice-fixed">{{value}}</p>
 						{{/if}}
 						{{/if}}
+						{{!-- Well Versed: "Mark 1 topic, in addition to the one noted in your Background". --}}
+						{{#if extraMark}}
+						<p class="stonetop-onboarding-background-move-choice-label">{{extraMark.label}}</p>
+						<div class="stonetop-onboarding-background-choice-options stonetop-onboarding-background-extra-marks">
+							{{#each extraMark.options}}
+							<span class="stonetop-onboarding-bg-option stonetop-onboarding-background-extra-mark{{#if selected}} is-selected{{/if}}{{#if fromBackground}} is-from-background{{/if}}">
+								<input type="radio"
+								       name="onboard-background-extra-mark-{{../../slug}}-{{../key}}"
+								       value="{{slug}}"
+								       data-background-slug="{{../../slug}}"
+								       data-choice-key="{{../key}}"
+								       {{#if selected}}checked{{/if}}
+								       {{#if fromBackground}}disabled{{/if}}>
+								<span class="stonetop-onboarding-well-versed-topic"{{#if summary}} data-tooltip="{{summary}}"{{/if}}>{{label}}</span>
+								{{#if fromBackground}}<em class="stonetop-onboarding-background-extra-mark-note">({{../extraMark.fromBackgroundLabel}})</em>{{/if}}
+							</span>
+							{{/each}}
+						</div>
+						{{/if}}
 					</div>
 					{{/each}}
 				</div>
@@ -152,6 +171,30 @@
 					{{/each}}
 				</div>
 				{{/if}}
+				{{#if picks}}
+				{{!-- The background's own "choose N" list (the Would-Be Hero's Driven and Destined). Short
+				      of the count is flagged, never refused. --}}
+				<div class="stonetop-onboarding-background-picks{{#if picks.inline}} is-inline{{/if}}" data-background-slug="{{slug}}">
+					<p class="stonetop-onboarding-background-setup-label">{{picks.label}} (choose {{picks.countLabel}})</p>
+					<div class="stonetop-onboarding-background-choice-options">
+						{{#each picks.options}}
+						<span class="stonetop-onboarding-bg-option stonetop-onboarding-background-pick-option{{#if selected}} is-selected{{/if}}">
+							<input type="checkbox" class="stonetop-onboarding-check"
+							       name="onboard-background-pick-{{../slug}}"
+							       value="{{slug}}"
+							       data-background-slug="{{../slug}}"
+							       {{#if selected}}checked{{/if}}
+							       {{#if disabled}}disabled{{/if}}>
+							<span>{{label}}</span>
+						</span>
+						{{/each}}
+					</div>
+					<p class="stonetop-onboarding-background-picks-flag"{{#unless picks.underMin}} hidden{{/unless}}>
+						<i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+						<span class="stonetop-onboarding-background-picks-count">{{picks.selectedCount}}</span> chosen; the book asks for {{picks.countLabel}}.
+					</p>
+				</div>
+				{{/if}}
 				{{#if markableActions}}
 				<div class="stonetop-onboarding-background-actions">
 					<p class="stonetop-onboarding-background-setup-label">Mark an action
@@ -165,8 +208,10 @@
 							       value="{{slug}}"
 							       data-background-slug="{{backgroundSlug}}"
 							       {{#if isSelected}}checked{{/if}}
-							       {{#if disabled}}disabled{{/if}}>
+							       {{#if disabled}}disabled{{/if}}
+							       {{#if isLearned}}data-learned="true"{{/if}}>
 							<span>{{{label}}}</span>
+							{{#if isLearned}}<span class="stonetop-onboarding-possession-badge">Marked at level-up</span>{{/if}}
 						</span>
 						{{/each}}
 					</div>
@@ -296,10 +341,10 @@
 			<p class="stonetop-onboarding-names-label">Suggested names for {{region}}:</p>
 			{{#each nameGroups}}
 			<div class="stonetop-onboarding-name-group">
-				<p class="stonetop-onboarding-name-group-label">{{region}}</p>
+				<p class="stonetop-onboarding-name-group-label">{{region}}{{#if note}}: {{note}}{{/if}}</p>
 				<div class="stonetop-onboarding-name-chips">
 					{{#each names}}
-					<button type="button" class="onboard-name-chip" data-name="{{this}}">{{this}}</button>
+					<button type="button" class="onboard-name-chip" data-name="{{this}}" data-combine="{{../combine}}">{{this}}</button>
 					{{/each}}
 				</div>
 			</div>
@@ -310,9 +355,10 @@
 		<div class="stonetop-onboarding-names-section{{#if selected}} is-visible{{/if}}"
 		     data-region="{{region}}">
 			<p class="stonetop-onboarding-names-label">Suggested names for {{region}}:</p>
+			{{#if note}}<p class="stonetop-onboarding-names-label">{{note}}</p>{{/if}}
 			<div class="stonetop-onboarding-name-chips">
 				{{#each names}}
-				<button type="button" class="onboard-name-chip" data-name="{{this}}">{{this}}</button>
+				<button type="button" class="onboard-name-chip" data-name="{{this}}" data-combine="{{../combine}}">{{this}}</button>
 				{{/each}}
 			</div>
 		</div>
@@ -371,7 +417,7 @@
 						       {{#if isPreselected}}data-preselected="true"{{/if}}>
 						<strong class="stonetop-onboarding-card-title">{{{label}}}</strong>
 						{{#if isPreselected}}
-						<span class="stonetop-onboarding-possession-badge">Included</span>
+						<span class="stonetop-onboarding-possession-badge">{{#if isFromBackground}}From your background{{else}}Included{{/if}}</span>
 						{{/if}}
 					</div>
 					{{#if description}}
@@ -531,19 +577,23 @@
 		{{!-- ── Invocations (Lightbearer) ─────────────────────────── --}}
 		{{#if isInvocations}}
 		<h3 class="stonetop-onboarding-step-title">Invocations</h3>
-		<p class="stonetop-onboarding-step-hint">You start knowing {{invocationData.startingCount}} Invocations. Choose them now.</p>
+		<p class="stonetop-onboarding-step-hint">You start knowing {{invocationData.startingCount}} Invocations. Choose them now.{{#if invocationData.learnedCount}} The ones you learned at level-up stay known.{{/if}}</p>
 		<p class="stonetop-onboarding-move-counter">
 			<span class="stonetop-onboarding-invocation-count">{{invocationData.selectedCount}}</span>
 			/ {{invocationData.startingCount}} chosen
 		</p>
 		<div class="stonetop-onboarding-cards">
 			{{#each invocationData.options}}
-			<label class="stonetop-onboarding-card stonetop-onboarding-card--invocation{{#if isSelected}} is-selected{{/if}}">
+			<label class="stonetop-onboarding-card stonetop-onboarding-card--invocation{{#if isSelected}} is-selected{{/if}}{{#if isLearned}} is-preselected{{/if}}">
 				<div class="stonetop-onboarding-card-header">
 					<input type="checkbox" class="stonetop-onboarding-check" name="onboard-invocation" value="{{slug}}"
 					       {{#if isSelected}}checked{{/if}}
-					       {{#if disabled}}disabled{{/if}}>
+					       {{#if disabled}}disabled{{/if}}
+					       {{#if isLearned}}data-learned="true"{{/if}}>
 					<strong class="stonetop-onboarding-card-title">{{label}}</strong>
+					{{#if isLearned}}
+					<span class="stonetop-onboarding-possession-badge">Learned at level-up</span>
+					{{/if}}
 				</div>
 				{{#if description}}
 				<div class="stonetop-onboarding-card-desc">{{{description}}}</div>
@@ -742,6 +792,7 @@
 					<span class="stonetop-onboarding-ac-trait-count">{{acData.selectedType.selectedCount}}</span> / {{acData.selectedType.pickCount}}
 				</span>
 			</p>
+			<p class="stonetop-onboarding-step-hint stonetop-onboarding-ac-over"{{#unless acData.selectedType.overCount}} hidden{{/unless}}>You have more options picked than your companion can have (only {{acData.selectedType.pickCount}}). Untick <span class="stonetop-onboarding-ac-over-count">{{acData.selectedType.overCount}}</span> to go on.</p>
 			<div class="stonetop-onboarding-tag-grid">
 				{{#each acData.selectedType.traits}}
 				<label class="stonetop-onboarding-tag-option{{#if isSelected}} is-selected{{/if}}{{#if isMandatory}} is-mandatory{{/if}}"{{#if isMandatory}} title="Always included; doesn't count toward your picks"{{/if}}>
@@ -890,7 +941,7 @@
 		<div class="stonetop-onboarding-arcana-picker">
 			<section class="stonetop-onboarding-arcana-section">
 				<h4 class="stonetop-onboarding-lore-section-title">Minor Arcana</h4>
-				<p class="stonetop-onboarding-step-hint">Three minor arcana have been drawn at random below. Hover each to review it, then assign a role: one you've Mastered, one you've Found, and one you have a Lead on. Not the draw you wanted? Use <em>Draw again</em> to re-roll all three, or swap any single card for a specific one.</p>
+				<p class="stonetop-onboarding-step-hint">Three minor arcana have been drawn at random below. Review both sides of each (<em>Read both sides</em>), then assign a role: one you've Mastered, one you've Found, and one you have a Lead on. Not the draw you wanted? Use <em>Draw again</em> to re-roll all three, or swap any single card for a specific one.</p>
 				<p class="stonetop-onboarding-lore-counter">
 					<span class="stonetop-onboarding-seeker-minor-count">{{seekerArcanaChoices.minorAssignedCount}}</span>
 					/ {{seekerArcanaChoices.minorPickCount}} assigned
@@ -904,7 +955,24 @@
 							{{#if img}}<img src="{{img}}" alt="">{{/if}}
 							<strong>{{name}}</strong>
 							<span>{{description}}</span>
+							{{#if backSummary}}<strong>{{#if backTitle}}{{backTitle}}{{else}}Back{{/if}}</strong>
+							<span>{{backSummary}}</span>{{/if}}
 						</span>
+						{{!-- "Review both sides": the whole card, front and back, folded until opened. --}}
+						<details class="stonetop-onboarding-minor-sides">
+							<summary>Read both sides</summary>
+							<div class="stonetop-arcanum-body stonetop-onboarding-minor-side">
+								<h5>Front{{#if frontTitle}}: {{frontTitle}}{{/if}}</h5>
+								{{{frontDescription}}}
+								{{#if unlockDescription}}<p class="stonetop-arcanum-unlock-lead">{{{unlockDescription}}}</p>{{/if}}
+							</div>
+							{{#if backDescription}}
+							<div class="stonetop-arcanum-body stonetop-onboarding-minor-side">
+								<h5>Back{{#if backTitle}}: {{backTitle}}{{/if}}</h5>
+								{{{backDescription}}}
+							</div>
+							{{/if}}
+						</details>
 						<div class="stonetop-onboarding-minor-roles">
 							<label>
 								<input type="radio" name="onboard-seeker-minor-role-{{slug}}" value="mastered" data-slug="{{slug}}" {{#if (eq role "mastered")}}checked{{/if}}>
@@ -996,8 +1064,20 @@
 				       value="{{slug}}"
 				       data-section="{{sectionSlug}}"
 				       data-option="{{slug}}"
+				       data-index="0"
 				       {{#if isSelected}}checked{{/if}}
 				       {{#if disabled}}disabled{{/if}}>
+				{{#each extraBoxes}}
+				<input type="checkbox" class="stonetop-onboarding-check"
+				       name="onboard-lore-pick-{{../sectionSlug}}"
+				       value="{{../slug}}"
+				       data-section="{{../sectionSlug}}"
+				       data-option="{{../slug}}"
+				       data-index="{{index}}"
+				       aria-label="Choose it again"
+				       {{#if checked}}checked{{/if}}
+				       {{#if disabled}}disabled{{/if}}>
+				{{/each}}
 				<span class="stonetop-onboarding-lore-pick-text">{{#if hasBlank}}{{{fillBefore}}}<input type="text" class="onboard-lore-text stonetop-onboarding-lore-fill" data-section="{{sectionSlug}}" data-option="{{slug}}" value="{{fillValue}}" placeholder="…" aria-label="Fill in the blank">{{{fillAfter}}}{{else}}{{{description}}}{{/if}}</span>
 			</label>
 			{{/each}}

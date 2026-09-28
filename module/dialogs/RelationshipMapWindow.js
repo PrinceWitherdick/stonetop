@@ -16,7 +16,7 @@
 //    Repainting under a drag replaces the element the pointer is holding.
 
 import { StonetopDialog } from "../utils/stonetop-dialog.js";
-import { themedDialogClasses } from "../utils/window-theme.js";
+import { confirmOutcome } from "../utils/ask-with-buttons.js";
 import { clipText, escHtml } from "../utils/strings.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
 import { finitePlace } from "../utils/window-restore.js";
@@ -27,13 +27,13 @@ import { documentPortraitFrame, portraitOrNone } from "../utils/portrait-frame.j
 import { format, localize } from "../utils/i18n.js";
 import { SYSTEM_ID } from "../system-id.js";
 import { ZoomPanSurface } from "../utils/zoom-pan-surface.js";
-import { wireRelmapDrag } from "../utils/relmap-drag.js";
+import { pressStartsBox, wireRelmapDrag } from "../utils/relmap-drag.js";
 import {
 	RELMAP_BOARD_ASPECT, RELMAP_BOARD_WIDTH, RELMAP_CAPTION_FLOOR_PX, RELMAP_CAPTION_PX,
 	RELMAP_HEAD_PX,
 	ROUTE_HEAD_PATH, ROUTE_HEAD_VIEWBOX,
-	boardMetrics,
-	captionRoomPx, captionSize, clampPct, clearanceBow, curveWithGap, edgeArrowheads, edgeBow,
+	boardBounds, boardMetrics,
+	captionRoomPx, captionSize, clampReach, clearanceBow, curveWithGap, edgeArrowheads, edgeBow,
 	edgeCurve, edgeLabelAnchor, freeSpot, seatAlong, spreadLabels,
 } from "../utils/relmap-geometry.js";
 import {
@@ -243,6 +243,12 @@ const TOOLS = Object.freeze({
 	undo: { needsEdit: true, run: app => app._stepHistory("back") },
 	redo: { needsEdit: true, run: app => app._stepHistory("forward") },
 	add: { needsEdit: true, run: app => app._addPerson() },
+	// MAKING SOMEBODY WHO DOES NOT EXIST YET, and seating them. Behind a SECOND gate as well as the
+	// edit one: Foundry's ACTOR_CREATE, and NOT isGM (the user's call -- players make the people on
+	// their map too). This system grants that permission to players once per world
+	// (Ready.js#_ensurePlayerActorCreationGrant), which is what already lets a background's neighbors
+	// be made on a player's client; a GM who has since revoked it gets a map where only they may.
+	create: { needsEdit: true, needsActorCreate: true, run: app => app._createPerson() },
 	// ⚠ NO "droppulled", AND NO "hidepulled" EITHER. Everything the old "Pull in ratings" button
 	// left behind is read the way every other line on the board is read now: rubbed out one at a
 	// time from the tie bar, with undo behind it. What the checkbox under the board does instead is
@@ -265,6 +271,12 @@ const TOOLS = Object.freeze({
 	pagerename: { needsEdit: true, run: app => app._renamePage() },
 	pagedelete: { needsEdit: true, run: app => app._removePage() },
 });
+
+/** May this reader make a new actor? Foundry's own answer, falling back to isGM where there is no
+ * Actor class to ask (the same fallback the character sheet's background neighbors use). */
+function mayCreateActors() {
+	return globalThis.Actor?.canUserCreate?.(game.user) ?? !!game.user?.isGM;
+}
 
 export class RelationshipMapWindow extends StonetopDialog {
 	constructor(entry, options = {}) {
@@ -362,6 +374,12 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// the two write different patches to different halves of the graph -- and one map holding
 		// both would be one place to ask "is this a node or a line?" on every flush for ever.
 		this._pendingSeat = new Map();
+		// WHO THIS READER HAS SELECTED on the board in front of them, to move together. Theirs
+		// alone and in memory only, like the lit web beside it: a selection is where somebody's
+		// hands are, not a fact about the map, and another player's would be no use to them. The
+		// portraits wearing the mark are replaced by every repaint, so the list lives here and
+		// `_paintSelection` puts the mark back. See utils/relmap-drag.js for the gestures.
+		this._selected = [];
 		// A LINE DRAWN A MOMENT AGO, WAITING FOR THE BOARD TO CATCH UP. The bar is placed from the
 		// last PAINT (`_drawn`), and a line drawn this instant is in the document but not yet in
 		// any paint -- so it cannot be taken hold of until the repaint the write set off arrives.
@@ -683,6 +701,11 @@ export class RelationshipMapWindow extends StonetopDialog {
 			board: await this._renderBoard(plan, canEdit),
 			addLabel: localize("stonetop.relmap.add"),
 			addHint: localize("stonetop.relmap.addHint"),
+			// Whoever may create actors, for the reason the `create` entry in TOOLS gives; rendered
+			// inside the template's `canEdit` block, so it also needs a board that may be written to.
+			canCreatePerson: mayCreateActors(),
+			createLabel: localize("stonetop.relmap.create"),
+			createHint: localize("stonetop.relmap.createHint"),
 			// ⚠ THE VISIBLE NAMES ONLY. What each of these two can actually do, and what it would
 			// take back, is written onto the elements by `_paintHistory` — the history is this
 			// reader's own and is not part of the document a render was built from. They come up
@@ -1004,7 +1027,11 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// a board this reader may only look at, where it would teach a gesture that does nothing.
 		// One sentence, appended rather than woven in, so the three tooltips below stay the three
 		// sentences they are.
-		const gesture = canEdit ? ` ${localize("stonetop.relmap.removeGesture")}` : "";
+		// AND SELECTING SEVERAL, which is the same kind of gesture: a modifier on a click, with nothing
+		// on the board to suggest it until somebody says so.
+		const gesture = canEdit
+			? ` ${localize("stonetop.relmap.removeGesture")} ${localize("stonetop.relmap.selectGesture")}`
+			: "";
 		// ⚠ WITH A FULL STOP PUT IN WHERE THE SENTENCE BEFORE IT HAS NONE. Two of the three
 		// tooltips below end in one; the third is a bare name, and "The Miller Right-click for the
 		// button" is one broken sentence rather than two. Asked of the words rather than of which
@@ -1222,11 +1249,21 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// The sheet THIS render was drawn on, from the plan `getData` just built. Falling back to a
 		// fresh one for a render that somehow reached here without going through `getData` — and
 		// for the tests, which call this directly.
-		const sheet = (this._takePlan() ?? this._plan()).board;
+		const plan = this._takePlan() ?? this._plan();
+		const sheet = plan.board;
 		this._surface = new ZoomPanSurface({
 			view, content: board,
 			naturalWidth: sheet.width,
 			naturalHeight: sheet.height,
+			// WHAT THE BOARD FRAMES IS WHERE THE PEOPLE ARE, and the sheet with them. Somebody put
+			// down off the edge of the sheet is still on the map, and a window that opened on the
+			// sheet alone would be hiding them. See `_boundsOf`.
+			bounds: this._boundsOf(plan),
+			// A SHIFT PRESS ON OPEN PAPER IS THE SELECTION BOX, not a pan. The question is the drag
+			// layer's own (`pressStartsBox`), asked in the same words, so the two cannot disagree
+			// about a press. `canEdit` last, because it walks the map's pages and nearly every press
+			// has already been answered by the Shift key.
+			yields: ev => pressStartsBox(ev, { view, board }) && this.canEdit,
 			controls: BOARD_CONTROLS,
 			menus: BOARD_MENUS,
 			// A gentler wheel than a picture gets, because this board is arranged rather than
@@ -1328,7 +1365,17 @@ export class RelationshipMapWindow extends StonetopDialog {
 			onSeatEnd: (id, restore) => { if (restore !== null) this._slideCaption(id, restore); },
 			onSeatNudge: (id, way) => this._nudgeSeat(id, way),
 			onDragMove: (id, at) => this._previewMove(id, at),
-			onDragEnd: (id, restore) => this._endPreview(id, restore),
+			onDragEnd: (id, restore) => this._endPreview(restore && { [id]: restore }),
+			// ⚠ SEVERAL PEOPLE AT ONCE. The list is this window's (`_selected`) because the marks
+			// are on portraits a repaint replaces; the drag layer asks for it and hands it back. A
+			// group drag is one preview, one write and one step of the undo, however many are in it.
+			selected: () => this._selected,
+			onSelect: (ids, { final = true } = {}) => this._select(ids, { final }),
+			nodesIn: rect => this._nodesIn(rect),
+			onGroupMove: moves => this._moveNodes(moves),
+			onGroupDragMove: moves => this._previewMoves(moves),
+			onGroupDragEnd: restore => this._endPreview(restore),
+			onGroupNudge: moves => this._nudgeNodes(moves),
 			onLink: (a, b) => this._createLink(a, b),
 			onLinkFrom: id => this._linkFrom(id),
 			onOpen: id => this._openPerson(id),
@@ -1394,6 +1441,11 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// built from, and a fresh bar comes up with both buttons enabled until it is told otherwise.
 		this._paintHistory();
 		if (this._lit) this._lightPerson(this._lit);
+		// The selection outlives a render (a resize, say), and its marks do not. Except onto a board
+		// this reader may no longer rearrange, which is what an ownership change renders for: a
+		// selection is only for moving people, and marks there would promise a move that is refused.
+		if (this._selected.length && !this.canEdit) this._selected = [];
+		this._paintSelection();
 		// A change that arrived WHILE this render was in flight, let through now that there is
 		// markup to paint it into. On a timeout for the reason the other two flushes are: this
 		// method is still running, and `_state` is not RENDERED until it returns, so a repaint
@@ -1642,7 +1694,8 @@ export class RelationshipMapWindow extends StonetopDialog {
 		this._fitGapsToPaint();
 		// The sheet itself may have changed size, because somebody else put another person on it.
 		// The reader keeps their zoom either way: the surface only re-fits a board nobody has placed.
-		this._surface?.setNaturalSize(plan.board.width, plan.board.height);
+		// AND ITS BOUNDS WITH IT, since somebody may have been put down off the sheet.
+		this._surface?.setNaturalSize(plan.board.width, plan.board.height, this._boundsOf(plan));
 		// The lines and labels the preview was holding are gone with the markup.
 		this._preview = null;
 		// So is every mark the highlight had put on them. The pointer is very likely still resting
@@ -1656,6 +1709,10 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// repaint is the one that carried that person off — somebody else got there first, and
 		// there is nobody left to bin.
 		if (this._armed) this._armRemove(this._armed);
+		// AND THE SELECTION, for the same reason as the can, and dropping anybody the repaint took
+		// off the board: a selection naming somebody who is not there would carry a ghost along
+		// with every group drag.
+		this._paintSelection();
 		// AND SO IS THE MARK ON THE LINE THE READER IS HOLDING, for the same reason and with one
 		// more: the bar itself survives (it is outside the board), so without this it would go on
 		// floating over a picture with nothing on it saying which line it belongs to. `refresh`
@@ -2683,11 +2740,12 @@ export class RelationshipMapWindow extends StonetopDialog {
 	/**
 	 * The window's one "are you sure", asked twice: dropping a board, and taking somebody off one.
 	 *
-	 * ONE SHELL, because both are the same question and the parts that must not drift are the
-	 * ones nobody looks at twice — the themed classes that give the dialog our chrome at all, and
-	 * `rejectClose: false`, which is what makes dismissing the window mean "no" instead of throwing.
-	 * The buttons NAME the outcome rather than answering a question the reader has to hold in their
-	 * head, and the affirmative one is first, which is this system's order everywhere.
+	 * ONE SHELL, because both are the same question, asked through the system's own confirm
+	 * (utils/ask-with-buttons.js#confirmOutcome), which keeps the parts that must not drift: the
+	 * themed classes that give the dialog our chrome at all, and a dismissed window meaning "no"
+	 * instead of throwing. The buttons NAME the outcome rather than answering a question the reader
+	 * has to hold in their head, and the affirmative one is first, which is this system's order
+	 * everywhere. Enter presses it, as it always has here.
 	 *
 	 * `danger` wears the destructive skin (styles/stonetop.css), which is for dropping a board: that
 	 * destroys work nobody can get back, while removing a person is undoable and so is not red.
@@ -2696,17 +2754,14 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * @returns {Promise<boolean>} Whether the reader pressed the affirmative button.
 	 */
 	async _confirm({ title, body, confirm, cancel, danger = false }) {
-		const go = await foundry.applications.api.DialogV2.wait({
-			classes: themedDialogClasses(),
-			window: { title },
+		const go = await confirmOutcome({
+			title,
 			content: `<p>${escHtml(body)}</p>`,
-			buttons: [
-				{ action: "go", label: confirm, default: true, ...(danger ? { class: "stonetop-dialog-btn--danger" } : {}) },
-				{ action: "keep", label: cancel },
-			],
-			rejectClose: false,
+			yes: { label: confirm, ...(danger ? { className: "stonetop-dialog-btn--danger" } : {}) },
+			no: { label: cancel },
+			defaultYes: true,
 		});
-		return go === "go";
+		return go === true;
 	}
 
 	/** Rename the board that is up. The box opens on the name it already has, so a reader fixing a
@@ -2863,8 +2918,9 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * @param {string} [options.coalesce]  a key naming the GESTURE, where several writes are one.
 	 *        See RELMAP_COALESCE_MS in relmap/relmap-history.js.
 	 * @param {boolean} [options.remember]  whether this is a change to remember at all.
-	 * @param {{kind: "nodes"|"edges", id: string}} [options.onto]  the one person or line a leaf write is
-	 *        about, where it is about one. See below.
+	 * @param {{kind: "nodes"|"edges", id?: string, ids?: string[]}} [options.onto]  the one person or
+	 *        line a leaf write is about, where it is about one, or the several (`ids`) a group move is
+	 *        about. See below.
 	 */
 	async _write(patch, { announce = "", label = "", coalesce = "", remember = true, onto = null } = {}) {
 		if (!patch) return false;
@@ -2885,7 +2941,9 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// drag landing a moment after the removal stood a blank, nameless portrait on the board for the
 		// whole table (and a caption written onto a rubbed-out line left invisible junk and a dead undo
 		// step). Asked of the board the write is about to land on, in the same breath.
-		if (onto && !graph[onto.kind]?.[onto.id]) return false;
+		// A write about SEVERAL (`ids`, a group moved together) is refused the same way if any one of
+		// them has gone; `_moveNodes` leaves the missing out before it asks, so this is a rail.
+		if (onto && !(onto.ids ?? [onto.id]).every(id => graph[onto.kind]?.[id])) return false;
 		const change = remember ? describeWrite(graph, patch) : null;
 		// Announced BEFORE the write. The write repaints the board and takes the live region's
 		// neighbours with it; announcing afterwards can land on a node already replaced.
@@ -3153,15 +3211,35 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * reconciles the two.
 	 */
 	_previewMove(id, at) {
-		const preview = this._preview?.id === id ? this._preview : this._beginPreview(id);
+		this._previewMoves({ [id]: at });
+	}
+
+	/**
+	 * The same for SEVERAL portraits carried at once, `{id: {x, y}}`.
+	 *
+	 * ONE PASS FOR THE WHOLE GROUP, and that is not an economy. A line between two of the people
+	 * being carried has both of its ends moving; drawn once per person, it would be drawn first with
+	 * one end where it is going and the other where it was, and the reader would watch it swing
+	 * between the two every frame. Moved together, it is worked out once with both ends in place.
+	 */
+	_previewMoves(moves) {
+		const ids = Object.keys(moves ?? {});
+		if (!ids.length) return;
+		// KEYED BY WHO IS MOVING, so a group and a single portrait never share a preview whose
+		// `only` covers the wrong lines.
+		const key = [...ids].sort().join(" ");
+		const preview = this._preview?.key === key ? this._preview : this._beginPreview(ids);
 		if (!preview) return;
 		// The cached graph is a private copy — `readGraph` normalizes into a fresh object on every
 		// call — so moving the node in it costs nothing and is thrown away with the preview.
-		const node = preview.graph.nodes[id];
-		node.x = at.x;
-		node.y = at.y;
+		for (const id of ids) {
+			const node = preview.graph.nodes[id];
+			if (!node) continue;
+			node.x = moves[id].x;
+			node.y = moves[id].y;
+		}
 		for (const shape of edgeShapes(preview.graph, {
-			r: preview.board.r, fans: preview.fans, only: id,
+			r: preview.board.r, fans: preview.fans, only: preview.only,
 			boardWidthPx: preview.board.width, painted: preview.painted,
 			// THE WEIGHTS THE STILL LINES AROUND IT WERE DRAWN AT. A dragged line is redrawn sixty
 			// times a second beside lines nobody is touching, and one drawn at a different weight
@@ -3186,11 +3264,20 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * the graph, and the elements are only replaced by a repaint. Rebuilding it per frame would
 	 * re-parse the flag and re-walk the board sixty times a second to learn the same answers.
 	 */
-	_beginPreview(id) {
+	_beginPreview(ids) {
 		const board = this._boardEl();
 		if (!board) return null;
 		const whole = readGraph(this.boardDoc);
-		if (!whole.nodes[id]) return null;
+		const moving = ids.filter(id => whole.nodes[id]);
+		if (!moving.length) return null;
+		// ⚠ WHERE THE ARROW KEYS HAVE PUT PEOPLE, AND THE DOCUMENT HAS NOT HEARD YET. Those portraits are
+		// painted at their unwritten spots (`_nudgeNode`), so a line from one of them drawn off the
+		// document would start where that face USED to be -- and a group walked by the arrow keys is
+		// nothing but such lines. The same two maps `nodeAt` answers from, oldest first.
+		for (const [id, at] of [...this._landingNudge, ...this._pendingNudge]) {
+			const node = whole.nodes[id];
+			if (node) { node.x = at.x; node.y = at.y; }
+		}
 		// ONE PLAN PER GESTURE. `_plan` reads the document when it is not given a graph, and asking
 		// it once is the entire point of gathering this here.
 		//
@@ -3202,7 +3289,10 @@ export class RelationshipMapWindow extends StonetopDialog {
 		const plan = this._plan(whole);
 		const graph = plan.graph;
 		this._preview = {
-			id,
+			// Who this preview moves, and the lines `edgeShapes` is to redraw for them: the ones
+			// touching any of them.
+			key: [...moving].sort().join(" "),
+			only: new Set(moving),
 			graph,
 			fans: fanIndexes(graph),
 			// THE WHOLE SHEET, and its radius and width read straight off it. A caption is placed in
@@ -3230,17 +3320,18 @@ export class RelationshipMapWindow extends StonetopDialog {
 	/**
 	 * That drag is over.
 	 *
-	 * `restore` is where the portrait went back to when the drag was ABANDONED — Escape, a lost
-	 * pointer, a board that stopped being editable mid-gesture. The drag layer puts the portrait
-	 * back itself by dropping its transform, and the lines have to follow or they are left hanging
-	 * where the pointer stopped with nothing coming to correct them.
+	 * `restore` is where the portraits went back to when the drag was ABANDONED — Escape, a lost
+	 * pointer, a board that stopped being editable mid-gesture — as `{id: {x, y}}`, one entry for a
+	 * lone portrait and everybody at once for a group (for the reason `_previewMoves` gives). The
+	 * drag layer puts the portraits back itself by dropping their transform, and the lines have to
+	 * follow or they are left hanging where the pointer stopped with nothing coming to correct them.
 	 *
 	 * On a real drop it is null and the lines are left exactly where they were previewed: the write
 	 * is already on its way, and its repaint draws the same geometry over the top with nothing to
 	 * see in between. Putting them back first would flash every line to the old spot for a frame.
 	 */
-	_endPreview(id, restore) {
-		if (restore) this._previewMove(id, restore);
+	_endPreview(restore = null) {
+		if (restore) this._previewMoves(restore);
 		this._preview = null;
 	}
 
@@ -3252,18 +3343,34 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * repeat, and so that no repaint arrives to take away the button the key is being held on.
 	 */
 	_nudgeNode(id, at) {
-		const el = this._root?.querySelector(`[data-relmap-node="${id}"]`);
-		if (!el) return;
-		// CLAMPED HERE, unlike the drag preview. A drag is bounded by the pointer and its drop
-		// reconciles the two; a held arrow key is bounded by nothing, so showing it unclamped would
-		// walk the portrait off the board and snap it back the moment the write landed. Clamping to
-		// the same rule `nodePatch` applies means what the keys show is what gets written — and it
-		// is what stops `nodeAt` handing the next key a spot further off the board again.
-		const spot = { x: clampPct(at.x), y: clampPct(at.y) };
-		el.style.left = `${spot.x}%`;
-		el.style.top = `${spot.y}%`;
-		this._previewMove(id, spot);
-		this._pendingNudge.set(id, spot);
+		this._nudgeNodes({ [id]: at });
+	}
+
+	/**
+	 * The same for SEVERAL portraits at once, `{id: {x, y}}`: an arrow key on a face that is one of a
+	 * selection. One preview for all of them (`_previewMoves` says why) and one debounce, so the
+	 * write that follows is one write and one step of the undo.
+	 */
+	_nudgeNodes(moves) {
+		const spots = {};
+		for (const [id, at] of Object.entries(moves ?? {})) {
+			const el = this._root?.querySelector(`[data-relmap-node="${id}"]`);
+			if (!el) continue;
+			// CLAMPED HERE, unlike the drag preview. A drag is bounded by the pointer and its drop
+			// reconciles the two; a held arrow key is bounded by nothing, so showing it unclamped
+			// would walk the portrait past reach and snap it back the moment the write landed.
+			// Clamping to the same rule `nodePatch` applies means what the keys show is what gets
+			// written — and it is what stops `nodeAt` handing the next key a spot further out again.
+			// REACH AND NOT THE SHEET: a portrait may be walked off the sheet as freely as it may be
+			// dragged off it (`RELMAP_REACH_MIN`).
+			const spot = { x: clampReach(at.x), y: clampReach(at.y) };
+			el.style.left = `${spot.x}%`;
+			el.style.top = `${spot.y}%`;
+			spots[id] = spot;
+			this._pendingNudge.set(id, spot);
+		}
+		if (!Object.keys(spots).length) return;
+		this._previewMoves(spots);
 		this._commitNudge();
 	}
 
@@ -3288,16 +3395,22 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// until the round trip is over, and the next arrow key asks where the portrait is (`nodeAt`):
 		// answered off the document in that breath, a reader who paused and walked on found the portrait
 		// back where the pause had started. Let go only where no later nudge has replaced it since.
+		//
+		// ⚠ AND ALL OF THEM IN ONE WRITE, which is one step of the undo. A selection walked across the
+		// board by the arrow keys is one move of several people, and taking it back one person at a
+		// time would leave the group in pieces half way through. The key is who moved, sorted, so a
+		// run of keys on the same group folds into one step as a run on one portrait always did.
 		const landing = this._landingNudge;
-		const writes = pending.map(([id, at]) => {
-			landing.set(id, at);
-			return this._moveNode(id, at, { coalesce: `node:${id}` }).finally(() => {
-				if (landing.get(id) === at) landing.delete(id);
-			});
+		for (const [id, at] of pending) landing.set(id, at);
+		const moves = Object.fromEntries(pending);
+		const who = pending.map(([id]) => id).sort();
+		const coalesce = who.length === 1 ? `node:${who[0]}` : `nodes:${who.join(",")}`;
+		const write = this._moveNodes(moves, { coalesce }).finally(() => {
+			for (const [id, at] of pending) if (landing.get(id) === at) landing.delete(id);
 		});
 		// A repaint that was held back while the keys were coming lands now.
 		this._flushPendingSync();
-		return Promise.all(writes);
+		return write;
 	}
 
 	// ── Sliding a caption along its own line ────────────────────────────────
@@ -3462,6 +3575,10 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * "edited a link" step in the undo of a board with no such link.
 	 */
 	_leaveBoard() {
+		// THE SELECTION BELONGS TO THE BOARD BEING LEFT. The same person can stand on two boards of
+		// one map, under different ids, and a selection carried across would pick up nobody or,
+		// worse, somebody the reader never chose on the board they arrive at.
+		this._selected = [];
 		// ⚠ AND ONLY WHILE THAT BOARD IS STILL THERE TO WRITE TO. A board rubbed out or hidden under the
 		// reader has already gone from the strip by the time its hook calls this, so `boardDoc` has
 		// fallen through to a board that survives -- or, with a collection's last map gone, to nothing.
@@ -3522,15 +3639,44 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * to the cursor), and painting it unclamped here would only move the snap-back later.
 	 */
 	async _moveNode(id, { x, y }, { coalesce = "" } = {}) {
-		const spot = { x: clampPct(x), y: clampPct(y) };
-		const el = this._root?.querySelector(`[data-relmap-node="${id}"]`);
-		if (el) {
-			el.style.left = `${spot.x}%`;
-			el.style.top = `${spot.y}%`;
+		return this._moveNodes({ [id]: { x, y } }, { coalesce });
+	}
+
+	/**
+	 * Move SEVERAL people in one write, `{id: {x, y}}`: a selection dropped together, or a run of
+	 * arrow keys on it. One write is one broadcast and ONE STEP OF THE UNDO, which is what a group
+	 * moved as one has to be: taken back a person at a time, it would sit in pieces half way.
+	 *
+	 * EVERYBODY STILL ON THE BOARD, AND NOBODY ELSE, which is `_moveNode`'s `onto` rule asked of each
+	 * of them: somebody taken off the map by another reader while the group was in the air is left
+	 * off the write rather than stood back up as a nameless face, and the rest still land. Asked in
+	 * the same breath as the write (nothing here awaits before `_write` reaches the document), so the
+	 * answer cannot go stale between the two.
+	 */
+	async _moveNodes(moves, { coalesce = "" } = {}) {
+		const doc = this.boardDoc;
+		const here = doc ? readGraph(doc).nodes : {};
+		let patch = null;
+		const ids = [];
+		for (const [id, at] of Object.entries(moves ?? {})) {
+			if (!here[id]) continue;
+			// Reach and not the sheet: see `RELMAP_REACH_MIN`. The same rule `nodePatch` holds it
+			// to, applied here first so what is painted is what is about to be stored.
+			const spot = { x: clampReach(at?.x), y: clampReach(at?.y) };
+			// ⚠ PAINTED HERE, BEFORE THE AWAIT -- see the paragraph above `_moveNode` for why.
+			const el = this._root?.querySelector(`[data-relmap-node="${id}"]`);
+			if (el) {
+				el.style.left = `${spot.x}%`;
+				el.style.top = `${spot.y}%`;
+			}
+			patch = { ...patch, ...nodePatch(id, spot) };
+			ids.push(id);
 		}
-		return this._write(nodePatch(id, spot), {
-			label: localize("stonetop.relmap.history.moved"), coalesce, onto: { kind: "nodes", id },
-		});
+		if (!ids.length) return false;
+		const label = ids.length === 1
+			? localize("stonetop.relmap.history.moved")
+			: format("stonetop.relmap.history.movedMany", { count: ids.length });
+		return this._write(patch, { label, coalesce, onto: { kind: "nodes", ids } });
 	}
 
 	async _openPerson(id) {
@@ -3786,6 +3932,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 	async _onToolClick(ev) {
 		const tool = TOOLS[ev.currentTarget.dataset.relmapAction];
 		if (!tool || (tool.needsEdit && !this.canEdit) || (tool.needsAddMap && !this.canAddMap)) return;
+		if (tool.needsActorCreate && !mayCreateActors()) return;
 		return tool.run(this, ev.currentTarget);
 	}
 
@@ -3828,6 +3975,36 @@ export class RelationshipMapWindow extends StonetopDialog {
 			return;
 		}
 		await this._addNodesFor(now, picked);
+	}
+
+	/**
+	 * Make a new NPC and put them on this board, in one go.
+	 *
+	 * THE SIDEBAR'S OWN PERSON FLOW, not a second one: the same Resident / Neighbor / Someone else
+	 * question, the same worksheet, and a Resident or Neighbor filed on the steading's roster as they
+	 * are made. What differs is the end: their sheet is NOT opened over the map (the worksheet has
+	 * just asked what it would), and they are seated where "Add someone" would have put them.
+	 *
+	 * ⚠ THE PERSON EXISTS WHATEVER HAPPENS TO THE BOARD. The worksheet is not modal, so the board can
+	 * change or vanish while it is up, and `_stillOn`'s "nothing was changed" would then be a lie: an
+	 * actor was made. So that case says what WAS done, and how to finish the job.
+	 *
+	 * `create` is the seam the tests use; the real flow is imported only when somebody presses the
+	 * button, because the window has no other business with the sidebar's creation dialogs.
+	 */
+	async _createPerson(create = null) {
+		if (!mayCreateActors()) return;
+		const doc = this.boardDoc;
+		create ??= (await import("./create-actor-dialog.js")).createPerson;
+		const actor = await create({ openSheet: false });
+		if (!actor) return;
+		if (this.boardDoc !== doc) {
+			ui.notifications?.info?.(format("stonetop.relmap.createdNotSeated", { name: actor.name }));
+			return;
+		}
+		// Read again now the worksheet is done, for the reason `_addPerson` gives.
+		const now = readGraph(doc);
+		await this._addNodeFor(actor, freeSpot(takenSpots(now), { r: this._boardSize(now).r }));
 	}
 
 	/**
@@ -4119,6 +4296,75 @@ export class RelationshipMapWindow extends StonetopDialog {
 	}
 
 	/**
+	 * Make exactly these people the selection, and mark them.
+	 *
+	 * `final` is false for the frames of a selection box still being drawn: the marks follow the box
+	 * as it grows, and the count is said out loud once, when it is let go. A screen reader handed a
+	 * new number on every frame of a drag would be reading numbers for as long as the drag lasted.
+	 */
+	_select(ids, { final = true } = {}) {
+		const before = this._selected.length;
+		this._selected = [...new Set(ids ?? [])];
+		this._paintSelection();
+		if (!final) return;
+		const count = this._selected.length;
+		if (count) this._announce(format("stonetop.relmap.selection.count", { count }));
+		else if (before) this._announce(localize("stonetop.relmap.selection.none"));
+	}
+
+	/**
+	 * Put the selection's marks on the portraits, and take them off everybody else.
+	 *
+	 * A SWEEP, like `_armRemove`, and for its reason: every repaint throws the marked portraits away,
+	 * so this runs after each one, and it has to be sure nobody is left marked who has stopped being
+	 * chosen.
+	 *
+	 * ⚠ SOMEBODY NO LONGER ON THE BOARD IS DROPPED FROM THE LIST, exactly as `_lightPerson` and
+	 * `_armRemove` drop them. The repaint this follows may be the one that carried somebody off, and a
+	 * selection still naming them would carry a ghost along with every group drag.
+	 */
+	_paintSelection() {
+		const root = this._root;
+		if (!root) return;
+		const want = new Set(this._selected);
+		const found = [];
+		root.querySelectorAll?.("[data-relmap-node]")?.forEach?.(el => {
+			const id = el.dataset.relmapNode;
+			const mine = want.has(id);
+			if (mine) found.push(id);
+			el.classList?.toggle("is-selected", mine);
+		});
+		// Kept in the order they were chosen, which is the order the list was given in.
+		if (found.length !== this._selected.length) this._selected = this._selected.filter(id => found.includes(id));
+	}
+
+	/**
+	 * Who is standing inside a box drawn on the board, in board percentages.
+	 *
+	 * OFF THE PAINT, like everything else asked about what the reader can see: the box is drawn over
+	 * the portraits on screen, and the graph those were drawn from is `_drawn.graph`. A face walked
+	 * by the arrow keys and not yet written is where the keys put it, which is where the reader sees
+	 * it.
+	 */
+	_nodesIn({ left, top, right, bottom } = {}) {
+		const nodes = this._drawn?.graph?.nodes ?? readGraph(this.boardDoc).nodes;
+		const out = [];
+		for (const [id, node] of Object.entries(nodes)) {
+			const at = this._pendingNudge.get(id) ?? this._landingNudge.get(id) ?? node;
+			if (at.x >= left && at.x <= right && at.y >= top && at.y <= bottom) out.push(id);
+		}
+		return out;
+	}
+
+	/**
+	 * What the board frames: the sheet, grown to take in everybody standing off it. In board pixels,
+	 * for utils/zoom-pan-surface.js. See `boardBounds`.
+	 */
+	_boundsOf(plan) {
+		return boardBounds(Object.values(plan?.graph?.nodes ?? {}), plan?.board);
+	}
+
+	/**
 	 * Mark which stroke on the board the tie bar is holding, and unmark the last one.
 	 *
 	 * ON THE WINDOW because the board's markup is the window's: it builds those elements and throws
@@ -4405,10 +4651,12 @@ export class RelationshipMapWindow extends StonetopDialog {
 				ui.notifications?.info?.(format("stonetop.relmap.alreadyHere", { name: actor.name }));
 				return;
 			}
-			// Where they were dropped, or a clear spot when the drop landed off the board.
+			// Where they were dropped: anywhere the reader can see is somewhere a person may stand,
+			// on the sheet or off it (`RELMAP_REACH_MIN`). A clear spot only when the surface could
+			// not say where the drop landed at all.
 			const at = this._surface?.pointToPercent(ev);
-			const spot = at && at.left >= 0 && at.left <= 100 && at.top >= 0 && at.top <= 100
-				? { left: at.left, top: at.top }
+			const spot = at && Number.isFinite(at.left) && Number.isFinite(at.top)
+				? { left: clampReach(at.left), top: clampReach(at.top) }
 				: freeSpot(takenSpots(graph), { r: this._boardSize(graph).r });
 			await this._addNodeFor(actor, spot);
 		});
@@ -4550,9 +4798,9 @@ export class RelationshipMapWindow extends StonetopDialog {
  * those numbers, the board's markup and the live drag, and the second working them out its own way
  * is exactly how the two would come to disagree.
  *
- * `only` narrows it to the links touching one person, which is all that a drag of that person can
- * move: everybody else's lines are where they were, and recomputing them would be work per frame
- * for no pixel changed.
+ * `only` narrows it to the links touching a Set of people being carried (one, or several together),
+ * which is all that a drag of them can move: everybody else's lines are where they were, and
+ * recomputing them would be work per frame for no pixel changed.
  */
 function edgeShapes(graph, {
 	r, fans, only = null, spread = false, boardWidthPx = RELMAP_BOARD_WIDTH,
@@ -4572,7 +4820,7 @@ function edgeShapes(graph, {
 	const faces = Object.values(graph.nodes).map(node => ({ left: node.x, top: node.y }));
 	const out = [];
 	for (const [id, edge] of Object.entries(graph.edges)) {
-		if (only && edge.a !== only && edge.b !== only) continue;
+		if (only && !only.has(edge.a) && !only.has(edge.b)) continue;
 		const from = graph.nodes[edge.a];
 		const to = graph.nodes[edge.b];
 		const ends = {

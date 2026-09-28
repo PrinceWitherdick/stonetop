@@ -478,6 +478,8 @@ describe("what the shipped moves derive", () => {
 		expect([...prose].sort()).toEqual([
 			// Resources spent one point at a time, over and over, for as long as they last.
 			"Anger is a Gift", "Defend", "Silver Tongued", "Strengthen Your Bond", "We Happy Few",
+			// The Ghost's Fury, spent 1-for-1 (the Poltergeist Consequence's own move).
+			"Poltergeist",
 			// The same menu, said without the words "1-for-1".
 			"Up With People",
 			// A list the group goes round for as long as the stretch of time lasts.

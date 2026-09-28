@@ -22,6 +22,7 @@ import { SYSTEM_ID } from "../system-id.js";
 import { engage, HEROES, FOES } from "./engagements.js";
 import { classifySide, bodiesFor } from "./fight-sides.js";
 import { followerRoster } from "./fight-vitals.js";
+import { keepsFightingAtZero } from "../actors/character/unstoppable.js";
 
 export const FIGHT_FLAG = "fight";
 export const SIDE_FLAG = "side";
@@ -121,6 +122,7 @@ export function combatantBodies(combatant) {
 		headcount: ours(combatant)[COUNT_FLAG] ?? null,
 		roster: followerRoster(combatant),
 		startSize: groupStartSize(actor),
+		keepsFighting: keepsFightingAtZero(actor),
 	});
 }
 

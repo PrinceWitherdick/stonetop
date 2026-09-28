@@ -6,13 +6,16 @@
 //   LOGBOOK (the Seeker) — "You have a logbook (2 uses, slow)... When you (and only you) consult
 //     your logbook and expend a use, you can ignore a Know Things roll you just made and treat
 //     the result as a 10+. When the Seasons Change, reset your logbook to 2 uses."
+//   BOOKS & SCROLLS (a Seeker or Lightbearer special possession) — "(○○○○○ uses): expend a use
+//     to consult your collection and turn a Know Things roll you just made into a 10+." The
+//     Logbook's rule, paid from a possession track instead of a move's (possession-tracks.js).
 //
-// Both are decisions the player makes AFTER seeing the dice, so both live on the chat card
+// All are decisions the player makes AFTER seeing the dice, so they live on the chat card
 // rather than in a pre-roll prompt. This module holds the pure part: which moves apply, what a
 // character has left to spend, and the card markup. The Foundry writes live in stonetop.js
 // beside Burn Brightly, the existing post-roll card mutation.
 
-import { ownsMoveNamed, ownedMove, ownedMoveNames } from "./owns-move.js";
+import { ownsLearnedMoveNamed, ownedLearnedMove, ownedMoveNames } from "./owns-move.js";
 
 // Re-exported so this module's tests keep reaching the helper through the feature module.
 export { ownedMoveNames };
@@ -33,14 +36,15 @@ export function isKnowThings(moveName) {
  * The stored number is how many pips are FILLED, and for a move track a filled pip means a use
  * SPENT (module/model/Resource.js documents `current` as "checks used", and a fresh character has
  * no flag at all, which must read as an untouched logbook rather than an exhausted one). So
- * `left = max - spent`, and spending INCREMENTS. Do not copy this to the possession tracks, which
- * count the other way.
+ * `left = max - spent`, and spending INCREMENTS. A possession track (books & scrolls, the sacred
+ * pouch) counts the same way; Rites of the Land's Boon is the pool that counts the other.
  *
  * `max` comes off the owned move Item rather than a constant, so a homebrew or re-pointed Logbook
- * keeps working. Returns null when the character doesn't own the move at all.
+ * keeps working. Returns null when the character doesn't own the move, or keeps it switched off
+ * (un-learned): a rule asks the learned move, so an un-learned Logbook offers no consult.
  */
 export function logbookUses(actor, moveResourceMap = {}) {
-	const item = ownedMove(actor, LOGBOOK);
+	const item = ownedLearnedMove(actor, LOGBOOK);
 	if (!item) return null;
 	const max   = Number(item.system?.resource?.max) || 0;
 	const spent = Math.max(0, Number(moveResourceMap[LOGBOOK]) || 0);
@@ -49,7 +53,7 @@ export function logbookUses(actor, moveResourceMap = {}) {
 
 // "treat the result as a 10+" — the lowest total that reads as a strong hit. Padding to exactly
 // this (rather than to the raw roll plus some bonus) keeps the card off the 12+ "critical" label
-// that _classifyShiftedTotal would otherwise apply to a heavily padded roll.
+// that counted-tier.js totalTier would otherwise apply to a heavily padded roll.
 export const STRONG_HIT_TOTAL = 10;
 
 /**
@@ -69,12 +73,12 @@ export function neverAtALossActions() {
 
 /**
  * Extra roll options for a Know Things roll, folded into whatever the caller already passes.
- * Returns null for a character who owns neither move, so the ordinary roll is untouched.
+ * Returns null for a character without Never at a Loss LEARNED, so the ordinary roll is untouched.
  *
  * `noXpOnMiss` is set only for Never at a Loss: suppressing the automatic mark is what lets the
  * player choose afterwards. Without the move, a miss marks XP the moment the dice land, as usual.
  */
 export function knowThingsRollOptions(actor) {
-	if (!ownsMoveNamed(actor, NEVER_AT_A_LOSS)) return null;
+	if (!ownsLearnedMoveNamed(actor, NEVER_AT_A_LOSS)) return null;
 	return { noXpOnMiss: true, tierActions: neverAtALossActions() };
 }
