@@ -53,7 +53,7 @@ export function logbookUses(actor, moveResourceMap = {}) {
 
 // "treat the result as a 10+" — the lowest total that reads as a strong hit. Padding to exactly
 // this (rather than to the raw roll plus some bonus) keeps the card off the 12+ "critical" label
-// that _classifyShiftedTotal would otherwise apply to a heavily padded roll.
+// that counted-tier.js totalTier would otherwise apply to a heavily padded roll.
 export const STRONG_HIT_TOTAL = 10;
 
 /**

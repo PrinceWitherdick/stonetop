@@ -145,6 +145,7 @@ export class BackgroundChoiceOptionSnapshot {
  * @property {Object.<string,boolean>} saved
  * @property {number} checkedCount - how many options are ticked
  * @property {boolean} underMin - fewer ticked than the count asks for (flagged, never blocked)
+ * @property {boolean} inline - laid out in a row of words rather than one option per line
  */
 export class BackgroundChoicesSnapshot {
 	constructor(b) {
@@ -155,6 +156,9 @@ export class BackgroundChoicesSnapshot {
 		this.saved      = b._saved;
 		this.checkedCount = b._checkedCount ?? 0;
 		this.underMin     = !!b._underMin;
+		// A list of short words laid out in a row rather than one per line (the Destined's 25 destiny
+		// words), from the background's `choices.inline`.
+		this.inline       = !!b._inline;
 	}
 }
 
@@ -165,6 +169,7 @@ export class BackgroundChoicesSnapshotBuilder {
 	withOptions(v)    { this._options    = v; return this; }
 	withSaved(v)      { this._saved      = v; return this; }
 	withCountState(checked, underMin) { this._checkedCount = checked; this._underMin = underMin; return this; }
+	withInline(v)     { this._inline     = v; return this; }
 	build()           { return new BackgroundChoicesSnapshot(this); }
 }
 

@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Window } from "happy-dom";
 import {
-	GIVE_ADVANTAGE_MOVES, giveAdvantageRollOptions, giveAdvantageCardHtml, givenSource, advantageRecipients,
+	GIVE_ADVANTAGE_MOVES, giveAdvantageRollOptions, giveAdvantageCardHtml, givenSource, advantageRecipients, SEEK_INSIGHT_QUESTIONS,
 } from "../../../module/actors/character/give-advantage.js";
 import {
 	giveAdvantage, handleGiveAdvantageQuery, offerAdvantage, wireGiveAdvantage, GIVE_ADVANTAGE_QUERY, GIVEN_FLAG, GIVING_FLAG,
@@ -208,5 +208,104 @@ describe("the card's button", () => {
 		const mine = rendered({ [GIVING_FLAG]: "u-s" });
 		wireGiveAdvantage(mine.card, mine.root, { giver: pc({ id: "s" }), usable: true, userId: "u-s" });
 		expect(mine.button().disabled).toBe(false);
+	});
+});
+
+// Would-Be Hero audit (2026-09-27): Voice of Experience's advice ("they have advantage on their first roll to
+// follow your advice"), Inquiring Minds ("gain advantage on your next roll to follow that advice") and
+// Resourceful ("When you Defy Danger and roll a 6-, ask the GM a question from Seek Insight ... Gain
+// advantage on your next roll to act on the answer") held nothing. The two "you gain" moves are `selfOnly`:
+// no picker, the hero holds it.
+describe("the Would-Be Hero's advice and Resourceful", () => {
+	it("gives Voice of Experience's advantage to another PC only, from its posted card", () => {
+		const hero = pc({ id: "h", moves: ["Voice of Experience"] });
+		expect(giveAdvantageCardHtml(hero, "Voice of Experience")).toContain("Give advantage to another PC...");
+		expect(advantageRecipients(hero, "Voice of Experience", [hero, pc({ id: "b" })]).map(a => a.id)).toEqual(["b"]);
+		expect(giveAdvantageCardHtml(pc({ id: "h", moves: ["Voice of Experience"], unlearned: ["Voice of Experience"] }), "Voice of Experience")).toBe("");
+	});
+
+	// The asterisk (the user's ruling): Voice of Experience's advice given is a use of the starred move, and
+	// the first crosses off "Would-be". A picker closed, or another client's press, gives nothing and crosses
+	// nothing off.
+	it("giving Voice of Experience's advantage crosses off \"Would-be\", the first time", async () => {
+		const savedChat = globalThis.ChatMessage;
+		globalThis.ChatMessage = { create: vi.fn(async () => ({})), getSpeaker: () => ({}) };
+		try {
+			const wbh = () => {
+				const flags = {};
+				return Object.assign(pc({ id: "h", name: "Wren", moves: ["Voice of Experience"] }), {
+					system: { playbook: { name: "The Would-Be Hero", slug: "the-would-be-hero" } },
+					getFlag: (_s, key) => flags[key],
+					setFlag: vi.fn(async (_s, key, value) => { flags[key] = value; }),
+				});
+			};
+			const hero = wbh();
+			const b = pc({ id: "b" });
+			expect(await offerAdvantage(message(), hero, "Voice of Experience", { pick: async () => null, party: () => [b] })).toBe(false);
+			expect(await offerAdvantage(message(), hero, "Voice of Experience", { pick: async () => "b", party: () => [b], stillMine: () => false })).toBe(true);
+			expect(hero.setFlag).not.toHaveBeenCalled();
+
+			expect(await offerAdvantage(message(), hero, "Voice of Experience", { pick: async () => "b", party: () => [b] })).toBe(true);
+			expect(hero.setFlag).toHaveBeenCalledWith(SCOPE, "wbhBecameHero", true);
+			expect(globalThis.ChatMessage.create).toHaveBeenCalledTimes(1);
+			await offerAdvantage(message(), hero, "Voice of Experience", { pick: async () => "b", party: () => [b] });
+			expect(globalThis.ChatMessage.create).toHaveBeenCalledTimes(1);
+
+			// Another move's gift crosses nothing off.
+			const seeker = Object.assign(wbh(), { items: [{ type: "move", name: "Countermeasures", flags: {} }] });
+			await offerAdvantage(message(), seeker, "Countermeasures", { pick: async () => "b", party: () => [b] });
+			expect(seeker.setFlag).not.toHaveBeenCalled();
+		} finally {
+			globalThis.ChatMessage = savedChat;
+		}
+	});
+
+	it("holds Inquiring Minds' advantage for the hero alone, from its posted card", async () => {
+		const hero = pc({ id: "h", name: "Wren", moves: ["Inquiring Minds"] });
+		const html = giveAdvantageCardHtml(hero, "Inquiring Minds");
+		expect(html).toContain("Hold advantage (Inquiring Minds)");
+		expect(advantageRecipients(hero, "Inquiring Minds", [pc({ id: "b" })]).map(a => a.id)).toEqual(["h"]);
+		expect(await giveAdvantage(hero, pc({ id: "b" }), "Inquiring Minds")).toBe(false);
+		expect(await giveAdvantage(hero, hero, "Inquiring Minds")).toBe(true);
+		expect(hero.typedActor.holdAdvantage).toHaveBeenCalledWith("Inquiring Minds");
+	});
+
+	it("asks nobody for a selfOnly move: the hero holds it and the card says so", async () => {
+		const hero = pc({ id: "h", name: "Wren", moves: ["Inquiring Minds"] });
+		const card = message();
+		const pick = vi.fn();
+		const party = vi.fn(() => [pc({ id: "b" })]);
+		expect(await offerAdvantage(card, hero, "Inquiring Minds", { pick, party })).toBe(true);
+		expect(pick).not.toHaveBeenCalled();
+		expect(hero.typedActor.holdAdvantage).toHaveBeenCalledWith("Inquiring Minds");
+		expect(card.getFlag(SCOPE, GIVEN_FLAG)).toEqual({ name: "Wren", move: "Inquiring Minds" });
+	});
+
+	it("puts Resourceful's Seek Insight line and hold on Defy Danger's 6- alone, for a learned owner", () => {
+		const hero = pc({ id: "h", moves: ["Resourceful"] });
+		const options = moveRollOptions("Defy Danger", hero);
+		expect(Object.keys(options.tierActions)).toEqual(["failure"]);
+		expect(options.tierActions.failure).toContain("Hold advantage (Resourceful)");
+		expect(options.tierActions.failure).toContain('data-move="Resourceful"');
+		for (const question of SEEK_INSIGHT_QUESTIONS) expect(options.tierActions.failure).toContain(question);
+		expect(moveRollOptions("Resourceful", hero)).toBeNull();
+		expect(moveRollOptions("Defy Danger", pc({ id: "h", moves: ["Resourceful"], unlearned: ["Resourceful"] }))).toBeNull();
+	});
+
+	it("quotes Seek Insight's questions as the pack prints them", () => {
+		const seek = readRepo("packs/src/stonetop-items/basic-moves/seek-insight.json");
+		for (const question of SEEK_INSIGHT_QUESTIONS) expect(seek).toContain(`<li>${question}</li>`);
+	});
+
+	it("the GM's side holds a selfOnly move for the giver and refuses anyone else", async () => {
+		globalThis.game.user = GM;
+		globalThis.game.users = { activeGM: GM, get: id => [player("h")].find(u => u.id === id) ?? null };
+		const hero = pc({ id: "h", moves: ["Resourceful"] });
+		const other = pc({ id: "b" });
+		const ask = target => handleGiveAdvantageQuery({ giverUuid: hero.uuid, targetUuid: target.uuid, moveName: "Resourceful", userId: "u-h" }, {},
+			{ resolve: uuid => [hero, other].find(a => a.uuid === uuid) ?? null });
+		expect(await ask(other)).toBe(false);
+		expect(await ask(hero)).toBe(true);
+		expect(hero.typedActor.holdAdvantage).toHaveBeenCalledWith("Resourceful");
 	});
 });

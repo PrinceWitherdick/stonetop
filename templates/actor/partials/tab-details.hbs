@@ -36,8 +36,18 @@
 				<div class="stonetop-item-description stonetop-bg-description">{{{description}}}</div>
 				{{/if}}
 			</label>
+			{{!-- An unchosen background still shows what it would ask, as plain words: its description
+			      leads into the list ("What was it? Choose 1.") and no longer prints it. --}}
+			{{#if (and (not selected) choices)}}
+			<div class="stonetop-bg-choices stonetop-bg-choices--preview{{#if choices.inline}} stonetop-bg-choices--inline{{/if}}">
+				<p class="stonetop-bg-choices-label">{{choices.label}} (choose {{choices.countLabel}})</p>
+				<ul class="stonetop-bg-choices-preview-list">
+					{{#each choices.options}}<li>{{label}}</li>{{/each}}
+				</ul>
+			</div>
+			{{/if}}
 			{{#if (and selected choices)}}
-			<div class="stonetop-bg-choices">
+			<div class="stonetop-bg-choices{{#if choices.inline}} stonetop-bg-choices--inline{{/if}}">
 				<p class="stonetop-bg-choices-label">{{choices.label}} (choose {{choices.countLabel}})</p>
 				{{#each choices.options}}
 				<label class="stonetop-bg-choice-option{{#if disabled}} is-disabled{{/if}}">
@@ -68,7 +78,7 @@
 				{{/if}}
 			</div>
 			{{#if choices}}
-			<div class="stonetop-bg-choices">
+			<div class="stonetop-bg-choices{{#if choices.inline}} stonetop-bg-choices--inline{{/if}}">
 				<p class="stonetop-bg-choices-label">{{choices.label}}</p>
 				{{#each choices.options}}
 				{{#if checked}}<p class="stonetop-bg-choice-readonly">{{label}}</p>{{/if}}

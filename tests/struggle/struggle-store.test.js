@@ -133,6 +133,8 @@ describe("rolling", () => {
 		const [stat, options] = aeliana.typedActor.onDirectStatRoll.mock.calls[0];
 		expect(stat).toBe("con");
 		expect(options).toMatchObject({ moveName: "Struggle as One", noXpOnMiss: true, rollMode: "normal" });
+		// Aimed at the struggle, so no grudge (Binding Arbitration, Tough Love) is read off the map's targets.
+		expect(options.targets).toEqual([]);
 		expect(options.whisper.sort()).toEqual(["gm", "player-1"]);
 		expect(flagOf(aeliana, "struggleRoll").rolls.pc_aeliana).toMatchObject({ stat: "con", total: 5, dice: "3, 4", messageId: "m1" });
 	});

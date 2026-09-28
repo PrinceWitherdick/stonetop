@@ -156,13 +156,20 @@ describe("free questions", () => {
 		return {
 			cap:   tiers.length && !tiers.includes(tier) ? null : caps[tier],
 			boxes: (list[2].match(/stonetop-picklist-check/g) ?? []).length,
-			free:  [...outside.matchAll(/<p class="stonetop-free-question">([\s\S]*?)<\/p>/g)].map(m => stripHtmlToText(m[1]).trim()),
+			free:  [...outside.matchAll(/<p class="stonetop-free-question"[^>]*>([\s\S]*?)<\/p>/g)].map(m => stripHtmlToText(m[1]).trim()),
 		};
 	};
 	const card = actor => withMovePickBonuses(
 		moveCardBody(SEEK.system.description, SEEK.system.moveResults, { pickable: true }), actor, "Seek Insight");
 	const judge = (...names) => character({ playbook: "The Judge", items: names.map(n => move(n)) });
 	const HOUND = "Free question (Hound of Aratis): What here is tainted by chaos?";
+
+	// The Would-Be Hero's asterisk crosses off "Would-be" when Voice of Experience's free question is asked,
+	// so each line names the move that granted it, for a card handler to find.
+	it("names its granting move on the line, for a handler to find (Voice of Experience)", () => {
+		const hero = character({ playbook: "The Would-Be Hero", items: [move("Voice of Experience")] });
+		expect(card(hero)).toContain('<p class="stonetop-free-question" data-free-question="Voice of Experience">');
+	});
 
 	it("counts a LEARNED Hound of Aratis only", () => {
 		expect(movePickBonusesFor(judge("Hound of Aratis"), "Seek Insight").map(b => b.freeQuestion))

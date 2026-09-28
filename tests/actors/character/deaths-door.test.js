@@ -2,13 +2,16 @@ import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { buildLiveCharacter, makeLiveItem, sourceMovesFor } from "../../fakes/LiveCharacter.js";
 import { createStonetopCharacterSheetClass } from "../../../module/actors/character/StonetopCharacterSheet.js";
 import {
+	DEATHS_DOOR_ROLL_STALE_MS,
 	DEATHS_DOOR_STATE,
 	PAST_DEATH_KINDS,
 	POST_DEATH_INSERT_SLUGS,
 	ZERO_HP_MOVES,
 	ZERO_HP_RESOLUTIONS,
 	canFaceDeathsDoor,
+	deathsDoorClaimRuling,
 	deathsDoorRollOptions,
+	deathsDoorRollWatch,
 	effectiveDeathsDoorState,
 	nextDeathsDoorState,
 	pastDeathClasses,
@@ -580,5 +583,99 @@ describe("DeathsDoorDialog — the window's mood", () => {
 		dlg._rolledTotal = 5;
 		expect(paint(dlg)).toContain("deaths-door-mood-entering");
 		expect(paint(dlg)).not.toContain("deaths-door-mood-entering");
+	});
+});
+
+/**
+ * The roll in progress, as every other owner's window reads it. The window is one client's and the character
+ * stays dying until the tier lands, so this decides whether a window offers dice, waits, resumes or may take over.
+ */
+describe("deathsDoorRollWatch: what a window makes of a roll under way", () => {
+	const DYING = DEATHS_DOOR_STATE.DYING;
+	const marker = (over = {}) => ({ userId: "p1", userName: "Aline", nonce: "n1", at: 1_000, ...over });
+	const watch = (over = {}) => deathsDoorRollWatch({ marker: marker(), state: DYING, me: "gm", holderActive: true, now: 2_000, ...over });
+
+	it("follows another owner's live roll", () => {
+		expect(watch()).toMatchObject({ kind: "watch", marker: { userId: "p1" } });
+	});
+
+	it("honours a marker only while the character is dying, and not one set aside", () => {
+		for (const state of [null, DEATHS_DOOR_STATE.OUT_OF_ACTION, DEATHS_DOOR_STATE.FATE_PENDING, DEATHS_DOOR_STATE.DEAD]) {
+			expect(watch({ state }).kind).toBe("none");
+		}
+		expect(watch({ marker: null }).kind).toBe("none");
+		expect(watch({ marker: { userId: "p1" } }).kind).toBe("none");   // no nonce: not a roll
+		expect(watch({ ignoredNonce: "n1" }).kind).toBe("none");
+	});
+
+	it("is the window's own roll only while its name is still on it", () => {
+		expect(watch({ me: "p1", ownNonce: "n1" }).kind).toBe("own");
+		// Taken over: the same roll under another name is someone else's again.
+		expect(watch({ me: "p1", ownNonce: "n1", marker: marker({ userId: "gm", userName: "GM" }) }).kind).toBe("watch");
+	});
+
+	it("resumes this user's roll that no window here holds, and follows the one that still does", () => {
+		expect(watch({ me: "p1" }).kind).toBe("resume");
+		expect(watch({ me: "p1", heldHere: true }).kind).toBe("watch");
+	});
+
+	it("may be taken over once its roller has left, or it has sat untouched too long", () => {
+		expect(watch({ holderActive: false })).toMatchObject({ kind: "orphaned", reason: "away" });
+		expect(watch({ now: 1_000 + DEATHS_DOOR_ROLL_STALE_MS }).kind).toBe("watch");
+		expect(watch({ now: 1_001 + DEATHS_DOOR_ROLL_STALE_MS })).toMatchObject({ kind: "orphaned", reason: "stale" });
+	});
+});
+
+/**
+ * The primary GM's ruling on a claim, one claim at a time: the lock that makes two owners' presses of Roll inside
+ * one round trip into one roll. Read from the claimant's side of deathsDoorRollWatch.
+ */
+describe("deathsDoorClaimRuling: the GM's lock on a roll", () => {
+	const DYING = DEATHS_DOOR_STATE.DYING;
+	const marker = (over = {}) => ({ userId: "p1", userName: "Aline", nonce: "n1", at: 1_000, ...over });
+	const rule = (over = {}) => deathsDoorClaimRuling({
+		marker: null, state: DYING, userId: "p2", nonce: "n2", holderActive: true, now: 2_000, ...over,
+	});
+
+	it("grants the first claim, with nothing under way", () => {
+		expect(rule()).toEqual({ granted: true, holder: null });
+	});
+
+	it("refuses a second claim while the first is live, naming who holds it", () => {
+		expect(rule({ marker: marker() })).toEqual({ granted: false, holder: marker() });
+	});
+
+	it("refuses every claim once the Door is settled, or before anyone is dying", () => {
+		for (const state of [null, DEATHS_DOOR_STATE.OUT_OF_ACTION, DEATHS_DOOR_STATE.FATE_PENDING, DEATHS_DOOR_STATE.DEAD]) {
+			expect(rule({ state })).toEqual({ granted: false, holder: null });
+		}
+		expect(rule({ userId: null }).granted).toBe(false);
+		expect(rule({ nonce: null }).granted).toBe(false);
+	});
+
+	it("grants a fresh roll over one nobody is finishing, unless it reached the table", () => {
+		expect(rule({ marker: marker(), holderActive: false }).granted).toBe(true);
+		expect(rule({ marker: marker(), now: 1_001 + DEATHS_DOOR_ROLL_STALE_MS }).granted).toBe(true);
+		// Posted: that roll is spent, and is taken over and accepted, never rolled again.
+		expect(rule({ marker: marker(), holderActive: false, posted: true })).toEqual({ granted: false, holder: marker() });
+		// The same user's own posted roll (a reload): picked back up, not rolled again either.
+		expect(rule({ marker: marker({ userId: "p2" }), posted: true }).granted).toBe(false);
+		expect(rule({ marker: marker({ userId: "p2" }) }).granted).toBe(true);
+	});
+
+	it("grants a stale roll to the taker, and only the roll the taker saw left behind", () => {
+		const stale = { marker: marker(), now: 1_001 + DEATHS_DOOR_ROLL_STALE_MS, takeOver: true };
+		expect(rule({ ...stale, nonce: "n1" })).toEqual({ granted: true, holder: null });
+		expect(rule({ marker: marker(), holderActive: false, takeOver: true, nonce: "n1" }).granted).toBe(true);
+		// Its roller came back to it meanwhile: live again, and theirs.
+		expect(rule({ marker: marker(), takeOver: true, nonce: "n1" })).toEqual({ granted: false, holder: marker() });
+		// Another owner took it first: live under their name.
+		const takenFirst = marker({ userId: "p3", userName: "Cal", at: 1_001 + DEATHS_DOOR_ROLL_STALE_MS });
+		expect(rule({ ...stale, marker: takenFirst, nonce: "n1" })).toEqual({ granted: false, holder: takenFirst });
+		// It landed (the marker is gone), or a different roll stands now.
+		expect(rule({ ...stale, marker: null, nonce: "n1" }).granted).toBe(false);
+		expect(rule({ ...stale, nonce: "other" }).granted).toBe(false);
+		// Already the taker's: granted again, so a repeated ask changes nothing.
+		expect(rule({ marker: marker({ userId: "p2" }), takeOver: true, nonce: "n1" }).granted).toBe(true);
 	});
 });

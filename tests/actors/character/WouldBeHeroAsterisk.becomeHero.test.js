@@ -1,52 +1,38 @@
-// A Would-Be Hero's "hero-making" moves are marked with system.asterisk. Owning one
-// crosses off "Would-be" automatically (the sheet header derives "The Hero" via
-// ownsAsteriskMove + heroDisplayName), and the first time a Would-Be Hero gains such a
-// move, maybeAnnounceBecameHero posts a one-time chat announcement.
+// "The first time you use any move marked with an asterisk (*), cross off 'Would-be' on the front page."
+// On first USE, not on gaining the move (the user's ruling, 2026-09-27; Book I: "Caradoc uses Big Damn
+// Hero and crosses 'Would-be' off his playbook"). Every use point calls asteriskMoveUsed; crossed off is
+// the flag (WBH_HERO_FLAG) alone, and it stays.
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import * as asterisk from "../../../module/actors/character/WouldBeHeroAsterisk.js";
 import {
-	ownsAsteriskMove,
+	ASTERISK_MOVES,
+	asteriskMoveUsed,
+	asteriskUseCounts,
+	crossOffWouldBe,
 	heroDisplayName,
-	maybeAnnounceBecameHero,
 	WBH_HERO_FLAG,
 } from "../../../module/actors/character/WouldBeHeroAsterisk.js";
+import { playbookTitle } from "../../../module/utils/playbook-actors.js";
+import { readRepo } from "../../fakes/css.js";
+import { SYSTEM_ID } from "../../../module/system-id.js";
 
 // `slug` is what the guards read and `playbook` is only the label, so they default together
-// and can be set apart — which is the whole point of the change these fixtures follow.
-function makeActor({ playbook = "The Would-Be Hero", slug = "the-would-be-hero", isHero = false } = {}) {
+// and can be set apart.
+function makeActor({ playbook = "The Would-Be Hero", slug = "the-would-be-hero", isHero = false, moves = ASTERISK_MOVES, unlearned = [] } = {}) {
 	const flags = { [WBH_HERO_FLAG]: isHero || undefined };
 	return {
 		type: "character",
 		name: "Wren",
 		system: { playbook: { name: playbook, slug } },
+		items: moves.map(name => ({
+			type: "move", name, system: {},
+			flags: unlearned.includes(name) ? { [SYSTEM_ID]: { learned: false } } : {},
+		})),
 		getFlag: (_scope, key) => flags[key],
 		setFlag: vi.fn(async (_scope, key, value) => { flags[key] = value; }),
 	};
 }
-
-function makeMove(actor, { type = "move", asterisk = { basicMove: "Defy Danger", minTotal: 12 } } = {}) {
-	return { type, system: { asterisk }, parent: actor };
-}
-
-describe("ownsAsteriskMove", () => {
-	it("is true when the actor owns a move carrying system.asterisk", () => {
-		const actor = { items: [{ type: "move", system: { asterisk: { basicMove: "Clash" } } }] };
-		expect(ownsAsteriskMove(actor)).toBe(true);
-	});
-
-	it("is false when no owned move is asterisked", () => {
-		const actor = { items: [
-			{ type: "move", system: {} },
-			{ type: "equipment", system: { asterisk: { basicMove: "Clash" } } },
-		] };
-		expect(ownsAsteriskMove(actor)).toBe(false);
-	});
-
-	it("is false for a null/empty actor", () => {
-		expect(ownsAsteriskMove(null)).toBe(false);
-		expect(ownsAsteriskMove({})).toBe(false);
-	});
-});
 
 describe("heroDisplayName", () => {
 	it("renames the Would-Be Hero to The Hero once crossed off", () => {
@@ -62,69 +48,130 @@ describe("heroDisplayName", () => {
 	});
 });
 
-describe("maybeAnnounceBecameHero", () => {
+describe("gaining a starred move crosses nothing off", () => {
+	it("no createItem hook announces a gain any more", () => {
+		const main = readRepo("stonetop.js");
+		expect(main).not.toMatch(/maybeAnnounceBecameHero/);
+		expect(asterisk.maybeAnnounceBecameHero).toBeUndefined();
+		expect(asterisk.ownsAsteriskMove).toBeUndefined();
+	});
+
+	it("owning all four, unused, still reads as The Would-Be Hero", () => {
+		expect(playbookTitle(makeActor())).toBe("The Would-Be Hero");
+		expect(playbookTitle(makeActor({ isHero: true }))).toBe("The Hero");
+	});
+
+	it("the pack's four carry no dead asterisk data", () => {
+		for (const slug of ["a-force-to-be-reckoned-with", "big-damn-hero", "undaunted", "voice-of-experience"]) {
+			const doc = JSON.parse(readRepo(`packs/src/stonetop-items/playbook-moves/the-would-be-hero/${slug}.json`));
+			expect(ASTERISK_MOVES).toContain(doc.name);
+			expect(doc.system.asterisk).toBeUndefined();
+			expect(doc.system.description).toContain("First use crosses off \"Would-be\"");
+		}
+	});
+});
+
+describe("asteriskMoveUsed", () => {
+	let saved;
 	beforeEach(() => {
-		global.game = { userId: "u1" };
-		global.ChatMessage = { create: vi.fn(), getSpeaker: vi.fn(() => ({})) };
+		saved = globalThis.ChatMessage;
+		globalThis.ChatMessage = { create: vi.fn(), getSpeaker: vi.fn(() => ({})) };
 	});
+	afterEach(() => { globalThis.ChatMessage = saved; });
 
-	it("crosses off Would-be and announces when a Would-Be Hero gains an asterisked move", async () => {
-		const actor = makeActor();
-		await maybeAnnounceBecameHero(makeMove(actor), "u1");
-		expect(actor.setFlag).toHaveBeenCalledWith("stonetop-pwd", WBH_HERO_FLAG, true);
+	it.each(ASTERISK_MOVES)("crosses off Would-be and announces on the first use of %s", async name => {
+		const actor = makeActor({ moves: [name] });
+		expect(await asteriskMoveUsed(actor, name)).toBe(true);
+		expect(actor.setFlag).toHaveBeenCalledWith(SYSTEM_ID, WBH_HERO_FLAG, true);
 		expect(ChatMessage.create).toHaveBeenCalledTimes(1);
-		expect(ChatMessage.create.mock.calls[0][0].content).toContain("A Would-Be Hero No Longer");
+		const content = ChatMessage.create.mock.calls[0][0].content;
+		expect(content).toContain("A Would-Be Hero No Longer");
+		expect(content).toContain(name);
+		expect(playbookTitle(actor)).toBe("The Hero");
 	});
 
-	it("only the responsible client writes/announces", async () => {
+	it("crosses off once: a second use, of the same move or another, announces nothing", async () => {
 		const actor = makeActor();
-		await maybeAnnounceBecameHero(makeMove(actor), "someone-else");
+		expect(await asteriskMoveUsed(actor, "Undaunted")).toBe(true);
+		expect(await asteriskMoveUsed(actor, "Undaunted")).toBe(false);
+		expect(await asteriskMoveUsed(actor, "Big Damn Hero")).toBe(false);
+		expect(actor.setFlag).toHaveBeenCalledTimes(1);
+		expect(ChatMessage.create).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not re-announce for someone already crossed off", async () => {
+		const actor = makeActor({ isHero: true });
+		expect(await asteriskMoveUsed(actor, "Undaunted")).toBe(false);
 		expect(actor.setFlag).not.toHaveBeenCalled();
 		expect(ChatMessage.create).not.toHaveBeenCalled();
 	});
 
-	it("ignores moves without an asterisk trigger", async () => {
-		const actor = makeActor();
-		await maybeAnnounceBecameHero(makeMove(actor, { asterisk: null }), "u1");
+	it("an un-learned copy crosses nothing off", async () => {
+		const actor = makeActor({ unlearned: ["Undaunted"] });
+		expect(asteriskUseCounts(actor, "Undaunted")).toBe(false);
+		expect(await asteriskMoveUsed(actor, "Undaunted")).toBe(false);
+		expect(actor.setFlag).not.toHaveBeenCalled();
+	});
+
+	it("a move not held crosses nothing off", async () => {
+		const actor = makeActor({ moves: ["Big Damn Hero"] });
+		expect(await asteriskMoveUsed(actor, "Undaunted")).toBe(false);
+		expect(actor.setFlag).not.toHaveBeenCalled();
+	});
+
+	it("a move without the asterisk crosses nothing off", async () => {
+		const actor = makeActor({ moves: ["Tough Love"] });
+		expect(await asteriskMoveUsed(actor, "Tough Love")).toBe(false);
+		expect(actor.setFlag).not.toHaveBeenCalled();
+	});
+
+	it("a non-Would-Be Hero holding a starred move never crosses anything off", async () => {
+		const actor = makeActor({ playbook: "The Heavy", slug: "the-heavy" });
+		expect(await asteriskMoveUsed(actor, "Undaunted")).toBe(false);
 		expect(actor.setFlag).not.toHaveBeenCalled();
 		expect(ChatMessage.create).not.toHaveBeenCalled();
 	});
 
-	it("ignores non-move items", async () => {
-		const actor = makeActor();
-		await maybeAnnounceBecameHero(makeMove(actor, { type: "equipment" }), "u1");
-		expect(actor.setFlag).not.toHaveBeenCalled();
-	});
-
-	// The reason the guard reads the slug. This playbook is the one that RENAMES ITSELF: the
-	// sheet already shows a hero who has crossed off "Would-be" as "The Hero", and a player is
-	// free to retitle the field on top of that. Matched on the name, the announcement stops
-	// firing for exactly the character it is about, with the move sitting on their sheet.
+	// The guard reads the slug: this playbook RENAMES ITSELF, and a player may retitle it besides.
 	it("still fires for a Would-Be Hero whose playbook has been retitled", async () => {
 		const actor = makeActor({ playbook: "The Hero" });
-		await maybeAnnounceBecameHero(makeMove(actor), "u1");
-		expect(actor.setFlag).toHaveBeenCalledTimes(1);
+		expect(await asteriskMoveUsed(actor, "Undaunted")).toBe(true);
 	});
 
-	// ...and the other way round: a different playbook retitled INTO this one's name is still a
-	// different playbook, and must not collect its rules.
 	it("does not fire for another playbook renamed to look like this one", async () => {
 		const actor = makeActor({ playbook: "The Would-Be Hero", slug: "the-heavy" });
-		await maybeAnnounceBecameHero(makeMove(actor), "u1");
-		expect(actor.setFlag).not.toHaveBeenCalled();
+		expect(await asteriskMoveUsed(actor, "Undaunted")).toBe(false);
 	});
 
-	it("ignores asterisked moves owned by a different playbook", async () => {
-		const actor = makeActor({ playbook: "The Heavy", slug: "the-heavy" });
-		await maybeAnnounceBecameHero(makeMove(actor), "u1");
-		expect(actor.setFlag).not.toHaveBeenCalled();
-		expect(ChatMessage.create).not.toHaveBeenCalled();
+	it("losing the move later does not un-cross it", async () => {
+		const actor = makeActor({ moves: ["Undaunted"] });
+		await asteriskMoveUsed(actor, "Undaunted");
+		actor.items = [];
+		expect(playbookTitle(actor)).toBe("The Hero");
+		expect(asteriskUseCounts(actor, "Undaunted")).toBe(false);
 	});
 
-	it("does not re-announce for someone who is already a Hero", async () => {
-		const actor = makeActor({ isHero: true });
-		await maybeAnnounceBecameHero(makeMove(actor), "u1");
-		expect(actor.setFlag).not.toHaveBeenCalled();
-		expect(ChatMessage.create).not.toHaveBeenCalled();
+	// A use the sheet cannot see (A Force's first paragraph, a leap made at the table) is a box the player
+	// ticks: an owner-only "I used it" button on each starred move's Moves-tab card while still Would-be.
+	it("the Moves tab offers the manual cross-off on a starred move's card, while it would still count", () => {
+		const hbs = readRepo("templates/actor/partials/move-group.hbs");
+		expect(hbs).toContain("{{#if (and owned (lookup @root.stonetop.asteriskUse name))}}");
+		expect(hbs).toMatch(/class="stonetop-inline-btn stonetop-asterisk-used" data-move-name="\{\{name\}\}"/);
+		const sheet = readRepo("module/actors/character/StonetopCharacterSheet.js");
+		expect(sheet).toMatch(/context\.stonetop\.asteriskUse = this\.isEditable\s*\?\s*Object\.fromEntries\(ASTERISK_MOVES\.filter\(name => asteriskUseCounts\(this\.actor, name\)\)/);
+		expect(sheet).toMatch(/button\.stonetop-asterisk-used[\s\S]{0,900}asteriskMoveUsed\(this\.actor, moveName\)/);
+		// Which cards get it: the learned starred moves of a Would-Be Hero not yet crossed off.
+		const actor = makeActor({ unlearned: ["Undaunted"] });
+		expect(ASTERISK_MOVES.filter(name => asteriskUseCounts(actor, name)))
+			.toEqual(["A Force to Be Reckoned With", "Big Damn Hero", "Voice of Experience"]);
+		expect(ASTERISK_MOVES.filter(name => asteriskUseCounts(makeActor({ isHero: true }), name))).toEqual([]);
+	});
+
+	it("crossOffWouldBe without a move still announces, once", async () => {
+		const actor = makeActor();
+		expect(await crossOffWouldBe(actor)).toBe(true);
+		expect(await crossOffWouldBe(actor)).toBe(false);
+		expect(ChatMessage.create).toHaveBeenCalledTimes(1);
+		expect(ChatMessage.create.mock.calls[0][0].content).not.toContain("used");
 	});
 });

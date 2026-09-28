@@ -138,7 +138,7 @@ export async function beginAid(actor, item) {
 /**
  * The card's result tier, read off its drawn result block; null for a card with none (Aid).
  *
- * A card shifted up to 12+ is drawn `critical` (stonetop.js `_classifyShiftedTotal`), which is a
+ * A card shifted up to 12+ is drawn `critical` (counted-tier.js `totalTier`), which is a
  * 10+ to every move here, as it is to the shift's own tier rows.
  */
 function cardTier(html) {

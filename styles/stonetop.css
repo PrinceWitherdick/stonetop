@@ -2936,6 +2936,41 @@ input.stonetop-name-field {
 	color: var(--st-red-text);
 }
 
+/* An unchosen background's list, shown as what it would ask rather than as boxes to tick. */
+.stonetop-bg-choices-preview-list {
+	margin: 0;
+	padding-left: 1.2em;
+	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
+	color: var(--color-text-dark-secondary);
+}
+
+/* A list of short words (the Destined's destiny) flows in rows, as the playbook prints it, rather
+   than running 25 lines down the tab. The label keeps its own line. */
+.stonetop-bg-choices--inline {
+	display: flex;
+	flex-wrap: wrap;
+	column-gap: 12px;
+}
+
+.stonetop-bg-choices--inline > .stonetop-bg-choices-label,
+.stonetop-bg-choices--inline > .stonetop-bg-choices-flag,
+.stonetop-bg-choices--inline > .stonetop-bg-choices-preview-list {
+	flex: 1 0 100%;
+}
+
+.stonetop-bg-choices--inline .stonetop-bg-choices-preview-list {
+	padding-left: 0;
+	list-style: none;
+}
+
+.stonetop-bg-choices--inline .stonetop-bg-choices-preview-list li {
+	display: inline;
+}
+
+.stonetop-bg-choices--inline .stonetop-bg-choices-preview-list li:not(:last-child)::after {
+	content: ", ";
+}
+
 .stonetop-bg-resource-row {
 	display: flex;
 	align-items: center;
@@ -6144,8 +6179,10 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 /* ── Know Things: the moves that act on a landed roll ───────────────────────── */
 
 /* The Logbook's "treat this as a 10+" spend. Shares the Burn Brightly row and its full-width
-   stacking, since both are post-roll spends and their labels are long. */
-.stonetop-logbook-btn {
+   stacking, since both are post-roll spends and their labels are long. Impetuous Youth's "Give it your
+   all" is one more (actors/character/impetuous-youth.js). */
+.stonetop-logbook-btn,
+.stonetop-give-it-all-btn {
 	flex: 0 0 100%;
 	display: flex;
 	align-items: center;
@@ -6155,7 +6192,8 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	border: none;
 }
 
-.stonetop-logbook-btn:disabled {
+.stonetop-logbook-btn:disabled,
+.stonetop-give-it-all-btn:disabled {
 	opacity: 0.5;
 	cursor: default;
 }
@@ -7492,6 +7530,14 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	margin-left: 4px;
 	color: var(--st-red-border);
 }
+/* "Once per level" (Potential for Greatness): a mark noted at the same level as another, or above
+   the current level. The gold caution tone, as a stat box the rules can't account for wears it
+   (.stonetop-stat-box--off-rules): flagged, never blocked. --st-gold-text, not -border, for the
+   same reason given there: it is the only stop in the family that carries against paper. */
+.stonetop-move-mark-level-caution {
+	margin-left: 3px;
+	color: var(--st-gold-text);
+}
 
 /* A move the player OWNS but whose prerequisites are no longer satisfied (they
    edited their learned moves and lost a required move). Unlike `.move-locked`
@@ -7542,7 +7588,10 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	min-width: 0;
 }
 
-.stonetop-item-resource-check {
+/* Up With People's "theirs" pip (an NPC partner's 1 Rapport) is the same circle under its own class:
+   `.stonetop-item-resource-check` is what the sheet's track click handler answers. */
+.stonetop-item-resource-check,
+.stonetop-up-with-people-theirs {
 	width: calc(16px * var(--stonetop-font-scale, 1));
 	height: calc(16px * var(--stonetop-font-scale, 1));
 	border-radius: 50% !important;
@@ -7553,8 +7602,34 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	flex-shrink: 0;
 }
 
-.stonetop-item-resource-check.is-checked {
+.stonetop-item-resource-check.is-checked,
+.stonetop-up-with-people-theirs.is-checked {
 	background-color: var(--color-text-dark-primary) !important;
+}
+
+.stonetop-up-with-people-theirs:disabled { cursor: default; }
+
+/* Up With People's line under the move: who the hero is talking with, an NPC's pip, and Converse. */
+.stonetop-up-with-people {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 8px;
+}
+
+/* A move-track pip with a label of its own is set off behind a bar, as the book prints Up With
+   People's: your two Rapport, a bar, then the one they hold ("theirs", an NPC's, on its own line). */
+.stonetop-item-resources .stonetop-item-resource-entry:has(> .stonetop-resource-label) {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	margin-left: 2px;
+	padding-left: 4px;
+	border-left: 1px solid var(--color-text-dark-primary);
+}
+.stonetop-item-resources .stonetop-item-resource-entry > .stonetop-resource-label {
+	font-size: var(--font-size-11, 0.85em);
+	font-style: italic;
 }
 
 /* Grouped circle track (sacred pouch Stock): circles chunk into fives so a long
@@ -12336,8 +12411,11 @@ button.stonetop-invocation-chip:focus-visible {
    The ongoing Invocation's pill, in gold: a count said in words ("Inspiration 2"), because a bare
    number on an icon says nothing to a player who cannot see it well. A <button> where the sheet is
    editable (it acts fearlessly) and a <span> where it isn't, so every property core sets on an in-app
-   button is named here, for the reason the Invocation chip's comment gives. */
-.stonetop-inspiration-chip {
+   button is named here, for the reason the Invocation chip's comment gives.
+   Up With People's Rapport, held with a hero (up-with-people.js), wears the same pill: one more hold
+   another character handed over, spent from this chip. */
+.stonetop-inspiration-chip,
+.stonetop-rapport-chip {
 	display: inline-flex;
 	align-items: center;
 	align-self: center;
@@ -12364,20 +12442,25 @@ button.stonetop-invocation-chip:focus-visible {
 	transition: border-color 0.12s;
 }
 
-.stonetop-inspiration-chip i { font-size: 0.95em; font-size: round(0.95em, 1px); }
+.stonetop-inspiration-chip i,
+.stonetop-rapport-chip i { font-size: 0.95em; font-size: round(0.95em, 1px); }
 
-.stonetop-inspiration-chip-name {
+.stonetop-inspiration-chip-name,
+.stonetop-rapport-chip-name {
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-button.stonetop-inspiration-chip { cursor: pointer; }
+button.stonetop-inspiration-chip,
+button.stonetop-rapport-chip { cursor: pointer; }
 
-button.stonetop-inspiration-chip:hover { border-color: var(--st-gold-text); }
+button.stonetop-inspiration-chip:hover,
+button.stonetop-rapport-chip:hover { border-color: var(--st-gold-text); }
 
-button.stonetop-inspiration-chip:focus-visible {
+button.stonetop-inspiration-chip:focus-visible,
+button.stonetop-rapport-chip:focus-visible {
 	outline: 2px solid var(--color-shadow-primary, slategrey);
 	outline-offset: 2px;
 }
@@ -23648,6 +23731,7 @@ a.steading-player-open:hover {
 
 .stonetop-onboarding-background-move-choices,
 .stonetop-onboarding-background-setup,
+.stonetop-onboarding-background-picks,
 .stonetop-onboarding-background-actions {
 	display: flex;
 	flex-direction: column;
@@ -23655,6 +23739,28 @@ a.steading-player-open:hover {
 	margin-top: 8px;
 	padding-top: 8px;
 	border-top: 1px solid rgba(100,116,139,0.16);
+}
+
+/* A background's own "choose N" list: sentences (Driven) stack, short words (Destined) wrap as
+   pills. A full list's unticked options are shown as out of reach; a short list is flagged. */
+.stonetop-onboarding-background-picks:not(.is-inline) .stonetop-onboarding-background-choice-options {
+	flex-direction: column;
+	align-items: flex-start;
+}
+
+.stonetop-onboarding-background-pick-option:has(input:disabled) {
+	cursor: default;
+	opacity: 0.55;
+}
+
+.stonetop-onboarding-background-picks-flag {
+	margin: 0;
+	font-size: var(--st-fs-sm);
+	color: var(--st-red-text);
+}
+
+.stonetop-onboarding-background-picks-flag[hidden] {
+	display: none;
 }
 
 /* Beast-Bonded actions are full sentences, so stack them instead of wrapping pills. */

@@ -308,16 +308,17 @@ export function queryAsker(data, context = {}, users = globalThis.game?.users) {
 /**
  * Ask the GM's client a User query (the other half of queryAsker), answering `fallback` when there is
  * no GM or it could not answer: a timeout, or an error on its side, logged as "could not `what`".
+ * `timeout` is how long it waits (ms), ten seconds unless the query needs longer.
  *
  * @param {User|null} gm  the active GM
  * @param {string} query
  * @param {object} data
- * @param {{fallback?: *, what?: string}} [options]
+ * @param {{fallback?: *, what?: string, timeout?: number}} [options]
  */
-export async function askGMClient(gm, query, data, { fallback = null, what = "answer" } = {}) {
+export async function askGMClient(gm, query, data, { fallback = null, what = "answer", timeout = 10000 } = {}) {
 	if (!gm) return fallback;
 	try {
-		return await gm.query(query, data, { timeout: 10000 });
+		return await gm.query(query, data, { timeout });
 	} catch (err) {
 		console.warn(`Stonetop | the GM's client could not ${what}`, err);
 		return fallback;

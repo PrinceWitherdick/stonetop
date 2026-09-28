@@ -1,4 +1,5 @@
-// What a move adds to its OWN roll card, by name: buttons under a tier and an override of the miss XP.
+// What a move adds to its OWN roll card, by name: buttons under a tier, an override of the miss XP, and the
+// number rolled for a move that rolls something other than a stat (the Destined's +Omens).
 // The generic roll (item/StonetopItem.js#roll) asks this once rather than naming moves itself, the way
 // MOVE_USE_EFFECTS and TIER_EFFECTS keep their moves out of the code that runs them.
 //
@@ -11,11 +12,12 @@ import { WIELDER_OF_THE_WHITE_FLAME } from "./holy-light.js";
 import { wielderRollOptions } from "./invoke-consequences.js";
 import { WE_HAPPY_FEW, speechRollOptions } from "./inspiration.js";
 import { GIVE_ADVANTAGE_MOVES, giveAdvantageRollOptions } from "./give-advantage.js";
+import { OMENS_OF_FATE, omensRollOptions } from "./destined.js";
 
 const named = name => moveName => moveName === name;
 
 /**
- * `matches(moveName)`, and `build(actor)` answering `{noXpOnMiss?, tierActions?}` or null when this
+ * `matches(moveName)`, and `build(actor)` answering `{noXpOnMiss?, statValue?, tierActions?}` or null when this
  * character's roll gets nothing (a move they do not hold learned).
  */
 export const MOVE_ROLL_OPTIONS = [
@@ -28,10 +30,13 @@ export const MOVE_ROLL_OPTIONS = [
 	{ matches: named(WIELDER_OF_THE_WHITE_FLAME), build: wielderRollOptions },
 	// Every tier asks who heard the speech (inspiration-flow.js#wireSpeechCard).
 	{ matches: named(WE_HAPPY_FEW), build: speechRollOptions },
+	// The Destined's "roll +Omens": the Omens held are the number added, and a 6- marks no XP (destined.js).
+	{ matches: named(OMENS_OF_FATE), build: omensRollOptions },
 	// "You or an ally gain advantage" on the tiers that print it: Everything Burns' 10+, Work With What
-	// You've Got's 7+ (give-advantage-flow.js#wireGiveAdvantage).
+	// You've Got's 7+ (give-advantage-flow.js#wireGiveAdvantage). And on another move's card where the
+	// rule says so: Resourceful's hold on Defy Danger's 6-.
 	...Object.entries(GIVE_ADVANTAGE_MOVES).filter(([, rule]) => rule.tiers?.length)
-		.map(([name]) => ({ matches: named(name), build: giveAdvantageRollOptions(name) })),
+		.map(([name, rule]) => ({ matches: named(rule.on ?? name), build: giveAdvantageRollOptions(name) })),
 ];
 
 /**

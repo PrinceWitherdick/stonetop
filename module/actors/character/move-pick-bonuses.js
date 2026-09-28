@@ -182,12 +182,15 @@ export function pickBonusNotes(bonuses = []) {
  * One line per free question: "Free question (Hound of Aratis): What here is tainted by chaos?".
  * Not a box on the list, because a box there would be one of its count, and a 10+ must still ask
  * its 3 besides. Not tier-hidden either, as the list is on a 6-: the move says "even on a 6-".
+ *
+ * Each line carries its granting move as `data-free-question`, for a card handler that has to know
+ * the question was there to ask (Voice of Experience's is one of the Would-Be Hero's asterisk uses).
  */
 export function freeQuestionLines(bonuses = []) {
 	return bonuses.filter(b => b.freeQuestion).map(b => {
 		const source = b.when ? format("stonetop.pickBonus.freeWhen", { source: b.ownsLearned, when: b.when }) : b.ownsLearned;
 		const text = format("stonetop.pickBonus.freeQuestion", { source, question: b.freeQuestion });
-		return `<p class="stonetop-free-question"><em>${escHtml(text)}</em></p>`;
+		return `<p class="stonetop-free-question" data-free-question="${escHtml(b.ownsLearned ?? "")}"><em>${escHtml(text)}</em></p>`;
 	}).join("");
 }
 

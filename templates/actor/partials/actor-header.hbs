@@ -206,6 +206,23 @@
 			      data-tooltip-direction="UP"><i class="fas fa-bullhorn" aria-hidden="true"></i><span class="stonetop-inspiration-chip-name">{{stonetop.inspiration.label}}</span></span>
 			{{/if}}
 			{{/if}}
+			{{! Rapport this PC holds with a Would-Be Hero who conversed with them (Up With People,
+			    up-with-people.js), on the Inspiration pill's terms: one per hero, the hero named IN WORDS,
+			    a <button> that spends it on a question where the sheet is editable and a readout where it
+			    is not. The `each` hides `editable`, so it is read as `../editable`. }}
+			{{#each stonetop.rapport as |r|}}
+			{{#if ../editable}}
+			<button type="button" class="stonetop-rapport-chip" data-hero-id="{{r.heroId}}"
+			        aria-label="{{r.tooltip}}"
+			        data-tooltip="{{r.tooltip}}"
+			        data-tooltip-direction="UP"><i class="fas fa-comments" aria-hidden="true"></i><span class="stonetop-rapport-chip-name">{{r.label}}</span></button>
+			{{else}}
+			<span class="stonetop-rapport-chip"
+			      aria-label="{{r.tooltip}}"
+			      data-tooltip="{{r.tooltip}}"
+			      data-tooltip-direction="UP"><i class="fas fa-comments" aria-hidden="true"></i><span class="stonetop-rapport-chip-name">{{r.label}}</span></span>
+			{{/if}}
+			{{/each}}
 			{{! An advantage HELD over the next roll (a peaceful camp, p.334), on the steading's
 			    holds-tray terms rather than the candle's: it is not a state anyone toggles on, so
 			    it is drawn only while one is held and it goes when a roll spends it.

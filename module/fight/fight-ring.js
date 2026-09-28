@@ -5,8 +5,9 @@
 // act without opening a sheet:
 //  • a character: Clash, Let Fly, Defend and Defy Danger on the left, their damage die on the right, and while they
 //    hold Readiness, Defend's "strike back at an attacker (deal your damage, with disadvantage)" (p.216),
-//    Big Damn Hero's "lock eyes with an attacker" for a Would-Be Hero who has it, and the Readiness they
-//    hold, shown over the token so the table can see what they have to spend;
+//    Big Damn Hero's "lock eyes with an attacker" for a Would-Be Hero who has it (and its leap, Defend's
+//    10+ with no roll, once per fight), and the Readiness they hold, shown over the token so the table can
+//    see what they have to spend;
 //  • a monster: one button per blow its stat block rolls, on the right. The Gwyllgi offers its claws,
 //    its bite, and the baleful cloud its move breathes;
 //  • a follower: Clash, Let Fly, Defend and Order on the left, their damage on the right;
@@ -43,7 +44,7 @@ import { followerRingInfo, openFollowerOrder } from "./follower-fight.js";
 import { followerCardFor } from "../actors/character/follower-masters.js";
 import { heldReadiness } from "../combat/defend-readiness.js";
 import { spendReadiness, pickOne } from "./defend-spend.js";
-import { HERO_MOVES, lockEyesCandidates, lockEyes } from "./hero-moves.js";
+import { HERO_MOVES, lockEyesCandidates, lockEyes, leapInOpen, leapIn } from "./hero-moves.js";
 import { ownsLearnedMoveNamed } from "../actors/character/owns-move.js";
 import { rollerEngagement } from "./damage-seed.js";
 import { escHtml } from "../utils/strings.js";
@@ -73,6 +74,9 @@ const STRIKE_BACK_ICON = "fa-solid fa-shield-halved";
 /** The glyph on Big Damn Hero's lock eyes. */
 const LOCK_EYES_ICON = "fa-solid fa-eye";
 
+/** The glyph on Big Damn Hero's leap, the sidebar's too (sidebar-move-list.hbs). */
+const LEAP_IN_ICON = "fa-solid fa-shield-heart";
+
 /** The glyph on a follower's plain Order button, which opens the dialog on no particular move. */
 const ORDER_ICON = "fa-solid fa-hand-point-right";
 
@@ -99,9 +103,10 @@ const tidy = formula => String(formula ?? "").replace(/\s+/g, "");
 
 /**
  * @typedef {object} RingButton
- * @property {"move"|"damage"|"item"|"order"|"strikeBack"|"lockEyes"} run  roll a character's move through
- *   their sheet, roll a damage formula, roll a stat block's move item, order a follower to a move, spend a
- *   Readiness to strike back, or spend one to lock eyes with a foe (Big Damn Hero)
+ * @property {"move"|"damage"|"item"|"order"|"strikeBack"|"lockEyes"|"leapIn"} run  roll a character's move
+ *   through their sheet, roll a damage formula, roll a stat block's move item, order a follower to a move,
+ *   spend a Readiness to strike back, spend one to lock eyes with a foe (Big Damn Hero), or make Big Damn
+ *   Hero's leap (Defend's 10+, no roll)
  * @property {string} label       the button's text, and a damage card's title
  * @property {string} icon        Font Awesome classes
  * @property {string} [itemId]    the move ("move", "item")
@@ -127,13 +132,14 @@ const tidy = formula => String(formula ?? "").replace(/\s+/g, "");
  *   same lookup, which is why ringButtonsFor gets both from followerRingInfo at once
  * @param {number} [p.readiness]  a character's held Defend Readiness
  * @param {boolean} [p.canLockEyes]  a foe in the fight they could lock eyes with (Big Damn Hero)
+ * @param {boolean} [p.canLeapIn]  Big Damn Hero's leap still there to make in this fight
  * @param {{name: string, label: string, allOut: boolean}[]} [p.ammo]  a character's carried Let Fly
  *   weapons that are low or out (combat/attack-flow.js#letFlyAmmoStatuses), shown on the Let Fly button
  * @param {boolean} [p.ammoOut]  whether nothing they carry for Let Fly has any left, weapons full or
  *   with no track included, which `ammo` alone cannot say
  * @returns {{moves: RingButton[], damage: RingButton[], readiness: number}}
  */
-export function ringButtons(actor, { die = "", order = null, swarm = null, readiness = 0, canLockEyes = false, canStrikeBack = true, ammo = [], ammoOut = false } = {}) {
+export function ringButtons(actor, { die = "", order = null, swarm = null, readiness = 0, canLockEyes = false, canLeapIn = false, canStrikeBack = true, ammo = [], ammoOut = false } = {}) {
 	const moves = [];
 	const damage = [];
 	const system = actor?.system ?? {};
@@ -152,6 +158,11 @@ export function ringButtons(actor, { die = "", order = null, swarm = null, readi
 				button.ammoOut = !!ammoOut;
 			}
 			moves.push(button);
+		}
+		// Big Damn Hero: "When you first leap into danger to protect someone, don't roll to Defend. Instead,
+		// treat it as though you rolled a 10+." Beside Defend, once per fight (hero-moves.js#leapInOpen).
+		if (canLeapIn && ownsLearnedMoveNamed(actor, HERO_MOVES.BIG_DAMN_HERO)) {
+			moves.push({ run: "leapIn", label: localize("stonetop.fight.heroMoves.leapIn.button"), icon: LEAP_IN_ICON, aria: localize("stonetop.fight.heroMoves.leapIn.tooltip") });
 		}
 		// Big Damn Hero: "When you Defend, you can spend 1 Readiness to lock eyes with an attacker".
 		if (readiness > 0 && canLockEyes && ownsLearnedMoveNamed(actor, HERO_MOVES.BIG_DAMN_HERO)) {
@@ -237,10 +248,15 @@ export async function ringButtonsFor(actor) {
 	const [die, ammo] = await Promise.all([isCharacter ? pcDamageDie(actor) : "", letFly ? letFlyAmmoStatuses(actor) : null]);
 	const { order, swarm } = followerRingInfo(actor);
 	const readiness = heldReadiness(actor);
-	// Working out who they could lock eyes with takes the whole fight, so only for someone who could spend on it.
-	const canLockEyes = isCharacter && readiness > 0 && ownsLearnedMoveNamed(actor, HERO_MOVES.BIG_DAMN_HERO) && lockEyesCandidates(actor).length > 0;
-	const canStrikeBack = isCharacter && readiness > 0 && hasAttacker(actor);
-	return ringButtons(actor, { die, order, swarm, readiness, canLockEyes, canStrikeBack, ammo: ammo?.weapons ?? [], ammoOut: !!ammo?.allOut });
+	// Working out their place in the fight takes the whole fight, so it is worked out at most once, and only
+	// for a button that needs it: locking eyes and striking back for someone who could spend on it.
+	let place;
+	const fight = () => (place === undefined ? (place = rollerEngagement(actor)) : place);
+	const bigDamnHero = isCharacter && ownsLearnedMoveNamed(actor, HERO_MOVES.BIG_DAMN_HERO);
+	const canLockEyes = bigDamnHero && readiness > 0 && lockEyesCandidates(actor, fight()).length > 0;
+	const canStrikeBack = isCharacter && readiness > 0 && hasAttacker(actor, { engagementOf: fight });
+	const canLeapIn = bigDamnHero && leapInOpen(actor, fight());
+	return ringButtons(actor, { die, order, swarm, readiness, canLockEyes, canLeapIn, canStrikeBack, ammo: ammo?.weapons ?? [], ammoOut: !!ammo?.allOut });
 }
 
 /**
@@ -295,6 +311,7 @@ export async function runRingButton(button, actor, { shiftKey = false } = {}) {
 	if (button.run === "order") return openFollowerOrder(button.order, button.moveKey);
 	if (button.run === "item") return actor.items?.get?.(button.itemId)?.roll?.({ shiftKey });
 	if (button.run === "lockEyes") return lockEyesFromRing(actor);
+	if (button.run === "leapIn") return leapIn(actor);
 	// Strike back is the damage button's roll, at its disadvantage, and costs a Readiness once it is rolled.
 	const strikeBack = button.run === "strikeBack";
 	if (strikeBack && heldReadiness(actor) < 1) return;

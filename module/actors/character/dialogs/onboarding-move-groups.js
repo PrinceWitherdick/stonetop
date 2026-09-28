@@ -63,7 +63,7 @@ export const ONBOARDING_MOVE_GROUPS = deepFreeze({
 	],
 	"The Would-Be Hero": [
 		{ key: "combat", label: "Combat", moves: ["Big Damn Hero", "Better Part of Valor", "Something to Remember Me By", "Undaunted", "Underestimated", "Anger is a Gift"] },
-		{ key: "heart", label: "Heart", moves: ["In Over Your Head", "Inquiring Minds", "Speak Truth to Power", "Tough Love", "Up With People", "Voice of Experience"] },
+		{ key: "heart", label: "Heart", moves: ["In Over Your Head", "Inquiring Minds", "Speak Truth to Power", "Tough Love", "Up With People", "Voice of Experience", "Omens of Fate"] },
 		{ key: "grit", label: "Grit", moves: ["A Force to Be Reckoned With", "But I Get Up Again", "I Get Knocked Down", "Iron Will", "Never Gonna Keep Me Down", "Resourceful"] },
 	],
 });

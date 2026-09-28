@@ -5,7 +5,7 @@
 // was a label on the sheet that bought nothing.
 
 import { readFileSync } from "node:fs";
-import { afterEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { buildLiveCharacter, makeLiveItem } from "../../fakes/LiveCharacter.js";
 import { fineWhiskyOffer, isFineWhiskyName, isPersuadeMove, FINE_WHISKY_OFFER } from "../../../module/actors/character/fine-whisky.js";
 import { promptRoll, tookOffer } from "../../../module/dialogs/RollDialog.js";
@@ -13,7 +13,12 @@ import { promptRoll, tookOffer } from "../../../module/dialogs/RollDialog.js";
 // Binding Arbitration's rolls below need an attack's targets and a Persuade (vs. PCs)'s aim without
 // the prompts that settle them. Both answer null (not an attack, aimed at nobody) unless a test says
 // otherwise, which is what the real ones answer for every other roll in this file.
-const seams = vi.hoisted(() => ({ begin: null, aim: null }));
+const seams = vi.hoisted(() => ({ begin: null, aim: null, turned: null }));
+// A Force to Be Reckoned With's 12+ hook, watched without replacing it.
+vi.mock("../../../module/actors/character/would-be-hero-cards.js", async (importOriginal) => {
+	const real = await importOriginal();
+	return { ...real, forceTurnedTables: (...args) => { seams.turned?.(...args); return real.forceTurnedTables(...args); } };
+});
 vi.mock("../../../module/combat/attack-flow.js", async (importOriginal) => {
 	const real = await importOriginal();
 	return { ...real, maybeBeginAttack: (...args) => (seams.begin ?? real.maybeBeginAttack)(...args) };
@@ -519,6 +524,57 @@ describe("Alpha's advantage on the next roll against them", () => {
 		expect(rolledWith(persuade).rollMode).toBe("normal");
 		expect(actor.getFlag(SCOPE, "alphaOver")).toHaveLength(1);
 	});
+
+	// A 7-9 the roll treats as a 10+ (a taken "treat a 7-9 as a 10+" line) settles as the 10+ it counts as,
+	// at the roll as after a rewrite (actors/character/tier-effects.js, utils/counted-tier.js).
+	it("remembers the foe on a 7-9 the roll counts as a 10+", async () => {
+		target([wolf]);
+		const { actor, alpha, roll } = rangerRoller({ moves: ["Alpha"], total: 8 });
+		await roll(alpha, { takenOffers: ["deal"], offered: [{ key: "deal", effect: "partialAsSuccess", source: "Let's Make a Deal" }] });
+		expect(rolledWith(alpha).partialCountsAsSuccess).toBe("Let's Make a Deal");
+		expect(actor.getFlag(SCOPE, "alphaOver")).toEqual([{ key: "Scene.s.Token.tw", name: "Grey Wolf" }]);
+	});
+
+	// A guided move, Improvise or a bare stat roll (onDirectStatRoll) aimed at them is the next roll against
+	// them too, and uses the advantage up.
+	describe("on a roll with no move behind it (onDirectStatRoll)", () => {
+		let direct;
+		beforeEach(() => {
+			direct = [];
+			vi.doMock("../../../module/utils/roll-engine.js", async (importOriginal) => ({
+				...(await importOriginal()),
+				rollStat: vi.fn(async (stat, actor, options) => { direct.push(options); return { total: 8 }; }),
+			}));
+		});
+		afterEach(() => vi.doUnmock("../../../module/utils/roll-engine.js"));
+		const cowed = [{ key: "Scene.s.Token.tw", name: "Grey Wolf" }];
+
+		it("gives a guided roll at the cowed foe advantage, named Alpha, and spends it", async () => {
+			target([wolf]);
+			const { actor, char } = rangerRoller({ moves: ["Alpha"] });
+			await actor.setFlag(SCOPE, "alphaOver", cowed);
+			await char.onDirectStatRoll("wis", { moveName: "Forage" });
+			expect(direct[0].rollMode).toBe("adv");
+			expect(direct[0].conditionNotes).toContain("Alpha");
+			expect(actor.getFlag(SCOPE, "alphaOver")).toEqual([]);
+			await char.onDirectStatRoll("wis", { moveName: "Forage" });
+			expect(direct[1].rollMode).toBe("normal");
+		});
+
+		it("names only Binding Arbitration when it bought the advantage, and spends Alpha's all the same", async () => {
+			target([wolf]);
+			const made = buildLiveCharacter({
+				slug: "the-ranger", name: "The Ranger", seedStartingMoves: false,
+				items: ["Alpha", "Binding Arbitration"].map(name => makeLiveItem({ name, type: "move", system: { moveType: "playbook" } })),
+				flags: { oaths: [{ id: "o1", name: "Grey Wolf", broken: true }], alphaOver: cowed },
+			});
+			await made.char.onDirectStatRoll("wis", { moveName: "Forage" });
+			expect(direct[0].rollMode).toBe("adv");
+			expect(direct[0].conditionNotes).toContain("Binding Arbitration");
+			expect(direct[0].conditionNotes).not.toContain("Alpha");
+			expect(made.actor.getFlag(SCOPE, "alphaOver")).toEqual([]);
+		});
+	});
 });
 
 // Seeker audit (2026-09-26): Let's Make a Deal ("When you Persuade by offering them something that you know
@@ -607,5 +663,106 @@ describe("the unticked lines a Seeker's moves bring", () => {
 		expect(await keysOf(seekerRoller({ moves: ["Safety First"] }).char, defy)).toEqual([]);
 		const off = seekerRoller({ moves: [{ name: "Safety First", learned: false }], protection: 2 });
 		expect(await keysOf(off.char, off.defy)).toEqual([]);
+	});
+});
+
+// Would-Be Hero audit (2026-09-27): Speak Truth to Power ("When you demand that someone does what is clearly
+// good and right, you have advantage to Persuade. If they refuse, gain +1 Resolve"), Better Part of Valor
+// ("When you are outnumbered or facing a foe bigger than you, you have advantage to hide from, escape from,
+// or sneak past them"), Underestimated ("When you first make your move against an enemy who underestimates
+// you, you have advantage") and A Force to Be Reckoned With ("When you Defy Danger against something trying
+// to harm or constrain you, on a 12+ you turn the tables on them") did nothing on the roll.
+function heroRoller({ moves = [], total = 8 } = {}) {
+	const rolled = (name, rollType = "cha") => ({ _id: `${name}-1`, name, type: "move", system: { rollType }, roll: vi.fn(async () => ({ total })) });
+	const knowThings = rolled("Know Things", "int");
+	const persuade = rolled("Persuade (vs. NPCs)");
+	const persuadePcs = rolled("Persuade (vs. PCs)");
+	const defy = rolled("Defy Danger", "dex");
+	const clash = rolled("Clash", "str");
+	const made = buildLiveCharacter({
+		slug: "the-would-be-hero", name: "The Would-Be Hero", seedStartingMoves: false,
+		items: moves.map(m => makeLiveItem({ name: m.name ?? m, type: "move", system: { moveType: "playbook" }, flags: m.learned === false ? { [SCOPE]: { learned: false } } : undefined })),
+	});
+	const items = [...made.actor.items, knowThings, persuade, persuadePcs, defy, clash];
+	items.get = id => items.find(i => i._id === id) ?? null;
+	made.actor.items = items;
+	const roll = (item, prompted) => made.char.onRoll({
+		currentTarget: { closest: sel => (sel === ".item" ? { dataset: { itemId: item._id } } : null), getAttribute: () => null },
+	}, prompted);
+	return { ...made, knowThings, persuade, persuadePcs, defy, clash, roll };
+}
+
+describe("the unticked lines a Would-Be Hero's moves bring", () => {
+	afterEach(() => { seams.turned = null; });
+
+	it("offers Speak Truth to Power on either Persuade, for a LEARNED move only", async () => {
+		const { char, persuade, persuadePcs, defy } = heroRoller({ moves: ["Speak Truth to Power"] });
+		expect(await char.rollOffers(persuade)).toEqual([expect.objectContaining({ key: "speak-truth-to-power", applied: false, source: "Speak Truth to Power" })]);
+		expect(await keysOf(char, persuadePcs)).toEqual(["speak-truth-to-power"]);
+		expect(await keysOf(char, defy)).toEqual([]);
+		const off = heroRoller({ moves: [{ name: "Speak Truth to Power", learned: false }] });
+		expect(await keysOf(off.char, off.persuade)).toEqual([]);
+	});
+
+	it("taken, Speak Truth to Power is advantage, and every tier carries the refusal's +1 Resolve", async () => {
+		const { persuade, roll } = heroRoller({ moves: ["Speak Truth to Power"] });
+		await roll(persuade, { takenOffers: ["speak-truth-to-power"] });
+		const options = rolledWith(persuade);
+		expect(options.rollMode).toBe("adv");
+		expect(options.conditionNotes).toContain("Speak Truth to Power");
+		for (const tier of ["success", "partial", "failure"]) expect(options.tierActions[tier]).toContain("stonetop-speak-truth-refused");
+		const unticked = heroRoller({ moves: ["Speak Truth to Power"] });
+		await unticked.roll(unticked.persuade, { takenOffers: [] });
+		expect(rolledWith(unticked.persuade).tierActions).toBeUndefined();
+	});
+
+	it("offers Better Part of Valor on Defy Danger alone, and taken it is advantage", async () => {
+		const { char, defy, persuade, roll } = heroRoller({ moves: ["Better Part of Valor"] });
+		expect(await char.rollOffers(defy)).toEqual([expect.objectContaining({ key: "better-part-of-valor", applied: false, source: "Better Part of Valor" })]);
+		expect(await keysOf(char, persuade)).toEqual([]);
+		const off = heroRoller({ moves: [{ name: "Better Part of Valor", learned: false }] });
+		expect(await keysOf(off.char, off.defy)).toEqual([]);
+		await roll(defy, { takenOffers: ["better-part-of-valor"] });
+		expect(rolledWith(defy).rollMode).toBe("adv");
+		expect(rolledWith(defy).conditionNotes).toContain("Better Part of Valor");
+	});
+
+	it("offers Underestimated on every move roll, for a LEARNED move only", async () => {
+		const { char, knowThings, persuade, defy, clash, roll } = heroRoller({ moves: ["Underestimated"] });
+		for (const item of [knowThings, persuade, defy, clash]) {
+			expect(await char.rollOffers(item)).toEqual([expect.objectContaining({ key: "underestimated", applied: false, source: "Underestimated" })]);
+		}
+		const off = heroRoller({ moves: [{ name: "Underestimated", learned: false }] });
+		expect(await keysOf(off.char, off.defy)).toEqual([]);
+		await roll(persuade, { takenOffers: ["underestimated"] });
+		expect(rolledWith(persuade).rollMode).toBe("adv");
+	});
+
+	it("offers A Force to Be Reckoned With on Defy Danger; taken it buys no advantage and prints its note on a 12+ only", async () => {
+		const { char, defy, persuade, roll } = heroRoller({ moves: ["A Force to Be Reckoned With"], total: 12 });
+		expect(await char.rollOffers(defy)).toEqual([expect.objectContaining({ key: "force-to-be-reckoned-with", applied: false, effect: "criticalNote" })]);
+		expect(await keysOf(char, persuade)).toEqual([]);
+		const turned = vi.fn();
+		seams.turned = turned;
+		await roll(defy, { takenOffers: ["force-to-be-reckoned-with"] });
+		const options = rolledWith(defy);
+		expect(options.rollMode).toBe("normal");
+		expect(options.conditionNotes).toContain("A Force to Be Reckoned With");
+		expect(options.criticalActions).toContain("turn the tables");
+		expect(options.tierActions).toBeUndefined();
+		// The 12+ came up: the asterisk wave's hook is called.
+		expect(turned).toHaveBeenCalledTimes(1);
+		expect(turned.mock.calls[0][0]).toBe(char._actor);
+	});
+
+	it("calls no turned-tables hook on an 11, or with the line left unticked", async () => {
+		const turned = vi.fn();
+		seams.turned = turned;
+		const eleven = heroRoller({ moves: ["A Force to Be Reckoned With"], total: 11 });
+		await eleven.roll(eleven.defy, { takenOffers: ["force-to-be-reckoned-with"] });
+		const unticked = heroRoller({ moves: ["A Force to Be Reckoned With"], total: 12 });
+		await unticked.roll(unticked.defy, { takenOffers: [] });
+		expect(rolledWith(unticked.defy).criticalActions).toBeUndefined();
+		expect(turned).not.toHaveBeenCalled();
 	});
 });

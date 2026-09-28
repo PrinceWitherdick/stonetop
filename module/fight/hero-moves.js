@@ -5,12 +5,20 @@
 // facts they turn on:
 //  • UNDAUNTED (Would-Be Hero): "When you are outnumbered or facing a foe bigger than you, you get +1 armor
 //    and deal +1d6 damage." Outnumbered is the fight's count: more than one on them, or more foes than
-//    heroes in their engagement. Bigger is the stat block's size, large or huge.
+//    heroes in their engagement. Bigger is the stat block's size, large or huge. Where the fight does
+//    not show it (no fight on the map, the Fight tab off, "bigger than you" no size on the stat block),
+//    both halves are offered UNTICKED for the table to call (the user's ruling, 2026-09-27).
 //  • BIG DAMN HERO (Would-Be Hero): "When you Defend, you can spend 1 Readiness to lock eyes with an
 //    attacker; they have disadvantage on damage rolls against you and your ward for the rest of the fight."
 //    Kept on the hero's combatant, so it ends with the fight. The ward is whoever stands beside the hero:
 //    the fight has no record of who a character is protecting, and a Defend is made for the people right
-//    there.
+//    there. Its first half, "When you first leap into danger to protect someone, don't roll to Defend.
+//    Instead, treat it as though you rolled a 10+", is `leapIn`: once per fight, kept on the combatant
+//    beside the locked eyes.
+//  • TOUGH LOVE (Would-Be Hero): "When you honestly think another PC is in the wrong and call them on it,
+//    they have disadvantage on any rolls against you until you two work it out." The hero names the PC
+//    (`callOut`) and clears it by hand (`workedItOut`); that PC's rolls aimed at the hero read it
+//    (`toughLoveAgainst`), the other side of Binding Arbitration's oathbreaker.
 //  • DANGEROUS (Heavy): "When you deal your damage, you have advantage." Every roll of the character's own
 //    damage, in a fight or not; it meets a strike back's disadvantage and the two cancel.
 //  • MUSCLEBOUND (Heavy): "When you make a hand-to-hand or thrown attack, it's forceful and messy."
@@ -47,10 +55,14 @@ import { MELEE_RANGES } from "../data/weapons.js";
 import { betterMode, foldModes } from "../utils/roll-mode.js";
 import { fightStateActive, STORM_MARKINGS_NAME } from "../actors/character/fight-states.js";
 import { BINDING_ARBITRATION, OATHS_FLAG, readOaths, oathIndex, isSwornBy } from "../actors/character/oaths.js";
+import { asteriskMoveUsed } from "../actors/character/WouldBeHeroAsterisk.js";
 import { HEROES, touching } from "./engagements.js";
 import { fightOnScene, gridOf } from "./fight-state.js";
 import { rollerEngagement } from "./damage-seed.js";
 import { resolveSync } from "../utils/foundry-compat.js";
+import { escHtml } from "../utils/strings.js";
+import { damageRowActor } from "../utils/damage.js";
+import { stonetopChatCard } from "../utils/chat.js";
 
 export const HERO_MOVES = Object.freeze({
 	PARRY: "Parry & Riposte",
@@ -80,6 +92,7 @@ export const HERO_MOVES = Object.freeze({
 	PREDATOR: "Predator",
 	ALPHA: "Alpha",
 	SAFETY_FIRST: "Safety First",
+	TOUGH_LOVE: "Tough Love",
 });
 
 /**
@@ -102,8 +115,18 @@ export const CLASHED_FLAG = "clashedWith";
 /** The foes that have harmed this character (Payback), as keys on the actor. */
 export const HARMED_BY_FLAG = "harmedBy";
 
-/** Whoever knocked this character down (But I Get Up Again), as `{key, name}` on the actor. */
+/**
+ * Whoever knocked this character down (But I Get Up Again), as `{key, name, roll, blow}` on the actor:
+ * `roll` while the advantage on the next roll against them is owed, `blow` while the +1d4 on the next
+ * blow is. Each half is spent on its own. A record written before the split (`{key, name}`) owes both.
+ */
 export const KNOCKED_DOWN_FLAG = "knockedDownBy";
+
+/** The PCs a Would-Be Hero has called on it (Tough Love), as `{id, name}` on the hero. */
+export const TOUGH_LOVE_FLAG = "toughLove";
+
+/** Whether a hero has made Big Damn Hero's leap in this fight, on the hero's combatant. */
+export const LEAPT_IN_FLAG = "leaptIn";
 
 /** The foes an Alpha's 10+ asserted dominance over (Alpha), as `{key, name}` on the actor. */
 export const ALPHA_FLAG = "alphaOver";
@@ -184,16 +207,36 @@ export function undauntedNow(actor, found = undefined) {
 	return opponentIds(entry).some(id => isBigger(place.combatants.get(id))) ? "bigger" : null;
 }
 
-/** Undaunted's +1d6, as the damage window offers it, or null when it is not on. */
+/**
+ * Whether Undaunted is the TABLE'S TO CALL right now: the character has the move, and the fight does not
+ * show it holding. No fight on the map, the Fight tab off, or a fight that finds them neither outnumbered
+ * nor facing a large or huge stat block, which is not the same as not facing someone bigger than them: a
+ * Would-Be Hero may be "still a child", and a stat block prints no size for a grown raider. So wherever
+ * undauntedNow is null, the table says (the user's ruling, 2026-09-27).
+ *
+ * @param {Actor} actor
+ * @param {object|null} [found]  engagementOf's answer for them, when the caller has it
+ */
+export function undauntedUnread(actor, found = undefined) {
+	return has(actor, HERO_MOVES.UNDAUNTED) && !undauntedNow(actor, found);
+}
+
+/**
+ * Undaunted's +1d6, as the damage window offers it, or null when the character does not hold the move:
+ * TICKED where the fight says it holds, UNTICKED where the fight cannot say (undauntedUnread, which is
+ * every other case, so the fight is asked once). Taking it is a use of the starred move
+ * (WouldBeHeroAsterisk.js#asteriskMoveUsed).
+ */
 export function undauntedOffer(actor) {
+	if (!has(actor, HERO_MOVES.UNDAUNTED)) return null;
 	const why = undauntedNow(actor);
-	if (!why) return null;
 	return {
 		key: "undaunted",
 		dice: "1d6",
-		label: format(`stonetop.fight.heroMoves.undaunted.${why}`, {}),
+		label: format(`stonetop.fight.heroMoves.undaunted.${why ?? "unread"}`, {}),
 		pill: format("stonetop.fight.heroMoves.undaunted.pill", {}),
-		applied: true,
+		applied: !!why,
+		spend: hero => asteriskMoveUsed(hero, HERO_MOVES.UNDAUNTED),
 	};
 }
 
@@ -280,14 +323,47 @@ export function relentlessAgainst(actor, targets = []) {
 }
 
 /**
- * But I Get Up Again: "advantage on your next roll against whatever dealt the damage". Returns the
- * source to name, or null. The record is laid by I Get Knocked Down (fight/defend-spend.js).
+ * The record I Get Knocked Down laid (KNOCKED_DOWN_FLAG), with both halves read: an entry written before
+ * the split carries neither, and owes both. Null when there is none.
  */
-function upAgainAgainst(actor, targets = []) {
-	if (!has(actor, HERO_MOVES.UP_AGAIN)) return null;
-	const key = actor.getFlag(SYSTEM_ID, KNOCKED_DOWN_FLAG)?.key ?? "";
-	if (!key || !targets?.length) return null;
-	return targets.every(target => foeKey(target) === key) ? HERO_MOVES.UP_AGAIN : null;
+function knockedDownRecord(actor) {
+	const held = actor?.getFlag?.(SYSTEM_ID, KNOCKED_DOWN_FLAG);
+	if (!held?.key) return null;
+	return { key: held.key, name: held.name ?? "", roll: held.roll !== false, blow: held.blow !== false };
+}
+
+/** Whether But I Get Up Again still owes `part` ("roll" or "blow") against every one of `targets`. */
+function upAgainOwes(actor, targets, part) {
+	if (!has(actor, HERO_MOVES.UP_AGAIN) || !targets?.length) return false;
+	const record = knockedDownRecord(actor);
+	if (!record?.[part]) return false;
+	return targets.every(target => foeKey(target) === record.key);
+}
+
+/**
+ * But I Get Up Again: "you have advantage on your next roll against whatever dealt the damage and your
+ * next blow against them does +1d4 damage." Two halves, each spent on its own: this is the ROLL's, asked
+ * by every roll aimed at that foe (an attack's through foeAdvantage, any other move's in
+ * StonetopCharacter#onRoll) and spent once its dice land (spendUpAgainRoll). Returns the source to name,
+ * or null. The record is laid by I Get Knocked Down (fight/defend-spend.js).
+ */
+export function upAgainAgainst(actor, targets = []) {
+	return upAgainOwes(actor, targets, "roll") ? HERO_MOVES.UP_AGAIN : null;
+}
+
+/** Spend one half of the record, and let the whole record go once neither is owed. Whether it spent. */
+async function spendKnockedDown(actor, part) {
+	const record = knockedDownRecord(actor);
+	if (!record?.[part]) return false;
+	const rest = { ...record, [part]: false };
+	await actor.setFlag(SYSTEM_ID, KNOCKED_DOWN_FLAG, rest.roll || rest.blow ? rest : null);
+	return true;
+}
+
+/** Spend But I Get Up Again's advantage once a roll against `targets` has been made: it was for the NEXT roll. */
+export async function spendUpAgainRoll(actor, targets = []) {
+	if (!upAgainAgainst(actor, targets)) return false;
+	return spendKnockedDown(actor, "roll");
 }
 
 /**
@@ -310,7 +386,7 @@ export function oathbreakerAgainst(actor, targets = []) {
 	const index = oathIndex(broken);
 	const breaker = target => {
 		const doc = target?.uuid ? resolveSync(target.uuid) : null;
-		const person = doc?.documentName === "Actor" ? doc : doc?.actor;
+		const person = damageRowActor(doc);
 		return isSwornBy(index, { name: target?.name, id: target?.actorId, uuid: target?.uuid })
 			|| (!!person && isSwornBy(index, person));
 	};
@@ -321,6 +397,70 @@ export function oathbreakerAgainst(actor, targets = []) {
 export function brokenOaths(actor) {
 	if (!has(actor, BINDING_ARBITRATION)) return [];
 	return readOaths(actor.getFlag?.(SYSTEM_ID, OATHS_FLAG)).filter(oath => oath.broken);
+}
+
+// -- Tough Love ---------------------------------------------------------------
+
+/** The PCs this hero has called on it (`{id, name}`), while Tough Love is learned; [] otherwise. */
+export function toughLoveHeld(hero) {
+	if (!has(hero, HERO_MOVES.TOUGH_LOVE)) return [];
+	return listFlag(hero, TOUGH_LOVE_FLAG).filter(entry => entry?.id);
+}
+
+/**
+ * Tough Love, from the other side: "they have disadvantage on any rolls against you until you two work it
+ * out." The reverse of oathbreakerAgainst. Asked by the ROLLER's roll: every one of `targets` has to be a
+ * Would-Be Hero holding Tough Love against this roller, as every grudge here asks of every target. Returns
+ * the source to name on the card, or null. Damage rolls aside, as for Binding Arbitration.
+ *
+ * A target is a token (an attack's, or one this user targeted) or the character an Interfere or a
+ * Persuade (vs. PCs) was aimed at (`Actor.<id>`, StonetopCharacter#_rollTargets).
+ *
+ * @param {Actor} roller
+ * @param {Array<{uuid: string, actorId?: string}>} targets
+ */
+export function toughLoveAgainst(roller, targets = [], { resolve = resolveSync, actors = globalThis.game?.actors } = {}) {
+	if (roller?.type !== "character" || !roller.id || !targets?.length) return null;
+	const calledOn = target => {
+		const doc = target?.uuid ? resolve(target.uuid) : null;
+		const hero = damageRowActor(doc) ?? (target?.actorId ? actors?.get?.(target.actorId) ?? null : null);
+		return !!hero && hero.id !== roller.id && toughLoveHeld(hero).some(entry => entry.id === roller.id);
+	};
+	return targets.every(calledOn) ? HERO_MOVES.TOUGH_LOVE : null;
+}
+
+/**
+ * The hero calls `pc` on it (Tough Love), and the table is told on a card. Several may be held at once.
+ * Whether it was written.
+ */
+export async function callOut(hero, pc) {
+	if (!has(hero, HERO_MOVES.TOUGH_LOVE) || pc?.type !== "character" || !pc.id || pc.id === hero.id) return false;
+	const held = listFlag(hero, TOUGH_LOVE_FLAG);
+	if (held.some(entry => entry?.id === pc.id)) return false;
+	await hero.setFlag(SYSTEM_ID, TOUGH_LOVE_FLAG, [...held, { id: pc.id, name: pc.name ?? "" }]);
+	await postToughLove(hero, "called", pc.name ?? "");
+	return true;
+}
+
+/**
+ * "Until you two work it out": the hero lets the PC with this actor id go, and says so on a card. Whether
+ * anything changed.
+ */
+export async function workedItOut(hero, pcId) {
+	const held = listFlag(hero, TOUGH_LOVE_FLAG);
+	const gone = held.find(entry => entry?.id === pcId);
+	if (!gone) return false;
+	await hero.setFlag(SYSTEM_ID, TOUGH_LOVE_FLAG, held.filter(entry => entry?.id !== pcId));
+	await postToughLove(hero, "workedOut", gone.name ?? "");
+	return true;
+}
+
+/** Tough Love's card: `said` is "called" or "workedOut", in the move's own words (languages/en.json). */
+function postToughLove(hero, said, other) {
+	return globalThis.ChatMessage?.create?.({
+		content: stonetopChatCard(HERO_MOVES.TOUGH_LOVE, `<div class="card-content"><p>${escHtml(format(`${MOVE_KEY}.toughLove.${said}`, { name: hero.name, other }))}</p></div>`, "stonetop-tough-love-card"),
+		speaker: globalThis.ChatMessage?.getSpeaker?.({ actor: hero }),
+	});
 }
 
 /**
@@ -373,19 +513,23 @@ export function foeAdvantage(actor, targets = [], { clash = false } = {}) {
 		?? oathbreakerAgainst(actor, targets);
 }
 
-/** Forget whoever knocked this character down, once the blow that answered it is rolled. */
-export async function clearKnockedDownBy(actor) {
-	if (!actor?.getFlag?.(SYSTEM_ID, KNOCKED_DOWN_FLAG)) return false;
-	await actor.setFlag(SYSTEM_ID, KNOCKED_DOWN_FLAG, null);
-	return true;
+/**
+ * Spend But I Get Up Again's +1d4, once the blow that answered it is rolled. The advantage half is left
+ * as it was: it is the next ROLL's (spendUpAgainRoll), and a Clash that missed never gets to a blow.
+ */
+export async function spendUpAgainBlow(actor) {
+	return spendKnockedDown(actor, "blow");
 }
 
-/** Remember who knocked this character down (I Get Knocked Down), for But I Get Up Again. */
+/**
+ * Remember who knocked this character down (I Get Knocked Down), for But I Get Up Again: both halves
+ * owed afresh, whatever the last knock-down left.
+ */
 export async function recordKnockedDownBy(actor, attacker) {
 	if (!has(actor, HERO_MOVES.UP_AGAIN)) return false;
 	const key = foeKey(attacker);
 	if (!key) return false;
-	await actor.setFlag(SYSTEM_ID, KNOCKED_DOWN_FLAG, { key, name: attacker?.name ?? "" });
+	await actor.setFlag(SYSTEM_ID, KNOCKED_DOWN_FLAG, { key, name: attacker?.name ?? "", roll: true, blow: true });
 	return true;
 }
 
@@ -538,8 +682,9 @@ export function blowOffers(actor, { targets = [], weapon = null, strikeBack = fa
 	// when they roil and when they calm (the header's storm cloud), so while it is on the +1 is ticked.
 	if (fightStateActive(actor, "roiling")) add("roiling", STORM_MARKINGS_NAME, "1");
 	// Spent when it is taken: "your NEXT blow against them does +1d4". Left standing when the player
-	// unticks it, because a blow they chose not to sharpen is not the blow the move was owed.
-	if (upAgainAgainst(actor, targets)) add("upAgain", HERO_MOVES.UP_AGAIN, "1d4", { spend: clearKnockedDownBy });
+	// unticks it, because a blow they chose not to sharpen is not the blow the move was owed. Its own half
+	// of the record: the advantage on the next roll is spent by that roll, and neither waits on the other.
+	if (upAgainOwes(actor, targets, "blow")) add("upAgain", HERO_MOVES.UP_AGAIN, "1d4", { spend: spendUpAgainBlow });
 	// Anger is a Gift: "Strike hard (+1d4 damage, forceful)" is one of five things a Would-Be Hero's
 	// Resolve buys, so it opens UNTICKED with the cost in its label, and the pip comes off the move's own
 	// track only once the window comes back with it ticked. That track counts Resolve HELD
@@ -665,9 +810,14 @@ async function unarmoredAndLight(actor) {
 	return ["light", "normal"].includes(String(load?.selected ?? ""));
 }
 
-/** The foes in the fight a character could lock eyes with: whoever they are fighting, near or far. */
-export function lockEyesCandidates(actor) {
-	const place = rollerEngagement(actor);
+/**
+ * The foes in the fight a character could lock eyes with: whoever they are fighting, near or far.
+ *
+ * @param {Actor} actor
+ * @param {object|null} [found]  engagementOf's answer for them, when the caller has it
+ */
+export function lockEyesCandidates(actor, found = undefined) {
+	const place = found === undefined ? rollerEngagement(actor) : found;
 	if (!place) return [];
 	const locked = new Set(place.combatant.flags?.[SYSTEM_ID]?.[LOCKED_EYES_FLAG] ?? []);
 	return opponentIds(place.entry).filter(id => !locked.has(id)).map(id => place.combatants.get(id)).filter(Boolean);
@@ -683,12 +833,54 @@ export async function lockEyes(actor, foeCombatantId) {
 	const had = mine.flags?.[SYSTEM_ID]?.[LOCKED_EYES_FLAG] ?? [];
 	if (had.includes(foeCombatantId)) return false;
 	await mine.update({ [`flags.${SYSTEM_ID}.${LOCKED_EYES_FLAG}`]: [...had, foeCombatantId] });
+	await asteriskMoveUsed(actor, HERO_MOVES.BIG_DAMN_HERO);
+	return true;
+}
+
+/**
+ * Whether Big Damn Hero's leap is still there to make: "When you FIRST leap into danger to protect someone,
+ * don't roll to Defend." Once per fight, kept on the hero's combatant beside the locked eyes, so it comes
+ * back with the next fight. With no fight on the map to keep it on (the Fight tab off, or nobody fighting),
+ * it is always offered and its card says whose count it is (leapIn), as the table keeps the fight then.
+ */
+export function leapInOpen(actor, found = undefined) {
+	if (!has(actor, HERO_MOVES.BIG_DAMN_HERO)) return false;
+	const place = found === undefined ? rollerEngagement(actor) : found;
+	return !place?.combatant?.flags?.[SYSTEM_ID]?.[LEAPT_IN_FLAG];
+}
+
+/**
+ * Big Damn Hero's leap: no roll, and Defend's 10+ applied as if it had been rolled (the Readiness it
+ * holds, shield and Guardian included: StonetopCharacter#settleDefendReadinessTier), with a card naming
+ * the move. Marked on the hero's combatant when there is one. Whether the leap was made.
+ *
+ * @param {Actor} actor
+ * @param {object} [options]
+ * @param {StonetopCharacter} [options.character]  the actor's character model (default `actor.typedActor`)
+ */
+export async function leapIn(actor, { character = actor?.typedActor } = {}) {
+	if (!has(actor, HERO_MOVES.BIG_DAMN_HERO)) return false;
+	const mine = rollerEngagement(actor)?.combatant ?? null;
+	if (mine?.flags?.[SYSTEM_ID]?.[LEAPT_IN_FLAG]) return false;
+	if (mine) await mine.update({ [`flags.${SYSTEM_ID}.${LEAPT_IN_FLAG}`]: true });
+	const said = `<p>${escHtml(format(`${MOVE_KEY}.leapIn.said`, { name: actor.name }))}</p>`;
+	const count = mine ? "" : `<p>${escHtml(format(`${MOVE_KEY}.leapIn.noFight`, {}))}</p>`;
+	await globalThis.ChatMessage?.create?.({
+		content: stonetopChatCard(HERO_MOVES.BIG_DAMN_HERO, `<div class="card-content">${said}${count}</div>`, "stonetop-leap-in-card"),
+		speaker: globalThis.ChatMessage?.getSpeaker?.({ actor }),
+	});
+	await character?.settleDefendReadinessTier?.("success");
+	await asteriskMoveUsed(actor, HERO_MOVES.BIG_DAMN_HERO);
 	return true;
 }
 
 /**
  * The heroes whose locked eyes put a foe's damage roll at disadvantage against these targets: a target who
  * locked eyes with the roller, or who stands beside a hero who did. Empty when none.
+ *
+ * EVERY TARGET MUST BE ONE OF THEM, as for every other mode on a damage roll (combat/attack-flow.js
+ * #incomingMode): one roll is made per card, and a blow at the hero and at someone across the field
+ * cannot roll twice over for the one of them the hero is guarding.
  *
  * @param {Actor} foe  the roller
  * @param {Array<{uuid: string}>} targets
@@ -711,11 +903,11 @@ export function eyesLockedAgainst(foe, targets = []) {
 	for (const target of targets) {
 		const hit = byUuid.get(target?.uuid);
 		const hitFighter = hit ? fighter(hit.id) : null;
-		if (!hitFighter) continue;
-		for (const hero of lockers) {
-			if (hero.id === hitFighter.id || touching(hero, hitFighter, grid)) {
-				if (!names.includes(hero.name)) names.push(hero.name);
-			}
+		const guarding = hitFighter ? lockers.filter(hero => hero.id === hitFighter.id || touching(hero, hitFighter, grid)) : [];
+		// One target nobody guards is a target the roll is not at disadvantage against, so none is.
+		if (!guarding.length) return [];
+		for (const hero of guarding) {
+			if (!names.includes(hero.name)) names.push(hero.name);
 		}
 	}
 	return names;

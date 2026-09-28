@@ -41,9 +41,11 @@ import {effectiveRequiredMoves, requiredMovesUnmet, requirementLabel} from "./mo
 import {MoveResources, learnedTrack, takeBackHeld} from "./MoveResources.js";
 import {debilityData, walkItOffChoice} from "./walk-it-off.js";
 import {moveMarkBudget, markOptionCapNote} from "./move-mark-budget.js";
+import {markEntries, filledMarks, filledMarkCount, trimEmptyTail, oncePerLevelCautions, ONCE_PER_LEVEL_MARKS} from "./pfg-marks.js";
+import {MARK_STAT_CAPS} from "./stat-rules.js";
 import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
 import {DEATHS_DOOR_FLAG, UNSTOPPABLE, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
-import {heroDisplayName, WBH_HERO_FLAG, ownsAsteriskMove} from "./WouldBeHeroAsterisk.js";
+import {heroDisplayName, WBH_HERO_FLAG} from "./WouldBeHeroAsterisk.js";
 import {tookBackground} from "./took-background.js";
 import {ownedNamesOr, ownedLearnedMove, ownsLearnedMoveNamed, moveLearnedIn, switchedOffGranter, ownedMoveNames, ownsMoveNamed} from "./owns-move.js";
 import {ANIMAL_COMPANION_MOVE, RANGER_SLUG, MAGNIFICENT_SPECIMEN_MOVE, COMPANION_TRAIT_PICKS_PER_SPECIMEN, companionTraitAllowance, trimCompanionTraits} from "./animal-companion.js";
@@ -74,10 +76,13 @@ import {CharacterInventory} from "./CharacterInventory.js";
 import {maybeBeginAttack, maybeCounterOnMiss, maybeMissFx, attackMoveFor, attackFoeAdvantage, recordClashedFoes, rollMoveDamageAt, snapshotTargets} from "../../combat/attack-flow.js";
 import {aimPcAskRoll} from "../../pc-asks/pc-ask-flow.js";
 import {INTERFERE_MOVE, PERSUADE_PC_MOVE, PC_ASK_FLAG} from "../../pc-asks/pc-ask-rules.js";
-import {brokenOaths, oathbreakerAgainst, alphaAgainst, spendAlphaOver, HERO_MOVES} from "../../fight/hero-moves.js";
+import {brokenOaths, oathbreakerAgainst, alphaAgainst, spendAlphaOver, upAgainAgainst, spendUpAgainRoll, toughLoveAgainst, leapInOpen, HERO_MOVES} from "../../fight/hero-moves.js";
 import {defendReadinessHold, defendReadinessCap, readinessCount, readinessForTier, READINESS_FLAG, DEFEND_MOVE} from "../../combat/defend-readiness.js";
 import {settleReadinessOnAttack} from "../../combat/readiness-loss.js";
-import {classifyResult, messageOfRoll} from "../../utils/roll-engine.js";
+import {messageOfRoll, CRITICAL_TOTAL} from "../../utils/roll-engine.js";
+import {countedTier, outcomeTier, rolledRecord} from "../../utils/counted-tier.js";
+import {ANGER_IS_A_GIFT, A_FORCE_TO_BE_RECKONED_WITH, SPEAK_TRUTH_TO_POWER, forceTurnedTables, righteousAngerSubtitle, speakTruthRefusedActions} from "./would-be-hero-cards.js";
+import {shippedRapportTrack} from "./up-with-people.js";
 import {foldModes, layModes} from "../../utils/roll-mode.js";
 import {fightStateActive, revealOnAttack, WE_HAPPY_FEW} from "./fight-states.js";
 import {spendSurpriseForRoll} from "../../combat/battle-holds.js";
@@ -161,18 +166,29 @@ const SEASON_MOVE_DISADVANTAGE = [
  * aside from the usual effect, choose 1: Your name and your message spread / Someone approaches you,
  * now or later, eager to know more"). And the Ranger's: Naturalist ("When you Know Things about beasts,
  * natural environs, or spirits of the wild, you have advantage"; the arcana identify roll asks it in its
- * own picker, arcana-identify.js#KNOW_THINGS_ADVANTAGE_MOVES, and opens no offers of its own), Home on the
+ * own picker, arcana-identify.js#KNOW_THINGS_ADVANTAGE_MOVES, so its window leaves the line out), Home on the
  * Range ("When a journey requires you to Defy Danger or Struggle as One, treat a 6- as a 7-9"), Trailblazer
  * ("When a journey causes you to Defy Danger or Struggle as One, on a 10+ you also learn or discover
  * something interesting and useful"; both Struggle as One halves are struggle-rules.js's) and Constant
  * Vigilance ("Unless you're dazed ... When you intercept a sudden threat (to yourself or an ally), you
- * have advantage on whatever move you make"), on every roll. And the Seeker's: Let's Make a Deal ("When
+ * have advantage on whatever move you make"), on every move roll. And the Seeker's: Let's Make a Deal ("When
  * you Persuade by offering them something that you know they want or need, treat a 7-9 as a 10+"; its
  * Seek Insight question is move-pick-bonuses.js's), Polyglot ("When you Know Things about any script,
  * text, runes or symbols that you encounter, you have advantage"), Proof Against Detection ("When you
  * hold Protection, you ... have advantage to Defy Danger by being stealthy") and Safety First ("When you
  * are affected by harmful magic, spend 1 Protection either to gain advantage on any roll to resist it or
- * to halve its damage/effects"; the halving is the damage card's, fight/defend-spend.js).
+ * to halve its damage/effects"; the halving is the damage card's, fight/defend-spend.js). And the
+ * Would-Be Hero's: Speak Truth to Power ("When you demand that someone does what is clearly good and
+ * right, you have advantage to Persuade. If they refuse, gain +1 Resolve"; the refusal is a button on the
+ * card, would-be-hero-cards.js), Better Part of Valor ("When you are outnumbered or facing a foe bigger
+ * than you, you have advantage to hide from, escape from, or sneak past them"), Underestimated ("When you
+ * first make your move against an enemy who underestimates you, you have advantage"), on every move roll, and
+ * A Force to Be Reckoned With ("When you Defy Danger against something trying to harm or constrain you,
+ * on a 12+ you turn the tables on them").
+ *
+ * A row rides the moves its `moves(name)` answers for, by the name the roll is made under: `() => true`
+ * is a row of every move roll (Constant Vigilance, Underestimated), a roll with no move item behind it (a
+ * guided move, Improvise: directRollOffers) included, but never a bare stat roll, which is no move.
  *
  * A row applies to a character who has `ownsLearned` LEARNED, took the `background` (took-background.js),
  * holds the special possession `possession`, or has picked AND carries (the ◇) the gear choice
@@ -180,9 +196,11 @@ const SEASON_MOVE_DISADVANTAGE = [
  * `unlessDebility` is marked, nor while the learned move `whileHolding` holds nothing on its track
  * (Safety First's Protection). `spendHeld` names that track: taken, the line spends 1 of it after the
  * dice. Taken, a line's `source` is folded in as advantage and named on the card, unless its `effect`
- * says otherwise (see onRoll): "missAsPartial" counts a 6- as a 7-9 instead, "partialAsSuccess" a 7-9
- * as a 10+, "hitNote" buys no advantage but prints its `note` on the card's 10+ and 7-9 rows, and
- * "successNote" the same on the 10+ row alone.
+ * says otherwise (see _foldTakenOffers): "missAsPartial" counts a 6- as a 7-9 instead, "partialAsSuccess" a 7-9
+ * as a 10+, "hitNote" buys no advantage but prints its `note` on the card's 10+ and 7-9 rows,
+ * "successNote" the same on the 10+ row alone, and "criticalNote" on the 10+ row only when the total is
+ * 12+ (roll-engine's `criticalActions`), calling its `onCritical(actor, message)` when it does. A row's
+ * `tierActions()` adds its own buttons to the card's tier rows once taken, whatever its effect.
  */
 const FICTION_ROLL_OFFERS = [
 	{ key: "intimidating", moves: isPersuadeMove, ownsLearned: "Intimidating",
@@ -219,15 +237,43 @@ const FICTION_ROLL_OFFERS = [
 		whileHolding: HERO_MOVES.SAFETY_FIRST, source: "Proof Against Detection", label: "stonetop.rollOffers.proofAgainstDetection" },
 	{ key: "safety-first", moves: name => name === "Defy Danger", ownsLearned: HERO_MOVES.SAFETY_FIRST,
 		whileHolding: HERO_MOVES.SAFETY_FIRST, spendHeld: HERO_MOVES.SAFETY_FIRST, source: HERO_MOVES.SAFETY_FIRST, label: "stonetop.rollOffers.safetyFirst" },
+	{ key: "speak-truth-to-power", moves: isPersuadeMove, ownsLearned: SPEAK_TRUTH_TO_POWER,
+		source: SPEAK_TRUTH_TO_POWER, label: "stonetop.rollOffers.speakTruthToPower", tierActions: speakTruthRefusedActions },
+	{ key: "better-part-of-valor", moves: name => name === "Defy Danger", ownsLearned: "Better Part of Valor",
+		source: "Better Part of Valor", label: "stonetop.rollOffers.betterPartOfValor" },
+	{ key: "underestimated", moves: () => true, ownsLearned: "Underestimated",
+		source: "Underestimated", label: "stonetop.rollOffers.underestimated" },
+	{ key: "force-to-be-reckoned-with", moves: name => name === "Defy Danger", ownsLearned: A_FORCE_TO_BE_RECKONED_WITH,
+		source: A_FORCE_TO_BE_RECKONED_WITH, label: "stonetop.rollOffers.forceToBeReckonedWith",
+		effect: "criticalNote", note: "stonetop.rollOffers.forceToBeReckonedWithNote", onCritical: forceTurnedTables },
 ];
 
 /** The card rows a taken note-only offer prints on, by its `effect` (see _withHitNote). */
 const NOTE_OFFER_TIERS = { hitNote: ["success", "partial"], successNote: ["success"] };
 
+/** Each tier's `html` added after whatever that tier row of the roll already carries. */
+function _withTierActions(options, actions) {
+	const merged = { ...(options.tierActions ?? {}) };
+	for (const [tier, html] of Object.entries(actions ?? {})) if (html) merged[tier] = `${merged[tier] ?? ""}${html}`;
+	return { tierActions: merged };
+}
+
+/**
+ * A taken "criticalNote" roll offer (A Force to Be Reckoned With): no advantage, its `note` printed on the
+ * 10+ row of a roll that totals 12+ (roll-engine's `criticalActions`), and the line named on the card.
+ */
+function _withCriticalNote(options, offer) {
+	return {
+		criticalActions: `${options.criticalActions ?? ""}<p class="stonetop-roll-offer-note">${offer.note ?? ""}</p>`,
+		conditionNotes: [...(options.conditionNotes ?? []), offer.source],
+	};
+}
+
 /**
  * The roll window's line for Binding Arbitration on a roll aimed at nobody: "If they have broken their
  * word, you gain advantage on all rolls against them". A roll aimed at someone asks the oath itself
- * (onRoll, fight/hero-moves.js#oathbreakerAgainst), so this is offered only when nobody is targeted.
+ * (onRoll, _foldAimedModes, fight/hero-moves.js#oathbreakerAgainst), so this is offered only when nobody
+ * is targeted: on a move roll, and on a bare stat roll too (directRollOffers).
  */
 const BINDING_ARBITRATION_OFFER = "binding-arbitration";
 
@@ -257,6 +303,53 @@ function _withHitNote(options, offer) {
 	const actions = { ...(options.tierActions ?? {}) };
 	for (const tier of NOTE_OFFER_TIERS[offer.effect]) actions[tier] = `${actions[tier] ?? ""}${note}`;
 	return { tierActions: actions, conditionNotes: [...(options.conditionNotes ?? []), offer.source] };
+}
+
+/**
+ * The lines the roll window offered that the player left ticked (`takenOffers`, their keys), for both roll
+ * paths, onRoll and onDirectStatRoll. `offered` is those lines as the window was handed them, so they are
+ * not worked out twice; a caller that passes none has them worked out by `offersOf`. None from a caller
+ * that asked no window: a line the player never saw is never spent. Binding Arbitration's line is dropped
+ * when the roll's aim has already asked the oath (`oathbreakerNamed`), so it is named once.
+ */
+async function _takenOffers(takenOffers, offered, offersOf, { oathbreakerNamed = false } = {}) {
+	if (!takenOffers?.length) return [];
+	return (offered ?? await offersOf()).filter(offer => tookOffer(offer, takenOffers)
+		&& !(oathbreakerNamed && offer.key === BINDING_ARBITRATION_OFFER));
+}
+
+/**
+ * `options` with the taken lines folded in, each as its `effect` says (FICTION_ROLL_OFFERS): a SOURCE of
+ * advantage by default, so it nets against a disadvantage; Stone Cold's buys none and counts a 6- as a 7-9,
+ * named on the card as Herd of Horses is, and Let's Make a Deal's a 7-9 as a 10+ the same way; a note
+ * line prints its note on the tiers it names. And a line's own buttons (Speak Truth to Power's "They
+ * refused"), on the tiers it names.
+ */
+function _foldTakenOffers(options, taken) {
+	const folded = { ...options };
+	for (const offer of taken) {
+		if (NOTE_OFFER_TIERS[offer.effect]) Object.assign(folded, _withHitNote(folded, offer));
+		else if (offer.effect === "missAsPartial") folded.missCountsAsPartial = offer.source;
+		else if (offer.effect === "partialAsSuccess") folded.partialCountsAsSuccess = offer.source;
+		else if (offer.effect === "criticalNote") Object.assign(folded, _withCriticalNote(folded, offer));
+		else Object.assign(folded, foldAdvantage(folded, offer.source));
+		if (offer.tierActions) Object.assign(folded, _withTierActions(folded, offer.tierActions));
+	}
+	return folded;
+}
+
+/**
+ * What the taken lines cost, paid once the dice have landed (a use of whisky marked, a Protection spent),
+ * `moveName` being the move the ledger files it under. And a "criticalNote" line whose 12+ came up (A
+ * Force to Be Reckoned With turned the tables): its hook, with the card (would-be-hero-cards.js#forceTurnedTables).
+ * Nothing for a roll that never happened.
+ */
+async function _payTakenOffers(taken, roll, moveName) {
+	if (!roll) return;
+	for (const offer of taken) await offer.spend?.(moveName);
+	if (Number(roll.total) >= CRITICAL_TOTAL) {
+		for (const offer of taken) if (offer.effect === "criticalNote") await offer.onCritical?.(messageOfRoll(roll));
+	}
 }
 
 /** The other side of foldAdvantage: disadvantage imposed from outside the picker, named on the card. */
@@ -292,6 +385,8 @@ const ROLL_LABELS_BY_TYPE = {
 	wis: "WIS",
 	con: "CON",
 	cha: "CHA",
+	// The Destined's Omens of Fate rolls the Omens held, not a stat (destined.js).
+	omens: "Omens",
 };
 const HOMEFRONT_ROLL_LABELS_BY_NAME = {
 	"Deploy": "Defenses",
@@ -562,9 +657,11 @@ export class StonetopCharacter {
 
 	// Potential-for-Greatness stat slot: choosing a stat writes +1 to that stored
 	// stat (and reverts the previously chosen one), recording the level it was
-	// marked on. Newly filled slots auto-fill the current level.
+	// marked on. Newly filled slots auto-fill the current level. A slot is stored at its index, so
+	// the slots before it are padded empty; the empty ones left at the END (the last pick undone)
+	// are dropped, so what is stored reads as the marks it holds (pfg-marks.js#filledMarks).
 	async setStatSlot(moveName, optionSlug, index, newStat) {
-		const entries = _markEntries(this._moveResources.getMarks()[moveName]?.[optionSlug]);
+		const entries = markEntries(this._moveResources.getMarks()[moveName]?.[optionSlug]);
 		while (entries.length <= index) entries.push({ stat: "", level: null });
 		const oldStat = entries[index].stat ?? "";
 		if (oldStat === newStat) return;
@@ -574,7 +671,7 @@ export class StonetopCharacter {
 		if (newStat && stats[newStat]) updates[`system.stats.${newStat}.value`] = (stats[newStat].value ?? 0) + 1;
 		entries[index] = { stat: newStat, level: newStat ? (oldStat ? entries[index].level : this._characterLevel) : null };
 		// One document write: the stat deltas and the mark record together.
-		await this._actor.update({ ...updates, ...this._moveResources.markUpdate(moveName, optionSlug, entries) });
+		await this._actor.update({ ...updates, ...this._moveResources.markUpdate(moveName, optionSlug, trimEmptyTail(entries)) });
 	}
 
 	// Checkbox mark options (e.g. max HP, damage die): set how many are checked,
@@ -590,7 +687,7 @@ export class StonetopCharacter {
 	// that box can't be marked again. A duplicate already stored is kept, never cleared.
 	async setCountMark(moveName, optionSlug, newCount) {
 		const allMarks = this._moveResources.getMarks();
-		const current  = _markEntries(allMarks[moveName]?.[optionSlug]).length;
+		const current  = markEntries(allMarks[moveName]?.[optionSlug]).length;
 		// Clamp an INCREASE to the move's repeat-scaling pick budget (if any); a decrease
 		// is left as-is (budget null below), so a grandfathered over-budget mark clears.
 		let count = newCount;
@@ -608,7 +705,7 @@ export class StonetopCharacter {
 				&& (await this.backgroundMarkOptions())[moveName] === optionSlug ? 1 : 0;
 			count = Math.min(count, Math.max(current, (opt.marks ?? 1) - fromBackground));
 		}
-		const entries = _markEntries(allMarks[moveName]?.[optionSlug]);
+		const entries = markEntries(allMarks[moveName]?.[optionSlug]);
 		while (entries.length < count) entries.push({ stat: "", level: this._characterLevel });
 		entries.length = Math.max(0, count);
 		await this._actor.update(this._moveResources.markUpdate(moveName, optionSlug, entries));
@@ -628,7 +725,7 @@ export class StonetopCharacter {
 	// Where creationMarkOption's mark is stored: its option and its index there, or null.
 	_creationMarkEntry(moveName) {
 		const marks = Object.entries(this._moveResources.getMarks()[moveName] ?? {})
-			.map(([slug, stored]) => [slug, _markEntries(stored)]);
+			.map(([slug, stored]) => [slug, markEntries(stored)]);
 		for (const test of [e => e.creation, e => e.level === 1]) {
 			for (const [slug, entries] of marks) {
 				const index = entries.findIndex(test);
@@ -648,14 +745,14 @@ export class StonetopCharacter {
 	async setCreationMark(moveName, optionSlug) {
 		const was = this._creationMarkEntry(moveName);
 		if (was) {
-			const entries = _markEntries(this._moveResources.getMarks()[moveName]?.[was.slug]);
+			const entries = markEntries(this._moveResources.getMarks()[moveName]?.[was.slug]);
 			entries.splice(was.index, 1);
 			await this._actor.update(this._moveResources.markUpdate(moveName, was.slug, entries));
 		}
 		if (!optionSlug) return;
-		const current = _markEntries(this._moveResources.getMarks()[moveName]?.[optionSlug]).length;
+		const current = markEntries(this._moveResources.getMarks()[moveName]?.[optionSlug]).length;
 		await this.setCountMark(moveName, optionSlug, current + 1);
-		const entries = _markEntries(this._moveResources.getMarks()[moveName]?.[optionSlug]);
+		const entries = markEntries(this._moveResources.getMarks()[moveName]?.[optionSlug]);
 		if (entries.length <= current) return;
 		entries[entries.length - 1] = { ...entries[entries.length - 1], level: 1, creation: true };
 		await this._actor.update(this._moveResources.markUpdate(moveName, optionSlug, entries));
@@ -713,7 +810,7 @@ export class StonetopCharacter {
 
 	// Edit-mode override of the level recorded for a given mark slot.
 	async setMarkLevel(moveName, optionSlug, index, level) {
-		const entries = _markEntries(this._moveResources.getMarks()[moveName]?.[optionSlug]);
+		const entries = markEntries(this._moveResources.getMarks()[moveName]?.[optionSlug]);
 		if (!entries[index]) return;
 		entries[index] = { ...entries[index], level: Number.isFinite(level) && level > 0 ? level : null };
 		await this._actor.update(this._moveResources.markUpdate(moveName, optionSlug, entries));
@@ -867,7 +964,7 @@ export class StonetopCharacter {
 			: null;
 		return new CharacterSnapshotBuilder()
 			.withName(actor.name)
-			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore, actor.name, arcanaLore, (!!this._actor.getFlag(STONETOP_SCOPE, WBH_HERO_FLAG) || ownsAsteriskMove(this._actor)), actorLevel) : null)
+			.withPlaybook(playbookData ? _buildPlaybookSection(playbookData, this._background, this._instinct, this._appearance, this._origin, this._lore, actor.name, arcanaLore, !!this._actor.getFlag(STONETOP_SCOPE, WBH_HERO_FLAG), actorLevel) : null)
 			.withDebilities(_buildDebilitiesSection(actor, this._moveResources))
 			.withWounds(_buildWoundsSection(actor))
 			.withStats(_buildStatsSection(actor))
@@ -1106,11 +1203,15 @@ export class StonetopCharacter {
 				const improvedStatChoices   = resolvedFlags(this._actor).improvedStatChoices ?? {};
 				const actorStats            = _statValueMap(this._actor.system?.stats);
 				const source = { type: "playbook", slug: playbookData.slug };
+				// A held move's line about this character's own answers: Anger is a Gift's trigger is "burn
+				// with righteous anger (see Fear & Anger)", so the angers picked on the Details tab are named
+				// under it (would-be-hero-cards.js#righteousAngerSubtitle).
+				const subtitles = { [ANGER_IS_A_GIFT]: righteousAngerSubtitle(playbookData.lore, this._lore.counts) };
 				categories.push(new MoveCategorySnapshotBuilder()
 					.withKey("playbook")
 					.withTitle(`${playbookData.name} Moves`)
 					.withNote(playbookData.startingMovesNote ?? null)
-					.withMoves(_sortOwnedFirst(sorted.map(m => _buildMoveEntry(m, source, moveResourcesMap, bgSlugs, moveBackgroundAnswers, improvedStatChoices, moveMarksMap, actorStats, capState, backgroundChoices))))
+					.withMoves(_sortOwnedFirst(sorted.map(m => _buildMoveEntry(m, source, moveResourcesMap, bgSlugs, moveBackgroundAnswers, improvedStatChoices, moveMarksMap, actorStats, capState, backgroundChoices, actorLevel, subtitles))))
 					.build()
 				);
 			}
@@ -1138,6 +1239,7 @@ export class StonetopCharacter {
 			const learnedResourcesMap = this._moveResources.getMoveResources();
 			const learnedMarksMap     = this._moveResources.getMarks();
 			const learnedActorStats   = _statValueMap(this._actor.system?.stats);
+			const learnedFilledMarks  = this._filledMarkCounter([], ownedAllByName);
 			// Copies of one move (a Fox who takes Well Versed twice through Dabbler) are ONE card, as
 			// on the playbook list: its mark budget scales with every copy, and its marks are shared.
 			const learnedGroups = new Map();
@@ -1179,14 +1281,14 @@ export class StonetopCharacter {
 						.withSpendTooltip(new ResourceDef(resourceDef).spendTooltip)
 						.build() : null;
 					const { options: markOptions, budget: markBudget } = _buildMarkOptions(
-						{ markOptions: def?.markOptions ?? i.system?.markOptions, markBudget: def?.markBudget ?? i.system?.markBudget, ownedIds, owned: true },
-						learnedMarksMap[i.name] ?? {}, capState);
+						{ name: i.name, markOptions: def?.markOptions ?? i.system?.markOptions, markBudget: def?.markBudget ?? i.system?.markBudget, ownedIds, owned: true },
+						learnedMarksMap[i.name] ?? {}, capState, null, { actorStats: learnedActorStats, actorLevel });
 					// Its prerequisites, read by the same checks a playbook move's are (a required
 					// move, a level, a stat): a Heavy who learned Parry & Riposte through Seasoned
 					// Warrior and then dropped Skill at Arms is warned, as a playbook move would be.
 					// A WARNING only: nothing is locked or taken away. Its playbook requirement is
 					// not asked, since a learned move is from another playbook by definition.
-					const checked = _learnedMoveRequirement(i, ownedAllByName, actorLevel, learnedActorStats);
+					const checked = _learnedMoveRequirement(i, ownedAllByName, actorLevel, learnedActorStats, learnedFilledMarks);
 					// Every copy switched off by the cross move that granted it (the user's ruling):
 					// the card reads as off and names the granter to switch back on.
 					// A card still on through another copy names the switched-off one's granter in a note.
@@ -1625,7 +1727,8 @@ export class StonetopCharacter {
 					.withCustom(_isCustomMove(i))
 					.withLearned(moveLearnedIn(i, this._actor.items))
 					.withResourceKey(resourceKey)
-					.withResource(_buildOtherMoveResource(i.system?.resource, moveResourceState[resourceKey]))
+					// A copy of Up With People taken while it printed a third pip reads as the two it has now.
+					.withResource(_buildOtherMoveResource(shippedRapportTrack(i.name, i.system?.resource), moveResourceState[resourceKey]))
 					.build();
 			})
 			// Learned first, then by name — the same shape _sortOwnedFirst gives the basic
@@ -2127,7 +2230,32 @@ export class StonetopCharacter {
 	 * `spend(moveName)`, its price if it has one, paid after the dice.
 	 */
 	async rollOffers(item) {
-		const moveName = item?.name;
+		return this._rollOffersNamed(item?.name);
+	}
+
+	/**
+	 * The lines the roll window offers a roll with no move item behind it (onDirectStatRoll), by the name
+	 * it is rolled under: a guided move, Improvise, Know Things or Seek Insight about an arcanum or an
+	 * artifact. Each of those is a move roll, so it is offered what a move of that name is (rollOffers):
+	 * the rows of every move roll (Constant Vigilance, Underestimated) and Binding Arbitration's line, and a
+	 * row that names its move only when the name is that move's (a guided "Defy Danger" would get Stone
+	 * Cold's). A bare stat roll (no `moveName`) is no move: it is offered Binding Arbitration's line alone,
+	 * which is "all rolls against them", as its targeted half already is (_foldAimedModes).
+	 *
+	 * `except` drops the lines whose `source` the caller's own picker has already asked (the identify roll's
+	 * Polyglot and Naturalist, arcana-identify.js#KNOW_THINGS_ADVANTAGE_MOVES), so neither is offered twice.
+	 */
+	async directRollOffers(moveName, { except = [] } = {}) {
+		if (!moveName) {
+			const oathbreaker = this._oathbreakerOffer(null);
+			return oathbreaker ? [oathbreaker] : [];
+		}
+		const asked = new Set(except);
+		return (await this._rollOffersNamed(moveName)).filter(offer => !asked.has(offer.source));
+	}
+
+	/** rollOffers and directRollOffers: the lines a roll made under `moveName` is offered. */
+	async _rollOffersNamed(moveName) {
 		if (!moveName) return [];
 		const offers = [];
 		const whisky = isPersuadeMove(moveName) ? await this.fineWhiskyOffer() : null;
@@ -2151,6 +2279,8 @@ export class StonetopCharacter {
 			offers.push({
 				key: row.key, label: _loc(row.label), applied: false, source: row.source,
 				...(row.effect ? { effect: row.effect } : {}), ...(row.note ? { note: _loc(row.note) } : {}),
+				...(row.tierActions ? { tierActions: row.tierActions() } : {}),
+				...(row.onCritical ? { onCritical: message => row.onCritical(this._actor, message) } : {}),
 				// 1 held off the track (a hold pool counts what is HELD). Re-read, so a pip spent by hand
 				// while the window was open is not given back.
 				...(row.spendHeld ? { spend: () => takeBackHeld(this._actor, row.spendHeld, 1) } : {}),
@@ -2225,6 +2355,35 @@ export class StonetopCharacter {
 		const season = readCurrentSeason(this.getSteadingActor())?.season ?? null;
 		const hit = SEASON_MOVE_DISADVANTAGE.find(g => g.move === moveName && g.season === season);
 		return hit ? seasonLabel(hit.season) : null;
+	}
+
+	/**
+	 * What a roll aimed at `targets` owes, for both roll paths (onRoll, and onDirectStatRoll: a guided
+	 * move, Improvise, a stat): Binding Arbitration's advantage on an oathbreaker, else But I Get Up
+	 * Again's on whoever knocked this character down, else Alpha's on the foes its 10+ cowed (they do not
+	 * stack, so only the one that bought it is named), then Tough Love's disadvantage on a roll at the hero
+	 * who called this character on it, so the two sides cancel. Never a damage roll's: those do not come
+	 * through here. `grudged` is an attack, whose advantage onRoll has already folded as the foe's grudge
+	 * (combat/attack-flow.js#attackFoeAdvantage), so only Tough Love's disadvantage is folded here.
+	 *
+	 * Resolves `options` folded, and `spend`, which uses up the "next roll against them" advantages once the
+	 * dice have landed, named or not: this was the next roll against them. And `oathbreaker`, whether the
+	 * oath was asked and named here, so Binding Arbitration's line is not named twice.
+	 */
+	_foldAimedModes(options, targets, { grudged = false } = {}) {
+		if (!targets?.length) return { options, spend: async () => {}, oathbreaker: false };
+		const oathbreaker = grudged ? null : oathbreakerAgainst(this._actor, targets);
+		const upAgain = upAgainAgainst(this._actor, targets);
+		const alpha = alphaAgainst(this._actor, targets);
+		const toughLove = toughLoveAgainst(this._actor, targets);
+		const advantage = grudged ? null : oathbreaker ?? upAgain ?? alpha;
+		let folded = advantage ? foldAdvantage(options, advantage) : options;
+		if (toughLove) folded = foldDisadvantage(folded, toughLove);
+		const spend = async () => {
+			if (alpha) await spendAlphaOver(this._actor, targets);
+			if (upAgain) await spendUpAgainRoll(this._actor, targets);
+		};
+		return { options: folded, spend, oathbreaker: !!oathbreaker };
 	}
 
 	/**
@@ -3398,7 +3557,7 @@ export class StonetopCharacter {
 		const bgNames     = this._backgroundMoveNames((backgrounds ?? []).find(b => b.slug === this._background.selectedSlug));
 		const choiceNames = startingMoveChoiceNames(choiceGroups);
 		return moves.filter(i => !i.system?.isStartingMove && !bgNames.has(i.name) && !choiceNames.has(i.name)
-			&& !(Number(i.system?.requirement?.level) > 1));
+			&& !(Number(i.system?.requirement?.level) > 1) && !i.system?.requirement?.marks);
 	}
 
 	// A re-run of onboarding REPLACES the free pick: each earlier one (creationPickItems) the
@@ -3420,12 +3579,18 @@ export class StonetopCharacter {
 	// was the second Veteran Crew). One copy per pick. A move taken at the start of
 	// play hands over its gear here (start-of-play-gear.js: the Judge's and Marshal's Armored).
 	async markCreationPick(moveName) {
+		const copy = this._creationPickCopy(moveName);
+		if (!copy) return;
+		if (!copy.flags?.[STONETOP_SCOPE]?.[CREATION_PICK_FLAG]) await copy.setFlag(STONETOP_SCOPE, CREATION_PICK_FLAG, true);
+		await this._grantStartGear(copy);
+	}
+
+	// The copy of `moveName` that is (or markCreationPick makes) onboarding's free pick: the one
+	// already stamped, else the first copy neither a cross-playbook pick nor the background gave.
+	_creationPickCopy(moveName) {
 		const owned = this._actor.items.filter(i => i.type === "move" && i.name === moveName
 			&& !i.flags?.[STONETOP_SCOPE]?.grantedBy && !_isBackgroundGrant(i));
-		if (!owned.length) return;
-		const stamped = owned.find(i => i.flags?.[STONETOP_SCOPE]?.[CREATION_PICK_FLAG]);
-		if (!stamped) await owned[0].setFlag(STONETOP_SCOPE, CREATION_PICK_FLAG, true);
-		await this._grantStartGear(stamped ?? owned[0]);
+		return owned.find(i => i.flags?.[STONETOP_SCOPE]?.[CREATION_PICK_FLAG]) ?? owned[0] ?? null;
 	}
 
 	// The gear a move gives when taken at the start of play (start-of-play-gear.js), added to the
@@ -3632,9 +3797,21 @@ export class StonetopCharacter {
 		// A move an owned move replaced (Bulwark, while A Mighty Rampart is owned) is locked as
 		// "Replaced by ...": ticked back, the character would hold both.
 		const retiredBy  = this.retiredMoveReplacers();
+		// Superior Stat's "all 6 marks in Potential for Greatness", counted off the playbook's own
+		// definition of the marked move.
+		const filledMarks = this._filledMarkCounter(entries, ownedAllByName);
 		return entries
 			.filter(e => !e.requirement?.background || e.requirement.background === background || ownedAllByName.has(e.name))
-			.map(e => new PlaybookMoveEntry(e, ownCopies(e.name), bgMoveNames, ownedAllByName, actorLevel, actorPlaybook, actorStats, demoted, retiredBy));
+			.map(e => new PlaybookMoveEntry(e, ownCopies(e.name), bgMoveNames, ownedAllByName, actorLevel, actorPlaybook, actorStats, demoted, retiredBy, filledMarks));
+	}
+
+	// `name` -> how many of that move's marks are filled (pfg-marks.js#filledMarkCount), off its
+	// options in `defs` (the playbook's pack definitions) or else its owned copy, for a requirement
+	// of marks (PlaybookMoveEntry, `req.marks`).
+	_filledMarkCounter(defs = [], ownedAllByName = this._buildOwnedMovesMap()) {
+		const marks = this._moveResources.getMarks();
+		return name => filledMarkCount(marks[name] ?? {},
+			(defs ?? []).find(d => d.name === name)?.markOptions ?? ownedAllByName.get(name)?.[0]?.system?.markOptions ?? null);
 	}
 
 	// A playbook's "either X OR Y" starting-move groups, from the StonetopPlaybook the repository
@@ -3769,9 +3946,14 @@ export class StonetopCharacter {
 		// An original learned through a cross-playbook move keeps its "Granted by" on the way
 		// back, so it returns to Learned Moves rather than landing loose.
 		const grantedBy = originals.map(i => i.flags?.[STONETOP_SCOPE]?.grantedBy).find(Boolean) ?? null;
+		// An original that was onboarding's free pick (CREATION_PICK_FLAG) is remembered as such, so
+		// a re-run of onboarding counts that pick as made (retiredCreationPickCount) rather than ask
+		// for another, and the original comes back as the free pick it was.
+		const wasCreationPick = originals.some(i => i.flags?.[STONETOP_SCOPE]?.[CREATION_PICK_FLAG]);
 		for (const it of originals) await this.removeMove(it._id);
 		await added.setFlag(STONETOP_SCOPE, "retiredMove", replaced);
 		if (grantedBy) await added.setFlag(STONETOP_SCOPE, "retiredGrantedBy", grantedBy);
+		if (wasCreationPick) await added.setFlag(STONETOP_SCOPE, RETIRED_CREATION_PICK_FLAG, true);
 	}
 
 	// Hand back the move a now-removed replacing move retired (see _retireReplacedMove).
@@ -3786,6 +3968,17 @@ export class StonetopCharacter {
 		if (grantedBy && !this._actor.items.some(i => i._id === grantedBy.instanceId)) return;
 		const restored = await this.addPlaybookMoveByName(gone.system?.playbook, retired);
 		if (restored && grantedBy) await restored.setFlag(STONETOP_SCOPE, "grantedBy", grantedBy);
+		if (restored && flags[RETIRED_CREATION_PICK_FLAG]) await restored.setFlag(STONETOP_SCOPE, CREATION_PICK_FLAG, true);
+	}
+
+	// How many of onboarding's free picks were given up to a replacing move (see
+	// _retireReplacedMove): a re-run of onboarding asks for that many fewer, since the pick was made
+	// and the move it made is gone for good reason (Book I p.529). Its replacement is not a free pick
+	// (creationPickItems never lists it), so a re-run neither shows it nor takes it back.
+	retiredCreationPickCount() {
+		return this._actor.items.filter(i => i.type === "move"
+			&& i.flags?.[STONETOP_SCOPE]?.retiredMove
+			&& i.flags?.[STONETOP_SCOPE]?.[RETIRED_CREATION_PICK_FLAG]).length;
 	}
 
 	// Returns the created move item, or null when nothing was added (already owned, unknown).
@@ -3906,7 +4099,7 @@ export class StonetopCharacter {
 			if (max == null) continue;
 			// Every checked pick across the move's boxes, latest level first (a pick with no level
 			// recorded counts as the oldest), a later box before an earlier one within a level.
-			const picks = boxes.flatMap(opt => _markEntries(moveMarks[opt.slug]).map((entry, index) => ({ slug: opt.slug, index, level: entry.level })));
+			const picks = boxes.flatMap(opt => markEntries(moveMarks[opt.slug]).map((entry, index) => ({ slug: opt.slug, index, level: entry.level })));
 			const over  = picks.length - max;
 			if (over <= 0) continue;
 			picks.sort((a, b) => ((b.level ?? 0) - (a.level ?? 0)) || (b.index - a.index));
@@ -3914,7 +4107,7 @@ export class StonetopCharacter {
 			for (const opt of boxes) {
 				if (moveMarks[opt.slug] === undefined) continue;
 				// An array replaces the stored one outright, so each box's list is its own write.
-				update[`${marksPath}.${name}.${opt.slug}`] = _markEntries(moveMarks[opt.slug]).filter((_, index) => !drop.has(`${opt.slug}:${index}`));
+				update[`${marksPath}.${name}.${opt.slug}`] = markEntries(moveMarks[opt.slug]).filter((_, index) => !drop.has(`${opt.slug}:${index}`));
 			}
 		}
 		if (Object.keys(update).length) await this._actor.update(update);
@@ -4086,34 +4279,29 @@ export class StonetopCharacter {
 		// Heavy's advantage cancels rather than quietly outranking the debility — and NAMED on the card.
 		const grudge = attackExtra ? attackFoeAdvantage(this._actor, attackExtra) : null;
 		if (grudge) Object.assign(rollOptions, foldAdvantage(rollOptions, grudge));
-		// Binding Arbitration on every other roll aimed at someone: "advantage on all rolls against them"
-		// (the user's ruling; an attack has had it above, as a grudge). Aimed at the tokens targeted, or
-		// at the character an Interfere or a Persuade (vs. PCs) was just aimed at.
+		// Every other roll aimed at someone owes what _foldAimedModes folds: Binding Arbitration's "advantage
+		// on all rolls against them" (the user's ruling), else But I Get Up Again's or Alpha's "advantage on
+		// your next roll against them" (a Defy Danger or a Persuade aimed at that foe too; they do not stack),
+		// then Tough Love's "disadvantage on any rolls against you" at the Would-Be Hero who called this
+		// character on it. Aimed at the tokens targeted, or at the character an Interfere or a Persuade (vs.
+		// PCs) was just aimed at. An attack has had its advantage above, as a grudge, so it is folded
+		// `grudged`: Tough Love's disadvantage alone, an attack on that hero's token included. The "next roll"
+		// advantages are spent after the dice, below, either way, since this was the next roll against them.
+		// But I Get Up Again's blow half is the damage window's (fight/hero-moves.js#blowOffers), spent on its own.
 		const aimedAt = attackExtra || descriptionOnly ? [] : this._rollTargets(aimed);
-		const oathbreaker = aimedAt.length ? oathbreakerAgainst(this._actor, aimedAt) : null;
-		if (oathbreaker) Object.assign(rollOptions, foldAdvantage(rollOptions, oathbreaker));
-		const oathbreakerNamed = grudge === BINDING_ARBITRATION || !!oathbreaker;
-		// Alpha's 10+: "advantage on your next roll against them", on any roll (an attack has had it above,
-		// as a grudge). Named only where Binding Arbitration has not already bought the advantage, since the
-		// two do not stack; spent after the dice, below, either way, since this was the next roll against them.
 		const foesTargeted = attackExtra ? attackExtra.messageFlags?.[STONETOP_SCOPE]?.attack?.targets ?? [] : aimedAt;
-		const alpha = alphaAgainst(this._actor, foesTargeted);
-		if (alpha && !attackExtra && !oathbreaker) Object.assign(rollOptions, foldAdvantage(rollOptions, alpha));
+		const aimedModes = this._foldAimedModes(rollOptions, foesTargeted, { grudged: !!attackExtra });
+		Object.assign(rollOptions, aimedModes.options);
+		const oathbreakerNamed = grudge === BINDING_ARBITRATION || aimedModes.oathbreaker;
 		// A background's standing advantage and a season's standing disadvantage on one move: the same fold.
 		if (!descriptionOnly) Object.assign(rollOptions, this._foldStandingModes(rollOptions, item.name));
 		// The lines the roll window offered and the player left ticked (rollOffers: a skin of fine
-		// whisky shared before a Persuade): the same fold, each paid for after the dice, below. Stone
-		// Cold's line buys no advantage: it counts a 6- as a 7-9, named on the card as Herd of Horses is,
-		// and Let's Make a Deal's a 7-9 as a 10+ the same way. Binding Arbitration's line is dropped when
-		// the oath has already been asked above, so it is named once.
-		const taken = descriptionOnly || !takenOffers?.length ? [] : (offered ?? await this.rollOffers(item)).filter(offer => tookOffer(offer, takenOffers)
-			&& !(oathbreakerNamed && offer.key === BINDING_ARBITRATION_OFFER));
-		for (const offer of taken) {
-			if (NOTE_OFFER_TIERS[offer.effect]) Object.assign(rollOptions, _withHitNote(rollOptions, offer));
-			else if (offer.effect === "missAsPartial") rollOptions.missCountsAsPartial = offer.source;
-			else if (offer.effect === "partialAsSuccess") rollOptions.partialCountsAsSuccess = offer.source;
-			else Object.assign(rollOptions, foldAdvantage(rollOptions, offer.source));
-		}
+		// whisky shared before a Persuade): the same fold, each paid for after the dice, below (the
+		// ONE fold and payment onDirectStatRoll shares, _foldTakenOffers and _payTakenOffers).
+		// Binding Arbitration's line is dropped when the oath has already been asked above, so it is
+		// named once.
+		const taken = descriptionOnly ? [] : await _takenOffers(takenOffers, offered, () => this.rollOffers(item), { oathbreakerNamed });
+		Object.assign(rollOptions, _foldTakenOffers(rollOptions, taken));
 
 		// A promise made earlier (a peaceful camp) is spent HERE — after the guards above, so
 		// reading a move's text or backing out of the weapon prompt never burns it.
@@ -4125,11 +4313,12 @@ export class StonetopCharacter {
 
 		const roll = await item.roll({ ...this.applyDebilityRollMode(stat, withSurprise), descriptionOnly });
 
-		// What the taken lines cost, paid once the dice have landed.
-		if (roll) for (const offer of taken) await offer.spend?.(item.name);
-		// And Alpha's advantage against these foes, which was for this one roll. Before the tier effects, so
-		// an Alpha rolled again at the same foe spends the old record and its own 10+ lays a fresh one.
-		if (roll && alpha) await spendAlphaOver(this._actor, foesTargeted);
+		// What the taken lines cost, paid once the dice have landed, and a 12+'s "criticalNote" hook.
+		await _payTakenOffers(taken, roll, item.name);
+		// And Alpha's and But I Get Up Again's advantage against these foes, which was for this one roll: the
+		// next roll against them has been made, hit or miss. Before the tier effects, so an Alpha rolled again
+		// at the same foe spends the old record and its own 10+ lays a fresh one.
+		if (roll) await aimedModes.spend();
 
 		// What the tier just rolled does to the character: Defend's Readiness (p.216), We Happy Few's 6-
 		// shaking the nerves, Prepare a Welcome's 10+ regaining 1 Surprise, Commune with Aratis's 10+
@@ -4137,7 +4326,9 @@ export class StonetopCharacter {
 		// What each did is written on the card, so a later Shift or +1 moving its tier can bring the
 		// character along, undoing only what this roll did (actors/character/tier-effects.js).
 		if (!descriptionOnly && Number.isFinite(roll?.total)) {
-			const tier = classifyResult(roll.total).key;
+			// The tier the roll COUNTS as, as its card reads: a taken line that treats a 7-9 as a 10+ (or a 6- as a
+			// 7-9) settles the effects of the tier it counts as, the same one a later rewrite reads.
+			const tier = outcomeTier(countedTier(roll.total, rolledRecord("", withSurprise)));
 			await recordTierEffects(messageOfRoll(roll), await settleTierEffects(this._actor, item.name, tier, null, { character: this, targets: aimedAt }));
 		}
 
@@ -4359,6 +4550,9 @@ export class StonetopCharacter {
 			cap,
 			hasShield: opts.hasShield,
 			hasGuardian: opts.hasGuardian,
+			// Big Damn Hero's "don't roll to Defend", while it is still there to make in this fight
+			// (fight/hero-moves.js#leapInOpen): the row's Leap in button.
+			leapIn: leapInOpen(this._actor),
 			pips: Array.from({ length: count }, (_, i) => ({ index: i, filled: i < value })),
 		};
 	}
@@ -4891,7 +5085,11 @@ export class StonetopCharacter {
 		// and absent otherwise, in which case the sheet's sticky selector decides. Destructured
 		// rather than left in `rest` so the caller cannot half-set it: Know Things passes a mode
 		// it has already lifted through withAdvantage, and that is a value, not an override.
-		const { situational = 0, rollMode = null, ...rest } = extraOptions;
+		// `targets` is whom the roll is aimed at, for a caller that knows better than this user's targets
+		// on the map ([] for a roll aimed at nobody: Struggle as One's); absent, those targets decide.
+		// `takenOffers` and `offered` are the roll window's answer about the lines it offered, as onRoll's
+		// are (directRollOffers); a caller that asked no window (Struggle as One) takes none.
+		const { situational = 0, rollMode = null, targets = null, takenOffers = null, offered = null, ...rest } = extraOptions;
 		const forward  = this._actor.system?.attributes?.forward?.value ?? 0;
 		const ongoing  = this._actor.system?.attributes?.ongoing?.value ?? 0;
 		// `situational` is the one-off modifier from the optional pre-roll prompt; the
@@ -4907,11 +5105,21 @@ export class StonetopCharacter {
 			ongoing,
 			...rest,
 		};
-		// A guided move whose row has no rollable of its own rolls here by name, so its standing
+		// A guided move whose row has no rollable of its own rolls here by name, so the grudges a roll aimed
+		// at someone carries (Binding Arbitration, But I Get Up Again, Alpha, Tough Love) and its standing
 		// advantage and disadvantage are folded here as well as in onRoll.
-		const standing = this._foldStandingModes(base, rest.moveName);
+		const aimed = this._foldAimedModes(base, targets ?? this._rollTargets(rest));
+		const standing = this._foldStandingModes(aimed.options, rest.moveName);
+		// And the lines the window offered it that the player left ticked (Binding Arbitration's on a roll aimed
+		// at nobody, Constant Vigilance's on a guided move), folded and paid for as onRoll's are. Binding
+		// Arbitration's is dropped when the aim above has already named the oath.
+		const taken = await _takenOffers(takenOffers, offered, () => this.directRollOffers(rest.moveName),
+			{ oathbreakerNamed: aimed.oathbreaker });
 		const roll = await rollStat(stat, this._actor, this.applyDebilityRollMode(stat,
-			await this._spendHeldRollModes(standing)));
+			await this._spendHeldRollModes(_foldTakenOffers(standing, taken))));
+		await _payTakenOffers(taken, roll, rest.moveName);
+		// Alpha's and But I Get Up Again's advantage was for this one roll against them.
+		if (roll) await aimed.spend();
 
 		if (forward !== 0) {
 			await this._actor.update({ "system.attributes.forward.value": 0 }, extraOptions.moveName ? { stonetopMove: extraOptions.moveName } : {});
@@ -5210,10 +5418,15 @@ export class StonetopCharacter {
 	 *
 	 * LEARNED moves only: an un-ticked Hard to Kill offers no +CON and no debility trade, and an
 	 * un-ticked Unstoppable charges no penalty for circles it still shows on the sheet.
+	 *
+	 * The Would-Be Hero's two bends ride along: Never Gonna Keep Me Down's once-a-session 10+ (a
+	 * learned move, its circle clear) and the Destined's shifted tier (the background, its "Destiny
+	 * fulfilled" box unticked).
 	 */
 	deathsDoorRollOptions() {
 		const moves = this._actor.items.filter(i => i.type === "move" && moveLearnedIn(i, this._actor.items));
-		const opts  = deathsDoorRollOptions(moves.map(i => i.name), this._moveResources.getMoveResources());
+		const opts  = deathsDoorRollOptions(moves.map(i => i.name), this._moveResources.getMoveResources(),
+			{ backgroundSlug: this._background.selectedSlug, setupResources: this._background.setupResources });
 		const owner = opts.statChoiceMove
 			? moves.find(i => i.name?.toLowerCase() === opts.statChoiceMove.toLowerCase())
 			: null;
@@ -5880,13 +6093,56 @@ export class StonetopCharacter {
 	// onboarding re-run the move is already owned (addMove returns null) and the base-stat
 	// write has just reset the stat, so without this the +1 is silently dropped. Idempotent:
 	// base was reset first and the +1 is capped, so it lands exactly once per finalize.
+	//
+	// On the free pick's own copy (_creationPickCopy, stamped by then), not merely the first of the
+	// name: a Would-be Hero holding a level-up Improved Stat beside the free one keeps that one's
+	// pick, which restoreEarnedStatBonuses puts back.
 	async applyCreationStatChoice(compendiumId, statKey) {
 		if (!statKey) return;
 		const doc = await this._moveRepo.getPlaybookMoveDocument(compendiumId);
 		if (!doc) return;
-		const owned = this._actor.items.find(i => i.type === "move" && i.name === doc.name);
+		const owned = this._creationPickCopy(doc.name);
 		if (!owned || owned.system?.cap == null) return;
 		await this._applyStatIncreaseChoice(owned, statKey, owned.system.cap);
+	}
+
+	/**
+	 * The +1s earned since creation, per stat: every Improved / Superior Stat pick recorded on a move
+	 * still held that is NOT onboarding's free pick (applyCreationStatChoice puts that one back
+	 * itself), and every filled stat slot of a marking move (Potential for Greatness). Each is worth
+	 * exactly +1 (stat-rules.js).
+	 * @returns {Record<string, number>}
+	 */
+	earnedStatBonuses() {
+		const out = Object.fromEntries(Object.keys(_STAT_DEFS).map(key => [key, 0]));
+		const held = new Map(this._actor.items.filter(i => i.type === "move").map(i => [i._id ?? i.id, i]));
+		for (const [itemId, statKey] of Object.entries(resolvedFlags(this._actor).improvedStatChoices ?? {})) {
+			const item = held.get(itemId);
+			if (!(statKey in out) || !item || item.flags?.[STONETOP_SCOPE]?.[CREATION_PICK_FLAG]) continue;
+			out[statKey] += 1;
+		}
+		for (const moveMarks of Object.values(this._moveResources.getMarks())) {
+			for (const mark of filledMarks(moveMarks ?? {})) if (mark.stat in out) out[mark.stat] += 1;
+		}
+		return out;
+	}
+
+	/**
+	 * A re-run of onboarding writes the base stats back (the sheet's _applyPlaybookSelections), which
+	 * wipes every +1 earned since: a level-up's Improved Stat, a Potential for Greatness slot. Their
+	 * records stay, so un-marking one later would take a point the stat no longer holds. Put them
+	 * back on the stats that were written (`statKeys`), after the free pick's own +1 is applied, as
+	 * the character earned them. Tagged with no move: nothing was newly earned.
+	 * @param {Iterable<string>} statKeys
+	 */
+	async restoreEarnedStatBonuses(statKeys) {
+		const earned = this.earnedStatBonuses();
+		const update = {};
+		for (const key of statKeys ?? []) {
+			if (!earned[key]) continue;
+			update[`system.stats.${key}.value`] = (this._actor.system?.stats?.[key]?.value ?? 0) + earned[key];
+		}
+		if (Object.keys(update).length) await this._actor.update(update);
 	}
 
 	// Inverse of _applyStatIncreaseChoice, run when an Improved/Superior Stat instance is
@@ -5944,7 +6200,7 @@ export class StonetopCharacter {
 	// NAME, the same surface the sheet's own checkboxes use.
 	async _applyMarkChoices(moveName, picks) {
 		for (const pick of picks) {
-			const current = _markEntries(this._moveResources.getMarks()[moveName]?.[pick.slug]).length;
+			const current = markEntries(this._moveResources.getMarks()[moveName]?.[pick.slug]).length;
 			await this.setCountMark(moveName, pick.slug, current + 1);
 		}
 	}
@@ -6027,13 +6283,14 @@ const _ALL_PLAYBOOK_NAMES = [
 // moves are what grant the access, so the playbook tag marks exactly the moves that access
 // does not reach.
 //
-// NOTE: a freeform `requirement.note` (e.g. "All 6 marks in Potential for Greatness") is
-// still NOT machine-checked — it can't be without a per-note rule engine — so such a move
-// stays pickable; the note is surfaced in the picker for the player to self-police, exactly
-// as the sheet shows note-only prerequisites on owned moves.
+// NOTE: a freeform `requirement.note` (e.g. "Sheriff background") is still NOT
+// machine-checked (it can't be without a per-note rule engine), so such a move stays
+// pickable; the note is surfaced in the picker for the player to self-police, exactly as the
+// sheet shows note-only prerequisites on owned moves. A requirement of marks (`req.marks`) is
+// never met here: the only one is Superior Stat's, which no pick offers (cap != null).
 function _foreignMoveQualifies(def, learnedNames, level, actorStats = {}) {
 	const req = def.requirement ?? {};
-	if (req.playbook) return false;
+	if (req.playbook || req.marks) return false;
 	if (req.level && level < req.level) return false;
 	if (requiredMovesUnmet({ ...req, moves: effectiveRequiredMoves(req, def.replaces) }, m => learnedNames.has(m))) return false;
 	return !statRequirementsUnmet(req.stats, actorStats);
@@ -6289,6 +6546,10 @@ export function backgroundMoveNames(background, setupChoices = {}) {
 // re-run can tell that pick from a level-up's. See StonetopCharacter#creationPickItems.
 export const CREATION_PICK_FLAG = "creationPick";
 
+// The item flag a replacing move carries when the move it retired was onboarding's free pick. See
+// StonetopCharacter#retiredCreationPickCount.
+export const RETIRED_CREATION_PICK_FLAG = "retiredCreationPick";
+
 // The item flag onboarding stamps on the "either X OR Y" option it granted, the one the character
 // STARTED with, so the other half taken later reads as an ordinary pick. See
 // StonetopCharacter#startingChoiceItems.
@@ -6427,6 +6688,7 @@ function _buildPlaybookSection(playbookData, background, instinct, appearance, o
 			}))
 			.withSaved(savedChoices)
 			.withCountState(countState.checked, countState.underMin)
+			.withInline(!!b.choices.inline)
 			.build() : null;
 		return new BackgroundOptionSnapshotBuilder()
 			.withSlug(b.slug)
@@ -6503,18 +6765,6 @@ function _buildPlaybookSection(playbookData, background, instinct, appearance, o
 }
 
 
-// Normalize a stored mark value into an array of { stat, level } entries.
-// Handles legacy shapes: a plain count (number) or an array of stat strings.
-function _markEntries(stored) {
-	if (Array.isArray(stored)) {
-		return stored.map(e => (e && typeof e === "object")
-			? { stat: e.stat ?? "", level: e.level ?? null, ...(e.creation ? { creation: true } : {}) }
-			: { stat: typeof e === "string" ? e : "", level: null });
-	}
-	if (typeof stored === "number") return Array.from({ length: stored }, () => ({ stat: "", level: null }));
-	return [];
-}
-
 // Add the bonuses of a move's checked mark options (`moveMarks`, the move's entry in
 // moves.moveMarks) into `totals` (see StonetopCharacter#_ownedMoveBonuses). One writer for a
 // move of the character's own playbook, read off its definition, and a foreign one, read off
@@ -6525,7 +6775,7 @@ function _addMarkOptionBonuses(totals, markOptions, moveMarks = {}) {
 		// are applied directly to the stored stats on change, not derived here: multiplying by
 		// the array would yield NaN.
 		if (opt.choice === "stat") continue;
-		const count = _markEntries(moveMarks?.[opt.slug]).length;
+		const count = markEntries(moveMarks?.[opt.slug]).length;
 		if (!count) continue;
 		totals.hp     += (opt.hp     || 0) * count;
 		totals.armor  += (opt.armor  || 0) * count;
@@ -6551,7 +6801,7 @@ function _sumMarkPicks(moveMarks, markOptions, skipSlug = null) {
 	let n = 0;
 	for (const opt of markOptions) {
 		if (opt.choice === "stat" || opt.slug === skipSlug) continue;
-		n += _markEntries(moveMarks[opt.slug]).length;
+		n += markEntries(moveMarks[opt.slug]).length;
 	}
 	return n;
 }
@@ -6576,9 +6826,27 @@ function _sumMarkPicks(moveMarks, markOptions, skipSlug = null) {
 // labelled "Background", and is not stored, so it sits outside the budget; the option's own boxes
 // are what is left. A mark stored on it anyway (an old character's) stays, editable, and is flagged
 // with `duplicateNote`: never taken away.
-function _buildMarkOptions(entry, markCounts, capState = {}, backgroundSlug = null) {
+//
+// `actorStats` (key to value) and `actorLevel` are the character's. A stat slot's picker offers only
+// the stats still below the move's cap (stat-rules.js#MARK_STAT_CAPS: Potential for Greatness's
+// "to a max of +2"), as the Improved Stat picker does, and always the slot's own pick. A move taken
+// "Once per level" (pfg-marks.js#ONCE_PER_LEVEL_MARKS) flags, never blocks, a mark noted at the same
+// level as another or above the current level: `levelCaution` on the slot or box, the sentence for
+// its tooltip.
+function _buildMarkOptions(entry, markCounts, capState = {}, backgroundSlug = null, { actorStats = {}, actorLevel = null } = {}) {
 	if (!entry.markOptions?.length) return { options: null, budget: null };
 	const statList = Object.entries(_STAT_DEFS).map(([key, { abbr }]) => ({ key, abbr }));
+	const statCap  = MARK_STAT_CAPS[entry.name] ?? null;
+	const cautions = ONCE_PER_LEVEL_MARKS.has(entry.name)
+		? oncePerLevelCautions(markCounts, entry.markOptions, actorLevel)
+		: new Map();
+	const levelCaution = (slug, index) => {
+		const why = cautions.get(`${slug}:${index}`);
+		if (!why) return null;
+		return why === "ahead"
+			? format("stonetop.character.moves.markLevelAhead", { level: actorLevel })
+			: _loc("stonetop.character.moves.markLevelShared");
+	};
 
 	// Total checked across budgeted (non-stat) options — the spent picks.
 	const ownedCount = entry.ownedIds?.length ?? (entry.owned ? 1 : 0);
@@ -6587,16 +6855,19 @@ function _buildMarkOptions(entry, markCounts, capState = {}, backgroundSlug = nu
 	const atBudget = max != null && used >= max;
 
 	const options = entry.markOptions.map(opt => {
-		const entries = _markEntries(markCounts[opt.slug]);
+		const entries = markEntries(markCounts[opt.slug]);
 		const marks = opt.marks ?? 1;
 		if (opt.choice === "stat") {
 			const statSlots = Array.from({ length: marks }, (_, i) => {
 				const sel = entries[i]?.stat ?? "";
+				// A stat already at the cap would buy nothing; the slot's own pick stays, so it shows.
+				const offered = statList.filter(s => s.key === sel || statCap == null || (actorStats[s.key] ?? 0) < statCap);
 				return {
 					index: i,
 					level: entries[i]?.level ?? null,
+					levelCaution: sel ? levelCaution(opt.slug, i) : null,
 					options: [{ key: "", abbr: "—", selected: sel === "" },
-						...statList.map(s => ({ key: s.key, abbr: s.abbr, selected: sel === s.key }))],
+						...offered.map(s => ({ key: s.key, abbr: s.abbr, selected: sel === s.key }))],
 				};
 			});
 			return { slug: opt.slug, label: opt.label, choice: "stat", statSlots };
@@ -6620,6 +6891,7 @@ function _buildMarkOptions(entry, markCounts, capState = {}, backgroundSlug = nu
 				index: i,
 				checked: i < count,
 				level: entries[i]?.level ?? null,
+				levelCaution: i < count ? levelCaution(opt.slug, i) : null,
 				// Lock an UNchecked box once the budget is spent — checked boxes always
 				// stay editable so the player can free up a pick (and any grandfathered
 				// over-budget mark from before the cap existed is never force-cleared).
@@ -6645,17 +6917,17 @@ function _buildMarkOptions(entry, markCounts, capState = {}, backgroundSlug = nu
  * same "requirement not met" warning. The requirement's playbook is dropped first: a learned move is
  * from another playbook by definition.
  */
-function _learnedMoveRequirement(item, ownedAllByName, actorLevel, actorStats) {
+function _learnedMoveRequirement(item, ownedAllByName, actorLevel, actorStats, filledMarks = null) {
 	const { playbook: _foreign, ...requirement } = item.system?.requirement ?? {};
 	const entry = new PlaybookMoveEntry(
 		{ name: item.name, isStarting: false, requirement, replaces: item.system?.replaces || null },
-		[item], new Set(), ownedAllByName, actorLevel, null, actorStats);
+		[item], new Set(), ownedAllByName, actorLevel, null, actorStats, null, null, filledMarks);
 	return { requiresLabel: entry.requiresLabel, requirementsUnmet: entry.requirementsUnmet };
 }
 
 // `backgroundChoices` (move name → the background's moveChoices entry) marks a card whose background
 // answer is the player's to pick and still empty (`backgroundAnswerNeeded`, the card's cue).
-function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), moveBackgroundAnswers = {}, improvedStatChoices = {}, moveMarksMap = {}, actorStats = {}, capState = {}, backgroundChoices = new Map()) {
+function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), moveBackgroundAnswers = {}, improvedStatChoices = {}, moveMarksMap = {}, actorStats = {}, capState = {}, backgroundChoices = new Map(), actorLevel = null, subtitles = {}) {
 	const resourceDef = entry.resource;
 	const resource = resourceDef ? new ResourceBuilder()
 		.withCurrent(moveResourcesMap[entry.name] ?? 0)
@@ -6676,7 +6948,7 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 
 	const backgroundAnswer = moveBackgroundAnswers[entry.name] ?? null;
 	const { options: markOptions, budget: markBudget } = _buildMarkOptions(entry, moveMarksMap[entry.name] ?? {}, capState,
-		backgroundMarkOption(entry.name, backgroundAnswer?.value));
+		backgroundMarkOption(entry.name, backgroundAnswer?.value), { actorStats, actorLevel });
 	const backgroundChoice = backgroundChoices.get(entry.name);
 	const backgroundAnswerNeeded = entry.owned && backgroundChoice?.options?.length && !backgroundAnswer?.value
 		? {
@@ -6714,6 +6986,7 @@ function _buildMoveEntry(entry, source, moveResourcesMap, bgSlugs = new Set(), m
 		.withCompendiumId(entry.compendiumId)
 		.withOwnedId(entry.ownedIds[0] ?? null)
 		.withName(entry.name)
+		.withSubtitle(entry.owned ? subtitles[entry.name] ?? null : null)
 		.withDescription(entry.description)
 		.withMoveResults(entry.moveResults ?? null)
 		.withRollType(entry.rollType)

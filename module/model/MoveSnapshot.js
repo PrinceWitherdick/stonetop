@@ -37,6 +37,8 @@ export class RequirementSnapshot {
  * @property {{ label: string, options: string[] }|null} backgroundAnswerNeeded
  * @property {Array<{ownedId:string, statKey:string, statAbbr:string}>|null} statChoices
  * @property {{ count:number, cap:number }|null} statChoiceNeeded owned stat-increase instances with no stat picked yet
+ * @property {string|null} subtitle - a line under the move's title about this character's own answers
+ *   (Anger is a Gift: the righteous angers picked on the Details tab)
  */
 export class MoveSnapshot {
 	constructor(b) {
@@ -44,6 +46,7 @@ export class MoveSnapshot {
 		this.compendiumId  = b._compendiumId;
 		this.ownedId       = b._ownedId;
 		this.name          = b._name;
+		this.subtitle      = b._subtitle ?? null;
 		this.description   = b._description;
 		this.moveResults   = b._moveResults ?? null;
 		this.rollType      = b._rollType;
@@ -99,6 +102,7 @@ export class MoveSnapshotBuilder {
 	withCompendiumId(v)  { this._compendiumId  = v; return this; }
 	withOwnedId(v)       { this._ownedId       = v; return this; }
 	withName(v)          { this._name          = v; return this; }
+	withSubtitle(v)      { this._subtitle      = v ?? null; return this; }
 	withDescription(v)   { this._description   = v; return this; }
 	withMoveResults(v)   { this._moveResults   = v ?? null; return this; }
 	withRollType(v)      { this._rollType      = normalizeRollType(v); return this; }

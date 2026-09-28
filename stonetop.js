@@ -77,8 +77,12 @@ import { boldMissText } from "./module/utils/strings.js";
 import { moveBodyHtml } from "./module/utils/move-tiers.js";
 import { MOVE_TIERS_CLASS, ROLLED_TIER_ATTR } from "./module/utils/move-results.js";
 import { hbsTruthy } from "./module/utils/hbs-truthy.js";
-import { rollSeasonsCard, sign, markMissXp, pbtaDiceFormula, seasonsRollTable } from "./module/utils/roll-engine.js";
-import { xpToLevelUp, adjustXp } from "./module/utils/xp.js";
+import { rollSeasonsCard, sign, markMissXp, pbtaDiceFormula, seasonsRollTable, syncCountedNotePill } from "./module/utils/roll-engine.js";
+import { countedResult, rolledRecord, cardCountedTier, totalTier } from "./module/utils/counted-tier.js";
+import { burnBrightlyAffordable, burnsBrightlyDriven } from "./module/actors/character/burn-brightly.js";
+import { wireImpetuousYouth, HURT_DAMAGE, IMPETUOUS_YOUTH } from "./module/actors/character/impetuous-youth.js";
+import { isDeathsDoorCard } from "./module/actors/character/deaths-door.js";
+import { registerRollRewrite } from "./module/utils/roll-rewrite.js";
 import { formatOutcomeDetail, escHtml } from "./module/utils/strings.js";
 import { moveChatCard, canRewriteCard } from "./module/utils/chat.js";
 import { grantsWholeList, paintPickTally, pickLimitFor, releaseOverLimit, tierOffersPicks } from "./module/utils/pick-tally.js";
@@ -101,7 +105,7 @@ import { applyJournalCheckboxes } from "./module/utils/journal-checkboxes.js";
 import { applyJournalRollTables } from "./module/utils/journal-roll-tables.js";
 import { bindSteadingImprovementDrag } from "./module/journal/steading-improvement-cards.js";
 import { bindThreatSeedDrag } from "./module/threats/threat-seed-cards.js";
-import { maybeAnnounceBecameHero } from "./module/actors/character/WouldBeHeroAsterisk.js";
+import { remindPotentialForGreatnessOnCard, wirePotentialForGreatnessReminder } from "./module/actors/character/WouldBeHeroAsterisk.js";
 import { StonetopSteading } from "./module/actors/steading/StonetopSteading.js";
 import { debilityPath } from "./module/actors/steading/steading-debilities.js";
 import { readCurrentSeason, readCurrentYear } from "./module/seasons/current-season.js";
@@ -136,6 +140,12 @@ import {
 	INSPIRATION_QUERY, handleInspirationQuery, onUpdateActorInspirationAtZero, wireInspirationDamage, wireKeepOneHp, wireSpeechCard,
 } from "./module/actors/character/inspiration-flow.js";
 import { GIVE_ADVANTAGE_QUERY, handleGiveAdvantageQuery, wireGiveAdvantage } from "./module/actors/character/give-advantage-flow.js";
+import { wireWouldBeHeroCards } from "./module/actors/character/would-be-hero-cards.js";
+import { UP_WITH_PEOPLE_QUERY, handleUpWithPeopleQuery } from "./module/actors/character/up-with-people.js";
+import {
+	DEATHS_DOOR_BOOST_QUERY, DEATHS_DOOR_CLAIM_QUERY, burnBrightlyOnDoorCard, handleDeathsDoorBoostQuery,
+	handleDeathsDoorClaimQuery,
+} from "./module/actors/character/deaths-door-relay.js";
 
 // -- INIT ------------------------------------------------------
 Hooks.once("init", () => {
@@ -188,6 +198,13 @@ Hooks.once("init", () => {
 	// And "you or an ally gain advantage" (Countermeasures, Sage Advice, Everything Burns, Work With What
 	// You've Got), given to a PC the giver's player does not own (give-advantage-flow.js).
 	if (CONFIG.queries) CONFIG.queries[GIVE_ADVANTAGE_QUERY] = (data, context) => handleGiveAdvantageQuery(data, context);
+	// And Up With People's Rapport, held by (or let go of by) a PC partner the hero's player does not own
+	// (actors/character/up-with-people.js).
+	if (CONFIG.queries) CONFIG.queries[UP_WITH_PEOPLE_QUERY] = (data, context) => handleUpWithPeopleQuery(data, context);
+	// And Death's Door's roll in progress: one owner's claim on it at a time, and Burn Brightly or giving it your
+	// all on a private roll's card the owner who took it over was never sent (actors/character/deaths-door-relay.js).
+	if (CONFIG.queries) CONFIG.queries[DEATHS_DOOR_CLAIM_QUERY] = (data, context) => handleDeathsDoorClaimQuery(data, context);
+	if (CONFIG.queries) CONFIG.queries[DEATHS_DOOR_BOOST_QUERY] = (data, context) => handleDeathsDoorBoostQuery(data, context);
 
 	// Every window and modal in the system is drag-resizable; the ad-hoc
 	// Dialog popups we spawn from sheets default to resizable too. The companion
@@ -1229,9 +1246,9 @@ function _chatWireRollShifting(message, html) {
 }
 
 // -- BURN BRIGHTLY ---------------------------------------------
-const BURN_BRIGHTLY_TOOLTIP =
-	"When you have enough XP to Level Up, " +
-	"you may spend 2 XP after any roll you make to add +1 to that roll (max +1 per roll).";
+// The words live beside the Special Moves tab's (languages/en.json). The Would-Be Hero's Driven background
+// has its own tooltip: any 2 XP will do (actors/character/burn-brightly.js).
+const BURN_BRIGHTLY_KEY = "stonetop.specialMoves.burnBrightly";
 
 function _chatWireBurnBrightly(message, html) {
 	const cardButtons = html.querySelector(".stonetop-roll-card .stonetop-card-buttons");
@@ -1244,14 +1261,17 @@ function _chatWireBurnBrightly(message, html) {
 	const alreadyBurned = message.getFlag(SYSTEM_ID, "burnBrightly") ?? false;
 	const xp    = actor.system?.attributes?.xp?.value    ?? 0;
 	const level = actor.system?.attributes?.level?.value ?? 1;
-	const canAfford = xp >= xpToLevelUp(level);
+	const canAfford = burnBrightlyAffordable(actor, xp, level);
 
-	if (!canAfford && !alreadyBurned) return;
+	// Not on Death's Door's card while unspent: its window offers Burn Brightly before it settles the tier,
+	// and a +1 here afterwards would relabel the card and change nothing (deaths-door.js#isDeathsDoorCard).
+	// A spend made there still shows here, spent.
+	if (!alreadyBurned && (!canAfford || isDeathsDoorCard(message))) return;
 
 	const btn = document.createElement("button");
 	btn.className = "stonetop-burn-brightly-btn";
-	btn.innerHTML = `<span class="stonetop-burn-brightly-icon"></span> Burn brightly`;
-	btn.dataset.tooltip = BURN_BRIGHTLY_TOOLTIP;
+	btn.innerHTML = `<span class="stonetop-burn-brightly-icon"></span> ${escHtml(game.i18n.localize(`${BURN_BRIGHTLY_KEY}.button`))}`;
+	btn.dataset.tooltip = game.i18n.localize(`${BURN_BRIGHTLY_KEY}.${burnsBrightlyDriven(actor) ? "drivenTooltip" : "tooltip"}`);
 	btn.dataset.tooltipDirection = "UP";
 	btn.disabled = alreadyBurned;
 
@@ -1263,43 +1283,13 @@ function _chatWireBurnBrightly(message, html) {
 	btn.addEventListener("click", async () => {
 		btn.disabled = true;
 		try {
-			// Read before the update, so the re-stamped alias is the one the card was created
-			// with rather than whatever the actor has become mid-click.
-			const fullName = characterFullName(actor);
-			// Affordability is checked INSIDE the write queue rather than here. Checking it at
-			// click time was right for one spend and wrong for two: a second Burn Brightly
-			// queued behind the first tested a total the first had not yet reduced, so a
-			// character with 9 XP could buy two +1s and end on 5, below the threshold that made
-			// either of them legal.
-			const { applied, after: newXp, max: maxXp } = await adjustXp(actor, -2, {
-				move: "Burn Brightly",
-				require: (xp, level) => xp >= xpToLevelUp(level),
-			});
-			if (!applied) {
-				ui.notifications.warn("You don't have enough XP to Burn Brightly.");
+			// The one spend (deaths-door-relay.js#burnBrightlyOnDoorCard): the XP inside the write queue, then the
+			// +1 through the same dice-term math and card redraw the ± roll-shift buttons use, so the two never drift.
+			const burned = await burnBrightlyOnDoorCard(message, actor, ROLL_BOOST_DEPS);
+			if (!burned) {
+				ui.notifications.warn(game.i18n.localize(`${BURN_BRIGHTLY_KEY}.notEnoughXp`));
 				btn.disabled = false;
-				return;
 			}
-			ChatMessage.create({
-				content: `-2 XP for Burning Brightly.<br>New XP: ${newXp} / ${maxXp}`,
-				speaker: ChatMessage.getSpeaker({ actor }),
-			});
-
-			const rolls = message.rolls;
-			const roll  = rolls.at(0);
-			// Add +1 to the roll's rollShifting modifier term (creating it if absent) — the
-			// same dice-term math the ± roll-shift buttons use, so the two never drift.
-			await _shiftRoll(roll, 1);
-
-			const speakerUpdate = fullName !== actor.name ? { alias: fullName } : {};
-			await message.update({
-				rolls,
-				// Regenerate the card so the readout, result label and per-tier outcome reflect the +1.
-				flavor:  _shiftRollCardFlavor(message.flavor, roll.total, roll.formula),
-				speaker: { ...message.speaker, ...speakerUpdate },
-				flags:   { [SYSTEM_ID]: { burnBrightly: true } },
-			});
-			await _resyncRewrittenTotal(message, actor, roll.total);
 		} catch (err) {
 			console.error("Stonetop | Error burning brightly:", err);
 			btn.disabled = false;
@@ -1335,8 +1325,8 @@ const INSPIRATION_DEPS = {
 //     shift term up to exactly 10, reusing the same term math the GM's Shift buttons use.
 //
 // Caveat worth knowing: a later GM Shift Down can take a padded 10 back to 9 and revoke the
-// guarantee, because _shiftRollCardFlavor derives the tier from the total alone and has no notion
-// of a locked tier. That's a GM overriding a player's spend, which is their call to make.
+// guarantee, because _shiftRollCardFlavor derives the tier from the total (and the bends the roll
+// carried) and has no notion of a locked tier. That's a GM overriding a player's spend, which is their call to make.
 
 /** The move a roll card came from, as stamped by StonetopItem.roll. Null for non-move rolls. */
 function _cardMoveName(message) {
@@ -1365,7 +1355,8 @@ async function _syncArcanumIdentification(message, actor, total) {
 	const character = actor?.typedActor;
 	if (!slug || !character) return;
 
-	const key  = _classifyShiftedTotal(Number(total) || 0).key;
+	// The tier the card COUNTS as, which a roll's own "treat a 7-9 as a 10+" bends (utils/counted-tier.js).
+	const key  = cardCountedTier(message, Number(total) || 0, SYSTEM_ID);
 	const opts = { stonetopMove: "Know Things" };
 	try {
 		if (key === "success" || key === "critical") {
@@ -1399,7 +1390,7 @@ async function _syncArtifactIdentification(message, actor, total) {
 	// never settles the ladder — p.430 leaves those answers with the GM. Only Know Things writes.
 	if (!itemId || !character || !isKnowThings(_cardMoveName(message))) return;
 
-	const state = artifactStateForTier(_classifyShiftedTotal(Number(total) || 0).key);
+	const state = artifactStateForTier(cardCountedTier(message, Number(total) || 0, SYSTEM_ID));
 	if (!state) return;
 	try {
 		if (await character.setArtifactState(itemId, state, { upgradeOnly: true })) {
@@ -1431,12 +1422,29 @@ async function _resyncIdentification(message, actor, total) {
  * Everything a roll card's total owes to what it moved, called by every place that rewrites one (a GM's
  * Shift, Burn Brightly, a +1 pressed on the card, a logbook's 10+): what it was identifying, and what its
  * tier did to the roller (We Happy Few's nerves, Prepare a Welcome's Surprise, Commune with Aratis's
- * Sanction, the holy light, Defend's Readiness: actors/character/tier-effects.js).
+ * Sanction, the holy light, Defend's Readiness: actors/character/tier-effects.js), and, for a Would-Be Hero
+ * whose card it lifts to a 10+ (as it now COUNTS), the Potential for Greatness reminder the roll itself would
+ * have posted, once per card (WouldBeHeroAsterisk.js).
  */
 async function _resyncRewrittenTotal(message, actor, total) {
 	await _resyncIdentification(message, actor, total);
 	await reconcileTierEffects(message, total, { actor });
+	try {
+		await remindPotentialForGreatnessOnCard(message, actor, total);
+	} catch (err) {
+		console.error("Stonetop | Error reminding of Potential for Greatness after a rewritten roll:", err);
+	}
 }
+
+// Impetuous Youth's "give it your all" (actors/character/impetuous-youth.js): the same lift every other
+// rewrite makes, and "you get hurt" rolls its 2d4 at the hero on the move-option damage card.
+const IMPETUOUS_YOUTH_DEPS = {
+	...ROLL_BOOST_DEPS,
+	hurt: actor => rollOptionDamage(actor, { move: IMPETUOUS_YOUTH.label, damage: HURT_DAMAGE }),
+};
+// The same hands for Death's Door's own window, which offers Burn Brightly and giving it your all before it
+// settles the tier, and rewrites its card through them (utils/roll-rewrite.js, dialogs/DeathsDoorDialog.js).
+registerRollRewrite(IMPETUOUS_YOUTH_DEPS);
 
 
 function _chatWireKnowThings(message, html) {
@@ -1580,7 +1588,7 @@ async function _spendKnowThingsUpgrade(message, actor, cardButtons, btn, source)
 /** Whether a rolled card's (shifted) total is a 6-; a card with no roll has not missed. */
 function _invokeCardMissed(message) {
 	const roll = message.rolls?.at(0);
-	return !!roll && _classifyShiftedTotal(roll.total).key === "failure";
+	return !!roll && totalTier(roll.total) === "failure";
 }
 
 /** The `possessions` flag bag a possession track is read from, off a bare Actor. */
@@ -2247,12 +2255,6 @@ async function _onRollOptionDamage(message, btn, index, { move, dealt }) {
 	}
 }
 
-// -- WOULD-BE HERO: BECOME A HERO ------------------------------
-// The first time a Would-Be Hero gains a hero-making (asterisked) move, cross off
-// "Would-be" and announce it once. The playbook header already derives "The Hero"
-// from owning such a move, so this hook is purely the one-time announcement.
-Hooks.on("createItem", (item, options, userId) => maybeAnnounceBecameHero(item, userId, options));
-
 // One render hook drives all of the above, in this order: the blind-roll strip
 // MUST run first (it removes our card so the button-wiring helpers below no-op
 // for viewers who can't see the result), then the message-root passes, then prose
@@ -2271,6 +2273,10 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatAnnotateDebility(message, html);
 	_chatWireRollShifting(message, html);
 	_chatWireBurnBrightly(message, html);
+	// Beside Burn Brightly: a Would-Be Hero's Impetuous Youth, giving it their all on their own move card.
+	wireImpetuousYouth(message, html, IMPETUOUS_YOUTH_DEPS);
+	// Potential for Greatness's reminder card: its "mark this box" buttons, for the character's owners.
+	wirePotentialForGreatnessReminder(message, html, { actor: speakerActor(message) });
 	// Beside Burn Brightly, in the same row: a Judge's +1 on this roll, and the +1s already added.
 	wireRollBoosts(message, html, ROLL_BOOST_DEPS);
 	// After the roll-shift pass (which hides the button row from non-GMs) and after Burn
@@ -2292,6 +2298,9 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	// "You or an ally gain advantage" (Everything Burns' 10+, Work With What You've Got's 7+, and the posted
 	// cards of Countermeasures and Sage Advice): who holds it, once per card.
 	wireGiveAdvantage(message, html);
+	// The Would-Be Hero's card buttons: Speak Truth to Power's "They refused: +1 Resolve", In Over Your
+	// Head's "Mark XP", Voice of Experience's "Ask it" (actors/character/would-be-hero-cards.js).
+	wireWouldBeHeroCards(message, html);
 	// Same row, same reason: a spend that rewrites what the roll costs the player.
 	_chatWireHolyRelics(message, html);
 	// The XP receipt's own row, not the shared button row the two above claim — a card with no
@@ -2484,7 +2493,10 @@ function _shiftRollCardFlavor(flavor, total, formula = null) {
 	const resultLabel = resultEl?.querySelector(".stonetop-roll-result-label");
 	let result = null;
 	if (resultEl && resultLabel) {
-		result = _classifyShiftedTotal(total);
+		// The tier the new total COUNTS as, not its own: a roll that treats a 7-9 as a 10+ (Let's Make a
+		// Deal) or a 6- as a 7-9 (Destined, Herd of Horses) carries that bend on its result block, by the
+		// rule's name (roll-engine.js#_rollCard), and a lift inside the bent tier leaves it the tier it was.
+		result = countedResult(total, rolledRecord("", resultEl.dataset));
 		resultEl.classList.remove("success", "partial", "failure", "critical");
 		resultEl.classList.add(result.key);
 		resultLabel.textContent = result.label;
@@ -2533,14 +2545,11 @@ function _shiftRollCardFlavor(flavor, total, formula = null) {
 				else row.setAttribute("hidden", "hidden");
 			}
 		}
+
+		// And the pill naming the bend, as rollStat said it: off when the new total counts as itself, on (or
+		// reworded) when it moves into the bent tier, and the "Conditions Applied" row with it.
+		syncCountedNotePill(wrapper, result.note);
 	}
 
 	return wrapper.innerHTML;
-}
-
-function _classifyShiftedTotal(total) {
-	if (total >= 12) return { key: "critical", label: "12+ Strong Hit" };
-	if (total >= 10) return { key: "success", label: "Strong Hit" };
-	if (total >= 7) return { key: "partial", label: "Weak Hit" };
-	return { key: "failure", label: "Miss" };
 }

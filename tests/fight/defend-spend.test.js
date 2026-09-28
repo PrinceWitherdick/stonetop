@@ -75,6 +75,42 @@ describe("playbook moves on the card", () => {
 		expect(defendNotes(taken)).toEqual(["pim got knocked down, halving the blow (I Get Knocked Down)."]);
 	});
 
+	// The user's ruling (WBH audit, 2026-09-27): "When you take damage", so a Would-Be Hero who stood in for
+	// someone may use it, and the ward they stood in for, who no longer takes the blow, may not.
+	it("offers I Get Knocked Down to a Would-Be Hero who stood in, and not to the ward they stood in for", () => {
+		const pim = character("pim", 1, ["I Get Knocked Down"]);
+		const ward = character("ward", 0, ["I Get Knocked Down"]);
+		const stood = { ...damage, standIns: [{ uuid: "Token.bram", by: pim.uuid, name: "pim" }] };
+		const byUuid = uuid => (uuid === pim.uuid ? pim : ward);
+		expect(defendOffers(stood, () => ({ self: null, allies: [] }), byUuid).knockedDown).toEqual([{ row: damage.results[0], defender: pim, cost: 0 }]);
+		// A stand-in without the move: nobody is offered it, the ward included.
+		const plain = character("plain", 1);
+		const byPlain = uuid => (uuid === plain.uuid ? plain : ward);
+		const plainStood = { ...damage, standIns: [{ uuid: "Token.bram", by: plain.uuid, name: "plain" }] };
+		expect(defendOffers(plainStood, () => ({ self: null, allies: [] }), byPlain).knockedDown).toEqual([]);
+	});
+
+	it("halves only for whoever takes the blow now: a ward's knock-down does not follow it onto a stand-in", async () => {
+		const pim = character("pim", 1, ["I Get Knocked Down"]);
+		const ward = character("ward", 0, ["I Get Knocked Down"]);
+		const wardDown = [{ uuid: "Token.bram", name: "ward", how: "knockedDown", by: ward.uuid }];
+		expect([...spentOn({ ...damage, knockedDownBy: wardDown }).knockedDown]).toEqual(["Token.bram"]);
+		const stood = { ...damage, knockedDownBy: wardDown, standIns: [{ uuid: "Token.bram", by: pim.uuid, name: "pim" }] };
+		expect([...spentOn(stood).knockedDown]).toEqual([]);
+		// So the stand-in may take it on that blow for themselves, and it is recorded as theirs.
+		const card = {
+			flag: stood,
+			getFlag() { return this.flag; },
+			setFlag: vi.fn(async function (_scope, key, value) { const store = { damage: this.flag }; writeFlagPath(store, key, value); this.flag = store.damage; }),
+		};
+		const offer = defendOffers(stood, () => ({ self: null, allies: [] }), uuid => (uuid === pim.uuid ? pim : ward)).knockedDown[0];
+		expect(offer.defender).toBe(pim);
+		expect(await takeSpend(card, "knockedDown", offer)).toBe(true);
+		expect(card.flag.knockedDownBy.at(-1)).toMatchObject({ uuid: "Token.bram", name: "pim", by: pim.uuid });
+		expect([...spentOn(card.flag).knockedDown]).toEqual(["Token.bram"]);
+		expect(await takeSpend(card, "knockedDown", offer)).toBe(false);
+	});
+
 	it("offers A Mighty Rampart's ignore to whoever will suffer the blow: the one hit, or the one who took it for them", () => {
 		const judge = character("judge", 1, ["A Mighty Rampart"]);
 		expect(defendOffers(damage, () => ({ self: judge, allies: [] })).ignore.map(o => o.defender.name)).toEqual(["judge"]);

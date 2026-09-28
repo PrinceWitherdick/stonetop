@@ -54,6 +54,13 @@ async function choicesFor(char, pick, newLevel, actor, data = {}) {
 	return Object.keys(choices).length ? choices : null;
 }
 
+// Every box of Potential for Greatness filled, as the mark store keeps them.
+const ALL_PFG_MARKS = () => ({
+	stat:   ["wis", "wis", "cha", "cha"].map((stat, i) => ({ stat, level: i + 1 })),
+	hp:     [{ stat: "", level: 5 }],
+	damage: [{ stat: "", level: 6 }],
+});
+
 // One level-up: pick the first available move, make every required selection, apply, and
 // assert the step landed (level +1, XP deducted, a move gained, selection recorded).
 async function levelUpOnce(char, actor) {
@@ -153,7 +160,11 @@ function inHomeReachableAdvanced(playbookName, finalStats) {
 describe("StonetopCharacter level-up climb — every playbook to exhaustion", () => {
 	for (const pb of PLAYBOOKS) {
 		it(`${pb.name}: climbs from level 1 until no move remains, making every selection`, async () => {
-			const { char, actor } = buildLiveCharacter({ slug: pb.slug, name: pb.name });
+			// The Would-be Hero's Superior Stat "(Requires all 6 marks in Potential for Greatness)":
+			// marked in play, never at a level-up, so the climb starts with them filled. Records only,
+			// so the stats stay the standard array the final check below pins.
+			const flags = pb.name === "The Would-Be Hero" ? { "moves.moveMarks": { "Potential for Greatness": ALL_PFG_MARKS() } } : {};
+			const { char, actor } = buildLiveCharacter({ slug: pb.slug, name: pb.name, flags });
 			// The Seeker's Initiate of the Secret Arts grants the Sacred Pouch possession;
 			// possession wiring is tested separately, so stub it here.
 			vi.spyOn(char, "selectPossession").mockResolvedValue(undefined);

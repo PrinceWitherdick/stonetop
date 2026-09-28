@@ -354,7 +354,12 @@
       "burnBrightly": {
         "title": "Burn Brightly",
         "description": "When you <em><strong>have enough XP to Level Up</strong></em> (6 + twice your current level), you may spend 2 XP after any roll you make to add +1 to that roll (max +1 per roll).",
-        "promptNote": "When you meet the requirements, you'll be prompted in chat after a roll."
+        "promptNote": "When you meet the requirements, you'll be prompted in chat after a roll.",
+        "button": "Burn brightly",
+        "tooltip": "When you have enough XP to Level Up, you may spend 2 XP after any roll you make to add +1 to that roll (max +1 per roll).",
+        "drivenTooltip": "Driven: you always have the option to Burn Brightly; you can spend 2 XP after you roll to add +1 (max +1 per roll), even if you don't have enough XP to level.",
+        "notEnoughXp": "You don't have enough XP to Burn Brightly.",
+        "spent": "-{cost} XP for Burning Brightly.<br>New XP: {xp} / {max}"
       },
       "deathsDoor": {
         "title": "Death's Door",
@@ -372,6 +377,151 @@
         "postDeathTab": "Choose Your Fate",
         "postDeathTabHint": "Opens the Post-Death tab, where you can take the Revenant, Ghost or Thrall insert. Death's Door grants one for you on a 6-. Use this if your table resolved that away from the sheet.",
         "lockedHint": "Only available when the character is dying: at 0 HP, with the move still to face.",
+        "claimHeld": "{name} is already rolling Death's Door for {actor}, so nothing was rolled here. This window follows their roll.",
+        "claimSettled": "Death's Door for {actor} was settled before this roll could start, so nothing was rolled.",
+        "privateBoostsNeedGM": "This roll was private, so Burn Brightly and giving it your all need the GM online to change its card.",
+        "boostRelayFailed": "The GM's client couldn't change the roll's card. Try again, or accept the result as it stands.",
+        "anotherPlayer": "Another player",
+        "theCharacter": "The character",
+        "yieldTaken": "{name} took over Death's Door for {actor}, so this window lands nothing.",
+        "yieldSettled": "Death's Door for {actor} was settled from another window, so this one lands nothing.",
+        "tiers": {
+          "success": "You wrest yourself back to the realm of the living—return to 1 HP but say how your brush with death has marked you.",
+          "partial": "The Lady waves you off—you’re no longer dying but you’re out of the action.",
+          "failure": "Your time has come—choose 1:"
+        },
+        "fates": {
+          "lastDoor": {
+            "label": "Make one last move as if you rolled a 12+, then step through the Last Door",
+            "hint": "After that they're dead. There's no saving them, and that last move can't be used to avoid death."
+          },
+          "refuse": {
+            "label": "Refuse to go; gain the Revenant or Ghost insert",
+            "hint": "The GM will ask why. If you can't say what you refuse to leave undone, your Terrible Purpose, you shouldn't pick this."
+          },
+          "thrall": {
+            "label": "Call on one of the Things Below by name and beseech it to intercede; gain the Thrall insert",
+            "hint": "You must know the name of a Thing Below. If none have come up in play, you can't call on one."
+          }
+        },
+        "refusalHints": {
+          "revenant": "You cling stubbornly to your body.",
+          "ghost": "Your body is dead and gone; your soul lingers."
+        },
+        "taken": {
+          "refused": {
+            "intro": "You refused to go, and the Last Door let you back. Here is what that costs.",
+            "card": "<strong>{who}</strong> refuses the Last Door and gains the <strong>{what}</strong> insert.",
+            "next": "Choose your Terrible Purpose and your first Consequence."
+          },
+          "thrall": {
+            "intro": "You called one of the Things Below by name, and it answered. Here is what that costs.",
+            "card": "<strong>{who}</strong> calls on a Thing Below by name, and it intercedes: gaining the <strong>{what}</strong> insert.",
+            "next": "Name your master; your GM will choose the Mark it leaves on you."
+          }
+        },
+        "mark": {
+          "placeholder": "Marked in mind, body, or soul: describe the mark",
+          "chips": {
+            "scar": "a nasty scar",
+            "eye": "a lost eye",
+            "visions": "visions of the Last Door",
+            "crows": "a murder of crows, always nearby"
+          },
+          "label": "Say how it marked you (mind, body, or soul):",
+          "inputPlaceholder": "…or describe your own mark",
+          "recorded": "Mark recorded on your sheet. Bring it up often.",
+          "seeded": "The mark is on your sheet already. What you write here names it.",
+          "spectator": "The mark it left is on the sheet: {name} says how it marked them.",
+          "seedFailed": "Couldn't record the Death's-Door mark: describe it and it will try again."
+        },
+        "orphaned": {
+          "away": "{name} has left the game without finishing it.",
+          "stale": "{name} started it over {minutes} minutes ago and hasn't finished it."
+        },
+        "notes": {
+          "skipped": "{move}: you didn't roll, and you get a {tier}.",
+          "shifted": "{shift}: your {from} counts as a {to}.",
+          "burn": "Burn Brightly: {from} → {to}.",
+          "burnOnCard": "Burn Brightly: +1.",
+          "giveAll": "{label}: {from} → {to}, and {spent}.",
+          "giveAllNoCost": "{label}: {from} → {to}."
+        },
+        "roll": {
+          "describe": "The Lady of Crows and the Last Door are yours and your table's to describe. They might even appear differently for different characters.",
+          "rollWith": "roll with:",
+          "rollWithMove": "{move}, roll with:",
+          "unstoppableOne": "<strong>Unstoppable</strong>: {penalty} for {count} circle marked.",
+          "unstoppableMany": "<strong>Unstoppable</strong>: {penalty} for {count} circles marked.",
+          "destined": "<strong>{name}</strong>: until your destiny is fulfilled, a 6- counts as a 7-9, and a 7-9 as a 10+.",
+          "neverGonna": "<strong>{name}</strong>: once per session, when you are at Death's Door, don't roll. You get a 10+.",
+          "neverGonnaUsed": "<strong>{name}</strong>: already used this session, so this time you roll.",
+          "outcomesLabel": "However it lands:",
+          "noRush": "No rush: the book lets you hold off until the scene wraps up or the other PCs get a little spotlight. \"Not yet\" closes this and leaves you dying.",
+          "thenRoll": "Then, roll {stat}."
+        },
+        "watch": {
+          "rolling": "<strong>{name}</strong> is rolling Death's Door for <strong>{actor}</strong>.",
+          "rolled": "They rolled <strong>{total}</strong>, and it hasn't landed yet: they can still accept it or push it up.",
+          "inTheAir": "The dice are still in the air.",
+          "takeOverAccepts": "Taking it over doesn't roll again: you get the result they rolled, to accept.",
+          "takeOverRolls": "Nothing of it reached the table, so taking it over lets you roll it yourself.",
+          "follows": "This window follows their roll, and shows the result when it lands."
+        },
+        "result": {
+          "rolledBy": "<strong>{name}</strong> rolled <strong>{total}</strong>.",
+          "youRolled": "You rolled <strong>{total}</strong>.",
+          "notLanded": "This result hasn't landed yet.",
+          "burnOffer": "<strong>Burn Brightly</strong>: spend {cost} XP to add +1 to the roll.",
+          "giveAllOffer": "<strong>Impetuous Youth</strong>: give it your all to turn it into the next result up, and pick what it costs you.",
+          "orAccept": "Or accept it as it stands.",
+          "restored": "Back to <strong>1 HP</strong>, and no longer dying.",
+          "outOfAction": "No longer dying. Unconscious, or close enough, until the GM says otherwise, still at 0 HP.",
+          "debilityTraded": "Debility marked: you regain <strong>1 HP</strong> and stay on your feet.",
+          "debilityAsk": "<strong>Hard to Kill</strong> &mdash; mark a debility of your choice to regain 1 HP:",
+          "debilityNone": "<strong>Hard to Kill</strong>: all three debilities are already marked, so there's none left to trade.",
+          "fateSpectator": "The fate is {name}'s to choose. If they have left, close this and open Death's Door again from the sheet to choose it for them.",
+          "fateRecorded": "Your fate is recorded. The GM will take it from here."
+        },
+        "fate": {
+          "title": "Refuse to Go",
+          "intro": "The GM will ask why you refuse. Name the person, the task, or the reckoning you will not leave behind. That's your Terrible Purpose. Then say which way you stay."
+        },
+        "choices": {
+          "railLabel": "What the {name} insert asks of you",
+          "answered": "answered",
+          "noRush": "No rush: whatever you leave undecided is waiting on your Post-Death tab, and can be answered there in edit mode."
+        },
+        "chat": {
+          "skipped": "<strong>{name}</strong> doesn't roll Death's Door, and gets a <strong>10+</strong>.",
+          "skippedRule": "Once per session, when you are at Death's Door, don't roll. You get a 10+.",
+          "unstoppableOne": "<strong>{name}</strong> survives, and clears their Unstoppable circle.",
+          "unstoppableMany": "<strong>{name}</strong> survives, and clears all {count} Unstoppable circles.",
+          "hardToKill": "<strong>{name}</strong> marks <strong>{debility}</strong> to regain 1 HP.",
+          "lastDoorTitle": "The Last Door",
+          "lastDoor": "<strong>{name}</strong> makes one last move as if they rolled a <strong>12+</strong>, then steps through the Last Door.",
+          "lastDoorRule": "There's no saving them. Only the rarest of magic can bring them back."
+        },
+        "buttons": {
+          "takeOverAccept": "Take over their roll",
+          "takeOverRoll": "Take over and roll",
+          "close": "Close",
+          "rollTitle": "Roll Death's Door",
+          "rollDice": "Roll the dice",
+          "rollNothing": "Roll +nothing",
+          "skipTitle": "{move}: once per session",
+          "skip": "Don't roll: take a 10+",
+          "notYet": "Not yet",
+          "accept": "Accept this result",
+          "burnTitle": "Burn Brightly: spend {cost} XP after you roll to add +1 (max +1 per roll)",
+          "burn": "Burn Brightly (+1, {cost} XP)",
+          "giveAllTitle": "Impetuous Youth: turn a 6- into a 7-9, or a 7-9 into a 10+. Pick 1: you get hurt (2d4 damage and an actual injury); you escalate the situation; or something on your person is lost or breaks.",
+          "giveAll": "Give it my all",
+          "done": "Done",
+          "cancel": "Cancel",
+          "back": "Back",
+          "next": "Next"
+        },
         "summary": "When you <em><strong>are dying</strong></em>, you glimpse the Last Door and the Lady of Crows. Roll +nothing: on a 10+ return to 1 HP; on a 7-9 you're out of action; on a 6- choose a dark fate.",
         "description": "When you <em><strong>are dying</strong></em>, you glimpse the Last Door and the Lady of Crows (describe it). Then, roll +nothing: on a 10+, you wrest yourself back to the realm of the living&mdash;return to 1 HP but say how your brush with death has marked you; on a 7-9, the Lady waves you off&mdash;you're no longer dying but you're out of the action; on a 6-, your time has come&mdash;choose 1: make one last move as if you rolled a 12+, then step through the Last Door; refuse to go and gain the Revenant or Ghost insert; or call on one of the Things Below by name and beseech it to intercede, gaining the Thrall insert."
       },
@@ -1227,6 +1377,8 @@
         "backgroundMarkTooltip": "From your Background. It comes with the background and isn't one of this move's picks.",
         "backgroundMarkDuplicate": "Your Background already gives this one, so this mark is a spare pick. Untick it and mark another.",
         "backgroundAnswerNeeded": "Your Background asks you to choose: {label} ({options}). Tap the hand to choose.",
+        "markLevelShared": "Another mark was noted at this level too. This move is marked once per level: check the levels, or leave it if your table allows it.",
+        "markLevelAhead": "Noted at a level above your current level ({level}). Check the level, or leave it if your table allows it.",
         "statIncreaseAtCap": "{move}: {stat} is already at +{cap}, so it was not raised. Choose another stat from the move's card.",
         "chooseStartingMoves": "Choose Starting Moves",
         "levelMovesIncompleteOne": "You still have 1 move to choose for level {level}.",
@@ -1568,7 +1720,122 @@
       "letsMakeADeal": "Offering something you know they want or need (Let's Make a Deal): treat a 7-9 as a 10+",
       "polyglot": "About a script, text, runes or symbols you encounter (Polyglot): advantage",
       "proofAgainstDetection": "Being stealthy while you hold Protection (Proof Against Detection): advantage",
-      "safetyFirst": "Safety First: spend 1 Protection, advantage (resisting harmful magic)"
+      "safetyFirst": "Safety First: spend 1 Protection, advantage (resisting harmful magic)",
+      "speakTruthToPower": "Demanding they do what is clearly good and right (Speak Truth to Power): advantage",
+      "betterPartOfValor": "Hiding from, escaping or sneaking past a foe who outnumbers you or is bigger than you (Better Part of Valor): advantage",
+      "underestimated": "Your first move against an enemy who underestimates you (Underestimated): advantage",
+      "forceToBeReckonedWith": "Against something trying to harm or constrain you (A Force to Be Reckoned With): on a 12+, turn the tables",
+      "forceToBeReckonedWithNote": "<strong>A Force to Be Reckoned With:</strong> on a 12+ you turn the tables on them. The GM will say how, or ask you to."
+    },
+    "wouldBeHero": {
+      "refusedButton": "They refused: +1 Resolve",
+      "refusedTooltip": "Speak Truth to Power: if they refuse, gain +1 Resolve (Anger is a Gift). Resolve holds at most 2, so at 2 the +1 is lost.",
+      "refusedGained": "{name} gains 1 Resolve (Speak Truth to Power): {held} of {max}.",
+      "refusedLost": "{name} already holds {max} Resolve, so Speak Truth to Power's +1 is lost.",
+      "refusedNoTrack": "{name} has no Anger is a Gift to hold Resolve on.",
+      "rescuedButton": "Rescued by another PC: Mark XP",
+      "rescuedTooltip": "In Over Your Head: when another PC rescues you from danger, mark XP.",
+      "rescuedDescription": "<p>When another PC rescues you from danger, <strong>mark XP</strong>.</p>",
+      "angers": "Burns with righteous anger at: {list}",
+      "asteriskButton": "I used it: cross off \"Would-be\"",
+      "asteriskTooltip": "The first time you use any move marked with an asterisk (*), cross off \"Would-be\". The sheet crosses it off itself when it sees the use; press this for one made at the table.",
+      "asteriskConfirm": "Did you use {move}? The first use of a starred move crosses off \"Would-be\" for good: you become The Hero.",
+      "asteriskYes": "Cross off \"Would-be\"",
+      "asteriskNo": "Not yet",
+      "voiceAskButton": "Ask it",
+      "voiceAskTooltip": "Voice of Experience: asking \"What is about to happen?\" is a use of the starred move, and crosses off \"Would-be\" the first time.",
+      "heroCardTitle": "A Would-Be Hero No Longer",
+      "heroCrossedOff": "<strong>{name}</strong> has crossed off &ldquo;Would-be&rdquo;: they are now <strong>{hero}</strong>.",
+      "heroCrossedOffUsing": "<strong>{name}</strong> used <em>{move}</em> and has crossed off &ldquo;Would-be&rdquo;: they are now <strong>{hero}</strong>.",
+      "impetuousYouth": {
+        "button": "Give it your all",
+        "tooltip": "Impetuous Youth: turn a 6- into a 7-9, a 7-9 into a 10+, or a 10-11 into a 12+. Pick 1: you get hurt (2d4 damage and an actual injury); you escalate the situation; or something on your person is lost or breaks.",
+        "given": "Gave it their all: {cost}",
+        "ask": "{name} gives it their all. Pick 1, and the GM will fill in the details:",
+        "askYou": "You",
+        "cancel": "Don't give it my all",
+        "note": "<strong>{name}</strong> gives it their all: a {from} becomes a {to}.",
+        "noteCost": "The cost: <strong>{cost}</strong>. The GM will fill in the details.",
+        "costs": {
+          "hurt": {
+            "button": "I get hurt",
+            "spent": "got hurt",
+            "text": "You get hurt (2d4 damage and an actual injury)"
+          },
+          "escalate": {
+            "button": "I escalate the situation",
+            "spent": "escalated the situation",
+            "text": "You cause collateral damage, endanger others, or otherwise escalate the situation"
+          },
+          "lost": {
+            "button": "Something I carry is lost or breaks",
+            "spent": "something was lost or broke",
+            "text": "Something on your person is lost or breaks"
+          }
+        }
+      },
+      "potentialForGreatness": {
+        "rolled": "<strong>{name}</strong> rolled a <strong>10+</strong> on a stat roll and hasn't yet marked <strong>Potential for Greatness</strong> this level.",
+        "rule": "<em>Once per level, when you roll a stat and get a 10+,</em> mark one box: {options}.",
+        "statCapped": "({stat} is already +2, so it can't go higher.)",
+        "orTwo": "{first} or {second}",
+        "orMany": "{rest}, or {last}",
+        "separator": ", ",
+        "buttons": {
+          "stat": "+1 {stat}",
+          "hp": "+4 max HP",
+          "damage": "d8 damage die"
+        },
+        "clauses": {
+          "stat": "increase the stat you rolled ({stat}) by 1, to a max of +2",
+          "hp": "increase your max HP by 4",
+          "damage": "increase your damage die to a d8"
+        },
+        "markRefused": "That box can't be marked now: Potential for Greatness was already marked this level, or the box is full."
+      },
+      "omens": {
+        "title": "Start of Session: Omen Roll",
+        "intro": "<strong>Destined:</strong> {names}, roll <strong>+Omens</strong>.",
+        "sevenPlus": "<strong>7+:</strong> lose all Omens and the GM will describe a vision or portent that points toward your fate and/or clarifies your current situation.",
+        "tenPlus": "<strong>10+:</strong> also ask the GM a follow-up question and get a clear, helpful answer.",
+        "miss": "<strong>6-:</strong> don't mark XP, hold +1 Omen, and tell us of your recent nightmares or a troubling vision, and how your fears play into them.",
+        "button": "Roll +Omens: {name}",
+        "separator": ", "
+      }
+    },
+    "upWithPeople": {
+      "converseButton": "Converse (Up With People)",
+      "converseTooltip": "Pick who you are talking with (PC or NPC). You hold 2 Rapport with them and they hold 1 with you. A new conversation replaces the last one, on both sides.",
+      "pickHint": "Who are you talking with? You hold 2 Rapport with them, and they hold 1 with you.",
+      "pickNamed": "Converse with {name}",
+      "someoneElse": "Someone else",
+      "someoneElseHint": "Somebody with no sheet: you name them next",
+      "nameTitle": "Who are you talking with?",
+      "nameButton": "Converse with them",
+      "namePlaceholder": "Their name",
+      "conversing": "Conversing with {partner}.",
+      "partnerSheet": "Their 1 Rapport is on their own sheet.",
+      "theirsLabel": "theirs",
+      "theirsHeld": "{partner} holds 1 Rapport with you. Press when they spend it to ask you a question.",
+      "theirsSpent": "{partner} has spent their Rapport. Press to tick it again.",
+      "conversed": "{hero} converses with {partner}: {hero} holds 2 Rapport with {partner}, and {partner} holds 1 with {hero}. During the conversation, either can spend 1 Rapport to ask the other one of these, and get an honest answer:",
+      "heroSpends": "{hero} spends 1 Rapport to ask {partner} ({left} left):",
+      "partnerSpends": "{partner} spends Rapport to ask {hero}:",
+      "them": "them",
+      "missed": "No GM is online to give {name} their Rapport. Press Converse again once one is.",
+      "releaseMissed": "No GM is online to take back the Rapport {name} holds with {hero} from their last conversation. {name} can spend it away from their sheet, or a GM can clear it.",
+      "chipLabel": "Rapport with {hero}: 1",
+      "chipTooltip": "Up With People: you hold 1 Rapport with {hero}. Press to spend it and ask them one of the four questions.",
+      "chipReadOnly": "Up With People: holds 1 Rapport with {hero}.",
+      "spendAsk": "Spend {partner}'s Rapport to ask {hero} one of the four questions, and get an honest answer?",
+      "spendButton": "Spend it: ask",
+      "keepButton": "Keep it",
+      "questions": {
+        "weighs": "What weighs you down or holds you back?",
+        "drives": "What drives you forward?",
+        "lesson": "What lesson would you have me learn?",
+        "truly": "What do you think of me, truly?"
+      }
     },
     "pickBonus": {
       "note": "{source}: {detail}.",
@@ -2479,8 +2746,28 @@
         "undaunted": {
           "outnumbered": "Undaunted: +1d6 damage, while you are outnumbered",
           "bigger": "Undaunted: +1d6 damage, facing a foe bigger than you",
+          "unread": "Undaunted: +1d6 damage, if you are outnumbered or facing a foe bigger than you",
           "pill": "Undaunted +1d6",
-          "armorNote": "+1 armor, Undaunted"
+          "armorNote": "+1 armor, Undaunted",
+          "armorBox": "Undaunted: +1 armor, if outnumbered or facing a foe bigger than them"
+        },
+        "leapIn": {
+          "button": "Leap in (Big Damn Hero)",
+          "tooltip": "Big Damn Hero: the first time you leap into danger to protect someone, don't roll to Defend. It counts as a 10+. Once per fight.",
+          "said": "{name} leaps into danger to protect someone: no roll to Defend, it counts as a 10+.",
+          "noFight": "No fight on the map to keep count: this is for the first leap into danger in a fight."
+        },
+        "toughLove": {
+          "held": "{other} has disadvantage on rolls against you",
+          "workedOutButton": "We worked it out",
+          "workedOutTooltip": "You and {other} have worked it out: their rolls against you are no longer at disadvantage.",
+          "callButton": "Call someone on it",
+          "callTooltip": "When you honestly think another PC is in the wrong and call them on it, they have disadvantage on any rolls against you until you two work it out.",
+          "callNamed": "Call {other} on it",
+          "ask": "Which PC do you honestly think is in the wrong?",
+          "nobody": "There is no other player character to call on it.",
+          "called": "{name} calls {other} on it: {other} has disadvantage on any rolls against {name} until they work it out.",
+          "workedOut": "{name} and {other} have worked it out."
         },
         "rememberMe": {
           "label": "Something to Remember Me By: +{dice} damage, and you mark them",

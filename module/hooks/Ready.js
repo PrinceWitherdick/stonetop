@@ -68,6 +68,8 @@ import { NEW_SHOOT_MARKER, LEGACY_SHOOT_MARKERS } from "../data/follower-actor.j
 import { isDefaultImg } from "../utils/strings.js";
 import { updatePlacedTokens } from "../utils/placed-tokens.js";
 import { grandfatherWeaponsOfWar } from "../migration/weapons-of-war-grandfather.js";
+import { grandfatherRetiredMoves } from "../migration/retired-move-grandfather.js";
+import { grandfatherWouldBeHeroes } from "../migration/would-be-hero-grandfather.js";
 import { repairAllPossessionGrants } from "../migration/possession-grant-repair.js";
 import { repairMasteredArcanumCircles } from "../migration/mastered-arcanum-circles.js";
 import { settleAllArcanumBoxLayouts, settleOwnArcanumBoxLayouts } from "../migration/tulpa-move-boxes.js";
@@ -223,6 +225,16 @@ export async function onReady() {
 		// narrowed grant is what ships, so a world swept once has nothing left to find.
 		try { await oncePerVersion("weaponsOfWarGrandfather", grandfatherWeaponsOfWar); }
 		catch (err) { console.error("Stonetop | Weapons of War grandfathering failed", err); }
+		// Stamp the replacing moves taken before anything recorded the move they retired, so the
+		// original's absence still reads as met (migration/retired-move-grandfather.js). GATED: legacy
+		// repair, and it only ever reaches copies made under a release that never stamped.
+		try { await oncePerVersion("retiredMoveGrandfather", grandfatherRetiredMoves); }
+		catch (err) { console.error("Stonetop | replacing-move grandfathering failed", err); }
+		// Keep "The Hero" for a Would-Be Hero who was one by OWNING a starred move, before crossing off
+		// waited for its first use (migration/would-be-hero-grandfather.js). GATED: legacy repair, and it
+		// only ever reaches moves made under a release that crossed off on ownership.
+		try { await oncePerVersion("wouldBeHeroGrandfather", grandfatherWouldBeHeroes); }
+		catch (err) { console.error("Stonetop | Would-Be Hero grandfathering failed", err); }
 		// Bring special-possession gear made before its grant was corrected up to the grant (the
 		// Tannery cuirass made as a stacking modifier; see migration/possession-grant-repair.js).
 		// Per VERSION, because a grant only changes with a release: each new version is one more

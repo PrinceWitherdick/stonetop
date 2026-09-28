@@ -229,6 +229,21 @@ describe("the moves that bend the identify roll", () => {
 		expect(character.onDirectStatRoll).not.toHaveBeenCalled();
 		expect(character.identifyAndRevealArcanum).not.toHaveBeenCalled();
 	});
+
+	// The roll window's lines are a Know Things's too (StonetopCharacter#directRollOffers: Constant
+	// Vigilance, Legacy, an oathbreaker's), less the advantage moves the picker above has already asked.
+	it("offers the window's Know Things lines less the picker's own, and hands the answer to the roll", async () => {
+		const line = { key: "constant-vigilance", label: "Intercepting a sudden threat: advantage", applied: false, source: "Constant Vigilance" };
+		const { sheet, character } = makeSheet({ rollTotal: 11 });
+		character.directRollOffers = vi.fn(async () => [line]);
+		promptRoll.mockResolvedValueOnce({ rollMode: "normal", situational: 0, takenOffers: [line.key] });
+		await sheet._onArcanumKnowThings("the-key");
+		expect(character.directRollOffers).toHaveBeenCalledWith("Know Things", { except: ["Polyglot", "Naturalist"] });
+		expect(promptRoll.mock.calls.at(-1)[0].offers).toEqual([line]);
+		const options = character.onDirectStatRoll.mock.calls[0][1];
+		expect(options.takenOffers).toEqual([line.key]);
+		expect(options.offered).toEqual([line]);
+	});
 });
 
 describe("_onArcanumGiveCard — the GM's no-roll hand-over", () => {

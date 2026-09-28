@@ -4,6 +4,7 @@ import {
 	blessingHeld, holdBlessing, shareBlessing, handleBlessingQuery,
 	BOOSTS_FLAG, BLESSING_FLAG, BLESSING_QUERY, CHRONICLER, COMMUNE_WITH_ARATIS, MANY_HANDS, PIETY,
 } from "../../../module/actors/character/roll-boosts.js";
+import { ZERO_HP_MOVES } from "../../../module/actors/character/deaths-door.js";
 import { buildLiveCharacter, sourceMovesFor } from "../../fakes/LiveCharacter.js";
 import { createStonetopCharacterSheetClass } from "../../../module/actors/character/StonetopCharacterSheet.js";
 
@@ -114,6 +115,13 @@ describe("who sees which button", () => {
 		expect(offersFor({ message: card({ rolls: [] }) })).toEqual([]);
 		expect(offersFor({ roller: { id: "goblin", type: "monster" } })).toEqual([]);
 		expect(isBoostableRoll(card())).toBe(true);
+	});
+
+	it("offers nothing on Death's Door's card: its window has already settled the tier", () => {
+		const message = card();
+		message.flags[SCOPE].rolled = { move: ZERO_HP_MOVES.null.name };
+		expect(isBoostableRoll(message)).toBe(false);
+		expect(offersFor({ message })).toEqual([]);
 	});
 
 	it("hides a source once that helper has used it on this roll, and only that one", () => {

@@ -28,7 +28,8 @@
 //    can choose to halve the damage but pick 1 of the following". The ONE spend here that costs no
 //    Readiness — its price is the pick, which is asked before the halving is written and said out loud on
 //    the card. With BUT I GET UP AGAIN it also writes down who dealt it, and that foe then owes the
-//    character advantage and +1d4 (fight/hero-moves.js).
+//    character advantage and +1d4 (fight/hero-moves.js). Offered to whoever takes the blow: a Would-Be
+//    Hero who stood in for someone may use it (the user's ruling), their ward may not.
 //  • SAFETY FIRST (Seeker): "When you are affected by harmful magic, spend 1 Protection either to gain
 //    advantage on any roll to resist it or to halve its damage/effects." The halving is offered to whoever
 //    suffers the blow while they hold Protection (the user's ruling, 2026-09-26), priced in Protection, not
@@ -78,16 +79,18 @@ export const halveDamage = raw => Math.ceil(Math.max(0, Number(raw) || 0) / 2);
 
 /**
  * The kinds of spend a card can offer, in the order its buttons stand: `list`, which list on the
- * card's flag records one (spentOn reads them back), and `free`, a kind that costs no Readiness (I
- * Get Knocked Down is paid for in the fiction; Safety First in Protection). A new kind is one row
- * here, its offers in defendOffers and its words in the lang file.
+ * card's flag records one (spentOn reads them back), `free`, a kind that costs no Readiness (I
+ * Get Knocked Down is paid for in the fiction; Safety First in Protection), and `bySufferer`, a kind
+ * that is the sufferer's own move, so its spend says whose it was (`by`) and is once per blow PER
+ * SPENDER (takeSpend). A new kind is one row here, its offers in defendOffers and its words in the
+ * lang file.
  */
 const SPEND_KINDS = {
 	halve:       { list: "halvedBy" },
 	parry:       { list: "halvedBy" },
 	standIn:     { list: "standIns" },
 	ignore:      { list: "ignoredBy" },
-	knockedDown: { list: "knockedDownBy", free: true },
+	knockedDown: { list: "knockedDownBy", free: true, bySufferer: true },
 	safetyFirst: { list: "safetyFirstBy", free: true },
 };
 const isSpendKind = kind => Object.hasOwn(SPEND_KINDS, kind);
@@ -103,13 +106,19 @@ const costsReadiness = kind => !SPEND_KINDS[kind]?.free;
 export function spentOn(damage) {
 	const spent = kind => (damage?.[SPEND_KINDS[kind].list] ?? []);
 	const uuids = kind => new Set(spent(kind).map(spend => spend.uuid));
+	const standIns = new Map(spent("standIn").map(spend => [spend.uuid, spend]));
 	return {
 		halved: uuids("halve"),
-		standIns: new Map(spent("standIn").map(spend => [spend.uuid, spend])),
+		standIns,
 		ignored: uuids("ignore"),
 		// I Get Knocked Down halves as Readiness does, from its own list: it is a different move with a
-		// different price, and "each option once against any given attack" counts them apart.
-		knockedDown: uuids("knockedDown"),
+		// different price, and "each option once against any given attack" counts them apart. And only for
+		// whoever it was spent by, while they still take the blow: a ward who used it and then had someone
+		// stand in for them no longer takes it, so their halving does not follow the blow onto the
+		// stand-in. A spend written before `by` was kept counts as it always did.
+		knockedDown: new Set(spent("knockedDown")
+			.filter(spend => !spend.by || !standIns.has(spend.uuid) || spend.by === standIns.get(spend.uuid).by)
+			.map(spend => spend.uuid)),
 		// Safety First's halving the same way: its own move, paid in Protection.
 		safetyFirst: uuids("safetyFirst"),
 	};
@@ -189,11 +198,17 @@ export function defendOffers(damage, defendersOf = defendersFor, resolveActor = 
 	for (const row of damage?.results ?? []) {
 		if (!row?.uuid || done.has(row.uuid) || ignored.has(row.uuid)) continue;
 		const hit = resolveActor(row.uuid);
-		// I Get Knocked Down needs no Readiness, so it is offered to the one hit whether or not they hold
-		// any — which is the whole point of the move, and why it cannot come from `defendersFor`.
+		// Whoever will suffer the blow: the defender who took it, or the one it was aimed at.
+		const standIn = standIns.get(row.uuid);
+		const stoodIn = standIn ? resolveActor(standIn.by) : null;
+		// I Get Knocked Down needs no Readiness, so it is offered to whoever takes the blow whether or not
+		// they hold any: the whole point of the move, and why it cannot come from `defendersFor`. "When YOU
+		// take damage": a Would-Be Hero who stood in for someone may use it (the user's ruling), and the
+		// ward they stood in for, who no longer takes the blow, may not.
 		if (!knockedDown.has(row.uuid)) {
-			if (hit && (user?.isGM || hit.isOwner || !user) && ownsLearnedMoveNamed(hit, HERO_MOVES.KNOCKED_DOWN)) {
-				offers.knockedDown.push({ row, defender: hit, cost: 0 });
+			const sufferer = standIn ? stoodIn : hit;
+			if (sufferer && (user?.isGM || sufferer.isOwner || !user) && ownsLearnedMoveNamed(sufferer, HERO_MOVES.KNOCKED_DOWN)) {
+				offers.knockedDown.push({ row, defender: sufferer, cost: 0 });
 			}
 		}
 		const { self, allies } = defendersOf(row.uuid);
@@ -206,9 +221,6 @@ export function defendOffers(damage, defendersOf = defendersFor, resolveActor = 
 		if (!standIns.has(row.uuid)) {
 			for (const defender of allies) offers.standIn.push({ row, defender, cost: ownsLearnedMoveNamed(defender, HERO_MOVES.STEADFAST) ? 0 : 1 });
 		}
-		// Whoever will suffer the blow: the defender who took it, or the one it was aimed at.
-		const standIn = standIns.get(row.uuid);
-		const stoodIn = standIn ? resolveActor(standIn.by) : null;
 		const sufferer = standIn ? stoodIn : self;
 		const mayWrite = !!sufferer && (user?.isGM || sufferer.isOwner || !user);
 		if (mayWrite && heldReadiness(sufferer) > 0 && ownsLearnedMoveNamed(sufferer, HERO_MOVES.RAMPART)) {
@@ -325,17 +337,27 @@ export function takeSpend(message, kind, offer, { scope = SYSTEM_ID } = {}) {
 	const cost = Number.isFinite(offer?.cost) ? offer.cost : 1;
 	// Each kept as a list of who spent what, which is all spentOn and defendNotes read.
 	const list = SPEND_KINDS[kind]?.list ?? "standIns";
+	const bySufferer = !!SPEND_KINDS[kind]?.bySufferer;
 	const take = async () => {
 		const now = message.getFlag(scope, "damage");
 		if (!now || (now.applied ?? []).some(a => a.uuid === offer.row.uuid)) return false;
 		if (costsReadiness(kind) && heldReadiness(offer.defender) < Math.max(1, cost)) return false;
 		// The same option twice on one blow is refused (p.216: "each option once against any given attack").
-		if ((now[list] ?? []).some(s => s.uuid === offer.row.uuid)) return false;
+		// A sufferer's own move (I Get Knocked Down), so a stand-in may still take it on a blow whose ward took
+		// it before they stepped in (spentOn: the ward's no longer counts).
+		const again = bySufferer
+			? s => s.uuid === offer.row.uuid && (!s.by || s.by === offer.defender.uuid)
+			: s => s.uuid === offer.row.uuid;
+		if ((now[list] ?? []).some(again)) return false;
 		// Safety First is paid in Protection, 1 off what is HELD, and refused with none left.
 		if (kind === "safetyFirst" && !await takeBackHeld(offer.defender, HERO_MOVES.SAFETY_FIRST, 1)) return false;
 		if (cost > 0) await spendReadiness(offer.defender, cost);
 		const spend = { uuid: offer.row.uuid, name: offer.defender.name, how: kind };
-		const entry = list === "standIns" ? { ...spend, by: offer.defender.uuid, free: cost === 0 } : spend;
+		// A stand-in, and a sufferer's own move (a knock-down), say whose it was: spentOn reads the knock-down
+		// against whoever takes the blow now.
+		const entry = list === "standIns" ? { ...spend, by: offer.defender.uuid, free: cost === 0 }
+			: bySufferer ? { ...spend, by: offer.defender.uuid }
+			: spend;
 		await message.setFlag(scope, `damage.${list}`, [...(now[list] ?? []), entry]);
 		return true;
 	};

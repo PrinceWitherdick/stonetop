@@ -1,6 +1,7 @@
 import { statRequirementsUnmet } from "./stat-requirement.js";
-import { effectiveRequiredMoves, requiredMovesUnmet, requirementLabel } from "./move-requirement.js";
+import { effectiveRequiredMoves, marksRequirementUnmet, requiredMovesUnmet, requirementLabel } from "./move-requirement.js";
 import { isMoveLearned } from "./owns-move.js";
+import { SYSTEM_ID } from "../../system-id.js";
 
 /**
  * Whether box `i` of a repeatable move owned `current` times is closed to a click. Boxes are taken
@@ -25,7 +26,11 @@ export class PlaybookMoveEntry {
 	// A Mighty Rampart; StonetopCharacter#retiredMoveReplacers). Book I p.529: taking the
 	// replacing move loses the original, so an un-owned original is `replacedBy` that move and
 	// closed to a tick, not offered back as an ordinary pick.
-	constructor(entry, ownedInstances, bgMoveNames, ownedAllByName, actorLevel, actorPlaybook, actorStats = {}, demotedStarting = null, retiredBy = null) {
+	//
+	// `filledMarks(name)`: how many of that move's marks are filled (pfg-marks.js#filledMarkCount),
+	// for a requirement of marks (`req.marks`: Superior Stat's "all 6 marks in Potential for
+	// Greatness"). Counted only while that move is LEARNED.
+	constructor(entry, ownedInstances, bgMoveNames, ownedAllByName, actorLevel, actorPlaybook, actorStats = {}, demotedStarting = null, retiredBy = null, filledMarks = null) {
 		const isFromPlaybook   = entry.isStarting && !demotedStarting?.has(entry.name);
 		const isFromBackground = bgMoveNames.has(entry.name);
 		const req              = entry.requirement;
@@ -53,8 +58,9 @@ export class PlaybookMoveEntry {
 		// Alpha's "Wild Speech or Spirit Tongue" (`req.anyMoves`) sorts under its first option.
 		this.requires = requiresMoves[0] ?? req?.anyMoves?.[0] ?? null;
 		this.replaces = replaces;
-		// `req.stats` (Musclebound's { str: 2 }) is labelled here and DOES feed `locked` below;
-		// `req.note` is labelled but never does (move-requirement.js#requirementLabel).
+		// `req.stats` (Musclebound's { str: 2 }) and `req.marks` (Superior Stat's) are labelled here
+		// and DO feed `locked` below; `req.note` is labelled but never does
+		// (move-requirement.js#requirementLabel).
 		this.requiresLabel = requirementLabel(req, { replaces, level: this.minLevel });
 		// Per-stat ceiling for stat-increase moves (Improved Stat = +2, Superior Stat =
 		// +3). Drives the level-up stat picker's cap enforcement and marks the move as
@@ -66,9 +72,13 @@ export class PlaybookMoveEntry {
 		// switched off grants nothing, so it opens nothing either, and a move that leans on it
 		// reads as unmet until it is switched back on. `ownedAllByName` is a Map(name -> owned items[]).
 		const learned = m => (ownedAllByName.get(m) ?? []).some(isMoveLearned);
-		// Taking a replacing move gives up the one it replaces, so once this move is owned
-		// the replaced move's absence is the expected state, not a broken prerequisite.
-		const moveMissing = m => !learned(m) && !(m === replaces && ownedInstances.length > 0);
+		// Taking a replacing move gives up the one it replaces, so the replaced move's absence is
+		// the expected state, not a broken prerequisite, once a copy held RETIRED it (the
+		// `retiredMove` stamp StonetopCharacter#_retireReplacedMove leaves). A replacing move
+		// ticked on without its original retired nothing: Book I p.529, "If a move replaces a
+		// different move, then it requires the one it replaces", so that one reads as unmet.
+		const retiredIt = m => ownedInstances.some(i => i?.flags?.[SYSTEM_ID]?.retiredMove === m);
+		const moveMissing = m => !learned(m) && !(m === replaces && retiredIt(m));
 		this.replacedBy = this.owned ? null : (retiredBy?.get(entry.name) ?? null);
 		// `req.background` (the Heavy's Bark an Order: the Sheriff's): a move only that background
 		// gives, never a pick. The background's own grant is a starting move, so it never locks there.
@@ -78,7 +88,8 @@ export class PlaybookMoveEntry {
 			requiredMovesUnmet({ moves: requiresMoves, anyMoves: req?.anyMoves }, m => !moveMissing(m)) ||
 			(this.requiresPlaybook && this.requiresPlaybook !== actorPlaybook) ||
 			(this.minLevel && actorLevel < this.minLevel) ||
-			statRequirementsUnmet(requiresStats, actorStats)
+			statRequirementsUnmet(requiresStats, actorStats) ||
+			marksRequirementUnmet(req, learned, filledMarks)
 		));
 		// The player OWNS this move but its mechanically-checkable prerequisites
 		// (a required move / playbook / level / stat minimum) are no longer satisfied —

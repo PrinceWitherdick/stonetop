@@ -15,7 +15,7 @@ vi.mock("../../module/combat/readiness-loss.js", () => ({ settleReadinessOnAttac
 const { settleReadinessOnAttack } = await import("../../module/combat/readiness-loss.js");
 vi.mock("../../module/combat/battle-joy-offer.js", () => ({ offerBattleJoyOnDamage: vi.fn(async () => false) }));
 const { offerBattleJoyOnDamage } = await import("../../module/combat/battle-joy-offer.js");
-const { rollDamageAt, maybeBeginAttack, wireApplyDamage, withSeedTags, rollCharacterDamageAt, strikeBackAt, rollFollowerDamageAt, wireAttackConfirm, rollMoveDamageAt, rollInvocationDamage, wireConditionalArmor, wireUnstoppableMark } = await import("../../module/combat/attack-flow.js");
+const { rollDamageAt, maybeBeginAttack, wireApplyDamage, withSeedTags, rollCharacterDamageAt, strikeBackAt, rollFollowerDamageAt, wireAttackConfirm, rollMoveDamageAt, rollInvocationDamage, wireConditionalArmor, wireUnstoppableMark, rollOptionDamage } = await import("../../module/combat/attack-flow.js");
 
 // Rolls aimed by the fight: a monster's damage at the character it is fighting, a character's at the
 // foe, the "Who does this hit?" question when there are several, and the plain card when nobody is there.
@@ -607,7 +607,9 @@ describe("a character's own damage, with the weapon in hand", () => {
 		expect(posted).toEqual([]);
 		// ...and the same blow with the price paid does spend it, which is what makes the above a saving.
 		expect(await strikeBackAt(pim, tokens.crin.uuid, "Parry", { commit: async () => true })).toBe(true);
-		expect(pim.setFlag).toHaveBeenCalledWith("stonetop-pwd", "knockedDownBy", null);
+		// The blow's half of the grudge (a record written before the halves were kept apart owes both):
+		// the advantage on the next roll against them is left owed.
+		expect(pim.setFlag).toHaveBeenCalledWith("stonetop-pwd", "knockedDownBy", { key: "Scene.scene1.Token.tcrin", name: "Crinwin", roll: true, blow: false });
 	});
 
 	it("strikes back from a parry with the weapon too (p.216 \"deal your damage\")", async () => {
@@ -896,6 +898,126 @@ describe("a move's own damage at somebody it names (Castigate)", () => {
 		expect(await rollMoveDamageAt(judge, null, { move: "Castigate", formula: "1d4" })).toBeNull();
 		expect(await rollMoveDamageAt(judge, hero("b", "B"), { move: "Castigate", formula: "" })).toBeNull();
 		expect(posted).toEqual([]);
+	});
+});
+
+// WBH audit: Never Gonna Keep Me Down, "When you have 5 or fewer current HP, you impose disadvantage on any
+// damage you take." A move's own number (Castigate, an option's "they take 2d4") rolled "normal" whatever
+// it landed on, so the hero at 5 HP took it whole.
+describe("Never Gonna Keep Me Down on a move's own damage", () => {
+	const wbh = (hp, learned = true) => Object.assign(hero("pim", "Pim"), {
+		items: [{ type: "move", name: "Never Gonna Keep Me Down", flags: learned ? {} : { "stonetop-pwd": { learned: false } } }],
+		system: { attributes: { armor: { value: 0 }, hp: { value: hp, max: 12 }, damage: { value: "d6" } } },
+	});
+	const at = actor => {
+		const byUuid = new Map([[actor.uuid, actor]]);
+		globalThis.fromUuidSync = uuid => byUuid.get(uuid) ?? null;
+	};
+
+	it("rolls a move's damage at a Would-Be Hero on 5 HP or less with disadvantage", async () => {
+		const pim = wbh(5);
+		at(pim);
+		await rollMoveDamageAt(hero("judge", "Hafgan"), pim, { move: "Castigate", formula: "1d4" });
+		expect(damageFlag().results[0].formula).toBe("2d4kl1");
+	});
+
+	it("rolls it straight above 5 HP, or with the move not learned", async () => {
+		const pim = wbh(6);
+		at(pim);
+		await rollMoveDamageAt(hero("judge", "Hafgan"), pim, { move: "Castigate", formula: "1d4" });
+		expect(damageFlag().results[0].formula).toBe("1d4");
+		posted.length = 0;
+		const off = wbh(3, false);
+		at(off);
+		await rollMoveDamageAt(hero("judge", "Hafgan"), off, { move: "Castigate", formula: "1d4" });
+		expect(damageFlag().results[0].formula).toBe("1d4");
+	});
+
+	it("rolls an option's damage the hero deals themselves at disadvantage too", async () => {
+		const pim = wbh(4);
+		at(pim);
+		await rollOptionDamage(pim, { move: "Iron Will", damage: { formula: "1d4", self: true, ignoresArmor: true } });
+		expect(damageFlag().results[0].formula).toBe("2d4kl1");
+	});
+});
+
+// WBH audit, the user's ruling (2026-09-27): where the fight does not show Undaunted holding, its +1 armor
+// is an UNTICKED box on the damage card, and Apply adds it only when the table ticks it.
+describe("Undaunted's armor where the fight does not show it", () => {
+	const undaunted = () => Object.assign(hero("pim", "Pim"), { items: [{ type: "move", name: "Undaunted" }] });
+	const element = tag => ({ tagName: tag, className: "", type: "", checked: false, disabled: false, title: "", textContent: "", kids: [], append(...k) { this.kids.push(...k); }, addEventListener(_t, fn) { this.fire = fn; } });
+
+	it("draws the box unticked for a Would-Be Hero facing one foe their size, and writes it when ticked", async () => {
+		const pim = undaunted();
+		const { tokens } = fightInARow([["pim", pim], ["crin", crinwin("crinwin")]]);
+		globalThis.document = { createElement: element };
+		const actions = element("div");
+		const message = makeMessage({ damage: { move: "Bite", results: [{ uuid: tokens.pim.uuid, name: "Pim", raw: 6 }], applied: [] } });
+		message.canUserModify = () => true;
+		wireConditionalArmor(message, { querySelector: sel => (sel === ".stonetop-attack-actions" ? actions : null) });
+		expect(actions.kids).toHaveLength(1);
+		const [box, words] = actions.kids[0].kids;
+		expect(box.checked).toBe(false);
+		expect(words.textContent).toContain("Undaunted: +1 armor");
+		box.checked = true;
+		await box.fire();
+		expect(message.getFlag(SCOPE, "damage").undauntedArmor).toEqual([tokens.pim.uuid]);
+	});
+
+	it("adds the +1 armor at Apply only when the box was ticked", async () => {
+		const pim = undaunted();
+		const { tokens } = fightInARow([["pim", pim], ["crin", crinwin("crinwin")]]);
+		const row = { uuid: tokens.pim.uuid, name: "Pim", raw: 6 };
+		await apply({ move: "Bite", weapon: null, results: [row], applied: [], undauntedArmor: [row.uuid] });
+		// 6 less Pim's 2 armor and Undaunted's 1.
+		expect(pim.system.attributes.hp.value).toBe(7);
+		expect(posted.at(-1).content).toContain("+1 armor, Undaunted");
+
+		const pim2 = undaunted();
+		const second = fightInARow([["pim", pim2], ["crin", crinwin("crinwin")]]);
+		await apply({ move: "Bite", weapon: null, results: [{ uuid: second.tokens.pim.uuid, name: "Pim", raw: 6 }], applied: [] });
+		expect(pim2.system.attributes.hp.value).toBe(6);
+	});
+
+	// The asterisk (the user's ruling): the +1 armor applied is a use of the starred move, and the first
+	// crosses off "Would-be". Ticked by the table as much as by the fight; unticked, no use.
+	it("crosses off \"Would-be\" when the ticked +1 armor is applied, and not when it was left off", async () => {
+		const wouldBe = () => {
+			const flags = {};
+			const pim = undaunted();
+			return Object.assign(pim, {
+				system: { ...pim.system, playbook: { name: "The Would-Be Hero", slug: "the-would-be-hero" } },
+				getFlag: (_s, key) => flags[key],
+				setFlag: vi.fn(async (_s, key, value) => { flags[key] = value; }),
+			});
+		};
+		const crossed = () => posted.filter(p => String(p.content).includes("A Would-Be Hero No Longer"));
+
+		const unticked = wouldBe();
+		const first = fightInARow([["pim", unticked], ["crin", crinwin("crinwin")]]);
+		await apply({ move: "Bite", weapon: null, results: [{ uuid: first.tokens.pim.uuid, name: "Pim", raw: 6 }], applied: [] });
+		expect(unticked.setFlag).not.toHaveBeenCalledWith(SCOPE, "wbhBecameHero", true);
+		expect(crossed()).toHaveLength(0);
+
+		const ticked = wouldBe();
+		const second = fightInARow([["pim", ticked], ["crin", crinwin("crinwin")]]);
+		const row = { uuid: second.tokens.pim.uuid, name: "Pim", raw: 6 };
+		await apply({ move: "Bite", weapon: null, results: [row], applied: [], undauntedArmor: [row.uuid] });
+		expect(ticked.setFlag).toHaveBeenCalledWith(SCOPE, "wbhBecameHero", true);
+		expect(crossed()).toHaveLength(1);
+	});
+
+	it("draws no box where the fight shows it holding, and the armor is simply on", async () => {
+		const pim = undaunted();
+		const { tokens } = fightInARow([["crin1", crinwin("c1")], ["pim", pim], ["crin2", crinwin("c2")]]);
+		globalThis.document = { createElement: element };
+		const actions = element("div");
+		const message = makeMessage({ damage: { move: "Bite", results: [{ uuid: tokens.pim.uuid, name: "Pim", raw: 6 }], applied: [] } });
+		message.canUserModify = () => true;
+		wireConditionalArmor(message, { querySelector: sel => (sel === ".stonetop-attack-actions" ? actions : null) });
+		expect(actions.kids).toHaveLength(0);
+		await apply({ move: "Bite", weapon: null, results: [{ uuid: tokens.pim.uuid, name: "Pim", raw: 6 }], applied: [] });
+		expect(pim.system.attributes.hp.value).toBe(7);
 	});
 });
 

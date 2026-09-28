@@ -300,7 +300,8 @@ export async function rollRow(rowKey, { stat = "" } = {}) {
 				moveName: `${row.name}: ${STRUGGLE_MOVE}`,
 			});
 		} else {
-			roll = await actor.typedActor.onDirectStatRoll(statKey, { ...options, moveName: STRUGGLE_MOVE });
+			// Aimed at the struggle, not at whoever this user has targeted on the map: no grudge rides it.
+			roll = await actor.typedActor.onDirectStatRoll(statKey, { ...options, moveName: STRUGGLE_MOVE, targets: [] });
 		}
 		if (!roll) return { ok: false, reason: "no-roll" };
 		const message = (game.messages?.contents ?? [])

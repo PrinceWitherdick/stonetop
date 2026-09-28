@@ -128,9 +128,27 @@ describe("PlaybookMoveEntry (a move that replaces another)", () => {
 			.toBe("level 6+; replaces Bulwark");
 	});
 
-	it("once owned, the original's absence is not a broken prerequisite", () => {
-		const entry = new PlaybookMoveEntry(rampart, [{ _id: "r1" }], NO_BG, ownedByName("A Mighty Rampart"), 6, "The Judge");
+	it("once it has retired the original, the original's absence is not a broken prerequisite", () => {
+		// StonetopCharacter#_retireReplacedMove stamps the copy that retired it.
+		const retiredIt = { _id: "r1", flags: { "stonetop-pwd": { retiredMove: "Bulwark" } } };
+		const entry = new PlaybookMoveEntry(rampart, [retiredIt], NO_BG, ownedByName("A Mighty Rampart"), 6, "The Judge");
 		expect(entry.locked).toBe(false);
+		expect(entry.requirementsUnmet).toBe(false);
+	});
+
+	it("held without ever having its original, it reads as a requirement not met (Book I p.529)", () => {
+		// "If a move replaces a different move, then it requires the one it replaces." Ticked on in
+		// edit mode with no Bulwark to retire: a warning, not a removal.
+		const entry = new PlaybookMoveEntry(rampart, [{ _id: "r1" }], NO_BG, ownedByName("A Mighty Rampart"), 6, "The Judge");
+		expect(entry.locked).toBe(true);
+		expect(entry.requirementsUnmet).toBe(true);
+		// Nor does a stamp naming some other move excuse it.
+		const other = { _id: "b1", flags: { "stonetop-pwd": { retiredMove: "Something Else" } } };
+		expect(new PlaybookMoveEntry(bigDamnHero, [other], NO_BG, ownedByName("Big Damn Hero"), 6, "The Would-Be Hero").requirementsUnmet).toBe(true);
+	});
+
+	it("held beside its original (both ticked on), it is met", () => {
+		const entry = new PlaybookMoveEntry(bigDamnHero, [{ _id: "b1" }], NO_BG, ownedByName("Big Damn Hero", "In Over Your Head"), 6, "The Would-Be Hero");
 		expect(entry.requirementsUnmet).toBe(false);
 	});
 });
@@ -166,39 +184,61 @@ describe("PlaybookMoveEntry (broken prerequisites on a learned move)", () => {
 
 	it("does NOT flag an owned move that only has a display-only requirement note", () => {
 		const def = new MoveDefinition({
-			_id: "wv", name: "Superior Stat",
-			system: { playbook: "The Would-Be Hero", requirement: { note: "All 6 marks in Potential for Greatness" } },
+			_id: "nt", name: "Noted Move",
+			system: { playbook: "The Heavy", requirement: { note: "A prose prerequisite" } },
 		});
-		const entry = new PlaybookMoveEntry(def, [{ _id: "wv1" }], NO_BG, ownedByName("Superior Stat"), 6, "The Would-Be Hero");
+		const entry = new PlaybookMoveEntry(def, [{ _id: "nt1" }], NO_BG, ownedByName("Noted Move"), 6, "The Heavy");
 		expect(entry.requirementsUnmet).toBe(false);
 	});
 });
 
 describe("PlaybookMoveEntry (display-only requirement note)", () => {
 	it("shows requirement.note in the label but never uses it to lock the move", () => {
-		// "All 6 marks in Potential for Greatness" is a prose prereq the engine can't
-		// check; with only a note (no real move/playbook/level/stat gate) it stays unlocked.
+		// A prose prereq the engine can't check; with only a note (no real move/playbook/level/stat
+		// gate) it stays unlocked.
 		const def = new MoveDefinition({
-			_id: "wv", name: "Superior Stat",
-			system: { playbook: "The Would-Be Hero", requirement: { note: "All 6 marks in Potential for Greatness" } },
+			_id: "nt", name: "Noted Move",
+			system: { playbook: "The Heavy", requirement: { note: "A prose prerequisite" } },
 		});
-		const entry = new PlaybookMoveEntry(def, [], NO_BG, NO_OWNED_BY_NAME, 6, "The Would-Be Hero");
+		const entry = new PlaybookMoveEntry(def, [], NO_BG, NO_OWNED_BY_NAME, 6, "The Heavy");
 		expect(entry.locked).toBe(false);
+		expect(entry.requiresLabel).toBe("A prose prerequisite");
+	});
+});
+
+describe("PlaybookMoveEntry (a requirement of marks: the Would-be Hero's Superior Stat)", () => {
+	// "SUPERIOR STAT (Requires all 6 marks in Potential for Greatness)". No level is printed.
+	const superior = new MoveDefinition({
+		_id: "wbh-sup", name: "Superior Stat",
+		system: { playbook: "The Would-Be Hero", cap: 3, requirement: { marks: { move: "Potential for Greatness", count: 6 } } },
+	});
+	const learnedPfg = () => ownedByName("Potential for Greatness");
+	const off = () => new Map([["Potential for Greatness", [{ flags: { "stonetop-pwd": { learned: false } } }]]]);
+	const marks = n => () => n;
+
+	it("reads as the book prints it, with no level", () => {
+		const entry = new PlaybookMoveEntry(superior, [], NO_BG, learnedPfg(), 1, "The Would-Be Hero", {}, null, null, marks(6));
 		expect(entry.requiresLabel).toBe("All 6 marks in Potential for Greatness");
+		expect(entry.minLevel).toBeNull();
 	});
 
-	it("combines a note with a real level gate (WBH Superior Stat) without locking on the note", () => {
-		const def = new MoveDefinition({
-			_id: "wbh-sup", name: "Superior Stat",
-			system: { playbook: "The Would-Be Hero", cap: 3, requirement: { level: 6, note: "All 6 marks in Potential for Greatness" } },
-		});
-		// At level 6 the level gate is met → unlocked, and the note rides along in the label.
-		const unlocked = new PlaybookMoveEntry(def, [], NO_BG, NO_OWNED_BY_NAME, 6, "The Would-Be Hero");
-		expect(unlocked.locked).toBe(false);
-		expect(unlocked.requiresLabel).toContain("All 6 marks in Potential for Greatness");
-		expect(unlocked.requiresLabel).toContain("level 6+");
-		// Below level 6 it's locked by the level gate (not the note).
-		expect(new PlaybookMoveEntry(def, [], NO_BG, NO_OWNED_BY_NAME, 5, "The Would-Be Hero").locked).toBe(true);
+	it("locks until all 6 are filled, at any level", () => {
+		expect(new PlaybookMoveEntry(superior, [], NO_BG, learnedPfg(), 10, "The Would-Be Hero", {}, null, null, marks(5)).locked).toBe(true);
+		expect(new PlaybookMoveEntry(superior, [], NO_BG, learnedPfg(), 3, "The Would-Be Hero", {}, null, null, marks(6)).locked).toBe(false);
+		// No counter handed in counts as none filled.
+		expect(new PlaybookMoveEntry(superior, [], NO_BG, learnedPfg(), 10, "The Would-Be Hero").locked).toBe(true);
+	});
+
+	it("counts the marks only while Potential for Greatness is LEARNED", () => {
+		expect(new PlaybookMoveEntry(superior, [], NO_BG, off(), 6, "The Would-Be Hero", {}, null, null, marks(6)).locked).toBe(true);
+		expect(new PlaybookMoveEntry(superior, [], NO_BG, NO_OWNED_BY_NAME, 6, "The Would-Be Hero", {}, null, null, marks(6)).locked).toBe(true);
+	});
+
+	it("owned with the marks unmet, it reads as a requirement not met", () => {
+		const owned = new PlaybookMoveEntry(superior, [{ _id: "s1" }], NO_BG, learnedPfg(), 6, "The Would-Be Hero", {}, null, null, marks(4));
+		expect(owned.requirementsUnmet).toBe(true);
+		const met = new PlaybookMoveEntry(superior, [{ _id: "s1" }], NO_BG, learnedPfg(), 6, "The Would-Be Hero", {}, null, null, marks(6));
+		expect(met.requirementsUnmet).toBe(false);
 	});
 });
 

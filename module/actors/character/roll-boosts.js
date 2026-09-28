@@ -42,6 +42,7 @@ import { askGMClient, queryAsker, resolveSync } from "../../utils/foundry-compat
 import { holdForEach, shareHold } from "../../utils/share-hold.js";
 import { speakerActor } from "../../utils/speaker-actor.js";
 import { ownerUsers } from "../../hooks/DeathsDoorPrompt.js";
+import { isDeathsDoorCard } from "./deaths-door.js";
 import { ownsLearnedMoveNamed, ownedMove } from "./owns-move.js";
 import { heldOnTrack, learnedTrack, takeBackHeld } from "./MoveResources.js";
 
@@ -89,10 +90,14 @@ export function boostsOn(message, scope = SYSTEM_ID) {
  * Whether this card is a move or stat roll a +1 can go on: it carries a roll, and a hit tier to move, and it
  * is not a damage card. Read off the stored flavor rather than the rendered card, so the GM's client
  * answering a relayed press asks the same question the button did. PURE.
+ *
+ * Not Death's Door's card either: its window settles the tier when the dice land, so a +1 pressed on the
+ * card afterwards would relabel it, spend the helper's hold, and change nothing (deaths-door.js#isDeathsDoorCard).
  */
 export function isBoostableRoll(message, scope = SYSTEM_ID) {
 	if (!message?.rolls?.length) return false;
 	if (message.getFlag?.(scope, "damage")) return false;
+	if (isDeathsDoorCard(message)) return false;
 	const flavor = String(message.flavor ?? "");
 	return flavor.includes("stonetop-roll-result-label") && !flavor.includes("stonetop-damage-roll-card");
 }

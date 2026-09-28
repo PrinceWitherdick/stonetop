@@ -12,30 +12,58 @@
  *    next roll to exploit it." On both hitting tiers: whether that option was the one picked is the
  *    player's to judge.
  *
+ * And three of the Would-Be Hero's:
+ *
+ *  - Voice of Experience: "When another PC comes to you for advice and you tell them what you think is
+ *    best, they have advantage on their first roll to follow your advice." Sage Advice's shape. Its free
+ *    Seek Insight question is move-pick-bonuses.js's.
+ *  - Inquiring Minds: "When you seek out and receive honest advice, gain advantage on your next roll to
+ *    follow that advice." The hero's own, on its posted card.
+ *  - Resourceful: "When you Defy Danger and roll a 6-, ask the GM a question from Seek Insight after they
+ *    describe what happens. Gain advantage on your next roll to act on the answer." The hero's own, on
+ *    Defy Danger's 6- row, under a line listing Seek Insight's questions.
+ *
  * Pressed, it asks who (the giver, or another player character) and holds advantage on that
  * character's next roll through the one store every held advantage uses (StonetopCharacter#
- * holdAdvantage, as Aid's answer does), named for the move. Once per card. The rules and the button
- * are here; the picker, the write and the GM's relay are give-advantage-flow.js's.
+ * holdAdvantage, as Aid's answer does), named for the move. A `selfOnly` move asks nobody: it holds
+ * it for the giver. Once per card. The rules and the button are here; the picker, the write and the
+ * GM's relay are give-advantage-flow.js's.
  */
 
 import { ownsLearnedMoveNamed } from "./owns-move.js";
 import { escHtml } from "../../utils/strings.js";
+import { ARTIFACT_INSIGHT_QUESTIONS } from "./artifact-identify.js";
+
+/**
+ * Seek Insight's printed questions, which Resourceful's 6- asks one of (pinned against the pack by its
+ * test): the one list, which Identify an artifact asks from too (artifact-identify.js).
+ */
+export const SEEK_INSIGHT_QUESTIONS = ARTIFACT_INSIGHT_QUESTIONS;
 
 /**
  * The moves that give it. `tiers`: the roll card's tiers that carry the button (a move with none
- * carries it on its posted card). `othersOnly`: never the giver (Sage Advice: "they get advantage").
+ * carries it on its posted card). `on`: the rolled move whose card that is, when it is not the giving
+ * move itself (Resourceful's is Defy Danger's). `othersOnly`: never the giver (Sage Advice: "they get
+ * advantage"). `selfOnly`: the giver alone ("gain advantage on your next roll"). `lead`: a line printed
+ * before the button.
  */
 export const GIVE_ADVANTAGE_MOVES = {
 	"Countermeasures":           { tiers: null,                     othersOnly: false },
 	"Sage Advice":               { tiers: null,                     othersOnly: true },
 	"Everything Burns":          { tiers: ["success"],              othersOnly: false },
 	"Work With What You've Got": { tiers: ["success", "partial"],   othersOnly: false },
+	"Voice of Experience":       { tiers: null,                     othersOnly: true },
+	"Inquiring Minds":           { tiers: null,                     othersOnly: false, selfOnly: true },
+	"Resourceful":               { tiers: ["failure"], on: "Defy Danger", othersOnly: false, selfOnly: true,
+		lead: `<strong>Resourceful:</strong> once the GM describes what happens, ask them one of Seek Insight's questions: ${SEEK_INSIGHT_QUESTIONS.join(" / ")} You gain advantage on your next roll to act on the answer.` },
 };
 
 function buttonHtml(moveName) {
 	const rule = GIVE_ADVANTAGE_MOVES[moveName];
-	const label = rule?.othersOnly ? "Give advantage to another PC..." : "Give advantage to...";
-	return `<button type="button" class="stonetop-give-advantage" data-move="${escHtml(moveName)}"><i class="fas fa-angles-up"></i> ${escHtml(label)}</button>`;
+	const label = rule?.selfOnly ? `Hold advantage (${moveName})`
+		: rule?.othersOnly ? "Give advantage to another PC..." : "Give advantage to...";
+	const lead = rule?.lead ? `<p class="stonetop-give-advantage-lead">${rule.lead}</p>` : "";
+	return `${lead}<button type="button" class="stonetop-give-advantage" data-move="${escHtml(moveName)}"><i class="fas fa-angles-up"></i> ${escHtml(label)}</button>`;
 }
 
 /**
@@ -65,8 +93,22 @@ export function givenSource(moveName, giver, target) {
 	return target?.id && giver?.id && target.id !== giver.id ? `${giver.name}'s ${moveName}` : moveName;
 }
 
-/** Who can be given it, out of `others` (the other player characters): the giver too, unless the move says another PC. PURE. */
+/**
+ * Who can be given it, out of `others` (the other player characters): the giver too, unless the move
+ * says another PC; the giver alone for a `selfOnly` move. PURE.
+ */
 export function advantageRecipients(giver, moveName, others = []) {
+	const rule = GIVE_ADVANTAGE_MOVES[moveName];
+	if (rule?.selfOnly) return [giver].filter(Boolean);
 	const rest = (others ?? []).filter(a => a?.type === "character" && a.id !== giver?.id);
-	return GIVE_ADVANTAGE_MOVES[moveName]?.othersOnly ? rest : [giver, ...rest].filter(Boolean);
+	return rule?.othersOnly ? rest : [giver, ...rest].filter(Boolean);
+}
+
+/** Whether `moveName` may give it to `target`: another PC only, or the giver only, as its rule says. PURE. */
+export function mayReceive(giver, target, moveName) {
+	const rule = GIVE_ADVANTAGE_MOVES[moveName];
+	const self = !!target?.id && target.id === giver?.id;
+	if (rule?.othersOnly && self) return false;
+	if (rule?.selfOnly && !self) return false;
+	return true;
 }

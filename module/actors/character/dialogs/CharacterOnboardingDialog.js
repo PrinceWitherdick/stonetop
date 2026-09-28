@@ -29,6 +29,7 @@ import { ensurePackIndex } from "../../../utils/pack-index.js";
 import { SYSTEM_ID } from "../../../system-id.js";
 import { crewSetupLimit } from "./CrewSetupDialog.js";
 import { neighborChoiceGroups, randomNeighborTrait } from "./BackgroundNeighborsDialog.js";
+import { INITIATE_BACKGROUND, choiceCountState } from "../initiates.js";
 import { MAGNIFICENT_SPECIMEN_MOVE, companionKindOptions, companionTraitAllowance, trimCompanionTraits } from "../animal-companion.js";
 import { seekerMajorTrack, pickSeekerMajorMark, drawableMinorSlugs } from "../seeker-collection.js";
 
@@ -131,7 +132,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	}
 
 	constructor(playbookDoc, onComplete, options = {}) {
-		const { onBack, onSave, onClose, onProgress, onLiveSave, onExit, initialSelections, startAtStep = null, ownedMoveCounts = null, retiredMoveNames = null, crewTagBonus = 0, companionTraitBonus = 0, heldMinorArcana = null, ...appOptions } = options;
+		const { onBack, onSave, onClose, onProgress, onLiveSave, onExit, initialSelections, startAtStep = null, ownedMoveCounts = null, retiredMoveNames = null, retiredCreationPicks = 0, crewTagBonus = 0, companionTraitBonus = 0, heldMinorArcana = null, ...appOptions } = options;
 		super(appOptions);
 		this._playbookDoc        = playbookDoc;
 		this._onComplete         = onComplete;
@@ -143,6 +144,9 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		// Rampart is owned; StonetopCharacter#retiredMoveReplacers), kept out of the free picks.
 		// A new character passes none.
 		this._retiredMoves       = new Set(retiredMoveNames ?? []);
+		// How many of the free picks those were (StonetopCharacter#retiredCreationPickCount): made,
+		// and given up since, so the moves step asks for that many fewer. A new character passes 0.
+		this._retiredCreationPicks = Math.max(0, Number(retiredCreationPicks) || 0);
 		// How many of each move the character already has (move name → count), so a
 		// possession sub-choice cap that grows with a move (the Blessed's sacred-pouch
 		// remarkable traits, +1 per Big Magic) is correct after taking that move at
@@ -248,6 +252,11 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			learnedInvocations: [],
 			initiates:       [],
 			initiateDetails: {},
+			// The option slugs ticked in a background's own "choose N" list, for every background but the
+			// Initiate (whose list is the Initiates step): the Would-Be Hero's Driven and Destined. Kept
+			// across a change of background, and read only against the background taken
+			// (_backgroundPicksData), as the sheet keeps `background.choices`.
+			backgroundPicks: [],
 			crew:            { name: "", tags: [], instinct: "", cost: "" },
 			animalCompanion: { type: "", kind: "", traits: [], name: "", instinct: "", cost: "" },
 			lore:            { picks: {}, texts: {} },
@@ -383,6 +392,55 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		return bg?.choices?.options?.length ? bg.choices : null;
 	}
 
+	/**
+	 * A background's own "choose N" list, asked on its card: every background's but the Initiate's,
+	 * whose list is the Initiates step. The Would-Be Hero's Driven ("What was it? Choose 1") and
+	 * Destined ("Choose 3-4" words for their destiny). Only the background taken shows its picks. A
+	 * full list disables what is left unticked and a short one is flagged, never refused, the same as
+	 * the Details tab (initiates.js#choiceCountState). Null for a background with no such list.
+	 */
+	_backgroundPicksData(bg) {
+		const choices = bg?.choices;
+		if (!choices?.options?.length || bg.slug === INITIATE_BACKGROUND) return null;
+		const isCurrent = this._selections.backgroundSlug === bg.slug;
+		const picked = new Set(isCurrent ? (this._selections.backgroundPicks ?? []) : []);
+		const selectedCount = choices.options.filter(o => picked.has(o.slug)).length;
+		const state = choiceCountState(choices.count, selectedCount);
+		const count = Array.isArray(choices.count) ? choices.count : [choices.count];
+		return {
+			label:      this._normalizeOnboardingText(choices.label ?? ""),
+			countLabel: count.filter(n => n != null).join(" or "),
+			inline:     !!choices.inline,
+			selectedCount,
+			underMin:   isCurrent && state.underMin,
+			options: choices.options.map(o => {
+				const selected = picked.has(o.slug);
+				return {
+					slug:     o.slug,
+					label:    this._normalizeOnboardingText(o.label ?? o.slug),
+					selected,
+					disabled: !selected && state.atMax,
+				};
+			}),
+		};
+	}
+
+	/**
+	 * Tick or untick one of the taken background's own picks (_backgroundPicksData). A tick past the
+	 * list's cap is refused, as the Details tab's disabled boxes refuse it. Whether the pick stands.
+	 */
+	_setBackgroundPick(slug, checked) {
+		const bg = this._selectedBackground();
+		const options = new Set((bg?.choices?.options ?? []).map(o => o.slug));
+		if (!options.has(slug)) return false;
+		const picks = (this._selections.backgroundPicks ?? []).filter(s => s !== slug);
+		if (!checked) { this._selections.backgroundPicks = picks; return true; }
+		const held = picks.filter(s => options.has(s)).length;
+		if (held >= choiceCountState(bg.choices.count, held).max) return false;
+		this._selections.backgroundPicks = [...picks, slug];
+		return true;
+	}
+
 	// Normalize the choices.count array into [min, max] with safe defaults.
 	_initiatesCountRange(choices) {
 		const arr = choices?.count;
@@ -416,8 +474,11 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		return normalizePlaybookGlyphs(value);
 	}
 
+	// The free picks the playbook prints ("2 other moves of your choice"), less any given up since to
+	// a replacing move (_retiredCreationPicks): that pick was made, and its move is not offered again.
 	_parseMovePickCount() {
-		return parseMovePickCount(this._playbookDoc.flags?.stonetop?.moves?.startingMovesNote);
+		const printed = parseMovePickCount(this._playbookDoc.flags?.stonetop?.moves?.startingMovesNote);
+		return Math.max(0, printed - (this._retiredCreationPicks ?? 0));
 	}
 
 	// The moves the moves step offers as the free pick ("1 of your choice"), out of the loaded
@@ -466,6 +527,9 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			if (doc.system?.requirement?.background) return false;
 			if (chosenChoiceNames.has(doc.name)) return false;
 			if (doc.system?.requirement?.level > 1) return false;
+			// Marks on another move (the Would-be Hero's Superior Stat: all 6 of Potential for
+			// Greatness) are earned in play, never had at creation.
+			if (doc.system?.requirement?.marks) return false;
 			if (requiredMovesUnmet(doc.system?.requirement, r => grantedNames.has(r))) return false;
 			return true;
 		});
@@ -2025,6 +2089,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				selected:    this._selections.backgroundSlug === bg.slug,
 				moveChoices: this._backgroundMoveChoiceData(bg),
 				setup: this._backgroundSetupData(bg),
+				picks: this._backgroundPicksData(bg),
 				markableActions: this._backgroundMarkableActionsData(bg),
 				majorArcana: (bg.majorArcana ?? []).map(slug => {
 					const option = majorBySlug.get(slug);
@@ -2536,11 +2601,34 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				.prop("disabled", !this._isStepComplete());
 		};
 
+		// Each card's own "choose N" list (_backgroundPicksData) drawn from the selections without a
+		// re-render: only the background taken shows its picks, a full list disables the rest, and a
+		// short one says so.
+		const _paintBackgroundPicks = () => {
+			html.find(".stonetop-onboarding-background-picks").each((_, box) => {
+				const bg = this._backgrounds.find(b => b.slug === box.dataset.backgroundSlug);
+				const data = this._backgroundPicksData(bg);
+				if (!data) return;
+				const bySlug = new Map(data.options.map(o => [o.slug, o]));
+				box.querySelectorAll("input[type='checkbox']").forEach(cb => {
+					const option = bySlug.get(cb.value);
+					cb.checked  = !!option?.selected;
+					cb.disabled = !!option?.disabled;
+					cb.closest(".stonetop-onboarding-background-pick-option")?.classList.toggle("is-selected", cb.checked);
+				});
+				const flag = box.querySelector(".stonetop-onboarding-background-picks-flag");
+				if (flag) flag.hidden = !data.underMin;
+				const shown = box.querySelector(".stonetop-onboarding-background-picks-count");
+				if (shown) shown.textContent = String(data.selectedCount);
+			});
+		};
+
 		// Mirror a background change driven by an inline input (setup/neighbor/action
 		// pick) onto the background radio cards, so engaging an inner control also
 		// selects its card.
 		const _syncBackgroundSelection = (prevBackground, backgroundSlug) => {
 			if (prevBackground === backgroundSlug) return;
+			_paintBackgroundPicks();
 			html.find("[name='onboard-background']").each((_, radio) => {
 				radio.checked = radio.value === backgroundSlug;
 				radio.closest(".stonetop-onboarding-card")
@@ -2551,6 +2639,31 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		// ── Background ────────────────────────────────────────────────
 		html.find("[name='onboard-background']").on("change", ev => {
 			this._applyBackgroundChange(ev.currentTarget.value);
+			_paintBackgroundPicks();
+			_refreshNextButton();
+		});
+
+		// The background's own "choose N" list. Its options are <span>s inside the card's <label>, as
+		// the neighbor and action picks are: the click is kept from the label and forwarded by hand.
+		html.find(".stonetop-onboarding-background-picks").on("click", ev => {
+			ev.stopPropagation();
+		});
+		html.find(".stonetop-onboarding-background-pick-option").on("click", ev => {
+			if (ev.target.type === "checkbox") return;
+			const checkbox = ev.currentTarget.querySelector("input[type='checkbox']");
+			if (checkbox && !checkbox.disabled) {
+				checkbox.checked = !checkbox.checked;
+				checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+			}
+		});
+		html.find(".stonetop-onboarding-background-pick-option input[type='checkbox']").on("change", ev => {
+			const { backgroundSlug } = ev.currentTarget.dataset;
+			const prevBackground = this._selections.backgroundSlug;
+			// Ticking a background's word picks that background, as its other inner controls do.
+			if (prevBackground !== backgroundSlug) this._applyBackgroundChange(backgroundSlug);
+			this._setBackgroundPick(ev.currentTarget.value, ev.currentTarget.checked);
+			_paintBackgroundPicks();
+			_syncBackgroundSelection(prevBackground, backgroundSlug);
 			_refreshNextButton();
 		});
 

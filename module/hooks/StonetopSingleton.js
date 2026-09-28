@@ -4,8 +4,14 @@ import {STONETOP_SCOPE, resolvedFlagProperty} from "../actors/character/Stonetop
 import {isPrimaryGM as _isPrimaryGM} from "../utils/primary-gm.js";
 import {STEADING_ACTOR_TYPE, STEADING_DEFAULT_IMG} from "../actors/steading/steading-portrait.js";
 import {isGmToolkitData, gmToolkitActors} from "../actors/gmtoolkit/gm-toolkit-actor.js";
+import {rollOmensOfFate} from "../actors/character/destined.js";
+import {format, localize} from "../utils/i18n.js";
 
 const _OMEN_REMINDER_FLAG = "lastOmenReminder";
+// On a Destined hero: the id of the reminder card whose Roll they have used, so the once-a-session roll
+// stays spent however often that card re-renders, on any client.
+export const OMENS_ROLLED_FROM_FLAG = "omensRolledFrom";
+const _OMENS_KEY = "stonetop.wouldBeHero.omens";
 
 // Sourced from the shared steading-portrait helper so this bootstrap and the Book art
 // re-apply (module/book2-art/reapply.js) can never disagree on the actor type / default img.
@@ -124,6 +130,10 @@ export function registerStonetopSingletonHooks() {
 			_fallBackSteadingImg(row?.querySelector("img"));
 		}
 	});
+
+	// The start-of-session Omen reminder's Roll buttons (remindDestinedOmenRoll). Wired here, beside
+	// the card that carries them, and a no-op on every other card.
+	Hooks.on("renderChatMessageHTML", (message, html) => wireOmenRollButtons(html, message));
 }
 
 // Start-of-session reminder: any Would-Be Hero with the Destined background must
@@ -157,17 +167,55 @@ export async function resetOmenReminder() {
 	}
 }
 
+// The book's own words (Book I p.137, kept in languages/en.json), and a Roll button per Destined hero: the
+// button rolls their Omens of Fate, the background's move, on the clicking client (_wireOmenRollButtons).
 function _buildOmenReminderContent(destined) {
-	const names = destined.map(a => escHtml(a.name)).join(", ");
-	return stonetopChatCard("Start of Session: Omen Roll",
+	const names = destined.map(a => escHtml(a.name)).join(localize(`${_OMENS_KEY}.separator`));
+	const buttons = destined.map(a => `<button type="button" class="stonetop-omens-roll-btn" data-actor-id="${escHtml(a.id)}">`
+		+ `<i class="fas fa-dice-d6"></i> ${escHtml(format(`${_OMENS_KEY}.button`, {name: a.name}))}</button>`).join("");
+	return stonetopChatCard(localize(`${_OMENS_KEY}.title`),
 		`<div class="stonetop-roll-card-description">
-			<p><strong>Destined:</strong> ${names}, roll <strong>+Omens</strong>.</p>
+			<p>${format(`${_OMENS_KEY}.intro`, {names})}</p>
 			<ul>
-				<li><strong>7+:</strong> lose all Omens; the GM shares a vision or portent that points toward your fate.</li>
-				<li><strong>10+:</strong> also ask the GM a follow-up question and get a clear, helpful answer.</li>
-				<li><strong>6-:</strong> don't mark XP, hold +1 Omen, and tell us of your recent nightmares or a troubling vision.</li>
+				<li>${localize(`${_OMENS_KEY}.sevenPlus`)}</li>
+				<li>${localize(`${_OMENS_KEY}.tenPlus`)}</li>
+				<li>${localize(`${_OMENS_KEY}.miss`)}</li>
 			</ul>
-		</div>`);
+		</div>
+		<div class="card-buttons stonetop-card-buttons stonetop-omens-roll-buttons">${buttons}</div>`);
+}
+
+/**
+ * Wire the reminder card's Roll buttons: each rolls that hero's Omens of Fate on this client, for a
+ * user who owns them (a GM owns them all). Anyone else sees the button disabled, as the dying prompt
+ * does it: whose omens these are matters. A button is wired once, however often the card renders.
+ *
+ * The roll is once a session: once it has happened the button stays disabled, latched on the hero
+ * against this card (`message`, OMENS_ROLLED_FROM_FLAG). A roll backed out of, or one that failed,
+ * gives the button back.
+ */
+export function wireOmenRollButtons(html, message = null) {
+	const root = html?.[0] ?? html;
+	for (const btn of root?.querySelectorAll?.(".stonetop-omens-roll-btn") ?? []) {
+		const actor = game.actors?.get(btn.dataset.actorId);
+		if (!actor?.isOwner) { btn.disabled = true; continue; }
+		if (message?.id && actor.getFlag?.(STONETOP_SCOPE, OMENS_ROLLED_FROM_FLAG) === message.id) { btn.disabled = true; continue; }
+		if (btn.dataset.omensWired === "1") continue;
+		btn.dataset.omensWired = "1";
+		btn.addEventListener("click", async () => {
+			if (btn.disabled) return;
+			btn.disabled = true;
+			let rolled = false;
+			try {
+				rolled = await rollOmensOfFate(actor);
+				if (rolled && message?.id) await actor.setFlag?.(STONETOP_SCOPE, OMENS_ROLLED_FROM_FLAG, message.id);
+			} catch (err) {
+				console.error("Stonetop | rolling +Omens from the reminder card failed", err);
+			} finally {
+				if (!rolled) btn.disabled = false;
+			}
+		});
+	}
 }
 
 // True when this creation is a GM manually making a *blank* Monster and the guided

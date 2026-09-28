@@ -171,6 +171,30 @@
 					{{/each}}
 				</div>
 				{{/if}}
+				{{#if picks}}
+				{{!-- The background's own "choose N" list (the Would-Be Hero's Driven and Destined). Short
+				      of the count is flagged, never refused. --}}
+				<div class="stonetop-onboarding-background-picks{{#if picks.inline}} is-inline{{/if}}" data-background-slug="{{slug}}">
+					<p class="stonetop-onboarding-background-setup-label">{{picks.label}} (choose {{picks.countLabel}})</p>
+					<div class="stonetop-onboarding-background-choice-options">
+						{{#each picks.options}}
+						<span class="stonetop-onboarding-bg-option stonetop-onboarding-background-pick-option{{#if selected}} is-selected{{/if}}">
+							<input type="checkbox" class="stonetop-onboarding-check"
+							       name="onboard-background-pick-{{../slug}}"
+							       value="{{slug}}"
+							       data-background-slug="{{../slug}}"
+							       {{#if selected}}checked{{/if}}
+							       {{#if disabled}}disabled{{/if}}>
+							<span>{{label}}</span>
+						</span>
+						{{/each}}
+					</div>
+					<p class="stonetop-onboarding-background-picks-flag"{{#unless picks.underMin}} hidden{{/unless}}>
+						<i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+						<span class="stonetop-onboarding-background-picks-count">{{picks.selectedCount}}</span> chosen; the book asks for {{picks.countLabel}}.
+					</p>
+				</div>
+				{{/if}}
 				{{#if markableActions}}
 				<div class="stonetop-onboarding-background-actions">
 					<p class="stonetop-onboarding-background-setup-label">Mark an action

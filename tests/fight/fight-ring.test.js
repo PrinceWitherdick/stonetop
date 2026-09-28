@@ -236,6 +236,18 @@ describe("ringButtons", () => {
 		expect(ringButtons(actor, { die: "d6", readiness: 1, canLockEyes: false }).moves).toEqual([]);
 	});
 
+	// WBH audit: Big Damn Hero's "When you first leap into danger to protect someone, don't roll to Defend.
+	// Instead, treat it as though you rolled a 10+" had no button anywhere.
+	it("offers Big Damn Hero's leap while it is still there to make, Readiness or none, learned only", () => {
+		const actor = fakeActor({ id: "pim", type: "character" });
+		actor.items = collection([item("bdh", "move", "Big Damn Hero")]);
+		const [leap] = ringButtons(actor, { die: "d6", readiness: 0, canLeapIn: true }).moves;
+		expect(leap).toMatchObject({ run: "leapIn", label: "Leap in (Big Damn Hero)", icon: "fa-solid fa-shield-heart" });
+		expect(ringButtons(actor, { die: "d6", readiness: 0, canLeapIn: false }).moves).toEqual([]);
+		actor.items = collection([{ ...item("bdh", "move", "Big Damn Hero"), flags: { [SYSTEM_ID]: { learned: false } } }]);
+		expect(ringButtons(actor, { die: "d6", readiness: 0, canLeapIn: true }).moves).toEqual([]);
+	});
+
 	it("offers Defend's strike back while a character holds Readiness, at their die with disadvantage", () => {
 		const actor = fakeActor({ id: "bram", type: "character" });
 		actor.items = collection([]);

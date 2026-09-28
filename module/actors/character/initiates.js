@@ -86,8 +86,25 @@ export function initiateMoves(det, opt) {
  * @returns {Object<string, boolean>}  empty when the playbook has no initiates
  */
 export function initiateChoicePatch(backgrounds, picked) {
+	return backgroundChoicePatch(backgrounds, INITIATE_BACKGROUND, picked);
+}
+
+/**
+ * Any background's "choose N" list as a `background.choices` patch, the way initiateChoicePatch sets the
+ * Initiates: true for each of THAT background's options picked, false for the rest of them, and nothing
+ * for another background's. `background.choices` is one flat map for every background a playbook has
+ * (the Would-Be Hero's Driven and Destined sit beside each other in it), which is why every option slug
+ * is unique across a playbook's backgrounds.
+ *
+ * @param {object[]} backgrounds  the playbook's backgrounds
+ * @param {string} slug           the background whose list this is
+ * @param {Iterable<string>} picked  the option slugs chosen (others' are ignored)
+ * @returns {Object<string, boolean>}  empty when that background has no list
+ */
+export function backgroundChoicePatch(backgrounds, slug, picked) {
 	const chosen = new Set(picked ?? []);
-	return Object.fromEntries((initiateBackground(backgrounds)?.choices?.options ?? [])
+	const background = (Array.isArray(backgrounds) ? backgrounds : []).find(b => b?.slug === slug);
+	return Object.fromEntries((background?.choices?.options ?? [])
 		.filter(opt => opt?.slug)
 		.map(opt => [opt.slug, chosen.has(opt.slug)]));
 }

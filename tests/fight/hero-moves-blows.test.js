@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
 	HERO_MOVES, CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG,
 	foeKey, recordClash, clashedBefore, relentlessAgainst, foeAdvantage,
-	recordHarmedBy, clearHarmedBy, paybackEarned, recordKnockedDownBy, clearKnockedDownBy,
+	recordHarmedBy, clearHarmedBy, paybackEarned, recordKnockedDownBy, spendUpAgainBlow, spendUpAgainRoll, upAgainAgainst,
+	TOUGH_LOVE_FLAG, toughLoveAgainst, toughLoveHeld, callOut, workedItOut,
 	muscleboundWeapon, berserkNow, blowOffers, defenderDisadvantage, dangerousMode, holyLightOffers,
 	ALPHA_FLAG, alphaAgainst, recordAlphaOver, forgetAlphaOver, spendAlphaOver,
 } from "../../module/fight/hero-moves.js";
@@ -307,13 +308,48 @@ describe("what a blow adds", () => {
 		const { t, rows } = crinRows();
 		const pim = hero("Pim", [HERO_MOVES.KNOCKED_DOWN, HERO_MOVES.UP_AGAIN]);
 		await recordKnockedDownBy(pim, t.crin.actor);
-		expect(pim.getFlag(SYSTEM_ID, KNOCKED_DOWN_FLAG)).toEqual({ key: t.crin.uuid, name: "Crinwin" });
+		expect(pim.getFlag(SYSTEM_ID, KNOCKED_DOWN_FLAG)).toEqual({ key: t.crin.uuid, name: "Crinwin", roll: true, blow: true });
 		expect(foeAdvantage(pim, rows)).toBe(HERO_MOVES.UP_AGAIN);
 		const offer = blowOffers(pim, { targets: rows }).find(o => o.key === "upAgain");
 		expect(offer).toMatchObject({ dice: "1d4", applied: true });
 		await offer.spend(pim);
-		expect(foeAdvantage(pim, rows)).toBeNull();
 		expect(blowOffers(pim, { targets: rows }).map(o => o.key)).not.toContain("upAgain");
+		// The blow's half only: the advantage on the next ROLL against them is still owed.
+		expect(foeAdvantage(pim, rows)).toBe(HERO_MOVES.UP_AGAIN);
+		await spendUpAgainRoll(pim, rows);
+		expect(foeAdvantage(pim, rows)).toBeNull();
+		expect(pim.getFlag(SYSTEM_ID, KNOCKED_DOWN_FLAG)).toBeNull();
+	});
+
+	// WBH audit: the record was one flag cleared only by the +1d4 blow, so a Clash that missed kept its
+	// advantage for ever. Two halves now, each spent by its own: the roll after its dice, the blow when taken.
+	it("spends the roll's advantage and the blow's +1d4 apart, in either order", async () => {
+		const { t, rows } = crinRows();
+		const pim = hero("Pim", [HERO_MOVES.KNOCKED_DOWN, HERO_MOVES.UP_AGAIN]);
+		await recordKnockedDownBy(pim, t.crin.actor);
+		expect(upAgainAgainst(pim, rows)).toBe(HERO_MOVES.UP_AGAIN);
+		expect(await spendUpAgainRoll(pim, rows)).toBe(true);
+		expect(upAgainAgainst(pim, rows)).toBeNull();
+		expect(await spendUpAgainRoll(pim, rows)).toBe(false);
+		// The +1d4 still rides the next blow against them.
+		expect(blowOffers(pim, { targets: rows }).map(o => o.key)).toContain("upAgain");
+		expect(await spendUpAgainBlow(pim)).toBe(true);
+		expect(pim.getFlag(SYSTEM_ID, KNOCKED_DOWN_FLAG)).toBeNull();
+		// A roll at someone else spends nothing.
+		await recordKnockedDownBy(pim, t.crin.actor);
+		expect(await spendUpAgainRoll(pim, [{ uuid: "Scene.scene1.Token.tother", name: "Other" }])).toBe(false);
+		expect(upAgainAgainst(pim, rows)).toBe(HERO_MOVES.UP_AGAIN);
+	});
+
+	it("reads a record written before the split as owing both halves", async () => {
+		const { t, rows } = crinRows();
+		const pim = hero("Pim", [HERO_MOVES.UP_AGAIN]);
+		pim.flags[SYSTEM_ID][KNOCKED_DOWN_FLAG] = { key: t.crin.uuid, name: "Crinwin" };
+		expect(upAgainAgainst(pim, rows)).toBe(HERO_MOVES.UP_AGAIN);
+		expect(blowOffers(pim, { targets: rows }).map(o => o.key)).toContain("upAgain");
+		await spendUpAgainBlow(pim);
+		expect(pim.getFlag(SYSTEM_ID, KNOCKED_DOWN_FLAG)).toEqual({ key: t.crin.uuid, name: "Crinwin", roll: true, blow: false });
+		expect(upAgainAgainst(pim, rows)).toBe(HERO_MOVES.UP_AGAIN);
 	});
 
 	it("keeps a move a player switched off out of all of it", async () => {
@@ -325,7 +361,7 @@ describe("what a blow adds", () => {
 		expect(blowOffers(bram, { targets: rows, attackAt: 99 }).map(o => o.key)).toEqual([]);
 		expect(dangerousMode(bram, "")).toBe("");
 		expect(muscleboundWeapon(bram, { name: "Sword", range: ["close"] }).tags).toBeUndefined();
-		await clearKnockedDownBy(bram);
+		expect(await spendUpAgainBlow(bram)).toBe(false);
 	});
 });
 
@@ -432,5 +468,61 @@ describe("Alpha's advantage against the foes it cowed", () => {
 		expect(rook.getFlag(SYSTEM_ID, ALPHA_FLAG).map(e => e.key).sort()).toEqual(["a", "b"]);
 		expect(await forgetAlphaOver(rook, ["a"])).toBe(true);
 		expect(rook.getFlag(SYSTEM_ID, ALPHA_FLAG)).toEqual([{ key: "b", name: "B" }]);
+	});
+});
+
+// Tough Love (WBH audit, the user's ruling 2026-09-27): "When you honestly think another PC is in the wrong
+// and call them on it, they have disadvantage on any rolls against you until you two work it out." The hero
+// names the PC; that PC's rolls aimed at the hero read it, the reverse of Binding Arbitration's oathbreaker.
+describe("Tough Love", () => {
+	const pcs = () => {
+		const pim = Object.assign(hero("pim", [HERO_MOVES.TOUGH_LOVE]), { documentName: "Actor" });
+		const bram = Object.assign(hero("bram", []), { documentName: "Actor" });
+		const cadi = Object.assign(hero("cadi", []), { documentName: "Actor" });
+		const byUuid = new Map([
+			["Actor.pim", pim],
+			["Scene.scene1.Token.tpim", { documentName: "Token", uuid: "Scene.scene1.Token.tpim", actor: pim }],
+			["Actor.cadi", cadi],
+		]);
+		globalThis.fromUuidSync = uuid => byUuid.get(uuid) ?? null;
+		globalThis.ChatMessage = { create: vi.fn(async () => ({})), getSpeaker: () => ({}) };
+		return { pim, bram, cadi };
+	};
+	afterEach(() => { delete globalThis.ChatMessage; });
+
+	it("names the PC called on it, several at once, and says so on a card", async () => {
+		const { pim, bram, cadi } = pcs();
+		expect(await callOut(pim, bram)).toBe(true);
+		expect(await callOut(pim, bram)).toBe(false);
+		expect(await callOut(pim, cadi)).toBe(true);
+		expect(await callOut(pim, pim)).toBe(false);
+		expect(toughLoveHeld(pim)).toEqual([{ id: "bram", name: "bram" }, { id: "cadi", name: "cadi" }]);
+		expect(globalThis.ChatMessage.create.mock.calls[0][0].content).toContain("pim calls bram on it");
+	});
+
+	it("puts that PC's rolls at the hero at disadvantage, token or aimed ask, until they work it out", async () => {
+		const { pim, bram, cadi } = pcs();
+		await callOut(pim, bram);
+		const token = [{ uuid: "Scene.scene1.Token.tpim", name: "Pim" }];
+		const asked = [{ uuid: "Actor.pim", name: "Pim", actorId: "pim" }];
+		expect(toughLoveAgainst(bram, token)).toBe(HERO_MOVES.TOUGH_LOVE);
+		expect(toughLoveAgainst(bram, asked)).toBe(HERO_MOVES.TOUGH_LOVE);
+		// Not someone the hero never called on it, not a roll at somebody else, and not half a roll.
+		expect(toughLoveAgainst(cadi, token)).toBeNull();
+		expect(toughLoveAgainst(bram, [{ uuid: "Actor.cadi", name: "Cadi" }])).toBeNull();
+		expect(toughLoveAgainst(bram, [...token, { uuid: "Actor.cadi", name: "Cadi" }])).toBeNull();
+		expect(toughLoveAgainst(bram, [])).toBeNull();
+		expect(await workedItOut(pim, "bram")).toBe(true);
+		expect(await workedItOut(pim, "bram")).toBe(false);
+		expect(pim.getFlag(SYSTEM_ID, TOUGH_LOVE_FLAG)).toEqual([]);
+		expect(toughLoveAgainst(bram, token)).toBeNull();
+	});
+
+	it("does nothing while the move is not learned", async () => {
+		const { pim, bram } = pcs();
+		pim.items = [{ type: "move", name: HERO_MOVES.TOUGH_LOVE, flags: { [SYSTEM_ID]: { learned: false } } }];
+		expect(await callOut(pim, bram)).toBe(false);
+		pim.flags[SYSTEM_ID][TOUGH_LOVE_FLAG] = [{ id: "bram", name: "bram" }];
+		expect(toughLoveAgainst(bram, [{ uuid: "Actor.pim", actorId: "pim" }])).toBeNull();
 	});
 });

@@ -10,7 +10,8 @@
 
 import { SYSTEM_ID } from "../../system-id.js";
 import { ownsLearnedMoveNamed } from "./owns-move.js";
-import { GIVE_ADVANTAGE_MOVES, advantageRecipients, givenSource } from "./give-advantage.js";
+import { GIVE_ADVANTAGE_MOVES, advantageRecipients, givenSource, mayReceive } from "./give-advantage.js";
+import { asteriskMoveUsed } from "./WouldBeHeroAsterisk.js";
 import { pickPersonOnMap } from "../../dialogs/RelationshipLinkDialog.js";
 import { partyCharacters } from "../../utils/playbook-actors.js";
 import { canRewriteCard } from "../../utils/chat.js";
@@ -41,7 +42,7 @@ export async function giveAdvantage(giver, target, moveName, {
 	gm = globalThis.game?.users?.activeGM ?? null, userId = globalThis.game?.user?.id ?? null,
 } = {}) {
 	if (target?.type !== "character") return false;
-	if (GIVE_ADVANTAGE_MOVES[moveName]?.othersOnly && target.id === giver?.id) return false;
+	if (!mayReceive(giver, target, moveName)) return false;
 	if (target.isOwner) {
 		await target.typedActor?.holdAdvantage?.(givenSource(moveName, giver, target));
 		return true;
@@ -65,7 +66,7 @@ export async function handleGiveAdvantageQuery(data, context = {}, deps = {}) {
 	const moveName = data?.moveName;
 	if (!user || !GIVE_ADVANTAGE_MOVES[moveName] || !giver?.testUserPermission?.(user, "OWNER")) return false;
 	if (!ownsLearnedMoveNamed(giver, moveName) || target?.type !== "character") return false;
-	if (GIVE_ADVANTAGE_MOVES[moveName].othersOnly && target.id === giver.id) return false;
+	if (!mayReceive(giver, target, moveName)) return false;
 	await target.typedActor?.holdAdvantage?.(givenSource(moveName, giver, target));
 	return true;
 }
@@ -75,16 +76,19 @@ export async function handleGiveAdvantageQuery(data, context = {}, deps = {}) {
  * button, answers whether this client still holds the card's latch once someone is picked: when
  * another client pressed it too, the later press holds the card, and this one gives nothing and
  * answers true, so the latch it lost is not taken back from the other.
+ *
+ * A `selfOnly` move (Resourceful, Inquiring Minds) asks nobody: the giver is the one who holds it.
  */
 export async function offerAdvantage(message, giver, moveName, {
 	pick = pickPersonOnMap, party = partyCharacters, give = giveAdvantage, scope = SYSTEM_ID, stillMine = null,
 } = {}) {
-	const recipients = advantageRecipients(giver, moveName, party({ exclude: giver?.id }));
+	const selfOnly = !!GIVE_ADVANTAGE_MOVES[moveName]?.selfOnly;
+	const recipients = advantageRecipients(giver, moveName, selfOnly ? [] : party({ exclude: giver?.id }));
 	if (!recipients.length) {
 		globalThis.ui?.notifications?.info?.("There is no other player character to give it to.");
 		return false;
 	}
-	const id = await pick({
+	const id = selfOnly ? giver?.id : await pick({
 		options: recipients.map(actor => ({ id: actor.id, name: actor.name, actor, hint: actor.id === giver?.id ? "You" : "" })),
 		title: `${moveName}: advantage on the next roll`,
 		hint: "Who gains advantage on their next roll?",
@@ -101,6 +105,9 @@ export async function offerAdvantage(message, giver, moveName, {
 	}
 	await message.setFlag(scope, GIVEN_FLAG, { name: target.name, move: moveName });
 	globalThis.ui?.notifications?.info?.(`${target.name} has advantage on their next roll (${moveName}).`);
+	// Voice of Experience's advice given is a use of the starred move: the first crosses off "Would-be"
+	// (WouldBeHeroAsterisk.js). Never at the cost of the gift, which is already held and written.
+	await asteriskMoveUsed(giver, moveName).catch(err => console.warn(`Stonetop | could not note ${moveName}'s use`, err));
 	return true;
 }
 

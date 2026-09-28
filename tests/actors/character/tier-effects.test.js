@@ -10,6 +10,7 @@ import { DEFEND_MOVE, readinessForTier } from "../../../module/combat/defend-rea
 import { StonetopCharacter } from "../../../module/actors/character/StonetopCharacter.js";
 import { messageOfRoll } from "../../../module/utils/roll-engine.js";
 import { SYSTEM_ID } from "../../../module/system-id.js";
+import { ROLLED_FLAG, rolledRecord } from "../../../module/utils/counted-tier.js";
 
 // What a roll's tier does to its roller, kept in step with the card when its tier moves after the dice (a
 // GM's Shift, a +1 pressed on it). Each case rolls one tier, records what it did on a card, then moves the
@@ -318,5 +319,48 @@ describe("Alpha's foes", () => {
 		const hit = await alphaRoll(actor, "success", []);
 		expect(actor.setFlag).not.toHaveBeenCalled();
 		expect(hit.setFlag).not.toHaveBeenCalled();
+	});
+});
+
+// A card rolled with a bend ("treat a 7-9 as a 10+", Let's Make a Deal; "treat a 6- as a 7-9", Herd of Horses)
+// settles the tier it COUNTS as when its total is rewritten, read off the record rollStat stamps on it
+// (utils/counted-tier.js#ROLLED_FLAG). A card with no record reads its total as it always has.
+describe("a rewritten card that bends its tier", () => {
+	const bent = (message, bends) => { message.flags[SYSTEM_ID][ROLLED_FLAG] = rolledRecord("", bends); return message; };
+	const deal = { partialCountsAsSuccess: "Let's Make a Deal" };
+
+	it("settles a 6- lifted to a 7 as the 10+ it counts as", async () => {
+		const { actor, tracks } = hero({ moves: [PREPARE_A_WELCOME], held: { [PREPARE_A_WELCOME]: 1 } });
+		const miss = bent(await rolled(actor, PREPARE_A_WELCOME, "failure"), deal);
+		await shift(miss, actor, 7);
+		expect(tracks[PREPARE_A_WELCOME]).toBe(2);
+		expect(miss.getFlag(SYSTEM_ID, TIER_EFFECTS_FLAG)).toEqual({ surpriseRegained: 1 });
+	});
+
+	it("leaves a counted 10+ lifted within the 7-9 where it is, and takes it back below a 7", async () => {
+		const { actor, tracks } = hero({ moves: [PREPARE_A_WELCOME], held: { [PREPARE_A_WELCOME]: 0 } });
+		const hit = bent(await rolled(actor, PREPARE_A_WELCOME, "success"), deal);
+		expect(tracks[PREPARE_A_WELCOME]).toBe(1);
+		hit.setFlag.mockClear();
+		expect(await shift(hit, actor, 9)).toBe(false);
+		expect(hit.setFlag).not.toHaveBeenCalled();
+		await shift(hit, actor, 6);
+		expect(tracks[PREPARE_A_WELCOME]).toBe(0);
+	});
+
+	it("keeps the nerves steady on a 6- that counts as a 7-9", async () => {
+		const { actor } = hero({ moves: [WE_HAPPY_FEW] });
+		const hit = bent(await rolled(actor, WE_HAPPY_FEW, "partial"), { missCountsAsPartial: "Herd of Horses" });
+		await shift(hit, actor, 5);
+		expect(fightStateOn(actor, "nerves")).toBe(false);
+	});
+
+	it("reads its total as always on a card with no record, or one that bends nothing", async () => {
+		const { actor, tracks } = hero({ moves: [PREPARE_A_WELCOME], held: { [PREPARE_A_WELCOME]: 1 } });
+		const plain = bent(await rolled(actor, PREPARE_A_WELCOME, "failure"), {});
+		await shift(plain, actor, 7);
+		expect(tracks[PREPARE_A_WELCOME]).toBe(1);
+		await shift(plain, actor, 12);
+		expect(tracks[PREPARE_A_WELCOME]).toBe(2);
 	});
 });

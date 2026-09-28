@@ -7,6 +7,7 @@
 //  - Wielder of the White Flame's 7+ lights the holy light; Luminous Shield's 6- snuffs it (holy-light.js).
 //  - Defend holds Readiness by tier (combat/defend-readiness.js).
 //  - Alpha's 10+ has advantage on the next roll against the foes it was aimed at (fight/hero-moves.js).
+//  - Omens of Fate's 7+ loses all Omens, and its 6- holds +1 (destined.js).
 //
 // The tier is not settled when the dice land: a GM's Shift Up/Down, a +1 pressed on the card (Diligence,
 // Sanction, Many Hands, a Blessing), Burn Brightly, all move it. So each effect is SETTLED, not fired: told
@@ -21,7 +22,7 @@
 // nothing.
 
 import { SYSTEM_ID } from "../../system-id.js";
-import { classifyResult } from "../../utils/roll-engine.js";
+import { cardCountedTier, outcomeTier } from "../../utils/counted-tier.js";
 import { speakerActor } from "../../utils/speaker-actor.js";
 import { shakeNervesOnMiss, setFightState, WE_HAPPY_FEW } from "./fight-states.js";
 import { regainSurpriseOnHit, takeBackSurprise, PREPARE_A_WELCOME } from "../../combat/battle-holds.js";
@@ -29,6 +30,7 @@ import { holdSanctionOnHit, releaseSanction, sanctionTrack, COMMUNE_WITH_ARATIS 
 import { LUMINOUS_SHIELD, WIELDER_OF_THE_WHITE_FLAME } from "./holy-light.js";
 import { DEFEND_MOVE } from "../../combat/defend-readiness.js";
 import { HERO_MOVES, foeKey, recordAlphaOver, forgetAlphaOver } from "../../fight/hero-moves.js";
+import { OMENS_OF_FATE, settleOmensTier } from "./destined.js";
 
 /** The message flag holding what a roll's tier effects have done, keyed as TIER_EFFECTS is. */
 export const TIER_EFFECTS_FLAG = "tierEffects";
@@ -100,6 +102,12 @@ const TIER_EFFECTS = {
 			return { foes, set: !!done?.set };
 		},
 	},
+	// `{prior, set}`: the Omens held before the roll, and what this card's tier asked for (none on a 7+, one
+	// more on a 6-). Nothing for a character who is not Destined.
+	omens: {
+		moves: [OMENS_OF_FATE],
+		settle: (actor, _move, tier, done, character) => settleOmensTier(actor, tier, done ?? null, character ?? actor?.typedActor),
+	},
 };
 
 /** The moves whose tier does something to the roller. */
@@ -161,8 +169,11 @@ export async function reconcileTierEffects(message, total, { actor = undefined, 
 		return false;
 	}
 	const move = message.getFlag(scope, "move");
+	// The tier the card COUNTS as: a roll that treats a 7-9 as a 10+ (or a 6- as a 7-9) lifted within the
+	// bent tier has not moved, and one lifted into it settles as what it counts as (utils/counted-tier.js).
+	const tier = outcomeTier(cardCountedTier(message, Number(total), scope));
 	try {
-		const next = await settleTierEffects(roller, move, classifyResult(Number(total)).key, done);
+		const next = await settleTierEffects(roller, move, tier, done);
 		if (!Object.keys(next).length || JSON.stringify(next) === JSON.stringify(done)) return false;
 		return recordTierEffects(message, next, { scope });
 	} catch (err) {
