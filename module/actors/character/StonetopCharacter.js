@@ -193,8 +193,9 @@ const SEASON_MOVE_DISADVANTAGE = [
  * guided move, Improvise: directRollOffers) included, but never a bare stat roll, which is no move.
  *
  * A row applies to a character who has `ownsLearned` LEARNED, took the `background` (took-background.js),
- * holds the special possession `possession`, or has picked AND carries (the ◇) the gear choice
- * `possessionChoice`, keyed `possession:choice` as the carry marks are; and never while the debility
+ * holds the special possession `possession`, has picked AND carries (the ◇) the gear choice
+ * `possessionChoice`, keyed `possession:choice` as the carry marks are, or has the worn insert's lore
+ * option `postDeathLore` marked ("consequences:disturbing"); and never while the debility
  * `unlessDebility` is marked, nor while the learned move `whileHolding` holds nothing on its track
  * (Safety First's Protection). `spendHeld` names that track: taken, the line spends 1 of it after the
  * dice. Taken, a line's `source` is folded in as advantage and named on the card, unless its `effect`
@@ -248,7 +249,17 @@ const FICTION_ROLL_OFFERS = [
 	{ key: "force-to-be-reckoned-with", moves: name => name === "Defy Danger", ownsLearned: A_FORCE_TO_BE_RECKONED_WITH,
 		source: A_FORCE_TO_BE_RECKONED_WITH, label: "stonetop.rollOffers.forceToBeReckonedWith",
 		effect: "criticalNote", note: "stonetop.rollOffers.forceToBeReckonedWithNote", onCritical: forceTurnedTables },
+	// Two Consequences of the dead: "When you use intimidation and your disturbing presence to Persuade, you
+	// have advantage" (the Ghost's Disturbing) and "...your sinister appearance to Persuade" (the Revenant's
+	// Deathly Visage). Asked of the worn insert's marked lore, `postDeathLore`, rather than of a move.
+	{ key: "disturbing", moves: isPersuadeMove, postDeathLore: "consequences:disturbing",
+		source: "Disturbing", label: "stonetop.rollOffers.disturbing" },
+	{ key: "deathly-visage", moves: isPersuadeMove, postDeathLore: "consequences:deathly-visage",
+		source: "Deathly Visage", label: "stonetop.rollOffers.deathlyVisage" },
 ];
+
+/** The Ghost's and the Revenant's UNSTABLE, as its count is keyed in their lore (see _foldStandingNotes). */
+const UNSTABLE_LORE = "consequences:unstable";
 
 /** The card rows a taken note-only offer prints on, by its `effect` (see _withHitNote). */
 const NOTE_OFFER_TIERS = { hitNote: ["success", "partial"], successNote: ["success"] };
@@ -2356,6 +2367,9 @@ export class StonetopCharacter {
 	/** Whether this character has what a FICTION_ROLL_OFFERS row asks for (see there). */
 	async _earnsRollOffer(row) {
 		if (row.ownsLearned) return ownsLearnedMoveNamed(this._actor, row.ownsLearned);
+		// Marked on the insert they WEAR: a removed insert keeps its lore (removal is an undo), and a
+		// Consequence of an insert they no longer carry is nobody's Consequence.
+		if (row.postDeathLore) return !!this._postDeath.activeSlug && Number(this._postDeath.lore.counts[row.postDeathLore]) > 0;
 		if (row.background) {
 			return tookBackground({ playbook: this._actor.system?.playbook?.name ?? null, background: this._background.selectedSlug }, row.background);
 		}
@@ -2459,6 +2473,19 @@ export class StonetopCharacter {
 		let folded = upbringing ? foldAdvantage(options, upbringing) : options;
 		if (season) folded = foldDisadvantage(folded, season);
 		return folded;
+	}
+
+	/**
+	 * What every roll card of this character's says on a row, whatever the move: a Ghost's or Revenant's
+	 * UNSTABLE, "When you roll a 6-, the GM can choose to have you enter such a rage (as per Breakdown)",
+	 * on the 6- row (roll-engine's tierActions, so a GM's Shift onto or off the miss moves it too). A
+	 * reminder for the GM, not an automation: the choice is theirs. On the worn insert only, as the roll
+	 * window's post-death lines are (_earnsRollOffer).
+	 */
+	_foldStandingNotes(options) {
+		if (!this._postDeath.activeSlug || !(Number(this._postDeath.lore.counts[UNSTABLE_LORE]) > 0)) return options;
+		const note = `<p class="stonetop-roll-offer-note">${_loc("stonetop.postDeathMoves.unstableNote")}</p>`;
+		return { ...options, ..._withTierActions(options, { failure: note }) };
 	}
 
 	/**
@@ -4371,6 +4398,8 @@ export class StonetopCharacter {
 		const oathbreakerNamed = grudge === BINDING_ARBITRATION || aimedModes.oathbreaker;
 		// A background's standing advantage and a season's standing disadvantage on one move: the same fold.
 		if (!descriptionOnly) Object.assign(rollOptions, this._foldStandingModes(rollOptions, item.name));
+		// And what their card says on a miss whatever the move (a Ghost's Unstable).
+		if (!descriptionOnly) Object.assign(rollOptions, this._foldStandingNotes(rollOptions));
 		// The lines the roll window offered and the player left ticked (rollOffers: a skin of fine
 		// whisky shared before a Persuade): the same fold, each paid for after the dice, below (the
 		// ONE fold and payment onDirectStatRoll shares, _foldTakenOffers and _payTakenOffers).
@@ -5191,7 +5220,7 @@ export class StonetopCharacter {
 		// at someone carries (Binding Arbitration, But I Get Up Again, Alpha, Tough Love) and its standing
 		// advantage and disadvantage are folded here as well as in onRoll.
 		const aimed = this._foldAimedModes(base, targets ?? this._rollTargets(rest));
-		const standing = this._foldStandingModes(aimed.options, rest.moveName);
+		const standing = this._foldStandingNotes(this._foldStandingModes(aimed.options, rest.moveName));
 		// And the lines the window offered it that the player left ticked (Binding Arbitration's on a roll aimed
 		// at nobody, Constant Vigilance's on a guided move), folded and paid for as onRoll's are. Binding
 		// Arbitration's is dropped when the aim above has already named the oath.

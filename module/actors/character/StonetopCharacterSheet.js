@@ -15,6 +15,7 @@ import {PossessionChoicesDialog} from "./dialogs/PossessionChoicesDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
 import {UndeathDialog} from "./dialogs/UndeathDialog.js";
 import {buildPostDeathChoices, choiceWriteIns} from "./post-death-choices.js";
+import {moveActionsFor, runPostDeathAction} from "./post-death-actions.js";
 import {DEATHS_DOOR_STATE, HARD_TO_KILL, PAST_DEATH_KINDS, POST_DEATH_INSERT_SLUGS, pastDeathClasses, pastDeathKind, resolvedHp, zeroHpMove} from "./deaths-door.js";
 import {WoundDialog} from "./dialogs/WoundDialog.js";
 import {WOUND_STATUS_GLYPH, WOUND_STATUS_LABEL} from "./wound-display.js";
@@ -1682,6 +1683,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			context.stonetop.upWithPeople = ownsLearnedMoveNamed(this.actor, UP_WITH_PEOPLE)
 				? { [UP_WITH_PEOPLE]: upWithPeopleCard(this.actor, { editable: this.isEditable }) }
 				: {};
+			// A post-death move's own buttons, by move name the same way (Poltergeist's Get angry and its Fury
+			// spends, Red Wrath's Favor roll: ./post-death-actions.js#moveActionsFor). The owner's alone.
+			context.stonetop.moveActions = this.isEditable ? moveActionsFor(this.actor) : {};
 			// The Would-Be Hero's starred moves, by name, whose use would still cross off "Would-be": the
 			// "I used it" button for a use the sheet cannot see (WouldBeHeroAsterisk.js#asteriskUseCounts).
 			// The owner's alone.
@@ -3882,6 +3886,27 @@ export function createStonetopCharacterSheetClass(Base) {
 				ev.currentTarget.disabled = true;
 				await leapIn(this.actor, { character: this._stonetopCharacter });
 				this.render(false);
+			});
+
+			// A post-death move's own buttons (move-group.hbs): what its rule costs or spends, and the rolls
+			// it makes with a number of its own. The pre-roll window is this sheet's, so a Hurl or a Red Wrath
+			// is asked what any other roll is asked. Disabled while it runs, so a double click is one spend.
+			html.find("button.stonetop-move-action").on("click", async ev => {
+				ev.preventDefault();
+				ev.stopPropagation();
+				if (!this.isEditable) return;
+				const btn = ev.currentTarget;
+				const shiftKey = ev.shiftKey;
+				btn.disabled = true;
+				try {
+					await runPostDeathAction(this.actor, btn.dataset.moveAction, {
+						prompt: ({ title, offersFor }) => this._promptRollOptions({ shiftKey, title, offersFor }),
+					});
+				} catch (err) {
+					console.error("Stonetop | a post-death move's button failed", err);
+				} finally {
+					btn.disabled = false;
+				}
 			});
 
 			// Tough Love's card: call another PC on it, or clear one "once you two work it out".

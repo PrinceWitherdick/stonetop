@@ -211,6 +211,17 @@
 			{{!-- The Would-Be Hero's starred moves, while still Would-be: a use the sheet cannot see
 			      (A Force's first paragraph, a leap made at the table) crosses off "Would-be" by hand.
 			      The sheet's own use points cross it off themselves (WouldBeHeroAsterisk.js). --}}
+			{{!-- A post-death move's own buttons: Poltergeist's "Get angry" and its Fury spends, Red Wrath's
+			      Favor roll, Implacable's and Bodysnatcher's HP, Disembodied's manifesting. Each names the move
+			      it acts for, so nothing here counts `../` frames (actors/character/post-death-actions.js). --}}
+			{{#if owned}}{{#with (lookup @root.stonetop.moveActions name)}}
+			<div class="stonetop-move-actions">
+				{{#each this}}
+				<button type="button" class="stonetop-inline-btn stonetop-move-action" data-move-action="{{action}}"
+				        data-tooltip="{{tooltip}}" data-tooltip-direction="UP"{{#if disabled}} disabled{{/if}}><i class="{{icon}}" aria-hidden="true"></i> {{label}}</button>
+				{{/each}}
+			</div>
+			{{/with}}{{/if}}
 			{{#if (and owned (lookup @root.stonetop.asteriskUse name))}}
 			<div class="stonetop-asterisk-use">
 				<button type="button" class="stonetop-inline-btn stonetop-asterisk-used" data-move-name="{{name}}"

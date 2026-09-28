@@ -129,6 +129,7 @@ import { bootStep, recordBootPhase, reportBootHealth, bootReport } from "./modul
 import { registerCampHooks } from "./module/camp/camp-store.js";
 import { registerVitalsMirrorHooks } from "./module/actors/character/vitals-mirror.js";
 import { registerPostDeathMoveHooks } from "./module/actors/character/post-death-moves.js";
+import { wirePostDeathMoveCards } from "./module/actors/character/post-death-actions.js";
 import { registerRosterFateHooks } from "./module/fight/roster-fate.js";
 import { wireCampCard } from "./module/camp/camp-flow.js";
 import { registerCampWindowRestore } from "./module/camp/CampWindow.js";
@@ -2211,7 +2212,9 @@ function _chatWireOptionDamage(message, html) {
 		// An option that names a flat number has nothing to throw, and the icon and the verb both
 		// say so rather than offering to "roll" a 3.
 		icon:    dealt => (dealt.isRoll ? "fas fa-dice-d6" : "fas fa-burst"),
-		label:   dealt => `${dealt.isRoll ? " Roll" : " Deal"} ${dealt.formula} damage`,
+		// HP lost is not damage and says so (Bodysnatcher's "lose 2d4 HP"): it rolls onto the same card,
+		// aimed at the one who picked it and armor no object (utils/damage.js#readOptionDamage).
+		label:   dealt => (dealt.hpLoss ? ` Lose ${dealt.formula} HP` : `${dealt.isRoll ? " Roll" : " Deal"} ${dealt.formula} damage`),
 		readout: paid => _optionDamageDealtEl(paid.totals),
 		onPress: (btn, index, dealt) => _onRollOptionDamage(message, btn, index, { move, dealt }),
 	});
@@ -2329,6 +2332,9 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	// states a damage roll is a number the card owes, and a table with no button for it reaches
 	// for a calculator and the target's HP field.
 	_chatWireOptionDamage(message, html);
+	// A post-death move's roll card: Poltergeist's "deal your damage" and "lose 1d4 HP", the pin's HP, Red
+	// Wrath's and Torment's Blessing's printed damage (actors/character/post-death-actions.js).
+	wirePostDeathMoveCards(message, html);
 	wireDyingPrompt(message, html);
 	// ...and beside Face Death's Door, We Happy Few's "Keep 1 HP" while the character still could.
 	wireKeepOneHp(message, html);

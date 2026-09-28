@@ -1729,7 +1729,90 @@
       "betterPartOfValor": "Hiding from, escaping or sneaking past a foe who outnumbers you or is bigger than you (Better Part of Valor): advantage",
       "underestimated": "Your first move against an enemy who underestimates you (Underestimated): advantage",
       "forceToBeReckonedWith": "Against something trying to harm or constrain you (A Force to Be Reckoned With): on a 12+, turn the tables",
-      "forceToBeReckonedWithNote": "<strong>A Force to Be Reckoned With:</strong> on a 12+ you turn the tables on them. The GM will say how, or ask you to."
+      "forceToBeReckonedWithNote": "<strong>A Force to Be Reckoned With:</strong> on a 12+ you turn the tables on them. The GM will say how, or ask you to.",
+      "disturbing": "Using intimidation and your disturbing presence (Disturbing): advantage",
+      "deathlyVisage": "Using intimidation and your sinister appearance (Deathly Visage): advantage"
+    },
+    "postDeathMoves": {
+      "unstableNote": "<strong>Unstable:</strong> on a 6-, the GM can choose to have you enter an unthinking, unfeeling rage (as per Breakdown).",
+      "hpLost": "HP lost",
+      "hpLine": "HP {from} → {to}",
+      "furyHeld": "Holds {held} Fury (of {max})",
+      "noFury": "No Fury held to spend.",
+      "shattered": "{name} spends 1 Fury to shatter, break, or destroy a number of small mundane objects, or one big object ({held} Fury left).",
+      "possessDetail": "Possesses an unconscious or willing person",
+      "noFavor": "Not enough Favor held to spend.",
+      "favorAsk": "Spend how much Favor? You hold {held}, and the roll adds what you spend.",
+      "favorSpend": "Spend {n} Favor",
+      "favorSpent": "Spent {n} Favor",
+      "manifestAsk": "You manifest a ghostly presence in shadows or darkness, and the world becomes clear. Pick 1; for each additional option you pick, lose 1d4 HP.",
+      "manifestButton": "Manifest",
+      "manifested": "Manifests: {list}",
+      "manifestNote": "{name} manifests a ghostly presence: {list}.",
+      "pushAsk": "You push the limits of your undead body: lose 1d4 HP and choose 1.",
+      "ownDamage": "Deal your damage (forceful)",
+      "loseHp": "Lose {formula} HP",
+      "pinHp": "They strain to break free: spend 1 HP",
+      "pinDetail": "Holds them pinned as they strain to break free",
+      "moveDamage": "Roll {formula} damage",
+      "actions": {
+        "getAngry": {
+          "label": "Get angry",
+          "tooltip": "When you get angry, lose 1d4 HP and hold that much Fury."
+        },
+        "shatter": {
+          "label": "Shatter",
+          "tooltip": "Spend 1 Fury: shatter, break, or destroy a number of small mundane objects, or one big object.",
+          "empty": "You hold no Fury to spend. Get angry first."
+        },
+        "hurl": {
+          "label": "Hurl (+DEX)",
+          "tooltip": "Spend 1 Fury: hurl an object at someone and roll +DEX.",
+          "empty": "You hold no Fury to spend. Get angry first.",
+          "card": "Poltergeist: Hurl",
+          "rule": "Hurl an object at someone and roll +DEX: on a 10+, deal your damage (forceful); on a 7-9, deal your damage (forceful) but lose 1d4 HP.",
+          "success": "Deal your damage (forceful).",
+          "partial": "Deal your damage (forceful), but lose 1d4 HP."
+        },
+        "fling": {
+          "label": "Telekinetic force (+INT)",
+          "tooltip": "Spend 1 Fury: attack someone with telekinetic force and roll +INT.",
+          "empty": "You hold no Fury to spend. Get angry first.",
+          "card": "Poltergeist: Telekinetic Force",
+          "rule": "Attack someone with telekinetic force and roll +INT: on a 10+, fling them to a place you can see and pin them there, spending 1 HP each time they make a committed effort to break free; on a 7-9, as 10+, but you also lose 1d4 HP.",
+          "success": "Fling them to a place you can see and pin them there, spending 1 HP each time they make a committed effort to break free.",
+          "partial": "As 10+, but you also lose 1d4 HP."
+        },
+        "possess": {
+          "label": "Possess (lose 1d4 HP)",
+          "tooltip": "When you possess an unconscious or willing person, lose 1d4 HP and control their actions."
+        },
+        "manifest": {
+          "label": "Manifest",
+          "tooltip": "When you manifest a ghostly presence in shadows or darkness, pick 1. Each additional option costs 1d4 HP."
+        },
+        "push": {
+          "label": "Push your limits (lose 1d4 HP)",
+          "tooltip": "When you push the limits of your undead body, lose 1d4 HP and choose 1."
+        },
+        "lashOut": {
+          "label": "Lash out (spend Favor)",
+          "tooltip": "When you let your fury fly and lash out at someone, spend 1-3 Favor and roll +Favor spent.",
+          "empty": "You hold no Favor to spend."
+        },
+        "torment": {
+          "label": "Speak a word of torment (spend Favor)",
+          "tooltip": "Name someone nearby, spend 1-3 Favor, and roll +Favor spent.",
+          "empty": "You hold no Favor to spend."
+        }
+      },
+      "vermin": {
+        "name": "Vermin",
+        "title": "Home to Vermin",
+        "ask": "Bugs, moths, and other vermin have taken up residence in {name}'s corpse. Add them to the Followers tab as a group follower (tiny, gross, meek, stealthy; HP 1 each; Instinct to get distracted; Cost: genuine affection)?",
+        "yes": "Add the vermin to Followers",
+        "no": "Leave them off"
+      }
     },
     "wouldBeHero": {
       "refusedButton": "They refused: +1 Resolve",

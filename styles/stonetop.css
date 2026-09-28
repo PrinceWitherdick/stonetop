@@ -7617,6 +7617,28 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	gap: 4px 8px;
 }
 
+/* A post-death move's own buttons under its text (Poltergeist's Get angry and Fury spends, Red Wrath's
+   Favor roll): one wrapping row, the same inline buttons Up With People's Converse uses. */
+.stonetop-move-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 6px;
+	margin-top: 4px;
+}
+
+/* Disembodied's manifest question: one printed option per row, its box beside it. */
+.stonetop-pd-manifest {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+.stonetop-pd-manifest-option {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+}
+
 /* A move-track pip with a label of its own is set off behind a bar, as the book prints Up With
    People's: your two Rapport, a bar, then the one they hold ("theirs", an NPC's, on its own line). */
 .stonetop-item-resources .stonetop-item-resource-entry:has(> .stonetop-resource-label) {
