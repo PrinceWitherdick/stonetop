@@ -20,10 +20,10 @@ function marshal({ chosen = true, crew = { name: "The Iron Wolves" }, loyalty = 
 	};
 	const actor = {
 		name: "Ser Brannoc",
-		flags: { "stonetop-pwd": flags },
+		flags: { "stonetop_pwd": flags },
 		getFlag: (_scope, key) => key.split(".").reduce((node, part) => node?.[part], flags),
 		update: vi.fn(async changes => {
-			if ("flags.stonetop-pwd.crew.loyalty" in changes) flags.crew.loyalty = changes["flags.stonetop-pwd.crew.loyalty"];
+			if ("flags.stonetop_pwd.crew.loyalty" in changes) flags.crew.loyalty = changes["flags.stonetop_pwd.crew.loyalty"];
 		}),
 	};
 	return actor;
@@ -70,7 +70,7 @@ describe("displaying the personal symbol", () => {
 	it("gives the crew +1 Loyalty, names the possession to the ledger, and says so in chat", async () => {
 		const actor = marshal({ loyalty: 1 });
 		expect(await displayPersonalSymbol(actor)).toEqual({ applied: true, loyalty: 2 });
-		expect(actor.update).toHaveBeenCalledWith({ "flags.stonetop-pwd.crew.loyalty": 2 }, { stonetopMove: PERSONAL_SYMBOL });
+		expect(actor.update).toHaveBeenCalledWith({ "flags.stonetop_pwd.crew.loyalty": 2 }, { stonetopMove: PERSONAL_SYMBOL });
 		expect(posted).toHaveLength(1);
 		expect(posted[0].content).toContain("Ser Brannoc displays their personal symbol: The Iron Wolves holds +1 Loyalty (now 2 of 3).");
 	});
@@ -88,7 +88,7 @@ describe("displaying the personal symbol", () => {
 		await displayPersonalSymbol(actor);
 		await displayPersonalSymbol(actor);
 		expect(actor.update).toHaveBeenCalledTimes(1);
-		expect(actor.getFlag("stonetop-pwd", "crew.loyalty")).toBe(3);
+		expect(actor.getFlag("stonetop_pwd", "crew.loyalty")).toBe(3);
 	});
 
 	it("does nothing without a crew, and calls an unnamed crew theirs", async () => {

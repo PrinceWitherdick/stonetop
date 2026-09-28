@@ -27,7 +27,7 @@ import {
 import { openBookReader } from "./BookReaderWindow.js";
 import { localize } from "../utils/i18n.js";
 
-const TEMPLATE = "systems/stonetop-pwd/templates/dialogs/rulebooks.hbs";
+const TEMPLATE = "systems/stonetop_pwd/templates/dialogs/rulebooks.hbs";
 const DIALOG_ID = "stonetop-rulebooks";
 
 /**

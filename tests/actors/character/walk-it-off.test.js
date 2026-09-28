@@ -19,7 +19,7 @@ const SOURCE = sourceMovesFor("The Ranger").find(d => d.name === WALK_IT_OFF);
 function ranger({ held = true, learned = true, marked = false, hp = 8 } = {}) {
 	const items = held
 		? [makeLiveItem({ name: WALK_IT_OFF, type: "move", system: structuredClone(SOURCE.system),
-			flags: learned ? undefined : { "stonetop-pwd": { learned: false } } })]
+			flags: learned ? undefined : { "stonetop_pwd": { learned: false } } })]
 		: [];
 	const { char, actor } = buildLiveCharacter({ slug: "the-ranger", name: "The Ranger", level: 6, items,
 		flags: marked ? { "moves.backgroundChoices": { [WALK_IT_OFF]: 1 } } : {} });
@@ -28,7 +28,7 @@ function ranger({ held = true, learned = true, marked = false, hp = 8 } = {}) {
 	return { char, actor };
 }
 
-const boxMarked = actor => actor.flags["stonetop-pwd"].moves?.backgroundChoices?.[WALK_IT_OFF] ?? 0;
+const boxMarked = actor => actor.flags["stonetop_pwd"].moves?.backgroundChoices?.[WALK_IT_OFF] ?? 0;
 const debilitiesMarked = actor => Object.entries(actor.system.attributes.debilities.options)
 	.filter(([, o]) => o.value).map(([key]) => key);
 const walkItOffOf = char => char.debilityChoices.find(d => d.key === WALK_IT_OFF_KEY);
@@ -113,7 +113,7 @@ describe("cleared as a debility is", () => {
 	});
 
 	it("writes the move's own track, never a debility box", () => {
-		expect(debilityData(WALK_IT_OFF_KEY, false)).toEqual({ [`flags.stonetop-pwd.moves.backgroundChoices.${WALK_IT_OFF}`]: 0 });
+		expect(debilityData(WALK_IT_OFF_KEY, false)).toEqual({ [`flags.stonetop_pwd.moves.backgroundChoices.${WALK_IT_OFF}`]: 0 });
 		expect(debilityData("dazed", false)).toEqual({ "system.attributes.debilities.options.dazed.value": false });
 	});
 });

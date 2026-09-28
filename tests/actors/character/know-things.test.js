@@ -64,7 +64,7 @@ describe("logbookUses", () => {
 	// Seeker audit (2026-09-26): a rule asks the LEARNED move. A Logbook kept on the sheet switched
 	// off offered its consult button all the same.
 	it("is null for a Logbook kept on the sheet un-learned", () => {
-		const off = { ...logbook, flags: { "stonetop-pwd": { learned: false } } };
+		const off = { ...logbook, flags: { "stonetop_pwd": { learned: false } } };
 		expect(logbookUses(actorWith(off), {})).toBeNull();
 	});
 
@@ -87,7 +87,7 @@ describe("knowThingsRollOptions", () => {
 	});
 
 	it("leaves the roll untouched for a Never at a Loss kept on the sheet un-learned", () => {
-		const off = { type: "move", name: NEVER_AT_A_LOSS, system: {}, flags: { "stonetop-pwd": { learned: false } } };
+		const off = { type: "move", name: NEVER_AT_A_LOSS, system: {}, flags: { "stonetop_pwd": { learned: false } } };
 		expect(knowThingsRollOptions(actorWith(KNOW_THINGS, off))).toBeNull();
 	});
 

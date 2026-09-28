@@ -507,7 +507,7 @@ describe("telling a marker apart from everything else on a scene", () => {
 		// itself, which shows up as a second set standing beside the first.
 		const suffixes = [PLACE_MARKER_ICON_SUFFIX, PLACE_EXIT_ICON_SUFFIX, PLACE_PEAK_ICON_SUFFIX];
 		for (const suffix of suffixes) {
-			expect(isPlaceMarkerNote({ texture: { src: `systems/stonetop-pwd/${suffix}` } }), suffix).toBe(true);
+			expect(isPlaceMarkerNote({ texture: { src: `systems/stonetop_pwd/${suffix}` } }), suffix).toBe(true);
 			expect(isPlaceMarkerNote({ texture: { src: `systems/stonetop_pwd/${suffix}` } }), suffix).toBe(true);
 		}
 		for (const kind of ["place", "exit", "peak", "region"]) {
@@ -520,8 +520,8 @@ describe("telling a marker apart from everything else on a scene", () => {
 	});
 
 	it("leaves the lettered discs, the prep pins and everyone else's notes alone", () => {
-		expect(isPlaceMarkerNote({ texture: { src: "systems/stonetop-pwd/assets/icons/landmarks/landmark-c.svg" } })).toBe(false);
-		expect(isPlaceMarkerNote({ texture: { src: "systems/stonetop-pwd/assets/icons/threat-note.svg" } })).toBe(false);
+		expect(isPlaceMarkerNote({ texture: { src: "systems/stonetop_pwd/assets/icons/landmarks/landmark-c.svg" } })).toBe(false);
+		expect(isPlaceMarkerNote({ texture: { src: "systems/stonetop_pwd/assets/icons/threat-note.svg" } })).toBe(false);
 		expect(isPlaceMarkerNote({ texture: { src: "icons/svg/book.svg" } })).toBe(false);
 		expect(isPlaceMarkerNote({ texture: {} })).toBe(false);
 		expect(isPlaceMarkerNote(undefined)).toBe(false);

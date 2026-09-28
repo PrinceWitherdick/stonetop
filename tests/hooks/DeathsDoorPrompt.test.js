@@ -6,7 +6,7 @@ import {
 } from "../../module/hooks/DeathsDoorPrompt.js";
 import { DEATHS_DOOR_STATE } from "../../module/actors/character/deaths-door.js";
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 /** The English table tests/setup.js loads, kept before any test replaces the game global. */
 const ENGLISH = global.game.i18n;
 

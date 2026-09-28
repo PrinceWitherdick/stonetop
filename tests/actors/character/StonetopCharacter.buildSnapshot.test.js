@@ -34,7 +34,7 @@ afterEach(() => {
 const HEAVY_PLAYBOOK = {
 	slug: "the-heavy",
 	name: "The Heavy",
-	img: "systems/stonetop-pwd/assets/playbooks/the-heavy.svg",
+	img: "systems/stonetop_pwd/assets/playbooks/the-heavy.svg",
 	description: "<p>You are the muscle.</p>",
 	statsNote: "Put your highest stat in STR or CON.",
 	hp: 20,
@@ -138,7 +138,7 @@ describe("buildSnapshot — playbook section", () => {
 		const snap = await buildSnap();
 		expect(snap.playbook.slug).toBe("the-heavy");
 		expect(snap.playbook.name).toBe("The Heavy");
-		expect(snap.playbook.img).toBe("systems/stonetop-pwd/assets/playbooks/the-heavy.svg");
+		expect(snap.playbook.img).toBe("systems/stonetop_pwd/assets/playbooks/the-heavy.svg");
 		expect(snap.playbook.description).toBe("<p>You are the muscle.</p>");
 		expect(snap.playbook.statsNote).toBe("Put your highest stat in STR or CON.");
 	});
@@ -747,7 +747,7 @@ describe("buildSnapshot — moves", () => {
 			.addItem({
 				_id: "fm1", type: "move", name: "Smash",
 				system: { moveType: "playbook", playbook: "The Heavy", description: "Smash desc", rollType: "str" },
-				flags: { "stonetop-pwd": { grantedBy: { move: "Versatile", instanceId: "v1" } } },
+				flags: { "stonetop_pwd": { grantedBy: { move: "Versatile", instanceId: "v1" } } },
 			})
 			.build();
 		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
@@ -1156,7 +1156,7 @@ describe("buildSnapshot — inventory.outfit", () => {
 			.addItem({
 				type: "move", name: "Bear the Standard",
 				system: {moveType: "other", loadBonus: 1},
-				flags: {"stonetop-pwd": {custom: true, learned: false}},
+				flags: {"stonetop_pwd": {custom: true, learned: false}},
 			})
 			.build();
 		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
@@ -1487,7 +1487,7 @@ describe("buildSnapshot — inventory: possession-derived special items", () => 
 			get: () => null,
 			find: () => ({
 				type: "stonetop",
-				flags: { "stonetop-pwd": { steading: { improvements: { weaponsOfWar: { completed: true } } } } },
+				flags: { "stonetop_pwd": { steading: { improvements: { weaponsOfWar: { completed: true } } } } },
 			}),
 		};
 
@@ -1516,7 +1516,7 @@ describe("buildSnapshot — inventory: possession-derived special items", () => 
 			find: () => ({
 				type: "stonetop",
 				system: { attributes: { prosperity: { value: 1 } } },
-				flags: { "stonetop-pwd": { steading: { improvements: { weaponsOfWar: { completed: true } } } } },
+				flags: { "stonetop_pwd": { steading: { improvements: { weaponsOfWar: { completed: true } } } } },
 			}),
 		};
 		const snap = await new TestCharacterBuilder(makeHeavyActor())
@@ -1536,7 +1536,7 @@ describe("buildSnapshot — inventory: possession-derived special items", () => 
 		const steading = (steadingFlags = {}) => ({
 			type: "stonetop",
 			system: { attributes: { prosperity: { value: 1 } } },
-			flags: { "stonetop-pwd": { steading: steadingFlags } },
+			flags: { "stonetop_pwd": { steading: steadingFlags } },
 		});
 		const usesWith = async steadingDoc => {
 			global.game.actors = { get: () => null, find: () => steadingDoc };
@@ -1581,7 +1581,7 @@ describe("buildSnapshot — inventory: possession-derived special items", () => 
 			get: () => null,
 			find: () => ({
 				type: "stonetop",
-				flags: { "stonetop-pwd": { steading: { improvements: { weaponsOfWar: { completed: false } } } } },
+				flags: { "stonetop_pwd": { steading: { improvements: { weaponsOfWar: { completed: false } } } } },
 			}),
 		};
 
@@ -1598,7 +1598,7 @@ describe("buildSnapshot — inventory: possession-derived special items", () => 
 			get: () => null,
 			find: () => ({
 				type: "stonetop",
-				flags: { "stonetop-pwd": { steading: { improvements: { weaponsOfWar: { completed: true } } } } },
+				flags: { "stonetop_pwd": { steading: { improvements: { weaponsOfWar: { completed: true } } } } },
 			}),
 		};
 
@@ -2688,7 +2688,7 @@ describe("buildSnapshot — movelist / level move budget", () => {
 			defs:  [pbMove("a", "Alpha"), pbMove("b", "Bravo"), pbMove("c", "Charlie"),
 				pbMove("r", "Rampart", { replaces: "Charlie" })],
 			items: [ownedMove("a1", "Alpha"), ownedMove("b1", "Bravo"),
-				{ ...ownedMove("r1", "Rampart"), flags: { "stonetop-pwd": { retiredMove: "Charlie" } } }],
+				{ ...ownedMove("r1", "Rampart"), flags: { "stonetop_pwd": { retiredMove: "Charlie" } } }],
 		});
 		expect(ml.levelMovesIncomplete).toBe(false);
 		expect(ml.levelMovesShortfall).toBe(0);

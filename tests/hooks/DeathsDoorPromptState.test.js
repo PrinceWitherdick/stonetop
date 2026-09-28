@@ -10,7 +10,7 @@ import { UNSTOPPABLE_INSTEAD_OPTION, UNSTOPPABLE_REGAIN_OPTION } from "../../mod
 import { BATTLE_JOY_DROPPED_OPTION } from "../../module/actors/character/battle-joy.js";
 import { FakeActorBuilder } from "../fakes/FakeActorBuilder.js";
 
-const STATE_PATH = "flags.stonetop-pwd.deathsDoor";
+const STATE_PATH = "flags.stonetop_pwd.deathsDoor";
 
 /**
  * A character about to take a hit, with whatever death flags the case needs. The prompt setting is
@@ -38,7 +38,7 @@ function recorded(actor, newHp, options = {}) {
 	const changes = { system: { attributes: { hp: { value: newHp } } } };
 	onPreUpdateActorDeathsDoor(actor, changes, options);
 	// setProperty writes the dotted path as a real nesting; read it either way.
-	return changes.flags?.["stonetop-pwd"]?.deathsDoor ?? changes[STATE_PATH];
+	return changes.flags?.["stonetop_pwd"]?.deathsDoor ?? changes[STATE_PATH];
 }
 
 /** Run the pair the way Foundry does: one options object handed to both halves. */
@@ -89,14 +89,14 @@ describe("onPreUpdateActorDeathsDoor — the state a hit records", () => {
 		const actor = about({ deathsDoor: DEATHS_DOOR_STATE.DYING, deathsDoorRolling: { userId: "p1", nonce: "n1" } }, 0);
 		const changes = {
 			system: { attributes: { hp: { value: 6 } } },
-			flags: { "stonetop-pwd": { deathsDoor: DEATHS_DOOR_STATE.OUT_OF_ACTION } },
+			flags: { "stonetop_pwd": { deathsDoor: DEATHS_DOOR_STATE.OUT_OF_ACTION } },
 		};
 
 		onPreUpdateActorDeathsDoor(actor, changes, {});
 
-		expect(changes.flags["stonetop-pwd"].deathsDoor).toBe(DEATHS_DOOR_STATE.OUT_OF_ACTION);
+		expect(changes.flags["stonetop_pwd"].deathsDoor).toBe(DEATHS_DOOR_STATE.OUT_OF_ACTION);
 		// Still the end of this brush with death, so a roll left on the sheet goes with it.
-		expect(changes.flags["stonetop-pwd"]).toHaveProperty(["-=deathsDoorRolling"], null);
+		expect(changes.flags["stonetop_pwd"]).toHaveProperty(["-=deathsDoorRolling"], null);
 	});
 
 	// Nothing walks `dead` back on its own — the raise is asked about, never assumed.
@@ -128,20 +128,20 @@ describe("onPreUpdateActorDeathsDoor: Unstoppable's mark instead of hit points",
 	it("keeps them at 0 HP and dying, clears a mark, and stamps what they would have had", () => {
 		const { changes, options } = heal(fightingOn(3), 4);
 		expect(changes.system.attributes.hp.value).toBe(0);
-		expect(changes.flags["stonetop-pwd"].moves.backgroundChoices.Unstoppable).toBe(2);
+		expect(changes.flags["stonetop_pwd"].moves.backgroundChoices.Unstoppable).toBe(2);
 		// No state change written: they are still dying, still fighting.
-		expect(changes.flags["stonetop-pwd"].deathsDoor).toBeUndefined();
+		expect(changes.flags["stonetop_pwd"].deathsDoor).toBeUndefined();
 		expect(options[UNSTOPPABLE_INSTEAD_OPTION]).toEqual({ hp: 4, marks: 2 });
 	});
 
 	it("lets the hit points through with no mark left to clear", () => {
 		const { changes } = heal(fightingOn(0), 4);
 		expect(changes.system.attributes.hp.value).toBe(4);
-		expect(changes.flags["stonetop-pwd"].deathsDoor).toBeNull();
+		expect(changes.flags["stonetop_pwd"].deathsDoor).toBeNull();
 	});
 
 	it("leaves the write that settles the Door alone (Death's Door's 1 HP)", () => {
-		const { changes, options } = heal(fightingOn(3), 1, { flags: { "stonetop-pwd": { deathsDoor: null } } });
+		const { changes, options } = heal(fightingOn(3), 1, { flags: { "stonetop_pwd": { deathsDoor: null } } });
 		expect(changes.system.attributes.hp.value).toBe(1);
 		expect(options[UNSTOPPABLE_INSTEAD_OPTION]).toBeUndefined();
 	});
@@ -169,7 +169,7 @@ describe("onPreUpdateActorDeathsDoor: a raging Heavy dropping to 0 HP", () => {
 		const options = {};
 		const changes = { system: { attributes: { hp: { value: hp } } } };
 		onPreUpdateActorDeathsDoor(actor, changes, options);
-		return { bag: changes.flags?.["stonetop-pwd"] ?? {}, options };
+		return { bag: changes.flags?.["stonetop_pwd"] ?? {}, options };
 	}
 
 	it("ends the Battle Joy in the same write, and stamps it for the chat line", () => {
@@ -206,7 +206,7 @@ describe("onPreUpdateActorDeathsDoor: a Death's Door roll left on the sheet", ()
 	function hit(flags, oldHp, newHp) {
 		const changes = { system: { attributes: { hp: { value: newHp } } } };
 		onPreUpdateActorDeathsDoor(about(flags, oldHp), changes, {});
-		return changes.flags?.["stonetop-pwd"] ?? {};
+		return changes.flags?.["stonetop_pwd"] ?? {};
 	}
 
 	it("is dropped by the write that makes them dying afresh", () => {
@@ -259,7 +259,7 @@ describe("onUpdateActorDeathsDoorRaised — asking whether they are back", () =>
 
 		expect(opened).toHaveLength(1);
 		expect(opened[0].title).toContain("Brakkos");
-		expect(actor.unsetFlag).toHaveBeenCalledWith("stonetop-pwd", "deathsDoor");
+		expect(actor.unsetFlag).toHaveBeenCalledWith("stonetop_pwd", "deathsDoor");
 	});
 
 	// "No" writes nothing at all: the hit points stay where the GM put them, and the only thing

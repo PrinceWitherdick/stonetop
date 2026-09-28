@@ -101,7 +101,7 @@ export class WelcomeDialog extends Application {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-welcome",
 			title:     "Welcome to Stonetop",
-			template:  "systems/stonetop-pwd/templates/dialogs/welcome.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/welcome.hbs",
 			// Left-rail tabbed sheet (like Run an Expedition / Make a Monster): the rail
 			// keeps the window short by showing one step at a time, so it needs less height
 			// than the old single-scroll guide and a touch more width for the rail.

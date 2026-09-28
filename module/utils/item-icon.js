@@ -11,9 +11,9 @@ import { isDefaultImg } from "./strings.js";
  * is the triple spiral the books stamp beside an arcanum (Book II p.545).
  */
 export const STONETOP_ITEM_ICONS = Object.freeze({
-	move:    "systems/stonetop-pwd/assets/icons/move.svg",
-	arcanum: "systems/stonetop-pwd/assets/icons/arcanum.svg",
-	object:  "systems/stonetop-pwd/assets/icons/treasures/vase.svg",
+	move:    "systems/stonetop_pwd/assets/icons/move.svg",
+	arcanum: "systems/stonetop_pwd/assets/icons/arcanum.svg",
+	object:  "systems/stonetop_pwd/assets/icons/treasures/vase.svg",
 });
 
 /** Item sub-types that are nothing but moves, whatever their `moveType` says. */

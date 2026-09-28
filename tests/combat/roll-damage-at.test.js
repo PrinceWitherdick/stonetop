@@ -415,7 +415,7 @@ describe("Apply damage and the fight's rules", () => {
 	it("rolls a foe's damage at disadvantage against a hero who locked eyes with it (Big Damn Hero)", async () => {
 		const pim = hero("pim", "Pim");
 		const { tokenActor, combat } = fightInARow([["crin", crinwin("crinwin")], ["pim", pim]]);
-		combat.combatants.get("cpim").flags["stonetop-pwd"].lockedEyes = ["ccrin"];
+		combat.combatants.get("cpim").flags["stonetop_pwd"].lockedEyes = ["ccrin"];
 		await rollDamageAt(tokenActor("crin"), { formula: "d6", label: "Bite", shiftKey: true });
 		expect(damageFlag().results[0].formula).toBe("2d6kl1");
 	});
@@ -423,7 +423,7 @@ describe("Apply damage and the fight's rules", () => {
 	it("rolls straight when the foe's blow already had advantage: locked eyes cancels it (p.230)", async () => {
 		const pim = hero("pim", "Pim");
 		const { tokenActor, combat } = fightInARow([["crin", crinwin("crinwin")], ["pim", pim]]);
-		combat.combatants.get("cpim").flags["stonetop-pwd"].lockedEyes = ["ccrin"];
+		combat.combatants.get("cpim").flags["stonetop_pwd"].lockedEyes = ["ccrin"];
 		await rollDamageAt(tokenActor("crin"), { formula: "d6", label: "Bite", rollMode: "adv", shiftKey: true });
 		expect(damageFlag().results[0].formula).toBe("d6");
 	});
@@ -444,7 +444,7 @@ describe("Unstoppable on the damage card", () => {
 	const fightingOn = (id, name, marks = 1) => {
 		const actor = hero(id, name);
 		actor.system.attributes.hp.value = 0;
-		actor.flags = { "stonetop-pwd": { deathsDoor: "dying", moves: { backgroundChoices: { Unstoppable: marks } } } };
+		actor.flags = { "stonetop_pwd": { deathsDoor: "dying", moves: { backgroundChoices: { Unstoppable: marks } } } };
 		actor.items = [{ type: "move", name: "Unstoppable", system: { resource: { max: 5 } }, flags: {} }];
 		actor.getFlag = (scope, key) => key.split(".").reduce((v, k) => v?.[k], actor.flags[scope]);
 		actor.update = vi.fn(async function (changes) {
@@ -457,7 +457,7 @@ describe("Unstoppable on the damage card", () => {
 		});
 		return actor;
 	};
-	const marksOf = actor => actor.flags["stonetop-pwd"].moves.backgroundChoices.Unstoppable;
+	const marksOf = actor => actor.flags["stonetop_pwd"].moves.backgroundChoices.Unstoppable;
 
 	it("marks 1 when a Heavy fighting on at 0 HP takes damage, and says so on the applied card", async () => {
 		const bram = fightingOn("bram", "Bram", 1);
@@ -609,7 +609,7 @@ describe("a character's own damage, with the weapon in hand", () => {
 		expect(await strikeBackAt(pim, tokens.crin.uuid, "Parry", { commit: async () => true })).toBe(true);
 		// The blow's half of the grudge (a record written before the halves were kept apart owes both):
 		// the advantage on the next roll against them is left owed.
-		expect(pim.setFlag).toHaveBeenCalledWith("stonetop-pwd", "knockedDownBy", { key: "Scene.scene1.Token.tcrin", name: "Crinwin", roll: true, blow: false });
+		expect(pim.setFlag).toHaveBeenCalledWith("stonetop_pwd", "knockedDownBy", { key: "Scene.scene1.Token.tcrin", name: "Crinwin", roll: true, blow: false });
 	});
 
 	it("strikes back from a parry with the weapon too (p.216 \"deal your damage\")", async () => {
@@ -906,7 +906,7 @@ describe("a move's own damage at somebody it names (Castigate)", () => {
 // it landed on, so the hero at 5 HP took it whole.
 describe("Never Gonna Keep Me Down on a move's own damage", () => {
 	const wbh = (hp, learned = true) => Object.assign(hero("pim", "Pim"), {
-		items: [{ type: "move", name: "Never Gonna Keep Me Down", flags: learned ? {} : { "stonetop-pwd": { learned: false } } }],
+		items: [{ type: "move", name: "Never Gonna Keep Me Down", flags: learned ? {} : { "stonetop_pwd": { learned: false } } }],
 		system: { attributes: { armor: { value: 0 }, hp: { value: hp, max: 12 }, damage: { value: "d6" } } },
 	});
 	const at = actor => {
@@ -1131,7 +1131,7 @@ describe("Blot Out the Sun", () => {
 		fightInARow([["wren", wren], ["crin", crinwin("crinwin")]]);
 		const begun = await maybeBeginAttack(wren, { name: "Let Fly" });
 		expect(begun.messageFlags[SCOPE].attack.damageMode).toBe("adv");
-		expect(wren.updates).toMatchObject({ "flags.stonetop-pwd.inventory.resources.bow-arrows": 1 });
+		expect(wren.updates).toMatchObject({ "flags.stonetop_pwd.inventory.resources.bow-arrows": 1 });
 		expect(posted.at(-1).content).toContain("Low ammo");
 	});
 
@@ -1142,7 +1142,7 @@ describe("Blot Out the Sun", () => {
 		const begun = await maybeBeginAttack(wren, { name: "Let Fly" });
 		expect(begun.messageFlags[SCOPE].attack.damageMode).toBeUndefined();
 		expect(wait).toHaveBeenCalledTimes(1);
-		expect(wren.updates).toMatchObject({ "flags.stonetop-pwd.inventory.resources.bow-arrows": 1 });
+		expect(wren.updates).toMatchObject({ "flags.stonetop_pwd.inventory.resources.bow-arrows": 1 });
 	});
 
 	/** Answer each window in turn by the key it is pressed with; anything unlisted closes. */
@@ -1175,7 +1175,7 @@ describe("Blot Out the Sun", () => {
 		fightInARow([["wren", wren], ["crin", crinwin("crinwin")]]);
 		pressInTurn(["deal", "advantage", "roll"]);
 		expect(await maybeBeginAttack(wren, { name: "Let Fly" })).toBe("handled");
-		expect(wren.updates).toMatchObject({ "flags.stonetop-pwd.inventory.resources.bow-arrows": 1 });
+		expect(wren.updates).toMatchObject({ "flags.stonetop_pwd.inventory.resources.bow-arrows": 1 });
 		expect(posted.some(card => card.content?.includes?.("looses a volley"))).toBe(true);
 	});
 
@@ -1219,7 +1219,7 @@ describe("Blot Out the Sun", () => {
 		fightInARow([["wren", wren], ["crin", crinwin("crinwin")]]);
 		const begun = await maybeBeginAttack(wren, { name: "Let Fly" });
 		expect(begun.messageFlags[SCOPE].attack.weapon).toMatchObject({ slug: "bow-arrows", ammo: true, ammoMax: 2 });
-		expect(wren.updates).toEqual({ "flags.stonetop-pwd.inventory.resources.bow-arrows": 2 });
+		expect(wren.updates).toEqual({ "flags.stonetop_pwd.inventory.resources.bow-arrows": 2 });
 		expect(posted.at(-1).content).toContain("All out");
 	});
 });
@@ -1237,7 +1237,7 @@ describe("a follower's damage from their card", () => {
 		const { tokens, tokenActor, combat } = fightInARow([
 			["crin", crinwin("crinwin")], ["pim", pim], ["ally", hero("ally", "Ally")], ["hound", hound()], ["crin2", crinwin("crinwin2")],
 		]);
-		combat.combatants.get("chound").flags["stonetop-pwd"].side = "heroes";
+		combat.combatants.get("chound").flags["stonetop_pwd"].side = "heroes";
 		expect(await rollFollowerDamageAt(pim, crewBlow({ fighter: tokenActor("hound"), label: "Gwyn attacks", attacker: "Gwyn" }))).toBe(true);
 		expect(damageFlag().results.map(r => r.uuid)).toEqual([tokens.crin2.uuid]);
 	});
@@ -1266,7 +1266,7 @@ describe("a follower's damage from their card", () => {
 
 		// The character's own blow at the same foe is a shot, which is what the follower's must not be.
 		await rollDamageAt(pim, { formula: "d8", label: "Damage", shiftKey: true });
-		expect(update).toHaveBeenCalledWith({ "flags.stonetop-pwd.shots": ["cfar"] });
+		expect(update).toHaveBeenCalledWith({ "flags.stonetop_pwd.shots": ["cfar"] });
 	});
 
 	it("names a hand-targeted foe by its token, not the actor every one of them shares", async () => {

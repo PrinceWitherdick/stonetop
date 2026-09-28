@@ -111,7 +111,7 @@ describe("a homefront roll, with what the steading has built", () => {
 		expect(lastRoll()[2].rollMode).toBe("normal");
 		expect(STEADING_JS).toMatch(/pathfinder: worldLearnedHolderNames\(PATHFINDER\)/);
 		const { worldLearnedHolderNames } = await import("../../../module/actors/character/owns-move.js");
-		const ranger = (name, learned) => ({ name, type: "character", items: [{ type: "move", name: "Pathfinder", flags: learned ? {} : { "stonetop-pwd": { learned: false } } }] });
+		const ranger = (name, learned) => ({ name, type: "character", items: [{ type: "move", name: "Pathfinder", flags: learned ? {} : { "stonetop_pwd": { learned: false } } }] });
 		vi.stubGlobal("game", { actors: { contents: [ranger("Rook", true), ranger("Ash", false), { name: "Stonetop", type: "stonetop", items: [] }] } });
 		try { expect(worldLearnedHolderNames("Pathfinder")).toEqual(["Rook"]); } finally { vi.unstubAllGlobals(); }
 	});

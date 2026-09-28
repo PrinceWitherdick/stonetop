@@ -7,7 +7,7 @@ const bare = (type, moveType) => ({ img: "icons/svg/item-bag.svg", type, system:
 describe("stonetopThumbnail", () => {
 	describe("art the item chose for itself", () => {
 		it("wins over any fallback", () => {
-			const art = "systems/stonetop-pwd/assets/icons/arcana/icon-arcana-mindgem.webp";
+			const art = "systems/stonetop_pwd/assets/icons/arcana/icon-arcana-mindgem.webp";
 			expect(stonetopThumbnail({ ...bare("move", "arcanum"), img: art })).toBe(art);
 		});
 

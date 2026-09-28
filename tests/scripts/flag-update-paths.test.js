@@ -7,14 +7,14 @@ import { SYSTEM_ID } from "../../module/system-id.js";
 // A document update path is a STRING that Foundry splits on "." (foundry.utils.setProperty).
 // A hyphen is perfectly legal inside one, so the scope is written plainly:
 //
-//     actor.update({ [`flags.stonetop-pwd.customFollowers.${id}`]: data })   ✅
+//     actor.update({ [`flags.stonetop_pwd.customFollowers.${id}`]: data })   ✅
 //
 // Bracket form belongs to CODE, where a hyphen can't sit in an identifier:
 //
-//     actor.flags["stonetop-pwd"].customFollowers                            ✅
+//     actor.flags["stonetop_pwd"].customFollowers                            ✅
 //
-// Mixing them up is silent. `flags["stonetop-pwd"].customFollowers.<id>` splits into
-// ["flags[\"stonetop-pwd\"]", "customFollowers", "<id>"], so the write lands on a
+// Mixing them up is silent. `flags["stonetop_pwd"].customFollowers.<id>` splits into
+// ["flags[\"stonetop_pwd\"]", "customFollowers", "<id>"], so the write lands on a
 // top-level field the Actor schema has never heard of and is dropped without an error —
 // the button "works", nothing is saved. That is exactly what the system-id rename's
 // bracketizer did to twelve follower writes when its hand-rolled lexer lost sync inside a
@@ -53,7 +53,7 @@ const isComment = (line) => /^\s*(\/\/|\/?\*)/.test(line);
 
 // A quote character right before `flags[`: the bracket sits inside a string, so the string
 // is a path and the brackets are wrong. Code position is always reached through a dot
-// (`actor.flags["stonetop-pwd"]`), never through a quote.
+// (`actor.flags["stonetop_pwd"]`), never through a quote.
 const BRACKETED_IN_STRING = /['"`]\s*flags\[/;
 
 /** `file:line: text` for every line where a quote is immediately followed by `flags[`. */
@@ -78,9 +78,9 @@ describe("flag update paths", () => {
 
 	it("catches the shape that actually shipped", () => {
 		// Guard the guard: the line below is verbatim what the bracketizer left behind.
-		expect(BRACKETED_IN_STRING.test('update[`flags["stonetop-pwd"].customFollowers.${id}`] = data')).toBe(true);
-		expect(BRACKETED_IN_STRING.test('await actor.update({ [`flags.stonetop-pwd.beastHp.${slug}`]: val })')).toBe(false);
-		expect(BRACKETED_IN_STRING.test('const bag = actor.flags["stonetop-pwd"].customFollowers;')).toBe(false);
+		expect(BRACKETED_IN_STRING.test('update[`flags["stonetop_pwd"].customFollowers.${id}`] = data')).toBe(true);
+		expect(BRACKETED_IN_STRING.test('await actor.update({ [`flags.stonetop_pwd.beastHp.${slug}`]: val })')).toBe(false);
+		expect(BRACKETED_IN_STRING.test('const bag = actor.flags["stonetop_pwd"].customFollowers;')).toBe(false);
 	});
 
 	it("writes the follower stores as plain dotted paths", () => {

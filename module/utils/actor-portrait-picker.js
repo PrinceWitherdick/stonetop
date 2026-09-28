@@ -4,7 +4,7 @@
 // steading roster row living in a flag array, a follower card living under its own detail
 // namespace — so each has to wire the gallery up to that place itself. The three SHEETS do not
 // differ like that: a player character, an NPC and a monster all wear their face as `actor.img`
-// and frame it at `flags["stonetop-pwd"].portraitFrame`. All three therefore ask the same three
+// and frame it at `flags["stonetop_pwd"].portraitFrame`. All three therefore ask the same three
 // questions — what is this person wearing, who else is already wearing what, and where does a
 // pick go — so this is where those answers are given once, and each sheet only has to say which
 // actor it means.

@@ -65,7 +65,7 @@ function answersTo(target, ids) {
 export function onUpdateCondemned(actor, changed) {
 	if (actor?.type !== "character") return;
 	// ⚠ BRACKETS off SYSTEM_ID, never a dotted path: the package id is hyphenated, so a dotted
-	// `changed.flags.stonetop-pwd` parses as a subtraction and throws at runtime. Same trap
+	// `changed.flags.stonetop_pwd` parses as a subtraction and throws at runtime. Same trap
 	// ActorDirectoryNames.js documents.
 	const bag = changed?.flags?.[SYSTEM_ID];
 	if (!bag) return;

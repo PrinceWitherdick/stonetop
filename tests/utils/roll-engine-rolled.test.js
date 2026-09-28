@@ -27,7 +27,7 @@ beforeEach(() => {
 });
 
 const actor = () => new FakeActorBuilder().withXp(0, 8).withLevel(1).build();
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 
 describe("rollStat's record of what was rolled", () => {
 	it("stamps the stat, the heading and the bends beside a producer's own flags", async () => {

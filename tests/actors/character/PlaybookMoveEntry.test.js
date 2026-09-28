@@ -130,7 +130,7 @@ describe("PlaybookMoveEntry (a move that replaces another)", () => {
 
 	it("once it has retired the original, the original's absence is not a broken prerequisite", () => {
 		// StonetopCharacter#_retireReplacedMove stamps the copy that retired it.
-		const retiredIt = { _id: "r1", flags: { "stonetop-pwd": { retiredMove: "Bulwark" } } };
+		const retiredIt = { _id: "r1", flags: { "stonetop_pwd": { retiredMove: "Bulwark" } } };
 		const entry = new PlaybookMoveEntry(rampart, [retiredIt], NO_BG, ownedByName("A Mighty Rampart"), 6, "The Judge");
 		expect(entry.locked).toBe(false);
 		expect(entry.requirementsUnmet).toBe(false);
@@ -143,7 +143,7 @@ describe("PlaybookMoveEntry (a move that replaces another)", () => {
 		expect(entry.locked).toBe(true);
 		expect(entry.requirementsUnmet).toBe(true);
 		// Nor does a stamp naming some other move excuse it.
-		const other = { _id: "b1", flags: { "stonetop-pwd": { retiredMove: "Something Else" } } };
+		const other = { _id: "b1", flags: { "stonetop_pwd": { retiredMove: "Something Else" } } };
 		expect(new PlaybookMoveEntry(bigDamnHero, [other], NO_BG, ownedByName("Big Damn Hero"), 6, "The Would-Be Hero").requirementsUnmet).toBe(true);
 	});
 
@@ -213,7 +213,7 @@ describe("PlaybookMoveEntry (a requirement of marks: the Would-be Hero's Superio
 		system: { playbook: "The Would-Be Hero", cap: 3, requirement: { marks: { move: "Potential for Greatness", count: 6 } } },
 	});
 	const learnedPfg = () => ownedByName("Potential for Greatness");
-	const off = () => new Map([["Potential for Greatness", [{ flags: { "stonetop-pwd": { learned: false } } }]]]);
+	const off = () => new Map([["Potential for Greatness", [{ flags: { "stonetop_pwd": { learned: false } } }]]]);
 	const marks = n => () => n;
 
 	it("reads as the book prints it, with no level", () => {

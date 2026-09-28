@@ -18,7 +18,7 @@ describe("StonetopCharacter._applyStatIncreaseChoice", () => {
 		const { char, actor } = makeChar(new FakeStatBuilder().withStr(1));
 		await char._applyStatIncreaseChoice({ id: "item1", name: "Improved Stat" }, "str", 2);
 
-		expect(actor.getFlag("stonetop-pwd", "improvedStatChoices")).toEqual({ item1: "str" });
+		expect(actor.getFlag("stonetop_pwd", "improvedStatChoices")).toEqual({ item1: "str" });
 		// Bump tagged with the move name so the ledger reads "via Improved Stat".
 		expect(actor.update).toHaveBeenCalledWith(
 			{ "system.stats.str.value": 2 },
@@ -35,7 +35,7 @@ describe("StonetopCharacter._applyStatIncreaseChoice", () => {
 			const raised = await char._applyStatIncreaseChoice({ id: "item2", name: "Improved Stat" }, "dex", 2);
 
 			expect(raised).toBe(false);
-			expect(actor.getFlag("stonetop-pwd", "improvedStatChoices")).toBeNull();
+			expect(actor.getFlag("stonetop_pwd", "improvedStatChoices")).toBeNull();
 			expect(actor.update).not.toHaveBeenCalled();
 			expect(warn).toHaveBeenCalledWith("Improved Stat: Dexterity is already at +2, so it was not raised. Choose another stat from the move's card.");
 		} finally {
@@ -47,7 +47,7 @@ describe("StonetopCharacter._applyStatIncreaseChoice", () => {
 		const { char, actor } = makeChar(new FakeStatBuilder().withDex(2), { improvedStatChoices: { item2: "dex", other: "str" } });
 		await char._applyStatIncreaseChoice({ id: "item2", name: "Improved Stat" }, "dex", 2);
 
-		expect(actor.getFlag("stonetop-pwd", "improvedStatChoices")).toEqual({ other: "str" });
+		expect(actor.getFlag("stonetop_pwd", "improvedStatChoices")).toEqual({ other: "str" });
 	});
 
 	// The bug: a pick recorded at the cap raised nothing, yet removing the move took a point.
@@ -68,7 +68,7 @@ describe("StonetopCharacter._applyStatIncreaseChoice", () => {
 		await char._revertStatIncreaseChoice(item);
 
 		expect(actor.system.stats.dex.value).toBe(1);
-		expect(actor.getFlag("stonetop-pwd", "improvedStatChoices")?.item3).toBeUndefined();
+		expect(actor.getFlag("stonetop_pwd", "improvedStatChoices")?.item3).toBeUndefined();
 	});
 
 	it("uses the move's own cap — Superior Stat lifts a +2 stat to +3", async () => {
@@ -85,14 +85,14 @@ describe("StonetopCharacter._applyStatIncreaseChoice", () => {
 		const { char, actor } = makeChar(new FakeStatBuilder().withStr(0), { improvedStatChoices: { item0: "con" } });
 		await char._applyStatIncreaseChoice({ id: "item1", name: "Improved Stat" }, "str", 2);
 
-		expect(actor.getFlag("stonetop-pwd", "improvedStatChoices")).toEqual({ item0: "con", item1: "str" });
+		expect(actor.getFlag("stonetop_pwd", "improvedStatChoices")).toEqual({ item0: "con", item1: "str" });
 	});
 
 	it("ignores an unknown stat key (no flag write, no stat change)", async () => {
 		const { char, actor } = makeChar(new FakeStatBuilder().withStr(0));
 		await char._applyStatIncreaseChoice({ id: "item1", name: "Improved Stat" }, "bogus", 2);
 
-		expect(actor.getFlag("stonetop-pwd", "improvedStatChoices")).toBeNull();
+		expect(actor.getFlag("stonetop_pwd", "improvedStatChoices")).toBeNull();
 		expect(actor.update).not.toHaveBeenCalled();
 	});
 });

@@ -71,7 +71,7 @@ async function levelUpOnce(char, actor) {
 	const xpBefore    = actor.system.attributes.xp.value;
 	const cost        = 6 + levelBefore * 2;
 	const movesBefore = moveCount(actor);
-	const statChoicesBefore = Object.keys(actor.getFlag("stonetop-pwd", "improvedStatChoices") ?? {}).length;
+	const statChoicesBefore = Object.keys(actor.getFlag("stonetop_pwd", "improvedStatChoices") ?? {}).length;
 
 	const pick = data.availableMoves[0];
 	// Never offered below its level gate: the source move's requirement.level is at most the
@@ -87,7 +87,7 @@ async function levelUpOnce(char, actor) {
 
 		// A supplied mark pick (a budgeted move, or Potential for Greatness) actually landed.
 		if (choices?.marks?.picks?.length) {
-			const allMarks = actor.getFlag("stonetop-pwd", "moves.moveMarks") ?? {};
+			const allMarks = actor.getFlag("stonetop_pwd", "moves.moveMarks") ?? {};
 			const total = Object.values(allMarks[choices.marks.moveName] ?? {})
 				.reduce((n, v) => n + (Array.isArray(v) ? v.length : 0), 0);
 			expect(total).toBeGreaterThan(0);
@@ -103,15 +103,15 @@ async function levelUpOnce(char, actor) {
 
 	// The move's demanded selection was actually committed.
 	if (pick.cap != null) {
-		const after = Object.keys(actor.getFlag("stonetop-pwd", "improvedStatChoices") ?? {}).length;
+		const after = Object.keys(actor.getFlag("stonetop_pwd", "improvedStatChoices") ?? {}).length;
 		expect(after).toBe(statChoicesBefore + 1);
 	}
 	if (pick.crossPlaybook && choices.foreignMoveId) {
-		const tagged = actor.items.some(i => i.flags?.["stonetop-pwd"]?.grantedBy?.move === pick.name);
+		const tagged = actor.items.some(i => i.flags?.["stonetop_pwd"]?.grantedBy?.move === pick.name);
 		expect(tagged).toBe(true);
 	}
 	if (invocation) {
-		expect(actor.getFlag("stonetop-pwd", "invocations.selected") ?? []).toContain(invocation);
+		expect(actor.getFlag("stonetop_pwd", "invocations.selected") ?? []).toContain(invocation);
 	}
 
 	// The sheet's move budget holds at every step: one pick per level gained, no more, no fewer.
@@ -223,12 +223,12 @@ describe("StonetopCharacter level-up climb — every playbook to exhaustion", ()
 			// strategy, so they pin the whole stat-application path end-to-end.)
 			expect(finalStats).toEqual({ str: 3, dex: 2, con: 2, int: 1, wis: 0, cha: -1 });
 			// The recorded stat-choice picks match the stat moves actually taken.
-			expect(Object.keys(actor.getFlag("stonetop-pwd", "improvedStatChoices") ?? {}).length)
+			expect(Object.keys(actor.getFlag("stonetop_pwd", "improvedStatChoices") ?? {}).length)
 				.toBe(picks.filter(p => p.cap != null).length);
 
 			// The mark step ran for every budgeted move taken (Veteran Crew / Heroes to the
 			// Last / Beast of Legend / Well Versed).
-			const allMarks = actor.getFlag("stonetop-pwd", "moves.moveMarks") ?? {};
+			const allMarks = actor.getFlag("stonetop_pwd", "moves.moveMarks") ?? {};
 			const markTotal = name => Object.values(allMarks[name] ?? {}).reduce((n, v) => n + (Array.isArray(v) ? v.length : 0), 0);
 			for (const name of new Set(picks.filter(p => p.marked && p.marked === p.name).map(p => p.name))) {
 				expect(markTotal(name), `${pb.name}: ${name} recorded no marks`).toBeGreaterThan(0);
@@ -281,7 +281,7 @@ describe("StonetopCharacter level-up climb — per-rule guarantees", () => {
 		// Each take that raised the stat recorded its own pick, keyed by the distinct new item id.
 		// The clamped third take recorded nothing: it raised nothing, so it is left needing a stat
 		// (and removing it later must not take a point back).
-		expect(Object.values(actor.getFlag("stonetop-pwd", "improvedStatChoices"))).toEqual(["str", "str", "str"]);
+		expect(Object.values(actor.getFlag("stonetop_pwd", "improvedStatChoices"))).toEqual(["str", "str", "str"]);
 	});
 
 	// Book I, the Ranger's Alpha: "(Requires level 6+, and Wild Speech or Spirit Tongue)".
@@ -308,7 +308,7 @@ describe("StonetopCharacter level-up climb — per-rule guarantees", () => {
 		});
 		const spiritTongue = actor.items.find(i => i.name === "Spirit Tongue");
 		expect(spiritTongue).toBeTruthy();
-		expect(spiritTongue.flags["stonetop-pwd"].grantedBy).toMatchObject({ move: "Worldly" });
+		expect(spiritTongue.flags["stonetop_pwd"].grantedBy).toMatchObject({ move: "Worldly" });
 		expect(ownedMoveNames(actor)).not.toContain("Wild Speech");
 		expect((await char.getLevelUpData()).availableMoves.map(m => m.name)).toContain("Alpha");
 	});
@@ -332,7 +332,7 @@ describe("StonetopCharacter level-up climb — per-rule guarantees", () => {
 			if (!(await levelUpOnce(char, actor))) break;
 		}
 		expect(actor.items.filter(i => i.name === "Well Versed")).toHaveLength(3);
-		const marks = actor.getFlag("stonetop-pwd", "moves.moveMarks")["Well Versed"];
+		const marks = actor.getFlag("stonetop_pwd", "moves.moveMarks")["Well Versed"];
 		const own = Object.entries(marks).filter(([, v]) => Array.isArray(v) && v.length).map(([slug]) => slug);
 		expect(own).toHaveLength(5);
 		expect(own).not.toContain("things-below");
@@ -369,7 +369,7 @@ describe("StonetopCharacter level-up climb — per-rule guarantees", () => {
 			}
 		}
 
-		const selected = actor.getFlag("stonetop-pwd", "invocations.selected");
+		const selected = actor.getFlag("stonetop_pwd", "invocations.selected");
 		expect(selected).toEqual([...seeded, ...chosen]);
 		expect(chosen.length).toBeGreaterThanOrEqual(3); // 3 even levels across 6 climbs
 	});
@@ -389,7 +389,7 @@ describe("StonetopCharacter level-up climb — per-rule guarantees", () => {
 
 		expect(grantSpy).toHaveBeenCalledWith("sacred-pouch");
 		const learned = actor.items.find(i => i.name === foreign[0].name);
-		expect(learned.flags["stonetop-pwd"].grantedBy).toMatchObject({ move: "Initiate of the Secret Arts" });
+		expect(learned.flags["stonetop_pwd"].grantedBy).toMatchObject({ move: "Initiate of the Secret Arts" });
 	});
 });
 
@@ -551,7 +551,7 @@ describe("Sacred pouch max Stock grows at even levels, the Seeker's included", (
 		const { char, actor } = buildLiveCharacter({ slug: "the-seeker", name: "The Seeker", level: 3 });
 		vi.spyOn(char, "selectPossession").mockResolvedValue(undefined);
 		await char.applyLevelUp(initiateId, null, { crossPlaybook: true, foreignMoveId: null, grantsPossession: POUCH });
-		expect(actor.getFlag("stonetop-pwd", "possessions.grantedAtLevel")).toEqual({ [POUCH]: 4 });
+		expect(actor.getFlag("stonetop_pwd", "possessions.grantedAtLevel")).toEqual({ [POUCH]: 4 });
 	});
 
 	it("sacredPouchMax works it out without a snapshot (the chat card's Spend button)", async () => {
@@ -631,7 +631,7 @@ describe("Beast-Bonded companion actions at level-up", () => {
 		const { char, actor } = ranger({ level: 2, marked: ["call-back"] });
 		const move = (await char.getLevelUpData()).availableMoves[0];
 		await char.applyLevelUp(move.compendiumId, null, { companionActions: ["sense-emotion"] });
-		expect(actor.getFlag("stonetop-pwd", "background.markedActions")).toEqual(["call-back", "sense-emotion"]);
+		expect(actor.getFlag("stonetop_pwd", "background.markedActions")).toEqual(["call-back", "sense-emotion"]);
 	});
 });
 
@@ -652,7 +652,7 @@ describe("A retired move learned through Versatile comes back as Versatile's", (
 		const bulwark = actor.items.find(i => i.name === "Bulwark");
 		expect(bulwark).toBeTruthy();
 		expect(ownedMoveNames(actor)).not.toContain("A Mighty Rampart");
-		expect(bulwark.flags["stonetop-pwd"].grantedBy).toMatchObject({ move: "Versatile", instanceId: v1._id });
+		expect(bulwark.flags["stonetop_pwd"].grantedBy).toMatchObject({ move: "Versatile", instanceId: v1._id });
 	});
 
 	it("does not come back once the Versatile that granted it is gone", async () => {

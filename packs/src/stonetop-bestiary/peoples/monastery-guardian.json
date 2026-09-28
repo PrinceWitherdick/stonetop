@@ -1,7 +1,7 @@
 {
   "name": "Guardian",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/human-group.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/human-group.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "group, organized, hardy, skilled",
     "qualities": "<p>Barrier Pass keeps a softer variant (HP 6, Armor 3 from bronze shields and mail) armed to subdue: bronze mace d8 (close, forceful), mancatcher d6 (reach, grabby), or bola d6 (thrown, grabby, awkward).</p>",
     "count": 3,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.uGh38GPx9hdbQ0XH",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.uGh38GPx9hdbQ0XH",
     "notes": "",
     "creatureType": "human-group"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/human-group.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/human-group.svg"
     }
   },
   "items": [

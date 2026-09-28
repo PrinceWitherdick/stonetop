@@ -15,7 +15,7 @@ vi.mock("../../module/struggle/struggle-store.js", () => ({
 	askForStruggle: vi.fn(), askOf: vi.fn(), askTurnedDown: vi.fn(), currentStruggle: () => live.current,
 	owesARoll: vi.fn(), pendingAsks: () => [], struggleHost: () => null, isStruggleHost: () => false, struggleStateChanged: vi.fn(),
 	takesPart: () => true,
-	touchesFlag: (changes, flag) => Object.keys(changes?.flags?.["stonetop-pwd"] ?? {}).some(k => k.replace(/^-=/, "") === flag),
+	touchesFlag: (changes, flag) => Object.keys(changes?.flags?.["stonetop_pwd"] ?? {}).some(k => k.replace(/^-=/, "") === flag),
 }));
 vi.mock("../../module/struggle/StruggleWindow.js", () => ({
 	openStruggleWindow: vi.fn(id => `window:${id}`),
@@ -115,7 +115,7 @@ describe("keeping the buttons current", () => {
 		globalThis.document = fake.doc;
 		try {
 			live.current = called();
-			onUpdateActorStruggle({ id: "a", type: "character" }, { flags: { "stonetop-pwd": { struggleRoll: { rolls: {} } } } });
+			onUpdateActorStruggle({ id: "a", type: "character" }, { flags: { "stonetop_pwd": { struggleRoll: { rolls: {} } } } });
 			expect(fake.label.textContent).toBe("Open the Struggle as One");
 		} finally {
 			globalThis.document = doc;

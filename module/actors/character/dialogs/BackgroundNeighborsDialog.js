@@ -112,7 +112,7 @@ export class BackgroundNeighborsDialog extends StonetopDialog {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-background-neighbors-dialog",
-			template:  "systems/stonetop-pwd/templates/dialogs/background-neighbors.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/background-neighbors.hbs",
 			width:     440,
 			height:    "auto",
 			resizable: true,

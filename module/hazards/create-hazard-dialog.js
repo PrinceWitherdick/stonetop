@@ -86,7 +86,7 @@ export class CreateHazardDialog extends StepperDialog {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-create-hazard",
-			template:  "systems/stonetop-pwd/templates/dialogs/create-hazard.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/create-hazard.hbs",
 			width:     560,
 			height:    "auto",
 			resizable: true,

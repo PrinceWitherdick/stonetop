@@ -5,7 +5,7 @@ import { WBH_HERO_FLAG } from "../../module/actors/character/WouldBeHeroAsterisk
 // Crossing off "Would-be" now waits for the first USE of a starred move. A hero who was The Hero by
 // OWNING one under an older release, and never flagged (a compendium drop, an import), stays The Hero.
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const move = (name, { version = "1.6.5", asterisk = false } = {}) => ({
 	type: "move", name, system: asterisk ? { asterisk: true } : {}, _stats: version ? { systemVersion: version } : {},
 });

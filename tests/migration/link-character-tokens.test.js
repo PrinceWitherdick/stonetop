@@ -84,7 +84,7 @@ describe("deltaChanges", () => {
 		expect(hasDrifted(delta({ system: { attributes: { xp: { value: 13 } } } }))).toBe(true);
 		expect(hasDrifted(delta({ name: "Torwyn (wounded)" }))).toBe(true);
 		expect(hasDrifted(delta({ items: [{ _id: "i1" }] }))).toBe(true);
-		expect(hasDrifted(delta({ flags: { "stonetop-pwd": { leads: [] } } }))).toBe(true);
+		expect(hasDrifted(delta({ flags: { "stonetop_pwd": { leads: [] } } }))).toBe(true);
 	});
 
 	it("survives a token with no delta at all", () => {
@@ -160,7 +160,7 @@ describe("driftSummary", () => {
 		const base = actor("a1", "Torwyn");
 		const tok = token({
 			actor: base, baseActor: base,
-			delta: delta({ items: [{ _id: "i1" }, { _id: "i2" }], flags: { "stonetop-pwd": {} } }),
+			delta: delta({ items: [{ _id: "i1" }, { _id: "i2" }], flags: { "stonetop_pwd": {} } }),
 		});
 		const { other } = driftSummary(tok, base);
 		expect(other).toContain("2 item(s) differ");

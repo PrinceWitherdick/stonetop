@@ -35,8 +35,8 @@
       },
       "src": null,
       "system": {
-        "concept": "A faithful of <strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.l50CyKv5NYVJ6EzY]{Aratis}</strong> who settles disputes, keeps records, and stands guard against chaos.",
-        "description": "<p>Some communities are home to a Judge of <strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.l50CyKv5NYVJ6EzY]{Aratis}</strong>, who settles disputes, keeps records, and stands guard against the agents of chaos. A Judge is bound (at least publicly) by the requirements of a true disciple, and is built to one of three temperaments — you can tell a great deal about a community by the Judge it keeps.</p>",
+        "concept": "A faithful of <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.l50CyKv5NYVJ6EzY]{Aratis}</strong> who settles disputes, keeps records, and stands guard against chaos.",
+        "description": "<p>Some communities are home to a Judge of <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.l50CyKv5NYVJ6EzY]{Aratis}</strong>, who settles disputes, keeps records, and stands guard against the agents of chaos. A Judge is bound (at least publicly) by the requirements of a true disciple, and is built to one of three temperaments — you can tell a great deal about a community by the Judge it keeps.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",
@@ -48,7 +48,7 @@
         "dangers": [],
         "notes": "",
         "statBlocks": [
-          "Compendium.stonetop-pwd.stonetop-bestiary.Actor.XOWBMeABAb5ms245"
+          "Compendium.stonetop_pwd.stonetop-bestiary.Actor.XOWBMeABAb5ms245"
         ]
       },
       "sort": 100000,

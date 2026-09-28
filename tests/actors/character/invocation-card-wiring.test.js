@@ -28,7 +28,7 @@ import { stubAsk } from "../../fakes/confirm.js";
 // invocation-apply.test.js hold what each settle function does; this holds that the card's own boxes
 // and buttons reach them, once, and only for whoever may act.
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const INVOKE = "Invoke the Sun God";
 const WIELDER = "Wielder of the White Flame";
 const moveDoc = slug => JSON.parse(fs.readFileSync(

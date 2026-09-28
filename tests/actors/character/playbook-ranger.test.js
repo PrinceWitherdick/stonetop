@@ -142,7 +142,7 @@ describe("Beast of Legend: the crew's shape", () => {
 
 		// A player's own move named Beast of Legend is not the book's.
 		const custom = rangerAt(6, { "moves.moveMarks": { [BOL]: { exceptional: [pick(6)] } } });
-		custom.actor.items.push(makeLiveItem({ name: BOL, type: "move", system: { moveType: "other" }, flags: { "stonetop-pwd": { custom: true } } }));
+		custom.actor.items.push(makeLiveItem({ name: BOL, type: "move", system: { moveType: "other" }, flags: { "stonetop_pwd": { custom: true } } }));
 		expect(companionIsExceptional(custom.actor)).toBe(false);
 	});
 
@@ -258,7 +258,7 @@ describe("Magnificent Specimen: 2 options per copy", () => {
 
 	it("a player's own move named Magnificent Specimen gives no options", async () => {
 		const { char, actor } = rangerAt(2);
-		actor.items.push(makeLiveItem({ name: MS, type: "move", system: { moveType: "other" }, flags: { "stonetop-pwd": { custom: true } } }));
+		actor.items.push(makeLiveItem({ name: MS, type: "move", system: { moveType: "other" }, flags: { "stonetop_pwd": { custom: true } } }));
 		expect((await char.buildSnapshot()).companionBonuses.traitPicks).toBe(0);
 	});
 

@@ -40,7 +40,7 @@ export class AddInventoryItemDialog extends StonetopDialog {
 
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
-			template: "systems/stonetop-pwd/templates/dialogs/add-inventory-item.hbs",
+			template: "systems/stonetop_pwd/templates/dialogs/add-inventory-item.hbs",
 			width: 480,
 			height: "auto",
 			resizable: true,

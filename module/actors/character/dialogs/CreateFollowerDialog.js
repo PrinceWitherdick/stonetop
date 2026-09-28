@@ -114,7 +114,7 @@ export class CreateFollowerDialog extends StepperDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-create-follower",
 			title:     "Create a Follower",
-			template:  "systems/stonetop-pwd/templates/dialogs/create-follower.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/create-follower.hbs",
 			// Wide enough that the 168px jump-to-step rail sits BESIDE the old content
 			// width rather than eating into it — the tag steps lay out ~50 chips, which
 			// reflow badly in a narrower column.

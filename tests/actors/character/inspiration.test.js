@@ -17,7 +17,7 @@ import { moveRollOptions } from "../../../module/actors/character/move-roll-opti
 // at any time, 1-for-1 to: act fearlessly / keep 1 HP instead of being reduced to 0 HP / add 1d6 to a damage
 // roll they just made." Built on Piety's Blessing (roll-boosts.test.js).
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 
 function pc({ id, name = id, held = 0, moves = [], unlearned = [], owner = true, hp = 5, dying = false, flags = {} } = {}) {
 	const store = { ...flags };

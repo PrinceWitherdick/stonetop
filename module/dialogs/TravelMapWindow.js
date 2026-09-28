@@ -32,14 +32,14 @@ import { percentSpot, travelMap } from "../data/travel-times.js";
 // and the shim picks whichever this core has.
 import { renderTemplate } from "../utils/foundry-compat.js";
 
-const TEMPLATE = "systems/stonetop-pwd/templates/dialogs/travel-map.hbs";
+const TEMPLATE = "systems/stonetop_pwd/templates/dialogs/travel-map.hbs";
 // The two halves of the chrome, re-rendered in place by `sync`. The same partials the route step
 // composes itself from, which is what keeps the window a peer of the panel rather than a copy.
-const CONTROLS_TEMPLATE = "systems/stonetop-pwd/templates/dialogs/partials/expedition-journey-controls.hbs";
+const CONTROLS_TEMPLATE = "systems/stonetop_pwd/templates/dialogs/partials/expedition-journey-controls.hbs";
 // The foot's two halves, in the order the template composes them: what a click on the picture does,
 // then what the journey costs.
-const DRAWHINT_TEMPLATE = "systems/stonetop-pwd/templates/dialogs/partials/expedition-journey-drawhint.hbs";
-const ROUTE_TEMPLATE = "systems/stonetop-pwd/templates/dialogs/partials/expedition-journey-route.hbs";
+const DRAWHINT_TEMPLATE = "systems/stonetop_pwd/templates/dialogs/partials/expedition-journey-drawhint.hbs";
+const ROUTE_TEMPLATE = "systems/stonetop_pwd/templates/dialogs/partials/expedition-journey-route.hbs";
 
 // HOW BIG IT OPENS. The books print these maps at 300 dpi and this window exists to give one room,
 // so it takes most of the screen rather than a fixed box every reader has to drag out again. The

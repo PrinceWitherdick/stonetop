@@ -18,7 +18,7 @@ import { IntroductionsDialog } from "../../module/dialogs/IntroductionsDialog.js
 // No DOM here (vitest runs in node): the dialog is driven through hand-built stand-ins for a window
 // root, its fields, and the PC actor's flag.
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const FLAG  = "intro";
 
 function makeActor(intro = {}) {

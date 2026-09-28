@@ -15,7 +15,7 @@ import { moveRollOptions } from "../../../module/actors/character/move-roll-opti
 import { buildLiveCharacter, makeLiveItem, sourceMovesFor } from "../../fakes/LiveCharacter.js";
 import { readRepo } from "../../fakes/css.js";
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 
 function pc({ id, name = id, moves = [], unlearned = [], owner = true } = {}) {
 	const actor = {

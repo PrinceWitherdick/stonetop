@@ -21,7 +21,7 @@ const openTag = html => /<ul class="stonetop-picklist"[^>]*>/.exec(html)?.[0] ??
 const attr = (tag, name) => new RegExp(`${name}="([^"]*)"`).exec(tag)?.[1] ?? null;
 const rows = html => (/<ul class="stonetop-picklist"[^>]*>([\s\S]*?)<\/ul>/.exec(html)?.[1].match(/<li\b/g) ?? []).length;
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const move = (name, { learned = true } = {}) => ({ type: "move", name, system: {}, flags: learned ? {} : { [SCOPE]: { learned: false } } });
 const character = ({ items = [], playbook = "The Fox", background = null } = {}) => ({
 	type: "character", system: { playbook: { name: playbook } }, items,

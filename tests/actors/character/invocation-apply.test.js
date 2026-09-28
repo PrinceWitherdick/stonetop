@@ -17,7 +17,7 @@ import { buildLiveCharacter } from "../../fakes/LiveCharacter.js";
 // Light heals a patient, Go Back to the Shadow rolls at the spirits. And the holy relics on the Wielder
 // of the White Flame's "as a 10+" card.
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const pick = (key, ref) => (ref ? { key, ref } : { key });
 
 /** An Invoke card whose flags live in a plain object, as the consequence tests keep theirs. */
@@ -565,7 +565,7 @@ describe("a follower's card heals with their NPC", () => {
 		expect(maeve.update).toHaveBeenCalledWith({ "system.attributes.hp.value": 6 }, MOVE);
 		// The card's max is the one its sheet draws, not the NPC's.
 		expect(kyra.sheet.followerCardHp).toHaveBeenCalledWith("custom", "maeve");
-		expect(kyra.update).toHaveBeenCalledWith({ "flags.stonetop-pwd.customFollowers.maeve.hpCurrent": 4 }, MOVE);
+		expect(kyra.update).toHaveBeenCalledWith({ "flags.stonetop_pwd.customFollowers.maeve.hpCurrent": 4 }, MOVE);
 		expect(out).toMatchObject({ patient: "Maeve", hp: { gain: 5, from: 2, to: 6 }, card: { gain: 5, from: 1, to: 4 } });
 		const html = bathResultHtml(seren, out);
 		expect(html.match(/regains HP/g)).toHaveLength(1);
@@ -577,7 +577,7 @@ describe("a follower's card heals with their NPC", () => {
 		for (const [ftype, [slug, path]] of Object.entries(paths)) {
 			const kyra = master({ box: { max: 8, current: 3 } });
 			await applyBath(npcPatient({ hp: 1, max: 8 }), [pick("hp5")], { cardFor: onCard(kyra, ftype, slug) });
-			expect(kyra.update).toHaveBeenCalledWith({ [`flags.stonetop-pwd.${path}`]: 8 }, MOVE);
+			expect(kyra.update).toHaveBeenCalledWith({ [`flags.stonetop_pwd.${path}`]: 8 }, MOVE);
 		}
 	});
 
@@ -585,8 +585,8 @@ describe("a follower's card heals with their NPC", () => {
 		const kyra = master({ followers: { maeve: { name: "Maeve", dead: true } }, box: { max: 4, current: 0 } });
 		await applyBath(npcPatient({ name: "Maeve", hp: 0, max: 6 }), [pick("hp5")], { cardFor: onCard(kyra) });
 		expect(kyra.update).toHaveBeenCalledWith({
-			"flags.stonetop-pwd.customFollowers.maeve.hpCurrent": 4,
-			"flags.stonetop-pwd.customFollowers.maeve.dead": false,
+			"flags.stonetop_pwd.customFollowers.maeve.hpCurrent": 4,
+			"flags.stonetop_pwd.customFollowers.maeve.dead": false,
 		}, MOVE);
 	});
 
@@ -623,7 +623,7 @@ describe("a follower's card heals with their NPC", () => {
 		const token = { ...npcPatient({ name: "Maeve", hp: 2, max: 6, uuid: "Scene.s.Token.t1.Actor.maeve" }), isToken: true, token: { baseActor: { uuid: "Actor.maeve" } } };
 		token.update = vi.fn(async () => {});
 		await applyBath(token, [pick("hp5")]);
-		expect(kyra.update).toHaveBeenCalledWith({ "flags.stonetop-pwd.customFollowers.maeve.hpCurrent": 4 }, MOVE);
+		expect(kyra.update).toHaveBeenCalledWith({ "flags.stonetop_pwd.customFollowers.maeve.hpCurrent": 4 }, MOVE);
 	});
 
 	it("heals here only when this client can write the character too, and otherwise asks the GM's client", async () => {
@@ -658,7 +658,7 @@ describe("a follower's card heals with their NPC", () => {
 		const ask = { messageId: "m1", patientUuid: "Actor.maeve", picks: [pick("hp5")], reduced: false, userId: "u1" };
 		const out = await handleBathQuery(ask, {}, { resolve: uuid => (uuid === "Actor.maeve" ? maeve : null) });
 		expect(out).toMatchObject({ patient: "Maeve", hp: { from: 2, to: 6 }, card: { from: 1, to: 4 } });
-		expect(kyra.update).toHaveBeenCalledWith({ "flags.stonetop-pwd.customFollowers.maeve.hpCurrent": 4 }, MOVE);
+		expect(kyra.update).toHaveBeenCalledWith({ "flags.stonetop_pwd.customFollowers.maeve.hpCurrent": 4 }, MOVE);
 	});
 
 	it("reads the box off the real Followers tab and lands the heal in the stored card", async () => {
@@ -800,7 +800,7 @@ describe("a group as the patient: one member of it", () => {
 	it("heals the member's roster HP, capped at one member's max, and leaves the token's pool alone", async () => {
 		const { rhianna, crew } = table();
 		const out = await applyBath(crew, [pick("hp5"), pick("hp5")], { memberKey: "named:0" });
-		expect(rhianna.update).toHaveBeenCalledWith({ "flags.stonetop-pwd.crew.individualsHp.0": 6 }, MOVE);
+		expect(rhianna.update).toHaveBeenCalledWith({ "flags.stonetop_pwd.crew.individualsHp.0": 6 }, MOVE);
 		expect(crew.update).not.toHaveBeenCalled();
 		expect(crew.system.attributes.hp.value).toBe(3);
 		expect(out).toMatchObject({ patient: "Bryn of Rhianna's crew", hp: { gain: 10, from: 2, to: 6 }, member: { key: "named:0", name: "Bryn" } });
@@ -813,9 +813,9 @@ describe("a group as the patient: one member of it", () => {
 	it("writes an anonymous member and a custom group's member where the roster keeps them, never lowering", async () => {
 		const { rhianna, crew, band } = table();
 		await applyBath(crew, [pick("hp5")], { memberKey: "anon:1" });
-		expect(rhianna.update).toHaveBeenLastCalledWith({ "flags.stonetop-pwd.crew.memberHp": [null, 6] }, MOVE);
+		expect(rhianna.update).toHaveBeenLastCalledWith({ "flags.stonetop_pwd.crew.memberHp": [null, 6] }, MOVE);
 		const custom = await applyBath(band, [pick("hp5")], { memberKey: "member:0" });
-		expect(rhianna.update).toHaveBeenLastCalledWith({ "flags.stonetop-pwd.customFollowers.band.memberHp": [4, 2] }, MOVE);
+		expect(rhianna.update).toHaveBeenLastCalledWith({ "flags.stonetop_pwd.customFollowers.band.memberHp": [4, 2] }, MOVE);
 		expect(custom).toMatchObject({ patient: "Member 1 of The Band", hp: { from: 0, to: 4 } });
 		expect(band.update).not.toHaveBeenCalled();
 		rhianna.update.mockClear();
@@ -828,7 +828,7 @@ describe("a group as the patient: one member of it", () => {
 		const { rhianna, crew } = table();
 		expect(rosterGroupFor(crew).members.map(m => m.key)).not.toContain("named:1");
 		await applyBath(crew, [pick("hp5")], { memberKey: "named:1" });
-		expect(rhianna.update).toHaveBeenCalledWith({ "flags.stonetop-pwd.crew.individualsHp.1": 5 }, MOVE);
+		expect(rhianna.update).toHaveBeenCalledWith({ "flags.stonetop_pwd.crew.individualsHp.1": 5 }, MOVE);
 		// Standing again, as the fight counts the crew's bodies off the roster.
 		expect(rosterGroupFor(crew)).toMatchObject({ standing: 4 });
 		expect(rosterGroupFor(crew).members.map(m => m.key)).toContain("named:1");
@@ -838,7 +838,7 @@ describe("a group as the patient: one member of it", () => {
 			{ key: "anon:0", name: "Crew member 1", hp: 0, hpMax: 6 }, { key: "anon:1", name: "Crew member 2", hp: 0, hpMax: 6 },
 		]);
 		await applyBath(crew, [pick("hp5")], { memberKey: "anon:1" });
-		expect(rhianna.update).toHaveBeenLastCalledWith({ "flags.stonetop-pwd.crew.memberHp": [0, 5] }, MOVE);
+		expect(rhianna.update).toHaveBeenLastCalledWith({ "flags.stonetop_pwd.crew.memberHp": [0, 5] }, MOVE);
 	});
 
 	it("heals nobody for a group with no member named, or one not on its roster", async () => {
@@ -852,7 +852,7 @@ describe("a group as the patient: one member of it", () => {
 	it("heals a monster group's hurt member off the wound kept on its token, not its pool", async () => {
 		const crinwin = horde({ wound: 2 });
 		const out = await applyBath(crinwin, [pick("hp5")]);
-		expect(crinwin.update).toHaveBeenCalledWith({ "flags.stonetop-pwd.groupWound": 0 }, MOVE);
+		expect(crinwin.update).toHaveBeenCalledWith({ "flags.stonetop_pwd.groupWound": 0 }, MOVE);
 		expect(crinwin.update).toHaveBeenCalledTimes(1);
 		expect(out).toMatchObject({ patient: "Crinwin's hurt member", hp: { gain: 5, from: 1, to: 3 } });
 		expect(bathResultHtml(seren, out)).toContain("Crinwin&#x27;s hurt member regains HP: 1 → 3.");
@@ -887,7 +887,7 @@ describe("a group as the patient: one member of it", () => {
 		const band = npcPatient({ name: "Lost band", hp: 1, max: 4, uuid: "Actor.lostband", flags: { groupWound: 3, ...origin("Actor.rhianna", "custom", "gone") } });
 		band.prototypeToken = { actorLink: false };
 		const healed = await applyBath(band, [pick("hp5")]);
-		expect(band.update).toHaveBeenCalledWith({ "flags.stonetop-pwd.groupWound": 0 }, MOVE);
+		expect(band.update).toHaveBeenCalledWith({ "flags.stonetop_pwd.groupWound": 0 }, MOVE);
 		expect(band.update).toHaveBeenCalledTimes(1);
 		expect(band.system.attributes.hp.value).toBe(1);
 		expect(healed).toMatchObject({ patient: "Lost band's hurt member", hp: { from: 1, to: 4 } });
@@ -932,7 +932,7 @@ describe("a group as the patient: one member of it", () => {
 		const mine = table({ tokenOwner: false });
 		await healPatient(card(), mine.crew, [pick("hp5")], { memberKey: "named:0" }, { gm });
 		expect(gm.query).not.toHaveBeenCalled();
-		expect(mine.rhianna.update).toHaveBeenCalledWith({ "flags.stonetop-pwd.crew.individualsHp.0": 6 }, MOVE);
+		expect(mine.rhianna.update).toHaveBeenCalledWith({ "flags.stonetop_pwd.crew.individualsHp.0": 6 }, MOVE);
 
 		const theirs = table({ owner: false });
 		await expect(healPatient(card(), theirs.crew, [pick("hp5")], { memberKey: "named:0" }, { gm, userId: "u1" }))
@@ -961,7 +961,7 @@ describe("a group as the patient: one member of it", () => {
 		it("heals the member the ask names, checked against the roster itself", async () => {
 			const { rhianna, resolve } = gmTable();
 			const out = await handleBathQuery(ask({ memberKey: "named:1" }), {}, { resolve });
-			expect(rhianna.update).toHaveBeenCalledWith({ "flags.stonetop-pwd.crew.individualsHp.1": 5 }, MOVE);
+			expect(rhianna.update).toHaveBeenCalledWith({ "flags.stonetop_pwd.crew.individualsHp.1": 5 }, MOVE);
 			expect(out).toMatchObject({ patient: "Aled of Rhianna's crew", hp: { from: 0, to: 5 } });
 		});
 

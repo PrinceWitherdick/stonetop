@@ -28,7 +28,7 @@ describe("playbookSlug", () => {
 describe("playbookIconPath", () => {
 	it("maps a slug to its avatar art, underscoring the hyphens", () => {
 		expect(playbookIconPath("the-would-be-hero"))
-			.toBe("systems/stonetop-pwd/assets/icons/playbooks/the_would_be_hero_icon.webp");
+			.toBe("systems/stonetop_pwd/assets/icons/playbooks/the_would_be_hero_icon.webp");
 	});
 
 	it("returns null for a slug-less actor", () => {
@@ -54,17 +54,17 @@ describe("hasOwnRingArt", () => {
 
 	it("knows the badges no playbook slug names — the ghost, the revenant, the thrall", () => {
 		for (const file of ["ghost_icon.webp", "revenant_icon.webp", "thrall_icon.webp"]) {
-			expect(hasOwnRingArt(`systems/stonetop-pwd/assets/icons/playbooks/${file}`)).toBe(true);
+			expect(hasOwnRingArt(`systems/stonetop_pwd/assets/icons/playbooks/${file}`)).toBe(true);
 		}
 	});
 
 	it("knows the same file written with a leading slash, which is how it gets typed by hand", () => {
-		expect(hasOwnRingArt("/systems/stonetop-pwd/assets/icons/playbooks/the_heavy_icon.webp")).toBe(true);
+		expect(hasOwnRingArt("/systems/stonetop_pwd/assets/icons/playbooks/the_heavy_icon.webp")).toBe(true);
 	});
 
 	it("says no to the ringless marks that share the badges' folder", () => {
 		for (const file of ["arrow_icon.svg", "blood-filled.svg", "diamond.svg"]) {
-			expect(hasOwnRingArt(`systems/stonetop-pwd/assets/icons/playbooks/${file}`)).toBe(false);
+			expect(hasOwnRingArt(`systems/stonetop_pwd/assets/icons/playbooks/${file}`)).toBe(false);
 		}
 	});
 

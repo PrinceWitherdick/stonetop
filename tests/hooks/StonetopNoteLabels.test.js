@@ -10,9 +10,9 @@ import { POSTER_MAPS } from "../../module/book2-art/poster-map-catalog.js";
 // the cursor. Core decides tooltip visibility in Note#_refreshState and recomputes it on every
 // interaction, so "set it once at draw time" is not a fix; the wrapper has to win every pass.
 
-const MARKER = `systems/stonetop-pwd/${PLACE_MARKER_ICON_SUFFIX}`;
-const DISC = "systems/stonetop-pwd/assets/icons/landmarks/landmark-c.svg";
-const SITE_PIN = "systems/stonetop-pwd/" + SITE_PIN_ICON_SUFFIX;
+const MARKER = `systems/stonetop_pwd/${PLACE_MARKER_ICON_SUFFIX}`;
+const DISC = "systems/stonetop_pwd/assets/icons/landmarks/landmark-c.svg";
+const SITE_PIN = "systems/stonetop_pwd/" + SITE_PIN_ICON_SUFFIX;
 const THEIRS = "icons/svg/book.svg";
 
 // Saved and restored rather than assigned: vitest shares a worker across test files, and a
@@ -216,7 +216,7 @@ describe("when one map has asked for names on hover only", () => {
 	// What decides is the scene the pin is painted on, not the scene being looked at.
 	const VILLAGE = POSTER_MAPS[0];
 	const VICINITY = POSTER_MAPS[1];
-	const sceneFor = map => ({ name: map.name, flags: { "stonetop-pwd": { posterMap: map.slug } } });
+	const sceneFor = map => ({ name: map.name, flags: { "stonetop_pwd": { posterMap: map.slug } } });
 
 	let _game;
 	beforeEach(() => {

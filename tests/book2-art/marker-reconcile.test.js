@@ -32,7 +32,7 @@ function noteFor(pin, over = {}) {
 		iconSize: 70, fontSize: 45, textAnchor: markerTextAnchor(pin.kind), textColor: "#1b1009",
 		global: true, entryId: null,
 		texture: { src: placeMarkerIcon(pin.kind) },
-		flags: { "stonetop-pwd": { posterPin: pin.key, markerSpec: { x: pin.x, y: pin.y, text: pin.name } } },
+		flags: { "stonetop_pwd": { posterPin: pin.key, markerSpec: { x: pin.x, y: pin.y, text: pin.name } } },
 		...over,
 	};
 }
@@ -42,7 +42,7 @@ describe("laying down what is missing", () => {
 		const { creates, updates } = planMarkerWrites({ pins: pinsFor() });
 		expect(creates).toHaveLength(14);
 		expect(updates).toHaveLength(0);
-		expect(creates.every(c => c.flags["stonetop-pwd"].markerSpec)).toBe(true);
+		expect(creates.every(c => c.flags["stonetop_pwd"].markerSpec)).toBe(true);
 	});
 
 	it("leaves a pin the GM deleted deleted, because its key is on the record", () => {
@@ -127,7 +127,7 @@ describe("bringing what is there up to date", () => {
 			texture: { src: placeMarkerIcon("place") },
 			// It went down with the teardrop's lift, one pixel deeper than the range's.
 			y: fist.y - 6,
-			flags: { "stonetop-pwd": { posterPin: fist.key, markerSpec: { x: fist.x, y: fist.y - 6, text: fist.name } } },
+			flags: { "stonetop_pwd": { posterPin: fist.key, markerSpec: { x: fist.x, y: fist.y - 6, text: fist.name } } },
 		});
 		const { creates, updates } = planMarkerWrites({ pins: [fist], notes: [asPlaced], placed: [fist.key] });
 		expect(creates).toHaveLength(0);
@@ -162,7 +162,7 @@ describe("what belongs to the GM once they touch it", () => {
 		const pin = places()[0];
 		const old = noteFor(pin, {
 			y: pin.y + 13,
-			flags: { "stonetop-pwd": { posterPin: pin.key, markerSpec: { x: pin.x, y: pin.y + 13, text: pin.name } } },
+			flags: { "stonetop_pwd": { posterPin: pin.key, markerSpec: { x: pin.x, y: pin.y + 13, text: pin.name } } },
 		});
 		const [update] = planMarkerWrites({ pins: [pin], notes: [old], placed: [pin.key] }).updates;
 		expect(update.y).toBe(pin.y);
@@ -183,13 +183,13 @@ describe("what belongs to the GM once they touch it", () => {
 		// refuse every later move of that place on behalf of an argument that has ended.
 		const pin = places()[0];
 		const theirs = noteFor(pin, {
-			flags: { "stonetop-pwd": { posterPin: pin.key, markerSpec: { x: pin.x - 240, y: pin.y + 90, text: pin.name } } },
+			flags: { "stonetop_pwd": { posterPin: pin.key, markerSpec: { x: pin.x - 240, y: pin.y + 90, text: pin.name } } },
 		});
 		const { creates, updates } = planMarkerWrites({ pins: [pin], notes: [theirs], placed: [pin.key] });
 		expect(creates).toHaveLength(0);
 		expect(updates).toHaveLength(1);
 		// The record and nothing else: the pin does not budge, because it is already there.
-		expect(updates[0].flags["stonetop-pwd"].markerSpec).toEqual({ x: pin.x, y: pin.y, text: pin.name });
+		expect(updates[0].flags["stonetop_pwd"].markerSpec).toEqual({ x: pin.x, y: pin.y, text: pin.name });
 		expect(updates[0].x).toBeUndefined();
 		expect(updates[0].y).toBeUndefined();
 
@@ -211,20 +211,20 @@ describe("what belongs to the GM once they touch it", () => {
 		const pin = places()[0];
 		const unstamped = noteFor(pin, {
 			y: pin.y + 13,
-			flags: { "stonetop-pwd": { posterPin: pin.key } },
+			flags: { "stonetop_pwd": { posterPin: pin.key } },
 		});
 		const [update] = planMarkerWrites({ pins: [pin], notes: [unstamped], placed: [pin.key] }).updates;
 		expect(update.y).toBe(pin.y);
-		expect(update.flags["stonetop-pwd"].markerSpec).toEqual({ x: pin.x, y: pin.y, text: pin.name });
+		expect(update.flags["stonetop_pwd"].markerSpec).toEqual({ x: pin.x, y: pin.y, text: pin.name });
 	});
 
 	it("stamps a pin that has no record even when nothing else about it is wrong", () => {
 		// Otherwise the very next pass cannot tell it from one the GM has since moved.
 		const pin = places()[0];
-		const unstamped = noteFor(pin, { flags: { "stonetop-pwd": { posterPin: pin.key } } });
+		const unstamped = noteFor(pin, { flags: { "stonetop_pwd": { posterPin: pin.key } } });
 		const { updates } = planMarkerWrites({ pins: [pin], notes: [unstamped], placed: [pin.key] });
 		expect(updates).toHaveLength(1);
-		expect(updates[0].flags["stonetop-pwd"].markerSpec.text).toBe(pin.name);
+		expect(updates[0].flags["stonetop_pwd"].markerSpec.text).toBe(pin.name);
 	});
 });
 

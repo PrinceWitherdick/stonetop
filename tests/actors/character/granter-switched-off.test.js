@@ -7,13 +7,13 @@ import { describe, expect, it } from "vitest";
 import { buildLiveCharacter, makeLiveItem, sourceMovesFor } from "../../fakes/LiveCharacter.js";
 import { isMoveLearned, moveLearnedIn, ownsLearnedMoveNamed, ownsMoveNamed, switchedOffGranter } from "../../../module/actors/character/owns-move.js";
 
-const off = () => ({ "stonetop-pwd": { learned: false } });
+const off = () => ({ "stonetop_pwd": { learned: false } });
 
 function moveActor({ granterLearned = true, grantLearned = true } = {}) {
 	const versatile = { _id: "v1", type: "move", name: "Versatile", system: {}, flags: granterLearned ? {} : off() };
 	const smash = {
 		_id: "s1", type: "move", name: "Smash", system: {},
-		flags: { "stonetop-pwd": { grantedBy: { move: "Versatile", instanceId: "v1" }, ...(grantLearned ? {} : { learned: false }) } },
+		flags: { "stonetop_pwd": { grantedBy: { move: "Versatile", instanceId: "v1" }, ...(grantLearned ? {} : { learned: false }) } },
 	};
 	const actor = { items: [versatile, smash] };
 	for (const i of actor.items) i.parent = actor;
@@ -25,7 +25,7 @@ describe("a move granted by a switched-off cross move reads as un-learned", () =
 		const { actor, versatile } = moveActor({ granterLearned: false });
 		expect(ownsMoveNamed(actor, "Smash")).toBe(true);
 		expect(ownsLearnedMoveNamed(actor, "Smash")).toBe(false);
-		delete versatile.flags["stonetop-pwd"];
+		delete versatile.flags["stonetop_pwd"];
 		expect(ownsLearnedMoveNamed(actor, "Smash")).toBe(true);
 	});
 
@@ -55,7 +55,7 @@ const blessedMove = name => sourceMovesFor("The Blessed").find(d => d.name === n
 function seeker({ initiateLearned = true } = {}) {
 	const initiate = makeLiveItem({ name: "Initiate of the Secret Arts", type: "move", system: structuredClone(seekerMove("Initiate of the Secret Arts").system), flags: initiateLearned ? {} : off() });
 	const bigMagic = makeLiveItem({ name: "Big Magic", type: "move", system: structuredClone(blessedMove("Big Magic").system),
-		flags: { "stonetop-pwd": { grantedBy: { move: initiate.name, instanceId: initiate._id } } } });
+		flags: { "stonetop_pwd": { grantedBy: { move: initiate.name, instanceId: initiate._id } } } });
 	const built = buildLiveCharacter({
 		slug: "the-seeker", name: "The Seeker", level: 4, items: [initiate, bigMagic],
 		flags: { "possessions.selected": ["sacred-pouch"], "possessions.uses": { "sacred-pouch": 1 }, "possessions.grantedAtLevel": { "sacred-pouch": 2 } },
@@ -77,7 +77,7 @@ describe("the Seeker's Sacred Pouch while Initiate of the Secret Arts is switche
 		expect((await char.stockSources()).map(s => s.key)).not.toContain("stock");
 		expect(ownsLearnedMoveNamed(actor, "Big Magic")).toBe(false);
 		// Nothing deleted: the pouch stays selected with its spent Stock.
-		expect(actor.flags["stonetop-pwd"].possessions.selected).toContain("sacred-pouch");
+		expect(actor.flags["stonetop_pwd"].possessions.selected).toContain("sacred-pouch");
 		await char.setMoveLearned(initiate._id, true);
 		expect(await char.holdsPossession("sacred-pouch")).toBe(true);
 		expect((await char.stockSources()).find(s => s.key === "stock")).toMatchObject({ stored: 1 });

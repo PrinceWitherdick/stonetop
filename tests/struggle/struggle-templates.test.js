@@ -10,8 +10,8 @@ import { followerKey, newSetupDraft, setupView } from "../../module/struggle/str
  * pure modules build, so what is asserted is the markup that ships.
  */
 
-const WINDOW = "systems/stonetop-pwd/templates/dialogs/struggle-as-one.hbs";
-const SETUP = "systems/stonetop-pwd/templates/dialogs/struggle-setup.hbs";
+const WINDOW = "systems/stonetop_pwd/templates/dialogs/struggle-as-one.hbs";
+const SETUP = "systems/stonetop_pwd/templates/dialogs/struggle-setup.hbs";
 
 const pc = (actorId, extra = {}) => ({ kind: ROW_KIND.PC, actorId, name: actorId, ...extra });
 

@@ -31,7 +31,7 @@ beforeAll(async () => {
 	// rather than a stand-in that could offer anything.
 	dialog._saver = improvementCardSaver();
 	dialog._activeTab = "improvement";
-	markup = await renderTemplate("systems/stonetop-pwd/templates/dialogs/improvement-builder.hbs", dialog.getData());
+	markup = await renderTemplate("systems/stonetop_pwd/templates/dialogs/improvement-builder.hbs", dialog.getData());
 });
 
 describe("the improvement builder's panels", () => {

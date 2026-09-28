@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { buildLiveCharacter, makeLiveItem } from "../../fakes/LiveCharacter.js";
 import { KNOW_THINGS_ADVANTAGE_MOVES } from "../../../module/actors/character/arcana-identify.js";
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const BA = "Binding Arbitration";
 const BA_KEY = "binding-arbitration";
 

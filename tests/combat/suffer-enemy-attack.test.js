@@ -318,7 +318,7 @@ describe("maybeCounterOnMiss", () => {
 		// they wrote — the same rule attackMoveFor applies everywhere else in this flow. Clash
 		// needs no such guard: nothing but Clash is called Clash.
 		const targets = targeting("bronze khopesh d10+2 (close)", "d10+2");
-		const theirs = { name: "Ambush", system: { moveType: "other" }, flags: { "stonetop-pwd": { custom: true } } };
+		const theirs = { name: "Ambush", system: { moveType: "other" }, flags: { "stonetop_pwd": { custom: true } } };
 		expect(await maybeCounterOnMiss(pc, theirs, { total: 4 }, frozen(targets))).toBe(false);
 	});
 

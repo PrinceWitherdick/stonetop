@@ -18,7 +18,7 @@ vi.mock("../../../module/combat/attack-flow.js", async (importOriginal) => {
 	};
 });
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const BA = "Binding Arbitration";
 
 let begun;

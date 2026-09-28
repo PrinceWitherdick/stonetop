@@ -10,7 +10,7 @@ import { firstOptionList } from "../../../module/utils/chat.js";
 // R2: Invoke the Sun God's ticked consequences act on the sheet. B5: Wielder of the White Flame's 10+
 // invokes as a 10+, once per card.
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const INVOKE_JSON = path.resolve("packs/src/stonetop-items/playbook-moves/the-lightbearer/invoke-the-sun-god.json");
 const INVOKE_DESCRIPTION = JSON.parse(fs.readFileSync(INVOKE_JSON, "utf8")).system.description;
 

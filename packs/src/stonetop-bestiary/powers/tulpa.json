@@ -1,7 +1,7 @@
 {
   "name": "Tulpa",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/spirit-construct.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -25,7 +25,7 @@
     "tags": "spirit, construct, tiny, naive, eager",
     "qualities": "<p>Created and shaped by its maker: pick 2 further personality tags (fierce, kind, sly, timid, willful), an instinct, 2 more moves, and a cost.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.9RoGuMEtRuOH80Q8",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.9RoGuMEtRuOH80Q8",
     "notes": "",
     "creatureType": "spirit-construct"
   },
@@ -34,7 +34,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/spirit-construct.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit-construct.svg"
     }
   },
   "items": [

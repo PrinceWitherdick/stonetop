@@ -161,7 +161,7 @@ export class CompanionSetupDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-companion-setup",
 			title:     "Create your companion",
-			template:  "systems/stonetop-pwd/templates/dialogs/companion-setup.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/companion-setup.hbs",
 			width:     600,
 			height:    "auto",
 			resizable: true,

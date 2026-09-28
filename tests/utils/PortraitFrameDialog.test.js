@@ -49,7 +49,7 @@ describe("the frame dialog's Tokenizer note", () => {
 		// tokenize pip uses, so the note and the button cannot come to disagree.
 		installTokenizer();
 		const follower = followerFrameHandle(
-			{ ...ACTOR, flags: { "stonetop-pwd": { "crew.details": { img: "worlds/w/crew.webp" } } } },
+			{ ...ACTOR, flags: { "stonetop_pwd": { "crew.details": { img: "worlds/w/crew.webp" } } } },
 			"crew.details", { editable: true });
 		// Asserted, so this cannot pass merely because the handle came back null.
 		expect(follower, "no follower handle to frame with").toBeTruthy();

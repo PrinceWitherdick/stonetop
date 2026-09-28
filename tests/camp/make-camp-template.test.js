@@ -9,7 +9,7 @@ import { campWindowView } from "../../module/camp/camp-view.js";
  * view camp-view.js builds, so what is asserted is the markup that ships.
  */
 
-const TEMPLATE = "systems/stonetop-pwd/templates/dialogs/make-camp.hbs";
+const TEMPLATE = "systems/stonetop_pwd/templates/dialogs/make-camp.hbs";
 
 const aeliana = (over = {}) => seat({ id: "aeliana", name: "Aeliana", isHost: true, joinedAt: 1, ...over });
 const bram    = (over = {}) => seat({ id: "bram", name: "Bram", joinedAt: 2, carried: { provisions: 2 }, ...over });

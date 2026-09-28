@@ -34,8 +34,8 @@ function makeUndead(slug, { counts = {}, insert = {}, hp = 0 } = {}) {
 	return { actor, char: new StonetopCharacter(actor, factory) };
 }
 
-const flag = (actor, key) => actor.flags["stonetop-pwd"][key];
-const count = (actor, key) => Number(actor.flags["stonetop-pwd"].postDeathLore?.counts?.[key] ?? 0);
+const flag = (actor, key) => actor.flags["stonetop_pwd"][key];
+const count = (actor, key) => Number(actor.flags["stonetop_pwd"].postDeathLore?.counts?.[key] ?? 0);
 
 /** Where _onRoll leaves the window once the dice land on `tierKey`. */
 async function landed(char, tierKey) {
@@ -283,10 +283,10 @@ describe("UndeathDialog._onAlternative: the Revenant who becomes a Ghost", () =>
 		await dialog._onAlternative("ghost");
 
 		const slugWrites = actor.update.mock.calls.map(([d]) => d)
-			.filter(d => "flags.stonetop-pwd.postDeathInsert.slug" in d);
+			.filter(d => "flags.stonetop_pwd.postDeathInsert.slug" in d);
 		expect(slugWrites).toEqual([{
-			"flags.stonetop-pwd.postDeathInsert.slug": "ghost",
-			"flags.stonetop-pwd.deathsDoor": DEATHS_DOOR_STATE.OUT_OF_ACTION,
+			"flags.stonetop_pwd.postDeathInsert.slug": "ghost",
+			"flags.stonetop_pwd.deathsDoor": DEATHS_DOOR_STATE.OUT_OF_ACTION,
 		}]);
 		expect(flag(actor, "deathsDoor")).toBe(DEATHS_DOOR_STATE.OUT_OF_ACTION);
 		expect(dialog._openChoices).toHaveBeenCalledWith({ consequences: ["breakdown", "carrion-stench"] });

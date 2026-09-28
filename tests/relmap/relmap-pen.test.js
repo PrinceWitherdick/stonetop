@@ -20,11 +20,11 @@ import { RELMAP_CAPTION_PX } from "../../module/utils/relmap-geometry.js";
 //    the ordinary size" are different states that both read as `RELMAP_SIZE_NONE`, and telling them
 //    apart is the whole of what lets a reader's own remembered size still seed a fresh map.
 
-const PREFIX = `flags.stonetop-pwd.${RELMAP_PEN_FLAG}`;
+const PREFIX = `flags.stonetop_pwd.${RELMAP_PEN_FLAG}`;
 
 /** A map, as much of one as this file touches: a flag bag, ownership, and a document update. */
 function makeMap({ pen = null, isOwner = true } = {}) {
-	const flags = pen ? { "stonetop-pwd": { [RELMAP_PEN_FLAG]: pen } } : {};
+	const flags = pen ? { "stonetop_pwd": { [RELMAP_PEN_FLAG]: pen } } : {};
 	return {
 		isOwner,
 		flags,

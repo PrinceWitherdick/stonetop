@@ -76,7 +76,7 @@ const rollableFor = item => ({ closest: () => ({ dataset: { itemId: item._id } }
 const basic = (name, rollType) => makeLiveItem({ name, type: "move", system: { moveType: "basic", rollType } });
 const pbMove = (name, { learned = true } = {}) => makeLiveItem({
 	name, type: "move", system: { moveType: "playbook", description: `<p>${name}'s text.</p>` },
-	flags: learned ? undefined : { "stonetop-pwd": { learned: false } },
+	flags: learned ? undefined : { "stonetop_pwd": { learned: false } },
 });
 
 describe("the sheet's alternate-stat offer", () => {

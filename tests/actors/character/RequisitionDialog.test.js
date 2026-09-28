@@ -11,7 +11,7 @@ function makeDialog(assets, items = []) {
 	const steadingActor = {
 		name: "Stonetop",
 		system: {},
-		flags: { "stonetop-pwd": { steading: { assets } } },
+		flags: { "stonetop_pwd": { steading: { assets } } },
 		getFlag: (scope, key) => steadingActor.flags[scope]?.[key],
 		setFlag: vi.fn(),
 	};
@@ -23,7 +23,7 @@ function makeDialog(assets, items = []) {
 	);
 }
 
-const logistics = (learned = true) => ({ type: "move", name: "Logistics", flags: learned ? {} : { "stonetop-pwd": { learned: false } } });
+const logistics = (learned = true) => ({ type: "move", name: "Logistics", flags: learned ? {} : { "stonetop_pwd": { learned: false } } });
 
 function makeRoot(elements) {
 	return {

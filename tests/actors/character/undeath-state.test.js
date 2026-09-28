@@ -90,7 +90,7 @@ describe("isOutOfPlay, and the party lists that ask it", () => {
 describe("isUndeathCard / isZeroHpMoveCard", () => {
 	const cardOf = move => {
 		const store = { [ROLLED_FLAG]: rolledRecord("", { moveName: move }) };
-		return { getFlag: (scope, key) => (scope === "stonetop-pwd" ? store[key] : undefined) };
+		return { getFlag: (scope, key) => (scope === "stonetop_pwd" ? store[key] : undefined) };
 	};
 
 	it("knows Undying, Tethered and Dark Succor's cards, and keeps Death's Door its own", () => {

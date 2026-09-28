@@ -6,7 +6,7 @@ import { adjustXp } from "../../../module/utils/xp.js";
 // The Would-Be Hero's Driven: "You always have the option to Burn Brightly; you can spend 2 XP after you roll to
 // add +1, even if you don't have enough XP to level."
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 
 function hero({ background = null, playbook = "The Would-Be Hero", xp = 0, level = 1 } = {}) {
 	const actor = {

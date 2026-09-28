@@ -23,7 +23,7 @@ vi.mock("../../../module/combat/attack-flow.js", async (importOriginal) => ({
 	rollMoveDamageAt: flow.rollAt,
 }));
 
-const LEARNED_OFF = { "stonetop-pwd": { learned: false } };
+const LEARNED_OFF = { "stonetop_pwd": { learned: false } };
 
 function judge({ castigate = true, learned = true, condemn = false } = {}) {
 	const items = [makeLiveItem({ name: "Censure", type: "move", system: { rollType: null } })];
@@ -235,7 +235,7 @@ describe("a move given up for its replacement", () => {
 });
 
 describe("a required move counts only while LEARNED", () => {
-	const OFF = { "stonetop-pwd": { learned: false } };
+	const OFF = { "stonetop_pwd": { learned: false } };
 
 	it("Hound of Aratis switched off: Like a Dog with a Bone is not offered at level-up or on the Moves tab", async () => {
 		const { char } = judgeAt(1, [judgeItem("Hound of Aratis", OFF)]);
@@ -251,7 +251,7 @@ describe("a required move counts only while LEARNED", () => {
 		expect((await judgeEntries(char, 2)).get("Like a Dog with a Bone").requirementsUnmet).toBe(true);
 		// Nothing is taken away: the warning is all.
 		expect(actor.items.map(i => i.name)).toContain("Like a Dog with a Bone");
-		await hound.setFlag("stonetop-pwd", "learned", true);
+		await hound.setFlag("stonetop_pwd", "learned", true);
 		expect((await judgeEntries(char, 2)).get("Like a Dog with a Bone").requirementsUnmet).toBe(false);
 	});
 

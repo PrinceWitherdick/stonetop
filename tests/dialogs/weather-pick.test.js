@@ -287,7 +287,7 @@ describe("the Weather picker's canvas control", () => {
 
 		await dlg._toggleFx();
 
-		expect(globalThis.game.settings.set).toHaveBeenCalledWith("stonetop-pwd", "weatherSceneFx", false);
+		expect(globalThis.game.settings.set).toHaveBeenCalledWith("stonetop_pwd", "weatherSceneFx", false);
 		expect(dlg._picked.index).toBe(2);
 		expect(dlg.render).toHaveBeenCalled();
 	});

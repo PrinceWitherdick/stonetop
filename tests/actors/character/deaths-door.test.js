@@ -329,16 +329,16 @@ describe("deathsDoorRollOptions — the Heavy's two modifiers", () => {
 describe("StonetopCharacter#deathsDoorRollOptions: learned moves only", () => {
 	function heavy({ hardToKill = true, unstoppable = true, marks = 0 } = {}) {
 		const def = name => structuredClone(sourceMovesFor("The Heavy").find(d => d.name === name).system);
-		const off = { "stonetop-pwd": { learned: false } };
+		const off = { "stonetop_pwd": { learned: false } };
 		const built = buildLiveCharacter({
 			slug: "the-heavy", name: "The Heavy",
 			items: [makeLiveItem({ name: "Unstoppable", type: "move", system: def("Unstoppable"), flags: unstoppable ? {} : off })],
 			flags: marks ? { "moves.backgroundChoices": { Unstoppable: marks } } : {},
 		});
-		if (!hardToKill) built.actor.items.find(i => i.name === "Hard to Kill").flags["stonetop-pwd"].learned = false;
+		if (!hardToKill) built.actor.items.find(i => i.name === "Hard to Kill").flags["stonetop_pwd"].learned = false;
 		return built;
 	}
-	const marksOf = actor => actor.flags["stonetop-pwd"].moves?.backgroundChoices?.Unstoppable ?? 0;
+	const marksOf = actor => actor.flags["stonetop_pwd"].moves?.backgroundChoices?.Unstoppable ?? 0;
 
 	it("offers +CON and charges the circles with both learned", () => {
 		const opts = heavy({ marks: 2 }).char.deathsDoorRollOptions();
@@ -368,7 +368,7 @@ describe("StonetopCharacter#deathsDoorRollOptions: learned moves only", () => {
 
 	// The Heavy's Guardian is a rule too (+1 Readiness on every Defend), so it asks the same way.
 	it("gives Guardian's extra Readiness only while Guardian is learned", () => {
-		const guardian = learned => makeLiveItem({ name: "Guardian", type: "move", system: {}, flags: learned ? {} : { "stonetop-pwd": { learned: false } } });
+		const guardian = learned => makeLiveItem({ name: "Guardian", type: "move", system: {}, flags: learned ? {} : { "stonetop_pwd": { learned: false } } });
 		expect(buildLiveCharacter({ slug: "the-heavy", name: "The Heavy", items: [guardian(true)] }).char.hasGuardianMove).toBe(true);
 		expect(buildLiveCharacter({ slug: "the-heavy", name: "The Heavy", items: [guardian(false)] }).char.hasGuardianMove).toBe(false);
 	});

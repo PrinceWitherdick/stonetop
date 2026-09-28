@@ -28,7 +28,7 @@ vi.mock("../../../module/pc-asks/pc-ask-flow.js", async (importOriginal) => {
 	return { ...real, aimPcAskRoll: (...args) => (seams.aim ?? real.aimPcAskRoll)(...args) };
 });
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 
 describe("which whisky counts", () => {
 	it("is a skin of FINE whisky, by any of its spellings", () => {

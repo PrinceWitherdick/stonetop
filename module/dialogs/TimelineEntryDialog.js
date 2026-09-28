@@ -50,7 +50,7 @@ export class TimelineEntryDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			// No fixed id: a GM correcting one entry while writing another is ordinary, and two
 			// dialogs sharing a DOM id paint into each other.
-			template: "systems/stonetop-pwd/templates/dialogs/timeline-entry.hbs",
+			template: "systems/stonetop_pwd/templates/dialogs/timeline-entry.hbs",
 			width:  520,
 			height: "auto",
 			resizable: false,

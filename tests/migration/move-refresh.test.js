@@ -8,7 +8,7 @@ import { resetPackIndexFields } from "../../module/utils/pack-index.js";
 
 // Moves characters already hold, brought up to the fields the pack has gained since they were taken.
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const move = (name, system = {}, extra = {}) => ({ _id: `id-${name}`, type: "move", name, system, flags: {}, ...extra });
 const entry = (name, system = {}) => ({ name, type: "move", system });
 

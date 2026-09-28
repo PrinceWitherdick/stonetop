@@ -7,7 +7,7 @@ import { FakeActorBuilder } from "../../fakes/FakeActorBuilder.js";
 // no-op contract, and the one rule the model owns outright: the light going out takes the
 // Invocation with it, wherever the light was put out from.
 //
-// FakeActorBuilder aliases both flag scopes ("stonetop-pwd" and the legacy "stonetop") to ONE
+// FakeActorBuilder aliases both flag scopes ("stonetop_pwd" and the legacy "stonetop") to ONE
 // object, so reading a flag back can never prove which scope it was written under. The scope is
 // therefore asserted through the spy's literal arguments.
 function makeChar({ ongoing = "", lit = false } = {}) {
@@ -30,7 +30,7 @@ describe("StonetopCharacter ongoing Invocation", () => {
 	it("stores it under the system's own flag scope", async () => {
 		const { char, actor } = makeChar();
 		await expect(char.setOngoingInvocation("warmth-of-the-sun")).resolves.toBe(true);
-		expect(actor.update).toHaveBeenCalledWith({ "flags.stonetop-pwd.ongoingInvocation": "warmth-of-the-sun" });
+		expect(actor.update).toHaveBeenCalledWith({ "flags.stonetop_pwd.ongoingInvocation": "warmth-of-the-sun" });
 		expect(char.ongoingInvocation).toBe("warmth-of-the-sun");
 	});
 
@@ -39,7 +39,7 @@ describe("StonetopCharacter ongoing Invocation", () => {
 	it("ends it by dropping the flag", async () => {
 		const { char, actor } = makeChar({ ongoing: "warmth-of-the-sun" });
 		await expect(char.setOngoingInvocation("")).resolves.toBe(true);
-		expect(actor.update).toHaveBeenCalledWith({ "flags.stonetop-pwd.-=ongoingInvocation": null });
+		expect(actor.update).toHaveBeenCalledWith({ "flags.stonetop_pwd.-=ongoingInvocation": null });
 		expect(actor.setFlag).not.toHaveBeenCalled();
 		expect(char.ongoingInvocation).toBe("");
 	});
@@ -67,7 +67,7 @@ describe("StonetopCharacter ongoing Invocation", () => {
 		await expect(char.setHolyLight(false)).resolves.toBe(true);
 		expect(char.ongoingInvocation).toBe("");
 		expect(char.holyLight).toBe(false);
-		expect(actor.update).toHaveBeenCalledWith(expect.objectContaining({ "flags.stonetop-pwd.-=ongoingInvocation": null }));
+		expect(actor.update).toHaveBeenCalledWith(expect.objectContaining({ "flags.stonetop_pwd.-=ongoingInvocation": null }));
 	});
 
 	// Reported as a change even though the light itself didn't move, so the sheet repaints: a
@@ -103,8 +103,8 @@ describe("StonetopCharacter two ongoing Invocations", () => {
 		// One write for both, so no hook sees a first slot without its second.
 		expect(actor.update).toHaveBeenCalledTimes(1);
 		expect(actor.update).toHaveBeenCalledWith(expect.objectContaining({
-			"flags.stonetop-pwd.ongoingInvocationSecond": "blinding-light",
-			"flags.stonetop-pwd.ongoingInvocationEmpowered": true,
+			"flags.stonetop_pwd.ongoingInvocationSecond": "blinding-light",
+			"flags.stonetop_pwd.ongoingInvocationEmpowered": true,
 		}));
 		expect(char.ongoingInvocations).toEqual(["dancing-light", "blinding-light"]);
 		expect(char.ongoingInvocationSecond).toBe("blinding-light");
@@ -180,16 +180,16 @@ describe("StonetopCharacter Invoke the Sun God grant level", () => {
 	it("stamps the level Invoke the Sun God was taken at", async () => {
 		const { char, actor } = takes("Invoke the Sun God", { level: 4 });
 		await char._applyForeignMoveChoice({ name: "Versatile", id: "v1" }, "pack.invoke", null);
-		expect(actor.setFlag).toHaveBeenCalledWith("stonetop-pwd", "invocations.grantedAtLevel", 4);
+		expect(actor.setFlag).toHaveBeenCalledWith("stonetop_pwd", "invocations.grantedAtLevel", 4);
 	});
 
 	it("keeps the earliest stamp, and stamps nothing for another move", async () => {
 		const early = takes("Invoke the Sun God", { level: 8, stamped: 2 });
 		await early.char._applyForeignMoveChoice({ name: "Versatile", id: "v1" }, "pack.invoke", null);
-		expect(early.actor.setFlag).not.toHaveBeenCalledWith("stonetop-pwd", "invocations.grantedAtLevel", 8);
+		expect(early.actor.setFlag).not.toHaveBeenCalledWith("stonetop_pwd", "invocations.grantedAtLevel", 8);
 		const other = takes("Ambush", { level: 4 });
 		await other.char._applyForeignMoveChoice({ name: "Versatile", id: "v1" }, "pack.ambush", null);
-		expect(other.actor.setFlag).not.toHaveBeenCalledWith("stonetop-pwd", "invocations.grantedAtLevel", 4);
+		expect(other.actor.setFlag).not.toHaveBeenCalledWith("stonetop_pwd", "invocations.grantedAtLevel", 4);
 	});
 });
 
@@ -206,7 +206,7 @@ describe("StonetopCharacter Invocations waiting on the sun", () => {
 	it("adds to the list, answering only what it added", async () => {
 		const { char, actor } = withSun(["blinding-flash"]);
 		await expect(char.markNeedsSun(["warmth-of-the-sun", "blinding-flash"])).resolves.toEqual(["warmth-of-the-sun"]);
-		expect(actor.setFlag).toHaveBeenCalledWith("stonetop-pwd", "invocations.needsSun", ["blinding-flash", "warmth-of-the-sun"]);
+		expect(actor.setFlag).toHaveBeenCalledWith("stonetop_pwd", "invocations.needsSun", ["blinding-flash", "warmth-of-the-sun"]);
 		expect(char.invocationsNeedingSun).toEqual(["blinding-flash", "warmth-of-the-sun"]);
 	});
 
@@ -221,7 +221,7 @@ describe("StonetopCharacter Invocations waiting on the sun", () => {
 		await expect(char.clearNeedsSun(["warmth-of-the-sun", "dancing-light"])).resolves.toEqual(["warmth-of-the-sun"]);
 		expect(char.invocationsNeedingSun).toEqual(["blinding-flash"]);
 		await char.clearNeedsSun(["blinding-flash"]);
-		expect(actor.unsetFlag).toHaveBeenCalledWith("stonetop-pwd", "invocations.needsSun");
+		expect(actor.unsetFlag).toHaveBeenCalledWith("stonetop_pwd", "invocations.needsSun");
 		expect(char.invocationsNeedingSun).toEqual([]);
 	});
 });

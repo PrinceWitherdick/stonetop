@@ -12,7 +12,7 @@ import { createStonetopCharacterSheetClass, GUIDED_CHARACTER_MOVES } from "../..
 import { buildLiveCharacter } from "../../fakes/LiveCharacter.js";
 import { readRepo as read } from "../../fakes/css.js";
 
-const move = (name, learned = true) => ({ type: "move", name, flags: learned ? {} : { "stonetop-pwd": { learned: false } } });
+const move = (name, learned = true) => ({ type: "move", name, flags: learned ? {} : { "stonetop_pwd": { learned: false } } });
 
 // A carer as the rules read one: a character document with its moves, its WIS and its purses.
 // `owners` are the user ids that own it (a GM owns every actor).
@@ -363,7 +363,7 @@ describe("the Recover window", () => {
 		global.game.actors = new Map([["gwynn", gwynn]]);
 		const { sheet, patient } = makeSheet();
 		await sheet._applyRecover({ purse, oldHp: 4, newHp: 8, care: care(gwynn) });
-		expect(patient.update).toHaveBeenCalledWith({ "system.attributes.hp.value": 10, "flags.stonetop-pwd.recover.spent": true });
+		expect(patient.update).toHaveBeenCalledWith({ "system.attributes.hp.value": 10, "flags.stonetop_pwd.recover.spent": true });
 		expect(gwynn.typedActor.spendStock).not.toHaveBeenCalled();
 	});
 
@@ -375,7 +375,7 @@ describe("the Recover window", () => {
 		expect(gwynn.typedActor.spendStock).toHaveBeenCalledTimes(1);
 		expect(patient.update).toHaveBeenCalledWith({
 			"system.attributes.hp.value": 15,
-			"flags.stonetop-pwd.recover.spent": true,
+			"flags.stonetop_pwd.recover.spent": true,
 			"system.attributes.wounds": ["stabilized"],
 		});
 		const card = global.ChatMessage.create.mock.calls[0][0].content;
@@ -412,7 +412,7 @@ describe("the Recover window", () => {
 		global.game.actors = new Map([["gwynn", gwynn]]);
 		const { sheet, patient } = makeSheet();
 		await sheet._applyRecover({ purse, oldHp: 4, newHp: 8, care: care(gwynn, { stock: true }) });
-		expect(patient.update).toHaveBeenCalledWith({ "system.attributes.hp.value": 10, "flags.stonetop-pwd.recover.spent": true });
+		expect(patient.update).toHaveBeenCalledWith({ "system.attributes.hp.value": 10, "flags.stonetop_pwd.recover.spent": true });
 		expect(patient.typedActor.stabilizeOpenWoundsUpdate).not.toHaveBeenCalled();
 		expect(patient.typedActor.setInventoryResource).toHaveBeenCalledWith("supplies", 2);
 		expect(global.ui.notifications.info).toHaveBeenLastCalledWith(
@@ -432,7 +432,7 @@ describe("the Recover window", () => {
 		global.game.actors = new Map([["gwynn", gwynn]]);
 		const { sheet, patient } = makeSheet();
 		await sheet._applyRecover({ purse, oldHp: 4, newHp: 8, care: care(gwynn, { stock: true }) });
-		expect(patient.update).toHaveBeenCalledWith({ "system.attributes.hp.value": 10, "flags.stonetop-pwd.recover.spent": true });
+		expect(patient.update).toHaveBeenCalledWith({ "system.attributes.hp.value": 10, "flags.stonetop_pwd.recover.spent": true });
 		expect(global.ui.notifications.info.mock.calls.at(-1)[0]).toContain("No answer came about Gwynn's Stock");
 		expect(global.ChatMessage.create.mock.calls[0][0].content).toContain("Not answered, not spent");
 	});

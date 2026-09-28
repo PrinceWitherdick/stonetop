@@ -1,7 +1,7 @@
 {
   "name": "Infected Hagr",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/corrupted.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/corrupted.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "solitary, large, terrifying, hardy, magical",
     "qualities": "<p>Infectious blood; suffers from delusions, behaves erratically. Armor 1 vs. bronze (blubbery hide).</p>",
     "count": 1,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.iS6nYGE2SZOV6Vat",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.iS6nYGE2SZOV6Vat",
     "notes": "",
     "creatureType": "corrupted"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/corrupted.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/corrupted.svg"
     }
   },
   "items": [

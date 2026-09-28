@@ -1,7 +1,7 @@
 {
   "name": "Soithech",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/corrupted.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/corrupted.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "solitary, corrupted, devious, magical, cautious",
     "qualities": "<p>Armor 1 vs. bronze. Powerfully gifted and marked. Can let its patron Thing Below flow through it — embodying an aspect and gaining up to 3 more gifts; adjust the stat block.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.J0eNyUcWDLD2ornV",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.J0eNyUcWDLD2ornV",
     "notes": "",
     "creatureType": "corrupted"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/corrupted.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/corrupted.svg"
     }
   },
   "items": [

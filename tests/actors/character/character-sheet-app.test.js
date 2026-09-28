@@ -16,18 +16,18 @@ vi.mock("../../../module/dialogs/RelationshipLinkDialog.js", async (importOrigin
 
 function makeCharacterMock(actor) {
 	const background = {
-		selectBackground: vi.fn(async slug => actor.setFlag("stonetop-pwd", "background.selected", slug)),
+		selectBackground: vi.fn(async slug => actor.setFlag("stonetop_pwd", "background.selected", slug)),
 		addChoice: vi.fn(),
-		selectedSlug: actor.getFlag("stonetop-pwd", "background.selected") ?? "",
+		selectedSlug: actor.getFlag("stonetop_pwd", "background.selected") ?? "",
 		choices: {},
 	};
 	const instinct = { select: vi.fn(), selectedValue: "" };
 	const appearance = {
 		select: vi.fn(async (lineIdx, value) => {
-			const saved = actor.getFlag("stonetop-pwd", "appearance.selected") ?? {};
-			actor.setFlag("stonetop-pwd", "appearance.selected", { ...saved, [lineIdx]: value });
+			const saved = actor.getFlag("stonetop_pwd", "appearance.selected") ?? {};
+			actor.setFlag("stonetop_pwd", "appearance.selected", { ...saved, [lineIdx]: value });
 		}),
-		saved: actor.getFlag("stonetop-pwd", "appearance.selected") ?? {},
+		saved: actor.getFlag("stonetop_pwd", "appearance.selected") ?? {},
 	};
 	const origin = { select: vi.fn() };
 	// The holy light is live state, not a stub return: getData reads the getter and the
@@ -279,7 +279,7 @@ describe("StonetopCharacterSheet event handlers", () => {
 
 		expect((await sheet.getData()).stonetop.movelist.showLevelMovesOverLimit).toBe(true);
 
-		await actor.setFlag("stonetop-pwd", "moves.dismissedLevelOverage", "2:3:4");
+		await actor.setFlag("stonetop_pwd", "moves.dismissedLevelOverage", "2:3:4");
 		expect((await sheet.getData()).stonetop.movelist.showLevelMovesOverLimit).toBe(false);
 
 		actor.typedActor.buildSnapshot = vi.fn(async () => minimalSheetSnapshot({
@@ -747,11 +747,11 @@ describe("StonetopCharacterSheet holy light candle", () => {
 		globalThis.ChatMessage = { create: vi.fn(async data => data), getSpeaker: () => ({}) };
 		try {
 			await sheet._stonetopCharacter.setBattleJoy(true);
-			await actor.setFlag("stonetop-pwd", "battleJoy", true);
+			await actor.setFlag("stonetop_pwd", "battleJoy", true);
 			await sheet._onBattleJoyToggle(clickEvent());
 			expect(asked).not.toHaveBeenCalled();
 			expect(sheet._stonetopCharacter.onRoll).not.toHaveBeenCalled();
-			expect(actor.getFlag("stonetop-pwd", "battleJoy")).toBeNull();
+			expect(actor.getFlag("stonetop_pwd", "battleJoy")).toBeNull();
 			expect(globalThis.ChatMessage.create.mock.calls[0][0].content).toContain("their Battle Joy ends, with no roll");
 		} finally {
 			globalThis.ChatMessage = saved;
@@ -1415,7 +1415,7 @@ describe("StonetopCharacterSheet._applyRecover", () => {
 		await sheet._applyRecover({ purse: purse("supplies", 1), oldHp: 4, newHp: 9 });
 		expect(actor.update).toHaveBeenCalledWith({
 			"system.attributes.hp.value": 9,
-			"flags.stonetop-pwd.recover.spent": true,
+			"flags.stonetop_pwd.recover.spent": true,
 		});
 	});
 
@@ -1501,7 +1501,7 @@ describe("StonetopCharacterSheet._applyConvalesce", () => {
 		});
 		expect(actor.update).toHaveBeenCalledWith({
 			"system.attributes.hp.value": 8,
-			"flags.stonetop-pwd.background.setupResources.auspicious-birth": 0,
+			"flags.stonetop_pwd.background.setupResources.auspicious-birth": 0,
 		}, { stonetopMove: "Convalesce" });
 	});
 
@@ -1572,7 +1572,7 @@ describe("StonetopCharacterSheet._onDropPlaybook", () => {
 	// and deleted them.
 	function makePlaybookDoc(slug, extra = {}) {
 		return {
-			uuid: `Compendium.stonetop-pwd.stonetop-items.${slug}`,
+			uuid: `Compendium.stonetop_pwd.stonetop-items.${slug}`,
 			name: slug,
 			type: "playbook",
 			system: { slug },

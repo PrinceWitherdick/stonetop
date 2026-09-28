@@ -1,7 +1,7 @@
 {
   "name": "Rime Lord",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/maker.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/maker.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "solitary, large, cautious, cunning, magical, organized, terrifying",
     "qualities": "<p>Spirit sight; telepathic; cold-proof; ageless; no need to eat, drink, sleep, or breathe; an aura of bitter cold.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.lMOwbXpvkp9KL5SG",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.lMOwbXpvkp9KL5SG",
     "notes": "",
     "creatureType": "maker"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/maker.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/maker.svg"
     }
   },
   "items": [

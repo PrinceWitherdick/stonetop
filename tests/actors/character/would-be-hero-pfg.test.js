@@ -14,7 +14,7 @@ const WBH = "The Would-Be Hero";
 const PFG = "Potential for Greatness";
 const WBH_STATS = { str: 1, dex: 0, con: 0, int: 0, wis: 0, cha: -1 };
 const wbhId = name => sourceMovesFor(WBH).find(d => d.name === name)._id;
-const marksOf = actor => actor.getFlag("stonetop-pwd", "moves.moveMarks")?.[PFG] ?? {};
+const marksOf = actor => actor.getFlag("stonetop_pwd", "moves.moveMarks")?.[PFG] ?? {};
 const stat = (actor, key) => actor.system.stats[key].value;
 const itemNamed = (actor, name) => actor.items.find(i => i.name === name);
 
@@ -125,7 +125,7 @@ describe("Superior Stat: all 6 marks in Potential for Greatness", () => {
 
 	it("counts the marks only while Potential for Greatness is learned", async () => {
 		const { char, actor } = hero({ level: 6, marks: ALL_SIX() });
-		await itemNamed(actor, PFG).setFlag("stonetop-pwd", "learned", false);
+		await itemNamed(actor, PFG).setFlag("stonetop_pwd", "learned", false);
 		expect((await char.getLevelUpData()).availableMoves.map(m => m.name)).not.toContain("Superior Stat");
 	});
 
@@ -195,7 +195,7 @@ describe("a free pick retired by its replacement, and onboarding run again", () 
 		const { char, actor } = await retiredFreePick();
 		const force = itemNamed(actor, "A Force to Be Reckoned With");
 		expect(ownedMoveNames(actor)).not.toContain("Underestimated");
-		expect(force.flags["stonetop-pwd"][RETIRED_CREATION_PICK_FLAG]).toBe(true);
+		expect(force.flags["stonetop_pwd"][RETIRED_CREATION_PICK_FLAG]).toBe(true);
 		expect(char.retiredCreationPickCount()).toBe(1);
 		// The replacement itself is no free pick: a re-run neither shows it nor takes it back.
 		expect(char.creationPickItems(WBH).map(i => i.name)).toEqual(["Iron Will"]);
@@ -211,7 +211,7 @@ describe("a free pick retired by its replacement, and onboarding run again", () 
 		await char.removeMove(itemNamed(actor, "A Force to Be Reckoned With")._id);
 		const back = itemNamed(actor, "Underestimated");
 		expect(back).toBeTruthy();
-		expect(back.flags["stonetop-pwd"][CREATION_PICK_FLAG]).toBe(true);
+		expect(back.flags["stonetop_pwd"][CREATION_PICK_FLAG]).toBe(true);
 		expect(char.retiredCreationPickCount()).toBe(0);
 		expect(char.creationPickItems(WBH).map(i => i.name).sort()).toEqual(["Iron Will", "Underestimated"]);
 	});
@@ -220,7 +220,7 @@ describe("a free pick retired by its replacement, and onboarding run again", () 
 		const { char, actor } = hero({ level: 6 });
 		await char.addMove(wbhId("Underestimated"));
 		await char.addMove(wbhId("A Force to Be Reckoned With"));
-		expect(itemNamed(actor, "A Force to Be Reckoned With").flags["stonetop-pwd"][RETIRED_CREATION_PICK_FLAG]).toBeUndefined();
+		expect(itemNamed(actor, "A Force to Be Reckoned With").flags["stonetop_pwd"][RETIRED_CREATION_PICK_FLAG]).toBeUndefined();
 		expect(char.retiredCreationPickCount()).toBe(0);
 	});
 });

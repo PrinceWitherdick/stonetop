@@ -18,7 +18,7 @@ const CATALOG = [
 const character = (id, inventory) => ({
 	id,
 	type: "character",
-	flags: { "stonetop-pwd": { inventory } },
+	flags: { "stonetop_pwd": { inventory } },
 	update: vi.fn(async () => {}),
 });
 
@@ -60,7 +60,7 @@ describe("the sweep", () => {
 
 		expect(await grandfatherWeaponsOfWar({ actors: [pim], repo: repo(CATALOG) })).toBe(1);
 		expect(pim.update).toHaveBeenCalledWith({
-			"flags.stonetop-pwd.inventory.addedSpecial": ["rune-laden-scales", "crossbow"],
+			"flags.stonetop_pwd.inventory.addedSpecial": ["rune-laden-scales", "crossbow"],
 		});
 	});
 

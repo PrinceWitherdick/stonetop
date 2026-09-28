@@ -70,7 +70,7 @@ describe("the weather-and-season bar's view", () => {
 			expect(season.glyph).not.toContain("stonetop-season-entry");
 
 			expect(ownRule(CSS, `.stonetop-time-banner__season--${id}`), id)
-				.toContain(`url('/systems/stonetop-pwd/assets/icons/seasons/glyphs/${id}.svg')`);
+				.toContain(`url('/systems/stonetop_pwd/assets/icons/seasons/glyphs/${id}.svg')`);
 			const svg = read(`assets/icons/seasons/glyphs/${id}.svg`);
 			expect(svg, `${id}: backing square`).toContain('<path d="M0 0h512v512H0z" fill="#fff" fill-opacity="0"/>');
 			expect(svg, `${id}: opaque backing square left in`).not.toMatch(/<path d="M0 0h512v512H0z"\s*\/>/);

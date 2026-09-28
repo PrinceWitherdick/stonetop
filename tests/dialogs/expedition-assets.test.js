@@ -95,7 +95,7 @@ beforeEach(() => {
 		i18n: global.game.i18n,
 		user: { isGM: true },
 		settings: {
-			settings: new Map([["stonetop-pwd.expeditionAnswers", { scope: "world" }]]),
+			settings: new Map([["stonetop_pwd.expeditionAnswers", { scope: "world" }]]),
 			get: (_ns, key) => store[key],
 			set: (_ns, key, value) => { store[key] = value; return Promise.resolve(value); },
 		},
@@ -432,7 +432,7 @@ describe("rolling Requisition", () => {
 
 	// The Marshal's Logistics: "when you Requisition, you have advantage".
 	it("asks the Logistics line only once a character has it learned, and names them", () => {
-		const move = (name, learned = true) => ({ type: "move", name, flags: learned ? {} : { "stonetop-pwd": { learned: false } } });
+		const move = (name, learned = true) => ({ type: "move", name, flags: learned ? {} : { "stonetop_pwd": { learned: false } } });
 		global.game.actors = [
 			{ type: "character", name: "Wren", items: [move("Logistics")] },
 			{ type: "character", name: "Ash", items: [move("Logistics", false)] },
