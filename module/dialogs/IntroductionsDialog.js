@@ -19,6 +19,7 @@ import { stepPcDone, nextActiveIndex, firstActiveIndex, turnsUntilActive, cursor
 import { isPrimaryGM } from "../utils/primary-gm.js";
 import { escHtml } from "../utils/strings.js";
 import { findOpenApp } from "../utils/open-windows.js";
+import { merge3, diffHunks, mapIndex } from "../utils/text-rebase.js";
 import { SYSTEM_ID } from "../system-id.js";
 
 // The player-authored answer/ask step data lives on the PC actor flag
@@ -140,6 +141,11 @@ export class IntroductionsDialog extends StonetopDialog {
 		// recorded by _syncFromCursor. handleIntroCursor compares against it to tell a real
 		// move from one of the same-position writes a single turn attracts.
 		this._cursorKey   = null;
+		// What this client last knew the editable capture field's flag to hold: { key, text, q,
+		// who }, keyed by the field's own "actorId:roundKey|stepKey". The yardstick for "typed
+		// here and not saved yet" (see _captureDirty) and the common base a newer value written
+		// by the other editor is merged against (see _absorbCaptureWrite).
+		this._captureSeen = null;
 	}
 
 	// Entry point used by the Welcome guide / macro: show the dialog. The GM resumes its
@@ -299,6 +305,7 @@ export class IntroductionsDialog extends StonetopDialog {
 		// all while they type: cursorReaction defers those instead.
 		await this._flushCaptureFromDom();
 		await super._render(force, options);
+		this._noteCaptureShown();
 		// Record where we are + that we're open, so a reload can reopen here. Every
 		// render reflects the current round/turn (navigation always re-renders).
 		this._saveResume();
@@ -574,6 +581,138 @@ export class IntroductionsDialog extends StonetopDialog {
 		if (el) el.dataset.state = state;
 	}
 
+	// ── The capture field while two people can write it ─────────────────────────────
+	// On a turn owned by a present player the primary GM co-edits the same field (see
+	// _canEditActor), and each side saves its WHOLE text. Two rules keep either from rubbing
+	// out the other: a field only ever saves what was typed into it (_captureDirty), and every
+	// newer value that lands is merged into the field on screen at once, caret and all, rather
+	// than waiting for a re-render that is skipped for as long as somebody's caret is in it
+	// (_absorbCaptureWrite). Two saves that cross in flight sort themselves out: the side whose
+	// save lands second gets the other's first, while its own words are still in its field,
+	// merges the two, and saves the result.
+
+	// The key a capture field is tracked under: its PC and round / step, off its own data-*.
+	_captureKey(el) {
+		const { actorId, roundKey, stepKey } = el?.dataset ?? {};
+		const part = roundKey || stepKey;
+		return actorId && part ? `${actorId}:${part}` : null;
+	}
+
+	// Does this field hold typing that hasn't been saved yet? Yes when it differs from what this
+	// client last saw in the flag. With no record for the field (never drawn by this dialog),
+	// assume it does: that is how the flush behaved before there was a record to go on.
+	_captureDirty(el) {
+		const seen = this._captureSeen;
+		return !seen || seen.key !== this._captureKey(el) || el.value !== seen.text;
+	}
+
+	// After a render: note what the editable field was drawn with, then catch it up with the flag
+	// in case a save landed while the render was under way (its hook ran against the old DOM).
+	_noteCaptureShown() {
+		const el = this.element?.[0]?.querySelector(
+			"textarea.stonetop-intros-answer:not([readonly]), textarea.stonetop-intros-draft:not([readonly])");
+		const key = this._captureKey(el);
+		if (!key) { this._captureSeen = null; return; }
+		const { actorId, stepKey } = el.dataset;
+		const draft = stepKey ? this._stepDraft(actorId, stepKey) : null;
+		this._captureSeen = { key, text: el.value, q: draft?.q ?? null, who: draft?.who ?? null };
+		const actor = this._actor(actorId);
+		if (actor) this._absorbCaptureWrite(actor, null);
+	}
+
+	// A PC's intro flag just changed, by anyone, this client included: bring the capture field on
+	// screen up to date with it, in place.
+	_absorbCaptureWrite(actor, userId) {
+		const root = this.element?.[0];
+		if (!root || !actor) return;
+		const phase = _PHASES[this._phase];
+		// A readonly mirror carries no data-*, so it's matched to the PC shown. Nothing is typed
+		// into one, so it simply takes the text as it stands. A step's draft that has just been
+		// recorded is left alone: the re-render moves it into the recorded list.
+		const mirror = root.querySelector("textarea.stonetop-intros-answer[readonly], textarea.stonetop-intros-draft[readonly]");
+		if (mirror && this._pcs?.[this._pcIndex]?.id === actor.id) {
+			const now = _isStep(phase)
+				? (this._hasLiveDraft(actor.id, phase.stepKey) ? this._stepDraft(actor.id, phase.stepKey).a : null)
+				: (phase?.roundKey ? this._narration(actor.id, phase.roundKey) : null);
+			if (typeof now === "string" && mirror.value !== now) this._setFieldText(mirror, now);
+		}
+		const nar = root.querySelector("textarea.stonetop-intros-answer:not([readonly])");
+		if (nar?.dataset.actorId === actor.id && nar.dataset.roundKey) {
+			const { actorId, roundKey } = nar.dataset;
+			const unsaved = this._mergeIntoField(nar, this._narration(actorId, roundKey), userId);
+			if (unsaved !== null) {
+				this._setSaveStatus("saving");
+				this._scheduleNarration(actorId, roundKey, unsaved);
+			}
+		}
+		const draftEl = root.querySelector("textarea.stonetop-intros-draft:not([readonly])");
+		if (draftEl?.dataset.actorId === actor.id && draftEl.dataset.stepKey) this._absorbDraftWrite(root, draftEl, userId);
+	}
+
+	// The answer/ask step's half of _absorbCaptureWrite: the text merges like narration's, and the
+	// picks (question, who it's about) follow the flag.
+	_absorbDraftWrite(root, el, userId) {
+		const { actorId, stepKey } = el.dataset;
+		// Recording or passing clears the draft outright. That ends the answer rather than editing
+		// it, and the re-render that follows rebuilds the field; merging "nothing" in here would
+		// only empty a field the flush is careful to leave alone.
+		if (!this._hasLiveDraft(actorId, stepKey)) return;
+		const key   = this._captureKey(el);
+		const seen  = this._captureSeen?.key === key ? this._captureSeen : null;
+		const draft = this._stepDraft(actorId, stepKey);
+		// A pick is never unsaved (a click writes the flag before anything else), so the flag's is
+		// simply shown. Left alone, a question the other editor picked stayed unlit here while the
+		// caret was in the field, and clicking it to pick it toggled it straight back off.
+		if (!seen || seen.q !== draft.q) {
+			for (const btn of root.querySelectorAll(".stonetop-intros-question-pick")) {
+				btn.classList.toggle("is-selected", Number(btn.dataset.qIndex) === draft.q);
+			}
+		}
+		// Likewise who it's about, which matters more: the next keystroke saves whatever this select
+		// shows (see `composed` in activateListeners), so a stale one put the old pick back.
+		const about = root.querySelector(".stonetop-intros-about-pick");
+		if (about?.dataset.actorId === actorId && about.dataset.stepKey === stepKey && (!seen || seen.who !== draft.who)) {
+			about.value = draft.who ?? "";
+		}
+		const unsaved = this._mergeIntoField(el, draft.a, userId);
+		this._captureSeen = { ...this._captureSeen, q: draft.q, who: draft.who };
+		if (unsaved !== null) {
+			this._setSaveStatus("saving");
+			this._scheduleLiveDraft(actorId, stepKey, draft.q, unsaved, this._aboutPicked(actorId, stepKey) ?? draft.who);
+		}
+	}
+
+	// Merge the flag's value for a field into what's on screen, and record it as seen. Returns the
+	// text still to be saved (this client's own typing, now on top of the newer value), or null
+	// when the field holds nothing the flag doesn't.
+	_mergeIntoField(el, now, userId) {
+		const key  = this._captureKey(el);
+		const seen = this._captureSeen?.key === key ? this._captureSeen : null;
+		const base = seen ? seen.text : el.value;
+		this._captureSeen = { q: null, who: null, ...seen, key, text: now };
+		// This client's own save coming back. The field already holds it, and whatever was typed
+		// since has a timer behind it; only merged-in text with no timer left still needs a save.
+		if (userId && userId === game.user?.id) {
+			return (el.value !== now && !this._liveDraftTimer) ? el.value : null;
+		}
+		const text = merge3(base, el.value, now);
+		if (text !== el.value) this._setFieldText(el, text);
+		return text !== now ? text : null;
+	}
+
+	// Replace a field's text without upsetting whoever is typing in it: the caret and any
+	// selection move with the text around them, and the field keeps its scroll position.
+	_setFieldText(el, text) {
+		const focused = el === globalThis.document?.activeElement;
+		const { selectionStart, selectionEnd, selectionDirection, scrollTop } = el;
+		const hunks = focused ? diffHunks(el.value, text) : null;
+		el.value = text;
+		if (focused && Number.isInteger(selectionStart)) {
+			el.setSelectionRange?.(mapIndex(selectionStart, hunks), mapIndex(selectionEnd, hunks), selectionDirection ?? "none");
+		}
+		if (Number.isFinite(scrollTop)) el.scrollTop = scrollTop;
+	}
+
 	// Commit the current draft as a recorded answer: append { q, a, who } to the step's
 	// answers list (written whole, since arrays replace wholesale) and clear the live
 	// buffer (the -= unset key, since setFlag/update merges). Returns false when the
@@ -652,8 +791,9 @@ export class IntroductionsDialog extends StonetopDialog {
 	// edits their OWN PC on their turn during an answer/ask step. The PRIMARY GM may also
 	// write: it edits narration, GM-only PCs, and turns whose owning player is offline, and on
 	// a round-robin turn owned by a present player it CO-EDITS the one shared live-draft buffer
-	// alongside them (last-writer-wins; see _hasOnlinePlayerOwner, which drives the "writing
-	// together" label). A secondary GM only watches. The GM commits the draft with Next (which
+	// alongside them (each side's typing is merged into the other's field as it lands; see
+	// _absorbCaptureWrite, and _hasOnlinePlayerOwner, which drives the "writing together"
+	// label). A secondary GM only watches. The GM commits the draft with Next (which
 	// reads the flag, not the DOM).
 	_canEditActor(actor) {
 		if (game.user?.isGM) {
@@ -991,6 +1131,10 @@ export class IntroductionsDialog extends StonetopDialog {
 			const stFlags = changes?.flags?.[_FLAG_SCOPE];
 			if (!stFlags) return;
 			if (!Object.keys(stFlags).some(k => k.replace(/^-=/, "") === _INTRO_FLAG)) return;
+			// Bring the capture field on screen up to date NOW, in place, before anything else: the
+			// re-render below is skipped while somebody's caret is in it, and a field left showing
+			// an old value is exactly what used to save straight back over the other editor's words.
+			this._absorbCaptureWrite(actor, userId);
 			// Only a step4/step6 change (a recorded answer or a pass) is worth mirroring
 			// into the world setting — not a live-typing keystroke, so per-keystroke draft
 			// writes don't churn the world setting. Harvest immediately (primary GM only).
@@ -1310,12 +1454,20 @@ export class IntroductionsDialog extends StonetopDialog {
 	// Persist the currently-typed capture field (narration textarea or step draft) to its
 	// flag before a re-render replaces the DOM. Run at the top of _render so no re-render
 	// path — a turn advance, a cursor nonce bump, a jump-to-step — can drop the last,
-	// not-yet-debounced characters. Gated to the SOLE editor: the owning player (writing
-	// their own PC) or the GM standing in for an offline / GM-only PC. A GM watching a
-	// present player sees a readonly mirror (excluded by :not([readonly])) and, on the shared
-	// live draft it co-edits, is excluded by _hasOnlinePlayerOwner — so its lagging DOM value
-	// never reverts the player's newer flag. The DOM's own data-* is authoritative (not
+	// not-yet-debounced characters. The DOM's own data-* is authoritative (not
 	// this._pcIndex), so the flush still fires the instant AFTER the cursor moved the turn on.
+	// A GM watching a present player sees a readonly mirror, excluded by :not([readonly]).
+	//
+	// ⚠ ONLY WHAT WAS TYPED HERE AND NOT SAVED YET (_captureDirty). This flush used to write
+	// the field whenever it differed from the flag, and on a CO-EDITED turn that is backwards:
+	// the other editor's newer words are exactly what makes the two differ. The GM typed, the
+	// player's window re-rendered to show it, and this flush saved the player's old copy over
+	// it first, so a player who was not even typing kept erasing the GM's notes until they
+	// closed their window. A field that still shows what this client last saw in the flag has
+	// nothing of its own to add, whatever the flag says now; one with unsaved typing has
+	// already had every newer value merged into it as it landed (_absorbCaptureWrite), so
+	// saving it keeps both. That is what makes this safe for the co-editing GM too, which it
+	// used to skip outright and so dropped its own last keystrokes on a re-render.
 	async _flushCaptureFromDom() {
 		const root = this.element?.[0];
 		// Consumed even when there is nothing to flush, so a suppression set by a commit
@@ -1328,14 +1480,14 @@ export class IntroductionsDialog extends StonetopDialog {
 		// A flag write failing must not do that — log and let the render proceed (the same
 		// defensive stance as _syncChronicle).
 		try {
-			const soleEditor = (actorId) => !!this._ownedActor(actorId) && !this._hasOnlinePlayerOwner(this._actor(actorId));
+			// No ownership test here: _saveNarration / _saveDraft refuse a PC this client can't write.
 			const nar = root.querySelector("textarea.stonetop-intros-answer:not([readonly])");
-			if (nar?.dataset.actorId && nar.dataset.roundKey && soleEditor(nar.dataset.actorId)) {
+			if (nar?.dataset.actorId && nar.dataset.roundKey && this._captureDirty(nar)) {
 				await this._saveNarration(nar.dataset.actorId, nar.dataset.roundKey, nar.value);
 			}
 			const draft = root.querySelector("textarea.stonetop-intros-draft:not([readonly])");
 			if (!justCommitted && draft?.dataset.actorId && draft.dataset.stepKey
-				&& soleEditor(draft.dataset.actorId) && this._draftWorthFlushing(draft)) {
+				&& this._captureDirty(draft) && this._draftWorthFlushing(draft)) {
 				// The DOM is authoritative for the TEXT and only the text: a keystroke can sit
 				// in the textarea unwritten (that is the whole reason for this flush), but a
 				// PICK is never DOM-only — every click writes the flag before re-rendering. So
@@ -1398,20 +1550,18 @@ export class IntroductionsDialog extends StonetopDialog {
 
 	// Flush the compose UI's current state to the draft flag and await it, so a fast
 	// type-then-Next records the latest text rather than racing the debounced/blur writes.
-	// The textarea is authoritative (it holds the live value); the PICKS come from the flag,
-	// which a click always writes before the highlight moves — see _flushCaptureFromDom.
+	// The textarea is authoritative for text typed here and not saved yet, and only then (see
+	// _captureDirty); the PICKS come from the flag, which a click always writes before the
+	// highlight moves (see _flushCaptureFromDom).
 	async _flushDraftFromDom(actor, phase) {
-		const el = this.element?.[0]?.querySelector(".stonetop-intros-draft");
-		if (!el || el.dataset.actorId !== actor.id) return;
+		const el = this.element?.[0]?.querySelector(".stonetop-intros-draft:not([readonly])");
+		if (!el || el.dataset.actorId !== actor.id || !this._captureDirty(el)) return;
 		await this._saveDraft(actor.id, phase.stepKey, { a: el.value });
 	}
 
 	// Record the active PC's draft, then move the cursor on within the step. Only the GM has
-	// Next, so this runs on the GM. When the GM is the authoritative editor (a GM-only PC, an
-	// offline player's turn, and — implicitly — the field it typed into) it flushes its own
-	// textarea into the draft first, so a fast type-then-Next captures the last text. When a
-	// present player is the editor, their `live` flag is the source of truth: DON'T flush the
-	// GM's lagging mirror over it — record the flag as-is.
+	// Next, so this runs on the GM. It flushes whatever the GM typed and hasn't saved yet into
+	// the draft first, so a fast type-then-Next captures the last text, then records the flag.
 	async _advanceStep(phase) {
 		this._cancelLiveDraft();
 		const actor = this._pcs[this._pcIndex];
@@ -1427,12 +1577,13 @@ export class IntroductionsDialog extends StonetopDialog {
 	// warn and return false so the caller holds the turn; anything else returns true. Shared
 	// by the GM's Next (_advanceStep) and the player's Done (_recordCurrentDraft).
 	async _commitComposedDraft(actor, phase, warnMsg) {
-		// Flush our own textarea into the draft ONLY when we're the SOLE editor. In a co-edit
-		// (primary GM writing alongside a present player) the player's `live` flag is the
-		// source of truth — flushing the GM's lagging mirror could re-create a just-cleared
-		// draft and record the same answer twice, inflating the exhaustion count. The active
-		// player editing their own PC is its sole editor, so they still flush normally.
-		if (this._canEditActor(actor) && !this._hasOnlinePlayerOwner(actor)) await this._flushDraftFromDom(actor, phase);
+		// Flush our own textarea into the draft first, but only typing that hasn't been saved
+		// (_flushDraftFromDom asks _captureDirty). The co-editing GM used to be kept out of this
+		// altogether, because its copy of the player's draft lagged: flushing it could re-create
+		// a draft the player had just recorded and so record the same answer twice. Its copy no
+		// longer lags (_absorbCaptureWrite merges every save in as it lands), and a copy that only
+		// shows what was saved is never flushed, so the GM's own last keystrokes now count too.
+		if (this._canEditActor(actor)) await this._flushDraftFromDom(actor, phase);
 		const draft   = this._stepDraft(actor.id, phase.stepKey);
 		const hasText = String(draft.a ?? "").trim() !== "";
 		const hasQ    = Number.isInteger(draft.q);
