@@ -28,6 +28,8 @@
       <h3 class="stonetop-camp-heading">The meal</h3>
       <p class="stonetop-camp-meal-line">{{meal.mouthsText}}{{#if meal.cookText}} {{meal.cookText}}{{/if}}</p>
       {{#if meal.costText}}<p class="stonetop-camp-meal-line stonetop-camp-meal-cost">{{meal.costText}}</p>{{/if}}
+      {{#if meal.hungerText}}<p class="stonetop-camp-meal-line">{{meal.hungerText}}</p>{{/if}}
+      {{#if meal.nightmaresText}}<p class="stonetop-camp-meal-line">{{meal.nightmaresText}}</p>{{/if}}
       {{#if meal.statusText}}<p class="stonetop-camp-meal-status">{{meal.statusText}}</p>{{/if}}
       {{#if allAlongText}}<p class="stonetop-camp-meal-line">{{allAlongText}}</p>{{/if}}
       {{#if meal.forageText}}<p class="stonetop-camp-meal-line">{{meal.forageText}}</p>{{/if}}
@@ -123,7 +125,7 @@
         {{#if night.show}}
         <fieldset class="stonetop-camp-part stonetop-camp-night">
           <legend class="stonetop-camp-part-label">The night: pick 1</legend>
-          <label class="stonetop-camp-check"><input type="radio" class="stonetop-camp-radio" name="{{night.radioName}}" value="hp" data-camp-field="benefit" data-actor-id="{{actorId}}" data-camp-focus="{{actorId}}:benefit-hp"{{#if night.hp}} checked{{/if}}><span>Regain half your max HP: <span class="stonetop-camp-hp">{{night.hpBefore}} &rarr; {{night.hpAfter}}</span></span></label>
+          <label class="stonetop-camp-check"><input type="radio" class="stonetop-camp-radio" name="{{night.radioName}}" value="hp" data-camp-field="benefit" data-actor-id="{{actorId}}" data-camp-focus="{{actorId}}:benefit-hp"{{#if night.hp}} checked{{/if}}><span>Regain half your max HP: <span class="stonetop-camp-hp">{{night.hpBefore}} &rarr; {{night.hpAfter}}</span>{{#if night.halvedText}} <em>{{night.halvedText}}</em>{{/if}}</span></label>
           {{#if night.hasDebilities}}
           <div class="stonetop-camp-line">
             <label class="stonetop-camp-check"><input type="radio" class="stonetop-camp-radio" name="{{night.radioName}}" value="debility" data-camp-field="benefit" data-actor-id="{{actorId}}" data-camp-focus="{{actorId}}:benefit-debility"{{#if night.debility}} checked{{/if}}><span>Clear a debility:</span></label>

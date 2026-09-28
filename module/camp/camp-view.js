@@ -1,7 +1,9 @@
 import { escHtml, joinNames } from "../utils/strings.js";
+import { recoveredHpTo } from "../actors/character/deaths-door-actor.js";
 import {
 	CAMP_BENEFIT, CAMP_FOLLOWERS_MAX, CAMP_STATE, HAD_ALL_ALONG, HAD_ALL_ALONG_REFUSAL, SETTLE_REFUSAL, breakBreadOffered,
 	CAMP_EXTRA, debilityToClear, eatsTonight, foodAfterTonight, healTo, homeFiresHp, homeFiresKeeper, homeFiresOffered, planExtras,
+	nightmaresWarded,
 	messKitAllAlong, messKitWouldHelp, provisionsAtFire, spareUses, suppliesAllAlong,
 } from "./camp-rules.js";
 
@@ -99,7 +101,30 @@ function mealLine(ledger) {
 	const { mouths, bill, messKit, cooks } = ledger;
 	if (!mouths) return "Nobody needed feeding.";
 	const proper = breakBreadOffered(ledger) && ledger.properMeal ? " A proper meal (Break Bread)." : "";
-	return `${mouths} fed on ${bill} ${uses(bill)} of food${messKit ? `, cooked in ${cooks[0]}'s mess kit` : ""}.${proper}`;
+	const hungry = ravenousText(ledger);
+	return `${mouths} fed on ${bill} ${uses(bill)} of food${messKit ? `, cooked in ${cooks[0]}'s mess kit` : ""}.${hungry ? ` ${hungry}` : ""}${proper}`;
+}
+
+/** A Ravenous Thrall's extra 1d4 uses, said as rolled: "Ravenous: Rook eats 3 extra uses (1d4)." Empty without one. */
+function ravenousText(ledger) {
+	return (ledger.ravenous ?? [])
+		.map(r => `Ravenous: ${r.name} eats ${r.uses} extra ${uses(r.uses)} (1d4).`)
+		.join(" ");
+}
+
+/**
+ * What a Thrall's Quicksilver Dreams do to tonight, in the meal box and on the settled card: everyone
+ * else at the fire has nightmares and disadvantage on their next roll, unless the fire's ash keeps
+ * them away (camp-rules.js#nightmaresWarded). Empty with no such Thrall at the fire.
+ */
+function nightmaresText(ledger) {
+	const dreamers = (ledger.dreamers ?? []).map(d => d.name);
+	if (!dreamers.length) return "";
+	const who = joinNames(dreamers);
+	if (nightmaresWarded(ledger)) {
+		return `Quicksilver Dreams: the ash from ${homeFiresKeeper(ledger).name}'s hearth keeps ${who}'s nightmares from everyone here.`;
+	}
+	return `Quicksilver Dreams: everyone with ${who} suffers nightmares and has disadvantage on their next roll.`;
 }
 
 /** What each source of extra HP is called on a summary line (camp-rules.js#CAMP_EXTRAS). */
@@ -116,11 +141,17 @@ function extraPart({ source, amount, from, to }) {
 }
 
 function outcomeLine(entry) {
-	if (entry.unliving) return "Needs no food or sleep, and took nothing from the night.";
+	const dreams = entry.nightmares?.length
+		? `nightmares from ${joinNames(entry.nightmares)}'s Quicksilver Dreams, so disadvantage is held for the next roll`
+		: "";
+	if (entry.unliving) return `Needs no food or sleep, and took nothing from the night${dreams ? `; ${dreams}` : ""}.`;
 	// The extra HP in the order it landed, then any background track making camp cleared.
 	const after = [
 		...planExtras(entry).map(extraPart),
+		// The steps above say what the night should have healed; Torment's Blessing halves the lot.
+		...(entry.slowToHeal ? [`Torment's Blessing recovers only half of that, rounded up, HP ${entry.hpBefore} → ${entry.hpAfter}`] : []),
 		...(entry.clears ?? []).map(track => `cleared ${track.name}`),
+		...(dreams ? [dreams] : []),
 	];
 	const tail = after.map(part => `; ${part}`).join("");
 	if (!entry.eats) return `Went without food, so took no pick tonight${tail}.`;
@@ -152,6 +183,8 @@ export function campSummaryRows(ledger, plan) {
 	const rows = [{ label: "The meal", value: mealLine(ledger) }];
 	const hearth = hearthLine(ledger);
 	if (hearth) rows.push({ label: "The fire", value: hearth });
+	const dreams = nightmaresText(ledger);
+	if (dreams) rows.push({ label: "The night", value: dreams });
 	for (const entry of plan) {
 		const shared = shareLine(entry.spend ?? []);
 		if (shared) rows.push({ label: `From ${entry.name}'s pack`, value: shared });
@@ -192,6 +225,9 @@ function mealView(ledger) {
 		provisionsText: provisionsAtFire(ledger)
 			? "Provisions spoil and attract beasts more readily than supplies do (Book I p.89)."
 			: "",
+		// A Ravenous Thrall's extra, part of the cost above, rolled when they sat down.
+		hungerText: ravenousText(ledger),
+		nightmaresText: nightmaresText(ledger),
 		isShort: short > 0,
 		isPaid:  mouths > 0 && short === 0,
 	};
@@ -324,7 +360,7 @@ function rowSentences(member, offer, { eats, benefit, clearing, hpAfter }) {
 	}
 	says.push(benefit === CAMP_BENEFIT.DEBILITY
 		? `Clearing ${clearing?.name ?? "a debility"}.`
-		: `Regaining HP: ${member.hpValue} → ${hpAfter}.`);
+		: `Regaining HP: ${member.hpValue} → ${hpAfter}${member.slowToHeal ? " (halved: Torment's Blessing)" : ""}.`);
 	if (record.bedroll && record.vitals.bedroll) says.push("Sleeping in a bedroll for 1d6 extra HP.");
 	if (record.peaceful) says.push("Found the rest peaceful.");
 	return says;
@@ -336,7 +372,8 @@ function rowView(member, at, ledger, { canEdit, isMine, canOpenSheet }) {
 	const kept    = ledger.spends[at];
 	const eats    = eatsTonight(member);
 	const marked  = member.activeDebilities;
-	const hpAfter = healTo(member.hpValue, Math.ceil(member.maxHp / 2), member.maxHp);
+	// Torment's Blessing halves the pick's HP, rounded up; the settled card halves the whole night's.
+	const hpAfter = recoveredHpTo(member.hpValue, healTo(member.hpValue, Math.ceil(member.maxHp / 2), member.maxHp), !!member.slowToHeal);
 	// A debility pick with nothing marked any more has only healing left to mean.
 	const benefit  = record.benefit === CAMP_BENEFIT.DEBILITY && !marked.length ? CAMP_BENEFIT.HP : record.benefit;
 	const clearing = debilityToClear(member);
@@ -388,6 +425,7 @@ function rowView(member, at, ledger, { canEdit, isMine, canOpenSheet }) {
 			none:          benefit === CAMP_BENEFIT.NONE,
 			hpBefore:      member.hpValue,
 			hpAfter,
+			halvedText:    member.slowToHeal ? "(halved: Torment's Blessing)" : "",
 			hasDebilities: marked.length > 0,
 			debilities:    marked.map(d => ({ key: d.key, name: d.name, selected: d.key === clearing?.key })),
 		},

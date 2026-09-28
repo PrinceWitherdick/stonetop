@@ -5323,7 +5323,13 @@ export class StonetopCharacter {
 	}
 
 	async holdDisadvantage(source) {
-		await this._actor.update(this._heldModeData("heldDisadvantage", source));
+		await this._actor.update(this.heldDisadvantageData(source));
+	}
+
+	/** {@link holdDisadvantage} as an update fragment, as heldAdvantageData is: a Thrall's Quicksilver
+	 *  Dreams lays it with the rest of a camp share (camp/camp-rules.js#campShareUpdate). */
+	heldDisadvantageData(source) {
+		return this._heldModeData("heldDisadvantage", source);
 	}
 
 	async clearHeldDisadvantage() {

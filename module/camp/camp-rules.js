@@ -3,7 +3,7 @@ import { PROVISIONS_SLUG } from "../actors/character/provisions.js";
 import { SUPPLY_PURPOSE, SUPPLY_SLUGS, campUsesNeeded, supplyPurseSlugsFor, supplyPursesFor } from "../actors/character/supply-cost.js";
 import { clearTracksData } from "../actors/character/background-tracks.js";
 import { debilityData } from "../actors/character/walk-it-off.js";
-import { UNLIVING_KINDS } from "../actors/character/deaths-door-actor.js";
+import { UNLIVING_KINDS, recoveredHpTo } from "../actors/character/deaths-door-actor.js";
 
 /**
  * MAKE CAMP, AS A PARTY (Book I p.334).
@@ -75,6 +75,15 @@ export const CAMP_LEFT_MAX = 10;
 
 /** The held advantage a peaceful night leaves, named the way the sheet's chip shows it. */
 export const PEACEFUL_NIGHT = "A peaceful night's rest";
+
+/**
+ * The held disadvantage a Thrall's Quicksilver Dreams leaves on everyone else at the fire: "When you
+ * Make Camp, everyone with you suffers nightmares and has disadvantage on their next roll."
+ */
+export const QUICKSILVER_NIGHTMARES = "Nightmares (Quicksilver Dreams)";
+
+/** The most a Ravenous Thrall's 1d4 can come to. */
+const RAVENOUS_MAX = 4;
 
 /**
  * The Judge's move: "When you share a proper meal with someone and each of you eats their fill, each
@@ -169,6 +178,9 @@ export function readCampRecord(raw) {
 		// On a host: whether the fire is sprinkled with ash from a hearth, for Keep the Home-Fires
 		// Burning. Ticked unless the host unticked it, like the proper meal.
 		hearthAsh: raw.hearthAsh !== false,
+		// A Ravenous Thrall's "extra 1d4 provisions or uses of supplies", rolled once when they sat
+		// down (camp-store.js#sitDown) so every reader's window shows the same bill. 0 for anyone else.
+		hunger:    count(raw.hunger, RAVENOUS_MAX),
 		vitals:    readVitals(raw.vitals),
 		plan:      Array.isArray(raw.plan) ? raw.plan : null,
 		settledAt: count(raw.settledAt),
@@ -199,7 +211,7 @@ export function readOwedCamps(raw) {
  */
 export function newCampRecord({
 	id, hostId, actorId, now = 0, vitals = {}, followers = 0,
-	hpValue = 0, activeDebilityKeys = [], unliving = false, leftCamps = [],
+	hpValue = 0, activeDebilityKeys = [], unliving = false, leftCamps = [], hunger = 0,
 }) {
 	const read    = readVitals(vitals);
 	const hosting = actorId === hostId;
@@ -222,6 +234,7 @@ export function newCampRecord({
 		ready:     false,
 		properMeal: true,
 		hearthAsh: true,
+		hunger:    count(hunger, RAVENOUS_MAX),
 		vitals:    read,
 		plan:      null,
 		settledAt: 0,
@@ -323,6 +336,10 @@ function trimToBill(offers, bill) {
  * @property {object}  [pack]     what Have What You Need can draw on, read live: `undefinedMarks`
  *   (the undefined ◇ left), `checked` (which inventory rows are marked) and `usesPerSupply`
  *   (4+Prosperity)
+ * @property {boolean} [slowToHeal]   a Thrall with Torment's Blessing: recovers only half the HP
+ * @property {boolean} [ravenous]     a Thrall with Ravenous: eats an extra 1d4 (`record.hunger`)
+ * @property {boolean} [nightmarish]  a Thrall with Quicksilver Dreams: everyone else at the fire has
+ *   nightmares
  */
 
 /**
@@ -341,7 +358,12 @@ export function campLedger(members = []) {
 	const cooks   = rows.filter(m => m.record.messKit && m.record.vitals.messKit);
 	const messKit = cooks.length > 0;
 	const mouths  = rows.reduce((sum, m) => sum + (eatsTonight(m) ? 1 : 0) + m.record.followers, 0);
-	const bill    = campUsesNeeded(mouths, messKit);
+	// Ravenous: "When you Make Camp, consume an extra 1d4 provisions or uses of supplies." On top of
+	// the meal, so a mess kit does not stretch it, and only for a Thrall who eats: one who goes
+	// without consumes nothing at all.
+	const ravenous = rows.filter(m => m.ravenous && eatsTonight(m)).map(m => ({ actorId: m.actorId, name: m.name, uses: m.record.hunger }));
+	const hunger  = ravenous.reduce((sum, r) => sum + r.uses, 0);
+	const bill    = campUsesNeeded(mouths, messKit) + hunger;
 	const offers  = rows.map(offerFrom);
 	const offered = offers.reduce((sum, o) => sum + o.total, 0);
 	const short   = Math.max(0, bill - offered);
@@ -352,6 +374,8 @@ export function campLedger(members = []) {
 		messKit,
 		cooks:     cooks.map(m => m.name),
 		mouths,
+		ravenous,
+		hunger,
 		bill,
 		offered,
 		short,
@@ -368,6 +392,8 @@ export function campLedger(members = []) {
 		hearthKeepers: rows.filter(m => m.hearthCha !== null && m.hearthCha !== undefined)
 			.map(m => ({ name: m.name, cha: Math.trunc(Number(m.hearthCha) || 0) })),
 		hearthAsh:     rows.find(m => m.isHost)?.record.hearthAsh ?? true,
+		// Quicksilver Dreams is the Thrall's, whether or not they eat or sleep: "When you Make Camp".
+		dreamers:      rows.filter(m => m.nightmarish).map(m => ({ actorId: m.actorId, name: m.name })),
 	};
 }
 
@@ -474,6 +500,27 @@ export function warmsAtHomeFires(member, ledger) {
 	return homeFiresHp(ledger) > 0 && !member.unliving;
 }
 
+/**
+ * Whether the fire's ash keeps a Thrall's Quicksilver Dreams away tonight. Keep the Home-Fires
+ * Burning makes anyone who Makes Camp there "free from nightmares or bad dreams", which is exactly
+ * what the Mark inflicts, so with the ash on the fire nobody suffers them. At any CHA, 0 included.
+ */
+export function nightmaresWarded(ledger) {
+	return (ledger.dreamers?.length ?? 0) > 0 && homeFiresOffered(ledger) && ledger.hearthAsh !== false;
+}
+
+/**
+ * The Thralls whose Quicksilver Dreams give this member nightmares tonight, by name: "When you Make
+ * Camp, everyone with you suffers nightmares and has disadvantage on their next roll." Everyone WITH
+ * the Thrall, so never the Thrall themselves (a second such Thrall at the fire still troubles the
+ * first). Anyone at the fire, eating or not: the Mark asks only that they camp together. Empty with
+ * none at the fire, or with the nightmares warded off (nightmaresWarded).
+ */
+export function nightmaresFor(member, ledger) {
+	if (nightmaresWarded(ledger)) return [];
+	return (ledger.dreamers ?? []).filter(d => d.actorId !== member.actorId).map(d => d.name);
+}
+
 // ── Extra HP ────────────────────────────────────────────────────────────────
 // What a night at the fire heals ON TOP of the pick, each landing after the last, in this order. Each
 // is "(extra) HP", never "instead of", so they stack: the bedroll's is the night's (only for someone who
@@ -568,6 +615,11 @@ export function freezeCampPlan(ledger, { bedrolls = {}, breads = {} } = {}) {
 		const hpBefore = count(m.hpValue);
 		const picked   = benefit === CAMP_BENEFIT.HP ? healTo(hpBefore, halfMax, maxHp) : hpBefore;
 		const extras   = healInTurn(picked, CAMP_EXTRAS.map(x => [x.source, x.amount(m, ledger, { bedrolls, breads })]), maxHp);
+		// What the night SHOULD heal, pick and extras alike; Torment's Blessing then halves the whole of
+		// it once (deaths-door-actor.js#recoveredHpTo). The steps above stay what they should have been,
+		// so the card can say what was halved.
+		const healed   = extras.at(-1)?.to ?? picked;
+		const slow     = !!m.slowToHeal && healed > hpBefore;
 		return {
 			actorId:  m.actorId,
 			name:     m.name,
@@ -582,8 +634,11 @@ export function freezeCampPlan(ledger, { bedrolls = {}, breads = {} } = {}) {
 			hpBefore,
 			hpAfterPick: picked,
 			extras,
-			hpAfter:  extras.at(-1)?.to ?? picked,
+			slowToHeal: slow,
+			hpAfter:  recoveredHpTo(hpBefore, healed, slow),
 			peaceful: rests && m.record.peaceful,
+			// Whose Quicksilver Dreams trouble this member's night, as names; held disadvantage when any.
+			nightmares: nightmaresFor(m, ledger),
 			// Auspicious Birth's circle: "Clear it when you Make Camp", so whoever sits at the fire,
 			// eating or not. Not the Unliving, whom Make Camp gives nothing.
 			clears:   m.unliving ? [] : (m.clearsTonight ?? []).map(t => ({ key: t.key, name: t.name })),
@@ -607,9 +662,10 @@ export function freezeCampPlan(ledger, { bedrolls = {}, breads = {} } = {}) {
  * @param {number} live.hpValue    their HP now
  * @param {(slug: string, count: number) => object} live.resourceData  StonetopCharacter#inventoryResourceData
  * @param {(source: string) => object} live.advantageData             StonetopCharacter#heldAdvantageData
+ * @param {(source: string) => object} [live.disadvantageData]       StonetopCharacter#heldDisadvantageData
  * @returns {{update: object, shortfall: number}}  `shortfall` counts uses the pack no longer had
  */
-export function campShareUpdate(entry, { resources = {}, hpValue = 0, resourceData, advantageData }) {
+export function campShareUpdate(entry, { resources = {}, hpValue = 0, resourceData, advantageData, disadvantageData }) {
 	const update = {};
 	let shortfall = 0;
 	for (const s of entry.spend ?? []) {
@@ -633,7 +689,12 @@ export function campShareUpdate(entry, { resources = {}, hpValue = 0, resourceDa
 	}
 	// The extra HP, each on top of what came before (CAMP_EXTRAS), healed from their HP now.
 	for (const extra of planExtras(entry)) hp = healTo(hp, extra.amount, entry.maxHp);
+	// Torment's Blessing: only half of all that, halved once and from their HP now.
+	hp = recoveredHpTo(before, hp, !!entry.slowToHeal);
 	if (hp !== before) update["system.attributes.hp.value"] = hp;
+	// A Thrall's Quicksilver Dreams: disadvantage held for the next roll, a promise kept on the sheet
+	// the way the peaceful night's advantage is (the two cancel at the roll).
+	if (entry.nightmares?.length && disadvantageData) Object.assign(update, disadvantageData(QUICKSILVER_NIGHTMARES));
 	// Auspicious Birth's circle, cleared by making camp at all.
 	Object.assign(update, clearTracksData((entry.clears ?? []).filter(t => t?.key), SYSTEM_ID));
 	update[`flags.${SYSTEM_ID}.${CAMP_FLAG}.applied`] = true;
@@ -701,7 +762,8 @@ export function suppliesAllAlong(member) {
  * is cooking with one yet, and a pot for four actually saves a use (one mouth eats 1 use either way).
  */
 export function messKitWouldHelp(ledger) {
-	return !ledger.messKit && campUsesNeeded(ledger.mouths, true) < ledger.bill;
+	// A Ravenous Thrall's extra is on top of the meal, and no pot stretches it.
+	return !ledger.messKit && campUsesNeeded(ledger.mouths, true) + (ledger.hunger ?? 0) < ledger.bill;
 }
 
 /** Whether this member could produce a mess kit tonight: they carry none, and have an undefined ◇ to spend. */

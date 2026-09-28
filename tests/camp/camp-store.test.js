@@ -140,6 +140,23 @@ describe("finding camps and who is at them", () => {
 		expect(campMembers(camp.campId, "aeliana").find(m => m.actorId === "dunstan").unliving).toBe(true);
 	});
 
+	// Post-death audit: Ravenous's "extra 1d4 provisions or uses of supplies" is rolled ONCE, as the
+	// Thrall sits down, so every reader's window reads the same bill.
+	it("rolls a Ravenous Thrall's 1d4 once, as they sit down, and bills the camp for it", async () => {
+		const { aeliana, bram, toMessage } = campParty({ rolled: 3, bram: { pastDeath: "thrall", thrallMarks: ["ravenous"] } });
+		const camp = await hostCamp(aeliana);
+		expect(toMessage).not.toHaveBeenCalled();
+		await joinCamp(bram, camp);
+		expect(campOf(bram).hunger).toBe(3);
+		expect(toMessage).toHaveBeenCalledTimes(1);
+		expect(toMessage.mock.calls[0][0].flavor).toContain("Ravenous");
+		const members = campMembers(camp.campId, "aeliana");
+		campMembers(camp.campId, "aeliana");
+		expect(toMessage).toHaveBeenCalledTimes(1);
+		expect(members.find(m => m.actorId === "bram")).toMatchObject({ ravenous: true, nightmarish: false, slowToHeal: false });
+		expect(campOf(aeliana).hunger).toBe(0);
+	});
+
 	// A debility cleared by Recover while the camp sits open must not stay on offer.
 	it("reads which debilities are marked live, and names them from the sheet", async () => {
 		const { aeliana } = campParty();
@@ -392,6 +409,17 @@ describe("paying the shares", () => {
 		expect(aeliana.system.attributes.hp.value).toBe(12);
 		expect(campOf(aeliana).applied).toBe(true);
 		expect(bram.update).not.toHaveBeenCalled();
+	});
+
+	// Post-death audit: Quicksilver Dreams gives everyone else at the fire held disadvantage.
+	it("lays held disadvantage on everyone with a Quicksilver Dreams Thrall, and not on the Thrall", async () => {
+		const { aeliana, bram, act } = await settled({ bram: { pastDeath: "thrall", thrallMarks: ["quicksilver-dreams"] } });
+		await applyCampShares(aeliana);
+		expect(aeliana.flags[SYSTEM_ID].heldDisadvantage).toEqual({ source: "Nightmares (Quicksilver Dreams)" });
+		act("player-2");
+		await applyCampShares(aeliana);
+		expect(bram.flags[SYSTEM_ID].heldDisadvantage).toBeUndefined();
+		expect(campOf(bram).applied).toBe(true);
 	});
 
 	it("leaves each player to pay their own character's share", async () => {

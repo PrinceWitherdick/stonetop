@@ -70,6 +70,20 @@ describe("the settled camp's card", () => {
 		]);
 	});
 
+	// Post-death audit: a Thrall's Marks on the settled card.
+	it("says a Ravenous Thrall's extra, whose nightmares troubled whom, and a slow healer's halving", () => {
+		const rook = { ...bram({ name: "Rook", choices: { hunger: 2 } }), ravenous: true, nightmarish: true, slowToHeal: true };
+		const ledger = campLedger([aeliana({ choices: { offer: { supplies: 4 } } }), rook]);
+		const rows = campSummaryRows(ledger, freezeCampPlan(ledger));
+		expect(rows[0].value).toBe("2 fed on 4 uses of food. Ravenous: Rook eats 2 extra uses (1d4).");
+		expect(rows.find(r => r.label === "The night").value)
+			.toBe("Quicksilver Dreams: everyone with Rook suffers nightmares and has disadvantage on their next roll.");
+		expect(rows.find(r => r.label === "Aeliana").value)
+			.toBe("HP 4 → 12 (half max); nightmares from Rook's Quicksilver Dreams, so disadvantage is held for the next roll.");
+		expect(rows.find(r => r.label === "Rook").value)
+			.toBe("HP 4 → 12 (half max); Torment's Blessing recovers only half of that, rounded up, HP 4 → 8.");
+	});
+
 	it("names the mess kit that stretched the meal", () => {
 		const ledger = campLedger([aeliana({ carriesMessKit: true, choices: { messKit: true, followers: 4, offer: { supplies: 2 } } })]);
 		expect(campSummaryRows(ledger, freezeCampPlan(ledger))[0].value).toBe("5 fed on 2 uses of food, cooked in Aeliana's mess kit.");
@@ -264,9 +278,28 @@ describe("the camp window's meal", () => {
 			forageText: "Or Forage first: a few hours seeking food in the wild, rolling +WIS.",
 			afterText:  "",
 			provisionsText: "",
+			hungerText: "",
+			nightmaresText: "",
 			isShort:    true,
 			isPaid:     false,
 		});
+	});
+
+	// Post-death audit: a Thrall's Ravenous and Quicksilver Dreams, said where the bill and the night are.
+	it("says a Ravenous Thrall's rolled extra, and whose Quicksilver Dreams trouble the night", () => {
+		const rook = { ...bram({ name: "Rook", choices: { hunger: 2 } }), ravenous: true, nightmarish: true };
+		const { meal } = view([aeliana(), rook]);
+		expect(meal.costText).toBe("The meal costs 4 uses of food, and 0 have been shared.");
+		expect(meal.hungerText).toBe("Ravenous: Rook eats 2 extra uses (1d4).");
+		expect(meal.nightmaresText).toBe("Quicksilver Dreams: everyone with Rook suffers nightmares and has disadvantage on their next roll.");
+		const warded = view([aeliana({ hearthCha: 1 }), rook]).meal.nightmaresText;
+		expect(warded).toBe("Quicksilver Dreams: the ash from Aeliana's hearth keeps Rook's nightmares from everyone here.");
+	});
+
+	it("shows a slow healer's night halved on their card", () => {
+		const night = view([{ ...aeliana(), slowToHeal: true }]).rows[0].night;
+		// 4 of 15: half max would reach 12; Torment's Blessing recovers 4 of those 8.
+		expect(night).toMatchObject({ hpBefore: 4, hpAfter: 8, halvedText: "(halved: Torment's Blessing)" });
 	});
 
 	it("counts the followers apart from the people at the fire", () => {

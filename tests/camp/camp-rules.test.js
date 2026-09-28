@@ -547,3 +547,71 @@ describe("a plan frozen before the extras list", () => {
 			.toEqual([CAMP_EXTRA.BREAK_BREAD, CAMP_EXTRA.HOME_FIRES]);
 	});
 });
+
+// ── a Thrall's Marks at the fire (post-death audit, 2026-09-27) ───────────────
+
+describe("a Thrall's Marks at the fire", () => {
+	const HP   = "system.attributes.hp.value";
+	const DIS  = `flags.${SYSTEM_ID}.heldDisadvantage`;
+	const live = (over = {}) => ({
+		resources:        { supplies: 4 },
+		hpValue:          4,
+		resourceData:     (slug, n) => ({ [`flags.${SYSTEM_ID}.inventory.resources.${slug}`]: n }),
+		advantageData:    source => ({ [`flags.${SYSTEM_ID}.heldAdvantage`]: { source } }),
+		disadvantageData: source => ({ [DIS]: { source } }),
+		...over,
+	});
+
+	// Ravenous: "When you Make Camp, consume an extra 1d4 provisions or uses of supplies."
+	it("adds a Ravenous Thrall's rolled 1d4 to the bill, beyond what a mess kit stretches", () => {
+		const rook = { ...bram({ name: "Rook", choices: { hunger: 3 } }), ravenous: true };
+		const ledger = campLedger([paying(), rook]);
+		expect(ledger.mouths).toBe(2);
+		expect(ledger.hunger).toBe(3);
+		expect(ledger.bill).toBe(5);
+		expect(ledger.ravenous).toEqual([{ actorId: "bram", name: "Rook", uses: 3 }]);
+		const cooked = campLedger([paying({ messKit: true }, { carriesMessKit: true }), rook]);
+		expect(cooked.bill).toBe(1 + 3);
+	});
+
+	it("eats nothing extra for a Ravenous Thrall who goes without, or for one without the Mark", () => {
+		const fasting = { ...bram({ choices: { hunger: 3, eats: false } }), ravenous: true };
+		expect(campLedger([paying(), fasting]).bill).toBe(1);
+		expect(campLedger([paying(), bram({ choices: { hunger: 3 } })]).bill).toBe(2);
+	});
+
+	// Quicksilver Dreams: "When you Make Camp, everyone with you suffers nightmares and has
+	// disadvantage on their next roll." With you: never the Thrall themselves.
+	it("gives everyone but the Thrall nightmares, and holds disadvantage on their share", () => {
+		const rook = { ...bram({ name: "Rook" }), nightmarish: true };
+		const plan = freezeCampPlan(campLedger([paying({ offer: { supplies: 3 } }), rook, cora({ unliving: true })]));
+		expect(plan.map(e => e.nightmares)).toEqual([["Rook"], [], ["Rook"]]);
+		expect(campShareUpdate(plan[0], live()).update[DIS]).toEqual({ source: "Nightmares (Quicksilver Dreams)" });
+		expect(campShareUpdate(plan[1], live()).update).not.toHaveProperty(DIS);
+	});
+
+	it("is warded off by ash from a hearth, which keeps anyone free from nightmares", () => {
+		const rook = { ...bram({ name: "Rook", hearthCha: 0 }), nightmarish: true };
+		const plan = freezeCampPlan(campLedger([paying({ offer: { supplies: 2 } }), rook]));
+		expect(plan.map(e => e.nightmares)).toEqual([[], []]);
+		const unticked = freezeCampPlan(campLedger([paying({ offer: { supplies: 2 }, hearthAsh: false }), rook]));
+		expect(unticked[0].nightmares).toEqual(["Rook"]);
+	});
+
+	// Torment's Blessing: "When you recover HP, recover only half the amount that you should."
+	it("halves a slow healer's whole night once, rounding up, from the HP they have when it is paid", () => {
+		const rook = { ...host({ choices: { offer: { supplies: 1 }, bedroll: true }, carriesBedroll: true }), slowToHeal: true };
+		const [entry] = freezeCampPlan(campLedger([rook]), { bedrolls: { aeliana: 3 } });
+		// 4 of 15: half max is 8, then 3 from the bedroll, so they should reach 15; they recover 6 of the 11.
+		expect(entry).toMatchObject({ hpBefore: 4, hpAfterPick: 12, slowToHeal: true, hpAfter: 10 });
+		expect(campShareUpdate(entry, live()).update[HP]).toBe(10);
+		// Hurt by 2 since the settle: they should reach 13, and recover 6 of the 11.
+		expect(campShareUpdate(entry, live({ hpValue: 2 })).update[HP]).toBe(8);
+	});
+
+	it("heals everyone else in full", () => {
+		const [entry] = freezeCampPlan(campLedger([paying()]));
+		expect(entry.slowToHeal).toBe(false);
+		expect(campShareUpdate(entry, live()).update[HP]).toBe(12);
+	});
+});

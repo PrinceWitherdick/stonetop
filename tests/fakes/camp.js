@@ -91,6 +91,7 @@ const DEBILITY_NAMES = { weakened: "Weakened", dazed: "Dazed", miserable: "Miser
  * @param {string[]} [o.owners]   user ids that own the character (a GM owns everything anyway)
  * @param {Array<{slug: string, checked: boolean}>} [o.outfit]  the outfit rows the sheet reports
  * @param {"dead"|"ghost"|"revenant"|"thrall"|null} [o.pastDeath]
+ * @param {string[]} [o.thrallMarks]  Mark slugs ticked, for a `pastDeath: "thrall"`
  * @param {Array<string|{name: string, learned: boolean}>} [o.moves]  the move Items on the sheet
  * @param {number} [o.cha]
  * @param {object|null} [o.background]  the selected background as the snapshot's playbook section
@@ -99,7 +100,7 @@ const DEBILITY_NAMES = { weakened: "Weakened", dazed: "Dazed", miserable: "Miser
  */
 export function campCharacter({
 	id, name = id, owners = [], hp = 4, maxHp = 15, marked = [], carried = { supplies: 4 },
-	outfit = [], followers = {}, pastDeath = null, moves = [], cha = 0, background = null,
+	outfit = [], followers = {}, pastDeath = null, moves = [], cha = 0, background = null, thrallMarks = [],
 } = {}) {
 	const actor = {
 		id,
@@ -143,10 +144,15 @@ export function campCharacter({
 			})),
 			inventoryResourceData: (slug, count) => ({ [`flags.${SYSTEM_ID}.inventory.resources.${slug}`]: count }),
 			heldAdvantageData:     source => ({ [`flags.${SYSTEM_ID}.heldAdvantage`]: { source } }),
+			heldDisadvantageData:  source => ({ [`flags.${SYSTEM_ID}.heldDisadvantage`]: { source } }),
 		},
 	};
 	if (pastDeath === "dead") applyUpdate(actor, { [`flags.${SYSTEM_ID}.${DEATHS_DOOR_FLAG}`]: DEATHS_DOOR_STATE.DEAD });
 	else if (pastDeath) applyUpdate(actor, { [`flags.${SYSTEM_ID}.postDeathInsert.slug`]: pastDeath });
+	// A Thrall's Marks, ticked in the insert's `marks` section the way the Post-Death tab stores them.
+	if (thrallMarks.length) {
+		applyUpdate(actor, { [`flags.${SYSTEM_ID}.postDeathLore.counts`]: Object.fromEntries(thrallMarks.map(slug => [`marks:${slug}`, 1])) });
+	}
 	return actor;
 }
 

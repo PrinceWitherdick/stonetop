@@ -1,6 +1,6 @@
 import { SYSTEM_ID } from "../system-id.js";
 import { autoOpenUserId, ownerUsers } from "../hooks/DeathsDoorPrompt.js";
-import { isOutOfPlay, isUnliving } from "../actors/character/deaths-door-actor.js";
+import { THRALL_MARK, hasThrallMark, isOutOfPlay, isUnliving, slowToHeal } from "../actors/character/deaths-door-actor.js";
 import { customGroupPresent } from "../utils/crew.js";
 import { deletionTarget } from "../utils/foundry-compat.js";
 import { postMoveToChat } from "../utils/chat.js";
@@ -133,7 +133,27 @@ export function campMember(actor, hostId) {
 		// The tracks were named on sitting down (campVitalsFor); whether one is marked is read live.
 		clearsTonight:    markedTracks(record?.vitals.clears, actor.getFlag?.(SYSTEM_ID, "background.setupResources")),
 		pack:             packFor(actor),
+		// A Thrall's Marks that reach the fire, read live like the moves.
+		slowToHeal:       slowToHeal(actor),
+		ravenous:         hasThrallMark(actor, THRALL_MARK.RAVENOUS),
+		nightmarish:      hasThrallMark(actor, THRALL_MARK.QUICKSILVER_DREAMS),
 	};
+}
+
+/**
+ * A Ravenous Thrall's "extra 1d4 provisions or uses of supplies", rolled as they sit down and posted
+ * as its own die, so the table watches it land and every window reads the same bill off their record.
+ * Rolled once for the camp: a roll per render would give every reader a different bill. 0, and no
+ * die, for anyone without the Mark. A Mark taken while already seated counts from their next camp.
+ */
+async function rollHunger(actor) {
+	if (!hasThrallMark(actor, THRALL_MARK.RAVENOUS)) return 0;
+	const roll = await new Roll("1d4").evaluate();
+	await roll.toMessage({
+		speaker: ChatMessage.getSpeaker({ actor }),
+		flavor:  "Ravenous (1d4 extra provisions or uses of supplies at the camp)",
+	});
+	return count(roll.total);
 }
 
 /**
@@ -272,6 +292,7 @@ async function sitDown(actor, { campId, hostId }) {
 		activeDebilityKeys: markedDebilities(actor, vitals).map(d => d.key),
 		unliving:           isUnliving(actor),
 		leftCamps:          left,
+		hunger:             await rollHunger(actor),
 	});
 	const update = { [FLAG_PATH]: record };
 	// The fresh record replaces the one a settled camp's plan is kept on. Whatever of that plan is
@@ -497,6 +518,7 @@ async function payShare(actor, entry, campId) {
 			hpValue:       actor.system?.attributes?.hp?.value,
 			resourceData:  (slug, count) => character.inventoryResourceData(slug, count),
 			advantageData: source => character.heldAdvantageData(source),
+			disadvantageData: source => character.heldDisadvantageData(source),
 		});
 		await actor.update(update, { stonetopMove: "Make Camp" });
 		if (shortfall > 0) {
