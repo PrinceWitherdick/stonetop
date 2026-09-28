@@ -45215,6 +45215,51 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	stroke-linecap: round;
 }
 
+/* THE SELECTION BOX, drawn with Shift and a drag on open paper (utils/relmap-drag.js). Built like the
+   rubber band above and for the same reasons: in the board's own 0-100 space, so it stays on the
+   paper it was started on through a zoom, with a stroke kept even on screen by `vector-effect`.
+   Dashed, because it is not a thing on the map; a wash of the accent inside so the area reads as an
+   area at a glance, faint enough that the faces under it stay clear. */
+.stonetop-relmap-marquee {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	overflow: visible;
+}
+
+.stonetop-relmap-marquee path {
+	fill: var(--st-accent-fill);
+	fill-opacity: 0.08;
+	stroke: var(--st-accent-fill);
+	stroke-width: 2;
+	stroke-dasharray: 6 4;
+}
+
+/* SOMEBODY IN THE SELECTION, to be moved with the others (utils/relmap-drag.js; the list is the
+   window's, `_paintSelection`). TWO MARKS, a ring and a heavier name, so colour is never the only
+   thing saying it.
+
+   ⚠ AN OUTLINE, DASHED, AND NOT THE SOLID RING `is-link-target` WEARS, so the two can be told apart
+   by shape as well as by colour: a line dragged onto somebody who is also selected carries both,
+   and a reader on a magnifier has to be able to read either. An outline is paint only, like the
+   other marks on a portrait, so wearing it moves nothing: the drag that follows a selection starts
+   from exactly where the face was. Above its neighbours (2), so the ring is not buried under a
+   face overlapping it; below one being carried (4) or aimed at (3). */
+.stonetop-relmap-node.is-selected {
+	z-index: 2;
+}
+
+.stonetop-relmap-node.is-selected .stonetop-relmap-face {
+	outline: 3px dashed var(--st-accent-fill);
+	outline-offset: 3px;
+}
+
+.stonetop-relmap-node.is-selected .stonetop-relmap-name {
+	font-weight: 700;
+}
+
 /* ── The arrowheads ───────────────────────────────────────────────────────────
    Fixed-size SVGs, turned by an angle worked out in the board's real proportions. Their own
    viewBox, so the stretch on the line layer above cannot squash them.
@@ -45767,6 +45812,8 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 }
 
 .stonetop-relmap-board.is-dragging { cursor: grabbing; }
+/* A selection box being drawn is not the board moving; later than the rule above so it wins. */
+.stonetop-relmap-board.is-boxing { cursor: crosshair; }
 
 /* A CAPTION BEING SLID ALONG ITS OWN LINE. The words are redrawn at the pointer's place on the
    stroke frame by frame (`_slideCaption`), and this is the only thing on screen that says the board

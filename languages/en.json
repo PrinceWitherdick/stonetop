@@ -1855,6 +1855,9 @@
       "addPickHint": "Tick everyone who should go on this map. They are all seated in one go.",
       "addNamed": "Add {name}",
       "addNamedCount": "Add {count} people",
+      "create": "New person",
+      "createHint": "Make a new NPC with the Person worksheet and put them on this map.",
+      "createdNotSeated": "{name} was made, but the map changed while you were filling in the worksheet, so they are not on it yet. Use Add someone to put them on.",
       "choose": "Add",
       "cancel": "Never mind",
       "emptyLead": "Nobody is on this map yet.",
@@ -1914,6 +1917,11 @@
       "removed": "{name} has been taken off the map.",
       "removeLabel": "Take {name} off this map",
       "removeGesture": "Right-click to see the delete button.",
+      "selectGesture": "Shift-click to select several people and move them together.",
+      "selection": {
+        "count": "{count} selected. Drag any of them, or use the arrow keys, to move them together. Escape lets go.",
+        "none": "Nobody is selected."
+      },
       "inkNamed": "Colour: {name}",
       "inkCustomHeading": "Already on this map",
       "inkCustomNamed": "The colour {name}, already on this map",
@@ -2048,6 +2056,7 @@
       "history": {
         "change": "that change",
         "moved": "moving someone",
+        "movedMany": "moving {count} people",
         "added": "adding {name}",
         "addedCount": "adding {count} people",
         "removed": "taking {name} off",

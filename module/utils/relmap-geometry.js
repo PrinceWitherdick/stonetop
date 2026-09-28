@@ -247,6 +247,93 @@ export function clampPct(n) {
 }
 
 /**
+ * HOW FAR OFF THE SHEET A PORTRAIT MAY BE PUT, in the sheet's own percentages: twice its size past
+ * every edge, so five sheets across and five down.
+ *
+ * ⚠ THE SHEET USED TO BE A WALL, AND AN INVISIBLE ONE (user, 2026-09-27: "trying to move characters
+ * around is frustrating when I run out of space for no reason"). A drag followed the pointer
+ * anywhere, and the drop was held to `clampPct`, so a face carried out onto the empty paper round
+ * the sheet snapped back to its edge on release. Nothing was drawn at that edge, because the board
+ * and the paper around it are the same page tone. So the edge went, and the board now frames
+ * whatever is on it (`boardBounds`) instead of the other way round.
+ *
+ * A LIMIT STILL, and only as a rail. Nobody arranging people will reach it: at the plain sheet it
+ * is six thousand pixels across. It keeps a coordinate that arrived as garbage from being written
+ * back as a portrait a mile away. The drag holds the whole gesture to it (`holdTravel`), so even
+ * there the face stops under the pointer rather than jumping on release.
+ *
+ * `clampPct` stays the answer for anything LAID OUT by the board itself (rings, a clear spot for a
+ * newcomer): those should land on the sheet, where the reader is looking.
+ */
+export const RELMAP_REACH_MIN = -200;
+export const RELMAP_REACH_MAX = 300;
+
+/** A coordinate a person may be STORED at: anywhere within reach, and missing means the middle. */
+export function clampReach(n) {
+	// The same `Number(null) === 0` guard `clampPct` keeps, and for the same reason.
+	const v = n === null || n === undefined || n === "" ? NaN : Number(n);
+	if (!Number.isFinite(v)) return 50;
+	return round(Math.min(RELMAP_REACH_MAX, Math.max(RELMAP_REACH_MIN, v)));
+}
+
+/**
+ * How far a travel may go, on both axes, without carrying ANY of the people making it past reach.
+ *
+ * ONE TRAVEL FOR THE WHOLE GROUP, held as a unit. Holding each person on their own would squash a
+ * group moved against the rail into a line along it, and a reader moving four people together means
+ * the four of them, in the shape they are in.
+ *
+ * @param {{left: number, top: number}} moved  the travel asked for, in board percentages.
+ * @param {Array<{left: number, top: number}>} from  where each person started.
+ * @returns {{left: number, top: number}}
+ */
+export function holdTravel(moved, from = []) {
+	let { left, top } = moved;
+	for (const spot of from) {
+		left = Math.min(RELMAP_REACH_MAX - spot.left, Math.max(RELMAP_REACH_MIN - spot.left, left));
+		top = Math.min(RELMAP_REACH_MAX - spot.top, Math.max(RELMAP_REACH_MIN - spot.top, top));
+	}
+	return { left, top };
+}
+
+/**
+ * How much room round a portrait's CENTRE the board must show for that person to be seen whole, in
+ * board pixels: the face, its name hung underneath, and a margin.
+ */
+const BOUNDS_PAD_X = 90;
+const BOUNDS_PAD_TOP = 60;
+const BOUNDS_PAD_BOTTOM = 90;
+
+/**
+ * The part of the board that has anything on it, in board PIXELS: the sheet, grown to take in
+ * every person standing off it.
+ *
+ * ⚠ THE SHEET IS ALWAYS INSIDE IT, and that is not tidiness. Every seat the board works out for
+ * itself (a ring, a clear spot for somebody arriving) is on the sheet, so a board that framed only
+ * the people would open zoomed in on three faces in a corner and put the next newcomer out of view.
+ *
+ * WHAT IT IS FOR. The window frames this rather than the sheet (utils/zoom-pan-surface.js), so a
+ * person put out past the edge is still on screen when the board is fitted, and the pan keeps a
+ * sliver of THIS in the window rather than a sliver of the sheet.
+ *
+ * @param {Array<{x: number, y: number}>} nodes  where everybody is, in board percentages.
+ * @param {{width: number, height: number}} board  the sheet, from `boardMetrics`.
+ */
+export function boardBounds(nodes = [], { width = RELMAP_BOARD_WIDTH, height = RELMAP_BOARD_WIDTH / RELMAP_BOARD_ASPECT } = {}) {
+	const box = { left: 0, top: 0, right: width, bottom: height };
+	for (const node of nodes) {
+		const x = (Number(node?.x) / 100) * width;
+		const y = (Number(node?.y) / 100) * height;
+		if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+		box.left = Math.min(box.left, x - BOUNDS_PAD_X);
+		box.right = Math.max(box.right, x + BOUNDS_PAD_X);
+		box.top = Math.min(box.top, y - BOUNDS_PAD_TOP);
+		box.bottom = Math.max(box.bottom, y + BOUNDS_PAD_BOTTOM);
+	}
+	return box;
+}
+
+/**
  * A portrait's radius as a percentage of the board's WIDTH — which is also its radius in flat
  * space, on both axes.
  *

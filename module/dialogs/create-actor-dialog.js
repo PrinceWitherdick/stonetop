@@ -42,7 +42,7 @@ const ACTOR_OPTIONS = [
 		label: "Person",
 		icon: "fa-people-group",
 		hint: "A villager, a neighbor from elsewhere, or a stranger. Built from the steading worksheet: name, occupation, traits, notes.",
-		create: (folder) => _createPerson(folder),
+		create: (folder) => createPerson({ folder }),
 	},
 	{
 		id: "monster",
@@ -276,8 +276,19 @@ async function _pickOwner() {
  * Person flow: pick which roster (if any) they belong to, fill in the same worksheet the
  * steading sheet's "+ Add" buttons use, and create the NPC. Residents and Neighbors are
  * filed on the steading as they're made, so the roster row and the actor arrive together.
+ *
+ * Exported for the relationship map's "New person" button, which PLAYERS may press as well as the
+ * GM (every step here is player-safe: see ensureNamedActorFolder, and the steading is owned by
+ * everyone). It seats the result on the board
+ * instead of opening its sheet (`openSheet: false`): the worksheet has just asked everything the
+ * sheet would, and a double-click on the new face opens it anyway.
+ *
+ * @param {object} [options]
+ * @param {string|null} [options.folder]  Sidebar folder for a loose NPC; rostered ones ignore it.
+ * @param {boolean} [options.openSheet=true]
+ * @returns {Promise<Actor|null>}  The new NPC, or null if any step was dismissed or failed.
  */
-async function _createPerson(folder) {
+export async function createPerson({ folder = null, openSheet = true } = {}) {
 	const kind = await pickContentOption({
 		title: "Create a Person",
 		options: PERSON_KINDS,
@@ -307,7 +318,7 @@ async function _createPerson(folder) {
 	}
 	if (!actor) return null;
 	if (spec.list) ui.notifications?.info?.(`Added ${actor.name} to the steading's ${_rosterLabel(spec.list)}.`);
-	actor.sheet?.render(true);
+	if (openSheet) actor.sheet?.render(true);
 	return actor;
 }
 

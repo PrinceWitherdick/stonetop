@@ -827,6 +827,22 @@
         </button>
       </span>
 
+      {{!-- MAKING SOMEBODY NEW AND PUTTING THEM ON, for whoever may create actors, players included
+            (see the `create` entry in the window's TOOLS). The sidebar's Person worksheet, then a seat on
+            this board, so a face that does not exist yet is one press rather than a trip to the
+            Actors tab and back through "Add someone".
+
+            BEFORE "ADD SOMEONE" AND UNFILLED. That button keeps the end of the row and the one fill,
+            for the reasons below; this is the rarer press. --}}
+      {{#if canCreatePerson}}
+      <button type="button" class="stonetop-relmap-tool"
+              data-relmap-action="create"
+              data-tooltip="{{createHint}}" aria-label="{{createHint}}">
+        <i class="fas fa-user-pen"></i>
+        <span>{{createLabel}}</span>
+      </button>
+      {{/if}}
+
       {{!-- PUTTING SOMEBODY ON THE BOARD, and the last press on the row.
 
             LAST, AND FILLED. It is the only thing in this footer that adds to the board rather
