@@ -1178,6 +1178,29 @@
           "lendNoBox": "{name} has no HP box to raise.",
           "injuredButton": "Add the injured tag",
           "removeCondition": "Remove the {tag} tag"
+        },
+        "summon": {
+          "title": "Manifest {name}",
+          "lead": "Pick from the boxes on the reverse of {card}. What you pick is ticked on the card too.",
+          "nameLabel": "Name it",
+          "pickHeading": "{label}: pick {count}",
+          "add": "Add {name} to Followers",
+          "skip": "Not now",
+          "repair": {
+            "title": "Finish {name}",
+            "lead": "{name} joined your followers before the card's picks were asked for, so it isn't quite what the book makes. Pick its extras to put it right.",
+            "over": "It has {have} of the card's {label}, but the book gives it {pick}.",
+            "short": "It still needs {missing} more from the card's {label}.",
+            "overNote": "It has all of these now. Choose the {pick} to keep.",
+            "save": "Save these picks",
+            "keep": "Keep it as it is",
+            "later": "Remind me later"
+          }
+        },
+        "tags": {
+          "addPlaceholder": "Add a tag…",
+          "addLabel": "Add this tag",
+          "remove": "Remove the {tag} tag"
         }
       },
       "moveTypes": {

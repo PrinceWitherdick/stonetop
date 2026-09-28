@@ -1,0 +1,41 @@
+{{!-- The picks a summoned follower's card prints (the beautiful scroll's tulpa), asked when it is
+      summoned or when one summoned before they were asked for is put right. See
+      actors/character/dialogs/ArcanaSummonDialog.js. --}}
+<form class="stonetop-possession-choices stonetop-arcana-summon">
+	{{#if lead}}
+	<div class="stonetop-possession-choices-desc stonetop-item-description">
+		<p>{{lead}}</p>
+		{{#if issues.length}}
+		<ul>{{#each issues}}<li>{{this}}</li>{{/each}}</ul>
+		{{/if}}
+	</div>
+	{{/if}}
+
+	{{#if askName}}
+	<div class="stonetop-choice-group">
+		<label class="stonetop-choice-group-heading" for="stonetop-arcana-summon-name">{{nameLabel}}</label>
+		<input type="text" id="stonetop-arcana-summon-name" data-summon-name placeholder="{{namePlaceholder}}" autocomplete="off">
+	</div>
+	{{/if}}
+
+	{{#each groups}}
+	<div class="stonetop-choice-group">
+		<p class="stonetop-choice-group-heading">{{heading}}</p>
+		{{#if note}}<p class="stonetop-arcana-summon-note">{{note}}</p>{{/if}}
+		<div class="stonetop-choice-subgroup" data-summon-choice="{{key}}" data-field="{{field}}" data-pick-max="{{pick}}">
+			{{#each options}}
+			<label class="stonetop-choice-option-label">
+				<input type="checkbox" class="stonetop-item-check" value="{{value}}" {{#if checked}}checked{{/if}}>
+				<span class="stonetop-pc-option-label">{{value}}</span>
+			</label>
+			{{/each}}
+		</div>
+	</div>
+	{{/each}}
+
+	<footer class="stonetop-pc-footer">
+		<button type="button" class="stonetop-pc-done" data-action="add">{{addLabel}}</button>
+		{{#if keepLabel}}<button type="button" class="stonetop-pc-done" data-action="keep">{{keepLabel}}</button>{{/if}}
+		<button type="button" class="stonetop-pc-done" data-action="skip">{{skipLabel}}</button>
+	</footer>
+</form>

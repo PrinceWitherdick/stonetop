@@ -70,6 +70,7 @@ import { updatePlacedTokens } from "../utils/placed-tokens.js";
 import { grandfatherWeaponsOfWar } from "../migration/weapons-of-war-grandfather.js";
 import { repairAllPossessionGrants } from "../migration/possession-grant-repair.js";
 import { repairMasteredArcanumCircles } from "../migration/mastered-arcanum-circles.js";
+import { settleAllArcanumBoxLayouts, settleOwnArcanumBoxLayouts } from "../migration/tulpa-move-boxes.js";
 import { refreshHeldMoves } from "../migration/move-refresh.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
@@ -238,6 +239,12 @@ export async function onReady() {
 		// world swept once has nothing left to find.
 		try { await oncePerVersion("masteredArcanumCircles", repairMasteredArcanumCircles); }
 		catch (err) { console.error("Stonetop | mastered arcanum repair failed", err); }
+		// Move marks on arcana whose printed boxes have moved (the beautiful scroll's four move
+		// boxes; migration/tulpa-move-boxes.js). Per VERSION: each character records that it has
+		// been settled in the same write that settles it, so a repeat, a sweep that dies part-way
+		// or a player's own client settling first all leave nothing to do twice.
+		try { await oncePerVersion("arcanumBoxLayouts", settleAllArcanumBoxLayouts); }
+		catch (err) { console.error("Stonetop | arcanum box layout settle failed", err); }
 
 		// Point player tokens back at the characters they stand for. An unlinked PC token carries
 		// a private copy of its character, and the two drift because a roll writes to the sheet's
@@ -516,6 +523,12 @@ export async function onReady() {
 	// READ it, which is what the two features did to them before this existed.
 	game.stonetop.rulebooks         = rulebookMacroApi();
 
+	// A player settles their own characters' arcana marks on load rather than waiting for the GM's
+	// sweep (migration/tulpa-move-boxes.js), so the first client to show a moved card shows it
+	// right. Background: it is a flag read per character, and a write only the once.
+	if (!game.user.isGM) {
+		settleOwnArcanumBoxLayouts().catch(err => console.error("Stonetop | arcanum box layout settle failed", err));
+	}
 	_registerCharacterAutoOpen();
 	_registerGmToolkitAdopt();
 	// Close any half-finished creation whose character is deleted out from under it — the

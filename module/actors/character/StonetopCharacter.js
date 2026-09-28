@@ -5623,6 +5623,8 @@ export class StonetopCharacter {
 	async setArcanumUnlockCount(arcanumSlug, optionSlug, count)          { await this._arcana.setUnlockCount(arcanumSlug, optionSlug, count); }
 	async setArcanumBackOptionCount(arcanumSlug, optionSlug, count)      { await this._arcana.setBackOptionCount(arcanumSlug, optionSlug, count); }
 	async setArcanumBoxChecked(slug, context, index, checked)            { await this._arcana.setArcanumBoxChecked(slug, context, index, checked); }
+	async settleArcanumBoxLayouts(options)                             { return this._arcana.settleBoxLayouts(options); }
+	async setArcanumBoxesChecked(slug, context, ticks)                 { await this._arcana.setArcanumBoxesChecked(slug, context, ticks); }
 	async markNextArcanumUnlockStep(slug, options)                       { return this._arcana.markNextUnlockStep(slug, options); }
 	async setArcanumResource(slug, count, options)                       { await this._inventory.setResource(slug, count, options); }
 	async setLoreOptionCount(loreSlug, optionSlug, count)           { await this._lore.setCount(loreSlug, optionSlug, count); }

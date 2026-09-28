@@ -11,7 +11,7 @@ import { majorArcanaImg, isMajorArcanumItem, arcanumCardImg } from "../../arcana
 import { arcanaSummonFollowers } from "../../data/arcana-summons.js";
 import { isCarriedArcanumItem } from "../../data/arcana-facets.js";
 import { findArcanumMove, markArcanumMoveNames } from "../../data/arcana-moves.js";
-import { centerArcanumTracks, injectGlyphCheckboxes } from "../../utils/glyphs.js";
+import { boxIndexBefore, centerArcanumTracks, injectGlyphCheckboxes } from "../../utils/glyphs.js";
 import { stonetopChatCard } from "../../utils/chat.js";
 
 // Some arcana "items" are a place, structure, or phenomenon rather than carried gear
@@ -64,12 +64,8 @@ function _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount) {
  * PROOF AGAINST HARM); both used to be, or would have been, their own copy of this arithmetic.
  */
 export function backBoxChecked(backDescription, slug, label, boxStates) {
-	const text = backDescription ?? "";
-	const labelPos = text.indexOf(label);
-	if (labelPos < 0) return false;
-	const boxPos = text.lastIndexOf("□", labelPos);
-	if (boxPos < 0) return false;
-	return !!boxStates[`${slug}:back:${(text.slice(0, boxPos).match(/□/g) || []).length}`];
+	const index = boxIndexBefore(backDescription, label);
+	return index >= 0 && !!boxStates[`${slug}:back:${index}`];
 }
 
 /**
@@ -212,6 +208,38 @@ function _buildOutfitItem(slug, itemData, resolvedResource = undefined) {
 		.withTwoCol(false)
 		.withBreakBefore(false)
 		.build();
+}
+
+/**
+ * Cards whose printed boxes moved after marks had been stored against them. Marks are kept by
+ * index in document order, so a box inserted into the text shifts every mark after it onto the
+ * wrong words. Each entry: `by` boxes inserted at index `from` of `slug`'s `context`, and the
+ * `marker` a character's marks carry once they follow the new text (settleBoxLayouts).
+ *
+ * The beautiful scroll's reverse gained the four boxes its tulpa's optional moves print in the
+ * book (Book II p.527) after its three instinct boxes, moving its Cost boxes from 9-11 to 13-15.
+ */
+export const BOX_LAYOUT_CHANGES = [
+	{ slug: "beautiful-scroll", context: "back", from: 9, by: 4, marker: "beautiful-scroll:back:tulpa-moves" },
+];
+
+/**
+ * `boxes` with one layout change applied: each mark at `from` or later moved `by` along, the
+ * boxes it leaves stored clear. Null when no mark sits at or past `from`.
+ */
+export function shiftedBoxes(boxes, { slug, context, from, by }) {
+	const prefix = `${slug}:${context}:`;
+	const marked = new Map();
+	for (const [key, value] of Object.entries(boxes ?? {})) {
+		if (!key.startsWith(prefix) || !value) continue;
+		const i = Number(key.slice(prefix.length));
+		if (Number.isInteger(i) && i >= from) marked.set(i, value);
+	}
+	if (!marked.size) return null;
+	const next = { ...boxes };
+	for (const i of marked.keys()) next[`${prefix}${i}`] = false;
+	for (const [i, value] of marked) next[`${prefix}${i + by}`] = value;
+	return next;
 }
 
 export class CharacterArcana {
@@ -468,7 +496,7 @@ export class CharacterArcana {
 		}
 		// Keyed maps ("<slug>:…" keys): an update MERGES, so it can't drop a key — delete each
 		// removed sub-key with the "-=key" syntax (see setArcanumBoxChecked's mergeObject note).
-		for (const key of ["unlock", "boxes", "backOptions"]) {
+		for (const key of ["unlock", "boxes", "backOptions", "boxLayouts"]) {
 			const cur = this._flags.getFlag(key) ?? {};
 			const drop = Object.keys(cur).filter(k => k === slug || k.startsWith(prefix));
 			if (drop.length) deletes[key] = drop;
@@ -704,7 +732,53 @@ export class CharacterArcana {
 		await this._flags.setFlag("unlock", { ...this.unlockCounts, [key]: count });
 	}
 
+	/** Which BOX_LAYOUT_CHANGES this character's marks already follow, by `marker`. */
+	get boxLayouts() { return this._flags.getFlag("boxLayouts") ?? {}; }
+
+	/**
+	 * Bring this character's marks up to cards whose printed boxes have moved (BOX_LAYOUT_CHANGES).
+	 * Marks with no marker were stored against the old text, so they are shifted once and the
+	 * marker is written IN THE SAME UPDATE: settling again, from any client, in any order, finds
+	 * the marker and does nothing. `stamp` also writes the marker when nothing needs moving,
+	 * which every write to such a card does first, so a mark made against the new text is never
+	 * taken for an old one. Quiet in the ledger: the marks mean what they always meant.
+	 *
+	 * @param {{slug?: string, stamp?: boolean}} [o]  `slug` limits it to one card's changes
+	 * @returns {Promise<boolean>} whether anything was written
+	 */
+	async settleBoxLayouts({ slug = null, stamp = false } = {}) {
+		const done = this.boxLayouts;
+		const boxes = this._flags.getFlag("boxes") ?? {};
+		let next = null;
+		const markers = {};
+		for (const change of BOX_LAYOUT_CHANGES) {
+			if ((slug && change.slug !== slug) || done[change.marker]) continue;
+			const moved = shiftedBoxes(next ?? boxes, change);
+			if (moved) next = moved;
+			if (moved || stamp) markers[change.marker] = true;
+		}
+		if (!Object.keys(markers).length) return false;
+		const sets = { boxLayouts: { ...done, ...markers } };
+		if (next) sets.boxes = next;
+		await this._flags.batch({ sets }, { stonetopLedger: true });
+		return true;
+	}
+
+	/** Several of one card's boxes in one write: `ticks` maps a box index to checked. */
+	async setArcanumBoxesChecked(slug, context, ticks) {
+		await this.settleBoxLayouts({ slug, stamp: true });
+		const boxes = this._flags.getFlag("boxes") ?? {};
+		const changed = {};
+		for (const [index, checked] of Object.entries(ticks ?? {})) {
+			const key = `${slug}:${context}:${index}`;
+			if (!!boxes[key] !== !!checked) changed[key] = !!checked;
+		}
+		// Unticked is stored false, not deleted, as setArcanumBoxChecked does.
+		if (Object.keys(changed).length) await this._flags.batch({ sets: { boxes: { ...boxes, ...changed } } });
+	}
+
 	async setArcanumBoxChecked(slug, context, index, checked) {
+		await this.settleBoxLayouts({ slug, stamp: true });
 		const boxes = this._flags.getFlag("boxes") ?? {};
 		const key = `${slug}:${context}:${index}`;
 		if (!!boxes[key] === !!checked) return;

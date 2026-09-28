@@ -7045,6 +7045,14 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	margin: 2px 0;
 }
 
+/* A summon repair's word on a group it has too many of (ArcanaSummonDialog). */
+.stonetop-arcana-summon-note {
+	margin: 0 0 2px;
+	font-size: var(--st-fs-sm);
+	font-style: italic;
+	color: var(--st-text-muted);
+}
+
 .stonetop-choice-subgroup {
 	display: flex;
 	flex-wrap: wrap;

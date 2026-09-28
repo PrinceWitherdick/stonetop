@@ -138,7 +138,9 @@ import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relati
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
 import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, wireFightingInNumbers, groupFightCardSummaries, nextFollowerOrder, crewGearCarried, crewGearArmor, applyTagEdits, editTagLayer, editTagList} from "../../data/follower-build.js";
 import {LOAD_LEVEL_LIMITS} from "../../utils/load.js";
-import {arcanaSummonFollowers} from "../../data/arcana-summons.js";
+import {arcanaSummonFollowers, summonAsks, summonChoiceGroups, summonPickTicks, summonPicksComplete, resolveSummonChoices} from "../../data/arcana-summons.js";
+import {ArcanaSummonDialog} from "./dialogs/ArcanaSummonDialog.js";
+import {offerSummonRepairs} from "./summon-repair.js";
 import {IMPROVISE, RING_OF_DAAGON, improviseOffer, improviseRollOptions, markConsequenceButton, mindOverMagicRoll, settleArcanumBoxTick} from "./arcana-seeker-moves.js";
 import {joinNames} from "../../utils/strings.js";
 import {availablePossessionFollowers} from "../../data/possession-followers.js";
@@ -1146,6 +1148,10 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._activateTabOnRender = null;
 				this._tabs?.[0]?.activate?.(tab);
 			}
+			// Offer to put right a follower summoned before its card's picks were asked for (the
+			// beautiful scroll's tulpa; summon-repair.js). Fire-and-forget: it asks through its own
+			// window, and remembers per session what it has asked, so a re-render never re-asks.
+			offerSummonRepairs(this.actor).catch(err => console.error("Stonetop | summon repair failed", err));
 			// ⚠ HERE AND NOT IN `activateListeners`, WHICH IS TOO EARLY. Whether the timeline is
 			// wanted depends on which tab is showing, and a sheet reopened after a reload does not
 			// know that yet at listener time: utils/window-restore.js puts the reader back on the tab
@@ -8432,9 +8438,11 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		// Manifest an arcanum's bound creature(s) as followers (the arcana whose reverse
 		// says "Treat it/them as a follower" — see ARCANA_SUMMONS). Triggered by the
-		// "Add as follower" button on the arcanum's back side. Confirm first (it adds
-		// cards to the Followers tab), then add any not already present — matched by their
-		// stable sourceUuid marker so re-summoning never piles up duplicate cards.
+		// "Add as follower" button on the arcanum's back side. Adds any not already present —
+		// matched by their stable sourceUuid marker so re-summoning never piles up duplicate
+		// cards. A follower whose card prints picks (the beautiful scroll's tulpa) asks for
+		// them, and the ask is the confirmation; the rest are confirmed first, since the
+		// button adds cards to the Followers tab.
 		async _onArcanaSummon(slug) {
 			if (!this.isEditable) return;
 			const arcanum = await this._stonetopCharacter.getArcanum(slug);
@@ -8443,28 +8451,56 @@ export function createStonetopCharacterSheetClass(Base) {
 			// button adds just the Ring itself.
 			const followers = arcanaSummonFollowers(arcanum)?.filter(f => !f.viaCallUp);
 			if (!followers?.length) return;
-			const names = joinNames(followers.map(f => f.name));
-			const plural = followers.length > 1;
-			const confirmed = await confirmOutcome({
-				title:   "Manifest follower",
-				content: `<p>Manifest <strong>${escHtml(names)}</strong> and add ${plural ? "them" : "it"} to your Followers tab?</p>`,
-				yes:     { label: `Add ${plural ? "them" : "it"} to Followers`, icon: "fa-user-plus" },
-				no:      { label: "Not now" },
-			});
-			if (!confirmed) return;
-
 			const existing = this.actor.getFlag(STONETOP_SCOPE, "customFollowers") ?? {};
 			const present  = new Set(Object.values(existing).map(f => f?.sourceUuid).filter(Boolean));
-			const update   = {};
+			// `repeatable` followers (e.g. the Ring of Daagon's Servants) can be
+			// summoned again and again, so they're never deduped by sourceUuid.
+			const toAdd = followers.filter(f => f.repeatable || !present.has(f.sourceUuid));
+			if (!toAdd.length) {
+				ui.notifications?.info?.(`${joinNames(followers.map(f => f.name))} ${followers.length > 1 ? "are" : "is"} already on your Followers tab.`);
+				return;
+			}
+
+			const inputs = [];
+			const ticks  = {};
+			// Marks stored against an older printing of the card move first, so they are read right.
+			if (toAdd.some(summonAsks)) await this._stonetopCharacter.settleArcanumBoxLayouts({ slug });
+			const card = { backDescription: arcanum?.back?.description ?? "", slug, boxStates: this._stonetopCharacter.arcanaBoxStates ?? {} };
+			for (const follower of toAdd.filter(summonAsks)) {
+				const groups = summonChoiceGroups(follower, card);
+				const answer = await ArcanaSummonDialog.ask(follower, groups, arcanum?.front?.title ?? "");
+				if (!answer) return;
+				// Settled when every pick was made; one left short is offered again next session
+				// (summon-repair.js), where the player can also keep it as it is.
+				const resolved = resolveSummonChoices(follower, answer.picks, { name: answer.name });
+				inputs.push({ ...resolved, picksSettled: summonPicksComplete(resolved, follower) });
+				// The card is the record of what was picked: tick what was, clear what wasn't.
+				Object.assign(ticks, summonPickTicks(groups, answer.picks));
+			}
+			const plain = toAdd.filter(f => !summonAsks(f));
+			if (plain.length && !inputs.length) {
+				const names = joinNames(plain.map(f => f.name));
+				const plural = plain.length > 1;
+				const confirmed = await confirmOutcome({
+					title:   "Manifest follower",
+					content: `<p>Manifest <strong>${escHtml(names)}</strong> and add ${plural ? "them" : "it"} to your Followers tab?</p>`,
+					yes:     { label: `Add ${plural ? "them" : "it"} to Followers`, icon: "fa-user-plus" },
+					no:      { label: "Not now" },
+				});
+				if (!confirmed) return;
+			}
+			inputs.push(...plain);
+
+			const update = {};
 			let order = this._nextFollowerOrder();
-			for (const input of followers) {
-				// `repeatable` followers (e.g. the Ring of Daagon's Servants) can be
-				// summoned again and again, so they're never deduped by sourceUuid.
-				if (!input.repeatable && present.has(input.sourceUuid)) continue;
+			for (const input of inputs) {
 				const id = foundry.utils.randomID(16);
-				update[`flags.stonetop-pwd.customFollowers.${id}`] = { ...buildCustomFollower(input), order: order++ };
+				const settled = input.picksSettled ? { picksSettled: true } : {};
+				update[`flags.stonetop-pwd.customFollowers.${id}`] = { ...buildCustomFollower(input), ...settled, order: order++ };
 			}
 			if (Object.keys(update).length) await this.actor.update(update);
+			// After the follower lands, so a failed add never leaves the card ticked for no one.
+			if (Object.keys(ticks).length) await this._stonetopCharacter.setArcanumBoxesChecked(slug, "back", ticks);
 			this.render(false);
 		}
 
