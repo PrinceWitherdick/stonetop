@@ -27010,6 +27010,59 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 .stonetop-crew-tag-choice.is-auto { cursor: default; }
 .stonetop-crew-tag-choice.is-disabled:not(.is-selected) { opacity: 0.35; cursor: default; }
 
+/* A tag's remove button: the companion's conditions (always) and every hand-editable tag under the
+   card's pencil (Updating followers, p.480). A bare glyph inside the chip, so core's button rules
+   (`width: 100%`, a block box, a min height, the icon's 3px right margin) are all put back. */
+.stonetop-follower-tag :is(.stonetop-follower-tag-remove, .stonetop-follower-tag-drop) {
+	display: inline-flex;
+	flex: none;
+	width: auto;
+	height: auto;
+	min-height: 0;
+	margin: 0 0 0 2px;
+	padding: 0 1px;
+	border: 0;
+	background: none;
+	color: var(--st-text-muted);
+	font-size: 0.85em;
+	line-height: 1;
+	vertical-align: baseline;
+	cursor: pointer;
+}
+.stonetop-follower-tag :is(.stonetop-follower-tag-remove, .stonetop-follower-tag-drop) > i { margin: 0; }
+.stonetop-follower-tag :is(.stonetop-follower-tag-remove, .stonetop-follower-tag-drop):is(:hover, :focus-visible) {
+	color: var(--st-text-body);
+}
+
+/* The tag editor under a card's pencil: any hand-added tags (on a picker card), then the add field.
+   It takes a line of its own, so the row wraps rather than squeezing the picker beside it. */
+.stonetop-follower-tags-row:has(> .stonetop-follower-tag-editor) { flex-wrap: wrap; }
+.stonetop-follower-tag-editor {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	flex: 1 1 100%;
+	min-width: 0;
+}
+.stonetop-follower-tag-add-row { display: flex; gap: 6px; align-items: center; min-width: 0; }
+/* The .stonetop-follower-text skin, but NOT that class: the sheet saves every .stonetop-follower-text
+   on change to the field its data-field names, and this one names none (it is read on add). */
+.stonetop-follower-tag-add-row .stonetop-follower-tag-input {
+	flex: 1 1 0;
+	min-width: 0;
+	width: auto;
+	box-sizing: border-box;
+	border: 1px solid rgba(0, 0, 0, 0.25);
+	border-radius: var(--st-radius-sm);
+	background: rgba(255, 255, 255, 0.6);
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-base);
+	line-height: 1.35;
+	padding: 3px 6px;
+}
+.stonetop-follower-tag-add-row .stonetop-follower-tag-input:not(:focus) { box-shadow: none; }
+.stonetop-follower-tag-add-row .stonetop-follower-tag-add > i { margin: 0; }
+
 /* Exceptional: a gated, selectable tag chip (edit mode). Mirrors the crew tag
    choices but keeps the amber "exceptional" tint and shows a lock until the
    granting playbook move is owned.

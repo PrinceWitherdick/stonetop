@@ -136,7 +136,7 @@ import {buildRelationshipRows, wireRelationshipTable, wireRelationshipLinks, rel
 import {wireAvatarPreview, removeAvatarPreview} from "../../utils/avatar-preview.js";
 import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relationship-board.js";
 import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
-import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, wireFightingInNumbers, groupFightCardSummaries, nextFollowerOrder, crewGearCarried, crewGearArmor} from "../../data/follower-build.js";
+import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, wireFightingInNumbers, groupFightCardSummaries, nextFollowerOrder, crewGearCarried, crewGearArmor, applyTagEdits, editTagLayer, editTagList} from "../../data/follower-build.js";
 import {LOAD_LEVEL_LIMITS} from "../../utils/load.js";
 import {arcanaSummonFollowers} from "../../data/arcana-summons.js";
 import {IMPROVISE, RING_OF_DAAGON, improviseOffer, improviseRollOptions, markConsequenceButton, mindOverMagicRoll, settleArcanumBoxTick} from "./arcana-seeker-moves.js";
@@ -2972,6 +2972,33 @@ export function createStonetopCharacterSheetClass(Base) {
 				card.exceptionalAvailable = ungated;
 				return card;
 			};
+			// Hand-edited tags (Updating followers, p.480): tags added to a card and derived tags
+			// dropped from it. Applied here, ahead of withOrderData, so the Order dialog, the fight
+			// and the follower's NPC (all read off card.tags) see the tags the card shows. Under the
+			// pencil every tag drawn as a plain chip gets a remove button, and a card whose tags are
+			// drawn as a picker (crew, companion, initiate) lists its added ones beside the add field.
+			// A companion's conditions keep their own remove button, outside edit mode too.
+			const hasPicker = v => (Array.isArray(v) ? v.length > 0 : !!v);
+			const withTagEdits = (card) => {
+				if (!card?.ftype) return card;
+				if (card.ftype !== "custom") card.tags = applyTagEdits(card.tags, detailFlagsFor(card.ftype, card.slug));
+				else card.tags = (card.tags ?? []).map(t => (typeof t === "string" ? { label: t } : t));
+				// An initiate's fixed tags are drawn apart from its picker too, so they drop with the rest.
+				const kept = new Set(card.tags.map(t => String(t.label).toLowerCase()));
+				if (Array.isArray(card.subtitleTags)) card.subtitleTags = card.subtitleTags.filter(t => kept.has(String(t?.label ?? t).toLowerCase()));
+				if (!card.edit?.stats || !this.isEditable) return card;
+				const removeLabel = tag => format("stonetop.character.followers.tags.remove", { tag });
+				for (const tag of [...card.tags, ...(card.subtitleTags ?? [])]) {
+					if (tag && typeof tag === "object" && !tag.removable) Object.assign(tag, { editRemovable: true, editRemoveLabel: removeLabel(tag.label) });
+				}
+				const picker = hasPicker(card.tagOptions) || hasPicker(card.traitChoices) || hasPicker(card.traitRows);
+				card.tagEdit = {
+					added: picker ? card.tags.filter(t => t.added) : [],
+					placeholder: localize("stonetop.character.followers.tags.addPlaceholder"),
+					addLabel:    localize("stonetop.character.followers.tags.addLabel"),
+				};
+				return card;
+			};
 			// Stash the data the Order button (and its dialog) needs as plain values:
 			// a clean tag list (pipe-joined — no follower tag contains a pipe), the
 			// exceptional flag, and a display name. Initiates carry their epithet in
@@ -3131,7 +3158,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 				return card;
 			};
-			const finalize = (card) => withFolds(withOrderData(withExceptional(withSectionEdits(withBarkskin(withGroupFight(withStatOverrides(card)))))));
+			const finalize = (card) => withFolds(withOrderData(withExceptional(withTagEdits(withSectionEdits(withBarkskin(withGroupFight(withStatOverrides(card))))))));
 			// Playbook possession-followers (the Would-be Hero's dog, the Ranger's Hounds,
 			// the Blessed's Mastiffs) ship as gear text; offer to materialize any the PC
 			// holds but hasn't added yet as a follower card (deduped by sourceUuid, like
@@ -4738,6 +4765,24 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!this.isEditable) return;
 				await removeCompanionCondition(this.actor, ev.currentTarget.dataset.tag);
 				this.render(false);
+			});
+			// The tag editor under a follower card's pencil (Updating followers, p.480): remove a
+			// tag, or add one (or several, comma-separated) from the field.
+			html.find(".stonetop-follower-tag-drop").on("click", ev => {
+				const { ftype, slug, tag } = ev.currentTarget.dataset;
+				this._onFollowerTagEdit(ftype, slug, "remove", tag);
+			});
+			const addFollowerTag = (input) => {
+				if (!input?.value.trim()) return;
+				const { ftype, slug } = input.dataset;
+				this._onFollowerTagEdit(ftype, slug, "add", input.value);
+			};
+			html.find(".stonetop-follower-tag-add").on("click", ev =>
+				addFollowerTag(ev.currentTarget.closest(".stonetop-follower-tag-editor")?.querySelector(".stonetop-follower-tag-input")));
+			html.find(".stonetop-follower-tag-input").on("keydown", ev => {
+				if (ev.key !== "Enter") return;
+				ev.preventDefault();
+				addFollowerTag(ev.currentTarget);
 			});
 			// Expand/collapse-all caret on a rules card header (Animal Companion Moves /
 			// Follower Special Moves): open every move's <details> when any is collapsed,
@@ -8364,6 +8409,25 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!Array.isArray(forActor) || !forActor.includes(slug)) return null;
 				return game.user.setFlag(STONETOP_SCOPE, flag, { ...all, [this.actor.id]: forActor.filter(s => s !== slug) });
 			}));
+		}
+
+		// Add or remove a follower card's tags (Updating followers, p.480). A custom follower's
+		// tags are its own list; every other type's are derived from the rules, so its edits go
+		// to the `extraTags` / `droppedTags` layer on its details (applyTagEdits reads it back).
+		async _onFollowerTagEdit(ftype, slug, action, tags) {
+			if (!this.isEditable) return;
+			const base = _followerDetailBase(ftype, slug);
+			if (!base) return;
+			const stored = this.actor.getFlag(STONETOP_SCOPE, base);
+			// A custom follower removed on another screen since this card was drawn: writing its
+			// tags would bring it back as a card holding nothing else.
+			if (ftype === "custom" && !stored) return;
+			const current = stored ?? {};
+			const path = `flags.${STONETOP_SCOPE}.${base}`;
+			const update = ftype === "custom"
+				? { [`${path}.tags`]: editTagList(current.tags, action, tags) }
+				: Object.fromEntries(Object.entries(editTagLayer(current, action, tags)).map(([k, v]) => [`${path}.${k}`, v]));
+			await this.actor.update(update);
 		}
 
 		// Manifest an arcanum's bound creature(s) as followers (the arcana whose reverse

@@ -282,7 +282,7 @@
 			<div class="stonetop-crew-tag-picker">
 				{{#if subtitleTags.length}}
 				<div class="stonetop-follower-tags">
-					{{#each subtitleTags}}<span class="stonetop-follower-tag">{{label}}</span>{{/each}}
+					{{#each subtitleTags}}<span class="stonetop-follower-tag">{{label}}{{#if editRemovable}} <button type="button" class="stonetop-follower-tag-drop" data-ftype="{{../ftype}}" data-slug="{{../slug}}" data-tag="{{label}}" aria-label="{{editRemoveLabel}}" data-tooltip="{{editRemoveLabel}}" data-tooltip-direction="UP"><i class="fas fa-xmark"></i></button>{{/if}}</span>{{/each}}
 				</div>
 				{{/if}}
 				<div class="stonetop-initiate-trait-rows">
@@ -305,10 +305,26 @@
 			{{#if (or exceptional tags.length (and edit.stats exceptionalAvailable))}}
 			<div class="stonetop-follower-tags">
 				{{> stonetopExceptionalChip}}
-				{{#each tags}}<span class="stonetop-follower-tag{{#if cls}} {{cls}}{{/if}}{{#if tooltip}} stonetop-follower-tag--tooltip{{/if}}"{{#if tooltip}} data-tooltip="{{tooltip}}" data-tooltip-direction="UP"{{/if}}>{{label}}{{#if removable}}{{#if @root.editable}} <button type="button" class="stonetop-follower-tag-remove" data-tag="{{label}}" aria-label="{{removeLabel}}" data-tooltip="{{removeLabel}}" data-tooltip-direction="UP"><i class="fas fa-xmark"></i></button>{{/if}}{{/if}}</span>{{/each}}
+				{{#each tags}}<span class="stonetop-follower-tag{{#if cls}} {{cls}}{{/if}}{{#if tooltip}} stonetop-follower-tag--tooltip{{/if}}"{{#if tooltip}} data-tooltip="{{tooltip}}" data-tooltip-direction="UP"{{/if}}>{{label}}{{#if removable}}{{#if @root.editable}} <button type="button" class="stonetop-follower-tag-remove" data-tag="{{label}}" aria-label="{{removeLabel}}" data-tooltip="{{removeLabel}}" data-tooltip-direction="UP"><i class="fas fa-xmark"></i></button>{{/if}}{{/if}}{{#if editRemovable}} <button type="button" class="stonetop-follower-tag-drop" data-ftype="{{../ftype}}" data-slug="{{../slug}}" data-tag="{{label}}" aria-label="{{editRemoveLabel}}" data-tooltip="{{editRemoveLabel}}" data-tooltip-direction="UP"><i class="fas fa-xmark"></i></button>{{/if}}</span>{{/each}}
 				{{#if traitsNote}}<span class="stonetop-follower-trait-note">{{traitsNote}}</span>{{/if}}
 			</div>
-			{{else}}<span class="stonetop-follower-fill-line"></span>{{/if}}
+			{{else}}{{#unless tagEdit}}<span class="stonetop-follower-fill-line"></span>{{/unless}}{{/if}}
+			{{/if}}
+			{{!-- The tag editor under the pencil (Updating followers, p.480): add a tag, and on a
+			      card whose tags are a picker above, the tags added by hand with their remove
+			      buttons (a plain-chip card carries its remove buttons on the chips). --}}
+			{{#if tagEdit}}
+			<div class="stonetop-follower-tag-editor">
+				{{#if tagEdit.added.length}}
+				<div class="stonetop-follower-tags">
+					{{#each tagEdit.added}}<span class="stonetop-follower-tag">{{label}} <button type="button" class="stonetop-follower-tag-drop" data-ftype="{{../ftype}}" data-slug="{{../slug}}" data-tag="{{label}}" aria-label="{{editRemoveLabel}}" data-tooltip="{{editRemoveLabel}}" data-tooltip-direction="UP"><i class="fas fa-xmark"></i></button></span>{{/each}}
+				</div>
+				{{/if}}
+				<div class="stonetop-follower-tag-add-row">
+					<input type="text" class="stonetop-follower-tag-input" data-ftype="{{ftype}}" data-slug="{{slug}}" placeholder="{{tagEdit.placeholder}}" aria-label="{{tagEdit.addLabel}}" autocomplete="off">
+					<button type="button" class="stonetop-follower-tag-add stonetop-cf-mini-btn" aria-label="{{tagEdit.addLabel}}" data-tooltip="{{tagEdit.addLabel}}" data-tooltip-direction="UP"><i class="fas fa-plus"></i></button>
+				</div>
+			</div>
 			{{/if}}
 			{{!-- The card's own fold control. It clamps everything below the vitals band away
 			      (the Details fold, the crew's sections, the Order row) and leaves the card as

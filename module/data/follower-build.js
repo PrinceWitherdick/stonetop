@@ -164,6 +164,65 @@ export function normalizeTags(tags) {
 	return out;
 }
 
+// ── Hand-edited tags (Updating followers, p.480) ─────────────────────────────
+// "If any of their tags or moves no longer ring true, then delete them or revise them ... if
+// they've shown a new aptitude, skill or behavior, consider adding it as a tag." A custom
+// follower's tags are its own stored list, edited in place (editTagList). Every other type
+// derives its tags from the rules (a crew's picks, a companion's traits, a beast's catalog
+// entry), so its edits are a layer over them: tags added, and derived tags dropped.
+
+const _tagKey = t => String(typeof t === "string" ? t : t?.label ?? "").trim().toLowerCase();
+
+/**
+ * A card's tags with its edit layer applied: the derived ones less any dropped, then any added
+ * that it doesn't already carry. Matched without case. Entries may be strings or `{label}`
+ * chips and come back as chips, the added ones marked `added`.
+ */
+export function applyTagEdits(tags, { extraTags, droppedTags } = {}) {
+	const dropped = new Set(normalizeTags(droppedTags).map(_tagKey));
+	const kept = (tags ?? [])
+		.map(t => (typeof t === "string" ? { label: t } : t))
+		.filter(t => t?.label && !dropped.has(_tagKey(t)));
+	const have = new Set(kept.map(_tagKey));
+	const added = normalizeTags(extraTags).filter(t => !have.has(_tagKey(t))).map(label => ({ label, added: true }));
+	return [...kept, ...added];
+}
+
+/**
+ * The edit layer after adding or removing `tags` (a list, or comma-separated text). Adding a
+ * dropped tag puts it back rather than adding a copy; removing an added tag takes it off the
+ * list rather than dropping it.
+ *
+ * @param {{extraTags?: string[], droppedTags?: string[]}} layer
+ * @param {"add"|"remove"} action
+ * @returns {{extraTags: string[], droppedTags: string[]}}
+ */
+export function editTagLayer({ extraTags, droppedTags } = {}, action, tags) {
+	let extras  = normalizeTags(extraTags);
+	let dropped = normalizeTags(droppedTags);
+	const has = (list, k) => list.some(t => _tagKey(t) === k);
+	const without = (list, k) => list.filter(t => _tagKey(t) !== k);
+	for (const tag of normalizeTags(tags)) {
+		const k = _tagKey(tag);
+		if (action === "add") {
+			if (has(dropped, k)) dropped = without(dropped, k);
+			else extras = normalizeTags([...extras, tag]);
+		} else if (action === "remove") {
+			if (has(extras, k)) extras = without(extras, k);
+			else dropped = normalizeTags([...dropped, tag]);
+		}
+	}
+	return { extraTags: extras, droppedTags: dropped };
+}
+
+/** A custom follower's own tag list after adding or removing `tags`. */
+export function editTagList(list, action, tags) {
+	const edits = normalizeTags(tags);
+	if (action === "add") return normalizeTags([...normalizeTags(list), ...edits]);
+	const gone = new Set(edits.map(_tagKey));
+	return normalizeTags(list).filter(t => !gone.has(_tagKey(t)));
+}
+
 /**
  * Build the stored shape for a custom follower (the object kept at
  * flags.stonetop-pwd.customFollowers.<id>). Pure: the caller assigns the id and

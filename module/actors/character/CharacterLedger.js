@@ -1075,7 +1075,11 @@ const SORTED_ENTRY_PREFIXES = Object.keys(PREFIX_ENTRIES).sort((a, b) => b.lengt
 // `(?:-=)?` because clearing a portrait is TWO writes, not one: "Use default" sends the picture
 // away as `img: ""` and the frame with it as `.-=portraitFrame`. Silencing only the first left
 // every follower's "Use default" writing "<name> set to blank" into the Chronicle.
-const BOOKKEEPING_KEY = /\.(?:-=)?(img|portraitFrame|actorUuid)(\.|$)/;
+// `extraTags` / `droppedTags` are a follower card's hand-edited tags (the tag editor on every card,
+// Updating followers p.480). Quiet for the reason a custom follower's own `tags` are quiet (see
+// CUSTOM_FOLLOWER_LOGGED_FIELDS): an edit to the card, not a move made — and an initiate's would
+// otherwise read "Initiate details set to eager" through initiateDetailEntry.
+const BOOKKEEPING_KEY = /\.(?:-=)?(img|portraitFrame|actorUuid|extraTags|droppedTags)(\.|$)/;
 const isBookkeepingPath = (path) =>
 	path.startsWith(`flags.${LEDGER_SCOPE}.`) && BOOKKEEPING_KEY.test(path);
 
