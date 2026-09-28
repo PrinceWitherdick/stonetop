@@ -7,7 +7,7 @@ import {
 import {
 	shareInspiration, handleInspirationQuery, inspireAllies, wireSpeechCard, damageCardKind, inspirationDamageOffer,
 	addInspirationDie, inspirationDieNote, wireInspirationDamage, keepOneHp, offerKeepOneHp, onUpdateActorInspirationAtZero,
-	actFearlessly, INSPIRATION_QUERY, SPEECH_FLAG, DIE_FLAG, FOLLOWER_BLOW_FLAG,
+	actFearlessly, speechGiven, INSPIRATION_QUERY, SPEECH_FLAG, DIE_FLAG, FOLLOWER_BLOW_FLAG,
 } from "../../../module/actors/character/inspiration-flow.js";
 import { readRepo } from "../../fakes/css.js";
 import { moveRollOptions } from "../../../module/actors/character/move-roll-options.js";
@@ -185,7 +185,21 @@ describe("the speech card", () => {
 		expect(pick.mock.calls[0][0].multiple).toBe(true);
 		expect(inspirationHeld(wren)).toBe(1);
 		expect(inspirationHeld(aeron)).toBe(0);
-		expect(card.getFlag(SCOPE, SPEECH_FLAG)).toEqual({ amount: 1, names: ["wren"] });
+		expect(card.getFlag(SCOPE, SPEECH_FLAG)).toEqual({ amount: 1, names: ["wren"], given: [{ name: "wren", amount: 1 }] });
+	});
+
+	it("keeps who the first press inspired when a Shift Up's second press adds more", async () => {
+		const marshal = pc({ id: "m", moves: [WE_HAPPY_FEW] });
+		const allies = [pc({ id: "aeron" }), pc({ id: "wren" }), pc({ id: "bryn" })];
+		const card = message();
+		const party = () => [marshal, ...allies];
+		await inspireAllies(card, marshal, 1, { pick: async () => ["aeron", "wren"], party, share: shareInspiration });
+		await inspireAllies(card, marshal, 2, { pick: async () => ["bryn", "wren"], party, share: shareInspiration });
+		expect(card.getFlag(SCOPE, SPEECH_FLAG)).toEqual({
+			amount: 2, names: ["aeron", "wren", "bryn"],
+			given: [{ name: "aeron", amount: 1 }, { name: "wren", amount: 2 }, { name: "bryn", amount: 2 }],
+		});
+		expect(speechGiven({ amount: 1, names: ["Old"] })).toEqual([{ name: "Old", amount: 1 }]);
 	});
 
 	it("gives nobody anything when the picker is closed", async () => {
@@ -225,6 +239,13 @@ describe("the speech card", () => {
 			expect(button("partial").classList.contains("is-chosen")).toBe(true);
 			expect(button("success").disabled).toBe(false);
 			expect(root.querySelector(".stonetop-inspiration-readout").textContent).toContain("Wren & Bryn");
+		});
+
+		it("name each amount given when a second press added to the first", () => {
+			const { root, card } = rendered({ amount: 2, names: ["Aeron", "Bryn"], given: [{ name: "Aeron", amount: 1 }, { name: "Bryn", amount: 2 }] });
+			wireSpeechCard(card, root, { marshal: pc({ id: "m" }), usable: true });
+			expect(root.querySelector(".stonetop-inspiration-readout").textContent)
+				.toBe("Inspired: Bryn (2 Inspiration each). Inspired: Aeron (1 Inspiration each).");
 		});
 	});
 
@@ -318,6 +339,19 @@ describe("+1d6 on a damage roll they just made", () => {
 		const bryn = pc({ id: "wren", held: 1 });
 		expect(await addInspirationDie(applied, bryn, { rollDie: async () => 2, scope: SCOPE })).toBe(false);
 		expect(inspirationHeld(bryn)).toBe(1);
+	});
+
+	it("gives the Inspiration back when the card cannot take the die", async () => {
+		const wren = pc({ id: "wren", held: 1 });
+		const card = plainCard();
+		card.update = vi.fn(async () => { throw new Error("gone"); });
+		await expect(addInspirationDie(card, wren, { rollDie: async () => 4, addDie: async () => {}, scope: SCOPE }))
+			.rejects.toThrow("gone");
+		expect(inspirationHeld(wren)).toBe(1);
+		const failing = plainCard();
+		await expect(addInspirationDie(failing, wren, { rollDie: async () => { throw new Error("dice"); }, scope: SCOPE }))
+			.rejects.toThrow("dice");
+		expect(inspirationHeld(wren)).toBe(1);
 	});
 
 	describe("on the card", () => {

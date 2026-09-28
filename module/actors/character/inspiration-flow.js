@@ -29,7 +29,8 @@ import { heldReadiness, readinessCount, READINESS_FLAG } from "../../combat/defe
 import { keepsFightingAtZero } from "./unstoppable.js";
 import { ownsLearnedMoveNamed } from "./owns-move.js";
 import {
-	WE_HAPPY_FEW, inspirationForTier, inspirationHeld, holdInspiration, spendInspiration, inBattle, canKeepOneHp,
+	WE_HAPPY_FEW, inspirationForTier, inspirationHeld, holdInspiration, spendInspiration, refundInspiration, inBattle,
+	canKeepOneHp,
 } from "./inspiration.js";
 import { actsForHelper, boostRoute } from "./roll-boosts.js";
 import { ownerUsers, answersFor, becameDyingInDiff, openZeroHpMove } from "../../hooks/DeathsDoorPrompt.js";
@@ -52,7 +53,7 @@ const KEY = "stonetop.inspiration";
 
 /** The User query a player's Inspiration goes through when their client cannot write it. */
 export const INSPIRATION_QUERY = "stonetop.inspiration";
-/** Message flag: what a speech card gave, `{amount, names}`. */
+/** Message flag: what a speech card gave, `{amount, names, given: [{name, amount}]}` (speechGiven). */
 export const SPEECH_FLAG = "inspirationShared";
 /** Message flag: the Inspiration die a damage card took, `{by, name, amount}`. */
 export const DIE_FLAG = "inspirationDie";
@@ -118,11 +119,37 @@ export async function inspireAllies(message, marshal, amount, {
 	const { given, missed } = await share(marshal, chosen, amount, { scope });
 	const names = list => joinNames(list.map(actor => actor.name));
 	if (given.length) {
-		await message.setFlag(scope, SPEECH_FLAG, { amount, names: given.map(actor => actor.name) });
+		// A Shift Up's second press adds to who heard the first: they hold what it gave them still.
+		const before = speechGiven(message.getFlag(scope, SPEECH_FLAG));
+		const now = given.map(actor => ({ name: actor.name, amount }));
+		const all = [...before.filter(b => !now.some(n => n.name === b.name)), ...now];
+		await message.setFlag(scope, SPEECH_FLAG, {
+			amount: Math.max(amount, ...before.map(b => b.amount)), names: all.map(g => g.name), given: all,
+		});
 		globalThis.ui?.notifications?.info?.(format(`${KEY}.given`, { names: names(given), amount }));
 	}
 	if (missed.length) globalThis.ui?.notifications?.warn?.(format(`${KEY}.missed`, { names: names(missed) }));
 	return given.length > 0;
+}
+
+/**
+ * Who a speech card inspired, and how much each: `given` on the flag, or, on a card written before a
+ * second press could add to it, everyone in `names` at the one `amount`. PURE.
+ *
+ * @returns {{name: string, amount: number}[]}
+ */
+export function speechGiven(shared) {
+	if (Array.isArray(shared?.given)) return shared.given.filter(g => g?.name);
+	const amount = Number(shared?.amount) || 0;
+	return (Array.isArray(shared?.names) ? shared.names : []).map(name => ({ name, amount }));
+}
+
+/** The card's readout of a speech: one sentence per amount given, the most first. PURE. */
+function speechReadout(given) {
+	const amounts = [...new Set(given.map(g => g.amount))].sort((a, b) => b - a);
+	return amounts.map(amount => format(`${KEY}.inspired`, {
+		names: joinNames(given.filter(g => g.amount === amount).map(g => g.name)), amount,
+	})).join(" ");
 }
 
 /**
@@ -140,11 +167,12 @@ export function wireSpeechCard(message, html, deps = {}) {
 
 	const row = buttons[0].closest(".stonetop-roll-tier-actions") ?? buttons[0].parentElement;
 	row?.parentElement?.querySelectorAll?.(":scope > .stonetop-inspiration-readout").forEach(el => el.remove());
-	if (shared?.names?.length && row) {
+	const given = speechGiven(shared);
+	if (given.length && row) {
 		const doc = root.ownerDocument ?? globalThis.document;
 		const note = doc.createElement("p");
 		note.className = "stonetop-inspiration-readout";
-		note.textContent = format(`${KEY}.inspired`, { names: joinNames(shared.names), amount: shared.amount });
+		note.textContent = speechReadout(given);
 		row.insertAdjacentElement("afterend", note);
 	}
 
@@ -234,6 +262,9 @@ async function addToRoll(roll, amount) {
  * card, or to a plain card's roll and total), and written on the card, so the button goes. In the card's
  * turn, so it cannot land twice or behind an Apply. Whether it was added.
  *
+ * The die is rolled before the Inspiration is spent, and the Inspiration given back if the card cannot
+ * take the die (deleted since, or the write refused): it is spent only on a die the card shows.
+ *
  * @param {object} deps
  * @param {(flavor: string, total: number, formula: string) => string} deps.cardFlavor  stonetop.js#_shiftRollCardFlavor
  */
@@ -245,20 +276,26 @@ export function addInspirationDie(message, holder, {
 		if (!kind || !holder || message.getFlag(scope, DIE_FLAG)) return false;
 		const damage = kind === "results" ? message.getFlag(scope, "damage") : null;
 		if (damage && (damage.applied ?? []).length) return false;
-		if (!(await spendInspiration(holder, scope))) return false;
+		if (inspirationHeld(holder, scope) <= 0) return false;
 		const amount = Math.trunc(Number(await rollDie()) || 0);
+		if (!(await spendInspiration(holder, scope))) return false;
 		const record = { by: holder.uuid, name: holder.name, amount };
-		if (damage) {
-			const results = damage.results.map(r => ({ ...r, raw: (Number(r.raw) || 0) + amount }));
-			await message.update({ flags: { [scope]: { damage: { results }, [DIE_FLAG]: record } } });
-		} else {
-			const roll = message.rolls.at(0);
-			await addDie(roll, amount);
-			await message.update({
-				rolls: message.rolls,
-				flavor: cardFlavor(message.flavor, Math.max(0, roll.total), roll.formula),
-				flags: { [scope]: { [DIE_FLAG]: record } },
-			});
+		try {
+			if (damage) {
+				const results = damage.results.map(r => ({ ...r, raw: (Number(r.raw) || 0) + amount }));
+				await message.update({ flags: { [scope]: { damage: { results }, [DIE_FLAG]: record } } });
+			} else {
+				const roll = message.rolls.at(0);
+				await addDie(roll, amount);
+				await message.update({
+					rolls: message.rolls,
+					flavor: cardFlavor(message.flavor, Math.max(0, roll.total), roll.formula),
+					flags: { [scope]: { [DIE_FLAG]: record } },
+				});
+			}
+		} catch (err) {
+			await refundInspiration(holder, scope);
+			throw err;
 		}
 		return true;
 	});

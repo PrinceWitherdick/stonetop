@@ -152,6 +152,20 @@ describe("spots and rescues (p.329)", () => {
 		expect(board.byKey.get("pc_a").saves).toEqual([]);
 	});
 
+	// Two players picking at once, each on a board without the other's pick.
+	it("counts one rescuer per person in separate spots, leaving the later 10+ free to pick again", () => {
+		const s = three();
+		const board = boardOf(s, { totals: { pc_a: 11, pc_b: 5, pc_c: 4, pc_d: 12 }, saves: { pc_a: ["pc_b"], pc_d: ["pc_b"] } });
+		expect(board.byKey.get("pc_b").savedBy).toEqual(["pc_a"]);
+		expect(board.byKey.get("pc_d").saves).toEqual([]);
+		expect(board.freeRescuers.map(r => r.key)).toEqual(["pc_d"]);
+		expect(endWarnings(board).unusedRescues.map(r => r.key)).toEqual(["pc_d"]);
+		expect(rescueTargets(board, "pc_d", SPOTS.APART).map(r => r.key)).toEqual(["pc_c"]);
+		// In one shared spot, both count.
+		const together = boardOf({ ...s, spots: SPOTS.TOGETHER }, { totals: { pc_a: 11, pc_b: 5, pc_c: 4, pc_d: 12 }, saves: { pc_a: ["pc_b"], pc_d: ["pc_b"] } });
+		expect(together.byKey.get("pc_b").savedBy).toEqual(["pc_a", "pc_d"]);
+	});
+
 	it("offers a 10+ only people still to be got out, in separate spots", () => {
 		const s = three();
 		const board = boardOf(s, { totals: { pc_a: 11, pc_b: 5, pc_c: 4, pc_d: 12 }, saves: { pc_d: ["pc_b"] } });

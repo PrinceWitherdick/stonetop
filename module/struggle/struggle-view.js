@@ -218,7 +218,9 @@ export function struggleRowView(row, { struggle, board, reader, statValues = {},
 	// The 10+ rescuer's own controls, while the struggle is shared and not yet ended.
 	if (status === STRUGGLE_STATUS.REVEALED && row.tier === TIER.SUCCESS && (drives || reader.isGM)) {
 		const targets = rescueTargets(board, row.key, struggle.spots);
-		if (row.claimed.length) {
+		// A pick that no longer counts (someone else got them out first, or a Shift lifted them out of the
+		// spot) leaves this 10+ free to name somebody else.
+		if (row.saves.length || (row.claimed.length && !(drives && targets.length))) {
 			view.rescue = { canUndo: true, undoLabel: reader.isGM && !drives ? "That doesn't get them out" : "Take it back" };
 		} else if (drives && targets.length) {
 			view.rescue = struggle.spots === SPOTS.TOGETHER

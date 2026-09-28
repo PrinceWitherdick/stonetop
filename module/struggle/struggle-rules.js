@@ -315,6 +315,10 @@ export function rowResult(row, roll, struggle, { liveTotal = null } = {}) {
  * write: the save just stops counting. With the party in separate spots (SPOTS.APART) a 10+ gets one
  * person out, the first one it named; in one shared spot it can get everybody out.
  *
+ * APART, ONE RESCUER EACH. Two players picking at once each read a board without the other's pick, so
+ * both can name the same person. Only the first of them in row order counts it; the other's 10+ is left
+ * unused (a free rescuer, which endWarnings reports), and their picker offers the others still in a spot.
+ *
  * @param {object}   struggle   readStruggle's answer
  * @param {function} recordFor  actorId => readStruggleRoll's answer for that character
  * @param {object}   [opts]
@@ -344,7 +348,7 @@ export function struggleBoard(struggle, recordFor, { liveTotals = {} } = {}) {
 	for (const rescuer of rows) {
 		if (rescuer.tier !== TIER.SUCCESS) continue;
 		const claimed = rescuer.claimed.filter(key => key !== rescuer.key && inSpotKeys.has(key));
-		const counted = struggle?.spots === SPOTS.TOGETHER ? claimed : claimed.slice(0, 1);
+		const counted = struggle?.spots === SPOTS.TOGETHER ? claimed : claimed.filter(key => !savedBy.has(key)).slice(0, 1);
 		if (counted.length) saves.set(rescuer.key, counted);
 		for (const key of counted) {
 			if (!savedBy.has(key)) savedBy.set(key, []);

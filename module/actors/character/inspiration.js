@@ -95,6 +95,11 @@ export async function spendInspiration(actor, scope = SYSTEM_ID) {
 	return true;
 }
 
+/** Give back 1 Inspiration spent on something that then did not happen. */
+export async function refundInspiration(actor, scope = SYSTEM_ID) {
+	await actor.setFlag(scope, INSPIRATION_FLAG, inspirationHeld(actor, scope) + 1);
+}
+
 /**
  * "Once battle is joined": whether this character stands in any combat in the world. Read by actor id,
  * as a linked token's combatant carries it, and whether or not the Fight tab made the combat.

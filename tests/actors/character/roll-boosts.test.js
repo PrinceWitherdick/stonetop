@@ -135,6 +135,13 @@ describe("who sees which button", () => {
 		}
 	});
 
+	// Struggle as One bars Many Hands inside it, and a Judge outside it is the GM's +1 on the row.
+	it("offers no Many Hands on a Struggle as One roll, and the rest as usual", () => {
+		const message = card();
+		message.flags[SCOPE].struggleRoll = { id: "s1", row: "pc_fox" };
+		expect(offersFor({ message })).toEqual(["diligence:Aeron"]);
+	});
+
 	it("hides a source once that helper has used it on this roll, and only that one", () => {
 		const message = card({ boosts: [{ source: "diligence", by: "Actor.judge", name: "Aeron" }] });
 		expect(offersFor({ message })).toEqual(["manyHands:Aeron"]);
@@ -188,9 +195,12 @@ describe("taking a +1", () => {
 });
 
 describe("whose client writes it", () => {
-	it("writes a card this user may write, and asks the GM for anyone else's", () => {
-		expect(boostRoute(card({ author: "u-judge" }), player("judge"), GM)).toBe("local");
+	// Every player's press goes to the GM's client while a GM is online, their own card's too: two clients
+	// writing the same card's `rolls` and list from their own copies would keep only the second +1.
+	it("asks the GM for every player's press while a GM is online, and writes its own card with none", () => {
+		expect(boostRoute(card({ author: "u-judge" }), player("judge"), GM)).toBe("relay");
 		expect(boostRoute(card({ author: "u-fox" }), player("judge"), GM)).toBe("relay");
+		expect(boostRoute(card({ author: "u-judge" }), player("judge"), null)).toBe("local");
 		expect(boostRoute(card({ author: "u-fox" }), player("judge"), null)).toBeNull();
 		expect(boostRoute(card({ author: "u-fox" }), GM, GM)).toBe("local");
 	});

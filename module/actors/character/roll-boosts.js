@@ -28,7 +28,13 @@
 //
 // A CARD SOMEONE ELSE WROTE cannot be written by a player: a Judge helping the Fox is pressing a button on
 // the Fox's message. Then the GM's client records it (BOOST_QUERY), after checking the asker plays the helper,
-// the way a Readiness spend on the GM's damage card goes (fight/defend-spend.js#handleSpendQuery).
+// the way a Readiness spend on the GM's damage card goes (fight/defend-spend.js#handleSpendQuery). With a GM
+// online the card's own author sends theirs there too (boostRoute), so every +1 on a card is written by one
+// client, in that card's turn: two clients each writing `rolls` and the list from their own copy would
+// keep only the second +1.
+//
+// NOT MANY HANDS ON A STRUGGLE AS ONE ROLL. The struggle bars it for anyone in it (struggle-rules.js MOVE),
+// and a Judge outside it is the GM's +1 on the row (`bump`), which a +1 on the card would count twice.
 //
 // Only a move or stat roll's card: one with a hit tier (`stonetop-roll-result-label`), and not a damage roll.
 
@@ -45,6 +51,7 @@ import { ownerUsers } from "../../hooks/DeathsDoorPrompt.js";
 import { isZeroHpMoveCard } from "./deaths-door.js";
 import { ownsLearnedMoveNamed, ownedMove } from "./owns-move.js";
 import { heldOnTrack, learnedTrack, takeBackHeld } from "./MoveResources.js";
+import { STRUGGLE_MESSAGE_FLAG } from "../../struggle/struggle-rules.js";
 
 const KEY = "stonetop.rollBoosts";
 
@@ -63,7 +70,7 @@ export const PIETY = "Piety";
 const SOURCES = {
 	diligence: { move: CHRONICLER, cost: 1, on: "any" },
 	sanction:  { move: COMMUNE_WITH_ARATIS, cost: 1, on: "own" },
-	manyHands: { move: MANY_HANDS, cost: 0, on: "other" },
+	manyHands: { move: MANY_HANDS, cost: 0, on: "other", notInStruggle: true },
 	blessing:  { move: PIETY, cost: 1, on: "own", held: blessingHeld, spend: spendBlessing },
 };
 export const BOOST_SOURCES = Object.freeze(Object.keys(SOURCES));
@@ -103,6 +110,11 @@ export function isBoostableRoll(message, scope = SYSTEM_ID) {
 	return flavor.includes("stonetop-roll-result-label") && !flavor.includes("stonetop-damage-roll-card");
 }
 
+/** Whether this card is one row's roll in a Struggle as One (struggle-store.js stamps it). PURE. */
+export function isStruggleRoll(message, scope = SYSTEM_ID) {
+	return !!message?.getFlag?.(scope, STRUGGLE_MESSAGE_FLAG);
+}
+
 /** How much of a source's track a helper holds, or 0 when the move has no track (or is not theirs). */
 export function heldFor(helper, source, scope = SYSTEM_ID) {
 	if (SOURCES[source]?.held) return SOURCES[source].held(helper, scope);
@@ -139,12 +151,14 @@ export function actsForHelper(user, owners = []) {
 export function boostOffers({ message, roller, helpers = [], user, ownersOf = ownerUsers, scope = SYSTEM_ID }) {
 	if (roller?.type !== "character" || !isBoostableRoll(message, scope)) return [];
 	const used = boostsOn(message, scope);
+	const struggle = isStruggleRoll(message, scope);
 	// This user's helpers first: on a player's client that is their own character, so the item scans
 	// below run for one sheet rather than every character in the world, on every render of the card.
 	const mine = helpers.filter(h => h?.type === "character" && actsForHelper(user, ownersOf(h)));
 	const offers = [];
 	for (const source of BOOST_SOURCES) {
-		const { move, cost, on, held: holds } = SOURCES[source];
+		const { move, cost, on, held: holds, notInStruggle } = SOURCES[source];
+		if (notInStruggle && struggle) continue;
 		for (const helper of mine) {
 			const own = helper.id === roller.id;
 			if ((on === "own" && !own) || (on === "other" && own)) continue;
@@ -159,12 +173,13 @@ export function boostOffers({ message, roller, helpers = [], user, ownersOf = ow
 }
 
 /**
- * How a press on this card is recorded: `local` when this user may write the message, `relay` through the
- * GM's client when they may not and a GM is there to, and null (no button) otherwise. PURE.
+ * How a press on this card is recorded: through the GM's client (`relay`) for any player while a GM is
+ * there, even on a card they wrote, so one client writes every press on it in turn; `local` for a GM, or
+ * for a player who may write the card with no GM online; null (no button) otherwise. PURE.
  */
 export function boostRoute(message, user, activeGM = globalThis.game?.users?.activeGM ?? null) {
-	if (canUserWriteCard(message, user, { whenUnknown: !!user?.isGM })) return "local";
-	return activeGM && !user?.isGM ? "relay" : null;
+	if (activeGM && !user?.isGM) return "relay";
+	return canUserWriteCard(message, user, { whenUnknown: !!user?.isGM }) ? "local" : null;
 }
 
 /** The line the card prints for one +1 taken: "+1 Diligence (Aeron)". PURE. */
