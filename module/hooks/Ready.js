@@ -2117,7 +2117,8 @@ function _buildStartupWelcomeContent() {
 				Open <strong>Configure Settings</strong> and filter for <strong>Stonetop</strong> for the sheet font and size, the hover info, and the rest.
 				Worth installing: <a href="https://foundryvtt.com/packages/dice-so-nice">Dice So Nice!</a> for 3D dice,
 				<a href="https://foundryvtt.com/packages/sequencer">Sequencer</a> and <a href="https://foundryvtt.com/packages/JB2A_DnD5e">JB2A</a> to see swords swing and arrows fly on the map,
-				and <a href="https://foundryvtt.com/packages/soundfxlibrary">SoundFx Library</a> to hear them land.
+				<a href="https://foundryvtt.com/packages/soundfxlibrary">SoundFx Library</a> to hear them land,
+				and <a href="https://foundryvtt.com/packages/fxmaster">FXMaster</a> for the season's weather on the scene.
 			</div>
 		</div>
 	</section>`;
