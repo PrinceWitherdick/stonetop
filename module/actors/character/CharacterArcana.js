@@ -10,7 +10,7 @@ import { OutfitItemBuilder } from "../../model/OutfitItem.js";
 import { majorArcanaImg, isMajorArcanumItem, arcanumCardImg } from "../../arcana-icons.js";
 import { arcanaSummonFollowers } from "../../data/arcana-summons.js";
 import { isCarriedArcanumItem } from "../../data/arcana-facets.js";
-import { findArcanumMove, markArcanumMoveNames } from "../../data/arcana-moves.js";
+import { CONDENSED_MOVE_SLUG, condensedArcanumMove, findArcanumMove, markArcanumMoveNames } from "../../data/arcana-moves.js";
 import { boxIndexBefore, centerArcanumTracks, injectGlyphCheckboxes } from "../../utils/glyphs.js";
 import { stonetopChatCard } from "../../utils/chat.js";
 
@@ -49,7 +49,33 @@ function _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount) {
 	for (let i = 0; i < circleCount; i++) {
 		if (!arcanaBoxes[`${item.slug}:unlock:${i}`]) return false;
 	}
+	const tasks = frontUnlockTasks(item, circleCount);
+	if (tasks) {
+		let marked = 0;
+		for (let i = 0; i < tasks.count; i++) if (arcanaBoxes[`${item.slug}:front:${i}`]) marked++;
+		return marked >= tasks.needed;
+	}
 	return true;
+}
+
+// How many of a front-task card's □ tasks its unlock lead asks for, where that is fewer than all
+// of them: the Twisted Spear unlocks "when you have marked 3 tasks" of its five.
+const FRONT_TASKS_NEEDED = { "twisted-spear": 3 };
+
+/**
+ * A card whose unlock track is the □ tasks printed in its FRONT text (the Mindgem, the Twisted
+ * Spear): it has no option requirements and no unlock ○ for _isUnlocked to read, so without
+ * this it read as unlocked the moment it was identified, which showed its owner the back and
+ * hid the GM's reveal toggle. `{count, needed}` (the front □ as _processSideDescription indexes
+ * them, `slug:front:i`), or null when the card has another track or no □ at all. The same
+ * fallback the Seeker's onboarding marks (CharacterOnboardingDialog._seekerMajorMysteryTrack).
+ */
+export function frontUnlockTasks(item, circleCount = unlockCircleCount(item.front?.unlock?.description)) {
+	if (circleCount) return null;
+	if ((item.front?.unlock?.requirements ?? []).some(r => r?.type === "option")) return null;
+	const count = (String(item.front?.description ?? "").match(/□/g) || []).length;
+	if (!count) return null;
+	return { count, needed: Math.min(FRONT_TASKS_NEEDED[item.slug] ?? count, count) };
 }
 
 /**
@@ -362,6 +388,8 @@ export class CharacterArcana {
 					item.back.move.rollType ?? null,
 					item.back.move.description)
 				: null;
+			// Its trigger is a clickable move handle on the tab, like a mystery's name.
+			if (backMove) backMove.slug = CONDENSED_MOVE_SLUG;
 
 			// The card's mysteries are moves, so their NAMES render as clickable handles before the
 			// marker pass runs (see data/arcana-moves.js) — the wrap adds no glyphs, so the □/○ each
@@ -424,6 +452,14 @@ export class CharacterArcana {
 	async getArcanumMove(slug, moveSlug) {
 		const item = await this.getArcanum(slug);
 		if (!item) return null;
+		// The card's condensed move is open to whoever holds its back: it has no learned box, and
+		// it goes by the side's title when there is one, since its "name" is a whole trigger.
+		if (moveSlug === CONDENSED_MOVE_SLUG) {
+			const move = condensedArcanumMove(item.back?.move);
+			if (!move) return null;
+			const cardTitle = item.back?.title ?? item.front?.title ?? "";
+			return { ...move, name: String(item.back?.title ?? "").trim() || move.name, cardTitle, learned: true };
+		}
 		const move = findArcanumMove(item.back?.description ?? "", moveSlug);
 		if (!move) return null;
 		const boxes = this._flags.getFlag("boxes") ?? {};
@@ -634,6 +670,9 @@ export class CharacterArcana {
 			if (req?.type === "option" && req.slug) unlock[req.slug] = req.max ?? 1;
 		}
 		const boxes = Array.from({ length: unlockCircleCount(item.front?.unlock?.description) }, (_, index) => ({ context: "unlock", index }));
+		// A front-task card is mastered by its tasks, every one of them.
+		const tasks = frontUnlockTasks(item);
+		if (tasks) for (let index = 0; index < tasks.count; index++) boxes.push({ context: "front", index });
 		return { unlock, boxes };
 	}
 

@@ -314,7 +314,6 @@ describe("StonetopCharacterSheet event handlers", () => {
 		it("shows the owner the back they are owed", async () => {
 			const card = await cardOf(arcanaSheet({ card: { backOwed: true } }));
 			expect(card.showBackOwed).toBe(true);
-			expect(card.gmBackOwed).toBe(false);
 		});
 
 		it("drops the strip once the back has actually arrived", async () => {
@@ -327,24 +326,23 @@ describe("StonetopCharacterSheet event handlers", () => {
 			}
 		});
 
-		it("shows the GM the back they owe, and no strip once it is moot", async () => {
-			expect((await cardOf(arcanaSheet({ isGM: true, card: { backOwed: true } }))).gmBackOwed).toBe(true);
-			// An unlocked card's back is the owner's already, so there is nothing left to reveal.
-			expect((await cardOf(arcanaSheet({ isGM: true, card: { backOwed: true, unlocked: true } }))).gmBackOwed).toBe(false);
-			expect((await cardOf(arcanaSheet({ isGM: true, revealed: ["the-key"], card: { backOwed: true } }))).gmBackOwed).toBe(false);
-			expect((await cardOf(arcanaSheet({ isGM: true }))).gmBackOwed).toBe(false);
+		it("carries no GM-side strip: the footer's reveal toggle settles the debt", async () => {
+			const card = await cardOf(arcanaSheet({ isGM: true, card: { backOwed: true } }));
+			expect(card.showBackOwed).toBe(false);
+			expect(card.canReveal).toBe(true);
 		});
 
 		/**
-		 * revealArcanum is the ONLY thing that clears backOwed, and the GM's strip is the only route
-		 * to it for a still-locked card. Gated on the reveal TOGGLE's rule (which carries a
-		 * "secretive mode only" term) the debt was stranded with the world's peek switch on: nobody
-		 * could settle it, and the day the switch went off the owner's sheet went back to claiming a
-		 * back they had been reading for sessions.
+		 * revealArcanum is the ONLY thing that clears backOwed, and the footer's reveal toggle is the
+		 * GM's only route to it. Gated on secretive mode alone, the debt was stranded with the
+		 * world's peek switch on: nobody could settle it, and the day the switch went off the owner's
+		 * sheet went back to claiming a back they had been reading for sessions.
 		 */
-		it("still lets the GM settle the debt while players can already peek", async () => {
-			const card = await cardOf(arcanaSheet({ isGM: true, peek: true, card: { backOwed: true } }));
-			expect(card.gmBackOwed).toBe(true);
+		it("still offers the GM the reveal toggle for an owed back while players can already peek", async () => {
+			expect((await cardOf(arcanaSheet({ isGM: true, peek: true, card: { backOwed: true } }))).canReveal).toBe(true);
+			expect((await cardOf(arcanaSheet({ isGM: true, peek: true }))).canReveal).toBe(false);
+			// An unlocked card's back is the owner's already, so there is nothing left to reveal.
+			expect((await cardOf(arcanaSheet({ isGM: true, peek: true, card: { backOwed: true, unlocked: true } }))).canReveal).toBe(false);
 		});
 
 		/**
@@ -356,7 +354,6 @@ describe("StonetopCharacterSheet event handlers", () => {
 		it("keeps the owed-back strip off a non-owning viewer's copy of the sheet", async () => {
 			const card = await cardOf(arcanaSheet({ owns: false, card: { backOwed: true } }));
 			expect(card.showBackOwed).toBe(false);
-			expect(card.gmBackOwed).toBe(false);
 		});
 
 		it("offers the no-roll hand-over to the GM only", async () => {

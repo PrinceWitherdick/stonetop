@@ -270,14 +270,7 @@ describe("_onArcanumGiveCard — the GM's no-roll hand-over", () => {
 	});
 });
 
-describe("_onArcanumStudyBack — settling the 7-9's owed back", () => {
-	it("reveals the back outright when the GM clicks it", async () => {
-		global.game.user = { isGM: true };
-		const { sheet, character } = makeSheet();
-		await sheet._onArcanumStudyBack("huge-wooden-sphere");
-		expect(character.revealArcanum).toHaveBeenCalledWith("huge-wooden-sphere", { stonetopMove: "Study it" });
-	});
-
+describe("_onArcanumStudyBack — asking for the 7-9's owed back", () => {
 	it("only asks, when the owner clicks it — the reveal stays the GM's to make", async () => {
 		const { sheet, character } = makeSheet();
 		const posted = vi.spyOn(sheet, "_postMoveCard").mockResolvedValue(undefined);

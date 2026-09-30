@@ -454,6 +454,7 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 					hasMove:             !!back.move,
 					move: {
 						name:                back.move?.name ?? "",
+						rollTypeValue:       String(back.move?.rollType ?? "").toLowerCase(),
 						description:         back.move?.description ?? "",
 						descriptionEnriched: moveEnriched,
 					},
@@ -553,11 +554,11 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 				value = fieldEl.value === "" ? null : Number(fieldEl.value);
 				if (Number.isNaN(value)) value = null;
 			} else if (fieldEl.dataset.arcType === "lines") {
-				value = fieldEl.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+				value = circleLabelsFromLines(fieldEl.value);
 			} else {
 				value = fieldEl.value;
 			}
-			if (value === "" && (path.endsWith(".maxStat") || path.endsWith(".inventoryColumn"))) value = null;
+			if (value === "" && (path.endsWith(".maxStat") || path.endsWith(".inventoryColumn") || path.endsWith(".rollType"))) value = null;
 
 			// Toggling major shows/hides the major-tools UI, so it needs a re-render.
 			if (path.endsWith(".major")) {

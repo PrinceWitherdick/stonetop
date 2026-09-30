@@ -1860,8 +1860,12 @@ export function createStonetopCharacterSheetClass(Base) {
 					item.revealedToPlayers = revealed;
 					// The GM's reveal toggle only matters in secretive mode (setting off) for a
 					// still-LOCKED back: an unlocked back is already seen by its owner, and with
-					// the setting on every player can peek anyway.
-					item.canReveal         = viewerIsGM && !playersSeeBothArcana && !item.unlocked;
+					// the setting on every player can peek anyway. The exception is a 7-9's owed
+					// back: revealArcanum is the only thing that clears backOwed, so the toggle
+					// stays offered even with the peek switch on. Otherwise the debt would be
+					// stranded, to resurface the day the switch went off as a claim about a back
+					// the player read sessions ago.
+					item.canReveal         = viewerIsGM && !item.unlocked && (!playersSeeBothArcana || item.backOwed);
 					// The show-both toggle is only meaningful when the viewer may see the back.
 					item.canToggleBoth     = permittedBack;
 					// The flip button shows whenever the back is permitted and the card isn't
@@ -1872,24 +1876,13 @@ export function createStonetopCharacterSheetClass(Base) {
 					// player's own route to a face-down card is the Know Things roll.
 					item.canGiveCard       = viewerIsGM;
 					// The 7-9 debt ("show them the back when they have some time to study it or
-					// learn more"). Each side sees the half of it they can act on:
-					//
-					//  · the OWNER, while the back is still withheld from them. Scoped to the owner
-					//    and not merely to "may not see the back", because a non-owning viewer (an
-					//    Observer-permission player on somebody else's sheet) fails permittedBack
-					//    too — and the strip addresses its reader in the second person over a
-					//    "Study it" button that _onArcanumStudyBack drops on the spot (!isEditable).
-					//  · the GM, while the back is still theirs to hand over — which is a question
-					//    about the OWNER's access, not the viewer's, so it can't reuse permittedBack.
-					//    An unlocked or already-revealed back is the owner's for keeps and owes them
-					//    nothing. Pointedly NOT narrowed to canReveal, though: that carries a
-					//    `!playersSeeBothArcana` term, and revealArcanum is the only thing that ever
-					//    clears backOwed — so with the world's peek switch on the debt was stranded
-					//    with nobody able to settle it, to resurface the day the switch went off as a
-					//    claim about a back the player read sessions ago. Granting it is a real write
-					//    even while everyone can already peek: it is what closes the record.
+					// learn more"), shown to the OWNER while the back is still withheld from them.
+					// Scoped to the owner and not merely to "may not see the back", because a
+					// non-owning viewer (an Observer-permission player on somebody else's sheet)
+					// fails permittedBack too — and the strip addresses its reader in the second
+					// person over a "Study it" button that _onArcanumStudyBack drops on the spot
+					// (!isEditable). The GM settles it with the footer's reveal toggle (canReveal).
 					item.showBackOwed      = item.backOwed && !permittedBack && viewerOwnsActor;
-					item.gmBackOwed        = item.backOwed && viewerIsGM && !revealed && !item.unlocked;
 
 					// The plain "Add as follower" button manifests only the directly-summoned
 					// followers. `viaCallUp` followers (the Ring of Daagon's Servants) are rolled
@@ -9214,19 +9207,12 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		/**
-		 * Settle a 7-9's outstanding back. The GM's copy of the button reveals the back outright;
-		 * the owner's copy posts the request to chat, since the reveal is the GM's to make and
-		 * this system has no player-to-GM socket.
+		 * Ask for a 7-9's outstanding back. The owner's button posts the request to chat, since
+		 * the reveal is the GM's to make (the card footer's reveal toggle) and this system has no
+		 * player-to-GM socket.
 		 */
 		async _onArcanumStudyBack(slug) {
 			if (!this.isEditable || !slug) return;
-			// The GM path neither reads the arcanum nor posts a card, so it must not pay for the
-			// document fetch below — every GM click would load a document only to discard it.
-			if (game.user.isGM) {
-				await this._stonetopCharacter.revealArcanum(slug, { stonetopMove: "Study it" });
-				this.render(false);
-				return;
-			}
 			const item = await this._stonetopCharacter.getArcanum(slug);
 			const name = item?.front?.title ?? slug;
 			await this._postMoveCard(game.i18n.localize("stonetop.arcana.backOwedTitle"),

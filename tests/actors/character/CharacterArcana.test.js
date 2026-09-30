@@ -276,6 +276,47 @@ describe("CharacterArcana.buildSnapshot()", () => {
 			);
 			expect((await arcana.buildSnapshot()).major.items[0].unlocked).toBe(true);
 		});
+
+		// The Mindgem and the Twisted Spear print their unlock steps as □ tasks in the FRONT text,
+		// with no option requirements or ○ — they used to read as unlocked from the start, which
+		// showed the owner the back and hid the GM's reveal toggle.
+		function taskArcanum(slug, taskCount) {
+			return {
+				slug,
+				front: {
+					title: slug, item: null,
+					description: `<p>Tasks:</p><ul>${"<li>□ A task.</li>".repeat(taskCount)}</ul>`,
+					unlock: { description: "When you've completed the tasks, see reverse.", requirements: [] },
+				},
+				back: { title: "Mysteries", item: null, description: "<p>Back.</p>", resource: null, move: null, options: [] },
+			};
+		}
+		const frontBoxes = (slug, n) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`${slug}:front:${i}`, true]));
+		async function taskUnlocked(slug, taskCount, marked) {
+			const arcana = new CharacterArcana(
+				makeFlags({ owned: [slug], boxes: frontBoxes(slug, marked) }),
+				new FakeArcanaRepository([taskArcanum(slug, taskCount)]),
+			);
+			const snap = await arcana.buildSnapshot();
+			return [...snap.major.items, ...snap.minor.items][0].unlocked;
+		}
+
+		it("a front-task card (the Mindgem) stays locked until every task is marked", async () => {
+			expect(await taskUnlocked("mindgem", 4, 0)).toBe(false);
+			expect(await taskUnlocked("mindgem", 4, 3)).toBe(false);
+			expect(await taskUnlocked("mindgem", 4, 4)).toBe(true);
+		});
+
+		it("the Twisted Spear unlocks at 3 of its 5 tasks, as its lead prints", async () => {
+			expect(await taskUnlocked("twisted-spear", 5, 2)).toBe(false);
+			expect(await taskUnlocked("twisted-spear", 5, 3)).toBe(true);
+		});
+
+		it("mastering a front-task card marks its tasks", async () => {
+			const arcana = new CharacterArcana(makeFlags({ owned: ["mindgem"] }), new FakeArcanaRepository([taskArcanum("mindgem", 4)]));
+			await arcana.masterArcanum("mindgem");
+			expect((await arcana.buildSnapshot()).major.items[0].unlocked).toBe(true);
+		});
 	});
 
 	describe("front snapshot", () => {

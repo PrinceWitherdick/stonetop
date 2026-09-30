@@ -11081,6 +11081,15 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 /* A heading that leads a body (e.g. a major arcanum's "Consequences") normally zeroes its
    top margin as the first child; the side-label now precedes it, so keep that flush spacing. */
 .stonetop-arcanum-side-label + h3 { margin-top: 0; }
+/* Likewise a paragraph that the move-divider rule above catches right under the label: the
+   label's own underline is its rule, so no double line. `:first-child` ignores text nodes, so a
+   flavour paragraph whose first ELEMENT is a bold trigger (the Mindgem's "…When you touch the
+   glass…") counts as a move entry even though it opens with prose. */
+.stonetop-arcanum-body .stonetop-arcanum-side-label + p:has(> strong:first-child) {
+	border-top: none;
+	margin-top: 0;
+	padding-top: 0;
+}
 
 /* The three arcana card-footer toggles share one base. `flex` is intentionally omitted here —
    `.stonetop-arcanum-footer > button` above already sets flex:1 1 auto for all of them, so a
