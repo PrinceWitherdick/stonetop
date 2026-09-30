@@ -126,6 +126,11 @@
           <div class="stonetop-cf-gear-row stonetop-cs-trow-line">
             <span class="stonetop-cs-roll-no">{{roll}}</span>
             <input type="text" class="stonetop-cf-input stonetop-cs-trow" data-table="{{../index}}" data-index="{{rowIndex}}" value="{{text}}" placeholder="fighting over junk; mimicking the kids' songs…">
+            {{!-- How many faces of the die this row covers: the book's "1-3" row is 3. --}}
+            <label class="stonetop-cs-trow-span-wrap" data-tooltip="How many faces of the die this result covers (a row the book prints as 1-3 covers 3)" data-tooltip-direction="UP">
+              <span aria-hidden="true">&times;</span>
+              <input type="number" class="stonetop-cf-input stonetop-cs-trow-span" data-table="{{../index}}" data-index="{{rowIndex}}" min="1" max="{{@root.maxRowSpan}}" step="1" value="{{span}}" aria-label="Faces this result covers">
+            </label>
             <button type="button" class="stonetop-cs-trow-remove stonetop-cf-mini-btn stonetop-cf-mini-btn--danger" data-table="{{../index}}" data-index="{{rowIndex}}"><i class="fas fa-times"></i></button>
           </div>
           {{/each}}

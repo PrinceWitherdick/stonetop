@@ -34616,8 +34616,17 @@ th:has(> .stonetop-roll-table-btn) {
 }
 .stonetop-create-site-dialog .stonetop-cs-area-title { font-family: var(--font-stonetop); font-weight: 700; }
 .stonetop-create-site-dialog .stonetop-cs-die { flex: 0 0 auto; font-size: var(--st-fs-xs); color: var(--st-text-muted); }
+.stonetop-create-site-dialog .stonetop-cs-trow-span-wrap {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.2em;
+	flex: 0 0 auto;
+	color: var(--st-text-muted);
+}
+.stonetop-create-site-dialog .stonetop-cs-trow-span-wrap .stonetop-cs-trow-span { width: 3.2em; }
 .stonetop-create-site-dialog .stonetop-cs-roll-no {
-	flex: 0 0 1.2em;
+	flex: 0 0 2.6em;
+	white-space: nowrap;
 	font-size: var(--st-fs-xs);
 	color: var(--st-text-muted);
 	font-variant-numeric: tabular-nums;
@@ -35938,7 +35947,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop .site-table-roll:hover { color: var(--threat-accent); border-color: var(--threat-accent); }
 .stonetop .site-table-list { list-style: none; padding-left: 0; }
 .stonetop .site-table-list li { display: flex; gap: 0.45rem; }
-.stonetop .site-table-roll-no { flex: 0 0 1.1rem; color: var(--threat-accent); font-variant-numeric: tabular-nums; }
+/* Wide enough for a ranged row ("10-12"), so single and ranged rows keep one text column. */
+.stonetop .site-table-roll-no { flex: 0 0 2.4em; color: var(--threat-accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* The row a card-side roll landed on. Marked in the DOM only (see wireSiteTableRoll):
    these tables are rolled again and again in play, so nothing is written to the page. */
 .stonetop .site-table-list li.is-rolled {
@@ -36363,6 +36373,22 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop .threat-edit input[type="text"],
 .stonetop .threat-edit select,
 .stonetop .threat-edit textarea { width: 100%; font-family: var(--font-stonetop); }
+/* The description's toggled rich editor: a short read box that grows once opened. The live
+   editor needs its own floor or the toolbar row eats the typing surface (see the monster sheet's
+   .stonetop-monster-rich-editor .editor-container). */
+/* Boxed like the text fields around it, and its pencil always showing: empty, a bare toggled
+   editor is an invisible strip with nothing to say it can be written in. */
+.stonetop .threat-edit__rich {
+	min-height: 3.5em;
+	/* Core's --input-* colours are declared on form controls only, so they are empty here. */
+	background: rgba(0, 0, 0, 0.05);
+	border: 1px solid var(--color-border-dark, #7a7971);
+	border-radius: 3px;
+}
+.stonetop .threat-edit__rich .editor-content { padding: 4px 6px; }
+/* Core shows the pencil only on :hover (display: none otherwise). */
+.stonetop .threat-edit__rich button.toggle:enabled { display: block; }
+.stonetop .threat-edit__rich .editor-container { min-height: 7em; }
 
 /* Proximity picker uses the shared .stonetop-segmented-picker skin; only its own
    padding/font sit here. */

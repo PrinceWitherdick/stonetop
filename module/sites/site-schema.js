@@ -58,3 +58,43 @@ export function shapePairList(list, arr) {
 
 /** A list of trimmed, non-empty strings from a seed's list field. */
 export const cleanLines = (arr) => (Array.isArray(arr) ? arr : []).map(s => String(s ?? "").trim()).filter(Boolean);
+
+// ── Random-table rows that cover several faces ─────────────────────────────────
+//
+// The book prints Die of Fate tables with ranged rows ("1-3 In shrine, alert; 4-5 Off hunting;
+// 6 Asleep"). A table is stored as one row per FACE, so a ranged row is that many identical
+// rows in a row: the die stays "one face per stored row", every table saved before this still
+// reads, and no schema change was needed. These two functions are the whole translation.
+
+/** Ceiling on how many faces one row may cover, so a slip cannot mint a d1000. */
+export const MAX_ROW_SPAN = 20;
+
+/**
+ * Stored rows (one per face) as ranged rows: consecutive identical rows merge.
+ * @param {string[]} rows
+ * @returns {{text: string, span: number, from: number, to: number, roll: string}[]}
+ *   `roll` is the label the card prints beside the row: "4" or "1-3".
+ */
+export function tableRowRanges(rows) {
+	const out = [];
+	(Array.isArray(rows) ? rows : []).forEach((raw, i) => {
+		const text = String(raw ?? "");
+		const last = out.at(-1);
+		if (last && text && last.text === text) { last.span++; last.to = i + 1; }
+		else out.push({ text, span: 1, from: i + 1, to: i + 1 });
+	});
+	for (const r of out) r.roll = r.from === r.to ? `${r.from}` : `${r.from}-${r.to}`;
+	return out;
+}
+
+/**
+ * Ranged rows back into stored rows, one per face.
+ * @param {{text?: string, span?: number}[]} ranged
+ * @returns {string[]}
+ */
+export function expandTableRows(ranged) {
+	return (Array.isArray(ranged) ? ranged : []).flatMap(r => {
+		const span = Math.min(MAX_ROW_SPAN, Math.max(1, Math.trunc(Number(r?.span) || 1)));
+		return Array(span).fill(String(r?.text ?? ""));
+	});
+}
