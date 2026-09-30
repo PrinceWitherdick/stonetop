@@ -1,5 +1,5 @@
 /**
- * The Judge's brand — Condemn, the level 2-5 move that turns a Censure into something that
+ * The Judge's brand: Condemn, the level 6+ move that turns a Censure into something that
  * outlasts the scene: "they are marked with a mystical brand that cannot be removed or hidden
  * UNTIL YOU DISMISS IT."
  *
@@ -40,6 +40,9 @@ export const CONDEMNED_FLAG = "condemned";
 export const CONDEMN        = "Condemn";
 export const CENSURE        = "Censure";
 export const PROCLAMATION   = "Proclamation";
+// Censure's damage rider (level 2+). It is NOT part of the brand: a Judge with Castigate and no
+// Condemn still hurts whoever they Censure. See StonetopCharacter#castigate and the sheet's _censure.
+export const CASTIGATE      = "Castigate";
 
 // No extra per-row fields: a brand is a name, an optional link, and why. There is deliberately no
 // person/faction distinction stored — a Proclamation's target ("the Claws", "House Kadros") is a
@@ -53,9 +56,9 @@ const roster = createRoster({ prefix: "condemned" });
  * of moves involved.
  *
  * Censure alone marks nobody: it is a reaction move whose four options all resolve on the spot.
- * Proclamation widens Condemn's reach but creates no brand without it, and it requires Censure,
- * not Condemn — so a Judge can own Proclamation and still have nothing to list. Condemn is the
- * only move in the playbook that leaves a mark behind, so it is the only one that earns the icon.
+ * Proclamation widens Censure's reach to a whole group, and it requires Condemn, so in play a Judge
+ * who can Proclaim can also brand; the gate still asks only Condemn, because Condemn is the only
+ * move in the playbook that leaves a mark behind, so it is the only one that earns the icon.
  */
 export function canCondemn(actor, owned = null) {
 	return ownsAnyMoveNamed(actor, [CONDEMN], owned);

@@ -27,13 +27,24 @@
  * global in sight.
  */
 
-import { ownsMoveNamed, ownsAnyMoveNamed } from "./owns-move.js";
+import { ownsMoveNamed, ownsAnyMoveNamed, ownsLearnedMoveNamed } from "./owns-move.js";
+import { DEATHS_DOOR_FLAG, DEATHS_DOOR_STATE } from "./deaths-door.js";
+import { resolvedFlagProperty } from "./StonetopFlags.js";
+import { escHtml } from "../../utils/strings.js";
+import { format, localize } from "../../utils/i18n.js";
 
 // Re-exported so the sheet and this playbook's tests keep reaching the predicate through the
 // feature module they already import.
 export { ownsMoveNamed };
 
 export const BATTLE_JOY_FLAG = "battleJoy";
+
+/**
+ * Document-update option stamped by the write that drops a raging Heavy to 0 HP and so ends their
+ * Battle Joy (hooks/DeathsDoorPrompt.js decides it, in the preUpdate that makes them dying), so the
+ * committed half can say so in chat (combat/battle-joy-offer.js).
+ */
+export const BATTLE_JOY_DROPPED_OPTION = "stonetopBattleJoyDropped";
 export const BATTLE_JOY      = "Battle Joy";
 export const BERSERKER       = "Berserker";
 
@@ -45,8 +56,17 @@ export const BERSERKER       = "Berserker";
 // is correct — they have the move, so they have the state.
 const BATTLE_JOY_MOVES = [BATTLE_JOY];
 
+/**
+ * Whether this character can lose themselves in battle: the move owned AND learned. A Battle Joy
+ * kept on the sheet switched off enters nothing, so it earns no glyph either (a raging sheet still
+ * shows one; see showBattleJoy).
+ *
+ * `owned` answers the ownership half (a playbook change asks it of the names it is leaving behind);
+ * whether the move is switched on can only be read off the item itself.
+ */
 export function canEnterBattleJoy(actor, owned = null) {
-	return ownsAnyMoveNamed(actor, BATTLE_JOY_MOVES, owned);
+	return ownsAnyMoveNamed(actor, BATTLE_JOY_MOVES, owned)
+		&& BATTLE_JOY_MOVES.some(name => ownsLearnedMoveNamed(actor, name));
 }
 
 /**
@@ -62,10 +82,65 @@ export function showBattleJoy({ owns, raging }) {
 /**
  * Whether this character is presently ignoring "the effects of debilities".
  *
- * A function of one boolean, which looks like ceremony and is not: it is the single named place
+ * A function of two booleans, which looks like ceremony and is not: it is the single named place
  * the rules clause is decided, so the roll path, the sheet's grey-out and the tests all answer the
  * same question rather than three call sites each testing a flag and one of them drifting.
+ *
+ * `learned` is whether the move is still switched on: a rage stranded on a sheet whose Battle Joy
+ * was un-learned (or dropped with a playbook) keeps its glyph so it can be ended, and ignores nothing.
  */
-export function ignoresDebilities({ raging } = {}) {
-	return !!raging;
+export function ignoresDebilities({ raging, learned } = {}) {
+	return !!raging && !!learned;
+}
+
+/**
+ * Whether the action has stopped for this character by their going down: at 0 HP, or with Death's
+ * Door dying, owed or behind them. Their Battle Joy then ends with NO roll (the user's ruling): the
+ * +CON roll is for a Heavy still standing when the fight is over, and one who dropped has stopped
+ * fighting already. PURE apart from reading the actor.
+ */
+export function battleJoyEndsUnrolled(actor) {
+	if ((Number(actor?.system?.attributes?.hp?.value) || 0) <= 0) return true;
+	const state = resolvedFlagProperty(actor, DEATHS_DOOR_FLAG) ?? null;
+	return [DEATHS_DOOR_STATE.DYING, DEATHS_DOOR_STATE.FATE_PENDING, DEATHS_DOOR_STATE.DEAD].includes(state);
+}
+
+// -- The roll card (the action stops, roll +CON) ------------------------------------
+
+/** The 10+'s "regain 1d4 HP", as a formula. */
+export const BATTLE_JOY_REGAIN = "1d4";
+
+/** The value a spent 10+ button latches on the card; a 6- latches the debility's key. */
+export const BATTLE_JOY_REGAIN_CHOICE = "regain";
+
+/**
+ * The buttons a Battle Joy roll card carries, keyed by tier (roll-engine's tierActions): the 10+'s
+ * "regain 1d4 HP", and the 6-'s "mark a debility", one button per debility not already marked. The
+ * 7-9 has nothing to do on the sheet. Wired, and latched on the message, by
+ * combat/battle-joy-offer.js#wireBattleJoyResult.
+ *
+ * @param {{key: string, name: string, marked?: boolean}[]} debilities  StonetopCharacter#debilityChoices
+ */
+export function battleJoyTierActions(debilities = []) {
+	const button = (choice, icon, label) =>
+		`<button type="button" class="stonetop-battle-joy-result" data-choice="${escHtml(choice)}">`
+		+ `<i class="fas ${icon}"></i> ${escHtml(label)}</button>`;
+	return {
+		success: button(BATTLE_JOY_REGAIN_CHOICE, "fa-heart", localize("stonetop.battleJoy.regainButton")),
+		failure: debilities.filter(d => d?.key && !d.marked)
+			.map(d => button(d.key, "fa-heart-crack", format("stonetop.battleJoy.debilityButton", { debility: d.name ?? d.key })))
+			.join(""),
+	};
+}
+
+/**
+ * What a Battle Joy roll adds to its roll options, at the seam every move roll takes
+ * (item/StonetopItem.js#roll). "On a 6-, mark a debility but don't mark XP": the no-XP is asked of
+ * the move's NAME as well as its data, because a copy owned before the pack carried `noXpOnMiss`
+ * keeps its old data (nothing re-syncs an owned move).
+ *
+ * @param {{key: string, name: string, marked?: boolean}[]} debilities  as battleJoyTierActions
+ */
+export function battleJoyRollOptions(debilities = []) {
+	return { noXpOnMiss: true, tierActions: battleJoyTierActions(debilities) };
 }

@@ -11,16 +11,23 @@ import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 //     the standard p.469 fate, the GM's call: dead / Death's Door / dying (or just out
 //     of the action if the blow wasn't lethal — close the dialog).
 //
-// Opened automatically when a named single follower (animal companion / initiate /
-// beast / custom) crosses from alive to 0 HP. `ctx.isAnimalCompanion` selects which
-// set of options to show. Emits the chosen outcome key; the sheet applies the effect
-// (loyalty spend / XP / chat note) — see StonetopCharacterSheet._resolveFollowerFate.
+// Opened automatically when a follower's HP row (animal companion / initiate / beast /
+// custom, or one member of the crew's or a custom group's roster) crosses from alive to 0 HP.
+// `ctx.isAnimalCompanion` selects which set of options to show. Emits the chosen outcome
+// key; the sheet applies the effect (loyalty spend / XP / chat note): see
+// StonetopCharacterSheet._resolveFollowerFate.
+//
+// SIR, PERMISSION TO DIE, SIR (Marshal) rides on either set: `ctx.sir` (follower-fate.js
+// #sirPermissionOffer) adds a "spend 1 Loyalty, they survive" option while it is learned
+// and Loyalty is held, and a pre-ticked "you let them go, mark XP" box that the Dead
+// outcome reads. `ctx.isCrewMember` words Dead as striking them off the roster, and
+// `ctx.isGroupMember` the same for a custom group's roster (and its shared Loyalty).
 
 export class FollowerFateDialog extends StonetopDialog {
 	/**
 	 * @param {Actor}    actor
-	 * @param {object}   ctx      - { name, loyalty, isAnimalCompanion }
-	 * @param {Function} onChoose - (actionKey) => void
+	 * @param {object}   ctx      - { name, loyalty, isAnimalCompanion, isCrewMember, isGroupMember, sir }
+	 * @param {Function} onChoose - (actionKey, { letGo }) => void
 	 */
 	constructor(actor, ctx, onChoose, options = {}) {
 		super(options);
@@ -48,12 +55,25 @@ export class FollowerFateDialog extends StonetopDialog {
 		// Loyal to the End is the Ranger's animal-companion move and replaces the usual
 		// fate choice for it; every other follower gets the standard p.469 options.
 		const loyalToTheEnd = !!this._ctx.isAnimalCompanion;
+		const isCrewMember  = !!this._ctx.isCrewMember;
+		// A custom GROUP's member: struck off that group's roster, spending the group's Loyalty.
+		const roster = isCrewMember ? "crew" : this._ctx.isGroupMember ? "group" : "";
+		const sir = this._ctx.sir ?? {};
+		const i18n = game.i18n;
 		return {
 			followerName: this._ctx.name || "Your follower",
 			loyalToTheEnd,
 			// The roll is +0 but gets advantage while the companion still holds Loyalty.
 			hasLoyalty:   loyalToTheEnd && loyalty > 0,
 			loyalty,
+			deadDesc:     roster ? i18n.localize(`stonetop.character.followers.fate.${roster}DeadDesc`) : "Dead, immediately.",
+			// SIR, PERMISSION TO DIE, SIR: the spend needs Loyalty to spend; the XP box needs only the move.
+			canSpare:     !!sir.canSpare && loyalty > 0,
+			spareLabel:   i18n.localize("stonetop.character.followers.fate.spareLabel"),
+			spareDesc:    i18n.format(`stonetop.character.followers.fate.${roster === "crew" ? "spareCrewDesc" : roster === "group" ? "spareGroupDesc" : "spareDesc"}`, { loyalty }),
+			// Only Dead reads the box, and Loyal to the End's set has no Dead to choose.
+			letGo:        !!sir.letGo && !loyalToTheEnd,
+			letGoLabel:   i18n.localize("stonetop.character.followers.fate.letGo"),
 		};
 	}
 
@@ -61,7 +81,9 @@ export class FollowerFateDialog extends StonetopDialog {
 		super.activateListeners(html);
 		html.find(".stonetop-ff-option").on("click", ev => {
 			const action = ev.currentTarget.dataset.action;
-			this._onChoose?.(action);
+			// Read at the click: the box is the player's to untick before choosing Dead.
+			const letGo = !!html.find(".stonetop-ff-let-go").prop("checked");
+			this._onChoose?.(action, { letGo });
 			this.close();
 		});
 		html.find(".stonetop-ff-cancel").on("click", () => this.close());

@@ -57,7 +57,7 @@ export {
  *
  * @property {string} name
  * @property {PlaybookSnapshot|null} playbook
- * @property {DebilitySnapshot[]} debilities - always 3: weakened, dazed, miserable
+ * @property {DebilitySnapshot[]} debilities - weakened, dazed, miserable, then the Ranger's Walk It Off box when listed (walk-it-off.js)
  * @property {WoundSnapshot[]} wounds - problematic/permanent wounds (may be empty)
  * @property {Object.<string, StatSnapshot>} stats - keys: str dex con int wis cha
  * @property {VitalsSnapshot} vitals
@@ -83,9 +83,14 @@ export class CharacterSnapshot {
 		this.postDeathInsert = b._postDeathInsert;
 		this.rollMode        = b._rollMode;
 		this.crewBonuses     = b._crewBonuses ?? null;
+		// The Crew insert the crew card is drawn from (StonetopCharacter#crewSource), or null.
+		this.crewDef         = b._crewDef ?? null;
 		// { hp, armor, traitPicks } applied to the Animal Companion card (Beast of
 		// Legend "+4 HP/+1 armor", Magnificent Specimen extra trait picks).
 		this.companionBonuses = b._companionBonuses ?? null;
+		// The Animal Companion insert the companion card is drawn from (StonetopCharacter#companionSource),
+		// or null.
+		this.companionDef    = b._companionDef ?? null;
 		// Who is looking. The gear section already conceals a hidden artifact's tags by this
 		// same fact, so the snapshot answers "may this viewer see GM-only affordances" itself
 		// rather than leaving each caller to bolt the answer on afterwards — a second caller
@@ -109,7 +114,9 @@ export class CharacterSnapshotBuilder {
 	withPostDeathInsert(v) { this._postDeathInsert = v; return this; }
 	withRollMode(v)        { this._rollMode        = v; return this; }
 	withCrewBonuses(v)     { this._crewBonuses     = v; return this; }
+	withCrewDef(v)         { this._crewDef         = v; return this; }
 	withCompanionBonuses(v) { this._companionBonuses = v; return this; }
+	withCompanionDef(v)    { this._companionDef    = v; return this; }
 	withViewerIsGM(v)      { this._isGM            = v; return this; }
 	build()                { return new CharacterSnapshot(this); }
 }

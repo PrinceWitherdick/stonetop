@@ -97,17 +97,17 @@ describe("playbookTitle", () => {
 		expect(playbookTitle(null)).toBe("");
 	});
 
-	it("renames a Would-Be Hero who has crossed off \"Would-be\", by flag or by owning the move", () => {
+	it("renames a Would-Be Hero who has crossed off \"Would-be\": by the flag alone, never by owning the move", () => {
+		// Crossed off on first USE (the user's ruling, 2026-09-27): a starred move merely held is not used.
 		const wbh = (over = {}) => ({ system: { playbook: { name: "The Would-Be Hero" } }, items: [], ...over });
 		expect(playbookTitle(wbh())).toBe("The Would-Be Hero");
 		expect(playbookTitle(wbh({ getFlag: (_s, k) => k === WBH_HERO_FLAG }))).toBe("The Hero");
-		expect(playbookTitle(wbh({ items: [{ type: "move", system: { asterisk: true } }] }))).toBe("The Hero");
+		expect(playbookTitle(wbh({ items: [{ type: "move", name: "Undaunted", system: { asterisk: true } }], getFlag: () => undefined }))).toBe("The Would-Be Hero");
 	});
 
 	it("never consults the cross-off for a playbook that cannot be renamed", () => {
-		// The item scan behind the flag runs once per row of every sidebar render, so it has to
-		// stay off the path for the rest of the party — an asterisked move on somebody else's
-		// sheet must not rename their playbook.
+		// Read once per row of every sidebar render, so it stays off the path for the rest of the
+		// party: a starred move on somebody else's sheet must not rename their playbook.
 		const blessed = {
 			system: { playbook: { name: "The Blessed" } },
 			items: [{ type: "move", system: { asterisk: true } }],

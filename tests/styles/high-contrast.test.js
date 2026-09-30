@@ -403,8 +403,15 @@ describe("the paper", () => {
 			.toBe(2);
 		// Every surface that paints the paper reads whichever token its arithmetic needs.
 		expect([...CSS.matchAll(/var\(--stonetop-bg-texture\)/g)].length).toBeGreaterThanOrEqual(4);
-		const inverting = [...CSS.matchAll(/#fff\s+var\(--st-inverted-paper\)/g)];
-		expect(inverting.length, "the inverting black-paper scopes are gone or no longer read the token")
+		// The dark ("Lamplit") palette inverts the same grain for its own paper, on the sheet
+		// windows and the chat cards (one rule), and the dying card (its own, for its ember). Counted
+		// apart, so the four black papers are still pinned on their own and neither family can stand
+		// in for the other.
+		const LAMPLIT = /:where\(:root\.stonetop-dark\)[^{}]*\{[^{}]*#fff\s+var\(--st-inverted-paper\)/g;
+		const lamplit = [...CSS.matchAll(LAMPLIT)].length;
+		expect(lamplit, "the dark palette no longer paints its paper from the inverted grain").toBe(2);
+		const inverting = [...CSS.matchAll(/#fff\s+var\(--st-inverted-paper\)/g)].length - lamplit;
+		expect(inverting, "the inverting black-paper scopes are gone or no longer read the token")
 			.toBe(4);
 	});
 

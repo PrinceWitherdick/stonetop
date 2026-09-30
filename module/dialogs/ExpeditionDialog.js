@@ -4,18 +4,22 @@ import { TIER_LABELS } from "../utils/move-results.js";
 // `openOrFocus` cannot serve `openOnTrip`: it brings an already-open window to the front without
 // running the factory, and that window still has to be told which trip to switch to.
 import { findOpenApp } from "../utils/open-windows.js";
-import { crewExists } from "../utils/crew.js";
-import { sign, rollSeasonsCard } from "../utils/roll-engine.js";
+import { crewExists, customGroupPresent, customGroupSize } from "../utils/crew.js";
+import { sign, rollSeasonsCard, pbtaDiceFormula } from "../utils/roll-engine.js";
+import { normalizeRollMode, wireModePicker } from "./RollDialog.js";
 import { getStonetopSteadingActor, isSteadingActor } from "../utils/world.js";
 import { getSetting, setWorldSetting } from "../settings.js";
 import { capitalizeFirst, escHtml, decodeEntities, stripHtmlToText } from "../utils/strings.js";
 import { portraitOrNone, documentPortraitFrame } from "../utils/portrait-frame.js";
 import { wireAvatarPreview, removeAvatarPreview } from "../utils/avatar-preview.js";
 import { warn } from "../utils/logger.js";
+import { inTurn } from "../utils/turn-queue.js";
 import { CHART_GROUPS, HOME_GROUP, chartPicked, chartEntryText, chartGroupOf } from "./expedition-data.js";
-import { pickOrWriteOption } from "./content-picker.js";
+import { pickOrWriteOption, contentElement } from "./content-picker.js";
+import { askWithButtons } from "../utils/ask-with-buttons.js";
 import { FATE_TABLES, fateTableList } from "../data/fate-tables.js";
-import { saveChronicleFromButton } from "../utils/chronicle.js";
+import { saveChronicleFromButton, findExpeditionChroniclePage, deleteExpeditionChroniclePage } from "../utils/chronicle.js";
+import { chartedLines } from "../utils/chronicle-core.js";
 import {
 	normalizeLog,
 	currentExpedition,
@@ -25,15 +29,19 @@ import {
 	deleteExpedition,
 	expeditionLabel,
 	expeditionNames,
+	mergeLogs,
+	sameLog,
 } from "../utils/expedition-log-core.js";
 import { StonetopSteading } from "../actors/steading/StonetopSteading.js";
 import { openReturnTriumphant } from "../actors/steading/return-triumphant.js";
-import { STEADING_MOVE, improvementQuestions, rollAdjustments } from "../actors/steading/improvement-rolls.js";
+import { STEADING_MOVE, improvementQuestions } from "../actors/steading/improvement-rolls.js";
+import { settleSteadingRoll } from "../actors/steading/steading-roll.js";
+import { worldLogisticsNames } from "../actors/character/logistics.js";
 import { assetTakenLabel } from "../utils/requisition-asset.js";
 import { getPlayerCharacters } from "../utils/playbook-actors.js";
 // Who on the roster is past the Door: the dead don't outfit, and the three who came back set
 // out wearing the name of whatever brought them back.
-import { actorPastDeathKind } from "../actors/character/deaths-door-actor.js";
+import { actorPastDeathKind, isOutOfPlay } from "../actors/character/deaths-door-actor.js";
 import { deriveLoadLevel, LOAD_LEVEL_LIMITS } from "../utils/load.js";
 import { SYSTEM_ID, JOURNAL_PACK } from "../system-id.js";
 import { renderTemplate } from "../utils/foundry-compat.js";
@@ -41,6 +49,7 @@ import { EXPLORATION_GM_MOVES } from "../gm-toolkit/gm-moves.js";
 import { GmMoveDrawer } from "../gm-toolkit/gm-move-drawer.js";
 import { wireSidebarToggle } from "../utils/sidebar-toggle.js";
 import { SpinTrack } from "../utils/flash-highlight.js";
+import { callStruggleAsOne, gmStruggleCall } from "../struggle/struggle-flow.js";
 import {
 	TRAVEL_MAPS, BEYOND_TIER,
 	travelPlace, travelMap, placesOnMap, placesBeyond, exitsOnMap, spotPercent, percentSpot,
@@ -70,6 +79,7 @@ import {
 import { drawnOn, offMapNote, routePath, tierDraws, tierDrawing, tierDrawingEnds } from "../utils/route-path.js";
 import { posterSceneFor } from "../book2-art/poster-map-catalog.js";
 import { format, localize } from "../utils/i18n.js";
+import { loadGatedClause, overLoadGate } from "../actors/character/load-gates.js";
 import {
 	clearRouteOnScene, offMapNames, routeFlagTouched, sceneRouteCheck, sceneRouteRefusal,
 	sceneJourney, sceneShowsJourney, showRouteOnScene,
@@ -239,12 +249,6 @@ function _gatedReqLabel(maxLoad, requiresUnarmored) {
 	return requiresUnarmored ? `${load}, unarmored` : load;
 }
 
-// Load tiers lightest→heaviest, so a gated move is active when the current tier is at
-// or below its cap. `null` (nothing carried) ranks as light. Only these three tiers are
-// ever looked up: _gatedMovesFor receives an overloaded PC's tier already collapsed to
-// "heavy", and a move's maxLoad is only ever light/normal/heavy.
-const _LOAD_RANK = { light: 0, normal: 1, heavy: 2 };
-
 // The display label for each tier bucket. The pill's CSS class is the bucket key itself
 // (light/normal/heavy/over), so it needs no separate field.
 const _LOAD_PILL = {
@@ -347,7 +351,8 @@ const _STEPS = [
 		title: "Outfit",
 		icon:  "fa-sack",
 		body:  `<p>Each PC marks gear on their Inventory insert: up to <strong>3 for a light load</strong> (quick, quiet), <strong>4&ndash;6 normal</strong>, or <strong>7&ndash;9 heavy</strong> (noisy, slow, quick to tire). They also mark <strong>4 + Prosperity</strong> small items (these don't count toward load).</p>
-				<p>They can leave marks <strong>&ldquo;undefined&rdquo;</strong> and define them later with <em>Have What You Need</em>. Remind them of anything they need to bring (warm clothes, sleds, a guide). <strong>Followers Outfit too.</strong> Ask where their gear came from. Bring it home.</p>`,
+				<p>They can leave marks <strong>&ldquo;undefined&rdquo;</strong> and define them later with <em>Have What You Need</em>. Remind them of anything they need to bring (warm clothes, sleds, a guide). <strong>Followers Outfit too.</strong> Ask where their gear came from. Bring it home.</p>
+				<p><strong>Supplies</strong> (p.304): each person uses 1 use of supplies a day, but someone using a <em>mess kit</em> (it needs fire and water) makes 1 use feed up to four, so 2 for five to eight and 3 for nine to twelve. Pack animals graze. With a pack animal or cart carrying at least 1 Surplus of supplies, stop counting meals: they can re-Outfit from it.</p>`,
 		// No note field: "who's carrying what, and what loads" is what the live party-load readout
 		// this step builds already answers, off the marks on the sheets themselves, and typing the
 		// same answer underneath it only put a stale copy beside a live one. A trip that already
@@ -356,17 +361,44 @@ const _STEPS = [
 	},
 	{
 		key:      "requisition",
-		title:    "Requisition (if needed)",
+		title:    "Requisition & other preparations",
 		icon:     "fa-horse",
 		body:     `<p>If they want the steading's communal assets, the horses, a cart, the plows, the big wagon, they <strong>Requisition</strong>: roll <strong>+Fortunes</strong>. Establish the fiction first: who are they asking, and who has the right to say yes?</p>
 				<p>They don't need this for the steading's <em>Surplus</em> (unless taking it would be wasteful or risky), and only roll once for a related set of assets.</p>`,
 		roll:     "requisition",
 		showTiers: true,
-		// No note field: what they borrowed is what the steading's asset list on this step is
-		// ticked with, and the Chronicle prints those names under "Requisitioned" whether or not
+		// No note field for what they borrowed: that is what the steading's asset list on this step
+		// is ticked with, and the Chronicle prints those names under "Requisitioned" whether or not
 		// anybody typed a sentence. A trip that already recorded one keeps it — the Chronicle
 		// still prints a stored `requisition` answer under that same heading
 		// (utils/chronicle-core.js).
+		//
+		// The rest of the preparations (Book I p.309-311). This was a step of its own once, and went
+		// in the pass that cut the walkthrough down; what it said matters at the table in one place,
+		// "make note of any such projects, so that you don't forget them later", because a Pull
+		// Together and a follower's task are ROLLED ON RETURN. So the advice is an aside at the foot
+		// of the last preparation step rather than a page, and the note it asks for is read back on
+		// Going home. `endAside` because the roll has to stay under the sentence that asks for it.
+		endAside: {
+			label: "Other preparations",
+			body:  `<p>These happen around Outfitting and Requisitioning, before, after or in between. Zoom in and out: gloss the hours of asking around, play out the scene that matters.</p>
+				<ul>
+					<li><strong>Trade &amp; Barter</strong> for a special item (bendis root, a good lantern, a bronze weapon). It takes time, so it isn't an option if they're in a rush.</li>
+					<li><strong>Gather information</strong>: <em>Know Things</em>, <em>Seek Insight</em>, interview an NPC, playbook moves like <em>Call the Spirits</em>. Reward research, but tell them what waiting costs.</li>
+					<li><strong>Bring NPCs and followers</strong>: write anyone who joins up as a follower. Followers Outfit like the PCs.</li>
+					<li><strong>Put others to work</strong>: a <em>Muster</em> is rolled before they leave, and only holds while they're away if they choose &ldquo;the muster holds together even without your presence.&rdquo; A <em>Pull Together</em> commits its resources now and is <strong>rolled when they come home</strong>. A follower set a task that triggers a move rolls it on their return too; for an NPC who isn't a follower, just decide what happens.</li>
+					<li><strong>Flashbacks</strong>: out in the field, let the simple &ldquo;surely we brought that&rdquo; go. Play a bigger one out as a scene in the past, as long as it doesn't undo anything that has already happened on screen.</li>
+				</ul>`,
+		},
+		qa:       {
+			kind:        "single",
+			// `prep` is the field the old step wrote, and the Chronicle has gone on printing it
+			// under "Other preparations" (utils/chronicle-core.js), so trips logged either side of
+			// the change keep one record.
+			key:         "prep",
+			prompt:      "Set in motion before they left (brought back up on <strong>Going home</strong>)",
+			placeholder: "A Pull Together to roll on return, a follower's task, who's minding what…",
+		},
 	},
 	{
 		key:   "running",
@@ -381,9 +413,21 @@ const _STEPS = [
 					<li><strong>Repeat</strong>, then transition to the next leg or point of interest.</li>
 				</ol>
 				<p>The <strong>exploration moves</strong> step two reaches for are listed down the side of this window, on every step. And keep using your standard GM moves too: ask provocative questions, use up their resources, separate them, show downsides.</p>
-				<p>On a <strong>perilous</strong> leg, or whenever you&rsquo;re unsure how hard to come down, you can let the Die of Fate set the danger:</p>
+				<p>Save <strong>perilous</strong> travel for truly dangerous legs. On each perilous leg, and each time they <em>Make Camp</em> in a perilous area, point to a looming danger or introduce one already established, then see how they respond. If you like, let the Die of Fate set it:</p>
 				${fateTableList(FATE_TABLES.perilous)}`,
 		fate:  "perilous",
+		// Struggle as One is the move a leg of the journey reaches for most, so the step can call it.
+		// After the Die of Fate, because the die sets how dangerous the leg is and the struggle is
+		// the party meeting that danger. Called from here it starts with "part of a journey" ticked
+		// (module/struggle/struggle-flow.js#callStruggleAsOne).
+		bodyAfterFate: `<p>When the whole party contends with the same danger on a leg (the mire, the cold,
+				   a long climb before nightfall), call on them to <strong>Struggle as One</strong>. &ldquo;If
+				   you&rsquo;re about to have everyone Defy Danger, you should probably use this move
+				   instead&rdquo; (p.328).</p>`,
+		struggle: true,
+		// What was charted, as the to-do list the book calls it (p.303), ticked off as each is dealt
+		// with (p.323). Read-only here apart from the tick: the words were settled on Chart a Course.
+		chartTodo: true,
 		// No note field: the route is plotted on the step of its own before this one, and asking
 		// for the points of interest and legs a second time here only split the same answer across
 		// two pages. A trip that already recorded one keeps it — the Chronicle still prints a
@@ -396,10 +440,10 @@ const _STEPS = [
 		body:  `<p>These come up while traveling:</p>
 				<ul>
 					<li><strong>Have What You Need</strong>: turn undefined inventory into a specific item they could've had all along.</li>
-					<li><strong>Recover</strong>: expend 1 supply, regain 4 + Prosperity HP (once until they take more damage).</li>
+					<li><strong>Recover</strong>: expend 1 use of supplies, regain 4 + Prosperity HP (once until they take more damage).</li>
 					<li><strong>Struggle as One</strong>: the whole party Defies Danger together; a 10+ can pull someone else out of a spot.</li>
 					<li><strong>Keep Company</strong>: trade character questions on a quiet stretch; great on the way home.</li>
-					<li><strong>Make Camp</strong>: rest in an unsafe area: answer your questions, consume supplies, then pick HP or clear a debility.</li>
+					<li><strong>Make Camp</strong>: rest in an unsafe area: answer your questions; each of them consumes 1 use of supplies or provisions (with a mess kit, 1 use feeds up to four). If they eat and drink their fill and sleep a few hours, each picks 1: regain HP equal to half their max, or clear a debility. A particularly peaceful, comfortable or enjoyable rest also gives advantage on the next roll.</li>
 					<li><strong>Forage</strong>: spend hours seeking food (+WIS; disadvantage in winter).</li>
 				</ul>
 				<p><strong>Make Camp</strong> says "answer the GM's questions about your campsite" and
@@ -440,7 +484,7 @@ const _STEPS = [
 		// The last step, so this is where Done and "Save to the Chronicle" sit. The chapter's
 		// own last part ("What to prep") folds into the intro instead — see the header comment.
 		isFinal: true,
-		body:  `<p>Usually, <strong>gloss over the trip home</strong>: they already faced these challenges. Use it to ruminate: ask what they keep thinking about, suggest they <strong>Keep Company</strong>. But if they're hauling something awkward, lost or hurt, racing a clock, or taking a new route, <strong>Chart a Course back</strong> and play it out.</p>
+		body:  `<p>Usually, <strong>gloss over the trip home</strong>: they already faced these challenges. Use it to ruminate: ask what they keep thinking about, suggest they <strong>Keep Company</strong>. But if they're hauling something awkward, lost, badly injured, out of supplies or hunted, racing a clock, or taking a new route, <strong>Chart a Course back</strong> and play it out.</p>
 				<p>Then, before they walk back in, think through:</p>`,
 		// Questions, not answers. These were tick boxes, and the ticks were read by nothing —
 		// not the Chronicle, not the steading, not the next step — because the list is the GM's
@@ -456,6 +500,8 @@ const _STEPS = [
 		// move card opens (actors/steading/return-triumphant.js), so the debility is cleared here
 		// rather than written down here and cleared on another sheet later.
 		returnTriumphant: true,
+		// The note from the Requisition step's "Other preparations", read back where it is due.
+		projects: true,
 		// The book's own test for whether it counts, printed where the call actually gets made.
 		// It is the commentary under the move (Book I p.339) plus the "not a given either way"
 		// branch from Aftermath (p.492), and it sits ABOVE the button rather than among the
@@ -523,16 +569,95 @@ export class ExpeditionDialog extends StepperDialog {
 
 	constructor(options = {}) {
 		super(options);
-		this._rolls = {}; // keyed by step key, so each inline roll persists across nav
+		// Each inline roll, kept across Back/Next. Keyed by TRIP as well as step (see
+		// `_rollKey`): one trip's Requisition total is no answer to the next trip's.
+		this._rolls = {};
+	}
+
+	/** Where a step's inline roll is kept: under the trip it was rolled for. */
+	_rollKey(stepKey) {
+		return `${this._log().currentId ?? ""}:${stepKey}`;
 	}
 
 	get _steps() { return _STEPS; }
-	get _answersSetting() { return ANSWERS_SETTING; }
 
-	static open() {
+	/**
+	 * The log setting changed. Fold another GM's write into this window's copy.
+	 *
+	 * The window keeps the log in `_logDraft` for its lifetime, because a world-setting write
+	 * round-trips and a render in between would otherwise read the old value. Nothing ever told
+	 * that copy about a write from ANOTHER client, so with two GMs on one trip the next field
+	 * either of them saved put their whole stale log back over the other's.
+	 *
+	 * Dropping the copy for theirs was not enough either: a write of ours still on its way was
+	 * then missing from the copy, and our own echo arriving after could not put it back. So the
+	 * two are MERGED against `_logBase`, the last log this window knew the world to hold (see
+	 * `mergeLogs`), and our own echo only moves that base on.
+	 *
+	 * @param {object} value   the log as now stored
+	 * @param {string} userId  who wrote it
+	 */
+	static onLogChanged(value, userId) {
+		const open = findOpenApp(w => w.id === "stonetop-expedition");
+		if (!open?.rendered) return;
+		if (userId && userId === game.user?.id) open._logBase = normalizeLog(value);
+		else open._foldRemoteLog(value);
+	}
+
+	_foldRemoteLog(value) {
+		const theirs = normalizeLog(value);
+		const mine   = this._logDraft;
+		// With no base to tell our changes from theirs, theirs stands whole, as it always did.
+		const base   = this._logBase ?? mine;
+		this._logBase = theirs;
+		if (!mine) return this._redrawWhenFree();
+		this._logDraft = mergeLogs(base, mine, theirs);
+		// A write of ours still on its way will land AFTER theirs and carry the copy it was sent
+		// with, which lacks their change. `_persistLog` sends the merge once it has landed.
+		if (this._logWrites) this._foldedMidWrite = true;
+		if (this._logDraft.currentId !== mine.currentId) {
+			// The trip this window was on is gone. Go to the top of the one it falls back to, as a
+			// delete here does, and close the maps still drawing the old one.
+			this._step = 0;
+			this._closeMapWindows().catch(err => warn("couldn't close a travel map window", err));
+		} else {
+			this._refreshMapWindows().catch(err => warn("couldn't redraw a travel map window", err));
+		}
+		this._redrawWhenFree();
+	}
+
+	/**
+	 * Redraw, unless a field in the window is being typed in: a redraw would take the box and the
+	 * unsaved words with it. Then the redraw waits for it to let go, after its own change handler
+	 * has saved (on top of the merged copy, which is already in place).
+	 *
+	 * Any render in the meantime draws the merged copy too, so it answers the wait (see
+	 * activateListeners). That also covers a field a render takes away, which fires no blur.
+	 */
+	_redrawWhenFree() {
+		const root = this.element?.[0];
+		const active = globalThis.document?.activeElement;
+		if (root && active && root.contains(active) && /^(TEXTAREA|INPUT|SELECT)$/.test(active.tagName)) {
+			if (this._redrawOnBlur) return;
+			const waiting = this._redrawOnBlur = {};
+			active.addEventListener("blur", () => setTimeout(() => {
+				if (this._redrawOnBlur !== waiting) return;
+				this._redrawOnBlur = null;
+				this._redrawWhenFree();
+			}, 0), { once: true });
+			return;
+		}
+		this.render(false);
+	}
+
+	/** @param {{atStart?: boolean}} [options]  Open on the first step rather than the saved one
+	 *  (a trip minted a moment ago has nothing on any later step). */
+	static open({ atStart = false } = {}) {
 		return openOrFocus("stonetop-expedition", () => {
 			const dialog = new ExpeditionDialog();
 			dialog._restoreStep();   // reopen on the step left off at before a reload
+			// After the restore, so the rest of the saved record (the rail's fold) still applies.
+			if (atStart) dialog._step = 0;
 			return dialog.render(true);
 		});
 	}
@@ -583,7 +708,9 @@ export class ExpeditionDialog extends StepperDialog {
 			open.bringToTop();
 			return id;
 		}
-		ExpeditionDialog.open();
+		// A new trip starts at the top, as it does in an open window above; the restore would
+		// have put it on whatever step the LAST trip was left on.
+		ExpeditionDialog.open({ atStart: !known });
 		return id;
 	}
 
@@ -660,12 +787,26 @@ export class ExpeditionDialog extends StepperDialog {
 
 	activateListeners(html) {
 		super.activateListeners(html);
+		// This render drew the log as it stands, so a redraw waiting on a blur is answered.
+		this._redrawOnBlur = null;
 		this._bindStepNav(html);
 		html.find(".stonetop-exp-roll-btn").on("click", () => this._rollRequisition());
+		// The mode strip flips in place, with the pre-roll window's own wiring: no document write
+		// to re-render off, and a render would only redraw the same step.
+		for (const strip of html[0]?.querySelectorAll?.(".stonetop-exp-mode") ?? []) {
+			wireModePicker(strip, picked => {
+				const mode = normalizeRollMode(picked);
+				// Which roll the strip belongs to: Requisition's, or this step's Die of Fate.
+				if (strip.dataset.modeFor === "fate") (this._fateModes ??= {})[this._stepNav().step.key] = mode;
+				else this._reqMode = mode;
+			});
+		}
 		// Roll the table the step is showing, not the bare oracle: on these steps the rules ask a
 		// specific question ("how perilous?", "does the night stay quiet?"), and a card reading
 		// only "4 — neutral / mixed" leaves the GM to look the answer back up on the page behind it.
 		html.find(".stonetop-exp-fate-btn").on("click", () => this._rollFate());
+		// Called from the journey, so the struggle starts with "part of a journey" ticked.
+		html.find(".stonetop-exp-struggle-btn").on("click", () => callStruggleAsOne({ journey: true }));
 		// Collapse / expand the exploration moves rail. By class rather than by re-rendering,
 		// for the reason the character sheet's own handle gives: the step reclaims the freed
 		// width without a flicker, and a render here would rebuild the route step's map panel
@@ -786,6 +927,14 @@ export class ExpeditionDialog extends StepperDialog {
 			const el = ev.currentTarget;
 			this._saveChartAnswer(el.closest("[data-chart-id]")?.dataset.chartId, el.value);
 		});
+		// Running the journey: tick a charted line off once the party has dealt with it. The box
+		// holds its own state and the row's strike is toggled in place, so nothing re-renders.
+		html.find(".stonetop-exp-todo-check").on("change", ev => {
+			const el  = ev.currentTarget;
+			const row = el.closest("[data-chart-id]");
+			row?.classList.toggle("is-done", el.checked);
+			this._markChartDone(row?.dataset.chartId, el.checked);
+		});
 	}
 
 	/**
@@ -812,7 +961,7 @@ export class ExpeditionDialog extends StepperDialog {
 	async getData() {
 		const nav  = this._stepNav();
 		const step = nav.step;
-		const roll = step.roll ? this._rolls[step.key] ?? null : null;
+		const roll = step.roll ? this._rolls[this._rollKey(step.key)] ?? null : null;
 		const { currentId, list } = this._log();
 		// The trip being walked, found once and then read for both the banner and the bar.
 		//
@@ -862,13 +1011,28 @@ export class ExpeditionDialog extends StepperDialog {
 			fortunesLabel: step.roll === "requisition" ? this._fortunesLabel() : null,
 			// The Herd of Horses question, once the steading has one (improvement-rolls.js).
 			herdShare: step.roll === "requisition" ? this._herdShareQuestion() : "",
+			// The Marshal's Logistics, ticked, once any character has it learned.
+			reqLogistics: step.roll === "requisition" ? this._logisticsQuestion() : "",
+			// How the GM is rolling it, and any advantage the steading is holding for its next
+			// +Fortunes roll, which this roll will spend.
+			reqMode:   step.roll === "requisition" ? this._requisitionMode() : null,
+			reqHeld:   step.roll === "requisition" ? this._steadingWrapper()?.steading.fortunesAdvantage?.()?.source ?? "" : "",
 			showTiers: !!step.showTiers,
 			tiers:     step.showTiers
 				? _REQ_TIERS.map(t => ({ ...t, label: _REQ_RESULT[t.key].label, isActive: roll?.tier === t.key }))
 				: null,
 			showFate:  !!step.fate,
+			// Advantage or disadvantage on it, which Make Camp tells the GM to consider (p.335).
+			fateMode:  step.fate ? this._fateMode(step.key) : null,
+			// The step's button onto Struggle as One, GM-only: the GM calls the move, and a player
+			// asks for one from their own sheet instead.
+			struggle:  step.struggle && game.user?.isGM ? gmStruggleCall() : null,
 			// The headed aside below the body ("What to prep", on the intro step).
 			aside:     step.aside ?? null,
+			// The same, at the foot of the step rather than under its opening prose.
+			endAside:  step.endAside ?? null,
+			chartTodo: step.chartTodo ? this._chartTodo() : null,
+			homeProjects: step.projects ? { text: String(this._answers()?.prep ?? "").trim() } : null,
 			qa:        this._qaContext(step.qa),
 			// The Return Triumphant button, on the arriving-home step. GM-only, like the asset
 			// picker and for the same reason: the move writes to the steading sheet. It reports
@@ -936,7 +1100,12 @@ export class ExpeditionDialog extends StepperDialog {
 	// (then flushes to the setting), so the next read sees it. Same pattern as
 	// IntroductionsDialog. A stale currentId falls back to the most recent trip.
 	_log() {
-		return (this._logDraft ??= normalizeLog(getSetting(ANSWERS_SETTING)));
+		if (!this._logDraft) {
+			this._logDraft = normalizeLog(getSetting(ANSWERS_SETTING));
+			// What another GM's write is merged against (see onLogChanged).
+			this._logBase = this._logDraft;
+		}
+		return this._logDraft;
 	}
 
 	// Update the in-memory draft synchronously, then persist it to the world setting.
@@ -945,9 +1114,22 @@ export class ExpeditionDialog extends StepperDialog {
 	// write one. The dialog is GM prep (its hotbar macro is seeded inside a GM-only block), so
 	// that only ever catches a stray call. The draft updates in memory first and unconditionally,
 	// so a non-GM who somehow reached the window still sees their own typing until it closes.
+	//
+	// Another GM's write folded in while this one was on its way is sent on once it has landed:
+	// this write carried the copy from before, and reached the world after theirs. Only then, and
+	// only when the merge holds something the world does not, so two windows cannot ping-pong.
 	async _persistLog(log) {
 		this._logDraft = log;
-		await setWorldSetting(ANSWERS_SETTING, log);
+		this._logWrites = (this._logWrites ?? 0) + 1;
+		try {
+			await setWorldSetting(ANSWERS_SETTING, log);
+		} finally {
+			this._logWrites -= 1;
+		}
+		if (this._logWrites || !this._foldedMidWrite) return;
+		this._foldedMidWrite = false;
+		// The trips, not `currentId`: which trip each window is on is its own (see mergeLogs).
+		if (!sameLog(this._logDraft.list, this._logBase?.list)) await this._persistLog(this._logDraft);
 	}
 
 	// The trip currently being edited, or null before any exists.
@@ -996,22 +1178,56 @@ export class ExpeditionDialog extends StepperDialog {
 		this.render(false);
 	}
 
-	// Remove the current trip from the log (confirmed — it discards the trip's notes,
-	// and its Chronicle page is pruned on the next save). Selection falls back to the
-	// most recent remaining trip.
+	/**
+	 * Ask before a trip is deleted. The buttons say what each does, not Yes/No: the paragraph
+	 * above them is about losing notes for good, and a bare "Yes" doesn't say what it agrees to.
+	 * Resolves null for Keep it (or a closed window), else `{ removePage }`.
+	 *
+	 * `hasPage` offers to take the trip's Chronicle page with it, OFF by default: the Chronicle is
+	 * the GM's to edit, so a page may hold words that are nowhere else (user's call, 2026-09-24).
+	 */
+	async _askDeleteExpedition(label, { hasPage = false } = {}) {
+		const key = "stonetop.expedition.delete";
+		const tick = hasPage
+			? `<label class="stonetop-camp-check stonetop-ask-check"><input type="checkbox" class="stonetop-check" name="removePage"><span>${escHtml(localize(`${key}.removePage`))}</span></label>`
+			: "";
+		return askWithButtons({
+			title:   localize(`${key}.title`),
+			// An element, so core's sanitizer leaves the tick box's name for the answer to read.
+			content: contentElement(`<p>${format(`${key}.ask`, { name: `<strong>${escHtml(label)}</strong>` })}</p>${tick}`),
+			buttons: [
+				{
+					key: "delete", label: localize(`${key}.yes`), icon: "fa-trash",
+					value: form => ({ removePage: !!form?.elements?.namedItem?.("removePage")?.checked }),
+				},
+				{ key: "keep", label: localize(`${key}.no`), icon: "fa-xmark", value: null },
+			],
+			// The safe answer is the default.
+			defaultKey: "keep",
+		});
+	}
+
+	// Remove the current trip from the log, once asked. It discards the trip's notes. Its
+	// Chronicle page goes too only when the GM ticked that in the dialog; otherwise what was
+	// written there stays. Selection falls back to the most recent remaining trip.
 	async _deleteCurrentExpedition() {
 		const current = this._currentExpedition();
 		if (!current) return;
-		const label = current.title?.trim() ? current.title : "this expedition";
-		const ok = await Dialog.confirm({
-			title:   "Delete Expedition",
-			content: `<p>Delete <strong>${escHtml(label)}</strong> from the log? Its notes can't be recovered.</p>`,
-		});
-		if (!ok) return;
+		const label = current.title?.trim() ? current.title : localize("stonetop.expedition.delete.unnamed");
+		const hasPage = !!findExpeditionChroniclePage(current.id);
+		const answer = await this._askDeleteExpedition(label, { hasPage });
+		if (!answer) return;
 		const log = deleteExpedition(this._log(), current.id);
 		// The trip is gone, so it is holding nothing, and every unnamed trip after it has just
 		// been renumbered. Both are the steading's copies going stale; one pass answers both.
 		await Promise.all([this._persistLog(log), this._syncHeldAssets(log)]);
+		if (answer.removePage) {
+			try {
+				await deleteExpeditionChroniclePage(current.id);
+			} catch (err) {
+				warn("Could not remove the expedition's Chronicle page:", err);
+			}
+		}
 		await this._closeMapWindows();
 		this._step = 0;
 		this.render(false);
@@ -1143,6 +1359,25 @@ export class ExpeditionDialog extends StepperDialog {
 		this.render(false);
 	}
 
+	/**
+	 * The charted list as Running the journey reads it: each line in the words the table was
+	 * given, whether it has been dealt with, grouped as Chart a Course groups it.
+	 *
+	 * A line with a blank in it has the answer spliced in, the way the Chronicle prints it (and
+	 * the route's figure where the GM wrote nothing); a line without one has what was said after
+	 * it. Mid-journey the question is "what did I tell them?", not "what did the book offer?".
+	 */
+	_chartTodo() {
+		const groups = chartedLines(this._answers()?.chart, this._journeyRoute());
+		return { groups, hasRows: groups.length > 0 };
+	}
+
+	/** Tick a charted line off as dealt with, or back on. Saved without a re-render. */
+	_markChartDone(id, done) {
+		if (!id) return undefined;
+		return this._mutateChart(list => list.map(e => e.id === id ? { ...e, done: !!done } : e));
+	}
+
 	/** Take one back off the list. Its answer goes with it — the row was the record. */
 	async _removeChartRow(id) {
 		await this._mutateChart(list => list.filter(e => e.id !== id));
@@ -1189,7 +1424,10 @@ export class ExpeditionDialog extends StepperDialog {
 
 	/**
 	 * The step's Die of Fate: roll it, walk the light down the table the step prints, and only
-	 * then whisper the card.
+	 * then post the card. PUBLIC, at the reader's own roll mode like any roll, not whispered: the
+	 * book often has the players roll it ("have them roll the Die of Fate", p.323), so the table
+	 * seeing it is the normal case (user's call, 2026-09-24). The exploration rail's draw IS
+	 * whispered, and for its own reason: naming a GM move announces the trick.
 	 *
 	 * The SAME beat the GM Moves randomizer keeps (gm-toolkit/gm-move-drawer.js), and for the same
 	 * reason — the table is right there on the page, and a card that posted at the click would
@@ -1200,8 +1438,18 @@ export class ExpeditionDialog extends StepperDialog {
 	 * resolves false), so one landing is one card.
 	 */
 	async _rollFate() {
-		const table = FATE_TABLES[this._stepNav().step.fate];
-		await game.stonetop?.rollDieOfFate?.(table, { beforePost: ({ index }) => this._spinFateTo(index) });
+		const step  = this._stepNav().step;
+		const table = FATE_TABLES[step.fate];
+		await game.stonetop?.rollDieOfFate?.(table, {
+			beforePost: ({ index }) => this._spinFateTo(index),
+			rollMode:   this._fateMode(step.key),
+		});
+	}
+
+	/** How this step's Die of Fate is rolled. Per step: a well-prepared camp says nothing about
+	 *  how perilous the next leg is. Starts on Normal. */
+	_fateMode(stepKey) {
+		return normalizeRollMode(this._fateModes?.[stepKey]);
 	}
 
 	/**
@@ -1295,16 +1543,26 @@ export class ExpeditionDialog extends StepperDialog {
 	// the Chronicle page can name it even after it comes home). The steading write is guarded,
 	// because it is another document and a refusal there must not leave the trip claiming a
 	// wagon the village still has.
-	async _toggleRequisitionedAsset(index, take) {
+	//
+	// ONE AT A TIME. Each click reads the log and the steading's `assets` flag, awaits the
+	// steading write, then writes both back whole; the buttons stay live until the render after.
+	// Two assets clicked inside one round trip each started from the same snapshot, and the
+	// second write put back the list without the first. Queued (utils/turn-queue.js), each click
+	// starts from what the one before it left.
+	_toggleRequisitionedAsset(index, take) {
+		return inTurn("expedition-log", () => this._writeRequisitionedAsset(index, take));
+	}
+
+	async _writeRequisitionedAsset(index, take) {
 		if (!Number.isInteger(index)) return;
 		const found = this._steadingWrapper();
 		if (!found) {
 			ui.notifications?.warn?.("No steading sheet in this world to requisition from.");
 			return;
 		}
-		const { log, entry } = ensureCurrent(this._log(), () => this._newExpedition());
-		const name   = found.steading.getNamedAssets().find(a => a.index === index)?.name ?? "";
-		const record = Array.isArray(entry.requisitioned) ? entry.requisitioned : [];
+		const { log: before, entry: trip } = ensureCurrent(this._log(), () => this._newExpedition());
+		const minted = !this._log().list.some(e => e.id === trip.id);
+		const name = found.steading.getNamedAssets().find(a => a.index === index)?.name ?? "";
 
 		// KEYED ON THE NAME, WHICH IS ALSO THE WHOLE OF WHAT THE RECORD IS FOR. An asset's index is
 		// its POSITION in the steading's `assets` array, and the steading sheet's delete splices
@@ -1324,21 +1582,34 @@ export class ExpeditionDialog extends StepperDialog {
 		const sameAsset = r => !!name && String(r?.name ?? "") === name;
 		try {
 			if (take) {
-				const title = expeditionLabel(entry, log.list.findIndex(e => e.id === entry.id));
-				const ok = await found.steading.setAssetTaken(index, { expedition: { id: entry.id, title } });
+				const title = expeditionLabel(trip, before.list.findIndex(e => e.id === trip.id));
+				const ok = await found.steading.setAssetTaken(index, { expedition: { id: trip.id, title } });
 				if (!ok) return;
-				// An asset returned from the steading sheet and then taken again here would
-				// otherwise be recorded twice on the one trip.
-				entry.requisitioned = record.some(sameAsset) ? record : [...record, { name }];
 			} else {
 				await found.steading.returnAsset(index);
-				entry.requisitioned = record.filter(r => !sameAsset(r));
 			}
 		} catch (err) {
 			warn("Could not update the steading's assets:", err);
 			ui.notifications?.warn?.(`Could not update ${found.actor.name}'s assets.`);
 			return;
 		}
+
+		// The log AS IT IS NOW, not as it was before the steading write: a to-do ticked, a title
+		// saved or another GM's write folded in while that was on its way would otherwise be put
+		// back by this one. Onto the trip the asset went out with, by id, even if the window has
+		// switched since; a trip minted for this click is added as it was minted, and one deleted
+		// meanwhile is left deleted, and what the steading just lent it goes back.
+		const now = this._log();
+		const log = minted
+			? addExpedition(now, trip)
+			: { currentId: now.currentId, list: now.list.map(e => e.id === trip.id ? structuredClone(e) : e) };
+		const entry = log.list.find(e => e.id === trip.id);
+		if (!entry) return this._syncHeldAssets(now);
+		const record = Array.isArray(entry.requisitioned) ? entry.requisitioned : [];
+		// An asset returned from the steading sheet and then taken again here would otherwise be
+		// recorded twice on the one trip.
+		if (take) entry.requisitioned = record.some(sameAsset) ? record : [...record, { name }];
+		else entry.requisitioned = record.filter(r => !sameAsset(r));
 
 		await this._persistLog(log);
 		this.render(false);
@@ -1384,25 +1655,57 @@ export class ExpeditionDialog extends StepperDialog {
 		}
 	}
 
-	// Roll 2d6 +Fortunes for Requisition, remember the tier (to highlight the
-	// matching outcome), and post a result card. Re-rollable — the latest wins.
+	// The mode the Requisition strip starts on: the steading's own sticky roll modifier, which
+	// is where the character-side Requisition reads it too, until the GM picks here.
+	_requisitionMode() {
+		return normalizeRollMode(this._reqMode ?? this._steadingWrapper()?.actor.getFlag?.(SYSTEM_ID, "rollMode"));
+	}
+
+	// Roll +Fortunes for Requisition, remember the tier (to highlight the matching outcome),
+	// and post a result card. Re-rollable — the latest wins.
+	//
+	// On the same terms as the steading sheet's own roll (actors/steading/steading-roll.js): the
+	// chosen mode nets against every rule's advantage and disadvantage, and advantage the
+	// steading is HOLDING for its next +Fortunes roll (Rites of the Land) is applied, spent and
+	// named on the card, since this is that roll. Rolled here it used to be ignored, and left
+	// waiting for a later roll it was never promised to.
+	//
+	// ONE AT A TIME: a second click before the first has spent the held advantage would read it
+	// too, and roll it twice.
 	async _rollRequisition() {
-		if (!globalThis.Roll) return;
+		if (!globalThis.Roll || this._rollingRequisition) return;
+		this._rollingRequisition = true;
+		try {
+			await this._rollRequisitionOnce();
+		} finally {
+			this._rollingRequisition = false;
+		}
+	}
+
+	async _rollRequisitionOnce() {
 		const fortunes = this._steadingFortunes();
 		const found = this._steadingWrapper();
-		const herdShare = !!this.element?.[0]?.querySelector?.('[name="herdShare"]')?.checked;
-		const { missAsPartial } = rollAdjustments({
-			moveName: STEADING_MOVE.REQUISITION, statKey: "fortunes",
-			has: slug => !!found?.steading.improvementCompleted(slug),
-			answers: { herdShare },
-		});
-		this._rolls.requisition = await rollSeasonsCard({
+		const root = this.element?.[0];
+		const herdShare = !!root?.querySelector?.('[name="herdShare"]')?.checked;
+		const logistics = !!root?.querySelector?.('[name="logistics"]')?.checked;
+		const terms = found
+			? await settleSteadingRoll(found.steading, {
+				moveName: STEADING_MOVE.REQUISITION, statKey: "fortunes",
+				chosenMode: this._requisitionMode(),
+				answers: { herdShare, logistics },
+				canSpend: !!found.actor.isOwner,
+			})
+			: { rollMode: this._requisitionMode(), missAsPartial: "", conditionNotes: [], spend: () => {} };
+		this._rolls[this._rollKey("requisition")] = await rollSeasonsCard({
 			// sign() keeps a negative Fortunes value a valid formula ("2d6 -1", not "2d6 + -1").
-			formula:     `2d6 ${sign(fortunes)}`,
+			formula:     `${pbtaDiceFormula(terms.rollMode)} ${sign(fortunes)}`,
 			alias:       "Requisition",
 			resultTable: _REQ_RESULT,
-			missCountsAsPartial: missAsPartial,
+			missCountsAsPartial: terms.missAsPartial,
+			conditionNotes: terms.conditionNotes,
 		});
+		// Spent once the roll it bought is made, and not before.
+		await terms.spend();
 		this.render(false);
 	}
 
@@ -1413,6 +1716,12 @@ export class ExpeditionDialog extends StepperDialog {
 		return improvementQuestions(STEADING_MOVE.REQUISITION, "fortunes", {
 			has: slug => found.steading.improvementCompleted(slug),
 		}).find(q => q.name === "herdShare")?.label ?? "";
+	}
+
+	/** The Marshal's Logistics ("when you Requisition, you have advantage"), asked once anyone has it learned. */
+	_logisticsQuestion() {
+		return improvementQuestions(STEADING_MOVE.REQUISITION, "fortunes", { logistics: worldLogisticsNames() })
+			.find(q => q.name === "logistics")?.label ?? "";
 	}
 
 	// ── The route (journey step) ─────────────────────────────────────────────────
@@ -2863,7 +3172,9 @@ export class ExpeditionDialog extends StepperDialog {
 	 *    pick, and one they added by hand for a stop the graph does not model is never our
 	 *    business at all.
 	 *  • A row is only ever removed while it still carries `fromRoute` — we put it there. A row
-	 *    the GM chose off the menu stays, whatever the map later works out.
+	 *    the GM chose off the menu stays, whatever the map later works out. So does one of ours
+	 *    the GM has written an answer under: what they told the table is theirs, and a route
+	 *    change that can no longer fill the blank is no reason to throw it away.
 	 *
 	 * The free-text route field is written on the same terms it always was: only while it still
 	 * holds what we last put there (or nothing). The moment a GM types their own account of how
@@ -2884,7 +3195,7 @@ export class ExpeditionDialog extends StepperDialog {
 					key, text: "", answer: "", fromRoute: true,
 				});
 				changed = true;
-			} else if (!can && at >= 0 && list[at].fromRoute) {
+			} else if (!can && at >= 0 && list[at].fromRoute && !String(list[at].answer ?? "").trim()) {
 				list.splice(at, 1);
 				changed = true;
 			}
@@ -3110,9 +3421,11 @@ export class ExpeditionDialog extends StepperDialog {
 		const out = this._currentExpedition()?.partyOut ?? {};
 		// The kind is read once per PC here and handed down: `_pcRow` would otherwise re-read
 		// the same two flags off the same actor a moment later.
+		// Who has left play is asked on its own (isOutOfPlay): the kind lets an insert win, so a Ghost lost
+		// to the Final Consequence read "ghost" there and was still offered a place on the trip.
 		const pcs = getPlayerCharacters()
-			.map(actor => ({ actor, undeadKind: actorPastDeathKind(actor) }))
-			.filter(({ undeadKind }) => undeadKind !== "dead");
+			.filter(actor => !isOutOfPlay(actor))
+			.map(actor => ({ actor, undeadKind: actorPastDeathKind(actor) }));
 		if (!pcs.length) return { chips: [], hasRows: false, rows: [], summary: null };
 
 		const chips = pcs.map(({ actor, undeadKind }) =>
@@ -3190,14 +3503,17 @@ export class ExpeditionDialog extends StepperDialog {
 	// the common gate; Uncanny Reflexes also needs the PC unarmored (worn-armor base 0),
 	// checked via the snapshot's wornArmor.
 	_gatedMovesFor(snap, tier, wornArmor = 0) {
-		const cur = _LOAD_RANK[tier] ?? 0;
 		return (snap?.moves ?? [])
 			.flatMap(cat => cat.moves ?? [])
 			.filter(m => m.owned && m.maxLoad)
 			.map(m => {
-				const loadOk = cur <= (_LOAD_RANK[m.maxLoad] ?? 0);
+				const loadOk = !overLoadGate(m.maxLoad, tier);
 				const active = m.requiresUnarmored ? (loadOk && wornArmor === 0) : loadOk;
-				return { name: m.name, active, req: _gatedReqLabel(m.maxLoad, m.requiresUnarmored) };
+				// Only the clause that names the load, when the move prints others it leaves alone:
+				// Catlike's "act with care" goes quiet under a heavy load, its hiding in shadows does
+				// not, so the row names the clause rather than crossing out the whole move.
+				const { partial, clause } = loadGatedClause(m.description);
+				return { name: partial ? `${m.name} (${clause})` : m.name, active, req: _gatedReqLabel(m.maxLoad, m.requiresUnarmored) };
 			});
 	}
 
@@ -3235,9 +3551,18 @@ export class ExpeditionDialog extends StepperDialog {
 	// A custom follower's load row (gear is a ✓ checklist).
 	_followerRow(f) {
 		const marks  = (Array.isArray(f?.gear) ? f.gear : []).filter(g => g?.checked).length;
-		const folTag = f?.isGroup ? `×${Math.max(2, Number(f?.size) || 2)} group` : "follower";
+		const folTag = f?.isGroup ? this._groupTag(f) : "follower";
 		// A custom follower stores its whole card, portrait included, in the one object.
 		return this._makeFollowerRow(f?.name, marks, folTag, f);
+	}
+
+	// A custom group's tag counts who is actually coming along. Members marked fallen at the
+	// group's two-member floor (follower-fate.js) keep their roster rows but don't travel, so they
+	// are named apart rather than silently dropped, which would read as a group below its floor.
+	_groupTag(f) {
+		const size    = customGroupSize(f);
+		const present = customGroupPresent(f).length;
+		return present < size ? `×${present} group (${size - present} fallen)` : `×${size} group`;
 	}
 
 	// Shared builder for a follower load row from a name + ◇ mark count. `art` is whichever

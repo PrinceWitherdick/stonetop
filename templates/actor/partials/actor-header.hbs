@@ -114,7 +114,7 @@
 			    it are said. }}
 			{{#if stonetop.ongoingInvocation.active}}
 			{{#if editable}}
-			<button type="button" class="stonetop-invocation-chip stonetop-invocation-end"
+			<button type="button" class="stonetop-invocation-chip stonetop-invocation-end" data-slug="{{stonetop.ongoingInvocation.slug}}"
 			        aria-label="{{localize "stonetop.invocations.chipLabel" name=stonetop.ongoingInvocation.label}}"
 			        data-tooltip="{{localize "stonetop.invocations.chipTooltip" name=stonetop.ongoingInvocation.label}}"
 			        data-tooltip-direction="UP"><i class="fas fa-sun" aria-hidden="true"></i><span class="stonetop-invocation-chip-name">{{stonetop.ongoingInvocation.label}}</span></button>
@@ -123,6 +123,21 @@
 			      aria-label="{{localize "stonetop.invocations.chipLabel" name=stonetop.ongoingInvocation.label}}"
 			      data-tooltip="{{localize "stonetop.invocations.chipReadOnly" name=stonetop.ongoingInvocation.label}}"
 			      data-tooltip-direction="UP"><i class="fas fa-sun" aria-hidden="true"></i><span class="stonetop-invocation-chip-name">{{stonetop.ongoingInvocation.label}}</span></span>
+			{{/if}}
+			{{/if}}
+			{{! The second running Invocation (Burn Twice as Bright, or one going through an empowered
+			    Dancing Light): its own chip, ending only itself. }}
+			{{#if stonetop.ongoingInvocationSecond.active}}
+			{{#if editable}}
+			<button type="button" class="stonetop-invocation-chip stonetop-invocation-end is-second" data-slug="{{stonetop.ongoingInvocationSecond.slug}}"
+			        aria-label="{{localize "stonetop.invocations.chipLabel" name=stonetop.ongoingInvocationSecond.label}}"
+			        data-tooltip="{{localize "stonetop.invocations.chipTooltip" name=stonetop.ongoingInvocationSecond.label}}"
+			        data-tooltip-direction="UP"><i class="fas fa-sun" aria-hidden="true"></i><span class="stonetop-invocation-chip-name">{{stonetop.ongoingInvocationSecond.label}}</span></button>
+			{{else}}
+			<span class="stonetop-invocation-chip is-second"
+			      aria-label="{{localize "stonetop.invocations.chipLabel" name=stonetop.ongoingInvocationSecond.label}}"
+			      data-tooltip="{{localize "stonetop.invocations.chipReadOnly" name=stonetop.ongoingInvocationSecond.label}}"
+			      data-tooltip-direction="UP"><i class="fas fa-sun" aria-hidden="true"></i><span class="stonetop-invocation-chip-name">{{stonetop.ongoingInvocationSecond.label}}</span></span>
 			{{/if}}
 			{{/if}}
 			{{! The Judge's scales, beside the candle and on the same terms — shown once they own
@@ -168,6 +183,46 @@
 			    on=stonetop.battleJoy.raging labelKey=stonetop.battleJoy.labelKey
 			    tooltipKey=stonetop.battleJoy.tooltipKey}}
 			{{/if}}
+			{{! Three more states a fight turns on, on the Battle Joy's terms exactly (fight-states.js):
+			    the Marshal's shaken nerves, the Storm Markings' anger, a Fox's or Ranger's being unseen,
+			    in fightStateGlyphs' order. The partial reads `editable` off the context, and the `each`
+			    hides it, so it is handed down by hand (`../editable`). }}
+			{{#each stonetop.fightStates as |g|}}{{#if g.show}}
+			{{> "stonetop.header-toggle-glyph" stem=g.stem onClass=g.onClass on=g.on labelKey=g.labelKey tooltipKey=g.tooltipKey editable=../editable}}
+			{{/if}}{{/each}}
+			{{! Inspiration from a Marshal's We Happy Few (inspiration.js): a pill with the count IN WORDS,
+			    drawn only while some is held. A <button> that acts fearlessly (1 Inspiration) where the
+			    sheet is editable, a plain readout where it is not. The other two spends are on cards. }}
+			{{#if stonetop.inspiration.show}}
+			{{#if editable}}
+			<button type="button" class="stonetop-inspiration-chip"
+			        aria-label="{{stonetop.inspiration.tooltip}}"
+			        data-tooltip="{{stonetop.inspiration.tooltip}}"
+			        data-tooltip-direction="UP"><i class="fas fa-bullhorn" aria-hidden="true"></i><span class="stonetop-inspiration-chip-name">{{stonetop.inspiration.label}}</span></button>
+			{{else}}
+			<span class="stonetop-inspiration-chip"
+			      aria-label="{{stonetop.inspiration.tooltip}}"
+			      data-tooltip="{{stonetop.inspiration.tooltip}}"
+			      data-tooltip-direction="UP"><i class="fas fa-bullhorn" aria-hidden="true"></i><span class="stonetop-inspiration-chip-name">{{stonetop.inspiration.label}}</span></span>
+			{{/if}}
+			{{/if}}
+			{{! Rapport this PC holds with a Would-Be Hero who conversed with them (Up With People,
+			    up-with-people.js), on the Inspiration pill's terms: one per hero, the hero named IN WORDS,
+			    a <button> that spends it on a question where the sheet is editable and a readout where it
+			    is not. The `each` hides `editable`, so it is read as `../editable`. }}
+			{{#each stonetop.rapport as |r|}}
+			{{#if ../editable}}
+			<button type="button" class="stonetop-rapport-chip" data-hero-id="{{r.heroId}}"
+			        aria-label="{{r.tooltip}}"
+			        data-tooltip="{{r.tooltip}}"
+			        data-tooltip-direction="UP"><i class="fas fa-comments" aria-hidden="true"></i><span class="stonetop-rapport-chip-name">{{r.label}}</span></button>
+			{{else}}
+			<span class="stonetop-rapport-chip"
+			      aria-label="{{r.tooltip}}"
+			      data-tooltip="{{r.tooltip}}"
+			      data-tooltip-direction="UP"><i class="fas fa-comments" aria-hidden="true"></i><span class="stonetop-rapport-chip-name">{{r.label}}</span></span>
+			{{/if}}
+			{{/each}}
 			{{! An advantage HELD over the next roll (a peaceful camp, p.334), on the steading's
 			    holds-tray terms rather than the candle's: it is not a state anyone toggles on, so
 			    it is drawn only while one is held and it goes when a roll spends it.
@@ -180,21 +235,28 @@
 
 			    A <button> that RELEASES it where the sheet is editable, and a plain readout where
 			    it is not, exactly as the two glyphs above split. `type="button"` is not optional:
-			    the whole sheet is one <form> and a bare button submits it. }}
-			{{#if stonetop.heldAdvantage.show}}
+			    the whole sheet is one <form> and a bare button submits it.
+
+			    Its other half, a disadvantage held over the next roll (Interfere's "do it anyway"), is
+			    drawn and released exactly as the advantage is: one glyph, `stem` naming which. The
+			    partial reads `editable` off the context it is called from. }}
+			{{#*inline "stonetopHeldGlyph"}}
+			{{#if held.show}}
 			{{#if editable}}
-			<button type="button" class="stonetop-held-advantage"
-			        aria-label="{{stonetop.heldAdvantage.label}}"
-			        data-tooltip="{{stonetop.heldAdvantage.tooltip}}"
-			        data-tooltip-direction="UP"><span class="stonetop-held-advantage-icon" aria-hidden="true"></span></button>
+			<button type="button" class="{{stem}}"
+			        aria-label="{{held.label}}"
+			        data-tooltip="{{held.tooltip}}"
+			        data-tooltip-direction="UP"><span class="{{stem}}-icon" aria-hidden="true"></span></button>
+			{{else}}
+			<span class="{{stem}}" role="img"
+			      aria-label="{{held.label}}"
+			      data-tooltip="{{held.tooltip}}"
+			      data-tooltip-direction="UP"><span class="{{stem}}-icon" aria-hidden="true"></span></span>
 			{{/if}}
-			{{#unless editable}}
-			<span class="stonetop-held-advantage" role="img"
-			      aria-label="{{stonetop.heldAdvantage.label}}"
-			      data-tooltip="{{stonetop.heldAdvantage.tooltip}}"
-			      data-tooltip-direction="UP"><span class="stonetop-held-advantage-icon" aria-hidden="true"></span></span>
-			{{/unless}}
 			{{/if}}
+			{{/inline}}
+			{{> stonetopHeldGlyph held=stonetop.heldAdvantage stem="stonetop-held-advantage"}}
+			{{> stonetopHeldGlyph held=stonetop.heldDisadvantage stem="stonetop-held-disadvantage"}}
 		</div>
 		{{! Through the Last Door, with no insert. The three returns say what they are in the name
 		    at the top of the header (a Ghost reads "Ghost"), so only a plain death needs a word of

@@ -216,3 +216,22 @@ export function injectGlyphCheckboxes(html, runRe, { slug, context, cssClass, is
 	);
 	return { html: processed, count: index };
 }
+
+/**
+ * The index injectGlyphCheckboxes gives the □ printed nearest before `label` (□ counted one per
+ * glyph, in document order), or -1 when the text prints neither. Finding a box by the words it
+ * marks rather than by a bare index survives edits to the text around it.
+ *
+ * `adjacent` accepts only a box printed right before the words, with nothing between but markup,
+ * space and a ▶. Without it, words printed with no box of their own resolve to whatever box came
+ * earlier: on a card whose text predates a box, the box of the line above.
+ */
+export function boxIndexBefore(html, label, { adjacent = false } = {}) {
+	const text = String(html ?? "");
+	const at = label ? text.indexOf(label) : -1;
+	if (at < 0) return -1;
+	const box = text.lastIndexOf("□", at);
+	if (box < 0) return -1;
+	if (adjacent && !/^[\s▶]*$/.test(text.slice(box + 1, at).replace(/<[^>]*>/g, ""))) return -1;
+	return (text.slice(0, box).match(/□/g) || []).length;
+}

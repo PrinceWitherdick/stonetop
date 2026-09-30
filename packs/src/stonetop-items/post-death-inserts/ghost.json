@@ -37,7 +37,7 @@
             },
             {
               "slug": "vengeance",
-              "description": "<p><strong>VENGEANCE</strong> &mdash; Name the person or persons who must pay.</p><p>When you <em>spend the night wailing, howling, and raging in a lonely place</em>, regain all your HP or clear all your debilities.</p><p>When you <em>make one of them pay and ensure they know why</em>, either regain all your HP and clear your debilities, or clear a consequence.</p><p>When they <em>defeat or escape you</em>, mark a consequence.</p><p>When you <em>kill the last of them</em>, pass through the Last Door.</p><p>Should they <em>die before you're finished with them</em>, mark the Final Consequence.</p>",
+              "description": "<p><strong>VENGEANCE</strong> &mdash; Name the person or persons who must pay.</p><p>When you <em>spend the night wailing, howling, and raging in a lonely place</em>, regain all your HP or clear all your debilities.</p><p>When you <em>make one of them pay and ensure that they know why</em>, either regain all your HP and clear your debilities, or clear a consequence.</p><p>When they <em>defeat or escape you</em>, mark a consequence.</p><p>When you <em>kill the last of them</em>, pass through the Last Door.</p><p>Should they <em>die before you're finished with them</em>, mark the Final Consequence.</p>",
               "max": 1
             },
             {

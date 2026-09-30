@@ -1,11 +1,42 @@
-import { statRequirementLabel, statRequirementsUnmet } from "./stat-requirement.js";
+import { statRequirementsUnmet } from "./stat-requirement.js";
+import { effectiveRequiredMoves, marksRequirementUnmet, requiredMovesUnmet, requirementLabel } from "./move-requirement.js";
+import { isMoveLearned } from "./owns-move.js";
+import { SYSTEM_ID } from "../../system-id.js";
+
+/**
+ * Whether box `i` of a repeatable move owned `current` times is closed to a click. Boxes are taken
+ * in order: every ticked box and the next free one are open, the rest wait their turn.
+ *
+ * A STARTING move locks only its FIRST box, the take it started with. A second Well Versed is an
+ * ordinary pick, ticked on the Moves tab like any repeatable move's (the level-up dialog always
+ * allowed it). The other half of an either/or taken later is not starting at all (`demotedStarting`
+ * below), so none of its boxes lock. The sheet's `repeatChecks` helper (stonetop.js) asks this too.
+ */
+export function repeatBoxLocked(i, current, isStarting) {
+	return (isStarting && i === 0) || (!(i < current) && i !== current);
+}
 
 export class PlaybookMoveEntry {
-	constructor(entry, ownedInstances, bgMoveNames, ownedAllByName, actorLevel, actorPlaybook, actorStats = {}) {
-		const isFromPlaybook   = entry.isStarting;
+	// `demotedStarting`: the "either X OR Y" options this character did not start with
+	// (StonetopCharacter#demotedStartingChoices). Every option carries isStartingMove, but the
+	// other half taken later is an ordinary pick: counted in the level's budget, labelled as
+	// nothing, and free to untick.
+	//
+	// `retiredBy`: each move an owned move replaces, to the move that replaced it (Bulwark ->
+	// A Mighty Rampart; StonetopCharacter#retiredMoveReplacers). Book I p.529: taking the
+	// replacing move loses the original, so an un-owned original is `replacedBy` that move and
+	// closed to a tick, not offered back as an ordinary pick.
+	//
+	// `filledMarks(name)`: how many of that move's marks are filled (pfg-marks.js#filledMarkCount),
+	// for a requirement of marks (`req.marks`: Superior Stat's "all 6 marks in Potential for
+	// Greatness"). Counted only while that move is LEARNED.
+	constructor(entry, ownedInstances, bgMoveNames, ownedAllByName, actorLevel, actorPlaybook, actorStats = {}, demotedStarting = null, retiredBy = null, filledMarks = null) {
+		const isFromPlaybook   = entry.isStarting && !demotedStarting?.has(entry.name);
 		const isFromBackground = bgMoveNames.has(entry.name);
 		const req              = entry.requirement;
-		const requiresMoves    = req?.moves ?? [];
+		// The replaced move is folded into the required moves so every lock/sort reader sees it.
+		const replaces         = entry.replaces ?? null;
+		const requiresMoves    = effectiveRequiredMoves(req, replaces);
 		const requiresStats    = req?.stats ?? null;
 		const repeatMax        = entry.repeatMax ?? 1;
 		const lastOwnedId      = ownedInstances[ownedInstances.length - 1]?._id ?? null;
@@ -24,31 +55,42 @@ export class PlaybookMoveEntry {
 		this.source = isFromPlaybook ? "Starting move" : isFromBackground ? "Background" : null;
 		this.requiresPlaybook = req?.playbook ?? null;
 		this.minLevel = req?.level ?? null;
-		this.requires = requiresMoves[0] ?? null;
-		const requiresParts = [];
-		if (requiresMoves.length > 0) requiresParts.push(requiresMoves.join(", "));
-		// `req.stats` (e.g. Musclebound's { str: 2 }) is a machine-checkable per-stat
-		// prerequisite — its label rides here and it DOES feed `locked` below.
-		if (requiresStats)            requiresParts.push(statRequirementLabel(requiresStats));
-		// `req.note` is a display-only prerequisite (e.g. "All 6 marks in Potential for
-		// Greatness") that the engine can't check mechanically — it's shown to the player
-		// but never feeds `locked`, so it can't permanently lock the move the way an
-		// un-matchable `requirement.moves` string does.
-		if (req?.note)                requiresParts.push(req.note);
-		if (this.minLevel)            requiresParts.push(`level ${this.minLevel}+`);
-		this.requiresLabel = requiresParts.length > 0 ? requiresParts.join("; ") : null;
+		// Alpha's "Wild Speech or Spirit Tongue" (`req.anyMoves`) sorts under its first option.
+		this.requires = requiresMoves[0] ?? req?.anyMoves?.[0] ?? null;
+		this.replaces = replaces;
+		// `req.stats` (Musclebound's { str: 2 }) and `req.marks` (Superior Stat's) are labelled here
+		// and DO feed `locked` below; `req.note` is labelled but never does
+		// (move-requirement.js#requirementLabel).
+		this.requiresLabel = requirementLabel(req, { replaces, level: this.minLevel });
 		// Per-stat ceiling for stat-increase moves (Improved Stat = +2, Superior Stat =
 		// +3). Drives the level-up stat picker's cap enforcement and marks the move as
 		// one that needs a stat choice when taken.
 		this.cap = entry.cap ?? null;
 		this.repeatable = repeatMax > 1;
 		this.repeatMax = repeatMax;
-		this.locked = !this.isStarting && !!(
-			requiresMoves.some(m => !ownedAllByName.has(m)) ||
+		// A required move counts only while LEARNED (the user's ruling): one kept on the sheet
+		// switched off grants nothing, so it opens nothing either, and a move that leans on it
+		// reads as unmet until it is switched back on. `ownedAllByName` is a Map(name -> owned items[]).
+		const learned = m => (ownedAllByName.get(m) ?? []).some(isMoveLearned);
+		// Taking a replacing move gives up the one it replaces, so the replaced move's absence is
+		// the expected state, not a broken prerequisite, once a copy held RETIRED it (the
+		// `retiredMove` stamp StonetopCharacter#_retireReplacedMove leaves). A replacing move
+		// ticked on without its original retired nothing: Book I p.529, "If a move replaces a
+		// different move, then it requires the one it replaces", so that one reads as unmet.
+		const retiredIt = m => ownedInstances.some(i => i?.flags?.[SYSTEM_ID]?.retiredMove === m);
+		const moveMissing = m => !learned(m) && !(m === replaces && retiredIt(m));
+		this.replacedBy = this.owned ? null : (retiredBy?.get(entry.name) ?? null);
+		// `req.background` (the Heavy's Bark an Order: the Sheriff's): a move only that background
+		// gives, never a pick. The background's own grant is a starting move, so it never locks there.
+		// A move given up for its replacement locks whatever else is true of it.
+		this.locked = !!this.replacedBy || (!this.isStarting && !!(
+			req?.background ||
+			requiredMovesUnmet({ moves: requiresMoves, anyMoves: req?.anyMoves }, m => !moveMissing(m)) ||
 			(this.requiresPlaybook && this.requiresPlaybook !== actorPlaybook) ||
 			(this.minLevel && actorLevel < this.minLevel) ||
-			statRequirementsUnmet(requiresStats, actorStats)
-		);
+			statRequirementsUnmet(requiresStats, actorStats) ||
+			marksRequirementUnmet(req, learned, filledMarks)
+		));
 		// The player OWNS this move but its mechanically-checkable prerequisites
 		// (a required move / playbook / level / stat minimum) are no longer satisfied —
 		// e.g. they edited their learned moves and removed a prerequisite, or lowered a
@@ -65,7 +107,9 @@ export class PlaybookMoveEntry {
 				// so a player may deliberately take it anyway (the row then shows the
 				// "requirement not met" warning). The (not movesEdit) gate in the template
 				// still keeps every box read-only outside edit mode.
-				disabled: this.isStarting || (!(i < ownedInstances.length) && i !== ownedInstances.length),
+				// A move given up for its replacement is the exception: ticking it back would
+				// hold both, which the book never allows.
+				disabled: repeatBoxLocked(i, ownedInstances.length, this.isStarting) || !!this.replacedBy,
 			}))
 			: null;
 		this.resource = entry.resource;

@@ -8,6 +8,9 @@ export class CharacterPossessions {
 	get maxUses()     { return this._flags.getFlag("maxUses") ?? {}; }
 	get subChoices()  { return this._flags.getFlag("subChoices") ?? {}; }
 	get choiceUses()  { return this._flags.getFlag("choiceUses") ?? {}; }
+	// The level a move-granted possession arrived at (the Seeker's sacred pouch), keyed by
+	// slug. Its Stock grows only from then on — see StonetopCharacter#computePossessionMaxUses.
+	get grantedAtLevel() { return this._flags.getFlag("grantedAtLevel") ?? {}; }
 	// Player-written "something else (discuss with GM)" possessions — items not on the
 	// playbook's list, stored as { slug, label } since there's no option to match by slug.
 	get custom()      { return this._flags.getFlag("custom") ?? []; }
@@ -18,10 +21,26 @@ export class CharacterPossessions {
 		await this._flags.setFlag("selected", [...s]);
 	}
 
+	async setGrantedAtLevel(slug, level) {
+		await this._flags.setFlag("grantedAtLevel", { ...this.grantedAtLevel, [slug]: level });
+	}
+
+	// Forget everything a move-granted possession carried (its level, spent uses and picks),
+	// so taking the move again starts the possession fresh rather than half-spent.
+	async forgetGranted(slug) {
+		await this._flags.batch({ deletes: { grantedAtLevel: [slug], uses: [slug], subChoices: [slug] } });
+	}
+
+	// Un-picking a possession forgets its spent uses and its picks with it, in the same write, so
+	// picking it again starts it fresh (Books & scrolls back at 5, not at what was left). A
+	// grant-only possession's release clears the same keys (forgetGranted).
 	async deselect(slug) {
 		const s = this.selected;
 		s.delete(slug);
-		await this._flags.setFlag("selected", [...s]);
+		const deletes = {};
+		if (slug in this.uses)       deletes.uses       = [slug];
+		if (slug in this.subChoices) deletes.subChoices = [slug];
+		await this._flags.batch({ sets: { selected: [...s] }, deletes });
 	}
 
 	async setUses(slug, count) {
@@ -88,6 +107,14 @@ export class CharacterPossessions {
 	async setChoiceCarried(possessionSlug, choiceSlug, isCarried) {
 		const key = `${possessionSlug}:${choiceSlug}`;
 		await this._flags.setFlag("choiceCarried", { ...this.choiceCarried, [key]: !!isCarried });
+	}
+
+	// Several carry marks at once, keyed `possessionSlug:choiceSlug` (the Outfit window's batch).
+	// Unmarked ones are written as `false`, for the same reason as above.
+	async setChoicesCarried(carriedMap) {
+		const marks = Object.fromEntries(Object.entries(carriedMap ?? {}).map(([k, v]) => [k, !!v]));
+		if (!Object.keys(marks).length) return;
+		await this._flags.setFlag("choiceCarried", { ...this.choiceCarried, ...marks });
 	}
 
 	// Free text the player wrote into a sub-option's fill-in blank (the Would-Be Hero's

@@ -1,7 +1,9 @@
 // System data model for the "playbook" Item subtype. template.json declared only
-// slug + description; playbooks also store actorType and a rich `attributes`
-// block (omen/resolve resource configs). `attributes` is kept as an ObjectField
-// so its irregular interior is preserved verbatim.
+// slug + description; playbooks also store actorType and an `attributes` block.
+// Every shipped playbook's is empty now (the Would-Be Hero's old omen/resolve clocks
+// were read by nothing: Omens are the Destined background's setup track, Resolve is
+// Anger is a Gift's move track). Kept as an ObjectField so an older world's copy
+// still validates, its interior preserved verbatim.
 const fields = foundry.data.fields;
 
 export class PlaybookModel extends foundry.abstract.TypeDataModel {

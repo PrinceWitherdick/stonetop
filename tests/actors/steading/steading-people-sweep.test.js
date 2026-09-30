@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { migrateSteadingPeople, onSteadingPeopleUpdate, personRowKey } from "../../../module/actors/steading/steading-people.js";
+import { createPersonNpc, migrateSteadingPeople, onSteadingPeopleUpdate, personRowKey } from "../../../module/actors/steading/steading-people.js";
 
 // The load-time sweep that turns plain-text Residents/Neighbors rows into NPC actors.
 // It is deliberately NOT one-shot: players can't create actors, so onboarding backgrounds
@@ -58,6 +58,29 @@ afterEach(() => {
 	delete global.Folder;
 	delete global.CONST;
 	delete global.Actor;
+});
+
+// Who may see a new person. Rostered people are on the steading sheet, so everyone; a loose NPC
+// is GM prep and stays hidden UNLESS a player made it (the relationship map's "New person"), when
+// it is somebody they just put in front of the whole table.
+describe("createPersonNpc's ownership", () => {
+	const made = () => Actor.create.mock.calls.at(-1)[0];
+
+	it("shares a rostered person with everyone", async () => {
+		await createPersonNpc("neighbors", { name: "Fenrick" });
+		expect(made().ownership).toEqual({ default: 2 });
+	});
+
+	it("keeps a GM's loose NPC as prep, at Foundry's default", async () => {
+		await createPersonNpc(null, { name: "Stranger" });
+		expect(made().ownership).toBeUndefined();
+	});
+
+	it("shares a player's loose NPC with everyone", async () => {
+		global.game.user = { isGM: false };
+		await createPersonNpc(null, { name: "Stranger" });
+		expect(made().ownership).toEqual({ default: 2 });
+	});
 });
 
 describe("migrateSteadingPeople", () => {

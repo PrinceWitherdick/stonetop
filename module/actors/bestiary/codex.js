@@ -7,6 +7,7 @@
 
 import { escHtml, stripHtmlToText } from "../../utils/strings.js";
 import { enrichHTML } from "../../utils/foundry-compat.js";
+import { sameProse } from "../../utils/same-prose.js";
 
 export const CODEX_RICH_FIELDS = [
 	{ key: "description", enrichedKey: "enrichedDescription" },
@@ -184,6 +185,10 @@ export async function buildCodexContext(system, editMode, options = {}) {
 
 export async function codexUpdateRichField(actor, field, value) {
 	if (!CODEX_RICH_FIELDS.some(f => f.key === field)) return;
+	// An always-on editor reports a change when it is taken off the page if ProseMirror
+	// writes the text differently from how it was stored, typed in or not. Writing that
+	// back would mark an untouched book page as edited (see sameProse).
+	if (sameProse(value, actor.system?.[field])) return;
 	await actor.update({ [`system.${field}`]: value ?? "" });
 }
 
@@ -320,6 +325,10 @@ export async function onCodexChange(sheet, ev) {
 
 	const richEditor = t.closest(".stonetop-entry-rich-editor");
 	if (richEditor) {
+		// Nothing typed beyond what the editor was drawn with: nothing to save (see sameProse).
+		// `data-drawn-value`, because the editor drops its own `value` attribute once read.
+		const drawn = richEditor.dataset?.drawnValue;
+		if (drawn !== undefined && sameProse(richEditor.value, drawn)) return true;
 		await codexUpdateRichField(sheet.actor, richEditor.dataset?.field, richEditor.value);
 		return true;
 	}

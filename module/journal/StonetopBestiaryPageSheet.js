@@ -6,6 +6,7 @@ import { markDebilityTooltips } from "../utils/debility-tooltips.js";
 import { buildCodexContext, onCodexClick, onCodexChange, codexUpdateRichField, hasText, CODEX_RICH_FIELDS, CODEX_GROUP_FIELDS } from "../actors/bestiary/codex.js";
 import { isInCompendium, blockCompendiumEdit } from "../utils/compendium-edit-guard.js";
 import { liftLeadArt } from "./lead-art.js";
+import { adoptInlineViewRoot, holdRenderWhileTyping, keepTypingAcrossRedraw } from "./inline-page-view.js";
 
 // Edit affordances on the bestiary page (section pencils + codex add/remove controls);
 // clicking any of these in a compendium gets the immutable-journal dialog.
@@ -50,6 +51,13 @@ export function createStonetopBestiaryPageSheetClass(Base) {
 		// must be true while any inline section is open, or codex add/remove bail.
 		get actor() { return this.document; }
 		get _editMode() { return this.isEditable || this._editingSections.size > 0; }
+
+		// Each field saves on blur, and the save redraws the popout. Held while typing, so
+		// clicking from one field into the next doesn't wipe the second.
+		render(force = false, options = {}) {
+			if (holdRenderWhileTyping(this, force)) return this;
+			return super.render(force, options);
+		}
 
 		// Compendium journals are immutable reference content — never editable in place,
 		// regardless of the pack's lock state. Edit attempts are redirected to a dialog
@@ -185,9 +193,10 @@ export function createStonetopBestiaryPageSheetClass(Base) {
 			super.activateListeners(html);
 			// The embedded view sheet is rendered by the journal, which never sets
 			// `_element`; the codex dispatchers read `sheet.element[0]`, so point it here.
-			this._element = html;
+			adoptInlineViewRoot(this, html);
 			const root = html[0];
 			if (!root) return;
+			keepTypingAcrossRedraw(this, root);
 
 			// Stat-block cards drag onto a scene to drop a token. Available to anyone
 			// viewing the page; Foundry enforces the actual token-creation permission.

@@ -455,7 +455,8 @@ const DEFAULT_PERSON_NAMES = { residents: "New Resident", neighbors: "New Neighb
  * sidebar "Create Actor" picker's "Someone else"). The roster lists carry what being on
  * the — often player-visible — steading sheet implies: the people folder and OBSERVER
  * ownership. A loose NPC is GM prep, so it keeps Foundry's default ownership and lands in
- * whichever sidebar folder was open. Either way its token still shows its name on hover
+ * whichever sidebar folder was open, UNLESS a player made it, when it is OBSERVER for everyone
+ * too (see below). Either way its token still shows its name on hover
  * (StonetopActor#_preCreate).
  *
  * @param {"residents"|"neighbors"|null} list
@@ -487,7 +488,13 @@ export async function createPersonNpc(list, data = {}, { folder = null } = {}) {
 	// Residents/Neighbors are shown on the (often player-visible) steading sheet, so
 	// players should be able to see them — unlike GM-prep monsters/threats. Default
 	// OBSERVER keeps the steading rows rendering for players as they did pre-migration.
-	if (list) createData.ownership = { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER };
+	//
+	// And so is a loose NPC a PLAYER made (the relationship map's "New person"; the user's
+	// call). A GM's loose NPC is prep and stays hidden; a player's is somebody they just put in
+	// front of the whole table, and the default of NONE would leave everyone else double-clicking
+	// a face on a shared map and getting nothing. The creator still owns it outright: the server
+	// adds them as OWNER unless the data already names them.
+	if (list || !game.user?.isGM) createData.ownership = { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER };
 	if (data.img && !isDefaultImg(data.img)) {
 		createData.img = data.img;
 		// Carry a legacy row's chosen frame onto the NPC it becomes. Without this,

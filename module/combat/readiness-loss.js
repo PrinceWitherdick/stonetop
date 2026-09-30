@@ -15,41 +15,33 @@ import { SYSTEM_ID } from "../system-id.js";
 import { heldReadiness, READINESS_FLAG } from "./defend-readiness.js";
 import { each, isFight } from "../fight/fight-state.js";
 import { clearHarmedBy } from "../fight/hero-moves.js";
+import { characterBehind, followerCardFor } from "../actors/character/follower-masters.js";
+import { keepsFightingAtZero } from "../actors/character/unstoppable.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
-import { moveChatCard } from "../utils/chat.js";
-import { themedDialogClasses } from "../utils/window-theme.js";
+import { postMoveNote } from "../utils/chat.js";
+import { askWithButtons } from "../utils/ask-with-buttons.js";
 import { contentElement } from "../dialogs/content-picker.js";
 import { escHtml, joinNames } from "../utils/strings.js";
 import { format, localize } from "../utils/i18n.js";
 
 const KEY = "stonetop.readiness";
 
-/** Post a receipt for Readiness kept or lost, in the move-card shape the Defend notes use. */
-function postNote(actor, title, text) {
-	return globalThis.ChatMessage?.create?.({
-		content: moveChatCard(title, `<p>${escHtml(text)}</p>`),
-		speaker: actor ? globalThis.ChatMessage?.getSpeaker?.({ actor }) : { alias: "Stonetop" },
-	});
-}
-
 /**
  * Ask whether an attack is going on the offense. Resolves true to lose the Readiness, false to keep it
  * (also when the window is closed, or there is no window to ask with).
  */
-export async function askGoingOnOffense(actor, moveName, { DialogV2 = globalThis.foundry?.applications?.api?.DialogV2 } = {}) {
-	if (!DialogV2) return false;
+export async function askGoingOnOffense(actor, moveName) {
 	const count = heldReadiness(actor);
-	const answer = await DialogV2.wait({
-		classes: themedDialogClasses(),
-		window: { title: format(`${KEY}.askTitle`, { name: actor.name, count }) },
+	const answer = await askWithButtons({
+		title: format(`${KEY}.askTitle`, { name: actor.name, count }),
 		content: contentElement(`<p>${escHtml(format(`${KEY}.ask`, { name: actor.name, count, move: moveName }))}</p>`),
-		// Affirmative first: the rule's own case, the one that costs something.
+		// Affirmative first: the rule's own case, the one that costs something. Enter keeps it.
 		buttons: [
-			{ action: "lose", label: localize(`${KEY}.lose`), icon: "fa-solid fa-person-running", callback: () => "lose" },
-			{ action: "keep", label: localize(`${KEY}.keep`), icon: "fa-solid fa-shield", default: true, callback: () => "keep" },
+			{ key: "lose", label: localize(`${KEY}.lose`), icon: "fa-person-running", value: "lose" },
+			{ key: "keep", label: localize(`${KEY}.keep`), icon: "fa-shield", value: "keep" },
 		],
-		rejectClose: false,
-	}).catch(() => null);
+		defaultKey: "keep",
+	});
 	return answer === "lose";
 }
 
@@ -67,11 +59,11 @@ export async function settleReadinessOnAttack(actor, moveName, { ask = askGoingO
 	const count = heldReadiness(actor);
 	if (count <= 0) return false;
 	if (!(await ask(actor, moveName))) {
-		await postNote(actor, localize(`${KEY}.keptTitle`), format(`${KEY}.kept`, { name: actor.name, move: moveName, count }));
+		await postMoveNote(actor, localize(`${KEY}.keptTitle`), format(`${KEY}.kept`, { name: actor.name, move: moveName, count }));
 		return false;
 	}
 	await actor.setFlag(SYSTEM_ID, READINESS_FLAG, 0);
-	await postNote(actor, localize(`${KEY}.lostTitle`), format(`${KEY}.lostOffense`, { name: actor.name, move: moveName }));
+	await postMoveNote(actor, localize(`${KEY}.lostTitle`), format(`${KEY}.lostOffense`, { name: actor.name, move: moveName }));
 	return true;
 }
 
@@ -105,9 +97,13 @@ export function holdersLeft(combat, combats = globalThis.game?.combats) {
 	return holders;
 }
 
-/** Whether an actor update has just put a character holding Readiness on 0 HP. */
+/**
+ * Whether an actor update has just put a character holding Readiness on 0 HP. Not one who fights on
+ * at 0 on Unstoppable's word (actors/character/unstoppable.js): they have not stopped defending.
+ */
 export function droppedHoldingReadiness(actor, changes = {}) {
 	if (actor?.type !== "character" || heldReadiness(actor) <= 0) return false;
+	if (keepsFightingAtZero(actor)) return false;
 	const hp = changes?.system?.attributes?.hp;
 	const touched = (hp && typeof hp === "object" && "value" in hp) || "system.attributes.hp.value" in (changes ?? {});
 	return touched && Number(actor.system?.attributes?.hp?.value) <= 0;
@@ -118,16 +114,18 @@ async function loseAll(actors, noteKey) {
 	if (!actors.length) return;
 	await Promise.all(actors.map(actor => actor.setFlag(SYSTEM_ID, READINESS_FLAG, 0)));
 	const names = joinNames(actors.map(a => a.name));
-	await postNote(actors.length === 1 ? actors[0] : null, localize(`${KEY}.lostTitle`), format(`${KEY}.${noteKey}`, { name: names, names }));
+	await postMoveNote(actors.length === 1 ? actors[0] : null, localize(`${KEY}.lostTitle`), format(`${KEY}.${noteKey}`, { name: names, names }));
 }
 
 /**
  * The GM's client lets Readiness go when the threat passes or a character stops defending: the fight
  * ends, they leave it, or they drop to 0 HP. Only the primary GM writes, so it happens once.
  *
+ * @param {object} [deps]
+ * @param {Function} [deps.cardFor]  follower-masters.js#followerCardFor (injectable for tests)
  * @returns {() => void} stops listening
  */
-export function installReadinessLoss({ hooks = globalThis.Hooks } = {}) {
+export function installReadinessLoss({ hooks = globalThis.Hooks, cardFor = followerCardFor } = {}) {
 	const listening = [];
 	const on = (name, fn) => listening.push([name, hooks.on(name, (...args) => {
 		if (!globalThis.game?.user?.isGM || !isPrimaryGM()) return;
@@ -141,9 +139,12 @@ export function installReadinessLoss({ hooks = globalThis.Hooks } = {}) {
 		// (fight/hero-moves.js#clearHarmedBy). Nemesis is deliberately NOT here: the book says "all of your
 		// future attacks against them", and a nemesis who walked away is the point of the move.
 		// One write each, together: a character with two tokens in the fight is one sheet, not two.
+		// A follower's harm is kept on the character it follows (hero-moves.js#recordHarmedBy), who
+		// need not have fought here, so each follower in the fight brings that character's flag too.
 		const harmed = new Map();
 		for (const combatant of combat.combatants ?? []) {
-			if (combatant.actor?.type === "character") harmed.set(combatant.actor.id, combatant.actor);
+			const holder = characterBehind(combatant.actor, cardFor);
+			if (holder?.type === "character") harmed.set(holder.id, holder);
 		}
 		await Promise.all([...harmed.values()].map(clearHarmedBy));
 		return loseAll(holdersLeft(combat), "lostFightOver");

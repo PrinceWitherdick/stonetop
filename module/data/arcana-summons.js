@@ -1,4 +1,6 @@
 import { slugify } from "../utils/strings.js";
+import { boxIndexBefore } from "../utils/glyphs.js";
+import { normalizeTags } from "./follower-build.js";
 
 // Arcana that manifest creature(s) as followers — the arcana whose reverse says
 // "Treat it/them as a follower" (Book II, The Things They Carried). Each entry's
@@ -7,9 +9,10 @@ import { slugify } from "../utils/strings.js";
 // follower cards via _onArcanaSummon. `sourceUuid` is a stable identity marker
 // (`slug:creature`) so re-summoning never duplicates a card. Stat blocks are
 // transcribed verbatim from each arcanum's reverse; OCR "(band)" damage tags are
-// corrected to "(hand)". Variable summons (the beautiful scroll's tulpa, the rusty
-// cauldron's chimera) ship a base card whose `notes` spell out the per-summon picks the
-// player resolves on the card afterward. The Ring of Daagon's Servants go further: they're
+// corrected to "(hand)". A summon whose card prints boxes to pick from (the beautiful
+// scroll's tulpa) lists them as `choices`, and the button asks for them before it adds the
+// card (ArcanaSummonDialog); one whose picks are prose (the rusty cauldron's chimera) ships a
+// base card whose `notes` spell them out. The Ring of Daagon's Servants go further: they're
 // rolled and shaped through the Call Up the Deep Ones dialog (see servant-of-daagon.js), so
 // the Servant entry here is a `viaCallUp` marker the summon button skips (it adds only the
 // Ring) rather than a card the button manifests directly.
@@ -61,8 +64,26 @@ export const ARCANA_SUMMONS = {
 				hp:           8,
 				armor:        0,
 				damage:       "1d4 (if that)",
-				moves:        "Manifest a form of dust/snow/vapor\nProduce light (area, reach)\nCarry/manipulate a ◇ item\nDeliver a message\nSpy on someone/something",
-				notes:        "Your hand-made familiar — name it, then pick its extras: 2 more tags (eager / fierce / kind / sly / timid / willful), an instinct (to play / to learn / to flaunt), 2 more moves of your own, and a cost (respect given / new experiences / comfort & compassion).",
+				// The one move printed without a box. The other four are picks (below).
+				moves:        "Manifest a form of dust/snow/vapor",
+				notes:        "Your hand-made familiar, named and described when you unlocked the scroll.",
+				// "Pick 2 additional tags, an instinct, 2 additional moves, and its cost." Each
+				// option is a □ on the card's reverse; `match` is the text printed after that box
+				// when it differs from what the follower carries (see summonChoiceGroups).
+				choices: [
+					{ field: "tags",     label: "Tags",     pick: 2, options: ["eager", "fierce", "kind", "sly", "timid", "willful"] },
+					{ field: "instinct", label: "Instinct", pick: 1, options: ["to play", "to learn", "to flaunt"] },
+					{ field: "moves",    label: "Moves",    pick: 2, options: [
+						{ value: "Produce light (area, reach)", match: "Produce light" },
+						"Carry/manipulate a ◇ item",
+						"Deliver a message",
+						"Spy on someone/something",
+					] },
+					{ field: "cost",     label: "Cost",     pick: 1, options: ["respect given", "new experiences", "comfort/compassion"] },
+				],
+				askName:      true,
+				// What the tulpa's notes said before its picks were asked for (see applySummonRepair).
+				replacesNotes: ["Your hand-made familiar \u2014 name it, then pick its extras: 2 more tags (eager / fierce / kind / sly / timid / willful), an instinct (to play / to learn / to flaunt), 2 more moves of your own, and a cost (respect given / new experiences / comfort & compassion)."],
 				sourceUuid:   "beautiful-scroll:tulpa",
 			},
 		],
@@ -341,4 +362,209 @@ export function arcanaSummonFollowers(arcanum) {
 			}));
 	}
 	return arcanaSummon(arcanum?.slug)?.followers ?? null;
+}
+
+// ── Picks a summon asks for ─────────────────────────────────────────────────────────────────
+// A summon's `choices` are the boxes its card prints to pick from ("Pick 2 additional tags, an
+// instinct, 2 additional moves, and its cost"). The player may already have ticked them reading
+// the card, so the ask opens on those ticks, and what they settle on is written back to the card.
+
+/** An option as `{ value, match }`: `value` is what the follower carries, `match` the text printed after its □. */
+function _choiceOption(o) {
+	if (typeof o === "string") return { value: o, match: o };
+	const value = String(o?.value ?? "");
+	return { value, match: String(o?.match ?? value) };
+}
+
+/**
+ * One pick group as its entry prints it: how many it asks for (never fewer than 1), its options as
+ * `_choiceOption` reads them, and `chosen`, the values of `picks[group.field]` among those options
+ * in the card's printed order (whatever order they were picked in), cut to the pick.
+ */
+function _groupChoice(group, picks = {}) {
+	const pick    = Math.max(1, Math.trunc(Number(group.pick) || 1));
+	const options = (group.options ?? []).map(_choiceOption);
+	const picked  = new Set(picks[group.field] ?? []);
+	const chosen  = options.map(o => o.value).filter(v => picked.has(v)).slice(0, pick);
+	return { pick, options, chosen };
+}
+
+/** True if a summoned follower asks for picks or a name before it is added. */
+export function summonAsks(follower) {
+	return !!(follower?.choices?.length || follower?.askName);
+}
+
+/**
+ * A summon's pick groups, ready to ask: each option with the index of its □ on the card's
+ * reverse (-1 when the card prints none for it) and whether that box is ticked. A group ticked
+ * past its pick keeps its first ticks; the rest open clear.
+ *
+ * @param {object} follower  an ARCANA_SUMMONS follower entry
+ * @param {{backDescription?: string, slug?: string, boxStates?: object}} [card]
+ * @returns {{field: string, label: string, pick: number, options: {value: string, box: number, checked: boolean}[]}[]}
+ */
+export function summonChoiceGroups(follower, { backDescription = "", slug = "", boxStates = {} } = {}) {
+	return (follower?.choices ?? []).map(group => {
+		const { pick, options: printed } = _groupChoice(group);
+		let ticked = 0;
+		const options = printed.filter(o => o.value).map(o => {
+			const box = boxIndexBefore(backDescription, o.match, { adjacent: true });
+			const checked = box >= 0 && !!boxStates[`${slug}:back:${box}`] && ++ticked <= pick;
+			return { value: o.value, box, checked };
+		});
+		return { field: group.field, label: group.label ?? group.field, pick, options };
+	});
+}
+
+/**
+ * The card's boxes once picks are made, as `{ [boxIndex]: checked }`: ticked for what was picked,
+ * clear for the rest, so the card stays the record of the picks. Options with no box are skipped,
+ * and so is a group with nothing picked: the follower keeps that group as it was
+ * (applySummonRepair), so the card must too.
+ */
+export function summonPickTicks(groups, picks = {}) {
+	const ticks = {};
+	for (const group of groups ?? []) {
+		const picked = new Set(picks[group.field] ?? []);
+		if (!picked.size) continue;
+		for (const option of group.options ?? []) if (option.box >= 0) ticks[option.box] = picked.has(option.value);
+	}
+	return ticks;
+}
+
+/**
+ * The buildCustomFollower() input for a summon once its picks are made. Picked tags join the
+ * printed ones, picked moves follow the printed ones, and a picked instinct or cost fills that
+ * field. A group left short is named in the notes, so the card says what is still to pick.
+ *
+ * @param {object} follower  an ARCANA_SUMMONS follower entry
+ * @param {Record<string, string[]>} picks  the values picked, by group `field`
+ * @param {{name?: string}} [o]  a name for it, which replaces the printed one when given
+ */
+export function resolveSummonChoices(follower, picks = {}, { name } = {}) {
+	const { choices, askName, ...base } = follower ?? {};
+	const out = { ...base };
+	const short = [];
+	for (const group of choices ?? []) {
+		const { pick, chosen } = _groupChoice(group, picks);
+		if (chosen.length < pick) short.push(`${group.label ?? group.field} (${pick - chosen.length} more)`);
+		if (!chosen.length) continue;
+		if (group.field === "tags") out.tags = [...normalizeTags(base.tags), ...chosen];
+		else if (group.field === "moves") out.moves = [base.moves, ...chosen].filter(Boolean).join("\n");
+		else out[group.field] = chosen.join(", ");
+	}
+	if (short.length) out.notes = [base.notes, `Still to pick from the card: ${short.join(", ")}.`].filter(Boolean).join(" ");
+	const named = String(name ?? "").trim();
+	if (named) out.name = named;
+	return out;
+}
+
+// ── Putting right a follower summoned before its picks were asked for ───────────────────────
+// A tulpa added before the card's picks were asked for came with all five moves, no instinct and
+// no cost, whatever the card had ticked. The sheet offers to put one right (summon-repair.js):
+// it reads what the follower has now, asks the same picks a new summon asks, and rewrites only
+// the parts those picks decide. `picksSettled` on the stored follower means it has been through
+// the ask (a new summon, a repair, or the player keeping it as it is) and is never asked again.
+
+const _SHORT_NOTE_RE = /\s*Still to pick from the card: [^.]*\./g;
+const _lines = text => String(text ?? "").split("\n").map(s => s.trim()).filter(Boolean);
+const _same = (a, b) => String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
+
+/** The shipped summon entry a stored follower was made from (by its sourceUuid), or null. */
+export function summonEntryFor(follower) {
+	const uuid = String(follower?.sourceUuid ?? "");
+	if (!uuid.includes(":")) return null;
+	return arcanaSummon(uuid.split(":")[0])?.followers.find(f => f.sourceUuid === uuid) ?? null;
+}
+
+/** Does the follower carry this option of a pick group now? */
+function _carries(follower, field, value) {
+	if (field === "tags")  return normalizeTags(follower?.tags).some(t => _same(t, value));
+	if (field === "moves") return _lines(follower?.moves).some(l => _same(l, value));
+	return String(follower?.[field] ?? "").split(",").some(v => _same(v, value));
+}
+
+/**
+ * What is off about a stored follower against its summon's picks, and the picks to open the ask
+ * on. Per group: `have` is how many of its options the follower carries. Exactly the pick is
+ * right, and so is an instinct or cost the player wrote in themselves. More than the pick opens
+ * with none ticked, since which to keep is the player's call; fewer opens on what it has plus
+ * the card's own ticks.
+ *
+ * @param {object} follower  the stored follower (customFollowers.<id>)
+ * @param {object} entry     its ARCANA_SUMMONS entry (summonEntryFor)
+ * @param {object} [card]    as summonChoiceGroups takes it
+ * @returns {{groups: object[], issues: {field: string, label: string, have: number, pick: number, kind: "over"|"short"}[]}}
+ */
+export function summonRepair(follower, entry, card = {}) {
+	const issues = [];
+	const groups = summonChoiceGroups(entry, card).map(group => {
+		const carried = group.options.filter(o => _carries(follower, group.field, o.value));
+		const have = carried.length;
+		const written = (group.field === "instinct" || group.field === "cost") && !have
+			&& String(follower?.[group.field] ?? "").trim() !== "";
+		const issue = kind => issues.push({ field: group.field, label: group.label, have, pick: group.pick, kind });
+		if (have > group.pick) {
+			issue("over");
+			return { ...group, over: true, options: group.options.map(o => ({ ...o, checked: false })) };
+		}
+		if (have === group.pick || written) {
+			return { ...group, options: group.options.map(o => ({ ...o, checked: carried.includes(o) })) };
+		}
+		issue("short");
+		let room = group.pick - have;
+		return { ...group, options: group.options.map(o => {
+			const checked = carried.includes(o) || (o.checked && room-- > 0);
+			return { ...o, checked };
+		}) };
+	});
+	return { groups, issues };
+}
+
+/** True if the stored follower came from a summon with picks, hasn't been through them, and is off. */
+export function summonNeedsRepair(follower, card = {}) {
+	if (!follower || follower.picksSettled || follower.dead) return false;
+	const entry = summonEntryFor(follower);
+	if (!entry?.choices?.length) return false;
+	return summonRepair(follower, entry, card).issues.length > 0;
+}
+
+/**
+ * The fields to write on a stored follower once its picks are made. Only what the picks decide
+ * changes: tags and move lines the player added by hand stay where they are, the printed moves
+ * stay first, and an instinct or cost the player wrote themselves stays unless a pick replaces
+ * it. A group with nothing picked is left exactly as it is, so saving before choosing the moves
+ * never strips them. The pre-picks notes are swapped for the entry's, and a "Still to pick" line
+ * is dropped.
+ *
+ * `picksSettled` is set only when the result is complete, so a follower saved part-way is asked
+ * again next session rather than never.
+ */
+export function applySummonRepair(stored, entry, picks = {}) {
+	const out = {};
+	for (const group of entry?.choices ?? []) {
+		const { options, chosen } = _groupChoice(group, picks);
+		const isOption = v => options.some(o => _same(o.value, v));
+		if (!chosen.length) continue;
+		if (group.field === "tags") {
+			out.tags = normalizeTags([...normalizeTags(stored?.tags).filter(t => !isOption(t)), ...chosen]);
+		} else if (group.field === "moves") {
+			const printed = _lines(entry.moves);
+			const lines   = _lines(stored?.moves).filter(l => !isOption(l));
+			const head    = lines.filter(l => printed.some(p => _same(p, l)));
+			out.moves = [...head, ...chosen, ...lines.filter(l => !head.includes(l))].join("\n");
+		} else {
+			out[group.field] = chosen.join(", ");
+		}
+	}
+	let notes = String(stored?.notes ?? "");
+	for (const old of entry?.replacesNotes ?? []) notes = notes.replace(old, entry.notes ?? "");
+	out.notes = notes.replace(_SHORT_NOTE_RE, "").trim();
+	out.picksSettled = summonPicksComplete({ ...stored, ...out }, entry);
+	return out;
+}
+
+/** True if a follower carries every pick its summon's card gives it (summonRepair finds nothing off). */
+export function summonPicksComplete(follower, entry) {
+	return summonRepair(follower, entry).issues.length === 0;
 }

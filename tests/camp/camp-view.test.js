@@ -70,6 +70,20 @@ describe("the settled camp's card", () => {
 		]);
 	});
 
+	// Post-death audit: a Thrall's Marks on the settled card.
+	it("says a Ravenous Thrall's extra, whose nightmares troubled whom, and a slow healer's halving", () => {
+		const rook = { ...bram({ name: "Rook", choices: { hunger: 2 } }), ravenous: true, nightmarish: true, slowToHeal: true };
+		const ledger = campLedger([aeliana({ choices: { offer: { supplies: 4 } } }), rook]);
+		const rows = campSummaryRows(ledger, freezeCampPlan(ledger));
+		expect(rows[0].value).toBe("2 fed on 4 uses of food. Ravenous: Rook eats 2 extra uses (1d4).");
+		expect(rows.find(r => r.label === "The night").value)
+			.toBe("Quicksilver Dreams: everyone with Rook suffers nightmares and has disadvantage on their next roll.");
+		expect(rows.find(r => r.label === "Aeliana").value)
+			.toBe("HP 4 → 12 (half max); nightmares from Rook's Quicksilver Dreams, so disadvantage is held for the next roll.");
+		expect(rows.find(r => r.label === "Rook").value)
+			.toBe("HP 4 → 12 (half max); Torment's Blessing recovers only half of that, rounded up, HP 4 → 8.");
+	});
+
 	it("names the mess kit that stretched the meal", () => {
 		const ledger = campLedger([aeliana({ carriesMessKit: true, choices: { messKit: true, followers: 4, offer: { supplies: 2 } } })]);
 		expect(campSummaryRows(ledger, freezeCampPlan(ledger))[0].value).toBe("5 fed on 2 uses of food, cooked in Aeliana's mess kit.");
@@ -80,6 +94,51 @@ describe("the settled camp's card", () => {
 		const plan = freezeCampPlan(ledger, { bedrolls: { aeliana: 5 } });
 		expect(campSummaryRows(ledger, plan).at(-1).value)
 			.toBe("HP 4 → 12 (half max); bedroll rolled 5, HP 12 → 15; a peaceful night, so advantage is held for the next roll.");
+	});
+
+	it("adds Break Bread after the bedroll, and names the proper meal", () => {
+		const ledger = campLedger([
+			aeliana({ breaksBread: true, carriesBedroll: true, choices: { offer: { supplies: 2 }, bedroll: true } }),
+			bram({ choices: { benefit: "none" } }),
+		]);
+		const rows = campSummaryRows(ledger, freezeCampPlan(ledger, { bedrolls: { aeliana: 1 }, breads: { aeliana: 6, bram: 2 } }));
+		expect(rows[0].value).toBe("2 fed on 2 uses of food. A proper meal (Break Bread).");
+		expect(rows.find(r => r.label === "Aeliana").value)
+			.toBe("HP 4 → 12 (half max); bedroll rolled 1, HP 12 → 13; Break Bread rolled 6, HP 13 → 15.");
+		expect(rows.find(r => r.label === "Bram").value)
+			.toBe("Ate, but got no real sleep, so took no pick tonight; Break Bread rolled 2, HP 4 → 6.");
+	});
+
+	it("names the hearth ash on its own row, and adds the home fires' HP to everyone who made camp", () => {
+		const ledger = campLedger([
+			aeliana({ breaksBread: true, choices: { offer: { supplies: 2 } } }),
+			bram({ hearthCha: 2, choices: { eats: false } }),
+		]);
+		const rows = campSummaryRows(ledger, freezeCampPlan(ledger, { breads: { aeliana: 1 } }));
+		expect(rows[1]).toEqual({
+			label: "The fire",
+			value: "Ash from Bram's hearth (Keep the Home-Fires Burning): everyone making camp here is free from nightmares or bad dreams and recovers 2 extra HP.",
+		});
+		expect(rows.find(r => r.label === "Aeliana").value)
+			.toBe("HP 4 → 12 (half max); Break Bread rolled 1, HP 12 → 13; the home fires gave 2 extra HP, HP 13 → 15.");
+		expect(rows.find(r => r.label === "Bram").value)
+			.toBe("Went without food, so took no pick tonight; the home fires gave 2 extra HP, HP 4 → 6.");
+	});
+
+	it("says nothing of the fire once the host unticks the hearth ash, and still speaks of nightmares at CHA 0", () => {
+		const unticked = campLedger([aeliana({ hearthCha: 2, choices: { offer: { supplies: 1 }, hearthAsh: false } })]);
+		expect(campSummaryRows(unticked, freezeCampPlan(unticked)).map(r => r.label)).not.toContain("The fire");
+		const plain = campLedger([aeliana({ hearthCha: 0, choices: { offer: { supplies: 1 } } })]);
+		expect(campSummaryRows(plain, freezeCampPlan(plain))[1].value)
+			.toBe("Ash from Aeliana's hearth (Keep the Home-Fires Burning): everyone making camp here is free from nightmares or bad dreams.");
+	});
+
+	it("names the background track a camp cleared", () => {
+		const circle = [{ key: "auspicious-birth", name: "Auspicious Birth's background circle" }];
+		const ledger = campLedger([aeliana({ clearsTonight: circle, choices: { offer: { supplies: 1 } } }), bram({ clearsTonight: circle, choices: { eats: false } })]);
+		const rows = campSummaryRows(ledger, freezeCampPlan(ledger));
+		expect(rows.find(r => r.label === "Aeliana").value).toBe("HP 4 → 12 (half max); cleared Auspicious Birth's background circle.");
+		expect(rows.find(r => r.label === "Bram").value).toBe("Went without food, so took no pick tonight; cleared Auspicious Birth's background circle.");
 	});
 
 	it("says so when there was no healing left to do", () => {
@@ -219,9 +278,28 @@ describe("the camp window's meal", () => {
 			forageText: "Or Forage first: a few hours seeking food in the wild, rolling +WIS.",
 			afterText:  "",
 			provisionsText: "",
+			hungerText: "",
+			nightmaresText: "",
 			isShort:    true,
 			isPaid:     false,
 		});
+	});
+
+	// Post-death audit: a Thrall's Ravenous and Quicksilver Dreams, said where the bill and the night are.
+	it("says a Ravenous Thrall's rolled extra, and whose Quicksilver Dreams trouble the night", () => {
+		const rook = { ...bram({ name: "Rook", choices: { hunger: 2 } }), ravenous: true, nightmarish: true };
+		const { meal } = view([aeliana(), rook]);
+		expect(meal.costText).toBe("The meal costs 4 uses of food, and 0 have been shared.");
+		expect(meal.hungerText).toBe("Ravenous: Rook eats 2 extra uses (1d4).");
+		expect(meal.nightmaresText).toBe("Quicksilver Dreams: everyone with Rook suffers nightmares and has disadvantage on their next roll.");
+		const warded = view([aeliana({ hearthCha: 1 }), rook]).meal.nightmaresText;
+		expect(warded).toBe("Quicksilver Dreams: the ash from Aeliana's hearth keeps Rook's nightmares from everyone here.");
+	});
+
+	it("shows a slow healer's night halved on their card", () => {
+		const night = view([{ ...aeliana(), slowToHeal: true }]).rows[0].night;
+		// 4 of 15: half max would reach 12; Torment's Blessing recovers 4 of those 8.
+		expect(night).toMatchObject({ hpBefore: 4, hpAfter: 8, halvedText: "(halved: Torment's Blessing)" });
 	});
 
 	it("counts the followers apart from the people at the fire", () => {
@@ -231,6 +309,53 @@ describe("the camp window's meal", () => {
 	it("says a meal with food to spare is paid for, and that the spare is kept", () => {
 		expect(view([aeliana({ choices: { offer: { supplies: 3 } } })]).meal)
 			.toMatchObject({ statusText: "Paid for, with 2 to spare. Only what the meal needs is eaten, and the rest stays in the packs.", isPaid: true });
+	});
+});
+
+describe("the camp window's Break Bread box", () => {
+	const paid = (over = {}) => aeliana({ ...over, choices: { offer: { supplies: 2 }, ...over.choices } });
+
+	it("shows, ticked, once the meal is paid and someone eating has Break Bread learned", () => {
+		expect(view([paid(), bram({ breaksBread: true })]).breakBread).toMatchObject({
+			show: true, canTick: true, hostId: "aeliana", ticked: true,
+			label: "A proper meal (Break Bread): everyone eating their fill recovers 1d8 extra HP",
+		});
+	});
+
+	it("stays hidden with nobody holding it, or while the meal is short", () => {
+		expect(view([paid(), bram()]).breakBread.show).toBe(false);
+		expect(view([aeliana({ breaksBread: true }), bram()]).breakBread.show).toBe(false);
+	});
+
+	it("shows unticked once the host unticks it", () => {
+		expect(view([paid({ breaksBread: true, choices: { properMeal: false } }), bram()]).breakBread.ticked).toBe(false);
+	});
+
+	it("is a sentence for a reader who does not settle the camp", () => {
+		const box = view([paid({ breaksBread: true }), bram()], { manages: false }).breakBread;
+		expect(box).toMatchObject({ show: true, canTick: false, says: "A proper meal (Break Bread): everyone eating recovers 1d8 extra HP." });
+	});
+});
+
+describe("the camp window's hearth-ash box (Keep the Home-Fires Burning)", () => {
+	it("shows, ticked, whenever someone at the fire has the move learned, with their CHA in it", () => {
+		expect(view([aeliana(), bram({ hearthCha: 2 })]).homeFires).toMatchObject({
+			show: true, canTick: true, hostId: "aeliana", ticked: true,
+			label: "Ash from your own hearth (Keep the Home-Fires Burning): everyone making camp here is free from nightmares or bad dreams and recovers 2 extra HP",
+			holders: "Bram has Keep the Home-Fires Burning. Untick this if the fire is not sprinkled with ash from their own hearth.",
+		});
+	});
+
+	it("stays hidden with nobody holding it", () => {
+		expect(view([aeliana(), bram()]).homeFires.show).toBe(false);
+	});
+
+	it("shows unticked once the host unticks it, and is a sentence for a reader who does not settle the camp", () => {
+		expect(view([aeliana({ hearthCha: 1, choices: { hearthAsh: false } })]).homeFires.ticked).toBe(false);
+		expect(view([aeliana(), bram({ hearthCha: 2 })], { manages: false }).homeFires).toMatchObject({
+			show: true, canTick: false,
+			says: "Ash from Bram's hearth: everyone making camp here is free from nightmares or bad dreams and recovers 2 extra HP.",
+		});
 	});
 });
 

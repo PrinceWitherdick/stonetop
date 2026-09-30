@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SYSTEM_ID } from "../../module/system-id.js";
-import { CAMP_STALE_MS, CAMP_STATE, CAMP_STATUS, SETTLE_REFUSAL } from "../../module/camp/camp-rules.js";
+import { CAMP_EXTRA, CAMP_STALE_MS, CAMP_STATE, CAMP_STATUS, SETTLE_REFUSAL, planExtra } from "../../module/camp/camp-rules.js";
 import {
 	applyCampShares, breakCamp, campMembers, campWriterId, hostCamp, joinCamp, onUpdateActorCamp,
 	openCamps, partyFollowerMouths, payPendingShares, registerCampHooks, sendAwayFromCamp, setCampChoices, settleCamp,
@@ -103,6 +103,15 @@ describe("sitting down at a camp", () => {
 		} } });
 		expect(partyFollowerMouths(aeliana)).toBe(6);
 	});
+
+	// A group at its two-member floor keeps a dead member's row, marked fallen (memberDead). The dead
+	// eat nothing; a member who is only down at 0 HP still eats.
+	it("does not feed a group member marked fallen, but still feeds one who is only down", () => {
+		const { aeliana } = campParty({ aeliana: { followers: {
+			band: { party: true, isGroup: true, size: 2, memberHp: [0, 0], memberDead: [true, null] },
+		} } });
+		expect(partyFollowerMouths(aeliana)).toBe(1);
+	});
 });
 
 describe("finding camps and who is at them", () => {
@@ -131,12 +140,40 @@ describe("finding camps and who is at them", () => {
 		expect(campMembers(camp.campId, "aeliana").find(m => m.actorId === "dunstan").unliving).toBe(true);
 	});
 
+	// Post-death audit: Ravenous's "extra 1d4 provisions or uses of supplies" is rolled ONCE, as the
+	// Thrall sits down, so every reader's window reads the same bill.
+	it("rolls a Ravenous Thrall's 1d4 once, as they sit down, and bills the camp for it", async () => {
+		const { aeliana, bram, toMessage } = campParty({ rolled: 3, bram: { pastDeath: "thrall", thrallMarks: ["ravenous"] } });
+		const camp = await hostCamp(aeliana);
+		expect(toMessage).not.toHaveBeenCalled();
+		await joinCamp(bram, camp);
+		expect(campOf(bram).hunger).toBe(3);
+		expect(toMessage).toHaveBeenCalledTimes(1);
+		expect(toMessage.mock.calls[0][0].flavor).toContain("Ravenous");
+		const members = campMembers(camp.campId, "aeliana");
+		campMembers(camp.campId, "aeliana");
+		expect(toMessage).toHaveBeenCalledTimes(1);
+		expect(members.find(m => m.actorId === "bram")).toMatchObject({ ravenous: true, nightmarish: false, slowToHeal: false });
+		expect(campOf(aeliana).hunger).toBe(0);
+	});
+
 	// A debility cleared by Recover while the camp sits open must not stay on offer.
 	it("reads which debilities are marked live, and names them from the sheet", async () => {
 		const { aeliana } = campParty();
 		const camp = await hostCamp(aeliana);
 		aeliana.system.attributes.debilities.options.miserable.value = true;
 		expect(campMembers(camp.campId, "aeliana")[0].activeDebilities).toEqual([{ key: "miserable", name: "Miserable" }]);
+	});
+
+	// "Clear it as you would a debility": a marked Walk It Off box is on offer at the fire, read live.
+	it("counts a Ranger's marked Walk It Off box among them", async () => {
+		const { aeliana } = campParty({ aeliana: { moves: ["Walk It Off"] } });
+		const held = {};
+		aeliana.typedActor.moveResources = { getMoveResources: () => held };
+		const camp = await hostCamp(aeliana);
+		expect(campMembers(camp.campId, "aeliana")[0].activeDebilities).toEqual([]);
+		held["Walk It Off"] = 1;
+		expect(campMembers(camp.campId, "aeliana")[0].activeDebilities).toEqual([{ key: "walkItOff", name: "Walk It Off" }]);
 	});
 });
 
@@ -269,13 +306,88 @@ describe("settling the camp", () => {
 
 		expect(aeliana.update).toHaveBeenCalledTimes(1);
 		expect(campOf(aeliana).status).toBe(CAMP_STATUS.SETTLED);
-		expect(campOf(aeliana).plan.map(entry => [entry.actorId, entry.bedroll])).toEqual([["aeliana", 0], ["bram", 3]]);
+		expect(campOf(aeliana).plan.map(entry => [entry.actorId, planExtra(entry, CAMP_EXTRA.BEDROLL)])).toEqual([["aeliana", 0], ["bram", 3]]);
 		expect(toMessage).toHaveBeenCalledTimes(1);
 		expect(ChatMessage.create).toHaveBeenCalledTimes(1);
 
 		// Nothing is said about a plan before it exists.
 		expect(aeliana.update.mock.invocationCallOrder[0]).toBeLessThan(toMessage.mock.invocationCallOrder[0]);
 		expect(toMessage.mock.invocationCallOrder[0]).toBeLessThan(ChatMessage.create.mock.invocationCallOrder[0]);
+	});
+
+	// The Judge's Break Bread: one meal, so one 1d8 for each person eating, however many hold it.
+	it("rolls Break Bread's 1d8 once for each person eating, when someone eating has it learned", async () => {
+		const { aeliana, camp, toMessage } = await readyToSettle({ aeliana: { moves: ["Break Bread"] }, bram: { moves: ["Break Bread"] } });
+		expect((await settleCamp(camp)).ok).toBe(true);
+		expect(campOf(aeliana).plan.map(entry => [entry.actorId, planExtra(entry, CAMP_EXTRA.BREAK_BREAD)])).toEqual([["aeliana", 3], ["bram", 3]]);
+		expect(toMessage).toHaveBeenCalledTimes(2);
+		expect(toMessage.mock.calls.map(([data]) => data.flavor)).toEqual(["Break Bread (1d8 extra HP)", "Break Bread (1d8 extra HP)"]);
+		// Both dice in one request.
+		expect(ChatMessage.implementation.createDocuments).toHaveBeenCalledTimes(1);
+		expect(ChatMessage.implementation.createDocuments.mock.calls[0][0]).toHaveLength(2);
+	});
+
+	it("rolls no Break Bread when the host unticks the proper meal", async () => {
+		const { aeliana, camp, toMessage } = await readyToSettle({ aeliana: { moves: ["Break Bread"] } });
+		await setCampChoices(aeliana, { properMeal: false });
+		await settleCamp(camp);
+		expect(campOf(aeliana).plan.map(entry => planExtra(entry, CAMP_EXTRA.BREAK_BREAD))).toEqual([0, 0]);
+		expect(toMessage).not.toHaveBeenCalled();
+	});
+
+	it("rolls no Break Bread for a holder who has switched the move off", async () => {
+		const { aeliana, camp, toMessage } = await readyToSettle({ aeliana: { moves: [{ name: "Break Bread", learned: false }] } });
+		await settleCamp(camp);
+		expect(campOf(aeliana).plan.map(entry => planExtra(entry, CAMP_EXTRA.BREAK_BREAD))).toEqual([0, 0]);
+		expect(toMessage).not.toHaveBeenCalled();
+	});
+
+	// The Lightbearer's Keep the Home-Fires Burning: "anyone who Makes Camp with you ... recovers
+	// (extra) HP equal to your CHA", read live off the holder, and a fixed number, so no die.
+	it("gives everyone at the fire the Home-Fires holder's CHA in extra HP, the holder too", async () => {
+		const { aeliana, bram, camp, toMessage, act } = await readyToSettle({ bram: { moves: ["Keep the Home-Fires Burning"], cha: 2 } });
+		await setCampChoices(bram, { eats: false });
+		expect((await settleCamp(camp)).ok).toBe(true);
+		expect(campOf(aeliana).plan.map(entry => [entry.actorId, planExtra(entry, CAMP_EXTRA.HOME_FIRES)])).toEqual([["aeliana", 2], ["bram", 2]]);
+		expect(toMessage).not.toHaveBeenCalled();
+		expect(ChatMessage.create.mock.calls[0][0].content).toContain("Keep the Home-Fires Burning");
+
+		// Bram went without food, so no pick: only the fire's 2.
+		act("player-2");
+		await applyCampShares(aeliana);
+		expect(bram.system.attributes.hp.value).toBe(6);
+	});
+
+	it("gives no Home-Fires HP when the host unticks the hearth ash, or the holder has it switched off", async () => {
+		const unticked = await readyToSettle({ aeliana: { moves: ["Keep the Home-Fires Burning"], cha: 3 } });
+		await setCampChoices(unticked.aeliana, { hearthAsh: false });
+		await settleCamp(unticked.camp);
+		expect(campOf(unticked.aeliana).plan.map(entry => planExtra(entry, CAMP_EXTRA.HOME_FIRES))).toEqual([0, 0]);
+		restoreCampWorld();
+
+		const off = await readyToSettle({ aeliana: { moves: [{ name: "Keep the Home-Fires Burning", learned: false }], cha: 3 } });
+		await settleCamp(off.camp);
+		expect(campOf(off.aeliana).plan.map(entry => planExtra(entry, CAMP_EXTRA.HOME_FIRES))).toEqual([0, 0]);
+	});
+
+	// Auspicious Birth: "Clear it when you Make Camp or Convalesce."
+	it("clears Auspicious Birth's marked circle, named on the card, and leaves an unmarked one alone", async () => {
+		const circle = { key: "auspicious-birth", label: "Background circle", clearsOn: ["make-camp", "convalesce"] };
+		const { aeliana, bram, camp } = await readyToSettle({
+			aeliana: { background: { label: "Auspicious Birth", setupResources: [circle], marks: { "auspicious-birth": 1 } } },
+			bram:    { background: { label: "Auspicious Birth", setupResources: [circle], marks: { "auspicious-birth": 0 } } },
+		});
+		await settleCamp(camp);
+		expect(campOf(aeliana).plan.map(entry => entry.clears)).toEqual([
+			[{ key: "auspicious-birth", name: "Auspicious Birth's background circle" }], [],
+		]);
+		expect(ChatMessage.create.mock.calls[0][0].content).toContain("background circle");
+
+		await applyCampShares(aeliana);
+		expect(aeliana.flags[SYSTEM_ID].background.setupResources["auspicious-birth"]).toBe(0);
+		expect(bram.update).not.toHaveBeenCalledWith(expect.objectContaining({
+			[`flags.${SYSTEM_ID}.background.setupResources.auspicious-birth`]: 0,
+		}), expect.anything());
 	});
 
 	it("pays nobody's share itself: the plan landing on every client is what does that", async () => {
@@ -297,6 +409,17 @@ describe("paying the shares", () => {
 		expect(aeliana.system.attributes.hp.value).toBe(12);
 		expect(campOf(aeliana).applied).toBe(true);
 		expect(bram.update).not.toHaveBeenCalled();
+	});
+
+	// Post-death audit: Quicksilver Dreams gives everyone else at the fire held disadvantage.
+	it("lays held disadvantage on everyone with a Quicksilver Dreams Thrall, and not on the Thrall", async () => {
+		const { aeliana, bram, act } = await settled({ bram: { pastDeath: "thrall", thrallMarks: ["quicksilver-dreams"] } });
+		await applyCampShares(aeliana);
+		expect(aeliana.flags[SYSTEM_ID].heldDisadvantage).toEqual({ source: "Nightmares (Quicksilver Dreams)" });
+		act("player-2");
+		await applyCampShares(aeliana);
+		expect(bram.flags[SYSTEM_ID].heldDisadvantage).toBeUndefined();
+		expect(campOf(bram).applied).toBe(true);
 	});
 
 	it("leaves each player to pay their own character's share", async () => {

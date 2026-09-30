@@ -23,10 +23,72 @@
 		    `stonetop.postDeathChoices` survives in the context for its `notes` alone (below) —
 		    the label, the count and the outstanding flag went with the button. }}
 
-		{{! Lore sections: Terrible Purpose, Consequences, etc. }}
+		{{! Lore sections: Terrible Purpose, Consequences, etc. `postDeathTab.lore` is the same list as
+		    the tab should print it: in play, without the Thrall's Favor entry, which gets pips of its
+		    own below. In edit mode its options carry the cautions and the GM's cross-off controls
+		    (post-death-outcomes.js). }}
 		<div data-pdi="lore">
-			{{> "stonetop.lore-section" lore=stonetop.postDeathInsert.activeInsert.lore editMode=stonetop.editMode}}
+			{{> "stonetop.lore-section" lore=(or stonetop.postDeathTab.lore stonetop.postDeathInsert.activeInsert.lore) editMode=stonetop.editMode}}
 		</div>
+
+		{{! What the fiction earned them, as buttons (post-death-outcomes.js). The triggers are the
+		    table's to call; these only land the outcome. One button per outcome rather than per clause
+		    of the Purpose, whose clauses pair them differently, and the hint says so. `aria-disabled`
+		    rather than `disabled` on the ones with nothing to do, so the reason stays reachable by
+		    keyboard and by hover; the handler ignores a press on one. }}
+		{{#if stonetop.postDeathTab.outcomes}}
+		<div class="details-section stonetop-pdi-outcomes">
+			{{> "stonetop.section-heading" title=(localize "stonetop.postDeath.outcomes.title") collapse="postDeathOutcomes"}}
+			<p class="stonetop-pdi-hint">{{localize "stonetop.postDeath.outcomes.hint"}}</p>
+			{{#each stonetop.postDeathTab.outcomes.rows}}
+			<div class="stonetop-pdi-outcome-row" role="group" aria-label="{{title}}">
+				<p class="stonetop-pdi-outcome-title">{{title}}</p>
+				<div class="stonetop-pdi-outcome-actions">
+					{{#each actions}}
+					<button type="button" class="stonetop-pdi-outcome-btn{{#if danger}} stonetop-pdi-outcome-btn--danger{{/if}}"
+					        data-pdi-action="{{action}}" data-source="{{source}}"
+					        {{#if disabled}}aria-disabled="true" data-tooltip="{{reason}}"{{/if}}>
+						<i class="fas {{icon}}" aria-hidden="true"></i>
+						<span>{{label}}</span>
+					</button>
+					{{/each}}
+				</div>
+			</div>
+			{{/each}}
+		</div>
+		{{/if}}
+
+		{{! The Thrall's Favor, as hold pips: a ticked pip is Favor HELD, and a click sets the track to
+		    that pip. Its lore entry is left out of the list above in play, so the count is shown once. }}
+		{{#if stonetop.postDeathTab.favor}}
+		<div class="details-section stonetop-pdi-favor">
+			{{> "stonetop.section-heading" title=(localize "stonetop.postDeath.outcomes.favorTitle") collapse="postDeathFavor"}}
+			<div class="stonetop-pdi-favor-row" role="group" aria-label="{{localize "stonetop.postDeath.outcomes.favorTitle"}}">
+				{{#each stonetop.postDeathTab.favor.pips}}
+				<button type="button" class="stonetop-pdi-favor-pip{{#if filled}} is-filled{{/if}}"
+				        data-pdi-action="favor-pip" data-index="{{index}}"
+				        aria-pressed="{{#if filled}}true{{else}}false{{/if}}" aria-label="{{label}}"
+				        {{#unless @root.stonetop.postDeathTab.favor.canSet}}disabled{{/unless}}></button>
+				{{/each}}
+				<span class="stonetop-pdi-favor-count">{{stonetop.postDeathTab.favor.heldLabel}}</span>
+			</div>
+			{{#if stonetop.postDeathTab.favor.canSet}}
+			<p class="stonetop-pdi-hint">{{localize "stonetop.postDeath.outcomes.favorHint"}}</p>
+			{{/if}}
+		</div>
+		{{/if}}
+
+		{{! The GM's "gain a Mark": Favor's overflow and Dark Succor. With none left to gain it resolves
+		    as Unholy Vessel. Crossing one off is on the Mark itself, in edit mode. }}
+		{{#if stonetop.postDeathTab.gainMark}}
+		<div class="stonetop-pdi-gm-row">
+			<button type="button" class="stonetop-pdi-outcome-btn" data-pdi-action="gain-mark">
+				<i class="fas fa-plus" aria-hidden="true"></i>
+				<span>{{localize "stonetop.postDeath.outcomes.gainMark"}}</span>
+			</button>
+			<p class="stonetop-pdi-hint">{{localize "stonetop.postDeath.outcomes.gainMarkHint"}}</p>
+		</div>
+		{{/if}}
 
 		{{! What is written in rather than ticked: who the Terrible Purpose is about, what a
 		    Revenant with STRANGE APPETITES eats. The lore section above prints WHICH option was
@@ -114,6 +176,12 @@
 			{{> "stonetop.section-heading" title=(localize "stonetop.postDeath.masterTask") collapse="postDeathTask"}}
 			<p class="stonetop-pdi-task-text">{{stonetop.postDeathInsert.activeInsert.masterTask}}</p>
 			<p class="stonetop-pdi-hint">{{localize "stonetop.postDeath.masterTaskHint"}}</p>
+			{{#if stonetop.postDeathTab.taskComplete}}
+			<button type="button" class="stonetop-pdi-outcome-btn" data-pdi-action="task-complete">
+				<i class="fas fa-check" aria-hidden="true"></i>
+				<span>{{localize "stonetop.postDeath.outcomes.taskComplete"}}</span>
+			</button>
+			{{/if}}
 		</div>
 		{{/if}}
 

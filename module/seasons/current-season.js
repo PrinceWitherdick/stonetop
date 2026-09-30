@@ -200,6 +200,27 @@ export async function recordCurrentSeason(actor, season, year, { advanceOnly = f
 export const DEFAULT_SEASON = "spring";
 
 /**
+ * The season after the one the clock is in, and the year it belongs to: the one the "Next Season"
+ * button on the top-of-screen bar runs the Seasons Change move for (seasons/time-banner.js).
+ *
+ * Winter turns over into Spring of the NEXT year. An un-stamped world counts on from what the
+ * header SHOWS it in (DEFAULT_SEASON of `fallbackYear`), so the button never offers a season the
+ * table cannot see as coming next.
+ *
+ * @param {{season: string, year: number}|null} stamp  From readCurrentSeason.
+ * @param {number} [fallbackYear=1]                    Usually seasonsCurrentYear.
+ * @returns {{season: string, year: number}}
+ */
+export function nextSeasonStamp(stamp, fallbackYear = 1) {
+	const season = SEASON_IDS.includes(stamp?.season) ? stamp.season : DEFAULT_SEASON;
+	const year   = campaignYear(stamp ? stamp.year : fallbackYear);
+	const index  = SEASON_IDS.indexOf(season);
+	return index === SEASON_IDS.length - 1
+		? { season: SEASON_IDS[0], year: year + 1 }
+		: { season: SEASON_IDS[index + 1], year };
+}
+
+/**
  * The header readout for the steading's clock: the season plus the year it belongs to,
  * as the two labels the template paints. No icon — the header names its season in that
  * season's own ink instead, off the SEASON_IDS key returned here.

@@ -1,0 +1,24 @@
+{
+  "name": "Torment's Blessing",
+  "type": "move",
+  "system": {
+    "moveType": "post-death",
+    "playbook": "thrall",
+    "loreOption": "marks:torments-blessing",
+    "description": "<p>Your wounds are slow to heal. When you recover HP, recover only half the amount that you should. But, you never need to Defy Danger due to pain, blood loss, and weakness due to wounds.</p><p>When you <strong><em>speak a word of torment</em></strong>, name someone nearby, spend 1&ndash;3 Favor, and roll +Favor spent: <strong>on a 10+</strong>, they take 2d4 damage and are wracked with pain&mdash;lesser victims are incapacitated, and mighty foes are momentarily stunned; <strong>on a 7&ndash;9</strong>, they take 1d6 damage (ignores armor) and lesser victims are momentarily stunned.</p>",
+    "rollType": null,
+    "moveResults": {
+      "success": {
+        "label": "10+",
+        "value": "They take 2d4 damage and are wracked with pain: lesser victims are incapacitated, and mighty foes are momentarily stunned."
+      },
+      "partial": {
+        "label": "7-9",
+        "value": "They take 1d6 damage (ignores armor) and lesser victims are momentarily stunned."
+      }
+    }
+  },
+  "_id": "Tb7mGs3pVx9kLw2Q",
+  "_key": "!items!Tb7mGs3pVx9kLw2Q",
+  "folder": "G7pEx5cMmt9Q3dVl"
+}
