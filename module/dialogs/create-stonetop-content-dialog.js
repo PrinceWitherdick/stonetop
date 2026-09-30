@@ -2,29 +2,134 @@
 // content. Improvements and threats aren't Item sub-types, so rather than Foundry's
 // Item type picker we show our own chooser and hand off to each authoring flow: a
 // reusable world Move, a draggable steading-improvement card, a draggable threat card,
-// a reusable world inventory item, or a homebrew arcanum. Opened from StonetopItem.createDialog.
+// a reusable world inventory item or treasure, or a homebrew arcanum. Opened from StonetopItem.createDialog.
+//
+// TWO STEPS AT MOST. The first window offers a handful of broad kinds; a kind that covers
+// several flows (Gear & Treasure, Dangers & Places) opens a second window to refine it, and
+// the flows it holds are rows there, never a third window. A kind left with ONE flow the
+// user may run is not a group at all: that flow's own row stands in the first window.
 
 import { canCreateArcana } from "../utils/authoring-gates.js";
 import { pickContentOption, runPickedOption } from "./content-picker.js";
 
 // What the chooser offers, and what each row DOES. The flow sits on the row rather than in an
 // if/else ladder beside it: a kind added to one and missed in the other is a picker option that
-// silently creates nothing, or a flow nothing can reach, and neither fails loudly. The same holds
-// for the two sub-choosers below, which had the same shape.
-const CONTENT_OPTIONS = [
-	{
-		id: "arcanum",
-		label: "Arcanum",
-		icon: "fa-wand-sparkles",
-		hint: "A homebrew major or minor arcanum card, opened in the card editor as a reusable world item.",
-		create: () => openCreateArcanum(),
-	},
+// silently creates nothing, or a flow nothing can reach, and neither fails loudly.
+//
+// Who may see a row is on the row too: `gmOnly` for GM prep, `arcanum` for the rows that obey
+// arcanaCreationGmOnly. `{heading}` entries caption the rows after them in a refine window.
+
+// Gear & Treasure: what a character can carry.
+const GEAR_OPTIONS = [
 	{
 		id: "inventory",
 		label: "Inventory Item",
 		icon: "fa-box-open",
 		hint: "A custom gear item, saved as a reusable world item you drag onto any character's Inventory tab.",
 		create: () => _openInventoryItem(),
+	},
+	{
+		id: "treasure",
+		label: "Treasure",
+		icon: "fa-gem",
+		// A GM-only world item the players meet when it is handed over.
+		gmOnly: true,
+		hint: "A treasure or artifact as Book II prints one: tags, Value, uses and its write-up, with the hint and lead for identifying it. Hidden from players until you drag it onto a character.",
+		create: () => _openInventoryItem({ treasure: true }),
+	},
+	{ heading: "Arcana" },
+	// NOT a tier choice: the editor's Identity page carries a "Major Arcanum" checkbox that
+	// switches tier either way, so asking here would only be a second place to answer the same
+	// question (and the wrong answer would look permanent). A blank card starts minor.
+	{
+		id: "arcanumBlank",
+		label: "Blank arcanum",
+		icon: "fa-wand-sparkles",
+		arcanum: true,
+		hint: "An empty homebrew arcanum, opened in the card editor. Tick “Major Arcanum” on its Identity page for card art and major semantics.",
+		create: () => _createBlankArcanum(),
+	},
+	{
+		id: "arcanumInspire",
+		label: "Inspire me…",
+		icon: "fa-dice-d20",
+		arcanum: true,
+		hint: "Roll the Book II Artifact Creation tables (origin, nature, form) for a themed starting point, then build the arcanum from the results.",
+		create: () => _openArcanaInspire(),
+	},
+];
+
+// Dangers & Places: GM prep, ending in world threats, monsters, or a page of the steading's
+// GM-only Sites journal, and those stores are GM-only.
+const DANGER_OPTIONS = [
+	{
+		id: "threat",
+		label: "Threat",
+		icon: "fa-skull",
+		gmOnly: true,
+		hint: "A homebrew threat card you drag onto the GM Toolkit's Threats tab.",
+		create: () => _openThreat(),
+	},
+	{
+		id: "site",
+		label: "Site",
+		icon: "fa-mountain-sun",
+		gmOnly: true,
+		hint: "Walk through Book I's Creating Sites process. The write-up lands on the GM Toolkit's Sites tab, ready to pin to a scene.",
+		create: () => openCreateSite(),
+	},
+	// Book II, The Things Below. Thing + corrupted site become draggable threat cards; corrupted
+	// being + emanation create monster stat-block actors directly.
+	{ heading: "The Things Below" },
+	{
+		id: "thing",
+		label: "A Thing Below",
+		icon: "fa-eye",
+		gmOnly: true,
+		hint: "A primordial entity of darkness and corruption. Combine themes + aspects + an instinct; written up as a magical-entity threat.",
+		create: () => _seedThreatCard(async () => {
+			const { CreateThingDialog } = await import("../things-below/create-thing-dialog.js");
+			return new CreateThingDialog().promise();
+		}),
+	},
+	{
+		id: "corruptedSite",
+		label: "A corrupted site",
+		icon: "fa-mountain-sun",
+		gmOnly: true,
+		hint: "A place the Things Below have tainted. Feature + cause + severity; written up as a MacGuffin threat with an impending doom.",
+		create: () => _seedThreatCard(async () => {
+			const { CreateCorruptedSiteDialog } = await import("../things-below/create-corrupted-site-dialog.js");
+			return new CreateCorruptedSiteDialog().promise();
+		}),
+	},
+	{
+		id: "being",
+		label: "A corrupted being",
+		icon: "fa-skull",
+		gmOnly: true,
+		hint: "Twist an existing monster: add gifts, marks, and the corrupted tag. Creates a monster stat block.",
+		create: () => _openCorruption("being"),
+	},
+	{
+		id: "emanation",
+		label: "An emanation",
+		icon: "fa-hurricane",
+		gmOnly: true,
+		hint: "A Thing's discharge, given form. Creates a monster stat block from a source or a blank emanation template.",
+		create: () => _openCorruption("emanation"),
+	},
+];
+
+// The first window. A row with `refine` is a group: picking it opens `refineTitle` on those rows.
+const CONTENT_OPTIONS = [
+	{
+		id: "gear",
+		label: "Gear & Treasure",
+		icon: "fa-box-open",
+		hint: "An inventory item, a treasure, or a homebrew arcanum. You pick which next.",
+		refineTitle: "Create Gear or Treasure",
+		refine: GEAR_OPTIONS,
 	},
 	{
 		id: "move",
@@ -41,110 +146,42 @@ const CONTENT_OPTIONS = [
 		create: () => _openImprovement(),
 	},
 	{
-		id: "threat",
-		label: "Threat",
+		id: "dangers",
+		label: "Dangers & Places",
 		icon: "fa-skull",
-		hint: "A homebrew threat card you drag onto the GM Toolkit's Threats tab.",
-		create: () => _openThreat(),
-	},
-	{
-		id: "thingBelow",
-		label: "Thing Below",
-		icon: "fa-eye",
-		hint: "Create a Thing Below, a corrupted site, a corrupted being, or an emanation (Book II).",
-		create: () => openCreateThingBelow(),
-	},
-	{
-		id: "site",
-		label: "Site",
-		icon: "fa-mountain-sun",
-		hint: "Walk through Book I's Creating Sites process. The write-up lands on the GM Toolkit's Sites tab, ready to pin to a scene.",
-		create: () => openCreateSite(),
+		hint: "A threat, a site, or one of the Things Below and their corruptions. You pick which next.",
+		refineTitle: "Create a Danger or Place",
+		refine: DANGER_OPTIONS,
 	},
 ];
 
-// The Thing Below sub-chooser (shown after picking "Thing Below"): the four Book II
-// creation flows. Thing + Corrupted Site become draggable threat cards; Corrupted Being +
-// Emanation create monster stat-block actors directly.
-const THING_BELOW_KIND_OPTIONS = [
-	{
-		id: "thing",
-		label: "A Thing Below",
-		icon: "fa-eye",
-		hint: "A primordial entity of darkness and corruption. Combine themes + aspects + an instinct; written up as a magical-entity threat.",
-		create: () => _seedThreatCard(async () => {
-			const { CreateThingDialog } = await import("../things-below/create-thing-dialog.js");
-			return new CreateThingDialog().promise();
-		}),
-	},
-	{
-		id: "site",
-		label: "A corrupted site",
-		icon: "fa-mountain-sun",
-		hint: "A place the Things Below have tainted. Feature + cause + severity; written up as a MacGuffin threat with an impending doom.",
-		create: () => _seedThreatCard(async () => {
-			const { CreateCorruptedSiteDialog } = await import("../things-below/create-corrupted-site-dialog.js");
-			return new CreateCorruptedSiteDialog().promise();
-		}),
-	},
-	{
-		id: "being",
-		label: "A corrupted being",
-		icon: "fa-skull",
-		hint: "Twist an existing monster: add gifts, marks, and the corrupted tag. Creates a monster stat block.",
-		create: () => _openCorruption("being"),
-	},
-	{
-		id: "emanation",
-		label: "An emanation",
-		icon: "fa-hurricane",
-		hint: "A Thing's discharge, given form. Creates a monster stat block from a source or a blank emanation template.",
-		create: () => _openCorruption("emanation"),
-	},
-];
-
-// The Arcanum sub-chooser (shown after picking "Arcanum"): a blank card, or the Artifact
-// Creation wizard that seeds one from rolled inspiration. NOT a tier choice — the editor's
-// Identity page carries a "Major Arcanum" checkbox that switches tier either way, so asking
-// here would only be a second place to answer the same question (and the wrong answer would
-// look permanent). A blank card starts minor, the commoner tier.
-const ARCANUM_KIND_OPTIONS = [
-	{
-		id: "blank",
-		label: "Blank card",
-		icon: "fa-scroll",
-		hint: "An empty arcanum, opened in the card editor. Tick “Major Arcanum” on its Identity page for card art and major semantics.",
-		create: () => _createBlankArcanum(),
-	},
-	{
-		id: "inspire",
-		label: "Inspire me…",
-		icon: "fa-dice-d20",
-		hint: "Roll the Book II Artifact Creation tables (origin, nature, form) for a themed starting point, then build the card from the results.",
-		create: () => _openArcanaInspire(),
-	},
-];
-
-/** Top-level chooser. Resolves to a CONTENT_OPTIONS id or null. */
-function pickContentType() {
-	// Homebrew arcana obey arcanaCreationGmOnly (default GM-only); drop the Arcanum option
-	// for a player who isn't allowed to author it, so the sidebar can't bypass the same gate
-	// the arcana-tab "Create arcanum" buttons enforce.
-	let options = canCreateArcana() ? CONTENT_OPTIONS : CONTENT_OPTIONS.filter(o => o.id !== "arcanum");
-	// Things Below and sites are GM prep (they end in world threats/monsters, or a page of the
-	// steading's GM-only Sites journal, and those stores are GM-only).
-	if (!game.user?.isGM) options = options.filter(o => o.id !== "thingBelow" && o.id !== "site");
-	return pickContentOption({ title: "Create Stonetop Content", options });
+/** Drop headings with no row under them before the next heading (or the end). */
+function _dropBareHeadings(rows) {
+	return rows.filter((row, i) => !row.heading || (rows[i + 1] && !rows[i + 1].heading));
 }
 
-/** Thing Below kind chooser. Resolves to "thing" | "site" | "being" | "emanation" or null. */
-function pickThingBelowKind() {
-	return pickContentOption({ title: "Create a Thing Below", options: THING_BELOW_KIND_OPTIONS });
-}
-
-/** Arcanum start chooser. Resolves to "blank" | "inspire" or null. */
-function pickArcanumKind() {
-	return pickContentOption({ title: "Create Arcanum", options: ARCANUM_KIND_OPTIONS });
+/**
+ * The first window's rows for this user, each ready for `runPickedOption`.
+ *
+ * A group's `create` opens its refine window on the rows this user may run. A group left with
+ * ONE such row is replaced by that row (its own label and hint), so no one is shown a window
+ * with a single choice in it; a group left with none is dropped.
+ *
+ * @param {boolean} isGM
+ * @param {{canArcana?: boolean}} [opts]  whether this user may author arcana (arcanaCreationGmOnly)
+ */
+export function contentOptionsFor(isGM, { canArcana = false } = {}) {
+	const allowed = row => (!row.gmOnly || isGM) && (!row.arcanum || canArcana);
+	return CONTENT_OPTIONS.flatMap(row => {
+		if (!row.refine) return allowed(row) ? [row] : [];
+		const rows = _dropBareHeadings(row.refine.filter(r => r.heading || allowed(r)));
+		const choosable = rows.filter(r => !r.heading);
+		if (choosable.length <= 1) return choosable;
+		return [{
+			...row,
+			create: async () => runPickedOption(choosable, await pickContentOption({ title: row.refineTitle, options: rows })),
+		}];
+	});
 }
 
 /**
@@ -152,7 +189,8 @@ function pickArcanumKind() {
  * reusable, draggable artifact rather than a bare document.
  */
 export async function openCreateStonetopContent() {
-	return runPickedOption(CONTENT_OPTIONS, await pickContentType());
+	const options = contentOptionsFor(!!game.user?.isGM, { canArcana: canCreateArcana() });
+	return runPickedOption(options, await pickContentOption({ title: "Create Stonetop Content", options }));
 }
 
 /** A reusable world move, saved where every character sheet can drag it. */
@@ -168,13 +206,15 @@ async function _openImprovement() {
 	openCreateImprovementDialog();
 }
 
-/** A reusable world inventory item. */
-async function _openInventoryItem() {
+/** A reusable world inventory item, or (`treasure`) a GM-only treasure with its write-up. */
+async function _openInventoryItem({ treasure = false } = {}) {
 	const { AddInventoryItemDialog, worldInventoryItemSaver } =
 		await import("../actors/character/dialogs/AddInventoryItemDialog.js");
-	new AddInventoryItemDialog(worldInventoryItemSaver(), {
+	new AddInventoryItemDialog(worldInventoryItemSaver({ treasure }), {
 		allowColumnChoice: true,
-		titleKey: "stonetop.inventory.createWorldItem",
+		allowImage: true,
+		treasure,
+		titleKey: treasure ? "stonetop.inventory.createTreasure" : "stonetop.inventory.createWorldItem",
 	}).render(true);
 }
 
@@ -231,44 +271,31 @@ async function openCreateSite() {
 }
 
 /**
- * Second-step Thing Below flow (Book II, The Things Below): pick which of the four creation
- * wizards to run. Thing + Corrupted Site resolve a threat SEED that becomes a draggable card
- * (dropped onto the GM Toolkit's Threats tab, like the plain Threat flow); Corrupted Being +
- * Emanation open the lighter corruption dialog, which creates a `monster` stat-block actor.
+ * Defensive gate (the chooser already hides the arcanum rows for non-authors): never author
+ * arcana for a player when arcanaCreationGmOnly is on, even if a flow is reached directly.
  */
-async function openCreateThingBelow() {
-	if (!game.user?.isGM) {
-		ui.notifications?.warn("Only the GM can create Things Below.");
-		return;
-	}
-	return runPickedOption(THING_BELOW_KIND_OPTIONS, await pickThingBelowKind());
+function _mayCreateArcana() {
+	if (canCreateArcana()) return true;
+	ui.notifications?.warn(game.i18n.localize("stonetop.arcana.createGmOnly"));
+	return false;
 }
 
 /**
- * Second-step Arcanum flow: start blank or from the inspiration wizard, then create a
- * standalone homebrew arcanum world Item and open its editor. Mirrors the
- * `game.stonetop.createArcanum` / `inspireArcanum` console helpers (see Ready.js): a
- * blank card, or the Artifact Creation wizard whose rolled results pre-fill the card
- * before the editor opens.
+ * A blank card, opened in the editor; its Identity page picks the tier. Mirrors the
+ * `game.stonetop.createArcanum` console helper (see Ready.js).
  */
-async function openCreateArcanum() {
-	// Defensive gate (the chooser already hides the Arcanum option for non-authors): never
-	// author arcana for a player when arcanaCreationGmOnly is on, even if this is reached directly.
-	if (!canCreateArcana()) {
-		ui.notifications?.warn(game.i18n.localize("stonetop.arcana.createGmOnly"));
-		return;
-	}
-	return runPickedOption(ARCANUM_KIND_OPTIONS, await pickArcanumKind());
-}
-
-/** A blank card, opened in the editor; its Identity page picks the tier. */
 async function _createBlankArcanum() {
+	if (!_mayCreateArcana()) return;
 	const { createArcanumItem } = await import("../item/createArcanum.js");
 	return createArcanumItem({ name: "New Arcanum", major: false });
 }
 
-/** The Artifact Creation wizard, whose rolled results pre-fill the card before the editor opens. */
+/**
+ * The Artifact Creation wizard, whose rolled results pre-fill the card before the editor opens.
+ * Mirrors the `game.stonetop.inspireArcanum` console helper (see Ready.js).
+ */
 async function _openArcanaInspire() {
+	if (!_mayCreateArcana()) return;
 	const { createArcanumItem } = await import("../item/createArcanum.js");
 	const { StonetopArcanaInspireDialog } = await import("../item/StonetopArcanaInspireDialog.js");
 	new StonetopArcanaInspireDialog({

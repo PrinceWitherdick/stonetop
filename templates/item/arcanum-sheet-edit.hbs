@@ -41,8 +41,8 @@
 				<option value="{{key}}" {{#if (eq key ../resource.maxStatValue)}}selected{{/if}}>{{abbr}}</option>
 				{{/each}}
 			</select></label>
-		<label class="stonetop-arc-row stonetop-arc-row--wide"><span>Stage labels (one per line)</span>
-			<textarea class="stonetop-arc-input" data-arc-field="{{prefix}}.labels" data-arc-type="lines" rows="2" placeholder="plenty&#10;low&#10;out">{{resource.labelsText}}</textarea></label>
+		<label class="stonetop-arc-row stonetop-arc-row--wide"><span>Circle labels (one line per circle; leave a line blank to skip one)</span>
+			<textarea class="stonetop-arc-input" data-arc-field="{{prefix}}.labels" data-arc-type="lines" rows="2" placeholder="&#10;low&#10;out">{{resource.labelsText}}</textarea></label>
 	</div>
 	{{/inline}}
 

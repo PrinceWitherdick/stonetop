@@ -4,14 +4,15 @@ import { ITEM_FLAG_SCOPE } from "../actors/character/StonetopFlags.js";
 import { centerArcanumTracks, wrapGlyphTextContainers, wrapStonetopGlyphsInEl } from "../utils/glyphs.js";
 import { markValueTooltips } from "../utils/value-tooltips.js";
 import { markDebilityTooltips } from "../utils/debility-tooltips.js";
-import { enrichHTML } from "../utils/foundry-compat.js";
+import { enrichHTML, compendiumSourceOf } from "../utils/foundry-compat.js";
 import { isInCompendium } from "../utils/compendium-edit-guard.js";
 import { applyGuideRail } from "../utils/guide-rail.js";
 import { wireGrowableFields, refitGrowableFields } from "../utils/growable-fields.js";
 import { isDefaultImg } from "../utils/strings.js";
 import { STAT_KEYS } from "../utils/roll-types.js";
+import { circleLabelsFromLines, circleLabelsToLines } from "../utils/gear-note.js";
 import { hasText } from "../actors/bestiary/codex.js";
-import { buildItemReadout } from "./item-readout.js";
+import { buildItemReadout, isGearItem } from "./item-readout.js";
 import { isArcanumData } from "./createArcanum.js";
 import { SYSTEM_ID } from "../system-id.js";
 import {
@@ -154,18 +155,58 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 				&& !isInCompendium(this.item);
 		}
 
-		async _render(force, options) {
-			if (this._isCustomMoveHandoff()) {
-				if (this._customMoveDialog?.rendered) {
-					this._customMoveDialog.bringToTop();
-					return;
-				}
-				const { CustomMoveDialog, worldMoveSaver } =
-					await import("../actors/character/dialogs/CustomMoveDialog.js");
-				this._customMoveDialog = new CustomMoveDialog(worldMoveSaver(), { item: this.item });
-				await this._customMoveDialog.render(true);
+		// Any loose WORLD inventory item or treasure its owner can edit, official or hand-made,
+		// is edited in the Create Item → Inventory Item / Treasure dialog. Not a compendium entry
+		// (a system pack is rebuilt from source, so an edit there would not last), and not a copy
+		// on an actor, which is the character sheet's to manage.
+		_canEditGear() {
+			return isGearItem(this.item)
+				&& !this.item.parent
+				&& !isInCompendium(this.item)
+				&& !!this.item.isOwner;
+		}
+
+		// A hand-made one has no card worth reading and opens straight into that dialog. Official
+		// content (the seeded Book II treasures, anything dragged out of a compendium) keeps its
+		// read-only card, the better surface for reading a write-up at the table, and gets an Edit
+		// button in the header instead (_getHeaderButtons).
+		_isInventoryHandoff() {
+			return this._canEditGear() && !compendiumSourceOf(this.item);
+		}
+
+		async _openInventoryEditor() {
+			if (this._authoringDialog?.rendered) {
+				this._authoringDialog.bringToTop();
 				return;
 			}
+			const { AddInventoryItemDialog, worldInventoryItemSaver } =
+				await import("../actors/character/dialogs/AddInventoryItemDialog.js");
+			this._authoringDialog = new AddInventoryItemDialog(worldInventoryItemSaver(), {
+				item: this.item, allowColumnChoice: true, allowImage: true,
+			});
+			await this._authoringDialog.render(true);
+		}
+
+		async _render(force, options) {
+			const handoff = this._isCustomMoveHandoff() || this._isInventoryHandoff();
+			// The dialog's own save updates the item, which re-renders every app registered on it,
+			// this never-drawn sheet included. Only an explicit open (force) may raise the dialog,
+			// or saving would bring it straight back.
+			if (handoff && !force) return;
+			// Only a handed-off item has no card of its own; an official item's card still opens
+			// while its editor is up.
+			if (handoff && this._authoringDialog?.rendered) {
+				this._authoringDialog.bringToTop();
+				return;
+			}
+			if (this._isCustomMoveHandoff()) {
+				const { CustomMoveDialog, worldMoveSaver } =
+					await import("../actors/character/dialogs/CustomMoveDialog.js");
+				this._authoringDialog = new CustomMoveDialog(worldMoveSaver(), { item: this.item });
+				await this._authoringDialog.render(true);
+				return;
+			}
+			if (this._isInventoryHandoff()) return this._openInventoryEditor();
 			return super._render(force, options);
 		}
 
@@ -187,6 +228,13 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 					class: "stonetop-arcanum-edit-toggle",
 					icon:  this._editMode ? "fas fa-eye" : "fas fa-pen-to-square",
 					onclick: () => this._toggleEditMode(),
+				});
+			} else if (this._canEditGear()) {
+				buttons.unshift({
+					label: "Edit",
+					class: "stonetop-gear-edit",
+					icon:  "fas fa-pen-to-square",
+					onclick: () => this._openInventoryEditor(),
 				});
 			}
 			return buttons;
@@ -356,7 +404,7 @@ export function createStonetopArcanumSheetClass(BaseItemSheet) {
 					max:          base.max ?? null,
 					maxStat:      base.maxStat ?? null,
 					maxStatValue: base.maxStat ?? "",
-					labelsText:   (base.labels ?? []).join("\n"),
+					labelsText:   circleLabelsToLines(base.labels),
 				};
 			};
 

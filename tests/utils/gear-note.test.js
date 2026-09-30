@@ -46,9 +46,14 @@ describe("gearNoteChips", () => {
 		expect(piercing.tooltip).toBe(GEAR_TERMS.piercing);
 	});
 
-	it("groups range, quality and bonus tags", () => {
+	it("groups range, weapon-tag, bonus and quality chips", () => {
 		const groups = new Set(gearNoteChips().map(c => c.group));
-		expect(groups).toEqual(new Set(["range", "tag", "bonus"]));
+		expect(groups).toEqual(new Set(["range", "tag", "bonus", "quality"]));
+	});
+
+	it("offers the qualities Book II's treasures are written in", () => {
+		const quality = gearNoteChips().filter(c => c.group === "quality").map(c => c.insert);
+		expect(quality).toEqual(expect.arrayContaining(["fragile", "magical", "beautiful", "indestructible"]));
 	});
 });
 

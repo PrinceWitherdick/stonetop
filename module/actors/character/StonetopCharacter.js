@@ -43,7 +43,7 @@ import {debilityData, walkItOffChoice} from "./walk-it-off.js";
 import {moveMarkBudget, markOptionCapNote} from "./move-mark-budget.js";
 import {markEntries, filledMarks, filledMarkCount, trimEmptyTail, oncePerLevelCautions, ONCE_PER_LEVEL_MARKS} from "./pfg-marks.js";
 import {MARK_STAT_CAPS} from "./stat-rules.js";
-import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
+import {StonetopFlags, STONETOP_SCOPE, ITEM_FLAG_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
 import {DEATHS_DOOR_FLAG, FINAL_CONSEQUENCE, UNSTOPPABLE, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, lostToTheGm, stateOnTakingInsert, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
 import {heroDisplayName, WBH_HERO_FLAG} from "./WouldBeHeroAsterisk.js";
 import {tookBackground} from "./took-background.js";
@@ -106,7 +106,7 @@ import {seasonLabel} from "../../seasons/seasons-change-reminders.js";
 import {moveChatCard, postMoveNote} from "../../utils/chat.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
 import {buildCustomMoveData, clampInt} from "../../utils/custom-move-data.js";
-import {buildInventoryItemData, readInventoryItemData} from "../../utils/inventory-item-data.js";
+import {buildInventoryItemData, readInventoryItemData, WRITEUP_EDITED_FLAG} from "../../utils/inventory-item-data.js";
 import {ARTIFACT_STATE, concealArtifactFields, isArtifactUpgrade, normalizeArtifactState} from "./artifact-identify.js";
 import {isLoveLetter} from "./love-letters.js";
 import {deriveLoadLevel, loadLimitsFor} from "../../utils/load.js";
@@ -1514,6 +1514,7 @@ export class StonetopCharacter {
 			// Persuade"), so the whisky reads as one phrase. Only grants carry it; write-ins
 			// pass no grant, so it stays null.
 			.withResourceSuffix(grant?.resourceSuffix ?? null)
+			.withResourceFirst(readInventoryItemData(item).resourceFirst)
 			.withIsCustom(true)
 			.withOwnedId(item._id)
 			.withTwoCol(false)
@@ -2740,6 +2741,7 @@ export class StonetopCharacter {
 			// re-planted without this kept its 2 armor and silently stopped buying "+1 Readiness
 			// on a Defend 7+", which is the whole reason the flag exists.
 			shield,
+			resourceFirst: read.resourceFirst,
 			moveType: "inventory-custom",
 			// A Book II treasure keeps its marker through the re-plant, so the gear tab can
 			// group it under "Treasures" rather than among the write-ins.
@@ -2751,6 +2753,11 @@ export class StonetopCharacter {
 			// the whole art pipeline visible only in the Items sidebar.
 			img: itemData?.img ?? null,
 		});
+		// A write-up the GM edited stays theirs on the sheet copy too: the load-time back-fill
+		// walks the copies in play as well as the sidebar (see WRITEUP_EDITED_FLAG).
+		if (itemData?.flags?.[ITEM_FLAG_SCOPE]?.[WRITEUP_EDITED_FLAG]) {
+			data.flags = { [ITEM_FLAG_SCOPE]: { [WRITEUP_EDITED_FLAG]: true } };
+		}
 		await this._actor.createEmbeddedDocuments("Item", [data]);
 	}
 

@@ -9107,8 +9107,11 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
    and Make a Monster: the rail switches which group of fields is shown above a pinned
    Save/Back/Next footer. Full-bleed flex column, so the rail + panel split fills the
    space above that footer and only the panel column scrolls. */
-.stonetop-custom-move-dialog.window-app { max-height: 92vh; }
-.stonetop-custom-move-dialog .window-content {
+/* The Add Item / Create Treasure dialog wears the same frame (AddInventoryItemDialog). */
+.stonetop-custom-move-dialog.window-app,
+.stonetop-add-item-dialog.window-app { max-height: 92vh; }
+.stonetop-custom-move-dialog .window-content,
+.stonetop-add-item-dialog .window-content {
 	padding: 0;
 	display: flex;
 	flex-direction: column;
@@ -9119,7 +9122,8 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
    Item dialogs (single-scroll forms that still want its padding + gap), so re-shape it
    into this dialog's flex frame here rather than changing the shared rule: the split
    and the footer are its only children, and each panel owns its own gap below. */
-.stonetop-custom-move-dialog .stonetop-custom-move-form {
+.stonetop-custom-move-dialog .stonetop-custom-move-form,
+.stonetop-add-item-dialog .stonetop-custom-move-form {
 	flex: 1 1 auto;
 	min-width: 0;
 	min-height: 0;
@@ -9533,6 +9537,40 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 .stonetop-add-item-armor-worn-hint.is-hidden { display: none; }
 /* Weight/armor apply to the regular Items column only; hidden for Small Items. */
 .stonetop-add-item-weight-block.is-hidden { display: none; }
+/* Things only a ○ track has (its label, the ammunition toggle) wait for a circle. */
+.stonetop-add-item-uses-only.is-hidden { display: none; }
+.stonetop-add-item-chip--quality { font-style: italic; }
+/* The two text fields that share a row with a number take the rest of it. */
+.stonetop-add-item-value-to,
+.stonetop-add-item-uses-label { flex: 1 1 auto; min-width: 0; }
+.stonetop-add-item-value-to input:disabled { opacity: 0.55; }
+
+/* Image well: a small square preview beside Choose / Clear. An empty preview keeps its
+   square as a dashed outline, so the row doesn't jump when art is picked. */
+.stonetop-add-item-img-row { display: flex; align-items: center; gap: 8px; }
+.stonetop-add-item-img-row button { flex: 0 0 auto; width: auto; }
+.stonetop-add-item-img-preview {
+	flex: 0 0 auto;
+	width: 48px;
+	height: 48px;
+	object-fit: contain;
+	border: 1px solid var(--color-border-light, #c9c0ad);
+	border-radius: var(--st-radius-sm, 4px);
+}
+.stonetop-add-item-img-preview.is-empty { border-style: dashed; }
+.stonetop-add-item-img-clear.is-hidden { display: none; }
+
+/* An always-on <prose-mirror>: core lays the host out as a flex column (toolbar, then an
+   `.editor-container` whose contenteditable is absolutely positioned inside it), so the host
+   needs a DEFINITE height for the container to have one. Same shape as the artifact
+   control's `.stonetop-artifact-rich`; search `.editor-container` for its siblings. */
+.stonetop-add-item-form .stonetop-add-item-rich {
+	height: 280px;
+	border: 1px solid var(--color-border-light, #c9c0ad);
+	border-radius: var(--st-radius-sm, 4px);
+	background: rgba(255, 255, 255, 0.5);
+	padding: 2px 4px;
+}
 
 /* Love letters (Book I p.568): a single-use, GM-authored move at the top of the Moves
    tab, given the steading Threat cards' warm "tan paper" treatment (shared --tc-* palette:
@@ -31376,8 +31414,8 @@ ul:has(> li.st-treasure-line:only-child) {
 	color: color-mix(in srgb, currentColor 75%, transparent);
 }
 
-/* The "Create Stonetop Content" chooser (Move / Steading Improvement / Threat) shown
-   from the sidebar Create Item button (module/dialogs/create-stonetop-content-dialog.js). */
+/* The shared "what do you want to make?" chooser (module/dialogs/content-picker.js), first
+   met as the sidebar Create Item button's "Create Stonetop Content" window. */
 .stonetop-content-picker {
 	display: flex;
 	flex-direction: column;
@@ -31430,6 +31468,19 @@ ul:has(> li.st-treasure-line:only-child) {
 .stonetop-content-picker-hint {
 	font-size: var(--st-fs-xs);
 	color: color-mix(in srgb, currentColor 65%, transparent);
+}
+
+/* A caption over the rows after it in a refine window ("Arcana", "The Things Below"). Not a
+   choice, so no border or radio: small caps and a rule, with room above to part it from the
+   rows before. */
+.stonetop-content-picker-heading {
+	margin-top: 6px;
+	padding-bottom: 2px;
+	border-bottom: 1px solid var(--st-border, color-mix(in srgb, currentColor 22%, transparent));
+	font-family: var(--font-stonetop);
+	font-variant: small-caps;
+	font-size: var(--st-fs-sm);
+	color: color-mix(in srgb, currentColor 75%, transparent);
 }
 
 /* Rollable die in a random table's "Roll" header (module/utils/journal-roll-tables.js).
@@ -33114,6 +33165,7 @@ th:has(> .stonetop-roll-table-btn) {
    dialog scrolling): same four declarations, so they share one rule. */
 .stonetop-wound-edit-dialog .stonetop-guide-main,
 .stonetop-custom-move-dialog .stonetop-guide-main,
+.stonetop-add-item-dialog .stonetop-guide-main,
 .stonetop-improvement-builder .stonetop-guide-main,
 .deaths-door-choices-main {
 	flex: 1 1 auto;

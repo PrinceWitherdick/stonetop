@@ -115,6 +115,9 @@ export class MoveModel extends foundry.abstract.TypeDataModel {
 			// 7+ to Defend" (p.216). Declared here or the field is silently dropped on save,
 			// which is how the armor field's absence hid for so long.
 			shield:          new fields.BooleanField({ required: false, initial: false }),
+			// Gear whose ○ track prints BEFORE its tags, as the book prints the bullseye lantern
+			// ("○○○○○ Oil, near"). The catalog carries it in flags; authored gear stores it here.
+			resourceFirst:   new fields.BooleanField({ required: false, initial: false }),
 			moveResults:     looseObject(),
 			markOptions:     new fields.ArrayField(new fields.ObjectField(), { required: false, initial: [] }),
 			// Repeat-scaling selection budget for `markOptions` moves: { base, perExtra }.
